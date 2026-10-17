@@ -20,6 +20,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
+#include "model/edits/learn_mapping.h"
 #include "model/song/song.h"
 
 void MenuItemWithCCLearning::unlearnAction() {
@@ -31,10 +32,9 @@ void MenuItemWithCCLearning::unlearnAction() {
 		if (!soundEditor.currentModControllable) {
 			return;
 		}
-		bool success = soundEditor.currentModControllable->unlearnKnobs(paramDescriptor, currentSong);
+		bool success = deluge::edits::unlearnKnobsFor(*soundEditor.currentModControllable, paramDescriptor);
 
 		if (success) {
-			deluge::gui::menu_item::recordControlsOf(*soundEditor.currentModControllable);
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_UNLEARNED));
 			view.setKnobIndicatorLevels();
 			soundEditor.markInstrumentAsEdited();
@@ -49,11 +49,20 @@ void MenuItemWithCCLearning::learnKnob(MIDICable* cable, int32_t whichKnob, int3
 		return;
 	}
 
-	bool success = soundEditor.currentModControllable->learnKnob(cable, paramDescriptor, whichKnob, modKnobMode,
-	                                                             midiChannel, currentSong);
+	bool success = false;
+	if (midiChannel >= 16) { // a mod knob: the owner's controls
+		success = soundEditor.currentModControllable->learnKnob(cable, paramDescriptor, whichKnob, modKnobMode,
+		                                                        midiChannel, currentSong);
+		if (success) {
+			deluge::gui::menu_item::recordControlsOf(*soundEditor.currentModControllable);
+		}
+	}
+	else { // a MIDI knob: the song's mapping table
+		success = deluge::edits::learnKnobFor(*soundEditor.currentModControllable, paramDescriptor, cable, whichKnob,
+		                                      midiChannel);
+	}
 
 	if (success) {
-		deluge::gui::menu_item::recordControlsOf(*soundEditor.currentModControllable);
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_LEARNED));
 		view.setKnobIndicatorLevels();
 		soundEditor.markInstrumentAsEdited();

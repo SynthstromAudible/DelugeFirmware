@@ -51,6 +51,7 @@
 #include "model/edits/clip_address_for.h"
 #include "model/edits/delete_param_automation.h"
 #include "model/edits/edit.h"
+#include "model/edits/learn_mapping.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
 #include "model/edits/setting_edit.h"
@@ -477,8 +478,9 @@ bool Song::completeBlankPreset(const deluge::storage::AcquireResult& acquired) {
 	const bool defaultSynthHasInput = blankPresetInstrument->midiInput.containsSomething();
 	const LearnedMIDI presetInput = acquired.instrument->midiInput;
 	replaceInstrument(blankPresetInstrument, acquired.instrument);
-	if (!defaultSynthHasInput) {
-		acquired.instrument->midiInput = presetInput;
+	if (!defaultSynthHasInput && acquired.instrument->id()) {
+		(void)deluge::edits::learnedMappingIn(*this, deluge::project::TrackInputTarget{*acquired.instrument->id()},
+		                                      presetInput);
 	}
 	blankPresetInstrument = nullptr;
 	blankPresetClip = nullptr;
@@ -1354,7 +1356,11 @@ void Song::adoptDrum(Drum* drum) {
 			deluge::bridge::syncSlotState(*sound, *d.instrument, *this);
 		}
 		d.controls = deluge::bridge::controlsOf(*sound); // its knobs are its record's from now on
-		deluge::bridge::recordSoundKnobs(*sound, *this);
+	}
+	// A row added to a running song brings the bindings its preset read. A song's own read leaves them to the sweep
+	// once every id is final.
+	if (!readingFromFile_) {
+		deluge::bridge::recordArrivingDrum(*drum, *this);
 	}
 }
 
@@ -1366,6 +1372,7 @@ void Song::removeDocDrum(Drum* drum) {
 	// current) may share its id.
 	if (drum->id() && project.drum_structure.find(*drum->id()) == drum->docDrum_) {
 		project.drum_structure.remove(*drum->id());
+		project.mappings.forget_drum(*drum->id());
 	}
 }
 
@@ -1399,8 +1406,12 @@ void Song::adoptOutput(Output* output) {
 	// A preset's samples load before it is added, and a kit's drums were bound while it was read: the record and the
 	// slot take what the runtime holds.
 	deluge::bridge::recordLoadedOutput(*output, *this);
-	// The output's knobs are its record's, and its learned knobs the song's table's.
+	// The output's knobs are its record's, and the bindings it brings the song's table's. A song's own read leaves
+	// those to the sweep once every id is final.
 	deluge::bridge::recordOutputControls(*output, *this);
+	if (!readingFromFile_) {
+		deluge::bridge::recordArrivingOutput(*output, *this);
+	}
 	deluge::bridge::recordOutputChain(*output, *this); // a kit's or an audio track's effects are its record's too
 }
 
@@ -1411,6 +1422,14 @@ void Song::removeDocOutput(Output* output) {
 	// Only the output's own record: an output of another song may share its id.
 	if (output->id() && project.output_structure.find(*output->id()) == output->docOutput_) {
 		project.output_structure.remove(*output->id());
+		project.mappings.forget_output(*output->id());
+		if (output->type == OutputType::KIT) { // a kit's rows go with it
+			for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next) {
+				if (drum->id()) {
+					project.mappings.forget_drum(*drum->id());
+				}
+			}
+		}
 	}
 }
 
@@ -3194,6 +3213,7 @@ void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRe
 		ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, this, clip);
 
 		clip->prepareForDestruction(modelStack, instrumentRemovalInstruction);
+		project.mappings.forget_clip(clip->id()); // its mute command goes with it
 
 		// The render may still hold the clip from block to block (currentClip, syncScalingClip, another clip's
 		// beingRecordedFromClip, the view's active timeline counter): it lets go of those at its next block, and only
@@ -3501,11 +3521,24 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 
 	Clip* favourClipForCloningParamManager = nullptr;
 
+	// The song's table follows each binding the runtime hands over below: the replacing instrument needs its id for
+	// that before it joins the model.
+	const bool tableFollows = !readingFromFile_ && oldOutput->id().has_value();
+	if (tableFollows && !newOutput->id()) {
+		newOutput->setId(generateNewOutputId());
+	}
+	// A kit's rows give their commands up to the clips' rows, and a new kit's rows take them: the table as it was names
+	// their devices.
+	const bool rowCommandsMove = oldOutput->type == OutputType::KIT || newOutput->type == OutputType::KIT;
+	const deluge::project::MappingTable mappingsBefore =
+	    tableFollows && rowCommandsMove ? project.mappings : deluge::project::MappingTable{};
+
 	// Migrate input MIDI channel / device. Putting this up here before any calls to changeInstrument() is good,
 	// because then if a default velocity is set, for the MIDIDevice, that gets grabbed by the Clip's ParamManager
 	// during that call.
 	((Instrument*)newOutput)->midiInput = ((Instrument*)oldOutput)->midiInput;
 	((Instrument*)oldOutput)->midiInput.clear();
+	bool knobsHandedOver = false;
 
 	// if we're replacing the same output type
 	if (newOutput->type == oldOutput->type) {
@@ -3527,12 +3560,14 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 					new_mca.midi_knobs.clear();
 					std::swap(new_mca.midi_knobs, old_mca->midi_knobs);
 					old_mca->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this);
-					// Both owners' controls records follow the knobs they have after the swap.
-					deluge::bridge::recordOutputControls(*oldOutput, *this);
-					deluge::bridge::recordOutputControls(*newOutput, *this);
+					knobsHandedOver = true;
 				}
 			}
 		}
+	}
+
+	if (tableFollows) {
+		deluge::bridge::handOverInstrument(*this, *oldOutput->id(), *newOutput->id(), knobsHandedOver);
 	}
 
 	Output* outputRecordingOldOutput = oldOutput->getOutputRecordingThis();
@@ -3588,6 +3623,11 @@ traverseClips:
 		goto traverseClips;
 	}
 
+	// The old kit's rows gave their commands up to the clips' rows.
+	if (tableFollows && oldOutput->type == OutputType::KIT) {
+		deluge::bridge::recordMovedDrumCommands(*static_cast<Kit*>(oldOutput), mappingsBefore, *this);
+	}
+
 	// Migrate all ClipInstances from oldInstrument to newInstrument
 	newOutput->clipInstances.swap(oldOutput->clipInstances);
 
@@ -3630,6 +3670,14 @@ traverseClips:
 	// The replacing instrument joins the model as an added one does.
 	if (!readingFromFile_) {
 		adoptOutput(newOutput);
+	}
+	if (tableFollows) {
+		// A hibernating instrument woken here was bound already: what it brings the table lacks goes in all the same.
+		deluge::bridge::recordArrivingOutput(*newOutput, *this);
+		if (newOutput->type == OutputType::KIT) { // its rows took the clips' rows' commands
+			deluge::bridge::recordMovedDrumCommands(*static_cast<Kit*>(newOutput), mappingsBefore, *this);
+		}
+		deluge::bridge::projectOutputMappings(*this, *newOutput->id());
 	}
 }
 
@@ -5601,6 +5649,7 @@ Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex)
 
 	// Give the new clip its stuff
 	newClip->cloneFrom(oldClip);
+	project.mappings.copy_clip_mute(oldClip->id(), newClip->id()); // the mute command it took
 	newClip->setColourOffset(random(72));
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);

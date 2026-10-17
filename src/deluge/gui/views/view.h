@@ -68,6 +68,10 @@ public:
 	void instrumentMidiLearnPadPressed(bool on, Instrument* instrument);
 	void sectionMidiLearnPadPressed(bool on, uint8_t section);
 	void commitSectionMidiLearn();
+	/// @brief Make the held thing's command @p learned: a song binding (a section's, a clip's or a kit row's mute, a
+	/// track's or a kit row's input) through the song's mapping table, a global command in place.
+	/// @param learned The command, or a cleared one to unlearn it.
+	void commitLearnedThing(const LearnedMIDI& learned);
 	void midiLearnFlash();
 	void setModLedStates();
 	int32_t getModKnobMode();
@@ -192,7 +196,10 @@ public:
 		       && sectionPressedForMidiLearn == section;
 	}
 	Instrument* instrumentPressedForMIDILearn{};
+	/// The kit row whose input or mute is held for learn.
 	Drum* drumPressedForMIDILearn{};
+	/// The clip whose mute is held for learn.
+	Clip* clipPressedForMIDILearn{};
 
 	// deceivingly this is used only while learning drums
 	Kit* kitPressedForMIDILearn{};

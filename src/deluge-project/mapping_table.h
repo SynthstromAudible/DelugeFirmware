@@ -98,11 +98,11 @@ public:
 	/// @param from The output whose entries move.
 	/// @param to The output that takes them.
 	void retarget_output(uint32_t from, uint32_t to);
-	/// @brief Copy output @p from's param entries to output @p to.
+	/// @brief Make output @p to's param entries copies of output @p from's: @p to's own are dropped first.
 	/// @param from The source output.
 	/// @param to The output that gets copies.
 	void copy_params(uint32_t from, uint32_t to);
-	/// @brief Copy clip @p from's mute entry to clip @p to.
+	/// @brief Make clip @p to's mute entry a copy of clip @p from's, or none when @p from has none.
 	/// @param from The source clip.
 	/// @param to The clip that gets the copy.
 	void copy_clip_mute(uint32_t from, uint32_t to);

@@ -18,7 +18,7 @@
 #include "model/mod_controllable/delay_type.h"
 #include "model/output.h"
 #include "model/project_bridge/chain_bridge.h"
-#include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -362,7 +362,7 @@ void cloneLeg(Song& song) {
 		return;
 	}
 	clone->cloneFrom(source);
-	deluge::bridge::recordOutputControls(*clone, song);
+	deluge::bridge::cloneOutputMappings(*source, *clone, song);
 	deluge::bridge::recordOutputChain(*clone, song);
 	const HostOwner to{.address = {.kind = ChainAddress::Kind::OUTPUT, .id = clone->id().value_or(0)}, .name = "clone"};
 	const deluge::project::FxChain* record = song.project.resolveChain(to.address);

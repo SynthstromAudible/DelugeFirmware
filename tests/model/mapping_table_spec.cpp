@@ -136,6 +136,25 @@ describe mapping_table("the song's mapping table", ${
 		expect(table.find(ClipMuteTarget{5})->source).to_equal(cc(0, 4));
 	});
 
+	it("replaces the copy target's own params, and copies nothing onto itself", _ {
+		MappingTable table;
+		table.learn(knob(cc(0, 1), out_param(1, 2)));
+		table.learn(knob(cc(0, 2), out_param(4, 2)));
+		table.learn(knob(cc(0, 3), out_param(4, 7)));
+		table.copy_params(1, 4);
+		table.copy_params(1, 1);
+		expect(table.entries().size()).to_equal(size_t{2});
+		expect(table.find(out_param(4, 2))->source).to_equal(cc(0, 1));
+		expect(table.find(out_param(4, 7))).to_equal(static_cast<const Mapping*>(nullptr));
+	});
+
+	it("copies a clip's absent mute as none", _ {
+		MappingTable table;
+		table.learn(Mapping{.source = cc(0, 4), .target = ClipMuteTarget{6}});
+		table.copy_clip_mute(5, 6);
+		expect(table.find(ClipMuteTarget{6})).to_equal(static_cast<const Mapping*>(nullptr));
+	});
+
 	it("forgets only the entries of what was deleted", _ {
 		MappingTable table;
 		table.learn(Mapping{.source = cc(0, 1), .target = ClipMuteTarget{1}});

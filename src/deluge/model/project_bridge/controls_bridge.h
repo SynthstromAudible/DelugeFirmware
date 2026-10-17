@@ -47,8 +47,8 @@ namespace deluge::bridge {
 [[nodiscard]] std::vector<deluge::project::ControllerMapping> controlsOf(::Sound& sound);
 
 /// @brief Set every output's, sound kit row's and the song's controls in the song's model from the runtime's mod
-/// knobs (a kit, an audio track and the song have none), and each one's learned knobs in the song's table from the
-/// runtime's (recordOwnerKnobs). Run once a song is loaded and after each save, as the slots are filled and refreshed.
+/// knobs (a kit, an audio track and the song have none). Run once a song is loaded and after each save, as the slots
+/// are filled and refreshed.
 /// @param song The song.
 void refreshControls(::Song& song);
 
@@ -88,9 +88,8 @@ void refreshControls(::Song& song);
 void applyControls(::ModControllableAudio& owner, bool isSound,
                    const std::vector<deluge::project::ControllerMapping>& controls);
 
-/// @brief Set @p output's own controls record (a synth's sound's mod knobs) and its learned knobs in the song's table
-/// from its runtime knobs, when it is bound in @p song: after a runtime step that moved knobs between owners (a preset
-/// change handing its learned knobs over, an audio track cloned from another).
+/// @brief Set @p output's own controls record (a synth's sound's mod knobs) from its runtime mod knobs, when it is
+/// bound in @p song.
 /// @param output The output.
 /// @param song   The song it belongs to.
 void recordOutputControls(::Output& output, ::Song& song);

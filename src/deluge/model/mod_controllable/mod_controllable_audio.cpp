@@ -47,6 +47,7 @@
 #include "model/mod_controllable/delay_type.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
 #include "model/song/song.h"
@@ -581,8 +582,9 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 			messageUsed = true;
 
 			// See if this message is evidence that the knob is not "relative"
-			if (value >= 16 && value < 112) {
+			if (value >= 16 && value < 112 && knob.relative) {
 				knob.relative = false;
+				deluge::bridge::knobNoLongerRelative(*this, knob, *modelStack->song);
 			}
 
 			int32_t modPos = 0;
@@ -680,8 +682,9 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 			messageUsed = true;
 
 			// See if this message is evidence that the knob is not "relative"
-			if (value >= 16 && value < 112) {
+			if (value >= 16 && value < 112 && knob.relative) {
 				knob.relative = false;
+				deluge::bridge::knobNoLongerRelative(*this, knob, *modelStackWithThreeMainThings->song);
 			}
 
 			int32_t modPos = 0;

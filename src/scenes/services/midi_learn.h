@@ -189,11 +189,14 @@ struct LearnTarget {
 	::LearnedMIDI* thing = nullptr;
 	/// @brief `instrumentPressedForMIDILearn` (`view.cpp:601`). Set only for `INSTRUMENT_INPUT`.
 	::Instrument* instrument = nullptr;
-	/// @brief `drumPressedForMIDILearn` (`view.cpp:582`). Set only for `DRUM_INPUT`.
+	/// @brief `drumPressedForMIDILearn` (`view.cpp:582`): the kit row whose input or mute this learns.
+	///        Set only for `DRUM_INPUT` and `NOTEROW_MUTE`.
 	::Drum* drum = nullptr;
 	/// @brief `kitPressedForMIDILearn` (`view.cpp:583`). Set only for `DRUM_INPUT`; legacy keeps it
 	///        purely so `grabVelocityToLevel…ForDrum` can search faster (`:566-567`).
 	::Kit* kit = nullptr;
+	/// @brief The clip whose mute this learns. Set only for `CLIP`.
+	::Clip* held_clip = nullptr;
 	/// @brief The song whose section this learns into. Set only for `SECTION`.
 	::Song* song = nullptr;
 	/// @brief The section index. Set only for `SECTION`.
@@ -201,7 +204,7 @@ struct LearnTarget {
 
 	/// @brief `View::sectionMidiLearnPadPressed`'s target: a scratch `LearnedMIDI` loaded from the
 	///        section's launch command in the song's `project.mappings`, which every write
-	///        to it is committed back to (`MidiLearn::commit_section`).
+	///        to it is committed back to (through the song's mapping table).
 	/// @param song    The song the section belongs to -- the scene's, since `scenes-currentSong`
 	///                forbids the global.
 	/// @param section The section index.

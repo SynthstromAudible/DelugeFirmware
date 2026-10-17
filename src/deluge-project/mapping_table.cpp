@@ -96,6 +96,10 @@ void MappingTable::retarget_output(uint32_t from, uint32_t to) {
 }
 
 void MappingTable::copy_params(uint32_t from, uint32_t to) {
+	if (from == to) {
+		return;
+	}
+	std::erase_if(entries_, [&](const Mapping& entry) { return is_output_param(entry.target, to); });
 	const size_t count = entries_.size();
 	for (size_t i = 0; i < count; i++) {
 		if (is_output_param(entries_[i].target, from)) {
@@ -107,8 +111,12 @@ void MappingTable::copy_params(uint32_t from, uint32_t to) {
 }
 
 void MappingTable::copy_clip_mute(uint32_t from, uint32_t to) {
+	if (from == to) {
+		return;
+	}
 	const Mapping* source = find(ClipMuteTarget{from});
 	if (source == nullptr) {
+		unlearn(ClipMuteTarget{to});
 		return;
 	}
 	Mapping copy = *source;

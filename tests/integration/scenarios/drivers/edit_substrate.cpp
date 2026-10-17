@@ -36,6 +36,7 @@
 #include "gui/menu_item/setting_edit.h"
 #include "io/midi/cable_types/usb_hosted.h"
 #include "model/drum/drum.h"
+#include "model/edits/learn_mapping.h"
 #include "model/edits/set_controls.h"
 #include "model/edits/set_dx_patch.h"
 #include "model/edits/set_effect_setting.h"
@@ -44,6 +45,7 @@
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
 #include "processing/audio_output.h"
@@ -778,9 +780,9 @@ void testKnobTargets(deluge::edits::Context& /*ctx*/) {
 	      "knobs: a cable depth's target leads back to its descriptor");
 }
 
-// A sound's knobs change through an Edit on its controller mappings: the runtime's mod knobs follow the record, the
-// song's table takes the learned MIDI knobs the runtime holds, and a learned knob keeps its takeover state through an
-// edit of another knob.
+// A sound's knobs change through an Edit on its controller mappings: the runtime's mod knobs follow the record, a MIDI
+// knob is learned into the song's table by its own Edit, and a learned knob keeps its takeover state and device
+// through an edit of the mod knobs.
 void testSetControls(deluge::edits::Context& ctx) {
 	namespace params = deluge::modulation::params;
 	using deluge::project::ControllerMapping;
@@ -805,7 +807,11 @@ void testSetControls(deluge::edits::Context& ctx) {
 			mapping.target = deluge::bridge::knobTargetOf(resonance, params::Kind::UNPATCHED_SOUND);
 		}
 	}
-	check(sound.learnKnob(nullptr, resonance, 74, 0, 0, &ctx.song), "controls: the runtime learns a MIDI knob");
+	deluge::edits::LearnMapping learnKnob{
+	    deluge::project::Mapping{.source = {.channel_or_zone = 0, .note_or_cc = 74},
+	                             .target = deluge::project::ParamTarget{
+	                                 address, deluge::bridge::knobTargetOf(resonance, params::Kind::UNPATCHED_SOUND)}}};
+	check(deluge::edits::apply(ctx, learnKnob) == Error::NONE, "controls: a MIDI knob is learned into the table");
 	deluge::edits::SetControls edit{address, controls};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "controls: a mapping list is applied");
 	check(sound.modKnobs[2][1].paramDescriptor == resonance, "controls: the runtime's mod knob follows");
@@ -830,8 +836,9 @@ void testSetControls(deluge::edits::Context& ctx) {
 	          && sound.midi_knobs[0].previousPosition == 77,
 	      "controls: the learned knob keeps its takeover state");
 
-	// A learned knob tied to a device keeps that very device through a record of its owner's knobs (a gold knob
-	// pressed): one the name lookup would not find again (a second controller of the same name) included.
+	// A learned knob tied to a device keeps that very device through a record of its owner's mod knobs (a gold knob
+	// pressed): one the name lookup would not find again (a second controller of the same name) included. The table's
+	// entry is left as it was learned.
 	static MIDICableUSBHosted twin;
 	twin.name = "Twin";
 	if (sound.midi_knobs.size() == 1) {
@@ -840,9 +847,8 @@ void testSetControls(deluge::edits::Context& ctx) {
 		check(deluge::edits::apply(ctx, again) == Error::NONE, "controls: the owner's own knobs are recorded");
 		check(sound.midi_knobs.size() == 1 && sound.midi_knobs[0].midiInput.cable == &twin,
 		      "controls: a learned knob keeps its device through a record of its owner's knobs");
-		const std::vector<deluge::project::Mapping> recorded = ctx.model.mappings.params_of(address);
-		check(recorded.size() == 1 && recorded[0].source.device && recorded[0].source.device->name == "Twin",
-		      "controls: the table names the knob's device");
+		check(ctx.model.mappings.params_of(address) == knobs, "controls: a mod knob edit leaves the table as it was");
+		sound.midi_knobs[0].midiInput.cable = nullptr; // back to what the table plays, for the song's later checks
 	}
 }
 
@@ -893,10 +899,13 @@ void testPresetChangeHandsOverKnobs(deluge::edits::Context& ctx) {
 	}
 	ParamDescriptor resonance;
 	resonance.setToHaveParamOnly(params::LOCAL_LPF_RESONANCE);
-	check(oldSound.learnKnob(nullptr, resonance, 71, 0, 0, &ctx.song), "handover: the old synth learns a knob");
-	deluge::edits::SetControls learn{*oldAddress, deluge::bridge::controlsOf(oldSound)};
-	check(deluge::edits::apply(ctx, learn) == Error::NONE && ctx.model.mappings.params_of(*oldAddress).size() == 1,
-	      "handover: the learn is recorded");
+	deluge::edits::LearnMapping learn{deluge::project::Mapping{
+	    .source = {.channel_or_zone = 0, .note_or_cc = 71},
+	    .target = deluge::project::ParamTarget{
+	        *oldAddress, deluge::bridge::knobTargetOf(resonance, params::Kind::UNPATCHED_SOUND)}}};
+	check(deluge::edits::apply(ctx, learn) == Error::NONE && ctx.model.mappings.params_of(*oldAddress).size() == 1
+	          && oldSound.midi_knobs.size() == 1,
+	      "handover: the old synth learns a knob");
 
 	ParamManagerForTimeline newParams;
 	Instrument* newSynth = StorageManager::createNewInstrument(OutputType::SYNTH, &newParams);
@@ -919,8 +928,7 @@ void testPresetChangeHandsOverKnobs(deluge::edits::Context& ctx) {
 	}
 }
 
-// An audio track cloned from another takes its learned knobs; recording the clone's controls makes its record hold
-// them.
+// An audio track cloned from another takes its learned knobs; the table copies them to the clone.
 void testClonedAudioTrackRecordsKnobs(deluge::edits::Context& ctx) {
 	namespace params = deluge::modulation::params;
 	AudioOutput* source = ctx.song.createNewAudioOutput();
@@ -936,14 +944,17 @@ void testClonedAudioTrackRecordsKnobs(deluge::edits::Context& ctx) {
 	}
 	ParamDescriptor volume;
 	volume.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_VOLUME);
-	check(source->learnKnob(nullptr, volume, 72, 0, 0, &ctx.song), "clone: the source track learns a knob");
-	deluge::edits::SetControls learn{*address, {}};
-	check(deluge::edits::apply(ctx, learn) == Error::NONE && ctx.model.mappings.params_of(*address).size() == 1,
-	      "clone: the learn is recorded");
+	deluge::edits::LearnMapping learn{
+	    deluge::project::Mapping{.source = {.channel_or_zone = 0, .note_or_cc = 72},
+	                             .target = deluge::project::ParamTarget{
+	                                 *address, deluge::bridge::knobTargetOf(volume, params::Kind::UNPATCHED_GLOBAL)}}};
+	check(deluge::edits::apply(ctx, learn) == Error::NONE && ctx.model.mappings.params_of(*address).size() == 1
+	          && source->midi_knobs.size() == 1,
+	      "clone: the source track learns a knob");
 	clone->cloneFrom(source);
 	check(deluge::harness::expectSongCoherent(ctx.song, "clone-before") != 0,
-	      "clone: a cloned track's record lags until recorded");
-	deluge::bridge::recordOutputControls(*clone, ctx.song);
+	      "clone: a cloned track's table entries lag until copied");
+	deluge::bridge::cloneOutputMappings(*source, *clone, ctx.song);
 	check(deluge::harness::expectSongCoherent(ctx.song, "clone") == 0,
 	      "clone: the cloned track's record holds the knob");
 }

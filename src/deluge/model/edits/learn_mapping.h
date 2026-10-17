@@ -6,8 +6,14 @@
 #include "deluge-project/mapping_table.h"
 #include "deluge-project/midi_command.h"
 #include "model/edits/edit.h"
+#include "modulation/params/param_descriptor.h"
 
 #include <utility>
+
+class LearnedMIDI;
+class MIDICable;
+class ModControllableAudio;
+class Song;
 
 namespace deluge::edits {
 
@@ -49,6 +55,38 @@ public:
 private:
 	deluge::project::MappingTarget target_;
 };
+
+/// @brief A gesture's write of @p learned as @p target's binding in @p song: LearnMapping of the command it holds, or
+/// UnlearnMapping when it holds nothing.
+/// @param song    The song.
+/// @param target  What the command controls.
+/// @param learned The command, as the gesture learned it.
+/// @return The Edit's result.
+Error learnedMappingIn(::Song& song, deluge::project::MappingTarget target, const ::LearnedMIDI& learned);
+
+/// @brief learnedMappingIn on the current song (no-op without a song).
+/// @param target  What the command controls.
+/// @param learned The command, as the gesture learned it.
+void learnedMappingFor(deluge::project::MappingTarget target, const ::LearnedMIDI& learned);
+
+/// @brief A menu's learn of a MIDI knob: @p cable's @p noteOrCC on @p channel turns @p param of @p owner. Through
+/// LearnMapping when @p owner holds controls of the current song; on @p owner's knob list alone otherwise.
+/// @param owner    The owner whose param the knob turns.
+/// @param param    The param.
+/// @param cable    The cable the knob was heard on.
+/// @param noteOrCC The CC number (128 for pitch bend).
+/// @param channel  The channel it was heard on.
+/// @return Whether the knob was learned.
+bool learnKnobFor(::ModControllableAudio& owner, ParamDescriptor param, ::MIDICable* cable, uint8_t noteOrCC,
+                  uint8_t channel);
+
+/// @brief A menu's unlearn of every MIDI knob on @p param of @p owner. Through UnlearnMapping when @p owner holds
+/// controls of the current song; on @p owner's knob list alone otherwise. A preset value no knob can reach any more is
+/// zeroed, as an unlearn always has.
+/// @param owner The owner.
+/// @param param The param.
+/// @return Whether any knob was unlearned.
+bool unlearnKnobsFor(::ModControllableAudio& owner, ParamDescriptor param);
 
 /// @brief A gesture's learn: @p source to @p target in the current song, through LearnMapping (no-op without a song).
 /// @param source The command learned.

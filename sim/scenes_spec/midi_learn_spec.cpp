@@ -1436,6 +1436,109 @@ describe midi_learn_reference("bridge::command_of: the device a learned command 
 		expect(command.device.has_value() ? static_cast<int32_t>(command.device->vendor_id) : 0).to_equal(int32_t{0x1234});
 	});
 });
+
+describe midi_learn_table("a pad's learn is the song's mapping table's, on both sides", $ {
+	before_each([] {
+		setRootUILowLevel(&stub_root_ui());
+		display = &stub_display();
+		(void)quiet_audio();
+		(void)cables();
+	});
+
+	// The command the table holds for a target, or an empty one.
+	auto held = [](::Song& song, const deluge::project::MappingTarget& target) {
+		const deluge::project::Mapping* entry = song.project.mappings.find(target);
+		return entry != nullptr ? entry->source : deluge::project::MidiCommand{};
+	};
+	// The command a learn of a note from a cable on a channel writes.
+	auto command = [](::MIDICable& cable, uint8_t channel, uint8_t note) {
+		::LearnedMIDI learned;
+		learned.cable = &cable;
+		learned.channelOrZone = channel;
+		learned.noteOrCC = note;
+		return deluge::bridge::command_of(learned);
+	};
+
+	it("CLIP: a learn writes the clip's mute entry, and a bare press and release unlearns it", _ {
+		static spec::SongFixture fixture = spec::make_synth_song();
+		const deluge::project::ClipMuteTarget target{fixture.clip->id()};
+
+		expect(reset_legacy_learn()).to_be_true();
+		view.startMIDILearn();
+		view.clipStatusMidiLearnPadPressed(true, fixture.clip);
+		view.noteOnReceivedForMidiLearn(cables().a, 4, 60, 127);
+		view.clipStatusMidiLearnPadPressed(false, fixture.clip);
+		expect(held(*fixture.song, target) == command(cables().a, 4, 60)).to_be_true();
+		view.clipStatusMidiLearnPadPressed(true, fixture.clip);
+		view.clipStatusMidiLearnPadPressed(false, fixture.clip);
+		expect(fixture.song->project.mappings.find(target) == nullptr).to_be_true();
+		expect(reset_legacy_learn()).to_be_true();
+
+		LearnRig rig;
+		rig.ml.set_song(fixture.song);
+		rig.ml.begin();
+		rig.ml.thing_pressed(LearnTarget::clip(*fixture.clip), true);
+		rig.ml.note_on_received(cables().b, 5, 61, 127);
+		rig.ml.thing_pressed(LearnTarget::clip(*fixture.clip), false);
+		expect(held(*fixture.song, target) == command(cables().b, 5, 61)).to_be_true();
+		rig.ml.thing_pressed(LearnTarget::clip(*fixture.clip), true);
+		rig.ml.thing_pressed(LearnTarget::clip(*fixture.clip), false);
+		expect(fixture.song->project.mappings.find(target) == nullptr).to_be_true();
+	});
+
+	it("NOTEROW_MUTE and DRUM_INPUT: a learn writes the kit row's mute and input entries", _ {
+		static spec::SongFixture fixture = spec::make_kit_song();
+		static SoundDrum* drum = spec::add_drum<SoundDrum>(fixture);
+		auto* const kit = static_cast<Kit*>(fixture.instrument);
+		NoteRow* const row = fixture.clip->getNoteRowForDrum(drum);
+		const deluge::project::DrumMuteTarget mute{*drum->id()};
+		const deluge::project::LaneInputTarget input{*drum->id()};
+
+		expect(reset_legacy_learn()).to_be_true();
+		view.startMIDILearn();
+		view.noteRowMuteMidiLearnPadPressed(true, row);
+		view.noteOnReceivedForMidiLearn(cables().a, 6, 40, 127);
+		view.noteRowMuteMidiLearnPadPressed(false, row);
+		view.drumMidiLearnPadPressed(true, drum, kit);
+		view.noteOnReceivedForMidiLearn(cables().a, 7, 41, 127);
+		view.drumMidiLearnPadPressed(false, drum, kit);
+		expect(held(*fixture.song, mute) == command(cables().a, 6, 40)).to_be_true();
+		expect(held(*fixture.song, input) == command(cables().a, 7, 41)).to_be_true();
+		expect(reset_legacy_learn()).to_be_true();
+
+		LearnRig rig;
+		rig.ml.set_song(fixture.song);
+		rig.ml.begin();
+		rig.ml.thing_pressed(LearnTarget::note_row_mute(*row), true);
+		rig.ml.thing_pressed(LearnTarget::note_row_mute(*row), false);
+		expect(fixture.song->project.mappings.find(mute) == nullptr).to_be_true();
+		rig.ml.thing_pressed(LearnTarget::drum_input(*drum, *kit), true);
+		rig.ml.note_on_received(cables().b, 8, 42, 127);
+		rig.ml.thing_pressed(LearnTarget::drum_input(*drum, *kit), false);
+		expect(held(*fixture.song, input) == command(cables().b, 8, 42)).to_be_true();
+	});
+
+	it("INSTRUMENT_INPUT: a learn writes the track's input entry, and a bare press and release unlearns it", _ {
+		static spec::SongFixture fixture = spec::make_synth_song();
+		const deluge::project::TrackInputTarget target{*fixture.instrument->id()};
+
+		expect(reset_legacy_learn()).to_be_true();
+		view.startMIDILearn();
+		view.instrumentMidiLearnPadPressed(true, fixture.instrument);
+		view.noteOnReceivedForMidiLearn(cables().a, 9, 50, 127);
+		view.instrumentMidiLearnPadPressed(false, fixture.instrument);
+		expect(held(*fixture.song, target) == command(cables().a, 9, 50)).to_be_true();
+		expect(reset_legacy_learn()).to_be_true();
+
+		LearnRig rig;
+		rig.ml.set_song(fixture.song);
+		rig.ml.begin();
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument), true);
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument), false);
+		expect(fixture.song->project.mappings.find(target) == nullptr).to_be_true();
+		expect(fixture.instrument->midiInput.containsSomething()).to_be_false();
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(midi_learn_spec, midi_learn_spec_body, midi_learn_reference)
+DELUGE_SPEC(midi_learn_spec, midi_learn_spec_body, midi_learn_reference, midi_learn_table)

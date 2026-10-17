@@ -24,7 +24,6 @@
 #include "model/instrument/kit.h"
 #include "model/output.h"
 #include "model/project_bridge/chain_bridge.h"
-#include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/song/song.h"
 #include "processing/audio_output.h"
@@ -63,23 +62,19 @@ std::vector<ControllerMapping> controlsOf(::Sound& sound) {
 }
 
 void refreshControls(::Song& song) {
-	using Kind = deluge::project::ControlsAddress::Kind;
 	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
-		if (output->docOutput_ == nullptr || !output->id()) {
+		if (output->docOutput_ == nullptr) {
 			continue;
 		}
-		const deluge::project::ControlsAddress address{Kind::OUTPUT, *output->id()};
 		switch (output->type) {
 		case OutputType::SYNTH: {
 			auto& sound = *static_cast<SoundInstrument*>(output);
 			output->docOutput_->controls = controlsOf(sound);
-			recordOwnerKnobs(address, sound, true, song);
 			break;
 		}
 		case OutputType::KIT: {
 			Kit* kit = static_cast<Kit*>(output);
 			output->docOutput_->controls.clear();
-			recordOwnerKnobs(address, *kit, false, song);
 			for (Drum* drum = kit->firstDrum; drum != nullptr; drum = drum->next) {
 				if (drum->type != DrumType::SOUND || !drum->id()) {
 					continue;
@@ -88,20 +83,17 @@ void refreshControls(::Song& song) {
 				if (deluge::project::DocDrum* record = song.project.drum_structure.find(*drum->id())) {
 					record->controls = controlsOf(sound);
 				}
-				recordOwnerKnobs({Kind::DRUM, *drum->id()}, sound, true, song);
 			}
 			break;
 		}
 		case OutputType::AUDIO:
 			output->docOutput_->controls.clear();
-			recordOwnerKnobs(address, *static_cast<AudioOutput*>(output), false, song);
 			break;
 		default:
 			break;
 		}
 	}
 	song.project.controls.clear();
-	recordOwnerKnobs({Kind::SONG, 0}, song.live.global_effectable, false, song);
 }
 
 ParamDescriptor descriptorOf(deluge::engine::ParamId target, params::Kind unpatchedKind) {
@@ -251,7 +243,6 @@ void recordOutputControls(::Output& output, ::Song& song) {
 		return;
 	}
 	*record = isSound ? controlsOf(static_cast<::Sound&>(*own)) : std::vector<ControllerMapping>{};
-	recordOwnerKnobs({deluge::project::ControlsAddress::Kind::OUTPUT, *output.id()}, *own, isSound, song);
 }
 
 deluge::project::CodecEngines codecEngines() {

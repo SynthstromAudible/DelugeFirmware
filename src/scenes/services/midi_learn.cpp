@@ -24,6 +24,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/edits/bend_range_for.h"
+#include "model/edits/learn_mapping.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/note/note_row.h"
@@ -39,6 +40,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 
 namespace deluge::scenes::services {
 
@@ -78,13 +80,46 @@ constexpr deluge::ui::LedId led(ButtonId b) {
 /// @brief The section learn's scratch command: legacy's `View::sectionLearnScratch`.
 ::LearnedMIDI g_section_scratch{};
 
-/// @brief `View::commitSectionMidiLearn`: write the scratch back to the section's record, when the
-///        held target is a section.
-void commit_section(const LearnTarget& target) {
-	if (target.kind == ::MidiLearn::SECTION && target.song != nullptr) {
-		deluge::bridge::setSectionCommand(target.song->project.mappings, target.section_index,
-		                                  deluge::bridge::command_of(*target.thing));
+/// @brief `View::commitLearnedThing`: make @p target's command @p learned. A song binding goes through
+///        the song's mapping table (a section's into its own song, the others into @p song); a global
+///        command, or a binding with no song or id to name it by, is written in place.
+/// @param target  The held target.
+/// @param song    The song the clip, kit row and track targets belong to, or null.
+/// @param learned The command, or a cleared one to unlearn it.
+void commit(const LearnTarget& target, ::Song* song, const ::LearnedMIDI& learned) {
+	std::optional<deluge::project::MappingTarget> mapping;
+	switch (target.kind) {
+	case ::MidiLearn::SECTION:
+		g_section_scratch = learned;
+		song = target.song;
+		mapping = deluge::project::SectionLaunchTarget{target.section_index};
+		break;
+	case ::MidiLearn::CLIP:
+		mapping = deluge::project::ClipMuteTarget{target.held_clip->id()};
+		break;
+	case ::MidiLearn::NOTEROW_MUTE:
+		if (target.drum->id()) {
+			mapping = deluge::project::DrumMuteTarget{*target.drum->id()};
+		}
+		break;
+	case ::MidiLearn::DRUM_INPUT:
+		if (target.drum->id()) {
+			mapping = deluge::project::LaneInputTarget{*target.drum->id()};
+		}
+		break;
+	case ::MidiLearn::INSTRUMENT_INPUT:
+		if (target.instrument->id()) {
+			mapping = deluge::project::TrackInputTarget{*target.instrument->id()};
+		}
+		break;
+	default:
+		break;
 	}
+	if (mapping && song != nullptr) {
+		(void)deluge::edits::learnedMappingIn(*song, *mapping, learned);
+		return;
+	}
+	*target.thing = learned;
 }
 
 /// @brief Does @p c already carry a learned message? `containsSomething()` (`view.cpp:821`).
@@ -108,7 +143,7 @@ LearnTarget LearnTarget::section(::Song& song, uint8_t section) {
 
 LearnTarget LearnTarget::clip(::Clip& clip) {
 	// `View::clipStatusMidiLearnPadPressed` (`view.cpp:551-553`).
-	return LearnTarget{.kind = ::MidiLearn::CLIP, .thing = &clip.muteMIDICommand};
+	return LearnTarget{.kind = ::MidiLearn::CLIP, .thing = &clip.muteMIDICommand, .held_clip = &clip};
 }
 
 LearnTarget LearnTarget::note_row_mute(::NoteRow& note_row) {
@@ -119,7 +154,8 @@ LearnTarget LearnTarget::note_row_mute(::NoteRow& note_row) {
 	if (note_row.drum == nullptr) {
 		return LearnTarget{};
 	}
-	return LearnTarget{.kind = ::MidiLearn::NOTEROW_MUTE, .thing = &note_row.drum->muteMIDICommand};
+	return LearnTarget{
+	    .kind = ::MidiLearn::NOTEROW_MUTE, .thing = &note_row.drum->muteMIDICommand, .drum = note_row.drum};
 }
 
 LearnTarget LearnTarget::drum_input(::Drum& drum, ::Kit& kit) {
@@ -226,7 +262,7 @@ void MidiLearn::release_pressed_thing() {
 			break;
 		case ::MidiLearn::DRUM_INPUT:
 			// `:572-573`.
-			pressed_.thing->clear();
+			commit(pressed_, song_, ::LearnedMIDI{});
 			if (::Instrument* const instrument = current_instrument(); instrument != nullptr) {
 				instrument->beenEdited(false);
 			}
@@ -235,7 +271,7 @@ void MidiLearn::release_pressed_thing() {
 			// `:589-591`. The `clearMelodicInstrumentMonoExpressionIfPossible()` at `:589` runs
 			// **before** the clear ("in case it gets stuck") and is not ported; see the class doc.
 			unported_[static_cast<size_t>(UnportedCall::ClearMonoExpression)]++;
-			pressed_.thing->clear();
+			commit(pressed_, song_, ::LearnedMIDI{});
 			// `:591` `instrument->beenEdited(false)` is legacy's *argument*, not
 			// `instrumentPressedForMIDILearn`. This uses the held target, which is the same object
 			// on every path that gets here (the kind matched, so the same pad is being released)
@@ -246,9 +282,8 @@ void MidiLearn::release_pressed_thing() {
 			}
 			break;
 		default:
-			// `CLIP`, `NOTEROW_MUTE`, `SECTION`: the bare clear, a section's committed to its record.
-			pressed_.thing->clear();
-			commit_section(pressed_);
+			// `CLIP`, `NOTEROW_MUTE`, `SECTION`: the bare clear.
+			commit(pressed_, song_, ::LearnedMIDI{});
 			break;
 		}
 	}
@@ -421,10 +456,11 @@ void MidiLearn::note_on_received(::MIDICable& cable, int32_t channel_or_zone, in
 	}
 	// The write every arm makes -- `:672-674` for the shared path, and `:730-732` again inside the
 	// `INSTRUMENT_INPUT` arm, which is the same three fields in a different order.
-	pressed_.thing->cable = &cable;
-	pressed_.thing->channelOrZone = channel_or_zone;
-	pressed_.thing->noteOrCC = note; // legacy's comment at `:732`: used for low note in kits
-	commit_section(pressed_);
+	::LearnedMIDI learned;
+	learned.cable = &cable;
+	learned.channelOrZone = channel_or_zone;
+	learned.noteOrCC = note; // legacy's comment at `:732`: used for low note in kits
+	commit(pressed_, song_, learned);
 
 	if (pressed_.kind == ::MidiLearn::INSTRUMENT_INPUT && pressed_.instrument != nullptr) {
 		pressed_.instrument->beenEdited(false); // `:733` -- legacy's own comment: "Why again?"
@@ -454,8 +490,10 @@ void MidiLearn::cc_received(::MIDICable& cable, int32_t channel, int32_t cc, int
 		    && pressed_.thing->channelOrZone == MIDI_CHANNEL_NONE) { // `:778`
 			// Legacy's comment: but only if the user hasn't already started learning MPE stuff, or
 			// regular note-ons.
-			pressed_.thing->cable = &cable;          // `:779`
-			pressed_.thing->channelOrZone = channel; // `:780`
+			::LearnedMIDI learned = *pressed_.thing;
+			learned.cable = &cable;          // `:779`
+			learned.channelOrZone = channel; // `:780`
+			commit(pressed_, song_, learned);
 			if (::Instrument* const instrument = current_instrument(); instrument != nullptr) {
 				instrument->beenEdited(false); // `:781`
 			}

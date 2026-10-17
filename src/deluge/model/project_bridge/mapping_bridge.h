@@ -17,9 +17,9 @@
 
 #pragma once
 
-// The song's MIDI-learned bindings as the runtime reads and edits them: what a load read into the table, an owner's
-// learned knobs mirrored from its runtime list, the sections' launch commands, and the table's entries projected onto
-// the engine fields that play them.
+// The song's MIDI-learned bindings as the runtime reads and edits them: what a load read into the table, what an owner
+// arriving in a running song brings, the table's side of the runtime's structural steps (a preset change, a clone, a
+// kit change), the sections' launch commands, and the table's entries projected onto the engine fields that play them.
 
 #include "definitions_cxx.hpp" // Error
 #include "deluge-project/controller_mapping.h"
@@ -29,15 +29,18 @@
 #include <cstdint>
 #include <vector>
 
+class Drum;
+class Kit;
+class MIDIKnob;
 class ModControllableAudio;
-class Sound;
+class Output;
 class Song;
 
 namespace deluge::bridge {
 
 /// @brief Put a binding a load read into @p song's table: it replaces its target's entry.
 /// @param song    The song being loaded.
-/// @param mapping The binding, not a knob (recordOwnerKnobs records those).
+/// @param mapping The binding, not a knob.
 void recordLoadedMapping(::Song& song, const deluge::project::Mapping& mapping);
 
 /// @brief The runtime's learned knobs of @p knobs as @p owner's table entries, in the runtime's order.
@@ -48,20 +51,52 @@ void recordLoadedMapping(::Song& song, const deluge::project::Mapping& mapping);
 [[nodiscard]] std::vector<deluge::project::Mapping> knobsOf(deluge::project::ControlsAddress owner,
                                                             const ::ModControllableAudio& knobs, bool isSound);
 
-/// @brief Make @p owner's knobs in @p song's table the runtime's learned knobs of @p knobs, in the runtime's order,
-/// each with its relative flag; they take the place the owner's knobs held.
-/// @param owner   Whose knobs.
-/// @param knobs   The runtime owner holding them.
-/// @param isSound Whether @p knobs is a sound (its unpatched params are a sound's).
-/// @param song    The song whose table takes them.
-void recordOwnerKnobs(deluge::project::ControlsAddress owner, const ::ModControllableAudio& knobs, bool isSound,
-                      ::Song& song);
+/// @brief Put into @p song's table each binding @p output brings into it that the table holds nothing for: its learned
+/// knobs, its input, and a kit's rows' knobs, mutes and inputs, as the runtime read them.
+/// @param output An output joining @p song, with its id.
+/// @param song   The song it joins.
+void recordArrivingOutput(::Output& output, ::Song& song);
 
-/// @brief Make @p sound's knobs in @p song's table its runtime's learned knobs (recordOwnerKnobs), when it is bound
-/// as a synth track's or a kit row's sound.
-/// @param sound The sound.
-/// @param song  The song it belongs to.
-void recordSoundKnobs(::Sound& sound, ::Song& song);
+/// @brief Put into @p song's table each binding @p drum brings into it that the table holds nothing for: a sound row's
+/// learned knobs, its mute and its input, as the runtime read them.
+/// @param drum A kit row joining @p song, with its id.
+/// @param song The song it joins.
+void recordArrivingDrum(::Drum& drum, ::Song& song);
+
+/// @brief Give output @p to copies of output @p from's learned knobs in @p song's table (in place of its own), and
+/// project them onto @p to's knob list, as an audio track cloned from another takes its knobs.
+/// @param from The output cloned from.
+/// @param to   The clone.
+/// @param song The song both belong to.
+void cloneOutputMappings(const ::Output& from, ::Output& to, ::Song& song);
+
+/// @brief Hand output @p from's bindings to output @p to in @p song's table, as a preset change hands the replaced
+/// instrument's over: its input always, its learned knobs too when @p knobs. What @p to held of either is dropped.
+/// @param song  The song.
+/// @param from  The replaced instrument's id.
+/// @param to    The replacing instrument's id.
+/// @param knobs Whether the learned knobs move too.
+void handOverInstrument(::Song& song, uint32_t from, uint32_t to, bool knobs);
+
+/// @brief Project the table's learned knobs and input of output @p output onto its engine fields.
+/// @param song   The song.
+/// @param output The output's id.
+void projectOutputMappings(::Song& song, uint32_t output);
+
+/// @brief Make @p kit's rows' mutes and inputs in @p song's table what the runtime holds after it moved them between
+/// rows (a kit change gives a replaced kit's row commands to the new kit's rows). A row's command keeps the source an
+/// entry of @p before gave it, so a device the runtime could not name stays named.
+/// @param kit    The kit whose rows' commands moved.
+/// @param before The table as it was before the move.
+/// @param song   The song.
+void recordMovedDrumCommands(::Kit& kit, const deluge::project::MappingTable& before, ::Song& song);
+
+/// @brief Clear the relative flag of @p knob's entry in @p song's table: a CC value only an absolute controller sends
+/// arrived on it. A plain table write, run from the MIDI input path.
+/// @param owner The knob's owner.
+/// @param knob  The knob, its own flag already cleared.
+/// @param song  The song @p owner belongs to.
+void knobNoLongerRelative(::ModControllableAudio& owner, const ::MIDIKnob& knob, ::Song& song);
 
 /// @brief Fill @p song's table from every binding its runtime read, once a load has read the song and given each
 /// output and drum its id: the sections' commands it already holds stay first, then the song's knobs, then each

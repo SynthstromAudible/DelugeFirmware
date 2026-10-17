@@ -65,6 +65,7 @@
 #include "model/edits/bend_range_for.h"
 #include "model/edits/delete_param_automation.h"
 #include "model/edits/edit.h"
+#include "model/edits/learn_mapping.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
 #include "model/instrument/cv_instrument.h"
@@ -101,6 +102,7 @@
 #include "util/note_editor_open.h"
 #include "util/shell_menu_entry.h"
 #include <iterator>
+#include <optional>
 
 namespace params = deluge::modulation::params;
 namespace encoders = deluge::hid::encoders;
@@ -519,16 +521,51 @@ void View::sectionMidiLearnPadPressed(bool on, uint8_t section) {
 	}
 	else if (thingPressedForMidiLearn == MidiLearn::SECTION) {
 		if (deleteMidiCommandOnRelease) {
-			learnedThing->clear();
-			commitSectionMidiLearn();
+			commitLearnedThing(LearnedMIDI{});
 		}
 		endMidiLearnPressSession();
 	}
 }
 
 void View::commitSectionMidiLearn() {
-	deluge::bridge::setSectionCommand(currentSong->project.mappings, sectionPressedForMidiLearn,
-	                                  deluge::bridge::command_of(sectionLearnScratch));
+	deluge::edits::learnedMappingFor(deluge::project::SectionLaunchTarget{sectionPressedForMidiLearn},
+	                                 sectionLearnScratch);
+}
+
+void View::commitLearnedThing(const LearnedMIDI& learned) {
+	std::optional<deluge::project::MappingTarget> target;
+	switch (thingPressedForMidiLearn) {
+	case MidiLearn::SECTION:
+		sectionLearnScratch = learned;
+		commitSectionMidiLearn();
+		return;
+	case MidiLearn::CLIP:
+		target = deluge::project::ClipMuteTarget{clipPressedForMIDILearn->id()};
+		break;
+	case MidiLearn::NOTEROW_MUTE:
+		if (drumPressedForMIDILearn->id()) {
+			target = deluge::project::DrumMuteTarget{*drumPressedForMIDILearn->id()};
+		}
+		break;
+	case MidiLearn::DRUM_INPUT:
+		if (drumPressedForMIDILearn->id()) {
+			target = deluge::project::LaneInputTarget{*drumPressedForMIDILearn->id()};
+		}
+		break;
+	case MidiLearn::INSTRUMENT_INPUT:
+		if (instrumentPressedForMIDILearn->id()) {
+			target = deluge::project::TrackInputTarget{*instrumentPressedForMIDILearn->id()};
+		}
+		break;
+	default: // a global command: the device's, not the song's
+		break;
+	}
+	if (target) {
+		deluge::edits::learnedMappingFor(*target, learned);
+	}
+	else {
+		*learnedThing = learned;
+	}
 }
 
 void View::clipStatusMidiLearnPadPressed(bool on, Clip* whichClip) {
@@ -536,10 +573,11 @@ void View::clipStatusMidiLearnPadPressed(bool on, Clip* whichClip) {
 		endMidiLearnPressSession(MidiLearn::CLIP);
 		deleteMidiCommandOnRelease = true;
 		learnedThing = &whichClip->muteMIDICommand;
+		clipPressedForMIDILearn = whichClip;
 	}
 	else if (thingPressedForMidiLearn == MidiLearn::CLIP) {
 		if (deleteMidiCommandOnRelease) {
-			learnedThing->clear();
+			commitLearnedThing(LearnedMIDI{});
 		}
 		endMidiLearnPressSession();
 	}
@@ -550,10 +588,11 @@ void View::noteRowMuteMidiLearnPadPressed(bool on, NoteRow* whichNoteRow) {
 		endMidiLearnPressSession(MidiLearn::NOTEROW_MUTE);
 		deleteMidiCommandOnRelease = true;
 		learnedThing = &whichNoteRow->drum->muteMIDICommand;
+		drumPressedForMIDILearn = whichNoteRow->drum;
 	}
 	else if (thingPressedForMidiLearn == MidiLearn::NOTEROW_MUTE) {
 		if (deleteMidiCommandOnRelease) {
-			learnedThing->clear();
+			commitLearnedThing(LearnedMIDI{});
 		}
 		endMidiLearnPressSession();
 	}
@@ -571,7 +610,7 @@ void View::drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit) {
 
 	else if (thingPressedForMidiLearn == MidiLearn::DRUM_INPUT) {
 		if (deleteMidiCommandOnRelease) {
-			learnedThing->clear();
+			commitLearnedThing(LearnedMIDI{});
 			getCurrentInstrument()->beenEdited(false);
 		}
 		endMidiLearnPressSession();
@@ -589,7 +628,7 @@ void View::instrumentMidiLearnPadPressed(bool on, Instrument* instrument) {
 	else if (thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT) {
 		if (deleteMidiCommandOnRelease) {
 			clearMelodicInstrumentMonoExpressionIfPossible(); // In case it gets "stuck".
-			learnedThing->clear();
+			commitLearnedThing(LearnedMIDI{});
 			instrument->beenEdited(false);
 		}
 		endMidiLearnPressSession();
@@ -670,15 +709,14 @@ void View::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, i
 			// No break
 
 		default:
-recordDetailsOfLearnedThing:
-
-			learnedThing->cable = &cable;
-			learnedThing->channelOrZone = channelOrZone;
-			learnedThing->noteOrCC = note;
-			if (thingPressedForMidiLearn == MidiLearn::SECTION) {
-				commitSectionMidiLearn();
-			}
-			break;
+recordDetailsOfLearnedThing: {
+	LearnedMIDI learned;
+	learned.cable = &cable;
+	learned.channelOrZone = channelOrZone;
+	learned.noteOrCC = note;
+	commitLearnedThing(learned);
+	break;
+}
 
 		case MidiLearn::INSTRUMENT_INPUT:
 
@@ -736,9 +774,11 @@ isMPEZone:
 			// when doing the "learn MPE input" multi-finger trick.
 			clearMelodicInstrumentMonoExpressionIfPossible();
 
-			learnedThing->channelOrZone = channelOrZone;
-			learnedThing->cable = &cable;
-			learnedThing->noteOrCC = note;                    // used for low note in kits
+			LearnedMIDI learned;
+			learned.channelOrZone = channelOrZone;
+			learned.cable = &cable;
+			learned.noteOrCC = note; // used for low note in kits
+			commitLearnedThing(learned);
 			instrumentPressedForMIDILearn->beenEdited(false); // Why again?
 
 			if (instrumentPressedForMIDILearn->type == OutputType::SYNTH) {
@@ -785,8 +825,10 @@ void View::ccReceivedForMIDILearn(MIDICable& cable, int32_t channel, int32_t cc,
 
 				// But only if user hasn't already started learning MPE stuff... Or regular note-ons...
 				if (learnedThing->channelOrZone == MIDI_CHANNEL_NONE) {
-					learnedThing->cable = &cable;
-					learnedThing->channelOrZone = channel;
+					LearnedMIDI learned = *learnedThing;
+					learned.cable = &cable;
+					learned.channelOrZone = channel;
+					commitLearnedThing(learned);
 					getCurrentInstrument()->beenEdited(false);
 				}
 			}

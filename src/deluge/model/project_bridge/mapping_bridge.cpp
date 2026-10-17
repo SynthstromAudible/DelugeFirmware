@@ -31,6 +31,7 @@
 #include "processing/sound/sound_instrument.h"
 
 #include <algorithm>
+#include <optional>
 #include <type_traits>
 #include <variant>
 
@@ -44,11 +45,30 @@ using deluge::project::MidiCommand;
 
 namespace {
 
-/// Record @p learned as @p target's binding, when it holds something.
+/// Record @p learned as @p target's binding, when it holds something and the table holds nothing for @p target.
 void recordLearned(::Song& song, const LearnedMIDI& learned, deluge::project::MappingTarget target) {
-	if (learned.containsSomething()) {
+	if (learned.containsSomething() && song.project.mappings.find(target) == nullptr) {
 		recordLoadedMapping(song, Mapping{.source = command_of(learned), .target = target});
 	}
+}
+
+/// Record @p knobs' learned knobs as @p owner's, when the table holds none for @p owner.
+void recordKnobs(ControlsAddress owner, const ::ModControllableAudio& knobs, bool isSound, ::Song& song) {
+	if (song.project.mappings.params_of(owner).empty()) {
+		song.project.mappings.set_params(owner, knobsOf(owner, knobs, isSound));
+	}
+}
+
+/// Record @p drum's bindings: a sound row's knobs, its mute and its input.
+void recordDrumBindings(Drum& drum, ::Song& song) {
+	if (!drum.id()) {
+		return;
+	}
+	if (drum.type == DrumType::SOUND) {
+		recordKnobs({ControlsAddress::Kind::DRUM, *drum.id()}, *static_cast<SoundDrum*>(&drum), true, song);
+	}
+	recordLearned(song, drum.muteMIDICommand, deluge::project::DrumMuteTarget{*drum.id()});
+	recordLearned(song, drum.midiInput, deluge::project::LaneInputTarget{*drum.id()});
 }
 
 /// Record @p output's bindings: its own knobs, its input, and a kit's rows' knobs, mutes and inputs.
@@ -59,13 +79,13 @@ void recordOutputBindings(Output& output, ::Song& song) {
 	const ControlsAddress address{ControlsAddress::Kind::OUTPUT, *output.id()};
 	switch (output.type) {
 	case OutputType::SYNTH:
-		recordOwnerKnobs(address, *static_cast<SoundInstrument*>(&output), true, song);
+		recordKnobs(address, *static_cast<SoundInstrument*>(&output), true, song);
 		break;
 	case OutputType::KIT:
-		recordOwnerKnobs(address, *static_cast<Kit*>(&output), false, song);
+		recordKnobs(address, *static_cast<Kit*>(&output), false, song);
 		break;
 	case OutputType::AUDIO:
-		recordOwnerKnobs(address, *static_cast<AudioOutput*>(&output), false, song);
+		recordKnobs(address, *static_cast<AudioOutput*>(&output), false, song);
 		return; // an audio track has no MIDI input
 	default:
 		break;
@@ -75,15 +95,36 @@ void recordOutputBindings(Output& output, ::Song& song) {
 		return;
 	}
 	for (Drum* drum = static_cast<Kit&>(output).firstDrum; drum != nullptr; drum = drum->next) {
-		if (!drum->id()) {
+		recordDrumBindings(*drum, song);
+	}
+}
+
+/// Whether @p a and @p b play the same command from the same cable.
+bool sameLearned(const LearnedMIDI& a, const LearnedMIDI& b) {
+	return a.cable == b.cable && a.channelOrZone == b.channelOrZone && a.noteOrCC == b.noteOrCC;
+}
+
+/// Make @p target's entry the command @p field holds after the runtime moved it there. Its source is the one an entry
+/// of
+/// @p before played it with (@p target's own first), so a device the runtime could not name stays named; failing that,
+/// what @p field names.
+void recordMovedCommand(MappingTable& mappings, const MappingTable& before,
+                        const deluge::project::MappingTarget& target, const LearnedMIDI& field) {
+	if (!field.containsSomething()) {
+		mappings.unlearn(target);
+		return;
+	}
+	const Mapping* played = nullptr;
+	for (const Mapping& entry : before.entries()) {
+		if (std::holds_alternative<deluge::project::ParamTarget>(entry.target)
+		    || !sameLearned(learned_of(entry.source), field)) {
 			continue;
 		}
-		if (drum->type == DrumType::SOUND) {
-			recordOwnerKnobs({ControlsAddress::Kind::DRUM, *drum->id()}, *static_cast<SoundDrum*>(drum), true, song);
+		if (played == nullptr || entry.target == target) {
+			played = &entry;
 		}
-		recordLearned(song, drum->muteMIDICommand, deluge::project::DrumMuteTarget{*drum->id()});
-		recordLearned(song, drum->midiInput, deluge::project::LaneInputTarget{*drum->id()});
 	}
+	mappings.learn(Mapping{.source = played != nullptr ? played->source : command_of(field), .target = target});
 }
 
 /// The output of @p song, playing or hibernating, whose id is @p id, or nullptr.
@@ -183,13 +224,75 @@ std::vector<Mapping> knobsOf(ControlsAddress owner, const ::ModControllableAudio
 	return entries;
 }
 
-void recordOwnerKnobs(ControlsAddress owner, const ::ModControllableAudio& knobs, bool isSound, ::Song& song) {
-	song.project.mappings.set_params(owner, knobsOf(owner, knobs, isSound));
+void recordArrivingOutput(::Output& output, ::Song& song) {
+	recordOutputBindings(output, song);
 }
 
-void recordSoundKnobs(::Sound& sound, ::Song& song) {
-	if (const std::optional<ControlsAddress> owner = controlsAddressOf(sound)) {
-		recordOwnerKnobs(*owner, sound, true, song);
+void recordArrivingDrum(::Drum& drum, ::Song& song) {
+	recordDrumBindings(drum, song);
+}
+
+void cloneOutputMappings(const ::Output& from, ::Output& to, ::Song& song) {
+	if (!from.id() || !to.id()) {
+		return;
+	}
+	song.project.mappings.copy_params(*from.id(), *to.id());
+	(void)projectMapping(song, deluge::project::ParamTarget{{ControlsAddress::Kind::OUTPUT, *to.id()}, {}});
+	rebuildMappingIndex(song);
+}
+
+void handOverInstrument(::Song& song, uint32_t from, uint32_t to, bool knobs) {
+	MappingTable& mappings = song.project.mappings;
+	if (knobs) {
+		mappings.retarget_output(from, to);
+		return;
+	}
+	const Mapping* input = mappings.find(deluge::project::TrackInputTarget{from});
+	const std::optional<MidiCommand> source = input != nullptr ? std::optional{input->source} : std::nullopt;
+	mappings.unlearn(deluge::project::TrackInputTarget{to});
+	mappings.unlearn(deluge::project::TrackInputTarget{from});
+	if (source) {
+		mappings.learn(Mapping{.source = *source, .target = deluge::project::TrackInputTarget{to}});
+	}
+}
+
+void projectOutputMappings(::Song& song, uint32_t output) {
+	// An owner with no knob list (a MIDI or CV track) or no input (an audio track) refuses its half: nothing to play.
+	(void)projectMapping(song, deluge::project::ParamTarget{{ControlsAddress::Kind::OUTPUT, output}, {}});
+	(void)projectMapping(song, deluge::project::TrackInputTarget{output});
+	rebuildMappingIndex(song);
+}
+
+void recordMovedDrumCommands(::Kit& kit, const MappingTable& before, ::Song& song) {
+	for (Drum* drum = kit.firstDrum; drum != nullptr; drum = drum->next) {
+		if (!drum->id()) {
+			continue;
+		}
+		recordMovedCommand(song.project.mappings, before, deluge::project::DrumMuteTarget{*drum->id()},
+		                   drum->muteMIDICommand);
+		recordMovedCommand(song.project.mappings, before, deluge::project::LaneInputTarget{*drum->id()},
+		                   drum->midiInput);
+	}
+	rebuildMappingIndex(song);
+}
+
+void knobNoLongerRelative(::ModControllableAudio& owner, const ::MIDIKnob& knob, ::Song& song) {
+	const std::optional<ControlsAddress> address = controlsAddressOf(owner, song);
+	if (!address) {
+		return;
+	}
+	bool isSound = false;
+	if (controlsOwnerAt(song, *address, &isSound) != &owner) {
+		return;
+	}
+	const deluge::project::MappingTarget target = deluge::project::ParamTarget{
+	    *address,
+	    knobTargetOf(knob.paramDescriptor, isSound ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL)};
+	const MidiCommand source = command_of(knob.midiInput);
+	for (Mapping& entry : song.project.mappings.entries()) {
+		if (entry.target == target && entry.source == source) {
+			entry.relative = false;
+		}
 	}
 }
 
@@ -201,7 +304,7 @@ void recordLoadedMappings(::Song& song) {
 		}
 	}
 	song.project.mappings = std::move(read);
-	recordOwnerKnobs({ControlsAddress::Kind::SONG, 0}, song.live.global_effectable, false, song);
+	recordKnobs({ControlsAddress::Kind::SONG, 0}, song.live.global_effectable, false, song);
 	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
 		recordOutputBindings(*output, song);
 	}
