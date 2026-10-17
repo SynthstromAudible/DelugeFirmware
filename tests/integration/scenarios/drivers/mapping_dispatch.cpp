@@ -34,6 +34,8 @@
 /// starts matching, and stops when it is unplugged; an any-device binding matches every cable; a hibernated kit's rows
 /// and knobs stop matching and match again once it wakes; a session clip reordered and a kit row removed are offered
 /// at their new places. Each change reaches the index through the step the app loop takes before it matches a message.
+/// The table writes the render holds land, in order, through every rebuild; an app-loop clone writes the table at once;
+/// a write held for a song a swap replaced never lands on the incoming one.
 ///
 /// No arguments. Prints `MAPPING-DISPATCH cases=<n> mismatches=<m> ...` and a line per leg, and exits 0 when no
 /// message's hits differ, every kind of hit was seen and every leg held.
@@ -888,8 +890,8 @@ Output* engineClone(Song& song, Output& from) {
 /// play at once, the table and the device list are untouched until the app loop's refresh, and the refresh leaves the
 /// table as a clone on the app loop would. The tick's own entry point (AudioClip::cloneOutput) is reached only by
 /// linear recording starting on a pending overdub, so the leg makes the same calls it makes: a new audio track with its
-/// source's engine knobs, then cloneOutputMappingsLater. A full queue falls back to recording the clone's knobs from
-/// its engine.
+/// source's engine knobs, then cloneOutputMappings, inside the render block. A full queue falls back to recording the
+/// clone's knobs from its engine.
 std::string cloneLeg(Stage& s) {
 	Output* from = nullptr;
 	for (Output* o = s.song.live.media.first_output; o != nullptr && from == nullptr; o = o->next) {
@@ -931,7 +933,9 @@ std::string cloneLeg(Stage& s) {
 	expected.copy_params(*from->id(), *to->id());
 	const std::vector<Mapping> before{s.song.project.mappings.entries().begin(),
 	                                  s.song.project.mappings.entries().end()};
-	deluge::bridge::cloneOutputMappingsLater(*from, *to);
+	deluge::memory::noteRenderBlock(true); // the song's tick, on the render
+	deluge::bridge::cloneOutputMappings(*from, *to, s.song);
+	deluge::memory::noteRenderBlock(false);
 	bool isSound = false;
 	ModControllableAudio* toEngine = deluge::bridge::controlsOwnerAt(s.song, toKnobs, &isSound);
 	if (what.empty()
@@ -986,10 +990,12 @@ std::string cloneLeg(Stage& s) {
 		what = "no second clone";
 	}
 	if (what.empty()) {
+		deluge::memory::noteRenderBlock(true);
 		for (size_t i = 0; i < deluge::bridge::kPendingMappingOps; i++) {
-			deluge::bridge::cloneOutputMappingsLater(*to, *to);
+			deluge::bridge::cloneOutputMappings(*to, *to, s.song);
 		}
-		deluge::bridge::cloneOutputMappingsLater(*from, *overflowed);
+		deluge::bridge::cloneOutputMappings(*from, *overflowed, s.song);
+		deluge::memory::noteRenderBlock(false);
 		refresh(what);
 		ModControllableAudio* engine =
 		    deluge::bridge::controlsOwnerAt(s.song, {ControlsAddress::Kind::OUTPUT, *overflowed->id()}, &isSound);
@@ -1056,7 +1062,7 @@ std::string renderWritesLeg(Stage& s) {
 	}
 	if (what.empty()) {
 		deluge::memory::noteRenderBlock(true);
-		deluge::bridge::cloneOutputMappingsLater(*from, *to);
+		deluge::bridge::cloneOutputMappings(*from, *to, s.song);
 		deluge::bridge::forgetOutputMappings(s.song, *to->id());
 		deluge::memory::noteRenderBlock(false);
 		refresh(what);
@@ -1064,6 +1070,126 @@ std::string renderWritesLeg(Stage& s) {
 			what = "a clone held before a forget of it left its knobs in the table";
 		}
 	}
+	return what;
+}
+
+/// A rebuild of the index made directly (a preset change projects its new instrument and rebuilds) while the render
+/// holds a write leaves nothing waiting: the held write lands and the index is current, so the next refresh has
+/// nothing to do and offers nothing the write dropped.
+std::string rebuildDrainsLeg(Stage& s) {
+	Clip* clip = s.song.live.clips.session_clips[0];
+	const deluge::project::ClipMuteTarget mute{clip->id()};
+	if (!learn(s.song, Mapping{.source = {.channel_or_zone = 12, .note_or_cc = 50}, .target = mute})) {
+		return "a learn was refused";
+	}
+	std::string what;
+	refresh(what);
+	deluge::memory::noteRenderBlock(true); // the song's tick, on the render
+	deluge::bridge::forgetClipMappings(s.song, clip->id());
+	deluge::memory::noteRenderBlock(false);
+	deluge::bridge::projectOutputMappings(s.song, *s.synth.id());
+	if (what.empty() && deluge::mappingIndexStale()) {
+		what = "a direct rebuild left the index marked stale";
+	}
+	if (what.empty() && s.song.project.mappings.find(mute) != nullptr) {
+		what = "a direct rebuild left a held write waiting: the forgotten clip's mute command is still in the table";
+	}
+	refresh(what);
+	if (what.empty() && s.song.project.mappings.find(mute) != nullptr) {
+		what = "a held write was stranded past the refresh: the forgotten clip's mute command is still in the table";
+	}
+	if (what.empty() && hitOn(commandHits(*s.cables[0], 12, 50), mute)) {
+		what = "the index still offers the forgotten clip's mute command";
+	}
+
+	// The rebuild itself, with no writer before it to apply the held write.
+	if (what.empty() && !learn(s.song, Mapping{.source = {.channel_or_zone = 12, .note_or_cc = 50}, .target = mute})) {
+		what = "a second learn was refused";
+	}
+	refresh(what);
+	deluge::memory::noteRenderBlock(true);
+	deluge::bridge::forgetClipMappings(s.song, clip->id());
+	deluge::memory::noteRenderBlock(false);
+	deluge::midi::rebuildMappingIndex(s.song);
+	refresh(what);
+	if (what.empty() && s.song.project.mappings.find(mute) != nullptr) {
+		what = "a rebuild cleared the stale mark over a held write: the forgotten clip's mute command is still in the "
+		       "table";
+	}
+	return what;
+}
+
+/// An overdub's clone of an audio track made on the app loop (linear recording begun by the record or play button,
+/// through Session::resetPlayPos) writes the table at once: the queue is the render's alone. The leg makes the calls
+/// AudioClip::cloneOutput makes, on the app loop.
+std::string appLoopCloneLeg(Stage& s) {
+	Output* from = nullptr;
+	for (Output* o = s.song.live.media.first_output; o != nullptr && from == nullptr; o = o->next) {
+		if (o->type == OutputType::AUDIO) {
+			from = o;
+		}
+	}
+	if (from == nullptr) {
+		return "no audio track to clone";
+	}
+	const ControlsAddress fromKnobs{ControlsAddress::Kind::OUTPUT, *from->id()};
+	const deluge::project::ParamTarget knob{fromKnobs,
+	                                        knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)};
+	if (!learn(s.song, Mapping{.source = {.channel_or_zone = 13, .note_or_cc = 40}, .target = knob})) {
+		return "a learn was refused";
+	}
+	std::string what;
+	refresh(what);
+	Output* to = engineClone(s.song, *from);
+	if (to == nullptr) {
+		return "no clone";
+	}
+	const ControlsAddress toKnobs{ControlsAddress::Kind::OUTPUT, *to->id()};
+	MappingTable expected = s.song.project.mappings;
+	expected.copy_params(*from->id(), *to->id());
+	deluge::bridge::cloneOutputMappings(*from, *to, s.song);
+	if (what.empty() && s.song.project.mappings.params_of(toKnobs) != expected.params_of(toKnobs)) {
+		what = "a clone on the app loop was held for the refresh: the table does not hold the clone's knobs at once";
+	}
+	refresh(what);
+	if (what.empty()
+	    && !hitOn(knobHits(toKnobs, *s.cables[0], 13, 40), deluge::project::ParamTarget{toKnobs, knob.param})) {
+		what = "the index does not offer the clone's knob";
+	}
+	return what;
+}
+
+/// A write the render held for the outgoing song never lands on the incoming one, even when the tick makes it after
+/// the swap dropped the queue and before the incoming song is current.
+std::string songSwapLeg(Stage& s) {
+	Clip* clip = s.song.live.clips.session_clips[0];
+	const deluge::project::ClipMuteTarget mute{clip->id()};
+	const Mapping command{.source = {.channel_or_zone = 11, .note_or_cc = 52}, .target = mute};
+	if (!learn(s.song, command)) {
+		return "a learn was refused";
+	}
+	std::string what;
+	refresh(what);
+	Song* incoming = loadSong(kSongText, stderr);
+	currentSong = &s.song;
+	if (incoming == nullptr) {
+		return "the incoming song did not load";
+	}
+	incoming->project.mappings.learn(command); // the same clip id, learned in the incoming song too
+	// The swap's own steps, with the song's tick between dropping the queue and the incoming song becoming current.
+	deluge::bridge::discardPendingMappingOps();
+	deluge::memory::noteRenderBlock(true);
+	deluge::bridge::forgetClipMappings(s.song, clip->id());
+	deluge::memory::noteRenderBlock(false);
+	currentSong = incoming;
+	deluge::markMappingIndexStale();
+	refresh(what);
+	if (what.empty() && incoming->project.mappings.find(mute) == nullptr) {
+		what = "a write the render held for the outgoing song landed on the incoming one";
+	}
+	currentSong = &s.song;
+	deluge::markMappingIndexStale();
+	refresh(what);
 	return what;
 }
 
@@ -1087,7 +1213,7 @@ int32_t runLegs(const Fixture& f, std::array<MIDICable*, 2> cables, deluge::scen
 	const bool differentiating = MIDIDeviceManager::differentiatingInputsByDevice;
 	MIDIDeviceManager::differentiatingInputsByDevice = true;
 	Stage stage{song, *kit, *synth, cables};
-	constexpr std::array<std::pair<const char*, std::string (*)(Stage&)>, 7> kLegs{{
+	constexpr std::array<std::pair<const char*, std::string (*)(Stage&)>, 10> kLegs{{
 	    {"late-device", lateDeviceLeg},
 	    {"any-device", anyDeviceLeg},
 	    {"hibernation", hibernationLeg},
@@ -1095,6 +1221,9 @@ int32_t runLegs(const Fixture& f, std::array<MIDICable*, 2> cables, deluge::scen
 	    {"row-removed", rowRemovedLeg},
 	    {"clone", cloneLeg},
 	    {"render-writes", renderWritesLeg},
+	    {"rebuild-drains", rebuildDrainsLeg},
+	    {"app-loop-clone", appLoopCloneLeg},
+	    {"song-swap", songSwapLeg},
 	}};
 	int32_t failures = 0;
 	for (const auto& [name, leg] : kLegs) {

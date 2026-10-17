@@ -1828,6 +1828,9 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	// song's table follows each row. A song's own read leaves that to the sweep once every id is final.
 	const bool rowCommandsMove = !modelStack->song->isReadingFromFile()
 	                             && (oldInstrument->type == OutputType::KIT || newInstrument->type == OutputType::KIT);
+	if (rowCommandsMove) {
+		deluge::bridge::applyPendingMappingOps(*modelStack->song); // the table as it was includes the render's writes
+	}
 	const deluge::project::MappingTable mappingsBefore =
 	    rowCommandsMove ? modelStack->song->project.mappings : deluge::project::MappingTable{};
 	const std::vector<uint32_t> oldRows = deluge::bridge::rowIdsOf(oldInstrument);

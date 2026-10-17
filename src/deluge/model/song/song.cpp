@@ -3538,6 +3538,9 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 	// A kit's rows give their commands up to the clips' rows, and a new kit's rows take them: the table as it was names
 	// their devices.
 	const bool rowCommandsMove = oldOutput->type == OutputType::KIT || newOutput->type == OutputType::KIT;
+	if (tableFollows && rowCommandsMove) {
+		deluge::bridge::applyPendingMappingOps(*this); // the table as it was includes the writes the render held
+	}
 	const deluge::project::MappingTable mappingsBefore =
 	    tableFollows && rowCommandsMove ? project.mappings : deluge::project::MappingTable{};
 	const std::vector<uint32_t> oldRows = deluge::bridge::rowIdsOf(oldOutput);

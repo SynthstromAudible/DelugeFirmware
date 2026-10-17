@@ -222,8 +222,9 @@ private:
 MappingIndex& mappingIndex();
 
 /// @brief [task] Bring the index into line with @p song's mapping table, when @p song is the current song. Excludes the
-/// render only while it copies what it reads of the song, then builds and swaps the index in. Allocates: never from the
-/// audio tier, where markMappingIndexStale() stands in for it.
+/// render only while it applies the table writes the render held (bridge::applyPendingMappingOps) and copies what it
+/// reads of the song, then builds and swaps the index in. Allocates: never from the audio tier, where
+/// markMappingIndexStale() stands in for it.
 /// @param song The song whose table changed.
 void rebuildMappingIndex(::Song& song);
 

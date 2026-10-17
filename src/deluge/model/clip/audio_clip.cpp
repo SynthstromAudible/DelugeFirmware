@@ -337,9 +337,9 @@ bool AudioClip::cloneOutput(ModelStackWithTimelineCounter* modelStack) {
 	}
 
 	newOutput->cloneFrom((AudioOutput*)output);
-	// The learned knobs it cloned: on the song's tick, which may be the audio tier, the table takes them on the app
-	// loop.
-	deluge::bridge::cloneOutputMappingsLater(*output, *newOutput);
+	// The learned knobs it cloned: from the song's tick, the table takes them on the app loop; from the app loop (the
+	// record or play button beginning linear recording), at once.
+	deluge::bridge::cloneOutputMappings(*output, *newOutput, *modelStack->song);
 	deluge::bridge::recordOutputChain(*newOutput, *modelStack->song); // and the effects
 
 	newOutput->wasCreatedForAutoOverdub = true;

@@ -202,6 +202,9 @@ void rebuildMappingIndex(::Song& song) {
 		// The song's tick (on the audio tier) can splice the lists the snapshot copies: an auto-overdub's output, say.
 		// Only the copy holds the render off; the index is built from it after.
 		AudioExcludedSection section;
+		// The table writes the render held land first, in this section: the render cannot hold another before the
+		// stale mark is cleared, so the mark never clears over a held write.
+		bridge::applyPendingMappingOps(song);
 		// Cleared before the copy, so a change marked after it is not lost.
 		mapping_index_detail::mapping_index_stale.store(false, std::memory_order_release);
 		snapshot = MappingSnapshot::of(song.project.mappings, song);

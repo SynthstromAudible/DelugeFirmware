@@ -65,15 +65,18 @@ void recordArrivingOutput(::Output& output, ::Song& song);
 /// @param song The song it joins.
 void recordArrivingDrum(::Drum& drum, ::Song& song);
 
-/// @brief Give output @p to copies of output @p from's learned knobs in @p song's table (in place of its own), and
-/// project them onto @p to's knob list, as an audio track cloned from another takes its knobs.
+/// @brief [task] [audio] Give output @p to copies of output @p from's learned knobs in @p song's table (in place of its
+/// own), and project them onto @p to's knob list, as an audio track cloned from another takes its knobs: at once on the
+/// app loop, held for it on the render (an auto-overdub's clone on the song's tick), whose engine knobs, copied with
+/// the rest of the output, play meanwhile.
 /// @param from The output cloned from.
 /// @param to   The clone.
 /// @param song The song both belong to.
 void cloneOutputMappings(const ::Output& from, ::Output& to, ::Song& song);
 
 /// @brief Whether the caller is the render (the song's tick included), which never writes the mapping table: a table
-/// write it makes is held for the app loop (applyPendingMappingOps).
+/// write it makes to the current song's is held for the app loop (applyPendingMappingOps). The render is the queue's
+/// only producer; the app loop writes the table itself.
 /// @return True on the audio tier, or inside the host's render block.
 [[nodiscard]] bool onRenderTier();
 
@@ -81,14 +84,6 @@ void cloneOutputMappings(const ::Output& from, ::Output& to, ::Song& song);
 /// the table into line with what the song holds (drops entries of owners gone, records what owners play that it holds
 /// nothing for).
 inline constexpr size_t kPendingMappingOps = 32;
-
-/// @brief [audio] [task] Clone output @p from's learned knobs onto output @p to in the current song's table later, on
-/// the app loop, as cloneOutputMappings() does: an auto-overdub clones its audio track on the song's tick. Allocates
-/// nothing; marks the mapping index stale. The clone's engine knobs, copied with the rest of the output, play
-/// meanwhile.
-/// @param from The output cloned from, with its id.
-/// @param to   The clone, with its id.
-void cloneOutputMappingsLater(const ::Output& from, const ::Output& to);
 
 /// @brief [audio] [task] Drop clip @p clip's mute command from @p song's table: at once on the app loop, held for it on
 /// the render (a pending overdub deleted on the song's tick).
@@ -107,9 +102,9 @@ void forgetOutputMappings(::Song& song, uint32_t output);
 /// @param drum The row's id.
 void forgetDrumMappings(::Song& song, uint32_t drum);
 
-/// @brief [task] Apply, in order and with the render excluded, the table writes the render held for @p song. Run by
-/// the refresh of the mapping index and before an app-loop write to the table, so a write the render made first lands
-/// first.
+/// @brief [task] Apply, in order and with the render excluded, the table writes the render held for @p song; those it
+/// held for another song (one a swap replaced) are dropped. Run by every rebuild of the mapping index and before an
+/// app-loop write to the table, so a write the render made first lands first.
 /// @param song The current song.
 void applyPendingMappingOps(::Song& song);
 
