@@ -28,7 +28,9 @@
 #include "processing/engines/audio_engine.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/nodes/roots.h"
+#include "scenes/menu/nodes/sound_actions.h"
 #include "scenes/menu/nodes/sound_arp.h"
+#include "scenes/menu/nodes/sound_voice.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
 #include "support/song_fixture.h"
@@ -659,6 +661,24 @@ describe song_settings_edit("SetSetting", $ {
 		expect(lane.has_value()).to_be_true();
 		expect(static_cast<int>(drum->docDrum_->arp->num_octaves)).to_equal(4);
 		expect(static_cast<int>(drum->arpSettings.numOctaves)).to_equal(4);
+	});
+
+	it("records a synth's polyphony, voice count and MIDI output channel set from the scenes", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		f.song->setCurrentClip(f.clip);
+		const auto ctx = deluge::scenes::menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		const deluge::instrument::SoundState* state = ctx.sound->boundState();
+		expect(state != nullptr).to_be_true();
+		deluge::scenes::menu::nodes::set_polyphony(ctx, static_cast<int32_t>(PolyphonyMode::LEGATO));
+		expect(state->polyphonic == PolyphonyMode::LEGATO).to_be_true();
+		deluge::scenes::menu::nodes::set_voice_count(ctx, 5);
+		expect(static_cast<int>(state->max_voice_count)).to_equal(5);
+		deluge::scenes::menu::nodes::set_voice_count(ctx, 0);
+		expect(static_cast<int>(state->max_voice_count)).to_equal(127);
+		deluge::scenes::menu::nodes::set_output_midi_channel(ctx, 4);
+		expect(static_cast<int>(state->output_midi_channel)).to_equal(3);
+		deluge::scenes::menu::nodes::set_output_midi_channel(ctx, 0);
+		expect(static_cast<int>(state->output_midi_channel)).to_equal(static_cast<int>(MIDI_CHANNEL_NONE));
 	});
 });
 // clang-format on

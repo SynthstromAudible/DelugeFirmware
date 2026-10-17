@@ -26,6 +26,7 @@
 #include "scenes/menu/context.h"
 
 #include "definitions_cxx.hpp"
+#include "engines/deluge/words.h"
 #include "model/clip/audio_clip.h"
 #include "model/edits/setting_edit.h"
 #include "processing/sound/sound.h"
@@ -98,12 +99,15 @@ int32_t get_polyphony(const MenuContext& ctx) {
 }
 
 void set_polyphony(const MenuContext& ctx, int32_t value) {
-	bindings::apply_to_targets(ctx, value, 0,
-	                           [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		                           if (t.sound != nullptr) {
-			                           t.sound->polyphonic = static_cast<PolyphonyMode>(v); // `:105`, `:110`
-		                           }
-	                           });
+	bindings::apply_to_targets(
+	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
+		    if (t.sound != nullptr) {
+			    deluge::edits::settingFor(
+			        *t.sound, "polyphonic",
+			        deluge::serialization::Value::makeScalar(
+			            std::string(deluge::instrument::to_string(static_cast<PolyphonyMode>(v))))); // `:105`, `:110`
+		    }
+	    });
 }
 
 int32_t get_voice_count(const MenuContext& ctx) {
@@ -120,16 +124,16 @@ void set_voice_count(const MenuContext& ctx, int32_t value) {
 	// `VoiceCount::writeCurrentValue` (`polyphony.h:33-54`): 0 means unlimited, stored as 127. The
 	// affect-entire sweep filters to polyphonic drums *inside* the loop, where legacy filters it.
 	const int32_t stored = value == 0 ? 127 : value;
-	bindings::apply_to_targets(ctx, stored, 0,
-	                           [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		                           if (t.sound == nullptr) {
-			                           return;
-		                           }
-		                           if (t.whole_kit && t.sound->polyphonic != PolyphonyMode::POLY) {
-			                           return; // `polyphony.h:44-46`
-		                           }
-		                           t.sound->maxVoiceCount = static_cast<uint8_t>(v);
-	                           });
+	bindings::apply_to_targets(
+	    ctx, stored, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
+		    if (t.sound == nullptr) {
+			    return;
+		    }
+		    if (t.whole_kit && t.sound->polyphonic != PolyphonyMode::POLY) {
+			    return; // `polyphony.h:44-46`
+		    }
+		    deluge::edits::settingFor(*t.sound, "maxVoices", deluge::serialization::Value::makeNumber(v));
+	    });
 }
 
 namespace {

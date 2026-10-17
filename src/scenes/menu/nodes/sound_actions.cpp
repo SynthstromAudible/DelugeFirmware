@@ -26,7 +26,9 @@
 #include "scenes/menu/context.h"
 
 #include "definitions_cxx.hpp"
+#include "model/edits/setting_edit.h"
 #include "processing/sound/sound.h"
+#include "serialization/value.h"
 
 namespace deluge::scenes::menu::nodes {
 
@@ -81,12 +83,12 @@ void set_output_midi_channel(const MenuContext& ctx, int32_t value) {
 	// `OutputMidiChannel::writeCurrentValue` (`channel.h:37-64`), the inverse mapping then the
 	// affect-entire kit loop.
 	const int32_t stored = value == 0 ? MIDI_CHANNEL_NONE : value - 1;
-	bindings::apply_to_targets(ctx, stored, 0,
-	                           [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		                           if (t.sound != nullptr) {
-			                           t.sound->outputMidiChannel = static_cast<uint8_t>(v);
-		                           }
-	                           });
+	bindings::apply_to_targets(
+	    ctx, stored, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
+		    if (t.sound != nullptr) {
+			    deluge::edits::settingFor(*t.sound, "midiOutput/channel", deluge::serialization::Value::makeNumber(v));
+		    }
+	    });
 }
 
 int32_t get_output_midi_note(const MenuContext& ctx) {

@@ -66,6 +66,31 @@ PLANTED = {
 }
 
 
+class SoundSettingWrites(unittest.TestCase):
+    def check(self, line: str) -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "planted.cpp").write_text(f"void gesture() {{\n\t{line}\n}}\n")
+            return csm.calls(root)
+
+    def test_a_raw_write_of_a_voice_or_midi_output_field_is_reported(self):
+        for line in (
+            "t.sound->polyphonic = static_cast<PolyphonyMode>(v);",
+            "t.sound->maxVoiceCount = static_cast<uint8_t>(v);",
+            "t.sound->outputMidiChannel = static_cast<uint8_t>(v);",
+        ):
+            with self.subTest(line):
+                self.assertEqual(len(self.check(line)), 1, line)
+
+    def test_the_edit_and_a_read_are_not(self):
+        for line in (
+            'deluge::edits::settingFor(*t.sound, "maxVoices", v);',
+            "if (t.sound->polyphonic != PolyphonyMode::POLY) {}",
+        ):
+            with self.subTest(line):
+                self.assertEqual(self.check(line), [], line)
+
+
 class SongStateWrites(unittest.TestCase):
     def check(self, line: str) -> list[str]:
         with tempfile.TemporaryDirectory() as tmp:
