@@ -99,28 +99,36 @@ IndexedEntry entryOf(const Mapping& mapping, uint32_t ordinal) {
 
 } // namespace
 
-MappingSnapshot MappingSnapshot::of(const project::MappingTable& table, ::Song& song) {
-	MappingSnapshot snapshot;
-	snapshot.entries.assign(table.entries().begin(), table.entries().end());
+void MappingSnapshot::reserveLike(const std::array<size_t, 3>& like) {
+	// A few outputs or clips, or a kit's rows, added since the last rebuild still fit.
+	outputs.reserve(like[0] + 8);
+	rows.reserve(like[1] + 64);
+	sessionClips.reserve(like[2] + 16);
+}
+
+void MappingSnapshot::copyOwners(::Song& song) {
 	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
 		if (!output->id()) {
 			continue;
 		}
-		snapshot.outputs.push_back(*output->id());
+		outputs.push_back(*output->id());
 		if (output->type != OutputType::KIT) {
 			continue;
 		}
 		uint32_t ordinal = 0;
 		for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next, ordinal++) {
 			if (drum->id()) {
-				snapshot.rows.push_back({*drum->id(), *output->id(), ordinal});
+				rows.push_back({*drum->id(), *output->id(), ordinal});
 			}
 		}
 	}
 	for (int32_t c = 0; c < std::ssize(song.live.clips.session_clips); c++) {
-		snapshot.sessionClips.emplace_back(song.live.clips.session_clips[c]->id(), static_cast<uint32_t>(c));
+		sessionClips.emplace_back(song.live.clips.session_clips[c]->id(), static_cast<uint32_t>(c));
 	}
-	return snapshot;
+}
+
+void MappingSnapshot::copyEntries(const project::MappingTable& table) {
+	entries.assign(table.entries().begin(), table.entries().end());
 }
 
 MIDICable* MappingIndex::absentDevice() {
@@ -206,18 +214,26 @@ void rebuildMappingIndex(::Song& song) {
 	if (&song != currentSong) {
 		return;
 	}
+	// The sizes of the last rebuild's lists: written and read on the app loop only.
+	static std::array<size_t, 3> lastSizes{};
 	MappingSnapshot snapshot;
+	snapshot.reserveLike(lastSizes);
+	// The writes the render held so far land with it going (an overflow's reconcile excludes it only where it must).
+	bridge::applyPendingMappingOps(song);
 	{
 		// The song's tick (on the audio tier) can splice the lists the snapshot copies: an auto-overdub's output, say.
 		// Only the copy holds the render off; the index is built from it after.
 		AudioExcludedSection section;
-		// The table writes the render held land first, in this section: the render cannot hold another before the
-		// stale mark is cleared, so the mark never clears over a held write.
+		// Any it held since land in this section: the render cannot hold another before the stale mark is cleared, so
+		// the mark never clears over a held write.
 		bridge::applyPendingMappingOps(song);
 		// Cleared before the copy, so a change marked after it is not lost.
 		mapping_index_detail::mapping_index_stale.store(false, std::memory_order_release);
-		snapshot = MappingSnapshot::of(song.project.mappings, song);
+		snapshot.copyOwners(song);
 	}
+	// Only this tier writes the table, and nothing here has written it since the section: the copy matches the lists.
+	snapshot.copyEntries(song.project.mappings);
+	lastSizes = snapshot.sizes();
 	MappingIndex built;
 	built.rebuild(std::move(snapshot));
 	// The index's only reader, the dispatch of an incoming message, runs on this tier.

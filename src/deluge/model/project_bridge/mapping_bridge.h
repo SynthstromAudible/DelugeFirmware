@@ -82,7 +82,14 @@ void cloneOutputMappings(const ::Output& from, ::Output& to, ::Song& song);
 
 /// @brief How many table writes the render can hold before the app loop applies them. Past that, the app loop brings
 /// the table into line with what the song holds (drops entries of owners gone, records what owners play that it holds
-/// nothing for).
+/// nothing for): coarser, but the same table.
+///
+/// The render holds a write only where the song's tick changes what the song holds. An audio clip that overdubs holds
+/// at most three per loop it crosses: the clone of its track's knobs for the overdub's new track, then, when a pending
+/// overdub is dropped, its clip's mute and its track's bindings. (A new overdub track brings no bindings of its own, so
+/// its arrival holds nothing.) The writes wait while a kit change moves its rows' commands (RowCommandMoves), which
+/// can last as long as the change loads its samples, a few seconds. 32 holds ten overdubbing clips each crossing one
+/// loop in that time, or three crossing three; more than that falls back to the reconcile.
 inline constexpr size_t kPendingMappingOps = 32;
 
 /// @brief [audio] [task] Drop clip @p clip's mute command from @p song's table: at once on the app loop, held for it on

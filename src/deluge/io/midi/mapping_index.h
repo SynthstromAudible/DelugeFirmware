@@ -26,6 +26,7 @@
 #include "util/containers.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <ranges>
 #include <tuple>
@@ -67,11 +68,24 @@ struct MappingSnapshot {
 	std::vector<Row> rows;                                   ///< the playing kits' rows
 	std::vector<std::pair<uint32_t, uint32_t>> sessionClips; ///< each session clip's id and session index
 
-	/// @brief Copy @p table and what of @p song can be offered MIDI. Only copies: run it with the render excluded.
+	/// @brief Make room in the lists of what can be offered MIDI for as many as @p like's hold, and some more, so a
+	/// copy of a song that has not grown much since @p like does not allocate.
+	/// @param like An earlier snapshot's lists, as sizes: outputs, rows, session clips.
+	void reserveLike(const std::array<size_t, 3>& like);
+
+	/// @brief The sizes of the lists of what can be offered MIDI, for reserveLike().
+	/// @return Outputs, rows, session clips.
+	[[nodiscard]] std::array<size_t, 3> sizes() const { return {outputs.size(), rows.size(), sessionClips.size()}; }
+
+	/// @brief Copy what of @p song can be offered MIDI: its playing outputs, their kits' rows and its session clips.
+	/// Only walks and copies: run it with the render excluded, as the song's tick can splice those lists.
+	/// @param song The song.
+	void copyOwners(::Song& song);
+
+	/// @brief Copy @p table's entries. The render never writes the current song's table (it holds its writes for the
+	/// app loop), so this runs with the render going.
 	/// @param table The song's mapping table.
-	/// @param song  The song it belongs to.
-	/// @return The snapshot.
-	[[nodiscard]] static MappingSnapshot of(const project::MappingTable& table, ::Song& song);
+	void copyEntries(const project::MappingTable& table);
 };
 
 /// @brief The song's MIDI bindings, ready for incoming MIDI to find what it triggers without scanning every owner.
@@ -227,8 +241,9 @@ private:
 MappingIndex& mappingIndex();
 
 /// @brief [task] Bring the index into line with @p song's mapping table, when @p song is the current song. Excludes the
-/// render only while it applies the table writes the render held (bridge::applyPendingMappingOps) and copies what it
-/// reads of the song, then builds and swaps the index in. Allocates: never from the audio tier, where
+/// render only while it applies the table writes the render held (bridge::applyPendingMappingOps) and copies the
+/// outputs, rows and session clips it reads of the song, into lists sized from the last rebuild; copies the table
+/// after, with the render going, then builds and swaps the index in. Allocates: never from the audio tier, where
 /// markMappingIndexStale() stands in for it.
 /// @param song The song whose table changed.
 void rebuildMappingIndex(::Song& song);

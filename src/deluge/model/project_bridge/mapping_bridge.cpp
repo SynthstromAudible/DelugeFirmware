@@ -304,10 +304,53 @@ void cloneNow(::Song& song, uint32_t from, uint32_t to) {
 	(void)projectMapping(song, deluge::project::ParamTarget{{ControlsAddress::Kind::OUTPUT, to}, {}});
 }
 
+/// The ids of the outputs (playing or hibernating), kit rows and clips (session or arrangement) a song holds, each
+/// sorted.
+struct HeldIds {
+	std::vector<uint32_t> outputs;
+	std::vector<uint32_t> drums;
+	std::vector<uint32_t> clips;
+
+	explicit HeldIds(::Song& song) {
+		for (Output* first :
+		     {song.live.media.first_output, static_cast<Output*>(song.live.media.first_hibernating_instrument)}) {
+			for (Output* output = first; output != nullptr; output = output->next) {
+				if (output->id()) {
+					outputs.push_back(*output->id());
+				}
+				if (output->type != OutputType::KIT) {
+					continue;
+				}
+				for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next) {
+					if (drum->id()) {
+						drums.push_back(*drum->id());
+					}
+				}
+			}
+		}
+		for (Clip* clip : AllClips::everywhere(&song)) {
+			clips.push_back(clip->id());
+		}
+		std::ranges::sort(outputs);
+		std::ranges::sort(drums);
+		std::ranges::sort(clips);
+	}
+
+	[[nodiscard]] static bool has(const std::vector<uint32_t>& ids, uint32_t id) {
+		return std::ranges::binary_search(ids, id);
+	}
+};
+
 /// Bring @p song's table into line with what the queue lost: drop every entry whose owner the song no longer holds,
 /// then record what each output and kit row plays that the table holds nothing for (a clone's knobs, an arrival's
-/// bindings), as a load's sweep does.
+/// bindings), as a load's sweep does. The render is excluded only while the song's lists are walked: it never writes
+/// the table, so the entries are matched against the ids the walk found with it going.
 void reconcileWithEngine(::Song& song) {
+	std::optional<HeldIds> held;
+	{
+		AudioExcludedSection section; // the song's tick can splice the lists walked
+		held.emplace(song);
+	}
 	MappingTable& mappings = song.project.mappings;
 	std::vector<uint32_t> clips;
 	std::vector<uint32_t> outputs;
@@ -316,31 +359,36 @@ void reconcileWithEngine(::Song& song) {
 		std::visit(
 		    [&]<typename T>(const T& t) {
 			    if constexpr (std::is_same_v<T, deluge::project::ParamTarget>) {
-				    if (t.owner.kind == ControlsAddress::Kind::OUTPUT && outputWithId(song, t.owner.id) == nullptr) {
+				    if (t.owner.kind == ControlsAddress::Kind::OUTPUT && !HeldIds::has(held->outputs, t.owner.id)) {
 					    outputs.push_back(t.owner.id);
 				    }
-				    else if (t.owner.kind == ControlsAddress::Kind::DRUM && drumWithId(song, t.owner.id) == nullptr) {
+				    else if (t.owner.kind == ControlsAddress::Kind::DRUM && !HeldIds::has(held->drums, t.owner.id)) {
 					    drums.push_back(t.owner.id);
 				    }
 			    }
 			    else if constexpr (std::is_same_v<T, deluge::project::ClipMuteTarget>) {
-				    if (clipWithId(song, t.clip_id) == nullptr) {
+				    if (!HeldIds::has(held->clips, t.clip_id)) {
 					    clips.push_back(t.clip_id);
 				    }
 			    }
 			    else if constexpr (std::is_same_v<T, deluge::project::DrumMuteTarget>
 			                       || std::is_same_v<T, deluge::project::LaneInputTarget>) {
-				    if (drumWithId(song, t.drum_id) == nullptr) {
+				    if (!HeldIds::has(held->drums, t.drum_id)) {
 					    drums.push_back(t.drum_id);
 				    }
 			    }
 			    else if constexpr (std::is_same_v<T, deluge::project::TrackInputTarget>) {
-				    if (outputWithId(song, t.output_id) == nullptr) {
+				    if (!HeldIds::has(held->outputs, t.output_id)) {
 					    outputs.push_back(t.output_id);
 				    }
 			    }
 		    },
 		    entry.target);
+	}
+	for (std::vector<uint32_t>* gone : {&clips, &outputs, &drums}) {
+		std::ranges::sort(*gone);
+		const auto [first, last] = std::ranges::unique(*gone);
+		gone->erase(first, last);
 	}
 	for (uint32_t id : clips) {
 		mappings.forget_clip(id);
@@ -351,6 +399,7 @@ void reconcileWithEngine(::Song& song) {
 	for (uint32_t id : drums) {
 		mappings.forget_drum(id);
 	}
+	AudioExcludedSection section; // the bindings are read from the outputs and rows the tick can splice
 	for (Output* first :
 	     {song.live.media.first_output, static_cast<Output*>(song.live.media.first_hibernating_instrument)}) {
 		for (Output* output = first; output != nullptr; output = output->next) {
@@ -472,38 +521,42 @@ void applyPendingMappingOps(::Song& song) {
 	if (pending.count.load(std::memory_order_acquire) == 0 && !pending.overflowed.load(std::memory_order_acquire)) {
 		return;
 	}
-	AudioExcludedSection section; // the render writes the queue, and the ops walk and write what the tick can change
-	const size_t n = pending.count.exchange(0, std::memory_order_acq_rel);
-	const bool overflowed = pending.overflowed.exchange(false, std::memory_order_acq_rel);
-	MappingTable& mappings = song.project.mappings;
-	for (size_t i = 0; i < n; i++) {
-		const PendingOp op = pending.ops[i];
-		if (op.song != &song) {
-			continue; // made for the song a swap replaced, after it dropped the queue
-		}
-		switch (op.kind) {
-		case PendingOp::Kind::CLONE_OUTPUT:
-			cloneNow(song, op.id, op.to);
-			break;
-		case PendingOp::Kind::FORGET_CLIP:
-			mappings.forget_clip(op.id);
-			break;
-		case PendingOp::Kind::FORGET_OUTPUT:
-			mappings.forget_output(op.id);
-			break;
-		case PendingOp::Kind::FORGET_DRUM:
-			mappings.forget_drum(op.id);
-			break;
-		case PendingOp::Kind::ARRIVING_OUTPUT:
-			if (Output* output = outputWithId(song, op.id)) {
-				recordOutputBindings(*output, song);
+	bool overflowed = false;
+	{
+		AudioExcludedSection
+		    section; // the render writes the queue, and the ops walk and write what the tick can change
+		const size_t n = pending.count.exchange(0, std::memory_order_acq_rel);
+		overflowed = pending.overflowed.exchange(false, std::memory_order_acq_rel);
+		MappingTable& mappings = song.project.mappings;
+		for (size_t i = 0; i < n; i++) {
+			const PendingOp op = pending.ops[i];
+			if (op.song != &song) {
+				continue; // made for the song a swap replaced, after it dropped the queue
 			}
-			break;
-		case PendingOp::Kind::ARRIVING_DRUM:
-			if (Drum* drum = drumWithId(song, op.id)) {
-				recordDrumBindings(*drum, song);
+			switch (op.kind) {
+			case PendingOp::Kind::CLONE_OUTPUT:
+				cloneNow(song, op.id, op.to);
+				break;
+			case PendingOp::Kind::FORGET_CLIP:
+				mappings.forget_clip(op.id);
+				break;
+			case PendingOp::Kind::FORGET_OUTPUT:
+				mappings.forget_output(op.id);
+				break;
+			case PendingOp::Kind::FORGET_DRUM:
+				mappings.forget_drum(op.id);
+				break;
+			case PendingOp::Kind::ARRIVING_OUTPUT:
+				if (Output* output = outputWithId(song, op.id)) {
+					recordOutputBindings(*output, song);
+				}
+				break;
+			case PendingOp::Kind::ARRIVING_DRUM:
+				if (Drum* drum = drumWithId(song, op.id)) {
+					recordDrumBindings(*drum, song);
+				}
+				break;
 			}
-			break;
 		}
 	}
 	if (overflowed) {
