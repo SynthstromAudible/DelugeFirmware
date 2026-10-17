@@ -5,6 +5,7 @@
 
 #include "deluge-project/arrangement.h"
 #include "deluge-project/mapping_table.h"
+#include "io/midi/midi_device_manager.h"
 #include "model/clip/clip.h"
 #include "model/drum/midi_drum.h"
 #include "model/edits/learn_mapping.h"
@@ -33,6 +34,7 @@ using deluge::project::LaneInputTarget;
 using deluge::project::Mapping;
 using deluge::project::MappingTable;
 using deluge::project::MappingTarget;
+using deluge::project::MidiDeviceRef;
 using Command = deluge::project::MidiCommand;
 using deluge::project::ParamTarget;
 using deluge::project::SectionLaunchTarget;
@@ -61,6 +63,19 @@ deluge::engine::ParamId patched(int32_t p) {
 	ParamDescriptor descriptor;
 	descriptor.setToHaveParamOnly(p);
 	return deluge::bridge::knobTargetOf(descriptor, params::Kind::UNPATCHED_SOUND);
+}
+
+/// @brief An unpatched param of @p kind (UNPATCHED_SOUND or UNPATCHED_GLOBAL), as the table names it.
+deluge::engine::ParamId unpatched(params::Kind kind, int32_t p) {
+	ParamDescriptor descriptor;
+	descriptor.setToHaveParamOnly(params::UNPATCHED_START + p);
+	return deluge::bridge::knobTargetOf(descriptor, kind);
+}
+
+/// @brief @p command, told apart by the device on @p port.
+Command from(Command command, MidiDeviceRef::Port port) {
+	command.device = MidiDeviceRef{.port = port};
+	return command;
 }
 
 /// @brief Apply @p edit to the current song.
@@ -144,6 +159,83 @@ describe mapping_edit("LearnMapping", $ {
 		f.song->moveInstrumentToHibernationList(f.instrument);
 		deluge::edits::learnMappingFor(note(2, 30), DrumMuteTarget{*drum->id()});
 		expect(drum->muteMIDICommand.equalsNoteOrCC(nullptr, 2, 30)).to_be_true();
+	});
+
+	it("keeps a knob learned from DIN or upstream USB whole, cable and takeover state, past another learn", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
+		deluge::edits::learnMappingFor(from(cc(0, 10), MidiDeviceRef::Port::DIN),
+		                               ParamTarget{owner, patched(params::LOCAL_VOLUME)});
+		deluge::edits::learnMappingFor(from(cc(0, 11), MidiDeviceRef::Port::UPSTREAM_USB_1),
+		                               ParamTarget{owner, patched(params::LOCAL_PAN)});
+		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
+		expect(static_cast<int>(sound.midi_knobs.size())).to_equal(2);
+		expect(sound.midi_knobs[0].midiInput.cable == &MIDIDeviceManager::dinMIDIPorts).to_be_true();
+		expect(sound.midi_knobs[1].midiInput.cable == &MIDIDeviceManager::upstreamUSBMIDICable1).to_be_true();
+		sound.midi_knobs[0].previousPositionSaved = true;
+		sound.midi_knobs[0].previousPosition = 111;
+		sound.midi_knobs[1].previousPositionSaved = true;
+		sound.midi_knobs[1].previousPosition = 222;
+		deluge::edits::learnMappingFor(cc(0, 12), ParamTarget{owner, patched(params::LOCAL_OSC_A_VOLUME)});
+		expect(static_cast<int>(sound.midi_knobs.size())).to_equal(3);
+		expect(sound.midi_knobs[0].midiInput.cable == &MIDIDeviceManager::dinMIDIPorts).to_be_true();
+		expect(sound.midi_knobs[0].previousPositionSaved).to_be_true();
+		expect(static_cast<int>(sound.midi_knobs[0].previousPosition)).to_equal(111);
+		expect(sound.midi_knobs[1].midiInput.cable == &MIDIDeviceManager::upstreamUSBMIDICable1).to_be_true();
+		expect(sound.midi_knobs[1].previousPositionSaved).to_be_true();
+		expect(static_cast<int>(sound.midi_knobs[1].previousPosition)).to_equal(222);
+	});
+
+	it("projects a command's device onto its cable", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		MIDIDrum* drum = spec::add_drum<MIDIDrum>(f);
+		deluge::edits::learnMappingFor(from(note(3, 40), MidiDeviceRef::Port::DIN), ClipMuteTarget{f.clip->id()});
+		deluge::edits::learnMappingFor(from(note(4, 41), MidiDeviceRef::Port::UPSTREAM_USB_2),
+		                               LaneInputTarget{*drum->id()});
+		expect(f.clip->muteMIDICommand.cable == &MIDIDeviceManager::dinMIDIPorts).to_be_true();
+		expect(f.clip->muteMIDICommand.equalsNoteOrCC(&MIDIDeviceManager::dinMIDIPorts, 3, 40)).to_be_true();
+		expect(drum->midiInput.cable == &MIDIDeviceManager::upstreamUSBMIDICable2).to_be_true();
+	});
+
+	it("projects a hosted device that is not connected to no cable, keeping it in the table", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		Command command = note(3, 40);
+		command.device =
+		    MidiDeviceRef{.port = MidiDeviceRef::Port::HOSTED, .name = "No Such Device", .vendor_id = 0x1234,
+		                  .product_id = 0x5678};
+		const ClipMuteTarget target{f.clip->id()};
+		deluge::edits::learnMappingFor(command, target);
+		expect(held(*f.song, target) == command).to_be_true();
+		expect(f.clip->muteMIDICommand.containsSomething()).to_be_true();
+		expect(f.clip->muteMIDICommand.cable == nullptr).to_be_true();
+	});
+
+	it("learns a sound kit row's knob onto the drum's knob list, as a sound's param", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
+		const ControlsAddress owner{ControlsAddress::Kind::DRUM, *drum->id()};
+		const ParamTarget target{owner, unpatched(params::Kind::UNPATCHED_SOUND, params::UNPATCHED_PORTAMENTO)};
+		deluge::edits::learnMappingFor(cc(1, 20), target);
+		expect(held(*f.song, target) == cc(1, 20)).to_be_true();
+		expect(static_cast<int>(drum->midi_knobs.size())).to_equal(1);
+		expect(drum->midi_knobs[0].paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START
+		                                                                    + params::UNPATCHED_PORTAMENTO))
+		    .to_be_true();
+		expect(static_cast<int>(static_cast<Kit*>(f.instrument)->midi_knobs.size())).to_equal(0);
+	});
+
+	it("learns the song's knob onto its global effectable", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		const ControlsAddress owner{ControlsAddress::Kind::SONG, 0};
+		const ParamTarget target{owner, unpatched(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME)};
+		deluge::edits::learnMappingFor(cc(2, 7), target);
+		expect(held(*f.song, target) == cc(2, 7)).to_be_true();
+		auto& global = f.song->live.global_effectable;
+		expect(static_cast<int>(global.midi_knobs.size())).to_equal(1);
+		expect(global.midi_knobs[0].midiInput.equalsNoteOrCC(nullptr, 2 + IS_A_CC, 7)).to_be_true();
+		expect(global.midi_knobs[0].paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START
+		                                                                     + params::UNPATCHED_VOLUME))
+		    .to_be_true();
 	});
 
 	it("refuses a target whose owner the song does not hold and leaves the table as it was", _ {

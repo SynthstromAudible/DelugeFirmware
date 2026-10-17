@@ -146,6 +146,8 @@ void projectKnobs(const MappingTable& mappings, ControlsAddress address, ::ModCo
 	for (const Mapping& entry : mappings.params_of(address)) {
 		const ParamDescriptor target =
 		    descriptorOf(std::get<deluge::project::ParamTarget>(entry.target).param, unpatchedKind);
+		// A knob whose source names a device that is not connected has no cable to name it back, so it never matches
+		// and is rebuilt, losing its takeover state.
 		const auto kept = std::ranges::find_if(owner.midi_knobs, [&](const MIDIKnob& old) {
 			return command_of(old.midiInput) == entry.source && old.relative == entry.relative
 			       && old.paramDescriptor == target;
