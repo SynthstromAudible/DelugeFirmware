@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "io/midi/mapping_index_stale.h"
 #include "libdeluge/system.h"
 #include "util/containers.h"
 #include "util/structural_edit_probe.h"
@@ -100,8 +101,12 @@ public:
 private:
 	/// Every structural edit runs inside an AudioExcludedSection (libdeluge/system.h): the render walks a song's clips
 	/// and, on the device, preempts thread mode at any instruction. Each edit also reports to the probe
-	/// (util/structural_edit_probe.h), which counts any made outside a section.
-	static void noteEdit() { deluge::noteStructuralEdit(deluge::StructuralContainer::CLIP_ARRAY); }
+	/// (util/structural_edit_probe.h), which counts any made outside a section, and marks the MIDI mapping index stale:
+	/// it offers a session clip's mute command at the clip's place in the session.
+	static void noteEdit() {
+		deluge::noteStructuralEdit(deluge::StructuralContainer::CLIP_ARRAY);
+		deluge::markMappingIndexStale();
+	}
 
 	deluge::fast_vector<Clip*> clips_{};
 };

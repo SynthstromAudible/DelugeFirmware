@@ -85,6 +85,11 @@ void handOverInstrument(::Song& song, uint32_t from, uint32_t to, bool knobs);
 /// @param output The output's id.
 void projectOutputMappings(::Song& song, uint32_t output);
 
+/// @brief Project again every binding of @p song whose source names a hosted device, as the device list now resolves
+/// it: a device plugged in since its binding was projected is played from its own cable.
+/// @param song The song.
+void projectDeviceMappings(::Song& song);
+
 /// @brief Make @p kit's rows' mutes and inputs in @p song's table what the runtime holds after it moved them between
 /// rows: a kit change gives a replaced kit's row commands to the clips' rows, and they give them to the new kit's rows.
 /// A row's command keeps the source @p before held for it, or for the same kind of command of one of @p fromRows, so a

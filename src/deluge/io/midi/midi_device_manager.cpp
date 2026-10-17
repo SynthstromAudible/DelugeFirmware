@@ -28,6 +28,7 @@
 #include "io/midi/cable_types/din.h"
 #include "io/midi/cable_types/usb_device_cable.h"
 #include "io/midi/device_specific/specific_midi_device.h"
+#include "io/midi/mapping_index_stale.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "libdeluge/midi_io.h" // deluge_midi_init/_usb_port/_write/_write_space, deluge_midi_poll_usb_host_event
@@ -166,9 +167,10 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(std::string* name, ui
 			MIDICableUSBHosted* device = *it;
 
 			// Update vendor and product id, if we have those
-			if (vendorId) {
+			if (vendorId && (device->vendorId != vendorId || device->productId != productId)) {
 				device->vendorId = vendorId;
 				device->productId = productId;
+				deluge::markMappingDevicesChanged(); // a binding may name it by these
 			}
 
 			return device;
@@ -185,6 +187,7 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(std::string* name, ui
 				hostedMIDIDevices.insert(std::lower_bound(hostedMIDIDevices.begin(), hostedMIDIDevices.end(),
 				                                          candidate->name.c_str(), cableNameLess),
 				                         candidate);
+				deluge::markMappingDevicesChanged(); // a binding may name it by this
 			}
 			return candidate;
 		}
@@ -228,6 +231,7 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(std::string* name, ui
 	hostedMIDIDevices.insert(
 	    std::lower_bound(hostedMIDIDevices.begin(), hostedMIDIDevices.end(), device->name.c_str(), cableNameLess),
 	    device);
+	deluge::markMappingDevicesChanged(); // a binding naming it now has a cable
 
 	return device;
 }
@@ -298,6 +302,7 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 	recountSmallestMPEZones(); // Must be called after setting device->connectionFlags
 
 	device->freshly_connected = true; // Used to trigger hookOnConnected from the input loop
+	deluge::markMappingDevicesChanged();
 
 	std::string text;
 	text = device->name;
@@ -330,6 +335,7 @@ extern "C" void hostedDeviceDetached(int32_t ip, int32_t midiDeviceNum) {
 		connectedDevice->cable[i] = nullptr;
 	}
 	recountSmallestMPEZones();
+	deluge::markMappingDevicesChanged();
 }
 
 // called by USB setup
@@ -349,6 +355,7 @@ extern "C" void configuredAsPeripheral(int32_t ip) {
 	upstreamUSBMIDICable2.connectedNow(0);
 	upstreamUSBMIDICable3.connectedNow(0);
 	recountSmallestMPEZones();
+	deluge::markMappingDevicesChanged();
 }
 
 extern "C" void detachedAsPeripheral(int32_t ip) {
@@ -362,6 +369,7 @@ extern "C" void detachedAsPeripheral(int32_t ip) {
 	upstreamUSBMIDICable3.connectionFlags = 0;
 
 	recountSmallestMPEZones();
+	deluge::markMappingDevicesChanged();
 }
 
 // Returns NULL if insufficient details found, or not enough RAM to create

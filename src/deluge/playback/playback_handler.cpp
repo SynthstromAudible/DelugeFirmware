@@ -39,6 +39,7 @@
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
+#include "io/midi/mapping_index_stale.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
@@ -1504,6 +1505,8 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 	AudioEngine::killAllVoices(true);
 	Song* const outgoing = currentSong;
 	currentSong = preLoadedSong;
+	// The index is the current song's. A swap may run on the song's tick, so the rebuild waits for the app loop.
+	deluge::markMappingIndexStale();
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	preLoadedSong = nullptr;
 

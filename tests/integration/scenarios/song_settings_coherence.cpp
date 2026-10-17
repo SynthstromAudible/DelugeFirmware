@@ -200,9 +200,18 @@ using deluge::project::ControlsAddress;
 using deluge::project::Mapping;
 using deluge::project::MappingTarget;
 
-/// Whether @p a and @p b play the same: the same cable, channel or zone, and note or CC.
-bool playsTheSame(const ::LearnedMIDI& a, const ::LearnedMIDI& b) {
-	return a.cable == b.cable && a.channelOrZone == b.channelOrZone && a.noteOrCC == b.noteOrCC;
+/// Whether @p field plays @p source: the same channel or zone and note or CC, from no cable when @p source is from any
+/// device, and from the cable the device list holds for the device it names otherwise. A device the Deluge did not know
+/// gets an entry when its binding is projected, so a named device is never played from no cable, which would match
+/// every device.
+bool playsTheSame(const deluge::project::MidiCommand& source, const ::LearnedMIDI& field) {
+	if (field.channelOrZone != source.channel_or_zone || field.noteOrCC != source.note_or_cc) {
+		return false;
+	}
+	if (!source.device) {
+		return field.cable == nullptr;
+	}
+	return field.cable != nullptr && field.cable == deluge::bridge::find_cable(*source.device);
 }
 
 /// @p learned as a report shows it.
@@ -214,9 +223,24 @@ std::string describe(const ::LearnedMIDI& learned) {
 	       + std::to_string(learned.channelOrZone) + "/" + std::to_string(learned.noteOrCC);
 }
 
+/// A table entry's source as a report shows it: a device the Deluge has no cable for by its name.
+std::string describe(const deluge::project::MidiCommand& source) {
+	const ::LearnedMIDI learned = deluge::bridge::learned_of(source);
+	if (source.device && learned.cable == nullptr && learned.containsSomething()) {
+		return "unknown(" + source.device->name + ")/" + std::to_string(learned.channelOrZone) + "/"
+		       + std::to_string(learned.noteOrCC);
+	}
+	return describe(learned);
+}
+
 /// One knob as a report shows it.
 std::string describe(deluge::engine::ParamId param, const ::LearnedMIDI& learned, bool relative) {
 	return std::to_string(param.value) + "=" + describe(learned) + (relative ? "~" : "");
+}
+
+/// One table knob as a report shows it.
+std::string describe(deluge::engine::ParamId param, const deluge::project::MidiCommand& source, bool relative) {
+	return std::to_string(param.value) + "=" + describe(source) + (relative ? "~" : "");
 }
 
 /// The first break between @p address's table knobs and its runtime owner's learned knob list, in order.
@@ -234,8 +258,7 @@ std::string knobsIncoherence(::Song& song, ControlsAddress address) {
 		const MIDIKnob& knob = owner->midi_knobs[i];
 		same = std::get<deluge::project::ParamTarget>(table[i].target).param
 		           == deluge::bridge::knobTargetOf(knob.paramDescriptor, unpatchedKind)
-		       && table[i].relative == knob.relative
-		       && playsTheSame(deluge::bridge::learned_of(table[i].source), knob.midiInput);
+		       && table[i].relative == knob.relative && playsTheSame(table[i].source, knob.midiInput);
 	}
 	if (same) {
 		return {};
@@ -243,8 +266,7 @@ std::string knobsIncoherence(::Song& song, ControlsAddress address) {
 	std::string a;
 	for (const Mapping& entry : table) {
 		a += (a.empty() ? "" : " ")
-		     + describe(std::get<deluge::project::ParamTarget>(entry.target).param,
-		                deluge::bridge::learned_of(entry.source), entry.relative);
+		     + describe(std::get<deluge::project::ParamTarget>(entry.target).param, entry.source, entry.relative);
 	}
 	std::string b;
 	for (const MIDIKnob& knob : owner->midi_knobs) {
@@ -265,12 +287,12 @@ std::string commandIncoherence(::Song& song, const MappingTarget& target, const 
 	const Mapping* entry = song.project.mappings.find(target);
 	const ::LearnedMIDI table = entry != nullptr ? deluge::bridge::learned_of(entry->source) : ::LearnedMIDI{};
 	const bool same = table.containsSomething() == field.containsSomething()
-	                  && (!table.containsSomething() || playsTheSame(table, field));
+	                  && (!table.containsSomething() || playsTheSame(entry->source, field));
 	if (same) {
 		return {};
 	}
-	return std::string{"MAPPINGS "} + kind + " " + std::to_string(owner) + ": table=" + describe(table)
-	       + " engine=" + describe(field);
+	return std::string{"MAPPINGS "} + kind + " " + std::to_string(owner)
+	       + ": table=" + (entry != nullptr ? describe(entry->source) : describe(table)) + " engine=" + describe(field);
 }
 
 /// The first break of @p output's bindings: its knobs, its input, and a kit's rows' knobs, mutes and inputs.

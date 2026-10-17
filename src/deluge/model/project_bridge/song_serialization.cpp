@@ -24,6 +24,7 @@
 #include "deluge-project/song_codec.h"
 #include "deluge-project/transport.h"
 #include "io/midi/cable_types/usb_hosted.h"
+#include "io/midi/mapping_index.h"
 #include "io/midi/midi_device.h" // MIDICable::writeReferenceToFile
 #include "io/midi/midi_device_manager.h"
 #include "model/project_bridge/chain_bridge.h"
@@ -170,6 +171,7 @@ Error loadSong(::Song& song, Deserializer& in) {
 	}
 	resolveMacros(song.project.arrangement, legacy, song);
 	recordLoadedMappings(song);
+	deluge::midi::rebuildMappingIndex(song); // a song loaded as the current one; any other is indexed once current
 	refreshControls(song);
 	fillChains(song); // each host owner's chain from the effects it loaded
 	return Error::NONE;

@@ -21,6 +21,7 @@
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
+#include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/midi_command.h"
 #include "model/song/song.h"
 
@@ -195,7 +196,25 @@ void rebuildMappingIndex(::Song& song) {
 	if (&song != currentSong) {
 		return;
 	}
+	// Cleared before the build reads the song, so a change marked while it runs is not lost.
+	mapping_index_detail::mapping_index_stale.store(false, std::memory_order_release);
 	mappingIndex().rebuild(song.project.mappings, song);
+}
+
+void refreshMappingIndex() {
+	if (!mappingIndexStale()) {
+		return;
+	}
+	if (currentSong == nullptr) {
+		mapping_index_detail::mapping_devices_changed.store(false, std::memory_order_release);
+		mapping_index_detail::mapping_index_stale.store(false, std::memory_order_release);
+		mappingIndex().clear();
+		return;
+	}
+	if (mapping_index_detail::mapping_devices_changed.exchange(false, std::memory_order_acq_rel)) {
+		bridge::projectDeviceMappings(*currentSong);
+	}
+	rebuildMappingIndex(*currentSong);
 }
 
 } // namespace deluge::midi

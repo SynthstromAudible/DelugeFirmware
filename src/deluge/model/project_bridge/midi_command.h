@@ -43,6 +43,13 @@ namespace deluge::bridge {
 /// @return The cable, or nullptr.
 [[nodiscard]] MIDICable* find_cable(const deluge::project::MidiDeviceRef& device);
 
+/// @brief The cable an engine field plays @p device from: the one find_cable() names, else, for a hosted device the
+/// Deluge does not know, a device entry made for it as reading a song's reference to it makes one. No message arrives
+/// on that entry's cable until the device is plugged in, which connects that same cable.
+/// @param device The device reference.
+/// @return The cable, or nullptr when there is no RAM for the entry.
+[[nodiscard]] MIDICable* cable_for(const deluge::project::MidiDeviceRef& device);
+
 /// @brief Whether MIDI from @p from on @p channel with @p noteOrCC triggers @p command: the same channel or zone and
 /// note or CC and, when inputs are told apart by device, from the device it names (if it names one; a device the
 /// Deluge does not know matches nothing).
@@ -54,10 +61,16 @@ namespace deluge::bridge {
 [[nodiscard]] bool matches(const deluge::project::MidiCommand& command, MIDICable& from, int32_t channel,
                            int32_t noteOrCC);
 
-/// @brief The command as MIDI learn edits it.
+/// @brief The command as MIDI learn edits it. Finds its device only (see find_cable).
 /// @param command The command.
 /// @return The LearnedMIDI.
 [[nodiscard]] LearnedMIDI learned_of(const deluge::project::MidiCommand& command);
+
+/// @brief The engine field that plays @p command: its device's cable from cable_for(), so a binding to a device the
+/// Deluge does not know listens to that device's entry and matches nothing while inputs are told apart by device.
+/// @param command The command.
+/// @return The LearnedMIDI.
+[[nodiscard]] LearnedMIDI field_of(const deluge::project::MidiCommand& command);
 
 /// @brief The command a MIDI learn produced.
 /// @param learned The learned MIDI.

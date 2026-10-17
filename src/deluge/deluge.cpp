@@ -50,6 +50,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
 #include "io/file.hpp"
+#include "io/midi/mapping_index_stale.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
@@ -353,6 +354,7 @@ void setupBlankSong() {
 
 	currentSong = preLoadedSong;
 	preLoadedSong = nullptr;
+	deluge::markMappingIndexStale(); // the index is the current song's
 
 	AudioEngine::getReverbParamsFromSong(currentSong);
 
@@ -771,6 +773,7 @@ void deleteOldSongBeforeLoadingNew() {
 	// is built in the memory it gave back. The wait runs no other interaction task, so none sees currentSong null.
 	Song* toDelete = currentSong;
 	currentSong = nullptr;
+	deluge::markMappingIndexStale(); // the index is the current song's
 	AudioEngine::retire(toDelete);
 	AudioEngine::awaitRetired();
 }

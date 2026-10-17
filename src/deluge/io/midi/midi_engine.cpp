@@ -23,6 +23,7 @@
 #include "hid/hid_sysex.h"
 #include "hid/led/indicator_leds.h"
 #include "io/debug/log.h"
+#include "io/midi/mapping_index.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
@@ -689,6 +690,8 @@ void MidiEngine::midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8
 
 		// All these messages, we should only interpret if there's definitely a song loaded
 		if (currentSong) {
+			// Learned bindings are matched through the mapping index: bring it up to date with what changed since.
+			deluge::midi::refreshMappingIndex();
 
 			switch (statusType) {
 

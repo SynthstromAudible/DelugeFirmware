@@ -390,9 +390,11 @@ int32_t mappingsLeg(Song& song, deluge::scenarios::driver::Io io) {
 		set = set && deluge::edits::apply(ctx, edit) == Error::NONE;
 	}
 	std::string what = !set ? "a learn was refused" : deluge::harness::mappingIncoherence(song);
-	// The Deluge knows no device of that name yet, so the row's input names no cable.
-	if (what.empty() && (deluge::bridge::find_cable(absent) != nullptr || row->midiInput.cable != nullptr)) {
-		what = "the absent device has a cable before the reload";
+	// The Deluge knew no device of that name: projecting the row's input made it an entry, as a load does, and the row
+	// plays from that entry's cable, which is not connected.
+	::MIDICable* made = deluge::bridge::find_cable(absent);
+	if (what.empty() && (made == nullptr || row->midiInput.cable != made || made->connectionFlags != 0)) {
+		what = "the absent device's row input does not play from an unconnected entry made for it";
 	}
 	Song* reloaded = what.empty() ? savedAndReloaded(song) : nullptr;
 	if (what.empty() && reloaded == nullptr) {
@@ -429,20 +431,12 @@ int32_t mappingsLeg(Song& song, deluge::scenarios::driver::Io io) {
 		what = deluge::harness::mappingIncoherence(*reloaded);
 	}
 	if (what.empty()) {
-		// A load names every device it reads, known or not, so the reloaded row's input plays from the entry the
-		// load made for the absent device.
+		// The reload names the same entry for the absent device.
 		::Drum* backRow = reloaded->drumForId(rowId);
-		::MIDICable* entry = deluge::bridge::find_cable(absent);
-		if (backRow == nullptr || entry == nullptr || backRow->midiInput.cable != entry
-		    || backRow->midiInput.channelOrZone != 9 || backRow->midiInput.noteOrCC != 37) {
+		if (backRow == nullptr || backRow->midiInput.cable != made || backRow->midiInput.channelOrZone != 9
+		    || backRow->midiInput.noteOrCC != 37) {
 			what = "the reloaded kit row's input does not play from the absent device's entry";
 		}
-	}
-	if (reloaded != nullptr) {
-		// The device the reload made known is projected onto the song's own row too, as a load of it would.
-		deluge::edits::Context ctx{song, song.project};
-		deluge::edits::LearnMapping edit{absentInput};
-		(void)deluge::edits::apply(ctx, edit);
 	}
 	if (!what.empty()) {
 		std::fprintf(io.err, "SONG-SETTINGS-SAVE FAIL mappings: %s\n", what.c_str());

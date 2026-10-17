@@ -38,6 +38,7 @@
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/midi/device_specific/specific_midi_device.h"
+#include "io/midi/mapping_index_stale.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
@@ -410,10 +411,11 @@ void Song::setupDefault() {
 /// Report a splice of this song's output or hibernation list to the structural-edit probe. Every splice runs inside an
 /// AudioExcludedSection, so the render never walks a half-relinked list. Only the current song's lists are walked by
 /// the render, so a splice to any other song (one being built by a load, or torn down at reclaim)
-/// is not counted.
+/// is not counted. The MIDI mapping index offers only playing outputs' bindings, so a splice marks it stale.
 static void noteOutputListEdit(const Song* song) {
 	if (song == currentSong) {
 		deluge::noteStructuralEdit(deluge::StructuralContainer::OUTPUT_LIST);
+		deluge::markMappingIndexStale();
 	}
 }
 
@@ -1379,6 +1381,7 @@ void Song::removeDocDrum(Drum* drum) {
 	if (drum->id() && project.drum_structure.find(*drum->id()) == drum->docDrum_) {
 		project.drum_structure.remove(*drum->id());
 		project.mappings.forget_drum(*drum->id());
+		deluge::markMappingIndexStale();
 	}
 }
 
@@ -1429,6 +1432,7 @@ void Song::removeDocOutput(Output* output) {
 	if (output->id() && project.output_structure.find(*output->id()) == output->docOutput_) {
 		project.output_structure.remove(*output->id());
 		project.mappings.forget_output(*output->id());
+		deluge::markMappingIndexStale();
 		if (output->type == OutputType::KIT) { // a kit's rows go with it
 			for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next) {
 				if (drum->id()) {
@@ -3220,6 +3224,7 @@ void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRe
 
 		clip->prepareForDestruction(modelStack, instrumentRemovalInstruction);
 		project.mappings.forget_clip(clip->id()); // its mute command goes with it
+		deluge::markMappingIndexStale();
 
 		// The render may still hold the clip from block to block (currentClip, syncScalingClip, another clip's
 		// beingRecordedFromClip, the view's active timeline counter): it lets go of those at its next block, and only
@@ -5622,6 +5627,7 @@ void Song::cullAudioClipVoice() {
 
 void Song::swapClips(Clip* newClip, Clip* oldClip, int32_t clipIndex) {
 	live.clips.session_clips[clipIndex] = newClip;
+	deluge::markMappingIndexStale(); // the index offers the new clip's mute command at this place
 
 	if (oldClip == getSyncScalingClip()) {
 		setSyncScalingClipRaw(newClip);
@@ -5657,6 +5663,7 @@ Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex)
 	// Give the new clip its stuff
 	newClip->cloneFrom(oldClip);
 	project.mappings.copy_clip_mute(oldClip->id(), newClip->id()); // the mute command it took
+	deluge::markMappingIndexStale();
 	newClip->setColourOffset(random(72));
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);

@@ -23,6 +23,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "io/debug/log.h"
+#include "io/midi/mapping_index_stale.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
@@ -59,9 +60,11 @@ namespace params = deluge::modulation::params;
 
 namespace {
 // Report a splice of a kit's drum list to the structural-edit probe (util/structural_edit_probe.h). Every splice runs
-// inside an AudioExcludedSection, so nothing the render reaches through the list sees it half-relinked.
+// inside an AudioExcludedSection, so nothing the render reaches through the list sees it half-relinked. The MIDI
+// mapping index offers a row's bindings at its place in its kit, so a splice marks it stale.
 void noteDrumListEdit() {
 	deluge::noteStructuralEdit(deluge::StructuralContainer::DRUM_LIST);
+	deluge::markMappingIndexStale();
 }
 } // namespace
 

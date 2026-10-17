@@ -11,6 +11,7 @@
 #include "model/edits/learn_mapping.h"
 #include "model/instrument/kit.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/midi_command.h"
 #include "model/song/song.h"
 #include "modulation/knob.h"
 #include "modulation/params/param.h"
@@ -197,18 +198,23 @@ describe mapping_edit("LearnMapping", $ {
 		expect(drum->midiInput.cable == &MIDIDeviceManager::upstreamUSBMIDICable2).to_be_true();
 	});
 
-	it("projects a hosted device that is not connected to no cable, keeping it in the table", _ {
-		spec::SongFixture f = spec::make_synth_song();
-		Command command = note(3, 40);
-		command.device =
-		    MidiDeviceRef{.port = MidiDeviceRef::Port::HOSTED, .name = "No Such Device", .vendor_id = 0x1234,
-		                  .product_id = 0x5678};
-		const ClipMuteTarget target{f.clip->id()};
-		deluge::edits::learnMappingFor(command, target);
-		expect(held(*f.song, target) == command).to_be_true();
-		expect(f.clip->muteMIDICommand.containsSomething()).to_be_true();
-		expect(f.clip->muteMIDICommand.cable == nullptr).to_be_true();
-	});
+	it("projects a hosted device the Deluge does not know onto an unconnected entry made for it, keeping it in the "
+	   "table",
+	   _ {
+		   spec::SongFixture f = spec::make_synth_song();
+		   Command command = note(3, 40);
+		   command.device = MidiDeviceRef{
+		       .port = MidiDeviceRef::Port::HOSTED, .name = "No Such Device", .vendor_id = 0x1234, .product_id = 0x5678};
+		   const ClipMuteTarget target{f.clip->id()};
+		   deluge::edits::learnMappingFor(command, target);
+		   expect(held(*f.song, target) == command).to_be_true();
+		   expect(f.clip->muteMIDICommand.containsSomething()).to_be_true();
+		   // Not no cable, which would match every device while inputs are told apart by device.
+		   MIDICable* entry = deluge::bridge::find_cable(*command.device);
+		   expect(entry != nullptr).to_be_true();
+		   expect(f.clip->muteMIDICommand.cable == entry).to_be_true();
+		   expect(entry->connectionFlags == 0).to_be_true();
+	   });
 
 	it("learns a sound kit row's knob onto the drum's knob list, as a sound's param", _ {
 		spec::SongFixture f = spec::make_kit_song();

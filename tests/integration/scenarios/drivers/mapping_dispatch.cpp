@@ -21,16 +21,22 @@
 /// A small song (two synths, a kit of sound, MIDI and gate rows, a hibernating kit of a MIDI and a gate row, a MIDI
 /// track, an audio track, session clips and an arrangement-only clip) is given random mapping tables: every target
 /// kind, channels and MPE zones with their CC and program-change encodings, sources from any device, from DIN, from
-/// upstream USB or from a hosted device the Deluge does not know. Each table is projected onto the engine fields and
+/// upstream USB or from a hosted device the Deluge did not know. Each table is projected onto the engine fields and
 /// the index rebuilt. Each random message (from DIN or upstream USB, with inputs told apart by device or not, and
 /// random MPE zones on both cables) is then matched by the index and by a transcription of the scans the dispatch makes
 /// over the engine fields, and the two sequences of hits (target and position, in order) must be equal.
 ///
-/// The transcription gives a source naming a device the Deluge does not know a cable of its own that no message
-/// arrives on, as a song's load gives such a device a placeholder entry.
+/// Projecting a binding to a hosted device the Deluge did not know makes the device an entry, as a song's load does,
+/// which no message arrives on. A section's command is not projected, so a section learned from a device the Deluge
+/// still does not know is kept as such: its hosted sources name a device nothing else names.
 ///
-/// No arguments. Prints `MAPPING-DISPATCH cases=<n> mismatches=<m> ...` and exits 0 when no message's hits differ and
-/// every kind of hit was seen.
+/// Then the legs: the index follows the song and the devices. A binding to a device plugged in after it was learned
+/// starts matching, and stops when it is unplugged; an any-device binding matches every cable; a hibernated kit's rows
+/// and knobs stop matching and match again once it wakes; a session clip reordered and a kit row removed are offered
+/// at their new places. Each change reaches the index through the step the app loop takes before it matches a message.
+///
+/// No arguments. Prints `MAPPING-DISPATCH cases=<n> mismatches=<m> ...` and a line per leg, and exits 0 when no
+/// message's hits differ, every kind of hit was seen and every leg held.
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/arrangement.h"
@@ -45,7 +51,10 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"
+#include "model/edits/edit.h"
+#include "model/edits/learn_mapping.h"
 #include "model/global_effectable/global_effectable.h"
+#include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/output.h"
@@ -73,6 +82,13 @@
 #include <string>
 #include <string_view>
 #include <vector>
+
+// The USB host stack's reports of a hosted device being set up, configured and detached.
+extern "C" {
+void giveDetailsOfDeviceBeingSetUp(int32_t ip, char const* name, uint16_t vendorId, uint16_t productId);
+void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum);
+void hostedDeviceDetached(int32_t ip, int32_t midiDeviceNum);
+}
 
 namespace {
 
@@ -299,18 +315,6 @@ std::string describe(const std::vector<Hit>& hits) {
 	return out + "]";
 }
 
-/// The cable the transcription gives a source naming a device the Deluge does not know: no message arrives on it.
-MIDICableUSBHosted g_placeholder;
-
-/// @p field as a legacy load leaves it: when the table's entry @p entry names a device the Deluge has no cable for, the
-/// field listens to that device's placeholder.
-LearnedMIDI legacyField(LearnedMIDI field, const Mapping* entry) {
-	if (entry != nullptr && entry->source.device && deluge::bridge::find_cable(*entry->source.device) == nullptr) {
-		field.cable = &g_placeholder;
-	}
-	return field;
-}
-
 /// What the song holds that bindings can reach.
 struct Fixture {
 	Song* song{};
@@ -342,8 +346,7 @@ std::vector<Hit> legacyCommands(Song& song, MIDICable& cable, int32_t channel, i
 	for (int32_t c = std::ssize(song.live.clips.session_clips) - 1; c >= 0; c--) {
 		Clip* clip = song.live.clips.session_clips[c];
 		const MappingTarget target = deluge::project::ClipMuteTarget{clip->id()};
-		if (legacyField(clip->muteMIDICommand, song.project.mappings.find(target))
-		        .equalsNoteOrCC(&cable, channel, note)) {
+		if (clip->muteMIDICommand.equalsNoteOrCC(&cable, channel, note)) {
 			hits.push_back({target, static_cast<uint32_t>(c)});
 		}
 	}
@@ -382,7 +385,7 @@ std::vector<Hit> legacyKnobs(Song& song, ControlsAddress owner, MIDICable& cable
 		return hits;
 	}
 	for (size_t i = 0; i < entries.size(); i++) {
-		if (legacyField(knobs->midi_knobs[i].midiInput, &entries[i]).equalsNoteOrCC(&cable, channel, cc)) {
+		if (knobs->midi_knobs[i].midiInput.equalsNoteOrCC(&cable, channel, cc)) {
 			hits.push_back({entries[i].target, static_cast<uint32_t>(i)});
 		}
 	}
@@ -406,12 +409,10 @@ std::vector<Hit> legacyLanes(Song& song, uint32_t kitId, MIDICable& cable, int32
 	for (Drum* drum = kit->firstDrum; drum != nullptr; drum = drum->next, ordinal++) {
 		const MappingTarget input = deluge::project::LaneInputTarget{*drum->id()};
 		const MappingTarget mute = deluge::project::DrumMuteTarget{*drum->id()};
-		if (legacyField(drum->midiInput, song.project.mappings.find(input))
-		        .equalsNoteOrCCAllowMPE(&cable, channel, note)) {
+		if (drum->midiInput.equalsNoteOrCCAllowMPE(&cable, channel, note)) {
 			hits.push_back({input, ordinal});
 		}
-		else if (legacyField(drum->muteMIDICommand, song.project.mappings.find(mute))
-		             .equalsNoteOrCC(&cable, channel, note)) {
+		else if (drum->muteMIDICommand.equalsNoteOrCC(&cable, channel, note)) {
 			hits.push_back({mute, ordinal});
 		}
 	}
@@ -422,8 +423,14 @@ Hit hitOf(const deluge::midi::IndexedEntry& entry) {
 	return {entry.target, entry.ordinal};
 }
 
+/// The hosted device a section's command names: no binding that is projected names it, so the Deluge never knows it.
+MidiDeviceRef unknownToSections() {
+	return MidiDeviceRef{
+	    .port = MidiDeviceRef::Port::HOSTED, .name = "MAPPING DISPATCH NEVER", .vendor_id = 0x1209, .product_id = 2};
+}
+
 /// A random source: a channel, MPE zone or their CC or program-change encodings, a small note or CC (pitch bend among
-/// them), and any device, DIN, upstream USB or an unknown hosted device.
+/// them), and any device, DIN, upstream USB or a hosted device the Deluge did not know.
 MidiCommand randomSource(std::mt19937& rng) {
 	constexpr std::array<uint8_t, 7> kChannels{
 	    0, 1, 2, 14, 15, MIDI_CHANNEL_MPE_LOWER_ZONE, MIDI_CHANNEL_MPE_UPPER_ZONE};
@@ -487,6 +494,9 @@ MappingTable randomTable(std::mt19937& rng, const Fixture& f) {
 			break;
 		case 4:
 			mapping.target = deluge::project::SectionLaunchTarget{static_cast<uint8_t>(rng() % kMaxNumSections)};
+			if (mapping.source.device && mapping.source.device->port == MidiDeviceRef::Port::HOSTED) {
+				mapping.source.device = unknownToSections();
+			}
 			break;
 		default:
 			mapping.target = deluge::project::TrackInputTarget{f.outputIds[rng() % f.outputIds.size()]};
@@ -521,6 +531,370 @@ void install(const Fixture& f, MappingTable table) {
 void randomZones(std::mt19937& rng, MIDIPort& port) {
 	port.mpeLowerZoneLastMemberChannel = rng() % 2 ? 0 : 1 + rng() % 14;
 	port.mpeUpperZoneLastMemberChannel = rng() % 2 ? 15 : 1 + rng() % 14;
+}
+
+// ---- The legs: the index follows the song and the devices ----
+
+/// A hosted device the legs plug in and out. The Deluge knows nothing of it when its bindings are learned.
+struct LateDevice {
+	const char* name;
+	uint16_t product;
+	int32_t slot; ///< its place among the devices on the USB host port
+
+	[[nodiscard]] MidiDeviceRef ref() const {
+		return MidiDeviceRef{
+		    .port = MidiDeviceRef::Port::HOSTED, .name = name, .vendor_id = 0x1209, .product_id = product};
+	}
+	void plugIn() const {
+		giveDetailsOfDeviceBeingSetUp(0, name, 0x1209, product);
+		hostedDeviceConfigured(0, slot);
+	}
+	void unplug() const { hostedDeviceDetached(0, slot); }
+};
+
+/// Played by a kit row's and a track's inputs: projecting them makes it an entry before it is plugged in.
+constexpr LateDevice kLate{"MAPPING DISPATCH LATE", 0x0de1, 1};
+/// Played by a section's command alone, which is not projected: the Deluge first knows it when it is plugged in.
+constexpr LateDevice kLateToSection{"MAPPING DISPATCH LATE SECTION", 0x0de2, 2};
+
+/// Learn @p mapping as MIDI learn does: whether the Edit took it.
+bool learn(Song& song, const Mapping& mapping) {
+	deluge::edits::Context ctx{song, song.project};
+	deluge::edits::LearnMapping edit{mapping};
+	return deluge::edits::apply(ctx, edit) == Error::NONE;
+}
+
+/// The index's command hits for a note.
+std::vector<Hit> commandHits(MIDICable& cable, int32_t channel, int32_t note) {
+	std::vector<Hit> hits;
+	deluge::midi::mappingIndex().forEachCommand(cable, channel, note,
+	                                            [&](const deluge::midi::IndexedEntry& e) { hits.push_back(hitOf(e)); });
+	return hits;
+}
+
+/// The index's hits among kit @p kit's rows for a note.
+std::vector<Hit> laneHits(uint32_t kit, MIDICable& cable, int32_t channel, int32_t note) {
+	std::vector<Hit> hits;
+	deluge::midi::mappingIndex().forEachLaneMatch(
+	    kit, cable, channel, note, [&](const deluge::midi::IndexedEntry& e) { hits.push_back(hitOf(e)); });
+	return hits;
+}
+
+/// The index's hits among @p owner's learned knobs for a CC.
+std::vector<Hit> knobHits(const ControlsAddress& owner, MIDICable& cable, int32_t channel, int32_t cc) {
+	std::vector<Hit> hits;
+	deluge::midi::mappingIndex().forEachKnob(owner, cable, channel, cc,
+	                                         [&](const deluge::midi::IndexedEntry& e) { hits.push_back(hitOf(e)); });
+	return hits;
+}
+
+/// The hit on @p target among @p hits, if any.
+std::optional<Hit> hitOn(const std::vector<Hit>& hits, const MappingTarget& target) {
+	const auto it = std::ranges::find(hits, target, &Hit::target);
+	return it != hits.end() ? std::optional{*it} : std::nullopt;
+}
+
+/// The app loop's step before it matches an incoming message; @p what is set when a change it should act on is left
+/// waiting.
+void refresh(std::string& what) {
+	deluge::midi::refreshMappingIndex();
+	if (what.empty() && deluge::mappingIndexStale()) {
+		what = "a refresh left the index marked stale";
+	}
+}
+
+/// What the legs drive: the fixture's playing kit and synth, and the cables messages arrive on.
+struct Stage {
+	Song& song;
+	Kit& kit;
+	Instrument& synth;
+	std::array<MIDICable*, 2> cables;
+};
+
+/// A binding to a device plugged in after it was learned starts matching once the device is plugged in, and unplugging
+/// it stops it: a binding never listens to a cable that can still send unless it names it, and the device plugged back
+/// in plays it again. A section's command names one device; a kit row's and a track's input another.
+std::string lateDeviceLeg(Stage& s) {
+	if (deluge::bridge::find_cable(kLate.ref()) != nullptr
+	    || deluge::bridge::find_cable(kLateToSection.ref()) != nullptr) {
+		return "a late device is known before it is plugged in";
+	}
+	const Mapping section{.source = {.channel_or_zone = 4, .note_or_cc = 60, .device = kLateToSection.ref()},
+	                      .target = deluge::project::SectionLaunchTarget{3}};
+	const Mapping rowInput{.source = {.channel_or_zone = 5, .note_or_cc = 61, .device = kLate.ref()},
+	                       .target = deluge::project::LaneInputTarget{*s.kit.firstDrum->id()}};
+	const Mapping trackInput{.source = {.channel_or_zone = 6, .note_or_cc = 62, .device = kLate.ref()},
+	                         .target = deluge::project::TrackInputTarget{*s.synth.id()}};
+	for (const Mapping& mapping : {section, rowInput, trackInput}) {
+		if (!learn(s.song, mapping)) {
+			return "a learn was refused";
+		}
+	}
+	std::string what;
+	refresh(what);
+	// Nothing that can send plays a binding to a device not plugged in.
+	auto silentElsewhere = [&](const char* when) {
+		for (MIDICable* cable : s.cables) {
+			const char* name = cable == s.cables[0] ? "DIN" : "upstream USB";
+			if (hitOn(commandHits(*cable, 4, 60), section.target)) {
+				return std::string{when} + ": " + name + " launches a section learned from a late device";
+			}
+			if (hitOn(laneHits(*s.kit.id(), *cable, 5, 61), rowInput.target)) {
+				return std::string{when} + ": " + name + " sounds a kit row learned from a late device";
+			}
+			if (s.synth.midiInput.checkMatch(cable, 6) != MIDIMatchType::NO_MATCH) {
+				return std::string{when} + ": " + name + " plays a track whose input is a late device";
+			}
+		}
+		return std::string{};
+	};
+	if (what.empty()) {
+		what = silentElsewhere("before they are plugged in");
+	}
+
+	kLate.plugIn();
+	kLateToSection.plugIn();
+	refresh(what);
+	MIDICable* plugged = deluge::bridge::find_cable(kLate.ref());
+	MIDICable* pluggedToSection = deluge::bridge::find_cable(kLateToSection.ref());
+	if (what.empty()
+	    && (plugged == nullptr || plugged->connectionFlags == 0 || pluggedToSection == nullptr
+	        || pluggedToSection->connectionFlags == 0)) {
+		what = "a plugged-in device has no connected cable";
+	}
+	auto playsFromLate = [&](const char* when) {
+		if (!hitOn(commandHits(*pluggedToSection, 4, 60), section.target)) {
+			return std::string{when} + ": the late device does not launch its section";
+		}
+		if (!hitOn(laneHits(*s.kit.id(), *plugged, 5, 61), rowInput.target)) {
+			return std::string{when} + ": the late device does not sound its kit row";
+		}
+		if (s.synth.midiInput.checkMatch(plugged, 6) != MIDIMatchType::CHANNEL) {
+			return std::string{when} + ": the late device does not play its track";
+		}
+		return std::string{};
+	};
+	if (what.empty()) {
+		what = playsFromLate("plugged in");
+	}
+	if (what.empty()) {
+		what = silentElsewhere("plugged in");
+	}
+
+	kLate.unplug();
+	kLateToSection.unplug();
+	refresh(what);
+	if (what.empty() && (plugged->connectionFlags != 0 || pluggedToSection->connectionFlags != 0)) {
+		what = "an unplugged device's cable is still connected";
+	}
+	if (what.empty()) {
+		what = silentElsewhere("unplugged");
+	}
+	if (what.empty()
+	    && (deluge::bridge::find_cable(kLate.ref()) != plugged
+	        || deluge::bridge::find_cable(kLateToSection.ref()) != pluggedToSection)) {
+		what = "an unplugged device's bindings no longer resolve to its cable";
+	}
+	kLate.plugIn();
+	kLateToSection.plugIn();
+	refresh(what);
+	if (what.empty()) {
+		what = playsFromLate("plugged back in");
+	}
+	kLate.unplug();
+	kLateToSection.unplug();
+	refresh(what);
+	return what;
+}
+
+/// A binding learned from any device matches every cable: DIN, upstream USB and a hosted device.
+std::string anyDeviceLeg(Stage& s) {
+	const ControlsAddress kitKnobs{ControlsAddress::Kind::OUTPUT, *s.kit.id()};
+	const Mapping section{.source = {.channel_or_zone = 7, .note_or_cc = 63},
+	                      .target = deluge::project::SectionLaunchTarget{5}};
+	const Mapping clip{.source = {.channel_or_zone = 8, .note_or_cc = 64},
+	                   .target = deluge::project::ClipMuteTarget{s.song.live.clips.session_clips[0]->id()}};
+	const Mapping knob{.source = {.channel_or_zone = 9, .note_or_cc = 10},
+	                   .target = deluge::project::ParamTarget{
+	                       kitKnobs, knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)}};
+	for (const Mapping& mapping : {section, clip, knob}) {
+		if (!learn(s.song, mapping)) {
+			return "a learn was refused";
+		}
+	}
+	std::string what;
+	kLate.plugIn();
+	refresh(what);
+	MIDICable* plugged = deluge::bridge::find_cable(kLate.ref());
+	if (what.empty() && plugged == nullptr) {
+		what = "the plugged-in device has no cable";
+	}
+	for (MIDICable* cable : {s.cables[0], s.cables[1], plugged}) {
+		if (!what.empty()) {
+			break;
+		}
+		const char* name = cable == s.cables[0] ? "DIN" : cable == s.cables[1] ? "upstream USB" : "the hosted device";
+		if (!hitOn(commandHits(*cable, 7, 63), section.target)) {
+			what = std::string{name} + " does not launch an any-device section";
+		}
+		else if (!hitOn(commandHits(*cable, 8, 64), clip.target)) {
+			what = std::string{name} + " does not toggle an any-device clip";
+		}
+		else if (!hitOn(knobHits(kitKnobs, *cable, 9, 10), knob.target)) {
+			what = std::string{name} + " does not move an any-device knob";
+		}
+	}
+	kLate.unplug();
+	refresh(what);
+	return what;
+}
+
+/// A hibernated kit's row input and knobs do not match; waking the kit makes them match again.
+std::string hibernationLeg(Stage& s) {
+	static ParamManagerForTimeline kitParams;
+	Instrument* kit = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
+	if (kit == nullptr) {
+		return "no kit to put to sleep";
+	}
+	s.song.live.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr, &kitParams,
+	                                true);
+	s.song.addOutput(kit);
+	static_cast<Kit*>(kit)->addDrum(StorageManager::createNewDrum(DrumType::MIDI), &s.song);
+	const uint32_t kitId = *kit->id();
+	const ControlsAddress knobs{ControlsAddress::Kind::OUTPUT, kitId};
+	const Mapping rowInput{
+	    .source = {.channel_or_zone = 10, .note_or_cc = 65, .device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN}},
+	    .target = deluge::project::LaneInputTarget{*static_cast<Kit*>(kit)->firstDrum->id()}};
+	const Mapping knob{.source = {.channel_or_zone = 11, .note_or_cc = 20},
+	                   .target = deluge::project::ParamTarget{
+	                       knobs, knobParam(params::UNPATCHED_DELAY_AMOUNT, params::Kind::UNPATCHED_GLOBAL)}};
+	if (!learn(s.song, rowInput) || !learn(s.song, knob)) {
+		return "a learn was refused";
+	}
+	MIDICable& din = *s.cables[0];
+	std::string what;
+	auto matches = [&](bool expected, const char* when) {
+		refresh(what);
+		if (!what.empty()) {
+			return;
+		}
+		if (hitOn(laneHits(kitId, din, 10, 65), rowInput.target).has_value() != expected) {
+			what = std::string{when} + (expected ? ": its row input does not match" : ": its row input matches");
+		}
+		else if (hitOn(knobHits(knobs, din, 11, 20), knob.target).has_value() != expected) {
+			what = std::string{when} + (expected ? ": its knob does not match" : ": its knob matches");
+		}
+	};
+	matches(true, "playing");
+	kit->editedByUser = true;
+	s.song.deleteOrHibernateOutput(kit);
+	if (what.empty() && s.song.live.media.first_hibernating_instrument != kit) {
+		what = "the kit did not hibernate";
+	}
+	matches(false, "hibernated");
+	s.song.removeInstrumentFromHibernationList(kit);
+	s.song.addOutput(kit);
+	matches(true, "woken");
+	return what;
+}
+
+/// A clip's mute command is offered at the clip's place in the session after the session's clips are reordered.
+std::string sessionOrderLeg(Stage& s) {
+	ClipArray& clips = s.song.live.clips.session_clips;
+	const int32_t last = static_cast<int32_t>(clips.size()) - 1;
+	const Mapping mute{.source = {.channel_or_zone = 12, .note_or_cc = 66},
+	                   .target = deluge::project::ClipMuteTarget{clips[0]->id()}};
+	if (!learn(s.song, mute)) {
+		return "a learn was refused";
+	}
+	std::string what;
+	clips.swapClips(0, last);
+	refresh(what);
+	const std::optional<Hit> hit = hitOn(commandHits(*s.cables[0], 12, 66), mute.target);
+	if (what.empty() && (!hit || hit->ordinal != static_cast<uint32_t>(last))) {
+		what = "the moved clip's mute is offered at " + (hit ? std::to_string(hit->ordinal) : std::string{"no place"})
+		       + ", not its session index " + std::to_string(last);
+	}
+	clips.swapClips(0, last);
+	refresh(what);
+	return what;
+}
+
+/// A kit row's input is offered at its new place after a row before it is removed.
+std::string rowRemovedLeg(Stage& s) {
+	static ParamManagerForTimeline kitParams;
+	Instrument* instrument = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
+	if (instrument == nullptr) {
+		return "no kit";
+	}
+	Kit& kit = *static_cast<Kit*>(instrument);
+	s.song.live.param_backup.backUp(static_cast<ModControllableAudio*>(kit.toModControllable()), nullptr, &kitParams,
+	                                true);
+	s.song.addOutput(&kit);
+	Drum* removed = StorageManager::createNewDrum(DrumType::MIDI);
+	Drum* kept = StorageManager::createNewDrum(DrumType::GATE);
+	kit.addDrum(removed, &s.song);
+	kit.addDrum(kept, &s.song);
+	const Mapping input{
+	    .source = {.channel_or_zone = 13, .note_or_cc = 67, .device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN}},
+	    .target = deluge::project::LaneInputTarget{*kept->id()}};
+	if (!learn(s.song, input)) {
+		return "a learn was refused";
+	}
+	std::string what;
+	kit.removeDrum(removed);
+	refresh(what);
+	const std::optional<Hit> hit = hitOn(laneHits(*kit.id(), *s.cables[0], 13, 67), input.target);
+	if (what.empty() && (!hit || hit->ordinal != 0)) {
+		what = "the remaining row's input is offered at "
+		       + (hit ? std::to_string(hit->ordinal) : std::string{"no place"}) + ", not 0";
+	}
+	return what;
+}
+
+/// Run the legs on @p f's song, each from an empty table; their failures, printed to @p io.
+int32_t runLegs(const Fixture& f, std::array<MIDICable*, 2> cables, deluge::scenarios::driver::Io io) {
+	Song& song = *f.song;
+	Kit* kit = nullptr;
+	Instrument* synth = nullptr;
+	for (Output* o = song.live.media.first_output; o != nullptr; o = o->next) {
+		if (o->type == OutputType::KIT && kit == nullptr) {
+			kit = static_cast<Kit*>(o);
+		}
+		if (o->type == OutputType::SYNTH && synth == nullptr) {
+			synth = static_cast<Instrument*>(o);
+		}
+	}
+	if (kit == nullptr || synth == nullptr) {
+		std::fprintf(io.err, "MAPPING-DISPATCH FAIL the legs have no kit or synth\n");
+		return 1;
+	}
+	const bool differentiating = MIDIDeviceManager::differentiatingInputsByDevice;
+	MIDIDeviceManager::differentiatingInputsByDevice = true;
+	Stage stage{song, *kit, *synth, cables};
+	constexpr std::array<std::pair<const char*, std::string (*)(Stage&)>, 5> kLegs{{
+	    {"late-device", lateDeviceLeg},
+	    {"any-device", anyDeviceLeg},
+	    {"hibernation", hibernationLeg},
+	    {"session-order", sessionOrderLeg},
+	    {"row-removed", rowRemovedLeg},
+	}};
+	int32_t failures = 0;
+	for (const auto& [name, leg] : kLegs) {
+		install(f, MappingTable{});
+		const std::string what = leg(stage);
+		if (what.empty()) {
+			std::fprintf(io.out, "MAPPING-DISPATCH leg %s ok\n", name);
+		}
+		else {
+			std::fprintf(io.err, "MAPPING-DISPATCH FAIL leg %s: %s\n", name, what.c_str());
+			std::fprintf(io.out, "MAPPING-DISPATCH leg %s FAILED\n", name);
+			failures++;
+		}
+	}
+	MIDIDeviceManager::differentiatingInputsByDevice = differentiating;
+	install(f, MappingTable{});
+	return failures;
 }
 
 int mapping_dispatch_main(int /*argc*/, char** /*argv*/, deluge::scenarios::driver::Io io) {
@@ -619,8 +993,11 @@ int mapping_dispatch_main(int /*argc*/, char** /*argv*/, deluge::scenarios::driv
 			if (!entry.source.device) {
 				seen["any-device"]++;
 			}
-			else if (deluge::bridge::find_cable(*entry.source.device) == nullptr) {
+			else if (MIDICable* named = deluge::bridge::find_cable(*entry.source.device); named == nullptr) {
 				seen["absent-device"]++;
+			}
+			else if (named != cables[0] && named != cables[1]) {
+				seen["unconnected-device"]++;
 			}
 			else if (MIDIDeviceManager::differentiatingInputsByDevice) {
 				seen["device-told-apart"]++;
@@ -685,6 +1062,7 @@ int mapping_dispatch_main(int /*argc*/, char** /*argv*/, deluge::scenarios::driv
 	MIDIDeviceManager::differentiatingInputsByDevice = differentiating;
 	cables[0]->ports[MIDI_DIRECTION_INPUT_TO_DELUGE] = ports[0];
 	cables[1]->ports[MIDI_DIRECTION_INPUT_TO_DELUGE] = ports[1];
+	const int32_t legFailures = runLegs(f, cables, io);
 	deluge::midi::mappingIndex().clear();
 
 	std::string hits;
@@ -693,14 +1071,21 @@ int mapping_dispatch_main(int /*argc*/, char** /*argv*/, deluge::scenarios::driv
 	}
 	std::fprintf(io.out, "MAPPING-DISPATCH cases=%d mismatches=%d hits:%s\n", static_cast<int>(cases),
 	             static_cast<int>(mismatches), hits.c_str());
-	int32_t failures = mismatches;
+	int32_t failures = mismatches + legFailures;
 	if (!broken.empty()) {
 		std::fprintf(io.err, "MAPPING-DISPATCH FAIL %s\n", broken.c_str());
 		failures++;
 	}
-	constexpr std::array<const char*, 9> kRequired{"knob",       "clip",          "rowmute",
-	                                               "section",    "rowinput",      "zone-rowinput",
-	                                               "any-device", "absent-device", "device-told-apart"};
+	constexpr std::array<const char*, 10> kRequired{"knob",
+	                                                "clip",
+	                                                "rowmute",
+	                                                "section",
+	                                                "rowinput",
+	                                                "zone-rowinput",
+	                                                "any-device",
+	                                                "absent-device",
+	                                                "unconnected-device",
+	                                                "device-told-apart"};
 	if (cases < 10000 || std::ranges::any_of(kRequired, [&](const char* kind) { return seen[kind] == 0; })) {
 		std::fprintf(io.err, "MAPPING-DISPATCH FAIL the property did not reach every kind of match\n");
 		failures++;

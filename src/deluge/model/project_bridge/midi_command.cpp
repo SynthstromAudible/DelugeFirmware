@@ -82,6 +82,22 @@ MIDICable* find_cable(const MidiDeviceRef& device) {
 	return nullptr;
 }
 
+MIDICable* cable_for(const MidiDeviceRef& device) {
+	if (MIDICable* cable = find_cable(device)) {
+		return cable;
+	}
+	std::string name = device.name;
+	return MIDIDeviceManager::getOrCreateHostedMIDIDeviceFromDetails(&name, device.vendor_id, device.product_id);
+}
+
+LearnedMIDI field_of(const MidiCommand& command) {
+	LearnedMIDI learned = learned_of(command);
+	if (command.device) {
+		learned.cable = cable_for(*command.device);
+	}
+	return learned;
+}
+
 LearnedMIDI learned_of(const MidiCommand& command) {
 	LearnedMIDI learned;
 	learned.channelOrZone = command.channel_or_zone;
