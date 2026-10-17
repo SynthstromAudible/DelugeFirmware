@@ -417,14 +417,15 @@ std::expected<void, LoadError> decode_identity(const Value& outputElement, std::
 namespace {
 
 /// The keys of a synth track's element the model reads (decode_song's id, decode_identity's for a `sound`, its
-/// controls).
-constexpr std::array<std::string_view, 11> kSoundOutputKeys{
-    "id",       "isMutedInArrangement", "isSoloingInArrangement", "isArmedForRecording", "activeModFunction",
-    "colour",   "presetName",           "presetFolder",           "defaultVelocity",     "modKnobs",
-    "midiKnobs"};
+/// controls, and the knobs and MIDI input the mapping table holds).
+constexpr std::array<std::string_view, 14> kSoundOutputKeys{
+    "id",        "isMutedInArrangement", "isSoloingInArrangement", "isArmedForRecording", "activeModFunction",
+    "colour",    "presetName",           "presetFolder",           "defaultVelocity",     "modKnobs",
+    "midiKnobs", "inputMidiChannel",     "inputMPEZone",           "inputMidiDevice"};
 /// The keys of a sound kit row's element the model reads (decode_song's id, decode_identity's name, its controls, its
-/// arp, which its lane record holds).
-constexpr std::array<std::string_view, 5> kSoundDrumKeys{"id", "name", "modKnobs", "midiKnobs", "arpeggiator"};
+/// arp, which its lane record holds, and the knobs, mute command and input the mapping table holds).
+constexpr std::array<std::string_view, 7> kSoundDrumKeys{
+    "id", "name", "modKnobs", "midiKnobs", "arpeggiator", "midiMuteCommand", "midiInput"};
 
 template <size_t N>
 InstrumentSlot slot_without(const Value& element, const std::array<std::string_view, N>& ownKeys) {

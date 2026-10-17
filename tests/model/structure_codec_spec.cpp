@@ -144,6 +144,28 @@ describe structure_codec("the structure records", ${
 		expect(slot.state.find("arpeggiator")).to_be_null();
 		expect(slot.state.find("osc1")).not_().to_be_null();
 	});
+
+	it("leaves a synth track's MIDI input out of its sound, which the mapping table holds", _ {
+		auto doc = deluge::serialization::parseXml(
+		    R"(<sound id="3" inputMidiChannel="4" inputMPEZone="upper" mode="fm"><osc1 type="sine"/>)"
+		    R"(<inputMidiDevice name="Midihub" vendorId="0x16D0" productId="0x0C9C"/></sound>)");
+		InstrumentSlot slot = slot_of_output(*doc->find("sound"), 2);
+		std::vector<std::string> keys;
+		for (const auto& [key, value] : slot.state.entries()) {
+			keys.push_back(key);
+		}
+		expect(keys).to_equal(std::vector<std::string>{"mode", "osc1"});
+	});
+
+	it("leaves a sound drum's mute command and input out of its sound, which the mapping table holds", _ {
+		auto doc = deluge::serialization::parseXml(
+		    R"(<sound id="9" name="KICK" mode="subtractive"><osc1 type="sample"/>)"
+		    R"(<midiMuteCommand channel="2" note="40"/><midiInput channel="3" note="36"/></sound>)");
+		InstrumentSlot slot = slot_of_drum(*doc->find("sound"), 3);
+		expect(slot.state.find("midiMuteCommand")).to_be_null();
+		expect(slot.state.find("midiInput")).to_be_null();
+		expect(slot.state.find("osc1")).not_().to_be_null();
+	});
 });
 
 CPPSPEC_SPEC(structure_codec)
