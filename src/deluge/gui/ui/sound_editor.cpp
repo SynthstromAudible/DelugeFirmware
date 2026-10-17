@@ -1502,7 +1502,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 				PatchSource source = modSourceShortcuts[modSourceX][y];
 
 				const bool second_layer_mod_source_shortcuts_toggled =
-					sourceShortcutBlinkFrequencies[modSourceX][y] != 255
+					sourceShortcutBlinkFrequencies[modSourceX][y] == 0
 					&& getCurrentMenuItem()->getParamKind() == modulation::params::Kind::PATCH_CABLE
 					&& sourceShortcutBlinkColours[modSourceX][y] != 0b00000011; /* yellow */
 
