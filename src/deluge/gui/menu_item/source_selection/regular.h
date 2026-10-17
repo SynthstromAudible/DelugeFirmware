@@ -25,7 +25,7 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	ParamDescriptor getDestinationDescriptor() override;
 	MenuItem* selectButtonPress() override;
-	MenuItem* patchingSourceShortcutPress(PatchSource newS, bool previousPressStillActive) override;
+	MenuItem* patchingSourceShortcutPress(PatchSource newS, bool previous_press_still_active) override;
 	std::string_view getTitle() const override { return l10n::getView(l10n::String::STRING_FOR_MODULATE_WITH); };
 };
 

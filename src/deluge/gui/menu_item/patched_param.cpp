@@ -76,9 +76,15 @@ uint8_t PatchedParam::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* 
 }
 
 MenuItem* PatchedParam::patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) {
+	const auto previous_param = soundEditor.patchingParamSelected;
 	soundEditor.patchingParamSelected = this->getP();
-	source_selection::regularMenu.s = s;
-	return &patch_cable_strength::regularMenu;
+	auto* next_menu = source_selection::regularMenu.patchingSourceShortcutPress(s, previousPressStillActive);
+	// if the next menu is not possible (e.g., the source is not allowed), revert the patchingParamSelected to the
+	// previous one
+	if (next_menu == nullptr) {
+		soundEditor.patchingParamSelected = previous_param;
+	}
+	return next_menu;
 }
 
 ModelStackWithAutoParam* PatchedParam::getModelStack(void* memory) {
