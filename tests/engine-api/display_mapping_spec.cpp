@@ -131,6 +131,27 @@ constexpr SettingInfo kSidechainRelease{
 
 constexpr SettingInfo kPlain{.path = "plain", .min = -5, .max = 5};
 
+constexpr std::array<std::string_view, 5> kPolyphonies{"auto", "poly", "mono", "legato", "choke"};
+constexpr SettingInfo kPolyphony{.path = "polyphonic", .kind = SettingKind::CHOICE, .choices = kPolyphonies};
+constexpr SettingInfo kToggle{.path = "osc2/oscillatorSync", .kind = SettingKind::BOOL};
+
+constexpr int32_t kQ31Min = -2147483647 - 1;
+constexpr int32_t kQ31Max = 2147483647;
+constexpr SettingDescriptorExtras kStandardExtras{.mapping = {.kind = DisplayMappingKind::STANDARD}};
+constexpr SettingInfo kGate{.path = "arpeggiator/gate", .min = kQ31Min, .max = kQ31Max, .extras = &kStandardExtras};
+constexpr SettingDescriptorExtras kUnsignedExtras{.mapping = {.kind = DisplayMappingKind::UNSIGNED}};
+constexpr SettingInfo kRhythm{.path = "arpeggiator/rhythm", .min = kQ31Min, .max = kQ31Max, .extras = &kUnsignedExtras};
+constexpr SettingDescriptorExtras kPanExtras{.mapping = {.kind = DisplayMappingKind::PAN}};
+constexpr SettingInfo kPan{.path = "reverb/pan", .min = kQ31Min, .max = kQ31Max, .extras = &kPanExtras};
+constexpr SettingDescriptorExtras kFiftiethsExtras{.mapping = {.kind = DisplayMappingKind::FIFTIETHS}};
+constexpr SettingInfo kSend{.path = "sideChainSend", .min = 0, .max = kQ31Max, .extras = &kFiftiethsExtras};
+constexpr SettingDescriptorExtras kKnobExtras{
+    .mapping = {.kind = DisplayMappingKind::KNOB_POSITION, .clamp_to = 127 << 24}};
+constexpr SettingInfo kKnob{.path = "audioCompressor/attack", .min = 0, .max = kQ31Max, .extras = &kKnobExtras};
+constexpr SettingDescriptorExtras kBlendExtras{
+    .mapping = {.kind = DisplayMappingKind::KNOB_POSITION, .clamp_to = kQ31Max}};
+constexpr SettingInfo kBlend{.path = "audioCompressor/compBlend", .min = 0, .max = kQ31Max, .extras = &kBlendExtras};
+
 /// `SyncLevel::syncTypeAndLevelToMenuOption` over every (type, level) pair: row = the partner's choice index (even,
 /// triplet, dotted), column = the level.
 constexpr int32_t kSyncMenuOf[3][10] = {
@@ -292,6 +313,81 @@ describe display_mapping("A setting's display mapping", $ {
 		expect(to_menu(kSidechainAttack, 2147483647)).to_equal(0);
 		expect(to_menu(kSidechainRelease, 0)).to_equal(50);
 		expect(to_menu(kSidechainRelease, 264)).to_equal(49); // 33: 34 and 32 tie; legacy keeps the first
+	});
+
+	it("offers each kind's menu range", _ {
+		using deluge::engine::menu_range;
+		expect(menu_range(kPlain)).to_equal(Pair{-5, 5});
+		expect(menu_range(kPolyphony)).to_equal(Pair{0, 4});
+		expect(menu_range(kToggle)).to_equal(Pair{0, 1});
+		expect(menu_range(kMaxVoices)).to_equal(Pair{0, 16});
+		expect(menu_range(kMidiChannel)).to_equal(Pair{0, 16});
+		expect(menu_range(kLinearInterpolation)).to_equal(Pair{0, 1});
+		expect(menu_range(kSyncLevel)).to_equal(Pair{0, 27});
+		expect(menu_range(kTranspose)).to_equal(Pair{-9600, 9600});
+		expect(menu_range(kPhase)).to_equal(Pair{-1, 360});
+		expect(menu_range(kSidechainAttack)).to_equal(Pair{0, 50});
+		expect(menu_range(kGate)).to_equal(Pair{0, 50});
+		expect(menu_range(kRhythm)).to_equal(Pair{0, 50});
+		expect(menu_range(kSend)).to_equal(Pair{0, 50});
+		expect(menu_range(kPan)).to_equal(Pair{-25, 25});
+		expect(menu_range(kKnob)).to_equal(Pair{0, 128});
+	});
+	it("stores a choice's or a bool's menu value as itself, within its choices", _ {
+		expect(stored_of(kPolyphony, 3)).to_equal(Pair{3, 0});
+		expect(to_menu(kPolyphony, 4)).to_equal(4);
+		expect(from_menu(kPolyphony, 5).has_value()).to_be_false();
+		expect(stored_of(kToggle, 1)).to_equal(Pair{1, 0});
+		expect(from_menu(kToggle, 2).has_value()).to_be_false();
+	});
+
+	it("shows a standard menu as computeCurrentValueForStandardMenuItem does, and stores as its final value", _ {
+		expect(to_menu(kGate, kQ31Min)).to_equal(0);
+		expect(to_menu(kGate, 0)).to_equal(25);
+		expect(to_menu(kGate, kQ31Max)).to_equal(50);
+		expect(stored_of(kGate, 0)).to_equal(Pair{kQ31Min, 0});
+		expect(stored_of(kGate, 1)).to_equal(Pair{-2061584303, 0});
+		expect(stored_of(kGate, 25)).to_equal(Pair{-23, 0});
+		expect(stored_of(kGate, 50)).to_equal(Pair{kQ31Max, 0});
+		expect(from_menu(kGate, 51).has_value()).to_be_false();
+		expect(from_menu(kGate, -1).has_value()).to_be_false();
+	});
+	it("shows an unsigned menu over the 32 bits, and stores steps of 85899345, the top wrapping", _ {
+		expect(to_menu(kRhythm, 0)).to_equal(0);
+		expect(to_menu(kRhythm, -1)).to_equal(50);
+		expect(to_menu(kRhythm, 85899345)).to_equal(1);
+		expect(stored_of(kRhythm, 1)).to_equal(Pair{85899345, 0});
+		expect(stored_of(kRhythm, 50)).to_equal(Pair{-46, 0});
+		expect(from_menu(kRhythm, 51).has_value()).to_be_false();
+	});
+	it("shows a pan as computeCurrentValueForPan does, and stores as computeFinalValueForPan", _ {
+		expect(to_menu(kPan, kQ31Min)).to_equal(-25);
+		expect(to_menu(kPan, 0)).to_equal(0);
+		expect(to_menu(kPan, kQ31Max)).to_equal(25);
+		expect(stored_of(kPan, -25)).to_equal(Pair{kQ31Min, 0});
+		expect(stored_of(kPan, -1)).to_equal(Pair{-85899344, 0});
+		expect(stored_of(kPan, 1)).to_equal(Pair{85899344, 0});
+		expect(stored_of(kPan, 25)).to_equal(Pair{kQ31Max, 0});
+		expect(from_menu(kPan, 26).has_value()).to_be_false();
+	});
+	it("shows the sidechain send in fiftieths rounded to the nearest, as Send::readCurrentValue does", _ {
+		expect(to_menu(kSend, 0)).to_equal(0);
+		expect(to_menu(kSend, 21474836)).to_equal(0);
+		expect(to_menu(kSend, 21474837)).to_equal(1);
+		expect(to_menu(kSend, 42949673)).to_equal(1);
+		expect(to_menu(kSend, kQ31Max)).to_equal(50);
+		expect(stored_of(kSend, 25)).to_equal(Pair{1073741825, 0});
+		expect(stored_of(kSend, 49)).to_equal(Pair{2104533977, 0});
+		expect(stored_of(kSend, 50)).to_equal(Pair{kQ31Max, 0});
+		expect(from_menu(kSend, 51).has_value()).to_be_false();
+	});
+	it("shows a compressor knob as its top seven bits, and stores the top step as its row says", _ {
+		expect(to_menu(kKnob, (5 << 24) + 0xFFFFFF)).to_equal(5);
+		expect(to_menu(kKnob, kQ31Max)).to_equal(127);
+		expect(stored_of(kKnob, 64)).to_equal(Pair{1073741824, 0});
+		expect(stored_of(kKnob, 128)).to_equal(Pair{127 << 24, 0});
+		expect(stored_of(kBlend, 128)).to_equal(Pair{kQ31Max, 0});
+		expect(from_menu(kKnob, 129).has_value()).to_be_false();
 	});
 
 	it("applies a row with no predicate everywhere, and a predicate by its context", _ {

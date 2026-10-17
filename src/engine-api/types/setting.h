@@ -177,6 +177,23 @@ inline constexpr DisplayMapping kLinearMapping{};
 	return false;
 }
 
+/// @brief The least and greatest value @p row stores: a CHOICE's indices, a BOOL's 0 and 1, an INTEGER's range.
+/// @param row The setting's row.
+/// @return {least, greatest}.
+[[nodiscard]] constexpr std::pair<int32_t, int32_t> stored_bounds(const SettingInfo& row) {
+	switch (row.kind) {
+	case SettingKind::CHOICE:
+		return {0, static_cast<int32_t>(row.choices.size()) - 1};
+	case SettingKind::BOOL:
+		return {0, 1};
+	case SettingKind::INTEGER:
+	case SettingKind::STRUCTURED:
+	case SettingKind::TEXT:
+		break;
+	}
+	return {row.min, row.max};
+}
+
 /// @brief @p stored as a menu shows it.
 /// @param row    The setting's row.
 /// @param stored A value within the row's stored range.
@@ -208,7 +225,8 @@ inline constexpr DisplayMapping kLinearMapping{};
 		}
 	}
 	if (row.user.identity()) {
-		return (user >= row.min && user <= row.max) ? std::optional<int32_t>{user} : std::nullopt;
+		const auto [least, greatest] = stored_bounds(row);
+		return (user >= least && user <= greatest) ? std::optional<int32_t>{user} : std::nullopt;
 	}
 	if (user < row.user.user_min || user > row.user.user_max) {
 		return std::nullopt;
@@ -260,17 +278,73 @@ inline constexpr DisplayMapping kLinearMapping{};
 		return phase_degrees_menu(stored);
 	case DisplayMappingKind::TABLE:
 		return table_menu(stored, mapping.table, mapping.table_shift);
+	case DisplayMappingKind::STANDARD:
+		return standard_menu(stored);
+	case DisplayMappingKind::UNSIGNED:
+		return unsigned_menu(stored);
+	case DisplayMappingKind::PAN:
+		return pan_menu(stored);
+	case DisplayMappingKind::FIFTIETHS:
+		return fiftieths_menu(stored);
+	case DisplayMappingKind::KNOB_POSITION:
+		return knob_position_menu(stored);
 	}
 	return to_user(row, stored);
+}
+
+/// @brief The least and greatest value @p row's menu offers, through its display mapping.
+/// @param row The setting's row.
+/// @return {least, greatest}: the user range and its sentinels (LINEAR, CLAMP_HIGH; with no user scale, the stored
+///         bounds), the order's or table's indices, 0..1 (INVERTED_BOOL), 0..kMaxCombinedSync or the row's own user
+///         range within it (COMBINED_SYNC), the row's range ×100 (TRANSPOSE_CENTS), kPhaseFreeMenu to
+///         kMaxPhaseDegrees (PHASE_DEGREES), 0..kMaxMenuSteps (STANDARD, UNSIGNED, FIFTIETHS), ±kMaxPanSteps (PAN) or
+///         0..kMaxKnobPosition (KNOB_POSITION).
+[[nodiscard]] constexpr std::pair<int32_t, int32_t> menu_range(const SettingInfo& row) {
+	const DisplayMapping& mapping = mapping_of(row);
+	const auto last_index = [](std::size_t size) {
+		return std::pair<int32_t, int32_t>{0, static_cast<int32_t>(size) - 1};
+	};
+	switch (mapping.kind) {
+	case DisplayMappingKind::LINEAR:
+	case DisplayMappingKind::CLAMP_HIGH:
+		break;
+	case DisplayMappingKind::CHOICE_ORDER:
+		return last_index(mapping.order.size());
+	case DisplayMappingKind::INVERTED_BOOL:
+		return {0, 1};
+	case DisplayMappingKind::COMBINED_SYNC:
+		if (row.user.identity()) {
+			return {0, kMaxCombinedSync};
+		}
+		return {std::max(row.user.user_min, 0), std::min(row.user.user_max, kMaxCombinedSync)};
+	case DisplayMappingKind::TRANSPOSE_CENTS:
+		return {row.min * 100, row.max * 100};
+	case DisplayMappingKind::PHASE_DEGREES:
+		return {kPhaseFreeMenu, kMaxPhaseDegrees};
+	case DisplayMappingKind::TABLE:
+		return last_index(mapping.table.size());
+	case DisplayMappingKind::STANDARD:
+	case DisplayMappingKind::UNSIGNED:
+	case DisplayMappingKind::FIFTIETHS:
+		return {0, kMaxMenuSteps};
+	case DisplayMappingKind::PAN:
+		return {-kMaxPanSteps, kMaxPanSteps};
+	case DisplayMappingKind::KNOB_POSITION:
+		return {0, kMaxKnobPosition};
+	}
+	std::pair<int32_t, int32_t> range =
+	    row.user.identity() ? stored_bounds(row) : std::pair<int32_t, int32_t>{row.user.user_min, row.user.user_max};
+	for (const SettingSentinel& sentinel : row.user.sentinels) {
+		range = {std::min(range.first, sentinel.user), std::max(range.second, sentinel.user)};
+	}
+	return range;
 }
 
 /// @brief What the row (and its partner) store for menu value @p menu, through the row's display mapping.
 /// @param row  The setting's row.
 /// @param menu The menu's value.
 /// @return {stored, partner_stored}, the partner's 0 for a one-row kind; nullopt when @p menu is outside the menu's
-///         range: the user range (LINEAR, CLAMP_HIGH), the order's or table's indices, 0..1 (INVERTED_BOOL),
-///         0..kMaxCombinedSync or the row's own user range within it (COMBINED_SYNC), the row's range ×100
-///         (TRANSPOSE_CENTS), or kPhaseFreeMenu to kMaxPhaseDegrees (PHASE_DEGREES).
+///         range (menu_range).
 [[nodiscard]] constexpr std::optional<std::pair<int32_t, int32_t>> from_menu(const SettingInfo& row, int32_t menu) {
 	using Stored = std::pair<int32_t, int32_t>;
 	const DisplayMapping& mapping = mapping_of(row);
@@ -290,9 +364,9 @@ inline constexpr DisplayMapping kLinearMapping{};
 		}
 		return Stored{1 - menu, 0};
 	case DisplayMappingKind::COMBINED_SYNC: {
-		// A row's own user range narrows its menu (the sidechain's offers the even levels alone).
-		const int32_t least = row.user.identity() ? 0 : std::max(row.user.user_min, 0);
-		const int32_t greatest = row.user.identity() ? kMaxCombinedSync : std::min(row.user.user_max, kMaxCombinedSync);
+		// A row's own user range narrows its menu (the sidechain's offers off and the nine levels, with no triplet or
+		// dotted).
+		const auto [least, greatest] = menu_range(row);
 		if (menu < least || menu > greatest) {
 			return std::nullopt;
 		}
@@ -313,6 +387,23 @@ inline constexpr DisplayMapping kLinearMapping{};
 			return std::nullopt;
 		}
 		return Stored{mapping.table[static_cast<std::size_t>(menu)] << mapping.table_shift, 0};
+	case DisplayMappingKind::STANDARD:
+	case DisplayMappingKind::UNSIGNED:
+	case DisplayMappingKind::PAN:
+	case DisplayMappingKind::FIFTIETHS:
+	case DisplayMappingKind::KNOB_POSITION: {
+		const auto [least, greatest] = menu_range(row);
+		if (menu < least || menu > greatest) {
+			return std::nullopt;
+		}
+		const int32_t stored = mapping.kind == DisplayMappingKind::STANDARD   ? standard_stored(menu)
+		                       : mapping.kind == DisplayMappingKind::UNSIGNED ? unsigned_stored(menu)
+		                       : mapping.kind == DisplayMappingKind::PAN      ? pan_stored(menu)
+		                       : mapping.kind == DisplayMappingKind::FIFTIETHS
+		                           ? fiftieths_stored(menu)
+		                           : knob_position_stored(menu, mapping.clamp_to);
+		return Stored{stored, 0};
+	}
 	}
 	const std::optional<int32_t> stored = to_stored(row, menu);
 	if (!stored) {

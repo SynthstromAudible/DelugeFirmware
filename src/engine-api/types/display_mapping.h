@@ -38,6 +38,11 @@ enum class DisplayMappingKind : uint8_t {
 	TRANSPOSE_CENTS, ///< one menu value transpose*100+cents over a transpose row and its partner cents row
 	PHASE_DEGREES,   ///< a retrigger phase: −1 (0xFFFFFFFF) ↔ menu −1 (free), else degrees 0..360 ↔ phase/11930464
 	TABLE,           ///< a lookup table: `table[i] << table_shift` is the stored value for menu step i
+	STANDARD,        ///< a signed Q31 shown 0..50 (a param's standard menu): −2³¹ ↔ 0, 2³¹−1 ↔ 50
+	UNSIGNED,        ///< an unsigned 32-bit fraction, stored as a signed integer, shown 0..50
+	PAN,             ///< a signed Q31 shown −25..25 (a pan's menu)
+	FIFTIETHS,       ///< a Q31 fraction 0..2³¹−1 shown 0..50, rounded to the nearest (the sidechain send's menu)
+	KNOB_POSITION,   ///< a Q31 knob shown as its top seven bits 0..127 and 128; menu 128 stores `clamp_to`
 };
 
 /// @brief A setting row's menu mapping. Only the fields its kind names are read.
@@ -47,7 +52,8 @@ struct DisplayMapping {
 	std::span<const uint8_t> order{}; ///< CHOICE_ORDER: the choice index for each menu index
 	std::span<const int32_t> table{}; ///< TABLE: the table value for each menu step
 	uint8_t table_shift{0};           ///< TABLE: the left shift from a table value to the stored value
-	int32_t clamp_to{0};              ///< CLAMP_HIGH: what a stored value above the user range shows as
+	int32_t clamp_to{0}; ///< CLAMP_HIGH: what a stored value above the user range shows as; KNOB_POSITION: what the
+	                     ///< top menu step stores
 };
 
 /// @name Each two-row or non-linear kind's conversion, on bare values.
@@ -154,6 +160,96 @@ inline constexpr int32_t kMaxPhaseDegrees = 360;
 		}
 	}
 	return closest;
+}
+
+/// @brief The greatest menu value of the STANDARD, UNSIGNED and FIFTIETHS kinds (the firmware's kMaxMenuValue).
+inline constexpr int32_t kMaxMenuSteps = 50;
+/// @brief The greatest menu value of the PAN kind; its least is the negation.
+inline constexpr int32_t kMaxPanSteps = kMaxMenuSteps / 2;
+/// @brief The greatest menu value of the KNOB_POSITION kind (the firmware's kMaxKnobPos).
+inline constexpr int32_t kMaxKnobPosition = 128;
+
+/// @brief The STANDARD menu's value for a signed Q31, rounded to the nearest step.
+/// @param stored The Q31.
+/// @return 0..kMaxMenuSteps.
+[[nodiscard]] constexpr int32_t standard_menu(int32_t stored) {
+	return static_cast<int32_t>(((int64_t{stored} + 2147483648) * kMaxMenuSteps + 2147483648) >> 32);
+}
+
+/// @brief The signed Q31 STANDARD menu value @p menu stores: the extremes at either end, else steps of 2³²/50.
+/// @param menu 0..kMaxMenuSteps.
+/// @return The Q31.
+[[nodiscard]] constexpr int32_t standard_stored(int32_t menu) {
+	if (menu == kMaxMenuSteps) {
+		return 2147483647;
+	}
+	if (menu == 0) {
+		return -2147483647 - 1;
+	}
+	return static_cast<int32_t>(static_cast<uint32_t>(menu) * 85899345u - 2147483648u);
+}
+
+/// @brief The UNSIGNED menu's value for a stored fraction, rounded to the nearest step.
+/// @param stored The fraction's 32 bits as a signed integer.
+/// @return 0..kMaxMenuSteps.
+[[nodiscard]] constexpr int32_t unsigned_menu(int32_t stored) {
+	return static_cast<int32_t>((int64_t{static_cast<uint32_t>(stored)} * kMaxMenuSteps + 2147483648) >> 32);
+}
+
+/// @brief The fraction UNSIGNED menu value @p menu stores, in steps of 2³²/50 (the top step wraps, as legacy's does).
+/// @param menu 0..kMaxMenuSteps.
+/// @return The fraction's 32 bits as a signed integer.
+[[nodiscard]] constexpr int32_t unsigned_stored(int32_t menu) {
+	return static_cast<int32_t>(static_cast<uint32_t>(menu) * 85899345u);
+}
+
+/// @brief The PAN menu's value for a signed Q31, rounded to the nearest step.
+/// @param stored The Q31.
+/// @return −kMaxPanSteps..kMaxPanSteps.
+[[nodiscard]] constexpr int32_t pan_menu(int32_t stored) {
+	return static_cast<int32_t>((int64_t{stored} * (kMaxPanSteps * 2) + 2147483648) >> 32);
+}
+
+/// @brief The signed Q31 PAN menu value @p menu stores: the extremes at either end, else steps of 2³¹/25.
+/// @param menu −kMaxPanSteps..kMaxPanSteps.
+/// @return The Q31.
+[[nodiscard]] constexpr int32_t pan_stored(int32_t menu) {
+	if (menu == kMaxPanSteps) {
+		return 2147483647;
+	}
+	if (menu == -kMaxPanSteps) {
+		return -2147483647 - 1;
+	}
+	return static_cast<int32_t>(menu * (2147483648 / (kMaxPanSteps * 2)) * 2);
+}
+
+/// @brief The FIFTIETHS menu's value for a Q31 fraction, rounded to the nearest fiftieth of 2³¹.
+/// @param stored The fraction, 0..2³¹−1.
+/// @return 0..kMaxMenuSteps.
+[[nodiscard]] constexpr int32_t fiftieths_menu(int32_t stored) {
+	return static_cast<int32_t>((int64_t{stored} * kMaxMenuSteps + 1073741824) >> 31);
+}
+
+/// @brief The Q31 fraction FIFTIETHS menu value @p menu stores: 2³¹−1 at the top, else steps of ⌈2³¹/50⌉.
+/// @param menu 0..kMaxMenuSteps.
+/// @return The fraction.
+[[nodiscard]] constexpr int32_t fiftieths_stored(int32_t menu) {
+	return menu == kMaxMenuSteps ? 2147483647 : menu * 42949673;
+}
+
+/// @brief The KNOB_POSITION menu's value for a Q31 knob: its top seven bits.
+/// @param stored The knob, 0..2³¹−1.
+/// @return 0..127.
+[[nodiscard]] constexpr int32_t knob_position_menu(int32_t stored) {
+	return stored >> 24;
+}
+
+/// @brief The Q31 knob KNOB_POSITION menu value @p menu stores.
+/// @param menu    0..kMaxKnobPosition.
+/// @param top     What the top step, kMaxKnobPosition, stores.
+/// @return `menu << 24`, or @p top for the top step.
+[[nodiscard]] constexpr int32_t knob_position_stored(int32_t menu, int32_t top) {
+	return menu >= kMaxKnobPosition ? top : menu << 24;
 }
 
 /// @}
