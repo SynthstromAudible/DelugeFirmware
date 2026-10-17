@@ -719,6 +719,24 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		expect(f.song->project.mappings.find(knob)->relative).to_be_false();
 	});
 
+	it("leaves a lost write's reconcile, and the index's stale mark, to the next drain when the drain is masked", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		const TrackInputTarget gone{0xBEEF}; // an output the song does not hold
+		f.song->project.mappings.learn(Mapping{.source = note(1, 40), .target = gone});
+		deluge::midi::refreshMappingIndex();
+		deluge::memory::noteRenderBlock(true); // the song's tick, on the render, loses a write past the queue's room
+		for (size_t i = 0; i <= deluge::bridge::kPendingMappingOps; i++) {
+			deluge::bridge::forgetClipMappings(*f.song, 0xF00D);
+		}
+		deluge::memory::noteRenderBlock(false);
+		expect(deluge::bridge::applyPendingMappingOps(*f.song, deluge::bridge::OverflowReconcile::DEFER)).to_be_true();
+		expect(f.song->project.mappings.find(gone) != nullptr).to_be_true();
+		expect(deluge::mappingIndexStale()).to_be_true();
+		deluge::midi::refreshMappingIndex();
+		expect(f.song->project.mappings.find(gone) == nullptr).to_be_true();
+		expect(deluge::mappingIndexStale()).to_be_false();
+	});
+
 	it("ignores a learned pitch bend whose knob's param cannot be found", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		auto* owner = spec::detail::place<ParamlessOwner>();

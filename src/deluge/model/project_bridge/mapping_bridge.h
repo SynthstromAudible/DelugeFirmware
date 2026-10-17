@@ -109,11 +109,21 @@ void forgetOutputMappings(::Song& song, uint32_t output);
 /// @param drum The row's id.
 void forgetDrumMappings(::Song& song, uint32_t drum);
 
+/// @brief What a drain of the held writes does when the render lost some (applyPendingMappingOps).
+enum class OverflowReconcile : uint8_t {
+	NOW,   ///< reconcile the table with the song at once
+	DEFER, ///< leave the loss noted and the index stale, for the next drain: the caller holds the render off
+};
+
 /// @brief [task] Apply, in order and with the render excluded, the table writes the render held for @p song; those it
 /// held for another song (one a swap replaced) are dropped. Run by every rebuild of the mapping index and before an
-/// app-loop write to the table, so a write the render made first lands first.
-/// @param song The current song.
-void applyPendingMappingOps(::Song& song);
+/// app-loop write to the table, so a write the render made first lands first. When the render lost some, the table is
+/// reconciled with what the song holds, which excludes the render only where it must: a caller that holds the render
+/// off itself defers that.
+/// @param song      The current song.
+/// @param reconcile Whether a reconcile the loss calls for runs now or waits for the next drain.
+/// @return Whether a reconcile was deferred: the index is to stay stale for it.
+bool applyPendingMappingOps(::Song& song, OverflowReconcile reconcile = OverflowReconcile::NOW);
 
 /// @brief [task] [audio] Drop the table writes the render held: the song they were for is no longer current.
 void discardPendingMappingOps();

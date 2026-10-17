@@ -225,10 +225,13 @@ void rebuildMappingIndex(::Song& song) {
 		// Only the copy holds the render off; the index is built from it after.
 		AudioExcludedSection section;
 		// Any it held since land in this section: the render cannot hold another before the stale mark is cleared, so
-		// the mark never clears over a held write.
-		bridge::applyPendingMappingOps(song);
+		// the mark never clears over a held write. A loss found here is reconciled by the next rebuild's first drain,
+		// with the render going, so the mark stays for it.
+		const bool reconcileOwed = bridge::applyPendingMappingOps(song, bridge::OverflowReconcile::DEFER);
 		// Cleared before the copy, so a change marked after it is not lost.
-		mapping_index_detail::mapping_index_stale.store(false, std::memory_order_release);
+		if (!reconcileOwed) {
+			mapping_index_detail::mapping_index_stale.store(false, std::memory_order_release);
+		}
 		snapshot.copyOwners(song);
 	}
 	// Only this tier writes the table, and nothing here has written it since the section: the copy matches the lists.

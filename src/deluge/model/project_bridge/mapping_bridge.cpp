@@ -304,14 +304,24 @@ void cloneNow(::Song& song, uint32_t from, uint32_t to) {
 	(void)projectMapping(song, deluge::project::ParamTarget{{ControlsAddress::Kind::OUTPUT, to}, {}});
 }
 
-/// The ids of the outputs (playing or hibernating), kit rows and clips (session or arrangement) a song holds, each
-/// sorted.
+/// The ids of the outputs (playing or hibernating), kit rows and clips (session or arrangement) a song holds: collected
+/// with the render excluded, then sorted with it going.
 struct HeldIds {
 	std::vector<uint32_t> outputs;
 	std::vector<uint32_t> drums;
 	std::vector<uint32_t> clips;
 
-	explicit HeldIds(::Song& song) {
+	/// Room for as many as @p like's lists held, and some more, so the collection does not allocate.
+	explicit HeldIds(const std::array<size_t, 3>& like) {
+		outputs.reserve(like[0] + 8);
+		drums.reserve(like[1] + 64);
+		clips.reserve(like[2] + 16);
+	}
+
+	[[nodiscard]] std::array<size_t, 3> sizes() const { return {outputs.size(), drums.size(), clips.size()}; }
+
+	/// Collect @p song's ids. Only walks and copies: run it with the render excluded.
+	void collect(::Song& song) {
 		for (Output* first :
 		     {song.live.media.first_output, static_cast<Output*>(song.live.media.first_hibernating_instrument)}) {
 			for (Output* output = first; output != nullptr; output = output->next) {
@@ -331,6 +341,9 @@ struct HeldIds {
 		for (Clip* clip : AllClips::everywhere(&song)) {
 			clips.push_back(clip->id());
 		}
+	}
+
+	void sort() {
 		std::ranges::sort(outputs);
 		std::ranges::sort(drums);
 		std::ranges::sort(clips);
@@ -346,11 +359,15 @@ struct HeldIds {
 /// bindings), as a load's sweep does. The render is excluded only while the song's lists are walked: it never writes
 /// the table, so the entries are matched against the ids the walk found with it going.
 void reconcileWithEngine(::Song& song) {
-	std::optional<HeldIds> held;
+	// The sizes of the last reconcile's lists: written and read on the app loop only.
+	static std::array<size_t, 3> lastSizes{};
+	std::optional<HeldIds> held{std::in_place, lastSizes};
 	{
 		AudioExcludedSection section; // the song's tick can splice the lists walked
-		held.emplace(song);
+		held->collect(song);
 	}
+	held->sort();
+	lastSizes = held->sizes();
 	MappingTable& mappings = song.project.mappings;
 	std::vector<uint32_t> clips;
 	std::vector<uint32_t> outputs;
@@ -423,10 +440,20 @@ bool onRenderTier() {
 
 namespace {
 
-/// Whether a write to @p song's table is held for the app loop: the render's to the current song. The render writes
-/// another song's (the outgoing one it tears down) at once, as nothing else reaches it.
+/// Whether a write to @p song's table is held for the app loop: every write the render makes, which is always to the
+/// current song's. A song swapped out is torn down after AudioEngine::retire hands it over, when the removal of its
+/// outputs and rows finds them in no current song's records and the deletion of its clips forgets nothing, so no
+/// write the render makes names another song; a build that checks stops at one (E468).
 bool heldForAppLoop(const ::Song& song) {
-	return &song == currentSong && onRenderTier();
+	if (!onRenderTier()) {
+		return false;
+	}
+	if constexpr (ALPHA_OR_BETA_VERSION) {
+		if (&song != currentSong) {
+			FREEZE_WITH_ERROR("E468");
+		}
+	}
+	return &song == currentSong;
 }
 
 /// Hold @p op, a write to @p song's table, for the app loop when the render makes it. The queue's only way in, so the
@@ -517,17 +544,17 @@ void forgetDrumMappings(::Song& song, uint32_t drum) {
 	tableEdited(song);
 }
 
-void applyPendingMappingOps(::Song& song) {
+bool applyPendingMappingOps(::Song& song, OverflowReconcile reconcile) {
 	if (&song != currentSong) {
-		return; // the render holds writes for the current song only
+		return false; // the render holds writes for the current song only
 	}
 	requireAppLoop();
 	if (rowCommandMovesOpen > 0) {
-		return; // a kit change is moving its rows' commands: the writes wait for it (RowCommandMoves)
+		return false; // a kit change is moving its rows' commands: the writes wait for it (RowCommandMoves)
 	}
 	PendingOps& pending = pendingOps();
 	if (pending.count.load(std::memory_order_acquire) == 0 && !pending.overflowed.load(std::memory_order_acquire)) {
-		return;
+		return false;
 	}
 	bool overflowed = false;
 	{
@@ -568,11 +595,18 @@ void applyPendingMappingOps(::Song& song) {
 			}
 		}
 	}
-	if (overflowed) {
-		// Which writes were lost, and in what order, is not known: the table takes what the song now holds.
-		reconcileWithEngine(song);
-	}
 	deluge::markMappingIndexStale();
+	if (!overflowed) {
+		return false;
+	}
+	if (reconcile == OverflowReconcile::DEFER) {
+		// The caller holds the render off: the reconcile waits for the next drain, and the index stays stale for it.
+		pending.overflowed.store(true, std::memory_order_release);
+		return true;
+	}
+	// Which writes were lost, and in what order, is not known: the table takes what the song now holds.
+	reconcileWithEngine(song);
+	return false;
 }
 
 void discardPendingMappingOps() {

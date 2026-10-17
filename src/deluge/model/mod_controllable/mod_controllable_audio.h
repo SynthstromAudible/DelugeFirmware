@@ -73,7 +73,8 @@ public:
 	/// @param song   The song being saved, or the one a preset is saved from; nullptr when there is none.
 	/// @param owner  Whose controls these are, if known.
 	void writeMidiKnobsToFile(Serializer& writer, Song* song, std::optional<deluge::project::ControlsAddress> owner);
-	/// @brief The codec context a file's effect entries are written in: the current song's tick magnitude.
+	/// @brief The codec context a file's effect entries are written in: the current song's tick magnitude, even when
+	/// the song being saved is another (the learned knobs take the saved song; this does not).
 	/// @return The codec context.
 	[[nodiscard]] static deluge::engine::CodecContext effectsCodecContext();
 	/// @brief The compressor threshold a sound's file saves: the one the render last applied, its param's.
