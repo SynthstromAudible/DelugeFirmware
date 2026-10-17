@@ -16,8 +16,12 @@
  */
 
 #include "usb_common.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_basic_define.h"
 #include "io/midi/midi_engine.h"
 #include "timers_interrupts/timers_interrupts.h"
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays, readability-identifier-naming) - matches the USB driver's definition
+extern uint8_t anyUSBSendingStillHappening[USB_NUM_USBIP];
 
 void MIDICableUSB::connectedNow(int32_t midiDeviceNum) {
 	connectionFlags |= (1 << midiDeviceNum);
@@ -98,6 +102,22 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 		return;
 	}
 
+	// Reserve room for the whole message (one event per 3 bytes, plus one for the 0x7D header below):
+	// dropping individual events mid-message would leave a well-framed but corrupt SysEx.
+	int32_t eventsNeeded = ((len + 2) / 3) + 1;
+	if (connectedDevice->sendBufferSpace() < eventsNeeded * 3 && anyUSBSendingStillHappening[0] == 0) {
+		midiEngine.flushUSBMIDIOutput();
+	}
+
+	// The MIDI/gate output timer ISR writes to this buffer too, so check and enqueue under one guard:
+	// events it slipped in between them could take the reserved room and push the tail (and F7) off the ring.
+	CriticalSectionGuard guard;
+	if (connectedDevice->sendBufferSpace() < eventsNeeded * 3) {
+		// Drop silently: a log here would re-enter this function via the sysex debug console
+		// with the ring still full, and recurse until the stack is gone.
+		return;
+	}
+
 	int32_t pos = 0;
 
 	// While we are standardizing on using the 4 byte Synthstrom Deluge in our messages, it is possible that client
@@ -108,8 +128,6 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 		// Since the message ends with 0xF7, we can assume that data[5] does exist.
 		// fake 0xF0, 0x7D, data[5] for first send
 		uint32_t packed = ((uint32_t)data[5] << 24) | 0x007DF004 | (portNumber << 4);
-		// The MIDI/gate output timer ISR writes to this buffer too
-		CriticalSectionGuard guard;
 		connectedDevice->bufferMessage(packed);
 		pos = 6;
 	}
@@ -135,7 +153,6 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 		}
 		status |= (portNumber << 4);
 		uint32_t packed = ((uint32_t)byte2 << 24) | ((uint32_t)byte1 << 16) | ((uint32_t)byte0 << 8) | status;
-		CriticalSectionGuard guard;
 		connectedDevice->bufferMessage(packed);
 	}
 }
