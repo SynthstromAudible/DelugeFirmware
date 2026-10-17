@@ -60,6 +60,8 @@ PLANTED = {
     "knob list set": "owner.midi_knobs = std::move(knobs);",
     "knob list cleared": "owner.midi_knobs.clear();",
     "knob in the list": "owner.midi_knobs[0].relative = false;",
+    "knob list erased by a function": "std::erase_if(owner->midi_knobs, isStale);",
+    "knob list sorted by a function": "std::ranges::sort(owner.midi_knobs, byParam);",
     "section launch command": "section.launch_midi_command = command;",
 }
 
@@ -99,9 +101,53 @@ class SongStateWrites(unittest.TestCase):
             "deluge::edits::learnKnobFor(*owner, param, cable, whichKnob, channel);",
             "for (const MIDIKnob& knob : owner->midi_knobs) {}",
             "if (owner.midi_knobs[0].relative == true) {}",
+            "const auto at = std::ranges::find_if(owner.midi_knobs, isPan);",
+            "const auto n = std::erase_if(copy, isStale);",
+            "// owner.launch_midi_command = command;",
+            "const int x = 1; // section.launch_midi_command = command;",
+            "/* section.launch_midi_command = command; */",
         ):
             with self.subTest(line):
                 self.assertEqual(self.check(line), [])
+
+    def test_a_block_comment_is_not_code(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "documented.cpp").write_text(
+                "/**\n * A gesture used to set section.launch_midi_command = command;\n * and owner.midi_knobs.clear();\n */\n"
+                "void gesture() { /* output->setName(n); */ int x = 1; }\n"
+                "/* opened here\n   and output->setName(n);\n   closed */ void other() {}\n"
+            )
+            self.assertEqual(csm.song_state_writes((root,), allowed={}), [])
+            (root / "documented.cpp").write_text(
+                "/* a comment */ owner.midi_knobs.clear();\n"
+                "/* opened\n closed */ owner.midi_knobs.clear();\n"
+            )
+            self.assertEqual(len(csm.song_state_writes((root,), allowed={})), 2)
+
+    def test_the_menu_items_allowance_passes_its_line_and_no_other_learn(self):
+        allowed_file = "deluge/gui/menu_item/menu_item_with_cc_learning.cpp"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / allowed_file
+            path.parent.mkdir(parents=True)
+            path.write_text(
+                "void learn() {\n"
+                "\tcurrentModControllable->learnKnob(cable, whichKnob, mode, channel);\n"
+                "}\n"
+            )
+            self.assertEqual(
+                csm.song_state_writes((root,), allowed=csm.SONG_STATE_ALLOWED), []
+            )
+            path.write_text(
+                "void learn() {\n"
+                "\tcurrentModControllable->learnKnob(cable, whichKnob, mode, channel);\n"
+                "\tsound->learnKnob(cable, param, 0, 0, channel, song);\n"
+                "}\n"
+            )
+            found = csm.song_state_writes((root,), allowed=csm.SONG_STATE_ALLOWED)
+            self.assertEqual(len(found), 1, found)
+            self.assertIn(":3:", found[0])
 
     def test_an_allowed_file_is_not_reported(self):
         with tempfile.TemporaryDirectory() as tmp:

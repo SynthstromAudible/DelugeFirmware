@@ -18,6 +18,13 @@ noteRowSettingFor() or audioClipSettingFor() (model/edits/setting_edit.h), which
 Nor may it write a MIDI binding (a mute command, an input, a learned knob, a section's launch command) past the song's
 mapping table: a gesture calls the mapping Edits (model/edits/learn_mapping.h), which write the table and project it.
 
+The check reads a write by its text, so it does not follow an alias: `*target.thing = ...` through a pointer taken
+earlier, or `learnedThing->clear()` on a `LearnedMIDI*` a menu holds, is not found. They are legitimate today: the
+menus that hold such a pointer (a mute command or an input they edit as the learn gesture) hand it back to the mapping
+Edits, which write the table and project it, and the check cannot tell that pointer from one that writes. A gesture that
+wrote through an alias would go unreported; the mapping tests, which read the table after each gesture, are what catch
+one.
+
 Two gestures write the runtime themselves and record what they wrote, checked file by file: a file that writes a mod
 knob (a `modKnobs[...]` descriptor, or learnKnob()/unlearnKnobs() on what is not a menu item) also calls
 recordControlsOf(), and a file that writes a sample holder's file or zone also calls recordRanges() or rangesFor().
@@ -191,6 +198,10 @@ SONG_STATE_WRITES = (
     re.compile(
         r"(?<!\w)midi_knobs\s*(?:=(?!=)|\.\s*(?:push_back|emplace_back|insert|erase|clear|resize|pop_back|assign|swap)\s*\(|\[[^\]]*\]\s*(?:\.\s*\w+\s*)?=(?!=))"
     ),
+    re.compile(
+        r"(?<!\w)std::(?:ranges::)?(?:erase_if|erase|sort|stable_sort|remove_if|remove|unique|reverse|rotate|shuffle"
+        r"|partition|stable_partition|fill|swap|move)\s*\([^;]*\bmidi_knobs\b"
+    ),
     re.compile(r"(?<!\w)launch_midi_command\b"),
 )
 #: Song-state writes under the roots that are allowed, by file (relative to src/) and the text the write's line holds,
@@ -209,6 +220,38 @@ SONG_STATE_ALLOWED: dict[str, dict[str, str]] = {
     },
 }
 DEFAULT_ROOTS = (REPO / "src" / "deluge" / "gui", REPO / "src" / "scenes")
+
+
+def code_lines(text: str):
+    """Yield `(number, code)` for each line of @p text with its comments removed: `//` to the end of the line and
+    `/* ... */`, which may span lines."""
+    in_block = False
+    for number, line in enumerate(text.splitlines(), 1):
+        code = []
+        i = 0
+        while i < len(line):
+            if in_block:
+                end = line.find("*/", i)
+                if end < 0:
+                    break
+                in_block = False
+                i = end + 2
+                continue
+            line_comment = line.find("//", i)
+            block_comment = line.find("/*", i)
+            if line_comment >= 0 and (
+                block_comment < 0 or line_comment < block_comment
+            ):
+                code.append(line[i:line_comment])
+                break
+            if block_comment >= 0:
+                code.append(line[i:block_comment])
+                in_block = True
+                i = block_comment + 2
+                continue
+            code.append(line[i:])
+            break
+        yield number, "".join(code)
 
 
 def song_state_writes(
@@ -231,10 +274,7 @@ def song_state_writes(
             allowances = allowed.get(key, {})
             if "" in allowances:
                 continue
-            for number, line in enumerate(
-                path.read_text(errors="replace").splitlines(), 1
-            ):
-                code = line.split("//", 1)[0]
+            for number, code in code_lines(path.read_text(errors="replace")):
                 if any(text in code for text in allowances):
                     continue
                 for pattern in SONG_STATE_WRITES:
