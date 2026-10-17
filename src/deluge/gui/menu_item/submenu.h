@@ -61,7 +61,8 @@ public:
 	virtual bool focusChild(const MenuItem* child);
 	void updatePadLights() override;
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) override;
-	PatchingSourceShortcutTarget get_patching_source_shortcut_target(bool previous_press_still_active) const override;
+	[[nodiscard]] PatchingSourceShortcutTarget
+	getPatchingSourceShortcutTarget(bool previous_press_still_active) const override;
 	deluge::modulation::params::Kind getParamKind() override;
 	uint32_t getParamIndex() override;
 	[[nodiscard]] int32_t getOccupiedSlots() const override { return 2; };

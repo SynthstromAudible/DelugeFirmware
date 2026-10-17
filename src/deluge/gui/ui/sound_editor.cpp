@@ -203,7 +203,7 @@ bool SoundEditor::in_sound_editor() {
 }
 
 // Exclude the shortcut being considered, matching the source-press gesture.
-static bool is_other_mod_source_pad_pressed(int32_t x, int32_t y) {
+static bool isOtherModSourcePadPressed(int32_t x, int32_t y) {
 	for (int32_t source_x = 14; source_x < 16; source_x++) {
 		for (int32_t source_y = source_x == 14 ? 5 : 0; source_y < kDisplayHeight; source_y++) {
 			if ((source_x != x || source_y != y) && matrixDriver.isPadPressed(source_x, source_y)) {
@@ -265,7 +265,7 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 			kind = params::Kind::PATCHED;
 			patchable = true;
 		}
-		if (patchable && currentSound) {
+		if (patchable && currentSound != nullptr) {
 			const bool is_volume = param == params::GLOBAL_VOLUME_POST_FX
 			                       || param == params::GLOBAL_VOLUME_POST_REVERB_SEND || param == params::LOCAL_VOLUME;
 			auto source_is_allowed = [&](PatchSource source, bool edits_range) {
@@ -289,10 +289,10 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 			};
 			for (int32_t x = 0; x < 2; x++) {
 				for (int32_t y = 0; y < kDisplayHeight; y++) {
-					const bool previous_press_still_active = is_other_mod_source_pad_pressed(x + 14, y);
+					const bool previous_press_still_active = isOtherModSourcePadPressed(x + 14, y);
 					auto target = PatchingSourceShortcutTarget::PARAMETER;
 					for (int32_t depth = navigationDepth; depth >= 0; depth--) {
-						target = menuItemNavigationRecord[depth]->get_patching_source_shortcut_target(
+						target = menuItemNavigationRecord[depth]->getPatchingSourceShortcutTarget(
 						    previous_press_still_active);
 						if (target != PatchingSourceShortcutTarget::PARENT) {
 							break;
@@ -1544,7 +1544,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 					return ActionResult::DEALT_WITH;
 				}
 
-				const bool previousPressStillActive = is_other_mod_source_pad_pressed(x, y);
+				const bool previous_press_still_active = isOtherModSourcePadPressed(x, y);
 				bool wentBack = false;
 
 				int32_t newNavigationDepth = navigationDepth;
@@ -1553,7 +1553,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 					// Ask current MenuItem what to do with this action
 					MenuItem* newMenuItem = menuItemNavigationRecord[newNavigationDepth]->patchingSourceShortcutPress(
-						source, previousPressStillActive);
+						source, previous_press_still_active);
 
 					// If it says "go up a level and ask that MenuItem", do that
 					if (newMenuItem == NO_NAVIGATION) {
