@@ -1,17 +1,27 @@
 #include "engine-api/types/arp.h"
+#include "engine-api/types/setting.h"
+#include "engine-api/types/voice_priority.h"
 #include "engines/deluge/codec.h"
 #include "engines/deluge/settings.h"
 #include "serialization/tree.h"
 
 #include <cppspec.hpp>
+#include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace deluge::instrument;
+using deluge::engine::DisplayMappingKind;
+using deluge::engine::SettingContext;
 using deluge::engine::SettingKind;
+using deluge::engine::SettingUnits;
 using deluge::serialization::Value;
 
 namespace {
+/// What a test reads where from_menu refuses a menu value.
+constexpr std::pair<int32_t, int32_t> kNone{-1, -1};
+
 // A new song's input tick magnitude, at which a file's sync levels 0–9 are the internal ones.
 constexpr deluge::engine::CodecContext kContext{.input_tick_magnitude = 1};
 
@@ -102,13 +112,27 @@ SoundState baseFor(std::string_view path) {
 	return new_synth_state();
 }
 
-/// The values a row allows at its edges: every choice, or the range's ends, or both bools.
+/// The values a row allows at its edges: every choice, or the range's ends (and, for a row with a user scale, the
+/// scale's stored ends, the value past them and each sentinel's stored value), or both bools.
 std::vector<std::string> edges(const deluge::engine::SettingInfo& row) {
 	switch (row.kind) {
 	case SettingKind::CHOICE:
 		return {row.choices.begin(), row.choices.end()};
-	case SettingKind::INTEGER:
-		return {std::to_string(row.min), std::to_string(row.max)};
+	case SettingKind::INTEGER: {
+		std::vector<std::string> values{std::to_string(row.min), std::to_string(row.max)};
+		if (!row.user.identity()) {
+			for (const int64_t v :
+			     {int64_t{row.user.stored_min}, int64_t{row.user.stored_max}, int64_t{row.user.stored_max} + 1}) {
+				if (v >= row.min && v <= row.max) {
+					values.push_back(std::to_string(v));
+				}
+			}
+			for (const deluge::engine::SettingSentinel& sentinel : row.user.sentinels) {
+				values.push_back(std::to_string(sentinel.stored));
+			}
+		}
+		return values;
+	}
 	case SettingKind::BOOL:
 		return {"0", "1"};
 	case SettingKind::STRUCTURED:
@@ -161,9 +185,71 @@ describe settings("the Deluge instrument's settings schema", ${
 	});
 
 	it("writes an integer the way a file does, however it was given", _ {
-		expect(canonical_setting("voicePriority", Value::makeScalar("02"))->str()).to_equal(std::string("2"));
+		expect(canonical_setting("unison/num", Value::makeScalar("03"))->str()).to_equal(std::string("3"));
 		expect(canonical_setting("polyphonic", Value::makeScalar("mono"))->str()).to_equal(std::string("mono"));
-		expect(canonical_setting("voicePriority", Value::makeScalar("9"))).not_().to_have_value();
+		expect(canonical_setting("unison/num", Value::makeScalar("9"))).not_().to_have_value();
+	});
+
+	it("offers voice priority as a choice whose words are the numbers a file writes, in the engine's order", _ {
+		const deluge::engine::SettingInfo* row = deluge::engine::find_setting(kSettings, "voicePriority");
+		expect(row->kind == SettingKind::CHOICE).to_be_true();
+		for (const auto priority : {deluge::engine::VoicePriority::LOW, deluge::engine::VoicePriority::MEDIUM,
+		                            deluge::engine::VoicePriority::HIGH}) {
+			const std::string word = std::to_string(std::to_underlying(priority));
+			const size_t at = std::to_underlying(priority);
+			expect(at < row->choices.size() ? std::string(row->choices[at]) : std::string()).to_equal(word);
+			expect(check_setting("voicePriority", Value::makeNumber(std::to_underlying(priority)))).to_be_true();
+		}
+		expect(row->choices.size()).to_equal(size_t{3});
+		expect(check_setting("voicePriority", Value::makeNumber(3))).to_be_false();
+		expect(check_setting("voicePriority", Value::makeScalar("02"))).to_be_false();
+		expect(canonical_setting("voicePriority", Value::makeNumber(2))->str()).to_equal(std::string("2"));
+	});
+
+	it("shows max voices as legacy's menu does: 1–16 as themselves, the limit past 16 as off, and off as 127", _ {
+		const deluge::engine::SettingInfo& row = *deluge::engine::find_setting(kSettings, "maxVoices");
+		expect(check_setting("maxVoices", Value::makeNumber(1))).to_be_true();
+		expect(check_setting("maxVoices", Value::makeNumber(127))).to_be_true();
+		expect(check_setting("maxVoices", Value::makeNumber(0))).to_be_false();
+		expect(check_setting("maxVoices", Value::makeNumber(128))).to_be_false();
+		// `VoiceCount::readCurrentValue`: a count above 16 reads as 0 (off)
+		expect(deluge::engine::to_menu(row, 1)).to_equal(1);
+		expect(deluge::engine::to_menu(row, 16)).to_equal(16);
+		expect(deluge::engine::to_menu(row, 17)).to_equal(0);
+		expect(deluge::engine::to_menu(row, 126)).to_equal(0);
+		expect(deluge::engine::to_menu(row, 127)).to_equal(0);
+		// `VoiceCount::writeCurrentValue`: 0 writes 127
+		expect(deluge::engine::from_menu(row, 0).value_or(kNone).first).to_equal(127);
+		expect(deluge::engine::from_menu(row, 1).value_or(kNone).first).to_equal(1);
+		expect(deluge::engine::from_menu(row, 16).value_or(kNone).first).to_equal(16);
+		expect(deluge::engine::from_menu(row, 17)).not_().to_have_value();
+	});
+
+	it("offers choke on a kit's lane, and not on a track", _ {
+		const deluge::engine::SettingInfo& row = *deluge::engine::find_setting(kSettings, "polyphonic");
+		const auto choke = static_cast<size_t>(PolyphonyMode::CHOKE);
+		const auto mono = static_cast<size_t>(PolyphonyMode::MONO);
+		expect(std::string(row.choices[choke])).to_equal(std::string("choke"));
+		expect(deluge::engine::setting_choice_applies(row, {.owner = SettingContext::Owner::KIT_LANE}, choke))
+		    .to_be_true();
+		expect(deluge::engine::setting_choice_applies(row, {.owner = SettingContext::Owner::TRACK}, choke))
+		    .to_be_false();
+		expect(deluge::engine::setting_choice_applies(row, {.owner = SettingContext::Owner::TRACK}, mono)).to_be_true();
+	});
+
+	it("shows each LFO's sync as one menu value over its level and its type", _ {
+		for (const std::string lfo : {"lfo1", "lfo2", "lfo3", "lfo4"}) {
+			const deluge::engine::SettingInfo& row = *deluge::engine::find_setting(kSettings, lfo + "/syncLevel");
+			const deluge::engine::DisplayMapping& mapping = deluge::engine::mapping_of(row);
+			expect(mapping.kind == DisplayMappingKind::COMBINED_SYNC).to_be_true();
+			expect(std::string(mapping.partner)).to_equal(lfo + "/syncType");
+			const deluge::engine::SettingInfo* partner = deluge::engine::find_setting(kSettings, mapping.partner);
+			expect(partner != nullptr && partner->kind == SettingKind::CHOICE).to_be_true();
+			expect(row.units == SettingUnits::SYNC_LEVEL).to_be_true();
+			expect(deluge::engine::to_menu(row, 3, 1)).to_equal(12); // the third triplet level
+			expect(deluge::engine::from_menu(row, deluge::engine::kMaxCombinedSync).value_or(kNone))
+			    .to_equal(std::pair<int32_t, int32_t>{9, 2});
+		}
 	});
 
 	it("keeps ring mod to the oscillators it can ring", _ {

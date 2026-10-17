@@ -2,11 +2,15 @@
 
 #include <cppspec.hpp>
 #include <string>
+#include <utility>
 
 using namespace deluge::effects;
 using deluge::serialization::Value;
 
 namespace {
+/// What a test reads where from_menu refuses a menu value.
+constexpr std::pair<int32_t, int32_t> kNone{-1, -1};
+
 EffectStates busy() {
 	EffectStates s;
 	s.filter = {.lpf_mode = FilterMode::SVF_NOTCH, .hpf_mode = FilterMode::SVF_BAND, .route = FilterRoute::PARALLEL};
@@ -48,6 +52,27 @@ describe effect_settings("the effects' settings in an Edit's form", ${
 	});
 	it("gives the compressor's threshold as its state holds it", _ {
 		expect(effect_setting_value(busy(), "audioCompressor/thresh")->str()).to_equal(std::to_string(3 << 24));
+	});
+	it("shows the delay's sync as one menu value over all 28 of its level and type", _ {
+		const deluge::engine::SettingInfo& row = *deluge::engine::find_setting(kEffectSettings, "delay/syncLevel");
+		const deluge::engine::DisplayMapping& mapping = deluge::engine::mapping_of(row);
+		expect(mapping.kind == deluge::engine::DisplayMappingKind::COMBINED_SYNC).to_be_true();
+		expect(std::string(mapping.partner)).to_equal(std::string("delay/syncType"));
+		expect(row.units == deluge::engine::SettingUnits::SYNC_LEVEL).to_be_true();
+		expect(deluge::engine::from_menu(row, 27).value_or(kNone)).to_equal(std::pair<int32_t, int32_t>{9, 2});
+		expect(deluge::engine::from_menu(row, 28)).not_().to_have_value();
+	});
+	it("shows the sidechain's sync as one menu value over the even levels alone, as legacy's menu offers", _ {
+		const deluge::engine::SettingInfo& row =
+		    *deluge::engine::find_setting(kEffectSettings, "sidechain/syncLevel");
+		const deluge::engine::DisplayMapping& mapping = deluge::engine::mapping_of(row);
+		expect(mapping.kind == deluge::engine::DisplayMappingKind::COMBINED_SYNC).to_be_true();
+		expect(std::string(mapping.partner)).to_equal(std::string("sidechain/syncType"));
+		expect(row.units == deluge::engine::SettingUnits::SYNC_LEVEL).to_be_true();
+		expect(deluge::engine::from_menu(row, 0).value_or(kNone)).to_equal(std::pair<int32_t, int32_t>{0, 0});
+		expect(deluge::engine::from_menu(row, 9).value_or(kNone)).to_equal(std::pair<int32_t, int32_t>{9, 0});
+		expect(deluge::engine::from_menu(row, 10)).not_().to_have_value();
+		expect(deluge::engine::from_menu(row, -1)).not_().to_have_value();
 	});
 	it("answers nothing for a path it does not hold", _ {
 		expect(effect_setting_value(busy(), "osc1/type")).not_().to_have_value();

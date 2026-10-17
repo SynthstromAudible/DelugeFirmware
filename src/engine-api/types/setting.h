@@ -269,8 +269,8 @@ inline constexpr DisplayMapping kLinearMapping{};
 /// @param menu The menu's value.
 /// @return {stored, partner_stored}, the partner's 0 for a one-row kind; nullopt when @p menu is outside the menu's
 ///         range: the user range (LINEAR, CLAMP_HIGH), the order's or table's indices, 0..1 (INVERTED_BOOL),
-///         0..kMaxCombinedSync (COMBINED_SYNC), the row's range ×100 (TRANSPOSE_CENTS), or kPhaseFreeMenu to
-///         kMaxPhaseDegrees (PHASE_DEGREES).
+///         0..kMaxCombinedSync or the row's own user range within it (COMBINED_SYNC), the row's range ×100
+///         (TRANSPOSE_CENTS), or kPhaseFreeMenu to kMaxPhaseDegrees (PHASE_DEGREES).
 [[nodiscard]] constexpr std::optional<std::pair<int32_t, int32_t>> from_menu(const SettingInfo& row, int32_t menu) {
 	using Stored = std::pair<int32_t, int32_t>;
 	const DisplayMapping& mapping = mapping_of(row);
@@ -289,11 +289,15 @@ inline constexpr DisplayMapping kLinearMapping{};
 			return std::nullopt;
 		}
 		return Stored{1 - menu, 0};
-	case DisplayMappingKind::COMBINED_SYNC:
-		if (menu < 0 || menu > kMaxCombinedSync) {
+	case DisplayMappingKind::COMBINED_SYNC: {
+		// A row's own user range narrows its menu (the sidechain's offers the even levels alone).
+		const int32_t least = row.user.identity() ? 0 : std::max(row.user.user_min, 0);
+		const int32_t greatest = row.user.identity() ? kMaxCombinedSync : std::min(row.user.user_max, kMaxCombinedSync);
+		if (menu < least || menu > greatest) {
 			return std::nullopt;
 		}
 		return combined_sync_stored(menu);
+	}
 	case DisplayMappingKind::TRANSPOSE_CENTS:
 		if (int64_t{menu} < int64_t{row.min} * 100 || int64_t{menu} > int64_t{row.max} * 100) {
 			return std::nullopt;

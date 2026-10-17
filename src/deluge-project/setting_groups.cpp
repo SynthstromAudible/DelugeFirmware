@@ -8,12 +8,15 @@
 #include "deluge-project/song.h"
 #include "engine-api/types/arp.h"
 #include "engine-api/types/sync.h"
+#include "engine-api/types/voice_priority.h"
 #include "serialization/tree.h"
 
 #include <algorithm>
 #include <array>
 #include <climits>
+#include <iterator>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace deluge::project {
@@ -444,6 +447,11 @@ constexpr SettingInfo kClipValuesTable[] = {
 // ---------------------------------------------------------------------------------------------
 // AUDIO_CLIP (on DocAudioClip)
 
+/// A voice priority as its stored number, in engine::VoicePriority's order (low, medium, high): the sound's voice
+/// priority menu shows these.
+constexpr std::string_view kVoicePriorityWords[] = {"0", "1", "2"};
+static_assert(std::to_underlying(engine::VoicePriority::HIGH) + 1 == std::size(kVoicePriorityWords));
+
 constexpr SettingInfo kAudioClipTable[] = {
     // A row's range is int32: a marker past 2^31 frames (an 8-bit file over 2 GB) is refused, though the record holds
     // 64 bits.
@@ -455,7 +463,10 @@ constexpr SettingInfo kAudioClipTable[] = {
     boolean("pitchSpeedIndependent", 1),
     boolean("reversed"),
     integer("attack", INT32_MIN, INT32_MAX, INT32_MIN),
-    integer("priority", 0, 2, 1),
+    SettingInfo{.path = "priority",
+                .kind = SettingKind::CHOICE,
+                .choices = kVoicePriorityWords,
+                .default_value = std::to_underlying(engine::VoicePriority::MEDIUM)},
     boolean("overdubsShouldCloneAudioTrack", 1),
 };
 

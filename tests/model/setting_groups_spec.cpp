@@ -270,6 +270,17 @@ describe setting_groups_owners("the owner setting groups", $ {
 		(void)song.audio_clip_structure.getOrCreate(12);
 		expect(round_trip(song, SettingGroupId::AUDIO_CLIP, ClipAddress{.clip_id = 12})).to_equal(std::string{});
 	});
+
+	it("offers an audio clip's priority as the sound's voice priority menu does: the numbers a file writes", _ {
+		const SettingInfo* row = deluge::engine::find_setting(table_of(SettingGroupId::AUDIO_CLIP), "priority");
+		expect(row->kind == SettingKind::CHOICE).to_be_true();
+		std::vector<std::string> words;
+		for (std::string_view choice : row->choices) {
+			words.emplace_back(choice);
+		}
+		expect(words).to_equal(std::vector<std::string>{"0", "1", "2"});
+		expect(row->default_value).to_equal(1);
+	});
 });
 // clang-format on
 

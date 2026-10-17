@@ -21,6 +21,7 @@
 
 #include "engine-api/types/arp.h"
 #include "engine-api/types/sync.h"
+#include "engine-api/types/voice_priority.h"
 #include "engines/deluge/codec.h"
 #include "engines/deluge/words.h"
 #include "engines/effects/settings.h"
@@ -68,6 +69,25 @@ constexpr int32_t kPhaseMin = std::numeric_limits<int32_t>::min();
 constexpr int32_t kPhaseMax = std::numeric_limits<int32_t>::max();
 /// The voice limit the max-voices menu's "off" writes: 1–16 are limits, this one is none in practice.
 constexpr int32_t kMaxVoicesOff = 127;
+/// The greatest limit the max-voices menu offers.
+constexpr int32_t kMaxVoicesMenu = 16;
+/// The max-voices menu's 0 is "off", stored as kMaxVoicesOff.
+constexpr std::array<engine::SettingSentinel, 1> kMaxVoicesSentinels{{{.user = 0, .stored = kMaxVoicesOff}}};
+/// A stored limit past the menu's (none a menu writes) shows as off.
+constexpr engine::SettingDescriptorExtras kMaxVoicesExtras{
+    .mapping = {.kind = engine::DisplayMappingKind::CLAMP_HIGH, .clamp_to = 0}};
+
+/// A voice priority as its stored number, in engine::VoicePriority's order (low, medium, high).
+constexpr std::array<std::string_view, 3> kVoicePriorities{"0", "1", "2"};
+static_assert(std::to_underlying(engine::VoicePriority::HIGH) + 1 == kVoicePriorities.size());
+
+/// Choke shares a kit's voices among its lanes, so only a kit lane offers it.
+constexpr engine::SettingDescriptorExtras kPolyphonyExtras{
+    .choice_applies = [](const engine::SettingContext& shown_for, size_t choice) {
+	    return choice != std::to_underlying(PolyphonyMode::CHOKE)
+	           || shown_for.owner == engine::SettingContext::Owner::KIT_LANE;
+    }};
+
 // An LFO's sync level is the file's number, which is relative to the song's input tick magnitude; its range is the
 // internal one's, the numbers a song at the default magnitude writes.
 
@@ -90,11 +110,23 @@ constexpr int32_t kMaxVoicesOff = 127;
 		.path = "osc" #n "/dx7randomdetune", .kind = STRUCTURED                                                        \
 	}
 
+/// An LFO's sync menu: one value over its level and its type row, @p partner.
+constexpr engine::SettingDescriptorExtras lfo_sync_extras(std::string_view partner) {
+	return {.mapping = {.kind = engine::DisplayMappingKind::COMBINED_SYNC, .partner = partner}};
+}
+constexpr std::array kLfoSyncExtras{lfo_sync_extras("lfo1/syncType"), lfo_sync_extras("lfo2/syncType"),
+                                    lfo_sync_extras("lfo3/syncType"), lfo_sync_extras("lfo4/syncType")};
+
 // An LFO's syncLevel is the level itself (1–9, 0 = off), whatever the song's tick magnitude; a file, and so a slot,
 // writes it relative to that magnitude.
 #define LFO_ROWS(n)                                                                                                    \
 	SettingInfo{.path = "lfo" #n "/type", .kind = CHOICE, .choices = kLfoTypes},                                       \
-	    SettingInfo{.path = "lfo" #n "/syncLevel", .min = 0, .max = engine::kMaxSyncLevel}, SettingInfo {              \
+	    SettingInfo{.path = "lfo" #n "/syncLevel",                                                                     \
+	                .min = 0,                                                                                          \
+	                .max = engine::kMaxSyncLevel,                                                                      \
+	                .units = engine::SettingUnits::SYNC_LEVEL,                                                         \
+	                .extras = &kLfoSyncExtras[n - 1]},                                                                 \
+	    SettingInfo {                                                                                                  \
 		.path = "lfo" #n "/syncType", .kind = CHOICE, .choices = kSyncTypes                                            \
 	}
 
@@ -105,13 +137,22 @@ constexpr int32_t kMaxVoicesOff = 127;
 	}
 
 constexpr std::array kRows{
-    SettingInfo{.path = "polyphonic", .kind = CHOICE, .choices = kPolyphony},
-    SettingInfo{.path = "voicePriority", .min = 0, .max = 2},
+    SettingInfo{.path = "polyphonic", .kind = CHOICE, .choices = kPolyphony, .extras = &kPolyphonyExtras},
+    SettingInfo{.path = "voicePriority", .kind = CHOICE, .choices = kVoicePriorities},
     SettingInfo{.path = "sideChainSend", .min = 0, .max = std::numeric_limits<int32_t>::max()},
     SettingInfo{.path = "mode", .kind = CHOICE, .choices = kSynthModes},
     SettingInfo{.path = "transpose", .min = -kTransposeRange, .max = kTransposeRange},
     SettingInfo{.path = "cents", .min = -kCentsRange, .max = kCentsRange},
-    SettingInfo{.path = "maxVoices", .min = 1, .max = kMaxVoicesOff},
+    // A file holds any limit 1–127; the menu offers 0 (off) to kMaxVoicesMenu.
+    SettingInfo{.path = "maxVoices",
+                .min = 1,
+                .max = kMaxVoicesOff,
+                .user = {.user_min = 0,
+                         .user_max = kMaxVoicesMenu,
+                         .stored_min = 0,
+                         .stored_max = kMaxVoicesMenu,
+                         .sentinels = kMaxVoicesSentinels},
+                .extras = &kMaxVoicesExtras},
     OSC_ROWS(1),
     OSC_ROWS(2),
     SettingInfo{.path = "osc2/oscillatorSync", .kind = BOOL},

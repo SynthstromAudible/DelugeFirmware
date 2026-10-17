@@ -30,11 +30,11 @@ namespace deluge::engine {
 
 /// @brief How a menu's value relates to the stored value(s), beyond UserScale's linear map.
 enum class DisplayMappingKind : uint8_t {
-	LINEAR,          ///< UserScale (and its sentinels)
-	CLAMP_HIGH,      ///< LINEAR, but a stored value above the user scale's stored_max shows as `clamp_to`
-	CHOICE_ORDER,    ///< a CHOICE whose menu lists the choices in another order (menu index i → choice order[i])
-	INVERTED_BOOL,   ///< a BOOL whose menu shows !stored (interpolation: menu 0 = LINEAR = stored 1)
-	COMBINED_SYNC,   ///< one menu value 0..27 over a syncLevel row and its partner syncType row
+	LINEAR,        ///< UserScale (and its sentinels)
+	CLAMP_HIGH,    ///< LINEAR, but a stored value above the user scale's stored_max shows as `clamp_to`
+	CHOICE_ORDER,  ///< a CHOICE whose menu lists the choices in another order (menu index i → choice order[i])
+	INVERTED_BOOL, ///< a BOOL whose menu shows !stored (interpolation: menu 0 = LINEAR = stored 1)
+	COMBINED_SYNC, ///< one menu value 0..27 (or the row's user range) over a syncLevel row and its partner syncType row
 	TRANSPOSE_CENTS, ///< one menu value transpose*100+cents over a transpose row and its partner cents row
 	PHASE_DEGREES,   ///< a retrigger phase: −1 (0xFFFFFFFF) ↔ menu −1 (free), else degrees 0..360 ↔ phase/11930464
 	TABLE,           ///< a lookup table: `table[i] << table_shift` is the stored value for menu step i

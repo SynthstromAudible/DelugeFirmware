@@ -48,6 +48,16 @@ inline constexpr std::array<std::string_view, 3> kFilterRouteNames{"H2L", "L2H",
 inline constexpr std::array<std::string_view, 3> kSyncTypeNames{"0", "10", "19"};
 /// A Q31 knob position or rate: 0 to its greatest value.
 inline constexpr int32_t kQ31Max = std::numeric_limits<int32_t>::max();
+
+/// The delay's sync menu: one value over the level and its type row, every type offered.
+inline constexpr engine::SettingDescriptorExtras kDelaySyncExtras{
+    .mapping = {.kind = engine::DisplayMappingKind::COMBINED_SYNC, .partner = "delay/syncType"}};
+/// The sidechain's sync menu: one value over the level and its type row; its user range offers the even levels alone.
+inline constexpr engine::SettingDescriptorExtras kSidechainSyncExtras{
+    .mapping = {.kind = engine::DisplayMappingKind::COMBINED_SYNC, .partner = "sidechain/syncType"}};
+/// The sidechain sync menu's values: off and the nine even levels.
+inline constexpr engine::UserScale kSidechainSyncMenu{
+    .user_min = 0, .user_max = engine::kMaxSyncLevel, .stored_min = 0, .stored_max = engine::kMaxSyncLevel};
 } // namespace detail
 
 /// @brief The effects' non-param settings, by their path in an owner's element. A sync level is the level itself
@@ -60,11 +70,20 @@ inline constexpr std::array<engine::SettingInfo, 23> kEffectSettings{{
     {.path = "clippingAmount", .min = 0, .max = 15},
     {.path = "delay/pingPong", .kind = detail::BOOL},
     {.path = "delay/type", .kind = detail::CHOICE, .choices = detail::kDelayTypeNames},
-    {.path = "delay/syncLevel", .min = 0, .max = engine::kMaxSyncLevel},
+    {.path = "delay/syncLevel",
+     .min = 0,
+     .max = engine::kMaxSyncLevel,
+     .units = engine::SettingUnits::SYNC_LEVEL,
+     .extras = &detail::kDelaySyncExtras},
     {.path = "delay/syncType", .kind = detail::CHOICE, .choices = detail::kSyncTypeNames},
     {.path = "sidechain/attack", .min = 0, .max = detail::kQ31Max},
     {.path = "sidechain/release", .min = 0, .max = detail::kQ31Max},
-    {.path = "sidechain/syncLevel", .min = 0, .max = engine::kMaxSyncLevel},
+    {.path = "sidechain/syncLevel",
+     .min = 0,
+     .max = engine::kMaxSyncLevel,
+     .user = detail::kSidechainSyncMenu,
+     .units = engine::SettingUnits::SYNC_LEVEL,
+     .extras = &detail::kSidechainSyncExtras},
     {.path = "sidechain/syncType", .kind = detail::CHOICE, .choices = detail::kSyncTypeNames},
     {.path = "audioCompressor/attack", .min = 0, .max = detail::kQ31Max},
     {.path = "audioCompressor/release", .min = 0, .max = detail::kQ31Max},
