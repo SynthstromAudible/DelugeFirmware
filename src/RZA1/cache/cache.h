@@ -74,9 +74,10 @@ void L2CacheMapRangeInnerOnly(uintptr_t start, uintptr_t end);
 void L2CacheDisable(void);
 void L2CacheCleanInvalidateRange(uintptr_t start, uintptr_t end);
 void invalidate_range_all_caches(uintptr_t start, uintptr_t end);
-/* For buffers DMA writes into. Faster than invalidate_range_all_caches(), as they don't write back the buffer's old
- * contents, but so the buffer mustn't share cache lines with anything written during the DMA. Only L1 needs
- * invalidating for buffers in memory L2CacheMapRangeInnerOnly() has stopped L2 caching. */
+/* For buffers DMA writes into. Faster than invalidate_range_all_caches(), as they don't write back the old contents of
+ * lines entirely inside the buffer, which DMA overwrites anyway. Lines only partly inside it are written back as
+ * before, so like invalidate_range_all_caches(), anything sharing a line with the buffer mustn't be written during the
+ * DMA. Only L1 needs invalidating for buffers in memory L2CacheMapRangeInnerOnly() has stopped L2 caching. */
 void invalidate_range_before_dma_read(uintptr_t start, uintptr_t end);
 void invalidate_range_after_dma_read(uintptr_t start, uintptr_t end);
 
