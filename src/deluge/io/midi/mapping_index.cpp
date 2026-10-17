@@ -28,6 +28,7 @@
 #include "model/song/song.h"
 
 #include <algorithm>
+#include <map>
 #include <optional>
 #include <type_traits>
 #include <utility>
@@ -40,50 +41,29 @@ namespace {
 using project::ControlsAddress;
 using project::Mapping;
 
-/// A kit row of a playing kit: the kit's id and the row's place in it.
-struct Row {
-	uint32_t drum;
-	uint32_t kit;
-	uint32_t ordinal;
-};
+using Row = MappingSnapshot::Row;
 
-/// What of a song can be offered MIDI: its playing outputs, their kits' rows, and its session clips.
+/// The lookups a rebuild makes into a snapshot's lists, sorted by id so each is a binary search.
 struct Awake {
-	std::vector<uint32_t> outputs;
-	std::vector<Row> rows;
-	std::vector<std::pair<uint32_t, uint32_t>> sessionClips; ///< clip id, session index
+	const MappingSnapshot& snapshot;
 
-	explicit Awake(::Song& song) {
-		for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
-			if (!output->id()) {
-				continue;
-			}
-			outputs.push_back(*output->id());
-			if (output->type != OutputType::KIT) {
-				continue;
-			}
-			uint32_t ordinal = 0;
-			for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next, ordinal++) {
-				if (drum->id()) {
-					rows.push_back({*drum->id(), *output->id(), ordinal});
-				}
-			}
-		}
-		for (int32_t c = 0; c < std::ssize(song.live.clips.session_clips); c++) {
-			sessionClips.emplace_back(song.live.clips.session_clips[c]->id(), static_cast<uint32_t>(c));
-		}
+	explicit Awake(MappingSnapshot& from) : snapshot{from} {
+		std::ranges::sort(from.outputs);
+		std::ranges::sort(from.rows, {}, &Row::drum);
+		std::ranges::sort(from.sessionClips, {}, &std::pair<uint32_t, uint32_t>::first);
 	}
 
-	[[nodiscard]] bool hasOutput(uint32_t id) const { return std::ranges::find(outputs, id) != outputs.end(); }
+	[[nodiscard]] bool hasOutput(uint32_t id) const { return std::ranges::binary_search(snapshot.outputs, id); }
 
 	[[nodiscard]] const Row* row(uint32_t drum) const {
-		const auto it = std::ranges::find(rows, drum, &Row::drum);
-		return it != rows.end() ? &*it : nullptr;
+		const auto it = std::ranges::lower_bound(snapshot.rows, drum, {}, &Row::drum);
+		return it != snapshot.rows.end() && it->drum == drum ? &*it : nullptr;
 	}
 
 	[[nodiscard]] std::optional<uint32_t> sessionIndex(uint32_t clip) const {
-		const auto it = std::ranges::find(sessionClips, clip, &std::pair<uint32_t, uint32_t>::first);
-		return it != sessionClips.end() ? std::optional{it->second} : std::nullopt;
+		const auto it =
+		    std::ranges::lower_bound(snapshot.sessionClips, clip, {}, &std::pair<uint32_t, uint32_t>::first);
+		return it != snapshot.sessionClips.end() && it->first == clip ? std::optional{it->second} : std::nullopt;
 	}
 
 	/// Whether @p owner's knobs can be offered MIDI: the song's always, an output's or a row's while it plays.
@@ -120,6 +100,30 @@ IndexedEntry entryOf(const Mapping& mapping, uint32_t ordinal) {
 
 } // namespace
 
+MappingSnapshot MappingSnapshot::of(const project::MappingTable& table, ::Song& song) {
+	MappingSnapshot snapshot;
+	snapshot.entries.assign(table.entries().begin(), table.entries().end());
+	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
+		if (!output->id()) {
+			continue;
+		}
+		snapshot.outputs.push_back(*output->id());
+		if (output->type != OutputType::KIT) {
+			continue;
+		}
+		uint32_t ordinal = 0;
+		for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next, ordinal++) {
+			if (drum->id()) {
+				snapshot.rows.push_back({*drum->id(), *output->id(), ordinal});
+			}
+		}
+	}
+	for (int32_t c = 0; c < std::ssize(song.live.clips.session_clips); c++) {
+		snapshot.sessionClips.emplace_back(song.live.clips.session_clips[c]->id(), static_cast<uint32_t>(c));
+	}
+	return snapshot;
+}
+
 MIDICable* MappingIndex::absentDevice() {
 	// Only its address is used: it is never a cable MIDI arrives on.
 	static constinit char tag = 0;
@@ -132,22 +136,17 @@ void MappingIndex::clear() {
 	lanes_.clear();
 }
 
-void MappingIndex::rebuild(const project::MappingTable& table, ::Song& song) {
+void MappingIndex::rebuild(MappingSnapshot snapshot) {
 	clear();
-	const Awake awake{song};
+	const Awake awake{snapshot};
 	// Each owner's knobs in table order: the place of each in its owner's knob list.
-	std::vector<std::pair<ControlsAddress, uint32_t>> knobCounts;
+	std::map<std::pair<ControlsAddress::Kind, uint32_t>, uint32_t> knobCounts;
 
-	for (const Mapping& mapping : table.entries()) {
+	for (const Mapping& mapping : snapshot.entries) {
 		std::visit(
 		    [&]<typename T>(const T& target) {
 			    if constexpr (std::is_same_v<T, project::ParamTarget>) {
-				    auto count =
-				        std::ranges::find(knobCounts, target.owner, &std::pair<ControlsAddress, uint32_t>::first);
-				    if (count == knobCounts.end()) {
-					    count = knobCounts.emplace(knobCounts.end(), target.owner, 0u);
-				    }
-				    const uint32_t ordinal = count->second++;
+				    const uint32_t ordinal = knobCounts[{target.owner.kind, target.owner.id}]++;
 				    if (mapping.source.contains_something() && awake.hasOwner(target.owner)) {
 					    knobs_.push_back({mapping.source.channel_or_zone, target.owner, entryOf(mapping, ordinal)});
 				    }
@@ -198,23 +197,30 @@ void rebuildMappingIndex(::Song& song) {
 	if (&song != currentSong) {
 		return;
 	}
-	// The build walks the table, the outputs, the kits' rows and the session clips, which the song's tick (on the
-	// audio tier) can splice or reallocate: an auto-overdub's output clone, say.
-	AudioExcludedSection section;
-	// Cleared before the build reads the song, so a change marked while it runs is not lost.
-	mapping_index_detail::mapping_index_stale.store(false, std::memory_order_release);
-	mappingIndex().rebuild(song.project.mappings, song);
+	MappingSnapshot snapshot;
+	{
+		// The song's tick (on the audio tier) can splice the lists the snapshot copies: an auto-overdub's output, say.
+		// Only the copy holds the render off; the index is built from it after.
+		AudioExcludedSection section;
+		// Cleared before the copy, so a change marked after it is not lost.
+		mapping_index_detail::mapping_index_stale.store(false, std::memory_order_release);
+		snapshot = MappingSnapshot::of(song.project.mappings, song);
+	}
+	MappingIndex built;
+	built.rebuild(std::move(snapshot));
+	// The index's only reader, the dispatch of an incoming message, runs on this tier.
+	mappingIndex() = std::move(built);
 }
 
 void refreshMappingIndex() {
 	if (!mappingIndexStale() || currentSong == nullptr) {
 		return; // with no song, the marks wait for the next one
 	}
+	bridge::applyPendingOutputClones(*currentSong);
 	if (mapping_index_detail::mapping_devices_changed.load(std::memory_order_acquire)) {
-		AudioExcludedSection section; // the projection walks and writes what the song's tick can change
 		bridge::projectDeviceMappings(*currentSong);
-		// Cleared after: the entries the projection itself made mark the devices changed, and it has played them. No
-		// other mark can land inside the section.
+		// Cleared after: the entries the projection itself made mark the devices changed, and it has played them. Every
+		// other device mark is made on this tier too, so none lands meanwhile.
 		mapping_index_detail::mapping_devices_changed.store(false, std::memory_order_release);
 	}
 	rebuildMappingIndex(*currentSong);

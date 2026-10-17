@@ -72,6 +72,23 @@ void recordArrivingDrum(::Drum& drum, ::Song& song);
 /// @param song The song both belong to.
 void cloneOutputMappings(const ::Output& from, ::Output& to, ::Song& song);
 
+/// @brief How many clones cloneOutputMappingsLater() holds before the next refresh of the mapping index. Past that, the
+/// refresh records every audio track the table holds no knobs for from the knobs its engine plays.
+inline constexpr size_t kPendingOutputClones = 8;
+
+/// @brief [audio] [task] Clone output @p from's learned knobs onto output @p to in the current song's table later, on
+/// the app loop, as cloneOutputMappings() does: an auto-overdub clones its audio track on the song's tick, which may be
+/// the audio tier, where the table and the device list are not to be touched. Allocates nothing; marks the mapping
+/// index stale. The clone's engine knobs, copied with the rest of the output, play meanwhile.
+/// @param from The output cloned from, with its id.
+/// @param to   The clone, with its id.
+void cloneOutputMappingsLater(const ::Output& from, const ::Output& to);
+
+/// @brief [task] Apply the clones cloneOutputMappingsLater() recorded to @p song, with the render excluded. Run by the
+/// refresh of the mapping index, before it rebuilds.
+/// @param song The current song.
+void applyPendingOutputClones(::Song& song);
+
 /// @brief Hand output @p from's bindings to output @p to in @p song's table, as a preset change hands the replaced
 /// instrument's over: its input always, its learned knobs too when @p knobs. What @p to held of either is dropped.
 /// @param song  The song.
@@ -86,7 +103,8 @@ void handOverInstrument(::Song& song, uint32_t from, uint32_t to, bool knobs);
 void projectOutputMappings(::Song& song, uint32_t output);
 
 /// @brief Project again every binding of @p song whose source names a hosted device, as the device list now resolves
-/// it: a device plugged in since its binding was projected is played from its own cable.
+/// it: a device plugged in since its binding was projected is played from its own cable. Makes the device entries
+/// first, then excludes the render only while it projects each target.
 /// @param song The song.
 void projectDeviceMappings(::Song& song);
 
@@ -142,14 +160,6 @@ void setSectionCommand(deluge::project::MappingTable& mappings, uint8_t section,
 /// @return Error::UNSPECIFIED, with nothing changed, when @p target's owner is not in @p song (no such output, drum or
 ///         clip, playing or hibernating; no such section); otherwise Error::NONE.
 Error projectMapping(::Song& song, const deluge::project::MappingTarget& target);
-
-/// @brief projectMapping() for the audio tier: it makes no device entry, so a source naming a hosted device the Deluge
-/// does not know projects to no cable and the next refresh of the mapping index (on the app loop, before any message
-/// is matched) projects it again, making the entry.
-/// @param song   The song.
-/// @param target The target to project.
-/// @return As projectMapping().
-Error projectMappingFindingDevices(::Song& song, const deluge::project::MappingTarget& target);
 
 /// @brief Whether @p song holds @p output, playing or hibernating: a save then writes its bindings from the table.
 /// @param song   The song.

@@ -39,7 +39,7 @@
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
-#include "io/midi/mapping_index_stale.h"
+#include "io/midi/mapping_index.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
@@ -134,6 +134,9 @@ void PlaybackHandler::midiRoutine() {
 		//  todo - should add the ability to block the task in the task manager instead but whatever
 		return;
 	}
+	// The song's tick may have left the MIDI mapping index work: an overdub's cloned knobs, a changed song.
+	deluge::midi::refreshMappingIndex();
+
 	// Check incoming USB MIDI
 	midiEngine.checkIncomingUsbMidi();
 

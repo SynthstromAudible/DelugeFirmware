@@ -64,6 +64,7 @@
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
+#include "modulation/knob.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "processing/engines/audio_engine.h"
@@ -855,9 +856,39 @@ std::string rowRemovedLeg(Stage& s) {
 	return what;
 }
 
-/// An output's knobs cloned as an auto-overdub clones them, on the song's tick, which may be the audio tier: a knob
-/// naming a hosted device the Deluge does not know makes no device entry there; the app loop's refresh makes it and
-/// plays the clone's knob from it.
+/// A new audio track made and given @p from's engine knobs, as an auto-overdub's clone of an audio track is.
+Output* engineClone(Song& song, Output& from) {
+	std::vector<Output*> before;
+	for (Output* o = song.live.media.first_output; o != nullptr; o = o->next) {
+		before.push_back(o);
+	}
+	(void)song.createNewAudioOutput();
+	Output* to = nullptr;
+	for (Output* o = song.live.media.first_output; o != nullptr; o = o->next) {
+		if (std::ranges::find(before, o) == before.end()) {
+			to = o;
+		}
+	}
+	bool isSound = false;
+	ModControllableAudio* fromKnobs =
+	    deluge::bridge::controlsOwnerAt(song, {ControlsAddress::Kind::OUTPUT, *from.id()}, &isSound);
+	ModControllableAudio* toKnobs =
+	    to != nullptr && to->id()
+	        ? deluge::bridge::controlsOwnerAt(song, {ControlsAddress::Kind::OUTPUT, *to->id()}, &isSound)
+	        : nullptr;
+	if (fromKnobs == nullptr || toKnobs == nullptr) {
+		return nullptr;
+	}
+	toKnobs->midi_knobs = fromKnobs->midi_knobs;
+	return to;
+}
+
+/// An auto-overdub's clone of an audio track, made on the song's tick, which may be the audio tier: its engine knobs
+/// play at once, the table and the device list are untouched until the app loop's refresh, and the refresh leaves the
+/// table as a clone on the app loop would. The tick's own entry point (AudioClip::cloneOutput) is reached only by
+/// linear recording starting on a pending overdub, so the leg makes the same calls it makes: a new audio track with its
+/// source's engine knobs, then cloneOutputMappingsLater. A full queue falls back to recording the clone's knobs from
+/// its engine.
 std::string cloneLeg(Stage& s) {
 	Output* from = nullptr;
 	for (Output* o = s.song.live.media.first_output; o != nullptr && from == nullptr; o = o->next) {
@@ -865,54 +896,111 @@ std::string cloneLeg(Stage& s) {
 			from = o;
 		}
 	}
-	std::vector<Output*> before;
-	for (Output* o = s.song.live.media.first_output; o != nullptr; o = o->next) {
-		before.push_back(o);
-	}
-	(void)s.song.createNewAudioOutput();
-	Output* to = nullptr;
-	for (Output* o = s.song.live.media.first_output; o != nullptr; o = o->next) {
-		if (std::ranges::find(before, o) == before.end()) {
-			to = o;
-		}
-	}
-	if (from == nullptr || to == nullptr || !to->id()) {
+	if (from == nullptr) {
 		return "no audio track to clone";
 	}
+	const ControlsAddress fromKnobs{ControlsAddress::Kind::OUTPUT, *from->id()};
 	const MidiDeviceRef unknown{.port = MidiDeviceRef::Port::HOSTED,
 	                            .name = "MAPPING DISPATCH CLONE",
 	                            .vendor_id = 0x1209,
 	                            .product_id = 0x0de3};
-	const deluge::engine::ParamId param = knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL);
-	// Written to the table alone, as a load reads a binding before anything projects it.
+	if (!learn(s.song,
+	           Mapping{.source = {.channel_or_zone = 14,
+	                              .note_or_cc = 31,
+	                              .device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN}},
+	                   .target = deluge::project::ParamTarget{
+	                       fromKnobs, knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)}})) {
+		return "a learn was refused";
+	}
+	// A knob naming a device the Deluge does not know, written to the table alone as a load reads it before anything
+	// projects it.
 	s.song.project.mappings.learn(
 	    Mapping{.source = {.channel_or_zone = 14, .note_or_cc = 30, .device = unknown},
-	            .target = deluge::project::ParamTarget{{ControlsAddress::Kind::OUTPUT, *from->id()}, param}});
+	            .target = deluge::project::ParamTarget{
+	                fromKnobs, knobParam(params::UNPATCHED_DELAY_AMOUNT, params::Kind::UNPATCHED_GLOBAL)}});
 	std::string what;
 	refresh(what);
-	deluge::bridge::cloneOutputMappings(*from, *to, s.song);
+
+	Output* to = engineClone(s.song, *from);
+	if (to == nullptr) {
+		return "no clone";
+	}
+	const ControlsAddress toKnobs{ControlsAddress::Kind::OUTPUT, *to->id()};
+	MappingTable expected = s.song.project.mappings;
+	expected.copy_params(*from->id(), *to->id());
+	const std::vector<Mapping> before{s.song.project.mappings.entries().begin(),
+	                                  s.song.project.mappings.entries().end()};
+	deluge::bridge::cloneOutputMappingsLater(*from, *to);
 	bool isSound = false;
-	ModControllableAudio* knobs =
-	    deluge::bridge::controlsOwnerAt(s.song, {ControlsAddress::Kind::OUTPUT, *to->id()}, &isSound);
-	if (knobs == nullptr) {
-		return "the clone has no knobs";
+	ModControllableAudio* toEngine = deluge::bridge::controlsOwnerAt(s.song, toKnobs, &isSound);
+	if (what.empty()
+	    && !std::ranges::equal(before, std::vector<Mapping>{s.song.project.mappings.entries().begin(),
+	                                                        s.song.project.mappings.entries().end()})) {
+		what = "the clone wrote the table before the refresh";
 	}
 	if (what.empty() && deluge::bridge::find_cable(unknown) != nullptr) {
-		what = "the clone made a device entry";
+		what = "the clone made a device entry before the refresh";
 	}
-	if (what.empty() && (knobs->midi_knobs.size() != 1 || knobs->midi_knobs[0].midiInput.cable != nullptr)) {
-		what = "the clone's knob is not projected with no cable";
+	if (what.empty()
+	    && !hitOn(knobHits(fromKnobs, *s.cables[0], 14, 31),
+	              deluge::project::ParamTarget{
+	                  fromKnobs, knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)})) {
+		what = "the source's knob stopped matching";
+	}
+	if (what.empty()
+	    && (toEngine->midi_knobs.size() != 1
+	        || !toEngine->midi_knobs[0].midiInput.equalsNoteOrCC(s.cables[0], 14, 31))) {
+		what = "the clone's engine knob does not play at once";
 	}
 	if (what.empty() && !deluge::mappingIndexStale()) {
 		what = "the clone left nothing for the refresh";
 	}
 	refresh(what);
+	const std::vector<Mapping> after{s.song.project.mappings.entries().begin(),
+	                                 s.song.project.mappings.entries().end()};
+	if (what.empty()
+	    && !std::ranges::equal(after, std::vector<Mapping>{expected.entries().begin(), expected.entries().end()})) {
+		what = "after the refresh the table is not what a clone on the app loop makes";
+	}
 	MIDICable* made = deluge::bridge::find_cable(unknown);
 	if (what.empty() && (made == nullptr || made->connectionFlags != 0)) {
 		what = "the refresh made no unconnected entry for the device";
 	}
-	if (what.empty() && (knobs->midi_knobs.size() != 1 || knobs->midi_knobs[0].midiInput.cable != made)) {
-		what = "the refresh did not play the clone's knob from the device's entry";
+	if (what.empty()
+	    && (toEngine->midi_knobs.size() != 2 || std::ranges::none_of(toEngine->midi_knobs, [&](const MIDIKnob& k) {
+		        return k.midiInput.cable == made;
+	        }))) {
+		what = "the refresh did not project the clone's knobs";
+	}
+	if (what.empty()
+	    && !hitOn(knobHits(toKnobs, *s.cables[0], 14, 31),
+	              deluge::project::ParamTarget{
+	                  toKnobs, knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)})) {
+		what = "the index does not offer the clone's knob";
+	}
+
+	// A full queue: the clone's knobs are recorded from its engine.
+	Output* overflowed = engineClone(s.song, *from);
+	if (what.empty() && overflowed == nullptr) {
+		what = "no second clone";
+	}
+	if (what.empty()) {
+		for (size_t i = 0; i < deluge::bridge::kPendingOutputClones; i++) {
+			deluge::bridge::cloneOutputMappingsLater(*to, *to);
+		}
+		deluge::bridge::cloneOutputMappingsLater(*from, *overflowed);
+		refresh(what);
+		ModControllableAudio* engine =
+		    deluge::bridge::controlsOwnerAt(s.song, {ControlsAddress::Kind::OUTPUT, *overflowed->id()}, &isSound);
+		const std::vector<Mapping> knobs =
+		    s.song.project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *overflowed->id()});
+		if (what.empty()
+		    && (knobs.empty() || knobs.size() != engine->midi_knobs.size()
+		        || knobs
+		               != deluge::bridge::knobsOf({ControlsAddress::Kind::OUTPUT, *overflowed->id()}, *engine,
+		                                          false))) {
+			what = "after a full queue the clone's knobs are not recorded from its engine";
+		}
 	}
 	return what;
 }

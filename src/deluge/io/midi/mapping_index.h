@@ -48,6 +48,27 @@ struct IndexedEntry {
 	uint32_t ordinal{0};
 };
 
+/// @brief What a rebuild of the index reads of a song: its bindings and what of it can be offered MIDI, copied, so the
+/// index is built without holding the song (which the song's tick, on the audio tier, can change).
+struct MappingSnapshot {
+	/// A kit row of a playing kit: its id, its kit's id and its place in the kit.
+	struct Row {
+		uint32_t drum;
+		uint32_t kit;
+		uint32_t ordinal;
+	};
+	std::vector<project::Mapping> entries;                   ///< the table's, in its order
+	std::vector<uint32_t> outputs;                           ///< the playing outputs' ids
+	std::vector<Row> rows;                                   ///< the playing kits' rows
+	std::vector<std::pair<uint32_t, uint32_t>> sessionClips; ///< each session clip's id and session index
+
+	/// @brief Copy @p table and what of @p song can be offered MIDI. Only copies: run it with the render excluded.
+	/// @param table The song's mapping table.
+	/// @param song  The song it belongs to.
+	/// @return The snapshot.
+	[[nodiscard]] static MappingSnapshot of(const project::MappingTable& table, ::Song& song);
+};
+
 /// @brief The song's MIDI bindings, ready for incoming MIDI to find what it triggers without scanning every owner.
 ///
 /// Each source names its channel or zone and note or CC exactly as LearnedMIDI matches them. A device is resolved once,
@@ -80,12 +101,12 @@ public:
 	/// @brief The cable an entry names when its device is one the Deluge has no cable for. Never dereferenced.
 	[[nodiscard]] static MIDICable* absentDevice();
 
-	/// @brief Index @p table's bindings of @p song. A source's device is resolved to its cable. A binding whose owner
-	/// hibernates or is not in @p song is left out, as is a clip's that is not in the session, a track's input (which
-	/// its instrument matches for itself) and an entry with no source.
-	/// @param table The song's mapping table.
-	/// @param song  The song it belongs to.
-	void rebuild(const project::MappingTable& table, ::Song& song);
+	/// @brief Index a song's bindings from @p snapshot of it. A source's device is resolved to its cable. A binding
+	/// whose owner hibernates or is not in the song is left out, as is a clip's that is not in the session, a track's
+	/// input (which its instrument matches for itself) and an entry with no source. Reads only @p snapshot and the
+	/// device list.
+	/// @param snapshot The song's bindings and what of it can be offered MIDI; its lists are sorted here.
+	void rebuild(MappingSnapshot snapshot);
 
 	/// @brief Forget every entry.
 	void clear();
@@ -200,16 +221,17 @@ private:
 /// @brief The index of the current song's bindings.
 MappingIndex& mappingIndex();
 
-/// @brief [task] Bring the index into line with @p song's mapping table, when @p song is the current song. Allocates,
-/// and excludes the render while it reads the song: never from the audio tier, where markMappingIndexStale() stands in
-/// for it.
+/// @brief [task] Bring the index into line with @p song's mapping table, when @p song is the current song. Excludes the
+/// render only while it copies what it reads of the song, then builds and swaps the index in. Allocates: never from the
+/// audio tier, where markMappingIndexStale() stands in for it.
 /// @param song The song whose table changed.
 void rebuildMappingIndex(::Song& song);
 
-/// @brief [task] Act on what was marked since the last refresh: when the devices changed, project the current song's
-/// bindings naming a hosted device again (a device entry made since resolves them to its cable); when anything
-/// changed, rebuild the index from the current song. With no current song the marks wait. Run on the app loop before an
-/// incoming message is matched.
+/// @brief [task] Act on what was marked since the last refresh: apply the output clones the song's tick recorded (see
+/// bridge::cloneOutputMappingsLater); when the devices changed, project the current song's bindings naming a hosted
+/// device again (a device entry made since resolves them to its cable); then rebuild the index from the current song.
+/// With no current song the marks wait. Run on the app loop, each turn of the MIDI routine and before an incoming
+/// message is matched.
 void refreshMappingIndex();
 
 } // namespace deluge::midi
