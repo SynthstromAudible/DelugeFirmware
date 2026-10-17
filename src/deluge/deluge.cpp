@@ -907,6 +907,12 @@ extern "C" int32_t deluge_main(void) {
 	D_PRINTLN("going into main loop");
 	// Long after resetprg.c has used the BSC to set up SDRAM, which shares this mapping
 	L2CacheMapRegistersAsDevice();
+	// Stealables are mostly streamed sample data, which L2 gains little from, and DMA writes Clusters there, which
+	// would otherwise need slow L2 maintenance. Before unlocking, so L2 isn't holding any of it.
+	{
+		MemoryRegion const& stealable = GeneralMemoryAllocator::get().regions[MEMORY_REGION_STEALABLE];
+		L2CacheMapRangeInnerOnly(stealable.start, stealable.end);
+	}
 	L2CacheUnlockData();
 	sdRoutineLock = false; // Allow SD routine to start happening
 

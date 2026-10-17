@@ -35,6 +35,7 @@ Includes   <System Includes> , "Project Includes"
 #include "RZA1/compiler/asm/inc/asm.h"
 #include "RZA1/system/iodefine.h"
 #include "RZA1/system/r_typedefs.h"
+#include <stdbool.h>
 
 #ifdef __CC_ARM
 #pragma arm section code   = "CODE_CACHE_OPERATION"
@@ -266,21 +267,73 @@ extern uint32_t ttb_mmu1_base[]; /* The first level translation table - see ttb_
  *                SDRAM - so this must only be done once that's set up and the SDRAM is in use, as resetprg.c relies
  *                on BSC writes landing before it touches SDRAM.
  ******************************************************************************/
-void L2CacheMapRegistersAsDevice(void)
+/* Sets the descriptors for sections first_section to last_section inclusive, and makes sure the MMU uses them */
+static void setSectionDescriptors(uint32_t first_section, uint32_t last_section, uint32_t attributes)
 {
-    uint32_t section       = (uint32_t)&L2C >> 20;
-    ttb_mmu1_base[section] = (section << 20) | TTB_PARA_DEVICE;
+    for (uint32_t section = first_section; section <= last_section; section++)
+    {
+        ttb_mmu1_base[section] = (section << 20) | attributes;
+    }
 
-    /* TTBR0 marks table walks as cacheable, so make sure the walk sees the new descriptor */
-    uintptr_t entry = (uintptr_t)&ttb_mmu1_base[section];
-    v7_dma_flush_range(entry, entry + sizeof(uint32_t));
-    L2CacheCleanInvalidateRange(entry, entry + sizeof(uint32_t));
+    /* TTBR0 marks table walks as cacheable, so make sure the walk sees the new descriptors */
+    uintptr_t entries_start = (uintptr_t)&ttb_mmu1_base[first_section];
+    uintptr_t entries_end   = (uintptr_t)&ttb_mmu1_base[last_section + 1];
+    v7_dma_flush_range(entries_start, entries_end);
+    L2CacheCleanInvalidateRange(entries_start, entries_end);
 
     __asm volatile("dsb" ::: "memory");
     __asm volatile("mcr p15, 0, %0, c8, c7, 0" ::"r"(0) : "memory"); /* TLBIALL */
     __asm volatile("mcr p15, 0, %0, c7, c5, 6" ::"r"(0) : "memory"); /* BPIALL */
     __asm volatile("dsb" ::: "memory");
     __asm volatile("isb" ::: "memory");
+}
+
+void L2CacheMapRegistersAsDevice(void)
+{
+    uint32_t section = (uint32_t)&L2C >> 20;
+    setSectionDescriptors(section, section, TTB_PARA_DEVICE);
+}
+
+/* As TTB_PARA_NORMAL_CACHE in ttb_init.S, but with TEX=b100, C=0, B=1: Normal memory that's inner (L1) write-back
+ * write-allocate, but outer (L2) non-cacheable. Relies on TEX remap being off (SCTLR.TRE=0), as it is. */
+#define TTB_PARA_NORMAL_INNER_CACHE_ONLY 0x4DE6uL
+
+/* The memory L2CacheMapRangeInnerOnly() has stopped L2 caching. Empty until then. */
+static uintptr_t inner_only_start = 0;
+static uintptr_t inner_only_end   = 0;
+
+/******************************************************************************
+ * Function Name: L2CacheMapRangeInnerOnly
+ * Description  : Stops L2 caching the whole 1MB sections within [start, end), so buffers there that DMA writes into
+ *                only need their L1 lines invalidating, which is quick. L1 caches them as before. Sections only
+ *                partly within the range are left as they are.
+ *
+ *                Must be called before L2CacheUnlockData(), while L2 is still locked against allocating data, so it
+ *                can't be holding lines from the range that the new mapping would then hide.
+ ******************************************************************************/
+void L2CacheMapRangeInnerOnly(uintptr_t start, uintptr_t end)
+{
+    uint32_t first_section = (start + 0xFFFFFuL) >> 20; /* Round up to the first whole section */
+    uint32_t end_section   = end >> 20;                 /* Round down - one past the last whole section */
+    if (first_section >= end_section)
+    {
+        return;
+    }
+
+    /* The inner attributes aren't changing, so L1's lines stay valid - but write any dirty ones out anyway, so none
+     * go to memory by a different route than the one they were cached for */
+    L1_D_CacheWritebackFlushAll();
+
+    setSectionDescriptors(first_section, end_section - 1, TTB_PARA_NORMAL_INNER_CACHE_ONLY);
+
+    inner_only_start = (uintptr_t)first_section << 20;
+    inner_only_end   = (uintptr_t)end_section << 20;
+}
+
+/* Whether L2 can't be holding any of [start, end) */
+static bool isInnerOnly(uintptr_t start, uintptr_t end)
+{
+    return start >= inner_only_start && end <= inner_only_end;
 }
 
 void L2CacheUnlockData(void)
@@ -416,14 +469,20 @@ static void L2CacheInvalidateRangeKeepingEdges(uintptr_t start, uintptr_t end)
 void invalidate_range_before_dma_read(uintptr_t start, uintptr_t end)
 {
     v7_dma_inv_range(start, end);
-    L2CacheInvalidateRangeKeepingEdges(start, end);
+    if (!isInnerOnly(start, end))
+    {
+        L2CacheInvalidateRangeKeepingEdges(start, end);
+    }
 }
 
 /* After DMA has written into [start, end), to drop anything speculatively cached meanwhile. Outer then inner, so L1
  * can't refill from a stale L2 line after being invalidated. */
 void invalidate_range_after_dma_read(uintptr_t start, uintptr_t end)
 {
-    L2CacheInvalidateRangeKeepingEdges(start, end);
+    if (!isInnerOnly(start, end))
+    {
+        L2CacheInvalidateRangeKeepingEdges(start, end);
+    }
     v7_dma_inv_range(start, end);
 }
 
