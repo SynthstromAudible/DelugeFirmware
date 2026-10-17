@@ -20,6 +20,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
 #include "gui/views/session_view.h"
+#include "hid/display/oled.h"
 #include "model/song/song.h"
 #include "processing/audio_output.h"
 
@@ -228,6 +229,7 @@ ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
 void AudioInputSelector::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	ContextMenu::renderOLED(canvas);
 
+	// if specific track is not selected, then rendering track name is not applicable
 	if (audioOutput->inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
 		return;
 	}
@@ -239,7 +241,18 @@ void AudioInputSelector::renderOLED(deluge::hid::display::oled_canvas::Canvas& c
 	int32_t windowHeight = 40;
 	int32_t windowMinY = (OLED_MAIN_HEIGHT_PIXELS - windowHeight) >> 1;
 	int32_t textPixelY = windowMinY + 20 + kTextSpacingY;
-	canvas.drawString(trackName, 22, textPixelY, kTextSpacingX, kTextSpacingY, 0, OLED_MAIN_WIDTH_PIXELS - 26);
+	// draw a little L arrow from the specific track menu item selection to the name of the track selected
+	canvas.drawVerticalLine(25, textPixelY - 2, textPixelY + 4);
+	canvas.drawHorizontalLine(textPixelY + 4, 25, 31);
+	canvas.drawPixel(29, textPixelY + 2);
+	canvas.drawPixel(30, textPixelY + 3);
+	canvas.drawPixel(30, textPixelY + 5);
+	canvas.drawPixel(29, textPixelY + 6);
+	// indent the track name over a bit so the arrow can point to it
+	canvas.drawString(trackName, 35, textPixelY, kTextSpacingX, kTextSpacingY, 0, OLED_MAIN_WIDTH_PIXELS - 27);
+	// setup scrolling for long track names
+	deluge::hid::display::OLED::setupSideScroller(1, trackName, 35, OLED_MAIN_WIDTH_PIXELS - 27, textPixelY,
+	                                              textPixelY + 8, kTextSpacingX, kTextSpacingY, false);
 }
 
 } // namespace deluge::gui::context_menu
