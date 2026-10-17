@@ -42,6 +42,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace deluge::bridge {
 
@@ -109,20 +110,27 @@ void resolveMacros(Arrangement& arrangement, const LegacyMacroTargets& legacy, :
 /// Makes the device list know every hosted device a section's launch command names, and records the reference as the
 /// list then holds it, as reading a device reference does.
 void registerSectionDevices(MappingTable& mappings) {
-	for (Mapping& entry : mappings.entries()) {
-		std::optional<MidiDeviceRef>& device = entry.source.device;
+	std::vector<Mapping> registered;
+	for (const Mapping& entry : mappings.entries()) {
+		const std::optional<MidiDeviceRef>& device = entry.source.device;
 		if (!std::holds_alternative<SectionLaunchTarget>(entry.target) || !device
 		    || device->port != MidiDeviceRef::Port::HOSTED) {
 			continue;
 		}
+		Mapping now = entry;
 		std::string name = device->name;
 		if (MIDICable* cable = MIDIDeviceManager::getOrCreateHostedMIDIDeviceFromDetails(&name, device->vendor_id,
 		                                                                                 device->product_id)) {
-			device = reference_of(*cable);
+			now.source.device = reference_of(*cable);
 		}
 		else {
-			device.reset();
+			now.source.device.reset();
 		}
+		registered.push_back(std::move(now));
+	}
+	// A section holds one command, so learning one in place of another keeps its place in the table.
+	for (Mapping& entry : registered) {
+		mappings.learn(std::move(entry));
 	}
 }
 

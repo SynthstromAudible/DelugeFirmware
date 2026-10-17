@@ -26,6 +26,8 @@
 #include "serialization/parse_json.h"
 
 #include <cppspec.hpp>
+#include <type_traits>
+#include <utility>
 
 using namespace deluge::project;
 
@@ -123,7 +125,7 @@ describe mapping_table("the song's mapping table", ${
 		din.device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN};
 		Mapping earlier = knob(din, out_param(1, 2));
 		table.learn(earlier);
-		table.entries()[0].relative = false; // an absolute controller's, as a CC showed it to be
+		table.set_relative(0, false); // an absolute controller's, as a CC showed it to be
 		table.learn(knob(cc(1, 6), out_param(1, 3)));
 		table.learn(knob(cc(1, 5), out_param(1, 2)));
 		expect(table.relearn(cc(1, 5), knob(din, out_param(1, 2))).relative).to_be_true();
@@ -139,6 +141,26 @@ describe mapping_table("the song's mapping table", ${
 		table.relearn(cc(1, 5), knob(cc(1, 7), out_param(1, 3)));
 		expect(table.entries().size()).to_equal(size_t{2});
 		expect(table.find(out_param(1, 3))->source).to_equal(cc(1, 7));
+	});
+
+	it("offers its entries read-only, so a caller cannot give a target a second source", _ {
+		using Entry = decltype(std::declval<MappingTable&>().entries()[0]);
+		expect(std::is_const_v<std::remove_reference_t<Entry>>).to_be_true();
+	});
+
+	it("sets one knob's relative flag in place, and leaves a command's and a place past the end alone", _ {
+		MappingTable table;
+		table.learn(knob(cc(1, 5), out_param(1, 2)));
+		table.learn(knob(cc(1, 6), out_param(1, 3)));
+		table.learn(Mapping{.source = cc(1, 7), .target = ClipMuteTarget{4}, .relative = true});
+		table.set_relative(1, false);
+		table.set_relative(2, false);
+		table.set_relative(3, false);
+		expect(table.entries().size()).to_equal(size_t{3});
+		expect(table.entries()[0].relative).to_be_true();
+		expect(table.entries()[1].relative).to_be_false();
+		expect(table.entries()[1].source).to_equal(cc(1, 6));
+		expect(table.entries()[2].relative).to_be_true();
 	});
 
 	it("holds one source per clip mute, the latest", _ {

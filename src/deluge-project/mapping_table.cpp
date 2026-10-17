@@ -166,6 +166,12 @@ std::vector<Mapping> MappingTable::params_of(ControlsAddress owner) const {
 	return knobs;
 }
 
+void MappingTable::set_relative(size_t index, bool relative) {
+	if (index < entries_.size() && std::holds_alternative<ParamTarget>(entries_[index].target)) {
+		entries_[index].relative = relative;
+	}
+}
+
 void MappingTable::forget_clip(uint32_t clip_id) {
 	unlearn(ClipMuteTarget{clip_id});
 }

@@ -134,8 +134,15 @@ public:
 	/// @brief Drop every entry that targets output @p output_id (its params, its input).
 	void forget_output(uint32_t output_id);
 
+	/// @brief Set the relative flag of the knob at @p index: a value only an absolute controller sends showed it is not
+	/// relative. The table's one in-place write: it changes no source or target, so it keeps one source per target.
+	/// @param index    The knob's place in entries().
+	/// @param relative The flag.
+	void set_relative(size_t index, bool relative);
+
+	/// @brief Every entry, in table order. Read-only: the table's own writes keep one source per target.
+	/// @return The entries.
 	[[nodiscard]] std::span<const Mapping> entries() const { return entries_; }
-	std::span<Mapping> entries() { return entries_; }
 
 	bool operator==(const MappingTable&) const = default;
 
