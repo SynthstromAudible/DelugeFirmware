@@ -22,6 +22,7 @@
 
 #include <array>
 #include <cppspec.hpp>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string_view>
@@ -30,7 +31,9 @@
 namespace {
 using deluge::engine::DisplayMappingKind;
 using deluge::engine::from_menu;
+using deluge::engine::mapping_of;
 using deluge::engine::SettingContext;
+using deluge::engine::SettingDescriptorExtras;
 using deluge::engine::SettingInfo;
 using deluge::engine::SettingKind;
 using deluge::engine::SettingSentinel;
@@ -38,53 +41,62 @@ using deluge::engine::to_menu;
 
 using Pair = std::pair<int32_t, int32_t>;
 
-// The rows below are local: the engines' own rows take these mappings in their own change.
+// Local rows, one per mapping kind, each shaped as legacy's menu item for that setting.
 
 constexpr std::array<std::string_view, 3> kSyncTypes{"0", "10", "19"};
+constexpr SettingDescriptorExtras kSyncLevelExtras{
+    .mapping = {.kind = DisplayMappingKind::COMBINED_SYNC, .partner = "lfo1/syncType"}};
 constexpr SettingInfo kSyncLevel{
     .path = "lfo1/syncLevel",
     .min = 0,
     .max = 9,
-    .mapping = {.kind = DisplayMappingKind::COMBINED_SYNC, .partner = "lfo1/syncType"},
+    .extras = &kSyncLevelExtras,
 };
 
+constexpr SettingDescriptorExtras kTransposeExtras{
+    .mapping = {.kind = DisplayMappingKind::TRANSPOSE_CENTS, .partner = "cents"}};
 constexpr SettingInfo kTranspose{
     .path = "transpose",
     .min = -96,
     .max = 96,
-    .mapping = {.kind = DisplayMappingKind::TRANSPOSE_CENTS, .partner = "cents"},
+    .extras = &kTransposeExtras,
 };
 
+constexpr SettingDescriptorExtras kPhaseExtras{.mapping = {.kind = DisplayMappingKind::PHASE_DEGREES}};
 constexpr SettingInfo kPhase{
     .path = "osc1/retrigPhase",
     .min = -2147483647 - 1,
     .max = 2147483647,
-    .mapping = {.kind = DisplayMappingKind::PHASE_DEGREES},
+    .extras = &kPhaseExtras,
 };
 
+constexpr SettingDescriptorExtras kLinearInterpolationExtras{.mapping = {.kind = DisplayMappingKind::INVERTED_BOOL}};
 constexpr SettingInfo kLinearInterpolation{
     .path = "osc1/linearInterpolation",
     .kind = SettingKind::BOOL,
-    .mapping = {.kind = DisplayMappingKind::INVERTED_BOOL},
+    .extras = &kLinearInterpolationExtras,
 };
 
 constexpr std::array<std::string_view, 17> kMidiChannels{"0", "1",  "2",  "3",  "4",  "5",  "6",  "7",  "8",
                                                          "9", "10", "11", "12", "13", "14", "15", "255"};
 constexpr std::array<uint8_t, 17> kMidiChannelOrder{16, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+constexpr SettingDescriptorExtras kMidiChannelExtras{
+    .mapping = {.kind = DisplayMappingKind::CHOICE_ORDER, .order = kMidiChannelOrder}};
 constexpr SettingInfo kMidiChannel{
     .path = "midiOutput/channel",
     .kind = SettingKind::CHOICE,
     .choices = kMidiChannels,
-    .mapping = {.kind = DisplayMappingKind::CHOICE_ORDER, .order = kMidiChannelOrder},
+    .extras = &kMidiChannelExtras,
 };
 
 constexpr SettingSentinel kOff[] = {{.user = 0, .stored = 127}};
+constexpr SettingDescriptorExtras kMaxVoicesExtras{.mapping = {.kind = DisplayMappingKind::CLAMP_HIGH, .clamp_to = 0}};
 constexpr SettingInfo kMaxVoices{
     .path = "maxVoices",
     .min = 1,
     .max = 127,
     .user = {.user_min = 0, .user_max = 16, .stored_min = 0, .stored_max = 16, .sentinels = kOff},
-    .mapping = {.kind = DisplayMappingKind::CLAMP_HIGH, .clamp_to = 0},
+    .extras = &kMaxVoicesExtras,
 };
 
 // `attackRateTable` and `releaseRateTable` (util/lookuptables/lookuptables.cpp), as the sidechain's owner supplies
@@ -100,17 +112,21 @@ constexpr std::array<int32_t, 51> kReleaseRates{
     241,   224,  208,  194,  181,  169, 159, 149, 140, 132, 124, 117, 110, 104, 98,  93,  88,
     83,    78,   74,   70,   66,   62,  59,  56,  53,  50,  47,  44,  41,  39,  36,  34,  32,
 };
+constexpr SettingDescriptorExtras kSidechainAttackExtras{
+    .mapping = {.kind = DisplayMappingKind::TABLE, .table = kAttackRates, .table_shift = 2}};
 constexpr SettingInfo kSidechainAttack{
     .path = "sidechain/attack",
     .min = 0,
     .max = 2147483647,
-    .mapping = {.kind = DisplayMappingKind::TABLE, .table = kAttackRates, .table_shift = 2},
+    .extras = &kSidechainAttackExtras,
 };
+constexpr SettingDescriptorExtras kSidechainReleaseExtras{
+    .mapping = {.kind = DisplayMappingKind::TABLE, .table = kReleaseRates, .table_shift = 3}};
 constexpr SettingInfo kSidechainRelease{
     .path = "sidechain/release",
     .min = 0,
     .max = 2147483647,
-    .mapping = {.kind = DisplayMappingKind::TABLE, .table = kReleaseRates, .table_shift = 3},
+    .extras = &kSidechainReleaseExtras,
 };
 
 constexpr SettingInfo kPlain{.path = "plain", .min = -5, .max = 5};
@@ -133,9 +149,23 @@ Pair stored_of(const SettingInfo& row, int32_t menu) {
 	return stored.value_or(Pair{-12345, -12345});
 }
 
-bool is_kit_lane(const SettingContext& where) {
+constexpr bool is_kit_lane(const SettingContext& where) {
 	return where.owner == SettingContext::Owner::KIT_LANE;
 }
+/// Choice 4 (choke) applies only on a kit lane.
+constexpr bool choke_on_kit_lane(const SettingContext& where, std::size_t choice) {
+	return choice != 4 || is_kit_lane(where);
+}
+constexpr SettingDescriptorExtras kKitLaneOnlyExtras{.applies = is_kit_lane, .choice_applies = choke_on_kit_lane};
+constexpr SettingInfo kKitLaneOnly{.path = "polyphonic", .kind = SettingKind::CHOICE, .extras = &kKitLaneOnlyExtras};
+
+// The mappings are constant expressions, so a row's menu values can be computed at compile time.
+static_assert(to_menu(kSyncLevel, 1, 2) == 19);
+static_assert(from_menu(kSyncLevel, 19) == Pair{1, 2});
+static_assert(to_menu(kMaxVoices, 126) == 0);
+static_assert(from_menu(kTranspose, -51) == Pair{-1, 49});
+static_assert(from_menu(kSidechainRelease, 50) == Pair{256, 0});
+static_assert(to_menu(kPlain, 3) == 3 && !from_menu(kPlain, 6));
 } // namespace
 
 // clang-format off
@@ -163,8 +193,8 @@ describe display_mapping("A setting's display mapping", $ {
 		expect(from_menu(kSyncLevel, 28).has_value()).to_be_false();
 	});
 	it("names the sync partner row", _ {
-		expect(kSyncLevel.mapping.partner == std::string_view{"lfo1/syncType"}).to_be_true();
-		expect(kSyncTypes[static_cast<size_t>(stored_of(kSyncLevel, 19).second)] == std::string_view{"19"}).to_be_true();
+		expect(mapping_of(kSyncLevel).partner == std::string_view{"lfo1/syncType"}).to_be_true();
+		expect(kSyncTypes[static_cast<std::size_t>(stored_of(kSyncLevel, 19).second)] == std::string_view{"19"}).to_be_true();
 	});
 
 	it("combines transpose and cents as transpose*100+cents", _ {
@@ -222,7 +252,7 @@ describe display_mapping("A setting's display mapping", $ {
 	});
 
 	it("lists the MIDI channel's none first: menu 0 is \"255\", menu n is channel n-1", _ {
-		expect(kMidiChannels[static_cast<size_t>(stored_of(kMidiChannel, 0).first)] == std::string_view{"255"}).to_be_true();
+		expect(kMidiChannels[static_cast<std::size_t>(stored_of(kMidiChannel, 0).first)] == std::string_view{"255"}).to_be_true();
 		for (int32_t menu = 1; menu <= 16; ++menu) {
 			expect(stored_of(kMidiChannel, menu)).to_equal(Pair{menu - 1, 0});
 		}
@@ -265,11 +295,15 @@ describe display_mapping("A setting's display mapping", $ {
 	});
 
 	it("applies a row with no predicate everywhere, and a predicate by its context", _ {
-		constexpr SettingInfo kChoke{.path = "polyphonic", .applies = is_kit_lane};
-		expect(kPlain.applies == nullptr).to_be_true();
-		expect(kPlain.choice_applies == nullptr).to_be_true();
-		expect(kChoke.applies(SettingContext{.owner = SettingContext::Owner::KIT_LANE})).to_be_true();
-		expect(kChoke.applies(SettingContext{})).to_be_false();
+		using deluge::engine::setting_applies;
+		using deluge::engine::setting_choice_applies;
+		expect(kPlain.extras == nullptr).to_be_true();
+		expect(setting_applies(kPlain, SettingContext{})).to_be_true();
+		expect(setting_choice_applies(kPlain, SettingContext{}, 0)).to_be_true();
+		expect(setting_applies(kKitLaneOnly, SettingContext{.owner = SettingContext::Owner::KIT_LANE})).to_be_true();
+		expect(setting_applies(kKitLaneOnly, SettingContext{})).to_be_false();
+		expect(setting_choice_applies(kKitLaneOnly, SettingContext{}, 4)).to_be_false();
+		expect(setting_choice_applies(kKitLaneOnly, SettingContext{}, 0)).to_be_true();
 	});
 });
 // clang-format on

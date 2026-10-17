@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <charconv>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <span>
@@ -67,6 +68,16 @@ struct SettingContext {
 	bool ring_mod{false};             ///< the sound is in ring-mod mode
 };
 
+/// @brief What only a few rows set: a display mapping other than LINEAR, and when the setting or its choices apply.
+/// A row points at a static one, so the rows that need none pay one pointer.
+struct SettingDescriptorExtras {
+	DisplayMapping mapping{}; ///< how a menu's value maps onto what the row (and a partner) stores
+	/// Whether the setting applies in a context; nullptr applies everywhere.
+	bool (*applies)(const SettingContext&){nullptr};
+	/// Whether a CHOICE row's choice (by index) applies in a context; nullptr applies every choice everywhere.
+	bool (*choice_applies)(const SettingContext&, std::size_t choice){nullptr};
+};
+
 /// @brief One non-param setting of an engine or a model record, named by its slash path in the owner's state
 /// element, with what a menu needs to show and edit it.
 struct SettingInfo {
@@ -79,12 +90,38 @@ struct SettingInfo {
 	std::span<const uint16_t> display_choices{}; ///< CHOICE: a menu's name for each choice, as the firmware's l10n ids
 	int32_t default_value{0};                    ///< the stored value a new owner starts with
 	SettingUnits units{SettingUnits::NONE};      ///< what a menu's value counts
-	DisplayMapping mapping{};                    ///< how a menu's value maps onto what the row (and a partner) stores
-	/// Whether the setting applies in a context; nullptr applies everywhere.
-	bool (*applies)(const SettingContext&){nullptr};
-	/// Whether a CHOICE row's choice (by index) applies in a context; nullptr applies every choice everywhere.
-	bool (*choice_applies)(const SettingContext&, size_t choice){nullptr};
+	/// The row's mapping and applicability; nullptr is LINEAR, applying everywhere.
+	const SettingDescriptorExtras* extras{nullptr};
 };
+
+/// @brief The LINEAR mapping a row without extras has.
+inline constexpr DisplayMapping kLinearMapping{};
+
+/// @brief @p row's display mapping.
+/// @param row The setting's row.
+/// @return Its extras' mapping, or kLinearMapping when it has none.
+[[nodiscard]] constexpr const DisplayMapping& mapping_of(const SettingInfo& row) {
+	return row.extras != nullptr ? row.extras->mapping : kLinearMapping;
+}
+
+/// @brief Whether @p row's setting applies in @p context.
+/// @param row     The setting's row.
+/// @param context Who the setting is shown for.
+/// @return Its predicate's answer, or true when it has none.
+[[nodiscard]] constexpr bool setting_applies(const SettingInfo& row, const SettingContext& context) {
+	return row.extras == nullptr || row.extras->applies == nullptr || row.extras->applies(context);
+}
+
+/// @brief Whether @p row's choice @p choice applies in @p context.
+/// @param row     The setting's row.
+/// @param context Who the setting is shown for.
+/// @param choice  The choice's index.
+/// @return Its choice predicate's answer, or true when it has none.
+[[nodiscard]] constexpr bool setting_choice_applies(const SettingInfo& row, const SettingContext& context,
+                                                    std::size_t choice) {
+	return row.extras == nullptr || row.extras->choice_applies == nullptr
+	       || row.extras->choice_applies(context, choice);
+}
 
 /// @brief The row of @p table for @p path, or nullptr.
 /// @param table The rows to search.
@@ -192,7 +229,7 @@ struct SettingInfo {
 ///                       TRANSPOSE_CENTS (the cents); ignored by the other kinds.
 /// @return The menu's value. CHOICE_ORDER gives 0 for a choice its order does not list.
 [[nodiscard]] constexpr int32_t to_menu(const SettingInfo& row, int32_t stored, int32_t partner_stored = 0) {
-	const DisplayMapping& mapping = row.mapping;
+	const DisplayMapping& mapping = mapping_of(row);
 	switch (mapping.kind) {
 	case DisplayMappingKind::LINEAR:
 		break;
@@ -207,7 +244,7 @@ struct SettingInfo {
 		}
 		break;
 	case DisplayMappingKind::CHOICE_ORDER:
-		for (size_t i = 0; i < mapping.order.size(); ++i) {
+		for (std::size_t i = 0; i < mapping.order.size(); ++i) {
 			if (mapping.order[i] == stored) {
 				return static_cast<int32_t>(i);
 			}
@@ -236,8 +273,8 @@ struct SettingInfo {
 ///         kMaxPhaseDegrees (PHASE_DEGREES).
 [[nodiscard]] constexpr std::optional<std::pair<int32_t, int32_t>> from_menu(const SettingInfo& row, int32_t menu) {
 	using Stored = std::pair<int32_t, int32_t>;
-	const DisplayMapping& mapping = row.mapping;
-	const auto index_within = [menu](size_t size) { return menu >= 0 && static_cast<size_t>(menu) < size; };
+	const DisplayMapping& mapping = mapping_of(row);
+	const auto index_within = [menu](std::size_t size) { return menu >= 0 && static_cast<std::size_t>(menu) < size; };
 	switch (mapping.kind) {
 	case DisplayMappingKind::LINEAR:
 	case DisplayMappingKind::CLAMP_HIGH:
@@ -246,7 +283,7 @@ struct SettingInfo {
 		if (!index_within(mapping.order.size())) {
 			return std::nullopt;
 		}
-		return Stored{mapping.order[static_cast<size_t>(menu)], 0};
+		return Stored{mapping.order[static_cast<std::size_t>(menu)], 0};
 	case DisplayMappingKind::INVERTED_BOOL:
 		if (menu != 0 && menu != 1) {
 			return std::nullopt;
@@ -271,7 +308,7 @@ struct SettingInfo {
 		if (!index_within(mapping.table.size())) {
 			return std::nullopt;
 		}
-		return Stored{mapping.table[static_cast<size_t>(menu)] << mapping.table_shift, 0};
+		return Stored{mapping.table[static_cast<std::size_t>(menu)] << mapping.table_shift, 0};
 	}
 	const std::optional<int32_t> stored = to_stored(row, menu);
 	if (!stored) {

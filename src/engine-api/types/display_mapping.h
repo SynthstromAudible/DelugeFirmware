@@ -67,7 +67,7 @@ inline constexpr std::array<SyncType, 3> kSyncTypeChoices{SyncType::EVEN, SyncTy
 ///         even list's last value, as the legacy menus place it).
 [[nodiscard]] constexpr int32_t combined_sync_menu(int32_t level, int32_t type_choice) {
 	const bool in_range = type_choice >= 0 && type_choice < static_cast<int32_t>(kSyncTypeChoices.size());
-	const SyncType type = in_range ? kSyncTypeChoices[static_cast<size_t>(type_choice)] : SyncType::EVEN;
+	const SyncType type = in_range ? kSyncTypeChoices[static_cast<std::size_t>(type_choice)] : SyncType::EVEN;
 	return std::to_underlying(type) + level - (type != SyncType::EVEN ? 1 : 0);
 }
 
@@ -143,7 +143,7 @@ inline constexpr int32_t kMaxPhaseDegrees = 360;
 	const int64_t value = stored >> shift;
 	int64_t best = -1;
 	int32_t closest = 0;
-	for (size_t i = 0; i < table.size(); ++i) {
+	for (std::size_t i = 0; i < table.size(); ++i) {
 		int64_t distance = value - table[i];
 		if (distance < 0) {
 			distance = -distance;
