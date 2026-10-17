@@ -562,6 +562,9 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	bool oldState = AudioEngine::audioRoutineLocked;
 	AudioEngine::audioRoutineLocked = true;
 	currentlyActioningSwungTickOrResettingPlayPos = true;
+	// Start synced global LFOs with fresh state, including sounds without an active clip.
+	// Periodic timer ticks only realign their phase.
+	currentSong->resyncLFOs(true);
 	// Have to do this after calling AudioEngine::routine()
 	currentPlaybackMode->resetPlayPos(playFromPos, !ticksLeftInCountIn, buttonPressLatencyForTempolessRecord);
 	currentlyActioningSwungTickOrResettingPlayPos = false;
@@ -1523,6 +1526,10 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 			// Set it so the tick which we're gonna do right now, at the start of the new song, has 0 increment
 			swungTicksTilNextEvent = 0;
 		}
+
+		// A live song swap bypasses setupPlayback(). Reset the incoming song's
+		// synced LFO state after establishing its clock position, before starting clips.
+		currentSong->resyncLFOs(true);
 
 		// And now, if switching to arranger (in which case, remember, we definitely didn't preserve play position),
 		// do that

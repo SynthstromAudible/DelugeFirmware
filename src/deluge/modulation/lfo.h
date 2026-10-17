@@ -40,7 +40,7 @@ public:
 	int32_t target{0};
 	int32_t speed{0};
 	void setLocalInitialPhase(const LFOConfig& config);
-	void setGlobalInitialPhase(const LFOConfig& config);
+	void setGlobalInitialPhase(const LFOConfig& config, bool reset_state = false);
 	[[gnu::always_inline]] int32_t render(int32_t numSamples, LFOConfig& config, uint32_t phaseIncrement) {
 		return render(numSamples, config.waveType, phaseIncrement);
 	}
