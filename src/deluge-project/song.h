@@ -27,6 +27,7 @@
 #include "deluge-project/drum_structure.h"
 #include "deluge-project/groove.h"
 #include "deluge-project/instrument_slot.h"
+#include "deluge-project/mapping_table.h"
 #include "deluge-project/metadata.h"
 #include "deluge-project/output_structure.h"
 #include "deluge-project/param_address.h"
@@ -108,6 +109,8 @@ public:
 	DocParamManager master_params;
 	/// The song's own learned MIDI knobs, on its effects: refreshed from the runtime at load and at save.
 	std::vector<ControllerMapping> controls;
+	/// Every MIDI-learned binding of the song, keyed by what it controls.
+	MappingTable mappings;
 	/// The song master's effects: refreshed from the runtime at load, written by its Edits.
 	FxChain master_effects;
 	ClipParams clip_params;     // per-clip automation stores, keyed by Clip::id (id-addressable node storage)
