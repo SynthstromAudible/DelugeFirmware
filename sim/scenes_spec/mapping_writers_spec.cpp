@@ -689,6 +689,19 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		expect(songKnobs.size() == 1 && deluge::bridge::knobPlays(songKnobs[0], songVolume, 7)).to_be_true();
 	});
 
+	it("leaves the index fresh when a song that is not current gains a session clip or a kit row", _ {
+		spec::SongFixture background = spec::make_kit_song();
+		const spec::SongFixture f = spec::make_synth_song();
+		deluge::midi::refreshMappingIndex();
+		expect(deluge::mappingIndexStale()).to_be_false();
+		(void)spec::detail::make_session_clip(background.song);
+		expect(deluge::mappingIndexStale()).to_be_false();
+		static_cast<Kit*>(background.instrument)->addDrum(makeLooseMidiDrum(), background.song);
+		expect(deluge::mappingIndexStale()).to_be_false();
+		(void)spec::detail::make_session_clip(f.song); // the current song's still marks it
+		expect(deluge::mappingIndexStale()).to_be_true();
+	});
+
 	it("clears a knob's relative flag in the table when a CC between 16 and 111 shows it is absolute", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		const ParamTarget knob{{ControlsAddress::Kind::SONG, 0},

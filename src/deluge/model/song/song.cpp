@@ -420,6 +420,15 @@ static void noteOutputListEdit(const Song* song) {
 	}
 }
 
+void ClipArray::noteEdit() const {
+	deluge::noteStructuralEdit(deluge::StructuralContainer::CLIP_ARRAY);
+	if (currentSong != nullptr
+	    && (this == &currentSong->live.clips.session_clips
+	        || this == &currentSong->live.clips.arrangement_only_clips)) {
+		deluge::markMappingIndexStale();
+	}
+}
+
 void Song::deleteAllOutputs(Output** prevPointer) {
 
 	while (*prevPointer) {

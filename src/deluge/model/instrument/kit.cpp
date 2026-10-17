@@ -63,10 +63,14 @@ namespace params = deluge::modulation::params;
 namespace {
 // Report a splice of a kit's drum list to the structural-edit probe (util/structural_edit_probe.h). Every splice runs
 // inside an AudioExcludedSection, so nothing the render reaches through the list sees it half-relinked. The MIDI
-// mapping index offers a row's bindings at its place in its kit, so a splice marks it stale.
-void noteDrumListEdit() {
+// mapping index offers a row's bindings at its place in its kit, so a splice of a kit of the current song marks it
+// stale. @p song is the kit's song when the caller knows it, else nullptr (taken to be the current song's): another
+// song (one a load is building) is indexed once it is made current, which marks the index itself.
+void noteDrumListEdit(const Song* song) {
 	deluge::noteStructuralEdit(deluge::StructuralContainer::DRUM_LIST);
-	deluge::markMappingIndexStale();
+	if (song == nullptr || song == currentSong) {
+		deluge::markMappingIndexStale();
+	}
 }
 } // namespace
 
@@ -194,7 +198,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 				removeDrumFromLinkedList(drum);
 				{
 					AudioExcludedSection section; // the render reaches this kit's drums: see noteDrumListEdit()
-					noteDrumListEdit();
+					noteDrumListEdit(song);
 					drum->next = nullptr;
 					*newLastDrum = drum;
 				}
@@ -250,7 +254,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 
 					{
 						AudioExcludedSection section; // the render reaches this kit's drums: see noteDrumListEdit()
-						noteDrumListEdit();
+						noteDrumListEdit(song);
 						*prevPointer = thisDrum->next;
 					}
 
@@ -301,7 +305,7 @@ moveOn:
 
 	{
 		AudioExcludedSection section; // the render reaches this kit's drums: see noteDrumListEdit()
-		noteDrumListEdit();
+		noteDrumListEdit(song);
 		*newLastDrum = firstDrum;
 		firstDrum = newFirstDrum;
 	}
@@ -491,7 +495,7 @@ void Kit::addDrum(Drum* newDrum, Song* adoptSong) {
 	}
 	{
 		AudioExcludedSection section; // the render reaches this kit's drums: see noteDrumListEdit()
-		noteDrumListEdit();
+		noteDrumListEdit(adoptSong);
 		*prevPointer = newDrum;
 	}
 
@@ -523,7 +527,7 @@ void Kit::removeDrumFromLinkedList(Drum* drum) {
 	while (*prevPointer) {
 		if (*prevPointer == drum) {
 			AudioExcludedSection section; // the render reaches this kit's drums: see noteDrumListEdit()
-			noteDrumListEdit();
+			noteDrumListEdit(nullptr);
 			*prevPointer = drum->next;
 			return;
 		}

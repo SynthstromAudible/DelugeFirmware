@@ -441,6 +441,14 @@ bool holdForAppLoop(::Song& song, PendingOp op) {
 	return true;
 }
 
+/// Note that the app loop wrote @p song's table: the index, which is the current song's, is stale when @p song is it.
+/// Another song (one a load is building) is indexed once it is made current, which marks the index itself.
+void tableEdited(const ::Song& song) {
+	if (&song == currentSong) {
+		deluge::markMappingIndexStale();
+	}
+}
+
 } // namespace
 
 void recordArrivingOutput(::Output& output, ::Song& song) {
@@ -455,7 +463,7 @@ void recordArrivingOutput(::Output& output, ::Song& song) {
 	}
 	applyPendingMappingOps(song);
 	recordOutputBindings(output, song);
-	deluge::markMappingIndexStale();
+	tableEdited(song);
 }
 
 void recordArrivingDrum(::Drum& drum, ::Song& song) {
@@ -467,7 +475,7 @@ void recordArrivingDrum(::Drum& drum, ::Song& song) {
 	}
 	applyPendingMappingOps(song);
 	recordDrumBindings(drum, song);
-	deluge::markMappingIndexStale();
+	tableEdited(song);
 }
 
 void cloneOutputMappings(const ::Output& from, ::Output& to, ::Song& song) {
@@ -479,7 +487,7 @@ void cloneOutputMappings(const ::Output& from, ::Output& to, ::Song& song) {
 	}
 	applyPendingMappingOps(song);
 	cloneNow(song, *from.id(), *to.id());
-	deluge::markMappingIndexStale();
+	tableEdited(song);
 }
 
 void forgetClipMappings(::Song& song, uint32_t clip) {
@@ -488,7 +496,7 @@ void forgetClipMappings(::Song& song, uint32_t clip) {
 	}
 	applyPendingMappingOps(song);
 	song.project.mappings.forget_clip(clip);
-	deluge::markMappingIndexStale();
+	tableEdited(song);
 }
 
 void forgetOutputMappings(::Song& song, uint32_t output) {
@@ -497,7 +505,7 @@ void forgetOutputMappings(::Song& song, uint32_t output) {
 	}
 	applyPendingMappingOps(song);
 	song.project.mappings.forget_output(output);
-	deluge::markMappingIndexStale();
+	tableEdited(song);
 }
 
 void forgetDrumMappings(::Song& song, uint32_t drum) {
@@ -506,7 +514,7 @@ void forgetDrumMappings(::Song& song, uint32_t drum) {
 	}
 	applyPendingMappingOps(song);
 	song.project.mappings.forget_drum(drum);
-	deluge::markMappingIndexStale();
+	tableEdited(song);
 }
 
 void applyPendingMappingOps(::Song& song) {
@@ -575,7 +583,7 @@ void discardPendingMappingOps() {
 
 void handOverInstrument(::Song& song, uint32_t from, uint32_t to, bool knobs) {
 	applyPendingMappingOps(song); // a write the render made first lands first
-	deluge::markMappingIndexStale();
+	tableEdited(song);
 	MappingTable& mappings = song.project.mappings;
 	if (knobs) {
 		mappings.retarget_output(from, to);
