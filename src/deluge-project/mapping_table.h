@@ -90,7 +90,8 @@ public:
 	Mapping& learn(Mapping mapping);
 	/// @brief Learn @p mapping, a ParamTarget, in place of the entry for the same target whose source is
 	/// @p old_source, keeping that entry's place in the table; learn() it when there is no such entry. Its relative
-	/// flag is set as learn() sets it.
+	/// flag is set as learn() sets it. When another knob of the target now has the same source, the two become one, at
+	/// the earlier of their places.
 	/// @param old_source The source of the knob it replaces.
 	/// @param mapping    The binding to learn.
 	/// @return The entry that now holds it.

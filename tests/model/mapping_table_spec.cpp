@@ -104,6 +104,35 @@ describe mapping_table("the song's mapping table", ${
 		expect(table.entries()[1].source).to_equal(cc(1, 6));
 	});
 
+	it("drops a later knob a relearn makes equal to the relearned one, keeping the earlier place", _ {
+		MappingTable table;
+		MidiCommand din = cc(1, 5);
+		din.device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN};
+		table.learn(knob(cc(1, 5), out_param(1, 2)));
+		table.learn(knob(cc(1, 6), out_param(1, 3)));
+		table.learn(knob(din, out_param(1, 2)));
+		expect(table.relearn(cc(1, 5), knob(din, out_param(1, 2))).source).to_equal(din);
+		expect(table.entries().size()).to_equal(size_t{2});
+		expect(table.entries()[0].source).to_equal(din);
+		expect(table.entries()[1].source).to_equal(cc(1, 6));
+	});
+
+	it("drops a relearned knob made equal to an earlier one, keeping the earlier place", _ {
+		MappingTable table;
+		MidiCommand din = cc(1, 5);
+		din.device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN};
+		Mapping earlier = knob(din, out_param(1, 2));
+		table.learn(earlier);
+		table.entries()[0].relative = false; // an absolute controller's, as a CC showed it to be
+		table.learn(knob(cc(1, 6), out_param(1, 3)));
+		table.learn(knob(cc(1, 5), out_param(1, 2)));
+		expect(table.relearn(cc(1, 5), knob(din, out_param(1, 2))).relative).to_be_true();
+		expect(table.entries().size()).to_equal(size_t{2});
+		expect(table.entries()[0].source).to_equal(din);
+		expect(table.entries()[0].relative).to_be_true();
+		expect(table.entries()[1].source).to_equal(cc(1, 6));
+	});
+
 	it("learns a relearned knob whose old source it does not hold", _ {
 		MappingTable table;
 		table.learn(knob(cc(1, 5), out_param(1, 2)));

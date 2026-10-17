@@ -78,7 +78,20 @@ Mapping& MappingTable::relearn(const MidiCommand& old_source, Mapping mapping) {
 	}
 	mapping.relative = mapping.source.note_or_cc != kPitchBend;
 	*old = std::move(mapping);
-	return *old;
+	// A knob it now equals would move the param twice per message, and a reload keeps one: keep the earlier place.
+	const auto equal = std::ranges::find_if(entries_, [&](const Mapping& entry) {
+		return &entry != &*old && entry.target == old->target && entry.source == old->source;
+	});
+	if (equal == entries_.end()) {
+		return *old;
+	}
+	if (equal > old) {
+		entries_.erase(equal);
+		return *old;
+	}
+	*equal = std::move(*old);
+	entries_.erase(old);
+	return *equal;
 }
 
 size_t MappingTable::unlearn(const MappingTarget& target) {
