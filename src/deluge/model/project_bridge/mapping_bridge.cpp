@@ -531,8 +531,9 @@ void applyPendingMappingOps(::Song& song) {
 	}
 	bool overflowed = false;
 	{
-		AudioExcludedSection
-		    section; // the render writes the queue, and the ops walk and write what the tick can change
+		// The render writes the queue, and the ops walk and write what the tick can change. An overflow's reconcile,
+		// after, excludes it only where it must.
+		AudioExcludedSection section;
 		const size_t n = pending.count.exchange(0, std::memory_order_acq_rel);
 		overflowed = pending.overflowed.exchange(false, std::memory_order_acq_rel);
 		MappingTable& mappings = song.project.mappings;
