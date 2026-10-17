@@ -22,7 +22,6 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_descriptor.h"
 
-#include <cstdint>
 #include <optional>
 #include <vector>
 
@@ -94,60 +93,6 @@ void refreshControls(::Song& song);
 /// @return The owner, or nullptr.
 [[nodiscard]] ::ModControllableAudio* controlsOwnerAt(::Song& song, deluge::project::ControlsAddress address,
                                                       bool* isSound);
-
-/// @brief [task] Which outputs and kit rows a song holds, by id, as outputWithId() and drumWithId() find them, taken
-/// once as a save of the song begins. The save asks, for each owner it writes, whether the song holds it: while one is
-/// open for the song, holdsOutput(), holdsDrum() and savedKnobsOf() (mapping_bridge.h) answer from its sorted lists in
-/// a binary search, where outputWithId() and drumWithId() walk every output and kit row. An id it does not hold (one
-/// the save gave an owner since) is left to those walks. Its pointers are only compared, never followed: the save frees
-/// a kit row no clip plays.
-class HeldOwners {
-public:
-	/// @param song The song being saved.
-	explicit HeldOwners(::Song& song);
-	~HeldOwners();
-	HeldOwners(const HeldOwners&) = delete;
-	HeldOwners& operator=(const HeldOwners&) = delete;
-	HeldOwners(HeldOwners&&) = delete;
-	HeldOwners& operator=(HeldOwners&&) = delete;
-
-	/// @brief The innermost one open for @p song.
-	/// @param song The song.
-	/// @return It, or nullptr when none is open for @p song.
-	[[nodiscard]] static const HeldOwners* openFor(const ::Song& song);
-
-	/// @brief Whether @p output is the output outputWithId() found at its id.
-	/// @param output An output with an id.
-	/// @return Whether it is, or nullopt when no output had that id.
-	[[nodiscard]] std::optional<bool> holds(const ::Output& output) const;
-
-	/// @brief Whether @p drum is the kit row drumWithId() found at its id.
-	/// @param drum A kit row with an id.
-	/// @return Whether it is, or nullopt when no kit row had that id.
-	[[nodiscard]] std::optional<bool> holds(const ::Drum& drum) const;
-
-	/// @brief The owner of an output's or a kit row's controls at @p address, as controlsOwnerAt() found it.
-	/// @param address An output's or a kit row's controls.
-	/// @return The owner (nullptr when it has none: a MIDI or CV track, a row that is not a sound), or nullopt when no
-	///         output or kit row had that id, or @p address is the song's.
-	[[nodiscard]] std::optional<const ::ModControllableAudio*>
-	controlsAt(deluge::project::ControlsAddress address) const;
-
-private:
-	/// An owner at its id: the first of that id in the walk's order.
-	struct Owner {
-		uint32_t id;
-		const void* object;
-		const ::ModControllableAudio* controls;
-	};
-
-	[[nodiscard]] static const Owner* find(const std::vector<Owner>& owners, uint32_t id);
-
-	const ::Song& song_;
-	std::vector<Owner> outputs_;
-	std::vector<Owner> drums_;
-	const HeldOwners* outer_;
-};
 
 /// @brief Make a sound's mod knobs what @p controls say. Its learned MIDI knobs are left as they are.
 /// @param owner    The owner whose knobs are set.

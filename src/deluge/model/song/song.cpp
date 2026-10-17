@@ -1132,8 +1132,6 @@ void Song::writeToFile(Serializer& writer) {
 		return;
 	}
 	setupClipIndexesForSaving();
-	// Each owner the save writes asks whether this song holds it; the outputs and rows held are found once.
-	const deluge::bridge::HeldOwners held{*this};
 	writer.reset();
 	writer.writeOpeningTagBeginning("song", true, false);
 

@@ -31,7 +31,6 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 
-#include <algorithm>
 #include <array>
 
 namespace deluge::bridge {
@@ -230,75 +229,6 @@ Drum* drumWithId(::Song& song, uint32_t id) {
 	}
 	*isSound = true;
 	return static_cast<SoundDrum*>(drum);
-}
-
-namespace {
-
-/// The snapshots open, innermost first: written and read on the app loop only.
-const HeldOwners* openHeldOwners = nullptr;
-
-} // namespace
-
-HeldOwners::HeldOwners(::Song& song) : song_{song}, outer_{openHeldOwners} {
-	forEachOutput(song, [&](Output& output) {
-		if (output.id()) {
-			bool isSound = false;
-			outputs_.push_back({*output.id(), &output, ownControlsOf(output, &isSound)});
-		}
-		if (output.type == OutputType::KIT) {
-			for (Drum* drum = static_cast<Kit&>(output).firstDrum; drum != nullptr; drum = drum->next) {
-				if (drum->id()) {
-					drums_.push_back(
-					    {*drum->id(), drum, drum->type == DrumType::SOUND ? static_cast<SoundDrum*>(drum) : nullptr});
-				}
-			}
-		}
-		return false;
-	});
-	// The walks answer with the first owner of an id: a stable sort keeps the walk's order among equal ids.
-	for (std::vector<Owner>* owners : {&outputs_, &drums_}) {
-		std::ranges::stable_sort(*owners, {}, &Owner::id);
-		const auto [first, last] = std::ranges::unique(*owners, {}, &Owner::id);
-		owners->erase(first, last);
-	}
-	openHeldOwners = this;
-}
-
-HeldOwners::~HeldOwners() {
-	openHeldOwners = outer_;
-}
-
-const HeldOwners* HeldOwners::openFor(const ::Song& song) {
-	for (const HeldOwners* open = openHeldOwners; open != nullptr; open = open->outer_) {
-		if (&open->song_ == &song) {
-			return open;
-		}
-	}
-	return nullptr;
-}
-
-const HeldOwners::Owner* HeldOwners::find(const std::vector<Owner>& owners, uint32_t id) {
-	const auto it = std::ranges::lower_bound(owners, id, {}, &Owner::id);
-	return it != owners.end() && it->id == id ? &*it : nullptr;
-}
-
-std::optional<bool> HeldOwners::holds(const ::Output& output) const {
-	const Owner* owner = output.id() ? find(outputs_, *output.id()) : nullptr;
-	return owner != nullptr ? std::optional{owner->object == &output} : std::nullopt;
-}
-
-std::optional<bool> HeldOwners::holds(const ::Drum& drum) const {
-	const Owner* owner = drum.id() ? find(drums_, *drum.id()) : nullptr;
-	return owner != nullptr ? std::optional{owner->object == &drum} : std::nullopt;
-}
-
-std::optional<const ::ModControllableAudio*> HeldOwners::controlsAt(deluge::project::ControlsAddress address) const {
-	using Kind = deluge::project::ControlsAddress::Kind;
-	if (address.kind == Kind::SONG) {
-		return std::nullopt;
-	}
-	const Owner* owner = find(address.kind == Kind::OUTPUT ? outputs_ : drums_, address.id);
-	return owner != nullptr ? std::optional{owner->controls} : std::nullopt;
 }
 
 void applyControls(::ModControllableAudio& owner, bool isSound, const std::vector<ControllerMapping>& controls) {

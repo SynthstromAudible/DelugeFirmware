@@ -828,39 +828,17 @@ bool knobPlays(const ::MIDIKnob& knob, const deluge::project::MappingTarget& tar
 }
 
 bool holdsOutput(::Song& song, const ::Output& output) {
-	if (!output.id()) {
-		return false;
-	}
-	const HeldOwners* held = HeldOwners::openFor(song);
-	if (const std::optional<bool> holds = held != nullptr ? held->holds(output) : std::nullopt) {
-		return *holds;
-	}
-	return outputWithId(song, *output.id()) == &output;
+	return output.id() && outputWithId(song, *output.id()) == &output;
 }
 
 bool holdsDrum(::Song& song, const ::Drum& drum) {
-	if (!drum.id()) {
-		return false;
-	}
-	const HeldOwners* held = HeldOwners::openFor(song);
-	if (const std::optional<bool> holds = held != nullptr ? held->holds(drum) : std::nullopt) {
-		return *holds;
-	}
-	return drumWithId(song, *drum.id()) == &drum;
+	return drum.id() && drumWithId(song, *drum.id()) == &drum;
 }
 
 std::optional<std::vector<Mapping>> savedKnobsOf(::Song& song, const ::ModControllableAudio& owner,
                                                  std::optional<ControlsAddress> address) {
-	if (!address) {
-		return std::nullopt;
-	}
-	const HeldOwners* held = HeldOwners::openFor(song);
-	std::optional<const ::ModControllableAudio*> at = held != nullptr ? held->controlsAt(*address) : std::nullopt;
-	if (!at) {
-		bool isSound = false;
-		at = controlsOwnerAt(song, *address, &isSound);
-	}
-	if (*at != &owner) {
+	bool isSound = false;
+	if (!address || controlsOwnerAt(song, *address, &isSound) != &owner) {
 		return std::nullopt;
 	}
 	return song.project.mappings.params_of(*address);
