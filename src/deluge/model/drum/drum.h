@@ -113,13 +113,22 @@ public:
 	}
 	virtual void prepareDrumToHaveNoActiveClip() {}
 
-	virtual void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) = 0;
+	/// @brief Write this row's element.
+	/// @param writer       Destination.
+	/// @param savingSong   Whether it is written as part of a song (its id and MIDI commands with it).
+	/// @param paramManager The params to write, or nullptr for none.
+	/// @param song         The song the kit is saved with or from, whose table holds the row's bindings, or nullptr.
+	virtual void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager, Song* song) = 0;
 	virtual Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) = 0;
 	virtual void drumWontBeRenderedForAWhile();
 	virtual std::string getDrumName() = 0;
 	virtual void choke(ModelStackWithSoundFlags* modelStack) {} // modelStack can be NULL if you really insist
 
-	void writeMIDICommandsToFile(Serializer& writer);
+	/// @brief Write this row's input and mute command as @p song's table holds them. A row @p song does not hold (a kit
+	/// loaded outside it) has no table, so it writes its own commands.
+	/// @param writer Destination.
+	/// @param song   The song being saved, or nullptr.
+	void writeMIDICommandsToFile(Serializer& writer, Song* song);
 	void writeDrumTagsToFile(Serializer& writer, bool savingSong);
 	bool readDrumTagFromFile(Deserializer& reader, char const* tagName);
 

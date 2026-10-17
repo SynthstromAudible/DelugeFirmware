@@ -125,7 +125,8 @@ void SoundDrum::writeToFileAsInstrument(bool savingSong, ParamManager* paramMana
 	writer.writeOpeningTagBeginning("sound", true);
 	writer.writeFirmwareVersion();
 	writer.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
-	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings,
+	// A row saved on its own: its knobs are the ones the song it is saved from holds for it.
+	Sound::writeToFile(writer, savingSong, paramManager, currentSong, &arpSettings,
 	                   docDrum_ != nullptr && docDrum_->arp ? &*docDrum_->arp : nullptr, NULL);
 
 	if (savingSong) {}
@@ -133,15 +134,15 @@ void SoundDrum::writeToFileAsInstrument(bool savingSong, ParamManager* paramMana
 	writer.writeClosingTag("sound", true, true);
 }
 
-void SoundDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
+void SoundDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager, Song* song) {
 	writer.writeOpeningTagBeginning("sound", true);
 	writeDrumTagsToFile(writer, savingSong);
 
-	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings,
+	Sound::writeToFile(writer, savingSong, paramManager, song, &arpSettings,
 	                   docDrum_ != nullptr && docDrum_->arp ? &*docDrum_->arp : nullptr, path.c_str());
 
 	if (savingSong) {
-		Drum::writeMIDICommandsToFile(writer);
+		Drum::writeMIDICommandsToFile(writer, song);
 	}
 
 	writer.writeClosingTag("sound", true, true);

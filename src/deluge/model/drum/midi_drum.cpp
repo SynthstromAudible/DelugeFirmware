@@ -102,7 +102,7 @@ void MIDIDrum::killAllVoices() {
 	arpeggiator.reset();
 }
 
-void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
+void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager, Song* song) {
 	writer.writeOpeningTagBeginning("midiOutput", true);
 	writeDrumTagsToFile(writer, savingSong);
 	writer.writeAttribute("channel", channel(), false);
@@ -112,7 +112,7 @@ void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* pa
 	NonAudioDrum::writeArpeggiatorToFile(writer);
 
 	if (savingSong) {
-		Drum::writeMIDICommandsToFile(writer);
+		Drum::writeMIDICommandsToFile(writer, song);
 	}
 	writer.writeClosingTag("midiOutput", true, true);
 }

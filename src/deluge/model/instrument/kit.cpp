@@ -156,7 +156,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 			deluge::bridge::write_command(writer, "MIDIInput", input->source, MIDI_MESSAGE_NOTE);
 		}
 	}
-	GlobalEffectableForClip::writeTagsToFile(writer, paramManager, clipForSavingOutputOnly == nullptr,
+	GlobalEffectableForClip::writeTagsToFile(writer, paramManager, clipForSavingOutputOnly == nullptr, song,
 	                                         ownControlsAddress());
 
 	writer.writeArrayStart("soundSources"); // TODO: change this?
@@ -325,7 +325,7 @@ void Kit::writeDrumToFile(Serializer& writer, Drum* thisDrum, ParamManager* para
 		thisDrum->setId(song->generateNewDrumId());
 	}
 
-	thisDrum->writeToFile(writer, savingSong, paramManagerForDrum);
+	thisDrum->writeToFile(writer, savingSong, paramManagerForDrum, song);
 	(*drumIndex)++;
 }
 

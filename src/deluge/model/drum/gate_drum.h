@@ -34,7 +34,7 @@ public:
 	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) override;
 	void noteOffPostArp(int32_t noteCodePostArp) override;
 	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity = kDefaultLiftValue) override;
-	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) override;
+	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager, Song* song) override;
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
 	std::string getDrumName() override;
 	int32_t getNumChannels() override;

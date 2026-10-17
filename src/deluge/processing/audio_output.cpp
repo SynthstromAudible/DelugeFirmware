@@ -388,7 +388,7 @@ bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputO
 		paramManager = song->live.param_backup.getPreferablyWithClip(this, NULL);
 	}
 
-	GlobalEffectableForClip::writeTagsToFile(writer, paramManager, true, ownControlsAddress());
+	GlobalEffectableForClip::writeTagsToFile(writer, paramManager, true, song, ownControlsAddress());
 
 	return true;
 }

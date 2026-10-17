@@ -325,12 +325,12 @@ void ModControllableAudio::setCompressorBlend(q31_t value) {
 }
 
 void ModControllableAudio::writeTagsToFile(Serializer& writer, const deluge::effects::EffectStates& states,
-                                           std::optional<deluge::project::ControlsAddress> knobsOwner,
+                                           Song* knobsSong, std::optional<deluge::project::ControlsAddress> knobsOwner,
                                            std::optional<q31_t> compressorThreshold) {
 	const deluge::effects::EffectPieces pieces =
 	    deluge::effects::encode_pieces(states, effectsCodecContext(), compressorThreshold);
 	writer.writeValue(pieces.delay);
-	writeMidiKnobsToFile(writer, knobsOwner);
+	writeMidiKnobsToFile(writer, knobsSong, knobsOwner);
 	writer.writeValue(pieces.tags);
 }
 
@@ -368,10 +368,10 @@ void writeMidiKnob(Serializer& writer, LearnedMIDI attributes, bool relative, Pa
 
 } // namespace
 
-void ModControllableAudio::writeMidiKnobsToFile(Serializer& writer,
+void ModControllableAudio::writeMidiKnobsToFile(Serializer& writer, Song* song,
                                                 std::optional<deluge::project::ControlsAddress> owner) {
 	std::optional<std::vector<deluge::project::Mapping>> saved =
-	    currentSong != nullptr ? deluge::bridge::savedKnobsOf(*currentSong, *this, owner) : std::nullopt;
+	    song != nullptr ? deluge::bridge::savedKnobsOf(*song, *this, owner) : std::nullopt;
 	if (saved) {
 		if (saved->empty()) {
 			return;

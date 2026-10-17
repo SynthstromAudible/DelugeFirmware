@@ -83,15 +83,14 @@ void Drum::writeDrumTagsToFile(Serializer& writer, bool savingSong) {
 	}
 }
 
-void Drum::writeMIDICommandsToFile(Serializer& writer) {
-	// A row the song does not hold (a kit loaded outside it) has no table, so it writes its own commands.
-	if (currentSong == nullptr || !deluge::bridge::holdsDrum(*currentSong, *this)) {
+void Drum::writeMIDICommandsToFile(Serializer& writer, Song* song) {
+	if (song == nullptr || !deluge::bridge::holdsDrum(*song, *this)) {
 		midiInput.writeNoteToFile(writer, "midiInput");
 		muteMIDICommand.writeNoteToFile(writer, "midiMuteCommand");
 		return;
 	}
 	auto write = [&](const deluge::project::MappingTarget& target, char const* tagName) {
-		if (const deluge::project::Mapping* entry = currentSong->project.mappings.find(target)) {
+		if (const deluge::project::Mapping* entry = song->project.mappings.find(target)) {
 			deluge::bridge::write_command(writer, tagName, entry->source, MIDI_MESSAGE_NOTE);
 		}
 	};

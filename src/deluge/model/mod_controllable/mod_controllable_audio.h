@@ -60,17 +60,19 @@ public:
 	/// place of the state's threshold.
 	/// @param writer              Destination.
 	/// @param states              The effect settings to write.
+	/// @param knobsSong           The song whose table the learned knobs are written from (see writeMidiKnobsToFile).
 	/// @param knobsOwner          Whose controls these are, for the learned knobs (see writeMidiKnobsToFile).
 	/// @param compressorThreshold Threshold (Q31) to write instead of the state's, if given.
-	void writeTagsToFile(Serializer& writer, const deluge::effects::EffectStates& states,
+	void writeTagsToFile(Serializer& writer, const deluge::effects::EffectStates& states, Song* knobsSong,
 	                     std::optional<deluge::project::ControlsAddress> knobsOwner,
 	                     std::optional<q31_t> compressorThreshold = std::nullopt);
 	/// @brief Writes the learned MIDI knobs' tag, which a file writes between the delay and the other effect tags: the
-	/// knobs the current song's mapping table holds for @p owner, in table order. An owner the song does not hold (a
-	/// preset loaded outside it) has no table, so its own knob list is written.
+	/// knobs @p song's mapping table holds for @p owner, in table order. An owner @p song does not hold (a preset
+	/// loaded outside it) has no table, so its own knob list is written.
 	/// @param writer Destination.
+	/// @param song   The song being saved, or the one a preset is saved from; nullptr when there is none.
 	/// @param owner  Whose controls these are, if known.
-	void writeMidiKnobsToFile(Serializer& writer, std::optional<deluge::project::ControlsAddress> owner);
+	void writeMidiKnobsToFile(Serializer& writer, Song* song, std::optional<deluge::project::ControlsAddress> owner);
 	/// @brief The codec context a file's effect entries are written in: the current song's tick magnitude.
 	/// @return The codec context.
 	[[nodiscard]] static deluge::engine::CodecContext effectsCodecContext();

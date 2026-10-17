@@ -50,7 +50,7 @@ public:
 	void setupPatchingForAllParamManagers(Song* song) override;
 	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
 	deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) override;
-	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) override;
+	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager, Song* song) override;
 	void writeToFileAsInstrument(bool savingSong, ParamManager* paramManager);
 	std::string getDrumName() override;
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;

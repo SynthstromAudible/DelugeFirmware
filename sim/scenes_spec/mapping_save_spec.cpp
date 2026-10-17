@@ -208,6 +208,35 @@ describe mapping_save("a song's save of its MIDI bindings", $ {
 		expect(text(rowInput != nullptr ? rowInput->find("device") : nullptr, "port")).to_equal(std::string{"din"});
 	});
 
+	it("saves a knob from the table of the song being saved when another song is current", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		const spec::SongFixture current = spec::make_synth_song(); // the most recently built song is current
+		expect(currentSong == current.song).to_be_true();
+		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
+		f.song->project.mappings.learn(
+		    Mapping{.source = command(2, 74), .target = ParamTarget{owner, patched(params::LOCAL_VOLUME)}});
+		static_cast<SoundInstrument*>(f.instrument)->midi_knobs.clear();
+		std::optional<Value> saved = savedOutput(*f.instrument, *f.song);
+		expect(saved.has_value()).to_be_true();
+		expect(text(saved ? knobAt(*saved, 0) : nullptr, "ccNumber")).to_equal(std::string{"74"});
+	});
+
+	it("saves a kit row's mute and input from the table of the song being saved when another song is current", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		MIDIDrum* drum = spec::add_drum<MIDIDrum>(f);
+		const spec::SongFixture current = spec::make_kit_song();
+		expect(currentSong == current.song).to_be_true();
+		f.song->project.mappings.learn(Mapping{.source = command(1, 50), .target = DrumMuteTarget{*drum->id()}});
+		f.song->project.mappings.learn(Mapping{.source = command(4, 51), .target = LaneInputTarget{*drum->id()}});
+		drum->muteMIDICommand.clear();
+		drum->midiInput.clear();
+		std::optional<Value> saved = savedOutput(*f.instrument, *f.song);
+		expect(saved.has_value()).to_be_true();
+		const Value* row = saved ? firstRow(*saved) : nullptr;
+		expect(text(row != nullptr ? row->find("midiMuteCommand") : nullptr, "note")).to_equal(std::string{"50"});
+		expect(text(row != nullptr ? row->find("midiInput") : nullptr, "note")).to_equal(std::string{"51"});
+	});
+
 	it("saves a synth's input zone and device", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		Command input = command(MIDI_CHANNEL_MPE_LOWER_ZONE, Command::kNone);

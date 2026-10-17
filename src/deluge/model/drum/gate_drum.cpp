@@ -74,7 +74,7 @@ void GateDrum::killAllVoices() {
 	arpeggiator.reset();
 }
 
-void GateDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
+void GateDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager, Song* song) {
 	writer.writeOpeningTagBeginning("gateOutput", true);
 	writeDrumTagsToFile(writer, savingSong);
 	writer.writeAttribute("channel", channel(), false);
@@ -83,7 +83,7 @@ void GateDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* pa
 	NonAudioDrum::writeArpeggiatorToFile(writer);
 
 	if (savingSong) {
-		Drum::writeMIDICommandsToFile(writer);
+		Drum::writeMIDICommandsToFile(writer, song);
 	}
 	writer.writeClosingTag("gateOutput", true, true);
 }

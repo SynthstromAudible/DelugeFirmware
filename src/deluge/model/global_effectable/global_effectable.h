@@ -44,8 +44,10 @@ public:
 	/// @param writer          Destination.
 	/// @param paramManager    The params to write, or nullptr for none.
 	/// @param writeAutomation Whether the params' automation is written.
-	/// @param knobsOwner      Whose controls these are: the learned knobs the song's table holds for it are written.
-	void writeTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
+	/// @param knobsSong       The song being saved, whose table holds the learned knobs, or nullptr for none.
+	/// @param knobsOwner      Whose controls these are: the learned knobs @p knobsSong's table holds for it are
+	/// written.
+	void writeTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation, Song* knobsSong,
 	                     std::optional<deluge::project::ControlsAddress> knobsOwner);
 	Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                      int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song) override;

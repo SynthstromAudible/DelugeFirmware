@@ -3116,7 +3116,7 @@ void Sound::setLfoSync(int32_t lfoId, SyncType syncType, SyncLevel syncLevel) {
 	}
 }
 
-void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager,
+void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager, Song* knobsSong,
                         ArpeggiatorSettings* arpSettings, const deluge::project::ArpRecord* arpRecord,
                         const char* pathAttribute) {
 	// The instrument writes its own settings; the effects', the params, the arpeggiator and the mod knobs sit between
@@ -3176,7 +3176,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 
 	writer.writeValue(pieces.midi_output);
 	writer.writeValue(pieces.delay);
-	writeMidiKnobsToFile(writer, deluge::bridge::controlsAddressOf(*this));
+	writeMidiKnobsToFile(writer, knobsSong, deluge::bridge::controlsAddressOf(*this));
 	writer.writeValue(pieces.effect_tags);
 }
 

@@ -294,10 +294,13 @@ public:
 	void setModulatorCents(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack);
 	Error readFromFile(Deserializer& reader, ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
 	                   ArpeggiatorSettings* arpSettings);
+	/// @param knobsSong   The song whose table holds the sound's learned knobs (the one being saved, or the one a
+	///                    preset is saved from), or null for none.
 	/// @param arpSettings The arp a sound's element carries (a kit row's, or a synth preset's from its clip), or null.
 	/// @param arpRecord   That arp's record, which its settings are written from; null where it has none.
-	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager, ArpeggiatorSettings* arpSettings,
-	                 const deluge::project::ArpRecord* arpRecord, const char* pathAttribute = NULL);
+	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager, Song* knobsSong,
+	                 ArpeggiatorSettings* arpSettings, const deluge::project::ArpRecord* arpRecord,
+	                 const char* pathAttribute = NULL);
 
 	void voiceUnassigned(ModelStackWithSoundFlags* modelStack);
 	bool isSourceActiveCurrently(int32_t s, ParamManagerForTimeline* paramManager);
