@@ -102,7 +102,7 @@ SECTIONS {
 
     __sram_heap_base = ALIGN(__sdram_init_lma, 16);
 
-    /* The setting tables are about 15 KB: far less here means the pattern above no longer
+    /* The setting tables are 15,868 B: far less here means the pattern above no longer
      * matches them and they sit in SRAM's .rodata. */
     ASSERT(__menu_tables_end - __menu_tables_start > 8192,
            "sdram_sections.x: the setting tables fell back to SRAM (no menu_tables data in .sdram_init)")

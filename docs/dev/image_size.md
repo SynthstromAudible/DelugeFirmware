@@ -114,7 +114,8 @@ addresses.
 
 ## Placement waste
 
-Worked out from the linker scripts, not built:
+Read off the linker scripts and the image's symbols. The load-copy item is built and measured (see
+[Applied](#applied)); the others are not built:
 
 - **The heap start is rounded up to 64 KB.** rza1-rt's `link_rtt.x` (deluge-sdk) does `. = ALIGN(0x10000); end = .;
   __sram_heap_start = end;`. The rounding exists so the bootloader's copy length is a whole 64 KB, and the heap does
@@ -128,9 +129,9 @@ Worked out from the linker scripts, not built:
 - **SDRAM can run code.** The MMU maps it executable and write-back cached (section attribute `0x1DEE`, XN = 0). The
   `PLACE_SDRAM_TEXT` "problems with execution from SDRAM" note in `board_config.h` dates from the legacy BSP. If the
   boot copies text into SDRAM with the caches on, it must clean the D-cache and invalidate the I-cache afterwards.
-  Cold code (menus, browsers, song load/save) could move there. Before the load-copy fix above, that only moves
-  bytes, because the load copy still occupies SRAM. Copying from memory-mapped SPI flash (`0x18000000`, cached) at
-  boot would take it out of the bootloader's copy entirely.
+  Cold code (menus, browsers, song load/save) could move there. Code moved to SDRAM costs SRAM only between the
+  bootloader's copy and the boot's, so the move frees its steady-state bytes. Copying from memory-mapped SPI flash
+  (`0x18000000`, cached) at boot would take it out of the bootloader's copy entirely.
 - **Data that could move to SDRAM:** about 47 KB of `deluge_bsp_rust::channel` task pools and staging buffers (cold,
   not DMA targets; same treatment as `EFATFS_ARENA`), and the efatfs `HANDLES` table (10 KB of `.data`). Reverb's
   128 KB of delay lines is a bench question: random-access taps through the L2.
@@ -217,7 +218,7 @@ steps 1 and 2 below except moving the sample-stream `REGISTRY`:
 - The SDRAM heap starts at `__sdram_static_end`, the end of all static SDRAM content, whatever the section order.
 - The setting descriptor and name tables (their rows, extras, conditions and choice words) in SDRAM: every C++
   `menu_tables` inline namespace's `.rodata`, matched in `linker/sdram_sections.x`. A menu or an Edit reads them, never
-  the audio tier or an interrupt. They are about 16 KB, measured as +18,976 B of SRAM heap together with the row
+  the audio tier or an interrupt. They are 15,868 B, measured as +18,976 B of SRAM heap together with the row
   shrinks that followed (heap 306,208 → 325,184 B at `8e794a52b`). The script ASSERTs more than 8 KB of them in
   `.sdram_init`, so a rename that stops the pattern matching fails the link.
 - The image ends with its boot-only tail, which `__sram_heap_base` hands to the heap. rza1l-hal starts the heap at
