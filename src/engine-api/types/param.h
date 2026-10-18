@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "engine-api/types/setting.h"
+
 #include <compare>
 #include <cstdint>
 #include <limits>
@@ -42,6 +44,13 @@ struct ParamRange {
 	[[nodiscard]] constexpr bool operator==(const ParamRange&) const = default;
 };
 
+/// @brief How a menu shows a param's stored word.
+enum class ParamDisplay : uint8_t {
+	STANDARD,       ///< the whole word range onto 0..50
+	HALF_PRECISION, ///< a word that is never negative (0..INT32_MAX) onto 0..50
+	PAN,            ///< the whole word range onto -25..25
+};
+
 /// @brief One row of an engine's param table.
 struct ParamInfo {
 	ParamId id;
@@ -50,6 +59,10 @@ struct ParamInfo {
 	ParamScope scope{ParamScope::PER_SOUND};
 	/// Centred on zero (pan, pitch) rather than rising from its minimum.
 	bool bipolar{false};
+	/// What a menu's value counts, where it shows a unit.
+	SettingUnits units{SettingUnits::NONE};
+	/// How a menu scales the stored word.
+	ParamDisplay display{ParamDisplay::STANDARD};
 	/// The stored word a new instance starts with.
 	int32_t default_value{0};
 	ParamRange range{};
