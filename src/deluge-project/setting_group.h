@@ -50,11 +50,16 @@ enum class SettingGroupId : uint8_t {
 
 /// @brief How many setting groups there are. Code that numbers owners after the groups (the host's name table)
 /// derives its indices from it.
+///
+/// A new group is appended to SettingGroupId, given a case in `is_counted_by_group_count`, and raises this by one;
+/// the static_assert after that function fails until all three are done.
 inline constexpr uint8_t kSettingGroupCount = 11;
 
-/// @brief Whether kSettingGroupCount counts @p group. The switch names every group, so a new one fails to compile
-/// (-Werror=switch) until it has a case here, beside the count it must move.
-[[nodiscard]] constexpr bool counted(SettingGroupId group) {
+/// @brief Whether kSettingGroupCount counts @p group. It exists for the static_assert below: the switch names every
+/// group, so a new one fails to compile (-Werror=switch) until it has a case here, beside the count it must move.
+/// @param group The group to check.
+/// @return True when @p group's value is below kSettingGroupCount.
+[[nodiscard]] constexpr bool is_counted_by_group_count(SettingGroupId group) {
 	switch (group) {
 	case SettingGroupId::SONG:
 	case SettingGroupId::TRACK:
@@ -71,7 +76,7 @@ inline constexpr uint8_t kSettingGroupCount = 11;
 	}
 	return false;
 }
-static_assert(counted(SettingGroupId::LANE_ARP)
+static_assert(is_counted_by_group_count(SettingGroupId::LANE_ARP)
                   && static_cast<SettingGroupId>(kSettingGroupCount - 1) == SettingGroupId::LANE_ARP,
               "kSettingGroupCount counts every SettingGroupId, and LANE_ARP is the last");
 
