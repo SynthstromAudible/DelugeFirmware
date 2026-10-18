@@ -203,13 +203,12 @@ struct SettingDescriptorExtras {
 struct SettingInfo {
 	std::string_view path;
 	SettingKind kind{SettingKind::INTEGER};
-	std::span<const std::string_view> choices;   ///< CHOICE: the names a file writes
-	int32_t min{0};                              ///< INTEGER: the least stored value
-	int32_t max{0};                              ///< INTEGER: the greatest stored value
-	UserScale user{};                            ///< INTEGER: how a menu's value maps onto the stored one
-	std::span<const uint16_t> display_choices{}; ///< CHOICE: a menu's name for each choice, as the firmware's l10n ids
-	int32_t default_value{0};                    ///< the stored value a new owner starts with
-	SettingUnits units{SettingUnits::NONE};      ///< what a menu's value counts
+	std::span<const std::string_view> choices; ///< CHOICE: the names a file writes
+	int32_t min{0};                            ///< INTEGER: the least stored value
+	int32_t max{0};                            ///< INTEGER: the greatest stored value
+	UserScale user{};                          ///< INTEGER: how a menu's value maps onto the stored one
+	int32_t default_value{0};                  ///< the stored value a new owner starts with
+	SettingUnits units{SettingUnits::NONE};    ///< what a menu's value counts
 	/// The row's mapping and applicability; nullptr is LINEAR, applying everywhere.
 	const SettingDescriptorExtras* extras{nullptr};
 };
