@@ -531,6 +531,13 @@ describe descriptor_legacy_model("The model groups' rows against legacy's items"
 	it("ranges, reads and writes as the reverb, swing, audio clip and clip value items do", _ {
 		run(self, model_cases());
 	});
+	it("reads and writes the ducking volume as its stepped item does", _ {
+		AudioEngine::micPluggedIn = false;
+		AudioEngine::lineInPluggedIn = false;
+		for (const Case& c : scaled_cases()) {
+			check_scaled(self, c);
+		}
+	});
 });
 
 describe descriptor_legacy_applicability("Where each row's menu shows, against legacy's relevance", $ {

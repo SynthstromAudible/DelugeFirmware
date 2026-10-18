@@ -291,12 +291,8 @@ describe setting_names_spec_body("The host's name table", $ {
 			expect(at + (holds(row.group, row.path) ? " held" : " not held")).to_equal(at + " held");
 		}
 		for (const Exception& exception : kExceptions) {
-			bool held = false;
-			for (const OwnedTable& table : owned_tables()) {
-				held = held || holds(table.owner, exception.path);
-			}
-			const std::string at = "exception " + std::string{exception.path};
-			expect(at + (held ? " held" : " not held")).to_equal(at + " held");
+			const std::string at = "exception " + std::string{exception.path} + " of owner " + std::to_string(exception.owner.index());
+			expect(at + (holds(exception.owner, exception.path) ? " held" : " not held")).to_equal(at + " held");
 		}
 	});
 	it("names the same path differently under owners whose menus differ", _ {

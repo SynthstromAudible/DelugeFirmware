@@ -1035,6 +1035,8 @@ struct Case {
 	std::vector<Range> pairs{};    ///< two-row kinds: {stored, partner stored} pairs to read
 	bool writes{true};             ///< false where the legacy write is not compared (a booted UI, a named exception)
 	bool lossy{false};             ///< the record holds the value as a float: a set value reads back rounded
+	std::vector<int32_t> skip_writes{}; ///< menu values whose legacy write is not compared (a named exception's)
+	int32_t menu_step{0};               ///< nonzero: the item shows stored / menu_step and writes menu * menu_step
 };
 
 /// How far a lossy case's value may read back from what it was set to: the float record's rounding step.
@@ -1045,6 +1047,8 @@ inline constexpr int32_t kLossyStep = 256;
 ///   * `arpeggiator::Mode` and `PresetMode` silence notes over `soundEditor.getCurrentModelStack` (`mode.h`,
 ///     `preset_mode.h`).
 inline constexpr bool kNoLegacyWrite = false;
+/// The volume ducking menu's step: the stored value is the menu value times it.
+inline constexpr int32_t kDuckingVolumeStep = 21474836;
 
 inline const SettingInfo& row_of(const Case& c) {
 	const SettingInfo* row = deluge::engine::find_setting(table_of(c.family), c.path);
@@ -1117,6 +1121,9 @@ inline void check_numeric(auto& self, const Case& c) {
 	}
 	// The legacy item's own range bounds its writes: a value past it indexes past its tables.
 	for (int32_t menu : menu_probes(legacy_range(c.item))) {
+		if (std::ranges::find(c.skip_writes, menu) != c.skip_writes.end()) {
+			continue;
+		}
 		legacy_write(c.item, menu);
 		const std::optional<std::pair<int32_t, int32_t>> want = from_menu(row, menu);
 		const int64_t got = get_stored(c.family, ctx, c.where, row).value_or(-99999);
@@ -1294,6 +1301,26 @@ inline void check_choices(auto& self, const Case& c) {
 		legacy_write(c.item, static_cast<int32_t>(position));
 		expect(show(c, "write", static_cast<int64_t>(position), get_stored(c.family, ctx, c.where, row).value_or(-1)))
 		    .to_equal(show(c, "write", static_cast<int64_t>(position), choices[position]));
+	}
+}
+
+/// A case whose item shows the stored value in steps of `menu_step`, truncating: its reads and writes are compared
+/// with that, as the row's menu is the stored value itself (`reverb_volume_differs`).
+inline void check_scaled(auto& self, const Case& c) {
+	const MenuContext& ctx = enter(c.where, c.source);
+	const SettingInfo& row = row_of(c);
+	expect(std::string{c.path} + " has a row").to_equal(std::string{row.path} + " has a row");
+	const int32_t step = c.menu_step;
+	std::vector<int32_t> probes{-step, -1, 0, step - 1, step, 5 * step + 1000, 50 * step, 51 * step - 1};
+	probes.insert(probes.end(), c.stored.begin(), c.stored.end());
+	for (const int32_t stored : probes) {
+		set_stored(c.family, ctx, c.where, row, stored);
+		expect(show(c, "read", stored, legacy_read(c.item))).to_equal(show(c, "read", stored, stored / step));
+	}
+	for (const int32_t menu : menu_probes(legacy_range(c.item))) {
+		legacy_write(c.item, menu);
+		const int64_t got = get_stored(c.family, ctx, c.where, row).value_or(-99999);
+		expect(show(c, "write", menu, got)).to_equal(show(c, "write", menu, int64_t{menu} * step));
 	}
 }
 
@@ -1637,7 +1664,7 @@ inline const std::vector<Case>& model_cases() {
 	     .item = &reverbSidechainShapeMenu,
 	     .where = Where::SONG,
 	     .stored = {0, -601295438, 85899345},
-	     .writes = false},
+	     .skip_writes = {50}},
 	    {.path = "swingInterval", .family = Family::SONG, .item = &swingIntervalMenu, .where = Where::SONG},
 	    {.path = "priority", .family = Family::AUDIO_CLIP, .item = &priorityMenu, .where = Where::AUDIO_CLIP},
 	    {.path = "reversed", .family = Family::AUDIO_CLIP, .item = &audioClipReverseMenu, .where = Where::AUDIO_CLIP},
@@ -1736,8 +1763,22 @@ inline constexpr Skip kSkips[] = {
     {kAudioClipOwner, "overdubsShouldCloneAudioTrack", "no menu: a recording gesture sets it"},
 };
 
+/// The cases whose item shows the stored value in steps (`Case::menu_step`): compared by `check_scaled` against the
+/// item's own truncating step, away from the points the exception for the row names.
+inline const std::vector<Case>& scaled_cases() {
+	static const std::vector<Case> cases{
+	    {.path = "reverb/compressor/volume",
+	     .family = Family::SONG,
+	     .item = &reverbSidechainVolumeMenu,
+	     .where = Where::SONG,
+	     .menu_step = kDuckingVolumeStep},
+	};
+	return cases;
+}
+
 /// A row whose legacy item differs from the row's menu, the difference, and a probe that measures it against the item.
 struct Exception {
+	NamesOwner owner; ///< the owner whose table holds the row
 	std::string_view path;
 	std::string_view reason;
 	bool (*differs)(); ///< true while the row's menu and the item still differ as `reason` says
@@ -1749,30 +1790,41 @@ inline const SettingInfo& table_row(Family family, std::string_view path) {
 	return row != nullptr ? *row : kMissing;
 }
 
-/// An unset note reads as a note the item shows, which no menu value of the row stores.
+/// An unset note (stored 255, which no menu value of the row stores) shows as `to_menu(row, 255)`, the note it plays.
+/// The note the probe changes is put back.
 inline bool note_for_drum_differs() {
 	const MenuContext& ctx = enter(Where::KIT_LANE);
 	const SettingInfo& row = table_row(Family::INSTRUMENT, "midiOutput/noteForDrum");
+	const uint8_t before = ctx.sound->outputMidiNoteForDrum;
 	ctx.sound->outputMidiNoteForDrum = MIDI_NOTE_NONE;
 	const int32_t shown = legacy_read(&outputMidiNoteForDrumMenu);
-	const std::optional<std::pair<int32_t, int32_t>> stored = from_menu(row, shown);
-	return !stored || stored->first != int32_t{MIDI_NOTE_NONE};
+	ctx.sound->outputMidiNoteForDrum = before;
+	const int32_t unset = int32_t{MIDI_NOTE_NONE};
+	return unset > deluge::engine::stored_bounds(row).second && shown == to_menu(row, unset);
 }
 
-/// With no input plugged in the item lists one input, so a stored right or stereo input reads past its list.
+/// With no input plugged in the item lists one input, so a stored right or stereo input reads past its list. The
+/// oscillator type and the plugged flags are put back.
 inline bool input_reads_past_list(std::string_view path, int8_t source, ::MenuItem* item) {
+	const bool mic = AudioEngine::micPluggedIn;
+	const bool line_in = AudioEngine::lineInPluggedIn;
 	AudioEngine::micPluggedIn = false;
 	AudioEngine::lineInPluggedIn = false;
 	const MenuContext& ctx = enter(Where::SYNTH, source);
 	const SettingInfo& row = table_row(Family::INSTRUMENT, path);
+	const std::optional<int32_t> before = get_stored(Family::INSTRUMENT, ctx, Where::SYNTH, row);
 	const auto listed = static_cast<int32_t>(applicable(row, Where::SYNTH).size());
+	bool past = true;
 	for (const OscType input : {OscType::INPUT_R, OscType::INPUT_STEREO}) {
 		set_stored(Family::INSTRUMENT, ctx, Where::SYNTH, row, std::to_underlying(input));
-		if (legacy_read(item) < listed) {
-			return false;
-		}
+		past = past && legacy_read(item) >= listed;
 	}
-	return true;
+	if (before) {
+		set_stored(Family::INSTRUMENT, ctx, Where::SYNTH, row, *before);
+	}
+	AudioEngine::micPluggedIn = mic;
+	AudioEngine::lineInPluggedIn = line_in;
+	return past;
 }
 inline bool first_oscillator_type_differs() {
 	return input_reads_past_list("osc1/type", 0, &osc0TypeMenu);
@@ -1781,53 +1833,65 @@ inline bool second_oscillator_type_differs() {
 	return input_reads_past_list("osc2/type", 1, &osc1TypeMenu);
 }
 
-/// The item's write of its top step stores a different value from the row's.
+/// The item's write of its top step stores a different value from the row's. The stored shape is put back.
 inline bool compressor_shape_differs() {
 	const MenuContext& ctx = enter(Where::SONG);
 	const SettingInfo& row = table_row(Family::SONG, "reverb/compressor/shape");
+	const std::optional<int32_t> before = get_stored(Family::SONG, ctx, Where::SONG, row);
 	const int32_t top = legacy_range(&reverbSidechainShapeMenu).second;
 	legacy_write(&reverbSidechainShapeMenu, top);
 	const std::optional<std::pair<int32_t, int32_t>> want = from_menu(row, top);
-	return want && want->first != get_stored(Family::SONG, ctx, Where::SONG, row).value_or(want->first);
+	const bool differs = want && want->first != get_stored(Family::SONG, ctx, Where::SONG, row).value_or(want->first);
+	if (before) {
+		set_stored(Family::SONG, ctx, Where::SONG, row, *before);
+	}
+	return differs;
 }
 
-/// The item's list holds 0, which its encoder never lands on.
+/// The item's list holds 0, which its encoder never lands on: `swing::Interval::selectEncoderAction` sets
+/// `wrapSwingIntervalSyncLevel(value + offset)` (`swing/interval.h`), so that function is the encoder's path, and
+/// stepping down from 1 lands elsewhere than 0.
 inline bool swing_interval_differs() {
 	const SettingInfo& row = table_row(Family::SONG, "swingInterval");
 	return legacy_range(&swingIntervalMenu).first == 0 && menu_range(row).first == 0
-	       && wrapSwingIntervalSyncLevel(0) != 0;
+	       && wrapSwingIntervalSyncLevel(1 - 1) != 0;
 }
 
-/// The item reads the stored volume in steps, truncating; the row's menu is the stored value itself.
+/// The item shows the stored volume as stored / kDuckingVolumeStep, truncating (5 steps and 1000 shows 5); the row's
+/// menu is the stored value itself. The stored volume is put back.
 inline bool reverb_volume_differs() {
 	const MenuContext& ctx = enter(Where::SONG);
 	const SettingInfo& row = table_row(Family::SONG, "reverb/compressor/volume");
-	constexpr int32_t kStep = 21474836;
-	const int32_t stored = 5 * kStep + 1000;
+	const std::optional<int32_t> before = get_stored(Family::SONG, ctx, Where::SONG, row);
+	const int32_t stored = 5 * kDuckingVolumeStep + 1000;
 	set_stored(Family::SONG, ctx, Where::SONG, row, stored);
-	return legacy_read(&reverbSidechainVolumeMenu) != to_menu(row, stored);
+	const int32_t shown = legacy_read(&reverbSidechainVolumeMenu);
+	if (before) {
+		set_stored(Family::SONG, ctx, Where::SONG, row, *before);
+	}
+	return shown == 5 && to_menu(row, stored) == stored;
 }
 
 /// The rows a legacy item shows but this spec reads only around a named difference. Each is checked to still differ
 /// (`descriptor_legacy_spec.cpp`), so a row that comes to agree leaves the list.
 inline const Exception kExceptions[] = {
-    {"midiOutput/noteForDrum",
+    {engine::kDelugeInstrument, "midiOutput/noteForDrum",
      "unset (stored 255, outside the row) shows kUnsetDrumNoteShownAs (60) through CLAMP_HIGH; no menu value stores "
      "it",
      &note_for_drum_differs},
-    {"osc1/type",
+    {engine::kDelugeInstrument, "osc1/type",
      "with no input plugged in, the one input entry is INPUT_L under the name \"INPUT\"; a stored INPUT_R or "
      "INPUT_STEREO then reads past the list",
      &first_oscillator_type_differs},
-    {"osc2/type", "as osc1/type", &second_oscillator_type_differs},
-    {"reverb/compressor/shape",
+    {engine::kDelugeInstrument, "osc2/type", "as osc1/type", &second_oscillator_type_differs},
+    {SettingGroupId::SONG, "reverb/compressor/shape",
      "the read is STANDARD; legacy's write omits the top step's special case (menu 50 stores 2147483602, not "
      "2147483647)",
      &compressor_shape_differs},
-    {"swingInterval", "the encoder wraps over 1..9 and never offers 0 (off), though the list is 0..9",
-     &swing_interval_differs},
-    {"reverb/compressor/volume", "menu -1..50 truncates (stored / 21474836); no mapping kind expresses it",
-     &reverb_volume_differs},
+    {SettingGroupId::SONG, "swingInterval",
+     "the encoder wraps over 1..9 and never offers 0 (off), though the list is 0..9", &swing_interval_differs},
+    {SettingGroupId::SONG, "reverb/compressor/volume",
+     "menu -1..50 truncates (stored / 21474836); no mapping kind expresses it", &reverb_volume_differs},
 };
 
 /// Whether @p path is a named skip of @p owner's table; a skip ending in '/' names every path under it.
