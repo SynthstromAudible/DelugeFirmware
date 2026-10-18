@@ -628,18 +628,22 @@ describe descriptor_legacy_coverage("Every engine and model row with a menu", $ 
 			covered.insert(c->path);
 		}
 		using deluge::project::SettingGroupId;
-		const std::span<const SettingInfo> tables[] = {
-		    deluge::instrument::kSettings,
-		    deluge::effects::kEffectSettings,
-		    deluge::engine::kArpSettingRows,
-		    deluge::engine::kArpHostRows,
-		    deluge::project::table_of(SettingGroupId::SONG),
-		    deluge::project::table_of(SettingGroupId::AUDIO_CLIP),
-		    deluge::project::table_of(SettingGroupId::CLIP_VALUES),
+		struct OwnedRows {
+			NamesOwner owner;
+			std::span<const SettingInfo> rows;
 		};
-		for (auto table : tables) {
-			for (const SettingInfo& row : table) {
-				const bool named = covered.contains(row.path) || skipped(row.path);
+		const OwnedRows tables[] = {
+		    {deluge::engine::kDelugeInstrument, deluge::instrument::kSettings},
+		    {deluge::engine::kDelugeInstrument, deluge::effects::kEffectSettings},
+		    {deluge::engine::kDelugeInstrument, deluge::engine::kArpSettingRows},
+		    {SettingGroupId::CLIP_ARP, deluge::engine::kArpHostRows},
+		    {SettingGroupId::SONG, deluge::project::table_of(SettingGroupId::SONG)},
+		    {SettingGroupId::AUDIO_CLIP, deluge::project::table_of(SettingGroupId::AUDIO_CLIP)},
+		    {SettingGroupId::CLIP_VALUES, deluge::project::table_of(SettingGroupId::CLIP_VALUES)},
+		};
+		for (const auto& [owner, rows] : tables) {
+			for (const SettingInfo& row : rows) {
+				const bool named = covered.contains(row.path) || skipped(owner, row.path);
 				expect(std::string{row.path} + (named ? " named" : " unnamed")).to_equal(std::string{row.path} + " named");
 			}
 		}

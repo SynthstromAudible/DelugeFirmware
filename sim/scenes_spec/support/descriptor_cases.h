@@ -433,7 +433,8 @@ extern legacy::Submenu soundEditorRootMenuKitGlobalFX;
 extern legacy::HorizontalMenu noteRowEditorRootMenu;
 /// @}
 
-namespace {
+/// The cases and rigs, in a named namespace (and inline) so every spec that includes this header shares one copy.
+namespace descriptor_cases {
 
 using deluge::engine::from_menu;
 using deluge::engine::menu_range;
@@ -464,7 +465,7 @@ struct NumberPeek : legacy::Number {
 };
 
 /// The item's menu range: a number's least and greatest value, an enumeration's options, a toggle's two.
-Range legacy_range(::MenuItem* item) {
+inline Range legacy_range(::MenuItem* item) {
 	if (auto* number = dynamic_cast<legacy::Number*>(item); number != nullptr) {
 		return NumberPeek::range_of(*number);
 	}
@@ -478,7 +479,7 @@ Range legacy_range(::MenuItem* item) {
 }
 
 /// The item's value after its `readCurrentValue`.
-int32_t legacy_read(::MenuItem* item) {
+inline int32_t legacy_read(::MenuItem* item) {
 	if (auto* v = dynamic_cast<legacy::Value<int32_t>*>(item); v != nullptr) {
 		v->readCurrentValue();
 		return v->getValue();
@@ -491,7 +492,7 @@ int32_t legacy_read(::MenuItem* item) {
 }
 
 /// The item's `writeCurrentValue` of menu value @p menu.
-void legacy_write(::MenuItem* item, int32_t menu) {
+inline void legacy_write(::MenuItem* item, int32_t menu) {
 	if (auto* v = dynamic_cast<legacy::Value<int32_t>*>(item); v != nullptr) {
 		v->setValue(menu);
 		ValuePeek<int32_t>::write(*v);
@@ -506,7 +507,7 @@ void legacy_write(::MenuItem* item, int32_t menu) {
 // The fixtures and the contexts.
 
 /// Point the `soundEditor` globals at what @p ctx edits, as the sound editor's setup does.
-void install(const MenuContext& ctx, Song* song) {
+inline void install(const MenuContext& ctx, Song* song) {
 	currentSong = song;
 	if (ctx.clip != nullptr) {
 		song->setCurrentClip(ctx.clip);
@@ -544,7 +545,7 @@ struct Synth {
 	spec::SongFixture song;
 	MenuContext ctx{};
 };
-Synth& synth() {
+inline Synth& synth() {
 	static Synth s = [] {
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 		Synth r;
@@ -560,7 +561,7 @@ struct KitLane {
 	SoundDrum* drum = nullptr;
 	MenuContext ctx{};
 };
-KitLane& kit_lane() {
+inline KitLane& kit_lane() {
 	static KitLane k = [] {
 		KitLane r;
 		r.song = spec::make_kit_song();
@@ -593,7 +594,7 @@ struct MidiClip {
 	spec::SongFixture song;
 	MenuContext ctx{};
 };
-MidiClip& midi_clip() {
+inline MidiClip& midi_clip() {
 	static MidiClip m = [] {
 		MidiClip r;
 		r.song = spec::make_midi_song();
@@ -607,7 +608,7 @@ struct CvClip {
 	spec::SongFixture song;
 	MenuContext ctx{};
 };
-CvClip& cv_clip() {
+inline CvClip& cv_clip() {
 	static CvClip c = [] {
 		CvClip r;
 		r.song = spec::make_cv_song();
@@ -621,7 +622,7 @@ struct AudioClipRig {
 	spec::AudioSongFixture song;
 	MenuContext ctx{};
 };
-AudioClipRig& audio_clip() {
+inline AudioClipRig& audio_clip() {
 	static AudioClipRig a = [] {
 		AudioClipRig r;
 		r.song = spec::make_audio_clip_song();
@@ -632,16 +633,16 @@ AudioClipRig& audio_clip() {
 }
 
 /// Set @p sound's setting at @p path to the word or number @p word.
-void sound_setting(Sound& sound, std::string_view path, std::string_view word) {
+inline void sound_setting(Sound& sound, std::string_view path, std::string_view word) {
 	deluge::edits::settingFor(sound, path, Value::makeScalar(std::string(word)));
 }
 
 /// The song @p where's rig is in.
-Song& song_of(Where where);
+inline Song& song_of(Where where);
 
 /// Resolve the context @p where's rig is in now, as `SoundEditor::setup` would, install it and return it. The song
 /// is its own root here (the song view's), where `enter` edits the song from the audio clip's.
-const MenuContext& settle(Where where) {
+inline const MenuContext& settle(Where where) {
 	static MenuContext ctx;
 	const auto clip_of = [](Where w) -> Clip* {
 		switch (w) {
@@ -672,7 +673,7 @@ const MenuContext& settle(Where where) {
 }
 
 /// Set up the sound @p where names, install its context and return it.
-const MenuContext& enter(Where where, int8_t source = 0) {
+inline const MenuContext& enter(Where where, int8_t source = 0) {
 	switch (where) {
 	case Where::SYNTH:
 	case Where::SYNTH_SAMPLE:
@@ -725,7 +726,7 @@ const MenuContext& enter(Where where, int8_t source = 0) {
 	return synth().ctx;
 }
 
-Song& song_of(Where where) {
+inline Song& song_of(Where where) {
 	switch (where) {
 	case Where::KIT_LANE:
 	case Where::KIT:
@@ -747,7 +748,7 @@ Song& song_of(Where where) {
 }
 
 /// The descriptor context @p where stands for. Which sources hold a loaded file is read off the sound by the caller.
-SettingContext context_of(Where where) {
+inline SettingContext context_of(Where where) {
 	using Instrument = SettingContext::Instrument;
 	SettingContext shown{};
 	switch (where) {
@@ -810,7 +811,7 @@ enum class Family : uint8_t {
 	AUDIO_INPUT,
 };
 
-std::span<const SettingInfo> table_of(Family family) {
+inline std::span<const SettingInfo> table_of(Family family) {
 	switch (family) {
 	case Family::INSTRUMENT:
 		return deluge::instrument::kSettings;
@@ -839,7 +840,7 @@ std::span<const SettingInfo> table_of(Family family) {
 }
 
 /// @p stored in its file form: a CHOICE's word, else the number.
-Value file_form(const SettingInfo& row, int32_t stored) {
+inline Value file_form(const SettingInfo& row, int32_t stored) {
 	if (row.kind == SettingKind::CHOICE) {
 		return Value::makeScalar(std::string(row.choices[static_cast<size_t>(stored)]));
 	}
@@ -847,7 +848,7 @@ Value file_form(const SettingInfo& row, int32_t stored) {
 }
 
 /// @p value as the row stores it: a CHOICE's index, else the number.
-std::optional<int32_t> stored_form(const SettingInfo& row, const Value& value) {
+inline std::optional<int32_t> stored_form(const SettingInfo& row, const Value& value) {
 	const std::string text = value.str();
 	if (row.kind == SettingKind::CHOICE) {
 		for (size_t i = 0; i < row.choices.size(); ++i) {
@@ -862,7 +863,7 @@ std::optional<int32_t> stored_form(const SettingInfo& row, const Value& value) {
 }
 
 /// An arp's stored value at @p path, read from the engine's arp as the record projects it.
-std::optional<int32_t> arp_field(const ArpeggiatorSettings& arp, std::string_view path) {
+inline std::optional<int32_t> arp_field(const ArpeggiatorSettings& arp, std::string_view path) {
 	const std::string_view name = path.substr(std::string_view{"arpeggiator/"}.size());
 	const auto sync_type_choice = [](SyncType type) {
 		return type == SYNC_TYPE_TRIPLET ? 1 : type == SYNC_TYPE_DOTTED ? 2 : 0;
@@ -905,7 +906,7 @@ std::optional<int32_t> arp_field(const ArpeggiatorSettings& arp, std::string_vie
 }
 
 /// Set @p row's stored value through its Edit, on what @p ctx edits.
-void set_stored(Family family, const MenuContext& ctx, Where where, const SettingInfo& row, int32_t stored) {
+inline void set_stored(Family family, const MenuContext& ctx, Where where, const SettingInfo& row, int32_t stored) {
 	const Value value = file_form(row, stored);
 	switch (family) {
 	case Family::INSTRUMENT:
@@ -946,7 +947,7 @@ void set_stored(Family family, const MenuContext& ctx, Where where, const Settin
 }
 
 /// @p row's stored value on what @p ctx edits, or nothing where the row does not apply.
-std::optional<int32_t> get_stored(Family family, const MenuContext& ctx, Where where, const SettingInfo& row) {
+inline std::optional<int32_t> get_stored(Family family, const MenuContext& ctx, Where where, const SettingInfo& row) {
 	std::optional<Value> value;
 	switch (family) {
 	case Family::INSTRUMENT:
@@ -1037,32 +1038,32 @@ struct Case {
 };
 
 /// How far a lossy case's value may read back from what it was set to: the float record's rounding step.
-constexpr int32_t kLossyStep = 256;
+inline constexpr int32_t kLossyStep = 256;
 
 /// Legacy writes this spec cannot drive: each reaches a UI global only a booted app has.
 ///   * `SynthModeSelection::writeCurrentValue` calls `view.setKnobIndicatorLevels()` (`synth_mode.h`);
 ///   * `arpeggiator::Mode` and `PresetMode` silence notes over `soundEditor.getCurrentModelStack` (`mode.h`,
 ///     `preset_mode.h`).
-constexpr bool kNoLegacyWrite = false;
+inline constexpr bool kNoLegacyWrite = false;
 
-const SettingInfo& row_of(const Case& c) {
+inline const SettingInfo& row_of(const Case& c) {
 	const SettingInfo* row = deluge::engine::find_setting(table_of(c.family), c.path);
 	static const SettingInfo kMissing{.path = "<missing>"};
 	return row != nullptr ? *row : kMissing;
 }
 
 /// @p row's partner row, or nullptr for a one-row kind.
-const SettingInfo* partner_of(const Case& c, const SettingInfo& row) {
+inline const SettingInfo* partner_of(const Case& c, const SettingInfo& row) {
 	const std::string_view partner = deluge::engine::mapping_of(row).partner_path();
 	return partner.empty() ? nullptr : deluge::engine::find_setting(table_of(c.family), partner);
 }
 
-std::string show(const Case& c, std::string_view what, int64_t at, int64_t value) {
+inline std::string show(const Case& c, std::string_view what, int64_t at, int64_t value) {
 	return std::string{c.path} + " " + std::string{what} + "(" + std::to_string(at) + ") = " + std::to_string(value);
 }
 
 /// The menu values to write: the edges, one in from each, and the middle.
-std::vector<int32_t> menu_probes(Range range) {
+inline std::vector<int32_t> menu_probes(Range range) {
 	std::vector<int32_t> probes{range.first, range.second};
 	if (range.second > range.first) {
 		probes.push_back(range.first + 1);
@@ -1073,7 +1074,7 @@ std::vector<int32_t> menu_probes(Range range) {
 }
 
 /// Each numeric case: its range, its reads at the stored probes and its writes at the menu edges.
-void check_numeric(auto& self, const Case& c) {
+inline void check_numeric(auto& self, const Case& c) {
 	const MenuContext& ctx = enter(c.where, c.source);
 	const SettingInfo& row = row_of(c);
 	expect(std::string{c.path} + " has a row").to_equal(std::string{row.path} + " has a row");
@@ -1135,7 +1136,7 @@ void check_numeric(auto& self, const Case& c) {
 }
 
 /// The table a @p family row's conditions read: an arp's host rows read its setting rows too.
-std::span<const SettingInfo> condition_table_of(Family family) {
+inline std::span<const SettingInfo> condition_table_of(Family family) {
 	return family == Family::ARP || family == Family::ARP_HOST ? deluge::engine::kArpRows : table_of(family);
 }
 
@@ -1178,8 +1179,8 @@ struct SpecReader {
 
 /// The choices of @p row that apply in @p shown on the owner @p ctx edits, in order, through the engine's own position
 /// helpers. Throws where a condition read a path the owner does not hold, or a position does not round-trip.
-std::vector<int32_t> applicable(const SettingInfo& row, const SettingContext& shown, const MenuContext& ctx,
-                                Where where) {
+inline std::vector<int32_t> applicable(const SettingInfo& row, const SettingContext& shown, const MenuContext& ctx,
+                                       Where where) {
 	const SpecReader owner{ctx, where};
 	const deluge::engine::SettingReader reader = owner.reader();
 	std::vector<int32_t> out;
@@ -1200,11 +1201,11 @@ std::vector<int32_t> applicable(const SettingInfo& row, const SettingContext& sh
 }
 
 /// The same, on the owner @p where names, set up as `enter` leaves it.
-std::vector<int32_t> applicable(const SettingInfo& row, Where where) {
+inline std::vector<int32_t> applicable(const SettingInfo& row, Where where) {
 	return applicable(row, context_of(where), enter(where), where);
 }
 
-std::string list_of(const std::vector<int32_t>& choices) {
+inline std::string list_of(const std::vector<int32_t>& choices) {
 	std::string out;
 	for (int32_t choice : choices) {
 		out += std::to_string(choice) + ",";
@@ -1221,7 +1222,7 @@ using deluge::project::SettingGroupId;
 namespace engine = deluge::engine;
 
 /// @brief The owners whose table a family's rows are in.
-[[maybe_unused]] std::vector<NamesOwner> owners_of(Family family) {
+inline std::vector<NamesOwner> owners_of(Family family) {
 	switch (family) {
 	case Family::INSTRUMENT:
 		return {engine::kDelugeInstrument};
@@ -1249,13 +1250,13 @@ namespace engine = deluge::engine;
 	return {};
 }
 
-[[maybe_unused]] std::string text(deluge::l10n::String id) {
+inline std::string text(deluge::l10n::String id) {
 	return std::string{deluge::l10n::getView(id)};
 }
 
 /// @brief A title with its `*` replaced by the owner's number, which the path's first digit gives as legacy's
 /// formatted titles do.
-[[maybe_unused]] std::string title_of(const SettingNames& names, std::string_view path) {
+inline std::string title_of(const SettingNames& names, std::string_view path) {
 	std::string title = text(names.title);
 	const size_t star = title.find('*');
 	const size_t digit = path.find_first_of("0123456789");
@@ -1266,14 +1267,14 @@ namespace engine = deluge::engine;
 }
 
 /// @brief The names table's text for choice @p index, full or short (short falls back to full where there are none).
-[[maybe_unused]] std::string choice_text(const SettingNames& names, size_t index, bool short_form) {
+inline std::string choice_text(const SettingNames& names, size_t index, bool short_form) {
 	const auto list = short_form && !names.short_choices.empty() ? names.short_choices : names.choices;
 	return index < list.size() ? text(list[index]) : std::string{"<no choice>"};
 }
 
 /// A CHOICE case in its context: the list's length is the options' count, each applicable choice reads as its
 /// position in the list, and each position writes that choice.
-void check_choices(auto& self, const Case& c) {
+inline void check_choices(auto& self, const Case& c) {
 	const MenuContext& ctx = enter(c.where, c.source);
 	const SettingInfo& row = row_of(c);
 	const std::vector<int32_t> choices = applicable(row, context_of(c.where), ctx, c.where);
@@ -1296,7 +1297,7 @@ void check_choices(auto& self, const Case& c) {
 	}
 }
 
-void check(auto& self, const Case& c) {
+inline void check(auto& self, const Case& c) {
 	const SettingInfo& row = row_of(c);
 	if (row.kind == SettingKind::CHOICE
 	    && deluge::engine::mapping_of(row).kind == deluge::engine::DisplayMappingKind::LINEAR) {
@@ -1307,20 +1308,20 @@ void check(auto& self, const Case& c) {
 	}
 }
 
-constexpr int32_t kQ31Max = std::numeric_limits<int32_t>::max();
-constexpr int32_t kQ31Min = std::numeric_limits<int32_t>::min();
+inline constexpr int32_t kQ31Max = std::numeric_limits<int32_t>::max();
+inline constexpr int32_t kQ31Min = std::numeric_limits<int32_t>::min();
 
 /// The sync pairs worth reading: {level, type choice}.
-const std::vector<Range> kSyncPairs{{0, 0}, {1, 0}, {9, 0}, {1, 1}, {9, 1}, {1, 2}, {9, 2}};
+inline const std::vector<Range> kSyncPairs{{0, 0}, {1, 0}, {9, 0}, {1, 1}, {9, 1}, {1, 2}, {9, 2}};
 /// The transpose pairs worth reading: {semitones, cents}.
-const std::vector<Range> kTransposePairs{{0, 0}, {-96, 0}, {96, 0}, {2, -50}, {-1, 49}, {1, -50}, {0, 50}};
+inline const std::vector<Range> kTransposePairs{{0, 0}, {-96, 0}, {96, 0}, {2, -50}, {-1, 49}, {1, -50}, {0, 50}};
 /// Retrigger phases worth reading: free, the degree boundaries, 180 and 360.
-const std::vector<int32_t> kPhases{-1, 0, 11930463, 11930464, 2147483520, -11930720, -256};
+inline const std::vector<int32_t> kPhases{-1, 0, 11930463, 11930464, 2147483520, -11930720, -256};
 
 // ---------------------------------------------------------------------------------------------
 // Each family's cases.
 
-const std::vector<Case>& voice_cases() {
+inline const std::vector<Case>& voice_cases() {
 	static const std::vector<Case> cases{
 	    {.path = "polyphonic", .family = Family::INSTRUMENT, .item = &polyphonyMenu},
 	    {.path = "polyphonic", .family = Family::INSTRUMENT, .item = &polyphonyMenu, .where = Where::KIT_LANE},
@@ -1340,7 +1341,7 @@ const std::vector<Case>& voice_cases() {
 	return cases;
 }
 
-const std::vector<Case>& oscillator_cases() {
+inline const std::vector<Case>& oscillator_cases() {
 	static const std::vector<Case> cases{
 	    {.path = "osc1/type", .family = Family::INSTRUMENT, .item = &osc0TypeMenu},
 	    {.path = "osc2/type", .family = Family::INSTRUMENT, .item = &osc1TypeMenu, .source = 1},
@@ -1411,7 +1412,7 @@ const std::vector<Case>& oscillator_cases() {
 	return cases;
 }
 
-const std::vector<Case>& lfo_and_modulator_cases() {
+inline const std::vector<Case>& lfo_and_modulator_cases() {
 	static const std::vector<Case> cases{
 	    {.path = "lfo1/type", .family = Family::INSTRUMENT, .item = &lfo1TypeMenu},
 	    {.path = "lfo2/type", .family = Family::INSTRUMENT, .item = &lfo2TypeMenu},
@@ -1451,7 +1452,7 @@ const std::vector<Case>& lfo_and_modulator_cases() {
 	return cases;
 }
 
-const std::vector<Case>& unison_and_midi_cases() {
+inline const std::vector<Case>& unison_and_midi_cases() {
 	static const std::vector<Case> cases{
 	    {.path = "unison/num", .family = Family::INSTRUMENT, .item = &numUnisonMenu},
 	    {.path = "unison/detune", .family = Family::INSTRUMENT, .item = &unisonDetuneMenu},
@@ -1465,7 +1466,7 @@ const std::vector<Case>& unison_and_midi_cases() {
 	return cases;
 }
 
-const std::vector<Case>& effect_cases() {
+inline const std::vector<Case>& effect_cases() {
 	static const std::vector<Case> cases{
 	    {.path = "modFXType", .family = Family::EFFECT, .item = &modFXTypeMenu},
 	    {.path = "lpfMode", .family = Family::EFFECT, .item = &lpfModeMenu},
@@ -1503,7 +1504,7 @@ const std::vector<Case>& effect_cases() {
 	return cases;
 }
 
-const std::vector<Case>& arp_cases() {
+inline const std::vector<Case>& arp_cases() {
 	static const std::vector<Case> cases{
 	    {.path = "arpeggiator/arpMode", .family = Family::ARP, .item = &arpModeMenu, .writes = kNoLegacyWrite},
 	    {.path = "arpeggiator/octaveMode", .family = Family::ARP, .item = &arpOctaveModeMenu},
@@ -1531,9 +1532,9 @@ const std::vector<Case>& arp_cases() {
 }
 
 /// The host rows' standard and unsigned values worth reading.
-const std::vector<int32_t> kQ31Probes{0, -1, 1, 85899345, 42949672, 42949673, kQ31Min + 42949672};
+inline const std::vector<int32_t> kQ31Probes{0, -1, 1, 85899345, 42949672, 42949673, kQ31Min + 42949672};
 
-const std::vector<Case>& arp_host_cases() {
+inline const std::vector<Case>& arp_host_cases() {
 	static const std::vector<Case> cases = [] {
 		const std::pair<std::string_view, ::MenuItem*> items[] = {
 		    {"arpeggiator/gate", &arpGateMenuMIDIOrCV},
@@ -1566,7 +1567,7 @@ const std::vector<Case>& arp_host_cases() {
 }
 
 /// Q31 fractions either side of each rounding edge a fiftieths menu has, (k - 1/2) / 50 of 2^31, for a few k.
-const std::vector<int32_t> kFractionProbes = [] {
+inline const std::vector<int32_t> kFractionProbes = [] {
 	std::vector<int32_t> out;
 	for (int32_t k : {1, 13, 25, 37, 49, 50}) {
 		const int64_t edge = ((2 * int64_t{k} - 1) << 31) / 100;
@@ -1577,7 +1578,7 @@ const std::vector<int32_t> kFractionProbes = [] {
 	return out;
 }();
 
-const std::vector<Case>& model_cases() {
+inline const std::vector<Case>& model_cases() {
 	static const std::vector<Case> cases{
 	    // Driven as a numeric row against legacy's DualCVSelection: stored 1 (pitch), a mode the menu does not list,
 	    // reads as off.
@@ -1671,55 +1672,68 @@ const std::vector<Case>& model_cases() {
 // ---------------------------------------------------------------------------------------------
 // The named skips: rows with a menu but no single legacy item to compare, and why.
 
+/// The owners of the skipped rows: a skip names the tables it is a row of.
+inline constexpr NamesOwner kInstrumentOwner[] = {engine::kDelugeInstrument};
+inline constexpr NamesOwner kEffectOwners[] = {engine::kDelugeInstrument, engine::kGlobalEffectable};
+inline constexpr NamesOwner kArpOwners[] = {engine::kDelugeInstrument, SettingGroupId::CLIP_ARP,
+                                            SettingGroupId::LANE_ARP};
+inline constexpr NamesOwner kHostArpOwners[] = {SettingGroupId::CLIP_ARP, SettingGroupId::LANE_ARP};
+inline constexpr NamesOwner kSongOwner[] = {SettingGroupId::SONG};
+inline constexpr NamesOwner kAudioClipOwner[] = {SettingGroupId::AUDIO_CLIP};
+
 struct Skip {
+	std::span<const NamesOwner> owners; ///< the owners whose table holds the row
 	std::string_view path;
 	std::string_view reason;
 };
 
-constexpr Skip kSkips[] = {
-    {"cents", "the master transpose's partner: shown only within `transpose`'s menu value"},
-    {"osc1/cents", "osc 1 transpose's partner: shown only within its menu value"},
-    {"osc2/cents", "osc 2 transpose's partner: shown only within its menu value"},
-    {"modulator1/cents", "modulator 1 transpose's partner: shown only within its menu value"},
-    {"modulator2/cents", "modulator 2 transpose's partner: shown only within its menu value"},
-    {"lfo1/syncType", "LFO 1 sync's partner: shown only within its combined sync menu"},
-    {"lfo2/syncType", "LFO 2 sync's partner: shown only within its combined sync menu"},
-    {"lfo3/syncType", "LFO 3 sync's partner: shown only within its combined sync menu"},
-    {"lfo4/syncType", "LFO 4 sync's partner: shown only within its combined sync menu"},
-    {"delay/syncType", "the delay sync's partner: shown only within its combined sync menu"},
-    {"sidechain/syncType", "the sidechain sync's partner: shown only within its combined sync menu"},
-    {"arpeggiator/syncType", "the arp sync's partner: shown only within its combined sync menu"},
-    {"osc1/sampleRanges", "structured: the sample browser and range editors, no value menu"},
-    {"osc2/sampleRanges", "structured: the sample browser and range editors, no value menu"},
-    {"osc1/wavetableRanges", "structured: the wavetable browser, no value menu"},
-    {"osc2/wavetableRanges", "structured: the wavetable browser, no value menu"},
-    {"osc1/fileName", "structured: the sample browser, no value menu"},
-    {"osc2/fileName", "structured: the sample browser, no value menu"},
-    {"osc1/zone", "structured: the sample marker editor, no value menu"},
-    {"osc2/zone", "structured: the sample marker editor, no value menu"},
-    {"osc1/dx7patch", "structured: the DX7 editor, no value menu"},
-    {"osc2/dx7patch", "structured: the DX7 editor, no value menu"},
-    {"osc1/dx7enginemode", "structured: the DX7 editor, no value menu"},
-    {"osc2/dx7enginemode", "structured: the DX7 editor, no value menu"},
-    {"osc1/dx7randomdetune", "structured: the DX7 editor, no value menu"},
-    {"osc2/dx7randomdetune", "structured: the DX7 editor, no value menu"},
-    {"stutter/reverse",
+inline constexpr Skip kSkips[] = {
+    {kInstrumentOwner, "cents", "the master transpose's partner: shown only within `transpose`'s menu value"},
+    {kAudioClipOwner, "cents", "the audio clip transpose's partner: shown only within `transpose`'s menu value"},
+    {kInstrumentOwner, "osc1/cents", "osc 1 transpose's partner: shown only within its menu value"},
+    {kInstrumentOwner, "osc2/cents", "osc 2 transpose's partner: shown only within its menu value"},
+    {kInstrumentOwner, "modulator1/cents", "modulator 1 transpose's partner: shown only within its menu value"},
+    {kInstrumentOwner, "modulator2/cents", "modulator 2 transpose's partner: shown only within its menu value"},
+    {kInstrumentOwner, "lfo1/syncType", "LFO 1 sync's partner: shown only within its combined sync menu"},
+    {kInstrumentOwner, "lfo2/syncType", "LFO 2 sync's partner: shown only within its combined sync menu"},
+    {kInstrumentOwner, "lfo3/syncType", "LFO 3 sync's partner: shown only within its combined sync menu"},
+    {kInstrumentOwner, "lfo4/syncType", "LFO 4 sync's partner: shown only within its combined sync menu"},
+    {kEffectOwners, "delay/syncType", "the delay sync's partner: shown only within its combined sync menu"},
+    {kEffectOwners, "sidechain/syncType", "the sidechain sync's partner: shown only within its combined sync menu"},
+    {kArpOwners, "arpeggiator/syncType", "the arp sync's partner: shown only within its combined sync menu"},
+    {kInstrumentOwner, "osc1/sampleRanges", "structured: the sample browser and range editors, no value menu"},
+    {kInstrumentOwner, "osc2/sampleRanges", "structured: the sample browser and range editors, no value menu"},
+    {kInstrumentOwner, "osc1/wavetableRanges", "structured: the wavetable browser, no value menu"},
+    {kInstrumentOwner, "osc2/wavetableRanges", "structured: the wavetable browser, no value menu"},
+    {kInstrumentOwner, "osc1/fileName", "structured: the sample browser, no value menu"},
+    {kInstrumentOwner, "osc2/fileName", "structured: the sample browser, no value menu"},
+    {kInstrumentOwner, "osc1/zone", "structured: the sample marker editor, no value menu"},
+    {kInstrumentOwner, "osc2/zone", "structured: the sample marker editor, no value menu"},
+    {kInstrumentOwner, "osc1/dx7patch", "structured: the DX7 editor, no value menu"},
+    {kInstrumentOwner, "osc2/dx7patch", "structured: the DX7 editor, no value menu"},
+    {kInstrumentOwner, "osc1/dx7enginemode", "structured: the DX7 editor, no value menu"},
+    {kInstrumentOwner, "osc2/dx7enginemode", "structured: the DX7 editor, no value menu"},
+    {kInstrumentOwner, "osc1/dx7randomdetune", "structured: the DX7 editor, no value menu"},
+    {kInstrumentOwner, "osc2/dx7randomdetune", "structured: the DX7 editor, no value menu"},
+    {kEffectOwners, "stutter/reverse",
      "one of three rows `stutter::StutterDirection` shows as one list (with pingPong, useSongStutter)"},
-    {"stutter/pingPong",
+    {kEffectOwners, "stutter/pingPong",
      "one of three rows `stutter::StutterDirection` shows as one list (with reverse, useSongStutter)"},
-    {"stutter/useSongStutter",
+    {kEffectOwners, "stutter/useSongStutter",
      "one of three rows `stutter::StutterDirection` shows as one list (with reverse, pingPong); its first entry "
      "appears only off the song"},
-    {"audioCompressor/thresh", "no menu item: a sound's threshold is a param; the knob gesture writes the setting"},
-    {"arpeggiator/reverseProbability", "no MIDI or CV item: the reverse probability is a param-only menu"},
-    {"reverb/compressor/syncLevel",
+    {kEffectOwners, "audioCompressor/thresh",
+     "no menu item: a sound's threshold is a param; the knob gesture writes the setting"},
+    {kHostArpOwners, "arpeggiator/reverseProbability",
+     "no MIDI or CV item: the reverse probability is a param-only menu"},
+    {kSongOwner, "reverb/compressor/syncLevel",
      "its menu shows one value over this level and the engine's own sync type, which no row of the song holds"},
-    {"reverb/compressor/volume", "a named exception: menu -1..50 truncates (stored / 21474836)"},
-    {"syncScalingClip", "no menu: the clip whose length scales the tempo, set by a gesture"},
-    {"scales/disabled/", "every preset scale's row: one active-scales menu shows them all"},
-    {"startSamplePos", "the sample marker editor, no value menu"},
-    {"endSamplePos", "the sample marker editor, no value menu"},
-    {"overdubsShouldCloneAudioTrack", "no menu: a recording gesture sets it"},
+    {kSongOwner, "reverb/compressor/volume", "a named exception: menu -1..50 truncates (stored / 21474836)"},
+    {kSongOwner, "syncScalingClip", "no menu: the clip whose length scales the tempo, set by a gesture"},
+    {kSongOwner, "scales/disabled/", "every preset scale's row: one active-scales menu shows them all"},
+    {kAudioClipOwner, "startSamplePos", "the sample marker editor, no value menu"},
+    {kAudioClipOwner, "endSamplePos", "the sample marker editor, no value menu"},
+    {kAudioClipOwner, "overdubsShouldCloneAudioTrack", "no menu: a recording gesture sets it"},
 };
 
 /// A row whose legacy item differs from the row's menu, the difference, and a probe that measures it against the item.
@@ -1729,14 +1743,14 @@ struct Exception {
 	bool (*differs)(); ///< true while the row's menu and the item still differ as `reason` says
 };
 
-const SettingInfo& table_row(Family family, std::string_view path) {
+inline const SettingInfo& table_row(Family family, std::string_view path) {
 	const SettingInfo* row = deluge::engine::find_setting(table_of(family), path);
 	static const SettingInfo kMissing{.path = "<missing>"};
 	return row != nullptr ? *row : kMissing;
 }
 
 /// An unset note reads as a note the item shows, which no menu value of the row stores.
-bool note_for_drum_differs() {
+inline bool note_for_drum_differs() {
 	const MenuContext& ctx = enter(Where::KIT_LANE);
 	const SettingInfo& row = table_row(Family::INSTRUMENT, "midiOutput/noteForDrum");
 	ctx.sound->outputMidiNoteForDrum = MIDI_NOTE_NONE;
@@ -1746,7 +1760,7 @@ bool note_for_drum_differs() {
 }
 
 /// With no input plugged in the item lists one input, so a stored right or stereo input reads past its list.
-bool input_reads_past_list(std::string_view path, int8_t source, ::MenuItem* item) {
+inline bool input_reads_past_list(std::string_view path, int8_t source, ::MenuItem* item) {
 	AudioEngine::micPluggedIn = false;
 	AudioEngine::lineInPluggedIn = false;
 	const MenuContext& ctx = enter(Where::SYNTH, source);
@@ -1760,15 +1774,15 @@ bool input_reads_past_list(std::string_view path, int8_t source, ::MenuItem* ite
 	}
 	return true;
 }
-bool first_oscillator_type_differs() {
+inline bool first_oscillator_type_differs() {
 	return input_reads_past_list("osc1/type", 0, &osc0TypeMenu);
 }
-bool second_oscillator_type_differs() {
+inline bool second_oscillator_type_differs() {
 	return input_reads_past_list("osc2/type", 1, &osc1TypeMenu);
 }
 
 /// The item's write of its top step stores a different value from the row's.
-bool compressor_shape_differs() {
+inline bool compressor_shape_differs() {
 	const MenuContext& ctx = enter(Where::SONG);
 	const SettingInfo& row = table_row(Family::SONG, "reverb/compressor/shape");
 	const int32_t top = legacy_range(&reverbSidechainShapeMenu).second;
@@ -1778,14 +1792,14 @@ bool compressor_shape_differs() {
 }
 
 /// The item's list holds 0, which its encoder never lands on.
-bool swing_interval_differs() {
+inline bool swing_interval_differs() {
 	const SettingInfo& row = table_row(Family::SONG, "swingInterval");
 	return legacy_range(&swingIntervalMenu).first == 0 && menu_range(row).first == 0
 	       && wrapSwingIntervalSyncLevel(0) != 0;
 }
 
 /// The item reads the stored volume in steps, truncating; the row's menu is the stored value itself.
-bool reverb_volume_differs() {
+inline bool reverb_volume_differs() {
 	const MenuContext& ctx = enter(Where::SONG);
 	const SettingInfo& row = table_row(Family::SONG, "reverb/compressor/volume");
 	constexpr int32_t kStep = 21474836;
@@ -1796,7 +1810,7 @@ bool reverb_volume_differs() {
 
 /// The rows a legacy item shows but this spec reads only around a named difference. Each is checked to still differ
 /// (`descriptor_legacy_spec.cpp`), so a row that comes to agree leaves the list.
-const Exception kExceptions[] = {
+inline const Exception kExceptions[] = {
     {"midiOutput/noteForDrum",
      "unset (stored 255, outside the row) shows kUnsetDrumNoteShownAs (60) through CLAMP_HIGH; no menu value stores "
      "it",
@@ -1816,10 +1830,11 @@ const Exception kExceptions[] = {
      &reverb_volume_differs},
 };
 
-/// Whether @p path is a named skip; a skip ending in '/' names every path under it.
-bool skipped(std::string_view path) {
+/// Whether @p path is a named skip of @p owner's table; a skip ending in '/' names every path under it.
+inline bool skipped(const NamesOwner& owner, std::string_view path) {
 	for (const Skip& skip : kSkips) {
-		if (skip.path == path || (skip.path.ends_with('/') && path.starts_with(skip.path))) {
+		const bool path_matches = skip.path == path || (skip.path.ends_with('/') && path.starts_with(skip.path));
+		if (path_matches && std::ranges::find(skip.owners, owner) != skip.owners.end()) {
 			return true;
 		}
 	}
@@ -1828,7 +1843,7 @@ bool skipped(std::string_view path) {
 
 /// The rows of the groups the range, read and write checks do not drive, each with the legacy item that shows it. They
 /// are named and compared by name only.
-const std::vector<Case>& group_cases() {
+inline const std::vector<Case>& group_cases() {
 	static const std::vector<Case> cases{
 	    {.path = "sequenceDirection", .family = Family::CLIP, .item = &sequenceDirectionMenu},
 	    {.path = "sequenceDirection",
@@ -1870,7 +1885,7 @@ const std::vector<Case>& group_cases() {
 }
 
 /// Every case of every family the range, read and write checks drive.
-std::vector<const Case*> all_cases() {
+inline std::vector<const Case*> all_cases() {
 	std::vector<const Case*> out;
 	for (const auto* family :
 	     {&voice_cases(), &oscillator_cases(), &lfo_and_modulator_cases(), &unison_and_midi_cases(), &effect_cases(),
@@ -1883,7 +1898,7 @@ std::vector<const Case*> all_cases() {
 }
 
 /// Every case, the named-only ones included.
-std::vector<const Case*> all_name_cases() {
+inline std::vector<const Case*> all_name_cases() {
 	std::vector<const Case*> out = all_cases();
 	for (const Case& c : group_cases()) {
 		out.push_back(&c);
@@ -1891,4 +1906,6 @@ std::vector<const Case*> all_name_cases() {
 	return out;
 }
 
-} // namespace
+} // namespace descriptor_cases
+
+using namespace descriptor_cases;

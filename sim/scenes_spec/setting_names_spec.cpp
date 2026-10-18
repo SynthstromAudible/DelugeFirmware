@@ -55,6 +55,21 @@ std::vector<OwnedTable> owned_tables() {
 	};
 }
 
+/// @brief Whether @p owner's tables hold @p path, or a path under it where it ends in '/'.
+bool holds(const NamesOwner& owner, std::string_view path) {
+	for (const OwnedTable& table : owned_tables()) {
+		if (!(table.owner == owner)) {
+			continue;
+		}
+		for (const SettingInfo& row : table.rows) {
+			if (row.path == path || (path.ends_with('/') && row.path.starts_with(path))) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 /// @brief A row, or every row under a path ending in '/', that no menu shows, and why.
 struct NoMenu {
 	SettingGroupId group;
@@ -257,11 +272,31 @@ describe setting_names_spec_body("The host's name table", $ {
 			for (const SettingInfo& row : table.rows) {
 				const bool shown = covered(table.owner, row.path);
 				const std::optional<SettingGroupId> group = table.owner.group();
-				const bool excused = skipped(row.path) || (group && no_menu(*group, row.path));
+				const bool excused = skipped(table.owner, row.path) || (group && no_menu(*group, row.path));
 				const std::string at = std::string{table.label} + " " + std::string{row.path};
 				expect(at + (setting_names(table.owner, row.path) != nullptr ? " named" : " unnamed"))
 				    .to_equal(at + (shown ? " named" : (excused ? " unnamed" : " unlisted")));
 			}
+		}
+	});
+	it("names only rows its owner holds, in the skips and the no-menu rows", _ {
+		for (const Skip& skip : kSkips) {
+			for (const NamesOwner& owner : skip.owners) {
+				const std::string at = "skip " + std::string{skip.path} + " of owner " + std::to_string(owner.index());
+				expect(at + (holds(owner, skip.path) ? " held" : " not held")).to_equal(at + " held");
+			}
+		}
+		for (const NoMenu& row : kNoMenu) {
+			const std::string at = "no-menu row " + std::string{row.path} + " of group " + std::to_string(std::to_underlying(row.group));
+			expect(at + (holds(row.group, row.path) ? " held" : " not held")).to_equal(at + " held");
+		}
+		for (const Exception& exception : kExceptions) {
+			bool held = false;
+			for (const OwnedTable& table : owned_tables()) {
+				held = held || holds(table.owner, exception.path);
+			}
+			const std::string at = "exception " + std::string{exception.path};
+			expect(at + (held ? " held" : " not held")).to_equal(at + " held");
 		}
 	});
 	it("names the same path differently under owners whose menus differ", _ {
