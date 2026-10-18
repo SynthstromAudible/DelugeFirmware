@@ -708,6 +708,49 @@ mod tests {
         assert!(!unsafe { deluge_resource_loader_has_lowest(mgr) });
     }
 
+    /// The queue's scans visit only queued slots, through a bitset a scan clears lazily: a slot
+    /// de-queued and then queued again must be found again, as must one evicted and reused.
+    #[test]
+    fn a_slot_queued_again_after_its_stale_bit_is_cleared_is_found() {
+        let (_buf, h) = arena(256 * 1024);
+        let mgr = unsafe { deluge_resource_create(h, 16, 64) };
+        let a = unsafe {
+            deluge_resource_define_asset(
+                mgr,
+                owner(15),
+                Some(mock_materialize),
+                Some(mock_on_evict),
+                core::ptr::null_mut(),
+                COST_IO,
+                BACKING_HEAP,
+            )
+        };
+        let p0 = unsafe { deluge_resource_acquire(mgr, a, 0, 64 * 1024) };
+        let s0 = unsafe { deluge_resource_slot_of(mgr, p0) };
+
+        unsafe { deluge_resource_loader_enqueue(mgr, s0, 3) };
+        unsafe { deluge_resource_loader_remove(mgr, s0) };
+        // This scan finds the bit stale and clears it.
+        assert!(!unsafe { deluge_resource_loader_has_any(mgr) });
+        unsafe { deluge_resource_loader_enqueue(mgr, s0, 3) };
+        assert!(unsafe { deluge_resource_loader_has_any(mgr) });
+        assert_eq!(unsafe { deluge_resource_loader_next(mgr) }, p0);
+        assert!(unsafe { deluge_resource_loader_next(mgr) }.is_null());
+
+        // A slot in the last bitset word, past the first 32, is found too.
+        let ps: Vec<_> = (1..40)
+            .map(|i| unsafe { deluge_resource_acquire(mgr, a, i, 1024) })
+            .collect();
+        let last = *ps.last().unwrap();
+        let s_last = unsafe { deluge_resource_slot_of(mgr, last) };
+        assert!(
+            s_last >= 32,
+            "the test needs a slot in the second word, got {s_last}"
+        );
+        unsafe { deluge_resource_loader_enqueue(mgr, s_last, 1) };
+        assert_eq!(unsafe { deluge_resource_loader_next(mgr) }, last);
+    }
+
     /// Every queue wait and fill the stats count, from either enqueue, also lands in exactly one
     /// histogram bucket.
     #[test]
