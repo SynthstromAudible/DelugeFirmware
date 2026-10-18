@@ -396,8 +396,8 @@ constexpr std::array kRows{
                 .choices = kMidiChannels,
                 .default_value = kDefaultMidiChannel,
                 .extras = &kMidiChannelExtras},
-    // A new sound's note is unset (255, outside the row): its menu shows kNoteForDrum there, and no menu value stores
-    // it.
+    // A new sound's note is unset (255, outside the row): its menu shows kUnsetDrumNoteShownAs there, and no menu
+    // value stores it.
     SettingInfo{.path = "midiOutput/noteForDrum",
                 .min = 0,
                 .max = 127,

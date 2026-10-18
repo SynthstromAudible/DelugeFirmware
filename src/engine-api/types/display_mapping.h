@@ -32,7 +32,8 @@ namespace deluge::engine {
 enum class DisplayMappingKind : uint8_t {
 	LINEAR,        ///< UserScale (and its sentinels)
 	CLAMP_HIGH,    ///< LINEAR, but a stored value above the user scale's stored_max shows as `clamp_to`
-	CHOICE_ORDER,  ///< a CHOICE whose menu lists the choices in another order (menu index i → choice order[i])
+	CHOICE_ORDER,  ///< a CHOICE (or a small INTEGER) whose menu lists its values in another order or a subset of
+	               ///< them (menu index i → value order[i]); a value the order does not list shows as menu 0
 	INVERTED_BOOL, ///< a BOOL whose menu shows !stored (interpolation: menu 0 = LINEAR = stored 1)
 	COMBINED_SYNC, ///< one menu value 0..27 (or the row's user range) over a syncLevel row and its partner syncType row
 	TRANSPOSE_CENTS, ///< one menu value transpose*100+cents over a transpose row and its partner cents row
@@ -54,7 +55,7 @@ struct DisplayMapping {
 	/// The one field the kind reads; the kinds that read none leave `partner` empty.
 	union {
 		std::string_view partner{};     ///< COMBINED_SYNC / TRANSPOSE_CENTS: the second row's path
-		std::span<const uint8_t> order; ///< CHOICE_ORDER: the choice index for each menu index
+		std::span<const uint8_t> order; ///< CHOICE_ORDER: the stored value for each menu index
 		std::span<const int32_t> table; ///< TABLE: the table value for each menu step
 		int32_t clamp_to; ///< CLAMP_HIGH: what a stored value above the user range shows as; KNOB_POSITION: what the
 		                  ///< top menu step stores

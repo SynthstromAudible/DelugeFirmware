@@ -301,15 +301,15 @@ constexpr std::string_view kMpeYChoices[] = {"74", "1"};
 constexpr int32_t kMaxChannelWord = 55;
 
 /// The CV mode each of the second channel's menu steps stores: off, then the modes after pitch, which the menu skips.
-constexpr std::array<int32_t, 4> kCv2SourceModes{0, 2, 3, 4};
+constexpr std::array<uint8_t, 4> kCv2SourceModes{0, 2, 3, 4};
 /// The CV instrument's channel word for both channels: the second channel is free for a source only then.
 constexpr std::array<int32_t, 1> kBothCvChannels{2};
 constexpr std::array<int32_t, 1> kCvInstrument{std::to_underlying(Instrument::CV)};
 constexpr std::array kCv2SourceConditions{engine::instrument_is(kCvInstrument),
                                           engine::setting_is("channel", kBothCvChannels)};
-/// A stored pitch mode shows as the first step, off.
+/// A mode the menu does not list (pitch) shows as the first step, off.
 constexpr engine::SettingDescriptorExtras kCv2SourceExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table = kCv2SourceModes},
+    .mapping = {.kind = engine::DisplayMappingKind::CHOICE_ORDER, .order = kCv2SourceModes},
     .applies_when = kCv2SourceConditions};
 
 constexpr SettingInfo kInstrumentDeviceTable[] = {

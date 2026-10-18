@@ -1708,7 +1708,8 @@ constexpr Skip kSkips[] = {
 /// The rows a legacy item shows but this spec reads only through named exceptions, and why.
 constexpr Skip kExceptions[] = {
     {"midiOutput/noteForDrum",
-     "unset (stored 255, outside the row) shows kNoteForDrum (60); the descriptor maps only 0..127"},
+     "unset (stored 255, outside the row) shows kUnsetDrumNoteShownAs (60) through CLAMP_HIGH; no menu value stores "
+     "it"},
     {"osc1/type",
      "with no input plugged in, the one input entry is INPUT_L under the name \"INPUT\"; a stored INPUT_R or "
      "INPUT_STEREO then reads past the list"},
@@ -1744,7 +1745,12 @@ const std::vector<Case>& group_cases() {
 	     .family = Family::INSTRUMENT_DEVICE,
 	     .item = &mpeyToModWheelMenu,
 	     .where = Where::MIDI_CLIP},
-	    {.path = "cv2Source", .family = Family::INSTRUMENT_DEVICE, .item = &cv2SourceMenu, .where = Where::CV_CLIP},
+	    // Stored 1 (pitch) is a mode the menu does not list: it reads as off.
+	    {.path = "cv2Source",
+	     .family = Family::INSTRUMENT_DEVICE,
+	     .item = &cv2SourceMenu,
+	     .where = Where::CV_CLIP,
+	     .stored = {1, 2, 3}},
 	    {.path = "collapseAftertouch",
 	     .family = Family::INSTRUMENT_DEVICE,
 	     .item = &midiAftertouchCollapseMenu,
