@@ -1713,9 +1713,6 @@ constexpr Skip kExceptions[] = {
      "with no input plugged in, the one input entry is INPUT_L under the name \"INPUT\"; a stored INPUT_R or "
      "INPUT_STEREO then reads past the list"},
     {"osc2/type", "as osc1/type"},
-    {"attack",
-     "the AUDIO_CLIP group's: the read is STANDARD; legacy's write stores computeCurrentValueForStandardMenuItem of "
-     "the menu value (menu 50 stores 25), a buggy write"},
     {"reverb/compressor/shape",
      "the read is STANDARD; legacy's write omits the top step's special case (menu 50 stores 2147483602, not "
      "2147483647)"},

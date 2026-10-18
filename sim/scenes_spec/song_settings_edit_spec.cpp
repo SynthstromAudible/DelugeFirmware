@@ -27,6 +27,7 @@
 #include "model/song/song.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/sound_drum.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/nodes/roots.h"
 #include "scenes/menu/nodes/sound_actions.h"
@@ -693,6 +694,20 @@ describe song_settings_edit("SetSetting", $ {
 		expect(static_cast<int>(ctx.sound->outputMidiNoteForDrum)).to_equal(61);
 	});
 
+	it("records the note-for-drum menu's note on every sound drum of a kit when affect-entire is held", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		SoundDrum* first = spec::add_drum<SoundDrum>(f);
+		SoundDrum* second = spec::add_drum<SoundDrum>(f);
+		auto ctx = deluge::scenes::menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		ctx.affect_entire_held = true;
+		deluge::scenes::menu::nodes::set_output_midi_note(ctx, 72);
+		for (SoundDrum* drum : {first, second}) {
+			const deluge::instrument::SoundState* state = drum->boundState();
+			expect(state != nullptr).to_be_true();
+			expect(static_cast<int>(state->output_midi_note_for_drum)).to_equal(72);
+		}
+	});
+
 	it("stores the audio clip attack menu's value as the standard conversion, and a stored 25 survives a save", _ {
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		const auto clip = deluge::bridge::audioClipAddressOf(*f.clip, *f.song);
@@ -708,7 +723,7 @@ describe song_settings_edit("SetSetting", $ {
 		deluge::scenes::menu::nodes::set_audio_clip_attack(ctx, 50);
 		expect(recorded(*f.song, address, "attack")).to_equal(std::string{"2147483647"});
 
-		// A song a save wrote with attack 25 loads as 25 and saves 25.
+		// A DocAudioClip decode/encode round trip of a stored 25: the record loads and saves it unchanged.
 		deluge::project::DocAudioClip saved;
 		saved.attack = 25;
 		deluge::project::DocAudioClip loaded;
