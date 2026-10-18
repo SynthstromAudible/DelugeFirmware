@@ -101,6 +101,17 @@ constexpr SettingInfo kMaxVoices{
     .extras = &kMaxVoicesExtras,
 };
 
+// A sound's MIDI note for a drum: unset is stored 255, outside the row, and the menu shows 60 there.
+constexpr SettingDescriptorExtras kNoteForDrumExtras{
+    .mapping = {.kind = DisplayMappingKind::CLAMP_HIGH, .clamp_to = 60}};
+constexpr SettingInfo kNoteForDrum{
+    .path = "midiOutput/noteForDrum",
+    .min = 0,
+    .max = 127,
+    .user = {.user_min = 0, .user_max = 127, .stored_min = 0, .stored_max = 127},
+    .extras = &kNoteForDrumExtras,
+};
+
 // The sidechain's own rate tables.
 using deluge::engine::kSidechainAttackRates;
 using deluge::engine::kSidechainReleaseRates;
@@ -290,6 +301,19 @@ describe display_mapping("A setting's display mapping", $ {
 		expect(stored_of(kMaxVoices, 0)).to_equal(Pair{127, 0});
 		expect(stored_of(kMaxVoices, 16)).to_equal(Pair{16, 0});
 		expect(from_menu(kMaxVoices, 17).has_value()).to_be_false();
+	});
+
+	it("shows an unset drum note (stored 255) as 60, and no menu value stores 255", _ {
+		expect(to_menu(kNoteForDrum, 255)).to_equal(60);
+		for (int32_t note = 0; note <= 127; ++note) {
+			expect(to_menu(kNoteForDrum, note)).to_equal(note);
+			expect(stored_of(kNoteForDrum, note)).to_equal(Pair{note, 0});
+		}
+		expect(menu_range(kNoteForDrum)).to_equal(Pair{0, 127});
+		for (int32_t menu = -1; menu <= 256; ++menu) {
+			const std::optional<Pair> stored = from_menu(kNoteForDrum, menu);
+			expect(!stored.has_value() || stored->first != 255).to_be_true();
+		}
 	});
 
 	it("stores a sidechain attack or release as its rate table's entry, shifted", _ {

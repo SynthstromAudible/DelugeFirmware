@@ -77,6 +77,11 @@ constexpr std::array<engine::SettingSentinel, 1> kMaxVoicesSentinels{{{.user = 0
 constexpr engine::SettingDescriptorExtras kMaxVoicesExtras{
     .mapping = {.kind = engine::DisplayMappingKind::CLAMP_HIGH, .clamp_to = 0}};
 
+/// The note an unset drum note (stored 255, past the row) plays and shows as.
+constexpr int32_t kUnsetDrumNoteShownAs = 60;
+constexpr engine::SettingDescriptorExtras kNoteForDrumExtras{
+    .mapping = {.kind = engine::DisplayMappingKind::CLAMP_HIGH, .clamp_to = kUnsetDrumNoteShownAs}};
+
 /// A sample's repeat mode as its stored number, in SampleRepeatMode's order (cut, once, loop, stretch).
 constexpr std::array<std::string_view, 4> kLoopModes{"0", "1", "2", "3"};
 static_assert(std::to_underlying(SampleRepeatMode::STRETCH) + 1 == kLoopModes.size());
@@ -257,8 +262,13 @@ constexpr std::array kRows{
                 .choices = kMidiChannels,
                 .default_value = kDefaultMidiChannel,
                 .extras = &kMidiChannelExtras},
-    // A new sound's note is unset (255, outside the row): its menu shows kNoteForDrum there.
-    SettingInfo{.path = "midiOutput/noteForDrum", .min = 0, .max = 127},
+    // A new sound's note is unset (255, outside the row): its menu shows kNoteForDrum there, and no menu value stores
+    // it.
+    SettingInfo{.path = "midiOutput/noteForDrum",
+                .min = 0,
+                .max = 127,
+                .user = {.user_min = 0, .user_max = 127, .stored_min = 0, .stored_max = 127},
+                .extras = &kNoteForDrumExtras},
 };
 
 #undef OSC_ROWS
