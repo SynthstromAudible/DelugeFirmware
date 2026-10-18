@@ -51,8 +51,9 @@ enum class SettingGroupId : uint8_t {
 /// @brief How many setting groups there are. Code that numbers owners after the groups (the host's name table)
 /// derives its indices from it.
 ///
-/// A new group is appended to SettingGroupId, given a case in `is_counted_by_group_count`, and raises this by one;
-/// the static_assert after that function fails until all three are done.
+/// To add a group: append it to SettingGroupId, give it a case in `is_counted_by_group_count`, raise this by one, and
+/// change the group the static_assert after that function names as the last. A bump that is forgotten is not caught:
+/// the assert still holds for the old last group, and the new enumerator has no sentinel to check it against.
 inline constexpr uint8_t kSettingGroupCount = 11;
 
 /// @brief Whether kSettingGroupCount counts @p group. It exists for the static_assert below: the switch names every
