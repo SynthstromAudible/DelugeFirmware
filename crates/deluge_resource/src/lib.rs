@@ -708,6 +708,56 @@ mod tests {
         assert!(!unsafe { deluge_resource_loader_has_lowest(mgr) });
     }
 
+    /// A re-enqueue of a still-queued chunk only ever makes it more urgent: a less urgent
+    /// requester (a lowest-priority reservation re-requesting a chunk a voice is waiting on) must
+    /// not push it to the back of the queue. Once popped, an enqueue starts afresh, so a failed
+    /// read can still be requeued at the lowest priority.
+    #[test]
+    fn loader_re_enqueue_only_raises_priority_while_queued() {
+        let (_buf, h) = arena(256 * 1024);
+        let mgr = unsafe { deluge_resource_create(h, 16, 64) };
+        let a = unsafe {
+            deluge_resource_define_asset(
+                mgr,
+                owner(13),
+                Some(mock_materialize),
+                Some(mock_on_evict),
+                core::ptr::null_mut(),
+                COST_IO,
+                BACKING_HEAP,
+            )
+        };
+        let acq = |i: u32| unsafe { deluge_resource_acquire(mgr, a, i, 64 * 1024) };
+        let (p0, p1, p2) = (acq(0), acq(1), acq(2));
+        let slot = |p| unsafe { deluge_resource_slot_of(mgr, p) };
+        let (s0, s1, s2) = (slot(p0), slot(p1), slot(p2));
+
+        // Plain protocol: s0 is wanted urgently, then re-requested at the lowest priority.
+        unsafe { deluge_resource_loader_enqueue(mgr, s0, 10) };
+        unsafe { deluge_resource_loader_enqueue(mgr, s1, 20) };
+        unsafe { deluge_resource_loader_enqueue(mgr, s0, u32::MAX) };
+        assert!(
+            !unsafe { deluge_resource_loader_has_lowest(mgr) },
+            "a less urgent re-enqueue keeps the queued priority"
+        );
+        // A more urgent re-enqueue still raises it.
+        unsafe { deluge_resource_loader_enqueue(mgr, s1, 5) };
+        assert_eq!(unsafe { deluge_resource_loader_next(mgr) }, p1);
+        assert_eq!(unsafe { deluge_resource_loader_next(mgr) }, p0);
+
+        // Once popped, an enqueue sets the priority afresh (the failed-read requeue).
+        unsafe { deluge_resource_loader_enqueue(mgr, s0, u32::MAX) };
+        assert!(unsafe { deluge_resource_loader_has_lowest(mgr) });
+        unsafe { deluge_resource_loader_remove(mgr, s0) };
+
+        // The owned protocol follows the same rule.
+        unsafe { deluge_resource_loader_enqueue_owned(mgr, s2, 10) };
+        unsafe { deluge_resource_loader_enqueue_owned(mgr, s2, u32::MAX) };
+        assert!(!unsafe { deluge_resource_loader_has_lowest(mgr) });
+        assert_eq!(unsafe { deluge_resource_loader_next(mgr) }, p2);
+        unsafe { deluge_resource_loader_release_owned(mgr, s2) };
+    }
+
     /// `loader_next` serves only leased chunks, so a plain entry whose enqueuer drops its lease is
     /// never loaded; `loader_enqueue_owned` gives the queue its own lease. Also covers the release
     /// discipline that keeps a queue lease from pinning the chunk forever.

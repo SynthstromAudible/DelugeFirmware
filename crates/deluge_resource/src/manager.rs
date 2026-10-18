@@ -171,6 +171,18 @@ impl ChunkSlot {
         ptr_next: NONE,
         queued_at: 0,
     };
+
+    /// Queues this chunk at `priority` (lower = more urgent). While it is already queued the
+    /// priority only rises, so a less urgent requester can't push back a chunk someone more urgent
+    /// waits on. Once `loader_next` has popped it, the priority is set afresh.
+    fn queue_at(&mut self, priority: u32) {
+        self.queue_priority = if self.queued {
+            self.queue_priority.min(priority)
+        } else {
+            priority
+        };
+        self.queued = true;
+    }
 }
 
 // The audio sample timer, provided by the C++ side, for the loader-latency fields of `Stats`.
@@ -621,8 +633,9 @@ impl Manager {
 
     // Load queue (per-slot state; see `ChunkSlot::queued`)
 
-    /// Enqueues the chunk at `slot` at `priority` (lower = more urgent); a re-enqueue updates the
-    /// priority. No-op if `slot` is out of range or free.
+    /// Enqueues the chunk at `slot` at `priority` (lower = more urgent). A re-enqueue while still
+    /// queued only raises the priority (see `ChunkSlot::queue_at`). No-op if `slot` is out of range
+    /// or free.
     pub(crate) fn loader_enqueue(&self, slot: u32, priority: u32) {
         let i = slot as usize;
         if i >= self.chunks.len() {
@@ -632,8 +645,7 @@ impl Manager {
             if s.backing.is_null() {
                 return;
             }
-            s.queued = true;
-            s.queue_priority = priority;
+            s.queue_at(priority);
             // SAFETY: a plain counter read; no preconditions.
             s.queued_at = unsafe { deluge_debug_now_frames() };
         });
@@ -642,7 +654,7 @@ impl Manager {
     /// Enqueues the chunk at `slot` and takes a queue-owned hard lease, so the entry survives the
     /// enqueuer dropping its own (see `ChunkSlot::queue_leased`).
     ///
-    /// A re-enqueue updates the priority without a second lease. Every terminal path of the drain
+    /// A re-enqueue raises the priority as `loader_enqueue` does, without a second lease. Every terminal path of the drain
     /// must call `loader_release_owned` (or `loader_remove`); a stranded queue lease pins the chunk
     /// forever. No-op if `slot` is out of range or free.
     pub(crate) fn loader_enqueue_owned(&self, slot: u32, priority: u32) {
@@ -658,8 +670,7 @@ impl Manager {
                 s.leases += 1;
                 s.queue_leased = true;
             }
-            s.queued = true;
-            s.queue_priority = priority;
+            s.queue_at(priority);
         });
     }
 
@@ -1969,8 +1980,8 @@ pub unsafe extern "C" fn deluge_resource_external_lease_count_by_slot(
 
 // Load queue
 
-/// Enqueues the chunk at `slot` at `priority` (lower = more urgent); a re-enqueue updates the
-/// priority. The caller must keep its own lease until the load lands.
+/// Enqueues the chunk at `slot` at `priority` (lower = more urgent); a re-enqueue while still
+/// queued only raises the priority. The caller must keep its own lease until the load lands.
 ///
 /// # Safety
 ///

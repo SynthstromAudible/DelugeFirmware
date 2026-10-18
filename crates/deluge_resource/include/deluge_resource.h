@@ -192,7 +192,8 @@ uint32_t deluge_resource_external_lease_count_by_slot(DelugeResource* mgr, uint3
 
 /// Cluster load queue (per-slot state inside the manager; replaces the C++ ClusterPriorityQueue). The
 /// priority is the caller's audio-domain rating — lower = more urgent.
-/// enqueue the chunk at `slot` (re-enqueue updates the priority); remove de-queues it (and drops any
+/// enqueue the chunk at `slot` (a re-enqueue while still queued only raises the priority, so a less
+/// urgent requester cannot push back a chunk someone more urgent waits on); remove de-queues it (and drops any
 /// queue-owned lease, so an erased entry cannot leave the chunk pinned).
 void deluge_resource_loader_enqueue(DelugeResource* mgr, uint32_t slot, uint32_t priority);
 void deluge_resource_loader_remove(DelugeResource* mgr, uint32_t slot);
@@ -202,8 +203,8 @@ void deluge_resource_loader_remove(DelugeResource* mgr, uint32_t slot);
 /// deluge_resource_loader_next serves only leased chunks (filling an evictable one could write into a
 /// recycled slot) and silently discards the rest, so a caller that cannot hold its own lease until the
 /// load lands — a fire-and-forget "fill this eventually" — must enqueue through this instead, letting
-/// the queue hold the lease the guard requires. Idempotent in the lease: re-enqueueing updates the
-/// priority without taking a second one.
+/// the queue hold the lease the guard requires. Idempotent in the lease: re-enqueueing raises the
+/// priority as deluge_resource_loader_enqueue does, without taking a second one.
 ///
 /// @warning Every terminal path of the loader MUST pair this with
 /// deluge_resource_loader_release_owned. A stranded queue lease pins the chunk against eviction for

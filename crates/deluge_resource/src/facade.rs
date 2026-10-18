@@ -86,8 +86,8 @@ impl<'m> Resource<'m> {
         self.mgr.chunk_ident(chunk.as_ptr())
     }
 
-    /// Enqueues the chunk at `slot` at `priority` (lower = more urgent); a re-enqueue updates the
-    /// priority.
+    /// Enqueues the chunk at `slot` at `priority` (lower = more urgent); a re-enqueue while still
+    /// queued only raises the priority.
     pub fn loader_enqueue(&self, slot: u32, priority: u32) {
         self.mgr.loader_enqueue(slot, priority);
     }
