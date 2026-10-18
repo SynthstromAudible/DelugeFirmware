@@ -63,26 +63,39 @@ enum class SettingUnits : uint8_t { NONE, SEMITONES, CENTS, MILLISECONDS, SYNC_L
 struct SettingContext {
 	/// @brief What holds the setting.
 	enum class Owner : uint8_t { TRACK, KIT_LANE, KIT, CLIP, SONG };
+	/// @brief What plays the owner's notes: its track's instrument, or on a kit lane, the lane's drum. NONE for the
+	/// song.
+	enum class Instrument : uint8_t { NONE, SYNTH, KIT, SOUND_DRUM, MIDI_DRUM, GATE_DRUM, MIDI, CV, AUDIO };
 	Owner owner{Owner::TRACK};
+	Instrument instrument{Instrument::NONE};
 	bool audio_inputs_present{false}; ///< any audio input is plugged in
+	/// The owner's sound sources that hold a loaded audio file, a bit each (bit 0 the first source); 0 off a sound.
+	uint8_t loaded_sources{0};
 };
 
+/// @brief The sources a sound has, and so the bits SettingContext::loaded_sources uses.
+inline constexpr std::size_t kMaxSoundSources = 2;
+
 /// @brief One fact a setting's menu depends on. A condition holds when its subject's value is one of `values` (IS) or
-/// none of them (IS_NOT). Build one with setting_is, setting_is_not, owner_is, owner_is_not, inputs_are or never.
+/// none of them (IS_NOT). Build one with setting_is, setting_is_not, owner_is, owner_is_not, instrument_is,
+/// instrument_is_not, inputs_are, source_loaded or never.
 struct SettingCondition {
 	/// @brief What the condition reads. NEVER reads nothing and holds for no one.
-	enum class Subject : uint8_t { SETTING, OWNER, INPUTS_PRESENT, NEVER };
+	enum class Subject : uint8_t { SETTING, OWNER, INSTRUMENT, INPUTS_PRESENT, LOADED_SOURCES, NEVER };
 	enum class Test : uint8_t { IS, IS_NOT };
 	Subject subject{Subject::SETTING};
 	Test test{Test::IS};
 	std::string_view path; ///< SETTING: a row of the same owner (its stored value; a CHOICE row's index)
-	std::span<const int32_t>
-	    values; ///< SETTING: stored values; OWNER: SettingContext::Owner values; INPUTS_PRESENT: {1} or {0}
+	/// SETTING: stored values; OWNER: SettingContext::Owner values; INSTRUMENT: SettingContext::Instrument values;
+	/// INPUTS_PRESENT: {1} or {0}; LOADED_SOURCES: SettingContext::loaded_sources masks. Never empty but for NEVER.
+	std::span<const int32_t> values;
 };
 
 /// @brief The values inputs_are tests against.
 inline constexpr std::array<int32_t, 1> kInputsPresentValue{1};
 inline constexpr std::array<int32_t, 1> kInputsAbsentValue{0};
+/// @brief The loaded_sources masks in which source 0 (first row) or source 1 (second row) holds a loaded file.
+inline constexpr std::array<std::array<int32_t, 2>, kMaxSoundSources> kSourceLoadedMasks{{{1, 3}, {2, 3}}};
 
 /// @brief A condition that holds when the owner's setting @p path stores one of @p values.
 [[nodiscard]] constexpr SettingCondition setting_is(std::string_view path, std::span<const int32_t> values) {
@@ -99,6 +112,21 @@ inline constexpr std::array<int32_t, 1> kInputsAbsentValue{0};
 /// @brief A condition that holds when the owner is none of @p values (SettingContext::Owner values).
 [[nodiscard]] constexpr SettingCondition owner_is_not(std::span<const int32_t> values) {
 	return {SettingCondition::Subject::OWNER, SettingCondition::Test::IS_NOT, {}, values};
+}
+/// @brief A condition that holds when what plays the owner's notes is one of @p values (SettingContext::Instrument
+/// values).
+[[nodiscard]] constexpr SettingCondition instrument_is(std::span<const int32_t> values) {
+	return {SettingCondition::Subject::INSTRUMENT, SettingCondition::Test::IS, {}, values};
+}
+/// @brief A condition that holds when what plays the owner's notes is none of @p values (SettingContext::Instrument
+/// values).
+[[nodiscard]] constexpr SettingCondition instrument_is_not(std::span<const int32_t> values) {
+	return {SettingCondition::Subject::INSTRUMENT, SettingCondition::Test::IS_NOT, {}, values};
+}
+/// @brief A condition that holds when the owner's sound source @p source (0 the first) holds a loaded audio file.
+/// @pre @p source < kMaxSoundSources.
+[[nodiscard]] constexpr SettingCondition source_loaded(std::size_t source) {
+	return {SettingCondition::Subject::LOADED_SOURCES, SettingCondition::Test::IS, {}, kSourceLoadedMasks[source]};
 }
 /// @brief A condition that holds when audio inputs are present (@p present true) or absent (false).
 [[nodiscard]] constexpr SettingCondition inputs_are(bool present) {
@@ -190,8 +218,14 @@ inline constexpr DisplayMapping kLinearMapping{};
 	case SettingCondition::Subject::OWNER:
 		subject = static_cast<int32_t>(context.owner);
 		break;
+	case SettingCondition::Subject::INSTRUMENT:
+		subject = static_cast<int32_t>(context.instrument);
+		break;
 	case SettingCondition::Subject::INPUTS_PRESENT:
 		subject = context.audio_inputs_present ? 1 : 0;
+		break;
+	case SettingCondition::Subject::LOADED_SOURCES:
+		subject = context.loaded_sources;
 		break;
 	case SettingCondition::Subject::NEVER:
 		return false;
@@ -330,10 +364,20 @@ inline constexpr DisplayMapping kLinearMapping{};
 /// @brief Whether @p condition is well formed against the table @p rows.
 /// @param rows      The owner's table.
 /// @param condition The condition.
-/// @return For SETTING: its path names a row of @p rows that is not STRUCTURED or TEXT, and each value is one that row
-///         can store. For OWNER: each value is a SettingContext::Owner. For INPUTS_PRESENT: each value is 0 or 1. For
-///         NEVER: no path and no values.
+/// @return For every subject but NEVER, at least one value (an empty IS holds for no one, which is NEVER's to say). For
+///         SETTING: its path names a row of @p rows that is not STRUCTURED or TEXT, and each value is one that row can
+///         store. For OWNER and INSTRUMENT: no path, and each value is one of the enum's. For INPUTS_PRESENT: no path,
+///         and each value is 0 or 1. For LOADED_SOURCES: no path, and each value is a mask of kMaxSoundSources bits.
+///         For NEVER: no path and no values.
 [[nodiscard]] constexpr bool condition_is_valid(std::span<const SettingInfo> rows, const SettingCondition& condition) {
+	const auto values_within = [&](int32_t least, int32_t greatest) {
+		return condition.path.empty() && std::ranges::all_of(condition.values, [&](int32_t value) {
+			       return value >= least && value <= greatest;
+		       });
+	};
+	if (condition.subject != SettingCondition::Subject::NEVER && condition.values.empty()) {
+		return false;
+	}
 	switch (condition.subject) {
 	case SettingCondition::Subject::SETTING: {
 		const SettingInfo* target = find_setting(rows, condition.path);
@@ -341,12 +385,13 @@ inline constexpr DisplayMapping kLinearMapping{};
 		       && std::ranges::all_of(condition.values, [&](int32_t value) { return stores_value(*target, value); });
 	}
 	case SettingCondition::Subject::OWNER:
-		return condition.path.empty() && std::ranges::all_of(condition.values, [](int32_t value) {
-			       return value >= 0 && value <= static_cast<int32_t>(SettingContext::Owner::SONG);
-		       });
+		return values_within(0, static_cast<int32_t>(SettingContext::Owner::SONG));
+	case SettingCondition::Subject::INSTRUMENT:
+		return values_within(0, static_cast<int32_t>(SettingContext::Instrument::AUDIO));
 	case SettingCondition::Subject::INPUTS_PRESENT:
-		return condition.path.empty()
-		       && std::ranges::all_of(condition.values, [](int32_t value) { return value == 0 || value == 1; });
+		return values_within(0, 1);
+	case SettingCondition::Subject::LOADED_SOURCES:
+		return values_within(0, (1 << kMaxSoundSources) - 1);
 	case SettingCondition::Subject::NEVER:
 		return condition.path.empty() && condition.values.empty();
 	}

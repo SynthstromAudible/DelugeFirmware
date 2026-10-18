@@ -24,12 +24,15 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <vector>
 
 namespace {
 using deluge::engine::ChoiceCondition;
 using deluge::engine::inputs_are;
+using deluge::engine::instrument_is;
+using deluge::engine::instrument_is_not;
 using deluge::engine::never;
 using deluge::engine::owner_is;
 using deluge::engine::owner_is_not;
@@ -41,6 +44,8 @@ using deluge::engine::SettingDescriptorExtras;
 using deluge::engine::SettingInfo;
 using deluge::engine::SettingKind;
 using deluge::engine::SettingReader;
+using deluge::engine::source_loaded;
+using Instrument = SettingContext::Instrument;
 using Owner = SettingContext::Owner;
 
 /// An owner holding named values; a path it does not hold is recorded.
@@ -136,6 +141,15 @@ constexpr std::array kNeverWithValues{
     SettingCondition{SettingCondition::Subject::NEVER, SettingCondition::Test::IS, {}, kSomeValue}};
 constexpr std::array kNeverWithPath{
     SettingCondition{SettingCondition::Subject::NEVER, SettingCondition::Test::IS, "mode", {}}};
+constexpr std::array<int32_t, 1> kNotAnInstrument{9};
+constexpr std::array<int32_t, 1> kPastTheMasks{4};
+constexpr std::array kBadInstrument{instrument_is(kNotAnInstrument)};
+constexpr std::array kBadMask{
+    SettingCondition{SettingCondition::Subject::LOADED_SOURCES, SettingCondition::Test::IS, {}, kPastTheMasks}};
+// An empty IS holds for no one: NEVER says that, so an empty list is refused on every other subject.
+constexpr std::array kEmptyOwners{owner_is({})};
+constexpr std::array kEmptySetting{setting_is("mode", {})};
+constexpr std::array kEmptyInstruments{instrument_is_not({})};
 
 constexpr SettingDescriptorExtras kOutOfRangeExtras{.applies_when = kOutOfRange};
 constexpr SettingDescriptorExtras kOnTextExtras{.applies_when = kOnText};
@@ -143,6 +157,11 @@ constexpr SettingDescriptorExtras kBadOwnerExtras{.applies_when = kBadOwner};
 constexpr SettingDescriptorExtras kBadInputsExtras{.applies_when = kBadInputs};
 constexpr SettingDescriptorExtras kNeverWithValuesExtras{.applies_when = kNeverWithValues};
 constexpr SettingDescriptorExtras kNeverWithPathExtras{.applies_when = kNeverWithPath};
+constexpr SettingDescriptorExtras kBadInstrumentExtras{.applies_when = kBadInstrument};
+constexpr SettingDescriptorExtras kBadMaskExtras{.applies_when = kBadMask};
+constexpr SettingDescriptorExtras kEmptyOwnersExtras{.applies_when = kEmptyOwners};
+constexpr SettingDescriptorExtras kEmptySettingExtras{.applies_when = kEmptySetting};
+constexpr SettingDescriptorExtras kEmptyInstrumentsExtras{.applies_when = kEmptyInstruments};
 
 constexpr std::array kPastEnd{ChoiceCondition{12, kNotRing}};
 constexpr std::array kTwice{ChoiceCondition{7, kNotRing}, ChoiceCondition{7, kNever}};
@@ -155,6 +174,11 @@ constexpr std::array kBadOwnerRows{SettingInfo{.path = "x", .extras = &kBadOwner
 constexpr std::array kBadInputsRows{SettingInfo{.path = "x", .extras = &kBadInputsExtras}};
 constexpr std::array kNeverWithValuesRows{SettingInfo{.path = "x", .extras = &kNeverWithValuesExtras}};
 constexpr std::array kNeverWithPathRows{kMode, SettingInfo{.path = "x", .extras = &kNeverWithPathExtras}};
+constexpr std::array kBadInstrumentRows{SettingInfo{.path = "x", .extras = &kBadInstrumentExtras}};
+constexpr std::array kBadMaskRows{SettingInfo{.path = "x", .extras = &kBadMaskExtras}};
+constexpr std::array kEmptyOwnersRows{SettingInfo{.path = "x", .extras = &kEmptyOwnersExtras}};
+constexpr std::array kEmptySettingRows{kMode, SettingInfo{.path = "x", .extras = &kEmptySettingExtras}};
+constexpr std::array kEmptyInstrumentsRows{SettingInfo{.path = "x", .extras = &kEmptyInstrumentsExtras}};
 constexpr std::array kPastEndRows{
     kMode, SettingInfo{.path = "type", .kind = SettingKind::CHOICE, .choices = kTypes, .extras = &kPastEndExtras}};
 constexpr std::array kTwiceRows{
@@ -173,6 +197,11 @@ static_assert(!deluge::engine::conditions_are_valid(kBadOwnerRows));   // not an
 static_assert(!deluge::engine::conditions_are_valid(kBadInputsRows));  // not 0 or 1
 static_assert(!deluge::engine::conditions_are_valid(kNeverWithValuesRows));
 static_assert(!deluge::engine::conditions_are_valid(kNeverWithPathRows));
+static_assert(!deluge::engine::conditions_are_valid(kBadInstrumentRows)); // not an Instrument
+static_assert(!deluge::engine::conditions_are_valid(kBadMaskRows));       // a bit past the sound's sources
+static_assert(!deluge::engine::conditions_are_valid(kEmptyOwnersRows));   // owner_is({}): NEVER's to say
+static_assert(!deluge::engine::conditions_are_valid(kEmptySettingRows));
+static_assert(!deluge::engine::conditions_are_valid(kEmptyInstrumentsRows));
 static_assert(!deluge::engine::conditions_are_valid(kPastEndRows));       // a choice past the row's choices
 static_assert(!deluge::engine::conditions_are_valid(kTwiceRows));         // a choice listed twice
 static_assert(!deluge::engine::conditions_are_valid(kChoicesOnPlainRow)); // choice conditions on a row with no choices
@@ -247,6 +276,44 @@ describe setting_condition("A setting's applicability as data", $ {
 		expect(deluge::engine::setting_applies(needs, {.audio_inputs_present = false}, none.reader())).to_be_false();
 		expect(deluge::engine::setting_applies(lacks, {.audio_inputs_present = true}, none.reader())).to_be_false();
 		expect(deluge::engine::setting_applies(lacks, {.audio_inputs_present = false}, none.reader())).to_be_true();
+	});
+
+	it("tests what plays the owner's notes against a set of instruments", _ {
+		constexpr std::array<int32_t, 4> kNonSound{
+		    static_cast<int32_t>(Instrument::MIDI), static_cast<int32_t>(Instrument::CV),
+		    static_cast<int32_t>(Instrument::MIDI_DRUM), static_cast<int32_t>(Instrument::GATE_DRUM)};
+		constexpr std::array<int32_t, 1> kGate{static_cast<int32_t>(Instrument::GATE_DRUM)};
+		const std::array conditions{instrument_is(kNonSound), instrument_is_not(kGate)};
+		const SettingDescriptorExtras extras{.applies_when = conditions};
+		const SettingInfo row{.path = "played", .extras = &extras};
+		const Held none{};
+		const auto applies = [&](Instrument instrument) {
+			return deluge::engine::setting_applies(row, {.instrument = instrument}, none.reader());
+		};
+		expect(applies(Instrument::MIDI)).to_equal(true);
+		expect(applies(Instrument::CV)).to_equal(true);
+		expect(applies(Instrument::MIDI_DRUM)).to_equal(true);
+		expect(applies(Instrument::GATE_DRUM)).to_equal(false);
+		expect(applies(Instrument::SYNTH)).to_equal(false);
+		expect(applies(Instrument::SOUND_DRUM)).to_equal(false);
+		expect(applies(Instrument::NONE)).to_equal(false);
+		expect(none.unknown.empty()).to_equal(true);
+	});
+
+	it("tests whether a sound source holds a loaded file", _ {
+		const std::array first{source_loaded(0)};
+		const std::array second{source_loaded(1)};
+		const SettingDescriptorExtras first_extras{.applies_when = first};
+		const SettingDescriptorExtras second_extras{.applies_when = second};
+		const SettingInfo one{.path = "one", .extras = &first_extras};
+		const SettingInfo two{.path = "two", .extras = &second_extras};
+		const Held none{};
+		for (const auto& [mask, want_one, want_two] :
+		     {std::tuple{0, false, false}, std::tuple{1, true, false}, std::tuple{2, false, true}, std::tuple{3, true, true}}) {
+			const SettingContext shown{.loaded_sources = static_cast<uint8_t>(mask)};
+			expect(deluge::engine::setting_applies(one, shown, none.reader())).to_equal(want_one);
+			expect(deluge::engine::setting_applies(two, shown, none.reader())).to_equal(want_two);
+		}
 	});
 
 	it("leaves a choice with no entry applying everywhere", _ {

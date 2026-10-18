@@ -264,6 +264,7 @@ describe settings("the Deluge instrument's settings schema", ${
 		const auto input_r = static_cast<size_t>(OscType::INPUT_R);
 		const SettingContext track{.owner = SettingContext::Owner::TRACK};
 		const SettingContext lane{.owner = SettingContext::Owner::KIT_LANE};
+		const SettingContext whole_kit{.owner = SettingContext::Owner::KIT};
 		const SettingContext plugged{.owner = SettingContext::Owner::TRACK, .audio_inputs_present = true};
 		const ModeReader subtractive{static_cast<int32_t>(SynthMode::SUBTRACTIVE)};
 		const ModeReader ring{static_cast<int32_t>(SynthMode::RINGMOD)};
@@ -274,6 +275,7 @@ describe settings("the Deluge instrument's settings schema", ${
 		expect(deluge::engine::applicable_choice_count(row, plugged, subtractive.reader())).to_equal(12);
 		expect(deluge::engine::setting_choice_applies(row, track, subtractive.reader(), dx7)).to_be_true();
 		expect(deluge::engine::setting_choice_applies(row, lane, subtractive.reader(), dx7)).to_be_false();
+		expect(deluge::engine::setting_choice_applies(row, whole_kit, subtractive.reader(), dx7)).to_be_false();
 		expect(deluge::engine::setting_choice_applies(row, track, subtractive.reader(), input_r)).to_be_false();
 		expect(deluge::engine::setting_choice_applies(row, plugged, subtractive.reader(), input_r)).to_be_true();
 		expect(deluge::engine::setting_choice_applies(row, plugged, ring.reader(), input_r)).to_be_false();
@@ -301,6 +303,20 @@ describe settings("the Deluge instrument's settings schema", ${
 		    .to_have_value();
 		expect(deluge::engine::choice_at_position(row, track, reader, 9)).not_().to_have_value();
 		expect(deluge::engine::choice_at_position(row, track, reader, -1)).not_().to_have_value();
+	});
+
+	it("reads, for a condition, the value a sound holds where its menu does not show it", _ {
+		SoundState fm = new_synth_state();
+		fm.synth_mode = SynthMode::FM;
+		fm.sources[0].osc_type = OscType::SAMPLE;
+		expect(setting_value(fm, "osc1/type")).not_().to_have_value();
+		expect(held_setting(fm, "osc1/type").value_or(-1)).to_equal(static_cast<int32_t>(OscType::SAMPLE));
+		expect(held_setting(fm, "mode").value_or(-1)).to_equal(static_cast<int32_t>(SynthMode::FM));
+		const SoundState subtractive = new_synth_state();
+		expect(setting_value(subtractive, "modulator1/transpose")).not_().to_have_value();
+		expect(held_setting(subtractive, "modulator1/transpose")).to_have_value();
+		expect(held_setting(subtractive, "osc1/sampleRanges")).not_().to_have_value();
+		expect(held_setting(subtractive, "no/such/path")).not_().to_have_value();
 	});
 
 	it("shows each LFO's sync as one menu value over its level and its type", _ {

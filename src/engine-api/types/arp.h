@@ -20,13 +20,15 @@
 /// @file
 /// @brief An arpeggiator's settings: the table a menu reads, the words a file writes, and the presets.
 ///
-/// Every row's path is `arpeggiator/<the file's attribute>`. The setting rows apply to every arp. The host rows (rate,
+/// Every row's path is `arpeggiator/<the file's attribute>`. The setting rows are every arp's, each shown where its
+/// menu says (a gate row's arp has no octaves, and the whole kit's no MPE). The host rows (rate,
 /// gate, rhythm, …) are params on a sound and on the whole-kit arp; they are settings only on a MIDI or CV clip and
 /// on a MIDI or gate kit row, where nothing automates them. A file writes them as signed 32-bit numbers.
 
 #include "engine-api/types/setting.h"
 #include "engine-api/types/sync.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -78,41 +80,98 @@ inline constexpr int32_t kArpChordTypes = 9;
 
 namespace arp_detail {
 
-constexpr SettingInfo choice(std::string_view path, std::span<const std::string_view> words,
-                             int32_t default_value = 0) {
-	return SettingInfo{.path = path, .kind = SettingKind::CHOICE, .choices = words, .default_value = default_value};
+constexpr SettingInfo choice(std::string_view path, std::span<const std::string_view> words, int32_t default_value = 0,
+                             const SettingDescriptorExtras* extras = nullptr) {
+	return SettingInfo{
+	    .path = path, .kind = SettingKind::CHOICE, .choices = words, .default_value = default_value, .extras = extras};
 }
 
 constexpr SettingInfo integer(std::string_view path, int32_t min, int32_t max, int32_t default_value,
-                              SettingUnits units = SettingUnits::NONE) {
+                              SettingUnits units = SettingUnits::NONE,
+                              const SettingDescriptorExtras* extras = nullptr) {
 	return SettingInfo{.path = path,
 	                   .kind = SettingKind::INTEGER,
 	                   .min = min,
 	                   .max = max,
 	                   .default_value = default_value,
-	                   .units = units};
+	                   .units = units,
+	                   .extras = extras};
 }
 
 /// The sync menu: one value over the level and the type row.
 inline constexpr SettingDescriptorExtras kSyncExtras{
     .mapping = {.kind = DisplayMappingKind::COMBINED_SYNC, .partner = "arpeggiator/syncType"}};
 
-/// The owners a kit lane stands for.
-inline constexpr std::array<int32_t, 1> kKitLaneOwner{static_cast<int32_t>(SettingContext::Owner::KIT_LANE)};
+using Instrument = SettingContext::Instrument;
+using Owner = SettingContext::Owner;
+
+inline constexpr std::array<int32_t, 1> kKitLaneOwner{static_cast<int32_t>(Owner::KIT_LANE)};
+/// The whole kit's arp: its menu has no MPE, octave or chord rows.
+inline constexpr std::array<int32_t, 1> kWholeKitOwner{static_cast<int32_t>(Owner::KIT)};
+/// A gate row plays a gate, with no pitch, octave or velocity to arpeggiate.
+inline constexpr std::array<int32_t, 1> kGateDrum{static_cast<int32_t>(Instrument::GATE_DRUM)};
+/// What plays an arp with no sound: a MIDI or CV track, or a MIDI or gate kit row.
+inline constexpr std::array<int32_t, 4> kNonSound{
+    static_cast<int32_t>(Instrument::MIDI), static_cast<int32_t>(Instrument::CV),
+    static_cast<int32_t>(Instrument::MIDI_DRUM), static_cast<int32_t>(Instrument::GATE_DRUM)};
+/// What plays an arp with no sound and a pitch: a MIDI or CV track, or a MIDI kit row.
+inline constexpr std::array<int32_t, 3> kPitchedNonSound{static_cast<int32_t>(Instrument::MIDI),
+                                                         static_cast<int32_t>(Instrument::CV),
+                                                         static_cast<int32_t>(Instrument::MIDI_DRUM)};
+/// A MIDI or CV track: what plays chords.
+inline constexpr std::array<int32_t, 2> kMidiOrCv{static_cast<int32_t>(Instrument::MIDI),
+                                                  static_cast<int32_t>(Instrument::CV)};
+inline constexpr std::array<int32_t, 1> kArpOffValue{kArpModeOff};
+
 /// As-played and pattern order the notes a whole instrument holds, so a kit lane's note mode menu stops before them.
 inline constexpr std::array kOffKitLane{owner_is_not(kKitLaneOwner)};
-inline constexpr std::size_t kAsPlayedMode = 7;
-inline constexpr std::size_t kPatternMode = 8;
-static_assert(kArpNoteModeWords[kAsPlayedMode] == "asPlayed" && kArpNoteModeWords[kPatternMode] == "pattern");
+constexpr std::size_t note_mode_index(std::string_view word) {
+	return static_cast<std::size_t>(std::ranges::find(kArpNoteModeWords, word) - kArpNoteModeWords.begin());
+}
+inline constexpr std::size_t kAsPlayedMode = note_mode_index("asPlayed");
+inline constexpr std::size_t kPatternMode = note_mode_index("pattern");
+static_assert(kAsPlayedMode < kArpNoteModeWords.size() && kPatternMode < kArpNoteModeWords.size());
 inline constexpr std::array kNoteModeWhen{
     ChoiceCondition{.choice = kAsPlayedMode, .when = kOffKitLane},
     ChoiceCondition{.choice = kPatternMode, .when = kOffKitLane},
 };
-inline constexpr SettingDescriptorExtras kNoteModeExtras{.choice_when = kNoteModeWhen};
 
-/// A host row's menu: the gate and rate as a signed Q31, the rest as an unsigned fraction, each 0..50.
-inline constexpr SettingDescriptorExtras kStandardExtras{.mapping = {.kind = DisplayMappingKind::STANDARD}};
-inline constexpr SettingDescriptorExtras kUnsignedExtras{.mapping = {.kind = DisplayMappingKind::UNSIGNED}};
+/// A row a gate row's arp has no use for.
+inline constexpr std::array kNotOnGate{instrument_is_not(kGateDrum)};
+/// A row neither a gate row's arp nor the whole kit's offers.
+inline constexpr std::array kNotOnGateOrWholeKit{instrument_is_not(kGateDrum), owner_is_not(kWholeKitOwner)};
+/// A kit row's own arp row: off a gate row.
+inline constexpr std::array kOnPitchedKitLane{owner_is(kKitLaneOwner), instrument_is_not(kGateDrum)};
+inline constexpr std::array kOnKitLane{owner_is(kKitLaneOwner)};
+
+inline constexpr SettingDescriptorExtras kNoteModeExtras{.applies_when = kNotOnGate, .choice_when = kNoteModeWhen};
+inline constexpr SettingDescriptorExtras kNotOnGateExtras{.applies_when = kNotOnGate};
+inline constexpr SettingDescriptorExtras kNotOnGateOrWholeKitExtras{.applies_when = kNotOnGateOrWholeKit};
+inline constexpr SettingDescriptorExtras kChordTypeExtras{.applies_when = kOnPitchedKitLane};
+inline constexpr SettingDescriptorExtras kKitArpExtras{.applies_when = kOnKitLane};
+
+/// A host row's menu: the gate and rate as a signed Q31, the rest as an unsigned fraction, each 0..50. A host row
+/// is a setting only where nothing automates it, so its menu shows only where no sound plays the arp; a randomizer's
+/// spread, ratchet, chord and probabilities only while the arp is on.
+inline constexpr std::array kOffSound{instrument_is(kNonSound)};
+inline constexpr std::array kOffSoundArpOn{instrument_is(kNonSound),
+                                           setting_is_not("arpeggiator/arpMode", kArpOffValue)};
+inline constexpr std::array kPitchedOffSound{instrument_is(kPitchedNonSound)};
+inline constexpr std::array kPitchedOffSoundArpOn{instrument_is(kPitchedNonSound),
+                                                  setting_is_not("arpeggiator/arpMode", kArpOffValue)};
+inline constexpr std::array kChordsArpOn{instrument_is(kMidiOrCv), setting_is_not("arpeggiator/arpMode", kArpOffValue)};
+inline constexpr SettingDescriptorExtras kStandardExtras{.mapping = {.kind = DisplayMappingKind::STANDARD},
+                                                         .applies_when = kOffSound};
+inline constexpr SettingDescriptorExtras kUnsignedExtras{.mapping = {.kind = DisplayMappingKind::UNSIGNED},
+                                                         .applies_when = kOffSound};
+inline constexpr SettingDescriptorExtras kUnsignedArpOnExtras{.mapping = {.kind = DisplayMappingKind::UNSIGNED},
+                                                              .applies_when = kOffSoundArpOn};
+inline constexpr SettingDescriptorExtras kUnsignedPitchedExtras{.mapping = {.kind = DisplayMappingKind::UNSIGNED},
+                                                                .applies_when = kPitchedOffSound};
+inline constexpr SettingDescriptorExtras kUnsignedPitchedArpOnExtras{.mapping = {.kind = DisplayMappingKind::UNSIGNED},
+                                                                     .applies_when = kPitchedOffSoundArpOn};
+inline constexpr SettingDescriptorExtras kUnsignedChordsExtras{.mapping = {.kind = DisplayMappingKind::UNSIGNED},
+                                                               .applies_when = kChordsArpOn};
 
 constexpr SettingInfo host(std::string_view path, int32_t default_value = 0,
                            const SettingDescriptorExtras* extras = &kUnsignedExtras) {
@@ -124,15 +183,12 @@ constexpr SettingInfo host(std::string_view path, int32_t default_value = 0,
 
 inline constexpr std::array kSettingRows{
     choice("arpeggiator/arpMode", kArpModeWords),
-    choice("arpeggiator/octaveMode", kArpOctaveModeWords),
-    SettingInfo{.path = "arpeggiator/noteMode",
-                .kind = SettingKind::CHOICE,
-                .choices = kArpNoteModeWords,
-                .extras = &kNoteModeExtras},
-    choice("arpeggiator/mpeVelocity", kArpMpeVelocityWords),
-    integer("arpeggiator/numOctaves", 1, 8, 2),
-    integer("arpeggiator/stepRepeat", 1, 8, 1),
-    integer("arpeggiator/chordType", 0, kArpChordTypes - 1, 0),
+    choice("arpeggiator/octaveMode", kArpOctaveModeWords, 0, &kNotOnGateOrWholeKitExtras),
+    choice("arpeggiator/noteMode", kArpNoteModeWords, 0, &kNoteModeExtras),
+    choice("arpeggiator/mpeVelocity", kArpMpeVelocityWords, 0, &kNotOnGateOrWholeKitExtras),
+    integer("arpeggiator/numOctaves", 1, 8, 2, SettingUnits::NONE, &kNotOnGateOrWholeKitExtras),
+    integer("arpeggiator/stepRepeat", 1, 8, 1, SettingUnits::NONE, &kNotOnGateExtras),
+    integer("arpeggiator/chordType", 0, kArpChordTypes - 1, 0, SettingUnits::NONE, &kChordTypeExtras),
     // The level itself (1–9, 0 = off), whatever the song's tick magnitude; a sound's element holds it relative.
     SettingInfo{.path = "arpeggiator/syncLevel",
                 .min = 0,
@@ -141,7 +197,7 @@ inline constexpr std::array kSettingRows{
                 .extras = &kSyncExtras},
     choice("arpeggiator/syncType", kArpSyncTypeWords),
     SettingInfo{.path = "arpeggiator/randomizerLock", .kind = SettingKind::BOOL},
-    SettingInfo{.path = "arpeggiator/kitArp", .kind = SettingKind::BOOL, .default_value = 1},
+    SettingInfo{.path = "arpeggiator/kitArp", .kind = SettingKind::BOOL, .default_value = 1, .extras = &kKitArpExtras},
     // A command: writing one writes the mode, octave mode and note mode it stands for; reading derives it from them.
     choice("arpeggiator/preset", kArpPresetWords),
 };
@@ -151,19 +207,27 @@ inline constexpr std::array kHostRows{
     host("arpeggiator/rate", 0, &kStandardExtras),
     host("arpeggiator/rhythm"),
     host("arpeggiator/sequenceLength"),
-    host("arpeggiator/chordPolyphony"),
-    host("arpeggiator/ratchetAmount"),
+    host("arpeggiator/chordPolyphony", 0, &kUnsignedChordsExtras),
+    host("arpeggiator/ratchetAmount", 0, &kUnsignedArpOnExtras),
     host("arpeggiator/noteProbability", -1), // 0xFFFFFFFF: every note plays
-    host("arpeggiator/bassProbability"),
-    host("arpeggiator/swapProbability"),
-    host("arpeggiator/glideProbability"),
+    host("arpeggiator/bassProbability", 0, &kUnsignedPitchedArpOnExtras),
+    host("arpeggiator/swapProbability", 0, &kUnsignedPitchedArpOnExtras),
+    host("arpeggiator/glideProbability", 0, &kUnsignedPitchedArpOnExtras),
     host("arpeggiator/reverseProbability", 0, nullptr), // no menu shows it as a setting
-    host("arpeggiator/chordProbability"),
-    host("arpeggiator/ratchetProbability"),
-    host("arpeggiator/spreadVelocity"),
-    host("arpeggiator/spreadGate"),
-    host("arpeggiator/spreadOctave"),
+    host("arpeggiator/chordProbability", 0, &kUnsignedChordsExtras),
+    host("arpeggiator/ratchetProbability", 0, &kUnsignedArpOnExtras),
+    host("arpeggiator/spreadVelocity", 0, &kUnsignedPitchedExtras),
+    host("arpeggiator/spreadGate", 0, &kUnsignedArpOnExtras),
+    host("arpeggiator/spreadOctave", 0, &kUnsignedPitchedArpOnExtras),
 };
+
+/// The setting rows, then the host rows: the table a host row's conditions are read against.
+inline constexpr auto kAllRows = [] {
+	std::array<SettingInfo, kSettingRows.size() + kHostRows.size()> all{};
+	std::ranges::copy(kSettingRows, all.begin());
+	std::ranges::copy(kHostRows, all.begin() + kSettingRows.size());
+	return all;
+}();
 
 } // namespace arp_detail
 
@@ -172,8 +236,12 @@ inline constexpr std::span<const SettingInfo> kArpSettingRows{arp_detail::kSetti
 static_assert(conditions_are_valid(kArpSettingRows));
 
 /// @brief The values that are settings only where nothing automates them: a MIDI or CV clip's arp and a MIDI or gate
-/// kit row's. Elsewhere they are params.
+/// kit row's. Elsewhere they are params. Their conditions read the arp's setting rows (kArpRows).
 inline constexpr std::span<const SettingInfo> kArpHostRows{arp_detail::kHostRows};
+
+/// @brief An arp's every row: kArpSettingRows, then kArpHostRows.
+inline constexpr std::span<const SettingInfo> kArpRows{arp_detail::kAllRows};
+static_assert(conditions_are_valid(kArpRows));
 
 /// @brief What a preset sets: the mode, and for every preset but off, the octave and note modes.
 struct ArpPresetFields {

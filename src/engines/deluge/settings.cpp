@@ -73,14 +73,9 @@ constexpr int32_t kMaxVoicesOff = 127;
 constexpr int32_t kMaxVoicesMenu = 16;
 /// The max-voices menu's 0 is "off", stored as kMaxVoicesOff.
 constexpr std::array<engine::SettingSentinel, 1> kMaxVoicesSentinels{{{.user = 0, .stored = kMaxVoicesOff}}};
-/// A stored limit past the menu's (none a menu writes) shows as off.
-constexpr engine::SettingDescriptorExtras kMaxVoicesExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::CLAMP_HIGH, .clamp_to = 0}};
 
 /// The note an unset drum note (stored 255, past the row) plays and shows as.
 constexpr int32_t kUnsetDrumNoteShownAs = 60;
-constexpr engine::SettingDescriptorExtras kNoteForDrumExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::CLAMP_HIGH, .clamp_to = kUnsetDrumNoteShownAs}};
 
 /// A sample's repeat mode as its stored number, in SampleRepeatMode's order (cut, once, loop, stretch).
 constexpr std::array<std::string_view, 4> kLoopModes{"0", "1", "2", "3"};
@@ -91,12 +86,15 @@ constexpr std::array<int32_t, 1> kKitLaneOwner{std::to_underlying(engine::Settin
 /// The owners that hold a kit's sounds: a kit lane, and the kit itself.
 constexpr std::array<int32_t, 2> kKitOwners{std::to_underlying(engine::SettingContext::Owner::KIT_LANE),
                                             std::to_underlying(engine::SettingContext::Owner::KIT)};
-/// Choke shares a kit's voices among its lanes, so only a kit lane offers it.
+/// A kit lane: it alone offers choke (which shares a kit's voices among its lanes), a send to the kit's sidechain and
+/// a drum note.
 constexpr std::array kOnKitLane{engine::owner_is(kKitLaneOwner)};
 constexpr std::array kPolyphonyWhen{engine::ChoiceCondition{std::to_underlying(PolyphonyMode::CHOKE), kOnKitLane}};
 constexpr engine::SettingDescriptorExtras kPolyphonyExtras{.choice_when = kPolyphonyWhen};
 
-/// The synth mode that mixes oscillators alone.
+/// The synth modes, as the "mode" row stores them.
+constexpr std::array<int32_t, 1> kSubtractiveValue{std::to_underlying(SynthMode::SUBTRACTIVE)};
+constexpr std::array<int32_t, 1> kFmValue{std::to_underlying(SynthMode::FM)};
 constexpr std::array<int32_t, 1> kRingModeValue{std::to_underlying(SynthMode::RINGMOD)};
 
 /// Ring mod mixes oscillators alone, so it offers no sample or input.
@@ -118,11 +116,58 @@ constexpr std::array<engine::ChoiceCondition, 5> osc_type_when(std::span<const e
 }
 constexpr std::array kOsc1TypeWhen = osc_type_when(kDx7Conditions);
 constexpr std::array kOsc2TypeWhen = osc_type_when(kNeverOffered);
-constexpr std::array kOscTypeExtras{engine::SettingDescriptorExtras{.choice_when = kOsc1TypeWhen},
-                                    engine::SettingDescriptorExtras{.choice_when = kOsc2TypeWhen}};
+/// FM's carriers are sines: an oscillator's type menu shows outside it.
+constexpr std::array kNotFm{engine::setting_is_not("mode", kFmValue)};
+constexpr std::array kOscTypeExtras{
+    engine::SettingDescriptorExtras{.applies_when = kNotFm, .choice_when = kOsc1TypeWhen},
+    engine::SettingDescriptorExtras{.applies_when = kNotFm, .choice_when = kOsc2TypeWhen}};
+
+/// The oscillator types ring mod can ring: the waveforms and the wavetable.
+constexpr std::array<int32_t, 7> kRingableTypes{0, 1, 2, 3, 4, 5, std::to_underlying(OscType::WAVETABLE)};
+static_assert(std::to_underlying(OscType::WAVETABLE) == 6);
+/// The synth mode menu shows only while ring mod could be chosen: neither oscillator past a wavetable.
+constexpr std::array kModeConditions{engine::setting_is("osc1/type", kRingableTypes),
+                                     engine::setting_is("osc2/type", kRingableTypes)};
+constexpr engine::SettingDescriptorExtras kModeExtras{.applies_when = kModeConditions};
+
+/// The polyphony that has a voice count to limit.
+constexpr std::array<int32_t, 1> kPolyValue{std::to_underlying(PolyphonyMode::POLY)};
+constexpr std::array kPolyConditions{engine::setting_is("polyphonic", kPolyValue)};
+
+/// A stored limit past the menu's (none a menu writes) shows as off; the limit shows for a polyphonic sound alone.
+constexpr engine::SettingDescriptorExtras kMaxVoicesExtras{
+    .mapping = {.kind = engine::DisplayMappingKind::CLAMP_HIGH, .clamp_to = 0}, .applies_when = kPolyConditions};
+
+/// A drum note's menu: an unset note shows as the one it plays; only a kit lane has one.
+constexpr engine::SettingDescriptorExtras kNoteForDrumExtras{
+    .mapping = {.kind = engine::DisplayMappingKind::CLAMP_HIGH, .clamp_to = kUnsetDrumNoteShownAs},
+    .applies_when = kOnKitLane};
+
+/// An oscillator's sample playback rows: a subtractive sound's sample source with a file loaded.
+constexpr std::array<int32_t, 1> kSampleValue{std::to_underlying(OscType::SAMPLE)};
+constexpr std::array<std::array<engine::SettingCondition, 3>, 2> kSamplePlaybackConditions{{
+    {engine::setting_is("mode", kSubtractiveValue), engine::setting_is("osc1/type", kSampleValue),
+     engine::source_loaded(0)},
+    {engine::setting_is("mode", kSubtractiveValue), engine::setting_is("osc2/type", kSampleValue),
+     engine::source_loaded(1)},
+}};
+constexpr std::array kSamplePlaybackExtras{
+    engine::SettingDescriptorExtras{.applies_when = kSamplePlaybackConditions[0]},
+    engine::SettingDescriptorExtras{.applies_when = kSamplePlaybackConditions[1]}};
+
+/// Oscillator sync resets the second oscillator from the first's cycle: neither may be a sample, nor the sound FM.
+constexpr std::array kOscSyncConditions{engine::setting_is_not("mode", kFmValue),
+                                        engine::setting_is_not("osc1/type", kSampleValue),
+                                        engine::setting_is_not("osc2/type", kSampleValue)};
+constexpr engine::SettingDescriptorExtras kOscSyncExtras{.applies_when = kOscSyncConditions};
+
+/// The modulators play in FM alone.
+constexpr std::array kFmConditions{engine::setting_is("mode", kFmValue)};
+constexpr engine::SettingDescriptorExtras kFmExtras{.applies_when = kFmConditions};
 
 /// The sidechain send menu: fiftieths of the whole send, rounded to the nearest.
-constexpr engine::SettingDescriptorExtras kSendExtras{.mapping = {.kind = engine::DisplayMappingKind::FIFTIETHS}};
+constexpr engine::SettingDescriptorExtras kSendExtras{.mapping = {.kind = engine::DisplayMappingKind::FIFTIETHS},
+                                                      .applies_when = kOnKitLane};
 /// A retrigger phase menu: degrees, or −1 for free-running.
 constexpr engine::SettingDescriptorExtras kPhaseExtras{.mapping = {.kind = engine::DisplayMappingKind::PHASE_DEGREES}};
 /// The interpolation menu lists linear first: menu 0 stores 1.
@@ -134,13 +179,14 @@ constexpr engine::SettingDescriptorExtras kMidiChannelExtras{
     .mapping = {.kind = engine::DisplayMappingKind::CHOICE_ORDER, .order = kMidiChannelOrder}};
 
 /// A transpose menu: one value in cents over its semitones and its cents row, @p partner.
-constexpr engine::SettingDescriptorExtras transpose_extras(std::string_view partner) {
-	return {.mapping = {.kind = engine::DisplayMappingKind::TRANSPOSE_CENTS, .partner = partner}};
+constexpr engine::SettingDescriptorExtras transpose_extras(std::string_view partner,
+                                                           std::span<const engine::SettingCondition> when = {}) {
+	return {.mapping = {.kind = engine::DisplayMappingKind::TRANSPOSE_CENTS, .partner = partner}, .applies_when = when};
 }
 constexpr engine::SettingDescriptorExtras kTransposeExtras = transpose_extras("cents");
 constexpr std::array kOscTransposeExtras{transpose_extras("osc1/cents"), transpose_extras("osc2/cents")};
-constexpr std::array kModulatorTransposeExtras{transpose_extras("modulator1/cents"),
-                                               transpose_extras("modulator2/cents")};
+constexpr std::array kModulatorTransposeExtras{transpose_extras("modulator1/cents", kFmConditions),
+                                               transpose_extras("modulator2/cents", kFmConditions)};
 
 /// A new sound's settings (new_synth_state), as the rows store them.
 constexpr int32_t kDefaultMaxVoices = 8;
@@ -168,10 +214,14 @@ constexpr int32_t kFreeRunning = -1;
 	                .max = kPhaseMax,                                                                                  \
 	                .default_value = kFreeRunning,                                                                     \
 	                .extras = &kPhaseExtras},                                                                          \
-	    SettingInfo{.path = "osc" #n "/loopMode", .kind = CHOICE, .choices = kLoopModes},                              \
-	    SettingInfo{.path = "osc" #n "/reversed", .kind = BOOL},                                                       \
-	    SettingInfo{.path = "osc" #n "/timeStretchEnable", .kind = BOOL},                                              \
-	    SettingInfo{.path = "osc" #n "/timeStretchAmount", .min = -48, .max = 48},                                     \
+	    SettingInfo{.path = "osc" #n "/loopMode",                                                                      \
+	                .kind = CHOICE,                                                                                    \
+	                .choices = kLoopModes,                                                                             \
+	                .extras = &kSamplePlaybackExtras[n - 1]},                                                          \
+	    SettingInfo{.path = "osc" #n "/reversed", .kind = BOOL, .extras = &kSamplePlaybackExtras[n - 1]},              \
+	    SettingInfo{.path = "osc" #n "/timeStretchEnable", .kind = BOOL, .extras = &kSamplePlaybackExtras[n - 1]},     \
+	    SettingInfo{                                                                                                   \
+	        .path = "osc" #n "/timeStretchAmount", .min = -48, .max = 48, .extras = &kSamplePlaybackExtras[n - 1]},    \
 	    SettingInfo{.path = "osc" #n "/linearInterpolation", .kind = BOOL, .extras = &kInterpolationExtras},           \
 	    SettingInfo{.path = "osc" #n "/sampleRanges", .kind = STRUCTURED},                                             \
 	    SettingInfo{.path = "osc" #n "/wavetableRanges", .kind = STRUCTURED},                                          \
@@ -216,7 +266,8 @@ constexpr std::array kLfoSyncExtras{lfo_sync_extras("lfo1/syncType"), lfo_sync_e
 	    SettingInfo{.path = "modulator" #n "/cents",                                                                   \
 	                .min = -kCentsRange,                                                                               \
 	                .max = kCentsRange,                                                                                \
-	                .units = engine::SettingUnits::CENTS},                                                             \
+	                .units = engine::SettingUnits::CENTS,                                                              \
+	                .extras = &kFmExtras},                                                                             \
 	    SettingInfo {                                                                                                  \
 		.path = "modulator" #n "/retrigPhase", .min = kPhaseMin, .max = kPhaseMax, .extras = &kPhaseExtras             \
 	}
@@ -232,7 +283,7 @@ constexpr std::array kRows{
                 .choices = engine::kVoicePriorityWords,
                 .default_value = std::to_underlying(engine::VoicePriority::MEDIUM)},
     SettingInfo{.path = "sideChainSend", .min = 0, .max = std::numeric_limits<int32_t>::max(), .extras = &kSendExtras},
-    SettingInfo{.path = "mode", .kind = CHOICE, .choices = kSynthModes},
+    SettingInfo{.path = "mode", .kind = CHOICE, .choices = kSynthModes, .extras = &kModeExtras},
     SettingInfo{.path = "transpose",
                 .min = -kTransposeRange,
                 .max = kTransposeRange,
@@ -252,14 +303,14 @@ constexpr std::array kRows{
                 .extras = &kMaxVoicesExtras},
     OSC_ROWS(1),
     OSC_ROWS(2),
-    SettingInfo{.path = "osc2/oscillatorSync", .kind = BOOL},
+    SettingInfo{.path = "osc2/oscillatorSync", .kind = BOOL, .extras = &kOscSyncExtras},
     LFO_ROWS(1),
     LFO_ROWS(2),
     LFO_ROWS(3),
     LFO_ROWS(4),
     MODULATOR_ROWS(1),
     MODULATOR_ROWS(2),
-    SettingInfo{.path = "modulator2/toModulator1", .kind = BOOL},
+    SettingInfo{.path = "modulator2/toModulator1", .kind = BOOL, .extras = &kFmExtras},
     SettingInfo{.path = "unison/num", .min = 1, .max = kMaxUnisonVoices, .default_value = 1},
     SettingInfo{.path = "unison/detune", .min = 0, .max = kMaxUnisonDetune, .default_value = kDefaultUnisonDetune},
     SettingInfo{.path = "unison/spread", .min = 0, .max = kMaxUnisonSpread},
@@ -308,7 +359,7 @@ std::optional<size_t> indexAfter(std::string_view path, size_t at, char last) {
 	return static_cast<size_t>(path[at] - '1');
 }
 
-Answer topLevelValue(const SoundState& state, std::string_view path) {
+Answer topLevelValue(const SoundState& state, std::string_view path, bool /*held*/) {
 	if (path == "polyphonic") {
 		return word(to_string(state.polyphonic));
 	}
@@ -333,17 +384,18 @@ Answer topLevelValue(const SoundState& state, std::string_view path) {
 	return std::nullopt;
 }
 
-Answer oscillatorValue(const SoundState& state, std::string_view path) {
+/// @p held: answer what the state holds whether or not the path applies to it.
+Answer oscillatorValue(const SoundState& state, std::string_view path, bool held) {
 	const std::optional<size_t> s = indexAfter(path, 3, '2');
 	if (!s) {
 		return std::nullopt;
 	}
 	const SourceState& src = state.sources[*s];
 	const std::string_view rest = path.substr(5);
-	const bool fm = state.synth_mode == SynthMode::FM;
-	const bool sample = src.osc_type == OscType::SAMPLE;
-	const bool input =
-	    src.osc_type == OscType::INPUT_L || src.osc_type == OscType::INPUT_R || src.osc_type == OscType::INPUT_STEREO;
+	const bool fm = !held && state.synth_mode == SynthMode::FM;
+	const bool sample = held || src.osc_type == OscType::SAMPLE;
+	const bool input = held || src.osc_type == OscType::INPUT_L || src.osc_type == OscType::INPUT_R
+	                   || src.osc_type == OscType::INPUT_STEREO;
 	if (rest == "linearInterpolation") {
 		return !fm && (sample || input) ? flag(src.interpolation_mode == engine::InterpolationMode::LINEAR)
 		                                : std::nullopt;
@@ -361,7 +413,7 @@ Answer oscillatorValue(const SoundState& state, std::string_view path) {
 		return fm ? std::nullopt : word(to_string(src.osc_type));
 	}
 	if (rest == "transpose" || rest == "cents") {
-		if (!fm && sample) {
+		if (!held && !fm && sample) {
 			return std::nullopt; // a sample source's tuning is its ranges'
 		}
 		return rest == "transpose" ? number(src.transpose) : number(src.cents);
@@ -375,7 +427,7 @@ Answer oscillatorValue(const SoundState& state, std::string_view path) {
 	return std::nullopt;
 }
 
-Answer lfoValue(const SoundState& state, std::string_view path) {
+Answer lfoValue(const SoundState& state, std::string_view path, bool /*held*/) {
 	const std::optional<size_t> l = indexAfter(path, 3, '4');
 	if (!l) {
 		return std::nullopt;
@@ -393,9 +445,9 @@ Answer lfoValue(const SoundState& state, std::string_view path) {
 	return std::nullopt;
 }
 
-Answer modulatorValue(const SoundState& state, std::string_view path) {
+Answer modulatorValue(const SoundState& state, std::string_view path, bool held) {
 	const std::optional<size_t> m = indexAfter(path, 9, '2');
-	if (!m || state.synth_mode != SynthMode::FM) {
+	if (!m || (!held && state.synth_mode != SynthMode::FM)) {
 		return std::nullopt; // only FM writes its modulators
 	}
 	const std::string_view rest = path.substr(11);
@@ -414,7 +466,7 @@ Answer modulatorValue(const SoundState& state, std::string_view path) {
 	return std::nullopt;
 }
 
-Answer unisonValue(const SoundState& state, std::string_view path) {
+Answer unisonValue(const SoundState& state, std::string_view path, bool /*held*/) {
 	const std::string_view rest = path.substr(7);
 	if (rest == "num") {
 		return number(state.num_unison);
@@ -428,7 +480,7 @@ Answer unisonValue(const SoundState& state, std::string_view path) {
 	return std::nullopt;
 }
 
-Answer midiOutputValue(const SoundState& state, std::string_view path) {
+Answer midiOutputValue(const SoundState& state, std::string_view path, bool /*held*/) {
 	const std::string_view rest = path.substr(11);
 	if (rest == "channel") {
 		return number(state.output_midi_channel);
@@ -442,7 +494,7 @@ Answer midiOutputValue(const SoundState& state, std::string_view path) {
 /// Each family of setting paths, by its prefix, and how a state answers one; the empty prefix takes the rest.
 struct Family {
 	std::string_view prefix;
-	Answer (*value)(const SoundState&, std::string_view);
+	Answer (*value)(const SoundState&, std::string_view, bool held);
 };
 constexpr std::array kFamilies{
     Family{"osc", oscillatorValue},         Family{"lfo", lfoValue},
@@ -466,8 +518,9 @@ const std::span<const engine::SettingInfo> kClipScopedSettings{engine::kArpSetti
 
 namespace {
 
-/// @p path's value in @p state, an unset one included, or nothing where the path does not apply.
-Answer anyValue(const SoundState& state, std::string_view path) {
+/// @p path's value in @p state, an unset one included, or nothing where the path does not apply (with @p held, where
+/// the state holds none).
+Answer anyValue(const SoundState& state, std::string_view path, bool held = false) {
 	const SettingInfo* row = engine::find_setting(kSettings, path);
 	if (row == nullptr || row->kind == STRUCTURED) {
 		return std::nullopt;
@@ -477,7 +530,7 @@ Answer anyValue(const SoundState& state, std::string_view path) {
 	}
 	for (const Family& family : kFamilies) {
 		if (path.starts_with(family.prefix)) {
-			return family.value(state, path);
+			return family.value(state, path, held);
 		}
 	}
 	return std::nullopt;
@@ -501,6 +554,21 @@ std::optional<serialization::Value> setting_value(const SoundState& state, std::
 		return std::nullopt; // unset: the menu shows its default there and writes only a note
 	}
 	return value;
+}
+
+std::optional<int32_t> held_setting(const SoundState& state, std::string_view path) {
+	const SettingInfo* row = engine::find_setting(kSettings, path);
+	const Answer value = anyValue(state, path, true);
+	if (!value) {
+		return std::nullopt;
+	}
+	if (row->kind == CHOICE) {
+		const auto found = std::ranges::find(row->choices, value->str());
+		return found != row->choices.end() ? std::optional<int32_t>{static_cast<int32_t>(found - row->choices.begin())}
+		                                   : std::nullopt;
+	}
+	const std::optional<int64_t> n = engine::whole_number(value->str());
+	return n ? std::optional<int32_t>{static_cast<int32_t>(*n)} : std::nullopt;
 }
 
 bool allows_setting(const SoundState& state, std::string_view path, const serialization::Value& value) {

@@ -50,13 +50,25 @@ inline constexpr std::array<std::string_view, 3> kSyncTypeNames{"0", "10", "19"}
 /// A Q31 knob position or rate: 0 to its greatest value.
 inline constexpr int32_t kQ31Max = std::numeric_limits<int32_t>::max();
 
+using Owner = engine::SettingContext::Owner;
+/// The song's own effects: its sidechain is the reverb's, and it has no compressor or saturation menu.
+inline constexpr std::array<int32_t, 1> kSongOwner{static_cast<int32_t>(Owner::SONG)};
+/// The owners with no saturation menu: the song and the whole kit.
+inline constexpr std::array<int32_t, 2> kSongOrWholeKit{static_cast<int32_t>(Owner::KIT),
+                                                        static_cast<int32_t>(Owner::SONG)};
+inline constexpr std::array kOffSong{engine::owner_is_not(kSongOwner)};
+inline constexpr std::array kOffSongAndWholeKit{engine::owner_is_not(kSongOrWholeKit)};
+inline constexpr engine::SettingDescriptorExtras kOffSongExtras{.applies_when = kOffSong};
+inline constexpr engine::SettingDescriptorExtras kClippingExtras{.applies_when = kOffSongAndWholeKit};
+
 /// The delay's sync menu: one value over the level and its type row, every type offered.
 inline constexpr engine::SettingDescriptorExtras kDelaySyncExtras{
     .mapping = {.kind = engine::DisplayMappingKind::COMBINED_SYNC, .partner = "delay/syncType"}};
 /// The sidechain's sync menu: one value over the level and its type row; its user range offers off and the nine
 /// levels, with no triplet or dotted.
 inline constexpr engine::SettingDescriptorExtras kSidechainSyncExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::COMBINED_SYNC, .partner = "sidechain/syncType"}};
+    .mapping = {.kind = engine::DisplayMappingKind::COMBINED_SYNC, .partner = "sidechain/syncType"},
+    .applies_when = kOffSong};
 /// The sidechain sync menu's values: off and the nine levels, with no triplet or dotted.
 /// The row's UserScale carries the COMBINED_SYNC menu's range, which from_menu honours.
 inline constexpr engine::UserScale kSidechainSyncMenu{
@@ -64,15 +76,17 @@ inline constexpr engine::UserScale kSidechainSyncMenu{
 
 /// The sidechain's attack and release menus: a step of the rate table, the stored rate the entry shifted.
 inline constexpr engine::SettingDescriptorExtras kSidechainAttackExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table = engine::kSidechainAttackRates, .table_shift = 2}};
+    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table = engine::kSidechainAttackRates, .table_shift = 2},
+    .applies_when = kOffSong};
 inline constexpr engine::SettingDescriptorExtras kSidechainReleaseExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table = engine::kSidechainReleaseRates, .table_shift = 3}};
+    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table = engine::kSidechainReleaseRates, .table_shift = 3},
+    .applies_when = kOffSong};
 /// A compressor knob's menu, 0..128: its top seven bits; the top step stores the 127th, as the menu clamps it.
 inline constexpr engine::SettingDescriptorExtras kCompressorKnobExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::KNOB_POSITION, .clamp_to = 127 << 24}};
+    .mapping = {.kind = engine::DisplayMappingKind::KNOB_POSITION, .clamp_to = 127 << 24}, .applies_when = kOffSong};
 /// The compressor blend's menu: as a knob's, but its top step stores the whole blend.
 inline constexpr engine::SettingDescriptorExtras kCompressorBlendExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::KNOB_POSITION, .clamp_to = kQ31Max}};
+    .mapping = {.kind = engine::DisplayMappingKind::KNOB_POSITION, .clamp_to = kQ31Max}, .applies_when = kOffSong};
 
 /// A new owner's effect settings: the song's defaults.
 inline constexpr EffectStates kDefaults{};
@@ -91,7 +105,7 @@ inline constexpr std::array<engine::SettingInfo, 23> kEffectSettings{{
     {.path = "lpfMode", .kind = detail::CHOICE, .choices = detail::kLpfModeNames, .default_value = 1},
     {.path = "hpfMode", .kind = detail::CHOICE, .choices = detail::kHpfModeNames, .default_value = 2},
     {.path = "filterRoute", .kind = detail::CHOICE, .choices = detail::kFilterRouteNames},
-    {.path = "clippingAmount", .min = 0, .max = 15},
+    {.path = "clippingAmount", .min = 0, .max = 15, .extras = &detail::kClippingExtras},
     {.path = "delay/pingPong", .kind = detail::BOOL, .default_value = detail::kDefaults.delay.ping_pong ? 1 : 0},
     {.path = "delay/type", .kind = detail::CHOICE, .choices = detail::kDelayTypeNames},
     {.path = "delay/syncLevel",
@@ -118,7 +132,10 @@ inline constexpr std::array<engine::SettingInfo, 23> kEffectSettings{{
      .default_value = detail::kDefaultSidechainSyncLevel,
      .units = engine::SettingUnits::SYNC_LEVEL,
      .extras = &detail::kSidechainSyncExtras},
-    {.path = "sidechain/syncType", .kind = detail::CHOICE, .choices = detail::kSyncTypeNames},
+    {.path = "sidechain/syncType",
+     .kind = detail::CHOICE,
+     .choices = detail::kSyncTypeNames,
+     .extras = &detail::kOffSongExtras},
     {.path = "audioCompressor/attack",
      .min = 0,
      .max = detail::kQ31Max,

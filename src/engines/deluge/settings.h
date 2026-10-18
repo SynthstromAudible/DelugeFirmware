@@ -59,6 +59,13 @@ extern const std::span<const engine::SettingInfo> kClipScopedSettings;
 /// @return The value, or nullopt where the path does not apply.
 [[nodiscard]] std::optional<serialization::Value> setting_value(const SoundState& state, std::string_view path);
 
+/// @brief The value @p state holds at @p path whether or not the path applies to the state (an oscillator's type in
+/// FM included), as the row stores it: a CHOICE row's index, else the number. What a SettingReader answers for a
+/// sound, so an applicability condition reads the sound's own value.
+/// @param state The sound's state.
+/// @param path  The setting's path.
+/// @return The stored value, or nullopt for a structured path or one the schema does not hold.
+[[nodiscard]] std::optional<int32_t> held_setting(const SoundState& state, std::string_view path);
 /// @brief Whether a sound in @p state may take @p value at @p path, beyond what the schema allows: ring mod rings only
 /// the oscillators up to a wavetable, so it is not chosen while either oscillator is past one, nor such an oscillator
 /// while it is chosen.
