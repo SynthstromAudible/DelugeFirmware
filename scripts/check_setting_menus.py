@@ -110,7 +110,7 @@ AUDIO_CLIP_MENUS = "audio_clip"
 CALL = re.compile(r"(?:->|\.)\s*(" + "|".join(SETTERS) + r")\s*\(")
 #: Direct writes of a source's fields the settings own.
 RAW_WRITE = re.compile(
-    r"(?:->|\.)\s*(repeatMode|oscType|polyphonic|maxVoiceCount|outputMidiChannel)\s*=(?!=)"
+    r"(?:->|\.)\s*(repeatMode|oscType|polyphonic|maxVoiceCount|outputMidiChannel|outputMidiNoteForDrum)\s*=(?!=)"
 )
 #: The receiver's last name before the call: `a->b.name`, `name()`, `name[i]`.
 RECEIVER = re.compile(r"([A-Za-z_]\w*)\s*(?:\(\s*\))?\s*(?:\[[^\]]*\])?\s*$")

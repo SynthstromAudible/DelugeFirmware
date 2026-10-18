@@ -104,7 +104,8 @@ void set_output_midi_note(const MenuContext& ctx, int32_t value) {
 	bindings::apply_to_targets(ctx, value, 0,
 	                           [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
 		                           if (t.sound != nullptr) {
-			                           t.sound->outputMidiNoteForDrum = static_cast<uint8_t>(v);
+			                           deluge::edits::settingFor(*t.sound, "midiOutput/noteForDrum",
+			                                                     deluge::serialization::Value::makeNumber(v));
 		                           }
 	                           });
 }

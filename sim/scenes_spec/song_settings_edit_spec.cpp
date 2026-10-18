@@ -4,6 +4,7 @@
 
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song_codec.h"
+#include "deluge-project/structure_codec.h"
 #include "dsp/reverb/reverb.hpp"
 #include "extern.h"
 #include "gui/menu_item/arpeggiator/mode.h"
@@ -679,6 +680,42 @@ describe song_settings_edit("SetSetting", $ {
 		expect(static_cast<int>(state->output_midi_channel)).to_equal(3);
 		deluge::scenes::menu::nodes::set_output_midi_channel(ctx, 0);
 		expect(static_cast<int>(state->output_midi_channel)).to_equal(static_cast<int>(MIDI_CHANNEL_NONE));
+	});
+
+	it("records the note-for-drum menu's note in the sound's state", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		f.song->setCurrentClip(f.clip);
+		const auto ctx = deluge::scenes::menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		const deluge::instrument::SoundState* state = ctx.sound->boundState();
+		expect(state != nullptr).to_be_true();
+		deluge::scenes::menu::nodes::set_output_midi_note(ctx, 61);
+		expect(static_cast<int>(state->output_midi_note_for_drum)).to_equal(61);
+		expect(static_cast<int>(ctx.sound->outputMidiNoteForDrum)).to_equal(61);
+	});
+
+	it("stores the audio clip attack menu's value as the standard conversion, and a stored 25 survives a save", _ {
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		const auto clip = deluge::bridge::audioClipAddressOf(*f.clip, *f.song);
+		expect(clip.has_value()).to_be_true();
+		const SettingAddress address{SettingGroupId::AUDIO_CLIP, *clip};
+		const auto ctx = deluge::scenes::menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		for (const int32_t menu : {0, 1, 25, 49, 50}) {
+			deluge::scenes::menu::nodes::set_audio_clip_attack(ctx, menu);
+			expect(deluge::scenes::menu::nodes::get_audio_clip_attack(ctx)).to_equal(menu);
+		}
+		deluge::scenes::menu::nodes::set_audio_clip_attack(ctx, 1);
+		expect(recorded(*f.song, address, "attack")).to_equal(std::string{"-2061584303"});
+		deluge::scenes::menu::nodes::set_audio_clip_attack(ctx, 50);
+		expect(recorded(*f.song, address, "attack")).to_equal(std::string{"2147483647"});
+
+		// A song a save wrote with attack 25 loads as 25 and saves 25.
+		deluge::project::DocAudioClip saved;
+		saved.attack = 25;
+		deluge::project::DocAudioClip loaded;
+		expect(deluge::project::decode(deluge::project::encode(saved), loaded).has_value()).to_be_true();
+		expect(loaded.attack).to_equal(25);
+		const auto again = deluge::project::encode(loaded);
+		expect(again.find("attack")->str()).to_equal(std::string{"25"});
 	});
 });
 // clang-format on
