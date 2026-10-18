@@ -85,10 +85,10 @@ inline constexpr engine::UserScale kSidechainSyncMenu{
 
 /// The sidechain's attack and release menus: a step of the rate table, the stored rate the entry shifted.
 inline constexpr engine::SettingDescriptorExtras kSidechainAttackExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table = engine::kSidechainAttackRates, .table_shift = 2},
+    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table_shift = 2, .table = engine::kSidechainAttackRates},
     .applies_when = kOffSong};
 inline constexpr engine::SettingDescriptorExtras kSidechainReleaseExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table = engine::kSidechainReleaseRates, .table_shift = 3},
+    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table_shift = 3, .table = engine::kSidechainReleaseRates},
     .applies_when = kOffSong};
 /// A compressor knob's menu, 0..128: its top seven bits; the top step stores the 127th, as the menu clamps it.
 inline constexpr engine::SettingDescriptorExtras kCompressorKnobExtras{

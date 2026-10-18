@@ -433,8 +433,9 @@ std::vector<const ::MenuItem*> items_for(Family family, std::string_view path) {
 
 /// Whether @p path is the partner of another row of @p family's table.
 bool is_partner(Family family, std::string_view path) {
-	return std::ranges::any_of(table_of(family),
-	                           [&](const SettingInfo& row) { return deluge::engine::mapping_of(row).partner == path; });
+	return std::ranges::any_of(table_of(family), [&](const SettingInfo& row) {
+		return deluge::engine::mapping_of(row).partner_path() == path;
+	});
 }
 
 std::string verdict(std::string_view fixture, std::string_view path, bool applies) {
@@ -566,7 +567,7 @@ describe descriptor_legacy_applicability("Where each row's menu shows, against l
 			for (Family family : fixture.families) {
 				const SpecReader owner{ctx, fixture.where, family};
 				for (const SettingInfo& row : table_of(family)) {
-					const std::string_view partner_path = deluge::engine::mapping_of(row).partner;
+					const std::string_view partner_path = deluge::engine::mapping_of(row).partner_path();
 					const SettingInfo* partner = partner_path.empty() ? nullptr : deluge::engine::find_setting(table_of(family), partner_path);
 					if (partner == nullptr) {
 						continue;

@@ -113,10 +113,10 @@ constexpr engine::SettingDescriptorExtras kReverbFilterExtras{
 constexpr std::array<int32_t, 1> kSetVolume{0};
 constexpr std::array kReverbDucksAtSetVolume{engine::setting_at_least("reverb/compressor/volume", kSetVolume)};
 constexpr engine::SettingDescriptorExtras kReverbSidechainAttackExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table = engine::kSidechainAttackRates, .table_shift = 2},
+    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table_shift = 2, .table = engine::kSidechainAttackRates},
     .applies_when = kReverbDucksAtSetVolume};
 constexpr engine::SettingDescriptorExtras kReverbSidechainReleaseExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table = engine::kSidechainReleaseRates, .table_shift = 3},
+    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table_shift = 3, .table = engine::kSidechainReleaseRates},
     .applies_when = kReverbDucksAtSetVolume};
 constexpr engine::SettingDescriptorExtras kReverbSidechainShapeExtras{
     .mapping = {.kind = engine::DisplayMappingKind::STANDARD}, .applies_when = kReverbDucksAtSetVolume};

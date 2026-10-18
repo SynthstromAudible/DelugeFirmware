@@ -1049,7 +1049,7 @@ const SettingInfo& row_of(const Case& c) {
 
 /// @p row's partner row, or nullptr for a one-row kind.
 const SettingInfo* partner_of(const Case& c, const SettingInfo& row) {
-	const std::string_view partner = deluge::engine::mapping_of(row).partner;
+	const std::string_view partner = deluge::engine::mapping_of(row).partner_path();
 	return partner.empty() ? nullptr : deluge::engine::find_setting(table_of(c.family), partner);
 }
 

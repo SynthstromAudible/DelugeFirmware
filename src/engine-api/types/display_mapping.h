@@ -47,15 +47,26 @@ enum class DisplayMappingKind : uint8_t {
 	                 ///< through the user scale (the reverb's fiftieths)
 };
 
-/// @brief A setting row's menu mapping. Only the fields its kind names are read.
+/// @brief A setting row's menu mapping. Only the fields its kind names are read, and they share storage.
 struct DisplayMapping {
 	DisplayMappingKind kind{DisplayMappingKind::LINEAR};
-	std::string_view partner{};       ///< COMBINED_SYNC / TRANSPOSE_CENTS: the second row's path
-	std::span<const uint8_t> order{}; ///< CHOICE_ORDER: the choice index for each menu index
-	std::span<const int32_t> table{}; ///< TABLE: the table value for each menu step
-	uint8_t table_shift{0};           ///< TABLE: the left shift from a table value to the stored value
-	int32_t clamp_to{0}; ///< CLAMP_HIGH: what a stored value above the user range shows as; KNOB_POSITION: what the
-	                     ///< top menu step stores
+	uint8_t table_shift{0}; ///< TABLE: the left shift from a table value to the stored value
+	/// The one field the kind reads; the kinds that read none leave `partner` empty.
+	union {
+		std::string_view partner{};     ///< COMBINED_SYNC / TRANSPOSE_CENTS: the second row's path
+		std::span<const uint8_t> order; ///< CHOICE_ORDER: the choice index for each menu index
+		std::span<const int32_t> table; ///< TABLE: the table value for each menu step
+		int32_t clamp_to; ///< CLAMP_HIGH: what a stored value above the user range shows as; KNOB_POSITION: what the
+		                  ///< top menu step stores
+	};
+
+	/// @brief The second row's path, for a two-row kind.
+	/// @return `partner` for COMBINED_SYNC and TRANSPOSE_CENTS, else empty.
+	[[nodiscard]] constexpr std::string_view partner_path() const {
+		return kind == DisplayMappingKind::COMBINED_SYNC || kind == DisplayMappingKind::TRANSPOSE_CENTS
+		           ? partner
+		           : std::string_view{};
+	}
 };
 
 /// @name Each two-row or non-linear kind's conversion, on bare values.

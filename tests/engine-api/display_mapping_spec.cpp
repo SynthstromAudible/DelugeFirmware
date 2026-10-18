@@ -115,7 +115,7 @@ constexpr SettingInfo kNoteForDrum{
 using deluge::engine::kSidechainAttackRates;
 using deluge::engine::kSidechainReleaseRates;
 constexpr SettingDescriptorExtras kSidechainAttackExtras{
-    .mapping = {.kind = DisplayMappingKind::TABLE, .table = kSidechainAttackRates, .table_shift = 2}};
+    .mapping = {.kind = DisplayMappingKind::TABLE, .table_shift = 2, .table = kSidechainAttackRates}};
 constexpr SettingInfo kSidechainAttack{
     .path = "sidechain/attack",
     .min = 0,
@@ -123,7 +123,7 @@ constexpr SettingInfo kSidechainAttack{
     .extras = &kSidechainAttackExtras,
 };
 constexpr SettingDescriptorExtras kSidechainReleaseExtras{
-    .mapping = {.kind = DisplayMappingKind::TABLE, .table = kSidechainReleaseRates, .table_shift = 3}};
+    .mapping = {.kind = DisplayMappingKind::TABLE, .table_shift = 3, .table = kSidechainReleaseRates}};
 constexpr SettingInfo kSidechainRelease{
     .path = "sidechain/release",
     .min = 0,
