@@ -20,6 +20,7 @@
 #include "dsp-next/fixed/interpolation/interpolator.h"
 #include "dsp/stereo_sample.h"
 #include "dsp/timestretch/time_stretcher.h"
+#include "harness/streaming_underrun.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "libdeluge/sample_source.h"
@@ -27,9 +28,6 @@
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "storage/cluster/cluster.h"
-#ifdef DELUGE_HOST
-#include "harness/streaming_underrun.h"
-#endif
 
 SampleLowLevelReader::~SampleLowLevelReader() {
 	unassignAllReasons(false);
@@ -464,7 +462,7 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 		// so nothing downstream reads a stale payload_base before the next successful acquire.
 		region_ = {};
 
-#ifdef DELUGE_HOST
+#if DELUGE_UNDERRUN_COUNTERS
 		// Streaming-underrun harness, UNASSIGN-class signal: ordinary (non-cache, non-time-stretch)
 		// forward playback just crossed a Cluster boundary and the next Cluster isn't resident -- the
 		// SD loader hasn't kept up with real-time consumption. This is the common-case

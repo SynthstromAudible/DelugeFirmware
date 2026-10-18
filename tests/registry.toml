@@ -2315,6 +2315,18 @@ tier = "pr"
 runtime = "~1s"
 
 [[harness]]
+name = "stream-bench-parser"
+path = "tools"
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "the streaming benchmark host script's parsing of device captures: every phase's histograms, filesystem waits and slowest jobs are read; a run without STREAM-BENCH-DONE, or missing a phase, is rejected and writes no tables; a reported failure exits 4; percentiles are bucket upper edges bounded by the max"
+run = ["python3", "-m", "unittest", "test_stream_bench"]
+tier = "pr"
+runtime = "~1s"
+
+[[harness]]
 name = "ptm-trace-tool"
 path = "tools/deluge_trace"
 level = "unit"
