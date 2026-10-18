@@ -10,9 +10,11 @@
 ///   * its reads (`bindings::read`) at the row's stored probes are `engine::to_menu`, and its writes
 ///     (`bindings::write`) at the menu probes store what `engine::from_menu` says.
 ///
-/// A node that disagrees on one of those is one of the named exceptions below, each with its reason; the spec fails
-/// when an exception no longer disagrees, so a fixed node leaves the list. A node with a read or a write hook that no
-/// row reaches (a note editor, a MIDI device, a patch cable, a flash default) is named in `kUnpathed` with its reason.
+/// A node that disagrees on one of those is one of the named exceptions below, keyed by its row's family and path and
+/// each with its reason; the spec fails when an exception no longer disagrees, so a fixed node leaves the list. A node
+/// with a read or a write hook that no row reaches is named with its reason: a device setting in `kDeviceSettings`, by
+/// its path from the settings root; a note editor, a stem export option or a skipped row's node in `subtrees` or
+/// `skipped_nodes`.
 ///
 /// @note The SPEC may include `gui/menu_item/`; the library may not (`scripts/check_layer_rules.py`).
 
@@ -32,6 +34,7 @@
 #include <cstdio>
 #include <map>
 #include <set>
+#include <tuple>
 
 namespace {
 
@@ -132,6 +135,7 @@ enum Aspect : uint8_t {
 
 /// @brief A node that disagrees with its row, which aspects, and why. The spec fails if it no longer disagrees.
 struct NodeException {
+	Family family; ///< the owner's family: the same path in another family's table is another row
 	std::string_view path;
 	uint8_t aspects;
 	std::string_view reason;
@@ -161,13 +165,13 @@ const UnsetProbe* unset_probe_of(std::string_view path) {
 
 const std::vector<NodeException>& node_exceptions() {
 	static const std::vector<NodeException> list{
-	    {"reverb/roomSize", NAMES | TITLE,
+	    {Family::SONG, "reverb/roomSize", NAMES | TITLE,
 	     "legacy renames the item Time under the MUTABLE and DIGITAL reverb models and the table gives that one name; "
 	     "the node always shows the Freeverb name, Room Size (`tables_3_spec.cpp` parks it)"},
-	    {"reverb/width", NAMES | TITLE,
+	    {Family::SONG, "reverb/width", NAMES | TITLE,
 	     "legacy renames the item Diffusion under the MUTABLE and DIGITAL reverb models and the table gives that one "
 	     "name; the node always shows the Freeverb name, Width (`tables_3_spec.cpp` parks it)"},
-	    {"reverb/compressor/shape", WRITE,
+	    {Family::SONG, "reverb/compressor/shape", WRITE,
 	     "the node's write omits the top step's special case, as legacy's does (menu 50 stores 2147483602, not "
 	     "2147483647)",
 	     "write(50)"},
@@ -175,9 +179,9 @@ const std::vector<NodeException>& node_exceptions() {
 	return list;
 }
 
-const NodeException* exception_of(std::string_view path) {
+const NodeException* exception_of(Family family, std::string_view path) {
 	for (const NodeException& e : node_exceptions()) {
-		if (e.path == path) {
+		if (e.family == family && e.path == path) {
 			return &e;
 		}
 	}
@@ -430,11 +434,10 @@ Findings compare(const Case& c, const Node& node, const NodeException* exception
 // The run.
 
 struct Tally {
-	size_t nodes = 0;
-	size_t excepted = 0;
 	std::vector<std::string> unpaired;
-	std::set<std::pair<std::string_view, uint8_t>> seen; ///< the exceptions' aspects that did differ
-	std::set<const Node*> compared;
+	std::set<std::tuple<Family, std::string_view, uint8_t>> seen; ///< the exceptions' aspects that did differ
+	std::set<const Node*> compared;                               ///< the distinct nodes a case was compared with
+	std::set<const Node*> excepted;                               ///< those of them an exception covers
 	bool ran = false;
 };
 
@@ -451,7 +454,7 @@ bool excused(const NodeException* exception, Aspect aspect, const std::string& f
 	if (!exception->only.empty() && finding.find(exception->only) == std::string::npos) {
 		return false;
 	}
-	tally().seen.emplace(exception->path, aspect);
+	tally().seen.emplace(exception->family, exception->path, aspect);
 	std::fprintf(stdout, "descriptor_coherence_spec: excepted %s\n", finding.c_str());
 	return true;
 }
@@ -484,12 +487,11 @@ void run_cases(auto& self, const std::vector<const Case*>& cases) {
 			tally().unpaired.emplace_back(c->path);
 			continue;
 		}
-		const NodeException* exception = exception_of(c->path);
+		const NodeException* exception = exception_of(c->family, c->path);
 		for (const Node* node : found->second) {
-			++tally().nodes;
 			tally().compared.insert(node);
 			if (exception != nullptr) {
-				++tally().excepted;
+				tally().excepted.insert(node);
 			}
 			judge(self, *c, *node, compare(*c, *node, exception), exception);
 		}
@@ -519,6 +521,126 @@ void run_all(auto& self) {
 // ---------------------------------------------------------------------------------------------
 // The nodes no row reaches.
 
+/// @brief The device settings: the value nodes under the settings root, which hold a device's state (FlashStorage, a
+/// runtime feature, a MIDI device, a CV or gate output, a pad colour) rather than a song's or a sound's, so no engine
+/// or model row holds them. Each is named by the names from the root to it, with how many nodes carry that path.
+struct DeviceNode {
+	std::string_view path;
+	size_t count;
+};
+
+constexpr DeviceNode kDeviceSettings[] = {
+    {"Settings > Community Features > Shell Menu", 1},
+    {"Settings > Community Features > Shortcut Overlay", 1},
+    {"Settings > Community Features > Show Battery Level", 1},
+    {"Settings > Community Features > Trim From Start Of Audio Clips", 1},
+    {"Settings > Community Features > Rounded Corners", 1},
+    {"Settings > Community Features > Horizontal Menus", 1},
+    {"Settings > Community Features > Alternative Tap Tempo Behaviour", 1},
+    {"Settings > Community Features > Grid View Loop Layer Pads", 1},
+    {"Settings > Community Features > Alternative Playback Start Behaviour", 1},
+    {"Settings > Community Features > Chord Keyboards", 1},
+    {"Settings > Community Features > Launch Event Playhead", 1},
+    {"Settings > Community Features > KB View Sidebar Menu Exit", 1},
+    {"Settings > Community Features > DX7 Engine", 1},
+    {"Settings > Community Features > Light Shift", 1},
+    {"Settings > Community Features > Sticky Shift", 1},
+    {"Settings > Community Features > Display Norns Layout", 1},
+    {"Settings > Community Features > Highlight Incoming Notes", 1},
+    {"Settings > Community Features > Sync Scaling Action", 1},
+    {"Settings > Community Features > Alternative Golden Knob Delay Params", 1},
+    {"Settings > Community Features > Delete Unused Kit Rows", 1},
+    {"Settings > Community Features > Catch Notes", 1},
+    {"Settings > Community Features > Quantize", 1},
+    {"Settings > Community Features > Fine Tempo Knob", 1},
+    {"Settings > Community Features > Drum Randomizer", 1},
+    {"Settings > Recording > Loop Command", 1},
+    {"Settings > Recording > Threshold Recording > Mode", 1},
+    {"Settings > Recording > Sampling monitoring", 1},
+    {"Settings > Recording > Loop margins", 1},
+    {"Settings > Recording > Quantization", 1},
+    {"Settings > Recording > Count-in bars", 1},
+    {"Settings > Play-Cursor", 1},
+    {"Settings > Sample Preview", 1},
+    {"Settings > Pads > Colours > Once", 1},
+    {"Settings > Pads > Colours > Fill", 1},
+    {"Settings > Pads > Colours > Soloed", 1},
+    {"Settings > Pads > Colours > Muted", 1},
+    {"Settings > Pads > Colours > Stopped", 1},
+    {"Settings > Pads > Colours > Active", 1},
+    {"Settings > Pads > Keyboard for Text", 1},
+    {"Settings > Pads > Shortcut Version", 1},
+    {"Settings > Defaults > Screensaver > Timeout", 1},
+    {"Settings > Defaults > Screensaver > Mode", 1},
+    {"Settings > Defaults > Hold Press Time", 1},
+    {"Settings > Defaults > High CPU Indicator", 1},
+    {"Settings > Defaults > Sample Slice Mode", 1},
+    {"Settings > Defaults > Pad Brightness", 1},
+    {"Settings > Defaults > Startup Song", 1},
+    {"Settings > Defaults > Patch cable polarity", 1},
+    {"Settings > Defaults > Metronome", 1},
+    {"Settings > Defaults > Bend range", 1},
+    {"Settings > Defaults > Resolution", 1},
+    {"Settings > Defaults > Velocity", 1},
+    {"Settings > Defaults > Scale > Init Scale", 1},
+    {"Settings > Defaults > Key", 1},
+    {"Settings > Defaults > Swing Interval", 1},
+    {"Settings > Defaults > Swing Amount", 1},
+    {"Settings > Defaults > Tempo", 1},
+    {"Settings > Defaults > Automation > Disable Audition Pad Shortcuts", 1},
+    {"Settings > Defaults > Automation > Nudge Note", 1},
+    {"Settings > Defaults > Automation > Shift", 1},
+    {"Settings > Defaults > Automation > Clear", 1},
+    {"Settings > Defaults > Automation > Interpolation", 1},
+    {"Settings > Defaults > UI > Use Sharps (#)", 1},
+    {"Settings > Defaults > UI > Clip Type > Use Last Clip Type", 1},
+    {"Settings > Defaults > UI > Clip Type > New Clip Type", 1},
+    {"Settings > Defaults > UI > Keyboard > Favourites", 1},
+    {"Settings > Defaults > UI > Keyboard > Sidebar Controls > Momentary Modwheel", 1},
+    {"Settings > Defaults > UI > Keyboard > Sidebar Controls > Momentary Velocity", 1},
+    {"Settings > Defaults > UI > Keyboard > Layout", 1},
+    {"Settings > Defaults > UI > Song > Grid > Empty pads > Create + Record", 1},
+    {"Settings > Defaults > UI > Song > Grid > Empty pads > Unarm", 1},
+    {"Settings > Defaults > UI > Song > Grid > Select in green mode", 1},
+    {"Settings > Defaults > UI > Song > Grid > Default active mode", 1},
+    {"Settings > Defaults > UI > Song > Layout", 1},
+    {"Settings > Defaults > UI > Accessibility > Menu Highlighting", 1},
+    {"Settings > Defaults > UI > Accessibility > Shortcuts", 1},
+    {"Settings > MIDI > Devices >> MIDI devices > MIDI-Thru", 1},
+    {"Settings > MIDI > Devices >> MIDI devices > Use Relative CC", 1},
+    {"Settings > MIDI > Devices >> MIDI devices > Clock In", 1},
+    {"Settings > MIDI > Devices >> MIDI devices > Clock Out", 1},
+    {"Settings > MIDI > Devices >> MIDI devices > Velocity", 1},
+    {"Settings > MIDI > Differentiate inputs", 1},
+    {"Settings > MIDI > Takeover", 1},
+    {"Settings > MIDI > Transpose", 1},
+    {"Settings > MIDI > MIDI-Thru", 1},
+    {"Settings > MIDI > Select Kit Row", 1},
+    {"Settings > MIDI > MIDI-Follow > Display Param", 1},
+    {"Settings > MIDI > MIDI-Follow > Feedback > Filter Responses", 1},
+    {"Settings > MIDI > MIDI-Follow > Feedback > Automation Feedback", 1},
+    {"Settings > MIDI > MIDI-Follow > Feedback > Channel", 1},
+    {"Settings > MIDI > MIDI-Follow > Kit Root Note", 1},
+    {"Settings > MIDI > MIDI-Follow > Channel > Channel Track**", 16},
+    {"Settings > MIDI > MIDI-Follow > Channel > Channel C", 1},
+    {"Settings > MIDI > MIDI-Follow > Channel > Channel B", 1},
+    {"Settings > MIDI > MIDI-Follow > Channel > Channel A", 1},
+    {"Settings > MIDI > Clock > Tempo Magnitude Matching", 1},
+    {"Settings > MIDI > Clock > Input", 1},
+    {"Settings > MIDI > Clock > Output", 1},
+    {"Settings > Trigger Clock > Output > PPQN", 1},
+    {"Settings > Trigger Clock > Input > Auto-Start", 1},
+    {"Settings > Trigger Clock > Input > PPQN", 1},
+    {"Settings > Gate >> Minimum Off-Time", 1},
+    {"Settings > Gate >> Gate out* mode", 1},
+    {"Settings > CV >> CV output * > Transpose", 1},
+    {"Settings > CV >> CV output * > Volts per Octave", 1},
+};
+
+constexpr std::string_view kDeviceReason =
+    "a device setting (FlashStorage, a runtime feature, a MIDI device, a CV or gate output, a pad colour): the "
+    "device's, not a song's or a sound's, so no engine or model row holds it";
+
 /// @brief A subtree whose value nodes have no row, and why.
 struct Subtree {
 	const Node* root;
@@ -527,15 +649,13 @@ struct Subtree {
 
 const std::vector<Subtree>& subtrees() {
 	static const std::vector<Subtree> list{
-	    {&nodes::root_settings,
-	     "a device setting (FlashStorage, a runtime feature, a MIDI device, a CV or gate output, a pad colour): the "
-	     "device's, not a song's or a sound's, so no engine or model row holds it"},
 	    {&nodes::note_editor_root,
 	     "the selected note's property, edited as an offset over every note under a zoomed-out square: no row"},
 	    {&nodes::note_row_editor_root, "the selected note row's property, edited as an offset over its notes: no row"},
 	    {&nodes::configure_stem_export, "an option of the stem export, which the export reads: no row"},
 	    {&nodes::kit_fx_configure_stem_export, "an option of the stem export, which the export reads: no row"},
-	    {&nodes::song_threshold_recording, "the recording threshold mode, a FlashStorage setting: no row"},
+	    {&nodes::song_threshold_recording, "the song's recording threshold mode: a runtime field seeded from "
+	                                       "FlashStorage when the song is made, and not saved: no row"},
 	};
 	return list;
 }
@@ -609,21 +729,39 @@ std::vector<Reached> hooked_nodes() {
 	return out;
 }
 
-/// @brief The reason @p node has no row, or empty where nothing explains it.
-std::string_view unpathed_reason(const Node& node) {
+/// @brief The reason @p reached has no row, or empty where nothing explains it.
+std::string_view unpathed_reason(const Reached& reached) {
 	for (const Skipped& skipped : skipped_nodes()) {
-		if (skipped.node == &node) {
+		if (skipped.node == reached.node) {
 			return skip_reason(skipped.path);
 		}
 	}
 	for (const Subtree& subtree : subtrees()) {
 		std::set<const Node*> under;
 		collect(*subtree.root, under);
-		if (under.contains(&node)) {
+		if (under.contains(reached.node)) {
 			return subtree.reason;
 		}
 	}
+	for (const DeviceNode& device : kDeviceSettings) {
+		if (device.path == reached.path) {
+			return kDeviceReason;
+		}
+	}
 	return {};
+}
+
+/// @brief The nodes under the settings root that no case compared with a row, by path, and how many share each.
+std::map<std::string, size_t> uncompared_device_nodes() {
+	std::set<const Node*> under;
+	collect(nodes::root_settings, under);
+	std::map<std::string, size_t> out;
+	for (const Reached& reached : hooked_nodes()) {
+		if (under.contains(reached.node) && !tally().compared.contains(reached.node)) {
+			++out[reached.path];
+		}
+	}
+	return out;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -643,12 +781,12 @@ std::string folded(std::string text) {
 describe descriptor_coherence_body("The scenes' menu tables against the setting descriptors and the host names", $ {
 	it("gives each node the range, names, title, reads and writes of its row", _ {
 		run_all(self);
-		std::fprintf(stdout, "descriptor_coherence_spec: %zu nodes compared (%zu excepted), %zu cases with no node\n",
-		             tally().nodes, tally().excepted, tally().unpaired.size());
+		std::fprintf(stdout, "descriptor_coherence_spec: %zu distinct nodes compared (%zu excepted), %zu cases with no node\n",
+		             tally().compared.size(), tally().excepted.size(), tally().unpaired.size());
 		for (const std::string& path : tally().unpaired) {
 			std::fprintf(stdout, "descriptor_coherence_spec: no node for %s\n", path.c_str());
 		}
-		expect(tally().nodes > 0).to_be_true();
+		expect(tally().compared.size()).to_be_greater_than(size_t{0});
 		expect(tally().unpaired.size()).to_equal(size_t(0));
 	});
 	it("names only rows a case shows, for each row it does not drive", _ {
@@ -668,7 +806,7 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 			for (const Aspect aspect : {RANGE, NAMES, TITLE, READ, WRITE}) {
 				if ((e.aspects & aspect) != 0) {
 					const std::string at = std::string{e.path} + " aspect " + std::to_string(aspect);
-					expect(at + (tally().seen.contains({e.path, aspect}) ? " differs" : " agrees"))
+					expect(at + (tally().seen.contains({e.family, e.path, aspect}) ? " differs" : " agrees"))
 					    .to_equal(at + " differs");
 				}
 			}
@@ -741,8 +879,10 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 			}
 			++differ;
 			// Legacy's own item is titled otherwise too.
-			for (const auto& [item, paired] : pairing()) {
-				if (std::find(paired.begin(), paired.end(), node) != paired.end()) {
+			bool paired = false;
+			for (const auto& [item, nodes_of_item] : pairing()) {
+				if (std::find(nodes_of_item.begin(), nodes_of_item.end(), node) != nodes_of_item.end()) {
+					paired = true;
 					const std::string at = "param " + table_name + " item " + node_text(node->title);
 					expect(at + (folded(std::string{const_cast<::MenuItem*>(item)->getTitle()}) == folded(table_name)
 					                 ? " titled as the table"
@@ -750,7 +890,8 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 					    .to_equal(at + " titled otherwise");
 				}
 			}
-
+			// A title that differs from the table's with no legacy item to compare would go unchecked.
+			expect(paired).to_be_true("param " + table_name + " titled " + node_text(node->title) + " has no legacy item");
 		}
 		std::fprintf(stdout, "descriptor_coherence_spec: %zu param nodes titled as their table name, %zu titled as the item\n",
 		             same, differ);
@@ -766,10 +907,23 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 			}
 			++unreached;
 			const std::string at = "node " + reached.path;
-			expect(at + (unpathed_reason(*reached.node).empty() ? " unexplained" : " explained"))
+			expect(at + (unpathed_reason(reached).empty() ? " unexplained" : " explained"))
 			    .to_equal(at + " explained");
 		}
 		std::fprintf(stdout, "descriptor_coherence_spec: %zu value nodes have no row\n", unreached);
+	});
+	it("lists exactly the device settings under the settings root", _ {
+		run_all(self);
+		std::map<std::string, size_t> found = uncompared_device_nodes();
+		for (const DeviceNode& device : kDeviceSettings) {
+			const std::string at = "device setting " + std::string{device.path};
+			const auto at_path = found.find(std::string{device.path});
+			expect(at_path != found.end() ? at_path->second : size_t{0}).to_equal(device.count, at);
+			found.erase(std::string{device.path});
+		}
+		for (const auto& [path, count] : found) {
+			expect(count).to_equal(size_t{0}, "unlisted device setting " + path);
+		}
 	});
 });
 // clang-format on
