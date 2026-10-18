@@ -753,12 +753,24 @@ inline constexpr DisplayMapping kLinearMapping{};
 		if (menu < least || menu > greatest) {
 			return std::nullopt;
 		}
-		const int32_t stored = mapping.kind == DisplayMappingKind::STANDARD   ? standard_stored(menu)
-		                       : mapping.kind == DisplayMappingKind::UNSIGNED ? unsigned_stored(menu)
-		                       : mapping.kind == DisplayMappingKind::PAN      ? pan_stored(menu)
-		                       : mapping.kind == DisplayMappingKind::FIFTIETHS
-		                           ? fiftieths_stored(menu)
-		                           : knob_position_stored(menu, mapping.clamp_to);
+		int32_t stored = 0;
+		switch (mapping.kind) {
+		case DisplayMappingKind::STANDARD:
+			stored = standard_stored(menu);
+			break;
+		case DisplayMappingKind::UNSIGNED:
+			stored = unsigned_stored(menu);
+			break;
+		case DisplayMappingKind::PAN:
+			stored = pan_stored(menu);
+			break;
+		case DisplayMappingKind::FIFTIETHS:
+			stored = fiftieths_stored(menu);
+			break;
+		default: // KNOB_POSITION: the only other kind that reaches here
+			stored = knob_position_stored(menu, mapping.clamp_to);
+			break;
+		}
 		return Stored{stored, 0};
 	}
 	}
