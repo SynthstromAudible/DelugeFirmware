@@ -54,13 +54,16 @@ inline constexpr std::array<std::string_view, 3> kSyncTypeNames{"0", "10", "19"}
 inline constexpr int32_t kQ31Max = std::numeric_limits<int32_t>::max();
 
 using Owner = engine::SettingContext::Owner;
-/// The song's own effects: its sidechain is the reverb's, and it has no compressor or saturation menu.
+using Instrument = engine::SettingContext::Instrument;
+/// The song's own effects: its sidechain is the reverb's, and it has no compressor or saturation menu. A scope rule:
+/// the song's effects are the song owner's.
 inline constexpr std::array<int32_t, 1> kSongOwner{static_cast<int32_t>(Owner::SONG)};
-/// The owners with no saturation menu: the song and the whole kit.
-inline constexpr std::array<int32_t, 2> kSongOrWholeKit{static_cast<int32_t>(Owner::KIT),
-                                                        static_cast<int32_t>(Owner::SONG)};
+/// The whole kit's own effects, which a kit plays through: they have no saturation menu, as the song's have none. Read
+/// off what plays, so it holds whichever scope a host passes for them.
+inline constexpr std::array<int32_t, 1> kKitInstrument{static_cast<int32_t>(Instrument::KIT)};
 inline constexpr std::array kOffSong{engine::owner_is_not(kSongOwner)};
-inline constexpr std::array kOffSongAndWholeKit{engine::owner_is_not(kSongOrWholeKit)};
+inline constexpr std::array kOffSongAndWholeKit{engine::owner_is_not(kSongOwner),
+                                                engine::instrument_is_not(kKitInstrument)};
 inline constexpr engine::SettingDescriptorExtras kOffSongExtras{.applies_when = kOffSong};
 inline constexpr engine::SettingDescriptorExtras kClippingExtras{.applies_when = kOffSongAndWholeKit};
 /// The stutter's quantize: the song's own, or an owner's that does not use the song's stutter.
@@ -111,6 +114,9 @@ inline constexpr int32_t kDefaultSidechainSyncLevel = engine::index_of(kDefaults
 inline namespace menu_tables {
 /// @brief The effects' non-param settings, by their path in an owner's element. A sync level is the level itself
 /// (0–9, 0 = off); a file writes it relative to the song's tick magnitude.
+///
+/// The owner each effect host passes (SettingContext::Owner): TRACK for a synth's or an audio track's effects,
+/// KIT_LANE for a kit lane's sound, KIT for the whole kit's own effects, and SONG for the song's.
 inline constexpr std::array<engine::SettingInfo, 23> kEffectSettings{{
     {.path = "modFXType", .kind = detail::CHOICE, .choices = detail::kModFxTypeNames},
     // 24dB, HPLadder: the filters' default circuits.

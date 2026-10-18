@@ -539,8 +539,8 @@ describe descriptor_legacy_applicability("Where each row's menu shows, against l
 					if (items.empty()) {
 						// A row no item shows says nothing of where it shows, but for a partner, which follows its row.
 						// A sound's effect rows are compared as the EFFECT family's.
-						const bool effect = family == Family::INSTRUMENT
-						                    && deluge::engine::find_setting(deluge::effects::kEffectSettings, row.path) != nullptr;
+						const SettingInfo* effect_row = deluge::engine::find_setting(deluge::effects::kEffectSettings, row.path);
+						const bool effect = family == Family::INSTRUMENT && effect_row != nullptr && effect_row->extras == row.extras;
 						const bool silent = effect || row.extras == nullptr
 						                    || (row.extras->applies_when.empty() && row.extras->applies_any.empty()
 						                        && row.extras->choice_when.empty());

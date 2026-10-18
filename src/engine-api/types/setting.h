@@ -70,6 +70,10 @@ struct SettingContext {
 	/// @brief What plays the owner's notes: its track's instrument, or on a kit lane, the lane's drum. NONE for the
 	/// song.
 	enum class Instrument : uint8_t { NONE, SYNTH, KIT, SOUND_DRUM, MIDI_DRUM, GATE_DRUM, MIDI, CV, AUDIO };
+	/// @brief How many Owner values there are: SONG is the last.
+	static constexpr int32_t kOwnerCount = static_cast<int32_t>(Owner::SONG) + 1;
+	/// @brief How many Instrument values there are: AUDIO is the last.
+	static constexpr int32_t kInstrumentCount = static_cast<int32_t>(Instrument::AUDIO) + 1;
 	Owner owner{Owner::TRACK};
 	Instrument instrument{Instrument::NONE};
 	bool audio_inputs_present{false}; ///< any audio input is plugged in
@@ -401,9 +405,10 @@ inline constexpr DisplayMapping kLinearMapping{};
 /// @param condition The condition.
 /// @return For every subject but NEVER, at least one value (an empty IS holds for no one, which is NEVER's to say). For
 ///         SETTING: its path names a row of @p rows that is not STRUCTURED or TEXT, and each value is one that row can
-///         store. For OWNER and INSTRUMENT: no path, and each value is one of the enum's. For INPUTS_PRESENT: no path,
-///         and each value is 0 or 1. For LOADED_SOURCES: no path, and each value is a mask of kMaxSoundSources bits.
-///         For NEVER: no path and no values. AT_LEAST only on a SETTING whose row is INTEGER, with exactly one value.
+///         store. For OWNER and INSTRUMENT: no path, and each value is one of the enum's. For INPUTS_PRESENT: IS, no
+///         path, and each value is 0 or 1. For LOADED_SOURCES: no path, and each value is a mask of kMaxSoundSources
+///         bits. For NEVER: IS, no path and no values. AT_LEAST only on a SETTING whose row is INTEGER, with exactly
+///         one value.
 [[nodiscard]] constexpr bool condition_is_valid(std::span<const SettingInfo> rows, const SettingCondition& condition) {
 	const auto values_within = [&](int32_t least, int32_t greatest) {
 		return condition.path.empty() && std::ranges::all_of(condition.values, [&](int32_t value) {
@@ -426,15 +431,15 @@ inline constexpr DisplayMapping kLinearMapping{};
 		       && std::ranges::all_of(condition.values, [&](int32_t value) { return stores_value(*target, value); });
 	}
 	case SettingCondition::Subject::OWNER:
-		return values_within(0, static_cast<int32_t>(SettingContext::Owner::SONG));
+		return values_within(0, SettingContext::kOwnerCount - 1);
 	case SettingCondition::Subject::INSTRUMENT:
-		return values_within(0, static_cast<int32_t>(SettingContext::Instrument::AUDIO));
+		return values_within(0, SettingContext::kInstrumentCount - 1);
 	case SettingCondition::Subject::INPUTS_PRESENT:
-		return values_within(0, 1);
+		return condition.test == SettingCondition::Test::IS && values_within(0, 1);
 	case SettingCondition::Subject::LOADED_SOURCES:
 		return values_within(0, (1 << kMaxSoundSources) - 1);
 	case SettingCondition::Subject::NEVER:
-		return condition.path.empty() && condition.values.empty();
+		return condition.test == SettingCondition::Test::IS && condition.path.empty() && condition.values.empty();
 	}
 	return false;
 }

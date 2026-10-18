@@ -86,9 +86,9 @@ static_assert(std::to_underlying(SampleRepeatMode::STRETCH) + 1 == kLoopModes.si
 
 /// The owners a kit lane stands for.
 constexpr std::array<int32_t, 1> kKitLaneOwner{std::to_underlying(engine::SettingContext::Owner::KIT_LANE)};
-/// The owners that hold a kit's sounds: a kit lane, and the kit itself.
-constexpr std::array<int32_t, 2> kKitOwners{std::to_underlying(engine::SettingContext::Owner::KIT_LANE),
-                                            std::to_underlying(engine::SettingContext::Owner::KIT)};
+/// What plays a kit's sounds: a kit lane's sound drum, and the kit itself.
+constexpr std::array<int32_t, 2> kKitSounds{std::to_underlying(engine::SettingContext::Instrument::SOUND_DRUM),
+                                            std::to_underlying(engine::SettingContext::Instrument::KIT)};
 /// A kit lane: it alone offers choke (which shares a kit's voices among its lanes), a send to the kit's sidechain and
 /// a drum note.
 constexpr std::array kOnKitLane{engine::owner_is(kKitLaneOwner)};
@@ -102,8 +102,9 @@ constexpr std::array<int32_t, 1> kRingModeValue{std::to_underlying(SynthMode::RI
 
 /// Ring mod mixes oscillators alone, so it offers no sample or input.
 constexpr std::array kNotRingMode{engine::setting_is_not("mode", kRingModeValue)};
-/// DX7 only where the owner may hold one: not in a kit's sounds.
-constexpr std::array kDx7Conditions{engine::setting_is_not("mode", kRingModeValue), engine::owner_is_not(kKitOwners)};
+/// DX7 only where the sound may hold one: not in a kit's sounds.
+constexpr std::array kDx7Conditions{engine::setting_is_not("mode", kRingModeValue),
+                                    engine::instrument_is_not(kKitSounds)};
 /// With no audio input plugged in, one input entry (the left input's) stands for the three.
 constexpr std::array kInputConditions{engine::setting_is_not("mode", kRingModeValue), engine::inputs_are(true)};
 /// The second oscillator's menu never offers DX7: only the first can hold one.

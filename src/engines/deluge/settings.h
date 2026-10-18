@@ -28,7 +28,8 @@
 namespace deluge::instrument {
 
 /// @brief The Deluge instrument's non-param settings, by their path in a sound's element: the scalars a setting Edit
-/// changes, and the structured ones (sample and wavetable ranges, the DX7 patch) only their own Edits change.
+/// changes, and the structured ones (sample and wavetable ranges, the DX7 patch) only their own Edits change. Its
+/// effect rows are kEffectSettings'. A host passes Owner TRACK for a synth's sound and KIT_LANE for a kit lane's.
 extern const std::span<const engine::SettingInfo> kSettings;
 
 /// @brief The Deluge instrument's clip-scoped settings: its arp's (kArpSettingRows). A clip holds their values in its
@@ -64,8 +65,9 @@ extern const std::span<const engine::SettingInfo> kClipScopedSettings;
 /// sound, so an applicability condition reads the sound's own value.
 /// @param state The sound's state.
 /// @param path  The setting's path.
-/// @return The stored value, or nullopt for a structured path, one the schema does not hold, or a CHOICE row whose
-///         held word is none of its choices (a state the schema cannot describe).
+/// @return The stored value, or nullopt for a structured path, one the schema does not hold, a CHOICE row whose held
+///         word is none of its choices, or another row whose held text is not a whole number (both states the schema
+///         cannot describe).
 [[nodiscard]] std::optional<int32_t> held_setting(const SoundState& state, std::string_view path);
 /// @brief Whether a sound in @p state may take @p value at @p path, beyond what the schema allows: ring mod rings only
 /// the oscillators up to a wavetable, so it is not chosen while either oscillator is past one, nor such an oscillator

@@ -250,6 +250,29 @@ static_assert(!deluge::engine::conditions_are_valid(kPastEndRows));       // a c
 static_assert(!deluge::engine::conditions_are_valid(kTwiceRows));         // a choice listed twice
 static_assert(!deluge::engine::conditions_are_valid(kChoicesOnPlainRow)); // choice conditions on a row with no choices
 
+// NEVER and INPUTS_PRESENT are spelled with IS alone, as never() and inputs_are() build them.
+constexpr std::array kNeverIsNot{SettingCondition{SettingCondition::Subject::NEVER, SettingCondition::Test::IS_NOT}};
+constexpr std::array kInputsIsNot{
+    SettingCondition{SettingCondition::Subject::INPUTS_PRESENT, SettingCondition::Test::IS_NOT, {}, kSomeValue}};
+constexpr SettingDescriptorExtras kNeverIsNotExtras{.applies_when = kNeverIsNot};
+constexpr SettingDescriptorExtras kInputsIsNotExtras{.applies_when = kInputsIsNot};
+constexpr std::array kNeverIsNotRows{SettingInfo{.path = "x", .extras = &kNeverIsNotExtras}};
+constexpr std::array kInputsIsNotRows{SettingInfo{.path = "x", .extras = &kInputsIsNotExtras}};
+static_assert(!deluge::engine::conditions_are_valid(kNeverIsNotRows));
+static_assert(!deluge::engine::conditions_are_valid(kInputsIsNotRows));
+
+/// A constexpr reader that holds "mode" at 2 (ring) and nothing else.
+constexpr std::optional<int32_t> ring_mode(const void* /*self*/, std::string_view path) {
+	return path == "mode" ? std::optional<int32_t>{2} : std::nullopt;
+}
+constexpr deluge::engine::SettingReader kRingReader{.read = ring_mode};
+// A SETTING condition reads its value through a non-null reader at compile time: IS and IS_NOT on the held value, and
+// a path the reader does not hold failing closed.
+static_assert(deluge::engine::condition_holds(setting_is("mode", kRing), SettingContext{}, kRingReader));
+static_assert(!deluge::engine::condition_holds(setting_is_not("mode", kRing), SettingContext{}, kRingReader));
+static_assert(!deluge::engine::setting_applies(kGatedRow, SettingContext{}, kRingReader));
+static_assert(!deluge::engine::condition_holds(setting_is_not("moed", kRing), SettingContext{}, kRingReader));
+
 std::vector<int32_t> offered(const SettingInfo& row, const SettingContext& shown, const SettingReader& reader) {
 	std::vector<int32_t> out;
 	const int32_t count = deluge::engine::applicable_choice_count(row, shown, reader);

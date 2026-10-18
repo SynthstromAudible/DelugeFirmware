@@ -262,10 +262,12 @@ describe settings("the Deluge instrument's settings schema", ${
 		const auto sample = static_cast<size_t>(OscType::SAMPLE);
 		const auto dx7 = static_cast<size_t>(OscType::DX7);
 		const auto input_r = static_cast<size_t>(OscType::INPUT_R);
-		const SettingContext track{.owner = SettingContext::Owner::TRACK};
-		const SettingContext lane{.owner = SettingContext::Owner::KIT_LANE};
-		const SettingContext whole_kit{.owner = SettingContext::Owner::KIT};
-		const SettingContext plugged{.owner = SettingContext::Owner::TRACK, .audio_inputs_present = true};
+		using Owner = SettingContext::Owner;
+		using Instrument = SettingContext::Instrument;
+		const SettingContext track{.owner = Owner::TRACK, .instrument = Instrument::SYNTH};
+		const SettingContext lane{.owner = Owner::KIT_LANE, .instrument = Instrument::SOUND_DRUM};
+		const SettingContext whole_kit{.owner = Owner::KIT, .instrument = Instrument::KIT};
+		const SettingContext plugged{.owner = Owner::TRACK, .instrument = Instrument::SYNTH, .audio_inputs_present = true};
 		const ModeReader subtractive{static_cast<int32_t>(SynthMode::SUBTRACTIVE)};
 		const ModeReader ring{static_cast<int32_t>(SynthMode::RINGMOD)};
 		expect(deluge::engine::setting_choice_applies(row, track, subtractive.reader(), sample)).to_be_true();
