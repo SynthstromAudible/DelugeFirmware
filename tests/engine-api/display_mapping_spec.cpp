@@ -25,6 +25,7 @@
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <string_view>
 #include <utility>
@@ -302,6 +303,25 @@ describe display_mapping("A setting's display mapping", $ {
 		for (int32_t menu = -1; menu <= 256; ++menu) {
 			const std::optional<Pair> stored = from_menu(kNoteForDrum, menu);
 			expect(!stored.has_value() || stored->first != 255).to_be_true();
+		}
+	});
+
+	it("shows a stored 0 on a clamping row as 0, not as its clamp", _ {
+		expect(to_menu(kMaxVoices, 0)).to_equal(0);
+		expect(to_menu(kNoteForDrum, 0)).to_equal(0);
+		expect(to_menu(kNoteForDrum, 127)).to_equal(127);
+		expect(to_menu(kNoteForDrum, 128)).to_equal(60);
+	});
+
+	it("shows any non-zero stored bool as the interpolation's menu 0, as a bool read does", _ {
+		for (const int32_t stored : {2, 255, -1, std::numeric_limits<int32_t>::min()}) {
+			expect(to_menu(kLinearInterpolation, stored)).to_equal(0);
+		}
+	});
+
+	it("shows a stored channel no menu step lists as the first step", _ {
+		for (const int32_t stored : {17, 255, -1}) {
+			expect(to_menu(kMidiChannel, stored)).to_equal(0);
 		}
 	});
 
