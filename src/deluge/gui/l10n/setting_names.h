@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "deluge-project/setting_group.h"
+#include "engine-api/types/engine_id.h"
 #include "engine-api/types/param.h"
 #include "engines/effects/words.h"
 #include "gui/l10n/strings.h"
@@ -27,17 +29,9 @@
 
 namespace deluge::l10n {
 
-/// @brief Which engine table a param id is from: the Deluge instrument's and the global effectable's ids overlap
-/// (both number their unpatched params from 90), and differ in meaning at 116 alone.
-enum class ParamTable : uint8_t {
-	INSTRUMENT,
-	GLOBAL_EFFECTABLE,
-};
-
-/// @brief What a param's name depends on: its table, and the filter modes (legacy names the morph param "LPF Drive" or
-/// "HPF FM" under a ladder filter).
+/// @brief What a param's name depends on: the filter modes (legacy names the morph param "LPF Drive" or "HPF FM"
+/// under a ladder filter).
 struct ParamNameContext {
-	ParamTable table{ParamTable::INSTRUMENT};
 	effects::FilterMode lpf_mode{effects::FilterMode::TRANSISTOR_24DB};
 	effects::FilterMode hpf_mode{effects::FilterMode::HPLADDER};
 };
@@ -51,20 +45,34 @@ struct SettingNames {
 	std::span<const String> short_choices; ///< the short spellings of @c choices; empty = the same as @c choices
 };
 
-/// @brief The names of setting @p path: an engine's setting row (the Deluge instrument's, the effects', the arp's and
-/// its host rows) or one of the model's setting groups, as the menu shows it.
-///
-/// A path that two tables share is named for the engine's row.
-///
-/// @param path The row's path.
-/// @return The names, or nullptr where no menu shows the row.
-[[nodiscard]] const SettingNames* setting_names(std::string_view path);
+/// @brief Whose table a setting row is in: an engine's, or one of the model's setting groups. Two owners can have a
+/// row of one path (the audio clip's and the instrument's `transpose`) that a menu shows differently.
+struct NamesOwner {
+	engine::EngineId engine{};                                    ///< the engine, or empty for a model group
+	project::SettingGroupId group{project::SettingGroupId::SONG}; ///< the group, where @c engine is empty
 
-/// @brief The display name of param @p id.
+	constexpr NamesOwner(engine::EngineId owner) : engine(owner) {}
+	constexpr NamesOwner(project::SettingGroupId owner) : group(owner) {}
+	[[nodiscard]] constexpr bool operator==(const NamesOwner&) const = default;
+};
+
+/// @brief The names of setting @p path of @p owner's table, as the menu shows the row.
 ///
-/// @param id      The param's id in its engine's table.
-/// @param state   The table @p id is from, and the filter modes where the name depends on them.
-/// @return The string naming the param; String::STRING_FOR_NONE for an id no table has.
-[[nodiscard]] String param_name(engine::ParamId id, const ParamNameContext& state = {});
+/// The engine owners are the Deluge instrument (its settings, its effects and the arp rows) and the global effectable
+/// (the effects); the model's owners are its setting groups.
+///
+/// @param owner The engine or setting group whose table has the row.
+/// @param path  The row's path.
+/// @return The names, or nullptr where no menu shows the row.
+[[nodiscard]] const SettingNames* setting_names(NamesOwner owner, std::string_view path);
+
+/// @brief The display name of param @p id of @p engine.
+///
+/// @param engine  The engine whose table the id is from (the Deluge instrument or the global effectable).
+/// @param id      The param's id in that engine's table.
+/// @param state   The filter modes, where the name depends on them.
+/// @return The string naming the param; String::STRING_FOR_NONE for an id the engine's table has no param at, or an
+///         engine with no param names.
+[[nodiscard]] String param_name(engine::EngineId engine, engine::ParamId id, const ParamNameContext& state = {});
 
 } // namespace deluge::l10n

@@ -60,6 +60,7 @@ using deluge::hid::display::OLED;
 #include "gui/menu_item/audio_clip/reverse.h"
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
 #include "gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h"
+#include "gui/menu_item/audio_clip/specific_output_source_selector.h"
 #include "gui/menu_item/audio_clip/transpose.h"
 #include "gui/menu_item/audio_compressor/compressor_params.h"
 #include "gui/menu_item/audio_compressor/compressor_values.h"
@@ -153,6 +154,7 @@ using deluge::hid::display::OLED;
 #include "gui/menu_item/midi/sub.h"
 #include "gui/menu_item/midi/takeover.h"
 #include "gui/menu_item/midi/transpose.h"
+#include "gui/menu_item/midi/y_axis_to_cc1.h"
 #include "gui/menu_item/mod_fx/depth_patched.h"
 #include "gui/menu_item/mod_fx/depth_unpatched.h"
 #include "gui/menu_item/mod_fx/feedback.h"
@@ -266,6 +268,7 @@ using deluge::hid::display::OLED;
 #include "gui/menu_item/voice/priority.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
+#include "model/instrument/non_audio_instrument.h"
 #include "modulation/params/param.h"
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
@@ -390,6 +393,15 @@ extern legacy::reverb::sidechain::Shape reverbSidechainShapeMenu;
 extern legacy::swing::Interval swingIntervalMenu;
 extern legacy::audio_clip::Reverse audioClipReverseMenu;
 extern legacy::audio_clip::Attack audioClipAttackMenu;
+extern legacy::sequence::Direction sequenceDirectionMenu;
+extern legacy::midi::MPEYToModWheel mpeyToModWheelMenu;
+extern legacy::cv::DualCVSelection cv2SourceMenu;
+extern legacy::midi::AftertouchToMono midiAftertouchCollapseMenu;
+extern legacy::midi::MPEToMono midiMPECollapseMenu;
+extern legacy::midi::device_definition::HideUnlabeled hideUnlabeledCCMenu;
+extern legacy::midi::device_definition::Linked midiDeviceLinkedMenu;
+extern legacy::audio_clip::AudioSourceSelector audioSourceSelectorMenu;
+extern legacy::audio_clip::SpecificSourceOutputSelector specificOutputSelectorMenu;
 extern legacy::midi::Bank midiBankMenu;
 extern legacy::midi::Sub midiSubMenu;
 extern legacy::midi::PGM midiPGMMenu;
@@ -642,7 +654,20 @@ SettingContext context_of(Where where, int8_t source = 0) {
 // A row's stored value, set through its Edit and read back from its record.
 
 /// Which table a row comes from, and so how its value is set and read.
-enum class Family : uint8_t { INSTRUMENT, EFFECT, ARP, ARP_HOST, AUDIO_CLIP, SONG, CLIP_VALUES };
+enum class Family : uint8_t {
+	INSTRUMENT,
+	EFFECT,
+	ARP,
+	ARP_HOST,
+	AUDIO_CLIP,
+	SONG,
+	CLIP_VALUES,
+	// The groups whose rows are named but not driven by the range, read and write checks.
+	NOTE_ROW,
+	CLIP,
+	INSTRUMENT_DEVICE,
+	AUDIO_INPUT,
+};
 
 std::span<const SettingInfo> table_of(Family family) {
 	switch (family) {
@@ -660,6 +685,14 @@ std::span<const SettingInfo> table_of(Family family) {
 		return deluge::project::table_of(deluge::project::SettingGroupId::SONG);
 	case Family::CLIP_VALUES:
 		return deluge::project::table_of(deluge::project::SettingGroupId::CLIP_VALUES);
+	case Family::NOTE_ROW:
+		return deluge::project::table_of(deluge::project::SettingGroupId::NOTE_ROW);
+	case Family::CLIP:
+		return deluge::project::table_of(deluge::project::SettingGroupId::CLIP);
+	case Family::INSTRUMENT_DEVICE:
+		return deluge::project::table_of(deluge::project::SettingGroupId::INSTRUMENT_DEVICE);
+	case Family::AUDIO_INPUT:
+		return deluge::project::table_of(deluge::project::SettingGroupId::AUDIO_INPUT);
 	}
 	return {};
 }
@@ -753,6 +786,11 @@ void set_stored(Family family, const MenuContext& ctx, Where where, const Settin
 	case Family::CLIP_VALUES:
 		deluge::edits::clipValueSettingFor(*static_cast<InstrumentClip*>(ctx.clip), row.path, value);
 		return;
+	case Family::NOTE_ROW:
+	case Family::CLIP:
+	case Family::INSTRUMENT_DEVICE:
+	case Family::AUDIO_INPUT:
+		return; // named only: no driver
 	}
 	(void)where;
 }
@@ -794,6 +832,11 @@ std::optional<int32_t> get_stored(Family family, const MenuContext& ctx, Where w
 		                                      row.path);
 		break;
 	}
+	case Family::NOTE_ROW:
+	case Family::CLIP:
+	case Family::INSTRUMENT_DEVICE:
+	case Family::AUDIO_INPUT:
+		return std::nullopt; // named only: no driver
 	}
 	if (!value) {
 		return std::nullopt;
@@ -1398,7 +1441,51 @@ bool skipped(std::string_view path) {
 	return false;
 }
 
-/// Every case of every family.
+/// The rows of the groups the range, read and write checks do not drive, each with the legacy item that shows it. They
+/// are named and compared by name only.
+const std::vector<Case>& group_cases() {
+	static const std::vector<Case> cases{
+	    {.path = "sequenceDirection", .family = Family::CLIP, .item = &sequenceDirectionMenu},
+	    {.path = "sequenceDirection",
+	     .family = Family::NOTE_ROW,
+	     .item = &sequenceDirectionMenu,
+	     .where = Where::KIT_LANE},
+	    {.path = "bendRange", .family = Family::NOTE_ROW, .item = &perFingerBendRangeMenu, .where = Where::KIT_LANE},
+	    {.path = "outputMpeY",
+	     .family = Family::INSTRUMENT_DEVICE,
+	     .item = &mpeyToModWheelMenu,
+	     .where = Where::MIDI_CLIP},
+	    {.path = "cv2Source", .family = Family::INSTRUMENT_DEVICE, .item = &cv2SourceMenu, .where = Where::MIDI_CLIP},
+	    {.path = "collapseAftertouch",
+	     .family = Family::INSTRUMENT_DEVICE,
+	     .item = &midiAftertouchCollapseMenu,
+	     .where = Where::MIDI_CLIP},
+	    {.path = "collapseMpe",
+	     .family = Family::INSTRUMENT_DEVICE,
+	     .item = &midiMPECollapseMenu,
+	     .where = Where::MIDI_CLIP},
+	    {.path = "hideUnlabeledCC",
+	     .family = Family::INSTRUMENT_DEVICE,
+	     .item = &hideUnlabeledCCMenu,
+	     .where = Where::MIDI_CLIP},
+	    {.path = "deviceDefinitionFileName",
+	     .family = Family::INSTRUMENT_DEVICE,
+	     .item = &midiDeviceLinkedMenu,
+	     .where = Where::MIDI_CLIP},
+	    {.path = "mode", .family = Family::AUDIO_INPUT, .item = &audioSourceSelectorMenu, .where = Where::AUDIO_CLIP},
+	    {.path = "inputChannel",
+	     .family = Family::AUDIO_INPUT,
+	     .item = &audioSourceSelectorMenu,
+	     .where = Where::AUDIO_CLIP},
+	    {.path = "outputRecordingFrom",
+	     .family = Family::AUDIO_INPUT,
+	     .item = &specificOutputSelectorMenu,
+	     .where = Where::AUDIO_CLIP},
+	};
+	return cases;
+}
+
+/// Every case of every family the range, read and write checks drive.
 std::vector<const Case*> all_cases() {
 	std::vector<const Case*> out;
 	for (const auto* family :
@@ -1407,6 +1494,15 @@ std::vector<const Case*> all_cases() {
 		for (const Case& c : *family) {
 			out.push_back(&c);
 		}
+	}
+	return out;
+}
+
+/// Every case, the named-only ones included.
+std::vector<const Case*> all_name_cases() {
+	std::vector<const Case*> out = all_cases();
+	for (const Case& c : group_cases()) {
+		out.push_back(&c);
 	}
 	return out;
 }

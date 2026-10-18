@@ -22,20 +22,24 @@
 
 #include <algorithm>
 #include <array>
+#include <tuple>
+#include <utility>
 
 namespace deluge::l10n {
 namespace {
 
 using enum String;
+using engine::ParamId;
+using project::SettingGroupId;
 
 /// @name The choice lists a row's options are named by, shared where rows list the same options.
 /// @{
-constexpr std::array<String, 2> kOffOnChoices{{
+constexpr std::array<String, 2> kArpeggiatorArpModeChoices{{
     STRING_FOR_OFF,
     STRING_FOR_ON,
 }};
 
-constexpr std::array<String, 9> kArpChordTypeChoices{{
+constexpr std::array<String, 9> kArpeggiatorChordTypeChoices{{
     STRING_FOR_NONE,
     STRING_FOR_FIFTH,
     STRING_FOR_SUS2,
@@ -47,13 +51,13 @@ constexpr std::array<String, 9> kArpChordTypeChoices{{
     STRING_FOR_MAJOR7,
 }};
 
-constexpr std::array<String, 3> kArpMpeVelocityChoices{{
+constexpr std::array<String, 3> kArpeggiatorMpeVelocityChoices{{
     STRING_FOR_DISABLED,
     STRING_FOR_PATCH_SOURCE_AFTERTOUCH,
     STRING_FOR_PATCH_SOURCE_Y,
 }};
 
-constexpr std::array<String, 9> kArpNoteModeChoices{{
+constexpr std::array<String, 9> kArpeggiatorNoteModeChoices{{
     STRING_FOR_UP,
     STRING_FOR_DOWN,
     STRING_FOR_UP_DOWN,
@@ -65,7 +69,7 @@ constexpr std::array<String, 9> kArpNoteModeChoices{{
     STRING_FOR_PATTERN,
 }};
 
-constexpr std::array<String, 5> kArpOctaveModeChoices{{
+constexpr std::array<String, 5> kArpeggiatorOctaveModeChoices{{
     STRING_FOR_UP,
     STRING_FOR_DOWN,
     STRING_FOR_UP_DOWN,
@@ -73,7 +77,7 @@ constexpr std::array<String, 5> kArpOctaveModeChoices{{
     STRING_FOR_RANDOM,
 }};
 
-constexpr std::array<String, 7> kArpPresetChoices{{
+constexpr std::array<String, 7> kArpeggiatorPresetChoices{{
     STRING_FOR_OFF,
     STRING_FOR_UP,
     STRING_FOR_DOWN,
@@ -81,6 +85,13 @@ constexpr std::array<String, 7> kArpPresetChoices{{
     STRING_FOR_RANDOM,
     STRING_FOR_WALK,
     STRING_FOR_CUSTOM,
+}};
+
+constexpr std::array<String, 4> kCv2SourceChoices{{
+    STRING_FOR_OFF,
+    STRING_FOR_PATCH_SOURCE_Y,
+    STRING_FOR_PATCH_SOURCE_AFTERTOUCH,
+    STRING_FOR_VELOCITY,
 }};
 
 constexpr std::array<String, 3> kDelayTypeChoices{{
@@ -115,7 +126,7 @@ constexpr std::array<String, 4> kHpfModeShortChoices{{
     STRING_FOR_OFF,
 }};
 
-constexpr std::array<String, 7> kLfoTypeChoices{{
+constexpr std::array<String, 7> kLfo1TypeChoices{{
     STRING_FOR_SINE,
     STRING_FOR_TRIANGLE,
     STRING_FOR_SQUARE,
@@ -125,7 +136,7 @@ constexpr std::array<String, 7> kLfoTypeChoices{{
     STRING_FOR_WARBLE,
 }};
 
-constexpr std::array<String, 7> kLfoTypeShortChoices{{
+constexpr std::array<String, 7> kLfo1TypeShortChoices{{
     STRING_FOR_SINE,
     STRING_FOR_TRIANGLE,
     STRING_FOR_SQUARE,
@@ -180,19 +191,19 @@ constexpr std::array<String, 2> kModulator2ToModulator1Choices{{
     STRING_FOR_MODULATOR_1,
 }};
 
-constexpr std::array<String, 4> kLoopModeChoices{{
+constexpr std::array<String, 4> kOsc1LoopModeChoices{{
     STRING_FOR_CUT,
     STRING_FOR_ONCE,
     STRING_FOR_LOOP,
     STRING_FOR_STRETCH,
 }};
 
-constexpr std::array<String, 2> kLinkedIndependentChoices{{
+constexpr std::array<String, 2> kOsc1TimeStretchEnableChoices{{
     STRING_FOR_LINKED,
     STRING_FOR_INDEPENDENT,
 }};
 
-constexpr std::array<String, 12> kOscTypeChoices{{
+constexpr std::array<String, 12> kOsc1TypeChoices{{
     STRING_FOR_SINE,
     STRING_FOR_TRIANGLE,
     STRING_FOR_SQUARE,
@@ -232,275 +243,526 @@ constexpr std::array<String, 3> kReverbModelChoices{{
     STRING_FOR_MUTABLE,
     STRING_FOR_DIGITAL,
 }};
+
+constexpr std::array<String, 4> kSequenceDirectionChoices{{
+    STRING_FOR_FORWARD,
+    STRING_FOR_REVERSED,
+    STRING_FOR_PING_PONG,
+    STRING_FOR_NONE,
+}};
+/// @}
+
+/// @name The names rows have, shared by every owner and path that shows a row alike.
+/// @{
+constexpr SettingNames kArpeggiatorArpModeNames{
+    STRING_FOR_ARP_MODE_MENU_TITLE, STRING_FOR_ENABLED, kArpeggiatorArpModeChoices, {}};
+constexpr SettingNames kArpeggiatorBassProbabilityNames{
+    STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE, STRING_FOR_BASS_PROBABILITY, {}, {}};
+constexpr SettingNames kArpeggiatorChordPolyphonyNames{
+    STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE, STRING_FOR_CHORD_POLYPHONY, {}, {}};
+constexpr SettingNames kArpeggiatorChordProbabilityNames{
+    STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE, STRING_FOR_CHORD_PROBABILITY, {}, {}};
+constexpr SettingNames kArpeggiatorChordTypeNames{
+    STRING_FOR_ARP_CHORD_SIMULATOR_MENU_TITLE, STRING_FOR_CHORD_SIMULATOR, kArpeggiatorChordTypeChoices, {}};
+constexpr SettingNames kArpeggiatorGateNames{STRING_FOR_ARP_GATE_MENU_TITLE, STRING_FOR_GATE, {}, {}};
+constexpr SettingNames kArpeggiatorGlideProbabilityNames{
+    STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE, STRING_FOR_GLIDE_PROBABILITY, {}, {}};
+constexpr SettingNames kArpeggiatorKitArpNames{
+    STRING_FOR_INCLUDE_IN_KIT_ARP, STRING_FOR_INCLUDE_IN_KIT_ARP, kArpeggiatorArpModeChoices, {}};
+constexpr SettingNames kArpeggiatorMpeVelocityNames{
+    STRING_FOR_VELOCITY, STRING_FOR_VELOCITY, kArpeggiatorMpeVelocityChoices, {}};
+constexpr SettingNames kArpeggiatorNoteModeNames{
+    STRING_FOR_ARP_NOTE_MODE_MENU_TITLE, STRING_FOR_NOTE_MODE, kArpeggiatorNoteModeChoices, {}};
+constexpr SettingNames kArpeggiatorNoteProbabilityNames{
+    STRING_FOR_NOTE_PROBABILITY_MENU_TITLE, STRING_FOR_NOTE_PROBABILITY, {}, {}};
+constexpr SettingNames kArpeggiatorNumOctavesNames{
+    STRING_FOR_ARP_OCTAVES_MENU_TITLE, STRING_FOR_NUMBER_OF_OCTAVES, {}, {}};
+constexpr SettingNames kArpeggiatorOctaveModeNames{
+    STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE, STRING_FOR_OCTAVE_MODE, kArpeggiatorOctaveModeChoices, {}};
+constexpr SettingNames kArpeggiatorPresetNames{
+    STRING_FOR_ARP_PRESET_MENU_TITLE, STRING_FOR_PRESET, kArpeggiatorPresetChoices, {}};
+constexpr SettingNames kArpeggiatorRandomizerLockNames{
+    STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE, STRING_FOR_RANDOMIZER_LOCK, kArpeggiatorArpModeChoices, {}};
+constexpr SettingNames kArpeggiatorRatchetAmountNames{
+    STRING_FOR_ARP_RATCHETS_MENU_TITLE, STRING_FOR_NUMBER_OF_RATCHETS, {}, {}};
+constexpr SettingNames kArpeggiatorRatchetProbabilityNames{
+    STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE, STRING_FOR_RATCHET_PROBABILITY, {}, {}};
+constexpr SettingNames kArpeggiatorRateNames{STRING_FOR_ARP_RATE_MENU_TITLE, STRING_FOR_RATE, {}, {}};
+constexpr SettingNames kArpeggiatorRhythmNames{STRING_FOR_ARP_RHYTHM_MENU_TITLE, STRING_FOR_RHYTHM, {}, {}};
+constexpr SettingNames kArpeggiatorSequenceLengthNames{
+    STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE, STRING_FOR_SEQUENCE_LENGTH, {}, {}};
+constexpr SettingNames kArpeggiatorSpreadGateNames{
+    STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE, STRING_FOR_SPREAD_GATE, {}, {}};
+constexpr SettingNames kArpeggiatorSpreadOctaveNames{
+    STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE, STRING_FOR_SPREAD_OCTAVE, {}, {}};
+constexpr SettingNames kArpeggiatorSpreadVelocityNames{
+    STRING_FOR_SPREAD_VELOCITY_MENU_TITLE, STRING_FOR_SPREAD_VELOCITY, {}, {}};
+constexpr SettingNames kArpeggiatorStepRepeatNames{
+    STRING_FOR_ARP_STEP_REPEAT_MENU_TITLE, STRING_FOR_STEP_REPEAT, {}, {}};
+constexpr SettingNames kArpeggiatorSwapProbabilityNames{
+    STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE, STRING_FOR_SWAP_PROBABILITY, {}, {}};
+constexpr SettingNames kArpeggiatorSyncLevelNames{STRING_FOR_ARP_SYNC_MENU_TITLE, STRING_FOR_SYNC, {}, {}};
+constexpr SettingNames kAttackNames{STRING_FOR_ATTACK, STRING_FOR_ATTACK, {}, {}};
+constexpr SettingNames kAudioCompressorCompBlendNames{STRING_FOR_BLEND, STRING_FOR_BLEND, {}, {}};
+constexpr SettingNames kAudioCompressorCompHPFNames{STRING_FOR_HPF, STRING_FOR_HPF, {}, {}};
+constexpr SettingNames kAudioCompressorRatioNames{STRING_FOR_RATIO, STRING_FOR_RATIO, {}, {}};
+constexpr SettingNames kAudioCompressorReleaseNames{STRING_FOR_RELEASE, STRING_FOR_RELEASE, {}, {}};
+constexpr SettingNames kBendRangeNames{STRING_FOR_NORMAL, STRING_FOR_NORMAL, {}, {}};
+constexpr SettingNames kBendRangeNames2{STRING_FOR_POLY_FINGER_MPE, STRING_FOR_POLY_FINGER_MPE, {}, {}};
+constexpr SettingNames kClippingAmountNames{STRING_FOR_SATURATION, STRING_FOR_SATURATION, {}, {}};
+constexpr SettingNames kCollapseAftertouchNames{
+    STRING_FOR_PATCH_SOURCE_AFTERTOUCH, STRING_FOR_PATCH_SOURCE_AFTERTOUCH, {}, {}};
+constexpr SettingNames kCollapseMpeNames{STRING_FOR_MPE, STRING_FOR_MPE, {}, {}};
+constexpr SettingNames kCv2SourceNames{STRING_FOR_CV2_SOURCE, STRING_FOR_CV2_SOURCE, kCv2SourceChoices, {}};
+constexpr SettingNames kDelayPingPongNames{
+    STRING_FOR_DELAY_PINGPONG, STRING_FOR_PINGPONG, kArpeggiatorArpModeChoices, {}};
+constexpr SettingNames kDelaySyncLevelNames{STRING_FOR_DELAY_SYNC, STRING_FOR_SYNC, {}, {}};
+constexpr SettingNames kDelayTypeNames{STRING_FOR_DELAY_TYPE, STRING_FOR_TYPE, kDelayTypeChoices,
+                                       kDelayTypeShortChoices};
+constexpr SettingNames kDeviceDefinitionFileNameNames{
+    STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED, STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED, {}, {}};
+constexpr SettingNames kFilterRouteNames{STRING_FOR_FILTER_ROUTE, STRING_FOR_FILTER_ROUTE, kFilterRouteChoices, {}};
+constexpr SettingNames kHideUnlabeledCCNames{
+    STRING_FOR_MIDI_DEVICE_DEFINITION_HIDE, STRING_FOR_MIDI_DEVICE_DEFINITION_HIDE, {}, {}};
+constexpr SettingNames kHpfModeNames{STRING_FOR_HPF_MODE, STRING_FOR_MODE, kHpfModeChoices, kHpfModeShortChoices};
+constexpr SettingNames kInputChannelNames{STRING_FOR_AUDIO_SOURCE, STRING_FOR_AUDIO_SOURCE, {}, {}};
+constexpr SettingNames kLfo1SyncLevelNames{STRING_FOR_LFO_SYNC, STRING_FOR_SYNC, {}, {}};
+constexpr SettingNames kLfo1TypeNames{STRING_FOR_LFO_TYPE, STRING_FOR_SHAPE, kLfo1TypeChoices, kLfo1TypeShortChoices};
+constexpr SettingNames kLinearInterpolationNames{
+    STRING_FOR_AUDIO_INTERPOLATION, STRING_FOR_INTERPOLATION, kLinearInterpolationChoices, {}};
+constexpr SettingNames kLpfModeNames{STRING_FOR_LPF_MODE, STRING_FOR_MODE, kLpfModeChoices, kLpfModeShortChoices};
+constexpr SettingNames kMaxVoicesNames{STRING_FOR_MAX_VOICES, STRING_FOR_MAX_VOICES, {}, {}};
+constexpr SettingNames kMidiBankNames{STRING_FOR_MIDI_BANK, STRING_FOR_BANK, {}, {}};
+constexpr SettingNames kMidiOutputChannelNames{STRING_FOR_CHANNEL, STRING_FOR_CHANNEL, {}, {}};
+constexpr SettingNames kMidiOutputNoteForDrumNames{STRING_FOR_NOTE, STRING_FOR_NOTE, {}, {}};
+constexpr SettingNames kMidiPGMNames{STRING_FOR_MIDI_PGM_NUMB_MENU_TITLE, STRING_FOR_PGM, {}, {}};
+constexpr SettingNames kMidiSubNames{STRING_FOR_MIDI_SUB_BANK, STRING_FOR_SUB_BANK_SHORT, {}, {}};
+constexpr SettingNames kModFXTypeNames{STRING_FOR_MODFX_TYPE, STRING_FOR_TYPE, kModFXTypeChoices, {}};
+constexpr SettingNames kModeNames{STRING_FOR_SYNTH_MODE, STRING_FOR_SYNTH_MODE, kModeChoices, {}};
+constexpr SettingNames kModulator1RetrigPhaseNames{
+    STRING_FOR_FM_MOD_RETRIG_MENU_TITLE, STRING_FOR_RETRIGGER_PHASE, {}, {}};
+constexpr SettingNames kModulator1TransposeNames{STRING_FOR_FM_MOD_TRAN_MENU_TITLE, STRING_FOR_TRANSPOSE, {}, {}};
+constexpr SettingNames kModulator2ToModulator1Names{
+    STRING_FOR_FM_MOD2_DEST_MENU_TITLE, STRING_FOR_DESTINATION, kModulator2ToModulator1Choices, {}};
+constexpr SettingNames kOsc1LinearInterpolationNames{
+    STRING_FOR_SAMP_INTERP_MENU_TITLE, STRING_FOR_INTERPOLATION, kLinearInterpolationChoices, {}};
+constexpr SettingNames kOsc1LoopModeNames{EMPTY_STRING, STRING_FOR_REPEAT_MODE, kOsc1LoopModeChoices, {}};
+constexpr SettingNames kOsc1RetrigPhaseNames{STRING_FOR_OSC_R_PHASE_MENU_TITLE, STRING_FOR_RETRIGGER_PHASE, {}, {}};
+constexpr SettingNames kOsc1ReversedNames{STRING_FOR_SAMP_REVERSE_MENU_TITLE, STRING_FOR_REVERSE, {}, {}};
+constexpr SettingNames kOsc1TimeStretchAmountNames{STRING_FOR_SAMP_SPEED_MENU_TITLE, STRING_FOR_SPEED, {}, {}};
+constexpr SettingNames kOsc1TimeStretchEnableNames{
+    STRING_FOR_PITCH_SPEED, STRING_FOR_PITCH_SPEED, kOsc1TimeStretchEnableChoices, {}};
+constexpr SettingNames kOsc1TransposeNames{STRING_FOR_OSC_TRANSPOSE_MENU_TITLE, STRING_FOR_TRANSPOSE, {}, {}};
+constexpr SettingNames kOsc1TypeNames{STRING_FOR_OSC_TYPE_MENU_TITLE, STRING_FOR_TYPE, kOsc1TypeChoices, {}};
+constexpr SettingNames kOsc2OscillatorSyncNames{STRING_FOR_OSCILLATOR_SYNC, STRING_FOR_OSCILLATOR_SYNC, {}, {}};
+constexpr SettingNames kOutputMpeYNames{STRING_FOR_Y_AXIS_CONVERSION, STRING_FOR_Y_AXIS_CONVERSION, {}, {}};
+constexpr SettingNames kOutputRecordingFromNames{STRING_FOR_TRACK, STRING_FOR_TRACK, {}, {}};
+constexpr SettingNames kPolyphonicNames{STRING_FOR_POLYPHONY, STRING_FOR_POLYPHONY, kPolyphonicChoices, {}};
+constexpr SettingNames kPriorityNames{STRING_FOR_PRIORITY, STRING_FOR_PRIORITY, kPriorityChoices,
+                                      kPriorityShortChoices};
+constexpr SettingNames kReverbCompressorAttackNames{STRING_FOR_SIDECH_ATTACK_MENU_TITLE, STRING_FOR_ATTACK, {}, {}};
+constexpr SettingNames kReverbCompressorReleaseNames{STRING_FOR_SIDECH_RELEASE_MENU_TITLE, STRING_FOR_RELEASE, {}, {}};
+constexpr SettingNames kReverbCompressorShapeNames{STRING_FOR_SIDECH_SHAPE_MENU_TITLE, STRING_FOR_SHAPE, {}, {}};
+constexpr SettingNames kReverbDampeningNames{STRING_FOR_DAMPING, STRING_FOR_DAMPING, {}, {}};
+constexpr SettingNames kReverbLpfNames{STRING_FOR_LPF, STRING_FOR_LPF, {}, {}};
+constexpr SettingNames kReverbModelNames{STRING_FOR_MODEL, STRING_FOR_MODEL, kReverbModelChoices, {}};
+constexpr SettingNames kReverbPanNames{STRING_FOR_REVERB_PAN, STRING_FOR_PAN, {}, {}};
+constexpr SettingNames kReverbRoomSizeNames{STRING_FOR_TIME, STRING_FOR_TIME, {}, {}};
+constexpr SettingNames kReverbWidthNames{STRING_FOR_DIFFUSION, STRING_FOR_DIFFUSION, {}, {}};
+constexpr SettingNames kReversedNames{STRING_FOR_REVERSE, STRING_FOR_REVERSE, {}, {}};
+constexpr SettingNames kSequenceDirectionNames{
+    STRING_FOR_PLAY_DIRECTION, STRING_FOR_PLAY_DIRECTION, kSequenceDirectionChoices, {}};
+constexpr SettingNames kSideChainSendNames{STRING_FOR_SEND_TO_SIDECH_MENU_TITLE, STRING_FOR_SEND_TO_SIDECHAIN, {}, {}};
+constexpr SettingNames kSidechainSyncLevelNames{STRING_FOR_SIDECHAIN_SYNC, STRING_FOR_SYNC, {}, {}};
+constexpr SettingNames kStutterQuantizedNames{STRING_FOR_QUANTIZE, STRING_FOR_QUANTIZE, {}, {}};
+constexpr SettingNames kSwingIntervalNames{STRING_FOR_SWING_INTERVAL, STRING_FOR_SWING_INTERVAL, {}, {}};
+constexpr SettingNames kTransposeNames{STRING_FOR_MASTER_TRAN_MENU_TITLE, STRING_FOR_MASTER_TRANSPOSE, {}, {}};
+constexpr SettingNames kTransposeNames2{STRING_FOR_TRANSPOSE, STRING_FOR_TRANSPOSE, {}, {}};
+constexpr SettingNames kUnisonDetuneNames{STRING_FOR_UNISON_DETUNE_MENU_TITLE, STRING_FOR_UNISON_DETUNE, {}, {}};
+constexpr SettingNames kUnisonNumNames{STRING_FOR_UNISON_NUMBER_MENU_TITLE, STRING_FOR_UNISON_NUMBER, {}, {}};
+constexpr SettingNames kUnisonSpreadNames{
+    STRING_FOR_UNISON_STEREO_SPREAD_MENU_TITLE, STRING_FOR_UNISON_STEREO_SPREAD, {}, {}};
 /// @}
 
 struct Entry {
+	NamesOwner owner;
 	std::string_view path;
-	SettingNames names;
+	const SettingNames* names;
 };
 
-/// Every setting row a menu shows, sorted by path. The audio clip's `transpose` is the instrument's: see
-/// setting_names.
-constexpr std::array<Entry, 105> kEntries{
-    {{"arpeggiator/arpMode", {STRING_FOR_ARP_MODE_MENU_TITLE, STRING_FOR_ENABLED, kOffOnChoices, {}}},
-     Entry{"arpeggiator/bassProbability",
-           {STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE, STRING_FOR_BASS_PROBABILITY, {}, {}}},
-     {"arpeggiator/chordPolyphony", {STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE, STRING_FOR_CHORD_POLYPHONY, {}, {}}},
-     {"arpeggiator/chordProbability",
-      {STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE, STRING_FOR_CHORD_PROBABILITY, {}, {}}},
-     {"arpeggiator/chordType",
-      {STRING_FOR_ARP_CHORD_SIMULATOR_MENU_TITLE, STRING_FOR_CHORD_SIMULATOR, kArpChordTypeChoices, {}}},
-     {"arpeggiator/gate", {STRING_FOR_ARP_GATE_MENU_TITLE, STRING_FOR_GATE, {}, {}}},
-     {"arpeggiator/glideProbability",
-      {STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE, STRING_FOR_GLIDE_PROBABILITY, {}, {}}},
-     {"arpeggiator/kitArp", {STRING_FOR_INCLUDE_IN_KIT_ARP, STRING_FOR_INCLUDE_IN_KIT_ARP, kOffOnChoices, {}}},
-     {"arpeggiator/mpeVelocity", {STRING_FOR_VELOCITY, STRING_FOR_VELOCITY, kArpMpeVelocityChoices, {}}},
-     {"arpeggiator/noteMode", {STRING_FOR_ARP_NOTE_MODE_MENU_TITLE, STRING_FOR_NOTE_MODE, kArpNoteModeChoices, {}}},
-     {"arpeggiator/noteProbability", {STRING_FOR_NOTE_PROBABILITY_MENU_TITLE, STRING_FOR_NOTE_PROBABILITY, {}, {}}},
-     {"arpeggiator/numOctaves", {STRING_FOR_ARP_OCTAVES_MENU_TITLE, STRING_FOR_NUMBER_OF_OCTAVES, {}, {}}},
-     {"arpeggiator/octaveMode",
-      {STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE, STRING_FOR_OCTAVE_MODE, kArpOctaveModeChoices, {}}},
-     {"arpeggiator/preset", {STRING_FOR_ARP_PRESET_MENU_TITLE, STRING_FOR_PRESET, kArpPresetChoices, {}}},
-     {"arpeggiator/randomizerLock",
-      {STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE, STRING_FOR_RANDOMIZER_LOCK, kOffOnChoices, {}}},
-     {"arpeggiator/ratchetAmount", {STRING_FOR_ARP_RATCHETS_MENU_TITLE, STRING_FOR_NUMBER_OF_RATCHETS, {}, {}}},
-     {"arpeggiator/ratchetProbability",
-      {STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE, STRING_FOR_RATCHET_PROBABILITY, {}, {}}},
-     {"arpeggiator/rate", {STRING_FOR_ARP_RATE_MENU_TITLE, STRING_FOR_RATE, {}, {}}},
-     {"arpeggiator/rhythm", {STRING_FOR_ARP_RHYTHM_MENU_TITLE, STRING_FOR_RHYTHM, {}, {}}},
-     {"arpeggiator/sequenceLength", {STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE, STRING_FOR_SEQUENCE_LENGTH, {}, {}}},
-     {"arpeggiator/spreadGate", {STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE, STRING_FOR_SPREAD_GATE, {}, {}}},
-     {"arpeggiator/spreadOctave", {STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE, STRING_FOR_SPREAD_OCTAVE, {}, {}}},
-     {"arpeggiator/spreadVelocity", {STRING_FOR_SPREAD_VELOCITY_MENU_TITLE, STRING_FOR_SPREAD_VELOCITY, {}, {}}},
-     {"arpeggiator/stepRepeat", {STRING_FOR_ARP_STEP_REPEAT_MENU_TITLE, STRING_FOR_STEP_REPEAT, {}, {}}},
-     {"arpeggiator/swapProbability", {STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE, STRING_FOR_SWAP_PROBABILITY, {}, {}}},
-     {"arpeggiator/syncLevel", {STRING_FOR_ARP_SYNC_MENU_TITLE, STRING_FOR_SYNC, {}, {}}},
-     {"attack", {STRING_FOR_ATTACK, STRING_FOR_ATTACK, {}, {}}},
-     {"audioCompressor/attack", {STRING_FOR_ATTACK, STRING_FOR_ATTACK, {}, {}}},
-     {"audioCompressor/compBlend", {STRING_FOR_BLEND, STRING_FOR_BLEND, {}, {}}},
-     {"audioCompressor/compHPF", {STRING_FOR_HPF, STRING_FOR_HPF, {}, {}}},
-     {"audioCompressor/ratio", {STRING_FOR_RATIO, STRING_FOR_RATIO, {}, {}}},
-     {"audioCompressor/release", {STRING_FOR_RELEASE, STRING_FOR_RELEASE, {}, {}}},
-     {"bendRange", {STRING_FOR_NORMAL, STRING_FOR_NORMAL, {}, {}}},
-     {"bendRangeMPE", {STRING_FOR_POLY_FINGER_MPE, STRING_FOR_POLY_FINGER_MPE, {}, {}}},
-     {"clippingAmount", {STRING_FOR_SATURATION, STRING_FOR_SATURATION, {}, {}}},
-     {"delay/pingPong", {STRING_FOR_DELAY_PINGPONG, STRING_FOR_PINGPONG, kOffOnChoices, {}}},
-     {"delay/syncLevel", {STRING_FOR_DELAY_SYNC, STRING_FOR_SYNC, {}, {}}},
-     {"delay/type", {STRING_FOR_DELAY_TYPE, STRING_FOR_TYPE, kDelayTypeChoices, kDelayTypeShortChoices}},
-     {"filterRoute", {STRING_FOR_FILTER_ROUTE, STRING_FOR_FILTER_ROUTE, kFilterRouteChoices, {}}},
-     {"hpfMode", {STRING_FOR_HPF_MODE, STRING_FOR_MODE, kHpfModeChoices, kHpfModeShortChoices}},
-     {"lfo1/syncLevel", {STRING_FOR_LFO_SYNC, STRING_FOR_SYNC, {}, {}}},
-     {"lfo1/type", {STRING_FOR_LFO_TYPE, STRING_FOR_SHAPE, kLfoTypeChoices, kLfoTypeShortChoices}},
-     {"lfo2/syncLevel", {STRING_FOR_LFO_SYNC, STRING_FOR_SYNC, {}, {}}},
-     {"lfo2/type", {STRING_FOR_LFO_TYPE, STRING_FOR_SHAPE, kLfoTypeChoices, kLfoTypeShortChoices}},
-     {"lfo3/syncLevel", {STRING_FOR_LFO_SYNC, STRING_FOR_SYNC, {}, {}}},
-     {"lfo3/type", {STRING_FOR_LFO_TYPE, STRING_FOR_SHAPE, kLfoTypeChoices, kLfoTypeShortChoices}},
-     {"lfo4/syncLevel", {STRING_FOR_LFO_SYNC, STRING_FOR_SYNC, {}, {}}},
-     {"lfo4/type", {STRING_FOR_LFO_TYPE, STRING_FOR_SHAPE, kLfoTypeChoices, kLfoTypeShortChoices}},
-     {"linearInterpolation",
-      {STRING_FOR_AUDIO_INTERPOLATION, STRING_FOR_INTERPOLATION, kLinearInterpolationChoices, {}}},
-     {"lpfMode", {STRING_FOR_LPF_MODE, STRING_FOR_MODE, kLpfModeChoices, kLpfModeShortChoices}},
-     {"maxVoices", {STRING_FOR_MAX_VOICES, STRING_FOR_MAX_VOICES, {}, {}}},
-     {"midiBank", {STRING_FOR_MIDI_BANK, STRING_FOR_BANK, {}, {}}},
-     {"midiOutput/channel", {STRING_FOR_CHANNEL, STRING_FOR_CHANNEL, {}, {}}},
-     {"midiOutput/noteForDrum", {STRING_FOR_NOTE, STRING_FOR_NOTE, {}, {}}},
-     {"midiPGM", {STRING_FOR_MIDI_PGM_NUMB_MENU_TITLE, STRING_FOR_PGM, {}, {}}},
-     {"midiSub", {STRING_FOR_MIDI_SUB_BANK, STRING_FOR_SUB_BANK_SHORT, {}, {}}},
-     {"modFXType", {STRING_FOR_MODFX_TYPE, STRING_FOR_TYPE, kModFXTypeChoices, {}}},
-     {"mode", {STRING_FOR_SYNTH_MODE, STRING_FOR_SYNTH_MODE, kModeChoices, {}}},
-     {"modulator1/retrigPhase", {STRING_FOR_FM_MOD_RETRIG_MENU_TITLE, STRING_FOR_RETRIGGER_PHASE, {}, {}}},
-     {"modulator1/transpose", {STRING_FOR_FM_MOD_TRAN_MENU_TITLE, STRING_FOR_TRANSPOSE, {}, {}}},
-     {"modulator2/retrigPhase", {STRING_FOR_FM_MOD_RETRIG_MENU_TITLE, STRING_FOR_RETRIGGER_PHASE, {}, {}}},
-     {"modulator2/toModulator1",
-      {STRING_FOR_FM_MOD2_DEST_MENU_TITLE, STRING_FOR_DESTINATION, kModulator2ToModulator1Choices, {}}},
-     {"modulator2/transpose", {STRING_FOR_FM_MOD_TRAN_MENU_TITLE, STRING_FOR_TRANSPOSE, {}, {}}},
-     {"osc1/linearInterpolation",
-      {STRING_FOR_SAMP_INTERP_MENU_TITLE, STRING_FOR_INTERPOLATION, kLinearInterpolationChoices, {}}},
-     {"osc1/loopMode", {EMPTY_STRING, STRING_FOR_REPEAT_MODE, kLoopModeChoices, {}}},
-     {"osc1/retrigPhase", {STRING_FOR_OSC_R_PHASE_MENU_TITLE, STRING_FOR_RETRIGGER_PHASE, {}, {}}},
-     {"osc1/reversed", {STRING_FOR_SAMP_REVERSE_MENU_TITLE, STRING_FOR_REVERSE, {}, {}}},
-     {"osc1/timeStretchAmount", {STRING_FOR_SAMP_SPEED_MENU_TITLE, STRING_FOR_SPEED, {}, {}}},
-     {"osc1/timeStretchEnable", {STRING_FOR_PITCH_SPEED, STRING_FOR_PITCH_SPEED, kLinkedIndependentChoices, {}}},
-     {"osc1/transpose", {STRING_FOR_OSC_TRANSPOSE_MENU_TITLE, STRING_FOR_TRANSPOSE, {}, {}}},
-     {"osc1/type", {STRING_FOR_OSC_TYPE_MENU_TITLE, STRING_FOR_TYPE, kOscTypeChoices, {}}},
-     {"osc2/linearInterpolation",
-      {STRING_FOR_SAMP_INTERP_MENU_TITLE, STRING_FOR_INTERPOLATION, kLinearInterpolationChoices, {}}},
-     {"osc2/loopMode", {EMPTY_STRING, STRING_FOR_REPEAT_MODE, kLoopModeChoices, {}}},
-     {"osc2/oscillatorSync", {STRING_FOR_OSCILLATOR_SYNC, STRING_FOR_OSCILLATOR_SYNC, {}, {}}},
-     {"osc2/retrigPhase", {STRING_FOR_OSC_R_PHASE_MENU_TITLE, STRING_FOR_RETRIGGER_PHASE, {}, {}}},
-     {"osc2/reversed", {STRING_FOR_SAMP_REVERSE_MENU_TITLE, STRING_FOR_REVERSE, {}, {}}},
-     {"osc2/timeStretchAmount", {STRING_FOR_SAMP_SPEED_MENU_TITLE, STRING_FOR_SPEED, {}, {}}},
-     {"osc2/timeStretchEnable", {STRING_FOR_PITCH_SPEED, STRING_FOR_PITCH_SPEED, kLinkedIndependentChoices, {}}},
-     {"osc2/transpose", {STRING_FOR_OSC_TRANSPOSE_MENU_TITLE, STRING_FOR_TRANSPOSE, {}, {}}},
-     {"osc2/type", {STRING_FOR_OSC_TYPE_MENU_TITLE, STRING_FOR_TYPE, kOscTypeChoices, {}}},
-     {"pitchSpeedIndependent", {STRING_FOR_PITCH_SPEED, STRING_FOR_PITCH_SPEED, kLinkedIndependentChoices, {}}},
-     {"polyphonic", {STRING_FOR_POLYPHONY, STRING_FOR_POLYPHONY, kPolyphonicChoices, {}}},
-     {"priority", {STRING_FOR_PRIORITY, STRING_FOR_PRIORITY, kPriorityChoices, kPriorityShortChoices}},
-     {"reverb/compressor/attack", {STRING_FOR_SIDECH_ATTACK_MENU_TITLE, STRING_FOR_ATTACK, {}, {}}},
-     {"reverb/compressor/release", {STRING_FOR_SIDECH_RELEASE_MENU_TITLE, STRING_FOR_RELEASE, {}, {}}},
-     {"reverb/compressor/shape", {STRING_FOR_SIDECH_SHAPE_MENU_TITLE, STRING_FOR_SHAPE, {}, {}}},
-     {"reverb/dampening", {STRING_FOR_DAMPING, STRING_FOR_DAMPING, {}, {}}},
-     {"reverb/hpf", {STRING_FOR_HPF, STRING_FOR_HPF, {}, {}}},
-     {"reverb/lpf", {STRING_FOR_LPF, STRING_FOR_LPF, {}, {}}},
-     {"reverb/model", {STRING_FOR_MODEL, STRING_FOR_MODEL, kReverbModelChoices, {}}},
-     {"reverb/pan", {STRING_FOR_REVERB_PAN, STRING_FOR_PAN, {}, {}}},
-     {"reverb/roomSize", {STRING_FOR_TIME, STRING_FOR_TIME, {}, {}}},
-     {"reverb/width", {STRING_FOR_DIFFUSION, STRING_FOR_DIFFUSION, {}, {}}},
-     {"reversed", {STRING_FOR_REVERSE, STRING_FOR_REVERSE, {}, {}}},
-     {"sideChainSend", {STRING_FOR_SEND_TO_SIDECH_MENU_TITLE, STRING_FOR_SEND_TO_SIDECHAIN, {}, {}}},
-     {"sidechain/attack", {STRING_FOR_SIDECH_ATTACK_MENU_TITLE, STRING_FOR_ATTACK, {}, {}}},
-     {"sidechain/release", {STRING_FOR_SIDECH_RELEASE_MENU_TITLE, STRING_FOR_RELEASE, {}, {}}},
-     {"sidechain/syncLevel", {STRING_FOR_SIDECHAIN_SYNC, STRING_FOR_SYNC, {}, {}}},
-     {"stutter/quantized", {STRING_FOR_QUANTIZE, STRING_FOR_QUANTIZE, {}, {}}},
-     {"swingInterval", {STRING_FOR_SWING_INTERVAL, STRING_FOR_SWING_INTERVAL, {}, {}}},
-     {"transpose", {STRING_FOR_MASTER_TRAN_MENU_TITLE, STRING_FOR_MASTER_TRANSPOSE, {}, {}}},
-     {"unison/detune", {STRING_FOR_UNISON_DETUNE_MENU_TITLE, STRING_FOR_UNISON_DETUNE, {}, {}}},
-     {"unison/num", {STRING_FOR_UNISON_NUMBER_MENU_TITLE, STRING_FOR_UNISON_NUMBER, {}, {}}},
-     {"unison/spread", {STRING_FOR_UNISON_STEREO_SPREAD_MENU_TITLE, STRING_FOR_UNISON_STEREO_SPREAD, {}, {}}},
-     {"voicePriority", {STRING_FOR_PRIORITY, STRING_FOR_PRIORITY, kPriorityChoices, kPriorityShortChoices}}}};
+/// @brief The order kEntries is searched in: engines by name, then groups, then paths.
+constexpr auto key_of(const NamesOwner& owner, std::string_view path) {
+	return std::tuple{owner.engine.name, std::to_underlying(owner.group), path};
+}
 
-static_assert(std::ranges::is_sorted(kEntries, {}, &Entry::path), "kEntries is searched by path: keep it sorted");
+/// Every setting row a menu shows, sorted by owner and path.
+constexpr std::array<Entry, 172> kEntries{{
+    Entry{SettingGroupId::SONG, "reverb/compressor/attack", &kReverbCompressorAttackNames},
+    Entry{SettingGroupId::SONG, "reverb/compressor/release", &kReverbCompressorReleaseNames},
+    Entry{SettingGroupId::SONG, "reverb/compressor/shape", &kReverbCompressorShapeNames},
+    Entry{SettingGroupId::SONG, "reverb/dampening", &kReverbDampeningNames},
+    Entry{SettingGroupId::SONG, "reverb/hpf", &kAudioCompressorCompHPFNames},
+    Entry{SettingGroupId::SONG, "reverb/lpf", &kReverbLpfNames},
+    Entry{SettingGroupId::SONG, "reverb/model", &kReverbModelNames},
+    Entry{SettingGroupId::SONG, "reverb/pan", &kReverbPanNames},
+    Entry{SettingGroupId::SONG, "reverb/roomSize", &kReverbRoomSizeNames},
+    Entry{SettingGroupId::SONG, "reverb/width", &kReverbWidthNames},
+    Entry{SettingGroupId::SONG, "swingInterval", &kSwingIntervalNames},
+    Entry{SettingGroupId::INSTRUMENT_DEVICE, "collapseAftertouch", &kCollapseAftertouchNames},
+    Entry{SettingGroupId::INSTRUMENT_DEVICE, "collapseMpe", &kCollapseMpeNames},
+    Entry{SettingGroupId::INSTRUMENT_DEVICE, "cv2Source", &kCv2SourceNames},
+    Entry{SettingGroupId::INSTRUMENT_DEVICE, "deviceDefinitionFileName", &kDeviceDefinitionFileNameNames},
+    Entry{SettingGroupId::INSTRUMENT_DEVICE, "hideUnlabeledCC", &kHideUnlabeledCCNames},
+    Entry{SettingGroupId::INSTRUMENT_DEVICE, "outputMpeY", &kOutputMpeYNames},
+    Entry{SettingGroupId::NOTE_ROW, "bendRange", &kBendRangeNames2},
+    Entry{SettingGroupId::NOTE_ROW, "sequenceDirection", &kSequenceDirectionNames},
+    Entry{SettingGroupId::AUDIO_CLIP, "attack", &kAttackNames},
+    Entry{SettingGroupId::AUDIO_CLIP, "linearInterpolation", &kLinearInterpolationNames},
+    Entry{SettingGroupId::AUDIO_CLIP, "pitchSpeedIndependent", &kOsc1TimeStretchEnableNames},
+    Entry{SettingGroupId::AUDIO_CLIP, "priority", &kPriorityNames},
+    Entry{SettingGroupId::AUDIO_CLIP, "reversed", &kReversedNames},
+    Entry{SettingGroupId::AUDIO_CLIP, "transpose", &kTransposeNames2},
+    Entry{SettingGroupId::CLIP, "sequenceDirection", &kSequenceDirectionNames},
+    Entry{SettingGroupId::CLIP_VALUES, "bendRange", &kBendRangeNames},
+    Entry{SettingGroupId::CLIP_VALUES, "bendRangeMPE", &kBendRangeNames2},
+    Entry{SettingGroupId::CLIP_VALUES, "midiBank", &kMidiBankNames},
+    Entry{SettingGroupId::CLIP_VALUES, "midiPGM", &kMidiPGMNames},
+    Entry{SettingGroupId::CLIP_VALUES, "midiSub", &kMidiSubNames},
+    Entry{SettingGroupId::AUDIO_INPUT, "inputChannel", &kInputChannelNames},
+    Entry{SettingGroupId::AUDIO_INPUT, "mode", &kInputChannelNames},
+    Entry{SettingGroupId::AUDIO_INPUT, "outputRecordingFrom", &kOutputRecordingFromNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/arpMode", &kArpeggiatorArpModeNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/bassProbability", &kArpeggiatorBassProbabilityNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/chordPolyphony", &kArpeggiatorChordPolyphonyNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/chordProbability", &kArpeggiatorChordProbabilityNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/chordType", &kArpeggiatorChordTypeNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/gate", &kArpeggiatorGateNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/glideProbability", &kArpeggiatorGlideProbabilityNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/kitArp", &kArpeggiatorKitArpNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/mpeVelocity", &kArpeggiatorMpeVelocityNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/noteMode", &kArpeggiatorNoteModeNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/noteProbability", &kArpeggiatorNoteProbabilityNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/numOctaves", &kArpeggiatorNumOctavesNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/octaveMode", &kArpeggiatorOctaveModeNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/preset", &kArpeggiatorPresetNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/randomizerLock", &kArpeggiatorRandomizerLockNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/ratchetAmount", &kArpeggiatorRatchetAmountNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/ratchetProbability", &kArpeggiatorRatchetProbabilityNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/rate", &kArpeggiatorRateNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/rhythm", &kArpeggiatorRhythmNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/sequenceLength", &kArpeggiatorSequenceLengthNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/spreadGate", &kArpeggiatorSpreadGateNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/spreadOctave", &kArpeggiatorSpreadOctaveNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/spreadVelocity", &kArpeggiatorSpreadVelocityNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/stepRepeat", &kArpeggiatorStepRepeatNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/swapProbability", &kArpeggiatorSwapProbabilityNames},
+    Entry{SettingGroupId::CLIP_ARP, "arpeggiator/syncLevel", &kArpeggiatorSyncLevelNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/arpMode", &kArpeggiatorArpModeNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/bassProbability", &kArpeggiatorBassProbabilityNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/chordPolyphony", &kArpeggiatorChordPolyphonyNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/chordProbability", &kArpeggiatorChordProbabilityNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/chordType", &kArpeggiatorChordTypeNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/gate", &kArpeggiatorGateNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/glideProbability", &kArpeggiatorGlideProbabilityNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/kitArp", &kArpeggiatorKitArpNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/mpeVelocity", &kArpeggiatorMpeVelocityNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/noteMode", &kArpeggiatorNoteModeNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/noteProbability", &kArpeggiatorNoteProbabilityNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/numOctaves", &kArpeggiatorNumOctavesNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/octaveMode", &kArpeggiatorOctaveModeNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/preset", &kArpeggiatorPresetNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/randomizerLock", &kArpeggiatorRandomizerLockNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/ratchetAmount", &kArpeggiatorRatchetAmountNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/ratchetProbability", &kArpeggiatorRatchetProbabilityNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/rate", &kArpeggiatorRateNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/rhythm", &kArpeggiatorRhythmNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/sequenceLength", &kArpeggiatorSequenceLengthNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/spreadGate", &kArpeggiatorSpreadGateNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/spreadOctave", &kArpeggiatorSpreadOctaveNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/spreadVelocity", &kArpeggiatorSpreadVelocityNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/stepRepeat", &kArpeggiatorStepRepeatNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/swapProbability", &kArpeggiatorSwapProbabilityNames},
+    Entry{SettingGroupId::LANE_ARP, "arpeggiator/syncLevel", &kArpeggiatorSyncLevelNames},
+    Entry{engine::kGlobalEffectable, "audioCompressor/attack", &kAttackNames},
+    Entry{engine::kGlobalEffectable, "audioCompressor/compBlend", &kAudioCompressorCompBlendNames},
+    Entry{engine::kGlobalEffectable, "audioCompressor/compHPF", &kAudioCompressorCompHPFNames},
+    Entry{engine::kGlobalEffectable, "audioCompressor/ratio", &kAudioCompressorRatioNames},
+    Entry{engine::kGlobalEffectable, "audioCompressor/release", &kAudioCompressorReleaseNames},
+    Entry{engine::kGlobalEffectable, "clippingAmount", &kClippingAmountNames},
+    Entry{engine::kGlobalEffectable, "delay/pingPong", &kDelayPingPongNames},
+    Entry{engine::kGlobalEffectable, "delay/syncLevel", &kDelaySyncLevelNames},
+    Entry{engine::kGlobalEffectable, "delay/type", &kDelayTypeNames},
+    Entry{engine::kGlobalEffectable, "filterRoute", &kFilterRouteNames},
+    Entry{engine::kGlobalEffectable, "hpfMode", &kHpfModeNames},
+    Entry{engine::kGlobalEffectable, "lpfMode", &kLpfModeNames},
+    Entry{engine::kGlobalEffectable, "modFXType", &kModFXTypeNames},
+    Entry{engine::kGlobalEffectable, "sidechain/attack", &kReverbCompressorAttackNames},
+    Entry{engine::kGlobalEffectable, "sidechain/release", &kReverbCompressorReleaseNames},
+    Entry{engine::kGlobalEffectable, "sidechain/syncLevel", &kSidechainSyncLevelNames},
+    Entry{engine::kGlobalEffectable, "stutter/quantized", &kStutterQuantizedNames},
+    Entry{engine::kDelugeInstrument, "arpeggiator/arpMode", &kArpeggiatorArpModeNames},
+    Entry{engine::kDelugeInstrument, "arpeggiator/chordType", &kArpeggiatorChordTypeNames},
+    Entry{engine::kDelugeInstrument, "arpeggiator/kitArp", &kArpeggiatorKitArpNames},
+    Entry{engine::kDelugeInstrument, "arpeggiator/mpeVelocity", &kArpeggiatorMpeVelocityNames},
+    Entry{engine::kDelugeInstrument, "arpeggiator/noteMode", &kArpeggiatorNoteModeNames},
+    Entry{engine::kDelugeInstrument, "arpeggiator/numOctaves", &kArpeggiatorNumOctavesNames},
+    Entry{engine::kDelugeInstrument, "arpeggiator/octaveMode", &kArpeggiatorOctaveModeNames},
+    Entry{engine::kDelugeInstrument, "arpeggiator/preset", &kArpeggiatorPresetNames},
+    Entry{engine::kDelugeInstrument, "arpeggiator/randomizerLock", &kArpeggiatorRandomizerLockNames},
+    Entry{engine::kDelugeInstrument, "arpeggiator/stepRepeat", &kArpeggiatorStepRepeatNames},
+    Entry{engine::kDelugeInstrument, "arpeggiator/syncLevel", &kArpeggiatorSyncLevelNames},
+    Entry{engine::kDelugeInstrument, "audioCompressor/attack", &kAttackNames},
+    Entry{engine::kDelugeInstrument, "audioCompressor/compBlend", &kAudioCompressorCompBlendNames},
+    Entry{engine::kDelugeInstrument, "audioCompressor/compHPF", &kAudioCompressorCompHPFNames},
+    Entry{engine::kDelugeInstrument, "audioCompressor/ratio", &kAudioCompressorRatioNames},
+    Entry{engine::kDelugeInstrument, "audioCompressor/release", &kAudioCompressorReleaseNames},
+    Entry{engine::kDelugeInstrument, "clippingAmount", &kClippingAmountNames},
+    Entry{engine::kDelugeInstrument, "delay/pingPong", &kDelayPingPongNames},
+    Entry{engine::kDelugeInstrument, "delay/syncLevel", &kDelaySyncLevelNames},
+    Entry{engine::kDelugeInstrument, "delay/type", &kDelayTypeNames},
+    Entry{engine::kDelugeInstrument, "filterRoute", &kFilterRouteNames},
+    Entry{engine::kDelugeInstrument, "hpfMode", &kHpfModeNames},
+    Entry{engine::kDelugeInstrument, "lfo1/syncLevel", &kLfo1SyncLevelNames},
+    Entry{engine::kDelugeInstrument, "lfo1/type", &kLfo1TypeNames},
+    Entry{engine::kDelugeInstrument, "lfo2/syncLevel", &kLfo1SyncLevelNames},
+    Entry{engine::kDelugeInstrument, "lfo2/type", &kLfo1TypeNames},
+    Entry{engine::kDelugeInstrument, "lfo3/syncLevel", &kLfo1SyncLevelNames},
+    Entry{engine::kDelugeInstrument, "lfo3/type", &kLfo1TypeNames},
+    Entry{engine::kDelugeInstrument, "lfo4/syncLevel", &kLfo1SyncLevelNames},
+    Entry{engine::kDelugeInstrument, "lfo4/type", &kLfo1TypeNames},
+    Entry{engine::kDelugeInstrument, "lpfMode", &kLpfModeNames},
+    Entry{engine::kDelugeInstrument, "maxVoices", &kMaxVoicesNames},
+    Entry{engine::kDelugeInstrument, "midiOutput/channel", &kMidiOutputChannelNames},
+    Entry{engine::kDelugeInstrument, "midiOutput/noteForDrum", &kMidiOutputNoteForDrumNames},
+    Entry{engine::kDelugeInstrument, "modFXType", &kModFXTypeNames},
+    Entry{engine::kDelugeInstrument, "mode", &kModeNames},
+    Entry{engine::kDelugeInstrument, "modulator1/retrigPhase", &kModulator1RetrigPhaseNames},
+    Entry{engine::kDelugeInstrument, "modulator1/transpose", &kModulator1TransposeNames},
+    Entry{engine::kDelugeInstrument, "modulator2/retrigPhase", &kModulator1RetrigPhaseNames},
+    Entry{engine::kDelugeInstrument, "modulator2/toModulator1", &kModulator2ToModulator1Names},
+    Entry{engine::kDelugeInstrument, "modulator2/transpose", &kModulator1TransposeNames},
+    Entry{engine::kDelugeInstrument, "osc1/linearInterpolation", &kOsc1LinearInterpolationNames},
+    Entry{engine::kDelugeInstrument, "osc1/loopMode", &kOsc1LoopModeNames},
+    Entry{engine::kDelugeInstrument, "osc1/retrigPhase", &kOsc1RetrigPhaseNames},
+    Entry{engine::kDelugeInstrument, "osc1/reversed", &kOsc1ReversedNames},
+    Entry{engine::kDelugeInstrument, "osc1/timeStretchAmount", &kOsc1TimeStretchAmountNames},
+    Entry{engine::kDelugeInstrument, "osc1/timeStretchEnable", &kOsc1TimeStretchEnableNames},
+    Entry{engine::kDelugeInstrument, "osc1/transpose", &kOsc1TransposeNames},
+    Entry{engine::kDelugeInstrument, "osc1/type", &kOsc1TypeNames},
+    Entry{engine::kDelugeInstrument, "osc2/linearInterpolation", &kOsc1LinearInterpolationNames},
+    Entry{engine::kDelugeInstrument, "osc2/loopMode", &kOsc1LoopModeNames},
+    Entry{engine::kDelugeInstrument, "osc2/oscillatorSync", &kOsc2OscillatorSyncNames},
+    Entry{engine::kDelugeInstrument, "osc2/retrigPhase", &kOsc1RetrigPhaseNames},
+    Entry{engine::kDelugeInstrument, "osc2/reversed", &kOsc1ReversedNames},
+    Entry{engine::kDelugeInstrument, "osc2/timeStretchAmount", &kOsc1TimeStretchAmountNames},
+    Entry{engine::kDelugeInstrument, "osc2/timeStretchEnable", &kOsc1TimeStretchEnableNames},
+    Entry{engine::kDelugeInstrument, "osc2/transpose", &kOsc1TransposeNames},
+    Entry{engine::kDelugeInstrument, "osc2/type", &kOsc1TypeNames},
+    Entry{engine::kDelugeInstrument, "polyphonic", &kPolyphonicNames},
+    Entry{engine::kDelugeInstrument, "sideChainSend", &kSideChainSendNames},
+    Entry{engine::kDelugeInstrument, "sidechain/attack", &kReverbCompressorAttackNames},
+    Entry{engine::kDelugeInstrument, "sidechain/release", &kReverbCompressorReleaseNames},
+    Entry{engine::kDelugeInstrument, "sidechain/syncLevel", &kSidechainSyncLevelNames},
+    Entry{engine::kDelugeInstrument, "stutter/quantized", &kStutterQuantizedNames},
+    Entry{engine::kDelugeInstrument, "transpose", &kTransposeNames},
+    Entry{engine::kDelugeInstrument, "unison/detune", &kUnisonDetuneNames},
+    Entry{engine::kDelugeInstrument, "unison/num", &kUnisonNumNames},
+    Entry{engine::kDelugeInstrument, "unison/spread", &kUnisonSpreadNames},
+    Entry{engine::kDelugeInstrument, "voicePriority", &kPriorityNames},
+}};
 
-/// @brief A param's name; the table is sorted by id.
+static_assert(std::ranges::adjacent_find(kEntries,
+                                         [](const Entry& a, const Entry& b) {
+	                                         return key_of(a.owner, a.path) >= key_of(b.owner, b.path);
+                                         })
+                  == kEntries.end(),
+              "kEntries is searched by owner and path: keep it sorted, with no key twice");
+
+/// @brief A param's name.
 struct ParamName {
-	uint32_t id;
+	ParamId id;
 	String name;
 };
 
-/// The names of the params the Deluge instrument and the global effectable share (their patched params, and the
-/// unpatched ones they number alike), by id. Id 116 is not here: it names two params.
-constexpr std::array<ParamName, 97> kParamNames{{
-    {0, STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME},              // oscAVolume
-    {1, STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME},              // oscBVolume
-    {2, STRING_FOR_PARAM_LOCAL_VOLUME},                    // volume
-    {3, STRING_FOR_PARAM_LOCAL_NOISE_VOLUME},              // noiseVolume
-    {4, STRING_FOR_PARAM_LOCAL_MODULATOR_0_VOLUME},        // modulator1Volume
-    {5, STRING_FOR_PARAM_LOCAL_MODULATOR_1_VOLUME},        // modulator2Volume
-    {6, STRING_FOR_WAVEFOLDER},                            // waveFold
-    {7, STRING_FOR_PARAM_LOCAL_MODULATOR_0_FEEDBACK},      // modulator1Feedback
-    {8, STRING_FOR_PARAM_LOCAL_MODULATOR_1_FEEDBACK},      // modulator2Feedback
-    {9, STRING_FOR_PARAM_LOCAL_CARRIER_0_FEEDBACK},        // carrier1Feedback
-    {10, STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK},       // carrier2Feedback
-    {11, STRING_FOR_PARAM_LOCAL_LPF_RESONANCE},            // lpfResonance
-    {12, STRING_FOR_PARAM_LOCAL_HPF_RESONANCE},            // hpfResonance
-    {13, STRING_FOR_PARAM_LOCAL_ENV_0_SUSTAIN},            // env1Sustain
-    {14, STRING_FOR_PARAM_LOCAL_ENV_1_SUSTAIN},            // env2Sustain
-    {15, STRING_FOR_PARAM_LOCAL_ENV_2_SUSTAIN},            // env3Sustain
-    {16, STRING_FOR_PARAM_LOCAL_ENV_3_SUSTAIN},            // env4Sustain
-    {17, STRING_FOR_PARAM_LOCAL_LPF_MORPH},                // lpfMorph
-    {18, STRING_FOR_PARAM_LOCAL_HPF_MORPH},                // hpfMorph
-    {19, STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH},        // oscAPhaseWidth
-    {20, STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH},        // oscBPhaseWidth
-    {21, STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX},         // oscAWavetablePosition
-    {22, STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX},         // oscBWavetablePosition
-    {23, STRING_FOR_PARAM_LOCAL_PAN},                      // pan
-    {24, STRING_FOR_PARAM_LOCAL_LPF_FREQ},                 // lpfFrequency
-    {25, STRING_FOR_PARAM_LOCAL_PITCH_ADJUST},             // pitch
-    {26, STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST},       // oscAPitch
-    {27, STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST},       // oscBPitch
-    {28, STRING_FOR_PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST}, // modulator1Pitch
-    {29, STRING_FOR_PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST}, // modulator2Pitch
-    {30, STRING_FOR_PARAM_LOCAL_HPF_FREQ},                 // hpfFrequency
-    {31, STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ_1},         // lfo2Rate
-    {32, STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ_2},         // lfo4Rate
-    {33, STRING_FOR_PARAM_LOCAL_ENV_0_ATTACK},             // env1Attack
-    {34, STRING_FOR_PARAM_LOCAL_ENV_1_ATTACK},             // env2Attack
-    {35, STRING_FOR_PARAM_LOCAL_ENV_2_ATTACK},             // env3Attack
-    {36, STRING_FOR_PARAM_LOCAL_ENV_3_ATTACK},             // env4Attack
-    {37, STRING_FOR_PARAM_LOCAL_ENV_0_DECAY},              // env1Decay
-    {38, STRING_FOR_PARAM_LOCAL_ENV_1_DECAY},              // env2Decay
-    {39, STRING_FOR_PARAM_LOCAL_ENV_2_DECAY},              // env3Decay
-    {40, STRING_FOR_PARAM_LOCAL_ENV_3_DECAY},              // env4Decay
-    {41, STRING_FOR_PARAM_LOCAL_ENV_0_RELEASE},            // env1Release
-    {42, STRING_FOR_PARAM_LOCAL_ENV_1_RELEASE},            // env2Release
-    {43, STRING_FOR_PARAM_LOCAL_ENV_2_RELEASE},            // env3Release
-    {44, STRING_FOR_PARAM_LOCAL_ENV_3_RELEASE},            // env4Release
-    {45, STRING_FOR_PARAM_GLOBAL_VOLUME_POST_FX},          // volumePostFX
-    {46, STRING_FOR_PARAM_GLOBAL_VOLUME_POST_REVERB_SEND}, // volumePostReverbSend
-    {47, STRING_FOR_PARAM_GLOBAL_REVERB_AMOUNT},           // reverbAmount
-    {48, STRING_FOR_PARAM_GLOBAL_MOD_FX_DEPTH},            // modFXDepth
-    {49, STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK},          // delayFeedback
-    {50, STRING_FOR_PARAM_GLOBAL_DELAY_RATE},              // delayRate
-    {51, STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE},             // modFXRate
-    {52, STRING_FOR_PARAM_GLOBAL_LFO_FREQ_1},              // lfo1Rate
-    {53, STRING_FOR_PARAM_GLOBAL_LFO_FREQ_2},              // lfo3Rate
-    {54, STRING_FOR_PARAM_GLOBAL_ARP_RATE},                // arpRate
-    {90, STRING_FOR_STUTTER_RATE},                         // stutterRate
-    {91, STRING_FOR_BASS},                                 // bass
-    {92, STRING_FOR_TREBLE},                               // treble
-    {93, STRING_FOR_BASS_FREQUENCY},                       // bassFreq
-    {94, STRING_FOR_TREBLE_FREQUENCY},                     // trebleFreq
-    {95, STRING_FOR_DECIMATION},                           // sampleRateReduction
-    {96, STRING_FOR_BITCRUSH},                             // bitcrushAmount
-    {97, STRING_FOR_MODFX_OFFSET},                         // modFXOffset
-    {98, STRING_FOR_MODFX_FEEDBACK},                       // modFXFeedback
-    {99, STRING_FOR_SIDECHAIN_SHAPE},                      // compressorShape
-    {100, STRING_FOR_THRESHOLD},                           // compressorThreshold
-    {101, STRING_FOR_ARP_GATE_MENU_TITLE},                 // arpGate
-    {102, STRING_FOR_ARP_RHYTHM_MENU_TITLE},               // rhythm
-    {103, STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE},      // sequenceLength
-    {104, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE},      // chordPolyphony
-    {105, STRING_FOR_ARP_RATCHETS_MENU_TITLE},             // ratchetAmount
-    {106, STRING_FOR_NOTE_PROBABILITY_MENU_TITLE},         // noteProbability
-    {107, STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE},      // reverseProbability
-    {108, STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE},     // bassProbability
-    {109, STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE},     // swapProbability
-    {110, STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE},    // glideProbability
-    {111, STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE},    // chordProbability
-    {112, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE},  // ratchetProbability
-    {113, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE},          // spreadGate
-    {114, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE},        // spreadOctave
-    {115, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE},          // spreadVelocity
-    {117, STRING_FOR_MOD_FX_DEPTH},                        // modFXDepth
-    {118, STRING_FOR_DELAY_RATE},                          // delayRate
-    {119, STRING_FOR_DELAY_AMOUNT},                        // delayFeedback
-    {120, STRING_FOR_ARP_RATE_MENU_TITLE},                 // arpRate
-    {121, STRING_FOR_PAN},                                 // pan
-    {122, STRING_FOR_LPF_FREQUENCY},                       // lpfFrequency
-    {123, STRING_FOR_LPF_RESONANCE},                       // lpfResonance
-    {124, STRING_FOR_LPF_MORPH},                           // lpfMorph
-    {125, STRING_FOR_HPF_FREQUENCY},                       // hpfFrequency
-    {126, STRING_FOR_HPF_RESONANCE},                       // hpfResonance
-    {127, STRING_FOR_HPF_MORPH},                           // hpfMorph
-    {128, STRING_FOR_REVERB_AMOUNT},                       // reverbAmount
-    {129, STRING_FOR_MASTER_LEVEL},                        // volume
-    {130, STRING_FOR_SIDECHAIN_LEVEL},                     // sidechainCompressorVolume
-    {131, STRING_FOR_MASTER_PITCH},                        // pitchAdjust
-    {132, STRING_FOR_TEMPO},                               // tempo
+/// The Deluge instrument's params, sorted by id.
+constexpr std::array<ParamName, 82> kInstrumentParamNames{{
+    ParamName{ParamId{0}, STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME},              // oscAVolume
+    ParamName{ParamId{1}, STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME},              // oscBVolume
+    ParamName{ParamId{2}, STRING_FOR_PARAM_LOCAL_VOLUME},                    // volume
+    ParamName{ParamId{3}, STRING_FOR_PARAM_LOCAL_NOISE_VOLUME},              // noiseVolume
+    ParamName{ParamId{4}, STRING_FOR_PARAM_LOCAL_MODULATOR_0_VOLUME},        // modulator1Volume
+    ParamName{ParamId{5}, STRING_FOR_PARAM_LOCAL_MODULATOR_1_VOLUME},        // modulator2Volume
+    ParamName{ParamId{6}, STRING_FOR_WAVEFOLDER},                            // waveFold
+    ParamName{ParamId{7}, STRING_FOR_PARAM_LOCAL_MODULATOR_0_FEEDBACK},      // modulator1Feedback
+    ParamName{ParamId{8}, STRING_FOR_PARAM_LOCAL_MODULATOR_1_FEEDBACK},      // modulator2Feedback
+    ParamName{ParamId{9}, STRING_FOR_PARAM_LOCAL_CARRIER_0_FEEDBACK},        // carrier1Feedback
+    ParamName{ParamId{10}, STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK},       // carrier2Feedback
+    ParamName{ParamId{11}, STRING_FOR_PARAM_LOCAL_LPF_RESONANCE},            // lpfResonance
+    ParamName{ParamId{12}, STRING_FOR_PARAM_LOCAL_HPF_RESONANCE},            // hpfResonance
+    ParamName{ParamId{13}, STRING_FOR_PARAM_LOCAL_ENV_0_SUSTAIN},            // env1Sustain
+    ParamName{ParamId{14}, STRING_FOR_PARAM_LOCAL_ENV_1_SUSTAIN},            // env2Sustain
+    ParamName{ParamId{15}, STRING_FOR_PARAM_LOCAL_ENV_2_SUSTAIN},            // env3Sustain
+    ParamName{ParamId{16}, STRING_FOR_PARAM_LOCAL_ENV_3_SUSTAIN},            // env4Sustain
+    ParamName{ParamId{17}, STRING_FOR_PARAM_LOCAL_LPF_MORPH},                // lpfMorph
+    ParamName{ParamId{18}, STRING_FOR_PARAM_LOCAL_HPF_MORPH},                // hpfMorph
+    ParamName{ParamId{19}, STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH},        // oscAPhaseWidth
+    ParamName{ParamId{20}, STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH},        // oscBPhaseWidth
+    ParamName{ParamId{21}, STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX},         // oscAWavetablePosition
+    ParamName{ParamId{22}, STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX},         // oscBWavetablePosition
+    ParamName{ParamId{23}, STRING_FOR_PARAM_LOCAL_PAN},                      // pan
+    ParamName{ParamId{24}, STRING_FOR_PARAM_LOCAL_LPF_FREQ},                 // lpfFrequency
+    ParamName{ParamId{25}, STRING_FOR_PARAM_LOCAL_PITCH_ADJUST},             // pitch
+    ParamName{ParamId{26}, STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST},       // oscAPitch
+    ParamName{ParamId{27}, STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST},       // oscBPitch
+    ParamName{ParamId{28}, STRING_FOR_PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST}, // modulator1Pitch
+    ParamName{ParamId{29}, STRING_FOR_PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST}, // modulator2Pitch
+    ParamName{ParamId{30}, STRING_FOR_PARAM_LOCAL_HPF_FREQ},                 // hpfFrequency
+    ParamName{ParamId{31}, STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ_1},         // lfo2Rate
+    ParamName{ParamId{32}, STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ_2},         // lfo4Rate
+    ParamName{ParamId{33}, STRING_FOR_PARAM_LOCAL_ENV_0_ATTACK},             // env1Attack
+    ParamName{ParamId{34}, STRING_FOR_PARAM_LOCAL_ENV_1_ATTACK},             // env2Attack
+    ParamName{ParamId{35}, STRING_FOR_PARAM_LOCAL_ENV_2_ATTACK},             // env3Attack
+    ParamName{ParamId{36}, STRING_FOR_PARAM_LOCAL_ENV_3_ATTACK},             // env4Attack
+    ParamName{ParamId{37}, STRING_FOR_PARAM_LOCAL_ENV_0_DECAY},              // env1Decay
+    ParamName{ParamId{38}, STRING_FOR_PARAM_LOCAL_ENV_1_DECAY},              // env2Decay
+    ParamName{ParamId{39}, STRING_FOR_PARAM_LOCAL_ENV_2_DECAY},              // env3Decay
+    ParamName{ParamId{40}, STRING_FOR_PARAM_LOCAL_ENV_3_DECAY},              // env4Decay
+    ParamName{ParamId{41}, STRING_FOR_PARAM_LOCAL_ENV_0_RELEASE},            // env1Release
+    ParamName{ParamId{42}, STRING_FOR_PARAM_LOCAL_ENV_1_RELEASE},            // env2Release
+    ParamName{ParamId{43}, STRING_FOR_PARAM_LOCAL_ENV_2_RELEASE},            // env3Release
+    ParamName{ParamId{44}, STRING_FOR_PARAM_LOCAL_ENV_3_RELEASE},            // env4Release
+    ParamName{ParamId{45}, STRING_FOR_PARAM_GLOBAL_VOLUME_POST_FX},          // volumePostFX
+    ParamName{ParamId{46}, STRING_FOR_PARAM_GLOBAL_VOLUME_POST_REVERB_SEND}, // volumePostReverbSend
+    ParamName{ParamId{47}, STRING_FOR_PARAM_GLOBAL_REVERB_AMOUNT},           // reverbAmount
+    ParamName{ParamId{48}, STRING_FOR_PARAM_GLOBAL_MOD_FX_DEPTH},            // modFXDepth
+    ParamName{ParamId{49}, STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK},          // delayFeedback
+    ParamName{ParamId{50}, STRING_FOR_PARAM_GLOBAL_DELAY_RATE},              // delayRate
+    ParamName{ParamId{51}, STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE},             // modFXRate
+    ParamName{ParamId{52}, STRING_FOR_PARAM_GLOBAL_LFO_FREQ_1},              // lfo1Rate
+    ParamName{ParamId{53}, STRING_FOR_PARAM_GLOBAL_LFO_FREQ_2},              // lfo3Rate
+    ParamName{ParamId{54}, STRING_FOR_PARAM_GLOBAL_ARP_RATE},                // arpRate
+    ParamName{ParamId{90}, STRING_FOR_STUTTER_RATE},                         // stutterRate
+    ParamName{ParamId{91}, STRING_FOR_BASS},                                 // bass
+    ParamName{ParamId{92}, STRING_FOR_TREBLE},                               // treble
+    ParamName{ParamId{93}, STRING_FOR_BASS_FREQUENCY},                       // bassFreq
+    ParamName{ParamId{94}, STRING_FOR_TREBLE_FREQUENCY},                     // trebleFreq
+    ParamName{ParamId{95}, STRING_FOR_DECIMATION},                           // sampleRateReduction
+    ParamName{ParamId{96}, STRING_FOR_BITCRUSH},                             // bitcrushAmount
+    ParamName{ParamId{97}, STRING_FOR_MODFX_OFFSET},                         // modFXOffset
+    ParamName{ParamId{98}, STRING_FOR_MODFX_FEEDBACK},                       // modFXFeedback
+    ParamName{ParamId{99}, STRING_FOR_SIDECHAIN_SHAPE},                      // compressorShape
+    ParamName{ParamId{100}, STRING_FOR_THRESHOLD},                           // compressorThreshold
+    ParamName{ParamId{101}, STRING_FOR_ARP_GATE_MENU_TITLE},                 // arpGate
+    ParamName{ParamId{102}, STRING_FOR_ARP_RHYTHM_MENU_TITLE},               // rhythm
+    ParamName{ParamId{103}, STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE},      // sequenceLength
+    ParamName{ParamId{104}, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE},      // chordPolyphony
+    ParamName{ParamId{105}, STRING_FOR_ARP_RATCHETS_MENU_TITLE},             // ratchetAmount
+    ParamName{ParamId{106}, STRING_FOR_NOTE_PROBABILITY_MENU_TITLE},         // noteProbability
+    ParamName{ParamId{107}, STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE},      // reverseProbability
+    ParamName{ParamId{108}, STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE},     // bassProbability
+    ParamName{ParamId{109}, STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE},     // swapProbability
+    ParamName{ParamId{110}, STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE},    // glideProbability
+    ParamName{ParamId{111}, STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE},    // chordProbability
+    ParamName{ParamId{112}, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE},  // ratchetProbability
+    ParamName{ParamId{113}, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE},          // spreadGate
+    ParamName{ParamId{114}, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE},        // spreadOctave
+    ParamName{ParamId{115}, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE},          // spreadVelocity
+    ParamName{ParamId{116}, STRING_FOR_PORTAMENTO},                          // portamento
 }};
 
-static_assert(std::ranges::is_sorted(kParamNames, {}, &ParamName::id), "kParamNames is searched by id: keep it sorted");
+/// The global effectable's params, sorted by id.
+constexpr std::array<ParamName, 43> kGlobalEffectableParamNames{{
+    ParamName{ParamId{90}, STRING_FOR_STUTTER_RATE},                        // stutterRate
+    ParamName{ParamId{91}, STRING_FOR_BASS},                                // bass
+    ParamName{ParamId{92}, STRING_FOR_TREBLE},                              // treble
+    ParamName{ParamId{93}, STRING_FOR_BASS_FREQUENCY},                      // bassFreq
+    ParamName{ParamId{94}, STRING_FOR_TREBLE_FREQUENCY},                    // trebleFreq
+    ParamName{ParamId{95}, STRING_FOR_DECIMATION},                          // sampleRateReduction
+    ParamName{ParamId{96}, STRING_FOR_BITCRUSH},                            // bitcrushAmount
+    ParamName{ParamId{97}, STRING_FOR_MODFX_OFFSET},                        // modFXOffset
+    ParamName{ParamId{98}, STRING_FOR_MODFX_FEEDBACK},                      // modFXFeedback
+    ParamName{ParamId{99}, STRING_FOR_SIDECHAIN_SHAPE},                     // compressorShape
+    ParamName{ParamId{100}, STRING_FOR_THRESHOLD},                          // compressorThreshold
+    ParamName{ParamId{101}, STRING_FOR_ARP_GATE_MENU_TITLE},                // arpGate
+    ParamName{ParamId{102}, STRING_FOR_ARP_RHYTHM_MENU_TITLE},              // rhythm
+    ParamName{ParamId{103}, STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE},     // sequenceLength
+    ParamName{ParamId{104}, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE},     // chordPolyphony
+    ParamName{ParamId{105}, STRING_FOR_ARP_RATCHETS_MENU_TITLE},            // ratchetAmount
+    ParamName{ParamId{106}, STRING_FOR_NOTE_PROBABILITY_MENU_TITLE},        // noteProbability
+    ParamName{ParamId{107}, STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE},     // reverseProbability
+    ParamName{ParamId{108}, STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE},    // bassProbability
+    ParamName{ParamId{109}, STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE},    // swapProbability
+    ParamName{ParamId{110}, STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE},   // glideProbability
+    ParamName{ParamId{111}, STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE},   // chordProbability
+    ParamName{ParamId{112}, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE}, // ratchetProbability
+    ParamName{ParamId{113}, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE},         // spreadGate
+    ParamName{ParamId{114}, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE},       // spreadOctave
+    ParamName{ParamId{115}, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE},         // spreadVelocity
+    ParamName{ParamId{116}, STRING_FOR_MOD_FX_RATE},                        // modFXRate
+    ParamName{ParamId{117}, STRING_FOR_MOD_FX_DEPTH},                       // modFXDepth
+    ParamName{ParamId{118}, STRING_FOR_DELAY_RATE},                         // delayRate
+    ParamName{ParamId{119}, STRING_FOR_DELAY_AMOUNT},                       // delayFeedback
+    ParamName{ParamId{120}, STRING_FOR_ARP_RATE_MENU_TITLE},                // arpRate
+    ParamName{ParamId{121}, STRING_FOR_PAN},                                // pan
+    ParamName{ParamId{122}, STRING_FOR_LPF_FREQUENCY},                      // lpfFrequency
+    ParamName{ParamId{123}, STRING_FOR_LPF_RESONANCE},                      // lpfResonance
+    ParamName{ParamId{124}, STRING_FOR_LPF_MORPH},                          // lpfMorph
+    ParamName{ParamId{125}, STRING_FOR_HPF_FREQUENCY},                      // hpfFrequency
+    ParamName{ParamId{126}, STRING_FOR_HPF_RESONANCE},                      // hpfResonance
+    ParamName{ParamId{127}, STRING_FOR_HPF_MORPH},                          // hpfMorph
+    ParamName{ParamId{128}, STRING_FOR_REVERB_AMOUNT},                      // reverbAmount
+    ParamName{ParamId{129}, STRING_FOR_MASTER_LEVEL},                       // volume
+    ParamName{ParamId{130}, STRING_FOR_SIDECHAIN_LEVEL},                    // sidechainCompressorVolume
+    ParamName{ParamId{131}, STRING_FOR_MASTER_PITCH},                       // pitchAdjust
+    ParamName{ParamId{132}, STRING_FOR_TEMPO},                              // tempo
+}};
 
-/// The one id the two engine tables give different params: the instrument's portamento, the global effectable's
-/// mod-FX rate.
-constexpr uint32_t kOverlappingId = 116;
+constexpr auto id_of(const ParamName& param) {
+	return param.id;
+}
 
-static_assert(instrument::param::kPortamento.value == kOverlappingId
-              && global_effectable::param::kModFXRate.value == kOverlappingId);
+static_assert(std::ranges::is_sorted(kInstrumentParamNames, std::ranges::less{}, id_of)
+              && std::ranges::adjacent_find(kInstrumentParamNames, std::ranges::equal_to{}, id_of)
+                     == kInstrumentParamNames.end());
+static_assert(std::ranges::is_sorted(kGlobalEffectableParamNames, std::ranges::less{}, id_of)
+              && std::ranges::adjacent_find(kGlobalEffectableParamNames, std::ranges::equal_to{}, id_of)
+                     == kGlobalEffectableParamNames.end());
+
+String name_in(std::span<const ParamName> table, ParamId id) {
+	const auto it = std::ranges::lower_bound(table, id, std::ranges::less{}, id_of);
+	return it != table.end() && it->id == id ? it->name : STRING_FOR_NONE;
+}
 
 } // namespace
 
-const SettingNames* setting_names(std::string_view path) {
-	const auto it = std::ranges::lower_bound(kEntries, path, {}, &Entry::path);
-	return it != kEntries.end() && it->path == path ? &it->names : nullptr;
+const SettingNames* setting_names(NamesOwner owner, std::string_view path) {
+	const auto key = key_of(owner, path);
+	const auto it = std::ranges::lower_bound(kEntries, key, std::ranges::less{},
+	                                         [](const Entry& e) { return key_of(e.owner, e.path); });
+	return it != kEntries.end() && key_of(it->owner, it->path) == key ? it->names : nullptr;
 }
 
-String param_name(engine::ParamId id, const ParamNameContext& state) {
-	const bool global = state.table == ParamTable::GLOBAL_EFFECTABLE;
+String param_name(engine::EngineId engine, ParamId id, const ParamNameContext& state) {
 	// The ladder filters repurpose morph, so legacy names it for what it does there; the SVF modes really morph.
-	if (id == (global ? global_effectable::param::kLpfMorph : instrument::param::kLpfMorph)
-	    && state.lpf_mode <= effects::FilterMode::TRANSISTOR_24DB_DRIVE) {
-		return STRING_FOR_LPF_DRIVE;
+	if (engine == engine::kDelugeInstrument) {
+		if (id == instrument::param::kLpfMorph && state.lpf_mode <= effects::FilterMode::TRANSISTOR_24DB_DRIVE) {
+			return STRING_FOR_LPF_DRIVE;
+		}
+		if (id == instrument::param::kHpfMorph && state.hpf_mode == effects::FilterMode::HPLADDER) {
+			return STRING_FOR_HPF_FM;
+		}
+		return name_in(kInstrumentParamNames, id);
 	}
-	if (id == (global ? global_effectable::param::kHpfMorph : instrument::param::kHpfMorph)
-	    && state.hpf_mode == effects::FilterMode::HPLADDER) {
-		return STRING_FOR_HPF_FM;
+	if (engine == engine::kGlobalEffectable) {
+		if (id == global_effectable::param::kLpfMorph && state.lpf_mode <= effects::FilterMode::TRANSISTOR_24DB_DRIVE) {
+			return STRING_FOR_LPF_DRIVE;
+		}
+		if (id == global_effectable::param::kHpfMorph && state.hpf_mode == effects::FilterMode::HPLADDER) {
+			return STRING_FOR_HPF_FM;
+		}
+		return name_in(kGlobalEffectableParamNames, id);
 	}
-	if (id.value == kOverlappingId) {
-		return global ? STRING_FOR_MOD_FX_RATE : STRING_FOR_PORTAMENTO;
-	}
-	const auto it = std::ranges::lower_bound(kParamNames, id.value, {}, &ParamName::id);
-	return it != kParamNames.end() && it->id == id.value ? it->name : STRING_FOR_NONE;
+	return STRING_FOR_NONE;
 }
 
 } // namespace deluge::l10n
