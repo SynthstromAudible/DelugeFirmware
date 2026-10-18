@@ -54,7 +54,7 @@ class NamesOwner {
 public:
 	/// @brief How many indices the owners take: one per setting group, then the engines with names, then any other
 	/// engine.
-	static constexpr uint8_t kCount = std::to_underlying(project::SettingGroupId::LANE_ARP) + 4;
+	static constexpr uint8_t kCount = project::kSettingGroupCount + 3;
 
 	constexpr NamesOwner(engine::EngineId owner)
 	    : index_{owner == engine::kDelugeInstrument   ? kDelugeInstrumentIndex
@@ -73,7 +73,7 @@ public:
 	[[nodiscard]] constexpr bool operator==(const NamesOwner&) const = default;
 
 private:
-	static constexpr uint8_t kDelugeInstrumentIndex = std::to_underlying(project::SettingGroupId::LANE_ARP) + 1;
+	static constexpr uint8_t kDelugeInstrumentIndex = project::kSettingGroupCount;
 	static constexpr uint8_t kGlobalEffectableIndex = kDelugeInstrumentIndex + 1;
 	static constexpr uint8_t kOtherEngineIndex = kGlobalEffectableIndex + 1;
 	static_assert(kOtherEngineIndex + 1 == kCount);

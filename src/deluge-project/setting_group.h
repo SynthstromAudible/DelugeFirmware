@@ -48,6 +48,33 @@ enum class SettingGroupId : uint8_t {
 	LANE_ARP,          ///< a kit row's arp, its lane's note device. KIT_LANE, the lane's drum
 };
 
+/// @brief How many setting groups there are. Code that numbers owners after the groups (the host's name table)
+/// derives its indices from it.
+inline constexpr uint8_t kSettingGroupCount = 11;
+
+/// @brief Whether kSettingGroupCount counts @p group. The switch names every group, so a new one fails to compile
+/// (-Werror=switch) until it has a case here, beside the count it must move.
+[[nodiscard]] constexpr bool counted(SettingGroupId group) {
+	switch (group) {
+	case SettingGroupId::SONG:
+	case SettingGroupId::TRACK:
+	case SettingGroupId::INSTRUMENT_DEVICE:
+	case SettingGroupId::LANE:
+	case SettingGroupId::NOTE_ROW:
+	case SettingGroupId::AUDIO_CLIP:
+	case SettingGroupId::CLIP:
+	case SettingGroupId::CLIP_VALUES:
+	case SettingGroupId::AUDIO_INPUT:
+	case SettingGroupId::CLIP_ARP:
+	case SettingGroupId::LANE_ARP:
+		return static_cast<uint8_t>(group) < kSettingGroupCount;
+	}
+	return false;
+}
+static_assert(counted(SettingGroupId::LANE_ARP)
+                  && static_cast<SettingGroupId>(kSettingGroupCount - 1) == SettingGroupId::LANE_ARP,
+              "kSettingGroupCount counts every SettingGroupId, and LANE_ARP is the last");
+
 /// @brief The song itself, as an owner.
 struct SongAddress {
 	auto operator<=>(const SongAddress&) const = default;
