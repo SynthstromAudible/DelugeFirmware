@@ -80,8 +80,8 @@ struct UserScale {
 ///  - A SettingReader answers every path its owner's table holds, applicable or not, and never nullopt for one of
 ///    them: a SETTING condition on a nullopt fails closed, which hides a row that should show. It answers nullopt only
 ///    for a path the owner does not hold.
-///  - A sound's reader answers with deluge::instrument::held_setting, which reads the held value whether or not the
-///    path applies; setting_value is the applicable read and would hide a row's own gate (an oscillator's type in FM).
+///  - A reader answers with the held value whether or not the path applies: an engine's applicable-only read would
+///    hide a row's own gate (an oscillator's type in FM). Each engine names its held read beside its table.
 struct SettingContext {
 	/// @brief The menu's editing scope: a track, one kit lane, the whole kit (its own effects), a clip or the song.
 	enum class Owner : uint8_t { TRACK, KIT_LANE, KIT, CLIP, SONG };
@@ -827,9 +827,9 @@ inline constexpr DisplayMapping kLinearMapping{};
 /// @param rows The owner's table.
 /// @param row  The row to check.
 /// @return For CLAMP_HIGH: `clamp_to` within the row's menu range. For KNOB_POSITION: the top menu step stores
-///         `clamp_to`, which reads the member. For CHOICE_ORDER: a non-empty
-///         order of values the row stores. For TABLE: a non-empty table. For COMBINED_SYNC and TRANSPOSE_CENTS: a
-///         partner that names a row of @p rows. True for the other kinds.
+///         `clamp_to`, which reads the member. For CHOICE_ORDER: a non-empty order of values the row stores. For
+///         TABLE: a non-empty table. For COMBINED_SYNC and TRANSPOSE_CENTS: a partner that names a row of @p rows.
+///         True for the other kinds.
 [[nodiscard]] constexpr bool mapping_is_valid(std::span<const SettingInfo> rows, const SettingInfo& row) {
 	const DisplayMapping& mapping = mapping_of(row);
 	switch (mapping.kind) {

@@ -615,7 +615,9 @@ describe descriptor_legacy_applicability("Where each row's menu shows, against l
 });
 
 describe descriptor_legacy_validity("Every table's conditions", $ {
-	it("name rows of their own table, with values those rows store, in every setting group and the arp's", _ {
+	it("name rows of their own table, with values those rows store, and their display mappings are well formed, in "
+	   "every setting group and the arp's",
+	   _ {
 		// Every id a SettingGroupId can hold: a group added later is walked with the rest.
 		using deluge::project::SettingGroupId;
 		for (int32_t id = 0; id <= std::numeric_limits<uint8_t>::max(); ++id) {
@@ -625,6 +627,10 @@ describe descriptor_legacy_validity("Every table's conditions", $ {
 			}
 			expect("group " + std::to_string(id) + (deluge::engine::conditions_are_valid(table) ? " valid" : " invalid"))
 			    .to_equal("group " + std::to_string(id) + " valid");
+			// The run-time tables (the song's, the instrument device's) are out of reach of a static_assert.
+			expect("group " + std::to_string(id)
+			       + (deluge::engine::mappings_are_valid(table) ? " mappings valid" : " mappings invalid"))
+			    .to_equal("group " + std::to_string(id) + " mappings valid");
 		}
 		expect(deluge::engine::conditions_are_valid(deluge::engine::kArpRows)).to_be_true();
 		expect(deluge::engine::conditions_are_valid(deluge::instrument::kSettings)).to_be_true();
