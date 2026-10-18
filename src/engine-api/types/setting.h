@@ -75,6 +75,8 @@ struct SettingContext {
 	/// @brief How many Instrument values there are: AUDIO is the last.
 	static constexpr int32_t kInstrumentCount = static_cast<int32_t>(Instrument::AUDIO) + 1;
 	Owner owner{Owner::TRACK};
+	/// Required for every owner but SONG: a condition on what plays reads it, and NONE (the song's) passes the kit
+	/// gates (DX7, saturation) as if no kit played, so a host that leaves it unset shows them.
 	Instrument instrument{Instrument::NONE};
 	bool audio_inputs_present{false}; ///< any audio input is plugged in
 	/// The owner's sound sources that hold a loaded audio file, a bit each (bit 0 the first source); 0 off a sound.
@@ -214,6 +216,10 @@ struct SettingInfo {
 	/// The row's mapping and applicability; nullptr is LINEAR, applying everywhere.
 	const SettingDescriptorExtras* extras{nullptr};
 };
+
+// The device holds some 170 static rows and builds about 160 more at run time, so a field added to a row costs that
+// many times its size; a row that grows on the 32-bit target fails here first.
+static_assert(sizeof(void*) != 4 || sizeof(SettingInfo) == 64, "SettingInfo is 64 B on a 32-bit target");
 
 /// @brief The LINEAR mapping a row without extras has.
 inline constexpr DisplayMapping kLinearMapping{};
