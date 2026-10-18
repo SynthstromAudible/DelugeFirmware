@@ -43,6 +43,8 @@ enum class DisplayMappingKind : uint8_t {
 	PAN,             ///< a signed Q31 shown −25..25 (a pan's menu)
 	FIFTIETHS,       ///< a Q31 fraction 0..2³¹−1 shown 0..50, rounded to the nearest (the sidechain send's menu)
 	KNOB_POSITION,   ///< a Q31 knob shown as its top seven bits 0..127 and 128; menu 128 stores `clamp_to`
+	FLOAT_FRACTION,  ///< a Q31 fraction a record holds as a float: shown as round(fraction × user_max) in float, stored
+	                 ///< through the user scale (the reverb's fiftieths)
 };
 
 /// @brief A setting row's menu mapping. Only the fields its kind names are read.
@@ -250,6 +252,24 @@ inline constexpr int32_t kMaxKnobPosition = 128;
 /// @return `menu << 24`, or @p top for the top step.
 [[nodiscard]] constexpr int32_t knob_position_stored(int32_t menu, int32_t top) {
 	return menu >= kMaxKnobPosition ? top : menu << 24;
+}
+
+/// @brief The FLOAT_FRACTION menu's value: the fraction a record holds as a float, times @p steps, rounded half away
+/// from zero in float arithmetic, as the reverb menus' `std::round` does.
+/// @param stored The Q31 fraction, 0..2³¹−1.
+/// @param steps  The menu's greatest value.
+/// @return 0..@p steps.
+[[nodiscard]] constexpr int32_t float_fraction_menu(int32_t stored, int32_t steps) {
+	const float scaled = static_cast<float>(stored) / 2147483648.0f * static_cast<float>(steps);
+	const auto whole = static_cast<int32_t>(scaled); // toward zero
+	const float rest = scaled - static_cast<float>(whole);
+	if (rest >= 0.5f) {
+		return whole + 1;
+	}
+	if (rest <= -0.5f) {
+		return whole - 1;
+	}
+	return whole;
 }
 
 /// @}

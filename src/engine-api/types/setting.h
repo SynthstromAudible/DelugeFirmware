@@ -288,13 +288,16 @@ inline constexpr DisplayMapping kLinearMapping{};
 		return fiftieths_menu(stored);
 	case DisplayMappingKind::KNOB_POSITION:
 		return knob_position_menu(stored);
+	case DisplayMappingKind::FLOAT_FRACTION:
+		return float_fraction_menu(stored, row.user.user_max);
 	}
 	return to_user(row, stored);
 }
 
 /// @brief The least and greatest value @p row's menu offers, through its display mapping.
 /// @param row The setting's row.
-/// @return {least, greatest}: the user range and its sentinels (LINEAR, CLAMP_HIGH; with no user scale, the stored
+/// @return {least, greatest}: the user range and its sentinels (LINEAR, CLAMP_HIGH, FLOAT_FRACTION; with no user scale,
+/// the stored
 ///         bounds), the order's or table's indices, 0..1 (INVERTED_BOOL), 0..kMaxCombinedSync or the row's own user
 ///         range within it (COMBINED_SYNC), the row's range ×100 (TRANSPOSE_CENTS), kPhaseFreeMenu to
 ///         kMaxPhaseDegrees (PHASE_DEGREES), 0..kMaxMenuSteps (STANDARD, UNSIGNED, FIFTIETHS), ±kMaxPanSteps (PAN) or
@@ -307,6 +310,7 @@ inline constexpr DisplayMapping kLinearMapping{};
 	switch (mapping.kind) {
 	case DisplayMappingKind::LINEAR:
 	case DisplayMappingKind::CLAMP_HIGH:
+	case DisplayMappingKind::FLOAT_FRACTION:
 		break;
 	case DisplayMappingKind::CHOICE_ORDER:
 		return last_index(mapping.order.size());
@@ -352,6 +356,7 @@ inline constexpr DisplayMapping kLinearMapping{};
 	switch (mapping.kind) {
 	case DisplayMappingKind::LINEAR:
 	case DisplayMappingKind::CLAMP_HIGH:
+	case DisplayMappingKind::FLOAT_FRACTION:
 		break;
 	case DisplayMappingKind::CHOICE_ORDER:
 		if (!index_within(mapping.order.size())) {

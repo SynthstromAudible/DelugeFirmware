@@ -18,6 +18,7 @@
 /// A setting's display mapping: each kind's menu value against the stored value(s), with the expected numbers
 /// transcribed from the legacy menu items' own conversions.
 #include "engine-api/types/display_mapping.h"
+#include "engine-api/types/rate_tables.h"
 #include "engine-api/types/setting.h"
 
 #include <array>
@@ -38,6 +39,7 @@ using deluge::engine::SettingInfo;
 using deluge::engine::SettingKind;
 using deluge::engine::SettingSentinel;
 using deluge::engine::to_menu;
+using deluge::engine::UserScale;
 
 using Pair = std::pair<int32_t, int32_t>;
 
@@ -99,21 +101,11 @@ constexpr SettingInfo kMaxVoices{
     .extras = &kMaxVoicesExtras,
 };
 
-// `attackRateTable` and `releaseRateTable` (util/lookuptables/lookuptables.cpp), as the sidechain's owner supplies
-// them.
-constexpr std::array<int32_t, 51> kAttackRates{
-    262144, 221969, 187951, 159147, 134757, 114105, 96618, 81811, 69273, 58656, 49667, 42055, 35610,
-    30153,  25532,  21619,  18306,  15500,  13125,  11113, 9410,  7968,  6747,  5713,  4837,  4096,
-    3468,   2937,   2487,   2106,   1783,   1510,   1278,  1082,  917,   776,   657,   556,   471,
-    399,    338,    286,    242,    205,    174,    147,   124,   105,   89,    76,    64,
-};
-constexpr std::array<int32_t, 51> kReleaseRates{
-    32691, 4604, 2444, 1648, 1234, 980, 809, 685, 592, 519, 460, 412, 372, 338, 309, 283, 261,
-    241,   224,  208,  194,  181,  169, 159, 149, 140, 132, 124, 117, 110, 104, 98,  93,  88,
-    83,    78,   74,   70,   66,   62,  59,  56,  53,  50,  47,  44,  41,  39,  36,  34,  32,
-};
+// The sidechain's own rate tables.
+using deluge::engine::kSidechainAttackRates;
+using deluge::engine::kSidechainReleaseRates;
 constexpr SettingDescriptorExtras kSidechainAttackExtras{
-    .mapping = {.kind = DisplayMappingKind::TABLE, .table = kAttackRates, .table_shift = 2}};
+    .mapping = {.kind = DisplayMappingKind::TABLE, .table = kSidechainAttackRates, .table_shift = 2}};
 constexpr SettingInfo kSidechainAttack{
     .path = "sidechain/attack",
     .min = 0,
@@ -121,7 +113,7 @@ constexpr SettingInfo kSidechainAttack{
     .extras = &kSidechainAttackExtras,
 };
 constexpr SettingDescriptorExtras kSidechainReleaseExtras{
-    .mapping = {.kind = DisplayMappingKind::TABLE, .table = kReleaseRates, .table_shift = 3}};
+    .mapping = {.kind = DisplayMappingKind::TABLE, .table = kSidechainReleaseRates, .table_shift = 3}};
 constexpr SettingInfo kSidechainRelease{
     .path = "sidechain/release",
     .min = 0,
@@ -150,6 +142,10 @@ constexpr SettingDescriptorExtras kKnobExtras{
 constexpr SettingInfo kKnob{.path = "audioCompressor/attack", .min = 0, .max = kQ31Max, .extras = &kKnobExtras};
 constexpr SettingDescriptorExtras kBlendExtras{
     .mapping = {.kind = DisplayMappingKind::KNOB_POSITION, .clamp_to = kQ31Max}};
+constexpr UserScale kFiftieths{.user_min = 0, .user_max = 50, .stored_min = 0, .stored_max = kQ31Max};
+constexpr SettingDescriptorExtras kFloatFractionExtras{.mapping = {.kind = DisplayMappingKind::FLOAT_FRACTION}};
+constexpr SettingInfo kRoomSize{
+    .path = "reverb/roomSize", .min = 0, .max = kQ31Max, .user = kFiftieths, .extras = &kFloatFractionExtras};
 constexpr SettingInfo kBlend{.path = "audioCompressor/compBlend", .min = 0, .max = kQ31Max, .extras = &kBlendExtras};
 
 /// `SyncLevel::syncTypeAndLevelToMenuOption` over every (type, level) pair: row = the partner's choice index (even,
@@ -388,6 +384,18 @@ describe display_mapping("A setting's display mapping", $ {
 		expect(stored_of(kKnob, 128)).to_equal(Pair{127 << 24, 0});
 		expect(stored_of(kBlend, 128)).to_equal(Pair{kQ31Max, 0});
 		expect(from_menu(kKnob, 129).has_value()).to_be_false();
+	});
+
+	it("shows a fraction the record holds as a float as RoomSize::readCurrentValue rounds it, half away from zero", _ {
+		expect(to_menu(kRoomSize, 0)).to_equal(0);
+		expect(to_menu(kRoomSize, 21474836)).to_equal(1);    // 0.01f * 50 is 0.5: rounds up
+		expect(to_menu(kRoomSize, 2083059072)).to_equal(49); // 48.5
+		expect(to_menu(kRoomSize, 2083058944)).to_equal(48);
+		expect(to_menu(kRoomSize, kQ31Max)).to_equal(50);
+		expect(stored_of(kRoomSize, 25)).to_equal(Pair{1073741824, 0});
+		expect(stored_of(kRoomSize, 50)).to_equal(Pair{kQ31Max, 0});
+		expect(deluge::engine::menu_range(kRoomSize)).to_equal(Pair{0, 50});
+		expect(from_menu(kRoomSize, 51).has_value()).to_be_false();
 	});
 
 	it("applies a row with no predicate everywhere, and a predicate by its context", _ {

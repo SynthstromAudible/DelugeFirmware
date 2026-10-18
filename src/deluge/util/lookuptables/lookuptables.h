@@ -53,7 +53,7 @@ extern const int16_t sineWaveSmall[];
 extern const int32_t noteFrequencyTable[12];
 extern const int32_t noteIntervalTable[12];
 extern const int32_t timeStretchAdjustTable[193];
-// The sidechain's rate tables are the effects engine's.
+// The sidechain's rate tables are engine data (engine-api/types/rate_tables.h).
 inline constexpr const auto& attackRateTable = deluge::engine::kSidechainAttackRates;
 inline constexpr const auto& releaseRateTable = deluge::engine::kSidechainReleaseRates;
 extern const int32_t releaseRateTable64[65];
