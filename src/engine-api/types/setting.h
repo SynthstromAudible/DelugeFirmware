@@ -58,24 +58,50 @@ struct UserScale {
 /// @brief What a setting's menu value counts.
 enum class SettingUnits : uint8_t { NONE, SEMITONES, CENTS, MILLISECONDS, SYNC_LEVEL };
 
-/// @brief Who a setting is shown for: what decides whether a setting, or one of its choices, applies.
+/// @brief Who a setting is shown for: the facts about the owner that no setting of it holds.
 struct SettingContext {
 	/// @brief What holds the setting.
 	enum class Owner : uint8_t { TRACK, KIT_LANE, KIT, CLIP, SONG };
 	Owner owner{Owner::TRACK};
 	bool audio_inputs_present{false}; ///< any audio input is plugged in
-	bool dx7_allowed{false};          ///< the owner may hold a DX7 oscillator
-	bool ring_mod{false};             ///< the sound is in ring-mod mode
+};
+
+/// @brief One fact a setting's menu depends on. A condition holds when its subject's value is one of `values` (IS) or
+/// none of them (IS_NOT).
+struct SettingCondition {
+	/// @brief What the condition reads.
+	enum class Subject : uint8_t { SETTING, OWNER, INPUTS_PRESENT };
+	enum class Test : uint8_t { IS, IS_NOT };
+	Subject subject{Subject::SETTING};
+	Test test{Test::IS};
+	std::string_view path;           ///< SETTING: a row of the same owner (its stored value; a CHOICE row's index)
+	std::span<const int32_t> values; ///< OWNER: SettingContext::Owner values; INPUTS_PRESENT: {1} or {0}
+};
+
+/// @brief The conditions under which one choice of a CHOICE row applies; every condition must hold.
+struct ChoiceCondition {
+	std::size_t choice;
+	std::span<const SettingCondition> when;
+};
+
+/// @brief Reads the owner's settings by path, for evaluating SETTING conditions. A function pointer plus its object;
+/// host-side only, never part of a descriptor.
+struct SettingReader {
+	int32_t (*read)(const void* self, std::string_view path){nullptr}; ///< the stored value at @p path
+	const void* self{nullptr};                                         ///< passed to read
+	/// @param path The slash path of a setting the owner holds.
+	/// @return Its stored value.
+	[[nodiscard]] int32_t operator()(std::string_view path) const { return read(self, path); }
 };
 
 /// @brief What only a few rows set: a display mapping other than LINEAR, and when the setting or its choices apply.
 /// A row points at a static one, so the rows that need none pay one pointer.
 struct SettingDescriptorExtras {
 	DisplayMapping mapping{}; ///< how a menu's value maps onto what the row (and a partner) stores
-	/// Whether the setting applies in a context; nullptr applies everywhere.
-	bool (*applies)(const SettingContext&){nullptr};
-	/// Whether a CHOICE row's choice (by index) applies in a context; nullptr applies every choice everywhere.
-	bool (*choice_applies)(const SettingContext&, std::size_t choice){nullptr};
+	/// The conditions under which the setting applies; all must hold. Empty applies everywhere.
+	std::span<const SettingCondition> applies_when{};
+	/// The conditions under which a CHOICE row's choices apply; a choice not listed applies everywhere.
+	std::span<const ChoiceCondition> choice_when{};
 };
 
 /// @brief One non-param setting of an engine or a model record, named by its slash path in the owner's state
@@ -104,23 +130,119 @@ inline constexpr DisplayMapping kLinearMapping{};
 	return row.extras != nullptr ? row.extras->mapping : kLinearMapping;
 }
 
+/// @brief Whether @p condition holds.
+/// @param condition What to test.
+/// @param context   Who the setting is shown for.
+/// @param reader    The owner's settings, read for a SETTING condition.
+/// @return Whether the subject's value is one of the condition's values (IS) or none of them (IS_NOT).
+[[nodiscard]] inline bool condition_holds(const SettingCondition& condition, const SettingContext& context,
+                                          SettingReader reader) {
+	int32_t subject = 0;
+	switch (condition.subject) {
+	case SettingCondition::Subject::SETTING:
+		subject = reader(condition.path);
+		break;
+	case SettingCondition::Subject::OWNER:
+		subject = static_cast<int32_t>(context.owner);
+		break;
+	case SettingCondition::Subject::INPUTS_PRESENT:
+		subject = context.audio_inputs_present ? 1 : 0;
+		break;
+	}
+	const bool among = std::ranges::find(condition.values, subject) != condition.values.end();
+	return among == (condition.test == SettingCondition::Test::IS);
+}
+
+/// @brief Whether every condition of @p conditions holds.
+/// @param conditions The conditions; none holds vacuously.
+/// @param context    Who the setting is shown for.
+/// @param reader     The owner's settings.
+/// @return Whether all hold.
+[[nodiscard]] inline bool conditions_hold(std::span<const SettingCondition> conditions, const SettingContext& context,
+                                          SettingReader reader) {
+	return std::ranges::all_of(
+	    conditions, [&](const SettingCondition& condition) { return condition_holds(condition, context, reader); });
+}
+
 /// @brief Whether @p row's setting applies in @p context.
 /// @param row     The setting's row.
 /// @param context Who the setting is shown for.
-/// @return Its predicate's answer, or true when it has none.
-[[nodiscard]] constexpr bool setting_applies(const SettingInfo& row, const SettingContext& context) {
-	return row.extras == nullptr || row.extras->applies == nullptr || row.extras->applies(context);
+/// @param reader  The owner's settings.
+/// @return Whether its applies_when conditions all hold; true when it has none.
+[[nodiscard]] inline bool setting_applies(const SettingInfo& row, const SettingContext& context, SettingReader reader) {
+	return row.extras == nullptr || conditions_hold(row.extras->applies_when, context, reader);
 }
 
 /// @brief Whether @p row's choice @p choice applies in @p context.
 /// @param row     The setting's row.
 /// @param context Who the setting is shown for.
+/// @param reader  The owner's settings.
 /// @param choice  The choice's index.
-/// @return Its choice predicate's answer, or true when it has none.
-[[nodiscard]] constexpr bool setting_choice_applies(const SettingInfo& row, const SettingContext& context,
-                                                    std::size_t choice) {
-	return row.extras == nullptr || row.extras->choice_applies == nullptr
-	       || row.extras->choice_applies(context, choice);
+/// @return Whether the conditions listed for the choice all hold; true when none are listed.
+[[nodiscard]] inline bool setting_choice_applies(const SettingInfo& row, const SettingContext& context,
+                                                 SettingReader reader, std::size_t choice) {
+	if (row.extras == nullptr) {
+		return true;
+	}
+	return std::ranges::all_of(row.extras->choice_when, [&](const ChoiceCondition& entry) {
+		return entry.choice != choice || conditions_hold(entry.when, context, reader);
+	});
+}
+
+/// @brief How many of @p row's choices apply in @p context.
+/// @param row     A CHOICE row.
+/// @param context Who the setting is shown for.
+/// @param reader  The owner's settings.
+/// @return The count of applicable choices.
+[[nodiscard]] inline int32_t applicable_choice_count(const SettingInfo& row, const SettingContext& context,
+                                                     SettingReader reader) {
+	int32_t count = 0;
+	for (std::size_t i = 0; i < row.choices.size(); ++i) {
+		count += setting_choice_applies(row, context, reader, i) ? 1 : 0;
+	}
+	return count;
+}
+
+/// @brief A CHOICE row's menu value: the position of choice @p stored among the choices that apply.
+/// @param row     A CHOICE row.
+/// @param context Who the setting is shown for.
+/// @param reader  The owner's settings.
+/// @param stored  The stored choice index.
+/// @return Its position, or nullopt where @p stored is out of range or does not apply.
+[[nodiscard]] inline std::optional<int32_t> choice_position(const SettingInfo& row, const SettingContext& context,
+                                                            SettingReader reader, int32_t stored) {
+	if (stored < 0 || static_cast<std::size_t>(stored) >= row.choices.size()
+	    || !setting_choice_applies(row, context, reader, static_cast<std::size_t>(stored))) {
+		return std::nullopt;
+	}
+	int32_t position = 0;
+	for (int32_t i = 0; i < stored; ++i) {
+		position += setting_choice_applies(row, context, reader, static_cast<std::size_t>(i)) ? 1 : 0;
+	}
+	return position;
+}
+
+/// @brief The stored choice index a CHOICE row's menu @p position stands for.
+/// @param row      A CHOICE row.
+/// @param context  Who the setting is shown for.
+/// @param reader   The owner's settings.
+/// @param position A position among the choices that apply.
+/// @return The choice index, or nullopt where @p position is outside the applicable choices.
+[[nodiscard]] inline std::optional<int32_t> choice_at_position(const SettingInfo& row, const SettingContext& context,
+                                                               SettingReader reader, int32_t position) {
+	if (position < 0) {
+		return std::nullopt;
+	}
+	int32_t seen = 0;
+	for (std::size_t i = 0; i < row.choices.size(); ++i) {
+		if (setting_choice_applies(row, context, reader, i)) {
+			if (seen == position) {
+				return static_cast<int32_t>(i);
+			}
+			++seen;
+		}
+	}
+	return std::nullopt;
 }
 
 /// @brief The row of @p table for @p path, or nullptr.
@@ -134,6 +256,36 @@ inline constexpr DisplayMapping kLinearMapping{};
 		}
 	}
 	return nullptr;
+}
+
+/// @brief Whether every SETTING condition of every row in @p rows names a row of @p rows; for a static_assert per
+/// table, so a misspelt path fails to compile.
+/// @param rows The table.
+/// @return True when every path named is a row of the table.
+[[nodiscard]] constexpr bool conditions_name_rows(std::span<const SettingInfo> rows) {
+	const auto names_row = [&](std::span<const SettingCondition> conditions) {
+		for (const SettingCondition& condition : conditions) {
+			if (condition.subject == SettingCondition::Subject::SETTING
+			    && find_setting(rows, condition.path) == nullptr) {
+				return false;
+			}
+		}
+		return true;
+	};
+	for (const SettingInfo& row : rows) {
+		if (row.extras == nullptr) {
+			continue;
+		}
+		if (!names_row(row.extras->applies_when)) {
+			return false;
+		}
+		for (const ChoiceCondition& entry : row.extras->choice_when) {
+			if (!names_row(entry.when)) {
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
 /// @brief @p text as a whole decimal integer, or nothing.
@@ -245,7 +397,8 @@ inline constexpr DisplayMapping kLinearMapping{};
 /// @param stored         The row's stored value.
 /// @param partner_stored The partner row's stored value, for COMBINED_SYNC (the sync type's choice index) and
 ///                       TRANSPOSE_CENTS (the cents); ignored by the other kinds.
-/// @return The menu's value. CHOICE_ORDER gives 0 for a choice its order does not list.
+/// @return The menu's value. For a CHOICE row it is the choice index; a menu that filters choices uses
+///         choice_position. CHOICE_ORDER gives 0 for a choice its order does not list.
 [[nodiscard]] constexpr int32_t to_menu(const SettingInfo& row, int32_t stored, int32_t partner_stored = 0) {
 	const DisplayMapping& mapping = mapping_of(row);
 	switch (mapping.kind) {
@@ -294,7 +447,8 @@ inline constexpr DisplayMapping kLinearMapping{};
 	return to_user(row, stored);
 }
 
-/// @brief The least and greatest value @p row's menu offers, through its display mapping.
+/// @brief The least and greatest value @p row's menu offers, through its display mapping. For a CHOICE row they bound
+/// the choice index; a menu that filters choices counts them with applicable_choice_count.
 /// @param row The setting's row.
 /// @return {least, greatest}: the user range and its sentinels (LINEAR, CLAMP_HIGH, FLOAT_FRACTION; with no user scale,
 /// the stored

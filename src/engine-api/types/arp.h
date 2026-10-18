@@ -97,12 +97,21 @@ constexpr SettingInfo integer(std::string_view path, int32_t min, int32_t max, i
 inline constexpr SettingDescriptorExtras kSyncExtras{
     .mapping = {.kind = DisplayMappingKind::COMBINED_SYNC, .partner = "arpeggiator/syncType"}};
 
-/// A kit lane's note mode menu stops before as-played and pattern, which order the notes a whole instrument holds.
-inline constexpr SettingDescriptorExtras kNoteModeExtras{
-    .choice_applies = [](const SettingContext& shown, std::size_t choice) {
-	    constexpr std::size_t kFirstWholeInstrumentMode = 7; // asPlayed
-	    return choice < kFirstWholeInstrumentMode || shown.owner != SettingContext::Owner::KIT_LANE;
-    }};
+/// The owners a kit lane stands for.
+inline constexpr std::array<int32_t, 1> kKitLaneOwner{static_cast<int32_t>(SettingContext::Owner::KIT_LANE)};
+/// As-played and pattern order the notes a whole instrument holds, so a kit lane's note mode menu stops before them.
+inline constexpr std::array kOffKitLane{
+    SettingCondition{
+        .subject = SettingCondition::Subject::OWNER, .test = SettingCondition::Test::IS_NOT, .values = kKitLaneOwner},
+};
+inline constexpr std::size_t kAsPlayedMode = 7;
+inline constexpr std::size_t kPatternMode = 8;
+static_assert(kArpNoteModeWords[kAsPlayedMode] == "asPlayed" && kArpNoteModeWords[kPatternMode] == "pattern");
+inline constexpr std::array kNoteModeWhen{
+    ChoiceCondition{.choice = kAsPlayedMode, .when = kOffKitLane},
+    ChoiceCondition{.choice = kPatternMode, .when = kOffKitLane},
+};
+inline constexpr SettingDescriptorExtras kNoteModeExtras{.choice_when = kNoteModeWhen};
 
 /// A host row's menu: the gate and rate as a signed Q31, the rest as an unsigned fraction, each 0..50.
 inline constexpr SettingDescriptorExtras kStandardExtras{.mapping = {.kind = DisplayMappingKind::STANDARD}};
@@ -163,6 +172,7 @@ inline constexpr std::array kHostRows{
 
 /// @brief The settings every arp has.
 inline constexpr std::span<const SettingInfo> kArpSettingRows{arp_detail::kSettingRows};
+static_assert(conditions_name_rows(kArpSettingRows));
 
 /// @brief The values that are settings only where nothing automates them: a MIDI or CV clip's arp and a MIDI or gate
 /// kit row's. Elsewhere they are params.

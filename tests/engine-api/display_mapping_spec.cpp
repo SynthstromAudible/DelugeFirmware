@@ -33,7 +33,6 @@ namespace {
 using deluge::engine::DisplayMappingKind;
 using deluge::engine::from_menu;
 using deluge::engine::mapping_of;
-using deluge::engine::SettingContext;
 using deluge::engine::SettingDescriptorExtras;
 using deluge::engine::SettingInfo;
 using deluge::engine::SettingKind;
@@ -176,16 +175,6 @@ Pair stored_of(const SettingInfo& row, int32_t menu) {
 	const std::optional<Pair> stored = from_menu(row, menu);
 	return stored.value_or(Pair{-12345, -12345});
 }
-
-constexpr bool is_kit_lane(const SettingContext& where) {
-	return where.owner == SettingContext::Owner::KIT_LANE;
-}
-/// Choice 4 (choke) applies only on a kit lane.
-constexpr bool choke_on_kit_lane(const SettingContext& where, std::size_t choice) {
-	return choice != 4 || is_kit_lane(where);
-}
-constexpr SettingDescriptorExtras kKitLaneOnlyExtras{.applies = is_kit_lane, .choice_applies = choke_on_kit_lane};
-constexpr SettingInfo kKitLaneOnly{.path = "polyphonic", .kind = SettingKind::CHOICE, .extras = &kKitLaneOnlyExtras};
 
 // The mappings are constant expressions, so a row's menu values can be computed at compile time.
 static_assert(to_menu(kSyncLevel, 1, 2) == 19);
@@ -420,18 +409,6 @@ describe display_mapping("A setting's display mapping", $ {
 		expect(stored_of(kRoomSize, 50)).to_equal(Pair{kQ31Max, 0});
 		expect(deluge::engine::menu_range(kRoomSize)).to_equal(Pair{0, 50});
 		expect(from_menu(kRoomSize, 51).has_value()).to_be_false();
-	});
-
-	it("applies a row with no predicate everywhere, and a predicate by its context", _ {
-		using deluge::engine::setting_applies;
-		using deluge::engine::setting_choice_applies;
-		expect(kPlain.extras == nullptr).to_be_true();
-		expect(setting_applies(kPlain, SettingContext{})).to_be_true();
-		expect(setting_choice_applies(kPlain, SettingContext{}, 0)).to_be_true();
-		expect(setting_applies(kKitLaneOnly, SettingContext{.owner = SettingContext::Owner::KIT_LANE})).to_be_true();
-		expect(setting_applies(kKitLaneOnly, SettingContext{})).to_be_false();
-		expect(setting_choice_applies(kKitLaneOnly, SettingContext{}, 4)).to_be_false();
-		expect(setting_choice_applies(kKitLaneOnly, SettingContext{}, 0)).to_be_true();
 	});
 });
 // clang-format on

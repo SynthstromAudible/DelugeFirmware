@@ -148,7 +148,7 @@ void check_names(auto& self, const Case& c) {
 			continue;
 		}
 		// A CHOICE row's list is its applicable choices in order; any other row's is its menu values.
-		std::vector<int32_t> choices = applicable(row, context_of(c.where, c.source));
+		std::vector<int32_t> choices = applicable(row, context_of(c.where), enter(c.where, c.source), c.where);
 		if (row.kind != SettingKind::CHOICE || named_only(c)) {
 			choices.clear();
 			for (size_t i = 0; i < full.size(); ++i) {

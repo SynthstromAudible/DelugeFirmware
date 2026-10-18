@@ -277,10 +277,10 @@ Findings compare(const Case& c, const Node& node, const NodeException* exception
 	Findings f;
 	const deluge::scenes::menu::MenuContext& ctx = enter(c.where, c.source);
 	const SettingInfo& row = row_of(c);
-	const SettingContext shown = context_of(c.where, c.source);
+	const SettingContext shown = context_of(c.where);
 	const bool listed_choice = row.kind == SettingKind::CHOICE
 	                           && deluge::engine::mapping_of(row).kind == deluge::engine::DisplayMappingKind::LINEAR;
-	const std::vector<int32_t> choices = listed_choice ? applicable(row, shown) : std::vector<int32_t>{};
+	const std::vector<int32_t> choices = listed_choice ? applicable(row, shown, ctx, c.where) : std::vector<int32_t>{};
 
 	// The range. A named-only group's row is a plain field the menu lists or toggles by its own encoding, so its
 	// range is not a menu range.

@@ -9,6 +9,7 @@
 #include <cppspec.hpp>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -25,6 +26,25 @@ constexpr std::pair<int32_t, int32_t> kNone{-1, -1};
 
 // A new song's input tick magnitude, at which a file's sync levels 0–9 are the internal ones.
 constexpr deluge::engine::CodecContext kContext{.input_tick_magnitude = 1};
+
+/// A reader that holds a sound's synth mode alone, and records any other path a condition asks for.
+struct ModeReader {
+	int32_t mode{0};
+	mutable std::vector<std::string> unknown{};
+
+	[[nodiscard]] deluge::engine::SettingReader reader() const {
+		return {.read =
+		            [](const void* self, std::string_view path) {
+			            const auto& held = *static_cast<const ModeReader*>(self);
+			            if (path != "mode") {
+				            held.unknown.emplace_back(path);
+				            return 0;
+			            }
+			            return held.mode;
+		            },
+		        .self = this};
+	}
+};
 
 SoundState fmState() {
 	SoundState state = new_synth_state();
@@ -231,11 +251,57 @@ describe settings("the Deluge instrument's settings schema", ${
 		const auto choke = static_cast<size_t>(PolyphonyMode::CHOKE);
 		const auto mono = static_cast<size_t>(PolyphonyMode::MONO);
 		expect(std::string(row.choices[choke])).to_equal(std::string("choke"));
-		expect(deluge::engine::setting_choice_applies(row, {.owner = SettingContext::Owner::KIT_LANE}, choke))
+		expect(deluge::engine::setting_choice_applies(row, {.owner = SettingContext::Owner::KIT_LANE}, {}, choke))
 		    .to_be_true();
-		expect(deluge::engine::setting_choice_applies(row, {.owner = SettingContext::Owner::TRACK}, choke))
+		expect(deluge::engine::setting_choice_applies(row, {.owner = SettingContext::Owner::TRACK}, {}, choke))
 		    .to_be_false();
-		expect(deluge::engine::setting_choice_applies(row, {.owner = SettingContext::Owner::TRACK}, mono)).to_be_true();
+		expect(deluge::engine::setting_choice_applies(row, {.owner = SettingContext::Owner::TRACK}, {}, mono)).to_be_true();
+	});
+
+	it("lists the oscillator types by the owner's synth mode, read by path, its owner and its inputs", _ {
+		const deluge::engine::SettingInfo& row = *deluge::engine::find_setting(kSettings, "osc1/type");
+		const auto sample = static_cast<size_t>(OscType::SAMPLE);
+		const auto dx7 = static_cast<size_t>(OscType::DX7);
+		const auto input_r = static_cast<size_t>(OscType::INPUT_R);
+		const SettingContext track{.owner = SettingContext::Owner::TRACK};
+		const SettingContext lane{.owner = SettingContext::Owner::KIT_LANE};
+		const SettingContext plugged{.owner = SettingContext::Owner::TRACK, .audio_inputs_present = true};
+		const ModeReader subtractive{static_cast<int32_t>(SynthMode::SUBTRACTIVE)};
+		const ModeReader ring{static_cast<int32_t>(SynthMode::RINGMOD)};
+		expect(deluge::engine::setting_choice_applies(row, track, subtractive.reader(), sample)).to_be_true();
+		expect(deluge::engine::setting_choice_applies(row, track, ring.reader(), sample)).to_be_false();
+		expect(deluge::engine::applicable_choice_count(row, track, ring.reader())).to_equal(7);
+		expect(deluge::engine::applicable_choice_count(row, track, subtractive.reader())).to_equal(10);
+		expect(deluge::engine::applicable_choice_count(row, plugged, subtractive.reader())).to_equal(12);
+		expect(deluge::engine::setting_choice_applies(row, track, subtractive.reader(), dx7)).to_be_true();
+		expect(deluge::engine::setting_choice_applies(row, lane, subtractive.reader(), dx7)).to_be_false();
+		expect(deluge::engine::setting_choice_applies(row, track, subtractive.reader(), input_r)).to_be_false();
+		expect(deluge::engine::setting_choice_applies(row, plugged, subtractive.reader(), input_r)).to_be_true();
+		expect(deluge::engine::setting_choice_applies(row, plugged, ring.reader(), input_r)).to_be_false();
+		expect(ring.unknown.empty()).to_be_true();
+		expect(subtractive.unknown.empty()).to_be_true();
+	});
+
+	it("maps a filtered choice row between its stored index and its menu position", _ {
+		const deluge::engine::SettingInfo& row = *deluge::engine::find_setting(kSettings, "osc2/type");
+		const SettingContext track{.owner = SettingContext::Owner::TRACK};
+		const ModeReader subtractive{static_cast<int32_t>(SynthMode::SUBTRACTIVE)};
+		const auto reader = subtractive.reader();
+		const auto input_l = static_cast<int32_t>(OscType::INPUT_L);
+		expect(input_l).to_equal(9);
+		expect(deluge::engine::choice_position(row, track, reader, input_l).value_or(-1)).to_equal(8);
+		expect(deluge::engine::choice_at_position(row, track, reader, 8).value_or(-1)).to_equal(input_l);
+		for (int32_t position = 0; position < deluge::engine::applicable_choice_count(row, track, reader); ++position) {
+			const std::optional<int32_t> stored = deluge::engine::choice_at_position(row, track, reader, position);
+			expect(stored).to_have_value();
+			expect(deluge::engine::choice_position(row, track, reader, *stored).value_or(-1)).to_equal(position);
+		}
+		// the second oscillator never offers DX7 (index 8)
+		expect(deluge::engine::choice_position(row, track, reader, static_cast<int32_t>(OscType::DX7)))
+		    .not_()
+		    .to_have_value();
+		expect(deluge::engine::choice_at_position(row, track, reader, 9)).not_().to_have_value();
+		expect(deluge::engine::choice_at_position(row, track, reader, -1)).not_().to_have_value();
 	});
 
 	it("shows each LFO's sync as one menu value over its level and its type", _ {

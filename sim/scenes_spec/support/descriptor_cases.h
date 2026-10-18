@@ -285,6 +285,7 @@ using deluge::hid::display::OLED;
 #include <optional>
 #include <set>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -660,8 +661,8 @@ Song& song_of(Where where) {
 	}
 }
 
-/// The descriptor context @p where stands for, for oscillator @p source.
-SettingContext context_of(Where where, int8_t source = 0) {
+/// The descriptor context @p where stands for.
+SettingContext context_of(Where where) {
 	SettingContext shown{};
 	shown.owner = where == Where::KIT_LANE     ? Owner::KIT_LANE
 	              : where == Where::MIDI_CLIP  ? Owner::CLIP
@@ -670,8 +671,6 @@ SettingContext context_of(Where where, int8_t source = 0) {
 	              : where == Where::SONG       ? Owner::SONG
 	                                           : Owner::TRACK;
 	shown.audio_inputs_present = AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn;
-	shown.dx7_allowed = shown.owner == Owner::TRACK && source == 0;
-	shown.ring_mod = where == Where::SYNTH_RINGMOD;
 	return shown;
 }
 
@@ -1009,15 +1008,57 @@ void check_numeric(auto& self, const Case& c) {
 	}
 }
 
-/// The choices of @p row that apply in @p shown, in order.
-std::vector<int32_t> applicable(const SettingInfo& row, const SettingContext& shown) {
+/// The owner @p ctx edits, read by path through the spec's own instrument read path. A path the owner does not hold
+/// is recorded, and `applicable` fails on it rather than reading 0.
+struct SpecReader {
+	const MenuContext& ctx;
+	Where where;
+	mutable std::vector<std::string> unknown{};
+
+	[[nodiscard]] deluge::engine::SettingReader reader() const {
+		return {.read =
+		            [](const void* self, std::string_view path) {
+			            const auto& owner = *static_cast<const SpecReader*>(self);
+			            const SettingInfo* row = deluge::engine::find_setting(deluge::instrument::kSettings, path);
+			            const std::optional<int32_t> value =
+			                row != nullptr ? get_stored(Family::INSTRUMENT, owner.ctx, owner.where, *row)
+			                               : std::nullopt;
+			            if (!value) {
+				            owner.unknown.emplace_back(path);
+				            return 0;
+			            }
+			            return *value;
+		            },
+		        .self = this};
+	}
+};
+
+/// The choices of @p row that apply in @p shown on the owner @p ctx edits, in order, through the engine's own position
+/// helpers. Throws where a condition read a path the owner does not hold, or a position does not round-trip.
+std::vector<int32_t> applicable(const SettingInfo& row, const SettingContext& shown, const MenuContext& ctx,
+                                Where where) {
+	const SpecReader owner{ctx, where};
+	const deluge::engine::SettingReader reader = owner.reader();
 	std::vector<int32_t> out;
-	for (size_t i = 0; i < row.choices.size(); ++i) {
-		if (deluge::engine::setting_choice_applies(row, shown, i)) {
-			out.push_back(static_cast<int32_t>(i));
+	const int32_t count = deluge::engine::applicable_choice_count(row, shown, reader);
+	for (int32_t position = 0; position < count; ++position) {
+		const std::optional<int32_t> stored = deluge::engine::choice_at_position(row, shown, reader, position);
+		if (!stored || deluge::engine::choice_position(row, shown, reader, *stored) != position) {
+			throw std::runtime_error(std::string{row.path} + ": choice position " + std::to_string(position)
+			                         + " does not round-trip");
 		}
+		out.push_back(*stored);
+	}
+	if (!owner.unknown.empty()) {
+		throw std::runtime_error(std::string{row.path} + " reads " + owner.unknown.front()
+		                         + ", which its owner does not hold");
 	}
 	return out;
+}
+
+/// The same, on the owner @p where names, set up as `enter` leaves it.
+std::vector<int32_t> applicable(const SettingInfo& row, Where where) {
+	return applicable(row, context_of(where), enter(where), where);
 }
 
 std::string list_of(const std::vector<int32_t>& choices) {
@@ -1092,7 +1133,7 @@ namespace engine = deluge::engine;
 void check_choices(auto& self, const Case& c) {
 	const MenuContext& ctx = enter(c.where, c.source);
 	const SettingInfo& row = row_of(c);
-	const std::vector<int32_t> choices = applicable(row, context_of(c.where, c.source));
+	const std::vector<int32_t> choices = applicable(row, context_of(c.where), ctx, c.where);
 	const Range legacy = legacy_range(c.item);
 	expect(std::string{c.path} + " offers " + std::to_string(choices.size()) + ": " + list_of(choices))
 	    .to_equal(std::string{c.path} + " offers " + std::to_string(legacy.second + 1) + ": " + list_of(choices));

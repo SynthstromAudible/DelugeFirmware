@@ -39,8 +39,8 @@ describe descriptor_legacy_voice("The voice rows' descriptors against legacy's i
 	});
 	it("offers choke on a kit lane alone", _ {
 		const SettingInfo& row = *deluge::engine::find_setting(deluge::instrument::kSettings, "polyphonic");
-		expect(applicable(row, context_of(Where::SYNTH)).size()).to_equal(4u);
-		expect(applicable(row, context_of(Where::KIT_LANE)).size()).to_equal(5u);
+		expect(applicable(row, Where::SYNTH).size()).to_equal(4u);
+		expect(applicable(row, Where::KIT_LANE).size()).to_equal(5u);
 	});
 });
 
@@ -57,11 +57,13 @@ describe descriptor_legacy_oscillators("The oscillator rows' descriptors against
 	});
 	it("drops the sample and inputs under ring mod, and DX7 off a track's first oscillator", _ {
 		const SettingInfo& row = *deluge::engine::find_setting(deluge::instrument::kSettings, "osc1/type");
-		expect(list_of(applicable(row, context_of(Where::SYNTH_RINGMOD)))).to_equal(std::string{"0,1,2,3,4,5,6,"});
-		expect(list_of(applicable(row, context_of(Where::SYNTH)))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,"});
-		expect(list_of(applicable(row, context_of(Where::SYNTH, 1)))).to_equal(std::string{"0,1,2,3,4,5,6,7,9,"});
-		expect(list_of(applicable(row, context_of(Where::KIT_LANE)))).to_equal(std::string{"0,1,2,3,4,5,6,7,9,"});
-		expect(list_of(applicable(row, SettingContext{.audio_inputs_present = true, .dx7_allowed = true})))
+		expect(list_of(applicable(row, Where::SYNTH_RINGMOD))).to_equal(std::string{"0,1,2,3,4,5,6,"});
+		expect(list_of(applicable(row, Where::SYNTH))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,"});
+		const SettingInfo& second = *deluge::engine::find_setting(deluge::instrument::kSettings, "osc2/type");
+		expect(list_of(applicable(second, Where::SYNTH))).to_equal(std::string{"0,1,2,3,4,5,6,7,9,"});
+		expect(list_of(applicable(row, Where::KIT_LANE))).to_equal(std::string{"0,1,2,3,4,5,6,7,9,"});
+		const MenuContext& ctx = enter(Where::SYNTH);
+		expect(list_of(applicable(row, SettingContext{.audio_inputs_present = true}, ctx, Where::SYNTH)))
 		    .to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,10,11,"});
 	});
 });
@@ -93,8 +95,8 @@ describe descriptor_legacy_arp("The arp rows' descriptors against legacy's items
 	});
 	it("offers the as-played and pattern note modes off a kit lane alone", _ {
 		const SettingInfo& row = *deluge::engine::find_setting(deluge::engine::kArpSettingRows, "arpeggiator/noteMode");
-		expect(applicable(row, context_of(Where::SYNTH)).size()).to_equal(9u);
-		expect(applicable(row, context_of(Where::KIT_LANE)).size()).to_equal(7u);
+		expect(applicable(row, Where::SYNTH).size()).to_equal(9u);
+		expect(applicable(row, Where::KIT_LANE).size()).to_equal(7u);
 	});
 });
 
