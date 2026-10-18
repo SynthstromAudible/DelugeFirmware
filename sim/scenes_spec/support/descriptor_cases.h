@@ -1569,6 +1569,13 @@ const std::vector<int32_t> kFractionProbes = [] {
 
 const std::vector<Case>& model_cases() {
 	static const std::vector<Case> cases{
+	    // Driven as a numeric row against legacy's DualCVSelection: stored 1 (pitch), a mode the menu does not list,
+	    // reads as off.
+	    {.path = "cv2Source",
+	     .family = Family::INSTRUMENT_DEVICE,
+	     .item = &cv2SourceMenu,
+	     .where = Where::CV_CLIP,
+	     .stored = {1, 2, 3}},
 	    {.path = "transpose",
 	     .family = Family::AUDIO_CLIP,
 	     .item = &audioClipTransposeMenu,
@@ -1745,12 +1752,6 @@ const std::vector<Case>& group_cases() {
 	     .family = Family::INSTRUMENT_DEVICE,
 	     .item = &mpeyToModWheelMenu,
 	     .where = Where::MIDI_CLIP},
-	    // Stored 1 (pitch) is a mode the menu does not list: it reads as off.
-	    {.path = "cv2Source",
-	     .family = Family::INSTRUMENT_DEVICE,
-	     .item = &cv2SourceMenu,
-	     .where = Where::CV_CLIP,
-	     .stored = {1, 2, 3}},
 	    {.path = "collapseAftertouch",
 	     .family = Family::INSTRUMENT_DEVICE,
 	     .item = &midiAftertouchCollapseMenu,
