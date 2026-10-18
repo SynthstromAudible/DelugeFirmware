@@ -59,7 +59,7 @@ using Instrument = engine::SettingContext::Instrument;
 /// the song's effects are the song owner's.
 inline constexpr std::array<int32_t, 1> kSongOwner{static_cast<int32_t>(Owner::SONG)};
 /// The whole kit's own effects, which a kit plays through: they have no saturation menu, as the song's have none. Read
-/// off what plays, so it holds whichever scope a host passes for them.
+/// off what plays (engine::SettingContext's host contract), so it holds whichever scope a host passes for them.
 inline constexpr std::array<int32_t, 1> kKitInstrument{static_cast<int32_t>(Instrument::KIT)};
 inline constexpr std::array kOffSong{engine::owner_is_not(kSongOwner)};
 inline constexpr std::array kOffSongAndWholeKit{engine::owner_is_not(kSongOwner),
@@ -115,8 +115,7 @@ inline namespace menu_tables {
 /// @brief The effects' non-param settings, by their path in an owner's element. A sync level is the level itself
 /// (0–9, 0 = off); a file writes it relative to the song's tick magnitude.
 ///
-/// The owner each effect host passes (SettingContext::Owner): TRACK for a synth's or an audio track's effects,
-/// KIT_LANE for a kit lane's sound, KIT for the whole kit's own effects, and SONG for the song's.
+/// The context each effect host passes is engine::SettingContext's host contract.
 inline constexpr std::array<engine::SettingInfo, 23> kEffectSettings{{
     {.path = "modFXType", .kind = detail::CHOICE, .choices = detail::kModFxTypeNames},
     // 24dB, HPLadder: the filters' default circuits.
@@ -195,6 +194,7 @@ inline constexpr std::array<engine::SettingInfo, 23> kEffectSettings{{
 }};
 } // namespace menu_tables
 static_assert(engine::conditions_are_valid(kEffectSettings));
+static_assert(engine::mappings_are_valid(kEffectSettings));
 
 /// @brief Whether @p value is one kEffectSettings allows at @p path.
 /// @param path  The setting's path in an owner's element.

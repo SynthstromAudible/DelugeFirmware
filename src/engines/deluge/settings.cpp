@@ -597,6 +597,7 @@ constexpr auto kAllRows = [] {
 	return all;
 }();
 static_assert(engine::conditions_are_valid(kAllRows));
+static_assert(engine::mappings_are_valid(kAllRows));
 
 } // namespace menu_tables
 } // namespace

@@ -322,7 +322,9 @@ constexpr SettingInfo kInstrumentDeviceTable[] = {
     integer("cv2Source", 0, 4, 0, {}, SettingUnits::NONE, &kCv2SourceExtras),
 };
 static_assert(engine::conditions_are_valid(kInstrumentDeviceTable));
+static_assert(engine::mappings_are_valid(kInstrumentDeviceTable));
 static_assert(engine::conditions_are_valid(kTrackTable));
+static_assert(engine::mappings_are_valid(kTrackTable));
 
 constexpr std::string_view kCcLabelPrefix = "ccLabels/";
 /// The CC numbers a MIDI instrument can label: 0..119.
@@ -461,7 +463,9 @@ constexpr SettingInfo kNoteRowTable[] = {
     integer("bendRange", 0, kMaxBendRange, kDefaultBendRangeMpe, {}, SettingUnits::SEMITONES, &kOnSoundDrumExtras),
 };
 static_assert(engine::conditions_are_valid(kNoteRowTable));
+static_assert(engine::mappings_are_valid(kNoteRowTable));
 static_assert(engine::conditions_are_valid(kLaneTable));
+static_assert(engine::mappings_are_valid(kLaneTable));
 
 DocNoteRow* resolve_note_row(Song& song, const NoteRowAddress& address) {
 	DocClip* clip = song.clip_structure.find(address.clip_id);
@@ -493,6 +497,7 @@ constexpr SettingInfo kAudioInputTable[] = {
     integer("outputRecordingFrom", -1, INT32_MAX, -1, {}, SettingUnits::NONE, &kRecordingFromExtras),
 };
 static_assert(engine::conditions_are_valid(kAudioInputTable));
+static_assert(engine::mappings_are_valid(kAudioInputTable));
 
 std::optional<Value> read_audio_input(const DocOutput& o, std::string_view path) {
 	if (path == "mode") {
@@ -528,6 +533,7 @@ constexpr SettingInfo kClipTable[] = {
                 .extras = &kOnMelodicTrackExtras},
 };
 static_assert(engine::conditions_are_valid(kClipTable));
+static_assert(engine::mappings_are_valid(kClipTable));
 
 /// MIDI program numbers 0..127; 128 is none (no message sent).
 constexpr int32_t kNoMidiProgram = 128;
@@ -541,6 +547,7 @@ constexpr SettingInfo kClipValuesTable[] = {
             &kOnMelodicTrackExtras),
 };
 static_assert(engine::conditions_are_valid(kClipValuesTable));
+static_assert(engine::mappings_are_valid(kClipValuesTable));
 
 // ---------------------------------------------------------------------------------------------
 // AUDIO_CLIP (on DocAudioClip)
@@ -575,6 +582,7 @@ constexpr SettingInfo kAudioClipTable[] = {
     boolean("overdubsShouldCloneAudioTrack", 1),
 };
 static_assert(engine::conditions_are_valid(kAudioClipTable));
+static_assert(engine::mappings_are_valid(kAudioClipTable));
 
 std::optional<Value> read_audio_clip(const DocAudioClip& c, std::string_view path) {
 	if (path == "startSamplePos") {

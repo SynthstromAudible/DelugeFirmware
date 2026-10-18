@@ -59,13 +59,31 @@ struct UserScale {
 
 /// @brief Who a setting is shown for: the facts about the owner that no setting of it holds.
 ///
-/// Owner and Instrument overlap but say different things: Owner is the scope a menu edits (one kit lane, the whole
-/// kit, a clip, the song), Instrument what plays the notes there. A condition that turns on what plays the notes uses
-/// INSTRUMENT, so it holds whichever scope a host passes; one that turns on the scope uses OWNER. Each setting group
-/// says which of each its host passes (deluge::project::SettingGroupId).
+/// Owner and Instrument overlap but say different things: Owner is the scope a menu edits, Instrument what plays the
+/// notes there. A condition that turns on what plays the notes uses INSTRUMENT, so it holds whichever scope a host
+/// passes; one that turns on the scope uses OWNER.
+///
+/// @par Host contract
+/// The one statement of what a host passes and answers; every other doc of a context or a reader points here.
+///  - The pairs, per scope (context_is_coherent checks them):
+///      - the song's own settings and effects: Owner SONG, Instrument NONE;
+///      - a track (a synth's sound, its effects, its name, a MIDI or CV track's device settings, an audio track's
+///        input): Owner TRACK, Instrument the track's (SYNTH, KIT, MIDI, CV or AUDIO);
+///      - a clip (its identity, its values, its arp, an audio clip's descriptor): Owner CLIP, Instrument the track's
+///        (AUDIO for an audio clip, KIT for the whole kit's clip values and arp);
+///      - one kit lane (its sound, name, note row, arp): Owner KIT_LANE, Instrument the lane's drum (SOUND_DRUM,
+///        MIDI_DRUM or GATE_DRUM);
+///      - the whole kit's own effects: Owner KIT, Instrument KIT.
+///    SONG goes with NONE alone and a drum with KIT_LANE alone.
+///  - `instrument` is required for every owner but SONG. A condition on what plays reads it, and NONE off the song
+///    passes the kit gates (DX7, saturation) as if no kit played, so rows show where they should not.
+///  - A SettingReader answers every path its owner's table holds, applicable or not, and never nullopt for one of
+///    them: a SETTING condition on a nullopt fails closed, which hides a row that should show. It answers nullopt only
+///    for a path the owner does not hold.
+///  - A sound's reader answers with deluge::instrument::held_setting, which reads the held value whether or not the
+///    path applies; setting_value is the applicable read and would hide a row's own gate (an oscillator's type in FM).
 struct SettingContext {
-	/// @brief The menu's editing scope: a track (a synth's sound, a track's own settings), one kit lane, the whole kit
-	/// (its own effects), a clip (its values and arp, the whole kit's arp included) or the song.
+	/// @brief The menu's editing scope: a track, one kit lane, the whole kit (its own effects), a clip or the song.
 	enum class Owner : uint8_t { TRACK, KIT_LANE, KIT, CLIP, SONG };
 	/// @brief What plays the owner's notes: its track's instrument, or on a kit lane, the lane's drum. NONE for the
 	/// song.
@@ -75,13 +93,35 @@ struct SettingContext {
 	/// @brief How many Instrument values there are: AUDIO is the last.
 	static constexpr int32_t kInstrumentCount = static_cast<int32_t>(Instrument::AUDIO) + 1;
 	Owner owner{Owner::TRACK};
-	/// Required for every owner but SONG: a condition on what plays reads it, and NONE (the song's) passes the kit
-	/// gates (DX7, saturation) as if no kit played, so a host that leaves it unset shows them.
-	Instrument instrument{Instrument::NONE};
-	bool audio_inputs_present{false}; ///< any audio input is plugged in
+	Instrument instrument{Instrument::NONE}; ///< required but for SONG; see the host contract
+	bool audio_inputs_present{false};        ///< any audio input is plugged in
 	/// The owner's sound sources that hold a loaded audio file, a bit each (bit 0 the first source); 0 off a sound.
 	uint8_t loaded_sources{0};
 };
+
+/// @brief Whether @p context pairs its Owner with an Instrument the host contract allows.
+/// @param context The context a host passes.
+/// @return True when SONG has NONE alone, KIT_LANE a drum alone (SOUND_DRUM, MIDI_DRUM or GATE_DRUM), KIT has KIT, and
+///         TRACK and CLIP the track's instrument (SYNTH, KIT, MIDI, CV or AUDIO).
+[[nodiscard]] constexpr bool context_is_coherent(const SettingContext& context) {
+	using Owner = SettingContext::Owner;
+	using Instrument = SettingContext::Instrument;
+	switch (context.owner) {
+	case Owner::SONG:
+		return context.instrument == Instrument::NONE;
+	case Owner::KIT:
+		return context.instrument == Instrument::KIT;
+	case Owner::KIT_LANE:
+		return context.instrument == Instrument::SOUND_DRUM || context.instrument == Instrument::MIDI_DRUM
+		       || context.instrument == Instrument::GATE_DRUM;
+	case Owner::TRACK:
+	case Owner::CLIP:
+		return context.instrument == Instrument::SYNTH || context.instrument == Instrument::KIT
+		       || context.instrument == Instrument::MIDI || context.instrument == Instrument::CV
+		       || context.instrument == Instrument::AUDIO;
+	}
+	return false;
+}
 
 /// @brief The sources a sound has, and so the bits SettingContext::loaded_sources uses.
 inline constexpr std::size_t kMaxSoundSources = 2;
@@ -175,9 +215,9 @@ struct ChoiceCondition {
 };
 
 /// @brief Reads the owner's settings by path, for evaluating SETTING conditions. A function pointer plus its object;
-/// host-side only, never part of a descriptor.
-/// A value the reader cannot give (a path its owner does not hold, or no `read` at all) makes a SETTING condition fail
-/// closed: the condition does not hold, whichever its test.
+/// host-side only, never part of a descriptor. What it must answer is SettingContext's host contract. A value it
+/// cannot give (a path its owner does not hold, or no `read` at all) makes a SETTING condition fail closed: the
+/// condition does not hold, whichever its test.
 struct SettingReader {
 	/// The stored value at a path (a CHOICE row's index), or nullopt where the owner holds none.
 	std::optional<int32_t> (*read)(const void* self, std::string_view path){nullptr};
@@ -779,6 +819,56 @@ inline constexpr DisplayMapping kLinearMapping{};
 		return std::nullopt;
 	}
 	return Stored{*stored, 0};
+}
+
+/// @brief Whether @p row's display mapping is well formed against the table @p rows. It reads the one union member the
+/// mapping's kind names, so a row that set another (or none) is not a constant expression and fails a static_assert
+/// of it at compile time, where a device would read the wrong member.
+/// @param rows The owner's table.
+/// @param row  The row to check.
+/// @return For CLAMP_HIGH: `clamp_to` within the row's menu range. For KNOB_POSITION: the top menu step stores
+///         `clamp_to`, which reads the member. For CHOICE_ORDER: a non-empty
+///         order of values the row stores. For TABLE: a non-empty table. For COMBINED_SYNC and TRANSPOSE_CENTS: a
+///         partner that names a row of @p rows. True for the other kinds.
+[[nodiscard]] constexpr bool mapping_is_valid(std::span<const SettingInfo> rows, const SettingInfo& row) {
+	const DisplayMapping& mapping = mapping_of(row);
+	switch (mapping.kind) {
+	case DisplayMappingKind::CLAMP_HIGH: {
+		const auto [least, greatest] = menu_range(row);
+		const int32_t clamp = mapping.clamp_to;
+		return clamp >= least && clamp <= greatest;
+	}
+	case DisplayMappingKind::KNOB_POSITION: {
+		const std::optional<std::pair<int32_t, int32_t>> top = from_menu(row, kMaxKnobPosition);
+		return top && top->first == mapping.clamp_to; // the top step stores what the mapping holds
+	}
+	case DisplayMappingKind::CHOICE_ORDER:
+		return !mapping.order.empty()
+		       && std::ranges::all_of(mapping.order, [&](uint8_t value) { return stores_value(row, value); });
+	case DisplayMappingKind::TABLE:
+		return !mapping.table.empty();
+	case DisplayMappingKind::COMBINED_SYNC:
+	case DisplayMappingKind::TRANSPOSE_CENTS:
+		return find_setting(rows, mapping.partner) != nullptr;
+	case DisplayMappingKind::LINEAR:
+	case DisplayMappingKind::INVERTED_BOOL:
+	case DisplayMappingKind::PHASE_DEGREES:
+	case DisplayMappingKind::STANDARD:
+	case DisplayMappingKind::UNSIGNED:
+	case DisplayMappingKind::PAN:
+	case DisplayMappingKind::FIFTIETHS:
+	case DisplayMappingKind::FLOAT_FRACTION:
+		break;
+	}
+	return true;
+}
+
+/// @brief Whether every row of @p rows has a well formed display mapping (mapping_is_valid); for a static_assert per
+/// table, beside conditions_are_valid.
+/// @param rows The table.
+/// @return True when all do.
+[[nodiscard]] constexpr bool mappings_are_valid(std::span<const SettingInfo> rows) {
+	return std::ranges::all_of(rows, [&](const SettingInfo& row) { return mapping_is_valid(rows, row); });
 }
 
 } // namespace deluge::engine

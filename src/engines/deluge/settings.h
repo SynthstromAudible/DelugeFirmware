@@ -29,7 +29,7 @@ namespace deluge::instrument {
 
 /// @brief The Deluge instrument's non-param settings, by their path in a sound's element: the scalars a setting Edit
 /// changes, and the structured ones (sample and wavetable ranges, the DX7 patch) only their own Edits change. Its
-/// effect rows are kEffectSettings'. A host passes Owner TRACK for a synth's sound and KIT_LANE for a kit lane's.
+/// effect rows are kEffectSettings'. The context a host passes is engine::SettingContext's host contract.
 extern const std::span<const engine::SettingInfo> kSettings;
 
 /// @brief The Deluge instrument's clip-scoped settings: its arp's (kArpSettingRows). A clip holds their values in its
@@ -61,8 +61,8 @@ extern const std::span<const engine::SettingInfo> kClipScopedSettings;
 [[nodiscard]] std::optional<serialization::Value> setting_value(const SoundState& state, std::string_view path);
 
 /// @brief The value @p state holds at @p path whether or not the path applies to the state (an oscillator's type in
-/// FM included), as the row stores it: a CHOICE row's index, else the number. What a SettingReader answers for a
-/// sound, so an applicability condition reads the sound's own value.
+/// FM included), as the row stores it: a CHOICE row's index, else the number. The read
+/// path of a sound's SettingReader (see engine::SettingContext's host contract).
 /// @param state The sound's state.
 /// @param path  The setting's path.
 /// @return The stored value, or nullopt for a structured path, one the schema does not hold, a CHOICE row whose held

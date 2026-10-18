@@ -464,6 +464,30 @@ describe setting_condition("A setting's applicability as data", $ {
 		expect(deluge::engine::setting_applies(plain, SettingContext{}, unset)).to_be_true();
 	});
 
+	it("calls a context coherent when its owner and instrument pair as the host contract lists", _ {
+		using deluge::engine::context_is_coherent;
+		const auto coherent = [](Owner owner, Instrument instrument) {
+			return context_is_coherent({.owner = owner, .instrument = instrument});
+		};
+		expect(coherent(Owner::SONG, Instrument::NONE)).to_be_true();
+		expect(coherent(Owner::TRACK, Instrument::SYNTH)).to_be_true();
+		expect(coherent(Owner::TRACK, Instrument::AUDIO)).to_be_true();
+		expect(coherent(Owner::CLIP, Instrument::KIT)).to_be_true();
+		expect(coherent(Owner::KIT, Instrument::KIT)).to_be_true();
+		expect(coherent(Owner::KIT_LANE, Instrument::SOUND_DRUM)).to_be_true();
+		expect(coherent(Owner::KIT_LANE, Instrument::GATE_DRUM)).to_be_true();
+		// A kit lane with no drum fails open: NONE passes the kit gates as if no kit played.
+		expect(coherent(Owner::KIT_LANE, Instrument::NONE)).to_be_false();
+		expect(coherent(Owner::TRACK, Instrument::NONE)).to_be_false();
+		expect(coherent(Owner::CLIP, Instrument::NONE)).to_be_false();
+		expect(coherent(Owner::SONG, Instrument::SYNTH)).to_be_false();
+		expect(coherent(Owner::KIT, Instrument::SOUND_DRUM)).to_be_false();
+		expect(coherent(Owner::KIT_LANE, Instrument::SYNTH)).to_be_false();
+		expect(coherent(Owner::TRACK, Instrument::MIDI_DRUM)).to_be_false();
+		// A bare context is the track's, with nothing playing.
+		expect(context_is_coherent(SettingContext{})).to_be_false();
+	});
+
 	it("evaluates in constant expressions", _ {
 		static_assert(deluge::engine::setting_choice_applies(kTypeNoEight, SettingContext{}, SettingReader{}, 0));
 		static_assert(!deluge::engine::setting_choice_applies(kTypeNoEight, SettingContext{}, SettingReader{}, 8));

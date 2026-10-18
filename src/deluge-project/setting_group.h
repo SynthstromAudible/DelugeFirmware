@@ -18,6 +18,7 @@
 #include "serialization/value.h"
 
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <span>
 #include <string_view>
@@ -29,8 +30,9 @@ class Song;
 
 /// @brief Which family of settings an address names.
 ///
-/// Each says which engine::SettingContext a host passes when it asks whether a row's menu shows: the Owner (the
-/// menu's scope) and the Instrument (what plays the notes, the track's or a kit lane's drum).
+/// Each says which engine::SettingContext a host passes when it asks whether a row's menu shows, under the host
+/// contract in engine::SettingContext: the Owner (the menu's scope) and the Instrument (what plays the notes, the
+/// track's or a kit lane's drum).
 enum class SettingGroupId : uint8_t {
 	SONG,              ///< the song's own: reverb and its model, swing interval, disabled scales. SONG, NONE
 	TRACK,             ///< a track's identity: its name. TRACK, the track's
@@ -51,15 +53,15 @@ enum class SettingGroupId : uint8_t {
 /// @brief How many setting groups there are. Code that numbers owners after the groups (the host's name table)
 /// derives its indices from it.
 ///
-/// To add a group: append it to SettingGroupId, give it a case in `is_counted_by_group_count`, raise this by one, and
-/// change the group the static_assert after that function names as the last. A bump that is forgotten is not caught:
-/// the assert still holds for the old last group, and the new enumerator has no sentinel to check it against.
+/// To add a group: append it to SettingGroupId, give it a case in `is_counted_by_group_count`, and raise this by one.
+/// Both a missing case and a missing bump fail to compile.
 inline constexpr uint8_t kSettingGroupCount = 11;
 
-/// @brief Whether kSettingGroupCount counts @p group. It exists for the static_assert below: the switch names every
-/// group, so a new one fails to compile (-Werror=switch) until it has a case here, beside the count it must move.
-/// @param group The group to check.
-/// @return True when @p group's value is below kSettingGroupCount.
+/// @brief Whether kSettingGroupCount counts @p group, for the static_assert below. The switch names every group, so a
+/// new one fails to compile (-Werror=switch) until it has a case here; a named group is counted when its value is below
+/// kSettingGroupCount, so a new group without the bump is not. A value no group has is counted.
+/// @param group The group to check, or any uint8 value cast to the enum.
+/// @return True when @p group's value is below kSettingGroupCount, or when it names no group.
 [[nodiscard]] constexpr bool is_counted_by_group_count(SettingGroupId group) {
 	switch (group) {
 	case SettingGroupId::SONG:
@@ -75,11 +77,20 @@ inline constexpr uint8_t kSettingGroupCount = 11;
 	case SettingGroupId::LANE_ARP:
 		return static_cast<uint8_t>(group) < kSettingGroupCount;
 	}
-	return false;
+	return true;
 }
-static_assert(is_counted_by_group_count(SettingGroupId::LANE_ARP)
-                  && static_cast<SettingGroupId>(kSettingGroupCount - 1) == SettingGroupId::LANE_ARP,
-              "kSettingGroupCount counts every SettingGroupId, and LANE_ARP is the last");
+
+/// @brief Whether every uint8 value is counted (is_counted_by_group_count), the groups included.
+/// @return True when kSettingGroupCount counts every SettingGroupId.
+[[nodiscard]] constexpr bool every_group_is_counted() {
+	for (int32_t value = 0; value <= std::numeric_limits<uint8_t>::max(); ++value) {
+		if (!is_counted_by_group_count(static_cast<SettingGroupId>(value))) {
+			return false;
+		}
+	}
+	return true;
+}
+static_assert(every_group_is_counted(), "kSettingGroupCount counts every SettingGroupId: raise it with a new group");
 
 /// @brief The song itself, as an owner.
 struct SongAddress {

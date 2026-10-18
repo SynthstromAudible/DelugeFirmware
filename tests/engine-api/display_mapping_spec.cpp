@@ -28,6 +28,7 @@
 #include <limits>
 #include <optional>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 
 namespace {
@@ -184,6 +185,52 @@ static_assert(to_menu(kMaxVoices, 126) == 0);
 static_assert(from_menu(kTranspose, -51) == Pair{-1, 49});
 static_assert(from_menu(kSidechainRelease, 50) == Pair{256, 0});
 static_assert(to_menu(kPlain, 3) == 3 && !from_menu(kPlain, 6));
+
+// A table's mappings are valid when each row's union member is the one its kind reads. A row that set another is not a
+// constant expression, so mappings_are_valid of it cannot compile in a static_assert; the concept turns that, and a
+// false answer, into `false` so the bad rows can be asserted.
+template <const auto& Rows>
+concept ValidMappings = requires { typename std::enable_if_t<deluge::engine::mappings_are_valid(Rows)>; };
+
+constexpr SettingInfo kSyncType{.path = "lfo1/syncType", .kind = SettingKind::CHOICE, .choices = kSyncTypes};
+constexpr SettingInfo kCents{.path = "cents", .min = -50, .max = 50};
+constexpr std::array kGoodMappings{kSyncLevel,       kSyncType,  kTranspose,           kCents, kPhase,
+                                   kMidiChannel,     kMaxVoices, kNoteForDrum,         kKnob,  kBlend,
+                                   kSidechainAttack, kRoomSize,  kLinearInterpolation, kPlain};
+static_assert(ValidMappings<kGoodMappings>);
+
+constexpr SettingDescriptorExtras kClampNoValueExtras{.mapping = {.kind = DisplayMappingKind::CLAMP_HIGH}};
+constexpr SettingDescriptorExtras kKnobNoValueExtras{.mapping = {.kind = DisplayMappingKind::KNOB_POSITION}};
+constexpr SettingDescriptorExtras kTableNoTableExtras{.mapping = {.kind = DisplayMappingKind::TABLE}};
+constexpr SettingDescriptorExtras kOrderNoOrderExtras{.mapping = {.kind = DisplayMappingKind::CHOICE_ORDER}};
+constexpr SettingDescriptorExtras kClampPastExtras{
+    .mapping = {.kind = DisplayMappingKind::CLAMP_HIGH, .clamp_to = 128}};
+constexpr SettingDescriptorExtras kLostPartnerExtras{
+    .mapping = {.kind = DisplayMappingKind::COMBINED_SYNC, .partner = "no/such/row"}};
+constexpr std::array kClampNoValueRows{
+    SettingInfo{.path = "x",
+                .min = 0,
+                .max = 10,
+                .user = {.user_min = 0, .user_max = 10, .stored_min = 0, .stored_max = 10},
+                .extras = &kClampNoValueExtras}};
+constexpr std::array kKnobNoValueRows{
+    SettingInfo{.path = "x", .min = 0, .max = kQ31Max, .extras = &kKnobNoValueExtras}};
+constexpr std::array kTableNoTableRows{SettingInfo{.path = "x", .min = 0, .max = 10, .extras = &kTableNoTableExtras}};
+constexpr std::array kOrderNoOrderRows{
+    SettingInfo{.path = "x", .kind = SettingKind::CHOICE, .choices = kSyncTypes, .extras = &kOrderNoOrderExtras}};
+constexpr std::array kClampPastRows{
+    SettingInfo{.path = "x",
+                .min = 0,
+                .max = 127,
+                .user = {.user_min = 0, .user_max = 127, .stored_min = 0, .stored_max = 127},
+                .extras = &kClampPastExtras}};
+constexpr std::array kLostPartnerRows{SettingInfo{.path = "x", .min = 0, .max = 9, .extras = &kLostPartnerExtras}};
+static_assert(!ValidMappings<kClampNoValueRows>); // CLAMP_HIGH without clamp_to reads an inactive member
+static_assert(!ValidMappings<kKnobNoValueRows>);  // KNOB_POSITION without clamp_to
+static_assert(!ValidMappings<kTableNoTableRows>); // TABLE without a table
+static_assert(!ValidMappings<kOrderNoOrderRows>); // CHOICE_ORDER without an order
+static_assert(!ValidMappings<kClampPastRows>);    // clamp_to past the row's menu range
+static_assert(!ValidMappings<kLostPartnerRows>);  // a partner that names no row
 } // namespace
 
 // clang-format off

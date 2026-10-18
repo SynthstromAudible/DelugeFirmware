@@ -236,10 +236,12 @@ static_assert(kSettingRowCount < kRows.size() && kRows[kSettingRowCount - 1].pat
 /// @brief An arp's every row: kArpSettingRows, then kArpHostRows.
 inline constexpr std::span<const SettingInfo> kArpRows{arp_detail::kRows};
 static_assert(conditions_are_valid(kArpRows));
+static_assert(mappings_are_valid(kArpRows));
 
 /// @brief The settings every arp has.
 inline constexpr std::span<const SettingInfo> kArpSettingRows = kArpRows.first(arp_detail::kSettingRowCount);
 static_assert(conditions_are_valid(kArpSettingRows));
+static_assert(mappings_are_valid(kArpSettingRows));
 
 /// @brief The values that are settings only where nothing automates them: a MIDI or CV clip's arp and a MIDI or gate
 /// kit row's. Elsewhere they are params. Their conditions read the arp's setting rows (kArpRows).
