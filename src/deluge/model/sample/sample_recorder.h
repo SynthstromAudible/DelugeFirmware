@@ -122,7 +122,10 @@ public:
 	bool pointerHeldElsewhere = false;
 	bool capturedTooMuch = false;
 	bool thresholdRecording = false;
+	// The standalone OLED recorder opts in to level updates after the threshold triggers.
+	bool monitorInputLevels = false;
 	uint32_t minThresholdMargin = 0;
+	StereoFloatSample approxRMSLevel{0};
 
 	// Most of these are not captured in the case of BALANCED input for AudioClips
 	bool recordingClippedRecently;
