@@ -79,6 +79,9 @@ inline constexpr uint8_t kArpNoteWalk2 = 5;
 inline constexpr int32_t kArpChordTypes = 9;
 
 namespace arp_detail {
+/// The menu-time tables: read when a menu or an Edit looks a setting up, never by the audio tier or an interrupt.
+/// The device image places this namespace's data in SDRAM (linker/sdram_sections.x matches its name).
+inline namespace menu_tables {
 
 constexpr SettingInfo choice(std::string_view path, std::span<const std::string_view> words, int32_t default_value = 0,
                              const SettingDescriptorExtras* extras = nullptr) {
@@ -227,9 +230,9 @@ inline constexpr std::size_t kSettingRowCount = static_cast<std::size_t>(
     std::ranges::find(kRows, std::string_view{"arpeggiator/gate"}, &SettingInfo::path) - kRows.begin());
 static_assert(kSettingRowCount < kRows.size() && kRows[kSettingRowCount - 1].path == "arpeggiator/preset");
 
+} // namespace menu_tables
 } // namespace arp_detail
 
-/// @brief The settings every arp has.
 /// @brief An arp's every row: kArpSettingRows, then kArpHostRows.
 inline constexpr std::span<const SettingInfo> kArpRows{arp_detail::kRows};
 static_assert(conditions_are_valid(kArpRows));

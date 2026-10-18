@@ -23,6 +23,9 @@
 namespace deluge::project {
 
 namespace {
+/// The menu-time tables: read when a menu or an Edit looks a setting up, never by the audio tier or an interrupt.
+/// The device image places this namespace's data in SDRAM (linker/sdram_sections.x matches its name).
+inline namespace menu_tables {
 
 using engine::SettingInfo;
 using engine::SettingKind;
@@ -708,6 +711,7 @@ void write_arp(ArpRecord& record, std::string_view path, const Value& value) {
 	}
 }
 
+} // namespace menu_tables
 } // namespace
 
 SettingRecordSnapshot snapshot_setting_record(Song& song, const SettingAddress& address) {

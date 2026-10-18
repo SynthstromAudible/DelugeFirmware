@@ -37,6 +37,9 @@
 namespace deluge::instrument {
 
 namespace {
+/// The menu-time tables: read when a menu or an Edit looks a setting up, never by the audio tier or an interrupt.
+/// The device image places this namespace's data in SDRAM (linker/sdram_sections.x matches its name).
+inline namespace menu_tables {
 
 using engine::SettingInfo;
 using enum engine::SettingKind;
@@ -585,6 +588,7 @@ constexpr auto kAllRows = [] {
 }();
 static_assert(engine::conditions_are_valid(kAllRows));
 
+} // namespace menu_tables
 } // namespace
 
 const std::span<const engine::SettingInfo> kSettings{kAllRows};

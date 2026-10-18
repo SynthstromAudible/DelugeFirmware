@@ -32,6 +32,9 @@
 namespace deluge::effects {
 
 namespace detail {
+/// The menu-time tables: read when a menu or an Edit looks a setting up, never by the audio tier or an interrupt.
+/// The device image places this namespace's data in SDRAM (linker/sdram_sections.x matches its name).
+inline namespace menu_tables {
 using engine::SettingInfo;
 using enum engine::SettingKind;
 
@@ -101,8 +104,11 @@ inline constexpr EffectStates kDefaults{};
 inline constexpr int32_t kDefaultSidechainAttack = engine::kSidechainAttackRates[7] << 2;
 inline constexpr int32_t kDefaultSidechainRelease = engine::kSidechainReleaseRates[28] << 3;
 inline constexpr int32_t kDefaultSidechainSyncLevel = engine::index_of(kDefaults.delay.sync_level) - 1;
+} // namespace menu_tables
 } // namespace detail
 
+/// The effects' rows are menu-time data, as detail's tables are.
+inline namespace menu_tables {
 /// @brief The effects' non-param settings, by their path in an owner's element. A sync level is the level itself
 /// (0–9, 0 = off); a file writes it relative to the song's tick magnitude.
 inline constexpr std::array<engine::SettingInfo, 23> kEffectSettings{{
@@ -181,6 +187,7 @@ inline constexpr std::array<engine::SettingInfo, 23> kEffectSettings{{
      .kind = detail::BOOL,
      .default_value = detail::kDefaults.stutter.use_song_stutter ? 1 : 0},
 }};
+} // namespace menu_tables
 static_assert(engine::conditions_are_valid(kEffectSettings));
 
 /// @brief Whether @p value is one kEffectSettings allows at @p path.

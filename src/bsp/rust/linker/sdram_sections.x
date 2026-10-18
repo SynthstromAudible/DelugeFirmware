@@ -75,6 +75,11 @@ SECTIONS {
         *(.sdram_rodata .sdram_rodata*)
         /* The efatfs mount's initialised tables (open handles, the mounted volume); as above. */
         *(.data._RNv*15deluge_bsp_rust7storage6efatfs6device*)
+        /* The setting descriptor and name tables, with their extras and conditions: every C++
+         * `menu_tables` namespace's read-only data. A menu or an Edit reads them, never the audio
+         * tier or an interrupt. Matched by the namespace in the mangled name, so a rename returns
+         * them to SRAM, as for the storage statics above. */
+        *(.rodata.*11menu_tables*)
         PROVIDE(__sdram_init_end = .);
     } > SDRAM AT> RAM
     PROVIDE(__sdram_init_lma = LOADADDR(.sdram_init));

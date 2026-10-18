@@ -27,6 +27,9 @@
 
 namespace deluge::l10n {
 namespace {
+/// The menu-time tables: read when a menu or an Edit looks a setting up, never by the audio tier or an interrupt.
+/// The device image places this namespace's data in SDRAM (linker/sdram_sections.x matches its name).
+inline namespace menu_tables {
 
 using enum String;
 using engine::ParamId;
@@ -738,6 +741,7 @@ String name_in(std::span<const ParamName> table, ParamId id) {
 	return it != table.end() && it->id == id ? it->name : STRING_FOR_NONE;
 }
 
+} // namespace menu_tables
 } // namespace
 
 const SettingNames* setting_names(NamesOwner owner, std::string_view path) {
