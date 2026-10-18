@@ -20,6 +20,7 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "model/edits/audio_input_for.h"
+#include "model/instrument/non_audio_instrument.h"
 #include "model/song/song.h"
 #include "processing/audio_output.h"
 
