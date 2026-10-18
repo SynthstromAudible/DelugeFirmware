@@ -397,6 +397,7 @@ extern legacy::reverb::HPF reverbHPFMenu;
 extern legacy::reverb::LPF reverbLPFMenu;
 extern legacy::reverb::Model reverbModelMenu;
 extern legacy::reverb::sidechain::Shape reverbSidechainShapeMenu;
+extern legacy::reverb::sidechain::Volume reverbSidechainVolumeMenu;
 extern legacy::swing::Interval swingIntervalMenu;
 extern legacy::audio_clip::Reverse audioClipReverseMenu;
 extern legacy::audio_clip::Attack audioClipAttackMenu;
@@ -1035,11 +1036,14 @@ struct Case {
 	bool lossy{false};             ///< the record holds the value as a float: a set value reads back rounded
 };
 
+/// How far a lossy case's value may read back from what it was set to: the float record's rounding step.
+constexpr int32_t kLossyStep = 256;
+
 /// Legacy writes this spec cannot drive: each reaches a UI global only a booted app has.
 ///   * `SynthModeSelection::writeCurrentValue` calls `view.setKnobIndicatorLevels()` (`synth_mode.h`);
 ///   * `arpeggiator::Mode` and `PresetMode` silence notes over `soundEditor.getCurrentModelStack` (`mode.h`,
 ///     `preset_mode.h`).
-constexpr bool kReadOnly = false;
+constexpr bool kNoLegacyWrite = false;
 
 const SettingInfo& row_of(const Case& c) {
 	const SettingInfo* row = deluge::engine::find_setting(table_of(c.family), c.path);
@@ -1087,7 +1091,13 @@ void check_numeric(auto& self, const Case& c) {
 			set_stored(c.family, ctx, c.where, row, stored);
 			const std::optional<int32_t> now = get_stored(c.family, ctx, c.where, row);
 			const int32_t held = c.lossy ? now.value_or(-99999) : stored;
-			expect(show(c, "set", stored, now.value_or(-99999))).to_equal(show(c, "set", stored, held));
+			if (c.lossy) {
+				// The record's float rounds what it was set to: the value read back is within one float step of it.
+				expect(held).to_be_within(kLossyStep, show(c, "set", stored, held)).of(stored);
+			}
+			else {
+				expect(show(c, "set", stored, now.value_or(-99999))).to_equal(show(c, "set", stored, held));
+			}
 			expect(show(c, "read", held, legacy_read(c.item))).to_equal(show(c, "read", held, to_menu(row, held)));
 		}
 	}
@@ -1324,7 +1334,7 @@ const std::vector<Case>& voice_cases() {
 	     .item = &sidechainSendMenu,
 	     .where = Where::KIT_LANE,
 	     .stored = {21474836, 21474837, 42949673, 1073741823, 2126008811, 2126008812}},
-	    {.path = "mode", .family = Family::INSTRUMENT, .item = &synthModeMenu, .writes = kReadOnly},
+	    {.path = "mode", .family = Family::INSTRUMENT, .item = &synthModeMenu, .writes = kNoLegacyWrite},
 	    {.path = "transpose", .family = Family::INSTRUMENT, .item = &masterTransposeMenu, .pairs = kTransposePairs},
 	};
 	return cases;
@@ -1495,7 +1505,7 @@ const std::vector<Case>& effect_cases() {
 
 const std::vector<Case>& arp_cases() {
 	static const std::vector<Case> cases{
-	    {.path = "arpeggiator/arpMode", .family = Family::ARP, .item = &arpModeMenu, .writes = kReadOnly},
+	    {.path = "arpeggiator/arpMode", .family = Family::ARP, .item = &arpModeMenu, .writes = kNoLegacyWrite},
 	    {.path = "arpeggiator/octaveMode", .family = Family::ARP, .item = &arpOctaveModeMenu},
 	    {.path = "arpeggiator/noteMode", .family = Family::ARP, .item = &arpNoteModeMenu},
 	    {.path = "arpeggiator/noteMode",
@@ -1515,7 +1525,7 @@ const std::vector<Case>& arp_cases() {
 	     .family = Family::ARP,
 	     .item = &arpIncludeInKitArpMenu,
 	     .where = Where::KIT_LANE},
-	    {.path = "arpeggiator/preset", .family = Family::ARP, .item = &arpPresetModeMenu, .writes = kReadOnly},
+	    {.path = "arpeggiator/preset", .family = Family::ARP, .item = &arpPresetModeMenu, .writes = kNoLegacyWrite},
 	};
 	return cases;
 }
@@ -1712,20 +1722,98 @@ constexpr Skip kSkips[] = {
     {"overdubsShouldCloneAudioTrack", "no menu: a recording gesture sets it"},
 };
 
-/// The rows a legacy item shows but this spec reads only through named exceptions, and why.
-constexpr Skip kExceptions[] = {
+/// A row whose legacy item differs from the row's menu, the difference, and a probe that measures it against the item.
+struct Exception {
+	std::string_view path;
+	std::string_view reason;
+	bool (*differs)(); ///< true while the row's menu and the item still differ as `reason` says
+};
+
+const SettingInfo& table_row(Family family, std::string_view path) {
+	const SettingInfo* row = deluge::engine::find_setting(table_of(family), path);
+	static const SettingInfo kMissing{.path = "<missing>"};
+	return row != nullptr ? *row : kMissing;
+}
+
+/// An unset note reads as a note the item shows, which no menu value of the row stores.
+bool note_for_drum_differs() {
+	const MenuContext& ctx = enter(Where::KIT_LANE);
+	const SettingInfo& row = table_row(Family::INSTRUMENT, "midiOutput/noteForDrum");
+	ctx.sound->outputMidiNoteForDrum = MIDI_NOTE_NONE;
+	const int32_t shown = legacy_read(&outputMidiNoteForDrumMenu);
+	const std::optional<std::pair<int32_t, int32_t>> stored = from_menu(row, shown);
+	return !stored || stored->first != int32_t{MIDI_NOTE_NONE};
+}
+
+/// With no input plugged in the item lists one input, so a stored right or stereo input reads past its list.
+bool input_reads_past_list(std::string_view path, int8_t source, ::MenuItem* item) {
+	AudioEngine::micPluggedIn = false;
+	AudioEngine::lineInPluggedIn = false;
+	const MenuContext& ctx = enter(Where::SYNTH, source);
+	const SettingInfo& row = table_row(Family::INSTRUMENT, path);
+	const auto listed = static_cast<int32_t>(applicable(row, Where::SYNTH).size());
+	for (const OscType input : {OscType::INPUT_R, OscType::INPUT_STEREO}) {
+		set_stored(Family::INSTRUMENT, ctx, Where::SYNTH, row, std::to_underlying(input));
+		if (legacy_read(item) < listed) {
+			return false;
+		}
+	}
+	return true;
+}
+bool first_oscillator_type_differs() {
+	return input_reads_past_list("osc1/type", 0, &osc0TypeMenu);
+}
+bool second_oscillator_type_differs() {
+	return input_reads_past_list("osc2/type", 1, &osc1TypeMenu);
+}
+
+/// The item's write of its top step stores a different value from the row's.
+bool compressor_shape_differs() {
+	const MenuContext& ctx = enter(Where::SONG);
+	const SettingInfo& row = table_row(Family::SONG, "reverb/compressor/shape");
+	const int32_t top = legacy_range(&reverbSidechainShapeMenu).second;
+	legacy_write(&reverbSidechainShapeMenu, top);
+	const std::optional<std::pair<int32_t, int32_t>> want = from_menu(row, top);
+	return want && want->first != get_stored(Family::SONG, ctx, Where::SONG, row).value_or(want->first);
+}
+
+/// The item's list holds 0, which its encoder never lands on.
+bool swing_interval_differs() {
+	const SettingInfo& row = table_row(Family::SONG, "swingInterval");
+	return legacy_range(&swingIntervalMenu).first == 0 && menu_range(row).first == 0
+	       && wrapSwingIntervalSyncLevel(0) != 0;
+}
+
+/// The item reads the stored volume in steps, truncating; the row's menu is the stored value itself.
+bool reverb_volume_differs() {
+	const MenuContext& ctx = enter(Where::SONG);
+	const SettingInfo& row = table_row(Family::SONG, "reverb/compressor/volume");
+	constexpr int32_t kStep = 21474836;
+	const int32_t stored = 5 * kStep + 1000;
+	set_stored(Family::SONG, ctx, Where::SONG, row, stored);
+	return legacy_read(&reverbSidechainVolumeMenu) != to_menu(row, stored);
+}
+
+/// The rows a legacy item shows but this spec reads only around a named difference. Each is checked to still differ
+/// (`descriptor_legacy_spec.cpp`), so a row that comes to agree leaves the list.
+const Exception kExceptions[] = {
     {"midiOutput/noteForDrum",
      "unset (stored 255, outside the row) shows kUnsetDrumNoteShownAs (60) through CLAMP_HIGH; no menu value stores "
-     "it"},
+     "it",
+     &note_for_drum_differs},
     {"osc1/type",
      "with no input plugged in, the one input entry is INPUT_L under the name \"INPUT\"; a stored INPUT_R or "
-     "INPUT_STEREO then reads past the list"},
-    {"osc2/type", "as osc1/type"},
+     "INPUT_STEREO then reads past the list",
+     &first_oscillator_type_differs},
+    {"osc2/type", "as osc1/type", &second_oscillator_type_differs},
     {"reverb/compressor/shape",
      "the read is STANDARD; legacy's write omits the top step's special case (menu 50 stores 2147483602, not "
-     "2147483647)"},
-    {"swingInterval", "the encoder wraps over 1..9 and never offers 0 (off), though the list is 0..9"},
-    {"reverb/compressor/volume", "menu -1..50 truncates (stored / 21474836); no mapping kind expresses it"},
+     "2147483647)",
+     &compressor_shape_differs},
+    {"swingInterval", "the encoder wraps over 1..9 and never offers 0 (off), though the list is 0..9",
+     &swing_interval_differs},
+    {"reverb/compressor/volume", "menu -1..50 truncates (stored / 21474836); no mapping kind expresses it",
+     &reverb_volume_differs},
 };
 
 /// Whether @p path is a named skip; a skip ending in '/' names every path under it.

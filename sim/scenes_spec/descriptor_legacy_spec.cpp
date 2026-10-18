@@ -150,6 +150,11 @@ void plain_sound(const MenuContext& ctx) {
 	set_arp(ctx, "off");
 	set_song_stutter(ctx, true);
 }
+/// The whole kit as `enter` leaves it, with its arp in @p arp_mode and using the song's stutter.
+void plain_kit(const MenuContext& ctx, std::string_view arp_mode) {
+	set_arp(ctx, arp_mode);
+	set_song_stutter(ctx, true);
+}
 void osc_types(const MenuContext& ctx, OscType first, OscType second) {
 	set_word(*ctx.sound, "osc1/type", deluge::instrument::to_string(first));
 	set_word(*ctx.sound, "osc2/type", deluge::instrument::to_string(second));
@@ -346,14 +351,24 @@ const std::vector<Fixture>& fixtures() {
 	    {"a kit's gate row", Where::GATE_DRUM, kNonSoundLaneFamilies, [](const MenuContext& c) { set_arp(c, "off"); }},
 	    {"a kit's gate row with its arp on", Where::GATE_DRUM, kNonSoundLaneFamilies,
 	     [](const MenuContext& c) { set_arp(c, "arp"); }},
-	    {"the whole kit", Where::KIT, kWholeKitFamilies, [](const MenuContext& c) { set_arp(c, "off"); }},
+	    {"the whole kit", Where::KIT, kWholeKitFamilies, [](const MenuContext& c) { plain_kit(c, "off"); }},
 	    {"the whole kit with its arp on", Where::KIT, kWholeKitFamilies,
-	     [](const MenuContext& c) { set_arp(c, "arp"); }},
+	     [](const MenuContext& c) { plain_kit(c, "arp"); }},
+	    {"the whole kit with its own stutter", Where::KIT, kWholeKitFamilies,
+	     [](const MenuContext& c) {
+		     plain_kit(c, "off");
+		     set_song_stutter(c, false);
+	     }},
 	    // The whole kit's arp is its clip's (CLIP_ARP): a host may pass the clip as its scope.
 	    {"the whole kit's arp, as its clip's",
 	     Where::KIT,
 	     {Family::ARP, Family::ARP_HOST},
-	     [](const MenuContext& c) { set_arp(c, "arp"); },
+	     [](const MenuContext& c) { plain_kit(c, "arp"); },
+	     Owner::CLIP},
+	    {"the whole kit's arp off, as its clip's",
+	     Where::KIT,
+	     {Family::ARP, Family::ARP_HOST},
+	     [](const MenuContext& c) { plain_kit(c, "off"); },
 	     Owner::CLIP},
 	    {"a MIDI track", Where::MIDI_CLIP, kNonAudioTrackFamilies,
 	     [](const MenuContext& c) {
@@ -629,9 +644,11 @@ describe descriptor_legacy_coverage("Every engine and model row with a menu", $ 
 			}
 		}
 	});
-	it("names each exception a coherence check must carry", _ {
-		for (const Skip& exception : kExceptions) {
-			expect(exception.reason.empty()).to_be_false();
+	it("names an exception only while its row still differs from its legacy item", _ {
+		for (const Exception& exception : kExceptions) {
+			const std::string at = std::string{exception.path} + " exception";
+			expect(exception.reason.size()).to_be_greater_than(size_t{0});
+			expect(at + (exception.differs() ? " differs" : " agrees")).to_equal(at + " differs");
 		}
 	});
 });
