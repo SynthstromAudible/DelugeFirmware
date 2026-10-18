@@ -20,6 +20,7 @@
 #include "deluge-project/setting_group.h"
 #include "engine-api/types/engine_id.h"
 #include "engine-api/types/param.h"
+#include "engine-api/types/setting.h"
 #include "engines/effects/words.h"
 #include "gui/l10n/strings.h"
 
@@ -89,6 +90,17 @@ private:
 /// @param path  The row's path.
 /// @return The names, or nullptr where no menu shows the row.
 [[nodiscard]] const SettingNames* setting_names(NamesOwner owner, std::string_view path);
+
+/// @brief The names of setting @p path of @p owner's table, as the menu shows the row in @p context: where a row's
+/// names depend on the context, the ones for it. With no audio input plugged in, an oscillator's type lists one input
+/// choice, named "Input".
+///
+/// @param owner   The engine or setting group whose table has the row.
+/// @param path    The row's path.
+/// @param context Who the setting is shown for.
+/// @return The names, or nullptr where no menu shows the row.
+[[nodiscard]] const SettingNames* setting_names(NamesOwner owner, std::string_view path,
+                                                const engine::SettingContext& context);
 
 /// @brief The display name of param @p id of @p engine.
 ///

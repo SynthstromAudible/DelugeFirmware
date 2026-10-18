@@ -119,12 +119,6 @@ bool named_only(const Case& c) {
 	       || c.family == Family::AUDIO_INPUT;
 }
 
-/// @brief The input choices' first, whose legacy name depends on whether any input is plugged in.
-bool input_choice_unplugged(const Case& c, int32_t choice) {
-	return c.path.starts_with("osc") && c.path.ends_with("/type") && choice == 9
-	       && !(AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn);
-}
-
 /// @brief One case's names, under each owner of its table, against its legacy item in its context.
 void check_names(auto& self, const Case& c) {
 	enter(c.where, c.source);
@@ -132,7 +126,7 @@ void check_names(auto& self, const Case& c) {
 	const std::vector<std::string> full = options_of(c.item, legacy::Selection::OptType::FULL);
 	const std::vector<std::string> shortened = options_of(c.item, legacy::Selection::OptType::SHORT);
 	for (const NamesOwner& owner : owners_of(c.family)) {
-		const SettingNames* names = setting_names(owner, c.path);
+		const SettingNames* names = setting_names(owner, c.path, context_of(c.where));
 		expect(std::string{c.path} + (names != nullptr ? " has names" : " has no names"))
 		    .to_equal(std::string{c.path} + " has names");
 		if (names == nullptr) {
@@ -159,9 +153,6 @@ void check_names(auto& self, const Case& c) {
 		    .to_equal(std::string{c.path} + " offers " + std::to_string(choices.size()));
 		for (size_t position = 0; position < choices.size() && position < full.size(); ++position) {
 			const int32_t choice = choices[position];
-			if (input_choice_unplugged(c, choice)) {
-				continue;
-			}
 			const std::string at = std::string{c.path} + " choice " + std::to_string(choice);
 			expect(at + " " + choice_text(*names, static_cast<size_t>(choice), false))
 			    .to_equal(at + " " + full[position]);

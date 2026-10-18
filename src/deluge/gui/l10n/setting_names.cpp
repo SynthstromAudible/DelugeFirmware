@@ -221,6 +221,22 @@ constexpr std::array<String, 12> kOsc1TypeChoices{{
     STRING_FOR_INPUT_STEREO,
 }};
 
+/// With no audio input plugged in, the menu lists the left input's choice alone, as "Input".
+constexpr std::array<String, 12> kOsc1TypeUnpluggedChoices{{
+    STRING_FOR_SINE,
+    STRING_FOR_TRIANGLE,
+    STRING_FOR_SQUARE,
+    STRING_FOR_ANALOG_SQUARE,
+    STRING_FOR_SAW,
+    STRING_FOR_ANALOG_SAW,
+    STRING_FOR_WAVETABLE,
+    STRING_FOR_SAMPLE,
+    STRING_FOR_DX7,
+    STRING_FOR_INPUT,
+    STRING_FOR_INPUT_RIGHT,
+    STRING_FOR_INPUT_STEREO,
+}};
+
 constexpr std::array<String, 5> kPolyphonicChoices{{
     STRING_FOR_AUTO,
     STRING_FOR_POLYPHONIC,
@@ -351,7 +367,8 @@ constexpr SettingNames kModulator2ToModulator1Names{
     STRING_FOR_FM_MOD2_DEST_MENU_TITLE, STRING_FOR_DESTINATION, kModulator2ToModulator1Choices, {}};
 constexpr SettingNames kOsc1LinearInterpolationNames{
     STRING_FOR_SAMP_INTERP_MENU_TITLE, STRING_FOR_INTERPOLATION, kLinearInterpolationChoices, {}};
-constexpr SettingNames kOsc1LoopModeNames{EMPTY_STRING, STRING_FOR_REPEAT_MODE, kOsc1LoopModeChoices, {}};
+constexpr SettingNames kOsc1LoopModeNames{
+    STRING_FOR_SAMP_REPEAT_MENU_TITLE, STRING_FOR_REPEAT_MODE, kOsc1LoopModeChoices, {}};
 constexpr SettingNames kOsc1RetrigPhaseNames{STRING_FOR_OSC_R_PHASE_MENU_TITLE, STRING_FOR_RETRIGGER_PHASE, {}, {}};
 constexpr SettingNames kOsc1ReversedNames{STRING_FOR_SAMP_REVERSE_MENU_TITLE, STRING_FOR_REVERSE, {}, {}};
 constexpr SettingNames kOsc1TimeStretchAmountNames{STRING_FOR_SAMP_SPEED_MENU_TITLE, STRING_FOR_SPEED, {}, {}};
@@ -359,6 +376,8 @@ constexpr SettingNames kOsc1TimeStretchEnableNames{
     STRING_FOR_PITCH_SPEED, STRING_FOR_PITCH_SPEED, kOsc1TimeStretchEnableChoices, {}};
 constexpr SettingNames kOsc1TransposeNames{STRING_FOR_OSC_TRANSPOSE_MENU_TITLE, STRING_FOR_TRANSPOSE, {}, {}};
 constexpr SettingNames kOsc1TypeNames{STRING_FOR_OSC_TYPE_MENU_TITLE, STRING_FOR_TYPE, kOsc1TypeChoices, {}};
+constexpr SettingNames kOsc1TypeUnpluggedNames{
+    STRING_FOR_OSC_TYPE_MENU_TITLE, STRING_FOR_TYPE, kOsc1TypeUnpluggedChoices, {}};
 constexpr SettingNames kOsc2OscillatorSyncNames{STRING_FOR_OSCILLATOR_SYNC, STRING_FOR_OSCILLATOR_SYNC, {}, {}};
 constexpr SettingNames kOutputMpeYNames{STRING_FOR_Y_AXIS_CONVERSION, STRING_FOR_Y_AXIS_CONVERSION, {}, {}};
 constexpr SettingNames kOutputRecordingFromNames{STRING_FOR_TRACK, STRING_FOR_TRACK, {}, {}};
@@ -544,6 +563,12 @@ static_assert(std::ranges::adjacent_find(kEntries,
                   == kEntries.end(),
               "kEntries is searched by owner and path: keep it sorted, with no key twice");
 
+/// The rows whose names differ while no audio input is plugged in, sorted as kEntries is.
+constexpr std::array<Entry, 2> kUnpluggedEntries{{
+    Entry{engine::kDelugeInstrument, "osc1/type", &kOsc1TypeUnpluggedNames},
+    Entry{engine::kDelugeInstrument, "osc2/type", &kOsc1TypeUnpluggedNames},
+}};
+
 /// @brief A param's name.
 struct ParamName {
 	ParamId id;
@@ -691,12 +716,13 @@ String name_in(std::span<const ParamName> table, ParamId id) {
 	return STRING_FOR_NONE;
 }
 
-/// @brief The row of kEntries at @p owner's index and @p path, or nullptr.
-constexpr const SettingNames* find_entry(uint8_t owner, std::string_view path) {
+/// @brief The row of @p entries (kEntries unless given) at @p owner's index and @p path, or nullptr.
+constexpr const SettingNames* find_entry(uint8_t owner, std::string_view path,
+                                         std::span<const Entry> entries = kEntries) {
 	const auto key = key_of(owner, path);
-	const auto it = std::ranges::lower_bound(kEntries, key, std::ranges::less{},
+	const auto it = std::ranges::lower_bound(entries, key, std::ranges::less{},
 	                                         [](const Entry& e) { return key_of(e.owner, e.path); });
-	return it != kEntries.end() && key_of(it->owner, it->path) == key ? it->names : nullptr;
+	return it != entries.end() && key_of(it->owner, it->path) == key ? it->names : nullptr;
 }
 
 /// @brief The shared tables the owner at @p owner's index shows besides its own rows.
@@ -738,6 +764,15 @@ const SettingNames* setting_names(NamesOwner owner, std::string_view path) {
 		}
 	}
 	return nullptr;
+}
+
+const SettingNames* setting_names(NamesOwner owner, std::string_view path, const engine::SettingContext& context) {
+	if (!context.audio_inputs_present) {
+		if (const SettingNames* names = find_entry(owner.index(), path, kUnpluggedEntries)) {
+			return names;
+		}
+	}
+	return setting_names(owner, path);
 }
 
 String param_name(engine::EngineId engine, ParamId id, const ParamNameContext& state) {

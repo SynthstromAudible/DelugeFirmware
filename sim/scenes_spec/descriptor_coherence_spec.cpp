@@ -161,16 +161,6 @@ const UnsetProbe* unset_probe_of(std::string_view path) {
 
 const std::vector<NodeException>& node_exceptions() {
 	static const std::vector<NodeException> list{
-	    {"osc1/type", NAMES,
-	     "with no input plugged in, the one input entry is INPUT_L under the name \"Input (left)\", where legacy and "
-	     "the "
-	     "node show a single \"Input\"",
-	     "'Input' row 'Input (left)'"},
-	    {"osc2/type", NAMES, "as osc1/type", "'Input' row 'Input (left)'"},
-	    {"osc1/loopMode", TITLE,
-	     "the row's title is EMPTY_STRING, matching a legacy FormattedTitle defect that shows no title; the node shows "
-	     "\"Samp* repeat\""},
-	    {"osc2/loopMode", TITLE, "as osc1/loopMode"},
 	    {"reverb/roomSize", NAMES | TITLE,
 	     "legacy renames the item Time under the MUTABLE and DIGITAL reverb models and the table gives that one name; "
 	     "the node always shows the Freeverb name, Room Size (`tables_3_spec.cpp` parks it)"},
@@ -291,7 +281,7 @@ Findings compare(const Case& c, const Node& node, const NodeException* exception
 
 	// The names: the node's own, and for a listing node each option.
 	for (const NamesOwner& owner : owners_of(c.family)) {
-		const SettingNames* names = setting_names(owner, c.path);
+		const SettingNames* names = setting_names(owner, c.path, shown);
 		if (names == nullptr) {
 			continue;
 		}
