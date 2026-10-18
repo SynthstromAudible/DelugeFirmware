@@ -34,6 +34,7 @@
 namespace deluge::gui::menu_item {
 using deluge::hid::display::OLED;
 } // namespace deluge::gui::menu_item
+#include "gui/l10n/setting_names.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/active_scales.h"
 #include "gui/menu_item/arpeggiator/arp_unpatched_param.h"
@@ -966,6 +967,65 @@ std::string list_of(const std::vector<int32_t>& choices) {
 		out += std::to_string(choice) + ",";
 	}
 	return out;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The host's names for a row.
+
+using deluge::l10n::NamesOwner;
+using deluge::l10n::SettingNames;
+using deluge::project::SettingGroupId;
+namespace engine = deluge::engine;
+
+/// @brief The owners whose table a family's rows are in.
+[[maybe_unused]] std::vector<NamesOwner> owners_of(Family family) {
+	switch (family) {
+	case Family::INSTRUMENT:
+		return {engine::kDelugeInstrument};
+	case Family::EFFECT:
+		return {engine::kDelugeInstrument, engine::kGlobalEffectable};
+	case Family::ARP:
+		return {engine::kDelugeInstrument, SettingGroupId::CLIP_ARP, SettingGroupId::LANE_ARP};
+	case Family::ARP_HOST:
+		return {SettingGroupId::CLIP_ARP, SettingGroupId::LANE_ARP};
+	case Family::AUDIO_CLIP:
+		return {SettingGroupId::AUDIO_CLIP};
+	case Family::SONG:
+		return {SettingGroupId::SONG};
+	case Family::CLIP_VALUES:
+		return {SettingGroupId::CLIP_VALUES};
+	case Family::NOTE_ROW:
+		return {SettingGroupId::NOTE_ROW};
+	case Family::CLIP:
+		return {SettingGroupId::CLIP};
+	case Family::INSTRUMENT_DEVICE:
+		return {SettingGroupId::INSTRUMENT_DEVICE};
+	case Family::AUDIO_INPUT:
+		return {SettingGroupId::AUDIO_INPUT};
+	}
+	return {};
+}
+
+[[maybe_unused]] std::string text(deluge::l10n::String id) {
+	return std::string{deluge::l10n::getView(id)};
+}
+
+/// @brief A title with its `*` replaced by the owner's number, which the path's first digit gives as legacy's
+/// formatted titles do.
+[[maybe_unused]] std::string title_of(const SettingNames& names, std::string_view path) {
+	std::string title = text(names.title);
+	const size_t star = title.find('*');
+	const size_t digit = path.find_first_of("0123456789");
+	if (star != std::string::npos && digit != std::string_view::npos) {
+		title[star] = path[digit];
+	}
+	return title;
+}
+
+/// @brief The names table's text for choice @p index, full or short (short falls back to full where there are none).
+[[maybe_unused]] std::string choice_text(const SettingNames& names, size_t index, bool short_form) {
+	const auto list = short_form && !names.short_choices.empty() ? names.short_choices : names.choices;
+	return index < list.size() ? text(list[index]) : std::string{"<no choice>"};
 }
 
 /// A CHOICE case in its context: the list's length is the options' count, each applicable choice reads as its

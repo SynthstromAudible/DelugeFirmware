@@ -27,35 +27,6 @@ using deluge::project::SettingGroupId;
 namespace params = deluge::modulation::params;
 namespace engine = deluge::engine;
 
-/// @brief The owners whose table a family's rows are in.
-std::vector<NamesOwner> owners_of(Family family) {
-	switch (family) {
-	case Family::INSTRUMENT:
-		return {engine::kDelugeInstrument};
-	case Family::EFFECT:
-		return {engine::kDelugeInstrument, engine::kGlobalEffectable};
-	case Family::ARP:
-		return {engine::kDelugeInstrument, SettingGroupId::CLIP_ARP, SettingGroupId::LANE_ARP};
-	case Family::ARP_HOST:
-		return {SettingGroupId::CLIP_ARP, SettingGroupId::LANE_ARP};
-	case Family::AUDIO_CLIP:
-		return {SettingGroupId::AUDIO_CLIP};
-	case Family::SONG:
-		return {SettingGroupId::SONG};
-	case Family::CLIP_VALUES:
-		return {SettingGroupId::CLIP_VALUES};
-	case Family::NOTE_ROW:
-		return {SettingGroupId::NOTE_ROW};
-	case Family::CLIP:
-		return {SettingGroupId::CLIP};
-	case Family::INSTRUMENT_DEVICE:
-		return {SettingGroupId::INSTRUMENT_DEVICE};
-	case Family::AUDIO_INPUT:
-		return {SettingGroupId::AUDIO_INPUT};
-	}
-	return {};
-}
-
 /// @brief A table and its owner, as a row of it is looked up.
 struct OwnedTable {
 	NamesOwner owner;
@@ -126,22 +97,6 @@ bool covered(const NamesOwner& owner, std::string_view path) {
 	return false;
 }
 
-std::string text(deluge::l10n::String id) {
-	return std::string{deluge::l10n::getView(id)};
-}
-
-/// @brief A title with its `*` replaced by the owner's number, which the path's first digit gives as legacy's
-/// formatted titles do.
-std::string title_of(const SettingNames& names, std::string_view path) {
-	std::string title = text(names.title);
-	const size_t star = title.find('*');
-	const size_t digit = path.find_first_of("0123456789");
-	if (star != std::string::npos && digit != std::string_view::npos) {
-		title[star] = path[digit];
-	}
-	return title;
-}
-
 /// @brief The legacy item's options, full or short.
 std::vector<std::string> options_of(::MenuItem* item, legacy::Selection::OptType type) {
 	std::vector<std::string> out;
@@ -155,12 +110,6 @@ std::vector<std::string> options_of(::MenuItem* item, legacy::Selection::OptType
 
 bool has_options(::MenuItem* item) {
 	return dynamic_cast<legacy::Selection*>(item) != nullptr;
-}
-
-/// @brief The names table's text for choice @p index, full or short (short falls back to full where there are none).
-std::string choice_text(const SettingNames& names, size_t index, bool short_form) {
-	const auto list = short_form && !names.short_choices.empty() ? names.short_choices : names.choices;
-	return index < list.size() ? text(list[index]) : std::string{"<no choice>"};
 }
 
 /// @brief The groups whose rows are named but not driven by the range, read and write checks: their cases list the
