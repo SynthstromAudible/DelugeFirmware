@@ -643,14 +643,6 @@ void write_audio_clip(DocAudioClip& c, std::string_view path, int32_t v) {
 // ---------------------------------------------------------------------------------------------
 // CLIP_ARP (in DocClip's value layer) and LANE_ARP (on DocDrum)
 
-/// The arp groups' table: the setting rows, then the host rows. Built once, so its views stay valid.
-std::span<const SettingInfo> arp_table() {
-	static const std::vector<SettingInfo> rows = [] {
-		return std::vector<SettingInfo>(engine::kArpRows.begin(), engine::kArpRows.end());
-	}();
-	return rows;
-}
-
 bool is_arp_group(SettingGroupId group) {
 	return group == SettingGroupId::CLIP_ARP || group == SettingGroupId::LANE_ARP;
 }
@@ -768,7 +760,7 @@ std::span<const SettingInfo> table_of(SettingGroupId group) {
 		return kAudioInputTable;
 	case SettingGroupId::CLIP_ARP:
 	case SettingGroupId::LANE_ARP:
-		return arp_table();
+		return engine::kArpRows;
 	}
 	return {};
 }

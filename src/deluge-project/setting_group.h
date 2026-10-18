@@ -28,18 +28,24 @@ namespace deluge::project {
 class Song;
 
 /// @brief Which family of settings an address names.
+///
+/// Each says which engine::SettingContext a host passes when it asks whether a row's menu shows: the Owner (the
+/// menu's scope) and the Instrument (what plays the notes, the track's or a kit lane's drum).
 enum class SettingGroupId : uint8_t {
-	SONG,              ///< the song's own: reverb and its model, swing interval, disabled scales
-	TRACK,             ///< a track's identity: its name
-	INSTRUMENT_DEVICE, ///< a track's MIDI or CV instrument: channel, device definition, Y-axis, collapse, CV2
-	LANE,              ///< a kit lane's identity: its name
-	NOTE_ROW,          ///< a note row's own: its direction
-	AUDIO_CLIP,        ///< an audio clip's descriptor: markers, tuning, playback
-	CLIP,              ///< a clip's identity and playback: its name and direction
-	CLIP_VALUES,       ///< the values a clip holds over its track's: MIDI program, bend ranges
-	AUDIO_INPUT,       ///< an audio track's input: its mode, channel and the track it records from
-	CLIP_ARP,          ///< a clip's arp, in its value layer: a synth's, a MIDI or CV clip's, or the whole kit's
-	LANE_ARP,          ///< a kit row's arp, its lane's note device
+	SONG,              ///< the song's own: reverb and its model, swing interval, disabled scales. SONG, NONE
+	TRACK,             ///< a track's identity: its name. TRACK, the track's
+	INSTRUMENT_DEVICE, ///< a track's MIDI or CV instrument: channel, device definition, Y-axis, collapse, CV2. TRACK,
+	                   ///< MIDI or CV
+	LANE,              ///< a kit lane's identity: its name. KIT_LANE, the lane's drum
+	NOTE_ROW,          ///< a note row's own: its direction. KIT_LANE and the lane's drum for a kit row, else CLIP and
+	                   ///< the track's
+	AUDIO_CLIP,        ///< an audio clip's descriptor: markers, tuning, playback. CLIP, AUDIO
+	CLIP,              ///< a clip's identity and playback: its name and direction. CLIP, the track's
+	CLIP_VALUES,       ///< the values a clip holds over its track's: MIDI program, bend ranges. CLIP, the track's
+	AUDIO_INPUT,       ///< an audio track's input: its mode, channel and the track it records from. TRACK, AUDIO
+	CLIP_ARP,          ///< a clip's arp, in its value layer: a synth's, a MIDI or CV clip's, or the whole kit's. CLIP,
+	                   ///< the track's (KIT for the whole kit's)
+	LANE_ARP,          ///< a kit row's arp, its lane's note device. KIT_LANE, the lane's drum
 };
 
 /// @brief The song itself, as an owner.

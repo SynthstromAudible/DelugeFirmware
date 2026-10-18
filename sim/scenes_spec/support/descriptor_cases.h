@@ -745,7 +745,7 @@ Song& song_of(Where where) {
 	}
 }
 
-/// The descriptor context @p where stands for. No fixture loads an audio file, so no source holds one.
+/// The descriptor context @p where stands for. Which sources hold a loaded file is read off the sound by the caller.
 SettingContext context_of(Where where) {
 	using Instrument = SettingContext::Instrument;
 	SettingContext shown{};
@@ -1147,8 +1147,14 @@ struct SpecReader {
 				        return std::nullopt;
 			        }
 			        switch (owner.family) {
-			        case Family::INSTRUMENT:
-				        return deluge::instrument::held_setting(*owner.ctx.sound->boundState(), path);
+			        case Family::INSTRUMENT: {
+				        const std::optional<int32_t> held =
+				            deluge::instrument::held_setting(*owner.ctx.sound->boundState(), path);
+				        if (!held) {
+					        owner.unknown.emplace_back(path);
+				        }
+				        return held;
+			        }
 			        case Family::ARP:
 			        case Family::ARP_HOST:
 				        return arp_field(*owner.ctx.arp, path);
