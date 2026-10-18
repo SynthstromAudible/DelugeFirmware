@@ -28,6 +28,7 @@
 #include "engine-api/types/sync.h"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <optional>
@@ -92,20 +93,46 @@ constexpr SettingInfo integer(std::string_view path, int32_t min, int32_t max, i
 	                   .units = units};
 }
 
-constexpr SettingInfo host(std::string_view path, int32_t default_value = 0) {
-	return integer(path, std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max(), default_value);
+/// The sync menu: one value over the level and the type row.
+inline constexpr SettingDescriptorExtras kSyncExtras{
+    .mapping = {.kind = DisplayMappingKind::COMBINED_SYNC, .partner = "arpeggiator/syncType"}};
+
+/// A kit lane's note mode menu stops before as-played and pattern, which order the notes a whole instrument holds.
+inline constexpr SettingDescriptorExtras kNoteModeExtras{
+    .choice_applies = [](const SettingContext& shown, std::size_t choice) {
+	    constexpr std::size_t kFirstWholeInstrumentMode = 7; // asPlayed
+	    return choice < kFirstWholeInstrumentMode || shown.owner != SettingContext::Owner::KIT_LANE;
+    }};
+
+/// A host row's menu: the gate and rate as a signed Q31, the rest as an unsigned fraction, each 0..50.
+inline constexpr SettingDescriptorExtras kStandardExtras{.mapping = {.kind = DisplayMappingKind::STANDARD}};
+inline constexpr SettingDescriptorExtras kUnsignedExtras{.mapping = {.kind = DisplayMappingKind::UNSIGNED}};
+
+constexpr SettingInfo host(std::string_view path, int32_t default_value = 0,
+                           const SettingDescriptorExtras* extras = &kUnsignedExtras) {
+	SettingInfo row =
+	    integer(path, std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max(), default_value);
+	row.extras = extras;
+	return row;
 }
 
 inline constexpr std::array kSettingRows{
     choice("arpeggiator/arpMode", kArpModeWords),
     choice("arpeggiator/octaveMode", kArpOctaveModeWords),
-    choice("arpeggiator/noteMode", kArpNoteModeWords),
+    SettingInfo{.path = "arpeggiator/noteMode",
+                .kind = SettingKind::CHOICE,
+                .choices = kArpNoteModeWords,
+                .extras = &kNoteModeExtras},
     choice("arpeggiator/mpeVelocity", kArpMpeVelocityWords),
     integer("arpeggiator/numOctaves", 1, 8, 2),
     integer("arpeggiator/stepRepeat", 1, 8, 1),
     integer("arpeggiator/chordType", 0, kArpChordTypes - 1, 0),
     // The level itself (1–9, 0 = off), whatever the song's tick magnitude; a sound's element holds it relative.
-    integer("arpeggiator/syncLevel", 0, kMaxSyncLevel, 0, SettingUnits::SYNC_LEVEL),
+    SettingInfo{.path = "arpeggiator/syncLevel",
+                .min = 0,
+                .max = kMaxSyncLevel,
+                .units = SettingUnits::SYNC_LEVEL,
+                .extras = &kSyncExtras},
     choice("arpeggiator/syncType", kArpSyncTypeWords),
     SettingInfo{.path = "arpeggiator/randomizerLock", .kind = SettingKind::BOOL},
     SettingInfo{.path = "arpeggiator/kitArp", .kind = SettingKind::BOOL, .default_value = 1},
@@ -114,8 +141,8 @@ inline constexpr std::array kSettingRows{
 };
 
 inline constexpr std::array kHostRows{
-    host("arpeggiator/gate"),
-    host("arpeggiator/rate"),
+    host("arpeggiator/gate", 0, &kStandardExtras),
+    host("arpeggiator/rate", 0, &kStandardExtras),
     host("arpeggiator/rhythm"),
     host("arpeggiator/sequenceLength"),
     host("arpeggiator/chordPolyphony"),
@@ -124,7 +151,7 @@ inline constexpr std::array kHostRows{
     host("arpeggiator/bassProbability"),
     host("arpeggiator/swapProbability"),
     host("arpeggiator/glideProbability"),
-    host("arpeggiator/reverseProbability"),
+    host("arpeggiator/reverseProbability", 0, nullptr), // no menu shows it as a setting
     host("arpeggiator/chordProbability"),
     host("arpeggiator/ratchetProbability"),
     host("arpeggiator/spreadVelocity"),
