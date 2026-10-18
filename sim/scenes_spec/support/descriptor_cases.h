@@ -1016,19 +1016,17 @@ struct SpecReader {
 	mutable std::vector<std::string> unknown{};
 
 	[[nodiscard]] deluge::engine::SettingReader reader() const {
-		return {.read =
-		            [](const void* self, std::string_view path) {
-			            const auto& owner = *static_cast<const SpecReader*>(self);
-			            const SettingInfo* row = deluge::engine::find_setting(deluge::instrument::kSettings, path);
-			            const std::optional<int32_t> value =
-			                row != nullptr ? get_stored(Family::INSTRUMENT, owner.ctx, owner.where, *row)
-			                               : std::nullopt;
-			            if (!value) {
-				            owner.unknown.emplace_back(path);
-				            return 0;
-			            }
-			            return *value;
-		            },
+		return {.read = [](const void* self, std::string_view path) -> std::optional<int32_t> {
+			        const auto& owner = *static_cast<const SpecReader*>(self);
+			        const SettingInfo* row = deluge::engine::find_setting(deluge::instrument::kSettings, path);
+			        const std::optional<int32_t> value =
+			            row != nullptr ? get_stored(Family::INSTRUMENT, owner.ctx, owner.where, *row) : std::nullopt;
+			        if (!value) {
+				        owner.unknown.emplace_back(path);
+				        return std::nullopt;
+			        }
+			        return value;
+		        },
 		        .self = this};
 	}
 };

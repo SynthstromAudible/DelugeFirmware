@@ -284,6 +284,8 @@ constexpr SettingInfo kInstrumentDeviceTable[] = {
     boolean("collapseMpe", 1),
     integer("cv2Source", 0, 4, 0, {}, SettingUnits::NONE, &kCv2SourceExtras),
 };
+static_assert(engine::conditions_are_valid(kInstrumentDeviceTable));
+static_assert(engine::conditions_are_valid(kTrackTable));
 
 constexpr std::string_view kCcLabelPrefix = "ccLabels/";
 /// The CC numbers a MIDI instrument can label: 0..119.
@@ -416,6 +418,8 @@ constexpr SettingInfo kNoteRowTable[] = {
     // A kit row's finger bend; a melodic row has none of its own.
     integer("bendRange", 0, kMaxBendRange, kDefaultBendRangeMpe, {}, SettingUnits::SEMITONES),
 };
+static_assert(engine::conditions_are_valid(kNoteRowTable));
+static_assert(engine::conditions_are_valid(kLaneTable));
 
 DocNoteRow* resolve_note_row(Song& song, const NoteRowAddress& address) {
 	DocClip* clip = song.clip_structure.find(address.clip_id);
@@ -441,6 +445,7 @@ constexpr SettingInfo kAudioInputTable[] = {
     // Another track's durable id; -1 = none.
     integer("outputRecordingFrom", -1, INT32_MAX, -1),
 };
+static_assert(engine::conditions_are_valid(kAudioInputTable));
 
 std::optional<Value> read_audio_input(const DocOutput& o, std::string_view path) {
 	if (path == "mode") {
@@ -472,6 +477,7 @@ constexpr SettingInfo kClipTable[] = {
     text("name"),
     SettingInfo{.path = "sequenceDirection", .kind = SettingKind::CHOICE, .choices = kClipDirectionChoices},
 };
+static_assert(engine::conditions_are_valid(kClipTable));
 
 /// MIDI program numbers 0..127; 128 is none (no message sent).
 constexpr int32_t kNoMidiProgram = 128;
@@ -483,6 +489,7 @@ constexpr SettingInfo kClipValuesTable[] = {
     integer("bendRange", 0, kMaxBendRange, kDefaultBendRange, {}, SettingUnits::SEMITONES),
     integer("bendRangeMPE", 0, kMaxBendRange, kDefaultBendRangeMpe, {}, SettingUnits::SEMITONES),
 };
+static_assert(engine::conditions_are_valid(kClipValuesTable));
 
 // ---------------------------------------------------------------------------------------------
 // AUDIO_CLIP (on DocAudioClip)
@@ -516,6 +523,7 @@ constexpr SettingInfo kAudioClipTable[] = {
                 .default_value = std::to_underlying(engine::VoicePriority::MEDIUM)},
     boolean("overdubsShouldCloneAudioTrack", 1),
 };
+static_assert(engine::conditions_are_valid(kAudioClipTable));
 
 std::optional<Value> read_audio_clip(const DocAudioClip& c, std::string_view path) {
 	if (path == "startSamplePos") {

@@ -155,6 +155,7 @@ inline constexpr std::array<engine::SettingInfo, 23> kEffectSettings{{
      .kind = detail::BOOL,
      .default_value = detail::kDefaults.stutter.use_song_stutter ? 1 : 0},
 }};
+static_assert(engine::conditions_are_valid(kEffectSettings));
 
 /// @brief Whether @p value is one kEffectSettings allows at @p path.
 /// @param path  The setting's path in an owner's element.

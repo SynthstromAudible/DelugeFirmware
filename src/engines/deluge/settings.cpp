@@ -88,44 +88,36 @@ static_assert(std::to_underlying(SampleRepeatMode::STRETCH) + 1 == kLoopModes.si
 
 /// The owners a kit lane stands for.
 constexpr std::array<int32_t, 1> kKitLaneOwner{std::to_underlying(engine::SettingContext::Owner::KIT_LANE)};
+/// The owners that hold a kit's sounds: a kit lane, and the kit itself.
+constexpr std::array<int32_t, 2> kKitOwners{std::to_underlying(engine::SettingContext::Owner::KIT_LANE),
+                                            std::to_underlying(engine::SettingContext::Owner::KIT)};
 /// Choke shares a kit's voices among its lanes, so only a kit lane offers it.
-constexpr std::array kOnKitLane{
-    engine::SettingCondition{.subject = engine::SettingCondition::Subject::OWNER, .values = kKitLaneOwner}};
+constexpr std::array kOnKitLane{engine::owner_is(kKitLaneOwner)};
 constexpr std::array kPolyphonyWhen{engine::ChoiceCondition{std::to_underlying(PolyphonyMode::CHOKE), kOnKitLane}};
 constexpr engine::SettingDescriptorExtras kPolyphonyExtras{.choice_when = kPolyphonyWhen};
 
 /// The synth mode that mixes oscillators alone.
 constexpr std::array<int32_t, 1> kRingModeValue{std::to_underlying(SynthMode::RINGMOD)};
-constexpr std::array<int32_t, 1> kInputsPresent{1};
-constexpr std::array<int32_t, 0> kNoValue{};
+
 /// Ring mod mixes oscillators alone, so it offers no sample or input.
-constexpr engine::SettingCondition kNotRingMod{
-    .test = engine::SettingCondition::Test::IS_NOT, .path = "mode", .values = kRingModeValue};
-constexpr engine::SettingCondition kOffKitLane{.subject = engine::SettingCondition::Subject::OWNER,
-                                               .test = engine::SettingCondition::Test::IS_NOT,
-                                               .values = kKitLaneOwner};
+constexpr std::array kNotRingMode{engine::setting_is_not("mode", kRingModeValue)};
+/// DX7 only where the owner may hold one: not in a kit's sounds.
+constexpr std::array kDx7Conditions{engine::setting_is_not("mode", kRingModeValue), engine::owner_is_not(kKitOwners)};
 /// With no audio input plugged in, one input entry (the left input's) stands for the three.
-constexpr engine::SettingCondition kWithInputs{.subject = engine::SettingCondition::Subject::INPUTS_PRESENT,
-                                               .values = kInputsPresent};
-/// Holds for no owner: a choice the row never offers.
-constexpr engine::SettingCondition kNever{.subject = engine::SettingCondition::Subject::OWNER, .values = kNoValue};
+constexpr std::array kInputConditions{engine::setting_is_not("mode", kRingModeValue), engine::inputs_are(true)};
+/// The second oscillator's menu never offers DX7: only the first can hold one.
+constexpr std::array kNeverOffered{engine::never()};
 
-constexpr std::array kNotRingModeOnly{kNotRingMod};
-constexpr std::array kDx7Conditions{kNotRingMod, kOffKitLane};
-constexpr std::array kNeverDx7Conditions{kNotRingMod, kNever};
-constexpr std::array kInputConditions{kNotRingMod, kWithInputs};
-
-/// The oscillator type menu's conditions: DX7 only where the owner may hold one (the first oscillator of a sound that
-/// is not a kit lane); the second oscillator never offers it.
+/// The oscillator type menu's conditions; the choice list is shared, since stored indices are what files hold.
 constexpr std::array<engine::ChoiceCondition, 5> osc_type_when(std::span<const engine::SettingCondition> dx7) {
-	return {{{std::to_underlying(OscType::SAMPLE), kNotRingModeOnly},
+	return {{{std::to_underlying(OscType::SAMPLE), kNotRingMode},
 	         {std::to_underlying(OscType::DX7), dx7},
-	         {std::to_underlying(OscType::INPUT_L), kNotRingModeOnly},
+	         {std::to_underlying(OscType::INPUT_L), kNotRingMode},
 	         {std::to_underlying(OscType::INPUT_R), kInputConditions},
 	         {std::to_underlying(OscType::INPUT_STEREO), kInputConditions}}};
 }
 constexpr std::array kOsc1TypeWhen = osc_type_when(kDx7Conditions);
-constexpr std::array kOsc2TypeWhen = osc_type_when(kNeverDx7Conditions);
+constexpr std::array kOsc2TypeWhen = osc_type_when(kNeverOffered);
 constexpr std::array kOscTypeExtras{engine::SettingDescriptorExtras{.choice_when = kOsc1TypeWhen},
                                     engine::SettingDescriptorExtras{.choice_when = kOsc2TypeWhen}};
 
@@ -465,7 +457,7 @@ constexpr auto kAllRows = [] {
 	std::ranges::copy(effects::kEffectSettings, all.begin() + kRows.size());
 	return all;
 }();
-static_assert(engine::conditions_name_rows(kAllRows));
+static_assert(engine::conditions_are_valid(kAllRows));
 
 } // namespace
 

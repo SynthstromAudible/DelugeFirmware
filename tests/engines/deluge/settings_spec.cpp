@@ -33,15 +33,14 @@ struct ModeReader {
 	mutable std::vector<std::string> unknown{};
 
 	[[nodiscard]] deluge::engine::SettingReader reader() const {
-		return {.read =
-		            [](const void* self, std::string_view path) {
-			            const auto& held = *static_cast<const ModeReader*>(self);
-			            if (path != "mode") {
-				            held.unknown.emplace_back(path);
-				            return 0;
-			            }
-			            return held.mode;
-		            },
+		return {.read = [](const void* self, std::string_view path) -> std::optional<int32_t> {
+			        const auto& held = *static_cast<const ModeReader*>(self);
+			        if (path != "mode") {
+				        held.unknown.emplace_back(path);
+				        return std::nullopt;
+			        }
+			        return held.mode;
+		        },
 		        .self = this};
 	}
 };

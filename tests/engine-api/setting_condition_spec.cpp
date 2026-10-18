@@ -20,6 +20,7 @@
 
 #include <array>
 #include <cppspec.hpp>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -28,32 +29,19 @@
 
 namespace {
 using deluge::engine::ChoiceCondition;
+using deluge::engine::inputs_are;
+using deluge::engine::never;
+using deluge::engine::owner_is;
+using deluge::engine::owner_is_not;
+using deluge::engine::setting_is;
+using deluge::engine::setting_is_not;
 using deluge::engine::SettingCondition;
 using deluge::engine::SettingContext;
 using deluge::engine::SettingDescriptorExtras;
 using deluge::engine::SettingInfo;
 using deluge::engine::SettingKind;
 using deluge::engine::SettingReader;
-using Subject = SettingCondition::Subject;
-using Test = SettingCondition::Test;
 using Owner = SettingContext::Owner;
-
-// CppSpec defines a `subject` macro, so a condition is built positionally rather than by designated initialisers.
-constexpr SettingCondition setting_is(std::string_view path, std::span<const int32_t> values) {
-	return {Subject::SETTING, Test::IS, path, values};
-}
-constexpr SettingCondition setting_is_not(std::string_view path, std::span<const int32_t> values) {
-	return {Subject::SETTING, Test::IS_NOT, path, values};
-}
-constexpr SettingCondition owner_is(std::span<const int32_t> values) {
-	return {Subject::OWNER, Test::IS, {}, values};
-}
-constexpr SettingCondition owner_is_not(std::span<const int32_t> values) {
-	return {Subject::OWNER, Test::IS_NOT, {}, values};
-}
-constexpr SettingCondition inputs_are(std::span<const int32_t> values) {
-	return {Subject::INPUTS_PRESENT, Test::IS, {}, values};
-}
 
 /// An owner holding named values; a path it does not hold is recorded.
 struct Held {
@@ -61,17 +49,16 @@ struct Held {
 	mutable std::vector<std::string> unknown{};
 
 	[[nodiscard]] SettingReader reader() const {
-		return {.read =
-		            [](const void* self, std::string_view path) {
-			            const auto& held = *static_cast<const Held*>(self);
-			            for (const auto& [name, value] : held.values) {
-				            if (name == path) {
-					            return value;
-				            }
-			            }
-			            held.unknown.emplace_back(path);
-			            return 0;
-		            },
+		return {.read = [](const void* self, std::string_view path) -> std::optional<int32_t> {
+			        const auto& held = *static_cast<const Held*>(self);
+			        for (const auto& [name, value] : held.values) {
+				        if (name == path) {
+					        return value;
+				        }
+			        }
+			        held.unknown.emplace_back(path);
+			        return std::nullopt;
+		        },
 		        .self = this};
 	}
 };
@@ -82,8 +69,6 @@ constexpr std::array<int32_t, 1> kRing{2};
 constexpr std::array<int32_t, 2> kFmOrRing{1, 2};
 constexpr std::array<int32_t, 1> kKitLane{static_cast<int32_t>(Owner::KIT_LANE)};
 constexpr std::array<int32_t, 2> kTrackOrClip{static_cast<int32_t>(Owner::TRACK), static_cast<int32_t>(Owner::CLIP)};
-constexpr std::array<int32_t, 1> kYes{1};
-constexpr std::array<int32_t, 1> kNo{0};
 
 constexpr std::array kNotRing{setting_is_not("mode", kRing)};
 constexpr std::array kNotKitLaneAndNotRing{
@@ -92,9 +77,9 @@ constexpr std::array kNotKitLaneAndNotRing{
 };
 constexpr std::array kWithInputs{
     setting_is_not("mode", kRing),
-    inputs_are(kYes),
+    inputs_are(true),
 };
-constexpr std::array kNever{owner_is({})};
+constexpr std::array kNever{never()};
 
 /// Types: 0-6 always; 7 not under ring mod; 8 (DX7-like) off a kit lane, under no ring mod; 9 not under ring mod;
 /// 10 and 11 not under ring mod, with inputs plugged in.
@@ -132,7 +117,65 @@ constexpr std::array kBadRows{
 constexpr std::array kUnheldRows{
     SettingInfo{.path = "lone", .extras = &kRowIs},
 };
-static_assert(deluge::engine::conditions_name_rows(kGoodRows));
+
+// Each bad table breaks one rule of conditions_are_valid, against a "mode" CHOICE row of twelve choices and a "name"
+// TEXT row.
+constexpr SettingInfo kMode{.path = "mode", .kind = SettingKind::CHOICE, .choices = kTypes};
+constexpr SettingInfo kName{.path = "name", .kind = SettingKind::TEXT};
+constexpr std::array<int32_t, 1> kPastChoices{12};
+constexpr std::array<int32_t, 1> kNotAnOwner{5};
+constexpr std::array<int32_t, 1> kNotABool{2};
+constexpr std::array<int32_t, 1> kSomeValue{1};
+
+constexpr std::array kOutOfRange{setting_is("mode", kPastChoices)};
+constexpr std::array kOnText{setting_is("name", kSomeValue)};
+constexpr std::array kBadOwner{owner_is(kNotAnOwner)};
+constexpr std::array kBadInputs{
+    SettingCondition{SettingCondition::Subject::INPUTS_PRESENT, SettingCondition::Test::IS, {}, kNotABool}};
+constexpr std::array kNeverWithValues{
+    SettingCondition{SettingCondition::Subject::NEVER, SettingCondition::Test::IS, {}, kSomeValue}};
+constexpr std::array kNeverWithPath{
+    SettingCondition{SettingCondition::Subject::NEVER, SettingCondition::Test::IS, "mode", {}}};
+
+constexpr SettingDescriptorExtras kOutOfRangeExtras{.applies_when = kOutOfRange};
+constexpr SettingDescriptorExtras kOnTextExtras{.applies_when = kOnText};
+constexpr SettingDescriptorExtras kBadOwnerExtras{.applies_when = kBadOwner};
+constexpr SettingDescriptorExtras kBadInputsExtras{.applies_when = kBadInputs};
+constexpr SettingDescriptorExtras kNeverWithValuesExtras{.applies_when = kNeverWithValues};
+constexpr SettingDescriptorExtras kNeverWithPathExtras{.applies_when = kNeverWithPath};
+
+constexpr std::array kPastEnd{ChoiceCondition{12, kNotRing}};
+constexpr std::array kTwice{ChoiceCondition{7, kNotRing}, ChoiceCondition{7, kNever}};
+constexpr SettingDescriptorExtras kPastEndExtras{.choice_when = kPastEnd};
+constexpr SettingDescriptorExtras kTwiceExtras{.choice_when = kTwice};
+
+constexpr std::array kOutOfRangeRows{kMode, SettingInfo{.path = "x", .extras = &kOutOfRangeExtras}};
+constexpr std::array kOnTextRows{kMode, kName, SettingInfo{.path = "x", .extras = &kOnTextExtras}};
+constexpr std::array kBadOwnerRows{SettingInfo{.path = "x", .extras = &kBadOwnerExtras}};
+constexpr std::array kBadInputsRows{SettingInfo{.path = "x", .extras = &kBadInputsExtras}};
+constexpr std::array kNeverWithValuesRows{SettingInfo{.path = "x", .extras = &kNeverWithValuesExtras}};
+constexpr std::array kNeverWithPathRows{kMode, SettingInfo{.path = "x", .extras = &kNeverWithPathExtras}};
+constexpr std::array kPastEndRows{
+    kMode, SettingInfo{.path = "type", .kind = SettingKind::CHOICE, .choices = kTypes, .extras = &kPastEndExtras}};
+constexpr std::array kTwiceRows{
+    kMode, SettingInfo{.path = "type", .kind = SettingKind::CHOICE, .choices = kTypes, .extras = &kTwiceExtras}};
+constexpr std::array kChoicesOnPlainRow{SettingInfo{.path = "plain", .extras = &kPastEndExtras}};
+constexpr std::array kGoodChoiceRows{
+    kMode, SettingInfo{.path = "type", .kind = SettingKind::CHOICE, .choices = kTypes, .extras = &kTypeExtras}};
+
+static_assert(deluge::engine::conditions_are_valid(kGoodRows));
+static_assert(deluge::engine::conditions_are_valid(kGoodChoiceRows));
+static_assert(!deluge::engine::conditions_are_valid(kBadRows));        // a misspelt path
+static_assert(!deluge::engine::conditions_are_valid(kUnheldRows));     // a path the table does not hold
+static_assert(!deluge::engine::conditions_are_valid(kOutOfRangeRows)); // a value past the CHOICE row's choices
+static_assert(!deluge::engine::conditions_are_valid(kOnTextRows));     // a TEXT target
+static_assert(!deluge::engine::conditions_are_valid(kBadOwnerRows));   // not an Owner
+static_assert(!deluge::engine::conditions_are_valid(kBadInputsRows));  // not 0 or 1
+static_assert(!deluge::engine::conditions_are_valid(kNeverWithValuesRows));
+static_assert(!deluge::engine::conditions_are_valid(kNeverWithPathRows));
+static_assert(!deluge::engine::conditions_are_valid(kPastEndRows));       // a choice past the row's choices
+static_assert(!deluge::engine::conditions_are_valid(kTwiceRows));         // a choice listed twice
+static_assert(!deluge::engine::conditions_are_valid(kChoicesOnPlainRow)); // choice conditions on a row with no choices
 
 std::vector<int32_t> offered(const SettingInfo& row, const SettingContext& shown, const SettingReader& reader) {
 	std::vector<int32_t> out;
@@ -193,8 +236,8 @@ describe setting_condition("A setting's applicability as data", $ {
 	});
 
 	it("tests whether audio inputs are present", _ {
-		const std::array present{inputs_are(kYes)};
-		const std::array absent{inputs_are(kNo)};
+		const std::array present{inputs_are(true)};
+		const std::array absent{inputs_are(false)};
 		const SettingDescriptorExtras with{.applies_when = present};
 		const SettingDescriptorExtras without{.applies_when = absent};
 		const SettingInfo needs{.path = "needs", .extras = &with};
@@ -246,10 +289,39 @@ describe setting_condition("A setting's applicability as data", $ {
 		}
 	});
 
-	it("accepts a table whose conditions name its rows, and refuses a misspelt path", _ {
-		expect(deluge::engine::conditions_name_rows(kGoodRows)).to_be_true();
-		expect(deluge::engine::conditions_name_rows(kBadRows)).to_be_false();
-		expect(deluge::engine::conditions_name_rows(kUnheldRows)).to_be_false();
+	it("accepts a well-formed table, and refuses a misspelt path, a bad value or a bad choice (also static_asserted)", _ {
+		expect(deluge::engine::conditions_are_valid(kGoodRows)).to_be_true();
+		expect(deluge::engine::conditions_are_valid(kBadRows)).to_be_false();
+		expect(deluge::engine::conditions_are_valid(kOutOfRangeRows)).to_be_false();
+		expect(deluge::engine::conditions_are_valid(kPastEndRows)).to_be_false();
+	});
+
+	it("never holds a NEVER condition, whatever the context", _ {
+		const Held fm{{{"mode", 1}}};
+		const SettingDescriptorExtras extras{.applies_when = kNever};
+		const SettingInfo row{.path = "never", .extras = &extras};
+		expect(deluge::engine::setting_applies(row, {.owner = Owner::TRACK, .audio_inputs_present = true}, fm.reader())).to_be_false();
+		expect(deluge::engine::setting_choice_applies(kTypeNoEight, {.owner = Owner::TRACK}, fm.reader(), 8)).to_be_false();
+		expect(fm.unknown.empty()).to_be_true();
+	});
+
+	it("fails a SETTING condition closed where the reader has no value, IS_NOT included", _ {
+		const Held empty{};
+		const SettingReader unset{};
+		expect(deluge::engine::setting_applies(kGatedRow, SettingContext{}, empty.reader())).to_be_false();
+		expect(deluge::engine::setting_applies(kGatedRow, SettingContext{}, unset)).to_be_false();
+		expect(deluge::engine::setting_choice_applies(kType, SettingContext{}, unset, 7)).to_be_false();
+		// a choice with no SETTING condition, and a context-only condition, still evaluate
+		expect(deluge::engine::setting_choice_applies(kType, SettingContext{}, unset, 0)).to_be_true();
+		const SettingInfo plain{.path = "plain"};
+		expect(deluge::engine::setting_applies(plain, SettingContext{}, unset)).to_be_true();
+	});
+
+	it("evaluates in constant expressions", _ {
+		static_assert(deluge::engine::setting_choice_applies(kTypeNoEight, SettingContext{}, SettingReader{}, 0));
+		static_assert(!deluge::engine::setting_choice_applies(kTypeNoEight, SettingContext{}, SettingReader{}, 8));
+		static_assert(deluge::engine::choice_position(kTypeNoEight, SettingContext{}, SettingReader{}, 3) == 3);
+		static_assert(deluge::engine::applicable_choice_count(kTypeNoEight, SettingContext{}, SettingReader{}) == 7);
 	});
 });
 // clang-format on

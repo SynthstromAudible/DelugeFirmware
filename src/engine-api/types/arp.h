@@ -100,10 +100,7 @@ inline constexpr SettingDescriptorExtras kSyncExtras{
 /// The owners a kit lane stands for.
 inline constexpr std::array<int32_t, 1> kKitLaneOwner{static_cast<int32_t>(SettingContext::Owner::KIT_LANE)};
 /// As-played and pattern order the notes a whole instrument holds, so a kit lane's note mode menu stops before them.
-inline constexpr std::array kOffKitLane{
-    SettingCondition{
-        .subject = SettingCondition::Subject::OWNER, .test = SettingCondition::Test::IS_NOT, .values = kKitLaneOwner},
-};
+inline constexpr std::array kOffKitLane{owner_is_not(kKitLaneOwner)};
 inline constexpr std::size_t kAsPlayedMode = 7;
 inline constexpr std::size_t kPatternMode = 8;
 static_assert(kArpNoteModeWords[kAsPlayedMode] == "asPlayed" && kArpNoteModeWords[kPatternMode] == "pattern");
@@ -172,7 +169,7 @@ inline constexpr std::array kHostRows{
 
 /// @brief The settings every arp has.
 inline constexpr std::span<const SettingInfo> kArpSettingRows{arp_detail::kSettingRows};
-static_assert(conditions_name_rows(kArpSettingRows));
+static_assert(conditions_are_valid(kArpSettingRows));
 
 /// @brief The values that are settings only where nothing automates them: a MIDI or CV clip's arp and a MIDI or gate
 /// kit row's. Elsewhere they are params.
