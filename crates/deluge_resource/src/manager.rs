@@ -175,12 +175,16 @@ impl ChunkSlot {
     /// Queues this chunk at `priority` (lower = more urgent). While it is already queued the
     /// priority only rises, so a less urgent requester can't push back a chunk someone more urgent
     /// waits on. Once `loader_next` has popped it, the priority is set afresh.
+    ///
+    /// The queue wait is timed from when the chunk entered the queue, not from its latest request.
     fn queue_at(&mut self, priority: u32) {
-        self.queue_priority = if self.queued {
-            self.queue_priority.min(priority)
+        if self.queued {
+            self.queue_priority = self.queue_priority.min(priority);
         } else {
-            priority
-        };
+            self.queue_priority = priority;
+            // SAFETY: a plain counter read; no preconditions.
+            self.queued_at = unsafe { deluge_debug_now_frames() };
+        }
         self.queued = true;
     }
 }
@@ -232,6 +236,19 @@ pub struct Stats {
     pub fill_samples: u64,
     pub fill_total: u64,
     pub fill_max: u64,
+    /// `queue_wait` and `fill` as log2 histograms of frames: bucket 0 holds 0, bucket `i` holds
+    /// `[2^(i-1), 2^i)`, and the last also holds everything longer.
+    pub queue_wait_buckets: [u32; LATENCY_BUCKETS],
+    pub fill_buckets: [u32; LATENCY_BUCKETS],
+}
+
+/// Buckets in each of [`Stats`]' latency histograms.
+pub const LATENCY_BUCKETS: usize = 16;
+
+/// Adds one latency of `frames` to `buckets` (see [`Stats::queue_wait_buckets`]).
+fn add_latency(buckets: &mut [u32; LATENCY_BUCKETS], frames: u64) {
+    let bucket = ((u64::BITS - frames.leading_zeros()) as usize).min(LATENCY_BUCKETS - 1);
+    buckets[bucket] = buckets[bucket].saturating_add(1);
 }
 
 /// The manager state behind a [`DelugeResource`] handle.
@@ -646,17 +663,15 @@ impl Manager {
                 return;
             }
             s.queue_at(priority);
-            // SAFETY: a plain counter read; no preconditions.
-            s.queued_at = unsafe { deluge_debug_now_frames() };
         });
     }
 
     /// Enqueues the chunk at `slot` and takes a queue-owned hard lease, so the entry survives the
     /// enqueuer dropping its own (see `ChunkSlot::queue_leased`).
     ///
-    /// A re-enqueue raises the priority as `loader_enqueue` does, without a second lease. Every terminal path of the drain
-    /// must call `loader_release_owned` (or `loader_remove`); a stranded queue lease pins the chunk
-    /// forever. No-op if `slot` is out of range or free.
+    /// A re-enqueue raises the priority as `loader_enqueue` does, without a second lease. Every
+    /// terminal path of the drain must call `loader_release_owned` (or `loader_remove`); a stranded
+    /// queue lease pins the chunk forever. No-op if `slot` is out of range or free.
     pub(crate) fn loader_enqueue_owned(&self, slot: u32, priority: u32) {
         let i = slot as usize;
         if i >= self.chunks.len() {
@@ -769,6 +784,7 @@ impl Manager {
                 if waited > st.queue_wait_max {
                     st.queue_wait_max = waited;
                 }
+                add_latency(&mut st.queue_wait_buckets, waited);
             });
         }
         s.backing
@@ -1280,6 +1296,7 @@ impl Manager {
                 if (f as u64) > st.fill_max {
                     st.fill_max = f as u64;
                 }
+                add_latency(&mut st.fill_buckets, f as u64);
             });
         }
     }

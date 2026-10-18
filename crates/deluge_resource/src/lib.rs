@@ -708,6 +708,48 @@ mod tests {
         assert!(!unsafe { deluge_resource_loader_has_lowest(mgr) });
     }
 
+    /// Every queue wait and fill the stats count, from either enqueue, also lands in exactly one
+    /// histogram bucket.
+    #[test]
+    fn latency_histograms_count_every_sample() {
+        let (_buf, h) = arena(256 * 1024);
+        let mgr = unsafe { deluge_resource_create(h, 16, 64) };
+        let a = unsafe {
+            deluge_resource_define_asset(
+                mgr,
+                owner(14),
+                Some(mock_materialize),
+                Some(mock_on_evict),
+                core::ptr::null_mut(),
+                COST_IO,
+                BACKING_HEAP,
+            )
+        };
+        for i in 0..3 {
+            let p = unsafe { deluge_resource_acquire(mgr, a, i, 4096) };
+            assert!(!p.is_null());
+            let slot = unsafe { deluge_resource_slot_of(mgr, p) };
+            // The fill task's own requests come in through the owned enqueue; it is timed too.
+            if i == 2 {
+                unsafe { deluge_resource_loader_enqueue_owned(mgr, slot, 0) };
+            } else {
+                unsafe { deluge_resource_loader_enqueue(mgr, slot, 0) };
+            }
+            assert_eq!(unsafe { deluge_resource_loader_next(mgr) }, p);
+            unsafe { deluge_resource_mark_ready(mgr, p) };
+            if i == 2 {
+                unsafe { deluge_resource_loader_release_owned(mgr, slot) };
+            }
+        }
+        let mut s = Stats::default();
+        unsafe { deluge_resource_stats(mgr, &mut s) };
+        assert_eq!(s.queue_wait_samples, 3);
+        assert_eq!(s.fill_samples, 3);
+        let sum = |b: &[u32]| b.iter().map(|&n| u64::from(n)).sum::<u64>();
+        assert_eq!(sum(&s.queue_wait_buckets), s.queue_wait_samples);
+        assert_eq!(sum(&s.fill_buckets), s.fill_samples);
+    }
+
     /// A re-enqueue of a still-queued chunk only ever makes it more urgent: a less urgent
     /// requester (a lowest-priority reservation re-requesting a chunk a voice is waiting on) must
     /// not push it to the back of the queue. Once popped, an enqueue starts afresh, so a failed
