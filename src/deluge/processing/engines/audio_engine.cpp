@@ -1339,7 +1339,7 @@ bool doSomeOutputting() {
 
 	// Audio from a USB host, mixed straight into the outputs if the user wants. It isn't sent back to the host, which
 	// would echo it
-	bool const doUSBDirectMonitoring = usb_audio::directMonitoring && usb_audio::receivingFromHost();
+	bool const doUSBDirectMonitoring = !doMonitoring && usb_audio::receivingFromHost();
 	int32_t const* __restrict__ usbReadPos = getInputReadPos(AudioInputChannel::USB);
 	bool const doSendToUSB = usb_audio::sendingToHost();
 	std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> toUSB;

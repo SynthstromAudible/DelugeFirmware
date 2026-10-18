@@ -599,6 +599,11 @@ void fillInputRing(uint32_t rxPosition, size_t numSamples) {
 		int32_t* output = &inputRing[inputRingWriteFrame * 2];
 		if (fromHostStreaming) {
 			resampleFromHost(output, numThisTime);
+			int32_t* rx = getRxBufferStart() + inputRingWriteFrame * 2;
+			for (size_t i = 0; i < numThisTime; i++) {
+				rx[i * 2] = saturate((int64_t)rx[i * 2] + output[i * 2]);
+				rx[i * 2 + 1] = saturate((int64_t)rx[i * 2 + 1] + output[i * 2 + 1]);
+			}
 		}
 		else {
 			std::memset(output, 0, numThisTime * sizeof(StereoSample));

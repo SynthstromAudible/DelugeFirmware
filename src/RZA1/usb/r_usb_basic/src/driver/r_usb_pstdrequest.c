@@ -1198,9 +1198,9 @@ static void usb_pstd_set_interface3(void)
     uint16_t* p_table;
 
     /* Configured ? */
-    if ((USB_TRUE == usb_pstd_chk_configured()) && ((USB_INTERFACE == g_usb_pstd_req_type & USB_BMREQUESTTYPERECIP)))
+    if ((USB_TRUE == usb_pstd_chk_configured()) && ((g_usb_pstd_req_type & USB_BMREQUESTTYPERECIP) == USB_INTERFACE))
     {
-        if ((g_usb_pstd_req_index <= usb_pstd_get_interface_num(g_usb_pstd_config_num)) && (0 == g_usb_pstd_req_length))
+        if ((g_usb_pstd_req_index < usb_pstd_get_interface_num(g_usb_pstd_config_num)) && (0 == g_usb_pstd_req_length))
         {
             if (g_usb_pstd_req_value <= usb_pstd_get_alternate_num(g_usb_pstd_config_num, g_usb_pstd_req_index))
             {
