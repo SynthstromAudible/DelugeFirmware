@@ -60,6 +60,12 @@ inline constexpr std::array kOffSong{engine::owner_is_not(kSongOwner)};
 inline constexpr std::array kOffSongAndWholeKit{engine::owner_is_not(kSongOrWholeKit)};
 inline constexpr engine::SettingDescriptorExtras kOffSongExtras{.applies_when = kOffSong};
 inline constexpr engine::SettingDescriptorExtras kClippingExtras{.applies_when = kOffSongAndWholeKit};
+/// The stutter's quantize: the song's own, or an owner's that does not use the song's stutter.
+inline constexpr std::array<int32_t, 1> kOff{0};
+inline constexpr std::array kOnSong{engine::owner_is(kSongOwner)};
+inline constexpr std::array kOwnStutter{engine::setting_is("stutter/useSongStutter", kOff)};
+inline constexpr std::array<std::span<const engine::SettingCondition>, 2> kQuantizeAny{kOnSong, kOwnStutter};
+inline constexpr engine::SettingDescriptorExtras kQuantizeExtras{.applies_any = kQuantizeAny};
 
 /// The delay's sync menu: one value over the level and its type row, every type offered.
 inline constexpr engine::SettingDescriptorExtras kDelaySyncExtras{
@@ -165,7 +171,10 @@ inline constexpr std::array<engine::SettingInfo, 23> kEffectSettings{{
      .max = detail::kQ31Max,
      .default_value = detail::kDefaults.compressor.blend,
      .extras = &detail::kCompressorBlendExtras},
-    {.path = "stutter/quantized", .kind = detail::BOOL, .default_value = detail::kDefaults.stutter.quantized ? 1 : 0},
+    {.path = "stutter/quantized",
+     .kind = detail::BOOL,
+     .default_value = detail::kDefaults.stutter.quantized ? 1 : 0,
+     .extras = &detail::kQuantizeExtras},
     {.path = "stutter/reverse", .kind = detail::BOOL},
     {.path = "stutter/pingPong", .kind = detail::BOOL},
     {.path = "stutter/useSongStutter",

@@ -168,11 +168,69 @@ constexpr engine::SettingDescriptorExtras kFmExtras{.applies_when = kFmCondition
 /// The sidechain send menu: fiftieths of the whole send, rounded to the nearest.
 constexpr engine::SettingDescriptorExtras kSendExtras{.mapping = {.kind = engine::DisplayMappingKind::FIFTIETHS},
                                                       .applies_when = kOnKitLane};
+
+/// Each oscillator's type row, and the conditions on it and on its file that its tuning, phase and interpolation menus
+/// show under: an oscillator playing a file shows them only once the file is loaded.
+constexpr std::array<std::string_view, 2> kOscTypePaths{"osc1/type", "osc2/type"};
+constexpr std::array<int32_t, 2> kFileTypes{std::to_underlying(OscType::SAMPLE),
+                                            std::to_underlying(OscType::WAVETABLE)};
+constexpr std::array<int32_t, 1> kWavetableValue{std::to_underlying(OscType::WAVETABLE)};
+constexpr std::array<int32_t, 3> kInputTypes{std::to_underlying(OscType::INPUT_L), std::to_underlying(OscType::INPUT_R),
+                                             std::to_underlying(OscType::INPUT_STEREO)};
+constexpr std::array kSubtractiveConditions{engine::setting_is("mode", kSubtractiveValue)};
+
+/// Per oscillator (index 0 the first): its type plays no file; its file is loaded; it plays a loaded wavetable; it
+/// holds a sample in FM; it plays a loaded sample; it plays an input; it is not a wavetable.
+template <std::size_t N>
+using Conditions = std::array<engine::SettingCondition, N>;
+constexpr std::array<Conditions<1>, 2> kPlaysNoFile{
+    {{engine::setting_is_not(kOscTypePaths[0], kFileTypes)}, {engine::setting_is_not(kOscTypePaths[1], kFileTypes)}}};
+constexpr std::array<Conditions<1>, 2> kFileLoaded{{{engine::source_loaded(0)}, {engine::source_loaded(1)}}};
+constexpr std::array<Conditions<2>, 2> kLoadedWavetable{
+    {{engine::setting_is(kOscTypePaths[0], kWavetableValue), engine::source_loaded(0)},
+     {engine::setting_is(kOscTypePaths[1], kWavetableValue), engine::source_loaded(1)}}};
+constexpr std::array<Conditions<2>, 2> kSampleInFm{
+    {{engine::setting_is(kOscTypePaths[0], kSampleValue), engine::setting_is("mode", kFmValue)},
+     {engine::setting_is(kOscTypePaths[1], kSampleValue), engine::setting_is("mode", kFmValue)}}};
+constexpr std::array<Conditions<2>, 2> kLoadedSample{
+    {{engine::setting_is(kOscTypePaths[0], kSampleValue), engine::source_loaded(0)},
+     {engine::setting_is(kOscTypePaths[1], kSampleValue), engine::source_loaded(1)}}};
+constexpr std::array<Conditions<1>, 2> kPlaysInput{
+    {{engine::setting_is(kOscTypePaths[0], kInputTypes)}, {engine::setting_is(kOscTypePaths[1], kInputTypes)}}};
+constexpr std::array<Conditions<1>, 2> kNotWavetable{{{engine::setting_is_not(kOscTypePaths[0], kWavetableValue)},
+                                                      {engine::setting_is_not(kOscTypePaths[1], kWavetableValue)}}};
+
+using Alternatives = std::span<const engine::SettingCondition>;
+/// An oscillator's transpose (and cents): any type that plays no file, or a loaded file.
+constexpr std::array<std::array<Alternatives, 2>, 2> kOscTuningAny{
+    {{kPlaysNoFile[0], kFileLoaded[0]}, {kPlaysNoFile[1], kFileLoaded[1]}}};
+/// An oscillator's retrigger phase: a loaded wavetable, a type that plays no file, or a sample in FM.
+constexpr std::array<std::array<Alternatives, 3>, 2> kOscPhaseAny{
+    {{kLoadedWavetable[0], kPlaysNoFile[0], kSampleInFm[0]}, {kLoadedWavetable[1], kPlaysNoFile[1], kSampleInFm[1]}}};
+/// An oscillator's interpolation, in subtractive: a loaded sample or an input.
+constexpr std::array<std::array<Alternatives, 2>, 2> kInterpolationAny{
+    {{kLoadedSample[0], kPlaysInput[0]}, {kLoadedSample[1], kPlaysInput[1]}}};
+/// A modulator's retrigger phase, in FM: its oscillator not a wavetable, or its file loaded.
+constexpr std::array<std::array<Alternatives, 2>, 2> kModulatorPhaseAny{
+    {{kNotWavetable[0], kFileLoaded[0]}, {kNotWavetable[1], kFileLoaded[1]}}};
+
 /// A retrigger phase menu: degrees, or −1 for free-running.
-constexpr engine::SettingDescriptorExtras kPhaseExtras{.mapping = {.kind = engine::DisplayMappingKind::PHASE_DEGREES}};
+constexpr engine::DisplayMapping kPhaseMapping{.kind = engine::DisplayMappingKind::PHASE_DEGREES};
+constexpr std::array kOscPhaseExtras{
+    engine::SettingDescriptorExtras{.mapping = kPhaseMapping, .applies_any = kOscPhaseAny[0]},
+    engine::SettingDescriptorExtras{.mapping = kPhaseMapping, .applies_any = kOscPhaseAny[1]}};
+constexpr std::array kModulatorPhaseExtras{
+    engine::SettingDescriptorExtras{
+        .mapping = kPhaseMapping, .applies_when = kFmConditions, .applies_any = kModulatorPhaseAny[0]},
+    engine::SettingDescriptorExtras{
+        .mapping = kPhaseMapping, .applies_when = kFmConditions, .applies_any = kModulatorPhaseAny[1]}};
 /// The interpolation menu lists linear first: menu 0 stores 1.
-constexpr engine::SettingDescriptorExtras kInterpolationExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::INVERTED_BOOL}};
+constexpr engine::DisplayMapping kInterpolationMapping{.kind = engine::DisplayMappingKind::INVERTED_BOOL};
+constexpr std::array kInterpolationExtras{
+    engine::SettingDescriptorExtras{
+        .mapping = kInterpolationMapping, .applies_when = kSubtractiveConditions, .applies_any = kInterpolationAny[0]},
+    engine::SettingDescriptorExtras{
+        .mapping = kInterpolationMapping, .applies_when = kSubtractiveConditions, .applies_any = kInterpolationAny[1]}};
 /// The MIDI output channel menu lists none first, then channels 1–16 (stored 0–15).
 constexpr std::array<uint8_t, 17> kMidiChannelOrder{16, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
 constexpr engine::SettingDescriptorExtras kMidiChannelExtras{
@@ -180,11 +238,18 @@ constexpr engine::SettingDescriptorExtras kMidiChannelExtras{
 
 /// A transpose menu: one value in cents over its semitones and its cents row, @p partner.
 constexpr engine::SettingDescriptorExtras transpose_extras(std::string_view partner,
-                                                           std::span<const engine::SettingCondition> when = {}) {
-	return {.mapping = {.kind = engine::DisplayMappingKind::TRANSPOSE_CENTS, .partner = partner}, .applies_when = when};
+                                                           std::span<const engine::SettingCondition> when = {},
+                                                           std::span<const Alternatives> any = {}) {
+	return {.mapping = {.kind = engine::DisplayMappingKind::TRANSPOSE_CENTS, .partner = partner},
+	        .applies_when = when,
+	        .applies_any = any};
 }
 constexpr engine::SettingDescriptorExtras kTransposeExtras = transpose_extras("cents");
-constexpr std::array kOscTransposeExtras{transpose_extras("osc1/cents"), transpose_extras("osc2/cents")};
+constexpr std::array kOscTransposeExtras{transpose_extras("osc1/cents", {}, kOscTuningAny[0]),
+                                         transpose_extras("osc2/cents", {}, kOscTuningAny[1])};
+/// An oscillator's cents show within its transpose's menu, where that shows.
+constexpr std::array kOscCentsExtras{engine::SettingDescriptorExtras{.applies_any = kOscTuningAny[0]},
+                                     engine::SettingDescriptorExtras{.applies_any = kOscTuningAny[1]}};
 constexpr std::array kModulatorTransposeExtras{transpose_extras("modulator1/cents", kFmConditions),
                                                transpose_extras("modulator2/cents", kFmConditions)};
 
@@ -207,13 +272,16 @@ constexpr int32_t kFreeRunning = -1;
 	                .max = kTransposeRange,                                                                            \
 	                .units = engine::SettingUnits::CENTS,                                                              \
 	                .extras = &kOscTransposeExtras[n - 1]},                                                            \
-	    SettingInfo{                                                                                                   \
-	        .path = "osc" #n "/cents", .min = -kCentsRange, .max = kCentsRange, .units = engine::SettingUnits::CENTS}, \
+	    SettingInfo{.path = "osc" #n "/cents",                                                                         \
+	                .min = -kCentsRange,                                                                               \
+	                .max = kCentsRange,                                                                                \
+	                .units = engine::SettingUnits::CENTS,                                                              \
+	                .extras = &kOscCentsExtras[n - 1]},                                                                \
 	    SettingInfo{.path = "osc" #n "/retrigPhase",                                                                   \
 	                .min = kPhaseMin,                                                                                  \
 	                .max = kPhaseMax,                                                                                  \
 	                .default_value = kFreeRunning,                                                                     \
-	                .extras = &kPhaseExtras},                                                                          \
+	                .extras = &kOscPhaseExtras[n - 1]},                                                                \
 	    SettingInfo{.path = "osc" #n "/loopMode",                                                                      \
 	                .kind = CHOICE,                                                                                    \
 	                .choices = kLoopModes,                                                                             \
@@ -222,7 +290,7 @@ constexpr int32_t kFreeRunning = -1;
 	    SettingInfo{.path = "osc" #n "/timeStretchEnable", .kind = BOOL, .extras = &kSamplePlaybackExtras[n - 1]},     \
 	    SettingInfo{                                                                                                   \
 	        .path = "osc" #n "/timeStretchAmount", .min = -48, .max = 48, .extras = &kSamplePlaybackExtras[n - 1]},    \
-	    SettingInfo{.path = "osc" #n "/linearInterpolation", .kind = BOOL, .extras = &kInterpolationExtras},           \
+	    SettingInfo{.path = "osc" #n "/linearInterpolation", .kind = BOOL, .extras = &kInterpolationExtras[n - 1]},    \
 	    SettingInfo{.path = "osc" #n "/sampleRanges", .kind = STRUCTURED},                                             \
 	    SettingInfo{.path = "osc" #n "/wavetableRanges", .kind = STRUCTURED},                                          \
 	    SettingInfo{.path = "osc" #n "/fileName", .kind = STRUCTURED},                                                 \
@@ -269,7 +337,8 @@ constexpr std::array kLfoSyncExtras{lfo_sync_extras("lfo1/syncType"), lfo_sync_e
 	                .units = engine::SettingUnits::CENTS,                                                              \
 	                .extras = &kFmExtras},                                                                             \
 	    SettingInfo {                                                                                                  \
-		.path = "modulator" #n "/retrigPhase", .min = kPhaseMin, .max = kPhaseMax, .extras = &kPhaseExtras             \
+		.path = "modulator" #n "/retrigPhase", .min = kPhaseMin, .max = kPhaseMax,                                     \
+		.extras = &kModulatorPhaseExtras[n - 1]                                                                        \
 	}
 
 constexpr std::array kRows{

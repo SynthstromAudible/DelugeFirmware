@@ -36,6 +36,7 @@ using deluge::engine::instrument_is_not;
 using deluge::engine::never;
 using deluge::engine::owner_is;
 using deluge::engine::owner_is_not;
+using deluge::engine::setting_at_least;
 using deluge::engine::setting_is;
 using deluge::engine::setting_is_not;
 using deluge::engine::SettingCondition;
@@ -150,6 +151,49 @@ constexpr std::array kBadMask{
 constexpr std::array kEmptyOwners{owner_is({})};
 constexpr std::array kEmptySetting{setting_is("mode", {})};
 constexpr std::array kEmptyInstruments{instrument_is_not({})};
+
+// Alternatives and AT_LEAST, against "mode" and an INTEGER "level" of -5..100.
+constexpr SettingInfo kLevel{.path = "level", .min = -5, .max = 100};
+constexpr std::array<int32_t, 1> kZero{0};
+constexpr std::array<int32_t, 2> kZeroAndOne{0, 1};
+constexpr std::array<int32_t, 1> kPastLevel{101};
+constexpr std::array<int32_t, 1> kModeOne{1};
+constexpr std::array<int32_t, 1> kModeThree{3};
+constexpr std::array kLevelAudible{setting_at_least("level", kZero)};
+constexpr std::array kModeIsOne{setting_is("mode", kModeOne)};
+constexpr std::array kModeIsThree{setting_is("mode", kModeThree)};
+constexpr std::array<std::span<const SettingCondition>, 2> kOneOrThree{kModeIsOne, kModeIsThree};
+constexpr SettingDescriptorExtras kAnyExtras{.applies_when = kLevelAudible, .applies_any = kOneOrThree};
+constexpr SettingInfo kAnyRow{.path = "any", .extras = &kAnyExtras};
+constexpr std::array kAnyRows{kMode, kLevel, kAnyRow};
+static_assert(deluge::engine::conditions_are_valid(kAnyRows));
+
+constexpr std::array<std::span<const SettingCondition>, 2> kWithEmpty{kModeIsOne, std::span<const SettingCondition>{}};
+constexpr SettingDescriptorExtras kEmptyAlternativeExtras{.applies_any = kWithEmpty};
+constexpr std::array kEmptyAlternativeRows{kMode, SettingInfo{.path = "x", .extras = &kEmptyAlternativeExtras}};
+constexpr std::array<std::span<const SettingCondition>, 1> kMisspeltAlternative{kMissing};
+constexpr SettingDescriptorExtras kMisspeltAlternativeExtras{.applies_any = kMisspeltAlternative};
+constexpr std::array kMisspeltAlternativeRows{kMode, SettingInfo{.path = "x", .extras = &kMisspeltAlternativeExtras}};
+
+constexpr std::array kAtLeastTwo{setting_at_least("level", kZeroAndOne)};
+constexpr std::array kAtLeastPast{setting_at_least("level", kPastLevel)};
+constexpr std::array kAtLeastChoice{setting_at_least("mode", kZero)};
+constexpr std::array kAtLeastOwner{
+    SettingCondition{SettingCondition::Subject::OWNER, SettingCondition::Test::AT_LEAST, {}, kZero}};
+constexpr SettingDescriptorExtras kAtLeastTwoExtras{.applies_when = kAtLeastTwo};
+constexpr SettingDescriptorExtras kAtLeastPastExtras{.applies_when = kAtLeastPast};
+constexpr SettingDescriptorExtras kAtLeastChoiceExtras{.applies_when = kAtLeastChoice};
+constexpr SettingDescriptorExtras kAtLeastOwnerExtras{.applies_when = kAtLeastOwner};
+constexpr std::array kAtLeastTwoRows{kMode, kLevel, SettingInfo{.path = "x", .extras = &kAtLeastTwoExtras}};
+constexpr std::array kAtLeastPastRows{kMode, kLevel, SettingInfo{.path = "x", .extras = &kAtLeastPastExtras}};
+constexpr std::array kAtLeastChoiceRows{kMode, kLevel, SettingInfo{.path = "x", .extras = &kAtLeastChoiceExtras}};
+constexpr std::array kAtLeastOwnerRows{kMode, kLevel, SettingInfo{.path = "x", .extras = &kAtLeastOwnerExtras}};
+static_assert(!deluge::engine::conditions_are_valid(kEmptyAlternativeRows));    // an empty alternative
+static_assert(!deluge::engine::conditions_are_valid(kMisspeltAlternativeRows)); // a misspelt path in an alternative
+static_assert(!deluge::engine::conditions_are_valid(kAtLeastTwoRows));          // AT_LEAST takes one value
+static_assert(!deluge::engine::conditions_are_valid(kAtLeastPastRows));         // a value the row cannot store
+static_assert(!deluge::engine::conditions_are_valid(kAtLeastChoiceRows));       // AT_LEAST on a CHOICE row
+static_assert(!deluge::engine::conditions_are_valid(kAtLeastOwnerRows));        // AT_LEAST off a SETTING
 
 constexpr SettingDescriptorExtras kOutOfRangeExtras{.applies_when = kOutOfRange};
 constexpr SettingDescriptorExtras kOnTextExtras{.applies_when = kOnText};
@@ -314,6 +358,19 @@ describe setting_condition("A setting's applicability as data", $ {
 			expect(deluge::engine::setting_applies(one, shown, none.reader())).to_equal(want_one);
 			expect(deluge::engine::setting_applies(two, shown, none.reader())).to_equal(want_two);
 		}
+	});
+
+	it("applies a row with alternatives where its conditions hold and one alternative's all do", _ {
+		for (const auto& [mode, level, want] : {std::tuple{1, 0, true}, std::tuple{3, 50, true}, std::tuple{2, 50, false},
+		                                        std::tuple{1, -1, false}, std::tuple{3, -5, false}, std::tuple{0, 100, false}}) {
+			const Held held{{{"mode", mode}, {"level", level}}};
+			expect(std::to_string(mode) + "/" + std::to_string(level) + " " +
+			       (deluge::engine::setting_applies(kAnyRow, SettingContext{}, held.reader()) ? "applies" : "does not"))
+			    .to_equal(std::to_string(mode) + "/" + std::to_string(level) + " " + (want ? "applies" : "does not"));
+		}
+		const Held no_level{{{"mode", 1}}};
+		expect(deluge::engine::setting_applies(kAnyRow, SettingContext{}, no_level.reader())).to_equal(false);
+		static_assert(!deluge::engine::setting_applies(kAnyRow, SettingContext{}, SettingReader{}));
 	});
 
 	it("leaves a choice with no entry applying everywhere", _ {
