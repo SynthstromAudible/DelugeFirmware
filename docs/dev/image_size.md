@@ -121,11 +121,10 @@ Worked out from the linker scripts, not built:
   not need it. Starting the heap at the unrounded image end returns 0–64 KB (41 KB at `10e2f7133`). It also moves the
   image ceiling from `0x202E0000` to the RTT reserve at `0x202EB000`. The `code_end` metadata can keep the rounded
   value.
-- **The `.sdram_init` load copy is never reused.** It is placed `AT> RAM` straight after `.bss` (LMA `0x2007E924`,
-  29.5 KB). The boot copies it to SDRAM in `runtime/device.rs` before the app runs, and the SRAM is never used again.
-  Putting the load copy at the end of the image and starting the heap at its LMA returns it as heap. That also makes
-  anything placed in SDRAM free in steady state: it costs SRAM only between the bootloader's copy and the boot's.
-  `fault.rs` uses `__sram_heap_start` as `code_end`, so it would need the true end of code instead.
+- **The `.sdram_init` load copy is returned to the heap.** It is placed `AT> RAM` at the end of the image, in the
+  boot-only tail after `.ARM.exidx`, and `__sram_heap_base` is its LMA. The boot copies it to SDRAM (`boot_mem.rs`)
+  before the app creates its heaps, so anything placed in SDRAM costs SRAM only between the bootloader's copy and the
+  boot's, and nothing in steady state (see [Applied](#applied)).
 - **SDRAM can run code.** The MMU maps it executable and write-back cached (section attribute `0x1DEE`, XN = 0). The
   `PLACE_SDRAM_TEXT` "problems with execution from SDRAM" note in `board_config.h` dates from the legacy BSP. If the
   boot copies text into SDRAM with the caches on, it must clean the D-cache and invalidate the I-cache afterwards.
@@ -216,6 +215,11 @@ steps 1 and 2 below except moving the sample-stream `REGISTRY`:
 - The storage channels' state and the efatfs mount's tables in SDRAM, by v0-mangled module path in
   `linker/sdram_sections.x`. The fragment is passed before rza1-rt's `link.x`, so its patterns win.
 - The SDRAM heap starts at `__sdram_static_end`, the end of all static SDRAM content, whatever the section order.
+- The setting descriptor and name tables (their rows, extras, conditions and choice words) in SDRAM: every C++
+  `menu_tables` inline namespace's `.rodata`, matched in `linker/sdram_sections.x`. A menu or an Edit reads them, never
+  the audio tier or an interrupt. They are about 16 KB, measured as +18,976 B of SRAM heap together with the row
+  shrinks that followed (heap 306,208 → 325,184 B at `8e794a52b`). The script ASSERTs more than 8 KB of them in
+  `.sdram_init`, so a rename that stops the pattern matching fails the link.
 - The image ends with its boot-only tail, which `__sram_heap_base` hands to the heap. rza1l-hal starts the heap at
   that hook, or at the unrounded image end.
   - This also fixed the `.bin`, which used to begin with the `.sdram_init` load copy instead of the vector table and
