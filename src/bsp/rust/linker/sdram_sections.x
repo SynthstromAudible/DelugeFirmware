@@ -79,7 +79,9 @@ SECTIONS {
          * `menu_tables` namespace's read-only data. A menu or an Edit reads them, never the audio
          * tier or an interrupt. Matched by the namespace in the mangled name, so a rename returns
          * them to SRAM, as for the storage statics above. */
+        __menu_tables_start = .;
         *(.rodata.*11menu_tables*)
+        __menu_tables_end = .;
         PROVIDE(__sdram_init_end = .);
     } > SDRAM AT> RAM
     PROVIDE(__sdram_init_lma = LOADADDR(.sdram_init));
@@ -99,4 +101,9 @@ SECTIONS {
     } > RAM
 
     __sram_heap_base = ALIGN(__sdram_init_lma, 16);
+
+    /* The setting tables are about 15 KB: far less here means the pattern above no longer
+     * matches them and they sit in SRAM's .rodata. */
+    ASSERT(__menu_tables_end - __menu_tables_start > 8192,
+           "sdram_sections.x: the setting tables fell back to SRAM (no menu_tables data in .sdram_init)")
 } INSERT AFTER .ARM.exidx;
