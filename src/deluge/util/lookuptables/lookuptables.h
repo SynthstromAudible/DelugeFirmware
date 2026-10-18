@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "engine-api/types/rate_tables.h"
+
 #include <array>
 #include <cstdint>
 
@@ -51,8 +53,9 @@ extern const int16_t sineWaveSmall[];
 extern const int32_t noteFrequencyTable[12];
 extern const int32_t noteIntervalTable[12];
 extern const int32_t timeStretchAdjustTable[193];
-extern const int32_t attackRateTable[51];
-extern const int32_t releaseRateTable[51];
+// The sidechain's rate tables are the effects engine's.
+inline constexpr const auto& attackRateTable = deluge::engine::kSidechainAttackRates;
+inline constexpr const auto& releaseRateTable = deluge::engine::kSidechainReleaseRates;
 extern const int32_t releaseRateTable64[65];
 
 #define NUM_PRESET_REVERBS 3

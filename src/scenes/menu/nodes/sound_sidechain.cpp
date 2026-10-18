@@ -25,6 +25,7 @@
 #include "scenes/menu/context.h"
 
 #include "definitions_cxx.hpp"
+#include "engine-api/types/rate_tables.h"
 #include "engine-api/types/sync.h"
 #include "engines/effects/state.h"
 #include "model/edits/setting_edit.h"
@@ -36,21 +37,12 @@
 
 #include <algorithm>
 
-// `util/lookuptables/lookuptables.h:122-123`, at global scope where they are defined. `util/` is
-// outside `src/scenes`' include allow-list (`scenes-includes-outside`), so the two tables are
-// *declared* here rather than included -- the same treatment `sound_compressor.cpp` gives
-// `lshiftAndSaturate<24>`, and the definitions still come from the one place that owns them.
-// `tables_2_spec` compares the resulting menu values against the legacy items, so a mismatch would
-// fail loudly rather than drift.
-extern const int32_t attackRateTable[51];
-extern const int32_t releaseRateTable[51];
-
 namespace deluge::scenes::menu::nodes {
 
 namespace {
 
-/// @brief `getLookupIndexFromValue` (`util/functions.cpp:1428-1443`), transcribed for the same
-///        reason as the tables above. The `bestDistance` comparison is legacy's own signed/unsigned
+/// @brief `getLookupIndexFromValue` (`util/functions.cpp:1428-1443`), transcribed: `util/` is outside
+///        `src/scenes`' include allow-list. The `bestDistance` comparison is legacy's own signed/unsigned
 ///        mix, reproduced exactly rather than "fixed": changing it would change which index a given
 ///        stored rate shows as.
 int32_t lookup_index(int32_t value, const int32_t* table, int32_t max_index) {
@@ -76,18 +68,18 @@ int32_t lookup_index(int32_t value, const int32_t* table, int32_t max_index) {
 
 int32_t sidechain_attack_to_menu(int32_t attack) {
 	// `sidechain::Attack::readCurrentValue` (`sidechain/attack.h`).
-	return lookup_index(attack >> 2, attackRateTable, 50);
+	return lookup_index(attack >> 2, deluge::engine::kSidechainAttackRates, 50);
 }
 int32_t sidechain_attack_from_menu(int32_t menu_value) {
-	return attackRateTable[std::clamp<int32_t>(menu_value, 0, 50)] << 2; // `attack.h`'s write
+	return deluge::engine::kSidechainAttackRates[std::clamp<int32_t>(menu_value, 0, 50)] << 2; // `attack.h`'s write
 }
 
 int32_t sidechain_release_to_menu(int32_t release) {
 	// `sidechain::Release::readCurrentValue` (`sidechain/release.h`).
-	return lookup_index(release >> 3, releaseRateTable, 50);
+	return lookup_index(release >> 3, deluge::engine::kSidechainReleaseRates, 50);
 }
 int32_t sidechain_release_from_menu(int32_t menu_value) {
-	return releaseRateTable[std::clamp<int32_t>(menu_value, 0, 50)] << 3; // `release.h`'s write
+	return deluge::engine::kSidechainReleaseRates[std::clamp<int32_t>(menu_value, 0, 50)] << 3; // `release.h`'s write
 }
 
 int32_t sidechain_sync_to_menu(deluge::engine::SyncType type, deluge::engine::SyncLevel level) {
