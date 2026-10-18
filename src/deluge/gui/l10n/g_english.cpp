@@ -431,7 +431,6 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_LOOP_MARGINS, "Loop margins"},
         {STRING_FOR_SAMPLING_MONITORING, "Sampling monitoring"},
         {STRING_FOR_THRESHOLD_RECORDING, "Threshold Recording"},
-        {STRING_FOR_LOOP_COMMAND, "Loop Command"},
         {STRING_FOR_SAMPLE_PREVIEW, "Sample Preview"},
         {STRING_FOR_SAMPLE_RECORDER, "Sample recorder"},
         {STRING_FOR_RECORD_TO_SAMPLE, "Record to sample *"},

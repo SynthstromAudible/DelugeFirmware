@@ -208,8 +208,8 @@ deluge::storage::Walk SoundInstrument::walkSampleDemands(deluge::storage::Sample
 	return walk;
 }
 
-void SoundInstrument::resyncLFOs() {
-	resyncGlobalLFOs();
+void SoundInstrument::resyncLFOs(bool reset_state) {
+	resyncGlobalLFOs(reset_state);
 }
 
 ModControllable* SoundInstrument::toModControllable() {

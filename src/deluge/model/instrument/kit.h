@@ -107,7 +107,7 @@ public:
 
 	void beenEdited(bool shouldMoveToEmptySlot = true) override;
 	void choke();
-	void resyncLFOs() override;
+	void resyncLFOs(bool reset_state = false) override;
 	void removeDrumFromKitArpeggiator(int32_t drumIndex);
 	void removeDrum(Drum* drum);
 	ModControllable* toModControllable() override;

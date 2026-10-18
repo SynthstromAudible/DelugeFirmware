@@ -160,9 +160,11 @@ public:
 	LFO() = default;
 
 	/// Re-seat the waveform and set the phase for a fresh note (local LFOs always start at the negative
-	/// extreme) or a transport re-sync (global LFOs). Both reset the active waveform's accumulators.
+	/// extreme), resetting the waveform's accumulators.
 	void setLocalInitialPhase(const LFOConfig& config);
-	void setGlobalInitialPhase(const LFOConfig& config);
+	/// Set the phase for a transport re-sync (global LFOs). The waveform's accumulators are kept, so a
+	/// sample-and-hold keeps holding across re-syncs, unless @p reset_state (playback start / song swap).
+	void setGlobalInitialPhase(const LFOConfig& config, bool reset_state = false);
 
 	[[gnu::always_inline]] int32_t render(int32_t num_samples, const LFOConfig& config, uint32_t phase_increment) {
 		return render(num_samples, config.waveType, phase_increment);

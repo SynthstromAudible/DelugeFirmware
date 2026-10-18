@@ -16,8 +16,10 @@
  */
 #include "regular.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/menu_item/patch_cable_strength/regular.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display/display.h"
 #include "modulation/params/param_descriptor.h"
 
 namespace deluge::gui::menu_item::source_selection {
@@ -45,9 +47,22 @@ void Regular::beginSession(MenuItem* navigatedBackwardFrom) {
 	SourceSelection::beginSession(navigatedBackwardFrom);
 }
 
-MenuItem* Regular::patchingSourceShortcutPress(PatchSource newS, bool previousPressStillActive) {
+MenuItem* Regular::patchingSourceShortcutPress(PatchSource newS, [[maybe_unused]] bool previous_press_still_active) {
+	const auto previous_param = soundEditor.patchingParamSelected;
+	if (previous_param == deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND
+	    || previous_param == deluge::modulation::params::LOCAL_VOLUME) {
+		soundEditor.patchingParamSelected = deluge::modulation::params::GLOBAL_VOLUME_POST_FX;
+	}
+
+	// Validate the logical destination before rerouting it for the new source.
+	if (!sourceIsAllowed(newS)) {
+		soundEditor.patchingParamSelected = previous_param;
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+		return nullptr;
+	}
+
 	s = newS;
-	return &regularMenu;
+	return &patch_cable_strength::regularMenu;
 }
 
 } // namespace deluge::gui::menu_item::source_selection

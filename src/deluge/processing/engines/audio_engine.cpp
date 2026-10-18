@@ -801,7 +801,7 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 		// Cull anyway if things are bad
 		if (num_samples_over_limit >= 40) {
 			D_PRINTLN("under min voices but culling anyway");
-			terminateOneVoice(numSamples);
+			forceReleaseOneVoice(numSamples);
 			culled = true;
 		}
 	}
