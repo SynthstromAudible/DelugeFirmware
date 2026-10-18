@@ -25,7 +25,7 @@
 #include "support/descriptor_cases.h"
 
 #include <algorithm>
-#include <cstdio>
+#include <new>
 
 namespace {
 
@@ -48,12 +48,27 @@ struct SubmenuPeek : legacy::Submenu {
 	}
 };
 
+/// Rows whose items are compared for where they show alone: a range or read no row holds whole.
+const std::vector<Case>& applicability_cases() {
+	static const std::vector<Case> cases{
+	    // Its menu shows one value over this level and the engine's sync type, which no song row holds.
+	    {.path = "reverb/compressor/syncLevel",
+	     .family = Family::SONG,
+	     .item = &reverbSidechainSyncMenu,
+	     .where = Where::SONG},
+	};
+	return cases;
+}
+
 /// Whether @p item is a case's item or a submenu with one under it.
 bool leads_to_a_case(const ::MenuItem* item) {
 	static std::set<const ::MenuItem*> cases = [] {
 		std::set<const ::MenuItem*> out;
 		for (const Case* c : all_name_cases()) {
 			out.insert(c->item);
+		}
+		for (const Case& c : applicability_cases()) {
+			out.insert(c.item);
 		}
 		return out;
 	}();
@@ -152,6 +167,42 @@ void set_song(std::string_view path, int32_t value) {
 	deluge::edits::songSettingFor(path, Value::makeNumber(value));
 }
 
+/// A sample standing for a loaded file: legacy asks only whether a source's range holds one.
+AudioFile* fake_file() {
+	static AudioFile* file = [] {
+		// Placed in the deluge heap and never freed, as the song fixtures are.
+		return static_cast<AudioFile*>(new (deluge::memory::alloc_fast(sizeof(Sample))) Sample());
+	}();
+	return file;
+}
+/// Give source @p source of the sound @p ctx edits a loaded file.
+void load_file(const MenuContext& ctx, int32_t source) {
+	ctx.sound->sources[source].getOrCreateFirstRange()->getAudioFileHolder()->audioFile = fake_file();
+}
+/// Take every fake file off the sound @p ctx edits, before its oscillator types change again.
+void unload_files(const MenuContext& ctx) {
+	if (ctx.sound == nullptr) {
+		return;
+	}
+	for (Source& source : ctx.sound->sources) {
+		for (int32_t e = 0; e < std::ssize(source.ranges); ++e) {
+			source.ranges.getElement(e)->getAudioFileHolder()->audioFile = nullptr;
+		}
+	}
+}
+/// The descriptor context @p where stands for, with the sources that hold a file as the host reads them off the sound.
+SettingContext descriptor_context(Where where, const MenuContext& ctx) {
+	SettingContext shown = context_of(where);
+	if (ctx.sound != nullptr) {
+		for (int32_t i = 0; i < static_cast<int32_t>(deluge::engine::kMaxSoundSources); ++i) {
+			if (ctx.sound->sources[i].hasAtLeastOneAudioFileLoaded()) {
+				shown.loaded_sources |= static_cast<uint8_t>(1 << i);
+			}
+		}
+	}
+	return shown;
+}
+
 const std::vector<Fixture>& fixtures() {
 	static const std::vector<Fixture> all{
 	    {"a subtractive synth", Where::SYNTH, kSoundFamilies, [](const MenuContext& c) { plain_sound(c); }},
@@ -213,7 +264,47 @@ const std::vector<Fixture>& fixtures() {
 		     osc_types(c, OscType::WAVETABLE, OscType::WAVETABLE);
 		     set_word(*c.sound, "mode", "fm");
 	     }},
+	    {"a synth playing loaded samples", Where::SYNTH, kSoundFamilies,
+	     [](const MenuContext& c) {
+		     plain_sound(c);
+		     osc_types(c, OscType::SAMPLE, OscType::SAMPLE);
+		     load_file(c, 0);
+		     load_file(c, 1);
+	     }},
+	    {"a synth playing a loaded wavetable and a sample with no file", Where::SYNTH, kSoundFamilies,
+	     [](const MenuContext& c) {
+		     plain_sound(c);
+		     osc_types(c, OscType::WAVETABLE, OscType::SAMPLE);
+		     load_file(c, 0);
+	     }},
+	    {"a synth with a loaded file on a square oscillator", Where::SYNTH, kSoundFamilies,
+	     [](const MenuContext& c) {
+		     plain_sound(c);
+		     osc_types(c, OscType::SAMPLE, OscType::WAVETABLE);
+		     load_file(c, 0);
+		     osc_types(c, OscType::SQUARE, OscType::WAVETABLE);
+	     }},
+	    {"an FM synth whose oscillators hold a loaded wavetable and an empty one", Where::SYNTH, kSoundFamilies,
+	     [](const MenuContext& c) {
+		     plain_sound(c);
+		     osc_types(c, OscType::WAVETABLE, OscType::WAVETABLE);
+		     load_file(c, 1);
+		     set_word(*c.sound, "mode", "fm");
+	     }},
+	    {"an FM synth whose first oscillator holds a loaded sample", Where::SYNTH, kSoundFamilies,
+	     [](const MenuContext& c) {
+		     plain_sound(c);
+		     osc_types(c, OscType::SAMPLE, OscType::SQUARE);
+		     load_file(c, 0);
+		     set_word(*c.sound, "mode", "fm");
+	     }},
 	    {"a kit's sound row", Where::KIT_LANE, kLaneFamilies, [](const MenuContext& c) { plain_sound(c); }},
+	    {"a kit's sound row playing a loaded sample", Where::KIT_LANE, kLaneFamilies,
+	     [](const MenuContext& c) {
+		     plain_sound(c);
+		     osc_types(c, OscType::SAMPLE, OscType::SQUARE);
+		     load_file(c, 0);
+	     }},
 	    {"a kit's sound row in FM", Where::KIT_LANE, kLaneFamilies,
 	     [](const MenuContext& c) {
 		     plain_sound(c);
@@ -266,6 +357,11 @@ const std::vector<Fixture>& fixtures() {
 		     set_song("reverb/model", 1);
 		     set_song("reverb/compressor/volume", 0);
 	     }},
+	    {"the song with its reverb ducking automatic, as the menu writes it", Where::SONG, kSongFamilies,
+	     [](const MenuContext&) {
+		     set_song("reverb/model", 1);
+		     set_song("reverb/compressor/volume", -21474836);
+	     }},
 	    {"the song with the digital reverb", Where::SONG, kSongFamilies,
 	     [](const MenuContext&) {
 		     set_song("reverb/model", 2);
@@ -275,51 +371,14 @@ const std::vector<Fixture>& fixtures() {
 	return all;
 }
 
-/// A row whose menu's relevance is not written as conditions, with legacy's rule and why. Where legacy and the
-/// descriptor disagree on one, the spec names it rather than fails.
-struct Stopped {
-	Family family;
-	std::string_view path;
-	std::string_view rule;
-};
-
-constexpr Stopped kStopped[] = {
-    {Family::INSTRUMENT, "osc1/transpose",
-     "sample::Transpose: a sample or wavetable source shows it only with a file loaded, any other always: (type not "
-     "SAMPLE or WAVETABLE) OR loaded, an OR across a setting and a fact"},
-    {Family::INSTRUMENT, "osc2/transpose", "as osc1/transpose"},
-    {Family::INSTRUMENT, "osc1/retrigPhase",
-     "osc::RetriggerPhase: a WAVETABLE source shows it only with a file loaded, else (type != SAMPLE || FM): ORs "
-     "across the type, the mode and a fact"},
-    {Family::INSTRUMENT, "osc2/retrigPhase", "as osc1/retrigPhase"},
-    {Family::INSTRUMENT, "osc1/linearInterpolation",
-     "sample::Interpolation: SUBTRACTIVE && ((SAMPLE && loaded) || an INPUT type): an OR across a setting and a fact"},
-    {Family::INSTRUMENT, "osc2/linearInterpolation", "as osc1/linearInterpolation"},
-    {Family::INSTRUMENT, "modulator1/retrigPhase",
-     "osc::RetriggerPhase(for_modulator): FM && (the oscillator's type != WAVETABLE || loaded): an OR across a "
-     "setting and a fact"},
-    {Family::INSTRUMENT, "modulator2/retrigPhase", "as modulator1/retrigPhase"},
-    {Family::EFFECT, "stutter/quantized",
-     "stutter::QuantizedStutter: isSong() || !use_song_stutter, an OR across the owner and a setting"},
-    {Family::SONG, "reverb/compressor/attack",
-     "sidechain::Attack(reverb): AudioEngine::reverbSidechainVolume >= 0, a comparison, not a set"},
-    {Family::SONG, "reverb/compressor/release", "as reverb/compressor/attack (sidechain::Release)"},
-    {Family::SONG, "reverb/compressor/shape", "reverb::sidechain::Shape: reverbSidechainVolume >= 0, a comparison"},
-};
-
-const Stopped* stopped(Family family, std::string_view path) {
-	for (const Stopped& row : kStopped) {
-		if (row.family == family && row.path == path) {
-			return &row;
-		}
-	}
-	return nullptr;
-}
-
 /// The legacy items that show @p family's row @p path, from the cases.
 std::vector<const ::MenuItem*> items_for(Family family, std::string_view path) {
 	std::vector<const ::MenuItem*> out;
-	for (const Case* c : all_name_cases()) {
+	std::vector<const Case*> cases = all_name_cases();
+	for (const Case& c : applicability_cases()) {
+		cases.push_back(&c);
+	}
+	for (const Case* c : cases) {
 		if (c->family == family && c->path == path) {
 			out.push_back(c->item);
 		}
@@ -411,7 +470,6 @@ describe descriptor_legacy_applicability("Where each row's menu shows, against l
 	it("shows each row exactly where legacy shows one of its items, in every fixture", _ {
 		AudioEngine::micPluggedIn = false;
 		AudioEngine::lineInPluggedIn = false;
-		std::set<std::string> excused;
 		for (const Fixture& fixture : fixtures()) {
 			enter(fixture.where);
 			fixture.setup(settle(fixture.where));
@@ -421,7 +479,7 @@ describe descriptor_legacy_applicability("Where each row's menu shows, against l
 			if (std::ranges::find(fixture.families, Family::NOTE_ROW) != fixture.families.end()) {
 				walk(&noteRowEditorRootMenu, 0, shown);
 			}
-			const SettingContext descriptor_ctx = context_of(fixture.where);
+			const SettingContext descriptor_ctx = descriptor_context(fixture.where, ctx);
 			for (Family family : fixture.families) {
 				const SpecReader owner{ctx, fixture.where, family};
 				for (const SettingInfo& row : table_of(family)) {
@@ -431,18 +489,12 @@ describe descriptor_legacy_applicability("Where each row's menu shows, against l
 					}
 					const bool legacy = std::ranges::any_of(items, [&](const ::MenuItem* item) { return shown.contains(item); });
 					const bool applies = deluge::engine::setting_applies(row, descriptor_ctx, owner.reader());
-					if (legacy != applies && stopped(family, row.path) != nullptr) {
-						excused.insert(verdict(fixture.name, row.path, applies));
-						continue;
-					}
 					expect(verdict(fixture.name, row.path, applies)).to_equal(verdict(fixture.name, row.path, legacy));
 				}
 				expect(std::string{fixture.name} + " reads " + (owner.unknown.empty() ? "" : owner.unknown.front()))
 				    .to_equal(std::string{fixture.name} + " reads ");
 			}
-		}
-		for (const std::string& line : excused) {
-			std::fputs(("APPLICABILITY-STOPPED " + line + "\n").c_str(), stdout);
+			unload_files(ctx);
 		}
 	});
 	it("shows a partner row exactly where its row shows, in every fixture", _ {
@@ -450,7 +502,7 @@ describe descriptor_legacy_applicability("Where each row's menu shows, against l
 			enter(fixture.where);
 			fixture.setup(settle(fixture.where));
 			const MenuContext& ctx = settle(fixture.where);
-			const SettingContext descriptor_ctx = context_of(fixture.where);
+			const SettingContext descriptor_ctx = descriptor_context(fixture.where, ctx);
 			for (Family family : fixture.families) {
 				const SpecReader owner{ctx, fixture.where, family};
 				for (const SettingInfo& row : table_of(family)) {
@@ -464,11 +516,7 @@ describe descriptor_legacy_applicability("Where each row's menu shows, against l
 					    .to_equal(verdict(fixture.name, partner->path, applies));
 				}
 			}
-		}
-	});
-	it("names each stopped row's legacy rule", _ {
-		for (const Stopped& row : kStopped) {
-			expect(row.rule.empty()).to_be_false();
+			unload_files(ctx);
 		}
 	});
 	it("offers no DX7 to the whole kit's sounds", _ {

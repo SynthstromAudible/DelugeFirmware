@@ -98,18 +98,26 @@ constexpr std::string_view kSongFixedPaths[] = {"reverb/roomSize",
 
 constexpr std::string_view kDisabledPrefix = "scales/disabled/";
 
-/// The reverb sidechain's attack and release menus: a step of the sidechain's rate table, the stored rate the entry
-/// shifted.
-constexpr engine::SettingDescriptorExtras kSidechainAttackExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table = engine::kSidechainAttackRates, .table_shift = 2}};
-constexpr engine::SettingDescriptorExtras kSidechainReleaseExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table = engine::kSidechainReleaseRates, .table_shift = 3}};
 /// The reverb models with filters of their own: mutable and digital.
 constexpr std::array<int32_t, 2> kFilteredReverbModels{std::to_underlying(ReverbModel::MUTABLE),
                                                        std::to_underlying(ReverbModel::DIGITAL)};
 constexpr std::array kReverbHasFilters{engine::setting_is("reverb/model", kFilteredReverbModels)};
 constexpr engine::SettingDescriptorExtras kReverbFilterExtras{
     .mapping = {.kind = engine::DisplayMappingKind::FLOAT_FRACTION}, .applies_when = kReverbHasFilters};
+/// The reverb sidechain's menus show while it ducks at a set volume: a negative volume is automatic (the menu's -1
+/// stores -21474836, a song's default another negative). Its attack and release menus are a step of the sidechain's
+/// rate table, the stored rate the entry shifted.
+constexpr std::array<int32_t, 1> kSetVolume{0};
+constexpr std::array kReverbDucksAtSetVolume{engine::setting_at_least("reverb/compressor/volume", kSetVolume)};
+constexpr engine::SettingDescriptorExtras kReverbSidechainAttackExtras{
+    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table = engine::kSidechainAttackRates, .table_shift = 2},
+    .applies_when = kReverbDucksAtSetVolume};
+constexpr engine::SettingDescriptorExtras kReverbSidechainReleaseExtras{
+    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table = engine::kSidechainReleaseRates, .table_shift = 3},
+    .applies_when = kReverbDucksAtSetVolume};
+constexpr engine::SettingDescriptorExtras kReverbSidechainShapeExtras{
+    .mapping = {.kind = engine::DisplayMappingKind::STANDARD}, .applies_when = kReverbDucksAtSetVolume};
+constexpr engine::SettingDescriptorExtras kReverbSidechainSyncExtras{.applies_when = kReverbDucksAtSetVolume};
 /// The reverb's pan menu, −25..25.
 constexpr engine::SettingDescriptorExtras kPanExtras{.mapping = {.kind = engine::DisplayMappingKind::PAN}};
 
@@ -142,17 +150,18 @@ std::span<const SettingInfo> song_table() {
 		                .kind = SettingKind::INTEGER,
 		                .min = 0,
 		                .max = INT32_MAX,
-		                .extras = &kSidechainAttackExtras},
+		                .extras = &kReverbSidechainAttackExtras},
 		    SettingInfo{.path = "reverb/compressor/release",
 		                .kind = SettingKind::INTEGER,
 		                .min = 0,
 		                .max = INT32_MAX,
-		                .extras = &kSidechainReleaseExtras},
+		                .extras = &kReverbSidechainReleaseExtras},
 		    // The volume (with -1 = automatic) truncates onto its menu; its menu keeps that mapping.
 		    integer("reverb/compressor/volume", INT32_MIN, INT32_MAX),
 		    integer("reverb/compressor/shape", INT32_MIN, INT32_MAX, -601295438, {}, SettingUnits::NONE,
-		            &kStandardExtras),
-		    integer("reverb/compressor/syncLevel", 0, engine::kMaxSyncLevel, 0, {}, SettingUnits::SYNC_LEVEL),
+		            &kReverbSidechainShapeExtras),
+		    integer("reverb/compressor/syncLevel", 0, engine::kMaxSyncLevel, 0, {}, SettingUnits::SYNC_LEVEL,
+		            &kReverbSidechainSyncExtras),
 		    integer("swingInterval", 0, engine::kMaxSyncLevel, 0, {}, SettingUnits::SYNC_LEVEL),
 		    // A clip's durable id; -1 = none.
 		    integer("syncScalingClip", -1, INT32_MAX, -1),

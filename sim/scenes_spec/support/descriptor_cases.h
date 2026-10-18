@@ -14,6 +14,7 @@
 #include "deluge-project/setting_group.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
+#include "memory/heaps.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/gate_drum.h"
@@ -24,6 +25,7 @@
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/setting_projection.h"
+#include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "processing/engines/audio_engine.h"
@@ -414,6 +416,7 @@ extern legacy::bend_range::Main mainBendRangeMenu;
 extern legacy::bend_range::PerFinger perFingerBendRangeMenu;
 extern legacy::bend_range::PerFinger drumBendRangeMenu;
 extern legacy::sidechain::Release reverbSidechainReleaseMenu;
+extern legacy::sidechain::Sync reverbSidechainSyncMenu;
 /// @}
 
 /// @name The legacy root menus `SoundEditor::setup` opens, and the note-row editor's.
