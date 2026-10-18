@@ -24,8 +24,10 @@
 #include "gui/l10n/strings.h"
 
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string_view>
+#include <utility>
 
 namespace deluge::l10n {
 
@@ -47,13 +49,35 @@ struct SettingNames {
 
 /// @brief Whose table a setting row is in: an engine's, or one of the model's setting groups. Two owners can have a
 /// row of one path (the audio clip's and the instrument's `transpose`) that a menu shows differently.
-struct NamesOwner {
-	engine::EngineId engine{};                                    ///< the engine, or empty for a model group
-	project::SettingGroupId group{project::SettingGroupId::SONG}; ///< the group, where @c engine is empty
+class NamesOwner {
+public:
+	/// @brief How many indices the owners take: one per setting group, then the engines with names, then any other
+	/// engine.
+	static constexpr uint8_t kCount = std::to_underlying(project::SettingGroupId::LANE_ARP) + 4;
 
-	constexpr NamesOwner(engine::EngineId owner) : engine(owner) {}
-	constexpr NamesOwner(project::SettingGroupId owner) : group(owner) {}
+	constexpr NamesOwner(engine::EngineId owner)
+	    : index_{owner == engine::kDelugeInstrument   ? kDelugeInstrumentIndex
+	             : owner == engine::kGlobalEffectable ? kGlobalEffectableIndex
+	                                                  : kOtherEngineIndex} {}
+	constexpr NamesOwner(project::SettingGroupId owner) : index_{std::to_underlying(owner)} {}
+
+	/// @brief The owner as a byte: a setting group's value, then the Deluge instrument, the global effectable and any
+	/// other engine, below kCount.
+	[[nodiscard]] constexpr uint8_t index() const { return index_; }
+	/// @brief The setting group, or nullopt for an engine.
+	[[nodiscard]] constexpr std::optional<project::SettingGroupId> group() const {
+		return index_ < kDelugeInstrumentIndex ? std::optional{static_cast<project::SettingGroupId>(index_)}
+		                                       : std::nullopt;
+	}
 	[[nodiscard]] constexpr bool operator==(const NamesOwner&) const = default;
+
+private:
+	static constexpr uint8_t kDelugeInstrumentIndex = std::to_underlying(project::SettingGroupId::LANE_ARP) + 1;
+	static constexpr uint8_t kGlobalEffectableIndex = kDelugeInstrumentIndex + 1;
+	static constexpr uint8_t kOtherEngineIndex = kGlobalEffectableIndex + 1;
+	static_assert(kOtherEngineIndex + 1 == kCount);
+
+	uint8_t index_;
 };
 
 /// @brief The names of setting @p path of @p owner's table, as the menu shows the row.

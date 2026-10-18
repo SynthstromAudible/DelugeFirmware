@@ -265,8 +265,8 @@ describe setting_names_spec_body("The host's name table", $ {
 		for (const OwnedTable& table : owned_tables()) {
 			for (const SettingInfo& row : table.rows) {
 				const bool shown = covered(table.owner, row.path);
-				const bool group = table.owner.engine.name.empty();
-				const bool excused = skipped(row.path) || (group && no_menu(table.owner.group, row.path));
+				const std::optional<SettingGroupId> group = table.owner.group();
+				const bool excused = skipped(row.path) || (group && no_menu(*group, row.path));
 				const std::string at = std::string{table.label} + " " + std::string{row.path};
 				expect(at + (setting_names(table.owner, row.path) != nullptr ? " named" : " unnamed"))
 				    .to_equal(at + (shown ? " named" : (excused ? " unnamed" : " unlisted")));
