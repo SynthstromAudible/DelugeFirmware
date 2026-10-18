@@ -60,8 +60,14 @@ struct UserScale {
 enum class SettingUnits : uint8_t { NONE, SEMITONES, CENTS, MILLISECONDS, SYNC_LEVEL };
 
 /// @brief Who a setting is shown for: the facts about the owner that no setting of it holds.
+///
+/// Owner and Instrument overlap but say different things: Owner is the scope a menu edits (one kit lane, the whole
+/// kit, a clip, the song), Instrument what plays the notes there. A condition that turns on what plays the notes uses
+/// INSTRUMENT, so it holds whichever scope a host passes; one that turns on the scope uses OWNER. Each setting group
+/// says which of each its host passes (deluge::project::SettingGroupId).
 struct SettingContext {
-	/// @brief What holds the setting.
+	/// @brief The menu's editing scope: a track (a synth's sound, a track's own settings), one kit lane, the whole kit
+	/// (its own effects), a clip (its values and arp, the whole kit's arp included) or the song.
 	enum class Owner : uint8_t { TRACK, KIT_LANE, KIT, CLIP, SONG };
 	/// @brief What plays the owner's notes: its track's instrument, or on a kit lane, the lane's drum. NONE for the
 	/// song.
@@ -95,8 +101,21 @@ struct SettingCondition {
 /// @brief The values inputs_are tests against.
 inline constexpr std::array<int32_t, 1> kInputsPresentValue{1};
 inline constexpr std::array<int32_t, 1> kInputsAbsentValue{0};
-/// @brief The loaded_sources masks in which source 0 (first row) or source 1 (second row) holds a loaded file.
-inline constexpr std::array<std::array<int32_t, 2>, kMaxSoundSources> kSourceLoadedMasks{{{1, 3}, {2, 3}}};
+/// @brief For each source (row i), the loaded_sources masks in which it holds a loaded file: every mask of
+/// kMaxSoundSources bits with bit i set.
+inline constexpr auto kSourceLoadedMasks = [] {
+	constexpr std::size_t kMasks = std::size_t{1} << kMaxSoundSources;
+	std::array<std::array<int32_t, kMasks / 2>, kMaxSoundSources> masks{};
+	for (std::size_t source = 0; source < kMaxSoundSources; ++source) {
+		std::size_t n = 0;
+		for (std::size_t mask = 0; mask < kMasks; ++mask) {
+			if ((mask & (std::size_t{1} << source)) != 0) {
+				masks[source][n++] = static_cast<int32_t>(mask);
+			}
+		}
+	}
+	return masks;
+}();
 
 /// @brief A condition that holds when the owner's setting @p path stores one of @p values.
 [[nodiscard]] constexpr SettingCondition setting_is(std::string_view path, std::span<const int32_t> values) {
@@ -425,8 +444,7 @@ inline constexpr DisplayMapping kLinearMapping{};
 
 /// @brief Whether every condition of every row in @p rows is well formed (condition_is_valid), its applies_any
 /// alternatives included (none of them empty), every choice entry names a choice of its row, and no choice is listed
-/// twice; for a static_assert per table, so a misspelt path or an
-/// out-of-range value fails to compile.
+/// twice; for a static_assert per table, so a misspelt path or an out-of-range value fails to compile.
 /// @param rows The table.
 /// @return True when all hold.
 [[nodiscard]] constexpr bool conditions_are_valid(std::span<const SettingInfo> rows) {

@@ -122,9 +122,14 @@ constexpr std::array kOscTypeExtras{
     engine::SettingDescriptorExtras{.applies_when = kNotFm, .choice_when = kOsc1TypeWhen},
     engine::SettingDescriptorExtras{.applies_when = kNotFm, .choice_when = kOsc2TypeWhen}};
 
-/// The oscillator types ring mod can ring: the waveforms and the wavetable.
-constexpr std::array<int32_t, 7> kRingableTypes{0, 1, 2, 3, 4, 5, std::to_underlying(OscType::WAVETABLE)};
-static_assert(std::to_underlying(OscType::WAVETABLE) == 6);
+/// The oscillator types ring mod can ring, as allows_setting has them: every type up to the wavetable.
+constexpr auto kRingableTypes = [] {
+	std::array<int32_t, std::to_underlying(OscType::WAVETABLE) + 1> types{};
+	for (std::size_t i = 0; i < types.size(); ++i) {
+		types[i] = static_cast<int32_t>(i);
+	}
+	return types;
+}();
 /// The synth mode menu shows only while ring mod could be chosen: neither oscillator past a wavetable.
 constexpr std::array kModeConditions{engine::setting_is("osc1/type", kRingableTypes),
                                      engine::setting_is("osc2/type", kRingableTypes)};

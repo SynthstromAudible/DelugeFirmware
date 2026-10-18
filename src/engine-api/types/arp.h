@@ -106,8 +106,6 @@ using Instrument = SettingContext::Instrument;
 using Owner = SettingContext::Owner;
 
 inline constexpr std::array<int32_t, 1> kKitLaneOwner{static_cast<int32_t>(Owner::KIT_LANE)};
-/// The whole kit's arp: its menu has no MPE, octave or chord rows.
-inline constexpr std::array<int32_t, 1> kWholeKitOwner{static_cast<int32_t>(Owner::KIT)};
 /// A gate row plays a gate, with no pitch, octave or velocity to arpeggiate.
 inline constexpr std::array<int32_t, 1> kGateDrum{static_cast<int32_t>(Instrument::GATE_DRUM)};
 /// What plays an arp with no sound: a MIDI or CV track, or a MIDI or gate kit row.
@@ -138,8 +136,11 @@ inline constexpr std::array kNoteModeWhen{
 
 /// A row a gate row's arp has no use for.
 inline constexpr std::array kNotOnGate{instrument_is_not(kGateDrum)};
+/// What plays a gate row's arp, or the whole kit's (its MPE, octave and chord rows are not the kit's).
+inline constexpr std::array<int32_t, 2> kGateDrumOrWholeKit{static_cast<int32_t>(Instrument::GATE_DRUM),
+                                                            static_cast<int32_t>(Instrument::KIT)};
 /// A row neither a gate row's arp nor the whole kit's offers.
-inline constexpr std::array kNotOnGateOrWholeKit{instrument_is_not(kGateDrum), owner_is_not(kWholeKitOwner)};
+inline constexpr std::array kNotOnGateOrWholeKit{instrument_is_not(kGateDrumOrWholeKit)};
 /// A kit row's own arp row: off a gate row.
 inline constexpr std::array kOnPitchedKitLane{owner_is(kKitLaneOwner), instrument_is_not(kGateDrum)};
 inline constexpr std::array kOnKitLane{owner_is(kKitLaneOwner)};
@@ -181,7 +182,9 @@ constexpr SettingInfo host(std::string_view path, int32_t default_value = 0,
 	return row;
 }
 
-inline constexpr std::array kSettingRows{
+/// Every row: the setting rows, then from kSettingRowCount the host rows. The one copy kArpSettingRows,
+/// kArpHostRows and kArpRows view.
+inline constexpr std::array kRows{
     choice("arpeggiator/arpMode", kArpModeWords),
     choice("arpeggiator/octaveMode", kArpOctaveModeWords, 0, &kNotOnGateOrWholeKitExtras),
     choice("arpeggiator/noteMode", kArpNoteModeWords, 0, &kNoteModeExtras),
@@ -200,9 +203,7 @@ inline constexpr std::array kSettingRows{
     SettingInfo{.path = "arpeggiator/kitArp", .kind = SettingKind::BOOL, .default_value = 1, .extras = &kKitArpExtras},
     // A command: writing one writes the mode, octave mode and note mode it stands for; reading derives it from them.
     choice("arpeggiator/preset", kArpPresetWords),
-};
-
-inline constexpr std::array kHostRows{
+    // The host rows.
     host("arpeggiator/gate", 0, &kStandardExtras),
     host("arpeggiator/rate", 0, &kStandardExtras),
     host("arpeggiator/rhythm"),
@@ -221,27 +222,25 @@ inline constexpr std::array kHostRows{
     host("arpeggiator/spreadOctave", 0, &kUnsignedPitchedArpOnExtras),
 };
 
-/// The setting rows, then the host rows: the table a host row's conditions are read against.
-inline constexpr auto kAllRows = [] {
-	std::array<SettingInfo, kSettingRows.size() + kHostRows.size()> all{};
-	std::ranges::copy(kSettingRows, all.begin());
-	std::ranges::copy(kHostRows, all.begin() + kSettingRows.size());
-	return all;
-}();
+/// How many of kRows are setting rows: those before the first host row.
+inline constexpr std::size_t kSettingRowCount = static_cast<std::size_t>(
+    std::ranges::find(kRows, std::string_view{"arpeggiator/gate"}, &SettingInfo::path) - kRows.begin());
+static_assert(kSettingRowCount < kRows.size() && kRows[kSettingRowCount - 1].path == "arpeggiator/preset");
 
 } // namespace arp_detail
 
 /// @brief The settings every arp has.
-inline constexpr std::span<const SettingInfo> kArpSettingRows{arp_detail::kSettingRows};
+/// @brief An arp's every row: kArpSettingRows, then kArpHostRows.
+inline constexpr std::span<const SettingInfo> kArpRows{arp_detail::kRows};
+static_assert(conditions_are_valid(kArpRows));
+
+/// @brief The settings every arp has.
+inline constexpr std::span<const SettingInfo> kArpSettingRows = kArpRows.first(arp_detail::kSettingRowCount);
 static_assert(conditions_are_valid(kArpSettingRows));
 
 /// @brief The values that are settings only where nothing automates them: a MIDI or CV clip's arp and a MIDI or gate
 /// kit row's. Elsewhere they are params. Their conditions read the arp's setting rows (kArpRows).
-inline constexpr std::span<const SettingInfo> kArpHostRows{arp_detail::kHostRows};
-
-/// @brief An arp's every row: kArpSettingRows, then kArpHostRows.
-inline constexpr std::span<const SettingInfo> kArpRows{arp_detail::kAllRows};
-static_assert(conditions_are_valid(kArpRows));
+inline constexpr std::span<const SettingInfo> kArpHostRows = kArpRows.subspan(arp_detail::kSettingRowCount);
 
 /// @brief What a preset sets: the mode, and for every preset but off, the octave and note modes.
 struct ArpPresetFields {
