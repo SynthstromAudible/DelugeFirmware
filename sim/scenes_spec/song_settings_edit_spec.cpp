@@ -708,7 +708,7 @@ describe song_settings_edit("SetSetting", $ {
 		}
 	});
 
-	it("stores the audio clip attack menu's value as the standard conversion, and a stored 25 survives a save", _ {
+	it("stores the audio clip attack menu's value as the standard conversion, and the audio clip record's codec round-trips a stored 25", _ {
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		const auto clip = deluge::bridge::audioClipAddressOf(*f.clip, *f.song);
 		expect(clip.has_value()).to_be_true();
@@ -723,7 +723,7 @@ describe song_settings_edit("SetSetting", $ {
 		deluge::scenes::menu::nodes::set_audio_clip_attack(ctx, 50);
 		expect(recorded(*f.song, address, "attack")).to_equal(std::string{"2147483647"});
 
-		// A DocAudioClip decode/encode round trip of a stored 25: the record loads and saves it unchanged.
+		// The record's codec alone, with no song load: a stored 25 decodes and encodes unchanged.
 		deluge::project::DocAudioClip saved;
 		saved.attack = 25;
 		deluge::project::DocAudioClip loaded;
