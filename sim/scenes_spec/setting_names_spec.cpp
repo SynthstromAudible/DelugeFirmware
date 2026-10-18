@@ -141,7 +141,7 @@ void check_names(auto& self, const Case& c) {
 	const std::vector<std::string> full = options_of(c.item, legacy::Selection::OptType::FULL);
 	const std::vector<std::string> shortened = options_of(c.item, legacy::Selection::OptType::SHORT);
 	for (const NamesOwner& owner : owners_of(c.family)) {
-		const SettingNames* names = setting_names(owner, c.path, context_of(c.where));
+		const SettingNames* names = setting_names(owner, c.path, context_of(c.where, c.family));
 		expect(std::string{c.path} + (names != nullptr ? " has names" : " has no names"))
 		    .to_equal(std::string{c.path} + " has names");
 		if (names == nullptr) {
@@ -157,7 +157,8 @@ void check_names(auto& self, const Case& c) {
 			continue;
 		}
 		// A CHOICE row's list is its applicable choices in order; any other row's is its menu values.
-		std::vector<int32_t> choices = applicable(row, context_of(c.where), enter(c.where, c.source), c.where);
+		std::vector<int32_t> choices =
+		    applicable(row, context_of(c.where, c.family), enter(c.where, c.source), c.where);
 		if (row.kind != SettingKind::CHOICE || named_only(c)) {
 			choices.clear();
 			for (size_t i = 0; i < full.size(); ++i) {

@@ -131,8 +131,6 @@ struct Fixture {
 	Where where;
 	std::vector<Family> families;
 	void (*setup)(const MenuContext& ctx) = nullptr;
-	/// The scope the host passes, where it is not the one `context_of` gives the rig.
-	std::optional<SettingContext::Owner> owner{};
 };
 
 void set_word(Sound& sound, std::string_view path, std::string_view word) {
@@ -203,11 +201,8 @@ void unload_files(const MenuContext& ctx) {
 	}
 }
 /// The descriptor context @p where stands for, with the sources that hold a file as the host reads them off the sound.
-SettingContext descriptor_context(const Fixture& fixture, const MenuContext& ctx) {
-	SettingContext shown = context_of(fixture.where);
-	if (fixture.owner) {
-		shown.owner = *fixture.owner;
-	}
+SettingContext descriptor_context(const Fixture& fixture, const MenuContext& ctx, Family family) {
+	SettingContext shown = context_of(fixture.where, family);
 	if (ctx.sound != nullptr) {
 		for (int32_t i = 0; i < static_cast<int32_t>(deluge::engine::kMaxSoundSources); ++i) {
 			if (ctx.sound->sources[i].hasAtLeastOneAudioFileLoaded()) {
@@ -359,17 +354,11 @@ const std::vector<Fixture>& fixtures() {
 		     plain_kit(c, "off");
 		     set_song_stutter(c, false);
 	     }},
-	    // The whole kit's arp is its clip's (CLIP_ARP): a host may pass the clip as its scope.
-	    {"the whole kit's arp, as its clip's",
-	     Where::KIT,
-	     {Family::ARP, Family::ARP_HOST},
-	     [](const MenuContext& c) { plain_kit(c, "arp"); },
-	     Owner::CLIP},
-	    {"the whole kit's arp off, as its clip's",
-	     Where::KIT,
-	     {Family::ARP, Family::ARP_HOST},
-	     [](const MenuContext& c) { plain_kit(c, "off"); },
-	     Owner::CLIP},
+	    // Legacy reads the selected row's kind on the whole kit; the descriptor reads the kit's.
+	    {"the whole kit with a gate row selected", Where::KIT_GATE_ROW, kWholeKitFamilies,
+	     [](const MenuContext& c) { plain_kit(c, "off"); }},
+	    {"the whole kit with a gate row selected and its arp on", Where::KIT_GATE_ROW, kWholeKitFamilies,
+	     [](const MenuContext& c) { plain_kit(c, "arp"); }},
 	    {"a MIDI track", Where::MIDI_CLIP, kNonAudioTrackFamilies,
 	     [](const MenuContext& c) {
 		     set_arp(c, "off");
@@ -466,8 +455,8 @@ describe descriptor_legacy_voice("The voice rows' descriptors against legacy's i
 	});
 	it("offers choke on a kit lane alone", _ {
 		const SettingInfo& row = *deluge::engine::find_setting(deluge::instrument::kSettings, "polyphonic");
-		expect(applicable(row, Where::SYNTH).size()).to_equal(4u);
-		expect(applicable(row, Where::KIT_LANE).size()).to_equal(5u);
+		expect(applicable(row, Where::SYNTH, Family::INSTRUMENT).size()).to_equal(4u);
+		expect(applicable(row, Where::KIT_LANE, Family::INSTRUMENT).size()).to_equal(5u);
 	});
 });
 
@@ -484,13 +473,15 @@ describe descriptor_legacy_oscillators("The oscillator rows' descriptors against
 	});
 	it("drops the sample and inputs under ring mod, and DX7 off a track's first oscillator", _ {
 		const SettingInfo& row = *deluge::engine::find_setting(deluge::instrument::kSettings, "osc1/type");
-		expect(list_of(applicable(row, Where::SYNTH_RINGMOD))).to_equal(std::string{"0,1,2,3,4,5,6,"});
-		expect(list_of(applicable(row, Where::SYNTH))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,"});
+		expect(list_of(applicable(row, Where::SYNTH_RINGMOD, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,"});
+		expect(list_of(applicable(row, Where::SYNTH, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,"});
 		const SettingInfo& second = *deluge::engine::find_setting(deluge::instrument::kSettings, "osc2/type");
-		expect(list_of(applicable(second, Where::SYNTH))).to_equal(std::string{"0,1,2,3,4,5,6,7,9,"});
-		expect(list_of(applicable(row, Where::KIT_LANE))).to_equal(std::string{"0,1,2,3,4,5,6,7,9,"});
+		expect(list_of(applicable(second, Where::SYNTH, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,9,"});
+		expect(list_of(applicable(row, Where::KIT_LANE, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,9,"});
 		const MenuContext& ctx = enter(Where::SYNTH);
-		expect(list_of(applicable(row, SettingContext{.audio_inputs_present = true}, ctx, Where::SYNTH)))
+		SettingContext plugged = context_of(Where::SYNTH, Family::INSTRUMENT);
+		plugged.audio_inputs_present = true;
+		expect(list_of(applicable(row, plugged, ctx, Where::SYNTH)))
 		    .to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,10,11,"});
 	});
 });
@@ -522,8 +513,8 @@ describe descriptor_legacy_arp("The arp rows' descriptors against legacy's items
 	});
 	it("offers the as-played and pattern note modes off a kit lane alone", _ {
 		const SettingInfo& row = *deluge::engine::find_setting(deluge::engine::kArpSettingRows, "arpeggiator/noteMode");
-		expect(applicable(row, Where::SYNTH).size()).to_equal(9u);
-		expect(applicable(row, Where::KIT_LANE).size()).to_equal(7u);
+		expect(applicable(row, Where::SYNTH, Family::ARP).size()).to_equal(9u);
+		expect(applicable(row, Where::KIT_LANE, Family::ARP).size()).to_equal(7u);
 	});
 });
 
@@ -544,6 +535,7 @@ describe descriptor_legacy_applicability("Where each row's menu shows, against l
 	it("shows each row exactly where legacy shows one of its items, in every fixture", _ {
 		AudioEngine::micPluggedIn = false;
 		AudioEngine::lineInPluggedIn = false;
+		std::set<const AppliesException*> reached;
 		for (const Fixture& fixture : fixtures()) {
 			enter(fixture.where);
 			fixture.setup(settle(fixture.where));
@@ -553,8 +545,8 @@ describe descriptor_legacy_applicability("Where each row's menu shows, against l
 			if (std::ranges::find(fixture.families, Family::NOTE_ROW) != fixture.families.end()) {
 				walk(&noteRowEditorRootMenu, 0, shown);
 			}
-			const SettingContext descriptor_ctx = descriptor_context(fixture, ctx);
 			for (Family family : fixture.families) {
+				const SettingContext descriptor_ctx = descriptor_context(fixture, ctx, family);
 				const SpecReader owner{ctx, fixture.where, family};
 				for (const SettingInfo& row : table_of(family)) {
 					const std::vector<const ::MenuItem*> items = items_for(family, row.path);
@@ -572,6 +564,13 @@ describe descriptor_legacy_applicability("Where each row's menu shows, against l
 					}
 					const bool legacy = std::ranges::any_of(items, [&](const ::MenuItem* item) { return shown.contains(item); });
 					const bool applies = deluge::engine::setting_applies(row, descriptor_ctx, owner.reader());
+					if (const AppliesException* known = applies_exception(family, fixture.name, row.path)) {
+						// A named difference: legacy's verdict is the one named and the row's is the opposite.
+						reached.insert(known);
+						expect(verdict(fixture.name, row.path, legacy)).to_equal(verdict(fixture.name, row.path, known->legacy_shows));
+						expect(verdict(fixture.name, row.path, applies)).to_equal(verdict(fixture.name, row.path, !known->legacy_shows));
+						continue;
+					}
 					expect(verdict(fixture.name, row.path, applies)).to_equal(verdict(fixture.name, row.path, legacy));
 				}
 				expect(std::string{fixture.name} + " reads " + (owner.unknown.empty() ? "" : owner.unknown.front()))
@@ -579,14 +578,19 @@ describe descriptor_legacy_applicability("Where each row's menu shows, against l
 			}
 			unload_files(ctx);
 		}
+		for (const AppliesException& exception : kAppliesExceptions) {
+			const std::string at = std::string{exception.path} + " in " + std::string{exception.fixture};
+			expect(exception.reason.size()).to_be_greater_than(size_t{0});
+			expect(at + (reached.contains(&exception) ? " reached" : " never reached")).to_equal(at + " reached");
+		}
 	});
 	it("shows a partner row exactly where its row shows, in every fixture", _ {
 		for (const Fixture& fixture : fixtures()) {
 			enter(fixture.where);
 			fixture.setup(settle(fixture.where));
 			const MenuContext& ctx = settle(fixture.where);
-			const SettingContext descriptor_ctx = descriptor_context(fixture, ctx);
 			for (Family family : fixture.families) {
+				const SettingContext descriptor_ctx = descriptor_context(fixture, ctx, family);
 				const SpecReader owner{ctx, fixture.where, family};
 				for (const SettingInfo& row : table_of(family)) {
 					const std::string_view partner_path = deluge::engine::mapping_of(row).partner_path();

@@ -533,6 +533,7 @@ enum class Where : uint8_t {
 	SYNTH_RINGMOD, ///< a synth track in ring mod, both oscillators square
 	KIT_LANE,      ///< a kit lane's sound, subtractive
 	KIT,           ///< the whole kit (affect-entire): its own effects and arp
+	KIT_GATE_ROW,  ///< the whole kit, with a gate row selected: legacy reads that row's kind
 	MIDI_DRUM,     ///< a kit's MIDI row (its arp's host rows are settings there)
 	GATE_DRUM,     ///< a kit's gate row
 	MIDI_CLIP,     ///< a MIDI clip (its arp's host rows are settings there)
@@ -652,6 +653,7 @@ inline const MenuContext& settle(Where where) {
 		case Where::MIDI_DRUM:
 			return non_sound_row<MIDIDrum>().song.clip;
 		case Where::GATE_DRUM:
+		case Where::KIT_GATE_ROW:
 			return non_sound_row<GateDrum>().song.clip;
 		case Where::MIDI_CLIP:
 			return midi_clip().song.clip;
@@ -667,7 +669,8 @@ inline const MenuContext& settle(Where where) {
 	};
 	Song& song = song_of(where);
 	const bool song_root = where == Where::SONG;
-	ctx = deluge::scenes::menu::context_for(song, clip_of(where), 0, false, song_root, song_root, where == Where::KIT);
+	ctx = deluge::scenes::menu::context_for(song, clip_of(where), 0, false, song_root, song_root,
+	                                        where == Where::KIT || where == Where::KIT_GATE_ROW);
 	install(ctx, &song);
 	return ctx;
 }
@@ -703,6 +706,7 @@ inline const MenuContext& enter(Where where, int8_t source = 0) {
 		return k.ctx;
 	}
 	case Where::KIT:
+	case Where::KIT_GATE_ROW:
 	case Where::MIDI_DRUM:
 	case Where::GATE_DRUM:
 		return settle(where);
@@ -734,6 +738,7 @@ inline Song& song_of(Where where) {
 	case Where::MIDI_DRUM:
 		return *non_sound_row<MIDIDrum>().song.song;
 	case Where::GATE_DRUM:
+	case Where::KIT_GATE_ROW:
 		return *non_sound_row<GateDrum>().song.song;
 	case Where::MIDI_CLIP:
 		return *midi_clip().song.song;
@@ -745,51 +750,6 @@ inline Song& song_of(Where where) {
 	default:
 		return *synth().song.song;
 	}
-}
-
-/// The descriptor context @p where stands for. Which sources hold a loaded file is read off the sound by the caller.
-inline SettingContext context_of(Where where) {
-	using Instrument = SettingContext::Instrument;
-	SettingContext shown{};
-	switch (where) {
-	case Where::KIT_LANE:
-		shown.owner = Owner::KIT_LANE;
-		shown.instrument = Instrument::SOUND_DRUM;
-		break;
-	case Where::MIDI_DRUM:
-		shown.owner = Owner::KIT_LANE;
-		shown.instrument = Instrument::MIDI_DRUM;
-		break;
-	case Where::GATE_DRUM:
-		shown.owner = Owner::KIT_LANE;
-		shown.instrument = Instrument::GATE_DRUM;
-		break;
-	case Where::KIT:
-		shown.owner = Owner::KIT;
-		shown.instrument = Instrument::KIT;
-		break;
-	case Where::MIDI_CLIP:
-		shown.owner = Owner::CLIP;
-		shown.instrument = Instrument::MIDI;
-		break;
-	case Where::CV_CLIP:
-		shown.owner = Owner::CLIP;
-		shown.instrument = Instrument::CV;
-		break;
-	case Where::AUDIO_CLIP:
-		shown.owner = Owner::CLIP;
-		shown.instrument = Instrument::AUDIO;
-		break;
-	case Where::SONG:
-		shown.owner = Owner::SONG;
-		break;
-	default:
-		shown.owner = Owner::TRACK;
-		shown.instrument = Instrument::SYNTH;
-		break;
-	}
-	shown.audio_inputs_present = AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn;
-	return shown;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -810,6 +770,83 @@ enum class Family : uint8_t {
 	INSTRUMENT_DEVICE,
 	AUDIO_INPUT,
 };
+
+/// Whether @p where is a kit row (a drum), whose scope is one kit lane.
+inline bool is_kit_lane(Where where) {
+	return where == Where::KIT_LANE || where == Where::MIDI_DRUM || where == Where::GATE_DRUM;
+}
+
+/// The descriptor context the host passes for @p family's rows at @p where, under SettingContext's host contract: the
+/// scope of the family's group (a track's, a kit lane's, the whole kit's own effects, a clip's or the song's) and what
+/// plays there. Which sources hold a loaded file is read off the sound by the caller.
+/// @throws std::logic_error when the pair is not coherent.
+inline SettingContext context_of(Where where, Family family) {
+	using Instrument = SettingContext::Instrument;
+	SettingContext shown{};
+	switch (where) {
+	case Where::KIT_LANE:
+		shown.instrument = Instrument::SOUND_DRUM;
+		break;
+	case Where::MIDI_DRUM:
+		shown.instrument = Instrument::MIDI_DRUM;
+		break;
+	case Where::GATE_DRUM:
+		shown.instrument = Instrument::GATE_DRUM;
+		break;
+	case Where::KIT:
+	case Where::KIT_GATE_ROW:
+		shown.instrument = Instrument::KIT;
+		break;
+	case Where::MIDI_CLIP:
+		shown.instrument = Instrument::MIDI;
+		break;
+	case Where::CV_CLIP:
+		shown.instrument = Instrument::CV;
+		break;
+	case Where::AUDIO_CLIP:
+		shown.instrument = Instrument::AUDIO;
+		break;
+	case Where::SONG:
+		shown.instrument = Instrument::NONE;
+		break;
+	default:
+		shown.instrument = Instrument::SYNTH;
+		break;
+	}
+	switch (family) {
+	case Family::SONG:
+		shown.owner = Owner::SONG;
+		break;
+	case Family::EFFECT:
+		// A synth's or an audio track's effects are the track's; the whole kit's own are the kit's.
+		shown.owner = where == Where::SONG                                    ? Owner::SONG
+		              : is_kit_lane(where)                                    ? Owner::KIT_LANE
+		              : (where == Where::KIT || where == Where::KIT_GATE_ROW) ? Owner::KIT
+		                                                                      : Owner::TRACK;
+		break;
+	case Family::INSTRUMENT:
+	case Family::NOTE_ROW:
+	case Family::ARP:
+	case Family::ARP_HOST:
+		// A kit row's own sound, note row and arp are the lane's; a synth's arp and the whole kit's are the clip's.
+		shown.owner = is_kit_lane(where) ? Owner::KIT_LANE : family == Family::INSTRUMENT ? Owner::TRACK : Owner::CLIP;
+		break;
+	case Family::AUDIO_CLIP:
+	case Family::CLIP_VALUES:
+	case Family::CLIP:
+		shown.owner = Owner::CLIP;
+		break;
+	case Family::INSTRUMENT_DEVICE:
+	case Family::AUDIO_INPUT:
+		shown.owner = Owner::TRACK;
+		break;
+	}
+	shown.audio_inputs_present = AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn;
+	if (!deluge::engine::context_is_coherent(shown)) {
+		throw std::logic_error("a setting context whose owner and instrument do not pair");
+	}
+	return shown;
+}
 
 inline std::span<const SettingInfo> table_of(Family family) {
 	switch (family) {
@@ -1188,6 +1225,9 @@ struct SpecReader {
 /// helpers. Throws where a condition read a path the owner does not hold, or a position does not round-trip.
 inline std::vector<int32_t> applicable(const SettingInfo& row, const SettingContext& shown, const MenuContext& ctx,
                                        Where where) {
+	if (!deluge::engine::context_is_coherent(shown)) {
+		throw std::logic_error(std::string{row.path} + ": a setting context whose owner and instrument do not pair");
+	}
 	const SpecReader owner{ctx, where};
 	const deluge::engine::SettingReader reader = owner.reader();
 	std::vector<int32_t> out;
@@ -1208,8 +1248,8 @@ inline std::vector<int32_t> applicable(const SettingInfo& row, const SettingCont
 }
 
 /// The same, on the owner @p where names, set up as `enter` leaves it.
-inline std::vector<int32_t> applicable(const SettingInfo& row, Where where) {
-	return applicable(row, context_of(where), enter(where), where);
+inline std::vector<int32_t> applicable(const SettingInfo& row, Where where, Family family) {
+	return applicable(row, context_of(where, family), enter(where), where);
 }
 
 inline std::string list_of(const std::vector<int32_t>& choices) {
@@ -1284,7 +1324,7 @@ inline std::string choice_text(const SettingNames& names, size_t index, bool sho
 inline void check_choices(auto& self, const Case& c) {
 	const MenuContext& ctx = enter(c.where, c.source);
 	const SettingInfo& row = row_of(c);
-	const std::vector<int32_t> choices = applicable(row, context_of(c.where), ctx, c.where);
+	const std::vector<int32_t> choices = applicable(row, context_of(c.where, c.family), ctx, c.where);
 	const Range legacy = legacy_range(c.item);
 	expect(std::string{c.path} + " offers " + std::to_string(choices.size()) + ": " + list_of(choices))
 	    .to_equal(std::string{c.path} + " offers " + std::to_string(legacy.second + 1) + ": " + list_of(choices));
@@ -1813,7 +1853,7 @@ inline bool input_reads_past_list(std::string_view path, int8_t source, ::MenuIt
 	const MenuContext& ctx = enter(Where::SYNTH, source);
 	const SettingInfo& row = table_row(Family::INSTRUMENT, path);
 	const std::optional<int32_t> before = get_stored(Family::INSTRUMENT, ctx, Where::SYNTH, row);
-	const auto listed = static_cast<int32_t>(applicable(row, Where::SYNTH).size());
+	const auto listed = static_cast<int32_t>(applicable(row, Where::SYNTH, Family::INSTRUMENT).size());
 	bool past = true;
 	for (const OscType input : {OscType::INPUT_R, OscType::INPUT_STEREO}) {
 		set_stored(Family::INSTRUMENT, ctx, Where::SYNTH, row, std::to_underlying(input));
@@ -1893,6 +1933,54 @@ inline const Exception kExceptions[] = {
     {SettingGroupId::SONG, "reverb/compressor/volume",
      "menu -1..50 truncates (stored / 21474836); no mapping kind expresses it", &reverb_volume_differs},
 };
+
+/// A row whose menu shows where legacy's relevance says it does not, or the reverse, in one named state of its owner.
+/// The applicability spec asserts the difference exactly: legacy's verdict is `legacy_shows` and the row's is the
+/// opposite, so an exception whose row comes to agree fails, as one that was never reached does.
+struct AppliesException {
+	NamesOwner owner;         ///< the owner whose table holds the row
+	std::string_view fixture; ///< the state, by its fixture's name
+	std::string_view path;
+	bool legacy_shows; ///< legacy's verdict; the descriptor's is the opposite
+	std::string_view reason;
+};
+
+/// On the whole kit, legacy asks the SELECTED row what plays (`soundEditor.currentArpSettings` reads a gate drum's
+/// kind), so a gate row selected hides the whole kit's step repeat and shows the host rows a non-sound arp has. The
+/// descriptor's conditions read the kit, whichever row is selected.
+inline constexpr std::string_view kWholeKitGateOff = "the whole kit with a gate row selected";
+inline constexpr std::string_view kWholeKitGateOn = "the whole kit with a gate row selected and its arp on";
+inline constexpr std::string_view kHidesStepRepeat =
+    "legacy reads the selected gate row's kind, and a gate row's arp has no step repeat; the whole kit's has";
+inline constexpr std::string_view kShowsNonSoundRow =
+    "legacy reads the selected gate row's kind, which shows the host row a non-sound arp has; the whole kit's arp is a "
+    "sound's, which does not";
+inline const AppliesException kAppliesExceptions[] = {
+    {SettingGroupId::CLIP_ARP, kWholeKitGateOff, "arpeggiator/stepRepeat", false, kHidesStepRepeat},
+    {SettingGroupId::CLIP_ARP, kWholeKitGateOff, "arpeggiator/rhythm", true, kShowsNonSoundRow},
+    {SettingGroupId::CLIP_ARP, kWholeKitGateOff, "arpeggiator/sequenceLength", true, kShowsNonSoundRow},
+    {SettingGroupId::CLIP_ARP, kWholeKitGateOff, "arpeggiator/noteProbability", true, kShowsNonSoundRow},
+    {SettingGroupId::CLIP_ARP, kWholeKitGateOn, "arpeggiator/stepRepeat", false, kHidesStepRepeat},
+    {SettingGroupId::CLIP_ARP, kWholeKitGateOn, "arpeggiator/rhythm", true, kShowsNonSoundRow},
+    {SettingGroupId::CLIP_ARP, kWholeKitGateOn, "arpeggiator/sequenceLength", true, kShowsNonSoundRow},
+    {SettingGroupId::CLIP_ARP, kWholeKitGateOn, "arpeggiator/ratchetAmount", true, kShowsNonSoundRow},
+    {SettingGroupId::CLIP_ARP, kWholeKitGateOn, "arpeggiator/noteProbability", true, kShowsNonSoundRow},
+    {SettingGroupId::CLIP_ARP, kWholeKitGateOn, "arpeggiator/ratchetProbability", true, kShowsNonSoundRow},
+    {SettingGroupId::CLIP_ARP, kWholeKitGateOn, "arpeggiator/spreadGate", true, kShowsNonSoundRow},
+};
+
+/// The exception for @p family's row @p path in @p fixture, or nullptr. A row of the arp's tables is keyed by the arp
+/// host's owner.
+inline const AppliesException* applies_exception(Family family, std::string_view fixture, std::string_view path) {
+	const std::vector<NamesOwner> owners = owners_of(family);
+	for (const AppliesException& exception : kAppliesExceptions) {
+		if (exception.fixture == fixture && exception.path == path
+		    && std::ranges::find(owners, exception.owner) != owners.end()) {
+			return &exception;
+		}
+	}
+	return nullptr;
+}
 
 /// Whether @p path is a named skip of @p owner's table; a skip ending in '/' names every path under it.
 inline bool skipped(const NamesOwner& owner, std::string_view path) {
