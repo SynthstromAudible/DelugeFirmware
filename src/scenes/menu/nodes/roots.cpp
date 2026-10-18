@@ -296,15 +296,9 @@ int32_t get_audio_clip_attack(const MenuContext& ctx) {
 	return clip != nullptr ? bindings::standard_to_menu(clip->attack()) : 0;
 }
 void set_audio_clip_attack(const MenuContext& ctx, int32_t value) {
-	// `audio_clip/attack.h:25-27` **verbatim**, including its bug: legacy's write calls
-	// `computeCurrentValueForStandardMenuItem` where every other item calls
-	// `computeFinalValueForStandardMenuItem`, so the stored `attack` is a menu-scale number rather
-	// than an INT32-scale one and the item does not round-trip. Transcribed as-is rather than
-	// "fixed": E1's contract is that the port behaves as legacy does, and `tables_3_spec`'s
-	// write-coverage compares the two on the same fixture. Worth an issue of its own.
 	if (AudioClip* clip = audio_clip(ctx); clip != nullptr) {
 		deluge::edits::audioClipSettingFor(*clip, "attack",
-		                                   deluge::serialization::Value::makeNumber(bindings::standard_to_menu(value)));
+		                                   deluge::serialization::Value::makeNumber(bindings::menu_to_standard(value)));
 	}
 }
 

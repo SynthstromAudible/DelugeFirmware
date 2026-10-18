@@ -31,7 +31,7 @@ public:
 	void writeCurrentValue() override {
 		deluge::edits::audioClipSettingFor(
 		    *getCurrentAudioClip(), "attack",
-		    deluge::serialization::Value::makeNumber(computeCurrentValueForStandardMenuItem(this->getValue())));
+		    deluge::serialization::Value::makeNumber(computeFinalValueForStandardMenuItem(this->getValue())));
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 };

@@ -183,7 +183,6 @@ const std::vector<NodeException>& node_exceptions() {
 	     "the node's write omits the top step's special case, as legacy's does (menu 50 stores 2147483602, not "
 	     "2147483647)",
 	     "write(50)"},
-	    {"attack", WRITE, "every menu value stores 25 (legacy's write applies the read conversion, upstream PR #2249)"},
 	};
 	return list;
 }
