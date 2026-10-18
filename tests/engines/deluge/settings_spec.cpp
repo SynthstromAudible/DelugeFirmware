@@ -268,6 +268,9 @@ describe settings("the Deluge instrument's settings schema", ${
 		const SettingContext lane{.owner = Owner::KIT_LANE, .instrument = Instrument::SOUND_DRUM};
 		const SettingContext whole_kit{.owner = Owner::KIT, .instrument = Instrument::KIT};
 		const SettingContext plugged{.owner = Owner::TRACK, .instrument = Instrument::SYNTH, .audio_inputs_present = true};
+		for (const SettingContext& shown : {track, lane, whole_kit, plugged}) {
+			expect(deluge::engine::context_is_coherent(shown)).to_be_true();
+		}
 		const ModeReader subtractive{static_cast<int32_t>(SynthMode::SUBTRACTIVE)};
 		const ModeReader ring{static_cast<int32_t>(SynthMode::RINGMOD)};
 		expect(deluge::engine::setting_choice_applies(row, track, subtractive.reader(), sample)).to_be_true();
@@ -287,7 +290,8 @@ describe settings("the Deluge instrument's settings schema", ${
 
 	it("maps a filtered choice row between its stored index and its menu position", _ {
 		const deluge::engine::SettingInfo& row = *deluge::engine::find_setting(kSettings, "osc2/type");
-		const SettingContext track{.owner = SettingContext::Owner::TRACK};
+		const SettingContext track{.owner = SettingContext::Owner::TRACK, .instrument = SettingContext::Instrument::SYNTH};
+		expect(deluge::engine::context_is_coherent(track)).to_be_true();
 		const ModeReader subtractive{static_cast<int32_t>(SynthMode::SUBTRACTIVE)};
 		const auto reader = subtractive.reader();
 		const auto input_l = static_cast<int32_t>(OscType::INPUT_L);

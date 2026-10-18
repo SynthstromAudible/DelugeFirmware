@@ -225,11 +225,16 @@ constexpr std::array kClampPastRows{
                 .user = {.user_min = 0, .user_max = 127, .stored_min = 0, .stored_max = 127},
                 .extras = &kClampPastExtras}};
 constexpr std::array kLostPartnerRows{SettingInfo{.path = "x", .min = 0, .max = 9, .extras = &kLostPartnerExtras}};
+constexpr SettingDescriptorExtras kKnobFallingExtras{
+    .mapping = {.kind = DisplayMappingKind::KNOB_POSITION, .clamp_to = 126 << 24}};
+constexpr std::array kKnobFallingRows{
+    SettingInfo{.path = "x", .min = 0, .max = kQ31Max, .extras = &kKnobFallingExtras}};
 static_assert(!ValidMappings<kClampNoValueRows>); // CLAMP_HIGH without clamp_to reads an inactive member
 static_assert(!ValidMappings<kKnobNoValueRows>);  // KNOB_POSITION without clamp_to
 static_assert(!ValidMappings<kTableNoTableRows>); // TABLE without a table
 static_assert(!ValidMappings<kOrderNoOrderRows>); // CHOICE_ORDER without an order
 static_assert(!ValidMappings<kClampPastRows>);    // clamp_to past the row's menu range
+static_assert(!ValidMappings<kKnobFallingRows>);  // the top step stores less than the step below it
 static_assert(!ValidMappings<kLostPartnerRows>);  // a partner that names no row
 } // namespace
 

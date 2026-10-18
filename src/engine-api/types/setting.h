@@ -25,6 +25,7 @@
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <span>
 #include <string_view>
@@ -88,10 +89,6 @@ struct SettingContext {
 	/// @brief What plays the owner's notes: its track's instrument, or on a kit lane, the lane's drum. NONE for the
 	/// song.
 	enum class Instrument : uint8_t { NONE, SYNTH, KIT, SOUND_DRUM, MIDI_DRUM, GATE_DRUM, MIDI, CV, AUDIO };
-	/// @brief How many Owner values there are: SONG is the last.
-	static constexpr int32_t kOwnerCount = static_cast<int32_t>(Owner::SONG) + 1;
-	/// @brief How many Instrument values there are: AUDIO is the last.
-	static constexpr int32_t kInstrumentCount = static_cast<int32_t>(Instrument::AUDIO) + 1;
 	Owner owner{Owner::TRACK};
 	Instrument instrument{Instrument::NONE}; ///< required but for SONG; see the host contract
 	bool audio_inputs_present{false};        ///< any audio input is plugged in
@@ -122,6 +119,67 @@ struct SettingContext {
 	}
 	return false;
 }
+
+namespace setting_context_detail {
+
+/// @brief Whether @p owner is an Owner enumerator. The switch names every one, so -Werror=switch makes a new
+/// enumerator name itself here and so be counted.
+[[nodiscard]] constexpr bool names_owner(SettingContext::Owner owner) {
+	using Owner = SettingContext::Owner;
+	switch (owner) {
+	case Owner::TRACK:
+	case Owner::KIT_LANE:
+	case Owner::KIT:
+	case Owner::CLIP:
+	case Owner::SONG:
+		return true;
+	}
+	return false;
+}
+
+/// @brief Whether @p instrument is an Instrument enumerator, by the same switch rule as names_owner.
+[[nodiscard]] constexpr bool names_instrument(SettingContext::Instrument instrument) {
+	using Instrument = SettingContext::Instrument;
+	switch (instrument) {
+	case Instrument::NONE:
+	case Instrument::SYNTH:
+	case Instrument::KIT:
+	case Instrument::SOUND_DRUM:
+	case Instrument::MIDI_DRUM:
+	case Instrument::GATE_DRUM:
+	case Instrument::MIDI:
+	case Instrument::CV:
+	case Instrument::AUDIO:
+		return true;
+	}
+	return false;
+}
+
+/// @brief How many values of the uint8_t enum @p Enum @p names names, provided they run 0..count-1.
+/// @return The count, or -1 when the named values leave a gap.
+template <typename Enum, bool (*names)(Enum)>
+[[nodiscard]] constexpr int32_t contiguous_count() {
+	int32_t count = 0;
+	for (int32_t value = 0; value <= std::numeric_limits<uint8_t>::max(); ++value) {
+		if (names(static_cast<Enum>(value))) {
+			if (value != count) {
+				return -1;
+			}
+			++count;
+		}
+	}
+	return count;
+}
+
+} // namespace setting_context_detail
+
+/// @brief How many SettingContext::Owner values there are.
+inline constexpr int32_t kOwnerCount =
+    setting_context_detail::contiguous_count<SettingContext::Owner, setting_context_detail::names_owner>();
+/// @brief How many SettingContext::Instrument values there are.
+inline constexpr int32_t kInstrumentCount =
+    setting_context_detail::contiguous_count<SettingContext::Instrument, setting_context_detail::names_instrument>();
+static_assert(kOwnerCount > 0 && kInstrumentCount > 0, "Owner's and Instrument's values run from 0 with no gap");
 
 /// @brief The sources a sound has, and so the bits SettingContext::loaded_sources uses.
 inline constexpr std::size_t kMaxSoundSources = 2;
@@ -477,9 +535,9 @@ inline constexpr DisplayMapping kLinearMapping{};
 		       && std::ranges::all_of(condition.values, [&](int32_t value) { return stores_value(*target, value); });
 	}
 	case SettingCondition::Subject::OWNER:
-		return values_within(0, SettingContext::kOwnerCount - 1);
+		return values_within(0, kOwnerCount - 1);
 	case SettingCondition::Subject::INSTRUMENT:
-		return values_within(0, SettingContext::kInstrumentCount - 1);
+		return values_within(0, kInstrumentCount - 1);
 	case SettingCondition::Subject::INPUTS_PRESENT:
 		return condition.test == SettingCondition::Test::IS && values_within(0, 1);
 	case SettingCondition::Subject::LOADED_SOURCES:
@@ -826,10 +884,10 @@ inline constexpr DisplayMapping kLinearMapping{};
 /// of it at compile time, where a device would read the wrong member.
 /// @param rows The owner's table.
 /// @param row  The row to check.
-/// @return For CLAMP_HIGH: `clamp_to` within the row's menu range. For KNOB_POSITION: the top menu step stores
-///         `clamp_to`, which reads the member. For CHOICE_ORDER: a non-empty order of values the row stores. For
-///         TABLE: a non-empty table. For COMBINED_SYNC and TRANSPOSE_CENTS: a partner that names a row of @p rows.
-///         True for the other kinds.
+/// @return For CLAMP_HIGH: `clamp_to` within the row's menu range. For KNOB_POSITION: `clamp_to` (what the top
+///         step stores) within the row's stored bounds and at or above the step below it. For CHOICE_ORDER: a non-empty
+///         order of values the row stores. For TABLE: a non-empty table. For COMBINED_SYNC and TRANSPOSE_CENTS: a
+///         partner that names a row of @p rows. True for the other kinds.
 [[nodiscard]] constexpr bool mapping_is_valid(std::span<const SettingInfo> rows, const SettingInfo& row) {
 	const DisplayMapping& mapping = mapping_of(row);
 	switch (mapping.kind) {
@@ -839,8 +897,10 @@ inline constexpr DisplayMapping kLinearMapping{};
 		return clamp >= least && clamp <= greatest;
 	}
 	case DisplayMappingKind::KNOB_POSITION: {
-		const std::optional<std::pair<int32_t, int32_t>> top = from_menu(row, kMaxKnobPosition);
-		return top && top->first == mapping.clamp_to; // the top step stores what the mapping holds
+		// The top step stores clamp_to: a value the row holds, at or above the step below it, so the menu never falls.
+		const auto [least, greatest] = stored_bounds(row);
+		const int32_t below_top = knob_position_stored(kMaxKnobPosition - 1, mapping.clamp_to);
+		return mapping.clamp_to >= least && mapping.clamp_to <= greatest && mapping.clamp_to >= below_top;
 	}
 	case DisplayMappingKind::CHOICE_ORDER:
 		return !mapping.order.empty()
