@@ -437,7 +437,7 @@ std::optional<size_t> indexAfter(std::string_view path, size_t at, char last) {
 	return static_cast<size_t>(path[at] - '1');
 }
 
-Answer topLevelValue(const SoundState& state, std::string_view path, bool /*held*/) {
+Answer topLevelValue(const SoundState& state, std::string_view path) {
 	if (path == "polyphonic") {
 		return word(to_string(state.polyphonic));
 	}
@@ -505,7 +505,7 @@ Answer oscillatorValue(const SoundState& state, std::string_view path, bool held
 	return std::nullopt;
 }
 
-Answer lfoValue(const SoundState& state, std::string_view path, bool /*held*/) {
+Answer lfoValue(const SoundState& state, std::string_view path) {
 	const std::optional<size_t> l = indexAfter(path, 3, '4');
 	if (!l) {
 		return std::nullopt;
@@ -544,7 +544,7 @@ Answer modulatorValue(const SoundState& state, std::string_view path, bool held)
 	return std::nullopt;
 }
 
-Answer unisonValue(const SoundState& state, std::string_view path, bool /*held*/) {
+Answer unisonValue(const SoundState& state, std::string_view path) {
 	const std::string_view rest = path.substr(7);
 	if (rest == "num") {
 		return number(state.num_unison);
@@ -558,7 +558,7 @@ Answer unisonValue(const SoundState& state, std::string_view path, bool /*held*/
 	return std::nullopt;
 }
 
-Answer midiOutputValue(const SoundState& state, std::string_view path, bool /*held*/) {
+Answer midiOutputValue(const SoundState& state, std::string_view path) {
 	const std::string_view rest = path.substr(11);
 	if (rest == "channel") {
 		return number(state.output_midi_channel);
@@ -569,15 +569,24 @@ Answer midiOutputValue(const SoundState& state, std::string_view path, bool /*he
 	return std::nullopt;
 }
 
+/// A family reader that answers the same whether or not the path applies to the state, as one that takes @c held.
+template <Answer (*reader)(const SoundState&, std::string_view)>
+Answer unconditional(const SoundState& state, std::string_view path, bool /*held*/) {
+	return reader(state, path);
+}
+
 /// Each family of setting paths, by its prefix, and how a state answers one; the empty prefix takes the rest.
 struct Family {
 	std::string_view prefix;
 	Answer (*value)(const SoundState&, std::string_view, bool held);
 };
 constexpr std::array kFamilies{
-    Family{"osc", oscillatorValue},         Family{"lfo", lfoValue},
-    Family{"modulator", modulatorValue},    Family{"unison/", unisonValue},
-    Family{"midiOutput/", midiOutputValue}, Family{"", topLevelValue},
+    Family{"osc", oscillatorValue},
+    Family{"lfo", unconditional<lfoValue>},
+    Family{"modulator", modulatorValue},
+    Family{"unison/", unconditional<unisonValue>},
+    Family{"midiOutput/", unconditional<midiOutputValue>},
+    Family{"", unconditional<topLevelValue>},
 };
 
 /// The instrument's rows, then its effects'.
