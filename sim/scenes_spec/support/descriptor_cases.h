@@ -16,8 +16,11 @@
 #include "gui/ui/sound_editor.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/gate_drum.h"
+#include "model/drum/midi_drum.h"
 #include "model/edits/arp_setting_for.h"
 #include "model/edits/setting_edit.h"
+#include "model/instrument/cv_instrument.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/setting_projection.h"
@@ -413,6 +416,19 @@ extern legacy::bend_range::PerFinger drumBendRangeMenu;
 extern legacy::sidechain::Release reverbSidechainReleaseMenu;
 /// @}
 
+/// @name The legacy root menus `SoundEditor::setup` opens, and the note-row editor's.
+/// @{
+extern legacy::Submenu soundEditorRootMenu;
+extern legacy::Submenu soundEditorRootMenuDrum;
+extern legacy::Submenu soundEditorRootMenuMIDIOrCV;
+extern legacy::Submenu soundEditorRootMenuMidiDrum;
+extern legacy::Submenu soundEditorRootMenuGateDrum;
+extern legacy::Submenu soundEditorRootMenuAudioClip;
+extern legacy::Submenu soundEditorRootMenuSongView;
+extern legacy::Submenu soundEditorRootMenuKitGlobalFX;
+extern legacy::HorizontalMenu noteRowEditorRootMenu;
+/// @}
+
 namespace {
 
 using deluge::engine::from_menu;
@@ -499,6 +515,7 @@ void install(const MenuContext& ctx, Song* song) {
 	soundEditor.currentMultiRange = ctx.range;
 	soundEditor.currentMultiRangeIndex = ctx.range_index;
 	soundEditor.currentArpSettings = ctx.arp;
+	soundEditor.setupKitGlobalFXMenu = ctx.is_kit_global_fx;
 	soundEditor.allowsNoteTails = true;
 	currentUIMode = 0;
 }
@@ -510,6 +527,9 @@ enum class Where : uint8_t {
 	SYNTH_FM,      ///< a synth track in FM
 	SYNTH_RINGMOD, ///< a synth track in ring mod, both oscillators square
 	KIT_LANE,      ///< a kit lane's sound, subtractive
+	KIT,           ///< the whole kit (affect-entire): its own effects and arp
+	MIDI_DRUM,     ///< a kit's MIDI row (its arp's host rows are settings there)
+	GATE_DRUM,     ///< a kit's gate row
 	MIDI_CLIP,     ///< a MIDI clip (its arp's host rows are settings there)
 	CV_CLIP,       ///< a CV clip, both CV channels in use
 	AUDIO_CLIP,    ///< an audio clip
@@ -546,6 +566,23 @@ KitLane& kit_lane() {
 		return r;
 	}();
 	return k;
+}
+
+/// A kit whose one row is a non-sound drum of type @p T, selected.
+template <typename T>
+struct NonSoundRow {
+	spec::SongFixture song;
+	T* drum = nullptr;
+};
+template <typename T>
+NonSoundRow<T>& non_sound_row() {
+	static NonSoundRow<T> r = [] {
+		NonSoundRow<T> out;
+		out.song = spec::make_kit_song();
+		out.drum = spec::add_drum<T>(out.song);
+		return out;
+	}();
+	return r;
 }
 
 struct MidiClip {
@@ -595,6 +632,41 @@ void sound_setting(Sound& sound, std::string_view path, std::string_view word) {
 	deluge::edits::settingFor(sound, path, Value::makeScalar(std::string(word)));
 }
 
+/// The song @p where's rig is in.
+Song& song_of(Where where);
+
+/// Resolve the context @p where's rig is in now, as `SoundEditor::setup` would, install it and return it. The song
+/// is its own root here (the song view's), where `enter` edits the song from the audio clip's.
+const MenuContext& settle(Where where) {
+	static MenuContext ctx;
+	const auto clip_of = [](Where w) -> Clip* {
+		switch (w) {
+		case Where::KIT_LANE:
+		case Where::KIT:
+			return kit_lane().song.clip;
+		case Where::MIDI_DRUM:
+			return non_sound_row<MIDIDrum>().song.clip;
+		case Where::GATE_DRUM:
+			return non_sound_row<GateDrum>().song.clip;
+		case Where::MIDI_CLIP:
+			return midi_clip().song.clip;
+		case Where::CV_CLIP:
+			return cv_clip().song.clip;
+		case Where::AUDIO_CLIP:
+			return audio_clip().song.clip;
+		case Where::SONG:
+			return nullptr;
+		default:
+			return synth().song.clip;
+		}
+	};
+	Song& song = song_of(where);
+	const bool song_root = where == Where::SONG;
+	ctx = deluge::scenes::menu::context_for(song, clip_of(where), 0, false, song_root, song_root, where == Where::KIT);
+	install(ctx, &song);
+	return ctx;
+}
+
 /// Set up the sound @p where names, install its context and return it.
 const MenuContext& enter(Where where, int8_t source = 0) {
 	switch (where) {
@@ -625,6 +697,10 @@ const MenuContext& enter(Where where, int8_t source = 0) {
 		install(k.ctx, k.song.song);
 		return k.ctx;
 	}
+	case Where::KIT:
+	case Where::MIDI_DRUM:
+	case Where::GATE_DRUM:
+		return settle(where);
 	case Where::MIDI_CLIP: {
 		MidiClip& m = midi_clip();
 		install(m.ctx, m.song.song);
@@ -648,7 +724,12 @@ const MenuContext& enter(Where where, int8_t source = 0) {
 Song& song_of(Where where) {
 	switch (where) {
 	case Where::KIT_LANE:
+	case Where::KIT:
 		return *kit_lane().song.song;
+	case Where::MIDI_DRUM:
+		return *non_sound_row<MIDIDrum>().song.song;
+	case Where::GATE_DRUM:
+		return *non_sound_row<GateDrum>().song.song;
 	case Where::MIDI_CLIP:
 		return *midi_clip().song.song;
 	case Where::CV_CLIP:
@@ -661,15 +742,47 @@ Song& song_of(Where where) {
 	}
 }
 
-/// The descriptor context @p where stands for.
+/// The descriptor context @p where stands for. No fixture loads an audio file, so no source holds one.
 SettingContext context_of(Where where) {
+	using Instrument = SettingContext::Instrument;
 	SettingContext shown{};
-	shown.owner = where == Where::KIT_LANE     ? Owner::KIT_LANE
-	              : where == Where::MIDI_CLIP  ? Owner::CLIP
-	              : where == Where::CV_CLIP    ? Owner::CLIP
-	              : where == Where::AUDIO_CLIP ? Owner::CLIP
-	              : where == Where::SONG       ? Owner::SONG
-	                                           : Owner::TRACK;
+	switch (where) {
+	case Where::KIT_LANE:
+		shown.owner = Owner::KIT_LANE;
+		shown.instrument = Instrument::SOUND_DRUM;
+		break;
+	case Where::MIDI_DRUM:
+		shown.owner = Owner::KIT_LANE;
+		shown.instrument = Instrument::MIDI_DRUM;
+		break;
+	case Where::GATE_DRUM:
+		shown.owner = Owner::KIT_LANE;
+		shown.instrument = Instrument::GATE_DRUM;
+		break;
+	case Where::KIT:
+		shown.owner = Owner::KIT;
+		shown.instrument = Instrument::KIT;
+		break;
+	case Where::MIDI_CLIP:
+		shown.owner = Owner::CLIP;
+		shown.instrument = Instrument::MIDI;
+		break;
+	case Where::CV_CLIP:
+		shown.owner = Owner::CLIP;
+		shown.instrument = Instrument::CV;
+		break;
+	case Where::AUDIO_CLIP:
+		shown.owner = Owner::CLIP;
+		shown.instrument = Instrument::AUDIO;
+		break;
+	case Where::SONG:
+		shown.owner = Owner::SONG;
+		break;
+	default:
+		shown.owner = Owner::TRACK;
+		shown.instrument = Instrument::SYNTH;
+		break;
+	}
 	shown.audio_inputs_present = AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn;
 	return shown;
 }
@@ -1008,24 +1121,37 @@ void check_numeric(auto& self, const Case& c) {
 	}
 }
 
-/// The owner @p ctx edits, read by path through the spec's own instrument read path. A path the owner does not hold
-/// is recorded, and `applicable` fails on it rather than reading 0.
+/// The table a @p family row's conditions read: an arp's host rows read its setting rows too.
+std::span<const SettingInfo> condition_table_of(Family family) {
+	return family == Family::ARP || family == Family::ARP_HOST ? deluge::engine::kArpRows : table_of(family);
+}
+
+/// The owner @p ctx edits, read by path as a firmware reader reads it: the value the owner holds whether or not the
+/// row applies (a sound's oscillator type in FM included), through the spec's own read path for the family. A path
+/// the family's table does not hold is recorded, and `applicable` fails on it rather than reading 0.
 struct SpecReader {
 	const MenuContext& ctx;
 	Where where;
+	Family family{Family::INSTRUMENT};
 	mutable std::vector<std::string> unknown{};
 
 	[[nodiscard]] deluge::engine::SettingReader reader() const {
 		return {.read = [](const void* self, std::string_view path) -> std::optional<int32_t> {
 			        const auto& owner = *static_cast<const SpecReader*>(self);
-			        const SettingInfo* row = deluge::engine::find_setting(deluge::instrument::kSettings, path);
-			        const std::optional<int32_t> value =
-			            row != nullptr ? get_stored(Family::INSTRUMENT, owner.ctx, owner.where, *row) : std::nullopt;
-			        if (!value) {
+			        const SettingInfo* row = deluge::engine::find_setting(condition_table_of(owner.family), path);
+			        if (row == nullptr) {
 				        owner.unknown.emplace_back(path);
 				        return std::nullopt;
 			        }
-			        return value;
+			        switch (owner.family) {
+			        case Family::INSTRUMENT:
+				        return deluge::instrument::held_setting(*owner.ctx.sound->boundState(), path);
+			        case Family::ARP:
+			        case Family::ARP_HOST:
+				        return arp_field(*owner.ctx.arp, path);
+			        default:
+				        return get_stored(owner.family, owner.ctx, owner.where, *row);
+			        }
 		        },
 		        .self = this};
 	}

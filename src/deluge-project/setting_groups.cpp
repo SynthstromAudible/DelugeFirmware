@@ -51,12 +51,25 @@ constexpr engine::SettingDescriptorExtras kFloatFractionExtras{
     .mapping = {.kind = engine::DisplayMappingKind::FLOAT_FRACTION}};
 /// A param-style menu over a signed Q31, 0..50.
 constexpr engine::SettingDescriptorExtras kStandardExtras{.mapping = {.kind = engine::DisplayMappingKind::STANDARD}};
-constexpr SettingInfo boolean(std::string_view path, int32_t default_value = 0) {
-	return SettingInfo{.path = path, .kind = SettingKind::BOOL, .default_value = default_value};
+constexpr SettingInfo boolean(std::string_view path, int32_t default_value = 0,
+                              const engine::SettingDescriptorExtras* extras = nullptr) {
+	return SettingInfo{.path = path, .kind = SettingKind::BOOL, .default_value = default_value, .extras = extras};
 }
-constexpr SettingInfo text(std::string_view path) {
-	return SettingInfo{.path = path, .kind = SettingKind::TEXT};
+constexpr SettingInfo text(std::string_view path, const engine::SettingDescriptorExtras* extras = nullptr) {
+	return SettingInfo{.path = path, .kind = SettingKind::TEXT, .extras = extras};
 }
+
+using Instrument = engine::SettingContext::Instrument;
+/// A MIDI track: what has programs, a Y-axis CC, MPE collapsing and a device definition.
+constexpr std::array<int32_t, 1> kMidiInstrument{std::to_underlying(Instrument::MIDI)};
+constexpr std::array kOnMidi{engine::instrument_is(kMidiInstrument)};
+constexpr engine::SettingDescriptorExtras kOnMidiExtras{.applies_when = kOnMidi};
+/// A synth, MIDI or CV track: its clip bends and plays in a direction as a whole (a kit's rows have their own bend
+/// and direction, and an audio clip neither).
+constexpr std::array<int32_t, 3> kMelodicTracks{
+    std::to_underlying(Instrument::SYNTH), std::to_underlying(Instrument::MIDI), std::to_underlying(Instrument::CV)};
+constexpr std::array kOnMelodicTrack{engine::instrument_is(kMelodicTracks)};
+constexpr engine::SettingDescriptorExtras kOnMelodicTrackExtras{.applies_when = kOnMelodicTrack};
 
 Value number(int64_t n) {
 	return Value::makeNumber(n);
@@ -91,6 +104,12 @@ constexpr engine::SettingDescriptorExtras kSidechainAttackExtras{
     .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table = engine::kSidechainAttackRates, .table_shift = 2}};
 constexpr engine::SettingDescriptorExtras kSidechainReleaseExtras{
     .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table = engine::kSidechainReleaseRates, .table_shift = 3}};
+/// The reverb models with filters of their own: mutable and digital.
+constexpr std::array<int32_t, 2> kFilteredReverbModels{std::to_underlying(ReverbModel::MUTABLE),
+                                                       std::to_underlying(ReverbModel::DIGITAL)};
+constexpr std::array kReverbHasFilters{engine::setting_is("reverb/model", kFilteredReverbModels)};
+constexpr engine::SettingDescriptorExtras kReverbFilterExtras{
+    .mapping = {.kind = engine::DisplayMappingKind::FLOAT_FRACTION}, .applies_when = kReverbHasFilters};
 /// The reverb's pan menu, −25..25.
 constexpr engine::SettingDescriptorExtras kPanExtras{.mapping = {.kind = engine::DisplayMappingKind::PAN}};
 
@@ -111,8 +130,8 @@ std::span<const SettingInfo> song_table() {
 		    integer("reverb/dampening", 0, INT32_MAX, q31_of(36.0f / 50), kFiftyths, SettingUnits::NONE,
 		            &kFloatFractionExtras),
 		    integer("reverb/width", 0, INT32_MAX, INT32_MAX, kFiftyths, SettingUnits::NONE, &kFloatFractionExtras),
-		    integer("reverb/hpf", 0, INT32_MAX, 0, kFiftyths, SettingUnits::NONE, &kFloatFractionExtras),
-		    integer("reverb/lpf", 0, INT32_MAX, INT32_MAX, kFiftyths, SettingUnits::NONE, &kFloatFractionExtras),
+		    integer("reverb/hpf", 0, INT32_MAX, 0, kFiftyths, SettingUnits::NONE, &kReverbFilterExtras),
+		    integer("reverb/lpf", 0, INT32_MAX, INT32_MAX, kFiftyths, SettingUnits::NONE, &kReverbFilterExtras),
 		    SettingInfo{.path = "reverb/pan",
 		                .kind = SettingKind::INTEGER,
 		                .min = INT32_MIN,
@@ -271,17 +290,23 @@ constexpr int32_t kMaxChannelWord = 55;
 
 /// The CV mode each of the second channel's menu steps stores: off, then the modes after pitch, which the menu skips.
 constexpr std::array<int32_t, 4> kCv2SourceModes{0, 2, 3, 4};
+/// The CV instrument's channel word for both channels: the second channel is free for a source only then.
+constexpr std::array<int32_t, 1> kBothCvChannels{2};
+constexpr std::array<int32_t, 1> kCvInstrument{std::to_underlying(Instrument::CV)};
+constexpr std::array kCv2SourceConditions{engine::instrument_is(kCvInstrument),
+                                          engine::setting_is("channel", kBothCvChannels)};
 /// A stored pitch mode shows as the first step, off.
 constexpr engine::SettingDescriptorExtras kCv2SourceExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table = kCv2SourceModes}};
+    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table = kCv2SourceModes},
+    .applies_when = kCv2SourceConditions};
 
 constexpr SettingInfo kInstrumentDeviceTable[] = {
     integer("channel", 0, kMaxChannelWord),
     integer("channelSuffix", -1, 25, -1),
-    text("deviceDefinitionFileName"),
-    SettingInfo{.path = "outputMpeY", .kind = SettingKind::CHOICE, .choices = kMpeYChoices},
-    boolean("collapseAftertouch"),
-    boolean("collapseMpe", 1),
+    text("deviceDefinitionFileName", &kOnMidiExtras),
+    SettingInfo{.path = "outputMpeY", .kind = SettingKind::CHOICE, .choices = kMpeYChoices, .extras = &kOnMidiExtras},
+    boolean("collapseAftertouch", 0, &kOnMidiExtras),
+    boolean("collapseMpe", 1, &kOnMidiExtras),
     integer("cv2Source", 0, 4, 0, {}, SettingUnits::NONE, &kCv2SourceExtras),
 };
 static_assert(engine::conditions_are_valid(kInstrumentDeviceTable));
@@ -303,7 +328,7 @@ std::span<const SettingInfo> instrument_device_table() {
 	}();
 	static const std::vector<SettingInfo> rows = [] {
 		std::vector<SettingInfo> out(std::begin(kInstrumentDeviceTable), std::end(kInstrumentDeviceTable));
-		out.push_back(boolean("hideUnlabeledCC"));
+		out.push_back(boolean("hideUnlabeledCC", 0, &kOnMidiExtras));
 		for (const std::string& path : label_paths) {
 			out.push_back(text(path));
 		}
@@ -413,10 +438,15 @@ constexpr int32_t kMaxBendRange = 96;
 constexpr int32_t kDefaultBendRange = 2;
 constexpr int32_t kDefaultBendRangeMpe = 48;
 
+/// A sound kit row's bend: the MIDI and gate rows' menus have none.
+constexpr std::array<int32_t, 1> kSoundDrum{std::to_underlying(Instrument::SOUND_DRUM)};
+constexpr std::array kOnSoundDrum{engine::instrument_is(kSoundDrum)};
+constexpr engine::SettingDescriptorExtras kOnSoundDrumExtras{.applies_when = kOnSoundDrum};
+
 constexpr SettingInfo kNoteRowTable[] = {
     SettingInfo{.path = "sequenceDirection", .kind = SettingKind::CHOICE, .choices = kDirectionChoices},
     // A kit row's finger bend; a melodic row has none of its own.
-    integer("bendRange", 0, kMaxBendRange, kDefaultBendRangeMpe, {}, SettingUnits::SEMITONES),
+    integer("bendRange", 0, kMaxBendRange, kDefaultBendRangeMpe, {}, SettingUnits::SEMITONES, &kOnSoundDrumExtras),
 };
 static_assert(engine::conditions_are_valid(kNoteRowTable));
 static_assert(engine::conditions_are_valid(kLaneTable));
@@ -439,11 +469,16 @@ DocNoteRow* resolve_note_row(Song& song, const NoteRowAddress& address) {
 // ---------------------------------------------------------------------------------------------
 // AUDIO_INPUT (on DocOutput)
 
+/// The track an input records from shows only while the input records a specific track.
+constexpr std::array<int32_t, 1> kSpecificTrackChannel{kInputChannelSpecificTrack};
+constexpr std::array kRecordsATrack{engine::setting_is("inputChannel", kSpecificTrackChannel)};
+constexpr engine::SettingDescriptorExtras kRecordingFromExtras{.applies_when = kRecordsATrack};
+
 constexpr SettingInfo kAudioInputTable[] = {
     SettingInfo{.path = "mode", .kind = SettingKind::CHOICE, .choices = kAudioModeWords},
     SettingInfo{.path = "inputChannel", .kind = SettingKind::CHOICE, .choices = kInputChannelWords, .default_value = 1},
     // Another track's durable id; -1 = none.
-    integer("outputRecordingFrom", -1, INT32_MAX, -1),
+    integer("outputRecordingFrom", -1, INT32_MAX, -1, {}, SettingUnits::NONE, &kRecordingFromExtras),
 };
 static_assert(engine::conditions_are_valid(kAudioInputTable));
 
@@ -475,7 +510,10 @@ void write_audio_input(DocOutput& o, std::string_view path, const Value& value) 
 
 constexpr SettingInfo kClipTable[] = {
     text("name"),
-    SettingInfo{.path = "sequenceDirection", .kind = SettingKind::CHOICE, .choices = kClipDirectionChoices},
+    SettingInfo{.path = "sequenceDirection",
+                .kind = SettingKind::CHOICE,
+                .choices = kClipDirectionChoices,
+                .extras = &kOnMelodicTrackExtras},
 };
 static_assert(engine::conditions_are_valid(kClipTable));
 
@@ -483,11 +521,12 @@ static_assert(engine::conditions_are_valid(kClipTable));
 constexpr int32_t kNoMidiProgram = 128;
 
 constexpr SettingInfo kClipValuesTable[] = {
-    integer("midiBank", 0, kNoMidiProgram, kNoMidiProgram),
-    integer("midiSub", 0, kNoMidiProgram, kNoMidiProgram),
-    integer("midiPGM", 0, kNoMidiProgram, kNoMidiProgram),
-    integer("bendRange", 0, kMaxBendRange, kDefaultBendRange, {}, SettingUnits::SEMITONES),
-    integer("bendRangeMPE", 0, kMaxBendRange, kDefaultBendRangeMpe, {}, SettingUnits::SEMITONES),
+    integer("midiBank", 0, kNoMidiProgram, kNoMidiProgram, {}, SettingUnits::NONE, &kOnMidiExtras),
+    integer("midiSub", 0, kNoMidiProgram, kNoMidiProgram, {}, SettingUnits::NONE, &kOnMidiExtras),
+    integer("midiPGM", 0, kNoMidiProgram, kNoMidiProgram, {}, SettingUnits::NONE, &kOnMidiExtras),
+    integer("bendRange", 0, kMaxBendRange, kDefaultBendRange, {}, SettingUnits::SEMITONES, &kOnMelodicTrackExtras),
+    integer("bendRangeMPE", 0, kMaxBendRange, kDefaultBendRangeMpe, {}, SettingUnits::SEMITONES,
+            &kOnMelodicTrackExtras),
 };
 static_assert(engine::conditions_are_valid(kClipValuesTable));
 
@@ -598,9 +637,7 @@ void write_audio_clip(DocAudioClip& c, std::string_view path, int32_t v) {
 /// The arp groups' table: the setting rows, then the host rows. Built once, so its views stay valid.
 std::span<const SettingInfo> arp_table() {
 	static const std::vector<SettingInfo> rows = [] {
-		std::vector<SettingInfo> out(engine::kArpSettingRows.begin(), engine::kArpSettingRows.end());
-		out.insert(out.end(), engine::kArpHostRows.begin(), engine::kArpHostRows.end());
-		return out;
+		return std::vector<SettingInfo>(engine::kArpRows.begin(), engine::kArpRows.end());
 	}();
 	return rows;
 }

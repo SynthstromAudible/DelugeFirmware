@@ -15,9 +15,17 @@
 /// A row with no single legacy item (a partner row, a row several items show together, a row only a gesture
 /// changes) is a named skip, with its reason.
 ///
+/// Whether a row's menu shows (`engine::setting_applies`) is legacy's: over a set of fixtures (each synth mode,
+/// polyphony and oscillator type, a kit's sound, MIDI and gate rows and the whole kit, MIDI and CV tracks, an audio
+/// clip and the song), a row applies exactly where one of its items is shown, an item being shown when it and every
+/// submenu over it in the root `SoundEditor::setup` opens there is relevant (`isRelevant`).
+///
 /// @note The SPEC may include `gui/menu_item/`; the library may not (`scripts/check_layer_rules.py`).
 
 #include "support/descriptor_cases.h"
+
+#include <algorithm>
+#include <cstdio>
 
 namespace {
 
@@ -28,6 +36,299 @@ void run(auto& self, const std::vector<Case>& cases) {
 	for (const Case& c : cases) {
 		check(self, c);
 	}
+}
+
+// ---------------------------------------------------------------------------------------------
+// Where a row's menu shows.
+
+/// `Submenu::items` is protected; named through a derived class, as `ValuePeek` names `writeCurrentValue`.
+struct SubmenuPeek : legacy::Submenu {
+	static const deluge::vector<::MenuItem*>& items_of(const legacy::Submenu& menu) {
+		return menu.*(&SubmenuPeek::items);
+	}
+};
+
+/// Whether @p item is a case's item or a submenu with one under it.
+bool leads_to_a_case(const ::MenuItem* item) {
+	static std::set<const ::MenuItem*> cases = [] {
+		std::set<const ::MenuItem*> out;
+		for (const Case* c : all_name_cases()) {
+			out.insert(c->item);
+		}
+		return out;
+	}();
+	if (cases.contains(item)) {
+		return true;
+	}
+	const auto* submenu = dynamic_cast<const legacy::Submenu*>(item);
+	return submenu != nullptr && std::ranges::any_of(SubmenuPeek::items_of(*submenu), leads_to_a_case);
+}
+
+/// Every case item under @p menu that legacy shows, and the submenus over them: relevant, under submenus that are all
+/// relevant. A submenu at depth @p depth lists its items with `soundEditor.navigationDepth` at that depth, as the
+/// sound editor does. Only the way to a case's item is asked: legacy asks an item when its submenu is open, and the
+/// rest (a MIDI row's actions, say) is no row's.
+void walk(::MenuItem* menu, uint8_t depth, std::set<const ::MenuItem*>& shown) {
+	auto* submenu = dynamic_cast<legacy::Submenu*>(menu);
+	if (submenu == nullptr) {
+		return;
+	}
+	for (::MenuItem* item : SubmenuPeek::items_of(*submenu)) {
+		soundEditor.navigationDepth = depth;
+		if (item == nullptr || !leads_to_a_case(item)
+		    || !item->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
+			continue;
+		}
+		shown.insert(item);
+		walk(item, depth + 1, shown);
+	}
+}
+
+/// The root `SoundEditor::setup` opens for @p ctx.
+::MenuItem* legacy_root(const MenuContext& ctx) {
+	using Root = MenuContext::Root;
+	switch (ctx.root) {
+	case Root::Sound:
+		return &soundEditorRootMenu;
+	case Root::Drum:
+		return &soundEditorRootMenuDrum;
+	case Root::MidiOrCv:
+		return &soundEditorRootMenuMIDIOrCV;
+	case Root::MidiDrum:
+		return &soundEditorRootMenuMidiDrum;
+	case Root::GateDrum:
+		return &soundEditorRootMenuGateDrum;
+	case Root::AudioClip:
+		return &soundEditorRootMenuAudioClip;
+	case Root::Song:
+		return &soundEditorRootMenuSongView;
+	case Root::KitGlobalFx:
+		return &soundEditorRootMenuKitGlobalFX;
+	default:
+		return nullptr;
+	}
+}
+
+/// One state of an owner, the families whose rows it holds, and how it is set up on top of `enter`'s.
+struct Fixture {
+	std::string_view name;
+	Where where;
+	std::vector<Family> families;
+	void (*setup)(const MenuContext& ctx) = nullptr;
+};
+
+void set_word(Sound& sound, std::string_view path, std::string_view word) {
+	sound_setting(sound, path, word);
+}
+void set_arp(const MenuContext& ctx, std::string_view mode) {
+	deluge::edits::arpSettingFor(*ctx.arp, "arpeggiator/arpMode", Value::makeScalar(std::string{mode}));
+}
+/// A sound as `enter` leaves it, poly, its arp off.
+void plain_sound(const MenuContext& ctx) {
+	set_word(*ctx.sound, "polyphonic", "poly");
+	set_arp(ctx, "off");
+}
+void osc_types(const MenuContext& ctx, OscType first, OscType second) {
+	set_word(*ctx.sound, "osc1/type", deluge::instrument::to_string(first));
+	set_word(*ctx.sound, "osc2/type", deluge::instrument::to_string(second));
+}
+
+const std::vector<Family> kSoundFamilies{Family::INSTRUMENT, Family::EFFECT,      Family::ARP,
+                                         Family::ARP_HOST,   Family::CLIP_VALUES, Family::CLIP};
+const std::vector<Family> kLaneFamilies{Family::INSTRUMENT, Family::EFFECT, Family::ARP, Family::ARP_HOST,
+                                        Family::NOTE_ROW};
+const std::vector<Family> kNonSoundLaneFamilies{Family::ARP, Family::ARP_HOST, Family::NOTE_ROW};
+const std::vector<Family> kWholeKitFamilies{Family::EFFECT, Family::ARP, Family::ARP_HOST, Family::CLIP_VALUES,
+                                            Family::CLIP};
+const std::vector<Family> kNonAudioTrackFamilies{Family::ARP, Family::ARP_HOST, Family::CLIP_VALUES,
+                                                 Family::INSTRUMENT_DEVICE, Family::CLIP};
+const std::vector<Family> kAudioFamilies{Family::AUDIO_CLIP, Family::EFFECT, Family::AUDIO_INPUT, Family::CLIP};
+const std::vector<Family> kSongFamilies{Family::SONG, Family::EFFECT};
+
+void set_cv_channel(const MenuContext& ctx, int32_t channel) {
+	deluge::edits::trackSettingFor(*ctx.output, "channel", Value::makeNumber(channel));
+}
+void set_song(std::string_view path, int32_t value) {
+	deluge::edits::songSettingFor(path, Value::makeNumber(value));
+}
+
+const std::vector<Fixture>& fixtures() {
+	static const std::vector<Fixture> all{
+	    {"a subtractive synth", Where::SYNTH, kSoundFamilies, [](const MenuContext& c) { plain_sound(c); }},
+	    {"an FM synth", Where::SYNTH_FM, kSoundFamilies, [](const MenuContext& c) { plain_sound(c); }},
+	    {"a ring-mod synth", Where::SYNTH_RINGMOD, kSoundFamilies, [](const MenuContext& c) { plain_sound(c); }},
+	    {"a mono synth", Where::SYNTH, kSoundFamilies,
+	     [](const MenuContext& c) {
+		     plain_sound(c);
+		     set_word(*c.sound, "polyphonic", "mono");
+	     }},
+	    {"a legato synth", Where::SYNTH, kSoundFamilies,
+	     [](const MenuContext& c) {
+		     plain_sound(c);
+		     set_word(*c.sound, "polyphonic", "legato");
+	     }},
+	    {"a synth playing samples with no file", Where::SYNTH_SAMPLE, kSoundFamilies,
+	     [](const MenuContext& c) { plain_sound(c); }},
+	    {"a synth playing a sample and a wavetable", Where::SYNTH, kSoundFamilies,
+	     [](const MenuContext& c) {
+		     plain_sound(c);
+		     osc_types(c, OscType::SAMPLE, OscType::WAVETABLE);
+	     }},
+	    {"a synth playing wavetables", Where::SYNTH, kSoundFamilies,
+	     [](const MenuContext& c) {
+		     plain_sound(c);
+		     osc_types(c, OscType::WAVETABLE, OscType::SINE);
+	     }},
+	    {"a synth playing the inputs", Where::SYNTH, kSoundFamilies,
+	     [](const MenuContext& c) {
+		     plain_sound(c);
+		     osc_types(c, OscType::INPUT_L, OscType::INPUT_STEREO);
+	     }},
+	    {"a synth with a DX7", Where::SYNTH, kSoundFamilies,
+	     [](const MenuContext& c) {
+		     plain_sound(c);
+		     osc_types(c, OscType::DX7, OscType::SAW);
+	     }},
+	    {"a synth with its arp on", Where::SYNTH, kSoundFamilies,
+	     [](const MenuContext& c) {
+		     plain_sound(c);
+		     set_arp(c, "arp");
+	     }},
+	    {"a synth with other LFO waves", Where::SYNTH, kSoundFamilies,
+	     [](const MenuContext& c) {
+		     plain_sound(c);
+		     set_word(*c.sound, "lfo1/type", deluge::instrument::to_string(LFOType::SINE));
+		     set_word(*c.sound, "lfo2/type", deluge::instrument::to_string(LFOType::RANDOM_WALK));
+		     set_word(*c.sound, "lfo3/type", deluge::instrument::to_string(LFOType::WARBLER));
+	     }},
+	    {"an FM synth whose first oscillator holds a sample", Where::SYNTH, kSoundFamilies,
+	     [](const MenuContext& c) {
+		     plain_sound(c);
+		     osc_types(c, OscType::SAMPLE, OscType::SQUARE);
+		     set_word(*c.sound, "mode", "fm");
+	     }},
+	    {"an FM synth whose oscillators hold wavetables", Where::SYNTH, kSoundFamilies,
+	     [](const MenuContext& c) {
+		     plain_sound(c);
+		     osc_types(c, OscType::WAVETABLE, OscType::WAVETABLE);
+		     set_word(*c.sound, "mode", "fm");
+	     }},
+	    {"a kit's sound row", Where::KIT_LANE, kLaneFamilies, [](const MenuContext& c) { plain_sound(c); }},
+	    {"a kit's sound row in FM", Where::KIT_LANE, kLaneFamilies,
+	     [](const MenuContext& c) {
+		     plain_sound(c);
+		     set_word(*c.sound, "mode", "fm");
+	     }},
+	    {"a kit's sound row with its arp on", Where::KIT_LANE, kLaneFamilies,
+	     [](const MenuContext& c) {
+		     plain_sound(c);
+		     set_arp(c, "arp");
+	     }},
+	    {"a kit's MIDI row", Where::MIDI_DRUM, kNonSoundLaneFamilies, [](const MenuContext& c) { set_arp(c, "off"); }},
+	    {"a kit's MIDI row with its arp on", Where::MIDI_DRUM, kNonSoundLaneFamilies,
+	     [](const MenuContext& c) { set_arp(c, "arp"); }},
+	    {"a kit's gate row", Where::GATE_DRUM, kNonSoundLaneFamilies, [](const MenuContext& c) { set_arp(c, "off"); }},
+	    {"a kit's gate row with its arp on", Where::GATE_DRUM, kNonSoundLaneFamilies,
+	     [](const MenuContext& c) { set_arp(c, "arp"); }},
+	    {"the whole kit", Where::KIT, kWholeKitFamilies, [](const MenuContext& c) { set_arp(c, "off"); }},
+	    {"the whole kit with its arp on", Where::KIT, kWholeKitFamilies,
+	     [](const MenuContext& c) { set_arp(c, "arp"); }},
+	    {"a MIDI track", Where::MIDI_CLIP, kNonAudioTrackFamilies, [](const MenuContext& c) { set_arp(c, "off"); }},
+	    {"a MIDI track with its arp on", Where::MIDI_CLIP, kNonAudioTrackFamilies,
+	     [](const MenuContext& c) { set_arp(c, "arp"); }},
+	    {"a CV track on both channels", Where::CV_CLIP, kNonAudioTrackFamilies,
+	     [](const MenuContext& c) {
+		     set_arp(c, "off");
+		     set_cv_channel(c, both);
+	     }},
+	    {"a CV track on one channel with its arp on", Where::CV_CLIP, kNonAudioTrackFamilies,
+	     [](const MenuContext& c) {
+		     set_arp(c, "arp");
+		     set_cv_channel(c, one);
+	     }},
+	    {"an audio clip", Where::AUDIO_CLIP, kAudioFamilies,
+	     [](const MenuContext& c) {
+		     deluge::edits::audioInputSettingFor(static_cast<AudioOutput&>(*c.output), "inputChannel",
+		                                         Value::makeScalar("left"));
+	     }},
+	    {"an audio clip recording another track", Where::AUDIO_CLIP, kAudioFamilies,
+	     [](const MenuContext& c) {
+		     deluge::edits::audioInputSettingFor(static_cast<AudioOutput&>(*c.output), "inputChannel",
+		                                         Value::makeScalar("specificTrack"));
+	     }},
+	    {"the song with the freeverb", Where::SONG, kSongFamilies,
+	     [](const MenuContext&) {
+		     set_song("reverb/model", 0);
+		     set_song("reverb/compressor/volume", -1);
+	     }},
+	    {"the song with the mutable reverb, ducking at a set volume", Where::SONG, kSongFamilies,
+	     [](const MenuContext&) {
+		     set_song("reverb/model", 1);
+		     set_song("reverb/compressor/volume", 0);
+	     }},
+	    {"the song with the digital reverb", Where::SONG, kSongFamilies,
+	     [](const MenuContext&) {
+		     set_song("reverb/model", 2);
+		     set_song("reverb/compressor/volume", -1);
+	     }},
+	};
+	return all;
+}
+
+/// A row whose menu's relevance is not written as conditions, with legacy's rule and why. Where legacy and the
+/// descriptor disagree on one, the spec names it rather than fails.
+struct Stopped {
+	Family family;
+	std::string_view path;
+	std::string_view rule;
+};
+
+constexpr Stopped kStopped[] = {
+    {Family::INSTRUMENT, "osc1/transpose",
+     "sample::Transpose: a sample or wavetable source shows it only with a file loaded, any other always: (type not "
+     "SAMPLE or WAVETABLE) OR loaded, an OR across a setting and a fact"},
+    {Family::INSTRUMENT, "osc2/transpose", "as osc1/transpose"},
+    {Family::INSTRUMENT, "osc1/retrigPhase",
+     "osc::RetriggerPhase: a WAVETABLE source shows it only with a file loaded, else (type != SAMPLE || FM): ORs "
+     "across the type, the mode and a fact"},
+    {Family::INSTRUMENT, "osc2/retrigPhase", "as osc1/retrigPhase"},
+    {Family::INSTRUMENT, "osc1/linearInterpolation",
+     "sample::Interpolation: SUBTRACTIVE && ((SAMPLE && loaded) || an INPUT type): an OR across a setting and a fact"},
+    {Family::INSTRUMENT, "osc2/linearInterpolation", "as osc1/linearInterpolation"},
+    {Family::INSTRUMENT, "modulator1/retrigPhase",
+     "osc::RetriggerPhase(for_modulator): FM && (the oscillator's type != WAVETABLE || loaded): an OR across a "
+     "setting and a fact"},
+    {Family::INSTRUMENT, "modulator2/retrigPhase", "as modulator1/retrigPhase"},
+    {Family::EFFECT, "stutter/quantized",
+     "stutter::QuantizedStutter: isSong() || !use_song_stutter, an OR across the owner and a setting"},
+    {Family::SONG, "reverb/compressor/attack",
+     "sidechain::Attack(reverb): AudioEngine::reverbSidechainVolume >= 0, a comparison, not a set"},
+    {Family::SONG, "reverb/compressor/release", "as reverb/compressor/attack (sidechain::Release)"},
+    {Family::SONG, "reverb/compressor/shape", "reverb::sidechain::Shape: reverbSidechainVolume >= 0, a comparison"},
+};
+
+const Stopped* stopped(Family family, std::string_view path) {
+	for (const Stopped& row : kStopped) {
+		if (row.family == family && row.path == path) {
+			return &row;
+		}
+	}
+	return nullptr;
+}
+
+/// The legacy items that show @p family's row @p path, from the cases.
+std::vector<const ::MenuItem*> items_for(Family family, std::string_view path) {
+	std::vector<const ::MenuItem*> out;
+	for (const Case* c : all_name_cases()) {
+		if (c->family == family && c->path == path) {
+			out.push_back(c->item);
+		}
+	}
+	return out;
+}
+
+std::string verdict(std::string_view fixture, std::string_view path, bool applies) {
+	return std::string{fixture} + ": " + std::string{path} + (applies ? " shows" : " does not show");
 }
 
 } // namespace
@@ -106,6 +407,96 @@ describe descriptor_legacy_model("The model groups' rows against legacy's items"
 	});
 });
 
+describe descriptor_legacy_applicability("Where each row's menu shows, against legacy's relevance", $ {
+	it("shows each row exactly where legacy shows one of its items, in every fixture", _ {
+		AudioEngine::micPluggedIn = false;
+		AudioEngine::lineInPluggedIn = false;
+		std::set<std::string> excused;
+		for (const Fixture& fixture : fixtures()) {
+			enter(fixture.where);
+			fixture.setup(settle(fixture.where));
+			const MenuContext& ctx = settle(fixture.where);
+			std::set<const ::MenuItem*> shown;
+			walk(legacy_root(ctx), 0, shown);
+			if (std::ranges::find(fixture.families, Family::NOTE_ROW) != fixture.families.end()) {
+				walk(&noteRowEditorRootMenu, 0, shown);
+			}
+			const SettingContext descriptor_ctx = context_of(fixture.where);
+			for (Family family : fixture.families) {
+				const SpecReader owner{ctx, fixture.where, family};
+				for (const SettingInfo& row : table_of(family)) {
+					const std::vector<const ::MenuItem*> items = items_for(family, row.path);
+					if (items.empty()) {
+						continue;
+					}
+					const bool legacy = std::ranges::any_of(items, [&](const ::MenuItem* item) { return shown.contains(item); });
+					const bool applies = deluge::engine::setting_applies(row, descriptor_ctx, owner.reader());
+					if (legacy != applies && stopped(family, row.path) != nullptr) {
+						excused.insert(verdict(fixture.name, row.path, applies));
+						continue;
+					}
+					expect(verdict(fixture.name, row.path, applies)).to_equal(verdict(fixture.name, row.path, legacy));
+				}
+				expect(std::string{fixture.name} + " reads " + (owner.unknown.empty() ? "" : owner.unknown.front()))
+				    .to_equal(std::string{fixture.name} + " reads ");
+			}
+		}
+		for (const std::string& line : excused) {
+			std::fputs(("APPLICABILITY-STOPPED " + line + "\n").c_str(), stdout);
+		}
+	});
+	it("shows a partner row exactly where its row shows, in every fixture", _ {
+		for (const Fixture& fixture : fixtures()) {
+			enter(fixture.where);
+			fixture.setup(settle(fixture.where));
+			const MenuContext& ctx = settle(fixture.where);
+			const SettingContext descriptor_ctx = context_of(fixture.where);
+			for (Family family : fixture.families) {
+				const SpecReader owner{ctx, fixture.where, family};
+				for (const SettingInfo& row : table_of(family)) {
+					const std::string_view partner_path = deluge::engine::mapping_of(row).partner;
+					const SettingInfo* partner = partner_path.empty() ? nullptr : deluge::engine::find_setting(table_of(family), partner_path);
+					if (partner == nullptr) {
+						continue;
+					}
+					const bool applies = deluge::engine::setting_applies(row, descriptor_ctx, owner.reader());
+					expect(verdict(fixture.name, partner->path, deluge::engine::setting_applies(*partner, descriptor_ctx, owner.reader())))
+					    .to_equal(verdict(fixture.name, partner->path, applies));
+				}
+			}
+		}
+	});
+	it("names each stopped row's legacy rule", _ {
+		for (const Stopped& row : kStopped) {
+			expect(row.rule.empty()).to_be_false();
+		}
+	});
+	it("offers no DX7 to the whole kit's sounds", _ {
+		const SettingInfo& row = *deluge::engine::find_setting(deluge::instrument::kSettings, "osc1/type");
+		const MenuContext& ctx = enter(Where::SYNTH);
+		const SettingContext whole_kit{.owner = Owner::KIT, .instrument = SettingContext::Instrument::KIT};
+		expect(list_of(applicable(row, whole_kit, ctx, Where::SYNTH))).to_equal(std::string{"0,1,2,3,4,5,6,7,9,"});
+	});
+});
+
+describe descriptor_legacy_validity("Every table's conditions", $ {
+	it("name rows of their own table, with values those rows store, in every setting group and the arp's", _ {
+		// Every id a SettingGroupId can hold: a group added later is walked with the rest.
+		using deluge::project::SettingGroupId;
+		for (int32_t id = 0; id <= std::numeric_limits<uint8_t>::max(); ++id) {
+			const std::span<const SettingInfo> table = deluge::project::table_of(static_cast<SettingGroupId>(id));
+			if (table.empty()) {
+				continue;
+			}
+			expect("group " + std::to_string(id) + (deluge::engine::conditions_are_valid(table) ? " valid" : " invalid"))
+			    .to_equal("group " + std::to_string(id) + " valid");
+		}
+		expect(deluge::engine::conditions_are_valid(deluge::engine::kArpRows)).to_be_true();
+		expect(deluge::engine::conditions_are_valid(deluge::instrument::kSettings)).to_be_true();
+		expect(deluge::engine::conditions_are_valid(deluge::effects::kEffectSettings)).to_be_true();
+	});
+});
+
 describe descriptor_legacy_coverage("Every engine and model row with a menu", $ {
 	it("is compared with its legacy item, or named as a skip with its reason", _ {
 		std::set<std::string_view> covered;
@@ -139,4 +530,5 @@ describe descriptor_legacy_coverage("Every engine and model row with a menu", $ 
 
 DELUGE_SPEC(descriptor_legacy_spec, descriptor_legacy_voice, descriptor_legacy_oscillators,
             descriptor_legacy_lfos_and_modulators, descriptor_legacy_unison_and_midi, descriptor_legacy_effects,
-            descriptor_legacy_arp, descriptor_legacy_model, descriptor_legacy_coverage)
+            descriptor_legacy_arp, descriptor_legacy_model, descriptor_legacy_applicability, descriptor_legacy_validity,
+            descriptor_legacy_coverage)
