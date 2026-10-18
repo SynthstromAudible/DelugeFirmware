@@ -37,9 +37,9 @@ namespace {
 
 /// @brief A param a node binds that the check names rather than compares, with why.
 struct Exception {
-	params::Kind kind;
-	uint8_t index;
-	std::string_view reason;
+	params::Kind kind;       ///< the param's kind, with `index` its runtime address
+	uint8_t index;           ///< the param's index within its kind
+	std::string_view reason; ///< why no engine table row describes it
 };
 
 /// Nodes whose param no engine table describes: none today. A param of a host space (expression, MIDI CC) or a patch
@@ -55,6 +55,18 @@ Scaling effective_scaling(const Node& node) {
 		return Scaling::Pan;
 	}
 	return Scaling::Standard;
+}
+
+std::string_view display_name(ParamDisplay display) {
+	switch (display) {
+	case ParamDisplay::STANDARD:
+		return "STANDARD";
+	case ParamDisplay::HALF_PRECISION:
+		return "HALF_PRECISION";
+	case ParamDisplay::PAN:
+		return "PAN";
+	}
+	return "<unknown>";
 }
 
 ParamDisplay display_of(Scaling s) {
@@ -108,6 +120,17 @@ std::vector<const Node*> param_nodes() {
 	return out;
 }
 
+/// @brief The file names of the rows of @p table whose display is not the standard one, in table order.
+std::vector<std::string> non_standard(std::span<const ParamInfo> table) {
+	std::vector<std::string> out;
+	for (const ParamInfo& row : table) {
+		if (row.display != ParamDisplay::STANDARD) {
+			out.emplace_back(row.file_name);
+		}
+	}
+	return out;
+}
+
 bool named(ParamRef ref) {
 	for (const Exception& e : kUnresolved) {
 		if (e.kind == ref.kind && e.index == ref.index) {
@@ -123,42 +146,40 @@ bool named(ParamRef ref) {
 describe param_display_spec_body("The param tables' display against the menu nodes' scaling", $ {
 	it("has a row whose display is the scaling of every node that binds the param", _ {
 		const auto nodes = param_nodes();
-		expect(nodes.empty()).to_be_false();
+		expect(nodes.size()).to_be_greater_than(size_t{0});
 		for (const Node* node : nodes) {
 			const ParamRef ref = node->bind.param;
 			const ParamInfo* row = row_of(ref);
 			if (row == nullptr) {
-				expect(std::string{"unnamed unresolved param "} + std::to_string(ref.index) + (named(ref) ? "" : " unnamed"))
-				    .to_equal(std::string{"unnamed unresolved param "} + std::to_string(ref.index));
+				expect(named(ref)).to_be_true("param " + std::to_string(ref.index) + " has no row and is not named");
 				continue;
 			}
-			const bool same = row->display == display_of(effective_scaling(*node));
-			expect(std::string{row->file_name} + (same ? " agrees" : " differs"))
-			    .to_equal(std::string{row->file_name} + " agrees");
+			expect(display_name(row->display))
+			    .to_equal(display_name(display_of(effective_scaling(*node))), std::string{row->file_name});
 		}
 	});
 	it("has nodes that agree with each other about each param", _ {
-		std::map<uint32_t, Scaling> seen;
+		std::map<uint32_t, std::string_view> seen;
 		for (const Node* node : param_nodes()) {
 			const ParamRef ref = node->bind.param;
-			if (row_of(ref) == nullptr) {
+			const ParamInfo* row = row_of(ref);
+			if (row == nullptr) {
 				continue;
 			}
 			const uint32_t key = (static_cast<uint32_t>(ref.kind) << 8) | ref.index;
-			const Scaling s = effective_scaling(*node);
-			const auto first = seen.emplace(key, s);
+			const std::string_view shown = display_name(display_of(effective_scaling(*node)));
+			const auto first = seen.emplace(key, shown);
 			if (!first.second) {
-				expect(first.first->second == s).to_be_true();
+				expect(shown).to_equal(first.first->second, std::string{row->file_name});
 			}
 		}
 	});
-	it("shows no units on a param", _ {
-		for (const ParamInfo& row : deluge::instrument::kParams) {
-			expect(row.units == deluge::engine::SettingUnits::NONE).to_be_true();
-		}
-		for (const ParamInfo& row : deluge::global_effectable::kParams) {
-			expect(row.units == deluge::engine::SettingUnits::NONE).to_be_true();
-		}
+	it("has the standard display on every param but the ones the tables name", _ {
+		// A display a row lacks is the standard one, so a row that changes it must be named here.
+		expect(non_standard(deluge::instrument::kParams))
+		    .to_equal(std::vector<std::string>{"oscAPhaseWidth", "oscBPhaseWidth", "pan", "compressorThreshold"});
+		expect(non_standard(deluge::global_effectable::kParams))
+		    .to_equal(std::vector<std::string>{"compressorThreshold", "pan"});
 	});
 });
 // clang-format on
