@@ -140,10 +140,14 @@ where
     F: AsyncFnOnce(&Fs) -> R,
 {
     let g = FS.lock().await;
-    match g.as_ref() {
+    let acquired = embassy_time::Instant::now();
+    let tier = crate::tier::current();
+    let result = match g.as_ref() {
         Some(fs) => Some(f(fs).await),
         None => None,
-    }
+    };
+    crate::storage::fill_trace::fs_released(tier, acquired);
+    result
 }
 
 // Streaming-read handle table.
@@ -172,19 +176,48 @@ pub async fn open(path: &str) -> OpenOutcome {
 /// Reads `dst.len()` bytes at absolute `byte_offset` of the file behind `handle`. Returns
 /// whether the whole buffer was filled (zero-padded past EOF, see [`portable::read_context`]).
 pub async fn read_at(handle: u32, byte_offset: u32, dst: &mut [u8]) -> bool {
+    read_at_timed(handle, byte_offset, dst).await.filled
+}
+
+/// [`read_at`], also reporting when it took the filesystem mutex and whose hold it waited behind,
+/// for the fill trace.
+pub async fn read_at_timed(
+    handle: u32,
+    byte_offset: u32,
+    dst: &mut [u8],
+) -> crate::storage::fill_trace::TimedRead {
+    use crate::storage::fill_trace::TimedRead;
     let Some((generation, ctx)) = HANDLES.lock().await.checkout(handle) else {
-        return false;
+        return TimedRead::default();
     };
 
-    let result = with_fs(async |fs| portable::read_context(fs, ctx, byte_offset, dst).await).await;
+    let result = with_fs(async |fs| {
+        let acquired = embassy_time::Instant::now();
+        let waited_behind = crate::storage::fill_trace::last_fs_release();
+        (
+            acquired,
+            waited_behind,
+            portable::read_context(fs, ctx, byte_offset, dst).await,
+        )
+    })
+    .await;
 
     match result {
-        Some(Some((newctx, filled))) => {
+        Some((acquired, waited_behind, Some((newctx, filled)))) => {
             HANDLES.lock().await.commit(handle, generation, newctx);
-            filled
+            TimedRead {
+                filled,
+                acquired: Some(acquired),
+                waited_behind,
+            }
         }
         // Unmounted or FS error; the slot is left as it was.
-        _ => false,
+        Some((acquired, waited_behind, None)) => TimedRead {
+            filled: false,
+            acquired: Some(acquired),
+            waited_behind,
+        },
+        None => TimedRead::default(),
     }
 }
 

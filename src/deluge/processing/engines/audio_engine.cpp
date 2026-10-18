@@ -1224,6 +1224,7 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 	// storage-tier scheduling work has to beat. `depth` is the tripwire for ordering ever mattering
 	// (mean 1.19 today: nothing to order). `scans` guards the chunk-table indexes against a
 	// regression back to the O(table) walks they replaced.
+#if !DELUGE_STREAM_BENCH // The benchmark zeroes and reads these itself, per phase.
 	{
 		static uint32_t lastLoaderDumpTime = 0;
 		if (audioSampleTimer - lastLoaderDumpTime >= 44100u * 2u) {
@@ -1251,6 +1252,7 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 			}
 		}
 	}
+#endif
 }
 
 extern "C" void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSample* out, uint32_t frames) noexcept {

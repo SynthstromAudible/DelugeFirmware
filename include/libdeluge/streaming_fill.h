@@ -103,6 +103,42 @@ typedef struct DelugeStreamingFillContext {
 void deluge_streaming_set_fill_context(DelugeResource* mgr, uint32_t asset,
                                        DelugeStreamingFillContext ctx) DELUGE_NOEXCEPT;
 
+/// @brief Buckets in a DelugeFillTraceHist: bucket 0 holds 0 µs, bucket i holds [2^(i-1), 2^i) µs, and the last
+///        also holds everything longer (about 1 s and up).
+#define DELUGE_FILL_TRACE_BUCKETS 22
+
+/// @brief One phase of the fill trace: a histogram of its durations, in µs.
+typedef struct DelugeFillTraceHist {
+	uint32_t n;                                  ///< durations recorded
+	uint32_t max_us;                             ///< the longest
+	uint64_t total_us;                           ///< their sum, for the mean
+	uint32_t buckets[DELUGE_FILL_TRACE_BUCKETS]; ///< log2 histogram, see DELUGE_FILL_TRACE_BUCKETS
+} DelugeFillTraceHist;
+
+/// @brief Where the streaming fill task's time goes, since the last deluge_fill_trace_reset().
+///
+/// The queue wait before a chunk is popped is DelugeResourceStats' queue_wait_*; this splits up what follows.
+typedef struct DelugeFillTrace {
+	DelugeFillTraceHist wake;    ///< from a wake signalled while the fill task waits, to its drain pass starting
+	DelugeFillTraceHist fs_wait; ///< from asking for a chunk's read to taking the filesystem mutex
+	DelugeFillTraceHist read;    ///< the read, with the mutex held
+	DelugeFillTraceHist finish;  ///< the convert/stitch/publish tail after a successful read
+	DelugeFillTraceHist gap;     ///< from one read's end to the next read's start in the same drain pass
+	DelugeFillTraceHist pop;     ///< popping the next chunk off the loader queue
+	DelugeFillTraceHist begin;   ///< resolving a popped chunk's read (its destination and file offset)
+	/// Filesystem waits of 2 ms or more, by the tier (interaction, storage, audio) that last held the mutex.
+	uint32_t long_fs_waits_by_tier[3];
+	/// The longest of those waits, in µs, by the same tier.
+	uint32_t long_fs_wait_max_by_tier[3];
+} DelugeFillTrace;
+
+/// @brief Copy the fill trace into @p out. [task]
+/// @param out Where to write it. NULL is ignored.
+void deluge_fill_trace_snapshot(DelugeFillTrace* out) DELUGE_NOEXCEPT;
+
+/// @brief Zero the fill trace. [task]
+void deluge_fill_trace_reset(void) DELUGE_NOEXCEPT;
+
 #ifdef __cplusplus
 }
 #endif

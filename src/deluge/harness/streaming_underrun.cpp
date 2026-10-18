@@ -17,7 +17,7 @@
 
 #include "harness/streaming_underrun.h"
 
-#ifdef DELUGE_HOST
+#if DELUGE_UNDERRUN_COUNTERS
 
 #include "libdeluge/tier.h"
 
@@ -81,4 +81,4 @@ uint64_t deluge_sim_voice_render_count(uint8_t tier) {
 
 } // extern "C"
 
-#endif // DELUGE_HOST
+#endif // DELUGE_UNDERRUN_COUNTERS

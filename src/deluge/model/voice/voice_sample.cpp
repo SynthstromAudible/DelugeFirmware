@@ -18,6 +18,7 @@
 #include "model/voice/voice_sample.h"
 #include "definitions_cxx.hpp"
 #include "dsp/timestretch/time_stretcher.h"
+#include "harness/streaming_underrun.h"
 #include "io/debug/log.h"
 #include "libdeluge/memory.h"
 #include "memory/general_memory_allocator.h"
@@ -25,9 +26,6 @@
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
 #include "model/voice/voice.h"
-#ifdef DELUGE_HOST
-#include "harness/streaming_underrun.h"
-#endif
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/source.h"
@@ -299,7 +297,7 @@ goodToGo:
 	// place
 waitForResidency:
 	pendingSamplesLate += numSamples;
-#ifdef DELUGE_HOST
+#if DELUGE_UNDERRUN_COUNTERS
 	// The streaming-underrun harness's primary signal: this is the single convergence point for both
 	// residency misses above - the start cluster still LOADING, or its neighbour LOADING and we're too
 	// far into the start cluster to spare it the time - so one counter increment here captures either
@@ -407,7 +405,7 @@ bool VoiceSample::stopReadingFromCache() {
 	// decision at moveOnToNextCluster's sibling UNASSIGN-class site. This no-arg path has no play-direction/priority
 	// to drive a re-acquire, so it reads the port's residency state directly.
 	if (!hasCurrentRegion()) {
-#ifdef DELUGE_HOST
+#if DELUGE_UNDERRUN_COUNTERS
 		// The streaming-underrun harness's UNASSIGN-class signal: the cache-stop path found the
 		// Cluster it needs to fall back to isn't loaded (or isn't even held), so the caller
 		// (stopUsingCache -> e.g. AudioClip::resumePlayback) is about to do an instant voice
@@ -478,7 +476,7 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
                          int32_t timeStretchRatio, int32_t amplitude, int32_t amplitudeIncrement,
                          int32_t interpolationBufferSize, InterpolationMode desiredInterpolationMode,
                          int32_t priorityRating) {
-#ifdef DELUGE_HOST
+#if DELUGE_UNDERRUN_COUNTERS
 	deluge::harness::noteVoiceRender();
 #endif
 

@@ -55,6 +55,9 @@
 #include "io/midi/midi_follow.h"
 #include "lib/printf.h" // IWYU pragma: keep this over rides printf with a non allocating version
 #include "libdeluge/app.h"
+#if DELUGE_STREAM_BENCH
+#include "bench/stream_bench.h"
+#endif
 #include "libdeluge/board.h"
 #include "libdeluge/control_surface.h"
 #include "libdeluge/display.h"
@@ -382,7 +385,7 @@ constexpr Micros us(double seconds) {
 
 deluge::runtime::JobId startupJob = deluge::runtime::kNoJob;
 
-#if ENABLE_TEXT_OUTPUT
+#if ENABLE_TEXT_OUTPUT && !DELUGE_STREAM_BENCH
 /// Jobs whose worst run is at least this long are reported: this long is how late a single run
 /// can make every other job, the playback and MIDI routines included.
 constexpr Micros kReportRunAtLeast = 1000;
@@ -533,7 +536,10 @@ void registerJobs() {
 	// Boot armed its timers before the job existed, so nothing has asked for its first run yet.
 	appLoop.request(uiTimerManager.jobId);
 	startupJob = appLoop.add("startup/render", &startupWhenCardReady, us(0.004), 0);
-#if ENABLE_TEXT_OUTPUT
+#if DELUGE_STREAM_BENCH
+	// The benchmark zeroes and reads the job stats itself, per phase.
+	deluge::bench::registerStreamBench();
+#elif ENABLE_TEXT_OUTPUT
 	appLoop.add("job stats", &reportJobStats, us(10.0), 0);
 #endif
 }

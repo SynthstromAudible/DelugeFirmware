@@ -233,6 +233,9 @@ bool deluge_resource_loader_has_any(DelugeResource* mgr);
 /// Number of cost classes `evictions_by_cost` buckets by (must match the Rust COST_BUCKETS).
 #define DELUGE_RESOURCE_COST_BUCKETS 8
 
+/// Buckets in each of DelugeResourceStats' latency histograms (must match the Rust LATENCY_BUCKETS).
+#define DELUGE_RESOURCE_LATENCY_BUCKETS 16
+
 /// Cumulative manager instrumentation counters — pure stats (never affect behaviour), for cache /
 /// eviction analysis, profiling, on-device debug. Layout must match `Stats` in manager.rs.
 typedef struct DelugeResourceStats {
@@ -273,6 +276,10 @@ typedef struct DelugeResourceStats {
 	uint64_t fill_samples;
 	uint64_t fill_total;
 	uint64_t fill_max;
+	// queue_wait and fill as log2 histograms of frames: bucket 0 holds 0, bucket i holds [2^(i-1), 2^i), and the last
+	// also holds everything longer.
+	uint32_t queue_wait_buckets[DELUGE_RESOURCE_LATENCY_BUCKETS];
+	uint32_t fill_buckets[DELUGE_RESOURCE_LATENCY_BUCKETS];
 } DelugeResourceStats;
 
 /// Copy the manager's cumulative counters into `*out`. No-op if either pointer is null.

@@ -2,6 +2,8 @@
 
 pub mod card;
 pub mod efatfs;
+#[cfg(has_app)]
+pub mod fill_trace;
 #[cfg(feature = "host_app")]
 pub mod memory_card;
 pub mod sd;

@@ -129,6 +129,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "autocfg"
+version = "1.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
+
+[[package]]
 name = "bindgen"
 version = "0.70.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -345,18 +351,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "deluge-alloc"
-version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=e955ca056530497ac6e79ade6c9c6cf7c3bd0a24#e955ca056530497ac6e79ade6c9c6cf7c3bd0a24"
-dependencies = [
- "critical-section",
- "rlsf",
-]
-
-[[package]]
 name = "deluge-bsp"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=e955ca056530497ac6e79ade6c9c6cf7c3bd0a24#e955ca056530497ac6e79ade6c9c6cf7c3bd0a24"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=effdf115963e4875f26cdb783d7ab17b21bd9efc#effdf115963e4875f26cdb783d7ab17b21bd9efc"
 dependencies = [
  "cortex-ar",
  "critical-section",
@@ -368,7 +365,10 @@ dependencies = [
  "embassy-usb-driver",
  "heapless 0.9.3",
  "log",
+ "max5136",
+ "rza1-rt",
  "rza1l-hal",
+ "usb-classes",
 ]
 
 [[package]]
@@ -381,7 +381,6 @@ dependencies = [
  "block-device-driver",
  "cortex-ar",
  "critical-section",
- "deluge-alloc",
  "deluge-bsp",
  "deluge_alloc",
  "deluge_audio_format",
@@ -400,7 +399,9 @@ dependencies = [
  "embedded-io-async 0.7.0",
  "heapless 0.8.0",
  "log",
+ "rza1-alloc",
  "rza1l-hal",
+ "usb-classes",
 ]
 
 [[package]]
@@ -510,6 +511,15 @@ name = "embassy-futures"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc2d050bdc5c21e0862a89256ed8029ae6c290a93aecefc73084b3002cdebb01"
+
+[[package]]
+name = "embassy-hal-internal"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "568659fc53866d3d85c60fa33723fb751aa69e71507634fc2c19e7649432fb75"
+dependencies = [
+ "num-traits",
+]
 
 [[package]]
 name = "embassy-net-driver"
@@ -909,6 +919,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "max5136"
+version = "0.1.0"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=effdf115963e4875f26cdb783d7ab17b21bd9efc#effdf115963e4875f26cdb783d7ab17b21bd9efc"
+dependencies = [
+ "embedded-hal 1.0.0",
+]
+
+[[package]]
 name = "memchr"
 version = "2.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -952,6 +970,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
  "windows-sys",
+]
+
+[[package]]
+name = "num-traits"
+version = "0.2.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
+dependencies = [
+ "autocfg",
 ]
 
 [[package]]
@@ -1090,12 +1117,33 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
+name = "rza1-alloc"
+version = "0.1.0"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=effdf115963e4875f26cdb783d7ab17b21bd9efc#effdf115963e4875f26cdb783d7ab17b21bd9efc"
+dependencies = [
+ "critical-section",
+ "rlsf",
+]
+
+[[package]]
+name = "rza1-pac"
+version = "0.1.0"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=effdf115963e4875f26cdb783d7ab17b21bd9efc#effdf115963e4875f26cdb783d7ab17b21bd9efc"
+
+[[package]]
+name = "rza1-rt"
+version = "0.1.0"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=effdf115963e4875f26cdb783d7ab17b21bd9efc#effdf115963e4875f26cdb783d7ab17b21bd9efc"
+
+[[package]]
 name = "rza1l-hal"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=e955ca056530497ac6e79ade6c9c6cf7c3bd0a24#e955ca056530497ac6e79ade6c9c6cf7c3bd0a24"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=effdf115963e4875f26cdb783d7ab17b21bd9efc#effdf115963e4875f26cdb783d7ab17b21bd9efc"
 dependencies = [
  "cortex-ar",
  "critical-section",
+ "embassy-futures",
+ "embassy-hal-internal",
  "embassy-sync",
  "embassy-time",
  "embassy-time-driver",
@@ -1105,6 +1153,7 @@ dependencies = [
  "embedded-hal-async",
  "embedded-io-async 0.7.0",
  "log",
+ "rza1-pac",
 ]
 
 [[package]]
@@ -1308,6 +1357,21 @@ name = "unicode-ident"
 version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
+
+[[package]]
+name = "usb-classes"
+version = "0.1.0"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=effdf115963e4875f26cdb783d7ab17b21bd9efc#effdf115963e4875f26cdb783d7ab17b21bd9efc"
+dependencies = [
+ "critical-section",
+ "embassy-futures",
+ "embassy-sync",
+ "embassy-time",
+ "embassy-usb",
+ "embassy-usb-driver",
+ "heapless 0.9.3",
+ "log",
+]
 
 [[package]]
 name = "usb-device"
