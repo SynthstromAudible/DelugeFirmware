@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "engine-api/types/setting.h"
+#include "engine-api/types/setting_units.h"
 
 #include <compare>
 #include <cstdint>

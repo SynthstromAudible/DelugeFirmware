@@ -18,6 +18,7 @@
 #pragma once
 
 #include "engine-api/types/display_mapping.h"
+#include "engine-api/types/setting_units.h"
 
 #include <algorithm>
 #include <array>
@@ -55,9 +56,6 @@ struct UserScale {
 	/// @brief Whether a menu shows the stored value itself, its sentinels aside (no user range of its own).
 	[[nodiscard]] constexpr bool identity() const { return user_min == 0 && user_max == 0; }
 };
-
-/// @brief What a setting's menu value counts.
-enum class SettingUnits : uint8_t { NONE, SEMITONES, CENTS, MILLISECONDS, SYNC_LEVEL };
 
 /// @brief Who a setting is shown for: the facts about the owner that no setting of it holds.
 ///
@@ -640,10 +638,9 @@ inline constexpr DisplayMapping kLinearMapping{};
 /// @brief The least and greatest value @p row's menu offers, through its display mapping. For a CHOICE row they bound
 /// the choice index; a menu that filters choices counts them with applicable_choice_count.
 /// @param row The setting's row.
-/// @return {least, greatest}: the user range and its sentinels (LINEAR, CLAMP_HIGH, FLOAT_FRACTION; with no user scale,
-/// the stored
-///         bounds), the order's or table's indices, 0..1 (INVERTED_BOOL), 0..kMaxCombinedSync or the row's own user
-///         range within it (COMBINED_SYNC), the row's range ×100 (TRANSPOSE_CENTS), kPhaseFreeMenu to
+/// @return {least, greatest}: the user range and its sentinels (LINEAR, CLAMP_HIGH, FLOAT_FRACTION; with no user
+///         scale, the stored bounds), the order's or table's indices, 0..1 (INVERTED_BOOL), 0..kMaxCombinedSync or the
+///         row's own user range within it (COMBINED_SYNC), the row's range ×100 (TRANSPOSE_CENTS), kPhaseFreeMenu to
 ///         kMaxPhaseDegrees (PHASE_DEGREES), 0..kMaxMenuSteps (STANDARD, UNSIGNED, FIFTIETHS), ±kMaxPanSteps (PAN) or
 ///         0..kMaxKnobPosition (KNOB_POSITION).
 [[nodiscard]] constexpr std::pair<int32_t, int32_t> menu_range(const SettingInfo& row) {
