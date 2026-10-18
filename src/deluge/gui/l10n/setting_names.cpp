@@ -568,6 +568,12 @@ constexpr std::array<Entry, 2> kUnpluggedEntries{{
     Entry{engine::kDelugeInstrument, "osc1/type", &kOsc1TypeUnpluggedNames},
     Entry{engine::kDelugeInstrument, "osc2/type", &kOsc1TypeUnpluggedNames},
 }};
+static_assert(std::ranges::adjacent_find(kUnpluggedEntries,
+                                         [](const Entry& a, const Entry& b) {
+	                                         return key_of(a.owner, a.path) >= key_of(b.owner, b.path);
+                                         })
+                  == kUnpluggedEntries.end(),
+              "kUnpluggedEntries is searched by owner and path: keep it sorted, with no key twice");
 
 /// @brief A param's name.
 struct ParamName {
