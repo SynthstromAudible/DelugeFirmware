@@ -7,6 +7,7 @@
 #include "deluge-project/sequence_direction.h"
 #include "deluge-project/song.h"
 #include "engine-api/types/arp.h"
+#include "engine-api/types/rate_tables.h"
 #include "engine-api/types/sync.h"
 #include "engine-api/types/voice_priority.h"
 #include "serialization/tree.h"
@@ -76,6 +77,15 @@ constexpr std::string_view kSongFixedPaths[] = {"reverb/roomSize",
 
 constexpr std::string_view kDisabledPrefix = "scales/disabled/";
 
+/// The reverb sidechain's attack and release menus: a step of the sidechain's rate table, the stored rate the entry
+/// shifted.
+constexpr engine::SettingDescriptorExtras kSidechainAttackExtras{
+    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table = engine::kSidechainAttackRates, .table_shift = 2}};
+constexpr engine::SettingDescriptorExtras kSidechainReleaseExtras{
+    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table = engine::kSidechainReleaseRates, .table_shift = 3}};
+/// The reverb's pan menu, −25..25.
+constexpr engine::SettingDescriptorExtras kPanExtras{.mapping = {.kind = engine::DisplayMappingKind::PAN}};
+
 /// The song table: the fixed rows, then one `scales/disabled/<i>` row per preset scale. The scale paths are built
 /// once, so the table's views stay valid for the program's life.
 std::span<const SettingInfo> song_table() {
@@ -93,12 +103,23 @@ std::span<const SettingInfo> song_table() {
 		    integer("reverb/width", 0, INT32_MAX, INT32_MAX, kFiftyths),
 		    integer("reverb/hpf", 0, INT32_MAX, 0, kFiftyths),
 		    integer("reverb/lpf", 0, INT32_MAX, INT32_MAX, kFiftyths),
-		    // The pan, the sidechain's attack and release (rate tables) and its volume (with -1 = automatic) map
-		    // non-linearly onto their menus; their menus keep that mapping.
-		    integer("reverb/pan", INT32_MIN, INT32_MAX),
+		    SettingInfo{.path = "reverb/pan",
+		                .kind = SettingKind::INTEGER,
+		                .min = INT32_MIN,
+		                .max = INT32_MAX,
+		                .extras = &kPanExtras},
 		    integer("reverb/model", 0, 2, 1),
-		    integer("reverb/compressor/attack", 0, INT32_MAX),
-		    integer("reverb/compressor/release", 0, INT32_MAX),
+		    SettingInfo{.path = "reverb/compressor/attack",
+		                .kind = SettingKind::INTEGER,
+		                .min = 0,
+		                .max = INT32_MAX,
+		                .extras = &kSidechainAttackExtras},
+		    SettingInfo{.path = "reverb/compressor/release",
+		                .kind = SettingKind::INTEGER,
+		                .min = 0,
+		                .max = INT32_MAX,
+		                .extras = &kSidechainReleaseExtras},
+		    // The volume (with -1 = automatic) truncates onto its menu; its menu keeps that mapping.
 		    integer("reverb/compressor/volume", INT32_MIN, INT32_MAX),
 		    integer("reverb/compressor/shape", INT32_MIN, INT32_MAX, -601295438),
 		    integer("reverb/compressor/syncLevel", 0, engine::kMaxSyncLevel, 0, {}, SettingUnits::SYNC_LEVEL),
@@ -447,25 +468,32 @@ constexpr SettingInfo kClipValuesTable[] = {
 // ---------------------------------------------------------------------------------------------
 // AUDIO_CLIP (on DocAudioClip)
 
-/// A voice priority as its stored number, in engine::VoicePriority's order (low, medium, high): the sound's voice
-/// priority menu shows these.
-constexpr std::string_view kVoicePriorityWords[] = {"0", "1", "2"};
-static_assert(std::to_underlying(engine::VoicePriority::HIGH) + 1 == std::size(kVoicePriorityWords));
+/// The transpose menu: one value in cents over the semitones and the cents row.
+constexpr engine::SettingDescriptorExtras kTransposeExtras{
+    .mapping = {.kind = engine::DisplayMappingKind::TRANSPOSE_CENTS, .partner = "cents"}};
+/// The interpolation menu lists linear first: menu 0 stores 1.
+constexpr engine::SettingDescriptorExtras kInterpolationExtras{
+    .mapping = {.kind = engine::DisplayMappingKind::INVERTED_BOOL}};
 
 constexpr SettingInfo kAudioClipTable[] = {
     // A row's range is int32: a marker past 2^31 frames (an 8-bit file over 2 GB) is refused, though the record holds
     // 64 bits.
     integer("startSamplePos", 0, INT32_MAX),
     integer("endSamplePos", 0, INT32_MAX),
-    integer("transpose", -96, 96, 0, {}, SettingUnits::SEMITONES),
+    SettingInfo{.path = "transpose",
+                .kind = SettingKind::INTEGER,
+                .min = -96,
+                .max = 96,
+                .units = SettingUnits::CENTS,
+                .extras = &kTransposeExtras},
     integer("cents", -50, 50, 0, {}, SettingUnits::CENTS),
-    boolean("linearInterpolation"),
+    SettingInfo{.path = "linearInterpolation", .kind = SettingKind::BOOL, .extras = &kInterpolationExtras},
     boolean("pitchSpeedIndependent", 1),
     boolean("reversed"),
     integer("attack", INT32_MIN, INT32_MAX, INT32_MIN),
     SettingInfo{.path = "priority",
                 .kind = SettingKind::CHOICE,
-                .choices = kVoicePriorityWords,
+                .choices = engine::kVoicePriorityWords,
                 .default_value = std::to_underlying(engine::VoicePriority::MEDIUM)},
     boolean("overdubsShouldCloneAudioTrack", 1),
 };
