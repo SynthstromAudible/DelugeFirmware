@@ -269,6 +269,12 @@ constexpr std::string_view kMpeYChoices[] = {"74", "1"};
 /// The highest channel word an instrument can hold: 16 channels, the two MPE zones, and the transpose sentinel.
 constexpr int32_t kMaxChannelWord = 55;
 
+/// The CV mode each of the second channel's menu steps stores: off, then the modes after pitch, which the menu skips.
+constexpr std::array<int32_t, 4> kCv2SourceModes{0, 2, 3, 4};
+/// A stored pitch mode shows as the first step, off.
+constexpr engine::SettingDescriptorExtras kCv2SourceExtras{
+    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table = kCv2SourceModes}};
+
 constexpr SettingInfo kInstrumentDeviceTable[] = {
     integer("channel", 0, kMaxChannelWord),
     integer("channelSuffix", -1, 25, -1),
@@ -276,7 +282,7 @@ constexpr SettingInfo kInstrumentDeviceTable[] = {
     SettingInfo{.path = "outputMpeY", .kind = SettingKind::CHOICE, .choices = kMpeYChoices},
     boolean("collapseAftertouch"),
     boolean("collapseMpe", 1),
-    integer("cv2Source", 0, 4),
+    integer("cv2Source", 0, 4, 0, {}, SettingUnits::NONE, &kCv2SourceExtras),
 };
 
 constexpr std::string_view kCcLabelPrefix = "ccLabels/";
@@ -397,6 +403,8 @@ constexpr SettingInfo kLaneTable[] = {text("name")};
 // NOTE_ROW (on DocNoteRow)
 
 constexpr std::string_view kDirectionChoices[] = {"forward", "reverse", "pingpong", "obeyParent"};
+/// A clip has no parent direction to obey: its menu lists the first three.
+constexpr std::string_view kClipDirectionChoices[] = {"forward", "reverse", "pingpong"};
 /// A bend range's semitones, as its menu offers them.
 constexpr int32_t kMaxBendRange = 96;
 /// The factory bend ranges: a whole clip's, and a finger's (MPE).
@@ -462,7 +470,7 @@ void write_audio_input(DocOutput& o, std::string_view path, const Value& value) 
 
 constexpr SettingInfo kClipTable[] = {
     text("name"),
-    SettingInfo{.path = "sequenceDirection", .kind = SettingKind::CHOICE, .choices = kDirectionChoices},
+    SettingInfo{.path = "sequenceDirection", .kind = SettingKind::CHOICE, .choices = kClipDirectionChoices},
 };
 
 /// MIDI program numbers 0..127; 128 is none (no message sent).

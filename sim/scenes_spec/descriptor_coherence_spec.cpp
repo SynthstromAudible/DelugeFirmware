@@ -91,15 +91,6 @@ const Pairing& chained_pages() {
 	return pages;
 }
 
-/// @brief Nodes that show the row of @p c beside the ones its legacy item pairs with: a kit row's own bend range is a
-/// second legacy object (`drumBendRangeMenu`) of the finger bend range's class.
-std::vector<const Node*> extra_nodes(const Case& c) {
-	if (c.item == &perFingerBendRangeMenu && c.family == Family::NOTE_ROW) {
-		return {&nodes::drum_bend_range};
-	}
-	return {};
-}
-
 /// @brief Every legacy item with the nodes the ten roots pair it with, and the chained pages.
 const Pairing& pairing() {
 	static const Pairing pairs = [] {
@@ -145,12 +136,27 @@ struct NodeException {
 	uint8_t aspects;
 	std::string_view reason;
 	std::string_view only{}; ///< empty = every finding of those aspects; else only the findings containing this text
-	/// Puts the sound where the node's unset reading shows, for a path whose row has no value there.
-	void (*unset)(const deluge::scenes::menu::MenuContext&) = nullptr;
+};
+
+/// @brief A stored value the record cannot hold for a row, set on the engine where the node reads it.
+struct UnsetProbe {
+	std::string_view path;
+	int32_t stored;
+	void (*set)(const deluge::scenes::menu::MenuContext&);
 };
 
 void unset_note_for_drum(const deluge::scenes::menu::MenuContext& ctx) {
 	ctx.sound->outputMidiNoteForDrum = MIDI_NOTE_NONE;
+}
+
+const UnsetProbe* unset_probe_of(std::string_view path) {
+	static const UnsetProbe probes[] = {{"midiOutput/noteForDrum", 255, &unset_note_for_drum}};
+	for (const UnsetProbe& probe : probes) {
+		if (probe.path == path) {
+			return &probe;
+		}
+	}
+	return nullptr;
 }
 
 const std::vector<NodeException>& node_exceptions() {
@@ -171,20 +177,13 @@ const std::vector<NodeException>& node_exceptions() {
 	    {"reverb/width", NAMES | TITLE,
 	     "legacy renames the item Diffusion under the MUTABLE and DIGITAL reverb models and the table gives that one "
 	     "name; the node always shows the Freeverb name, Width (`tables_3_spec.cpp` parks it)"},
-	    {"midiOutput/noteForDrum", READ | WRITE,
-	     "unset (255) shows kNoteForDrum (60), where the row has no value; and the node writes the sound's field "
-	     "directly, not through the row's Edit, so the record keeps its old value",
-	     "", &unset_note_for_drum},
-	    {"bendRange", NAMES | TITLE,
-	     "a kit row's own bend range is `drumBendRangeMenu`, a separate legacy item of the finger bend range's class "
-	     "named Bend range, where the NOTE_ROW row's names are the finger item's (Poly / Finger / MPE)",
-	     "node 'Bend range' row 'Poly / Finger / MPE'"},
+	    {"midiOutput/noteForDrum", WRITE,
+	     "the node writes the sound's field directly, not through the row's Edit, so the record keeps its old value"},
 	    {"reverb/compressor/shape", WRITE,
 	     "the node's write omits the top step's special case, as legacy's does (menu 50 stores 2147483602, not "
-	     "2147483647)"},
-	    {"attack", WRITE,
-	     "the AUDIO_CLIP group's attack: the node writes as legacy does, computeCurrentValueForStandardMenuItem of the "
-	     "menu value (menu 50 stores 25); kept for Kate to decide before the scenes' table is replaced"},
+	     "2147483647)",
+	     "write(50)"},
+	    {"attack", WRITE, "every menu value stores 25 (legacy's write applies the read conversion, upstream PR #2249)"},
 	};
 	return list;
 }
@@ -243,10 +242,35 @@ bool node_lists_names(const Node& node) {
 	return node.bind.dynamic_names != nullptr || !node.bind.names.empty();
 }
 
-/// @brief Whether the case's row has a driver that sets and reads its value (the named-only groups have none).
-bool driven(const Case& c) {
-	return c.family != Family::NOTE_ROW && c.family != Family::CLIP && c.family != Family::INSTRUMENT_DEVICE
-	       && c.family != Family::AUDIO_INPUT;
+/// @brief A row whose menu is not one value of one row, so a check cannot set it and read the menu back.
+struct Undriven {
+	std::string_view path;
+	uint8_t aspects; ///< the aspects not compared (RANGE, READ, WRITE)
+	std::string_view reason;
+};
+
+const std::vector<Undriven>& undriven_rows() {
+	static const std::vector<Undriven> list{
+	    {"deviceDefinitionFileName", RANGE | READ | WRITE,
+	     "the row is the definition file's name (text); the node is a checkbox of whether a file is linked, and "
+	     "toggling it opens the file browser"},
+	    {"mode", RANGE | READ | WRITE,
+	     "one menu item lists the audio sources over two rows, the mode and the input channel, so no menu value is one "
+	     "row's value"},
+	    {"inputChannel", RANGE | READ | WRITE, "as mode: the item's list spans the mode row too"},
+	    {"outputRecordingFrom", RANGE | READ | WRITE,
+	     "the menu lists the song's other tracks by position, where the row holds a track's durable id"},
+	};
+	return list;
+}
+
+bool undriven(const Case& c, Aspect aspect) {
+	for (const Undriven& u : undriven_rows()) {
+		if (u.path == c.path) {
+			return (u.aspects & aspect) != 0;
+		}
+	}
+	return false;
 }
 
 Findings compare(const Case& c, const Node& node, const NodeException* exception) {
@@ -262,7 +286,7 @@ Findings compare(const Case& c, const Node& node, const NodeException* exception
 	// range is not a menu range.
 	const IntRange node_range = bindings::range(node, ctx);
 	const Range want_range = listed_choice ? Range{0, static_cast<int32_t>(choices.size()) - 1} : menu_range(row);
-	if (driven(c) && (node_range.min != want_range.first || node_range.max != want_range.second)) {
+	if (!undriven(c, RANGE) && (node_range.min != want_range.first || node_range.max != want_range.second)) {
 		f.range.push_back(std::string{c.path} + " range " + std::to_string(node_range.min) + ".."
 		                  + std::to_string(node_range.max) + " row " + std::to_string(want_range.first) + ".."
 		                  + std::to_string(want_range.second));
@@ -289,7 +313,7 @@ Findings compare(const Case& c, const Node& node, const NodeException* exception
 		}
 		std::vector<std::string> have = node_names(node, ctx);
 		std::vector<std::string> want;
-		if (!driven(c)) {
+		if (undriven(c, RANGE)) {
 			// The menu's options by position, from the first: a list the context shortens (a clip's has no
 			// "obey parent") is a prefix of the table's.
 			for (size_t i = 0; i < have.size(); ++i) {
@@ -324,10 +348,10 @@ Findings compare(const Case& c, const Node& node, const NodeException* exception
 
 	// The reads.
 	const SettingInfo* partner = partner_of(c, row);
-	if (!driven(c)) {
-		return f;
+	if (undriven(c, READ)) {
+		// no read
 	}
-	if (listed_choice) {
+	else if (listed_choice) {
 		for (size_t position = 0; position < choices.size(); ++position) {
 			set_stored(c.family, ctx, c.where, row, choices[position]);
 			const int32_t got = bindings::read(node, ctx);
@@ -365,16 +389,19 @@ Findings compare(const Case& c, const Node& node, const NodeException* exception
 	}
 
 	// Where the row has no value, what the node shows.
-	if (exception != nullptr && exception->unset != nullptr) {
-		exception->unset(ctx);
+	if (const UnsetProbe* probe = unset_probe_of(c.path); probe != nullptr) {
+		probe->set(ctx);
 		const int32_t got = bindings::read(node, ctx);
-		const int32_t want = to_menu(row, row.default_value);
+		const int32_t want = to_menu(row, probe->stored);
 		if (got != want) {
-			f.read.push_back(menu_show(c, "read unset", 0, got, want));
+			f.read.push_back(menu_show(c, "read unset", probe->stored, got, want));
 		}
 	}
 
 	// The writes: the node's own range bounds them, as the legacy item's did.
+	if (undriven(c, WRITE)) {
+		return f;
+	}
 	for (const int32_t menu : menu_probes({node_range.min, node_range.max})) {
 		bindings::write(node, ctx, menu);
 		const int64_t got = get_stored(c.family, ctx, c.where, row).value_or(-99999);
@@ -471,11 +498,7 @@ void run_cases(auto& self, const std::vector<const Case*>& cases) {
 			continue;
 		}
 		const NodeException* exception = exception_of(c->path);
-		std::vector<const Node*> shown = found->second;
-		for (const Node* extra : extra_nodes(*c)) {
-			shown.push_back(extra);
-		}
-		for (const Node* node : shown) {
+		for (const Node* node : found->second) {
 			++tally().nodes;
 			tally().compared.insert(node);
 			if (exception != nullptr) {
@@ -640,6 +663,15 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 		}
 		expect(tally().nodes > 0).to_be_true();
 		expect(tally().unpaired.size()).to_equal(size_t(0));
+	});
+	it("names only rows a case shows, for each row it does not drive", _ {
+		for (const Undriven& u : undriven_rows()) {
+			bool shown = false;
+			for (const Case* c : all_name_cases()) {
+				shown = shown || c->path == u.path;
+			}
+			expect(std::string{u.path} + (shown ? " is a case" : " is no case")).to_equal(std::string{u.path} + " is a case");
+		}
 	});
 	it("still differs wherever it names an exception", _ {
 		run_all(self);

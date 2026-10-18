@@ -308,6 +308,8 @@ constexpr SettingNames kAudioCompressorCompHPFNames{STRING_FOR_HPF, STRING_FOR_H
 constexpr SettingNames kAudioCompressorRatioNames{STRING_FOR_RATIO, STRING_FOR_RATIO, {}, {}};
 constexpr SettingNames kAudioCompressorReleaseNames{STRING_FOR_RELEASE, STRING_FOR_RELEASE, {}, {}};
 constexpr SettingNames kBendRangeNames{STRING_FOR_NORMAL, STRING_FOR_NORMAL, {}, {}};
+/// A kit row's own bend range: `drumBendRangeMenu`, the one bend item a kit row shows.
+constexpr SettingNames kDrumBendRangeNames{STRING_FOR_BEND_RANGE, STRING_FOR_BEND_RANGE, {}, {}};
 constexpr SettingNames kBendRangeNames2{STRING_FOR_POLY_FINGER_MPE, STRING_FOR_POLY_FINGER_MPE, {}, {}};
 constexpr SettingNames kClippingAmountNames{STRING_FOR_SATURATION, STRING_FOR_SATURATION, {}, {}};
 constexpr SettingNames kCollapseAftertouchNames{
@@ -372,6 +374,9 @@ constexpr SettingNames kReverbWidthNames{STRING_FOR_DIFFUSION, STRING_FOR_DIFFUS
 constexpr SettingNames kReversedNames{STRING_FOR_REVERSE, STRING_FOR_REVERSE, {}, {}};
 constexpr SettingNames kSequenceDirectionNames{
     STRING_FOR_PLAY_DIRECTION, STRING_FOR_PLAY_DIRECTION, kSequenceDirectionChoices, {}};
+/// A clip's directions are the first three: it has no parent to obey.
+constexpr SettingNames kClipSequenceDirectionNames{
+    STRING_FOR_PLAY_DIRECTION, STRING_FOR_PLAY_DIRECTION, std::span{kSequenceDirectionChoices}.first(3), {}};
 constexpr SettingNames kSideChainSendNames{STRING_FOR_SEND_TO_SIDECH_MENU_TITLE, STRING_FOR_SEND_TO_SIDECHAIN, {}, {}};
 constexpr SettingNames kSidechainSyncLevelNames{STRING_FOR_SIDECHAIN_SYNC, STRING_FOR_SYNC, {}, {}};
 constexpr SettingNames kStutterQuantizedNames{STRING_FOR_QUANTIZE, STRING_FOR_QUANTIZE, {}, {}};
@@ -414,7 +419,7 @@ constexpr std::array<Entry, 172> kEntries{{
     Entry{SettingGroupId::INSTRUMENT_DEVICE, "deviceDefinitionFileName", &kDeviceDefinitionFileNameNames},
     Entry{SettingGroupId::INSTRUMENT_DEVICE, "hideUnlabeledCC", &kHideUnlabeledCCNames},
     Entry{SettingGroupId::INSTRUMENT_DEVICE, "outputMpeY", &kOutputMpeYNames},
-    Entry{SettingGroupId::NOTE_ROW, "bendRange", &kBendRangeNames2},
+    Entry{SettingGroupId::NOTE_ROW, "bendRange", &kDrumBendRangeNames},
     Entry{SettingGroupId::NOTE_ROW, "sequenceDirection", &kSequenceDirectionNames},
     Entry{SettingGroupId::AUDIO_CLIP, "attack", &kAttackNames},
     Entry{SettingGroupId::AUDIO_CLIP, "linearInterpolation", &kLinearInterpolationNames},
@@ -422,7 +427,7 @@ constexpr std::array<Entry, 172> kEntries{{
     Entry{SettingGroupId::AUDIO_CLIP, "priority", &kPriorityNames},
     Entry{SettingGroupId::AUDIO_CLIP, "reversed", &kReversedNames},
     Entry{SettingGroupId::AUDIO_CLIP, "transpose", &kTransposeNames2},
-    Entry{SettingGroupId::CLIP, "sequenceDirection", &kSequenceDirectionNames},
+    Entry{SettingGroupId::CLIP, "sequenceDirection", &kClipSequenceDirectionNames},
     Entry{SettingGroupId::CLIP_VALUES, "bendRange", &kBendRangeNames},
     Entry{SettingGroupId::CLIP_VALUES, "bendRangeMPE", &kBendRangeNames2},
     Entry{SettingGroupId::CLIP_VALUES, "midiBank", &kMidiBankNames},

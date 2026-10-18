@@ -280,7 +280,7 @@ describe setting_names_spec_body("The host's name table", $ {
 		};
 		expect(text_of(engine::kDelugeInstrument, "transpose")).to_equal(std::string{"Master transpose"});
 		expect(text_of(SettingGroupId::AUDIO_CLIP, "transpose")).to_equal(std::string{"Transpose"});
-		expect(text_of(SettingGroupId::NOTE_ROW, "bendRange")).to_equal(std::string{"Poly / Finger / MPE"});
+		expect(text_of(SettingGroupId::NOTE_ROW, "bendRange")).to_equal(std::string{"Bend range"});
 		expect(text_of(SettingGroupId::CLIP_VALUES, "bendRange")).to_equal(std::string{"Normal"});
 		expect(text_of(SettingGroupId::AUDIO_INPUT, "mode")).to_equal(std::string{"Audio source"});
 		expect(text_of(engine::kDelugeInstrument, "mode")).to_equal(std::string{"Synth Mode"});

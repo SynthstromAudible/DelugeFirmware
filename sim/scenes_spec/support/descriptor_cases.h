@@ -408,6 +408,7 @@ extern legacy::midi::Sub midiSubMenu;
 extern legacy::midi::PGM midiPGMMenu;
 extern legacy::bend_range::Main mainBendRangeMenu;
 extern legacy::bend_range::PerFinger perFingerBendRangeMenu;
+extern legacy::bend_range::PerFinger drumBendRangeMenu;
 extern legacy::sidechain::Release reverbSidechainReleaseMenu;
 /// @}
 
@@ -509,6 +510,7 @@ enum class Where : uint8_t {
 	SYNTH_RINGMOD, ///< a synth track in ring mod, both oscillators square
 	KIT_LANE,      ///< a kit lane's sound, subtractive
 	MIDI_CLIP,     ///< a MIDI clip (its arp's host rows are settings there)
+	CV_CLIP,       ///< a CV clip, both CV channels in use
 	AUDIO_CLIP,    ///< an audio clip
 	SONG,          ///< the song's own settings
 };
@@ -557,6 +559,20 @@ MidiClip& midi_clip() {
 		return r;
 	}();
 	return m;
+}
+
+struct CvClip {
+	spec::SongFixture song;
+	MenuContext ctx{};
+};
+CvClip& cv_clip() {
+	static CvClip c = [] {
+		CvClip r;
+		r.song = spec::make_cv_song();
+		r.ctx = deluge::scenes::menu::context_for(*r.song.song, r.song.clip, 0, false, false, false, false);
+		return r;
+	}();
+	return c;
 }
 
 struct AudioClipRig {
@@ -613,6 +629,11 @@ const MenuContext& enter(Where where, int8_t source = 0) {
 		install(m.ctx, m.song.song);
 		return m.ctx;
 	}
+	case Where::CV_CLIP: {
+		CvClip& v = cv_clip();
+		install(v.ctx, v.song.song);
+		return v.ctx;
+	}
 	case Where::AUDIO_CLIP:
 	case Where::SONG: {
 		AudioClipRig& a = audio_clip();
@@ -629,6 +650,8 @@ Song& song_of(Where where) {
 		return *kit_lane().song.song;
 	case Where::MIDI_CLIP:
 		return *midi_clip().song.song;
+	case Where::CV_CLIP:
+		return *cv_clip().song.song;
 	case Where::AUDIO_CLIP:
 	case Where::SONG:
 		return *audio_clip().song.song;
@@ -642,6 +665,7 @@ SettingContext context_of(Where where, int8_t source = 0) {
 	SettingContext shown{};
 	shown.owner = where == Where::KIT_LANE     ? Owner::KIT_LANE
 	              : where == Where::MIDI_CLIP  ? Owner::CLIP
+	              : where == Where::CV_CLIP    ? Owner::CLIP
 	              : where == Where::AUDIO_CLIP ? Owner::CLIP
 	              : where == Where::SONG       ? Owner::SONG
 	                                           : Owner::TRACK;
@@ -787,11 +811,20 @@ void set_stored(Family family, const MenuContext& ctx, Where where, const Settin
 	case Family::CLIP_VALUES:
 		deluge::edits::clipValueSettingFor(*static_cast<InstrumentClip*>(ctx.clip), row.path, value);
 		return;
-	case Family::NOTE_ROW:
+	case Family::NOTE_ROW: {
+		auto& clip = *static_cast<InstrumentClip*>(ctx.clip);
+		deluge::edits::noteRowSettingFor(*clip.getNoteRowForDrum(kit_lane().drum), clip, row.path, value);
+		return;
+	}
 	case Family::CLIP:
+		deluge::edits::clipSettingFor(*ctx.clip, row.path, value);
+		return;
 	case Family::INSTRUMENT_DEVICE:
+		deluge::edits::trackSettingFor(*ctx.output, row.path, value);
+		return;
 	case Family::AUDIO_INPUT:
-		return; // named only: no driver
+		deluge::edits::audioInputSettingFor(static_cast<AudioOutput&>(*ctx.output), row.path, value);
+		return;
 	}
 	(void)where;
 }
@@ -833,11 +866,37 @@ std::optional<int32_t> get_stored(Family family, const MenuContext& ctx, Where w
 		                                      row.path);
 		break;
 	}
-	case Family::NOTE_ROW:
-	case Family::CLIP:
+	case Family::NOTE_ROW: {
+		auto& clip = *static_cast<InstrumentClip*>(ctx.clip);
+		NoteRow* note_row = clip.getNoteRowForDrum(kit_lane().drum);
+		const auto address = deluge::bridge::noteRowAddressOf(*note_row, clip, song_of(where));
+		if (!address) {
+			return std::nullopt;
+		}
+		value = deluge::project::read_setting(song_of(where).project,
+		                                      {deluge::project::SettingGroupId::NOTE_ROW, *address}, row.path);
+		break;
+	}
+	case Family::CLIP: {
+		const auto address = deluge::bridge::clipAddressOf(*ctx.clip, song_of(where));
+		if (!address) {
+			return std::nullopt;
+		}
+		value = deluge::project::read_setting(song_of(where).project, {deluge::project::SettingGroupId::CLIP, *address},
+		                                      row.path);
+		break;
+	}
 	case Family::INSTRUMENT_DEVICE:
-	case Family::AUDIO_INPUT:
-		return std::nullopt; // named only: no driver
+	case Family::AUDIO_INPUT: {
+		const auto address = deluge::bridge::trackAddressOf(*ctx.output, song_of(where));
+		if (!address) {
+			return std::nullopt;
+		}
+		const auto group = family == Family::AUDIO_INPUT ? deluge::project::SettingGroupId::AUDIO_INPUT
+		                                                 : deluge::project::SettingGroupId::INSTRUMENT_DEVICE;
+		value = deluge::project::read_setting(song_of(where).project, {group, *address}, row.path);
+		break;
+	}
 	}
 	if (!value) {
 		return std::nullopt;
@@ -1483,7 +1542,7 @@ constexpr Skip kExceptions[] = {
     {"osc2/type", "as osc1/type"},
     {"attack",
      "the AUDIO_CLIP group's: the read is STANDARD; legacy's write stores computeCurrentValueForStandardMenuItem of "
-     "the menu value (menu 50 stores 25), a buggy write the coherence check must decide on"},
+     "the menu value (menu 50 stores 25), a buggy write"},
     {"reverb/compressor/shape",
      "the read is STANDARD; legacy's write omits the top step's special case (menu 50 stores 2147483602, not "
      "2147483647)"},
@@ -1510,12 +1569,12 @@ const std::vector<Case>& group_cases() {
 	     .family = Family::NOTE_ROW,
 	     .item = &sequenceDirectionMenu,
 	     .where = Where::KIT_LANE},
-	    {.path = "bendRange", .family = Family::NOTE_ROW, .item = &perFingerBendRangeMenu, .where = Where::KIT_LANE},
+	    {.path = "bendRange", .family = Family::NOTE_ROW, .item = &drumBendRangeMenu, .where = Where::KIT_LANE},
 	    {.path = "outputMpeY",
 	     .family = Family::INSTRUMENT_DEVICE,
 	     .item = &mpeyToModWheelMenu,
 	     .where = Where::MIDI_CLIP},
-	    {.path = "cv2Source", .family = Family::INSTRUMENT_DEVICE, .item = &cv2SourceMenu, .where = Where::MIDI_CLIP},
+	    {.path = "cv2Source", .family = Family::INSTRUMENT_DEVICE, .item = &cv2SourceMenu, .where = Where::CV_CLIP},
 	    {.path = "collapseAftertouch",
 	     .family = Family::INSTRUMENT_DEVICE,
 	     .item = &midiAftertouchCollapseMenu,
