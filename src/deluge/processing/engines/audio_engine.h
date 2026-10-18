@@ -242,6 +242,14 @@ void feedReverbBackdoorForGrain(int index, q31_t value);
 /// codec has settled after power-on, then ramps up to full scale.
 q31_t getInputMonitoringGain(uint32_t offset);
 
+/// Each live input source has a ring buffer laid out like the SSI RX buffer - same length, same stereo interleaving -
+/// and kept in step with it, so the same offset into any of them is the same moment. These find the one for a source:
+/// the USB input's for AudioInputChannel::USB, the SSI RX buffer for the others.
+int32_t* getInputBufferStart(AudioInputChannel channel);
+int32_t* getInputBufferEnd(AudioInputChannel channel);
+/// Where the audio about to be rendered starts, in the source's input buffer - i2sRXBufferPos, translated to it
+int32_t* getInputReadPos(AudioInputChannel channel);
+
 /// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick
 bool allowedToStartVoice();
 
