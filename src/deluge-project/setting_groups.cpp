@@ -34,15 +34,23 @@ using serialization::Value;
 constexpr UserScale kFiftyths{.user_min = 0, .user_max = 50, .stored_min = 0, .stored_max = INT32_MAX};
 
 constexpr SettingInfo integer(std::string_view path, int32_t min, int32_t max, int32_t default_value = 0,
-                              UserScale user = {}, SettingUnits units = SettingUnits::NONE) {
+                              UserScale user = {}, SettingUnits units = SettingUnits::NONE,
+                              const engine::SettingDescriptorExtras* extras = nullptr) {
 	return SettingInfo{.path = path,
 	                   .kind = SettingKind::INTEGER,
 	                   .min = min,
 	                   .max = max,
 	                   .user = user,
 	                   .default_value = default_value,
-	                   .units = units};
+	                   .units = units,
+	                   .extras = extras};
 }
+
+/// A fiftieths menu over a fraction the record holds as a float: it rounds the float, and stores through the scale.
+constexpr engine::SettingDescriptorExtras kFloatFractionExtras{
+    .mapping = {.kind = engine::DisplayMappingKind::FLOAT_FRACTION}};
+/// A param-style menu over a signed Q31, 0..50.
+constexpr engine::SettingDescriptorExtras kStandardExtras{.mapping = {.kind = engine::DisplayMappingKind::STANDARD}};
 constexpr SettingInfo boolean(std::string_view path, int32_t default_value = 0) {
 	return SettingInfo{.path = path, .kind = SettingKind::BOOL, .default_value = default_value};
 }
@@ -98,11 +106,13 @@ std::span<const SettingInfo> song_table() {
 	}();
 	static const std::vector<SettingInfo> rows = [] {
 		std::vector<SettingInfo> out{
-		    integer("reverb/roomSize", 0, INT32_MAX, q31_of(30.0f / 50), kFiftyths),
-		    integer("reverb/dampening", 0, INT32_MAX, q31_of(36.0f / 50), kFiftyths),
-		    integer("reverb/width", 0, INT32_MAX, INT32_MAX, kFiftyths),
-		    integer("reverb/hpf", 0, INT32_MAX, 0, kFiftyths),
-		    integer("reverb/lpf", 0, INT32_MAX, INT32_MAX, kFiftyths),
+		    integer("reverb/roomSize", 0, INT32_MAX, q31_of(30.0f / 50), kFiftyths, SettingUnits::NONE,
+		            &kFloatFractionExtras),
+		    integer("reverb/dampening", 0, INT32_MAX, q31_of(36.0f / 50), kFiftyths, SettingUnits::NONE,
+		            &kFloatFractionExtras),
+		    integer("reverb/width", 0, INT32_MAX, INT32_MAX, kFiftyths, SettingUnits::NONE, &kFloatFractionExtras),
+		    integer("reverb/hpf", 0, INT32_MAX, 0, kFiftyths, SettingUnits::NONE, &kFloatFractionExtras),
+		    integer("reverb/lpf", 0, INT32_MAX, INT32_MAX, kFiftyths, SettingUnits::NONE, &kFloatFractionExtras),
 		    SettingInfo{.path = "reverb/pan",
 		                .kind = SettingKind::INTEGER,
 		                .min = INT32_MIN,
@@ -121,7 +131,8 @@ std::span<const SettingInfo> song_table() {
 		                .extras = &kSidechainReleaseExtras},
 		    // The volume (with -1 = automatic) truncates onto its menu; its menu keeps that mapping.
 		    integer("reverb/compressor/volume", INT32_MIN, INT32_MAX),
-		    integer("reverb/compressor/shape", INT32_MIN, INT32_MAX, -601295438),
+		    integer("reverb/compressor/shape", INT32_MIN, INT32_MAX, -601295438, {}, SettingUnits::NONE,
+		            &kStandardExtras),
 		    integer("reverb/compressor/syncLevel", 0, engine::kMaxSyncLevel, 0, {}, SettingUnits::SYNC_LEVEL),
 		    integer("swingInterval", 0, engine::kMaxSyncLevel, 0, {}, SettingUnits::SYNC_LEVEL),
 		    // A clip's durable id; -1 = none.
@@ -490,7 +501,7 @@ constexpr SettingInfo kAudioClipTable[] = {
     SettingInfo{.path = "linearInterpolation", .kind = SettingKind::BOOL, .extras = &kInterpolationExtras},
     boolean("pitchSpeedIndependent", 1),
     boolean("reversed"),
-    integer("attack", INT32_MIN, INT32_MAX, INT32_MIN),
+    integer("attack", INT32_MIN, INT32_MAX, INT32_MIN, {}, SettingUnits::NONE, &kStandardExtras),
     SettingInfo{.path = "priority",
                 .kind = SettingKind::CHOICE,
                 .choices = engine::kVoicePriorityWords,

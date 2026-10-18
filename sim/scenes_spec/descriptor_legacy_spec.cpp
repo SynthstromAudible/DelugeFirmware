@@ -391,6 +391,21 @@ extern legacy::audio_clip::Transpose audioClipTransposeMenu;
 extern legacy::AudioInterpolation audioClipInterpolationMenu;
 extern legacy::reverb::Pan reverbPanMenu;
 extern legacy::sidechain::Attack reverbSidechainAttackMenu;
+extern legacy::reverb::RoomSize reverbRoomSizeMenu;
+extern legacy::reverb::Damping reverbDampingMenu;
+extern legacy::reverb::Width reverbWidthMenu;
+extern legacy::reverb::HPF reverbHPFMenu;
+extern legacy::reverb::LPF reverbLPFMenu;
+extern legacy::reverb::Model reverbModelMenu;
+extern legacy::reverb::sidechain::Shape reverbSidechainShapeMenu;
+extern legacy::swing::Interval swingIntervalMenu;
+extern legacy::audio_clip::Reverse audioClipReverseMenu;
+extern legacy::audio_clip::Attack audioClipAttackMenu;
+extern legacy::midi::Bank midiBankMenu;
+extern legacy::midi::Sub midiSubMenu;
+extern legacy::midi::PGM midiPGMMenu;
+extern legacy::bend_range::Main mainBendRangeMenu;
+extern legacy::bend_range::PerFinger perFingerBendRangeMenu;
 extern legacy::sidechain::Release reverbSidechainReleaseMenu;
 /// @}
 
@@ -638,7 +653,7 @@ SettingContext context_of(Where where, int8_t source = 0) {
 // A row's stored value, set through its Edit and read back from its record.
 
 /// Which table a row comes from, and so how its value is set and read.
-enum class Family : uint8_t { INSTRUMENT, EFFECT, ARP, ARP_HOST, AUDIO_CLIP, SONG };
+enum class Family : uint8_t { INSTRUMENT, EFFECT, ARP, ARP_HOST, AUDIO_CLIP, SONG, CLIP_VALUES };
 
 std::span<const SettingInfo> table_of(Family family) {
 	switch (family) {
@@ -654,6 +669,8 @@ std::span<const SettingInfo> table_of(Family family) {
 		return deluge::project::table_of(deluge::project::SettingGroupId::AUDIO_CLIP);
 	case Family::SONG:
 		return deluge::project::table_of(deluge::project::SettingGroupId::SONG);
+	case Family::CLIP_VALUES:
+		return deluge::project::table_of(deluge::project::SettingGroupId::CLIP_VALUES);
 	}
 	return {};
 }
@@ -744,6 +761,9 @@ void set_stored(Family family, const MenuContext& ctx, Where where, const Settin
 	case Family::SONG:
 		deluge::edits::songSettingFor(row.path, value);
 		return;
+	case Family::CLIP_VALUES:
+		deluge::edits::clipValueSettingFor(*static_cast<InstrumentClip*>(ctx.clip), row.path, value);
+		return;
 	}
 	(void)where;
 }
@@ -775,6 +795,16 @@ std::optional<int32_t> get_stored(Family family, const MenuContext& ctx, Where w
 		value = deluge::project::read_setting(
 		    song_of(where).project, {deluge::project::SettingGroupId::SONG, deluge::project::SongAddress{}}, row.path);
 		break;
+	case Family::CLIP_VALUES: {
+		Song& song = song_of(where);
+		const auto address = deluge::bridge::clipAddressOf(*static_cast<InstrumentClip*>(ctx.clip), song);
+		if (!address) {
+			return std::nullopt;
+		}
+		value = deluge::project::read_setting(song.project, {deluge::project::SettingGroupId::CLIP_VALUES, *address},
+		                                      row.path);
+		break;
+	}
 	}
 	if (!value) {
 		return std::nullopt;
@@ -794,7 +824,8 @@ struct Case {
 	int8_t source{0};              ///< the oscillator the item edits
 	std::vector<int32_t> stored{}; ///< stored values to read, beyond the row's stored edges and default
 	std::vector<Range> pairs{};    ///< two-row kinds: {stored, partner stored} pairs to read
-	bool writes{true};             ///< false where the legacy write needs a booted UI
+	bool writes{true};             ///< false where the legacy write is not compared (a booted UI, a named exception)
+	bool lossy{false};             ///< the record holds the value as a float: a set value reads back rounded
 };
 
 /// Legacy writes this spec cannot drive: each reaches a UI global only a booted app has.
@@ -848,9 +879,9 @@ void check_numeric(auto& self, const Case& c) {
 		for (int32_t stored : probes) {
 			set_stored(c.family, ctx, c.where, row, stored);
 			const std::optional<int32_t> now = get_stored(c.family, ctx, c.where, row);
-			expect(show(c, "set", stored, now.value_or(-99999))).to_equal(show(c, "set", stored, stored));
-			expect(show(c, "read", stored, legacy_read(c.item)))
-			    .to_equal(show(c, "read", stored, to_menu(row, stored)));
+			const int32_t held = c.lossy ? now.value_or(-99999) : stored;
+			expect(show(c, "set", stored, now.value_or(-99999))).to_equal(show(c, "set", stored, held));
+			expect(show(c, "read", held, legacy_read(c.item))).to_equal(show(c, "read", held, to_menu(row, held)));
 		}
 	}
 	else {
@@ -871,7 +902,13 @@ void check_numeric(auto& self, const Case& c) {
 		legacy_write(c.item, menu);
 		const std::optional<std::pair<int32_t, int32_t>> want = from_menu(row, menu);
 		const int64_t got = get_stored(c.family, ctx, c.where, row).value_or(-99999);
-		expect(show(c, "write", menu, got)).to_equal(show(c, "write", menu, want ? want->first : -12345));
+		int64_t expected = want ? want->first : -12345;
+		if (c.lossy && want) {
+			// The record rounds what either write stores alike: compare what it holds after each.
+			set_stored(c.family, ctx, c.where, row, want->first);
+			expected = get_stored(c.family, ctx, c.where, row).value_or(-12345);
+		}
+		expect(show(c, "write", menu, got)).to_equal(show(c, "write", menu, expected));
 		if (partner != nullptr) {
 			const int64_t got_partner = get_stored(c.family, ctx, c.where, *partner).value_or(-99999);
 			expect(show(c, "write partner", menu, got_partner))
@@ -1193,6 +1230,18 @@ const std::vector<Case>& arp_host_cases() {
 	return cases;
 }
 
+/// Q31 fractions either side of each rounding edge a fiftieths menu has, (k - 1/2) / 50 of 2^31, for a few k.
+const std::vector<int32_t> kFractionProbes = [] {
+	std::vector<int32_t> out;
+	for (int32_t k : {1, 13, 25, 37, 49, 50}) {
+		const int64_t edge = ((2 * int64_t{k} - 1) << 31) / 100;
+		for (int64_t d : {-256, -128, -1, 0, 1, 128, 256}) {
+			out.push_back(static_cast<int32_t>(edge + d));
+		}
+	}
+	return out;
+}();
+
 const std::vector<Case>& model_cases() {
 	static const std::vector<Case> cases{
 	    {.path = "transpose",
@@ -1204,11 +1253,66 @@ const std::vector<Case>& model_cases() {
 	     .family = Family::AUDIO_CLIP,
 	     .item = &audioClipInterpolationMenu,
 	     .where = Where::AUDIO_CLIP},
+	    {.path = "reverb/roomSize",
+	     .family = Family::SONG,
+	     .item = &reverbRoomSizeMenu,
+	     .where = Where::SONG,
+	     .stored = kFractionProbes,
+	     .lossy = true},
+	    {.path = "reverb/dampening",
+	     .family = Family::SONG,
+	     .item = &reverbDampingMenu,
+	     .where = Where::SONG,
+	     .stored = kFractionProbes,
+	     .lossy = true},
+	    {.path = "reverb/width",
+	     .family = Family::SONG,
+	     .item = &reverbWidthMenu,
+	     .where = Where::SONG,
+	     .stored = kFractionProbes,
+	     .lossy = true},
+	    {.path = "reverb/hpf",
+	     .family = Family::SONG,
+	     .item = &reverbHPFMenu,
+	     .where = Where::SONG,
+	     .stored = kFractionProbes,
+	     .lossy = true},
+	    {.path = "reverb/lpf",
+	     .family = Family::SONG,
+	     .item = &reverbLPFMenu,
+	     .where = Where::SONG,
+	     .stored = kFractionProbes,
+	     .lossy = true},
 	    {.path = "reverb/pan",
 	     .family = Family::SONG,
 	     .item = &reverbPanMenu,
 	     .where = Where::SONG,
 	     .stored = {0, 1, -1, 85899344}},
+	    {.path = "reverb/model", .family = Family::SONG, .item = &reverbModelMenu, .where = Where::SONG},
+	    {.path = "reverb/compressor/shape",
+	     .family = Family::SONG,
+	     .item = &reverbSidechainShapeMenu,
+	     .where = Where::SONG,
+	     .stored = {0, -601295438, 85899345},
+	     .writes = false},
+	    {.path = "swingInterval", .family = Family::SONG, .item = &swingIntervalMenu, .where = Where::SONG},
+	    {.path = "priority", .family = Family::AUDIO_CLIP, .item = &priorityMenu, .where = Where::AUDIO_CLIP},
+	    {.path = "reversed", .family = Family::AUDIO_CLIP, .item = &audioClipReverseMenu, .where = Where::AUDIO_CLIP},
+	    {.path = "pitchSpeedIndependent",
+	     .family = Family::AUDIO_CLIP,
+	     .item = &sample0PitchSpeedMenu,
+	     .where = Where::AUDIO_CLIP},
+	    {.path = "attack",
+	     .family = Family::AUDIO_CLIP,
+	     .item = &audioClipAttackMenu,
+	     .where = Where::AUDIO_CLIP,
+	     .stored = {0, -1, 1, 85899345},
+	     .writes = false},
+	    {.path = "midiBank", .family = Family::CLIP_VALUES, .item = &midiBankMenu, .where = Where::MIDI_CLIP},
+	    {.path = "midiSub", .family = Family::CLIP_VALUES, .item = &midiSubMenu, .where = Where::MIDI_CLIP},
+	    {.path = "midiPGM", .family = Family::CLIP_VALUES, .item = &midiPGMMenu, .where = Where::MIDI_CLIP},
+	    {.path = "bendRange", .family = Family::CLIP_VALUES, .item = &mainBendRangeMenu},
+	    {.path = "bendRangeMPE", .family = Family::CLIP_VALUES, .item = &perFingerBendRangeMenu},
 	    {.path = "reverb/compressor/attack",
 	     .family = Family::SONG,
 	     .item = &reverbSidechainAttackMenu,
@@ -1267,6 +1371,14 @@ constexpr Skip kSkips[] = {
      "appears only off the song"},
     {"audioCompressor/thresh", "no menu item: a sound's threshold is a param; the knob gesture writes the setting"},
     {"arpeggiator/reverseProbability", "no MIDI or CV item: the reverse probability is a param-only menu"},
+    {"reverb/compressor/syncLevel",
+     "its menu shows one value over this level and the engine's own sync type, which no row of the song holds"},
+    {"reverb/compressor/volume", "a named exception: menu -1..50 truncates (stored / 21474836)"},
+    {"syncScalingClip", "no menu: the clip whose length scales the tempo, set by a gesture"},
+    {"scales/disabled/", "every preset scale's row: one active-scales menu shows them all"},
+    {"startSamplePos", "the sample marker editor, no value menu"},
+    {"endSamplePos", "the sample marker editor, no value menu"},
+    {"overdubsShouldCloneAudioTrack", "no menu: a recording gesture sets it"},
 };
 
 /// The rows a legacy item shows but this spec reads only through named exceptions, and why.
@@ -1277,15 +1389,20 @@ constexpr Skip kExceptions[] = {
      "with no input plugged in, the one input entry is INPUT_L under the name \"INPUT\"; a stored INPUT_R or "
      "INPUT_STEREO then reads past the list"},
     {"osc2/type", "as osc1/type"},
-    {"audio clip attack",
-     "legacy's write stores computeCurrentValueForStandardMenuItem of the menu value (its read conversion); the row "
-     "keeps no mapping"},
+    {"attack",
+     "the AUDIO_CLIP group's: the read is STANDARD; legacy's write stores computeCurrentValueForStandardMenuItem of "
+     "the menu value (menu 50 stores 25), a buggy write the coherence check must decide on"},
+    {"reverb/compressor/shape",
+     "the read is STANDARD; legacy's write omits the top step's special case (menu 50 stores 2147483602, not "
+     "2147483647)"},
+    {"swingInterval", "the encoder wraps over 1..9 and never offers 0 (off), though the list is 0..9"},
     {"reverb/compressor/volume", "menu -1..50 truncates (stored / 21474836); no mapping kind expresses it"},
 };
 
+/// Whether @p path is a named skip; a skip ending in '/' names every path under it.
 bool skipped(std::string_view path) {
 	for (const Skip& skip : kSkips) {
-		if (skip.path == path) {
+		if (skip.path == path || (skip.path.ends_with('/') && path.starts_with(skip.path))) {
 			return true;
 		}
 	}
@@ -1383,18 +1500,28 @@ describe descriptor_legacy_arp("The arp rows' descriptors against legacy's items
 });
 
 describe descriptor_legacy_model("The model groups' rows against legacy's items", $ {
-	it("ranges, reads and writes as the audio clip's transpose and interpolation and the reverb's pan and sidechain rates do", _ {
+	it("ranges, reads and writes as the reverb, swing, audio clip and clip value items do", _ {
 		run(self, model_cases());
 	});
 });
 
-describe descriptor_legacy_coverage("Every engine row with a menu", $ {
+describe descriptor_legacy_coverage("Every engine and model row with a menu", $ {
 	it("is compared with its legacy item, or named as a skip with its reason", _ {
 		std::set<std::string_view> covered;
 		for (const Case* c : all_cases()) {
 			covered.insert(c->path);
 		}
-		for (auto table : {deluge::instrument::kSettings, deluge::engine::kArpSettingRows, deluge::engine::kArpHostRows}) {
+		using deluge::project::SettingGroupId;
+		const std::span<const SettingInfo> tables[] = {
+		    deluge::instrument::kSettings,
+		    deluge::effects::kEffectSettings,
+		    deluge::engine::kArpSettingRows,
+		    deluge::engine::kArpHostRows,
+		    deluge::project::table_of(SettingGroupId::SONG),
+		    deluge::project::table_of(SettingGroupId::AUDIO_CLIP),
+		    deluge::project::table_of(SettingGroupId::CLIP_VALUES),
+		};
+		for (auto table : tables) {
 			for (const SettingInfo& row : table) {
 				const bool named = covered.contains(row.path) || skipped(row.path);
 				expect(std::string{row.path} + (named ? " named" : " unnamed")).to_equal(std::string{row.path} + " named");
