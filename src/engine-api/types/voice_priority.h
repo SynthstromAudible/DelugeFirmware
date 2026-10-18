@@ -17,7 +17,11 @@
 
 #pragma once
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
+#include <string_view>
+#include <utility>
 
 namespace deluge::engine {
 
@@ -28,5 +32,21 @@ enum class VoicePriority : uint8_t {
 	MEDIUM,
 	HIGH,
 };
+
+/// @brief The words a file writes for each VoicePriority, in its order: the stored numbers.
+inline constexpr std::array<std::string_view, 3> kVoicePriorityWords{"0", "1", "2"};
+
+static_assert(std::to_underlying(VoicePriority::HIGH) + 1 == kVoicePriorityWords.size());
+static_assert(
+    [] {
+	    for (std::size_t i = 0; i < kVoicePriorityWords.size(); ++i) {
+		    const std::string_view word = kVoicePriorityWords[i];
+		    if (word.size() != 1 || word[0] != static_cast<char>('0' + i)) {
+			    return false;
+		    }
+	    }
+	    return true;
+    }(),
+    "each voice priority's word is its index's number");
 
 } // namespace deluge::engine

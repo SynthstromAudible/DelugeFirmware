@@ -77,9 +77,9 @@ constexpr std::array<engine::SettingSentinel, 1> kMaxVoicesSentinels{{{.user = 0
 constexpr engine::SettingDescriptorExtras kMaxVoicesExtras{
     .mapping = {.kind = engine::DisplayMappingKind::CLAMP_HIGH, .clamp_to = 0}};
 
-/// A voice priority as its stored number, in engine::VoicePriority's order (low, medium, high).
-constexpr std::array<std::string_view, 3> kVoicePriorities{"0", "1", "2"};
-static_assert(std::to_underlying(engine::VoicePriority::HIGH) + 1 == kVoicePriorities.size());
+/// A sample's repeat mode as its stored number, in SampleRepeatMode's order (cut, once, loop, stretch).
+constexpr std::array<std::string_view, 4> kLoopModes{"0", "1", "2", "3"};
+static_assert(std::to_underlying(SampleRepeatMode::STRETCH) + 1 == kLoopModes.size());
 
 /// Choke shares a kit's voices among its lanes, so only a kit lane offers it.
 constexpr engine::SettingDescriptorExtras kPolyphonyExtras{
@@ -88,19 +88,80 @@ constexpr engine::SettingDescriptorExtras kPolyphonyExtras{
 	           || shown_for.owner == engine::SettingContext::Owner::KIT_LANE;
     }};
 
-// An LFO's sync level is the file's number, which is relative to the song's input tick magnitude; its range is the
-// internal one's, the numbers a song at the default magnitude writes.
+/// The oscillator type menu: ring mod mixes oscillators alone, so it offers no sample or input; DX7 only where the
+/// owner may hold one; with no audio input plugged in, one input entry (the left input's) stands for the three.
+constexpr engine::SettingDescriptorExtras kOscTypeExtras{
+    .choice_applies = [](const engine::SettingContext& shown_for, size_t choice) {
+	    const auto type = static_cast<OscType>(choice);
+	    if (type <= OscType::WAVETABLE) {
+		    return true;
+	    }
+	    if (shown_for.ring_mod) {
+		    return false;
+	    }
+	    switch (type) {
+	    case OscType::DX7:
+		    return shown_for.dx7_allowed;
+	    case OscType::INPUT_R:
+	    case OscType::INPUT_STEREO:
+		    return shown_for.audio_inputs_present;
+	    default:
+		    return true;
+	    }
+    }};
+
+/// The sidechain send menu: fiftieths of the whole send, rounded to the nearest.
+constexpr engine::SettingDescriptorExtras kSendExtras{.mapping = {.kind = engine::DisplayMappingKind::FIFTIETHS}};
+/// A retrigger phase menu: degrees, or −1 for free-running.
+constexpr engine::SettingDescriptorExtras kPhaseExtras{.mapping = {.kind = engine::DisplayMappingKind::PHASE_DEGREES}};
+/// The interpolation menu lists linear first: menu 0 stores 1.
+constexpr engine::SettingDescriptorExtras kInterpolationExtras{
+    .mapping = {.kind = engine::DisplayMappingKind::INVERTED_BOOL}};
+/// The MIDI output channel menu lists none first, then channels 1–16 (stored 0–15).
+constexpr std::array<uint8_t, 17> kMidiChannelOrder{16, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+constexpr engine::SettingDescriptorExtras kMidiChannelExtras{
+    .mapping = {.kind = engine::DisplayMappingKind::CHOICE_ORDER, .order = kMidiChannelOrder}};
+
+/// A transpose menu: one value in cents over its semitones and its cents row, @p partner.
+constexpr engine::SettingDescriptorExtras transpose_extras(std::string_view partner) {
+	return {.mapping = {.kind = engine::DisplayMappingKind::TRANSPOSE_CENTS, .partner = partner}};
+}
+constexpr engine::SettingDescriptorExtras kTransposeExtras = transpose_extras("cents");
+constexpr std::array kOscTransposeExtras{transpose_extras("osc1/cents"), transpose_extras("osc2/cents")};
+constexpr std::array kModulatorTransposeExtras{transpose_extras("modulator1/cents"),
+                                               transpose_extras("modulator2/cents")};
+
+/// A new sound's settings (new_synth_state), as the rows store them.
+constexpr int32_t kDefaultMaxVoices = 8;
+constexpr int32_t kDefaultMidiChannel = 16; // "255": none
+constexpr int32_t kDefaultUnisonDetune = 8;
+constexpr std::array<int32_t, 2> kDefaultModulatorTranspose{0, -12};
+/// A new sound's oscillators run free; its modulators retrigger at 0.
+constexpr int32_t kFreeRunning = -1;
 
 #define OSC_ROWS(n)                                                                                                    \
-	SettingInfo{.path = "osc" #n "/type", .kind = CHOICE, .choices = kOscTypes},                                       \
-	    SettingInfo{.path = "osc" #n "/transpose", .min = -kTransposeRange, .max = kTransposeRange},                   \
-	    SettingInfo{.path = "osc" #n "/cents", .min = -kCentsRange, .max = kCentsRange},                               \
-	    SettingInfo{.path = "osc" #n "/retrigPhase", .min = kPhaseMin, .max = kPhaseMax},                              \
-	    SettingInfo{.path = "osc" #n "/loopMode", .min = 0, .max = 3},                                                 \
+	SettingInfo{.path = "osc" #n "/type",                                                                              \
+	            .kind = CHOICE,                                                                                        \
+	            .choices = kOscTypes,                                                                                  \
+	            .default_value = std::to_underlying(OscType::SQUARE),                                                  \
+	            .extras = &kOscTypeExtras},                                                                            \
+	    SettingInfo{.path = "osc" #n "/transpose",                                                                     \
+	                .min = -kTransposeRange,                                                                           \
+	                .max = kTransposeRange,                                                                            \
+	                .units = engine::SettingUnits::CENTS,                                                              \
+	                .extras = &kOscTransposeExtras[n - 1]},                                                            \
+	    SettingInfo{                                                                                                   \
+	        .path = "osc" #n "/cents", .min = -kCentsRange, .max = kCentsRange, .units = engine::SettingUnits::CENTS}, \
+	    SettingInfo{.path = "osc" #n "/retrigPhase",                                                                   \
+	                .min = kPhaseMin,                                                                                  \
+	                .max = kPhaseMax,                                                                                  \
+	                .default_value = kFreeRunning,                                                                     \
+	                .extras = &kPhaseExtras},                                                                          \
+	    SettingInfo{.path = "osc" #n "/loopMode", .kind = CHOICE, .choices = kLoopModes},                              \
 	    SettingInfo{.path = "osc" #n "/reversed", .kind = BOOL},                                                       \
 	    SettingInfo{.path = "osc" #n "/timeStretchEnable", .kind = BOOL},                                              \
 	    SettingInfo{.path = "osc" #n "/timeStretchAmount", .min = -48, .max = 48},                                     \
-	    SettingInfo{.path = "osc" #n "/linearInterpolation", .kind = BOOL},                                            \
+	    SettingInfo{.path = "osc" #n "/linearInterpolation", .kind = BOOL, .extras = &kInterpolationExtras},           \
 	    SettingInfo{.path = "osc" #n "/sampleRanges", .kind = STRUCTURED},                                             \
 	    SettingInfo{.path = "osc" #n "/wavetableRanges", .kind = STRUCTURED},                                          \
 	    SettingInfo{.path = "osc" #n "/fileName", .kind = STRUCTURED},                                                 \
@@ -118,9 +179,13 @@ constexpr std::array kLfoSyncExtras{lfo_sync_extras("lfo1/syncType"), lfo_sync_e
                                     lfo_sync_extras("lfo3/syncType"), lfo_sync_extras("lfo4/syncType")};
 
 // An LFO's syncLevel is the level itself (1–9, 0 = off), whatever the song's tick magnitude; a file, and so a slot,
-// writes it relative to that magnitude.
+// writes it relative to that magnitude. Its range is the internal one's, the numbers a song at the default magnitude
+// writes.
 #define LFO_ROWS(n)                                                                                                    \
-	SettingInfo{.path = "lfo" #n "/type", .kind = CHOICE, .choices = kLfoTypes},                                       \
+	SettingInfo{.path = "lfo" #n "/type",                                                                              \
+	            .kind = CHOICE,                                                                                        \
+	            .choices = kLfoTypes,                                                                                  \
+	            .default_value = std::to_underlying(LFOType::TRIANGLE)},                                               \
 	    SettingInfo{.path = "lfo" #n "/syncLevel",                                                                     \
 	                .min = 0,                                                                                          \
 	                .max = engine::kMaxSyncLevel,                                                                      \
@@ -131,18 +196,38 @@ constexpr std::array kLfoSyncExtras{lfo_sync_extras("lfo1/syncType"), lfo_sync_e
 	}
 
 #define MODULATOR_ROWS(n)                                                                                              \
-	SettingInfo{.path = "modulator" #n "/transpose", .min = -kTransposeRange, .max = kTransposeRange},                 \
-	    SettingInfo{.path = "modulator" #n "/cents", .min = -kCentsRange, .max = kCentsRange}, SettingInfo {           \
-		.path = "modulator" #n "/retrigPhase", .min = kPhaseMin, .max = kPhaseMax                                      \
+	SettingInfo{.path = "modulator" #n "/transpose",                                                                   \
+	            .min = -kTransposeRange,                                                                               \
+	            .max = kTransposeRange,                                                                                \
+	            .default_value = kDefaultModulatorTranspose[n - 1],                                                    \
+	            .units = engine::SettingUnits::CENTS,                                                                  \
+	            .extras = &kModulatorTransposeExtras[n - 1]},                                                          \
+	    SettingInfo{.path = "modulator" #n "/cents",                                                                   \
+	                .min = -kCentsRange,                                                                               \
+	                .max = kCentsRange,                                                                                \
+	                .units = engine::SettingUnits::CENTS},                                                             \
+	    SettingInfo {                                                                                                  \
+		.path = "modulator" #n "/retrigPhase", .min = kPhaseMin, .max = kPhaseMax, .extras = &kPhaseExtras             \
 	}
 
 constexpr std::array kRows{
-    SettingInfo{.path = "polyphonic", .kind = CHOICE, .choices = kPolyphony, .extras = &kPolyphonyExtras},
-    SettingInfo{.path = "voicePriority", .kind = CHOICE, .choices = kVoicePriorities},
-    SettingInfo{.path = "sideChainSend", .min = 0, .max = std::numeric_limits<int32_t>::max()},
+    SettingInfo{.path = "polyphonic",
+                .kind = CHOICE,
+                .choices = kPolyphony,
+                .default_value = std::to_underlying(PolyphonyMode::POLY),
+                .extras = &kPolyphonyExtras},
+    SettingInfo{.path = "voicePriority",
+                .kind = CHOICE,
+                .choices = engine::kVoicePriorityWords,
+                .default_value = std::to_underlying(engine::VoicePriority::MEDIUM)},
+    SettingInfo{.path = "sideChainSend", .min = 0, .max = std::numeric_limits<int32_t>::max(), .extras = &kSendExtras},
     SettingInfo{.path = "mode", .kind = CHOICE, .choices = kSynthModes},
-    SettingInfo{.path = "transpose", .min = -kTransposeRange, .max = kTransposeRange},
-    SettingInfo{.path = "cents", .min = -kCentsRange, .max = kCentsRange},
+    SettingInfo{.path = "transpose",
+                .min = -kTransposeRange,
+                .max = kTransposeRange,
+                .units = engine::SettingUnits::CENTS,
+                .extras = &kTransposeExtras},
+    SettingInfo{.path = "cents", .min = -kCentsRange, .max = kCentsRange, .units = engine::SettingUnits::CENTS},
     // A file holds any limit 1–127; the menu offers 0 (off) to kMaxVoicesMenu.
     SettingInfo{.path = "maxVoices",
                 .min = 1,
@@ -152,6 +237,7 @@ constexpr std::array kRows{
                          .stored_min = 0,
                          .stored_max = kMaxVoicesMenu,
                          .sentinels = kMaxVoicesSentinels},
+                .default_value = kDefaultMaxVoices,
                 .extras = &kMaxVoicesExtras},
     OSC_ROWS(1),
     OSC_ROWS(2),
@@ -163,10 +249,15 @@ constexpr std::array kRows{
     MODULATOR_ROWS(1),
     MODULATOR_ROWS(2),
     SettingInfo{.path = "modulator2/toModulator1", .kind = BOOL},
-    SettingInfo{.path = "unison/num", .min = 1, .max = kMaxUnisonVoices},
-    SettingInfo{.path = "unison/detune", .min = 0, .max = kMaxUnisonDetune},
+    SettingInfo{.path = "unison/num", .min = 1, .max = kMaxUnisonVoices, .default_value = 1},
+    SettingInfo{.path = "unison/detune", .min = 0, .max = kMaxUnisonDetune, .default_value = kDefaultUnisonDetune},
     SettingInfo{.path = "unison/spread", .min = 0, .max = kMaxUnisonSpread},
-    SettingInfo{.path = "midiOutput/channel", .kind = CHOICE, .choices = kMidiChannels},
+    SettingInfo{.path = "midiOutput/channel",
+                .kind = CHOICE,
+                .choices = kMidiChannels,
+                .default_value = kDefaultMidiChannel,
+                .extras = &kMidiChannelExtras},
+    // A new sound's note is unset (255, outside the row): its menu shows kNoteForDrum there.
     SettingInfo{.path = "midiOutput/noteForDrum", .min = 0, .max = 127},
 };
 

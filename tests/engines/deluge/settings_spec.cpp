@@ -3,6 +3,7 @@
 #include "engine-api/types/voice_priority.h"
 #include "engines/deluge/codec.h"
 #include "engines/deluge/settings.h"
+#include "engines/effects/settings.h"
 #include "serialization/tree.h"
 
 #include <cppspec.hpp>
@@ -260,6 +261,46 @@ describe settings("the Deluge instrument's settings schema", ${
 		expect(allows_setting(ringing, "osc1/type", Value::makeScalar("sample"))).to_be_false();
 		expect(allows_setting(ringing, "osc1/type", Value::makeScalar("wavetable"))).to_be_true();
 		expect(allows_setting(sampleState(), "mode", Value::makeScalar("fm"))).to_be_true();
+	});
+
+	it("starts each instrument row at a new sound's value, in each mode", _ {
+		SoundState sample = new_synth_state();
+		for (SourceState& source : sample.sources) {
+			source.osc_type = OscType::SAMPLE;
+		}
+		int checked = 0;
+		for (const SoundState& state : {new_synth_state(), fmState(), sample}) {
+			for (const deluge::engine::SettingInfo& row : kSettings) {
+				if (row.kind == SettingKind::STRUCTURED
+				    || deluge::engine::find_setting(deluge::effects::kEffectSettings, row.path) != nullptr) {
+					continue;
+				}
+				// The FM and sample states change the mode and the oscillator types themselves.
+				const bool changed = row.path == "mode" || row.path.ends_with("/type");
+				if (changed && !(state == new_synth_state())) {
+					continue;
+				}
+				const std::optional<Value> value = setting_value(state, row.path);
+				if (!value) {
+					continue;
+				}
+				int32_t stored = 0;
+				if (row.kind == SettingKind::CHOICE) {
+					for (size_t i = 0; i < row.choices.size(); ++i) {
+						if (row.choices[i] == value->str()) {
+							stored = static_cast<int32_t>(i);
+						}
+					}
+				}
+				else {
+					stored = static_cast<int32_t>(*deluge::engine::whole_number(value->str()));
+				}
+				expect(std::string{row.path} + "=" + std::to_string(row.default_value))
+				    .to_equal(std::string{row.path} + "=" + std::to_string(stored));
+				++checked;
+			}
+		}
+		expect(checked > 60).to_be_true();
 	});
 
 	it("gives a clip its arp's settings as the instrument's clip-scoped rows, apart from its sound's", _ {
