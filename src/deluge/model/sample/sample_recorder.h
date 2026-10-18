@@ -121,6 +121,7 @@ public:
 	bool capturedTooMuch = false;
 	bool thresholdRecording = false;
 	uint32_t minThresholdMargin = 0;
+	StereoFloatSample approxRMSLevel{0};
 
 	// Most of these are not captured in the case of BALANCED input for AudioClips
 	bool recordingClippedRecently;

@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/audio_recorder.h"
+#include "OSLikeStuff/scheduler_api.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/l10n/l10n.h"
@@ -42,6 +43,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
+#include <algorithm>
 #include <string.h>
 
 AudioRecorder audioRecorder{};
@@ -127,8 +129,111 @@ gotError:
 }
 
 void AudioRecorder::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
-	const char* current_status_text = updatedRecordingStatus ? "Recording" : "Waiting";
-	canvas.drawStringCentred(current_status_text, 19, kTextBigSpacingX, kTextBigSizeY);
+	// if not threshold recording, display standard UI and skip the threshold meter
+	if (!isThresholdRecording()) {
+		const char* current_status_text = updatedRecordingStatus ? "Recording" : "Waiting";
+		canvas.drawStringCentred(current_status_text, 19, kTextBigSpacingX, kTextBigSizeY);
+		return;
+	}
+
+	// top of the screen where we render "WAITING..." or "RECORDING"
+	constexpr int32_t top_y = (OLED_MAIN_HEIGHT_PIXELS - 40) / 2 + 2;
+	// x coordinate where level meter starts
+	constexpr int32_t meter_start_x = 12;
+	// x coordinate where level meter ends
+	constexpr int32_t meter_end_x = OLED_MAIN_WIDTH_PIXELS - 14;
+	// x coordinate where warning indicator (!) is rendered
+	constexpr int32_t warning_start_x = 92;
+	constexpr float fullScaleLevel = 21.48756f;
+	constexpr float cautionLevel = fullScaleLevel - 8.8f / 4.0f;
+	const uint32_t animationTime = static_cast<uint64_t>(AudioEngine::audioSampleTimer) * 1000 / kSampleRate;
+
+	// lambda function to convert a level value to a position on the meter
+	const auto levelPosition = [](float level) {
+		if (level < cautionLevel) {
+			return meter_start_x
+			       + static_cast<int32_t>(std::clamp((level - 8.0f) / (cautionLevel - 8.0f), 0.0f, 1.0f)
+			                              * (warning_start_x - meter_start_x));
+		}
+		return warning_start_x
+		       + static_cast<int32_t>(std::clamp((level - cautionLevel) / (fullScaleLevel - cautionLevel), 0.0f, 1.0f)
+		                              * (meter_end_x - warning_start_x));
+	};
+
+	// check if we're recording or waiting
+	if (updatedRecordingStatus) {
+		canvas.drawString("RECORDING", 12, top_y, kTextBigSpacingX, kTextBigSizeY);
+		if ((animationTime / 480) % 2 == 0) {
+			for (int32_t row = 0; row < 5; ++row) {
+				const int32_t inset = (row == 0 || row == 4) ? 1 : 0;
+				canvas.drawHorizontalLine(top_y + 4 + row, 5 + inset, 9 - inset);
+			}
+		}
+	}
+	else {
+		canvas.drawStringCentred("WAITING...", top_y, kTextBigSpacingX, kTextBigSizeY);
+	}
+
+	// draw left and right channel labels (L and R)
+	canvas.drawString("L", 6, top_y + 19, kTextSmallSpacingX, kTextSmallSizeY);
+	canvas.drawString("R", 6, top_y + 29, kTextSmallSpacingX, kTextSmallSizeY);
+
+	// ??? what is this
+	canvas.drawPixel(8, top_y + 29);
+
+	// draw clipping line
+	for (int32_t row = top_y + 18; row <= top_y + 34; row += 2) {
+		canvas.drawPixel(warning_start_x, row);
+	}
+
+	// blink threshold line
+	const uint32_t thresholdBlinkPhase = animationTime % 750;
+	if (!updatedRecordingStatus && recorder->startValueThreshold > 0
+	    && (thresholdBlinkPhase < 290 || thresholdBlinkPhase >= 570)) {
+		int32_t thresholdPosition = levelPosition(recorder->startValueThreshold);
+		for (int32_t row = top_y + 18; row <= top_y + 34; row += 2) {
+			canvas.drawPixel(thresholdPosition, row);
+		}
+	}
+
+	// get current RMS levels for input source
+	// if recording mono just take left channel, otherwise take both left and right channels
+	const float levels[] = {recorder->approxRMSLevel.l, recorder->recordingNumChannels == 2
+	                                                        ? recorder->approxRMSLevel.r
+	                                                        : recorder->approxRMSLevel.l};
+
+	// if input levels are clipping, then display warning indicator (!)
+	if (std::max(levelPosition(levels[0]), levelPosition(levels[1])) > warning_start_x) {
+		canvas.drawChar('!', 119, top_y + 20, 3, kTextBigSizeY);
+		canvas.drawPixel(121, top_y + 28);
+	}
+
+	// render input level meters for each channel
+	for (int32_t channel = 0; channel < 2; ++channel) {
+		int32_t end = levelPosition(levels[channel]);
+		for (int32_t column = meter_start_x + 1; column <= end; ++column) {
+			for (int32_t row = 0; row < 5; ++row) {
+				if ((updatedRecordingStatus && column < warning_start_x)
+				    || (column + row) % 2 == (updatedRecordingStatus ? 0 : 1)) {
+					canvas.drawPixel(column, top_y + 19 + channel * 10 + row);
+				}
+			}
+		}
+	}
+}
+
+bool AudioRecorder::isThresholdRecording() {
+	// thresholdRecording clears as soon as the input triggers recording. Keep the
+	// meter visible for the whole take using the configured threshold instead.
+	return recorder && recorder->startValueThreshold > 0;
+}
+
+void AudioRecorder::graphicsRoutine() {
+	// if we have an OLED display, are threshold recording and currently capturing data
+	// then refresh OLED display to show the current input levels to be recorded
+	if (display->haveOLED() && isThresholdRecording() && recorder->status == RecorderStatus::CAPTURING_DATA) {
+		renderUIsForOled();
+	}
 }
 
 bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels,
@@ -209,9 +314,19 @@ void AudioRecorder::slowRoutine() {
 
 void AudioRecorder::process() {
 	while (true) {
+		// Sean: TO DO, confirm that this makes sense
+#ifdef USE_TASK_MANAGER
+		// Keep the normal audio, input, timer and display tasks running even before
+		// the threshold triggers, when SD writes aren't yielding to the scheduler.
+		yieldWithTimeout([]() { return false; }, 0.001);
+#else
 		AudioEngine::routineWithClusterLoading();
 
 		uiTimerManager.routine();
+
+		// This loop bypasses the normal UI rendering task. Service redraws here
+		// even while waiting for the threshold, when there are no SD writes to yield.
+		doAnyPendingUIRendering();
 
 		if (display->haveOLED()) {
 			oledRoutine();
@@ -221,6 +336,7 @@ void AudioRecorder::process() {
 		readButtonsAndPads();
 
 		AudioEngine::slowRoutine();
+#endif
 
 		// If recording has finished...
 		if (recorder->status >= RecorderStatus::COMPLETE || recorder->hadCardError) {
@@ -251,16 +367,15 @@ void AudioRecorder::process() {
 				}
 			}
 			else if (!updatedRecordingStatus && (recorder->numSamplesCaptured > recorder->minThresholdMargin)) {
+				// update recording status flag --> used to indicate that we've started recording
+				// also used by the OLED UI to decide whether to render "WAITING" or "RECORDING"
+				updatedRecordingStatus = true;
 				if (display->have7SEG()) {
 					display->setText("REC", false, 255, true);
 				}
 				else {
-					deluge::hid::display::OLED::clearMainImage();
-					deluge::hid::display::OLED::main.drawStringCentred("Recording", 19, kTextBigSpacingX,
-					                                                   kTextBigSizeY);
-					deluge::hid::display::OLED::sendMainImage();
+					renderUIsForOled();
 				}
-				updatedRecordingStatus = true;
 			}
 		}
 	}

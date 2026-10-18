@@ -295,6 +295,9 @@ gotError:
 }
 
 void SampleRecorder::setRecordingThreshold(RecorderConfig config) {
+	// reset threshold recording RMS level for both channels
+	approxRMSLevel = {0.0f, 0.0f};
+
 	if (config.neverUseThreshold) {
 		D_PRINTLN("ignoring threshold");
 	}
@@ -1057,11 +1060,15 @@ doFinishCapturing:
 			writePos = reinterpret_cast<char*>(writePosNow);
 			numSamplesCaptured += numSamplesThisCycle;
 
+			// Keep the threshold recording meter live after the threshold has triggered.
+			if (startValueThreshold > 0) {
+				approxRMSLevel = envelopeFollower.calcApproxRMS(input.first(numSamplesThisCycle));
+			}
+
 			// if we're threshold recording and didn't detect audio in previous cycles
 			// check if there's any audio in this cycle
 			if (thresholdRecording) [[unlikely]] {
 				size_t samples_to_copy = minThresholdMargin;
-				StereoFloatSample approxRMSLevel = envelopeFollower.calcApproxRMS(input);
 				if (std::max(approxRMSLevel.l, approxRMSLevel.r) > startValueThreshold) {
 					thresholdRecording = false;
 					samples_to_copy += numSamplesThisCycle;

@@ -48,6 +48,8 @@ public:
 	void endRecordingSoon(int32_t buttonLatency = 0);
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
+	bool isThresholdRecording();
+	void graphicsRoutine() override;
 
 	bool updatedRecordingStatus = false;
 
