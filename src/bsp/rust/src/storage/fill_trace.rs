@@ -152,14 +152,30 @@ pub fn fill_read_held() {
     critical_section::with(|cs| STATE.borrow_ref_mut(cs).card = Some(CardReads::default()));
 }
 
-/// Ends the span [`fill_read_held`] began, recording its card reads.
-pub fn fill_read_held_end() {
+/// Ends the span [`fill_read_held`] began, returning the µs its card reads spent on FAT and
+/// directory lookups and on data.
+pub fn fill_read_held_end() -> (u64, u64) {
+    critical_section::with(|cs| {
+        let card = STATE.borrow_ref_mut(cs).card.take().unwrap_or_default();
+        (card.meta_us, card.data_us)
+    })
+}
+
+/// Records one fill read's split: `meta_us` in FAT and directory lookups, `data_us` in its data.
+pub fn read_split(meta_us: u64, data_us: u64) {
     critical_section::with(|cs| {
         let mut s = STATE.borrow_ref_mut(cs);
-        if let Some(card) = s.card.take() {
-            add(&mut s.trace.read_meta, card.meta_us);
-            add(&mut s.trace.read_data, card.data_us);
-        }
+        add(&mut s.trace.read_meta, meta_us);
+        add(&mut s.trace.read_data, data_us);
+    });
+}
+
+/// Records a data read of `sectors` sectors made straight from the card, outside any span.
+pub fn direct_data(sectors: u32) {
+    critical_section::with(|cs| {
+        let mut s = STATE.borrow_ref_mut(cs);
+        s.trace.read_data_calls = s.trace.read_data_calls.saturating_add(1);
+        s.trace.read_data_sectors = s.trace.read_data_sectors.saturating_add(sectors);
     });
 }
 

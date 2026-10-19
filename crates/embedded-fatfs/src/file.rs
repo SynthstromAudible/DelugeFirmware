@@ -48,6 +48,21 @@ const HAS_ENTRY: u8 = 1 << 2;
 const ENTRY_DIRTY: u8 = 1 << 3;
 
 impl FileContext {
+    /// The file's first cluster; `None` for an empty file.
+    pub fn first_cluster(&self) -> Option<u32> {
+        self.first_cluster
+    }
+
+    /// The file's size in bytes, from its directory entry; `None` for the root directory.
+    pub fn size(&self) -> Option<u32> {
+        self.entry.as_ref().and_then(|e| e.inner().size())
+    }
+
+    /// Where the file's directory entry is on the volume, in bytes; `None` for the root directory.
+    pub fn entry_position(&self) -> Option<u64> {
+        self.entry.as_ref().map(DirEntryEditor::pos)
+    }
+
     /// Encodes the context as plain bytes, so another component can reopen the same file with
     /// [`FileContext::from_bytes`] without walking a directory. Valid only for the volume, and the
     /// mount of it, that produced it.

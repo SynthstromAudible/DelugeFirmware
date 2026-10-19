@@ -160,8 +160,16 @@ pub async fn boot_init() {
 ///
 /// Other tiers wait: a storage-tier read runs on its own executor and succeeds on the re-identified
 /// card, rather than failing a re-inserted card's samples.
+///
+/// Every caller holds back while the streaming fill waits ([`URGENT_WAITING`]), so the fill waits
+/// at most one transfer.
 async fn acquire_bus()
 -> Result<embassy_sync::mutex::MutexGuard<'static, CriticalSectionRawMutex, ()>, sd::SdError> {
+    // A Timer resolves by its own deadline on every poll, so this works under the interaction
+    // tier's no-op-waker spin as well as on an executor.
+    while URGENT_WAITING.load(Ordering::Acquire) != 0 {
+        embassy_time::Timer::after_micros(YIELD_TO_URGENT_US).await;
+    }
     let mut lock = core::pin::pin!(SD_BUS.lock());
     core::future::poll_fn(move |cx| {
         if crate::tier::current() == crate::tier::Tier::Interaction && !sd::is_ready() {
@@ -170,6 +178,63 @@ async fn acquire_bus()
         core::future::Future::poll(lock.as_mut(), cx).map(Ok)
     })
     .await
+}
+
+/// Streaming fills waiting for [`SD_BUS`]; see [`locked_read_sectors_urgent`].
+static URGENT_WAITING: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+
+/// How often a caller holding back for a waiting fill looks again.
+const YIELD_TO_URGENT_US: u64 = 100;
+
+/// How often a waiting fill tries the bus.
+const URGENT_POLL_US: u64 = 50;
+
+/// One fill counted in [`URGENT_WAITING`] until it has the bus, or until its future is dropped
+/// while waiting.
+struct UrgentWait;
+
+impl UrgentWait {
+    fn begin() -> Self {
+        URGENT_WAITING.fetch_add(1, Ordering::AcqRel);
+        Self
+    }
+}
+
+impl Drop for UrgentWait {
+    fn drop(&mut self) {
+        URGENT_WAITING.fetch_sub(1, Ordering::AcqRel);
+    }
+}
+
+/// [`locked_read_sectors`] for the streaming fill, which every other caller holds back for.
+/// Returns when it took the bus, for the fill trace, with the read's result.
+///
+/// It polls for the bus rather than waiting on the mutex: the mutex keeps one waker, and an
+/// interaction-tier caller spinning on it displaces the fill's, which then sleeps through the
+/// release.
+///
+/// # Errors
+///
+/// As for [`locked_read_sectors`].
+pub async fn locked_read_sectors_urgent(
+    lba: u32,
+    count: u32,
+    buf: &mut [u8],
+) -> (embassy_time::Instant, Result<(), sd::SdError>) {
+    let waiting = UrgentWait::begin();
+    let guard = loop {
+        if let Ok(guard) = SD_BUS.try_lock() {
+            break guard;
+        }
+        embassy_time::Timer::after_micros(URGENT_POLL_US).await;
+    };
+    drop(waiting);
+    let acquired = embassy_time::Instant::now();
+    #[cfg(not(target_os = "none"))]
+    stats::note_read();
+    let result = sd::read_sectors(lba, count, buf).await;
+    drop(guard);
+    (acquired, result)
 }
 
 /// Reads `count` sectors from `lba` into `buf`, holding [`SD_BUS`].

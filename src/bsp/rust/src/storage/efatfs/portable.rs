@@ -80,11 +80,208 @@ pub const MAX_HANDLES: usize = 256;
 /// handle per in-progress recording, and the device has only a few audio inputs.
 pub const MAX_STREAM_WRITE_HANDLES: usize = 8;
 
-/// One handle-table slot: an optional detached [`FileContext`] and a generation bumped on every
-/// claim and free, so a deferred write-back can detect that the slot was recycled.
+/// One handle-table slot: an optional detached [`FileContext`], what is known of where its file
+/// lies on the card, and a generation bumped on every claim and free, so a deferred write-back can
+/// detect that the slot was recycled.
 struct Slot {
     generation: u32,
     ctx: Option<FileContext>,
+    map: MapState,
+}
+
+/// Most runs of contiguous clusters an [`ExtentMap`] holds; a file in more pieces is read through
+/// the filesystem instead.
+pub const MAX_EXTENT_RUNS: usize = 64;
+
+/// Clusters an [`extend_map`] maps past the one asked for: a FAT32 sector's worth of links, so one
+/// FAT read serves the next 128 chunks.
+const CHAIN_STRETCH: u32 = 128;
+
+/// Where a file's clusters lie, learned from its cluster chain a stretch at a time, so a read
+/// inside the mapped part goes to the card without the filesystem.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ExtentMap {
+    /// The file's runs of contiguous clusters, in file order.
+    runs: Vec<Run>,
+    /// Clusters mapped so far, from the file's start.
+    mapped: u32,
+    /// The last mapped cluster, where the next stretch takes up the chain.
+    last: u32,
+    /// Whether the chain's end has been mapped.
+    ended: bool,
+    sectors_per_cluster: u32,
+    /// The file's size in bytes.
+    size: u32,
+}
+
+/// Contiguous clusters: `clusters` of them, from the volume sector `first_sector`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Run {
+    first_sector: u32,
+    clusters: u32,
+}
+
+/// What a slot knows of where its file lies.
+#[derive(Clone, Debug, PartialEq)]
+pub enum MapState {
+    /// Nothing yet.
+    Unmapped,
+    /// Read through the filesystem: the file is in too many pieces, or its volume has sectors of
+    /// another size.
+    Unmappable,
+    /// Mapped up to a point.
+    Mapped(alloc::boxed::Box<ExtentMap>),
+}
+
+/// A read [`ExtentMap::lookup`] resolved: `sectors` sectors from the volume sector `sector`, of
+/// which the first `valid` bytes are the file's and the rest of the buffer reads as zero.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct DirectRead {
+    pub sector: u32,
+    pub sectors: u32,
+    pub valid: usize,
+}
+
+/// How [`HandleTable::plan_direct`] would have a read done.
+pub enum DirectPlan {
+    /// Straight from the card.
+    Read(DirectRead),
+    /// After [`extend_map`] maps further, with the slot's generation, context and map so far.
+    Extend {
+        generation: u32,
+        ctx: FileContext,
+        map: MapState,
+    },
+    /// Through the filesystem.
+    Filesystem,
+}
+
+impl ExtentMap {
+    /// Resolves reading `len` bytes at `byte_offset`, or `None` if that needs clusters not yet
+    /// mapped, more than one run, or a partial sector.
+    ///
+    /// Past the file's end the buffer reads as zero, as [`read_context`] pads it; whole sectors
+    /// are read up to the end, which stays inside the last cluster's allocation.
+    pub fn lookup(&self, byte_offset: u32, len: usize) -> Option<DirectRead> {
+        if byte_offset % 512 != 0 || len % 512 != 0 {
+            return None;
+        }
+        if byte_offset >= self.size {
+            return Some(DirectRead {
+                sector: 0,
+                sectors: 0,
+                valid: 0,
+            });
+        }
+        let valid = (self.size - byte_offset).min(u32::try_from(len).ok()?);
+        let cluster_bytes = self.sectors_per_cluster * 512;
+        let first = byte_offset / cluster_bytes;
+        let last = (byte_offset + valid - 1) / cluster_bytes;
+        if last >= self.mapped {
+            return None;
+        }
+        let mut run_start = 0;
+        for run in &self.runs {
+            if first < run_start + run.clusters {
+                if last >= run_start + run.clusters {
+                    return None;
+                }
+                let sector = run.first_sector
+                    + (first - run_start) * self.sectors_per_cluster
+                    + (byte_offset % cluster_bytes) / 512;
+                return Some(DirectRead {
+                    sector,
+                    sectors: valid.div_ceil(512),
+                    valid: valid as usize,
+                });
+            }
+            run_start += run.clusters;
+        }
+        None
+    }
+
+    /// Whether the whole file is mapped.
+    fn complete(&self) -> bool {
+        self.ended || self.mapped * self.sectors_per_cluster * 512 >= self.size
+    }
+}
+
+/// Maps the file `ctx` names further along its cluster chain, through the cluster holding
+/// `byte_offset` and [`CHAIN_STRETCH`] past it, from `map` so far.
+///
+/// An I/O error leaves the map as it was, so the read goes through the filesystem this time and
+/// mapping is tried again on the next.
+pub async fn extend_map<IO, TP, OCC>(
+    fs: &FileSystem<IO, TP, OCC>,
+    ctx: &FileContext,
+    map: MapState,
+    byte_offset: u32,
+) -> MapState
+where
+    IO: ReadWriteSeek,
+    TP: TimeProvider,
+    OCC: OemCpConverter,
+{
+    let mut m = match map {
+        MapState::Unmappable => return MapState::Unmappable,
+        MapState::Mapped(m) => m,
+        MapState::Unmapped => {
+            let (Some(first), Some(size)) = (ctx.first_cluster(), ctx.size()) else {
+                return MapState::Unmappable;
+            };
+            let Some(first_sector) = fs.cluster_first_sector(first) else {
+                return MapState::Unmappable;
+            };
+            if fs.bytes_per_sector() != 512 {
+                return MapState::Unmappable;
+            }
+            alloc::boxed::Box::new(ExtentMap {
+                runs: alloc::vec![Run {
+                    first_sector,
+                    clusters: 1,
+                }],
+                mapped: 1,
+                last: first,
+                ended: false,
+                sectors_per_cluster: fs.sectors_per_cluster(),
+                size,
+            })
+        }
+    };
+    if m.complete() {
+        return MapState::Mapped(m);
+    }
+    let cluster_bytes = m.sectors_per_cluster * 512;
+    let file_clusters = m.size.div_ceil(cluster_bytes);
+    let want = (byte_offset / cluster_bytes + 1 + CHAIN_STRETCH).min(file_clusters);
+    let links = want.saturating_sub(m.mapped);
+    let mut runs = m.runs.clone();
+    let (mut mapped, mut last) = (m.mapped, m.last);
+    let walked = fs
+        .follow_chain(m.last, links, |next| {
+            match runs.last_mut() {
+                Some(run) if next == last + 1 => run.clusters += 1,
+                _ => runs.push(Run {
+                    // `follow_chain` hands over only clusters that name a data cluster.
+                    first_sector: fs.cluster_first_sector(next).unwrap_or(0),
+                    clusters: 1,
+                }),
+            }
+            mapped += 1;
+            last = next;
+        })
+        .await;
+    let Ok(ended) = walked else {
+        return MapState::Mapped(m);
+    };
+    if runs.len() > MAX_EXTENT_RUNS {
+        return MapState::Unmappable;
+    }
+    m.runs = runs;
+    m.mapped = mapped;
+    m.last = last;
+    m.ended = ended;
+    MapState::Mapped(m)
 }
 
 /// A fixed-capacity table of detached [`FileContext`]s keyed by a `u32` handle (the slot index).
@@ -109,6 +306,7 @@ impl<const N: usize> HandleTable<N> {
                 Slot {
                     generation: 0,
                     ctx: None,
+                    map: MapState::Unmapped,
                 }
             }; N],
         }
@@ -120,6 +318,7 @@ impl<const N: usize> HandleTable<N> {
         for (i, slot) in self.slots.iter_mut().enumerate() {
             if slot.ctx.is_none() {
                 slot.ctx = Some(ctx);
+                slot.map = MapState::Unmapped;
                 slot.generation = slot.generation.wrapping_add(1);
                 return Some(i as u32);
             }
@@ -156,7 +355,70 @@ impl<const N: usize> HandleTable<N> {
     pub fn remove(&mut self, handle: u32) {
         if let Some(slot) = self.slots.get_mut(handle as usize) {
             slot.ctx = None;
+            slot.map = MapState::Unmapped;
             slot.generation = slot.generation.wrapping_add(1);
+        }
+    }
+
+    /// How to read `len` bytes at `byte_offset` of the file behind `handle`: straight from the
+    /// card where its map covers them, after mapping further where it could, and otherwise
+    /// through the filesystem.
+    pub fn plan_direct(&self, handle: u32, byte_offset: u32, len: usize) -> DirectPlan {
+        // The card reads whole sectors into the caller's buffer.
+        if byte_offset % 512 != 0 || len % 512 != 0 {
+            return DirectPlan::Filesystem;
+        }
+        let Some(slot) = self.slots.get(handle as usize) else {
+            return DirectPlan::Filesystem;
+        };
+        let Some(ctx) = slot.ctx.as_ref() else {
+            return DirectPlan::Filesystem;
+        };
+        match &slot.map {
+            MapState::Unmappable => DirectPlan::Filesystem,
+            MapState::Mapped(m) => match m.lookup(byte_offset, len) {
+                Some(read) => DirectPlan::Read(read),
+                None if m.complete() => DirectPlan::Filesystem,
+                None => DirectPlan::Extend {
+                    generation: slot.generation,
+                    ctx: ctx.clone(),
+                    map: slot.map.clone(),
+                },
+            },
+            MapState::Unmapped => DirectPlan::Extend {
+                generation: slot.generation,
+                ctx: ctx.clone(),
+                map: MapState::Unmapped,
+            },
+        }
+    }
+
+    /// Stores `ctx` with what is already known of where its file lies; see [`Self::insert`].
+    pub fn insert_mapped(&mut self, ctx: FileContext, map: MapState) -> Option<u32> {
+        let handle = self.insert(ctx)?;
+        self.slots[handle as usize].map = map;
+        Some(handle)
+    }
+
+    /// Frees `handle`'s slot as [`Self::remove`] does, returning its file's key and map for
+    /// [`MapHandoff`] to keep.
+    pub fn remove_keeping_map(&mut self, handle: u32) -> Option<(FileKey, MapState)> {
+        let slot = self.slots.get_mut(handle as usize)?;
+        let key = slot.ctx.as_ref().and_then(FileKey::of);
+        let map = core::mem::replace(&mut slot.map, MapState::Unmapped);
+        self.remove(handle);
+        match (key, map) {
+            (Some(key), map @ MapState::Mapped(_)) => Some((key, map)),
+            _ => None,
+        }
+    }
+
+    /// Stores `map` for `handle` if the slot still holds the file it was made for.
+    pub fn commit_map(&mut self, handle: u32, captured_generation: u32, map: MapState) {
+        if let Some(slot) = self.slots.get_mut(handle as usize) {
+            if slot.generation == captured_generation && slot.ctx.is_some() {
+                slot.map = map;
+            }
         }
     }
 
@@ -185,6 +447,77 @@ impl<const N: usize> HandleTable<N> {
         };
         self.commit(handle, generation, newctx);
         filled
+    }
+}
+
+/// Maps of recently closed files, so a file reopened by its location (the audio loader opens,
+/// reads the header and closes; the sample then opens at the location it found) keeps the map its
+/// first open made instead of walking the chain again.
+///
+/// Keyed by the file's directory entry, first cluster and size, so a file deleted and another
+/// written in its place is not handed the old file's map.
+pub struct MapHandoff<const N: usize> {
+    entries: [Option<(FileKey, MapState)>; N],
+    next: usize,
+}
+
+/// What [`MapHandoff`] tells files apart by.
+#[derive(Clone, Copy, PartialEq)]
+pub struct FileKey {
+    entry: u64,
+    first_cluster: u32,
+    size: u32,
+}
+
+impl FileKey {
+    /// `ctx`'s key; `None` for a file with no entry or no clusters.
+    pub fn of(ctx: &FileContext) -> Option<Self> {
+        Some(Self {
+            entry: ctx.entry_position()?,
+            first_cluster: ctx.first_cluster()?,
+            size: ctx.size()?,
+        })
+    }
+}
+
+impl<const N: usize> Default for MapHandoff<N> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<const N: usize> MapHandoff<N> {
+    /// Returns an empty handoff.
+    pub const fn new() -> Self {
+        Self {
+            entries: [const { None }; N],
+            next: 0,
+        }
+    }
+
+    /// Keeps `map` for the file `key` names, displacing the oldest entry.
+    pub fn put(&mut self, key: FileKey, map: MapState) {
+        for entry in &mut self.entries {
+            if matches!(entry, Some((k, _)) if *k == key) {
+                *entry = Some((key, map));
+                return;
+            }
+        }
+        self.entries[self.next] = Some((key, map));
+        self.next = (self.next + 1) % N;
+    }
+
+    /// Takes the map kept for `ctx`'s file, or [`MapState::Unmapped`].
+    pub fn take(&mut self, ctx: &FileContext) -> MapState {
+        let Some(key) = FileKey::of(ctx) else {
+            return MapState::Unmapped;
+        };
+        for entry in &mut self.entries {
+            if matches!(entry, Some((k, _)) if *k == key) {
+                return entry.take().map_or(MapState::Unmapped, |(_, map)| map);
+            }
+        }
+        MapState::Unmapped
     }
 }
 

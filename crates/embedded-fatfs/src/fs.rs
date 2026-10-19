@@ -462,6 +462,49 @@ impl<IO: ReadWriteSeek, TP, OCC> FileSystem<IO, TP, OCC> {
         self.bpb.cluster_size()
     }
 
+    /// Bytes per sector, as the boot sector gives it.
+    pub fn bytes_per_sector(&self) -> u16 {
+        self.bpb.bytes_per_sector
+    }
+
+    /// Sectors per cluster.
+    pub fn sectors_per_cluster(&self) -> u32 {
+        self.bpb.sectors_from_clusters(1)
+    }
+
+    /// The first sector of data cluster `cluster`, counted from the start of the volume; `None` for
+    /// a number that names no data cluster.
+    pub fn cluster_first_sector(&self, cluster: u32) -> Option<u32> {
+        if cluster < RESERVED_FAT_ENTRIES || cluster - RESERVED_FAT_ENTRIES >= self.total_clusters {
+            return None;
+        }
+        Some(self.sector_from_cluster(cluster))
+    }
+
+    /// Follows the cluster chain from `cluster` for up to `max` links, calling `f` with each cluster
+    /// after it in order. Returns whether the chain ended within those links.
+    ///
+    /// # Errors
+    ///
+    /// `Error::Io` will be returned if the underlying storage object returned an I/O error, and
+    /// `Error::CorruptedFileSystem` for a link that names no data cluster.
+    pub async fn follow_chain<F: FnMut(u32)>(&self, cluster: u32, max: u32, mut f: F) -> Result<bool, Error<IO::Error>> {
+        let mut iter = self.cluster_iter(cluster);
+        for _ in 0..max {
+            match iter.next().await {
+                None => return Ok(true),
+                Some(Err(e)) => return Err(e),
+                Some(Ok(next)) => {
+                    if self.cluster_first_sector(next).is_none() {
+                        return Err(Error::CorruptedFileSystem);
+                    }
+                    f(next);
+                }
+            }
+        }
+        Ok(false)
+    }
+
     pub(crate) fn offset_from_cluster(&self, cluster: u32) -> u64 {
         self.offset_from_sector(self.sector_from_cluster(cluster))
     }
