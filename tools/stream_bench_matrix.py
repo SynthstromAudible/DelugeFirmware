@@ -70,12 +70,19 @@ def flatten(run: dict) -> dict[str, float]:
         for phase, t in phases.items():
             for k, v in t.items():
                 out[f"load{i}.{phase}.{k}"] = v
-    for tag, lines in run.get("logs", {}).items():
-        out[f"log.{tag}.count"] = len(lines)
-        keys = {k for line in lines for k in line}
-        for k in keys:
-            values = [line[k] for line in lines if k in line]
-            out[f"log.{tag}.{k}"] = statistics.mean(values)
+
+    def logs(prefix: str, by_tag: dict) -> None:
+        for tag, lines in by_tag.items():
+            out[f"{prefix}{tag}.count"] = len(lines)
+            for k in {k for line in lines for k in line}:
+                out[f"{prefix}{tag}.{k}"] = statistics.mean(
+                    line[k] for line in lines if k in line
+                )
+
+    logs("log.", run.get("logs", {}))
+    # And by the load each line fell in, so one load's lines are not averaged with another's.
+    for load, by_tag in run.get("load_logs", {}).items():
+        logs(f"load{load}.log.", by_tag)
     return out
 
 
@@ -168,29 +175,44 @@ def run_matrix(args: argparse.Namespace) -> int:
         for r in range(1, args.rounds + 1):
             for label, elf in images:
                 code = None
-                for _ in range(3):
-                    rig.restart(args.host)
-                    code = subprocess.run(
+                run_dir = root / f"{label}-{r}"
+                run_dir.mkdir(exist_ok=True)
+                log = []
+                for attempt in range(1, 4):
+                    if not rig.restart(args.host):
+                        log.append(f"attempt {attempt}: the rig did not restart")
+                        continue
+                    proc = subprocess.run(
                         [
                             sys.executable,
                             str(REPO / "tools" / "stream_bench.py"),
                             "--elf",
                             elf,
                             "--select",
-                            f"IP={args.host}",
+                            f"IP={rig.probe_address(args.host)}",
                             "--timeout",
                             str(args.timeout),
                             "--out",
-                            str(root / f"{label}-{r}"),
+                            str(run_dir),
                         ],
                         capture_output=True,
                         text=True,
                         check=False,
-                    ).returncode
+                    )
+                    code = proc.returncode
+                    log.append(f"attempt {attempt}: exit {code}\n{proc.stderr}")
                     if code in (0, stream_bench.EXIT_FAILED):
                         break
+                # Kept beside the run, so a run that failed says why.
+                (run_dir / "run.log").write_text("\n".join(log) + "\n")
                 incomplete += code not in (0, stream_bench.EXIT_FAILED)
-                print(f"{label} round {r}: exit {code}", file=sys.stderr)
+                last = next(
+                    (l for l in reversed("\n".join(log).splitlines()) if l.strip()), ""
+                )
+                print(
+                    f"{label} round {r}: exit {code}" + (f" ({last})" if code else ""),
+                    file=sys.stderr,
+                )
     finally:
         if not args.no_park:
             rig.park(args.host, rig.DEFAULT_PARK)

@@ -6,8 +6,9 @@ Usage:
     tools/rig.py park    [--host pi-top] [--elf .superpowers/bench-park.elf]
     tools/rig.py stop    [--host pi-top]
 
-The probe hangs off a Raspberry Pi (`--host`, reached over ssh) that runs JLinkRemoteServerCLExe;
-tools/deluge_jlink.py and tools/stream_bench.py reach the probe through it (`--select IP=<host>`).
+The probe hangs off a Raspberry Pi (`--host`, an ssh destination, `pi@pi-top` by default) that runs
+JLinkRemoteServerCLExe; tools/deluge_jlink.py and tools/stream_bench.py reach the probe through it
+(`--select IP=<address>`, the host without its user: see `probe_address`).
 
 restart  stops any running server, connects once with JLinkExe (which recovers a probe a previous
          session left wedged), and starts a fresh server detached from the ssh session.
@@ -28,7 +29,7 @@ import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-DEFAULT_HOST = "pi-top"
+DEFAULT_HOST = "pi@pi-top"
 DEFAULT_PARK = REPO / ".superpowers" / "bench-park.elf"
 SERVER = "JLinkRemoteServerCLExe"
 DEVICE = "R7S721020"
@@ -41,6 +42,11 @@ CONNECT = (
     "-autoconnect 1 > /tmp/jlinkexe.log 2>&1"
 )
 START = f"setsid nohup {SERVER} -Port 19020 > /tmp/jlinkremote.log 2>&1 < /dev/null & sleep 2"
+
+
+def probe_address(host: str) -> str:
+    """The address J-Link selects the remote probe by: the ssh destination without its user."""
+    return host.rpartition("@")[2]
 
 
 def ssh(host: str, script: str, timeout: float = 60) -> subprocess.CompletedProcess:
@@ -86,7 +92,7 @@ def park(host: str, elf: Path, tries: int = 3) -> bool:
                     "--elf",
                     str(elf),
                     "--select",
-                    f"IP={host}",
+                    f"IP={probe_address(host)}",
                     "--timeout",
                     "100",
                     "--out",

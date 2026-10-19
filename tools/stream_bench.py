@@ -227,7 +227,12 @@ def parse_capture(lines: list[str]) -> dict:
                 m["rest"]
             )
         elif "STREAM-BENCH-" not in line and (m := LOG_RE.search(line)):
-            run["logs"].setdefault(m["tag"], []).append(numeric_fields(m["rest"]))
+            fields = numeric_fields(m["rest"])
+            # The load the line belongs to: a song's LOADED line ends its load.
+            run.setdefault("load_logs", {}).setdefault(
+                str(len(run["loaded"]) + 1), {}
+            ).setdefault(m["tag"], []).append(fields)
+            run["logs"].setdefault(m["tag"], []).append(fields)
     return run
 
 

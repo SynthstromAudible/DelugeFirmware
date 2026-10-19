@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 import bench_image
+import rig
 import stream_bench
 import stream_bench_matrix
 
@@ -60,6 +61,9 @@ class FlattenTests(unittest.TestCase):
         self.assertEqual(m["load1.begin.step_ms"], 650)
         self.assertEqual(m["log.SD-PHASE.data_us"], 4390)
         self.assertEqual(m["log.SD-PHASE.count"], 1)
+        # Logged before song B's LOADED line, after song A's: load 2.
+        self.assertEqual(m["load2.log.SD-PHASE.data_us"], 4390)
+        self.assertNotIn("load1.log.SD-PHASE.data_us", m)
 
 
 class SummariseTests(unittest.TestCase):
@@ -95,6 +99,12 @@ class SummariseTests(unittest.TestCase):
         (self.root / "after-4" / "stream-x.rtt").write_text("partial\n")
         md = stream_bench_matrix.summarise(self.root, None, "^armed_ms$")
         self.assertIn("n=3 |", md)
+
+
+class RigTests(unittest.TestCase):
+    def test_the_probe_is_selected_by_the_host_without_its_user(self) -> None:
+        self.assertEqual(rig.probe_address("pi@pi-top"), "pi-top")
+        self.assertEqual(rig.probe_address("pi-top"), "pi-top")
 
 
 class BenchImageTests(unittest.TestCase):
