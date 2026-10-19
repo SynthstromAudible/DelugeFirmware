@@ -45,6 +45,29 @@ use crate::sys::{
     DelugeStatus_DELUGE_ERR_PARAM as DELUGE_ERR_PARAM,
 };
 
+pub use deluge_sample_fill::FileLocation;
+
+const _: () =
+    assert!(deluge_sample_fill::FILE_LOCATION_BYTES == embedded_fatfs::FILE_CONTEXT_BYTES);
+
+/// The location of the open file `ctx`, found on mount `mount_generation`, for the backends'
+/// `open_at` to open again with no directory walk.
+pub fn location_of_context(ctx: &FileContext, mount_generation: u32) -> FileLocation {
+    FileLocation {
+        context: ctx.to_bytes(),
+        mount_generation,
+        valid: 1,
+    }
+}
+
+/// The file's context, if `location` names a file found on mount `mount_generation`.
+pub fn context_at(location: &FileLocation, mount_generation: u32) -> Option<FileContext> {
+    if location.valid == 0 || location.mount_generation != mount_generation {
+        return None;
+    }
+    FileContext::from_bytes(&location.context)
+}
+
 /// Capacity of the streaming-read handle table.
 ///
 /// Each resident sample holds one handle for its lifetime (`SampleStream::open_read_stream`), so

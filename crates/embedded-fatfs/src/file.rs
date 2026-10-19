@@ -1,6 +1,6 @@
 use core::cmp;
 
-use crate::dir_entry::DirEntryEditor;
+use crate::dir_entry::{DirEntryEditor, DirFileEntryData};
 use crate::error::Error;
 use crate::fs::{FileSystem, ReadWriteSeek};
 use crate::io::{IoBase, Read, Seek, SeekFrom, Write};
@@ -34,6 +34,73 @@ pub struct FileContext {
     pub(crate) offset: u32,
     // file dir entry editor - None for root dir
     pub(crate) entry: Option<DirEntryEditor>,
+}
+
+/// Bytes in an encoded [`FileContext`]; see [`FileContext::to_bytes`].
+pub const FILE_CONTEXT_BYTES: usize = 64;
+
+/// The first byte of every encoded [`FileContext`], so a buffer that holds none is refused.
+const FILE_CONTEXT_VERSION: u8 = 1;
+
+const HAS_FIRST_CLUSTER: u8 = 1 << 0;
+const HAS_CURRENT_CLUSTER: u8 = 1 << 1;
+const HAS_ENTRY: u8 = 1 << 2;
+const ENTRY_DIRTY: u8 = 1 << 3;
+
+impl FileContext {
+    /// Encodes the context as plain bytes, so another component can reopen the same file with
+    /// [`FileContext::from_bytes`] without walking a directory. Valid only for the volume, and the
+    /// mount of it, that produced it.
+    pub fn to_bytes(&self) -> [u8; FILE_CONTEXT_BYTES] {
+        let mut buf = [0u8; FILE_CONTEXT_BYTES];
+        buf[0] = FILE_CONTEXT_VERSION;
+        let mut flags = 0;
+        if let Some(cluster) = self.first_cluster {
+            flags |= HAS_FIRST_CLUSTER;
+            buf[4..8].copy_from_slice(&cluster.to_le_bytes());
+        }
+        if let Some(cluster) = self.current_cluster {
+            flags |= HAS_CURRENT_CLUSTER;
+            buf[8..12].copy_from_slice(&cluster.to_le_bytes());
+        }
+        buf[12..16].copy_from_slice(&self.offset.to_le_bytes());
+        if let Some(entry) = &self.entry {
+            flags |= HAS_ENTRY;
+            if entry.dirty() {
+                flags |= ENTRY_DIRTY;
+            }
+            buf[16..24].copy_from_slice(&entry.pos().to_le_bytes());
+            buf[24..56].copy_from_slice(&entry.inner().to_bytes());
+        }
+        buf[1] = flags;
+        buf
+    }
+
+    /// Decodes [`FileContext::to_bytes`]' output; `None` if `bytes` holds no encoded context.
+    pub fn from_bytes(bytes: &[u8; FILE_CONTEXT_BYTES]) -> Option<Self> {
+        if bytes[0] != FILE_CONTEXT_VERSION {
+            return None;
+        }
+        let flags = bytes[1];
+        let u32_at = |i: usize| u32::from_le_bytes([bytes[i], bytes[i + 1], bytes[i + 2], bytes[i + 3]]);
+        let entry = (flags & HAS_ENTRY != 0).then(|| {
+            let mut pos = [0u8; 8];
+            pos.copy_from_slice(&bytes[16..24]);
+            let mut data = [0u8; 32];
+            data.copy_from_slice(&bytes[24..56]);
+            DirEntryEditor::from_parts(
+                DirFileEntryData::from_bytes(&data),
+                u64::from_le_bytes(pos),
+                flags & ENTRY_DIRTY != 0,
+            )
+        });
+        Some(Self {
+            first_cluster: (flags & HAS_FIRST_CLUSTER != 0).then(|| u32_at(4)),
+            current_cluster: (flags & HAS_CURRENT_CLUSTER != 0).then(|| u32_at(8)),
+            offset: u32_at(12),
+            entry,
+        })
+    }
 }
 
 /// An extent containing a file's data on disk.
@@ -578,5 +645,60 @@ impl<IO: ReadWriteSeek, TP, OCC> Seek for File<'_, IO, TP, OCC> {
         self.context.offset = new_offset;
         self.context.current_cluster = new_cluster;
         Ok(u64::from(self.context.offset))
+    }
+}
+
+#[cfg(test)]
+mod context_bytes_tests {
+    use super::{FileContext, FILE_CONTEXT_BYTES};
+    use crate::dir_entry::{DirEntryEditor, DirFileEntryData};
+
+    fn entry_bytes() -> [u8; 32] {
+        let mut raw = [0u8; 32];
+        raw[0..11].copy_from_slice(b"SNARE58 WAV");
+        raw[11] = 0x20; // archive
+        raw[20..22].copy_from_slice(&0x0001u16.to_le_bytes()); // first cluster, high half
+        raw[26..28].copy_from_slice(&0x2345u16.to_le_bytes()); // first cluster, low half
+        raw[28..32].copy_from_slice(&71_680u32.to_le_bytes()); // size
+        raw
+    }
+
+    #[test]
+    fn a_context_survives_its_bytes() {
+        let ctx = FileContext {
+            first_cluster: Some(0x0001_2345),
+            current_cluster: Some(0x0001_2399),
+            offset: 40_960,
+            entry: Some(DirEntryEditor::from_parts(DirFileEntryData::from_bytes(&entry_bytes()), 0x0040_1220, true)),
+        };
+        let bytes = ctx.to_bytes();
+        let back = FileContext::from_bytes(&bytes).expect("an encoded context decodes");
+        assert_eq!(back.first_cluster, Some(0x0001_2345));
+        assert_eq!(back.current_cluster, Some(0x0001_2399));
+        assert_eq!(back.offset, 40_960);
+        let entry = back.entry.as_ref().expect("the entry survives");
+        assert_eq!(entry.pos(), 0x0040_1220);
+        assert!(entry.dirty());
+        assert_eq!(entry.inner().to_bytes(), entry_bytes());
+        assert_eq!(back.to_bytes(), bytes);
+    }
+
+    #[test]
+    fn an_empty_file_with_no_entry_survives_its_bytes() {
+        let ctx = FileContext {
+            first_cluster: None,
+            current_cluster: None,
+            offset: 0,
+            entry: None,
+        };
+        let back = FileContext::from_bytes(&ctx.to_bytes()).expect("decodes");
+        assert_eq!(back.first_cluster, None);
+        assert_eq!(back.current_cluster, None);
+        assert!(back.entry.is_none());
+    }
+
+    #[test]
+    fn bytes_that_hold_no_context_are_refused() {
+        assert!(FileContext::from_bytes(&[0u8; FILE_CONTEXT_BYTES]).is_none());
     }
 }

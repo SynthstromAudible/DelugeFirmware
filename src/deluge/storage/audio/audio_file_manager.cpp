@@ -1260,7 +1260,14 @@ AudioFile* AudioFileManager::buildSampleFromLoadResult(const std::string& filePa
 	// location if the loader resolved one, the nominal path otherwise.
 	const std::string_view pathToOpen =
 	    (result.alternate_path[0] != '\0') ? std::string_view{result.alternate_path} : std::string_view{filePath};
-	buildError = sample_build::bindReadStream(build, pathToOpen);
+	// The loader says where it found the file, so the stream opens without looking the path up again: on the
+	// interaction tier that lookup waits for the filesystem lock behind the storage tier's own loads. A location from
+	// another mount, or none, opens by path as before.
+	buildError =
+	    (result.location.valid != 0) ? sample_build::bindReadStreamAt(build, result.location) : Error::FILE_NOT_FOUND;
+	if (buildError != Error::NONE && buildError != Error::TOO_MANY_OPEN_STREAMS) {
+		buildError = sample_build::bindReadStream(build, pathToOpen);
+	}
 #if DELUGE_STREAM_BENCH
 	at[2] = deluge::runtime::nowUs();
 #endif

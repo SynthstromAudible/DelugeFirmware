@@ -15,6 +15,7 @@ const STRUCTS: &[(&str, &str)] = &[
     ("DelugeAudioWindow", "deluge_audio_format::abi::DelugeAudioWindow"),
     ("DelugeAudioHeaderParser", "deluge_audio_format::abi::DelugeAudioHeaderParser"),
     ("DelugeStreamingFillContext", "deluge_sample_fill::FillContext"),
+    ("DelugeFileLocation", "deluge_sample_fill::FileLocation"),
     ("StreamingFillDescriptor", "deluge_sample_fill::StreamingFillDescriptor"),
     ("DelugeFrameWindow", "deluge_sample_reader::abi::DelugeFrameWindow"),
     ("DelugeSampleGeometry", "deluge_sample_source::geometry::Geometry"),

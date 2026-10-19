@@ -146,13 +146,14 @@ static_assert(util::to_underlying(Error::LOAD_IN_PROGRESS) == 35);
 // binding in the BSP build, and pinned to these same literals in the plain host build, which has no
 // bindgen output -- so a reorder on either side fails to build rather than silently reinterpreting
 // every field after it.
-static_assert(sizeof(DelugeAudioLoadResult) == 312);
+static_assert(sizeof(DelugeAudioLoadResult) == 384);
 static_assert(alignof(DelugeAudioLoadResult) == 8);
 static_assert(offsetof(DelugeAudioLoadResult, geometry) == 0);
 static_assert(offsetof(DelugeAudioLoadResult, size_bytes) == 40);
 static_assert(offsetof(DelugeAudioLoadResult, alternate_path) == 48);
 static_assert(offsetof(DelugeAudioLoadResult, error) == 304);
 static_assert(offsetof(DelugeAudioLoadResult, candidates_key) == 308);
+static_assert(offsetof(DelugeAudioLoadResult, location) == 312);
 
 // The remaining values the Rust side hand-duplicates from this header. DELUGE_PATH_MAX is also the
 // stride of the candidate buffer and the width of DelugeAudioLoadResult::alternate_path, so a change
@@ -447,6 +448,18 @@ Error bindReadStream(SampleBuild* build, std::string_view path) noexcept {
 		// handle space from whatever efatfs handle the loader used to read/parse the header) and its
 		// own TOO_MANY_OPEN_STREAMS reclaim retry -- forward to it rather than reimplementing either.
 		return live->sample->stream().open_read_stream(path);
+	} catch (...) {
+		return Error::INSUFFICIENT_RAM;
+	}
+}
+
+Error bindReadStreamAt(SampleBuild* build, const DelugeFileLocation& location) noexcept {
+	SampleBuild* live = validateBuild(build);
+	if (live == nullptr) {
+		return Error::BUG; // invalid/consumed build: a caller bug, not a file problem
+	}
+	try {
+		return live->sample->stream().open_read_stream_at(location);
 	} catch (...) {
 		return Error::INSUFFICIENT_RAM;
 	}

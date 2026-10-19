@@ -45,6 +45,7 @@ use crate::channel::{
     DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN, DELUGE_PATH_MAX,
     DelugeChannelStatus,
 };
+pub use deluge_sample_fill::FileLocation;
 use embassy_sync::blocking_mutex::Mutex as BlockingMutex;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
@@ -159,6 +160,9 @@ pub struct LoadResult {
     /// The candidates key of the request this answers. A collect is handed the result only when it presents the same
     /// key; see [`take_from`].
     pub candidates_key: u32,
+    /// Where the file the verdict was reached on is, so the collector opens its read stream without looking the path
+    /// up again. Valid only when `error` is [`DELUGE_ERROR_NONE`].
+    pub location: FileLocation,
 }
 
 /// The result slot type in `deluge_audio_load_collect`'s signature: bindgen's
@@ -179,6 +183,7 @@ const _: () = {
     assert!(offset_of!(AbiLoadResult, alternate_path) == offset_of!(LoadResult, alternate_path));
     assert!(offset_of!(AbiLoadResult, error) == offset_of!(LoadResult, error));
     assert!(offset_of!(AbiLoadResult, candidates_key) == offset_of!(LoadResult, candidates_key));
+    assert!(offset_of!(AbiLoadResult, location) == offset_of!(LoadResult, location));
 };
 
 impl LoadResult {
@@ -191,6 +196,7 @@ impl LoadResult {
             alternate_path: [0; DELUGE_PATH_MAX],
             error,
             candidates_key: 0,
+            location: FileLocation::NONE,
         }
     }
 
@@ -203,6 +209,7 @@ impl LoadResult {
             alternate_path: [0; DELUGE_PATH_MAX],
             error: DELUGE_ERROR_NONE,
             candidates_key: 0,
+            location: FileLocation::NONE,
         }
     }
 
@@ -225,13 +232,14 @@ impl LoadResult {
 const _: () = {
     use core::mem::{align_of, offset_of, size_of};
 
-    assert!(size_of::<LoadResult>() == 312);
+    assert!(size_of::<LoadResult>() == 384);
     assert!(align_of::<LoadResult>() == 8);
     assert!(offset_of!(LoadResult, geometry) == 0);
     assert!(offset_of!(LoadResult, size_bytes) == 40);
     assert!(offset_of!(LoadResult, alternate_path) == 48);
     assert!(offset_of!(LoadResult, error) == 304);
     assert!(offset_of!(LoadResult, candidates_key) == 308);
+    assert!(offset_of!(LoadResult, location) == 312);
 };
 
 /// One queued load: the nominal path (the key a result is collected by), the candidate paths to
@@ -822,8 +830,8 @@ pub unsafe fn cstr_to_path(ptr: *const c_char) -> Option<LoadPath> {
 mod driver {
     use super::{
         DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE, DELUGE_ERROR_FILE_UNSUPPORTED,
-        DELUGE_ERROR_NONE, DELUGE_ERROR_TOO_MANY_OPEN_STREAMS, LoadGeometry, LoadRequest,
-        LoadResult,
+        DELUGE_ERROR_NONE, DELUGE_ERROR_TOO_MANY_OPEN_STREAMS, FileLocation, LoadGeometry,
+        LoadRequest, LoadResult,
     };
     use deluge_audio_format::{
         AudioHeader, FeedResult, HeaderError, HeaderParser, MAX_WINDOW_BYTES,
@@ -909,6 +917,10 @@ mod driver {
         /// Releases the efatfs handle. The table has 128 slots, and a leak is silent capacity
         /// loss.
         async fn close(&self, handle: u32);
+
+        /// Where the file behind `handle` is, for the collector to open without a directory walk;
+        /// `None` if it cannot say, and the collector then opens by path.
+        async fn location(&self, handle: u32) -> Option<FileLocation>;
     }
 
     /// Runs one queued load's I/O: tries each candidate in order until one both opens and sizes,
@@ -958,6 +970,9 @@ mod driver {
         };
 
         let mut result = parse_open_file(ops, handle, size_bytes).await;
+        if result.error == DELUGE_ERROR_NONE {
+            result.location = ops.location(handle).await.unwrap_or(FileLocation::NONE);
+        }
 
         ops.close(handle).await;
 
@@ -1016,6 +1031,7 @@ pub use driver::{LoadOps, OpenVerdict, error_code_for, load_io_once};
 // Production wiring: only where the efatfs backing is linked (device, and host under `host_app`).
 #[cfg(has_app)]
 mod prod {
+    use super::FileLocation;
     use super::driver::LoadOps;
 
     use crate::storage::efatfs::backend as backing;
@@ -1056,6 +1072,10 @@ mod prod {
 
         async fn close(&self, handle: u32) {
             backing::close(handle).await;
+        }
+
+        async fn location(&self, handle: u32) -> Option<FileLocation> {
+            backing::location_of(handle).await
         }
     }
 }

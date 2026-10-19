@@ -182,6 +182,12 @@ bool resolveAlternateDir(AudioLoadContext* context, Error* error) noexcept;
 ///         or already consumed (a caller bug, not a file problem).
 [[nodiscard]] Error bindReadStream(SampleBuild* build, std::string_view path) noexcept;
 
+/// @brief As bindReadStream(), opening the file at @p location (DelugeAudioLoadResult::location) rather than looking
+///        up a path: no directory walk, and no wait for the filesystem lock behind the storage tier's loads.
+/// @return As bindReadStream(); `Error::FILE_NOT_FOUND` also for a location from another mount, after which the caller
+///         binds by path.
+[[nodiscard]] Error bindReadStreamAt(SampleBuild* build, const DelugeFileLocation& location) noexcept;
+
 /// @brief Write the parsed header geometry onto an in-flight build. No I/O.
 ///
 /// Must be given exactly the fields the synchronous `AudioFile::loadFile` writes onto a Sample, or a

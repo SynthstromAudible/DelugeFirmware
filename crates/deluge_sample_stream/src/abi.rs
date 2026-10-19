@@ -24,6 +24,22 @@ pub unsafe extern "C" fn deluge_sample_stream_open(
     unsafe { registry::open(path, out_table_full) }
 }
 
+/// As [`deluge_sample_stream_open`], opening the file at `location` (a `DelugeFileLocation`)
+/// rather than looking up a path; returns `0` on failure, including a location from another mount.
+///
+/// # Safety
+///
+/// `location` must be null or point to a valid `DelugeFileLocation`. `out_table_full`, if non-null,
+/// must be valid for one write.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+pub unsafe extern "C" fn deluge_sample_stream_open_at(
+    location: *const deluge_sample_fill::FileLocation,
+    out_table_full: *mut bool,
+) -> DelugeHandle {
+    // SAFETY: this function's own contract is `registry::open_at`'s.
+    unsafe { registry::open_at(location, out_table_full) }
+}
+
 /// Closes `handle`'s efatfs handle and releases its asset, if one was assigned. A no-op on `0` or
 /// an already-closed handle.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]

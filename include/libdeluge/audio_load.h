@@ -38,6 +38,7 @@
 
 #include "abi.h"
 #include "channel.h"
+#include "types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -138,6 +139,9 @@ typedef struct DelugeAudioLoadResult {
 	uint8_t error;
 	/// The `candidates_key` of the request this answers: the candidate list the verdict was reached with.
 	uint32_t candidates_key;
+	/// Where the file the verdict was reached on is, so the build can open its read stream without looking the path up
+	/// again (deluge_sample_stream_open_at). Valid only when @ref error is `Error::NONE`; plain data, like the rest.
+	DelugeFileLocation location;
 } DelugeAudioLoadResult;
 
 /// @brief Queue @p file_path for the async loader and wake it. Returns immediately; never waits. [task]

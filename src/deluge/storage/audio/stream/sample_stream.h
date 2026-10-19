@@ -129,6 +129,12 @@ public:
 	///         every other open failure (bad path, unmounted FS).
 	Error open_read_stream(std::string_view path);
 
+	/// @brief As open_read_stream(), opening the file at @p location (from a load result) rather than looking up a
+	///        path, so no directory is walked and no filesystem lock is taken.
+	/// @return As open_read_stream(); `Error::FILE_NOT_FOUND` also for a location from another mount, after which the
+	///         caller opens by path.
+	Error open_read_stream_at(const DelugeFileLocation& location);
+
 	/// @brief Build this sample's read source.
 	///
 	/// The single point a cluster read is issued from; no caller branches on it.

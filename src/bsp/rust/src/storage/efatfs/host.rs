@@ -237,6 +237,29 @@ pub async fn read_at_timed(
     }
 }
 
+/// Where the file behind streaming-read `handle` is, for [`open_at`] to open again; `None` for a
+/// bad handle.
+pub async fn location_of(handle: u32) -> Option<portable::FileLocation> {
+    let (_, ctx) = HANDLES.lock().await.checkout(handle)?;
+    Some(portable::location_of_context(
+        &ctx,
+        deluge_efatfs_mount_generation(),
+    ))
+}
+
+/// Opens the file at `location` into the streaming-read handle table, as [`open`] does by path,
+/// without the FS lock or any card I/O: the location already says where the file is. Fails with
+/// `DELUGE_ERR_PARAM` for a location that names no file, or one from another mount.
+pub async fn open_at(location: &portable::FileLocation) -> OpenOutcome {
+    let Some(ctx) = portable::context_at(location, deluge_efatfs_mount_generation()) else {
+        return OpenOutcome::Failed(DELUGE_ERR_PARAM);
+    };
+    match HANDLES.lock().await.insert(ctx) {
+        Some(h) => OpenOutcome::Handle(h),
+        None => OpenOutcome::TableFull,
+    }
+}
+
 /// The size in bytes of the file behind a streaming-read `handle`; `None` if the handle is bad,
 /// the FS is unmounted, or the size could not be read.
 ///
@@ -288,6 +311,37 @@ pub extern "C" fn deluge_efatfs_open(
         return DELUGE_ERR_PARAM;
     };
     let (status, table_full) = match crate::storage::sim_block::block_on(open(path)) {
+        OpenOutcome::Handle(h) => {
+            // SAFETY: `out_handle` is non-null (checked above) and points at memory the caller
+            // owns for the duration of this synchronous call.
+            unsafe { *out_handle = to_abi(h) };
+            (DELUGE_OK, false)
+        }
+        OpenOutcome::TableFull => (DELUGE_ERR_NO_MEMORY, true),
+        OpenOutcome::Failed(status) => (status, false),
+    };
+    // SAFETY: `out_table_full` is non-null (checked above), owned by the caller for this call.
+    unsafe { *out_table_full = table_full };
+    status
+}
+
+/// C-ABI: opens the file at `location` for streaming reads, without looking up a path (see
+/// [`open_at`]); the out-parameters as [`deluge_efatfs_open`]'s.
+///
+/// Returns `DELUGE_ERR_PARAM` for a null argument or a location that names no file on this mount.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_efatfs_open_at(
+    location: *const crate::sys::DelugeFileLocation,
+    out_handle: *mut DelugeHandle,
+    out_table_full: *mut bool,
+) -> DelugeStatus {
+    crate::tier_meter::note(crate::tier_meter::Entry::Open);
+    if location.is_null() || out_handle.is_null() || out_table_full.is_null() {
+        return DELUGE_ERR_PARAM;
+    }
+    // SAFETY: `location` is non-null (checked above) and points at a `DelugeFileLocation`.
+    let location = unsafe { location.read() };
+    let (status, table_full) = match crate::storage::sim_block::block_on(open_at(&location)) {
         OpenOutcome::Handle(h) => {
             // SAFETY: `out_handle` is non-null (checked above) and points at memory the caller
             // owns for the duration of this synchronous call.
@@ -1264,6 +1318,7 @@ abi_pin!(
     deluge_efatfs_mount,
     deluge_efatfs_mount_generation,
     deluge_efatfs_open,
+    deluge_efatfs_open_at,
     deluge_efatfs_read_at,
     deluge_efatfs_remount,
     deluge_efatfs_rename,
