@@ -237,18 +237,29 @@ bool printReportLine() {
 		printTraceHist("interaction_fs_hold", t.interaction_fs_hold);
 		return true;
 	case 12:
+		printTraceHist("read_meta", t.read_meta);
+		return true;
+	case 13:
+		printTraceHist("read_data", t.read_data);
+		return true;
+	case 14:
+		D_PRINTLN("STREAM-BENCH-CARD phase=%s meta_sectors=%lu data_calls=%lu data_sectors=%lu", g.phase,
+		          static_cast<unsigned long>(t.read_meta_sectors), static_cast<unsigned long>(t.read_data_calls),
+		          static_cast<unsigned long>(t.read_data_sectors));
+		return true;
+	case 15:
 		D_PRINTLN("STREAM-BENCH-SCANS phase=%s resident=%lu/%lu ptr=%lu/%lu free=%lu/%lu evict=%lu/%lu", g.phase,
 		          static_cast<unsigned long>(r.scan_resident_calls), static_cast<unsigned long>(r.scan_resident_slots),
 		          static_cast<unsigned long>(r.scan_ptr_calls), static_cast<unsigned long>(r.scan_ptr_slots),
 		          static_cast<unsigned long>(r.scan_free_calls), static_cast<unsigned long>(r.scan_free_slots),
 		          static_cast<unsigned long>(r.scan_evict_calls), static_cast<unsigned long>(r.scan_evict_slots));
 		return true;
-	case 13:
+	case 16:
 		D_PRINTLN("STREAM-BENCH-HOLD phase=%s longest_ms=%lu at=%s:%lu", g.phase,
 		          static_cast<unsigned long>(t.longest_fs_hold_us / 1000), t.longest_fs_hold_file,
 		          static_cast<unsigned long>(t.longest_fs_hold_line));
 		return true;
-	case 14:
+	case 17:
 		D_PRINTLN("STREAM-BENCH-FS phase=%s long_waits=%lu,%lu,%lu max_us=%lu,%lu,%lu", g.phase,
 		          static_cast<unsigned long>(t.long_fs_waits_by_tier[0]),
 		          static_cast<unsigned long>(t.long_fs_waits_by_tier[1]),
@@ -257,12 +268,24 @@ bool printReportLine() {
 		          static_cast<unsigned long>(t.long_fs_wait_max_by_tier[1]),
 		          static_cast<unsigned long>(t.long_fs_wait_max_by_tier[2]));
 		return true;
-	case 15:
+	case 18:
 		printJobs();
 		return true;
 	default:
 		return false;
 	}
+}
+
+/// Prints how long a 32 KB copy out of uncached memory takes: the copy behind every card read's DMA. The fastest of
+/// a few, since the audio tier preempts the interaction tier it runs on.
+void printUncachedCopy() {
+	constexpr uint32_t kBytes = 32768;
+	uint32_t best = UINT32_MAX;
+	for (int i = 0; i < 5; i++) {
+		best = std::min(best, deluge_fill_trace_time_uncached_copy(kBytes));
+	}
+	D_PRINTLN("STREAM-BENCH-COPY bytes=%lu us=%lu", static_cast<unsigned long>(kBytes),
+	          static_cast<unsigned long>(best));
 }
 
 /// The name a song loaded from @p path takes: its file name without the extension.
@@ -331,6 +354,7 @@ void step() {
 		if (isCardReady() && !loadSongUI.loadInFlight() && nowUs() >= kSettle) {
 			D_PRINTLN("STREAM-BENCH-BEGIN first=\"%s\" second=\"%s\"", DELUGE_STREAM_BENCH_SONG_A,
 			          DELUGE_STREAM_BENCH_SONG_B);
+			printUncachedCopy();
 			openLoad(DELUGE_STREAM_BENCH_SONG_A);
 			enter(Stage::OpenFirst);
 		}

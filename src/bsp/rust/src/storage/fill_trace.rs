@@ -32,6 +32,15 @@ struct State {
     last_read_end: Option<Instant>,
     /// The tier and hold of the most recent filesystem release.
     last_release: Option<(Tier, u64)>,
+    /// The card reads of the fill read now holding the filesystem, while one does.
+    card: Option<CardReads>,
+}
+
+/// One fill read's card reads, split by what they fetch.
+#[derive(Clone, Copy, Default)]
+struct CardReads {
+    meta_us: u64,
+    data_us: u64,
 }
 
 static STATE: Mutex<RefCell<State>> = Mutex::new(RefCell::new(State {
@@ -40,6 +49,7 @@ static STATE: Mutex<RefCell<State>> = Mutex::new(RefCell::new(State {
     signalled_at: None,
     last_read_end: None,
     last_release: None,
+    card: None,
 }));
 
 const fn zeroed_hist() -> DelugeFillTraceHist {
@@ -62,6 +72,11 @@ const fn zeroed() -> DelugeFillTrace {
         begin: zeroed_hist(),
         interaction_fs_wait: zeroed_hist(),
         interaction_fs_hold: zeroed_hist(),
+        read_meta: zeroed_hist(),
+        read_data: zeroed_hist(),
+        read_meta_sectors: 0,
+        read_data_calls: 0,
+        read_data_sectors: 0,
         longest_fs_hold_us: 0,
         longest_fs_hold_line: 0,
         longest_fs_hold_file: [0; 48],
@@ -128,6 +143,44 @@ pub fn pass_begin() {
             add(&mut s.trace.wake, micros_since(at, now));
         }
         s.last_read_end = None;
+    });
+}
+
+/// Marks a fill read taking the filesystem: the card reads until [`fill_read_held_end`] are its own,
+/// since nothing else can reach the card while it holds the filesystem.
+pub fn fill_read_held() {
+    critical_section::with(|cs| STATE.borrow_ref_mut(cs).card = Some(CardReads::default()));
+}
+
+/// Ends the span [`fill_read_held`] began, recording its card reads.
+pub fn fill_read_held_end() {
+    critical_section::with(|cs| {
+        let mut s = STATE.borrow_ref_mut(cs);
+        if let Some(card) = s.card.take() {
+            add(&mut s.trace.read_meta, card.meta_us);
+            add(&mut s.trace.read_data, card.data_us);
+        }
+    });
+}
+
+/// Records a card read of `sectors` sectors from `start` to `end`, if a fill read holds the
+/// filesystem: a single sector is a FAT or directory lookup, more is the chunk's data.
+pub fn card_read(sectors: u32, start: Instant, end: Instant) {
+    let us = micros_since(start, end);
+    critical_section::with(|cs| {
+        let mut s = STATE.borrow_ref_mut(cs);
+        let Some(mut card) = s.card else {
+            return;
+        };
+        if sectors == 1 {
+            card.meta_us += us;
+            s.trace.read_meta_sectors = s.trace.read_meta_sectors.saturating_add(1);
+        } else {
+            card.data_us += us;
+            s.trace.read_data_calls = s.trace.read_data_calls.saturating_add(1);
+            s.trace.read_data_sectors = s.trace.read_data_sectors.saturating_add(sectors);
+        }
+        s.card = Some(card);
     });
 }
 
@@ -252,7 +305,43 @@ pub extern "C" fn deluge_fill_trace_reset() {
     critical_section::with(|cs| STATE.borrow_ref_mut(cs).trace = zeroed());
 }
 
-abi_pin!(deluge_fill_trace_snapshot, deluge_fill_trace_reset);
+/// Times copying `bytes` out of uncached memory into cached memory, in µs: the copy every card read
+/// makes from the SD driver's DMA buffer, which the DMA fills through its uncached alias. 0 on host,
+/// or if the buffers cannot be allocated. [task]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_fill_trace_time_uncached_copy(bytes: u32) -> u32 {
+    #[cfg(target_os = "none")]
+    {
+        extern crate alloc;
+        let len = bytes as usize;
+        let mut src = alloc::vec::Vec::<u8>::new();
+        let mut dst = alloc::vec::Vec::<u8>::new();
+        if src.try_reserve_exact(len).is_err() || dst.try_reserve_exact(len).is_err() {
+            return 0;
+        }
+        src.resize(len, 0);
+        dst.resize(len, 0);
+        let uncached = (src.as_ptr() as usize + rza1l_hal::UNCACHED_MIRROR_OFFSET) as *const u8;
+        let start = Instant::now();
+        // SAFETY: the uncached alias covers the same `len` bytes `src` owns, and nothing writes them
+        // while the copy reads.
+        dst.copy_from_slice(unsafe { core::slice::from_raw_parts(uncached, len) });
+        let us = Instant::now().saturating_duration_since(start).as_micros();
+        core::hint::black_box(&dst);
+        u32::try_from(us).unwrap_or(u32::MAX)
+    }
+    #[cfg(not(target_os = "none"))]
+    {
+        let _ = bytes;
+        0
+    }
+}
+
+abi_pin!(
+    deluge_fill_trace_snapshot,
+    deluge_fill_trace_reset,
+    deluge_fill_trace_time_uncached_copy
+);
 
 #[cfg(test)]
 mod tests {

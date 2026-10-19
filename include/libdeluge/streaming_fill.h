@@ -128,6 +128,13 @@ typedef struct DelugeFillTrace {
 	DelugeFillTraceHist begin;   ///< resolving a popped chunk's read (its destination and file offset)
 	DelugeFillTraceHist interaction_fs_wait; ///< an interaction-tier filesystem call waiting for the mutex
 	DelugeFillTraceHist interaction_fs_hold; ///< an interaction-tier filesystem call holding the mutex
+	/// Within one read: the time in single-sector card reads (the FAT and directory lookups of its seek) ...
+	DelugeFillTraceHist read_meta;
+	/// ... and in multi-sector card reads (its data).
+	DelugeFillTraceHist read_data;
+	uint32_t read_meta_sectors; ///< Single-sector card reads, over every read.
+	uint32_t read_data_calls;   ///< Multi-sector card reads, over every read.
+	uint32_t read_data_sectors; ///< The sectors those multi-sector reads moved.
 	/// The longest any caller held the filesystem mutex, in µs, and where in the BSP's source it took it: the file,
 	/// NUL-terminated (truncated to fit), and the line.
 	uint32_t longest_fs_hold_us;
@@ -145,6 +152,11 @@ void deluge_fill_trace_snapshot(DelugeFillTrace* out) DELUGE_NOEXCEPT;
 
 /// @brief Zero the fill trace. [task]
 void deluge_fill_trace_reset(void) DELUGE_NOEXCEPT;
+
+/// @brief Time copying @p bytes out of uncached memory into cached memory: the copy every card read makes from the SD
+/// driver's DMA buffer. [task]
+/// @return The copy's duration in µs; 0 on host, or if the buffers could not be allocated.
+uint32_t deluge_fill_trace_time_uncached_copy(uint32_t bytes) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

@@ -57,6 +57,8 @@ METRICS = (
     "begin",
     "fs_wait",
     "read",
+    "read_meta",
+    "read_data",
     "finish",
     "gap",
     "interaction_fs_wait",
@@ -78,6 +80,11 @@ SCANS_RE = re.compile(
     r"free=(?P<free>\d+/\d+) evict=(?P<evict>\d+/\d+)"
 )
 SCANS = ("resident", "ptr", "free", "evict")
+COPY_RE = re.compile(r"STREAM-BENCH-COPY bytes=(?P<bytes>\d+) us=(?P<us>\d+)")
+CARD_RE = re.compile(
+    r"STREAM-BENCH-CARD phase=(?P<phase>\S+) meta_sectors=(?P<meta_sectors>\d+) "
+    r"data_calls=(?P<data_calls>\d+) data_sectors=(?P<data_sectors>\d+)"
+)
 FS_RE = re.compile(
     r"STREAM-BENCH-FS phase=(?P<phase>\S+) long_waits=(?P<waits>\d+,\d+,\d+) max_us=(?P<max>\d+,\d+,\d+)"
 )
@@ -126,6 +133,7 @@ def parse_capture(lines: list[str]) -> dict:
         "failures": [],
         "done": None,
         "songs": None,
+        "copy": None,
     }
 
     def phase(name: str) -> dict:
@@ -154,6 +162,12 @@ def parse_capture(lines: list[str]) -> dict:
             phase(m["phase"])["scans"] = {
                 k: dict(zip(("calls", "slots"), map(int, m[k].split("/"))))
                 for k in SCANS
+            }
+        elif m := COPY_RE.search(line):
+            run["copy"] = {"bytes": int(m["bytes"]), "us": int(m["us"])}
+        elif m := CARD_RE.search(line):
+            phase(m["phase"])["card"] = {
+                k: int(m[k]) for k in ("meta_sectors", "data_calls", "data_sectors")
             }
         elif m := FS_RE.search(line):
             waits = [int(v) for v in m["waits"].split(",")]
@@ -187,6 +201,11 @@ def render(run: dict) -> str:
     if run["songs"]:
         out.append(
             f"Songs: `{run['songs'][0]}`, then `{run['songs'][1]}` while playing.\n"
+        )
+    if run["copy"]:
+        c = run["copy"]
+        out.append(
+            f"Copying {c['bytes'] // 1024} KB out of uncached memory: {c['us'] / 1000:.2f} ms\n"
         )
     for loaded in run["loaded"]:
         out.append(
@@ -237,6 +256,16 @@ def render(run: dict) -> str:
                 per = f"{v['slots'] / v['calls']:.0f}" if v["calls"] else "-"
                 out.append(f"| {k} | {v['calls']} | {v['slots']} | {per} |")
             out.append("")
+        if card := p.get("card"):
+            data = p["hist"].get("read_data")
+            rate = ""
+            if data and data["n"] and data["mean"] and card["data_sectors"]:
+                mb_s = card["data_sectors"] * 512 / (data["mean"] * data["n"])
+                rate = f", data at {mb_s:.1f} MB/s"
+            out.append(
+                f"Card reads during fills: {card['meta_sectors']} single-sector lookups, "
+                f"{card['data_calls']} data reads moving {card['data_sectors']} sectors{rate}\n"
+            )
         if fs := p.get("fs"):
             parts = [
                 f"{t} {v['long_waits']} (max {v['max_us'] / 1000:.2f} ms)"

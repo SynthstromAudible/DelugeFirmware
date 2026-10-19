@@ -45,7 +45,10 @@ impl BlockDevice<BLOCK_SIZE> for SdBlockDevice {
         // preempts the thread-mode executor `card_service` runs on.
         //
         // Lock order is FS mutex -> SD_BUS; nothing takes SD_BUS and then the FS mutex.
-        crate::storage::sd::locked_read_sectors(block_address, count, flat).await
+        let start = embassy_time::Instant::now();
+        let result = crate::storage::sd::locked_read_sectors(block_address, count, flat).await;
+        crate::storage::fill_trace::card_read(count, start, embassy_time::Instant::now());
+        result
     }
 
     async fn write(

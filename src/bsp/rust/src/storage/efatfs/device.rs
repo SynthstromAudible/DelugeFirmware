@@ -266,11 +266,14 @@ pub async fn read_at_timed(
     let read = async |fs: &Fs| {
         let acquired = embassy_time::Instant::now();
         let waited_behind = crate::storage::fill_trace::last_fs_release();
-        (
-            acquired,
-            waited_behind,
-            portable::read_context(fs, ctx, byte_offset, dst).await,
-        )
+        if urgent {
+            crate::storage::fill_trace::fill_read_held();
+        }
+        let read = portable::read_context(fs, ctx, byte_offset, dst).await;
+        if urgent {
+            crate::storage::fill_trace::fill_read_held_end();
+        }
+        (acquired, waited_behind, read)
     };
     let result = if urgent {
         with_fs_urgent(read).await
