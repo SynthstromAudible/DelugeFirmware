@@ -78,6 +78,15 @@ void noteRelease(int32_t released, uint64_t us);
 /// `STREAM-BENCH-LOADPART what="<what>" ms=<n>`.
 void noteLoadPart(const char* what, uint64_t us);
 
+/// Notes the song document's parse at the end of a load's STAGE phase, taking @p parse_us µs. Prints a `LOAD-STAGE`
+/// line.
+void noteLoadStage(uint64_t parse_us);
+
+/// Notes the BEGIN phase's parts: taking down the UIs and readying the swap (@p teardown_us), constructing the new
+/// Song (@p construct_us), reading it from the parsed document (@p read_us) and claiming the samples already in RAM
+/// (@p claim_us), all in µs. Prints a `LOAD-BEGIN` line.
+void noteLoadBegin(uint64_t teardown_us, uint64_t construct_us, uint64_t read_us, uint64_t claim_us);
+
 /// Notes that binding the sample at @p path took @p acquire_us µs to collect and @p set_us µs to attach, under cluster
 /// load instruction @p instruction. A bind of 20 ms or more prints
 /// `STREAM-BENCH-BIND acquire_ms=<n> set_ms=<n> instruction=<n> path=<path>`.
