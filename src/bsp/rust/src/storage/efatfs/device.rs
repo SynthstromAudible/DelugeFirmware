@@ -23,6 +23,8 @@
 
 use aligned::{A4, Aligned};
 use block_device_adapters::{BufStream, StreamSlice};
+
+use crate::storage::read_ahead::ReadAhead;
 use block_device_driver::BlockDevice;
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
 use embedded_fatfs::{DefaultTimeProvider, FileSystem, FsOptions, LossyOemCpConverter};
@@ -39,7 +41,7 @@ use crate::sys::{
     DelugeStatus_DELUGE_ERR_PARAM as DELUGE_ERR_PARAM, DelugeStatus_DELUGE_OK as DELUGE_OK,
 };
 
-type Storage = StreamSlice<BufStream<SdBlockDevice, 512>>;
+type Storage = StreamSlice<BufStream<ReadAhead<SdBlockDevice>, 512>>;
 pub type Fs = FileSystem<Storage, DefaultTimeProvider, LossyOemCpConverter>;
 
 // embedded-fatfs's `RefCell` disk assumes exclusive access, so every FS op serializes here.
@@ -97,7 +99,7 @@ pub async fn mount() -> Result<(), DelugeStatus> {
     let (start, end) = partition_window().await;
     PARTITION_START_SECTOR.store((start / 512) as u32, core::sync::atomic::Ordering::Release);
     let slice = StreamSlice::new(
-        BufStream::<SdBlockDevice, 512>::new(SdBlockDevice),
+        BufStream::<ReadAhead<SdBlockDevice>, 512>::new(ReadAhead::new(SdBlockDevice)),
         start,
         end,
     )

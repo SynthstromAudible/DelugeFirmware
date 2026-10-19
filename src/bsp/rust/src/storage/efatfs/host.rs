@@ -24,6 +24,8 @@
 
 use aligned::{A4, Aligned};
 use block_device_adapters::BufStream;
+
+use crate::storage::read_ahead::ReadAhead;
 use block_device_driver::BlockDevice;
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
 use embedded_fatfs::{DefaultTimeProvider, FileSystem, FsOptions, LossyOemCpConverter};
@@ -85,7 +87,7 @@ impl BlockDevice<512> for HostSdBlockDevice {
     }
 }
 
-type Storage = BufStream<HostSdBlockDevice, 512>;
+type Storage = BufStream<ReadAhead<HostSdBlockDevice>, 512>;
 pub type Fs = FileSystem<Storage, DefaultTimeProvider, LossyOemCpConverter>;
 
 // embedded-fatfs's `RefCell` disk assumes exclusive access, so every FS op serializes here. The
@@ -113,7 +115,8 @@ pub async fn mount() -> Result<(), DelugeStatus> {
     if FS.lock().await.is_some() {
         return Ok(()); // already mounted
     }
-    let storage = BufStream::<HostSdBlockDevice, 512>::new(HostSdBlockDevice);
+    let storage =
+        BufStream::<ReadAhead<HostSdBlockDevice>, 512>::new(ReadAhead::new(HostSdBlockDevice));
     let fs = FileSystem::new(storage, FsOptions::new())
         .await
         .map_err(|e| portable::error_to_status(&e))?;
