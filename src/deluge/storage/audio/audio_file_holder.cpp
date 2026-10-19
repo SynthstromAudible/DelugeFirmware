@@ -16,7 +16,9 @@
  */
 
 #include "storage/audio/audio_file_holder.h"
+
 #include "definitions_cxx.hpp"
+#include "notify/dirty_set.h"
 #include "storage/audio/audio_file.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/audio/load_trace.h"
@@ -86,5 +88,8 @@ void AudioFileHolder::setAudioFile(AudioFile* newAudioFile, bool reversed, bool 
 
 	if (audioFile) {
 		audioFile->addReason();
+		// A file now plays here: what applies only to a loaded source (a sample's repeat, speed, interpolation)
+		// changes under an open menu, which repaints on this fact.
+		deluge::notify::raise(deluge::notify::Dirty::SampleReady);
 	}
 }
