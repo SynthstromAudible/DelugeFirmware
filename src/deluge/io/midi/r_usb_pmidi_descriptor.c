@@ -34,8 +34,8 @@ Macro definitions
 ***********************************************************************************************************************/
 #define USB_BCDNUM (0x0200u) /* bcdUSB */
 // Release Number. Bumped when USB audio was added, so hosts don't reuse anything they cached about the MIDI-only
-// configuration
-#define USB_RELEASE (0x0300u)
+// configuration, and again when the out stream went from adaptive to asynchronous with implicit feedback
+#define USB_RELEASE (0x0301u)
 #define USB_CONFIGNUM (1u) /* Configuration number */
 #define USB_DCPMAXP (64u)  /* DCP max packet size */
 
@@ -87,8 +87,13 @@ Macro definitions
 #define AUDIO_EP_GENERAL 0x01
 #define AUDIO_TERMINAL_STREAMING 0x0101 // USB streaming
 #define AUDIO_TERMINAL_LINE 0x0603      // Line connector
-#define AUDIO_ISO_ASYNC 0x05            // Isochronous, asynchronous: we set the rate, sending 44 or 45 frames a frame
-#define AUDIO_ISO_ADAPTIVE 0x09         // Isochronous, adaptive: we follow the host's rate (see UsbAudio's resampler)
+// Isochronous, asynchronous: our sample clock sets the rate. Both directions use it - we send the host 44 or 45 frames
+// each USB frame to match how fast we produce them, and the host sends us as many as we send it
+#define AUDIO_ISO_ASYNC 0x05
+// USB 2.0 usage type (bits 5:4) for our data in endpoint: the host can work out our rate from how many frames it gets
+// each USB frame, and use that for its out stream too. There's no room for an explicit feedback endpoint - only pipes 1
+// and 2 can do isochronous transfers, and the two streams already have them
+#define AUDIO_ISO_USAGE_IMPLICIT_FEEDBACK 0x20
 
 // Terminal IDs
 #define AUDIO_TERMINAL_FROM_HOST 1
@@ -260,12 +265,12 @@ uint8_t g_midi_configuration[TOTAL_CONFIG_LENGTH + (TOTAL_CONFIG_LENGTH % 2)] = 
     9,                                         // bLength
     USB_DT_ENDPOINT,                           // bDescriptorType
     (uint8_t)(USB_EP_OUT | USB_PAUDIO_EP_OUT), // bEndpointAddress
-    AUDIO_ISO_ADAPTIVE,                        // bmAttributes
+    AUDIO_ISO_ASYNC,                           // bmAttributes
     LO(USB_PAUDIO_MAX_PACKET_BYTES),           // wMaxPacketSize
     HI(USB_PAUDIO_MAX_PACKET_BYTES),           //
     1,                                         // bInterval (frames)
     0,                                         // bRefresh
-    0,                                         // bSynchAddress
+    (uint8_t)(USB_EP_IN | USB_PAUDIO_EP_IN),   // bSynchAddress - implicit feedback comes from our in stream
                                                // Class-specific isochronous endpoint - audio10.pdf 4.6.1.2
     7,                                         // bLength
     CS_ENDPOINT,                               // bDescriptorType
@@ -301,34 +306,34 @@ uint8_t g_midi_configuration[TOTAL_CONFIG_LENGTH + (TOTAL_CONFIG_LENGTH % 2)] = 
     1,                      // bDelay (frames)
     0x01, 0x00,             // wFormatTag - PCM
     // Type I format
-    11,                                      // bLength
-    CS_INTERFACE,                            // bDescriptorType
-    AUDIO_AS_FORMAT_TYPE,                    // bDescriptorSubtype
-    1,                                       // bFormatType - type I
-    USB_PAUDIO_NUM_CHANNELS,                 // bNrChannels
-    USB_PAUDIO_SUBFRAME_BYTES,               // bSubframeSize
-    USB_PAUDIO_BIT_RESOLUTION,               // bBitResolution
-    1,                                       // bSamFreqType - one discrete rate
-    LO(USB_PAUDIO_SAMPLE_RATE),              // tSamFreq
-    HI(USB_PAUDIO_SAMPLE_RATE),              //
-    (uint8_t)(USB_PAUDIO_SAMPLE_RATE >> 16), //
-                                             // Standard isochronous endpoint
-    9,                                       // bLength
-    USB_DT_ENDPOINT,                         // bDescriptorType
-    (uint8_t)(USB_EP_IN | USB_PAUDIO_EP_IN), // bEndpointAddress
-    AUDIO_ISO_ASYNC,                         // bmAttributes
-    LO(USB_PAUDIO_MAX_PACKET_BYTES),         // wMaxPacketSize
-    HI(USB_PAUDIO_MAX_PACKET_BYTES),         //
-    1,                                       // bInterval (frames)
-    0,                                       // bRefresh
-    0,                                       // bSynchAddress
-                                             // Class-specific isochronous endpoint
-    7,                                       // bLength
-    CS_ENDPOINT,                             // bDescriptorType
-    AUDIO_EP_GENERAL,                        // bDescriptorSubtype
-    0,                                       // bmAttributes
-    0,                                       // bLockDelayUnits
-    0, 0,                                    // wLockDelay
+    11,                                                  // bLength
+    CS_INTERFACE,                                        // bDescriptorType
+    AUDIO_AS_FORMAT_TYPE,                                // bDescriptorSubtype
+    1,                                                   // bFormatType - type I
+    USB_PAUDIO_NUM_CHANNELS,                             // bNrChannels
+    USB_PAUDIO_SUBFRAME_BYTES,                           // bSubframeSize
+    USB_PAUDIO_BIT_RESOLUTION,                           // bBitResolution
+    1,                                                   // bSamFreqType - one discrete rate
+    LO(USB_PAUDIO_SAMPLE_RATE),                          // tSamFreq
+    HI(USB_PAUDIO_SAMPLE_RATE),                          //
+    (uint8_t)(USB_PAUDIO_SAMPLE_RATE >> 16),             //
+                                                         // Standard isochronous endpoint
+    9,                                                   // bLength
+    USB_DT_ENDPOINT,                                     // bDescriptorType
+    (uint8_t)(USB_EP_IN | USB_PAUDIO_EP_IN),             // bEndpointAddress
+    AUDIO_ISO_ASYNC | AUDIO_ISO_USAGE_IMPLICIT_FEEDBACK, // bmAttributes
+    LO(USB_PAUDIO_MAX_PACKET_BYTES),                     // wMaxPacketSize
+    HI(USB_PAUDIO_MAX_PACKET_BYTES),                     //
+    1,                                                   // bInterval (frames)
+    0,                                                   // bRefresh
+    0,                                                   // bSynchAddress
+                                                         // Class-specific isochronous endpoint
+    7,                                                   // bLength
+    CS_ENDPOINT,                                         // bDescriptorType
+    AUDIO_EP_GENERAL,                                    // bDescriptorSubtype
+    0,                                                   // bmAttributes
+    0,                                                   // bLockDelayUnits
+    0, 0,                                                // wLockDelay
 
     /* MIDI streaming interface Descriptor
      * 3rd level of USB declarations. This declares a USB midi interface with 2 endpoints (subclass of audio)

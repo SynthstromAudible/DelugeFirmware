@@ -22,9 +22,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
-#include <cmath>
 #include <cstring>
-#include <numbers>
 
 extern "C" {
 #include "RZA1/intc/devdrv_intc.h"
@@ -85,7 +83,7 @@ T* uncached(T* address) {
 	return reinterpret_cast<T*>(reinterpret_cast<uint32_t>(address) + UNCACHED_MIRROR_OFFSET);
 }
 
-// Frames from the host, written by the DMA-complete interrupt, read by the resampler in the audio routine
+// Frames from the host, written by the DMA-complete interrupt, read by readFromHost() in the audio routine
 constexpr uint32_t kFromHostRingFrames = 1024;
 std::array<StereoSample, kFromHostRingFrames> fromHostRing;
 std::atomic<uint32_t> fromHostWritten{0}; // Free-running frame counts
@@ -104,7 +102,7 @@ volatile bool fromHostDmaBusy = false;
 volatile bool toHostDmaBusy = false;
 uint32_t fromHostDmaBytes;
 
-// SSI-RX-shaped ring holding the resampled audio from the host, for the rest of the Deluge to read like an input
+// SSI-RX-shaped ring holding the audio from the host, for the rest of the Deluge to read like an input
 PLACE_SDRAM_BSS alignas(CACHE_LINE_SIZE) int32_t inputRing[SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS];
 uint32_t inputRingWriteFrame = 0; // Where fillInputRing() got up to, in frames from the start
 
@@ -169,7 +167,7 @@ void fromHostDmaComplete(uint32_t) {
 		uint32_t numFrames = fromHostDmaBytes / kBytesPerFrame;
 		uint32_t written = fromHostWritten.load(std::memory_order_relaxed);
 		uint32_t space = kFromHostRingFrames - (written - fromHostRead.load(std::memory_order_acquire));
-		numFrames = std::min(numFrames, space); // If the resampler's that far behind, it'll be resyncing anyway
+		numFrames = std::min(numFrames, space); // If the reader's that far behind, it'll be resyncing anyway
 		for (uint32_t i = 0; i < numFrames; i++) {
 			fromHostRing[(written + i) & (kFromHostRingFrames - 1)] = frames[i];
 		}
@@ -242,8 +240,6 @@ void setUpInterrupts() {
  * Starting and stopping the streams. These run in the USB task, not an interrupt
  */
 
-void computeResamplerKernel(); // Below
-
 void stopFromHost() {
 	CriticalSectionGuard guard;
 	fromHostStreaming = false;
@@ -257,7 +253,6 @@ void stopFromHost() {
 }
 
 void startFromHost() {
-	computeResamplerKernel();
 	setUpInterrupts();
 
 	CriticalSectionGuard guard;
@@ -319,152 +314,99 @@ void startToHost() {
 }
 
 /*********************************************************************************************************************
- * Resampling audio from the host to our sample clock. Both nominally run at 44.1kHz, but on different crystals, so the
- * ratio is very slightly off 1 and drifts. A servo nudges it to keep the incoming ring buffer at a steady fill.
- * Since the ratio's always so close to 1, the read position's fractional part moves very slowly, so a fixed table of
- * windowed-sinc kernels, one per fractional position, is plenty.
+ * Reading the audio from the host. The endpoint's asynchronous with implicit feedback, so a host that supports that
+ * sends us exactly as many frames as we send it, which follows our sample clock - and they can be copied straight
+ * through. Hosts that ignore it send at their own clock's 44.1kHz, which drifts slowly against ours (around 4 frames a
+ * second at 100ppm), so as a fallback we drop or repeat a single frame now and then to keep the ring at a steady fill.
  */
 
-constexpr int32_t kResamplerTaps = 32;
-constexpr int32_t kResamplerTapsBehind = kResamplerTaps / 2 - 1; // Frames before the read position the kernel reaches
-constexpr int32_t kResamplerTapsAhead = kResamplerTaps / 2;      // And after
-constexpr int32_t kResamplerPhaseBits = 9;
-constexpr int32_t kResamplerCoefficientBits = 30;
-PLACE_SDRAM_BSS int32_t resamplerKernel[1 << kResamplerPhaseBits][kResamplerTaps];
-bool resamplerKernelComputed = false;
-
-// Modified Bessel function of the first kind, order 0 - for the Kaiser window
-double besselI0(double x) {
-	double sum = 1;
-	double term = 1;
-	for (int32_t k = 1; k < 30; k++) {
-		term *= (x / (2 * k)) * (x / (2 * k));
-		sum += term;
-	}
-	return sum;
-}
-
-void computeResamplerKernel() {
-	if (resamplerKernelComputed) {
-		return;
-	}
-	constexpr double kCutoff = 0.95; // Relative to Nyquist
-	constexpr double kBeta = 8;
-	double const windowNormalization = besselI0(kBeta);
-
-	for (int32_t phase = 0; phase < (1 << kResamplerPhaseBits); phase++) {
-		double fraction = (phase + 0.5) / (1 << kResamplerPhaseBits);
-		double taps[kResamplerTaps];
-		double sum = 0;
-		for (int32_t tap = 0; tap < kResamplerTaps; tap++) {
-			double distance = fraction - (tap - kResamplerTapsBehind); // From this tap's frame to the read position
-			double sincArgument = std::numbers::pi * kCutoff * distance;
-			double sinc = (sincArgument == 0) ? 1 : std::sin(sincArgument) / sincArgument;
-			double windowPosition = distance / (kResamplerTaps / 2);
-			double window =
-			    (std::abs(windowPosition) >= 1)
-			        ? 0
-			        : besselI0(kBeta * std::sqrt(1 - windowPosition * windowPosition)) / windowNormalization;
-			taps[tap] = sinc * window;
-			sum += taps[tap];
-		}
-		// Unity gain at DC for every phase, so the level doesn't wobble as the phase drifts
-		for (int32_t tap = 0; tap < kResamplerTaps; tap++) {
-			resamplerKernel[phase][tap] = std::lround(taps[tap] / sum * (1 << kResamplerCoefficientBits));
-		}
-	}
-	resamplerKernelComputed = true;
-}
-
 // Fill level of the incoming ring we aim for when starting each render window, in frames past the read position. The
-// window takes up to 128 at once, packets bring ~44 at a time, and the kernel needs to see kResamplerTapsAhead ahead
-constexpr float kFromHostTargetFill = 224;
-constexpr float kFromHostServoGain = 4e-6; // Ratio adjustment per frame of fill error
-constexpr float kFromHostMaxRatioAdjustment = 1e-3;
+// window takes up to 128 at once, and packets bring ~44 at a time
+constexpr uint32_t kFromHostTargetFill = 160;
+// How far the (averaged) fill can drift before we drop or repeat a frame. Packet and render timing jitter alone move it
+// a lot less than this once averaged
+constexpr int32_t kFromHostTolerance = 48;
+// At most one correction per this many frames (~23ms): ~1000ppm of correction - far more than any clock mismatch - but
+// spread out, so it's never more than a single, isolated frame
+constexpr uint32_t kFromHostCorrectionInterval = 1024;
 
 struct {
 	uint32_t generation = 0;
 	bool primed = false;
-	uint32_t readFrame = 0; // The frame the read position is at or just after
-	uint32_t phase = 0;     // How far past readFrame the read position is, as a fraction of a frame
-	float averageFill = kFromHostTargetFill;
-	int64_t increment = (int64_t)1 << 32; // How far to move the read position per output frame, 32.32
-} resampler;
+	uint32_t readFrame = 0;
+	int32_t averageFill = kFromHostTargetFill << 8; // 24.8 fixed point
+	uint32_t framesSinceCorrection = 0;
+} fromHostReader;
 
 [[gnu::always_inline]] inline int32_t saturate(int64_t value) {
 	return std::clamp<int64_t>(value, INT32_MIN, INT32_MAX);
 }
 
-// Renders numFrames frames of audio from the host, interleaved stereo, into output
-void resampleFromHost(int32_t* output, size_t numFrames) {
+// Copies numFrames frames of audio from the host, interleaved stereo, into output
+void readFromHost(int32_t* output, size_t numFrames) {
+	auto& reader = fromHostReader;
 	uint32_t generation = fromHostGeneration.load(std::memory_order_relaxed);
-	if (resampler.generation != generation) {
+	if (reader.generation != generation) {
 		// A new stream - anything left in the ring is from the last one
-		resampler.generation = generation;
-		resampler.readFrame = fromHostWritten.load(std::memory_order_acquire);
-		resampler.primed = false;
-		resampler.averageFill = kFromHostTargetFill;
-		resampler.increment = (int64_t)1 << 32;
+		reader.generation = generation;
+		reader.readFrame = fromHostWritten.load(std::memory_order_acquire);
+		reader.primed = false;
 	}
 
 	uint32_t written = fromHostWritten.load(std::memory_order_acquire);
-	uint32_t fill = written - resampler.readFrame;
+	uint32_t fill = written - reader.readFrame;
 
-	if (!resampler.primed) {
-		// Wait for enough to arrive, then start the read position that far back
-		if (fill > kFromHostRingFrames || fill < kFromHostTargetFill) {
-			if (fill > kFromHostRingFrames) {
-				resampler.readFrame = written; // Must have been from the previous stream
-			}
+	if (!reader.primed || fill > kFromHostRingFrames - 64) {
+		// Waiting for enough to arrive - or way behind, because the host sped up enormously or we stalled. Either way,
+		// (re)start the read position at the target fill
+		if (fill > kFromHostRingFrames) {
+			reader.readFrame = written; // Must have been from the previous stream
+			fill = 0;
+		}
+		if (fill < kFromHostTargetFill) {
 			std::memset(output, 0, numFrames * sizeof(StereoSample));
-			fromHostRead.store(resampler.readFrame - kResamplerTapsBehind, std::memory_order_release);
+			fromHostRead.store(reader.readFrame, std::memory_order_release);
 			return;
 		}
-		resampler.readFrame = written - (uint32_t)kFromHostTargetFill;
-		resampler.phase = 0;
-		resampler.primed = true;
+		reader.readFrame = written - kFromHostTargetFill;
 		fill = kFromHostTargetFill;
-	}
-	else if (fill > kFromHostRingFrames - 64) {
-		// Way too far behind - the host must have sped up enormously, or we stalled. Jump forward
-		resampler.readFrame = written - (uint32_t)kFromHostTargetFill;
-		fill = kFromHostTargetFill;
+		reader.primed = true;
+		reader.averageFill = kFromHostTargetFill << 8;
+		reader.framesSinceCorrection = 0;
 	}
 
-	// Steer the ratio to bring the fill back to target
-	resampler.averageFill += ((float)fill - resampler.averageFill) * (1.f / 32);
-	float adjustment = std::clamp((resampler.averageFill - kFromHostTargetFill) * kFromHostServoGain,
-	                              -kFromHostMaxRatioAdjustment, kFromHostMaxRatioAdjustment);
-	resampler.increment = ((int64_t)1 << 32) + (int64_t)(adjustment * 4294967296.f);
-
-	for (size_t i = 0; i < numFrames; i++) {
-		if ((int32_t)(written - resampler.readFrame) <= kResamplerTapsAhead) {
-			// Ran out - the host's stopped sending, or fallen behind. Silence until there's enough again
-			std::memset(&output[i * 2], 0, (numFrames - i) * sizeof(StereoSample));
-			resampler.primed = false;
-			D_PRINTLN("USB audio: input underrun");
-			break;
+	// Fallback for hosts not following our clock: nudge the read position by a frame if the fill's drifted
+	reader.averageFill += ((int32_t)(fill << 8) - reader.averageFill) >> 5;
+	reader.framesSinceCorrection += numFrames;
+	if (reader.framesSinceCorrection >= kFromHostCorrectionInterval) {
+		int32_t error = (reader.averageFill >> 8) - (int32_t)kFromHostTargetFill;
+		if (error > kFromHostTolerance && fill > 0) {
+			reader.readFrame++; // Host's faster - drop a frame
+			fill--;
+			reader.framesSinceCorrection = 0;
 		}
-
-		int32_t const* kernel = resamplerKernel[resampler.phase >> (32 - kResamplerPhaseBits)];
-		uint32_t frame = resampler.readFrame - kResamplerTapsBehind;
-		int64_t sumL = 0;
-		int64_t sumR = 0;
-		for (int32_t tap = 0; tap < kResamplerTaps; tap++) {
-			StereoSample const& sample = fromHostRing[(frame + tap) & (kFromHostRingFrames - 1)];
-			sumL += (int64_t)sample.l * kernel[tap];
-			sumR += (int64_t)sample.r * kernel[tap];
+		else if (error < -kFromHostTolerance && fill > numFrames) {
+			reader.readFrame--; // Host's slower - repeat a frame
+			fill++;
+			reader.framesSinceCorrection = 0;
 		}
-		output[i * 2] = saturate(sumL >> kResamplerCoefficientBits);
-		output[i * 2 + 1] = saturate(sumR >> kResamplerCoefficientBits);
-
-		uint64_t position = (uint64_t)resampler.phase + resampler.increment;
-		resampler.readFrame += (uint32_t)(position >> 32);
-		resampler.phase = (uint32_t)position;
 	}
 
-	// Everything before the kernel's reach can now be overwritten
-	fromHostRead.store(resampler.readFrame - kResamplerTapsBehind, std::memory_order_release);
+	size_t numToCopy = std::min<size_t>(numFrames, fill);
+	auto* frames = reinterpret_cast<StereoSample*>(output);
+	for (size_t i = 0; i < numToCopy; i++) {
+		frames[i] = fromHostRing[(reader.readFrame + i) & (kFromHostRingFrames - 1)];
+	}
+	reader.readFrame += numToCopy;
+
+	if (numToCopy < numFrames) {
+		// Ran out - the host's stopped sending, or fallen behind. Silence until there's enough again
+		std::memset(&frames[numToCopy], 0, (numFrames - numToCopy) * sizeof(StereoSample));
+		reader.primed = false;
+		D_PRINTLN("USB audio: input underrun");
+	}
+
+	fromHostRead.store(reader.readFrame, std::memory_order_release);
 }
 
 } // namespace
@@ -598,7 +540,7 @@ void fillInputRing(uint32_t rxPosition, size_t numSamples) {
 		size_t numThisTime = std::min<size_t>(numSamples, kRingFrames - inputRingWriteFrame);
 		int32_t* output = &inputRing[inputRingWriteFrame * 2];
 		if (fromHostStreaming) {
-			resampleFromHost(output, numThisTime);
+			readFromHost(output, numThisTime);
 			int32_t* rx = getRxBufferStart() + inputRingWriteFrame * 2;
 			for (size_t i = 0; i < numThisTime; i++) {
 				rx[i * 2] = saturate((int64_t)rx[i * 2] + output[i * 2]);

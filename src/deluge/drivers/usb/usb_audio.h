@@ -23,10 +23,12 @@
 // samples. The packets go between memory and the USB FIFOs by DMA (channels 0 and 1); the CPU only kicks off each
 // transfer, from the USB and DMA interrupts.
 //
-// From the host, audio arrives at the host's sample clock, so it's resampled to ours (the endpoint is "adaptive"),
-// then laid out in a ring buffer exactly like the SSI RX buffer, so it can be used anywhere the line/mic input is.
-// To the host, we send 44 or 45 frames per USB frame to match how fast we're producing them (the endpoint is
-// "asynchronous"), so no resampling is needed that way.
+// Both endpoints are "asynchronous" - our sample clock sets the rate. To the host, we send 44 or 45 frames per USB
+// frame to match how fast we're producing them. Our in endpoint is marked as implicit feedback for the out one, so the
+// host sends us as many frames as we sent it, and they're copied straight through with no resampling. Hosts that don't
+// do implicit feedback send at their own clock's rate, which we cope with by dropping or repeating the odd frame.
+// Audio from the host is laid out in a ring buffer exactly like the SSI RX buffer, so it can be used anywhere the
+// line/mic input is.
 
 #ifdef __cplusplus
 extern "C" {
