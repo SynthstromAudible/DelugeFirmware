@@ -367,6 +367,13 @@ public:
 		}
 	}
 
+	// However the marker editor is left - BACK, a shortcut pad, exiting the menu - auditioning goes back
+	// to the normal cycle. The slot page sets it again when it resumes.
+	void endSession() override {
+		LoopPoint::endSession();
+		MultisampleRange::clearAuditionSlot();
+	}
+
 protected:
 	uint8_t slotIndex_;
 };
@@ -547,6 +554,13 @@ public:
 		soundEditor.setCurrentSource(sourceId_);
 		// While this slot's menu is open, auditioning plays this exact slot (without advancing the cycle).
 		MultisampleRange::setAuditionSlot(getRoundRobinRange(sourceId_), slotIndex_);
+	}
+
+	// However this page is left - BACK, a shortcut pad, exiting the menu - auditioning goes back to the
+	// normal cycle. beginSession() sets it again on return.
+	void endSession() override {
+		HorizontalMenu::endSession();
+		MultisampleRange::clearAuditionSlot();
 	}
 
 	void deletePress() override { clearAlternateSlotFromMenu(sourceId_, slotIndex_); }
