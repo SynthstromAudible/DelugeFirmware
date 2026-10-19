@@ -74,6 +74,91 @@ struct MockDeserializer {
 	void exitTag(char const* name = nullptr, bool closeObject = false) { exitTagCalls++; }
 };
 
+// Token-level stand-in for JsonDeserializer, for the brace bookkeeping MockDeserializer can't see.
+// Tokens are "{", "}", "[", "]", "key:<name>", "int:<n>" and "str:<s>". As in the real one, match()
+// consumes only the character asked for, a tag list ends at "}" without consuming it, and exitTag()
+// closes an object if asked, then skips a value that was never read.
+struct JsonTokenDeserializer {
+	std::vector<std::string> tokens;
+	size_t pos = 0;
+	bool valueRead = true;
+	std::string lastName;
+
+	[[nodiscard]] bool nextIs(std::string const& token) const { return pos < tokens.size() && tokens[pos] == token; }
+	[[nodiscard]] bool nextHasPrefix(char const* prefix) const {
+		return pos < tokens.size() && tokens[pos].rfind(prefix, 0) == 0;
+	}
+
+	bool match(char c) {
+		if (!nextIs(std::string(1, c))) {
+			return false;
+		}
+		pos++;
+		return true;
+	}
+
+	char const* readNextTagOrAttributeName() {
+		if (!nextHasPrefix("key:")) {
+			return "";
+		}
+		lastName = tokens[pos++].substr(4);
+		valueRead = false;
+		return lastName.c_str();
+	}
+
+	int32_t readTagOrAttributeValueInt() {
+		valueRead = true;
+		return nextHasPrefix("int:") ? std::stoi(tokens[pos++].substr(4)) : 0;
+	}
+
+	void readTagOrAttributeValueString(std::string* out) {
+		valueRead = true;
+		if (nextHasPrefix("str:")) {
+			*out = tokens[pos++].substr(4);
+		}
+	}
+
+	void exitTag(char const* name = nullptr, bool closeObject = false) {
+		if (closeObject) {
+			match('}');
+		}
+		if (valueRead) {
+			return;
+		}
+		valueRead = true;
+		if (nextIs("{") || nextIs("[")) {
+			int32_t depth = 0;
+			do {
+				if (nextIs("{") || nextIs("[")) {
+					depth++;
+				}
+				else if (nextIs("}") || nextIs("]")) {
+					depth--;
+				}
+				pos++;
+			} while (depth > 0 && pos < tokens.size());
+		}
+		else if (pos < tokens.size()) {
+			pos++;
+		}
+	}
+};
+
+// One saved alternate as the JSON writer lays it out: an array item wrapping an "alternate" object.
+void appendJsonAlternate(std::vector<std::string>& tokens, std::string const& fileName, int32_t startPos) {
+	for (std::string token : {"{", "key:alternate", "{", "key:fileName"}) {
+		tokens.push_back(token);
+	}
+	tokens.push_back("str:" + fileName);
+	for (std::string token : {"key:zone", "{", "key:startSamplePos"}) {
+		tokens.push_back(token);
+	}
+	tokens.push_back("int:" + std::to_string(startPos));
+	for (std::string token : {"}", "}", "}"}) {
+		tokens.push_back(token);
+	}
+}
+
 } // namespace
 
 TEST_GROUP(RoundRobinParser){};
@@ -203,4 +288,49 @@ TEST(RoundRobinParser, emptyArrayYieldsNoAlternates) {
 
 	CHECK_TRUE(readRoundRobinAlternates(reader, &range) == Error::NONE);
 	CHECK_EQUAL(0, range.rrCount);
+}
+
+TEST(RoundRobinParser, jsonLeavesReaderAfterTheArray) {
+	// Regression: each JSON alternate is an array item wrapping an "alternate" object, so it ends with
+	// two closing braces. Closing only one left the reader a brace and a bracket behind: the second
+	// alternate was lost, and so was every tag after the array.
+	JsonTokenDeserializer reader;
+	reader.tokens = {"["};
+	appendJsonAlternate(reader.tokens, "a.wav", 10);
+	appendJsonAlternate(reader.tokens, "b.wav", 20);
+	for (std::string token : {"]", "key:rrMode", "int:2", "}"}) {
+		reader.tokens.push_back(token);
+	}
+
+	FakeRange range;
+	CHECK_TRUE(readRoundRobinAlternates(reader, &range) == Error::NONE);
+
+	CHECK_EQUAL(2, range.rrCount);
+	STRCMP_EQUAL("a.wav", range.holders[0].filePath.c_str());
+	CHECK_EQUAL(10, range.holders[0].startPos);
+	STRCMP_EQUAL("b.wav", range.holders[1].filePath.c_str());
+	CHECK_EQUAL(20, range.holders[1].startPos);
+	// The next sibling tag must still read correctly.
+	STRCMP_EQUAL("rrMode", reader.readNextTagOrAttributeName());
+	CHECK_EQUAL(2, reader.readTagOrAttributeValueInt());
+}
+
+TEST(RoundRobinParser, jsonSkipsAlternatesPastTheCap) {
+	// An alternate past the slot cap is skipped tag by tag, its zone object included, and the
+	// reader must come out in the same place as for one it kept.
+	JsonTokenDeserializer reader;
+	reader.tokens = {"["};
+	for (int32_t i = 0; i < kMaxRoundRobinAlternates + 1; i++) {
+		appendJsonAlternate(reader.tokens, std::to_string(i) + ".wav", i);
+	}
+	for (std::string token : {"]", "key:rrMode", "int:1", "}"}) {
+		reader.tokens.push_back(token);
+	}
+
+	FakeRange range;
+	CHECK_TRUE(readRoundRobinAlternates(reader, &range) == Error::NONE);
+
+	CHECK_EQUAL(kMaxRoundRobinAlternates, range.rrCount);
+	STRCMP_EQUAL("rrMode", reader.readNextTagOrAttributeName());
+	CHECK_EQUAL(1, reader.readTagOrAttributeValueInt());
 }
