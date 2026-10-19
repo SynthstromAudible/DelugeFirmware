@@ -509,12 +509,18 @@ void LoadSongUI::runStageSegment() {
 		endLoad(SongLoadOutcome::NotLoaded);
 		return;
 
-	case StorageManager::StagedOpen::Opened:
+	case StorageManager::StagedOpen::Opened: {
+#if DELUGE_STREAM_BENCH
+		const uint64_t parseStart = deluge::runtime::nowUs();
+#endif
 		// Record-first load: parse the whole document into a Value tree now, while nothing has been destroyed,
 		// so a corrupt file still leaves the browser open. BEGIN replays the tree to readFromFile.
-		if (songDocument_.open(std::span<const uint8_t>(songStaging_.buffer, songStaging_.size),
-		                       StorageManager::documentIsJson(stagingPath_.c_str()), "song")
-		    != Error::NONE) {
+		const Error parsed = songDocument_.open(std::span<const uint8_t>(songStaging_.buffer, songStaging_.size),
+		                                        StorageManager::documentIsJson(stagingPath_.c_str()), "song");
+#if DELUGE_STREAM_BENCH
+		deluge::bench::noteLoadStage(deluge::runtime::nowUs() - parseStart);
+#endif
+		if (parsed != Error::NONE) {
 			activeDeserializer = stagingPrevious_;
 			releaseSongStaging();
 			display->displayError(Error::FILE_CORRUPTED);
@@ -523,6 +529,7 @@ void LoadSongUI::runStageSegment() {
 		}
 		loadPhase_ = LoadPhase::BEGIN;
 		return;
+	}
 	}
 }
 
@@ -654,6 +661,9 @@ void LoadSongUI::runPhase() {
 }
 
 void LoadSongUI::runBeginSegment() {
+#if DELUGE_STREAM_BENCH
+	const uint64_t beginStart = deluge::runtime::nowUs();
+#endif
 	if (arrangement.hasPlaybackActive()) {
 		playbackHandler.switchToSession();
 	}
@@ -710,6 +720,9 @@ void LoadSongUI::runBeginSegment() {
 		playbackHandler.songSwapShouldPreserveTempo = Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC);
 	}
 
+#if DELUGE_STREAM_BENCH
+	const uint64_t constructStart = deluge::runtime::nowUs();
+#endif
 	void* songMemory = deluge::memory::alloc_fast(sizeof(Song));
 	if (!songMemory) {
 ramError:
@@ -772,6 +785,9 @@ gotErrorAfterCreatingSong:
 
 	AudioEngine::logAction("initialized new song");
 
+#if DELUGE_STREAM_BENCH
+	const uint64_t readStart = deluge::runtime::nowUs();
+#endif
 	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
 	// are, after failing on one of those, it'd try to load something else and that would fail.
 	{
@@ -804,10 +820,17 @@ gotErrorAfterCreatingSong:
 	sampleLoadContext_ =
 	    deluge::storage::AudioLoadContext::forSong(listing.dir().c_str(), currentFilenameWithoutExtension.c_str());
 
+#if DELUGE_STREAM_BENCH
+	const uint64_t claimStart = deluge::runtime::nowUs();
+#endif
 	// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
 	// Do this before loading any new Samples from file, in case we were in danger of discarding any from RAM that we
 	// might actually want
 	preLoadedSong->loadAllSamples(false, &sampleLoadContext_);
+#if DELUGE_STREAM_BENCH
+	deluge::bench::noteLoadBegin(constructStart - beginStart, readStart - constructStart, claimStart - readStart,
+	                             deluge::runtime::nowUs() - claimStart);
+#endif
 
 	// Load samples from files, just for currently playing Sounds (or if not playing, then all Sounds). This pass
 	// reads the card, walking a tick at a time on this tier, through the loader every other consumer uses.

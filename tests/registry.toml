@@ -2327,13 +2327,25 @@ tier = "pr"
 runtime = "~1s"
 
 [[harness]]
+name = "bench-tooling"
+path = "tools"
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "the bench tools' host side: stream_bench_matrix flattens a run into named metrics (histograms, underruns, tagged phase lines, the arm time, load phases, log lines), summarises each image's runs as mean, deviation and range, leaves incomplete runs out, and marks two images' ranges apart or overlapping; bench_image points the SDK override at another checkout and refuses an override with nothing to redirect"
+run = ["python3", "-m", "unittest", "test_bench_tooling"]
+tier = "pr"
+runtime = "~1s"
+
+[[harness]]
 name = "ptm-trace-tool"
 path = "tools/deluge_trace"
 level = "unit"
 runner = "script"
 kind = "unit"
 status = "gate"
-gates = "the PTM trace tool's host side: function names resolve to one address range (bare or full signature, Thumb bit cleared, overloads refused), the CoreSight ROM walk finds the trace path and programming writes the PTM, funnel, ETF and TPIU as the rig needs them, the OpenCSD snapshot names a Cortex-A9 and a PFT 1.0 PTM with the registers used, the J-Trace's reversed RAWTRACE bytes are put back in port order without frame syncs, and the report times blocks, loop iterations and instructions from a canned decode"
+gates = "the PTM trace tool's host side: function names resolve to one address range (bare or full signature, Thumb bit cleared, overloads refused), the CoreSight ROM walk finds the trace path and programming writes the PTM, funnel, ETF and TPIU as the rig needs them, the OpenCSD snapshot names a Cortex-A9 and a PFT 1.0 PTM with the registers used, the J-Trace's reversed RAWTRACE bytes are put back in port order without frame syncs, and the report times blocks, loop iterations and instructions from a canned decode; the profile's shadow call stack charges self and inclusive cycles through calls, returns, tail calls and recursion, keeps an interrupt's cycles and code found after a gap behind a barrier, re-anchors frames across a loss of sync, and says when gaps leave its call stacks unreliable"
 run = ["python3", "-m", "unittest", "discover", "-p", "test_*.py"]
 tier = "pr"
 runtime = "~1s"

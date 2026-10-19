@@ -84,6 +84,43 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(run["failures"], ["the first song's load never finished"])
 
 
+class GenericLineTests(unittest.TestCase):
+    def test_tagged_load_and_log_lines_are_kept(self) -> None:
+        lines = full_run()
+        extra = [
+            "STREAM-BENCH-LOADER phase=steady requests=3 request_ms=40 path_like=a/b",
+            "STREAM-BENCH-LOADPHASE phase=stage steps=3 step_ms=500 span_ms=700",
+            "STREAM-BENCH-LOADPHASE phase=begin steps=1 step_ms=650 span_ms=650",
+            "STREAM-BENCH-LOADED song=B ok=1",
+            "STREAM-BENCH-LOADPHASE phase=stage steps=2 step_ms=100 span_ms=120",
+            "STREAM-BENCH-ARMED ms=4046",
+            "INFO  [deluge_bsp::sd] SD-PHASE cmd_us=19 data_us=4390 drain_us=2",
+            "INFO  [deluge_bsp::sd] SD-PHASE cmd_us=21 data_us=4410 drain_us=3",
+            "LOADER-OPEN ms=70 card_reads=39 hit=true path=SONGS/x y/z.wav",
+        ]
+        run = stream_bench.parse_capture(
+            lines[:-1] + [PREFIX + l for l in extra] + lines[-1:]
+        )
+        self.assertEqual(
+            run["phases"]["steady"]["lines"]["LOADER"],
+            {"requests": 3, "request_ms": 40},
+        )
+        self.assertEqual(
+            len(run["load_phases"]), 2, "a LOADED line ends one load's phases"
+        )
+        self.assertEqual(
+            run["load_phases"][0]["begin"], {"steps": 1, "step_ms": 650, "span_ms": 650}
+        )
+        self.assertEqual(run["load_phases"][1]["stage"]["span_ms"], 120)
+        self.assertEqual(run["armed_ms"], 4046)
+        self.assertEqual([l["data_us"] for l in run["logs"]["SD-PHASE"]], [4390, 4410])
+        self.assertEqual(run["logs"]["LOADER-OPEN"], [{"ms": 70, "card_reads": 39}])
+        md = stream_bench.render(run)
+        self.assertIn("The second song armed after 4.05 s.", md)
+        self.assertIn("| begin | 1 | 650 | 650 |", md)
+        self.assertIn("- LOADER: requests=3 request_ms=40", md)
+
+
 class PercentileTests(unittest.TestCase):
     def test_percentile_is_the_upper_edge_of_its_bucket(self) -> None:
         # Two samples in [512, 1024), two in [1024, 2048).

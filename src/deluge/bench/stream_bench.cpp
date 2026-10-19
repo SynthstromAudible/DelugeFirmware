@@ -476,6 +476,16 @@ void step() {
 
 } // namespace
 
+void noteLoadStage(uint64_t parse_us) {
+	D_PRINTLN("LOAD-STAGE parse_ms=%lu", static_cast<unsigned long>(parse_us / 1000));
+}
+
+void noteLoadBegin(uint64_t teardown_us, uint64_t construct_us, uint64_t read_us, uint64_t claim_us) {
+	D_PRINTLN("LOAD-BEGIN teardown_ms=%lu construct_ms=%lu read_ms=%lu claim_ms=%lu",
+	          static_cast<unsigned long>(teardown_us / 1000), static_cast<unsigned long>(construct_us / 1000),
+	          static_cast<unsigned long>(read_us / 1000), static_cast<unsigned long>(claim_us / 1000));
+}
+
 void noteLoadStep(int phase, uint64_t us, int32_t bound, int32_t empty, int32_t in_flight) {
 	if (phase >= 0 && static_cast<size_t>(phase) < g_loadPhases.size()) {
 		LoadPhaseTime& t = g_loadPhases[phase];

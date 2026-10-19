@@ -96,6 +96,26 @@ BEGIN_RE = re.compile(
 )
 FAIL_RE = re.compile(r"STREAM-BENCH-FAIL (?P<what>.*)")
 DONE_RE = re.compile(r"STREAM-BENCH-DONE failures=(?P<failures>\d+)")
+ARMED_RE = re.compile(r"STREAM-BENCH-ARMED ms=(?P<ms>\d+)")
+LOADPHASE_RE = re.compile(
+    r"STREAM-BENCH-LOADPHASE phase=(?P<phase>\S+) steps=(?P<steps>\d+) step_ms=(?P<step_ms>\d+) "
+    r"span_ms=(?P<span_ms>\d+)"
+)
+# Any other per-phase line, `STREAM-BENCH-<TAG> phase=<p> key=value...`: its numeric values are kept by tag.
+TAGGED_RE = re.compile(
+    r"STREAM-BENCH-(?P<tag>[A-Z][A-Z0-9-]*) phase=(?P<phase>\S+) (?P<rest>.*)"
+)
+# A log line from elsewhere in the firmware, `TAG key=value ...` with TAG in capitals and dashes (SD-PHASE,
+# LOADER-OPEN): every occurrence's numeric values are kept by tag.
+LOG_RE = re.compile(
+    r"(?<![\w-])(?P<tag>[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+) (?P<rest>\w+=\S+(?: \w+=\S+)*)"
+)
+KV_RE = re.compile(r"(\w+)=(-?\d+(?:\.\d+)?)(?=\s|$)")
+
+
+def numeric_fields(text: str) -> dict[str, float]:
+    """The `key=number` pairs in `text`; other pairs (a path, a flag word) are left out."""
+    return {k: float(v) if "." in v else int(v) for k, v in KV_RE.findall(text)}
 
 
 def to_ms(value: float, unit: str) -> float:
@@ -132,12 +152,28 @@ def parse_capture(lines: list[str]) -> dict:
         "failures": [],
         "done": None,
         "songs": None,
+        "armed_ms": None,
+        "load_phases": [],
+        "logs": {},
     }
+    previous_was_loadphase = False
 
     def phase(name: str) -> dict:
         return run["phases"].setdefault(name, {"hist": {}, "jobs": []})
 
     for line in lines:
+        is_loadphase = bool(LOADPHASE_RE.search(line))
+        if is_loadphase:
+            m = LOADPHASE_RE.search(line)
+            # A run of LOADPHASE lines is one load's phases.
+            if not previous_was_loadphase:
+                run["load_phases"].append({})
+            run["load_phases"][-1][m["phase"]] = {
+                k: int(m[k]) for k in ("steps", "step_ms", "span_ms")
+            }
+            previous_was_loadphase = True
+            continue
+        previous_was_loadphase = False
         if m := PHASE_RE.search(line):
             p = phase(m["phase"])
             p.update(
@@ -184,6 +220,19 @@ def parse_capture(lines: list[str]) -> dict:
             run["failures"].append(m["what"].strip())
         elif m := DONE_RE.search(line):
             run["done"] = int(m["failures"])
+        elif m := ARMED_RE.search(line):
+            run["armed_ms"] = int(m["ms"])
+        elif m := TAGGED_RE.search(line):
+            phase(m["phase"]).setdefault("lines", {})[m["tag"]] = numeric_fields(
+                m["rest"]
+            )
+        elif "STREAM-BENCH-" not in line and (m := LOG_RE.search(line)):
+            fields = numeric_fields(m["rest"])
+            # The load the line belongs to: a song's LOADED line ends its load.
+            run.setdefault("load_logs", {}).setdefault(
+                str(len(run["loaded"]) + 1), {}
+            ).setdefault(m["tag"], []).append(fields)
+            run["logs"].setdefault(m["tag"], []).append(fields)
     return run
 
 
@@ -207,6 +256,14 @@ def render(run: dict) -> str:
     for f in run["failures"]:
         out.append(f"**FAIL**: {f}")
     if run["failures"]:
+        out.append("")
+    if run["armed_ms"] is not None:
+        out.append(f"The second song armed after {run['armed_ms'] / 1000:.2f} s.\n")
+    for i, phases in enumerate(run["load_phases"], 1):
+        out.append(f"| load {i} phase | steps | in steps ms | span ms |")
+        out.append("|---|---:|---:|---:|")
+        for name, t in phases.items():
+            out.append(f"| {name} | {t['steps']} | {t['step_ms']} | {t['span_ms']} |")
         out.append("")
     for name in [p for p in PHASES if p in run["phases"]] + [
         p for p in run["phases"] if p not in PHASES
@@ -267,6 +324,11 @@ def render(run: dict) -> str:
                 + ", ".join(parts)
                 + "\n"
             )
+        for tag, fields in p.get("lines", {}).items():
+            pairs = " ".join(f"{k}={v}" for k, v in fields.items())
+            out.append(f"- {tag}: {pairs}")
+        if p.get("lines"):
+            out.append("")
         if p["jobs"]:
             out.append("| slowest jobs | max ms | runs |")
             out.append("|---|---:|---:|")
