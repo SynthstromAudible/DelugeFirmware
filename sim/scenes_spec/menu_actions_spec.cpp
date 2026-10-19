@@ -42,6 +42,7 @@
 
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/action.h"
+#include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
@@ -296,7 +297,7 @@ struct GuestRig {
 std::vector<const Node*> visible_children_of(const Node& parent, const MenuContext& ctx) {
 	std::vector<const Node*> out;
 	for (const Node* child : parent.children) {
-		if (child->relevant == nullptr || child->relevant(ctx)) {
+		if (menu::bindings::relevant(*child, ctx)) {
 			out.push_back(child);
 		}
 	}

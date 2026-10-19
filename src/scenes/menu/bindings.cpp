@@ -559,6 +559,29 @@ bool relevant(const Node& node, const MenuContext& ctx) {
 	return node.relevant == nullptr || node.relevant(ctx);
 }
 
+size_t listed_children(const Node& node, const MenuContext& ctx, std::span<const Node*> out) {
+	size_t kept = 0;
+	if (node.dynamic_children != nullptr) {
+		const size_t produced = std::min(node.dynamic_children(ctx, out), out.size());
+		for (size_t i = 0; i < produced; i++) {
+			const Node* child = out[i];
+			if (child != nullptr && relevant(*child, ctx)) {
+				out[kept++] = child; // kept <= i always, so this compaction never overwrites ahead
+			}
+		}
+		return kept;
+	}
+	for (const Node* child : node.children) {
+		if (kept >= out.size()) {
+			break;
+		}
+		if (child != nullptr && relevant(*child, ctx)) {
+			out[kept++] = child;
+		}
+	}
+	return kept;
+}
+
 std::optional<int32_t> stored(const deluge::scenes::bind::Target& target, const MenuContext& ctx) {
 	if (ctx.model == nullptr || ctx.facts == nullptr || !ctx.addresses.slot) {
 		return std::nullopt;

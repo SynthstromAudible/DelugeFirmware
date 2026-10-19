@@ -654,26 +654,7 @@ bool MenuScene::wants_learn_blink() const {
 // Tree walking
 
 size_t MenuScene::visible_children(const Node& node, std::span<const Node*> out) const {
-	size_t kept = 0;
-	if (node.dynamic_children != nullptr) {
-		const size_t produced = std::min(node.dynamic_children(ctx_, out), out.size());
-		for (size_t i = 0; i < produced; i++) {
-			const Node* child = out[i];
-			if (child != nullptr && bindings::relevant(*child, ctx_)) {
-				out[kept++] = child; // kept <= i always, so this compaction never overwrites ahead
-			}
-		}
-		return kept;
-	}
-	for (const Node* child : node.children) {
-		if (kept >= out.size()) {
-			break;
-		}
-		if (child != nullptr && (child->relevant == nullptr || child->relevant(ctx_))) {
-			out[kept++] = child;
-		}
-	}
-	return kept;
+	return bindings::listed_children(node, ctx_, out);
 }
 
 const Node* MenuScene::child_at(const Node& node, int32_t index) const {
@@ -724,7 +705,7 @@ size_t MenuScene::build_column_list(const Node& node, std::span<const Node*> kid
 		cols[i].label = text_of(kid.name, label_scratch[i]);
 		cols[i].slots = kid.slots;
 		cols[i].show_label = true;
-		cols[i].relevant = kid.relevant == nullptr || kid.relevant(ctx_);
+		cols[i].relevant = bindings::relevant(kid, ctx_);
 		cols[i].is_submenu = kid.kind == Kind::Submenu;
 	}
 	return n;
@@ -1471,6 +1452,11 @@ void MenuScene::commit_value(const Node& node) {
 		break;
 	case Kind::Enum:
 		bindings::write(node, ctx_, st_.enum_index);
+		// A target's list can change under the write (a stored choice that no longer applies leaves it once the
+		// write moves off it): the cursor follows the value, not the old position.
+		if (node.bind.target.valid()) {
+			st_.enum_index = bindings::read(node, ctx_);
+		}
 		break;
 	case Kind::Toggle:
 		bindings::write(node, ctx_, st_.edit_bool ? 1 : 0);

@@ -226,7 +226,7 @@ int32_t visible_index_of(const Node& parent, const Node& child, const MenuContex
 	}
 	int32_t index = 0;
 	for (const Node* kid : parent.children) {
-		if (kid->relevant != nullptr && !kid->relevant(ctx)) {
+		if (!menu::bindings::relevant(*kid, ctx)) {
 			continue;
 		}
 		if (kid == &child) {

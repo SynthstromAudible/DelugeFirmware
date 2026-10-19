@@ -37,6 +37,7 @@
 ///       rule `sample_items_spec.cpp` and `browser_scene_spec.cpp` run under.
 
 #include "scenes/browser/browser_scene.h"
+#include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
@@ -518,7 +519,7 @@ struct MidiRig {
 int32_t visible_index_of(const MenuContext& ctx, const Node& page, const Node& item) {
 	int32_t index = 0;
 	for (const Node* kid : page.children) {
-		if (kid == nullptr || (kid->relevant != nullptr && !kid->relevant(ctx))) {
+		if (kid == nullptr || !menu::bindings::relevant(*kid, ctx)) {
 			continue;
 		}
 		if (kid == &item) {

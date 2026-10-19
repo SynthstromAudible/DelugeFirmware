@@ -11,6 +11,7 @@
 
 #include "engine-api/types/setting.h"
 #include "engines/deluge/settings.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "processing/sound/sound_drum.h"
 
@@ -20,6 +21,8 @@
 
 #include "spec/support/spec_main.h"
 
+#include <algorithm>
+#include <array>
 #include <set>
 #include <string>
 #include <vector>
@@ -137,4 +140,36 @@ describe sound_settings_targets("the sound's instrument settings on targets", ${
 	});
 });
 
-DELUGE_SPEC(sound_settings_spec, sound_settings_targets)
+// clang-format off
+describe sound_settings_listed("the menu lists a target node only where its setting applies", ${
+	it("leaves the sample rows off a saw oscillator's page, and lists them on a loaded sample's", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		f.song->setCurrentClip(f.clip);
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		deluge::edits::settingFor(*ctx.sound, "osc1/type", deluge::serialization::Value::makeScalar("saw"));
+		std::array<const Node*, menu::kMaxDynamicChildren> listed{};
+		const size_t n = bindings::listed_children(menu::nodes::source0, ctx, listed);
+		const auto lists = [&](const Node& node) {
+			return std::find(listed.begin(), listed.begin() + static_cast<std::ptrdiff_t>(n), &node)
+			       != listed.begin() + static_cast<std::ptrdiff_t>(n);
+		};
+		expect(lists(menu::nodes::osc0_type)).to_be_true();
+		expect(lists(menu::nodes::sample0_reverse)).to_be_false();
+		expect(lists(menu::nodes::sample0_repeat)).to_be_false();
+		expect(lists(menu::nodes::sample0_time_stretch)).to_be_false();
+	});
+
+	it("leaves max voices off a mono sound's voice page", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		f.song->setCurrentClip(f.clip);
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		deluge::edits::settingFor(*ctx.sound, "polyphonic", deluge::serialization::Value::makeScalar("mono"));
+		std::array<const Node*, menu::kMaxDynamicChildren> listed{};
+		const size_t n = bindings::listed_children(menu::nodes::voice, ctx, listed);
+		expect(std::find(listed.begin(), listed.begin() + static_cast<std::ptrdiff_t>(n), &menu::nodes::voice_count)
+		       == listed.begin() + static_cast<std::ptrdiff_t>(n))
+		    .to_be_true();
+	});
+});
+
+DELUGE_SPEC(sound_settings_spec, sound_settings_targets, sound_settings_listed)
