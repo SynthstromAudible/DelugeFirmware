@@ -6,6 +6,8 @@ pub mod efatfs;
 pub mod fill_trace;
 #[cfg(feature = "host_app")]
 pub mod memory_card;
+#[cfg(any(target_os = "none", feature = "host_app"))]
+pub mod read_ahead;
 pub mod sd;
 #[cfg(target_os = "none")]
 pub(crate) mod sd_block_device;

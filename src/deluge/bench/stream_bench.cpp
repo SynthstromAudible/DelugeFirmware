@@ -237,18 +237,41 @@ bool printReportLine() {
 		printTraceHist("interaction_fs_hold", t.interaction_fs_hold);
 		return true;
 	case 12:
+		printTraceHist("read_meta", t.read_meta);
+		return true;
+	case 13:
+		printTraceHist("read_data", t.read_data);
+		return true;
+	case 14:
+		D_PRINTLN("STREAM-BENCH-CARD phase=%s meta_sectors=%lu data_calls=%lu data_sectors=%lu", g.phase,
+		          static_cast<unsigned long>(t.read_meta_sectors), static_cast<unsigned long>(t.read_data_calls),
+		          static_cast<unsigned long>(t.read_data_sectors));
+		D_PRINTLN(
+		    "STREAM-BENCH-LOADER phase=%s requests=%lu request_ms=%lu request_max_ms=%lu open_hits=%lu "
+		    "open_hit_ms=%lu open_misses=%lu open_miss_ms=%lu reads=%lu read_ms=%lu other_ms=%lu",
+		    g.phase, static_cast<unsigned long>(t.loader_requests),
+		    static_cast<unsigned long>(t.loader_request_us / 1000),
+		    static_cast<unsigned long>(t.loader_request_max_us / 1000), static_cast<unsigned long>(t.loader_open_hits),
+		    static_cast<unsigned long>(t.loader_open_hit_us / 1000), static_cast<unsigned long>(t.loader_open_misses),
+		    static_cast<unsigned long>(t.loader_open_miss_us / 1000), static_cast<unsigned long>(t.loader_reads),
+		    static_cast<unsigned long>(t.loader_read_us / 1000), static_cast<unsigned long>(t.loader_other_us / 1000));
+		D_PRINTLN("STREAM-BENCH-LOADER-CARD phase=%s open_card_reads=%lu open_card_sectors=%lu", g.phase,
+		          static_cast<unsigned long>(t.loader_open_card_reads),
+		          static_cast<unsigned long>(t.loader_open_card_sectors));
+		return true;
+	case 15:
 		D_PRINTLN("STREAM-BENCH-SCANS phase=%s resident=%lu/%lu ptr=%lu/%lu free=%lu/%lu evict=%lu/%lu", g.phase,
 		          static_cast<unsigned long>(r.scan_resident_calls), static_cast<unsigned long>(r.scan_resident_slots),
 		          static_cast<unsigned long>(r.scan_ptr_calls), static_cast<unsigned long>(r.scan_ptr_slots),
 		          static_cast<unsigned long>(r.scan_free_calls), static_cast<unsigned long>(r.scan_free_slots),
 		          static_cast<unsigned long>(r.scan_evict_calls), static_cast<unsigned long>(r.scan_evict_slots));
 		return true;
-	case 13:
+	case 16:
 		D_PRINTLN("STREAM-BENCH-HOLD phase=%s longest_ms=%lu at=%s:%lu", g.phase,
 		          static_cast<unsigned long>(t.longest_fs_hold_us / 1000), t.longest_fs_hold_file,
 		          static_cast<unsigned long>(t.longest_fs_hold_line));
 		return true;
-	case 14:
+	case 17:
 		D_PRINTLN("STREAM-BENCH-FS phase=%s long_waits=%lu,%lu,%lu max_us=%lu,%lu,%lu", g.phase,
 		          static_cast<unsigned long>(t.long_fs_waits_by_tier[0]),
 		          static_cast<unsigned long>(t.long_fs_waits_by_tier[1]),
@@ -257,12 +280,38 @@ bool printReportLine() {
 		          static_cast<unsigned long>(t.long_fs_wait_max_by_tier[1]),
 		          static_cast<unsigned long>(t.long_fs_wait_max_by_tier[2]));
 		return true;
-	case 15:
+	case 18:
 		printJobs();
 		return true;
 	default:
 		return false;
 	}
+}
+
+/// Mirrors LoadSongUI::LoadPhase.
+constexpr std::array<const char*, 8> kLoadPhaseNames{"none", "stage",  "begin",  "essential",
+                                                     "arm",  "finish", "settle", "await_arm"};
+
+/// One load phase's steps: how many, their total time, and the span from the first's start to the last's end.
+struct LoadPhaseTime {
+	uint32_t steps;
+	uint64_t step_us;
+	Micros first;
+	Micros last;
+};
+std::array<LoadPhaseTime, kLoadPhaseNames.size()> g_loadPhases{};
+
+/// Prints each phase the load so far stepped through, then starts the count again.
+void printLoadPhases() {
+	for (size_t i = 0; i < g_loadPhases.size(); i++) {
+		const LoadPhaseTime& t = g_loadPhases[i];
+		if (t.steps != 0) {
+			D_PRINTLN("STREAM-BENCH-LOADPHASE phase=%s steps=%lu step_ms=%lu span_ms=%lu", kLoadPhaseNames[i],
+			          static_cast<unsigned long>(t.steps), static_cast<unsigned long>(t.step_us / 1000),
+			          static_cast<unsigned long>((t.last - t.first) / 1000));
+		}
+	}
+	g_loadPhases = {};
 }
 
 /// The name a song loaded from @p path takes: its file name without the extension.
@@ -291,6 +340,7 @@ void reportLoaded(const char* path) {
 }
 
 void openLoad(const char* path) {
+	g_loadPhases = {};
 	g.load_done = false;
 	g.load_ok = false;
 	// Gives the current song a name with the extension, as a completed load never does, so a load that gives up
@@ -349,6 +399,7 @@ void step() {
 			return;
 		}
 		reportLoaded(DELUGE_STREAM_BENCH_SONG_A);
+		printLoadPhases();
 		beginPhase("idle");
 		enter(Stage::Idle);
 		return;
@@ -391,6 +442,7 @@ void step() {
 		// loads the rest meanwhile; it completes only once the swap happens. The arm is the end of the load proper.
 		if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
 			D_PRINTLN("STREAM-BENCH-ARMED ms=%lu", static_cast<unsigned long>((nowUs() - g.stage_start) / 1000));
+			printLoadPhases();
 			enter(Stage::AfterLoad);
 			return;
 		}
@@ -425,13 +477,20 @@ void step() {
 } // namespace
 
 void noteLoadStep(int phase, uint64_t us, int32_t bound, int32_t empty, int32_t in_flight) {
-	// Mirrors LoadSongUI::LoadPhase.
-	static constexpr std::array<const char*, 8> kNames{"none", "stage",  "begin",  "essential",
-	                                                   "arm",  "finish", "settle", "await_arm"};
+	if (phase >= 0 && static_cast<size_t>(phase) < g_loadPhases.size()) {
+		LoadPhaseTime& t = g_loadPhases[phase];
+		Micros now = nowUs();
+		if (t.steps == 0) {
+			t.first = now - us;
+		}
+		t.steps++;
+		t.step_us += us;
+		t.last = now;
+	}
 	if (us < 50'000) {
 		return;
 	}
-	const char* name = phase >= 0 && static_cast<size_t>(phase) < kNames.size() ? kNames[phase] : "?";
+	const char* name = phase >= 0 && static_cast<size_t>(phase) < kLoadPhaseNames.size() ? kLoadPhaseNames[phase] : "?";
 	D_PRINTLN("STREAM-BENCH-LOADSTEP phase=%s ms=%lu bound=%d empty=%d in_flight=%d", name,
 	          static_cast<unsigned long>(us / 1000), static_cast<int>(bound), static_cast<int>(empty),
 	          static_cast<int>(in_flight));

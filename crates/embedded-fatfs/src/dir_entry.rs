@@ -64,6 +64,19 @@ fn char_to_uppercase(c: char) -> iter::Once<char> {
     iter::once(c.to_ascii_uppercase())
 }
 
+/// FNV-1a over `chars` folded as name comparison folds them, so two names that compare equal hash
+/// equally. For the directory index, which verifies every hit, so a collision costs only a read.
+pub(crate) fn fold_hash(chars: impl Iterator<Item = char>) -> u32 {
+    let mut hash: u32 = 0x811c_9dc5;
+    for c in chars.flat_map(char_to_uppercase) {
+        for byte in (c as u32).to_le_bytes() {
+            hash ^= u32::from(byte);
+            hash = hash.wrapping_mul(0x0100_0193);
+        }
+    }
+    hash
+}
+
 /// Decoded file short name
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Clone, Debug, Default)]
@@ -798,6 +811,19 @@ impl<'a, IO: ReadWriteSeek, TP, OCC: OemCpConverter> DirEntry<'a, IO, TP, OCC> {
             // entry has no long name
             false
         }
+    }
+
+    /// The [`fold_hash`]es of the entry's long name, if it has one, and its short name.
+    pub(crate) fn name_hashes(&self) -> (Option<u32>, u32) {
+        #[cfg(feature = "lfn")]
+        let long = self.long_file_name_as_ucs2_units().map(|units| {
+            fold_hash(char::decode_utf16(units.iter().copied()).map(|r| r.unwrap_or(char::REPLACEMENT_CHARACTER)))
+        });
+        #[cfg(not(feature = "lfn"))]
+        let long = None;
+        let converter = &self.fs.options.oem_cp_converter;
+        let short = fold_hash(self.short_name.as_bytes().iter().map(|&c| converter.decode(c)));
+        (long, short)
     }
 
     pub(crate) fn eq_name(&self, name: &str) -> bool {

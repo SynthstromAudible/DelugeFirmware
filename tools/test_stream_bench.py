@@ -18,6 +18,8 @@ def phase_lines(phase: str) -> list[str]:
         f"STREAM-BENCH-HIST phase={phase} metric=fill unit=frames n=4 mean=255 max=500 b=0,0,0,0,0,0,0,0,0,4",
         f"STREAM-BENCH-HIST phase={phase} metric=wake unit=us n=2 mean=40 max=60 b=0,0,0,0,0,0,2",
         f"STREAM-BENCH-HIST phase={phase} metric=fs_wait unit=us n=0 mean=0 max=0 b=",
+        f"STREAM-BENCH-HIST phase={phase} metric=read_data unit=us n=4 mean=2000 max=2500 b=0,0,0,0,0,0,0,0,0,0,0,4",
+        f"STREAM-BENCH-CARD phase={phase} meta_sectors=6 data_calls=4 data_sectors=256",
         f"STREAM-BENCH-SCANS phase={phase} resident=10/12 ptr=5/5 free=2/11800 evict=1/5900",
         f"STREAM-BENCH-FS phase={phase} long_waits=3,0,0 max_us=40000,0,0",
         f'STREAM-BENCH-JOB phase={phase} name="song load" max_us=250000 runs=12',
@@ -57,6 +59,9 @@ class ParseTests(unittest.TestCase):
             steady["jobs"], [{"name": "song load", "max_us": 250000, "runs": 12}]
         )
         self.assertEqual(steady["scans"]["free"], {"calls": 2, "slots": 11800})
+        self.assertEqual(
+            steady["card"], {"meta_sectors": 6, "data_calls": 4, "data_sectors": 256}
+        )
         self.assertEqual(stream_bench.problems(run), [])
 
     def test_a_run_without_done_is_incomplete(self) -> None:
@@ -111,6 +116,11 @@ class MainTests(unittest.TestCase):
         self.assertIn("| queue_wait | 4 | 15.87 | 23.22 | 24.94 | 24.94 | 24.94 |", md)
         self.assertIn("interaction 3 (max 40.00 ms)", md)
         self.assertIn("| free | 2 | 11800 | 5900 |", md)
+        # 256 sectors over 4 reads of 2 ms each: 131072 bytes in 8000 µs.
+        self.assertIn(
+            "6 single-sector lookups, 4 data reads moving 256 sectors, data at 16.4 MB/s",
+            md,
+        )
         doc = json.loads(next(out.glob("*.json")).read_text())
         self.assertEqual(sorted(doc["run"]["phases"]), sorted(stream_bench.PHASES))
 

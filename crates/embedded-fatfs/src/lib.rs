@@ -68,6 +68,8 @@ mod fmt;
 mod boot_sector;
 mod dir;
 mod dir_entry;
+#[cfg(feature = "alloc")]
+mod dir_index;
 mod error;
 mod file;
 mod fs;

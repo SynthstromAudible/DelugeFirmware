@@ -106,6 +106,17 @@ hardening commits in this owned copy.
   seek — only a same-cluster fast path exists. This continues from
   `current_cluster` when the target is ahead, turning an O(n) walk into O(delta).
   Pure optimization; no API change.
+- **Local API: where a file lies on the volume.** `src/fs.rs`, `src/file.rs`. `FileSystem::follow_chain`
+  (walk a cluster chain for a bounded number of links), `cluster_first_sector`, `sectors_per_cluster`
+  and `bytes_per_sector`; `FileContext::first_cluster`, `size` and `entry_position`. The BSP builds
+  each streaming file's map of cluster runs from them and reads mapped chunks straight from the card
+  (`src/bsp/rust/src/storage/efatfs/portable.rs`, `ExtentMap`). Additive; no behaviour change.
+- **Local: directory name index.** `src/dir_index.rs`, `Dir::find_entry` in `src/dir.rs`,
+  `fold_hash`/`DirEntry::name_hashes` in `src/dir_entry.rs` (`alloc` only). A lookup that is not part of a
+  create checks a per-directory index of name hashes first, reads back each candidate entry and compares
+  it by name; anything else scans the whole directory, indexing every entry on the way. A hit is always
+  verified and a miss always scans, so the index can go stale without answering wrongly and needs no
+  invalidation. Bounded to 8 directories and 4096 names. Upstreamable as a feature.
 
 ## Skipped (rejected, not deferred)
 

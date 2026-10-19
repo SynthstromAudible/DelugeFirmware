@@ -32,6 +32,25 @@ struct State {
     last_read_end: Option<Instant>,
     /// The tier and hold of the most recent filesystem release.
     last_release: Option<(Tier, u64)>,
+    /// The card reads of the fill read now holding the filesystem, while one does.
+    card: Option<CardReads>,
+    /// The card reads of the audio loader's open by path now holding the filesystem, while one does.
+    open: Option<OpenReads>,
+}
+
+/// One open by path's card reads: how many, the sectors they moved, and their time.
+#[derive(Clone, Copy, Default)]
+pub struct OpenReads {
+    pub reads: u32,
+    pub sectors: u32,
+    pub us: u64,
+}
+
+/// One fill read's card reads, split by what they fetch.
+#[derive(Clone, Copy, Default)]
+struct CardReads {
+    meta_us: u64,
+    data_us: u64,
 }
 
 static STATE: Mutex<RefCell<State>> = Mutex::new(RefCell::new(State {
@@ -40,6 +59,8 @@ static STATE: Mutex<RefCell<State>> = Mutex::new(RefCell::new(State {
     signalled_at: None,
     last_read_end: None,
     last_release: None,
+    card: None,
+    open: None,
 }));
 
 const fn zeroed_hist() -> DelugeFillTraceHist {
@@ -62,6 +83,23 @@ const fn zeroed() -> DelugeFillTrace {
         begin: zeroed_hist(),
         interaction_fs_wait: zeroed_hist(),
         interaction_fs_hold: zeroed_hist(),
+        read_meta: zeroed_hist(),
+        read_data: zeroed_hist(),
+        read_meta_sectors: 0,
+        read_data_calls: 0,
+        read_data_sectors: 0,
+        loader_requests: 0,
+        loader_request_us: 0,
+        loader_request_max_us: 0,
+        loader_open_hits: 0,
+        loader_open_hit_us: 0,
+        loader_open_misses: 0,
+        loader_open_miss_us: 0,
+        loader_reads: 0,
+        loader_read_us: 0,
+        loader_other_us: 0,
+        loader_open_card_reads: 0,
+        loader_open_card_sectors: 0,
         longest_fs_hold_us: 0,
         longest_fs_hold_line: 0,
         longest_fs_hold_file: [0; 48],
@@ -128,6 +166,124 @@ pub fn pass_begin() {
             add(&mut s.trace.wake, micros_since(at, now));
         }
         s.last_read_end = None;
+    });
+}
+
+/// Marks a fill read taking the filesystem: the card reads until [`fill_read_held_end`] are its own,
+/// since nothing else can reach the card while it holds the filesystem.
+pub fn fill_read_held() {
+    critical_section::with(|cs| STATE.borrow_ref_mut(cs).card = Some(CardReads::default()));
+}
+
+/// Ends the span [`fill_read_held`] began, returning the µs its card reads spent on FAT and
+/// directory lookups and on data.
+pub fn fill_read_held_end() -> (u64, u64) {
+    critical_section::with(|cs| {
+        let card = STATE.borrow_ref_mut(cs).card.take().unwrap_or_default();
+        (card.meta_us, card.data_us)
+    })
+}
+
+/// Records one fill read's split: `meta_us` in FAT and directory lookups, `data_us` in its data.
+pub fn read_split(meta_us: u64, data_us: u64) {
+    critical_section::with(|cs| {
+        let mut s = STATE.borrow_ref_mut(cs);
+        add(&mut s.trace.read_meta, meta_us);
+        add(&mut s.trace.read_data, data_us);
+    });
+}
+
+/// Records a data read of `sectors` sectors made straight from the card, outside any span.
+pub fn direct_data(sectors: u32) {
+    critical_section::with(|cs| {
+        let mut s = STATE.borrow_ref_mut(cs);
+        s.trace.read_data_calls = s.trace.read_data_calls.saturating_add(1);
+        s.trace.read_data_sectors = s.trace.read_data_sectors.saturating_add(sectors);
+    });
+}
+
+/// Records a card read of `sectors` sectors from `start` to `end`, if a fill read holds the
+/// filesystem: a single sector is a FAT or directory lookup, more is the chunk's data.
+pub fn card_read(sectors: u32, start: Instant, end: Instant) {
+    let us = micros_since(start, end);
+    critical_section::with(|cs| {
+        let mut s = STATE.borrow_ref_mut(cs);
+        if let Some(open) = s.open.as_mut() {
+            open.reads += 1;
+            open.sectors += sectors;
+            open.us += us;
+        }
+        let Some(mut card) = s.card else {
+            return;
+        };
+        if sectors == 1 {
+            card.meta_us += us;
+            s.trace.read_meta_sectors = s.trace.read_meta_sectors.saturating_add(1);
+        } else {
+            card.data_us += us;
+            s.trace.read_data_calls = s.trace.read_data_calls.saturating_add(1);
+            s.trace.read_data_sectors = s.trace.read_data_sectors.saturating_add(sectors);
+        }
+        s.card = Some(card);
+    });
+}
+
+/// One kind of the audio loader's work, as [`loader`] records it.
+#[derive(Clone, Copy)]
+pub enum LoaderWork {
+    /// A sample's whole header load.
+    Request,
+    /// An open by path that found the file.
+    OpenHit,
+    /// An open by path that did not.
+    OpenMiss,
+    /// A header read.
+    Read,
+    /// Sizing, the location, the close.
+    Other,
+}
+
+/// Marks the audio loader's open by path starting: the card reads until [`open_span_end`] are its
+/// own, since it holds the filesystem.
+pub fn open_span_begin() {
+    critical_section::with(|cs| STATE.borrow_ref_mut(cs).open = Some(OpenReads::default()));
+}
+
+/// Ends the span [`open_span_begin`] began, returning its card reads, which are also added to the
+/// loader's totals.
+pub fn open_span_end() -> OpenReads {
+    critical_section::with(|cs| {
+        let mut s = STATE.borrow_ref_mut(cs);
+        let open = s.open.take().unwrap_or_default();
+        s.trace.loader_open_card_reads = s.trace.loader_open_card_reads.saturating_add(open.reads);
+        s.trace.loader_open_card_sectors = s
+            .trace
+            .loader_open_card_sectors
+            .saturating_add(open.sectors);
+        open
+    })
+}
+
+/// Records the audio loader doing `work` from `start` to now.
+pub fn loader(work: LoaderWork, start: Instant) {
+    let us = u32::try_from(micros_since(start, Instant::now())).unwrap_or(u32::MAX);
+    critical_section::with(|cs| {
+        let t = &mut STATE.borrow_ref_mut(cs).trace;
+        let (n, total) = match work {
+            LoaderWork::Request => {
+                t.loader_request_max_us = t.loader_request_max_us.max(us);
+                (&mut t.loader_requests, &mut t.loader_request_us)
+            }
+            LoaderWork::OpenHit => (&mut t.loader_open_hits, &mut t.loader_open_hit_us),
+            LoaderWork::OpenMiss => (&mut t.loader_open_misses, &mut t.loader_open_miss_us),
+            LoaderWork::Read => (&mut t.loader_reads, &mut t.loader_read_us),
+            LoaderWork::Other => {
+                t.loader_other_us = t.loader_other_us.saturating_add(us);
+                return;
+            }
+        };
+        *n = n.saturating_add(1);
+        *total = total.saturating_add(us);
     });
 }
 

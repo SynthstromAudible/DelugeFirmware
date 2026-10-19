@@ -128,6 +128,28 @@ typedef struct DelugeFillTrace {
 	DelugeFillTraceHist begin;   ///< resolving a popped chunk's read (its destination and file offset)
 	DelugeFillTraceHist interaction_fs_wait; ///< an interaction-tier filesystem call waiting for the mutex
 	DelugeFillTraceHist interaction_fs_hold; ///< an interaction-tier filesystem call holding the mutex
+	/// Within one read: the time in single-sector card reads (the FAT and directory lookups of its seek) ...
+	DelugeFillTraceHist read_meta;
+	/// ... and in multi-sector card reads (its data).
+	DelugeFillTraceHist read_data;
+	uint32_t read_meta_sectors; ///< Single-sector card reads, over every read.
+	uint32_t read_data_calls;   ///< Multi-sector card reads, over every read.
+	uint32_t read_data_sectors; ///< The sectors those multi-sector reads moved.
+	/// The audio loader's work, by kind: one request is a sample's whole header load; an open by path that finds
+	/// the file (a hit) or not (a miss, a candidate that is not there); its header reads; and the rest (sizing, the
+	/// location, the close). Each a count and a total in µs.
+	uint32_t loader_requests;
+	uint32_t loader_request_us;
+	uint32_t loader_request_max_us;
+	uint32_t loader_open_hits;
+	uint32_t loader_open_hit_us;
+	uint32_t loader_open_misses;
+	uint32_t loader_open_miss_us;
+	uint32_t loader_reads;
+	uint32_t loader_read_us;
+	uint32_t loader_other_us;
+	uint32_t loader_open_card_reads;   ///< Card reads the opens by path made, hits and misses together.
+	uint32_t loader_open_card_sectors; ///< The sectors those reads moved.
 	/// The longest any caller held the filesystem mutex, in µs, and where in the BSP's source it took it: the file,
 	/// NUL-terminated (truncated to fit), and the line.
 	uint32_t longest_fs_hold_us;

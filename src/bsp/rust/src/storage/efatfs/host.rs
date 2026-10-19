@@ -24,6 +24,8 @@
 
 use aligned::{A4, Aligned};
 use block_device_adapters::BufStream;
+
+use crate::storage::read_ahead::ReadAhead;
 use block_device_driver::BlockDevice;
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
 use embedded_fatfs::{DefaultTimeProvider, FileSystem, FsOptions, LossyOemCpConverter};
@@ -85,7 +87,7 @@ impl BlockDevice<512> for HostSdBlockDevice {
     }
 }
 
-type Storage = BufStream<HostSdBlockDevice, 512>;
+type Storage = BufStream<ReadAhead<HostSdBlockDevice>, 512>;
 pub type Fs = FileSystem<Storage, DefaultTimeProvider, LossyOemCpConverter>;
 
 // embedded-fatfs's `RefCell` disk assumes exclusive access, so every FS op serializes here. The
@@ -113,7 +115,8 @@ pub async fn mount() -> Result<(), DelugeStatus> {
     if FS.lock().await.is_some() {
         return Ok(()); // already mounted
     }
-    let storage = BufStream::<HostSdBlockDevice, 512>::new(HostSdBlockDevice);
+    let storage =
+        BufStream::<ReadAhead<HostSdBlockDevice>, 512>::new(ReadAhead::new(HostSdBlockDevice));
     let fs = FileSystem::new(storage, FsOptions::new())
         .await
         .map_err(|e| portable::error_to_status(&e))?;
@@ -124,9 +127,11 @@ pub async fn mount() -> Result<(), DelugeStatus> {
 }
 
 /// Empties the four handle tables ([`HANDLES`], [`TASK_FILES`], [`DIR_HANDLES`],
-/// [`STREAM_WRITE_CTX`]), whose contexts are stale once the [`Fs`] they came from is dropped.
+/// [`STREAM_WRITE_CTX`]) and the [`MAP_HANDOFF`], whose contexts and maps are stale once the
+/// [`Fs`] they came from is dropped.
 async fn reset_all_handle_tables() {
     *HANDLES.lock().await = HandleTable::new();
+    *MAP_HANDOFF.lock().await = portable::MapHandoff::new();
     *TASK_FILES.lock().await = TaskFileTable::new();
     *DIR_HANDLES.lock().await = DirHandleTable::new();
     *STREAM_WRITE_CTX.lock().await = HandleTable::new();
@@ -248,12 +253,19 @@ static HANDLES: Mutex<CriticalSectionRawMutex, HandleTable<{ portable::MAX_HANDL
 /// Opens `path` and stores its detached context in `HANDLES`. Fails with
 /// [`OpenOutcome::Failed`] (unmounted, or the open's status) or [`OpenOutcome::TableFull`].
 pub async fn open(path: &str) -> OpenOutcome {
-    let ctx = match with_fs(async |fs| portable::open_context(fs, path).await).await {
-        Some(Ok(ctx)) => ctx,
+    // The first stretch of the map, inside this hold; see the device's `open`.
+    let opened = with_fs(async |fs| {
+        let ctx = portable::open_context(fs, path).await?;
+        let map = portable::extend_map(fs, &ctx, portable::MapState::Unmapped, 0).await;
+        Ok((ctx, map))
+    })
+    .await;
+    let (ctx, map) = match opened {
+        Some(Ok(opened)) => opened,
         Some(Err(status)) => return OpenOutcome::Failed(status),
         None => return OpenOutcome::Failed(DELUGE_ERR_NO_FILESYSTEM),
     };
-    match HANDLES.lock().await.insert(ctx) {
+    match HANDLES.lock().await.insert_mapped(ctx, map) {
         Some(h) => OpenOutcome::Handle(h),
         None => OpenOutcome::TableFull,
     }
@@ -274,6 +286,9 @@ pub async fn read_at_timed(
     urgent: bool,
 ) -> crate::storage::fill_trace::TimedRead {
     use crate::storage::fill_trace::TimedRead;
+    if let Some(read) = read_direct(handle, byte_offset, dst, urgent).await {
+        return read;
+    }
     let Some((generation, ctx)) = HANDLES.lock().await.checkout(handle) else {
         return TimedRead::default();
     };
@@ -312,6 +327,77 @@ pub async fn read_at_timed(
     }
 }
 
+/// Reads `dst` straight from the image where the handle's [`portable::ExtentMap`] covers it, as the
+/// device's `read_direct` does; the volume is the whole image, so volume sectors are image sectors.
+async fn read_direct(
+    handle: u32,
+    byte_offset: u32,
+    dst: &mut [u8],
+    urgent: bool,
+) -> Option<crate::storage::fill_trace::TimedRead> {
+    use crate::storage::fill_trace;
+    let start = embassy_time::Instant::now();
+    let plan = HANDLES
+        .lock()
+        .await
+        .plan_direct(handle, byte_offset, dst.len());
+    let (read, acquired, waited_behind) = match plan {
+        portable::DirectPlan::Filesystem => return None,
+        portable::DirectPlan::Read(read) => (read, start, None),
+        portable::DirectPlan::Extend {
+            generation,
+            ctx,
+            map,
+        } => {
+            let extend = async |fs: &Fs| {
+                let acquired = embassy_time::Instant::now();
+                let waited_behind = fill_trace::last_fs_release();
+                let map = portable::extend_map(fs, &ctx, map, byte_offset).await;
+                (acquired, waited_behind, map)
+            };
+            let (acquired, waited_behind, map) = if urgent {
+                with_fs_urgent(extend).await
+            } else {
+                with_fs(extend).await
+            }?;
+            let mut table = HANDLES.lock().await;
+            table.commit_map(handle, generation, map);
+            let portable::DirectPlan::Read(read) =
+                table.plan_direct(handle, byte_offset, dst.len())
+            else {
+                return None;
+            };
+            (read, acquired, waited_behind)
+        }
+    };
+    let sectors = read.sectors as usize;
+    let ok = sectors == 0
+        || if urgent {
+            crate::storage::sd::locked_read_sectors_urgent(
+                read.sector,
+                read.sectors,
+                &mut dst[..sectors * 512],
+            )
+            .await
+            .1
+            .is_ok()
+        } else {
+            crate::storage::sd::locked_read_sectors(
+                read.sector,
+                read.sectors,
+                &mut dst[..sectors * 512],
+            )
+            .await
+            .is_ok()
+        };
+    dst[read.valid..].fill(0);
+    Some(fill_trace::TimedRead {
+        filled: ok,
+        acquired: Some(acquired),
+        waited_behind,
+    })
+}
+
 /// Where the file behind streaming-read `handle` is, for [`open_at`] to open again; `None` for a
 /// bad handle.
 pub async fn location_of(handle: u32) -> Option<portable::FileLocation> {
@@ -329,7 +415,8 @@ pub async fn open_at(location: &portable::FileLocation) -> OpenOutcome {
     let Some(ctx) = portable::context_at(location, deluge_efatfs_mount_generation()) else {
         return OpenOutcome::Failed(DELUGE_ERR_PARAM);
     };
-    match HANDLES.lock().await.insert(ctx) {
+    let map = MAP_HANDOFF.lock().await.take(&ctx);
+    match HANDLES.lock().await.insert_mapped(ctx, map) {
         Some(h) => OpenOutcome::Handle(h),
         None => OpenOutcome::TableFull,
     }
@@ -357,8 +444,15 @@ pub async fn size_of_handle(handle: u32) -> Option<u32> {
 /// Closes `handle`, freeing its slot (no-op if out of range); the generation bump makes any
 /// in-flight [`read_at`] write-back stale.
 pub async fn close(handle: u32) {
-    HANDLES.lock().await.remove(handle);
+    let kept = HANDLES.lock().await.remove_keeping_map(handle);
+    if let Some((key, map)) = kept {
+        MAP_HANDOFF.lock().await.put(key, map);
+    }
 }
+
+/// Maps of recently closed streaming files, for [`open_at`] to adopt; see [`portable::MapHandoff`].
+static MAP_HANDOFF: Mutex<CriticalSectionRawMutex, portable::MapHandoff<32>> =
+    Mutex::new(portable::MapHandoff::new());
 
 // Streaming-read C ABI. Every bridge in this module spins through `sim_block::block_on` and is
 // callable from any context; see the module doc for the host hook that makes that safe.
