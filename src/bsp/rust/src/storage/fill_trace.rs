@@ -60,6 +60,8 @@ const fn zeroed() -> DelugeFillTrace {
         gap: zeroed_hist(),
         pop: zeroed_hist(),
         begin: zeroed_hist(),
+        interaction_fs_wait: zeroed_hist(),
+        interaction_fs_hold: zeroed_hist(),
         long_fs_waits_by_tier: [0; 3],
         long_fs_wait_max_by_tier: [0; 3],
     }
@@ -185,11 +187,20 @@ pub fn begin(start: Instant, end: Instant) {
     });
 }
 
-/// Records a filesystem holder letting go, after holding it since `acquired`.
-pub fn fs_released(tier: Tier, acquired: Instant) {
+/// Records a filesystem holder letting go: it asked at `asked`, took the mutex at `acquired`, and
+/// releases it now. An interaction-tier caller's wait and hold are histogrammed.
+pub fn fs_released(tier: Tier, asked: Instant, acquired: Instant) {
     let held = micros_since(acquired, Instant::now());
     critical_section::with(|cs| {
-        STATE.borrow_ref_mut(cs).last_release = Some((tier, held));
+        let mut s = STATE.borrow_ref_mut(cs);
+        s.last_release = Some((tier, held));
+        if tier == Tier::Interaction {
+            add(
+                &mut s.trace.interaction_fs_wait,
+                micros_since(asked, acquired),
+            );
+            add(&mut s.trace.interaction_fs_hold, held);
+        }
     });
 }
 

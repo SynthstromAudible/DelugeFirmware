@@ -156,6 +156,7 @@ pub async fn with_fs<R, F>(f: F) -> Option<R>
 where
     F: AsyncFnOnce(&Fs) -> R,
 {
+    let asked = embassy_time::Instant::now();
     let g = FS.lock().await;
     let acquired = embassy_time::Instant::now();
     let tier = crate::tier::current();
@@ -163,7 +164,7 @@ where
         Some(fs) => Some(f(fs).await),
         None => None,
     };
-    crate::storage::fill_trace::fs_released(tier, acquired);
+    crate::storage::fill_trace::fs_released(tier, asked, acquired);
     result
 }
 

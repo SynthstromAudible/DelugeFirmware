@@ -126,6 +126,8 @@ typedef struct DelugeFillTrace {
 	DelugeFillTraceHist gap;     ///< from one read's end to the next read's start in the same drain pass
 	DelugeFillTraceHist pop;     ///< popping the next chunk off the loader queue
 	DelugeFillTraceHist begin;   ///< resolving a popped chunk's read (its destination and file offset)
+	DelugeFillTraceHist interaction_fs_wait; ///< an interaction-tier filesystem call waiting for the mutex
+	DelugeFillTraceHist interaction_fs_hold; ///< an interaction-tier filesystem call holding the mutex
 	/// Filesystem waits of 2 ms or more, by the tier (interaction, storage, audio) that last held the mutex.
 	uint32_t long_fs_waits_by_tier[3];
 	/// The longest of those waits, in µs, by the same tier.

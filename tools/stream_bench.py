@@ -59,6 +59,8 @@ METRICS = (
     "read",
     "finish",
     "gap",
+    "interaction_fs_wait",
+    "interaction_fs_hold",
 )
 TIERS = ("interaction", "storage", "audio")
 
