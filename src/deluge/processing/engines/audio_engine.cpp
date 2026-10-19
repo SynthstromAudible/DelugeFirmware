@@ -769,6 +769,9 @@ bool calledFromScheduler = false;
 	flushMIDIGateBuffers();
 	setDireness(numSamples);
 
+	// What's left of the TX buffer is still waiting for the codec, in front of this render
+	size_t const txQueued = SSI_TX_BUFFER_NUM_SAMPLES - numSamples;
+
 	// Double the number of samples we're going to do - within some constraints
 	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
 	constexpr size_t maxAdjustedNumSamples = SSI_TX_BUFFER_NUM_SAMPLES;
@@ -794,7 +797,7 @@ bool calledFromScheduler = false;
 	numSamplesLastTime = numSamples;
 
 	// Bring the USB input up to where this render will read it, just like the codec's DMA has for the SSI RX buffer
-	usb_audio::fillInputRing(i2sRXBufferPos, numSamples);
+	usb_audio::fillInputRing(i2sRXBufferPos, numSamples, txQueued);
 
 	renderAudio(numSamples);
 
@@ -1403,8 +1406,8 @@ bool doSomeOutputting() {
 		}
 
 		if (doUSBDirectMonitoring) {
-			lAdjusted += usbReadPos[0] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS);
-			rAdjusted += usbReadPos[1] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS);
+			lAdjusted = add_saturate(lAdjusted, usbReadPos[0] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
+			rAdjusted = add_saturate(rAdjusted, usbReadPos[1] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
 		}
 		usbReadPos += NUM_MONO_INPUT_CHANNELS;
 		if (usbReadPos >= usb_audio::getInputRingEnd()) {
@@ -1438,7 +1441,7 @@ bool doSomeOutputting() {
 	if (numSamplesOutputted) {
 
 		if (doSendToUSB) {
-			usb_audio::sendToHost(std::span{toUSB}.first(numSamplesOutputted));
+			usb_audio::sendToHost(std::span{toUSB}.first(numSamplesOutputted), i2sTXBufferPosNow);
 		}
 
 		i2sRXBufferPos += (numSamplesOutputted << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 2));

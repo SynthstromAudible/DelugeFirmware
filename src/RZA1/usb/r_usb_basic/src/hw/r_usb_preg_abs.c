@@ -323,7 +323,7 @@ int usb_pstd_interrupt_handler(uint16_t* type, uint16_t* status)
 #else                        /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
         USB201.INTSTS0 = (uint16_t)~USB_SOFR;
 #endif                       /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
-        usbAudioHandleSof(); // Only enabled while sending audio to the host, which we do a packet of each frame
+        usbAudioHandleSof(); // Only enabled while USB audio's streaming, which sends a packet and checks up each frame
         return 1;            // SOFR interrupts don't result in any action when processed. Rohan
         *type = USB_INT_SOFR;
     }

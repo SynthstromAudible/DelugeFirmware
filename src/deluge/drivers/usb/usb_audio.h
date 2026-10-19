@@ -43,7 +43,7 @@ void usbAudioSetInterface(uint16_t interfaceNumber, uint16_t alternateSetting);
 void usbAudioStopAll(void);
 /// From the USB interrupt, with the pipes whose BRDY status was set. Returns the ones it dealt with
 uint16_t usbAudioHandleBrdy(uint16_t pipeBits);
-/// From the USB interrupt, once per USB frame (1ms) while streaming to the host
+/// From the USB interrupt, once per USB frame (1ms) while streaming either way
 void usbAudioHandleSof(void);
 
 #ifdef __cplusplus
@@ -62,8 +62,9 @@ bool sendingToHost();
 
 /// Call before rendering a window. Fills the USB input ring, from where it left off up to numSamples beyond
 /// rxPosition (the SSI RX buffer position the render starts at - AudioEngine::i2sRXBufferPos), with whatever has
-/// arrived from the host - or silence, if nothing's streaming.
-void fillInputRing(uint32_t rxPosition, size_t numSamples);
+/// arrived from the host - or silence, if nothing's streaming. txQueued is how many frames are already waiting in the
+/// SSI TX buffer in front of this render.
+void fillInputRing(uint32_t rxPosition, size_t numSamples, size_t txQueued);
 
 /// The USB input ring buffer. It's the same size and layout as the SSI RX buffer, and kept in step with it, so the same
 /// offset into either is the same moment in time.
@@ -72,8 +73,9 @@ int32_t* getInputRingEnd();
 /// The position in the USB input ring buffer matching a position in the SSI RX buffer
 int32_t* toInputRing(int32_t const* rxPosition);
 
-/// Queue audio to send to the host. Does nothing if the host isn't collecting it.
-void sendToHost(std::span<const StereoSample> frames);
+/// Queue audio to send to the host. Does nothing if the host isn't collecting it. txPosition is the SSI TX buffer
+/// position just after where these frames went.
+void sendToHost(std::span<const StereoSample> frames, int32_t const* txPosition);
 
 /// The "USB to outputs" setting: mix audio from the host straight into the Deluge's outputs
 extern bool directMonitoring;
