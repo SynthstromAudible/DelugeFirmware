@@ -21,9 +21,14 @@ as a class-compliant audio device alongside its existing USB MIDI ports, so no d
 | Sample rate | 44.1 kHz                | 44.1 kHz                |
 | Bit depth   | 24-bit                  | 24-bit                  |
 
-The Deluge's own sample clock sets the rate for both directions. Computers that support this (such as macOS and Linux) follow the
-Deluge's clock exactly. Others send at their own clock's rate, and the Deluge occasionally drops or repeats a single
-sample to stay in step. That isn't normally audible.
+The Deluge's own sample clock sets the rate for audio going to the computer. For audio coming from the computer, the
+Deluge offers two modes, and the computer picks whichever it supports:
+
+- **Following the Deluge's clock.** Computers that support this (such as macOS) send audio at exactly the Deluge's
+  rate, so it's passed straight through.
+- **Following the computer's clock.** Computers that can't follow the Deluge's clock, such as Windows, send at their
+  own rate instead. The Deluge occasionally drops or repeats a single sample to stay in step, which isn't normally
+  audible.
 
 <Aside type="caution">Windows support hasn't been confirmed yet.</Aside>
 
@@ -34,6 +39,14 @@ sample to stay in step. That isn't normally audible.
    it's listed in Audio MIDI Setup.
 
 The Deluge's USB MIDI ports keep working as before.
+
+## Turning USB audio off
+
+USB audio is on by default. To turn it off, go to `SETTINGS > USB AUDIO` (`USBA` on 7SEG). The Deluge then connects
+to your computer as a USB MIDI device only, exactly as it did before USB audio was added.
+
+The setting takes effect the next time the Deluge is turned on, since your computer only finds out what kind of
+device the Deluge is when it first connects.
 
 <Aside>
   If you've used the Deluge over USB MIDI before, your computer may treat it as
