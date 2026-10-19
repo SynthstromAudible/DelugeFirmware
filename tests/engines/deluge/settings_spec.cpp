@@ -6,6 +6,8 @@
 #include "engines/effects/settings.h"
 #include "serialization/tree.h"
 
+#include <algorithm>
+#include <array>
 #include <cppspec.hpp>
 #include <optional>
 #include <string>
@@ -396,6 +398,35 @@ describe settings("the Deluge instrument's settings schema", ${
 			expect(deluge::engine::find_setting(deluge::engine::kArpSettingRows, row.path) != nullptr).to_be_true();
 			expect(deluge::engine::find_setting(kSettings, row.path) == nullptr).to_be_true();
 		}
+	});
+
+	it("turns every stored value of every row into its file text and back", _ {
+		std::array<char, 16> scratch{};
+		for (const deluge::engine::SettingInfo& row : kSettings) {
+			if (row.kind == SettingKind::STRUCTURED || row.kind == SettingKind::TEXT) {
+				continue;
+			}
+			const auto [least, greatest] = deluge::engine::stored_bounds(row);
+			for (const int32_t stored : {least, greatest, std::clamp(0, least, greatest)}) {
+				const std::optional<std::string_view> text = deluge::engine::stored_text(row, stored, scratch);
+				expect(std::string(row.path) + (text ? " has text" : " has none"))
+				    .to_equal(std::string(row.path) + " has text");
+				if (text) {
+					expect(deluge::engine::stored_value(row, *text).value_or(-12345)).to_equal(stored);
+				}
+			}
+		}
+	});
+
+	it("reads a choice's word as its index and refuses text no row holds", _ {
+		const deluge::engine::SettingInfo& polyphonic = *deluge::engine::find_setting(kSettings, "polyphonic");
+		const auto poly = std::ranges::find(polyphonic.choices, std::string_view{"poly"}) - polyphonic.choices.begin();
+		expect(deluge::engine::stored_value(polyphonic, "poly").value_or(-1)).to_equal(static_cast<int32_t>(poly));
+		expect(deluge::engine::stored_value(polyphonic, "junk").has_value()).to_be_false();
+		const deluge::engine::SettingInfo& unison = *deluge::engine::find_setting(kSettings, "unison/num");
+		expect(deluge::engine::stored_value(unison, "junk").has_value()).to_be_false();
+		std::array<char, 16> scratch{};
+		expect(deluge::engine::stored_text(polyphonic, 99, scratch).has_value()).to_be_false();
 	});
 });
 

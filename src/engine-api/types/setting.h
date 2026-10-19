@@ -626,6 +626,60 @@ inline constexpr DisplayMapping kLinearMapping{};
 	return false;
 }
 
+/// @brief The stored value @p text stands for in @p row: a CHOICE row's word gives its index, a BOOL's "0" or "1" its
+/// value, an INTEGER's whole number itself.
+/// @param row  The setting's row.
+/// @param text The value as a file writes it.
+/// @return The stored value, or nullopt for text the row cannot hold or a TEXT or STRUCTURED row.
+[[nodiscard]] inline std::optional<int32_t> stored_value(const SettingInfo& row, std::string_view text) {
+	switch (row.kind) {
+	case SettingKind::CHOICE: {
+		const auto found = std::ranges::find(row.choices, text);
+		return found != row.choices.end() ? std::optional<int32_t>{static_cast<int32_t>(found - row.choices.begin())}
+		                                  : std::nullopt;
+	}
+	case SettingKind::BOOL:
+		return text == "0" ? std::optional<int32_t>{0} : text == "1" ? std::optional<int32_t>{1} : std::nullopt;
+	case SettingKind::INTEGER: {
+		const std::optional<int64_t> n = whole_number(text);
+		return n ? std::optional<int32_t>{static_cast<int32_t>(*n)} : std::nullopt;
+	}
+	case SettingKind::TEXT:
+	case SettingKind::STRUCTURED:
+		break;
+	}
+	return std::nullopt;
+}
+
+/// @brief The text a file writes for stored value @p stored of @p row; the inverse of stored_value.
+/// @param row     The setting's row.
+/// @param stored  The stored value.
+/// @param scratch Where an INTEGER's digits are written; 12 characters hold any int32_t.
+/// @return The text (a CHOICE's word, "0"/"1", or the digits in @p scratch), or nullopt for a choice index the row
+///         does not have, a BOOL other than 0 or 1, a @p scratch too small, or a TEXT or STRUCTURED row.
+[[nodiscard]] inline std::optional<std::string_view> stored_text(const SettingInfo& row, int32_t stored,
+                                                                 std::span<char> scratch) {
+	switch (row.kind) {
+	case SettingKind::CHOICE:
+		return stored >= 0 && static_cast<size_t>(stored) < row.choices.size()
+		           ? std::optional<std::string_view>{row.choices[static_cast<size_t>(stored)]}
+		           : std::nullopt;
+	case SettingKind::BOOL:
+		return stored == 0   ? std::optional<std::string_view>{"0"}
+		       : stored == 1 ? std::optional<std::string_view>{"1"}
+		                     : std::nullopt;
+	case SettingKind::INTEGER: {
+		const auto [end, error] = std::to_chars(scratch.data(), scratch.data() + scratch.size(), stored);
+		return error == std::errc{} ? std::optional<std::string_view>{std::string_view(scratch.data(), end)}
+		                            : std::nullopt;
+	}
+	case SettingKind::TEXT:
+	case SettingKind::STRUCTURED:
+		break;
+	}
+	return std::nullopt;
+}
+
 /// @brief The least and greatest value @p row stores: a CHOICE's indices, a BOOL's 0 and 1, an INTEGER's range.
 /// @param row The setting's row.
 /// @return {least, greatest}.
