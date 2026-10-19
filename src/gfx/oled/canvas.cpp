@@ -560,7 +560,11 @@ void Canvas::draw_char(uint8_t the_char, int32_t pixel_x, int32_t pixel_y, int32
 
 	int32_t bytes_per_col = ((text_height - 1) >> 3) + 1;
 
-	int32_t text_width = descriptor->w_px - scroll_pos;
+	// Clip glyphs to the same exclusive right edge that the side scroller clears.
+	int32_t text_width = std::min<int32_t>(descriptor->w_px - scroll_pos, end_x - pixel_x);
+	if (text_width <= 0) {
+		return;
+	}
 	draw_graphic_multi_line(&font[descriptor->glyph_index + scroll_pos * bytes_per_col], pixel_x, pixel_y, text_width,
 	                        text_height, bytes_per_col);
 }

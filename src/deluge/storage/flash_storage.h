@@ -88,8 +88,6 @@ extern ThresholdRecordingMode defaultThresholdRecordingMode;
 
 extern Polarity defaultPatchCablePolarity;
 
-extern GlobalMIDICommand defaultLoopRecordingCommand;
-
 extern bool defaultUseSharps;
 
 /// @brief Which of the six pad-colour settings a `padColours` entry holds.

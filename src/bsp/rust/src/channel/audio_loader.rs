@@ -45,6 +45,7 @@ use crate::channel::{
     DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN, DELUGE_PATH_MAX,
     DelugeChannelStatus,
 };
+pub use deluge_sample_fill::FileLocation;
 use embassy_sync::blocking_mutex::Mutex as BlockingMutex;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
@@ -159,6 +160,9 @@ pub struct LoadResult {
     /// The candidates key of the request this answers. A collect is handed the result only when it presents the same
     /// key; see [`take_from`].
     pub candidates_key: u32,
+    /// Where the file the verdict was reached on is, so the collector opens its read stream without looking the path
+    /// up again. Valid only when `error` is [`DELUGE_ERROR_NONE`].
+    pub location: FileLocation,
 }
 
 /// The result slot type in `deluge_audio_load_collect`'s signature: bindgen's
@@ -179,6 +183,7 @@ const _: () = {
     assert!(offset_of!(AbiLoadResult, alternate_path) == offset_of!(LoadResult, alternate_path));
     assert!(offset_of!(AbiLoadResult, error) == offset_of!(LoadResult, error));
     assert!(offset_of!(AbiLoadResult, candidates_key) == offset_of!(LoadResult, candidates_key));
+    assert!(offset_of!(AbiLoadResult, location) == offset_of!(LoadResult, location));
 };
 
 impl LoadResult {
@@ -191,6 +196,7 @@ impl LoadResult {
             alternate_path: [0; DELUGE_PATH_MAX],
             error,
             candidates_key: 0,
+            location: FileLocation::NONE,
         }
     }
 
@@ -203,6 +209,7 @@ impl LoadResult {
             alternate_path: [0; DELUGE_PATH_MAX],
             error: DELUGE_ERROR_NONE,
             candidates_key: 0,
+            location: FileLocation::NONE,
         }
     }
 
@@ -225,13 +232,14 @@ impl LoadResult {
 const _: () = {
     use core::mem::{align_of, offset_of, size_of};
 
-    assert!(size_of::<LoadResult>() == 312);
+    assert!(size_of::<LoadResult>() == 384);
     assert!(align_of::<LoadResult>() == 8);
     assert!(offset_of!(LoadResult, geometry) == 0);
     assert!(offset_of!(LoadResult, size_bytes) == 40);
     assert!(offset_of!(LoadResult, alternate_path) == 48);
     assert!(offset_of!(LoadResult, error) == 304);
     assert!(offset_of!(LoadResult, candidates_key) == 308);
+    assert!(offset_of!(LoadResult, location) == 312);
 };
 
 /// One queued load: the nominal path (the key a result is collected by), the candidate paths to
@@ -455,6 +463,75 @@ pub unsafe extern "C" fn deluge_audio_load_held_for_path(file_path: *const c_cha
 /// copied out before this returns.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_audio_load_request(
+    file_path: *const c_char,
+    candidates: *const c_char,
+    num_candidates: u32,
+    candidates_key: u32,
+) -> bool {
+    // SAFETY: the caller's contract, above.
+    let accepted = unsafe { request(file_path, candidates, num_candidates, candidates_key) };
+    if !accepted {
+        // Its requester asks again on a later walk: that walk must not be skipped.
+        bump_epoch();
+    }
+    accepted
+}
+
+/// Bumped whenever asking the loader again could get a different answer: a result published, or a
+/// request refused (its requester asks again later). See `deluge_audio_load_epoch`.
+static EPOCH: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+
+fn bump_epoch() {
+    EPOCH.fetch_add(1, core::sync::atomic::Ordering::AcqRel);
+}
+
+/// Whether collecting or requesting `file_path` now could move its load on: a result is published
+/// for it, or nothing is loading for it and the queue has room for a request. See `audio_load.h`.
+/// A table locked at that moment answers `true`, which sends the caller down the full collect:
+/// never a wrong "nothing to do".
+///
+/// # Safety
+///
+/// `file_path` must be a valid NUL-terminated C string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_audio_load_can_progress(file_path: *const c_char) -> bool {
+    // SAFETY: the caller's contract, above.
+    let Some(path) = (unsafe { cstr_to_path(file_path) }) else {
+        return true;
+    };
+    let Ok(results) = RESULTS.try_lock() else {
+        return true;
+    };
+    if results.iter().any(|entry| entry.key == path) {
+        return true;
+    }
+    drop(results);
+    let Ok(in_flight) = IN_FLIGHT.try_lock() else {
+        return true;
+    };
+    if in_flight.as_deref() == Some(path.as_str()) {
+        return false;
+    }
+    drop(in_flight);
+    let Ok(queue) = QUEUE.try_lock() else {
+        return true;
+    };
+    // Queued: wait for it. Not queued: a request is worth making only if it would be accepted.
+    !queue.iter().any(|request| request.path == path) && !queue.is_full()
+}
+
+/// The loader's epoch; see [`EPOCH`] and `audio_load.h`.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_audio_load_epoch() -> u32 {
+    EPOCH.load(core::sync::atomic::Ordering::Acquire)
+}
+
+/// [`deluge_audio_load_request`]'s body.
+///
+/// # Safety
+///
+/// As [`deluge_audio_load_request`].
+unsafe fn request(
     file_path: *const c_char,
     candidates: *const c_char,
     num_candidates: u32,
@@ -767,6 +844,13 @@ pub fn take_from(
 /// it can read the pre-flush value and insert, and [`take_from`] then drops the entry. It runs
 /// under the table lock so it is at least ordered against a flush that took that lock.
 pub async fn publish_result(key: LoadPath, result: LoadResult, generation: u32) {
+    publish_or_discard(key, result, generation).await;
+    // Whatever became of it, the load is over: a requester waiting on it may now get a different
+    // answer, even if only `UNKNOWN` and a re-request.
+    bump_epoch();
+}
+
+async fn publish_or_discard(key: LoadPath, result: LoadResult, generation: u32) {
     let mut table = RESULTS.lock().await;
     if generation != crate::storage::card::generation() {
         // Read from a card that has gone; the collector gets `UNKNOWN` and re-requests.
@@ -822,8 +906,8 @@ pub unsafe fn cstr_to_path(ptr: *const c_char) -> Option<LoadPath> {
 mod driver {
     use super::{
         DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE, DELUGE_ERROR_FILE_UNSUPPORTED,
-        DELUGE_ERROR_NONE, DELUGE_ERROR_TOO_MANY_OPEN_STREAMS, LoadGeometry, LoadRequest,
-        LoadResult,
+        DELUGE_ERROR_NONE, DELUGE_ERROR_TOO_MANY_OPEN_STREAMS, FileLocation, LoadGeometry,
+        LoadRequest, LoadResult,
     };
     use deluge_audio_format::{
         AudioHeader, FeedResult, HeaderError, HeaderParser, MAX_WINDOW_BYTES,
@@ -906,9 +990,13 @@ mod driver {
         /// `false` is always a real read failure, never end of file.
         async fn read_at(&self, handle: u32, offset: u32, buf: &mut [u8]) -> bool;
 
-        /// Releases the efatfs handle. The table has 128 slots, and a leak is silent capacity
+        /// Releases the efatfs handle. The table has `MAX_HANDLES` slots, and a leak is silent capacity
         /// loss.
         async fn close(&self, handle: u32);
+
+        /// Where the file behind `handle` is, for the collector to open without a directory walk;
+        /// `None` if it cannot say, and the collector then opens by path.
+        async fn location(&self, handle: u32) -> Option<FileLocation>;
     }
 
     /// Runs one queued load's I/O: tries each candidate in order until one both opens and sizes,
@@ -958,6 +1046,9 @@ mod driver {
         };
 
         let mut result = parse_open_file(ops, handle, size_bytes).await;
+        if result.error == DELUGE_ERROR_NONE {
+            result.location = ops.location(handle).await.unwrap_or(FileLocation::NONE);
+        }
 
         ops.close(handle).await;
 
@@ -1016,6 +1107,7 @@ pub use driver::{LoadOps, OpenVerdict, error_code_for, load_io_once};
 // Production wiring: only where the efatfs backing is linked (device, and host under `host_app`).
 #[cfg(has_app)]
 mod prod {
+    use super::FileLocation;
     use super::driver::LoadOps;
 
     use crate::storage::efatfs::backend as backing;
@@ -1033,29 +1125,77 @@ mod prod {
     impl LoadOps for ProdOps {
         async fn open(&self, path: &str) -> super::driver::OpenVerdict {
             use super::driver::OpenVerdict;
-            match backing::open(path).await {
+            use crate::storage::fill_trace::{LoaderWork, loader};
+            let start = embassy_time::Instant::now();
+            crate::storage::fill_trace::open_span_begin();
+            let outcome = backing::open(path).await;
+            let card = crate::storage::fill_trace::open_span_end();
+            let work = match outcome {
+                crate::storage::efatfs::portable::OpenOutcome::Handle(_) => LoaderWork::OpenHit,
+                _ => LoaderWork::OpenMiss,
+            };
+            let ms = embassy_time::Instant::now()
+                .saturating_duration_since(start)
+                .as_millis();
+            if ms >= 20 {
+                log::info!(
+                    "LOADER-OPEN ms={} card_reads={} sectors={} card_ms={} hit={} path={}",
+                    ms,
+                    card.reads,
+                    card.sectors,
+                    card.us / 1000,
+                    matches!(work, LoaderWork::OpenHit),
+                    path
+                );
+            }
+            loader(work, start);
+            match outcome {
                 crate::storage::efatfs::portable::OpenOutcome::Handle(handle) => {
                     OpenVerdict::Opened(handle)
                 }
                 // Every open failure counts as missing, the same conflation the synchronous
                 // `tryOpenCandidate` makes (see the TODO at its unknown-as-absent branch).
                 crate::storage::efatfs::portable::OpenOutcome::Failed(_) => OpenVerdict::Missing,
-                // The 128-slot table shared with `open_read_stream` fills up under browser
+                // The streaming handle table shared with `open_read_stream` fills up under browser
                 // preview, this loader's own workload. Kept distinct so the collector reclaims.
                 crate::storage::efatfs::portable::OpenOutcome::TableFull => OpenVerdict::TableFull,
             }
         }
 
         async fn size_of(&self, handle: u32) -> Option<u32> {
-            backing::size_of_handle(handle).await
+            let start = embassy_time::Instant::now();
+            let size = backing::size_of_handle(handle).await;
+            crate::storage::fill_trace::loader(
+                crate::storage::fill_trace::LoaderWork::Other,
+                start,
+            );
+            size
         }
 
         async fn read_at(&self, handle: u32, offset: u32, buf: &mut [u8]) -> bool {
-            backing::read_at(handle, offset, buf).await
+            let start = embassy_time::Instant::now();
+            let ok = backing::read_at(handle, offset, buf).await;
+            crate::storage::fill_trace::loader(crate::storage::fill_trace::LoaderWork::Read, start);
+            ok
         }
 
         async fn close(&self, handle: u32) {
+            let start = embassy_time::Instant::now();
             backing::close(handle).await;
+            crate::storage::fill_trace::loader(
+                crate::storage::fill_trace::LoaderWork::Other,
+                start,
+            );
+        }
+
+        async fn location(&self, handle: u32) -> Option<FileLocation> {
+            let start = embassy_time::Instant::now();
+            let location = backing::location_of(handle).await;
+            crate::storage::fill_trace::loader(
+                crate::storage::fill_trace::LoaderWork::Other,
+                start,
+            );
+            location
         }
     }
 }
@@ -1091,7 +1231,12 @@ async fn audio_load_task_body() {
                 }
             }
             let key = request.path.clone();
+            let start = embassy_time::Instant::now();
             let result = load_io_once(&ops, &request).await;
+            crate::storage::fill_trace::loader(
+                crate::storage::fill_trace::LoaderWork::Request,
+                start,
+            );
             // Publish before clearing IN_FLIGHT: the reverse leaves a window in which `collect`
             // reports `UNKNOWN` for a load that just succeeded. `generation` was sampled before
             // the I/O, so a card pulled during it makes this result uncollectable.
@@ -1119,7 +1264,9 @@ async fn take_next_request() -> Option<(LoadRequest, u32)> {
 
 abi_pin!(
     deluge_audio_load_collect,
+    deluge_audio_load_epoch,
     deluge_audio_load_forget,
+    deluge_audio_load_can_progress,
     deluge_audio_load_request
 );
 #[cfg(feature = "host_app")]

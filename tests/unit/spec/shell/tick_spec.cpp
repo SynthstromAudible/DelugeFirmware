@@ -1,7 +1,9 @@
-#include "../gfx/support/golden.h"
+// The shell's headers reach libdeluge/types.h, whose DelugeFileLocation::context the cppspec `context` macro would
+// rewrite, so they come before anything that includes cppspec.
 #include "shell/shell.h"
 #include "support/fake_surfaces.h"
 
+#include "../gfx/support/golden.h"
 #include "cppspec.hpp"
 
 #include <array>

@@ -301,6 +301,13 @@ set(DELUGE_DSP_BENCH_CASES "kernels" CACHE STRING
 set_property(CACHE DELUGE_DSP_BENCH_CASES PROPERTY STRINGS kernels lanes chain delay filters compressor mod_fx granular stutter
                                                            fx_chains)
 
+# The streaming benchmark (src/deluge/bench/stream_bench.h). Off by default; enable with -DDELUGE_STREAM_BENCH=ON. A device
+# image built with it loads the first song after boot, plays it, loads the second while playing, and prints where each
+# streaming chunk's service time went over RTT; tools/stream_bench.py runs it. Paths are as on the card.
+option(DELUGE_STREAM_BENCH "Run the streaming benchmark after boot (device builds)" OFF)
+set(DELUGE_STREAM_BENCH_SONG_A "SONGS/SONG001.XML" CACHE STRING "The streaming benchmark's first song, played on its own")
+set(DELUGE_STREAM_BENCH_SONG_B "SONGS/SONG002.XML" CACHE STRING "The streaming benchmark's second song, loaded while the first plays")
+
 # GCC static analyzer (-fanalyzer). Off by default; enable with -DDELUGE_ANALYZER=ON. This is a compile-time (not
 # runtime) pass: it walks each function's paths looking for leaks, use-after-free, double-free, mismatched alloc/dealloc
 # and similar. Thanks to the [[gnu::malloc(delugeDealloc, 1)]] annotation on delugeAlloc it follows ownership through

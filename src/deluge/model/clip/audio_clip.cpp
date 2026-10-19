@@ -465,11 +465,11 @@ doUnassignment:
 
 			setupPlaybackBounds();
 
-			voiceSample->noteOn(&guide, 0, 1);
+			voiceSample->noteOn(&guide, 0, getClusterPriority());
 			voiceSample->forAudioClip = true;
 			{
-				RegionOutcome outcome =
-				    voiceSample->setupClusersForInitialPlay(&guide, ((Sample*)sampleHolder.audioFile), 0, false, 1);
+				RegionOutcome outcome = voiceSample->setupClusersForInitialPlay(
+				    &guide, ((Sample*)sampleHolder.audioFile), 0, false, getClusterPriority());
 				// Anything but Ready arms the late-start retry, which covers both remaining outcomes:
 				// Loading is a present-but-not-yet-loaded cold cluster (e.g. a just-finalized recording's
 				// cluster 0, freshly enqueued but not yet fetched), and Unavailable would otherwise fall
@@ -505,7 +505,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 	// If reading or writing cache, that's not gonna be valid now that we've moved our play position, so gotta stop
 	// that.
 	if (voiceSample && voiceSample->cache) {
-		int32_t priorityRating = 1;
+		int32_t priorityRating = getClusterPriority();
 		bool success = voiceSample->stopUsingCache(&guide, ((Sample*)sampleHolder.audioFile), priorityRating,
 		                                           getLoopingType(modelStack) == LoopType::LOW_LEVEL);
 		if (!success) {
@@ -570,7 +570,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 			return;
 		}
 
-		voiceSample->noteOn(&guide, 0, 1);
+		voiceSample->noteOn(&guide, 0, getClusterPriority());
 		voiceSample->forAudioClip = true;
 		((AudioOutput*)output)->resetEnvelope();
 	}
@@ -587,7 +587,7 @@ void AudioClip::setupPlaybackBounds() {
 void AudioClip::sampleZoneChanged(ModelStackWithTimelineCounter const* modelStack) {
 	if (voiceSample) {
 
-		int32_t priorityRating = 1; // probably better fix this...
+		int32_t priorityRating = getClusterPriority();
 
 		voiceSample->sampleZoneChanged(&guide, ((Sample*)sampleHolder.audioFile), sampleControls.isCurrentlyReversed(),
 		                               MarkerType::END, getLoopingType(modelStack), priorityRating, true);
@@ -659,8 +659,13 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<q31_
 			timeStretchRatio = ((uint64_t)timeStretchRatio << 24) / (uint32_t)phaseIncrement;
 		}
 
+		// If only the file's sample rate is changing phaseIncrement, playing it back at that speed already keeps it in
+		// time, so like an unadjusted 44100kHz file, it doesn't need time-stretching unless it's drifted out of sync.
+		// Otherwise every non-44100kHz file would always be time-stretched, even at its original tempo.
+		bool pitchManuallyAdjusted = pitchAdjust != kMaxSampleValue || sampleHolder.transpose || sampleHolder.cents;
+
 		// Or if no manual pitch adjustment...
-		else {
+		if (phaseIncrement == kMaxSampleValue || !pitchManuallyAdjusted) {
 
 			// If we'd only be time-stretching a tiiiny bit (+/- 1 cent)...
 			if (timeStretchRatio >= 16661327 && timeStretchRatio < 16893911) {
@@ -713,7 +718,7 @@ justDontTimeStretch:
 		}
 	}
 
-	int32_t priorityRating = 1;
+	int32_t priorityRating = getClusterPriority();
 
 	bool clipWillLoopAtEnd = playbackHandler.playbackState && currentPlaybackMode->willClipLoopAtSomePoint(modelStack);
 	// I don't love that this is being called for every AudioClip at every render. This is to determine the "looping"
@@ -814,7 +819,7 @@ justDontTimeStretch:
 		// We tell the cache setup that we're *not* looping.
 		// We want it to think this, otherwise problems if we've put the end point after the actual waveform end.
 		bool everythingOk = voiceSample->possiblySetUpCache(&sampleControls, &guide, phaseIncrement, timeStretchRatio,
-		                                                    1, LoopType::NONE);
+		                                                    priorityRating, LoopType::NONE);
 		if (!everythingOk) {
 			goto doUnassign;
 		}
@@ -826,7 +831,7 @@ justDontTimeStretch:
 		stillActive = voiceSample->render(&guide, outputBuffer.data(), outputBuffer.size(), sample, sample->numChannels,
 		                                  loopingType, phaseIncrement, timeStretchRatio, amplitude, amplitudeIncrement,
 		                                  sampleControls.getInterpolationBufferSize(phaseIncrement),
-		                                  sampleControls.interpolationMode, 1);
+		                                  sampleControls.interpolationMode, priorityRating);
 	}
 
 	if (!stillActive) {
@@ -1130,6 +1135,13 @@ VoicePriority AudioClip::voicePriority() const {
 	}
 	return docAudioClip_->voice_priority;
 }
+// Voice::getPriorityRating() puts the VoicePriority in the top two bits, with at least one active Voice counted below
+// them, so leaving the rest zero loads our Clusters ahead of every Voice of the same VoicePriority, but behind Voices
+// of a higher one.
+int32_t AudioClip::getClusterPriority() const {
+	return static_cast<int32_t>(static_cast<uint32_t>(3 - util::to_underlying(voicePriority())) << 30);
+}
+
 void AudioClip::setVoicePriority(VoicePriority value) {
 	if (docAudioClip_ == nullptr) {
 		FREEZE_WITH_ERROR("AC4P");

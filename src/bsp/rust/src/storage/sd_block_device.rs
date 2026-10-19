@@ -45,7 +45,10 @@ impl BlockDevice<BLOCK_SIZE> for SdBlockDevice {
         // preempts the thread-mode executor `card_service` runs on.
         //
         // Lock order is FS mutex -> SD_BUS; nothing takes SD_BUS and then the FS mutex.
-        crate::storage::sd::locked_read_sectors(block_address, count, flat).await
+        let start = embassy_time::Instant::now();
+        let result = crate::storage::sd::locked_read_sectors(block_address, count, flat).await;
+        crate::storage::fill_trace::card_read(count, start, embassy_time::Instant::now());
+        result
     }
 
     async fn write(
@@ -66,7 +69,7 @@ impl BlockDevice<BLOCK_SIZE> for SdBlockDevice {
     }
 }
 
-/// Forces the whole device storage stack (`SdBlockDevice` -> `BufStream` ->
+/// Forces the whole device storage stack (`SdBlockDevice` -> `ReadAhead` -> `BufStream` ->
 /// `embedded_fatfs::FileSystem`) to monomorphize for the device target.
 ///
 /// Never called; its existence is the check.
@@ -75,7 +78,10 @@ async fn stack_instantiation_smoke() {
     use block_device_adapters::BufStream;
     use embedded_fatfs::{FileSystem, FsOptions};
 
-    let storage = BufStream::<SdBlockDevice, BLOCK_SIZE>::new(SdBlockDevice);
+    use crate::storage::read_ahead::ReadAhead;
+
+    let storage =
+        BufStream::<ReadAhead<SdBlockDevice>, BLOCK_SIZE>::new(ReadAhead::new(SdBlockDevice));
     if let Ok(fs) = FileSystem::new(storage, FsOptions::new()).await {
         let root = fs.root_dir();
         let mut iter = root.iter();

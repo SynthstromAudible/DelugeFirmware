@@ -112,12 +112,18 @@ void legacy_render_oled(Canvas& c, int32_t panel_w, int32_t panel_h, std::string
 		option++;
 	}
 
-	// `AudioInputSelector::renderOLED`'s tail (`gui/context_menu/audio_input_selector.cpp:233-236`),
-	// which runs *after* the base renderer and is the only legacy subclass that draws past it. Note
-	// the different right clip (`- 26`, not the rows' `- 27`) and the different left origin (22, the
-	// heading's, not the rows' `invertStartX + 1`).
+	// `AudioInputSelector::renderOLED`'s tail (`gui/context_menu/audio_input_selector.cpp:238-249`),
+	// which runs *after* the base renderer and is the only legacy subclass that draws past it: an L
+	// arrow, then the name indented past it with the rows' `- 27` right clip.
 	if (!footer.empty()) {
-		c.draw_string(footer, 22, windowMinY + 20 + 9, 6, 9, 0, panel_w - 26);
+		const int32_t y = windowMinY + 20 + 9;
+		c.draw_vertical_line(25, y - 2, y + 4);
+		c.draw_horizontal_line(y + 4, 25, 31);
+		c.draw_pixel(29, y + 2);
+		c.draw_pixel(30, y + 3);
+		c.draw_pixel(30, y + 5);
+		c.draw_pixel(29, y + 6);
+		c.draw_string(footer, 35, y, 6, 9, 0, panel_w - 27);
 	}
 }
 
@@ -424,8 +430,8 @@ describe option_window_w("ui::oled::option_window", $ {
 			option_window(r.frame, kAreYouSure, one(), 0, 0, sc, /*allow_motion=*/true, footer);
 			legacy_render_oled(r.reference, 128, 48, kAreYouSure, one(), 0, 0, /*invert=*/true, footer);
 			expect(below_bezel(r.pbm(), 5)).to_equal(below_bezel(r.reference_pbm(), 5));
-			// windowMinY = (48 - 40) >> 1 = 4, so the footer's own row is 4 + 20 + 9 = 33 and it inks
-			// from the heading's x (22) rather than the rows' 23.
+			// windowMinY = (48 - 40) >> 1 = 4, so the footer's own row is 4 + 20 + 9 = 33, inked from
+			// x 35, past the arrow.
 			bool any = false;
 			for (int x = 0; x < 128; x++) {
 				any = any || r.lit(x, 33 + 2);
@@ -439,6 +445,30 @@ describe option_window_w("ui::oled::option_window", $ {
 			legacy_render_oled(r.reference, 128, 64, kAreYouSure, one(), 0, 0, /*invert=*/true, footer);
 			expect(r.pbm()).to_equal(r.reference_pbm()); // no bezel on the 64-row panel
 		}
+	});
+
+	it("scrolls a footer wider than its box on its own scroller, as legacy's scroller 1 does", _ {
+		// The footer's box runs from x 35 to `OLED_MAIN_WIDTH_PIXELS - 27`, 66px. Its first frame is
+		// legacy's plain draw at offset 0; after the kScrollTime pause it steps on `footer_label`,
+		// leaving the focused row's own scroller alone.
+		const std::string_view footer = "A VERY LONG TRACK NAME";
+		uitest::Rig48 r;
+		ScrollText label;
+		ScrollText footer_label;
+
+		r.begin_tick(0);
+		option_window(r.frame, kAreYouSure, one(), 0, 0, label, /*allow_motion=*/true, footer, &footer_label);
+		legacy_render_oled(r.reference, 128, 48, kAreYouSure, one(), 0, 0, /*invert=*/true, footer);
+		expect(below_bezel(r.pbm(), 5)).to_equal(below_bezel(r.reference_pbm(), 5));
+		expect(static_cast<int>(footer_label.rect_w_last)).to_equal(66);
+		expect(static_cast<int>(footer_label.offset)).to_equal(0);
+		const std::string first_frame = r.pbm();
+
+		r.begin_tick(kScrollTime);
+		option_window(r.frame, kAreYouSure, one(), 0, 0, label, /*allow_motion=*/true, footer, &footer_label);
+		expect(static_cast<int>(footer_label.offset)).to_equal(1);
+		expect(static_cast<int>(label.offset)).to_equal(0);
+		expect(r.pbm() == first_frame).to_be_false();
 	});
 
 	it("draws nothing extra when the footer is empty, which is every other descriptor", _ {

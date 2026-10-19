@@ -42,8 +42,10 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 
+import elf
 import report
 import symbols
+import trace_profile
 
 PROBE_SIDE = ("capture.py", "decode.py", "jlink.py", "coresight.py", "elf.py")
 DEFAULT_SCRIPT = Path.home() / "GitHub/deluge-sdk/rza1_debug.JLinkScript"
@@ -110,6 +112,11 @@ def ranges_for(args: argparse.Namespace) -> list[tuple[str, int, int]]:
     for text in args.range:
         a, _, b = text.partition("-")
         out.append((text, int(a, 0), int(b, 0)))
+    if args.text:
+        section = elf.Elf(args.elf).section(".text")
+        if section is None:
+            raise LookupError(f"{args.elf} has no .text section")
+        out.append(("text", *section))
     return out
 
 
@@ -234,12 +241,25 @@ def cmd_run(args: argparse.Namespace) -> int:
             "deluge_trace: the decode failed; the raw capture is kept", file=sys.stderr
         )
         return EXIT_DECODE
-    report.main([str(out), "--elf", str(args.elf)])
+    if args.profile:
+        trace_profile.main(
+            [str(out), "--elf", str(args.elf)]
+            + (["--focus", args.focus] if args.focus else [])
+        )
+    else:
+        report.main([str(out), "--elf", str(args.elf)])
     return code
 
 
 def cmd_report(args: argparse.Namespace) -> int:
     return report.main([args.run, "--elf", args.elf])
+
+
+def cmd_profile(args: argparse.Namespace) -> int:
+    extra = ["--focus", args.focus] if args.focus else []
+    return trace_profile.main(
+        [args.run, "--elf", args.elf, "--top", str(args.top), *extra]
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -287,6 +307,21 @@ def main(argv: list[str] | None = None) -> int:
         metavar="CMD",
         help="a J-Link command string",
     )
+    run.add_argument(
+        "--text",
+        action="store_true",
+        help="trace the whole .text section (for --profile)",
+    )
+    run.add_argument(
+        "--profile",
+        action="store_true",
+        help="report a function-level profile instead of per-instruction timing",
+    )
+    run.add_argument(
+        "--focus",
+        metavar="RE",
+        help="with --profile: break down the time under these functions",
+    )
     run.add_argument("--speed", type=int, help="SWD clock, kHz")
     run.add_argument(
         "--script", default=str(DEFAULT_SCRIPT), help="rza1_debug.JLinkScript"
@@ -302,6 +337,12 @@ def main(argv: list[str] | None = None) -> int:
     rep.add_argument("run")
     rep.add_argument("--elf", required=True)
     rep.set_defaults(func=cmd_report)
+    prof = sub.add_parser("profile", help="function-level profile of a run directory")
+    prof.add_argument("run")
+    prof.add_argument("--elf", required=True)
+    prof.add_argument("--focus", metavar="RE")
+    prof.add_argument("--top", type=int, default=40)
+    prof.set_defaults(func=cmd_profile)
     args = ap.parse_args(argv)
     return args.func(args)
 

@@ -273,6 +273,19 @@ DelugeStatus deluge_efatfs_set_time(const char* path, uint16_t year, uint8_t mon
 ///         is full (with `*out_table_full` set).
 DelugeStatus deluge_efatfs_open(const char* path, DelugeHandle* out_handle, bool* out_table_full) DELUGE_NOEXCEPT;
 
+/// @brief Open the file at @p location for streaming reads, as deluge_efatfs_open does by path, without looking the
+///        path up. [task]
+///
+/// Takes no filesystem lock and reads nothing from the card: the location already says where the file is.
+/// @param location       Where the file is, from a load result.
+/// @param out_handle     Receives the handle on success; untouched on failure.
+/// @param out_table_full As for deluge_efatfs_open.
+/// @return `DELUGE_OK` with @p out_handle written; `DELUGE_ERR_PARAM` for a null pointer, or a location that names no
+///         file or names one on another mount; `DELUGE_ERR_NO_FILESYSTEM` if the FS is unmounted;
+///         `DELUGE_ERR_NO_MEMORY` when the handle table is full (with `*out_table_full` set).
+DelugeStatus deluge_efatfs_open_at(const DelugeFileLocation* location, DelugeHandle* out_handle,
+                                   bool* out_table_full) DELUGE_NOEXCEPT;
+
 /// @brief Close a streaming file handle previously returned by deluge_efatfs_open. [task]
 ///
 /// @param handle The handle to close.

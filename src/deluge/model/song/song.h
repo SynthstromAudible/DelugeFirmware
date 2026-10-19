@@ -314,7 +314,7 @@ public:
 	bool isYNoteAllowed(int32_t yNote, bool inKeyMode);
 	void setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction = false);
 	bool hasAnySwing();
-	void resyncLFOs();
+	void resyncLFOs(bool reset_state = false);
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Sound* sound);
 	bool areAllClipsInSectionPlaying(int32_t section);
 	void removeYNoteFromMode(int32_t yNoteWithinOctave);

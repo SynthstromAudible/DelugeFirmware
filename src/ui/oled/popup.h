@@ -186,33 +186,29 @@ inline constexpr int32_t kOptionWindowRows = 2;
 ///                     by the caller across frames.
 /// @param allow_motion Whether that scroller may advance this frame.
 /// @param footer       An extra line under the option rows, or empty for none.
-///                     `AudioInputSelector::renderOLED` (`gui/context_menu/audio_input_selector.cpp:222-237`)
+///                     `AudioInputSelector::renderOLED` (`gui/context_menu/audio_input_selector.cpp:223-250`)
 ///                     is the one legacy subclass that draws past the base renderer, and this is
-///                     that call: `drawString(trackName, 22, windowMinY + 20 + kTextSpacingY,
-///                     kTextSpacingX, kTextSpacingY, 0, OLED_MAIN_WIDTH_PIXELS - 26)`. Its row is
-///                     two pixels below the second option row's, and it is *not* cleared first --
-///                     legacy inks it straight over whatever the base drew there.
+///                     that tail: an L arrow from the option above, then `drawString(trackName, 35,
+///                     windowMinY + 20 + kTextSpacingY, kTextSpacingX, kTextSpacingY, 0,
+///                     OLED_MAIN_WIDTH_PIXELS - 27)` with side scroller 1 armed over the same box.
+///                     Its row is two pixels below the second option row's, and it is *not* cleared
+///                     first -- legacy inks it straight over whatever the base drew there.
 ///
-///                     **Drawn last, after the option rows, because that is legacy's order:**
-///                     `AudioInputSelector::renderOLED` calls `ContextMenu::renderOLED` and then
-///                     this. Review round 1 asked for the order to match rather than be argued
-///                     around, and it now does. Two arguments for the old order were offered and
-///                     both are wrong: the bands are not on "different rows" (they overlap by two
-///                     pixels), and "the descriptor never shows both" is a property of that
-///                     descriptor -- it forces its option onto the first row whenever a footer is
-///                     up (`selectEncoderAction`'s "Keep Track on the first visible row so the
-///                     selected track name has room below it", `:142-145`) -- not of this widget.
-///                     The reason it was in fact safe is narrower and worth knowing: **the glyph
-///                     blit is `|=`** (`gfx/oled/canvas.cpp:626`, `:663`, `:673`), so two
-///                     `draw_string`s over the same pixels give the same union whichever runs
-///                     first, and no golden can tell the orders apart -- verified by re-running
-///                     `option_window_spec.cpp` with the draw moved back. Matching legacy is
-///                     therefore about the code staying reviewable against the original, and about
-///                     already being right on the day a footer wants a clear or something
-///                     subtractive. No clear of its own either: one *would* erase pixels legacy
-///                     leaves alone, which a golden does catch.
+///                     **Drawn last, after the option rows, because that is legacy's order.** The
+///                     bands overlap by two pixels, so order would matter to anything subtractive;
+///                     the glyph blit is `|=`, so for two `draw_string`s it does not, and no golden
+///                     can tell the orders apart. The shipped descriptor never shows both anyway: it
+///                     forces its option onto the first row whenever a footer is up
+///                     (`selectEncoderAction`, "Keep Track on the first visible row so the selected
+///                     track name has room below it"). No clear of its own while the footer fits:
+///                     one *would* erase pixels legacy leaves alone, which a golden does catch.
+/// @param footer_label Side-scroller state for @p footer (legacy's scroller 1), owned by the caller
+///                     across frames. A footer wider than its box scrolls on it, clearing its box
+///                     each step as legacy's scroller does; with none, such a footer is drawn
+///                     clipped at its start.
 void option_window(OledFrame& f, std::string_view heading, std::span<const std::string_view> options, int32_t selected,
-                   int32_t first, ScrollText& label, bool allow_motion = true, std::string_view footer = {});
+                   int32_t first, ScrollText& label, bool allow_motion = true, std::string_view footer = {},
+                   ScrollText* footer_label = nullptr);
 
 /// @brief Ports legacy `Slicer::renderOLED` (`gui/ui/slicer.cpp:74-98`): a framed 100x31 window
 ///        with a left-aligned heading, a rule under it, and one value centred below the rule.

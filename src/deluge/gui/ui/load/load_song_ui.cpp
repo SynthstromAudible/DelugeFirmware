@@ -16,6 +16,9 @@
  */
 
 #include "gui/ui/load/load_song_ui.h"
+#if DELUGE_STREAM_BENCH
+#include "bench/stream_bench.h"
+#endif
 #include "board_config.h" // PLACE_SDRAM_BSS
 #include "definitions_cxx.hpp"
 #include "deluge_resource.h" // deluge_resource_loader_has_lowest
@@ -506,12 +509,18 @@ void LoadSongUI::runStageSegment() {
 		endLoad(SongLoadOutcome::NotLoaded);
 		return;
 
-	case StorageManager::StagedOpen::Opened:
+	case StorageManager::StagedOpen::Opened: {
+#if DELUGE_STREAM_BENCH
+		const uint64_t parseStart = deluge::runtime::nowUs();
+#endif
 		// Record-first load: parse the whole document into a Value tree now, while nothing has been destroyed,
 		// so a corrupt file still leaves the browser open. BEGIN replays the tree to readFromFile.
-		if (songDocument_.open(std::span<const uint8_t>(songStaging_.buffer, songStaging_.size),
-		                       StorageManager::documentIsJson(stagingPath_.c_str()), "song")
-		    != Error::NONE) {
+		const Error parsed = songDocument_.open(std::span<const uint8_t>(songStaging_.buffer, songStaging_.size),
+		                                        StorageManager::documentIsJson(stagingPath_.c_str()), "song");
+#if DELUGE_STREAM_BENCH
+		deluge::bench::noteLoadStage(deluge::runtime::nowUs() - parseStart);
+#endif
+		if (parsed != Error::NONE) {
 			activeDeserializer = stagingPrevious_;
 			releaseSongStaging();
 			display->displayError(Error::FILE_CORRUPTED);
@@ -520,6 +529,7 @@ void LoadSongUI::runStageSegment() {
 		}
 		loadPhase_ = LoadPhase::BEGIN;
 		return;
+	}
 	}
 }
 
@@ -533,7 +543,23 @@ void LoadSongUI::releaseSongStaging() {
 }
 
 void LoadSongUI::loadRoutine() {
+#if DELUGE_STREAM_BENCH
+	const auto phase = loadPhase_;
+	const uint64_t start = deluge::runtime::nowUs();
+	// Read before runPhase(), which may end the load it ticks and drop it.
+	const auto* walking = phase == LoadPhase::ESSENTIAL && essentialLoad_.has_value() ? &*essentialLoad_
+	                      : phase == LoadPhase::AWAIT_ARM && restLoad_.has_value()    ? &*restLoad_
+	                                                                                  : nullptr;
+	deluge::storage::AsyncSampleLoad::Progress walked{};
 	runPhase();
+	if (walking != nullptr && (phase == LoadPhase::ESSENTIAL ? essentialLoad_.has_value() : restLoad_.has_value())) {
+		walked = walking->progress();
+	}
+	deluge::bench::noteLoadStep(static_cast<int>(phase), deluge::runtime::nowUs() - start, walked.bound,
+	                            walked.emptyHolders, walked.inFlight);
+#else
+	runPhase();
+#endif
 	armNextRun();
 }
 
@@ -635,6 +661,9 @@ void LoadSongUI::runPhase() {
 }
 
 void LoadSongUI::runBeginSegment() {
+#if DELUGE_STREAM_BENCH
+	const uint64_t beginStart = deluge::runtime::nowUs();
+#endif
 	if (arrangement.hasPlaybackActive()) {
 		playbackHandler.switchToSession();
 	}
@@ -691,6 +720,9 @@ void LoadSongUI::runBeginSegment() {
 		playbackHandler.songSwapShouldPreserveTempo = Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC);
 	}
 
+#if DELUGE_STREAM_BENCH
+	const uint64_t constructStart = deluge::runtime::nowUs();
+#endif
 	void* songMemory = deluge::memory::alloc_fast(sizeof(Song));
 	if (!songMemory) {
 ramError:
@@ -753,6 +785,9 @@ gotErrorAfterCreatingSong:
 
 	AudioEngine::logAction("initialized new song");
 
+#if DELUGE_STREAM_BENCH
+	const uint64_t readStart = deluge::runtime::nowUs();
+#endif
 	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
 	// are, after failing on one of those, it'd try to load something else and that would fail.
 	{
@@ -785,10 +820,17 @@ gotErrorAfterCreatingSong:
 	sampleLoadContext_ =
 	    deluge::storage::AudioLoadContext::forSong(listing.dir().c_str(), currentFilenameWithoutExtension.c_str());
 
+#if DELUGE_STREAM_BENCH
+	const uint64_t claimStart = deluge::runtime::nowUs();
+#endif
 	// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
 	// Do this before loading any new Samples from file, in case we were in danger of discarding any from RAM that we
 	// might actually want
 	preLoadedSong->loadAllSamples(false, &sampleLoadContext_);
+#if DELUGE_STREAM_BENCH
+	deluge::bench::noteLoadBegin(constructStart - beginStart, readStart - constructStart, claimStart - readStart,
+	                             deluge::runtime::nowUs() - claimStart);
+#endif
 
 	// Load samples from files, just for currently playing Sounds (or if not playing, then all Sounds). This pass
 	// reads the card, walking a tick at a time on this tier, through the loader every other consumer uses.
@@ -876,6 +918,12 @@ void LoadSongUI::tickRest() {
 }
 
 void LoadSongUI::runFinishSegment() {
+#if DELUGE_STREAM_BENCH
+	struct SegmentTimer {
+		uint64_t start = deluge::runtime::nowUs();
+		~SegmentTimer() { deluge::bench::noteLoadPart("finish segment", deluge::runtime::nowUs() - start); }
+	} segmentTimer;
+#endif
 	// The swap's interaction side let go of the knobs (deluge::playback::songSwappedOut()); nothing is under them until
 	// the new song's UI is up, so the panel must not go on showing the old song's values. Here rather than at the swap,
 	// which an armed launch runs on the audio tier.
@@ -914,10 +962,25 @@ void LoadSongUI::runFinishSegment() {
 }
 
 void LoadSongUI::tickFinish() {
+#if DELUGE_STREAM_BENCH
+	const uint64_t walkStart = deluge::runtime::nowUs();
+#endif
 	tickRest();
+#if DELUGE_STREAM_BENCH
+	deluge::bench::noteLoadPart("finish walk", deluge::runtime::nowUs() - walkStart);
+	const uint64_t tailStart = deluge::runtime::nowUs();
+	struct TailTimer {
+		uint64_t start;
+		~TailTimer() { deluge::bench::noteLoadPart("finish tail", deluge::runtime::nowUs() - start); }
+	};
+	std::optional<TailTimer> tail;
+#endif
 	if (restLoad_.has_value()) {
 		return; // still walking
 	}
+#if DELUGE_STREAM_BENCH
+	tail.emplace(TailTimer{tailStart});
+#endif
 	AudioEngine::logAction("done loading new song");
 	deluge::bridge::recordLoadedSounds(*currentSong);
 	currentSong->markAllInstrumentsAsEdited();

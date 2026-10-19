@@ -210,9 +210,8 @@ public:
 	/// @param text_width Base width in pixels of each character
 	/// @param text_height Height in pixels of each character
 	/// @param scroll_pos Offset in pixels representing how far the text has scrolled from the left.
-	/// @param end_x Maximum X coordinate after which we bail out, or \ref kEdge for the canvas width.
-	///              N.B. this means the *actual* maximum X coordinate rendered is end_x + text_width,
-	///              as the individual character rendering work can overshoot.
+	/// @param end_x Exclusive right edge, or \ref kEdge for the canvas width. Glyphs are clipped to it,
+	///              so nothing is drawn at or past end_x.
 	void draw_string(std::string_view str, int32_t pixel_x, int32_t pixel_y, int32_t text_width, int32_t text_height,
 	                 int32_t scroll_pos = 0, int32_t end_x = kEdge, bool use_text_width = false);
 

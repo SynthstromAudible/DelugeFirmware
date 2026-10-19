@@ -211,7 +211,6 @@ using deluge::hid::display::OLED;
 #include "gui/menu_item/randomizer/randomizer_lock.h"
 #include "gui/menu_item/randomizer/randomizer_unpatched_param.h"
 #include "gui/menu_item/record/countin.h"
-#include "gui/menu_item/record/loop_command.h"
 #include "gui/menu_item/record/quantize.h"
 #include "gui/menu_item/record/threshold_mode.h"
 #include "gui/menu_item/reset_settings/reset.h"

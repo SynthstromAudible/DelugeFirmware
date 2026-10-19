@@ -393,6 +393,7 @@ bool ContextMenuScene::on_enter(const SceneId& id) {
 		sel_.scroll = sel_.option;
 	}
 	scroll_ = deluge::ui::ScrollText{};
+	footer_scroll_ = deluge::ui::ScrollText{};
 	last_render_ms_ = 0;
 	return true;
 }
@@ -423,7 +424,7 @@ void ContextMenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame
 	}
 
 	// `AudioInputSelector::renderOLED` calls the base and then draws one more line
-	// (`audio_input_selector.cpp:222-237`); `option_window` takes it as a parameter so the drawing
+	// (`audio_input_selector.cpp:223-250`); `option_window` takes it as a parameter so the drawing
 	// stays in the toolkit and this scene keeps its no-frame-primitives rule.
 	std::array<char, kFooterScratch> footer_scratch{};
 	const std::string_view footer =
@@ -431,7 +432,7 @@ void ContextMenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame
 
 	deluge::ui::oled::option_window(f, deluge_profile().text_or_digits(d.title, heading_scratch),
 	                                std::span<const std::string_view>{options.data(), n}, sel_.option, sel_.scroll,
-	                                scroll_, /*allow_motion=*/true, footer);
+	                                scroll_, /*allow_motion=*/true, footer, &footer_scroll_);
 }
 
 void ContextMenuScene::leds(deluge::ui::LedFrame& f) {

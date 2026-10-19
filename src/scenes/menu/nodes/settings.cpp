@@ -672,19 +672,6 @@ void set_default_threshold_recording(const MenuContext& ctx, int32_t value) {
 	}
 }
 
-int32_t get_loop_command(const MenuContext&) {
-	// `record::LoopCommand::readCurrentValue` (`record/loop_command.h:29-34`): the stored global MIDI
-	// command becomes one of two overdub types.
-	return FlashStorage::defaultLoopRecordingCommand == GlobalMIDICommand::LOOP
-	           ? static_cast<int32_t>(OverDubType::Normal)
-	           : static_cast<int32_t>(OverDubType::ContinuousLayering);
-}
-void set_loop_command(const MenuContext&, int32_t value) {
-	FlashStorage::defaultLoopRecordingCommand = static_cast<OverDubType>(value) == OverDubType::Normal
-	                                                ? GlobalMIDICommand::LOOP
-	                                                : GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING; // `:27-31`
-}
-
 // ---------------------------------------------------------------------------------------------
 // Community features
 

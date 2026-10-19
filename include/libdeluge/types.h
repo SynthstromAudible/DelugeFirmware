@@ -61,6 +61,20 @@ typedef uint32_t DelugeHandle;
 /// The handle that names nothing. See @ref DelugeHandle.
 #define DELUGE_HANDLE_NONE 0u
 
+/// Bytes in @ref DelugeFileLocation::context.
+#define DELUGE_FILE_LOCATION_BYTES 64
+
+/// Where a file is on the card, as plain data: enough to open it again without looking it up by path, which on a
+/// large folder means walking every entry before it.
+///
+/// Owns nothing, so a copy can be dropped at any time. Valid only on the mount it records
+/// (deluge_efatfs_mount_generation): an open from it after the card has been remounted, or swapped, is refused.
+typedef struct DelugeFileLocation {
+	uint8_t context[DELUGE_FILE_LOCATION_BYTES]; ///< the filesystem's own record of the file, opaque here
+	uint32_t mount_generation;                   ///< the mount the file was found on
+	uint8_t valid;                               ///< nonzero if this names a file
+} DelugeFileLocation;
+
 /// The resource manager chunks are leased from. Opaque; owned by the Rust `deluge_resource` crate.
 typedef struct DelugeResource DelugeResource;
 

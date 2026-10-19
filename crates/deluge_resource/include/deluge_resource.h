@@ -192,7 +192,8 @@ uint32_t deluge_resource_external_lease_count_by_slot(DelugeResource* mgr, uint3
 
 /// Cluster load queue (per-slot state inside the manager; replaces the C++ ClusterPriorityQueue). The
 /// priority is the caller's audio-domain rating — lower = more urgent.
-/// enqueue the chunk at `slot` (re-enqueue updates the priority); remove de-queues it (and drops any
+/// enqueue the chunk at `slot` (a re-enqueue while still queued only raises the priority, so a less
+/// urgent requester cannot push back a chunk someone more urgent waits on); remove de-queues it (and drops any
 /// queue-owned lease, so an erased entry cannot leave the chunk pinned).
 void deluge_resource_loader_enqueue(DelugeResource* mgr, uint32_t slot, uint32_t priority);
 void deluge_resource_loader_remove(DelugeResource* mgr, uint32_t slot);
@@ -202,8 +203,8 @@ void deluge_resource_loader_remove(DelugeResource* mgr, uint32_t slot);
 /// deluge_resource_loader_next serves only leased chunks (filling an evictable one could write into a
 /// recycled slot) and silently discards the rest, so a caller that cannot hold its own lease until the
 /// load lands — a fire-and-forget "fill this eventually" — must enqueue through this instead, letting
-/// the queue hold the lease the guard requires. Idempotent in the lease: re-enqueueing updates the
-/// priority without taking a second one.
+/// the queue hold the lease the guard requires. Idempotent in the lease: re-enqueueing raises the
+/// priority as deluge_resource_loader_enqueue does, without taking a second one.
 ///
 /// @warning Every terminal path of the loader MUST pair this with
 /// deluge_resource_loader_release_owned. A stranded queue lease pins the chunk against eviction for
@@ -231,6 +232,9 @@ bool deluge_resource_loader_has_any(DelugeResource* mgr);
 
 /// Number of cost classes `evictions_by_cost` buckets by (must match the Rust COST_BUCKETS).
 #define DELUGE_RESOURCE_COST_BUCKETS 8
+
+/// Buckets in each of DelugeResourceStats' latency histograms (must match the Rust LATENCY_BUCKETS).
+#define DELUGE_RESOURCE_LATENCY_BUCKETS 16
 
 /// Cumulative manager instrumentation counters — pure stats (never affect behaviour), for cache /
 /// eviction analysis, profiling, on-device debug. Layout must match `Stats` in manager.rs.
@@ -272,6 +276,10 @@ typedef struct DelugeResourceStats {
 	uint64_t fill_samples;
 	uint64_t fill_total;
 	uint64_t fill_max;
+	// queue_wait and fill as log2 histograms of frames: bucket 0 holds 0, bucket i holds [2^(i-1), 2^i), and the last
+	// also holds everything longer.
+	uint32_t queue_wait_buckets[DELUGE_RESOURCE_LATENCY_BUCKETS];
+	uint32_t fill_buckets[DELUGE_RESOURCE_LATENCY_BUCKETS];
 } DelugeResourceStats;
 
 /// Copy the manager's cumulative counters into `*out`. No-op if either pointer is null.

@@ -46,7 +46,7 @@ class Elf:
             self._phnum,
             self._shentsize,
             self._shnum,
-            _shstrndx,
+            self._shstrndx,
         ) = struct.unpack_from("<HHIIIIIHHHHHH", self.raw, 16)
 
     def segments(self) -> list[Segment]:
@@ -69,6 +69,17 @@ class Elf:
             )
             for i in range(self._shnum)
         ]
+
+    def section(self, name: str) -> tuple[int, int] | None:
+        """The address range [start, end) of the section called `name`, or None."""
+        sections = self._sections()
+        names_off = sections[self._shstrndx][4]
+        want = name.encode() + b"\0"
+        for sh in sections:
+            start = names_off + sh[0]
+            if self.raw[start : start + len(want)] == want:
+                return sh[3], sh[3] + sh[5]
+        return None
 
     def symbol(self, name: str) -> int | None:
         """The value of the first symbol named exactly `name` (mangled), or None."""

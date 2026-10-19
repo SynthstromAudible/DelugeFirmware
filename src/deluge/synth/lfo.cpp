@@ -61,8 +61,15 @@ void LFO::setLocalInitialPhase(const LFOConfig& config) {
 	phase_ = getLFOInitialPhaseForNegativeExtreme(config.waveType);
 }
 
-void LFO::setGlobalInitialPhase(const LFOConfig& config) {
-	emplaceWave(config.waveType);
+void LFO::setGlobalInitialPhase(const LFOConfig& config, bool reset_state) {
+	// Clock re-syncs call this repeatedly during playback, so they only realign the phase: the random waveforms
+	// keep their held value and filter state. Playback start resets that state too.
+	if (reset_state) {
+		emplaceWave(config.waveType);
+	}
+	else {
+		selectWave(config.waveType);
+	}
 	if (config.waveType == LFOType::SINE || config.waveType == LFOType::TRIANGLE) {
 		phase_ = getLFOInitialPhaseForZero(config.waveType);
 	}

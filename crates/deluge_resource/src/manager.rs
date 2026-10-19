@@ -87,6 +87,11 @@ struct AssetSlot {
     /// For unleased caches, whose `request(N+1)` would otherwise evict the just-written `N`;
     /// leased assets (sample clusters) must stay able to evict their own old chunks.
     self_protect: bool,
+    /// Chunks of this asset in the `(asset, index)` index, kept by [`Manager::index_insert`] and
+    /// [`Manager::index_remove`], so a release finds them all without scanning the table.
+    resident: u32,
+    /// One past the highest index any chunk of this asset has been indexed at.
+    index_end: u32,
 }
 impl AssetSlot {
     const EMPTY: AssetSlot = AssetSlot {
@@ -103,6 +108,8 @@ impl AssetSlot {
         soft_refs: 0,
         evict_tail_first: false,
         self_protect: false,
+        resident: 0,
+        index_end: 0,
     };
 }
 
@@ -171,6 +178,22 @@ impl ChunkSlot {
         ptr_next: NONE,
         queued_at: 0,
     };
+
+    /// Queues this chunk at `priority` (lower = more urgent). While it is already queued the
+    /// priority only rises, so a less urgent requester can't push back a chunk someone more urgent
+    /// waits on. Once `loader_next` has popped it, the priority is set afresh.
+    ///
+    /// The queue wait is timed from when the chunk entered the queue, not from its latest request.
+    fn queue_at(&mut self, priority: u32) {
+        if self.queued {
+            self.queue_priority = self.queue_priority.min(priority);
+        } else {
+            self.queue_priority = priority;
+            // SAFETY: a plain counter read; no preconditions.
+            self.queued_at = unsafe { deluge_debug_now_frames() };
+        }
+        self.queued = true;
+    }
 }
 
 // The audio sample timer, provided by the C++ side, for the loader-latency fields of `Stats`.
@@ -220,6 +243,19 @@ pub struct Stats {
     pub fill_samples: u64,
     pub fill_total: u64,
     pub fill_max: u64,
+    /// `queue_wait` and `fill` as log2 histograms of frames: bucket 0 holds 0, bucket `i` holds
+    /// `[2^(i-1), 2^i)`, and the last also holds everything longer.
+    pub queue_wait_buckets: [u32; LATENCY_BUCKETS],
+    pub fill_buckets: [u32; LATENCY_BUCKETS],
+}
+
+/// Buckets in each of [`Stats`]' latency histograms.
+pub const LATENCY_BUCKETS: usize = 16;
+
+/// Adds one latency of `frames` to `buckets` (see [`Stats::queue_wait_buckets`]).
+fn add_latency(buckets: &mut [u32; LATENCY_BUCKETS], frames: u64) {
+    let bucket = ((u64::BITS - frames.leading_zeros()) as usize).min(LATENCY_BUCKETS - 1);
+    buckets[bucket] = buckets[bucket].saturating_add(1);
 }
 
 /// The manager state behind a [`DelugeResource`] handle.
@@ -242,6 +278,14 @@ pub struct Manager {
     /// Backs every pointer-keyed entry point (`find_by_ptr`). Holds every occupied slot, adopted
     /// chunks included.
     ptr_buckets: &'static [Cell<u32>],
+    /// One bit per chunk slot, set in the same masked window that queues the slot, so the loader
+    /// visits only queued slots instead of the whole table. A hint: a slot de-queued, freed or
+    /// evicted keeps its bit until a scan finds it stale and clears it (see
+    /// [`Manager::for_each_queued`]).
+    queued_bits: &'static [Cell<u32>],
+    /// Where the next free-slot search starts: just past the slot last handed out. Occupied slots
+    /// pile up at the start of the table, so a search from slot 0 walked past all of them.
+    free_hint: Cell<u32>,
     tick: Cell<u64>,
     /// The self-protecting asset currently allocating in `request`/`acquire`, whose chunks are not
     /// eviction candidates; `NONE` otherwise. Set through [`ProtectGuard`].
@@ -415,6 +459,21 @@ impl Manager {
         s.hash_next = self.buckets[b].get();
         self.chunks[i].set(s);
         self.buckets[b].set(i as u32);
+        if let Some(cell) = self.assets.get(s.asset as usize) {
+            let mut a = cell.get();
+            a.resident = a.resident.saturating_add(1);
+            a.index_end = a.index_end.max(s.index.saturating_add(1));
+            cell.set(a);
+        }
+    }
+
+    /// Counts one chunk of `asset` out of the index; see [`AssetSlot::resident`].
+    fn note_unindexed(&self, asset: u32) {
+        if let Some(cell) = self.assets.get(asset as usize) {
+            let mut a = cell.get();
+            a.resident = a.resident.saturating_sub(1);
+            cell.set(a);
+        }
     }
 
     /// Unlinks slot `i` from its bucket. Same masking contract as [`Manager::index_insert`]; must
@@ -428,6 +487,7 @@ impl Manager {
         let head = self.buckets[b].get();
         if head == i as u32 {
             self.buckets[b].set(self.chunks[i].get().hash_next);
+            self.note_unindexed(asset);
             return;
         }
         // Walk to the predecessor; chains average under one entry since buckets >= slots.
@@ -444,10 +504,31 @@ impl Manager {
                 let mut sc = s;
                 sc.hash_next = self.chunks[i].get().hash_next;
                 self.chunks[c].set(sc);
+                self.note_unindexed(asset);
                 return;
             }
             cur = s.hash_next;
         }
+    }
+
+    /// [`Manager::find_resident`]'s indexed walk, unmasked and uncounted: for
+    /// [`Manager::release_asset`], which already runs unmasked at its owner's teardown.
+    fn find_indexed_unmasked(&self, asset: u32, index: u32) -> Option<usize> {
+        let mut cur = self.buckets[self.bucket_of(asset, index)].get();
+        let mut steps = 0;
+        while cur != NONE && steps <= self.chunks.len() {
+            let i = cur as usize;
+            if i >= self.chunks.len() {
+                return None; // corrupt link; see find_resident's walk
+            }
+            steps += 1;
+            let s = self.chunks[i].get();
+            if !s.backing.is_null() && s.asset == asset && s.index == index {
+                return Some(i);
+            }
+            cur = s.hash_next;
+        }
+        None
     }
 
     /// Brute-force lookup: the ground truth the index tests compare `find_resident` against.
@@ -491,16 +572,37 @@ impl Manager {
         found
     }
     fn find_free_chunk(&self) -> Option<usize> {
+        let n = self.chunks.len();
+        let start = m_get(&self.free_hint) as usize % n;
         let mut visited = 0u64;
-        let found = (0..self.chunks.len()).find(|&i| {
+        let found = (0..n).map(|k| (start + k) % n).find(|&i| {
             visited += 1;
             m_get(&self.chunks[i]).backing.is_null()
         });
+        if let Some(i) = found {
+            m_set(&self.free_hint, ((i + 1) % n) as u32);
+        }
         self.stat(|s| {
             s.scan_free_calls += 1;
             s.scan_free_slots += visited;
         });
         found
+    }
+
+    /// `preferred` if it is still free, otherwise another free slot; for the masked window that
+    /// fills a slot [`Manager::find_free_chunk`] found. Another context can take the found slot
+    /// between the search and that window, while the backing is being allocated.
+    ///
+    /// Call with the mask held.
+    fn still_free_or_another(&self, preferred: usize) -> Option<usize> {
+        if self.chunks[preferred].get().backing.is_null() {
+            return Some(preferred);
+        }
+        let n = self.chunks.len();
+        let start = self.free_hint.get() as usize % n;
+        (0..n)
+            .map(|k| (start + k) % n)
+            .find(|&i| self.chunks[i].get().backing.is_null())
     }
 
     /// Finds the slot backing `p`, then in one masked window re-validates `backing == p` (the
@@ -621,46 +723,87 @@ impl Manager {
 
     // Load queue (per-slot state; see `ChunkSlot::queued`)
 
-    /// Enqueues the chunk at `slot` at `priority` (lower = more urgent); a re-enqueue updates the
-    /// priority. No-op if `slot` is out of range or free.
+    /// Enqueues the chunk at `slot` at `priority` (lower = more urgent). A re-enqueue while still
+    /// queued only raises the priority (see `ChunkSlot::queue_at`). No-op if `slot` is out of range
+    /// or free.
     pub(crate) fn loader_enqueue(&self, slot: u32, priority: u32) {
         let i = slot as usize;
         if i >= self.chunks.len() {
             return;
         }
-        m_rmw(&self.chunks[i], |s| {
-            if s.backing.is_null() {
-                return;
-            }
-            s.queued = true;
-            s.queue_priority = priority;
-            // SAFETY: a plain counter read; no preconditions.
-            s.queued_at = unsafe { deluge_debug_now_frames() };
-        });
+        let _m = Masked::enter();
+        let mut s = self.chunks[i].get();
+        if s.backing.is_null() {
+            return;
+        }
+        s.queue_at(priority);
+        self.chunks[i].set(s);
+        self.mark_queued(i);
     }
 
     /// Enqueues the chunk at `slot` and takes a queue-owned hard lease, so the entry survives the
     /// enqueuer dropping its own (see `ChunkSlot::queue_leased`).
     ///
-    /// A re-enqueue updates the priority without a second lease. Every terminal path of the drain
-    /// must call `loader_release_owned` (or `loader_remove`); a stranded queue lease pins the chunk
-    /// forever. No-op if `slot` is out of range or free.
+    /// A re-enqueue raises the priority as `loader_enqueue` does, without a second lease. Every
+    /// terminal path of the drain must call `loader_release_owned` (or `loader_remove`); a stranded
+    /// queue lease pins the chunk forever. No-op if `slot` is out of range or free.
     pub(crate) fn loader_enqueue_owned(&self, slot: u32, priority: u32) {
         let i = slot as usize;
         if i >= self.chunks.len() {
             return;
         }
-        m_rmw(&self.chunks[i], |s| {
-            if s.backing.is_null() {
-                return;
+        let _m = Masked::enter();
+        let mut s = self.chunks[i].get();
+        if s.backing.is_null() {
+            return;
+        }
+        if !s.queue_leased {
+            s.leases += 1;
+            s.queue_leased = true;
+        }
+        s.queue_at(priority);
+        self.chunks[i].set(s);
+        self.mark_queued(i);
+    }
+
+    /// Sets slot `i`'s bit in `queued_bits`. Call inside the masked window that queues the slot,
+    /// so a scan can never see the slot queued without its bit, nor clear the bit of a slot being
+    /// queued.
+    fn mark_queued(&self, i: usize) {
+        let word = &self.queued_bits[i / 32];
+        word.set(word.get() | 1 << (i % 32));
+    }
+
+    /// Calls `f` with each queued, resident slot and its state, until `f` returns `false`.
+    ///
+    /// Visits only the slots `queued_bits` marks. A marked slot that is no longer queued or resident
+    /// has its bit cleared, in a masked window that re-reads the slot, so a slot queued meanwhile
+    /// (which sets its bit in its own masked window) keeps it. Each slot is read in its own window,
+    /// as the old whole-table scan read it; the caller re-validates whatever it acts on.
+    fn for_each_queued(&self, mut f: impl FnMut(usize, ChunkSlot) -> bool) {
+        for (w, word) in self.queued_bits.iter().enumerate() {
+            let mut bits = m_get(word);
+            while bits != 0 {
+                let b = bits.trailing_zeros() as usize;
+                bits &= bits - 1;
+                let i = w * 32 + b;
+                let state = {
+                    let _m = Masked::enter();
+                    let s = self.chunks[i].get();
+                    if s.queued && !s.backing.is_null() {
+                        Some(s)
+                    } else {
+                        word.set(word.get() & !(1 << b));
+                        None
+                    }
+                };
+                if let Some(s) = state {
+                    if !f(i, s) {
+                        return;
+                    }
+                }
             }
-            if !s.queue_leased {
-                s.leases += 1;
-                s.queue_leased = true;
-            }
-            s.queued = true;
-            s.queue_priority = priority;
-        });
+        }
     }
 
     /// Releases the queue-owned lease from `loader_enqueue_owned`. Returns whether there was one,
@@ -707,23 +850,22 @@ impl Manager {
     /// Unleased queued chunks are skipped and stay resident for normal eviction. The lease is a
     /// correctness guard: an unleased chunk is evictable, so filling it could write into a recycled
     /// slot. A popped chunk may hold a queue-owned lease, which the caller must release with
-    /// `loader_release_owned` on every terminal path. O(n) scan.
+    /// `loader_release_owned` on every terminal path. Visits only queued slots.
     pub(crate) fn loader_next(&self) -> *mut u8 {
-        // Per-slot masked scan; the pick is re-validated under the mask below.
+        // The pick is re-validated under the mask below.
         let mut best: Option<usize> = None;
         let mut best_pri = u32::MAX;
         let mut depth = 0u64; // queued+leased candidates this poll (Stats::loader_depth_*)
-        for (i, slot) in self.chunks.iter().enumerate() {
-            let s = m_get(slot);
-            if !s.queued || s.backing.is_null() || s.leases == 0 {
-                continue;
+        self.for_each_queued(|i, s| {
+            if s.leases > 0 {
+                depth += 1;
+                if best.is_none() || s.queue_priority < best_pri {
+                    best = Some(i);
+                    best_pri = s.queue_priority;
+                }
             }
-            depth += 1;
-            if best.is_none() || s.queue_priority < best_pri {
-                best = Some(i);
-                best_pri = s.queue_priority;
-            }
-        }
+            true
+        });
         self.stat(|st| {
             st.loader_depth_polls += 1;
             st.loader_depth_total += depth;
@@ -758,6 +900,7 @@ impl Manager {
                 if waited > st.queue_wait_max {
                     st.queue_wait_max = waited;
                 }
+                add_latency(&mut st.queue_wait_buckets, waited);
             });
         }
         s.backing
@@ -766,19 +909,23 @@ impl Manager {
     /// Returns whether any queued, leased chunk sits at the least urgent priority (`u32::MAX`);
     /// `load_song_ui`'s "background load work remains" check.
     fn loader_has_lowest(&self) -> bool {
-        (0..self.chunks.len()).any(|i| {
-            let s = m_get(&self.chunks[i]);
-            s.queued && !s.backing.is_null() && s.leases > 0 && s.queue_priority == u32::MAX
-        })
+        let mut found = false;
+        self.for_each_queued(|_, s| {
+            found = s.leases > 0 && s.queue_priority == u32::MAX;
+            !found
+        });
+        found
     }
 
     /// Returns whether `loader_next` would return a chunk, without popping anything. Backs
     /// `deluge_streaming_queue_drained`.
     fn loader_has_any(&self) -> bool {
-        (0..self.chunks.len()).any(|i| {
-            let s = m_get(&self.chunks[i]);
-            s.queued && !s.backing.is_null() && s.leases > 0
-        })
+        let mut found = false;
+        self.for_each_queued(|_, s| {
+            found = s.leases > 0;
+            !found
+        });
+        found
     }
 
     /// Returns whether no resident chunk of `asset` has an index above `index`; gates tail-first
@@ -1002,10 +1149,15 @@ impl Manager {
         }
         // Lease before materializing, so a reentrant eviction cannot take this chunk. One masked
         // window covers the slot write and its index links (see index_insert).
-        {
+        let idx = {
             let recency = self.bump();
             let generation = self.next_gen();
             let _m = Masked::enter();
+            let Some(idx) = self.still_free_or_another(idx) else {
+                drop(_m);
+                self.free_backing(p, asset);
+                return ptr::null_mut(); // every slot taken under preemption
+            };
             self.chunks[idx].set(ChunkSlot {
                 backing: p,
                 asset,
@@ -1020,7 +1172,8 @@ impl Manager {
             });
             self.index_insert(idx);
             self.ptr_index_insert(idx);
-        }
+            idx
+        };
         let a = m_get(&self.assets[ai]);
         let ok = match a.source.materialize {
             Some(f) => {
@@ -1112,6 +1265,11 @@ impl Manager {
             let recency = self.bump();
             let generation = self.next_gen();
             let _m = Masked::enter();
+            let Some(idx) = self.still_free_or_another(idx) else {
+                drop(_m);
+                self.free_backing(p, asset);
+                return ptr::null_mut(); // every slot taken under preemption
+            };
             self.chunks[idx].set(ChunkSlot {
                 backing: p,
                 asset,
@@ -1269,6 +1427,7 @@ impl Manager {
                 if (f as u64) > st.fill_max {
                     st.fill_max = f as u64;
                 }
+                add_latency(&mut st.fill_buckets, f as u64);
             });
         }
     }
@@ -1362,28 +1521,15 @@ impl Manager {
             }
             self.free_backing(s.backing, asset);
         };
-        if a.evict_tail_first {
-            // Highest index first, so `on_evict` never discards a chunk still tracked here.
-            loop {
-                let mut hi: Option<usize> = None;
-                let mut hidx = 0u32;
-                for (i, c) in self.chunks.iter().enumerate() {
-                    let s = c.get();
-                    if !s.backing.is_null() && s.asset == asset && (hi.is_none() || s.index >= hidx)
-                    {
-                        hi = Some(i);
-                        hidx = s.index;
-                    }
-                }
-                let Some(i) = hi else { break };
+        // Highest index first, so a tail-first asset's `on_evict` never discards a chunk still
+        // tracked here; any order would do for the rest. Each index is looked up in the
+        // `(asset, index)` index rather than the table scanned for it, and the walk stops once
+        // nothing of the asset is left: a whole-table scan per chunk took ~40 ms per sample freed.
+        let mut index = a.index_end;
+        while index > 0 && self.assets[ai].get().resident > 0 {
+            index -= 1;
+            if let Some(i) = self.find_indexed_unmasked(asset, index) {
                 drop_chunk(i);
-            }
-        } else {
-            for (i, slot) in self.chunks.iter().enumerate() {
-                let s = slot.get();
-                if !s.backing.is_null() && s.asset == asset {
-                    drop_chunk(i);
-                }
             }
         }
         self.assets[ai].set(AssetSlot::EMPTY);
@@ -1637,18 +1783,29 @@ unsafe fn create_inner(
         bucket_cap * core::mem::size_of::<Cell<u32>>(),
         core::mem::align_of::<Cell<u32>>().max(16),
     ) as *mut Cell<u32>;
+    let queued_words = chunk_cap.div_ceil(32).max(1);
+    let queued_bits_raw = deluge_alloc(
+        heap,
+        queued_words * core::mem::size_of::<Cell<u32>>(),
+        core::mem::align_of::<Cell<u32>>().max(16),
+    ) as *mut Cell<u32>;
     if m.is_null()
         || assets_raw.is_null()
         || chunks_raw.is_null()
         || buckets_raw.is_null()
         || ptr_buckets_raw.is_null()
+        || queued_bits_raw.is_null()
     {
         deluge_free(heap, m as *mut u8);
         deluge_free(heap, assets_raw as *mut u8);
         deluge_free(heap, chunks_raw as *mut u8);
         deluge_free(heap, buckets_raw as *mut u8);
         deluge_free(heap, ptr_buckets_raw as *mut u8);
+        deluge_free(heap, queued_bits_raw as *mut u8);
         return ptr::null_mut();
+    }
+    for i in 0..queued_words {
+        queued_bits_raw.add(i).write(Cell::new(0));
     }
     for i in 0..bucket_cap {
         buckets_raw.add(i).write(Cell::new(NONE));
@@ -1666,6 +1823,8 @@ unsafe fn create_inner(
     let buckets: &'static [Cell<u32>] = &*ptr::slice_from_raw_parts(buckets_raw, bucket_cap);
     let ptr_buckets: &'static [Cell<u32>] =
         &*ptr::slice_from_raw_parts(ptr_buckets_raw, bucket_cap);
+    let queued_bits: &'static [Cell<u32>] =
+        &*ptr::slice_from_raw_parts(queued_bits_raw, queued_words);
     ptr::write(
         m,
         Manager {
@@ -1675,6 +1834,8 @@ unsafe fn create_inner(
             chunks,
             buckets,
             ptr_buckets,
+            queued_bits,
+            free_hint: Cell::new(0),
             tick: Cell::new(0),
             protect: Cell::new(NONE),
             stats: Cell::new(Stats::default()),
@@ -1969,8 +2130,8 @@ pub unsafe extern "C" fn deluge_resource_external_lease_count_by_slot(
 
 // Load queue
 
-/// Enqueues the chunk at `slot` at `priority` (lower = more urgent); a re-enqueue updates the
-/// priority. The caller must keep its own lease until the load lands.
+/// Enqueues the chunk at `slot` at `priority` (lower = more urgent); a re-enqueue while still
+/// queued only raises the priority. The caller must keep its own lease until the load lands.
 ///
 /// # Safety
 ///

@@ -17,7 +17,7 @@
 
 #pragma once
 
-/// @brief Host-only instrumentation for the streaming-underrun harness's PRIMARY signal: the
+/// @brief Instrumentation for the streaming-underrun harness's PRIMARY signal: the
 ///        audio thread reaching a region-port NotReady residency check (`!hasCurrentRegion()`,
 ///        or `deluge_sample_region_state` returning LOADING) on a play-needed path and either
 ///        deferring (WAIT) or dropping (UNASSIGN) the voice as a result.
@@ -25,13 +25,18 @@
 /// Not a fault, not a blocking wait — just the exact moment playback discovers the region it
 /// needs isn't ready yet.
 ///
-/// `DELUGE_HOST`-only (see `sim/CMakeLists.txt`'s `add_compile_definitions(DELUGE_HOST)`,
-/// same guard `harness/streaming_scenario.h` uses): compiled into every x86 build off this
-/// tree, never into the ARM device firmware. Every call site (`model/voice/voice_sample.cpp`,
-/// `model/sample/sample_low_level_reader.cpp`) is itself wrapped in `#ifdef DELUGE_HOST` (not
-/// just relying on these being no-ops), so a device/golden build doesn't even see the calls —
-/// behaviour there is unaffected.
-#ifdef DELUGE_HOST
+/// Compiled where `DELUGE_UNDERRUN_COUNTERS` is 1: every x86 build off this tree (`DELUGE_HOST`, see
+/// `sim/CMakeLists.txt`) and the device's stream-bench image (`DELUGE_STREAM_BENCH`), never the shipping
+/// firmware. Every call site (`model/voice/voice_sample.cpp`, `model/sample/sample_low_level_reader.cpp`) is
+/// itself wrapped in `#if DELUGE_UNDERRUN_COUNTERS` (not just relying on these being no-ops), so a shipping
+/// build doesn't even see the calls -- behaviour there is unaffected.
+#if defined(DELUGE_HOST) || DELUGE_STREAM_BENCH
+#define DELUGE_UNDERRUN_COUNTERS 1
+#else
+#define DELUGE_UNDERRUN_COUNTERS 0
+#endif
+
+#if DELUGE_UNDERRUN_COUNTERS
 
 #include <cstdint>
 
@@ -91,4 +96,4 @@ uint64_t deluge_sim_voice_render_count(uint8_t tier);
 
 } // extern "C"
 
-#endif // DELUGE_HOST
+#endif // DELUGE_UNDERRUN_COUNTERS

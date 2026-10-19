@@ -237,6 +237,16 @@ impl LoadOps for FakeOps {
         live.remove(index);
         self.open_handles.set(self.open_handles.get() - 1);
     }
+
+    /// A location naming the handle, so a test can tell which file's location a result carries.
+    async fn location(&self, handle: u32) -> Option<audio_loader::FileLocation> {
+        let _ = self.entry_for(handle); // a location is asked only of an open handle
+        let mut location = audio_loader::FileLocation::NONE;
+        location.context[0] = 1;
+        location.mount_generation = handle;
+        location.valid = 1;
+        Some(location)
+    }
 }
 
 /// Smallest RIFF/WAVE that parses: the 44-byte canonical header (12-byte RIFF container, 24-byte
@@ -306,6 +316,33 @@ fn a_good_file_parses_to_a_geometry() {
     let result = block_on(load_io_once(&ops, &request("A.wav", &["A.wav"])));
     assert_eq!(result.error, DELUGE_ERROR_NONE);
     assert_eq!(result.size_bytes, 52);
+    ops.assert_settled();
+}
+
+/// A good file's result says where the file is, taken while its handle was still open, so the
+/// collector can open its read stream without looking up the path again.
+#[test]
+fn a_good_file_reports_where_it_is() {
+    let ops = FakeOps::new()
+        .with_file("ALT/A.wav", minimal_wav())
+        .with_file("A.wav", minimal_wav());
+    let result = block_on(load_io_once(&ops, &request("A.wav", &["X.wav", "A.wav"])));
+    assert_eq!(result.error, DELUGE_ERROR_NONE);
+    assert_eq!(result.location.valid, 1);
+    // X.wav is missing, so A.wav takes the fake's first handle, 7, which its location names.
+    assert_eq!(result.location.mount_generation, 7);
+    ops.assert_settled();
+}
+
+/// A failed load says nowhere: there is no file to open.
+#[test]
+fn a_failed_load_reports_no_location() {
+    let ops = FakeOps::new()
+        .with_file("A.wav", minimal_wav())
+        .with_read_failing_after(1);
+    let result = block_on(load_io_once(&ops, &request("A.wav", &["A.wav"])));
+    assert_eq!(result.error, DELUGE_ERROR_FILE_UNREADABLE);
+    assert_eq!(result.location.valid, 0);
     ops.assert_settled();
 }
 

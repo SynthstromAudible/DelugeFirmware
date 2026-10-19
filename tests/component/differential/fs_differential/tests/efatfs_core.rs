@@ -962,3 +962,371 @@ fn efatfs_write_at_middle_cluster_rewrite_fat32() {
         );
     }
 }
+
+/// Reads `len` bytes at `off` of `h` as the device's `read_direct` does: plans, maps further when
+/// asked, and reads the planned sectors straight from the RAM disk. `None` where the read would
+/// go through the filesystem. Counts the map's extensions in `extensions`.
+fn read_direct(
+    table: &mut HandleTable<{ efatfs_core::MAX_HANDLES }>,
+    fs: &FileSystem<
+        BufStream<fs_differential::block_dev::FileBlockDevice, 512>,
+        DefaultTimeProvider,
+        LossyOemCpConverter,
+    >,
+    h: u32,
+    off: u32,
+    len: usize,
+    extensions: &mut u32,
+) -> Option<Vec<u8>> {
+    let read = match table.plan_direct(h, off, len) {
+        efatfs_core::DirectPlan::Filesystem => return None,
+        efatfs_core::DirectPlan::Read(read) => read,
+        efatfs_core::DirectPlan::Extend {
+            generation,
+            ctx,
+            map,
+        } => {
+            *extensions += 1;
+            let map = block_on(efatfs_core::extend_map(fs, &ctx, map, off));
+            table.commit_map(h, generation, map);
+            match table.plan_direct(h, off, len) {
+                efatfs_core::DirectPlan::Read(read) => read,
+                _ => return None,
+            }
+        }
+    };
+    let mut buf = vec![0xEEu8; len];
+    RamDisk::read_at(
+        u64::from(read.sector) * 512,
+        &mut buf[..read.sectors as usize * 512],
+    );
+    buf[read.valid..].fill(0);
+    Some(buf)
+}
+
+/// A contiguous 64 MiB file read cluster by cluster straight from the card matches its bytes, and
+/// its map grows a FAT sector's worth of links at a time rather than once per cluster.
+#[test]
+fn extent_map_reads_a_contiguous_file_and_walks_the_chain_in_stretches() {
+    let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _disk = RamDisk::load(&fat32());
+    let efatfs = EFatFs::mount();
+    let fs = efatfs.raw();
+    let cluster = fs.cluster_size() as usize;
+    let want = known_huge_bytes();
+    let mut table = HandleTable::<{ efatfs_core::MAX_HANDLES }>::new();
+    let ctx = block_on(efatfs_core::open_context(fs, "/SAMPLES/huge.bin")).expect("open huge.bin");
+    let h = table.insert(ctx).expect("table not full");
+    let mut extensions = 0;
+    let clusters = want.len() / cluster;
+    for c in 0..clusters {
+        let off = (c * cluster) as u32;
+        let got = read_direct(&mut table, fs, h, off, cluster, &mut extensions)
+            .unwrap_or_else(|| panic!("cluster {c} went through the filesystem"));
+        assert!(
+            got == want[c * cluster..(c + 1) * cluster],
+            "cluster {c} read the wrong sectors"
+        );
+    }
+    assert!(
+        extensions as usize <= clusters.div_ceil(128) + 1,
+        "{extensions} extensions for {clusters} clusters"
+    );
+    // Backwards, as a loop's restart reads: the map already covers it.
+    let before = extensions;
+    let got = read_direct(&mut table, fs, h, 0, cluster, &mut extensions).expect("cluster 0 again");
+    assert!(got == want[..cluster]);
+    assert_eq!(extensions, before, "a mapped cluster mapped again");
+}
+
+/// Builds `pieces` clusters each of two files written in turn, so each file's clusters alternate
+/// with the other's on the volume. Returns the two files' bytes.
+fn write_interleaved(
+    efatfs: &mut EFatFs,
+    a: &str,
+    b: &str,
+    pieces: usize,
+    cluster: usize,
+) -> (Vec<u8>, Vec<u8>) {
+    use fs_differential::ops::FsOpsMut;
+    let piece = |file: u8, i: usize| -> Vec<u8> {
+        (0..cluster)
+            .map(|j| (file as usize * 101 + i * 7 + j / 512) as u8)
+            .collect()
+    };
+    let (mut wa, mut wb) = (Vec::new(), Vec::new());
+    for i in 0..pieces {
+        for (path, file, whole) in [(a, 1u8, &mut wa), (b, 2u8, &mut wb)] {
+            let bytes = piece(file, i);
+            if i == 0 {
+                efatfs.write_new(path, &bytes);
+            } else {
+                efatfs.append(path, &bytes);
+            }
+            whole.extend_from_slice(&bytes);
+        }
+    }
+    // A tail short of a sector, so the last cluster is partial.
+    efatfs.append(a, &[0xA5; 100]);
+    wa.extend_from_slice(&[0xA5; 100]);
+    (wa, wb)
+}
+
+/// A file in pieces reads through its runs, its tail past the end reads as zero, and a read past
+/// the end is all zero.
+#[test]
+fn extent_map_reads_a_fragmented_file_and_zeroes_past_its_end() {
+    let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _disk = RamDisk::load(&fat32());
+    let mut efatfs = EFatFs::mount();
+    let cluster = efatfs.raw().cluster_size() as usize;
+    let (wa, _) = write_interleaved(&mut efatfs, "/A.BIN", "/B.BIN", 10, cluster);
+    let efatfs = EFatFs::mount();
+    let fs = efatfs.raw();
+    assert_eq!(
+        efatfs.read_file("/A.BIN"),
+        wa,
+        "the filesystem's own read of A.BIN"
+    );
+    let mut table = HandleTable::<{ efatfs_core::MAX_HANDLES }>::new();
+    let h = table
+        .insert(block_on(efatfs_core::open_context(fs, "/A.BIN")).expect("open A.BIN"))
+        .expect("table not full");
+    let mut extensions = 0;
+    for c in 0..wa.len().div_ceil(cluster) {
+        let off = c * cluster;
+        let got = read_direct(&mut table, fs, h, off as u32, cluster, &mut extensions)
+            .unwrap_or_else(|| panic!("cluster {c} went through the filesystem"));
+        let end = (off + cluster).min(wa.len());
+        assert!(
+            got[..end - off] == wa[off..end],
+            "cluster {c} read the wrong sectors"
+        );
+        assert!(
+            got[end - off..].iter().all(|&b| b == 0),
+            "cluster {c}'s tail past the end"
+        );
+    }
+    let past = read_direct(
+        &mut table,
+        fs,
+        h,
+        (wa.len().div_ceil(cluster) * cluster) as u32,
+        cluster,
+        &mut extensions,
+    )
+    .expect("a read past the end");
+    assert!(past.iter().all(|&b| b == 0), "a read past the end");
+}
+
+/// A file in more runs than the map holds is read through the filesystem.
+#[test]
+fn extent_map_leaves_a_file_in_too_many_pieces_to_the_filesystem() {
+    let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _disk = RamDisk::load(&fat32());
+    let mut efatfs = EFatFs::mount();
+    let cluster = efatfs.raw().cluster_size() as usize;
+    write_interleaved(
+        &mut efatfs,
+        "/A.BIN",
+        "/B.BIN",
+        efatfs_core::MAX_EXTENT_RUNS + 2,
+        cluster,
+    );
+    let efatfs = EFatFs::mount();
+    let fs = efatfs.raw();
+    let mut table = HandleTable::<{ efatfs_core::MAX_HANDLES }>::new();
+    let h = table
+        .insert(block_on(efatfs_core::open_context(fs, "/A.BIN")).expect("open A.BIN"))
+        .expect("table not full");
+    let mut extensions = 0;
+    assert!(read_direct(&mut table, fs, h, 0, cluster, &mut extensions).is_none());
+    assert!(
+        matches!(
+            table.plan_direct(h, 0, cluster),
+            efatfs_core::DirectPlan::Filesystem
+        ),
+        "an unmappable file is asked to map again"
+    );
+}
+
+/// A file closed with a map and reopened by its context adopts the map, so its first reads need
+/// no chain walk; another file does not.
+#[test]
+fn map_handoff_gives_a_reopened_file_its_map_and_no_other() {
+    let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _disk = RamDisk::load(&fat32());
+    let efatfs = EFatFs::mount();
+    let fs = efatfs.raw();
+    let cluster = fs.cluster_size() as usize;
+    let mut table = HandleTable::<{ efatfs_core::MAX_HANDLES }>::new();
+    let mut handoff = efatfs_core::MapHandoff::<4>::new();
+
+    let ctx = block_on(efatfs_core::open_context(fs, "/SAMPLES/huge.bin")).expect("open huge.bin");
+    let map = block_on(efatfs_core::extend_map(
+        fs,
+        &ctx,
+        efatfs_core::MapState::Unmapped,
+        0,
+    ));
+    assert!(
+        matches!(map, efatfs_core::MapState::Mapped(_)),
+        "the first stretch did not map"
+    );
+    let h = table
+        .insert_mapped(ctx.clone(), map)
+        .expect("table not full");
+    let (key, map) = table
+        .remove_keeping_map(h)
+        .expect("a mapped file keeps its map");
+    handoff.put(key, map);
+
+    let other = block_on(efatfs_core::open_context(
+        fs,
+        "/SAMPLES/big_multicluster.bin",
+    ))
+    .expect("open big_multicluster.bin");
+    assert_eq!(
+        handoff.take(&other),
+        efatfs_core::MapState::Unmapped,
+        "another file took the map"
+    );
+
+    let adopted = handoff.take(&ctx);
+    assert!(
+        matches!(adopted, efatfs_core::MapState::Mapped(_)),
+        "the reopened file lost its map"
+    );
+    assert_eq!(
+        handoff.take(&ctx),
+        efatfs_core::MapState::Unmapped,
+        "a map was handed over twice"
+    );
+    let h = table.insert_mapped(ctx, adopted).expect("table not full");
+    assert!(
+        matches!(
+            table.plan_direct(h, cluster as u32, cluster),
+            efatfs_core::DirectPlan::Read(_)
+        ),
+        "the adopted map did not cover the second cluster"
+    );
+}
+
+/// A read that is not whole sectors goes through the filesystem without mapping first.
+#[test]
+fn an_unaligned_read_is_not_mapped_first() {
+    let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _disk = RamDisk::load(&fat32());
+    let efatfs = EFatFs::mount();
+    let fs = efatfs.raw();
+    let mut table = HandleTable::<{ efatfs_core::MAX_HANDLES }>::new();
+    let h = table
+        .insert(
+            block_on(efatfs_core::open_context(fs, "/SAMPLES/huge.bin")).expect("open huge.bin"),
+        )
+        .expect("table not full");
+    for (off, len) in [(0, 44), (44, 512), (512, 1000)] {
+        assert!(
+            matches!(
+                table.plan_direct(h, off, len),
+                efatfs_core::DirectPlan::Filesystem
+            ),
+            "a read of {len} at {off} was planned for the card"
+        );
+    }
+}
+
+/// Opens every file in a 300-file directory, counting block reads: after the first lookup indexes
+/// the directory, each later one reads an entry instead of scanning, so the reads per open stay
+/// far below the directory's size.
+#[test]
+fn directory_index_makes_repeat_lookups_cheap() {
+    use fs_differential::ops::FsOpsMut;
+    let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _disk = RamDisk::load(&fat32());
+    let mut efatfs = EFatFs::mount();
+    efatfs.mkdir("/IDX");
+    const FILES: usize = 300;
+    for i in 0..FILES {
+        efatfs.write_new(
+            &format!("/IDX/Long sample name {i:03}.wav"),
+            format!("{i}").as_bytes(),
+        );
+    }
+    drop(efatfs);
+
+    let storage = BufStream::<CountingBlockDevice, 512>::new(CountingBlockDevice);
+    let fs: FileSystem<_, DefaultTimeProvider, LossyOemCpConverter> =
+        block_on(FileSystem::new(storage, FsOptions::new())).expect("mount counting FS");
+    block_on(async {
+        // The first lookup scans and indexes; the rest are counted.
+        efatfs_core::open_context(&fs, "/IDX/Long sample name 000.wav")
+            .await
+            .expect("open 000");
+        BLOCKS_READ.store(0, Ordering::Relaxed);
+        for i in (1..FILES).rev() {
+            efatfs_core::open_context(&fs, &format!("/IDX/long SAMPLE name {i:03}.WAV"))
+                .await
+                .unwrap_or_else(|_| panic!("open {i}"));
+        }
+    });
+    let per_open = BLOCKS_READ.load(Ordering::Relaxed) as f64 / (FILES - 1) as f64;
+    // 300 long-named files fill about 60 directory sectors; a scan reads half on average.
+    println!("dir-index: {per_open:.2} block reads per open");
+    assert!(
+        per_open < 6.0,
+        "{per_open:.2} block reads per open: the directory is being scanned"
+    );
+}
+
+/// The index never answers from stale entries: a file removed is not found, one created in its
+/// place or renamed is found with its own content.
+#[test]
+fn directory_index_survives_create_remove_and_rename() {
+    use fs_differential::ops::{FsOps, FsOpsMut};
+    let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _disk = RamDisk::load(&fat32());
+    let mut efatfs = EFatFs::mount();
+    efatfs.mkdir("/IDX");
+    for i in 0..40 {
+        efatfs.write_new(
+            &format!("/IDX/file {i:02}.wav"),
+            format!("v1 {i}").as_bytes(),
+        );
+    }
+    // Index the directory through lookups.
+    for i in 0..40 {
+        assert_eq!(
+            efatfs.read_file(&format!("/IDX/file {i:02}.wav")),
+            format!("v1 {i}").as_bytes()
+        );
+    }
+    efatfs.delete("/IDX/file 10.wav");
+    efatfs.delete("/IDX/file 20.wav");
+    efatfs.write_new("/IDX/file 20.wav", b"v2 20");
+    efatfs.rename("/IDX/file 30.wav", "/IDX/moved 30.wav");
+    efatfs.write_new("/IDX/brand new.wav", b"new");
+
+    let fs = efatfs.raw();
+    for (path, want) in [
+        ("/IDX/file 20.wav", Some(&b"v2 20"[..])),
+        ("/IDX/moved 30.wav", Some(&b"v1 30"[..])),
+        ("/IDX/brand new.wav", Some(&b"new"[..])),
+        ("/IDX/file 05.wav", Some(&b"v1 5"[..])),
+        ("/IDX/file 10.wav", None),
+        ("/IDX/file 30.wav", None),
+    ] {
+        let opened = block_on(efatfs_core::open_context(fs, path));
+        match want {
+            None => assert!(opened.is_err(), "{path} opened after it was removed"),
+            Some(want) => {
+                assert!(opened.is_ok(), "{path} did not open");
+                assert_eq!(
+                    efatfs.read_file(path),
+                    want,
+                    "{path} read another file's bytes"
+                );
+            }
+        }
+    }
+}

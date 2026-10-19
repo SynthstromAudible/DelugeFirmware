@@ -75,14 +75,8 @@ describe scroll_text_w("ui::oled::scroll_text", $ {
 		const char* s = "A VERY LONG LABEL THAT DOES NOT FIT ON THE PANEL";
 		Rect rect{6, 14, 100, 9}; // right() = 106, strictly inside the 128px canvas
 		// Mirrors every scroll_text call onto a second canvas via the same raw Canvas calls
-		// scroll_text itself makes (clear_area_exact + draw_string), rather than one isolated
-		// reference draw at the end: draw_string's end_x is only a *bail-out* bound -- the last
-		// visible character's glyph can overshoot it by up to one more character width -- and a
-		// fixed-size clear_area_exact never reaches that overshoot
-		// band, so residual ink from an earlier call's overshoot at a different scroll_pos can
-		// persist there across steps. That ghosting is a real, legacy-identical property of
-		// repeatedly re-rendering a scroller with Canvas::draw_string/clear_area_exact, not a
-		// port bug, so the reference has to accumulate the same call history to compare fairly.
+		// scroll_text itself makes (clear_area_exact + draw_string), so the reference accumulates
+		// the same call history as the widget rather than being one isolated draw at the end.
 		auto mirror = [&] {
 			r.reference.clear_area_exact(rect.x, rect.y + 5, rect.right() - 1, rect.bottom() - 1 + 5);
 			r.reference.draw_string(s, rect.x, rect.y + 5, 6, 9, st.offset, rect.right());
@@ -96,11 +90,11 @@ describe scroll_text_w("ui::oled::scroll_text", $ {
 		}
 		expect(st.offset).to_equal(int16_t(10));
 		// Unclipped, the still-scrolling label would keep inking columns well past rect.right()
-		// (the string is far longer than the 100px box); confirm nothing lands there, at a
-		// column safely past even draw_string's documented end_x + text_width overshoot
-		// allowance (up to one more character width, 6px here).
+		// (the string is far longer than the 100px box); confirm nothing lands from rect.right() on.
 		for (int y = 19; y <= 27; y++) {
-			expect(r.lit(120, y)).to_be_false();
+			for (int x = rect.right(); x < 128; x++) {
+				expect(r.lit(x, y)).to_be_false();
+			}
 		}
 		expect(r.pbm()).to_equal(r.reference_pbm());
 		expect_golden(self, "../ui/widgets/scroll_text_mid_48.pbm", r.pbm());

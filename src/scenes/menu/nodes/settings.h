@@ -280,8 +280,6 @@ int32_t get_monitor_mode(const MenuContext& ctx);
 void set_monitor_mode(const MenuContext& ctx, int32_t value);
 int32_t get_default_threshold_recording(const MenuContext& ctx);
 void set_default_threshold_recording(const MenuContext& ctx, int32_t value);
-int32_t get_loop_command(const MenuContext& ctx);
-void set_loop_command(const MenuContext& ctx, int32_t value);
 size_t new_clip_type_names(const MenuContext& ctx, std::span<std::string_view> out);
 size_t polarity_names(const MenuContext& ctx, std::span<std::string_view> out);
 size_t pads_keyboard_layout_names(const MenuContext& ctx, std::span<std::string_view> out);
@@ -1056,16 +1054,8 @@ inline constexpr const Node* kDefaultThresholdRecordingChildren[] = {&default_th
 inline constexpr Node default_threshold_recording =
     submenu(sid(String::STRING_FOR_THRESHOLD_RECORDING), kDefaultThresholdRecordingChildren);
 
-/// `record::LoopCommand::getOptions` (`record/loop_command.h:40-46`).
-inline constexpr uint16_t kLoopCommandNames[] = {
-    sid(String::STRING_FOR_LOOP),
-    sid(String::STRING_FOR_LAYERING_LOOP),
-};
-inline constexpr Node loop_command =
-    enumeration(sid(String::STRING_FOR_LOOP_COMMAND), kLoopCommandNames, get_loop_command, set_loop_command);
-
-inline constexpr const Node* kRecordChildren[] = {
-    &record_count_in, &record_quantize, &record_margins, &monitor_mode, &default_threshold_recording, &loop_command};
+inline constexpr const Node* kRecordChildren[] = {&record_count_in, &record_quantize, &record_margins, &monitor_mode,
+                                                  &default_threshold_recording};
 inline constexpr Node record_settings = submenu(sid(String::STRING_FOR_RECORDING), kRecordChildren);
 
 // ---------------------------------------------------------------------------------------------

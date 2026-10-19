@@ -69,9 +69,15 @@ mod tests {
 
     thread_local! {
         static EVICTS: Cell<usize> = const { Cell::new(0) };
+        static EVICTED_INDICES: core::cell::RefCell<Vec<u32>> = const { core::cell::RefCell::new(Vec::new()) };
     }
     fn reset_evicts() {
         EVICTS.with(|c| c.set(0));
+        EVICTED_INDICES.with(|c| c.borrow_mut().clear());
+    }
+    /// The chunk indices `on_evict` was called with since the last reset, in order.
+    fn evicted_indices() -> Vec<u32> {
+        EVICTED_INDICES.with(|c| c.borrow().clone())
     }
     fn evicts() -> usize {
         EVICTS.with(|c| c.get())
@@ -96,8 +102,9 @@ mod tests {
     ) -> bool {
         false // source vanished
     }
-    unsafe extern "C" fn mock_on_evict(_ctx: *mut c_void, _owner: *mut c_void, _index: u32) {
+    unsafe extern "C" fn mock_on_evict(_ctx: *mut c_void, _owner: *mut c_void, index: u32) {
         EVICTS.with(|c| c.set(c.get() + 1));
+        EVICTED_INDICES.with(|c| c.borrow_mut().push(index));
     }
 
     // A heap over a `Vec<u128>`: miri tracks declared alignment, and a `Vec<u8>` arena would
@@ -708,6 +715,141 @@ mod tests {
         assert!(!unsafe { deluge_resource_loader_has_lowest(mgr) });
     }
 
+    /// The queue's scans visit only queued slots, through a bitset a scan clears lazily: a slot
+    /// de-queued and then queued again must be found again, as must one evicted and reused.
+    #[test]
+    fn a_slot_queued_again_after_its_stale_bit_is_cleared_is_found() {
+        let (_buf, h) = arena(256 * 1024);
+        let mgr = unsafe { deluge_resource_create(h, 16, 64) };
+        let a = unsafe {
+            deluge_resource_define_asset(
+                mgr,
+                owner(15),
+                Some(mock_materialize),
+                Some(mock_on_evict),
+                core::ptr::null_mut(),
+                COST_IO,
+                BACKING_HEAP,
+            )
+        };
+        let p0 = unsafe { deluge_resource_acquire(mgr, a, 0, 64 * 1024) };
+        let s0 = unsafe { deluge_resource_slot_of(mgr, p0) };
+
+        unsafe { deluge_resource_loader_enqueue(mgr, s0, 3) };
+        unsafe { deluge_resource_loader_remove(mgr, s0) };
+        // This scan finds the bit stale and clears it.
+        assert!(!unsafe { deluge_resource_loader_has_any(mgr) });
+        unsafe { deluge_resource_loader_enqueue(mgr, s0, 3) };
+        assert!(unsafe { deluge_resource_loader_has_any(mgr) });
+        assert_eq!(unsafe { deluge_resource_loader_next(mgr) }, p0);
+        assert!(unsafe { deluge_resource_loader_next(mgr) }.is_null());
+
+        // A slot in the last bitset word, past the first 32, is found too.
+        let ps: Vec<_> = (1..40)
+            .map(|i| unsafe { deluge_resource_acquire(mgr, a, i, 1024) })
+            .collect();
+        let last = *ps.last().unwrap();
+        let s_last = unsafe { deluge_resource_slot_of(mgr, last) };
+        assert!(
+            s_last >= 32,
+            "the test needs a slot in the second word, got {s_last}"
+        );
+        unsafe { deluge_resource_loader_enqueue(mgr, s_last, 1) };
+        assert_eq!(unsafe { deluge_resource_loader_next(mgr) }, last);
+    }
+
+    /// Every queue wait and fill the stats count, from either enqueue, also lands in exactly one
+    /// histogram bucket.
+    #[test]
+    fn latency_histograms_count_every_sample() {
+        let (_buf, h) = arena(256 * 1024);
+        let mgr = unsafe { deluge_resource_create(h, 16, 64) };
+        let a = unsafe {
+            deluge_resource_define_asset(
+                mgr,
+                owner(14),
+                Some(mock_materialize),
+                Some(mock_on_evict),
+                core::ptr::null_mut(),
+                COST_IO,
+                BACKING_HEAP,
+            )
+        };
+        for i in 0..3 {
+            let p = unsafe { deluge_resource_acquire(mgr, a, i, 4096) };
+            assert!(!p.is_null());
+            let slot = unsafe { deluge_resource_slot_of(mgr, p) };
+            // The fill task's own requests come in through the owned enqueue; it is timed too.
+            if i == 2 {
+                unsafe { deluge_resource_loader_enqueue_owned(mgr, slot, 0) };
+            } else {
+                unsafe { deluge_resource_loader_enqueue(mgr, slot, 0) };
+            }
+            assert_eq!(unsafe { deluge_resource_loader_next(mgr) }, p);
+            unsafe { deluge_resource_mark_ready(mgr, p) };
+            if i == 2 {
+                unsafe { deluge_resource_loader_release_owned(mgr, slot) };
+            }
+        }
+        let mut s = Stats::default();
+        unsafe { deluge_resource_stats(mgr, &mut s) };
+        assert_eq!(s.queue_wait_samples, 3);
+        assert_eq!(s.fill_samples, 3);
+        let sum = |b: &[u32]| b.iter().map(|&n| u64::from(n)).sum::<u64>();
+        assert_eq!(sum(&s.queue_wait_buckets), s.queue_wait_samples);
+        assert_eq!(sum(&s.fill_buckets), s.fill_samples);
+    }
+
+    /// A re-enqueue of a still-queued chunk only ever makes it more urgent: a less urgent
+    /// requester (a lowest-priority reservation re-requesting a chunk a voice is waiting on) must
+    /// not push it to the back of the queue. Once popped, an enqueue starts afresh, so a failed
+    /// read can still be requeued at the lowest priority.
+    #[test]
+    fn loader_re_enqueue_only_raises_priority_while_queued() {
+        let (_buf, h) = arena(256 * 1024);
+        let mgr = unsafe { deluge_resource_create(h, 16, 64) };
+        let a = unsafe {
+            deluge_resource_define_asset(
+                mgr,
+                owner(13),
+                Some(mock_materialize),
+                Some(mock_on_evict),
+                core::ptr::null_mut(),
+                COST_IO,
+                BACKING_HEAP,
+            )
+        };
+        let acq = |i: u32| unsafe { deluge_resource_acquire(mgr, a, i, 64 * 1024) };
+        let (p0, p1, p2) = (acq(0), acq(1), acq(2));
+        let slot = |p| unsafe { deluge_resource_slot_of(mgr, p) };
+        let (s0, s1, s2) = (slot(p0), slot(p1), slot(p2));
+
+        // Plain protocol: s0 is wanted urgently, then re-requested at the lowest priority.
+        unsafe { deluge_resource_loader_enqueue(mgr, s0, 10) };
+        unsafe { deluge_resource_loader_enqueue(mgr, s1, 20) };
+        unsafe { deluge_resource_loader_enqueue(mgr, s0, u32::MAX) };
+        assert!(
+            !unsafe { deluge_resource_loader_has_lowest(mgr) },
+            "a less urgent re-enqueue keeps the queued priority"
+        );
+        // A more urgent re-enqueue still raises it.
+        unsafe { deluge_resource_loader_enqueue(mgr, s1, 5) };
+        assert_eq!(unsafe { deluge_resource_loader_next(mgr) }, p1);
+        assert_eq!(unsafe { deluge_resource_loader_next(mgr) }, p0);
+
+        // Once popped, an enqueue sets the priority afresh (the failed-read requeue).
+        unsafe { deluge_resource_loader_enqueue(mgr, s0, u32::MAX) };
+        assert!(unsafe { deluge_resource_loader_has_lowest(mgr) });
+        unsafe { deluge_resource_loader_remove(mgr, s0) };
+
+        // The owned protocol follows the same rule.
+        unsafe { deluge_resource_loader_enqueue_owned(mgr, s2, 10) };
+        unsafe { deluge_resource_loader_enqueue_owned(mgr, s2, u32::MAX) };
+        assert!(!unsafe { deluge_resource_loader_has_lowest(mgr) });
+        assert_eq!(unsafe { deluge_resource_loader_next(mgr) }, p2);
+        unsafe { deluge_resource_loader_release_owned(mgr, s2) };
+    }
+
     /// `loader_next` serves only leased chunks, so a plain entry whose enqueuer drops its lease is
     /// never loaded; `loader_enqueue_owned` gives the queue its own lease. Also covers the release
     /// discipline that keeps a queue lease from pinning the chunk forever.
@@ -1104,6 +1246,58 @@ mod tests {
             );
             unsafe { deluge_resource_release(mgr, again) };
         }
+    }
+
+    /// Releasing an asset frees every resident chunk of it, highest index first, including across
+    /// gaps in its indices, and leaves other assets' chunks alone; its slot then starts afresh.
+    #[test]
+    fn release_asset_frees_every_chunk_highest_first_and_only_its_own() {
+        let (_buf, h) = arena(512 * 1024);
+        let mgr = unsafe { deluge_resource_create(h, 4, 64) };
+        let define = |n: usize| unsafe {
+            deluge_resource_define_asset(
+                mgr,
+                owner(n),
+                Some(mock_materialize),
+                Some(mock_on_evict),
+                core::ptr::null_mut(),
+                COST_IO,
+                BACKING_HEAP,
+            )
+        };
+        let (a, b) = (define(30), define(31));
+        unsafe { deluge_resource_set_evict_tail_first(mgr, a, true) };
+        for index in [0u32, 2, 3, 7] {
+            let p = unsafe { deluge_resource_acquire(mgr, a, index, 4096) };
+            assert!(!p.is_null());
+        }
+        let kept = unsafe { deluge_resource_acquire(mgr, b, 2, 4096) };
+        assert!(!kept.is_null());
+
+        reset_evicts();
+        unsafe { deluge_resource_release_asset(mgr, a) };
+        assert_eq!(evicted_indices(), vec![7, 3, 2, 0]);
+        for index in [0u32, 2, 3, 7] {
+            // SAFETY: `mgr` is live.
+            let (indexed, linear) =
+                unsafe { crate::manager::debug_find_resident_both(mgr, a, index) };
+            assert_eq!(
+                (indexed, linear),
+                (None, None),
+                "chunk {index} of the released asset"
+            );
+        }
+        // SAFETY: as above.
+        let (indexed, _) = unsafe { crate::manager::debug_find_resident_both(mgr, b, 2) };
+        assert!(indexed.is_some(), "the other asset's chunk stays");
+
+        // A new asset in the released slot counts its chunks from nothing.
+        let c = define(32);
+        let p = unsafe { deluge_resource_acquire(mgr, c, 1, 4096) };
+        assert!(!p.is_null());
+        reset_evicts();
+        unsafe { deluge_resource_release_asset(mgr, c) };
+        assert_eq!(evicted_indices(), vec![1]);
     }
 
     #[test]

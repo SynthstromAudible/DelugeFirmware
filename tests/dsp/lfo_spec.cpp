@@ -153,6 +153,87 @@ describe lfo_spec("LFO", ${
 		expect(lfo.phase()).to_equal(99u);
 	});
 
+	// ---- Global re-sync vs playback-start reset (upstream #5039) ----
+	it("keeps a global sample-and-hold value across clock re-syncs", _ {
+		seedRng();
+		LFO lfo;
+		LFOConfig conf(LFOType::SAMPLE_AND_HOLD);
+		lfo.setGlobalInitialPhase(conf);
+		const int32_t held = lfo.render(1, conf, 100);
+		expect(held).not_().to_equal(0);
+
+		// Sound::resyncGlobalLFOs() resets the initial phase and then adds the current clock offset.
+		// Model successive re-syncs within one period.
+		for (uint32_t offset = 0x20000000; offset < 0xE0000000; offset += 0x20000000) {
+			lfo.setGlobalInitialPhase(conf);
+			lfo.advancePhase(offset);
+			expect(lfo.render(1, conf, 100)).to_equal(held);
+		}
+
+		lfo.setPhase(UINT32_MAX);
+		const int32_t next = lfo.render(1, conf, 100);
+		expect(next).not_().to_equal(held);
+		expect(lfo.render(1, conf, 100)).to_equal(next);
+	});
+
+	it("keeps random-waveform state across a global re-sync but not a local one", _ {
+		for (LFOType type : {LFOType::SAMPLE_AND_HOLD, LFOType::RANDOM_WALK, LFOType::WARBLER}) {
+			seedRng();
+			LFO lfo;
+			LFOConfig conf(type);
+			lfo.setLocalInitialPhase(conf);
+			lfo.render(1, conf, 0x10000000);
+			lfo.setPhase(0x40000000);
+			const int32_t before = LFO(lfo).render(1, conf, 1);
+
+			LFO resynced = lfo;
+			resynced.setGlobalInitialPhase(conf);
+			resynced.setPhase(0x40000000);
+			expect(resynced.render(1, conf, 1)).to_equal(before);
+
+			// Per-voice note-on still starts with fresh waveform state.
+			LFO fresh;
+			fresh.setLocalInitialPhase(conf);
+			fresh.setPhase(0x40000000);
+			LFO noted = lfo;
+			noted.setLocalInitialPhase(conf);
+			noted.setPhase(0x40000000);
+			expect(noted.render(1, conf, 1)).to_equal(fresh.render(1, conf, 1));
+		}
+	});
+
+	it("resets random-waveform state on playback start", _ {
+		for (LFOType type : {LFOType::SAMPLE_AND_HOLD, LFOType::RANDOM_WALK, LFOType::WARBLER}) {
+			seedRng();
+			LFO lfo;
+			LFOConfig conf(type);
+			lfo.setGlobalInitialPhase(conf, true);
+			lfo.render(1, conf, 0x10000000);
+
+			lfo.setGlobalInitialPhase(conf, true);
+			LFO fresh;
+			fresh.setGlobalInitialPhase(conf, true);
+			expect(lfo.phase()).to_equal(fresh.phase());
+			lfo.setPhase(0x40000000);
+			fresh.setPhase(0x40000000);
+			expect(lfo.render(1, conf, 1)).to_equal(fresh.render(1, conf, 1));
+		}
+	});
+
+	it("samples and holds again after a playback restart", _ {
+		seedRng();
+		LFO lfo;
+		LFOConfig conf(LFOType::SAMPLE_AND_HOLD);
+		for (int restart = 0; restart < 2; ++restart) {
+			lfo.setGlobalInitialPhase(conf, true);
+			const int32_t held = lfo.render(1, conf, 100);
+			expect(held).not_().to_equal(0);
+			lfo.setGlobalInitialPhase(conf);
+			lfo.advancePhase(0x20000000);
+			expect(lfo.render(1, conf, 100)).to_equal(held);
+		}
+	});
+
 	it("warbles at double phase rate", _ {
 		seedRng();
 		LFO lfo;

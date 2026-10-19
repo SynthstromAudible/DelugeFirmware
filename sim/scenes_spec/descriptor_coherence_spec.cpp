@@ -554,7 +554,6 @@ constexpr DeviceNode kDeviceSettings[] = {
     {"Settings > Community Features > Quantize", 1},
     {"Settings > Community Features > Fine Tempo Knob", 1},
     {"Settings > Community Features > Drum Randomizer", 1},
-    {"Settings > Recording > Loop Command", 1},
     {"Settings > Recording > Threshold Recording > Mode", 1},
     {"Settings > Recording > Sampling monitoring", 1},
     {"Settings > Recording > Loop margins", 1},

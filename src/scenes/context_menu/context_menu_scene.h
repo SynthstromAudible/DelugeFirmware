@@ -257,6 +257,8 @@ private:
 
 	/// Side-scroller state for the focused row (`OLED::setupSideScroller`).
 	deluge::ui::ScrollText scroll_{};
+	/// Side-scroller state for the footer (`AudioInputSelector`'s scroller 1).
+	deluge::ui::ScrollText footer_scroll_{};
 	/// The clock the render pass last saw, so `next_timer()` can answer without one of its own --
 	/// the same idiom `RenameScene::last_render_ms_` uses.
 	uint32_t last_render_ms_ = 0;

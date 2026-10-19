@@ -21,6 +21,12 @@ list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp-next/.*)
 # their spec only (tests/bench); the PMU counters program CP15, which only the device has.
 list(FILTER deluge_SOURCES EXCLUDE REGEX .*/bench/.*)
 list(APPEND deluge_SOURCES ${CMAKE_CURRENT_LIST_DIR}/bench/app_bench.cpp)
+# The streaming benchmark (bench/stream_bench.h) is in the app only on a device build with DELUGE_STREAM_BENCH.
+set(_stream_bench_on FALSE)
+if(DELUGE_STREAM_BENCH AND NOT DELUGE_HOST)
+  set(_stream_bench_on TRUE)
+  list(APPEND deluge_SOURCES ${CMAKE_CURRENT_LIST_DIR}/bench/stream_bench.cpp)
+endif()
 set(_dsp_bench_on FALSE)
 if(DELUGE_DSP_BENCH AND NOT DELUGE_HOST)
   set(_dsp_bench_on TRUE)
@@ -161,6 +167,13 @@ or fx_chains, \
 not '${DELUGE_DSP_BENCH_CASES}'")
     endif()
     message(STATUS "DSP bench case list: ${DELUGE_DSP_BENCH_CASES}")
+endif()
+
+if(_stream_bench_on)
+    message(STATUS "Streaming benchmark runs after boot (DELUGE_STREAM_BENCH): ${DELUGE_STREAM_BENCH_SONG_A}, then ${DELUGE_STREAM_BENCH_SONG_B}")
+    target_compile_definitions(deluge_app PRIVATE DELUGE_STREAM_BENCH=1
+        DELUGE_STREAM_BENCH_SONG_A="${DELUGE_STREAM_BENCH_SONG_A}"
+        DELUGE_STREAM_BENCH_SONG_B="${DELUGE_STREAM_BENCH_SONG_B}")
 endif()
 
 if(ENABLE_MATRIX_DEBUG)

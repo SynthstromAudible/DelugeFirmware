@@ -1024,10 +1024,10 @@ void Kit::choke() {
 	}
 }
 
-void Kit::resyncLFOs() {
+void Kit::resyncLFOs(bool reset_state) {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum && thisDrum->type == DrumType::SOUND) {
-			((SoundDrum*)thisDrum)->resyncGlobalLFOs();
+			((SoundDrum*)thisDrum)->resyncGlobalLFOs(reset_state);
 		}
 	}
 }

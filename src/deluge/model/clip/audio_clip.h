@@ -224,4 +224,6 @@ private:
 	void removeClipFromSection(AudioClip* clip);
 	void detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOutput, bool shouldTakeParamManagerWith = false);
 	LoopType getLoopingType(ModelStackWithTimelineCounter const* modelStack);
+	/// Priority for loading our Clusters: ahead of every Voice of the same VoicePriority (lower = more urgent).
+	[[nodiscard]] int32_t getClusterPriority() const;
 };

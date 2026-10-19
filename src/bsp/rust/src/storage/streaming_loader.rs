@@ -29,10 +29,17 @@ use embassy_sync::signal::Signal;
 /// Latching: a wake raised before the task first waits is kept, not lost.
 pub static FILL_WAKE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 
+/// Wakes the fill task, and times the wake for the fill trace.
+fn wake_fill() {
+    #[cfg(has_app)]
+    crate::storage::fill_trace::signalled();
+    FILL_WAKE.signal(());
+}
+
 /// Wakes the fill task; safe to call before the task exists.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_streaming_signal_fill() {
-    FILL_WAKE.signal(());
+    wake_fill();
 }
 
 /// The most urgent loader priority (lower is more urgent), for a chunk a caller is waiting on, so
@@ -74,7 +81,7 @@ fn enqueue_chunk_for_fill(chunk_backing: *mut crate::sys::DelugeChunkBacking) {
         let slot = unsafe { deluge_resource_slot_of(mgr, chunk_backing.cast()) };
         unsafe { deluge_resource_loader_enqueue_owned(mgr, slot, BLOCKING_FILL_PRIORITY) };
     }
-    FILL_WAKE.signal(());
+    wake_fill();
 }
 
 /// Enqueues `chunk_backing` for filling and returns immediately.
@@ -96,7 +103,7 @@ pub extern "C" fn deluge_streaming_request_chunk(
 /// Pair with [`deluge_streaming_queue_drained`].
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_streaming_request_drain() {
-    FILL_WAKE.signal(());
+    wake_fill();
 }
 
 /// Returns whether the loader queue holds nothing outstanding; never waits.
@@ -254,8 +261,13 @@ mod prod {
 
     impl FillOps for ProdOps {
         fn next(&self) -> *mut c_void {
+            let start = embassy_time::Instant::now();
             // SAFETY: `mgr` is the valid singleton resource manager.
-            unsafe { deluge_resource_loader_next(self.mgr) }
+            let chunk = unsafe { deluge_resource_loader_next(self.mgr) };
+            if !chunk.is_null() {
+                crate::storage::fill_trace::pop(start, embassy_time::Instant::now());
+            }
+            chunk
         }
 
         fn is_unloadable(&self, chunk: *mut c_void) -> bool {
@@ -264,8 +276,11 @@ mod prod {
         }
 
         fn begin(&self, chunk: *mut c_void) -> StreamingFillDescriptor {
+            let start = embassy_time::Instant::now();
             // SAFETY: `chunk` was just returned by `next()`: queued, resident and still leased.
-            unsafe { deluge_sample_fill::native_begin(chunk) }
+            let d = unsafe { deluge_sample_fill::native_begin(chunk) };
+            crate::storage::fill_trace::begin(start, embassy_time::Instant::now());
+            d
         }
 
         async fn read(&self, d: &StreamingFillDescriptor, buf: &mut [u8]) -> bool {
@@ -273,12 +288,21 @@ mod prod {
             let Some(slot) = crate::abi::handle::from_abi(d.handle) else {
                 return false;
             };
-            crate::storage::efatfs::backend::read_at(slot, d.byte_offset, buf).await
+            let start = embassy_time::Instant::now();
+            let read =
+                crate::storage::efatfs::backend::read_at_timed(slot, d.byte_offset, buf, true)
+                    .await;
+            let end = embassy_time::Instant::now();
+            crate::storage::fill_trace::read(start, read.acquired, end, read.waited_behind);
+            read.filled
         }
 
         fn finish(&self, chunk: *mut c_void, read_ok: bool) -> bool {
+            let start = embassy_time::Instant::now();
             // SAFETY: the same leased chunk `begin` was given.
-            unsafe { deluge_sample_fill::native_finish(chunk, read_ok) }
+            let done = unsafe { deluge_sample_fill::native_finish(chunk, read_ok) };
+            crate::storage::fill_trace::finish(start, embassy_time::Instant::now());
+            done
         }
 
         fn external_lease_count(&self, chunk: *mut c_void) -> u32 {
@@ -362,6 +386,7 @@ async fn streaming_fill_task_body() {
     FILL_WAKE.wait().await;
     let ops = ProdOps::new();
     loop {
+        crate::storage::fill_trace::pass_begin();
         #[cfg(feature = "host_app")]
         {
             let ms = FILL_LATENCY_MS.load(core::sync::atomic::Ordering::Relaxed);
@@ -370,6 +395,7 @@ async fn streaming_fill_task_body() {
             }
         }
         fill_once(&ops).await;
+        crate::storage::fill_trace::waiting();
         FILL_WAKE.wait().await;
     }
 }

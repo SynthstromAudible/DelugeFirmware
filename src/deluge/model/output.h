@@ -230,7 +230,7 @@ public:
 	}
 
 	// No activeClip needed. Call anytime the Instrument comes into existence on the main list thing
-	virtual void resyncLFOs() {};
+	virtual void resyncLFOs(bool reset_state = false) {};
 
 	virtual void sendMIDIPGM() {};
 	virtual void deleteBackedUpParamManagers(Song* song) {}

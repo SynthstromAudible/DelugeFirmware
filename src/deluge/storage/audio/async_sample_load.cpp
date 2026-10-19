@@ -16,6 +16,10 @@
  */
 
 #include "storage/audio/async_sample_load.h"
+#if DELUGE_STREAM_BENCH
+#include "bench/stream_bench.h"
+#include "runtime/app_loop.h"
+#endif
 
 #include "hid/display/display.h"
 #include "libdeluge/audio_load.h"
@@ -105,6 +109,21 @@ AsyncSampleLoad::Progress AsyncSampleLoad::tick() {
 		return progress_;
 	}
 
+	const uint32_t epoch = deluge_audio_load_epoch();
+	if (walkWouldRepeat(epoch)) {
+		// As a walk that settled nothing: it counts toward the stall bound, and waits for the loader's next answer.
+		progress_.ticks++;
+		if (stalledBound_.tick()) {
+			progress_.state = State::Failed;
+			progress_.reason = Reason::Stalled;
+		}
+		progress_.stalledTicks++;
+		progress_.stalledUs = stalledBound_.elapsedUs();
+		retickNow_ = false;
+		return progress_;
+	}
+	epochAtLastWalk_ = epoch;
+
 	progress_.ticks++;
 	progress_.bound = 0;
 	progress_.emptyHolders = 0;
@@ -116,6 +135,9 @@ AsyncSampleLoad::Progress AsyncSampleLoad::tick() {
 	scopeDepth_ = 0;
 	ownFolderDepth_ = -1;
 
+#if DELUGE_STREAM_BENCH
+	const uint64_t walkStart = deluge::runtime::nowUs();
+#endif
 	SampleLoadVisitor& visitor = *this;
 	std::visit(Overloaded{
 	               [&visitor](const SongRoot& root) { root.song->walkSampleDemands(visitor); },
@@ -126,6 +148,10 @@ AsyncSampleLoad::Progress AsyncSampleLoad::tick() {
 	               [&visitor](const SampleDemand& demand) { visitor.demand(demand); },
 	           },
 	           root_);
+#if DELUGE_STREAM_BENCH
+	deluge::bench::noteWalkEnd(deluge::runtime::nowUs() - walkStart,
+	                           progress_.bound + progress_.emptyHolders + progress_.inFlight);
+#endif
 
 	samplesSettled_ = (samplesInFlight_ == 0);
 	// Progress is a demand settled since the previous walk, bound or empty. A walk that settles nothing while something
@@ -152,6 +178,15 @@ AsyncSampleLoad::Progress AsyncSampleLoad::tick() {
 		progress_.reason = Reason::Stalled;
 	}
 	return progress_;
+}
+
+bool AsyncSampleLoad::walkWouldRepeat(uint32_t epoch) const {
+	const auto probing = [](const AudioLoadContext* context) {
+		return context != nullptr && context->alternateDirStatus == AlternateLoadDirStatus::PROBING;
+	};
+	// A folder probe's answer and a wavetable's turn come from elsewhere than the loader's results.
+	return progress_.ticks > 0 && samplesInFlight_ > 0 && !wavetableAwaitsSamples_ && epoch == epochAtLastWalk_
+	       && !probing(callerContext_) && !(ownFolderMade_ && probing(&ownFolder_));
 }
 
 uint64_t AsyncSampleLoad::nextTickUs() const {
@@ -232,13 +267,22 @@ void AsyncSampleLoad::demand(const SampleDemand& demand) {
 	}
 
 	Error error = Error::NONE;
+#if DELUGE_STREAM_BENCH
+	const uint64_t acquireStart = deluge::runtime::nowUs();
+#endif
 	// Bound only once it is fully set up, so the audio routine never sounds a file that is still being built.
 	AudioFile* file = holder.acquire(/*mayActuallyReadFile=*/true, &error, demand.makeWaveTableWorkAtAllCosts,
 	                                 waveTable ? AsyncLoadMode::Blocking : AsyncLoadMode::AsyncOnly, context_);
+#if DELUGE_STREAM_BENCH
+	const uint64_t acquireUs = deluge::runtime::nowUs() - acquireStart;
+#endif
 	if (waveTable) {
 		progress_.wavetableReads++;
 	}
 	if (error == Error::LOAD_IN_PROGRESS) {
+#if DELUGE_STREAM_BENCH
+		deluge::bench::noteWalkPart(deluge::bench::WalkPart::InFlightAcquire, acquireUs);
+#endif
 		progress_.inFlight++;
 		samplesInFlight_++;
 		outstanding_.add(holder.filePath);
@@ -246,7 +290,14 @@ void AsyncSampleLoad::demand(const SampleDemand& demand) {
 	}
 
 	if (file != nullptr) {
+#if DELUGE_STREAM_BENCH
+		const uint64_t setStart = deluge::runtime::nowUs();
+#endif
 		holder.setAudioFile(file, demand.reversed, demand.manuallySelected, demand.clusterLoadInstruction);
+#if DELUGE_STREAM_BENCH
+		deluge::bench::noteBind(holder.filePath.c_str(), acquireUs, deluge::runtime::nowUs() - setStart,
+		                        static_cast<int>(demand.clusterLoadInstruction));
+#endif
 		progress_.bound++;
 	}
 	else {

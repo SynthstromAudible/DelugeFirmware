@@ -95,6 +95,14 @@ typedef struct DelugeSampleStreamGeometry {
 /// @return The slot's handle on success; @ref DELUGE_HANDLE_NONE on failure.
 DelugeHandle deluge_sample_stream_open(const char* path, bool* out_table_full) DELUGE_NOEXCEPT;
 
+/// @brief As deluge_sample_stream_open, opening the file at @p location rather than looking up a path. [task]
+///
+/// @param location       Where the file is, from a load result (DelugeAudioLoadResult::location).
+/// @param out_table_full As for deluge_sample_stream_open.
+/// @return The slot's handle on success; @ref DELUGE_HANDLE_NONE on failure, including a location from another mount,
+///         after which the caller opens by path instead.
+DelugeHandle deluge_sample_stream_open_at(const DelugeFileLocation* location, bool* out_table_full) DELUGE_NOEXCEPT;
+
 /// @brief Release @p handle's slot: close its efatfs handle (if any) and release its
 ///        resource-manager asset (if one was ever assigned). [task]
 ///

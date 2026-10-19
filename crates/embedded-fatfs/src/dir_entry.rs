@@ -64,6 +64,19 @@ fn char_to_uppercase(c: char) -> iter::Once<char> {
     iter::once(c.to_ascii_uppercase())
 }
 
+/// FNV-1a over `chars` folded as name comparison folds them, so two names that compare equal hash
+/// equally. For the directory index, which verifies every hit, so a collision costs only a read.
+pub(crate) fn fold_hash(chars: impl Iterator<Item = char>) -> u32 {
+    let mut hash: u32 = 0x811c_9dc5;
+    for c in chars.flat_map(char_to_uppercase) {
+        for byte in (c as u32).to_le_bytes() {
+            hash ^= u32::from(byte);
+            hash = hash.wrapping_mul(0x0100_0193);
+        }
+    }
+    hash
+}
+
 /// Decoded file short name
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Clone, Debug, Default)]
@@ -290,6 +303,27 @@ impl DirFileEntryData {
         buf
     }
 
+    /// Decodes [`DirFileEntryData::to_bytes`]' layout: one on-disk short-name entry.
+    pub(crate) fn from_bytes(buf: &[u8; DIR_ENTRY_SIZE as usize]) -> Self {
+        let u16_at = |i: usize| u16::from_le_bytes([buf[i], buf[i + 1]]);
+        let mut name = [0u8; SFN_SIZE];
+        name.copy_from_slice(&buf[0..11]);
+        Self {
+            name,
+            attrs: FileAttributes::from_bits_truncate(buf[11]),
+            reserved_0: buf[12],
+            create_time_0: buf[13],
+            create_time_1: u16_at(14),
+            create_date: u16_at(16),
+            access_date: u16_at(18),
+            first_cluster_hi: u16_at(20),
+            modify_time: u16_at(22),
+            modify_date: u16_at(24),
+            first_cluster_lo: u16_at(26),
+            size: u32::from_le_bytes([buf[28], buf[29], buf[30], buf[31]]),
+        }
+    }
+
     pub(crate) fn is_deleted(&self) -> bool {
         self.name[0] == DIR_ENTRY_DELETED_FLAG
     }
@@ -489,6 +523,12 @@ pub(crate) struct DirEntryEditor {
 }
 
 impl DirEntryEditor {
+    /// An editor over `data`, the entry at byte `pos` of the volume, with its dirty flag as given:
+    /// how [`crate::file::FileContext::from_bytes`] rebuilds one.
+    pub(crate) fn from_parts(data: DirFileEntryData, pos: u64, dirty: bool) -> Self {
+        Self { data, pos, dirty }
+    }
+
     fn new(data: DirFileEntryData, pos: u64) -> Self {
         Self {
             data,
@@ -771,6 +811,19 @@ impl<'a, IO: ReadWriteSeek, TP, OCC: OemCpConverter> DirEntry<'a, IO, TP, OCC> {
             // entry has no long name
             false
         }
+    }
+
+    /// The [`fold_hash`]es of the entry's long name, if it has one, and its short name.
+    pub(crate) fn name_hashes(&self) -> (Option<u32>, u32) {
+        #[cfg(feature = "lfn")]
+        let long = self.long_file_name_as_ucs2_units().map(|units| {
+            fold_hash(char::decode_utf16(units.iter().copied()).map(|r| r.unwrap_or(char::REPLACEMENT_CHARACTER)))
+        });
+        #[cfg(not(feature = "lfn"))]
+        let long = None;
+        let converter = &self.fs.options.oem_cp_converter;
+        let short = fold_hash(self.short_name.as_bytes().iter().map(|&c| converter.decode(c)));
+        (long, short)
     }
 
     pub(crate) fn eq_name(&self, name: &str) -> bool {

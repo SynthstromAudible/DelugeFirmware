@@ -374,6 +374,10 @@ impl LoadOps for FakeOps {
         assert_eq!(before, live.len() + 1, "close of a handle that is not open");
         self.open_handles.set(self.open_handles.get() - 1);
     }
+
+    async fn location(&self, _handle: u32) -> Option<audio_loader::FileLocation> {
+        None
+    }
 }
 
 fn block_on<F: core::future::Future>(future: F) -> F::Output {

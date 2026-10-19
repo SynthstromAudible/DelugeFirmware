@@ -192,7 +192,10 @@ constexpr int32_t kOptionInvertX = 22;          // `invertStartX`
 constexpr int32_t kOptionInvertRightInset = 44; // highlight WIDTH is `OLED_MAIN_WIDTH_PIXELS - 44`
 constexpr int32_t kOptionTextRightInset = 27;   // `drawString(..., OLED_MAIN_WIDTH_PIXELS - 27)`
 constexpr int32_t kOptionFooterDy = 20;         // `textPixelY = windowMinY + 20 + kTextSpacingY`
-constexpr int32_t kOptionFooterRightInset = 26; // `drawString(..., OLED_MAIN_WIDTH_PIXELS - 26)`
+constexpr int32_t kOptionFooterX = 35;          // `drawString(trackName, 35, ...)`
+constexpr int32_t kOptionFooterRightInset = 27; // `drawString(..., OLED_MAIN_WIDTH_PIXELS - 27)`
+constexpr int32_t kOptionArrowX = 25;           // the L arrow's stem, `drawVerticalLine(25, ...)`
+constexpr int32_t kOptionArrowRightX = 31;      // its foot's end, `drawHorizontalLine(..., 25, 31)`
 
 // `Slicer::renderOLED`'s literals (`gui/ui/slicer.cpp:76-97`). Same treatment as the option-window
 // block above: the one "inset" number is `OLED_MAIN_WIDTH_PIXELS - n` in legacy and is applied to
@@ -211,7 +214,8 @@ constexpr int32_t kCountValueDy = 18;        // `drawStringCentred(buffer, windo
 } // namespace
 
 void option_window(OledFrame& f, std::string_view heading, std::span<const std::string_view> options, int32_t selected,
-                   int32_t first, ScrollText& label, bool allow_motion, std::string_view footer) {
+                   int32_t first, ScrollText& label, bool allow_motion, std::string_view footer,
+                   ScrollText* footer_label) {
 	const Rect p = panel_of(f);
 	const gfx::oled::FontId font = f.style.row_font;
 	const int32_t line_h = text_height_for(font);  // kTextSpacingY
@@ -272,16 +276,30 @@ void option_window(OledFrame& f, std::string_view heading, std::span<const std::
 		}
 	}
 
-	// `AudioInputSelector::renderOLED` (`audio_input_selector.cpp:222-237`) calls the base renderer
+	// `AudioInputSelector::renderOLED` (`audio_input_selector.cpp:223-250`) calls the base renderer
 	// and *then* draws this line, so it is drawn last here too -- ordering, not "different rows", is
-	// what makes it safe, and matching legacy's ordering is what stops that from mattering. It is
-	// not cleared first, exactly as legacy's `drawString` is not. Its left origin is
-	// `kOptionHeadingX`, not the option rows' `invertStartX + 1`, and its right clip is one pixel
-	// wider than theirs.
+	// what makes it safe, and matching legacy's ordering is what stops that from mattering. An L
+	// arrow from the option above points at the footer, which is indented past it.
 	if (!footer.empty()) {
 		const int32_t footer_y = p.y + min_y + kOptionFooterDy + line_h;
-		text(f, Rect{p.x + kOptionHeadingX, footer_y, p.w - kOptionFooterRightInset - kOptionHeadingX, line_h}, footer,
-		     TextStyle{.font = font});
+		const int32_t arrow_x = p.x + kOptionArrowX;
+		f.vline(arrow_x, footer_y - 2, footer_y + 4);
+		f.hline(footer_y + 4, arrow_x, p.x + kOptionArrowRightX);
+		f.pixel(arrow_x + 4, footer_y + 2);
+		f.pixel(arrow_x + 5, footer_y + 3);
+		f.pixel(arrow_x + 5, footer_y + 5);
+		f.pixel(arrow_x + 4, footer_y + 6);
+
+		const Rect box{p.x + kOptionFooterX, footer_y, p.w - kOptionFooterRightInset - kOptionFooterX, line_h};
+		const int32_t height = text_height_for(font);
+		// Legacy draws the name without clearing under it, and arms side scroller 1 over the same box,
+		// which clears only once it steps -- and it steps only when the name is wider than the box.
+		if (footer_label != nullptr && gfx::oled::string_width_px(footer, height) > box.w) {
+			scroll_text(f, box, footer, font, *footer_label, allow_motion, /*highlight=*/false);
+		}
+		else {
+			text(f, box, footer, TextStyle{.font = font});
+		}
 	}
 }
 
