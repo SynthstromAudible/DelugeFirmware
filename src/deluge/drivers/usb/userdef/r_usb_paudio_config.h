@@ -45,3 +45,8 @@
 // to 48
 #define USB_PAUDIO_MAX_FRAMES_PER_PACKET 48
 #define USB_PAUDIO_MAX_PACKET_BYTES (USB_PAUDIO_MAX_FRAMES_PER_PACKET * USB_PAUDIO_BYTES_PER_FRAME)
+// The out stream's adaptive alternate setting (for hosts without implicit feedback, like Windows) gets a slightly
+// smaller max packet size - still plenty for a host sending 44 or 45 frames at its own rate. Hosts choosing between
+// alternate settings of the same format by bandwidth then prefer it, if they can't use the asynchronous one
+#define USB_PAUDIO_ADAPTIVE_MAX_FRAMES_PER_PACKET 46
+#define USB_PAUDIO_ADAPTIVE_MAX_PACKET_BYTES (USB_PAUDIO_ADAPTIVE_MAX_FRAMES_PER_PACKET * USB_PAUDIO_BYTES_PER_FRAME)

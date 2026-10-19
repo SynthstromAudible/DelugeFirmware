@@ -18,6 +18,7 @@
 #include "drivers/usb/usb_audio.h"
 #include "definitions.h"
 #include "io/debug/log.h"
+#include "storage/flash_storage.h"
 #include "timers_interrupts/timers_interrupts.h"
 #include <algorithm>
 #include <array>
@@ -145,6 +146,8 @@ uint32_t inputRingWriteFrame = 0; // Where fillInputRing() got up to, in frames 
 uint32_t inputRingSilentFrames = 0;
 
 bool interruptsSetUp = false;
+
+bool active = false; // Latched from FlashStorage::usbAudioEnabled each time USB starts as a peripheral
 
 /*********************************************************************************************************************
  * DMA, and the interrupts driving it
@@ -566,7 +569,21 @@ void readFromHost(int32_t* output, size_t numFrames, uint32_t txQueued) {
  * Hooks for the Renesas USB driver
  */
 
+extern "C" bool usbAudioStartPeripheral(void) {
+	active = FlashStorage::usbAudioEnabled;
+	return active;
+}
+
+extern "C" bool usbAudioActive(void) {
+	return active;
+}
+
 extern "C" void usbAudioSetInterface(uint16_t interfaceNumber, uint16_t alternateSetting) {
+	if (!active) {
+		return; // MIDI-only configuration - interface numbers don't mean the same
+	}
+	// Both of the out stream's streaming alternate settings use the same pipe and format. Only how the host times its
+	// packets differs - readFromHost() copes with either
 	switch (interfaceNumber) {
 	case USB_PAUDIO_INTERFACE_STREAM_OUT:
 		stopFromHost();

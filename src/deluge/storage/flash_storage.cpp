@@ -216,6 +216,9 @@ enum Entries {
 190: GlobalMIDICommand::SHIFT channel + 1
 191: GlobalMIDICommand::SHIFT noteCode + 1
 192-195: GlobalMIDICommand::SHIFT product / vendor ids
+196: screensaver mode
+197: screensaver timeout minutes
+198: USB audio disabled - stored inverted, so a unit that has never saved it (all zeros) has USB audio on
 */
 
 uint8_t defaultScale;
@@ -284,6 +287,8 @@ ThresholdRecordingMode defaultThresholdRecordingMode = ThresholdRecordingMode::O
 Polarity defaultPatchCablePolarity = Polarity::BIPOLAR;
 
 bool defaultUseSharps = true;
+
+bool usbAudioEnabled = true;
 
 void resetSettings() {
 
@@ -392,6 +397,8 @@ void resetSettings() {
 	defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
 
 	defaultUseSharps = true;
+
+	usbAudioEnabled = true;
 }
 
 void factoryReset(bool showPopup) {
@@ -869,6 +876,8 @@ void readSettings() {
 		screensaverMode =
 		    (buffer[196] < kNumScreensaverModes) ? static_cast<ScreensaverMode>(buffer[196]) : kDefaultScreensaverMode;
 	}
+
+	usbAudioEnabled = (buffer[198] != 1);
 }
 
 /// Sanity-check the pre-c1.3 MIDI-follow block (bytes 126-145) before migrating it. Same checks the deleted
@@ -1136,6 +1145,8 @@ void writeSettings() {
 
 	buffer[196] = util::to_underlying(screensaverMode);
 	buffer[197] = screensaverTimeoutMinutes;
+
+	buffer[198] = usbAudioEnabled ? 0 : 1;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

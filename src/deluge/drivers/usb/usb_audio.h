@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 
 // USB audio (UAC1) as a peripheral: a stereo stream from the host, and a stereo stream to it, each 44.1kHz with 24-bit
@@ -34,10 +35,17 @@
 extern "C" {
 #endif
 
+/// Called as USB starts up as a peripheral. Takes the user's USB audio setting (FlashStorage::usbAudioEnabled), which
+/// then holds until the next start - it decides which configuration descriptor the host gets. Returns it
+bool usbAudioStartPeripheral(void);
+/// Whether USB audio is on for the current peripheral session
+bool usbAudioActive(void);
+
 // Hooks for the Renesas USB peripheral driver. These may be called from the USB interrupt or the USB task.
 
 /// The host selected an alternate setting for one of our interfaces (or is about to - alternateSetting 0 stops
-/// streaming before the pipe gets reconfigured)
+/// streaming before the pipe gets reconfigured). The out stream has two: 1 follows our clock through implicit
+/// feedback, 2 is adaptive, following the host's
 void usbAudioSetInterface(uint16_t interfaceNumber, uint16_t alternateSetting);
 /// Bus reset, detach, or a new configuration - all streaming stops
 void usbAudioStopAll(void);
