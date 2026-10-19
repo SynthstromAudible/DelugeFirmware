@@ -15,19 +15,17 @@ as a class-compliant audio device alongside its existing USB MIDI ports, so no d
 
 ## Format
 
-|                    | From computer to Deluge | From Deluge to computer |
-| ------------------ | ----------------------- | ----------------------- |
-| Channels           | 2 (stereo)              | 2 (stereo)              |
-| Sample rate        | 44.1 kHz                | 44.1 kHz                |
-| Bit depth          | 24-bit                  | 24-bit                  |
+|             | From computer to Deluge | From Deluge to computer |
+| ----------- | ----------------------- | ----------------------- |
+| Channels    | 2 (stereo)              | 2 (stereo)              |
+| Sample rate | 44.1 kHz                | 44.1 kHz                |
+| Bit depth   | 24-bit                  | 24-bit                  |
 
 The Deluge's own sample clock sets the rate for both directions. Computers that support this (such as macOS and Linux) follow the
 Deluge's clock exactly. Others send at their own clock's rate, and the Deluge occasionally drops or repeats a single
 sample to stay in step. That isn't normally audible.
 
-<Aside type="caution">
-  Windows support hasn't been confirmed yet.
-</Aside>
+<Aside type="caution">Windows support hasn't been confirmed yet.</Aside>
 
 ## Setting up
 
@@ -38,9 +36,10 @@ sample to stay in step. That isn't normally audible.
 The Deluge's USB MIDI ports keep working as before.
 
 <Aside>
-  If you've used the Deluge over USB MIDI before, your computer may treat it as a new device the first time you connect
-  it with this firmware, since it now describes itself differently. Unplugging and reconnecting it should sort out any
-  problems with it not appearing.
+  If you've used the Deluge over USB MIDI before, your computer may treat it as
+  a new device the first time you connect it with this firmware, since it now
+  describes itself differently. Unplugging and reconnecting it should sort out
+  any problems with it not appearing.
 </Aside>
 
 ## Playing audio from your computer
@@ -75,9 +74,11 @@ Monitoring follows the audio output mode, as for any other source (see
 `SAMPLER` and `LOOPER` monitor the USB input, while `PLAYER` doesn't.
 
 <Aside type="caution">
-  If an audio clip is monitoring the USB input, the computer's audio becomes part of the Deluge's output, which is sent
-  back to the computer. If your DAW is also playing its Deluge input back out to the Deluge, that makes a feedback loop.
-  Turn off input monitoring in the DAW, or use the `PLAYER` mode on the clip.
+  If an audio clip is monitoring the USB input, the computer's audio becomes
+  part of the Deluge's output, which is sent back to the computer. If your DAW
+  is also playing its Deluge input back out to the Deluge, that makes a feedback
+  loop. Turn off input monitoring in the DAW, or use the `PLAYER` mode on the
+  clip.
 </Aside>
 
 Recording a sample from a synth or kit's sample menu still uses the line input only.
