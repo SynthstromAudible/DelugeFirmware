@@ -80,7 +80,6 @@ SCANS_RE = re.compile(
     r"free=(?P<free>\d+/\d+) evict=(?P<evict>\d+/\d+)"
 )
 SCANS = ("resident", "ptr", "free", "evict")
-COPY_RE = re.compile(r"STREAM-BENCH-COPY bytes=(?P<bytes>\d+) us=(?P<us>\d+)")
 CARD_RE = re.compile(
     r"STREAM-BENCH-CARD phase=(?P<phase>\S+) meta_sectors=(?P<meta_sectors>\d+) "
     r"data_calls=(?P<data_calls>\d+) data_sectors=(?P<data_sectors>\d+)"
@@ -133,7 +132,6 @@ def parse_capture(lines: list[str]) -> dict:
         "failures": [],
         "done": None,
         "songs": None,
-        "copy": None,
     }
 
     def phase(name: str) -> dict:
@@ -163,8 +161,6 @@ def parse_capture(lines: list[str]) -> dict:
                 k: dict(zip(("calls", "slots"), map(int, m[k].split("/"))))
                 for k in SCANS
             }
-        elif m := COPY_RE.search(line):
-            run["copy"] = {"bytes": int(m["bytes"]), "us": int(m["us"])}
         elif m := CARD_RE.search(line):
             phase(m["phase"])["card"] = {
                 k: int(m[k]) for k in ("meta_sectors", "data_calls", "data_sectors")
@@ -201,11 +197,6 @@ def render(run: dict) -> str:
     if run["songs"]:
         out.append(
             f"Songs: `{run['songs'][0]}`, then `{run['songs'][1]}` while playing.\n"
-        )
-    if run["copy"]:
-        c = run["copy"]
-        out.append(
-            f"Copying {c['bytes'] // 1024} KB out of uncached memory: {c['us'] / 1000:.2f} ms\n"
         )
     for loaded in run["loaded"]:
         out.append(

@@ -31,7 +31,6 @@ def full_run() -> list[str]:
         "boot noise",
         'STREAM-BENCH-BEGIN first="SONGS/A.XML" second="SONGS/Icoustic/Grunnmur 58.XML"',
     ]
-    lines.append("STREAM-BENCH-COPY bytes=32768 us=1500")
     lines.append("STREAM-BENCH-LOADED song=A ok=1")
     for phase in stream_bench.PHASES:
         lines += phase_lines(phase)
@@ -63,7 +62,6 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(
             steady["card"], {"meta_sectors": 6, "data_calls": 4, "data_sectors": 256}
         )
-        self.assertEqual(run["copy"], {"bytes": 32768, "us": 1500})
         self.assertEqual(stream_bench.problems(run), [])
 
     def test_a_run_without_done_is_incomplete(self) -> None:
@@ -123,7 +121,6 @@ class MainTests(unittest.TestCase):
             "6 single-sector lookups, 4 data reads moving 256 sectors, data at 16.4 MB/s",
             md,
         )
-        self.assertIn("Copying 32 KB out of uncached memory: 1.50 ms", md)
         doc = json.loads(next(out.glob("*.json")).read_text())
         self.assertEqual(sorted(doc["run"]["phases"]), sorted(stream_bench.PHASES))
 

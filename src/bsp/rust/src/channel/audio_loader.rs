@@ -1125,7 +1125,31 @@ mod prod {
     impl LoadOps for ProdOps {
         async fn open(&self, path: &str) -> super::driver::OpenVerdict {
             use super::driver::OpenVerdict;
-            match backing::open(path).await {
+            use crate::storage::fill_trace::{LoaderWork, loader};
+            let start = embassy_time::Instant::now();
+            crate::storage::fill_trace::open_span_begin();
+            let outcome = backing::open(path).await;
+            let card = crate::storage::fill_trace::open_span_end();
+            let work = match outcome {
+                crate::storage::efatfs::portable::OpenOutcome::Handle(_) => LoaderWork::OpenHit,
+                _ => LoaderWork::OpenMiss,
+            };
+            let ms = embassy_time::Instant::now()
+                .saturating_duration_since(start)
+                .as_millis();
+            if ms >= 20 {
+                log::info!(
+                    "LOADER-OPEN ms={} card_reads={} sectors={} card_ms={} hit={} path={}",
+                    ms,
+                    card.reads,
+                    card.sectors,
+                    card.us / 1000,
+                    matches!(work, LoaderWork::OpenHit),
+                    path
+                );
+            }
+            loader(work, start);
+            match outcome {
                 crate::storage::efatfs::portable::OpenOutcome::Handle(handle) => {
                     OpenVerdict::Opened(handle)
                 }
@@ -1139,19 +1163,39 @@ mod prod {
         }
 
         async fn size_of(&self, handle: u32) -> Option<u32> {
-            backing::size_of_handle(handle).await
+            let start = embassy_time::Instant::now();
+            let size = backing::size_of_handle(handle).await;
+            crate::storage::fill_trace::loader(
+                crate::storage::fill_trace::LoaderWork::Other,
+                start,
+            );
+            size
         }
 
         async fn read_at(&self, handle: u32, offset: u32, buf: &mut [u8]) -> bool {
-            backing::read_at(handle, offset, buf).await
+            let start = embassy_time::Instant::now();
+            let ok = backing::read_at(handle, offset, buf).await;
+            crate::storage::fill_trace::loader(crate::storage::fill_trace::LoaderWork::Read, start);
+            ok
         }
 
         async fn close(&self, handle: u32) {
+            let start = embassy_time::Instant::now();
             backing::close(handle).await;
+            crate::storage::fill_trace::loader(
+                crate::storage::fill_trace::LoaderWork::Other,
+                start,
+            );
         }
 
         async fn location(&self, handle: u32) -> Option<FileLocation> {
-            backing::location_of(handle).await
+            let start = embassy_time::Instant::now();
+            let location = backing::location_of(handle).await;
+            crate::storage::fill_trace::loader(
+                crate::storage::fill_trace::LoaderWork::Other,
+                start,
+            );
+            location
         }
     }
 }
@@ -1187,7 +1231,12 @@ async fn audio_load_task_body() {
                 }
             }
             let key = request.path.clone();
+            let start = embassy_time::Instant::now();
             let result = load_io_once(&ops, &request).await;
+            crate::storage::fill_trace::loader(
+                crate::storage::fill_trace::LoaderWork::Request,
+                start,
+            );
             // Publish before clearing IN_FLIGHT: the reverse leaves a window in which `collect`
             // reports `UNKNOWN` for a load that just succeeded. `generation` was sampled before
             // the I/O, so a card pulled during it makes this result uncollectable.

@@ -135,6 +135,21 @@ typedef struct DelugeFillTrace {
 	uint32_t read_meta_sectors; ///< Single-sector card reads, over every read.
 	uint32_t read_data_calls;   ///< Multi-sector card reads, over every read.
 	uint32_t read_data_sectors; ///< The sectors those multi-sector reads moved.
+	/// The audio loader's work, by kind: one request is a sample's whole header load; an open by path that finds
+	/// the file (a hit) or not (a miss, a candidate that is not there); its header reads; and the rest (sizing, the
+	/// location, the close). Each a count and a total in µs.
+	uint32_t loader_requests;
+	uint32_t loader_request_us;
+	uint32_t loader_request_max_us;
+	uint32_t loader_open_hits;
+	uint32_t loader_open_hit_us;
+	uint32_t loader_open_misses;
+	uint32_t loader_open_miss_us;
+	uint32_t loader_reads;
+	uint32_t loader_read_us;
+	uint32_t loader_other_us;
+	uint32_t loader_open_card_reads;   ///< Card reads the opens by path made, hits and misses together.
+	uint32_t loader_open_card_sectors; ///< The sectors those reads moved.
 	/// The longest any caller held the filesystem mutex, in µs, and where in the BSP's source it took it: the file,
 	/// NUL-terminated (truncated to fit), and the line.
 	uint32_t longest_fs_hold_us;
@@ -152,11 +167,6 @@ void deluge_fill_trace_snapshot(DelugeFillTrace* out) DELUGE_NOEXCEPT;
 
 /// @brief Zero the fill trace. [task]
 void deluge_fill_trace_reset(void) DELUGE_NOEXCEPT;
-
-/// @brief Time copying @p bytes out of uncached memory into cached memory: the copy every card read makes from the SD
-/// driver's DMA buffer. [task]
-/// @return The copy's duration in µs; 0 on host, or if the buffers could not be allocated.
-uint32_t deluge_fill_trace_time_uncached_copy(uint32_t bytes) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

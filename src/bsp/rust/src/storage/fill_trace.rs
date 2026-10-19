@@ -34,6 +34,16 @@ struct State {
     last_release: Option<(Tier, u64)>,
     /// The card reads of the fill read now holding the filesystem, while one does.
     card: Option<CardReads>,
+    /// The card reads of the audio loader's open by path now holding the filesystem, while one does.
+    open: Option<OpenReads>,
+}
+
+/// One open by path's card reads: how many, the sectors they moved, and their time.
+#[derive(Clone, Copy, Default)]
+pub struct OpenReads {
+    pub reads: u32,
+    pub sectors: u32,
+    pub us: u64,
 }
 
 /// One fill read's card reads, split by what they fetch.
@@ -50,6 +60,7 @@ static STATE: Mutex<RefCell<State>> = Mutex::new(RefCell::new(State {
     last_read_end: None,
     last_release: None,
     card: None,
+    open: None,
 }));
 
 const fn zeroed_hist() -> DelugeFillTraceHist {
@@ -77,6 +88,18 @@ const fn zeroed() -> DelugeFillTrace {
         read_meta_sectors: 0,
         read_data_calls: 0,
         read_data_sectors: 0,
+        loader_requests: 0,
+        loader_request_us: 0,
+        loader_request_max_us: 0,
+        loader_open_hits: 0,
+        loader_open_hit_us: 0,
+        loader_open_misses: 0,
+        loader_open_miss_us: 0,
+        loader_reads: 0,
+        loader_read_us: 0,
+        loader_other_us: 0,
+        loader_open_card_reads: 0,
+        loader_open_card_sectors: 0,
         longest_fs_hold_us: 0,
         longest_fs_hold_line: 0,
         longest_fs_hold_file: [0; 48],
@@ -185,6 +208,11 @@ pub fn card_read(sectors: u32, start: Instant, end: Instant) {
     let us = micros_since(start, end);
     critical_section::with(|cs| {
         let mut s = STATE.borrow_ref_mut(cs);
+        if let Some(open) = s.open.as_mut() {
+            open.reads += 1;
+            open.sectors += sectors;
+            open.us += us;
+        }
         let Some(mut card) = s.card else {
             return;
         };
@@ -197,6 +225,65 @@ pub fn card_read(sectors: u32, start: Instant, end: Instant) {
             s.trace.read_data_sectors = s.trace.read_data_sectors.saturating_add(sectors);
         }
         s.card = Some(card);
+    });
+}
+
+/// One kind of the audio loader's work, as [`loader`] records it.
+#[derive(Clone, Copy)]
+pub enum LoaderWork {
+    /// A sample's whole header load.
+    Request,
+    /// An open by path that found the file.
+    OpenHit,
+    /// An open by path that did not.
+    OpenMiss,
+    /// A header read.
+    Read,
+    /// Sizing, the location, the close.
+    Other,
+}
+
+/// Marks the audio loader's open by path starting: the card reads until [`open_span_end`] are its
+/// own, since it holds the filesystem.
+pub fn open_span_begin() {
+    critical_section::with(|cs| STATE.borrow_ref_mut(cs).open = Some(OpenReads::default()));
+}
+
+/// Ends the span [`open_span_begin`] began, returning its card reads, which are also added to the
+/// loader's totals.
+pub fn open_span_end() -> OpenReads {
+    critical_section::with(|cs| {
+        let mut s = STATE.borrow_ref_mut(cs);
+        let open = s.open.take().unwrap_or_default();
+        s.trace.loader_open_card_reads = s.trace.loader_open_card_reads.saturating_add(open.reads);
+        s.trace.loader_open_card_sectors = s
+            .trace
+            .loader_open_card_sectors
+            .saturating_add(open.sectors);
+        open
+    })
+}
+
+/// Records the audio loader doing `work` from `start` to now.
+pub fn loader(work: LoaderWork, start: Instant) {
+    let us = u32::try_from(micros_since(start, Instant::now())).unwrap_or(u32::MAX);
+    critical_section::with(|cs| {
+        let t = &mut STATE.borrow_ref_mut(cs).trace;
+        let (n, total) = match work {
+            LoaderWork::Request => {
+                t.loader_request_max_us = t.loader_request_max_us.max(us);
+                (&mut t.loader_requests, &mut t.loader_request_us)
+            }
+            LoaderWork::OpenHit => (&mut t.loader_open_hits, &mut t.loader_open_hit_us),
+            LoaderWork::OpenMiss => (&mut t.loader_open_misses, &mut t.loader_open_miss_us),
+            LoaderWork::Read => (&mut t.loader_reads, &mut t.loader_read_us),
+            LoaderWork::Other => {
+                t.loader_other_us = t.loader_other_us.saturating_add(us);
+                return;
+            }
+        };
+        *n = n.saturating_add(1);
+        *total = total.saturating_add(us);
     });
 }
 
@@ -321,43 +408,7 @@ pub extern "C" fn deluge_fill_trace_reset() {
     critical_section::with(|cs| STATE.borrow_ref_mut(cs).trace = zeroed());
 }
 
-/// Times copying `bytes` out of uncached memory into cached memory, in µs: the copy every card read
-/// makes from the SD driver's DMA buffer, which the DMA fills through its uncached alias. 0 on host,
-/// or if the buffers cannot be allocated. [task]
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_fill_trace_time_uncached_copy(bytes: u32) -> u32 {
-    #[cfg(target_os = "none")]
-    {
-        extern crate alloc;
-        let len = bytes as usize;
-        let mut src = alloc::vec::Vec::<u8>::new();
-        let mut dst = alloc::vec::Vec::<u8>::new();
-        if src.try_reserve_exact(len).is_err() || dst.try_reserve_exact(len).is_err() {
-            return 0;
-        }
-        src.resize(len, 0);
-        dst.resize(len, 0);
-        let uncached = (src.as_ptr() as usize + rza1l_hal::UNCACHED_MIRROR_OFFSET) as *const u8;
-        let start = Instant::now();
-        // SAFETY: the uncached alias covers the same `len` bytes `src` owns, and nothing writes them
-        // while the copy reads.
-        dst.copy_from_slice(unsafe { core::slice::from_raw_parts(uncached, len) });
-        let us = Instant::now().saturating_duration_since(start).as_micros();
-        core::hint::black_box(&dst);
-        u32::try_from(us).unwrap_or(u32::MAX)
-    }
-    #[cfg(not(target_os = "none"))]
-    {
-        let _ = bytes;
-        0
-    }
-}
-
-abi_pin!(
-    deluge_fill_trace_snapshot,
-    deluge_fill_trace_reset,
-    deluge_fill_trace_time_uncached_copy
-);
+abi_pin!(deluge_fill_trace_snapshot, deluge_fill_trace_reset);
 
 #[cfg(test)]
 mod tests {
