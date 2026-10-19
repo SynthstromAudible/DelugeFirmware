@@ -127,6 +127,10 @@ enum class Flag : uint16_t {
 	/// has both a `get` and an `adjust`, so this needs no expected set either -- it is a property
 	/// of one node, like the two flags just above.
 	AdjustWithoutGet,
+	/// @brief A node with a `Binding::target` that also sets a hook the target replaces: `get`, `set`, `range`,
+	///        `fixed_range`, `names`, `dynamic_names`, `param` or `relevant`. A target node's value, range, choices
+	///        and relevance come from its descriptor; a hook beside it would be a second, silently ignored, source.
+	TargetWithHooks,
 };
 
 /// @brief The cap on the `Kind::Custom` escape hatch, counted in **nodes that point at a custom

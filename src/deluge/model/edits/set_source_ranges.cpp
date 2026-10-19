@@ -1,6 +1,7 @@
 #include "model/edits/set_source_ranges.h"
 
 #include "engines/deluge/codec.h"
+#include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
@@ -20,6 +21,7 @@ Error SetSourceRanges::apply(Context& ctx) {
 	    deluge::instrument::with_state(slot->state, changed, {.input_tick_magnitude = slot->tick_magnitude});
 	Error error = deluge::bridge::commitSlot(*sound, *slot, element, ctx.song);
 	if (sound->boundState()->sources[source_].ranges == ranges_) {
+		deluge::bridge::retuneVoices(*sound, ctx.song);
 		return Error::NONE; // what else of the slot the sound refused is not this Edit's, and the slot now says it
 	}
 	if (error == Error::NONE) {
@@ -27,6 +29,9 @@ Error SetSourceRanges::apply(Context& ctx) {
 		// them.
 		error = deluge::bridge::applyRanges(*sound, source_, ranges_);
 		deluge::bridge::syncSlotState(*sound, *slot, ctx.song);
+		if (error == Error::NONE) {
+			deluge::bridge::retuneVoices(*sound, ctx.song);
+		}
 	}
 	return error;
 }

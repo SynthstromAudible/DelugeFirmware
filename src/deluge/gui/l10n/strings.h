@@ -1152,6 +1152,9 @@ enum class String : size_t {
 	// value moves.
 	STRING_FOR_DRUM_NAME,
 	STRING_FOR_TRACK_NAME,
+	// A menu's mark on a stored choice that no longer applies ("DX7 (n/a)"): listed so the user sees what is set,
+	// though the menu cannot choose it again.
+	STRING_FOR_CHOICE_UNAVAILABLE,
 
 	STRING_LAST
 };

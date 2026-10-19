@@ -337,6 +337,13 @@ bool applyEffectValue(ModControllableAudio& owner, std::string_view path, const 
 }
 } // namespace
 
+void retuneVoices(::Sound& sound, ::Song& song) {
+	char memory[MODEL_STACK_MAX_SIZE];
+	if (ModelStackWithSoundFlags* modelStack = modelStackFor(memory, sound, song)) {
+		sound.recalculateAllVoicePhaseIncrements(modelStack);
+	}
+}
+
 Error applySetting(::Sound& sound, std::string_view path, const deluge::serialization::Value& value, ::Song& song) {
 	if (!deluge::instrument::check_setting(path, value)) {
 		return Error::UNSPECIFIED;
@@ -348,7 +355,13 @@ Error applySetting(::Sound& sound, std::string_view path, const deluge::serializ
 	}
 	std::string_view rest;
 	if (const int32_t s = oscillatorOf(path, rest); s >= 0) {
-		return applyOscillatorSetting(sound, s, rest, text, number, song) ? Error::NONE : Error::UNSPECIFIED;
+		if (!applyOscillatorSetting(sound, s, rest, text, number, song)) {
+			return Error::UNSPECIFIED;
+		}
+		if (rest == "transpose" || rest == "cents") {
+			retuneVoices(sound, song);
+		}
+		return Error::NONE;
 	}
 	if (const int32_t l = lfoOf(path, rest); l >= 0) {
 		return applyLfoSetting(sound, l, rest, text, number, song) ? Error::NONE : Error::UNSPECIFIED;
@@ -381,9 +394,11 @@ Error applySetting(::Sound& sound, std::string_view path, const deluge::serializ
 	}
 	else if (path == "transpose") {
 		sound.setTranspose(static_cast<int16_t>(number));
+		retuneVoices(sound, song);
 	}
 	else if (path == "cents") {
 		sound.set_cents(static_cast<int8_t>(number));
+		retuneVoices(sound, song);
 	}
 	else if (path == "sideChainSend") {
 		sound.setSideChainSendLevel(number);

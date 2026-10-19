@@ -328,6 +328,12 @@ LEGACY_PORT_SEAMS = (
     # (`scenes/registry.h`) and reads a focused node's `deluge::scenes::menu::ParamRef`
     # (`scenes/menu/node.h`) -- both `scenes/` names, both covered by this same entry.
     "src/deluge/gui/ui/shell_pad_forward.cpp",
+    # Step 2a (scenes bind to the model): the binding's host half. It names the scenes' binding types
+    # (`scenes/bind/*`, `scenes/menu/bind_host.h`) because it IS their implementation on this side of the wall:
+    # the write sink that applies a menu's requests as Edits, and the runtime facts a menu reads (the audio
+    # engine's inputs, a sound's loaded sources and typed state). Host builds only (gui/ui/shell_*). Its HEADER
+    # (`shell_bind_host.h`) is deliberately NOT listed: it declares one count and names no port type.
+    "src/deluge/gui/ui/shell_bind_host.cpp",
     "src/deluge/gui/ui/shell_menu_entry.cpp",
     "src/deluge/gui/ui/sound_editor.cpp",
     "src/deluge/gui/views/performance_view.cpp",

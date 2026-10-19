@@ -284,14 +284,14 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 			add(out, Issue::Kind::MissingTitle, &n, n.name);
 		}
 
-		if (n.kind == Kind::Enum && n.bind.names.empty() && n.bind.dynamic_names == nullptr) {
+		if (n.kind == Kind::Enum && !n.bind.target.valid() && n.bind.names.empty() && n.bind.dynamic_names == nullptr) {
 			add(out, Issue::Kind::EnumWithoutNames, &n);
 		}
 
 		if (n.bind.param.kind != params::Kind::NONE && !param_in_range(n.bind.param)) {
 			add(out, Issue::Kind::BadParamRef, &n, n.bind.param.index);
 		}
-		else if (is_value_kind(n.kind) && !n.bind.param.valid() && n.bind.get == nullptr) {
+		else if (is_value_kind(n.kind) && !n.bind.target.valid() && !n.bind.param.valid() && n.bind.get == nullptr) {
 			add(out, Issue::Kind::BadParamRef, &n, n.bind.param.index);
 		}
 
@@ -300,6 +300,14 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 		// `get` nor `param` at all; this is the remaining case.
 		if (n.bind.adjust != nullptr && n.bind.get == nullptr) {
 			add(out, Issue::Kind::FlagMismatch, &n, static_cast<uint16_t>(Flag::AdjustWithoutGet));
+		}
+
+		// A target node takes everything a hook would give from its descriptor -- see `Flag::TargetWithHooks`.
+		if (n.bind.target.valid()
+		    && (n.bind.get != nullptr || n.bind.set != nullptr || n.bind.range != nullptr || n.bind.fixed_range
+		        || !n.bind.names.empty() || n.bind.dynamic_names != nullptr || n.bind.param.valid()
+		        || n.relevant != nullptr)) {
+			add(out, Issue::Kind::FlagMismatch, &n, static_cast<uint16_t>(Flag::TargetWithHooks));
 		}
 
 		// A `set` hook plus `updates_reverb_params` is a silent no-op -- see `Flag::ReverbUpdateWithHook`.

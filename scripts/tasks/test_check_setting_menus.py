@@ -91,6 +91,24 @@ class SoundSettingWrites(unittest.TestCase):
                 self.assertEqual(self.check(line), [], line)
 
 
+class SceneFollowUps(unittest.TestCase):
+    def check(self, line: str) -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "planted.cpp").write_text(f"void gesture() {{\n\t{line}\n}}\n")
+            return csm.scene_follow_ups(root)
+
+    def test_a_scene_retuning_voices_itself_is_reported(self):
+        self.assertEqual(
+            len(self.check("t.sound->recalculateAllVoicePhaseIncrements(t.stack);")), 1
+        )
+
+    def test_the_edit_is_not(self):
+        self.assertEqual(
+            self.check('deluge::edits::settingFor(*t.sound, "transpose", v);'), []
+        )
+
+
 class SongStateWrites(unittest.TestCase):
     def check(self, line: str) -> list[str]:
         with tempfile.TemporaryDirectory() as tmp:

@@ -24,6 +24,9 @@
 ///       `ModelStackWithThreeMainThings` rather than including the model-stack header.
 
 #include "definitions_cxx.hpp"
+#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/target.h"
+#include "scenes/bind/write_sink.h"
 #include "scenes/services/mod_target.h" // the gold-knob boundary's POD arguments and results
 
 #include <cstdint>
@@ -42,6 +45,10 @@ class SampleControls;
 class Song;
 class Sound;
 class Source;
+
+namespace deluge::project {
+class Song;
+} // namespace deluge::project
 
 namespace deluge::scenes::menu {
 
@@ -157,6 +164,16 @@ struct MenuContext {
 	bool resolved = false;
 
 	Root root = Root::Settings;
+
+	/// @name What a target node binds through
+	/// The model and addresses a target resolves against, the host's runtime facts, and the sink its writes go to.
+	/// The engine pointers above remain for the nodes not yet on targets.
+	/// @{
+	const deluge::project::Song* model = nullptr;
+	deluge::scenes::bind::Addresses addresses{};
+	const deluge::scenes::bind::RuntimeFacts* facts = nullptr;
+	deluge::scenes::bind::WriteSink* sink = nullptr;
+	/// @}
 };
 
 /// @brief Resolve what a menu opened over @p clip would edit -- `SoundEditor::setup`'s context half

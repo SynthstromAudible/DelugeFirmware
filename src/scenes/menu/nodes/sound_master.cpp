@@ -85,9 +85,6 @@ void set_master_transpose(const MenuContext& ctx, int32_t value) {
 		    const int32_t transpose = semitones - 256;
 		    deluge::edits::settingFor(*t.sound, "transpose", deluge::serialization::Value::makeNumber(transpose));
 		    deluge::edits::settingFor(*t.sound, "cents", deluge::serialization::Value::makeNumber(cents));
-		    if (t.stack != nullptr) {
-			    t.sound->recalculateAllVoicePhaseIncrements(t.stack);
-		    }
 	    });
 }
 

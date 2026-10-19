@@ -57,6 +57,13 @@ struct MenuContext;
 
 namespace deluge::scenes::menu::bindings {
 
+/// @brief Whether @p node is shown: a target node when its descriptor's conditions hold (and its target resolves), any
+///        other node by its `relevant` hook (none: always).
+/// @param node The node.
+/// @param ctx  The menu's context.
+/// @return Whether the node is shown.
+[[nodiscard]] bool relevant(const Node& node, const MenuContext& ctx);
+
 /// @brief Read what @p node currently shows, in menu units (0..50 for a standard param).
 ///
 /// A `ParamRef` binding reads the param set's stored value and scales it the way legacy's

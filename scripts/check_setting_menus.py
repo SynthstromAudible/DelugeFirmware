@@ -428,6 +428,24 @@ def unrecorded(root: Path) -> list[str]:
     return found
 
 
+SCENES_ROOT = REPO / "src" / "scenes"
+# An engine follow-up the Edit that changed the setting owns: a scenes gesture leaves it to the Edit (SetEngineSetting
+# and SetSourceRanges retune a sound's voices). Legacy menus under src/deluge/gui still make the call themselves.
+SCENES_FOLLOW_UP = re.compile(r"\b(recalculateAllVoicePhaseIncrements)\s*\(")
+
+
+def scene_follow_ups(root: Path) -> list[str]:
+    """Every `path:line: runs <follow-up>` under root: an engine follow-up a scene runs itself instead of its Edit."""
+    found = []
+    for path in sorted(root.rglob("*")):
+        if path.suffix not in SUFFIXES or not path.is_file():
+            continue
+        for number, line in code_lines(path.read_text(errors="replace")):
+            for match in SCENES_FOLLOW_UP.finditer(line):
+                found.append(f"{path}:{number}: runs {match.group(1)}")
+    return found
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, nargs="+", default=list(DEFAULT_ROOTS))
@@ -436,6 +454,8 @@ def main(argv=None) -> int:
     found = []
     for root in args.root:
         found += calls(root, tuple(args.also)) + unrecorded(root)
+        if root.resolve().is_relative_to(SCENES_ROOT):
+            found += scene_follow_ups(root)
     found += host_writes() + song_state_writes(tuple(args.root))
     for line in found:
         print(line)

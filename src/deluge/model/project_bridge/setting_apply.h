@@ -33,6 +33,12 @@ namespace deluge::bridge {
 /// @brief Change @p sound's setting at @p path (a path of the Deluge instrument's settings schema) to @p value, as the
 /// sound editor's menu for it does, side effects included: the runtime's own setter for the path.
 ///
+/// @brief A sound's pitch changed (its or a source's transpose or cents, or a source's ranges): its sounding voices'
+/// phase increments follow.
+/// @param sound The sound.
+/// @param song  The song it plays in.
+void retuneVoices(::Sound& sound, ::Song& song);
+
 /// @param sound The sound to change.
 /// @param path  A path of the Deluge instrument's settings schema.
 /// @param value The new value.

@@ -57,6 +57,9 @@
 
 #include "scenes/menu/context.h"
 
+#include "scenes/menu/bind_host.h"
+#include "scenes/menu/bindings.h"
+
 #include "scenes/menu/node.h"
 
 #include "model/action/action_logger.h"
@@ -71,6 +74,7 @@
 #include "model/model_stack.h" // ruling 6: this file and bindings.cpp only
 #include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/playback_mode.h"
@@ -413,6 +417,19 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 		ctx.sample_controls = &audio_clip->sampleControls;
 	}
 
+	// What a target node binds through: the model, the edited sound's slot, the kit an affect-entire write fans out
+	// over, and the app's facts and sink.
+	ctx.model = &song.project;
+	ctx.facts = &host_runtime_facts();
+	ctx.sink = &host_write_sink();
+	// An unresolved context (a kit row with no note row) is one legacy refuses to open: it names nothing to edit.
+	if (ctx.resolved && ctx.sound != nullptr) {
+		ctx.addresses.slot = deluge::bridge::slotAddressOf(*ctx.sound);
+	}
+	if (ctx.resolved && ctx.is_kit && ctx.output != nullptr) {
+		ctx.addresses.kit_output = ctx.output->id();
+	}
+
 	return ctx;
 }
 
@@ -456,7 +473,7 @@ Permission permission_for(const Node& node, const MenuContext& ctx) {
 	// The base implementation, `MenuItem::checkPermissionToBeginSession`
 	// (`gui/menu_item/menu_item.cpp:27-31`): relevance, and nothing else. Spec E §4's `relevant`
 	// hook is the port of the 112 `isRelevant` overrides the survey counts.
-	if (node.relevant != nullptr && !node.relevant(ctx)) {
+	if (!bindings::relevant(node, ctx)) {
 		return Permission::No;
 	}
 

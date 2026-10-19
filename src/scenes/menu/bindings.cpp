@@ -92,6 +92,8 @@
 
 #include "scenes/menu/bindings.h"
 
+#include "scenes/bind/dispatch.h"
+
 #include "scenes/menu/context.h"
 #include "scenes/menu/note_bridge.h"
 #include "scenes/profile.h"
@@ -117,13 +119,27 @@
 #include "processing/sound/sound_drum.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
+#include <cstdio>
 
 namespace deluge::scenes::menu::bindings {
 
 namespace {
 
 namespace params = deluge::modulation::params;
+
+/// What a target node shows, or nullopt where its target does not resolve or the menu has no model to read.
+std::optional<deluge::scenes::bind::View> target_view(const Node& node, const MenuContext& ctx) {
+	if (ctx.model == nullptr || ctx.facts == nullptr) {
+		return std::nullopt;
+	}
+	return deluge::scenes::bind::view(node.bind.target, *ctx.model, ctx.addresses, *ctx.facts);
+}
+
+/// The text of a choice listed although it no longer applies: "<name> (<n/a>)". One buffer per listed entry, valid
+/// until the next names() call, as the shell's TextScratch is.
+std::array<std::array<char, 40>, kMaxDynamicNames> unavailable_text{};
 
 /// @brief The installed MIDI-follow feedback hook, or null. A single function pointer, set once at
 ///        start-up by the application; no heap, no ownership.
@@ -534,8 +550,21 @@ void apply_to_targets(const MenuContext& ctx, int32_t value, int32_t arg, ApplyF
 	fn(SoundTarget{ctx.mod, ctx.sound, stack, /*whole_kit=*/false}, value, arg, ctx);
 }
 
+bool relevant(const Node& node, const MenuContext& ctx) {
+	if (node.bind.target.valid()) {
+		const std::optional<deluge::scenes::bind::View> shown = target_view(node, ctx);
+		return shown && shown->applies;
+	}
+	return node.relevant == nullptr || node.relevant(ctx);
+}
+
 int32_t read(const Node& node, const MenuContext& ctx) {
 	const Binding& bind = node.bind;
+
+	if (bind.target.valid()) {
+		const std::optional<deluge::scenes::bind::View> shown = target_view(node, ctx);
+		return shown ? shown->value : 0;
+	}
 
 	// `get` first, then `param` -- `node.h`'s documented precedence. A node with both is one of
 	// legacy's `menu_item::Transpose` derivatives, whose value lives outside the param set and
@@ -557,6 +586,21 @@ int32_t read(const Node& node, const MenuContext& ctx) {
 
 void write(const Node& node, const MenuContext& ctx, int32_t value) {
 	const Binding& bind = node.bind;
+
+	// A target node: the request goes to the menu's sink, which applies the target's Edit. The stale entry, a value
+	// outside the range and an unresolved target ask for nothing.
+	if (bind.target.valid()) {
+		if (ctx.model == nullptr || ctx.facts == nullptr || ctx.sink == nullptr) {
+			return;
+		}
+		const std::optional<deluge::scenes::bind::WriteRequest> request =
+		    deluge::scenes::bind::request_for(bind.target, *ctx.model, ctx.addresses, *ctx.facts, value);
+		if (request) {
+			ctx.sink->write(*request);
+			notify::raise(notify::Dirty::Oled);
+		}
+		return;
+	}
 
 	// A `get`/`set` (or `action`) node: the hook owns the model write, so all this layer knows is
 	// that something the OLED shows has changed. Tested before `param` -- `node.h`'s documented
@@ -667,6 +711,10 @@ void adjust(const Node& node, const MenuContext& ctx, int32_t offset) {
 }
 
 IntRange range(const Node& node, const MenuContext& ctx) {
+	if (node.bind.target.valid()) {
+		const std::optional<deluge::scenes::bind::View> shown = target_view(node, ctx);
+		return shown ? IntRange{shown->least, shown->greatest, 1} : IntRange{0, 0, 1};
+	}
 	// node.h:111-117's documented order: a dynamic hook, then the literal bounds a builder was
 	// given, then the legacy per-kind default.
 	if (node.bind.range != nullptr) {
@@ -720,6 +768,32 @@ size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_vie
 		return 0;
 	}
 
+	const deluge::ui::shell::BoardProfile& text = scenes::deluge_profile();
+	if (node.bind.target.valid()) {
+		if (ctx.model == nullptr || ctx.facts == nullptr) {
+			return 0;
+		}
+		std::array<deluge::scenes::bind::ChoiceName, kMaxDynamicNames> listed{};
+		const size_t count = std::min(
+		    deluge::scenes::bind::choice_names(node.bind.target, *ctx.model, ctx.addresses, *ctx.facts, listed), limit);
+		for (size_t i = 0; i < count; ++i) {
+			const std::string_view name = text.text_or_digits(static_cast<uint16_t>(listed[i].name), scratch[i]);
+			if (!listed[i].unavailable) {
+				out[i] = name;
+				continue;
+			}
+			deluge::ui::shell::TextScratch mark_scratch{};
+			const std::string_view mark = text.text_or_digits(
+			    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_CHOICE_UNAVAILABLE), mark_scratch);
+			const int written =
+			    snprintf(unavailable_text[i].data(), unavailable_text[i].size(), "%.*s (%.*s)",
+			             static_cast<int>(name.size()), name.data(), static_cast<int>(mark.size()), mark.data());
+			out[i] = std::string_view(unavailable_text[i].data(), std::min(static_cast<size_t>(std::max(written, 0)),
+			                                                               unavailable_text[i].size() - 1));
+		}
+		return count;
+	}
+
 	if (node.bind.dynamic_names != nullptr) {
 		// The hook writes views it owns (static strings, or storage of its own); `scratch` is for
 		// the id path only, and `DynamicNamesFn`'s signature (node.h:90) has nowhere to pass it.
@@ -728,10 +802,9 @@ size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_vie
 
 	// Ruling 2: ids resolve through the profile's `text_or_digits`, never `text_lookup` directly --
 	// `shell/profile.h:147` already implements the digits fallback for an id with no entry.
-	const deluge::ui::shell::BoardProfile& profile = scenes::deluge_profile();
 	const size_t count = std::min(node.bind.names.size(), limit);
 	for (size_t i = 0; i < count; ++i) {
-		out[i] = profile.text_or_digits(node.bind.names[i], scratch[i]);
+		out[i] = text.text_or_digits(node.bind.names[i], scratch[i]);
 	}
 	return count;
 }

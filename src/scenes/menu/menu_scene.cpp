@@ -659,7 +659,7 @@ size_t MenuScene::visible_children(const Node& node, std::span<const Node*> out)
 		const size_t produced = std::min(node.dynamic_children(ctx_, out), out.size());
 		for (size_t i = 0; i < produced; i++) {
 			const Node* child = out[i];
-			if (child != nullptr && (child->relevant == nullptr || child->relevant(ctx_))) {
+			if (child != nullptr && bindings::relevant(*child, ctx_)) {
 				out[kept++] = child; // kept <= i always, so this compaction never overwrites ahead
 			}
 		}
@@ -1865,6 +1865,7 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	// its own press and release both reach here and keep this in step before any write path runs;
 	// `bindings::write` is the only reader.
 	ctx_.affect_entire_held = ctx.held.has(ButtonId::AffectEntire);
+	ctx_.addresses.affect_entire = bindings::writes_whole_kit(ctx_);
 
 	// A custom item owns its input while it is focused: it sees every event first and, if it
 	// consumes it, the scene does nothing else this call -- the same precedence legacy gives a

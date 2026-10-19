@@ -20,6 +20,7 @@
 #include "gfx/oled/icons.h" // CustomItem::row_icon's default answer -- one `extern const Icon`
 #include "modulation/params/param.h"
 #include "modulation/params/param_descriptor.h" // CustomItem::learn_descriptor -- returned by value
+#include "scenes/bind/target.h"
 #include "ui/oled/meters.h"
 #include "ui/oled/values.h"
 
@@ -277,6 +278,9 @@ struct RangeSpec {
 };
 
 struct Binding {
+	/// @brief What the node edits, named by a descriptor: a node with a valid target reads, ranges, lists, names and
+	///        writes through `scenes/bind`, and sets none of the hooks below (validate_tree reports one that does).
+	deluge::scenes::bind::Target target{};
 	ParamRef param{};
 	GetFn get = nullptr;
 	SetFn set = nullptr;
@@ -822,6 +826,23 @@ constexpr Node param(uint16_t name, ParamRef p, Hint h = Hint::Knob, RelevantFn 
 	n.bind.param = p;
 	n.bind.scaling = scaling;
 	n.relevant = rel;
+	return n;
+}
+
+/// @brief A node that edits a setting named by its descriptor: its value, range, choices and relevance come from the
+///        target, and its writes go to the menu's write sink.
+/// @param name   The node's name and title.
+/// @param kind   How the value is shown: Enum, Toggle, Int, Decimal or SyncLevel.
+/// @param target What it edits.
+/// @param h      The horizontal-menu meter style.
+/// @return The node.
+constexpr Node setting_item(uint16_t name, Kind kind, deluge::scenes::bind::Target target, Hint h = Hint::None) {
+	Node n{};
+	n.name = name;
+	n.title = name;
+	n.kind = kind;
+	n.hint = h;
+	n.bind.target = target;
 	return n;
 }
 

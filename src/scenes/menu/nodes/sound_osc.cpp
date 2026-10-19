@@ -245,9 +245,6 @@ void set_osc_transpose(const MenuContext& ctx, int32_t value, uint8_t index) {
 			    deluge::edits::settingFor(*t.sound, deluge::edits::oscSettingPath(index, "cents"),
 			                              deluge::serialization::Value::makeNumber(cents));
 		    }
-		    if (t.stack != nullptr) {
-			    t.sound->recalculateAllVoicePhaseIncrements(t.stack);
-		    }
 	    });
 }
 
