@@ -206,6 +206,19 @@ LIBRARIES: dict[str, Library] = {
         "deluge-project/",
         ("engine-api/types/", "serialization/", "music-theory/", "foundation/panic.h"),
     ),
+    "scenes-bind": Library(
+        REPO / "src" / "scenes" / "bind",
+        "scenes/bind/",
+        (
+            "deluge-project/",
+            "engine-api/",
+            "engines/deluge/",
+            "engines/effects/",
+            "serialization/",
+            "music-theory/",
+            "foundation/panic.h",
+        ),
+    ),
 }
 
 

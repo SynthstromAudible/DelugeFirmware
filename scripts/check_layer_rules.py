@@ -602,11 +602,12 @@ RULES = [
         # `engines/`, `engine-api/`, `serialization/` and `sequence/` hold the model's own words and
         # values: an effect's or a sound's setting is written as a `serialization::Value` in the
         # word `engines/*/words.h` spells, through `model/edits/setting_edit.h`, and a note's
-        # iterance is `sequence/iterance.h`. None of them reaches a UI.
+        # iterance is `sequence/iterance.h`. None of them reaches a UI. `deluge-project/` is the model's records,
+        # which a menu node's binding reads and addresses (scenes/bind).
         "scenes-includes-outside",
         "src/scenes/**",
         "include",
-        r"^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|dsp/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|engines/|engine-api/|serialization/|sequence/|definitions_cxx\.hpp)(?:.*/)",
+        r"^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|dsp/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|engines/|engine-api/|serialization/|sequence/|deluge-project/|definitions_cxx\.hpp)(?:.*/)",
         "2026-08-26-ui-scenes-menus-design.md",
     ),
     (

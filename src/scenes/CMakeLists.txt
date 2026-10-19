@@ -2,7 +2,8 @@
 # May include scenes/**, shell/**, ui/**, gfx/**, notify/**, libdeluge/**, the standard library,
 # and -- being the first model-aware layer -- dsp/**, model/**, modulation/**, playback/**,
 # processing/**, storage/**, io/**, gui/l10n/**, and the model's words and values: engines/**,
-# engine-api/**, serialization/**, sequence/**. Never gui/ otherwise, never hid/.
+# engine-api/**, serialization/**, sequence/**, and the model's records: deluge-project/** (scenes/bind binds menu nodes
+# to them). Never gui/ otherwise, never hid/.
 #
 # Plus exactly three ROOT-LEVEL app headers, which are named individually because they sit in no
 # allowed subdirectory (E2 task 6 fix round 1, Minor 2):

@@ -81,6 +81,10 @@ InstrumentSlot* Song::resolveSlot(SlotAddress address) {
 	return slot != nullptr && slot->has_value() ? &**slot : nullptr;
 }
 
+const InstrumentSlot* Song::resolveSlot(SlotAddress address) const {
+	return const_cast<Song*>(this)->resolveSlot(address); // a lookup: nothing is created or changed
+}
+
 std::vector<ControllerMapping>* Song::resolveControls(ControlsAddress address) {
 	switch (address.kind) {
 	case ControlsAddress::Kind::OUTPUT: {

@@ -1,0 +1,29 @@
+#pragma once
+
+/// @file
+/// @brief The facts a menu needs that the model does not hold.
+
+#include "deluge-project/instrument_slot.h"
+#include "engines/deluge/sound_state.h"
+
+#include <cstdint>
+
+namespace deluge::scenes::bind {
+
+/// @brief The facts a menu needs that are not settings, each answered by the host. Nothing else a binding reads comes
+/// from outside the model.
+class RuntimeFacts {
+public:
+	virtual ~RuntimeFacts() = default;
+	/// @brief Hardware: whether a mic or line input is plugged in. No record holds it; it changes under the song.
+	[[nodiscard]] virtual bool audio_inputs_present() const = 0;
+	/// @brief Storage: which sources of the sound at @p slot have an audio file loaded (bit i for source i). A file
+	/// loads after the song that names it, so whether it has is a fact of the card, not of the song.
+	[[nodiscard]] virtual uint8_t loaded_sources(project::SlotAddress slot) const = 0;
+	/// @brief The instrument's typed state for the sound at @p slot, or nullptr when there is no such sound. It is what
+	/// the slot decodes to, kept equal to it by every Edit, plus what no file can hold (an FM sound's oscillator types,
+	/// a non-FM sound's modulators): a read of a row a menu does not show, which a condition may still read, needs it.
+	[[nodiscard]] virtual const instrument::SoundState* sound_state(project::SlotAddress slot) const = 0;
+};
+
+} // namespace deluge::scenes::bind

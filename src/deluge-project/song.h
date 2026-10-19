@@ -60,6 +60,8 @@ public:
 	/// @param address The slot's address.
 	/// @return The slot, or nullptr.
 	InstrumentSlot* resolveSlot(SlotAddress address);
+	/// @copydoc resolveSlot
+	const InstrumentSlot* resolveSlot(SlotAddress address) const;
 	/// @brief The controller mappings @p address names: an output's or a kit row's, or nullptr for an output or a drum
 	/// this song has no record of, and for the song, whose mod knobs hold no record.
 	/// @param address The controls' address.
