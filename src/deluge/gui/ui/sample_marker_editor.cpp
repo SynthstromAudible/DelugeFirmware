@@ -73,6 +73,12 @@ SampleHolder& getCurrentSampleHolder() {
 	return range.sampleHolder;
 }
 
+// The selected slot's holder (slot 1 = the zone's own), for the loop fields that only a sample-for-voice
+// holder has. Not for audio clips, which have no loop markers here.
+SampleHolderForVoice& getCurrentVoiceSampleHolder() {
+	return static_cast<SampleHolderForVoice&>(getCurrentSampleHolder());
+}
+
 SampleControls* getCurrentSampleControls() {
 	if (getCurrentClip()->type == ClipType::AUDIO) {
 		return &getCurrentAudioClip()->sampleControls;
@@ -246,13 +252,13 @@ void SampleMarkerEditor::getColsOnScreen(MarkerColumn* cols) {
 	    getStartColOnScreen(cols[util::to_underlying(MarkerType::START)].pos);
 
 	if (getCurrentClip()->type != ClipType::AUDIO) {
-		cols[util::to_underlying(MarkerType::LOOP_START)].pos = getCurrentMultisampleRange().sampleHolder.loopStartPos;
+		cols[util::to_underlying(MarkerType::LOOP_START)].pos = getCurrentVoiceSampleHolder().loopStartPos;
 		cols[util::to_underlying(MarkerType::LOOP_START)].colOnScreen =
 		    cols[util::to_underlying(MarkerType::LOOP_START)].pos
 		        ? getStartColOnScreen(cols[util::to_underlying(MarkerType::LOOP_START)].pos)
 		        : kInvalidColumn;
 
-		cols[util::to_underlying(MarkerType::LOOP_END)].pos = getCurrentMultisampleRange().sampleHolder.loopEndPos;
+		cols[util::to_underlying(MarkerType::LOOP_END)].pos = getCurrentVoiceSampleHolder().loopEndPos;
 		cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen =
 		    cols[util::to_underlying(MarkerType::LOOP_END)].pos
 		        ? getEndColOnScreen(cols[util::to_underlying(MarkerType::LOOP_END)].pos)
@@ -441,7 +447,7 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 						if (cols[util::to_underlying(MarkerType::START)].colOnScreen >= x) {
 							return ActionResult::DEALT_WITH;
 						}
-						if (getCurrentMultisampleRange().sampleHolder.loopEndPos
+						if (getCurrentVoiceSampleHolder().loopEndPos
 						    && cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen <= x) {
 							return ActionResult::DEALT_WITH;
 						}
@@ -705,7 +711,7 @@ static const uint32_t zoomUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON
 
 ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 	if (isLoopLocked() && Buttons::isShiftButtonPressed()) {
-		auto& sampleHolder = getCurrentMultisampleRange().sampleHolder;
+		auto& sampleHolder = getCurrentVoiceSampleHolder();
 
 		uint32_t proposedEnd = sampleHolder.loopEndPos;
 
@@ -1021,9 +1027,8 @@ void SampleMarkerEditor::graphicsRoutine() {
 		if (soundEditor.currentSound->hasActiveVoices()) {
 			auto valid_voices_view =
 			    soundEditor.currentSound->voices() | std::views::filter([](const Sound::ActiveVoice& voice) {
-				    // Ensure correct MultisampleRange.
-				    return voice->guides[soundEditor.currentSourceIndex].audioFileHolder
-				           == soundEditor.currentMultiRange->getAudioFileHolder();
+				    // Only voices playing the slot being edited.
+				    return voice->guides[soundEditor.currentSourceIndex].audioFileHolder == &getCurrentSampleHolder();
 			    });
 
 			if (!valid_voices_view.empty()) {
