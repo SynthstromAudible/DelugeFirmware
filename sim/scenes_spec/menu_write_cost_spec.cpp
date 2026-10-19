@@ -71,6 +71,7 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 			spec::SongFixture f = spec::make_synth_song();
 			f.song->setCurrentClip(f.clip);
 			const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+			report("synth", 0, "voicePriority", time_writes(ctx, "voicePriority", 0, 2));
 			report("synth", 0, "polyphonic", time_writes(ctx, "polyphonic", 1, 2));
 			report("synth", 0, "transpose", time_writes(ctx, "transpose", 100, -100));
 			report("synth", 0, "osc1/type", time_writes(ctx, "osc1/type", 1, 4));
@@ -84,6 +85,7 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 			ctx.affect_entire_held = true;
 			ctx.addresses.affect_entire = menu::bindings::writes_whole_kit(ctx);
 			expect(ctx.addresses.affect_entire).to_be_true();
+			report("kit", kKitDrums, "voicePriority", time_writes(ctx, "voicePriority", 0, 2));
 			report("kit", kKitDrums, "polyphonic", time_writes(ctx, "polyphonic", 1, 2));
 			report("kit", kKitDrums, "transpose", time_writes(ctx, "transpose", 100, -100));
 			report("kit", kKitDrums, "osc1/type", time_writes(ctx, "osc1/type", 1, 4));

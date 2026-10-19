@@ -82,17 +82,31 @@ std::string disagreements(const Node& node, MenuContext ctx) {
 		found += path + " range ";
 	}
 	const deluge::engine::SettingInfo& row = *deluge::engine::find_setting(deluge::instrument::kSettings, path);
+	const std::array<int32_t, 3> probes{shown->least, shown->greatest,
+	                                    shown->least + (shown->greatest - shown->least) / 2};
 	bind::RecordingSink recorded;
-	ctx.sink = &recorded;
-	for (const int32_t v : {shown->least, shown->greatest, shown->least + (shown->greatest - shown->least) / 2}) {
+	MenuContext recording = ctx;
+	recording.sink = &recorded;
+	for (const int32_t v : probes) {
 		if (shown->stale == v) {
 			continue;
 		}
 		recorded.requests.clear();
-		bindings::write(node, ctx, v);
+		bindings::write(node, recording, v);
 		if (recorded.requests.size() != 1 || !deluge::engine::from_menu(row, recorded.requests[0].menu_value)) {
-			found += path + " write(" + std::to_string(v) + ") ";
+			found += path + " request(" + std::to_string(v) + ") ";
 		}
+	}
+	// Through the app's sink, where the row applies (its Edit refuses a row that does not): the Edit lands, the menu
+	// reads back from the record what it wrote, and the original value goes back so later nodes see the same sound.
+	if (shown->applies && !shown->stale) {
+		for (const int32_t v : probes) {
+			bindings::write(node, ctx, v);
+			if (bindings::read(node, ctx) != v) {
+				found += path + " write(" + std::to_string(v) + ")->" + std::to_string(bindings::read(node, ctx)) + " ";
+			}
+		}
+		bindings::write(node, ctx, shown->value);
 	}
 	return found;
 }
