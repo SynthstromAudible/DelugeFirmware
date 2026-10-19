@@ -162,8 +162,7 @@ Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack,
 		                  ? 2
 		                  : 1;
 		// if reading from the codec input we need this. USB audio arrives at whatever level the host meant it to be
-		shouldNormalize =
-		    (inputChannel < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && inputChannel != AudioInputChannel::USB);
+		shouldNormalize = AudioEngine::isCodecInput(inputChannel);
 	}
 	// if we already have an input then we're going to record an overdub instead. This won't be called if the clip is
 	// doing the classic deluge clip cloning loops (will be called on the clone instead)

@@ -1340,10 +1340,11 @@ bool doSomeOutputting() {
 	int32_t* __restrict__ inputReadPos = getInputReadPos(monitoringSource);
 	int32_t const* const inputBufferEnd = getInputBufferEnd(monitoringSource);
 
-	// Audio from a USB host, mixed straight into the outputs if the user wants. It isn't sent back to the host, which
-	// would echo it
-	bool const doUSBDirectMonitoring = !doMonitoring && usb_audio::receivingFromHost();
+	// Audio from a USB host, mixed straight into the outputs if the user wants - unless it's already coming through
+	// the sampling monitor. It's added after toUSB is taken, so it isn't sent back to the host, which would echo it
+	bool const doUSBDirectMonitoring = usb_audio::directMonitoring && !doMonitoring && usb_audio::receivingFromHost();
 	int32_t const* __restrict__ usbReadPos = getInputReadPos(AudioInputChannel::USB);
+	int32_t const* const usbInputEnd = usb_audio::getInputRingEnd();
 	bool const doSendToUSB = usb_audio::sendingToHost();
 	std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> toUSB;
 
@@ -1408,10 +1409,10 @@ bool doSomeOutputting() {
 		if (doUSBDirectMonitoring) {
 			lAdjusted = add_saturate(lAdjusted, usbReadPos[0] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
 			rAdjusted = add_saturate(rAdjusted, usbReadPos[1] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
-		}
-		usbReadPos += NUM_MONO_INPUT_CHANNELS;
-		if (usbReadPos >= usb_audio::getInputRingEnd()) {
-			usbReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
+			usbReadPos += NUM_MONO_INPUT_CHANNELS;
+			if (usbReadPos >= usbInputEnd) {
+				usbReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
+			}
 		}
 
 		outputBufferForResampling[numSamplesOutputted].l = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);

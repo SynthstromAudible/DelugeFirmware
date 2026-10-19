@@ -19,7 +19,6 @@
 #include "definitions.h"
 #include "io/debug/log.h"
 #include "timers_interrupts/timers_interrupts.h"
-#include "util/fixedpoint.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -41,8 +40,9 @@ void v7_dma_flush_range(uint32_t start, uint32_t end);
 }
 
 namespace deluge::usb_audio {
-bool directMonitoring = false;
-}
+// On by default, so the Deluge works as an audio interface out of the box
+bool directMonitoring = true;
+} // namespace deluge::usb_audio
 
 namespace {
 using deluge::usb_audio::directMonitoring;
@@ -85,6 +85,25 @@ T* uncached(T* address) {
 	return reinterpret_cast<T*>(reinterpret_cast<uint32_t>(address) + UNCACHED_MIRROR_OFFSET);
 }
 
+// Copies between a ring (indexed by a free-running frame count) and a flat buffer, in at most two contiguous runs
+template <size_t N>
+void copyFromRing(std::array<StereoSample, N> const& ring, uint32_t start, StereoSample* destination, size_t count) {
+	static_assert((N & (N - 1)) == 0);
+	uint32_t index = start & (N - 1);
+	size_t first = std::min<size_t>(count, N - index);
+	std::memcpy(destination, &ring[index], first * sizeof(StereoSample));
+	std::memcpy(destination + first, &ring[0], (count - first) * sizeof(StereoSample));
+}
+
+template <size_t N>
+void copyToRing(std::array<StereoSample, N>& ring, uint32_t start, StereoSample const* source, size_t count) {
+	static_assert((N & (N - 1)) == 0);
+	uint32_t index = start & (N - 1);
+	size_t first = std::min<size_t>(count, N - index);
+	std::memcpy(&ring[index], source, first * sizeof(StereoSample));
+	std::memcpy(&ring[0], source + first, (count - first) * sizeof(StereoSample));
+}
+
 // Frames from the host, written by the DMA-complete interrupt, read by readFromHost() in the audio routine
 constexpr uint32_t kFromHostRingFrames = 1024;
 std::array<StereoSample, kFromHostRingFrames> fromHostRing;
@@ -121,6 +140,9 @@ uint32_t toHostRecoveries = 0;
 // SSI-RX-shaped ring holding the audio from the host, for the rest of the Deluge to read like an input
 PLACE_SDRAM_BSS alignas(CACHE_LINE_SIZE) int32_t inputRing[SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS];
 uint32_t inputRingWriteFrame = 0; // Where fillInputRing() got up to, in frames from the start
+// How many frames of silence have been written since the host last sent anything. Once it's the whole ring, there's
+// nothing left to clear
+uint32_t inputRingSilentFrames = 0;
 
 bool interruptsSetUp = false;
 
@@ -192,9 +214,7 @@ void fromHostDmaComplete(uint32_t) {
 		uint32_t written = fromHostWritten.load(std::memory_order_relaxed);
 		uint32_t space = kFromHostRingFrames - (written - fromHostRead.load(std::memory_order_acquire));
 		numFrames = std::min(numFrames, space); // If the reader's that far behind, it'll be resyncing anyway
-		for (uint32_t i = 0; i < numFrames; i++) {
-			fromHostRing[(written + i) & (kFromHostRingFrames - 1)] = frames[i];
-		}
+		copyToRing(fromHostRing, written, frames, numFrames);
 		fromHostWritten.store(written + numFrames, std::memory_order_release);
 	}
 
@@ -527,9 +547,7 @@ void readFromHost(int32_t* output, size_t numFrames, uint32_t txQueued) {
 
 	size_t numToCopy = std::min<size_t>(numFrames, fill);
 	auto* frames = reinterpret_cast<StereoSample*>(output);
-	for (size_t i = 0; i < numToCopy; i++) {
-		frames[i] = fromHostRing[(reader.readFrame + i) & (kFromHostRingFrames - 1)];
-	}
+	copyFromRing(fromHostRing, reader.readFrame, frames, numToCopy);
 	reader.readFrame += numToCopy;
 
 	if (numToCopy < numFrames) {
@@ -636,12 +654,8 @@ extern "C" void usbAudioHandleSof(void) {
 	// catch up would throw that, and the audio coming back from it, into disarray
 	uint32_t numToCopy = std::min(numFrames, fill);
 	auto* staging = uncached(reinterpret_cast<StereoSample*>(toHostStaging));
-	for (uint32_t i = 0; i < numToCopy; i++) {
-		staging[i] = toHostRing[(read + i) & (kToHostRingFrames - 1)];
-	}
-	for (uint32_t i = numToCopy; i < numFrames; i++) {
-		staging[i] = {0, 0};
-	}
+	copyFromRing(toHostRing, read, staging, numToCopy);
+	std::memset(&staging[numToCopy], 0, (numFrames - numToCopy) * sizeof(StereoSample));
 	toHostRead.store(read + numToCopy, std::memory_order_release);
 
 	toHostDmaBusy = true;
@@ -704,14 +718,11 @@ void fillInputRing(uint32_t rxPosition, size_t numSamples, size_t txQueued) {
 		int32_t* output = &inputRing[inputRingWriteFrame * 2];
 		if (fromHostStreaming) {
 			readFromHost(output, numThisTime, txQueued);
-			int32_t* rx = getRxBufferStart() + inputRingWriteFrame * 2;
-			for (size_t i = 0; i < numThisTime; i++) {
-				rx[i * 2] = add_saturate(rx[i * 2], output[i * 2]);
-				rx[i * 2 + 1] = add_saturate(rx[i * 2 + 1], output[i * 2 + 1]);
-			}
+			inputRingSilentFrames = 0;
 		}
-		else {
+		else if (inputRingSilentFrames < kRingFrames) {
 			std::memset(output, 0, numThisTime * sizeof(StereoSample));
+			inputRingSilentFrames += numThisTime;
 		}
 		inputRingWriteFrame = (inputRingWriteFrame + numThisTime) & (kRingFrames - 1);
 		txQueued += numThisTime;
@@ -726,12 +737,16 @@ void sendToHost(std::span<const StereoSample> frames, int32_t const* txPosition)
 	uint32_t written = toHostWritten.load(std::memory_order_relaxed);
 	uint32_t space = kToHostRingFrames - (written - toHostRead.load(std::memory_order_acquire));
 	size_t numFrames = std::min<size_t>(frames.size(), space);
-	for (size_t i = 0; i < numFrames; i++) {
-		toHostRing[(written + i) & (kToHostRingFrames - 1)] = frames[i];
-	}
+	copyToRing(toHostRing, written, frames.data(), numFrames);
 	written += numFrames;
+	// The offset only changes when the stream (re)starts or the ring overflowed - every frame rendered normally goes
+	// both here and to the TX buffer. Leaving it alone otherwise means the SOF interrupt can't catch it out of step
+	// with toHostWritten, between the two stores
 	uint32_t txFrame = (txPosition - getTxBufferStart()) / NUM_MONO_OUTPUT_CHANNELS;
-	toHostTxOffset.store((int32_t)((txFrame - written) & (SSI_TX_BUFFER_NUM_SAMPLES - 1)), std::memory_order_relaxed);
+	auto txOffset = (int32_t)((txFrame - written) & (SSI_TX_BUFFER_NUM_SAMPLES - 1));
+	if (txOffset != toHostTxOffset.load(std::memory_order_relaxed)) {
+		toHostTxOffset.store(txOffset, std::memory_order_relaxed);
+	}
 	toHostWritten.store(written, std::memory_order_release);
 }
 

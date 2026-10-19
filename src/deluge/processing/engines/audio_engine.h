@@ -250,6 +250,12 @@ int32_t* getInputBufferEnd(AudioInputChannel channel);
 /// Where the audio about to be rendered starts, in the source's input buffer - i2sRXBufferPos, translated to it
 int32_t* getInputReadPos(AudioInputChannel channel);
 
+/// Whether a source is the codec's line/mic input - as opposed to USB audio, which is also external (below
+/// AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) but needs none of the codec's normalising or jack detection
+constexpr bool isCodecInput(AudioInputChannel channel) {
+	return channel < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && channel != AudioInputChannel::USB;
+}
+
 /// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick
 bool allowedToStartVoice();
 

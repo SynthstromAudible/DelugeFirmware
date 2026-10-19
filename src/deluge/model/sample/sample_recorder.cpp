@@ -442,8 +442,7 @@ aborted:
 			}
 			else {
 				const char* name;
-				if (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && mode != AudioInputChannel::USB
-				    && !AudioEngine::lineInPluggedIn) {
+				if (AudioEngine::isCodecInput(mode) && !AudioEngine::lineInPluggedIn) {
 					if (AudioEngine::micPluggedIn) {
 						name = "ExtMic";
 					}
@@ -684,8 +683,7 @@ Error SampleRecorder::finalizeRecordedFile() {
 			}
 
 			// Or, if R is the differential signal of L, do that
-			else if (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && mode != AudioInputChannel::USB
-			         && AudioEngine::lineInPluggedIn && inputLooksDifferential()) {
+			else if (AudioEngine::isCodecInput(mode) && AudioEngine::lineInPluggedIn && inputLooksDifferential()) {
 				D_PRINTLN("subtracting right channel");
 				action = MonitoringAction::SUBTRACT_RIGHT_CHANNEL;
 			}
