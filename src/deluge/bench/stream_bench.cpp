@@ -231,6 +231,13 @@ bool printReportLine() {
 		printTraceHist("begin", t.begin);
 		return true;
 	case 10:
+		D_PRINTLN("STREAM-BENCH-SCANS phase=%s resident=%lu/%lu ptr=%lu/%lu free=%lu/%lu evict=%lu/%lu", g.phase,
+		          static_cast<unsigned long>(r.scan_resident_calls), static_cast<unsigned long>(r.scan_resident_slots),
+		          static_cast<unsigned long>(r.scan_ptr_calls), static_cast<unsigned long>(r.scan_ptr_slots),
+		          static_cast<unsigned long>(r.scan_free_calls), static_cast<unsigned long>(r.scan_free_slots),
+		          static_cast<unsigned long>(r.scan_evict_calls), static_cast<unsigned long>(r.scan_evict_slots));
+		return true;
+	case 11:
 		D_PRINTLN("STREAM-BENCH-FS phase=%s long_waits=%lu,%lu,%lu max_us=%lu,%lu,%lu", g.phase,
 		          static_cast<unsigned long>(t.long_fs_waits_by_tier[0]),
 		          static_cast<unsigned long>(t.long_fs_waits_by_tier[1]),
@@ -239,7 +246,7 @@ bool printReportLine() {
 		          static_cast<unsigned long>(t.long_fs_wait_max_by_tier[1]),
 		          static_cast<unsigned long>(t.long_fs_wait_max_by_tier[2]));
 		return true;
-	case 11:
+	case 12:
 		printJobs();
 		return true;
 	default:
@@ -405,6 +412,17 @@ void step() {
 }
 
 } // namespace
+
+void noteLoadStep(int phase, uint64_t us) {
+	// Mirrors LoadSongUI::LoadPhase.
+	static constexpr std::array<const char*, 8> kNames{"none", "stage",  "begin",  "essential",
+	                                                   "arm",  "finish", "settle", "await_arm"};
+	if (us < 50'000) {
+		return;
+	}
+	const char* name = phase >= 0 && static_cast<size_t>(phase) < kNames.size() ? kNames[phase] : "?";
+	D_PRINTLN("STREAM-BENCH-LOADSTEP phase=%s ms=%lu", name, static_cast<unsigned long>(us / 1000));
+}
 
 void registerStreamBench() {
 	appLoop.add("stream bench", &step, kTick, 0);

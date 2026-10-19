@@ -16,6 +16,9 @@
  */
 
 #include "gui/ui/load/load_song_ui.h"
+#if DELUGE_STREAM_BENCH
+#include "bench/stream_bench.h"
+#endif
 #include "board_config.h" // PLACE_SDRAM_BSS
 #include "definitions_cxx.hpp"
 #include "deluge_resource.h" // deluge_resource_loader_has_lowest
@@ -533,7 +536,14 @@ void LoadSongUI::releaseSongStaging() {
 }
 
 void LoadSongUI::loadRoutine() {
+#if DELUGE_STREAM_BENCH
+	const auto phase = loadPhase_;
+	const uint64_t start = deluge::runtime::nowUs();
 	runPhase();
+	deluge::bench::noteLoadStep(static_cast<int>(phase), deluge::runtime::nowUs() - start);
+#else
+	runPhase();
+#endif
 	armNextRun();
 }
 

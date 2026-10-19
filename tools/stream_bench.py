@@ -71,6 +71,11 @@ HIST_RE = re.compile(
     r"STREAM-BENCH-HIST phase=(?P<phase>\S+) metric=(?P<metric>\S+) unit=(?P<unit>us|frames) "
     r"n=(?P<n>\d+) mean=(?P<mean>\d+) max=(?P<max>\d+) b=(?P<buckets>[\d,]*)"
 )
+SCANS_RE = re.compile(
+    r"STREAM-BENCH-SCANS phase=(?P<phase>\S+) resident=(?P<resident>\d+/\d+) ptr=(?P<ptr>\d+/\d+) "
+    r"free=(?P<free>\d+/\d+) evict=(?P<evict>\d+/\d+)"
+)
+SCANS = ("resident", "ptr", "free", "evict")
 FS_RE = re.compile(
     r"STREAM-BENCH-FS phase=(?P<phase>\S+) long_waits=(?P<waits>\d+,\d+,\d+) max_us=(?P<max>\d+,\d+,\d+)"
 )
@@ -142,6 +147,11 @@ def parse_capture(lines: list[str]) -> dict:
                 "mean": int(m["mean"]),
                 "max": int(m["max"]),
                 "buckets": buckets,
+            }
+        elif m := SCANS_RE.search(line):
+            phase(m["phase"])["scans"] = {
+                k: dict(zip(("calls", "slots"), map(int, m[k].split("/"))))
+                for k in SCANS
             }
         elif m := FS_RE.search(line):
             waits = [int(v) for v in m["waits"].split(",")]
@@ -218,6 +228,13 @@ def render(run: dict) -> str:
             ]
             out.append("| " + " | ".join(cells) + " |")
         out.append("")
+        if scans := p.get("scans"):
+            out.append("| chunk-table scan | calls | slots visited | slots per call |")
+            out.append("|---|---:|---:|---:|")
+            for k, v in scans.items():
+                per = f"{v['slots'] / v['calls']:.0f}" if v["calls"] else "-"
+                out.append(f"| {k} | {v['calls']} | {v['slots']} | {per} |")
+            out.append("")
         if fs := p.get("fs"):
             parts = [
                 f"{t} {v['long_waits']} (max {v['max_us'] / 1000:.2f} ms)"

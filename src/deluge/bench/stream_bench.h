@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 /// @file
 /// @brief The streaming benchmark: a device image built with DELUGE_STREAM_BENCH plays two songs from the card
 /// and reports where each streaming chunk's service time went.
@@ -34,6 +36,8 @@
 ///   - `STREAM-BENCH-HIST phase=<p> metric=<m> unit=<us|frames> n=<n> mean=<n> max=<n> b=<counts>`: a log2
 ///     histogram (bucket 0 holds 0, bucket i holds [2^(i-1), 2^i)) for each of `queue_wait` and `fill`
 ///     (DelugeResourceStats) and `wake`, `fs_wait`, `read`, `finish`, `gap`, `pop` and `begin` (DelugeFillTrace);
+///   - `STREAM-BENCH-SCANS phase=<p> resident=<calls>/<slots> ptr=<calls>/<slots> free=<calls>/<slots>
+///     evict=<calls>/<slots>`: the resource manager's chunk-table lookups and the slots they visited;
 ///   - `STREAM-BENCH-FS phase=<p> long_waits=<i>,<s>,<a> max_us=<i>,<s>,<a>`: filesystem waits of 2 ms or more by
 ///     the tier that held the mutex (interaction, storage, audio);
 ///   - `STREAM-BENCH-JOB phase=<p> name="<job>" max_us=<n> runs=<n>`: the slowest app-loop jobs.
@@ -49,5 +53,9 @@ namespace deluge::bench {
 
 /// Adds the benchmark's job to the app loop.
 void registerStreamBench();
+
+/// Notes that one run of the song load's phase @p phase (LoadSongUI::LoadPhase) took @p us µs. A run of 50 ms or more
+/// prints `STREAM-BENCH-LOADSTEP phase=<name> ms=<n>`.
+void noteLoadStep(int phase, uint64_t us);
 
 } // namespace deluge::bench
