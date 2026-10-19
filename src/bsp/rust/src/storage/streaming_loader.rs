@@ -290,7 +290,8 @@ mod prod {
             };
             let start = embassy_time::Instant::now();
             let read =
-                crate::storage::efatfs::backend::read_at_timed(slot, d.byte_offset, buf).await;
+                crate::storage::efatfs::backend::read_at_timed(slot, d.byte_offset, buf, true)
+                    .await;
             let end = embassy_time::Instant::now();
             crate::storage::fill_trace::read(start, read.acquired, end, read.waited_behind);
             read.filled

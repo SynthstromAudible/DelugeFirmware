@@ -131,18 +131,81 @@ pub async fn remount() -> Result<(), DelugeStatus> {
     mount().await
 }
 
+/// Callers waiting for [`FS`] that the storage tier's other users hold back for before locking (see
+/// [`with_fs`]): the streaming fill's reads, and any interaction-tier call.
+///
+/// The FS lock is unfair: whichever waiter runs first after a release takes it. A storage task
+/// working through a queue, the sample loader during a song load, re-took it at every release, so
+/// the fill task on the same executor waited for seconds and voices dropped, and the interaction
+/// tier, which reaches the FS through a spin (`sim_block::block_on`) that runs only while the
+/// storage executor is idle, waited for the whole queue to drain.
+static PRIORITY_WAITING: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+
+/// How often a storage-tier caller holding back for a priority one looks again.
+const PRIORITY_YIELD_US: u64 = 200;
+
+/// One priority caller counted in [`PRIORITY_WAITING`] until it has the lock, or until its future is
+/// dropped while waiting, so a cancelled wait cannot hold the other callers back for good.
+struct PriorityWait;
+
+impl PriorityWait {
+    fn begin() -> Self {
+        PRIORITY_WAITING.fetch_add(1, core::sync::atomic::Ordering::AcqRel);
+        Self
+    }
+}
+
+impl Drop for PriorityWait {
+    fn drop(&mut self) {
+        PRIORITY_WAITING.fetch_sub(1, core::sync::atomic::Ordering::AcqRel);
+    }
+}
+
 /// Runs `f` with exclusive access to the mounted FS; `None` if nothing is mounted.
 ///
 /// `f` is an `AsyncFnOnce` rather than `FnOnce(&Fs) -> impl Future`: only the async-closure form
 /// ties the future's lifetime to the borrowed `&Fs`, so the body can await while holding it.
+///
+/// A storage-tier caller holds back while a priority one waits ([`PRIORITY_WAITING`]): an
+/// interaction-tier call, or the streaming fill's reads ([`with_fs_urgent`]). Each of those then
+/// waits at most about one hold.
 pub async fn with_fs<R, F>(f: F) -> Option<R>
 where
     F: AsyncFnOnce(&Fs) -> R,
 {
-    let asked = embassy_time::Instant::now();
-    let g = FS.lock().await;
-    let acquired = embassy_time::Instant::now();
+    with_fs_as(false, f).await
+}
+
+/// [`with_fs`] for the streaming fill's reads, which other storage-tier callers hold back for and
+/// which hold back for nobody: a voice waiting on a chunk outranks everything else.
+pub async fn with_fs_urgent<R, F>(f: F) -> Option<R>
+where
+    F: AsyncFnOnce(&Fs) -> R,
+{
+    with_fs_as(true, f).await
+}
+
+async fn with_fs_as<R, F>(urgent: bool, f: F) -> Option<R>
+where
+    F: AsyncFnOnce(&Fs) -> R,
+{
+    use core::sync::atomic::Ordering;
     let tier = crate::tier::current();
+    let priority = urgent || tier == crate::tier::Tier::Interaction;
+    let asked = embassy_time::Instant::now();
+    let waiting = if priority {
+        Some(PriorityWait::begin())
+    } else {
+        // Only ever on an executor's task, never under the interaction tier's no-op-waker spin, so
+        // a Timer is safe here.
+        while PRIORITY_WAITING.load(Ordering::Acquire) != 0 {
+            embassy_time::Timer::after_micros(PRIORITY_YIELD_US).await;
+        }
+        None
+    };
+    let g = FS.lock().await;
+    drop(waiting);
+    let acquired = embassy_time::Instant::now();
     let result = match g.as_ref() {
         Some(fs) => Some(f(fs).await),
         None => None,
@@ -177,22 +240,23 @@ pub async fn open(path: &str) -> OpenOutcome {
 /// Reads `dst.len()` bytes at absolute `byte_offset` of the file behind `handle`. Returns
 /// whether the whole buffer was filled (zero-padded past EOF, see [`portable::read_context`]).
 pub async fn read_at(handle: u32, byte_offset: u32, dst: &mut [u8]) -> bool {
-    read_at_timed(handle, byte_offset, dst).await.filled
+    read_at_timed(handle, byte_offset, dst, false).await.filled
 }
 
 /// [`read_at`], also reporting when it took the filesystem mutex and whose hold it waited behind,
-/// for the fill trace.
+/// for the fill trace. `urgent` takes the lock as [`with_fs_urgent`] does: for the streaming fill.
 pub async fn read_at_timed(
     handle: u32,
     byte_offset: u32,
     dst: &mut [u8],
+    urgent: bool,
 ) -> crate::storage::fill_trace::TimedRead {
     use crate::storage::fill_trace::TimedRead;
     let Some((generation, ctx)) = HANDLES.lock().await.checkout(handle) else {
         return TimedRead::default();
     };
 
-    let result = with_fs(async |fs| {
+    let read = async |fs: &Fs| {
         let acquired = embassy_time::Instant::now();
         let waited_behind = crate::storage::fill_trace::last_fs_release();
         (
@@ -200,8 +264,12 @@ pub async fn read_at_timed(
             waited_behind,
             portable::read_context(fs, ctx, byte_offset, dst).await,
         )
-    })
-    .await;
+    };
+    let result = if urgent {
+        with_fs_urgent(read).await
+    } else {
+        with_fs(read).await
+    };
 
     match result {
         Some((acquired, waited_behind, Some((newctx, filled)))) => {
