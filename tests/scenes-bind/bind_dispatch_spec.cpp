@@ -55,7 +55,8 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 		const auto& row = row_at("osc2/type");
 		expect(shown->greatest + 1).to_equal(deluge::engine::applicable_choice_count(row, shown_for, reader.reader()));
 		expect(shown->stale.has_value()).to_be_false();
-		const auto* names = deluge::l10n::setting_names(deluge::engine::kDelugeInstrument, "osc2/type");
+		// With no input plugged in, the one input entry is named as legacy names it ("Input"), by the context.
+		const auto* names = deluge::l10n::setting_names(deluge::engine::kDelugeInstrument, "osc2/type", shown_for);
 		std::vector<int64_t> want;
 		for (size_t choice = 0; choice < row.choices.size(); ++choice) {
 			if (deluge::engine::setting_choice_applies(row, shown_for, reader.reader(), choice)) {

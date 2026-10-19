@@ -117,8 +117,12 @@ std::optional<View> view(const Target& target, const project::Song& model, const
 size_t choice_names(const Target& target, const project::Song& model, const Addresses& where, const RuntimeFacts& facts,
                     std::span<ChoiceName> out) {
 	const std::optional<Resolved> resolved = resolve(target, model, where, facts);
-	const l10n::SettingNames* names = l10n::setting_names(engine::kDelugeInstrument, target.path);
-	if (!resolved || names == nullptr) {
+	if (!resolved) {
+		return 0;
+	}
+	// The names as the menu shows the row in its context: with no input plugged in, one input entry named "Input".
+	const l10n::SettingNames* names = l10n::setting_names(engine::kDelugeInstrument, target.path, resolved->context);
+	if (names == nullptr) {
 		return 0;
 	}
 	if (resolved->row->kind != engine::SettingKind::CHOICE) {

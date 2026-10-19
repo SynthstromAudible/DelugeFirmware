@@ -231,7 +231,9 @@ std::vector<std::string> node_names(const Node& node, const deluge::scenes::menu
 }
 
 bool node_lists_names(const Node& node) {
-	return node.bind.dynamic_names != nullptr || !node.bind.names.empty();
+	// A target node shown as a list takes its names from the name table: compare them like any other list's.
+	return node.bind.dynamic_names != nullptr || !node.bind.names.empty()
+	       || (node.bind.target.valid() && node.kind == Kind::Enum);
 }
 
 /// @brief A row whose menu is not one value of one row, so a check cannot set it and read the menu back.
