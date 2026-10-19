@@ -106,6 +106,11 @@ hardening commits in this owned copy.
   seek — only a same-cluster fast path exists. This continues from
   `current_cluster` when the target is ahead, turning an O(n) walk into O(delta).
   Pure optimization; no API change.
+- **Local API: where a file lies on the volume.** `src/fs.rs`, `src/file.rs`. `FileSystem::follow_chain`
+  (walk a cluster chain for a bounded number of links), `cluster_first_sector`, `sectors_per_cluster`
+  and `bytes_per_sector`; `FileContext::first_cluster`, `size` and `entry_position`. The BSP builds
+  each streaming file's map of cluster runs from them and reads mapped chunks straight from the card
+  (`src/bsp/rust/src/storage/efatfs/portable.rs`, `ExtentMap`). Additive; no behaviour change.
 
 ## Skipped (rejected, not deferred)
 
