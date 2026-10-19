@@ -174,6 +174,7 @@ bool bypassCulling = false;
 bool audioRoutineLocked = false;
 uint32_t audioSampleTimer = 0;
 bool inputMonitoringWarmedUp = false;
+bool usbInputMonitoredByTrack = false;
 // ~500ms after power-on for the codec ADC to settle before we start monitoring its input (see inputMonitoringWarmedUp),
 // then ~50ms to fade it in so monitoring doesn't switch on with a click.
 constexpr uint32_t kInputMonitoringWarmupSamples = kSampleRate / 2;
@@ -860,6 +861,7 @@ void renderAudio(size_t numSamples) {
 	}
 
 	numHopsEndedThisRoutineCall = 0;
+	usbInputMonitoredByTrack = false;
 
 	// Render audio for song
 	if (currentSong != nullptr) {
@@ -895,6 +897,7 @@ void renderAudioForStemExport(size_t numSamples) {
 	}
 
 	numHopsEndedThisRoutineCall = 0;
+	usbInputMonitoredByTrack = false;
 
 	// Render audio for song
 	if (currentSong != nullptr) {
@@ -1341,8 +1344,10 @@ bool doSomeOutputting() {
 	int32_t const* const inputBufferEnd = getInputBufferEnd(monitoringSource);
 
 	// Audio from a USB host, mixed straight into the outputs if the user wants - unless it's already coming through
-	// the sampling monitor. It's added after toUSB is taken, so it isn't sent back to the host, which would echo it
-	bool const doUSBDirectMonitoring = usb_audio::directMonitoring && !doMonitoring && usb_audio::receivingFromHost();
+	// the sampling monitor or an audio track's. It's added after toUSB is taken, so it isn't sent back to the host,
+	// which would echo it
+	bool const doUSBDirectMonitoring =
+	    usb_audio::directMonitoring && !doMonitoring && !usbInputMonitoredByTrack && usb_audio::receivingFromHost();
 	int32_t const* __restrict__ usbReadPos = getInputReadPos(AudioInputChannel::USB);
 	int32_t const* const usbInputEnd = usb_audio::getInputRingEnd();
 	bool const doSendToUSB = usb_audio::sendingToHost();
