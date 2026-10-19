@@ -138,6 +138,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+
+#include "engine-api/types/setting.h"
+#include "engines/deluge/settings.h"
 #include <string_view>
 #include <vector>
 
@@ -146,6 +149,16 @@ namespace nodes = deluge::scenes::menu::nodes;
 namespace relevance = deluge::scenes::menu::relevance;
 
 namespace {
+
+/// Whether @p target's row says when it applies (its descriptor carries conditions); a row with none is always shown.
+bool target_is_conditional(const deluge::scenes::bind::Target& target) {
+	if (!target.valid()) {
+		return false;
+	}
+	const deluge::engine::SettingInfo* row = deluge::engine::find_setting(deluge::instrument::kSettings, target.path);
+	return row != nullptr && row->extras != nullptr
+	       && (!row->extras->applies_when.empty() || !row->extras->applies_any.empty());
+}
 
 /// @brief `n` two-space-wide indents, as a fresh string -- the only indentation primitive the
 ///        emitter uses, so every call site's nesting level is visible at the call site itself.
@@ -384,8 +397,8 @@ void emit_node(std::string& out, const menu::Node& node, int brace_level) {
 		write_json_string(out, relevance::name_of(node.relevant));
 		out += ",\n";
 	}
-	// A target node's relevance, range and choices are its setting's descriptor: the dump names the setting.
-	if (node.bind.target.valid()) {
+	// A target node is shown when its setting's conditions hold: the dump names the setting whose descriptor decides.
+	if (target_is_conditional(node.bind.target)) {
 		out += spaces(field_level) + "\"available_when\": ";
 		write_json_string(out, std::string("setting:") + std::string(node.bind.target.path));
 		out += ",\n";

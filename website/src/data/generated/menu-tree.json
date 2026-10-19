@@ -147,7 +147,6 @@
             "type": "basic"
           },
           {
-            "available_when": "setting:transpose",
             "id": 16,
             "name": "Master transpose",
             "select_chain": [
@@ -3460,14 +3459,12 @@
       {
         "children": [
           {
-            "available_when": "setting:lfo1/type",
             "id": 203,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
-            "available_when": "setting:lfo1/syncLevel",
             "id": 204,
             "name": "Sync",
             "title": "LFO* sync",
@@ -3529,14 +3526,12 @@
       {
         "children": [
           {
-            "available_when": "setting:lfo2/type",
             "id": 207,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
-            "available_when": "setting:lfo2/syncLevel",
             "id": 208,
             "name": "Sync",
             "title": "LFO* sync",
@@ -3598,14 +3593,12 @@
       {
         "children": [
           {
-            "available_when": "setting:lfo3/type",
             "id": 211,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
-            "available_when": "setting:lfo3/syncLevel",
             "id": 212,
             "name": "Sync",
             "title": "LFO* sync",
@@ -3667,14 +3660,12 @@
       {
         "children": [
           {
-            "available_when": "setting:lfo4/type",
             "id": 215,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
-            "available_when": "setting:lfo4/syncLevel",
             "id": 216,
             "name": "Sync",
             "title": "LFO* sync",
@@ -3742,7 +3733,6 @@
             "type": "basic"
           },
           {
-            "available_when": "setting:polyphonic",
             "id": 220,
             "name": "Polyphony",
             "select_chain": [
@@ -3773,12 +3763,10 @@
           {
             "children": [
               {
-                "available_when": "setting:unison/num",
                 "id": 224,
                 "name": "Number",
                 "select_chain": [
                   {
-                    "available_when": "setting:unison/spread",
                     "id": 225,
                     "name": "Spread",
                     "title": "Unison stereo spread",
@@ -3789,14 +3777,12 @@
                 "type": "basic"
               },
               {
-                "available_when": "setting:unison/detune",
                 "id": 226,
                 "name": "Detune",
                 "title": "Unison detune",
                 "type": "basic"
               },
               {
-                "available_when": "setting:unison/spread",
                 "id": 225,
                 "name": "Spread",
                 "title": "Unison stereo spread",
@@ -3913,7 +3899,6 @@
       {
         "children": [
           {
-            "available_when": "setting:midiOutput/channel",
             "id": 234,
             "name": "Channel",
             "title": "Channel",
@@ -4072,7 +4057,6 @@
             "type": "basic"
           },
           {
-            "available_when": "setting:transpose",
             "id": 16,
             "name": "Master transpose",
             "select_chain": [
@@ -7385,14 +7369,12 @@
       {
         "children": [
           {
-            "available_when": "setting:lfo1/type",
             "id": 203,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
-            "available_when": "setting:lfo1/syncLevel",
             "id": 204,
             "name": "Sync",
             "title": "LFO* sync",
@@ -7454,14 +7436,12 @@
       {
         "children": [
           {
-            "available_when": "setting:lfo2/type",
             "id": 207,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
-            "available_when": "setting:lfo2/syncLevel",
             "id": 208,
             "name": "Sync",
             "title": "LFO* sync",
@@ -7523,14 +7503,12 @@
       {
         "children": [
           {
-            "available_when": "setting:lfo3/type",
             "id": 211,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
-            "available_when": "setting:lfo3/syncLevel",
             "id": 212,
             "name": "Sync",
             "title": "LFO* sync",
@@ -7592,14 +7570,12 @@
       {
         "children": [
           {
-            "available_when": "setting:lfo4/type",
             "id": 215,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
-            "available_when": "setting:lfo4/syncLevel",
             "id": 216,
             "name": "Sync",
             "title": "LFO* sync",
@@ -7667,7 +7643,6 @@
             "type": "basic"
           },
           {
-            "available_when": "setting:polyphonic",
             "id": 220,
             "name": "Polyphony",
             "select_chain": [
@@ -7698,12 +7673,10 @@
           {
             "children": [
               {
-                "available_when": "setting:unison/num",
                 "id": 224,
                 "name": "Number",
                 "select_chain": [
                   {
-                    "available_when": "setting:unison/spread",
                     "id": 225,
                     "name": "Spread",
                     "title": "Unison stereo spread",
@@ -7714,14 +7687,12 @@
                 "type": "basic"
               },
               {
-                "available_when": "setting:unison/detune",
                 "id": 226,
                 "name": "Detune",
                 "title": "Unison detune",
                 "type": "basic"
               },
               {
-                "available_when": "setting:unison/spread",
                 "id": 225,
                 "name": "Spread",
                 "title": "Unison stereo spread",
@@ -7838,7 +7809,6 @@
       {
         "children": [
           {
-            "available_when": "setting:midiOutput/channel",
             "id": 234,
             "name": "Channel",
             "title": "Channel",

@@ -84,12 +84,15 @@ void AudioFileHolder::setAudioFile(AudioFile* newAudioFile, bool reversed, bool 
 		audioFile->removeReason("E391");
 	}
 
+	const bool changed = audioFile != newAudioFile;
 	audioFile = newAudioFile;
 
 	if (audioFile) {
 		audioFile->addReason();
-		// A file now plays here: what applies only to a loaded source (a sample's repeat, speed, interpolation)
-		// changes under an open menu, which repaints on this fact.
+	}
+	// A file now plays here, or no longer does: what applies only to a loaded source (a sample's repeat, speed,
+	// interpolation) changes under an open menu, which repaints on this fact.
+	if (changed) {
 		deluge::notify::raise(deluge::notify::Dirty::SampleReady);
 	}
 }
