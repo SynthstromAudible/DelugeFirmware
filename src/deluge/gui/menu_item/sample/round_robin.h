@@ -425,6 +425,10 @@ public:
 			computeFinalValuesForTranspose(this->getValue(), &transpose, &cents);
 			holder->transpose = transpose;
 			holder->setCents(cents);
+			// Retune notes that are already sounding, as the oscillator-level TRANSPOSE does.
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
+			soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
 			getCurrentInstrument()->beenEdited();
 		}
 	}
