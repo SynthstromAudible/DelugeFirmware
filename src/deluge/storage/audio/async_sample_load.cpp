@@ -16,6 +16,10 @@
  */
 
 #include "storage/audio/async_sample_load.h"
+#if DELUGE_STREAM_BENCH
+#include "bench/stream_bench.h"
+#include "runtime/app_loop.h"
+#endif
 
 #include "hid/display/display.h"
 #include "libdeluge/audio_load.h"
@@ -232,9 +236,15 @@ void AsyncSampleLoad::demand(const SampleDemand& demand) {
 	}
 
 	Error error = Error::NONE;
+#if DELUGE_STREAM_BENCH
+	const uint64_t acquireStart = deluge::runtime::nowUs();
+#endif
 	// Bound only once it is fully set up, so the audio routine never sounds a file that is still being built.
 	AudioFile* file = holder.acquire(/*mayActuallyReadFile=*/true, &error, demand.makeWaveTableWorkAtAllCosts,
 	                                 waveTable ? AsyncLoadMode::Blocking : AsyncLoadMode::AsyncOnly, context_);
+#if DELUGE_STREAM_BENCH
+	const uint64_t acquireUs = deluge::runtime::nowUs() - acquireStart;
+#endif
 	if (waveTable) {
 		progress_.wavetableReads++;
 	}
@@ -246,7 +256,14 @@ void AsyncSampleLoad::demand(const SampleDemand& demand) {
 	}
 
 	if (file != nullptr) {
+#if DELUGE_STREAM_BENCH
+		const uint64_t setStart = deluge::runtime::nowUs();
+#endif
 		holder.setAudioFile(file, demand.reversed, demand.manuallySelected, demand.clusterLoadInstruction);
+#if DELUGE_STREAM_BENCH
+		deluge::bench::noteBind(holder.filePath.c_str(), acquireUs, deluge::runtime::nowUs() - setStart,
+		                        static_cast<int>(demand.clusterLoadInstruction));
+#endif
 		progress_.bound++;
 	}
 	else {

@@ -413,7 +413,7 @@ void step() {
 
 } // namespace
 
-void noteLoadStep(int phase, uint64_t us) {
+void noteLoadStep(int phase, uint64_t us, int32_t bound, int32_t empty, int32_t in_flight) {
 	// Mirrors LoadSongUI::LoadPhase.
 	static constexpr std::array<const char*, 8> kNames{"none", "stage",  "begin",  "essential",
 	                                                   "arm",  "finish", "settle", "await_arm"};
@@ -421,7 +421,29 @@ void noteLoadStep(int phase, uint64_t us) {
 		return;
 	}
 	const char* name = phase >= 0 && static_cast<size_t>(phase) < kNames.size() ? kNames[phase] : "?";
-	D_PRINTLN("STREAM-BENCH-LOADSTEP phase=%s ms=%lu", name, static_cast<unsigned long>(us / 1000));
+	D_PRINTLN("STREAM-BENCH-LOADSTEP phase=%s ms=%lu bound=%d empty=%d in_flight=%d", name,
+	          static_cast<unsigned long>(us / 1000), static_cast<int>(bound), static_cast<int>(empty),
+	          static_cast<int>(in_flight));
+}
+
+void noteBind(const char* path, uint64_t acquire_us, uint64_t set_us, int instruction) {
+	if (acquire_us + set_us < 20'000) {
+		return;
+	}
+	D_PRINTLN("STREAM-BENCH-BIND acquire_ms=%lu set_ms=%lu instruction=%d path=%s",
+	          static_cast<unsigned long>(acquire_us / 1000), static_cast<unsigned long>(set_us / 1000), instruction,
+	          path);
+}
+
+void noteSampleBuild(const char* path, uint64_t begin_us, uint64_t bind_us, uint64_t geometry_us, uint64_t finish_us,
+                     uint64_t size_bytes) {
+	if (begin_us + bind_us + geometry_us + finish_us < 20'000) {
+		return;
+	}
+	D_PRINTLN("STREAM-BENCH-BUILD begin_ms=%lu bind_ms=%lu geometry_ms=%lu finish_ms=%lu kib=%lu path=%s",
+	          static_cast<unsigned long>(begin_us / 1000), static_cast<unsigned long>(bind_us / 1000),
+	          static_cast<unsigned long>(geometry_us / 1000), static_cast<unsigned long>(finish_us / 1000),
+	          static_cast<unsigned long>(size_bytes / 1024), path);
 }
 
 void registerStreamBench() {

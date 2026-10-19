@@ -54,8 +54,20 @@ namespace deluge::bench {
 /// Adds the benchmark's job to the app loop.
 void registerStreamBench();
 
-/// Notes that one run of the song load's phase @p phase (LoadSongUI::LoadPhase) took @p us µs. A run of 50 ms or more
-/// prints `STREAM-BENCH-LOADSTEP phase=<name> ms=<n>`.
-void noteLoadStep(int phase, uint64_t us);
+/// Notes that one run of the song load's phase @p phase (LoadSongUI::LoadPhase) took @p us µs, and what its sample
+/// walk found, if it walked: holders bound, settled empty, and still in flight. A run of 50 ms or more prints
+/// `STREAM-BENCH-LOADSTEP phase=<name> ms=<n> bound=<n> empty=<n> in_flight=<n>`.
+void noteLoadStep(int phase, uint64_t us, int32_t bound, int32_t empty, int32_t in_flight);
+
+/// Notes that binding the sample at @p path took @p acquire_us µs to collect and @p set_us µs to attach, under cluster
+/// load instruction @p instruction. A bind of 20 ms or more prints
+/// `STREAM-BENCH-BIND acquire_ms=<n> set_ms=<n> instruction=<n> path=<path>`.
+void noteBind(const char* path, uint64_t acquire_us, uint64_t set_us, int instruction);
+
+/// Notes how long each step of building a Sample from an arrived load took, in µs: AudioFileManager's
+/// buildSampleFromLoadResult(). A build of 20 ms or more prints
+/// `STREAM-BENCH-BUILD begin_ms=<n> bind_ms=<n> geometry_ms=<n> finish_ms=<n> kib=<n> path=<path>`.
+void noteSampleBuild(const char* path, uint64_t begin_us, uint64_t bind_us, uint64_t geometry_us, uint64_t finish_us,
+                     uint64_t size_bytes);
 
 } // namespace deluge::bench

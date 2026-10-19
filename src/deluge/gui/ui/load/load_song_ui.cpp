@@ -539,8 +539,17 @@ void LoadSongUI::loadRoutine() {
 #if DELUGE_STREAM_BENCH
 	const auto phase = loadPhase_;
 	const uint64_t start = deluge::runtime::nowUs();
+	// Read before runPhase(), which may end the load it ticks and drop it.
+	const auto* walking = phase == LoadPhase::ESSENTIAL && essentialLoad_.has_value() ? &*essentialLoad_
+	                      : phase == LoadPhase::AWAIT_ARM && restLoad_.has_value()    ? &*restLoad_
+	                                                                                  : nullptr;
+	deluge::storage::AsyncSampleLoad::Progress walked{};
 	runPhase();
-	deluge::bench::noteLoadStep(static_cast<int>(phase), deluge::runtime::nowUs() - start);
+	if (walking != nullptr && (phase == LoadPhase::ESSENTIAL ? essentialLoad_.has_value() : restLoad_.has_value())) {
+		walked = walking->progress();
+	}
+	deluge::bench::noteLoadStep(static_cast<int>(phase), deluge::runtime::nowUs() - start, walked.bound,
+	                            walked.emptyHolders, walked.inFlight);
 #else
 	runPhase();
 #endif

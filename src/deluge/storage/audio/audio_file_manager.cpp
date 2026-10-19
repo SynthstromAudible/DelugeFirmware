@@ -16,6 +16,10 @@
  */
 
 #include "storage/audio/audio_file_manager.h"
+#if DELUGE_STREAM_BENCH
+#include "bench/stream_bench.h"
+#include "runtime/app_loop.h"
+#endif
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/l10n/l10n.h"
@@ -1234,8 +1238,14 @@ AudioFile* AudioFileManager::buildSampleFromLoadResult(const std::string& filePa
 	}
 
 	Error buildError = Error::NONE;
+#if DELUGE_STREAM_BENCH
+	std::array<uint64_t, 5> at{deluge::runtime::nowUs()};
+#endif
 	sample_build::SampleBuild* build =
 	    sample_build::begin(filePath, result.alternate_path, result.size_bytes, &buildError);
+#if DELUGE_STREAM_BENCH
+	at[1] = deluge::runtime::nowUs();
+#endif
 	if (build == nullptr) {
 		return fail(buildError); // nothing adopted, nothing to abandon
 	}
@@ -1251,6 +1261,9 @@ AudioFile* AudioFileManager::buildSampleFromLoadResult(const std::string& filePa
 	const std::string_view pathToOpen =
 	    (result.alternate_path[0] != '\0') ? std::string_view{result.alternate_path} : std::string_view{filePath};
 	buildError = sample_build::bindReadStream(build, pathToOpen);
+#if DELUGE_STREAM_BENCH
+	at[2] = deluge::runtime::nowUs();
+#endif
 	if (buildError != Error::NONE) {
 		sample_build::abandon(build);
 		return fail(buildError);
@@ -1262,9 +1275,17 @@ AudioFile* AudioFileManager::buildSampleFromLoadResult(const std::string& filePa
 		sample_build::abandon(build);
 		return fail(buildError);
 	}
+#if DELUGE_STREAM_BENCH
+	at[3] = deluge::runtime::nowUs();
+#endif
 
 	buildError = Error::NONE;
 	AudioFile* published = sample_build::finish(build, Error::NONE, &buildError);
+#if DELUGE_STREAM_BENCH
+	at[4] = deluge::runtime::nowUs();
+	deluge::bench::noteSampleBuild(filePath.c_str(), at[1] - at[0], at[2] - at[1], at[3] - at[2], at[4] - at[3],
+	                               result.size_bytes);
+#endif
 	if (published == nullptr) {
 		// Publishing itself failed (e.g. the cache insert ran out of memory). finish() consumed the
 		// build either way, so there is nothing left to abandon -- and its reported outcome, not our
