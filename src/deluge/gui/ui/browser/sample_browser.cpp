@@ -979,6 +979,15 @@ removeLoadingAnimationAndGetOut:
 		bool makeWaveTableWorkAtAllCosts = (mayDoWaveTable == 2) || (mayDoSingleCycle == 2)
 		                                   || (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD);
 
+		// A variant slot can only hold a sample: forcing WAVETABLE would convert the whole oscillator
+		// and destroy the zone's other variants. The load menu hides those options for slots 2-4;
+		// this catches any other route.
+		if (makeWaveTableWorkAtAllCosts && targetRoundRobinSlot > 0) {
+			display->removeLoadingAnimation();
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+			return false;
+		}
+
 		int32_t numTypesTried = 0;
 
 		// If we already know we want to try doing WaveTable...
