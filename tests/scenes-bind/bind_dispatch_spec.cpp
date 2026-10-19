@@ -132,13 +132,6 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 		expect(view(sound("maxVoices"), fixture.song, at(kSynth), fixture.facts)->applies).to_be_true();
 	});
 
-	it("titles a numbered row with its number", _ {
-		const auto title = title_of(sound("osc2/type"));
-		expect(title.number.value_or(0)).to_equal(2);
-		expect(title.title == deluge::l10n::setting_names(deluge::engine::kDelugeInstrument, "osc2/type")->title)
-		    .to_be_true();
-		expect(title_of(sound("polyphonic")).number.has_value()).to_be_false();
-	});
 
 	it("resolves every row the table holds, a row whose mapping clamps (no partner) included", _ {
 		const ModelFixture fixture;

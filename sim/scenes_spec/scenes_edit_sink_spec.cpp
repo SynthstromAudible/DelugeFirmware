@@ -10,6 +10,7 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/sound_osc.h"
 
+#include "engines/deluge/codec.h"
 #include "engines/deluge/sound_state.h"
 #include "gui/ui/shell_bind_host.h"
 #include "model/drum/gate_drum.h"
@@ -124,6 +125,30 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		bindings::write(menu::nodes::osc0_type, ctx, 4); // the fifth listed type: saw
 		expect(selected->boundState()->sources[0].osc_type == deluge::instrument::OscType::SAW).to_be_true();
 		expect(other->boundState()->sources[0].osc_type == before).to_be_true();
+	});
+
+	it("binds nothing through the app for a song it does not play", _ {
+		spec::SongFixture other = spec::make_synth_song();
+		spec::SongFixture playing = spec::make_synth_song(); // the fixture makes the last song built the current one
+		const MenuContext ctx = menu::context_for(*other.song, other.clip, 0, false, false, false, false);
+		expect(ctx.facts == nullptr && ctx.sink == nullptr).to_be_true();
+		expect(bindings::relevant(kMaxVoices, ctx)).to_be_false();
+		(void)playing;
+	});
+
+	it("keeps each sound's slot and typed state equal after its menus write it", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
+		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		bindings::write(kMaxVoices, ctx, 7);
+		bindings::write(menu::nodes::osc0_type, ctx, 4);
+		const deluge::project::InstrumentSlot* slot = f.song->project.resolveSlot(*ctx.addresses.slot);
+		expect(slot != nullptr).to_be_true();
+		const auto decoded = deluge::instrument::decode_onto(slot->state, *drum->boundState(),
+		                                                     {.input_tick_magnitude = slot->tick_magnitude});
+		expect(decoded.has_value()).to_be_true();
+		expect(deluge::instrument::dump_state(*decoded) == deluge::instrument::dump_state(*drum->boundState()))
+		    .to_be_true();
 	});
 
 	it("refuses a request whose slot does not resolve, and changes nothing", _ {

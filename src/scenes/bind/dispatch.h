@@ -32,12 +32,6 @@ struct ChoiceName {
 	bool unavailable{false}; ///< the stored choice, listed although it no longer applies; shown marked
 };
 
-/// @brief A row's title, with the number its `*` stands for.
-struct Title {
-	l10n::String title{l10n::String::EMPTY_STRING};
-	std::optional<int32_t> number; ///< the oscillator's, modulator's or LFO's number in the path, if it has one
-};
-
 /// @brief What the menu shows of @p target.
 /// @param target The target.
 /// @param model  The song.
@@ -58,11 +52,6 @@ struct Title {
 /// @return How many entries were written; 0 for a target that does not resolve or has no choices.
 size_t choice_names(const Target& target, const project::Song& model, const Addresses& where, const RuntimeFacts& facts,
                     std::span<ChoiceName> out);
-
-/// @brief @p target's title from the name table, with the number its `*` stands for.
-/// @param target The target.
-/// @return The title; EMPTY_STRING where the table names no such row.
-[[nodiscard]] Title title_of(const Target& target);
 
 /// @brief The write a menu value @p menu asks for: a CHOICE row's position becomes the descriptor's menu value of the
 /// choice listed there.

@@ -373,7 +373,8 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 			n.bind.get = zero;
 			return n;
 		}();
-		static constexpr const Node* kids[] = {&bare, &hooked};
+		static constexpr Node adjusted = with_adjust(setting_item(447, Kind::Int, kTarget), discard_offset);
+		static constexpr const Node* kids[] = {&bare, &hooked, &adjusted};
 		static constexpr Node root = submenu(446, kids);
 		static constexpr const Node* roots[] = {&root};
 
@@ -384,7 +385,7 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 			}
 			expect(i.node != &bare).to_be_true();
 		}
-		expect(flagged).to_equal(std::vector<uint16_t>{445});
+		expect(flagged).to_equal(std::vector<uint16_t>{445, 447});
 	});
 });
 // clang-format on

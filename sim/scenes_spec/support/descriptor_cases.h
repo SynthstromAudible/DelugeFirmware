@@ -550,6 +550,7 @@ inline Synth& synth() {
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 		Synth r;
 		r.song = spec::make_synth_song();
+		currentSong = r.song.song; // the app binds through the song it plays
 		r.ctx = deluge::scenes::menu::context_for(*r.song.song, r.song.clip, 0, false, false, false, false);
 		return r;
 	}();
@@ -567,6 +568,7 @@ inline KitLane& kit_lane() {
 		r.song = spec::make_kit_song();
 		r.drum = spec::add_drum<SoundDrum>(r.song);
 		static_cast<Kit*>(r.song.instrument)->selectedDrum = r.drum;
+		currentSong = r.song.song; // the app binds through the song it plays
 		r.ctx = deluge::scenes::menu::context_for(*r.song.song, r.song.clip, 0, false, false, false, false);
 		return r;
 	}();
@@ -598,6 +600,7 @@ inline MidiClip& midi_clip() {
 	static MidiClip m = [] {
 		MidiClip r;
 		r.song = spec::make_midi_song();
+		currentSong = r.song.song; // the app binds through the song it plays
 		r.ctx = deluge::scenes::menu::context_for(*r.song.song, r.song.clip, 0, false, false, false, false);
 		return r;
 	}();
@@ -612,6 +615,7 @@ inline CvClip& cv_clip() {
 	static CvClip c = [] {
 		CvClip r;
 		r.song = spec::make_cv_song();
+		currentSong = r.song.song; // the app binds through the song it plays
 		r.ctx = deluge::scenes::menu::context_for(*r.song.song, r.song.clip, 0, false, false, false, false);
 		return r;
 	}();
@@ -626,6 +630,7 @@ inline AudioClipRig& audio_clip() {
 	static AudioClipRig a = [] {
 		AudioClipRig r;
 		r.song = spec::make_audio_clip_song();
+		currentSong = r.song.song; // the app binds through the song it plays
 		r.ctx = deluge::scenes::menu::context_for(*r.song.song, r.song.clip, 0, false, false, false, false);
 		return r;
 	}();
@@ -668,6 +673,7 @@ inline const MenuContext& settle(Where where) {
 	};
 	Song& song = song_of(where);
 	const bool song_root = where == Where::SONG;
+	currentSong = &song; // the app binds through the song it plays
 	ctx = deluge::scenes::menu::context_for(song, clip_of(where), 0, false, song_root, song_root,
 	                                        where == Where::KIT || where == Where::KIT_GATE_ROW);
 	install(ctx, &song);
@@ -693,6 +699,7 @@ inline const MenuContext& enter(Where where, int8_t source = 0) {
 		if (where == Where::SYNTH_RINGMOD) {
 			sound_setting(sound, "mode", "ringmod");
 		}
+		currentSong = s.song.song; // the app binds through the song it plays
 		s.ctx = deluge::scenes::menu::context_for(*s.song.song, s.song.clip, source, false, false, false, false);
 		install(s.ctx, s.song.song);
 		return s.ctx;
@@ -700,6 +707,7 @@ inline const MenuContext& enter(Where where, int8_t source = 0) {
 	case Where::KIT_LANE: {
 		KitLane& k = kit_lane();
 		sound_setting(*k.drum, "mode", "subtractive");
+		currentSong = k.song.song; // the app binds through the song it plays
 		k.ctx = deluge::scenes::menu::context_for(*k.song.song, k.song.clip, source, false, false, false, false);
 		install(k.ctx, k.song.song);
 		return k.ctx;

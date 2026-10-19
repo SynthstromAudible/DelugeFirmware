@@ -8,7 +8,6 @@
 #include "scenes/bind/slot_reader.h"
 
 #include <array>
-#include <cctype>
 #include <tuple>
 
 namespace deluge::scenes::bind {
@@ -151,24 +150,6 @@ size_t choice_names(const Target& target, const project::Song& model, const Addr
 		                  .unavailable = entries.stale == entry};
 	}
 	return written;
-}
-
-Title title_of(const Target& target) {
-	const l10n::SettingNames* names = l10n::setting_names(engine::kDelugeInstrument, target.path);
-	Title title{.title = names != nullptr ? names->title : l10n::String::EMPTY_STRING};
-	const std::string_view head = target.path.substr(0, target.path.find('/'));
-	int32_t number = 0;
-	bool digits = false;
-	for (const char c : head) {
-		if (std::isdigit(static_cast<unsigned char>(c)) != 0) {
-			number = number * 10 + (c - '0');
-			digits = true;
-		}
-	}
-	if (digits) {
-		title.number = number;
-	}
-	return title;
 }
 
 std::optional<WriteRequest> request_for(const Target& target, const project::Song& model, const Addresses& where,

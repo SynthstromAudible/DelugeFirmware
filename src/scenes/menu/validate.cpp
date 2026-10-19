@@ -305,7 +305,8 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 		// A target node takes everything a hook would give from its descriptor -- see `Flag::TargetWithHooks`.
 		if (n.bind.target.valid()
 		    && (n.bind.get != nullptr || n.bind.set != nullptr || n.bind.range != nullptr || n.bind.fixed_range
-		        || !n.bind.names.empty() || n.bind.dynamic_names != nullptr || n.relevant != nullptr)) {
+		        || !n.bind.names.empty() || n.bind.dynamic_names != nullptr || n.relevant != nullptr
+		        || n.bind.adjust != nullptr || n.bind.range_spec != nullptr)) {
 			add(out, Issue::Kind::FlagMismatch, &n, static_cast<uint16_t>(Flag::TargetWithHooks));
 		}
 

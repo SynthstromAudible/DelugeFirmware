@@ -125,6 +125,9 @@ void ShellEditSink::write(const WriteRequest& request) {
 		Kit* kit = kit_with_id(*request.where.kit_output);
 		if (kit == nullptr) {
 			refusals_++;
+			D_PRINTLN("menu write refused: no kit with id %u for %.*s",
+			          static_cast<unsigned>(*request.where.kit_output), static_cast<int>(request.target.path.size()),
+			          request.target.path.data());
 			return;
 		}
 		for (Drum* drum = kit->firstDrum; drum != nullptr; drum = drum->next) {
@@ -135,6 +138,8 @@ void ShellEditSink::write(const WriteRequest& request) {
 			    deluge::bridge::slotAddressOf(*static_cast<SoundDrum*>(drum));
 			if (!slot) {
 				refusals_++;
+				D_PRINTLN("menu write refused: a sound drum has no slot for %.*s",
+				          static_cast<int>(request.target.path.size()), request.target.path.data());
 				continue;
 			}
 			const auto shown = deluge::scenes::bind::view(request.target, currentSong->project, Addresses{.slot = slot},
@@ -183,6 +188,10 @@ uint32_t shellEditRefusals() {
 } // namespace deluge::gui
 
 namespace deluge::scenes::menu {
+
+bool host_binds(const ::Song& song) {
+	return &song == currentSong;
+}
 
 deluge::scenes::bind::WriteSink& host_write_sink() {
 	return gui::shell_edit_sink();

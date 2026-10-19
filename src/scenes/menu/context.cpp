@@ -420,8 +420,11 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 	// What a target node binds through: the model, the edited sound's slot, the kit an affect-entire write fans out
 	// over, and the app's facts and sink.
 	ctx.model = &song.project;
-	ctx.facts = &host_runtime_facts();
-	ctx.sink = &host_write_sink();
+	// The app's facts and sink act on the song it plays: a context over any other song binds nothing through them.
+	if (host_binds(song)) {
+		ctx.facts = &host_runtime_facts();
+		ctx.sink = &host_write_sink();
+	}
 	// An unresolved context (a kit row with no note row) is one legacy refuses to open: it names nothing to edit.
 	if (ctx.resolved && ctx.sound != nullptr) {
 		ctx.addresses.slot = deluge::bridge::slotAddressOf(*ctx.sound);
