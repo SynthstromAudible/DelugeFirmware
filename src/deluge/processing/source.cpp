@@ -262,6 +262,18 @@ bool Source::hasAnyLoopEndPoint() {
 		if (range->sampleHolder.loopEndPos) {
 			return true;
 		}
+		// A take's own sustain loop counts too: otherwise a sequenced note whose only loop-end marker is
+		// on slot 2-4 never gets a note-off, and that take keeps looping. See
+		// getLengthInSamplesAtSystemSampleRate() for the hasMultisampleRanges() check.
+		if (runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)
+		    && hasMultisampleRanges()) {
+			for (uint8_t slotIndex = 1; slotIndex <= range->rrCount; slotIndex++) {
+				SampleHolderForVoice* holder = range->getVariantHolder(slotIndex);
+				if (holder != nullptr && holder->loopEndPos) {
+					return true;
+				}
+			}
+		}
 	}
 	return false;
 }
