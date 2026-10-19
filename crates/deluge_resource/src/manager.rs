@@ -87,6 +87,11 @@ struct AssetSlot {
     /// For unleased caches, whose `request(N+1)` would otherwise evict the just-written `N`;
     /// leased assets (sample clusters) must stay able to evict their own old chunks.
     self_protect: bool,
+    /// Chunks of this asset in the `(asset, index)` index, kept by [`Manager::index_insert`] and
+    /// [`Manager::index_remove`], so a release finds them all without scanning the table.
+    resident: u32,
+    /// One past the highest index any chunk of this asset has been indexed at.
+    index_end: u32,
 }
 impl AssetSlot {
     const EMPTY: AssetSlot = AssetSlot {
@@ -103,6 +108,8 @@ impl AssetSlot {
         soft_refs: 0,
         evict_tail_first: false,
         self_protect: false,
+        resident: 0,
+        index_end: 0,
     };
 }
 
@@ -276,6 +283,9 @@ pub struct Manager {
     /// evicted keeps its bit until a scan finds it stale and clears it (see
     /// [`Manager::for_each_queued`]).
     queued_bits: &'static [Cell<u32>],
+    /// Where the next free-slot search starts: just past the slot last handed out. Occupied slots
+    /// pile up at the start of the table, so a search from slot 0 walked past all of them.
+    free_hint: Cell<u32>,
     tick: Cell<u64>,
     /// The self-protecting asset currently allocating in `request`/`acquire`, whose chunks are not
     /// eviction candidates; `NONE` otherwise. Set through [`ProtectGuard`].
@@ -449,6 +459,21 @@ impl Manager {
         s.hash_next = self.buckets[b].get();
         self.chunks[i].set(s);
         self.buckets[b].set(i as u32);
+        if let Some(cell) = self.assets.get(s.asset as usize) {
+            let mut a = cell.get();
+            a.resident = a.resident.saturating_add(1);
+            a.index_end = a.index_end.max(s.index.saturating_add(1));
+            cell.set(a);
+        }
+    }
+
+    /// Counts one chunk of `asset` out of the index; see [`AssetSlot::resident`].
+    fn note_unindexed(&self, asset: u32) {
+        if let Some(cell) = self.assets.get(asset as usize) {
+            let mut a = cell.get();
+            a.resident = a.resident.saturating_sub(1);
+            cell.set(a);
+        }
     }
 
     /// Unlinks slot `i` from its bucket. Same masking contract as [`Manager::index_insert`]; must
@@ -462,6 +487,7 @@ impl Manager {
         let head = self.buckets[b].get();
         if head == i as u32 {
             self.buckets[b].set(self.chunks[i].get().hash_next);
+            self.note_unindexed(asset);
             return;
         }
         // Walk to the predecessor; chains average under one entry since buckets >= slots.
@@ -478,10 +504,31 @@ impl Manager {
                 let mut sc = s;
                 sc.hash_next = self.chunks[i].get().hash_next;
                 self.chunks[c].set(sc);
+                self.note_unindexed(asset);
                 return;
             }
             cur = s.hash_next;
         }
+    }
+
+    /// [`Manager::find_resident`]'s indexed walk, unmasked and uncounted: for
+    /// [`Manager::release_asset`], which already runs unmasked at its owner's teardown.
+    fn find_indexed_unmasked(&self, asset: u32, index: u32) -> Option<usize> {
+        let mut cur = self.buckets[self.bucket_of(asset, index)].get();
+        let mut steps = 0;
+        while cur != NONE && steps <= self.chunks.len() {
+            let i = cur as usize;
+            if i >= self.chunks.len() {
+                return None; // corrupt link; see find_resident's walk
+            }
+            steps += 1;
+            let s = self.chunks[i].get();
+            if !s.backing.is_null() && s.asset == asset && s.index == index {
+                return Some(i);
+            }
+            cur = s.hash_next;
+        }
+        None
     }
 
     /// Brute-force lookup: the ground truth the index tests compare `find_resident` against.
@@ -525,16 +572,37 @@ impl Manager {
         found
     }
     fn find_free_chunk(&self) -> Option<usize> {
+        let n = self.chunks.len();
+        let start = m_get(&self.free_hint) as usize % n;
         let mut visited = 0u64;
-        let found = (0..self.chunks.len()).find(|&i| {
+        let found = (0..n).map(|k| (start + k) % n).find(|&i| {
             visited += 1;
             m_get(&self.chunks[i]).backing.is_null()
         });
+        if let Some(i) = found {
+            m_set(&self.free_hint, ((i + 1) % n) as u32);
+        }
         self.stat(|s| {
             s.scan_free_calls += 1;
             s.scan_free_slots += visited;
         });
         found
+    }
+
+    /// `preferred` if it is still free, otherwise another free slot; for the masked window that
+    /// fills a slot [`Manager::find_free_chunk`] found. Another context can take the found slot
+    /// between the search and that window, while the backing is being allocated.
+    ///
+    /// Call with the mask held.
+    fn still_free_or_another(&self, preferred: usize) -> Option<usize> {
+        if self.chunks[preferred].get().backing.is_null() {
+            return Some(preferred);
+        }
+        let n = self.chunks.len();
+        let start = self.free_hint.get() as usize % n;
+        (0..n)
+            .map(|k| (start + k) % n)
+            .find(|&i| self.chunks[i].get().backing.is_null())
     }
 
     /// Finds the slot backing `p`, then in one masked window re-validates `backing == p` (the
@@ -1081,10 +1149,15 @@ impl Manager {
         }
         // Lease before materializing, so a reentrant eviction cannot take this chunk. One masked
         // window covers the slot write and its index links (see index_insert).
-        {
+        let idx = {
             let recency = self.bump();
             let generation = self.next_gen();
             let _m = Masked::enter();
+            let Some(idx) = self.still_free_or_another(idx) else {
+                drop(_m);
+                self.free_backing(p, asset);
+                return ptr::null_mut(); // every slot taken under preemption
+            };
             self.chunks[idx].set(ChunkSlot {
                 backing: p,
                 asset,
@@ -1099,7 +1172,8 @@ impl Manager {
             });
             self.index_insert(idx);
             self.ptr_index_insert(idx);
-        }
+            idx
+        };
         let a = m_get(&self.assets[ai]);
         let ok = match a.source.materialize {
             Some(f) => {
@@ -1191,6 +1265,11 @@ impl Manager {
             let recency = self.bump();
             let generation = self.next_gen();
             let _m = Masked::enter();
+            let Some(idx) = self.still_free_or_another(idx) else {
+                drop(_m);
+                self.free_backing(p, asset);
+                return ptr::null_mut(); // every slot taken under preemption
+            };
             self.chunks[idx].set(ChunkSlot {
                 backing: p,
                 asset,
@@ -1442,28 +1521,15 @@ impl Manager {
             }
             self.free_backing(s.backing, asset);
         };
-        if a.evict_tail_first {
-            // Highest index first, so `on_evict` never discards a chunk still tracked here.
-            loop {
-                let mut hi: Option<usize> = None;
-                let mut hidx = 0u32;
-                for (i, c) in self.chunks.iter().enumerate() {
-                    let s = c.get();
-                    if !s.backing.is_null() && s.asset == asset && (hi.is_none() || s.index >= hidx)
-                    {
-                        hi = Some(i);
-                        hidx = s.index;
-                    }
-                }
-                let Some(i) = hi else { break };
+        // Highest index first, so a tail-first asset's `on_evict` never discards a chunk still
+        // tracked here; any order would do for the rest. Each index is looked up in the
+        // `(asset, index)` index rather than the table scanned for it, and the walk stops once
+        // nothing of the asset is left: a whole-table scan per chunk took ~40 ms per sample freed.
+        let mut index = a.index_end;
+        while index > 0 && self.assets[ai].get().resident > 0 {
+            index -= 1;
+            if let Some(i) = self.find_indexed_unmasked(asset, index) {
                 drop_chunk(i);
-            }
-        } else {
-            for (i, slot) in self.chunks.iter().enumerate() {
-                let s = slot.get();
-                if !s.backing.is_null() && s.asset == asset {
-                    drop_chunk(i);
-                }
             }
         }
         self.assets[ai].set(AssetSlot::EMPTY);
@@ -1769,6 +1835,7 @@ unsafe fn create_inner(
             buckets,
             ptr_buckets,
             queued_bits,
+            free_hint: Cell::new(0),
             tick: Cell::new(0),
             protect: Cell::new(NONE),
             stats: Cell::new(Stats::default()),

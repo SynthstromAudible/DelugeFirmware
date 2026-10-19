@@ -231,6 +231,24 @@ bool printReportLine() {
 		printTraceHist("begin", t.begin);
 		return true;
 	case 10:
+		printTraceHist("interaction_fs_wait", t.interaction_fs_wait);
+		return true;
+	case 11:
+		printTraceHist("interaction_fs_hold", t.interaction_fs_hold);
+		return true;
+	case 12:
+		D_PRINTLN("STREAM-BENCH-SCANS phase=%s resident=%lu/%lu ptr=%lu/%lu free=%lu/%lu evict=%lu/%lu", g.phase,
+		          static_cast<unsigned long>(r.scan_resident_calls), static_cast<unsigned long>(r.scan_resident_slots),
+		          static_cast<unsigned long>(r.scan_ptr_calls), static_cast<unsigned long>(r.scan_ptr_slots),
+		          static_cast<unsigned long>(r.scan_free_calls), static_cast<unsigned long>(r.scan_free_slots),
+		          static_cast<unsigned long>(r.scan_evict_calls), static_cast<unsigned long>(r.scan_evict_slots));
+		return true;
+	case 13:
+		D_PRINTLN("STREAM-BENCH-HOLD phase=%s longest_ms=%lu at=%s:%lu", g.phase,
+		          static_cast<unsigned long>(t.longest_fs_hold_us / 1000), t.longest_fs_hold_file,
+		          static_cast<unsigned long>(t.longest_fs_hold_line));
+		return true;
+	case 14:
 		D_PRINTLN("STREAM-BENCH-FS phase=%s long_waits=%lu,%lu,%lu max_us=%lu,%lu,%lu", g.phase,
 		          static_cast<unsigned long>(t.long_fs_waits_by_tier[0]),
 		          static_cast<unsigned long>(t.long_fs_waits_by_tier[1]),
@@ -239,7 +257,7 @@ bool printReportLine() {
 		          static_cast<unsigned long>(t.long_fs_wait_max_by_tier[1]),
 		          static_cast<unsigned long>(t.long_fs_wait_max_by_tier[2]));
 		return true;
-	case 11:
+	case 15:
 		printJobs();
 		return true;
 	default:
@@ -405,6 +423,69 @@ void step() {
 }
 
 } // namespace
+
+void noteLoadStep(int phase, uint64_t us, int32_t bound, int32_t empty, int32_t in_flight) {
+	// Mirrors LoadSongUI::LoadPhase.
+	static constexpr std::array<const char*, 8> kNames{"none", "stage",  "begin",  "essential",
+	                                                   "arm",  "finish", "settle", "await_arm"};
+	if (us < 50'000) {
+		return;
+	}
+	const char* name = phase >= 0 && static_cast<size_t>(phase) < kNames.size() ? kNames[phase] : "?";
+	D_PRINTLN("STREAM-BENCH-LOADSTEP phase=%s ms=%lu bound=%d empty=%d in_flight=%d", name,
+	          static_cast<unsigned long>(us / 1000), static_cast<int>(bound), static_cast<int>(empty),
+	          static_cast<int>(in_flight));
+}
+
+namespace {
+std::array<uint64_t, static_cast<size_t>(WalkPart::Count)> g_walkParts{};
+} // namespace
+
+void noteWalkPart(WalkPart part, uint64_t us) {
+	g_walkParts[static_cast<size_t>(part)] += us;
+}
+
+void noteWalkEnd(uint64_t us, int32_t demands) {
+	if (us >= 20'000) {
+		D_PRINTLN("STREAM-BENCH-WALK ms=%lu demands=%d in_flight_acquire_ms=%lu candidates_key_ms=%lu collect_ms=%lu",
+		          static_cast<unsigned long>(us / 1000), static_cast<int>(demands),
+		          static_cast<unsigned long>(g_walkParts[0] / 1000), static_cast<unsigned long>(g_walkParts[1] / 1000),
+		          static_cast<unsigned long>(g_walkParts[2] / 1000));
+	}
+	g_walkParts.fill(0);
+}
+
+void noteRelease(int32_t released, uint64_t us) {
+	D_PRINTLN("STREAM-BENCH-RELEASE released=%d ms=%lu", static_cast<int>(released),
+	          static_cast<unsigned long>(us / 1000));
+}
+
+void noteLoadPart(const char* what, uint64_t us) {
+	if (us < 20'000) {
+		return;
+	}
+	D_PRINTLN("STREAM-BENCH-LOADPART what=\"%s\" ms=%lu", what, static_cast<unsigned long>(us / 1000));
+}
+
+void noteBind(const char* path, uint64_t acquire_us, uint64_t set_us, int instruction) {
+	if (acquire_us + set_us < 20'000) {
+		return;
+	}
+	D_PRINTLN("STREAM-BENCH-BIND acquire_ms=%lu set_ms=%lu instruction=%d path=%s",
+	          static_cast<unsigned long>(acquire_us / 1000), static_cast<unsigned long>(set_us / 1000), instruction,
+	          path);
+}
+
+void noteSampleBuild(const char* path, uint64_t begin_us, uint64_t bind_us, uint64_t geometry_us, uint64_t finish_us,
+                     uint64_t size_bytes) {
+	if (begin_us + bind_us + geometry_us + finish_us < 20'000) {
+		return;
+	}
+	D_PRINTLN("STREAM-BENCH-BUILD begin_ms=%lu bind_ms=%lu geometry_ms=%lu finish_ms=%lu kib=%lu path=%s",
+	          static_cast<unsigned long>(begin_us / 1000), static_cast<unsigned long>(bind_us / 1000),
+	          static_cast<unsigned long>(geometry_us / 1000), static_cast<unsigned long>(finish_us / 1000),
+	          static_cast<unsigned long>(size_bytes / 1024), path);
+}
 
 void registerStreamBench() {
 	appLoop.add("stream bench", &step, kTick, 0);

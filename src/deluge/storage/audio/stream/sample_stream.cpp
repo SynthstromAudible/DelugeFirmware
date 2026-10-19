@@ -126,18 +126,13 @@ void SampleStream::release_asset() {
 	}
 }
 
-Error SampleStream::open_read_stream(std::string_view path) {
-	// efatfs IS the streaming read path — no C-FatFS fallback. Open a registry slot (which opens
-	// the underlying efatfs file handle itself); a failure to open is a stream-open failure
-	// propagated to the caller (the sample won't load). A still-recording sample has no read handle
-	// at all (see make_read_source()) until this same path reopens one once recording finishes.
-	// A path the ABI cannot carry whole names no file this can open.
-	const auto cpath = deluge::io::CPath::from(path);
-	if (!cpath) {
-		return Error::FILE_NOT_FOUND;
-	}
+namespace {
+/// Opens a registry slot with @p open (`DelugeHandle(bool* table_full)`), retrying once after a reclaim when the
+/// handle table is full. The shared half of open_read_stream() and open_read_stream_at().
+template <typename Open>
+Error openSlot(Open open, DelugeHandle* out) {
 	bool table_full = false;
-	DelugeHandle handle = deluge_sample_stream_open(cpath->c_str(), &table_full);
+	DelugeHandle handle = open(&table_full);
 	if (handle == DELUGE_HANDLE_NONE && table_full) {
 		// The handle table is a scarce resource with no eviction policy of its own. A
 		// resident Sample pins a handle for its whole residency, and residency normally ends
@@ -151,11 +146,32 @@ Error SampleStream::open_read_stream(std::string_view path) {
 		// more. If it still fails, the streams really are all in use and the error is honest.
 		if (audioFileManager.releaseUnleasedAudioFiles() > 0) {
 			table_full = false;
-			handle = deluge_sample_stream_open(cpath->c_str(), &table_full);
+			handle = open(&table_full);
 		}
 	}
 	if (handle == DELUGE_HANDLE_NONE) {
 		return table_full ? Error::TOO_MANY_OPEN_STREAMS : Error::FILE_NOT_FOUND;
+	}
+	*out = handle;
+	return Error::NONE;
+}
+} // namespace
+
+Error SampleStream::open_read_stream(std::string_view path) {
+	// efatfs IS the streaming read path — no C-FatFS fallback. Open a registry slot (which opens
+	// the underlying efatfs file handle itself); a failure to open is a stream-open failure
+	// propagated to the caller (the sample won't load). A still-recording sample has no read handle
+	// at all (see make_read_source()) until this same path reopens one once recording finishes.
+	// A path the ABI cannot carry whole names no file this can open.
+	const auto cpath = deluge::io::CPath::from(path);
+	if (!cpath) {
+		return Error::FILE_NOT_FOUND;
+	}
+	DelugeHandle handle = DELUGE_HANDLE_NONE;
+	if (Error error =
+	        openSlot([&](bool* table_full) { return deluge_sample_stream_open(cpath->c_str(), table_full); }, &handle);
+	    error != Error::NONE) {
+		return error;
 	}
 	stream_handle_ = handle;
 	// Re-register the fill-context now the handle is known: a no-op today on every known call site
@@ -163,6 +179,18 @@ Error SampleStream::open_read_stream(std::string_view path) {
 	// function's comment, chunk_residency.cpp — so the handle is already registered there), but keeps
 	// the table correct if a future caller ever opens the stream after the asset was already defined.
 	register_fill_context();
+	return Error::NONE;
+}
+
+Error SampleStream::open_read_stream_at(const DelugeFileLocation& location) {
+	DelugeHandle handle = DELUGE_HANDLE_NONE;
+	if (Error error =
+	        openSlot([&](bool* table_full) { return deluge_sample_stream_open_at(&location, table_full); }, &handle);
+	    error != Error::NONE) {
+		return error;
+	}
+	stream_handle_ = handle;
+	register_fill_context(); // as open_read_stream()
 	return Error::NONE;
 }
 

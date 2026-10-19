@@ -290,6 +290,27 @@ impl DirFileEntryData {
         buf
     }
 
+    /// Decodes [`DirFileEntryData::to_bytes`]' layout: one on-disk short-name entry.
+    pub(crate) fn from_bytes(buf: &[u8; DIR_ENTRY_SIZE as usize]) -> Self {
+        let u16_at = |i: usize| u16::from_le_bytes([buf[i], buf[i + 1]]);
+        let mut name = [0u8; SFN_SIZE];
+        name.copy_from_slice(&buf[0..11]);
+        Self {
+            name,
+            attrs: FileAttributes::from_bits_truncate(buf[11]),
+            reserved_0: buf[12],
+            create_time_0: buf[13],
+            create_time_1: u16_at(14),
+            create_date: u16_at(16),
+            access_date: u16_at(18),
+            first_cluster_hi: u16_at(20),
+            modify_time: u16_at(22),
+            modify_date: u16_at(24),
+            first_cluster_lo: u16_at(26),
+            size: u32::from_le_bytes([buf[28], buf[29], buf[30], buf[31]]),
+        }
+    }
+
     pub(crate) fn is_deleted(&self) -> bool {
         self.name[0] == DIR_ENTRY_DELETED_FLAG
     }
@@ -489,6 +510,12 @@ pub(crate) struct DirEntryEditor {
 }
 
 impl DirEntryEditor {
+    /// An editor over `data`, the entry at byte `pos` of the volume, with its dirty flag as given:
+    /// how [`crate::file::FileContext::from_bytes`] rebuilds one.
+    pub(crate) fn from_parts(data: DirFileEntryData, pos: u64, dirty: bool) -> Self {
+        Self { data, pos, dirty }
+    }
+
     fn new(data: DirFileEntryData, pos: u64) -> Self {
         Self {
             data,

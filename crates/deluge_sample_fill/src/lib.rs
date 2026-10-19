@@ -38,6 +38,28 @@ pub const DELUGE_OK: DelugeStatus = 0;
 /// `DelugeStatus`'s invalid-argument value.
 pub const DELUGE_ERR_PARAM: DelugeStatus = -2;
 
+/// Bytes in [`FileLocation::context`]: `DELUGE_FILE_LOCATION_BYTES`.
+pub const FILE_LOCATION_BYTES: usize = 64;
+
+/// Where a file is on the card, as plain data: `DelugeFileLocation` in `libdeluge/types.h`, which
+/// documents the fields. Owns nothing.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct FileLocation {
+    pub context: [u8; FILE_LOCATION_BYTES],
+    pub mount_generation: u32,
+    pub valid: u8,
+}
+
+impl FileLocation {
+    /// A location that names no file.
+    pub const NONE: Self = Self {
+        context: [0; FILE_LOCATION_BYTES],
+        mount_generation: 0,
+        valid: 0,
+    };
+}
+
 /// A sample's streaming geometry. Mirrors `DelugeStreamingFillContext` in
 /// `libdeluge/streaming_fill.h`, which documents the fields.
 ///

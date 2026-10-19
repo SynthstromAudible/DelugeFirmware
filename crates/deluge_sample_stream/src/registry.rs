@@ -73,11 +73,46 @@ unsafe fn write_out(out: *mut bool, value: bool) {
 /// `path` must be a valid, NUL-terminated C string. `out_table_full`, if non-null, must be valid
 /// for one write.
 pub unsafe fn open(path: *const c_char, out_table_full: *mut bool) -> u32 {
+    // SAFETY: `path` is passed through untouched under the caller's contract.
+    unsafe {
+        claim(out_table_full, |handle, table_full| {
+            crate::deluge_efatfs_open(path, handle, table_full)
+        })
+    }
+}
+
+/// As [`open`], opening the file at `location` (passed through untouched) rather than looking up a
+/// path.
+///
+/// # Safety
+///
+/// `location` must be null or point to a valid `DelugeFileLocation`. `out_table_full`, if
+/// non-null, must be valid for one write.
+pub unsafe fn open_at(
+    location: *const deluge_sample_fill::FileLocation,
+    out_table_full: *mut bool,
+) -> u32 {
+    // SAFETY: `location` is passed through untouched under the caller's contract.
+    unsafe {
+        claim(out_table_full, |handle, table_full| {
+            crate::deluge_efatfs_open_at(location, handle, table_full)
+        })
+    }
+}
+
+/// Opens an efatfs handle with `open_efatfs` and claims a slot for it; the shared half of [`open`]
+/// and [`open_at`].
+///
+/// # Safety
+///
+/// `out_table_full`, if non-null, must be valid for one write.
+unsafe fn claim(
+    out_table_full: *mut bool,
+    open_efatfs: impl FnOnce(&mut u32, &mut bool) -> deluge_sample_fill::DelugeStatus,
+) -> u32 {
     let mut handle: u32 = 0;
     let mut efatfs_table_full = false;
-    // SAFETY: `path` is passed through untouched under the caller's contract; the out-params are
-    // valid locals.
-    let opened = unsafe { crate::deluge_efatfs_open(path, &mut handle, &mut efatfs_table_full) };
+    let opened = open_efatfs(&mut handle, &mut efatfs_table_full);
     if opened != DELUGE_OK {
         // SAFETY: `out_table_full` is null or valid per the caller's contract.
         unsafe { write_out(out_table_full, efatfs_table_full) };
@@ -292,6 +327,32 @@ mod tests {
         // second close is a no-op
         crate::registry::close(h);
         assert_eq!(mock_backing::closed_handles(), std::vec![42]);
+    }
+
+    #[test]
+    fn open_at_passes_the_location_through_and_claims_a_slot_like_open() {
+        let _serial = mock_backing::serial();
+        mock_backing::reset();
+        mock_backing::set_open_result(43, true, false);
+        let location = deluge_sample_fill::FileLocation::NONE;
+        let mut tf = true;
+        // SAFETY: a local buffer and a local.
+        let h = unsafe { open_at(&location, &mut tf) };
+        assert_ne!(h, 0);
+        assert!(!tf);
+        assert_eq!(
+            mock_backing::last_opened_at(),
+            Some(core::ptr::from_ref(&location) as usize)
+        );
+        close(h);
+        assert_eq!(mock_backing::closed_handles(), std::vec![43]);
+
+        // A location efatfs refuses (from another mount, say) opens nothing and is no full table.
+        mock_backing::set_open_result(0, false, false);
+        let mut tf = true;
+        // SAFETY: as above.
+        assert_eq!(unsafe { open_at(&location, &mut tf) }, 0);
+        assert!(!tf);
     }
 
     #[test]

@@ -45,11 +45,36 @@ use crate::sys::{
     DelugeStatus_DELUGE_ERR_PARAM as DELUGE_ERR_PARAM,
 };
 
+pub use deluge_sample_fill::FileLocation;
+
+const _: () =
+    assert!(deluge_sample_fill::FILE_LOCATION_BYTES == embedded_fatfs::FILE_CONTEXT_BYTES);
+
+/// The location of the open file `ctx`, found on mount `mount_generation`, for the backends'
+/// `open_at` to open again with no directory walk.
+pub fn location_of_context(ctx: &FileContext, mount_generation: u32) -> FileLocation {
+    FileLocation {
+        context: ctx.to_bytes(),
+        mount_generation,
+        valid: 1,
+    }
+}
+
+/// The file's context, if `location` names a file found on mount `mount_generation`.
+pub fn context_at(location: &FileLocation, mount_generation: u32) -> Option<FileContext> {
+    if location.valid == 0 || location.mount_generation != mount_generation {
+        return None;
+    }
+    FileContext::from_bytes(&location.context)
+}
+
 /// Capacity of the streaming-read handle table.
 ///
 /// Each resident sample holds one handle for its lifetime (`SampleStream::open_read_stream`), so
-/// this bounds how many samples a song can have resident. A slot costs about 80 bytes.
-pub const MAX_HANDLES: usize = 128;
+/// this bounds how many samples can be resident at once, which while one song plays and the next
+/// loads is both songs' samples. A full table sends every load through a reclaim. A slot costs about
+/// 80 bytes; the sample stream registry (`deluge_sample_stream`) has the same capacity.
+pub const MAX_HANDLES: usize = 256;
 
 /// Capacity of the sample recorder's persistent stream-write table (`STREAM_WRITE_CTX`): one
 /// handle per in-progress recording, and the device has only a few audio inputs.

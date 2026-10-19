@@ -148,22 +148,93 @@ pub async fn remount() -> Result<(), DelugeStatus> {
     mount().await
 }
 
+/// Callers waiting for [`FS`] that the storage tier's other users hold back for before locking (see
+/// [`with_fs`]): the streaming fill's reads, and any interaction-tier call.
+///
+/// The FS lock is unfair: whichever waiter runs first after a release takes it. A storage task
+/// working through a queue, the sample loader during a song load, re-took it at every release, so
+/// the fill task on the same executor waited for seconds and voices dropped, and the interaction
+/// tier, which reaches the FS through a spin (`sim_block::block_on`) that runs only while the
+/// storage executor is idle, waited for the whole queue to drain.
+static PRIORITY_WAITING: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+
+/// How often a storage-tier caller holding back for a priority one looks again.
+const PRIORITY_YIELD_US: u64 = 200;
+
+/// One priority caller counted in [`PRIORITY_WAITING`] until it has the lock, or until its future is
+/// dropped while waiting, so a cancelled wait cannot hold the other callers back for good.
+struct PriorityWait;
+
+impl PriorityWait {
+    fn begin() -> Self {
+        PRIORITY_WAITING.fetch_add(1, core::sync::atomic::Ordering::AcqRel);
+        Self
+    }
+}
+
+impl Drop for PriorityWait {
+    fn drop(&mut self) {
+        PRIORITY_WAITING.fetch_sub(1, core::sync::atomic::Ordering::AcqRel);
+    }
+}
+
 /// Runs `f` with exclusive access to the mounted FS; `None` if nothing is mounted.
 ///
 /// `f` is an `AsyncFnOnce` rather than `FnOnce(&Fs) -> impl Future`: only the async-closure form
 /// ties the future's lifetime to the borrowed `&Fs`, so the body can await while holding it.
-pub async fn with_fs<R, F>(f: F) -> Option<R>
+///
+/// A storage-tier caller holds back while a priority one waits ([`PRIORITY_WAITING`]): an
+/// interaction-tier call, or the streaming fill's reads ([`with_fs_urgent`]). Each of those then
+/// waits at most about one hold.
+#[track_caller]
+pub fn with_fs<R, F>(f: F) -> impl core::future::Future<Output = Option<R>>
 where
     F: AsyncFnOnce(&Fs) -> R,
 {
-    let g = FS.lock().await;
-    let acquired = embassy_time::Instant::now();
+    with_fs_as(false, core::panic::Location::caller(), f)
+}
+
+/// [`with_fs`] for the streaming fill's reads, which other storage-tier callers hold back for and
+/// which hold back for nobody: a voice waiting on a chunk outranks everything else.
+#[track_caller]
+pub fn with_fs_urgent<R, F>(f: F) -> impl core::future::Future<Output = Option<R>>
+where
+    F: AsyncFnOnce(&Fs) -> R,
+{
+    with_fs_as(true, core::panic::Location::caller(), f)
+}
+
+/// [`with_fs`] and [`with_fs_urgent`], with `at` the caller the fill trace names for a long hold.
+async fn with_fs_as<R, F>(
+    urgent: bool,
+    at: &'static core::panic::Location<'static>,
+    f: F,
+) -> Option<R>
+where
+    F: AsyncFnOnce(&Fs) -> R,
+{
+    use core::sync::atomic::Ordering;
     let tier = crate::tier::current();
+    let priority = urgent || tier == crate::tier::Tier::Interaction;
+    let asked = embassy_time::Instant::now();
+    let waiting = if priority {
+        Some(PriorityWait::begin())
+    } else {
+        // Only ever on an executor's task, never under the interaction tier's no-op-waker spin, so
+        // a Timer is safe here.
+        while PRIORITY_WAITING.load(Ordering::Acquire) != 0 {
+            embassy_time::Timer::after_micros(PRIORITY_YIELD_US).await;
+        }
+        None
+    };
+    let g = FS.lock().await;
+    drop(waiting);
+    let acquired = embassy_time::Instant::now();
     let result = match g.as_ref() {
         Some(fs) => Some(f(fs).await),
         None => None,
     };
-    crate::storage::fill_trace::fs_released(tier, acquired);
+    crate::storage::fill_trace::fs_released(tier, asked, acquired, at);
     result
 }
 
@@ -191,22 +262,23 @@ pub async fn open(path: &str) -> OpenOutcome {
 /// Reads `dst.len()` bytes at absolute `byte_offset` of the file behind `handle`. Returns
 /// whether the whole buffer was filled (zero-padded past EOF, see [`portable::read_context`]).
 pub async fn read_at(handle: u32, byte_offset: u32, dst: &mut [u8]) -> bool {
-    read_at_timed(handle, byte_offset, dst).await.filled
+    read_at_timed(handle, byte_offset, dst, false).await.filled
 }
 
 /// [`read_at`], also reporting when it took the filesystem mutex and whose hold it waited behind,
-/// for the fill trace.
+/// for the fill trace. `urgent` takes the lock as [`with_fs_urgent`] does: for the streaming fill.
 pub async fn read_at_timed(
     handle: u32,
     byte_offset: u32,
     dst: &mut [u8],
+    urgent: bool,
 ) -> crate::storage::fill_trace::TimedRead {
     use crate::storage::fill_trace::TimedRead;
     let Some((generation, ctx)) = HANDLES.lock().await.checkout(handle) else {
         return TimedRead::default();
     };
 
-    let result = with_fs(async |fs| {
+    let read = async |fs: &Fs| {
         let acquired = embassy_time::Instant::now();
         let waited_behind = crate::storage::fill_trace::last_fs_release();
         (
@@ -214,8 +286,12 @@ pub async fn read_at_timed(
             waited_behind,
             portable::read_context(fs, ctx, byte_offset, dst).await,
         )
-    })
-    .await;
+    };
+    let result = if urgent {
+        with_fs_urgent(read).await
+    } else {
+        with_fs(read).await
+    };
 
     match result {
         Some((acquired, waited_behind, Some((newctx, filled)))) => {
@@ -233,6 +309,29 @@ pub async fn read_at_timed(
             waited_behind,
         },
         None => TimedRead::default(),
+    }
+}
+
+/// Where the file behind streaming-read `handle` is, for [`open_at`] to open again; `None` for a
+/// bad handle.
+pub async fn location_of(handle: u32) -> Option<portable::FileLocation> {
+    let (_, ctx) = HANDLES.lock().await.checkout(handle)?;
+    Some(portable::location_of_context(
+        &ctx,
+        deluge_efatfs_mount_generation(),
+    ))
+}
+
+/// Opens the file at `location` into the streaming-read handle table, as [`open`] does by path,
+/// without the FS lock or any card I/O: the location already says where the file is. Fails with
+/// `DELUGE_ERR_PARAM` for a location that names no file, or one from another mount.
+pub async fn open_at(location: &portable::FileLocation) -> OpenOutcome {
+    let Some(ctx) = portable::context_at(location, deluge_efatfs_mount_generation()) else {
+        return OpenOutcome::Failed(DELUGE_ERR_PARAM);
+    };
+    match HANDLES.lock().await.insert(ctx) {
+        Some(h) => OpenOutcome::Handle(h),
+        None => OpenOutcome::TableFull,
     }
 }
 
@@ -287,6 +386,37 @@ pub extern "C" fn deluge_efatfs_open(
         return DELUGE_ERR_PARAM;
     };
     let (status, table_full) = match crate::storage::sim_block::block_on(open(path)) {
+        OpenOutcome::Handle(h) => {
+            // SAFETY: `out_handle` is non-null (checked above) and points at memory the caller
+            // owns for the duration of this synchronous call.
+            unsafe { *out_handle = to_abi(h) };
+            (DELUGE_OK, false)
+        }
+        OpenOutcome::TableFull => (DELUGE_ERR_NO_MEMORY, true),
+        OpenOutcome::Failed(status) => (status, false),
+    };
+    // SAFETY: `out_table_full` is non-null (checked above), owned by the caller for this call.
+    unsafe { *out_table_full = table_full };
+    status
+}
+
+/// C-ABI: opens the file at `location` for streaming reads, without looking up a path (see
+/// [`open_at`]); the out-parameters as [`deluge_efatfs_open`]'s.
+///
+/// Returns `DELUGE_ERR_PARAM` for a null argument or a location that names no file on this mount.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_efatfs_open_at(
+    location: *const crate::sys::DelugeFileLocation,
+    out_handle: *mut DelugeHandle,
+    out_table_full: *mut bool,
+) -> DelugeStatus {
+    crate::tier_meter::note(crate::tier_meter::Entry::Open);
+    if location.is_null() || out_handle.is_null() || out_table_full.is_null() {
+        return DELUGE_ERR_PARAM;
+    }
+    // SAFETY: `location` is non-null (checked above) and points at a `DelugeFileLocation`.
+    let location = unsafe { location.read() };
+    let (status, table_full) = match crate::storage::sim_block::block_on(open_at(&location)) {
         OpenOutcome::Handle(h) => {
             // SAFETY: `out_handle` is non-null (checked above) and points at memory the caller
             // owns for the duration of this synchronous call.
@@ -1263,6 +1393,7 @@ abi_pin!(
     deluge_efatfs_mount,
     deluge_efatfs_mount_generation,
     deluge_efatfs_open,
+    deluge_efatfs_open_at,
     deluge_efatfs_read_at,
     deluge_efatfs_remount,
     deluge_efatfs_rename,

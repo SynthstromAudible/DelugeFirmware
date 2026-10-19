@@ -16,6 +16,10 @@
  */
 
 #include "storage/audio/audio_file_manager.h"
+#if DELUGE_STREAM_BENCH
+#include "bench/stream_bench.h"
+#include "runtime/app_loop.h"
+#endif
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/l10n/l10n.h"
@@ -460,9 +464,20 @@ bool AudioFileManager::tryToDeleteAudioFileFromMemoryIfItExists(char const* file
 }
 
 int32_t AudioFileManager::releaseUnleasedAudioFiles() {
+#if DELUGE_STREAM_BENCH
+	const uint64_t releaseStart = deluge::runtime::nowUs();
+	struct ReleaseNote {
+		uint64_t start;
+		const int32_t* released;
+		~ReleaseNote() { deluge::bench::noteRelease(*released, deluge::runtime::nowUs() - start); }
+	};
+#endif
 	// Walk downwards: deleting shifts every later index down by one, and going backwards
 	// means the indices ahead of us are the ones we have already passed.
 	int32_t released = 0;
+#if DELUGE_STREAM_BENCH
+	const ReleaseNote note{releaseStart, &released};
+#endif
 	for (int32_t i = static_cast<int32_t>(audioFiles.size()) - 1; i >= 0; i--) {
 		AudioFile* audioFile = audioFiles[i];
 		// leaseCount() > 0 covers everything that would make this unsafe: a playing voice,
@@ -944,6 +959,13 @@ AudioFile* AudioFileManager::getAudioFileFromFilenameUntraced(deluge::storage::A
 		if (asyncOnlySample && !collectFolderProbe(context, error)) {
 			return nullptr;
 		}
+		// Still being loaded with nothing answered yet, or waiting for room in the loader's queue: there is nothing to
+		// collect or request, and building the candidates a collect or request needs is most of what a sample walk
+		// spends on each demand in flight.
+		if (asyncOnlySample && !deluge_audio_load_can_progress(filePath.c_str())) {
+			*error = Error::LOAD_IN_PROGRESS;
+			return nullptr;
+		}
 		if (std::optional<AudioFile*> collected = collectAsyncSampleLoad(context, filePath, error, asyncMode)) {
 			return *collected;
 		}
@@ -992,8 +1014,18 @@ std::optional<AudioFile*> AudioFileManager::collectAsyncSampleLoad(deluge::stora
                                                                    deluge::storage::AsyncLoadMode asyncMode) {
 	DelugeAudioLoadResult result{};
 	// Only the answer to this load's own candidates: another live load of the same path may have asked with others.
+#if DELUGE_STREAM_BENCH
+	const uint64_t keyStart = deluge::runtime::nowUs();
+	const uint32_t candidatesKey = requestedCandidatesKey(context, filePath, asyncMode);
+	const uint64_t collectStart = deluge::runtime::nowUs();
+	const DelugeChannelStatus collected = deluge_audio_load_collect(filePath.c_str(), candidatesKey, &result);
+	deluge::bench::noteWalkPart(deluge::bench::WalkPart::CandidatesKey, collectStart - keyStart);
+	deluge::bench::noteWalkPart(deluge::bench::WalkPart::Collect, deluge::runtime::nowUs() - collectStart);
+	switch (collected) {
+#else
 	switch (
 	    deluge_audio_load_collect(filePath.c_str(), requestedCandidatesKey(context, filePath, asyncMode), &result)) {
+#endif
 
 	case DELUGE_CHANNEL_READY:
 		if (result.error != static_cast<uint8_t>(Error::NONE)) {
@@ -1065,7 +1097,7 @@ std::optional<AudioFile*> AudioFileManager::answerFailedLoadResult(deluge::stora
 	// A FULL efatfs handle table, which is not a verdict about the file at all -- nothing was even
 	// attempted. It reaches here under its own identity rather than folded into FILE_UNREADABLE
 	// precisely so it can take THIS recovery instead of the alternate-dir probe below: the loader
-	// opens through the same 128-slot table SampleStream::open_read_stream uses, and that table fills
+	// opens through the same handle table SampleStream::open_read_stream uses, and that table fills
 	// up by construction under browser preview (each previewed Sample pins a handle for its whole
 	// residency, and samples are small, so handles run out long before the heap does).
 	//
@@ -1234,8 +1266,14 @@ AudioFile* AudioFileManager::buildSampleFromLoadResult(const std::string& filePa
 	}
 
 	Error buildError = Error::NONE;
+#if DELUGE_STREAM_BENCH
+	std::array<uint64_t, 5> at{deluge::runtime::nowUs()};
+#endif
 	sample_build::SampleBuild* build =
 	    sample_build::begin(filePath, result.alternate_path, result.size_bytes, &buildError);
+#if DELUGE_STREAM_BENCH
+	at[1] = deluge::runtime::nowUs();
+#endif
 	if (build == nullptr) {
 		return fail(buildError); // nothing adopted, nothing to abandon
 	}
@@ -1250,7 +1288,17 @@ AudioFile* AudioFileManager::buildSampleFromLoadResult(const std::string& filePa
 	// location if the loader resolved one, the nominal path otherwise.
 	const std::string_view pathToOpen =
 	    (result.alternate_path[0] != '\0') ? std::string_view{result.alternate_path} : std::string_view{filePath};
-	buildError = sample_build::bindReadStream(build, pathToOpen);
+	// The loader says where it found the file, so the stream opens without looking the path up again: on the
+	// interaction tier that lookup waits for the filesystem lock behind the storage tier's own loads. A location from
+	// another mount, or none, opens by path as before.
+	buildError =
+	    (result.location.valid != 0) ? sample_build::bindReadStreamAt(build, result.location) : Error::FILE_NOT_FOUND;
+	if (buildError != Error::NONE && buildError != Error::TOO_MANY_OPEN_STREAMS) {
+		buildError = sample_build::bindReadStream(build, pathToOpen);
+	}
+#if DELUGE_STREAM_BENCH
+	at[2] = deluge::runtime::nowUs();
+#endif
 	if (buildError != Error::NONE) {
 		sample_build::abandon(build);
 		return fail(buildError);
@@ -1262,9 +1310,17 @@ AudioFile* AudioFileManager::buildSampleFromLoadResult(const std::string& filePa
 		sample_build::abandon(build);
 		return fail(buildError);
 	}
+#if DELUGE_STREAM_BENCH
+	at[3] = deluge::runtime::nowUs();
+#endif
 
 	buildError = Error::NONE;
 	AudioFile* published = sample_build::finish(build, Error::NONE, &buildError);
+#if DELUGE_STREAM_BENCH
+	at[4] = deluge::runtime::nowUs();
+	deluge::bench::noteSampleBuild(filePath.c_str(), at[1] - at[0], at[2] - at[1], at[3] - at[2], at[4] - at[3],
+	                               result.size_bytes);
+#endif
 	if (published == nullptr) {
 		// Publishing itself failed (e.g. the cache insert ran out of memory). finish() consumed the
 		// build either way, so there is nothing left to abandon -- and its reported outcome, not our

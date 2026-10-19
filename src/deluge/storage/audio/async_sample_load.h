@@ -79,7 +79,7 @@ public:
 		int32_t emptyHolders = 0;   ///< Holders the last walk found settled with no file.
 		int32_t inFlight = 0;       ///< Demands the last walk left still loading.
 		int32_t wavetableReads = 0; ///< Synchronous wavetable lookups, over the whole load.
-		int32_t ticks = 0;          ///< Ticks that walked.
+		int32_t ticks = 0;          ///< Ticks: walks, and walks skipped as repeats of the last.
 		/// Walks in a row, up to the last, that left something in flight and settled nothing.
 		int32_t stalledTicks = 0;
 		uint64_t stalledUs = 0;    ///< Microseconds from the first of those walks to the last.
@@ -195,6 +195,12 @@ private:
 	OutstandingRequests outstanding_{};
 	/// How many demands had settled, bound or empty, after the previous walk.
 	int32_t settledBefore_{0};
+	/// deluge_audio_load_epoch() when the last walk began: while it is unchanged, a walk would collect nothing new.
+	uint32_t epochAtLastWalk_{0};
+
+	/// Whether this tick can skip the walk: the last walk left samples in flight and nothing else waiting, and the
+	/// loader has published nothing and refused nothing since it began, so every collect would answer as before.
+	[[nodiscard]] bool walkWouldRepeat(uint32_t epoch) const;
 	/// Measures the walks in a row that leave something in flight and settle nothing new; expires once they have gone
 	/// on for kMaxStalledUs. See @ref Reason::Stalled.
 	deluge::io::StallBound stalledBound_{kMaxStalledUs};

@@ -48,6 +48,13 @@ unsafe extern "C" {
         out_handle: *mut deluge_sample_fill::DelugeHandle,
         out_table_full: *mut bool,
     ) -> deluge_sample_fill::DelugeStatus;
+    /// Opens a sample file for streaming reads from where a load found it (`libdeluge/file_io.h`).
+    /// `location` is a `DelugeFileLocation`.
+    pub fn deluge_efatfs_open_at(
+        location: *const deluge_sample_fill::FileLocation,
+        out_handle: *mut deluge_sample_fill::DelugeHandle,
+        out_table_full: *mut bool,
+    ) -> deluge_sample_fill::DelugeStatus;
     /// Closes a streaming file handle (`libdeluge/file_io.h`).
     pub fn deluge_efatfs_close(handle: deluge_sample_fill::DelugeHandle);
     /// Reads synchronously from the card at an absolute byte offset (`libdeluge/file_io.h`).
@@ -94,6 +101,7 @@ pub(crate) mod mock_backing {
     std::thread_local! {
         static OPEN_RESULT: RefCell<(u32, bool, bool)> = const { RefCell::new((0, true, false)) };
         static LAST_OPENED_PATH: RefCell<String> = const { RefCell::new(String::new()) };
+        static LAST_OPENED_AT: RefCell<Option<usize>> = const { RefCell::new(None) };
         static CLOSED_HANDLES: RefCell<Vec<u32>> = const { RefCell::new(Vec::new()) };
         static READ_RESULT_BYTES: RefCell<u32> = const { RefCell::new(0) };
         static LAST_READ_CALL: RefCell<Option<(u32, u32, u32)>> = const { RefCell::new(None) };
@@ -117,6 +125,7 @@ pub(crate) mod mock_backing {
     pub(crate) fn reset() {
         OPEN_RESULT.with(|c| *c.borrow_mut() = (0, true, false));
         LAST_OPENED_PATH.with(|c| c.borrow_mut().clear());
+        LAST_OPENED_AT.with(|c| *c.borrow_mut() = None);
         CLOSED_HANDLES.with(|c| c.borrow_mut().clear());
         READ_RESULT_BYTES.with(|c| *c.borrow_mut() = 0);
         LAST_READ_CALL.with(|c| *c.borrow_mut() = None);
@@ -132,6 +141,11 @@ pub(crate) mod mock_backing {
     /// The path passed to the most recent `deluge_efatfs_open` call.
     pub(crate) fn last_opened_path() -> String {
         LAST_OPENED_PATH.with(|c| c.borrow().clone())
+    }
+
+    /// The location pointer, as an address, passed to the most recent `deluge_efatfs_open_at`.
+    pub(crate) fn last_opened_at() -> Option<usize> {
+        LAST_OPENED_AT.with(|c| *c.borrow())
     }
 
     /// Every handle passed to `deluge_efatfs_close` so far, in call order.
@@ -167,6 +181,30 @@ pub(crate) mod mock_backing {
 
     std::thread_local! {
         static LAST_FILL_CONTEXT_CALLS: RefCell<usize> = const { RefCell::new(0) };
+    }
+
+    /// Answers as `deluge_efatfs_open` does, from the same `set_open_result`, recording `location`.
+    #[unsafe(no_mangle)]
+    extern "C" fn deluge_efatfs_open_at(
+        location: *const deluge_sample_fill::FileLocation,
+        out_handle: *mut u32,
+        out_table_full: *mut bool,
+    ) -> deluge_sample_fill::DelugeStatus {
+        LAST_OPENED_AT.with(|c| *c.borrow_mut() = Some(location as usize));
+        let (handle, ok, table_full) = OPEN_RESULT.with(|c| *c.borrow());
+        if ok {
+            // SAFETY: the sole caller, `registry::open_at`, passes a valid local out-param.
+            unsafe { *out_handle = handle };
+        }
+        if !out_table_full.is_null() {
+            // SAFETY: non-null per the check above.
+            unsafe { *out_table_full = table_full };
+        }
+        if ok {
+            deluge_sample_fill::DELUGE_OK
+        } else {
+            deluge_sample_fill::DELUGE_ERR_PARAM
+        }
     }
 
     #[unsafe(no_mangle)]
