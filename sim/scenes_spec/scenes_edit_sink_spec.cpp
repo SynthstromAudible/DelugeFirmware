@@ -8,6 +8,7 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/node.h"
+#include "scenes/menu/nodes/sound_osc.h"
 
 #include "engines/deluge/sound_state.h"
 #include "gui/ui/shell_bind_host.h"
@@ -109,6 +110,20 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		expect(static_cast<int>(poly->boundState()->max_voice_count)).to_equal(3);
 		expect(static_cast<int>(mono->boundState()->max_voice_count)).to_equal(before);
 		expect(midi->channel() == midi_channel && gate->channel() == gate_channel).to_be_true();
+	});
+
+	it("writes only the selected drum, under affect-entire, for a setting legacy never writes kit-wide", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		SoundDrum* other = spec::add_drum<SoundDrum>(f);
+		SoundDrum* selected = spec::add_drum<SoundDrum>(f);
+		static_cast<Kit*>(f.instrument)->selectedDrum = selected;
+		const auto before = other->boundState()->sources[0].osc_type;
+		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		ctx.affect_entire_held = true;
+		ctx.addresses.affect_entire = bindings::writes_whole_kit(ctx);
+		bindings::write(menu::nodes::osc0_type, ctx, 4); // the fifth listed type: saw
+		expect(selected->boundState()->sources[0].osc_type == deluge::instrument::OscType::SAW).to_be_true();
+		expect(other->boundState()->sources[0].osc_type == before).to_be_true();
 	});
 
 	it("refuses a request whose slot does not resolve, and changes nothing", _ {

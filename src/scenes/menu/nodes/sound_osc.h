@@ -169,10 +169,11 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 	void set_sample##i##_pitch_speed(const MenuContext& ctx, int32_t v);                                               \
 	int32_t get_sample##i##_interp(const MenuContext& ctx);                                                            \
 	void set_sample##i##_interp(const MenuContext& ctx, int32_t v);                                                    \
-	inline constexpr Node osc##i##_type =                                                                              \
-	    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_TYPE), Kind::Enum,                                \
-	                            {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = osc_path "/type"}),        \
-	               sid(deluge::l10n::String::STRING_FOR_OSC_TYPE_MENU_TITLE));                                         \
+	inline constexpr Node osc##i##_type = with_title(                                                                  \
+	    setting_item(                                                                                                  \
+	        sid(deluge::l10n::String::STRING_FOR_TYPE), Kind::Enum,                                                    \
+	        {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = osc_path "/type", .whole_kit = false}),        \
+	    sid(deluge::l10n::String::STRING_FOR_OSC_TYPE_MENU_TITLE));                                                    \
 	inline constexpr Node file##i##_selector = with_allow_session_from_horizontal(with_range_dependent(custom(         \
 	    sid(deluge::l10n::String::STRING_FOR_FILE_BROWSER), &kFile##i##Selector, relevance::osc##i##_file_selector))); \
 	inline constexpr Node source##i##_transpose = with_patch_chain(with_range_dependent(with_learn_param(              \
@@ -198,11 +199,13 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 	                            static_cast<uint8_t>(deluge::modulation::params::LOCAL_CARRIER_0_FEEDBACK + (i))},     \
 	                           Hint::Bar, relevance::osc##i##_carrier_feedback,                                        \
 	                           sid(deluge::l10n::String::STRING_FOR_CARRIER_FEED_MENU_TITLE)));                        \
-	inline constexpr Node osc##i##_phase = with_hint(                                                                  \
-	    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RETRIGGER_PHASE), Kind::Decimal,                  \
-	                            {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = osc_path "/retrigPhase"}), \
-	               sid(deluge::l10n::String::STRING_FOR_OSC_R_PHASE_MENU_TITLE)),                                      \
-	    Hint::Slider);                                                                                                 \
+	inline constexpr Node osc##i##_phase =                                                                             \
+	    with_hint(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RETRIGGER_PHASE), Kind::Decimal,        \
+	                                      {.kind = deluge::scenes::bind::Target::Kind::SOUND,                          \
+	                                       .path = osc_path "/retrigPhase",                                            \
+	                                       .whole_kit = false}),                                                       \
+	                         sid(deluge::l10n::String::STRING_FOR_OSC_R_PHASE_MENU_TITLE)),                            \
+	              Hint::Slider);                                                                                       \
 	inline constexpr Node sample##i##_reverse =                                                                        \
 	    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_REVERSE), Kind::Toggle,                           \
 	                            {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = osc_path "/reversed"}),    \
@@ -252,7 +255,8 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 	inline constexpr Node modulator##i##_phase_node =                                                                  \
 	    with_hint(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RETRIGGER_PHASE), Kind::Decimal,        \
 	                                      {.kind = deluge::scenes::bind::Target::Kind::SOUND,                          \
-	                                       .path = modulator_path "/retrigPhase"}),                                    \
+	                                       .path = modulator_path "/retrigPhase",                                      \
+	                                       .whole_kit = false}),                                                       \
 	                         sid(deluge::l10n::String::STRING_FOR_FM_MOD_RETRIG_MENU_TITLE)),                          \
 	              Hint::Slider)
 

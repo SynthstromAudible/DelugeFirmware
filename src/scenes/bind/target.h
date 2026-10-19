@@ -21,6 +21,9 @@ struct Target {
 	};
 	Kind kind{Kind::NONE};
 	std::string_view path; ///< the row's path, e.g. "osc1/type"
+	/// Whether a write with affect-entire held on a kit reaches every sound drum where the row applies. False for the
+	/// settings legacy edits on the selected drum alone (an oscillator's type, a retrigger phase).
+	bool whole_kit{true};
 
 	[[nodiscard]] constexpr bool valid() const { return kind != Kind::NONE; }
 	bool operator==(const Target&) const = default;

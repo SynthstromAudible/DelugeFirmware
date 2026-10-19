@@ -121,7 +121,7 @@ void ShellEditSink::write(const WriteRequest& request) {
 		}
 	};
 
-	if (request.where.affect_entire && request.where.kit_output) {
+	if (request.where.affect_entire && request.target.whole_kit && request.where.kit_output) {
 		Kit* kit = kit_with_id(*request.where.kit_output);
 		if (kit == nullptr) {
 			refusals_++;
