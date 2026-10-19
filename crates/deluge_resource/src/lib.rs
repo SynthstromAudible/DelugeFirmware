@@ -69,9 +69,15 @@ mod tests {
 
     thread_local! {
         static EVICTS: Cell<usize> = const { Cell::new(0) };
+        static EVICTED_INDICES: core::cell::RefCell<Vec<u32>> = const { core::cell::RefCell::new(Vec::new()) };
     }
     fn reset_evicts() {
         EVICTS.with(|c| c.set(0));
+        EVICTED_INDICES.with(|c| c.borrow_mut().clear());
+    }
+    /// The chunk indices `on_evict` was called with since the last reset, in order.
+    fn evicted_indices() -> Vec<u32> {
+        EVICTED_INDICES.with(|c| c.borrow().clone())
     }
     fn evicts() -> usize {
         EVICTS.with(|c| c.get())
@@ -96,8 +102,9 @@ mod tests {
     ) -> bool {
         false // source vanished
     }
-    unsafe extern "C" fn mock_on_evict(_ctx: *mut c_void, _owner: *mut c_void, _index: u32) {
+    unsafe extern "C" fn mock_on_evict(_ctx: *mut c_void, _owner: *mut c_void, index: u32) {
         EVICTS.with(|c| c.set(c.get() + 1));
+        EVICTED_INDICES.with(|c| c.borrow_mut().push(index));
     }
 
     // A heap over a `Vec<u128>`: miri tracks declared alignment, and a `Vec<u8>` arena would
@@ -1239,6 +1246,58 @@ mod tests {
             );
             unsafe { deluge_resource_release(mgr, again) };
         }
+    }
+
+    /// Releasing an asset frees every resident chunk of it, highest index first, including across
+    /// gaps in its indices, and leaves other assets' chunks alone; its slot then starts afresh.
+    #[test]
+    fn release_asset_frees_every_chunk_highest_first_and_only_its_own() {
+        let (_buf, h) = arena(512 * 1024);
+        let mgr = unsafe { deluge_resource_create(h, 4, 64) };
+        let define = |n: usize| unsafe {
+            deluge_resource_define_asset(
+                mgr,
+                owner(n),
+                Some(mock_materialize),
+                Some(mock_on_evict),
+                core::ptr::null_mut(),
+                COST_IO,
+                BACKING_HEAP,
+            )
+        };
+        let (a, b) = (define(30), define(31));
+        unsafe { deluge_resource_set_evict_tail_first(mgr, a, true) };
+        for index in [0u32, 2, 3, 7] {
+            let p = unsafe { deluge_resource_acquire(mgr, a, index, 4096) };
+            assert!(!p.is_null());
+        }
+        let kept = unsafe { deluge_resource_acquire(mgr, b, 2, 4096) };
+        assert!(!kept.is_null());
+
+        reset_evicts();
+        unsafe { deluge_resource_release_asset(mgr, a) };
+        assert_eq!(evicted_indices(), vec![7, 3, 2, 0]);
+        for index in [0u32, 2, 3, 7] {
+            // SAFETY: `mgr` is live.
+            let (indexed, linear) =
+                unsafe { crate::manager::debug_find_resident_both(mgr, a, index) };
+            assert_eq!(
+                (indexed, linear),
+                (None, None),
+                "chunk {index} of the released asset"
+            );
+        }
+        // SAFETY: as above.
+        let (indexed, _) = unsafe { crate::manager::debug_find_resident_both(mgr, b, 2) };
+        assert!(indexed.is_some(), "the other asset's chunk stays");
+
+        // A new asset in the released slot counts its chunks from nothing.
+        let c = define(32);
+        let p = unsafe { deluge_resource_acquire(mgr, c, 1, 4096) };
+        assert!(!p.is_null());
+        reset_evicts();
+        unsafe { deluge_resource_release_asset(mgr, c) };
+        assert_eq!(evicted_indices(), vec![1]);
     }
 
     #[test]
