@@ -905,7 +905,7 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 				// the depth this item is actually displayed at (see `Pair::navigation_depth`).
 				soundEditor.navigationDepth = p.navigation_depth();
 				const bool want = p.item->isRelevant(c.ctx.mod, c.ctx.source_index);
-				const bool got = p.node->relevant == nullptr || p.node->relevant(c.ctx);
+				const bool got = menu::bindings::relevant(*p.node, c.ctx);
 				expect(got == want).to_be_true();
 				if (got) {
 					disagreements_true++;
@@ -1688,7 +1688,10 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		// positions* they were driven from, since a node reachable from two parents appears twice.
 		size_t pair_probes = 0;
 		for (const Pair& p : tree().pairs) {
-			if (!p.node->bind.param.valid() || p.node->bind.set != nullptr || p.node->kind == menu::Kind::Custom) {
+			// A target node's `ParamRef` is learn-only: its value is its setting's, which descriptor_coherence_spec and
+			// sound_settings_spec drive.
+			if (!p.node->bind.param.valid() || p.node->bind.target.valid() || p.node->bind.set != nullptr
+			    || p.node->kind == menu::Kind::Custom) {
 				continue;
 			}
 			param_nodes.insert(p.node);

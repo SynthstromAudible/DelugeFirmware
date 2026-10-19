@@ -54,21 +54,10 @@ namespace deluge::scenes::menu::nodes {
 
 /// @name The master page's own hooks. Bodies (and their citations) in the `.cpp`.
 /// @{
-int32_t get_synth_mode(const MenuContext& ctx);
-void set_synth_mode(const MenuContext& ctx, int32_t value);
-int32_t get_master_transpose(const MenuContext& ctx);
-void set_master_transpose(const MenuContext& ctx, int32_t value);
 /// @}
 
-/// `SynthModeSelection::getOptions` (`gui/menu_item/synth_mode.h:60-67`).
-inline constexpr uint16_t kSynthModeNames[] = {
-    sid(deluge::l10n::String::STRING_FOR_SUBTRACTIVE),
-    sid(deluge::l10n::String::STRING_FOR_FM),
-    sid(deluge::l10n::String::STRING_FOR_RINGMOD),
-};
-
-inline constexpr Node synth_mode = enumeration(sid(deluge::l10n::String::STRING_FOR_SYNTH_MODE), kSynthModeNames,
-                                               get_synth_mode, set_synth_mode, relevance::ringmod_allowed);
+inline constexpr Node synth_mode = setting_item(sid(deluge::l10n::String::STRING_FOR_SYNTH_MODE), Kind::Enum,
+                                                {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "mode"});
 
 inline constexpr Node master_volume = with_patch_chain(
     param(sid(deluge::l10n::String::STRING_FOR_VOLUME_LEVEL),
@@ -82,11 +71,13 @@ inline constexpr Node master_pan =
 
 // `Transpose::getMinValue`/`getMaxValue`/`getNumDecimalPlaces` (`transpose.h`): semitones as a
 // two-place decimal in cents.
-inline constexpr Node master_transpose = with_patch_chain(
-    with_learn_param(with_title(decimal_item(sid(deluge::l10n::String::STRING_FOR_MASTER_TRANSPOSE),
-                                             get_master_transpose, set_master_transpose, IntRange{-9600, 9600, 1}, 2),
-                                sid(deluge::l10n::String::STRING_FOR_MASTER_TRAN_MENU_TITLE)),
-                     {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_PITCH_ADJUST}));
+inline constexpr Node master_transpose = with_patch_chain(with_learn_param(
+    with_title(
+        with_decimal_places(setting_item(sid(deluge::l10n::String::STRING_FOR_MASTER_TRANSPOSE), Kind::Decimal,
+                                         {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "transpose"}),
+                            2),
+        sid(deluge::l10n::String::STRING_FOR_MASTER_TRAN_MENU_TITLE)),
+    {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_PITCH_ADJUST}));
 
 // `vibratoMenu` (`gui/ui/menus.cpp:1727-1728`): a `patch_cable_strength::Fixed` on
 // LOCAL_PITCH_ADJUST from LFO_GLOBAL_1, i.e. the depth of the one cable that makes an LFO wobble the

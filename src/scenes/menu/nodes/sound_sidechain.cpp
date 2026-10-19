@@ -139,24 +139,6 @@ void set_sidechain_sync(const MenuContext& ctx, int32_t value) {
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
-int32_t get_sidechain_send(const MenuContext& ctx) {
-	// `sidechain::Send::readCurrentValue` (`sidechain/send.h`).
-	if (ctx.sound == nullptr) {
-		return 0;
-	}
-	return (static_cast<uint64_t>(ctx.sound->sideChainSendLevel) * kMaxMenuValue + 1073741824) >> 31;
-}
-void set_sidechain_send(const MenuContext& ctx, int32_t value) {
-	// `sidechain::Send::writeCurrentValue` (`send.h`).
-	const int32_t stored = value == kMaxMenuValue ? 2147483647 : value * 42949673;
-	bindings::apply_to_targets(
-	    ctx, stored, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		    if (t.sound != nullptr) {
-			    deluge::edits::settingFor(*t.sound, "sideChainSend", deluge::serialization::Value::makeNumber(v));
-		    }
-	    });
-}
-
 int32_t get_sidechain_attack(const MenuContext& ctx) {
 	const deluge::effects::SidechainState* sc = shown_sidechain(ctx);
 	return sc != nullptr ? sidechain_attack_to_menu(sc->attack) : 0;

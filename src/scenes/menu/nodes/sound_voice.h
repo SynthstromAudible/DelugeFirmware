@@ -33,6 +33,7 @@
 ///       style is KNOB while what it *draws* is neither. `Hint::None` is the honest answer, on the
 ///       convention task 6 set (its concern 5).
 
+#include "scenes/menu/bindings.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/sound_unison.h" // the fifth column
@@ -52,11 +53,6 @@ namespace deluge::scenes::menu::nodes {
 /// @{
 int32_t get_voice_priority(const MenuContext& ctx);
 void set_voice_priority(const MenuContext& ctx, int32_t value);
-size_t polyphony_names(const MenuContext& ctx, std::span<std::string_view> out);
-int32_t get_polyphony(const MenuContext& ctx);
-void set_polyphony(const MenuContext& ctx, int32_t value);
-int32_t get_voice_count(const MenuContext& ctx);
-void set_voice_count(const MenuContext& ctx, int32_t value);
 /// @}
 
 /// `voice::Priority::getOptions` (`voice/priority.h:54-61`), FULL spelling.
@@ -76,21 +72,24 @@ inline constexpr Node voice_priority = enumeration(sid(deluge::l10n::String::STR
 // `assign_node_ids` numbers a chain target while visiting the node that chains to it, so
 // `voice_count` is numbered right after `polyphony` either way, because it is already `polyphony`'s
 // next sibling. `sound_unison.h`'s equivalent pair is not so lucky and says so.
-inline constexpr Node voice_count = int_item(sid(deluge::l10n::String::STRING_FOR_MAX_VOICES), get_voice_count,
-                                             set_voice_count, IntRange{0, 16, 1}, Hint::None, relevance::is_polyphonic);
+inline constexpr Node voice_count =
+    setting_item(sid(deluge::l10n::String::STRING_FOR_MAX_VOICES), Kind::Int,
+                 {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "maxVoices"});
 
 /// @brief `PolyphonyType::selectButtonPress()` (`voice/polyphony.h:139-143`): a select press opens
 ///        the voice count when the mode is POLY, and otherwise falls through to
 ///        `Selection::selectButtonPress()`, which for an already-open menu is the base class's
 ///        "ascend" (`selection.h:54-64`).
 inline constexpr const Node* kPolyphonyChain[] = {&voice_count};
+inline constexpr deluge::scenes::bind::Target kPolyphonic{.kind = deluge::scenes::bind::Target::Kind::SOUND,
+                                                          .path = "polyphonic"};
 inline const Node* polyphony_chain(const MenuContext& ctx, const MenuState&) {
-	return get_polyphony(ctx) == static_cast<int32_t>(PolyphonyMode::POLY) ? &voice_count : nullptr;
+	return bindings::stored(kPolyphonic, ctx) == static_cast<int32_t>(PolyphonyMode::POLY) ? &voice_count : nullptr;
 }
 
-inline constexpr Node polyphony = with_select_chain(
-    dynamic_enumeration(sid(deluge::l10n::String::STRING_FOR_POLYPHONY), polyphony_names, get_polyphony, set_polyphony),
-    polyphony_chain, kPolyphonyChain);
+inline constexpr Node polyphony =
+    with_select_chain(setting_item(sid(deluge::l10n::String::STRING_FOR_POLYPHONY), Kind::Enum, kPolyphonic),
+                      polyphony_chain, kPolyphonyChain);
 inline constexpr Node portamento = param(
     sid(deluge::l10n::String::STRING_FOR_PORTAMENTO),
     {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_PORTAMENTO}, Hint::None);

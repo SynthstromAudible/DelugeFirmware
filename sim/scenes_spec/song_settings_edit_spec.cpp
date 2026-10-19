@@ -28,6 +28,7 @@
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
+#include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/nodes/roots.h"
 #include "scenes/menu/nodes/sound_actions.h"
@@ -671,15 +672,15 @@ describe song_settings_edit("SetSetting", $ {
 		const auto ctx = deluge::scenes::menu::context_for(*f.song, f.clip, 0, false, false, false, false);
 		const deluge::instrument::SoundState* state = ctx.sound->boundState();
 		expect(state != nullptr).to_be_true();
-		deluge::scenes::menu::nodes::set_polyphony(ctx, static_cast<int32_t>(PolyphonyMode::LEGATO));
+		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::polyphony, ctx, static_cast<int32_t>(PolyphonyMode::LEGATO));
 		expect(state->polyphonic == PolyphonyMode::LEGATO).to_be_true();
-		deluge::scenes::menu::nodes::set_voice_count(ctx, 5);
+		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::voice_count, ctx, 5);
 		expect(static_cast<int>(state->max_voice_count)).to_equal(5);
-		deluge::scenes::menu::nodes::set_voice_count(ctx, 0);
+		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::voice_count, ctx, 0);
 		expect(static_cast<int>(state->max_voice_count)).to_equal(127);
-		deluge::scenes::menu::nodes::set_output_midi_channel(ctx, 4);
+		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::output_midi_channel, ctx, 4);
 		expect(static_cast<int>(state->output_midi_channel)).to_equal(3);
-		deluge::scenes::menu::nodes::set_output_midi_channel(ctx, 0);
+		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::output_midi_channel, ctx, 0);
 		expect(static_cast<int>(state->output_midi_channel)).to_equal(static_cast<int>(MIDI_CHANNEL_NONE));
 	});
 
@@ -689,7 +690,7 @@ describe song_settings_edit("SetSetting", $ {
 		const auto ctx = deluge::scenes::menu::context_for(*f.song, f.clip, 0, false, false, false, false);
 		const deluge::instrument::SoundState* state = ctx.sound->boundState();
 		expect(state != nullptr).to_be_true();
-		deluge::scenes::menu::nodes::set_output_midi_note(ctx, 61);
+		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::output_midi_note, ctx, 61);
 		expect(static_cast<int>(state->output_midi_note_for_drum)).to_equal(61);
 		expect(static_cast<int>(ctx.sound->outputMidiNoteForDrum)).to_equal(61);
 	});
@@ -700,7 +701,8 @@ describe song_settings_edit("SetSetting", $ {
 		SoundDrum* second = spec::add_drum<SoundDrum>(f);
 		auto ctx = deluge::scenes::menu::context_for(*f.song, f.clip, 0, false, false, false, false);
 		ctx.affect_entire_held = true;
-		deluge::scenes::menu::nodes::set_output_midi_note(ctx, 72);
+		ctx.addresses.affect_entire = deluge::scenes::menu::bindings::writes_whole_kit(ctx);
+		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::output_midi_note, ctx, 72);
 		for (SoundDrum* drum : {first, second}) {
 			const deluge::instrument::SoundState* state = drum->boundState();
 			expect(state != nullptr).to_be_true();

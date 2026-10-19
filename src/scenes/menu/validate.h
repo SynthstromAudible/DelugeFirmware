@@ -128,8 +128,11 @@ enum class Flag : uint16_t {
 	/// of one node, like the two flags just above.
 	AdjustWithoutGet,
 	/// @brief A node with a `Binding::target` that also sets a hook the target replaces: `get`, `set`, `range`,
-	///        `fixed_range`, `names`, `dynamic_names`, `param` or `relevant`. A target node's value, range, choices
-	///        and relevance come from its descriptor; a hook beside it would be a second, silently ignored, source.
+	///        `fixed_range`, `names`, `dynamic_names` or `relevant`. A target node's value, range, choices and
+	///        relevance
+	///        come from its descriptor; a hook beside it would be a second, silently ignored, source. A `param` beside
+	///        a
+	///        target is learn-only (what `learn_target` binds), as beside a `get`.
 	TargetWithHooks,
 };
 

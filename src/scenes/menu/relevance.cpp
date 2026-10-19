@@ -140,22 +140,6 @@ bool carrier_feedback(const MenuContext& ctx, uint8_t index) {
 	       && (ctx.sound->getSynthMode() == ::SynthMode::FM || source->oscType == OscType::DX7);
 }
 
-/// @brief `osc::RetriggerPhase::isRelevant` (`gui/menu_item/osc/retrigger_phase.h:76-87`).
-/// @param for_modulator The item's own `for_modulator_` flag (`retrigger_phase.h:131`).
-bool retrigger_phase(const MenuContext& ctx, uint8_t index, bool for_modulator) {
-	const Source* source = source_of(ctx, index);
-	if (ctx.sound == nullptr || source == nullptr) {
-		return false;
-	}
-	if (for_modulator && ctx.sound->getSynthMode() != ::SynthMode::FM) {
-		return false;
-	}
-	if (source->oscType == OscType::WAVETABLE) {
-		return loaded(source);
-	}
-	return source->oscType != OscType::SAMPLE || ctx.sound->getSynthMode() == ::SynthMode::FM;
-}
-
 /// @brief `sample::PitchSpeed::isRelevant` (`gui/menu_item/sample/pitch_speed.h:35-37`).
 bool pitch_speed(const MenuContext& ctx, uint8_t index) {
 	return ctx.is_audio_clip || is_sample_mode_sample(ctx, index);
@@ -257,11 +241,6 @@ bool not_ringmod(const MenuContext& ctx) {
 bool is_subtractive(const MenuContext& ctx) {
 	return ctx.sound != nullptr && ctx.sound->getSynthMode() == ::SynthMode::SUBTRACTIVE;
 }
-bool osc_sync_allowed(const MenuContext& ctx) {
-	return ctx.sound != nullptr && ctx.sound->getSynthMode() != ::SynthMode::FM
-	       && ctx.sound->sources[0].oscType != OscType::SAMPLE && ctx.sound->sources[1].oscType != OscType::SAMPLE;
-}
-
 // ---------------------------------------------------------------------------------------------
 // Per-source
 
@@ -295,18 +274,6 @@ bool osc0_carrier_feedback(const MenuContext& ctx) {
 bool osc1_carrier_feedback(const MenuContext& ctx) {
 	return carrier_feedback(ctx, 1);
 }
-bool osc0_retrigger_phase(const MenuContext& ctx) {
-	return retrigger_phase(ctx, 0, /*for_modulator=*/false);
-}
-bool osc1_retrigger_phase(const MenuContext& ctx) {
-	return retrigger_phase(ctx, 1, /*for_modulator=*/false);
-}
-bool modulator0_retrigger_phase(const MenuContext& ctx) {
-	return retrigger_phase(ctx, 0, /*for_modulator=*/true);
-}
-bool modulator1_retrigger_phase(const MenuContext& ctx) {
-	return retrigger_phase(ctx, 1, /*for_modulator=*/true);
-}
 bool osc0_is_sample(const MenuContext& ctx) {
 	return is_sample_mode_sample(ctx, 0);
 }
@@ -329,14 +296,6 @@ bool osc1_interpolation(const MenuContext& ctx) {
 // ---------------------------------------------------------------------------------------------
 // Batch 2 -- the rest of the sound-editor root
 
-bool ringmod_allowed(const MenuContext& ctx) {
-	return ctx.sound != nullptr && ctx.sound->sources[0].oscType <= kLastRingmoddableOscType
-	       && ctx.sound->sources[1].oscType <= kLastRingmoddableOscType;
-}
-
-bool is_kit(const MenuContext& ctx) {
-	return ctx.is_kit;
-}
 bool is_kit_row(const MenuContext& ctx) {
 	return ctx.is_kit && !ctx.is_kit_global_fx;
 }
@@ -447,10 +406,6 @@ bool stutter_quantize_allowed(const MenuContext& ctx) {
 	return ctx.mod != nullptr && (ctx.mod->isSong() || !ctx.mod->effects().stutter.use_song_stutter);
 }
 
-bool is_polyphonic(const MenuContext& ctx) {
-	return ctx.sound != nullptr && ctx.sound->polyphonic == PolyphonyMode::POLY;
-}
-
 bool bend_submenu(const MenuContext& ctx) {
 	if (ctx.output == nullptr) {
 		return false;
@@ -462,10 +417,6 @@ bool per_finger_bend(const MenuContext& ctx) {
 	// The depth-0 reading of `per_finger.h:41` -- see the header. At depth 0 the `navigationDepth
 	// == 1` arm is false by construction, so only `editingKit()` is left.
 	return ctx.is_kit;
-}
-
-bool output_midi_note(const MenuContext& ctx) {
-	return is_kit_row(ctx) && !non_audio_drum_row(ctx);
 }
 
 // --- Batch 3 (Task 8) -------------------------------------------------------------------------
@@ -565,14 +516,13 @@ namespace {
 		&fn, #fn                                                                                                       \
 	}
 
-constexpr std::array<NamedPredicate, 79> kRegistry{
+constexpr std::array<NamedPredicate, 70> kRegistry{
     DELUGE_RELEVANCE_ROW(has_lpf),
     DELUGE_RELEVANCE_ROW(has_hpf),
     DELUGE_RELEVANCE_ROW(is_fm),
     DELUGE_RELEVANCE_ROW(not_fm),
     DELUGE_RELEVANCE_ROW(not_ringmod),
     DELUGE_RELEVANCE_ROW(is_subtractive),
-    DELUGE_RELEVANCE_ROW(osc_sync_allowed),
     DELUGE_RELEVANCE_ROW(osc0_file_selector),
     DELUGE_RELEVANCE_ROW(osc1_file_selector),
     DELUGE_RELEVANCE_ROW(osc0_transpose),
@@ -583,18 +533,12 @@ constexpr std::array<NamedPredicate, 79> kRegistry{
     DELUGE_RELEVANCE_ROW(osc1_pulse_width),
     DELUGE_RELEVANCE_ROW(osc0_carrier_feedback),
     DELUGE_RELEVANCE_ROW(osc1_carrier_feedback),
-    DELUGE_RELEVANCE_ROW(osc0_retrigger_phase),
-    DELUGE_RELEVANCE_ROW(osc1_retrigger_phase),
-    DELUGE_RELEVANCE_ROW(modulator0_retrigger_phase),
-    DELUGE_RELEVANCE_ROW(modulator1_retrigger_phase),
     DELUGE_RELEVANCE_ROW(osc0_is_sample),
     DELUGE_RELEVANCE_ROW(osc1_is_sample),
     DELUGE_RELEVANCE_ROW(osc0_pitch_speed),
     DELUGE_RELEVANCE_ROW(osc1_pitch_speed),
     DELUGE_RELEVANCE_ROW(osc0_interpolation),
     DELUGE_RELEVANCE_ROW(osc1_interpolation),
-    DELUGE_RELEVANCE_ROW(ringmod_allowed),
-    DELUGE_RELEVANCE_ROW(is_kit),
     DELUGE_RELEVANCE_ROW(is_kit_row),
     DELUGE_RELEVANCE_ROW(not_kit_row),
     DELUGE_RELEVANCE_ROW(kit_row_not_gate),
@@ -619,10 +563,8 @@ constexpr std::array<NamedPredicate, 79> kRegistry{
     DELUGE_RELEVANCE_ROW(reverb_filters),
     DELUGE_RELEVANCE_ROW(reverb_sidechain_on),
     DELUGE_RELEVANCE_ROW(stutter_quantize_allowed),
-    DELUGE_RELEVANCE_ROW(is_polyphonic),
     DELUGE_RELEVANCE_ROW(bend_submenu),
     DELUGE_RELEVANCE_ROW(per_finger_bend),
-    DELUGE_RELEVANCE_ROW(output_midi_note),
     DELUGE_RELEVANCE_ROW(is_midi_out),
     DELUGE_RELEVANCE_ROW(cv2_dual),
     DELUGE_RELEVANCE_ROW(battery_shown),
@@ -650,10 +592,10 @@ constexpr std::array<NamedPredicate, 79> kRegistry{
 
 #undef DELUGE_RELEVANCE_ROW
 
-// One row per predicate declared in `relevance.h` (63), plus the sixteen
+// One row per predicate declared in `relevance.h` (54), plus the sixteen
 // `nodes::relevant_*_iterance_step_*` rows: declared in `nodes/note.h`, not `relevance.h`, but
-// registered here for the reason this section's own note gives. 63 + 16 = 79.
-static_assert(kRegistry.size() == 79);
+// registered here for the reason this section's own note gives. 54 + 16 = 70.
+static_assert(kRegistry.size() == 70);
 
 } // namespace
 

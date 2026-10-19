@@ -69,47 +69,6 @@ void set_sequence_direction(const MenuContext& ctx, int32_t value) {
 // ---------------------------------------------------------------------------------------------
 // Output MIDI
 
-int32_t get_output_midi_channel(const MenuContext& ctx) {
-	// `OutputMidiChannel::readCurrentValue` (`midi/sound/channel.h:25-35`): "no channel" shows as 0,
-	// every real channel as itself plus one.
-	if (ctx.sound == nullptr) {
-		return 0;
-	}
-	const int32_t value = ctx.sound->outputMidiChannel;
-	return value == MIDI_CHANNEL_NONE ? 0 : value + 1;
-}
-
-void set_output_midi_channel(const MenuContext& ctx, int32_t value) {
-	// `OutputMidiChannel::writeCurrentValue` (`channel.h:37-64`), the inverse mapping then the
-	// affect-entire kit loop.
-	const int32_t stored = value == 0 ? MIDI_CHANNEL_NONE : value - 1;
-	bindings::apply_to_targets(
-	    ctx, stored, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		    if (t.sound != nullptr) {
-			    deluge::edits::settingFor(*t.sound, "midiOutput/channel", deluge::serialization::Value::makeNumber(v));
-		    }
-	    });
-}
-
-int32_t get_output_midi_note(const MenuContext& ctx) {
-	// `OutputMidiNoteForDrum::readCurrentValue` (`midi/sound/note_for_drum.h:37-43`).
-	if (ctx.sound == nullptr) {
-		return kNoteForDrum;
-	}
-	const int32_t value = ctx.sound->outputMidiNoteForDrum;
-	return value == MIDI_NOTE_NONE ? kNoteForDrum : value;
-}
-
-void set_output_midi_note(const MenuContext& ctx, int32_t value) {
-	bindings::apply_to_targets(ctx, value, 0,
-	                           [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		                           if (t.sound != nullptr) {
-			                           deluge::edits::settingFor(*t.sound, "midiOutput/noteForDrum",
-			                                                     deluge::serialization::Value::makeNumber(v));
-		                           }
-	                           });
-}
-
 namespace {
 constexpr const Node* kRoots[] = {&sound_actions, &sequence_direction, &output_midi};
 } // namespace

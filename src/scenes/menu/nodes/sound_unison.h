@@ -39,20 +39,14 @@ namespace deluge::scenes::menu::nodes {
 
 /// @name The three `Sound` unison hooks. Bodies (and their citations) in the `.cpp`.
 /// @{
-int32_t get_unison_count(const MenuContext& ctx);
-void set_unison_count(const MenuContext& ctx, int32_t value);
-int32_t get_unison_detune(const MenuContext& ctx);
-void set_unison_detune(const MenuContext& ctx, int32_t value);
-int32_t get_unison_spread(const MenuContext& ctx);
-void set_unison_spread(const MenuContext& ctx, int32_t value);
 /// @}
 
 // Ranges: `Count::getMinValue`/`getMaxValue` (`unison/count.h:64-65`), `Detune::getMaxValue`
 // (`unison/detune.h:61`), `StereoSpread::getMaxValue` (`stereoSpread.h:53`), each over `Number`'s
 // default minimum of 0 where no minimum is overridden.
 inline constexpr Node unison_detune =
-    with_title(int_item(sid(deluge::l10n::String::STRING_FOR_UNISON_DETUNE), get_unison_detune, set_unison_detune,
-                        IntRange{0, kMaxUnisonDetune, 1}, Hint::None),
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_UNISON_DETUNE), Kind::Int,
+                            {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "unison/detune"}),
                sid(deluge::l10n::String::STRING_FOR_UNISON_DETUNE_MENU_TITLE));
 // Declared before `unison_count`, which chains to it: `with_select_chain` needs its address.
 //
@@ -63,8 +57,8 @@ inline constexpr Node unison_detune =
 // and lands *ahead* of `unison_detune` (221 vs 222 in the shipped dump). That is a consequence of
 // the walk, not of this reordering, and it is why E2 task 3's id shift is not uniform.
 inline constexpr Node unison_spread =
-    with_title(int_item(sid(deluge::l10n::String::STRING_FOR_UNISON_STEREO_SPREAD), get_unison_spread,
-                        set_unison_spread, IntRange{0, kMaxUnisonStereoSpread, 1}, Hint::Knob),
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_UNISON_STEREO_SPREAD), Kind::Int,
+                            {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "unison/spread"}, Hint::Knob),
                sid(deluge::l10n::String::STRING_FOR_UNISON_STEREO_SPREAD_MENU_TITLE));
 
 /// @brief `CountToStereoSpread::selectButtonPress()` (`unison/count.h:76-79`): a select press on the
@@ -77,11 +71,11 @@ inline const Node* unison_count_chain(const MenuContext&, const MenuState&) {
 	return &unison_spread;
 }
 
-inline constexpr Node unison_count =
-    with_select_chain(with_title(int_item(sid(deluge::l10n::String::STRING_FOR_UNISON_NUMBER), get_unison_count,
-                                          set_unison_count, IntRange{1, kMaxNumVoicesUnison, 1}, Hint::None),
-                                 sid(deluge::l10n::String::STRING_FOR_UNISON_NUMBER_MENU_TITLE)),
-                      unison_count_chain, kUnisonCountChain);
+inline constexpr Node unison_count = with_select_chain(
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_UNISON_NUMBER), Kind::Int,
+                            {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "unison/num"}),
+               sid(deluge::l10n::String::STRING_FOR_UNISON_NUMBER_MENU_TITLE)),
+    unison_count_chain, kUnisonCountChain);
 
 inline constexpr const Node* kUnisonChildren[] = {&unison_count, &unison_detune, &unison_spread};
 inline constexpr Node unison =

@@ -658,7 +658,7 @@ const Root& installed_root(std::string_view name) {
 /// under the MIDI/CV root precisely so their `midi_cv` twins can sit beside them, and every one of
 /// them is `isRelevant() == false` there.
 bool relevant_here(const Pair& p) {
-	return p.node->relevant == nullptr || p.node->relevant(p.root->ctx);
+	return menu::bindings::relevant(*p.node, p.root->ctx);
 }
 
 ::MenuItem* legacy_item_for(const Node& node) {
@@ -1250,7 +1250,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 		for (const Pair& p : tree().pairs) {
 			if (legacy_relevance_needs_sound(p)) {
 				// See `legacy_relevance_needs_sound`: legacy would crash here, the port answers false.
-				expect(p.node->relevant != nullptr && !p.node->relevant(p.root->ctx)).to_be_true();
+				expect(!menu::bindings::relevant(*p.node, p.root->ctx)).to_be_true();
 				continue;
 			}
 			install(p.root->ctx, p.root->song);
@@ -1271,7 +1271,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 				nullifyUIs();
 				expect(getRootUI() == nullptr).to_be_true();
 			}
-			const bool got = p.node->relevant == nullptr || p.node->relevant(p.root->ctx);
+			const bool got = menu::bindings::relevant(*p.node, p.root->ctx);
 			const std::string label =
 			    std::string{p.root->name} + "/" + text_of(p.node->name) + " (" + p.item->getName() + ") relevant=";
 			expect(label + (got ? "1" : "0")).to_equal(label + (want ? "1" : "0"));
@@ -2839,7 +2839,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 			if (kid == &nodes::midi_devices) {
 				break;
 			}
-			if (kid != nullptr && (kid->relevant == nullptr || kid->relevant(ctx))) {
+			if (kid != nullptr && (menu::bindings::relevant(*kid, ctx))) {
 				row++;
 			}
 		}

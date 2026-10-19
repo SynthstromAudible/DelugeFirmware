@@ -142,7 +142,8 @@ struct NodeException {
 	std::string_view only{}; ///< empty = every finding of those aspects; else only the findings containing this text
 };
 
-/// @brief A stored value the record cannot hold for a row, set on the engine where the node reads it.
+/// @brief A stored value no menu writes for a row (the unset note), set on the sound by its own setter, which keeps its
+///        typed state in step, where a target node reads it.
 struct UnsetProbe {
 	std::string_view path;
 	int32_t stored;
@@ -150,7 +151,7 @@ struct UnsetProbe {
 };
 
 void unset_note_for_drum(const deluge::scenes::menu::MenuContext& ctx) {
-	ctx.sound->outputMidiNoteForDrum = MIDI_NOTE_NONE;
+	ctx.sound->setOutputMidiNoteForDrum(MIDI_NOTE_NONE);
 }
 
 const UnsetProbe* unset_probe_of(std::string_view path) {

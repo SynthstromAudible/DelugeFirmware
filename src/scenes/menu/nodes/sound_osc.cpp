@@ -96,79 +96,6 @@ SampleControls* sample_controls_of(const MenuContext& ctx, uint8_t index) {
 // ---------------------------------------------------------------------------------------------
 // `osc::Type` (`gui/menu_item/osc/type.h:34-160`).
 
-/// @brief `Type::mayUseDx()` (`osc/type.h:40`): `!soundEditor.editingKit() && sourceId_ == 0`.
-///        `editingKit()` is `getCurrentOutputType() == KIT` (`gui/ui/sound_editor.cpp:203-205`),
-///        which `MenuContext` carries as `is_kit`.
-bool may_use_dx(const MenuContext& ctx, uint8_t index) {
-	return !ctx.is_kit && index == 0;
-}
-
-/// @brief `Type::readCurrentValue` (`osc/type.h:42-48`): the raw enumerator, with DX7 squeezed out
-///        of the list where it is not offered.
-int32_t osc_type_value(const MenuContext& ctx, uint8_t index) {
-	Source* source = source_of(ctx, index);
-	if (source == nullptr) {
-		return 0;
-	}
-	auto raw = static_cast<int32_t>(source->oscType);
-	if (!may_use_dx(ctx, index) && raw > static_cast<int32_t>(OscType::DX7)) {
-		raw -= 1;
-	}
-	return raw;
-}
-
-/// @brief `Type::writeCurrentValue` (`osc/type.h`): a setting Edit on the sound. No affect-entire
-///        loop: `osc::Type` overrides neither `usesAffectEntire()` nor the loop.
-void set_osc_type(const MenuContext& ctx, int32_t value, uint8_t index) {
-	if (ctx.sound == nullptr) {
-		return;
-	}
-	auto new_value = static_cast<OscType>(value);
-	if (!may_use_dx(ctx, index) && static_cast<int32_t>(new_value) >= static_cast<int32_t>(OscType::DX7)) {
-		new_value = static_cast<OscType>(static_cast<int32_t>(new_value) + 1);
-	}
-	deluge::edits::settingFor(
-	    *ctx.sound, deluge::edits::oscSettingPath(index, "type"),
-	    deluge::serialization::Value::makeScalar(std::string(deluge::instrument::to_string(new_value))));
-}
-
-/// @brief `Type::getOptions` (`osc/type.h:72-104`) -- a genuinely dynamic list (ring-mod drops
-///        every sample/input entry, DX7 appears only on a non-kit's oscillator 1, and the three
-///        input entries collapse to one when nothing is plugged in), so a `dynamic_names` hook
-///        rather than a static `names` span.
-size_t osc_type_names(const MenuContext& ctx, std::span<std::string_view> out, uint8_t index) {
-	static constexpr String kBase[] = {
-	    String::STRING_FOR_SINE,          String::STRING_FOR_TRIANGLE, String::STRING_FOR_SQUARE,
-	    String::STRING_FOR_ANALOG_SQUARE, String::STRING_FOR_SAW,      String::STRING_FOR_ANALOG_SAW,
-	    String::STRING_FOR_WAVETABLE,
-	};
-	size_t n = 0;
-	const auto emit = [&](String s) {
-		if (n < out.size()) {
-			out[n++] = deluge::scenes::text_lookup(sid(s));
-		}
-	};
-	for (String s : kBase) {
-		emit(s);
-	}
-	if (ctx.sound == nullptr || ctx.sound->getSynthMode() == ::SynthMode::RINGMOD) {
-		return n; // `:86-88`
-	}
-	emit(String::STRING_FOR_SAMPLE);
-	if (may_use_dx(ctx, index)) {
-		emit(String::STRING_FOR_DX7);
-	}
-	if (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn) { // `:96-103`
-		emit(String::STRING_FOR_INPUT_LEFT);
-		emit(String::STRING_FOR_INPUT_RIGHT);
-		emit(String::STRING_FOR_INPUT_STEREO);
-	}
-	else {
-		emit(String::STRING_FOR_INPUT);
-	}
-	return n;
-}
-
 // ---------------------------------------------------------------------------------------------
 // `sample::Transpose` (`gui/menu_item/sample/transpose.h:31-175`) -- "this is actually the
 // Oscillator transpose" (`sample/transpose.h:31`).
@@ -251,82 +178,8 @@ void set_osc_transpose(const MenuContext& ctx, int32_t value, uint8_t index) {
 // ---------------------------------------------------------------------------------------------
 // `osc::RetriggerPhase` (`gui/menu_item/osc/retrigger_phase.h:25-135`).
 
-/// @brief `readCurrentValue` (`retrigger_phase.h:39-47`): the 32-bit phase as degrees, or -1
-///        ("OFF") for the `0xFFFFFFFF` sentinel.
-int32_t get_retrigger_phase(const MenuContext& ctx, uint8_t index, bool for_modulator) {
-	if (ctx.sound == nullptr) {
-		return -1;
-	}
-	const auto& snapshot = ctx.sound->snapshot();
-	const uint32_t value = for_modulator ? snapshot.modulatorRetriggerPhase[index] : snapshot.oscRetriggerPhase[index];
-	return value == 0xFFFFFFFF ? -1 : static_cast<int32_t>(value / 11930464);
-}
-
-/// @brief `writeCurrentValue` (`retrigger_phase.h`): a setting Edit on the sound. No affect-entire
-///        loop in legacy either.
-void set_retrigger_phase(const MenuContext& ctx, int32_t value, uint8_t index, bool for_modulator) {
-	if (ctx.sound == nullptr) {
-		return;
-	}
-	const uint32_t stored = value < 0 ? 0xFFFFFFFFu : static_cast<uint32_t>(value * 11930464);
-	const std::string path =
-	    std::string(for_modulator ? "modulator" : "osc") + std::to_string(index + 1) + "/retrigPhase";
-	deluge::edits::settingFor(*ctx.sound, path, deluge::serialization::Value::makeNumber(static_cast<int32_t>(stored)));
-}
-
 // ---------------------------------------------------------------------------------------------
 // The sample items.
-
-int32_t get_sample_reverse(const MenuContext& ctx, uint8_t index) {
-	Source* source = source_of(ctx, index);
-	return source != nullptr && source->sampleControls.reversed ? 1 : 0; // `sample/reverse.h:40-43`
-}
-void set_sample_reverse(const MenuContext& ctx, int32_t value, uint8_t index) {
-	// `sample/reverse.h`: a setting Edit on each target sound.
-	bindings::apply_to_targets(
-	    ctx, value, index, [](const bindings::SoundTarget& t, int32_t v, int32_t index, const MenuContext&) {
-		    if (t.sound != nullptr) {
-			    deluge::edits::settingFor(*t.sound, deluge::edits::oscSettingPath(index, "reversed"),
-			                              deluge::serialization::Value::makeNumber(v));
-		    }
-	    });
-}
-
-int32_t get_sample_repeat(const MenuContext& ctx, uint8_t index) {
-	Source* source = source_of(ctx, index);
-	return source != nullptr ? static_cast<int32_t>(source->repeatMode) : 0; // `sample/repeat.h:44-47`
-}
-void set_sample_repeat(const MenuContext& ctx, int32_t value, uint8_t index) {
-	// `sample/repeat.h`: a setting Edit on each target sound, minus two calls this layer cannot make:
-	// the kit arpeggiator note-off on ONCE -- which reaches `instrumentClipView` through
-	// `getCurrentInstrumentClip` -- and the `uiNeedsRendering(&instrumentClipView, ...)` at the end.
-	// The notify design replaces the second with the `Dirty::Oled` `bindings::write` already raises
-	// for a `get`/`set` node; the first belongs to E2's `NoteClipScene`. Legacy's affect-entire test
-	// here is also looser than `bindings::writes_whole_kit`: `kit != nullptr && currentUIMode == …`
-	// with no row test at all. Recorded, not silently dropped.
-	bindings::apply_to_targets(
-	    ctx, value, index, [](const bindings::SoundTarget& t, int32_t v, int32_t index, const MenuContext&) {
-		    if (t.sound != nullptr) {
-			    deluge::edits::settingFor(*t.sound, deluge::edits::oscSettingPath(index, "loopMode"),
-			                              deluge::serialization::Value::makeNumber(v));
-		    }
-	    });
-}
-
-int32_t get_time_stretch(const MenuContext& ctx, uint8_t index) {
-	Source* source = source_of(ctx, index);
-	return source != nullptr ? source->timeStretchAmount : 0; // `sample/time_stretch.h:40-43`
-}
-void set_time_stretch(const MenuContext& ctx, int32_t value, uint8_t index) {
-	// `sample/time_stretch.h`: a setting Edit on each target sound.
-	bindings::apply_to_targets(
-	    ctx, value, index, [](const bindings::SoundTarget& t, int32_t v, int32_t index, const MenuContext&) {
-		    if (t.sound != nullptr) {
-			    deluge::edits::settingFor(*t.sound, deluge::edits::oscSettingPath(index, "timeStretchAmount"),
-			                              deluge::serialization::Value::makeNumber(v));
-		    }
-	    });
-}
 
 int32_t get_pitch_speed(const MenuContext& ctx, uint8_t index) {
 	const SampleControls* controls = sample_controls_of(ctx, index);
@@ -386,32 +239,6 @@ void set_interpolation(const MenuContext& ctx, int32_t value, uint8_t index) {
 // ---------------------------------------------------------------------------------------------
 // The FM modulator items.
 
-int32_t get_modulator_transpose(const MenuContext& ctx, uint8_t index) {
-	if (ctx.sound == nullptr) {
-		return 0;
-	}
-	// `modulator/transpose.h`'s `readCurrentValue`.
-	const auto& snapshot = ctx.sound->snapshot();
-	return transpose_to_menu(snapshot.modulatorTranspose[index], snapshot.modulatorCents[index]);
-}
-void set_modulator_transpose(const MenuContext& ctx, int32_t value, uint8_t index) {
-	bindings::apply_to_targets(
-	    ctx, value, index, [](const bindings::SoundTarget& t, int32_t v, int32_t index, const MenuContext&) {
-		    // `modulator/transpose.h`: the kit arm skips a drum that is not in FM mode, the single arm
-		    // does not test at all.
-		    if (t.sound == nullptr || (t.whole_kit && t.sound->getSynthMode() != ::SynthMode::FM)) {
-			    return;
-		    }
-		    int32_t transpose = 0;
-		    int32_t cents = 0;
-		    menu_to_transpose(v, &transpose, &cents);
-		    const std::string prefix = "modulator" + std::to_string(index + 1) + "/";
-		    deluge::edits::settingFor(*t.sound, prefix + "transpose",
-		                              deluge::serialization::Value::makeNumber(transpose));
-		    deluge::edits::settingFor(*t.sound, prefix + "cents", deluge::serialization::Value::makeNumber(cents));
-	    });
-}
-
 constexpr const Node* kRoots[] = {&recorder, &source0, &source1, &modulator0, &modulator1, &osc_mixer};
 
 } // namespace
@@ -420,44 +247,11 @@ constexpr const Node* kRoots[] = {&recorder, &source0, &source1, &modulator0, &m
 // The hooks `sound_osc.h`'s macros declared, each forwarding its baked-in source index.
 
 #define DELUGE_OSC_SOURCE_HOOKS(i)                                                                                     \
-	int32_t get_osc##i##_type(const MenuContext& ctx) {                                                                \
-		return osc_type_value(ctx, (i));                                                                               \
-	}                                                                                                                  \
-	void set_osc##i##_type(const MenuContext& ctx, int32_t v) {                                                        \
-		set_osc_type(ctx, v, (i));                                                                                     \
-	}                                                                                                                  \
-	size_t osc##i##_type_names(const MenuContext& ctx, std::span<std::string_view> out) {                              \
-		return osc_type_names(ctx, out, (i));                                                                          \
-	}                                                                                                                  \
 	int32_t get_source##i##_transpose(const MenuContext& ctx) {                                                        \
 		return get_osc_transpose(ctx, (i));                                                                            \
 	}                                                                                                                  \
 	void set_source##i##_transpose(const MenuContext& ctx, int32_t v) {                                                \
 		set_osc_transpose(ctx, v, (i));                                                                                \
-	}                                                                                                                  \
-	int32_t get_osc##i##_phase(const MenuContext& ctx) {                                                               \
-		return get_retrigger_phase(ctx, (i), false);                                                                   \
-	}                                                                                                                  \
-	void set_osc##i##_phase(const MenuContext& ctx, int32_t v) {                                                       \
-		set_retrigger_phase(ctx, v, (i), false);                                                                       \
-	}                                                                                                                  \
-	int32_t get_sample##i##_reverse(const MenuContext& ctx) {                                                          \
-		return get_sample_reverse(ctx, (i));                                                                           \
-	}                                                                                                                  \
-	void set_sample##i##_reverse(const MenuContext& ctx, int32_t v) {                                                  \
-		set_sample_reverse(ctx, v, (i));                                                                               \
-	}                                                                                                                  \
-	int32_t get_sample##i##_repeat(const MenuContext& ctx) {                                                           \
-		return get_sample_repeat(ctx, (i));                                                                            \
-	}                                                                                                                  \
-	void set_sample##i##_repeat(const MenuContext& ctx, int32_t v) {                                                   \
-		set_sample_repeat(ctx, v, (i));                                                                                \
-	}                                                                                                                  \
-	int32_t get_sample##i##_speed(const MenuContext& ctx) {                                                            \
-		return get_time_stretch(ctx, (i));                                                                             \
-	}                                                                                                                  \
-	void set_sample##i##_speed(const MenuContext& ctx, int32_t v) {                                                    \
-		set_time_stretch(ctx, v, (i));                                                                                 \
 	}                                                                                                                  \
 	int32_t get_sample##i##_pitch_speed(const MenuContext& ctx) {                                                      \
 		return get_pitch_speed(ctx, (i));                                                                              \
@@ -472,63 +266,10 @@ constexpr const Node* kRoots[] = {&recorder, &source0, &source1, &modulator0, &m
 		set_interpolation(ctx, v, (i));                                                                                \
 	}
 
-#define DELUGE_OSC_MODULATOR_HOOKS(i)                                                                                  \
-	int32_t get_modulator##i##_transpose_v(const MenuContext& ctx) {                                                   \
-		return get_modulator_transpose(ctx, (i));                                                                      \
-	}                                                                                                                  \
-	void set_modulator##i##_transpose_v(const MenuContext& ctx, int32_t v) {                                           \
-		set_modulator_transpose(ctx, v, (i));                                                                          \
-	}                                                                                                                  \
-	int32_t get_modulator##i##_phase(const MenuContext& ctx) {                                                         \
-		return get_retrigger_phase(ctx, (i), true);                                                                    \
-	}                                                                                                                  \
-	void set_modulator##i##_phase(const MenuContext& ctx, int32_t v) {                                                 \
-		set_retrigger_phase(ctx, v, (i), true);                                                                        \
-	}
-
 DELUGE_OSC_SOURCE_HOOKS(0)
 DELUGE_OSC_SOURCE_HOOKS(1)
-DELUGE_OSC_MODULATOR_HOOKS(0)
-DELUGE_OSC_MODULATOR_HOOKS(1)
 
 #undef DELUGE_OSC_SOURCE_HOOKS
-#undef DELUGE_OSC_MODULATOR_HOOKS
-
-int32_t get_modulator_dest(const MenuContext& ctx) {
-	return ctx.sound != nullptr && ctx.sound->snapshot().modulator1ToModulator0 ? 1 : 0; // `modulator/destination.h`
-}
-void set_modulator_dest(const MenuContext& ctx, int32_t value) {
-	bindings::apply_to_targets(
-	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		    // `modulator/destination.h`, kit arm filtered on FM.
-		    if (t.sound == nullptr || (t.whole_kit && t.sound->getSynthMode() != ::SynthMode::FM)) {
-			    return;
-		    }
-		    deluge::edits::settingFor(*t.sound, "modulator2/toModulator1",
-		                              deluge::serialization::Value::makeNumber(v != 0 ? 1 : 0));
-	    });
-}
-
-int32_t get_osc_sync(const MenuContext& ctx) {
-	return ctx.sound != nullptr && ctx.sound->snapshot().oscillatorSync ? 1 : 0; // `osc/sync.h`
-}
-void set_osc_sync(const MenuContext& ctx, int32_t value) {
-	bindings::apply_to_targets(
-	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		    // `osc/sync.h`: the kit arm re-applies `isRelevant`'s own test per drum, the single arm
-		    // assigns unconditionally.
-		    if (t.sound == nullptr) {
-			    return;
-		    }
-		    if (t.whole_kit
-		        && (t.sound->getSynthMode() == ::SynthMode::FM || t.sound->sources[0].oscType == OscType::SAMPLE
-		            || t.sound->sources[1].oscType == OscType::SAMPLE)) {
-			    return;
-		    }
-		    deluge::edits::settingFor(*t.sound, "osc2/oscillatorSync",
-		                              deluge::serialization::Value::makeNumber(v != 0 ? 1 : 0));
-	    });
-}
 
 const std::span<const Node* const> kSoundOscChildren{kRoots};
 

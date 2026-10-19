@@ -384,6 +384,12 @@ void emit_node(std::string& out, const menu::Node& node, int brace_level) {
 		write_json_string(out, relevance::name_of(node.relevant));
 		out += ",\n";
 	}
+	// A target node's relevance, range and choices are its setting's descriptor: the dump names the setting.
+	if (node.bind.target.valid()) {
+		out += spaces(field_level) + "\"available_when\": ";
+		write_json_string(out, std::string("setting:") + std::string(node.bind.target.path));
+		out += ",\n";
+	}
 	if (is_submenu_type) {
 		out += spaces(field_level) + "\"children\": ";
 		emit_static_children(out, node, field_level + 1);

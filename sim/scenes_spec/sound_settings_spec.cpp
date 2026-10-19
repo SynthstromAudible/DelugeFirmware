@@ -1,0 +1,140 @@
+// The sound's instrument settings on targets (step 2a's pilot): every node of the sound editor's tree that edits a row
+// of instrument::kSettings names it as its target, and the menu reads, ranges and writes it through the binding
+// library, on a synth and on a kit row.
+
+#include "scenes/bind/dispatch.h"
+#include "scenes/bind/write_sink.h"
+#include "scenes/menu/bindings.h"
+#include "scenes/menu/context.h"
+#include "scenes/menu/node.h"
+#include "scenes/menu/nodes/nodes.h"
+
+#include "engine-api/types/setting.h"
+#include "engines/deluge/settings.h"
+#include "model/instrument/kit.h"
+#include "processing/sound/sound_drum.h"
+
+#include "support/song_fixture.h"
+
+#include "cppspec.hpp"
+
+#include "spec/support/spec_main.h"
+
+#include <set>
+#include <string>
+#include <vector>
+
+using namespace deluge::scenes;
+using deluge::scenes::menu::MenuContext;
+using deluge::scenes::menu::Node;
+namespace bindings = deluge::scenes::menu::bindings;
+
+namespace {
+
+/// Every node reachable from the sound editor's root, children and chain targets alike, each once.
+void collect(const Node& node, std::set<const Node*>& seen, std::vector<const Node*>& out) {
+	if (!seen.insert(&node).second) {
+		return;
+	}
+	out.push_back(&node);
+	for (const Node* child : node.children) {
+		if (child != nullptr) {
+			collect(*child, seen, out);
+		}
+	}
+	for (const Node* target : node.chain_targets) {
+		if (target != nullptr) {
+			collect(*target, seen, out);
+		}
+	}
+}
+
+std::vector<const Node*> target_nodes() {
+	std::set<const Node*> seen;
+	std::vector<const Node*> all;
+	collect(menu::nodes::sound_root, seen, all);
+	std::vector<const Node*> targets;
+	for (const Node* node : all) {
+		if (node->bind.target.valid()) {
+			targets.push_back(node);
+		}
+	}
+	return targets;
+}
+
+/// Where a target node disagrees with the binding library on @p ctx: its read, its range, or a write at its ends and
+/// middle that does not round-trip through the descriptor. Empty when it agrees.
+std::string disagreements(const Node& node, MenuContext ctx) {
+	const auto shown = bind::view(node.bind.target, *ctx.model, ctx.addresses, *ctx.facts);
+	if (!shown) {
+		return std::string(node.bind.target.path) + " unresolved ";
+	}
+	std::string found;
+	const std::string path(node.bind.target.path);
+	if (bindings::read(node, ctx) != shown->value) {
+		found += path + " read ";
+	}
+	const auto range = bindings::range(node, ctx);
+	if (range.min != shown->least || range.max != shown->greatest) {
+		found += path + " range ";
+	}
+	const deluge::engine::SettingInfo& row = *deluge::engine::find_setting(deluge::instrument::kSettings, path);
+	bind::RecordingSink recorded;
+	ctx.sink = &recorded;
+	for (const int32_t v : {shown->least, shown->greatest, shown->least + (shown->greatest - shown->least) / 2}) {
+		if (shown->stale == v) {
+			continue;
+		}
+		recorded.requests.clear();
+		bindings::write(node, ctx, v);
+		if (recorded.requests.size() != 1 || !deluge::engine::from_menu(row, recorded.requests[0].menu_value)) {
+			found += path + " write(" + std::to_string(v) + ") ";
+		}
+	}
+	return found;
+}
+
+} // namespace
+
+// clang-format off
+describe sound_settings_targets("the sound's instrument settings on targets", ${
+	it("names exactly the pilot's rows as targets", _ {
+		std::set<std::string> paths;
+		for (const Node* node : target_nodes()) {
+			paths.insert(std::string(node->bind.target.path));
+		}
+		const std::set<std::string> want{
+		    "maxVoices", "polyphonic", "mode", "transpose", "sideChainSend", "midiOutput/channel",
+		    "midiOutput/noteForDrum", "unison/num", "unison/detune", "unison/spread", "osc1/type", "osc2/type",
+		    "osc1/retrigPhase", "osc2/retrigPhase", "osc1/reversed", "osc2/reversed", "osc1/loopMode", "osc2/loopMode",
+		    "osc1/timeStretchAmount", "osc2/timeStretchAmount", "osc2/oscillatorSync", "modulator1/transpose",
+		    "modulator2/transpose", "modulator1/retrigPhase", "modulator2/retrigPhase", "modulator2/toModulator1",
+		    "lfo1/type", "lfo2/type", "lfo3/type", "lfo4/type", "lfo1/syncLevel", "lfo2/syncLevel", "lfo3/syncLevel",
+		    "lfo4/syncLevel"};
+		expect(paths).to_equal(want);
+	});
+
+	it("reads, ranges and writes every target node through the binding library on a synth", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		f.song->setCurrentClip(f.clip);
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		std::string found;
+		for (const Node* node : target_nodes()) {
+			found += disagreements(*node, ctx);
+		}
+		expect(found).to_equal(std::string{});
+	});
+
+	it("reads, ranges and writes every target node through the binding library on a kit row", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		spec::add_drum<SoundDrum>(f);
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		std::string found;
+		for (const Node* node : target_nodes()) {
+			found += disagreements(*node, ctx);
+		}
+		expect(found).to_equal(std::string{});
+	});
+});
+
+DELUGE_SPEC(sound_settings_spec, sound_settings_targets)

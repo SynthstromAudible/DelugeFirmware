@@ -30,44 +30,6 @@
 
 namespace deluge::scenes::menu::nodes {
 
-int32_t get_unison_count(const MenuContext& ctx) {
-	return ctx.sound != nullptr ? ctx.sound->snapshot().numUnison : 1; // `unison/count.h`
-}
-void set_unison_count(const MenuContext& ctx, int32_t value) {
-	// `Count::writeCurrentValue` (`unison/count.h`): the affect-entire kit loop, a setting Edit on
-	// each sound.
-	bindings::apply_to_targets(
-	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		    if (t.sound != nullptr) {
-			    deluge::edits::settingFor(*t.sound, "unison/num", deluge::serialization::Value::makeNumber(v));
-		    }
-	    });
-}
-
-int32_t get_unison_detune(const MenuContext& ctx) {
-	return ctx.sound != nullptr ? ctx.sound->snapshot().unisonDetune : 0; // `unison/detune.h`
-}
-void set_unison_detune(const MenuContext& ctx, int32_t value) {
-	bindings::apply_to_targets(
-	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		    if (t.sound != nullptr) {
-			    deluge::edits::settingFor(*t.sound, "unison/detune", deluge::serialization::Value::makeNumber(v));
-		    }
-	    });
-}
-
-int32_t get_unison_spread(const MenuContext& ctx) {
-	return ctx.sound != nullptr ? ctx.sound->snapshot().unisonStereoSpread : 0; // `unison/stereoSpread.h`
-}
-void set_unison_spread(const MenuContext& ctx, int32_t value) {
-	bindings::apply_to_targets(
-	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		    if (t.sound != nullptr) {
-			    deluge::edits::settingFor(*t.sound, "unison/spread", deluge::serialization::Value::makeNumber(v));
-		    }
-	    });
-}
-
 namespace {
 constexpr const Node* kRoots[] = {&unison};
 } // namespace

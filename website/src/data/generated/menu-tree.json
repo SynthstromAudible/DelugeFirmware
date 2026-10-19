@@ -46,7 +46,7 @@
       {
         "children": [
           {
-            "available_when": "ringmod_allowed",
+            "available_when": "setting:mode",
             "id": 9,
             "name": "Synth Mode",
             "title": "Synth Mode",
@@ -147,6 +147,7 @@
             "type": "basic"
           },
           {
+            "available_when": "setting:transpose",
             "id": 16,
             "name": "Master transpose",
             "select_chain": [
@@ -1622,7 +1623,7 @@
             "type": "basic"
           },
           {
-            "available_when": "is_kit",
+            "available_when": "setting:sideChainSend",
             "id": 134,
             "name": "Send to sidechain",
             "title": "Send to sidech",
@@ -1649,7 +1650,7 @@
       {
         "children": [
           {
-            "available_when": "not_fm",
+            "available_when": "setting:osc1/type",
             "id": 138,
             "name": "Type",
             "title": "Osc* type",
@@ -1855,28 +1856,28 @@
             "type": "basic"
           },
           {
-            "available_when": "osc0_retrigger_phase",
+            "available_when": "setting:osc1/retrigPhase",
             "id": 144,
             "name": "Retrigger phase",
             "title": "Osc* r. phase",
             "type": "basic"
           },
           {
-            "available_when": "osc0_is_sample",
+            "available_when": "setting:osc1/reversed",
             "id": 145,
             "name": "Reverse",
             "title": "Samp* reverse",
             "type": "basic"
           },
           {
-            "available_when": "osc0_is_sample",
+            "available_when": "setting:osc1/loopMode",
             "id": 146,
             "name": "Repeat Mode",
             "title": "Samp* repeat",
             "type": "basic"
           },
           {
-            "available_when": "osc0_is_sample",
+            "available_when": "setting:osc1/timeStretchAmount",
             "id": 147,
             "name": "Speed",
             "title": "Samp* speed",
@@ -1919,7 +1920,7 @@
       {
         "children": [
           {
-            "available_when": "not_fm",
+            "available_when": "setting:osc2/type",
             "id": 153,
             "name": "Type",
             "title": "Osc* type",
@@ -2125,28 +2126,28 @@
             "type": "basic"
           },
           {
-            "available_when": "osc1_retrigger_phase",
+            "available_when": "setting:osc2/retrigPhase",
             "id": 159,
             "name": "Retrigger phase",
             "title": "Osc* r. phase",
             "type": "basic"
           },
           {
-            "available_when": "osc1_is_sample",
+            "available_when": "setting:osc2/reversed",
             "id": 160,
             "name": "Reverse",
             "title": "Samp* reverse",
             "type": "basic"
           },
           {
-            "available_when": "osc1_is_sample",
+            "available_when": "setting:osc2/loopMode",
             "id": 161,
             "name": "Repeat Mode",
             "title": "Samp* repeat",
             "type": "basic"
           },
           {
-            "available_when": "osc1_is_sample",
+            "available_when": "setting:osc2/timeStretchAmount",
             "id": 162,
             "name": "Speed",
             "title": "Samp* speed",
@@ -2190,7 +2191,7 @@
         "available_when": "is_fm",
         "children": [
           {
-            "available_when": "is_fm",
+            "available_when": "setting:modulator1/transpose",
             "id": 168,
             "name": "Transpose",
             "select_chain": [
@@ -2286,7 +2287,7 @@
             "type": "basic"
           },
           {
-            "available_when": "modulator0_retrigger_phase",
+            "available_when": "setting:modulator1/retrigPhase",
             "id": 170,
             "name": "Retrigger phase",
             "title": "FM Mod* retrig",
@@ -2302,7 +2303,7 @@
         "available_when": "is_fm",
         "children": [
           {
-            "available_when": "is_fm",
+            "available_when": "setting:modulator2/transpose",
             "id": 172,
             "name": "Transpose",
             "select_chain": [
@@ -2398,14 +2399,14 @@
             "type": "basic"
           },
           {
-            "available_when": "modulator1_retrigger_phase",
+            "available_when": "setting:modulator2/retrigPhase",
             "id": 174,
             "name": "Retrigger phase",
             "title": "FM Mod* retrig",
             "type": "basic"
           },
           {
-            "available_when": "is_fm",
+            "available_when": "setting:modulator2/toModulator1",
             "id": 175,
             "name": "Destination",
             "title": "FM Mod2 dest",
@@ -2660,7 +2661,7 @@
             "type": "basic"
           },
           {
-            "available_when": "osc_sync_allowed",
+            "available_when": "setting:osc2/oscillatorSync",
             "id": 181,
             "name": "Oscillator sync",
             "title": "Oscillator sync",
@@ -3459,12 +3460,14 @@
       {
         "children": [
           {
+            "available_when": "setting:lfo1/type",
             "id": 203,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
+            "available_when": "setting:lfo1/syncLevel",
             "id": 204,
             "name": "Sync",
             "title": "LFO* sync",
@@ -3526,12 +3529,14 @@
       {
         "children": [
           {
+            "available_when": "setting:lfo2/type",
             "id": 207,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
+            "available_when": "setting:lfo2/syncLevel",
             "id": 208,
             "name": "Sync",
             "title": "LFO* sync",
@@ -3593,12 +3598,14 @@
       {
         "children": [
           {
+            "available_when": "setting:lfo3/type",
             "id": 211,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
+            "available_when": "setting:lfo3/syncLevel",
             "id": 212,
             "name": "Sync",
             "title": "LFO* sync",
@@ -3660,12 +3667,14 @@
       {
         "children": [
           {
+            "available_when": "setting:lfo4/type",
             "id": 215,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
+            "available_when": "setting:lfo4/syncLevel",
             "id": 216,
             "name": "Sync",
             "title": "LFO* sync",
@@ -3733,11 +3742,12 @@
             "type": "basic"
           },
           {
+            "available_when": "setting:polyphonic",
             "id": 220,
             "name": "Polyphony",
             "select_chain": [
               {
-                "available_when": "is_polyphonic",
+                "available_when": "setting:maxVoices",
                 "id": 221,
                 "name": "Max Voices",
                 "title": "Max Voices",
@@ -3748,7 +3758,7 @@
             "type": "basic"
           },
           {
-            "available_when": "is_polyphonic",
+            "available_when": "setting:maxVoices",
             "id": 221,
             "name": "Max Voices",
             "title": "Max Voices",
@@ -3763,10 +3773,12 @@
           {
             "children": [
               {
+                "available_when": "setting:unison/num",
                 "id": 224,
                 "name": "Number",
                 "select_chain": [
                   {
+                    "available_when": "setting:unison/spread",
                     "id": 225,
                     "name": "Spread",
                     "title": "Unison stereo spread",
@@ -3777,12 +3789,14 @@
                 "type": "basic"
               },
               {
+                "available_when": "setting:unison/detune",
                 "id": 226,
                 "name": "Detune",
                 "title": "Unison detune",
                 "type": "basic"
               },
               {
+                "available_when": "setting:unison/spread",
                 "id": 225,
                 "name": "Spread",
                 "title": "Unison stereo spread",
@@ -3899,13 +3913,14 @@
       {
         "children": [
           {
+            "available_when": "setting:midiOutput/channel",
             "id": 234,
             "name": "Channel",
             "title": "Channel",
             "type": "basic"
           },
           {
-            "available_when": "output_midi_note",
+            "available_when": "setting:midiOutput/noteForDrum",
             "id": 235,
             "name": "Note",
             "title": "Note",
@@ -3956,7 +3971,7 @@
       {
         "children": [
           {
-            "available_when": "ringmod_allowed",
+            "available_when": "setting:mode",
             "id": 9,
             "name": "Synth Mode",
             "title": "Synth Mode",
@@ -4057,6 +4072,7 @@
             "type": "basic"
           },
           {
+            "available_when": "setting:transpose",
             "id": 16,
             "name": "Master transpose",
             "select_chain": [
@@ -5532,7 +5548,7 @@
             "type": "basic"
           },
           {
-            "available_when": "is_kit",
+            "available_when": "setting:sideChainSend",
             "id": 134,
             "name": "Send to sidechain",
             "title": "Send to sidech",
@@ -5559,7 +5575,7 @@
       {
         "children": [
           {
-            "available_when": "not_fm",
+            "available_when": "setting:osc1/type",
             "id": 138,
             "name": "Type",
             "title": "Osc* type",
@@ -5765,28 +5781,28 @@
             "type": "basic"
           },
           {
-            "available_when": "osc0_retrigger_phase",
+            "available_when": "setting:osc1/retrigPhase",
             "id": 144,
             "name": "Retrigger phase",
             "title": "Osc* r. phase",
             "type": "basic"
           },
           {
-            "available_when": "osc0_is_sample",
+            "available_when": "setting:osc1/reversed",
             "id": 145,
             "name": "Reverse",
             "title": "Samp* reverse",
             "type": "basic"
           },
           {
-            "available_when": "osc0_is_sample",
+            "available_when": "setting:osc1/loopMode",
             "id": 146,
             "name": "Repeat Mode",
             "title": "Samp* repeat",
             "type": "basic"
           },
           {
-            "available_when": "osc0_is_sample",
+            "available_when": "setting:osc1/timeStretchAmount",
             "id": 147,
             "name": "Speed",
             "title": "Samp* speed",
@@ -5829,7 +5845,7 @@
       {
         "children": [
           {
-            "available_when": "not_fm",
+            "available_when": "setting:osc2/type",
             "id": 153,
             "name": "Type",
             "title": "Osc* type",
@@ -6035,28 +6051,28 @@
             "type": "basic"
           },
           {
-            "available_when": "osc1_retrigger_phase",
+            "available_when": "setting:osc2/retrigPhase",
             "id": 159,
             "name": "Retrigger phase",
             "title": "Osc* r. phase",
             "type": "basic"
           },
           {
-            "available_when": "osc1_is_sample",
+            "available_when": "setting:osc2/reversed",
             "id": 160,
             "name": "Reverse",
             "title": "Samp* reverse",
             "type": "basic"
           },
           {
-            "available_when": "osc1_is_sample",
+            "available_when": "setting:osc2/loopMode",
             "id": 161,
             "name": "Repeat Mode",
             "title": "Samp* repeat",
             "type": "basic"
           },
           {
-            "available_when": "osc1_is_sample",
+            "available_when": "setting:osc2/timeStretchAmount",
             "id": 162,
             "name": "Speed",
             "title": "Samp* speed",
@@ -6100,7 +6116,7 @@
         "available_when": "is_fm",
         "children": [
           {
-            "available_when": "is_fm",
+            "available_when": "setting:modulator1/transpose",
             "id": 168,
             "name": "Transpose",
             "select_chain": [
@@ -6196,7 +6212,7 @@
             "type": "basic"
           },
           {
-            "available_when": "modulator0_retrigger_phase",
+            "available_when": "setting:modulator1/retrigPhase",
             "id": 170,
             "name": "Retrigger phase",
             "title": "FM Mod* retrig",
@@ -6212,7 +6228,7 @@
         "available_when": "is_fm",
         "children": [
           {
-            "available_when": "is_fm",
+            "available_when": "setting:modulator2/transpose",
             "id": 172,
             "name": "Transpose",
             "select_chain": [
@@ -6308,14 +6324,14 @@
             "type": "basic"
           },
           {
-            "available_when": "modulator1_retrigger_phase",
+            "available_when": "setting:modulator2/retrigPhase",
             "id": 174,
             "name": "Retrigger phase",
             "title": "FM Mod* retrig",
             "type": "basic"
           },
           {
-            "available_when": "is_fm",
+            "available_when": "setting:modulator2/toModulator1",
             "id": 175,
             "name": "Destination",
             "title": "FM Mod2 dest",
@@ -6570,7 +6586,7 @@
             "type": "basic"
           },
           {
-            "available_when": "osc_sync_allowed",
+            "available_when": "setting:osc2/oscillatorSync",
             "id": 181,
             "name": "Oscillator sync",
             "title": "Oscillator sync",
@@ -7369,12 +7385,14 @@
       {
         "children": [
           {
+            "available_when": "setting:lfo1/type",
             "id": 203,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
+            "available_when": "setting:lfo1/syncLevel",
             "id": 204,
             "name": "Sync",
             "title": "LFO* sync",
@@ -7436,12 +7454,14 @@
       {
         "children": [
           {
+            "available_when": "setting:lfo2/type",
             "id": 207,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
+            "available_when": "setting:lfo2/syncLevel",
             "id": 208,
             "name": "Sync",
             "title": "LFO* sync",
@@ -7503,12 +7523,14 @@
       {
         "children": [
           {
+            "available_when": "setting:lfo3/type",
             "id": 211,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
+            "available_when": "setting:lfo3/syncLevel",
             "id": 212,
             "name": "Sync",
             "title": "LFO* sync",
@@ -7570,12 +7592,14 @@
       {
         "children": [
           {
+            "available_when": "setting:lfo4/type",
             "id": 215,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
+            "available_when": "setting:lfo4/syncLevel",
             "id": 216,
             "name": "Sync",
             "title": "LFO* sync",
@@ -7643,11 +7667,12 @@
             "type": "basic"
           },
           {
+            "available_when": "setting:polyphonic",
             "id": 220,
             "name": "Polyphony",
             "select_chain": [
               {
-                "available_when": "is_polyphonic",
+                "available_when": "setting:maxVoices",
                 "id": 221,
                 "name": "Max Voices",
                 "title": "Max Voices",
@@ -7658,7 +7683,7 @@
             "type": "basic"
           },
           {
-            "available_when": "is_polyphonic",
+            "available_when": "setting:maxVoices",
             "id": 221,
             "name": "Max Voices",
             "title": "Max Voices",
@@ -7673,10 +7698,12 @@
           {
             "children": [
               {
+                "available_when": "setting:unison/num",
                 "id": 224,
                 "name": "Number",
                 "select_chain": [
                   {
+                    "available_when": "setting:unison/spread",
                     "id": 225,
                     "name": "Spread",
                     "title": "Unison stereo spread",
@@ -7687,12 +7714,14 @@
                 "type": "basic"
               },
               {
+                "available_when": "setting:unison/detune",
                 "id": 226,
                 "name": "Detune",
                 "title": "Unison detune",
                 "type": "basic"
               },
               {
+                "available_when": "setting:unison/spread",
                 "id": 225,
                 "name": "Spread",
                 "title": "Unison stereo spread",
@@ -7809,13 +7838,14 @@
       {
         "children": [
           {
+            "available_when": "setting:midiOutput/channel",
             "id": 234,
             "name": "Channel",
             "title": "Channel",
             "type": "basic"
           },
           {
-            "available_when": "output_midi_note",
+            "available_when": "setting:midiOutput/noteForDrum",
             "id": 235,
             "name": "Note",
             "title": "Note",

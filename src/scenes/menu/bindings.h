@@ -43,6 +43,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string_view>
 
@@ -63,6 +64,13 @@ namespace deluge::scenes::menu::bindings {
 /// @param ctx  The menu's context.
 /// @return Whether the node is shown.
 [[nodiscard]] bool relevant(const Node& node, const MenuContext& ctx);
+
+/// @brief The value @p target's record holds now, as its descriptor stores it (a CHOICE row: the choice's index), for a
+///        select chain or a relevance rule that branches on a setting.
+/// @param target The setting.
+/// @param ctx    The menu's context.
+/// @return The stored value, or nullopt where the target does not resolve.
+[[nodiscard]] std::optional<int32_t> stored(const deluge::scenes::bind::Target& target, const MenuContext& ctx);
 
 /// @brief Read what @p node currently shows, in menu units (0..50 for a standard param).
 ///

@@ -796,6 +796,13 @@ constexpr Node with_adjust(Node n, AdjustFn fn) {
 /// @brief `n` with `bind.value_text` set -- a post-hoc modifier for the same reason
 ///        `with_range_dependent` is one: only the note family's bespoke-text leaves (spec §5.3)
 ///        set this.
+/// @brief @p n shown with @p places decimal places (a `Kind::Decimal` node).
+constexpr Node with_decimal_places(Node n, uint8_t places) {
+	n.bind.decimal_places = places;
+	return n;
+}
+
+/// @brief @p n with @p fn formatting its value (`Binding::value_text`).
 constexpr Node with_value_text(Node n, ValueTextFn fn) {
 	n.bind.value_text = fn;
 	return n;

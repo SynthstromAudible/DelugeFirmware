@@ -93,6 +93,7 @@
 #include "scenes/menu/bindings.h"
 
 #include "scenes/bind/dispatch.h"
+#include "scenes/bind/slot_reader.h"
 
 #include "scenes/menu/context.h"
 #include "scenes/menu/note_bridge.h"
@@ -556,6 +557,13 @@ bool relevant(const Node& node, const MenuContext& ctx) {
 		return shown && shown->applies;
 	}
 	return node.relevant == nullptr || node.relevant(ctx);
+}
+
+std::optional<int32_t> stored(const deluge::scenes::bind::Target& target, const MenuContext& ctx) {
+	if (ctx.model == nullptr || ctx.facts == nullptr || !ctx.addresses.slot) {
+		return std::nullopt;
+	}
+	return deluge::scenes::bind::SlotReader{*ctx.model, *ctx.addresses.slot, *ctx.facts}.read(target.path);
 }
 
 int32_t read(const Node& node, const MenuContext& ctx) {

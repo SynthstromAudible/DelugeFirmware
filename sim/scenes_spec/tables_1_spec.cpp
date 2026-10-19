@@ -658,9 +658,10 @@ describe tables_1_values("scenes::menu batch-1 tables: values", $ {
 			std::string_view got[menu::kMaxDynamicNames];
 			deluge::ui::shell::TextScratch scratch[menu::kMaxDynamicNames];
 			const size_t n = menu::bindings::names(*p.node, f.ctx, got, scratch);
-			expect(n == want.size()).to_be_true();
+			const std::string node = "node " + std::to_string(p.node->name) + ": ";
+			expect(node + std::to_string(n)).to_equal(node + std::to_string(want.size()));
 			for (size_t i = 0; i < n && i < want.size(); i++) {
-				expect(std::string{got[i]} == std::string{want[i]}).to_be_true();
+				expect(node + std::string{got[i]}).to_equal(node + std::string{want[i]});
 			}
 		}
 	});
@@ -669,7 +670,7 @@ describe tables_1_values("scenes::menu batch-1 tables: values", $ {
 		Fixture& f = fixture();
 		for (const Pair& p : all_pairs()) {
 			const bool want = p.item->isRelevant(f.ctx.mod, f.ctx.source_index);
-			const bool got = p.node->relevant == nullptr || p.node->relevant(f.ctx);
+			const bool got = menu::bindings::relevant(*p.node, f.ctx);
 			expect(got == want).to_be_true();
 		}
 	});
@@ -704,10 +705,10 @@ describe tables_1_values("scenes::menu batch-1 tables: values", $ {
 		// header's declarations, so what is checkable is that it has the documented number of rows,
 		// that no row is null, and that no two rows share a name or a function.
 		const auto registry = menu::relevance::registry();
-		// The 63 predicates `relevance.h` declares plus the sixteen `nodes::relevant_*_iterance_step_*`
+		// The 54 predicates `relevance.h` declares plus the sixteen `nodes::relevant_*_iterance_step_*`
 		// rows (`relevance.cpp`'s `static_assert` is the authority; this asserts the count is
-		// deliberate). 63 + 16 = 79.
-		expect(registry.size()).to_equal(size_t(79));
+		// deliberate). 54 + 16 = 70.
+		expect(registry.size()).to_equal(size_t(70));
 		for (size_t i = 0; i < registry.size(); i++) {
 			expect(registry[i].fn != nullptr).to_be_true();
 			expect(registry[i].name.empty()).to_be_false();

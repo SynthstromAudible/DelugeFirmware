@@ -74,68 +74,6 @@ void set_voice_priority(const MenuContext& ctx, int32_t value) {
 	    });
 }
 
-size_t polyphony_names(const MenuContext& ctx, std::span<std::string_view> out) {
-	// `PolyphonyType::getOptions` (`voice/polyphony.h:114-125`): four modes, plus CHOKE on a kit.
-	static constexpr String kBase[] = {
-	    String::STRING_FOR_AUTO,
-	    String::STRING_FOR_POLYPHONIC,
-	    String::STRING_FOR_MONOPHONIC,
-	    String::STRING_FOR_LEGATO,
-	};
-	size_t n = 0;
-	for (String s : kBase) {
-		if (n < out.size()) {
-			out[n++] = deluge::scenes::text_lookup(sid(s));
-		}
-	}
-	if (ctx.is_kit && n < out.size()) {
-		out[n++] = deluge::scenes::text_lookup(sid(String::STRING_FOR_CHOKE));
-	}
-	return n;
-}
-
-int32_t get_polyphony(const MenuContext& ctx) {
-	return ctx.sound != nullptr ? static_cast<int32_t>(ctx.sound->polyphonic) : 0; // `polyphony.h:93`
-}
-
-void set_polyphony(const MenuContext& ctx, int32_t value) {
-	bindings::apply_to_targets(
-	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		    if (t.sound != nullptr) {
-			    deluge::edits::settingFor(
-			        *t.sound, "polyphonic",
-			        deluge::serialization::Value::makeScalar(
-			            std::string(deluge::instrument::to_string(static_cast<PolyphonyMode>(v))))); // `:105`, `:110`
-		    }
-	    });
-}
-
-int32_t get_voice_count(const MenuContext& ctx) {
-	// `VoiceCount::readCurrentValue` (`voice/polyphony.h:34-40`): anything above the menu maximum --
-	// legacy stores 127 for "unlimited" -- shows as 0, which the item draws as an infinity icon.
-	if (ctx.sound == nullptr) {
-		return 0;
-	}
-	const int32_t count = ctx.sound->maxVoiceCount;
-	return count > 16 ? 0 : count;
-}
-
-void set_voice_count(const MenuContext& ctx, int32_t value) {
-	// `VoiceCount::writeCurrentValue` (`polyphony.h:33-54`): 0 means unlimited, stored as 127. The
-	// affect-entire sweep filters to polyphonic drums *inside* the loop, where legacy filters it.
-	const int32_t stored = value == 0 ? 127 : value;
-	bindings::apply_to_targets(
-	    ctx, stored, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		    if (t.sound == nullptr) {
-			    return;
-		    }
-		    if (t.whole_kit && t.sound->polyphonic != PolyphonyMode::POLY) {
-			    return; // `polyphony.h:44-46`
-		    }
-		    deluge::edits::settingFor(*t.sound, "maxVoices", deluge::serialization::Value::makeNumber(v));
-	    });
-}
-
 namespace {
 constexpr const Node* kRoots[] = {&voice};
 } // namespace

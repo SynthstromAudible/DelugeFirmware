@@ -59,9 +59,6 @@ bool not_ringmod(const MenuContext& ctx);
 /// @brief Is the sound in subtractive mode? `osc::AudioRecorder::isRelevant`
 ///        (`osc/audio_recorder.h:60-63`).
 bool is_subtractive(const MenuContext& ctx);
-/// @brief May oscillator sync be used? `osc::Sync::isRelevant` (`osc/sync.h:56-60`): not FM, and
-///        neither source is a sample.
-bool osc_sync_allowed(const MenuContext& ctx);
 /// @}
 
 /// @name Per-source predicates -- `osc0_*` is legacy's `source_id_ == 0`, `osc1_*` its `== 1`
@@ -102,20 +99,6 @@ bool osc0_carrier_feedback(const MenuContext& ctx);
 bool osc1_carrier_feedback(const MenuContext& ctx);
 /// @}
 
-/// @brief `osc::RetriggerPhase::isRelevant` with `for_modulator == false`
-///        (`osc/retrigger_phase.h:76-87`).
-/// @{
-bool osc0_retrigger_phase(const MenuContext& ctx);
-bool osc1_retrigger_phase(const MenuContext& ctx);
-/// @}
-
-/// @brief The same override with `for_modulator == true` (`osc/retrigger_phase.h:76-87`): FM only,
-///        then the source test.
-/// @{
-bool modulator0_retrigger_phase(const MenuContext& ctx);
-bool modulator1_retrigger_phase(const MenuContext& ctx);
-/// @}
-
 /// @brief `isSampleModeSample` (`gui/menu_item/sample/utils.cpp:9-15`) -- the predicate
 ///        `sample::Reverse` (`sample/reverse.h:34-36`), `Repeat` (`sample/repeat.h:39-41`),
 ///        `TimeStretch` (`sample/time_stretch.h:36-38`) and `LoopPoint`
@@ -151,13 +134,6 @@ bool osc1_interpolation(const MenuContext& ctx);
 /// (`gui/ui/sound_editor.cpp:199-240`) is transcribed against it rather than against globals.
 /// @{
 
-/// @brief May the sound be switched between synth modes? `SynthModeSelection::isRelevant`
-///        (`gui/menu_item/synth_mode.h:69-73`): both sources' `oscType` are ring-moddable.
-bool ringmod_allowed(const MenuContext& ctx);
-
-/// @brief Is a kit being edited? `sidechain::Send::isRelevant` (`sidechain/send.h:65`), i.e.
-///        `SoundEditor::editingKit()` (`sound_editor.cpp:199-201`).
-bool is_kit(const MenuContext& ctx);
 /// @brief Is a kit *row* being edited? `IncludeInKitArp::isRelevant` (`include_in_kit_arp.h:81-84`),
 ///        i.e. `editingKitRow()` (`sound_editor.cpp:207-209`).
 bool is_kit_row(const MenuContext& ctx);
@@ -239,9 +215,6 @@ bool reverb_sidechain_on(const MenuContext& ctx);
 ///        (`stutter/quantized.h:44-47`).
 bool stutter_quantize_allowed(const MenuContext& ctx);
 
-/// @brief Is the sound polyphonic? `voice::VoiceCount::isRelevant` (`voice/polyphony.h:70-73`).
-bool is_polyphonic(const MenuContext& ctx);
-
 /// @brief Does this output get the two-item bend-range submenu? `submenu::Bend::isRelevant`
 ///        (`submenu/bend.h:26-31`): SYNTH, CV or MIDI_OUT.
 bool bend_submenu(const MenuContext& ctx);
@@ -255,9 +228,6 @@ bool bend_submenu(const MenuContext& ctx);
 /// `sound_bend.h`'s two notes (review round 1, I1).
 bool per_finger_bend(const MenuContext& ctx);
 
-/// @brief `midi::sound::OutputMidiNoteForDrum::isRelevant` (`midi/sound/note_for_drum.h:34-36`):
-///        a kit row that is not a non-audio drum.
-bool output_midi_note(const MenuContext& ctx);
 /// @}
 
 /// @name Batch-3 predicates -- the settings root and the nine other roots (Task 8)

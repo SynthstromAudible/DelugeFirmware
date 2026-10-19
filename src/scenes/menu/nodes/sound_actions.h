@@ -67,10 +67,6 @@ namespace deluge::scenes::menu::nodes {
 size_t sequence_direction_names(const MenuContext& ctx, std::span<std::string_view> out);
 int32_t get_sequence_direction(const MenuContext& ctx);
 void set_sequence_direction(const MenuContext& ctx, int32_t value);
-int32_t get_output_midi_channel(const MenuContext& ctx);
-void set_output_midi_channel(const MenuContext& ctx, int32_t value);
-int32_t get_output_midi_note(const MenuContext& ctx);
-void set_output_midi_note(const MenuContext& ctx, int32_t value);
 /// @}
 
 inline constexpr Node edit_track_name = custom(sid(deluge::l10n::String::STRING_FOR_EDIT_TRACK_NAME), &kEditOutputName);
@@ -90,11 +86,11 @@ inline constexpr Node sequence_direction =
 // `OutputMidiNoteForDrum`'s (`note_for_drum.h:29-30`). Both render a plain number
 // (`Integer::drawInteger`), so `Hint::None`.
 inline constexpr Node output_midi_channel =
-    int_item(sid(deluge::l10n::String::STRING_FOR_CHANNEL), get_output_midi_channel, set_output_midi_channel,
-             IntRange{0, 16, 1}, Hint::None);
+    setting_item(sid(deluge::l10n::String::STRING_FOR_CHANNEL), Kind::Int,
+                 {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "midiOutput/channel"});
 inline constexpr Node output_midi_note =
-    int_item(sid(deluge::l10n::String::STRING_FOR_NOTE), get_output_midi_note, set_output_midi_note,
-             IntRange{0, kMaxMIDIValue, 1}, Hint::None, relevance::output_midi_note);
+    setting_item(sid(deluge::l10n::String::STRING_FOR_NOTE), Kind::Int,
+                 {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "midiOutput/noteForDrum"});
 
 inline constexpr const Node* kOutputMidiChildren[] = {&output_midi_channel, &output_midi_note};
 inline constexpr Node output_midi = submenu(sid(deluge::l10n::String::STRING_FOR_MIDI), kOutputMidiChildren);
