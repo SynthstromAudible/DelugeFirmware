@@ -1,5 +1,4 @@
 #pragma once
-#include "io/midi/midi_device.h"
 #include <cstddef>
 
 namespace deluge::l10n {

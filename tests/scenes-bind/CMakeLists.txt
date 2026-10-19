@@ -7,5 +7,7 @@ endif()
 deluge_specs_driver(scenes_bind_specs
   SOURCES ${CMAKE_CURRENT_LIST_DIR}/../model/model_hooks_for_tests.cpp ${CMAKE_CURRENT_LIST_DIR}/../support/mocks/mock_panic.cpp
           ${CMAKE_CURRENT_LIST_DIR}/support/model_fixture.cpp
-  LIBRARIES deluge_scenes_bind
+          # the name table's definitions; in the app they come from the app's own build of the file
+          ${CMAKE_CURRENT_LIST_DIR}/../../src/deluge/gui/l10n/setting_names.cpp
+  LIBRARIES deluge_scenes_bind deluge_global_effectable
   INCLUDES ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../model ${CMAKE_CURRENT_LIST_DIR}/../support/mocks)

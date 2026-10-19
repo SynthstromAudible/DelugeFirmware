@@ -4,10 +4,12 @@
 # against a project::Song with no engine runtime objects, and scripts/check_library_boundary.py holds it to that.
 # The app supplies what it cannot see: the runtime facts (RuntimeFacts) and the sink that applies Edits (WriteSink).
 
-add_library(deluge_scenes_bind STATIC slot_reader.cpp setting_context.cpp write_sink.cpp)
+add_library(deluge_scenes_bind STATIC dispatch.cpp slot_reader.cpp setting_context.cpp write_sink.cpp)
 include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/optimise_for_size.cmake)
 deluge_optimise_target_for_size(deluge_scenes_bind)
-target_include_directories(deluge_scenes_bind PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../..)
+# src/ for its own and the model's headers; src/deluge for the name table (gui/l10n/setting_names.h, whose definitions
+# the app links, or a spec compiles in).
+target_include_directories(deluge_scenes_bind PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../.. ${CMAKE_CURRENT_LIST_DIR}/../../deluge)
 target_compile_features(deluge_scenes_bind PUBLIC cxx_std_23)
 if(DEFINED DELUGE_CXX_STANDARD)
   set_target_properties(deluge_scenes_bind PROPERTIES CXX_STANDARD ${DELUGE_CXX_STANDARD} CXX_STANDARD_REQUIRED ON

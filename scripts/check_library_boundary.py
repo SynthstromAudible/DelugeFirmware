@@ -217,6 +217,8 @@ LIBRARIES: dict[str, Library] = {
             "serialization/",
             "music-theory/",
             "foundation/panic.h",
+            "gui/l10n/setting_names.h",
+            "gui/l10n/strings.h",
         ),
     ),
 }
