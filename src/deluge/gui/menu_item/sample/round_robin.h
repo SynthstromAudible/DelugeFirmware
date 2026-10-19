@@ -298,6 +298,11 @@ public:
 
 	bool shouldEnterSubmenu() override { return false; }
 
+	// Loads into the zone the slot page is titled with. Being range-dependent is what makes
+	// HorizontalMenu::beginSession() keep the editor's zone while FILE is under the cursor, as it
+	// already does for START, END, TRANSPOSE and VOL on the same page.
+	bool isRangeDependent() override { return true; }
+
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return isSampleModeSample(modControllable, sourceId_);
 	}
