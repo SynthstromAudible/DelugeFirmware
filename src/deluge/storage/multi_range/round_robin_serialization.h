@@ -102,7 +102,8 @@ Error readRoundRobinAlternates(DeserializerT& reader, RangeT* range) {
 					reader.exitTag(tagName);
 				}
 			}
-			reader.exitTag("alternate", true);
+			reader.match('}');          // exit the "alternate" value object
+			reader.exitTag(NULL, true); // exit the array item, as Sound's sampleRanges reader does
 
 			if (alternateHolder != nullptr) {
 				range->rrCount++;
