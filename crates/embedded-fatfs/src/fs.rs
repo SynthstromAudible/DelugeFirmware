@@ -330,6 +330,9 @@ pub struct FileSystem<IO: Read + Write + Seek, TP, OCC> {
     total_clusters: u32,
     fs_info: RefCell<FsInfoSector>,
     current_status_flags: Cell<FsStatusFlags>,
+    /// Recently searched directories' names; see [`crate::dir_index`].
+    #[cfg(feature = "alloc")]
+    pub(crate) dir_index: RefCell<crate::dir_index::DirIndex>,
 }
 
 /// The underlying storage device
@@ -423,6 +426,8 @@ impl<IO: ReadWriteSeek, TP, OCC> FileSystem<IO, TP, OCC> {
             total_clusters,
             fs_info: RefCell::new(fs_info),
             current_status_flags: Cell::new(status_flags),
+            #[cfg(feature = "alloc")]
+            dir_index: RefCell::new(crate::dir_index::DirIndex::new()),
         })
     }
 

@@ -143,21 +143,20 @@ impl<'a, IO: ReadWriteSeek, TP: TimeProvider, OCC: OemCpConverter> Dir<'a, IO, T
         is_dir: Option<bool>,
         mut short_name_gen: Option<&mut ShortNameGenerator>,
     ) -> Result<DirEntry<'a, IO, TP, OCC>, Error<IO::Error>> {
+        // A create needs every existing short name, so it always scans.
+        #[cfg(feature = "alloc")]
+        if short_name_gen.is_none() {
+            if let Some(e) = self.find_indexed(name).await? {
+                return Self::expect_kind(e, is_dir);
+            }
+            return self.find_and_index(name, is_dir).await;
+        }
         let mut iter = self.iter();
         while let Some(r) = iter.next().await {
             let e = r?;
             // compare name ignoring case
             if e.eq_name(name) {
-                // check if file or directory is expected
-                if is_dir.is_some() && Some(e.is_dir()) != is_dir {
-                    if e.is_dir() {
-                        error!("Is a directory");
-                    } else {
-                        error!("Not a directory");
-                    }
-                    return Err(Error::InvalidInput);
-                }
-                return Ok(e);
+                return Self::expect_kind(e, is_dir);
             }
             // update short name generator state
             if let Some(ref mut gen) = short_name_gen {
@@ -165,6 +164,93 @@ impl<'a, IO: ReadWriteSeek, TP: TimeProvider, OCC: OemCpConverter> Dir<'a, IO, T
             }
         }
         Err(Error::NotFound) //("No such file or directory"))
+    }
+
+    /// `e`, if it is the kind `is_dir` asks for (either, if `None`).
+    fn expect_kind(
+        e: DirEntry<'a, IO, TP, OCC>,
+        is_dir: Option<bool>,
+    ) -> Result<DirEntry<'a, IO, TP, OCC>, Error<IO::Error>> {
+        // check if file or directory is expected
+        if is_dir.is_some() && Some(e.is_dir()) != is_dir {
+            if e.is_dir() {
+                error!("Is a directory");
+            } else {
+                error!("Not a directory");
+            }
+            return Err(Error::InvalidInput);
+        }
+        Ok(e)
+    }
+
+    /// This directory's key in the filesystem's [`DirIndex`](crate::dir_index::DirIndex): its first
+    /// cluster, or a value no cluster has for a FAT12/16 root.
+    #[cfg(feature = "alloc")]
+    fn index_key(&self) -> u32 {
+        self.stream.first_cluster().unwrap_or(u32::MAX)
+    }
+
+    /// The entry named `name`, if the directory index has it: each candidate the index gives is
+    /// read back and compared by name, so a stale index cannot answer wrongly.
+    #[cfg(feature = "alloc")]
+    async fn find_indexed(&self, name: &str) -> Result<Option<DirEntry<'a, IO, TP, OCC>>, Error<IO::Error>> {
+        let hash = crate::dir_entry::fold_hash(name.chars());
+        let candidates = self.fs.dir_index.borrow_mut().candidates(self.index_key(), hash);
+        for offset in candidates.iter() {
+            let at = u64::from(offset) * u64::from(DIR_ENTRY_SIZE);
+            let mut stream = self.stream.clone();
+            stream.seek(SeekFrom::Start(at)).await?;
+            let mut iter = DirIter::new(stream, self.fs, true);
+            match iter.next().await {
+                Some(Ok(e)) if e.offset_range.0 == at && e.eq_name(name) => return Ok(Some(e)),
+                Some(Err(err)) => return Err(err),
+                _ => {}
+            }
+        }
+        Ok(None)
+    }
+
+    /// Scans the whole directory for `name`, indexing every entry's names on the way, so the next
+    /// lookup here reads one entry.
+    #[cfg(feature = "alloc")]
+    async fn find_and_index(
+        &self,
+        name: &str,
+        is_dir: Option<bool>,
+    ) -> Result<DirEntry<'a, IO, TP, OCC>, Error<IO::Error>> {
+        let mut keys: Option<Vec<(u32, u32)>> = Some(Vec::new());
+        let mut found = None;
+        let mut iter = self.iter();
+        while let Some(r) = iter.next().await {
+            let e = r?;
+            if let Some(list) = keys.as_mut() {
+                let offset = (e.offset_range.0 / u64::from(DIR_ENTRY_SIZE)) as u32;
+                let (long, short) = e.name_hashes();
+                let n = 1 + usize::from(long.is_some());
+                if list.len() + n > crate::dir_index::MAX_KEYS || list.try_reserve(n).is_err() {
+                    keys = None;
+                } else {
+                    if let Some(long) = long {
+                        list.push((long, offset));
+                    }
+                    list.push((short, offset));
+                }
+            }
+            if found.is_none() && e.eq_name(name) {
+                found = Some(e);
+                // Too big to index: stop at the match, as a plain lookup does.
+                if keys.is_none() {
+                    break;
+                }
+            }
+        }
+        if let Some(keys) = keys {
+            self.fs.dir_index.borrow_mut().store(self.index_key(), keys);
+        }
+        match found {
+            Some(e) => Self::expect_kind(e, is_dir),
+            None => Err(Error::NotFound),
+        }
     }
 
     #[allow(clippy::type_complexity)]

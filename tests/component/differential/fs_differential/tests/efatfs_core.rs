@@ -1235,3 +1235,98 @@ fn an_unaligned_read_is_not_mapped_first() {
         );
     }
 }
+
+/// Opens every file in a 300-file directory, counting block reads: after the first lookup indexes
+/// the directory, each later one reads an entry instead of scanning, so the reads per open stay
+/// far below the directory's size.
+#[test]
+fn directory_index_makes_repeat_lookups_cheap() {
+    use fs_differential::ops::FsOpsMut;
+    let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _disk = RamDisk::load(&fat32());
+    let mut efatfs = EFatFs::mount();
+    efatfs.mkdir("/IDX");
+    const FILES: usize = 300;
+    for i in 0..FILES {
+        efatfs.write_new(
+            &format!("/IDX/Long sample name {i:03}.wav"),
+            format!("{i}").as_bytes(),
+        );
+    }
+    drop(efatfs);
+
+    let storage = BufStream::<CountingBlockDevice, 512>::new(CountingBlockDevice);
+    let fs: FileSystem<_, DefaultTimeProvider, LossyOemCpConverter> =
+        block_on(FileSystem::new(storage, FsOptions::new())).expect("mount counting FS");
+    block_on(async {
+        // The first lookup scans and indexes; the rest are counted.
+        efatfs_core::open_context(&fs, "/IDX/Long sample name 000.wav")
+            .await
+            .expect("open 000");
+        BLOCKS_READ.store(0, Ordering::Relaxed);
+        for i in (1..FILES).rev() {
+            efatfs_core::open_context(&fs, &format!("/IDX/long SAMPLE name {i:03}.WAV"))
+                .await
+                .unwrap_or_else(|_| panic!("open {i}"));
+        }
+    });
+    let per_open = BLOCKS_READ.load(Ordering::Relaxed) as f64 / (FILES - 1) as f64;
+    // 300 long-named files fill about 60 directory sectors; a scan reads half on average.
+    println!("dir-index: {per_open:.2} block reads per open");
+    assert!(
+        per_open < 6.0,
+        "{per_open:.2} block reads per open: the directory is being scanned"
+    );
+}
+
+/// The index never answers from stale entries: a file removed is not found, one created in its
+/// place or renamed is found with its own content.
+#[test]
+fn directory_index_survives_create_remove_and_rename() {
+    use fs_differential::ops::{FsOps, FsOpsMut};
+    let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _disk = RamDisk::load(&fat32());
+    let mut efatfs = EFatFs::mount();
+    efatfs.mkdir("/IDX");
+    for i in 0..40 {
+        efatfs.write_new(
+            &format!("/IDX/file {i:02}.wav"),
+            format!("v1 {i}").as_bytes(),
+        );
+    }
+    // Index the directory through lookups.
+    for i in 0..40 {
+        assert_eq!(
+            efatfs.read_file(&format!("/IDX/file {i:02}.wav")),
+            format!("v1 {i}").as_bytes()
+        );
+    }
+    efatfs.delete("/IDX/file 10.wav");
+    efatfs.delete("/IDX/file 20.wav");
+    efatfs.write_new("/IDX/file 20.wav", b"v2 20");
+    efatfs.rename("/IDX/file 30.wav", "/IDX/moved 30.wav");
+    efatfs.write_new("/IDX/brand new.wav", b"new");
+
+    let fs = efatfs.raw();
+    for (path, want) in [
+        ("/IDX/file 20.wav", Some(&b"v2 20"[..])),
+        ("/IDX/moved 30.wav", Some(&b"v1 30"[..])),
+        ("/IDX/brand new.wav", Some(&b"new"[..])),
+        ("/IDX/file 05.wav", Some(&b"v1 5"[..])),
+        ("/IDX/file 10.wav", None),
+        ("/IDX/file 30.wav", None),
+    ] {
+        let opened = block_on(efatfs_core::open_context(fs, path));
+        match want {
+            None => assert!(opened.is_err(), "{path} opened after it was removed"),
+            Some(want) => {
+                assert!(opened.is_ok(), "{path} did not open");
+                assert_eq!(
+                    efatfs.read_file(path),
+                    want,
+                    "{path} read another file's bytes"
+                );
+            }
+        }
+    }
+}
