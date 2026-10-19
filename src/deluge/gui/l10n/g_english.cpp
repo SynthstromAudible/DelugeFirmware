@@ -160,6 +160,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_RIGHT_INPUT, "Right input"},
         {STRING_FOR_STEREO_INPUT, "Stereo input"},
         {STRING_FOR_BALANCED_INPUT, "Balanced input"},
+        {STRING_FOR_USB_INPUT, "USB input"},
         {STRING_FOR_MIX_PRE_FX, "Deluge mix (no fx)"},
         {STRING_FOR_MIX_POST_FX, "Deluge output (fx)"},
         {STRING_FOR_TRACK, "Specific Track"},

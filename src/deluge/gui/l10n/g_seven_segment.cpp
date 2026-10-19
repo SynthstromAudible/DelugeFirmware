@@ -67,6 +67,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_RIGHT_INPUT, "RIGH"},
         {STRING_FOR_STEREO_INPUT, "STER"},
         {STRING_FOR_BALANCED_INPUT, "BALA"},
+        {STRING_FOR_USB_INPUT, "USB"},
         {STRING_FOR_MIX_PRE_FX, "MIX"},
         {STRING_FOR_MIX_POST_FX, "OUTP"},
         {STRING_FOR_TRACK, "TRAK"},
