@@ -522,7 +522,8 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 }
 
 bool SampleBrowser::canImportWholeKit() {
-	return (soundEditor.editingKit() && soundEditor.currentSourceIndex == 0
+	// Folder-to-kit and slicing rebuild drums, so never from a variant slot's browser.
+	return (soundEditor.editingKit() && soundEditor.currentSourceIndex == 0 && targetRoundRobinSlot == 0
 	        && (SoundDrum*)getCurrentInstrumentClip()->noteRows.getElement(0)->drum == soundEditor.currentSound
 	        && (!getCurrentKit()->firstDrum->next));
 }
