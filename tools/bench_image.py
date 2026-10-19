@@ -10,9 +10,10 @@ Builds `./dbt build RelWithDebInfo` with `-DDELUGE_STREAM_BENCH=ON` (or OFF with
 override (src/bsp/rust/local-sdk.toml, gitignored) is pointed at PATH for this build only, e.g. a
 worktree of an SDK branch not yet pushed.
 
-Whatever happens, afterwards: local-sdk.toml is restored byte for byte, src/bsp/rust/Cargo.lock is
-checked out again (a build through the override rewrites its SDK entries), and the bench option is
-configured back to what build/CMakeCache.txt had.
+Whatever happens, afterwards: local-sdk.toml and src/bsp/rust/Cargo.lock are restored byte for byte
+(a build through the override rewrites the lock's SDK entries; restoring what was there, not what is
+committed, keeps a deliberate uncommitted lock update), and the bench option is configured back to
+what build/CMakeCache.txt had.
 
 Exit codes: 0 built; 1 the build failed (its error lines are printed); 2 bad arguments.
 """
@@ -29,7 +30,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 CACHE = REPO / "build" / "CMakeCache.txt"
 LOCAL_SDK = REPO / "src" / "bsp" / "rust" / "local-sdk.toml"
-CARGO_LOCK = "src/bsp/rust/Cargo.lock"
+CARGO_LOCK = REPO / "src" / "bsp" / "rust" / "Cargo.lock"
 ELF = REPO / "build" / "RelWithDebInfo" / "deluge.elf"
 # The override's paths, relative to the directory cargo resolves them from (see local-sdk.toml).
 SDK_PREFIX = "../../../deluge-sdk/"
@@ -72,6 +73,8 @@ def main(argv: list[str] | None = None) -> int:
 
     before = cached_bench()
     saved = LOCAL_SDK.read_bytes() if LOCAL_SDK.exists() else None
+    # Restored as it was, not as committed: it may hold a deliberate, uncommitted update.
+    saved_lock = CARGO_LOCK.read_bytes()
     defines = [f"-DDELUGE_STREAM_BENCH={'OFF' if args.no_bench else 'ON'}"]
     defines += [f"-D{d}" for d in args.define]
     try:
@@ -94,7 +97,7 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         if saved is not None:
             LOCAL_SDK.write_bytes(saved)
-        subprocess.run(["git", "checkout", "-q", CARGO_LOCK], cwd=REPO, check=False)
+        CARGO_LOCK.write_bytes(saved_lock)
         if before is not None:
             dbt("configure", f"-DDELUGE_STREAM_BENCH={before}")
     print(f"bench_image: built {args.out}", file=sys.stderr)
