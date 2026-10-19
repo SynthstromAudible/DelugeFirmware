@@ -81,7 +81,7 @@ Entries entries_of(const Resolved& resolved, int32_t stored) {
 }
 
 std::optional<int32_t> partner_stored(const Resolved& resolved) {
-	const std::string_view partner = engine::mapping_of(*resolved.row).partner;
+	const std::string_view partner = engine::mapping_of(*resolved.row).partner_path();
 	return partner.empty() ? std::optional<int32_t>{0} : resolved.reader.read(partner);
 }
 
@@ -118,8 +118,21 @@ size_t choice_names(const Target& target, const project::Song& model, const Addr
                     std::span<ChoiceName> out) {
 	const std::optional<Resolved> resolved = resolve(target, model, where, facts);
 	const l10n::SettingNames* names = l10n::setting_names(engine::kDelugeInstrument, target.path);
-	if (!resolved || names == nullptr || resolved->row->kind != engine::SettingKind::CHOICE) {
+	if (!resolved || names == nullptr) {
 		return 0;
+	}
+	if (resolved->row->kind != engine::SettingKind::CHOICE) {
+		// A BOOL or INTEGER row a menu lists: the table names each menu value of its range, in order.
+		const auto [least, greatest] = engine::menu_range(*resolved->row);
+		size_t written = 0;
+		for (int32_t menu = least; menu <= greatest && written < out.size(); ++menu) {
+			const auto index = static_cast<size_t>(menu - least);
+			if (index >= names->choices.size()) {
+				break;
+			}
+			out[written++] = {.name = names->choices[index]};
+		}
+		return written;
 	}
 	const std::optional<int32_t> stored = resolved->reader.read(resolved->row->path);
 	if (!stored) {

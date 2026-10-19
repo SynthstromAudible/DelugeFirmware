@@ -47,8 +47,9 @@ struct Title {
 [[nodiscard]] std::optional<View> view(const Target& target, const project::Song& model, const Addresses& where,
                                        const RuntimeFacts& facts);
 
-/// @brief A CHOICE or BOOL target's entries in menu order: the choices that apply, plus the stored one, marked, when
-/// it no longer applies.
+/// @brief A target's list entries in menu order. A CHOICE row's: the choices that apply, plus the stored one, marked,
+/// when it no longer applies. A BOOL or INTEGER row a menu shows as a list: the name table's name for each menu value
+/// of its range; none where the table names no values.
 /// @param target The target.
 /// @param model  The song.
 /// @param where  The addresses the target resolves against.

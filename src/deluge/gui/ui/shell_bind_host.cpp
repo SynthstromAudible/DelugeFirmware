@@ -88,7 +88,7 @@ void ShellEditSink::write(const WriteRequest& request) {
 		          request.target.path.data(), static_cast<int>(request.menu_value));
 		return;
 	}
-	const std::string_view partner = deluge::engine::mapping_of(*row).partner;
+	const std::string_view partner = deluge::engine::mapping_of(*row).partner_path();
 	const deluge::engine::SettingInfo* partner_row =
 	    partner.empty() ? nullptr : deluge::engine::find_setting(deluge::instrument::kSettings, partner);
 

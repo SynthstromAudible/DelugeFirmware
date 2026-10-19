@@ -65,6 +65,17 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 		expect(names_of(fixture, "osc2/type", kSynth)).to_equal(want);
 	});
 
+	it("lists a two-way setting a menu shows as a list (the FM modulator's destination) by the name table's names", _ {
+		const ModelFixture fixture;
+		const auto* table = deluge::l10n::setting_names(deluge::engine::kDelugeInstrument, "modulator2/toModulator1");
+		std::vector<int64_t> want;
+		for (const String name : table->choices) {
+			want.push_back(static_cast<int64_t>(name));
+		}
+		expect(want.size()).to_equal(size_t(2));
+		expect(names_of(fixture, "modulator2/toModulator1", kSynth)).to_equal(want);
+	});
+
 	it("shows a stored choice that no longer applies as a marked entry the menu cannot write", _ {
 		ModelFixture fixture;
 		auto state = fixture.facts.states.at(kDrum.id);
@@ -126,6 +137,20 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 		expect(title.title == deluge::l10n::setting_names(deluge::engine::kDelugeInstrument, "osc2/type")->title)
 		    .to_be_true();
 		expect(title_of(sound("polyphonic")).number.has_value()).to_be_false();
+	});
+
+	it("resolves every row the table holds, a row whose mapping clamps (no partner) included", _ {
+		const ModelFixture fixture;
+		std::string unresolved;
+		for (const deluge::engine::SettingInfo& row : deluge::instrument::kSettings) {
+			if (row.kind == deluge::engine::SettingKind::STRUCTURED || row.kind == deluge::engine::SettingKind::TEXT) {
+				continue;
+			}
+			if (!view(sound(row.path), fixture.song, at(kSynth), fixture.facts)) {
+				unresolved += std::string(row.path) + " ";
+			}
+		}
+		expect(unresolved).to_equal(std::string{});
 	});
 
 	it("shows nothing for a target whose slot does not resolve", _ {

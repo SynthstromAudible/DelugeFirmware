@@ -59,6 +59,20 @@ describe bind_reader("a sound's settings read through its slot's address", ${
 		expect(reader.read("osc1/type").value_or(-1)).to_equal(static_cast<int32_t>(deluge::instrument::OscType::SAW));
 	});
 
+	it("reads every row the table holds: the host contract's reader never answers nothing for one", _ {
+		const ModelFixture fixture;
+		for (const deluge::project::SlotAddress slot : {kSynth, kDrum}) {
+			const SlotReader reader{fixture.song, slot, fixture.facts};
+			std::string missing;
+			for (const deluge::engine::SettingInfo& row : deluge::instrument::kSettings) {
+				if (row.kind != SettingKind::STRUCTURED && row.kind != SettingKind::TEXT && !reader.read(row.path)) {
+					missing += std::string(row.path) + " ";
+				}
+			}
+			expect(missing).to_equal(std::string{});
+		}
+	});
+
 	it("reads nothing for a path the table does not hold", _ {
 		const ModelFixture fixture;
 		const SlotReader reader{fixture.song, kSynth, fixture.facts};
