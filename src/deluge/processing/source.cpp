@@ -151,10 +151,18 @@ Error Source::loadAllSamples(bool mayActuallyReadFiles) {
 void Source::setReversed(bool newReversed) {
 	sampleControls.reversed = newReversed;
 	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
-		MultiRange* range = (MultisampleRange*)ranges.getElement(e);
-		SampleHolder* holder = (SampleHolder*)range->getAudioFileHolder();
-		Sample* sample = (Sample*)holder->audioFile;
-		if (sample) {
+		MultiRange* range = ranges.getElement(e);
+		// Every loaded slot of the zone, not just slot 1: variants play reversed too. The variant table is
+		// only read on a sample-shaped array; see getLengthInSamplesAtSystemSampleRate().
+		uint8_t numSlots = hasMultisampleRanges() ? static_cast<MultisampleRange*>(range)->rrCount + 1 : 1;
+		for (uint8_t slotIndex = 0; slotIndex < numSlots; slotIndex++) {
+			SampleHolder* holder = (slotIndex == 0)
+			                           ? static_cast<SampleHolder*>(range->getAudioFileHolder())
+			                           : static_cast<MultisampleRange*>(range)->getVariantHolder(slotIndex);
+			Sample* sample = (holder != nullptr) ? static_cast<Sample*>(holder->audioFile) : nullptr;
+			if (sample == nullptr) {
+				continue;
+			}
 			if (sampleControls.isCurrentlyReversed() && holder->endPos > sample->lengthInSamples) {
 				holder->endPos = sample->lengthInSamples;
 			}
