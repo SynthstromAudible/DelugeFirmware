@@ -274,9 +274,11 @@ public:
 		// The picker calls straight back here once it has a zone, and that call arrives while the
 		// picker is still the current screen - which is how the two are told apart. Kits are left
 		// alone: they have always edited their first zone without a picker.
+		//
+		// Don't clear *currentRange here: this check also runs when the menu only scrolls past VARIANTS
+		// or comes BACK to it, and every caller that opens the picker clears the zone itself.
 		if (!soundEditor.editingKit() && sound->sources[sourceId_].ranges.getNumElements() > 1
 		    && !soundEditor.inNoteRangePicker()) {
-			*currentRange = nullptr;
 			return MenuPermission::MUST_SELECT_RANGE;
 		}
 
