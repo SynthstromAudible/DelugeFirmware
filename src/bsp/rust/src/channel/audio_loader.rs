@@ -469,6 +469,75 @@ pub unsafe extern "C" fn deluge_audio_load_request(
     candidates_key: u32,
 ) -> bool {
     // SAFETY: the caller's contract, above.
+    let accepted = unsafe { request(file_path, candidates, num_candidates, candidates_key) };
+    if !accepted {
+        // Its requester asks again on a later walk: that walk must not be skipped.
+        bump_epoch();
+    }
+    accepted
+}
+
+/// Bumped whenever asking the loader again could get a different answer: a result published, or a
+/// request refused (its requester asks again later). See `deluge_audio_load_epoch`.
+static EPOCH: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+
+fn bump_epoch() {
+    EPOCH.fetch_add(1, core::sync::atomic::Ordering::AcqRel);
+}
+
+/// Whether collecting or requesting `file_path` now could move its load on: a result is published
+/// for it, or nothing is loading for it and the queue has room for a request. See `audio_load.h`.
+/// A table locked at that moment answers `true`, which sends the caller down the full collect:
+/// never a wrong "nothing to do".
+///
+/// # Safety
+///
+/// `file_path` must be a valid NUL-terminated C string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_audio_load_can_progress(file_path: *const c_char) -> bool {
+    // SAFETY: the caller's contract, above.
+    let Some(path) = (unsafe { cstr_to_path(file_path) }) else {
+        return true;
+    };
+    let Ok(results) = RESULTS.try_lock() else {
+        return true;
+    };
+    if results.iter().any(|entry| entry.key == path) {
+        return true;
+    }
+    drop(results);
+    let Ok(in_flight) = IN_FLIGHT.try_lock() else {
+        return true;
+    };
+    if in_flight.as_deref() == Some(path.as_str()) {
+        return false;
+    }
+    drop(in_flight);
+    let Ok(queue) = QUEUE.try_lock() else {
+        return true;
+    };
+    // Queued: wait for it. Not queued: a request is worth making only if it would be accepted.
+    !queue.iter().any(|request| request.path == path) && !queue.is_full()
+}
+
+/// The loader's epoch; see [`EPOCH`] and `audio_load.h`.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_audio_load_epoch() -> u32 {
+    EPOCH.load(core::sync::atomic::Ordering::Acquire)
+}
+
+/// [`deluge_audio_load_request`]'s body.
+///
+/// # Safety
+///
+/// As [`deluge_audio_load_request`].
+unsafe fn request(
+    file_path: *const c_char,
+    candidates: *const c_char,
+    num_candidates: u32,
+    candidates_key: u32,
+) -> bool {
+    // SAFETY: the caller's contract, above.
     let Some(path) = (unsafe { cstr_to_path(file_path) }) else {
         return false;
     };
@@ -775,6 +844,13 @@ pub fn take_from(
 /// it can read the pre-flush value and insert, and [`take_from`] then drops the entry. It runs
 /// under the table lock so it is at least ordered against a flush that took that lock.
 pub async fn publish_result(key: LoadPath, result: LoadResult, generation: u32) {
+    publish_or_discard(key, result, generation).await;
+    // Whatever became of it, the load is over: a requester waiting on it may now get a different
+    // answer, even if only `UNKNOWN` and a re-request.
+    bump_epoch();
+}
+
+async fn publish_or_discard(key: LoadPath, result: LoadResult, generation: u32) {
     let mut table = RESULTS.lock().await;
     if generation != crate::storage::card::generation() {
         // Read from a card that has gone; the collector gets `UNKNOWN` and re-requests.
@@ -914,7 +990,7 @@ mod driver {
         /// `false` is always a real read failure, never end of file.
         async fn read_at(&self, handle: u32, offset: u32, buf: &mut [u8]) -> bool;
 
-        /// Releases the efatfs handle. The table has 128 slots, and a leak is silent capacity
+        /// Releases the efatfs handle. The table has `MAX_HANDLES` slots, and a leak is silent capacity
         /// loss.
         async fn close(&self, handle: u32);
 
@@ -1056,7 +1132,7 @@ mod prod {
                 // Every open failure counts as missing, the same conflation the synchronous
                 // `tryOpenCandidate` makes (see the TODO at its unknown-as-absent branch).
                 crate::storage::efatfs::portable::OpenOutcome::Failed(_) => OpenVerdict::Missing,
-                // The 128-slot table shared with `open_read_stream` fills up under browser
+                // The streaming handle table shared with `open_read_stream` fills up under browser
                 // preview, this loader's own workload. Kept distinct so the collector reclaims.
                 crate::storage::efatfs::portable::OpenOutcome::TableFull => OpenVerdict::TableFull,
             }
@@ -1139,7 +1215,9 @@ async fn take_next_request() -> Option<(LoadRequest, u32)> {
 
 abi_pin!(
     deluge_audio_load_collect,
+    deluge_audio_load_epoch,
     deluge_audio_load_forget,
+    deluge_audio_load_can_progress,
     deluge_audio_load_request
 );
 #[cfg(feature = "host_app")]

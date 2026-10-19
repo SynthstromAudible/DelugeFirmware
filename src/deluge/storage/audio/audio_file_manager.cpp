@@ -464,9 +464,20 @@ bool AudioFileManager::tryToDeleteAudioFileFromMemoryIfItExists(char const* file
 }
 
 int32_t AudioFileManager::releaseUnleasedAudioFiles() {
+#if DELUGE_STREAM_BENCH
+	const uint64_t releaseStart = deluge::runtime::nowUs();
+	struct ReleaseNote {
+		uint64_t start;
+		const int32_t* released;
+		~ReleaseNote() { deluge::bench::noteRelease(*released, deluge::runtime::nowUs() - start); }
+	};
+#endif
 	// Walk downwards: deleting shifts every later index down by one, and going backwards
 	// means the indices ahead of us are the ones we have already passed.
 	int32_t released = 0;
+#if DELUGE_STREAM_BENCH
+	const ReleaseNote note{releaseStart, &released};
+#endif
 	for (int32_t i = static_cast<int32_t>(audioFiles.size()) - 1; i >= 0; i--) {
 		AudioFile* audioFile = audioFiles[i];
 		// leaseCount() > 0 covers everything that would make this unsafe: a playing voice,
@@ -948,6 +959,13 @@ AudioFile* AudioFileManager::getAudioFileFromFilenameUntraced(deluge::storage::A
 		if (asyncOnlySample && !collectFolderProbe(context, error)) {
 			return nullptr;
 		}
+		// Still being loaded with nothing answered yet, or waiting for room in the loader's queue: there is nothing to
+		// collect or request, and building the candidates a collect or request needs is most of what a sample walk
+		// spends on each demand in flight.
+		if (asyncOnlySample && !deluge_audio_load_can_progress(filePath.c_str())) {
+			*error = Error::LOAD_IN_PROGRESS;
+			return nullptr;
+		}
 		if (std::optional<AudioFile*> collected = collectAsyncSampleLoad(context, filePath, error, asyncMode)) {
 			return *collected;
 		}
@@ -996,8 +1014,18 @@ std::optional<AudioFile*> AudioFileManager::collectAsyncSampleLoad(deluge::stora
                                                                    deluge::storage::AsyncLoadMode asyncMode) {
 	DelugeAudioLoadResult result{};
 	// Only the answer to this load's own candidates: another live load of the same path may have asked with others.
+#if DELUGE_STREAM_BENCH
+	const uint64_t keyStart = deluge::runtime::nowUs();
+	const uint32_t candidatesKey = requestedCandidatesKey(context, filePath, asyncMode);
+	const uint64_t collectStart = deluge::runtime::nowUs();
+	const DelugeChannelStatus collected = deluge_audio_load_collect(filePath.c_str(), candidatesKey, &result);
+	deluge::bench::noteWalkPart(deluge::bench::WalkPart::CandidatesKey, collectStart - keyStart);
+	deluge::bench::noteWalkPart(deluge::bench::WalkPart::Collect, deluge::runtime::nowUs() - collectStart);
+	switch (collected) {
+#else
 	switch (
 	    deluge_audio_load_collect(filePath.c_str(), requestedCandidatesKey(context, filePath, asyncMode), &result)) {
+#endif
 
 	case DELUGE_CHANNEL_READY:
 		if (result.error != static_cast<uint8_t>(Error::NONE)) {
@@ -1069,7 +1097,7 @@ std::optional<AudioFile*> AudioFileManager::answerFailedLoadResult(deluge::stora
 	// A FULL efatfs handle table, which is not a verdict about the file at all -- nothing was even
 	// attempted. It reaches here under its own identity rather than folded into FILE_UNREADABLE
 	// precisely so it can take THIS recovery instead of the alternate-dir probe below: the loader
-	// opens through the same 128-slot table SampleStream::open_read_stream uses, and that table fills
+	// opens through the same handle table SampleStream::open_read_stream uses, and that table fills
 	// up by construction under browser preview (each previewed Sample pins a handle for its whole
 	// residency, and samples are small, so handles run out long before the heap does).
 	//

@@ -208,6 +208,22 @@ DelugeChannelStatus deluge_audio_load_collect(const char* file_path, uint32_t ca
 /// @param file_path The nominal path passed to @ref deluge_audio_load_request. Must not be NULL.
 void deluge_audio_load_forget(const char* file_path) DELUGE_NOEXCEPT;
 
+/// @brief A counter that changes whenever asking the loader again could get a different answer: a result is published,
+///        or a request is refused (deluge_audio_load_request() returned false). [task]
+///
+/// A consumer that re-asks about everything it has in flight, as a sample walk does, can skip a pass while this has
+/// not changed since its last one: every collect would answer as before.
+uint32_t deluge_audio_load_epoch(void) DELUGE_NOEXCEPT;
+
+/// @brief Whether collecting or requesting @p file_path now could move its load on: a result is published for it, or
+///        nothing is loading for it and the queue would accept a request. [task]
+///
+/// A requester that finds it cannot has nothing to do yet: the path is queued or in flight, or a request would be
+/// refused for a full queue. Answers true whenever it cannot tell, so a caller that trusts it never waits on a load
+/// that has finished. Each completion changes deluge_audio_load_epoch(), so a requester that waits is asked again.
+/// @param file_path The nominal path passed to @ref deluge_audio_load_request. Must not be NULL.
+bool deluge_audio_load_can_progress(const char* file_path) DELUGE_NOEXCEPT;
+
 /* Discarding what this loader parsed from a card that has been ejected is deluge_card_flush
  * (card.h), not a call of this header's own: the ejection invalidates every loader at once, and
  * they share one card generation to say so. Deliberately not a doc comment -- it documents an
