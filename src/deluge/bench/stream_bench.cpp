@@ -437,6 +437,36 @@ void noteLoadStep(int phase, uint64_t us, int32_t bound, int32_t empty, int32_t 
 	          static_cast<int>(in_flight));
 }
 
+namespace {
+std::array<uint64_t, static_cast<size_t>(WalkPart::Count)> g_walkParts{};
+} // namespace
+
+void noteWalkPart(WalkPart part, uint64_t us) {
+	g_walkParts[static_cast<size_t>(part)] += us;
+}
+
+void noteWalkEnd(uint64_t us, int32_t demands) {
+	if (us >= 20'000) {
+		D_PRINTLN("STREAM-BENCH-WALK ms=%lu demands=%d in_flight_acquire_ms=%lu candidates_key_ms=%lu collect_ms=%lu",
+		          static_cast<unsigned long>(us / 1000), static_cast<int>(demands),
+		          static_cast<unsigned long>(g_walkParts[0] / 1000), static_cast<unsigned long>(g_walkParts[1] / 1000),
+		          static_cast<unsigned long>(g_walkParts[2] / 1000));
+	}
+	g_walkParts.fill(0);
+}
+
+void noteRelease(int32_t released, uint64_t us) {
+	D_PRINTLN("STREAM-BENCH-RELEASE released=%d ms=%lu", static_cast<int>(released),
+	          static_cast<unsigned long>(us / 1000));
+}
+
+void noteLoadPart(const char* what, uint64_t us) {
+	if (us < 20'000) {
+		return;
+	}
+	D_PRINTLN("STREAM-BENCH-LOADPART what=\"%s\" ms=%lu", what, static_cast<unsigned long>(us / 1000));
+}
+
 void noteBind(const char* path, uint64_t acquire_us, uint64_t set_us, int instruction) {
 	if (acquire_us + set_us < 20'000) {
 		return;

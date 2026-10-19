@@ -59,6 +59,25 @@ void registerStreamBench();
 /// `STREAM-BENCH-LOADSTEP phase=<name> ms=<n> bound=<n> empty=<n> in_flight=<n>`.
 void noteLoadStep(int phase, uint64_t us, int32_t bound, int32_t empty, int32_t in_flight);
 
+/// The parts of one sample walk the bench accumulates, for noteWalkPart().
+enum class WalkPart : uint8_t { InFlightAcquire, CandidatesKey, Collect, Count };
+
+/// Adds @p us µs to part @p part of the sample walk in progress.
+void noteWalkPart(WalkPart part, uint64_t us);
+
+/// Ends a sample walk that took @p us µs over @p demands demands: one of 20 ms or more prints
+/// `STREAM-BENCH-WALK ms=<n> demands=<n> in_flight_acquire_ms=<n> candidates_key_ms=<n> collect_ms=<n>`. Zeroes the
+/// parts either way.
+void noteWalkEnd(uint64_t us, int32_t demands);
+
+/// Notes that AudioFileManager::releaseUnleasedAudioFiles() freed @p released files in @p us µs; prints
+/// `STREAM-BENCH-RELEASE released=<n> ms=<n>` every time.
+void noteRelease(int32_t released, uint64_t us);
+
+/// Notes that a part of a song load, @p what, took @p us µs. A part of 20 ms or more prints
+/// `STREAM-BENCH-LOADPART what="<what>" ms=<n>`.
+void noteLoadPart(const char* what, uint64_t us);
+
 /// Notes that binding the sample at @p path took @p acquire_us µs to collect and @p set_us µs to attach, under cluster
 /// load instruction @p instruction. A bind of 20 ms or more prints
 /// `STREAM-BENCH-BIND acquire_ms=<n> set_ms=<n> instruction=<n> path=<path>`.

@@ -895,6 +895,12 @@ void LoadSongUI::tickRest() {
 }
 
 void LoadSongUI::runFinishSegment() {
+#if DELUGE_STREAM_BENCH
+	struct SegmentTimer {
+		uint64_t start = deluge::runtime::nowUs();
+		~SegmentTimer() { deluge::bench::noteLoadPart("finish segment", deluge::runtime::nowUs() - start); }
+	} segmentTimer;
+#endif
 	// The swap's interaction side let go of the knobs (deluge::playback::songSwappedOut()); nothing is under them until
 	// the new song's UI is up, so the panel must not go on showing the old song's values. Here rather than at the swap,
 	// which an armed launch runs on the audio tier.
@@ -933,10 +939,25 @@ void LoadSongUI::runFinishSegment() {
 }
 
 void LoadSongUI::tickFinish() {
+#if DELUGE_STREAM_BENCH
+	const uint64_t walkStart = deluge::runtime::nowUs();
+#endif
 	tickRest();
+#if DELUGE_STREAM_BENCH
+	deluge::bench::noteLoadPart("finish walk", deluge::runtime::nowUs() - walkStart);
+	const uint64_t tailStart = deluge::runtime::nowUs();
+	struct TailTimer {
+		uint64_t start;
+		~TailTimer() { deluge::bench::noteLoadPart("finish tail", deluge::runtime::nowUs() - start); }
+	};
+	std::optional<TailTimer> tail;
+#endif
 	if (restLoad_.has_value()) {
 		return; // still walking
 	}
+#if DELUGE_STREAM_BENCH
+	tail.emplace(TailTimer{tailStart});
+#endif
 	AudioEngine::logAction("done loading new song");
 	deluge::bridge::recordLoadedSounds(*currentSong);
 	currentSong->markAllInstrumentsAsEdited();
