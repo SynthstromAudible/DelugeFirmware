@@ -62,6 +62,9 @@ const fn zeroed() -> DelugeFillTrace {
         begin: zeroed_hist(),
         interaction_fs_wait: zeroed_hist(),
         interaction_fs_hold: zeroed_hist(),
+        longest_fs_hold_us: 0,
+        longest_fs_hold_line: 0,
+        longest_fs_hold_file: [0; 48],
         long_fs_waits_by_tier: [0; 3],
         long_fs_wait_max_by_tier: [0; 3],
     }
@@ -189,11 +192,30 @@ pub fn begin(start: Instant, end: Instant) {
 
 /// Records a filesystem holder letting go: it asked at `asked`, took the mutex at `acquired`, and
 /// releases it now. An interaction-tier caller's wait and hold are histogrammed.
-pub fn fs_released(tier: Tier, asked: Instant, acquired: Instant) {
+pub fn fs_released(
+    tier: Tier,
+    asked: Instant,
+    acquired: Instant,
+    at: &'static core::panic::Location<'static>,
+) {
     let held = micros_since(acquired, Instant::now());
     critical_section::with(|cs| {
         let mut s = STATE.borrow_ref_mut(cs);
         s.last_release = Some((tier, held));
+        let held32 = u32::try_from(held).unwrap_or(u32::MAX);
+        if held32 > s.trace.longest_fs_hold_us {
+            s.trace.longest_fs_hold_us = held32;
+            s.trace.longest_fs_hold_line = at.line();
+            // The file's tail is the part that names it.
+            let file = at.file().as_bytes();
+            let room = s.trace.longest_fs_hold_file.len() - 1;
+            let tail = &file[file.len().saturating_sub(room)..];
+            let mut name = [0 as core::ffi::c_char; 48];
+            for (dst, &b) in name.iter_mut().zip(tail) {
+                *dst = b as core::ffi::c_char;
+            }
+            s.trace.longest_fs_hold_file = name;
+        }
         if tier == Tier::Interaction {
             add(
                 &mut s.trace.interaction_fs_wait,

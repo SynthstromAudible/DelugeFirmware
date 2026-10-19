@@ -244,6 +244,11 @@ bool printReportLine() {
 		          static_cast<unsigned long>(r.scan_evict_calls), static_cast<unsigned long>(r.scan_evict_slots));
 		return true;
 	case 13:
+		D_PRINTLN("STREAM-BENCH-HOLD phase=%s longest_ms=%lu at=%s:%lu", g.phase,
+		          static_cast<unsigned long>(t.longest_fs_hold_us / 1000), t.longest_fs_hold_file,
+		          static_cast<unsigned long>(t.longest_fs_hold_line));
+		return true;
+	case 14:
 		D_PRINTLN("STREAM-BENCH-FS phase=%s long_waits=%lu,%lu,%lu max_us=%lu,%lu,%lu", g.phase,
 		          static_cast<unsigned long>(t.long_fs_waits_by_tier[0]),
 		          static_cast<unsigned long>(t.long_fs_waits_by_tier[1]),
@@ -252,7 +257,7 @@ bool printReportLine() {
 		          static_cast<unsigned long>(t.long_fs_wait_max_by_tier[1]),
 		          static_cast<unsigned long>(t.long_fs_wait_max_by_tier[2]));
 		return true;
-	case 14:
+	case 15:
 		printJobs();
 		return true;
 	default:

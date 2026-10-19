@@ -169,23 +169,30 @@ impl Drop for PriorityWait {
 /// A storage-tier caller holds back while a priority one waits ([`PRIORITY_WAITING`]): an
 /// interaction-tier call, or the streaming fill's reads ([`with_fs_urgent`]). Each of those then
 /// waits at most about one hold.
-pub async fn with_fs<R, F>(f: F) -> Option<R>
+#[track_caller]
+pub fn with_fs<R, F>(f: F) -> impl core::future::Future<Output = Option<R>>
 where
     F: AsyncFnOnce(&Fs) -> R,
 {
-    with_fs_as(false, f).await
+    with_fs_as(false, core::panic::Location::caller(), f)
 }
 
 /// [`with_fs`] for the streaming fill's reads, which other storage-tier callers hold back for and
 /// which hold back for nobody: a voice waiting on a chunk outranks everything else.
-pub async fn with_fs_urgent<R, F>(f: F) -> Option<R>
+#[track_caller]
+pub fn with_fs_urgent<R, F>(f: F) -> impl core::future::Future<Output = Option<R>>
 where
     F: AsyncFnOnce(&Fs) -> R,
 {
-    with_fs_as(true, f).await
+    with_fs_as(true, core::panic::Location::caller(), f)
 }
 
-async fn with_fs_as<R, F>(urgent: bool, f: F) -> Option<R>
+/// [`with_fs`] and [`with_fs_urgent`], with `at` the caller the fill trace names for a long hold.
+async fn with_fs_as<R, F>(
+    urgent: bool,
+    at: &'static core::panic::Location<'static>,
+    f: F,
+) -> Option<R>
 where
     F: AsyncFnOnce(&Fs) -> R,
 {
@@ -210,7 +217,7 @@ where
         Some(fs) => Some(f(fs).await),
         None => None,
     };
-    crate::storage::fill_trace::fs_released(tier, asked, acquired);
+    crate::storage::fill_trace::fs_released(tier, asked, acquired, at);
     result
 }
 

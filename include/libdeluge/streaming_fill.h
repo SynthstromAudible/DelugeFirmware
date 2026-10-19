@@ -128,6 +128,11 @@ typedef struct DelugeFillTrace {
 	DelugeFillTraceHist begin;   ///< resolving a popped chunk's read (its destination and file offset)
 	DelugeFillTraceHist interaction_fs_wait; ///< an interaction-tier filesystem call waiting for the mutex
 	DelugeFillTraceHist interaction_fs_hold; ///< an interaction-tier filesystem call holding the mutex
+	/// The longest any caller held the filesystem mutex, in µs, and where in the BSP's source it took it: the file,
+	/// NUL-terminated (truncated to fit), and the line.
+	uint32_t longest_fs_hold_us;
+	uint32_t longest_fs_hold_line;
+	char longest_fs_hold_file[48];
 	/// Filesystem waits of 2 ms or more, by the tier (interaction, storage, audio) that last held the mutex.
 	uint32_t long_fs_waits_by_tier[3];
 	/// The longest of those waits, in µs, by the same tier.
