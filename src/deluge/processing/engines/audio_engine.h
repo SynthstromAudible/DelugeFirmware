@@ -211,6 +211,9 @@ extern uint32_t audioSampleTimer;
 // fade in. Until then, input monitoring (Looper/Sampler) is suppressed and then faded in, so the codec's power-on
 // transient isn't passed through to the output. See getInputMonitoringGain().
 extern bool inputMonitoringWarmedUp;
+// Set during a render if any audio track is monitoring the USB input. USB direct monitoring stands aside for that
+// window, or the host's audio would be heard twice. Cleared at the start of each render
+extern bool usbInputMonitoredByTrack;
 extern bool mustUpdateReverbParamsBeforeNextRender;
 extern bool bypassCulling;
 extern uint32_t i2sTXBufferPos;
@@ -241,6 +244,20 @@ void feedReverbBackdoorForGrain(int index, q31_t value);
 /// Gain to apply to monitored codec input, `offset` samples into the buffer currently being rendered. 0 until the
 /// codec has settled after power-on, then ramps up to full scale.
 q31_t getInputMonitoringGain(uint32_t offset);
+
+/// Each live input source has a ring buffer laid out like the SSI RX buffer - same length, same stereo interleaving -
+/// and kept in step with it, so the same offset into any of them is the same moment. These find the one for a source:
+/// the USB input's for AudioInputChannel::USB, the SSI RX buffer for the others.
+int32_t* getInputBufferStart(AudioInputChannel channel);
+int32_t* getInputBufferEnd(AudioInputChannel channel);
+/// Where the audio about to be rendered starts, in the source's input buffer - i2sRXBufferPos, translated to it
+int32_t* getInputReadPos(AudioInputChannel channel);
+
+/// Whether a source is the codec's line/mic input - as opposed to USB audio, which is also external (below
+/// AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) but needs none of the codec's normalising or jack detection
+constexpr bool isCodecInput(AudioInputChannel channel) {
+	return channel < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && channel != AudioInputChannel::USB;
+}
 
 /// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick
 bool allowedToStartVoice();

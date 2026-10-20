@@ -33,6 +33,7 @@
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
+#include "deluge/drivers/usb/usb_audio.h"
 
 #if ((USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI)
 /***********************************************************************************************************************
@@ -55,6 +56,8 @@ extern uint16_t g_usb_bc_detect;
 void usb_pstd_bus_reset(void)
 {
     uint16_t connect_info;
+
+    usbAudioStopAll();
 
     /* Bus Reset */
     usb_pstd_busreset_function();
@@ -106,6 +109,8 @@ void usb_pstd_detach_process(void)
 {
     uint16_t i;
     uint16_t* p_tbl;
+
+    usbAudioStopAll();
 
     hw_usb_clear_cnen(USB_NULL);
 

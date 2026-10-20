@@ -157,12 +157,12 @@ Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack,
 
 		inputChannel = ((AudioOutput*)output)->inputChannel;
 		outputRecordingFrom = ((AudioOutput*)output)->getOutputRecordingFrom();
-		numChannels =
-		    (inputChannel >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION || inputChannel == AudioInputChannel::STEREO)
-		        ? 2
-		        : 1;
-		shouldNormalize =
-		    (inputChannel < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION); // if reading from input we need this
+		numChannels = (inputChannel >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION
+		               || inputChannel == AudioInputChannel::STEREO || inputChannel == AudioInputChannel::USB)
+		                  ? 2
+		                  : 1;
+		// if reading from the codec input we need this. USB audio arrives at whatever level the host meant it to be
+		shouldNormalize = AudioEngine::isCodecInput(inputChannel);
 	}
 	// if we already have an input then we're going to record an overdub instead. This won't be called if the clip is
 	// doing the classic deluge clip cloning loops (will be called on the clone instead)

@@ -33,6 +33,8 @@
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
+#include "deluge/drivers/usb/usb_audio.h"
+#include "deluge/drivers/usb/userdef/r_usb_paudio_config.h"
 
 #if defined(USB_CFG_PMSC_USE)
 #include "drivers/usb/r_usb_pmsc/r_usb_pmsc_if.h"
@@ -1129,6 +1131,13 @@ static void usb_pstd_set_configuration3(void)
             usb_cstd_set_buf(USB_NULL, (uint16_t)USB_PIPE0);
             cfgok = USB_OK;
 
+            /* Setting a configuration puts every interface back to alternate setting 0, which stops audio streaming */
+            usbAudioStopAll();
+            for (i = 0; i < USB_PAUDIO_NUM_INTERFACES; i++)
+            {
+                g_usb_pstd_alt_num[i] = 0;
+            }
+
             if ((g_usb_pstd_req_value > 0) && (g_usb_pstd_req_value != g_usb_pstd_config_num))
             {
                 usb_pstd_clr_eptbl_index();
@@ -1189,21 +1198,36 @@ static void usb_pstd_set_interface3(void)
     uint16_t* p_table;
 
     /* Configured ? */
-    if ((USB_TRUE == usb_pstd_chk_configured()) && ((USB_INTERFACE == g_usb_pstd_req_type & USB_BMREQUESTTYPERECIP)))
+    if ((USB_TRUE == usb_pstd_chk_configured()) && ((g_usb_pstd_req_type & USB_BMREQUESTTYPERECIP) == USB_INTERFACE))
     {
-        if ((g_usb_pstd_req_index <= usb_pstd_get_interface_num(g_usb_pstd_config_num)) && (0 == g_usb_pstd_req_length))
+        if ((g_usb_pstd_req_index < usb_pstd_get_interface_num(g_usb_pstd_config_num)) && (0 == g_usb_pstd_req_length))
         {
             if (g_usb_pstd_req_value <= usb_pstd_get_alternate_num(g_usb_pstd_config_num, g_usb_pstd_req_index))
             {
+                uint16_t i;
+
                 g_usb_pstd_alt_num[g_usb_pstd_req_index] = (uint16_t)(g_usb_pstd_req_value & USB_ALT_SET);
                 usb_cstd_set_buf(USB_NULL, (uint16_t)USB_PIPE0);
+
+                /* Stop any audio streaming on this interface - its pipe can't be reconfigured while in use */
+                usbAudioSetInterface(g_usb_pstd_req_index, 0);
+
                 usb_pstd_clr_eptbl_index();
                 /* Search endpoint setting */
                 usb_pstd_set_eptbl_index(
                     g_usb_pstd_config_num, g_usb_pstd_req_index, g_usb_pstd_alt_num[g_usb_pstd_req_index]);
                 p_table = g_usb_pstd_driver.p_pipetbl;
-                /* Set pipe configuration register */
+                /* Set pipe configuration register - just for this interface's endpoints, which is why the table was
+                 * cleared first. Reinitialising the others would interrupt e.g. MIDI */
                 usb_pstd_set_pipe_register((uint16_t)USB_PERIPIPE, p_table);
+
+                /* Then put back every interface's endpoints, so they're all still found by endpoint address */
+                for (i = 0; i < usb_pstd_get_interface_num(g_usb_pstd_config_num); i++)
+                {
+                    usb_pstd_set_eptbl_index(g_usb_pstd_config_num, i, g_usb_pstd_alt_num[i]);
+                }
+
+                usbAudioSetInterface(g_usb_pstd_req_index, g_usb_pstd_alt_num[g_usb_pstd_req_index]);
             }
             else
             {
