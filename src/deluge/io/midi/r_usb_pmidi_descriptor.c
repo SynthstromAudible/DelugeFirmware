@@ -37,8 +37,9 @@ Macro definitions
 #define USB_BCDNUM (0x0200u) /* bcdUSB */
 // Release Number. Bumped when USB audio was added, so hosts don't reuse anything they cached about the MIDI-only
 // configuration, then each time the audio streams' descriptors changed: when the out stream went from adaptive to
-// asynchronous with implicit feedback, and when it got its adaptive alternate setting back as well
-#define USB_RELEASE (0x0302u)
+// asynchronous with implicit feedback, when it got its adaptive alternate setting back as well, and when both streams
+// went to 4 channels of packed 24-bit
+#define USB_RELEASE (0x0303u)
 // With USB audio turned off we describe ourselves exactly as before USB audio existed
 #define USB_RELEASE_MIDI_ONLY (0x0200u)
 #define USB_CONFIGNUM (1u) /* Configuration number */
@@ -110,6 +111,11 @@ Macro definitions
 // each USB frame, and use that for its out stream too. There's no room for an explicit feedback endpoint - only pipes 1
 // and 2 can do isochronous transfers, and the two streams already have them
 #define AUDIO_ISO_USAGE_IMPLICIT_FEEDBACK 0x20
+
+// The streams' 4 channels, as spatial locations (audio10.pdf 3.7.2.3): left and right front, then left and right
+// surround. They're really two stereo pairs, but described like this they show up as an ordinary quadraphonic device -
+// which Windows, in particular, handles where it might not handle unlabelled channels
+#define AUDIO_CHANNEL_CONFIG 0x0033
 
 // Terminal IDs
 #define AUDIO_TERMINAL_FROM_HOST 1
@@ -205,7 +211,8 @@ uint8_t g_midi_configuration[TOTAL_CONFIG_LENGTH + (TOTAL_CONFIG_LENGTH % 2)] = 
     HI(AUDIO_TERMINAL_STREAMING), //
     0,                            // bAssocTerminal
     USB_PAUDIO_NUM_CHANNELS,      // bNrChannels
-    0x03, 0x00,                   // wChannelConfig - left and right front
+    LO(AUDIO_CHANNEL_CONFIG),     // wChannelConfig
+    HI(AUDIO_CHANNEL_CONFIG),     //
     0,                            // iChannelNames
     0,                            // iTerminal
     9,                            // bLength
@@ -226,7 +233,8 @@ uint8_t g_midi_configuration[TOTAL_CONFIG_LENGTH + (TOTAL_CONFIG_LENGTH % 2)] = 
     HI(AUDIO_TERMINAL_LINE),      //
     0,                            // bAssocTerminal
     USB_PAUDIO_NUM_CHANNELS,      // bNrChannels
-    0x03, 0x00,                   // wChannelConfig - left and right front
+    LO(AUDIO_CHANNEL_CONFIG),     // wChannelConfig
+    HI(AUDIO_CHANNEL_CONFIG),     //
     0,                            // iChannelNames
     0,                            // iTerminal
     9,                            // bLength
@@ -327,8 +335,8 @@ uint8_t g_midi_configuration[TOTAL_CONFIG_LENGTH + (TOTAL_CONFIG_LENGTH % 2)] = 
     USB_DT_ENDPOINT,                           // bDescriptorType
     (uint8_t)(USB_EP_OUT | USB_PAUDIO_EP_OUT), // bEndpointAddress
     AUDIO_ISO_ADAPTIVE,                        // bmAttributes
-    LO(USB_PAUDIO_ADAPTIVE_MAX_PACKET_BYTES),  // wMaxPacketSize
-    HI(USB_PAUDIO_ADAPTIVE_MAX_PACKET_BYTES),  //
+    LO(USB_PAUDIO_MAX_PACKET_BYTES),           // wMaxPacketSize
+    HI(USB_PAUDIO_MAX_PACKET_BYTES),           //
     1,                                         // bInterval (frames)
     0,                                         // bRefresh
     0,                                         // bSynchAddress - none

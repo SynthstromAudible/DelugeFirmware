@@ -221,7 +221,6 @@ renderEnvelope:
 		AudioInputChannel input_channel = this->inputChannel;
 		if (input_channel == AudioInputChannel::USB) {
 			input_channel = AudioInputChannel::STEREO; // Just a stereo input, from a different buffer
-			AudioEngine::usbInputMonitoredByTrack = true;
 		}
 		if (input_channel == AudioInputChannel::STEREO && !AudioEngine::renderInStereo) {
 			input_channel = AudioInputChannel::NONE; // 0 means combine channels

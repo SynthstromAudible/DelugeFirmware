@@ -2506,6 +2506,13 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 			continue;
 		}
 
+		// Whether or not it's rendering, it might start monitoring or recording at any moment, and then want to read
+		// back through what's already arrived
+		if (output->type == OutputType::AUDIO
+		    && static_cast<AudioOutput*>(output)->inputChannel == AudioInputChannel::USB) {
+			AudioEngine::usbInputInUse = true;
+		}
+
 		bool isClipActiveNow =
 		    (output->getActiveClip() && isClipActive(output->getActiveClip()->getClipBeingRecordedFrom()));
 		ENTER_CRITICAL_SECTION();

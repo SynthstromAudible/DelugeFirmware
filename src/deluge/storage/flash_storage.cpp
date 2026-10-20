@@ -219,6 +219,7 @@ enum Entries {
 196: screensaver mode
 197: screensaver timeout minutes
 198: USB audio disabled - stored inverted, so a unit that has never saved it (all zeros) has USB audio on
+199: sample from USB (1) rather than the line/mic input
 */
 
 uint8_t defaultScale;
@@ -289,6 +290,8 @@ Polarity defaultPatchCablePolarity = Polarity::BIPOLAR;
 bool defaultUseSharps = true;
 
 bool usbAudioEnabled = true;
+
+bool sampleFromUsb = false;
 
 void resetSettings() {
 
@@ -399,6 +402,8 @@ void resetSettings() {
 	defaultUseSharps = true;
 
 	usbAudioEnabled = true;
+
+	sampleFromUsb = false;
 }
 
 void factoryReset(bool showPopup) {
@@ -878,6 +883,8 @@ void readSettings() {
 	}
 
 	usbAudioEnabled = (buffer[198] != 1);
+
+	sampleFromUsb = (buffer[199] == 1);
 }
 
 /// Sanity-check the pre-c1.3 MIDI-follow block (bytes 126-145) before migrating it. Same checks the deleted
@@ -1147,6 +1154,7 @@ void writeSettings() {
 	buffer[197] = screensaverTimeoutMinutes;
 
 	buffer[198] = usbAudioEnabled ? 0 : 1;
+	buffer[199] = sampleFromUsb ? 1 : 0;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

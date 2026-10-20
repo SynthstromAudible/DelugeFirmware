@@ -93,6 +93,9 @@ extern bool defaultUseSharps;
 /// Whether the Deluge offers USB audio to a computer, alongside USB MIDI. Read when USB starts up as a peripheral, at
 /// power-on - changing it takes effect after a restart
 extern bool usbAudioEnabled;
+/// Whether sampling into a synth or kit from the sound editor records the USB input (channels 3/4 from a USB host)
+/// rather than the line/mic input
+extern bool sampleFromUsb;
 
 void readSettings();
 void writeSettings();

@@ -1020,6 +1020,8 @@ PLACE_SDRAM_BSS ToggleBool recordMarginsMenu{STRING_FOR_LOOP_MARGINS, STRING_FOR
                                              FlashStorage::audioClipRecordMargins};
 PLACE_SDRAM_BSS record::CountIn recordCountInMenu{STRING_FOR_COUNT_IN, STRING_FOR_REC_COUNT_IN};
 PLACE_SDRAM_BSS monitor::Mode monitorModeMenu{STRING_FOR_SAMPLING_MONITORING, STRING_FOR_MONITORING};
+PLACE_SDRAM_BSS ToggleBool sampleFromUsbMenu{STRING_FOR_SAMPLE_FROM_USB, STRING_FOR_SAMPLE_FROM_USB,
+                                             FlashStorage::sampleFromUsb};
 
 PLACE_SDRAM_BSS record::ThresholdMode defaultThresholdRecordingModeMenu{STRING_FOR_MODE,
                                                                         record::ThresholdMode::DEFAULT};
@@ -1038,6 +1040,7 @@ PLACE_SDRAM_BSS Submenu recordSubmenu{
         &recordQuantizeMenu,
         &recordMarginsMenu,
         &monitorModeMenu,
+        &sampleFromUsbMenu,
         &defaultThresholdRecordingSubmenu,
     },
 };

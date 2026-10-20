@@ -7,19 +7,29 @@ import { Aside, Badge } from "@astrojs/starlight/components"
 <Badge text="c1.4 Feature" variant="tip" />
 
 The Deluge can act as a USB audio interface. When it's connected to a computer over its USB type-B port, it shows up
-as a class-compliant audio device alongside its existing USB MIDI ports, so no driver is needed. You can:
+as a class-compliant 4-in, 4-out audio device alongside its existing USB MIDI ports, so no driver is needed. You can:
 
 - play audio from your computer through the Deluge's outputs
-- record the Deluge's output into your computer
-- record and monitor audio from your computer in an audio clip, just like the line input
+- record the Deluge's line/mic input and its main mix into your computer, at the same time
+- record and monitor a second stereo stream from your computer in an audio clip, or sample it into a synth or kit
+
+## Channels
+
+| Channels | From computer to Deluge                                         | From Deluge to computer |
+| -------- | --------------------------------------------------------------- | ----------------------- |
+| 1/2      | Mixed straight into the Deluge's outputs                        | Line/mic input          |
+| 3/4      | An input for audio clips and the sampler (`USB 3/4`)            | Main mix                |
+
+Your computer may list the channels as front left/right (1/2) and surround left/right (3/4). They're really two stereo
+pairs.
 
 ## Format
 
-|             | From computer to Deluge | From Deluge to computer |
-| ----------- | ----------------------- | ----------------------- |
-| Channels    | 2 (stereo)              | 2 (stereo)              |
-| Sample rate | 44.1 kHz                | 44.1 kHz                |
-| Bit depth   | 24-bit                  | 24-bit                  |
+|             | Both directions |
+| ----------- | --------------- |
+| Channels    | 4               |
+| Sample rate | 44.1 kHz        |
+| Bit depth   | 24-bit          |
 
 The Deluge's own sample clock sets the rate for audio going to the computer. For audio coming from the computer, the
 Deluge offers two modes, and the computer picks whichever it supports:
@@ -57,47 +67,55 @@ device the Deluge is when it first connects.
 
 ## Playing audio from your computer
 
-Audio from the computer is mixed straight into the Deluge's main outputs and headphones, after the master volume and
-effects. This is on by default.
+Channels 1/2 from the computer are mixed straight into the Deluge's main outputs and headphones, after the master volume
+and effects.
 
-This audio is **not** sent back to the computer as part of the Deluge's output, so you won't get an echo.
-
-When an audio clip is monitoring the USB input (see below), the computer's audio is heard through that track instead,
-with its volume and effects. The Deluge stops mixing it straight to the outputs while that's happening, so you never
-hear it twice. Mixing straight to the outputs comes back by itself once nothing's monitoring the USB input, for example
-when a sampler clip has finished recording.
+They're **not** sent back to the computer as part of the Deluge's main mix, so you won't get an echo.
 
 ## Recording the Deluge into your computer
 
-The computer receives the Deluge's final stereo output: the same audio that goes to the main outputs, including any
-monitored inputs, but not the computer's own audio when that's mixed straight to the outputs.
+The computer receives two stereo pairs from the Deluge:
+
+- **Channels 1/2: the line/mic input**, exactly as it arrives - whatever's plugged into the input, or the internal mic
+  if nothing is. It's sent whether or not the Deluge is monitoring it.
+- **Channels 3/4: the main mix**, the same audio that goes to the main outputs, including any monitored inputs, but not
+  channels 1/2 from the computer.
+
+Both are lined up with each other the same way the Deluge's own input monitoring is, so a part recorded from the line
+input on 1/2 sits against the mix on 3/4 just as you heard it.
 
 ## Recording audio from your computer in an audio clip
 
-USB can be chosen as the source for an audio clip, like the line input or another track:
+Channels 3/4 from the computer can be chosen as the source for an audio clip, like the line input or another track:
 
 1. In an audio clip, open the Audio Clip Sound Menu (:key[Shift + Select]).
-2. Go to `AUDIO SOURCE` and select `USB INPUT` (`USB` on 7SEG).
+2. Go to `AUDIO SOURCE` and select `USB 3/4` (`USB` on 7SEG).
 
-USB is always a stereo source. Unlike the line input, it isn't normalized after recording, since the computer's audio
-already arrives at the level it was meant to be.
+`USB 3/4` is always a stereo source. Unlike the line input, it isn't normalized after recording, since the computer's
+audio already arrives at the level it was meant to be.
 
 Monitoring follows the audio output mode, as for any other source (see
 [Select Audio Clip Source and Monitoring](/features/community_features#317---select-audio-clip-source-and-monitoring)):
-`SAMPLER` and `LOOPER` monitor the USB input, while `PLAYER` doesn't.
+`SAMPLER` and `LOOPER` monitor `USB 3/4`, while `PLAYER` doesn't.
 
 <Aside type="caution">
-  If an audio clip is monitoring the USB input, the computer's audio becomes
-  part of the Deluge's output, which is sent back to the computer. If your DAW
-  is also playing its Deluge input back out to the Deluge, that makes a feedback
-  loop. Turn off input monitoring in the DAW, or use the `PLAYER` mode on the
-  clip.
+  If an audio clip is monitoring `USB 3/4`, the computer's audio becomes part of
+  the Deluge's main mix, which is sent back to the computer on channels 3/4. If
+  your DAW is also playing that back out to the Deluge on channels 3/4, that
+  makes a feedback loop. Turn off input monitoring in the DAW, or use the
+  `PLAYER` mode on the clip.
 </Aside>
 
-Recording a sample from a synth or kit's sample menu still uses the line input only.
+## Sampling audio from your computer into a synth or kit
+
+Recording a sample from a synth or kit's sample menu uses the line input by default. To record channels 3/4 from the
+computer instead, turn on `SETTINGS > RECORDING > SAMPLE FROM USB 3/4` (`SUSB` on 7SEG). Like an audio clip, it's
+recorded in stereo and not normalized.
 
 ## Latency
 
 Audio from the computer is buffered by about 6 ms (256 samples) on the Deluge before it's played or recorded, which
-keeps it smooth when the Deluge is busy. Audio going to the computer is buffered by about 2 ms. Your computer adds its
+keeps it smooth when the Deluge is busy. Audio going to the computer is buffered by about 3 ms, on top of the line
+input's usual monitoring delay for channels 1/2 - part of that is a packet kept ready in advance, so the stream carries
+on smoothly even when a heavy song keeps the Deluge too busy to send one on time. Your computer adds its
 own buffering on top of both, which you can usually set in your DAW.

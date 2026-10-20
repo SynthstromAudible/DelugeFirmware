@@ -39,6 +39,7 @@
 #include "processing/source.h"
 #include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
@@ -98,10 +99,17 @@ gotError:
 
 	PadLEDs::clearTickSquares(true);
 
-	bool inStereo = (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn);
-	int32_t newNumChannels = inStereo ? 2 : 1;
-	bool success = setupRecordingToFile(inStereo ? AudioInputChannel::STEREO : AudioInputChannel::LEFT, newNumChannels,
-	                                    AudioRecordingFolder::RECORD);
+	bool success;
+	if (FlashStorage::sampleFromUsb) {
+		// Already at whatever level the host meant it to be, so no normalizing
+		success = setupRecordingToFile(AudioInputChannel::USB, 2, AudioRecordingFolder::RECORD, false, false);
+	}
+	else {
+		bool inStereo = (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn);
+		int32_t newNumChannels = inStereo ? 2 : 1;
+		success = setupRecordingToFile(inStereo ? AudioInputChannel::STEREO : AudioInputChannel::LEFT, newNumChannels,
+		                               AudioRecordingFolder::RECORD);
+	}
 	if (success) {
 		soundEditor.setupShortcutBlink(soundEditor.currentSourceIndex, 4, 0);
 		soundEditor.blinkShortcut();

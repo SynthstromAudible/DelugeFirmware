@@ -211,9 +211,9 @@ extern uint32_t audioSampleTimer;
 // fade in. Until then, input monitoring (Looper/Sampler) is suppressed and then faded in, so the codec's power-on
 // transient isn't passed through to the output. See getInputMonitoringGain().
 extern bool inputMonitoringWarmedUp;
-// Set during a render if any audio track is monitoring the USB input. USB direct monitoring stands aside for that
-// window, or the host's audio would be heard twice. Cleared at the start of each render
-extern bool usbInputMonitoredByTrack;
+// Set during a render if any audio track has USB channels 3/4 as its input, so the next render knows to fill their
+// ring. Cleared at the start of each render
+extern bool usbInputInUse;
 extern bool mustUpdateReverbParamsBeforeNextRender;
 extern bool bypassCulling;
 extern uint32_t i2sTXBufferPos;

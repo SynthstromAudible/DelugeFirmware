@@ -174,7 +174,7 @@ bool bypassCulling = false;
 bool audioRoutineLocked = false;
 uint32_t audioSampleTimer = 0;
 bool inputMonitoringWarmedUp = false;
-bool usbInputMonitoredByTrack = false;
+bool usbInputInUse = false;
 // ~500ms after power-on for the codec ADC to settle before we start monitoring its input (see inputMonitoringWarmedUp),
 // then ~50ms to fade it in so monitoring doesn't switch on with a click.
 constexpr uint32_t kInputMonitoringWarmupSamples = kSampleRate / 2;
@@ -797,8 +797,11 @@ bool calledFromScheduler = false;
 
 	numSamplesLastTime = numSamples;
 
-	// Bring the USB input up to where this render will read it, just like the codec's DMA has for the SSI RX buffer
-	usb_audio::fillInputRing(i2sRXBufferPos, numSamples, txQueued);
+	// Bring the audio from USB up to where this render will read it, just like the codec's DMA has for the SSI RX
+	// buffer. Channels 3/4 only if something might read them - usbInputInUse is from the last render, so a track that's
+	// just been switched over gets silence for one render first, as if its input was just plugged in
+	bool const usbInputWanted = usbInputInUse || FlashStorage::sampleFromUsb;
+	usb_audio::fillRings(i2sRXBufferPos, numSamples, txQueued, usbInputWanted);
 
 	renderAudio(numSamples);
 
@@ -861,7 +864,7 @@ void renderAudio(size_t numSamples) {
 	}
 
 	numHopsEndedThisRoutineCall = 0;
-	usbInputMonitoredByTrack = false;
+	usbInputInUse = false;
 
 	// Render audio for song
 	if (currentSong != nullptr) {
@@ -897,7 +900,7 @@ void renderAudioForStemExport(size_t numSamples) {
 	}
 
 	numHopsEndedThisRoutineCall = 0;
-	usbInputMonitoredByTrack = false;
+	usbInputInUse = false;
 
 	// Render audio for song
 	if (currentSong != nullptr) {
@@ -1150,9 +1153,8 @@ void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen 
 void setMonitoringMode() { // Monitoring setup
 	doMonitoring = false;
 	if (audioRecorder.recordingSource == AudioInputChannel::USB) {
-		// No risk of feedback from the internal mic here, so "conditional" means on. Unless it's already being sent
-		// straight to the outputs - then we'd hear it twice
-		doMonitoring = (inputMonitoringMode != InputMonitoringMode::OFF && !usb_audio::directMonitoring);
+		// No risk of feedback from the internal mic here, so "conditional" means on
+		doMonitoring = (inputMonitoringMode != InputMonitoringMode::OFF);
 		monitoringAction = MonitoringAction::NONE;
 		return;
 	}
@@ -1343,13 +1345,11 @@ bool doSomeOutputting() {
 	int32_t* __restrict__ inputReadPos = getInputReadPos(monitoringSource);
 	int32_t const* const inputBufferEnd = getInputBufferEnd(monitoringSource);
 
-	// Audio from a USB host, mixed straight into the outputs if the user wants - unless it's already coming through
-	// the sampling monitor or an audio track's. It's added after toUSB is taken, so it isn't sent back to the host,
-	// which would echo it
-	bool const doUSBDirectMonitoring =
-	    usb_audio::directMonitoring && !doMonitoring && !usbInputMonitoredByTrack && usb_audio::receivingFromHost();
-	int32_t const* __restrict__ usbReadPos = getInputReadPos(AudioInputChannel::USB);
-	int32_t const* const usbInputEnd = usb_audio::getInputRingEnd();
+	// Channels 1/2 from a USB host, mixed straight into the outputs. They're added after toUSB is taken, so they
+	// aren't sent back to the host, which would echo them
+	bool const doUSBDirectMonitoring = usb_audio::directMonitoring && usb_audio::receivingFromHost();
+	int32_t const* __restrict__ usbReadPos = usb_audio::toOutputsRing(reinterpret_cast<int32_t*>(i2sRXBufferPos));
+	int32_t const* const usbInputEnd = usb_audio::getOutputsRingEnd();
 	bool const doSendToUSB = usb_audio::sendingToHost();
 	std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> toUSB;
 
@@ -1447,7 +1447,8 @@ bool doSomeOutputting() {
 	if (numSamplesOutputted) {
 
 		if (doSendToUSB) {
-			usb_audio::sendToHost(std::span{toUSB}.first(numSamplesOutputted), i2sTXBufferPosNow);
+			usb_audio::sendToHost(std::span{toUSB}.first(numSamplesOutputted), i2sTXBufferPosNow,
+			                      reinterpret_cast<int32_t*>(i2sRXBufferPos));
 		}
 
 		i2sRXBufferPos += (numSamplesOutputted << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 2));

@@ -1322,10 +1322,12 @@ for the Lumi Keys Studio Edition, described below.
 
 ## 4.11 - USB Audio <Badge text="c1.4" variant="tip" />
 
-- The Deluge is now a class-compliant USB audio interface, with stereo 44.1kHz 24-bit audio in each direction
+- The Deluge is now a class-compliant USB audio interface, with 4 channels of 44.1kHz 24-bit audio in each direction
   alongside USB MIDI.
-  - Audio from the computer plays through the Deluge's outputs, and the Deluge's output is sent to the computer.
-  - `USB INPUT` can be chosen as an audio clip's `AUDIO SOURCE`, to record or monitor audio from the computer.
+  - Channels 1/2 from the computer play through the Deluge's outputs. The computer gets the Deluge's line/mic input on
+    channels 1/2, and its main mix on 3/4.
+  - Channels 3/4 from the computer (`USB 3/4`) can be chosen as an audio clip's `AUDIO SOURCE`, or sampled into a
+    synth or kit with `SETTINGS > RECORDING > SAMPLE FROM USB 3/4`, to record or monitor audio from the computer.
   - USB audio can be turned off in `SETTINGS > USB AUDIO`, after which the Deluge is a USB MIDI device only.
   - See [USB Audio](/features/usb_audio) for details.
 
