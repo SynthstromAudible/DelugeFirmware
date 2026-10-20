@@ -689,8 +689,9 @@ void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
 		}
 		queued = ringBufWriteIdx - ringBufReadIdx;
 	}
-	if (queued > MIDI_SEND_BUFFER_LEN_RING) {
-		// TODO: show some error message
+	// At queued == MIDI_SEND_BUFFER_LEN_RING the ring is full; writing would corrupt the oldest unsent event.
+	if (queued >= MIDI_SEND_BUFFER_LEN_RING) {
+		// Drop silently: logging from inside the USB send path re-enters it via the sysex debug console.
 		return;
 	}
 
@@ -760,7 +761,7 @@ ConnectedUSBMIDIDevice::ConnectedUSBMIDIDevice() {
 	memset(receiveData, 0, sizeof(receiveData));
 	memset(dataSendingNow, 0, MIDI_SEND_BUFFER_LEN_INNER * 4);
 	numBytesSendingNow = 0;
-	memset(sendDataRingBuf, 0, MIDI_SEND_BUFFER_LEN_RING);
+	memset(sendDataRingBuf, 0, sizeof(sendDataRingBuf));
 	ringBufWriteIdx = 0;
 	ringBufReadIdx = 0;
 

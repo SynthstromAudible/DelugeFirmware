@@ -307,6 +307,8 @@ Lists files and directories in a specified path.
 - `offset` (integer, optional): Starting entry offset (default: 0)
 - `lines` (integer, optional): Number of entries to return (max 25, default: 20)
 
+A page can hold fewer entries than `lines` even when more remain: the reply must fit in the USB send buffer, so a directory of long filenames comes back in shorter pages. Request the next page at `offset` + the number of entries received, and treat only an empty `list` as the end of the directory.
+
 **Response:**
 
 ```json
