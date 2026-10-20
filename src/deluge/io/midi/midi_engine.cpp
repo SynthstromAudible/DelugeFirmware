@@ -26,6 +26,7 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
+#include "io/midi/midi_queue.h"
 #include "io/midi/sysex.h"
 #include "mem_functions.h"
 #include "model/song/song.h"
@@ -440,13 +441,6 @@ void MidiEngine::sendAllNotesOff(MIDISource source, int32_t channel, int32_t fil
 	sendMidi(source, MIDIMessage::cc(channel, 123, 0), filter);
 }
 
-/// Saturate a value into the 7 bits a MIDI data byte gets. Callers derive these from internal 32-bit parameter values,
-/// which can land outside 0-127; letting one through sets bit 7 and the receiver reads it as a status byte instead - if
-/// it falls in 0xF8-0xFF that's a spurious System Real-Time message (see #4821).
-static uint8_t toDataByte(int32_t value) {
-	return static_cast<uint8_t>(std::clamp<int32_t>(value, 0, 127));
-}
-
 void MidiEngine::sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter) {
 	sendMidi(source, MIDIMessage::cc(channel, cc, toDataByte(value)), filter);
 }
@@ -517,35 +511,70 @@ void MidiEngine::sendMidi(MIDISource source, MIDIMessage message, int32_t filter
 	*eventStackTop_ = source;
 	++eventStackTop_;
 
-	// Send USB MIDI
-	if (sendUSB) {
-		sendUsbMidi(message, filter);
-	}
-
-	// Send serial MIDI
-	if (MIDIDeviceManager::dinMIDIPorts.wantsToOutputMIDIOnChannel(message, filter)) {
-		sendSerialMidi(message);
+	bool sendDIN = MIDIDeviceManager::dinMIDIPorts.wantsToOutputMIDIOnChannel(message, filter);
+	if (sendUSB || sendDIN) {
+		queueMIDI(message, filter, sendUSB, sendDIN, midiDue_);
 	}
 
 	--eventStackTop_;
 }
 
-uint32_t setupUSBMessage(MIDIMessage message) {
-	// format message per USB midi spec on virtual cable 0
-	uint8_t cin;
-	uint8_t firstByte = (message.channel & 15) | (message.statusType << 4);
+namespace {
+// Shared with the MIDI/gate output timer ISR
+PLACE_SDRAM_BSS MIDIQueue midiQueue;
+} // namespace
 
-	switch (firstByte) {
-	case 0xF2: // Position pointer
-		cin = 0x03;
-		break;
-
-	default:
-		cin = message.statusType; // Good for voice commands
-		break;
+void MidiEngine::queueMIDI(MIDIMessage message, int32_t filter, bool sendUSB, bool sendDIN, uint32_t due) {
+	if (midiQueue.push(message, filter, sendUSB, sendDIN, due, getSystemTicks())) [[likely]] {
+		return;
 	}
+	// Full - send the oldest early to make room.
+	// queue is consumed by ISR so lock that out to be safe
+	CriticalSectionGuard guard;
+	sendOldestQueuedMIDI(guard);
+	midiQueue.push(message, filter, sendUSB, sendDIN, due, getSystemTicks());
+}
 
-	return ((uint32_t)message.data2 << 24) | ((uint32_t)message.data1 << 16) | ((uint32_t)firstByte << 8) | cin;
+bool MidiEngine::nextMIDIDue(uint32_t& due) {
+	return midiQueue.nextDue(due);
+}
+
+bool MidiEngine::flushQueuedMIDI(bool all, uint32_t now) {
+	QueuedMIDI queued;
+	while (midiQueue.popDue(queued, now, all)) {
+		sendQueuedMIDI(queued);
+	}
+	if (anythingInOutputBuffer()) {
+		flushMIDI();
+	}
+	// Covers both USB and UART (including bytes UART is still sending)
+	return anythingInOutputBuffer();
+}
+
+bool MidiEngine::sendOldestQueuedMIDI(const InterruptsDisabled&) {
+	QueuedMIDI queued;
+	if (!midiQueue.popOldest(queued)) {
+		return false;
+	}
+	sendQueuedMIDI(queued);
+	return true;
+}
+
+void MidiEngine::sendQueuedMIDI(const QueuedMIDI& queued) {
+	if (queued.usb) {
+		sendUsbMidi(queued.message, queued.filter);
+	}
+	if (queued.din) {
+		sendSerialMidi(queued.message);
+	}
+}
+
+bool MidiEngine::flushDueMIDI(uint32_t now, const InterruptsDisabled&) {
+	return flushQueuedMIDI(false, now);
+}
+
+void MidiEngine::flushAllQueuedMIDI(const InterruptsDisabled&) {
+	flushQueuedMIDI(true, 0);
 }
 
 void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {

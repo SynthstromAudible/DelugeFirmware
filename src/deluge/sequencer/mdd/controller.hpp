@@ -62,6 +62,24 @@ struct Controller {
 	                                                  {3, 8},
 	                                                  {3, 16},
 	                                                  {3, 32}}};
+	static constexpr std::array<const char*, 15> speedNames = {"1/4",  "1/8",  "1/16",  "1/32",  "1/32T",
+	                                                           "1/64", "1/8T", "1/16T", "1/4T",  "1/64T",
+	                                                           "1/4D", "1/8D", "1/16D", "1/32D", "1/64D"};
+	// Display slow to fast without changing stored timing or legacy speed indices.
+	static constexpr std::array<int, 15> speedMenuOrder = {10, 0, 11, 8, 1, 12, 6, 2, 13, 7, 3, 14, 4, 5, 9};
+	bool engineValues(int engineA, int engineB) const {
+		if (lane < 3)
+			return false;
+		bool found = false;
+		for (const auto& route : routes[lane - 3]) {
+			if (route.target < 0)
+				continue;
+			if (route.target != engineA && route.target != engineB)
+				return false;
+			found = true;
+		}
+		return found;
+	}
 	void setSpeed(Lane& l, int i) {
 		i = std::clamp<int>(i, 0, speeds.size() - 1);
 		unsigned n = quarterTicks * speeds[i].numerator, d = speeds[i].denominator, a = n, b = d;

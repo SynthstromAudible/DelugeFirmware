@@ -1,3 +1,4 @@
+#include "dsp/plaits/memory_pool.h"
 #include "dsp/plaits/voice.h"
 /*
  * Copyright © 2014-2023 Synthstrom Audible Limited
@@ -29,6 +30,10 @@
 #include "processing/live/live_pitch_shifter.h"
 #include "processing/source.h"
 #include "storage/multi_range/multisample_range.h"
+
+namespace {
+deluge::dsp::PlaitsMemoryPool<8> plaitsMemoryPool;
+}
 
 VoiceUnisonPartSource::~VoiceUnisonPartSource() {
 	unassign(false);
@@ -79,12 +84,13 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 			plaitsVoice = nullptr;
 		}
 		else {
-			memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(deluge::dsp::PlaitsVoice));
+			memory = plaitsMemoryPool.acquire(
+			    [] { return GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(deluge::dsp::PlaitsVoice)); });
 		}
 		if (!memory)
 			return false;
-		plaitsVoice = new (memory) deluge::dsp::PlaitsVoice(static_cast<unsigned>(source->oscType)
-		                                                    - static_cast<unsigned>(OscType::PLAITS_FM));
+		plaitsVoice = new (memory) deluge::dsp::PlaitsVoice(
+		    static_cast<unsigned>(source->oscType) - static_cast<unsigned>(OscType::PLAITS_FM), true);
 	}
 	else if (synthMode != SynthMode::FM && source->oscType == OscType::DX7) [[unlikely]] {
 		if (dxVoice == nullptr) { // We might actually already have one, and just be restarting this voice
@@ -112,11 +118,10 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 
 void VoiceUnisonPartSource::unassign(bool deletingSong) {
 	active = false;
-	if (plaitsVoice) {
+	if (plaitsVoice)
 		plaitsVoice->~PlaitsVoice();
-		delugeDealloc(plaitsVoice);
-		plaitsVoice = nullptr;
-	}
+	plaitsMemoryPool.release(plaitsVoice, deletingSong, [](void* memory) { delugeDealloc(memory); });
+	plaitsVoice = nullptr;
 	if (voiceSample != nullptr) {
 		voiceSample->beenUnassigned(deletingSong);
 		AudioEngine::voiceSampleUnassigned(voiceSample);

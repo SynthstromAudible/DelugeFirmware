@@ -57,11 +57,7 @@ static bool relevant() {
 	       && getCurrentOutputType() != OutputType::KIT && (clip()->mddRequested || clip()->mddEnabled);
 }
 static bool engineValues() {
-	auto& s = state();
-	if (s.lane < 3)
-		return false;
-	int target = s.routes[s.lane - 3][0].target;
-	return target == modulation::params::LOCAL_PLAITS_A_ENGINE || target == modulation::params::LOCAL_PLAITS_B_ENGINE;
+	return state().engineValues(modulation::params::LOCAL_PLAITS_A_ENGINE, modulation::params::LOCAL_PLAITS_B_ENGINE);
 }
 static int displayed(uint16_t v) {
 	if (state().lane == 0 || state().lane == 2)
@@ -288,9 +284,12 @@ public:
 			return {"Custom 1", "Custom 2", "Custom 3", "Custom 4"};
 		case Direction:
 			return {"Forward", "Reverse", "Pendulum", "Random"};
-		case Speed:
-			return {"1/4",  "1/8",   "1/16", "1/32", "1/32T", "1/64",  "1/8T", "1/16T",
-			        "1/4T", "1/64T", "1/4D", "1/8D", "1/16D", "1/32D", "1/64D"};
+		case Speed: {
+			deluge::vector<std::string_view> options;
+			for (int index : snake::Controller::speedMenuOrder)
+				options.push_back(snake::Controller::speedNames[index]);
+			return options;
+		}
 		case Shape:
 			return {"Rows", "Columns", "Snake Rows", "Snake Cols", "Spiral"};
 		case Root:
@@ -339,7 +338,9 @@ public:
 			break;
 		case Speed:
 			s.syncClock(currentSong->getQuarterNoteLength());
-			setValue(s.speedIndex(lane()));
+			setValue(std::find(snake::Controller::speedMenuOrder.begin(), snake::Controller::speedMenuOrder.end(),
+			                   s.speedIndex(lane()))
+			         - snake::Controller::speedMenuOrder.begin());
 			break;
 		case Shape:
 			setValue(int(lane().shape));
@@ -378,7 +379,7 @@ public:
 			break;
 		case Speed:
 			s.syncClock(currentSong->getQuarterNoteLength());
-			s.setSpeed(lane(), v);
+			s.setSpeed(lane(), snake::Controller::speedMenuOrder[v]);
 			break;
 		case Shape:
 			lane().shape = snake::Shape(v);
@@ -505,7 +506,7 @@ private:
 class WriteConfirmation final : public Selection {
 public:
 	std::string_view getName() const override { return "Write"; }
-	std::string_view getTitle() const override { return "Replace stock notes?"; }
+	std::string_view getTitle() const override { return "Replace notes + Custom automation?"; }
 	void renderOLED() override {
 		Selection::renderOLED();
 		deluge::hid::display::OLED::setupSideScroller(
@@ -690,7 +691,8 @@ void control(snake::Control c) {
 		if (state().lane >= 3 && getCurrentOutputType() == OutputType::SYNTH)
 			open(&mapMenu);
 		else
-			display->displayPopup("Select Custom first");
+			display->displayPopup(getCurrentOutputType() != OutputType::SYNTH ? "Map needs Synth"
+			                                                                  : "Select Custom first");
 		break;
 	case snake::Control::Settings:
 		selectFirstPageColumn(0);

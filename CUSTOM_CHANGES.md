@@ -1,3 +1,7 @@
+# RC2 integration and UI/Plaits improvements
+
+See [20 October integration notes](docs/custom/RC2_INTEGRATION_20261020.md) for the latest changes and validation limits.
+
 # Custom modification notice — updated 2026-10-13
 
 The 13 October publication adds Custom automation WRITE with atomic Undo/Redo, exclusive Custom destinations, real Tie across loops, Legato/Overlap, and native automation editing. See [new features and usage](docs/custom/MDD_WRITE_TIES_20261012.md).

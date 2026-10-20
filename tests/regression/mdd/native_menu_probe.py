@@ -166,7 +166,7 @@ int main(){using namespace deluge::gui::menu_item::sequence::mdd;
  shiftMenu.beginSession(nullptr);shiftMenu.selectEncoderAction(5);assert(lane().shift==5);
  directionMenu.beginSession(nullptr);directionMenu.selectEncoderAction(2);assert(lane().direction==snake::Direction::Pendulum);
  shapeMenu.beginSession(nullptr);shapeMenu.selectEncoderAction(4);assert(lane().shape==snake::Shape::Spiral);
- speedMenu.beginSession(nullptr);speedMenu.selectEncoderAction(2);assert(s.speedIndex(lane())==4);
+ speedMenu.beginSession(nullptr);assert(speedMenu.getValue()==7);speedMenu.selectEncoderAction(2);assert(s.speedIndex(lane())==7);
  s.selectedStep=3;stepValueMenu.beginSession(nullptr);stepValueMenu.selectEncoderAction(12);assert(lane().values[3]==72);
  s.choose(1);stepValueMenu.beginSession(nullptr);stepValueMenu.selectEncoderAction(-25);assert(snake::percent(lane().values[3])==25);
  s.choose(2);stepValueMenu.beginSession(nullptr);stepValueMenu.selectEncoderAction(17);assert(lane().values[3]==117);

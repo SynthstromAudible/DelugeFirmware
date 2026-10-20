@@ -145,7 +145,7 @@ void Sound::initParams(ParamManager* paramManager) {
 	patchedParams->params[params::LOCAL_OSC_A_VOLUME].setCurrentValueBasicForSetup(2147483647);
 	patchedParams->params[params::LOCAL_OSC_B_VOLUME].setCurrentValueBasicForSetup(2147483647);
 	patchedParams->params[params::GLOBAL_VOLUME_POST_FX].setCurrentValueBasicForSetup(
-	    getParamFromUserValue(params::GLOBAL_VOLUME_POST_FX, 40));
+	    getParamFromUserValue(params::GLOBAL_VOLUME_POST_FX, kDefaultSoundVolumeUserValue));
 	patchedParams->params[params::GLOBAL_VOLUME_POST_REVERB_SEND].setCurrentValueBasicForSetup(0);
 	patchedParams->params[params::LOCAL_FOLD].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[params::LOCAL_HPF_RESONANCE].setCurrentValueBasicForSetup(-2147483648);
@@ -215,8 +215,9 @@ void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 	modKnobs[6][0].paramDescriptor.setToHaveParamOnly(params::LOCAL_PITCH_ADJUST);
 
 	paramManager->getPatchCableSet()->numPatchCables = 1;
-	paramManager->getPatchCableSet()->patchCables[0].setup(PatchSource::VELOCITY, params::LOCAL_VOLUME,
-	                                                       getParamFromUserValue(params::PATCH_CABLE, 50));
+	paramManager->getPatchCableSet()->patchCables[0].setup(
+	    PatchSource::VELOCITY, params::LOCAL_VOLUME,
+	    getParamFromUserValue(params::PATCH_CABLE, kSampleDrumVelocityCableUserValue));
 
 	setupDefaultExpressionPatching(paramManager);
 
@@ -2780,7 +2781,7 @@ uint32_t Sound::getSyncedLFOPhaseIncrement(const LFOConfig& config) {
 	return phaseIncrement;
 }
 
-void Sound::resyncGlobalLFOs() {
+void Sound::resyncGlobalLFOs(bool reset_state) {
 	if (!playbackHandler.isEitherClockActive()) {
 		return; // no clock, no sync
 	}
@@ -2791,7 +2792,7 @@ void Sound::resyncGlobalLFOs() {
 		    AudioEngine::audioSampleTimer; // Resets the thing where the number of samples skipped is later converted
 		                                   // into LFO phase increment
 
-		globalLFO1.setGlobalInitialPhase(lfoConfig[LFO1_ID]);
+		globalLFO1.setGlobalInitialPhase(lfoConfig[LFO1_ID], reset_state);
 
 		uint32_t timeSinceLastTick;
 
@@ -2828,7 +2829,7 @@ void Sound::resyncGlobalLFOs() {
 		    AudioEngine::audioSampleTimer; // Resets the thing where the number of samples skipped is later converted
 		                                   // into LFO phase increment
 
-		globalLFO3.setGlobalInitialPhase(lfoConfig[LFO3_ID]);
+		globalLFO3.setGlobalInitialPhase(lfoConfig[LFO3_ID], reset_state);
 
 		uint32_t timeSinceLastTick;
 

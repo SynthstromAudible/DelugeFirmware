@@ -55,7 +55,8 @@ int main(){
  c.lines.clear();view.renderMddOLED(c);assert(c.lines[1]=="Steps 7 Shift 5");
  clip.mdd.core.lanes[0].direction=snake::Direction::Pendulum;
  c.lines.clear();view.renderMddOLED(c);assert(c.lines[2]=="Pendulum Rows");
- assert(c.lines[3]=="1/16 SELECT: Synth edit");
+ assert(c.lines[3]=="1/16 SELECT: Synth");
+ for(int i=0;i<15;++i){clip.mdd.setSpeed(clip.mdd.core.lanes[0],i);c.lines.clear();view.renderMddOLED(c);assert(c.lines[3].starts_with(snake::Controller::speedNames[i]));assert(c.lines[3].size()*6<=128);}
  clip.mdd.choose(3);clip.mdd.routes[0][0].target=42;clip.mdd.gestures.held=0;clip.mdd.gestures.downAt=0;
  AudioEngine::audioSampleTimer=20000;clip.mdd.core.lanes[3].values[0]=65535;
  c.lines.clear();view.renderMddOLED(c);assert(c.lines[1]=="Step 1 Engine 3");

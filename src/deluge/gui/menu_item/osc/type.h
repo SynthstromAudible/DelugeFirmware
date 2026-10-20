@@ -158,7 +158,7 @@ public:
 
 		const OscType osc_type = soundEditor.currentSound->sources[sourceId_].oscType;
 		if (osc_type == OscType::DX7 || isPlaits(osc_type)) {
-			const auto option = getOptions(OptType::FULL)[getValue()].data();
+			const auto option = isPlaits(osc_type) ? "Plaits" : "DX7";
 			return image.drawStringCentered(option, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset + 5,
 			                                kTextTitleSpacingX, kTextTitleSizeY, slot.width);
 		}

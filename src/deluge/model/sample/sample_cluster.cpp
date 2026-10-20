@@ -27,12 +27,11 @@
 SampleCluster::~SampleCluster() {
 	if (cluster) {
 
-#if ALPHA_OR_BETA_VERSION
 		int32_t numReasonsToBeLoaded = cluster->numReasonsToBeLoaded;
 		if (cluster == audioFileManager.clusterBeingLoaded) {
 			numReasonsToBeLoaded--;
 		}
-
+#if ALPHA_OR_BETA_VERSION
 		if (numReasonsToBeLoaded) {
 			D_PRINTLN("uh oh, some reasons left...  %d", numReasonsToBeLoaded);
 
@@ -93,14 +92,12 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 			return nullptr;
 		}
 
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
 		if (cluster->numReasonsToBeLoaded != 1) {
 			FREEZE_WITH_ERROR("i005"); // Diversifying Qui's E341. It should actually be exactly 1
 		}
 		if (cluster->type != Cluster::Type::SAMPLE) {
 			FREEZE_WITH_ERROR("E256"); // Cos I got E236
 		}
-#endif
 
 		cluster->sample = sample;
 		cluster->clusterIndex = clusterIndex;
@@ -122,11 +119,9 @@ justEnqueue:
 			// TODO: If that fails, it'll just get awkwardly forgotten about
 			audioFileManager.loadingQueue.enqueueCluster(*cluster, priorityRating);
 
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
 			if (cluster && cluster->numReasonsToBeLoaded <= 0) {
 				FREEZE_WITH_ERROR("i027"); // Diversifying Ron R's i004, which was diversifying Qui's E341
 			}
-#endif
 		}
 
 		// Or if want to try to load now...
@@ -160,25 +155,21 @@ justEnqueue:
 				}
 				cluster = nullptr;
 			}
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
 			if (cluster && cluster->numReasonsToBeLoaded <= 0) {
 				FREEZE_WITH_ERROR("i026"); // Michael B got - insane.
 			}
-#endif
 		}
 	}
 
 	// Or if it had previously been created...
 	else {
 
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on V4.1.3 have been getting E341.
 		if (GeneralMemoryAllocator::get().getRegion(cluster) != MEMORY_REGION_STEALABLE) {
 			FREEZE_WITH_ERROR("invalid");
 		}
 		if (cluster && cluster->numReasonsToBeLoaded < 0) {
 			FREEZE_WITH_ERROR("i028"); // bnhrsch got this!!
 		}
-#endif
 
 		// If they'd prefer it loaded immediately and it's not loaded, try speeding loading along
 		if ((loadInstruction == CLUSTER_LOAD_IMMEDIATELY || loadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE)
@@ -197,18 +188,14 @@ justEnqueue:
 
 		cluster->addReason();
 
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on V4.0.x have been getting E341.
 		if (cluster && cluster->numReasonsToBeLoaded <= 0) {
 			FREEZE_WITH_ERROR("i025"); // Diversifying Ron R's i004, which was diversifying Qui's E341
 		}
-#endif
 	}
 
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on V4.0.x have been getting E341.
 	if (cluster && cluster->numReasonsToBeLoaded <= 0) {
 		FREEZE_WITH_ERROR("i004"); // Ron R got this! Diversifying Qui's E341
 	}
-#endif
 
 	return cluster;
 }

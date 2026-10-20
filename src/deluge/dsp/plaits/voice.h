@@ -3,6 +3,7 @@
 #include "plaits/dsp/engine/fm_engine.h"
 #include "plaits/dsp/engine/virtual_analog_engine.h"
 #include "plaits/dsp/engine/waveshaping_engine.h"
+#include "processing/plaits/engine_parameter.h"
 #include <algorithm>
 #include <array>
 #include <bit>
@@ -21,12 +22,24 @@ inline float sanitizeOutput(float sample) {
 } // namespace plaits_detail
 class PlaitsVoice {
 public:
-	explicit PlaitsVoice(unsigned model) : model_(model) { initialize(); }
+	explicit PlaitsVoice(unsigned model, bool deferred = false) : model_(std::min(model, 2u)) {
+		if (!deferred)
+			initialize();
+	}
 	~PlaitsVoice() { destroy(); }
 	unsigned model() const { return model_; }
+	void setModelFromFinal(int base, int32_t value) {
+		setModel(engine_ ? plaits_control::stableModelFromFinal(base, value, model_)
+		                 : plaits_control::modelFromFinal(base, value));
+	}
 	// Reuses reserved engine storage. No heap allocation when changing a model.
 	void setModel(unsigned model) {
 		model = std::min(model, 2u);
+		if (!engine_) {
+			model_ = model;
+			initialize();
+			return;
+		}
 		if (model == model_)
 			return;
 		destroy();
@@ -46,6 +59,8 @@ public:
 			transitionRemaining_ = 0;
 			return;
 		}
+		if (!engine_)
+			initialize();
 		plaits::EngineParameters p{};
 		// Match normalized frequency to Deluge's phase increment. Plaits' original
 		// NoteToFrequency assumes 47872.34 Hz; Deluge runs at 44100 Hz.
@@ -108,6 +123,8 @@ private:
 		engine_->Init(&allocator);
 	}
 	void destroy() {
+		if (!engine_)
+			return;
 		switch (model_) {
 		case 0:
 			static_cast<plaits::FMEngine*>(engine_)->~FMEngine();
@@ -132,6 +149,6 @@ private:
 	uint32_t cachedIncrement_ = 0;
 	float cachedNote_ = 0.f;
 	unsigned model_;
-	plaits::Engine* engine_;
+	plaits::Engine* engine_ = nullptr;
 };
 } // namespace deluge::dsp

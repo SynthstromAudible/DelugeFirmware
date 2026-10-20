@@ -10,7 +10,7 @@ cd DelugeFirmware
 ./dbt build Release
 ```
 
-On Windows use `dbt.cmd build Release`. Consult the retained upstream development documentation for host dependencies and toolchain setup. Build output is generated under build/. The published BIN was built in ARM Release configuration from source commit `03556b92957d4cef776b7940f08cd60d196d0ff9` using toolchain v22. Physical-device testing is still pending; compilation and host tests do not replace it. See firmware/BUILD_INFO.json for the exact build commands and checksum.
+On Windows use `dbt.cmd build Release`. Consult the retained upstream development documentation for host dependencies and toolchain setup. Build output is generated under build/. The published BIN was built in ARM Release configuration from the exact source commit recorded in `firmware/BUILD_INFO.json` using toolchain v22. Physical-device testing is still pending; compilation and host tests do not replace it. See firmware/BUILD_INFO.json for the exact build commands and checksum.
 
 Host regressions (Python 3, g++ with C++23 and sanitizers):
 

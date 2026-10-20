@@ -1715,7 +1715,7 @@ bool Voice::areAllUnisonPartsInactive(ModelStackWithSoundFlags& modelStack) cons
 bool Voice::adjustPitch(uint32_t& phaseIncrement, int32_t adjustment) {
 	if (adjustment != kMaxSampleValue) {
 		int32_t output = multiply_32x32_rshift32_rounded(phaseIncrement, adjustment);
-		if (output >= (1 << 24)) {
+		if (output >= (1 << 23)) {
 			return false;
 		}
 		phaseIncrement = output << 8;
@@ -2417,9 +2417,7 @@ dontUseCache: {}
 				goto instantUnassign;
 			const int baseModel =
 			    util::to_underlying(sound.sources[s].oscType) - util::to_underlying(OscType::PLAITS_FM);
-			const unsigned model =
-			    deluge::plaits_control::modelFromFinal(baseModel, paramFinalValues[params::LOCAL_PLAITS_A_ENGINE + s]);
-			engine->setModel(model);
+			engine->setModelFromFinal(baseModel, paramFinalValues[params::LOCAL_PLAITS_A_ENGINE + s]);
 			const float harmonics =
 			    std::clamp(0.5f + paramFinalValues[params::LOCAL_OSC_A_WAVE_INDEX + s] / 2147483648.f, 0.f, 1.f);
 			const float timbre =

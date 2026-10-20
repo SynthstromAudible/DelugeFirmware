@@ -81,20 +81,23 @@ constexpr size_t kExternalSwitchSize = 128;
 int32_t closestDistance = 2147483647;
 
 void GeneralMemoryAllocator::checkStack(char const* caller) {
-#if ALPHA_OR_BETA_VERSION
-
 	char a;
 
 	int32_t distance = (int32_t)&a - (uint32_t)&program_stack_start;
+
+	// A stack collision silently corrupts whatever lives below the stack, so this freezes in every build. Kept to a
+	// single compare since it's called from the audio render path.
+	if (distance < 200) {
+		D_PRINTLN("COLLISION at %s", caller);
+		FREEZE_WITH_ERROR("E338");
+	}
+
+#if ALPHA_OR_BETA_VERSION
 	if (distance < closestDistance) {
 		closestDistance = distance;
 
 		D_PRINTLN("%d bytes in stack %d free bytes in stack at %s", (uint32_t)&program_stack_end - (int32_t)&a,
 		          distance, caller);
-		if (distance < 200) {
-			FREEZE_WITH_ERROR("E338");
-			D_PRINTLN("COLLISION");
-		}
 	}
 #endif
 }

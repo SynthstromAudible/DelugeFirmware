@@ -21,3 +21,14 @@
   "Behaves unexpectedly": "impact: ux-inconsistent"
   "Hard to use (accessibility)": "impact: accessibility"
   "Other / not sure": null
+
+# Multi-select: GitHub joins the ticked options with ", ", and each one maps on its own.
+"What firmware did you reproduce it with?":
+  "Release 1.3/Derbyshire": "affects: release/1.3"
+  "Release 1.2/Chopin": null
+  "Release 1.1/Beethoven": null
+  "Release 1.0/Amadeus": null
+  "Nightly": null
+  "Beta": null
+  "Built from community": null
+  "other": null

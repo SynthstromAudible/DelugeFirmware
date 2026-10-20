@@ -69,11 +69,12 @@ void SampleHolderForVoice::unassignAllClusterReasons(bool beingDestructed) {
 // Ensure there is a sample before you call this.
 void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoadInstruction) {
 
-#if ALPHA_OR_BETA_VERSION
 	if (!audioFile) {
-		FREEZE_WITH_ERROR("i030"); // Trying to narrow down E368 that Kevin F got
+		if (ALPHA_OR_BETA_VERSION) {
+			FREEZE_WITH_ERROR("i030"); // Trying to narrow down E368 that Kevin F got
+		}
+		return; // No Sample, so no Clusters to claim
 	}
-#endif
 
 	SampleHolder::claimClusterReasons(reversed, clusterLoadInstruction);
 

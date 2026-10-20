@@ -17,6 +17,7 @@
 
 #include "usb_common.h"
 #include "io/midi/midi_engine.h"
+#include "timers_interrupts/timers_interrupts.h"
 
 void MIDICableUSB::connectedNow(int32_t midiDeviceNum) {
 	connectionFlags |= (1 << midiDeviceNum);
@@ -46,7 +47,9 @@ void MIDICableUSB::sendMessage(MIDIMessage message) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
 			if (connectedDevice->canHaveMIDISent) {
 				uint32_t channeledMessage = fullMessage | (portNumber << 4);
-				connectedDevice->bufferMessage(fullMessage);
+				// The MIDI/gate output timer ISR writes to this buffer too
+				CriticalSectionGuard guard;
+				connectedDevice->bufferMessage(channeledMessage);
 			}
 		}
 	}
@@ -105,6 +108,8 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 		// Since the message ends with 0xF7, we can assume that data[5] does exist.
 		// fake 0xF0, 0x7D, data[5] for first send
 		uint32_t packed = ((uint32_t)data[5] << 24) | 0x007DF004 | (portNumber << 4);
+		// The MIDI/gate output timer ISR writes to this buffer too
+		CriticalSectionGuard guard;
 		connectedDevice->bufferMessage(packed);
 		pos = 6;
 	}
@@ -130,6 +135,7 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 		}
 		status |= (portNumber << 4);
 		uint32_t packed = ((uint32_t)byte2 << 24) | ((uint32_t)byte1 << 16) | ((uint32_t)byte0 << 8) | status;
+		CriticalSectionGuard guard;
 		connectedDevice->bufferMessage(packed);
 	}
 }

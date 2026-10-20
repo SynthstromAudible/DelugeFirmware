@@ -7,7 +7,7 @@ FetchContent_MakeAvailable(CppSpec)
 # The DSP headers are written against Argon. Keep this tag in sync with lib/CMakeLists.txt.
 FetchContent_Declare(argon
   GIT_REPOSITORY https://github.com/stellar-aria/argon
-  GIT_TAG cae5738c8e4119448ea80df691c297c4c8bc2d5e
+  GIT_TAG 4b8efc4f4f21595d454e415fb619dd91223c0400
 )
 FetchContent_MakeAvailable(argon)
 

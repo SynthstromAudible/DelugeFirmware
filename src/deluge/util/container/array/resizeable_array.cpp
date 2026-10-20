@@ -895,8 +895,9 @@ void ResizeableArray::setStaticMemory(void* newMemory, int32_t newMemorySize) {
 // Returns error code
 Error ResizeableArray::insertAtIndex(int32_t i, int32_t numToInsert, void* thingNotToStealFrom) {
 
-	if (ALPHA_OR_BETA_VERSION && (i < 0 || i > numElements || numToInsert < 1)) {
+	if (i < 0 || i > numElements || numToInsert < 1) {
 		FREEZE_WITH_ERROR("E280");
+		return Error::BUG; // Inserting here would write outside the array
 	}
 
 	LOCK_ENTRY
@@ -920,10 +921,6 @@ Error ResizeableArray::insertAtIndex(int32_t i, int32_t numToInsert, void* thing
 		if (!newMemory) {
 			LOCK_EXIT
 			return Error::INSUFFICIENT_RAM;
-		}
-
-		if (ALPHA_OR_BETA_VERSION && allocatedMemorySize < newMemorySize * elementSize) {
-			FREEZE_WITH_ERROR("FFFF");
 		}
 
 		setMemory(newMemory, allocatedMemorySize);

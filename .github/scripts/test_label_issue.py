@@ -24,15 +24,23 @@ MAPPING = li.load_mapping(MAPPING_FILE.read_text())
 
 AREA = "Where does it happen?"
 IMPACT = "How does it show up?"
+FIRMWARE = "What firmware did you reproduce it with?"
+MULTI_SELECT = {FIRMWARE}
 
 
-def form_body(area="Sound / synth engine", impact="Crash or freeze", crlf=False):
+def form_body(
+    area="Sound / synth engine",
+    impact="Crash or freeze",
+    firmware="Nightly",
+    crlf=False,
+):
     body = (
         "### Please describe the problem:\n\nIt broke\n\n"
         "### What is the expected behavior?\n\nIt works\n\n"
         f"### {AREA}\n\n{area}\n\n"
+        "### If possible provide the steps\n\n_No response_\n\n"
         f"### {IMPACT}\n\n{impact}\n\n"
-        "### If possible provide the steps\n\n_No response_"
+        f"### {FIRMWARE}\n\n{firmware}"
     )
     return body.replace("\n", "\r\n") if crlf else body
 
@@ -70,6 +78,28 @@ class LabelsForTests(unittest.TestCase):
             li.labels_for(answers, MAPPING), ["area: audio", "impact: crash"]
         )
 
+    def test_release_selection_adds_affects_label(self):
+        answers = li.parse_form_answers(form_body(firmware="Release 1.3/Derbyshire"))
+        self.assertEqual(
+            li.labels_for(answers, MAPPING),
+            ["area: audio", "impact: crash", "affects: release/1.3"],
+        )
+
+    def test_multi_select_answers_are_split(self):
+        firmware = "Release 1.3/Derbyshire, Release 1.2/Chopin, Nightly"
+        answers = li.parse_form_answers(form_body(firmware=firmware))
+        self.assertIn("affects: release/1.3", li.labels_for(answers, MAPPING))
+
+    def test_older_releases_and_nightly_apply_nothing(self):
+        answers = li.parse_form_answers(
+            form_body(
+                area="Other / not sure",
+                impact="_No response_",
+                firmware="Release 1.2/Chopin, Beta",
+            )
+        )
+        self.assertEqual(li.labels_for(answers, MAPPING), [])
+
     def test_not_sure_and_no_response_apply_nothing(self):
         answers = li.parse_form_answers(
             form_body(area="Other / not sure", impact="_No response_")
@@ -102,7 +132,8 @@ class LabelsForTests(unittest.TestCase):
         spoof = f"### {AREA}\n\nMIDI\n\n### {IMPACT}\n\nSlow or laggy"
         body = (
             f"### Please describe the problem:\n\n{spoof}\n\n"
-            f"### {AREA}\n\nMenus\n\n### {IMPACT}\n\n_No response_"
+            f"### {AREA}\n\nMenus\n\n### {IMPACT}\n\n_No response_\n\n"
+            f"### {FIRMWARE}\n\nNightly"
         )
         self.assertEqual(
             li.labels_for(li.parse_form_answers(body), MAPPING), ["area: menus"]
@@ -211,13 +242,15 @@ class FormConsistencyTests(unittest.TestCase):
     def test_form_sets_issue_type_bug(self):
         self.assertEqual(self.form["type"], "Bug")
 
-    def test_every_mapped_field_is_an_optional_single_select_dropdown(self):
+    def test_mapped_fields_are_dropdowns_single_select_and_optional_unless_listed(self):
         for field in MAPPING:
             with self.subTest(field=field):
                 self.assertIn(field, self.dropdowns)
                 block = self.dropdowns[field]
-                self.assertFalse(block["validations"]["required"])
-                self.assertFalse(block["attributes"].get("multiple", False))
+                multiple = block["attributes"].get("multiple", False)
+                self.assertEqual(multiple, field in MULTI_SELECT)
+                if not multiple:
+                    self.assertFalse(block["validations"]["required"])
 
     def test_mapping_options_match_form_options_exactly(self):
         for field, options in MAPPING.items():

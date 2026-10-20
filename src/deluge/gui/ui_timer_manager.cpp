@@ -144,6 +144,10 @@ void UITimerManager::routine() {
 					sessionView.gridPulseSelectedClip();
 					break;
 
+				case TimerName::SELECTED_NOTE_PULSE:
+					instrumentClipView.pulseSelectedNote();
+					break;
+
 				case TimerName::MATRIX_DRIVER:
 					PadLEDs::timerRoutine();
 					break;
