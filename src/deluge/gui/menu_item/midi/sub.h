@@ -22,12 +22,6 @@ class Sub final : public Preset {
 public:
 	using Preset::Preset;
 	void readCurrentValue() { this->setValue(getCurrentInstrumentClip()->midiSub); }
-	void writeCurrentValue() {
-		auto& currentClip = *getCurrentInstrumentClip();
-		currentClip.midiSub = this->getValue();
-		if (currentClip.isActiveOnOutput()) {
-			currentClip.sendMIDIPGM();
-		}
-	}
+	void writeCurrentValue() { getCurrentInstrumentClip()->midiSub = this->getValue(); }
 };
 } // namespace deluge::gui::menu_item::midi
