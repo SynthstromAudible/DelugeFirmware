@@ -877,7 +877,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		active_note.noteStatus[0] = ArpNoteStatus::PENDING;
 		for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			// Clean rest of chord note slots
-			active_note.noteStatus[0] = ArpNoteStatus::OFF;
+			active_note.noteStatus[n] = ArpNoteStatus::OFF;
 			active_note.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
 		}
 		instruction->invertReversed = invertReversedFromKitArp ? !shouldPlayReverseNote : shouldPlayReverseNote;
