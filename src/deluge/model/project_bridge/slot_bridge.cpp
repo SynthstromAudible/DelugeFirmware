@@ -70,6 +70,20 @@ const deluge::serialization::Value* writtenElement(const deluge::serialization::
 
 } // namespace
 
+namespace {
+
+/// The sound drum of @p kit whose durable id is @p id, or nullptr.
+::Sound* soundDrumWithId(Kit& kit, int32_t id) {
+	for (Drum* drum = kit.firstDrum; drum != nullptr; drum = drum->next) {
+		if (drum->type == DrumType::SOUND && static_cast<SoundDrum*>(drum)->id() == static_cast<uint32_t>(id)) {
+			return static_cast<SoundDrum*>(drum);
+		}
+	}
+	return nullptr;
+}
+
+} // namespace
+
 void refreshSlots(::Song& song) {
 	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
 		if (output->docOutput_ == nullptr || (output->type != OutputType::SYNTH && output->type != OutputType::KIT)) {
@@ -85,8 +99,13 @@ void refreshSlots(::Song& song) {
 		if (element == nullptr) {
 			continue;
 		}
+		// A sound writes its compressor's threshold from the DSP (the param's last render), not its state: each slot's
+		// instrument entries are re-encoded from the state, as every commit leaves them.
 		if (output->type == OutputType::SYNTH) {
 			output->docOutput_->instrument = deluge::project::slot_of_output(*element, song.getInputTickMagnitude());
+			if (output->docOutput_->instrument) {
+				syncSlotState(*static_cast<SoundInstrument*>(output), *output->docOutput_->instrument, song);
+			}
 			continue;
 		}
 		const deluge::serialization::Value* sources = element->find("soundSources");
@@ -99,6 +118,9 @@ void refreshSlots(::Song& song) {
 			    id ? song.project.drum_structure.find(static_cast<uint32_t>(*id)) : nullptr;
 			if (record != nullptr && record->drum_type == DrumType::SOUND) {
 				record->instrument = deluge::project::slot_of_drum(*drum.node, song.getInputTickMagnitude());
+				if (::Sound* sound = record->instrument ? soundDrumWithId(*static_cast<Kit*>(output), *id) : nullptr) {
+					syncSlotState(*sound, *record->instrument, song);
+				}
 			}
 		}
 	}

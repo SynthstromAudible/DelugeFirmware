@@ -47,8 +47,9 @@ namespace {
 using deluge::serialization::Value;
 
 /// The first instrument entry where @p slot and @p encoded differ, by key: one holds a key the other lacks, or the two
-/// values differ. Empty when they agree. Order is not compared: a slot keeps a file's order, and appends what the file
-/// lacked.
+/// values differ, a scalar's kind (number or text) included, since a commit re-encodes only the entries it touches and
+/// keeps every other one as the slot holds it. Empty when they agree. The order of the top-level keys is not compared:
+/// a slot keeps a file's order, and appends what the file lacked.
 std::string stateDifference(const Value& slot, const Value& encoded) {
 	for (const auto& [key, value] : encoded.entries()) {
 		const Value* held = slot.find(key);
@@ -57,6 +58,9 @@ std::string stateDifference(const Value& slot, const Value& encoded) {
 		}
 		if (std::string d = deluge::serialization::first_difference(*held, value, key); !d.empty()) {
 			return d;
+		}
+		if (!(*held == value)) {
+			return key + " (a scalar's kind or an entry's order)";
 		}
 	}
 	for (const auto& [key, value] : slot.entries()) {

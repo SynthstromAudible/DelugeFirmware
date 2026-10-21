@@ -1017,6 +1017,24 @@ void testSetEffectSetting(deluge::edits::Context& ctx) {
 	}
 }
 
+/// A save refreshes each slot from what it wrote (refreshSlots, which saveSong runs). A sound writes its compressor's
+/// threshold from the DSP, which a render sets from the threshold param, not from its state: the slot must still be its
+/// state's encoding, kind for kind, since a commit re-encodes only the entries it touches.
+void testSaveLeavesSlotsCoherent(deluge::edits::Context& ctx) {
+	ParamManagerForTimeline paramManager;
+	Instrument* synth = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
+	check(synth != nullptr, "save: a new synth");
+	if (synth == nullptr) {
+		return;
+	}
+	ctx.song.addOutput(synth);
+	Sound& sound = *static_cast<SoundInstrument*>(synth);
+	sound.core().compressor().dsp().setThreshold(sound.effects().compressor.threshold + (123 << 16));
+	deluge::bridge::refreshSlots(ctx.song); // what a save does to each slot once it has written the song
+	check(deluge::harness::expectSongCoherent(ctx.song, "after a save") == 0,
+	      "save: every slot is its sound's encoding");
+}
+
 int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	io = driverIo;
 
@@ -1055,6 +1073,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	testPresetChangeHandsOverKnobs(ctx);
 	testClonedAudioTrackRecordsKnobs(ctx);
 	testSetEffectSetting(ctx);
+	testSaveLeavesSlotsCoherent(ctx);
 
 	if (failures == 0) {
 		std::fprintf(io.out, "edit_substrate: OK\n");
