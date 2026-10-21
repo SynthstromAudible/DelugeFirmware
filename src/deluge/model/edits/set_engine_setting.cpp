@@ -4,9 +4,11 @@
 #include "engines/deluge/codec.h"
 #include "engines/deluge/settings.h"
 #include "engines/deluge/words.h"
+#include "engines/effects/settings.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
+#include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "serialization/tree.h"
 
@@ -41,6 +43,9 @@ Error SetEngineSetting::apply(Context& ctx) {
 	    || !deluge::instrument::takes_setting(*sound->boundState(), path_)
 	    || !deluge::instrument::allows_setting(*sound->boundState(), path_, *value)) {
 		return Error::UNSPECIFIED;
+	}
+	if (deluge::effects::shapes_reverb_sidechain(path_)) {
+		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true; // whatever lands, the reverb re-reads it
 	}
 	Error error = deluge::bridge::commitSlot(*sound, *slot, elementFor(*sound, *slot, path_, *value), ctx.song);
 	const std::optional<deluge::serialization::Value> landed =

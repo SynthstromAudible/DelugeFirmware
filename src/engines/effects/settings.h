@@ -218,4 +218,13 @@ static_assert(engine::mappings_are_valid(kEffectSettings));
 ///         choices.
 [[nodiscard]] std::optional<int32_t> held_effect_setting(const EffectStates& states, std::string_view path);
 
+/// @brief Whether a write of @p path changes what the song's reverb takes from the thing with the most reverb: its
+/// sidechain's attack, release or sync level, which the reverb's own sidechain copies when the engine next recomputes
+/// it.
+/// @param path The setting's path in an owner's element.
+/// @return True for sidechain/attack, sidechain/release and sidechain/syncLevel.
+[[nodiscard]] constexpr bool shapes_reverb_sidechain(std::string_view path) {
+	return path == "sidechain/attack" || path == "sidechain/release" || path == "sidechain/syncLevel";
+}
+
 } // namespace deluge::effects

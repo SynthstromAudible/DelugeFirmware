@@ -432,10 +432,17 @@ SCENES_ROOT = REPO / "src" / "scenes"
 # An engine follow-up the Edit that changed the setting owns: a scenes gesture leaves it to the Edit (SetEngineSetting
 # and SetSourceRanges retune a sound's voices). Legacy menus under src/deluge/gui still make the call themselves.
 SCENES_FOLLOW_UP = re.compile(r"\b(recalculateAllVoicePhaseIncrements)\s*\(")
+# The reverb's recompute after a setting it copies (a sidechain's attack, release, sync level) is the setting's Edit's
+# too: SetEngineSetting and SetEffectSetting raise it, and the song reverb's own projection does. A scene file that
+# writes settings through their Edits and raises it itself is doing the Edit's job. A param write's raise (an unpatched
+# param that updates the reverb) has no Edit to do it, and a file with no setting write is not judged.
+SCENES_REVERB_RAISE = re.compile(r"\bmustUpdateReverbParamsBeforeNextRender\s*=")
+SCENES_SETTING_WRITE = re.compile(r"\b(effectSettingFor|songSettingFor)\s*\(")
 
 
 def scene_follow_ups(root: Path) -> list[str]:
-    """Every `path:line: runs <follow-up>` under root: an engine follow-up a scene runs itself instead of its Edit."""
+    """Every `path:line: runs <follow-up>` or reverb raise under root: an engine follow-up a scene runs itself instead
+    of its Edit."""
     found = []
     for path in sorted(root.rglob("*")):
         if path.suffix not in SUFFIXES or not path.is_file():
@@ -443,6 +450,13 @@ def scene_follow_ups(root: Path) -> list[str]:
         for number, line in code_lines(path.read_text(errors="replace")):
             for match in SCENES_FOLLOW_UP.finditer(line):
                 found.append(f"{path}:{number}: runs {match.group(1)}")
+        lines = list(code_lines(path.read_text(errors="replace")))
+        if any(SCENES_SETTING_WRITE.search(line) for _, line in lines):
+            for number, line in lines:
+                if SCENES_REVERB_RAISE.search(line):
+                    found.append(
+                        f"{path}:{number}: raises mustUpdateReverbParamsBeforeNextRender beside a setting's Edit"
+                    )
     return found
 
 

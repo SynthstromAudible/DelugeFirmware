@@ -108,6 +108,23 @@ class SceneFollowUps(unittest.TestCase):
             self.check('deluge::edits::settingFor(*t.sound, "transpose", v);'), []
         )
 
+    def test_a_scene_raising_the_reverb_beside_a_setting_edit_is_reported(self):
+        self.assertEqual(
+            len(
+                self.check(
+                    'deluge::edits::effectSettingFor(*t.mod, "sidechain/attack", v);\n'
+                    "\tAudioEngine::mustUpdateReverbParamsBeforeNextRender = true;"
+                )
+            ),
+            1,
+        )
+
+    def test_a_param_writes_raise_is_not(self):
+        self.assertEqual(
+            self.check("AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;"),
+            [],
+        )
+
 
 class SongStateWrites(unittest.TestCase):
     def check(self, line: str) -> list[str]:

@@ -31,7 +31,6 @@
 #include "model/edits/setting_edit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "modulation/sync.h"
-#include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "serialization/value.h"
 
@@ -104,7 +103,8 @@ const deluge::effects::SidechainState* shown_sidechain(const MenuContext& ctx) {
 /// @brief The sidechain settings `set_sidechain_number` writes, by index.
 constexpr char const* kSidechainNumberPaths[] = {"sidechain/attack", "sidechain/release"};
 
-/// @brief Write @p value to every target's `kSidechainNumberPaths[which]` and ask the engine to refresh.
+/// @brief Write @p value to every target's `kSidechainNumberPaths[which]`; the Edit asks the engine to refresh the
+/// reverb.
 void set_sidechain_number(const MenuContext& ctx, int32_t value, int32_t which) {
 	bindings::apply_to_targets(ctx, value, which,
 	                           [](const bindings::SoundTarget& t, int32_t v, int32_t w, const MenuContext&) {
@@ -113,7 +113,6 @@ void set_sidechain_number(const MenuContext& ctx, int32_t value, int32_t which) 
 			                                                           deluge::serialization::Value::makeNumber(v));
 		                           }
 	                           });
-	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
 } // namespace
@@ -136,7 +135,6 @@ void set_sidechain_sync(const MenuContext& ctx, int32_t value) {
 		        *t.mod, "sidechain/syncLevel",
 		        deluge::serialization::Value::makeNumber(deluge::engine::index_of(syncValueToSyncLevel(v))));
 	    });
-	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
 int32_t get_sidechain_attack(const MenuContext& ctx) {

@@ -7,6 +7,7 @@
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
+#include "processing/engines/audio_engine.h"
 #include "serialization/tree.h"
 
 #include <algorithm>
@@ -53,6 +54,9 @@ Error SetEffectSetting::apply(Context& ctx) {
 		if (encoded.effect == *effect) {
 			slot->state = std::move(encoded.entries);
 		}
+	}
+	if (deluge::effects::shapes_reverb_sidechain(path_)) {
+		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	return Error::NONE;
 }
