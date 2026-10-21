@@ -119,12 +119,20 @@ public:
 	///        destroyed when the song is.
 	bool letGoWithSong = false;
 
-	/// @brief The Deluge instrument's settings for this sound, once bound: &ownedState_ from Song::adoptOutput /
-	/// adoptDrum on, null before (a sound under preview or audition writes its runtime fields and snapshot directly).
+	/// @brief The Deluge instrument's settings for this sound, once bound: its record's state from Song::adoptOutput /
+	/// adoptDrum on (its own copy, ownedState_, before adoption and once its record goes), null before it is first
+	/// bound (a sound under preview or audition writes its runtime fields and snapshot directly).
 	deluge::instrument::SoundState* state_{nullptr};
 	/// @brief Bind this sound's own state and seed it from the runtime fields, which the reader filled before the state
 	/// was bound.
 	void bindState();
+	/// @brief Bind this sound into @p record, its record's state: the record takes what the sound holds (binding its
+	/// own state first when unbound), and from then on every setter writes the record.
+	/// @param record The state the sound's record owns; it must outlive the binding (unbindState before it goes).
+	void bindState(deluge::instrument::SoundState& record);
+	/// @brief Take the state back from the record the sound is bound into, before the record goes: the sound then plays
+	/// its own copy. Nothing when it plays its own state already, or none.
+	void unbindState();
 	/// @brief The bound state.
 	/// @return The bound state, or null while unbound.
 	[[nodiscard]] const deluge::instrument::SoundState* boundState() const { return state_; }

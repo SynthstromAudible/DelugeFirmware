@@ -90,6 +90,17 @@ Kit::~Kit() {
 	// Reset arpeggiator
 	arpeggiator.reset();
 
+	// A kit destroyed in a song takes its rows' records with it (each sound row takes its state back first), as their
+	// removal one by one does. Guarded as drumRemoved is: whole-song teardown drops the project wholesale.
+	if (currentSong != nullptr) {
+		for (Drum* drum = firstDrum; drum != nullptr; drum = drum->next) {
+			if (drum->docDrum_ != nullptr) {
+				currentSong->removeDocDrum(drum);
+				drum->docDrum_ = nullptr;
+			}
+		}
+	}
+
 	// Delete all Drums
 	while (firstDrum) {
 		Drum* toDelete = firstDrum;

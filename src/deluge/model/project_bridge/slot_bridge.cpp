@@ -44,9 +44,20 @@
 namespace deluge::bridge {
 
 void fillSlot(::Sound& sound, deluge::project::InstrumentSlot& slot, bool /*isDrum*/, const ::Song& song) {
-	slot = deluge::project::InstrumentSlot{.engine = std::string(deluge::engine::kDelugeInstrument.name),
-	                                       .tick_magnitude = song.getInputTickMagnitude()};
-	syncSlotState(sound, slot, song);
+	if (slot.state.as<deluge::instrument::DelugeInstrument>() != nullptr
+	    && slot.state.as<deluge::instrument::DelugeInstrument>() == sound.boundState()) {
+		return; // the sound plays this slot's state already
+	}
+	// The slot's state is the sound's from now on: what the sound settled, moved into the record, which it then plays.
+	sound.unbindState();
+	if (sound.boundState() == nullptr) {
+		sound.bindState();
+	}
+	slot = deluge::project::InstrumentSlot{
+	    .engine = std::string(deluge::engine::kDelugeInstrument.name),
+	    .state = deluge::engine::StateHandle::of<deluge::instrument::DelugeInstrument>(*sound.boundState()),
+	    .tick_magnitude = song.getInputTickMagnitude()};
+	sound.bindState(*slot.state.as<deluge::instrument::DelugeInstrument>());
 }
 
 namespace {
@@ -226,11 +237,12 @@ Error commitState(::Sound& sound, const deluge::instrument::SlotChange& change, 
 
 deluge::serialization::Value refreshSlot(const ::Sound& sound, deluge::project::InstrumentSlot& slot) {
 	if (sound.boundState() != nullptr) {
-		if (deluge::instrument::SoundState* held = slot.state.as<deluge::instrument::DelugeInstrument>()) {
-			*held = *sound.boundState();
-		}
-		else {
+		deluge::instrument::SoundState* held = slot.state.as<deluge::instrument::DelugeInstrument>();
+		if (held == nullptr) {
 			slot.state = deluge::engine::StateHandle::of<deluge::instrument::DelugeInstrument>(*sound.boundState());
+		}
+		else if (held != sound.boundState()) { // a sound not bound into its slot (one taken back from a record)
+			*held = *sound.boundState();
 		}
 	}
 	// At the magnitude the slot was filled at, as its edits read and write it.

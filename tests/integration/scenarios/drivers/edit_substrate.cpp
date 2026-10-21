@@ -33,6 +33,7 @@
 
 #include "deluge-project/instrument_slot.h"
 #include "dsp/dx/dx7note.h"
+#include "engines/deluge/engine.h"
 #include "gui/menu_item/setting_edit.h"
 #include "io/midi/cable_types/usb_hosted.h"
 #include "model/drum/drum.h"
@@ -661,6 +662,49 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "ranges: the saw stays coherent");
 }
 
+// A sound plays the state its record holds: a write to one is a write to the other. A record that goes while its sound
+// lives on (a deleted track or kit row, which the render frees later) hands the sound its state back first; a kit's
+// records go with it, its rows' included.
+void testRecordOwnsState(deluge::edits::Context& ctx) {
+	ParamManagerForTimeline synthParams;
+	Instrument* synth = StorageManager::createNewInstrument(OutputType::SYNTH, &synthParams);
+	ctx.song.addOutput(synth);
+	Sound& sound = *static_cast<SoundInstrument*>(synth);
+	deluge::project::InstrumentSlot& slot = *synth->docOutput_->instrument;
+	check(slot.state.as<deluge::instrument::DelugeInstrument>() == sound.boundState(),
+	      "ownership: a synth plays its record's state");
+	sound.setTranspose(5);
+	const deluge::instrument::SoundState* record = slot.state.as<deluge::instrument::DelugeInstrument>();
+	// Deleted as a track is: its record goes now, the sound when the render lets go of it.
+	ctx.song.deleteOutputThatIsInMainList(synth, false); // a bare synth: nothing auditions it
+	check(sound.boundState() != nullptr && sound.boundState() != record && sound.boundState()->transpose == 5,
+	      "ownership: a synth whose record goes keeps its state");
+	sound.setTranspose(6);
+	check(sound.boundState()->transpose == 6, "ownership: and its setters still write it");
+
+	ParamManagerForTimeline kitParams;
+	Instrument* kitOutput = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
+	ctx.song.addOutput(kitOutput);
+	auto& kit = *static_cast<Kit*>(kitOutput);
+	auto* kept = static_cast<SoundDrum*>(StorageManager::createNewDrum(DrumType::SOUND));
+	auto* removed = static_cast<SoundDrum*>(StorageManager::createNewDrum(DrumType::SOUND));
+	kit.addDrum(kept);
+	kit.addDrum(removed);
+	check(removed->docDrum_ != nullptr
+	          && removed->docDrum_->instrument->state.as<deluge::instrument::DelugeInstrument>()
+	                 == removed->boundState(),
+	      "ownership: a kit row plays its record's state");
+	removed->setTranspose(-3);
+	kit.removeDrum(removed);
+	check(removed->boundState() != nullptr && removed->boundState()->transpose == -3,
+	      "ownership: a removed kit row keeps its state");
+	AudioEngine::retire(removed);
+	const uint32_t keptId = kept->id().value_or(0);
+	ctx.song.deleteOutputThatIsInMainList(&kit, false);
+	check(ctx.model.drum_structure.find(keptId) == nullptr, "ownership: a kit's rows' records go with the kit's");
+	check(kept->boundState() != nullptr, "ownership: and its rows keep their state");
+}
+
 // A new drum's id is one no drum record of the song holds: a drum whose id the counter has not passed (a hibernating
 // kit's, one bound outside the load) keeps its record to itself.
 void testDrumIdsAreUnique(deluge::edits::Context& ctx) {
@@ -1059,6 +1103,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	testRegionFlipViaApply(ctx, song, audioClip);
 	testSetEngineSetting(ctx);
 	testSetSourceRanges(ctx);
+	testRecordOwnsState(ctx);
 	testDrumIdsAreUnique(ctx);
 	testRemovalDropsOnlyOwnRecords(ctx);
 	testSetDxPatch(ctx);

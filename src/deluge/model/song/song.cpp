@@ -1366,7 +1366,7 @@ void Song::adoptDrum(Drum* drum) {
 	if (drum->type == DrumType::SOUND) {
 		Sound* sound = static_cast<Sound*>(static_cast<SoundDrum*>(drum));
 		sound->bindState();
-		deluge::bridge::fillSlot(*sound, d.instrument.emplace(), true,
+		deluge::bridge::fillSlot(*sound, d.instrument ? *d.instrument : d.instrument.emplace(), true,
 		                         *this); // a drum read from a file refills it once read
 		if (!readingFromFile_) {
 			// A drum added to a running song (a preset loaded into a kit row) had its samples loaded first: its slot
@@ -1389,6 +1389,9 @@ void Song::removeDocDrum(Drum* drum) {
 	// Only the drum's own record: a drum of another song (the outgoing one, torn down after a swap while this song is
 	// current) may share its id.
 	if (drum->id() && project.drum_structure.find(*drum->id()) == drum->docDrum_) {
+		if (drum->type == DrumType::SOUND) {
+			static_cast<SoundDrum*>(drum)->unbindState(); // it plays its record's state, which goes now
+		}
 		project.drum_structure.remove(*drum->id());
 		deluge::bridge::forgetDrumMappings(*this, *drum->id());
 	}
@@ -1422,7 +1425,7 @@ void Song::adoptOutput(Output* output) {
 	if (output->type == OutputType::SYNTH) {
 		Sound* sound = static_cast<Sound*>(static_cast<SoundInstrument*>(output));
 		sound->bindState();
-		deluge::bridge::fillSlot(*sound, d.instrument.emplace(), false, *this);
+		deluge::bridge::fillSlot(*sound, d.instrument ? *d.instrument : d.instrument.emplace(), false, *this);
 		// The track's own arp, which a new clip on it starts from, is its record's when its element held one.
 		if (sound->arpRead) {
 			d.arp = deluge::bridge::arpRecordOf(static_cast<SoundInstrument*>(output)->defaultArpSettings, false);
@@ -1446,11 +1449,19 @@ void Song::adoptOutput(Output* output) {
 void Song::removeDocOutput(Output* output) {
 	// Only the output's own record: an output of another song may share its id.
 	if (output->id() && project.output_structure.find(*output->id()) == output->docOutput_) {
+		if (output->type == OutputType::SYNTH) {
+			// It plays its record's state, which goes now. The double static_cast lands on the Sound base subobject.
+			static_cast<Sound*>(static_cast<SoundInstrument*>(output))->unbindState();
+		}
 		project.output_structure.remove(*output->id());
 		deluge::bridge::forgetOutputMappings(*this, *output->id());
-		if (output->type == OutputType::KIT) { // a kit's rows go with it
+		if (output->type == OutputType::KIT) { // a kit's rows go with it, their records too
 			for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next) {
-				if (drum->id()) {
+				if (drum->docDrum_ != nullptr) {
+					removeDocDrum(drum);
+					drum->docDrum_ = nullptr;
+				}
+				else if (drum->id()) {
 					deluge::bridge::forgetDrumMappings(*this, *drum->id());
 				}
 			}

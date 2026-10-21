@@ -2950,6 +2950,35 @@ void Sound::bindState() {
 	}
 }
 
+void Sound::bindState(deluge::instrument::SoundState& record) {
+	if (state_ == nullptr) {
+		bindState();
+	}
+	if (state_ == &record) {
+		return;
+	}
+	record = *state_;
+	state_ = &record;
+	bindEffects(&record.effects);
+	for (int32_t s = 0; s < kNumSources; s++) {
+		sources[s].bindState(&record.sources[s]);
+	}
+	projectSnapshot();
+}
+
+void Sound::unbindState() {
+	if (state_ == nullptr || state_ == &ownedState_) {
+		return;
+	}
+	ownedState_ = *state_;
+	state_ = &ownedState_;
+	bindEffects(&ownedState_.effects);
+	for (int32_t s = 0; s < kNumSources; s++) {
+		sources[s].bindState(&ownedState_.sources[s]);
+	}
+	projectSnapshot();
+}
+
 // DOM-owned scalars: each setter writes the authoritative record (when bound) and the native cache. Render / note-on /
 // MIDI-send read the cache; save reads the record. Guard on state_ so pre-bind writes (load, preview) land in the
 // cache and get picked up by the bind-time seed.
