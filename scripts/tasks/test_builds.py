@@ -50,6 +50,29 @@ def needs_configure(tree: Path, source: Path, cxx: str | None = None) -> bool:
     return True
 
 
+def cache_has(tree: Path, name: str, value: str) -> bool:
+    """Whether the CMake tree at `tree` has cache entry `name` set to `value`."""
+    cache = tree / "CMakeCache.txt"
+    if not cache.exists():
+        return False
+    pattern = rf"^{re.escape(name)}:[A-Z]+={re.escape(value)}$"
+    return (
+        re.search(pattern, cache.read_text(errors="replace"), re.MULTILINE) is not None
+    )
+
+
+# The trees the runner builds embed a constant version: asking git would rebuild them whenever the work tree's state
+# changes, though nothing they test depends on it.
+TEST_TREE_DEFINES = ["-DDELUGE_VERSION_FROM_GIT=OFF"]
+
+
+def _needs_test_tree_configure(tree: Path, source: Path, cxx: str) -> bool:
+    """Whether a test tree must be configured: `needs_configure`, or a tree configured without `TEST_TREE_DEFINES`."""
+    return needs_configure(tree, source, cxx) or not cache_has(
+        tree, "DELUGE_VERSION_FROM_GIT", "OFF"
+    )
+
+
 HOST_APP_TARGETS = [
     "deluge_app",
     "deluge_scenarios",
@@ -102,7 +125,7 @@ class HostApp(Product):
     def steps(self, root: Path) -> list[Step]:
         tree = root / HOST_APP_TREE
         steps = []
-        if needs_configure(tree, root / "sim", "clang++"):
+        if _needs_test_tree_configure(tree, root / "sim", "clang++"):
             # clang, because the firmware ships built with it: the host renders the golden masters record must take
             # the same code generation.
             steps.append(
@@ -118,6 +141,7 @@ class HostApp(Product):
                         "Ninja",
                         "-DCMAKE_C_COMPILER=clang",
                         "-DCMAKE_CXX_COMPILER=clang++",
+                        *TEST_TREE_DEFINES,
                     ],
                     root,
                 )
@@ -132,7 +156,7 @@ class HostAppAsan(Product):
     def steps(self, root: Path) -> list[Step]:
         tree = root / HOST_APP_ASAN_TREE
         steps = []
-        if needs_configure(tree, root / "sim", "clang++"):
+        if _needs_test_tree_configure(tree, root / "sim", "clang++"):
             steps.append(
                 Step(
                     "configure",
@@ -147,6 +171,7 @@ class HostAppAsan(Product):
                         "-DCMAKE_C_COMPILER=clang",
                         "-DCMAKE_CXX_COMPILER=clang++",
                         "-DDELUGE_SIM_SANITIZE=ON",
+                        *TEST_TREE_DEFINES,
                     ],
                     root,
                 )
@@ -161,7 +186,7 @@ class HostAppArm(Product):
     def steps(self, root: Path) -> list[Step]:
         tree = root / HOST_APP_ARM_TREE
         steps = []
-        if needs_configure(tree, root / "sim", "clang++"):
+        if _needs_test_tree_configure(tree, root / "sim", "clang++"):
             steps.append(
                 Step(
                     "configure",
@@ -174,6 +199,7 @@ class HostAppArm(Product):
                         "-G",
                         "Ninja",
                         f"-DCMAKE_TOOLCHAIN_FILE={root / 'sim/arm-linux-toolchain.cmake'}",
+                        *TEST_TREE_DEFINES,
                     ],
                     root,
                 )

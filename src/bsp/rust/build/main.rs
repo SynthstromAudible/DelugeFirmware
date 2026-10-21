@@ -5,7 +5,7 @@
 //! [`host_app`]). This script never runs CMake; the tree it links must already be built.
 
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 mod allowlist;
 mod bindgen;
@@ -54,5 +54,30 @@ fn main() {
         if env::var("CARGO_FEATURE_HOST_RUNTIME").is_ok() {
             host_app::link(&repo_root, &out_dir);
         }
+        if env::var("CARGO_FEATURE_SIM").is_ok() {
+            emit_git_version(&repo_root);
+        }
+    }
+}
+
+/// The commit and work-tree state the emulator reports as its version (see `sim_version`): the C++
+/// tree it links embeds a constant, so git state does not rebuild it.
+fn emit_git_version(repo_root: &Path) {
+    let git = |args: &[&str]| {
+        std::process::Command::new("git")
+            .args(args)
+            .current_dir(repo_root)
+            .output()
+            .ok()
+            .filter(|out| out.status.success())
+            .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_owned())
+    };
+    let commit = git(&["rev-parse", "--short", "HEAD"]).unwrap_or_else(|| "unknown".into());
+    let dirty = git(&["status", "--porcelain"]).is_some_and(|status| !status.is_empty());
+    println!("cargo:rustc-env=DELUGE_SIM_GIT_COMMIT={commit}");
+    println!("cargo:rustc-env=DELUGE_SIM_GIT_DIRTY={}", u8::from(dirty));
+    if let Some(git_dir) = git(&["rev-parse", "--absolute-git-dir"]) {
+        println!("cargo:rerun-if-changed={git_dir}/HEAD");
+        println!("cargo:rerun-if-changed={git_dir}/index");
     }
 }

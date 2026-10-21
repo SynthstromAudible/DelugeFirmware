@@ -285,6 +285,40 @@ class BuildsTest(unittest.TestCase):
         (step,) = known["golden-vt-render"].steps(Path("/repo"))
         self.assertEqual(step.env["DELUGE_HOSTAPP_BUILD_DIR"], "/repo/build/host-app")
 
+    TEST_TREES = ("host-app", "host-app-asan", "host-app-arm")
+
+    def _configured_tree(self, root, tree, extra=""):
+        (root / tree).mkdir(parents=True)
+        (root / tree / "CMakeCache.txt").write_text(
+            f"CMAKE_HOME_DIRECTORY:INTERNAL={root / 'sim'}\n"
+            "CMAKE_CXX_COMPILER:FILEPATH=/usr/bin/clang++\n" + extra
+        )
+
+    def test_test_trees_configure_version_off(self):
+        root = Path(tempfile.mkdtemp())
+        known = tb.products(root)
+        for name in self.TEST_TREES:
+            configure = known[name].steps(root)[0]
+            self.assertEqual(configure.what, "configure", name)
+            self.assertIn("-DDELUGE_VERSION_FROM_GIT=OFF", configure.argv, name)
+
+    def test_existing_tree_without_the_define_reconfigures(self):
+        root = Path(tempfile.mkdtemp())
+        (root / "sim").mkdir()
+        self._configured_tree(root, tb.HOST_APP_TREE)
+        steps = tb.products(root)["host-app"].steps(root)
+        self.assertEqual([s.what for s in steps], ["configure", "build"])
+        self.assertTrue((root / tb.HOST_APP_TREE).is_dir())
+
+    def test_tree_with_the_define_does_not_reconfigure(self):
+        root = Path(tempfile.mkdtemp())
+        (root / "sim").mkdir()
+        self._configured_tree(
+            root, tb.HOST_APP_TREE, "DELUGE_VERSION_FROM_GIT:BOOL=OFF\n"
+        )
+        steps = tb.products(root)["host-app"].steps(root)
+        self.assertEqual([s.what for s in steps], ["build"])
+
 
 class ScenarioGateTest(unittest.TestCase):
     """The standard checks every scenario gate makes, against a stub binary that prints what a run would."""

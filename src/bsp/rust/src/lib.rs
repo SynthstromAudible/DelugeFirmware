@@ -131,6 +131,8 @@ mod services;
 /// The emulator's panel, plugged into deluge-bsp's host-panel hook.
 #[cfg(feature = "sim")]
 mod sim_panel;
+#[cfg(any(test, feature = "sim"))]
+mod sim_version;
 pub mod tier;
 pub mod tier_meter;
 

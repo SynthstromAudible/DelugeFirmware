@@ -1,3 +1,6 @@
+option(DELUGE_VERSION_FROM_GIT "Take the version from git state; OFF embeds a constant, for the trees dbt test builds" ON)
+
+if(DELUGE_VERSION_FROM_GIT)
 # We need to actually generate the cmake file at configure time so the path to
 # git is picked up
 
@@ -42,8 +45,6 @@ configure_file(\${SRC} \${DST} @ONLY)
 message(STATUS \"Deluge Community Firmware v\${BUILD_VERSION_STRING}\")
 ")
 
-set(deluge_version_INCLUDES ${CMAKE_CURRENT_BINARY_DIR} PARENT_SCOPE)
-
 add_custom_target(
   deluge_version
   ALL
@@ -58,5 +59,15 @@ add_custom_target(
 )
 
 set_property(DIRECTORY ${CMAKE_CURRENT_LIST_DIR} PROPERTY CONFIGURE_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/version.cpp.gen")
+else()
+  # Nothing here asks git, so the work tree's state never rebuilds the tree.
+  set(BUILD_VERSION_STRING "${PROJECT_VERSION}${SEMVER_PRERELEASE_ID}-test")
+  set(BUILD_VERSION_STRING_SHORT "c${PROJECT_VERSION}")
+  set(GIT_COMMIT_SHORT "test")
+  configure_file(version.cpp.in ${CMAKE_CURRENT_BINARY_DIR}/version.cpp.gen @ONLY)
+  add_custom_target(deluge_version)
+endif()
+
+set(deluge_version_INCLUDES ${CMAKE_CURRENT_BINARY_DIR} PARENT_SCOPE)
 
 configure_file(version.h.in version.h @ONLY)

@@ -103,6 +103,7 @@ pub fn main() {
     #[cfg(feature = "sim")]
     {
         let card = insert_sim_card();
+        crate::sim_version::install();
         deluge_simulator::run_brain(|panel, audio| {
             crate::sim_panel::install(panel, audio);
             start_threaded_host(|_| {});
