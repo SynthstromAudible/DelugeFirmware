@@ -20,6 +20,7 @@ PLANTED = {
     "reverb engine": "AudioEngine::reverb.setRoomSize(v);",
     "reverb pan": "AudioEngine::reverbPan = v;",
     "sidechain": "AudioEngine::reverbSidechainSettings.attack = v;",
+    "sidechain sync type": "AudioEngine::reverbSidechainSettings.sync_type = t;",
     "swing interval": "currentSong->changeSwingInterval(v);",
     "disabled scale": "song->project.scale.disabled_preset_scales[i] = true;",
     "raw device field": "instrument->collapseMPE = true;",
@@ -126,6 +127,52 @@ class SceneFollowUps(unittest.TestCase):
         )
 
 
+class ConvertedScenes(unittest.TestCase):
+    def check(self, name: str, line: str) -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / name).write_text(f"void gesture() {{\n\t{line}\n}}\n")
+            return csm.converted_scene_writes(root)
+
+    def test_a_scene_marking_its_instrument_edited_is_reported(self):
+        self.assertEqual(
+            len(self.check("planted.cpp", "instrument->editedByUser = true;")), 1
+        )
+
+    def test_a_read_of_the_mark_is_not(self):
+        self.assertEqual(
+            self.check("planted.cpp", "if (instrument->editedByUser == true) {}"), []
+        )
+
+    def test_a_converted_file_calling_a_setting_helper_is_reported(self):
+        for name, line in (
+            ("sound_arp.cpp", 'deluge::edits::songSettingFor("swingInterval", v);'),
+            ("sound_randomizer.cpp", 'deluge::edits::arpSettingFor(*arp, "x", v);'),
+            ("sound_bend.cpp", 'deluge::edits::clipSettingFor(*clip, "bendRange", v);'),
+            ("sound_fx.cpp", 'deluge::edits::songSettingFor("reverb/roomSize", v);'),
+            ("roots.cpp", 'deluge::edits::trackSettingFor(*i, "outputMpeY", v);'),
+            ("roots.cpp", 'deluge::edits::songSettingFromMenu("x", v);'),
+        ):
+            with self.subTest(name=name, line=line):
+                self.assertEqual(len(self.check(name, line)), 1, line)
+
+    def test_a_hook_left_on_its_helper_is_not(self):
+        for name, line in (
+            (
+                "sound_fx.cpp",
+                'deluge::edits::songSettingFor("reverb/compressor/volume",',
+            ),
+            (
+                "sound_fx.cpp",
+                'deluge::edits::songSettingFor(\n\t    "reverb/compressor/syncLevel", v);',
+            ),
+            ("roots.cpp", 'deluge::edits::songSettingFor("swingInterval",'),
+            ("scales.cpp", 'deluge::edits::songSettingFor("scales/disabled/1", v);'),
+        ):
+            with self.subTest(name=name, line=line):
+                self.assertEqual(self.check(name, line), [], line)
+
+
 class SongStateWrites(unittest.TestCase):
     def check(self, line: str) -> list[str]:
         with tempfile.TemporaryDirectory() as tmp:
@@ -142,7 +189,6 @@ class SongStateWrites(unittest.TestCase):
         for line in (
             'deluge::edits::songSettingFor("reverb/roomSize", v);',
             'deluge::edits::trackSettingFor(*output, "name", v);',
-            "AudioEngine::reverbSidechainSettings.sync_type = t;",
             "const float size = AudioEngine::reverb.getRoomSize();",
             "if (output->name == other) {}",
             "PresetRequest r{.name = initial};",
@@ -206,6 +252,27 @@ class SongStateWrites(unittest.TestCase):
                 "}\n"
             )
             found = csm.song_state_writes((root,), allowed=csm.SONG_STATE_ALLOWED)
+            self.assertEqual(len(found), 1, found)
+            self.assertIn(":3:", found[0])
+
+    def test_the_reverb_sync_hooks_allowance_passes_its_line_and_no_other_sync_type(
+        self,
+    ):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "scenes" / "menu" / "nodes").mkdir(parents=True)
+            (root / "scenes" / "menu" / "nodes" / "sound_fx.cpp").write_text(
+                "void hook() {\n"
+                "\tAudioEngine::reverbSidechainSettings.sync_type = syncValueToSyncType(value);\n"
+                "\tAudioEngine::reverbSidechainSettings.sync_type = SYNC_TYPE_EVEN;\n"
+                "}\n"
+            )
+            allowed = {
+                "scenes/menu/nodes/sound_fx.cpp": csm.SONG_STATE_ALLOWED[
+                    "scenes/menu/nodes/sound_fx.cpp"
+                ]
+            }
+            found = csm.song_state_writes((root,), allowed=allowed)
             self.assertEqual(len(found), 1, found)
             self.assertIn(":3:", found[0])
 

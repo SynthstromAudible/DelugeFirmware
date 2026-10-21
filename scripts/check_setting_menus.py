@@ -148,7 +148,7 @@ SONG_STATE_WRITES = (
     re.compile(r"(?<!\w)reverbPan\s*=(?!=)"),
     re.compile(r"(?<!\w)reverbSidechain(?:Volume|Shape)\s*=(?!=)"),
     re.compile(
-        r"(?<!\w)reverbSidechainSettings\s*\.\s*(?:attack|release|sync_level)\s*=(?!=)"
+        r"(?<!\w)reverbSidechainSettings\s*\.\s*(?:attack|release|sync_level|sync_type)\s*=(?!=)"
     ),
     re.compile(
         r"(?:->|\.)\s*(?:setName|setChannel|setChannelSuffix|setDeviceDefinitionFileName|setCollapseAftertouch"
@@ -216,6 +216,14 @@ SONG_STATE_ALLOWED: dict[str, dict[str, str]] = {
     "deluge/gui/menu_item/menu_item_with_cc_learning.cpp": {
         "currentModControllable->learnKnob(": "a mod knob's learn (channel 16 and up) sets the owner's mod knobs, "
         "which recordControlsOf records; a MIDI knob's goes through learnKnobFor",
+    },
+    "scenes/menu/nodes/sound_fx.cpp": {
+        "reverbSidechainSettings.sync_type = syncValueToSyncType(value)": "the reverb sidechain's sync type is the "
+        "engine's alone, with no row to write; its level is the song's record, written through SetSetting",
+    },
+    "deluge/gui/menu_item/sidechain/sync.h": {
+        "reverbSidechainSettings.sync_type = syncValueToSyncType(current_value)": "the legacy menu's own write of "
+        "the same row-less sync type",
     },
     "deluge/gui/ui/browser/sample_claim.cpp": {
         "": "a claim records the sample it loaded onto an audio clip as a load does (syncSampleRecordFromEngine)",
@@ -460,6 +468,53 @@ def scene_follow_ups(root: Path) -> list[str]:
     return found
 
 
+#: A scene marking its instrument edited: SetSetting marks it for the settings that count as an edit.
+SCENES_EDITED_MARK = re.compile(r"\beditedByUser\s*=(?!=)")
+#: The legacy setting helpers a converted node no longer calls: its target writes its row through the menu's sink.
+SCENES_LEGACY_HELPER = re.compile(
+    r"\b(clipSettingFor|trackSettingFor|songSettingFor|songSettingFromMenu|arpSettingFor)\s*\(\s*(?:\"([^\"]*)\")?"
+)
+#: The scene files whose nodes write their rows by target, each with the paths a hook still writes through a legacy
+#: helper: the sidechain's volume (its menu scale is not the row's) and sync level (written beside the engine's sync
+#: type), and the swing interval (a song-root hook).
+SCENES_CONVERTED: dict[str, frozenset[str]] = {
+    "sound_arp.cpp": frozenset(),
+    "sound_randomizer.cpp": frozenset(),
+    "sound_bend.cpp": frozenset(),
+    "sound_fx.cpp": frozenset(
+        {"reverb/compressor/volume", "reverb/compressor/syncLevel"}
+    ),
+    "roots.cpp": frozenset({"swingInterval"}),
+}
+
+
+def converted_scene_writes(root: Path) -> list[str]:
+    """Every `path:line:` under root where a scene marks its instrument edited, or a converted node file writes a row
+    through a legacy setting helper its target replaced."""
+    found = []
+    for path in sorted(root.rglob("*")):
+        if path.suffix not in SUFFIXES or not path.is_file():
+            continue
+        lines = list(code_lines(path.read_text(errors="replace")))
+        for number, line in lines:
+            if SCENES_EDITED_MARK.search(line):
+                found.append(
+                    f"{path}:{number}: marks its instrument edited outside SetSetting"
+                )
+        if path.name not in SCENES_CONVERTED:
+            continue
+        # A call's path may be on the line after its helper's name: match across the file's code.
+        numbers = [number for number, _ in lines]
+        code = "\n".join(line for _, line in lines)
+        for match in SCENES_LEGACY_HELPER.finditer(code):
+            if match.group(2) not in SCENES_CONVERTED[path.name]:
+                number = numbers[code.count("\n", 0, match.start())]
+                found.append(
+                    f"{path}:{number}: a converted node writes through {match.group(1)}"
+                )
+    return found
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, nargs="+", default=list(DEFAULT_ROOTS))
@@ -469,7 +524,7 @@ def main(argv=None) -> int:
     for root in args.root:
         found += calls(root, tuple(args.also)) + unrecorded(root)
         if root.resolve().is_relative_to(SCENES_ROOT):
-            found += scene_follow_ups(root)
+            found += scene_follow_ups(root) + converted_scene_writes(root)
     found += host_writes() + song_state_writes(tuple(args.root))
     for line in found:
         print(line)
