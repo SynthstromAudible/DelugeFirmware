@@ -18,6 +18,8 @@
 #include "engines/effects/settings.h"
 
 #include "engine-api/settings.h"
+#include "engines/effects/words.h"
+#include "serialization/tree.h"
 
 #include <string>
 #include <utility>
@@ -110,6 +112,77 @@ std::optional<serialization::Value> effect_setting_value(const EffectStates& sta
 	       : rest == "reverse"        ? flag(states.stutter.reversed)
 	       : rest == "useSongStutter" ? flag(states.stutter.use_song_stutter)
 	                                  : flag(states.stutter.ping_pong);
+}
+
+bool write_effect_setting(EffectStates& states, std::string_view path, const serialization::Value& value) {
+	if (engine::find_setting(kEffectSettings, path) == nullptr) {
+		return false;
+	}
+	const size_t slash = path.find('/');
+	const std::string_view entry = path.substr(0, slash);
+	const std::string_view rest = slash == std::string_view::npos ? std::string_view{} : path.substr(slash + 1);
+	const int32_t n = serialization::int_of(&value).value_or(0);
+	const auto sync = [&](engine::SyncType& type, engine::SyncLevel& level) {
+		if (rest == "syncLevel") {
+			level = engine::sync_level_from_index(n);
+		}
+		else if (rest == "syncType") {
+			type = static_cast<engine::SyncType>(n);
+		}
+	};
+	if (entry == "modFXType") {
+		states.mod_fx.type = parse_mod_fx_type(value.str());
+	}
+	else if (entry == "lpfMode") {
+		states.filter.lpf_mode = parse_filter_mode(value.str());
+	}
+	else if (entry == "hpfMode") {
+		states.filter.hpf_mode = parse_filter_mode(value.str());
+	}
+	else if (entry == "filterRoute") {
+		states.filter.route = parse_filter_route(value.str());
+	}
+	else if (entry == "clippingAmount") {
+		states.saturation.clipping_amount = static_cast<uint8_t>(n);
+	}
+	else if (entry == "delay") {
+		if (rest == "pingPong") {
+			states.delay.ping_pong = n != 0;
+		}
+		else if (rest == "type") {
+			states.delay.type = parse_delay_type(value.str());
+		}
+		else {
+			sync(states.delay.sync_type, states.delay.sync_level);
+		}
+	}
+	else if (entry == "sidechain") {
+		if (rest == "attack") {
+			states.sidechain.attack = n;
+		}
+		else if (rest == "release") {
+			states.sidechain.release = n;
+		}
+		else {
+			sync(states.sidechain.sync_type, states.sidechain.sync_level);
+		}
+	}
+	else if (entry == "audioCompressor") {
+		CompressorState& c = states.compressor;
+		(rest == "attack"    ? c.attack
+		 : rest == "release" ? c.release
+		 : rest == "thresh"  ? c.threshold
+		 : rest == "ratio"   ? c.ratio
+		 : rest == "compHPF" ? c.sidechain_hpf
+		                     : c.blend) = n;
+	}
+	else { // stutter
+		(rest == "quantized"        ? states.stutter.quantized
+		 : rest == "reverse"        ? states.stutter.reversed
+		 : rest == "useSongStutter" ? states.stutter.use_song_stutter
+		                            : states.stutter.ping_pong) = n != 0;
+	}
+	return true;
 }
 
 std::optional<int32_t> held_effect_setting(const EffectStates& states, std::string_view path) {

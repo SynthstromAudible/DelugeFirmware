@@ -14,14 +14,14 @@ class Sound;
 
 namespace deluge::edits {
 
-/// @brief The change writing @p value at @p path makes to @p sound's state, read as its slot would read the leaf
-/// changed: through the setting's own entry, or each entry a reshaping menu moves (an oscillator's type or loop mode,
-/// the synth mode).
+/// @brief The change writing @p value at @p path makes to @p sound's state: the setting's field written by its family's
+/// writer, or where its menu reshapes more (an oscillator's type or loop mode, the synth mode) the state it reshapes
+/// to; with the entries whose fields changed.
 /// @param sound The sound, bound.
-/// @param slot  Its slot (for its tick magnitude).
+/// @param slot  Its slot.
 /// @param path  The setting's path.
 /// @param value The canonical value, taken and allowed by the sound's state.
-/// @return The new state and the entries touched, or why the entry cannot be read.
+/// @return The new state and the entries touched.
 [[nodiscard]] std::expected<deluge::instrument::SlotChange, deluge::engine::StateError>
 settingChange(const ::Sound& sound, const deluge::project::InstrumentSlot& slot, std::string_view path,
               const deluge::serialization::Value& value);
@@ -33,7 +33,7 @@ settingChange(const ::Sound& sound, const deluge::project::InstrumentSlot& slot,
 /// @param path  The setting's path.
 /// @param value The canonical value.
 /// @param song  The song.
-/// @return Error::NONE when the value landed (or the runtime holds one the slot cannot), else why not.
+/// @return Error::NONE when the value landed (or the runtime holds one the state does not read back), else why not.
 Error commitEngineSetting(::Sound& sound, deluge::project::InstrumentSlot& slot, std::string_view path,
                           const deluge::serialization::Value& value, ::Song& song);
 

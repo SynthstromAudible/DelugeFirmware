@@ -24,6 +24,7 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include <vector>
 
 namespace deluge::instrument {
 
@@ -77,6 +78,17 @@ extern const std::span<const engine::SettingInfo> kClipScopedSettings;
 /// @param value The candidate value.
 /// @return True when the sound may take the value.
 [[nodiscard]] bool allows_setting(const SoundState& state, std::string_view path, const serialization::Value& value);
+
+/// @brief Write @p value (canonical, in an Edit's form: an LFO's sync level as the level itself) at @p path into
+/// @p state, the inverse of setting_value: the field the path names, whether or not a file holds it in this state.
+/// Not for a path whose menu reshapes more than its leaf (an oscillator's type or loop mode, the synth mode): those
+/// write the field alone here.
+/// @param state The sound's state.
+/// @param path  The setting's path; a structured path or one the schema does not hold writes nothing.
+/// @param value The value, as canonical_setting gives it.
+/// @return The instrument entries the write changed: the path's own, or none when it held the value already.
+[[nodiscard]] std::vector<std::string_view> write_setting(SoundState& state, std::string_view path,
+                                                          const serialization::Value& value);
 
 /// @brief Whether a sound in @p state takes a setting at @p path at all: where setting_value answers, or where the
 /// value is unset (a sound drum's MIDI note before one is chosen).

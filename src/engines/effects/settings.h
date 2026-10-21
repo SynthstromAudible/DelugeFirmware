@@ -210,6 +210,14 @@ static_assert(engine::mappings_are_valid(kEffectSettings));
 [[nodiscard]] std::optional<serialization::Value> effect_setting_value(const EffectStates& states,
                                                                        std::string_view path);
 
+/// @brief Write @p value (canonical, in an Edit's form: a sync level as the level itself) at @p path into @p states:
+/// the inverse of effect_setting_value.
+/// @param states The effect settings to write.
+/// @param path   The setting's path in an owner's element.
+/// @param value  The value, as canonical_setting or check_effect_setting allows it.
+/// @return False for a path kEffectSettings does not hold (nothing is written).
+bool write_effect_setting(EffectStates& states, std::string_view path, const serialization::Value& value);
+
 /// @brief The value @p states hold at @p path whether or not the path applies, as the row stores it: a CHOICE row's
 /// index, else the number. The read path of a host chain's SettingReader (see engine::SettingContext's host contract).
 /// @param states The effect settings to read.

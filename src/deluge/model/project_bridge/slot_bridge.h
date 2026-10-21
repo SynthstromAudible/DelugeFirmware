@@ -100,8 +100,8 @@ Error applyDifference(::Sound& sound, const deluge::instrument::SoundState& old,
 Error commitState(::Sound& sound, const deluge::instrument::SlotChange& change, ::Song& song);
 
 /// @brief A check of the typed writes, for the gates: when enabled, each setting, DX patch or ranges write is also made
-/// the old way (the state encoded, the change written into the tree and the tree decoded), and each write whose state
-/// or touched entries differ is counted.
+/// the old way (a setting through with_setting; a DX patch or ranges by encoding the state, writing the change into
+/// the tree and decoding it), and each write whose state or touched entries differ is counted.
 struct TypedWriteAudit {
 	bool enabled{false};
 	uint32_t writes{0};     ///< writes checked
@@ -135,6 +135,21 @@ void auditTypedWrite(const ::Sound& sound, const deluge::project::InstrumentSlot
                      const deluge::serialization::Value& whole, const deluge::serialization::Value& element,
                      const std::expected<deluge::instrument::SlotChange, deluge::engine::StateError>& got,
                      std::string_view what);
+
+/// @brief Compare a setting's typed write, @p got, with the old way's, @p want (with_setting, or where the setting's
+/// menu reshapes more, change_to of the reshaped state): the same state, with the entries whose typed fields changed;
+/// or, where the old way loses a write the file cannot hold, its state with that one field written. Counted in the
+/// audit when it is enabled.
+///
+/// @param before The sound's state before the write.
+/// @param path   The setting's path.
+/// @param value  The value written.
+/// @param want   The old way's change.
+/// @param got    The typed write's change.
+void auditSettingWrite(const deluge::instrument::SoundState& before, std::string_view path,
+                       const deluge::serialization::Value& value,
+                       const std::expected<deluge::instrument::SlotChange, deluge::engine::StateError>& want,
+                       const std::expected<deluge::instrument::SlotChange, deluge::engine::StateError>& got);
 
 /// @brief @p sound's record re-read from the runtime and its controls record set from its knobs, when it is bound in
 /// @p song.

@@ -240,6 +240,44 @@ void auditTypedWrite(const ::Sound& sound, const deluge::project::InstrumentSlot
 	}
 }
 
+void auditSettingWrite(const deluge::instrument::SoundState& before, std::string_view path,
+                       const deluge::serialization::Value& value,
+                       const std::expected<deluge::instrument::SlotChange, deluge::engine::StateError>& want,
+                       const std::expected<deluge::instrument::SlotChange, deluge::engine::StateError>& got) {
+	TypedWriteAudit& audit = typedWriteAudit();
+	if (!audit.enabled) {
+		return;
+	}
+	audit.writes++;
+	std::string_view why;
+	if (want.has_value() != got.has_value()) {
+		why = " (one refused)";
+	}
+	else if (want && got->state == want->state) {
+		const bool named = std::ranges::all_of(
+		    got->changed, [&](std::string_view key) { return std::ranges::contains(want->changed, key); });
+		if (got->changed != deluge::instrument::changed_entries(before, got->state) || !named) {
+			why = " (touched entries)";
+		}
+	}
+	else if (want) {
+		// The old way lost a write the file cannot hold: the typed state is the old way's with that field written.
+		deluge::instrument::SoundState again = want->state;
+		(void)deluge::instrument::write_setting(again, path, value);
+		const std::string_view key = path.substr(0, path.find('/'));
+		if (!(again == got->state)
+		    || deluge::instrument::changed_entries(want->state, got->state) != std::vector<std::string_view>{key}) {
+			why = " (state)";
+		}
+	}
+	if (!why.empty()) {
+		audit.mismatches++;
+		if (audit.first.empty()) {
+			audit.first = std::string(path) + "=" + value.str() + std::string(why);
+		}
+	}
+}
+
 void recordLoadedSound(::Sound& sound, ::Song& song) {
 	const std::optional<deluge::project::SlotAddress> address = slotAddressOf(sound);
 	deluge::project::InstrumentSlot* slot = address ? song.project.resolveSlot(*address) : nullptr;

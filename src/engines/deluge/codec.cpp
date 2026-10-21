@@ -27,6 +27,7 @@
 #include <iterator>
 #include <span>
 #include <string>
+#include <tuple>
 #include <utility>
 
 namespace deluge::instrument {
@@ -201,6 +202,78 @@ size_t state_key_index(std::string_view key) {
 }
 
 } // namespace
+
+namespace {
+
+/// Whether @p a and @p b differ in the fields of one top-level entry.
+using EntryDiffers = bool (*)(const SoundState& a, const SoundState& b);
+
+/// Whether @p a and @p b differ in a field @p field picks, as one entry's comparison.
+template <auto field>
+bool differs(const SoundState& a, const SoundState& b) {
+	return !(field(a) == field(b));
+}
+
+template <size_t s>
+bool sourceDiffers(const SoundState& a, const SoundState& b) {
+	return !(a.sources[s] == b.sources[s]) || a.osc_retrigger_phase[s] != b.osc_retrigger_phase[s]
+	       || (s == 1 && a.oscillator_sync != b.oscillator_sync);
+}
+
+template <size_t l>
+bool lfoDiffers(const SoundState& a, const SoundState& b) {
+	return a.lfo_wave_type[l] != b.lfo_wave_type[l] || a.lfo_sync_level[l] != b.lfo_sync_level[l]
+	       || a.lfo_sync_type[l] != b.lfo_sync_type[l];
+}
+
+template <size_t m>
+bool modulatorDiffers(const SoundState& a, const SoundState& b) {
+	return a.modulator_transpose[m] != b.modulator_transpose[m] || a.modulator_cents[m] != b.modulator_cents[m]
+	       || a.modulator_retrigger_phase[m] != b.modulator_retrigger_phase[m]
+	       || (m == 1 && a.modulator1_to_modulator0 != b.modulator1_to_modulator0);
+}
+
+/// The fields of each of kStateKeys' entries, in its order.
+constexpr std::array<EntryDiffers, kStateKeys.size()> kEntryDiffers{
+    differs<[](const SoundState& s) { return s.polyphonic; }>,
+    differs<[](const SoundState& s) { return s.voice_priority; }>,
+    differs<[](const SoundState& s) { return s.side_chain_send_level; }>,
+    differs<[](const SoundState& s) { return s.synth_mode; }>,
+    differs<[](const SoundState& s) { return s.transpose; }>,
+    differs<[](const SoundState& s) { return s.cents; }>,
+    differs<[](const SoundState& s) { return s.effects.mod_fx; }>,
+    differs<[](const SoundState& s) { return s.effects.filter.lpf_mode; }>,
+    differs<[](const SoundState& s) { return s.effects.filter.hpf_mode; }>,
+    differs<[](const SoundState& s) { return s.effects.filter.route; }>,
+    differs<[](const SoundState& s) { return s.effects.saturation; }>,
+    differs<[](const SoundState& s) { return s.max_voice_count; }>,
+    sourceDiffers<0>,
+    sourceDiffers<1>,
+    lfoDiffers<0>,
+    lfoDiffers<1>,
+    lfoDiffers<2>,
+    lfoDiffers<3>,
+    modulatorDiffers<0>,
+    modulatorDiffers<1>,
+    differs<[](const SoundState& s) { return std::tuple{s.num_unison, s.unison_detune, s.unison_stereo_spread}; }>,
+    differs<[](const SoundState& s) { return std::pair{s.output_midi_channel, s.output_midi_note_for_drum}; }>,
+    differs<[](const SoundState& s) { return s.effects.delay; }>,
+    differs<[](const SoundState& s) { return s.effects.sidechain; }>,
+    differs<[](const SoundState& s) { return s.effects.compressor; }>,
+    differs<[](const SoundState& s) { return s.effects.stutter; }>,
+};
+
+} // namespace
+
+std::vector<std::string_view> changed_entries(const SoundState& a, const SoundState& b) {
+	std::vector<std::string_view> changed;
+	for (size_t k = 0; k < kStateKeys.size(); k++) {
+		if (kEntryDiffers[k](a, b)) {
+			changed.push_back(kStateKeys[k]);
+		}
+	}
+	return changed;
+}
 
 std::optional<Value> encode_entry(const SoundState& state, std::string_view key, const engine::CodecContext& context,
                                   std::optional<int32_t> compressor_threshold) {

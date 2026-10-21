@@ -5,6 +5,7 @@
 #include "serialization/tree.h"
 #include "support/state_matrix.h"
 
+#include <algorithm>
 #include <array>
 #include <cppspec.hpp>
 #include <ostream>
@@ -94,6 +95,79 @@ std::vector<std::string> with_setting_disagreements() {
 					}
 					else if (want && (!(want->state == got->state) || want->changed != got->changed)) {
 						found.push_back(at);
+					}
+				}
+			}
+		}
+	}
+	return found;
+}
+
+/// The paths whose value no file holds in some state of the matrix, where the encoding leaves the field out (a
+/// modulator outside FM; sample playback off a sample source; a sample source's own tuning and phase): with_setting
+/// loses such a write, and write_setting keeps it.
+constexpr std::array<std::string_view, 18> kUnheldPaths{
+    "modulator1/transpose",    "modulator1/cents",         "modulator1/retrigPhase",
+    "modulator2/transpose",    "modulator2/cents",         "modulator2/retrigPhase",
+    "modulator2/toModulator1", "osc1/transpose",           "osc1/cents",
+    "osc1/retrigPhase",        "osc1/linearInterpolation", "osc1/reversed",
+    "osc1/timeStretchEnable",  "osc1/timeStretchAmount",   "osc2/linearInterpolation",
+    "osc2/reversed",           "osc2/timeStretchEnable",   "osc2/timeStretchAmount",
+};
+
+/// Where write_setting on a copy of the state and with_setting disagree, over the same states, paths, values and
+/// magnitudes as with_setting_disagreements: the state, and the entries touched, which are the entries whose typed
+/// fields changed (with_setting also names one whose file form alone changed, a leaf the encoding leaves out at its
+/// default written as it). Where with_setting loses a write of an unheld path, the writer must give its state with
+/// that one field written.
+std::vector<std::string> write_setting_disagreements() {
+	std::vector<std::string> found;
+	for (const int32_t magnitude : {1, 3}) {
+		const deluge::engine::CodecContext codec{.input_tick_magnitude = magnitude};
+		for (const auto& [name, state] : deluge::instrument::test::matrix()) {
+			for (const deluge::engine::SettingInfo& row : kSettings) {
+				if (row.kind == deluge::engine::SettingKind::STRUCTURED || reshapes(row.path)) {
+					continue;
+				}
+				const auto [least, greatest] = deluge::engine::menu_range(row);
+				for (const int32_t menu : {least, greatest, least + (greatest - least) / 2}) {
+					const auto stored = deluge::engine::from_menu(row, menu);
+					if (!stored) {
+						continue;
+					}
+					std::array<char, 16> scratch{};
+					const auto word = row.kind == deluge::engine::SettingKind::CHOICE
+					                      ? deluge::engine::stored_text(row, stored->first, scratch)
+					                      : std::nullopt;
+					const Value given = word ? Value::makeScalar(std::string(*word)) : Value::makeNumber(stored->first);
+					const auto value = canonical_setting(row.path, given);
+					if (!value) {
+						continue;
+					}
+					const std::string at =
+					    name + " " + std::string(row.path) + "=" + value->str() + "@" + std::to_string(magnitude);
+					const auto want = with_setting(state, row.path, *value, codec);
+					if (!want) {
+						found.push_back(at + " (with_setting refused)");
+						continue;
+					}
+					SoundState got = state;
+					const std::vector<std::string_view> changed = write_setting(got, row.path, *value);
+					if (got == want->state) {
+						const bool named = std::ranges::all_of(
+						    changed, [&](std::string_view key) { return std::ranges::contains(want->changed, key); });
+						if (changed != changed_entries(state, got) || !named) {
+							found.push_back(at + " (touched entries)");
+						}
+						continue;
+					}
+					SoundState again = want->state;
+					(void)write_setting(again, row.path, *value);
+					const std::string_view key = row.path.substr(0, row.path.find('/'));
+					const bool one_field =
+					    again == got && changed_entries(want->state, got) == std::vector<std::string_view>{key};
+					if (!one_field || std::ranges::find(kUnheldPaths, row.path) == kUnheldPaths.end()) {
+						found.push_back(at + (one_field ? " (unheld, not listed)" : " (state)"));
 					}
 				}
 			}
@@ -263,6 +337,27 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 
 	it("writes a setting into the typed state as decoding the whole slot with the leaf changed does", _ {
 		expect(with_setting_disagreements()).to_equal(std::vector<std::string>{});
+	});
+
+	it("writes a setting into the typed state as with_setting does, keeping a value no file holds", _ {
+		expect(write_setting_disagreements()).to_equal(std::vector<std::string>{});
+	});
+
+	it("names no entry between a state and itself", _ {
+		for (const auto& [name, state] : deluge::instrument::test::matrix()) {
+			expect(changed_entries(state, state)).to_equal(std::vector<std::string_view>{});
+		}
+	});
+
+	it("names each entry whose typed fields differ, in file order", _ {
+		SoundState state = sampled();
+		SoundState written = state;
+		written.lfo_wave_type[1] = LFOType::SAW;
+		written.voice_priority = deluge::engine::VoicePriority::HIGH;
+		written.effects.delay.ping_pong = !state.effects.delay.ping_pong;
+		written.osc_retrigger_phase[1] = 7;
+		expect(changed_entries(state, written))
+		    .to_equal(std::vector<std::string_view>{"voicePriority", "osc2", "lfo2", "delay"});
 	});
 
 	it("tells which entries a change to the slot touches, and reads them as decoding onto the state does", _ {

@@ -674,6 +674,201 @@ bool takes_setting(const SoundState& state, std::string_view path) {
 	return anyValue(state, path).has_value();
 }
 
+namespace {
+
+/// The inverse of the family readers above: each writes the field its reader reads, from an Edit's canonical value.
+using Write = bool (*)(SoundState&, std::string_view path, const serialization::Value& value);
+
+int32_t intOf(const serialization::Value& value) {
+	return serialization::int_of(&value).value_or(0);
+}
+
+bool writeTopLevel(SoundState& state, std::string_view path, const serialization::Value& value) {
+	const int32_t n = intOf(value);
+	if (path == "polyphonic") {
+		state.polyphonic = parse_polyphony_mode(value.str());
+	}
+	else if (path == "voicePriority") {
+		state.voice_priority = static_cast<engine::VoicePriority>(n);
+	}
+	else if (path == "sideChainSend") {
+		state.side_chain_send_level = n;
+	}
+	else if (path == "mode") {
+		state.synth_mode = parse_synth_mode(value.str());
+	}
+	else if (path == "transpose") {
+		state.transpose = static_cast<int16_t>(n);
+	}
+	else if (path == "cents") {
+		state.cents = static_cast<int8_t>(n);
+	}
+	else if (path == "maxVoices") {
+		state.max_voice_count = static_cast<uint8_t>(n);
+	}
+	else {
+		return false;
+	}
+	return true;
+}
+
+bool writeOscillator(SoundState& state, std::string_view path, const serialization::Value& value) {
+	const std::optional<size_t> s = indexAfter(path, 3, '2');
+	if (!s) {
+		return false;
+	}
+	SourceState& src = state.sources[*s];
+	const std::string_view rest = path.substr(5);
+	const int32_t n = intOf(value);
+	if (rest == "linearInterpolation") {
+		src.interpolation_mode = n != 0 ? engine::InterpolationMode::LINEAR : engine::InterpolationMode::SMOOTH;
+	}
+	else if (rest == "loopMode") {
+		src.repeat_mode = static_cast<SampleRepeatMode>(n);
+	}
+	else if (rest == "reversed") {
+		src.reversed = n != 0;
+	}
+	else if (rest == "timeStretchEnable") {
+		src.pitch_and_speed_independent = n != 0;
+	}
+	else if (rest == "timeStretchAmount") {
+		src.time_stretch_amount = static_cast<int8_t>(n);
+	}
+	else if (rest == "type") {
+		src.osc_type = parse_osc_type(value.str());
+	}
+	else if (rest == "transpose") {
+		src.transpose = static_cast<int16_t>(n);
+	}
+	else if (rest == "cents") {
+		src.cents = static_cast<int8_t>(n);
+	}
+	else if (rest == "retrigPhase") {
+		state.osc_retrigger_phase[*s] = static_cast<uint32_t>(n); // the phase as a file writes it, signed
+	}
+	else if (rest == "oscillatorSync" && *s == 1) {
+		state.oscillator_sync = n != 0;
+	}
+	else {
+		return false;
+	}
+	return true;
+}
+
+bool writeLfo(SoundState& state, std::string_view path, const serialization::Value& value) {
+	const std::optional<size_t> l = indexAfter(path, 3, '4');
+	if (!l) {
+		return false;
+	}
+	const std::string_view rest = path.substr(5);
+	if (rest == "type") {
+		state.lfo_wave_type[*l] = parse_lfo_type(value.str());
+	}
+	else if (rest == "syncLevel") {
+		state.lfo_sync_level[*l] = engine::sync_level_from_index(intOf(value));
+	}
+	else if (rest == "syncType") {
+		state.lfo_sync_type[*l] = static_cast<engine::SyncType>(intOf(value));
+	}
+	else {
+		return false;
+	}
+	return true;
+}
+
+bool writeModulator(SoundState& state, std::string_view path, const serialization::Value& value) {
+	const std::optional<size_t> m = indexAfter(path, 9, '2');
+	if (!m) {
+		return false;
+	}
+	const std::string_view rest = path.substr(11);
+	const int32_t n = intOf(value);
+	if (rest == "transpose") {
+		state.modulator_transpose[*m] = static_cast<int16_t>(n);
+	}
+	else if (rest == "cents") {
+		state.modulator_cents[*m] = static_cast<int8_t>(n);
+	}
+	else if (rest == "retrigPhase") {
+		state.modulator_retrigger_phase[*m] = static_cast<uint32_t>(n);
+	}
+	else if (rest == "toModulator1" && *m == 1) {
+		state.modulator1_to_modulator0 = n != 0;
+	}
+	else {
+		return false;
+	}
+	return true;
+}
+
+bool writeUnison(SoundState& state, std::string_view path, const serialization::Value& value) {
+	const std::string_view rest = path.substr(7);
+	const int32_t n = intOf(value);
+	if (rest == "num") {
+		state.num_unison = static_cast<uint8_t>(n);
+	}
+	else if (rest == "detune") {
+		state.unison_detune = static_cast<int8_t>(n);
+	}
+	else if (rest == "spread") {
+		state.unison_stereo_spread = static_cast<uint8_t>(n);
+	}
+	else {
+		return false;
+	}
+	return true;
+}
+
+bool writeMidiOutput(SoundState& state, std::string_view path, const serialization::Value& value) {
+	const std::string_view rest = path.substr(11);
+	const int32_t n = intOf(value);
+	if (rest == "channel") {
+		state.output_midi_channel = static_cast<uint8_t>(n);
+	}
+	else if (rest == "noteForDrum") {
+		state.output_midi_note_for_drum = static_cast<uint8_t>(n);
+	}
+	else {
+		return false;
+	}
+	return true;
+}
+
+/// The writer of each family, by the prefixes kFamilies reads them by.
+struct FamilyWriter {
+	std::string_view prefix;
+	Write write;
+};
+constexpr std::array kFamilyWriters{
+    FamilyWriter{"osc", writeOscillator},         FamilyWriter{"lfo", writeLfo},
+    FamilyWriter{"modulator", writeModulator},    FamilyWriter{"unison/", writeUnison},
+    FamilyWriter{"midiOutput/", writeMidiOutput}, FamilyWriter{"", writeTopLevel},
+};
+
+} // namespace
+
+std::vector<std::string_view> write_setting(SoundState& state, std::string_view path,
+                                            const serialization::Value& value) {
+	const SettingInfo* row = engine::find_setting(kSettings, path);
+	if (row == nullptr || row->kind == STRUCTURED) {
+		return {};
+	}
+	const SoundState before = state;
+	if (engine::find_setting(effects::kEffectSettings, path) != nullptr) {
+		(void)effects::write_effect_setting(state.effects, path, value);
+	}
+	else {
+		for (const FamilyWriter& family : kFamilyWriters) {
+			if (path.starts_with(family.prefix)) {
+				(void)family.write(state, path, value);
+				break;
+			}
+		}
+	}
+	return changed_entries(before, state);
+}
+
 bool check_setting(std::string_view path, const serialization::Value& value) {
 	return engine::check_setting(kSettings, path, value);
 }
