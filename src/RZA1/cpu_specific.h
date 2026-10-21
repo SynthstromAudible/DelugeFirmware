@@ -89,8 +89,8 @@ enum UartItemType {
 // DMA --------------------------------------------------------------------------
 /*
 DMA channels:
-0: free - would be USB0 TX if USB_CFG_DMA were enabled (r_usb_basic_config.h)
-1: free - would be USB0 RX if USB_CFG_DMA were enabled
+0: USB audio to host (D0FIFO) - defined below
+1: USB audio from host (D1FIFO) - defined below
 2: SD host - defined in sd_cfg.h
 3: free - sd_cfg.h names it SD0_DMA_CHANNEL, but SDHI port 0 isn't used
 4: OLED and CV SPI (if OLED supported) - defined below
@@ -106,12 +106,18 @@ DMA channels:
 14: MIDI UART RX timing - defined below
 15: free
 
-USB DMA is off because it only covers two pipes, and USB MIDI is too little data to benefit. If it's ever enabled, its
-channels can only be 0-3, so it'd need moving off 2 (SD host).
+The Renesas driver's own USB DMA (USB_CFG_DMA in r_usb_basic_config.h) stays off - it only covers two pipes, USB MIDI is
+too little data to benefit, and it would take over the DMAINT0-3 interrupts, including SD's on channel 2. USB audio
+(drivers/usb/usb_audio.cpp) instead drives channels 0 and 1 itself, with the same USB0 D0FIFO/D1FIFO request sources the
+Renesas driver uses for those channels, so SD stays on channel 2.
 
 Each DMARSn register selects the request source for a pair of channels (0/1, 2/3, ...), so when setting one up, only
-modify its half - don't disturb its partner. Only 0/1 and 8/9 are free pairs that don't share with anything in use.
+modify its half - don't disturb its partner. 8/9 is the only remaining free pair that doesn't share with anything in
+use.
 */
+
+#define USB_AUDIO_TX_DMA_CHANNEL 0
+#define USB_AUDIO_RX_DMA_CHANNEL 1
 
 #define OLED_SPI_DMA_CHANNEL 4
 

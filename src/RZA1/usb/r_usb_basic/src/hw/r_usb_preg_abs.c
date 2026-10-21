@@ -42,6 +42,8 @@ uint16_t g_usb_cstd_suspend_mode = USB_NORMAL_MODE;
 
 #include "RZA1/system/iodefines/dmac_iodefine.h"
 #include "definitions.h"
+#include "deluge/drivers/usb/usb_audio.h"
+#include "deluge/drivers/usb/userdef/r_usb_paudio_config.h"
 
 extern uint32_t timeLastBRDY[];
 
@@ -106,6 +108,23 @@ int usb_pstd_interrupt_handler(uint16_t* type, uint16_t* status)
         // uint16_t ests  = (uint16_t)(bempsts & bempenb);
         uint16_t ests = bempsts;
 
+        // USB audio's isochronous pipes don't use BEMP, but it still gets flagged. Keep it away from the MIDI code,
+        // which assumes any BEMP is its own
+        uint16_t audioBits = ests & ((1 << USB_CFG_PAUDIO_ISO_OUT) | (1 << USB_CFG_PAUDIO_ISO_IN));
+        if (audioBits)
+        {
+#if USB_CFG_USE_USBIP == USB_CFG_IP0
+            USB200.BEMPSTS = (uint16_t)~audioBits;
+#else
+            USB201.BEMPSTS = (uint16_t)~audioBits;
+#endif
+            ests &= ~audioBits;
+            if (!ests)
+            {
+                return 1;
+            }
+        }
+
         // Pipe 0
         if (ests & USB_BEMP0)
         {
@@ -148,6 +167,13 @@ int usb_pstd_interrupt_handler(uint16_t* type, uint16_t* status)
 
         // uint16_t bsts  = (uint16_t)(brdysts & brdyenb);
         uint16_t bsts = brdysts;
+
+        // USB audio deals with its own pipes right here in the interrupt
+        bsts &= ~usbAudioHandleBrdy(bsts);
+        if (!bsts)
+        {
+            return 1;
+        }
 
         // Pipe 0
         if (bsts & USB_BRDY0)
@@ -294,10 +320,11 @@ int usb_pstd_interrupt_handler(uint16_t* type, uint16_t* status)
         /* SOFR Clear */
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
         USB200.INTSTS0 = (uint16_t)~USB_SOFR;
-#else             /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+#else                        /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
         USB201.INTSTS0 = (uint16_t)~USB_SOFR;
-#endif            /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
-        return 1; // SOFR interrupts don't result in any action when processed. Rohan
+#endif                       /* USB_CFG_USE_USBIP == USB_CFG_IP1 */
+        usbAudioHandleSof(); // Only enabled while USB audio's streaming, which sends a packet and checks up each frame
+        return 1;            // SOFR interrupts don't result in any action when processed. Rohan
         *type = USB_INT_SOFR;
     }
 

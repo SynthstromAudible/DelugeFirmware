@@ -225,6 +225,7 @@
 #include "gui/menu_item/unison/stereoSpread.h"
 #include "gui/menu_item/unpatched_param.h"
 #include "gui/menu_item/unpatched_param/pan.h"
+#include "gui/menu_item/usb/audio.h"
 #include "gui/menu_item/voice/polyphony.h"
 #include "gui/menu_item/voice/portamento.h"
 #include "gui/menu_item/voice/priority.h"
@@ -1045,6 +1046,17 @@ PLACE_SDRAM_BSS Submenu recordSubmenu{
 PLACE_SDRAM_BSS sample::browser_preview::Mode sampleBrowserPreviewModeMenu{STRING_FOR_SAMPLE_PREVIEW};
 
 PLACE_SDRAM_BSS flash::Status flashStatusMenu{STRING_FOR_PLAY_CURSOR};
+PLACE_SDRAM_BSS usb::Audio usbAudioEnabledMenu{STRING_FOR_ENABLED, STRING_FOR_USB_AUDIO};
+PLACE_SDRAM_BSS usb::DirectMonitoring usbAudioInputMenu{STRING_FOR_INPUT, STRING_FOR_USB_INPUT};
+PLACE_SDRAM_BSS usb::OutputSource usbAudioOutputMenu{STRING_FOR_OUTPUT, STRING_FOR_USB_OUTPUT};
+PLACE_SDRAM_BSS Submenu usbAudioMenu{
+    STRING_FOR_USB_AUDIO,
+    {
+        &usbAudioEnabledMenu,
+        &usbAudioInputMenu,
+        &usbAudioOutputMenu,
+    },
+};
 
 PLACE_SDRAM_BSS firmware::Version firmwareVersionMenu{STRING_FOR_FIRMWARE_VERSION, STRING_FOR_FIRMWARE_VER_MENU_TITLE};
 
@@ -1903,6 +1915,7 @@ PLACE_SDRAM_BSS Submenu settingsRootMenu{
         &gateSelectionMenu,
         &triggerClockMenu,
         &midiMenu,
+        &usbAudioMenu,
         &defaultsSubmenu,
         &padsSubmenu,
         &sampleBrowserPreviewModeMenu,

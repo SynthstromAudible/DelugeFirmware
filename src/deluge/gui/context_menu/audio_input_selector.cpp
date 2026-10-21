@@ -34,11 +34,12 @@ enum class AudioInputSelector::Value {
 	RIGHT,
 	STEREO,
 	BALANCED,
+	USB,
 	MASTER,
 	OUTPUT,
 	TRACK,
 };
-constexpr size_t kNumValues = 8;
+constexpr size_t kNumValues = 9;
 
 AudioInputSelector audioInputSelector{};
 
@@ -79,8 +80,8 @@ std::span<const char*> AudioInputSelector::getOptions() {
 	using enum l10n::String;
 	static const char* options[] = {
 	    l10n::get(STRING_FOR_DISABLED),     l10n::get(STRING_FOR_LEFT_INPUT),     l10n::get(STRING_FOR_RIGHT_INPUT),
-	    l10n::get(STRING_FOR_STEREO_INPUT), l10n::get(STRING_FOR_BALANCED_INPUT), l10n::get(STRING_FOR_MIX_PRE_FX),
-	    l10n::get(STRING_FOR_MIX_POST_FX),  l10n::get(STRING_FOR_TRACK),
+	    l10n::get(STRING_FOR_STEREO_INPUT), l10n::get(STRING_FOR_BALANCED_INPUT), l10n::get(STRING_FOR_USB_INPUT),
+	    l10n::get(STRING_FOR_MIX_PRE_FX),   l10n::get(STRING_FOR_MIX_POST_FX),    l10n::get(STRING_FOR_TRACK),
 	};
 	return {options, kNumValues};
 }
@@ -103,6 +104,10 @@ bool AudioInputSelector::setupAndCheckAvailability() {
 
 	case AudioInputChannel::BALANCED:
 		valueOption = Value::BALANCED;
+		break;
+
+	case AudioInputChannel::USB:
+		valueOption = Value::USB;
 		break;
 
 	case AudioInputChannel::MIX:
@@ -167,6 +172,10 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 
 	case Value::BALANCED:
 		audioOutput->inputChannel = AudioInputChannel::BALANCED;
+		break;
+
+	case Value::USB:
+		audioOutput->inputChannel = AudioInputChannel::USB;
 		break;
 
 	case Value::MASTER:

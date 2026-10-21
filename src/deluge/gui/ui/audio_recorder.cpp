@@ -220,6 +220,10 @@ void AudioRecorder::process() {
 
 		readButtonsAndPads();
 
+		// openUI() only marks the OLED for rendering, and nothing else flushes that while we block here - without
+		// this, "Waiting" only appeared if an SD wait happened to yield to the scheduler's pending-UI task (#5054)
+		doAnyPendingUIRendering();
+
 		AudioEngine::slowRoutine();
 
 		// If recording has finished...
@@ -251,16 +255,13 @@ void AudioRecorder::process() {
 				}
 			}
 			else if (!updatedRecordingStatus && (recorder->numSamplesCaptured > recorder->minThresholdMargin)) {
+				updatedRecordingStatus = true;
 				if (display->have7SEG()) {
 					display->setText("REC", false, 255, true);
 				}
 				else {
-					deluge::hid::display::OLED::clearMainImage();
-					deluge::hid::display::OLED::main.drawStringCentred("Recording", 19, kTextBigSpacingX,
-					                                                   kTextBigSizeY);
-					deluge::hid::display::OLED::sendMainImage();
+					renderUIsForOled();
 				}
-				updatedRecordingStatus = true;
 			}
 		}
 	}

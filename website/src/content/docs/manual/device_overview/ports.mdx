@@ -4,7 +4,7 @@ sidebar:
   order: 6
 ---
 
-import { Card } from "@astrojs/starlight/components"
+import { Badge, Card } from "@astrojs/starlight/components"
 import { Steps } from "@astrojs/starlight/components"
 
 This page provides information on the Deluge's physical hardware inputs and outputs used to transmit audio and non-audio data (e.g. MIDI, CV, Gate, Trigger Clock).
@@ -106,6 +106,9 @@ The Deluge has two 5 DIN MIDI ports for MIDI Input and Output.
 #### USB
 
 The Deluge’s USB type-B connection can be used as a connection to your computer as a USB MIDI device, for use in any software that supports MIDI.
+
+<Badge text="c1.4" variant="tip" /> It's also a USB audio interface, sending and
+receiving stereo audio - see [USB Audio](/features/usb_audio).
 
 #### USB host
 
