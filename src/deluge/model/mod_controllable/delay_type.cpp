@@ -25,6 +25,7 @@
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/setting_apply.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
@@ -146,10 +147,17 @@ void resolve(Song& song, ModControllableAudio& owner, bool couldSound) {
 	}
 	if (resolved != type) {
 		// Through the owner's slot or chain where it has one, so the model's record holds the type too.
-		// In the song being settled, which a load has not made current yet.
-		deluge::edits::changeEffect(
-		    song, owner, "delay/type",
-		    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(resolved))));
+		deluge::serialization::Value value =
+		    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(resolved)));
+		if (owner.asSound() == nullptr && &song != currentSong) {
+			// A song still loading records its host chains from their owners' effects once it is read (fillChains):
+			// the setter is the whole change, and the chain's record, not yet this song's, is not to be read.
+			(void)deluge::bridge::applyEffectSetting(owner, "delay/type", value);
+		}
+		else {
+			// In the song being settled, which a load has not made current yet: a sound's slot is its record already.
+			deluge::edits::changeEffect(song, owner, "delay/type", std::move(value));
+		}
 	}
 }
 
