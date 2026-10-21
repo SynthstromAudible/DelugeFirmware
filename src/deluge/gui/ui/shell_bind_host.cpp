@@ -11,6 +11,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/set_effect_setting.h"
 #include "model/edits/set_engine_setting.h"
+#include "model/edits/set_kit_lane_setting.h"
 #include "model/edits/set_kit_setting.h"
 #include "model/edits/set_setting.h"
 #include "model/global_effectable/global_effectable.h"
@@ -20,6 +21,7 @@
 #include "model/output.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/setting_projection.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -189,7 +191,19 @@ void ShellEditSink::write(const WriteRequest& request) {
 		}
 	};
 
+	if (model && model->group == deluge::project::SettingGroupId::LANE_ARP && request.where.affect_entire
+	    && request.target.whole_kit && request.where.kit_output) {
+		// A kit row's arp with affect-entire held: every lane that takes it, as legacy's loops write them.
+		deluge::edits::Context ctx{*currentSong, currentSong->project};
+		const bool needs_note_tails =
+		    request.target.fan_out_fact == deluge::scenes::bind::Target::FanOutFact::NOTE_TAILS;
+		commit_both(ctx, [&](std::string on, const deluge::serialization::Value& value) {
+			return deluge::edits::SetKitLaneSetting{*request.where.kit_output, std::move(on), value, needs_note_tails};
+		});
+		return;
+	}
 	if (model) {
+		deluge::bridge::seedArpRecordAt(*currentSong, *model); // an arp's writers seed its record from the arp first
 		deluge::edits::Context ctx{*currentSong, currentSong->project};
 		commit_both(ctx, [&](std::string on, const deluge::serialization::Value& value) {
 			return deluge::edits::SetSetting{*model, std::move(on), value};

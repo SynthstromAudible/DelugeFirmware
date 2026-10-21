@@ -84,6 +84,13 @@ struct ArpOwner {
 /// @return True where they are settings.
 [[nodiscard]] bool arpHostValuesAreSettings(const ArpOwner& owner);
 
+/// @brief Seed the arp record @p address names (a CLIP_ARP or LANE_ARP owner) from the arp its owner plays, as each of
+///        its writers does first (seedArpRecord): a write then changes one setting of that arp, not of a default
+///        record. Nothing for another group or an owner the song does not hold.
+/// @param song    The song.
+/// @param address The arp's group and owner.
+void seedArpRecordAt(::Song& song, const project::SettingAddress& address);
+
 /// @brief Copy an arp setting's value onto @p arp, with the follow-ups its menu runs: the preset shown re-derived from
 ///        the modes, a chosen preset's modes set, the arp restarted when its pattern changes, a new note pattern for
 ///        the pattern note mode.

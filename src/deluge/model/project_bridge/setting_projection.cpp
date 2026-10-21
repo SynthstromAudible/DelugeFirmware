@@ -18,6 +18,7 @@
 #include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/project_bridge/arp_bridge.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/sample/sample.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
@@ -563,6 +564,26 @@ void silenceArp(const ArpOwner& owner, ::Song& song) {
 }
 
 } // namespace
+
+void seedArpRecordAt(::Song& song, const project::SettingAddress& address) {
+	if (const auto* lane = std::get_if<project::LaneAddress>(&address.owner);
+	    lane != nullptr && address.group == project::SettingGroupId::LANE_ARP) {
+		::Drum* drum = drumWithId(song, lane->drum_id);
+		if (drum != nullptr && drum->docDrum_ != nullptr) {
+			seedArpRecord(drum->docDrum_->arp, drum->arpSettings, drum->type != DrumType::SOUND);
+		}
+		return;
+	}
+	if (const auto* clip = std::get_if<project::ClipAddress>(&address.owner);
+	    clip != nullptr && address.group == project::SettingGroupId::CLIP_ARP) {
+		::Clip* found = song.clipForId(clip->clip_id);
+		if (found != nullptr && found->type == ClipType::INSTRUMENT && found->docClip_ != nullptr) {
+			auto& instrument_clip = *static_cast<::InstrumentClip*>(found);
+			seedArpRecord(found->docClip_->values.arp, instrument_clip.arpSettings,
+			              arpHostValuesAreSettings({.clip = &instrument_clip}));
+		}
+	}
+}
 
 bool arpHostValuesAreSettings(const ArpOwner& owner) {
 	if (owner.drum != nullptr) {

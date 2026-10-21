@@ -11,6 +11,7 @@
 #include "deluge-project/setting_group.h"
 #include "engine-api/types/setting.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/midi_drum.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_setting.h"
 #include "model/instrument/cv_instrument.h"
@@ -173,6 +174,31 @@ describe model_targets("a model target's write reaches the record its menu names
 		    .to_equal(std::stoi(stored_text(SettingGroupId::LANE_ARP, "arpeggiator/numOctaves", 4)));
 		expect(recorded(*f.song, {SettingGroupId::CLIP_ARP, *ctx.addresses.clip}, "arpeggiator/numOctaves"))
 		    .to_equal(kit_before);
+	});
+
+	it("writes a kit row's arp across every lane that takes it, with affect-entire held", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		auto* sound = spec::add_drum<SoundDrum>(f);
+		auto* midi = spec::add_drum<MIDIDrum>(f);
+		MenuContext ctx = clip_root(*f.song, f.clip);
+		ctx.addresses.affect_entire = true;
+		write(ctx, SettingGroupId::CLIP_ARP, "arpeggiator/numOctaves", 4);
+		const std::string want = stored_text(SettingGroupId::LANE_ARP, "arpeggiator/numOctaves", 4);
+		for (Drum* drum : std::initializer_list<Drum*>{sound, midi}) {
+			const deluge::project::LaneAddress lane{*f.instrument->id(), *drum->id()};
+			expect(recorded(*f.song, {SettingGroupId::LANE_ARP, lane}, "arpeggiator/numOctaves")).to_equal(want);
+		}
+	});
+
+	it("seeds a lane's arp record from its drum before writing one of its settings", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		auto* drum = spec::add_drum<MIDIDrum>(f);
+		drum->docDrum_->arp.reset(); // as a lane the song never recorded an arp for
+		drum->arpSettings.numOctaves = 3;
+		const MenuContext ctx = clip_root(*f.song, f.clip);
+		write(ctx, SettingGroupId::CLIP_ARP, "arpeggiator/stepRepeat", 2);
+		expect(recorded(*f.song, {SettingGroupId::LANE_ARP, *ctx.addresses.lane}, "arpeggiator/numOctaves"))
+		    .to_equal("3");
 	});
 
 	it("answers the device's bend ranges, a kit row's note tails and an arp's preset as the engine holds them", _ {
