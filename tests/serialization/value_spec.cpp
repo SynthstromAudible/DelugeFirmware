@@ -44,6 +44,34 @@ describe value("deluge::serialization::Value", ${
 		c.set("x", Value::makeNumber(96));
 		expect(a == c).to_be_false();                            // order matters
 	});
+	it("replaces an entry in its place, appends a new one, and erases one", _{
+		const auto keys = [](const Value& m) {
+			std::string out;
+			for (const auto& [key, value] : m.entries()) {
+				out += key;
+			}
+			return out;
+		};
+		Value child = Value::makeMap();
+		child.set("c", Value::makeNumber(2));
+		Value m = Value::makeMap();
+		m.set("a", Value::makeNumber(1));
+		m.set("b", child);
+		m.set("d", Value::makeNumber(3));
+		m.replace_or_append("b", Value::makeNumber(9));
+		expect(keys(m)).to_equal(std::string("abd"));
+		expect(*m.find("b") == Value::makeNumber(9)).to_be_true();
+		m.replace_or_append("e", Value::makeNumber(4));
+		expect(keys(m)).to_equal(std::string("abde"));
+		expect(m.erase("b")).to_be_true();
+		expect(keys(m)).to_equal(std::string("ade"));
+		expect(m.erase("x")).to_be_false();
+		expect(keys(m)).to_equal(std::string("ade"));
+		m.replace_or_append("b", child);
+		m.find_mut("b")->replace_or_append("c", Value::makeNumber(5));
+		expect(*m.find("b")->find("c") == Value::makeNumber(5)).to_be_true();
+		expect(m.find_mut("x") == nullptr).to_be_true();
+	});
 });
 // clang-format on
 

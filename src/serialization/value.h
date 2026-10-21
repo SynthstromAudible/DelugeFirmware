@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -88,6 +89,39 @@ public:
 		return nullptr;
 	}
 	[[nodiscard]] const std::vector<std::pair<std::string, Value>>& entries() const { return std::get<MapType>(data_); }
+	/// @brief The first entry at @p key, mutable, or nullptr.
+	/// @param key The entry's key.
+	/// @return The entry's value, or nullptr.
+	[[nodiscard]] Value* find_mut(std::string_view key) {
+		for (auto& entry : std::get<MapType>(data_)) {
+			if (entry.first == key) {
+				return &entry.second;
+			}
+		}
+		return nullptr;
+	}
+	/// @brief Replace the first entry at @p key with @p value in its position, or append it when there is none.
+	/// @param key   The entry's key.
+	/// @param value The new value.
+	void replace_or_append(std::string_view key, Value value) {
+		if (Value* held = find_mut(key)) {
+			*held = std::move(value);
+			return;
+		}
+		set(std::string(key), std::move(value));
+	}
+	/// @brief Erase the first entry at @p key.
+	/// @param key The entry's key.
+	/// @return Whether there was one.
+	bool erase(std::string_view key) {
+		auto& entries = std::get<MapType>(data_);
+		const auto found = std::ranges::find(entries, key, &std::pair<std::string, Value>::first);
+		if (found == entries.end()) {
+			return false;
+		}
+		entries.erase(found);
+		return true;
+	}
 
 	// Array accessors.
 	void append(Value value) { std::get<std::vector<Value>>(data_).push_back(std::move(value)); }
