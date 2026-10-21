@@ -28,7 +28,8 @@ ARM_TARGET = "armv7-unknown-linux-gnueabihf"
 
 
 def needs_configure(tree: Path, source: Path, cxx: str | None = None) -> bool:
-    """Whether the CMake tree at `tree` must be configured from `source` (with the C++ compiler `cxx`, if given).
+    """Whether the CMake tree at `tree` must be configured from `source` (with the C++ compiler `cxx`, if given, unless
+    the tree's toolchain chose it).
 
     A tree configured from another source directory (the source moved), or with another compiler, cannot be reused --
     CMake refuses the first and keeps the old compiler for the second -- so it is removed first; it holds only build
@@ -41,8 +42,13 @@ def needs_configure(tree: Path, source: Path, cxx: str | None = None) -> bool:
     home = re.search(r"^CMAKE_HOME_DIRECTORY:INTERNAL=(.*)$", text, re.MULTILINE)
     compiler = re.search(r"^CMAKE_CXX_COMPILER:[A-Z]+=(.*)$", text, re.MULTILINE)
     same_source = home is not None and Path(home.group(1)).resolve() == source.resolve()
-    same_compiler = cxx is None or (
-        compiler is not None and Path(compiler.group(1)).name == cxx
+    # A toolchain file sets the compiler as a plain variable, which never reaches the cache: a generated tree with no
+    # compiler entry was configured by its toolchain, and reconfiguring cannot change that compiler.
+    toolchain_tree = compiler is None and (tree / "build.ninja").exists()
+    same_compiler = (
+        cxx is None
+        or toolchain_tree
+        or (compiler is not None and Path(compiler.group(1)).name == cxx)
     )
     if same_source and same_compiler:
         return False

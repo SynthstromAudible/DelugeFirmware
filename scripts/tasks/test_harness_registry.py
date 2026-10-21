@@ -603,3 +603,28 @@ class SongRecordsTest(unittest.TestCase):
             t.join()
         records = json.loads(path.read_text())
         self.assertEqual(sorted(records), sorted(f"S{i}" for i in range(16)))
+
+
+class NeedsConfigureTest(unittest.TestCase):
+    def test_a_toolchain_tree_is_reused(self):
+        # A toolchain file sets the compiler as a plain variable, so the cache holds no CMAKE_CXX_COMPILER entry.
+        root = Path(tempfile.mkdtemp())
+        source, tree = root / "src", root / "build"
+        source.mkdir()
+        tree.mkdir()
+        (tree / "CMakeCache.txt").write_text(
+            f"CMAKE_HOME_DIRECTORY:INTERNAL={source}\n"
+        )
+        (tree / "build.ninja").write_text("")
+        self.assertFalse(tb.needs_configure(tree, source, "clang++"))
+        self.assertTrue(tree.is_dir())
+
+    def test_an_unfinished_tree_is_configured(self):
+        root = Path(tempfile.mkdtemp())
+        source, tree = root / "src", root / "build"
+        source.mkdir()
+        tree.mkdir()
+        (tree / "CMakeCache.txt").write_text(
+            f"CMAKE_HOME_DIRECTORY:INTERNAL={source}\n"
+        )
+        self.assertTrue(tb.needs_configure(tree, source, "clang++"))
