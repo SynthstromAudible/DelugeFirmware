@@ -37,22 +37,25 @@ deluge::serialization::Value elementFor(const ::Sound& sound, const deluge::proj
 
 Error commitEngineSetting(::Sound& sound, deluge::project::InstrumentSlot& slot, std::string_view path,
                           const deluge::serialization::Value& value, ::Song& song) {
-	if (deluge::effects::shapes_reverb_sidechain(path)) {
-		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true; // whatever lands, the reverb re-reads it
-	}
 	Error error = deluge::bridge::commitSlot(sound, slot, elementFor(sound, slot, path, value), song);
 	const std::optional<deluge::serialization::Value> landed =
 	    deluge::instrument::setting_value(*sound.boundState(), path);
-	if (landed && landed->str() == value.str()) {
-		return Error::NONE; // what else of the slot the sound refused is not this Edit's, and the slot now says it
+	if (!landed || landed->str() != value.str()) {
+		if (error == Error::NONE) {
+			// The slot cannot hold this value (a live input's interpolation, a sync level the magnitude cannot
+			// write): the runtime holds it until a save and reload.
+			error = deluge::bridge::applySetting(sound, path, value, song);
+			deluge::bridge::syncSlotState(sound, slot, song);
+		}
 	}
-	if (error != Error::NONE) {
-		return error;
+	else {
+		error = Error::NONE; // what else of the slot the sound refused is not this Edit's, and the slot now says it
 	}
-	// The slot cannot hold this value (a live input's interpolation, a sync level the magnitude cannot write): the
-	// runtime holds it until a save and reload.
-	error = deluge::bridge::applySetting(sound, path, value, song);
-	deluge::bridge::syncSlotState(sound, slot, song);
+	// After the commit has projected the sound's render copy, which the reverb copies from: a render during the commit
+	// would otherwise clear the flag before the new timing is there to read. Whatever landed, the reverb re-reads it.
+	if (deluge::effects::shapes_reverb_sidechain(path)) {
+		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+	}
 	return error;
 }
 
