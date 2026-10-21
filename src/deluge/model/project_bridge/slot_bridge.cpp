@@ -198,13 +198,8 @@ std::optional<deluge::project::SlotAddress> slotAddressOf(::Sound& sound) {
 	return nullptr;
 }
 
-void syncSlotState(const ::Sound& sound, deluge::project::InstrumentSlot& slot, const ::Song& song) {
-	if (sound.boundState() != nullptr) {
-		// At the magnitude the whole slot was written at: its other entries (the effects' sync levels) stay relative
-		// to it.
-		slot.state = deluge::instrument::with_state(slot.state, *sound.boundState(),
-		                                            {.input_tick_magnitude = slot.tick_magnitude});
-	}
+void syncSlotState(const ::Sound& sound, deluge::project::InstrumentSlot& slot, const ::Song& /*song*/) {
+	(void)refreshSlot(sound, slot);
 }
 
 deluge::serialization::Value withLeaf(const deluge::serialization::Value& tree, std::string_view path,
@@ -283,6 +278,8 @@ Error commitState(::Sound& sound, const deluge::instrument::SlotChange& change, 
 
 const deluge::serialization::Value& refreshSlot(const ::Sound& sound, deluge::project::InstrumentSlot& slot) {
 	if (sound.boundState() != nullptr) {
+		// At the magnitude the whole slot was written at: its other entries (the effects' sync levels) stay relative
+		// to it.
 		slot.state = deluge::instrument::with_state(slot.state, *sound.boundState(),
 		                                            {.input_tick_magnitude = slot.tick_magnitude});
 	}
@@ -300,17 +297,22 @@ TypedWriteAudit& typedWriteAudit() {
 	return audit;
 }
 
+std::optional<deluge::serialization::Value> typedWriteAuditBase(const ::Sound& sound,
+                                                                const deluge::project::InstrumentSlot& slot) {
+	if (!typedWriteAudit().enabled || sound.boundState() == nullptr) {
+		return std::nullopt;
+	}
+	return deluge::instrument::with_state(slot.state, *sound.boundState(),
+	                                      {.input_tick_magnitude = slot.tick_magnitude});
+}
+
 void auditTypedWrite(const ::Sound& sound, const deluge::project::InstrumentSlot& slot,
-                     const std::function<deluge::serialization::Value(const deluge::serialization::Value&)>& element_of,
+                     const deluge::serialization::Value& whole, const deluge::serialization::Value& element,
                      const std::expected<deluge::instrument::SlotChange, deluge::engine::StateError>& got,
                      std::string_view what) {
 	TypedWriteAudit& audit = typedWriteAudit();
-	if (!audit.enabled || sound.boundState() == nullptr) {
-		return;
-	}
-	const deluge::engine::CodecContext context{.input_tick_magnitude = slot.tick_magnitude};
-	const deluge::serialization::Value whole = deluge::instrument::with_state(slot.state, *sound.boundState(), context);
-	const auto want = deluge::instrument::decode_change(element_of(whole), whole, *sound.boundState(), context);
+	const auto want = deluge::instrument::decode_change(element, whole, *sound.boundState(),
+	                                                    {.input_tick_magnitude = slot.tick_magnitude});
 	audit.writes++;
 	const bool same =
 	    want.has_value() == got.has_value() && (!want || (want->state == got->state && want->changed == got->changed));

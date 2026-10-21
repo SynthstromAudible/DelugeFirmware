@@ -1083,6 +1083,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		std::fprintf(io.err, "SLOT-WRITE-AUDIT writes=%u mismatches=%u %s\n", static_cast<unsigned>(audit.writes),
 		             static_cast<unsigned>(audit.mismatches), audit.first.c_str());
 		check(audit.writes > 0 && audit.mismatches == 0, "every typed write reads as its slot's decode would");
+		deluge::bridge::typedWriteAudit() = {}; // off for whatever the process runs next
 	}
 
 	if (failures == 0) {

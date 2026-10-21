@@ -271,7 +271,7 @@ SoundPieces encode_pieces(const SoundState& state, const engine::CodecContext& c
 		}
 	};
 	const std::span<const std::string_view> keys{kStateKeys};
-	// kStateKeys is file order: the head's six, the effects' attributes, maxVoices, the body's ten, midiOutput, the
+	// kStateKeys is file order: the head's six, the effects' attributes, maxVoices, the body's nine, midiOutput, the
 	// delay, the effects' tags.
 	put(pieces.head, keys.subspan(0, 6));
 	put(pieces.effect_attributes, keys.subspan(6, 5));
@@ -326,32 +326,6 @@ serialization::Value with_state(const serialization::Value& element, const Sound
 		}
 	}
 	return out;
-}
-
-void with_entries(serialization::Value& element, const SoundState& state, std::span<const std::string_view> keys,
-                  const engine::CodecContext& context) {
-	std::vector<std::pair<size_t, serialization::Value>> appended;
-	for (const std::string_view key : keys) {
-		if (std::ranges::find(kOldStateKeys, key) != kOldStateKeys.end()) {
-			element.erase(key);
-			continue;
-		}
-		std::optional<serialization::Value> now = encode_entry(state, key, context);
-		if (!now) {
-			element.erase(key);
-		}
-		else if (serialization::Value* held = element.find_mut(key)) {
-			*held = std::move(*now);
-		}
-		else {
-			appended.emplace_back(state_key_index(key), std::move(*now));
-		}
-	}
-	// What the element lacked goes after everything, in the encoding's order, as with_state appends it.
-	std::ranges::sort(appended, {}, &std::pair<size_t, serialization::Value>::first);
-	for (auto& [index, value] : appended) {
-		element.set(std::string(kStateKeys[index]), std::move(value));
-	}
 }
 
 namespace {

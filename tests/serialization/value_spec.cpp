@@ -44,6 +44,14 @@ describe value("deluge::serialization::Value", ${
 		c.set("x", Value::makeNumber(96));
 		expect(a == c).to_be_false();                            // order matters
 	});
+	it("finds and erases nothing in a value that is not a map", _{
+		Value scalar = Value::makeNumber(3);
+		Value array = Value::makeArray();
+		expect(scalar.find_mut("a") == nullptr).to_be_true();
+		expect(scalar.erase("a")).to_be_false();
+		expect(array.find_mut("a") == nullptr).to_be_true();
+		expect(array.erase("a")).to_be_false();
+	});
 	it("replaces an entry in its place, appends a new one, and erases one", _{
 		const auto keys = [](const Value& m) {
 			std::string out;

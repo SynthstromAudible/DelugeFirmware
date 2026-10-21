@@ -1013,16 +1013,10 @@ int engine_settings_run(int argc, char** argv, Io driverIo) {
 			std::fprintf(io.err, "LOADFAIL\n");
 			return 1;
 		}
-		// Straight from the load, before any Edit could re-encode a slot: what settling the load did (a delay type its
-		// file left unsaid) reached each slot too.
-		if (deluge::harness::expectSongCoherent(*song, "loaded",
-		                                        {.runtime = false,
-		                                         .snapshot = false,
-		                                         .controls = false,
-		                                         .decode = false,
-		                                         .chains = false,
-		                                         .song_settings = false})
-		    != 0) {
+		// Straight from the load, before any Edit: what settling the load did (a delay type its file left unsaid) left
+		// each sound's runtime, record, knobs and chains agreeing. The song settings are not held here: a loaded song's
+		// reverb room size and its engine copy differ by a rounding step, a separate finding.
+		if (deluge::harness::expectSongCoherent(*song, "loaded", {.song_settings = false}) != 0) {
 			std::fprintf(io.err, "FAIL loaded song incoherent\n");
 			return 3;
 		}
@@ -1097,7 +1091,9 @@ int engine_settings_main(int argc, char** argv, Io driverIo) {
 	const int r = engine_settings_run(argc, argv, driverIo);
 	std::fprintf(io.err, "SLOT-WRITE-AUDIT writes=%u mismatches=%u %s\n", static_cast<unsigned>(audit.writes),
 	             static_cast<unsigned>(audit.mismatches), audit.first.c_str());
-	return r != 0 ? r : (audit.mismatches != 0 ? 1 : 0);
+	const bool mismatched = audit.mismatches != 0;
+	audit = {}; // off for whatever the process runs next
+	return r != 0 ? r : (mismatched ? 1 : 0);
 }
 
 } // namespace

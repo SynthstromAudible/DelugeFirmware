@@ -23,7 +23,6 @@
 #include "engines/deluge/sound_state.h"
 
 #include <expected>
-#include <functional>
 #include <optional>
 #include <span>
 #include <string>
@@ -146,16 +145,26 @@ struct TypedWriteAudit {
 /// @return The audit.
 TypedWriteAudit& typedWriteAudit();
 
-/// @brief When the audit is enabled, compare @p got with the old way's change: @p element_of (the refreshed tree in,
-/// the changed tree out) decoded onto the sound's state.
+/// @brief The refreshed tree the old way starts from when the audit is enabled, else nothing (and the caller builds no
+/// changed tree).
 ///
-/// @param sound      The sound, before the change is committed.
-/// @param slot       Its slot.
-/// @param element_of How the old way changed the tree.
-/// @param got        The typed write's change.
-/// @param what       What was written, for the failure message.
+/// @param sound The sound, before the change is committed.
+/// @param slot  Its slot.
+/// @return The sound's slot tree as its state encodes it, or nullopt.
+[[nodiscard]] std::optional<deluge::serialization::Value>
+typedWriteAuditBase(const ::Sound& sound, const deluge::project::InstrumentSlot& slot);
+
+/// @brief Compare @p got with the old way's change: @p element (@p whole with the change written into it) decoded onto
+/// the sound's state.
+///
+/// @param sound   The sound, before the change is committed.
+/// @param slot    Its slot.
+/// @param whole   typedWriteAuditBase's tree.
+/// @param element @p whole changed the old way.
+/// @param got     The typed write's change.
+/// @param what    What was written, for the failure message.
 void auditTypedWrite(const ::Sound& sound, const deluge::project::InstrumentSlot& slot,
-                     const std::function<deluge::serialization::Value(const deluge::serialization::Value&)>& element_of,
+                     const deluge::serialization::Value& whole, const deluge::serialization::Value& element,
                      const std::expected<deluge::instrument::SlotChange, deluge::engine::StateError>& got,
                      std::string_view what);
 

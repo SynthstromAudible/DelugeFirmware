@@ -36,23 +36,27 @@ deluge::serialization::Value elementFor(const ::Sound& sound, const deluge::seri
 
 } // namespace
 
-Error commitEngineSetting(::Sound& sound, deluge::project::InstrumentSlot& slot, std::string_view path,
-                          const deluge::serialization::Value& value, ::Song& song) {
+std::expected<deluge::instrument::SlotChange, deluge::engine::StateError>
+settingChange(const ::Sound& sound, const deluge::project::InstrumentSlot& slot, std::string_view path,
+              const deluge::serialization::Value& value) {
 	const deluge::engine::CodecContext context{.input_tick_magnitude = slot.tick_magnitude};
 	const deluge::instrument::SoundState& before = *sound.boundState();
-	// The state the write reaches, read as the slot would read it with the change: through the setting's own entry, or
-	// where its menu reshapes more (an oscillator's type or loop mode, the synth mode) through each entry that moved.
-	std::optional<deluge::instrument::SoundState> reshaped = deluge::bridge::stateWithSetting(sound, path, value);
-	const auto change =
-	    reshaped ? deluge::instrument::change_to(
-	                   before, *reshaped, deluge::instrument::differing_entries(before, *reshaped, context), context)
-	             : deluge::instrument::with_setting(before, path, value, context);
-	deluge::bridge::auditTypedWrite(
-	    sound, slot,
-	    [&](const deluge::serialization::Value& whole) {
-		    return elementFor(sound, whole, slot.tick_magnitude, path, value);
-	    },
-	    change, path);
+	// Through the setting's own entry, or where its menu reshapes more (an oscillator's type or loop mode, the synth
+	// mode) through each entry that moved.
+	if (std::optional<deluge::instrument::SoundState> reshaped = deluge::bridge::stateWithSetting(sound, path, value)) {
+		return deluge::instrument::change_to(
+		    before, *reshaped, deluge::instrument::differing_entries(before, *reshaped, context), context);
+	}
+	return deluge::instrument::with_setting(before, path, value, context);
+}
+
+Error commitEngineSetting(::Sound& sound, deluge::project::InstrumentSlot& slot, std::string_view path,
+                          const deluge::serialization::Value& value, ::Song& song) {
+	const auto change = settingChange(sound, slot, path, value);
+	if (const std::optional<deluge::serialization::Value> whole = deluge::bridge::typedWriteAuditBase(sound, slot)) {
+		deluge::bridge::auditTypedWrite(sound, slot, *whole,
+		                                elementFor(sound, *whole, slot.tick_magnitude, path, value), change, path);
+	}
 	Error error = change ? deluge::bridge::commitState(sound, *change, song) : Error::UNSPECIFIED;
 	const std::optional<deluge::serialization::Value> landed =
 	    deluge::instrument::setting_value(*sound.boundState(), path);

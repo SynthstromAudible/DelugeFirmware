@@ -86,6 +86,7 @@ void deluge_scenario_scenes_spec_on_app_init(void) {
 	if (audit.mismatches != 0 && g_exit == 0) {
 		g_exit = 1;
 	}
+	deluge::bridge::typedWriteAudit() = {}; // off for whatever the process runs next
 	std::printf("SCENES-SPEC %s exit=%d\n", id, g_exit);
 	std::fflush(stdout);
 }

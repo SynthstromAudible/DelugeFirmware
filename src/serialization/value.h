@@ -89,10 +89,13 @@ public:
 		return nullptr;
 	}
 	[[nodiscard]] const std::vector<std::pair<std::string, Value>>& entries() const { return std::get<MapType>(data_); }
-	/// @brief The first entry at @p key, mutable, or nullptr.
+	/// @brief The first entry at @p key, mutable, or nullptr (also for a value that is not a map).
 	/// @param key The entry's key.
 	/// @return The entry's value, or nullptr.
 	[[nodiscard]] Value* find_mut(std::string_view key) {
+		if (!isMap()) {
+			return nullptr;
+		}
 		for (auto& entry : std::get<MapType>(data_)) {
 			if (entry.first == key) {
 				return &entry.second;
@@ -112,8 +115,11 @@ public:
 	}
 	/// @brief Erase the first entry at @p key.
 	/// @param key The entry's key.
-	/// @return Whether there was one.
+	/// @return Whether there was one (never, for a value that is not a map).
 	bool erase(std::string_view key) {
+		if (!isMap()) {
+			return false;
+		}
 		auto& entries = std::get<MapType>(data_);
 		const auto found = std::ranges::find(entries, key, &std::pair<std::string, Value>::first);
 		if (found == entries.end()) {

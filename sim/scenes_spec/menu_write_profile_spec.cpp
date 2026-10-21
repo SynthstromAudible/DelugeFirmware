@@ -11,6 +11,7 @@
 #include "engine-api/types/setting.h"
 #include "engines/deluge/codec.h"
 #include "engines/deluge/settings.h"
+#include "model/edits/set_engine_setting.h"
 #include "model/instrument/kit.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/slot_bridge.h"
@@ -104,15 +105,8 @@ void commit_phased(Phases& phases, Song& song, deluge::project::SlotAddress addr
 	if (slot == nullptr || sound == nullptr || !value) {
 		return;
 	}
-	const deluge::engine::CodecContext codec{.input_tick_magnitude = slot->tick_magnitude};
-	const auto change = phases.time("change", [&] {
-		const deluge::instrument::SoundState& before = *sound->boundState();
-		if (auto reshaped = deluge::bridge::stateWithSetting(*sound, path, *value)) {
-			return deluge::instrument::change_to(
-			    before, *reshaped, deluge::instrument::differing_entries(before, *reshaped, codec), codec);
-		}
-		return deluge::instrument::with_setting(before, path, *value, codec);
-	});
+	const auto change =
+	    phases.time("change", [&] { return deluge::edits::settingChange(*sound, *slot, path, *value); });
 	if (!change) {
 		return;
 	}

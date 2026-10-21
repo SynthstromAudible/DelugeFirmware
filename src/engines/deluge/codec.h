@@ -93,18 +93,6 @@ struct SoundPieces {
 encode_entry(const SoundState& state, std::string_view key, const engine::CodecContext& context,
              std::optional<int32_t> compressor_threshold = std::nullopt);
 
-/// @brief with_state restricted to @p keys, in place: each of them the element holds takes its encoding at its
-/// position, or is erased when the encoding no longer writes it (the sidechain's older tag always is); each the
-/// encoding writes that the element lacks is appended after everything, in the encoding's order. Every other entry is
-/// untouched, so the result is with_state's when the element's other instrument entries already are @p state's
-/// encoding.
-/// @param element The sound's slot, changed in place.
-/// @param state   The state whose encoding replaces those entries.
-/// @param keys    The top-level keys to replace.
-/// @param context The file context.
-void with_entries(serialization::Value& element, const SoundState& state, std::span<const std::string_view> keys,
-                  const engine::CodecContext& context);
-
 /// @brief Read a whole sound element into @p state, which holds the state of the sound being read into (a new sound's,
 /// for a file). Each entry is applied in the element's order, older
 /// formats included; anything the element lacks keeps its value. Params, patch cables, mod knobs and the effects are
@@ -149,9 +137,9 @@ struct SlotChange {
 /// leaf changed gives it, with the instrument entries the write touched. Only the path's own entry, and "mode" (which a
 /// source's and a modulator's reading depends on), are encoded and read.
 /// @param state   The sound's state.
-/// @param path    The setting's path; not one whose menu reshapes more than its leaf (an oscillator's type or loop
+/// @param path    The setting's path: not one whose menu reshapes more than its leaf (an oscillator's type or loop
 /// mode,
-///                the synth mode).
+///                or the synth mode).
 /// @param value   The value in its Edit form (canonical; a sync level as the level itself).
 /// @param context The file context: the slot's tick magnitude.
 /// @return The new state and the entries touched, or why the entry cannot be read.

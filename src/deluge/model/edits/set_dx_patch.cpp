@@ -23,12 +23,10 @@ Error SetDxPatch::apply(Context& ctx) {
 	const deluge::engine::CodecContext context{.input_tick_magnitude = slot->tick_magnitude};
 	const std::array<std::string_view, 1> keys{source_ == 0 ? "osc1" : "osc2"};
 	const auto change = deluge::instrument::change_to(*sound->boundState(), changed, keys, context);
-	deluge::bridge::auditTypedWrite(
-	    *sound, *slot,
-	    [&](const deluge::serialization::Value& whole) {
-		    return deluge::instrument::with_state(whole, changed, context);
-	    },
-	    change, keys[0]);
+	if (const std::optional<deluge::serialization::Value> whole = deluge::bridge::typedWriteAuditBase(*sound, *slot)) {
+		deluge::bridge::auditTypedWrite(*sound, *slot, *whole, deluge::instrument::with_state(*whole, changed, context),
+		                                change, keys[0]);
+	}
 	Error error = change ? deluge::bridge::commitState(*sound, *change, ctx.song) : Error::UNSPECIFIED;
 	if (sound->boundState()->sources[source_].dx_patch == patch_) {
 		return Error::NONE; // what else the sound refused is not this Edit's

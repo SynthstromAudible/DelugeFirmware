@@ -111,6 +111,8 @@ void collect(Output& output, Song& song, const std::string& label, std::vector<S
 		Sound* sound = static_cast<Sound*>(static_cast<SoundInstrument*>(&output));
 		std::optional<Value> read;
 		if (output.docOutput_ != nullptr && output.docOutput_->instrument) {
+			// The slot as the load left it, unrefreshed: the element the app wrote and read back, which is what this
+			// compares with the encoding.
 			read = output.docOutput_->instrument->state;
 		}
 		else {
