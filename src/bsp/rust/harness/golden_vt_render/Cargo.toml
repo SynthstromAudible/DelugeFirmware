@@ -27,6 +27,13 @@ embassy-futures = "0.1.2"
 critical-section = { version = "1", features = ["std"] }
 log = "0.4"
 env_logger = "0.11"
+# Only for the `asan` feature: turns on the allocator's heap poisoning, for every crate that uses it.
+deluge_alloc = { path = "../../../../../crates/deluge_alloc", optional = true, features = ["asan"] }
+
+[features]
+# An AddressSanitizer build: links the sanitizer runtime (build.rs) against a host app compiled with it
+# (DELUGE_SIM_SANITIZE), and poisons the allocator's free blocks so a use-after-free inside a heap traps.
+asan = ["dep:deluge_alloc"]
 
 [profile.dev]
 opt-level = 1

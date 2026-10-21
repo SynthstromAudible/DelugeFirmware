@@ -151,9 +151,10 @@ if(DELUGE_SIM_SANITIZE)
     # app's view hierarchy leans on static downcasts). alignment: the custom allocator does intentional unaligned
     # boundary-tag reads. shift: simde's portable NEON emulation (and DSP code) relies on implementation-defined signed
     # shift behaviour that mirrors the ARM saturating instructions; this path only exists in the sim (the device uses
-    # real NEON), so it isn't shipping behaviour. GCC has no per-file ignorelist, so these are excluded globally - they
-    # mirror the firmware's own DELUGE_UBSAN exclusions.
-    add_compile_options(-fsanitize=address,undefined -fno-sanitize=vptr,alignment,shift
+    # real NEON), so it isn't shipping behaviour. signed-integer-overflow: legacy arithmetic (string formatting at
+    # INT32_MIN, peak meters, phase scaling) relies on two's-complement wrap, which every target gives it. GCC has no
+    # per-file ignorelist, so these are excluded globally - they mirror the firmware's own DELUGE_UBSAN exclusions.
+    add_compile_options(-fsanitize=address,undefined -fno-sanitize=vptr,alignment,shift,signed-integer-overflow
         -fno-omit-frame-pointer -fno-sanitize-recover=all)
     add_link_options(-fsanitize=address,undefined)
 endif()

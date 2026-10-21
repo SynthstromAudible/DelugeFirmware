@@ -20,6 +20,9 @@ SHARED_TARGET_SUBDIR = Path("build") / "cargo-harness"
 # compiled for x86-64. Nothing links here; golden_vt_render's build script archives these objects.
 HOST_APP_TREE = Path("build") / "host-app"
 HOST_APP_ARM_TREE = Path("build") / "host-app-arm"
+# The same closure compiled with AddressSanitizer and UBSan (DELUGE_SIM_SANITIZE), and the harness it links into.
+HOST_APP_ASAN_TREE = Path("build") / "host-app-asan"
+ASAN_TARGET_SUBDIR = Path("build") / "cargo-harness-asan"
 # The Rust target the ARM golden_vt_render is built for: 32-bit ARM Linux, hard float, run under qemu.
 ARM_TARGET = "armv7-unknown-linux-gnueabihf"
 
@@ -123,6 +126,35 @@ class HostApp(Product):
         return steps
 
 
+class HostAppAsan(Product):
+    """The host app compiled with AddressSanitizer and UBSan, for the sanitizer gates."""
+
+    def steps(self, root: Path) -> list[Step]:
+        tree = root / HOST_APP_ASAN_TREE
+        steps = []
+        if needs_configure(tree, root / "sim", "clang++"):
+            steps.append(
+                Step(
+                    "configure",
+                    [
+                        "cmake",
+                        "-S",
+                        "sim",
+                        "-B",
+                        str(tree),
+                        "-G",
+                        "Ninja",
+                        "-DCMAKE_C_COMPILER=clang",
+                        "-DCMAKE_CXX_COMPILER=clang++",
+                        "-DDELUGE_SIM_SANITIZE=ON",
+                    ],
+                    root,
+                )
+            )
+        steps.append(Step("build", ["ninja", "-C", str(tree), *HOST_APP_TARGETS], root))
+        return steps
+
+
 class HostAppArm(Product):
     """The host app cross-built for arm-linux (Cortex-A9, NEON) with clang, for the ARM golden_vt_render."""
 
@@ -180,6 +212,25 @@ class GoldenVtRender(Product):
         ]
 
 
+class GoldenVtRenderAsan(Product):
+    """golden_vt_render linked against the AddressSanitizer host app, with the allocator's heap poisoning on."""
+
+    def steps(self, root: Path) -> list[Step]:
+        return [
+            Step(
+                "build",
+                ["cargo", "build", "--release", "--features", "asan"],
+                root / "src/bsp/rust/harness/golden_vt_render",
+                {
+                    "DELUGE_HOSTAPP_BUILD_DIR": str(root / HOST_APP_ASAN_TREE),
+                    "CARGO_TARGET_DIR": str(root / ASAN_TARGET_SUBDIR),
+                    # clang links, so -fsanitize=address takes clang's runtime, the one the objects were built for.
+                    "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER": "clang",
+                },
+            )
+        ]
+
+
 def products(root: Path) -> dict[str, Product]:
     host_app_env = {
         "DELUGE_HOSTAPP_BUILD_DIR": str(root / HOST_APP_TREE),
@@ -205,6 +256,22 @@ def products(root: Path) -> dict[str, Product]:
             ["host-app"],
             ["cargo"],
             host_app_env,
+        ),
+        "host-app-asan": HostAppAsan(
+            "host-app-asan",
+            [],
+            ["cmake", "clang-asan"],
+            {"DELUGE_HOSTAPP_BUILD_DIR": str(root / HOST_APP_ASAN_TREE)},
+        ),
+        "golden-vt-render-asan": GoldenVtRenderAsan(
+            "golden-vt-render-asan",
+            ["host-app-asan"],
+            ["cargo", "clang-asan"],
+            {
+                "DELUGE_HOSTAPP_BUILD_DIR": str(root / HOST_APP_ASAN_TREE),
+                "CARGO_TARGET_DIR": str(root / ASAN_TARGET_SUBDIR),
+                "BUILD_DIR": str(root / HOST_APP_ASAN_TREE),
+            },
         ),
     }
 

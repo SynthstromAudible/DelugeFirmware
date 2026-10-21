@@ -107,6 +107,7 @@ void testDispatcher(deluge::edits::Context& ctx) {
 ModelStackWithAutoParam* makeStack(char* buf, ParamManagerForTimeline& pm, int32_t paramId) {
 	std::memset(buf, 0, MODEL_STACK_MAX_SIZE);
 	auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
+	ms->paramManager = &pm;
 	ms->paramCollection = pm.getUnpatchedParamSet();
 	ms->summary = pm.getUnpatchedParamSetSummary();
 	ms->kind = pm.getUnpatchedParamSet()->getParamKind(); // keep the threaded kind consistent (doc() ALPHA-asserts)

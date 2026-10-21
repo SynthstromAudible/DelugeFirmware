@@ -22,6 +22,7 @@
  */
 
 #include "dsp/reverb/freeverb/freeverb.hpp"
+#include "util/fixedpoint.h"
 #include <limits>
 
 namespace deluge::dsp::reverb {
@@ -87,7 +88,8 @@ void Freeverb::update() {
 	// Recalculate internal values after parameter change
 
 	wet1 = wet * (width / 2 + 0.5f);
-	wet2 = (((float)1 - width) / 2) / (width / 2 + 0.5f) * std::numeric_limits<int32_t>::max();
+	// 1.0 at width 0: saturate, as the device's conversion does (a plain cast of 2^31 is undefined).
+	wet2 = q31_from_float(((float)1 - width) / 2 / (width / 2 + 0.5f));
 
 	gain = fixedgain * std::numeric_limits<int32_t>::max();
 

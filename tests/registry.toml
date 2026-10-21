@@ -2431,3 +2431,95 @@ gates = "the PTM trace tool's host side: function names resolve to one address r
 run = ["python3", "-m", "unittest", "discover", "-p", "test_*.py"]
 tier = "pr"
 runtime = "~1s"
+
+[[harness]]
+name = "app-asan-sample-load-tree"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "sanitizer"
+status = "gate"
+gates = "the sample-load-tree gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning: any use-after-free, overflow or undefined behaviour the scenario reaches is fatal (a sound plays its record's state, so a record freed under it would read freed memory)"
+scenario = "sample_load_tree"
+markers = ["SLT-ARM", "SLT-SETUP", "SLT-HOLDER", "SLT-CLIP", "SLT-SONG", "SLT-SYNTH", "SLT-KIT", "SLT-CRUCIAL", "SLT-CRUCIAL-SUMMARY", "SLT-ASYNC", "SLT-SUMMARY", "SLT-RESULT"]
+result = "SLT-RESULT failures=0"
+check = "tests/integration/checks/sample_load_tree.py"
+builds = ["golden-vt-render-asan"]
+requires = ["clang-asan"]
+tier = "nightly"
+runtime = "~5m"
+
+# The sample browser's claim, from the browser a user opens: what each claim binds, and where its load runs.
+env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }
+
+[[harness]]
+name = "app-asan-preset-load"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "sanitizer"
+status = "gate"
+gates = "the preset-load gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning: any use-after-free, overflow or undefined behaviour the scenario reaches is fatal (a sound plays its record's state, so a record freed under it would read freed memory)"
+scenario = "preset_load"
+markers = ["PL-SETUP", "PL-LISTING-EDGE", "PL-SELECT", "PL-SYNTH", "PL-KIT", "PL-ROW", "PL-CLONE", "PL-TIER", "PL-RACE", "PL-SUPERSEDE", "PL-GATE", "PL-STALL", "AQ-NEW", "AQ-CHANGE", "AQ-CHANGE-TIER", "AQ-CHANGE-NAMED", "AQ-CHANGE-NEXT", "AQ-CHANGE-MISSING", "AQ-CHANGE-STALL", "AQ-NAVIGATE", "AQ-NAV-TIER", "AQ-NAV-WRAP", "AQ-NAV-STALL", "AQ-SUPERSEDE", "AQ-REFUSE", "AQ-CLONE", "AQ-TAP", "AQ-STALL", "AQ-SLOT", "AQ-SLOT-STALL", "AQ-EXT", "AQ-TIER", "RV-CARD", "RV-MEMORY", "RV-STALL", "MD-BROWSER", "BS-BOOT", "BS-CLEAR", "BS-EDITED", "PW-WALK-FOUND", "PW-WALK-DEPTH", "PW-WALK-PAGED", "PW-WALK-EXHAUST", "PW-WALK-TIER", "PL-RESULT"]
+result = "PL-RESULT failures=0"
+check = "tests/integration/checks/preset_load.py"
+env = { GOLDEN_VIRTUAL_BUDGET_MS = "180000" }
+builds = ["golden-vt-render-asan"]
+requires = ["clang-asan"]
+tier = "nightly"
+runtime = "~5m"
+env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }
+
+[[harness]]
+name = "app-asan-recorder-take"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "sanitizer"
+status = "gate"
+gates = "the recorder-take gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning: any use-after-free, overflow or undefined behaviour the scenario reaches is fatal (a sound plays its record's state, so a record freed under it would read freed memory)"
+scenario = "recorder_take"
+check = "tests/integration/checks/recorder_take.py"
+markers = ["RT-OPEN", "RT-TAKE", "RT-ATTACH", "RT-REFUSED", "RT-CLOSED", "RT-SECOND", "RT-NULLED", "RT-REPLACED", "RT-NEXT-RUN", "RT-NEXT-ATTACH", "RT-NEXT"]
+result = "RT-RESULT failures=0"
+builds = ["golden-vt-render-asan"]
+requires = ["clang-asan"]
+tier = "nightly"
+runtime = "~5m"
+env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }
+
+[[harness]]
+name = "app-asan-ui-scenes-spec"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "sanitizer"
+status = "gate"
+gates = "the ui-scenes-spec gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning: any use-after-free, overflow or undefined behaviour the scenario reaches is fatal (a sound plays its record's state, so a record freed under it would read freed memory)"
+scenario = "scenes_spec"
+check = "tests/integration/checks/scenes_spec.py"
+markers = ["SCENES-SPEC"]
+result = "SCENES-SPEC-RESULT failures=0"
+builds = ["golden-vt-render-asan"]
+requires = ["clang-asan"]
+tier = "nightly"
+runtime = "~5m"
+env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }
+
+[[harness]]
+name = "app-asan-edit-substrate"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "sanitizer"
+status = "gate"
+gates = "the edit-substrate gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning: any use-after-free, overflow or undefined behaviour the scenario reaches is fatal (a sound plays its record's state, so a record freed under it would read freed memory)"
+scenario = "edit_substrate"
+markers = ["DRV-EXIT"]
+result = "DRV-EXIT code=0"
+builds = ["golden-vt-render-asan"]
+requires = ["clang-asan"]
+tier = "nightly"
+runtime = "~5m"
+env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }

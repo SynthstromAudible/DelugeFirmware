@@ -19,6 +19,12 @@ LEVELS = ("unit", "component", "integration")
 RUNNERS = ("ctest", "cargo", "scenario", "script")
 # Cumulative, in this order: selecting a tier selects every tier before it too.
 TIERS = ("pr", "nightly", "manual")
+# The build products that produce golden_vt_render; a scenario gate names one.
+SCENARIO_RENDERERS = (
+    "golden-vt-render",
+    "golden-vt-render-arm",
+    "golden-vt-render-asan",
+)
 
 # Requirement key -> how to satisfy it. Every key a registry entry may name must
 # appear here; `dbt test --doctor` prints the value when the probe fails.
@@ -29,6 +35,7 @@ PROBES = {
     "cmake": "install cmake and ninja",
     "clang": "install clang -- the host app is built with it, as the firmware is",
     "clang-tsan": "install clang (ThreadSanitizer needs clang or a TSan-capable GCC)",
+    "clang-asan": "install clang with its compiler-rt AddressSanitizer runtime (libclang_rt.asan)",
     "mtools": "apt install mtools -- fs_differential's fixtures are built with mformat",
     "qemu-arm": "apt install qemu-user",
     "arm-linux-gnueabihf-gcc": (
@@ -126,12 +133,10 @@ def load_registry(root: Path) -> list[Harness]:
                 raise ValueError(
                     f"{where}: a scenario gate is run from 'scenario', not 'build'/'run'"
                 )
-            if not {"golden-vt-render", "golden-vt-render-arm"} & set(
-                item.get("builds", [])
-            ):
+            if not set(SCENARIO_RENDERERS) & set(item.get("builds", [])):
                 raise ValueError(
-                    f"{where}: a scenario gate runs golden_vt_render, so builds must name golden-vt-render "
-                    "(or golden-vt-render-arm)"
+                    f"{where}: a scenario gate runs golden_vt_render, so builds must name one of "
+                    f"{', '.join(SCENARIO_RENDERERS)}"
                 )
         elif not item.get("run"):
             raise ValueError(f"{where}: missing required field 'run'")
@@ -230,6 +235,10 @@ def probe(requirement: str, root: Path) -> bool:
             )
         case "clang" | "clang-tsan":
             return shutil.which("clang++") is not None
+        case "clang-asan":
+            return shutil.which("clang++") is not None and any(
+                Path("/usr/lib").glob("clang/*/lib/*/libclang_rt.asan*")
+            )
         case "mtools":
             return shutil.which("mformat") is not None
         case "qemu-arm":
