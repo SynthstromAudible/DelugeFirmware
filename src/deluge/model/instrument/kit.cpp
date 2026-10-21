@@ -1319,6 +1319,7 @@ void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum,
 		}
 
 		// If kit arp not bypassed, execute instruction
+		kitInstruction.sampleSyncLengthOn = sampleSyncLength;
 		arpeggiator.noteOn(arpSettings, drumIndex, velocity, &kitInstruction, fromMIDIChannel, mpeValues);
 		if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
 			// Set the invertReverse flag for the drum arpeggiator
