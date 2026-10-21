@@ -152,6 +152,24 @@ class ConvertedScenes(unittest.TestCase):
             ("sound_fx.cpp", 'deluge::edits::songSettingFor("reverb/roomSize", v);'),
             ("roots.cpp", 'deluge::edits::trackSettingFor(*i, "outputMpeY", v);'),
             ("roots.cpp", 'deluge::edits::songSettingFromMenu("x", v);'),
+            ("roots.cpp", 'deluge::edits::audioClipSettingFor(*clip, "reversed", v);'),
+            ("roots.cpp", 'deluge::edits::clipValueSettingFor(*clip, "midiPGM", v);'),
+            (
+                "sound_randomizer.cpp",
+                'deluge::edits::laneArpSettingFor(*drum, "x", v);',
+            ),
+            (
+                "sound_randomizer.cpp",
+                'deluge::edits::clipArpSettingFor(*clip, "x", v);',
+            ),
+            (
+                "sound_osc.cpp",
+                'deluge::edits::audioClipSettingFor(*clip, "pitchSpeedIndependent", v);',
+            ),
+            (
+                "sound_voice.cpp",
+                'deluge::edits::audioClipSettingFor(*clip, "priority", v);',
+            ),
         ):
             with self.subTest(name=name, line=line):
                 self.assertEqual(len(self.check(name, line)), 1, line)
@@ -167,6 +185,14 @@ class ConvertedScenes(unittest.TestCase):
                 'deluge::edits::songSettingFor(\n\t    "reverb/compressor/syncLevel", v);',
             ),
             ("roots.cpp", 'deluge::edits::songSettingFor("swingInterval",'),
+            (
+                "sound_osc.cpp",
+                'deluge::edits::audioClipSettingFor(*clip, "linearInterpolation",',
+            ),
+            (
+                "sound_fx.cpp",
+                'deluge::edits::effectSettingFor(*t.mod, "stutter/reverse", v);',
+            ),
             ("scales.cpp", 'deluge::edits::songSettingFor("scales/disabled/1", v);'),
         ):
             with self.subTest(name=name, line=line):

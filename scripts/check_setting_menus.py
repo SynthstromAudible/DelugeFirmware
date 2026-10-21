@@ -470,13 +470,15 @@ def scene_follow_ups(root: Path) -> list[str]:
 
 #: A scene marking its instrument edited: SetSetting marks it for the settings that count as an edit.
 SCENES_EDITED_MARK = re.compile(r"\beditedByUser\s*=(?!=)")
-#: The legacy setting helpers a converted node no longer calls: its target writes its row through the menu's sink.
+#: The legacy setting helpers a converted node no longer calls: its target writes its row through the menu's sink. The
+#: path is the call's first string argument, after the receiver a clip's, track's or lane's helper takes.
 SCENES_LEGACY_HELPER = re.compile(
-    r"\b(clipSettingFor|trackSettingFor|songSettingFor|songSettingFromMenu|arpSettingFor)\s*\(\s*(?:\"([^\"]*)\")?"
+    r"\b(clipSettingFor|clipValueSettingFor|clipArpSettingFor|laneArpSettingFor|arpSettingFor|laneSettingFor"
+    r"|noteRowSettingFor|audioClipSettingFor|trackSettingFor|songSettingFor|songSettingFromMenu)\s*\(\s*(?:[^,;\"()]*,\s*)?(?:\"([^\"]*)\")?"
 )
 #: The scene files whose nodes write their rows by target, each with the paths a hook still writes through a legacy
 #: helper: the sidechain's volume (its menu scale is not the row's) and sync level (written beside the engine's sync
-#: type), and the swing interval (a song-root hook).
+#: type), the swing interval (a song-root hook), and an audio clip's interpolation (a sample hook not yet a target).
 SCENES_CONVERTED: dict[str, frozenset[str]] = {
     "sound_arp.cpp": frozenset(),
     "sound_randomizer.cpp": frozenset(),
@@ -485,6 +487,8 @@ SCENES_CONVERTED: dict[str, frozenset[str]] = {
         {"reverb/compressor/volume", "reverb/compressor/syncLevel"}
     ),
     "roots.cpp": frozenset({"swingInterval"}),
+    "sound_voice.cpp": frozenset(),
+    "sound_osc.cpp": frozenset({"linearInterpolation"}),
 }
 
 
