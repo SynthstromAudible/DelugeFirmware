@@ -204,7 +204,15 @@ LIBRARIES: dict[str, Library] = {
     "model": Library(
         REPO / "src" / "deluge-project",
         "deluge-project/",
-        ("engine-api/types/", "serialization/", "music-theory/", "foundation/panic.h"),
+        (
+            "engine-api/types/",
+            # an engine's state, held without naming its type (a record owns its instrument's state)
+            "engine-api/state_handle.h",
+            "engine-api/engine.h",
+            "serialization/",
+            "music-theory/",
+            "foundation/panic.h",
+        ),
     ),
     "scenes-bind": Library(
         REPO / "src" / "scenes" / "bind",
