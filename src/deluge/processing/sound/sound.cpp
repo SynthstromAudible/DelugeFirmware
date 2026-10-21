@@ -2956,11 +2956,20 @@ void Sound::bindState(deluge::instrument::SoundState& record) {
 	if (state_ == &record) {
 		return;
 	}
-	record = *state_;
+	const bool own = state_ == &ownedState_;
+	if (own) {
+		record = std::move(ownedState_); // the record holds it from now on
+	}
+	else {
+		record = *state_; // another record's, which stays that record's
+	}
 	state_ = &record;
-	bindEffects(&record.effects);
+	bindEffects(&record.effects); // copies the effects it played, which the move left in place
 	for (int32_t s = 0; s < kNumSources; s++) {
 		sources[s].bindState(&record.sources[s]);
+	}
+	if (own) {
+		ownedState_ = {}; // no second copy stays behind
 	}
 	projectSnapshot();
 }
@@ -2969,7 +2978,7 @@ void Sound::unbindState() {
 	if (state_ == nullptr || state_ == &ownedState_) {
 		return;
 	}
-	ownedState_ = *state_;
+	ownedState_ = std::move(*state_); // the record goes now
 	state_ = &ownedState_;
 	bindEffects(&ownedState_.effects);
 	for (int32_t s = 0; s < kNumSources; s++) {

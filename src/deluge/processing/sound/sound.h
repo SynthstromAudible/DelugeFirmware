@@ -127,11 +127,13 @@ public:
 	/// was bound.
 	void bindState();
 	/// @brief Bind this sound into @p record, its record's state: the record takes what the sound holds (binding its
-	/// own state first when unbound), and from then on every setter writes the record.
+	/// own state first when unbound), its own state moved in or another record's copied, and from then on every setter
+	/// writes the record.
 	/// @param record The state the sound's record owns; it must outlive the binding (unbindState before it goes).
 	void bindState(deluge::instrument::SoundState& record);
-	/// @brief Take the state back from the record the sound is bound into, before the record goes: the sound then plays
-	/// its own copy. Nothing when it plays its own state already, or none.
+	/// @brief Take the state back from the record the sound is bound into, as the record goes: the state moves into the
+	/// sound's own, which it then plays, and the record is left empty. Nothing when it plays its own state already, or
+	/// none.
 	void unbindState();
 	/// @brief The bound state.
 	/// @return The bound state, or null while unbound.

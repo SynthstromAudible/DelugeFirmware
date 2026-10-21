@@ -30,11 +30,13 @@
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
 #include <cstring>
+#include <span>
 #include <vector>
 
 #include "deluge-project/instrument_slot.h"
 #include "dsp/dx/dx7note.h"
 #include "engines/deluge/engine.h"
+#include "engines/deluge/settings.h"
 #include "gui/menu_item/setting_edit.h"
 #include "io/midi/cable_types/usb_hosted.h"
 #include "model/drum/drum.h"
@@ -61,6 +63,7 @@
 #include "serialization/tree.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
+#include "storage/tree_document.h"
 #include "storage/value_serializer.h"
 #include "storage/value_tree_deserializer.h"
 
@@ -665,6 +668,69 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "ranges: the saw stays coherent");
 }
 
+// A kit row whose read fails after its adoption gives its record back, and a kit destroyed while its rows still hold
+// records (a kit read into a song and then abandoned) takes them with it: each row's sound takes its state back first,
+// so nothing reads a record that has gone.
+void testRecordsOfAbandonedKitRows(deluge::edits::Context& ctx) {
+	// Two sample ranges on one top note: a file's read refuses the sound.
+	const std::string text = R"({"kit": {"soundSources": [{"sound": {"id": 991, "osc1": {"type": "sample",
+		"sampleRanges": [{"sampleRange": {"rangeTopNote": 60, "fileName": "A.WAV"}},
+		                 {"sampleRange": {"rangeTopNote": 60, "fileName": "B.WAV"}},
+		                 {"sampleRange": {"fileName": "C.WAV"}}]}}}]}})";
+	char const* firstTag = nullptr;
+	char const* altTag = nullptr;
+	StorageManager::instrumentDocumentTags(OutputType::KIT, &firstTag, &altTag);
+	deluge::storage::TreeDocument document;
+	Error e =
+	    document.open(std::span{reinterpret_cast<const uint8_t*>(text.data()), text.size()}, true, firstTag, altTag);
+	check(e == Error::NONE, "abandoned rows: the kit document opens");
+	Instrument* failed = nullptr;
+	std::string name = "ROWS";
+	std::string dir = "KITS";
+	if (e == Error::NONE) {
+		e = StorageManager::parseInstrumentDocument(document, &ctx.song, nullptr, OutputType::KIT, false, &failed,
+		                                            &name, &dir);
+	}
+	check(e != Error::NONE && failed == nullptr, "abandoned rows: a kit row that cannot be read fails its kit's read");
+	check(ctx.song.project.drum_structure.find(991) == nullptr, "abandoned rows: the failed row's record is gone");
+
+	ParamManagerForTimeline abandonedParams;
+	Instrument* abandoned = StorageManager::createNewInstrument(OutputType::KIT, &abandonedParams);
+	auto* row = static_cast<SoundDrum*>(StorageManager::createNewDrum(DrumType::SOUND));
+	static_cast<Kit*>(abandoned)->addDrum(row, &ctx.song); // adopted as a row read into the song is
+	check(row->docDrum_ != nullptr
+	          && row->docDrum_->instrument->state.as<deluge::instrument::DelugeInstrument>() == row->boundState(),
+	      "abandoned rows: the row plays its record's state");
+	const uint32_t rowId = *row->id();
+	void* abandonedMemory = dynamic_cast<void*>(abandoned);
+	abandoned->~Instrument();
+	delugeDealloc(abandonedMemory);
+	check(ctx.song.project.drum_structure.find(rowId) == nullptr, "abandoned rows: the kit takes its rows' records");
+}
+
+// A sound hands its state over rather than copying it: adoption moves the sound's own state into its record (no second
+// copy stays behind), and a record that goes moves it back (no allocation as the record goes). The ranges' buffer is
+// the witness: a move keeps it, a copy makes another.
+void testStateHandedOver(deluge::edits::Context& ctx) {
+	ParamManagerForTimeline params;
+	Instrument* synth = StorageManager::createNewInstrument(OutputType::SYNTH, &params);
+	Sound& sound = *static_cast<SoundInstrument*>(synth);
+	sound.bindState(); // its own state, as a sound read from a file holds before its adoption
+	sound.state_->sources[0].ranges.resize(2);
+	sound.state_->effects.compressor.threshold = 12345; // the sound's effects come with it
+	const deluge::instrument::RangeState* buffer = sound.boundState()->sources[0].ranges.data();
+	ctx.song.addOutput(synth);
+	const deluge::instrument::SoundState* record =
+	    synth->docOutput_->instrument->state.as<deluge::instrument::DelugeInstrument>();
+	check(record == sound.boundState() && record->sources[0].ranges.data() == buffer,
+	      "handover: adoption moves the sound's own state into its record");
+	check(record->effects.compressor.threshold == 12345, "handover: the record holds the sound's effects");
+	const deluge::instrument::RangeState* held = record->sources[0].ranges.data();
+	ctx.song.deleteOutputThatIsInMainList(synth, false); // a bare synth: nothing auditions it
+	check(sound.boundState() != record && sound.boundState()->sources[0].ranges.data() == held,
+	      "handover: a record that goes moves the state back");
+}
+
 // A sound plays the state its record holds: a write to one is a write to the other. A record that goes while its sound
 // lives on (a deleted track or kit row, which the render frees later) hands the sound its state back first; a kit's
 // records go with it, its rows' included.
@@ -1112,6 +1178,67 @@ void testTwoOutputsOneIdInFile() {
 	      "read ids: a write to one synth reaches only its own record");
 }
 
+/// Every write whose menu reshapes more than its leaf, from every synth mode: each oscillator type on either source,
+/// and each loop mode of a sample source. The typed write takes the reshaped state as it is; the audit holds it to
+/// the file's reading of that state (change_to), each write counted and none differing.
+void testReshapingWrites(deluge::edits::Context& ctx) {
+	using deluge::serialization::Value;
+	ParamManagerForTimeline params;
+	Instrument* synth = StorageManager::createNewInstrument(OutputType::SYNTH, &params);
+	ctx.song.addOutput(synth);
+	Sound& sound = *static_cast<SoundInstrument*>(synth);
+	const std::optional<deluge::project::SlotAddress> slot = deluge::bridge::slotAddressOf(sound);
+	if (!slot) {
+		check(false, "reshaping: the synth has a slot");
+		return;
+	}
+	// Each of a row's values in its stored form, as a menu writes them.
+	const auto values = [](std::string_view path) {
+		const deluge::engine::SettingInfo& row = *deluge::engine::find_setting(deluge::instrument::kSettings, path);
+		std::vector<Value> found;
+		const auto [least, greatest] = deluge::engine::menu_range(row);
+		for (int32_t menu = least; menu <= greatest; menu++) {
+			const auto stored = deluge::engine::from_menu(row, menu);
+			if (!stored) {
+				continue;
+			}
+			std::array<char, 16> scratch{};
+			const auto word = row.kind == deluge::engine::SettingKind::CHOICE
+			                      ? deluge::engine::stored_text(row, stored->first, scratch)
+			                      : std::nullopt;
+			found.push_back(word ? Value::makeScalar(std::string(*word)) : Value::makeNumber(stored->first));
+		}
+		return found;
+	};
+	const auto write = [&](std::string_view path, const Value& value) {
+		deluge::edits::SetEngineSetting edit{*slot, std::string(path), value};
+		(void)deluge::edits::apply(ctx, edit); // a value the sound's state does not allow is refused, not counted
+	};
+	const deluge::bridge::TypedWriteAudit before = deluge::bridge::typedWriteAudit();
+	for (const Value& mode : values("mode")) {
+		write("mode", mode);
+		for (const std::string_view type : {"osc1/type", "osc2/type"}) {
+			for (const Value& osc : values(type)) {
+				write(type, osc);
+				if (osc.str() == "sample") {
+					const std::string loop = std::string(type.substr(0, 5)) + "loopMode";
+					for (const Value& mode : values(loop)) {
+						write(loop, mode);
+					}
+				}
+			}
+			write(type, Value::makeScalar("saw"));
+		}
+	}
+	const deluge::bridge::TypedWriteAudit& after = deluge::bridge::typedWriteAudit();
+	std::fprintf(io.err, "RESHAPING writes=%u mismatches=%u %s\n", static_cast<unsigned>(after.writes - before.writes),
+	             static_cast<unsigned>(after.mismatches - before.mismatches), after.first.c_str());
+	check(after.writes - before.writes > 50, "reshaping: each reshaping write is audited");
+	check(after.mismatches == before.mismatches, "reshaping: each reads as the file's reading of its state does");
+	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "reshaping: the sound stays coherent");
+	ctx.song.deleteOutputThatIsInMainList(synth, false); // a bare synth: nothing auditions it
+}
+
 /// A sound writes its compressor's threshold from the DSP, which a render sets from the threshold param, not from its
 /// state: writing it leaves the record as it was, and the sound coherent with it.
 void testSaveLeavesRecordsCoherent(deluge::edits::Context& ctx) {
@@ -1165,6 +1292,9 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	testRegionFlipViaApply(ctx, song, audioClip);
 	testSetEngineSetting(ctx);
 	testSetSourceRanges(ctx);
+	testReshapingWrites(ctx);
+	testStateHandedOver(ctx);
+	testRecordsOfAbandonedKitRows(ctx);
 	testRecordOwnsState(ctx);
 	testTwoOutputsOneIdInFile();
 	testDrumIdsAreUnique(ctx);
