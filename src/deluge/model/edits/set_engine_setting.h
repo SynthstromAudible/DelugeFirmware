@@ -12,12 +12,6 @@ class Sound;
 
 namespace deluge::edits {
 
-/// @brief Set one setting of a sound's instrument (a path of its settings schema, its effects' included) to a value.
-///
-/// apply() writes the value into the slot @c slot names and commits the slot: the sound playing it is taken to the
-/// state the slot now says, through the setters of what changed.
-///
-/// @note Settings record no undo.
 /// @brief Commit @p value, already canonical and taken and allowed by @p sound's state, at @p path into @p slot and
 /// the sound playing it: the step SetEngineSetting and SetKitSetting share once their checks pass.
 /// @param sound The sound playing @p slot.
@@ -29,6 +23,12 @@ namespace deluge::edits {
 Error commitEngineSetting(::Sound& sound, deluge::project::InstrumentSlot& slot, std::string_view path,
                           const deluge::serialization::Value& value, ::Song& song);
 
+/// @brief Set one setting of a sound's instrument (a path of its settings schema, its effects' included) to a value.
+///
+/// apply() writes the value into the slot @c slot names and commits the slot: the sound playing it is taken to the
+/// state the slot now says, through the setters of what changed.
+///
+/// @note Settings record no undo.
 class SetEngineSetting final : public Edit {
 public:
 	/// @param slot  Address of the instrument slot.

@@ -39,6 +39,11 @@ struct OutputStructure {
 		auto it = by_id.find(id);
 		return it == by_id.end() ? nullptr : &it->second;
 	}
+	/// @copydoc find
+	const DocOutput* find(uint32_t id) const {
+		auto it = by_id.find(id);
+		return it == by_id.end() ? nullptr : &it->second;
+	}
 
 	/// @brief The output's DocOutput, creating an empty one if absent.
 	/// @param id The output's stable id.

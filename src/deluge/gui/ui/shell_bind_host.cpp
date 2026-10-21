@@ -46,16 +46,6 @@ std::optional<deluge::serialization::Value> value_of(const deluge::engine::Setti
 	return deluge::serialization::Value::makeNumber(stored);
 }
 
-/// The kit whose output has durable id @p id in the current song, or nullptr.
-Kit* kit_with_id(uint32_t id) {
-	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
-		if (output->id() == id && output->type == OutputType::KIT) {
-			return static_cast<Kit*>(output);
-		}
-	}
-	return nullptr;
-}
-
 /// Whether writing stored value @p stored of @p row through @p target ends a kit row's notes: a sample played once
 /// (`sample/repeat.h:61-64`, `:73-75`), whose notes the kit's arpeggiator would otherwise hold.
 bool silences_kit_arp(const deluge::scenes::bind::Target& target, const deluge::engine::SettingInfo& row,
@@ -65,6 +55,16 @@ bool silences_kit_arp(const deluge::scenes::bind::Target& target, const deluge::
 	}
 	return stored
 	       == std::to_underlying(deluge::instrument::SampleRepeatMode::ONCE); // a loop mode is saved as its index
+}
+
+/// Whether @p kit has a sound drum: legacy's loop-mode note-off is sent from inside its loop over them.
+bool has_sound_drum(const Kit& kit) {
+	for (const Drum* drum = kit.firstDrum; drum != nullptr; drum = drum->next) {
+		if (drum->type == DrumType::SOUND) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /// Sends @p kit's selected drum's note-off through the kit's arpeggiator, as `sample/repeat.h`'s
@@ -184,7 +184,7 @@ void ShellEditSink::write(const WriteRequest& request) {
 	};
 
 	if (request.where.affect_entire && request.target.whole_kit && request.where.kit_output) {
-		Kit* kit = kit_with_id(*request.where.kit_output);
+		Kit* kit = deluge::bridge::kitAt(*currentSong, *request.where.kit_output);
 		if (kit == nullptr) {
 			refusals_++;
 			D_PRINTLN("menu write refused: no kit with id %u for %.*s",
@@ -192,7 +192,7 @@ void ShellEditSink::write(const WriteRequest& request) {
 			          request.target.path.data());
 			return;
 		}
-		if (silences_kit_arp(request.target, *row, stored->first)) {
+		if (silences_kit_arp(request.target, *row, stored->first) && has_sound_drum(*kit)) {
 			kit_arp_note_off(kit);
 		}
 		deluge::edits::Context ctx{*currentSong, currentSong->project};
@@ -204,7 +204,7 @@ void ShellEditSink::write(const WriteRequest& request) {
 	}
 	if (request.where.slot) {
 		if (silences_kit_arp(request.target, *row, stored->first) && request.where.kit_output) {
-			kit_arp_note_off(kit_with_id(*request.where.kit_output));
+			kit_arp_note_off(deluge::bridge::kitAt(*currentSong, *request.where.kit_output));
 		}
 		apply_to(*request.where.slot);
 		return;

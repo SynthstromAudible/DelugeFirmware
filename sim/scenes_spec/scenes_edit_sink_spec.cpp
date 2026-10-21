@@ -230,6 +230,26 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		}
 	});
 
+	it("leaves the kit arpeggiator's note when a kit-wide loop mode write reaches no sound drum", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		MIDIDrum* midi = spec::add_drum<MIDIDrum>(f);
+		auto* kit = static_cast<Kit*>(f.instrument);
+		kit->selectedDrum = midi;
+		OutputPeek::active_clip(*kit) = f.clip;
+		int32_t index = 0;
+		(void)f.clip->getNoteRowForDrum(midi, &index);
+		ArpReturnInstruction instruction;
+		const int16_t mpe[kNumExpressionDimensions]{};
+		kit->arpeggiator.noteOn(&f.clip->arpSettings, index, 64, &instruction, MIDI_CHANNEL_NONE, mpe);
+		// Legacy sends the note-off from inside its loop over the kit's sound drums (`sample/repeat.h:58-64`).
+		menu::host_write_sink().write(
+		    {.target = menu::nodes::sample0_repeat.bind.target,
+		     .where = bind::Addresses{.kit_output = kit->id(), .affect_entire = true},
+		     .menu_value = menu_of("osc1/loopMode", std::to_underlying(deluge::instrument::SampleRepeatMode::ONCE))});
+		expect(kit->arpeggiator.hasAnyInputNotesActive()).to_be_true();
+		OutputPeek::active_clip(*kit) = nullptr;
+	});
+
 	it("edits the whole kit's chain alone with affect-entire held, as legacy does", _ {
 		spec::SongFixture f = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);

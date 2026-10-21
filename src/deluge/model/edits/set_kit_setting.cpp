@@ -14,15 +14,6 @@ namespace deluge::edits {
 
 namespace {
 
-Kit* kitWithId(::Song& song, uint32_t id) {
-	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
-		if (output->id() == id && output->type == OutputType::KIT) {
-			return static_cast<Kit*>(output);
-		}
-	}
-	return nullptr;
-}
-
 /// Whether @p rule holds for @p sound, read in its context as a kit row: the host contract's KIT_LANE playing a
 /// SOUND_DRUM, its own sources and the plugged inputs.
 bool ruleHolds(std::span<const deluge::engine::SettingCondition> rule, ::Sound& sound) {
@@ -54,7 +45,7 @@ bool ruleHolds(std::span<const deluge::engine::SettingCondition> rule, ::Sound& 
 
 Error SetKitSetting::apply(Context& ctx) {
 	drums_written_ = 0;
-	Kit* kit = kitWithId(ctx.song, kit_output_);
+	Kit* kit = deluge::bridge::kitAt(ctx.song, kit_output_);
 	const std::optional<deluge::serialization::Value> value = deluge::instrument::canonical_setting(path_, value_);
 	if (kit == nullptr || !value) {
 		return Error::UNSPECIFIED;

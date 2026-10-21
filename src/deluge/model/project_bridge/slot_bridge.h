@@ -26,6 +26,7 @@
 #include <string>
 #include <string_view>
 
+class Kit;
 class Output;
 class Song;
 class Sound;
@@ -62,6 +63,13 @@ void refreshSlots(::Song& song);
 /// @param address The slot's address.
 /// @return The sound, or nullptr.
 [[nodiscard]] ::Sound* soundAt(::Song& song, deluge::project::SlotAddress address);
+
+/// @brief The kit among the song's outputs whose output id is @p id, or nullptr.
+///
+/// @param song The song to search.
+/// @param id   The kit's output id.
+/// @return The kit, or nullptr.
+[[nodiscard]] ::Kit* kitAt(::Song& song, uint32_t id);
 
 /// @brief Make @p slot (@p sound's, as the model resolves it) hold the sound's state: the instrument's entries replaced
 /// by the state's encoding at the slot's own tick magnitude, every other entry kept. Nothing for a sound that is not

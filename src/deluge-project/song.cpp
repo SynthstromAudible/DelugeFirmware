@@ -17,6 +17,8 @@
 
 #include "deluge-project/song.h"
 
+#include <utility>
+
 namespace deluge::project {
 
 Song::Song() = default;
@@ -101,16 +103,16 @@ std::vector<ControllerMapping>* Song::resolveControls(ControlsAddress address) {
 	return nullptr;
 }
 
-FxChain* Song::resolveChain(ChainAddress address) {
+const FxChain* Song::resolveChain(ChainAddress address) const {
 	if (address.kind == ChainAddress::Kind::SONG) {
 		return &master_effects;
 	}
-	DocOutput* output = output_structure.find(address.id);
+	const DocOutput* output = output_structure.find(address.id);
 	return output != nullptr && output->effects ? &*output->effects : nullptr;
 }
 
-const FxChain* Song::resolveChain(ChainAddress address) const {
-	return const_cast<Song*>(this)->resolveChain(address); // a lookup: nothing is created or changed
+FxChain* Song::resolveChain(ChainAddress address) {
+	return const_cast<FxChain*>(std::as_const(*this).resolveChain(address)); // the song is not const, so neither is it
 }
 
 // A clip's structural record is tree-resident by its durable id (clip_structure), always set at construction, so

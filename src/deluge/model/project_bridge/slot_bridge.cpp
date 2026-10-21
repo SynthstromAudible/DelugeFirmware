@@ -167,6 +167,15 @@ std::optional<deluge::project::SlotAddress> slotAddressOf(::Sound& sound) {
 	return nullptr;
 }
 
+::Kit* kitAt(::Song& song, uint32_t id) {
+	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
+		if (output->id() == id && output->type == OutputType::KIT) {
+			return static_cast<Kit*>(output);
+		}
+	}
+	return nullptr;
+}
+
 void syncSlotState(const ::Sound& sound, deluge::project::InstrumentSlot& slot, const ::Song& song) {
 	if (sound.boundState() != nullptr) {
 		// At the magnitude the whole slot was written at: its other entries (the effects' sync levels) stay relative
