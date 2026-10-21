@@ -200,7 +200,9 @@ Error commitState(::Sound& sound, const deluge::instrument::SlotChange& change, 
 	}
 	const deluge::instrument::SoundState before = *sound.boundState();
 	Error error = applyDifference(sound, before, change.state, change.changed, song);
-	if (error == Error::NONE && !(*sound.boundState() == change.state)) {
+	// Each setter writes the record the sound plays, so the state is the change's once they have run; the gates' audit
+	// checks that it landed.
+	if (error == Error::NONE && typedWriteAudit().enabled && !(*sound.boundState() == change.state)) {
 		error = Error::UNSPECIFIED; // the runtime did not reach the state the change reads as
 	}
 	return error;

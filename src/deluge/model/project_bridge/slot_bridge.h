@@ -96,7 +96,8 @@ Error applyDifference(::Sound& sound, const deluge::instrument::SoundState& old,
 /// @param sound  The sound.
 /// @param change The state to reach and the entries the change touched.
 /// @param song   The song the sound belongs to.
-/// @return Error::UNSPECIFIED when an apply is refused or the runtime did not reach the state.
+/// @return Error::UNSPECIFIED when an apply is refused, or (under the gates' audit) the runtime did not reach the
+/// state.
 Error commitState(::Sound& sound, const deluge::instrument::SlotChange& change, ::Song& song);
 
 /// @brief A check of the typed writes, for the gates: when enabled, each setting, DX patch or ranges write is also made
