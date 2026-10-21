@@ -138,34 +138,6 @@ namespace deluge::scenes::menu::nodes {
 
 namespace mp = deluge::modulation::params;
 
-/// @name Hooks. Bodies (and their legacy citations) in `roots.cpp`.
-/// @{
-int32_t get_midi_hide_unlabeled(const MenuContext& ctx);
-void set_midi_hide_unlabeled(const MenuContext& ctx, int32_t value);
-int32_t get_midi_bank(const MenuContext& ctx);
-void set_midi_bank(const MenuContext& ctx, int32_t value);
-int32_t get_midi_sub_bank(const MenuContext& ctx);
-void set_midi_sub_bank(const MenuContext& ctx, int32_t value);
-int32_t get_midi_pgm(const MenuContext& ctx);
-void set_midi_pgm(const MenuContext& ctx, int32_t value);
-int32_t get_cv2_source(const MenuContext& ctx);
-void set_cv2_source(const MenuContext& ctx, int32_t value);
-int32_t get_mpe_y_to_mod_wheel(const MenuContext& ctx);
-void set_mpe_y_to_mod_wheel(const MenuContext& ctx, int32_t value);
-int32_t get_aftertouch_to_mono(const MenuContext& ctx);
-void set_aftertouch_to_mono(const MenuContext& ctx, int32_t value);
-int32_t get_mpe_to_mono(const MenuContext& ctx);
-void set_mpe_to_mono(const MenuContext& ctx, int32_t value);
-
-int32_t get_audio_clip_transpose(const MenuContext& ctx);
-void set_audio_clip_transpose(const MenuContext& ctx, int32_t value);
-int32_t get_audio_clip_reverse(const MenuContext& ctx);
-void set_audio_clip_reverse(const MenuContext& ctx, int32_t value);
-int32_t get_audio_clip_interpolation(const MenuContext& ctx);
-void set_audio_clip_interpolation(const MenuContext& ctx, int32_t value);
-int32_t get_audio_clip_attack(const MenuContext& ctx);
-void set_audio_clip_attack(const MenuContext& ctx, int32_t value);
-
 int32_t get_swing_interval(const MenuContext& ctx);
 void set_swing_interval(const MenuContext& ctx, int32_t value);
 int32_t get_song_threshold_recording(const MenuContext& ctx);
@@ -338,8 +310,10 @@ inline constexpr Node midi_or_cv_actions = submenu(sid(String::STRING_FOR_ACTION
 inline constexpr Node midi_device_linked = with_relevant(
     custom(sid(String::STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED), &kMidiDeviceLinked), relevance::is_midi_out);
 inline constexpr Node midi_hide_unlabeled =
-    toggle_item(sid(String::STRING_FOR_MIDI_DEVICE_DEFINITION_HIDE), get_midi_hide_unlabeled, set_midi_hide_unlabeled,
-                relevance::is_midi_out);
+    setting_item(sid(String::STRING_FOR_MIDI_DEVICE_DEFINITION_HIDE), Kind::Toggle,
+                 {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                  .path = "hideUnlabeledCC",
+                  .group = deluge::project::SettingGroupId::INSTRUMENT_DEVICE});
 inline constexpr const Node* kMidiDeviceDefinitionChildren[] = {&midi_device_linked, &midi_hide_unlabeled};
 inline constexpr Node midi_device_definition =
     submenu(sid(String::STRING_FOR_MIDI_DEVICE_DEFINITION), kMidiDeviceDefinitionChildren, Layout::Vertical,
@@ -348,15 +322,20 @@ inline constexpr Node midi_device_definition =
 // `midi::Preset::selectEncoderAction` wraps at 129 and draws 128 as "NONE" (`midi/preset.h:34-49`),
 // so the editable range is 0..128 and `getMaxValue()` says 128 (`:22`).
 inline constexpr IntRange kMidiPresetRange{0, 128, 1};
-inline constexpr Node midi_bank = with_title(int_item(sid(String::STRING_FOR_BANK), get_midi_bank, set_midi_bank,
-                                                      kMidiPresetRange, Hint::None, relevance::is_midi_out),
+inline constexpr Node midi_bank = with_title(setting_item(sid(String::STRING_FOR_BANK), Kind::Int,
+                                                          {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                           .path = "midiBank",
+                                                           .group = deluge::project::SettingGroupId::CLIP_VALUES}),
                                              sid(String::STRING_FOR_MIDI_BANK));
-inline constexpr Node midi_sub_bank =
-    with_title(int_item(sid(String::STRING_FOR_SUB_BANK_SHORT), get_midi_sub_bank, set_midi_sub_bank, kMidiPresetRange,
-                        Hint::None, relevance::is_midi_out),
-               sid(String::STRING_FOR_MIDI_SUB_BANK));
-inline constexpr Node midi_pgm = with_title(int_item(sid(String::STRING_FOR_PGM), get_midi_pgm, set_midi_pgm,
-                                                     kMidiPresetRange, Hint::None, relevance::is_midi_out),
+inline constexpr Node midi_sub_bank = with_title(setting_item(sid(String::STRING_FOR_SUB_BANK_SHORT), Kind::Int,
+                                                              {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                               .path = "midiSub",
+                                                               .group = deluge::project::SettingGroupId::CLIP_VALUES}),
+                                                 sid(String::STRING_FOR_MIDI_SUB_BANK));
+inline constexpr Node midi_pgm = with_title(setting_item(sid(String::STRING_FOR_PGM), Kind::Int,
+                                                         {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                          .path = "midiPGM",
+                                                          .group = deluge::project::SettingGroupId::CLIP_VALUES}),
                                             sid(String::STRING_FOR_MIDI_PGM_NUMB_MENU_TITLE));
 inline constexpr const Node* kMidiProgramChildren[] = {&midi_bank, &midi_sub_bank, &midi_pgm};
 /// `midiProgramMenu` (`:1935`) is a `HorizontalMenu` whose name *is* its title
@@ -381,21 +360,24 @@ inline constexpr const Node* kArpMidiChildren[] = {&arp_mode, &arp_basic_midi, &
                                                    &arp_include_in_kit_arp};
 inline constexpr Node arp_midi = submenu(sid(String::STRING_FOR_ARPEGGIATOR), kArpMidiChildren);
 
-/// `cv::DualCVSelection::getOptions` (`cv/cv2Mapping.h:49-58`).
-inline constexpr uint16_t kCv2SourceNames[] = {
-    sid(String::STRING_FOR_OFF),
-    sid(String::STRING_FOR_PATCH_SOURCE_Y),
-    sid(String::STRING_FOR_PATCH_SOURCE_AFTERTOUCH),
-    sid(String::STRING_FOR_VELOCITY),
-};
-inline constexpr Node cv2_source = enumeration(sid(String::STRING_FOR_CV2_SOURCE), kCv2SourceNames, get_cv2_source,
-                                               set_cv2_source, relevance::cv2_dual);
+inline constexpr Node cv2_source = setting_item(sid(String::STRING_FOR_CV2_SOURCE), Kind::Enum,
+                                                {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                 .path = "cv2Source",
+                                                 .group = deluge::project::SettingGroupId::INSTRUMENT_DEVICE});
 
-inline constexpr Node mpe_y_to_mod_wheel = toggle_item(
-    sid(String::STRING_FOR_Y_AXIS_CONVERSION), get_mpe_y_to_mod_wheel, set_mpe_y_to_mod_wheel, relevance::is_midi_out);
+inline constexpr Node mpe_y_to_mod_wheel = setting_item(sid(String::STRING_FOR_Y_AXIS_CONVERSION), Kind::Toggle,
+                                                        {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                         .path = "outputMpeY",
+                                                         .group = deluge::project::SettingGroupId::INSTRUMENT_DEVICE});
 inline constexpr Node midi_aftertouch_collapse =
-    toggle_item(sid(String::STRING_FOR_PATCH_SOURCE_AFTERTOUCH), get_aftertouch_to_mono, set_aftertouch_to_mono);
-inline constexpr Node midi_mpe_collapse = toggle_item(sid(String::STRING_FOR_MPE), get_mpe_to_mono, set_mpe_to_mono);
+    setting_item(sid(String::STRING_FOR_PATCH_SOURCE_AFTERTOUCH), Kind::Toggle,
+                 {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                  .path = "collapseAftertouch",
+                  .group = deluge::project::SettingGroupId::INSTRUMENT_DEVICE});
+inline constexpr Node midi_mpe_collapse = setting_item(sid(String::STRING_FOR_MPE), Kind::Toggle,
+                                                       {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                        .path = "collapseMpe",
+                                                        .group = deluge::project::SettingGroupId::INSTRUMENT_DEVICE});
 inline constexpr const Node* kMidiMpeChildren[] = {&midi_aftertouch_collapse, &midi_mpe_collapse};
 inline constexpr Node midi_mpe =
     submenu(sid(String::STRING_FOR_MPE_MONO), kMidiMpeChildren, Layout::Vertical, relevance::is_midi_out);
@@ -449,18 +431,24 @@ inline constexpr Node audio_clip_fx = submenu(sid(String::STRING_FOR_FX), kAudio
 // transpose+cents pair, with a learn-only `ParamRef` on `UNPATCHED_PITCH_ADJUST` (`:41-45`) --
 // exactly the shape `with_learn_param` exists for (`node.h`'s `Binding` precedence note).
 inline constexpr Node audio_clip_transpose =
-    with_learn_param(decimal_item(sid(String::STRING_FOR_TRANSPOSE), get_audio_clip_transpose, set_audio_clip_transpose,
-                                  IntRange{-9600, 9600, 1}, 2),
+    with_learn_param(with_decimal_places(setting_item(sid(String::STRING_FOR_TRANSPOSE), Kind::Decimal,
+                                                      {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                       .path = "transpose",
+                                                       .group = deluge::project::SettingGroupId::AUDIO_CLIP}),
+                                         2),
                      {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_PITCH_ADJUST});
+/// The grid draws the clip's waveform, which a reverse turns round.
 inline constexpr Node audio_clip_reverse =
-    toggle_item(sid(String::STRING_FOR_REVERSE), get_audio_clip_reverse, set_audio_clip_reverse);
+    with_grid_repaint(setting_item(sid(String::STRING_FOR_REVERSE), Kind::Toggle,
+                                   {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                    .path = "reversed",
+                                    .group = deluge::project::SettingGroupId::AUDIO_CLIP}));
 
-// `AudioInterpolation::getOptions` (`audio_interpolation.h:25-28`) is LINEAR / SINC -- the very
-// list batch 1 already declares for the two sample interpolation items (`sound_osc.h`'s
-// `kInterpolationNames`), so this names it rather than declaring a duplicate.
 inline constexpr Node audio_clip_interpolation =
-    with_title(enumeration(sid(String::STRING_FOR_INTERPOLATION), kInterpolationNames, get_audio_clip_interpolation,
-                           set_audio_clip_interpolation),
+    with_title(setting_item(sid(String::STRING_FOR_INTERPOLATION), Kind::Enum,
+                            {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                             .path = "linearInterpolation",
+                             .group = deluge::project::SettingGroupId::AUDIO_CLIP}),
                sid(String::STRING_FOR_AUDIO_INTERPOLATION));
 
 inline constexpr const Node* kAudioClipSampleChildren[] = {&file0_selector,      &audio_clip_transpose,
@@ -469,8 +457,10 @@ inline constexpr const Node* kAudioClipSampleChildren[] = {&file0_selector,     
 inline constexpr Node audio_clip_sample =
     submenu(sid(String::STRING_FOR_SAMPLE), kAudioClipSampleChildren, Layout::Horizontal);
 
-inline constexpr Node audio_clip_attack = int_item(sid(String::STRING_FOR_ATTACK), get_audio_clip_attack,
-                                                   set_audio_clip_attack, IntRange{kMinMenuValue, kMaxMenuValue, 1});
+inline constexpr Node audio_clip_attack = setting_item(sid(String::STRING_FOR_ATTACK), Kind::Int,
+                                                       {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                        .path = "attack",
+                                                        .group = deluge::project::SettingGroupId::AUDIO_CLIP});
 
 inline constexpr const Node* kAudioClipRootChildren[] = {
     &audio_clip_actions, &audio_source_selector, &specific_output_selector, &song_master,       &audio_comp,

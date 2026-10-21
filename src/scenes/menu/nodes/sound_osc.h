@@ -142,11 +142,6 @@ inline const PendingCustom kPending{};
 /// @{
 /// @}
 
-/// `sample::PitchSpeed::getOptions` (`sample/pitch_speed.h:65-68`).
-inline constexpr uint16_t kPitchSpeedNames[] = {
-    sid(deluge::l10n::String::STRING_FOR_LINKED),
-    sid(deluge::l10n::String::STRING_FOR_INDEPENDENT),
-};
 /// `AudioInterpolation::getOptions` (`gui/menu_item/audio_interpolation.h:25-28`).
 inline constexpr uint16_t kInterpolationNames[] = {
     sid(deluge::l10n::String::STRING_FOR_LINEAR),
@@ -166,8 +161,6 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 #define DELUGE_OSC_SOURCE(i, name_id, osc_path)                                                                        \
 	int32_t get_source##i##_transpose(const MenuContext& ctx);                                                         \
 	void set_source##i##_transpose(const MenuContext& ctx, int32_t v);                                                 \
-	int32_t get_sample##i##_pitch_speed(const MenuContext& ctx);                                                       \
-	void set_sample##i##_pitch_speed(const MenuContext& ctx, int32_t v);                                               \
 	int32_t get_sample##i##_interp(const MenuContext& ctx);                                                            \
 	void set_sample##i##_interp(const MenuContext& ctx, int32_t v);                                                    \
 	inline constexpr Node osc##i##_type = with_title(                                                                  \
@@ -219,9 +212,11 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 	    setting_item(sid(deluge::l10n::String::STRING_FOR_SPEED), Kind::Int,                                           \
 	                 {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = osc_path "/timeStretchAmount"}),      \
 	    sid(deluge::l10n::String::STRING_FOR_SAMP_SPEED_MENU_TITLE));                                                  \
-	inline constexpr Node sample##i##_pitch_speed = with_selection_is_toggle(                                          \
-	    enumeration(sid(deluge::l10n::String::STRING_FOR_PITCH_SPEED), kPitchSpeedNames, get_sample##i##_pitch_speed,  \
-	                set_sample##i##_pitch_speed, relevance::osc##i##_pitch_speed));                                    \
+	inline constexpr Node sample##i##_pitch_speed =                                                                    \
+	    with_selection_is_toggle(setting_item(sid(deluge::l10n::String::STRING_FOR_PITCH_SPEED), Kind::Enum,           \
+	                                          {.kind = deluge::scenes::bind::Target::Kind::SOUND,                      \
+	                                           .path = osc_path "/timeStretchEnable",                                  \
+	                                           .audio_clip_path = "pitchSpeedIndependent"}));                          \
 	inline constexpr Node sample##i##_interpolation =                                                                  \
 	    with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_INTERPOLATION), kInterpolationNames,               \
 	                           get_sample##i##_interp, set_sample##i##_interp, relevance::osc##i##_interpolation),     \

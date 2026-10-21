@@ -45,35 +45,6 @@ AudioClip* audio_clip_of(const MenuContext& ctx) {
 
 } // namespace
 
-int32_t get_voice_priority(const MenuContext& ctx) {
-	// `voice::getCurrentVoicePriority` (`voice/priority.h`): the audio clip's own, else the sound's.
-	if (AudioClip* clip = audio_clip_of(ctx)) {
-		return static_cast<int32_t>(clip->voicePriority());
-	}
-	return ctx.sound != nullptr ? static_cast<int32_t>(ctx.sound->snapshot().voicePriority) : 0;
-}
-
-void set_voice_priority(const MenuContext& ctx, int32_t value) {
-	// `Priority::writeCurrentValue` (`voice/priority.h`): the shown owner's, then, with affect-entire
-	// held on a kit row, every sound drum's -- each a setting Edit on the sound.
-	const auto priority = static_cast<VoicePriority>(value);
-	if (AudioClip* clip = audio_clip_of(ctx)) {
-		deluge::edits::audioClipSettingFor(*clip, "priority", deluge::serialization::Value::makeNumber(value));
-	}
-	else if (ctx.sound != nullptr) {
-		deluge::edits::settingFor(*ctx.sound, "voicePriority", deluge::serialization::Value::makeNumber(value));
-	}
-	if (!bindings::writes_whole_kit(ctx)) {
-		return;
-	}
-	bindings::apply_to_targets(
-	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		    if (t.sound != nullptr) {
-			    deluge::edits::settingFor(*t.sound, "voicePriority", deluge::serialization::Value::makeNumber(v));
-		    }
-	    });
-}
-
 namespace {
 constexpr const Node* kRoots[] = {&voice};
 } // namespace

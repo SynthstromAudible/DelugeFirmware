@@ -8,12 +8,13 @@ namespace {
 
 /// Which of the device's bend ranges @p path of @p group plays when its owner holds none, or nullopt for another row.
 std::optional<int32_t> device_bend_of(project::SettingGroupId group, std::string_view path) {
-	if (group == project::SettingGroupId::CLIP_VALUES && path == "bendRange") {
+	// A kit row's finger bend starts at the device's main range, as a drum's expression set does.
+	if ((group == project::SettingGroupId::CLIP_VALUES || group == project::SettingGroupId::NOTE_ROW)
+	    && path == "bendRange") {
 		return 0;
 	}
-	if ((group == project::SettingGroupId::CLIP_VALUES && path == "bendRangeMPE")
-	    || (group == project::SettingGroupId::NOTE_ROW && path == "bendRange")) {
-		return 1; // a kit row's bend is per finger
+	if (group == project::SettingGroupId::CLIP_VALUES && path == "bendRangeMPE") {
+		return 1;
 	}
 	return std::nullopt;
 }

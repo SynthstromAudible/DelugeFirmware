@@ -172,10 +172,6 @@ const std::vector<NodeException>& node_exceptions() {
 	    {Family::SONG, "reverb/width", NAMES | TITLE,
 	     "legacy renames the item Diffusion under the MUTABLE and DIGITAL reverb models and the table gives that one "
 	     "name; the node always shows the Freeverb name, Width (`tables_3_spec.cpp` parks it)"},
-	    {Family::SONG, "reverb/compressor/shape", WRITE,
-	     "the node's write omits the top step's special case, as legacy's does (menu 50 stores 2147483602, not "
-	     "2147483647)",
-	     "write(50)"},
 	};
 	return list;
 }

@@ -731,12 +731,13 @@ describe song_settings_edit("SetSetting", $ {
 		const SettingAddress address{SettingGroupId::AUDIO_CLIP, *clip};
 		const auto ctx = deluge::scenes::menu::context_for(*f.song, f.clip, 0, false, false, false, false);
 		for (const int32_t menu : {0, 1, 25, 49, 50}) {
-			deluge::scenes::menu::nodes::set_audio_clip_attack(ctx, menu);
-			expect(deluge::scenes::menu::nodes::get_audio_clip_attack(ctx)).to_equal(menu);
+			deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::audio_clip_attack, ctx, menu);
+			expect(deluge::scenes::menu::bindings::read(deluge::scenes::menu::nodes::audio_clip_attack, ctx))
+			    .to_equal(menu);
 		}
-		deluge::scenes::menu::nodes::set_audio_clip_attack(ctx, 1);
+		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::audio_clip_attack, ctx, 1);
 		expect(recorded(*f.song, address, "attack")).to_equal(std::string{"-2061584303"});
-		deluge::scenes::menu::nodes::set_audio_clip_attack(ctx, 50);
+		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::audio_clip_attack, ctx, 50);
 		expect(recorded(*f.song, address, "attack")).to_equal(std::string{"2147483647"});
 
 		// The record's codec alone, with no song load: a stored 25 decodes and encodes unchanged.

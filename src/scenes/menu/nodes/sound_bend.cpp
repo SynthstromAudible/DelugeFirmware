@@ -60,20 +60,6 @@ void set_bend_range(const MenuContext& ctx, int32_t which, int32_t value) {
 
 } // namespace
 
-int32_t get_bend_range_main(const MenuContext& ctx) {
-	return bend_range(ctx, BEND_RANGE_MAIN);
-}
-void set_bend_range_main(const MenuContext& ctx, int32_t value) {
-	set_bend_range(ctx, BEND_RANGE_MAIN, value);
-}
-
-int32_t get_bend_range_per_finger(const MenuContext& ctx) {
-	return bend_range(ctx, BEND_RANGE_FINGER_LEVEL);
-}
-void set_bend_range_per_finger(const MenuContext& ctx, int32_t value) {
-	set_bend_range(ctx, BEND_RANGE_FINGER_LEVEL, value);
-}
-
 namespace {
 constexpr const Node* kRoots[] = {&bend, &drum_bend_range};
 } // namespace

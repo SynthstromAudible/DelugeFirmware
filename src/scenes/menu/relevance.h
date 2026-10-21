@@ -108,11 +108,6 @@ bool osc0_is_sample(const MenuContext& ctx);
 bool osc1_is_sample(const MenuContext& ctx);
 /// @}
 
-/// @brief `sample::PitchSpeed::isRelevant` (`sample/pitch_speed.h:35-37`): an audio clip, or
-///        `isSampleModeSample`.
-/// @{
-bool osc0_pitch_speed(const MenuContext& ctx);
-bool osc1_pitch_speed(const MenuContext& ctx);
 /// @}
 
 /// @brief `sample::Interpolation::isRelevant` (`sample/interpolation.h:61-71`): an audio clip, or a
@@ -176,9 +171,6 @@ bool mod_fx_has_feedback(const MenuContext& ctx);
 /// @brief ... an offset? `mod_fx::Offset::isRelevant` (`mod_fx/offset.h:29-33`).
 bool mod_fx_has_offset(const MenuContext& ctx);
 
-/// @brief Does the selected reverb model have filters? `reverb::HPF::isRelevant`
-///        (`reverb/hpf.h:36-39`) and `LPF` (`reverb/lpf.h:26-29`): MUTABLE or DIGITAL.
-bool reverb_filters(const MenuContext& ctx);
 /// @brief Is reverb ducking set to something other than AUTO? `reverb::sidechain::Shape::isRelevant`
 ///        (`reverb/sidechain/shape.h:37-39`), `sidechain::Attack` / `Release` / `Sync` in their
 ///        reverb spelling (`sidechain/attack.h:57-59`, `release.h:57-59`, `sync.h:56-58`).
@@ -191,15 +183,6 @@ bool stutter_quantize_allowed(const MenuContext& ctx);
 /// @brief Does this output get the two-item bend-range submenu? `submenu::Bend::isRelevant`
 ///        (`submenu/bend.h:26-31`): SYNTH, CV or MIDI_OUT.
 bool bend_submenu(const MenuContext& ctx);
-/// @brief `bend_range::PerFinger::isRelevant` (`bend_range/per_finger.h:41`) **at menu depth 0**.
-///
-/// Legacy is `soundEditor.navigationDepth == 1 || soundEditor.editingKit()`. The depth is a fact
-/// about *where the item sits in the tree*, not about what is being edited, so it is resolved
-/// statically rather than carried on `MenuContext`: this predicate is the depth-0 reading, used by
-/// `drum_bend_range` (a root child), and the depth-1 reading -- unconditionally true -- is a null
-/// `relevant` on `bend_range_per_finger`, which is only reachable inside `bendMenu`. See
-/// `sound_bend.h`'s two notes (review round 1, I1).
-bool per_finger_bend(const MenuContext& ctx);
 
 /// @}
 
@@ -213,11 +196,6 @@ bool per_finger_bend(const MenuContext& ctx);
 ///        (`midi/device_definition/submenu.h:26-34`), `Linked` (`linked.h:44-47`) and
 ///        `HideUnlabeled` (`hide_unlabeled.h:33-36`) -- six items, one test.
 bool is_midi_out(const MenuContext& ctx);
-
-/// @brief Is this a CV output whose channel is `both`? `cv::DualCVSelection::isRelevant`
-///        (`gui/menu_item/cv/cv2Mapping.h:59-63`) -- the CV2 source picker only applies to the
-///        dual-channel CV instrument.
-bool cv2_dual(const MenuContext& ctx);
 
 /// @brief Is the battery readout switched on? `battery::Level::isRelevant`
 ///        (`gui/menu_item/battery/level.h:33-35`), i.e.

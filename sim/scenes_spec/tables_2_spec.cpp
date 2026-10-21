@@ -320,6 +320,7 @@ struct Pair {
 	::MenuItem* item;
 	/// @brief Edges from the root: the root itself is 0, its children 1, their children 2.
 	int32_t depth;
+	const Node* parent{nullptr}; ///< the submenu that lists it; null for the root
 
 	/// @brief The `soundEditor.navigationDepth` this item is *displayed* at.
 	///
@@ -335,8 +336,9 @@ struct Pair {
 ///
 /// @return False as soon as the two disagree on a child count -- the caller asserts that first, so
 ///         a shape mismatch is one failure rather than N confusing per-item ones.
-bool walk(const Node& node, ::MenuItem& item, std::vector<Pair>& out, std::string& where, int32_t depth = 0) {
-	out.push_back(Pair{&node, &item, depth});
+bool walk(const Node& node, ::MenuItem& item, std::vector<Pair>& out, std::string& where, int32_t depth = 0,
+          const Node* parent = nullptr) {
+	out.push_back(Pair{&node, &item, depth, parent});
 	if (node.kind != menu::Kind::Submenu) {
 		return true;
 	}
@@ -355,7 +357,7 @@ bool walk(const Node& node, ::MenuItem& item, std::vector<Pair>& out, std::strin
 			where = "null child under " + std::string{item.getName()};
 			return false;
 		}
-		if (!walk(*node.children[i], *kids[i], out, where, depth + 1)) {
+		if (!walk(*node.children[i], *kids[i], out, where, depth + 1, &node)) {
 			return false;
 		}
 	}
@@ -853,7 +855,11 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 			if (p.node->kind == menu::Kind::Custom) {
 				continue; // an E2 placeholder: the node deliberately carries no binding
 			}
-			expect(menu::bindings::read(*p.node, f.ctx) == *want).to_be_true();
+			if (p.node->bind.target.valid() && !menu::bindings::relevant(*p.node, f.ctx)) {
+				continue; // a target this root does not show (a kit row's bend range): its row reads nothing here
+			}
+			const std::string at = text_of(p.node->name) + " reads ";
+			expect(at + std::to_string(menu::bindings::read(*p.node, f.ctx))).to_equal(at + std::to_string(*want));
 		}
 	});
 
@@ -919,6 +925,9 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 			for (const Pair& p : tree().pairs) {
 				// `bend_range::PerFinger::isRelevant` reads `soundEditor.navigationDepth`; supply
 				// the depth this item is actually displayed at (see `Pair::navigation_depth`).
+				if (p.parent != nullptr && !menu::bindings::relevant(*p.parent, c.ctx)) {
+					continue; // a page this context never opens (the bend ranges on a kit row)
+				}
 				soundEditor.navigationDepth = p.navigation_depth();
 				const bool want = p.item->isRelevant(c.ctx.mod, c.ctx.source_index);
 				const bool got = menu::bindings::relevant(*p.node, c.ctx);
@@ -941,13 +950,14 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 		// `editingKit()` is false. The node must agree, or the page loses one of its two items.
 		Rigged& synth = fixture();
 		expect(nodes::bend_range_per_finger.relevant == nullptr).to_be_true();
+		expect(menu::bindings::relevant(nodes::bend_range_per_finger, synth.ctx)).to_be_true(); // a melodic track's row
 		expect(nodes::bend.relevant != nullptr && nodes::bend.relevant(synth.ctx)).to_be_true();
 		// ... while `drumBendRangeMenu`, the same class as a *root child* at depth 0, is kit-only.
-		expect(nodes::drum_bend_range.relevant != nullptr).to_be_true();
-		expect(nodes::drum_bend_range.relevant(synth.ctx)).to_be_false();
+		// Its row applies on a kit row's sound drum alone (`kOnSoundDrum`).
+		expect(menu::bindings::relevant(nodes::drum_bend_range, synth.ctx)).to_be_false();
 		KitRig& kit = kit_fixture();
 		const MenuContext kit_ctx = select_drum(kit, kit.drum_a);
-		expect(nodes::drum_bend_range.relevant(kit_ctx)).to_be_true();
+		expect(menu::bindings::relevant(nodes::drum_bend_range, kit_ctx)).to_be_true();
 		install(synth.ctx, synth.song.song);
 	});
 

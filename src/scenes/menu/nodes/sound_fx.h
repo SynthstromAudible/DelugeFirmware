@@ -94,30 +94,8 @@ struct MenuContext;
 
 namespace deluge::scenes::menu::nodes {
 
-/// @name The FX pages' hooks. Bodies (and their citations) in the `.cpp`.
-/// @{
-int32_t get_reverb_room_size(const MenuContext& ctx);
-void set_reverb_room_size(const MenuContext& ctx, int32_t value);
-int32_t get_reverb_damping(const MenuContext& ctx);
-void set_reverb_damping(const MenuContext& ctx, int32_t value);
-int32_t get_reverb_width(const MenuContext& ctx);
-void set_reverb_width(const MenuContext& ctx, int32_t value);
-int32_t get_reverb_model(const MenuContext& ctx);
-void set_reverb_model(const MenuContext& ctx, int32_t value);
-int32_t get_reverb_pan(const MenuContext& ctx);
-void set_reverb_pan(const MenuContext& ctx, int32_t value);
-int32_t get_reverb_hpf(const MenuContext& ctx);
-void set_reverb_hpf(const MenuContext& ctx, int32_t value);
-int32_t get_reverb_lpf(const MenuContext& ctx);
-void set_reverb_lpf(const MenuContext& ctx, int32_t value);
 int32_t get_reverb_sidechain_volume(const MenuContext& ctx);
 void set_reverb_sidechain_volume(const MenuContext& ctx, int32_t value);
-int32_t get_reverb_sidechain_shape(const MenuContext& ctx);
-void set_reverb_sidechain_shape(const MenuContext& ctx, int32_t value);
-int32_t get_reverb_sidechain_attack(const MenuContext& ctx);
-void set_reverb_sidechain_attack(const MenuContext& ctx, int32_t value);
-int32_t get_reverb_sidechain_release(const MenuContext& ctx);
-void set_reverb_sidechain_release(const MenuContext& ctx, int32_t value);
 int32_t get_reverb_sidechain_sync(const MenuContext& ctx);
 void set_reverb_sidechain_sync(const MenuContext& ctx, int32_t value);
 
@@ -128,13 +106,6 @@ int32_t get_stutter_quantize(const MenuContext& ctx);
 void set_stutter_quantize(const MenuContext& ctx, int32_t value);
 
 /// @}
-
-/// `reverb::Model::getOptions` (`reverb/model.h:19-23`).
-inline constexpr uint16_t kReverbModelNames[] = {
-    sid(deluge::l10n::String::STRING_FOR_FREEVERB),
-    sid(deluge::l10n::String::STRING_FOR_MUTABLE),
-    sid(deluge::l10n::String::STRING_FOR_DIGITAL),
-};
 
 // --- EQ ----------------------------------------------------------------------------------------
 //
@@ -196,39 +167,67 @@ inline constexpr Node reverb_amount = with_patch_chain(
     param(sid(deluge::l10n::String::STRING_FOR_AMOUNT),
           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_REVERB_AMOUNT}, Hint::Bar,
           nullptr, sid(deluge::l10n::String::STRING_FOR_REVERB_AMOUNT)));
-inline constexpr Node reverb_room_size = int_item(sid(deluge::l10n::String::STRING_FOR_ROOM_SIZE), get_reverb_room_size,
-                                                  set_reverb_room_size, IntRange{0, kMaxMenuValue, 1}, Hint::Knob);
-inline constexpr Node reverb_damping = int_item(sid(deluge::l10n::String::STRING_FOR_DAMPING), get_reverb_damping,
-                                                set_reverb_damping, IntRange{0, kMaxMenuValue, 1}, Hint::Knob);
-inline constexpr Node reverb_width = with_title(int_item(sid(deluge::l10n::String::STRING_FOR_WIDTH), get_reverb_width,
-                                                         set_reverb_width, IntRange{0, kMaxMenuValue, 1}, Hint::Knob),
+inline constexpr Node reverb_room_size = setting_item(sid(deluge::l10n::String::STRING_FOR_ROOM_SIZE), Kind::Int,
+                                                      {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                       .path = "reverb/roomSize",
+                                                       .group = deluge::project::SettingGroupId::SONG},
+                                                      Hint::Knob);
+inline constexpr Node reverb_damping = setting_item(sid(deluge::l10n::String::STRING_FOR_DAMPING), Kind::Int,
+                                                    {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                     .path = "reverb/dampening",
+                                                     .group = deluge::project::SettingGroupId::SONG},
+                                                    Hint::Knob);
+inline constexpr Node reverb_width = with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_WIDTH), Kind::Int,
+                                                             {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                              .path = "reverb/width",
+                                                              .group = deluge::project::SettingGroupId::SONG},
+                                                             Hint::Knob),
                                                 sid(deluge::l10n::String::STRING_FOR_REVERB_WIDTH));
-inline constexpr Node reverb_model =
-    enumeration(sid(deluge::l10n::String::STRING_FOR_MODEL), kReverbModelNames, get_reverb_model, set_reverb_model);
-inline constexpr Node reverb_pan =
-    with_title(int_item(sid(deluge::l10n::String::STRING_FOR_PAN), get_reverb_pan, set_reverb_pan,
-                        IntRange{kMinMenuRelativeValue, kMaxMenuRelativeValue, 1}, Hint::Pan),
-               sid(deluge::l10n::String::STRING_FOR_REVERB_PAN));
-inline constexpr Node reverb_hpf = int_item(sid(deluge::l10n::String::STRING_FOR_HPF), get_reverb_hpf, set_reverb_hpf,
-                                            IntRange{0, kMaxMenuValue, 1}, Hint::Hpf, relevance::reverb_filters);
-inline constexpr Node reverb_lpf = int_item(sid(deluge::l10n::String::STRING_FOR_LPF), get_reverb_lpf, set_reverb_lpf,
-                                            IntRange{0, kMaxMenuValue, 1}, Hint::Lpf, relevance::reverb_filters);
+inline constexpr Node reverb_model = setting_item(sid(deluge::l10n::String::STRING_FOR_MODEL), Kind::Enum,
+                                                  {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                   .path = "reverb/model",
+                                                   .group = deluge::project::SettingGroupId::SONG});
+inline constexpr Node reverb_pan = with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_PAN), Kind::Int,
+                                                           {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                            .path = "reverb/pan",
+                                                            .group = deluge::project::SettingGroupId::SONG},
+                                                           Hint::Pan),
+                                              sid(deluge::l10n::String::STRING_FOR_REVERB_PAN));
+inline constexpr Node reverb_hpf = setting_item(sid(deluge::l10n::String::STRING_FOR_HPF), Kind::Int,
+                                                {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                 .path = "reverb/hpf",
+                                                 .group = deluge::project::SettingGroupId::SONG},
+                                                Hint::Hpf);
+inline constexpr Node reverb_lpf = setting_item(sid(deluge::l10n::String::STRING_FOR_LPF), Kind::Int,
+                                                {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                 .path = "reverb/lpf",
+                                                 .group = deluge::project::SettingGroupId::SONG},
+                                                Hint::Lpf);
 
 inline constexpr Node reverb_sidechain_volume =
     int_item(sid(deluge::l10n::String::STRING_FOR_VOLUME_DUCKING), get_reverb_sidechain_volume,
              set_reverb_sidechain_volume, IntRange{-1, kMaxMenuValue, 1}, Hint::Ducking);
-inline constexpr Node reverb_sidechain_shape = with_title(
-    int_item(sid(deluge::l10n::String::STRING_FOR_SHAPE), get_reverb_sidechain_shape, set_reverb_sidechain_shape,
-             IntRange{0, kMaxMenuValue, 1}, Hint::Knob, relevance::reverb_sidechain_on),
-    sid(deluge::l10n::String::STRING_FOR_SIDECH_SHAPE_MENU_TITLE));
+inline constexpr Node reverb_sidechain_shape =
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SHAPE), Kind::Int,
+                            {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                             .path = "reverb/compressor/shape",
+                             .group = deluge::project::SettingGroupId::SONG},
+                            Hint::Knob),
+               sid(deluge::l10n::String::STRING_FOR_SIDECH_SHAPE_MENU_TITLE));
 inline constexpr Node reverb_sidechain_attack =
-    with_title(int_item(sid(deluge::l10n::String::STRING_FOR_ATTACK), get_reverb_sidechain_attack,
-                        set_reverb_sidechain_attack, kSidechainRateRange, Hint::Attack, relevance::reverb_sidechain_on),
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_ATTACK), Kind::Int,
+                            {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                             .path = "reverb/compressor/attack",
+                             .group = deluge::project::SettingGroupId::SONG},
+                            Hint::Attack),
                sid(deluge::l10n::String::STRING_FOR_SIDECH_ATTACK_MENU_TITLE));
-inline constexpr Node reverb_sidechain_release = with_title(
-    int_item(sid(deluge::l10n::String::STRING_FOR_RELEASE), get_reverb_sidechain_release, set_reverb_sidechain_release,
-             kSidechainRateRange, Hint::Release, relevance::reverb_sidechain_on),
-    sid(deluge::l10n::String::STRING_FOR_SIDECH_RELEASE_MENU_TITLE));
+inline constexpr Node reverb_sidechain_release =
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RELEASE), Kind::Int,
+                            {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                             .path = "reverb/compressor/release",
+                             .group = deluge::project::SettingGroupId::SONG},
+                            Hint::Release),
+               sid(deluge::l10n::String::STRING_FOR_SIDECH_RELEASE_MENU_TITLE));
 inline constexpr Node reverb_sidechain_sync = sync_level_item(
     sid(deluge::l10n::String::STRING_FOR_SYNC), sid(deluge::l10n::String::STRING_FOR_SIDECHAIN_SYNC),
     get_reverb_sidechain_sync, set_reverb_sidechain_sync, kSidechainSyncRange, relevance::reverb_sidechain_on);

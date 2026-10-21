@@ -50,21 +50,12 @@ struct MenuContext;
 
 namespace deluge::scenes::menu::nodes {
 
-/// @name The voice page's hooks. Bodies (and their citations) in the `.cpp`.
-/// @{
-int32_t get_voice_priority(const MenuContext& ctx);
-void set_voice_priority(const MenuContext& ctx, int32_t value);
 /// @}
 
-/// `voice::Priority::getOptions` (`voice/priority.h:54-61`), FULL spelling.
-inline constexpr uint16_t kVoicePriorityNames[] = {
-    sid(deluge::l10n::String::STRING_FOR_LOW),
-    sid(deluge::l10n::String::STRING_FOR_MEDIUM),
-    sid(deluge::l10n::String::STRING_FOR_HIGH),
-};
-
-inline constexpr Node voice_priority = enumeration(sid(deluge::l10n::String::STRING_FOR_PRIORITY), kVoicePriorityNames,
-                                                   get_voice_priority, set_voice_priority);
+/// A sound's, or where the menu edits an audio clip, the clip's own.
+inline constexpr Node voice_priority = setting_item(
+    sid(deluge::l10n::String::STRING_FOR_PRIORITY), Kind::Enum,
+    {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "voicePriority", .audio_clip_path = "priority"});
 // `VoiceCount::getMinValue`/`getMaxValue` (`voice/polyphony.h:56-57`), rendered as a plain NUMBER
 // (`:58`). Declared before `polyphony`, which chains to it; `kVoiceChildren` below still fixes the
 // on-screen order.

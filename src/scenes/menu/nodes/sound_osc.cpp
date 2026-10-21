@@ -181,33 +181,6 @@ void set_osc_transpose(const MenuContext& ctx, int32_t value, uint8_t index) {
 // ---------------------------------------------------------------------------------------------
 // The sample items.
 
-int32_t get_pitch_speed(const MenuContext& ctx, uint8_t index) {
-	const SampleControls* controls = sample_controls_of(ctx, index);
-	return controls != nullptr && controls->pitchAndSpeedAreIndependent ? 1 : 0; // `sample/pitch_speed.h:39-42`
-}
-void set_pitch_speed(const MenuContext& ctx, int32_t value, uint8_t index) {
-	// `sample/pitch_speed.h`. The single-target arm is `setCurrentPitchAndSpeedIndependent`
-	// (`sample/utils.cpp`): an audio clip's own setter, else a setting Edit on the sound.
-	if (!bindings::writes_whole_kit(ctx)) {
-		if (AudioClip* clip = audio_clip_of(ctx)) {
-			deluge::edits::audioClipSettingFor(*clip, "pitchSpeedIndependent",
-			                                   deluge::serialization::Value::makeNumber(value != 0 ? 1 : 0));
-		}
-		else if (ctx.sound != nullptr) {
-			deluge::edits::settingFor(*ctx.sound, deluge::edits::oscSettingPath(index, "timeStretchEnable"),
-			                          deluge::serialization::Value::makeNumber(value != 0 ? 1 : 0));
-		}
-		return;
-	}
-	bindings::apply_to_targets(
-	    ctx, value, index, [](const bindings::SoundTarget& t, int32_t v, int32_t index, const MenuContext&) {
-		    if (t.sound != nullptr) {
-			    deluge::edits::settingFor(*t.sound, deluge::edits::oscSettingPath(index, "timeStretchEnable"),
-			                              deluge::serialization::Value::makeNumber(v));
-		    }
-	    });
-}
-
 int32_t get_interpolation(const MenuContext& ctx, uint8_t index) {
 	const SampleControls* controls = sample_controls_of(ctx, index);
 	// `sample/interpolation.h:32-35`
@@ -252,12 +225,6 @@ constexpr const Node* kRoots[] = {&recorder, &source0, &source1, &modulator0, &m
 	}                                                                                                                  \
 	void set_source##i##_transpose(const MenuContext& ctx, int32_t v) {                                                \
 		set_osc_transpose(ctx, v, (i));                                                                                \
-	}                                                                                                                  \
-	int32_t get_sample##i##_pitch_speed(const MenuContext& ctx) {                                                      \
-		return get_pitch_speed(ctx, (i));                                                                              \
-	}                                                                                                                  \
-	void set_sample##i##_pitch_speed(const MenuContext& ctx, int32_t v) {                                              \
-		set_pitch_speed(ctx, v, (i));                                                                                  \
 	}                                                                                                                  \
 	int32_t get_sample##i##_interp(const MenuContext& ctx) {                                                           \
 		return get_interpolation(ctx, (i));                                                                            \

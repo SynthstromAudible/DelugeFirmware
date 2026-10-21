@@ -229,7 +229,9 @@ size_t choice_names(const Target& target, const project::Song& model, const Addr
 		return 0;
 	}
 	// The names as the menu shows the row in its context: with no input plugged in, one input entry named "Input".
-	const l10n::SettingNames* names = l10n::setting_names(resolved->names_owner, target.path, resolved->context);
+	// By the row's own path: a sound setting on an audio clip is named as the clip's row.
+	const l10n::SettingNames* names =
+	    l10n::setting_names(resolved->names_owner, resolved->row->path, resolved->context);
 	if (names == nullptr) {
 		return 0;
 	}

@@ -629,6 +629,9 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 		if (request) {
 			ctx.sink->write(*request);
 			notify::raise(notify::Dirty::Oled);
+			if (bind.repaints_grid) {
+				notify::raise(notify::Dirty::GridMain);
+			}
 		}
 		return;
 	}

@@ -126,4 +126,10 @@ constexpr Node with_learn_param(Node n, ParamRef p) {
 	return n;
 }
 
+/// @brief @p n, whose target writes also repaint the pad grid (`Binding::repaints_grid`).
+constexpr Node with_grid_repaint(Node n) {
+	n.bind.repaints_grid = true;
+	return n;
+}
+
 } // namespace deluge::scenes::menu::nodes

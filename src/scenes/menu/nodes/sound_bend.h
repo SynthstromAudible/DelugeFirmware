@@ -43,20 +43,17 @@ struct MenuContext;
 
 namespace deluge::scenes::menu::nodes {
 
-/// @name The bend-range hooks. Bodies (and their citations) in the `.cpp`.
-/// @{
-int32_t get_bend_range_main(const MenuContext& ctx);
-void set_bend_range_main(const MenuContext& ctx, int32_t value);
-int32_t get_bend_range_per_finger(const MenuContext& ctx);
-void set_bend_range_per_finger(const MenuContext& ctx, int32_t value);
 /// @}
 
 /// @brief `BendRange::getMaxValue` (`gui/menu_item/bend_range.h:24`) over `Number`'s default
 ///        minimum of 0.
 inline constexpr IntRange kBendRange{0, 96, 1};
 
-inline constexpr Node bend_range_main = int_item(sid(deluge::l10n::String::STRING_FOR_NORMAL), get_bend_range_main,
-                                                 set_bend_range_main, kBendRange, Hint::Knob);
+inline constexpr Node bend_range_main = setting_item(sid(deluge::l10n::String::STRING_FOR_NORMAL), Kind::Int,
+                                                     {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                      .path = "bendRange",
+                                                      .group = deluge::project::SettingGroupId::CLIP_VALUES},
+                                                     Hint::Knob);
 /// @brief The per-finger range **inside the bend submenu**, where legacy always shows it.
 ///
 /// `bend_range::PerFinger::isRelevant` is `soundEditor.navigationDepth == 1 || editingKit()`
@@ -68,8 +65,11 @@ inline constexpr Node bend_range_main = int_item(sid(deluge::l10n::String::STRIN
 /// child at depth 0, where only the `editingKit()` arm can fire -- hence the predicate there and
 /// not here.)
 inline constexpr Node bend_range_per_finger =
-    int_item(sid(deluge::l10n::String::STRING_FOR_POLY_FINGER_MPE), get_bend_range_per_finger,
-             set_bend_range_per_finger, kBendRange, Hint::Knob);
+    setting_item(sid(deluge::l10n::String::STRING_FOR_POLY_FINGER_MPE), Kind::Int,
+                 {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                  .path = "bendRangeMPE",
+                  .group = deluge::project::SettingGroupId::CLIP_VALUES},
+                 Hint::Knob);
 
 inline constexpr const Node* kBendChildren[] = {&bend_range_main, &bend_range_per_finger};
 inline constexpr Node bend =
@@ -79,10 +79,11 @@ inline constexpr Node bend =
 /// "the single option available for Drums" (`menus.cpp:1732`) -- but a **root child**, i.e. shown
 /// at `navigationDepth == 0`, where `per_finger.h:41`'s first arm is false and only `editingKit()`
 /// decides. `with_relevant` is what attaches the predicate to the shared shape.
-inline constexpr Node drum_bend_range =
-    with_relevant(int_item(sid(deluge::l10n::String::STRING_FOR_BEND_RANGE), get_bend_range_per_finger,
-                           set_bend_range_per_finger, kBendRange, Hint::Knob),
-                  relevance::per_finger_bend);
+inline constexpr Node drum_bend_range = setting_item(sid(deluge::l10n::String::STRING_FOR_BEND_RANGE), Kind::Int,
+                                                     {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                      .path = "bendRange",
+                                                      .group = deluge::project::SettingGroupId::NOTE_ROW},
+                                                     Hint::Knob);
 
 /// @brief This file's two contributions to the sound-editor root, in the order the root lists them.
 ///

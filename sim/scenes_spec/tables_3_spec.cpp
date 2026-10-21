@@ -341,6 +341,7 @@ struct Pair {
 	::MenuItem* item;
 	const Root* root;
 	int32_t depth;
+	const Node* parent{nullptr}; ///< the submenu that lists it; null for a root
 	int32_t navigation_depth() const { return depth > 0 ? depth - 1 : 0; }
 };
 
@@ -360,8 +361,8 @@ std::vector<const ::MenuItem*>& stepped_over() {
 }
 
 bool walk(const Node& node, ::MenuItem& item, const Root& root, std::vector<Pair>& out, std::string& where,
-          int32_t depth = 0) {
-	out.push_back(Pair{&node, &item, &root, depth});
+          int32_t depth = 0, const Node* parent = nullptr) {
+	out.push_back(Pair{&node, &item, &root, depth, parent});
 	if (node.kind != menu::Kind::Submenu) {
 		// Fix round 1, minor 4: returning here without looking at the legacy side would let a
 		// `Kind::Custom` placeholder stand in for a legacy `Submenu` and silently drop that whole
@@ -397,7 +398,7 @@ bool walk(const Node& node, ::MenuItem& item, const Root& root, std::vector<Pair
 			where = std::string{root.name} + ": null child under " + std::string{item.getName()};
 			return false;
 		}
-		if (!walk(*node.children[i], *kids[i], root, out, where, depth + 1)) {
+		if (!walk(*node.children[i], *kids[i], root, out, where, depth + 1, &node)) {
 			return false;
 		}
 	}
@@ -1155,7 +1156,7 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 			// `Decimal`, so legacy's `getParamIndex()` is the base's invalid one and only
 			// `getLearningThing()` (`audio_clip/transpose.h:52-56`) names the param. Compared there
 			// instead, exactly as `tables_2_spec` compares the four `menu_item::Transpose` nodes.
-			if (p.node->bind.get != nullptr) {
+			if (p.node->bind.get != nullptr || p.node->bind.target.valid()) { // a hook or a target owns its value
 				auto* learner = dynamic_cast<::MenuItemWithCCLearning*>(p.item);
 				expect(learner != nullptr).to_be_true();
 				if (learner != nullptr) {
@@ -1209,7 +1210,8 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 			if (!want.has_value()) {
 				continue; // a submenu, or a bespoke item with no value
 			}
-			expect(menu::bindings::read(*p.node, p.root->ctx) == *want).to_be_true();
+			const std::string at = std::string{p.root->name} + "/" + text_of(p.node->name) + " reads ";
+			expect(at + std::to_string(menu::bindings::read(*p.node, p.root->ctx))).to_equal(at + std::to_string(*want));
 			compared++;
 		}
 		// 581 today. A drop would mean the loop stopped reaching the leaves.
@@ -1254,6 +1256,11 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 				continue;
 			}
 			install(p.root->ctx, p.root->song);
+			if (p.parent != nullptr && !menu::bindings::relevant(*p.parent, p.root->ctx)) {
+				// A page this root never opens (the bend ranges on a kit row): legacy's item answers for a menu
+				// no one reaches, and a node on a target answers by its row there.
+				continue;
+			}
 			soundEditor.navigationDepth = p.navigation_depth();
 			// Legacy's `getRootUI()` reads a `static` array inside `gui/ui/ui.cpp`; `setRootUILowLevel`
 			// is the only door to it that does not run a view's `opened()`. Set it, ASSERT it took,
@@ -1690,13 +1697,13 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 				covered.insert(p.node);
 			}
 		}
-		// 138 distinct `set`-hook nodes, 657 (node, root, value) probes across the ten roots -- a node
+		// 113 distinct `set`-hook nodes, 414 (node, root, value) probes across the ten roots -- a node
 		// reachable from three roots is driven three times, on three different fixtures. A node bound to a
 		// target has no `set` hook: the binding library's specs (sound_settings_spec, effect_settings_spec,
-		// arp_targets_spec, model_targets_spec) drive it instead. The thresholds stay loose rather than exact;
+		// arp_targets_spec, model_targets_spec, model_nodes_spec) drive it instead. The thresholds stay loose rather than exact;
 		// a drop in either number means the loop stopped reaching hooks it used to.
-		expect(exercised > size_t(640)).to_be_true();
-		expect(covered.size() > size_t(130)).to_be_true();
+		expect(exercised > size_t(400)).to_be_true();
+		expect(covered.size() > size_t(105)).to_be_true();
 	});
 
 	it("drives the port hook of every node the legacy write comparison excludes", _ {

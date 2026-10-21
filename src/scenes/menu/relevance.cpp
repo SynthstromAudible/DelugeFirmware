@@ -140,11 +140,6 @@ bool carrier_feedback(const MenuContext& ctx, uint8_t index) {
 	       && (ctx.sound->getSynthMode() == ::SynthMode::FM || source->oscType == OscType::DX7);
 }
 
-/// @brief `sample::PitchSpeed::isRelevant` (`gui/menu_item/sample/pitch_speed.h:35-37`).
-bool pitch_speed(const MenuContext& ctx, uint8_t index) {
-	return ctx.is_audio_clip || is_sample_mode_sample(ctx, index);
-}
-
 /// @brief `sample::Interpolation::isRelevant` (`gui/menu_item/sample/interpolation.h:61-71`).
 bool interpolation(const MenuContext& ctx, uint8_t index) {
 	if (ctx.is_audio_clip) {
@@ -280,12 +275,6 @@ bool osc0_is_sample(const MenuContext& ctx) {
 bool osc1_is_sample(const MenuContext& ctx) {
 	return is_sample_mode_sample(ctx, 1);
 }
-bool osc0_pitch_speed(const MenuContext& ctx) {
-	return pitch_speed(ctx, 0);
-}
-bool osc1_pitch_speed(const MenuContext& ctx) {
-	return pitch_speed(ctx, 1);
-}
 bool osc0_interpolation(const MenuContext& ctx) {
 	return interpolation(ctx, 0);
 }
@@ -368,12 +357,6 @@ bool mod_fx_has_offset(const MenuContext& ctx) {
 	}
 }
 
-bool reverb_filters(const MenuContext& /*ctx*/) {
-	// The reverb is one engine-wide object, not a per-clip one: legacy reads `AudioEngine::reverb`
-	// directly and so does this (`reverb/hpf.h:27`).
-	const auto model = AudioEngine::reverb.getModel();
-	return model == dsp::Reverb::Model::MUTABLE || model == dsp::Reverb::Model::DIGITAL;
-}
 bool reverb_sidechain_on(const MenuContext& /*ctx*/) {
 	return AudioEngine::reverbSidechainVolume >= 0; // `reverb/sidechain/shape.h:32`
 }
@@ -389,26 +372,11 @@ bool bend_submenu(const MenuContext& ctx) {
 	const OutputType type = ctx.output->type;
 	return type == OutputType::SYNTH || type == OutputType::CV || type == OutputType::MIDI_OUT;
 }
-bool per_finger_bend(const MenuContext& ctx) {
-	// The depth-0 reading of `per_finger.h:41` -- see the header. At depth 0 the `navigationDepth
-	// == 1` arm is false by construction, so only `editingKit()` is left.
-	return ctx.is_kit;
-}
 
 // --- Batch 3 (Task 8) -------------------------------------------------------------------------
 
 bool is_midi_out(const MenuContext& ctx) {
 	return ctx.output != nullptr && ctx.output->type == OutputType::MIDI_OUT;
-}
-
-bool cv2_dual(const MenuContext& ctx) {
-	// `cv::DualCVSelection::isRelevant` (`gui/menu_item/cv/cv2Mapping.h:59-63`): a CV output whose
-	// `getChannel()` is `both`. `CVInstrument` is `model/instrument/cv_instrument.h`, inside this
-	// layer's allow-list, so the test is the legacy one verbatim.
-	if (ctx.output == nullptr || ctx.output->type != OutputType::CV) {
-		return false;
-	}
-	return static_cast<CVInstrument*>(ctx.output)->getChannel() == both;
 }
 
 bool audio_source_is_specific(const MenuContext& ctx) {
@@ -492,7 +460,7 @@ namespace {
 		&fn, #fn                                                                                                       \
 	}
 
-constexpr std::array<NamedPredicate, 62> kRegistry{
+constexpr std::array<NamedPredicate, 57> kRegistry{
     DELUGE_RELEVANCE_ROW(has_lpf),
     DELUGE_RELEVANCE_ROW(has_hpf),
     DELUGE_RELEVANCE_ROW(is_fm),
@@ -511,8 +479,6 @@ constexpr std::array<NamedPredicate, 62> kRegistry{
     DELUGE_RELEVANCE_ROW(osc1_carrier_feedback),
     DELUGE_RELEVANCE_ROW(osc0_is_sample),
     DELUGE_RELEVANCE_ROW(osc1_is_sample),
-    DELUGE_RELEVANCE_ROW(osc0_pitch_speed),
-    DELUGE_RELEVANCE_ROW(osc1_pitch_speed),
     DELUGE_RELEVANCE_ROW(osc0_interpolation),
     DELUGE_RELEVANCE_ROW(osc1_interpolation),
     DELUGE_RELEVANCE_ROW(is_kit_row),
@@ -528,13 +494,10 @@ constexpr std::array<NamedPredicate, 62> kRegistry{
     DELUGE_RELEVANCE_ROW(mod_fx_has_depth),
     DELUGE_RELEVANCE_ROW(mod_fx_has_feedback),
     DELUGE_RELEVANCE_ROW(mod_fx_has_offset),
-    DELUGE_RELEVANCE_ROW(reverb_filters),
     DELUGE_RELEVANCE_ROW(reverb_sidechain_on),
     DELUGE_RELEVANCE_ROW(stutter_quantize_allowed),
     DELUGE_RELEVANCE_ROW(bend_submenu),
-    DELUGE_RELEVANCE_ROW(per_finger_bend),
     DELUGE_RELEVANCE_ROW(is_midi_out),
-    DELUGE_RELEVANCE_ROW(cv2_dual),
     DELUGE_RELEVANCE_ROW(battery_shown),
     DELUGE_RELEVANCE_ROW(audio_source_is_specific),
     DELUGE_RELEVANCE_ROW(audio_clip_has_sample),
@@ -563,7 +526,7 @@ constexpr std::array<NamedPredicate, 62> kRegistry{
 // One row per predicate declared in `relevance.h` (54), plus the sixteen
 // `nodes::relevant_*_iterance_step_*` rows: declared in `nodes/note.h`, not `relevance.h`, but
 // registered here for the reason this section's own note gives. 54 + 16 = 70.
-static_assert(kRegistry.size() == 62);
+static_assert(kRegistry.size() == 57);
 
 } // namespace
 

@@ -100,7 +100,7 @@ describe bind_model("a model target", ${
 		expect(shown(SettingGroupId::CLIP_VALUES, "bendRange", midi)).to_equal(kDeviceBendRange);
 		expect(shown(SettingGroupId::CLIP_VALUES, "bendRangeMPE", midi)).to_equal(kDeviceBendRangeMpe);
 		const Addresses row{.clip = kKitClip, .note_row = kSoundRow, .instrument = Instrument::KIT};
-		expect(shown(SettingGroupId::NOTE_ROW, "bendRange", row)).to_equal(kDeviceBendRangeMpe);
+		expect(shown(SettingGroupId::NOTE_ROW, "bendRange", row)).to_equal(kDeviceBendRange); // a drum's starts at main
 		expect(deluge::project::write_setting(f.song, {SettingGroupId::CLIP_VALUES, kMidiClip}, "bendRange",
 		                                      Value::makeNumber(12)))
 		    .to_be_true();
@@ -162,6 +162,14 @@ describe bind_model("a model target", ${
 		                        {.clip = kAudioClip, .track = kAudioTrack, .instrument = Instrument::AUDIO}, f.facts);
 		expect(shown.has_value()).to_be_true();
 		expect(shown->value).to_equal(2);
+		std::array<ChoiceName, 32> out{};
+		const size_t count = choice_names(
+		    priority, f.song, {.clip = kAudioClip, .track = kAudioTrack, .instrument = Instrument::AUDIO}, f.facts, out);
+		const auto* names = deluge::l10n::setting_names(SettingGroupId::AUDIO_CLIP, "priority",
+		                                                SettingContext{.owner = SettingContext::Owner::CLIP,
+		                                                               .instrument = Instrument::AUDIO});
+		expect(names != nullptr).to_be_true();
+		expect(count).to_equal(names->choices.size());
 	});
 
 	it("shows a twin page only on its own kind of root: a kit lane, or every other", _ {

@@ -1217,14 +1217,12 @@
                 "type": "basic"
               },
               {
-                "available_when": "reverb_filters",
                 "id": 106,
                 "name": "Hpf",
                 "title": "Hpf",
                 "type": "basic"
               },
               {
-                "available_when": "reverb_filters",
                 "id": 107,
                 "name": "Lpf",
                 "title": "Lpf",
@@ -1239,21 +1237,18 @@
                     "type": "basic"
                   },
                   {
-                    "available_when": "reverb_sidechain_on",
                     "id": 110,
                     "name": "Shape",
                     "title": "Sidech shape",
                     "type": "basic"
                   },
                   {
-                    "available_when": "reverb_sidechain_on",
                     "id": 111,
                     "name": "Attack",
                     "title": "Sidech attack",
                     "type": "basic"
                   },
                   {
-                    "available_when": "reverb_sidechain_on",
                     "id": 112,
                     "name": "Release",
                     "title": "Sidech release",
@@ -1867,7 +1862,7 @@
             "type": "basic"
           },
           {
-            "available_when": "osc0_pitch_speed",
+            "available_when": "setting:osc1/timeStretchEnable",
             "id": 148,
             "name": "Pitch/Speed",
             "title": "Pitch/Speed",
@@ -2137,7 +2132,7 @@
             "type": "basic"
           },
           {
-            "available_when": "osc1_pitch_speed",
+            "available_when": "setting:osc2/timeStretchEnable",
             "id": 163,
             "name": "Pitch/Speed",
             "title": "Pitch/Speed",
@@ -3806,7 +3801,6 @@
         "type": "submenu"
       },
       {
-        "available_when": "per_finger_bend",
         "id": 230,
         "name": "Bend range",
         "title": "Bend range",
@@ -5111,14 +5105,12 @@
                 "type": "basic"
               },
               {
-                "available_when": "reverb_filters",
                 "id": 106,
                 "name": "Hpf",
                 "title": "Hpf",
                 "type": "basic"
               },
               {
-                "available_when": "reverb_filters",
                 "id": 107,
                 "name": "Lpf",
                 "title": "Lpf",
@@ -5133,21 +5125,18 @@
                     "type": "basic"
                   },
                   {
-                    "available_when": "reverb_sidechain_on",
                     "id": 110,
                     "name": "Shape",
                     "title": "Sidech shape",
                     "type": "basic"
                   },
                   {
-                    "available_when": "reverb_sidechain_on",
                     "id": 111,
                     "name": "Attack",
                     "title": "Sidech attack",
                     "type": "basic"
                   },
                   {
-                    "available_when": "reverb_sidechain_on",
                     "id": 112,
                     "name": "Release",
                     "title": "Sidech release",
@@ -5761,7 +5750,7 @@
             "type": "basic"
           },
           {
-            "available_when": "osc0_pitch_speed",
+            "available_when": "setting:osc1/timeStretchEnable",
             "id": 148,
             "name": "Pitch/Speed",
             "title": "Pitch/Speed",
@@ -6031,7 +6020,7 @@
             "type": "basic"
           },
           {
-            "available_when": "osc1_pitch_speed",
+            "available_when": "setting:osc2/timeStretchEnable",
             "id": 163,
             "name": "Pitch/Speed",
             "title": "Pitch/Speed",
@@ -7700,7 +7689,6 @@
         "type": "submenu"
       },
       {
-        "available_when": "per_finger_bend",
         "id": 230,
         "name": "Bend range",
         "title": "Bend range",
@@ -7842,7 +7830,6 @@
             "type": "basic"
           },
           {
-            "available_when": "is_midi_out",
             "id": 243,
             "name": "Hide Unlabeled CC",
             "title": "Hide Unlabeled CC",
@@ -7857,21 +7844,18 @@
       {
         "children": [
           {
-            "available_when": "is_midi_out",
             "id": 245,
             "name": "Bank",
             "title": "MIDI bank",
             "type": "basic"
           },
           {
-            "available_when": "is_midi_out",
             "id": 246,
             "name": "Sub",
             "title": "MIDI sub-bank",
             "type": "basic"
           },
           {
-            "available_when": "is_midi_out",
             "id": 247,
             "name": "Pgm",
             "title": "MIDI PGM number",
@@ -8236,14 +8220,12 @@
         "type": "submenu"
       },
       {
-        "available_when": "cv2_dual",
         "id": 252,
         "name": "CV 2 Source",
         "title": "CV 2 Source",
         "type": "basic"
       },
       {
-        "available_when": "is_midi_out",
         "id": 253,
         "name": "Send Y as CC1",
         "title": "Send Y as CC1",
@@ -9329,14 +9311,12 @@
                 "type": "basic"
               },
               {
-                "available_when": "reverb_filters",
                 "id": 106,
                 "name": "Hpf",
                 "title": "Hpf",
                 "type": "basic"
               },
               {
-                "available_when": "reverb_filters",
                 "id": 107,
                 "name": "Lpf",
                 "title": "Lpf",
@@ -9351,21 +9331,18 @@
                     "type": "basic"
                   },
                   {
-                    "available_when": "reverb_sidechain_on",
                     "id": 110,
                     "name": "Shape",
                     "title": "Sidech shape",
                     "type": "basic"
                   },
                   {
-                    "available_when": "reverb_sidechain_on",
                     "id": 111,
                     "name": "Attack",
                     "title": "Sidech attack",
                     "type": "basic"
                   },
                   {
-                    "available_when": "reverb_sidechain_on",
                     "id": 112,
                     "name": "Release",
                     "title": "Sidech release",
@@ -9555,7 +9532,7 @@
             "type": "basic"
           },
           {
-            "available_when": "osc0_pitch_speed",
+            "available_when": "setting:osc1/timeStretchEnable",
             "id": 148,
             "name": "Pitch/Speed",
             "title": "Pitch/Speed",
@@ -9801,14 +9778,12 @@
                 "type": "basic"
               },
               {
-                "available_when": "reverb_filters",
                 "id": 106,
                 "name": "Hpf",
                 "title": "Hpf",
                 "type": "basic"
               },
               {
-                "available_when": "reverb_filters",
                 "id": 107,
                 "name": "Lpf",
                 "title": "Lpf",
@@ -9823,21 +9798,18 @@
                     "type": "basic"
                   },
                   {
-                    "available_when": "reverb_sidechain_on",
                     "id": 110,
                     "name": "Shape",
                     "title": "Sidech shape",
                     "type": "basic"
                   },
                   {
-                    "available_when": "reverb_sidechain_on",
                     "id": 111,
                     "name": "Attack",
                     "title": "Sidech attack",
                     "type": "basic"
                   },
                   {
-                    "available_when": "reverb_sidechain_on",
                     "id": 112,
                     "name": "Release",
                     "title": "Sidech release",
@@ -10180,14 +10152,12 @@
                 "type": "basic"
               },
               {
-                "available_when": "reverb_filters",
                 "id": 106,
                 "name": "Hpf",
                 "title": "Hpf",
                 "type": "basic"
               },
               {
-                "available_when": "reverb_filters",
                 "id": 107,
                 "name": "Lpf",
                 "title": "Lpf",
@@ -10202,21 +10172,18 @@
                     "type": "basic"
                   },
                   {
-                    "available_when": "reverb_sidechain_on",
                     "id": 110,
                     "name": "Shape",
                     "title": "Sidech shape",
                     "type": "basic"
                   },
                   {
-                    "available_when": "reverb_sidechain_on",
                     "id": 111,
                     "name": "Attack",
                     "title": "Sidech attack",
                     "type": "basic"
                   },
                   {
-                    "available_when": "reverb_sidechain_on",
                     "id": 112,
                     "name": "Release",
                     "title": "Sidech release",
@@ -11098,14 +11065,12 @@
                 "type": "basic"
               },
               {
-                "available_when": "reverb_filters",
                 "id": 106,
                 "name": "Hpf",
                 "title": "Hpf",
                 "type": "basic"
               },
               {
-                "available_when": "reverb_filters",
                 "id": 107,
                 "name": "Lpf",
                 "title": "Lpf",
@@ -11120,21 +11085,18 @@
                     "type": "basic"
                   },
                   {
-                    "available_when": "reverb_sidechain_on",
                     "id": 110,
                     "name": "Shape",
                     "title": "Sidech shape",
                     "type": "basic"
                   },
                   {
-                    "available_when": "reverb_sidechain_on",
                     "id": 111,
                     "name": "Attack",
                     "title": "Sidech attack",
                     "type": "basic"
                   },
                   {
-                    "available_when": "reverb_sidechain_on",
                     "id": 112,
                     "name": "Release",
                     "title": "Sidech release",
@@ -12471,7 +12433,6 @@
             "type": "basic"
           },
           {
-            "available_when": "is_midi_out",
             "id": 243,
             "name": "Hide Unlabeled CC",
             "title": "Hide Unlabeled CC",
@@ -12486,21 +12447,18 @@
       {
         "children": [
           {
-            "available_when": "is_midi_out",
             "id": 245,
             "name": "Bank",
             "title": "MIDI bank",
             "type": "basic"
           },
           {
-            "available_when": "is_midi_out",
             "id": 246,
             "name": "Sub",
             "title": "MIDI sub-bank",
             "type": "basic"
           },
           {
-            "available_when": "is_midi_out",
             "id": 247,
             "name": "Pgm",
             "title": "MIDI PGM number",
@@ -12865,14 +12823,12 @@
         "type": "submenu"
       },
       {
-        "available_when": "cv2_dual",
         "id": 252,
         "name": "CV 2 Source",
         "title": "CV 2 Source",
         "type": "basic"
       },
       {
-        "available_when": "is_midi_out",
         "id": 253,
         "name": "Send Y as CC1",
         "title": "Send Y as CC1",
