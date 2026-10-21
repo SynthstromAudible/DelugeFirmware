@@ -436,6 +436,7 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 
 	// An owner's effects are read from its element (the effects library's codec), not here.
 	if (!strcmp(tagName, "arpeggiator") && arpSettings != nullptr) {
+		arpRead = true;
 		// Set default values in case they are not configured
 		arpSettings->syncType = SYNC_TYPE_EVEN;
 		arpSettings->syncLevel = SYNC_LEVEL_NONE;

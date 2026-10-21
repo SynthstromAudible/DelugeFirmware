@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "deluge-project/arp_record.h"
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/cv_mode.h"
 #include "deluge-project/instrument_slot.h"
@@ -62,8 +63,10 @@ struct DocOutput {
 	std::vector<ControllerMapping> controls;
 	/// A kit's or an audio track's effects; absent for every other kind.
 	std::optional<FxChain> effects;
+	/// A synth track's own arp, which a new clip on it starts from; absent unless its element held one.
+	std::optional<ArpRecord> arp;
 
-	/// Equal when the identity fields, the instrument, the controls and the effects are.
+	/// Equal when the identity fields, the instrument, the controls, the effects and the arp are.
 	bool operator==(const DocOutput& other) const {
 		return name == other.name && colour == other.colour && mod_knob_mode == other.mod_knob_mode
 		       && muted_in_arrangement == other.muted_in_arrangement
@@ -77,7 +80,7 @@ struct DocOutput {
 		       && input_channel == other.input_channel && audio_mode == other.audio_mode
 		       && recording_from_output_id == other.recording_from_output_id && output_mpe_y == other.output_mpe_y
 		       && cv2_source == other.cv2_source && instrument == other.instrument && controls == other.controls
-		       && effects == other.effects;
+		       && effects == other.effects && arp == other.arp;
 	}
 };
 

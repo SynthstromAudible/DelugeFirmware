@@ -16,5 +16,6 @@
   "Weird.json": "4d1742b1d5fb2f08aaee1b852bf9de0510403b2f8ac4b19e1d02a9989b20ef95",
   "synthetic/learned_knobs.XML": "e7faffc34aa1532a178158e21b4b6c50930dffab2deaab09b74b8759db4a88a7",
   "synthetic/stutter_own.XML": "fa466a7f9a77617a6ffaabbcca1a019d6f59e7ee51b91bd41af3441fa4eaf8e3",
-  "synthetic/syncscale.XML": "b457ac806b3d6c905a2fb57d86fe6a0e7f1ba1affb79b2c9f8d25b3d6759a59e"
+  "synthetic/syncscale.XML": "b457ac806b3d6c905a2fb57d86fe6a0e7f1ba1affb79b2c9f8d25b3d6759a59e",
+  "synthetic/synth_arp.XML": "c800372458ee9c4a3a9ba8e29be74f98895b7a184cd3a1c840e869404fb4c1bc"
 }

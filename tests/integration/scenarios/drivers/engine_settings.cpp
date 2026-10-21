@@ -54,6 +54,7 @@
 #include "storage/document_format.h"
 #include "storage/storage_manager.h"
 #include "storage/tree_document.h"
+#include "storage/value_serializer.h"
 #include "storage/value_tree_deserializer.h"
 
 #include <array>
@@ -988,6 +989,30 @@ int sharedDrumIdLeg(std::string_view bytes, deluge::storage::DocumentFormat form
 	return 0;
 }
 
+/// A synth preset loaded into a song keeps the arp its file holds as the track's own, which a new clip on it starts
+/// from, and the song saves it; a preset with none saves none.
+int presetArpLeg(std::string_view bytes, deluge::storage::DocumentFormat format, Instrument& synth, Song& song) {
+	std::optional<deluge::storage::Value> tree = parseDocument(bytes, format);
+	const deluge::storage::Value* element = tree ? tree->find("sound") : nullptr;
+	const bool held = element != nullptr && element->find("arpeggiator") != nullptr;
+	const bool recorded = synth.docOutput_ != nullptr && synth.docOutput_->arp.has_value();
+	ValueSerializer writer(ValueSerializer::Writes::ITEMS);
+	{
+		ActiveWriterScope scope(writer);
+		synth.writeToFile(nullptr, &song); // a song's save of the track
+	}
+	std::optional<deluge::serialization::Value> items = writer.finish();
+	const bool saved = items && items->isArray() && items->items().size() == 1
+	                   && items->items().front().entries().size() == 1
+	                   && items->items().front().entries().front().second.find("arpeggiator") != nullptr;
+	if (recorded != held || saved != held) {
+		std::fprintf(io.err, "FAIL preset arp: file=%d record=%d saved=%d\n", held ? 1 : 0, recorded ? 1 : 0,
+		             saved ? 1 : 0);
+		return 3;
+	}
+	return 0;
+}
+
 int engine_settings_run(int argc, char** argv, Io driverIo) {
 	io = driverIo;
 	if (argc < 3) {
@@ -1067,6 +1092,11 @@ int engine_settings_run(int argc, char** argv, Io driverIo) {
 	currentSong->addOutput(first);
 	if (int r = expectBound(*first, "added to a running song")) {
 		return r;
+	}
+	if (type == OutputType::SYNTH) {
+		if (int r = presetArpLeg(bytes, deluge::storage::formatOfPath(argv[1]), *first, *currentSong)) {
+			return r;
+		}
 	}
 	Instrument* second = loadPreset(bytes, deluge::storage::formatOfPath(argv[1]), type, *currentSong);
 	if (second == nullptr) {

@@ -143,6 +143,8 @@ public:
 	/// @brief Set by a read whose element saves no delay type: the type is worked out once the owner's params are read
 	/// (deluge::model::resolvePendingDelayTypes).
 	bool delayTypePending = false;
+	/// @brief Set by a read whose element held an arpeggiator (a synth track's own, which its record then keeps).
+	bool arpRead = false;
 	void setDelaySyncType(SyncType value);
 	void setDelaySyncLevel(SyncLevel value);
 	void setStutterQuantized(bool value);

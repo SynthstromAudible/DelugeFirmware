@@ -1423,6 +1423,10 @@ void Song::adoptOutput(Output* output) {
 		Sound* sound = static_cast<Sound*>(static_cast<SoundInstrument*>(output));
 		sound->bindState();
 		deluge::bridge::fillSlot(*sound, d.instrument.emplace(), false, *this);
+		// The track's own arp, which a new clip on it starts from, is its record's when its element held one.
+		if (sound->arpRead) {
+			d.arp = deluge::bridge::arpRecordOf(static_cast<SoundInstrument*>(output)->defaultArpSettings, false);
+		}
 	}
 	// A preset's samples load before it is added, and a kit's drums were bound while it was read: the record and the
 	// slot take what the runtime holds.

@@ -71,8 +71,14 @@ bool SoundInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOut
 	    presetClip != nullptr && presetClip->docClip_ != nullptr && presetClip->docClip_->values.arp
 	        ? &*presetClip->docClip_->values.arp
 	        : nullptr;
-	Sound::writeToFile(writer, presetClip == nullptr, paramManager, song,
-	                   presetClip != nullptr ? &presetClip->arpSettings : nullptr, presetArp, NULL);
+	// A preset saves its clip's arp; a song saves the track's own, which a new clip on it starts from, when its record
+	// holds one (it was loaded with one).
+	const deluge::project::ArpRecord* ownArp = docOutput_ != nullptr && docOutput_->arp ? &*docOutput_->arp : nullptr;
+	ArpeggiatorSettings* arp = presetClip != nullptr ? &presetClip->arpSettings
+	                           : ownArp != nullptr   ? &defaultArpSettings
+	                                                 : nullptr;
+	Sound::writeToFile(writer, presetClip == nullptr, paramManager, song, arp,
+	                   presetClip != nullptr ? presetArp : ownArp, NULL);
 
 	MelodicInstrument::writeMelodicInstrumentTagsToFile(writer, clipForSavingOutputOnly, song);
 

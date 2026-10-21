@@ -206,6 +206,10 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 		}
 		if (output.name == "sound") {
 			record.instrument = slot_of_output(*output.node, magnitude);
+			if (const Value* arp = output.node->find("arpeggiator")) {
+				// A sound's element holds the arp's sync level relative to the song's tick magnitude.
+				decode(*arp, record.arp.emplace(), std::optional<int32_t>{magnitude});
+			}
 		}
 		if (const deluge::engine::ParamNaming* naming = naming_of(output.name, engines)) {
 			record.controls = decode_controls(*output.node, *naming);
@@ -366,6 +370,10 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 		}
 		if (output.instrument) {
 			append_entries(element, output.instrument->state);
+		}
+		if (output.arp) {
+			// A sound's element holds the arp's sync level relative to the song's tick magnitude.
+			element.set("arpeggiator", encode(*output.arp, magnitude));
 		}
 		if (!entry.drums.empty()) {
 			auto sources = Value::makeArray();

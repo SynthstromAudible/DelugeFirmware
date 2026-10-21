@@ -417,11 +417,11 @@ std::expected<void, LoadError> decode_identity(const Value& outputElement, std::
 namespace {
 
 /// The keys of a synth track's element the model reads (decode_song's id, decode_identity's for a `sound`, its
-/// controls, and the knobs and MIDI input the mapping table holds).
-constexpr std::array<std::string_view, 14> kSoundOutputKeys{
+/// controls, its arp, and the knobs and MIDI input the mapping table holds).
+constexpr std::array<std::string_view, 15> kSoundOutputKeys{
     "id",        "isMutedInArrangement", "isSoloingInArrangement", "isArmedForRecording", "activeModFunction",
     "colour",    "presetName",           "presetFolder",           "defaultVelocity",     "modKnobs",
-    "midiKnobs", "inputMidiChannel",     "inputMPEZone",           "inputMidiDevice"};
+    "midiKnobs", "inputMidiChannel",     "inputMPEZone",           "inputMidiDevice",     "arpeggiator"};
 /// The keys of a sound kit row's element the model reads (decode_song's id, decode_identity's name, its controls, its
 /// arp, which its lane record holds, and the knobs, mute command and input the mapping table holds).
 constexpr std::array<std::string_view, 7> kSoundDrumKeys{

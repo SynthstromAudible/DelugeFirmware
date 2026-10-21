@@ -74,6 +74,19 @@ describe document("the model's parts of a whole song", ${
 		expect(*a.arrangement.session_macros[0].clip_id).to_equal(10u);
 	});
 
+	it("reads and writes a synth track's arpeggiator, as a kit row's is", _ {
+		constexpr const char* kSynthArp =
+		    R"(<song firmwareVersion="4.1.0" inputTickMagnitude="2"><instruments>)"
+		    R"(<sound id="1" presetName="ARP"><arpeggiator mode="up" numOctaves="3" syncLevel="7"/></sound>)"
+		    R"(</instruments></song>)";
+		SongDocument a = decoded(kSynthArp);
+		expect(a.outputs.at(1).arp.has_value()).to_be_true();
+		expect(static_cast<int>(a.outputs.at(1).arp->num_octaves)).to_equal(3);
+		expect(a.outputs.at(1).instrument->state.find("arpeggiator") == nullptr).to_be_true();
+		expect(through_json(a)).to_equal(a);
+		expect(decoded(kSong).outputs.at(1).arp.has_value()).to_be_false();
+	});
+
 	it("tells a kit clip by its rows, so a kit row keeps its colour and takes no y from the file", _ {
 		SongDocument a = decoded(kSong);
 		expect(a.clip_entry(11)->in_kit).to_be_true();

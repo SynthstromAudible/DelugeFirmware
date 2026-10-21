@@ -327,6 +327,23 @@ int compare_slots(const char* label, const deluge::project::Song& project, const
 	return 0;
 }
 
+/// Every synth track's arp @p file holds is the one @p project's record holds: what loading kept, or what a save and
+/// reload kept.
+int compare_synth_arps(const char* when, const deluge::project::Song& project, const SongDocument& file) {
+	for (const auto& [id, output] : file.outputs) {
+		if (!output.arp) {
+			continue;
+		}
+		const deluge::project::DocOutput* record = project.output_structure.find(id);
+		if (record == nullptr || !record->arp || !(*record->arp == *output.arp)) {
+			std::fprintf(io.err, "FAIL %s: output %u's arpeggiator is not the file's\n", when,
+			             static_cast<unsigned>(id));
+			return 4;
+		}
+	}
+	return 0;
+}
+
 int model_decode_diff_main(int argc, char** argv, Io driverIo) {
 	io = driverIo;
 	if (argc < 2) {
@@ -369,6 +386,9 @@ int model_decode_diff_main(int argc, char** argv, Io driverIo) {
 		if (int r = compare_loaded_controls(song->project, *original)) {
 			return r;
 		}
+		if (int r = compare_synth_arps("loaded", song->project, *original)) {
+			return r;
+		}
 	}
 	const long n1 = deluge::scenarios::driver::saveSongCapture(*song, gen1, kCap);
 
@@ -386,6 +406,11 @@ int model_decode_diff_main(int argc, char** argv, Io driverIo) {
 	}
 	const SongDocument& d = *decoded;
 	const deluge::project::Song& m = engine->project;
+	if (original) {
+		if (int r = compare_synth_arps("saved and reloaded", m, *original)) {
+			return r;
+		}
+	}
 
 	if (!(d.transport == m.transport)) {
 		return differs("transport");
