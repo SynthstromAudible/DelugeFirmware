@@ -24,6 +24,7 @@
 #include "model/project_bridge/setting_projection.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
+#include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
@@ -125,7 +126,7 @@ public:
 	[[nodiscard]] const deluge::instrument::SoundState* sound_state(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] const deluge::effects::EffectStates*
 	chain_effects(deluge::project::ChainAddress chain) const override;
-	[[nodiscard]] int32_t device_bend_range(int32_t which) const override;
+	[[nodiscard]] int32_t played_bend_range(const deluge::project::SettingAddress& owner, int32_t which) const override;
 	[[nodiscard]] bool allows_note_tails(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] uint8_t arp_preset(const deluge::project::SettingAddress& address) const override;
 };
@@ -300,8 +301,16 @@ const deluge::effects::EffectStates* ShellRuntimeFacts::chain_effects(deluge::pr
 	return owner != nullptr ? &owner->effects() : nullptr;
 }
 
-int32_t ShellRuntimeFacts::device_bend_range(int32_t which) const {
-	return FlashStorage::defaultBendRange[which == 0 ? BEND_RANGE_MAIN : BEND_RANGE_FINGER_LEVEL];
+int32_t ShellRuntimeFacts::played_bend_range(const deluge::project::SettingAddress& owner, int32_t which) const {
+	const int32_t range = which == 0 ? BEND_RANGE_MAIN : BEND_RANGE_FINGER_LEVEL;
+	if (const ExpressionParamSet* expression =
+	        currentSong != nullptr ? deluge::bridge::expressionSetAt(*currentSong, owner) : nullptr) {
+		return expression->bendRanges[range];
+	}
+	// A new set starts at the device's default; a kit row's at its main range (ExpressionParamSet's forDrum).
+	const bool drum = owner.group == deluge::project::SettingGroupId::NOTE_ROW
+	                  && std::get<deluge::project::NoteRowAddress>(owner.owner).is_kit;
+	return FlashStorage::defaultBendRange[drum ? BEND_RANGE_MAIN : range];
 }
 
 bool ShellRuntimeFacts::allows_note_tails(deluge::project::SlotAddress slot) const {

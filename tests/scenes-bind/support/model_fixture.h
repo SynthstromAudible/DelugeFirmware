@@ -63,8 +63,9 @@ public:
 	[[nodiscard]] const effects::EffectStates* chain_effects(project::ChainAddress chain) const override;
 	std::map<uint32_t, bool> note_tails; ///< by slot id; a sound absent here can hold tails
 	uint8_t preset{0};                   ///< the arp preset every owner's engine holds
-	[[nodiscard]] int32_t device_bend_range(int32_t which) const override {
-		return which == 0 ? kDeviceBendRange : kDeviceBendRangeMpe;
+	/// As a set made for the owner plays: a kit row's finger range starts at the main one.
+	[[nodiscard]] int32_t played_bend_range(const project::SettingAddress& owner, int32_t which) const override {
+		return which == 0 || owner.group == project::SettingGroupId::NOTE_ROW ? kDeviceBendRange : kDeviceBendRangeMpe;
 	}
 	[[nodiscard]] bool allows_note_tails(project::SlotAddress slot) const override;
 	[[nodiscard]] uint8_t arp_preset(const project::SettingAddress& /*address*/) const override { return preset; }

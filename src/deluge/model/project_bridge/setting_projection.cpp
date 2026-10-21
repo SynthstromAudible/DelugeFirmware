@@ -565,6 +565,21 @@ void silenceArp(const ArpOwner& owner, ::Song& song) {
 
 } // namespace
 
+const ::ExpressionParamSet* expressionSetAt(::Song& song, const project::SettingAddress& address) {
+	if (address.group == SettingGroupId::CLIP_VALUES) {
+		auto* clip = static_cast<::InstrumentClip*>(
+		    findClip(song, std::get<project::ClipAddress>(address.owner).clip_id, ClipType::INSTRUMENT));
+		return clip != nullptr ? clip->paramManager.getExpressionParamSet() : nullptr;
+	}
+	if (address.group == SettingGroupId::NOTE_ROW) {
+		const auto& row_address = std::get<project::NoteRowAddress>(address.owner);
+		auto* clip = static_cast<::InstrumentClip*>(findClip(song, row_address.clip_id, ClipType::INSTRUMENT));
+		::NoteRow* row = clip != nullptr ? findNoteRow(*clip, row_address) : nullptr;
+		return row != nullptr ? row->paramManager.getExpressionParamSet() : nullptr;
+	}
+	return nullptr;
+}
+
 void seedArpRecordAt(::Song& song, const project::SettingAddress& address) {
 	if (const auto* lane = std::get_if<project::LaneAddress>(&address.owner);
 	    lane != nullptr && address.group == project::SettingGroupId::LANE_ARP) {

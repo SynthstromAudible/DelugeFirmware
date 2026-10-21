@@ -6,14 +6,14 @@ namespace deluge::scenes::bind {
 
 namespace {
 
-/// Which of the device's bend ranges @p path of @p group plays when its owner holds none, or nullopt for another row.
-std::optional<int32_t> device_bend_of(project::SettingGroupId group, std::string_view path) {
-	// A kit row's finger bend starts at the device's main range, as a drum's expression set does.
-	if ((group == project::SettingGroupId::CLIP_VALUES || group == project::SettingGroupId::NOTE_ROW)
-	    && path == "bendRange") {
+/// Which of its expression set's bend ranges @p path of @p group is, or nullopt for another row: a clip's main and
+/// MPE ranges, and a kit row's own, which is its set's per-finger range.
+std::optional<int32_t> played_bend_of(project::SettingGroupId group, std::string_view path) {
+	if (group == project::SettingGroupId::CLIP_VALUES && path == "bendRange") {
 		return 0;
 	}
-	if (group == project::SettingGroupId::CLIP_VALUES && path == "bendRangeMPE") {
+	if ((group == project::SettingGroupId::CLIP_VALUES && path == "bendRangeMPE")
+	    || (group == project::SettingGroupId::NOTE_ROW && path == "bendRange")) {
 		return 1;
 	}
 	return std::nullopt;
@@ -41,9 +41,9 @@ std::optional<int32_t> ModelReader::read(std::string_view path) const {
 			return 0;
 		}
 	}
-	if (const std::optional<int32_t> which = device_bend_of(address_.group, path);
+	if (const std::optional<int32_t> which = played_bend_of(address_.group, path);
 	    which && !project::holds_setting(*model_, address_, path)) {
-		return facts_->device_bend_range(*which);
+		return facts_->played_bend_range(address_, *which);
 	}
 	const std::optional<serialization::Value> value = project::read_setting(*model_, address_, path);
 	return value ? engine::stored_value(*row, value->str()) : std::nullopt;

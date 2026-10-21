@@ -16,7 +16,9 @@
 
 #include "deluge-project/setting_group.h"
 #include "model/clip/audio_clip.h"
+#include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
+#include "modulation/params/param_set.h"
 #include "notify/dirty_set.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -168,6 +170,40 @@ describe model_nodes("the model groups' menus edit their records by descriptor",
 		menu::bindings::write(nodes::bend_range_main, ctx, 12);
 		expect(recorded(*f.song, values, "bendRange")).to_equal("12");
 		expect(menu::bindings::read(nodes::bend_range_main, ctx)).to_equal(12);
+	});
+
+	it("shows the bend range a clip's expression set plays, made after load, not the device's later default", _ {
+		spec::SongFixture f = spec::make_midi_song();
+		auto* clip = static_cast<InstrumentClip*>(f.clip);
+		clip->docClip_->values.bend_range.reset();
+		clip->docClip_->values.bend_range_mpe.reset();
+		ExpressionParamSet* expression = clip->paramManager.getOrCreateExpressionParamSet();
+		expect(expression != nullptr).to_be_true();
+		expression->bendRanges[BEND_RANGE_MAIN] = 5;
+		expression->bendRanges[BEND_RANGE_FINGER_LEVEL] = 40;
+		const uint8_t defaults[] = {FlashStorage::defaultBendRange[0], FlashStorage::defaultBendRange[1]};
+		FlashStorage::defaultBendRange[0] = 9;
+		FlashStorage::defaultBendRange[1] = 20;
+		const MenuContext ctx = at(*f.song, f.clip);
+		const int32_t main = menu::bindings::read(nodes::bend_range_main, ctx);
+		const int32_t finger = menu::bindings::read(nodes::bend_range_per_finger, ctx);
+		FlashStorage::defaultBendRange[0] = defaults[0];
+		FlashStorage::defaultBendRange[1] = defaults[1];
+		expect(main).to_equal(5);
+		expect(finger).to_equal(40);
+	});
+
+	it("shows the finger bend range a kit row's expression set plays", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		const MenuContext ctx = at(*f.song, f.clip);
+		NoteRow* row = static_cast<InstrumentClip*>(f.clip)->noteRows.tryGet(0);
+		expect(row != nullptr && row->docNoteRow_ != nullptr).to_be_true();
+		row->docNoteRow_->bend_range.reset();
+		ExpressionParamSet* expression = row->paramManager.getOrCreateExpressionParamSet(true);
+		expect(expression != nullptr).to_be_true();
+		expression->bendRanges[BEND_RANGE_FINGER_LEVEL] = 17;
+		expect(menu::bindings::read(nodes::drum_bend_range, ctx)).to_equal(17);
 	});
 
 	it("stores the descriptor's top step for the reverb sidechain's shape", _ {

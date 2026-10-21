@@ -30,10 +30,12 @@ public:
 	/// @brief The effects' typed state of the chain at @p chain, or nullptr when there is no such chain. It is what the
 	/// chain's record decodes to, kept equal to it by every Edit.
 	[[nodiscard]] virtual const effects::EffectStates* chain_effects(project::ChainAddress chain) const = 0;
-	/// @brief The device's default bend range, which a clip or kit row that holds none plays (its value is the
-	/// user's, stored on the device, not in the song).
+	/// @brief The bend range a clip or kit row whose record holds none plays: its expression set's, made after the song
+	/// loaded, or where it has none yet the one a new set starts at (the device's default, which is the user's, stored
+	/// on the device; a kit row's finger range starts at the main one).
+	/// @param owner The clip's (CLIP_VALUES) or row's (NOTE_ROW) group and owner.
 	/// @param which 0 for the main bend range, 1 for the MPE (per-finger) one.
-	[[nodiscard]] virtual int32_t device_bend_range(int32_t which) const = 0;
+	[[nodiscard]] virtual int32_t played_bend_range(const project::SettingAddress& owner, int32_t which) const = 0;
 	/// @brief Whether the sound drum at @p slot can hold note tails, which its kit-arp inclusion needs: its params
 	/// (envelope sustain, noise) decide it, which no setting holds.
 	[[nodiscard]] virtual bool allows_note_tails(project::SlotAddress slot) const = 0;

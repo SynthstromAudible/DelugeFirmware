@@ -18,6 +18,7 @@
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
+#include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "storage/flash_storage.h"
@@ -201,10 +202,21 @@ describe model_targets("a model target's write reaches the record its menu names
 		    .to_equal("3");
 	});
 
-	it("answers the device's bend ranges, a kit row's note tails and an arp's preset as the engine holds them", _ {
+	it("answers a clip's played bend ranges, a kit row's note tails and an arp's preset as the engine holds them", _ {
 		const bind::RuntimeFacts& facts = menu::host_runtime_facts();
-		expect(facts.device_bend_range(0)).to_equal(static_cast<int32_t>(FlashStorage::defaultBendRange[0]));
-		expect(facts.device_bend_range(1)).to_equal(static_cast<int32_t>(FlashStorage::defaultBendRange[1]));
+		spec::SongFixture midi = spec::make_midi_song();
+		const MenuContext on_midi = clip_root(*midi.song, midi.clip);
+		const SettingAddress values{SettingGroupId::CLIP_VALUES, *on_midi.addresses.clip};
+		auto& params = static_cast<InstrumentClip*>(midi.clip)->paramManager;
+		if (params.getExpressionParamSet() == nullptr) {
+			expect(facts.played_bend_range(values, 0)).to_equal(static_cast<int32_t>(FlashStorage::defaultBendRange[0]));
+			expect(facts.played_bend_range(values, 1)).to_equal(static_cast<int32_t>(FlashStorage::defaultBendRange[1]));
+		}
+		ExpressionParamSet* expression = params.getOrCreateExpressionParamSet();
+		expression->bendRanges[BEND_RANGE_MAIN] = 3;
+		expression->bendRanges[BEND_RANGE_FINGER_LEVEL] = 33;
+		expect(facts.played_bend_range(values, 0)).to_equal(3);
+		expect(facts.played_bend_range(values, 1)).to_equal(33);
 
 		spec::SongFixture kit = spec::make_kit_song();
 		auto* drum = spec::add_drum<SoundDrum>(kit);

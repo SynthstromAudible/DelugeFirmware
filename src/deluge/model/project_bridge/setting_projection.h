@@ -23,6 +23,7 @@ class AudioClip;
 class AudioOutput;
 class Clip;
 class Drum;
+class ExpressionParamSet;
 class InstrumentClip;
 class Kit;
 class NoteRow;
@@ -90,6 +91,13 @@ struct ArpOwner {
 /// @param song    The song.
 /// @param address The arp's group and owner.
 void seedArpRecordAt(::Song& song, const project::SettingAddress& address);
+
+/// @brief The expression set whose bend ranges the owner @p address names plays: a CLIP_VALUES clip's, or a NOTE_ROW
+///        row's. Null for another group, an owner the song does not hold, or one with no set yet.
+/// @param song    The song.
+/// @param address The clip's or row's group and owner.
+/// @return The set, or nullptr.
+const ::ExpressionParamSet* expressionSetAt(::Song& song, const project::SettingAddress& address);
 
 /// @brief Copy an arp setting's value onto @p arp, with the follow-ups its menu runs: the preset shown re-derived from
 ///        the modes, a chosen preset's modes set, the arp restarted when its pattern changes, a new note pattern for
