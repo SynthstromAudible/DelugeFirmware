@@ -1,0 +1,9 @@
+# Code the sanitize build (DELUGE_SIM_SANITIZE) exempts from UBSan's signed-overflow check: legacy arithmetic that
+# relies on two's-complement wrap, which every target gives it. Every other function keeps the check.
+[signed-integer-overflow]
+# Formats INT32_MIN by subtracting from it.
+fun:intToString
+# Negates a sample that may be INT32_MIN for the peak meter.
+fun:*SampleRecorder*feedAudio*
+# Scales a menu value of up to 360 by 11930464 into the 32-bit phase.
+fun:*RetriggerPhase*writeCurrentValue*
