@@ -33,7 +33,9 @@
 @ It also enables branch prediction
 @ This code must be run from a privileged mode
 @==================================================================
-    .section    L1_CACHE_OPERATION, "x"
+@ In .text like the other cache code. This was a section of its own flagged "x" but not "a", which the linker script
+@ did not place - so it was never loaded, and calling anything here jumped to address 0
+    .text
     .arm
 
     .global  L1_I_CacheFlushAllAsm

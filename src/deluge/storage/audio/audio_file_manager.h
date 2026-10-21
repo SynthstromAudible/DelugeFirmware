@@ -24,6 +24,7 @@
 #include <cstdint>
 
 extern "C" {
+#include "RZA1/sdhi/inc/sd_async.h"
 #include "fatfs/ff.h"
 }
 
@@ -67,6 +68,11 @@ char const* const audioRecordingFolderNames[] = {
  * Or rather, as soon as the “play-head” enters a new Cluster, the Deluge immediately enqueues
  * the following Cluster to be loaded from the card ASAP.
  *
+ * Enqueued Clusters are read by the SD card interrupt (see sd_async.h): it takes the most urgent one off
+ * loadingQueue, has DMA read it, and goes straight on to the next, without the main thread waiting on the
+ * card. The main thread then finishes each one off in loadAnyEnqueuedClusters() - converting its data and
+ * marking it loaded.
+ *
  * And then also, loaded Clusters remain loaded/cached in RAM for as long as possible while that RAM
  * isn’t needed for something more important, so they may be played again without having to reload
  * them from the card. Details on that process below.
@@ -89,8 +95,42 @@ public:
 	AudioFile* getAudioFileFromFilename(String& fileName, bool mayReadCard, Error* error, FilePointer* filePointer,
 	                                    AudioFileType type, bool makeWaveTableWorkAtAllCosts = false);
 	bool loadCluster(Cluster& cluster, int32_t minNumReasonsAfter = 0);
-	void loadAnyEnqueuedClusters(int32_t maxNum = 128, bool mayProcessUserActionsBetween = false);
+
+	/// @brief Finishes off Clusters the SD interrupt has read, and gets it reading any that are enqueued.
+	void loadAnyEnqueuedClusters(bool mayProcessUserActionsBetween = false);
+
+	/// @brief Loads @p cluster right now if it's in the loading queue, without loading what's ahead of it. If the SD
+	/// interrupt's already reading it, waits for that instead.
+	///
+	/// The caller must hold a reason on it. If it can't be loaded now, it's left in the queue as it was.
+	/// @return Whether it's loaded now.
+	bool loadEnqueuedClusterNow(Cluster& cluster);
 	void removeReasonFromCluster(Cluster& cluster, char const* errorCode, bool deletingSong = false);
+
+	/// @brief Holds a Cluster that's likely to be requested soon, loading it first if need be.
+	///
+	/// prefetches_ is a central list of the Clusters we expect to be asked for next. We hold a reason on each, so
+	/// unlike a merely cached Cluster it can't be stolen before it's used. The reason is held until claimPrefetch() is
+	/// called for it, or it's released some other way below.
+	/// Does nothing if it's already held, or if the list is full of Clusters that haven't loaded yet.
+	///
+	/// @param sample The Sample to load from.
+	/// @param clusterIndex Which of its Clusters to load. Must be a valid index into sample->clusters.
+	void prefetchCluster(Sample* sample, int32_t clusterIndex);
+
+	/// @brief Lets go of a prefetched Cluster, now that something that's going to play it holds its own reason on it.
+	///
+	/// Does nothing if @p cluster isn't prefetched.
+	void claimPrefetch(Cluster const* cluster);
+
+	/// @brief Lets go of every prefetched Cluster of @p sample, e.g. because what was going to play it has stopped.
+	void releasePrefetchesForSample(Sample const* sample);
+
+	/// @brief Lets go of prefetched Clusters that will never load because they're unloadable.
+	void releaseUnloadablePrefetches();
+
+	/// @brief Lets go of every prefetched Cluster and its Sample, loaded or not.
+	void releaseAllPrefetches();
 
 	bool ensureEnoughMemoryForOneMoreAudioFile();
 
@@ -98,7 +138,14 @@ public:
 
 	Error setupAlternateAudioFilePath(String& newPath, int32_t dirPathLength, String& oldPath);
 	Error setupAlternateAudioFileDir(String& newPath, char const* rootDir, const char* songFilenameWithoutExtension);
-	bool loadingQueueHasAnyLowestPriorityElements();
+	/// Whether any Samples' first Clusters, which let them start instantly, are still waiting to load
+	bool loadingQueueHasAnySampleStarts();
+	/// Whether any Clusters are still waiting to load, or being loaded
+	bool hasClusterLoadsPending();
+
+	/// @brief Makes sure the SD interrupt is done with @p cluster, and won't hand it back to finish loading, so it can
+	/// be deleted. Waits if it's being read right now. ~Cluster() calls this.
+	void forgetClusterRead(Cluster const* cluster);
 	/// If songname isn't supplied the file is placed in the main recording folder and named as samples/folder/REC###.
 	/// If song and channel are supplied then it's placed in samples/folder/song/channel_###
 	Error getUnusedAudioRecordingFilePath(String& filePath, String* tempFilePathForRecording,
@@ -133,6 +180,63 @@ public:
 	void firstCardRead();
 
 private:
+	/// @brief A Cluster the SD interrupt has finished reading, waiting for finishClusterReads().
+	struct ClusterRead {
+		Cluster* cluster; ///< nullptr if forgetClusterRead() was called for it
+		Priority priority;
+		int32_t error; ///< SD_OK, or an SD_ERR_* code
+	};
+
+	/// Most reads finishClusterReads() can fall behind by. The SD interrupt stops reading once there are this many.
+	static constexpr size_t kMaxClusterReads = 32;
+
+	// The SD interrupt only ever writes clusterBeingRead_ and adds to clusterReads_. The main thread only ever takes
+	// from clusterReads_, or forgets one in it, with interrupts disabled.
+	Cluster* volatile clusterBeingRead_ = nullptr;
+	Priority priorityBeingRead_ = 0;
+	std::array<ClusterRead, kMaxClusterReads> clusterReads_;
+	volatile size_t clusterReadsStart_ = 0; ///< Oldest. Only written by the main thread
+	volatile size_t clusterReadsEnd_ = 0;   ///< One past the newest. Only written by the SD interrupt
+
+	[[nodiscard]] size_t numClusterReads() const { return clusterReadsEnd_ - clusterReadsStart_; }
+	[[nodiscard]] bool isClusterBeingRead(Cluster const* cluster, const InterruptsDisabled&) const;
+
+	// The callbacks given to sd_async, which call the two below
+	friend bool sdAsyncNextRead(SdAsyncRead* read);
+	friend void sdAsyncReadDone(void* user, int error);
+
+	/// For the SD interrupt (see sd_async.h) - takes the next Cluster off the loading queue, to read
+	bool nextClusterRead(SdAsyncRead& read, const InterruptsDisabled&);
+	/// For the SD interrupt - it's finished reading clusterBeingRead_
+	void clusterReadDone(int error, const InterruptsDisabled&);
+
+	/// Finishes off Clusters the SD interrupt has read
+	void finishClusterReads();
+	void finishClusterRead(Cluster& cluster, int32_t error);
+	/// Converts @p cluster's data and swaps the bytes that overhang its neighbours, now that it's been read
+	void finishLoadingCluster(Cluster& cluster);
+	/// Recycles a Cluster whose last reason was removed while the SD interrupt was reading it
+	void recycleUnwantedCluster(Cluster& cluster);
+
+	/// @brief A Cluster that prefetchCluster() is holding. We hold one reason on it and one on its Sample, so the
+	/// Sample can't be deleted while we still point at it.
+	struct Prefetch {
+		Cluster* cluster;
+		Sample* sample;
+	};
+
+	/// @brief Most Clusters held at once. Bounds the RAM they can pin, and keeps them from crowding out Clusters
+	/// something's actually waiting on.
+	static constexpr size_t kMaxPrefetches = 32;
+	/// Oldest first
+	std::array<Prefetch, kMaxPrefetches> prefetches_;
+	size_t numPrefetches_ = 0;
+
+	/// @brief Removes the reasons prefetches_[i] holds, and removes it from prefetches_, keeping the order.
+	void releasePrefetch(size_t i);
+	/// @brief Releases every prefetch @p shouldRelease returns true for.
+	void releasePrefetchesIf(auto shouldRelease);
+
 	bool cardReadOnce{false};
 	bool cardEjected;
 	bool cardDisabled = false;

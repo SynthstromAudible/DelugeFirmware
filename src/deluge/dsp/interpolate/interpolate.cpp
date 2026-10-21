@@ -34,12 +34,16 @@ StereoSample Interpolator::interpolate(size_t channels, int32_t whichKernel, uin
 		kernelVector[i] = value1.MultiplyAddFixedQMax((value2 - value1), strength2);
 	}
 
+	// The latest kInterpolationMaxNumSamples, newest first - see history_l_
+	int16_t const* window_l = &history_l_[head_];
+	int16_t const* window_r = &history_r_[head_];
+
 	Argon<int32_t> multiplied = 0;
 	for (size_t i = 0; i < kernelVector.size(); ++i) {
 		size_t idx = i * decltype(kernelVector)::value_type::lanes;
-		// TODO: auto [low, high] = ArgonHalf<int16_t>::LoadMulti<2>(&buffer_l[idx]);
-		auto low = ArgonHalf<int16_t>::Load(&buffer_l[idx]);
-		auto high = ArgonHalf<int16_t>::Load(&buffer_l[idx + ArgonHalf<int16_t>::lanes]);
+		// TODO: auto [low, high] = ArgonHalf<int16_t>::LoadMulti<2>(&window_l[idx]);
+		auto low = ArgonHalf<int16_t>::Load(&window_l[idx]);
+		auto high = ArgonHalf<int16_t>::Load(&window_l[idx + ArgonHalf<int16_t>::lanes]);
 
 		multiplied = multiplied
 		                 .MultiplyAddLong(kernelVector[i].GetLow(), low)    // low half
@@ -53,9 +57,9 @@ StereoSample Interpolator::interpolate(size_t channels, int32_t whichKernel, uin
 		Argon<int32_t> multiplied = 0;
 		for (size_t i = 0; i < kernelVector.size(); ++i) {
 			size_t idx = i * decltype(kernelVector)::value_type::lanes;
-			// TODO: auto [low, high] = ArgonHalf<int16_t>::LoadMulti<2>(&buffer_l[idx]);
-			auto low = ArgonHalf<int16_t>::Load(&buffer_r[idx]);
-			auto high = ArgonHalf<int16_t>::Load(&buffer_r[idx + ArgonHalf<int16_t>::lanes]);
+			// TODO: auto [low, high] = ArgonHalf<int16_t>::LoadMulti<2>(&window_r[idx]);
+			auto low = ArgonHalf<int16_t>::Load(&window_r[idx]);
+			auto high = ArgonHalf<int16_t>::Load(&window_r[idx + ArgonHalf<int16_t>::lanes]);
 
 			multiplied = multiplied
 			                 .MultiplyAddLong(kernelVector[i].GetLow(), low)    // low half
@@ -72,9 +76,9 @@ StereoSample Interpolator::interpolateLinear(size_t channels, uint32_t phase) {
 	int16_t strength2 = phase >> 9;
 	int16_t strength1 = std::numeric_limits<int16_t>::max() - strength2; // inverse
 
-	output.l = (buffer_l[1] * strength1) + (buffer_l[0] * strength2);
+	output.l = (l(1) * strength1) + (l(0) * strength2);
 	if (channels == 2) {
-		output.r = (buffer_r[1] * strength1) + (buffer_r[0] * strength2);
+		output.r = (r(1) * strength1) + (r(0) * strength2);
 	}
 	return output;
 }

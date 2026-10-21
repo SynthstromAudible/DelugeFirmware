@@ -1046,7 +1046,6 @@ For a detailed description of this feature, please refer to the feature document
     norns, turn off the Midigrid mod in the mod menu, or determine another method to pause the grid updating MIDI
     messages from norns.
   - The functionality of the grid changes with each norns script.
-
     1. Connect Deluge to norns with a USB cable for MIDI.
     2. Install [Midigrid](https://llllllll.co/t/midigrid-use-launchpads-midi-grid-controllers-with-norns/42336/) on your norns, turn on the mod, set to 128 grid size.
     3. Turn on two features in the `COMMUNITY FEATURES` menu (via `SETTINGS > COMMUNITY FEATURES`): "Highlight
@@ -1320,6 +1319,15 @@ for the Lumi Keys Studio Edition, described below.
     of the builtin scales supported by the Lumi.
   - While Lumi has limited options for MPE separation, it will be configured to align with the dominant MPE range
     defined on the Deluge (upper or lower dominant).
+
+## 4.11 - USB Audio <Badge text="c1.4" variant="tip" />
+
+- The Deluge is now a class-compliant USB audio interface, with stereo 44.1kHz 24-bit audio in each direction
+  alongside USB MIDI.
+  - Audio from the computer plays through the Deluge's outputs, and the Deluge's output is sent to the computer.
+  - `USB INPUT` can be chosen as an audio clip's `AUDIO SOURCE`, to record or monitor audio from the computer.
+  - USB audio can be turned off in `SETTINGS > USB AUDIO`, after which the Deluge is a USB MIDI device only.
+  - See [USB Audio](/features/usb_audio) for details.
 
 ## 5. Community Features Menu (aka Runtime Settings)
 

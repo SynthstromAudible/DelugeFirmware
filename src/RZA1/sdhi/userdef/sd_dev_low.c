@@ -1096,6 +1096,21 @@ return sd_DMAC_Get_Endflag(SD1_DMA_CHANNEL) == 1;
 };
 
 /******************************************************************************
+* Function Name: int sddev_dma_ended(int sd_port);
+* Description  : Check whether the DMAC transfer has completed, without waiting
+* Arguments    : int sd_port : channel no (0 or 1)
+* Return Value : 1 if it has, otherwise 0
+******************************************************************************/
+int sddev_dma_ended(int sd_port)
+{
+#ifdef    SDCFG_TRNS_DMA
+    return sd_DMAC_Get_Endflag((sd_port == 0) ? SD0_DMA_CHANNEL : SD1_DMA_CHANNEL) == 1;
+#else
+    return 1;
+#endif
+}
+
+/******************************************************************************
 * Function Name: static int sddev_wait_dma_end_1(long cnt);
 * Description  : Wait to complete DMAC transfer
 * Arguments    : long cnt           : counts to transfer(unit:byte)

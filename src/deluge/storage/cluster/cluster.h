@@ -55,6 +55,7 @@ public:
 	/// Warning! do not call this constructor directly! It must be called via placement `new`
 	/// after allocating a region with the General Memory Allocator!
 	Cluster() = default;
+	~Cluster() override;
 	void convertDataIfNecessary();
 	bool mayBeStolen(void* thingNotToStealFrom) override;
 	void steal(char const* errorCode) override;
@@ -77,6 +78,8 @@ public:
 	bool loaded = false;
 
 	// MUST BE THE LAST TWO MEMBERS
+	// Never written, so that data doesn't share a cache line with the members above, which may change while DMA is
+	// writing into data. See invalidate_range_before_dma_read().
 	alignas(4) char dummy[CACHE_LINE_SIZE];
 	alignas(4) char data[CACHE_LINE_SIZE];
 };

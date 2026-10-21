@@ -448,11 +448,11 @@ gotErrorAfterCreatingSong:
 		preLoadedSong->loadAllSamples(true);
 	}
 
-	// Ensure all AudioFile Clusters needed for new song are loaded
+	// Ensure the first Clusters of the new song's Samples are loaded, so they can start instantly
 #ifdef USE_TASK_MANAGER
-	yieldWithTimeout([]() { return !(audioFileManager.loadingQueueHasAnyLowestPriorityElements()); }, 5);
+	yieldWithTimeout([]() { return !(audioFileManager.loadingQueueHasAnySampleStarts()); }, 5);
 #else
-	while (audioFileManager.loadingQueueHasAnyLowestPriorityElements() && count < 1024) {
+	while (audioFileManager.loadingQueueHasAnySampleStarts() && count < 1024) {
 		audioFileManager.loadAnyEnqueuedClusters();
 		routineForSD();
 		count++;

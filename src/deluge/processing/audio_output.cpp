@@ -215,9 +215,14 @@ renderEnvelope:
 	if (monitoring_gain_end != 0 && modeAllowsMonitoring() && modelStack->song->isOutputActiveInArrangement(this)
 	    && inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
 		rendered = true;
-		int32_t const* __restrict__ input_ptr = (int32_t const*)AudioEngine::i2sRXBufferPos;
+		int32_t const* __restrict__ input_ptr = AudioEngine::getInputReadPos(inputChannel);
+		int32_t const* const input_end = AudioEngine::getInputBufferEnd(inputChannel);
 
 		AudioInputChannel input_channel = this->inputChannel;
+		if (input_channel == AudioInputChannel::USB) {
+			input_channel = AudioInputChannel::STEREO; // Just a stereo input, from a different buffer
+			AudioEngine::usbInputMonitoredByTrack = true;
+		}
 		if (input_channel == AudioInputChannel::STEREO && !AudioEngine::renderInStereo) {
 			input_channel = AudioInputChannel::NONE; // 0 means combine channels
 		}
@@ -266,7 +271,7 @@ renderEnvelope:
 			}
 
 			input_ptr += NUM_MONO_INPUT_CHANNELS;
-			if (input_ptr >= getRxBufferEnd()) {
+			if (input_ptr >= input_end) {
 				input_ptr -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 			}
 		}

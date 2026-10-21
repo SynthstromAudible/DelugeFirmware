@@ -28,6 +28,14 @@ extern "C" {
 #include "RZA1/ostm/ostm.h"
 }
 
+/// Record each task's name in the audio log (see AudioEngine::logAction()) as it starts, so a dump shows what ran in
+/// any gap between audio renders. Costs a strcpy() per task run, so switch off when not debugging.
+#define LOG_TASKS_TO_AUDIO_LOG 0
+
+#if LOG_TASKS_TO_AUDIO_LOG && !IN_UNIT_TESTS
+extern "C" void logAudioAction(char const* string);
+#endif
+
 TaskManager taskManager;
 
 void TaskManager::createSortedList() {
@@ -233,6 +241,12 @@ void TaskManager::runTask(TaskID id) {
 	countThisTask = true;
 	currentID = id;
 	auto* current_task = &list[currentID];
+
+#if LOG_TASKS_TO_AUDIO_LOG && !IN_UNIT_TESTS
+	if (current_task->name != nullptr) {
+		logAudioAction(current_task->name);
+	}
+#endif
 
 	{
 		Time timeNow = getSecondsFromStart();

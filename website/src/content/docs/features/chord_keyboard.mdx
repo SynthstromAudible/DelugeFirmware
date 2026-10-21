@@ -29,7 +29,7 @@ import { Badge } from "@astrojs/starlight/components"
 
 Two new chord focused keyboards as an additional keyboard options.
 
-The first `CHORD (CORK)` keyboard is a layout that facilitates the creation and exploration of chords within a scale. It offers two modes, Column mode (providing in-scale harmonically similar chords for substitutions) and Row Mode (based largely on the Launchpad Pro's chord mode that spreads notes out on a row to allow users to build and play interesting chords across the rows).
+The first `CHORD (CORK)` keyboard is a layout that facilitates the creation and exploration of chords based on a scale. It offers two modes, Column mode (providing harmonically similar chords for substitutions, some of which can include out-of-scale notes) and Row Mode (based largely on the Launchpad Pro's chord mode that spreads notes out on a row to allow users to build and play interesting chords across the rows).
 
 The second `CHORD LIBRARY (CORL)` keyboard is a library of chords where each column is a note (chromatic, all 12 notes), with chords laid out vertically within each column.
 
@@ -91,6 +91,15 @@ Because the Chord Keyboard has more features than other keyboard layouts, contro
 ### Scale Considerations
 
 The Chord Keyboard is currently limited to scales that are modes of the major scale. (Major, Minor, Dorian, Phrygian, Lydian, Mixolydian, and Locrian scales).
+
+Entering the Chord Keyboard intentionally turns off the clip's Scale mode, and Scale mode cannot be enabled while using this layout. However, the layout still uses the song's selected scale to determine its scale degrees and chord qualities, even though the Scale LED is off.
+
+The distinction matters when recording:
+
+- Row Mode builds notes from the selected scale, so ordinary in-scale playing does not introduce notes outside that scale.
+- Column Mode uses preset chord voicings that can include out-of-scale notes. For example, in C natural minor, the C minor-sixth chord includes A natural, which is outside the selected scale.
+
+With Scale mode enabled, recording out-of-scale notes can add those notes to the song's scale, potentially turning it into a custom scale that the Chord Keyboard does not support. Keeping Scale mode off prevents this recording behavior from changing the scale used by the layout. This is a likely reason for the restriction, although the original change explicitly disabled Scale mode without documenting its rationale.
 
 ---
 
