@@ -1962,7 +1962,17 @@ inline constexpr std::string_view kHidesStepRepeat =
 inline constexpr std::string_view kShowsNonSoundRow =
     "legacy reads the selected gate row's kind, which shows the host row a non-sound arp has; the whole kit's arp is a "
     "sound's, which does not";
+/// Decision 4: with affect-entire on, a kit row's direction shortcut edits the kit clip's direction, so the kit clip
+/// has the row; legacy's whole-kit menu lists no direction item.
+inline constexpr std::string_view kKitClipDirection =
+    "the kit clip has a direction, which the row shortcut edits with affect-entire on (decision 4); legacy's whole-kit "
+    "menu lists no direction item";
 inline const AppliesException kAppliesExceptions[] = {
+    {SettingGroupId::CLIP, "the whole kit", "sequenceDirection", false, kKitClipDirection},
+    {SettingGroupId::CLIP, "the whole kit with its arp on", "sequenceDirection", false, kKitClipDirection},
+    {SettingGroupId::CLIP, "the whole kit with its own stutter", "sequenceDirection", false, kKitClipDirection},
+    {SettingGroupId::CLIP, kWholeKitGateOff, "sequenceDirection", false, kKitClipDirection},
+    {SettingGroupId::CLIP, kWholeKitGateOn, "sequenceDirection", false, kKitClipDirection},
     {SettingGroupId::CLIP_ARP, kWholeKitGateOff, "arpeggiator/stepRepeat", false, kHidesStepRepeat},
     {SettingGroupId::CLIP_ARP, kWholeKitGateOff, "arpeggiator/rhythm", true, kShowsNonSoundRow},
     {SettingGroupId::CLIP_ARP, kWholeKitGateOff, "arpeggiator/sequenceLength", true, kShowsNonSoundRow},

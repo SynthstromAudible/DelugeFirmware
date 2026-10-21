@@ -73,6 +73,13 @@ constexpr std::array<int32_t, 3> kMelodicTracks{
     std::to_underlying(Instrument::SYNTH), std::to_underlying(Instrument::MIDI), std::to_underlying(Instrument::CV)};
 constexpr std::array kOnMelodicTrack{engine::instrument_is(kMelodicTracks)};
 constexpr engine::SettingDescriptorExtras kOnMelodicTrackExtras{.applies_when = kOnMelodicTrack};
+/// A clip that plays in a direction as a whole: a melodic track's, and a kit's, whose row shortcut sets the kit clip's
+/// direction while affect-entire is on (an audio clip has none).
+constexpr std::array<int32_t, 4> kDirectedClips{
+    std::to_underlying(Instrument::SYNTH), std::to_underlying(Instrument::MIDI), std::to_underlying(Instrument::CV),
+    std::to_underlying(Instrument::KIT)};
+constexpr std::array kOnDirectedClip{engine::instrument_is(kDirectedClips)};
+constexpr engine::SettingDescriptorExtras kOnDirectedClipExtras{.applies_when = kOnDirectedClip};
 
 Value number(int64_t n) {
 	return Value::makeNumber(n);
@@ -530,7 +537,7 @@ constexpr SettingInfo kClipTable[] = {
     SettingInfo{.path = "sequenceDirection",
                 .kind = SettingKind::CHOICE,
                 .choices = kClipDirectionChoices,
-                .extras = &kOnMelodicTrackExtras},
+                .extras = &kOnDirectedClipExtras},
 };
 static_assert(engine::conditions_are_valid(kClipTable));
 static_assert(engine::mappings_are_valid(kClipTable));

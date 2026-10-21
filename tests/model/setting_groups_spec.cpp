@@ -102,6 +102,19 @@ describe setting_groups_song("the song settings group", $ {
 });
 
 describe setting_groups_owners("the owner setting groups", $ {
+	it("gives a kit clip a sequence direction, as its row shortcut edits it, and an audio clip none", _ {
+		using deluge::engine::SettingContext;
+		const SettingInfo* row = deluge::engine::find_setting(table_of(SettingGroupId::CLIP), "sequenceDirection");
+		expect(row != nullptr).to_be_true();
+		const auto on = [&](SettingContext::Instrument instrument) {
+			return deluge::engine::setting_applies(*row, {.owner = SettingContext::Owner::CLIP, .instrument = instrument},
+			                                       {});
+		};
+		expect(on(SettingContext::Instrument::KIT)).to_be_true();
+		expect(on(SettingContext::Instrument::SYNTH)).to_be_true();
+		expect(on(SettingContext::Instrument::AUDIO)).to_be_false();
+	});
+
 	it("refuses an owner that does not resolve, reading and writing", _ {
 		Song song;
 		const SettingAddress missing{SettingGroupId::TRACK, TrackAddress{.output_id = 999}};
