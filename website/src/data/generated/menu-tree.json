@@ -638,30 +638,35 @@
             "type": "basic"
           },
           {
+            "available_when": "setting:audioCompressor/ratio",
             "id": 70,
             "name": "Ratio",
             "title": "Ratio",
             "type": "basic"
           },
           {
+            "available_when": "setting:audioCompressor/compBlend",
             "id": 71,
             "name": "Blend",
             "title": "Blend",
             "type": "basic"
           },
           {
+            "available_when": "setting:audioCompressor/attack",
             "id": 72,
             "name": "Attack",
             "title": "Attack",
             "type": "basic"
           },
           {
+            "available_when": "setting:audioCompressor/release",
             "id": 73,
             "name": "Release",
             "title": "Release",
             "type": "basic"
           },
           {
+            "available_when": "setting:audioCompressor/compHPF",
             "id": 74,
             "name": "Hpf",
             "title": "Hpf",
@@ -1452,6 +1457,7 @@
           {
             "children": [
               {
+                "available_when": "setting:clippingAmount",
                 "id": 125,
                 "name": "Saturation",
                 "title": "Saturation",
@@ -1610,6 +1616,7 @@
             "type": "basic"
           },
           {
+            "available_when": "setting:sidechain/syncLevel",
             "id": 132,
             "name": "Sync",
             "title": "Sidechain sync",
@@ -1629,12 +1636,14 @@
             "type": "basic"
           },
           {
+            "available_when": "setting:sidechain/attack",
             "id": 135,
             "name": "Attack",
             "title": "Sidech attack",
             "type": "basic"
           },
           {
+            "available_when": "setting:sidechain/release",
             "id": 136,
             "name": "Release",
             "title": "Sidech release",
@@ -4548,30 +4557,35 @@
             "type": "basic"
           },
           {
+            "available_when": "setting:audioCompressor/ratio",
             "id": 70,
             "name": "Ratio",
             "title": "Ratio",
             "type": "basic"
           },
           {
+            "available_when": "setting:audioCompressor/compBlend",
             "id": 71,
             "name": "Blend",
             "title": "Blend",
             "type": "basic"
           },
           {
+            "available_when": "setting:audioCompressor/attack",
             "id": 72,
             "name": "Attack",
             "title": "Attack",
             "type": "basic"
           },
           {
+            "available_when": "setting:audioCompressor/release",
             "id": 73,
             "name": "Release",
             "title": "Release",
             "type": "basic"
           },
           {
+            "available_when": "setting:audioCompressor/compHPF",
             "id": 74,
             "name": "Hpf",
             "title": "Hpf",
@@ -5362,6 +5376,7 @@
           {
             "children": [
               {
+                "available_when": "setting:clippingAmount",
                 "id": 125,
                 "name": "Saturation",
                 "title": "Saturation",
@@ -5520,6 +5535,7 @@
             "type": "basic"
           },
           {
+            "available_when": "setting:sidechain/syncLevel",
             "id": 132,
             "name": "Sync",
             "title": "Sidechain sync",
@@ -5539,12 +5555,14 @@
             "type": "basic"
           },
           {
+            "available_when": "setting:sidechain/attack",
             "id": 135,
             "name": "Attack",
             "title": "Sidech attack",
             "type": "basic"
           },
           {
+            "available_when": "setting:sidechain/release",
             "id": 136,
             "name": "Release",
             "title": "Sidech release",
@@ -9207,30 +9225,35 @@
             "type": "basic"
           },
           {
+            "available_when": "setting:audioCompressor/ratio",
             "id": 70,
             "name": "Ratio",
             "title": "Ratio",
             "type": "basic"
           },
           {
+            "available_when": "setting:audioCompressor/compBlend",
             "id": 71,
             "name": "Blend",
             "title": "Blend",
             "type": "basic"
           },
           {
+            "available_when": "setting:audioCompressor/attack",
             "id": 72,
             "name": "Attack",
             "title": "Attack",
             "type": "basic"
           },
           {
+            "available_when": "setting:audioCompressor/release",
             "id": 73,
             "name": "Release",
             "title": "Release",
             "type": "basic"
           },
           {
+            "available_when": "setting:audioCompressor/compHPF",
             "id": 74,
             "name": "Hpf",
             "title": "Hpf",
@@ -9570,6 +9593,7 @@
           {
             "children": [
               {
+                "available_when": "setting:clippingAmount",
                 "id": 125,
                 "name": "Saturation",
                 "title": "Saturation",
@@ -9608,6 +9632,7 @@
             "type": "basic"
           },
           {
+            "available_when": "setting:sidechain/syncLevel",
             "id": 132,
             "name": "Sync",
             "title": "Sidechain sync",
@@ -9620,12 +9645,14 @@
             "type": "basic"
           },
           {
+            "available_when": "setting:sidechain/attack",
             "id": 135,
             "name": "Attack",
             "title": "Sidech attack",
             "type": "basic"
           },
           {
+            "available_when": "setting:sidechain/release",
             "id": 136,
             "name": "Release",
             "title": "Sidech release",
@@ -10990,30 +11017,35 @@
             "type": "basic"
           },
           {
+            "available_when": "setting:audioCompressor/ratio",
             "id": 70,
             "name": "Ratio",
             "title": "Ratio",
             "type": "basic"
           },
           {
+            "available_when": "setting:audioCompressor/compBlend",
             "id": 71,
             "name": "Blend",
             "title": "Blend",
             "type": "basic"
           },
           {
+            "available_when": "setting:audioCompressor/attack",
             "id": 72,
             "name": "Attack",
             "title": "Attack",
             "type": "basic"
           },
           {
+            "available_when": "setting:audioCompressor/release",
             "id": 73,
             "name": "Release",
             "title": "Release",
             "type": "basic"
           },
           {
+            "available_when": "setting:audioCompressor/compHPF",
             "id": 74,
             "name": "Hpf",
             "title": "Hpf",
@@ -11385,6 +11417,7 @@
             "type": "basic"
           },
           {
+            "available_when": "setting:sidechain/syncLevel",
             "id": 132,
             "name": "Sync",
             "title": "Sidechain sync",
@@ -11397,12 +11430,14 @@
             "type": "basic"
           },
           {
+            "available_when": "setting:sidechain/attack",
             "id": 135,
             "name": "Attack",
             "title": "Sidech attack",
             "type": "basic"
           },
           {
+            "available_when": "setting:sidechain/release",
             "id": 136,
             "name": "Release",
             "title": "Sidech release",

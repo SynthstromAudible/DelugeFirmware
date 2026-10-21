@@ -16,23 +16,15 @@
  */
 
 /// @file
-/// @brief The sidechain page's `get`/`set` hooks, the shared `SideChain` conversions and the
-///        exported root span. The `Node` literals are in `sound_sidechain.h`.
+/// @brief The `SideChain` conversions the reverb's sidechain page shares, and the exported root span. The `Node`
+///        literals are in `sound_sidechain.h`.
 
 #include "scenes/menu/nodes/sound_sidechain.h"
-
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
 
 #include "definitions_cxx.hpp"
 #include "engine-api/types/rate_tables.h"
 #include "engine-api/types/sync.h"
-#include "engines/effects/state.h"
-#include "model/edits/setting_edit.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "modulation/sync.h"
-#include "processing/sound/sound.h"
-#include "serialization/value.h"
 
 #include <algorithm>
 
@@ -85,72 +77,6 @@ int32_t sidechain_sync_to_menu(deluge::engine::SyncType type, deluge::engine::Sy
 	// `sidechain::Sync::readCurrentValue` (`sidechain/sync.h`) via
 	// `SyncLevel::syncTypeAndLevelToMenuOption` (`gui/menu_item/sync_level.cpp`).
 	return static_cast<int32_t>(type) + (static_cast<int32_t>(level) - (type != SYNC_TYPE_EVEN ? 1 : 0));
-}
-
-// ---------------------------------------------------------------------------------------------
-// The sound's own sidechain page
-//
-// Each write is an effect setting on the target's own sidechain, as the legacy items write it, so
-// the owner's record and the runtime stay one.
-
-namespace {
-
-/// @brief The sidechain settings the shown owner reports.
-const deluge::effects::SidechainState* shown_sidechain(const MenuContext& ctx) {
-	return ctx.mod != nullptr ? &ctx.mod->effects().sidechain : nullptr;
-}
-
-/// @brief The sidechain settings `set_sidechain_number` writes, by index.
-constexpr char const* kSidechainNumberPaths[] = {"sidechain/attack", "sidechain/release"};
-
-/// @brief Write @p value to every target's `kSidechainNumberPaths[which]`; the Edit asks the engine to refresh the
-/// reverb.
-void set_sidechain_number(const MenuContext& ctx, int32_t value, int32_t which) {
-	bindings::apply_to_targets(ctx, value, which,
-	                           [](const bindings::SoundTarget& t, int32_t v, int32_t w, const MenuContext&) {
-		                           if (t.mod != nullptr) {
-			                           deluge::edits::effectSettingFor(*t.mod, kSidechainNumberPaths[w],
-			                                                           deluge::serialization::Value::makeNumber(v));
-		                           }
-	                           });
-}
-
-} // namespace
-
-int32_t get_sidechain_sync(const MenuContext& ctx) {
-	const deluge::effects::SidechainState* sc = shown_sidechain(ctx);
-	return sc != nullptr ? sidechain_sync_to_menu(sc->sync_type, sc->sync_level) : 0;
-}
-void set_sidechain_sync(const MenuContext& ctx, int32_t value) {
-	// `sidechain::Sync::writeCurrentValue`: the type, then the level.
-	bindings::apply_to_targets(
-	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		    if (t.mod == nullptr) {
-			    return;
-		    }
-		    deluge::edits::effectSettingFor(
-		        *t.mod, "sidechain/syncType",
-		        deluge::serialization::Value::makeNumber(static_cast<int32_t>(syncValueToSyncType(v))));
-		    deluge::edits::effectSettingFor(
-		        *t.mod, "sidechain/syncLevel",
-		        deluge::serialization::Value::makeNumber(deluge::engine::index_of(syncValueToSyncLevel(v))));
-	    });
-}
-
-int32_t get_sidechain_attack(const MenuContext& ctx) {
-	const deluge::effects::SidechainState* sc = shown_sidechain(ctx);
-	return sc != nullptr ? sidechain_attack_to_menu(sc->attack) : 0;
-}
-void set_sidechain_attack(const MenuContext& ctx, int32_t value) {
-	set_sidechain_number(ctx, sidechain_attack_from_menu(value), 0);
-}
-
-int32_t get_sidechain_release(const MenuContext& ctx) {
-	const deluge::effects::SidechainState* sc = shown_sidechain(ctx);
-	return sc != nullptr ? sidechain_release_to_menu(sc->release) : 0;
-}
-void set_sidechain_release(const MenuContext& ctx, int32_t value) {
-	set_sidechain_number(ctx, sidechain_release_from_menu(value), 1);
 }
 
 namespace {

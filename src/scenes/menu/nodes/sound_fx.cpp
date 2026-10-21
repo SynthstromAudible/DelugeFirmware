@@ -32,7 +32,6 @@
 #include "engines/effects/words.h"
 #include "model/edits/setting_edit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
-#include "model/mod_controllable/mod_fx_names.h" // modfx::getModNames
 #include "model/song/song.h"
 #include "modulation/sync.h"
 #include "processing/engines/audio_engine.h"
@@ -75,58 +74,6 @@ deluge::serialization::Value word_value(Word word) {
 }
 
 } // namespace
-
-// ---------------------------------------------------------------------------------------------
-// Delay
-//
-// Each write is an effect setting on the target, as the legacy items (`gui/menu_item/delay/`)
-// write it.
-
-int32_t get_delay_ping_pong(const MenuContext& ctx) {
-	return (ctx.mod != nullptr && ctx.mod->effects().delay.ping_pong) ? 1 : 0; // `delay/ping_pong.h`
-}
-void set_delay_ping_pong(const MenuContext& ctx, int32_t value) {
-	bindings::apply_to_targets(
-	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		    if (t.mod != nullptr) {
-			    deluge::edits::effectSettingFor(*t.mod, "delay/pingPong", number_value(v != 0 ? 1 : 0));
-		    }
-	    });
-}
-
-int32_t get_delay_sync(const MenuContext& ctx) {
-	if (ctx.mod == nullptr) {
-		return 0;
-	}
-	// `delay::Sync::readCurrentValue` (`delay/sync.h`).
-	const auto& delay = ctx.mod->effects().delay;
-	return static_cast<int32_t>(delay.sync_type)
-	       + (static_cast<int32_t>(delay.sync_level) - (delay.sync_type != SYNC_TYPE_EVEN ? 1 : 0));
-}
-void set_delay_sync(const MenuContext& ctx, int32_t value) {
-	bindings::apply_to_targets(
-	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		    if (t.mod != nullptr) {
-			    deluge::edits::effectSettingFor(*t.mod, "delay/syncType",
-			                                    number_value(static_cast<int32_t>(syncValueToSyncType(v))));
-			    deluge::edits::effectSettingFor(*t.mod, "delay/syncLevel",
-			                                    number_value(deluge::engine::index_of(syncValueToSyncLevel(v))));
-		    }
-	    });
-}
-
-int32_t get_delay_type(const MenuContext& ctx) {
-	return ctx.mod != nullptr ? static_cast<int32_t>(ctx.mod->effects().delay.type) : 0; // `delay/type.h`
-}
-void set_delay_type(const MenuContext& ctx, int32_t value) {
-	bindings::apply_to_targets(
-	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		    if (t.mod != nullptr) {
-			    deluge::edits::effectSettingFor(*t.mod, "delay/type",
-			                                    word_value(static_cast<deluge::effects::DelayType>(v)));
-		    }
-	    });
-}
 
 // ---------------------------------------------------------------------------------------------
 // Reverb -- engine-wide: the context gives only the song (see `sound_fx.h`'s note)
@@ -392,54 +339,6 @@ void set_stutter_quantize(const MenuContext& ctx, int32_t value) {
 			    deluge::edits::effectSettingFor(*t.mod, "stutter/quantized", number_value(v != 0 ? 1 : 0));
 		    }
 	    });
-}
-
-// ---------------------------------------------------------------------------------------------
-// Mod FX
-
-size_t mod_fx_type_names(const MenuContext& /*ctx*/, std::span<std::string_view> out) {
-	// `mod_fx::Type::getOptions` (`mod_fx/type.h:64-67`) -> `modfx::getModNames()`
-	// (`model/global_effectable/global_effectable.cpp:1152`). The strings are l10n views, so the
-	// spans they hand back outlive this call.
-	const auto names = modfx::getModNames();
-	size_t n = 0;
-	for (std::string_view name : names) {
-		if (n < out.size()) {
-			out[n++] = name;
-		}
-	}
-	return n;
-}
-
-int32_t get_mod_fx_type(const MenuContext& ctx) {
-	// `mod_fx/type.h`'s `readCurrentValue`
-	return ctx.mod != nullptr ? static_cast<int32_t>(ctx.mod->modControllableSnapshot().effects.mod_fx.type) : 0;
-}
-void set_mod_fx_type(const MenuContext& ctx, int32_t value) {
-	// `Type::writeCurrentValue` (`mod_fx/type.h`): a ring type whose ring cannot be allocated keeps
-	// its type and passes the audio through; the next effects edit retries.
-	bindings::apply_to_targets(
-	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		    if (t.mod != nullptr) {
-			    deluge::edits::effectSettingFor(*t.mod, "modFXType", word_value(static_cast<ModFXType>(v)));
-		    }
-	    });
-}
-
-// ---------------------------------------------------------------------------------------------
-// Distortion
-
-int32_t get_saturation(const MenuContext& ctx) {
-	// `fx/clipping.h`'s `readCurrentValue`
-	return ctx.mod != nullptr ? ctx.mod->modControllableSnapshot().effects.saturation.clipping_amount : 0;
-}
-void set_saturation(const MenuContext& ctx, int32_t value) {
-	bindings::apply_to_targets(ctx, value, 0,
-	                           [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		                           if (t.mod != nullptr) {
-			                           deluge::edits::effectSettingFor(*t.mod, "clippingAmount", number_value(v));
-		                           }
-	                           });
 }
 
 namespace {

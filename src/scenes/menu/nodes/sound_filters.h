@@ -54,6 +54,7 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
+#include "scenes/menu/nodes/fan_out_rules.h"
 #include "scenes/menu/nodes/patch_cables.h" // with_patch_chain -- every PATCHED param chains
 #include "scenes/menu/relevance.h"
 
@@ -65,40 +66,9 @@ struct MenuContext;
 
 namespace deluge::scenes::menu::nodes {
 
-/// @name The filter-mode and filter-route hooks. Bodies (and their legacy citations) in the `.cpp`.
-/// @{
-int32_t get_lpf_mode(const MenuContext& ctx);
-void set_lpf_mode(const MenuContext& ctx, int32_t value);
-int32_t get_hpf_mode(const MenuContext& ctx);
-void set_hpf_mode(const MenuContext& ctx, int32_t value);
-int32_t get_filter_route(const MenuContext& ctx);
-void set_filter_route(const MenuContext& ctx, int32_t value);
-/// @}
-
-/// `FilterModeSelection::getOptions`'s LPF list (`gui/menu_item/filter/mode.h:73-79`).
-inline constexpr uint16_t kLpfModeNames[] = {
-    sid(deluge::l10n::String::STRING_FOR_12DB_LADDER), sid(deluge::l10n::String::STRING_FOR_24DB_LADDER),
-    sid(deluge::l10n::String::STRING_FOR_DRIVE),       sid(deluge::l10n::String::STRING_FOR_SVF_BAND),
-    sid(deluge::l10n::String::STRING_FOR_SVF_NOTCH),   sid(deluge::l10n::String::STRING_FOR_OFF),
-};
-
-/// `FilterModeSelection::getOptions`'s HPF list (`filter/mode.h:65-71`).
-inline constexpr uint16_t kHpfModeNames[] = {
-    sid(deluge::l10n::String::STRING_FOR_SVF_BAND),
-    sid(deluge::l10n::String::STRING_FOR_SVF_NOTCH),
-    sid(deluge::l10n::String::STRING_FOR_HPLADDER),
-    sid(deluge::l10n::String::STRING_FOR_OFF),
-};
-
-/// `FilterRouting::getOptions` (`gui/menu_item/filter_route.h:57-60`).
-inline constexpr uint16_t kFilterRouteNames[] = {
-    sid(deluge::l10n::String::STRING_FOR_HPF_TO_LPF),
-    sid(deluge::l10n::String::STRING_FOR_LPF_TO_HPF),
-    sid(deluge::l10n::String::STRING_FOR_PARALLEL),
-};
-
 inline constexpr Node lpf_mode =
-    with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_MODE), kLpfModeNames, get_lpf_mode, set_lpf_mode),
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_MODE), Kind::Enum,
+                            {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "lpfMode"}),
                sid(deluge::l10n::String::STRING_FOR_LPF_MODE));
 inline constexpr Node lpf_freq =
     with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_FREQUENCY),
@@ -116,7 +86,8 @@ inline constexpr const Node* kLpfChildren[] = {&lpf_mode, &lpf_freq, &lpf_res, &
 inline constexpr Node lpf = submenu(sid(deluge::l10n::String::STRING_FOR_LPF), kLpfChildren, Layout::Horizontal);
 
 inline constexpr Node hpf_mode =
-    with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_MODE), kHpfModeNames, get_hpf_mode, set_hpf_mode),
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_MODE), Kind::Enum,
+                            {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "hpfMode"}),
                sid(deluge::l10n::String::STRING_FOR_HPF_MODE));
 inline constexpr Node hpf_freq =
     with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_FREQUENCY),
@@ -134,10 +105,14 @@ inline constexpr const Node* kHpfChildren[] = {&hpf_mode, &hpf_freq, &hpf_res, &
 inline constexpr Node hpf = submenu(sid(deluge::l10n::String::STRING_FOR_HPF), kHpfChildren, Layout::Horizontal);
 
 /// Four slots wide -- `FilterRouting::getOccupiedSlots()` (`filter_route.h:62`), which draws the
-/// whole page rather than one column.
-inline constexpr Node filter_routing = with_slots(enumeration(sid(deluge::l10n::String::STRING_FOR_FILTER_ROUTE),
-                                                              kFilterRouteNames, get_filter_route, set_filter_route),
-                                                  4);
+/// whole page rather than one column. Affect-entire routes only the drums with both filters on
+/// (`filter_route.h:49-50`).
+inline constexpr Node filter_routing =
+    with_slots(setting_item(sid(deluge::l10n::String::STRING_FOR_FILTER_ROUTE), Kind::Enum,
+                            {.kind = deluge::scenes::bind::Target::Kind::EFFECT,
+                             .path = "filterRoute",
+                             .fan_out_when = fan_out::kBothFilters}),
+               4);
 
 inline constexpr const Node* kFiltersChildren[] = {&lpf, &hpf, &filter_routing};
 inline constexpr Node sound_filters = submenu(sid(deluge::l10n::String::STRING_FOR_FILTERS), kFiltersChildren);

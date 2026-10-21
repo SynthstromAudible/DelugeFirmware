@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <array>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -52,13 +53,14 @@ void collect(const Node& node, std::set<const Node*>& seen, std::vector<const No
 	}
 }
 
-std::vector<const Node*> target_nodes() {
+/// The target nodes reachable from the sound editor's root: those of @p kind, or all of them.
+std::vector<const Node*> target_nodes(std::optional<bind::Target::Kind> kind = bind::Target::Kind::SOUND) {
 	std::set<const Node*> seen;
 	std::vector<const Node*> all;
 	collect(menu::nodes::sound_root, seen, all);
 	std::vector<const Node*> targets;
 	for (const Node* node : all) {
-		if (node->bind.target.valid()) {
+		if (node->bind.target.valid() && (!kind || node->bind.target.kind == *kind)) {
 			targets.push_back(node);
 		}
 	}
@@ -117,7 +119,7 @@ std::string disagreements(const Node& node, MenuContext ctx) {
 describe sound_settings_targets("the sound's instrument settings on targets", ${
 	it("gives every target node a fan-out rule that reads rows of a sound's table", _ {
 		std::vector<std::string> invalid;
-		for (const Node* node : target_nodes()) {
+		for (const Node* node : target_nodes(std::nullopt)) {
 			for (const auto& condition : node->bind.target.fan_out_when) {
 				if (!deluge::engine::condition_is_valid(deluge::instrument::kSettings, condition)) {
 					invalid.emplace_back(node->bind.target.path);

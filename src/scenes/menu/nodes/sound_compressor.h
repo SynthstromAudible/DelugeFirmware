@@ -44,24 +44,6 @@ struct MenuContext;
 
 namespace deluge::scenes::menu::nodes {
 
-/// @name The five `RMSFeedbackCompressor` hooks. Bodies (and their citations) in the `.cpp`.
-/// @{
-int32_t get_comp_attack(const MenuContext& ctx);
-void set_comp_attack(const MenuContext& ctx, int32_t value);
-int32_t get_comp_release(const MenuContext& ctx);
-void set_comp_release(const MenuContext& ctx, int32_t value);
-int32_t get_comp_ratio(const MenuContext& ctx);
-void set_comp_ratio(const MenuContext& ctx, int32_t value);
-int32_t get_comp_side_hpf(const MenuContext& ctx);
-void set_comp_side_hpf(const MenuContext& ctx, int32_t value);
-int32_t get_comp_blend(const MenuContext& ctx);
-void set_comp_blend(const MenuContext& ctx, int32_t value);
-/// @}
-
-/// `CompressorValue::getMaxValue()` (`compressor_values.h:51`) over `Number`'s default minimum of 0
-/// (`gui/menu_item/number.h:31`).
-inline constexpr IntRange kKnobRange{0, kMaxKnobPos, 1};
-
 inline constexpr Node comp_threshold = param(
     sid(deluge::l10n::String::STRING_FOR_THRESHOLD),
     {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_COMPRESSOR_THRESHOLD},
@@ -69,20 +51,35 @@ inline constexpr Node comp_threshold = param(
 // The decimal-place counts are `compressor_values.h:52`, `:78` and `:127`; the hints are
 // `getRenderingStyle()` at `:54`, `:65`, `:79` and `:106`.
 inline constexpr Node comp_ratio =
-    with_hint(decimal_item(sid(deluge::l10n::String::STRING_FOR_RATIO), get_comp_ratio, set_comp_ratio, kKnobRange, 2),
+    with_hint(with_decimal_places(
+                  setting_item(sid(deluge::l10n::String::STRING_FOR_RATIO), Kind::Decimal,
+                               {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "audioCompressor/ratio"}),
+                  2),
               Hint::Knob);
 inline constexpr Node comp_blend =
-    with_hint(decimal_item(sid(deluge::l10n::String::STRING_FOR_BLEND), get_comp_blend, set_comp_blend, kKnobRange, 0),
+    with_hint(with_decimal_places(setting_item(sid(deluge::l10n::String::STRING_FOR_BLEND), Kind::Decimal,
+                                               {.kind = deluge::scenes::bind::Target::Kind::EFFECT,
+                                                .path = "audioCompressor/compBlend"}),
+                                  0),
               Hint::Knob);
-inline constexpr Node comp_attack = with_hint(
-    decimal_item(sid(deluge::l10n::String::STRING_FOR_ATTACK), get_comp_attack, set_comp_attack, kKnobRange, 2),
-    Hint::Attack);
-inline constexpr Node comp_release = with_hint(
-    decimal_item(sid(deluge::l10n::String::STRING_FOR_RELEASE), get_comp_release, set_comp_release, kKnobRange, 1),
-    Hint::Release);
-inline constexpr Node comp_hpf = with_hint(
-    decimal_item(sid(deluge::l10n::String::STRING_FOR_HPF), get_comp_side_hpf, set_comp_side_hpf, kKnobRange, 2),
-    Hint::Hpf);
+inline constexpr Node comp_attack =
+    with_hint(with_decimal_places(
+                  setting_item(sid(deluge::l10n::String::STRING_FOR_ATTACK), Kind::Decimal,
+                               {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "audioCompressor/attack"}),
+                  2),
+              Hint::Attack);
+inline constexpr Node comp_release =
+    with_hint(with_decimal_places(
+                  setting_item(sid(deluge::l10n::String::STRING_FOR_RELEASE), Kind::Decimal,
+                               {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "audioCompressor/release"}),
+                  1),
+              Hint::Release);
+inline constexpr Node comp_hpf =
+    with_hint(with_decimal_places(
+                  setting_item(sid(deluge::l10n::String::STRING_FOR_HPF), Kind::Decimal,
+                               {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "audioCompressor/compHPF"}),
+                  2),
+              Hint::Hpf);
 
 inline constexpr const Node* kCompChildren[] = {&comp_threshold, &comp_ratio,   &comp_blend,
                                                 &comp_attack,    &comp_release, &comp_hpf};

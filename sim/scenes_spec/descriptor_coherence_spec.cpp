@@ -814,10 +814,11 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 			}
 		}
 	});
-	it("reads and writes the sidechain sync's triplet and dotted values as legacy does", _ {
+	it("reads the sidechain sync's triplet and dotted values as legacy does, and writes none past its range", _ {
 		// A file's triplet or dotted sidechain sync shows as 10..27, past the menu's 0..9: `to_menu` shows it and
-		// `from_menu` refuses it. The node's range is the row's, its read is `to_menu`, and its write of a value past
-		// the range decodes the level and type as legacy's does.
+		// `from_menu` refuses it. The node's range is the row's and its read is `to_menu`. The encoder clamps to the
+		// range before it writes, as legacy's does, so no menu write reaches past it; one that did is refused and
+		// leaves the stored sync as it was.
 		run_all(self);
 		const SettingInfo& row = *deluge::engine::find_setting(deluge::effects::kEffectSettings, "sidechain/syncLevel");
 		const SettingInfo& type = *deluge::engine::find_setting(deluge::effects::kEffectSettings, "sidechain/syncType");
@@ -836,11 +837,9 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 			expect(from_menu(row, menu).has_value()).to_be_false();
 			bindings::write(node, ctx, menu);
 			const std::string at = "sidechain sync write " + std::to_string(menu);
-			const int32_t level = (menu - 1) % 9 + 1;
-			const int32_t kind = (menu - 1) / 9;
 			expect(at + " " + std::to_string(get_stored(Family::EFFECT, ctx, Where::SYNTH, row).value_or(-1)) + "/"
 			       + std::to_string(get_stored(Family::EFFECT, ctx, Where::SYNTH, type).value_or(-1)))
-			    .to_equal(at + " " + std::to_string(level) + "/" + std::to_string(kind));
+			    .to_equal(at + " 4/1"); // as the last read left it
 		}
 	});
 	it("titles a param node as the item, which legacy does not title as the param's table name", _ {

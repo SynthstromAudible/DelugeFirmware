@@ -63,16 +63,6 @@ int32_t sidechain_release_from_menu(int32_t menu_value);
 int32_t sidechain_sync_to_menu(deluge::engine::SyncType type, deluge::engine::SyncLevel level);
 /// @}
 
-/// @name This page's own hooks (the non-reverb spelling). Bodies in the `.cpp`.
-/// @{
-int32_t get_sidechain_sync(const MenuContext& ctx);
-void set_sidechain_sync(const MenuContext& ctx, int32_t value);
-int32_t get_sidechain_attack(const MenuContext& ctx);
-void set_sidechain_attack(const MenuContext& ctx, int32_t value);
-int32_t get_sidechain_release(const MenuContext& ctx);
-void set_sidechain_release(const MenuContext& ctx, int32_t value);
-/// @}
-
 /// @brief `SyncLevel::size()` for both sidechains -- `sidechain::Sync::size()` (`sidechain/sync.h:33`).
 inline constexpr IntRange kSidechainSyncRange{0, 9, 1};
 
@@ -89,8 +79,9 @@ inline constexpr Node sidechain_volume =
     with_select_chain(custom(sid(deluge::l10n::String::STRING_FOR_VOLUME_DUCKING), &kSidechainVolumeItem),
                       &patch_cable_strength_chain, kPatchCableStrengthChain);
 inline constexpr Node sidechain_sync =
-    sync_level_item(sid(deluge::l10n::String::STRING_FOR_SYNC), sid(deluge::l10n::String::STRING_FOR_SIDECHAIN_SYNC),
-                    get_sidechain_sync, set_sidechain_sync, kSidechainSyncRange);
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SYNC), Kind::SyncLevel,
+                            {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "sidechain/syncLevel"}),
+               sid(deluge::l10n::String::STRING_FOR_SIDECHAIN_SYNC));
 // `sidechain::Shape` is an `unpatched_param::UpdatingReverbParams`, not a plain `UnpatchedParam`
 // (`sidechain/shape.h:6`): the param write is followed by
 // `AudioEngine::mustUpdateReverbParamsBeforeNextRender = true` (`updating_reverb_params.h:26-29`).
@@ -104,14 +95,14 @@ inline constexpr Node sidechain_send =
     with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SEND_TO_SIDECHAIN), Kind::Int,
                             {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "sideChainSend"}, Hint::Bar),
                sid(deluge::l10n::String::STRING_FOR_SEND_TO_SIDECH_MENU_TITLE));
-inline constexpr Node sidechain_attack =
-    with_title(int_item(sid(deluge::l10n::String::STRING_FOR_ATTACK), get_sidechain_attack, set_sidechain_attack,
-                        kSidechainRateRange, Hint::Attack),
-               sid(deluge::l10n::String::STRING_FOR_SIDECH_ATTACK_MENU_TITLE));
-inline constexpr Node sidechain_release =
-    with_title(int_item(sid(deluge::l10n::String::STRING_FOR_RELEASE), get_sidechain_release, set_sidechain_release,
-                        kSidechainRateRange, Hint::Release),
-               sid(deluge::l10n::String::STRING_FOR_SIDECH_RELEASE_MENU_TITLE));
+inline constexpr Node sidechain_attack = with_title(
+    setting_item(sid(deluge::l10n::String::STRING_FOR_ATTACK), Kind::Int,
+                 {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "sidechain/attack"}, Hint::Attack),
+    sid(deluge::l10n::String::STRING_FOR_SIDECH_ATTACK_MENU_TITLE));
+inline constexpr Node sidechain_release = with_title(
+    setting_item(sid(deluge::l10n::String::STRING_FOR_RELEASE), Kind::Int,
+                 {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "sidechain/release"}, Hint::Release),
+    sid(deluge::l10n::String::STRING_FOR_SIDECH_RELEASE_MENU_TITLE));
 
 inline constexpr const Node* kSidechainChildren[] = {&sidechain_volume, &sidechain_sync,   &sidechain_shape,
                                                      &sidechain_send,   &sidechain_attack, &sidechain_release};

@@ -96,13 +96,6 @@ namespace deluge::scenes::menu::nodes {
 
 /// @name The FX pages' hooks. Bodies (and their citations) in the `.cpp`.
 /// @{
-int32_t get_delay_ping_pong(const MenuContext& ctx);
-void set_delay_ping_pong(const MenuContext& ctx, int32_t value);
-int32_t get_delay_sync(const MenuContext& ctx);
-void set_delay_sync(const MenuContext& ctx, int32_t value);
-int32_t get_delay_type(const MenuContext& ctx);
-void set_delay_type(const MenuContext& ctx, int32_t value);
-
 int32_t get_reverb_room_size(const MenuContext& ctx);
 void set_reverb_room_size(const MenuContext& ctx, int32_t value);
 int32_t get_reverb_damping(const MenuContext& ctx);
@@ -134,25 +127,8 @@ void set_stutter_direction(const MenuContext& ctx, int32_t value);
 int32_t get_stutter_quantize(const MenuContext& ctx);
 void set_stutter_quantize(const MenuContext& ctx, int32_t value);
 
-size_t mod_fx_type_names(const MenuContext& ctx, std::span<std::string_view> out);
-int32_t get_mod_fx_type(const MenuContext& ctx);
-void set_mod_fx_type(const MenuContext& ctx, int32_t value);
-
-int32_t get_saturation(const MenuContext& ctx);
-void set_saturation(const MenuContext& ctx, int32_t value);
 /// @}
 
-/// `delay::Type::getOptions` (`delay/type.h`), FULL spelling, in `DelayType`'s order.
-inline constexpr uint16_t kDelayTypeNames[] = {
-    sid(deluge::l10n::String::STRING_FOR_OFF),
-    sid(deluge::l10n::String::STRING_FOR_DIGITAL),
-    sid(deluge::l10n::String::STRING_FOR_ANALOG),
-};
-/// `delay::PingPong::getOptions` (`delay/ping_pong.h:54-62`).
-inline constexpr uint16_t kDelayPingPongNames[] = {
-    sid(deluge::l10n::String::STRING_FOR_OFF),
-    sid(deluge::l10n::String::STRING_FOR_ON),
-};
 /// `reverb::Model::getOptions` (`reverb/model.h:19-23`).
 inline constexpr uint16_t kReverbModelNames[] = {
     sid(deluge::l10n::String::STRING_FOR_FREEVERB),
@@ -189,19 +165,21 @@ inline constexpr Node delay_amount = with_patch_chain(
     param(sid(deluge::l10n::String::STRING_FOR_AMOUNT),
           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_DELAY_FEEDBACK}, Hint::Bar,
           nullptr, sid(deluge::l10n::String::STRING_FOR_DELAY_AMOUNT)));
-inline constexpr Node delay_ping_pong =
-    with_selection_is_toggle(with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_PINGPONG), kDelayPingPongNames,
-                                                    get_delay_ping_pong, set_delay_ping_pong),
-                                        sid(deluge::l10n::String::STRING_FOR_DELAY_PINGPONG)));
+inline constexpr Node delay_ping_pong = with_selection_is_toggle(
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_PINGPONG), Kind::Enum,
+                            {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "delay/pingPong"}),
+               sid(deluge::l10n::String::STRING_FOR_DELAY_PINGPONG)));
 inline constexpr Node delay_sync =
-    sync_level_item(sid(deluge::l10n::String::STRING_FOR_SYNC), sid(deluge::l10n::String::STRING_FOR_DELAY_SYNC),
-                    get_delay_sync, set_delay_sync, kSyncLevelRange);
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SYNC), Kind::SyncLevel,
+                            {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "delay/syncLevel"}),
+               sid(deluge::l10n::String::STRING_FOR_DELAY_SYNC));
 inline constexpr Node delay_rate =
     with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_RATE),
                            {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_DELAY_RATE},
                            Hint::Knob, nullptr, sid(deluge::l10n::String::STRING_FOR_DELAY_RATE)));
 inline constexpr Node delay_type =
-    with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_TYPE), kDelayTypeNames, get_delay_type, set_delay_type),
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_TYPE), Kind::Enum,
+                            {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "delay/type"}),
                sid(deluge::l10n::String::STRING_FOR_DELAY_TYPE));
 
 inline constexpr const Node* kDelayChildren[] = {&delay_amount, &delay_ping_pong, &delay_sync, &delay_rate,
@@ -288,8 +266,8 @@ inline constexpr Node stutter =
 // --- Mod FX ------------------------------------------------------------------------------------
 
 inline constexpr Node mod_fx_type =
-    with_slots(with_title(dynamic_enumeration(sid(deluge::l10n::String::STRING_FOR_TYPE), mod_fx_type_names,
-                                              get_mod_fx_type, set_mod_fx_type),
+    with_slots(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_TYPE), Kind::Enum,
+                                       {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "modFXType"}),
                           sid(deluge::l10n::String::STRING_FOR_MODFX_TYPE)),
                4); // `mod_fx/type.h:69-72`
 inline constexpr Node mod_fx_depth =
@@ -316,8 +294,9 @@ inline constexpr Node mod_fx =
 
 // --- Distortion --------------------------------------------------------------------------------
 
-inline constexpr Node saturation = int_item(sid(deluge::l10n::String::STRING_FOR_SATURATION), get_saturation,
-                                            set_saturation, IntRange{0, 15, 1}, Hint::Bar); // `fx/clipping.h:44-45`
+inline constexpr Node saturation =
+    setting_item(sid(deluge::l10n::String::STRING_FOR_SATURATION), Kind::Int,
+                 {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "clippingAmount"}, Hint::Bar);
 inline constexpr Node bitcrush = param(
     sid(deluge::l10n::String::STRING_FOR_BITCRUSH),
     {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_BITCRUSHING}, Hint::Bar);

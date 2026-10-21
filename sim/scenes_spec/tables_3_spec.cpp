@@ -1690,14 +1690,13 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 				covered.insert(p.node);
 			}
 		}
-		// 193 distinct `set`-hook nodes, 1179 (node, root, value) probes across the ten roots -- a
-		// node reachable from three roots is driven three times, on three different fixtures. Task 3
-		// added the 193rd (`feature_shell_menu`, reachable from exactly the `settings` root, +3
-		// probes); the thresholds below stay loose rather than exact so the next addition doesn't
-		// have to touch this comment's arithmetic to stay green, only its accuracy. A drop in either
-		// number means the loop stopped reaching hooks it used to.
-		expect(exercised > size_t(1000)).to_be_true();
-		expect(covered.size() > size_t(160)).to_be_true();
+		// 154 distinct `set`-hook nodes, 825 (node, root, value) probes across the ten roots -- a node
+		// reachable from three roots is driven three times, on three different fixtures. A node bound to a
+		// target has no `set` hook: the binding library's specs (sound_settings_spec, effect_settings_spec)
+		// drive it instead. The thresholds stay loose rather than exact; a drop in either number means the
+		// loop stopped reaching hooks it used to.
+		expect(exercised > size_t(750)).to_be_true();
+		expect(covered.size() > size_t(140)).to_be_true();
 	});
 
 	it("drives the port hook of every node the legacy write comparison excludes", _ {

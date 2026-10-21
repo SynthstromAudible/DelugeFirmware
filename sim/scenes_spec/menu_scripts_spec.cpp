@@ -785,7 +785,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 
 		// The select turn edited MODE by one -- clamped, matching `Enumeration::selectEncoderAction`'s
 		// non-wrapping clamp -- and never touched FREQ.
-		const int32_t last_mode_index = static_cast<int32_t>(std::size(nodes::kLpfModeNames)) - 1;
+		const int32_t last_mode_index = bindings::range(nodes::lpf_mode, ctx).max;
 		expect(bindings::read(nodes::lpf_mode, ctx)).to_equal(std::min(before_mode + 1, last_mode_index));
 		// GoldUpper reached the real, unseeded `ModKnobs` instead of the menu -- no target to write
 		// through, so FREQ never moved.
