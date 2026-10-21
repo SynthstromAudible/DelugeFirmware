@@ -30,6 +30,7 @@
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
 #include <cstring>
+#include <vector>
 
 #include "deluge-project/instrument_slot.h"
 #include "dsp/dx/dx7note.h"
@@ -48,17 +49,20 @@
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
+#include "model/project_bridge/song_serialization.h"
 #include "model/project_bridge/source_bridge.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "scenarios/drivers/driver.h"
+#include "scenarios/drivers/tree_load.h"
 #include "scenarios/slot_coherence.h"
 #include "serialization/tree.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "storage/value_serializer.h"
+#include "storage/value_tree_deserializer.h"
 
 namespace {
 
@@ -1054,6 +1058,60 @@ void testSetEffectSetting(deluge::edits::Context& ctx) {
 	}
 }
 
+/// A song file that names two synths with one id (a song saved while two outputs shared a record) reads into two
+/// records: each synth plays its own slot's state, so a write to one reaches neither the other nor freed memory.
+void testTwoOutputsOneIdInFile() {
+	// Two synths on id 1, each with a clip, so the read keeps both.
+	std::string text;
+	if (FILE* f = std::fopen("tests/fixtures/songs/two_synths_one_id.XML", "rb")) {
+		char chunk[4096];
+		for (size_t n; (n = std::fread(chunk, 1, sizeof chunk, f)) > 0;) {
+			text.append(chunk, n);
+		}
+		std::fclose(f);
+	}
+	std::optional<deluge::serialization::Value> tree = deluge::storage::parseXml(text);
+	check(tree.has_value(), "read ids: the document parses");
+	if (!tree) {
+		return;
+	}
+	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Song));
+	Song* song = new (memory) Song();
+	song->paramManager.setupUnpatched();
+	GlobalEffectable::initParams(&song->paramManager);
+	deluge::storage::ValueTreeDeserializer adapter(*tree, deluge::storage::SourceFormat::Xml);
+	Deserializer* previous = activeReader;
+	activeReader = &adapter;
+	Error e = openTreeFile(adapter, "song", deluge::storage::DocumentFormat::XML);
+	if (e == Error::NONE) {
+		e = deluge::bridge::loadSong(*song, adapter);
+	}
+	activeReader = previous;
+	check(e == Error::NONE, "read ids: the song loads");
+	std::vector<SoundInstrument*> synths;
+	for (Output* output = song->live.media.first_output; output != nullptr; output = output->next) {
+		if (output->type == OutputType::SYNTH) {
+			synths.push_back(static_cast<SoundInstrument*>(output));
+		}
+	}
+	check(synths.size() == 2, "read ids: both synths are read");
+	if (synths.size() != 2) {
+		return;
+	}
+	check(synths[0]->id() != synths[1]->id(), "read ids: the second synth on one id takes an id of its own");
+	for (SoundInstrument* synth : synths) {
+		Sound& sound = *synth;
+		const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
+		const deluge::project::InstrumentSlot* slot = address ? song->project.resolveSlot(*address) : nullptr;
+		check(slot != nullptr && slot->state.as<deluge::instrument::DelugeInstrument>() == sound.boundState(),
+		      "read ids: each synth plays its own slot's state");
+	}
+	static_cast<Sound*>(synths[0])->setTranspose(5);
+	static_cast<Sound*>(synths[1])->setTranspose(-3);
+	check(synths[0]->boundState()->transpose == 5 && synths[1]->boundState()->transpose == -3,
+	      "read ids: a write to one synth reaches only its own record");
+}
+
 /// A sound writes its compressor's threshold from the DSP, which a render sets from the threshold param, not from its
 /// state: writing it leaves the record as it was, and the sound coherent with it.
 void testSaveLeavesRecordsCoherent(deluge::edits::Context& ctx) {
@@ -1108,6 +1166,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	testSetEngineSetting(ctx);
 	testSetSourceRanges(ctx);
 	testRecordOwnsState(ctx);
+	testTwoOutputsOneIdInFile();
 	testDrumIdsAreUnique(ctx);
 	testRemovalDropsOnlyOwnRecords(ctx);
 	testSetDxPatch(ctx);

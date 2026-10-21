@@ -1405,9 +1405,16 @@ void Song::adoptOutput(Output* output) {
 	}
 	// Outside this song's own read, an id another output's record already holds (a preset file that names one, which
 	// only a song's own outputs should) is not this output's: it gets one of its own, so two outputs never share a
-	// record.
-	if (!output->id().has_value() || (!readingFromFile_ && project.output_structure.find(*output->id()) != nullptr)) {
+	// record. The song's read keeps its file's ids, except a second output the file names with one id (a song saved
+	// while two outputs shared a record).
+	const bool takenInRead =
+	    readingFromFile_ && output->id() && std::ranges::find(outputIdsRead_, *output->id()) != outputIdsRead_.end();
+	if (!output->id().has_value() || takenInRead
+	    || (!readingFromFile_ && project.output_structure.find(*output->id()) != nullptr)) {
 		output->setId(generateNewOutputId());
+	}
+	if (readingFromFile_) {
+		outputIdsRead_.push_back(*output->id());
 	}
 	deluge::project::DocOutput& d = project.output_structure.getOrCreate(*output->id());
 	output->bindDocOutput(&d);
@@ -1493,6 +1500,37 @@ std::optional<uint32_t> highestDrumId(const deluge::serialization::Value& node) 
 	return highest;
 }
 
+/// The highest id any output in @p node's tree carries: an element of a song's instruments.
+std::optional<uint32_t> highestOutputId(const deluge::serialization::Value& node) {
+	std::optional<uint32_t> highest;
+	const auto take = [&](std::optional<uint32_t> id) {
+		if (id && (!highest || *id > *highest)) {
+			highest = id;
+		}
+	};
+	if (node.isMap()) {
+		for (const auto& [key, value] : node.entries()) {
+			if (key == "instruments") {
+				for (const deluge::serialization::NamedChild& output : deluge::serialization::children(value)) {
+					if (const std::optional<int32_t> id = deluge::serialization::int_of(output.node->find("id"));
+					    id && *id >= 0) {
+						take(static_cast<uint32_t>(*id));
+					}
+				}
+			}
+			else {
+				take(highestOutputId(value));
+			}
+		}
+	}
+	else if (node.isArray()) {
+		for (const deluge::serialization::Value& item : node.items()) {
+			take(highestOutputId(item));
+		}
+	}
+	return highest;
+}
+
 } // namespace
 
 Error Song::readFromFile(Deserializer& reader, uint64_t timePerTimerTick) {
@@ -1507,6 +1545,11 @@ Error Song::readFromFile(Deserializer& reader, uint64_t timePerTimerTick) {
 	// A drum given a fresh id while the file is read (a second drum on one id) takes one no drum of the file holds.
 	if (const std::optional<uint32_t> highest = highestDrumId(deluge::storage::treeReaderOf(reader).root())) {
 		drumIdCounter_ = std::max(drumIdCounter_, *highest + 1);
+	}
+	outputIdsRead_.clear();
+	// Likewise an output: a second output on one id takes one no output of the file holds.
+	if (const std::optional<uint32_t> highest = highestOutputId(deluge::storage::treeReaderOf(reader).root())) {
+		outputIdCounter_ = std::max(outputIdCounter_, *highest + 1);
 	}
 
 	outputClipInstanceListIsCurrentlyInvalid = true;

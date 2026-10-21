@@ -545,6 +545,8 @@ private:
 	uint32_t outputIdCounter_{1};
 	/// While a file is read: outputs added then are adopted once ids are known, not as they are added.
 	bool readingFromFile_{false};
+	/// The output ids this song's read has given out so far: a second output the file names with one gets its own.
+	std::vector<uint32_t> outputIdsRead_;
 	/// The drum ids this song's read has given out so far: a second drum the file names with one gets its own.
 	std::vector<uint32_t> drumIdsRead_;
 	uint32_t drumIdCounter_{1};
