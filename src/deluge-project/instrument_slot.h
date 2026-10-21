@@ -25,7 +25,8 @@
 namespace deluge::project {
 
 /// @brief The instrument a synth track or a sound kit row plays: which engine, and its element's entries the model does
-/// not own, kept as read and written back as they are. The model never interprets `state`.
+/// not own. The model never interprets `state`. The engine's own entries in it are a cache of the sound's state, which
+/// is what writes change: as the host last refreshed them, so a reader has the host refresh them first.
 struct InstrumentSlot {
 	std::string engine;                                           ///< the engine's id, e.g. "deluge.instrument"
 	serialization::Value state = serialization::Value::makeMap(); ///< the element's other entries, in order
