@@ -45,7 +45,9 @@ class CppEmitter(Visitor):
         child_list_name = f"child{len(self.child_lists)}"
 
         self.emit_indent()
-        self.outf.write("std::array<MenuItem*, ")
+        # Aggregate-initialized arrays need their initializer data copied in at
+        # startup, so they must go in .sdram_data rather than .sdram_bss.
+        self.outf.write("PLACE_SDRAM_DATA std::array<MenuItem*, ")
         self.outf.write(str(len(children)))
         self.outf.write("> ")
         self.outf.write(child_list_name)
@@ -89,6 +91,8 @@ class CppEmitter(Visitor):
         menu._cpp_emitted = True
 
         self.emit_indent()
+        # Menu objects are constructed at startup, so .sdram_bss is sufficient.
+        self.outf.write("PLACE_SDRAM_BSS ")
         self.outf.write(menu.clazz)
         self.outf.write(" ")
         self.outf.write(menu.cpp_name)
@@ -108,6 +112,8 @@ class CppEmitter(Visitor):
         child_key = self.emit_child_array(children)
 
         self.emit_indent()
+        # Menu objects are constructed at startup, so .sdram_bss is sufficient.
+        self.outf.write("PLACE_SDRAM_BSS ")
         self.outf.write(menu.clazz)
         self.outf.write(" ")
         self.outf.write(menu.cpp_name)
