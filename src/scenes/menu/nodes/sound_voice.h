@@ -36,6 +36,7 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
+#include "scenes/menu/nodes/fan_out_rules.h"
 #include "scenes/menu/nodes/sound_unison.h" // the fifth column
 #include "scenes/menu/relevance.h"
 
@@ -72,9 +73,9 @@ inline constexpr Node voice_priority = enumeration(sid(deluge::l10n::String::STR
 // `assign_node_ids` numbers a chain target while visiting the node that chains to it, so
 // `voice_count` is numbered right after `polyphony` either way, because it is already `polyphony`'s
 // next sibling. `sound_unison.h`'s equivalent pair is not so lucky and says so.
-inline constexpr Node voice_count =
-    setting_item(sid(deluge::l10n::String::STRING_FOR_MAX_VOICES), Kind::Int,
-                 {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "maxVoices"});
+inline constexpr Node voice_count = setting_item(
+    sid(deluge::l10n::String::STRING_FOR_MAX_VOICES), Kind::Int,
+    {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "maxVoices", .fan_out_when = fan_out::kPolyphonic});
 
 /// @brief `PolyphonyType::selectButtonPress()` (`voice/polyphony.h:139-143`): a select press opens
 ///        the voice count when the mode is POLY, and otherwise falls through to

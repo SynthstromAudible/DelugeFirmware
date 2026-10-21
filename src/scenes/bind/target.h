@@ -6,9 +6,11 @@
 
 #include "deluge-project/fx_chain.h"
 #include "deluge-project/instrument_slot.h"
+#include "engine-api/types/setting.h"
 
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string_view>
 
 namespace deluge::scenes::bind {
@@ -24,12 +26,20 @@ struct Target {
 	};
 	Kind kind{Kind::NONE};
 	std::string_view path; ///< the row's path, e.g. "osc1/type"
-	/// Whether a write with affect-entire held on a kit reaches every sound drum where the row applies. False for the
-	/// settings legacy edits on the selected drum alone (an oscillator's type, a retrigger phase).
+	/// Whether a write with affect-entire held on a kit reaches the kit's sound drums. False for the settings legacy
+	/// edits on the selected drum alone (an oscillator's type, a retrigger phase).
 	bool whole_kit{true};
+	/// Which sound drums such a write reaches: those where every condition holds, read in each drum's own context, as
+	/// legacy's affect-entire loop tests each drum. Empty for every sound drum: a drum whose Edit then refuses the
+	/// value is left as it was.
+	std::span<const engine::SettingCondition> fan_out_when{};
 
 	[[nodiscard]] constexpr bool valid() const { return kind != Kind::NONE; }
-	bool operator==(const Target&) const = default;
+	/// Equal when they name the same row the same way: the same fan-out rule, by identity.
+	constexpr bool operator==(const Target& other) const {
+		return kind == other.kind && path == other.path && whole_kit == other.whole_kit
+		       && fan_out_when.data() == other.fan_out_when.data() && fan_out_when.size() == other.fan_out_when.size();
+	}
 };
 
 /// @brief Which kind of output holds a chain: the model's ChainAddress cannot tell a kit from an audio track.

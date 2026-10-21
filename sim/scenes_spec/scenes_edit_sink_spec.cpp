@@ -8,18 +8,27 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/node.h"
+#include "scenes/menu/nodes/fan_out_rules.h"
+#include "scenes/menu/nodes/sound_master.h"
 #include "scenes/menu/nodes/sound_osc.h"
+#include "scenes/menu/nodes/sound_voice.h"
 
 #include "engines/deluge/codec.h"
+#include "engines/deluge/settings.h"
 #include "engines/deluge/sound_state.h"
+#include "engines/effects/settings.h"
 #include "gui/ui/shell_bind_host.h"
+#include "model/clip/instrument_clip.h"
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
+#include "model/project_bridge/chain_bridge.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
+#include "storage/audio/audio_file_holder.h"
+#include "storage/multi_range/multi_range.h"
 
 #include "support/song_fixture.h"
 
@@ -60,6 +69,35 @@ SoundDrum* add_drum_without_note_row(spec::SongFixture& f) {
 	return drum;
 }
 
+/// `Output::activeClip` is protected, and `Output::setActiveClip` services the audio routine for a sound drum, which
+/// faults in a spec process: seeded through a member pointer taken in a derived class, as note_mode_reads_spec does.
+struct OutputPeek : Output {
+	static Clip*& active_clip(Output& output) { return output.*(&OutputPeek::activeClip); }
+};
+
+/// Gives @p drum's first oscillator a sample, with no file loaded.
+void make_sample(SoundDrum& drum) {
+	deluge::edits::settingFor(drum, "osc1/type", Value::makeScalar("sample"));
+}
+
+/// An affect-entire context on @p f's kit.
+MenuContext whole_kit(spec::SongFixture& f) {
+	MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+	ctx.affect_entire_held = true;
+	ctx.addresses.affect_entire = bindings::writes_whole_kit(ctx);
+	return ctx;
+}
+
+/// The descriptor menu value of choice @p stored of instrument row @p path.
+int32_t menu_of(std::string_view path, int32_t stored) {
+	return deluge::engine::to_menu(*deluge::engine::find_setting(deluge::instrument::kSettings, path), stored);
+}
+
+/// Writes @p node's target = descriptor menu value @p menu through the app's sink at @p ctx.
+void sink_write(const Node& node, const MenuContext& ctx, int32_t menu) {
+	menu::host_write_sink().write({.target = node.bind.target, .where = ctx.addresses, .menu_value = menu});
+}
+
 } // namespace
 
 // clang-format off
@@ -91,7 +129,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		expect(bindings::read(kMaxVoices, ctx)).to_equal(5);
 	});
 
-	it("writes a kit's sound drums where the row applies, and no MIDI or gate drum, under affect-entire", _ {
+	it("writes a kit's polyphonic sound drums' voice count, and no mono, MIDI or gate drum, under affect-entire", _ {
 		spec::SongFixture f = spec::make_kit_song();
 		SoundDrum* poly = spec::add_drum<SoundDrum>(f);
 		SoundDrum* mono = spec::add_drum<SoundDrum>(f);
@@ -107,10 +145,108 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		ctx.affect_entire_held = true;
 		ctx.addresses.affect_entire = bindings::writes_whole_kit(ctx);
 		expect(ctx.addresses.affect_entire).to_be_true();
-		bindings::write(kMaxVoices, ctx, 3);
+		bindings::write(menu::nodes::voice_count, ctx, 3);
 		expect(static_cast<int>(poly->boundState()->max_voice_count)).to_equal(3);
 		expect(static_cast<int>(mono->boundState()->max_voice_count)).to_equal(before);
 		expect(midi->channel() == midi_channel && gate->channel() == gate_channel).to_be_true();
+	});
+
+	it("reverses a sample drum with no file loaded under affect-entire, and passes over a saw drum quietly", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		SoundDrum* first = spec::add_drum<SoundDrum>(f);
+		SoundDrum* unloaded = spec::add_drum<SoundDrum>(f);
+		SoundDrum* saw = spec::add_drum<SoundDrum>(f);
+		make_sample(*first);
+		make_sample(*unloaded);
+		deluge::edits::settingFor(*saw, "osc1/type", Value::makeScalar("saw"));
+		static_cast<Kit*>(f.instrument)->selectedDrum = first;
+		const MenuContext ctx = whole_kit(f);
+		const uint32_t refused = deluge::gui::shellEditRefusals();
+		sink_write(menu::nodes::sample0_reverse, ctx, 1);
+		expect(first->boundState()->sources[0].reversed).to_be_true();
+		expect(unloaded->boundState()->sources[0].reversed).to_be_true();
+		expect(deluge::gui::shellEditRefusals()).to_equal(refused);
+	});
+
+	it("leaves a drum with a sample oscillator in its synth mode under affect-entire, whatever the mode written", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		SoundDrum* saw = spec::add_drum<SoundDrum>(f);
+		SoundDrum* sampled = spec::add_drum<SoundDrum>(f);
+		deluge::edits::settingFor(*saw, "osc1/type", Value::makeScalar("saw"));
+		deluge::edits::settingFor(*saw, "osc2/type", Value::makeScalar("saw"));
+		make_sample(*sampled);
+		for (SoundDrum* drum : {saw, sampled}) {
+			deluge::edits::settingFor(*drum, "mode", Value::makeScalar("fm"));
+		}
+		static_cast<Kit*>(f.instrument)->selectedDrum = saw;
+		const MenuContext ctx = whole_kit(f);
+		sink_write(menu::nodes::synth_mode, ctx,
+		           menu_of("mode", std::to_underlying(deluge::instrument::SynthMode::SUBTRACTIVE)));
+		expect(static_cast<int>(sampled->boundState()->synth_mode)).to_equal(static_cast<int>(deluge::instrument::SynthMode::FM));
+		expect(static_cast<int>(saw->boundState()->synth_mode))
+		    .to_equal(static_cast<int>(deluge::instrument::SynthMode::SUBTRACTIVE));
+	});
+
+	it("routes the filters only on drums with both filters on, under affect-entire", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		SoundDrum* both = spec::add_drum<SoundDrum>(f);
+		SoundDrum* lpf_off = spec::add_drum<SoundDrum>(f);
+		deluge::edits::effectSettingFor(*lpf_off, "lpfMode", Value::makeScalar("Off"));
+		static_cast<Kit*>(f.instrument)->selectedDrum = both;
+		const MenuContext ctx = whole_kit(f);
+		const auto before = lpf_off->effects().filter.route;
+		const auto& row = *deluge::engine::find_setting(deluge::effects::kEffectSettings, "filterRoute");
+		const bind::Target route{.kind = bind::Target::Kind::EFFECT, .path = "filterRoute",
+		                         .fan_out_when = menu::fan_out::kBothFilters};
+		menu::host_write_sink().write({.target = route, .where = ctx.addresses,
+		                               .menu_value = deluge::engine::to_menu(row, 2)}); // parallel
+		expect(both->effects().filter.route == deluge::effects::FilterRoute::PARALLEL).to_be_true();
+		expect(lpf_off->effects().filter.route == before).to_be_true();
+	});
+
+	it("ends the kit arpeggiator's note when a loop mode becomes once, under affect-entire or not", _ {
+		for (const bool entire : {true, false}) {
+			spec::SongFixture f = spec::make_kit_song();
+			SoundDrum* sampled = spec::add_drum<SoundDrum>(f);
+			make_sample(*sampled);
+			// The note-off reaches the kit's arpeggiator from a drum that allows note tails, as a saw does.
+			SoundDrum* drum = spec::add_drum<SoundDrum>(f);
+			deluge::edits::settingFor(*drum, "osc1/type", Value::makeScalar("saw"));
+			auto* kit = static_cast<Kit*>(f.instrument);
+			kit->selectedDrum = drum;
+			OutputPeek::active_clip(*kit) = f.clip; // the kit plays the clip, so its arpeggiator holds the note
+			int32_t index = 0;
+			(void)f.clip->getNoteRowForDrum(drum, &index);
+			ArpReturnInstruction instruction;
+			const int16_t mpe[kNumExpressionDimensions]{};
+			kit->arpeggiator.noteOn(&f.clip->arpSettings, index, 64, &instruction, MIDI_CHANNEL_NONE, mpe);
+			expect(kit->arpeggiator.hasAnyInputNotesActive()).to_be_true();
+			const MenuContext ctx =
+			    entire ? whole_kit(f) : menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+			sink_write(menu::nodes::sample0_repeat, ctx,
+			           menu_of("osc1/loopMode", std::to_underlying(deluge::instrument::SampleRepeatMode::ONCE)));
+			expect(kit->arpeggiator.hasAnyInputNotesActive()).to_be_false();
+			OutputPeek::active_clip(*kit) = nullptr;
+		}
+	});
+
+	it("edits the whole kit's chain alone with affect-entire held, as legacy does", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
+		auto* kit = static_cast<Kit*>(f.instrument);
+		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/true);
+		ctx.affect_entire_held = true;
+		ctx.addresses.affect_entire = bindings::writes_whole_kit(ctx);
+		expect(ctx.addresses.affect_entire).to_be_false();
+		const auto row_before = drum->effects().filter.lpf_mode;
+		const auto& row = *deluge::engine::find_setting(deluge::effects::kEffectSettings, "lpfMode");
+		menu::host_write_sink().write({.target = {.kind = bind::Target::Kind::EFFECT, .path = "lpfMode"},
+		                               .where = ctx.addresses,
+		                               .menu_value = deluge::engine::to_menu(row, 4)}); // SVF_Notch
+		const auto chain = deluge::project::ChainAddress{.id = kit->id().value_or(0)};
+		expect(deluge::bridge::chainOwnerAt(chain, *f.song)->effects().filter.lpf_mode
+		       == deluge::effects::FilterMode::SVF_NOTCH).to_be_true();
+		expect(drum->effects().filter.lpf_mode == row_before).to_be_true();
 	});
 
 	it("writes only the selected drum, under affect-entire, for a setting legacy never writes kit-wide", _ {

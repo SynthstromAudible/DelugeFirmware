@@ -95,6 +95,7 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
+#include "scenes/menu/nodes/fan_out_rules.h"
 #include "scenes/menu/nodes/patch_cables.h" // with_patch_chain -- every PATCHED param chains
 #include "scenes/menu/nodes/sample.h"       // the six bespoke items this subtree's nodes point at
 #include "scenes/menu/relevance.h"
@@ -242,7 +243,8 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 	inline constexpr Node modulator##i##_transpose = with_patch_chain(with_learn_param(                                \
 	    with_title(with_decimal_places(setting_item(sid(deluge::l10n::String::STRING_FOR_TRANSPOSE), Kind::Decimal,    \
 	                                                {.kind = deluge::scenes::bind::Target::Kind::SOUND,                \
-	                                                 .path = modulator_path "/transpose"}),                            \
+	                                                 .path = modulator_path "/transpose",                              \
+	                                                 .fan_out_when = fan_out::kFm}),                                   \
 	                                   2),                                                                             \
 	               sid(deluge::l10n::String::STRING_FOR_FM_MOD_TRAN_MENU_TITLE)),                                      \
 	    {deluge::modulation::params::Kind::PATCHED,                                                                    \
@@ -270,7 +272,9 @@ DELUGE_OSC_MODULATOR(1, "modulator2");
 
 inline constexpr Node modulator_dest =
     with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_DESTINATION), Kind::Enum,
-                            {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "modulator2/toModulator1"}),
+                            {.kind = deluge::scenes::bind::Target::Kind::SOUND,
+                             .path = "modulator2/toModulator1",
+                             .fan_out_when = fan_out::kFm}),
                sid(deluge::l10n::String::STRING_FOR_FM_MOD2_DEST_MENU_TITLE));
 
 inline constexpr const Node* kModulator0Children[] = {&modulator0_transpose, &modulator0_feedback,
@@ -317,9 +321,10 @@ inline constexpr Node noise =
     with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_NOISE_LEVEL),
                            {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_NOISE_VOLUME},
                            Hint::Bar, relevance::not_fm));
-inline constexpr Node osc_sync =
-    setting_item(sid(deluge::l10n::String::STRING_FOR_OSCILLATOR_SYNC), Kind::Toggle,
-                 {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "osc2/oscillatorSync"});
+inline constexpr Node osc_sync = setting_item(sid(deluge::l10n::String::STRING_FOR_OSCILLATOR_SYNC), Kind::Toggle,
+                                              {.kind = deluge::scenes::bind::Target::Kind::SOUND,
+                                               .path = "osc2/oscillatorSync",
+                                               .fan_out_when = fan_out::kOscSync});
 inline constexpr const Node* kMixerChildren[] = {&source0_volume,    &source1_volume, &modulator0_volume,
                                                  &modulator1_volume, &noise,          &osc_sync};
 inline constexpr Node osc_mixer =

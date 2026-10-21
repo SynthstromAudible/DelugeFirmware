@@ -40,6 +40,7 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
+#include "scenes/menu/nodes/fan_out_rules.h"
 #include "scenes/menu/nodes/patch_cables.h" // `vibrato` is a fixed patch cable
 #include "scenes/menu/nodes/sound_osc.h"    // kPending
 #include "scenes/menu/relevance.h"
@@ -56,8 +57,9 @@ namespace deluge::scenes::menu::nodes {
 /// @{
 /// @}
 
-inline constexpr Node synth_mode = setting_item(sid(deluge::l10n::String::STRING_FOR_SYNTH_MODE), Kind::Enum,
-                                                {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "mode"});
+inline constexpr Node synth_mode = setting_item(
+    sid(deluge::l10n::String::STRING_FOR_SYNTH_MODE), Kind::Enum,
+    {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "mode", .fan_out_when = fan_out::kRingable});
 
 inline constexpr Node master_volume = with_patch_chain(
     param(sid(deluge::l10n::String::STRING_FOR_VOLUME_LEVEL),

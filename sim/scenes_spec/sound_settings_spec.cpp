@@ -115,6 +115,22 @@ std::string disagreements(const Node& node, MenuContext ctx) {
 
 // clang-format off
 describe sound_settings_targets("the sound's instrument settings on targets", ${
+	it("gives every target node a fan-out rule that reads rows of a sound's table", _ {
+		std::vector<std::string> invalid;
+		for (const Node* node : target_nodes()) {
+			for (const auto& condition : node->bind.target.fan_out_when) {
+				if (!deluge::engine::condition_is_valid(deluge::instrument::kSettings, condition)) {
+					invalid.emplace_back(node->bind.target.path);
+				}
+			}
+		}
+		expect(invalid).to_equal(std::vector<std::string>{});
+		constexpr std::array<int32_t, 1> poly{1};
+		expect(deluge::engine::condition_is_valid(deluge::instrument::kSettings,
+		                                          deluge::engine::setting_is("polyphonc", poly)))
+		    .to_be_false();
+	});
+
 	it("names exactly the pilot's rows as targets", _ {
 		std::set<std::string> paths;
 		for (const Node* node : target_nodes()) {
