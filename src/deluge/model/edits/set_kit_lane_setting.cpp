@@ -47,7 +47,7 @@ bool allowsNoteTails(::Drum& drum) {
 		return true;
 	}
 	auto& sound = static_cast<SoundDrum&>(drum);
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithSoundFlags* stack = getModelStackFromSoundDrum(memory, &sound)->addSoundFlags();
 	return sound.allowNoteTails(stack, /*disregardSampleLoop=*/true);
 }

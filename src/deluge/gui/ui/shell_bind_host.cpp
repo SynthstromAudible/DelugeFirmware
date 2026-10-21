@@ -211,6 +211,9 @@ void ShellEditSink::write(const WriteRequest& request) {
 		if (drum != nullptr && drum->type == DrumType::SOUND
 		    && !deluge::scenes::menu::host_runtime_facts().allows_note_tails(
 		        {deluge::project::SlotAddress::Kind::DRUM, lane.drum_id})) {
+			refusals_++;
+			D_PRINTLN("menu write refused: kit row %u cannot hold note tails for its kit's arp",
+			          static_cast<unsigned>(lane.drum_id));
 			return;
 		}
 	}
