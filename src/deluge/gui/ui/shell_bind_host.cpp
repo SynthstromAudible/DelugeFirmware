@@ -10,6 +10,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/set_effect_setting.h"
 #include "model/edits/set_engine_setting.h"
+#include "model/edits/set_kit_setting.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -22,8 +23,6 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "scenes/bind/dispatch.h"
-#include "scenes/bind/setting_context.h"
-#include "scenes/bind/slot_reader.h"
 #include "scenes/menu/bind_host.h"
 
 #include <array>
@@ -55,17 +54,6 @@ Kit* kit_with_id(uint32_t id) {
 		}
 	}
 	return nullptr;
-}
-
-/// Whether an affect-entire write of @p target reaches the sound drum at @p slot: its fan-out rule holds, read in the
-/// drum's own context.
-bool reaches(const deluge::scenes::bind::Target& target, deluge::project::SlotAddress slot) {
-	const deluge::scenes::bind::RuntimeFacts& facts = deluge::scenes::menu::host_runtime_facts();
-	const deluge::scenes::bind::SlotReader reader{currentSong->project, slot, facts};
-	return reader.resolved()
-	       && deluge::engine::conditions_hold(target.fan_out_when,
-	                                          deluge::scenes::bind::setting_context(currentSong->project, slot, facts),
-	                                          reader.reader());
 }
 
 /// Whether writing stored value @p stored of @p row through @p target ends a kit row's notes: a sample played once
@@ -106,9 +94,9 @@ void kit_arp_note_off(Kit* kit) {
 
 /// Applies a menu's write requests as their targets' Edits on the current song. A sound target's request becomes
 /// SetEngineSetting on the sound's slot, and its partner row's value a second one; with affect-entire held on a kit,
-/// one per sound drum of the kit the target's fan-out rule picks, read in that drum's own context, as legacy's loop
-/// picks them. A drum whose Edit then refuses the value is left as it was, as legacy's loop writes it harmlessly; that
-/// refusal is logged, not counted. A sample's loop mode set to play once ends the kit arpeggiator's note first. An
+/// one SetKitSetting over the kit's sound drums the target's fan-out rule picks, read in each drum's own context, as
+/// legacy's loop picks them (and its partner a second); a drum that refuses the value is left as it was, as legacy's
+/// loop writes it harmlessly. A sample's loop mode set to play once ends the kit arpeggiator's note first. An
 /// effect target's request is the same on a sound's slot, and on a host chain (the whole kit's, an audio track's, the
 /// master's) SetEffectSetting on the chain, its partner second. A request whose slot or chain does not resolve, or a
 /// sound with no slot, is refused: logged and counted, never applied through the runtime's setter alone.
@@ -159,10 +147,8 @@ void ShellEditSink::write(const WriteRequest& request) {
 	const deluge::engine::SettingInfo* partner_row =
 	    partner.empty() ? nullptr : deluge::engine::find_setting(table, partner);
 
-	// Commits @p row's value, then its partner's, each as the Edit @p edit_for makes for a path and a file value. A
-	// @p quiet refusal is a drum of a fan-out whose Edit does not take the value, which legacy's loop writes
-	// harmlessly: logged, not counted.
-	const auto commit_both = [&](deluge::edits::Context& ctx, bool quiet, const auto& edit_for) {
+	// Commits @p row's value, then its partner's, each as the Edit @p edit_for makes for a path and a file value.
+	const auto commit_both = [&](deluge::edits::Context& ctx, const auto& edit_for) {
 		const auto commit = [&](const deluge::engine::SettingInfo& on, int32_t value) {
 			const std::optional<deluge::serialization::Value> file = value_of(on, value);
 			if (!file) {
@@ -173,7 +159,7 @@ void ShellEditSink::write(const WriteRequest& request) {
 			}
 			auto edit = edit_for(std::string(on.path), *file);
 			if (deluge::edits::apply(ctx, edit) != Error::NONE) {
-				refusals_ += quiet ? 0 : 1;
+				refusals_++;
 				D_PRINTLN("menu write refused: %.*s = %d", static_cast<int>(on.path.size()), on.path.data(),
 				          static_cast<int>(value));
 			}
@@ -184,7 +170,7 @@ void ShellEditSink::write(const WriteRequest& request) {
 		}
 	};
 
-	const auto apply_to = [&](deluge::project::SlotAddress slot, bool quiet) {
+	const auto apply_to = [&](deluge::project::SlotAddress slot) {
 		if (deluge::bridge::soundAt(*currentSong, slot) == nullptr) {
 			refusals_++;
 			D_PRINTLN("menu write refused: no sound at the slot for %.*s", static_cast<int>(request.target.path.size()),
@@ -192,7 +178,7 @@ void ShellEditSink::write(const WriteRequest& request) {
 			return;
 		}
 		deluge::edits::Context ctx{*currentSong, currentSong->project};
-		commit_both(ctx, quiet, [&](std::string path, const deluge::serialization::Value& value) {
+		commit_both(ctx, [&](std::string path, const deluge::serialization::Value& value) {
 			return deluge::edits::SetEngineSetting{slot, std::move(path), value};
 		});
 	};
@@ -209,34 +195,23 @@ void ShellEditSink::write(const WriteRequest& request) {
 		if (silences_kit_arp(request.target, *row, stored->first)) {
 			kit_arp_note_off(kit);
 		}
-		for (Drum* drum = kit->firstDrum; drum != nullptr; drum = drum->next) {
-			if (drum->type != DrumType::SOUND) {
-				continue;
-			}
-			const std::optional<deluge::project::SlotAddress> slot =
-			    deluge::bridge::slotAddressOf(*static_cast<SoundDrum*>(drum));
-			if (!slot) {
-				refusals_++;
-				D_PRINTLN("menu write refused: a sound drum has no slot for %.*s",
-				          static_cast<int>(request.target.path.size()), request.target.path.data());
-				continue;
-			}
-			if (reaches(request.target, *slot)) {
-				apply_to(*slot, /*quiet=*/true);
-			}
-		}
+		deluge::edits::Context ctx{*currentSong, currentSong->project};
+		commit_both(ctx, [&](std::string path, const deluge::serialization::Value& value) {
+			return deluge::edits::SetKitSetting{*request.where.kit_output, std::move(path), value,
+			                                    request.target.fan_out_when};
+		});
 		return;
 	}
 	if (request.where.slot) {
 		if (silences_kit_arp(request.target, *row, stored->first) && request.where.kit_output) {
 			kit_arp_note_off(kit_with_id(*request.where.kit_output));
 		}
-		apply_to(*request.where.slot, /*quiet=*/false);
+		apply_to(*request.where.slot);
 		return;
 	}
 	if (kind == Kind::EFFECT && request.where.chain) {
 		deluge::edits::Context ctx{*currentSong, currentSong->project};
-		commit_both(ctx, false, [&](std::string path, const deluge::serialization::Value& value) {
+		commit_both(ctx, [&](std::string path, const deluge::serialization::Value& value) {
 			return deluge::edits::SetEffectSetting{*request.where.chain, std::move(path), value};
 		});
 		return;

@@ -5,6 +5,10 @@
 #include "serialization/value.h"
 
 #include <string>
+#include <string_view>
+
+class Song;
+class Sound;
 
 namespace deluge::edits {
 
@@ -14,6 +18,17 @@ namespace deluge::edits {
 /// state the slot now says, through the setters of what changed.
 ///
 /// @note Settings record no undo.
+/// @brief Commit @p value, already canonical and taken and allowed by @p sound's state, at @p path into @p slot and
+/// the sound playing it: the step SetEngineSetting and SetKitSetting share once their checks pass.
+/// @param sound The sound playing @p slot.
+/// @param slot  Its instrument slot.
+/// @param path  The setting's path.
+/// @param value The canonical value.
+/// @param song  The song.
+/// @return Error::NONE when the value landed (or the runtime holds one the slot cannot), else why not.
+Error commitEngineSetting(::Sound& sound, deluge::project::InstrumentSlot& slot, std::string_view path,
+                          const deluge::serialization::Value& value, ::Song& song);
+
 class SetEngineSetting final : public Edit {
 public:
 	/// @param slot  Address of the instrument slot.

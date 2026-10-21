@@ -35,6 +35,27 @@ deluge::serialization::Value elementFor(const ::Sound& sound, const deluge::proj
 
 } // namespace
 
+Error commitEngineSetting(::Sound& sound, deluge::project::InstrumentSlot& slot, std::string_view path,
+                          const deluge::serialization::Value& value, ::Song& song) {
+	if (deluge::effects::shapes_reverb_sidechain(path)) {
+		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true; // whatever lands, the reverb re-reads it
+	}
+	Error error = deluge::bridge::commitSlot(sound, slot, elementFor(sound, slot, path, value), song);
+	const std::optional<deluge::serialization::Value> landed =
+	    deluge::instrument::setting_value(*sound.boundState(), path);
+	if (landed && landed->str() == value.str()) {
+		return Error::NONE; // what else of the slot the sound refused is not this Edit's, and the slot now says it
+	}
+	if (error != Error::NONE) {
+		return error;
+	}
+	// The slot cannot hold this value (a live input's interpolation, a sync level the magnitude cannot write): the
+	// runtime holds it until a save and reload.
+	error = deluge::bridge::applySetting(sound, path, value, song);
+	deluge::bridge::syncSlotState(sound, slot, song);
+	return error;
+}
+
 Error SetEngineSetting::apply(Context& ctx) {
 	deluge::project::InstrumentSlot* slot = ctx.model.resolveSlot(slot_);
 	::Sound* sound = deluge::bridge::soundAt(ctx.song, slot_);
@@ -44,23 +65,7 @@ Error SetEngineSetting::apply(Context& ctx) {
 	    || !deluge::instrument::allows_setting(*sound->boundState(), path_, *value)) {
 		return Error::UNSPECIFIED;
 	}
-	if (deluge::effects::shapes_reverb_sidechain(path_)) {
-		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true; // whatever lands, the reverb re-reads it
-	}
-	Error error = deluge::bridge::commitSlot(*sound, *slot, elementFor(*sound, *slot, path_, *value), ctx.song);
-	const std::optional<deluge::serialization::Value> landed =
-	    deluge::instrument::setting_value(*sound->boundState(), path_);
-	if (landed && landed->str() == value->str()) {
-		return Error::NONE; // what else of the slot the sound refused is not this Edit's, and the slot now says it
-	}
-	if (error != Error::NONE) {
-		return error;
-	}
-	// The slot cannot hold this value (a live input's interpolation, a sync level the magnitude cannot write): the
-	// runtime holds it until a save and reload.
-	error = deluge::bridge::applySetting(*sound, path_, *value, ctx.song);
-	deluge::bridge::syncSlotState(*sound, *slot, ctx.song);
-	return error;
+	return commitEngineSetting(*sound, *slot, path_, *value, ctx.song);
 }
 
 } // namespace deluge::edits
