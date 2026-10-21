@@ -605,6 +605,23 @@ class SongRecordsTest(unittest.TestCase):
         self.assertEqual(sorted(records), sorted(f"S{i}" for i in range(16)))
 
 
+class CtestStepsTest(unittest.TestCase):
+    def test_ctest_runs_its_tests_in_parallel(self):
+        h = entry("u")
+        h.runner = "ctest"
+        h.source = "x"
+        h.tree = "build/x"
+        root = Path(tempfile.mkdtemp())
+        (root / "build/x").mkdir(parents=True)
+        (root / "build/x/CMakeCache.txt").write_text(
+            f"CMAKE_HOME_DIRECTORY:INTERNAL={root / 'x'}\n"
+        )
+        (root / "x").mkdir()
+        run = dict(tt._steps(root, h, [], None))["run"]
+        self.assertIn("--parallel", run)
+        self.assertEqual(run[run.index("--parallel") + 1], str(os.cpu_count()))
+
+
 class NeedsConfigureTest(unittest.TestCase):
     def test_a_toolchain_tree_is_reused(self):
         # A toolchain file sets the compiler as a plain variable, so the cache holds no CMAKE_CXX_COMPILER entry.

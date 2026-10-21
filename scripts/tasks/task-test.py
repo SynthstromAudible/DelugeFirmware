@@ -254,6 +254,9 @@ def _steps(
         str(tree),
         "--output-on-failure",
         "--no-tests=error",
+        # The specs are independent processes; a suite under qemu takes minutes one at a time.
+        "--parallel",
+        str(os.cpu_count() or 1),
         *h.ctest_args,
     ]
     if junit_dir is not None:
