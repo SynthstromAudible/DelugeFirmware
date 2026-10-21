@@ -1009,9 +1009,7 @@ void checkMidiDefinition() {
 
 void checkLeg() {
 	// What loading made of each sound is what its record and slot say.
-	// Not the song-settings equation: after the acquisition legs' grid clone two outputs share one durable id and so
-	// one record, which every later leg would report (a known defect of that path, not of loading).
-	g_failures += deluge::harness::expectSongCoherent(*currentSong, "preset", {.song_settings = false});
+	g_failures += deluge::harness::expectSongCoherent(*currentSong, "preset");
 	if (g_leg == Leg::MidiDef) {
 		// Nothing of the preset kind is read: a definition carries no samples.
 		checkMidiDefinition();
@@ -1911,6 +1909,24 @@ void checkAcquireAct() {
 		PresetAcquireProbe::releasePress();
 		if (added.size() != 2 || synths != 1 || kits != 1 || runs != 2) {
 			aqFail("AQ-CLONE", "a new-track press and a grid clone made in one tick did not both make their track");
+		}
+		// Every output, live or hibernating, keeps a durable id of its own, and so a record of its own.
+		std::vector<uint32_t> ids;
+		const auto collect = [&](Output* output) {
+			if (output->id()) {
+				ids.push_back(*output->id());
+			}
+		};
+		for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
+			collect(output);
+		}
+		for (Output* output = currentSong->live.media.first_hibernating_instrument; output != nullptr;
+		     output = output->next) {
+			collect(output);
+		}
+		std::ranges::sort(ids);
+		if (std::ranges::adjacent_find(ids) != ids.end()) {
+			aqFail("AQ-CLONE", "two outputs share one durable id, and so one record");
 		}
 		break;
 	}

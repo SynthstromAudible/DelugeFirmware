@@ -1406,7 +1406,10 @@ void Song::adoptOutput(Output* output) {
 	if (output->docOutput_ != nullptr) {
 		return;
 	}
-	if (!output->id().has_value()) {
+	// Outside this song's own read, an id another output's record already holds (a preset file that names one, which
+	// only a song's own outputs should) is not this output's: it gets one of its own, so two outputs never share a
+	// record.
+	if (!output->id().has_value() || (!readingFromFile_ && project.output_structure.find(*output->id()) != nullptr)) {
 		output->setId(generateNewOutputId());
 	}
 	deluge::project::DocOutput& d = project.output_structure.getOrCreate(*output->id());
@@ -2559,7 +2562,7 @@ deluge::effects::MasterChainInputs Song::renderAudio(std::span<StereoSample> out
 		EXIT_CRITICAL_SECTION();
 #if DO_AUDIO_LOG
 		char buf[64];
-		snprintf(buf, sizeof(buf), "complete: %s", output->name.get());
+		snprintf(buf, sizeof(buf), "complete: %s", output->name.c_str());
 		AudioEngine::logAction(buf);
 #endif
 	}
