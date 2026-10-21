@@ -4,6 +4,7 @@
 /// @brief What a menu node edits and where: a target named by the engines' descriptors, and the addresses it
 /// resolves against, never an engine object.
 
+#include "deluge-project/fx_chain.h"
 #include "deluge-project/instrument_slot.h"
 
 #include <cstdint>
@@ -16,8 +17,10 @@ namespace deluge::scenes::bind {
 /// target's descriptor and record.
 struct Target {
 	enum class Kind : uint8_t {
-		NONE,  ///< no target: the node binds through its own hooks
-		SOUND, ///< a row of instrument::kSettings, on the sound at Addresses::slot
+		NONE,   ///< no target: the node binds through its own hooks
+		SOUND,  ///< a row of instrument::kSettings, on the sound at Addresses::slot
+		EFFECT, ///< a row of effects::kEffectSettings, on the sound at Addresses::slot, else the chain at
+		        ///< Addresses::chain
 	};
 	Kind kind{Kind::NONE};
 	std::string_view path; ///< the row's path, e.g. "osc1/type"
@@ -29,9 +32,15 @@ struct Target {
 	bool operator==(const Target&) const = default;
 };
 
+/// @brief Which kind of output holds a chain: the model's ChainAddress cannot tell a kit from an audio track.
+enum class ChainOwner : uint8_t { KIT, AUDIO_TRACK, SONG };
+
 /// @brief Where the menu edits: addresses into the model.
 struct Addresses {
 	std::optional<project::SlotAddress> slot; ///< the sound edited
+	std::optional<project::ChainAddress>
+	    chain; ///< the chain edited when no sound is: a kit's, an audio track's, the master's
+	ChainOwner chain_owner{ChainOwner::SONG}; ///< which kind of output holds chain
 	std::optional<uint32_t> kit_output;       ///< the kit whose drums an affect-entire write fans out over
 	bool affect_entire{false};                ///< affect-entire is held on a kit
 	bool operator==(const Addresses&) const = default;

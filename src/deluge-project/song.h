@@ -72,6 +72,8 @@ public:
 	/// @param address The chain's address.
 	/// @return The chain, or nullptr.
 	[[nodiscard]] FxChain* resolveChain(ChainAddress address);
+	/// @copydoc resolveChain
+	[[nodiscard]] const FxChain* resolveChain(ChainAddress address) const;
 
 	/// @brief Find a clip's DOM-owned structural record.
 	///

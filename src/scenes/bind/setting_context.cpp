@@ -13,4 +13,18 @@ engine::SettingContext setting_context(const project::Song& /*model*/, project::
 	        .loaded_sources = facts.loaded_sources(slot)};
 }
 
+engine::SettingContext setting_context(project::ChainAddress /*chain*/, ChainOwner owner) {
+	using Owner = engine::SettingContext::Owner;
+	using Instrument = engine::SettingContext::Instrument;
+	switch (owner) {
+	case ChainOwner::KIT:
+		return {.owner = Owner::KIT, .instrument = Instrument::KIT};
+	case ChainOwner::AUDIO_TRACK:
+		return {.owner = Owner::TRACK, .instrument = Instrument::AUDIO};
+	case ChainOwner::SONG:
+		break;
+	}
+	return {.owner = Owner::SONG, .instrument = Instrument::NONE};
+}
+
 } // namespace deluge::scenes::bind

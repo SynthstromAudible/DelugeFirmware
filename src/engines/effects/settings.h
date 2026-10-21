@@ -210,4 +210,12 @@ static_assert(engine::mappings_are_valid(kEffectSettings));
 [[nodiscard]] std::optional<serialization::Value> effect_setting_value(const EffectStates& states,
                                                                        std::string_view path);
 
+/// @brief The value @p states hold at @p path whether or not the path applies, as the row stores it: a CHOICE row's
+/// index, else the number. The read path of a host chain's SettingReader (see engine::SettingContext's host contract).
+/// @param states The effect settings to read.
+/// @param path   The setting's path in an owner's element.
+/// @return The stored value, or nullopt for a path kEffectSettings does not hold or a word that is none of its row's
+///         choices.
+[[nodiscard]] std::optional<int32_t> held_effect_setting(const EffectStates& states, std::string_view path);
+
 } // namespace deluge::effects

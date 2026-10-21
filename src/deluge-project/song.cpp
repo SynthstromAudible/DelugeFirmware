@@ -109,6 +109,10 @@ FxChain* Song::resolveChain(ChainAddress address) {
 	return output != nullptr && output->effects ? &*output->effects : nullptr;
 }
 
+const FxChain* Song::resolveChain(ChainAddress address) const {
+	return const_cast<Song*>(this)->resolveChain(address); // a lookup: nothing is created or changed
+}
+
 // A clip's structural record is tree-resident by its durable id (clip_structure), always set at construction, so
 // there is no transient session-keyed store.
 DocClip* Song::resolveClip(const ClipAddress& address) {

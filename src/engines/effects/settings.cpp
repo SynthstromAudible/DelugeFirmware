@@ -112,4 +112,18 @@ std::optional<serialization::Value> effect_setting_value(const EffectStates& sta
 	                                  : flag(states.stutter.ping_pong);
 }
 
+std::optional<int32_t> held_effect_setting(const EffectStates& states, std::string_view path) {
+	const engine::SettingInfo* row = engine::find_setting(kEffectSettings, path);
+	const Answer value = effect_setting_value(states, path);
+	if (row == nullptr || !value) {
+		return std::nullopt;
+	}
+	if (row->kind == engine::SettingKind::CHOICE) {
+		return engine::stored_value(*row, value->str());
+	}
+	// Any other row's held text is a whole number (a BOOL's too), read without the row's bounds.
+	const std::optional<int64_t> n = engine::whole_number(value->str());
+	return n ? std::optional<int32_t>{static_cast<int32_t>(*n)} : std::nullopt;
+}
+
 } // namespace deluge::effects

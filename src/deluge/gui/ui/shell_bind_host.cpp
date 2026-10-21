@@ -6,8 +6,10 @@
 #include "model/drum/drum.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_engine_setting.h"
+#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
+#include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -59,13 +61,15 @@ private:
 	uint32_t refusals_{0};
 };
 
-/// The runtime facts, answered from the running app: the audio engine's inputs, and each sound's sources and typed
-/// state, found by its slot in the current song.
+/// The runtime facts, answered from the running app: the audio engine's inputs, each sound's sources and typed
+/// state, found by its slot in the current song, and each host chain's effects, found by its address.
 class ShellRuntimeFacts final : public deluge::scenes::bind::RuntimeFacts {
 public:
 	[[nodiscard]] bool audio_inputs_present() const override;
 	[[nodiscard]] uint8_t loaded_sources(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] const deluge::instrument::SoundState* sound_state(deluge::project::SlotAddress slot) const override;
+	[[nodiscard]] const deluge::effects::EffectStates*
+	chain_effects(deluge::project::ChainAddress chain) const override;
 };
 
 ShellEditSink& shell_edit_sink() {
@@ -179,6 +183,11 @@ uint8_t ShellRuntimeFacts::loaded_sources(deluge::project::SlotAddress slot) con
 const deluge::instrument::SoundState* ShellRuntimeFacts::sound_state(deluge::project::SlotAddress slot) const {
 	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
 	return sound != nullptr ? sound->boundState() : nullptr;
+}
+
+const deluge::effects::EffectStates* ShellRuntimeFacts::chain_effects(deluge::project::ChainAddress chain) const {
+	::GlobalEffectable* owner = currentSong != nullptr ? deluge::bridge::chainOwnerAt(chain, *currentSong) : nullptr;
+	return owner != nullptr ? &owner->effects() : nullptr;
 }
 
 uint32_t shellEditRefusals() {

@@ -3,12 +3,15 @@
 #include "engine-api/types/engine_id.h"
 #include "engine-api/types/setting.h"
 #include "engines/deluge/settings.h"
+#include "engines/effects/settings.h"
 #include "gui/l10n/setting_names.h"
+#include "scenes/bind/chain_reader.h"
 #include "scenes/bind/setting_context.h"
 #include "scenes/bind/slot_reader.h"
 
 #include <array>
 #include <tuple>
+#include <variant>
 
 namespace deluge::scenes::bind {
 
@@ -17,24 +20,62 @@ namespace {
 /// A choice list holds at most this many entries: the most choices any row has, plus a stale one.
 constexpr size_t kMaxEntries = 32;
 
-/// A target resolved against the song: its row, its reader and its context.
+/// A row's held values, read from a sound's slot or a host chain.
+class Reader {
+public:
+	explicit Reader(SlotReader slot) : reader_{slot} {}
+	explicit Reader(ChainReader chain) : reader_{chain} {}
+	[[nodiscard]] bool resolved() const {
+		return std::visit([](const auto& reader) { return reader.resolved(); }, reader_);
+	}
+	[[nodiscard]] std::optional<int32_t> read(std::string_view path) const {
+		return std::visit([path](const auto& reader) { return reader.read(path); }, reader_);
+	}
+	/// Valid while this object lives.
+	[[nodiscard]] engine::SettingReader reader() const {
+		return std::visit([](const auto& reader) { return reader.reader(); }, reader_);
+	}
+
+private:
+	std::variant<SlotReader, ChainReader> reader_;
+};
+
+/// A target resolved against the song: its row, its reader, its context and whose name table names it.
 struct Resolved {
 	const engine::SettingInfo* row;
-	SlotReader reader;
+	Reader reader;
 	engine::SettingContext context;
+	engine::EngineId names_owner;
 };
 
 std::optional<Resolved> resolve(const Target& target, const project::Song& model, const Addresses& where,
                                 const RuntimeFacts& facts) {
-	if (target.kind != Target::Kind::SOUND || !where.slot) {
+	const bool effect = target.kind == Target::Kind::EFFECT;
+	if (target.kind != Target::Kind::SOUND && !effect) {
 		return std::nullopt;
 	}
-	const engine::SettingInfo* row = engine::find_setting(instrument::kSettings, target.path);
-	SlotReader reader{model, *where.slot, facts};
-	if (row == nullptr || !reader.resolved()) {
+	// A sound's effects are rows of its own table, read and named as its other settings are; a host chain's are named
+	// by the host chains' table.
+	const engine::SettingInfo* row =
+	    engine::find_setting(effect ? effects::kEffectSettings : instrument::kSettings, target.path);
+	if (row == nullptr) {
 		return std::nullopt;
 	}
-	return Resolved{row, reader, setting_context(model, *where.slot, facts)};
+	if (where.slot) {
+		Reader reader{SlotReader{model, *where.slot, facts}};
+		if (!reader.resolved()) {
+			return std::nullopt;
+		}
+		return Resolved{row, reader, setting_context(model, *where.slot, facts), engine::kDelugeInstrument};
+	}
+	if (effect && where.chain) {
+		Reader reader{ChainReader{model, *where.chain, facts}};
+		if (!reader.resolved()) {
+			return std::nullopt;
+		}
+		return Resolved{row, reader, setting_context(*where.chain, where.chain_owner), engine::kGlobalEffectable};
+	}
+	return std::nullopt;
 }
 
 /// A CHOICE row's listed entries: the menu values whose choice applies, in menu order, with the stored one inserted
@@ -120,7 +161,7 @@ size_t choice_names(const Target& target, const project::Song& model, const Addr
 		return 0;
 	}
 	// The names as the menu shows the row in its context: with no input plugged in, one input entry named "Input".
-	const l10n::SettingNames* names = l10n::setting_names(engine::kDelugeInstrument, target.path, resolved->context);
+	const l10n::SettingNames* names = l10n::setting_names(resolved->names_owner, target.path, resolved->context);
 	if (names == nullptr) {
 		return 0;
 	}

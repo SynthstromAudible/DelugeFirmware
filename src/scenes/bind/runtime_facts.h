@@ -3,8 +3,10 @@
 /// @file
 /// @brief The facts a menu needs that the model does not hold.
 
+#include "deluge-project/fx_chain.h"
 #include "deluge-project/instrument_slot.h"
 #include "engines/deluge/sound_state.h"
+#include "engines/effects/state.h"
 
 #include <cstdint>
 
@@ -24,6 +26,9 @@ public:
 	/// the slot decodes to, kept equal to it by every Edit, plus what no file can hold (an FM sound's oscillator types,
 	/// a non-FM sound's modulators): a read of a row a menu does not show, which a condition may still read, needs it.
 	[[nodiscard]] virtual const instrument::SoundState* sound_state(project::SlotAddress slot) const = 0;
+	/// @brief The effects' typed state of the chain at @p chain, or nullptr when there is no such chain. It is what the
+	/// chain's record decodes to, kept equal to it by every Edit.
+	[[nodiscard]] virtual const effects::EffectStates* chain_effects(project::ChainAddress chain) const = 0;
 };
 
 } // namespace deluge::scenes::bind
