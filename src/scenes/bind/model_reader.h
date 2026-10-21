@@ -17,7 +17,7 @@ namespace deluge::scenes::bind {
 /// @brief Reads one owner's settings of a model group (the song's, a track's, a clip's, a lane's, a note row's): each
 /// row's stored value as project::read_setting gives it, whether or not the row applies. A bend range the clip or kit
 /// row does not hold reads as the one its expression set plays; a kit row that cannot hold note tails reads as out of
-/// its kit's arp.
+/// its kit's arp; a choice whose word the row does not name reads as the row's default.
 class ModelReader {
 public:
 	/// @param model   The song.

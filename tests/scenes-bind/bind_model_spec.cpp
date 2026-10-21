@@ -107,6 +107,19 @@ describe bind_model("a model target", ${
 		expect(shown(SettingGroupId::CLIP_VALUES, "bendRange", midi)).to_equal(12);
 	});
 
+	it("shows a choice its record holds no word for as the row's default, and lets it be chosen again", _ {
+		ModelFixture f;
+		f.song.output_structure.getOrCreate(kMidiTrack.output_id).output_mpe_y = 2; // a file's CC 2
+		const Addresses midi{.track = kMidiTrack, .instrument = Instrument::MIDI};
+		const Target y = model(SettingGroupId::INSTRUMENT_DEVICE, "outputMpeY");
+		const auto shown = view(y, f.song, midi, f.facts);
+		expect(shown.has_value()).to_be_true();
+		expect(shown->value).to_equal(0); // CC 74, as legacy shows any CC other than 1
+		const auto request = request_for(y, f.song, midi, f.facts, 1);
+		expect(request.has_value()).to_be_true();
+		expect(request->menu_value).to_equal(1);
+	});
+
 	it("applies a row as its conditions say in the owner's context", _ {
 		ModelFixture f;
 		const Target cv2 = model(SettingGroupId::INSTRUMENT_DEVICE, "cv2Source");
