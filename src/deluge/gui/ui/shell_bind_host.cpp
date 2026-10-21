@@ -1,5 +1,6 @@
 #include "gui/ui/shell_bind_host.h"
 
+#include "deluge-project/setting_group.h"
 #include "engine-api/types/setting.h"
 #include "engines/deluge/settings.h"
 #include "engines/deluge/words.h"
@@ -11,6 +12,7 @@
 #include "model/edits/set_effect_setting.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/edits/set_kit_setting.h"
+#include "model/edits/set_setting.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -136,12 +138,23 @@ ShellEditSink& shell_edit_sink() {
 void ShellEditSink::write(const WriteRequest& request) {
 	using Kind = deluge::scenes::bind::Target::Kind;
 	const Kind kind = request.target.kind;
-	if (currentSong == nullptr || (kind != Kind::SOUND && kind != Kind::EFFECT)) {
+	if (currentSong == nullptr || kind == Kind::NONE) {
 		return;
 	}
-	const std::span<const deluge::engine::SettingInfo> table =
-	    kind == Kind::EFFECT ? deluge::effects::kEffectSettings : deluge::instrument::kSettings;
-	const deluge::engine::SettingInfo* row = deluge::engine::find_setting(table, request.target.path);
+	// A model group's record (a MODEL target, or a sound setting on an audio clip), else a sound's or a chain's.
+	const std::optional<deluge::project::SettingAddress> model =
+	    deluge::scenes::bind::setting_address(request.target, request.where);
+	if (kind == Kind::MODEL && !model) {
+		refusals_++;
+		D_PRINTLN("menu write refused: %.*s has no owner", static_cast<int>(request.target.path.size()),
+		          request.target.path.data());
+		return;
+	}
+	const std::span<const deluge::engine::SettingInfo> table = model ? deluge::project::table_of(model->group)
+	                                                           : kind == Kind::EFFECT ? deluge::effects::kEffectSettings
+	                                                                                  : deluge::instrument::kSettings;
+	const std::string_view path = model && kind == Kind::SOUND ? request.target.audio_clip_path : request.target.path;
+	const deluge::engine::SettingInfo* row = deluge::engine::find_setting(table, path);
 	const auto stored = row != nullptr ? deluge::engine::from_menu(*row, request.menu_value) : std::nullopt;
 	if (!stored) {
 		refusals_++;
@@ -175,6 +188,14 @@ void ShellEditSink::write(const WriteRequest& request) {
 			commit(*partner_row, stored->second);
 		}
 	};
+
+	if (model) {
+		deluge::edits::Context ctx{*currentSong, currentSong->project};
+		commit_both(ctx, [&](std::string on, const deluge::serialization::Value& value) {
+			return deluge::edits::SetSetting{*model, std::move(on), value};
+		});
+		return;
+	}
 
 	const auto apply_to = [&](deluge::project::SlotAddress slot) {
 		if (deluge::bridge::soundAt(*currentSong, slot) == nullptr) {

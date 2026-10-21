@@ -435,6 +435,42 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 	if (ctx.resolved && ctx.is_kit && ctx.output != nullptr) {
 		ctx.addresses.kit_output = ctx.output->id();
 	}
+	// The records a model target edits: the clip and its track, a kit row's lane and (a sound row's) note row; and what
+	// plays them, which the model does not hold but the root does.
+	if (ctx.resolved && !ctx.is_song_view && clip != nullptr && ctx.output != nullptr && ctx.output->id()) {
+		ctx.addresses.clip = deluge::project::ClipAddress{clip->id()};
+		ctx.addresses.track = deluge::project::TrackAddress{*ctx.output->id()};
+		using Instrument = deluge::engine::SettingContext::Instrument;
+		switch (output_type) {
+		case OutputType::SYNTH:
+			ctx.addresses.instrument = Instrument::SYNTH;
+			break;
+		case OutputType::KIT:
+			ctx.addresses.instrument = Instrument::KIT;
+			break;
+		case OutputType::MIDI_OUT:
+			ctx.addresses.instrument = Instrument::MIDI;
+			break;
+		case OutputType::CV:
+			ctx.addresses.instrument = Instrument::CV;
+			break;
+		case OutputType::AUDIO:
+			ctx.addresses.instrument = Instrument::AUDIO;
+			break;
+		default:
+			break;
+		}
+		if (ctx.is_drum) {
+			const Drum* drum = static_cast<Kit*>(ctx.output)->selectedDrum;
+			if (drum != nullptr && drum->id()) {
+				ctx.addresses.lane = deluge::project::LaneAddress{*ctx.output->id(), *drum->id()};
+				if (drum->type == DrumType::SOUND) {
+					ctx.addresses.note_row = deluge::project::NoteRowAddress{
+					    .clip_id = clip->id(), .is_kit = true, .row_key = static_cast<int32_t>(*drum->id())};
+				}
+			}
+		}
+	}
 	// The chain an effect target edits when no sound is: the whole kit's, an audio track's or the master's. The model's
 	// address cannot say which kind of output holds it; the root can.
 	if (ctx.resolved && ctx.sound == nullptr && ctx.mod != nullptr) {
