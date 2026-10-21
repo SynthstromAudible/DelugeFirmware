@@ -1,0 +1,112 @@
+name: Firmware Size
+
+# Compares the PR's Release build against the latest successful Release build
+# on the target branch with `dbt elfsize` and posts the result on the PR.
+# Runs from workflow_run so it can comment on PRs from forks.
+
+on:
+  workflow_run:
+    workflows: [Pull Request Build]
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  firmware-size:
+    name: Report firmware size
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    permissions:
+      actions: read
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ARTIFACT: dev_Release_build_bundle
+    steps:
+      # workflow_run checks out the default branch. Never check out the PR here:
+      # this job can write to PRs. The PR build is only read as an ELF file.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download PR build
+        env:
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" -n pr-metadata -D pr
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" -n "$ARTIFACT" -D new
+
+      - name: Read PR metadata
+        id: pr
+        run: |
+          number=$(cat pr/number)
+          base_ref=$(cat pr/base_ref)
+          [[ "$number" =~ ^[0-9]+$ ]] || { echo "::error::Invalid PR number"; exit 1; }
+          [[ "$base_ref" =~ ^[A-Za-z0-9._/-]+$ ]] || { echo "::error::Invalid base ref"; exit 1; }
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+          echo "base_ref=$base_ref" >> "$GITHUB_OUTPUT"
+
+      - name: Download baseline build
+        id: baseline
+        env:
+          BASE_REF: ${{ steps.pr.outputs.base_ref }}
+        run: |
+          run=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow pr-build.yml \
+            --branch "$BASE_REF" --event push --status success --limit 1 \
+            --json databaseId,headSha --jq '.[] | "\(.databaseId) \(.headSha)"')
+          if [ -z "$run" ]; then
+            echo "::warning::No successful Release build found on $BASE_REF"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          read -r run_id sha <<< "$run"
+          if ! gh run download "$run_id" --repo "$GITHUB_REPOSITORY" -n "$ARTIFACT" -D baseline; then
+            echo "::warning::Baseline build artifact from run $run_id is unavailable (expired?)"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Compare sizes
+        if: steps.baseline.outputs.found == 'true'
+        run: |
+          set -o pipefail
+          image="ghcr.io/synthstromaudible/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION)"
+          docker pull -q "$image"
+          docker run --rm \
+            --user="$(id --user):$(id --group)" \
+            -e DBT_NO_PYTHON_UPGRADE=1 \
+            -v "$(pwd)":/src \
+            "$image" \
+            elfsize \
+            --baseline baseline/*.elf \
+            new/*.elf | tee elfsize.txt
+
+      - name: Write report
+        if: steps.baseline.outputs.found == 'true'
+        env:
+          BASE_REF: ${{ steps.pr.outputs.base_ref }}
+          BASE_SHA: ${{ steps.baseline.outputs.sha }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          {
+            echo "## Firmware size"
+            echo
+            echo "Release build of ${HEAD_SHA:0:7} compared with \`$BASE_REF\` at ${BASE_SHA:0:7}."
+            echo
+            echo '```'
+            cat elfsize.txt
+            echo '```'
+          } > report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment on PR
+        if: steps.baseline.outputs.found == 'true'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: firmware-size
+          number: ${{ steps.pr.outputs.number }}
+          path: report.md

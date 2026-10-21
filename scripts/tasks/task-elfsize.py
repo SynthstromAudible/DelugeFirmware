@@ -185,9 +185,7 @@ def print_heap_table(old_heap_sizes: dict, new_heap_sizes: dict):
 
 def main() -> int:
     args = argparser().parse_args()
-    print(f"args.baseline {args.baseline}")
     if args.baseline == "beta":
-        print("downloading")
         path = "./scratch/beta_zip.zip"
         url = "https://github.com/SynthstromAudible/DelugeFirmware/releases/download/beta/beta.zip"
         os.makedirs("./scratch", exist_ok=True)
@@ -202,7 +200,7 @@ def main() -> int:
     new_sections = parse_sections(args.new_elf)
 
     if not old_sections:
-        print(f"Could not read any sections from '{args.old_elf}'", file=sys.stderr)
+        print(f"Could not read any sections from '{old_elf}'", file=sys.stderr)
         return 1
     if not new_sections:
         print(f"Could not read any sections from '{args.new_elf}'", file=sys.stderr)
