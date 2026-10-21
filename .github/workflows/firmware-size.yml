@@ -129,11 +129,31 @@ jobs:
           BASE_REF: ${{ steps.pr.outputs.base_ref }}
           BASE_SHA: ${{ steps.baseline.outputs.sha }}
           HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
         run: |
+          # PR builds are of GitHub's merge of the PR into the target branch. The ELF
+          # name ends in that merge commit's hash; its first parent is the target
+          # branch commit the PR was built on.
+          elfs=(new/*.elf)
+          build_sha=${elfs[0]%.elf}
+          build_sha=${build_sha##*-}
+          built_on=""
+          if [[ "$build_sha" =~ ^[0-9a-f]{7,40}$ ]]; then
+            built_on=$(gh api "repos/$GITHUB_REPOSITORY/commits/$build_sha" --jq '.parents[0].sha') || built_on=""
+          fi
           {
             echo "## Firmware size"
             echo
-            echo "Release build of ${HEAD_SHA:0:7} compared with \`$BASE_REF\` at ${BASE_SHA:0:7}."
+            if [ -n "$built_on" ]; then
+              echo "PR #$PR_NUMBER at ${HEAD_SHA:0:7}, merged into \`$BASE_REF\` (build ${build_sha:0:7}), compared with \`$BASE_REF\` at ${BASE_SHA:0:7}."
+              if [ "$built_on" != "$BASE_SHA" ]; then
+                echo
+                echo "> [!NOTE]"
+                echo "> This PR was built on \`$BASE_REF\` at ${built_on:0:7}, so the difference may include changes to \`$BASE_REF\` between ${built_on:0:7} and ${BASE_SHA:0:7}."
+              fi
+            else
+              echo "PR #$PR_NUMBER at ${HEAD_SHA:0:7} compared with \`$BASE_REF\` at ${BASE_SHA:0:7}."
+            fi
             echo
             echo '```'
             cat elfsize.txt
