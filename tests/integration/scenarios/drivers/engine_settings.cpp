@@ -331,7 +331,8 @@ std::string_view coherence(Sound& sound, Song& song, std::string_view path, cons
 	}
 	const Value encoded =
 	    deluge::instrument::encode(*sound.boundState(), {.input_tick_magnitude = song.getInputTickMagnitude()});
-	const std::string* held = deluge::serialization::text_of(leafAt(deluge::bridge::refreshSlot(sound, *slot), path));
+	const Value refreshed = deluge::bridge::refreshSlot(sound, *slot);
+	const std::string* held = deluge::serialization::text_of(leafAt(refreshed, path));
 	if (leafAt(encoded, path) != nullptr && (held == nullptr || *held != slotForm(path, value, song).str())) {
 		return "value";
 	}
@@ -389,7 +390,8 @@ int settingLegs(Sound& sound, Song& song, const char* name) {
 			}
 			continue;
 		}
-		const Value* held = leafAt((*deluge::bridge::refreshedSlotState(song, *address)), path);
+		const Value slotNow = *deluge::bridge::refreshedSlotState(song, *address);
+		const Value* held = leafAt(slotNow, path);
 		const std::optional<Value> old =
 		    held != nullptr ? std::optional<Value>{editForm(path, *held, song)} : std::nullopt;
 		for (const Value& value : legalValues(*row, old ? &old->str() : nullptr)) {
@@ -420,7 +422,7 @@ int settingLegs(Sound& sound, Song& song, const char* name) {
 				                              || (old->str() == "wavetable" && value.str() == "sample");
 				if (failed.empty() && path.ends_with("/type") && sound.getSynthMode() == SynthMode::SUBTRACTIVE
 				    && !rangeKindChanges) {
-					const Value& now = (*deluge::bridge::refreshedSlotState(song, *address));
+					const Value now = *deluge::bridge::refreshedSlotState(song, *address);
 					if (std::string d = deluge::serialization::first_difference(now, slotBefore); !d.empty()) {
 						std::fprintf(io.err, "type round trip differs at %s\n", d.c_str());
 						failed = "type round trip";

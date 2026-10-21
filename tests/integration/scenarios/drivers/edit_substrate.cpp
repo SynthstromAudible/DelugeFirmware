@@ -514,8 +514,8 @@ void testSetEngineSetting(deluge::edits::Context& ctx) {
 	deluge::edits::SetEngineSetting edit{*slot, "voicePriority", Value::makeNumber(2)};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "setting: a mapped path is applied");
 	check(sound.snapshot().voicePriority == VoicePriority::HIGH, "setting: the sound takes the value");
-	const std::string* held =
-	    deluge::serialization::text_of((*deluge::bridge::refreshedSlotState(ctx.song, *slot)).find("voicePriority"));
+	const Value slotNow = *deluge::bridge::refreshedSlotState(ctx.song, *slot);
+	const std::string* held = deluge::serialization::text_of(slotNow.find("voicePriority"));
 	check(held != nullptr && *held == "2", "setting: the slot holds the value");
 
 	const Value before = (*deluge::bridge::refreshedSlotState(ctx.song, *slot));
@@ -628,15 +628,6 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	check(
 	    deluge::serialization::first_difference((*deluge::bridge::refreshedSlotState(ctx.song, *slot)), before).empty(),
 	    "ranges: a refusal leaves the slot");
-
-	// A slot whose tree says something the sound cannot take (another file) beside a setting: a write reads the sound's
-	// state, not the tree, so the setting is taken, and the slot, refreshed, agrees with the sound afterwards.
-	deluge::project::InstrumentSlot& held = *ctx.model.resolveSlot(*slot);
-	held.state = deluge::bridge::withLeaf(held.state, "osc1/fileName", Value::makeScalar("SAMPLES/OTHER.WAV"));
-	deluge::edits::SetEngineSetting priority{*slot, "voicePriority", Value::makeNumber(0)};
-	check(deluge::edits::apply(ctx, priority) == Error::NONE && sound.snapshot().voicePriority == VoicePriority::LOW,
-	      "ranges: a setting beside what the sound cannot take is taken");
-	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "ranges: and the sound stays coherent");
 
 	// A malformed legacy file can leave two ranges on one top note: a change to one of them still takes, judged only
 	// where it changes.

@@ -299,15 +299,26 @@ int compare_store(const char* what, const Store& engine, const Map& decoded) {
 /// 0 when every synth track's and sound kit row's slot in @p project equals the one decoded from the file, else 3 after
 /// printing which and where.
 int compare_slots(const char* label, const deluge::project::Song& project, const SongDocument& d) {
+	// Compared by what each writes: the file's decode starts from a new sound, so a field no file holds (an FM sound's
+	// oscillator types) may differ from the loaded sound's without the slots saying anything different.
+	const auto encoded = [](const deluge::project::InstrumentSlot& slot) {
+		return slot.state.encode({.input_tick_magnitude = slot.tick_magnitude});
+	};
 	auto check = [&](const char* what, uint32_t id, const auto* record, const auto& decoded) -> int {
-		const bool same = record != nullptr && record->instrument == decoded.instrument;
+		const bool present = record != nullptr && record->instrument.has_value() == decoded.instrument.has_value();
+		const bool same = present
+		                  && (!decoded.instrument
+		                      || (record->instrument->engine == decoded.instrument->engine
+		                          && record->instrument->tick_magnitude == decoded.instrument->tick_magnitude
+		                          && encoded(*record->instrument) == encoded(*decoded.instrument)));
 		if (same) {
 			return 0;
 		}
 		std::string where = "a slot is missing";
 		if (record != nullptr && record->instrument && decoded.instrument) {
 			where =
-			    "at " + deluge::serialization::first_difference(decoded.instrument->state, record->instrument->state);
+			    "at "
+			    + deluge::serialization::first_difference(encoded(*decoded.instrument), encoded(*record->instrument));
 		}
 		std::fprintf(io.err, "DECODE DIFF: %s slot of %s %u differs (%s)\n", label, what, id, where.c_str());
 		return 3;

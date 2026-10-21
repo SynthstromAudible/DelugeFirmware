@@ -128,10 +128,10 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 		return {};
 	}
 	const deluge::instrument::SoundState& record = *sound.boundState();
-	// Writes change the state and leave the slot's tree behind, a cache of it: its readers refresh it first.
-	if (deluge::project::InstrumentSlot* slot = song.project.resolveSlot(*address)) {
-		deluge::bridge::refreshSlot(sound, *slot);
-	}
+	// The slot's state, taken from the sound and encoded, as a reader of a slot has it.
+	deluge::project::InstrumentSlot* held = song.project.resolveSlot(*address);
+	const std::optional<Value> slotTree =
+	    held != nullptr ? std::optional<Value>{deluge::bridge::refreshSlot(sound, *held)} : std::nullopt;
 	if (checks.runtime) {
 		const std::string d = deluge::serialization::first_difference(
 		    deluge::instrument::dump_state(sound.seededState()), deluge::instrument::dump_state(record));
@@ -151,7 +151,7 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 			return "slot missing";
 		}
 		const Value encoded = deluge::instrument::encode(record, {.input_tick_magnitude = slot->tick_magnitude});
-		if (std::string d = stateDifference(slot->state, encoded); !d.empty()) {
+		if (std::string d = stateDifference(*slotTree, encoded); !d.empty()) {
 			return "slot at " + d;
 		}
 	}
@@ -172,7 +172,7 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 			return "decode: slot missing";
 		}
 		const auto decoded =
-		    deluge::instrument::decode_onto(slot->state, record, {.input_tick_magnitude = slot->tick_magnitude});
+		    deluge::instrument::decode_onto(*slotTree, record, {.input_tick_magnitude = slot->tick_magnitude});
 		if (!decoded) {
 			return "decode refused";
 		}

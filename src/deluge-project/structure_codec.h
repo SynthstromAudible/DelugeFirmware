@@ -96,20 +96,6 @@ inline constexpr uint8_t kMidiOutputMpeYDefault = 74;
 [[nodiscard]] std::expected<void, LoadError> decode_identity(const serialization::Value& drumElement,
                                                              std::string_view element, DocDrum& drum);
 
-/// @brief The instrument of a synth track's `sound` element: the element's entries the model does not own (its id,
-/// identity keys and controls), in order, for the Deluge instrument, written at the song's @p tick_magnitude.
-/// @param element        The `sound` element.
-/// @param tick_magnitude The song's input tick magnitude.
-/// @return The slot.
-[[nodiscard]] InstrumentSlot slot_of_output(const serialization::Value& element, int32_t tick_magnitude);
-
-/// @brief The instrument of a sound kit row's element: its entries other than its id, name and controls, in order,
-/// written at the song's @p tick_magnitude.
-/// @param element        The kit row's element.
-/// @param tick_magnitude The song's input tick magnitude.
-/// @return The slot.
-[[nodiscard]] InstrumentSlot slot_of_drum(const serialization::Value& element, int32_t tick_magnitude);
-
 /// @brief The element a drum of @p type is written as.
 /// @param type The drum type.
 /// @return The element name.

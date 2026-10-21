@@ -115,21 +115,22 @@ Error applyDifference(::Sound& sound, const deluge::instrument::SoundState& old,
 /// @return Error::UNSPECIFIED when an apply is refused or the runtime did not reach the state.
 Error commitState(::Sound& sound, const deluge::instrument::SlotChange& change, ::Song& song);
 
-/// @brief @p slot's tree as @p sound's state encodes it now (syncSlotState): what a reader of a slot's tree calls
-/// first, since writes change the state and leave the tree behind.
+/// @brief @p slot's state taken from @p sound's (syncSlotState), and its encoding at the slot's magnitude: what a
+/// reader of a slot calls first, since writes change the sound's state.
 ///
 /// @param sound The sound playing the slot.
 /// @param slot  Its slot.
-/// @return The refreshed tree.
-const deluge::serialization::Value& refreshSlot(const ::Sound& sound, deluge::project::InstrumentSlot& slot);
+/// @return The slot's state, encoded.
+[[nodiscard]] deluge::serialization::Value refreshSlot(const ::Sound& sound, deluge::project::InstrumentSlot& slot);
 
-/// @brief The tree of the slot @p address names, refreshed from the sound playing it, or nullptr where @p song has no
-/// such slot or sound.
+/// @brief The slot @p address names, refreshed from the sound playing it and encoded (refreshSlot), or nothing where
+/// @p song has no such slot or sound.
 ///
 /// @param song    The song.
 /// @param address The slot's address.
-/// @return The refreshed tree, or nullptr.
-const deluge::serialization::Value* refreshedSlotState(::Song& song, deluge::project::SlotAddress address);
+/// @return The encoded slot, or nullopt.
+[[nodiscard]] std::optional<deluge::serialization::Value> refreshedSlotState(::Song& song,
+                                                                             deluge::project::SlotAddress address);
 
 /// @brief A check of the typed writes, for the gates: when enabled, each setting, DX patch or ranges write is also made
 /// the old way (its slot refreshed, the change written into the tree and the tree decoded), and each write whose state

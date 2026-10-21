@@ -301,8 +301,8 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		bindings::write(menu::nodes::osc0_type, ctx, 4);
 		deluge::project::InstrumentSlot* slot = f.song->project.resolveSlot(*ctx.addresses.slot);
 		expect(slot != nullptr).to_be_true();
-		deluge::bridge::refreshSlot(*drum, *slot); // a cache of the state, refreshed by its readers
-		const auto decoded = deluge::instrument::decode_onto(slot->state, *drum->boundState(),
+		const deluge::serialization::Value tree = deluge::bridge::refreshSlot(*drum, *slot);
+		const auto decoded = deluge::instrument::decode_onto(tree, *drum->boundState(),
 		                                                     {.input_tick_magnitude = slot->tick_magnitude});
 		expect(decoded.has_value()).to_be_true();
 		expect(deluge::instrument::dump_state(*decoded) == deluge::instrument::dump_state(*drum->boundState()))

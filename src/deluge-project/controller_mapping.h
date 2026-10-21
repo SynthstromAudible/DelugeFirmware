@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge-project/fx_chain.h"
+#include "deluge-project/instrument_slot.h"
 #include "engine-api/types/param.h"
 #include "engine-api/types/param_naming.h"
 
@@ -56,6 +57,8 @@ struct CodecEngines {
 	std::span<const deluge::engine::ParamNaming> namings;
 	/// How a host owner's effects are read and written; unset, the model keeps no chains.
 	ChainCodec chains;
+	/// How a sound's instrument is read and written; unset, the model keeps no instruments.
+	InstrumentCodec instruments;
 };
 
 } // namespace deluge::project

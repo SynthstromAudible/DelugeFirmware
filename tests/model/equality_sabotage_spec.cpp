@@ -1,4 +1,5 @@
 #include "controls_test_engines.h"
+#include "engines/deluge/engine.h"
 #include "engines/deluge/params.h"
 #include "equality/equality.h"
 #include "serialization/parse_xml.h"
@@ -141,7 +142,8 @@ describe equality_sabotage("the model-equality gate", ${
 		faults.on_decoded = [](SongDocument& document) {
 			for (auto& [id, output] : document.outputs) {
 				if (output.instrument) {
-					output.instrument->state.set("mode", deluge::serialization::Value::makeScalar("fm"));
+					output.instrument->state.as<deluge::instrument::DelugeInstrument>()->synth_mode =
+					    deluge::instrument::SynthMode::FM;
 					return;
 				}
 			}
@@ -184,7 +186,8 @@ describe equality_sabotage("the model-equality gate", ${
 		faults.on_decoded = [](SongDocument& document) {
 			for (auto& [id, drum] : document.drums) {
 				if (drum.instrument) {
-					drum.instrument->state.set("mode", deluge::serialization::Value::makeScalar("fm"));
+					drum.instrument->state.as<deluge::instrument::DelugeInstrument>()->synth_mode =
+					    deluge::instrument::SynthMode::FM;
 					return;
 				}
 			}

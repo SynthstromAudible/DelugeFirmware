@@ -82,7 +82,8 @@ describe document("the model's parts of a whole song", ${
 		SongDocument a = decoded(kSynthArp);
 		expect(a.outputs.at(1).arp.has_value()).to_be_true();
 		expect(static_cast<int>(a.outputs.at(1).arp->num_octaves)).to_equal(3);
-		expect(a.outputs.at(1).instrument->state.find("arpeggiator") == nullptr).to_be_true();
+		expect(a.outputs.at(1).instrument->state.encode({.input_tick_magnitude = 2}).find("arpeggiator") == nullptr)
+		    .to_be_true();
 		expect(through_json(a)).to_equal(a);
 		expect(decoded(kSong).outputs.at(1).arp.has_value()).to_be_false();
 	});

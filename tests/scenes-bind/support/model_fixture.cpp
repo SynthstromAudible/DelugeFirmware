@@ -1,6 +1,7 @@
 #include "support/model_fixture.h"
 
 #include "engines/deluge/codec.h"
+#include "engines/deluge/engine.h"
 
 namespace deluge::scenes::bind::test {
 
@@ -40,7 +41,7 @@ ModelFixture::ModelFixture() {
 void ModelFixture::set_state(project::SlotAddress slot, const instrument::SoundState& state) {
 	facts.states[slot.id] = state;
 	project::InstrumentSlot made{.engine = "deluge.instrument",
-	                             .state = instrument::encode(state, engine::CodecContext{.input_tick_magnitude = 1}),
+	                             .state = engine::StateHandle::of<instrument::DelugeInstrument>(state),
 	                             .tick_magnitude = 1};
 	if (slot.kind == project::SlotAddress::Kind::OUTPUT) {
 		song.output_structure.getOrCreate(slot.id).instrument = std::move(made);

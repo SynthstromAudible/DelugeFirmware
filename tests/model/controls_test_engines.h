@@ -7,6 +7,7 @@
 #include "deluge-project/controller_mapping.h"
 #include "engines/deluge/naming.h"
 #include "engines/global_effectable/naming.h"
+#include "instrument_test_engines.h"
 
 #include <array>
 
@@ -21,7 +22,8 @@ inline const std::array<deluge::engine::ParamNaming, 2>& test_namings() {
 
 /// @brief The engines the tests' codecs use.
 inline CodecEngines test_engines() {
-	return CodecEngines{.namings = test_namings(), .chains = test_chain_codec()};
+	return CodecEngines{
+	    .namings = test_namings(), .chains = test_chain_codec(), .instruments = test_instrument_codec()};
 }
 
 } // namespace deluge::project::test

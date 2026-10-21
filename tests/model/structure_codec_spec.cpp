@@ -1,5 +1,6 @@
 #include "codec_support.h"
 #include "deluge-project/structure_codec.h"
+#include "instrument_test_engines.h"
 #include "serialization/parse_xml.h"
 
 #include <cppspec.hpp>
@@ -114,57 +115,31 @@ describe structure_codec("the structure records", ${
 		}
 	});
 
-	it("keeps everything in a synth track's element the model does not own, in order, as the track's instrument", _ {
+	it("hands a synth track's element to its instrument, which writes back its settings and not the model's keys", _ {
 		auto doc = deluge::serialization::parseXml(R"(<sound id="3" presetName="Bass" colour="5" polyphonic="poly")"
 		                                           R"( mode="fm"><osc1 type="sine"/><unison num="1"/></sound>)");
-		InstrumentSlot slot = slot_of_output(*doc->find("sound"), 2);
-		expect(slot.engine).to_equal(std::string("deluge.instrument"));
-		expect(slot.tick_magnitude).to_equal(2);
-		std::vector<std::string> keys;
-		for (const auto& [key, value] : slot.state.entries()) {
-			keys.push_back(key);
+		const deluge::engine::StateHandle state = test::test_instrument_codec().decode(*doc->find("sound"), 2);
+		expect(state.as<deluge::instrument::DelugeInstrument>()->synth_mode == deluge::instrument::SynthMode::FM)
+		    .to_be_true();
+		deluge::serialization::Value written = deluge::serialization::Value::makeMap();
+		test::test_instrument_codec().encode(state, written, 2);
+		expect(written.find("polyphonic")).not_().to_be_null();
+		for (const char* key : {"id", "presetName", "colour"}) {
+			expect(written.find(key)).to_be_null();
 		}
-		expect(keys).to_equal(std::vector<std::string>{"polyphonic", "mode", "osc1", "unison"});
 	});
 
-	it("keeps a sound drum's sound, without its id and name", _ {
+	it("leaves a sound kit row's id, name, arp, mute command and input to their own records", _ {
 		auto doc = deluge::serialization::parseXml(
-		    R"(<sound id="9" name="KICK" mode="subtractive"><osc1 type="sample"/></sound>)");
-		InstrumentSlot slot = slot_of_drum(*doc->find("sound"), 3);
-		expect(slot.tick_magnitude).to_equal(3);
-		expect(slot.state.find("name")).to_be_null();
-		expect(slot.state.find("id")).to_be_null();
-		expect(slot.state.find("osc1")).not_().to_be_null();
-	});
-
-	it("leaves a sound drum's arp out of its sound, which its lane record holds", _ {
-		auto doc = deluge::serialization::parseXml(
-		    R"(<sound id="9" name="KICK" mode="subtractive"><osc1 type="sample"/><arpeggiator arpMode="arp"/></sound>)");
-		InstrumentSlot slot = slot_of_drum(*doc->find("sound"), 3);
-		expect(slot.state.find("arpeggiator")).to_be_null();
-		expect(slot.state.find("osc1")).not_().to_be_null();
-	});
-
-	it("leaves a synth track's MIDI input out of its sound, which the mapping table holds", _ {
-		auto doc = deluge::serialization::parseXml(
-		    R"(<sound id="3" inputMidiChannel="4" inputMPEZone="upper" mode="fm"><osc1 type="sine"/>)"
-		    R"(<inputMidiDevice name="Midihub" vendorId="0x16D0" productId="0x0C9C"/></sound>)");
-		InstrumentSlot slot = slot_of_output(*doc->find("sound"), 2);
-		std::vector<std::string> keys;
-		for (const auto& [key, value] : slot.state.entries()) {
-			keys.push_back(key);
-		}
-		expect(keys).to_equal(std::vector<std::string>{"mode", "osc1"});
-	});
-
-	it("leaves a sound drum's mute command and input out of its sound, which the mapping table holds", _ {
-		auto doc = deluge::serialization::parseXml(
-		    R"(<sound id="9" name="KICK" mode="subtractive"><osc1 type="sample"/>)"
+		    R"(<sound id="9" name="KICK" mode="subtractive"><osc1 type="sample"/><arpeggiator arpMode="arp"/>)"
 		    R"(<midiMuteCommand channel="2" note="40"/><midiInput channel="3" note="36"/></sound>)");
-		InstrumentSlot slot = slot_of_drum(*doc->find("sound"), 3);
-		expect(slot.state.find("midiMuteCommand")).to_be_null();
-		expect(slot.state.find("midiInput")).to_be_null();
-		expect(slot.state.find("osc1")).not_().to_be_null();
+		const deluge::engine::StateHandle state = test::test_instrument_codec().decode(*doc->find("sound"), 3);
+		deluge::serialization::Value written = deluge::serialization::Value::makeMap();
+		test::test_instrument_codec().encode(state, written, 3);
+		expect(written.find("osc1")).not_().to_be_null();
+		for (const char* key : {"id", "name", "arpeggiator", "midiMuteCommand", "midiInput"}) {
+			expect(written.find(key)).to_be_null();
+		}
 	});
 });
 

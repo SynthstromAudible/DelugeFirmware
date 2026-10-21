@@ -109,15 +109,8 @@ void collect(Output& output, Song& song, const std::string& label, std::vector<S
 	}
 	if (output.type == OutputType::SYNTH) {
 		Sound* sound = static_cast<Sound*>(static_cast<SoundInstrument*>(&output));
-		std::optional<Value> read;
-		if (output.docOutput_ != nullptr && output.docOutput_->instrument) {
-			// The slot as the load left it, unrefreshed: the element the app wrote and read back, which is what this
-			// compares with the encoding.
-			read = output.docOutput_->instrument->state;
-		}
-		else {
-			read = sound->takeLoadedElement();
-		}
+		// The element the app wrote and read back, as the sound read it, which is what this compares with the encoding.
+		std::optional<Value> read = sound->takeLoadedElement();
 		into.push_back({label, sound, *element, std::move(read)});
 		return;
 	}
@@ -135,13 +128,7 @@ void collect(Output& output, Song& song, const std::string& label, std::vector<S
 		const Value* drumElement = children[index++].node;
 		if (drum->type == DrumType::SOUND) {
 			Sound* sound = static_cast<Sound*>(static_cast<SoundDrum*>(drum));
-			std::optional<Value> read;
-			if (drum->docDrum_ != nullptr && drum->docDrum_->instrument) {
-				read = drum->docDrum_->instrument->state;
-			}
-			else {
-				read = sound->takeLoadedElement();
-			}
+			std::optional<Value> read = sound->takeLoadedElement();
 			into.push_back({label + " drum " + std::to_string(drumIndex), sound, *drumElement, std::move(read), true});
 		}
 	}

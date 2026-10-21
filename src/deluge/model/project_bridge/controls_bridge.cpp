@@ -17,6 +17,8 @@
 
 #include "model/project_bridge/controls_bridge.h"
 
+#include "engines/deluge/engine.h"
+
 #include "engines/deluge/cables.h"
 #include "engines/deluge/naming.h"
 #include "engines/global_effectable/naming.h"
@@ -258,10 +260,30 @@ void recordOutputControls(::Output& output, ::Song& song) {
 	*record = isSound ? controlsOf(static_cast<::Sound&>(*own)) : std::vector<ControllerMapping>{};
 }
 
+namespace {
+
+/// A sound element's instrument, read onto a new synth's state as a load reads it.
+deluge::engine::StateHandle decodeInstrument(const deluge::serialization::Value& element, int32_t tick_magnitude) {
+	deluge::instrument::SoundState state = deluge::instrument::new_synth_state();
+	(void)deluge::instrument::decode(element, state, {.input_tick_magnitude = tick_magnitude});
+	return deluge::engine::StateHandle::of<deluge::instrument::DelugeInstrument>(std::move(state));
+}
+
+void encodeInstrument(const deluge::engine::StateHandle& state, deluge::serialization::Value& element,
+                      int32_t tick_magnitude) {
+	for (const auto& [key, value] : state.encode({.input_tick_magnitude = tick_magnitude}).entries()) {
+		element.set(key, value);
+	}
+}
+
+} // namespace
+
 deluge::project::CodecEngines codecEngines() {
 	static const std::array<deluge::engine::ParamNaming, 2> namings{deluge::instrument::kNaming,
 	                                                                deluge::global_effectable::kNaming};
-	return {.namings = namings, .chains = chainCodec()};
+	return {.namings = namings,
+	        .chains = chainCodec(),
+	        .instruments = {.decode = &decodeInstrument, .encode = &encodeInstrument}};
 }
 
 } // namespace deluge::bridge

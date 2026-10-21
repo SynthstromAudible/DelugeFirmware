@@ -39,9 +39,9 @@ std::vector<int> disagreeing(spec::SongFixture& f, std::string_view path, std::s
 		auto& sound = *static_cast<SoundDrum*>(drum);
 		const auto held = deluge::instrument::setting_value(*sound.boundState(), path);
 		auto* slot = f.song->project.resolveSlot(*deluge::bridge::slotAddressOf(sound));
-		deluge::bridge::refreshSlot(sound, *slot); // a cache of the state, refreshed by its readers
-		const auto decoded = deluge::instrument::decode_onto(slot->state, *sound.boundState(),
-		                                                     {.input_tick_magnitude = slot->tick_magnitude});
+		const deluge::serialization::Value tree = deluge::bridge::refreshSlot(sound, *slot);
+		const auto decoded =
+		    deluge::instrument::decode_onto(tree, *sound.boundState(), {.input_tick_magnitude = slot->tick_magnitude});
 		if (!held || held->str() != word || !decoded
 		    || deluge::instrument::dump_state(*decoded) != deluge::instrument::dump_state(*sound.boundState())) {
 			found.push_back(index);

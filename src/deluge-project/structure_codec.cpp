@@ -414,47 +414,6 @@ std::expected<void, LoadError> decode_identity(const Value& outputElement, std::
 	return {};
 }
 
-namespace {
-
-/// The keys of a synth track's element the model reads (decode_song's id, decode_identity's for a `sound`, its
-/// controls, its arp, and the knobs and MIDI input the mapping table holds).
-constexpr std::array<std::string_view, 15> kSoundOutputKeys{
-    "id",        "isMutedInArrangement", "isSoloingInArrangement", "isArmedForRecording", "activeModFunction",
-    "colour",    "presetName",           "presetFolder",           "defaultVelocity",     "modKnobs",
-    "midiKnobs", "inputMidiChannel",     "inputMPEZone",           "inputMidiDevice",     "arpeggiator"};
-/// The keys of a sound kit row's element the model reads (decode_song's id, decode_identity's name, its controls, its
-/// arp, which its lane record holds, and the knobs, mute command and input the mapping table holds).
-constexpr std::array<std::string_view, 7> kSoundDrumKeys{
-    "id", "name", "modKnobs", "midiKnobs", "arpeggiator", "midiMuteCommand", "midiInput"};
-
-template <size_t N>
-InstrumentSlot slot_without(const Value& element, const std::array<std::string_view, N>& ownKeys) {
-	InstrumentSlot slot{.engine = std::string(deluge::engine::kDelugeInstrument.name)};
-	if (!element.isMap()) {
-		return slot;
-	}
-	for (const auto& [key, value] : element.entries()) {
-		if (std::ranges::find(ownKeys, key) == ownKeys.end()) {
-			slot.state.set(key, value);
-		}
-	}
-	return slot;
-}
-
-} // namespace
-
-InstrumentSlot slot_of_output(const Value& element, int32_t tick_magnitude) {
-	InstrumentSlot slot = slot_without(element, kSoundOutputKeys);
-	slot.tick_magnitude = tick_magnitude;
-	return slot;
-}
-
-InstrumentSlot slot_of_drum(const Value& element, int32_t tick_magnitude) {
-	InstrumentSlot slot = slot_without(element, kSoundDrumKeys);
-	slot.tick_magnitude = tick_magnitude;
-	return slot;
-}
-
 std::string_view drum_element(DrumType type) {
 	switch (type) {
 	case DrumType::MIDI:

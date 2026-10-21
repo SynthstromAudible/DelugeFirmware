@@ -205,7 +205,11 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 			recordingFrom.emplace_back(entry.id, *index);
 		}
 		if (output.name == "sound") {
-			record.instrument = slot_of_output(*output.node, magnitude);
+			if (engines.instruments.decode != nullptr) {
+				record.instrument = InstrumentSlot{.engine = std::string(deluge::engine::kDelugeInstrument.name),
+				                                   .state = engines.instruments.decode(*output.node, magnitude),
+				                                   .tick_magnitude = magnitude};
+			}
 			if (const Value* arp = output.node->find("arpeggiator")) {
 				// A sound's element holds the arp's sync level relative to the song's tick magnitude.
 				decode(*arp, record.arp.emplace(), std::optional<int32_t>{magnitude});
@@ -236,7 +240,12 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 					       drumRecord.drum_type == DrumType::SOUND ? std::optional<int32_t>{magnitude} : std::nullopt);
 				}
 				if (drumRecord.drum_type == DrumType::SOUND) {
-					drumRecord.instrument = slot_of_drum(*drum.node, magnitude);
+					if (engines.instruments.decode != nullptr) {
+						drumRecord.instrument =
+						    InstrumentSlot{.engine = std::string(deluge::engine::kDelugeInstrument.name),
+						                   .state = engines.instruments.decode(*drum.node, magnitude),
+						                   .tick_magnitude = magnitude};
+					}
 					if (const deluge::engine::ParamNaming* naming = naming_of("sound", engines)) {
 						drumRecord.controls = decode_controls(*drum.node, *naming);
 						decode_mappings(*drum.node, ControlsAddress{ControlsAddress::Kind::DRUM, id}, document.mappings,
@@ -368,8 +377,8 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 		if (output.effects && engines.chains.encode != nullptr) {
 			engines.chains.encode(*output.effects, element, magnitude);
 		}
-		if (output.instrument) {
-			append_entries(element, output.instrument->state);
+		if (output.instrument && engines.instruments.encode != nullptr) {
+			engines.instruments.encode(output.instrument->state, element, magnitude);
 		}
 		if (output.arp) {
 			// A sound's element holds the arp's sync level relative to the song's tick magnitude.
@@ -393,8 +402,8 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 				if (drumRecord.arp && drumRecord.drum_type != DrumType::SOUND) {
 					drumElement.set("arpeggiator", encode(*drumRecord.arp, std::nullopt));
 				}
-				if (drumRecord.instrument) {
-					append_entries(drumElement, drumRecord.instrument->state);
+				if (drumRecord.instrument && engines.instruments.encode != nullptr) {
+					engines.instruments.encode(drumRecord.instrument->state, drumElement, magnitude);
 				}
 				if (drumRecord.arp && drumRecord.drum_type == DrumType::SOUND) {
 					// A sound's element holds the arp's sync level relative to the song's tick magnitude.

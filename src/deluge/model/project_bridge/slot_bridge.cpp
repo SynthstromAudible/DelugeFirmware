@@ -23,6 +23,7 @@
 #include "deluge-project/structure_codec.h"
 #include "engine-api/types/engine_id.h"
 #include "engines/deluge/codec.h"
+#include "engines/deluge/engine.h"
 #include "engines/deluge/settings.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -42,84 +43,31 @@
 
 namespace deluge::bridge {
 
-void fillSlot(::Sound& sound, deluge::project::InstrumentSlot& slot, bool isDrum, const ::Song& song) {
-	const int32_t magnitude = song.getInputTickMagnitude(); // what the element's sync levels were read at
-	if (std::optional<deluge::serialization::Value> element = sound.takeLoadedElement()) {
-		slot = isDrum ? deluge::project::slot_of_drum(*element, magnitude)
-		              : deluge::project::slot_of_output(*element, magnitude);
-	}
-	else {
-		slot = deluge::project::InstrumentSlot{.engine = std::string(deluge::engine::kDelugeInstrument.name),
-		                                       .tick_magnitude = magnitude};
-	}
+void fillSlot(::Sound& sound, deluge::project::InstrumentSlot& slot, bool /*isDrum*/, const ::Song& song) {
+	slot = deluge::project::InstrumentSlot{.engine = std::string(deluge::engine::kDelugeInstrument.name),
+	                                       .tick_magnitude = song.getInputTickMagnitude()};
+	syncSlotState(sound, slot, song);
 }
 
 namespace {
-
-/// The element an output's write produced: the one item of the list it was written into, unboxed.
-const deluge::serialization::Value* writtenElement(const deluge::serialization::Value& items) {
-	if (!items.isArray() || items.items().size() != 1) {
-		return nullptr;
-	}
-	const deluge::serialization::Value& boxed = items.items().front();
-	if (!boxed.isMap() || boxed.entries().size() != 1) {
-		return nullptr;
-	}
-	return &boxed.entries().front().second;
-}
-
-} // namespace
-
-namespace {
-
-/// The sound drum of @p kit whose durable id is @p id, or nullptr.
-::Sound* soundDrumWithId(Kit& kit, int32_t id) {
-	for (Drum* drum = kit.firstDrum; drum != nullptr; drum = drum->next) {
-		if (drum->type == DrumType::SOUND && static_cast<SoundDrum*>(drum)->id() == static_cast<uint32_t>(id)) {
-			return static_cast<SoundDrum*>(drum);
-		}
-	}
-	return nullptr;
-}
-
+deluge::project::InstrumentSlot* slotOf(::Sound& sound);
 } // namespace
 
 void refreshSlots(::Song& song) {
+	// A sound's slot holds its state: after a save, each takes what its sound holds, as every commit leaves it.
+	const auto sync = [&](::Sound& sound) {
+		if (deluge::project::InstrumentSlot* slot = slotOf(sound)) {
+			syncSlotState(sound, *slot, song);
+		}
+	};
 	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
-		if (output->docOutput_ == nullptr || (output->type != OutputType::SYNTH && output->type != OutputType::KIT)) {
-			continue;
-		}
-		ValueSerializer writer(ValueSerializer::Writes::ITEMS);
-		{
-			ActiveWriterScope scope(writer);
-			output->writeToFile(nullptr, &song);
-		}
-		std::optional<deluge::serialization::Value> written = writer.finish();
-		const deluge::serialization::Value* element = written ? writtenElement(*written) : nullptr;
-		if (element == nullptr) {
-			continue;
-		}
-		// A sound writes its compressor's threshold from the DSP (the param's last render), not its state: each slot's
-		// instrument entries are re-encoded from the state, as every commit leaves them.
 		if (output->type == OutputType::SYNTH) {
-			output->docOutput_->instrument = deluge::project::slot_of_output(*element, song.getInputTickMagnitude());
-			if (output->docOutput_->instrument) {
-				syncSlotState(*static_cast<SoundInstrument*>(output), *output->docOutput_->instrument, song);
-			}
-			continue;
+			sync(*static_cast<SoundInstrument*>(output));
 		}
-		const deluge::serialization::Value* sources = element->find("soundSources");
-		if (sources == nullptr) {
-			continue;
-		}
-		for (const deluge::serialization::NamedChild& drum : deluge::serialization::children(*sources)) {
-			const std::optional<int32_t> id = deluge::serialization::int_of(drum.node->find("id"));
-			deluge::project::DocDrum* record =
-			    id ? song.project.drum_structure.find(static_cast<uint32_t>(*id)) : nullptr;
-			if (record != nullptr && record->drum_type == DrumType::SOUND) {
-				record->instrument = deluge::project::slot_of_drum(*drum.node, song.getInputTickMagnitude());
-				if (::Sound* sound = record->instrument ? soundDrumWithId(*static_cast<Kit*>(output), *id) : nullptr) {
-					syncSlotState(*sound, *record->instrument, song);
+		else if (output->type == OutputType::KIT) {
+			for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next) {
+				if (drum->type == DrumType::SOUND) {
+					sync(*static_cast<SoundDrum*>(drum));
 				}
 			}
 		}
@@ -276,20 +224,23 @@ Error commitState(::Sound& sound, const deluge::instrument::SlotChange& change, 
 	return error;
 }
 
-const deluge::serialization::Value& refreshSlot(const ::Sound& sound, deluge::project::InstrumentSlot& slot) {
+deluge::serialization::Value refreshSlot(const ::Sound& sound, deluge::project::InstrumentSlot& slot) {
 	if (sound.boundState() != nullptr) {
-		// At the magnitude the whole slot was written at: its other entries (the effects' sync levels) stay relative
-		// to it.
-		slot.state = deluge::instrument::with_state(slot.state, *sound.boundState(),
-		                                            {.input_tick_magnitude = slot.tick_magnitude});
+		if (deluge::instrument::SoundState* held = slot.state.as<deluge::instrument::DelugeInstrument>()) {
+			*held = *sound.boundState();
+		}
+		else {
+			slot.state = deluge::engine::StateHandle::of<deluge::instrument::DelugeInstrument>(*sound.boundState());
+		}
 	}
-	return slot.state;
+	// At the magnitude the slot was filled at, as its edits read and write it.
+	return slot.state.encode({.input_tick_magnitude = slot.tick_magnitude});
 }
 
-const deluge::serialization::Value* refreshedSlotState(::Song& song, deluge::project::SlotAddress address) {
+std::optional<deluge::serialization::Value> refreshedSlotState(::Song& song, deluge::project::SlotAddress address) {
 	deluge::project::InstrumentSlot* slot = song.project.resolveSlot(address);
 	::Sound* sound = soundAt(song, address);
-	return slot != nullptr && sound != nullptr ? &refreshSlot(*sound, *slot) : nullptr;
+	return slot != nullptr && sound != nullptr ? std::optional{refreshSlot(*sound, *slot)} : std::nullopt;
 }
 
 TypedWriteAudit& typedWriteAudit() {
@@ -302,8 +253,7 @@ std::optional<deluge::serialization::Value> typedWriteAuditBase(const ::Sound& s
 	if (!typedWriteAudit().enabled || sound.boundState() == nullptr) {
 		return std::nullopt;
 	}
-	return deluge::instrument::with_state(slot.state, *sound.boundState(),
-	                                      {.input_tick_magnitude = slot.tick_magnitude});
+	return deluge::instrument::encode(*sound.boundState(), {.input_tick_magnitude = slot.tick_magnitude});
 }
 
 void auditTypedWrite(const ::Sound& sound, const deluge::project::InstrumentSlot& slot,
