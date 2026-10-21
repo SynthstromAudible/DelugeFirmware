@@ -585,9 +585,9 @@ describe song_settings_edit("SetSetting", $ {
 		activate(f);
 		f.song->setCurrentClip(f.clip);
 		const auto ctx = deluge::scenes::menu::context_for(*f.song, f.clip, 0, false, false, false, false);
-		deluge::scenes::menu::nodes::set_arp_mode(ctx, 1);
+		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::arp_mode, ctx, 1);
 		(void)midiQueued();
-		deluge::scenes::menu::nodes::set_arp_mode(ctx, 0);
+		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::arp_mode, ctx, 0);
 		expect(midiQueued()).to_be_true();
 		const SettingAddress arp{SettingGroupId::CLIP_ARP, *deluge::bridge::clipAddressOf(*f.clip, *f.song)};
 		expect(recorded(*f.song, arp, "arpeggiator/arpMode")).to_equal(std::string{"off"});
@@ -597,7 +597,7 @@ describe song_settings_edit("SetSetting", $ {
 		spec::SongFixture f = spec::make_midi_song();
 		f.song->setCurrentClip(f.clip);
 		const auto ctx = deluge::scenes::menu::context_for(*f.song, f.clip, 0, false, false, false, false);
-		deluge::scenes::menu::nodes::set_arp_rate_midi(ctx, 40);
+		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::arp_rate_midi, ctx, 40);
 		const SettingAddress arp{SettingGroupId::CLIP_ARP, *deluge::bridge::clipAddressOf(*f.clip, *f.song)};
 		expect(recorded(*f.song, arp, "arpeggiator/rate")).to_equal(std::to_string(f.clip->arpSettings.rate));
 		expect(deluge::project::holds_setting(f.song->project, arp, "arpeggiator/rate")).to_be_true();

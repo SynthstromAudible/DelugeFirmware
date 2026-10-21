@@ -202,6 +202,17 @@ void ShellEditSink::write(const WriteRequest& request) {
 		});
 		return;
 	}
+	if (model && model->group == deluge::project::SettingGroupId::LANE_ARP
+	    && request.target.fan_out_fact == deluge::scenes::bind::Target::FanOutFact::NOTE_TAILS) {
+		// A kit row whose sound cannot hold note tails stays out of its kit's arp (`include_in_kit_arp.h:48-53`).
+		const auto& lane = std::get<deluge::project::LaneAddress>(model->owner);
+		::Drum* drum = deluge::bridge::drumWithId(*currentSong, lane.drum_id);
+		if (drum != nullptr && drum->type == DrumType::SOUND
+		    && !deluge::scenes::menu::host_runtime_facts().allows_note_tails(
+		        {deluge::project::SlotAddress::Kind::DRUM, lane.drum_id})) {
+			return;
+		}
+	}
 	if (model) {
 		deluge::bridge::seedArpRecordAt(*currentSong, *model); // an arp's writers seed its record from the arp first
 		deluge::edits::Context ctx{*currentSong, currentSong->project};

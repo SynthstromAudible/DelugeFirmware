@@ -64,6 +64,7 @@
 
 #include "scenes/menu/validate.h"
 
+#include "scenes/menu/bindings.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/shortcuts.h"
 
@@ -196,24 +197,24 @@ size_t visible_count(const Node& node, const MenuContext& ctx) {
 /// Two tests, either of which means "these really do collide":
 ///
 ///   * **Identical visibility.** The two carry the same `relevant` hook -- including both carrying
-///     none -- so nothing can ever separate them. This is the static half, and it is what still
-///     catches legacy's three genuine `FormattedTitle` collisions (both sample recorders under
-///     `is_subtractive`, both oscillator volumes under `not_ringmod`, both FM modulator levels
-///     under `is_fm`), which are ambiguous in the data because a `Node::name` is one static id.
-///   * **Actually both on screen.** Some supplied context admits both. This is the dynamic half,
+///     none -- and neither is on a target, so nothing can ever separate them. This is the static half, and it is what
+///     still catches legacy's three genuine `FormattedTitle` collisions (both sample recorders under `is_subtractive`,
+///     both oscillator volumes under `not_ringmod`, both FM modulator levels under `is_fm`), which are ambiguous in the
+///     data because a `Node::name` is one static id.
+///   * **Actually both on screen.** Some supplied context admits both (a target node where its row applies and
+///     resolves there). This is the dynamic half,
 ///     and it is what stops a pair with two *different* predicates that happen to agree from
 ///     slipping through unnoticed in the contexts the caller cares about.
 ///
 /// With no contexts supplied only the static half applies, which is the right answer for a
 /// structural-only check.
 bool co_visible(const Node& a, const Node& b, std::span<const MenuContext> contexts) {
-	if (a.relevant == b.relevant) {
+	// A node on a target shows where its row applies and resolves, which only a context can tell.
+	if (a.relevant == b.relevant && !a.bind.target.valid() && !b.bind.target.valid()) {
 		return true;
 	}
 	for (const MenuContext& ctx : contexts) {
-		const bool a_on = a.relevant == nullptr || a.relevant(ctx);
-		const bool b_on = b.relevant == nullptr || b.relevant(ctx);
-		if (a_on && b_on) {
+		if (bindings::relevant(a, ctx) && bindings::relevant(b, ctx)) {
 			return true;
 		}
 	}

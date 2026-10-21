@@ -34,6 +34,7 @@ gui/support/fake_legacy_ui.cpp
 ../../../src/scenes/menu/node_id.cpp
 ../../../src/scenes/menu/validate.cpp
 scenes/support/fake_shortcuts.cpp
+scenes/support/fake_bindings_relevant.cpp
 ../../harness/ui_script.cpp
 ../../harness/snapshot.cpp
 ../../harness/level3/host_script_tables.c

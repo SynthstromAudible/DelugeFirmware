@@ -28,6 +28,13 @@ struct Target {
 		        ///< Addresses::chain
 		MODEL,  ///< a row of project::table_of(group), on the owner the Addresses name for that group
 	};
+	/// Which roots a node shows on beyond its row's applicability: a page legacy keeps a twin of for kit rows (its
+	/// note mode) shows on its own kind of root, as legacy lays them out.
+	enum class ShownOn : uint8_t {
+		ANY,
+		ON_LANE,  ///< only where the menu edits a kit lane
+		OFF_LANE, ///< only where it does not
+	};
 	/// A fact a drum must also hold to take a kit-wide write, beyond its row's conditions.
 	enum class FanOutFact : uint8_t {
 		NONE,
@@ -49,14 +56,15 @@ struct Target {
 	/// which the target edits where the Addresses name an audio clip and no sound. Empty where an audio clip has none.
 	std::string_view audio_clip_path{};
 	FanOutFact fan_out_fact{FanOutFact::NONE};
+	ShownOn shown_on{ShownOn::ANY};
 
 	[[nodiscard]] constexpr bool valid() const { return kind != Kind::NONE; }
 	/// Equal when they name the same row the same way: the same fan-out rule, by identity.
 	constexpr bool operator==(const Target& other) const {
 		return kind == other.kind && path == other.path && whole_kit == other.whole_kit
 		       && fan_out_when.data() == other.fan_out_when.data() && fan_out_when.size() == other.fan_out_when.size()
-		       && group == other.group && audio_clip_path == other.audio_clip_path
-		       && fan_out_fact == other.fan_out_fact;
+		       && group == other.group && audio_clip_path == other.audio_clip_path && fan_out_fact == other.fan_out_fact
+		       && shown_on == other.shown_on;
 	}
 };
 

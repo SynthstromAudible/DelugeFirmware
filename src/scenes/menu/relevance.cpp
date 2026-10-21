@@ -299,15 +299,6 @@ bool osc1_interpolation(const MenuContext& ctx) {
 bool is_kit_row(const MenuContext& ctx) {
 	return ctx.is_kit && !ctx.is_kit_global_fx;
 }
-bool not_kit_row(const MenuContext& ctx) {
-	return !is_kit_row(ctx);
-}
-bool kit_row_not_gate(const MenuContext& ctx) {
-	return is_kit_row(ctx) && !gate_drum_row(ctx);
-}
-bool not_gate_drum_row(const MenuContext& ctx) {
-	return !gate_drum_row(ctx);
-}
 bool not_gate_drum_or_kit_fx(const MenuContext& ctx) {
 	return !gate_drum_row(ctx) && !kit_affect_entire(ctx);
 }
@@ -317,9 +308,6 @@ bool arp_sound_only(const MenuContext& ctx) {
 }
 bool arp_rate_sound(const MenuContext& ctx) {
 	return arp_sound_only(ctx) && !kit_affect_entire(ctx);
-}
-bool arp_non_sound(const MenuContext& ctx) {
-	return cv_or_midi_clip(ctx) || non_audio_drum_row(ctx);
 }
 bool is_kit_global_fx(const MenuContext& ctx) {
 	return kit_affect_entire(ctx);
@@ -338,18 +326,6 @@ bool randomizer_sound_only(const MenuContext& ctx) {
 }
 bool randomizer_non_kit(const MenuContext& ctx) {
 	return !cv_or_midi_clip(ctx) && !ctx.is_kit && arp_on(ctx);
-}
-bool randomizer_non_sound(const MenuContext& ctx) {
-	return arp_non_sound(ctx) && arp_on(ctx);
-}
-bool randomizer_midi_target(const MenuContext& ctx) {
-	return (cv_or_midi_clip(ctx) || midi_drum_row(ctx)) && arp_on(ctx);
-}
-bool is_cv_midi_or_midi_drum(const MenuContext& ctx) {
-	return cv_or_midi_clip(ctx) || midi_drum_row(ctx);
-}
-bool cv_midi_clip_arp_on(const MenuContext& ctx) {
-	return cv_or_midi_clip(ctx) && arp_on(ctx);
 }
 
 bool mod_fx_on(const MenuContext& ctx) {
@@ -516,7 +492,7 @@ namespace {
 		&fn, #fn                                                                                                       \
 	}
 
-constexpr std::array<NamedPredicate, 70> kRegistry{
+constexpr std::array<NamedPredicate, 62> kRegistry{
     DELUGE_RELEVANCE_ROW(has_lpf),
     DELUGE_RELEVANCE_ROW(has_hpf),
     DELUGE_RELEVANCE_ROW(is_fm),
@@ -540,22 +516,14 @@ constexpr std::array<NamedPredicate, 70> kRegistry{
     DELUGE_RELEVANCE_ROW(osc0_interpolation),
     DELUGE_RELEVANCE_ROW(osc1_interpolation),
     DELUGE_RELEVANCE_ROW(is_kit_row),
-    DELUGE_RELEVANCE_ROW(not_kit_row),
-    DELUGE_RELEVANCE_ROW(kit_row_not_gate),
-    DELUGE_RELEVANCE_ROW(not_gate_drum_row),
     DELUGE_RELEVANCE_ROW(not_gate_drum_or_kit_fx),
     DELUGE_RELEVANCE_ROW(arp_sound_only),
     DELUGE_RELEVANCE_ROW(arp_rate_sound),
-    DELUGE_RELEVANCE_ROW(arp_non_sound),
     DELUGE_RELEVANCE_ROW(is_kit_global_fx),
     DELUGE_RELEVANCE_ROW(randomizer_param),
     DELUGE_RELEVANCE_ROW(randomizer_global_param),
     DELUGE_RELEVANCE_ROW(randomizer_sound_only),
     DELUGE_RELEVANCE_ROW(randomizer_non_kit),
-    DELUGE_RELEVANCE_ROW(randomizer_non_sound),
-    DELUGE_RELEVANCE_ROW(randomizer_midi_target),
-    DELUGE_RELEVANCE_ROW(is_cv_midi_or_midi_drum),
-    DELUGE_RELEVANCE_ROW(cv_midi_clip_arp_on),
     DELUGE_RELEVANCE_ROW(mod_fx_on),
     DELUGE_RELEVANCE_ROW(mod_fx_has_depth),
     DELUGE_RELEVANCE_ROW(mod_fx_has_feedback),
@@ -595,7 +563,7 @@ constexpr std::array<NamedPredicate, 70> kRegistry{
 // One row per predicate declared in `relevance.h` (54), plus the sixteen
 // `nodes::relevant_*_iterance_step_*` rows: declared in `nodes/note.h`, not `relevance.h`, but
 // registered here for the reason this section's own note gives. 54 + 16 = 70.
-static_assert(kRegistry.size() == 70);
+static_assert(kRegistry.size() == 62);
 
 } // namespace
 

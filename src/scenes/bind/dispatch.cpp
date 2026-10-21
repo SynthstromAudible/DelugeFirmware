@@ -71,6 +71,10 @@ std::optional<Resolved> resolve_model(const Target& target, const project::Song&
 
 std::optional<Resolved> resolve(const Target& target, const project::Song& model, const Addresses& where,
                                 const RuntimeFacts& facts) {
+	if ((target.shown_on == Target::ShownOn::ON_LANE && !where.lane)
+	    || (target.shown_on == Target::ShownOn::OFF_LANE && where.lane)) {
+		return std::nullopt; // a twin page on the other kind of root
+	}
 	if (target.kind == Target::Kind::MODEL || (target.kind == Target::Kind::SOUND && !where.slot)) {
 		return resolve_model(target, model, where, facts);
 	}

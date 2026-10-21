@@ -36,56 +36,6 @@
 
 namespace deluge::scenes::menu::nodes {
 
-int32_t get_randomizer_lock(const MenuContext& ctx) {
-	return (ctx.arp != nullptr && ctx.arp->randomizerLock) ? 1 : 0; // `randomizer_lock.h:29 readCurrentValue`
-}
-
-void set_randomizer_lock(const MenuContext& ctx, int32_t value) {
-	// `RandomizerLock::writeCurrentValue` (`randomizer_lock.h:16-32`): the affect-entire sweep
-	// covers every `Drum`, not just the sound ones -- the same loop `sound_arp.cpp` explains.
-	const auto on = deluge::serialization::Value::makeNumber(value != 0 ? 1 : 0);
-	if (bindings::writes_whole_kit(ctx) && ctx.output != nullptr) {
-		for (Drum* drum = static_cast<Kit*>(ctx.output)->firstDrum; drum != nullptr; drum = drum->next) {
-			deluge::edits::laneArpSettingFor(*drum, "arpeggiator/randomizerLock", on);
-		}
-		return;
-	}
-	if (ctx.arp != nullptr) {
-		deluge::edits::arpSettingFor(*ctx.arp, "arpeggiator/randomizerLock", on);
-	}
-}
-
-/// @brief The eleven `midi_cv` hook pairs `sound_randomizer.h`'s `DELUGE_RANDOMIZER_MIDI` declared.
-///
-/// Every one is the same three lines against a different `uint32_t` field of `ArpeggiatorSettings`
-/// (`modulation/arpeggiator.h:139-147`), through the unsigned value scaling
-/// (`randomizer/midi_cv/spread_gate.h:27-32` and its ten siblings); each write is the field's arp setting Edit.
-#define DELUGE_RANDOMIZER_MIDI_HOOKS(node_name, field)                                                                 \
-	int32_t get_##node_name(const MenuContext& ctx) {                                                                  \
-		return ctx.arp != nullptr ? bindings::unsigned_to_menu(ctx.arp->field) : 0;                                    \
-	}                                                                                                                  \
-	void set_##node_name(const MenuContext& ctx, int32_t value) {                                                      \
-		if (ctx.arp != nullptr) {                                                                                      \
-			deluge::edits::arpSettingFor(                                                                              \
-			    *ctx.arp, "arpeggiator/" #field,                                                                       \
-			    deluge::serialization::Value::makeNumber(static_cast<int32_t>(bindings::menu_to_unsigned(value))));    \
-		}                                                                                                              \
-	}
-
-DELUGE_RANDOMIZER_MIDI_HOOKS(spread_gate_midi, spreadGate)
-DELUGE_RANDOMIZER_MIDI_HOOKS(spread_octave_midi, spreadOctave)
-DELUGE_RANDOMIZER_MIDI_HOOKS(spread_velocity_midi, spreadVelocity)
-DELUGE_RANDOMIZER_MIDI_HOOKS(ratchet_amount_midi, ratchetAmount)
-DELUGE_RANDOMIZER_MIDI_HOOKS(ratchet_probability_midi, ratchetProbability)
-DELUGE_RANDOMIZER_MIDI_HOOKS(chord_polyphony_midi, chordPolyphony)
-DELUGE_RANDOMIZER_MIDI_HOOKS(chord_probability_midi, chordProbability)
-DELUGE_RANDOMIZER_MIDI_HOOKS(note_probability_midi, noteProbability)
-DELUGE_RANDOMIZER_MIDI_HOOKS(swap_probability_midi, swapProbability)
-DELUGE_RANDOMIZER_MIDI_HOOKS(bass_probability_midi, bassProbability)
-DELUGE_RANDOMIZER_MIDI_HOOKS(glide_probability_midi, glideProbability)
-
-#undef DELUGE_RANDOMIZER_MIDI_HOOKS
-
 namespace {
 constexpr const Node* kRoots[] = {&randomizer};
 } // namespace

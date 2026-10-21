@@ -137,14 +137,6 @@ bool osc1_interpolation(const MenuContext& ctx);
 /// @brief Is a kit *row* being edited? `IncludeInKitArp::isRelevant` (`include_in_kit_arp.h:81-84`),
 ///        i.e. `editingKitRow()` (`sound_editor.cpp:207-209`).
 bool is_kit_row(const MenuContext& ctx);
-/// @brief The negation, `arpeggiator::NoteMode::isRelevant` (`arpeggiator/note_mode.h:37-39`).
-bool not_kit_row(const MenuContext& ctx);
-/// @brief A kit row that is not a gate drum. `arpeggiator::ChordType::isRelevant`
-///        (`arpeggiator/chord_type.h:46-48`) and `NoteModeForDrums` (`note_mode_for_drums.h:43-45`).
-bool kit_row_not_gate(const MenuContext& ctx);
-/// @brief Not a gate drum row. `arpeggiator::StepRepeat::isRelevant` (`step_repeat.h:39-41`) and
-///        `ArpMpeVelocity` (`mpe_velocity.h:37-39`).
-bool not_gate_drum_row(const MenuContext& ctx);
 /// @brief Neither a gate drum row nor a kit's global-FX page. `arpeggiator::Octaves::isRelevant`
 ///        (`octaves.h:39-41`), `OctaveMode` (`octave_mode.h:44-46`) and `submenu::ArpMpeSubmenu`
 ///        (`submenu/arp_mpe_submenu.h:22-24`) -- one predicate, three items.
@@ -156,11 +148,6 @@ bool arp_sound_only(const MenuContext& ctx);
 /// @brief The same, and not the kit's global-FX page. `arpeggiator::Rate::isRelevant`
 ///        (`arpeggiator/rate.h:26-29`).
 bool arp_rate_sound(const MenuContext& ctx);
-/// @brief The complement: a MIDI/CV clip or a non-audio drum row.
-///        `arpeggiator::midi_cv::ArpNonSoundInteger::isRelevant` (`midi_cv/arp_integer.h:27-29`),
-///        and `randomizer::midi_cv::NoteProbability` (`midi_cv/note_probability.h:32-34`), which
-///        spells the same test.
-bool arp_non_sound(const MenuContext& ctx);
 /// @brief A kit's global-FX page. `arpeggiator::KitRate::isRelevant` (`arpeggiator/rate.h:26-29`),
 ///        i.e. `editingKitAffectEntire()` (`sound_editor.cpp:203-205`). Declared for Task 8's kit
 ///        root; batch 2 reaches it through no node.
@@ -178,20 +165,6 @@ bool randomizer_global_param(const MenuContext& ctx);
 bool randomizer_sound_only(const MenuContext& ctx);
 /// @brief `RandomizerNonKitSoundUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h:52-55`).
 bool randomizer_non_kit(const MenuContext& ctx);
-/// @brief `randomizer::midi_cv::RandomizerNonSoundInteger::isRelevant`
-///        (`randomizer/midi_cv/randomizer_integer.h:27-30`).
-bool randomizer_non_sound(const MenuContext& ctx);
-/// @brief A MIDI/CV clip or a MIDI drum row, with the arpeggiator on -- the override shared by
-///        `midi_cv::SpreadOctave` (`spread_octave.h:32-35`), `SwapProbability`
-///        (`swap_probability.h:32-35`), `BassProbability` (`bass_probability.h:33-36`) and
-///        `GlideProbability` (`glide_probability.h:33-36`).
-bool randomizer_midi_target(const MenuContext& ctx);
-/// @brief The same without the arpeggiator test. `midi_cv::SpreadVelocity::isRelevant`
-///        (`spread_velocity.h:32-34`).
-bool is_cv_midi_or_midi_drum(const MenuContext& ctx);
-/// @brief A MIDI/CV *clip* with the arpeggiator on. `midi_cv::ChordPolyphony::isRelevant`
-///        (`chord_polyphony.h:34-36`) and `ChordProbability` (`chord_probability.h:32-34`).
-bool cv_midi_clip_arp_on(const MenuContext& ctx);
 
 /// @brief Is a mod-FX type selected at all? `mod_fx::Rate::isRelevant` (`mod_fx/rate.h:27-29`).
 bool mod_fx_on(const MenuContext& ctx);

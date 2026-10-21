@@ -157,11 +157,6 @@ void set_aftertouch_to_mono(const MenuContext& ctx, int32_t value);
 int32_t get_mpe_to_mono(const MenuContext& ctx);
 void set_mpe_to_mono(const MenuContext& ctx, int32_t value);
 
-int32_t get_arp_gate_midi(const MenuContext& ctx);
-void set_arp_gate_midi(const MenuContext& ctx, int32_t value);
-int32_t get_arp_rate_midi(const MenuContext& ctx);
-void set_arp_rate_midi(const MenuContext& ctx, int32_t value);
-
 int32_t get_audio_clip_transpose(const MenuContext& ctx);
 void set_audio_clip_transpose(const MenuContext& ctx, int32_t value);
 int32_t get_audio_clip_reverse(const MenuContext& ctx);
@@ -373,13 +368,11 @@ inline constexpr Node midi_program =
 // The MIDI/CV arpeggiator: `arpMenuMIDIOrCV` (`:670`) differs from `arpMenu` only in its basic
 // page, whose gate and rate live on `ArpeggiatorSettings` rather than in a param collection
 // (`arpeggiator/midi_cv/gate.h:22-30`, `rate.h:22-30`).
-inline constexpr Node arp_gate_midi =
-    with_title(int_item(sid(String::STRING_FOR_GATE), get_arp_gate_midi, set_arp_gate_midi,
-                        IntRange{kMinMenuValue, kMaxMenuValue, 1}, Hint::LengthSlider, relevance::arp_non_sound),
-               sid(String::STRING_FOR_ARP_GATE_MENU_TITLE));
+inline constexpr Node arp_gate_midi = with_title(
+    setting_item(sid(String::STRING_FOR_GATE), Kind::Int, arp_row("arpeggiator/gate", false), Hint::LengthSlider),
+    sid(String::STRING_FOR_ARP_GATE_MENU_TITLE));
 inline constexpr Node arp_rate_midi =
-    with_title(int_item(sid(String::STRING_FOR_RATE), get_arp_rate_midi, set_arp_rate_midi,
-                        IntRange{kMinMenuValue, kMaxMenuValue, 1}, Hint::Knob, relevance::arp_non_sound),
+    with_title(setting_item(sid(String::STRING_FOR_RATE), Kind::Int, arp_row("arpeggiator/rate", false), Hint::Knob),
                sid(String::STRING_FOR_ARP_RATE_MENU_TITLE));
 inline constexpr const Node* kArpBasicMidiChildren[] = {&arp_preset, &arp_gate_midi, &arp_sync, &arp_rate_midi};
 inline constexpr Node arp_basic_midi = submenu(sid(String::STRING_FOR_BASIC), kArpBasicMidiChildren, Layout::Horizontal,

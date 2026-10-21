@@ -164,6 +164,21 @@ describe bind_model("a model target", ${
 		expect(shown->value).to_equal(2);
 	});
 
+	it("shows a twin page only on its own kind of root: a kit lane, or every other", _ {
+		ModelFixture f;
+		Target on_lane = model(SettingGroupId::CLIP_ARP, "arpeggiator/noteMode");
+		on_lane.shown_on = Target::ShownOn::ON_LANE;
+		Target off_lane = on_lane;
+		off_lane.shown_on = Target::ShownOn::OFF_LANE;
+		const Addresses lane{.clip = kKitClip, .lane = kSoundLane, .instrument = Instrument::KIT};
+		const Addresses clip{.clip = kSynthClip, .instrument = Instrument::SYNTH};
+		expect(view(on_lane, f.song, lane, f.facts).has_value()).to_be_true();
+		expect(view(on_lane, f.song, clip, f.facts).has_value()).to_be_false();
+		expect(view(off_lane, f.song, clip, f.facts).has_value()).to_be_true();
+		expect(view(off_lane, f.song, lane, f.facts).has_value()).to_be_false();
+		expect(request_for(on_lane, f.song, clip, f.facts, 0).has_value()).to_be_false();
+	});
+
 	it("resolves nothing for an owner the song does not hold", _ {
 		ModelFixture f;
 		const auto shown = view(model(SettingGroupId::CLIP_VALUES, "midiPGM"), f.song,

@@ -737,7 +737,7 @@ struct Node {
 	/// `audio_clip_sample`) -- all three `Kind::Enum`, which is why this cannot simply be folded
 	/// into `Kind::Toggle`'s own existing check: the flip itself is identical (write the bound
 	/// value's logical negation), but the `Kind` these three carry is `Enum`, for their two-option
-	/// text (`kOffOnNames` and the like), not `Toggle`'s dedicated switch glyph.
+	/// text (an off/on choice list), not `Toggle`'s dedicated switch glyph.
 	///
 	/// Consulted in exactly the same two places `Kind::Toggle` already was: the `column_press` arm
 	/// (a select press) and `handle()`'s already-focused button press, both alongside `column->kind

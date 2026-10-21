@@ -248,8 +248,10 @@ KitRig& kit_fixture() {
 /// @brief Re-resolve the kit context with @p drum selected, and install it.
 MenuContext select_drum(KitRig& k, Drum* drum, bool affect_entire_held = false) {
 	static_cast<Kit*>(k.song.instrument)->selectedDrum = drum;
+	currentSong = k.song.song; // a context binds the app's facts and sink over the current song only
 	MenuContext ctx = menu::context_for(*k.song.song, k.song.clip, 0, false, false, false, /*kit_global_fx=*/false);
 	ctx.affect_entire_held = affect_entire_held;
+	ctx.addresses.affect_entire = menu::bindings::writes_whole_kit(ctx); // as the menu scene sets it
 	install(ctx, k.song.song);
 	return ctx;
 }
@@ -856,26 +858,40 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 	});
 
 	it("names every enum option exactly as the legacy Selection does", _ {
-		Rigged& f = fixture();
-		for (const Pair& p : tree().pairs) {
-			if (p.node->kind != menu::Kind::Enum) {
-				continue;
-			}
+		// A page legacy keeps only for kit rows (the drums' note mode) shows on a kit row alone: read there.
+		const auto compare = [&](const Pair& p, const MenuContext& ctx) {
 			auto* selection = dynamic_cast<legacy::Selection*>(p.item);
 			expect(selection != nullptr).to_be_true();
 			if (selection == nullptr) {
-				continue;
+				return;
 			}
 			const auto want = selection->getOptions(legacy::Selection::OptType::FULL);
-
 			std::string_view got[menu::kMaxDynamicNames];
 			deluge::ui::shell::TextScratch scratch[menu::kMaxDynamicNames];
-			const size_t n = menu::bindings::names(*p.node, f.ctx, got, scratch);
-			expect(n == want.size()).to_be_true();
+			const size_t n = menu::bindings::names(*p.node, ctx, got, scratch);
+			const std::string node = text_of(p.node->name);
+			expect(node + " options " + std::to_string(n)).to_equal(node + " options " + std::to_string(want.size()));
 			for (size_t i = 0; i < n && i < want.size(); i++) {
-				expect(std::string{got[i]} == std::string{want[i]}).to_be_true();
+				expect(node + " " + std::string{got[i]}).to_equal(node + " " + std::string{want[i]});
+			}
+		};
+		const auto lane_only = [](const Pair& p) {
+			return p.node->bind.target.shown_on == deluge::scenes::bind::Target::ShownOn::ON_LANE;
+		};
+		Rigged& f = fixture();
+		for (const Pair& p : tree().pairs) {
+			if (p.node->kind == menu::Kind::Enum && !lane_only(p)) {
+				compare(p, f.ctx);
 			}
 		}
+		KitRig& kit = kit_fixture();
+		const MenuContext kit_ctx = select_drum(kit, kit.drum_a);
+		for (const Pair& p : tree().pairs) {
+			if (p.node->kind == menu::Kind::Enum && lane_only(p)) {
+				compare(p, kit_ctx);
+			}
+		}
+		install(fixture().ctx, fixture().song.song);
 	});
 
 	it("agrees with the legacy isRelevant under a synth clip and a kit row", _ {
@@ -906,7 +922,8 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 				soundEditor.navigationDepth = p.navigation_depth();
 				const bool want = p.item->isRelevant(c.ctx.mod, c.ctx.source_index);
 				const bool got = menu::bindings::relevant(*p.node, c.ctx);
-				expect(got == want).to_be_true();
+				const std::string at = std::string{c.name} + " " + text_of(p.node->name) + " ";
+				expect(at + (got ? "shows" : "hides")).to_equal(at + (want ? "shows" : "hides"));
 				if (got) {
 					disagreements_true++;
 				}

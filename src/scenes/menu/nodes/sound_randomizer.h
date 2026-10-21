@@ -61,7 +61,7 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
-#include "scenes/menu/nodes/sound_arp.h" // kOffOnNames
+#include "scenes/menu/nodes/sound_arp.h" // arp_row
 #include "scenes/menu/relevance.h"
 
 #include <span>
@@ -72,23 +72,11 @@ struct MenuContext;
 
 namespace deluge::scenes::menu::nodes {
 
-int32_t get_randomizer_lock(const MenuContext& ctx);
-void set_randomizer_lock(const MenuContext& ctx, int32_t value);
-
-/// @brief One `midi_cv` randomizer column: the hook pair and the node.
-///
-/// A macro because the hooks are plain function pointers -- each field needs its own pair -- and
-/// because eleven hand-written copies of the same four lines would hide, rather than show, the one
-/// thing that differs per row. `name`/`title` are `l10n::String` enumerator suffixes; `rel` is the
-/// legacy `isRelevant` override, cited on each use below; `hint` is its `getRenderingStyle()`.
-/// The range is `ArpNonSoundInteger`'s / `RandomizerNonSoundInteger`'s
-/// (`randomizer/midi_cv/randomizer_integer.h:22-32`).
-#define DELUGE_RANDOMIZER_MIDI(node_name, name_id, title_id, rel, hint)                                                \
-	int32_t get_##node_name(const MenuContext& ctx);                                                                   \
-	void set_##node_name(const MenuContext& ctx, int32_t value);                                                       \
+/// @brief One MIDI/CV randomizer column: the arp's host row at @p path, which a MIDI or CV arp holds as a setting and
+///        legacy's items write on the selected arp alone (`randomizer/midi_cv/randomizer_integer.h:22-32`).
+#define DELUGE_RANDOMIZER_MIDI(node_name, name_id, title_id, path, hint)                                               \
 	inline constexpr Node node_name =                                                                                  \
-	    with_title(int_item(sid(deluge::l10n::String::name_id), get_##node_name, set_##node_name,                      \
-	                        IntRange{kMinMenuValue, kMaxMenuValue, 1}, hint, rel),                                     \
+	    with_title(setting_item(sid(deluge::l10n::String::name_id), Kind::Int, arp_row(path, false), hint),            \
 	               sid(deluge::l10n::String::title_id))
 
 /// @brief One sound-side randomizer column: an unpatched `ParamRef`.
@@ -99,8 +87,8 @@ void set_randomizer_lock(const MenuContext& ctx, int32_t value);
 	          sid(deluge::l10n::String::title_id))
 
 inline constexpr Node randomizer_lock =
-    with_selection_is_toggle(with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_RANDOMIZER_LOCK), kOffOnNames,
-                                                    get_randomizer_lock, set_randomizer_lock),
+    with_selection_is_toggle(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RANDOMIZER_LOCK), Kind::Enum,
+                                                     arp_row("arpeggiator/randomizerLock")),
                                         sid(deluge::l10n::String::STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE)));
 
 // `RandomizerUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h:31-42`) -- the non-global
@@ -108,60 +96,60 @@ inline constexpr Node randomizer_lock =
 DELUGE_RANDOMIZER_PARAM(spread_gate, STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
                         UNPATCHED_ARP_SPREAD_GATE, relevance::randomizer_param, Hint::Bar);
 DELUGE_RANDOMIZER_MIDI(spread_gate_midi, STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
-                       relevance::randomizer_non_sound, Hint::Bar);
+                       "arpeggiator/spreadGate", Hint::Bar);
 
 // `RandomizerSoundOnlyUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h:37-40`).
 DELUGE_RANDOMIZER_PARAM(spread_octave, STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE,
                         UNPATCHED_ARP_SPREAD_OCTAVE, relevance::randomizer_sound_only, Hint::Bar);
 DELUGE_RANDOMIZER_MIDI(spread_octave_midi, STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE,
-                       relevance::randomizer_midi_target, Hint::Bar);
+                       "arpeggiator/spreadOctave", Hint::Bar);
 
 DELUGE_RANDOMIZER_PARAM(spread_velocity, STRING_FOR_SPREAD_VELOCITY, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE,
                         UNPATCHED_SPREAD_VELOCITY, relevance::randomizer_global_param, Hint::Bar);
 DELUGE_RANDOMIZER_MIDI(spread_velocity_midi, STRING_FOR_SPREAD_VELOCITY, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE,
-                       relevance::is_cv_midi_or_midi_drum, Hint::Bar);
+                       "arpeggiator/spreadVelocity", Hint::Bar);
 
 DELUGE_RANDOMIZER_PARAM(ratchet_amount, STRING_FOR_NUMBER_OF_RATCHETS, STRING_FOR_ARP_RATCHETS_MENU_TITLE,
                         UNPATCHED_ARP_RATCHET_AMOUNT, relevance::randomizer_param, Hint::Bar);
 DELUGE_RANDOMIZER_MIDI(ratchet_amount_midi, STRING_FOR_NUMBER_OF_RATCHETS, STRING_FOR_ARP_RATCHETS_MENU_TITLE,
-                       relevance::randomizer_non_sound, Hint::Bar);
+                       "arpeggiator/ratchetAmount", Hint::Bar);
 
 DELUGE_RANDOMIZER_PARAM(ratchet_probability, STRING_FOR_RATCHET_PROBABILITY,
                         STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE, UNPATCHED_ARP_RATCHET_PROBABILITY,
                         relevance::randomizer_param, Hint::Percent);
 DELUGE_RANDOMIZER_MIDI(ratchet_probability_midi, STRING_FOR_RATCHET_PROBABILITY,
-                       STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE, relevance::randomizer_non_sound, Hint::Percent);
+                       STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE, "arpeggiator/ratchetProbability", Hint::Percent);
 
 // `RandomizerNonKitSoundUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h:52-55`).
 DELUGE_RANDOMIZER_PARAM(chord_polyphony, STRING_FOR_CHORD_POLYPHONY, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE,
                         UNPATCHED_ARP_CHORD_POLYPHONY, relevance::randomizer_non_kit, Hint::Bar);
 DELUGE_RANDOMIZER_MIDI(chord_polyphony_midi, STRING_FOR_CHORD_POLYPHONY, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE,
-                       relevance::cv_midi_clip_arp_on, Hint::Bar);
+                       "arpeggiator/chordPolyphony", Hint::Bar);
 
 DELUGE_RANDOMIZER_PARAM(chord_probability, STRING_FOR_CHORD_PROBABILITY, STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE,
                         UNPATCHED_ARP_CHORD_PROBABILITY, relevance::randomizer_non_kit, Hint::Percent);
 DELUGE_RANDOMIZER_MIDI(chord_probability_midi, STRING_FOR_CHORD_PROBABILITY,
-                       STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE, relevance::cv_midi_clip_arp_on, Hint::Percent);
+                       STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE, "arpeggiator/chordProbability", Hint::Percent);
 
 DELUGE_RANDOMIZER_PARAM(note_probability, STRING_FOR_NOTE_PROBABILITY, STRING_FOR_NOTE_PROBABILITY_MENU_TITLE,
                         UNPATCHED_NOTE_PROBABILITY, relevance::randomizer_global_param, Hint::Percent);
 DELUGE_RANDOMIZER_MIDI(note_probability_midi, STRING_FOR_NOTE_PROBABILITY, STRING_FOR_NOTE_PROBABILITY_MENU_TITLE,
-                       relevance::arp_non_sound, Hint::Percent);
+                       "arpeggiator/noteProbability", Hint::Percent);
 
 DELUGE_RANDOMIZER_PARAM(swap_probability, STRING_FOR_SWAP_PROBABILITY, STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE,
                         UNPATCHED_ARP_SWAP_PROBABILITY, relevance::randomizer_param, Hint::Percent);
 DELUGE_RANDOMIZER_MIDI(swap_probability_midi, STRING_FOR_SWAP_PROBABILITY, STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE,
-                       relevance::randomizer_midi_target, Hint::Percent);
+                       "arpeggiator/swapProbability", Hint::Percent);
 
 DELUGE_RANDOMIZER_PARAM(bass_probability, STRING_FOR_BASS_PROBABILITY, STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE,
                         UNPATCHED_ARP_BASS_PROBABILITY, relevance::randomizer_param, Hint::Percent);
 DELUGE_RANDOMIZER_MIDI(bass_probability_midi, STRING_FOR_BASS_PROBABILITY, STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE,
-                       relevance::randomizer_midi_target, Hint::Percent);
+                       "arpeggiator/bassProbability", Hint::Percent);
 
 DELUGE_RANDOMIZER_PARAM(glide_probability, STRING_FOR_GLIDE_PROBABILITY, STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE,
                         UNPATCHED_ARP_GLIDE_PROBABILITY, relevance::randomizer_param, Hint::Percent);
 DELUGE_RANDOMIZER_MIDI(glide_probability_midi, STRING_FOR_GLIDE_PROBABILITY,
-                       STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE, relevance::randomizer_midi_target, Hint::Percent);
+                       STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE, "arpeggiator/glideProbability", Hint::Percent);
 
 // The one setting with no MIDI/CV twin (`menus.cpp:595-597`).
 DELUGE_RANDOMIZER_PARAM(reverse_probability, STRING_FOR_REVERSE_PROBABILITY, STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE,

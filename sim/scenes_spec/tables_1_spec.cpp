@@ -705,10 +705,10 @@ describe tables_1_values("scenes::menu batch-1 tables: values", $ {
 		// header's declarations, so what is checkable is that it has the documented number of rows,
 		// that no row is null, and that no two rows share a name or a function.
 		const auto registry = menu::relevance::registry();
-		// The 54 predicates `relevance.h` declares plus the sixteen `nodes::relevant_*_iterance_step_*`
+		// The 46 predicates `relevance.h` declares plus the sixteen `nodes::relevant_*_iterance_step_*`
 		// rows (`relevance.cpp`'s `static_assert` is the authority; this asserts the count is
-		// deliberate). 54 + 16 = 70.
-		expect(registry.size()).to_equal(size_t(70));
+		// deliberate). 46 + 16 = 62.
+		expect(registry.size()).to_equal(size_t(62));
 		for (size_t i = 0; i < registry.size(); i++) {
 			expect(registry[i].fn != nullptr).to_be_true();
 			expect(registry[i].name.empty()).to_be_false();

@@ -245,12 +245,10 @@
                 "name": "Preset",
                 "select_chain": [
                   {
-                    "available_when": "not_gate_drum_or_kit_fx",
                     "id": 22,
                     "name": "Octave Mode",
                     "select_chain": [
                       {
-                        "available_when": "not_kit_row",
                         "id": 23,
                         "name": "Note Mode",
                         "title": "Arp note mode",
@@ -261,12 +259,10 @@
                     "type": "basic"
                   },
                   {
-                    "available_when": "not_gate_drum_or_kit_fx",
                     "id": 24,
                     "name": "Octave Mode",
                     "select_chain": [
                       {
-                        "available_when": "kit_row_not_gate",
                         "id": 25,
                         "name": "Note Mode",
                         "title": "Arp note mode",
@@ -350,42 +346,36 @@
           {
             "children": [
               {
-                "available_when": "not_gate_drum_or_kit_fx",
                 "id": 30,
                 "name": "Octaves",
                 "title": "Arp octaves",
                 "type": "basic"
               },
               {
-                "available_when": "not_gate_drum_row",
                 "id": 31,
                 "name": "Step Repeat",
                 "title": "Arp step repeat",
                 "type": "basic"
               },
               {
-                "available_when": "not_gate_drum_or_kit_fx",
                 "id": 32,
                 "name": "Octave Mode",
                 "title": "Arp octave mode",
                 "type": "basic"
               },
               {
-                "available_when": "not_kit_row",
                 "id": 33,
                 "name": "Note Mode",
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
-                "available_when": "kit_row_not_gate",
                 "id": 34,
                 "name": "Note Mode",
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
-                "available_when": "kit_row_not_gate",
                 "id": 35,
                 "name": "Chord Simulator",
                 "title": "Arp chord sim",
@@ -399,7 +389,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 37,
                 "name": "Rhythm",
                 "title": "Arp rhythm",
@@ -413,7 +402,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 39,
                 "name": "Sequence Length",
                 "title": "Arp seq length",
@@ -429,7 +417,6 @@
             "available_when": "not_gate_drum_or_kit_fx",
             "children": [
               {
-                "available_when": "not_gate_drum_row",
                 "id": 41,
                 "name": "Velocity",
                 "title": "Velocity",
@@ -442,7 +429,6 @@
             "type": "submenu"
           },
           {
-            "available_when": "is_kit_row",
             "id": 42,
             "name": "Include in Kit Arp",
             "title": "Include in Kit Arp",
@@ -470,7 +456,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_sound",
             "id": 46,
             "name": "Gate Spread",
             "title": "Arp gate spread",
@@ -484,7 +469,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 48,
             "name": "Octave Spread",
             "title": "Arp octa spread",
@@ -498,7 +482,6 @@
             "type": "basic"
           },
           {
-            "available_when": "is_cv_midi_or_midi_drum",
             "id": 50,
             "name": "Velocity Spread",
             "title": "Velocity spread",
@@ -512,7 +495,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_sound",
             "id": 52,
             "name": "Ratchet Amount",
             "title": "Arp ratc amount",
@@ -526,7 +508,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_sound",
             "id": 54,
             "name": "Ratchet Probability",
             "title": "Arp ratc prob",
@@ -540,7 +521,6 @@
             "type": "basic"
           },
           {
-            "available_when": "cv_midi_clip_arp_on",
             "id": 56,
             "name": "Chord Polyphony",
             "title": "Arp chord poly",
@@ -554,7 +534,6 @@
             "type": "basic"
           },
           {
-            "available_when": "cv_midi_clip_arp_on",
             "id": 58,
             "name": "Chord Probability",
             "title": "Arp chord prob",
@@ -568,7 +547,6 @@
             "type": "basic"
           },
           {
-            "available_when": "arp_non_sound",
             "id": 60,
             "name": "Note Probability",
             "title": "Note prob",
@@ -582,7 +560,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 62,
             "name": "Swap Probability",
             "title": "Arp swap prob",
@@ -596,7 +573,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 64,
             "name": "Bass Probability",
             "title": "Arp bass prob",
@@ -610,7 +586,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 66,
             "name": "Glide Probability",
             "title": "Arp glide prob",
@@ -4164,12 +4139,10 @@
                 "name": "Preset",
                 "select_chain": [
                   {
-                    "available_when": "not_gate_drum_or_kit_fx",
                     "id": 22,
                     "name": "Octave Mode",
                     "select_chain": [
                       {
-                        "available_when": "not_kit_row",
                         "id": 23,
                         "name": "Note Mode",
                         "title": "Arp note mode",
@@ -4180,12 +4153,10 @@
                     "type": "basic"
                   },
                   {
-                    "available_when": "not_gate_drum_or_kit_fx",
                     "id": 24,
                     "name": "Octave Mode",
                     "select_chain": [
                       {
-                        "available_when": "kit_row_not_gate",
                         "id": 25,
                         "name": "Note Mode",
                         "title": "Arp note mode",
@@ -4269,42 +4240,36 @@
           {
             "children": [
               {
-                "available_when": "not_gate_drum_or_kit_fx",
                 "id": 30,
                 "name": "Octaves",
                 "title": "Arp octaves",
                 "type": "basic"
               },
               {
-                "available_when": "not_gate_drum_row",
                 "id": 31,
                 "name": "Step Repeat",
                 "title": "Arp step repeat",
                 "type": "basic"
               },
               {
-                "available_when": "not_gate_drum_or_kit_fx",
                 "id": 32,
                 "name": "Octave Mode",
                 "title": "Arp octave mode",
                 "type": "basic"
               },
               {
-                "available_when": "not_kit_row",
                 "id": 33,
                 "name": "Note Mode",
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
-                "available_when": "kit_row_not_gate",
                 "id": 34,
                 "name": "Note Mode",
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
-                "available_when": "kit_row_not_gate",
                 "id": 35,
                 "name": "Chord Simulator",
                 "title": "Arp chord sim",
@@ -4318,7 +4283,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 37,
                 "name": "Rhythm",
                 "title": "Arp rhythm",
@@ -4332,7 +4296,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 39,
                 "name": "Sequence Length",
                 "title": "Arp seq length",
@@ -4348,7 +4311,6 @@
             "available_when": "not_gate_drum_or_kit_fx",
             "children": [
               {
-                "available_when": "not_gate_drum_row",
                 "id": 41,
                 "name": "Velocity",
                 "title": "Velocity",
@@ -4361,7 +4323,6 @@
             "type": "submenu"
           },
           {
-            "available_when": "is_kit_row",
             "id": 42,
             "name": "Include in Kit Arp",
             "title": "Include in Kit Arp",
@@ -4389,7 +4350,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_sound",
             "id": 46,
             "name": "Gate Spread",
             "title": "Arp gate spread",
@@ -4403,7 +4363,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 48,
             "name": "Octave Spread",
             "title": "Arp octa spread",
@@ -4417,7 +4376,6 @@
             "type": "basic"
           },
           {
-            "available_when": "is_cv_midi_or_midi_drum",
             "id": 50,
             "name": "Velocity Spread",
             "title": "Velocity spread",
@@ -4431,7 +4389,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_sound",
             "id": 52,
             "name": "Ratchet Amount",
             "title": "Arp ratc amount",
@@ -4445,7 +4402,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_sound",
             "id": 54,
             "name": "Ratchet Probability",
             "title": "Arp ratc prob",
@@ -4459,7 +4415,6 @@
             "type": "basic"
           },
           {
-            "available_when": "cv_midi_clip_arp_on",
             "id": 56,
             "name": "Chord Polyphony",
             "title": "Arp chord poly",
@@ -4473,7 +4428,6 @@
             "type": "basic"
           },
           {
-            "available_when": "cv_midi_clip_arp_on",
             "id": 58,
             "name": "Chord Probability",
             "title": "Arp chord prob",
@@ -4487,7 +4441,6 @@
             "type": "basic"
           },
           {
-            "available_when": "arp_non_sound",
             "id": 60,
             "name": "Note Probability",
             "title": "Note prob",
@@ -4501,7 +4454,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 62,
             "name": "Swap Probability",
             "title": "Arp swap prob",
@@ -4515,7 +4467,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 64,
             "name": "Bass Probability",
             "title": "Arp bass prob",
@@ -4529,7 +4480,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 66,
             "name": "Glide Probability",
             "title": "Arp glide prob",
@@ -7948,12 +7898,10 @@
                 "name": "Preset",
                 "select_chain": [
                   {
-                    "available_when": "not_gate_drum_or_kit_fx",
                     "id": 22,
                     "name": "Octave Mode",
                     "select_chain": [
                       {
-                        "available_when": "not_kit_row",
                         "id": 23,
                         "name": "Note Mode",
                         "title": "Arp note mode",
@@ -7964,12 +7912,10 @@
                     "type": "basic"
                   },
                   {
-                    "available_when": "not_gate_drum_or_kit_fx",
                     "id": 24,
                     "name": "Octave Mode",
                     "select_chain": [
                       {
-                        "available_when": "kit_row_not_gate",
                         "id": 25,
                         "name": "Note Mode",
                         "title": "Arp note mode",
@@ -7984,7 +7930,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 250,
                 "name": "Gate",
                 "title": "Arp gate",
@@ -7997,7 +7942,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 251,
                 "name": "Rate",
                 "title": "Arp rate",
@@ -8012,42 +7956,36 @@
           {
             "children": [
               {
-                "available_when": "not_gate_drum_or_kit_fx",
                 "id": 30,
                 "name": "Octaves",
                 "title": "Arp octaves",
                 "type": "basic"
               },
               {
-                "available_when": "not_gate_drum_row",
                 "id": 31,
                 "name": "Step Repeat",
                 "title": "Arp step repeat",
                 "type": "basic"
               },
               {
-                "available_when": "not_gate_drum_or_kit_fx",
                 "id": 32,
                 "name": "Octave Mode",
                 "title": "Arp octave mode",
                 "type": "basic"
               },
               {
-                "available_when": "not_kit_row",
                 "id": 33,
                 "name": "Note Mode",
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
-                "available_when": "kit_row_not_gate",
                 "id": 34,
                 "name": "Note Mode",
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
-                "available_when": "kit_row_not_gate",
                 "id": 35,
                 "name": "Chord Simulator",
                 "title": "Arp chord sim",
@@ -8061,7 +7999,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 37,
                 "name": "Rhythm",
                 "title": "Arp rhythm",
@@ -8075,7 +8012,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 39,
                 "name": "Sequence Length",
                 "title": "Arp seq length",
@@ -8091,7 +8027,6 @@
             "available_when": "not_gate_drum_or_kit_fx",
             "children": [
               {
-                "available_when": "not_gate_drum_row",
                 "id": 41,
                 "name": "Velocity",
                 "title": "Velocity",
@@ -8104,7 +8039,6 @@
             "type": "submenu"
           },
           {
-            "available_when": "is_kit_row",
             "id": 42,
             "name": "Include in Kit Arp",
             "title": "Include in Kit Arp",
@@ -8132,7 +8066,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_sound",
             "id": 46,
             "name": "Gate Spread",
             "title": "Arp gate spread",
@@ -8146,7 +8079,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 48,
             "name": "Octave Spread",
             "title": "Arp octa spread",
@@ -8160,7 +8092,6 @@
             "type": "basic"
           },
           {
-            "available_when": "is_cv_midi_or_midi_drum",
             "id": 50,
             "name": "Velocity Spread",
             "title": "Velocity spread",
@@ -8174,7 +8105,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_sound",
             "id": 52,
             "name": "Ratchet Amount",
             "title": "Arp ratc amount",
@@ -8188,7 +8118,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_sound",
             "id": 54,
             "name": "Ratchet Probability",
             "title": "Arp ratc prob",
@@ -8202,7 +8131,6 @@
             "type": "basic"
           },
           {
-            "available_when": "cv_midi_clip_arp_on",
             "id": 56,
             "name": "Chord Polyphony",
             "title": "Arp chord poly",
@@ -8216,7 +8144,6 @@
             "type": "basic"
           },
           {
-            "available_when": "cv_midi_clip_arp_on",
             "id": 58,
             "name": "Chord Probability",
             "title": "Arp chord prob",
@@ -8230,7 +8157,6 @@
             "type": "basic"
           },
           {
-            "available_when": "arp_non_sound",
             "id": 60,
             "name": "Note Probability",
             "title": "Note prob",
@@ -8244,7 +8170,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 62,
             "name": "Swap Probability",
             "title": "Arp swap prob",
@@ -8258,7 +8183,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 64,
             "name": "Bass Probability",
             "title": "Arp bass prob",
@@ -8272,7 +8196,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 66,
             "name": "Glide Probability",
             "title": "Arp glide prob",
@@ -8404,12 +8327,10 @@
                 "name": "Preset",
                 "select_chain": [
                   {
-                    "available_when": "not_gate_drum_or_kit_fx",
                     "id": 22,
                     "name": "Octave Mode",
                     "select_chain": [
                       {
-                        "available_when": "not_kit_row",
                         "id": 23,
                         "name": "Note Mode",
                         "title": "Arp note mode",
@@ -8420,12 +8341,10 @@
                     "type": "basic"
                   },
                   {
-                    "available_when": "not_gate_drum_or_kit_fx",
                     "id": 24,
                     "name": "Octave Mode",
                     "select_chain": [
                       {
-                        "available_when": "kit_row_not_gate",
                         "id": 25,
                         "name": "Note Mode",
                         "title": "Arp note mode",
@@ -8440,7 +8359,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 250,
                 "name": "Gate",
                 "title": "Arp gate",
@@ -8453,7 +8371,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 251,
                 "name": "Rate",
                 "title": "Arp rate",
@@ -8468,42 +8385,36 @@
           {
             "children": [
               {
-                "available_when": "not_gate_drum_or_kit_fx",
                 "id": 30,
                 "name": "Octaves",
                 "title": "Arp octaves",
                 "type": "basic"
               },
               {
-                "available_when": "not_gate_drum_row",
                 "id": 31,
                 "name": "Step Repeat",
                 "title": "Arp step repeat",
                 "type": "basic"
               },
               {
-                "available_when": "not_gate_drum_or_kit_fx",
                 "id": 32,
                 "name": "Octave Mode",
                 "title": "Arp octave mode",
                 "type": "basic"
               },
               {
-                "available_when": "not_kit_row",
                 "id": 33,
                 "name": "Note Mode",
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
-                "available_when": "kit_row_not_gate",
                 "id": 34,
                 "name": "Note Mode",
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
-                "available_when": "kit_row_not_gate",
                 "id": 35,
                 "name": "Chord Simulator",
                 "title": "Arp chord sim",
@@ -8517,7 +8428,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 37,
                 "name": "Rhythm",
                 "title": "Arp rhythm",
@@ -8531,7 +8441,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 39,
                 "name": "Sequence Length",
                 "title": "Arp seq length",
@@ -8547,7 +8456,6 @@
             "available_when": "not_gate_drum_or_kit_fx",
             "children": [
               {
-                "available_when": "not_gate_drum_row",
                 "id": 41,
                 "name": "Velocity",
                 "title": "Velocity",
@@ -8560,7 +8468,6 @@
             "type": "submenu"
           },
           {
-            "available_when": "is_kit_row",
             "id": 42,
             "name": "Include in Kit Arp",
             "title": "Include in Kit Arp",
@@ -8588,7 +8495,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_sound",
             "id": 46,
             "name": "Gate Spread",
             "title": "Arp gate spread",
@@ -8602,7 +8508,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 48,
             "name": "Octave Spread",
             "title": "Arp octa spread",
@@ -8616,7 +8521,6 @@
             "type": "basic"
           },
           {
-            "available_when": "is_cv_midi_or_midi_drum",
             "id": 50,
             "name": "Velocity Spread",
             "title": "Velocity spread",
@@ -8630,7 +8534,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_sound",
             "id": 52,
             "name": "Ratchet Amount",
             "title": "Arp ratc amount",
@@ -8644,7 +8547,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_sound",
             "id": 54,
             "name": "Ratchet Probability",
             "title": "Arp ratc prob",
@@ -8658,7 +8560,6 @@
             "type": "basic"
           },
           {
-            "available_when": "cv_midi_clip_arp_on",
             "id": 56,
             "name": "Chord Polyphony",
             "title": "Arp chord poly",
@@ -8672,7 +8573,6 @@
             "type": "basic"
           },
           {
-            "available_when": "cv_midi_clip_arp_on",
             "id": 58,
             "name": "Chord Probability",
             "title": "Arp chord prob",
@@ -8686,7 +8586,6 @@
             "type": "basic"
           },
           {
-            "available_when": "arp_non_sound",
             "id": 60,
             "name": "Note Probability",
             "title": "Note prob",
@@ -8700,7 +8599,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 62,
             "name": "Swap Probability",
             "title": "Arp swap prob",
@@ -8714,7 +8612,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 64,
             "name": "Bass Probability",
             "title": "Arp bass prob",
@@ -8728,7 +8625,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 66,
             "name": "Glide Probability",
             "title": "Arp glide prob",
@@ -8798,12 +8694,10 @@
                 "name": "Preset",
                 "select_chain": [
                   {
-                    "available_when": "not_gate_drum_or_kit_fx",
                     "id": 22,
                     "name": "Octave Mode",
                     "select_chain": [
                       {
-                        "available_when": "not_kit_row",
                         "id": 23,
                         "name": "Note Mode",
                         "title": "Arp note mode",
@@ -8814,12 +8708,10 @@
                     "type": "basic"
                   },
                   {
-                    "available_when": "not_gate_drum_or_kit_fx",
                     "id": 24,
                     "name": "Octave Mode",
                     "select_chain": [
                       {
-                        "available_when": "kit_row_not_gate",
                         "id": 25,
                         "name": "Note Mode",
                         "title": "Arp note mode",
@@ -8834,7 +8726,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 250,
                 "name": "Gate",
                 "title": "Arp gate",
@@ -8847,7 +8738,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 251,
                 "name": "Rate",
                 "title": "Arp rate",
@@ -8862,42 +8752,36 @@
           {
             "children": [
               {
-                "available_when": "not_gate_drum_or_kit_fx",
                 "id": 30,
                 "name": "Octaves",
                 "title": "Arp octaves",
                 "type": "basic"
               },
               {
-                "available_when": "not_gate_drum_row",
                 "id": 31,
                 "name": "Step Repeat",
                 "title": "Arp step repeat",
                 "type": "basic"
               },
               {
-                "available_when": "not_gate_drum_or_kit_fx",
                 "id": 32,
                 "name": "Octave Mode",
                 "title": "Arp octave mode",
                 "type": "basic"
               },
               {
-                "available_when": "not_kit_row",
                 "id": 33,
                 "name": "Note Mode",
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
-                "available_when": "kit_row_not_gate",
                 "id": 34,
                 "name": "Note Mode",
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
-                "available_when": "kit_row_not_gate",
                 "id": 35,
                 "name": "Chord Simulator",
                 "title": "Arp chord sim",
@@ -8911,7 +8795,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 37,
                 "name": "Rhythm",
                 "title": "Arp rhythm",
@@ -8925,7 +8808,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 39,
                 "name": "Sequence Length",
                 "title": "Arp seq length",
@@ -8941,7 +8823,6 @@
             "available_when": "not_gate_drum_or_kit_fx",
             "children": [
               {
-                "available_when": "not_gate_drum_row",
                 "id": 41,
                 "name": "Velocity",
                 "title": "Velocity",
@@ -8954,7 +8835,6 @@
             "type": "submenu"
           },
           {
-            "available_when": "is_kit_row",
             "id": 42,
             "name": "Include in Kit Arp",
             "title": "Include in Kit Arp",
@@ -8982,7 +8862,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_sound",
             "id": 46,
             "name": "Gate Spread",
             "title": "Arp gate spread",
@@ -8996,7 +8875,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 48,
             "name": "Octave Spread",
             "title": "Arp octa spread",
@@ -9010,7 +8888,6 @@
             "type": "basic"
           },
           {
-            "available_when": "is_cv_midi_or_midi_drum",
             "id": 50,
             "name": "Velocity Spread",
             "title": "Velocity spread",
@@ -9024,7 +8901,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_sound",
             "id": 52,
             "name": "Ratchet Amount",
             "title": "Arp ratc amount",
@@ -9038,7 +8914,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_sound",
             "id": 54,
             "name": "Ratchet Probability",
             "title": "Arp ratc prob",
@@ -9052,7 +8927,6 @@
             "type": "basic"
           },
           {
-            "available_when": "cv_midi_clip_arp_on",
             "id": 56,
             "name": "Chord Polyphony",
             "title": "Arp chord poly",
@@ -9066,7 +8940,6 @@
             "type": "basic"
           },
           {
-            "available_when": "cv_midi_clip_arp_on",
             "id": 58,
             "name": "Chord Probability",
             "title": "Arp chord prob",
@@ -9080,7 +8953,6 @@
             "type": "basic"
           },
           {
-            "available_when": "arp_non_sound",
             "id": 60,
             "name": "Note Probability",
             "title": "Note prob",
@@ -9094,7 +8966,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 62,
             "name": "Swap Probability",
             "title": "Arp swap prob",
@@ -9108,7 +8979,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 64,
             "name": "Bass Probability",
             "title": "Arp bass prob",
@@ -9122,7 +8992,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 66,
             "name": "Glide Probability",
             "title": "Arp glide prob",
@@ -10688,12 +10557,10 @@
                 "name": "Preset",
                 "select_chain": [
                   {
-                    "available_when": "not_gate_drum_or_kit_fx",
                     "id": 22,
                     "name": "Octave Mode",
                     "select_chain": [
                       {
-                        "available_when": "not_kit_row",
                         "id": 23,
                         "name": "Note Mode",
                         "title": "Arp note mode",
@@ -10704,12 +10571,10 @@
                     "type": "basic"
                   },
                   {
-                    "available_when": "not_gate_drum_or_kit_fx",
                     "id": 24,
                     "name": "Octave Mode",
                     "select_chain": [
                       {
-                        "available_when": "kit_row_not_gate",
                         "id": 25,
                         "name": "Note Mode",
                         "title": "Arp note mode",
@@ -10752,42 +10617,36 @@
           {
             "children": [
               {
-                "available_when": "not_gate_drum_or_kit_fx",
                 "id": 30,
                 "name": "Octaves",
                 "title": "Arp octaves",
                 "type": "basic"
               },
               {
-                "available_when": "not_gate_drum_row",
                 "id": 31,
                 "name": "Step Repeat",
                 "title": "Arp step repeat",
                 "type": "basic"
               },
               {
-                "available_when": "not_gate_drum_or_kit_fx",
                 "id": 32,
                 "name": "Octave Mode",
                 "title": "Arp octave mode",
                 "type": "basic"
               },
               {
-                "available_when": "not_kit_row",
                 "id": 33,
                 "name": "Note Mode",
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
-                "available_when": "kit_row_not_gate",
                 "id": 34,
                 "name": "Note Mode",
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
-                "available_when": "kit_row_not_gate",
                 "id": 35,
                 "name": "Chord Simulator",
                 "title": "Arp chord sim",
@@ -10801,7 +10660,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 37,
                 "name": "Rhythm",
                 "title": "Arp rhythm",
@@ -10815,7 +10673,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 39,
                 "name": "Sequence Length",
                 "title": "Arp seq length",
@@ -10843,7 +10700,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "randomizer_non_sound",
                 "id": 46,
                 "name": "Gate Spread",
                 "title": "Arp gate spread",
@@ -10857,7 +10713,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "randomizer_midi_target",
                 "id": 48,
                 "name": "Octave Spread",
                 "title": "Arp octa spread",
@@ -10871,7 +10726,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "is_cv_midi_or_midi_drum",
                 "id": 50,
                 "name": "Velocity Spread",
                 "title": "Velocity spread",
@@ -10885,7 +10739,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "randomizer_non_sound",
                 "id": 52,
                 "name": "Ratchet Amount",
                 "title": "Arp ratc amount",
@@ -10899,7 +10752,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "randomizer_non_sound",
                 "id": 54,
                 "name": "Ratchet Probability",
                 "title": "Arp ratc prob",
@@ -10913,7 +10765,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "cv_midi_clip_arp_on",
                 "id": 56,
                 "name": "Chord Polyphony",
                 "title": "Arp chord poly",
@@ -10927,7 +10778,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "cv_midi_clip_arp_on",
                 "id": 58,
                 "name": "Chord Probability",
                 "title": "Arp chord prob",
@@ -10941,7 +10791,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 60,
                 "name": "Note Probability",
                 "title": "Note prob",
@@ -10955,7 +10804,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "randomizer_midi_target",
                 "id": 62,
                 "name": "Swap Probability",
                 "title": "Arp swap prob",
@@ -10969,7 +10817,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "randomizer_midi_target",
                 "id": 64,
                 "name": "Bass Probability",
                 "title": "Arp bass prob",
@@ -10983,7 +10830,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "randomizer_midi_target",
                 "id": 66,
                 "name": "Glide Probability",
                 "title": "Arp glide prob",
@@ -12681,12 +12527,10 @@
                 "name": "Preset",
                 "select_chain": [
                   {
-                    "available_when": "not_gate_drum_or_kit_fx",
                     "id": 22,
                     "name": "Octave Mode",
                     "select_chain": [
                       {
-                        "available_when": "not_kit_row",
                         "id": 23,
                         "name": "Note Mode",
                         "title": "Arp note mode",
@@ -12697,12 +12541,10 @@
                     "type": "basic"
                   },
                   {
-                    "available_when": "not_gate_drum_or_kit_fx",
                     "id": 24,
                     "name": "Octave Mode",
                     "select_chain": [
                       {
-                        "available_when": "kit_row_not_gate",
                         "id": 25,
                         "name": "Note Mode",
                         "title": "Arp note mode",
@@ -12717,7 +12559,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 250,
                 "name": "Gate",
                 "title": "Arp gate",
@@ -12730,7 +12571,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 251,
                 "name": "Rate",
                 "title": "Arp rate",
@@ -12745,42 +12585,36 @@
           {
             "children": [
               {
-                "available_when": "not_gate_drum_or_kit_fx",
                 "id": 30,
                 "name": "Octaves",
                 "title": "Arp octaves",
                 "type": "basic"
               },
               {
-                "available_when": "not_gate_drum_row",
                 "id": 31,
                 "name": "Step Repeat",
                 "title": "Arp step repeat",
                 "type": "basic"
               },
               {
-                "available_when": "not_gate_drum_or_kit_fx",
                 "id": 32,
                 "name": "Octave Mode",
                 "title": "Arp octave mode",
                 "type": "basic"
               },
               {
-                "available_when": "not_kit_row",
                 "id": 33,
                 "name": "Note Mode",
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
-                "available_when": "kit_row_not_gate",
                 "id": 34,
                 "name": "Note Mode",
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
-                "available_when": "kit_row_not_gate",
                 "id": 35,
                 "name": "Chord Simulator",
                 "title": "Arp chord sim",
@@ -12794,7 +12628,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 37,
                 "name": "Rhythm",
                 "title": "Arp rhythm",
@@ -12808,7 +12641,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_non_sound",
                 "id": 39,
                 "name": "Sequence Length",
                 "title": "Arp seq length",
@@ -12824,7 +12656,6 @@
             "available_when": "not_gate_drum_or_kit_fx",
             "children": [
               {
-                "available_when": "not_gate_drum_row",
                 "id": 41,
                 "name": "Velocity",
                 "title": "Velocity",
@@ -12837,7 +12668,6 @@
             "type": "submenu"
           },
           {
-            "available_when": "is_kit_row",
             "id": 42,
             "name": "Include in Kit Arp",
             "title": "Include in Kit Arp",
@@ -12865,7 +12695,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_sound",
             "id": 46,
             "name": "Gate Spread",
             "title": "Arp gate spread",
@@ -12879,7 +12708,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 48,
             "name": "Octave Spread",
             "title": "Arp octa spread",
@@ -12893,7 +12721,6 @@
             "type": "basic"
           },
           {
-            "available_when": "is_cv_midi_or_midi_drum",
             "id": 50,
             "name": "Velocity Spread",
             "title": "Velocity spread",
@@ -12907,7 +12734,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_sound",
             "id": 52,
             "name": "Ratchet Amount",
             "title": "Arp ratc amount",
@@ -12921,7 +12747,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_sound",
             "id": 54,
             "name": "Ratchet Probability",
             "title": "Arp ratc prob",
@@ -12935,7 +12760,6 @@
             "type": "basic"
           },
           {
-            "available_when": "cv_midi_clip_arp_on",
             "id": 56,
             "name": "Chord Polyphony",
             "title": "Arp chord poly",
@@ -12949,7 +12773,6 @@
             "type": "basic"
           },
           {
-            "available_when": "cv_midi_clip_arp_on",
             "id": 58,
             "name": "Chord Probability",
             "title": "Arp chord prob",
@@ -12963,7 +12786,6 @@
             "type": "basic"
           },
           {
-            "available_when": "arp_non_sound",
             "id": 60,
             "name": "Note Probability",
             "title": "Note prob",
@@ -12977,7 +12799,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 62,
             "name": "Swap Probability",
             "title": "Arp swap prob",
@@ -12991,7 +12812,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 64,
             "name": "Bass Probability",
             "title": "Arp bass prob",
@@ -13005,7 +12825,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_midi_target",
             "id": 66,
             "name": "Glide Probability",
             "title": "Arp glide prob",

@@ -76,42 +76,11 @@ struct MenuContext;
 
 namespace deluge::scenes::menu::nodes {
 
-/// @name The arpeggiator hooks. Bodies (and their citations) in the `.cpp`.
+/// @name The preset's hooks: it reads the engine's preset (Custom is the engine's alone). Bodies in the `.cpp`.
 /// @{
-int32_t get_arp_mode(const MenuContext& ctx);
-void set_arp_mode(const MenuContext& ctx, int32_t value);
 int32_t get_arp_preset(const MenuContext& ctx);
 void set_arp_preset(const MenuContext& ctx, int32_t value);
-int32_t get_arp_sync(const MenuContext& ctx);
-void set_arp_sync(const MenuContext& ctx, int32_t value);
-int32_t get_arp_octaves(const MenuContext& ctx);
-void set_arp_octaves(const MenuContext& ctx, int32_t value);
-int32_t get_arp_step_repeat(const MenuContext& ctx);
-void set_arp_step_repeat(const MenuContext& ctx, int32_t value);
-int32_t get_arp_octave_mode(const MenuContext& ctx);
-void set_arp_octave_mode(const MenuContext& ctx, int32_t value);
-int32_t get_arp_note_mode(const MenuContext& ctx);
-void set_arp_note_mode(const MenuContext& ctx, int32_t value);
-int32_t get_arp_note_mode_drums(const MenuContext& ctx);
-void set_arp_note_mode_drums(const MenuContext& ctx, int32_t value);
-int32_t get_arp_chord_simulator(const MenuContext& ctx);
-void set_arp_chord_simulator(const MenuContext& ctx, int32_t value);
-int32_t get_arp_rhythm_midi(const MenuContext& ctx);
-void set_arp_rhythm_midi(const MenuContext& ctx, int32_t value);
-int32_t get_arp_sequence_length_midi(const MenuContext& ctx);
-void set_arp_sequence_length_midi(const MenuContext& ctx, int32_t value);
-int32_t get_arp_mpe_velocity(const MenuContext& ctx);
-void set_arp_mpe_velocity(const MenuContext& ctx, int32_t value);
-int32_t get_arp_include_in_kit(const MenuContext& ctx);
-void set_arp_include_in_kit(const MenuContext& ctx, int32_t value);
 /// @}
-
-/// `arpeggiator::Mode::getOptions` (`arpeggiator/mode.h:90-98`), and `IncludeInKitArp`'s
-/// (`include_in_kit_arp.h:56-63`) -- the same two strings.
-inline constexpr uint16_t kOffOnNames[] = {
-    sid(deluge::l10n::String::STRING_FOR_OFF),
-    sid(deluge::l10n::String::STRING_FOR_ON),
-};
 
 /// `arpeggiator::PresetMode::getOptions` (`preset_mode.h:96-108`).
 inline constexpr uint16_t kArpPresetNames[] = {
@@ -121,51 +90,28 @@ inline constexpr uint16_t kArpPresetNames[] = {
     sid(deluge::l10n::String::STRING_FOR_CUSTOM),
 };
 
-/// `arpeggiator::OctaveMode::getOptions` (`octave_mode.h:49-67`), FULL spelling.
-inline constexpr uint16_t kArpOctaveModeNames[] = {
-    sid(deluge::l10n::String::STRING_FOR_UP),      sid(deluge::l10n::String::STRING_FOR_DOWN),
-    sid(deluge::l10n::String::STRING_FOR_UP_DOWN), sid(deluge::l10n::String::STRING_FOR_ALTERNATE),
-    sid(deluge::l10n::String::STRING_FOR_RANDOM),
-};
-
-/// `arpeggiator::NoteMode::getOptions` (`note_mode.h:26-52`), FULL spelling.
-inline constexpr uint16_t kArpNoteModeNames[] = {
-    sid(deluge::l10n::String::STRING_FOR_UP),      sid(deluge::l10n::String::STRING_FOR_DOWN),
-    sid(deluge::l10n::String::STRING_FOR_UP_DOWN), sid(deluge::l10n::String::STRING_FOR_RANDOM),
-    sid(deluge::l10n::String::STRING_FOR_WALK1),   sid(deluge::l10n::String::STRING_FOR_WALK2),
-    sid(deluge::l10n::String::STRING_FOR_WALK3),   sid(deluge::l10n::String::STRING_FOR_AS_PLAYED),
-    sid(deluge::l10n::String::STRING_FOR_PATTERN),
-};
-
-/// `arpeggiator::NoteModeForDrums::getOptions` (`note_mode_for_drums.h:64-76`) -- the same list
-/// without AS PLAYED and PATTERN, which a drum's single note cannot express.
-inline constexpr uint16_t kArpNoteModeDrumNames[] = {
-    sid(deluge::l10n::String::STRING_FOR_UP),      sid(deluge::l10n::String::STRING_FOR_DOWN),
-    sid(deluge::l10n::String::STRING_FOR_UP_DOWN), sid(deluge::l10n::String::STRING_FOR_RANDOM),
-    sid(deluge::l10n::String::STRING_FOR_WALK1),   sid(deluge::l10n::String::STRING_FOR_WALK2),
-    sid(deluge::l10n::String::STRING_FOR_WALK3),
-};
-
-/// `arpeggiator::ChordType::getOptions` (`chord_type.h:67-81`).
-inline constexpr uint16_t kArpChordNames[] = {
-    sid(deluge::l10n::String::STRING_FOR_NONE),   sid(deluge::l10n::String::STRING_FOR_FIFTH),
-    sid(deluge::l10n::String::STRING_FOR_SUS2),   sid(deluge::l10n::String::STRING_FOR_MINOR),
-    sid(deluge::l10n::String::STRING_FOR_MAJOR),  sid(deluge::l10n::String::STRING_FOR_SUS4),
-    sid(deluge::l10n::String::STRING_FOR_MINOR7), sid(deluge::l10n::String::STRING_FOR_DOMINANT7),
-    sid(deluge::l10n::String::STRING_FOR_MAJOR7),
-};
-
-/// `arpeggiator::ArpMpeVelocity::getOptions` (`mpe_velocity.h:57-65`).
-inline constexpr uint16_t kArpMpeNames[] = {
-    sid(deluge::l10n::String::STRING_FOR_DISABLED),
-    sid(deluge::l10n::String::STRING_FOR_PATCH_SOURCE_AFTERTOUCH),
-    sid(deluge::l10n::String::STRING_FOR_PATCH_SOURCE_Y),
-};
+/// @brief The arp row at @p path of the arp the menu's root names: a clip's (a synth's, MIDI or CV track's, the whole
+///        kit's) or, on a kit row, its lane's. With affect-entire held on a kit row, a @p whole_kit row goes to every
+///        lane that takes it, as legacy's affect-entire loops write it. @p shown_on is for a page legacy keeps a twin
+///        of for kit rows: each twin shows on its own kind of root.
+constexpr deluge::scenes::bind::Target
+arp_row(std::string_view path, bool whole_kit = true,
+        deluge::scenes::bind::Target::FanOutFact fact = deluge::scenes::bind::Target::FanOutFact::NONE,
+        deluge::scenes::bind::Target::ShownOn shown_on = deluge::scenes::bind::Target::ShownOn::ANY) {
+	return {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+	        .path = path,
+	        .whole_kit = whole_kit,
+	        .group = deluge::project::SettingGroupId::CLIP_ARP,
+	        .fan_out_fact = fact,
+	        .shown_on = shown_on};
+}
+using Target = deluge::scenes::bind::Target;
+using ShownOn = Target::ShownOn;
 
 // --- the mode toggle -------------------------------------------------------------------------
 
 inline constexpr Node arp_mode =
-    with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_ENABLED), kOffOnNames, get_arp_mode, set_arp_mode),
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_ENABLED), Kind::Enum, arp_row("arpeggiator/arpMode")),
                sid(deluge::l10n::String::STRING_FOR_ARP_MODE_MENU_TITLE));
 
 // --- the four chain-only pages ---------------------------------------------------------------
@@ -185,12 +131,12 @@ inline constexpr Node arp_mode =
 // each shares its base's name, title, options, hooks and relevance exactly.
 
 inline constexpr Node arp_note_mode_from_octave_mode =
-    with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_NOTE_MODE), kArpNoteModeNames, get_arp_note_mode,
-                           set_arp_note_mode, relevance::not_kit_row),
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_NOTE_MODE), Kind::Enum,
+                            arp_row("arpeggiator/noteMode", true, Target::FanOutFact::NONE, ShownOn::OFF_LANE)),
                sid(deluge::l10n::String::STRING_FOR_ARP_NOTE_MODE_MENU_TITLE));
 inline constexpr Node arp_note_mode_from_octave_mode_drums =
-    with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_NOTE_MODE), kArpNoteModeDrumNames,
-                           get_arp_note_mode_drums, set_arp_note_mode_drums, relevance::kit_row_not_gate),
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_NOTE_MODE), Kind::Enum,
+                            arp_row("arpeggiator/noteMode", true, Target::FanOutFact::NONE, ShownOn::ON_LANE)),
                sid(deluge::l10n::String::STRING_FOR_ARP_NOTE_MODE_MENU_TITLE));
 
 /// @brief `OctaveModeToNoteMode::selectButtonPress()` (`octave_mode.h:90`) and its drum twin's
@@ -206,16 +152,16 @@ inline const Node* arp_octave_mode_to_note_mode_drums_chain(const MenuContext&, 
 }
 /// @}
 
-inline constexpr Node arp_octave_mode_to_note_mode = with_select_chain(
-    with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_OCTAVE_MODE), kArpOctaveModeNames, get_arp_octave_mode,
-                           set_arp_octave_mode, relevance::not_gate_drum_or_kit_fx),
-               sid(deluge::l10n::String::STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE)),
-    arp_octave_mode_to_note_mode_chain, kArpOctaveModeToNoteModeChain);
-inline constexpr Node arp_octave_mode_to_note_mode_drums = with_select_chain(
-    with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_OCTAVE_MODE), kArpOctaveModeNames, get_arp_octave_mode,
-                           set_arp_octave_mode, relevance::not_gate_drum_or_kit_fx),
-               sid(deluge::l10n::String::STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE)),
-    arp_octave_mode_to_note_mode_drums_chain, kArpOctaveModeToNoteModeDrumsChain);
+inline constexpr Node arp_octave_mode_to_note_mode =
+    with_select_chain(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_OCTAVE_MODE), Kind::Enum,
+                                              arp_row("arpeggiator/octaveMode")),
+                                 sid(deluge::l10n::String::STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE)),
+                      arp_octave_mode_to_note_mode_chain, kArpOctaveModeToNoteModeChain);
+inline constexpr Node arp_octave_mode_to_note_mode_drums =
+    with_select_chain(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_OCTAVE_MODE), Kind::Enum,
+                                              arp_row("arpeggiator/octaveMode")),
+                                 sid(deluge::l10n::String::STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE)),
+                      arp_octave_mode_to_note_mode_drums_chain, kArpOctaveModeToNoteModeDrumsChain);
 
 // --- the basic page --------------------------------------------------------------------------
 
@@ -240,9 +186,9 @@ inline constexpr Node arp_gate =
     param(sid(deluge::l10n::String::STRING_FOR_GATE),
           {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_ARP_GATE},
           Hint::LengthSlider, relevance::arp_sound_only, sid(deluge::l10n::String::STRING_FOR_ARP_GATE_MENU_TITLE));
-inline constexpr Node arp_sync = sync_level_item(sid(deluge::l10n::String::STRING_FOR_SYNC),
-                                                 sid(deluge::l10n::String::STRING_FOR_ARP_SYNC_MENU_TITLE),
-                                                 get_arp_sync, set_arp_sync, kSyncLevelRange);
+inline constexpr Node arp_sync = with_title(
+    setting_item(sid(deluge::l10n::String::STRING_FOR_SYNC), Kind::SyncLevel, arp_row("arpeggiator/syncLevel")),
+    sid(deluge::l10n::String::STRING_FOR_ARP_SYNC_MENU_TITLE));
 inline constexpr Node arp_rate = with_patch_chain(
     param(sid(deluge::l10n::String::STRING_FOR_RATE),
           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_ARP_RATE}, Hint::Knob,
@@ -257,30 +203,26 @@ inline constexpr Node arp_basic =
 
 // `Octaves::getMinValue`/`getMaxValue` (`octaves.h:37-38`) and `StepRepeat`'s (`step_repeat.h:36-37`);
 // both render a plain NUMBER (`octaves.h:53`, `step_repeat.h:53`), hence `Hint::None`.
-inline constexpr Node arp_octaves =
-    with_title(int_item(sid(deluge::l10n::String::STRING_FOR_NUMBER_OF_OCTAVES), get_arp_octaves, set_arp_octaves,
-                        IntRange{1, 8, 1}, Hint::None, relevance::not_gate_drum_or_kit_fx),
-               sid(deluge::l10n::String::STRING_FOR_ARP_OCTAVES_MENU_TITLE));
-inline constexpr Node arp_step_repeat =
-    with_title(int_item(sid(deluge::l10n::String::STRING_FOR_STEP_REPEAT), get_arp_step_repeat, set_arp_step_repeat,
-                        IntRange{1, 8, 1}, Hint::None, relevance::not_gate_drum_row),
-               sid(deluge::l10n::String::STRING_FOR_ARP_STEP_REPEAT_MENU_TITLE));
-inline constexpr Node arp_octave_mode =
-    with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_OCTAVE_MODE), kArpOctaveModeNames, get_arp_octave_mode,
-                           set_arp_octave_mode, relevance::not_gate_drum_or_kit_fx),
-               sid(deluge::l10n::String::STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE));
+inline constexpr Node arp_octaves = with_title(
+    setting_item(sid(deluge::l10n::String::STRING_FOR_NUMBER_OF_OCTAVES), Kind::Int, arp_row("arpeggiator/numOctaves")),
+    sid(deluge::l10n::String::STRING_FOR_ARP_OCTAVES_MENU_TITLE));
+inline constexpr Node arp_step_repeat = with_title(
+    setting_item(sid(deluge::l10n::String::STRING_FOR_STEP_REPEAT), Kind::Int, arp_row("arpeggiator/stepRepeat")),
+    sid(deluge::l10n::String::STRING_FOR_ARP_STEP_REPEAT_MENU_TITLE));
+inline constexpr Node arp_octave_mode = with_title(
+    setting_item(sid(deluge::l10n::String::STRING_FOR_OCTAVE_MODE), Kind::Enum, arp_row("arpeggiator/octaveMode")),
+    sid(deluge::l10n::String::STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE));
 inline constexpr Node arp_note_mode =
-    with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_NOTE_MODE), kArpNoteModeNames, get_arp_note_mode,
-                           set_arp_note_mode, relevance::not_kit_row),
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_NOTE_MODE), Kind::Enum,
+                            arp_row("arpeggiator/noteMode", true, Target::FanOutFact::NONE, ShownOn::OFF_LANE)),
                sid(deluge::l10n::String::STRING_FOR_ARP_NOTE_MODE_MENU_TITLE));
 inline constexpr Node arp_note_mode_drums =
-    with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_NOTE_MODE), kArpNoteModeDrumNames,
-                           get_arp_note_mode_drums, set_arp_note_mode_drums, relevance::kit_row_not_gate),
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_NOTE_MODE), Kind::Enum,
+                            arp_row("arpeggiator/noteMode", true, Target::FanOutFact::NONE, ShownOn::ON_LANE)),
                sid(deluge::l10n::String::STRING_FOR_ARP_NOTE_MODE_MENU_TITLE));
-inline constexpr Node arp_chord_simulator =
-    with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_CHORD_SIMULATOR), kArpChordNames,
-                           get_arp_chord_simulator, set_arp_chord_simulator, relevance::kit_row_not_gate),
-               sid(deluge::l10n::String::STRING_FOR_ARP_CHORD_SIMULATOR_MENU_TITLE));
+inline constexpr Node arp_chord_simulator = with_title(
+    setting_item(sid(deluge::l10n::String::STRING_FOR_CHORD_SIMULATOR), Kind::Enum, arp_row("arpeggiator/chordType")),
+    sid(deluge::l10n::String::STRING_FOR_ARP_CHORD_SIMULATOR_MENU_TITLE));
 // `Rhythm::getOccupiedSlots()` is 2 (`rhythm.h:51-52`), as is its MIDI/CV twin's
 // (`midi_cv/rhythm.h:70`); the range is `{0, kMaxPresetArpRhythm}` (`rhythm.h:70`), and
 // `kMaxPresetArpRhythm == kMaxMenuValue` (`modulation/arpeggiator_rhythms.h:28`), which is the
@@ -290,19 +232,19 @@ inline constexpr Node arp_rhythm = with_slots(
           {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_ARP_RHYTHM},
           Hint::None, relevance::arp_sound_only, sid(deluge::l10n::String::STRING_FOR_ARP_RHYTHM_MENU_TITLE)),
     2);
-inline constexpr Node arp_rhythm_midi = with_slots(
-    with_title(int_item(sid(deluge::l10n::String::STRING_FOR_RHYTHM), get_arp_rhythm_midi, set_arp_rhythm_midi,
-                        IntRange{kMinMenuValue, kMaxMenuValue, 1}, Hint::None, relevance::arp_non_sound),
-               sid(deluge::l10n::String::STRING_FOR_ARP_RHYTHM_MENU_TITLE)),
-    2);
+/// A MIDI or CV arp's host values are settings, which legacy's items write on the selected arp alone.
+inline constexpr Node arp_rhythm_midi =
+    with_slots(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RHYTHM), Kind::Int,
+                                       arp_row("arpeggiator/rhythm", false)),
+                          sid(deluge::l10n::String::STRING_FOR_ARP_RHYTHM_MENU_TITLE)),
+               2);
 inline constexpr Node arp_sequence_length = param(
     sid(deluge::l10n::String::STRING_FOR_SEQUENCE_LENGTH),
     {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_ARP_SEQUENCE_LENGTH},
     Hint::None, relevance::arp_sound_only, sid(deluge::l10n::String::STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE));
 inline constexpr Node arp_sequence_length_midi =
-    with_title(int_item(sid(deluge::l10n::String::STRING_FOR_SEQUENCE_LENGTH), get_arp_sequence_length_midi,
-                        set_arp_sequence_length_midi, IntRange{kMinMenuValue, kMaxMenuValue, 1}, Hint::None,
-                        relevance::arp_non_sound),
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SEQUENCE_LENGTH), Kind::Int,
+                            arp_row("arpeggiator/sequenceLength", false)),
                sid(deluge::l10n::String::STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE));
 
 inline constexpr const Node* kArpPatternChildren[] = {
@@ -315,17 +257,18 @@ inline constexpr Node arp_pattern =
 // --- the MPE page ----------------------------------------------------------------------------
 
 inline constexpr Node arp_mpe_velocity =
-    enumeration(sid(deluge::l10n::String::STRING_FOR_VELOCITY), kArpMpeNames, get_arp_mpe_velocity,
-                set_arp_mpe_velocity, relevance::not_gate_drum_row);
+    setting_item(sid(deluge::l10n::String::STRING_FOR_VELOCITY), Kind::Enum, arp_row("arpeggiator/mpeVelocity"));
 inline constexpr const Node* kArpMpeChildren[] = {&arp_mpe_velocity};
 inline constexpr Node arp_mpe = submenu(sid(deluge::l10n::String::STRING_FOR_MPE), kArpMpeChildren, Layout::Vertical,
                                         relevance::not_gate_drum_or_kit_fx);
 
 // --- the page itself -------------------------------------------------------------------------
 
+/// A kit row whose sound cannot hold note tails shows it off, and a kit-wide write skips such a row
+/// (`include_in_kit_arp.h:31-60`).
 inline constexpr Node arp_include_in_kit_arp =
-    enumeration(sid(deluge::l10n::String::STRING_FOR_INCLUDE_IN_KIT_ARP), kOffOnNames, get_arp_include_in_kit,
-                set_arp_include_in_kit, relevance::is_kit_row);
+    setting_item(sid(deluge::l10n::String::STRING_FOR_INCLUDE_IN_KIT_ARP), Kind::Enum,
+                 arp_row("arpeggiator/kitArp", true, Target::FanOutFact::NOTE_TAILS));
 
 inline constexpr const Node* kArpChildren[] = {&arp_mode, &arp_basic, &arp_pattern, &arp_mpe, &arp_include_in_kit_arp};
 inline constexpr Node arp = submenu(sid(deluge::l10n::String::STRING_FOR_ARPEGGIATOR), kArpChildren);
