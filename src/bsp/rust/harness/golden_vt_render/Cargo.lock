@@ -758,6 +758,7 @@ version = "0.1.0"
 dependencies = [
  "critical-section",
  "deluge-bsp-rust",
+ "deluge_alloc",
  "embassy-executor",
  "embassy-futures",
  "embassy-time",
