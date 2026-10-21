@@ -183,6 +183,20 @@ describe song_settings_edit("SetSetting", $ {
 		expect(static_cast<int>(midi.outputMPEY)).to_equal(static_cast<int>(CC_EXTERNAL_MOD_WHEEL));
 	});
 
+	it("marks a MIDI instrument edited when its Y axis or collapsing changes, so its device definition saves them", _ {
+		for (const std::pair<std::string_view, Value> write :
+		     {std::pair<std::string_view, Value>{"outputMpeY", Value::makeScalar("1")},
+		      std::pair<std::string_view, Value>{"collapseAftertouch", Value::makeNumber(1)},
+		      std::pair<std::string_view, Value>{"collapseMpe", Value::makeNumber(0)}}) {
+			spec::SongFixture f = spec::make_midi_song();
+			auto& midi = *static_cast<MIDIInstrument*>(f.instrument);
+			midi.editedByUser = false;
+			deluge::edits::trackSettingFor(midi, write.first, write.second);
+			expect(std::string{write.first} + (midi.editedByUser ? " edited" : " not edited"))
+			    .to_equal(std::string{write.first} + " edited");
+		}
+	});
+
 	it("re-channels a MIDI instrument in place", _ {
 		spec::SongFixture f = spec::make_midi_song();
 		auto& midi = *static_cast<MIDIInstrument*>(f.instrument);

@@ -128,6 +128,9 @@ struct SettingAddress {
 /// @return The value, or nullopt when the owner does not resolve or the group has no such path.
 [[nodiscard]] std::optional<serialization::Value> read_setting(Song& song, const SettingAddress& address,
                                                                std::string_view path);
+/// @copydoc read_setting
+[[nodiscard]] std::optional<serialization::Value> read_setting(const Song& song, const SettingAddress& address,
+                                                               std::string_view path);
 
 /// @brief @p record's value at arp path @p path, in its file form: what the CLIP_ARP and LANE_ARP groups read.
 /// @param record The arp's record.
@@ -169,6 +172,8 @@ bool restore_setting_record(Song& song, const SettingAddress& address, const Set
 /// @param path    A path of the group's table.
 /// @return False for an unheld clip value, or an owner that does not resolve; true otherwise.
 [[nodiscard]] bool holds_setting(Song& song, const SettingAddress& address, std::string_view path);
+/// @copydoc holds_setting
+[[nodiscard]] bool holds_setting(const Song& song, const SettingAddress& address, std::string_view path);
 
 /// @brief Forget @p address's own value at @p path, so it plays its track's again. Only a clip value (and a kit row's
 ///        bend range, and an arp's host value) can be forgotten; any other setting is left as it is.

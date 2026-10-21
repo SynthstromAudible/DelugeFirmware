@@ -72,14 +72,6 @@ MIDIInstrument* midi_instrument(const MenuContext& ctx) {
 	return static_cast<MIDIInstrument*>(ctx.output);
 }
 
-/// @brief `getCurrentInstrument()->editedByUser = true`, the tail of the three MIDI toggles
-///        (`y_axis_to_cc1.h:31`, `after_touch_to_mono.h:27`, `mpe_to_mono.h:27`).
-void mark_edited(const MenuContext& ctx) {
-	if (ctx.output != nullptr && ctx.output->type != OutputType::AUDIO) {
-		static_cast<Instrument*>(ctx.output)->editedByUser = true;
-	}
-}
-
 /// @brief The context's instrument clip, or null -- `getCurrentInstrumentClip()`.
 InstrumentClip* instrument_clip(const MenuContext& ctx) {
 	return (ctx.clip != nullptr && ctx.clip->type == ClipType::INSTRUMENT) ? static_cast<InstrumentClip*>(ctx.clip)
@@ -178,7 +170,6 @@ void set_mpe_y_to_mod_wheel(const MenuContext& ctx, int32_t value) {
 		deluge::edits::trackSettingFor(*instrument, "outputMpeY",
 		                               deluge::serialization::Value::makeNumber(static_cast<int32_t>(
 		                                   value != 0 ? CC_EXTERNAL_MOD_WHEEL : CC_EXTERNAL_MPE_Y)));
-		mark_edited(ctx);
 	}
 }
 
@@ -190,7 +181,6 @@ void set_aftertouch_to_mono(const MenuContext& ctx, int32_t value) {
 	if (MIDIInstrument* instrument = midi_instrument(ctx); instrument != nullptr) { // `after_touch_to_mono.h:24-28`
 		deluge::edits::trackSettingFor(*instrument, "collapseAftertouch",
 		                               deluge::serialization::Value::makeNumber(value != 0 ? 1 : 0));
-		mark_edited(ctx);
 	}
 }
 
@@ -202,7 +192,6 @@ void set_mpe_to_mono(const MenuContext& ctx, int32_t value) {
 	if (MIDIInstrument* instrument = midi_instrument(ctx); instrument != nullptr) { // `mpe_to_mono.h:24-28`
 		deluge::edits::trackSettingFor(*instrument, "collapseMpe",
 		                               deluge::serialization::Value::makeNumber(value != 0 ? 1 : 0));
-		mark_edited(ctx);
 	}
 }
 

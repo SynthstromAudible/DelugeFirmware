@@ -17,6 +17,7 @@
 #include <climits>
 #include <iterator>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -474,19 +475,22 @@ static_assert(engine::mappings_are_valid(kNoteRowTable));
 static_assert(engine::conditions_are_valid(kLaneTable));
 static_assert(engine::mappings_are_valid(kLaneTable));
 
-DocNoteRow* resolve_note_row(Song& song, const NoteRowAddress& address) {
-	DocClip* clip = song.clip_structure.find(address.clip_id);
+/// The note row @p address names in @p song (a Song or a const Song), or nullptr.
+template <class SongT>
+auto* resolve_note_row(SongT& song, const NoteRowAddress& address) {
+	auto* clip = song.clip_structure.find(address.clip_id);
+	using Row = std::remove_reference_t<decltype(clip->note_rows.front())>;
 	if (clip == nullptr) {
-		return nullptr;
+		return static_cast<Row*>(nullptr);
 	}
-	for (DocNoteRow& row : clip->note_rows) {
+	for (Row& row : clip->note_rows) {
 		const bool matches = address.is_kit ? (row.drum_id && *row.drum_id == static_cast<uint32_t>(address.row_key))
 		                                    : row.y == address.row_key;
 		if (matches) {
 			return &row;
 		}
 	}
-	return nullptr;
+	return static_cast<Row*>(nullptr);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -666,14 +670,15 @@ bool is_arp_group(SettingGroupId group) {
 }
 
 /// The slot of the arp record @p address names (empty until one is recorded); nullptr when the owner does not resolve.
-std::optional<ArpRecord>* arp_record_of(Song& song, const SettingAddress& address) {
+template <class SongT>
+auto* arp_record_of(SongT& song, const SettingAddress& address) {
 	if (address.group == SettingGroupId::CLIP_ARP) {
 		const auto* clip = std::get_if<ClipAddress>(&address.owner);
-		DocClip* record = clip != nullptr ? song.clip_structure.find(clip->clip_id) : nullptr;
+		auto* record = clip != nullptr ? song.clip_structure.find(clip->clip_id) : nullptr;
 		return record != nullptr ? &record->values.arp : nullptr;
 	}
 	const auto* lane = std::get_if<LaneAddress>(&address.owner);
-	DocDrum* drum = lane != nullptr ? song.drum_structure.find(lane->drum_id) : nullptr;
+	auto* drum = lane != nullptr ? song.drum_structure.find(lane->drum_id) : nullptr;
 	return drum != nullptr ? &drum->arp : nullptr;
 }
 
@@ -785,6 +790,10 @@ std::span<const SettingInfo> table_of(SettingGroupId group) {
 }
 
 std::optional<Value> read_setting(Song& song, const SettingAddress& address, std::string_view path) {
+	return read_setting(std::as_const(song), address, path);
+}
+
+std::optional<Value> read_setting(const Song& song, const SettingAddress& address, std::string_view path) {
 	if (engine::find_setting(table_of(address.group), path) == nullptr) {
 		return std::nullopt;
 	}
@@ -952,27 +961,31 @@ bool write_setting(Song& song, const SettingAddress& address, std::string_view p
 namespace {
 
 /// The slot of @p address's own value at @p path when it may be left to the track, or nullptr.
-std::optional<int32_t>* own_slot(Song& song, const SettingAddress& address, std::string_view path) {
+template <class SongT>
+auto* own_slot(SongT& song, const SettingAddress& address, std::string_view path) {
+	using Slot = decltype(&song.clip_structure.find(0)->values.midi_bank);
 	if (address.group == SettingGroupId::CLIP_VALUES) {
 		const auto* clip = std::get_if<ClipAddress>(&address.owner);
-		DocClip* record = clip != nullptr ? song.clip_structure.find(clip->clip_id) : nullptr;
-		return record != nullptr ? value_at(record->values, path) : nullptr;
+		auto* record = clip != nullptr ? song.clip_structure.find(clip->clip_id) : nullptr;
+		return record != nullptr ? static_cast<Slot>(value_at(record->values, path)) : nullptr;
 	}
 	if (address.group == SettingGroupId::NOTE_ROW && path == "bendRange") {
 		const auto* row_address = std::get_if<NoteRowAddress>(&address.owner);
-		DocNoteRow* row = row_address != nullptr ? resolve_note_row(song, *row_address) : nullptr;
-		return row != nullptr ? &row->bend_range : nullptr;
+		auto* row = row_address != nullptr ? resolve_note_row(song, *row_address) : nullptr;
+		return row != nullptr ? static_cast<Slot>(&row->bend_range) : nullptr;
 	}
-	return nullptr;
+	return static_cast<Slot>(nullptr);
 }
 
 /// The arp record whose host value at @p path @p address names, or nullptr.
-ArpRecord* arp_host_owner(Song& song, const SettingAddress& address, std::string_view path) {
+template <class SongT>
+auto* arp_host_owner(SongT& song, const SettingAddress& address, std::string_view path) {
+	auto* record = arp_record_of(song, address);
+	using Record = decltype(&**record);
 	if (!is_arp_group(address.group) || !host_index(path)) {
-		return nullptr;
+		return static_cast<Record>(nullptr);
 	}
-	std::optional<ArpRecord>* record = arp_record_of(song, address);
-	return record != nullptr && record->has_value() ? &**record : nullptr;
+	return record != nullptr && record->has_value() ? &**record : static_cast<Record>(nullptr);
 }
 
 bool leavable(const SettingAddress& address, std::string_view path) {
@@ -984,6 +997,10 @@ bool leavable(const SettingAddress& address, std::string_view path) {
 } // namespace
 
 bool holds_setting(Song& song, const SettingAddress& address, std::string_view path) {
+	return holds_setting(std::as_const(song), address, path);
+}
+
+bool holds_setting(const Song& song, const SettingAddress& address, std::string_view path) {
 	if (!leavable(address, path)) {
 		return read_setting(song, address, path).has_value();
 	}

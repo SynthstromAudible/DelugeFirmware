@@ -38,6 +38,11 @@ struct ClipStructure {
 		auto it = by_id.find(id);
 		return it == by_id.end() ? nullptr : &it->second;
 	}
+	/// @copydoc find
+	const DocClip* find(uint32_t id) const {
+		auto it = by_id.find(id);
+		return it == by_id.end() ? nullptr : &it->second;
+	}
 
 	/// @brief Get the clip's record, creating an empty one if absent.
 	/// @param id The clip's stable `Clip::id`.

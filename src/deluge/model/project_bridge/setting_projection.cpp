@@ -277,12 +277,15 @@ Error applyTrackSetting(::Output& output, std::string_view path, const Value& va
 	}
 	else if (path == "outputMpeY") {
 		midi.setOutputMPEY(static_cast<CCNumber>(*v));
+		midi.editedByUser = true; // the device definition saves it only once the track counts as edited
 	}
 	else if (path == "collapseAftertouch") {
 		midi.setCollapseAftertouch(*v != 0);
+		midi.editedByUser = true;
 	}
 	else if (path == "collapseMpe") {
 		midi.setCollapseMPE(*v != 0);
+		midi.editedByUser = true;
 	}
 	else if (path == "hideUnlabeledCC") {
 		midi.hideUnlabeledCC = *v != 0;

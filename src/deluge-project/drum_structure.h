@@ -38,6 +38,11 @@ struct DrumStructure {
 		auto it = by_id.find(id);
 		return it == by_id.end() ? nullptr : &it->second;
 	}
+	/// @copydoc find
+	const DocDrum* find(uint32_t id) const {
+		auto it = by_id.find(id);
+		return it == by_id.end() ? nullptr : &it->second;
+	}
 
 	/// The drum's DocDrum, creating an empty one if absent.
 	DocDrum& getOrCreate(uint32_t id) { return by_id[id]; }

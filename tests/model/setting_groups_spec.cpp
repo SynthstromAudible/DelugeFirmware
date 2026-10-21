@@ -102,6 +102,23 @@ describe setting_groups_song("the song settings group", $ {
 });
 
 describe setting_groups_owners("the owner setting groups", $ {
+	it("reads through a const song as through a mutable one", _ {
+		Song song;
+		(void)song.output_structure.getOrCreate(7);
+		const SettingAddress track{SettingGroupId::TRACK, TrackAddress{.output_id = 7}};
+		expect(write_setting(song, track, "name", Value::makeScalar("KEYS"))).to_be_true();
+		const SettingAddress reverb{SettingGroupId::SONG, SongAddress{}};
+		const Song& held = song;
+		for (const auto& [address, path] : {std::pair{track, std::string_view{"name"}},
+		                                    std::pair{reverb, std::string_view{"reverb/roomSize"}}}) {
+			const auto mutable_read = read_setting(song, address, path);
+			const auto const_read = read_setting(held, address, path);
+			expect(const_read.has_value() && mutable_read.has_value() && const_read->str() == mutable_read->str())
+			    .to_be_true();
+			expect(holds_setting(held, address, path)).to_equal(holds_setting(song, address, path));
+		}
+	});
+
 	it("gives a kit clip a sequence direction, as its row shortcut edits it, and an audio clip none", _ {
 		using deluge::engine::SettingContext;
 		const SettingInfo* row = deluge::engine::find_setting(table_of(SettingGroupId::CLIP), "sequenceDirection");
