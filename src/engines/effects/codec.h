@@ -46,6 +46,16 @@ struct EffectPieces {
 [[nodiscard]] EffectPieces encode_pieces(const EffectStates& states, const engine::CodecContext& context,
                                          std::optional<int32_t> compressor_threshold = std::nullopt);
 
+/// @brief The effects' encoding of top-level entry @p key, as encode_pieces writes it.
+/// @param states               The effect states to encode.
+/// @param key                  An owner element's top-level key.
+/// @param context              The codec context; sync levels are written relative to its tick magnitude.
+/// @param compressor_threshold As encode_pieces takes it.
+/// @return The entry, or nullopt where @p states write none there (a clipping amount of 0) or @p key is not theirs.
+[[nodiscard]] std::optional<serialization::Value>
+encode_entry(const EffectStates& states, std::string_view key, const engine::CodecContext& context,
+             std::optional<int32_t> compressor_threshold = std::nullopt);
+
 /// @brief The pieces of encode_pieces as one Map, in file order.
 /// @param states The effect states to encode.
 /// @param context The codec context; sync levels are written relative to its tick magnitude.

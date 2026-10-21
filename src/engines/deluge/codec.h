@@ -23,6 +23,7 @@
 
 #include <expected>
 #include <optional>
+#include <span>
 #include <string_view>
 #include <vector>
 
@@ -71,15 +72,38 @@ struct SoundPieces {
 
 /// @brief @p element (a sound's slot) with the Deluge instrument's entries replaced by @p state's encoding: each such
 /// entry takes the encoding's value at its old position, one the encoding no longer writes is dropped, and one the
-/// encoding writes that the element lacked is appended in the encoding's order. An older file's instrument entries
-/// (oscillatorA, ringMod, a top-level fileName…) are dropped: the encoding holds what they said. Every other entry
-/// (params, effects, cables…) is kept, in order.
+/// encoding writes that the element lacked is appended in the encoding's order. The sidechain's older tag
+/// ("compressor") is dropped: the encoding holds what it said. Every other entry (params, cables, an older file's
+/// entries the instrument no longer writes…) is kept, in order.
 /// @param element The sound's slot.
 /// @param state   The state whose encoding replaces the instrument's entries.
 /// @param context The file context.
 /// @return The updated element.
 [[nodiscard]] serialization::Value with_state(const serialization::Value& element, const SoundState& state,
                                               const engine::CodecContext& context);
+
+/// @brief The instrument's encoding of top-level entry @p key, as encode writes it.
+/// @param state                The sound's settings.
+/// @param key                  A sound element's top-level key.
+/// @param context              The file context.
+/// @param compressor_threshold As encode_pieces takes it.
+/// @return The entry, or nullopt where @p state writes none there (a transpose of 0, a modulator off FM) or @p key is
+///         not the instrument's.
+[[nodiscard]] std::optional<serialization::Value>
+encode_entry(const SoundState& state, std::string_view key, const engine::CodecContext& context,
+             std::optional<int32_t> compressor_threshold = std::nullopt);
+
+/// @brief with_state restricted to @p keys, in place: each of them the element holds takes its encoding at its
+/// position, or is erased when the encoding no longer writes it (the sidechain's older tag always is); each the
+/// encoding writes that the element lacks is appended after everything, in the encoding's order. Every other entry is
+/// untouched, so the result is with_state's when the element's other instrument entries already are @p state's
+/// encoding.
+/// @param element The sound's slot, changed in place.
+/// @param state   The state whose encoding replaces those entries.
+/// @param keys    The top-level keys to replace.
+/// @param context The file context.
+void with_entries(serialization::Value& element, const SoundState& state, std::span<const std::string_view> keys,
+                  const engine::CodecContext& context);
 
 /// @brief Read a whole sound element into @p state, which holds the state of the sound being read into (a new sound's,
 /// for a file). Each entry is applied in the element's order, older

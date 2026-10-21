@@ -168,48 +168,78 @@ void read_stutter(const Value& stutter, StutterState& state) {
 
 } // namespace
 
+std::optional<Value> encode_entry(const EffectStates& states, std::string_view key, const engine::CodecContext& context,
+                                  std::optional<int32_t> compressor_threshold) {
+	if (key == "modFXType") {
+		return text(to_string(states.mod_fx.type));
+	}
+	if (key == "lpfMode") {
+		return text(to_string(states.filter.lpf_mode));
+	}
+	if (key == "hpfMode") {
+		return text(to_string(states.filter.hpf_mode));
+	}
+	if (key == "filterRoute") {
+		return text(to_string(states.filter.route));
+	}
+	if (key == "clippingAmount") {
+		return states.saturation.clipping_amount != 0 ? std::optional{number(states.saturation.clipping_amount)}
+		                                              : std::nullopt;
+	}
+	if (key == "delay") {
+		auto delay = Value::makeMap();
+		delay.set("pingPong", flag(states.delay.ping_pong));
+		delay.set("type", text(to_string(states.delay.type)));
+		delay.set("syncLevel", number(sync_level_in_file(states.delay.sync_level, context)));
+		delay.set("syncType", number(std::to_underlying(states.delay.sync_type)));
+		return delay;
+	}
+	if (key == "sidechain") {
+		auto sidechain = Value::makeMap();
+		sidechain.set("attack", number(states.sidechain.attack));
+		sidechain.set("release", number(states.sidechain.release));
+		sidechain.set("syncLevel", number(sync_level_in_file(states.sidechain.sync_level, context)));
+		sidechain.set("syncType", number(std::to_underlying(states.sidechain.sync_type)));
+		return sidechain;
+	}
+	if (key == "audioCompressor") {
+		auto compressor = Value::makeMap();
+		compressor.set("attack", number(states.compressor.attack));
+		compressor.set("release", number(states.compressor.release));
+		compressor.set("thresh", number(compressor_threshold.value_or(states.compressor.threshold)));
+		compressor.set("ratio", number(states.compressor.ratio));
+		compressor.set("compHPF", number(states.compressor.sidechain_hpf));
+		compressor.set("compBlend", number(states.compressor.blend));
+		return compressor;
+	}
+	if (key == "stutter") {
+		auto stutter = Value::makeMap();
+		stutter.set("quantized", flag(states.stutter.quantized));
+		stutter.set("reverse", flag(states.stutter.reversed));
+		stutter.set("pingPong", flag(states.stutter.ping_pong));
+		if (!states.stutter.use_song_stutter) {
+			stutter.set("useSongStutter", flag(false)); // absent, as in older files, it is true
+		}
+		return stutter;
+	}
+	return std::nullopt;
+}
+
 EffectPieces encode_pieces(const EffectStates& states, const engine::CodecContext& context,
                            std::optional<int32_t> compressor_threshold) {
 	EffectPieces pieces{.attributes = Value::makeMap(), .delay = Value::makeMap(), .tags = Value::makeMap()};
-	pieces.attributes.set("modFXType", text(to_string(states.mod_fx.type)));
-	pieces.attributes.set("lpfMode", text(to_string(states.filter.lpf_mode)));
-	pieces.attributes.set("hpfMode", text(to_string(states.filter.hpf_mode)));
-	pieces.attributes.set("filterRoute", text(to_string(states.filter.route)));
-	if (states.saturation.clipping_amount != 0) {
-		pieces.attributes.set("clippingAmount", number(states.saturation.clipping_amount));
+	const auto put = [&](Value& piece, std::string_view key) {
+		if (std::optional<Value> entry = encode_entry(states, key, context, compressor_threshold)) {
+			piece.set(std::string(key), std::move(*entry));
+		}
+	};
+	for (const std::string_view key : {"modFXType", "lpfMode", "hpfMode", "filterRoute", "clippingAmount"}) {
+		put(pieces.attributes, key);
 	}
-
-	auto delay = Value::makeMap();
-	delay.set("pingPong", flag(states.delay.ping_pong));
-	delay.set("type", text(to_string(states.delay.type)));
-	delay.set("syncLevel", number(sync_level_in_file(states.delay.sync_level, context)));
-	delay.set("syncType", number(std::to_underlying(states.delay.sync_type)));
-	pieces.delay.set("delay", std::move(delay));
-
-	auto sidechain = Value::makeMap();
-	sidechain.set("attack", number(states.sidechain.attack));
-	sidechain.set("release", number(states.sidechain.release));
-	sidechain.set("syncLevel", number(sync_level_in_file(states.sidechain.sync_level, context)));
-	sidechain.set("syncType", number(std::to_underlying(states.sidechain.sync_type)));
-	pieces.tags.set("sidechain", std::move(sidechain));
-
-	auto compressor = Value::makeMap();
-	compressor.set("attack", number(states.compressor.attack));
-	compressor.set("release", number(states.compressor.release));
-	compressor.set("thresh", number(compressor_threshold.value_or(states.compressor.threshold)));
-	compressor.set("ratio", number(states.compressor.ratio));
-	compressor.set("compHPF", number(states.compressor.sidechain_hpf));
-	compressor.set("compBlend", number(states.compressor.blend));
-	pieces.tags.set("audioCompressor", std::move(compressor));
-
-	auto stutter = Value::makeMap();
-	stutter.set("quantized", flag(states.stutter.quantized));
-	stutter.set("reverse", flag(states.stutter.reversed));
-	stutter.set("pingPong", flag(states.stutter.ping_pong));
-	if (!states.stutter.use_song_stutter) {
-		stutter.set("useSongStutter", flag(false)); // absent, as in older files, it is true
+	put(pieces.delay, "delay");
+	for (const std::string_view key : {"sidechain", "audioCompressor", "stutter"}) {
+		put(pieces.tags, key);
 	}
-	pieces.tags.set("stutter", std::move(stutter));
 	return pieces;
 }
 

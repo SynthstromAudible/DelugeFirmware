@@ -195,7 +195,64 @@ void append(Value& to, const Value& from) {
 	}
 }
 
+/// The index of @p key among kStateKeys (its place in the encoding's order), or kStateKeys.size().
+size_t state_key_index(std::string_view key) {
+	return static_cast<size_t>(std::ranges::find(kStateKeys, key) - kStateKeys.begin());
+}
+
 } // namespace
+
+std::optional<Value> encode_entry(const SoundState& state, std::string_view key, const engine::CodecContext& context,
+                                  std::optional<int32_t> compressor_threshold) {
+	if (deluge::effects::is_effect_key(key)) {
+		return deluge::effects::encode_entry(state.effects, key, context, compressor_threshold);
+	}
+	if (key == "polyphonic") {
+		return text(to_string(state.polyphonic));
+	}
+	if (key == "voicePriority") {
+		return number(std::to_underlying(state.voice_priority));
+	}
+	if (key == "sideChainSend") {
+		return state.side_chain_send_level != 0 ? std::optional{number(state.side_chain_send_level)} : std::nullopt;
+	}
+	if (key == "mode") {
+		return text(to_string(state.synth_mode));
+	}
+	if (key == "transpose") {
+		return state.transpose != 0 ? std::optional{number(state.transpose)} : std::nullopt;
+	}
+	if (key == "cents") {
+		return state.cents != 0 ? std::optional{number(state.cents)} : std::nullopt;
+	}
+	if (key == "maxVoices") {
+		return number(state.max_voice_count);
+	}
+	if (key == "osc1" || key == "osc2") {
+		return source(state, key == "osc1" ? 0 : 1);
+	}
+	if (key.size() == 4 && key.starts_with("lfo") && key[3] >= '1' && key[3] <= '4') {
+		return lfo(state, static_cast<size_t>(key[3] - '1'), context);
+	}
+	if (key == "modulator1" || key == "modulator2") {
+		return state.synth_mode == SynthMode::FM ? std::optional{modulator(state, key == "modulator1" ? 0 : 1)}
+		                                         : std::nullopt;
+	}
+	if (key == "unison") {
+		auto unison = Value::makeMap();
+		unison.set("num", number(state.num_unison));
+		unison.set("detune", number(state.unison_detune));
+		unison.set("spread", number(state.unison_stereo_spread));
+		return unison;
+	}
+	if (key == "midiOutput") {
+		auto midi = Value::makeMap();
+		midi.set("channel", number(state.output_midi_channel));
+		midi.set("noteForDrum", number(state.output_midi_note_for_drum));
+		return midi;
+	}
+	return std::nullopt;
+}
 
 SoundPieces encode_pieces(const SoundState& state, const engine::CodecContext& context,
                           std::optional<int32_t> compressor_threshold) {
@@ -206,45 +263,23 @@ SoundPieces encode_pieces(const SoundState& state, const engine::CodecContext& c
 	                   .midi_output = Value::makeMap(),
 	                   .delay = Value::makeMap(),
 	                   .effect_tags = Value::makeMap()};
-	pieces.head.set("polyphonic", text(to_string(state.polyphonic)));
-	pieces.head.set("voicePriority", number(std::to_underlying(state.voice_priority)));
-	if (state.side_chain_send_level != 0) {
-		pieces.head.set("sideChainSend", number(state.side_chain_send_level));
-	}
-	pieces.head.set("mode", text(to_string(state.synth_mode)));
-	if (state.transpose != 0) {
-		pieces.head.set("transpose", number(state.transpose));
-	}
-	if (state.cents != 0) {
-		pieces.head.set("cents", number(state.cents));
-	}
-
-	pieces.max_voices.set("maxVoices", number(state.max_voice_count));
-
-	pieces.body.set("osc1", source(state, 0));
-	pieces.body.set("osc2", source(state, 1));
-	for (size_t l = 0; l < state.lfo_wave_type.size(); l++) {
-		pieces.body.set("lfo" + std::to_string(l + 1), lfo(state, l, context));
-	}
-	if (state.synth_mode == SynthMode::FM) {
-		pieces.body.set("modulator1", modulator(state, 0));
-		pieces.body.set("modulator2", modulator(state, 1));
-	}
-	auto unison = Value::makeMap();
-	unison.set("num", number(state.num_unison));
-	unison.set("detune", number(state.unison_detune));
-	unison.set("spread", number(state.unison_stereo_spread));
-	pieces.body.set("unison", std::move(unison));
-
-	auto midi = Value::makeMap();
-	midi.set("channel", number(state.output_midi_channel));
-	midi.set("noteForDrum", number(state.output_midi_note_for_drum));
-	pieces.midi_output.set("midiOutput", std::move(midi));
-	deluge::effects::EffectPieces effects =
-	    deluge::effects::encode_pieces(state.effects, context, compressor_threshold);
-	pieces.effect_attributes = std::move(effects.attributes);
-	pieces.delay = std::move(effects.delay);
-	pieces.effect_tags = std::move(effects.tags);
+	const auto put = [&](Value& piece, std::span<const std::string_view> keys) {
+		for (const std::string_view key : keys) {
+			if (std::optional<Value> entry = encode_entry(state, key, context, compressor_threshold)) {
+				piece.set(std::string(key), std::move(*entry));
+			}
+		}
+	};
+	const std::span<const std::string_view> keys{kStateKeys};
+	// kStateKeys is file order: the head's six, the effects' attributes, maxVoices, the body's ten, midiOutput, the
+	// delay, the effects' tags.
+	put(pieces.head, keys.subspan(0, 6));
+	put(pieces.effect_attributes, keys.subspan(6, 5));
+	put(pieces.max_voices, keys.subspan(11, 1));
+	put(pieces.body, keys.subspan(12, 9));
+	put(pieces.midi_output, keys.subspan(21, 1));
+	put(pieces.delay, keys.subspan(22, 1));
+	put(pieces.effect_tags, keys.subspan(23, 3));
 	return pieces;
 }
 
@@ -291,6 +326,32 @@ serialization::Value with_state(const serialization::Value& element, const Sound
 		}
 	}
 	return out;
+}
+
+void with_entries(serialization::Value& element, const SoundState& state, std::span<const std::string_view> keys,
+                  const engine::CodecContext& context) {
+	std::vector<std::pair<size_t, serialization::Value>> appended;
+	for (const std::string_view key : keys) {
+		if (std::ranges::find(kOldStateKeys, key) != kOldStateKeys.end()) {
+			element.erase(key);
+			continue;
+		}
+		std::optional<serialization::Value> now = encode_entry(state, key, context);
+		if (!now) {
+			element.erase(key);
+		}
+		else if (serialization::Value* held = element.find_mut(key)) {
+			*held = std::move(*now);
+		}
+		else {
+			appended.emplace_back(state_key_index(key), std::move(*now));
+		}
+	}
+	// What the element lacked goes after everything, in the encoding's order, as with_state appends it.
+	std::ranges::sort(appended, {}, &std::pair<size_t, serialization::Value>::first);
+	for (auto& [index, value] : appended) {
+		element.set(std::string(kStateKeys[index]), std::move(value));
+	}
 }
 
 namespace {
