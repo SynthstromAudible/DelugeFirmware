@@ -91,12 +91,13 @@ def _is_array_decl(decl_text: str) -> bool:
 
 def _first_code_line_index(chunk_lines: list[str]) -> int | None:
     """Return the index of the first line in *chunk_lines* that is not blank
-    and not a pure line comment. Returns None if no such line exists."""
+    and not a pure line comment or preprocessor line. Returns None if no such
+    line exists."""
     for i, line in enumerate(chunk_lines):
         stripped = line.strip()
         if not stripped:
             continue
-        if stripped.startswith("//"):
+        if stripped.startswith(("//", "#")):
             continue
         return i
     return None
