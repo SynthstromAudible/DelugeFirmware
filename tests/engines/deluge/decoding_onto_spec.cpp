@@ -1,8 +1,14 @@
+#include "engine-api/types/setting.h"
+#include "engine-api/types/sync.h"
 #include "engines/deluge/codec.h"
+#include "engines/deluge/settings.h"
 #include "serialization/tree.h"
+#include "support/state_matrix.h"
 
+#include <array>
 #include <cppspec.hpp>
 #include <ostream>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -25,6 +31,76 @@ std::ostream& operator<<(std::ostream& out, const RangeState& range) {
 namespace {
 
 constexpr deluge::engine::CodecContext kContext{.input_tick_magnitude = 1};
+
+/// @p tree with the leaf at @p path (a/b/c) set to @p leaf, in place or appended, as a slot's leaf is changed.
+void set_leaf(Value& tree, std::string_view path, Value leaf) {
+	const size_t slash = path.find('/');
+	const std::string_view key = path.substr(0, slash);
+	if (slash == std::string_view::npos) {
+		tree.replace_or_append(key, std::move(leaf));
+		return;
+	}
+	if (tree.find_mut(key) == nullptr) {
+		tree.replace_or_append(key, Value::makeMap());
+	}
+	set_leaf(*tree.find_mut(key), path.substr(slash + 1), std::move(leaf));
+}
+
+/// The paths a menu reshapes more than its own leaf for (the bridge's stateWithSetting writes them).
+bool reshapes(std::string_view path) {
+	return path == "mode" || path.ends_with("/type") && path.starts_with("osc") || path.ends_with("/loopMode");
+}
+
+/// Where with_setting and the decode of the whole slot with the leaf changed disagree, over every state of the matrix,
+/// every path a write reaches, three of its values and two magnitudes.
+std::vector<std::string> with_setting_disagreements() {
+	std::vector<std::string> found;
+	for (const int32_t magnitude : {1, 3}) {
+		const deluge::engine::CodecContext codec{.input_tick_magnitude = magnitude};
+		for (const auto& [name, state] : deluge::instrument::test::matrix()) {
+			const Value whole = encode(state, codec);
+			for (const deluge::engine::SettingInfo& row : kSettings) {
+				if (row.kind == deluge::engine::SettingKind::STRUCTURED || reshapes(row.path)) {
+					continue;
+				}
+				const auto [least, greatest] = deluge::engine::menu_range(row);
+				for (const int32_t menu : {least, greatest, least + (greatest - least) / 2}) {
+					const auto stored = deluge::engine::from_menu(row, menu);
+					if (!stored) {
+						continue;
+					}
+					std::array<char, 16> scratch{};
+					const auto word = row.kind == deluge::engine::SettingKind::CHOICE
+					                      ? deluge::engine::stored_text(row, stored->first, scratch)
+					                      : std::nullopt;
+					const Value given = word ? Value::makeScalar(std::string(*word)) : Value::makeNumber(stored->first);
+					const auto value = canonical_setting(row.path, given);
+					if (!value) {
+						continue;
+					}
+					Value leaf = *value;
+					if (row.path.ends_with("/syncLevel")) {
+						leaf = Value::makeNumber(deluge::engine::sync_level_to_file(
+						    deluge::serialization::int_of(&*value).value_or(0), magnitude));
+					}
+					Value element = whole;
+					set_leaf(element, row.path, leaf);
+					const auto want = decode_change(element, whole, state, codec);
+					const auto got = with_setting(state, row.path, *value, codec);
+					const std::string at =
+					    name + " " + std::string(row.path) + "=" + value->str() + "@" + std::to_string(magnitude);
+					if (want.has_value() != got.has_value()) {
+						found.push_back(at + " (refusal)");
+					}
+					else if (want && (!(want->state == got->state) || want->changed != got->changed)) {
+						found.push_back(at);
+					}
+				}
+			}
+		}
+	}
+	return found;
+}
 
 /// A subtractive sound whose first source plays two sample ranges and whose second is a saw with a stale range.
 SoundState sampled() {
@@ -183,6 +259,10 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 		state.effects.filter.lpf_mode = deluge::effects::FilterMode::SVF_NOTCH;
 		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
 		expect(decoded->effects.filter.lpf_mode).to_equal(deluge::effects::FilterMode::SVF_NOTCH);
+	});
+
+	it("writes a setting into the typed state as decoding the whole slot with the leaf changed does", _ {
+		expect(with_setting_disagreements()).to_equal(std::vector<std::string>{});
 	});
 
 	it("tells which entries a change to the slot touches, and reads them as decoding onto the state does", _ {

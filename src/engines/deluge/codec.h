@@ -145,6 +145,20 @@ struct SlotChange {
                                                                           const SoundState& current,
                                                                           const engine::CodecContext& context);
 
+/// @brief The state @p state becomes when its setting at @p path takes @p value, as decode_change of its slot with that
+/// leaf changed gives it, with the instrument entries the write touched. Only the path's own entry, and "mode" (which a
+/// source's and a modulator's reading depends on), are encoded and read.
+/// @param state   The sound's state.
+/// @param path    The setting's path; not one whose menu reshapes more than its leaf (an oscillator's type or loop
+/// mode,
+///                the synth mode).
+/// @param value   The value in its Edit form (canonical; a sync level as the level itself).
+/// @param context The file context: the slot's tick magnitude.
+/// @return The new state and the entries touched, or why the entry cannot be read.
+[[nodiscard]] std::expected<SlotChange, engine::StateError> with_setting(const SoundState& state, std::string_view path,
+                                                                         const serialization::Value& value,
+                                                                         const engine::CodecContext& context);
+
 /// @brief decode_change of @p element onto @p current, whose slot is taken to be what @p current encodes to.
 /// @param element The sound's changed slot.
 /// @param current The state to decode onto.

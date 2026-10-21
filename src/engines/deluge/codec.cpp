@@ -907,6 +907,47 @@ std::expected<SlotChange, engine::StateError> decode_change(const Value& element
 	return change;
 }
 
+namespace {
+
+/// @p tree with the leaf at @p path (a/b/c) set to @p leaf, in place or appended where it was absent.
+void set_leaf(Value& tree, std::string_view path, Value leaf) {
+	const size_t slash = path.find('/');
+	const std::string_view key = path.substr(0, slash);
+	if (slash == std::string_view::npos) {
+		tree.replace_or_append(key, std::move(leaf));
+		return;
+	}
+	if (tree.find_mut(key) == nullptr) {
+		tree.replace_or_append(key, Value::makeMap());
+	}
+	set_leaf(*tree.find_mut(key), path.substr(slash + 1), std::move(leaf));
+}
+
+} // namespace
+
+std::expected<SlotChange, engine::StateError> with_setting(const SoundState& state, std::string_view path,
+                                                           const serialization::Value& value,
+                                                           const engine::CodecContext& context) {
+	const std::string_view key = path.substr(0, path.find('/'));
+	// The slot as far as this write reads it: the entry it changes, and the mode its reading may depend on. Every other
+	// entry is absent from both, so it compares equal and keeps the state's value.
+	Value previous = Value::makeMap();
+	for (const std::string_view k : {key, std::string_view{"mode"}}) {
+		if (previous.find(k) == nullptr) {
+			if (std::optional<Value> entry = encode_entry(state, k, context)) {
+				previous.set(std::string(k), std::move(*entry));
+			}
+		}
+	}
+	Value element = previous;
+	Value leaf = value;
+	if (path.ends_with("/syncLevel")) { // a sync level is written relative to the slot's magnitude
+		leaf = number(engine::sync_level_to_file(intOf(value), context.input_tick_magnitude));
+	}
+	set_leaf(element, path, std::move(leaf));
+	return decode_change(element, previous, state, context);
+}
+
 std::expected<SoundState, engine::StateError> decode_onto(const Value& element, const SoundState& current,
                                                           const engine::CodecContext& context) {
 	return decode_change(element, encode(current, context), current, context).transform([](SlotChange&& change) {
