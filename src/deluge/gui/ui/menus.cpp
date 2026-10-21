@@ -147,6 +147,7 @@
 #include "gui/menu_item/osc/source/volume.h"
 #include "gui/menu_item/osc/source/wave_index.h"
 #include "gui/menu_item/osc/sync.h"
+#include "gui/menu_item/osc/tracking.h"
 #include "gui/menu_item/osc/type.h"
 #include "gui/menu_item/patch_cable_strength/fixed.h"
 #include "gui/menu_item/patch_cables.h"
@@ -1502,7 +1503,7 @@ PLACE_SDRAM_BSS HorizontalMenu soundMasterMenu{
 };
 
 PLACE_SDRAM_BSS HorizontalMenuGroup sourceMenuGroup{
-    {&source0Menu, &source1Menu, &modulator0Menu, &modulator1Menu, &oscMixerMenu}};
+    {&source0Menu, &source1Menu, &modulator0Menu, &modulator1Menu, &oscMixerMenu, &oscTrackingMenu}};
 
 PLACE_SDRAM_BSS Submenu soundFXMenu{
     STRING_FOR_FX,
@@ -1543,6 +1544,7 @@ PLACE_SDRAM_BSS Submenu soundEditorRootMenu{
         &modulator0Menu,
         &modulator1Menu,
         &oscMixerMenu,
+        &oscTrackingMenu,
         &env1Menu,
         &env2Menu,
         &env3Menu,

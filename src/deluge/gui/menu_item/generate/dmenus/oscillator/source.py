@@ -19,6 +19,17 @@ noise = Menu(
     name="STRING_FOR_NOISE_LEVEL",
 )
 
+tracking = [
+    Menu(
+        "osc::Tracking",
+        f"osc{i}TrackingMenu",
+        ["{title}", f"{i}"],
+        "oscillator/tracking.md",
+        title="STRING_FOR_OSC_TRACKING_MENU_TITLE",
+    )
+    for i in range(2)
+]
+
 byOsc = {}
 volumes = []
 
