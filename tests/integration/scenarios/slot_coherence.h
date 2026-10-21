@@ -17,9 +17,12 @@
 
 #pragma once
 
+#include "deluge-project/instrument_slot.h"
 #include "deluge-project/setting_group.h"
+#include "serialization/value.h"
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -33,15 +36,21 @@ namespace deluge::harness {
 /// @brief Which equations a coherence check holds a sound to.
 struct CoherenceChecks {
 	bool runtime = true;       ///< the runtime's state == the record (dump_state of seededState() vs the bound state)
-	bool slot = true;          ///< the slot's instrument entries == encode(record), by key
+	bool bound = true;         ///< the sound plays its slot's state: the record's, not a copy of it
 	bool snapshot = true;      ///< the snapshot == projectSnapshot() of the record
 	bool controls = true;      ///< the owner's controls record and its table knobs == the runtime's knobs
-	bool decode = true;        ///< the slot decoded onto the record == the record (the flip would change nothing)
+	bool decode = true;        ///< the record encoded at the slot's magnitude, then decoded == the record
 	bool chains = true;        ///< each host chain (a kit's, an audio track's, the master's) == its owner's encoding
 	bool song_settings = true; ///< every setting group's record == its engine copy (songSettingsIncoherence)
 	/// The leg is expected to break: each break is printed as EXPECTED-INCOHERENT, not FAIL.
 	bool expect_incoherent = false;
 };
+
+/// @brief The instrument state of the slot @p address names, encoded at the slot's own tick magnitude.
+/// @param song    The song whose project holds the slot.
+/// @param address The slot's address.
+/// @return The encoding, or nullopt where @p song has no such slot.
+std::optional<deluge::serialization::Value> encodedSlot(::Song& song, deluge::project::SlotAddress address);
 
 /// @brief Find the first equation @p sound breaks. An unbound sound breaks none.
 /// @param sound  The sound to check.

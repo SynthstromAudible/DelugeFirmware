@@ -3,6 +3,7 @@
 
 #include "engine-api/types/setting.h"
 #include "engines/deluge/codec.h"
+#include "engines/deluge/engine.h"
 #include "engines/deluge/settings.h"
 #include "engines/deluge/sound_state.h"
 #include "model/edits/edit.h"
@@ -39,11 +40,8 @@ std::vector<int> disagreeing(spec::SongFixture& f, std::string_view path, std::s
 		auto& sound = *static_cast<SoundDrum*>(drum);
 		const auto held = deluge::instrument::setting_value(*sound.boundState(), path);
 		auto* slot = f.song->project.resolveSlot(*deluge::bridge::slotAddressOf(sound));
-		const deluge::serialization::Value tree = deluge::bridge::refreshSlot(sound, *slot);
-		const auto decoded =
-		    deluge::instrument::decode_onto(tree, *sound.boundState(), {.input_tick_magnitude = slot->tick_magnitude});
-		if (!held || held->str() != word || !decoded
-		    || deluge::instrument::dump_state(*decoded) != deluge::instrument::dump_state(*sound.boundState())) {
+		if (!held || held->str() != word
+		    || slot->state.as<deluge::instrument::DelugeInstrument>() != sound.boundState()) {
 			found.push_back(index);
 		}
 	}

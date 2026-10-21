@@ -1365,14 +1365,8 @@ void Song::adoptDrum(Drum* drum) {
 	// subobject of the SoundDrum.
 	if (drum->type == DrumType::SOUND) {
 		Sound* sound = static_cast<Sound*>(static_cast<SoundDrum*>(drum));
-		sound->bindState();
-		deluge::bridge::fillSlot(*sound, d.instrument ? *d.instrument : d.instrument.emplace(), true,
-		                         *this); // a drum read from a file refills it once read
-		if (!readingFromFile_) {
-			// A drum added to a running song (a preset loaded into a kit row) had its samples loaded first: its slot
-			// takes what the runtime holds.
-			deluge::bridge::syncSlotState(*sound, *d.instrument, *this);
-		}
+		// A drum read from a file is adopted before its element is read, and adopts what that read settles then.
+		deluge::bridge::adoptSoundState(*sound, d.instrument, *this);
 		d.controls = deluge::bridge::controlsOf(*sound); // its knobs are its record's from now on
 	}
 	// A row added to a running song brings the bindings its preset read. A song's own read leaves them to the sweep
@@ -1424,8 +1418,7 @@ void Song::adoptOutput(Output* output) {
 	// Sound base subobject.
 	if (output->type == OutputType::SYNTH) {
 		Sound* sound = static_cast<Sound*>(static_cast<SoundInstrument*>(output));
-		sound->bindState();
-		deluge::bridge::fillSlot(*sound, d.instrument ? *d.instrument : d.instrument.emplace(), false, *this);
+		deluge::bridge::adoptSoundState(*sound, d.instrument, *this);
 		// The track's own arp, which a new clip on it starts from, is its record's when its element held one.
 		if (sound->arpRead) {
 			d.arp = deluge::bridge::arpRecordOf(static_cast<SoundInstrument*>(output)->defaultArpSettings, false);

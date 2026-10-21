@@ -43,12 +43,12 @@
 
 namespace deluge::bridge {
 
-void fillSlot(::Sound& sound, deluge::project::InstrumentSlot& slot, bool /*isDrum*/, const ::Song& song) {
-	if (slot.state.as<deluge::instrument::DelugeInstrument>() != nullptr
-	    && slot.state.as<deluge::instrument::DelugeInstrument>() == sound.boundState()) {
+void adoptSoundState(::Sound& sound, std::optional<deluge::project::InstrumentSlot>& slot, const ::Song& song) {
+	if (slot && slot->state.as<deluge::instrument::DelugeInstrument>() != nullptr
+	    && slot->state.as<deluge::instrument::DelugeInstrument>() == sound.boundState()) {
 		return; // the sound plays this slot's state already
 	}
-	// The slot's state is the sound's from now on: what the sound settled, moved into the record, which it then plays.
+	// What the sound settled moves into the record, which it then plays.
 	sound.unbindState();
 	if (sound.boundState() == nullptr) {
 		sound.bindState();
@@ -57,32 +57,7 @@ void fillSlot(::Sound& sound, deluge::project::InstrumentSlot& slot, bool /*isDr
 	    .engine = std::string(deluge::engine::kDelugeInstrument.name),
 	    .state = deluge::engine::StateHandle::of<deluge::instrument::DelugeInstrument>(*sound.boundState()),
 	    .tick_magnitude = song.getInputTickMagnitude()};
-	sound.bindState(*slot.state.as<deluge::instrument::DelugeInstrument>());
-}
-
-namespace {
-deluge::project::InstrumentSlot* slotOf(::Sound& sound);
-} // namespace
-
-void refreshSlots(::Song& song) {
-	// A sound's slot holds its state: after a save, each takes what its sound holds, as every commit leaves it.
-	const auto sync = [&](::Sound& sound) {
-		if (deluge::project::InstrumentSlot* slot = slotOf(sound)) {
-			syncSlotState(sound, *slot, song);
-		}
-	};
-	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
-		if (output->type == OutputType::SYNTH) {
-			sync(*static_cast<SoundInstrument*>(output));
-		}
-		else if (output->type == OutputType::KIT) {
-			for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next) {
-				if (drum->type == DrumType::SOUND) {
-					sync(*static_cast<SoundDrum*>(drum));
-				}
-			}
-		}
-	}
+	sound.bindState(*slot->state.as<deluge::instrument::DelugeInstrument>());
 }
 
 namespace {
@@ -155,10 +130,6 @@ std::optional<deluge::project::SlotAddress> slotAddressOf(::Sound& sound) {
 		}
 	}
 	return nullptr;
-}
-
-void syncSlotState(const ::Sound& sound, deluge::project::InstrumentSlot& slot, const ::Song& /*song*/) {
-	(void)refreshSlot(sound, slot);
 }
 
 deluge::serialization::Value withLeaf(const deluge::serialization::Value& tree, std::string_view path,
@@ -235,26 +206,6 @@ Error commitState(::Sound& sound, const deluge::instrument::SlotChange& change, 
 	return error;
 }
 
-deluge::serialization::Value refreshSlot(const ::Sound& sound, deluge::project::InstrumentSlot& slot) {
-	if (sound.boundState() != nullptr) {
-		deluge::instrument::SoundState* held = slot.state.as<deluge::instrument::DelugeInstrument>();
-		if (held == nullptr) {
-			slot.state = deluge::engine::StateHandle::of<deluge::instrument::DelugeInstrument>(*sound.boundState());
-		}
-		else if (held != sound.boundState()) { // a sound not bound into its slot (one taken back from a record)
-			*held = *sound.boundState();
-		}
-	}
-	// At the magnitude the slot was filled at, as its edits read and write it.
-	return slot.state.encode({.input_tick_magnitude = slot.tick_magnitude});
-}
-
-std::optional<deluge::serialization::Value> refreshedSlotState(::Song& song, deluge::project::SlotAddress address) {
-	deluge::project::InstrumentSlot* slot = song.project.resolveSlot(address);
-	::Sound* sound = soundAt(song, address);
-	return slot != nullptr && sound != nullptr ? std::optional{refreshSlot(*sound, *slot)} : std::nullopt;
-}
-
 TypedWriteAudit& typedWriteAudit() {
 	static TypedWriteAudit audit;
 	return audit;
@@ -299,7 +250,6 @@ void recordLoadedSound(::Sound& sound, ::Song& song) {
 		AudioExcludedSection section; // the reseed reprojects the snapshot the render reads
 		sound.reseedRecord();
 	}
-	syncSlotState(sound, *slot, song);
 	if (const std::optional<deluge::project::ControlsAddress> owner = controlsAddressOf(sound)) {
 		if (std::vector<deluge::project::ControllerMapping>* controls = song.project.resolveControls(*owner)) {
 			*controls = controlsOf(sound); // the knobs the load read

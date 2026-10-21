@@ -35,21 +35,14 @@ class Sound;
 
 namespace deluge::bridge {
 
-/// @brief Fill @p slot from the element @p sound was read from (handed over once), or, for a sound not read from a
-/// document, start it empty for the Deluge instrument. @p isDrum says whose keys the model owns in the element. The
-/// slot is at @p song's input tick magnitude, which the element was read at.
+/// @brief Make @p slot hold what @p sound settled, and the sound play it there: its state moves into the record's
+/// handle, at @p song's input tick magnitude, and the sound binds to it. Nothing when the sound plays this slot's state
+/// already.
 ///
-/// @param sound  The sound.
-/// @param slot   The slot to fill.
-/// @param isDrum Whether the sound is a drum's.
-/// @param song   The song the sound is read into.
-void fillSlot(::Sound& sound, deluge::project::InstrumentSlot& slot, bool isDrum, const ::Song& song);
-
-/// @brief Make every synth track's and sound kit row's slot what the song writes for it now: each such output is
-/// written again into a ValueSerializer and its slot taken from that tree, the model's own keys left out.
-///
-/// @param song The song whose outputs are refreshed.
-void refreshSlots(::Song& song);
+/// @param sound The sound.
+/// @param slot  The record's slot, made when it has none.
+/// @param song  The song the sound is part of.
+void adoptSoundState(::Sound& sound, std::optional<deluge::project::InstrumentSlot>& slot, const ::Song& song);
 
 /// @brief The slot of @p sound when it is bound: a synth track's (its output's id) or a sound kit row's (its drum's
 /// id).
@@ -72,15 +65,6 @@ void refreshSlots(::Song& song);
 /// @param id   The kit's output id.
 /// @return The kit, or nullptr.
 [[nodiscard]] ::Kit* kitAt(::Song& song, uint32_t id);
-
-/// @brief Make @p slot (@p sound's, as the model resolves it) hold the sound's state: the instrument's entries replaced
-/// by the state's encoding at the slot's own tick magnitude, every other entry kept. Nothing for a sound that is not
-/// bound.
-///
-/// @param sound The sound.
-/// @param slot  The sound's slot.
-/// @param song  The song the sound belongs to.
-void syncSlotState(const ::Sound& sound, deluge::project::InstrumentSlot& slot, const ::Song& song);
 
 /// @brief @p tree with the leaf at @p path (slash-separated) set to @p leaf, maps along the way made as needed, every
 /// other entry kept in order.
@@ -106,8 +90,8 @@ Error applyDifference(::Sound& sound, const deluge::instrument::SoundState& old,
                       const deluge::instrument::SoundState& next, std::span<const std::string_view> changed,
                       ::Song& song);
 
-/// @brief Take @p sound from its state to @p change's by difference: the setters of the entries it touched. The slot is
-/// not touched: its tree is a cache of the state, which refreshSlot brings up to date when something reads it.
+/// @brief Take @p sound from its state to @p change's by difference: the setters of the entries it touched. The sound
+/// plays its record's state, so the record holds the change once its setters have run.
 ///
 /// @param sound  The sound.
 /// @param change The state to reach and the entries the change touched.
@@ -115,25 +99,8 @@ Error applyDifference(::Sound& sound, const deluge::instrument::SoundState& old,
 /// @return Error::UNSPECIFIED when an apply is refused or the runtime did not reach the state.
 Error commitState(::Sound& sound, const deluge::instrument::SlotChange& change, ::Song& song);
 
-/// @brief @p slot's state taken from @p sound's (syncSlotState), and its encoding at the slot's magnitude: what a
-/// reader of a slot calls first, since writes change the sound's state.
-///
-/// @param sound The sound playing the slot.
-/// @param slot  Its slot.
-/// @return The slot's state, encoded.
-[[nodiscard]] deluge::serialization::Value refreshSlot(const ::Sound& sound, deluge::project::InstrumentSlot& slot);
-
-/// @brief The slot @p address names, refreshed from the sound playing it and encoded (refreshSlot), or nothing where
-/// @p song has no such slot or sound.
-///
-/// @param song    The song.
-/// @param address The slot's address.
-/// @return The encoded slot, or nullopt.
-[[nodiscard]] std::optional<deluge::serialization::Value> refreshedSlotState(::Song& song,
-                                                                             deluge::project::SlotAddress address);
-
 /// @brief A check of the typed writes, for the gates: when enabled, each setting, DX patch or ranges write is also made
-/// the old way (its slot refreshed, the change written into the tree and the tree decoded), and each write whose state
+/// the old way (the state encoded, the change written into the tree and the tree decoded), and each write whose state
 /// or touched entries differ is counted.
 struct TypedWriteAudit {
 	bool enabled{false};
@@ -146,12 +113,12 @@ struct TypedWriteAudit {
 /// @return The audit.
 TypedWriteAudit& typedWriteAudit();
 
-/// @brief The refreshed tree the old way starts from when the audit is enabled, else nothing (and the caller builds no
+/// @brief The encoded state the old way starts from when the audit is enabled, else nothing (and the caller builds no
 /// changed tree).
 ///
 /// @param sound The sound, before the change is committed.
 /// @param slot  Its slot.
-/// @return The sound's slot tree as its state encodes it, or nullopt.
+/// @return The sound's state encoded at the slot's magnitude, or nullopt.
 [[nodiscard]] std::optional<deluge::serialization::Value>
 typedWriteAuditBase(const ::Sound& sound, const deluge::project::InstrumentSlot& slot);
 
@@ -169,15 +136,15 @@ void auditTypedWrite(const ::Sound& sound, const deluge::project::InstrumentSlot
                      const std::expected<deluge::instrument::SlotChange, deluge::engine::StateError>& got,
                      std::string_view what);
 
-/// @brief @p sound re-read into its record from the runtime, its slot refreshed and its controls record set from its
-/// knobs, when it is bound in @p song.
+/// @brief @p sound's record re-read from the runtime and its controls record set from its knobs, when it is bound in
+/// @p song.
 ///
 /// @param sound The sound.
 /// @param song  The song.
 void recordLoadedSound(::Sound& sound, ::Song& song);
 
-/// @brief Every bound sound of @p output (a synth's, or a kit's sound drums) re-read into its record from the runtime
-/// and its slot refreshed: what loading made of it (an end clamped to a sample's length, millisecond zones in samples,
+/// @brief Every bound sound of @p output (a synth's, or a kit's sound drums) re-read into its record from the runtime:
+/// what loading made of it (an end clamped to a sample's length, millisecond zones in samples,
 /// a path found in another folder) becomes what the record and slot say.
 ///
 /// @param output The output.

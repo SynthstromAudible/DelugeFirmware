@@ -53,8 +53,7 @@ void saveSong(::Song& song, Serializer& out) {
 		ActiveWriterScope scope(out); // the song's nested writers (outputs, drums) write through `out` too
 		song.writeToFile(out);
 	}
-	refreshSlots(song);    // each slot now holds what this save wrote for it
-	refreshControls(song); // and each record the knobs it saved
+	refreshControls(song); // each record holds the knobs it saved
 }
 
 namespace {

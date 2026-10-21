@@ -14,6 +14,7 @@
 #include "scenes/menu/nodes/sound_voice.h"
 
 #include "engines/deluge/codec.h"
+#include "engines/deluge/engine.h"
 #include "engines/deluge/settings.h"
 #include "engines/deluge/sound_state.h"
 #include "engines/effects/settings.h"
@@ -293,7 +294,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		(void)playing;
 	});
 
-	it("keeps each sound's slot and typed state equal after its menus write it", _ {
+	it("leaves each sound playing its slot's state after its menus write it", _ {
 		spec::SongFixture f = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
 		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
@@ -301,12 +302,9 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		bindings::write(menu::nodes::osc0_type, ctx, 4);
 		deluge::project::InstrumentSlot* slot = f.song->project.resolveSlot(*ctx.addresses.slot);
 		expect(slot != nullptr).to_be_true();
-		const deluge::serialization::Value tree = deluge::bridge::refreshSlot(*drum, *slot);
-		const auto decoded = deluge::instrument::decode_onto(tree, *drum->boundState(),
-		                                                     {.input_tick_magnitude = slot->tick_magnitude});
-		expect(decoded.has_value()).to_be_true();
-		expect(deluge::instrument::dump_state(*decoded) == deluge::instrument::dump_state(*drum->boundState()))
-		    .to_be_true();
+		expect(slot->state.as<deluge::instrument::DelugeInstrument>() == drum->boundState()).to_be_true();
+		const auto voices = deluge::instrument::setting_value(*slot->state.as<deluge::instrument::DelugeInstrument>(), "maxVoices");
+		expect(voices.has_value() && voices->str() == "7").to_be_true();
 	});
 
 	it("refuses a request whose slot does not resolve, and changes nothing", _ {

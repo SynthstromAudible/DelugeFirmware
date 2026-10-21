@@ -22,6 +22,7 @@
 
 #include "deluge-project/instrument_slot.h"
 #include "engines/deluge/codec.h"
+#include "engines/deluge/engine.h"
 #include "engines/effects/codec.h"
 #include "model/drum/drum.h"
 #include "model/instrument/instrument.h"
@@ -45,31 +46,6 @@ namespace deluge::harness {
 namespace {
 
 using deluge::serialization::Value;
-
-/// The first instrument entry where @p slot and @p encoded differ, by key: one holds a key the other lacks, or the two
-/// values differ, a scalar's kind (number or text) included, since a commit re-encodes only the entries it touches and
-/// keeps every other one as the slot holds it. Empty when they agree. The order of the top-level keys is not compared:
-/// a slot keeps a file's order, and appends what the file lacked.
-std::string stateDifference(const Value& slot, const Value& encoded) {
-	for (const auto& [key, value] : encoded.entries()) {
-		const Value* held = slot.find(key);
-		if (held == nullptr) {
-			return key + " (missing)";
-		}
-		if (std::string d = deluge::serialization::first_difference(*held, value, key); !d.empty()) {
-			return d;
-		}
-		if (!(*held == value)) {
-			return key + " (a scalar's kind or an entry's order)";
-		}
-	}
-	for (const auto& [key, value] : slot.entries()) {
-		if (deluge::instrument::is_state_key(key) && encoded.find(key) == nullptr) {
-			return key + " (not encoded)";
-		}
-	}
-	return {};
-}
 
 /// Every sound of @p output: a synth's own, or a kit's sound drums.
 void forEachSound(Output& output, const std::function<void(Sound&, const std::string&)>& visit) {
@@ -122,16 +98,24 @@ int32_t ownControlsIncoherent(::Song& song, const char* leg, const char* label) 
 
 } // namespace
 
+std::optional<Value> encodedSlot(::Song& song, deluge::project::SlotAddress address) {
+	const deluge::project::InstrumentSlot* slot = song.project.resolveSlot(address);
+	if (slot == nullptr) {
+		return std::nullopt;
+	}
+	return slot->state.encode({.input_tick_magnitude = slot->tick_magnitude});
+}
+
 std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks checks) {
 	const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
 	if (!address || sound.boundState() == nullptr) {
 		return {};
 	}
 	const deluge::instrument::SoundState& record = *sound.boundState();
-	// The slot's state, taken from the sound and encoded, as a reader of a slot has it.
-	deluge::project::InstrumentSlot* held = song.project.resolveSlot(*address);
-	const std::optional<Value> slotTree =
-	    held != nullptr ? std::optional<Value>{deluge::bridge::refreshSlot(sound, *held)} : std::nullopt;
+	const deluge::project::InstrumentSlot* slot = song.project.resolveSlot(*address);
+	if (slot == nullptr) {
+		return "slot missing";
+	}
 	if (checks.runtime) {
 		const std::string d = deluge::serialization::first_difference(
 		    deluge::instrument::dump_state(sound.seededState()), deluge::instrument::dump_state(record));
@@ -145,15 +129,8 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 			                                                 deluge::effects::encode(record.effects, context));
 		}
 	}
-	if (checks.slot) {
-		deluge::project::InstrumentSlot* slot = song.project.resolveSlot(*address);
-		if (slot == nullptr) {
-			return "slot missing";
-		}
-		const Value encoded = deluge::instrument::encode(record, {.input_tick_magnitude = slot->tick_magnitude});
-		if (std::string d = stateDifference(*slotTree, encoded); !d.empty()) {
-			return "slot at " + d;
-		}
+	if (checks.bound && slot->state.as<deluge::instrument::DelugeInstrument>() != &record) {
+		return "bound: the sound plays a copy of its slot's state";
 	}
 	if (checks.controls) {
 		const std::optional<deluge::project::ControlsAddress> owner = deluge::bridge::controlsAddressOf(sound);
@@ -167,12 +144,9 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 		}
 	}
 	if (checks.decode) {
-		const deluge::project::InstrumentSlot* slot = song.project.resolveSlot(*address);
-		if (slot == nullptr) {
-			return "decode: slot missing";
-		}
+		const deluge::engine::CodecContext context{.input_tick_magnitude = slot->tick_magnitude};
 		const auto decoded =
-		    deluge::instrument::decode_onto(*slotTree, record, {.input_tick_magnitude = slot->tick_magnitude});
+		    deluge::instrument::decode_onto(deluge::instrument::encode(record, context), record, context);
 		if (!decoded) {
 			return "decode refused";
 		}

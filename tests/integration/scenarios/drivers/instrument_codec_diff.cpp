@@ -74,8 +74,8 @@ Song* freshSong() {
 	return song;
 }
 
-/// One sound of the document: what to call it, the sound, its element as the app writes it, and the element it
-/// was read from.
+/// One sound of the document: what to call it, the sound, its element as the app writes it, and its element in the
+/// file it was read from.
 struct SoundEntry {
 	std::string name;
 	Sound* sound;
@@ -98,8 +98,38 @@ std::optional<Value> writtenElement(Output& output, Song& song) {
 	return items->items().front().entries().front().second;
 }
 
-/// The sounds of @p output (a synth's own, or a kit's sound drums in order) with their written elements.
-void collect(Output& output, Song& song, const std::string& label, std::vector<SoundEntry>& into) {
+/// The element @p output was read from, among @p read (a song's outputs as its file lists them): the first not yet
+/// @p taken of its kind with its name, or else of its kind.
+const Value* readElementOf(const Output& output, std::span<const deluge::serialization::NamedChild> read,
+                           std::vector<bool>& taken) {
+	if (output.type != OutputType::SYNTH && output.type != OutputType::KIT) {
+		return nullptr;
+	}
+	const std::string_view tag = output.type == OutputType::SYNTH ? "sound" : "kit";
+	std::optional<size_t> found;
+	for (size_t i = 0; i < read.size(); i++) {
+		if (taken[i] || read[i].name != tag) {
+			continue;
+		}
+		const std::string* name = deluge::serialization::text_of(read[i].node->find("name"));
+		if (name != nullptr && *name == output.name) {
+			found = i;
+			break;
+		}
+		if (!found) {
+			found = i;
+		}
+	}
+	if (!found) {
+		return nullptr;
+	}
+	taken[*found] = true;
+	return read[*found].node;
+}
+
+/// The sounds of @p output (a synth's own, or a kit's sound drums in order) with their written elements and the
+/// elements they were read from, @p read (the output's own element of the file).
+void collect(Output& output, Song& song, const std::string& label, const Value* read, std::vector<SoundEntry>& into) {
 	if (output.type != OutputType::SYNTH && output.type != OutputType::KIT) {
 		return;
 	}
@@ -109,9 +139,7 @@ void collect(Output& output, Song& song, const std::string& label, std::vector<S
 	}
 	if (output.type == OutputType::SYNTH) {
 		Sound* sound = static_cast<Sound*>(static_cast<SoundInstrument*>(&output));
-		// The element the app wrote and read back, as the sound read it, which is what this compares with the encoding.
-		std::optional<Value> read = sound->takeLoadedElement();
-		into.push_back({label, sound, *element, std::move(read)});
+		into.push_back({label, sound, *element, read != nullptr ? std::optional<Value>{*read} : std::nullopt});
 		return;
 	}
 	const Value* sources = element->find("soundSources");
@@ -119,17 +147,21 @@ void collect(Output& output, Song& song, const std::string& label, std::vector<S
 		return;
 	}
 	auto children = deluge::serialization::children(*sources);
+	const Value* readSources = read != nullptr ? read->find("soundSources") : nullptr;
+	auto readChildren = readSources != nullptr ? deluge::serialization::children(*readSources) : decltype(children){};
 	size_t index = 0;
 	int32_t drumIndex = 0;
 	for (Drum* drum = static_cast<Kit&>(output).firstDrum; drum != nullptr; drum = drum->next, drumIndex++) {
 		if (index >= children.size()) {
 			break;
 		}
-		const Value* drumElement = children[index++].node;
+		const Value* drumElement = children[index].node;
+		const Value* drumRead = index < readChildren.size() ? readChildren[index].node : nullptr;
+		index++;
 		if (drum->type == DrumType::SOUND) {
 			Sound* sound = static_cast<Sound*>(static_cast<SoundDrum*>(drum));
-			std::optional<Value> read = sound->takeLoadedElement();
-			into.push_back({label + " drum " + std::to_string(drumIndex), sound, *drumElement, std::move(read), true});
+			into.push_back({label + " drum " + std::to_string(drumIndex), sound, *drumElement,
+			                drumRead != nullptr ? std::optional<Value>{*drumRead} : std::nullopt, true});
 		}
 	}
 }
@@ -221,7 +253,7 @@ int decodeDiff(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 			dumped = true;
 		}
 		if (!entry.read) {
-			std::fprintf(io.err, "CODEC DIFF: %s: no element was kept from the read\n", entry.name.c_str());
+			std::fprintf(io.err, "CODEC DIFF: %s: the file has no element for it\n", entry.name.c_str());
 			return 3;
 		}
 		deluge::instrument::SoundState decoded = entry.drum ? newDrum : newSynth;
@@ -325,9 +357,15 @@ int run(Check check, int argc, char** argv, Io driverIo) {
 		song = loaded;
 		currentSong = song;
 		song->setCurrentClip(nullptr);
+		// The elements as read: the song's outputs as its file lists them.
+		const Value* songElement = tree->find("song");
+		const Value* listed = songElement != nullptr ? songElement->find("instruments") : nullptr;
+		const auto read = listed != nullptr ? deluge::serialization::children(*listed)
+		                                    : std::vector<deluge::serialization::NamedChild>{};
+		std::vector<bool> taken(read.size(), false);
 		int index = 0;
 		for (Output* output = song->live.media.first_output; output != nullptr; output = output->next, index++) {
-			collect(*output, *song, "output " + std::to_string(index), sounds);
+			collect(*output, *song, "output " + std::to_string(index), readElementOf(*output, read, taken), sounds);
 		}
 	}
 	else {
@@ -349,7 +387,13 @@ int run(Check check, int argc, char** argv, Io driverIo) {
 			std::fprintf(io.err, "LOADFAIL -> Error %d\n", static_cast<int>(e));
 			return 1;
 		}
-		collect(*instrument, *song, "preset", sounds);
+		// The element as read: the document's root, under either of its tags.
+		std::optional<Value> tree = parseDocument(text, deluge::storage::formatOfPath(argv[1]));
+		const Value* root = tree ? tree->find(firstTag) : nullptr;
+		if (root == nullptr && tree && altTag != nullptr) {
+			root = tree->find(altTag);
+		}
+		collect(*instrument, *song, "preset", root, sounds);
 	}
 
 	switch (check) {

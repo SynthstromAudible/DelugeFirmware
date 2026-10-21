@@ -2685,7 +2685,6 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 	if (element == nullptr) {
 		return Error::FILE_CORRUPTED;
 	}
-	loadedElement_ = *element;
 	deluge::instrument::SoundState decoded = seededState();
 	if (!deluge::instrument::decode(*element, decoded,
 	                                {.input_tick_magnitude = modelStack->song->getInputTickMagnitude()})) {

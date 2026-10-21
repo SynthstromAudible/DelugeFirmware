@@ -58,6 +58,7 @@
 #include "serialization/tree.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
+#include "storage/value_serializer.h"
 
 namespace {
 
@@ -516,20 +517,19 @@ void testSetEngineSetting(deluge::edits::Context& ctx) {
 	deluge::edits::SetEngineSetting edit{*slot, "voicePriority", Value::makeNumber(2)};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "setting: a mapped path is applied");
 	check(sound.snapshot().voicePriority == VoicePriority::HIGH, "setting: the sound takes the value");
-	const Value slotNow = *deluge::bridge::refreshedSlotState(ctx.song, *slot);
+	const Value slotNow = *deluge::harness::encodedSlot(ctx.song, *slot);
 	const std::string* held = deluge::serialization::text_of(slotNow.find("voicePriority"));
 	check(held != nullptr && *held == "2", "setting: the slot holds the value");
 
-	const Value before = (*deluge::bridge::refreshedSlotState(ctx.song, *slot));
+	const Value before = (*deluge::harness::encodedSlot(ctx.song, *slot));
 	deluge::edits::SetEngineSetting unknown{*slot, "noSuchSetting", Value::makeNumber(3)};
 	check(deluge::edits::apply(ctx, unknown) != Error::NONE, "setting: a path the schema does not hold is refused");
 	deluge::edits::SetEngineSetting structured{*slot, "osc1/fileName", Value::makeScalar("SAMPLES/A.WAV")};
 	check(deluge::edits::apply(ctx, structured) != Error::NONE, "setting: a structured path is refused");
 	deluge::edits::SetEngineSetting outOfRange{*slot, "voicePriority", Value::makeNumber(9)};
 	check(deluge::edits::apply(ctx, outOfRange) != Error::NONE, "setting: a value out of range is refused");
-	check(
-	    deluge::serialization::first_difference((*deluge::bridge::refreshedSlotState(ctx.song, *slot)), before).empty(),
-	    "setting: a refused Edit leaves the slot");
+	check(deluge::serialization::first_difference((*deluge::harness::encodedSlot(ctx.song, *slot)), before).empty(),
+	      "setting: a refused Edit leaves the slot");
 	check(sound.snapshot().voicePriority == VoicePriority::HIGH, "setting: a refused Edit leaves the sound");
 
 	// An LFO's sync level is the level itself, whatever the song's tick magnitude: every level the sync menu offers
@@ -613,7 +613,7 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "ranges: recording a gesture's result reseeds");
 	ranges = deluge::bridge::rangesOf(sound.sources[0]);
 
-	const Value before = (*deluge::bridge::refreshedSlotState(ctx.song, *slot));
+	const Value before = (*deluge::harness::encodedSlot(ctx.song, *slot));
 	auto withFile = ranges;
 	withFile[0].file_path = "SAMPLES/OTHER.WAV";
 	deluge::edits::SetSourceRanges file{*slot, 0, withFile};
@@ -627,9 +627,8 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	longer.insert(longer.begin(), deluge::instrument::RangeState{.top_note = 40});
 	deluge::edits::SetSourceRanges reshape{*slot, 0, longer};
 	check(deluge::edits::apply(ctx, reshape) != Error::NONE, "ranges: another length is refused");
-	check(
-	    deluge::serialization::first_difference((*deluge::bridge::refreshedSlotState(ctx.song, *slot)), before).empty(),
-	    "ranges: a refusal leaves the slot");
+	check(deluge::serialization::first_difference((*deluge::harness::encodedSlot(ctx.song, *slot)), before).empty(),
+	      "ranges: a refusal leaves the slot");
 
 	// A malformed legacy file can leave two ranges on one top note: a change to one of them still takes, judged only
 	// where it changes.
@@ -642,7 +641,6 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 		range->topNote = 60;
 	}
 	sound.sources[0].seedDocRanges();
-	deluge::bridge::syncSlotState(sound, *ctx.model.resolveSlot(*slot), ctx.song);
 	ranges = deluge::bridge::rangesOf(sound.sources[0]);
 	ranges[2].end_pos = 700;
 	deluge::edits::SetSourceRanges legacy{*slot, 0, ranges};
@@ -1056,10 +1054,9 @@ void testSetEffectSetting(deluge::edits::Context& ctx) {
 	}
 }
 
-/// A save refreshes each slot from what it wrote (refreshSlots, which saveSong runs). A sound writes its compressor's
-/// threshold from the DSP, which a render sets from the threshold param, not from its state: the slot must still be its
-/// state's encoding, kind for kind, since a commit re-encodes only the entries it touches.
-void testSaveLeavesSlotsCoherent(deluge::edits::Context& ctx) {
+/// A sound writes its compressor's threshold from the DSP, which a render sets from the threshold param, not from its
+/// state: writing it leaves the record as it was, and the sound coherent with it.
+void testSaveLeavesRecordsCoherent(deluge::edits::Context& ctx) {
 	ParamManagerForTimeline paramManager;
 	Instrument* synth = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
 	check(synth != nullptr, "save: a new synth");
@@ -1069,9 +1066,15 @@ void testSaveLeavesSlotsCoherent(deluge::edits::Context& ctx) {
 	ctx.song.addOutput(synth);
 	Sound& sound = *static_cast<SoundInstrument*>(synth);
 	sound.core().compressor().dsp().setThreshold(sound.effects().compressor.threshold + (123 << 16));
-	deluge::bridge::refreshSlots(ctx.song); // what a save does to each slot once it has written the song
-	check(deluge::harness::expectSongCoherent(ctx.song, "after a save") == 0,
-	      "save: every slot is its sound's encoding");
+	const deluge::instrument::SoundState before = *sound.boundState();
+	ValueSerializer writer(ValueSerializer::Writes::ITEMS);
+	{
+		ActiveWriterScope scope(writer); // what a song's save does for each of its outputs
+		synth->writeToFile(nullptr, &ctx.song);
+	}
+	check(writer.finish().has_value(), "save: the synth writes");
+	check(*sound.boundState() == before, "save: the record is as it was");
+	check(deluge::harness::expectSongCoherent(ctx.song, "after a save") == 0, "save: every sound is coherent");
 }
 
 int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
@@ -1114,7 +1117,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	testPresetChangeHandsOverKnobs(ctx);
 	testClonedAudioTrackRecordsKnobs(ctx);
 	testSetEffectSetting(ctx);
-	testSaveLeavesSlotsCoherent(ctx);
+	testSaveLeavesRecordsCoherent(ctx);
 	{
 		const deluge::bridge::TypedWriteAudit& audit = deluge::bridge::typedWriteAudit();
 		std::fprintf(io.err, "SLOT-WRITE-AUDIT writes=%u mismatches=%u %s\n", static_cast<unsigned>(audit.writes),

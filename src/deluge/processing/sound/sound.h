@@ -143,11 +143,6 @@ public:
 	/// @brief The state binding would seed from this sound's runtime fields now (bound or not), through the same seeds.
 	/// @return The seeded state.
 	[[nodiscard]] deluge::instrument::SoundState seededState() const;
-	/// @brief The element this sound was last read from, handed over once (to fill its instrument slot).
-	/// @return The element; empty if the sound was not read from a document tree.
-	[[nodiscard]] std::optional<deluge::serialization::Value> takeLoadedElement() {
-		return std::exchange(loadedElement_, std::nullopt);
-	}
 	/// @brief Copy the DOM-owned scalars from the runtime fields into the record.
 	///
 	/// @pre state_ is bound.
@@ -447,8 +442,6 @@ public:
 private:
 	/// @brief The Deluge instrument's settings for this sound, owned here and bound on adoption (bindState).
 	deluge::instrument::SoundState ownedState_;
-	/// @brief The element this sound was last read from (see takeLoadedElement).
-	std::optional<deluge::serialization::Value> loadedElement_;
 	/// @brief Count one destruction that found live voices (see soundsDestroyedWithLiveVoices()).
 	static void noteDestroyedWithLiveVoices();
 

@@ -481,8 +481,8 @@ int model_decode_diff_main(int argc, char** argv, Io driverIo) {
 		             m.master_effects.slots.size(), d.master_effects.slots.size());
 		return 3;
 	}
-	// The slots: the song that wrote the file holds what it wrote (refreshed at save); the song read from it holds what
-	// it read (filled at load); both are the file's elements without the model's keys.
+	// The slots: each sound plays its slot's state, so the song that wrote the file holds what it wrote and the song
+	// read from it holds what it read; both encode to the file's elements without the model's keys.
 	for (const auto& [label, project] : {std::pair{"saved", &song->project}, std::pair{"loaded", &engine->project}}) {
 		if (int r = compare_slots(label, *project, d)) {
 			return r;
