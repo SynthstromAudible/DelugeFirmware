@@ -215,7 +215,6 @@ build = []
 run = ["./run.sh", "10"]
 requires = ["clang-tsan"]
 tier = "pr"
-alone = true
 runtime = "~3m"
 
 [[harness]]
@@ -802,7 +801,6 @@ result = "UT-RESULT failures=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
-alone = true
 runtime = "~1m"
 
 [[harness]]
@@ -819,7 +817,6 @@ result = "IR-RESULT failures=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
-alone = true
 runtime = "~5s"
 
 [[harness]]
@@ -1718,7 +1715,6 @@ check = "tests/integration/checks/render_preset.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
-alone = true
 runtime = "~20s"
 
 [[harness]]
