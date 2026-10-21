@@ -7,6 +7,9 @@
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 
+#include <array>
+#include <string_view>
+
 namespace deluge::edits {
 
 Error SetSourceRanges::apply(Context& ctx) {
@@ -17,18 +20,24 @@ Error SetSourceRanges::apply(Context& ctx) {
 	}
 	deluge::instrument::SoundState changed = *sound->boundState();
 	changed.sources[source_].ranges = ranges_;
-	const deluge::serialization::Value element =
-	    deluge::instrument::with_state(slot->state, changed, {.input_tick_magnitude = slot->tick_magnitude});
-	Error error = deluge::bridge::commitSlot(*sound, *slot, element, ctx.song);
+	const deluge::engine::CodecContext context{.input_tick_magnitude = slot->tick_magnitude};
+	const std::array<std::string_view, 1> keys{source_ == 0 ? "osc1" : "osc2"};
+	const auto change = deluge::instrument::change_to(*sound->boundState(), changed, keys, context);
+	deluge::bridge::auditTypedWrite(
+	    *sound, *slot,
+	    [&](const deluge::serialization::Value& whole) {
+		    return deluge::instrument::with_state(whole, changed, context);
+	    },
+	    change, keys[0]);
+	Error error = change ? deluge::bridge::commitState(*sound, *change, ctx.song) : Error::UNSPECIFIED;
 	if (sound->boundState()->sources[source_].ranges == ranges_) {
 		deluge::bridge::retuneVoices(*sound, ctx.song);
-		return Error::NONE; // what else of the slot the sound refused is not this Edit's, and the slot now says it
+		return Error::NONE; // what else the sound refused is not this Edit's
 	}
 	if (error == Error::NONE) {
 		// The slot cannot hold this source's ranges (an FM sound's, a source that plays no files): the runtime holds
 		// them.
 		error = deluge::bridge::applyRanges(*sound, source_, ranges_);
-		deluge::bridge::syncSlotState(*sound, *slot, ctx.song);
 		if (error == Error::NONE) {
 			deluge::bridge::retuneVoices(*sound, ctx.song);
 		}

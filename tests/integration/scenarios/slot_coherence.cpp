@@ -128,6 +128,10 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 		return {};
 	}
 	const deluge::instrument::SoundState& record = *sound.boundState();
+	// Writes change the state and leave the slot's tree behind, a cache of it: its readers refresh it first.
+	if (deluge::project::InstrumentSlot* slot = song.project.resolveSlot(*address)) {
+		deluge::bridge::refreshSlot(sound, *slot);
+	}
 	if (checks.runtime) {
 		const std::string d = deluge::serialization::first_difference(
 		    deluge::instrument::dump_state(sound.seededState()), deluge::instrument::dump_state(record));
@@ -142,7 +146,7 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 		}
 	}
 	if (checks.slot) {
-		const deluge::project::InstrumentSlot* slot = song.project.resolveSlot(*address);
+		deluge::project::InstrumentSlot* slot = song.project.resolveSlot(*address);
 		if (slot == nullptr) {
 			return "slot missing";
 		}

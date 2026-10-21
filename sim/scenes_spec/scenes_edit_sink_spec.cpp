@@ -24,6 +24,7 @@
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/project_bridge/chain_bridge.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
@@ -298,8 +299,9 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
 		bindings::write(kMaxVoices, ctx, 7);
 		bindings::write(menu::nodes::osc0_type, ctx, 4);
-		const deluge::project::InstrumentSlot* slot = f.song->project.resolveSlot(*ctx.addresses.slot);
+		deluge::project::InstrumentSlot* slot = f.song->project.resolveSlot(*ctx.addresses.slot);
 		expect(slot != nullptr).to_be_true();
+		deluge::bridge::refreshSlot(*drum, *slot); // a cache of the state, refreshed by its readers
 		const auto decoded = deluge::instrument::decode_onto(slot->state, *drum->boundState(),
 		                                                     {.input_tick_magnitude = slot->tick_magnitude});
 		expect(decoded.has_value()).to_be_true();

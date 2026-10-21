@@ -925,6 +925,42 @@ void set_leaf(Value& tree, std::string_view path, Value leaf) {
 
 } // namespace
 
+std::vector<std::string_view> differing_entries(const SoundState& a, const SoundState& b,
+                                                const engine::CodecContext& context) {
+	std::vector<std::string_view> keys;
+	for (const std::string_view key : kStateKeys) {
+		const std::optional<Value> ea = encode_entry(a, key, context);
+		const std::optional<Value> eb = encode_entry(b, key, context);
+		if (ea.has_value() != eb.has_value() || (ea && !(*ea == *eb))) {
+			keys.push_back(key);
+		}
+	}
+	return keys;
+}
+
+std::expected<SlotChange, engine::StateError> change_to(const SoundState& state, const SoundState& next,
+                                                        std::span<const std::string_view> keys,
+                                                        const engine::CodecContext& context) {
+	Value previous = Value::makeMap();
+	Value element = Value::makeMap();
+	const auto add = [&](std::string_view key) {
+		if (previous.find(key) != nullptr || element.find(key) != nullptr) {
+			return;
+		}
+		if (std::optional<Value> was = encode_entry(state, key, context)) {
+			previous.set(std::string(key), std::move(*was));
+		}
+		if (std::optional<Value> now = encode_entry(next, key, context)) {
+			element.set(std::string(key), std::move(*now));
+		}
+	};
+	for (const std::string_view key : keys) {
+		add(key);
+	}
+	add("mode"); // a source's and a modulator's reading depends on it
+	return decode_change(element, previous, state, context);
+}
+
 std::expected<SlotChange, engine::StateError> with_setting(const SoundState& state, std::string_view path,
                                                            const serialization::Value& value,
                                                            const engine::CodecContext& context) {

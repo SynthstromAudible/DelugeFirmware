@@ -159,6 +159,27 @@ struct SlotChange {
                                                                          const serialization::Value& value,
                                                                          const engine::CodecContext& context);
 
+/// @brief The instrument's top-level keys whose encoding differs between @p a and @p b (present in one alone included),
+/// in file order.
+/// @param a       One state.
+/// @param b       The other.
+/// @param context The file context.
+/// @return The keys.
+[[nodiscard]] std::vector<std::string_view> differing_entries(const SoundState& a, const SoundState& b,
+                                                              const engine::CodecContext& context);
+
+/// @brief decode_change of @p next's encoding of @p keys onto @p state, whose encoding of them is the slot before: what
+/// a slot changed to say @p next there reads as, the entries read as a file holds them (and refused as a file's would
+/// be). Only @p keys and "mode" are encoded and read.
+/// @param state   The sound's state.
+/// @param next    The state the change asks for; it differs from @p state only in @p keys' entries.
+/// @param keys    The instrument's top-level keys the change reaches.
+/// @param context The file context.
+/// @return The new state and the entries touched, or why an entry cannot be read.
+[[nodiscard]] std::expected<SlotChange, engine::StateError> change_to(const SoundState& state, const SoundState& next,
+                                                                      std::span<const std::string_view> keys,
+                                                                      const engine::CodecContext& context);
+
 /// @brief decode_change of @p element onto @p current, whose slot is taken to be what @p current encodes to.
 /// @param element The sound's changed slot.
 /// @param current The state to decode onto.

@@ -514,18 +514,20 @@ void testSetEngineSetting(deluge::edits::Context& ctx) {
 	deluge::edits::SetEngineSetting edit{*slot, "voicePriority", Value::makeNumber(2)};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "setting: a mapped path is applied");
 	check(sound.snapshot().voicePriority == VoicePriority::HIGH, "setting: the sound takes the value");
-	const std::string* held = deluge::serialization::text_of(ctx.model.resolveSlot(*slot)->state.find("voicePriority"));
+	const std::string* held =
+	    deluge::serialization::text_of((*deluge::bridge::refreshedSlotState(ctx.song, *slot)).find("voicePriority"));
 	check(held != nullptr && *held == "2", "setting: the slot holds the value");
 
-	const Value before = ctx.model.resolveSlot(*slot)->state;
+	const Value before = (*deluge::bridge::refreshedSlotState(ctx.song, *slot));
 	deluge::edits::SetEngineSetting unknown{*slot, "noSuchSetting", Value::makeNumber(3)};
 	check(deluge::edits::apply(ctx, unknown) != Error::NONE, "setting: a path the schema does not hold is refused");
 	deluge::edits::SetEngineSetting structured{*slot, "osc1/fileName", Value::makeScalar("SAMPLES/A.WAV")};
 	check(deluge::edits::apply(ctx, structured) != Error::NONE, "setting: a structured path is refused");
 	deluge::edits::SetEngineSetting outOfRange{*slot, "voicePriority", Value::makeNumber(9)};
 	check(deluge::edits::apply(ctx, outOfRange) != Error::NONE, "setting: a value out of range is refused");
-	check(deluge::serialization::first_difference(ctx.model.resolveSlot(*slot)->state, before).empty(),
-	      "setting: a refused Edit leaves the slot");
+	check(
+	    deluge::serialization::first_difference((*deluge::bridge::refreshedSlotState(ctx.song, *slot)), before).empty(),
+	    "setting: a refused Edit leaves the slot");
 	check(sound.snapshot().voicePriority == VoicePriority::HIGH, "setting: a refused Edit leaves the sound");
 
 	// An LFO's sync level is the level itself, whatever the song's tick magnitude: every level the sync menu offers
@@ -609,7 +611,7 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "ranges: recording a gesture's result reseeds");
 	ranges = deluge::bridge::rangesOf(sound.sources[0]);
 
-	const Value before = ctx.model.resolveSlot(*slot)->state;
+	const Value before = (*deluge::bridge::refreshedSlotState(ctx.song, *slot));
 	auto withFile = ranges;
 	withFile[0].file_path = "SAMPLES/OTHER.WAV";
 	deluge::edits::SetSourceRanges file{*slot, 0, withFile};
@@ -623,11 +625,12 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	longer.insert(longer.begin(), deluge::instrument::RangeState{.top_note = 40});
 	deluge::edits::SetSourceRanges reshape{*slot, 0, longer};
 	check(deluge::edits::apply(ctx, reshape) != Error::NONE, "ranges: another length is refused");
-	check(deluge::serialization::first_difference(ctx.model.resolveSlot(*slot)->state, before).empty(),
-	      "ranges: a refusal leaves the slot");
+	check(
+	    deluge::serialization::first_difference((*deluge::bridge::refreshedSlotState(ctx.song, *slot)), before).empty(),
+	    "ranges: a refusal leaves the slot");
 
-	// A slot that says something the sound cannot take (another file) beside a setting: the setting is taken, the rest
-	// is refused, and the sound and its slot agree afterwards.
+	// A slot whose tree says something the sound cannot take (another file) beside a setting: a write reads the sound's
+	// state, not the tree, so the setting is taken, and the slot, refreshed, agrees with the sound afterwards.
 	deluge::project::InstrumentSlot& held = *ctx.model.resolveSlot(*slot);
 	held.state = deluge::bridge::withLeaf(held.state, "osc1/fileName", Value::makeScalar("SAMPLES/OTHER.WAV"));
 	deluge::edits::SetEngineSetting priority{*slot, "voicePriority", Value::makeNumber(0)};
@@ -1053,6 +1056,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	(void)song->live.clips.session_clips.insertClipAt(audioClip, 0);
 
 	deluge::edits::Context ctx{*song, song->project};
+	deluge::bridge::typedWriteAudit() = {.enabled = true}; // every typed write, checked against the old decode
 	testDispatcher(ctx);
 	testSetParamValuePilot(ctx);
 	testSetParamValueRegionAndFlag(ctx);
@@ -1074,6 +1078,12 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	testClonedAudioTrackRecordsKnobs(ctx);
 	testSetEffectSetting(ctx);
 	testSaveLeavesSlotsCoherent(ctx);
+	{
+		const deluge::bridge::TypedWriteAudit& audit = deluge::bridge::typedWriteAudit();
+		std::fprintf(io.err, "SLOT-WRITE-AUDIT writes=%u mismatches=%u %s\n", static_cast<unsigned>(audit.writes),
+		             static_cast<unsigned>(audit.mismatches), audit.first.c_str());
+		check(audit.writes > 0 && audit.mismatches == 0, "every typed write reads as its slot's decode would");
+	}
 
 	if (failures == 0) {
 		std::fprintf(io.out, "edit_substrate: OK\n");

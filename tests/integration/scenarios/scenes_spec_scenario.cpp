@@ -20,6 +20,7 @@
 #include "entries.h"
 
 #include "gui/ui/ui.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "processing/engines/audio_engine.h"
 
 #include <cstdio>
@@ -66,6 +67,8 @@ void deluge_scenario_scenes_spec_on_app_init(void) {
 	char program[] = "scenes_spec";
 	char verbose[] = "--verbose";
 	char* argv[] = {program, verbose, nullptr};
+	// Every typed write the file's examples make is checked against the decode of its slot with the change in it.
+	deluge::bridge::typedWriteAudit() = {.enabled = true};
 	try {
 		g_exit = entry->run(2, argv);
 	} catch (const std::exception& e) {
@@ -77,6 +80,12 @@ void deluge_scenario_scenes_spec_on_app_init(void) {
 		g_exit = 99;
 	}
 	AudioEngine::audioRoutineLocked = audio_was_locked;
+	const deluge::bridge::TypedWriteAudit& audit = deluge::bridge::typedWriteAudit();
+	std::printf("SLOT-WRITE-AUDIT %s writes=%u mismatches=%u %s\n", id, static_cast<unsigned>(audit.writes),
+	            static_cast<unsigned>(audit.mismatches), audit.first.c_str());
+	if (audit.mismatches != 0 && g_exit == 0) {
+		g_exit = 1;
+	}
 	std::printf("SCENES-SPEC %s exit=%d\n", id, g_exit);
 	std::fflush(stdout);
 }

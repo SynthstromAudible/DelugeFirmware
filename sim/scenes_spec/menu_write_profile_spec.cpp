@@ -104,29 +104,19 @@ void commit_phased(Phases& phases, Song& song, deluge::project::SlotAddress addr
 	if (slot == nullptr || sound == nullptr || !value) {
 		return;
 	}
-	const Value element = phases.time("element", [&] {
+	const deluge::engine::CodecContext codec{.input_tick_magnitude = slot->tick_magnitude};
+	const auto change = phases.time("change", [&] {
+		const deluge::instrument::SoundState& before = *sound->boundState();
 		if (auto reshaped = deluge::bridge::stateWithSetting(*sound, path, *value)) {
-			return deluge::instrument::with_state(slot->state, *reshaped,
-			                                      {.input_tick_magnitude = slot->tick_magnitude});
+			return deluge::instrument::change_to(
+			    before, *reshaped, deluge::instrument::differing_entries(before, *reshaped, codec), codec);
 		}
-		return deluge::bridge::withLeaf(slot->state, path, *value);
+		return deluge::instrument::with_setting(before, path, *value, codec);
 	});
-	const deluge::instrument::SoundState before = phases.time("state_copy", [&] { return *sound->boundState(); });
-	const auto decoded = phases.time("decode_change", [&] {
-		return deluge::instrument::decode_change(element, slot->state, before,
-		                                         {.input_tick_magnitude = slot->tick_magnitude});
-	});
-	if (!decoded) {
+	if (!change) {
 		return;
 	}
-	phases.time("apply_difference", [&] {
-		return deluge::bridge::applyDifference(*sound, before, decoded->state, decoded->changed, song);
-	});
-	phases.time("compare", [&] { return *sound->boundState() == decoded->state; });
-	phases.time("sync_slot", [&] {
-		deluge::bridge::syncSlotState(*sound, *slot, song);
-		return 0;
-	});
+	phases.time("commit_state", [&] { return deluge::bridge::commitState(*sound, *change, song); });
 	phases.time("landed", [&] { return deluge::instrument::setting_value(*sound->boundState(), path); });
 }
 

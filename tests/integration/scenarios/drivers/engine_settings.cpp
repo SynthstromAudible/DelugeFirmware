@@ -330,7 +330,7 @@ std::string_view coherence(Sound& sound, Song& song, std::string_view path, cons
 	}
 	const Value encoded =
 	    deluge::instrument::encode(*sound.boundState(), {.input_tick_magnitude = song.getInputTickMagnitude()});
-	const std::string* held = deluge::serialization::text_of(leafAt(slot->state, path));
+	const std::string* held = deluge::serialization::text_of(leafAt(deluge::bridge::refreshSlot(sound, *slot), path));
 	if (leafAt(encoded, path) != nullptr && (held == nullptr || *held != slotForm(path, value, song).str())) {
 		return "value";
 	}
@@ -388,16 +388,17 @@ int settingLegs(Sound& sound, Song& song, const char* name) {
 			}
 			continue;
 		}
-		const Value* held = leafAt(song.project.resolveSlot(*address)->state, path);
+		const Value* held = leafAt((*deluge::bridge::refreshedSlotState(song, *address)), path);
 		const std::optional<Value> old =
 		    held != nullptr ? std::optional<Value>{editForm(path, *held, song)} : std::nullopt;
 		for (const Value& value : legalValues(*row, old ? &old->str() : nullptr)) {
-			const Value slotBefore = song.project.resolveSlot(*address)->state;
+			const Value slotBefore = (*deluge::bridge::refreshedSlotState(song, *address));
 			deluge::edits::SetEngineSetting edit{*address, std::string(path), value};
 			if (!deluge::instrument::allows_setting(*sound.boundState(), path, value)) {
 				// Ring mod and an oscillator it cannot ring: refused, the slot as it was.
 				if (deluge::edits::apply(ctx, edit) == Error::NONE
-				    || !deluge::serialization::first_difference(song.project.resolveSlot(*address)->state, slotBefore)
+				    || !deluge::serialization::first_difference((*deluge::bridge::refreshedSlotState(song, *address)),
+				                                                slotBefore)
 				            .empty()) {
 					std::fprintf(io.err, "%s %.*s=%s: taken where ring mod does not allow it\n", name,
 					             static_cast<int>(path.size()), path.data(), value.str().c_str());
@@ -418,7 +419,7 @@ int settingLegs(Sound& sound, Song& song, const char* name) {
 				                              || (old->str() == "wavetable" && value.str() == "sample");
 				if (failed.empty() && path.ends_with("/type") && sound.getSynthMode() == SynthMode::SUBTRACTIVE
 				    && !rangeKindChanges) {
-					const Value& now = song.project.resolveSlot(*address)->state;
+					const Value& now = (*deluge::bridge::refreshedSlotState(song, *address));
 					if (std::string d = deluge::serialization::first_difference(now, slotBefore); !d.empty()) {
 						std::fprintf(io.err, "type round trip differs at %s\n", d.c_str());
 						failed = "type round trip";
@@ -453,13 +454,13 @@ int modePairLeg(Sound& sound, Song& song, const char* name) {
 	}
 	const deluge::instrument::SoundState before = *sound.boundState();
 	deluge::edits::Context ctx{song, song.project};
-	const Value old = *leafAt(song.project.resolveSlot(*address)->state, "mode");
+	const Value old = *leafAt((*deluge::bridge::refreshedSlotState(song, *address)), "mode");
 	for (std::string_view mode : {"subtractive", "fm", "subtractive"}) {
 		const Value value = Value::makeScalar(std::string(mode));
 		deluge::edits::SetEngineSetting edit{*address, "mode", value};
 		std::string_view failed =
 		    deluge::edits::apply(ctx, edit) != Error::NONE ? "refused" : coherence(sound, song, "mode", value);
-		const bool modulators = song.project.resolveSlot(*address)->state.find("modulator1") != nullptr;
+		const bool modulators = (*deluge::bridge::refreshedSlotState(song, *address)).find("modulator1") != nullptr;
 		if (failed.empty() && modulators != (mode == "fm")) {
 			failed = modulators ? "modulators kept" : "no modulators";
 		}
@@ -504,7 +505,7 @@ int ringModLeg(Sound& sound, Song& song, const char* name) {
 		return 0;
 	}
 	const std::vector<deluge::instrument::RangeState> ranges = sound.boundState()->sources[0].ranges;
-	const Value slotBefore = song.project.resolveSlot(*address)->state;
+	const Value slotBefore = (*deluge::bridge::refreshedSlotState(song, *address));
 	deluge::edits::Context ctx{song, song.project};
 	deluge::edits::SetEngineSetting ringMod{*address, "mode", Value::makeScalar("ringmod")};
 	std::string_view failed;
@@ -513,7 +514,8 @@ int ringModLeg(Sound& sound, Song& song, const char* name) {
 	}
 	else if (sound.getSynthMode() == SynthMode::RINGMOD || sound.sources[0].oscType != OscType::SAMPLE
 	         || sound.boundState()->sources[0].ranges != ranges
-	         || !deluge::serialization::first_difference(song.project.resolveSlot(*address)->state, slotBefore)
+	         || !deluge::serialization::first_difference((*deluge::bridge::refreshedSlotState(song, *address)),
+	                                                     slotBefore)
 	                 .empty()) {
 		failed = "the refusal changed the sound";
 	}
@@ -612,7 +614,7 @@ int affectEntireLeg(Kit& kit, Song& song, std::string_view path, const Value& va
 			continue;
 		}
 		const bool shouldTake = takes(*soundDrum, path);
-		const Value before = song.project.resolveSlot(*address)->state;
+		const Value before = (*deluge::bridge::refreshedSlotState(song, *address));
 		deluge::edits::SetEngineSetting edit{*address, std::string(path), value};
 		const bool took = deluge::edits::apply(ctx, edit) == Error::NONE;
 		std::string_view failed;
@@ -620,7 +622,8 @@ int affectEntireLeg(Kit& kit, Song& song, std::string_view path, const Value& va
 			failed = took ? "taken by a drum that does not use it" : "refused";
 		}
 		else if (!took
-		         && !deluge::serialization::first_difference(song.project.resolveSlot(*address)->state, before)
+		         && !deluge::serialization::first_difference((*deluge::bridge::refreshedSlotState(song, *address)),
+		                                                     before)
 		                 .empty()) {
 			failed = "a refusal changed the slot";
 		}
@@ -833,7 +836,7 @@ int magnitudeLeg(Song& song) {
 		}
 		const auto levels = sound->boundState()->lfo_sync_level;
 		const deluge::effects::EffectStates effects = sound->boundState()->effects;
-		const Value priority = *leafAt(song.project.resolveSlot(*address)->state, "voicePriority");
+		const Value priority = *leafAt((*deluge::bridge::refreshedSlotState(song, *address)), "voicePriority");
 		deluge::edits::SetEngineSetting edit{*address, "voicePriority", priority};
 		std::string failed = deluge::edits::apply(ctx, edit) != Error::NONE ? "refused" : "";
 		// The delay's own sync level, set to what it is: an Edit that changes nothing.
@@ -985,7 +988,7 @@ int sharedDrumIdLeg(std::string_view bytes, deluge::storage::DocumentFormat form
 	return 0;
 }
 
-int engine_settings_main(int argc, char** argv, Io driverIo) {
+int engine_settings_run(int argc, char** argv, Io driverIo) {
 	io = driverIo;
 	if (argc < 3) {
 		std::fprintf(io.err, "usage: %s <file> <SONG|SYNTH|KIT>\n", argv[0]);
@@ -1085,6 +1088,16 @@ int engine_settings_main(int argc, char** argv, Io driverIo) {
 	}
 	std::fprintf(io.err, "added and replacing sounds are bound and their settings are coherent\n");
 	return 0;
+}
+
+/// The run, with each typed write checked against the decode of its slot with the change written into it.
+int engine_settings_main(int argc, char** argv, Io driverIo) {
+	deluge::bridge::TypedWriteAudit& audit = deluge::bridge::typedWriteAudit();
+	audit = {.enabled = true};
+	const int r = engine_settings_run(argc, argv, driverIo);
+	std::fprintf(io.err, "SLOT-WRITE-AUDIT writes=%u mismatches=%u %s\n", static_cast<unsigned>(audit.writes),
+	             static_cast<unsigned>(audit.mismatches), audit.first.c_str());
+	return r != 0 ? r : (audit.mismatches != 0 ? 1 : 0);
 }
 
 } // namespace

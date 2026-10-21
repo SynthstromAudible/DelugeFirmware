@@ -16,28 +16,44 @@ namespace deluge::edits {
 
 namespace {
 
-/// The slot state @p slot takes when @p sound's setting at @p path becomes @p value: the leaf in its file form (an
-/// LFO's sync level relative to the slot's magnitude), or where the setting's menu reshapes more (an oscillator's type
-/// or loop mode) the entries of the state it reaches.
-deluge::serialization::Value elementFor(const ::Sound& sound, const deluge::project::InstrumentSlot& slot,
-                                        std::string_view path, const deluge::serialization::Value& value) {
+/// The tree a slot holding @p whole takes when @p sound's setting at @p path becomes @p value: the leaf in its file
+/// form (an LFO's sync level relative to the slot's magnitude), or where the setting's menu reshapes more the entries
+/// of the state it reaches. The typed write's audit compares against it.
+deluge::serialization::Value elementFor(const ::Sound& sound, const deluge::serialization::Value& whole,
+                                        int32_t magnitude, std::string_view path,
+                                        const deluge::serialization::Value& value) {
 	if (std::optional<deluge::instrument::SoundState> reshaped = deluge::bridge::stateWithSetting(sound, path, value)) {
-		return deluge::instrument::with_state(slot.state, *reshaped, {.input_tick_magnitude = slot.tick_magnitude});
+		return deluge::instrument::with_state(whole, *reshaped, {.input_tick_magnitude = magnitude});
 	}
-	if (path.ends_with("/syncLevel")) { // an LFO's, the delay's or the sidechain's
+	if (path.ends_with("/syncLevel")) {
 		const int32_t level = deluge::serialization::int_of(&value).value_or(0);
 		return deluge::bridge::withLeaf(
-		    slot.state, path,
-		    deluge::serialization::Value::makeNumber(deluge::engine::sync_level_to_file(level, slot.tick_magnitude)));
+		    whole, path,
+		    deluge::serialization::Value::makeNumber(deluge::engine::sync_level_to_file(level, magnitude)));
 	}
-	return deluge::bridge::withLeaf(slot.state, path, value);
+	return deluge::bridge::withLeaf(whole, path, value);
 }
 
 } // namespace
 
 Error commitEngineSetting(::Sound& sound, deluge::project::InstrumentSlot& slot, std::string_view path,
                           const deluge::serialization::Value& value, ::Song& song) {
-	Error error = deluge::bridge::commitSlot(sound, slot, elementFor(sound, slot, path, value), song);
+	const deluge::engine::CodecContext context{.input_tick_magnitude = slot.tick_magnitude};
+	const deluge::instrument::SoundState& before = *sound.boundState();
+	// The state the write reaches, read as the slot would read it with the change: through the setting's own entry, or
+	// where its menu reshapes more (an oscillator's type or loop mode, the synth mode) through each entry that moved.
+	std::optional<deluge::instrument::SoundState> reshaped = deluge::bridge::stateWithSetting(sound, path, value);
+	const auto change =
+	    reshaped ? deluge::instrument::change_to(
+	                   before, *reshaped, deluge::instrument::differing_entries(before, *reshaped, context), context)
+	             : deluge::instrument::with_setting(before, path, value, context);
+	deluge::bridge::auditTypedWrite(
+	    sound, slot,
+	    [&](const deluge::serialization::Value& whole) {
+		    return elementFor(sound, whole, slot.tick_magnitude, path, value);
+	    },
+	    change, path);
+	Error error = change ? deluge::bridge::commitState(sound, *change, song) : Error::UNSPECIFIED;
 	const std::optional<deluge::serialization::Value> landed =
 	    deluge::instrument::setting_value(*sound.boundState(), path);
 	if (!landed || landed->str() != value.str()) {
@@ -45,13 +61,12 @@ Error commitEngineSetting(::Sound& sound, deluge::project::InstrumentSlot& slot,
 			// The slot cannot hold this value (a live input's interpolation, a sync level the magnitude cannot
 			// write): the runtime holds it until a save and reload.
 			error = deluge::bridge::applySetting(sound, path, value, song);
-			deluge::bridge::syncSlotState(sound, slot, song);
 		}
 	}
 	else {
-		error = Error::NONE; // what else of the slot the sound refused is not this Edit's, and the slot now says it
+		error = Error::NONE; // what else the sound refused is not this Edit's
 	}
-	// After the commit has projected the sound's render copy, which the reverb copies from: a render during the commit
+	// After the setters have projected the sound's render copy, which the reverb copies from: a render during the write
 	// would otherwise clear the flag before the new timing is there to read. Whatever landed, the reverb re-reads it.
 	if (deluge::effects::shapes_reverb_sidechain(path)) {
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;

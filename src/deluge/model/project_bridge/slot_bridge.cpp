@@ -269,22 +269,60 @@ Error applyDifference(::Sound& sound, const deluge::instrument::SoundState& old,
 	return Error::NONE;
 }
 
-Error commitSlot(::Sound& sound, deluge::project::InstrumentSlot& slot, const deluge::serialization::Value& element,
-                 ::Song& song) {
+Error commitState(::Sound& sound, const deluge::instrument::SlotChange& change, ::Song& song) {
 	if (sound.boundState() == nullptr) {
 		return Error::UNSPECIFIED;
 	}
 	const deluge::instrument::SoundState before = *sound.boundState();
-	const auto decoded =
-	    deluge::instrument::decode_change(element, slot.state, before, {.input_tick_magnitude = slot.tick_magnitude});
-	Error error = decoded ? applyDifference(sound, before, decoded->state, decoded->changed, song) : Error::UNSPECIFIED;
-	if (error == Error::NONE) {
-		if (!(*sound.boundState() == decoded->state)) {
-			error = Error::UNSPECIFIED; // the runtime did not reach what the slot says
+	Error error = applyDifference(sound, before, change.state, change.changed, song);
+	if (error == Error::NONE && !(*sound.boundState() == change.state)) {
+		error = Error::UNSPECIFIED; // the runtime did not reach the state the change reads as
+	}
+	return error;
+}
+
+const deluge::serialization::Value& refreshSlot(const ::Sound& sound, deluge::project::InstrumentSlot& slot) {
+	if (sound.boundState() != nullptr) {
+		slot.state = deluge::instrument::with_state(slot.state, *sound.boundState(),
+		                                            {.input_tick_magnitude = slot.tick_magnitude});
+	}
+	return slot.state;
+}
+
+const deluge::serialization::Value* refreshedSlotState(::Song& song, deluge::project::SlotAddress address) {
+	deluge::project::InstrumentSlot* slot = song.project.resolveSlot(address);
+	::Sound* sound = soundAt(song, address);
+	return slot != nullptr && sound != nullptr ? &refreshSlot(*sound, *slot) : nullptr;
+}
+
+TypedWriteAudit& typedWriteAudit() {
+	static TypedWriteAudit audit;
+	return audit;
+}
+
+void auditTypedWrite(const ::Sound& sound, const deluge::project::InstrumentSlot& slot,
+                     const std::function<deluge::serialization::Value(const deluge::serialization::Value&)>& element_of,
+                     const std::expected<deluge::instrument::SlotChange, deluge::engine::StateError>& got,
+                     std::string_view what) {
+	TypedWriteAudit& audit = typedWriteAudit();
+	if (!audit.enabled || sound.boundState() == nullptr) {
+		return;
+	}
+	const deluge::engine::CodecContext context{.input_tick_magnitude = slot.tick_magnitude};
+	const deluge::serialization::Value whole = deluge::instrument::with_state(slot.state, *sound.boundState(), context);
+	const auto want = deluge::instrument::decode_change(element_of(whole), whole, *sound.boundState(), context);
+	audit.writes++;
+	const bool same =
+	    want.has_value() == got.has_value() && (!want || (want->state == got->state && want->changed == got->changed));
+	if (!same) {
+		audit.mismatches++;
+		if (audit.first.empty()) {
+			audit.first = std::string(what)
+			              + (want.has_value() != got.has_value()
+			                     ? " (one refused)"
+			                     : (want->changed != got->changed ? " (touched entries)" : " (state)"));
 		}
 	}
-	syncSlotState(sound, slot, song); // the slot says what the sound holds, either way
-	return error;
 }
 
 void recordLoadedSound(::Sound& sound, ::Song& song) {

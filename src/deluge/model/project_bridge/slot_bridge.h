@@ -19,8 +19,11 @@
 
 #include "definitions_cxx.hpp" // Error
 #include "deluge-project/instrument_slot.h"
+#include "engines/deluge/codec.h"
 #include "engines/deluge/sound_state.h"
 
+#include <expected>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string>
@@ -104,17 +107,57 @@ Error applyDifference(::Sound& sound, const deluge::instrument::SoundState& old,
                       const deluge::instrument::SoundState& next, std::span<const std::string_view> changed,
                       ::Song& song);
 
-/// @brief Make @p element @p sound's slot state: decode its change from the slot onto the sound's state at the slot's
-/// magnitude, take the runtime there by difference, and refresh the slot from the state reached.
+/// @brief Take @p sound from its state to @p change's by difference: the setters of the entries it touched. The slot is
+/// not touched: its tree is a cache of the state, which refreshSlot brings up to date when something reads it.
 ///
-/// @param sound   The sound.
-/// @param slot    The sound's slot.
-/// @param element The element to make the slot's state.
-/// @param song    The song the sound belongs to.
-/// @return Error::UNSPECIFIED when the element does not decode, an apply is refused, or the runtime did not reach the
-/// decoded state; the slot is refreshed either way.
-Error commitSlot(::Sound& sound, deluge::project::InstrumentSlot& slot, const deluge::serialization::Value& element,
-                 ::Song& song);
+/// @param sound  The sound.
+/// @param change The state to reach and the entries the change touched.
+/// @param song   The song the sound belongs to.
+/// @return Error::UNSPECIFIED when an apply is refused or the runtime did not reach the state.
+Error commitState(::Sound& sound, const deluge::instrument::SlotChange& change, ::Song& song);
+
+/// @brief @p slot's tree as @p sound's state encodes it now (syncSlotState): what a reader of a slot's tree calls
+/// first, since writes change the state and leave the tree behind.
+///
+/// @param sound The sound playing the slot.
+/// @param slot  Its slot.
+/// @return The refreshed tree.
+const deluge::serialization::Value& refreshSlot(const ::Sound& sound, deluge::project::InstrumentSlot& slot);
+
+/// @brief The tree of the slot @p address names, refreshed from the sound playing it, or nullptr where @p song has no
+/// such slot or sound.
+///
+/// @param song    The song.
+/// @param address The slot's address.
+/// @return The refreshed tree, or nullptr.
+const deluge::serialization::Value* refreshedSlotState(::Song& song, deluge::project::SlotAddress address);
+
+/// @brief A check of the typed writes, for the gates: when enabled, each setting, DX patch or ranges write is also made
+/// the old way (its slot refreshed, the change written into the tree and the tree decoded), and each write whose state
+/// or touched entries differ is counted.
+struct TypedWriteAudit {
+	bool enabled{false};
+	uint32_t writes{0};     ///< writes checked
+	uint32_t mismatches{0}; ///< of them, those the old way reads differently
+	std::string first;      ///< the first mismatch, for the failure message
+};
+
+/// @brief The process's audit of typed writes.
+/// @return The audit.
+TypedWriteAudit& typedWriteAudit();
+
+/// @brief When the audit is enabled, compare @p got with the old way's change: @p element_of (the refreshed tree in,
+/// the changed tree out) decoded onto the sound's state.
+///
+/// @param sound      The sound, before the change is committed.
+/// @param slot       Its slot.
+/// @param element_of How the old way changed the tree.
+/// @param got        The typed write's change.
+/// @param what       What was written, for the failure message.
+void auditTypedWrite(const ::Sound& sound, const deluge::project::InstrumentSlot& slot,
+                     const std::function<deluge::serialization::Value(const deluge::serialization::Value&)>& element_of,
+                     const std::expected<deluge::instrument::SlotChange, deluge::engine::StateError>& got,
+                     std::string_view what);
 
 /// @brief @p sound re-read into its record from the runtime, its slot refreshed and its controls record set from its
 /// knobs, when it is bound in @p song.
