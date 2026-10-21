@@ -38,20 +38,27 @@ pub fn link(repo_root: &Path, out_dir: &Path) {
     let scenario_objs_dir = build_dir.join("scenarios/CMakeFiles/deluge_scenarios.dir");
     let objs = collect_closure(repo_root, &app_objs_dir, &scenario_objs_dir);
     let archive = out_dir.join("libdeluge_app_objs.a");
-    let _ = fs::remove_file(&archive);
-    // Host `ar`: these are host objects.
-    let status = Command::new("ar")
-        .arg("crs")
-        .arg(&archive)
-        .args(&objs)
-        .status()
-        .expect("run host ar");
-    assert!(
-        status.success(),
-        "archiving the host deluge_app objects failed"
-    );
+    let hash = format!("{:016x}", hash_objs_content(&objs));
+    let stamp = out_dir.join("host_app_objs_hash.txt");
+    let prev = fs::read_to_string(&stamp).ok();
+    // Objects rebuilt with the same content (a touched file, a ccache hit) keep the archive and its
+    // mtime, so nothing downstream relinks.
+    if prev.as_deref() != Some(hash.as_str()) || !archive.is_file() {
+        let _ = fs::remove_file(&archive);
+        // Host `ar`: these are host objects.
+        let status = Command::new("ar")
+            .arg("crs")
+            .arg(&archive)
+            .args(&objs)
+            .status()
+            .expect("run host ar");
+        assert!(
+            status.success(),
+            "archiving the host deluge_app objects failed"
+        );
+    }
 
-    emit_staleness_hash(&app_objs_dir, &objs, out_dir);
+    emit_staleness_hash(&app_objs_dir, &hash, prev.as_deref(), &stamp);
     link_closure(&build_dir, &archive);
     link_runtime();
 
@@ -166,19 +173,17 @@ fn collect_closure(
     objs
 }
 
-/// Threads [`hash_objs_content`] through `rustc-env`, so rebuilt objects force a relink.
-fn emit_staleness_hash(app_objs_dir: &Path, objs: &[PathBuf], out_dir: &Path) {
-    let hash = format!("{:016x}", hash_objs_content(objs));
-    let stamp = out_dir.join("host_app_objs_hash.txt");
-    let prev = fs::read_to_string(&stamp).ok();
-    if prev.as_deref() != Some(hash.as_str()) {
+/// Threads the objects' content hash through `rustc-env`, so rebuilt objects force a relink, and
+/// records it in `stamp` for the next run's comparison.
+fn emit_staleness_hash(app_objs_dir: &Path, hash: &str, prev: Option<&str>, stamp: &Path) {
+    if prev != Some(hash) {
         println!(
             "cargo:warning=host app objects at {} changed ({} -> {hash}); relinking",
             app_objs_dir.display(),
-            prev.as_deref().unwrap_or("<none>"),
+            prev.unwrap_or("<none>"),
         );
     }
-    fs::write(&stamp, &hash).expect("write host_app_objs_hash.txt");
+    fs::write(stamp, hash).expect("write host_app_objs_hash.txt");
     println!("cargo:rustc-env=DELUGE_APP_OBJS_HASH={hash}");
 }
 
