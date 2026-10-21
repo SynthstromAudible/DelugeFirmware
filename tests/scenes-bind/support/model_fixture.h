@@ -6,6 +6,7 @@
 
 #include "deluge-project/fx_chain.h"
 #include "deluge-project/instrument_slot.h"
+#include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
 #include "engines/deluge/sound_state.h"
 #include "engines/effects/state.h"
@@ -25,6 +26,25 @@ inline constexpr project::ChainAddress kKitChain{project::ChainAddress::Kind::OU
 inline constexpr project::ChainAddress kAudioChain{project::ChainAddress::Kind::OUTPUT, 21};
 inline constexpr project::ChainAddress kMasterChain{project::ChainAddress::Kind::SONG, 0};
 
+/// The model groups' owners: the synth track's clip; a MIDI track and its clip; a CV track on its second channel; an
+/// audio track and its clip; a kit, its clip, and its sound (kDrum), MIDI and gate rows; the kit clip's sound row.
+inline constexpr project::ClipAddress kSynthClip{35};
+inline constexpr project::TrackAddress kMidiTrack{30};
+inline constexpr project::ClipAddress kMidiClip{31};
+inline constexpr project::TrackAddress kCvTrack{32};
+inline constexpr project::TrackAddress kAudioTrack{33};
+inline constexpr project::ClipAddress kAudioClip{34};
+inline constexpr uint32_t kKit{40};
+inline constexpr project::ClipAddress kKitClip{41};
+inline constexpr project::LaneAddress kSoundLane{kKit, kDrum.id};
+inline constexpr project::LaneAddress kMidiLane{kKit, 42};
+inline constexpr project::LaneAddress kGateLane{kKit, 43};
+inline constexpr project::NoteRowAddress kSoundRow{
+    .clip_id = kKitClip.clip_id, .is_kit = true, .row_key = static_cast<int32_t>(kDrum.id)};
+/// The device's default bend ranges FakeFacts gives (main, MPE).
+inline constexpr int32_t kDeviceBendRange = 7;
+inline constexpr int32_t kDeviceBendRangeMpe = 30;
+
 /// Runtime facts a spec sets directly: plugged inputs, loaded sources and each sound's typed state.
 class FakeFacts final : public RuntimeFacts {
 public:
@@ -41,11 +61,19 @@ public:
 	[[nodiscard]] uint8_t loaded_sources(project::SlotAddress slot) const override;
 	[[nodiscard]] const instrument::SoundState* sound_state(project::SlotAddress slot) const override;
 	[[nodiscard]] const effects::EffectStates* chain_effects(project::ChainAddress chain) const override;
+	std::map<uint32_t, bool> note_tails; ///< by slot id; a sound absent here can hold tails
+	uint8_t preset{0};                   ///< the arp preset every owner's engine holds
+	[[nodiscard]] int32_t device_bend_range(int32_t which) const override {
+		return which == 0 ? kDeviceBendRange : kDeviceBendRangeMpe;
+	}
+	[[nodiscard]] bool allows_note_tails(project::SlotAddress slot) const override;
+	[[nodiscard]] uint8_t arp_preset(const project::SettingAddress& /*address*/) const override { return preset; }
 };
 
 /// A song whose synth track (kSynth) and kit row (kDrum) hold the slot encode() writes for @p facts' states, which
-/// start as a new synth's; and whose kit (kKitChain) and audio track (kAudioChain) have a chain, as the master does,
-/// each with default effects in @p facts.
+/// start as a new synth's; whose kit (kKitChain) and audio track (kAudioChain) have a chain, as the master does,
+/// each with default effects in @p facts; and which holds the model groups' owners above, each clip and lane with an
+/// arp record.
 struct ModelFixture {
 	project::Song song;
 	FakeFacts facts;

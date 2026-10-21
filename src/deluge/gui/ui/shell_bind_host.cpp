@@ -17,6 +17,7 @@
 #include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/project_bridge/chain_bridge.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -24,10 +25,12 @@
 #include "processing/sound/sound_drum.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/menu/bind_host.h"
+#include "storage/flash_storage.h"
 
 #include <array>
 #include <string>
 #include <utility>
+#include <variant>
 
 namespace deluge::gui {
 
@@ -118,6 +121,9 @@ public:
 	[[nodiscard]] const deluge::instrument::SoundState* sound_state(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] const deluge::effects::EffectStates*
 	chain_effects(deluge::project::ChainAddress chain) const override;
+	[[nodiscard]] int32_t device_bend_range(int32_t which) const override;
+	[[nodiscard]] bool allows_note_tails(deluge::project::SlotAddress slot) const override;
+	[[nodiscard]] uint8_t arp_preset(const deluge::project::SettingAddress& address) const override;
 };
 
 ShellEditSink& shell_edit_sink() {
@@ -246,6 +252,38 @@ const deluge::instrument::SoundState* ShellRuntimeFacts::sound_state(deluge::pro
 const deluge::effects::EffectStates* ShellRuntimeFacts::chain_effects(deluge::project::ChainAddress chain) const {
 	::GlobalEffectable* owner = currentSong != nullptr ? deluge::bridge::chainOwnerAt(chain, *currentSong) : nullptr;
 	return owner != nullptr ? &owner->effects() : nullptr;
+}
+
+int32_t ShellRuntimeFacts::device_bend_range(int32_t which) const {
+	return FlashStorage::defaultBendRange[which == 0 ? BEND_RANGE_MAIN : BEND_RANGE_FINGER_LEVEL];
+}
+
+bool ShellRuntimeFacts::allows_note_tails(deluge::project::SlotAddress slot) const {
+	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
+	if (sound == nullptr || slot.kind != deluge::project::SlotAddress::Kind::DRUM) {
+		return true; // only a kit row's inclusion in its kit's arp asks
+	}
+	auto* drum = static_cast<SoundDrum*>(sound);
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithSoundFlags* stack = getModelStackFromSoundDrum(memory, drum)->addSoundFlags();
+	return drum->allowNoteTails(stack, /*disregardSampleLoop=*/true);
+}
+
+uint8_t ShellRuntimeFacts::arp_preset(const deluge::project::SettingAddress& address) const {
+	const ArpeggiatorSettings* arp = nullptr;
+	if (currentSong != nullptr) {
+		if (const auto* lane = std::get_if<deluge::project::LaneAddress>(&address.owner)) {
+			const ::Drum* drum = deluge::bridge::drumWithId(*currentSong, lane->drum_id);
+			arp = drum != nullptr ? &drum->arpSettings : nullptr;
+		}
+		else if (const auto* clip = std::get_if<deluge::project::ClipAddress>(&address.owner)) {
+			const ::Clip* found = currentSong->clipForId(clip->clip_id);
+			arp = found != nullptr && found->type == ClipType::INSTRUMENT
+			          ? &static_cast<const InstrumentClip*>(found)->arpSettings
+			          : nullptr;
+		}
+	}
+	return arp != nullptr ? static_cast<uint8_t>(std::to_underlying(arp->preset)) : 0;
 }
 
 uint32_t shellEditRefusals() {

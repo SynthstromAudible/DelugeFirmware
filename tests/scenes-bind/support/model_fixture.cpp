@@ -1,7 +1,11 @@
 #include "support/model_fixture.h"
 
+#include "deluge-project/doc_note_row.h"
 #include "engines/deluge/codec.h"
 #include "engines/deluge/engine.h"
+#include "serialization/value.h"
+
+#include <utility>
 
 namespace deluge::scenes::bind::test {
 
@@ -14,6 +18,11 @@ uint8_t FakeFacts::loaded_sources(project::SlotAddress slot) const {
 const instrument::SoundState* FakeFacts::sound_state(project::SlotAddress slot) const {
 	const auto found = states.find(slot.id);
 	return found != states.end() ? &found->second : nullptr;
+}
+
+bool FakeFacts::allows_note_tails(project::SlotAddress slot) const {
+	const auto found = note_tails.find(slot.id);
+	return found == note_tails.end() || found->second;
 }
 
 uint32_t FakeFacts::chain_key(project::ChainAddress chain) {
@@ -36,6 +45,25 @@ ModelFixture::ModelFixture() {
 	for (const project::ChainAddress chain : {kKitChain, kAudioChain, kMasterChain}) {
 		facts.chains[FakeFacts::chain_key(chain)] = effects::EffectStates{};
 	}
+	for (const project::TrackAddress track : {kMidiTrack, kCvTrack, kAudioTrack}) {
+		(void)song.output_structure.getOrCreate(track.output_id);
+	}
+	(void)project::write_setting(song, {project::SettingGroupId::INSTRUMENT_DEVICE, kCvTrack}, "channel",
+	                             serialization::Value::makeNumber(2));
+	for (const project::ClipAddress clip : {kSynthClip, kMidiClip, kKitClip}) {
+		song.clip_structure.getOrCreate(clip.clip_id).values.arp.emplace();
+	}
+	(void)song.audio_clip_structure.getOrCreate(kAudioClip.clip_id);
+	(void)song.output_structure.getOrCreate(kKit);
+	song.drum_structure.getOrCreate(kSoundLane.drum_id).arp.emplace();
+	for (const auto& [lane, type] :
+	     {std::pair{kMidiLane, project::DrumType::MIDI}, std::pair{kGateLane, project::DrumType::GATE}}) {
+		project::DocDrum& drum = song.drum_structure.getOrCreate(lane.drum_id);
+		drum.drum_type = type;
+		drum.arp.emplace();
+	}
+	project::DocNoteRow& row = song.clip_structure.getOrCreate(kKitClip.clip_id).note_rows.emplace_back();
+	row.drum_id = kDrum.id;
 }
 
 void ModelFixture::set_state(project::SlotAddress slot, const instrument::SoundState& state) {

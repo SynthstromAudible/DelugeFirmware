@@ -6,6 +6,7 @@
 #include "engines/effects/settings.h"
 #include "gui/l10n/setting_names.h"
 #include "scenes/bind/chain_reader.h"
+#include "scenes/bind/model_reader.h"
 #include "scenes/bind/setting_context.h"
 #include "scenes/bind/slot_reader.h"
 
@@ -25,6 +26,7 @@ class Reader {
 public:
 	explicit Reader(SlotReader slot) : reader_{slot} {}
 	explicit Reader(ChainReader chain) : reader_{chain} {}
+	explicit Reader(ModelReader model) : reader_{model} {}
 	[[nodiscard]] bool resolved() const {
 		return std::visit([](const auto& reader) { return reader.resolved(); }, reader_);
 	}
@@ -37,7 +39,7 @@ public:
 	}
 
 private:
-	std::variant<SlotReader, ChainReader> reader_;
+	std::variant<SlotReader, ChainReader, ModelReader> reader_;
 };
 
 /// A target resolved against the song: its row, its reader, its context and whose name table names it.
@@ -45,11 +47,33 @@ struct Resolved {
 	const engine::SettingInfo* row;
 	Reader reader;
 	engine::SettingContext context;
-	engine::EngineId names_owner;
+	l10n::NamesOwner names_owner;
 };
+
+/// A target on a model group's record (a MODEL target, or a SOUND target on an audio clip), resolved.
+std::optional<Resolved> resolve_model(const Target& target, const project::Song& model, const Addresses& where,
+                                      const RuntimeFacts& facts) {
+	const std::optional<project::SettingAddress> address = setting_address(target, where);
+	if (!address) {
+		return std::nullopt;
+	}
+	const std::string_view path = target.kind == Target::Kind::MODEL ? target.path : target.audio_clip_path;
+	const engine::SettingInfo* row = engine::find_setting(project::table_of(address->group), path);
+	if (row == nullptr) {
+		return std::nullopt;
+	}
+	Reader reader{ModelReader{model, *address, facts}};
+	if (!reader.resolved()) {
+		return std::nullopt;
+	}
+	return Resolved{row, reader, setting_context(model, *address, where.instrument, facts), address->group};
+}
 
 std::optional<Resolved> resolve(const Target& target, const project::Song& model, const Addresses& where,
                                 const RuntimeFacts& facts) {
+	if (target.kind == Target::Kind::MODEL || (target.kind == Target::Kind::SOUND && !where.slot)) {
+		return resolve_model(target, model, where, facts);
+	}
 	const bool effect = target.kind == Target::Kind::EFFECT;
 	if (target.kind != Target::Kind::SOUND && !effect) {
 		return std::nullopt;
@@ -126,6 +150,46 @@ std::optional<int32_t> partner_stored(const Resolved& resolved) {
 }
 
 } // namespace
+
+std::optional<project::SettingAddress> setting_address(const Target& target, const Addresses& where) {
+	using project::SettingGroupId;
+	if (target.kind == Target::Kind::SOUND) {
+		if (where.slot || target.audio_clip_path.empty() || !where.clip
+		    || where.instrument != engine::SettingContext::Instrument::AUDIO) {
+			return std::nullopt;
+		}
+		return project::SettingAddress{SettingGroupId::AUDIO_CLIP, *where.clip};
+	}
+	if (target.kind != Target::Kind::MODEL) {
+		return std::nullopt;
+	}
+	const auto on = [&](SettingGroupId group, const auto& owner) -> std::optional<project::SettingAddress> {
+		if (!owner) {
+			return std::nullopt;
+		}
+		return project::SettingAddress{group, *owner};
+	};
+	switch (target.group) {
+	case SettingGroupId::SONG:
+		return project::SettingAddress{SettingGroupId::SONG, project::SongAddress{}};
+	case SettingGroupId::TRACK:
+	case SettingGroupId::INSTRUMENT_DEVICE:
+	case SettingGroupId::AUDIO_INPUT:
+		return on(target.group, where.track);
+	case SettingGroupId::CLIP:
+	case SettingGroupId::CLIP_VALUES:
+	case SettingGroupId::AUDIO_CLIP:
+		return on(target.group, where.clip);
+	case SettingGroupId::CLIP_ARP:
+		return where.lane ? on(SettingGroupId::LANE_ARP, where.lane) : on(SettingGroupId::CLIP_ARP, where.clip);
+	case SettingGroupId::LANE:
+	case SettingGroupId::LANE_ARP:
+		return on(target.group, where.lane);
+	case SettingGroupId::NOTE_ROW:
+		return on(target.group, where.note_row);
+	}
+	return std::nullopt;
+}
 
 std::optional<View> view(const Target& target, const project::Song& model, const Addresses& where,
                          const RuntimeFacts& facts) {

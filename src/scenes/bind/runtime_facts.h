@@ -5,6 +5,7 @@
 
 #include "deluge-project/fx_chain.h"
 #include "deluge-project/instrument_slot.h"
+#include "deluge-project/setting_group.h"
 #include "engines/deluge/sound_state.h"
 #include "engines/effects/state.h"
 
@@ -29,6 +30,16 @@ public:
 	/// @brief The effects' typed state of the chain at @p chain, or nullptr when there is no such chain. It is what the
 	/// chain's record decodes to, kept equal to it by every Edit.
 	[[nodiscard]] virtual const effects::EffectStates* chain_effects(project::ChainAddress chain) const = 0;
+	/// @brief The device's default bend range, which a clip or kit row that holds none plays (its value is the
+	/// user's, stored on the device, not in the song).
+	/// @param which 0 for the main bend range, 1 for the MPE (per-finger) one.
+	[[nodiscard]] virtual int32_t device_bend_range(int32_t which) const = 0;
+	/// @brief Whether the sound drum at @p slot can hold note tails, which its kit-arp inclusion needs: its params
+	/// (envelope sustain, noise) decide it, which no setting holds.
+	[[nodiscard]] virtual bool allows_note_tails(project::SlotAddress slot) const = 0;
+	/// @brief The arp preset the engine holds for the arp @p address names (a CLIP_ARP or LANE_ARP owner), as an index
+	/// of engine::kArpPresetWords: a record derives its preset from its fields, so Custom is the engine's alone.
+	[[nodiscard]] virtual uint8_t arp_preset(const project::SettingAddress& address) const = 0;
 };
 
 } // namespace deluge::scenes::bind

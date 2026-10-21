@@ -30,4 +30,18 @@ namespace deluge::scenes::bind {
 /// @return The context.
 [[nodiscard]] engine::SettingContext setting_context(project::ChainAddress chain, ChainOwner owner);
 
+/// @brief The context a host passes for @p address's group (the host contract in engine-api/types/setting.h and each
+/// group's in setting_group.h): the song's is the SONG playing NONE; a track's (its device, its input) a TRACK; a
+/// clip's (its values, direction, arp) a CLIP; an audio clip's a CLIP playing AUDIO; a kit lane's and a kit note row's
+/// a KIT_LANE playing the drum its record names. A track or clip is played by @p instrument, which the model does not
+/// hold.
+/// @param model      The song.
+/// @param address    The group and owner.
+/// @param instrument What plays the track or clip.
+/// @param facts      The host's runtime facts: plugged inputs.
+/// @return The context.
+[[nodiscard]] engine::SettingContext setting_context(const project::Song& model, const project::SettingAddress& address,
+                                                     engine::SettingContext::Instrument instrument,
+                                                     const RuntimeFacts& facts);
+
 } // namespace deluge::scenes::bind
