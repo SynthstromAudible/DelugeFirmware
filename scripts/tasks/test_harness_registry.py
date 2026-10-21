@@ -7,9 +7,11 @@ Run directly with:
 
 import importlib.util
 import io
+import json
 import os
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -515,3 +517,89 @@ class RunnerSchedulingTest(unittest.TestCase):
         self.assertIn("== summary", out.getvalue())
         self.assertIn("2 passed, 0 failed, 0 skipped", out.getvalue())
         self.assertEqual(discarded.getvalue(), "")
+
+
+def _load_check_module(name):
+    path = Path(__file__).parents[2] / "tests/integration/checks" / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(f"check_{name}", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class HostDriverTest(unittest.TestCase):
+    """host_driver runs a corpus runner and hands its output to the gate, leaving the process's stdout alone."""
+
+    def setUp(self):
+        self.host_driver = _load_check_module("host_driver")
+        self.root = Path(tempfile.mkdtemp())
+        golden = self.root / "tests" / "golden"
+        golden.mkdir(parents=True)
+        (golden / "driver.py").write_text("def default_corpus():\n    return None\n")
+        (golden / "fake_run.py").write_text(
+            "import sys, time\n"
+            "def main(argv=None):\n"
+            "    print('HELLO')\n"
+            "    time.sleep(0.2)\n"
+            "    return 0\n"
+            "if __name__ == '__main__':\n"
+            "    sys.exit(main())\n"
+        )
+        self.host_driver.RUNNERS["fake"] = "fake_run"
+        self.addCleanup(
+            lambda: sys.path.remove(str(golden)) if str(golden) in sys.path else None
+        )
+        self.addCleanup(
+            lambda: [sys.modules.pop(m, None) for m in ("driver", "fake_run")]
+        )
+
+    def _gate(self):
+        lines, failures = [], []
+        gate = mock.Mock()
+        gate.root = self.root
+        gate.entry.scenario = "fake"
+        gate.env = {}
+        gate.binary = Path("/nonexistent/golden_vt_render")
+        gate.say.side_effect = lines.append
+        gate.fail.side_effect = failures.append
+        return gate, lines, failures
+
+    def test_runner_output_reaches_the_gate_without_touching_stdout(self):
+        before = sys.stdout
+        gate, lines, failures = self._gate()
+        self.host_driver.run(gate)
+        self.assertIs(sys.stdout, before)
+        self.assertIn("HELLO", lines)
+        self.assertEqual(failures, [])
+
+        gates = [self._gate() for _ in range(2)]
+        threads = [
+            threading.Thread(target=self.host_driver.run, args=(g,))
+            for g, _, _ in gates
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        self.assertIs(sys.stdout, before)
+        for _, lines, _ in gates:
+            self.assertIn("HELLO", lines)
+
+
+class SongRecordsTest(unittest.TestCase):
+    def test_parallel_updates_all_land(self):
+        render_song = _load_check_module("render_song")
+        path = Path(tempfile.mkdtemp()) / "songs.json"
+        threads = [
+            threading.Thread(
+                target=render_song.update_record,
+                args=(path, f"S{i}", {"sha256": str(i)}),
+            )
+            for i in range(16)
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        records = json.loads(path.read_text())
+        self.assertEqual(sorted(records), sorted(f"S{i}" for i in range(16)))

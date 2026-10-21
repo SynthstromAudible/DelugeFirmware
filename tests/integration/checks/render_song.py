@@ -48,6 +48,7 @@ RENDER_SONG_UPDATE=1 records the output instead of comparing it; a changed hash 
 that records the new one.
 """
 
+import fcntl
 import hashlib
 import importlib.util
 import json
@@ -56,6 +57,7 @@ import os
 import struct
 import subprocess
 import sys
+from pathlib import Path
 
 from scenario_gate import field, int_field
 
@@ -105,6 +107,16 @@ def _generate(gate, name: str = "RS_STREAM") -> dict[str, str] | None:
         gate.fail(f"generating the song failed: {made.stderr.strip()}")
         return None
     return {"RENDER_TREE": str(tree), "RENDER_SONG": f"SONGS/{name}.XML"}
+
+
+def update_record(path: Path, name: str, record: dict) -> None:
+    """Record @p record as @p name in the records file @p path, holding a lock across the read and the write: gates
+    running at once update the same file."""
+    with open(path.with_suffix(".json.lock"), "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        records = json.loads(path.read_text()) if path.exists() else {}
+        records[name] = record
+        path.write_text(json.dumps(records, indent=1, sort_keys=True) + "\n")
 
 
 def generated_song(env: dict[str, str]) -> str:
@@ -366,14 +378,13 @@ def run(gate):
         f"RS-PCM sha256={record['sha256']} frames={record['frames']} peak={record['peak']} rms_db={record['rms_db']}"
     )
     records_path = gate.root / "tests/integration/golden/songs.json"
-    records = json.loads(records_path.read_text()) if records_path.exists() else {}
     if os.environ.get("RENDER_SONG_UPDATE") == "1":
-        records[record_name] = record
-        records_path.write_text(json.dumps(records, indent=1, sort_keys=True) + "\n")
+        update_record(records_path, record_name, record)
         gate.say(
             f"RS-PCM recorded as {record_name} in {records_path.relative_to(gate.root)}"
         )
         return
+    records = json.loads(records_path.read_text()) if records_path.exists() else {}
     expected = records.get(record_name)
     if expected is None:
         gate.fail(

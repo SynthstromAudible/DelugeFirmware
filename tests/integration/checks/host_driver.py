@@ -9,9 +9,8 @@ finds nothing to check (exit 77) fails too: the registry entry requires the corp
 not a skip.
 """
 
-import contextlib
 import importlib
-import io
+import subprocess
 import sys
 
 # Scenario -> the tests/golden runner that checks it.
@@ -37,11 +36,10 @@ RUNNERS = {
 
 
 def run(gate):
-    golden = str(gate.root / "tests" / "golden")
-    if golden not in sys.path:
-        sys.path.insert(0, golden)
+    golden = gate.root / "tests" / "golden"
+    if str(golden) not in sys.path:
+        sys.path.insert(0, str(golden))
     driver = importlib.import_module("driver")
-    runner = importlib.import_module(RUNNERS[gate.entry.scenario])
 
     argv = ["--binary", str(gate.binary)]
     if wrapper := gate.env.get("GOLDEN_VT_RENDER_WRAPPER", ""):
@@ -49,11 +47,18 @@ def run(gate):
     if corpus := driver.default_corpus():
         argv += ["--corpus", corpus]
 
-    out = io.StringIO()
-    with contextlib.redirect_stdout(out):
-        code = runner.main(argv)
-    for line in out.getvalue().splitlines():
+    # A process of its own: the runner prints to stdout, and gates run on several threads at once.
+    ran = subprocess.run(
+        [sys.executable, str(golden / f"{RUNNERS[gate.entry.scenario]}.py"), *argv],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    for line in ran.stdout.splitlines():
         gate.say(line)
+    for line in ran.stderr.splitlines():
+        gate.say(line)
+    code = ran.returncode
     if code == 77:
         gate.fail(
             f"{gate.entry.scenario}: no corpus songs to check (set DELUGE_SONG_CORPUS)"
