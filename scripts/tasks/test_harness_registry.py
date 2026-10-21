@@ -5,6 +5,7 @@ Run directly with:
     python3 scripts/tasks/test_harness_registry.py
 """
 
+import importlib.util
 import io
 import os
 import sys
@@ -18,6 +19,12 @@ sys.path.insert(0, str(Path(__file__).parent))
 import harness_registry as hr
 import scenario_gate as sg
 import test_builds as tb
+
+_spec = importlib.util.spec_from_file_location(
+    "task_test", Path(__file__).parent / "task-test.py"
+)
+tt = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(tt)
 
 MINIMAL = """
 [[harness]]
@@ -464,3 +471,47 @@ class MarkdownTableTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RunnerSchedulingTest(unittest.TestCase):
+    def _root_with(self, text):
+        root = Path(tempfile.mkdtemp())
+        (root / "tests").mkdir()
+        (root / "tests" / "registry.toml").write_text(text)
+        return root
+
+    def test_alone_loads_and_defaults_false(self):
+        alone = MINIMAL + MINIMAL.replace('"alpha"', '"gamma"', 1).replace(
+            'tier = "pr"', 'tier = "pr"\nalone = true'
+        )
+        entries = hr.load_registry(self._root_with(alone))
+        self.assertEqual(
+            [(e.name, e.alone) for e in entries], [("alpha", False), ("gamma", True)]
+        )
+
+    def test_default_jobs(self):
+        cpus = os.cpu_count()
+        self.assertEqual(tt.default_jobs(0, "pr", False), cpus)
+        self.assertEqual(tt.default_jobs(0, "nightly", False), 1)
+        self.assertEqual(tt.default_jobs(3, "pr", False), 3)
+        self.assertEqual(tt.default_jobs(0, "nightly", True), cpus)
+
+    def test_schedule_splits_alone_last(self):
+        a, b, c = entry("a"), entry("b"), entry("c")
+        b.alone = True
+        self.assertEqual(tt.schedule([a, b, c]), ([a, c], [b]))
+
+    def test_summary_survives_a_swapped_stdout(self):
+        out = io.StringIO()
+        discarded = io.StringIO()
+        real = sys.stdout
+        sys.stdout = discarded
+        try:
+            tt._summarise(
+                [tt.Outcome("a", "PASS"), tt.Outcome("b", "PASS")], False, out
+            )
+        finally:
+            sys.stdout = real
+        self.assertIn("== summary", out.getvalue())
+        self.assertIn("2 passed, 0 failed, 0 skipped", out.getvalue())
+        self.assertEqual(discarded.getvalue(), "")

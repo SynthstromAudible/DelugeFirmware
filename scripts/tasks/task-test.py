@@ -36,6 +36,12 @@ import test_builds as tb
 SHARED_TARGET_SUBDIR = tb.SHARED_TARGET_SUBDIR
 
 # A marker line: an upper-case tag followed by a space, '=', ':' or a further '-TAG'. What a capture records.
+# The runner's own output: the real stdout as it was at startup, which no gate check can swap out from under the
+# summary. `main` binds it to a duplicate of file descriptor 1.
+OUT = sys.stdout
+# GOLDEN_SWEEP_JOBS for a test run alone: the caller's, else one per CPU.
+ALONE_SWEEP_JOBS = str(os.cpu_count() or 1)
+
 MARKER = re.compile(r"^[A-Z][A-Z0-9_]*(-[A-Z0-9_]+)*([ =:]|$)")
 
 
@@ -106,8 +112,9 @@ def argparser() -> argparse.ArgumentParser:
         "--jobs",
         type=int,
         default=0,
-        help="Run up to N tests at once (default 1; --capture defaults to one per CPU). Each run's card is its "
-        "own memory disk, so runs share nothing",
+        help="Run up to N tests at once (default: one per CPU for the pr tier and --capture, 1 above it). Each "
+        "run's card is its own memory disk, so runs share nothing; tests marked `alone` run one at a time after the "
+        "rest",
     )
     parser.add_argument(
         "--capture",
@@ -156,6 +163,8 @@ def _environment(
     for name in tb.order(h.builds, products):
         env.update(products[name].test_env)
     env.update(h.env)
+    if h.alone:
+        env["GOLDEN_SWEEP_JOBS"] = ALONE_SWEEP_JOBS
     return env
 
 
@@ -332,16 +341,20 @@ def cmd_run(
     runnable: list[hr.Harness] = []
     for h in selection:
         if h.status == "unavailable":
-            print(f"warning: '{h.name}' is marked unavailable -- {h.gates}\n")
+            print(f"warning: '{h.name}' is marked unavailable -- {h.gates}\n", file=OUT)
         missing = _missing(root, h, builds.known)
         if missing and not args.skip_checks:
             outcomes[h.name] = Outcome(h.name, "SKIP", f"needs {', '.join(missing)}")
-            print(f"--- {h.name}: skipped, needs {', '.join(missing)}", flush=True)
+            print(
+                f"--- {h.name}: skipped, needs {', '.join(missing)}",
+                file=OUT,
+                flush=True,
+            )
             continue
         blocker = builds.blocker(h)
         if blocker is not None:
             outcomes[h.name] = Outcome(h.name, "FAIL", blocker)
-            print(f"--- {h.name}: not run, {blocker}", flush=True)
+            print(f"--- {h.name}: not run, {blocker}", file=OUT, flush=True)
             continue
         runnable.append(h)
 
@@ -351,9 +364,9 @@ def cmd_run(
             root, h, ctest_args, args.build_only, junit_dir, log, builds.known
         )
 
+    parallel, alone = schedule(runnable)
     if args.jobs <= 1:
-        for h in runnable:
-            outcomes[h.name] = Outcome(h.name, "PASS" if one(h, None) else "FAIL")
+        parallel, alone = [], parallel + alone
     else:
         # Each test's output is held and printed whole when it finishes, so parallel runs do not interleave.
         def buffered(h: hr.Harness) -> tuple[bool, str]:
@@ -363,28 +376,48 @@ def cmd_run(
                 return ok, log.read()
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
-            futures = {pool.submit(buffered, h): h for h in runnable}
+            futures = {pool.submit(buffered, h): h for h in parallel}
             for future in concurrent.futures.as_completed(futures):
                 h = futures[future]
                 ok, text = future.result()
-                print(text, end="", flush=True)
+                print(text, end="", file=OUT, flush=True)
                 outcomes[h.name] = Outcome(h.name, "PASS" if ok else "FAIL")
+    for h in alone:
+        outcomes[h.name] = Outcome(h.name, "PASS" if one(h, OUT) else "FAIL")
 
     return _summarise(
-        [outcomes[h.name] for h in selection], strict=args.strict or named
+        [outcomes[h.name] for h in selection], strict=args.strict or named, out=OUT
     )
 
 
-def _summarise(outcomes: list[Outcome], strict: bool) -> int:
+def schedule(runnable: list[hr.Harness]) -> tuple[list[hr.Harness], list[hr.Harness]]:
+    """`runnable` split into the tests run in parallel and those run alone after them, each in selection order."""
+    return [h for h in runnable if not h.alone], [h for h in runnable if h.alone]
+
+
+def default_jobs(jobs: int, tier: str, capture: bool) -> int:
+    """The tests run at once: `jobs` when given, else one per CPU for a capture or the pr tier, else 1.
+
+    Above the pr tier the corpus sweeps run their songs in parallel themselves (`GOLDEN_SWEEP_JOBS`)."""
+    if jobs:
+        return jobs
+    return (os.cpu_count() or 1) if capture or tier == "pr" else 1
+
+
+def _summarise(outcomes: list[Outcome], strict: bool, out) -> int:
     if len(outcomes) > 1:
         width = max(len(o.name) for o in outcomes)
-        print("\n== summary")
+        print("\n== summary", file=out)
         for o in outcomes:
-            print(f"   {o.result}  {o.name:<{width}}  {o.note}".rstrip())
+            print(f"   {o.result}  {o.name:<{width}}  {o.note}".rstrip(), file=out)
     failed = [o for o in outcomes if o.result == "FAIL"]
     skipped = [o for o in outcomes if o.result == "SKIP"]
     passed = len(outcomes) - len(failed) - len(skipped)
-    print(f"\n{passed} passed, {len(failed)} failed, {len(skipped)} skipped")
+    print(
+        f"\n{passed} passed, {len(failed)} failed, {len(skipped)} skipped",
+        file=out,
+        flush=True,
+    )
     if skipped and strict:
         print(
             "test: a skip counts as a failure here (--strict, or the test was named)",
@@ -515,11 +548,15 @@ def main(argv: list[str] | None = None) -> int:
     root = Path(util.get_git_root()).absolute()
     entries = _load(root)
 
-    # The corpus sweeps run songs in parallel (tests/golden/driver.py); share the CPUs among the tests run at once.
-    at_once = args.jobs or ((os.cpu_count() or 1) if args.capture else 1)
-    os.environ.setdefault(
-        "GOLDEN_SWEEP_JOBS", str(max(1, (os.cpu_count() or 1) // max(1, at_once)))
-    )
+    global OUT, ALONE_SWEEP_JOBS
+    OUT = os.fdopen(os.dup(sys.stdout.fileno()), "w", buffering=1, errors="replace")
+    args.jobs = default_jobs(args.jobs, args.tier, bool(args.capture))
+
+    # The corpus sweeps run songs in parallel (tests/golden/driver.py): a sweep run alongside other tests shares the
+    # CPUs among them, one run alone has them all.
+    cpus = os.cpu_count() or 1
+    ALONE_SWEEP_JOBS = os.environ.get("GOLDEN_SWEEP_JOBS", str(cpus))
+    os.environ.setdefault("GOLDEN_SWEEP_JOBS", str(max(1, cpus // args.jobs)))
 
     if args.clean:
         return cmd_clean(root)
@@ -531,7 +568,7 @@ def main(argv: list[str] | None = None) -> int:
             entries,
             args.capture,
             "nightly" if args.tier == "pr" else args.tier,
-            args.jobs or os.cpu_count() or 1,
+            args.jobs,
         )
 
     try:

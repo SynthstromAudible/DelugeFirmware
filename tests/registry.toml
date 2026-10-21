@@ -14,6 +14,8 @@
 #         unavailable   -- cannot run here; NOT scheduled for deletion -- see
 #                          this entry's comment for why and what would change it
 # tier:   pr | nightly | manual -- cumulative: `dbt test --tier nightly` runs pr too
+# alone:  true -- run one at a time after the parallel set: the test measures real
+#         time, or runs its own worker pool across every CPU
 
 [[harness]]
 name = "fs-differential"
@@ -43,6 +45,7 @@ run = ["python3", "tests/golden/upgrade_run.py"]
 builds = ["golden-vt-render"]
 requires = ["cargo"]
 tier = "nightly"
+alone = true
 runtime = "~10m"
 
 [[harness]]
@@ -197,6 +200,7 @@ build = []
 run = ["./run.sh"]
 requires = ["cargo", "clang-tsan", "mtools", "song-corpus"]
 tier = "manual"
+alone = true
 runtime = "~30m"
 
 [[harness]]
@@ -211,6 +215,7 @@ build = []
 run = ["./run.sh", "10"]
 requires = ["clang-tsan"]
 tier = "pr"
+alone = true
 runtime = "~3m"
 
 [[harness]]
@@ -797,6 +802,7 @@ result = "UT-RESULT failures=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+alone = true
 runtime = "~1m"
 
 [[harness]]
@@ -813,6 +819,7 @@ result = "IR-RESULT failures=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+alone = true
 runtime = "~5s"
 
 [[harness]]
@@ -1711,6 +1718,7 @@ check = "tests/integration/checks/render_preset.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+alone = true
 runtime = "~20s"
 
 [[harness]]
@@ -1745,6 +1753,7 @@ check = "tests/integration/checks/streaming_margin.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+alone = true
 runtime = "~30s"
 
 [[harness]]
@@ -1763,6 +1772,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { MARGIN_SWEEP = "0,50,100,125,150,200,300,500" }
 tier = "manual"
+alone = true
 runtime = "~1m"
 
 [[harness]]
@@ -2051,6 +2061,7 @@ check = "tests/integration/checks/host_driver.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+alone = true
 runtime = "~10s"
 
 [[harness]]
@@ -2079,6 +2090,7 @@ check = "tests/integration/checks/host_driver.py"
 builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
+alone = true
 runtime = "~10s"
 
 [[harness]]
@@ -2109,6 +2121,7 @@ check = "tests/integration/checks/host_driver.py"
 builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
+alone = true
 runtime = "~20s"
 
 [[harness]]
@@ -2154,6 +2167,7 @@ check = "tests/integration/checks/host_driver.py"
 builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
+alone = true
 runtime = "~30s"
 
 [[harness]]
@@ -2184,6 +2198,7 @@ check = "tests/integration/checks/host_driver.py"
 builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
+alone = true
 runtime = "~20s"
 
 [[harness]]

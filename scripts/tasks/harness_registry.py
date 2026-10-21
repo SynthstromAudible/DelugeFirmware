@@ -85,6 +85,8 @@ class Harness:
     markers: list[str] = field(default_factory=list)
     result: str = ""
     check: str = ""
+    # Run on its own after the parallel set: the gate measures real time, or loads the machine enough to distort others.
+    alone: bool = False
 
 
 def load_registry(root: Path) -> list[Harness]:
@@ -186,6 +188,7 @@ def load_registry(root: Path) -> list[Harness]:
                 markers=item.get("markers", []),
                 result=item.get("result", ""),
                 check=item.get("check", ""),
+                alone=item.get("alone", False),
             )
         )
 
