@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "drivers/usb/usb_audio.h"
+#include "gui/menu_item/selection.h"
 #include "gui/menu_item/toggle.h"
 #include "hid/display/display.h"
 #include "storage/flash_storage.h"
@@ -33,6 +34,27 @@ public:
 		if (FlashStorage::usbAudioEnabled != usbAudioActive()) {
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_RESTART_TO_APPLY));
 		}
+	}
+};
+
+/// Whether audio from the host is mixed straight into the Deluge's outputs
+class DirectMonitoring final : public Toggle {
+public:
+	using Toggle::Toggle;
+	void readCurrentValue() override { this->setValue(usb_audio::directMonitoring); }
+	void writeCurrentValue() override { usb_audio::directMonitoring = this->getValue(); }
+};
+
+/// What the host receives from the Deluge: its main mix, or its line input
+class OutputSource final : public Selection {
+public:
+	using Selection::Selection;
+	void readCurrentValue() override { this->setValue(usb_audio::outputSource); }
+	void writeCurrentValue() override { usb_audio::outputSource = this->getValue<usb_audio::OutputSource>(); }
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
+		using enum l10n::String;
+		return {l10n::getView(STRING_FOR_MAIN_MIX), l10n::getView(STRING_FOR_LINE_IN)};
 	}
 };
 

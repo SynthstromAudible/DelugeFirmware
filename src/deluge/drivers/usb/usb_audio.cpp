@@ -41,12 +41,12 @@ void v7_dma_flush_range(uint32_t start, uint32_t end);
 }
 
 namespace deluge::usb_audio {
-// On by default, so the Deluge works as an audio interface out of the box
+// Defaults make the Deluge work as an audio interface out of the box
 bool directMonitoring = true;
+OutputSource outputSource = OutputSource::MAIN_MIX;
 } // namespace deluge::usb_audio
 
 namespace {
-using deluge::usb_audio::directMonitoring;
 
 // Pipe 1 (from host) is read through D1FIFO by DMA channel 1; pipe 2 (to host) is written through D0FIFO by channel 0
 constexpr uint16_t kPipeFromHost = USB_CFG_PAUDIO_ISO_OUT;

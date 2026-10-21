@@ -40,10 +40,20 @@ Deluge offers two modes, and the computer picks whichever it supports:
 
 The Deluge's USB MIDI ports keep working as before.
 
+## Settings
+
+USB audio's settings are in `SETTINGS > USB AUDIO` (`USBA` on 7SEG):
+
+| Setting   | 7SEG  | Options                                                     |
+| --------- | ----- | ----------------------------------------------------------- |
+| `ENABLED` | `ON`  | On (default), off                                           |
+| `INPUT`   | `IN`  | On (default), off - see below                               |
+| `OUTPUT`  | `OUT` | `MAIN MIX` (default, `MIX`), `LINE IN` (`LINE`) - see below |
+
 ## Turning USB audio off
 
-USB audio is on by default. To turn it off, go to `SETTINGS > USB AUDIO` (`USBA` on 7SEG). The Deluge then connects
-to your computer as a USB MIDI device only, exactly as it did before USB audio was added.
+USB audio is on by default. To turn it off, set `SETTINGS > USB AUDIO > ENABLED` to off. The Deluge then connects to
+your computer as a USB MIDI device only, exactly as it did before USB audio was added.
 
 The setting takes effect the next time the Deluge is turned on, since your computer only finds out what kind of
 device the Deluge is when it first connects.
@@ -57,10 +67,12 @@ device the Deluge is when it first connects.
 
 ## Playing audio from your computer
 
-Audio from the computer is mixed straight into the Deluge's main outputs and headphones, after the master volume and
-effects. This is on by default.
+Audio from the computer is mixed straight into the Deluge's main outputs and headphones, after the song's master
+volume and effects. This is on by default, and can be turned off with `SETTINGS > USB AUDIO > INPUT`. When it's off,
+you'll only hear the computer's audio through an audio clip that's monitoring it, or while sampling it.
 
-This audio is **not** sent back to the computer as part of the Deluge's output, so you won't get an echo.
+This audio is **not** sent back to the computer as part of the Deluge's output, so you won't get an echo. To put the
+computer's audio through the Deluge's effects, monitor it with an audio clip instead (see below).
 
 When an audio clip is monitoring the USB input (see below), the computer's audio is heard through that track instead,
 with its volume and effects. The Deluge stops mixing it straight to the outputs while that's happening, so you never
@@ -69,8 +81,13 @@ when a sampler clip has finished recording.
 
 ## Recording the Deluge into your computer
 
-The computer receives the Deluge's final stereo output: the same audio that goes to the main outputs, including any
-monitored inputs, but not the computer's own audio when that's mixed straight to the outputs.
+`SETTINGS > USB AUDIO > OUTPUT` sets what the computer receives:
+
+- **`MAIN MIX`** (the default) is the Deluge's final stereo output: the same audio that goes to the main outputs,
+  including any monitored inputs, but not the computer's own audio when it's mixed straight to the outputs.
+- **`LINE IN`** is the Deluge's line input (or mic) as it arrives, before any of the Deluge's processing. This turns
+  the Deluge into a simple audio interface for whatever's plugged into it. The internal mic only has one channel, so
+  it's sent to both sides.
 
 ## Recording audio from your computer in an audio clip
 
@@ -88,7 +105,8 @@ Monitoring follows the audio output mode, as for any other source (see
 
 <Aside type="caution">
   If an audio clip is monitoring the USB input, the computer's audio becomes
-  part of the Deluge's output, which is sent back to the computer. If your DAW
+  part of the Deluge's output, which is sent back to the computer when `OUTPUT`
+  is `MAIN MIX`. If your DAW
   is also playing its Deluge input back out to the Deluge, that makes a feedback
   loop. Turn off input monitoring in the DAW, or use the `PLAYER` mode on the
   clip.

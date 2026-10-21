@@ -85,8 +85,17 @@ int32_t* toInputRing(int32_t const* rxPosition);
 /// position just after where these frames went.
 void sendToHost(std::span<const StereoSample> frames, int32_t const* txPosition);
 
-/// The "USB to outputs" setting: mix audio from the host straight into the Deluge's outputs
+/// The "USB input" setting: mix audio from the host straight into the Deluge's outputs, after the song's FX, when
+/// nothing else (an audio track, or the sampler) is monitoring it
 extern bool directMonitoring;
+
+/// What we send to the host
+enum class OutputSource : uint8_t {
+	MAIN_MIX, // The Deluge's final output
+	LINE_IN,  // The codec's line/mic input, as it arrives
+};
+constexpr uint8_t kNumOutputSources = 2;
+extern OutputSource outputSource;
 
 } // namespace deluge::usb_audio
 #endif
