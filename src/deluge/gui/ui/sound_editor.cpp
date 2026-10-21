@@ -1053,6 +1053,12 @@ void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 	resetSourceBlinks();
 	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
+	// The shortcut overlay depends on the selected item, so refresh it for selection changes that don't come from
+	// a pad press (e.g. SYNTH / KIT / MIDI / CV buttons in horizontal menus)
+	if (should_render_shortcut_overlay() || haveRenderedPads) {
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	}
+
 	if (!inSettingsMenu()
 	    && !util::one_of<MenuItem*>(currentItem,
 	                                {&sample0StartMenu, &sample1StartMenu, &sample0EndMenu, &sample1EndMenu,
