@@ -74,6 +74,7 @@
 #include "model/model_stack.h" // ruling 6: this file and bindings.cpp only
 #include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -177,7 +178,9 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 	ctx.song = &song;
 	ctx.clip = clip;
 	ctx.source_index = source_index;
-	ctx.is_song_view = session_or_arranger_root;
+	// Legacy's `!rootUIIsClipMinderScreen()`: performance view is not a clip minder either, whatever its caller says of
+	// the session and arranger.
+	ctx.is_song_view = session_or_arranger_root || performance_view;
 	// The second, narrower root-UI fact -- `getRootUI() == &sessionView` rather than
 	// `!rootUIIsClipMinderScreen()`. It steers no branch in this function: `:1819-1822` funnels the
 	// session, arranger and song-automation views into one root, and only `relevance::is_session_view`
@@ -208,7 +211,7 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 
 	// `:1686-1695` -- performance / session / arranger: the song's own param manager and global
 	// effectable, read off a song-as-timeline-counter stack.
-	if (session_or_arranger_root) {
+	if (ctx.is_song_view) {
 		alignas(ModelStackWithAutoParam) char stack_memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* stack = song.setupModelStackWithSongAsTimelineCounter(stack_memory);
 		if (stack != nullptr) {
@@ -431,6 +434,14 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 	}
 	if (ctx.resolved && ctx.is_kit && ctx.output != nullptr) {
 		ctx.addresses.kit_output = ctx.output->id();
+	}
+	// The chain an effect target edits when no sound is: the whole kit's, an audio track's or the master's. The model's
+	// address cannot say which kind of output holds it; the root can.
+	if (ctx.resolved && ctx.sound == nullptr && ctx.mod != nullptr) {
+		ctx.addresses.chain = deluge::bridge::chainAddressOf(*ctx.mod, song);
+		ctx.addresses.chain_owner = ctx.is_song_view    ? bind::ChainOwner::SONG
+		                            : ctx.is_audio_clip ? bind::ChainOwner::AUDIO_TRACK
+		                                                : bind::ChainOwner::KIT;
 	}
 
 	return ctx;

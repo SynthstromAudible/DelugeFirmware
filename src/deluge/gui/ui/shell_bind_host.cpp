@@ -2,9 +2,11 @@
 
 #include "engine-api/types/setting.h"
 #include "engines/deluge/settings.h"
+#include "engines/effects/settings.h"
 #include "io/debug/log.h"
 #include "model/drum/drum.h"
 #include "model/edits/edit.h"
+#include "model/edits/set_effect_setting.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
@@ -50,8 +52,10 @@ Kit* kit_with_id(uint32_t id) {
 
 /// Applies a menu's write requests as their targets' Edits on the current song. A sound target's request becomes
 /// SetEngineSetting on the sound's slot, and its partner row's value a second one; with affect-entire held on a kit,
-/// one per sound drum of the kit whose row applies in that drum's own context. A request whose slot does not resolve,
-/// or a sound with no slot, is refused: logged and counted, never applied through the runtime's setter alone.
+/// one per sound drum of the kit whose row applies in that drum's own context. An effect target's request is the same
+/// on a sound's slot, and on a host chain (the whole kit's, an audio track's, the master's) SetEffectSetting on the
+/// chain, its partner second. A request whose slot or chain does not resolve, or a sound with no slot, is refused:
+/// logged and counted, never applied through the runtime's setter alone.
 class ShellEditSink final : public deluge::scenes::bind::WriteSink {
 public:
 	void write(const WriteRequest& request) override;
@@ -80,11 +84,14 @@ ShellEditSink& shell_edit_sink() {
 } // namespace
 
 void ShellEditSink::write(const WriteRequest& request) {
-	if (currentSong == nullptr || request.target.kind != deluge::scenes::bind::Target::Kind::SOUND) {
+	using Kind = deluge::scenes::bind::Target::Kind;
+	const Kind kind = request.target.kind;
+	if (currentSong == nullptr || (kind != Kind::SOUND && kind != Kind::EFFECT)) {
 		return;
 	}
-	const deluge::engine::SettingInfo* row =
-	    deluge::engine::find_setting(deluge::instrument::kSettings, request.target.path);
+	const std::span<const deluge::engine::SettingInfo> table =
+	    kind == Kind::EFFECT ? deluge::effects::kEffectSettings : deluge::instrument::kSettings;
+	const deluge::engine::SettingInfo* row = deluge::engine::find_setting(table, request.target.path);
 	const auto stored = row != nullptr ? deluge::engine::from_menu(*row, request.menu_value) : std::nullopt;
 	if (!stored) {
 		refusals_++;
@@ -94,16 +101,10 @@ void ShellEditSink::write(const WriteRequest& request) {
 	}
 	const std::string_view partner = deluge::engine::mapping_of(*row).partner_path();
 	const deluge::engine::SettingInfo* partner_row =
-	    partner.empty() ? nullptr : deluge::engine::find_setting(deluge::instrument::kSettings, partner);
+	    partner.empty() ? nullptr : deluge::engine::find_setting(table, partner);
 
-	const auto apply_to = [&](deluge::project::SlotAddress slot) {
-		if (deluge::bridge::soundAt(*currentSong, slot) == nullptr) {
-			refusals_++;
-			D_PRINTLN("menu write refused: no sound at the slot for %.*s", static_cast<int>(request.target.path.size()),
-			          request.target.path.data());
-			return;
-		}
-		deluge::edits::Context ctx{*currentSong, currentSong->project};
+	// Commits @p row's value, then its partner's, each as the Edit @p edit_for makes for a path and a file value.
+	const auto commit_both = [&](deluge::edits::Context& ctx, const auto& edit_for) {
 		const auto commit = [&](const deluge::engine::SettingInfo& on, int32_t value) {
 			const std::optional<deluge::serialization::Value> file = value_of(on, value);
 			if (!file) {
@@ -112,7 +113,7 @@ void ShellEditSink::write(const WriteRequest& request) {
 				          on.path.data(), static_cast<int>(value));
 				return;
 			}
-			deluge::edits::SetEngineSetting edit{slot, std::string(on.path), *file};
+			auto edit = edit_for(std::string(on.path), *file);
 			if (deluge::edits::apply(ctx, edit) != Error::NONE) {
 				refusals_++;
 				D_PRINTLN("menu write refused: %.*s = %d", static_cast<int>(on.path.size()), on.path.data(),
@@ -123,6 +124,19 @@ void ShellEditSink::write(const WriteRequest& request) {
 		if (partner_row != nullptr) {
 			commit(*partner_row, stored->second);
 		}
+	};
+
+	const auto apply_to = [&](deluge::project::SlotAddress slot) {
+		if (deluge::bridge::soundAt(*currentSong, slot) == nullptr) {
+			refusals_++;
+			D_PRINTLN("menu write refused: no sound at the slot for %.*s", static_cast<int>(request.target.path.size()),
+			          request.target.path.data());
+			return;
+		}
+		deluge::edits::Context ctx{*currentSong, currentSong->project};
+		commit_both(ctx, [&](std::string path, const deluge::serialization::Value& value) {
+			return deluge::edits::SetEngineSetting{slot, std::move(path), value};
+		});
 	};
 
 	if (request.where.affect_entire && request.target.whole_kit && request.where.kit_output) {
@@ -154,13 +168,20 @@ void ShellEditSink::write(const WriteRequest& request) {
 		}
 		return;
 	}
-	if (!request.where.slot) {
-		refusals_++;
-		D_PRINTLN("menu write refused: %.*s has no slot", static_cast<int>(request.target.path.size()),
-		          request.target.path.data());
+	if (request.where.slot) {
+		apply_to(*request.where.slot);
 		return;
 	}
-	apply_to(*request.where.slot);
+	if (kind == Kind::EFFECT && request.where.chain) {
+		deluge::edits::Context ctx{*currentSong, currentSong->project};
+		commit_both(ctx, [&](std::string path, const deluge::serialization::Value& value) {
+			return deluge::edits::SetEffectSetting{*request.where.chain, std::move(path), value};
+		});
+		return;
+	}
+	refusals_++;
+	D_PRINTLN("menu write refused: %.*s has no slot or chain", static_cast<int>(request.target.path.size()),
+	          request.target.path.data());
 }
 
 bool ShellRuntimeFacts::audio_inputs_present() const {
