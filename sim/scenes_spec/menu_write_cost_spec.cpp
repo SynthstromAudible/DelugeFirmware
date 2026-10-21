@@ -9,6 +9,7 @@
 
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "processing/sound/sound_drum.h"
 
 #include "support/song_fixture.h"
@@ -41,6 +42,10 @@ struct Cost {
 /// Times @p kWrites writes of @p path through the app's sink, alternating two menu values.
 Cost time_writes(const MenuContext& ctx, std::string_view path, int32_t a, int32_t b) {
 	bind::WriteSink& sink = menu::host_write_sink();
+	// The runner checks every write against the old decode; a probe times the write alone.
+	deluge::bridge::TypedWriteAudit& audit = deluge::bridge::typedWriteAudit();
+	const bool audited = audit.enabled;
+	audit.enabled = false;
 	std::vector<double> us;
 	us.reserve(kWrites);
 	for (int32_t i = 0; i < kWrites; ++i) {
@@ -51,6 +56,7 @@ Cost time_writes(const MenuContext& ctx, std::string_view path, int32_t a, int32
 		sink.write(request);
 		us.push_back(std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count());
 	}
+	audit.enabled = audited;
 	std::ranges::sort(us);
 	return {.median_us = us[us.size() / 2], .p95_us = us[(us.size() * 95) / 100]};
 }
