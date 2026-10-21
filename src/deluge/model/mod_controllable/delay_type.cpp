@@ -131,7 +131,7 @@ void forEachDelayParamManager(Song& song, const std::function<void(ModControllab
 namespace {
 
 /// @brief Gives @p owner its type, when its file saved none, from whether any of its param managers could sound.
-void resolve(ModControllableAudio& owner, bool couldSound) {
+void resolve(Song& song, ModControllableAudio& owner, bool couldSound) {
 	if (!owner.delayTypePending) {
 		return;
 	}
@@ -146,8 +146,9 @@ void resolve(ModControllableAudio& owner, bool couldSound) {
 	}
 	if (resolved != type) {
 		// Through the owner's slot or chain where it has one, so the model's record holds the type too.
+		// In the song being settled, which a load has not made current yet.
 		deluge::edits::changeEffect(
-		    owner, "delay/type",
+		    song, owner, "delay/type",
 		    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(resolved))));
 	}
 }
@@ -169,7 +170,7 @@ void resolveWhere(Song& song, const std::function<bool(const ModControllableAudi
 		}
 	});
 	for (const auto& [owner, could] : owners) {
-		resolve(*owner, could);
+		resolve(song, *owner, could);
 	}
 }
 

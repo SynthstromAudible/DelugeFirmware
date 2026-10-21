@@ -1010,6 +1010,19 @@ int engine_settings_main(int argc, char** argv, Io driverIo) {
 			std::fprintf(io.err, "LOADFAIL\n");
 			return 1;
 		}
+		// Straight from the load, before any Edit could re-encode a slot: what settling the load did (a delay type its
+		// file left unsaid) reached each slot too.
+		if (deluge::harness::expectSongCoherent(*song, "loaded",
+		                                        {.runtime = false,
+		                                         .snapshot = false,
+		                                         .controls = false,
+		                                         .decode = false,
+		                                         .chains = false,
+		                                         .song_settings = false})
+		    != 0) {
+			std::fprintf(io.err, "FAIL loaded song incoherent\n");
+			return 3;
+		}
 		for (Output* output = song->live.media.first_output; output != nullptr; output = output->next) {
 			if (int r = expectBound(*output, "loaded song")) {
 				return r;

@@ -23,6 +23,7 @@
 
 class GlobalEffectable;
 class ModControllableAudio;
+class Song;
 
 namespace deluge::edits {
 
@@ -34,6 +35,13 @@ namespace deluge::edits {
 /// @param path  Path of the setting within the effects' schema.
 /// @param value The new value, in its Edit form.
 void changeEffect(ModControllableAudio& owner, std::string_view path, deluge::serialization::Value value);
+
+/// @brief changeEffect in @p song rather than the current song: for a song being loaded, which is not current yet.
+/// @param song  The song the owner belongs to.
+/// @param owner The effect owner being edited.
+/// @param path  Path of the setting within the effects' schema.
+/// @param value The new value, in its Edit form.
+void changeEffect(::Song& song, ModControllableAudio& owner, std::string_view path, deluge::serialization::Value value);
 
 /// @brief Apply a gesture's change of which value an owner's knobs edit.
 ///

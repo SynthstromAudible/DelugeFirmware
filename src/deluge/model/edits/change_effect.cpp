@@ -36,19 +36,31 @@
 namespace deluge::edits {
 
 void changeEffect(ModControllableAudio& owner, std::string_view path, deluge::serialization::Value value) {
+	if (currentSong == nullptr) {
+		// An owner outside any song holds its effects itself.
+		if (deluge::bridge::applyEffectSetting(owner, path, value) != Error::NONE) {
+			D_PRINTLN("effect setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(),
+			          value.str().c_str());
+		}
+		return;
+	}
+	changeEffect(*currentSong, owner, path, std::move(value));
+}
+
+void changeEffect(::Song& song, ModControllableAudio& owner, std::string_view path,
+                  deluge::serialization::Value value) {
 	Error error = Error::NONE;
 	::Sound* sound = owner.asSound();
 	const std::optional<deluge::project::SlotAddress> slot =
 	    sound != nullptr ? deluge::bridge::slotAddressOf(*sound) : std::nullopt;
-	if (slot && currentSong != nullptr && deluge::bridge::soundAt(*currentSong, *slot) == sound) {
-		Context ctx{*currentSong, currentSong->project};
+	if (slot && deluge::bridge::soundAt(song, *slot) == sound) {
+		Context ctx{song, song.project};
 		SetEngineSetting edit{*slot, std::string(path), value};
 		error = apply(ctx, edit);
 	}
 	else if (const std::optional<deluge::project::ChainAddress> chain =
-	             currentSong != nullptr && sound == nullptr ? deluge::bridge::chainAddressOf(owner, *currentSong)
-	                                                        : std::nullopt) {
-		Context ctx{*currentSong, currentSong->project};
+	             sound == nullptr ? deluge::bridge::chainAddressOf(owner, song) : std::nullopt) {
+		Context ctx{song, song.project};
 		SetEffectSetting edit{*chain, std::string(path), value};
 		error = apply(ctx, edit);
 	}
