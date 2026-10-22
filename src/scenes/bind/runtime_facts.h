@@ -7,13 +7,21 @@
 #include "deluge-project/instrument_slot.h"
 #include "deluge-project/param_address.h"
 #include "deluge-project/setting_group.h"
+#include "engines/deluge/cables.h"
 #include "engines/deluge/sound_state.h"
 #include "engines/effects/state.h"
 
 #include <cstdint>
 #include <optional>
+#include <span>
 
 namespace deluge::scenes::bind {
+
+/// @brief One of a sound's patch cables, as the engine holds it.
+struct CableFact {
+	engine::ParamId depth;           ///< the cable's depth id, which names its source and its destination
+	instrument::Polarity polarity{}; ///< its polarity
+};
 
 /// @brief The facts a menu needs that are not settings, each answered by the host. Nothing else a binding reads comes
 /// from outside the model.
@@ -48,6 +56,10 @@ public:
 	/// playhead, a latch or override holds, and stutter-type effects and recording change, where the record holds the
 	/// saved base value; nullopt where the song holds no such param.
 	[[nodiscard]] virtual std::optional<int32_t> param_value(const project::ParamAddress& address) const = 0;
+	/// @brief The patch cables of the sound @p owner names (a synth or a sound drum, with its clip; the id is not
+	/// read), in the order the engine holds them; empty where there is no such sound. The cables are its engine's: one
+	/// made this session is one before the song is saved. The span is good until the next call.
+	[[nodiscard]] virtual std::span<const CableFact> cables(const project::ParamAddress& owner) const = 0;
 };
 
 } // namespace deluge::scenes::bind

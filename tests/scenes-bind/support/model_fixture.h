@@ -74,6 +74,8 @@ public:
 	/// The value each param plays, by its address; a param absent here the song does not hold.
 	std::vector<std::pair<project::ParamAddress, int32_t>> param_values;
 	[[nodiscard]] std::optional<int32_t> param_value(const project::ParamAddress& address) const override;
+	std::vector<CableFact> cable_list;
+	[[nodiscard]] std::span<const CableFact> cables(const project::ParamAddress& owner) const override;
 };
 
 /// A song whose synth track (kSynth) and kit row (kDrum) hold the slot encode() writes for @p facts' states, which

@@ -27,6 +27,7 @@
 #include "deluge-project/param_address.h"
 
 class ModelStackWithAutoParam;
+class PatchCableSet;
 class Song;
 enum class Polarity : uint8_t;
 
@@ -56,5 +57,12 @@ namespace deluge::bridge {
 /// @return The stack, or null where the sound does not resolve or its cable set is full.
 [[nodiscard]] ::ModelStackWithAutoParam* cableStackAt(::Song& song, const project::ParamAddress& address,
                                                       ::Polarity polarity, void* memory);
+
+/// @brief The patch cables of the sound @p owner names (a synth or a sound drum, with its clip; the id is not read).
+/// @param song   The song holding the sound.
+/// @param owner  The sound's address.
+/// @param memory MODEL_STACK_MAX_SIZE bytes, aligned as ModelStackWithAutoParam, the lookup's scratch.
+/// @return The cable set, or null where the sound does not resolve or has none.
+[[nodiscard]] ::PatchCableSet* cableSetAt(::Song& song, const project::ParamAddress& owner, void* memory);
 
 } // namespace deluge::bridge

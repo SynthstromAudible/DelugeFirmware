@@ -29,12 +29,14 @@
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/param_stack.h"
+#include "model/project_bridge/patch_cable_words.h"
 #include "model/project_bridge/setting_projection.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
@@ -153,6 +155,11 @@ public:
 	[[nodiscard]] bool allows_note_tails(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] uint8_t arp_preset(const deluge::project::SettingAddress& address) const override;
 	[[nodiscard]] std::optional<int32_t> param_value(const deluge::project::ParamAddress& address) const override;
+	[[nodiscard]] std::span<const deluge::scenes::bind::CableFact>
+	cables(const deluge::project::ParamAddress& owner) const override;
+
+private:
+	mutable std::array<deluge::scenes::bind::CableFact, kMaxNumPatchCables> cables_{};
 };
 
 ShellEditSink& shell_edit_sink() {
@@ -458,6 +465,25 @@ std::optional<int32_t> ShellRuntimeFacts::param_value(const deluge::project::Par
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* stack = deluge::bridge::paramStackAt(*currentSong, address, memory);
 	return stack != nullptr ? std::optional{stack->autoParam->getCurrentValue()} : std::nullopt;
+}
+
+std::span<const deluge::scenes::bind::CableFact>
+ShellRuntimeFacts::cables(const deluge::project::ParamAddress& owner) const {
+	if (currentSong == nullptr) {
+		return {};
+	}
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	PatchCableSet* set = deluge::bridge::cableSetAt(*currentSong, owner, memory);
+	if (set == nullptr) {
+		return {};
+	}
+	size_t n = 0;
+	for (int32_t i = 0; i < set->numPatchCables && n < cables_.size(); ++i) {
+		const PatchCable& cable = set->patchCables[i];
+		cables_[n++] = {.depth = deluge::bridge::cable_depth(cable.from, cable.destinationParamDescriptor),
+		                .polarity = static_cast<deluge::instrument::Polarity>(cable.polarity)};
+	}
+	return {cables_.data(), n};
 }
 
 uint8_t ShellRuntimeFacts::arp_preset(const deluge::project::SettingAddress& address) const {

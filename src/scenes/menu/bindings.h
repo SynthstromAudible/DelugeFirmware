@@ -290,27 +290,4 @@ int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row = nu
 /// @param value The new `SequenceDirection`.
 void write_sequence_direction(const MenuContext& ctx, int32_t value);
 
-/// @brief Write a **patch cable's** strength, creating the cable if it does not exist yet.
-///
-/// The port of `PatchCableStrength::writeCurrentValue` (`gui/menu_item/patch_cable_strength.cpp:231-248`)
-/// and the `getModelStack(memory, /*allowCreation=*/true)` it runs on (`:203-220`). It lives here,
-/// not in `nodes/patch_cables.cpp`, for exactly the reason `SoundTarget::stack` does: reaching a
-/// patch cable's `AutoParam` means `paramManager->getPatchCableSetSummary()` ->
-/// `addParamCollectionSummary` -> `addParamId` -> `getAutoParamFromId`, and `model/model_stack.h`
-/// may be included by this file and `context.cpp` only.
-///
-/// A patch cable has no `ParamRef` spelling (`params::Kind::PATCH_CABLE` addresses a
-/// `ParamDescriptor`, not an 8-bit index), which is why this is a free function taking the
-/// descriptor rather than another `Binding` arm.
-///
-/// @param ctx           What is being edited.
-/// @param learning_thing The cable's own id -- `getLearningThing()`: the destination param plus the
-///                      cable's source, plus the range source for a range cable
-///                      (`patch_cable_strength/regular.cpp:30-34`, `range.cpp:25-30`).
-/// @param value         The new strength, in menu units
-///                      (`kMinMenuPatchCableValue`..`kMaxMenuPatchCableValue`).
-/// @return Whether a cable was reached (false when the param manager holds no patch-cable set, or
-///         when creation failed).
-bool patch_cable_write(const MenuContext& ctx, ParamDescriptor learning_thing, int32_t value);
-
 } // namespace deluge::scenes::menu::bindings

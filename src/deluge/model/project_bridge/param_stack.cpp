@@ -191,6 +191,14 @@ ModelStackWithAutoParam* paramStackAt(::Song& song, const project::ParamAddress&
 	return nullptr;
 }
 
+PatchCableSet* cableSetAt(::Song& song, const project::ParamAddress& owner, void* memory) {
+	const OwnerStack sound = ownerStackAt(song, owner, memory);
+	if (sound.stack == nullptr || sound.holder != Holder::SOUND) {
+		return nullptr;
+	}
+	return sound.stack->paramManager->getPatchCableSetAllowJibberish();
+}
+
 ModelStackWithAutoParam* cableStackAt(::Song& song, const project::ParamAddress& address, Polarity polarity,
                                       void* memory) {
 	if (address.space != project::ParamSpace::ENGINE || !instrument::is_cable_depth(address.id)) {

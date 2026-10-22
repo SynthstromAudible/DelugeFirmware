@@ -221,6 +221,7 @@ class SceneParamWrites(unittest.TestCase):
             "param->autoParam->setNodeAtPos(doc, pos, v, true);",
             "param->autoParam->homogenizeRegion(param, pos, length, v, false, false, 0, false);",
             "param->autoParam->nudgeNonInterpolatingNodesAtPos(pos, 1, length, action, param);",
+            "set->setPolarity(i, p);",
         ):
             with self.subTest(line=line):
                 found = self.check(
@@ -269,6 +270,8 @@ class SongStateWrites(unittest.TestCase):
             "if (output->name == other) {}",
             "PresetRequest r{.name = initial};",
             "set->setPolarity(index, polarity);",
+            "WriteRequest r{.target = cable, .polarity = p};",
+            "const CableFact fact{.depth = d,\n\t.polarity = p};",
             "const auto mode = ao->scrolledMode(offset);",
             'deluge::edits::arpSettingFor(*ctx.arp, "arpeggiator/rate", v);',
             "if (ctx.arp->mode == ArpMode::OFF) {}",

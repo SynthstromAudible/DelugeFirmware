@@ -72,9 +72,9 @@ inline constexpr IntRange kSidechainSyncRange{0, 9, 1};
 inline constexpr IntRange kSidechainRateRange{0, 50, 1};
 
 // `sidechainVolumeShortcutMenu` (`gui/ui/menus.cpp:806-807`): a `sidechain::VolumeShortcut`, which
-// is a `patch_cable_strength::Fixed` on GLOBAL_VOLUME_POST_REVERB_SEND from the SIDECHAIN source,
-// plus the reverb-recompute flag its `writeCurrentValue` raises (`sidechain/volume.h:26-29`), which
-// rides on the item: the node has no `Binding` -- see `PatchCableStrengthItem`'s constructor.
+// is a `patch_cable_strength::Fixed` on GLOBAL_VOLUME_POST_REVERB_SEND from the SIDECHAIN source.
+// The reverb's recompute its `writeCurrentValue` raises (`sidechain/volume.h:26-29`) is the cable
+// Edit's: SetPatchCable raises it for this cable.
 inline constexpr Node sidechain_volume =
     with_select_chain(custom(sid(deluge::l10n::String::STRING_FOR_VOLUME_DUCKING), &kSidechainVolumeItem),
                       &patch_cable_strength_chain, kPatchCableStrengthChain);

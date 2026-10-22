@@ -93,7 +93,11 @@
 
 #include "definitions_cxx.hpp" // PatchSource -- one of the root-level headers this layer may name
 
+#include "modulation/patch/patch_cable.h" // Polarity
+#include "scenes/bind/write_sink.h"
+
 #include <cstdint>
+#include <optional>
 #include <span>
 
 namespace deluge::scenes::menu::nodes {
@@ -158,13 +162,8 @@ public:
 	/// @param which        Which of the three legacy classes this instance is.
 	/// @param param        `Fixed::p` -- the destination param. Ignored unless @p which is `Fixed`.
 	/// @param source       `Fixed::s` -- the cable's source. Ignored unless @p which is `Fixed`.
-	/// @param updates_reverb `sidechain::VolumeShortcut::writeCurrentValue`'s extra line
-	///                     (`sidechain/volume.h:26-29`): the cable write, then
-	///                     `AudioEngine::mustUpdateReverbParamsBeforeNextRender = true`. This node
-	///                     has no `Binding`, so it is a constructor argument.
-	constexpr PatchCableStrengthItem(Which which, uint8_t param = 0, PatchSource source = PatchSource::NOT_AVAILABLE,
-	                                 bool updates_reverb = false)
-	    : which_{which}, param_{param}, source_{source}, updates_reverb_{updates_reverb} {}
+	constexpr PatchCableStrengthItem(Which which, uint8_t param = 0, PatchSource source = PatchSource::NOT_AVAILABLE)
+	    : which_{which}, param_{param}, source_{source} {}
 
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
@@ -179,11 +178,14 @@ public:
 
 	constexpr Which which() const { return which_; }
 
+	/// @brief Set the polarity the page shows to @p polarity, and the cable's own where it exists (a SHIFT+turn); a
+	/// cable the page makes later takes it.
+	void set_polarity(const MenuContext& ctx, MenuState& state, Polarity polarity) const;
+
 private:
 	Which which_;
 	uint8_t param_;
 	PatchSource source_;
-	bool updates_reverb_;
 };
 
 /// @name The instances. `inline const`, like every other `CustomItem` singleton in this directory.
@@ -197,10 +199,10 @@ inline const PatchCableStrengthItem kPatchCableStrengthRangeItem{PatchCableStren
 inline const PatchCableStrengthItem kVibratoItem{
     PatchCableStrengthItem::Which::Fixed, deluge::modulation::params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_1};
 /// `sidechainVolumeShortcutMenu` (`menus.cpp:806-807`): GLOBAL_VOLUME_POST_REVERB_SEND from
-/// SIDECHAIN, and the one instance that raises the reverb-recompute flag.
+/// SIDECHAIN. The reverb copies this cable, so its Edit raises the reverb's recompute.
 inline const PatchCableStrengthItem kSidechainVolumeItem{PatchCableStrengthItem::Which::Fixed,
                                                          deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND,
-                                                         PatchSource::SIDECHAIN, /*updates_reverb=*/true};
+                                                         PatchSource::SIDECHAIN};
 /// @}
 
 // ---------------------------------------------------------------------------------------------
@@ -265,6 +267,12 @@ inline constexpr std::span<const Node* const> kPatchCableStrengthChain{kPatchCab
 inline constexpr const Node* kPatchCablesChainArray[] = {&patch_cable_strength_regular, &patch_cable_strength_range};
 inline constexpr std::span<const Node* const> kPatchCablesChain{kPatchCablesChainArray};
 /// @}
+
+/// @brief The request that sets the cable @p learn names (its bottom-level source to its destination) on the sound
+///        @p ctx edits to @p menu_value, the strength page's own value; a cable it makes takes @p polarity.
+/// @return The request, or nullopt where @p ctx edits no sound.
+std::optional<deluge::scenes::bind::WriteRequest> cable_request(const MenuContext& ctx, ParamDescriptor learn,
+                                                                int32_t menu_value, Polarity polarity);
 
 /// @brief @p n with the chain every `PatchedParam`-derived legacy item has.
 ///

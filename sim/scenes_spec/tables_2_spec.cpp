@@ -80,6 +80,7 @@ using deluge::hid::display::OLED;
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
@@ -205,6 +206,14 @@ struct Rigged {
 	spec::SongFixture song;
 	MenuContext ctx{};
 };
+
+/// Writes @p menu_value to the cable @p learn names through the app's sink, as the strength page writes it; a new
+/// cable takes its source's default polarity.
+bool seed_cable(const menu::MenuContext& ctx, ParamDescriptor learn, int32_t menu_value) {
+	const std::optional<deluge::scenes::bind::WriteRequest> request = menu::nodes::cable_request(
+	    ctx, learn, menu_value, PatchCable::getDefaultPolarity(learn.getBottomLevelSource()));
+	return request.has_value() && ctx.sink->write(*request);
+}
 
 /// @brief The synth clip every shape/value example runs against.
 Rigged& fixture() {
@@ -1377,7 +1386,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		// `getAutoParamFromId(..., allowCreation=true)` -- `patch_cable_strength.cpp:213-229`).
 		ParamDescriptor learn;
 		learn.setToHaveParamAndSource(deluge::modulation::params::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1);
-		expect(menu::bindings::patch_cable_write(f.ctx, learn, 1234)).to_be_true();
+		expect(seed_cable(f.ctx, learn, 1234)).to_be_true();
 
 		// Legacy reads it through its own globals ...
 		soundEditor.patchingParamSelected = deluge::modulation::params::LOCAL_LPF_FREQ;
@@ -1408,7 +1417,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		// (`sound_editor.cpp:2041`) and asks the *song's* param manager for a patch-cable collection
 		// it does not have -- which is `FREEZE_WITH_ERROR("E412")`, i.e. a null-`display` segfault in
 		// the host build. `bindings_spec` covers the model-stack half directly.
-		expect(menu::bindings::patch_cable_write(f.ctx, learn, -2500)).to_be_true(); // sentinel
+		expect(seed_cable(f.ctx, learn, -2500)).to_be_true(); // sentinel
 		legacy::patch_cable_strength::regularMenu.readCurrentValue();
 		expect(legacy::patch_cable_strength::regularMenu.getValue()).to_equal(int32_t(-2500));
 
@@ -1478,6 +1487,59 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		expect(static_cast<int>(reopened.patch_polarity)).to_equal(static_cast<int>(chosen));
 	});
 
+	it("flips an existing cable's polarity in the engine and the record", _ {
+		Rigged& f = fixture();
+		install(f.ctx, f.song.song);
+		constexpr PatchSource kSource = PatchSource::LFO_GLOBAL_1;
+		ParamDescriptor learn;
+		learn.setToHaveParamAndSource(deluge::modulation::params::LOCAL_OSC_A_PITCH_ADJUST, kSource);
+		expect(seed_cable(f.ctx, learn, 1500)).to_be_true();
+		PatchCableSet* set = f.ctx.params->getPatchCableSetAllowJibberish();
+		ParamDescriptor destination;
+		destination.setToHaveParamOnly(deluge::modulation::params::LOCAL_OSC_A_PITCH_ADJUST);
+		const uint8_t index = set->getPatchCableIndex(kSource, destination);
+		expect(index != kNoSelection).to_be_true();
+		const Polarity flipped = set->patchCables[index].polarity == Polarity::BIPOLAR ? Polarity::UNIPOLAR
+		                                                                              : Polarity::BIPOLAR;
+
+		menu::MenuState st{};
+		st.patching_param = deluge::modulation::params::LOCAL_OSC_A_PITCH_ADJUST;
+		st.patch_source = kSource;
+		nodes::kPatchCableStrengthRegularItem.set_polarity(f.ctx, st, flipped);
+		expect(static_cast<int>(st.patch_polarity)).to_equal(static_cast<int>(flipped));
+		const uint8_t after = set->getPatchCableIndex(kSource, destination);
+		expect(static_cast<int>(set->patchCables[after].polarity)).to_equal(static_cast<int>(flipped));
+		expect(static_cast<int>(set->recordedPolarity(after))).to_equal(static_cast<int>(flipped));
+		expect(set->patchCables[after].param.getCurrentValue() != 0).to_be_true(); // the strength stays
+	});
+
+	it("refuses a strength write on a full cable set, creating nothing", _ {
+		spec::SongFixture song = spec::make_synth_song();
+		menu::MenuContext ctx =
+		    menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
+		install(ctx, song.song);
+		PatchCableSet* set = ctx.params->getPatchCableSetAllowJibberish();
+		for (const PatchSource source : {PatchSource::RANDOM, PatchSource::VELOCITY, PatchSource::NOTE}) {
+			for (int32_t p = 0; set->numPatchCables < kMaxNumPatchCables && p < deluge::modulation::params::kNumParams;
+			     ++p) {
+				ParamDescriptor learn;
+				learn.setToHaveParamAndSource(p, source);
+				(void)seed_cable(ctx, learn, 100);
+			}
+		}
+		expect(set->numPatchCables).to_equal(static_cast<uint8_t>(kMaxNumPatchCables));
+		menu::MenuState st{};
+		st.patching_param = deluge::modulation::params::LOCAL_LPF_FREQ;
+		st.patch_source = PatchSource::AFTERTOUCH;
+		st.edit_int = 2000;
+		nodes::kPatchCableStrengthRegularItem.commit(ctx, st);
+		ParamDescriptor destination;
+		destination.setToHaveParamOnly(deluge::modulation::params::LOCAL_LPF_FREQ);
+		expect(set->getPatchCableIndex(PatchSource::AFTERTOUCH, destination) == kNoSelection).to_be_true();
+		expect(set->numPatchCables).to_equal(static_cast<uint8_t>(kMaxNumPatchCables));
+		install(fixture().ctx, fixture().song.song);
+	});
+
 	it("opens the strength page the selected cable needs, and installs that cable's own sources", _ {
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
@@ -1488,11 +1550,11 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		// picks a different strength page for each (`patch_cables.cpp:180-189`).
 		ParamDescriptor plain;
 		plain.setToHaveParamAndSource(deluge::modulation::params::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1);
-		expect(menu::bindings::patch_cable_write(f.ctx, plain, 1000)).to_be_true();
+		expect(seed_cable(f.ctx, plain, 1000)).to_be_true();
 		ParamDescriptor ranged;
 		ranged.setToHaveParamAndTwoSources(deluge::modulation::params::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1,
 		                                   PatchSource::LFO_GLOBAL_1);
-		expect(menu::bindings::patch_cable_write(f.ctx, ranged, 900)).to_be_true();
+		expect(seed_cable(f.ctx, ranged, 900)).to_be_true();
 		expect(set->numPatchCables >= 2).to_be_true();
 
 		size_t compared = 0;
@@ -1564,7 +1626,7 @@ describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 		install(f.ctx, f.song.song);
 		ParamDescriptor plain;
 		plain.setToHaveParamAndSource(deluge::modulation::params::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1);
-		expect(menu::bindings::patch_cable_write(f.ctx, plain, 1234)).to_be_true();
+		expect(seed_cable(f.ctx, plain, 1234)).to_be_true();
 
 		deluge::notify::dirty().drain();
 		{

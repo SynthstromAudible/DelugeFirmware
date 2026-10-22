@@ -26,8 +26,8 @@ wrote through an alias would go unreported; the mapping tests, which read the ta
 one.
 
 Nor may a file under src/scenes write a param on its AutoParam: a param menu writes through SetParamValue and deletes
-its automation through DeleteParamAutomation (model/edits/). The gold knob's turn and automation delete and a patch
-cable's strength have no Edit yet and still do, each allowed by its line.
+its automation through DeleteParamAutomation, nor set a cable's polarity on its set (SetCablePolarity) (model/edits/).
+The gold knob's turn and automation delete have no Edit yet and still do, each allowed by its line.
 
 Two gestures write the runtime themselves and record what they wrote, checked file by file: a file that writes a mod
 knob (a `modKnobs[...]` descriptor, or learnKnob()/unlearnKnobs() on what is not a menu item) also calls
@@ -181,8 +181,9 @@ SONG_STATE_WRITES = (
     re.compile(
         r"(?:->|\.)\s*mode\s*=\s*(?:AudioOutputMode|static_cast<AudioOutputMode>)"
     ),
-    #: A patch cable's polarity, written past its record (PatchCableSet::setPolarity writes both).
-    re.compile(r"(?:->|\.)\s*polarity\s*=(?!=)"),
+    #: A patch cable's polarity, written past its record (PatchCableSet::setPolarity writes both): a member of an
+    #: object, not a designated initializer's field.
+    re.compile(r"(?:->|(?<=[\w\])])\.)\s*polarity\s*=(?!=)"),
     #: A MIDI device's labels and hide flag.
     re.compile(r"(?:->|\.)\s*hideUnlabeledCC\s*=(?!=)"),
     re.compile(r"(?:->|\.)\s*setNameForCC\s*\("),
@@ -523,12 +524,12 @@ def converted_scene_writes(root: Path) -> list[str]:
     return found
 
 
-#: A param's value or automation written on its AutoParam: a scene's param menu writes its param through
-#: SetParamValue (and deletes its automation through DeleteParamAutomation), which log the change and raise what
-#: follows it.
+#: A param's value or automation written on its AutoParam, or a cable's polarity on its set: a scene's param menu writes
+#: its param through SetParamValue (and deletes its automation through DeleteParamAutomation), a cable page its cable
+#: through SetPatchCable and SetCablePolarity, which log the change and raise what follows it.
 SCENES_PARAM_WRITE = re.compile(
     r"(?:->|\.)\s*(set(?:CurrentValue\w*|Value\w*ForRegion|NodeAtPos)|deleteAutomation\w*|deleteNodesWithinRegion"
-    r"|homogenizeRegion|nudgeNonInterpolatingNodesAtPos)\s*\("
+    r"|homogenizeRegion|nudgeNonInterpolatingNodesAtPos|setPolarity)\s*\("
 )
 #: The param writes that have no Edit yet, by file (relative to src/scenes) and the text the write's line holds, each
 #: with its reason.
@@ -538,10 +539,6 @@ SCENES_PARAM_ALLOWED: dict[str, dict[str, str]] = {
         "written for the region the view holds, which SetParamValue's address form does not yet take",
         "deleteAutomation(action, param)": "shift+select on a gold knob deletes its automation; the knob has no param address to "
         "hand DeleteParamAutomation yet",
-    },
-    "menu/bindings.cpp": {
-        "setCurrentValueInResponseToUserInput(final_value, with_param)": "a patch cable's strength, which may "
-        "create the cable, which no Edit does yet",
     },
 }
 

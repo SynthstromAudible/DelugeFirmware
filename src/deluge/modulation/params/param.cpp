@@ -181,22 +181,23 @@ char const* getPatchedParamShortName(ParamType type) {
 }
 
 char const* getPatchedParamShortName(ParamType type, ModControllableAudio* modControllable) {
-	if (modControllable != nullptr) {
-		// See getParamDisplayName: the ladder filters rename morph after what it actually does.
-		if (type == LOCAL_LPF_MORPH
-		    && model::filter::SpecificFilter(modControllable->modControllableSnapshot().effects.filter.lpf_mode)
-		               .getFamily()
-		           == model::filter::FilterFamily::LP_LADDER) {
-			return "LPF Drive";
-		}
-		if (type == LOCAL_HPF_MORPH
-		    && model::filter::SpecificFilter(modControllable->modControllableSnapshot().effects.filter.hpf_mode)
-		               .getFamily()
-		           == model::filter::FilterFamily::HP_LADDER) {
-			return "HPF FM";
-		}
+	if (modControllable == nullptr) {
+		return getPatchedParamShortName(type);
 	}
+	const auto& filter = modControllable->modControllableSnapshot().effects.filter;
+	return getPatchedParamShortName(type, filter.lpf_mode, filter.hpf_mode);
+}
 
+char const* getPatchedParamShortName(ParamType type, deluge::effects::FilterMode lpf, deluge::effects::FilterMode hpf) {
+	// See getParamDisplayName: the ladder filters rename morph after what it actually does.
+	if (type == LOCAL_LPF_MORPH
+	    && model::filter::SpecificFilter(lpf).getFamily() == model::filter::FilterFamily::LP_LADDER) {
+		return "LPF Drive";
+	}
+	if (type == LOCAL_HPF_MORPH
+	    && model::filter::SpecificFilter(hpf).getFamily() == model::filter::FilterFamily::HP_LADDER) {
+		return "HPF FM";
+	}
 	return getPatchedParamShortName(type);
 }
 

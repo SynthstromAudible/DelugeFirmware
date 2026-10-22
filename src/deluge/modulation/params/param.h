@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "engine-api/types/param_kind.h"
+#include "engines/effects/words.h"
 #include "modulation/params/param_descriptor.h"
 #include "util/misc.h"
 #include <algorithm>
@@ -265,6 +266,8 @@ char const* getPatchedParamShortName(ParamType type);
 /// As above, but resolves the LPF/HPF morph params to the name the current filter mode gives them. Falls back to the
 /// mode-agnostic name if modControllable is null.
 char const* getPatchedParamShortName(ParamType type, ModControllableAudio* modControllable);
+/// As above, with the sound's filter modes given rather than read off its owner.
+char const* getPatchedParamShortName(ParamType type, deluge::effects::FilterMode lpf, deluge::effects::FilterMode hpf);
 char const* getParamDisplayName(Kind kind, int32_t p);
 /// As above, but resolves the LPF/HPF morph params to the name the current filter mode gives them (the ladder filters
 /// call it drive and FM respectively). Falls back to the mode-agnostic name if modControllable is null.

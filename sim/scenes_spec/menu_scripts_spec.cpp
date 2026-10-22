@@ -200,6 +200,7 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
+#include "scenes/menu/nodes/patch_cables.h"
 #include "scenes/menu/nodes/scales.h"
 #include "scenes/profile.h"
 #include "scenes/recorder/recorder_scene.h"
@@ -221,6 +222,7 @@
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "modulation/params/param_descriptor.h"
+#include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_instrument.h"
@@ -561,6 +563,14 @@ struct SavedCables {
 		put(MIDIDeviceManager::upstreamUSBMIDICable1, b);
 	}
 };
+
+/// Writes @p menu_value to the cable @p learn names through the app's sink, as the strength page writes it; a new
+/// cable takes its source's default polarity.
+bool seed_cable(const menu::MenuContext& ctx, ParamDescriptor learn, int32_t menu_value) {
+	const std::optional<deluge::scenes::bind::WriteRequest> request = menu::nodes::cable_request(
+	    ctx, learn, menu_value, PatchCable::getDefaultPolarity(learn.getBottomLevelSource()));
+	return request.has_value() && ctx.sink->write(*request);
+}
 
 } // namespace
 
@@ -1174,7 +1184,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		currentSong = song.song;
 		ParamDescriptor plain;
 		plain.setToHaveParamAndSource(deluge::modulation::params::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1);
-		expect(bindings::patch_cable_write(ctx, plain, 1234)).to_be_true();
+		expect(seed_cable(ctx, plain, 1234)).to_be_true();
 		PatchCableSet* const set = ctx.params->getPatchCableSetAllowJibberish();
 		expect(set != nullptr).to_be_true();
 		ParamDescriptor destination;
