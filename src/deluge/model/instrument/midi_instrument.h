@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_output.h"
 #include "model/instrument/non_audio_instrument.h"
 #include "util/containers.h"
 #include "util/string.h"
@@ -100,7 +101,17 @@ public:
 	void sendNoteToInternal(bool on, int32_t note, uint8_t velocity, uint8_t channel);
 
 	int32_t getNextSelectableCC(int32_t cc, int32_t offset, bool includeNoCC = false);
+	/// @brief Move knob @p whichModEncoder of mod button @p modKnobMode to the next selectable CC @p offset away,
+	///        through SetModKnobCC.
+	/// @return The knob's CC now.
 	int32_t changeControlNumberForModKnob(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode);
+	/// @brief Take @p other's mod-knob CCs, on an instrument no song has adopted yet: adoption records them.
+	/// @param other The instrument whose knobs this one copies.
+	void copyModKnobCCsFrom(const MIDIInstrument& other);
+	/// @brief What engine CC word @p cc names.
+	static int8_t engineCcOf(const deluge::project::ModKnobCc& cc);
+	/// @brief The record's spelling of engine CC word @p cc.
+	static deluge::project::ModKnobCc modKnobCcOf(int8_t cc);
 	int32_t getFirstUnusedCC(ModelStackWithThreeMainThings* modelStack, int32_t direction, int32_t startAt,
 	                         int32_t stopAt);
 	Error moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC, ModelStackWithThreeMainThings* modelStack);

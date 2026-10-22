@@ -2522,7 +2522,7 @@ void View::completeNavigateThroughPresetsForInstrumentClip(int32_t offset, Instr
 				if (outputType == OutputType::MIDI_OUT) {
 					MIDIInstrument* newMIDIInstrument = (MIDIInstrument*)newInstrument;
 					MIDIInstrument* oldMIDIInstrument = (MIDIInstrument*)clip->output;
-					newMIDIInstrument->modKnobCCAssignments = oldMIDIInstrument->modKnobCCAssignments;
+					newMIDIInstrument->copyModKnobCCsFrom(*oldMIDIInstrument);
 					newInstrument->editedByUser =
 					    oldNonAudioInstrument->editedByUser; // This keeps a record of "whether there are any CC
 					                                         // assignments", so must be copied across

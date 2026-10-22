@@ -29,6 +29,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/set_mod_knob_cc.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/midi/midi_param.h"
@@ -61,6 +62,10 @@ void MIDIInstrument::seedDocOutputIdentity() {
 		docOutput_->collapse_mpe = collapseMPE;
 		docOutput_->output_mpe_y = static_cast<uint8_t>(outputMPEY);
 		docOutput_->hide_unlabeled_cc = hideUnlabeledCC;
+		docOutput_->mod_knob_ccs.clear();
+		for (const int8_t cc : modKnobCCAssignments) {
+			docOutput_->mod_knob_ccs.push_back(modKnobCcOf(cc));
+		}
 		docOutput_->cc_labels.clear();
 		for (const auto& [cc, label] : labels) {
 			if (!label.empty()) {
@@ -400,7 +405,12 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 		writer.writeOpeningTag("modKnobs");
 		for (int32_t m = 0; m < kNumModButtons * kNumPhysicalModKnobs; m++) {
 
+			// The record's when bound (a knob past its end sends nothing), else the engine's own.
 			int32_t cc = modKnobCCAssignments[m];
+			if (docOutput_ != nullptr) {
+				cc =
+				    m < std::ssize(docOutput_->mod_knob_ccs) ? engineCcOf(docOutput_->mod_knob_ccs[m]) : CC_NUMBER_NONE;
+			}
 
 			writer.writeOpeningTagBeginning("modKnob");
 			if (cc == CC_NUMBER_NONE) {
@@ -801,14 +811,50 @@ int32_t MIDIInstrument::getNextSelectableCC(int32_t cc, int32_t offset, bool inc
 }
 
 int32_t MIDIInstrument::changeControlNumberForModKnob(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode) {
-	int8_t* cc = &modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + whichModEncoder];
+	const int32_t knob = modKnobMode * kNumPhysicalModKnobs + whichModEncoder;
+	const int32_t newCC = getNextSelectableCC(modKnobCCAssignments[knob], offset, true);
+	if (currentSong != nullptr && docOutput_ != nullptr) {
+		(void)deluge::edits::modKnobCCFor(deluge::project::TrackAddress{currentSong->outputIdFor(*this)},
+		                                  static_cast<uint8_t>(knob), modKnobCcOf(static_cast<int8_t>(newCC)));
+	}
+	else { // an instrument no song holds: adoption records it
+		modKnobCCAssignments[knob] = static_cast<int8_t>(newCC);
+		editedByUser = true;
+	}
+	return modKnobCCAssignments[knob];
+}
 
-	int32_t newCC = getNextSelectableCC(*cc, offset, true);
+void MIDIInstrument::copyModKnobCCsFrom(const MIDIInstrument& other) {
+	modKnobCCAssignments = other.modKnobCCAssignments;
+}
 
-	*cc = newCC;
+int8_t MIDIInstrument::engineCcOf(const deluge::project::ModKnobCc& cc) {
+	using Kind = deluge::project::ModKnobCc::Kind;
+	switch (cc.kind) {
+	case Kind::NUMBER:
+		return static_cast<int8_t>(cc.number);
+	case Kind::BEND:
+		return CC_NUMBER_PITCH_BEND;
+	case Kind::AFTERTOUCH:
+		return CC_NUMBER_AFTERTOUCH;
+	case Kind::NONE:
+		break;
+	}
+	return CC_NUMBER_NONE;
+}
 
-	editedByUser = true;
-	return newCC;
+deluge::project::ModKnobCc MIDIInstrument::modKnobCcOf(int8_t cc) {
+	using Kind = deluge::project::ModKnobCc::Kind;
+	if (cc == CC_NUMBER_NONE) {
+		return {};
+	}
+	if (cc == CC_NUMBER_PITCH_BEND) {
+		return {.kind = Kind::BEND};
+	}
+	if (cc == CC_NUMBER_AFTERTOUCH) {
+		return {.kind = Kind::AFTERTOUCH};
+	}
+	return {.kind = Kind::NUMBER, .number = static_cast<uint8_t>(cc)};
 }
 
 int32_t MIDIInstrument::getFirstUnusedCC(ModelStackWithThreeMainThings* modelStack, int32_t direction, int32_t startAt,

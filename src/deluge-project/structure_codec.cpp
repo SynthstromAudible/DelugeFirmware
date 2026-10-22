@@ -29,6 +29,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <string>
 
 namespace deluge::project {
@@ -41,6 +42,55 @@ namespace {
 
 Value text(std::string_view s) {
 	return Value::makeScalar(std::string(s));
+}
+
+/// @brief A mod knob's CC as its `cc` word names it: `none`, `bend`, `aftertouch` (any case, as the firmware reads
+/// them) or a number; anything else sends nothing.
+ModKnobCc mod_knob_cc_of(const Value* word) {
+	if (const std::string* name = text_of(word)) {
+		std::string lower = *name;
+		std::ranges::transform(lower, lower.begin(),
+		                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+		if (lower == "bend") {
+			return {.kind = ModKnobCc::Kind::BEND};
+		}
+		if (lower == "aftertouch") {
+			return {.kind = ModKnobCc::Kind::AFTERTOUCH};
+		}
+		if (lower == "none") {
+			return {};
+		}
+	}
+	if (auto number = int_of(word)) {
+		return {.kind = ModKnobCc::Kind::NUMBER, .number = static_cast<uint8_t>(*number)};
+	}
+	return {};
+}
+
+/// @brief A MIDI track's `modKnobs`, each knob's `cc` word in turn.
+Value encode_mod_knob_ccs(const std::vector<ModKnobCc>& ccs) {
+	Value knobs = Value::makeArray();
+	for (const ModKnobCc& cc : ccs) {
+		Value knob = Value::makeMap();
+		switch (cc.kind) {
+		case ModKnobCc::Kind::NUMBER:
+			knob.set("cc", Value::makeNumber(cc.number));
+			break;
+		case ModKnobCc::Kind::BEND:
+			knob.set("cc", text("bend"));
+			break;
+		case ModKnobCc::Kind::AFTERTOUCH:
+			knob.set("cc", text("aftertouch"));
+			break;
+		case ModKnobCc::Kind::NONE:
+			knob.set("cc", text("none"));
+			break;
+		}
+		Value box = Value::makeMap();
+		box.set("modKnob", std::move(knob));
+		knobs.append(std::move(box));
+	}
+	return knobs;
 }
 
 bool is_midi_element(std::string_view element) {
@@ -278,6 +328,9 @@ Value encode_identity(const DocOutput& output, std::string_view element) {
 		polyToMono.set("mpe", Value::makeNumber(output.collapse_mpe ? 1 : 0));
 		polyToMono.set("yCC", Value::makeNumber(output.output_mpe_y));
 		map.set("polyToMonoConversion", std::move(polyToMono));
+		if (!output.mod_knob_ccs.empty()) {
+			map.set("modKnobs", encode_mod_knob_ccs(output.mod_knob_ccs));
+		}
 		auto definition = Value::makeMap();
 		definition.set("name", text(output.device_definition_file_name));
 		auto device = Value::makeMap();
@@ -368,6 +421,11 @@ std::expected<void, LoadError> decode_identity(const Value& outputElement, std::
 		}
 		if (auto v = int_of(o.find("suffix"))) {
 			output.channel_suffix = *v;
+		}
+		if (const Value* modKnobs = o.find("modKnobs")) {
+			for (const Value* knob : serialization::elements_named(*modKnobs, "modKnob")) {
+				output.mod_knob_ccs.push_back(mod_knob_cc_of(knob->isMap() ? knob->find("cc") : nullptr));
+			}
 		}
 		if (const Value* polyToMono = o.find("polyToMonoConversion"); polyToMono != nullptr && polyToMono->isMap()) {
 			if (auto v = int_of(polyToMono->find("aftertouch"))) {

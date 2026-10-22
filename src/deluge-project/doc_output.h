@@ -29,6 +29,19 @@
 
 namespace deluge::project {
 
+/// @brief The CC one of a MIDI track's mod knobs sends, as its file names it.
+struct ModKnobCc {
+	enum class Kind : uint8_t {
+		NONE,       ///< sends nothing
+		NUMBER,     ///< sends CC `number`
+		BEND,       ///< sends pitch bend
+		AFTERTOUCH, ///< sends channel aftertouch
+	};
+	Kind kind{Kind::NONE};
+	uint8_t number{0}; ///< the CC, for NUMBER
+	bool operator==(const ModKnobCc&) const = default;
+};
+
 /// @brief The DOM-owned identity record for one engine Output.
 ///
 /// Keyed by Output::id() in OutputStructure, mirroring DocDrum/DrumStructure. Covers the fields common to every
@@ -42,17 +55,20 @@ struct DocOutput {
 	bool soloing_in_arrangement{false};
 	bool armed_for_recording{false};
 	// Per-instrument-type descriptors (populated only for the relevant OutputType; 0/empty otherwise).
-	std::string dir_path;                             ///< Instrument (non-AUDIO)
-	uint8_t default_velocity{0};                      ///< Instrument
-	int32_t channel{0};                               ///< NonAudioInstrument (MIDI_OUT/CV)
-	int32_t channel_suffix{-1};                       ///< MIDIInstrument
-	std::string device_definition_file_name;          ///< MIDIInstrument
-	bool collapse_aftertouch{false};                  ///< MIDIInstrument
-	bool collapse_mpe{true};                          ///< MIDIInstrument
-	uint8_t output_mpe_y{0};                          ///< MIDIInstrument (CCNumber underlying)
-	CVMode cv2_source{CVMode::OFF};                   ///< CVInstrument
-	bool hide_unlabeled_cc{false};                    ///< MIDIInstrument: its CC menus offer only labelled CCs
-	std::map<uint8_t, std::string> cc_labels;         ///< MIDIInstrument: the user's names for its CCs, by number
+	std::string dir_path;                     ///< Instrument (non-AUDIO)
+	uint8_t default_velocity{0};              ///< Instrument
+	int32_t channel{0};                       ///< NonAudioInstrument (MIDI_OUT/CV)
+	int32_t channel_suffix{-1};               ///< MIDIInstrument
+	std::string device_definition_file_name;  ///< MIDIInstrument
+	bool collapse_aftertouch{false};          ///< MIDIInstrument
+	bool collapse_mpe{true};                  ///< MIDIInstrument
+	uint8_t output_mpe_y{0};                  ///< MIDIInstrument (CCNumber underlying)
+	CVMode cv2_source{CVMode::OFF};           ///< CVInstrument
+	bool hide_unlabeled_cc{false};            ///< MIDIInstrument: its CC menus offer only labelled CCs
+	std::map<uint8_t, std::string> cc_labels; ///< MIDIInstrument: the user's names for its CCs, by number
+	/// MIDIInstrument: what each mod knob sends, knob 0 then 1 of each mod button in turn; a knob past the end sends
+	/// nothing.
+	std::vector<ModKnobCc> mod_knob_ccs;
 	int8_t input_channel{1};                          ///< AudioOutput: an index of kInputChannelWords (left)
 	uint8_t audio_mode{0};                            ///< AudioOutput: an index of kAudioModeWords (player)
 	std::optional<uint32_t> recording_from_output_id; ///< AudioOutput: the track it records from, by id
@@ -77,10 +93,10 @@ struct DocOutput {
 		       && device_definition_file_name == other.device_definition_file_name
 		       && collapse_aftertouch == other.collapse_aftertouch && collapse_mpe == other.collapse_mpe
 		       && hide_unlabeled_cc == other.hide_unlabeled_cc && cc_labels == other.cc_labels
-		       && input_channel == other.input_channel && audio_mode == other.audio_mode
-		       && recording_from_output_id == other.recording_from_output_id && output_mpe_y == other.output_mpe_y
-		       && cv2_source == other.cv2_source && instrument == other.instrument && controls == other.controls
-		       && effects == other.effects && arp == other.arp;
+		       && mod_knob_ccs == other.mod_knob_ccs && input_channel == other.input_channel
+		       && audio_mode == other.audio_mode && recording_from_output_id == other.recording_from_output_id
+		       && output_mpe_y == other.output_mpe_y && cv2_source == other.cv2_source && instrument == other.instrument
+		       && controls == other.controls && effects == other.effects && arp == other.arp;
 	}
 };
 
