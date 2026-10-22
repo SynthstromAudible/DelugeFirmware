@@ -67,6 +67,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/learn_mapping.h"
 #include "model/edits/param_address_for.h"
+#include "model/edits/set_mod_knob_mode.h"
 #include "model/edits/set_param_value.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/instrument.h"
@@ -1579,18 +1580,21 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 
 				// change the button selection before calling mod button action so that mod button action
 				// knows the mod button parameter context
+				// getModKnobMode() names the song's own mode for the song's knobs, else the output's: a synth's, a
+				// MIDI or CV track's, an audio track's or a kit's (a kit row's knobs are its kit's). The pointer says
+				// which, without a downcast; each is the model's, changed through its Edit.
 				uint8_t* modKnobModeSlot = activeModControllableModelStack.modControllable->getModKnobMode();
-				*modKnobModeSlot = whichButton;
-				// getModKnobMode() is polymorphic — for SoundInstrument/MIDIInstrument/
-				// AudioOutput/Kit it returns &(that Output's own) modKnobMode; for SoundDrum it returns
-				// &kit->modKnobMode (the enclosing Kit's own field, an Output field); for
-				// GlobalEffectableForSong it returns a private field that is NOT this record (the song-global gold
-				// knob). Reseed the DOM identity record only when the slot just written is genuinely the current
-				// output's own field — a pointer-identity check that's correct across every override without a
-				// downcast.
 				Output* currentOutputForModKnob = getCurrentOutput();
-				if (currentOutputForModKnob != nullptr && modKnobModeSlot == &currentOutputForModKnob->modKnobMode) {
-					currentOutputForModKnob->seedDocOutputIdentity();
+				if (modKnobModeSlot == &currentSong->live.global_effectable.modKnobMode) {
+					(void)deluge::edits::modKnobModeFor(deluge::project::SongAddress{}, whichButton);
+				}
+				else if (currentOutputForModKnob != nullptr
+				         && modKnobModeSlot == &currentOutputForModKnob->modKnobMode) {
+					(void)deluge::edits::modKnobModeFor(
+					    deluge::project::TrackAddress{currentSong->outputIdFor(*currentOutputForModKnob)}, whichButton);
+				}
+				else {
+					*modKnobModeSlot = whichButton; // a knob owner the model does not hold
 				}
 
 				activeModControllableModelStack.modControllable->modButtonAction(

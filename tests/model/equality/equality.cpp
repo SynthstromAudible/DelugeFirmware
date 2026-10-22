@@ -58,6 +58,9 @@ std::string difference(const SongDocument& a, const SongDocument& b) {
 	if (!(a.scale == b.scale)) {
 		return "scale";
 	}
+	if (a.mod_knob_mode != b.mod_knob_mode) {
+		return "mod_knob_mode";
+	}
 	if (!(a.reverb == b.reverb)) {
 		return "reverb";
 	}

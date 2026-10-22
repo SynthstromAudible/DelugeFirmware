@@ -31,6 +31,7 @@
 #include "hid/display/display.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
+#include "model/edits/set_mod_knob_mode.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -502,7 +503,8 @@ bool SampleClaim::stepDecideWavetable() {
 		else { // Osc 2
 			soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(params::LOCAL_OSC_B_WAVE_INDEX);
 		}
-		getCurrentOutput()->setModKnobMode(7);
+		(void)deluge::edits::modKnobModeFor(
+		    deluge::project::TrackAddress{currentSong->outputIdFor(*getCurrentOutput())}, 7);
 		deluge::gui::menu_item::recordControlsOf(*soundEditor.currentSound); // the wavetable knobs it assigned
 	}
 	view.setKnobIndicatorLevels(); // Visually update.
@@ -632,7 +634,8 @@ void SampleClaim::removeWaveTableKnobs() {
 	}
 
 	if (anyChange) {
-		getCurrentOutput()->setModKnobMode(1);
+		(void)deluge::edits::modKnobModeFor(
+		    deluge::project::TrackAddress{currentSong->outputIdFor(*getCurrentOutput())}, 1);
 		view.setKnobIndicatorLevels(); // Visually update.
 		view.setModLedStates();
 		// The knobs it put back are its record's.

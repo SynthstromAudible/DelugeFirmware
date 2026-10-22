@@ -110,6 +110,9 @@ public:
 	ScaleSettings scale;
 	ReverbSettings reverb;
 	Arrangement arrangement;
+	/// Which mod button's pair of params the song's own gold knobs edit (its `activeModFunction`), as the song says it;
+	/// a song that says none edits the second. The engine caps it at its last mod button where it uses it.
+	uint8_t mod_knob_mode{1};
 
 	/// The song's own effect params (the global-effectable table's ids): the authority for their values and
 	/// automation, projected into the engine's master chain.

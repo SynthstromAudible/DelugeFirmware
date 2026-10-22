@@ -70,6 +70,8 @@ struct SongDocument {
 	Transport transport;
 	Groove groove;
 	ScaleSettings scale;
+	/// Which mod button's pair of params the song's own gold knobs edit (`activeModFunction`); 1 when none is said.
+	uint8_t mod_knob_mode{1};
 	ReverbSettings reverb;
 	Arrangement arrangement;
 	std::vector<ClipEntry> clip_order;

@@ -1198,7 +1198,7 @@ weAreInArrangementEditorOrInClipInstance:
 	}
 
 	writer.writeAttribute("affectEntire", persistentView.affectEntire);
-	writer.writeAttribute("activeModFunction", live.global_effectable.modKnobMode);
+	writer.writeAttribute("activeModFunction", project.mod_knob_mode);
 
 	if (lastSelectedParamID != params::kNoParamID) {
 		writer.writeAttribute("lastSelectedParamID", lastSelectedParamID);
@@ -1739,9 +1739,10 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "activeModFunction")) {
-				live.global_effectable.modKnobMode = reader.readTagOrAttributeValueInt();
+				// The record keeps what the song says; the engine uses it capped at its last mod button.
+				project.mod_knob_mode = static_cast<uint8_t>(reader.readTagOrAttributeValueInt());
 				live.global_effectable.modKnobMode =
-				    std::min(live.global_effectable.modKnobMode, (uint8_t)(kNumModButtons - 1));
+				    std::min(project.mod_knob_mode, static_cast<uint8_t>(kNumModButtons - 1));
 				reader.exitTag("activeModFunction");
 			}
 

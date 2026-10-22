@@ -149,6 +149,9 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 	(void)decode(*song, document.transport);
 	(void)decode(*song, document.groove, context);
 	(void)decode(*song, document.scale);
+	if (auto mode = int_of(song->find("activeModFunction"))) {
+		document.mod_knob_mode = static_cast<uint8_t>(*mode); // a byte, as the firmware reads it
+	}
 	if (const Value* reverb = song->find("reverb")) {
 		(void)decode(*reverb, document.reverb, context);
 	}
@@ -342,6 +345,7 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 	append_entries(map, encode(song.transport));
 	append_entries(map, encode(song.groove, magnitude));
 	append_entries(map, encode(song.scale));
+	map.set("activeModFunction", Value::makeNumber(song.mod_knob_mode));
 	map.set("reverb", encode(song.reverb, magnitude));
 	map.set("sections", encode_sections(song.arrangement, song.mappings));
 	encode_mappings(song.mappings, ControlsAddress{ControlsAddress::Kind::SONG, 0}, map, naming_of("song", engines));
