@@ -26,7 +26,7 @@ Error SetKitParamValue::apply(Context& ctx) {
 		                                          .id = id_,
 		                                          .clip_id = clip_id_},
 		                    value_};
-		if (write.apply(ctx) == Error::NONE) {
+		if (deluge::edits::apply(ctx, write) == Error::NONE) {
 			drums_written_++;
 		}
 	}
