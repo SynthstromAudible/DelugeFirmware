@@ -90,6 +90,13 @@ Kit::~Kit() {
 	// Reset arpeggiator
 	arpeggiator.reset();
 
+	// A kit destroyed in a song drops its record (its rows' too) here, while its effects base is alive: ~Output runs
+	// after that base is destroyed, and a record's removal hands the owner back what the record held.
+	if (currentSong != nullptr && docOutput_ != nullptr) {
+		currentSong->removeDocOutput(this);
+		docOutput_ = nullptr;
+	}
+
 	// A kit destroyed in a song takes its rows' records with it (each sound row takes its state back first), as their
 	// removal one by one does. Guarded as drumRemoved is: whole-song teardown drops the project wholesale.
 	if (currentSong != nullptr) {

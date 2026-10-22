@@ -59,6 +59,12 @@ AudioOutput::AudioOutput() : Output(OutputType::AUDIO) {
 
 AudioOutput::~AudioOutput() {
 	releaseMonitoringClaim();
+	// An audio track destroyed in a song drops its record here, while its effects base is alive: ~Output runs after
+	// that base is destroyed, and a record's removal hands the owner back what the record held.
+	if (currentSong != nullptr && docOutput_ != nullptr) {
+		currentSong->removeDocOutput(this);
+		docOutput_ = nullptr;
+	}
 }
 
 void AudioOutput::setMode(AudioOutputMode newMode) {

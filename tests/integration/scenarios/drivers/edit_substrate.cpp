@@ -30,6 +30,7 @@
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
 #include <cstring>
+#include <set>
 #include <span>
 #include <vector>
 
@@ -1126,10 +1127,10 @@ void testSetEffectSetting(deluge::edits::Context& ctx) {
 
 /// A song file that names two synths with one id (a song saved while two outputs shared a record) reads into two
 /// records: each synth plays its own slot's state, so a write to one reaches neither the other nor freed memory.
-void testTwoOutputsOneIdInFile() {
-	// Two synths on id 1, each with a clip, so the read keeps both.
+/// The song @p path holds, read as a load reads it (not made current), or nullptr when it does not parse.
+Song* readFixtureSong(const char* path) {
 	std::string text;
-	if (FILE* f = std::fopen("tests/fixtures/songs/two_synths_one_id.XML", "rb")) {
+	if (FILE* f = std::fopen(path, "rb")) {
 		char chunk[4096];
 		for (size_t n; (n = std::fread(chunk, 1, sizeof chunk, f)) > 0;) {
 			text.append(chunk, n);
@@ -1139,7 +1140,7 @@ void testTwoOutputsOneIdInFile() {
 	std::optional<deluge::serialization::Value> tree = deluge::storage::parseXml(text);
 	check(tree.has_value(), "read ids: the document parses");
 	if (!tree) {
-		return;
+		return nullptr;
 	}
 	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (memory) Song();
@@ -1154,6 +1155,15 @@ void testTwoOutputsOneIdInFile() {
 	}
 	activeReader = previous;
 	check(e == Error::NONE, "read ids: the song loads");
+	return song;
+}
+
+void testTwoOutputsOneIdInFile() {
+	// Two synths on id 1, each with a clip, so the read keeps both.
+	Song* song = readFixtureSong("tests/fixtures/songs/two_synths_one_id.XML");
+	if (song == nullptr) {
+		return;
+	}
 	std::vector<SoundInstrument*> synths;
 	for (Output* output = song->live.media.first_output; output != nullptr; output = output->next) {
 		if (output->type == OutputType::SYNTH) {
@@ -1176,6 +1186,72 @@ void testTwoOutputsOneIdInFile() {
 	static_cast<Sound*>(synths[1])->setTranspose(-3);
 	check(synths[0]->boundState()->transpose == 5 && synths[1]->boundState()->transpose == -3,
 	      "read ids: a write to one synth reaches only its own record");
+}
+
+/// A song file that names two kits with one id and two audio tracks with another reads into four records: each host
+/// owner keeps the effects it read, on a record of its own.
+void testTwoHostOwnersOneIdInFile() {
+	Song* song = readFixtureSong("tests/fixtures/songs/two_kits_two_audio_one_id.XML");
+	if (song == nullptr) {
+		return;
+	}
+	std::vector<Output*> owners;
+	for (Output* output = song->live.media.first_output; output != nullptr; output = output->next) {
+		if (output->type == OutputType::KIT || output->type == OutputType::AUDIO) {
+			owners.push_back(output);
+		}
+	}
+	check(owners.size() == 4, "read host ids: both kits and both audio tracks are read");
+	std::set<uint32_t> ids;
+	for (Output* owner : owners) {
+		if (owner->id()) {
+			ids.insert(*owner->id());
+		}
+		check(owner->docOutput_ != nullptr && owner->docOutput_->effects.has_value(),
+		      "read host ids: each host owner has a chain record");
+	}
+	check(ids.size() == owners.size(), "read host ids: a second host owner on one id takes an id of its own");
+	const auto lpf = [](Output* owner) {
+		const GlobalEffectable* effectable =
+		    owner->type == OutputType::KIT ? static_cast<const GlobalEffectable*>(static_cast<Kit*>(owner))
+		                                   : static_cast<const GlobalEffectable*>(static_cast<AudioOutput*>(owner));
+		return effectable->effects().filter.lpf_mode;
+	};
+	if (owners.size() == 4) {
+		check(lpf(owners[0]) != lpf(owners[1]) && lpf(owners[2]) != lpf(owners[3]),
+		      "read host ids: each host owner keeps the effects it read");
+	}
+}
+
+/// A kit or an audio track destroyed while it still holds its record (a hibernating kit freed by
+/// deleteSoundsWhichWontSound, an output of the current song torn down) drops its record, its rows' too, before its
+/// effects base is destroyed.
+void testHostOwnerDestroyedDropsRecord(deluge::edits::Context& ctx) {
+	ParamManagerForTimeline kitParams;
+	Instrument* kitOutput = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
+	ctx.song.addOutput(kitOutput);
+	auto* drum = static_cast<SoundDrum*>(StorageManager::createNewDrum(DrumType::SOUND));
+	static_cast<Kit*>(kitOutput)->addDrum(drum);
+	const uint32_t kitId = kitOutput->id().value_or(0);
+	const uint32_t drumId = drum->id().value_or(0);
+	ctx.song.removeOutputFromMainList(kitOutput);
+	void* kitMemory = dynamic_cast<void*>(kitOutput);
+	kitOutput->~Instrument();
+	delugeDealloc(kitMemory);
+	check(ctx.model.output_structure.find(kitId) == nullptr, "destroyed host owner: a kit's record goes with it");
+	check(ctx.model.drum_structure.find(drumId) == nullptr, "destroyed host owner: and its rows' records");
+
+	AudioOutput* audio = ctx.song.createNewAudioOutput();
+	check(audio != nullptr, "destroyed host owner: an audio track is made");
+	if (audio == nullptr) {
+		return;
+	}
+	const uint32_t audioId = audio->id().value_or(0);
+	ctx.song.removeOutputFromMainList(audio);
+	void* audioMemory = dynamic_cast<void*>(static_cast<Output*>(audio));
+	audio->~AudioOutput();
+	delugeDealloc(audioMemory);
+	check(ctx.model.output_structure.find(audioId) == nullptr, "destroyed host owner: an audio track's record goes");
 }
 
 /// Every write whose menu reshapes more than its leaf, from every synth mode: each oscillator type on either source,
@@ -1297,6 +1373,8 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	testRecordsOfAbandonedKitRows(ctx);
 	testRecordOwnsState(ctx);
 	testTwoOutputsOneIdInFile();
+	testTwoHostOwnersOneIdInFile();
+	testHostOwnerDestroyedDropsRecord(ctx);
 	testDrumIdsAreUnique(ctx);
 	testRemovalDropsOnlyOwnRecords(ctx);
 	testSetDxPatch(ctx);

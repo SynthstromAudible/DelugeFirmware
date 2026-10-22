@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<song firmwareVersion="c1.3.0" earliestCompatibleFirmware="4.1.0-alpha" timePerTimerTick="229" timerTickFraction="-1342177280" inputTickMagnitude="2">
+	<instruments>
+		<kit id="5" presetName="KA" presetFolder="KITS" defaultVelocity="100" lpfMode="SVF_Band">
+			<soundSources>
+				<sound name="D1" polyphonic="poly" voicePriority="1" mode="subtractive" lpfMode="24dB" modFXType="none">
+					<osc1 type="square" transpose="0" cents="0" retrigPhase="-1" />
+					<osc2 type="square" transpose="0" cents="0" retrigPhase="-1" />
+				</sound>
+			</soundSources>
+		</kit>
+		<kit id="5" presetName="KB" presetFolder="KITS" defaultVelocity="100">
+			<soundSources>
+				<sound name="D1" polyphonic="poly" voicePriority="1" mode="subtractive" lpfMode="24dB" modFXType="none">
+					<osc1 type="square" transpose="0" cents="0" retrigPhase="-1" />
+					<osc2 type="square" transpose="0" cents="0" retrigPhase="-1" />
+				</sound>
+			</soundSources>
+		</kit>
+		<audioTrack id="6" name="AUDA" lpfMode="SVF_Notch">
+		</audioTrack>
+		<audioTrack id="6" name="AUDB">
+		</audioTrack>
+	</instruments>
+	<sessionClips>
+		<instrumentClip instrumentPresetName="KA" instrumentPresetFolder="KITS" isPlaying="1" length="384" section="0">
+			<kitParams />
+			<noteRows>
+				<noteRow drumIndex="0">
+					<soundParams />
+				</noteRow>
+			</noteRows>
+		</instrumentClip>
+		<instrumentClip instrumentPresetName="KB" instrumentPresetFolder="KITS" isPlaying="1" length="384" section="0">
+			<kitParams />
+			<noteRows>
+				<noteRow drumIndex="0">
+					<soundParams />
+				</noteRow>
+			</noteRows>
+		</instrumentClip>
+		<audioClip trackName="AUDA" isPlaying="1" length="384" section="0">
+			<params />
+		</audioClip>
+		<audioClip trackName="AUDB" isPlaying="1" length="384" section="0">
+			<params />
+		</audioClip>
+	</sessionClips>
+</song>

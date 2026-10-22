@@ -1398,6 +1398,9 @@ void Song::removeDocDrum(Drum* drum) {
 // A sound's bound state points at its own member, so a copy would point at the original's.
 static_assert(!std::is_copy_constructible_v<SoundInstrument> && !std::is_copy_assignable_v<SoundInstrument>);
 static_assert(!std::is_copy_constructible_v<SoundDrum> && !std::is_copy_assignable_v<SoundDrum>);
+// A host owner's bound effects point at its own member too.
+static_assert(!std::is_copy_constructible_v<Kit> && !std::is_copy_assignable_v<Kit>);
+static_assert(!std::is_copy_constructible_v<AudioOutput> && !std::is_copy_assignable_v<AudioOutput>);
 
 void Song::adoptOutput(Output* output) {
 	if (output->docOutput_ != nullptr) {
