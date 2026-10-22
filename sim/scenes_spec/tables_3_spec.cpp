@@ -659,6 +659,9 @@ const Root& installed_root(std::string_view name) {
 /// under the MIDI/CV root precisely so their `midi_cv` twins can sit beside them, and every one of
 /// them is `isRelevant() == false` there.
 bool relevant_here(const Pair& p) {
+	// A menu is on the current song: the runtime facts a target's reader takes (a chain's effects, a sound's state)
+	// are the current song's.
+	install(p.root->ctx, p.root->song);
 	return menu::bindings::relevant(*p.node, p.root->ctx);
 }
 
@@ -1652,15 +1655,15 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 		}
 		expect(flagged).to_equal(size_t(1));
 
-		// ... and the real tables never do it: the two `UpdatingReverbParams` nodes are pure params.
+		// ... and the real tables carry the flag nowhere: the two `UpdatingReverbParams` params' Edit raises the reverb's
+		// recompute itself.
 		size_t reverb_nodes = 0;
 		for (const Pair& p : tree().pairs) {
 			if (p.node->bind.updates_reverb_params) {
-				expect(p.node->bind.set == nullptr).to_be_true();
 				reverb_nodes++;
 			}
 		}
-		expect(reverb_nodes > size_t(0)).to_be_true();
+		expect(reverb_nodes).to_equal(size_t(0));
 	});
 });
 

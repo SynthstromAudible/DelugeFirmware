@@ -9005,21 +9005,18 @@
                 "type": "basic"
               },
               {
-                "available_when": "has_lpf",
                 "id": 269,
                 "name": "Frequency",
                 "title": "LPF frequency",
                 "type": "basic"
               },
               {
-                "available_when": "has_lpf",
                 "id": 270,
                 "name": "Resonance",
                 "title": "LPF resonance",
                 "type": "basic"
               },
               {
-                "available_when": "has_lpf",
                 "id": 271,
                 "name": "Morph",
                 "title": "LPF morph",
@@ -9040,21 +9037,18 @@
                 "type": "basic"
               },
               {
-                "available_when": "has_hpf",
                 "id": 273,
                 "name": "Frequency",
                 "title": "HPF frequency",
                 "type": "basic"
               },
               {
-                "available_when": "has_hpf",
                 "id": 274,
                 "name": "Resonance",
                 "title": "HPF resonance",
                 "type": "basic"
               },
               {
-                "available_when": "has_hpf",
                 "id": 275,
                 "name": "Morph",
                 "title": "HPF Morph",
@@ -9281,14 +9275,12 @@
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_has_depth",
                 "id": 283,
                 "name": "Depth",
                 "title": "MOD FX depth",
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_on",
                 "id": 284,
                 "name": "Rate",
                 "title": "MOD FX rate",
@@ -9470,21 +9462,18 @@
                 "type": "basic"
               },
               {
-                "available_when": "has_lpf",
                 "id": 269,
                 "name": "Frequency",
                 "title": "LPF frequency",
                 "type": "basic"
               },
               {
-                "available_when": "has_lpf",
                 "id": 270,
                 "name": "Resonance",
                 "title": "LPF resonance",
                 "type": "basic"
               },
               {
-                "available_when": "has_lpf",
                 "id": 271,
                 "name": "Morph",
                 "title": "LPF morph",
@@ -9505,21 +9494,18 @@
                 "type": "basic"
               },
               {
-                "available_when": "has_hpf",
                 "id": 273,
                 "name": "Frequency",
                 "title": "HPF frequency",
                 "type": "basic"
               },
               {
-                "available_when": "has_hpf",
                 "id": 274,
                 "name": "Resonance",
                 "title": "HPF resonance",
                 "type": "basic"
               },
               {
-                "available_when": "has_hpf",
                 "id": 275,
                 "name": "Morph",
                 "title": "HPF Morph",
@@ -9746,14 +9732,12 @@
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_has_depth",
                 "id": 283,
                 "name": "Depth",
                 "title": "MOD FX depth",
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_on",
                 "id": 284,
                 "name": "Rate",
                 "title": "MOD FX rate",
@@ -9842,21 +9826,18 @@
                 "type": "basic"
               },
               {
-                "available_when": "has_lpf",
                 "id": 269,
                 "name": "Frequency",
                 "title": "LPF frequency",
                 "type": "basic"
               },
               {
-                "available_when": "has_lpf",
                 "id": 270,
                 "name": "Resonance",
                 "title": "LPF resonance",
                 "type": "basic"
               },
               {
-                "available_when": "has_lpf",
                 "id": 271,
                 "name": "Morph",
                 "title": "LPF morph",
@@ -9877,21 +9858,18 @@
                 "type": "basic"
               },
               {
-                "available_when": "has_hpf",
                 "id": 273,
                 "name": "Frequency",
                 "title": "HPF frequency",
                 "type": "basic"
               },
               {
-                "available_when": "has_hpf",
                 "id": 274,
                 "name": "Resonance",
                 "title": "HPF resonance",
                 "type": "basic"
               },
               {
-                "available_when": "has_hpf",
                 "id": 275,
                 "name": "Morph",
                 "title": "HPF Morph",
@@ -10118,14 +10096,12 @@
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_has_depth",
                 "id": 283,
                 "name": "Depth",
                 "title": "MOD FX depth",
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_on",
                 "id": 284,
                 "name": "Rate",
                 "title": "MOD FX rate",
@@ -10440,7 +10416,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "is_kit_global_fx",
                 "id": 323,
                 "name": "Rate",
                 "title": "Arp rate",
@@ -10738,21 +10713,18 @@
                 "type": "basic"
               },
               {
-                "available_when": "has_lpf",
                 "id": 269,
                 "name": "Frequency",
                 "title": "LPF frequency",
                 "type": "basic"
               },
               {
-                "available_when": "has_lpf",
                 "id": 270,
                 "name": "Resonance",
                 "title": "LPF resonance",
                 "type": "basic"
               },
               {
-                "available_when": "has_lpf",
                 "id": 271,
                 "name": "Morph",
                 "title": "LPF morph",
@@ -10773,21 +10745,18 @@
                 "type": "basic"
               },
               {
-                "available_when": "has_hpf",
                 "id": 273,
                 "name": "Frequency",
                 "title": "HPF frequency",
                 "type": "basic"
               },
               {
-                "available_when": "has_hpf",
                 "id": 274,
                 "name": "Resonance",
                 "title": "HPF resonance",
                 "type": "basic"
               },
               {
-                "available_when": "has_hpf",
                 "id": 275,
                 "name": "Morph",
                 "title": "HPF Morph",
@@ -11014,14 +10983,12 @@
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_has_depth",
                 "id": 283,
                 "name": "Depth",
                 "title": "MOD FX depth",
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_on",
                 "id": 284,
                 "name": "Rate",
                 "title": "MOD FX rate",

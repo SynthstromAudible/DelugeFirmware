@@ -84,10 +84,8 @@ inline constexpr Node sidechain_sync =
                             {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "sidechain/syncLevel"}),
                sid(deluge::l10n::String::STRING_FOR_SIDECHAIN_SYNC));
 // `sidechain::Shape` is an `unpatched_param::UpdatingReverbParams`, not a plain `UnpatchedParam`
-// (`sidechain/shape.h:6`): the param write is followed by
-// `AudioEngine::mustUpdateReverbParamsBeforeNextRender = true` (`updating_reverb_params.h:26-29`).
-// `with_reverb_update` is what carries that; see `Binding::updates_reverb_params` for why it is a
-// flag rather than a `set` hook (review round 1, I2).
+// (`sidechain/shape.h:6`): the reverb recomputes after a write to it (`updating_reverb_params.h:26-29`), which
+// SetParamValue raises for the param.
 inline constexpr Node sidechain_shape =
     (param(sid(deluge::l10n::String::STRING_FOR_SHAPE),
            {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_SIDECHAIN_SHAPE},

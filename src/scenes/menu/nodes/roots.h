@@ -111,8 +111,9 @@
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/edit_name.h"    // kEditDrumName
 #include "scenes/menu/nodes/output_items.h" // kMidiDeviceLinked, kSpecificOutputSelector (task 7)
-#include "scenes/menu/nodes/sample.h"       // kAudioClipWaveform
-#include "scenes/menu/nodes/scales.h"       // kSongActiveScalesItem (task 11b)
+#include "scenes/menu/nodes/param_shows.h"
+#include "scenes/menu/nodes/sample.h" // kAudioClipWaveform
+#include "scenes/menu/nodes/scales.h" // kSongActiveScalesItem (task 11b)
 #include "scenes/menu/nodes/sound_arp.h"
 #include "scenes/menu/nodes/sound_bend.h"
 #include "scenes/menu/nodes/sound_compressor.h"
@@ -188,25 +189,25 @@ inline constexpr Node kit_clip_master =
 
 inline constexpr Node global_lpf_freq =
     param(sid(String::STRING_FOR_FREQUENCY), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_LPF_FREQ}, Hint::Bar,
-          relevance::has_lpf, sid(String::STRING_FOR_LPF_FREQUENCY));
+          param_shows::kHasLpf, sid(String::STRING_FOR_LPF_FREQUENCY));
 inline constexpr Node global_lpf_res =
     param(sid(String::STRING_FOR_RESONANCE), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_LPF_RES}, Hint::Bar,
-          relevance::has_lpf, sid(String::STRING_FOR_LPF_RESONANCE));
+          param_shows::kHasLpf, sid(String::STRING_FOR_LPF_RESONANCE));
 inline constexpr Node global_lpf_morph =
     param(sid(String::STRING_FOR_MORPH), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_LPF_MORPH}, Hint::Bar,
-          relevance::has_lpf, sid(String::STRING_FOR_LPF_MORPH));
+          param_shows::kHasLpf, sid(String::STRING_FOR_LPF_MORPH));
 inline constexpr const Node* kGlobalLpfChildren[] = {&lpf_mode, &global_lpf_freq, &global_lpf_res, &global_lpf_morph};
 inline constexpr Node global_lpf = submenu(sid(String::STRING_FOR_LPF), kGlobalLpfChildren, Layout::Horizontal);
 
 inline constexpr Node global_hpf_freq =
     param(sid(String::STRING_FOR_FREQUENCY), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_HPF_FREQ}, Hint::Bar,
-          relevance::has_hpf, sid(String::STRING_FOR_HPF_FREQUENCY));
+          param_shows::kHasHpf, sid(String::STRING_FOR_HPF_FREQUENCY));
 inline constexpr Node global_hpf_res =
     param(sid(String::STRING_FOR_RESONANCE), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_HPF_RES}, Hint::Bar,
-          relevance::has_hpf, sid(String::STRING_FOR_HPF_RESONANCE));
+          param_shows::kHasHpf, sid(String::STRING_FOR_HPF_RESONANCE));
 inline constexpr Node global_hpf_morph =
     param(sid(String::STRING_FOR_MORPH), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_HPF_MORPH}, Hint::Bar,
-          relevance::has_hpf, sid(String::STRING_FOR_HPF_MORPH));
+          param_shows::kHasHpf, sid(String::STRING_FOR_HPF_MORPH));
 inline constexpr const Node* kGlobalHpfChildren[] = {&hpf_mode, &global_hpf_freq, &global_hpf_res, &global_hpf_morph};
 inline constexpr Node global_hpf = submenu(sid(String::STRING_FOR_HPF), kGlobalHpfChildren, Layout::Horizontal);
 
@@ -238,10 +239,10 @@ inline constexpr Node global_reverb =
 
 inline constexpr Node global_mod_fx_depth =
     param(sid(String::STRING_FOR_DEPTH), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_MOD_FX_DEPTH}, Hint::Bar,
-          relevance::mod_fx_has_depth, sid(String::STRING_FOR_MOD_FX_DEPTH));
+          param_shows::kModFxDepth, sid(String::STRING_FOR_MOD_FX_DEPTH));
 inline constexpr Node global_mod_fx_rate =
     param(sid(String::STRING_FOR_RATE), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_MOD_FX_RATE}, Hint::Knob,
-          relevance::mod_fx_on, sid(String::STRING_FOR_MOD_FX_RATE));
+          param_shows::kModFxIsOn, sid(String::STRING_FOR_MOD_FX_RATE));
 inline constexpr const Node* kGlobalModFxChildren[] = {&mod_fx_type, &global_mod_fx_depth, &global_mod_fx_rate,
                                                        &mod_fx_feedback, &mod_fx_offset};
 inline constexpr Node global_mod_fx = submenu(sid(String::STRING_FOR_MOD_FX), kGlobalModFxChildren, Layout::Horizontal);
@@ -258,14 +259,13 @@ inline constexpr Node global_fx = submenu(sid(String::STRING_FOR_FX), kGlobalFxC
 // The global sidechain page
 //
 // `sidechain::GlobalVolume` is the second `unpatched_param::UpdatingReverbParams` in the whole tree
-// (`sidechain/volume_global.h:6`; the first is batch 2's `sidechain_shape`), so it carries
-// `with_reverb_update` for exactly the reason `Binding::updates_reverb_params` documents: a `set`
-// hook would replace the param write rather than follow it. Its rendering style is
-// SIDECHAIN_DUCKING (`volume_global.h:10`), i.e. `Hint::Ducking`.
+// (`sidechain/volume_global.h:6`; the first is batch 2's `sidechain_shape`): the reverb recomputes after a write to
+// it, which SetParamValue raises for the param. Its rendering style is SIDECHAIN_DUCKING (`volume_global.h:10`), i.e.
+// `Hint::Ducking`.
 
 inline constexpr Node global_sidechain_volume =
-    with_reverb_update(param(sid(String::STRING_FOR_VOLUME_DUCKING),
-                             {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_SIDECHAIN_VOLUME}, Hint::Ducking));
+    param(sid(String::STRING_FOR_VOLUME_DUCKING), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_SIDECHAIN_VOLUME},
+          Hint::Ducking);
 inline constexpr const Node* kGlobalSidechainChildren[] = {&global_sidechain_volume, &sidechain_sync, &sidechain_shape,
                                                            &sidechain_attack, &sidechain_release};
 inline constexpr Node global_sidechain =
@@ -560,7 +560,7 @@ inline constexpr Node kit_fx_actions = submenu(sid(String::STRING_FOR_ACTIONS), 
 // page (`arpeggiator/rate.h:19-26`); `arpGateMenu` is shared with the sound arpeggiator.
 inline constexpr Node arp_kit_rate =
     param(sid(String::STRING_FOR_RATE), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_ARP_RATE}, Hint::Knob,
-          relevance::is_kit_global_fx, sid(String::STRING_FOR_ARP_RATE_MENU_TITLE));
+          param_shows::kKitEffects, sid(String::STRING_FOR_ARP_RATE_MENU_TITLE));
 inline constexpr const Node* kArpBasicKitChildren[] = {&arp_preset, &arp_gate, &arp_sync, &arp_kit_rate};
 inline constexpr Node arp_basic_kit = submenu(sid(String::STRING_FOR_BASIC), kArpBasicKitChildren, Layout::Horizontal,
                                               nullptr, sid(String::STRING_FOR_ARP_BASIC_MENU_TITLE));

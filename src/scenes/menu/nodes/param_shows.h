@@ -111,6 +111,8 @@ inline constexpr std::array<int32_t, 2> kSoundInstruments{
     static_cast<int32_t>(engine::SettingContext::Instrument::SOUND_DRUM)};
 inline constexpr std::array<int32_t, 1> kSynthInstrument{
     static_cast<int32_t>(engine::SettingContext::Instrument::SYNTH)};
+inline constexpr std::array<int32_t, 1> kKitOwner{static_cast<int32_t>(engine::SettingContext::Owner::KIT)};
+inline constexpr std::array kOnKitChain{engine::owner_is(kKitOwner)};
 inline constexpr std::array kOnSound{engine::instrument_is(kSoundInstruments)};
 inline constexpr std::array kOnSynth{engine::instrument_is(kSynthInstrument)};
 
@@ -129,6 +131,8 @@ inline constexpr ParamShows kModFxIsOn{.when = kModFxOn};
 inline constexpr ParamShows kModFxDepth{.when = kModFxHasDepth};
 inline constexpr ParamShows kModFxFeedback{.when = kModFxHasFeedback};
 inline constexpr ParamShows kModFxOffset{.when = kModFxHasOffset};
+/// `is_kit_global_fx`: a kit's own effects (with affect-entire), not an audio track's or the song's.
+inline constexpr ParamShows kKitEffects{.when = kOnKitChain};
 /// `randomizer_param`: with the arp on.
 inline constexpr ParamShows kRandomizer{.with = &kArpOn};
 /// `randomizer_sound_only`: a sound's own, with the arp on.
