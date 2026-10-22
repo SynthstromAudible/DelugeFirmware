@@ -10,8 +10,8 @@
 /// | `specific_output_selector` | `specificOutputSelectorMenu` (`gui/ui/menus.cpp:1151`) | `audio_clip::SpecificSourceOutputSelector` (`audio_clip/specific_output_source_selector.h:26`) | an **output picker**: which track an audio track records from |
 // clang-format on
 ///
-/// Grouped in one file because they are one subject: both read `MenuContext::output` and write
-/// through it, and neither touches `MenuContext::sound`, `source` or `range` at all. That is also
+/// Grouped in one file because they are one subject: both read and write the track the context
+/// addresses, and neither touches a sound, a source or a range at all. That is also
 /// why neither belongs in `nodes/sample.h` -- those nine are the file/sample family, parameterised
 /// by which oscillator they are about.
 ///

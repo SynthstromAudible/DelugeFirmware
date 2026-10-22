@@ -44,6 +44,12 @@ class ScenesRows(unittest.TestCase):
         )
         self.assertNotIn("scenes-no-edits", counts)
 
+    def test_another_edit_in_the_context_is_counted(self):
+        counts = self.counts(
+            "src/scenes/menu/context.cpp", '#include "model/edits/setting_edit.h"\n'
+        )
+        self.assertEqual(counts.get("scenes-no-edits"), 1)
+
     def test_a_scene_naming_an_engine_object_is_counted(self):
         for line in (
             "Sound* sound = nullptr;",

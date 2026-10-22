@@ -29,8 +29,8 @@
 ///   * `:1734-1737` the "select a row or affect entire" popup, `:1849` the "parameter not
 ///     applicable" popup, `:1864` `display->cancelPopup()` -- every `display->` call.
 ///   * `:1781`/`:1786` retitling the shared `soundEditorRootMenuMIDIOrCV` singleton -- an artefact
-///     of one menu object serving MIDI and CV; `Root::MidiOrCv` plus `MenuContext::output` carries
-///     the same information as data.
+///     of one menu object serving MIDI and CV; `Root::MidiOrCv` plus the instrument kind in
+///     `MenuContext::addresses` carries the same information as data.
 ///   * `:1836-1837`/`:1860-1862` `maybeGetParentMenu` / `focusChild` (horizontal-menu focusing),
 ///     `:1857` `multiRangeMenu.menuItemHeadingTo`, `:1858` substituting the range picker for the
 ///     chosen item -- navigation, which is `MenuScene`'s job (spec E §4.1).
@@ -43,8 +43,8 @@
 ///
 ///   * `:1771` `actionLogger.deleteAllLogs()` -- a mutation of undo history on every menu open.
 ///   * `:1839-1843` remembering the previously selected `MultiRange` across sessions, and dropping
-///     it when the UI or the source index changed. `MenuContext::range` is the field it feeds; see
-///     `permission_for`'s already-selected arm.
+///     it when the UI or the source index changed. `MenuContext::range_index` is the field it feeds,
+///     from the scenes' view state; see `permission_for`'s already-selected arm.
 ///   * `:1993` `Source::getOrCreateFirstRange()` -- the legacy permission check *creates* a first
 ///     range (and can fail with `INSUFFICIENT_RAM`). `permission_for` is a pure predicate and does
 ///     not; whoever opens a range-dependent item must do the allocation.

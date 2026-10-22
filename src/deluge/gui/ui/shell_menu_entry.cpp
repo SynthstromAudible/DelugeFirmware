@@ -151,11 +151,10 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 	// `MenuScene` lands" -- this is the call site that lands, so it picks it up. Without it a user
 	// with the toggle on could undo past a menu edit where legacy stops them.
 	//
-	// One of the three items on that list is still owed and is NOT done here, because it has no
-	// home on this side of the seam: remembering the previously selected `MultiRange` across
-	// sessions (`:1784-1788`, `MenuContext::range`).
+	// Remembering the previously selected range across sessions (`:1784-1788`) is not done here
+	// either: the scenes' view state keeps it by slot and source (`view_state().last_range`).
 	//
-	// **The second one is no longer owed, and it did not land here either.**
+	// **Nor is the first range's allocation.**
 	// `Source::getOrCreateFirstRange()`'s allocation inside the legacy permission check (`:1993`)
 	// belongs to whoever *opens* a range-dependent item, and this function does not: it hands the
 	// node id to `MenuScene::on_enter` through `SceneId::arg`, which is where the open happens and

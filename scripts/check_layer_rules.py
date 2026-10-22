@@ -684,6 +684,14 @@ RULES = [
         "2026-10-18-scenes-bind-to-model-design.md",
     ),
     (
+        # The same rule over the context builder: every Edit header but the gold knob's param address.
+        "scenes-no-edits",
+        "src/scenes/menu/context.cpp",
+        "include",
+        r"^model/edits/(?!param_address_for\.h$)",
+        "2026-10-18-scenes-bind-to-model-design.md",
+    ),
+    (
         # A scene holds no engine object: a menu's context holds addresses into the model, and its reads come from the
         # records and the runtime facts. The files allowed are where one is still the subject:
         #   menu/context.{h,cpp}       the context builder walks the engine to derive the addresses, and keeps `mod`

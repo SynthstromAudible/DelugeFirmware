@@ -30,8 +30,7 @@
 ///     a pad repaint raises `Dirty::GridMain` itself, which the two audio-clip sample items do.
 ///   * **`getCurrent*()` globals.** Legacy reaches `getCurrentOutput()`, `getCurrentInstrument()`,
 ///     `getCurrentInstrumentClip()` and `getCurrentAudioClip()`; every one of those is
-///     `MenuContext::output` / `::clip` here (task-3 ruling 3 -- `currentSong` references in this
-///     file: 0).
+///     an address in `MenuContext::addresses` here, and no `currentSong` reference is left in this file.
 
 #include "scenes/menu/nodes/roots.h"
 
@@ -55,8 +54,6 @@
 #include "processing/stem_export/stem_export.h"
 
 namespace deluge::scenes::menu::nodes {
-
-namespace {} // namespace
 
 // ---------------------------------------------------------------------------------------------
 // The MIDI / CV root

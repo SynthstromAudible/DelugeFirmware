@@ -153,7 +153,6 @@ struct MenuContext {
 
 	/// @name What a target node binds through
 	/// The model and addresses a target resolves against, the host's runtime facts, and the sink its writes go to.
-	/// The engine pointers above remain for the nodes not yet on targets.
 	/// @{
 	const deluge::project::Song* model = nullptr;
 	deluge::scenes::bind::Addresses addresses{};

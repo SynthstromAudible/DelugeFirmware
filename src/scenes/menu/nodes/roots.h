@@ -57,7 +57,7 @@
 ///       `STRING_FOR_CV_INSTRUMENT` for a CV one (`:1731`). One `Node::title` is one static id, so
 ///       the port declares **two nodes over one child list**: `root_midi_or_cv` (the MIDI title)
 ///       and `root_cv` (the CV one). `midi_or_cv_root(ctx)` picks between them from
-///       `MenuContext::output`, which is the same fact `setup()` branched on, and
+///       the instrument kind in `MenuContext::addresses`, which is the same fact `setup()` branched on, and
 ///       `MenuScene::roots()` holds the MIDI spelling because that is the constructor argument in
 ///       `menus.cpp`. Both are in `kBatch3Roots`, so both get node ids and both are validated.
 ///

@@ -32,9 +32,8 @@
 /// | `arp` | `arpMenu` (`:654`) | `Submenu` | Submenu (Vertical) |
 // clang-format on
 ///
-/// Everything here reads and writes `ArpeggiatorSettings` -- `MenuContext::arp`, which
-/// `context_for` resolves to the drum's, the kit's or the clip's settings exactly as
-/// `SoundEditor::setup` did (`context.cpp:251`, `:270`, `:276`, `:300`).
+/// Everything here reads and writes an arpeggiator's settings by address: the kit lane's for a drum, the clip's for
+/// a kit with affect-entire, a synth, MIDI or CV clip -- the owners `SoundEditor::setup` chose.
 ///
 /// @note **`isToggle()` is not a `Kind`.** `arpeggiator::Mode` and `IncludeInKitArp` are
 ///       `Selection`s with two options that legacy draws as a checkbox (`mode.h:100`,
