@@ -1272,6 +1272,35 @@ SONGS = {
 }
 
 
+# Each sample file a card may hold, by its card path, and how to make it.
+SAMPLE_FILES = {
+    "SAMPLES/RS/A.WAV": lambda: wav(sample_frames(1, [110.0, 220.0, 330.0, 440.0])),
+    "SAMPLES/RS/B.WAV": lambda: wav(sample_frames(2, [138.6, 277.2, 415.8])),
+    LOUD_SAMPLE: lambda: wav(loud_sample_frames(1, [110.0, 220.0, 330.0, 440.0])),
+}
+VOICES = [("RSA", "SAMPLES/RS/A.WAV", 60), ("RSB", "SAMPLES/RS/B.WAV", 64)]
+
+
+def samples_for(name: str) -> list[str]:
+    """The card paths of the samples song @p name plays."""
+    paths = ["SAMPLES/RS/A.WAV", "SAMPLES/RS/B.WAV"]
+    if name.startswith("RS_AUDIO_COMP_BLEND"):
+        paths.append(LOUD_SAMPLE)
+    return paths
+
+
+def song_path(name: str) -> str:
+    """The card path of song @p name."""
+    return SONG if name == "RS_STREAM" else f"SONGS/{name}.XML"
+
+
+def write_song(out: Path, name: str) -> None:
+    """Write song @p name's XML into the card tree @p out."""
+    (out / "SONGS").mkdir(parents=True, exist_ok=True)
+    xml = song_xml(VOICES) if name == "RS_STREAM" else SONGS[name](VOICES)
+    (out / song_path(name)).write_text(xml)
+
+
 def main(argv: list[str]) -> int:
     name = "RS_STREAM"
     if len(argv) == 4 and argv[2] == "--song":
@@ -1283,21 +1312,10 @@ def main(argv: list[str]) -> int:
         print(f"unknown song {name}", file=sys.stderr)
         return 2
     out = Path(argv[1])
-    (out / "SONGS").mkdir(parents=True, exist_ok=True)
     (out / "SAMPLES" / "RS").mkdir(parents=True, exist_ok=True)
-    voices = [("RSA", "SAMPLES/RS/A.WAV", 60), ("RSB", "SAMPLES/RS/B.WAV", 64)]
-    (out / "SAMPLES/RS/A.WAV").write_bytes(
-        wav(sample_frames(1, [110.0, 220.0, 330.0, 440.0]))
-    )
-    (out / "SAMPLES/RS/B.WAV").write_bytes(wav(sample_frames(2, [138.6, 277.2, 415.8])))
-    if name.startswith("RS_AUDIO_COMP_BLEND"):
-        (out / LOUD_SAMPLE).write_bytes(
-            wav(loud_sample_frames(1, [110.0, 220.0, 330.0, 440.0]))
-        )
-    if name == "RS_STREAM":
-        (out / SONG).write_text(song_xml(voices))
-    else:
-        (out / "SONGS" / f"{name}.XML").write_text(SONGS[name](voices))
+    for path in samples_for(name):
+        (out / path).write_bytes(SAMPLE_FILES[path]())
+    write_song(out, name)
     return 0
 
 

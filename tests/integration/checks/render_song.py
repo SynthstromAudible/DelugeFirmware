@@ -55,11 +55,21 @@ import json
 import math
 import os
 import struct
-import subprocess
-import sys
 from pathlib import Path
 
 from scenario_gate import field, int_field
+
+
+def _load_sibling(name: str):
+    spec = importlib.util.spec_from_file_location(
+        name, Path(__file__).with_name(f"{name}.py")
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+render_card_cache = _load_sibling("render_card_cache")
 
 # The scenario's mid-render switches; a gate that sets any of them is compared with the song rendered without them.
 SWITCHES = (
@@ -89,22 +99,12 @@ def _pcm_record(pcm: bytes) -> dict:
 
 
 def _generate(gate, name: str = "RS_STREAM") -> dict[str, str] | None:
-    """Generate song @p name's card tree; the environment that plays it, or None when generating failed."""
-    tree = gate.tmp / f"card-{name}"
-    made = subprocess.run(
-        [
-            sys.executable,
-            str(gate.root / "tests/integration/golden/songs/make_render_song.py"),
-            str(tree),
-            "--song",
-            name,
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if made.returncode != 0:
-        gate.fail(f"generating the song failed: {made.stderr.strip()}")
+    """Song @p name's generated card (see render_card_cache); the environment that plays it, or None when generating
+    failed."""
+    try:
+        tree = render_card_cache.card(gate.root, name)
+    except (ValueError, OSError) as exc:
+        gate.fail(f"generating the song failed: {exc}")
         return None
     return {"RENDER_TREE": str(tree), "RENDER_SONG": f"SONGS/{name}.XML"}
 

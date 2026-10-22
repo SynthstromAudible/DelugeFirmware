@@ -9,6 +9,7 @@ import importlib.util
 import io
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import threading
@@ -645,3 +646,86 @@ class NeedsConfigureTest(unittest.TestCase):
             f"CMAKE_HOME_DIRECTORY:INTERNAL={source}\n"
         )
         self.assertTrue(tb.needs_configure(tree, source, "clang++"))
+
+
+class RenderCardCacheTest(unittest.TestCase):
+    """Generated render cards come from a cache keyed by the generator, byte for byte what the generator writes."""
+
+    REPO = Path(__file__).parents[2]
+    GENERATOR = REPO / "tests/integration/golden/songs/make_render_song.py"
+
+    def setUp(self):
+        self.cache = _load_check_module("render_card_cache")
+        self.cache_root = Path(tempfile.mkdtemp())
+
+    def _generated(self, song):
+        out = Path(tempfile.mkdtemp()) / "card"
+        subprocess.run(
+            [sys.executable, str(self.GENERATOR), str(out), "--song", song], check=True
+        )
+        return out
+
+    @staticmethod
+    def _files(tree):
+        return {
+            p.relative_to(tree).as_posix(): p.read_bytes()
+            for p in sorted(tree.rglob("*"))
+            if p.is_file()
+        }
+
+    def test_card_matches_the_generator(self):
+        for song in ("RS_STREAM", "RS_KIT_FX", "RS_AUDIO_COMP_BLEND"):
+            card = self.cache.card(self.REPO, song, self.cache_root)
+            self.assertEqual(
+                self._files(card), self._files(self._generated(song)), song
+            )
+
+    def test_second_call_does_not_synthesise(self):
+        generator = self.cache._generator(self.REPO)
+        calls = []
+        real = generator.sample_frames
+        with mock.patch.object(
+            generator,
+            "sample_frames",
+            side_effect=lambda *a: calls.append(a) or real(*a),
+        ):
+            self.cache.card(self.REPO, "RS_KIT_FX", self.cache_root)
+            self.cache.card(self.REPO, "RS_KIT_DRY", self.cache_root)
+        self.assertEqual(len(calls), 2)
+
+    def test_generator_change_misses(self):
+        root = Path(tempfile.mkdtemp())
+        generator = root / "tests/integration/golden/songs/make_render_song.py"
+        generator.parent.mkdir(parents=True)
+        generator.write_text(self.GENERATOR.read_text())
+        old_key = self.cache.generator_key(root)
+        old = self.cache.card(root, "RS_STREAM", self.cache_root)
+        generator.write_text(self.GENERATOR.read_text() + "\n# changed\n")
+        self.assertNotEqual(self.cache.generator_key(root), old_key)
+        new = self.cache.card(root, "RS_STREAM", self.cache_root)
+        self.assertNotEqual(new, old)
+        self.assertFalse((self.cache_root / old_key).exists())
+
+    def test_concurrent_fill_is_safe(self):
+        results = []
+        threads = [
+            threading.Thread(
+                target=lambda: results.append(
+                    self.cache.card(self.REPO, "RS_KIT_FX", self.cache_root)
+                )
+            )
+            for _ in range(8)
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        self.assertEqual(len(set(results)), 1)
+        self.assertEqual(
+            self._files(results[0]), self._files(self._generated("RS_KIT_FX"))
+        )
+        self.assertEqual(list(self.cache_root.rglob("*.tmp-*")), [])
+
+    def test_unknown_song_raises(self):
+        with self.assertRaises(ValueError):
+            self.cache.card(self.REPO, "RS_NO_SUCH_SONG", self.cache_root)
