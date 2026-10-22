@@ -39,6 +39,7 @@
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/song/song.h"
@@ -233,6 +234,18 @@ inline T* add_drum(SongFixture& f) {
 
 	kit->selectedDrum = drum;
 	return drum;
+}
+
+/// @brief Can @p drum hold note tails, as the kit arp's inclusion asks it: `Sound::allowNoteTails` on its own stack. A
+///        non-sound drum always can.
+inline bool drum_allows_note_tails(Drum* drum) {
+	if (drum == nullptr || drum->type != DrumType::SOUND) {
+		return true;
+	}
+	auto* sound_drum = static_cast<SoundDrum*>(drum);
+	char memory[MODEL_STACK_MAX_SIZE];
+	return sound_drum->allowNoteTails(getModelStackFromSoundDrum(memory, sound_drum)->addSoundFlags(),
+	                                  /*disregardSampleLoop=*/true);
 }
 
 } // namespace deluge::scenes::spec

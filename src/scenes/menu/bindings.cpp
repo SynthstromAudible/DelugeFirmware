@@ -68,9 +68,7 @@
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
-#include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
-#include "model/model_stack.h" // the scenes-model-stack ratchet: this file and context.cpp only
 #include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/song/song.h"
@@ -104,12 +102,6 @@ std::optional<deluge::scenes::bind::View> target_view(const Node& node, const Me
 /// until the next names() call, as the shell's TextScratch is.
 std::array<std::array<char, 40>, kMaxDynamicNames> unavailable_text{};
 
-/// @brief Is @p ctx one `model_stack_for` will accept? Its precondition (`context.h:200-203`): a
-///        resolved context that is either the song view or has a clip.
-bool has_model_stack(const MenuContext& ctx) {
-	return ctx.resolved && (ctx.is_song_view || ctx.clip != nullptr);
-}
-
 /// @brief How many `Kind::Enum` options @p node has -- the input to its default range.
 ///
 /// This is the *option* count, legacy's `Enumeration::size()`, not the number of names a particular
@@ -137,55 +129,6 @@ size_t name_count(const Node& node, const MenuContext& ctx) {
 bool writes_whole_kit(const MenuContext& ctx) {
 	return ctx.affect_entire_held && ctx.is_kit && !ctx.is_kit_global_fx && ctx.output != nullptr
 	       && ctx.clip != nullptr;
-}
-
-void apply_to_targets(const MenuContext& ctx, int32_t value, int32_t arg, ApplyFn fn) {
-	if (fn == nullptr) {
-		return;
-	}
-
-	if (writes_whole_kit(ctx)) {
-		auto* kit = static_cast<Kit*>(ctx.output);
-		auto* instrument_clip = static_cast<InstrumentClip*>(ctx.clip);
-		for (Drum* drum = kit->firstDrum; drum != nullptr; drum = drum->next) { // `filter/mode.h:49`
-			if (drum->type != DrumType::SOUND) {                                // `:50`
-				continue;
-			}
-			auto* sound_drum = static_cast<SoundDrum*>(drum);
-
-			// `getModelStackFromSoundDrum` (`model/model_stack.cpp:111-117`) with `ctx`'s own song
-			// and clip in place of the globals, and with legacy's unconditional note-row
-			// dereference (`:116`) turned into a skip. A drum with no row in this clip still gets
-			// `fn`, just with a null stack. Some setters tolerate that and some do not --
-			// `Sound::setNumUnison` dereferences it whenever the sound has active voices
-			// (`processing/sound/sound.cpp:3102-3105`) -- but the ones that do not are exactly the
-			// ones legacy never reached at all: it built the same stack one line earlier and
-			// dereferenced the null note row itself (`model_stack.cpp:116`). Skipping the drum is
-			// strictly safer than legacy's crash, never a behaviour change on a well-formed clip.
-			alignas(ModelStackWithAutoParam) char drum_memory[MODEL_STACK_MAX_SIZE];
-			int32_t note_row_index = 0;
-			NoteRow* note_row = instrument_clip->getNoteRowForDrum(sound_drum, &note_row_index);
-			ModelStackWithSoundFlags* drum_stack = nullptr;
-			if (note_row != nullptr) {
-				drum_stack =
-				    setupModelStackWithThreeMainThingsIncludingNoteRow(drum_memory, ctx.song, ctx.clip, note_row_index,
-				                                                       note_row, sound_drum, &note_row->paramManager)
-				        ->addSoundFlags();
-			}
-			fn(SoundTarget{sound_drum, sound_drum, drum_stack, /*whole_kit=*/true}, value, arg, ctx);
-		}
-		return;
-	}
-
-	if (ctx.mod == nullptr) {
-		return;
-	}
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithSoundFlags* stack = nullptr;
-	if (ctx.sound != nullptr && has_model_stack(ctx)) {
-		stack = model_stack_for(ctx, memory)->addSoundFlags();
-	}
-	fn(SoundTarget{ctx.mod, ctx.sound, stack, /*whole_kit=*/false}, value, arg, ctx);
 }
 
 bool relevant(const Node& node, const MenuContext& ctx) {
@@ -459,57 +402,23 @@ uint32_t menu_to_unsigned(int32_t menu_value) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// `SoundEditor::allowsNoteTails` (`gui/ui/sound_editor.cpp:1866-1871`)
-
-bool allows_note_tails(const MenuContext& ctx) {
-	if (ctx.sound == nullptr) {
-		return true; // `:1811` -- the default, kept when there is no sound to ask
-	}
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* stack = model_stack_for(ctx, memory);
-	if (stack == nullptr) {
-		return true;
-	}
-	return ctx.sound->allowNoteTails(stack->addSoundFlags(), /*disregardSampleLoop=*/true); // `:1815`
-}
-
-bool drum_allows_note_tails(const MenuContext& /*ctx*/, Drum* drum) {
-	if (drum == nullptr || drum->type != DrumType::SOUND) {
-		return true; // `include_in_kit_arp.h:33` -- the initialiser, left alone for a non-sound drum
-	}
-	auto* sound_drum = static_cast<SoundDrum*>(drum);
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	// `include_in_kit_arp.h:37-40`, verbatim.
-	ModelStackWithSoundFlags* stack = getModelStackFromSoundDrum(memory, sound_drum)->addSoundFlags();
-	return sound_drum->allowNoteTails(stack, /*disregardSampleLoop=*/true);
-}
-
-// ---------------------------------------------------------------------------------------------
 // The play direction (`gui/menu_item/sequence/direction.h`)
 
 namespace {
 
-/// @brief `sequence::Direction::getIndividualNoteRow` (`sequence/direction.h:29-52`), minus the
-///        audition arm `bindings.h` documents as belonging to `NoteClipScene`.
-///
-/// @return A stack whose note row may be null -- legacy's own "no individual row" answer, which it
-///         produces the same way (`:51`, `modelStack->addNoteRow(0, nullptr)`).
-ModelStackWithNoteRow* individual_note_row(const MenuContext& ctx, void* memory) {
-	ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, ctx.song, ctx.clip);
-	auto* clip = static_cast<InstrumentClip*>(ctx.clip);
-	// `:31-37` -- a kit row (the clip is not on affect-entire) with a selected drum.
-	if (!ctx.affect_entire && ctx.is_kit && ctx.output != nullptr) {
-		Drum* drum = static_cast<Kit*>(ctx.output)->selectedDrum;
-		if (drum != nullptr) {
-			return clip->getNoteRowForDrum(stack, drum); // still might be null, exactly as legacy says
-		}
-	}
-	return stack->addNoteRow(0, nullptr); // `:51`
+/// @brief Where the play direction is: `sequence::Direction::getIndividualNoteRow` (`sequence/direction.h:29-52`),
+///        minus the audition arm `bindings.h` documents as belonging to `NoteClipScene`. A kit row the clip is not on
+///        affect-entire for has its own (`:31-37`), when it has a note row; anything else edits the clip's.
+deluge::scenes::bind::Target direction_target(const MenuContext& ctx) {
+	const bool row = !ctx.affect_entire && ctx.is_kit && ctx.addresses.note_row.has_value();
+	return {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+	        .path = "sequenceDirection",
+	        .group = row ? deluge::project::SettingGroupId::NOTE_ROW : deluge::project::SettingGroupId::CLIP};
 }
 
-/// @brief Is @p ctx one this pair of functions can work on at all?
+/// @brief Is @p ctx one this pair of functions can work on at all: an instrument clip of the song the app plays?
 bool has_instrument_clip(const MenuContext& ctx) {
-	return ctx.song != nullptr && ctx.clip != nullptr && !ctx.is_audio_clip;
+	return ctx.addresses.clip.has_value() && !ctx.is_audio_clip && ctx.model != nullptr && ctx.facts != nullptr;
 }
 
 // `getIndividualNoteRow`'s non-kit auditioned-row arm (`sequence/direction.h:50-60`),
@@ -572,15 +481,13 @@ int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row) {
 	if (!has_instrument_clip(ctx)) {
 		return 0;
 	}
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithNoteRow* stack = individual_note_row(ctx, memory);
-	if (stack->getNoteRowAllowNull() != nullptr) { // `direction.h:70-72`
-		if (from_note_row != nullptr) {
-			*from_note_row = true;
-		}
-		return static_cast<int32_t>(stack->getNoteRow()->sequenceDirectionMode());
+	const deluge::scenes::bind::Target target = direction_target(ctx); // `direction.h:70-75`
+	if (from_note_row != nullptr) {
+		*from_note_row = target.group == deluge::project::SettingGroupId::NOTE_ROW;
 	}
-	return static_cast<int32_t>(static_cast<InstrumentClip*>(ctx.clip)->sequenceDirectionMode); // `direction.h:73-75`
+	const std::optional<deluge::scenes::bind::View> shown =
+	    deluge::scenes::bind::view(target, *ctx.model, ctx.addresses, *ctx.facts);
+	return shown ? shown->value : 0;
 }
 
 void write_sequence_direction(const MenuContext& ctx, int32_t value) {
@@ -599,21 +506,14 @@ void write_sequence_direction(const MenuContext& ctx, int32_t value) {
 		deluge::notify::raise(deluge::notify::Dirty::Oled);
 		return;
 	}
-	if (!has_instrument_clip(ctx)) {
+	if (!has_instrument_clip(ctx) || ctx.sink == nullptr) {
 		return;
 	}
-	const auto mode = static_cast<SequenceDirection>(value);
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithNoteRow* stack = individual_note_row(ctx, memory);
-	if (stack->getNoteRowAllowNull() != nullptr) { // `direction.h:83-85`
-		deluge::edits::noteRowSettingFor(
-		    *stack->getNoteRow(), *static_cast<InstrumentClip*>(stack->getTimelineCounter()), "sequenceDirection",
-		    deluge::serialization::Value::makeScalar(std::string{deluge::project::to_string(mode)}));
-	}
-	else { // `direction.h:86-89`
-		deluge::edits::clipSettingFor(
-		    *ctx.clip, "sequenceDirection",
-		    deluge::serialization::Value::makeScalar(std::string{deluge::project::to_string(mode)}));
+	// `direction.h:83-89`: the kit row's note row, else the clip.
+	const std::optional<deluge::scenes::bind::WriteRequest> request =
+	    deluge::scenes::bind::request_for(direction_target(ctx), *ctx.model, ctx.addresses, *ctx.facts, value);
+	if (request) {
+		(void)ctx.sink->write(*request);
 	}
 	deluge::notify::raise(deluge::notify::Dirty::Oled);
 }

@@ -28,11 +28,6 @@
 #include <span>
 #include <string_view>
 
-class Drum;
-class ModControllableAudio;
-class ModelStackWithSoundFlags;
-class Sound;
-
 namespace deluge::scenes::menu {
 struct MenuContext;
 } // namespace deluge::scenes::menu
@@ -134,63 +129,11 @@ size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_vie
 ///         param.
 ParamDescriptor learn_target(const Node& node, const MenuContext& ctx);
 
-/// @brief One thing a non-`ParamRef` `Binding::set` hook writes to.
-///
-/// Legacy's ~20 non-param items each spelled out the same affect-entire loop in their own
-/// `writeCurrentValue` (`filter/mode.h:44-59`, `lfo/type.h:51-73`, `unison/count.h:38-63`, ...):
-/// "if the AFFECT-ENTIRE button is held on a kit row, do every `SoundDrum` in the kit, else do the
-/// selected one". `apply_to_targets` below is that loop, once, and a `SoundTarget` is one
-/// iteration of it.
-struct SoundTarget {
-	/// @brief What legacy called `soundEditor.currentModControllable` (or `soundDrum`, in the kit
-	///        loop). Never null.
-	ModControllableAudio* mod = nullptr;
-	/// @brief The same object as a `Sound`, or null when it is not one -- a song-level or
-	///        audio-clip `GlobalEffectable` has filters and a compressor but no oscillators.
-	Sound* sound = nullptr;
-	/// @brief A stack over @p sound with sound flags added, or null when @p sound is null.
-	///
-	/// This is why the helper exists at all: `model/model_stack.h` may be included by
-	/// `context.cpp` and this file only (the `scenes-model-stack-outside-context` ratchet), so the
-	/// node tables cannot assemble their own stack for `Sound::setNumUnison`,
-	/// `setModulatorTranspose`, `recalculateAllVoicePhaseIncrements` and friends.
-	ModelStackWithSoundFlags* stack = nullptr;
-	/// @brief True when this target came from the affect-entire kit sweep rather than being the
-	///        one selected thing. Several legacy items filter *inside* that loop and not outside it
-	///        (`filter_route.h:45`, `osc/sync.h:42`, `modulator/transpose.h:56`,
-	///        `modulator/destination.h:46`), so a hook needs to know which it is looking at.
-	bool whole_kit = false;
-};
-
-/// @brief What `apply_to_targets` calls per target.
-/// @param target The thing to write.
-/// @param value  The menu value being committed.
-/// @param arg    The item's own baked-in index -- an oscillator's `source_id_`, an LFO's `lfoId_`,
-///               whatever the legacy class held as a member. A `Binding::set` is a plain function
-///               pointer with no room for one, and `apply_to_targets`' hook is too, so the tables
-///               pass it through here rather than writing one hook per index.
-/// @param ctx    The context the write is happening in (for a hook that needs the song or clip).
-using ApplyFn = void (*)(const SoundTarget& target, int32_t value, int32_t arg, const MenuContext& ctx);
-
-/// @brief Run @p fn over every `ModControllableAudio` a write from @p ctx should reach.
-///
-/// One target normally; every `SoundDrum` in the kit when affect-entire is held on a kit row
-/// (`writes_whole_kit`, the same condition `write()` uses for a `ParamRef`). A legacy item that
-/// additionally filtered *inside* its loop -- `filter_route.h:45`'s "both filters on",
-/// `osc/sync.h:42`'s "not FM and neither source is a sample", `modulator/transpose.h:56`'s "FM
-/// only" -- applies that test inside @p fn, exactly where legacy applied it.
-///
-/// @param ctx   What is being edited.
-/// @param value The menu value to commit.
-/// @param arg   Passed straight through to @p fn -- see `ApplyFn`. 0 when the hook needs none.
-/// @param fn    The per-target write.
-void apply_to_targets(const MenuContext& ctx, int32_t value, int32_t arg, ApplyFn fn);
-
 /// @brief Would a write from @p ctx sweep every `SoundDrum` in the kit?
 ///
 /// Legacy's `currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR &&
-/// soundEditor.editingKitRow()` (`gui/menu_item/unpatched_param.cpp:52`), i.e. exactly the condition
-/// `apply_to_targets` branches on. Exposed because a couple of legacy items take a *different code
+/// soundEditor.editingKitRow()` (`gui/menu_item/unpatched_param.cpp:52`): the request a hook makes then names the
+/// whole kit (`Addresses::affect_entire`). Exposed because a couple of legacy items take a *different code
 /// path* rather than a filtered one when it is false -- `sample::PitchSpeed` and
 /// `sample::Interpolation` write `getCurrentSampleControls()` (which is the audio clip's, on an
 /// audio clip) instead of a source's (`sample/pitch_speed.h:44-63`, `sample/interpolation.h:37-59`).
@@ -225,36 +168,10 @@ int32_t unsigned_to_menu(uint32_t stored);
 uint32_t menu_to_unsigned(int32_t menu_value);
 /// @}
 
-/// @brief `SoundEditor::allowsNoteTails` (`gui/ui/sound_editor.h:63`), recomputed from @p ctx.
-///
-/// Legacy caches it once per menu entry (`sound_editor.cpp:1866-1871`: true when there is no sound,
-/// else `Sound::allowNoteTails(stack, /*disregardSampleLoop=*/true)`), and
-/// `arpeggiator::IncludeInKitArp` reads the cached copy (`include_in_kit_arp.h:28-33,50-52`). It
-/// lives here rather than on `MenuContext` because computing it needs a `ModelStackWithSoundFlags`,
-/// and `model/model_stack.h` may be included by `context.cpp` and this file only.
-bool allows_note_tails(const MenuContext& ctx);
-
-/// @brief `Sound::allowNoteTails` for one `Drum` of @p ctx's kit, on that drum's own model stack.
-///
-/// The per-target half of the test above, and the one legacy's affect-entire sweep in
-/// `arpeggiator::IncludeInKitArp::writeCurrentValue` (`include_in_kit_arp.h:33-45`) actually
-/// applies: it builds a `ModelStackWithSoundFlags` from each `SoundDrum` and asks that drum, rather
-/// than reusing the context's answer. A non-sound drum (MIDI, gate) has no `Sound` to ask and is
-/// always allowed, exactly as legacy's `bool allowsNoteTails = true;` initialiser says (`:33`).
-///
-/// Lives here for the same reason `allows_note_tails` does: `getModelStackFromSoundDrum`
-/// (`model/model_stack.h:297`) needs `model/model_stack.h`.
-///
-/// @param ctx  What is being edited -- only its kit membership matters.
-/// @param drum The drum to ask. Null answers true (nothing to refuse).
-bool drum_allows_note_tails(const MenuContext& ctx, Drum* drum);
-
 /// @brief Read the play direction `sequence::Direction` would show (`sequence/direction.h:65-76`).
 ///
-/// Lives here, not in the node table, for the reason `SoundTarget::stack` does: resolving the
-/// individual note row a clip's play direction may live on needs a `ModelStackWithNoteRow`, and
-/// `model/model_stack.h` may be included by `context.cpp` and this file only (the
-/// `scenes-model-stack-outside-context` ratchet).
+/// The direction is a kit row's note row's, where a kit row the clip is not on affect-entire for has one, else the
+/// clip's: read from that record.
 ///
 /// @param ctx           What is being edited.
 /// @param from_note_row Optional out-parameter: true when an individual note row supplied the
@@ -283,8 +200,8 @@ bool drum_allows_note_tails(const MenuContext& ctx, Drum* drum);
 int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row = nullptr);
 
 /// @brief Commit a play-direction change (`sequence::Direction::writeCurrentValue`,
-///        `sequence/direction.h:78-90`), through `NoteRow::setSequenceDirectionMode` or
-///        `InstrumentClip::setSequenceDirectionMode` as legacy chooses between them.
+///        `sequence/direction.h:78-90`): a request to the sink on the record legacy chooses -- the kit row's note row,
+///        or the clip.
 ///
 /// @param ctx   What is being edited.
 /// @param value The new `SequenceDirection`.

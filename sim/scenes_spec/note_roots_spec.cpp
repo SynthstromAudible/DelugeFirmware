@@ -17,8 +17,10 @@
 #include "util/shell_menu_entry.h"
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/sequence_direction.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/setting_edit.h"
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -188,7 +190,7 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 		spec::SongFixture fx = spec::make_synth_song();
 		MenuContext ctx = menu::context_for(*fx.song, fx.clip, 0, false, false, false, false);
 		ctx.root = MenuContext::Root::NoteRowEditor;
-		fx.clip->sequenceDirectionMode = SequenceDirection::REVERSE;
+		deluge::edits::clipSettingFor(*fx.clip, "sequenceDirection", deluge::serialization::Value::makeScalar(std::string{deluge::project::to_string(SequenceDirection::REVERSE)}));
 
 		spec::FakeNoteBridgeGuard bridge;
 		bridge.fake.row_sequence_direction_value = false;
@@ -241,7 +243,7 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 		spec::SongFixture fx = spec::make_synth_song();
 		MenuContext ctx = menu::context_for(*fx.song, fx.clip, 0, false, false, false, false);
 		expect(ctx.root == MenuContext::Root::NoteRowEditor).to_be_false();
-		fx.clip->sequenceDirectionMode = SequenceDirection::REVERSE;
+		deluge::edits::clipSettingFor(*fx.clip, "sequenceDirection", deluge::serialization::Value::makeScalar(std::string{deluge::project::to_string(SequenceDirection::REVERSE)}));
 
 		spec::FakeNoteBridgeGuard bridge;
 		bridge.fake.row_sequence_direction_value = true;
@@ -348,7 +350,7 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 			return;
 		}
 		row->setSequenceDirectionModeRaw(SequenceDirection::PINGPONG);
-		fx.clip->sequenceDirectionMode = SequenceDirection::REVERSE; // must NOT be what gets read
+		deluge::edits::clipSettingFor(*fx.clip, "sequenceDirection", deluge::serialization::Value::makeScalar(std::string{deluge::project::to_string(SequenceDirection::REVERSE)})); // must NOT be what gets read
 
 		expect(entry::openShellMenu(fx.clip, 0, false, false, false, /*kitGlobalFx=*/false,
 		                            entry::ShellMenuNode::ContextRoot, entry::NoteMode::NoteRowEditor))

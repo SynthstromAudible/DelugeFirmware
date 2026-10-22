@@ -126,11 +126,28 @@ public:
 	/// @return Whether it was taken: false where @p target's owner is not in the song.
 	virtual bool learn(project::MappingTarget target, std::optional<project::MidiCommand> command,
 	                   std::optional<LearnInput> input) = 0;
+	/// @brief Transpose source @p source of the sound @p where names -- every sound row of the kit under affect-entire
+	/// -- by @p menu_value, in cents. A sample source with ranges (not FM) takes it in its range: @p range, or range 0
+	/// on a whole kit; any other source in its own transpose and cents.
+	/// @return Whether it was taken.
+	virtual bool write_source_transpose(const Addresses& where, uint8_t source, std::optional<uint16_t> range,
+	                                    int32_t menu_value) = 0;
 };
 
 /// @brief A gesture request, as a RecordingSink keeps it.
 struct GestureRequest {
-	enum class Kind : uint8_t { TEXT, RANGES, RECOLOUR, CLEAR, MARKER, DEFAULT_INPUT_CHANNEL, ATTACH, RESIZE, LEARN };
+	enum class Kind : uint8_t {
+		TEXT,
+		RANGES,
+		RECOLOUR,
+		CLEAR,
+		MARKER,
+		DEFAULT_INPUT_CHANNEL,
+		ATTACH,
+		RESIZE,
+		LEARN,
+		TRANSPOSE
+	};
 	Kind kind{Kind::TEXT};
 	Target target{};
 	Addresses where{};
@@ -177,6 +194,8 @@ public:
 	void set_undo_scroll_after(project::ClipAddress clip, int32_t x_scroll) override;
 	bool learn(project::MappingTarget target, std::optional<project::MidiCommand> command,
 	           std::optional<LearnInput> input) override;
+	bool write_source_transpose(const Addresses& where, uint8_t source, std::optional<uint16_t> range,
+	                            int32_t menu_value) override;
 	std::vector<WriteRequest> requests;
 	std::vector<GestureRequest> gestures;
 	std::vector<ParamWrite> param_writes;

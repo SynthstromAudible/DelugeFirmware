@@ -275,6 +275,9 @@ struct RefusingSink final : bind::WriteSink {
 	           std::optional<bind::LearnInput>) override {
 		return false;
 	}
+	bool write_source_transpose(const bind::Addresses&, uint8_t, std::optional<uint16_t>, int32_t) override {
+		return false;
+	}
 };
 
 /// @brief A finished take: the recorder's sample with a file, resident in the audio file manager at its path as the

@@ -189,7 +189,7 @@ void install(const MenuContext& ctx, Song* song) {
 	// `SoundEditor::setup` caches this once per entry (`sound_editor.cpp:1866-1871`), and
 	// `arpeggiator::IncludeInKitArp` reads the cached copy. Computed here the way legacy computes
 	// it -- straight from `Sound::allowNoteTails` over the fixture's own model stack -- so the
-	// comparison against `bindings::allows_note_tails` stays a real one.
+	// comparison against the port's `allows_note_tails` fact stays a real one.
 	soundEditor.allowsNoteTails = true;
 	if (ctx.sound != nullptr) {
 		char memory[MODEL_STACK_MAX_SIZE];
@@ -1939,9 +1939,9 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		}
 
 		const MenuContext ctx_a = select_drum(k, k.drum_a);
-		expect(menu::bindings::drum_allows_note_tails(ctx_a, k.drum_a)).to_be_true();
+		expect(spec::drum_allows_note_tails(k.drum_a)).to_be_true();
 		// The whole point: the two drums must disagree, or the sweep test proves nothing.
-		expect(menu::bindings::drum_allows_note_tails(ctx_a, k.drum_b)).to_be_false();
+		expect(spec::drum_allows_note_tails(k.drum_b)).to_be_false();
 
 		const MenuContext held = select_drum(k, k.drum_a, /*affect_entire_held=*/true);
 		menu::bindings::write(nodes::arp_include_in_kit_arp, held, 1);

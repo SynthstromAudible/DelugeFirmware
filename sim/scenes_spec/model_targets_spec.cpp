@@ -17,6 +17,7 @@
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
@@ -221,8 +222,10 @@ describe model_targets("a model target's write reaches the record its menu names
 		spec::SongFixture kit = spec::make_kit_song();
 		auto* drum = spec::add_drum<SoundDrum>(kit);
 		const MenuContext row = clip_root(*kit.song, kit.clip);
+		char drum_memory[MODEL_STACK_MAX_SIZE];
 		expect(facts.allows_note_tails(*row.addresses.slot))
-		    .to_equal(menu::bindings::drum_allows_note_tails(row, drum));
+		    .to_equal(drum->allowNoteTails(getModelStackFromSoundDrum(drum_memory, drum)->addSoundFlags(),
+		                                   /*disregardSampleLoop=*/true));
 		drum->arpSettings.mode = ArpMode::ARP;
 		expect(facts.allows_note_tails(*row.addresses.slot)).to_be_true(); // an arp holds its notes
 

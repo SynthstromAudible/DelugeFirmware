@@ -143,12 +143,6 @@ inline const PendingCustom kPending{};
 /// @{
 /// @}
 
-/// `AudioInterpolation::getOptions` (`gui/menu_item/audio_interpolation.h:25-28`).
-inline constexpr uint16_t kInterpolationNames[] = {
-    sid(deluge::l10n::String::STRING_FOR_LINEAR),
-    sid(deluge::l10n::String::STRING_FOR_SINC),
-};
-
 /// `menu_item::Transpose::getMinValue`/`getMaxValue`/`getNumDecimalPlaces`
 /// (`gui/menu_item/transpose.h:34-36`).
 inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
@@ -162,8 +156,6 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 #define DELUGE_OSC_SOURCE(i, name_id, osc_path)                                                                        \
 	int32_t get_source##i##_transpose(const MenuContext& ctx);                                                         \
 	void set_source##i##_transpose(const MenuContext& ctx, int32_t v);                                                 \
-	int32_t get_sample##i##_interp(const MenuContext& ctx);                                                            \
-	void set_sample##i##_interp(const MenuContext& ctx, int32_t v);                                                    \
 	inline constexpr Node osc##i##_type = with_title(                                                                  \
 	    setting_item(                                                                                                  \
 	        sid(deluge::l10n::String::STRING_FOR_TYPE), Kind::Enum,                                                    \
@@ -219,8 +211,10 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 	                                           .path = osc_path "/timeStretchEnable",                                  \
 	                                           .audio_clip_path = "pitchSpeedIndependent"}));                          \
 	inline constexpr Node sample##i##_interpolation =                                                                  \
-	    with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_INTERPOLATION), kInterpolationNames,               \
-	                           get_sample##i##_interp, set_sample##i##_interp, relevance::osc##i##_interpolation),     \
+	    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_INTERPOLATION), Kind::Enum,                       \
+	                            {.kind = deluge::scenes::bind::Target::Kind::SOUND,                                    \
+	                             .path = osc_path "/linearInterpolation",                                              \
+	                             .audio_clip_path = "linearInterpolation"}),                                           \
 	               sid(deluge::l10n::String::STRING_FOR_SAMP_INTERP_MENU_TITLE));                                      \
 	inline constexpr Node sample##i##_start = with_allow_session_from_horizontal(with_range_dependent(custom(          \
 	    sid(deluge::l10n::String::STRING_FOR_START_POINT), &kSample##i##Start, relevance::osc##i##_is_sample)));       \

@@ -27,23 +27,11 @@
 
 #include "definitions_cxx.hpp"
 #include "engines/deluge/words.h"
-#include "model/clip/audio_clip.h"
-#include "model/edits/setting_edit.h"
-#include "processing/sound/sound.h"
 #include "serialization/value.h"
 
 namespace deluge::scenes::menu::nodes {
 
 using deluge::l10n::String;
-
-namespace {
-
-/// @brief The audio clip the context edits, if it is one: its voice priority is its own.
-AudioClip* audio_clip_of(const MenuContext& ctx) {
-	return ctx.is_audio_clip && ctx.sound == nullptr ? static_cast<AudioClip*>(ctx.clip) : nullptr;
-}
-
-} // namespace
 
 namespace {
 constexpr const Node* kRoots[] = {&voice};

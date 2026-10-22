@@ -163,6 +163,8 @@ public:
 	void set_undo_scroll_after(deluge::project::ClipAddress clip, int32_t x_scroll) override;
 	bool learn(deluge::project::MappingTarget target, std::optional<deluge::project::MidiCommand> command,
 	           std::optional<deluge::scenes::bind::LearnInput> input) override;
+	bool write_source_transpose(const deluge::scenes::bind::Addresses& where, uint8_t source,
+	                            std::optional<uint16_t> range, int32_t menu_value) override;
 	[[nodiscard]] uint32_t refusals() const { return refusals_; }
 
 private:
@@ -488,6 +490,57 @@ bool ShellEditSink::learn(deluge::project::MappingTarget target, std::optional<d
 	    deluge::project::Mapping{.source = std::move(*command), .target = std::move(target)}, std::nullopt,
 	    learned_input};
 	return applied(edit);
+}
+
+bool ShellEditSink::write_source_transpose(const deluge::scenes::bind::Addresses& where, uint8_t source,
+                                           std::optional<uint16_t> range, int32_t menu_value) {
+	if (currentSong == nullptr || source >= kNumSources) {
+		return false;
+	}
+	// `computeFinalValuesForTranspose` (`gui/menu_item/value_scaling.cpp:68-73`).
+	const int32_t current = menu_value + 25600;
+	const int32_t semitones = (current + 50) / 100;
+	const int32_t cents = current - semitones * 100;
+	const int32_t transpose = semitones - 256;
+	// One sound: a sample source with ranges (not FM) in its range, any other source in its own setting.
+	const auto one = [&](deluge::project::SlotAddress slot, std::optional<uint16_t> in_range) {
+		::Sound* sound = deluge::bridge::soundAt(*currentSong, slot);
+		if (sound == nullptr || sound->boundState() == nullptr) {
+			return false;
+		}
+		const deluge::instrument::SoundState& state = *sound->boundState();
+		const deluge::instrument::SourceState& src = state.sources[source];
+		if (!src.ranges.empty() && state.synth_mode != deluge::instrument::SynthMode::FM
+		    && src.osc_type == deluge::instrument::OscType::SAMPLE) {
+			std::vector<deluge::instrument::RangeState> ranges = src.ranges;
+			const size_t r = in_range && *in_range < ranges.size() ? *in_range : 0;
+			ranges[r].transpose = static_cast<int16_t>(transpose);
+			ranges[r].cents = static_cast<int8_t>(cents);
+			deluge::edits::SetSourceRanges edit{slot, source, std::move(ranges)};
+			return applied(edit);
+		}
+		const std::string osc = "osc" + std::to_string(source + 1) + "/";
+		deluge::edits::SetEngineSetting semis{slot, osc + "transpose",
+		                                      deluge::serialization::Value::makeNumber(transpose)};
+		deluge::edits::SetEngineSetting fine{slot, osc + "cents", deluge::serialization::Value::makeNumber(cents)};
+		const bool took = applied(semis);
+		return applied(fine) && took;
+	};
+	if (where.affect_entire && where.kit_output) {
+		// Every sound row of the kit, each in its range 0 (`sample/transpose.h`'s kit sweep).
+		::Output* output = currentSong->outputForId(*where.kit_output);
+		if (output == nullptr || output->type != OutputType::KIT) {
+			return false;
+		}
+		bool took = true;
+		for (::Drum* drum = static_cast<::Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next) {
+			if (drum->type == DrumType::SOUND && drum->id()) {
+				took = one({deluge::project::SlotAddress::Kind::DRUM, *drum->id()}, std::nullopt) && took;
+			}
+		}
+		return took;
+	}
+	return where.slot && one(*where.slot, range);
 }
 
 void ShellEditSink::set_undo_scroll_after(deluge::project::ClipAddress clip, int32_t x_scroll) {

@@ -28,13 +28,15 @@
 #include "definitions_cxx.hpp"
 #include "dsp/reverb/reverb.hpp"
 #include "engine-api/types/sync.h"
+#include "engines/deluge/sound_state.h"
 #include "engines/effects/state.h"
 #include "engines/effects/words.h"
 #include "model/edits/setting_edit.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/song/song.h"
 #include "modulation/sync.h"
 #include "processing/engines/audio_engine.h"
+#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/write_sink.h"
 #include "scenes/menu/nodes/sound_sidechain.h"
 #include "serialization/value.h"
 
@@ -57,20 +59,36 @@ int32_t reverb_float_to_menu(float value) {
 enum StutterOption : uint8_t { kUseSong = 0, kForward, kReversed, kForwardPingPong, kReversedPingPong };
 
 /// @brief `StutterDirection::showUseSongOption()` (`stutter/direction.h:105`): the song's own
-///        stutter config has nothing to inherit from, so it does not offer "use song".
+///        stutter config has nothing to inherit from, so it does not offer "use song". Everything else the
+///        menu edits a stutter of -- a sound, a kit's or an audio track's chain -- is not the song's.
 bool show_use_song(const MenuContext& ctx) {
-	return ctx.mod != nullptr && !ctx.mod->isSong();
+	return ctx.addresses.slot.has_value()
+	       || (ctx.addresses.chain && ctx.addresses.chain_owner != bind::ChainOwner::SONG);
 }
 
-/// @brief @p v as a numeric effect setting.
-deluge::serialization::Value number_value(int32_t v) {
-	return deluge::serialization::Value::makeNumber(v);
+/// @brief The stutter the context edits, as its record holds it: its sound's, else its chain's.
+std::optional<deluge::effects::StutterState> stutter_of(const MenuContext& ctx) {
+	if (ctx.facts == nullptr) {
+		return std::nullopt;
+	}
+	if (ctx.addresses.slot) {
+		const deluge::instrument::SoundState* state = ctx.facts->sound_state(*ctx.addresses.slot);
+		return state != nullptr ? std::optional{state->effects.stutter} : std::nullopt;
+	}
+	if (ctx.addresses.chain) {
+		const deluge::effects::EffectStates* effects = ctx.facts->chain_effects(*ctx.addresses.chain);
+		return effects != nullptr ? std::optional{effects->stutter} : std::nullopt;
+	}
+	return std::nullopt;
 }
 
-/// @brief @p word as the effect setting's file form, as the legacy menus write it.
-template <typename Word>
-deluge::serialization::Value word_value(Word word) {
-	return deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(word)));
+/// @brief Write the stutter row @p path to @p on through the sink, over the whole kit under affect-entire.
+void write_stutter(const MenuContext& ctx, std::string_view path, bool on) {
+	bind::Addresses where = ctx.addresses;
+	where.affect_entire = bindings::writes_whole_kit(ctx);
+	(void)ctx.sink->write({.target = {.kind = bind::Target::Kind::EFFECT, .path = path, .whole_kit = true},
+	                       .where = where,
+	                       .menu_value = on ? 1 : 0});
 }
 
 } // namespace
@@ -141,21 +159,21 @@ size_t stutter_direction_names(const MenuContext& ctx, std::span<std::string_vie
 int32_t get_stutter_direction(const MenuContext& ctx) {
 	// `StutterDirection::readCurrentValue` (`stutter/direction.h`) and its private `setValue`
 	// shift: the option index drops by one when "use song" is not offered.
-	if (ctx.mod == nullptr) {
+	const std::optional<deluge::effects::StutterState> sc = stutter_of(ctx);
+	if (!sc) {
 		return 0;
 	}
-	const auto& sc = ctx.mod->effects().stutter;
 	StutterOption option = kForward;
-	if (show_use_song(ctx) && sc.use_song_stutter) {
+	if (show_use_song(ctx) && sc->use_song_stutter) {
 		option = kUseSong;
 	}
-	else if (sc.reversed && sc.ping_pong) {
+	else if (sc->reversed && sc->ping_pong) {
 		option = kReversedPingPong;
 	}
-	else if (sc.reversed) {
+	else if (sc->reversed) {
 		option = kReversed;
 	}
-	else if (sc.ping_pong) {
+	else if (sc->ping_pong) {
 		option = kForwardPingPong;
 	}
 	return static_cast<int32_t>(option) - (show_use_song(ctx) ? 0 : 1);
@@ -164,45 +182,41 @@ int32_t get_stutter_direction(const MenuContext& ctx) {
 void set_stutter_direction(const MenuContext& ctx, int32_t value) {
 	// The private `getValue()` shift, then `applyOptionToStutter` over the affect-entire sweep
 	// (`stutter/direction.h`).
-	const int32_t option = value + (show_use_song(ctx) ? 0 : 1);
-	bindings::apply_to_targets(
-	    ctx, option, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext& ctx) {
-		    if (t.mod == nullptr) {
-			    return;
-		    }
-		    deluge::edits::effectSettingFor(*t.mod, "stutter/useSongStutter", number_value(v == kUseSong ? 1 : 0));
-		    deluge::edits::effectSettingFor(*t.mod, "stutter/reverse",
-		                                    number_value(v == kReversed || v == kReversedPingPong ? 1 : 0));
-		    deluge::edits::effectSettingFor(*t.mod, "stutter/pingPong",
-		                                    number_value(v == kForwardPingPong || v == kReversedPingPong ? 1 : 0));
-		    if (t.mod->effects().stutter.use_song_stutter && ctx.song != nullptr) {
-			    // Inherit the song's settings wholesale.
-			    const auto& song_sc = ctx.song->live.global_effectable.effects().stutter;
-			    deluge::edits::effectSettingFor(*t.mod, "stutter/quantized", number_value(song_sc.quantized ? 1 : 0));
-			    deluge::edits::effectSettingFor(*t.mod, "stutter/reverse", number_value(song_sc.reversed ? 1 : 0));
-			    deluge::edits::effectSettingFor(*t.mod, "stutter/pingPong", number_value(song_sc.ping_pong ? 1 : 0));
-		    }
-	    });
+	if (ctx.sink == nullptr) {
+		return;
+	}
+	const int32_t v = value + (show_use_song(ctx) ? 0 : 1);
+	write_stutter(ctx, "stutter/useSongStutter", v == kUseSong);
+	write_stutter(ctx, "stutter/reverse", v == kReversed || v == kReversedPingPong);
+	write_stutter(ctx, "stutter/pingPong", v == kForwardPingPong || v == kReversedPingPong);
+	if (v == kUseSong && ctx.facts != nullptr) {
+		// Inherit the song's settings wholesale.
+		const deluge::effects::EffectStates* song =
+		    ctx.facts->chain_effects(deluge::project::ChainAddress{.kind = deluge::project::ChainAddress::Kind::SONG});
+		if (song != nullptr) {
+			write_stutter(ctx, "stutter/quantized", song->stutter.quantized);
+			write_stutter(ctx, "stutter/reverse", song->stutter.reversed);
+			write_stutter(ctx, "stutter/pingPong", song->stutter.ping_pong);
+		}
+	}
 }
 
 int32_t get_stutter_quantize(const MenuContext& ctx) {
 	// `stutter/quantized.h`'s `readCurrentValue`
-	return (ctx.mod != nullptr && ctx.mod->effects().stutter.quantized) ? 1 : 0;
+	const std::optional<deluge::effects::StutterState> sc = stutter_of(ctx);
+	return sc && sc->quantized ? 1 : 0;
 }
 void set_stutter_quantize(const MenuContext& ctx, int32_t value) {
 	// `QuantizedStutter::writeCurrentValue` (`stutter/quantized.h`). The affect-entire sweep tests
 	// the *context's* `use_song_stutter`, not each drum's, as legacy does.
-	const bool blocked_by_song =
-	    ctx.mod != nullptr && ctx.mod->effects().stutter.use_song_stutter && bindings::writes_whole_kit(ctx);
-	if (blocked_by_song) {
+	if (ctx.sink == nullptr) {
 		return;
 	}
-	bindings::apply_to_targets(
-	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		    if (t.mod != nullptr) {
-			    deluge::edits::effectSettingFor(*t.mod, "stutter/quantized", number_value(v != 0 ? 1 : 0));
-		    }
-	    });
+	const std::optional<deluge::effects::StutterState> sc = stutter_of(ctx);
+	if (sc && sc->use_song_stutter && bindings::writes_whole_kit(ctx)) {
+		return;
+	}
+	write_stutter(ctx, "stutter/quantized", value != 0);
 }
 
 namespace {
