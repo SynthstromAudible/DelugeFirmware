@@ -264,7 +264,8 @@ Song::Song() {
 	project.metadata.file_extension = deluge::storage::extensionOf(deluge::storage::kSongSaveFormat);
 
 	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
-	deluge::bridge::fillChains(*this); // the master's chain, from the effects it starts with
+	// The master plays its chain record from the start: a read of its effects lands in the record.
+	deluge::bridge::adoptChainState(live.global_effectable, project.master_effects, deluge::project::ChainHome::MASTER);
 }
 
 namespace {

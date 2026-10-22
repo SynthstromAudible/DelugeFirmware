@@ -24,6 +24,7 @@
 #include "engines/deluge/codec.h"
 #include "engines/deluge/engine.h"
 #include "engines/effects/codec.h"
+#include "engines/effects/engine.h"
 #include "model/drum/drum.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
@@ -168,22 +169,30 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 
 namespace {
 
-/// Where @p record and @p runtime first differ, or empty; the effects by their encodings at @p tick_magnitude.
-std::string chainDifference(const deluge::project::FxChain& record, const deluge::project::FxChain& runtime,
+/// Where @p owner, playing @p record, is out of step with it, or empty: it plays the record's effects and view (bound),
+/// the record's effects decode to what they encode (decode), and the render's copy is what it plays.
+std::string chainDifference(const ::GlobalEffectable& owner, const deluge::project::FxChain& record,
                             int32_t tick_magnitude) {
-	if (record.slots != runtime.slots) {
-		return "slots";
+	const deluge::effects::EffectStates* held = record.effects.as<deluge::effects::DelugeEffects>();
+	if (owner.boundChain() != &record || held != &owner.effects()) {
+		return "the owner does not play its record";
 	}
-	if (!(record.effects == runtime.effects)) {
-		const deluge::engine::CodecContext context{.input_tick_magnitude = tick_magnitude};
-		return "effects "
-		       + deluge::serialization::first_difference(record.effects.encode(context),
-		                                                 runtime.effects.encode(context));
+	const deluge::engine::CodecContext context{.input_tick_magnitude = tick_magnitude};
+	const deluge::serialization::Value encoded = record.effects.encode(context);
+	deluge::engine::StateHandle decoded = deluge::engine::StateHandle::of<deluge::effects::DelugeEffects>({});
+	if (!decoded.decode(encoded, context)) {
+		return "decode refused";
 	}
-	if (record.mod_fx_param != runtime.mod_fx_param || record.filter_type != runtime.filter_type) {
-		return "view";
+	if (const std::string d = deluge::serialization::first_difference(decoded.encode(context), encoded); !d.empty()) {
+		return "decode at " + d;
 	}
-	return record.reverb_return == runtime.reverb_return ? std::string{} : "reverb return";
+	if (owner.modControllableSnapshot().effects != owner.effects()) {
+		return "render copy";
+	}
+	if (owner.modControllableSnapshot().mod_fx_param != owner.modFXParam()) {
+		return "render copy's mod FX knob";
+	}
+	return {};
 }
 
 } // namespace
@@ -203,38 +212,21 @@ std::string chainIncoherence(::Song& song) {
 			if (!record->effects) {
 				return where + "no chain";
 			}
-			::GlobalEffectable* owner = deluge::bridge::chainOwnerAt(
+			const ::GlobalEffectable* owner = deluge::bridge::chainOwnerAt(
 			    {.kind = deluge::project::ChainAddress::Kind::OUTPUT, .id = *output->id()}, song);
-			if (const std::string d = chainDifference(
-			        *record->effects,
-			        deluge::bridge::encodeChainOf(owner->chainState(), deluge::project::ChainHome::CLIP),
-			        song.getInputTickMagnitude());
+			if (owner == nullptr) {
+				return where + "no owner";
+			}
+			if (const std::string d = chainDifference(*owner, *record->effects, song.getInputTickMagnitude());
 			    !d.empty()) {
 				return where + d;
 			}
-			if (owner->modControllableSnapshot().effects != owner->chainState().effects) {
-				return where + "render copy";
-			}
-			if (owner->modControllableSnapshot().mod_fx_param != owner->chainState().mod_fx_param) {
-				return where + "render copy's mod FX knob";
-			}
 		}
 	}
-	const deluge::project::FxChain& master = song.project.master_effects;
-	if (const std::string d = chainDifference(
-	        master,
-	        deluge::bridge::encodeChainOf(song.live.global_effectable.chainState(), deluge::project::ChainHome::MASTER),
-	        song.getInputTickMagnitude());
+	if (const std::string d =
+	        chainDifference(song.live.global_effectable, song.project.master_effects, song.getInputTickMagnitude());
 	    !d.empty()) {
 		return "master effects: " + d;
-	}
-	if (song.live.global_effectable.modControllableSnapshot().effects
-	    != song.live.global_effectable.chainState().effects) {
-		return "master effects: render copy";
-	}
-	if (song.live.global_effectable.modControllableSnapshot().mod_fx_param
-	    != song.live.global_effectable.chainState().mod_fx_param) {
-		return "master effects: render copy's mod FX knob";
 	}
 	return {};
 }

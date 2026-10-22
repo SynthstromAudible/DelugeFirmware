@@ -9,6 +9,7 @@
 #include "scenes/menu/context.h"
 
 #include "engine-api/types/setting.h"
+#include "engines/effects/engine.h"
 #include "engines/effects/settings.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
@@ -60,11 +61,12 @@ FilterMode lpf_of(const ModControllableAudio& owner) {
 	return owner.effects().filter.lpf_mode;
 }
 
-/// Whether @p chain's record decodes to what its owner holds.
+/// Whether @p chain's owner plays its record's effects.
 bool chain_coherent(Song& song, ChainAddress chain) {
 	const deluge::project::FxChain* record = song.project.resolveChain(chain);
 	::GlobalEffectable* owner = deluge::bridge::chainOwnerAt(chain, song);
-	return record != nullptr && owner != nullptr && deluge::bridge::chainStateOf(*record).effects == owner->effects();
+	return record != nullptr && owner != nullptr
+	       && record->effects.as<deluge::effects::DelugeEffects>() == &owner->effects();
 }
 
 ChainAddress output_chain(Output& output) {

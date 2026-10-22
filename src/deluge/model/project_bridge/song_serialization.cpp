@@ -180,7 +180,6 @@ Error loadSong(::Song& song, Deserializer& in) {
 	recordLoadedMappings(song);
 	deluge::midi::rebuildMappingIndex(song); // a song loaded as the current one; any other is indexed once current
 	refreshControls(song);
-	fillChains(song); // each host owner's chain from the effects it loaded
 	return Error::NONE;
 }
 

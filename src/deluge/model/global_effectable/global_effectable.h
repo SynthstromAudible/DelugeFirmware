@@ -103,9 +103,6 @@ public:
 	/// @brief Binds effects() to the chain state: each derived owner calls it in its constructor, once its chain
 	/// exists.
 	void bindChainState() { bindEffects(&chainState_.effects); }
-	/// @brief What a save writes: the chain's record as it decodes, or the state for an owner outside the current song.
-	/// @return The chain state to save.
-	[[nodiscard]] deluge::model::HostChainState savedChainState();
 	/// @return Which value the mod FX knob edits.
 	[[nodiscard]] ModFXParam modFXParam() const;
 	/// @return Which filter the filter knobs edit.

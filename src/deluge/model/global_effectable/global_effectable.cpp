@@ -817,20 +817,8 @@ void GlobalEffectable::ensureModFXParamIsValid() {
 	}
 }
 
-deluge::model::HostChainState GlobalEffectable::savedChainState() {
-	if (currentSong != nullptr) {
-		if (const std::optional<deluge::project::ChainAddress> address =
-		        deluge::bridge::chainAddressOf(*this, *currentSong)) {
-			if (const deluge::project::FxChain* record = currentSong->project.resolveChain(*address)) {
-				return deluge::bridge::chainStateOf(*record);
-			}
-		}
-	}
-	return chainState();
-}
-
 void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutomation) {
-	const deluge::model::HostChainState saved = savedChainState();
+	const deluge::model::HostChainState saved = chainState(); // its record's, while it plays one
 	writer.writeAttribute("modFXCurrentParam", modFXParamToString(saved.mod_fx_param));
 	writer.writeAttribute("currentFilterType", filterTypeToString(saved.filter_type));
 	ModControllableAudio::writeAttributesToFile(writer, saved.effects);
@@ -849,7 +837,7 @@ void GlobalEffectable::writeTagsToFile(Serializer& writer, ParamManager* paramMa
 	}
 
 	// A clip chain's render follows its threshold param; the file holds the setting, as the record does.
-	const deluge::model::HostChainState saved = savedChainState();
+	const deluge::model::HostChainState saved = chainState();
 	ModControllableAudio::writeTagsToFile(writer, saved.effects, knobsSong, knobsOwner);
 }
 

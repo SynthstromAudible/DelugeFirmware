@@ -135,22 +135,6 @@ std::optional<ChainAddress> chainAddressOf(const ::ModControllableAudio& owner, 
 	return found;
 }
 
-FxChain encodeChainOf(const deluge::model::HostChainState& state, ChainHome home) {
-	return chainFrom(state.effects, home,
-	                 {.mod_fx_param = static_cast<uint8_t>(util::to_underlying(state.mod_fx_param)),
-	                  .filter_type = static_cast<uint8_t>(util::to_underlying(state.filter_type))});
-}
-
-deluge::model::HostChainState chainStateOf(const FxChain& chain) {
-	deluge::model::HostChainState state;
-	if (const deluge::effects::EffectStates* effects = chain.effects.as<deluge::effects::DelugeEffects>()) {
-		state.effects = *effects;
-	}
-	state.mod_fx_param = static_cast<ModFXParam>(std::min<int32_t>(chain.mod_fx_param, kNumModFXParams - 1));
-	state.filter_type = static_cast<FilterType>(std::min<int32_t>(chain.filter_type, kNumFilterTypes - 1));
-	return state;
-}
-
 void adoptChainState(::GlobalEffectable& owner, FxChain& chain, ChainHome home) {
 	if (owner.boundChain() == &chain) {
 		return;
@@ -161,14 +145,6 @@ void adoptChainState(::GlobalEffectable& owner, FxChain& chain, ChainHome home) 
 	}
 	chain.reverb_return = deluge::effects::reverb_return(homeOf(home));
 	owner.bindChain(chain);
-}
-
-void fillChains(::Song& song) {
-	forEachOutput(song, [&](::Output& output) { recordOutputChain(output, song); });
-	adoptChainState(song.live.global_effectable, song.project.master_effects, ChainHome::MASTER);
-	// Setting a state reserves each delay's tape in the current song, which during a load is not yet this one: the
-	// reserves are worked out again in this song.
-	deluge::model::refreshDelayReserves(song);
 }
 
 void recordOutputChain(::Output& output, ::Song& song) {

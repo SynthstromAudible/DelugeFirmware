@@ -47,29 +47,12 @@ namespace deluge::bridge {
 [[nodiscard]] std::optional<deluge::project::ChainAddress> chainAddressOf(const ::ModControllableAudio& owner,
                                                                           ::Song& song);
 
-/// @brief A chain record holding @p state: its effects and its view, its slots @p home's effects in order.
-/// @param state The host chain state.
-/// @param home  Whether the chain is a clip's or the master's.
-/// @return The chain record.
-[[nodiscard]] deluge::project::FxChain encodeChainOf(const deluge::model::HostChainState& state,
-                                                     deluge::project::ChainHome home);
-
-/// @brief The state @p chain holds: its effects (the defaults when it holds none) and its view.
-/// @param chain The chain record.
-/// @return The decoded state.
-[[nodiscard]] deluge::model::HostChainState chainStateOf(const deluge::project::FxChain& chain);
-
 /// @brief @p owner plays @p chain from now on: the chain takes @p home's slots and what the owner plays. Nothing when
 /// the owner already plays it.
 /// @param owner The host owner.
 /// @param chain Its chain record.
 /// @param home  Whether the chain is a clip's or the master's.
 void adoptChainState(::GlobalEffectable& owner, deluge::project::FxChain& chain, deluge::project::ChainHome home);
-
-/// @brief After a song read, and in a new song: every kit, audio track and the master plays its chain record, which
-/// takes what the owner loaded; then the delays' reserves are worked out in this song.
-/// @param song The song.
-void fillChains(::Song& song);
 
 /// @brief A host owner that joined the song (adopted, created, a preset read over it) plays its own chain record, made
 /// when it has none. Nothing for another output, or one whose record is not its own.

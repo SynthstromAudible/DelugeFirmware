@@ -8,6 +8,7 @@
 // Exit: 0 every check holds; 1 the file does not load; 2 usage/IO; 3 a check fails.
 
 #include "deluge-project/fx_chain.h"
+#include "engines/effects/engine.h"
 #include "engines/effects/settings.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
@@ -363,10 +364,11 @@ void cloneLeg(Song& song) {
 	}
 	clone->cloneFrom(source);
 	deluge::bridge::cloneOutputMappings(*source, *clone, song);
-	deluge::bridge::recordOutputChain(*clone, song);
 	const HostOwner to{.address = {.kind = ChainAddress::Kind::OUTPUT, .id = clone->id().value_or(0)}, .name = "clone"};
 	const deluge::project::FxChain* record = song.project.resolveChain(to.address);
-	if (record == nullptr || deluge::bridge::chainStateOf(*record).effects.delay.ping_pong) {
+	const deluge::effects::EffectStates* held =
+	    record != nullptr ? record->effects.as<deluge::effects::DelugeEffects>() : nullptr;
+	if (held == nullptr || held->delay.ping_pong) {
 		fail(to, "delay/pingPong", Value::makeNumber(0), "the clone's record does not hold the source's delay");
 	}
 	else if (const std::string what = deluge::harness::chainIncoherence(song); !what.empty()) {
@@ -481,6 +483,14 @@ int host_effect_settings_main(int argc, char** argv, Io driverIo) {
 		return 1;
 	}
 	const std::vector<HostOwner> owners = hostOwners(*song);
+	// Straight out of the load, whose delays settled while the song was not yet current: each owner plays its
+	// record, which holds what the load settled.
+	if (const std::string what = deluge::harness::chainIncoherence(*song); !what.empty()) {
+		fail(owners.back(), "-", Value::makeScalar("load"), what);
+	}
+	else {
+		ok++;
+	}
 	reserveLeg(*song, owners);
 	for (const HostOwner& owner : owners) {
 		settingLegs(*song, owner);
