@@ -481,18 +481,15 @@ SCENES_LEGACY_HELPER = re.compile(
     r"|noteRowSettingFor|audioClipSettingFor|trackSettingFor|songSettingFor|songSettingFromMenu)\s*\(\s*(?:[^,;\"()]*,\s*)?(?:\"([^\"]*)\")?"
 )
 #: The scene files whose nodes write their rows by target, each with the paths a hook still writes through a legacy
-#: helper: the sidechain's volume (its menu scale is not the row's) and sync level (written beside the engine's sync
-#: type), the swing interval (a song-root hook), and an audio clip's interpolation (a sample hook not yet a target).
+#: helper: none.
 SCENES_CONVERTED: dict[str, frozenset[str]] = {
     "sound_arp.cpp": frozenset(),
     "sound_randomizer.cpp": frozenset(),
     "sound_bend.cpp": frozenset(),
-    "sound_fx.cpp": frozenset(
-        {"reverb/compressor/volume", "reverb/compressor/syncLevel"}
-    ),
-    "roots.cpp": frozenset({"swingInterval"}),
+    "sound_fx.cpp": frozenset(),
+    "roots.cpp": frozenset(),
     "sound_voice.cpp": frozenset(),
-    "sound_osc.cpp": frozenset({"linearInterpolation"}),
+    "sound_osc.cpp": frozenset(),
 }
 
 
@@ -554,6 +551,48 @@ def scene_param_writes(root: Path, allowed=None) -> list[str]:
     return found
 
 
+#: The engine's own edits a scene does not make: a clip's colour (the RECOLOUR request) or clear (CLEAR), a source's
+#: first range (the RANGES request), and the undo log, which the app's sink keeps.
+SCENES_ENGINE_CALL = re.compile(
+    r"\b(setColourOffset|getOrCreateFirstRange)\s*\(|(?:->|\.)\s*(clear)\s*\(\s*action\b|\b(actionLogger)\s*\."
+)
+#: The engine calls allowed under src/scenes, by file (relative to src/scenes) and the text the call's line holds, each
+#: with its reason.
+SCENES_ENGINE_ALLOWED: dict[str, dict[str, str]] = {
+    "recorder/recorder_scene.cpp": {
+        "actionLogger.deleteAllLogs()": "the recorder wipes the undo log on entry, as legacy's opened() does: the "
+        "recording is about to make every undo step meaningless",
+    },
+    "slicing/slicer_scene.cpp": {
+        "actionLogger.deleteAllLogs()": "the slicer wipes the undo log on entry, as legacy's focusRegained() does",
+    },
+    "services/global_controls.cpp": {
+        "actionLogger.deleteAllLogs()": "a sync-scaling change wipes the undo log: undo cannot step past it",
+        "actionLogger.allowedToDoReversion()": "the BACK button's undo asks whether there is a step to undo",
+    },
+}
+
+
+def scene_engine_calls(root: Path, allowed=None) -> list[str]:
+    """Every `path:line: calls the engine's ...` under @p root, less the lines @p allowed names (paths relative to
+    @p root)."""
+    allowed = SCENES_ENGINE_ALLOWED if allowed is None else allowed
+    found = []
+    for path in sorted(root.rglob("*")):
+        if path.suffix not in SUFFIXES or not path.is_file():
+            continue
+        allowances = allowed.get(str(path.relative_to(root)), {})
+        for number, code in code_lines(path.read_text(errors="replace")):
+            if any(text in code for text in allowances):
+                continue
+            if match := SCENES_ENGINE_CALL.search(code):
+                name = next(group for group in match.groups() if group)
+                found.append(
+                    f"{path}:{number}: calls the engine's {name} rather than a request to its sink"
+                )
+    return found
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, nargs="+", default=list(DEFAULT_ROOTS))
@@ -565,7 +604,7 @@ def main(argv=None) -> int:
         if root.resolve().is_relative_to(SCENES_ROOT):
             found += scene_follow_ups(root) + converted_scene_writes(root)
             if root.resolve() == SCENES_ROOT:
-                found += scene_param_writes(root)
+                found += scene_param_writes(root) + scene_engine_calls(root)
     found += host_writes() + song_state_writes(tuple(args.root))
     for line in found:
         print(line)

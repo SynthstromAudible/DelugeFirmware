@@ -674,6 +674,39 @@ RULES = [
         "2026-08-26-ui-scenes-menus-design.md",
     ),
     (
+        # A scene names no Edit: it hands a request to its menu's sink, which the app applies as the Edit, so the
+        # scenes build against the model's records and never reach the engine through an Edit's arguments. The menu's
+        # context builder is allowed `param_address_for.h` alone, for the gold knob's param address.
+        "scenes-no-edits",
+        ("src/scenes/**", "src/scenes/menu/context.cpp"),
+        "include",
+        r"^model/edits/",
+        "2026-10-18-scenes-bind-to-model-design.md",
+    ),
+    (
+        # A scene holds no engine object: a menu's context holds addresses into the model, and its reads come from the
+        # records and the runtime facts. The files allowed are where one is still the subject:
+        #   menu/context.{h,cpp}       the context builder walks the engine to derive the addresses, and keeps `mod`
+        #                              for the param popup and the gold knob;
+        #   overlay/param_popup_scene  the param popup, which edits the view's mod controllable;
+        #   services/mod_knobs, mod_target
+        #                              the gold knobs, which turn the mod controllable's knobs.
+        "scenes-no-engine-pointers",
+        (
+            "src/scenes/**",
+            "src/scenes/menu/context.{h,cpp}",
+            "src/scenes/overlay/param_popup_scene.{h,cpp}",
+            "src/scenes/services/mod_knobs.{h,cpp}",
+            "src/scenes/services/mod_target.h",
+        ),
+        "symbol",
+        (
+            r"\b(Sound|ModControllableAudio|ParamManager\w*|Output|ArpeggiatorSettings|Source|MultiRange|AudioClip"
+            r"|InstrumentClip)\s*\*"
+        ),
+        "2026-10-18-scenes-bind-to-model-design.md",
+    ),
+    (
         # Spec E §3 rule 4: `currentSong` is confined to the two files that resolve a MenuContext
         # (context.cpp, bindings.cpp) and even there only inside doc comments describing what was
         # *not* ported -- the live code takes the Song& from MenuContext. Baseline is the counted

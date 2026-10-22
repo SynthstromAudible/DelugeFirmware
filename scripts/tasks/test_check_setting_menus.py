@@ -174,7 +174,7 @@ class ConvertedScenes(unittest.TestCase):
             with self.subTest(name=name, line=line):
                 self.assertEqual(len(self.check(name, line)), 1, line)
 
-    def test_a_hook_left_on_its_helper_is_not(self):
+    def test_a_song_or_interpolation_hook_on_its_helper_is_reported(self):
         for name, line in (
             (
                 "sound_fx.cpp",
@@ -189,6 +189,12 @@ class ConvertedScenes(unittest.TestCase):
                 "sound_osc.cpp",
                 'deluge::edits::audioClipSettingFor(*clip, "linearInterpolation",',
             ),
+        ):
+            with self.subTest(name=name, line=line):
+                self.assertEqual(len(self.check(name, line)), 1, line)
+
+    def test_an_effect_edit_and_an_unconverted_file_are_not(self):
+        for name, line in (
             (
                 "sound_fx.cpp",
                 'deluge::edits::effectSettingFor(*t.mod, "stutter/reverse", v);',
@@ -364,6 +370,52 @@ class SongStateWrites(unittest.TestCase):
                 ),
                 [],
             )
+
+
+class SceneEngineCalls(unittest.TestCase):
+    """A scene calls none of the engine's own edits: a clip's colour or clear, a source's first range, the undo log."""
+
+    def check(self, line: str, name: str = "planted.cpp", allowed=None) -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / name).write_text(f"void gesture() {{\n\t{line}\n}}\n")
+            return csm.scene_engine_calls(
+                root, allowed={} if allowed is None else allowed
+            )
+
+    def test_each_engine_call_is_reported(self):
+        for line in (
+            "clip->setColourOffset(3);",
+            "clip->clear(action, modelStack);",
+            "clip.clear(action, modelStack, true);",
+            "actionLogger.deleteAllLogs();",
+            "Action* a = actionLogger.getNewAction(ActionType::MISC);",
+            "(void)source->getOrCreateFirstRange();",
+        ):
+            with self.subTest(line=line):
+                self.assertEqual(len(self.check(line)), 1, line)
+
+    def test_a_comment_and_another_clear_are_not(self):
+        for line in (
+            "// clip->setColourOffset(3) is the RECOLOUR request's",
+            "names.clear();",
+            "pressed_.thing->clear();",
+        ):
+            with self.subTest(line=line):
+                self.assertEqual(self.check(line), [], line)
+
+    def test_an_allowed_line_is_not_reported(self):
+        allowed = {
+            "planted.cpp": {
+                "actionLogger.deleteAllLogs()": "a scene that wipes the undo log on entry"
+            }
+        }
+        self.assertEqual(
+            self.check("actionLogger.deleteAllLogs();", allowed=allowed), []
+        )
+
+    def test_the_scenes_make_none(self):
+        self.assertEqual(csm.scene_engine_calls(csm.SCENES_ROOT), [])
 
 
 if __name__ == "__main__":

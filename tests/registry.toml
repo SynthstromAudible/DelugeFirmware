@@ -2376,8 +2376,8 @@ level = "unit"
 runner = "script"
 kind = "unit"
 status = "gate"
-gates = "this registry's loader, validation, selection and probes, the SDRAM annotation tool's tests, and the setting-menus checker's planted song-state writes"
-run = ["python3", "-m", "unittest", "test_harness_registry", "test_annotate_sdram", "test_check_setting_menus"]
+gates = "this registry's loader, validation, selection and probes, the SDRAM annotation tool's tests, the setting-menus checker's planted song-state writes and scene engine calls, and the layer rules' planted scenes rows"
+run = ["python3", "-m", "unittest", "test_harness_registry", "test_annotate_sdram", "test_check_setting_menus", "test_check_layer_rules"]
 tier = "pr"
 runtime = "~1s"
 
