@@ -25,13 +25,16 @@ namespace deluge::sample {
 
 void WaveformNav::opened(SampleHolder* holder) {
 	// Only if range is provided, grabs navigation from that if possible
+	opened(holder != nullptr ? holder->waveformViewScroll : 0, holder != nullptr ? holder->waveformViewZoom : 0);
+}
 
+void WaveformNav::opened(int64_t scroll, int64_t zoom) {
 	renderData.xScroll = -1;
 
 	// If want to use saved pos and sample already has peak info stored...
-	if (holder && holder->waveformViewZoom) {
-		xScroll = holder->waveformViewScroll;
-		xZoom = holder->waveformViewZoom;
+	if (zoom != 0) {
+		xScroll = scroll;
+		xZoom = zoom;
 
 		adjust_scroll_position();
 	}
@@ -41,8 +44,12 @@ void WaveformNav::opened(SampleHolder* holder) {
 	}
 }
 
+uint64_t WaveformNav::length() const {
+	return sample != nullptr ? sample->lengthInSamples : length_samples;
+}
+
 int32_t WaveformNav::max_zoom() const {
-	return ((sample->lengthInSamples - 1) >> kDisplayWidthMagnitude) + 1;
+	return ((length() - 1) >> kDisplayWidthMagnitude) + 1;
 }
 
 bool WaveformNav::is_zoomed_in() const {
@@ -175,7 +182,7 @@ bool WaveformNav::scroll(int32_t offset, bool shouldAllowExtraScrollRight, const
 			xScroll = newScroll;
 		}
 		else {
-			if (xScroll + xZoom * kDisplayWidth >= sample->lengthInSamples
+			if (xScroll + xZoom * kDisplayWidth >= length()
 			    && (!cols || cols[util::to_underlying(MarkerType::END)].colOnScreen < kDisplayWidth)) {
 				return false;
 			}
@@ -205,7 +212,7 @@ void WaveformNav::adjust_scroll_position(bool shouldAllowExtraScrollRight) {
 	else {
 		if (!shouldAllowExtraScrollRight) {
 			// Make sure not scrolled too far right
-			uint32_t lengthInSamples = sample->lengthInSamples;
+			uint32_t lengthInSamples = length();
 			int32_t scrollLimit = ((lengthInSamples - 1) / xZoom + 1 - kDisplayWidth) * xZoom;
 			if (xScroll > scrollLimit) {
 				xScroll = scrollLimit;

@@ -40,6 +40,13 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 		source.seedDocRanges(); // a gesture changed the runtime itself and records the result
 		return Error::NONE;
 	}
+	if (now.empty() && ranges.size() == 1 && ranges[0].file_path.empty()) {
+		// A source's first range, which an editor of its zone makes before any file is loaded into it.
+		if (source.getOrCreateFirstRange() == nullptr) {
+			return Error::INSUFFICIENT_RAM;
+		}
+		return applyRanges(sound, s, ranges);
+	}
 	if (now.size() != ranges.size()) {
 		return Error::UNSPECIFIED;
 	}

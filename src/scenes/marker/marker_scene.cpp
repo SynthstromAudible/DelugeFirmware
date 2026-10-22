@@ -11,24 +11,21 @@
 #include "gfx/grid/palette.h"
 #include "gfx/oled/icons.h"
 
+#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/write_sink.h"
+#include "scenes/menu/bind_host.h"
+#include "scenes/services/view_state.h"
+#include "scenes/services/waveforms.h"
+
+#include "deluge-project/setting_group.h"
 #include "gui/l10n/strings.h"
-#include "model/clip/audio_clip.h"
-#include "model/clip/clip.h"
-#include "model/edits/setting_edit.h"
-#include "model/instrument/instrument.h"
-#include "model/project_bridge/source_bridge.h"
-#include "model/sample/sample.h"
-#include "model/sample/sample_holder_for_voice.h"
 #include "model/sample/waveform_scan.h"
-#include "model/song/song.h"
-#include "playback/playback_handler.h"
-#include "processing/sound/sound.h"
-#include "processing/source.h"
-#include "storage/multi_range/multisample_range.h"
+#include "serialization/tree.h"
 
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <vector>
 
 namespace deluge::scenes::marker {
 
@@ -92,44 +89,83 @@ std::span<const RGB> marker_colours() {
 // ---------------------------------------------------------------------------------------------
 // Context
 
-MultisampleRange* MarkerScene::multi_range() const {
-	if (ctx_.is_audio_clip) {
-		return nullptr;
+std::optional<services::WaveformAddress> MarkerScene::address_of(const menu::MenuContext& ctx) {
+	// `getCurrentSampleHolder` (`sample_marker_editor.cpp:62`): the audio clip's own sample, else the
+	// selected multisample range's.
+	if (ctx.is_audio_clip) {
+		if (!ctx.addresses.clip) {
+			return std::nullopt;
+		}
+		return services::WaveformAddress{.kind = services::WaveformAddress::Kind::AUDIO_CLIP,
+		                                 .clip = *ctx.addresses.clip};
 	}
-	return static_cast<MultisampleRange*>(ctx_.range);
+	if (!ctx.addresses.slot || ctx.range_index < 0) {
+		return std::nullopt;
+	}
+	return services::WaveformAddress{.kind = services::WaveformAddress::Kind::RANGE,
+	                                 .slot = *ctx.addresses.slot,
+	                                 .source = static_cast<uint8_t>(ctx.source_index),
+	                                 .range = static_cast<uint16_t>(ctx.range_index)};
 }
 
-SampleHolder* MarkerScene::holder() const {
-	// `getCurrentSampleHolder` (`sample_marker_editor.cpp:62`): the audio clip's own holder, else
-	// the selected multisample range's. Legacy asks `getCurrentAudioClip()`; the context has
-	// already resolved which clip is current, so this asks it.
-	if (ctx_.is_audio_clip) {
-		auto* clip = static_cast<AudioClip*>(ctx_.clip);
-		return clip != nullptr ? &clip->sampleHolder : nullptr;
+const deluge::instrument::SourceState* MarkerScene::source_state() const {
+	if (ctx_.is_audio_clip || ctx_.facts == nullptr) {
+		return nullptr;
 	}
-	MultisampleRange* range = multi_range();
-	return range != nullptr ? &range->sampleHolder : nullptr;
+	const deluge::instrument::SoundState* state = ctx_.facts->sound_state(where_.slot);
+	return state != nullptr && where_.source < state->sources.size() ? &state->sources[where_.source] : nullptr;
+}
+
+const deluge::instrument::RangeState* MarkerScene::range_state() const {
+	const deluge::instrument::SourceState* source = source_state();
+	return source != nullptr && where_.range < source->ranges.size() ? &source->ranges[where_.range] : nullptr;
+}
+
+int64_t MarkerScene::audio_clip_row(std::string_view path) const {
+	if (ctx_.model == nullptr) {
+		return 0;
+	}
+	const std::optional<deluge::serialization::Value> value = deluge::project::read_setting(
+	    *ctx_.model, {.group = deluge::project::SettingGroupId::AUDIO_CLIP, .owner = where_.clip}, path);
+	return value ? deluge::serialization::int_of(&*value).value_or(0) : 0;
+}
+
+MarkerScene::Zone MarkerScene::zone() const {
+	if (ctx_.is_audio_clip) {
+		// An audio clip has no loop markers at all (`:255-261`).
+		return {.start = static_cast<uint64_t>(audio_clip_row("startSamplePos")),
+		        .end = static_cast<uint64_t>(audio_clip_row("endSamplePos"))};
+	}
+	const deluge::instrument::RangeState* range = range_state();
+	if (range == nullptr) {
+		return {};
+	}
+	return {.start = range->start_pos,
+	        .end = range->end_pos,
+	        .loop_start = range->loop_start_pos,
+	        .loop_end = range->loop_end_pos};
+}
+
+bool MarkerScene::reversed() const {
+	if (ctx_.is_audio_clip) {
+		return audio_clip_row("reversed") != 0;
+	}
+	const deluge::instrument::SourceState* source = source_state();
+	return source != nullptr && source->reversed;
+}
+
+services::SampleView MarkerScene::view() const {
+	return services::view_state().sample_view(where_).value_or(services::SampleView{});
 }
 
 bool MarkerScene::loop_locked() const {
-	// `isLoopLocked()` (`:79`).
-	MultisampleRange* range = multi_range();
-	return range != nullptr && range->sampleHolder.loopLocked;
+	// `isLoopLocked()` (`:79`): only a sound's range has a loop to lock.
+	return !ctx_.is_audio_clip && view().loop_locked;
 }
 
 MarkerType MarkerScene::reverse_remap(MarkerType type) const {
 	// `SampleMarkerEditor::reverseRemap` (`:83`).
-	//
-	// DIVERGENCE, small but labelled like the rest: legacy's `getCurrentSampleControls()` (`:71`)
-	// dereferences `soundEditor.currentSource` with no null test, so a context that resolved no
-	// source would crash there. `context_for` leaves `sample_controls` null on exactly the contexts
-	// this scene cannot open on anyway (`can()` refuses them first), so the guard is unreachable
-	// today; it reads `false` -- "not reversed" -- rather than crashing if that ever stops being
-	// true, which is the same survivable-spelling choice `Descriptor::can` made in `BrowserScene`.
-	// The same guard appears at `write_value`'s `claimClusterReasons` call and in
-	// `allow_extra_scroll_right`, for the same reason.
-	const bool reversed = ctx_.sample_controls != nullptr && ctx_.sample_controls->reversed;
-	if (!reversed) {
+	if (!reversed()) {
 		return type;
 	}
 	switch (type) {
@@ -150,16 +186,10 @@ MarkerType MarkerScene::reverse_remap(MarkerType type) const {
 
 bool MarkerScene::can(const menu::MenuContext& ctx) {
 	// `SampleMarkerEditor::opened`'s refusal (`:121-124`), plus the holder test legacy gets from
-	// `LoopPoint::checkPermissionToBeginSession` before it ever opens.
-	SampleHolder* h = nullptr;
-	if (ctx.is_audio_clip) {
-		auto* clip = static_cast<AudioClip*>(ctx.clip);
-		h = clip != nullptr ? &clip->sampleHolder : nullptr;
-	}
-	else if (ctx.range != nullptr) {
-		h = &static_cast<MultisampleRange*>(ctx.range)->sampleHolder;
-	}
-	return h != nullptr && h->audioFile != nullptr;
+	// `LoopPoint::checkPermissionToBeginSession` before it ever opens: no file loaded where the
+	// context points, or nowhere to point.
+	const std::optional<services::WaveformAddress> address = address_of(ctx);
+	return address && menu::host_waveforms().info(*address).has_value();
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -184,8 +214,12 @@ bool MarkerScene::on_enter(const SceneId& id) {
 	                   ? requested
 	                   : MarkerType::START;
 
-	nav_.sample = static_cast<Sample*>(holder()->audioFile);
-	nav_.opened(holder()); // `:126`
+	where_ = *address_of(ctx_);
+	services::view_state().forget_unless(ctx_.model);
+	nav_.sample = nullptr;
+	nav_.length_samples = menu::host_waveforms().info(where_)->length_samples;
+	const services::SampleView remembered = view();
+	nav_.opened(remembered.scroll, remembered.zoom); // `:126`
 
 	blink_phase_ = 0; // `:128`
 	blink_accum_ms_ = 0;
@@ -214,7 +248,7 @@ void MarkerScene::cols_on_screen(MarkerColumn* cols) const {
 	// `getStartColOnScreen` (`:218`) floors `(pos - xScroll) / xZoom`, and `getEndColOnScreen`
 	// (`:223`) floors `(pos - 1 - xScroll) / xZoom` -- an end marker names the column its LAST
 	// sample is in, which is why the two are not the same function.
-	const SampleHolder* h = holder();
+	const Zone z = zone();
 	const auto start_col = [this](int32_t pos) {
 		return divide_round_negative(static_cast<int32_t>(pos - nav_.xScroll), static_cast<int32_t>(nav_.xZoom));
 	};
@@ -222,17 +256,16 @@ void MarkerScene::cols_on_screen(MarkerColumn* cols) const {
 		return divide_round_negative(static_cast<int32_t>(pos - 1 - nav_.xScroll), static_cast<int32_t>(nav_.xZoom));
 	};
 
-	cols[idx(MarkerType::START)].pos = static_cast<int32_t>(h->startPos);
+	cols[idx(MarkerType::START)].pos = static_cast<int32_t>(z.start);
 	cols[idx(MarkerType::START)].colOnScreen = start_col(cols[idx(MarkerType::START)].pos);
 
 	if (!ctx_.is_audio_clip) {
-		const SampleHolderForVoice& sh = multi_range()->sampleHolder;
-		cols[idx(MarkerType::LOOP_START)].pos = static_cast<int32_t>(sh.loopStartPos);
+		cols[idx(MarkerType::LOOP_START)].pos = static_cast<int32_t>(z.loop_start);
 		cols[idx(MarkerType::LOOP_START)].colOnScreen = cols[idx(MarkerType::LOOP_START)].pos != 0
 		                                                    ? start_col(cols[idx(MarkerType::LOOP_START)].pos)
 		                                                    : kInvalidColumn;
 
-		cols[idx(MarkerType::LOOP_END)].pos = static_cast<int32_t>(sh.loopEndPos);
+		cols[idx(MarkerType::LOOP_END)].pos = static_cast<int32_t>(z.loop_end);
 		cols[idx(MarkerType::LOOP_END)].colOnScreen =
 		    cols[idx(MarkerType::LOOP_END)].pos != 0 ? end_col(cols[idx(MarkerType::LOOP_END)].pos) : kInvalidColumn;
 	}
@@ -244,7 +277,7 @@ void MarkerScene::cols_on_screen(MarkerColumn* cols) const {
 		cols[idx(MarkerType::LOOP_END)].colOnScreen = kInvalidColumn;
 	}
 
-	cols[idx(MarkerType::END)].pos = static_cast<int32_t>(h->endPos);
+	cols[idx(MarkerType::END)].pos = static_cast<int32_t>(z.end);
 	cols[idx(MarkerType::END)].colOnScreen = end_col(cols[idx(MarkerType::END)].pos);
 }
 
@@ -257,23 +290,25 @@ int32_t end_pos_from_col(const deluge::sample::WaveformNav& nav, int32_t col) {
 }
 
 void MarkerScene::record_scroll_and_zoom() {
-	// `SampleMarkerEditor::recordScrollAndZoom` (`:140`).
+	// `SampleMarkerEditor::recordScrollAndZoom` (`:140`), into the view-state store.
 	if (marker_type_ != MarkerType::NONE) {
-		SampleHolder* h = holder();
-		h->waveformViewScroll = nav_.xScroll;
-		h->waveformViewZoom = nav_.xZoom;
+		services::SampleView v = view();
+		v.scroll = nav_.xScroll;
+		v.zoom = nav_.xZoom;
+		services::view_state().set_sample_view(where_, v);
 	}
 }
 
 bool MarkerScene::allow_extra_scroll_right() const {
 	// `SampleMarkerEditor::shouldAllowExtraScrollRight` (`:1044`).
-	if (marker_type_ == MarkerType::NONE || (ctx_.sample_controls != nullptr && ctx_.sample_controls->reversed)) {
+	if (marker_type_ == MarkerType::NONE || reversed()) {
 		return false;
 	}
 	if (ctx_.is_audio_clip) {
 		return true;
 	}
-	return ctx_.source != nullptr && ctx_.source->repeatMode == SampleRepeatMode::STRETCH;
+	const deluge::instrument::SourceState* source = source_state();
+	return source != nullptr && source->repeat_mode == SampleRepeatMode::STRETCH;
 }
 
 void MarkerScene::set_loop_locked(bool locked) {
@@ -286,10 +321,12 @@ void MarkerScene::set_loop_locked(bool locked) {
 	// the l10n data rather than a port of the editor. The same argument `BrowserScene::Descriptor`
 	// makes for its two literal titles, with the opposite conclusion available there because a
 	// title is a `string_view` and a popup is not.
-	MultisampleRange* range = multi_range();
-	if (range != nullptr) {
-		range->sampleHolder.loopLocked = locked;
+	if (ctx_.is_audio_clip) {
+		return;
 	}
+	services::SampleView v = view();
+	v.loop_locked = locked;
+	services::view_state().set_sample_view(where_, v);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -301,70 +338,64 @@ void MarkerScene::write_value(uint32_t value, MarkerType which) {
 		which = marker_type_;
 	}
 
-	if (ctx_.is_audio_clip) {
-		// An audio clip's markers are its own descriptor's, moved with the voice taken off the sample, the moved part's
-		// clusters claimed and a playing clip resumed.
-		if (which == MarkerType::START || which == MarkerType::END) {
-			auto& clip = *static_cast<AudioClip*>(ctx_.clip);
-			auto move = [&] {
-				deluge::edits::audioClipSettingFor(clip, which == MarkerType::START ? "startSamplePos" : "endSamplePos",
-				                                   deluge::serialization::Value::makeNumber(value));
-			};
-			if (ctx_.song != nullptr) {
-				deluge::bridge::withVoiceReseated(clip, *ctx_.song, move);
-			}
-			else {
-				move();
-			}
-		}
+	if (ctx_.sink == nullptr) {
+		return;
 	}
-	else {
-		// A sound's markers are its range's zone: the new zone is built from the source's ranges and issued as one
-		// Edit, which writes the record and re-claims the clusters a moved zone needs.
-		std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(*ctx_.source);
-		if (ctx_.sound == nullptr || ctx_.range_index < 0 || static_cast<size_t>(ctx_.range_index) >= ranges.size()) {
-			return;
+	if (ctx_.is_audio_clip) {
+		// An audio clip's markers are rows of its record; the app moves one with the clip's voice taken off the
+		// sample, the moved part's clusters claimed and a playing clip resumed.
+		if (which == MarkerType::START || which == MarkerType::END) {
+			(void)ctx_.sink->move_audio_clip_marker(where_.clip,
+			                                        which == MarkerType::START ? "startSamplePos" : "endSamplePos",
+			                                        static_cast<int64_t>(value));
 		}
-		deluge::instrument::RangeState& range = ranges[ctx_.range_index];
-		const SampleHolderForVoice& sh = multi_range()->sampleHolder;
-		if (which == MarkerType::START) {
-			range.start_pos = value;
-		}
-		else if (which == MarkerType::LOOP_START) {
-			if (sh.loopLocked) {
-				const uint32_t intended_end = value + static_cast<uint32_t>(sh.loopLength());
-				if (uint64_t{intended_end} <= range.end_pos) {
-					range.loop_start_pos = value;
-					range.loop_end_pos = intended_end;
-				}
-			}
-			else {
-				range.loop_start_pos = value;
-			}
-		}
-		else if (which == MarkerType::LOOP_END) {
-			if (sh.loopLocked) {
-				const int32_t intended_start = static_cast<int32_t>(value) - sh.loopLength();
-				// pos == 0 would disable the loop, so the smallest legal start position is sample 1
-				if (intended_start >= 1 && static_cast<uint64_t>(intended_start) >= range.start_pos) {
-					range.loop_end_pos = value;
-					range.loop_start_pos = intended_start;
-				}
-			}
-			else {
-				range.loop_end_pos = value;
-			}
-		}
-		else if (which == MarkerType::END) {
-			range.end_pos = value;
-		}
-		deluge::edits::rangesFor(*ctx_.sound, ctx_.source_index, std::move(ranges));
+		return;
 	}
 
-	// The model-side tail (`:203-215`) is `menu::marker_written`, which lives beside
-	// `model_stack_for` because both arms need a `ModelStack` they can call a member on and this
-	// file may not include `model/model_stack.h` (`scenes-model-stack-outside-context`).
-	menu::marker_written(ctx_, which, /*resume_audio_clip=*/false);
+	// A sound's markers are its range's zone: the new zone is built from the source's ranges and written as one
+	// request, which the app applies to the record and the clusters a moved zone needs, then lets a sounding voice
+	// follow the moved marker (`:203-215`).
+	const deluge::instrument::SourceState* source = source_state();
+	if (source == nullptr || where_.range >= source->ranges.size()) {
+		return;
+	}
+	std::vector<deluge::instrument::RangeState> ranges = source->ranges;
+	deluge::instrument::RangeState& range = ranges[where_.range];
+	const bool locked = loop_locked();
+	const uint32_t loop_length = range.loop_end_pos - range.loop_start_pos;
+	if (which == MarkerType::START) {
+		range.start_pos = value;
+	}
+	else if (which == MarkerType::LOOP_START) {
+		if (locked) {
+			const uint32_t intended_end = value + loop_length;
+			if (uint64_t{intended_end} <= range.end_pos) {
+				range.loop_start_pos = value;
+				range.loop_end_pos = intended_end;
+			}
+		}
+		else {
+			range.loop_start_pos = value;
+		}
+	}
+	else if (which == MarkerType::LOOP_END) {
+		if (locked) {
+			const int32_t intended_start = static_cast<int32_t>(value - loop_length);
+			// pos == 0 would disable the loop, so the smallest legal start position is sample 1
+			if (intended_start >= 1 && static_cast<uint64_t>(intended_start) >= range.start_pos) {
+				range.loop_end_pos = value;
+				range.loop_start_pos = intended_start;
+			}
+		}
+		else {
+			range.loop_end_pos = value;
+		}
+	}
+	else if (which == MarkerType::END) {
+		range.end_pos = value;
+	}
+	(void)ctx_.sink->write_ranges(where_.slot, where_.source, ranges,
+	                              {.kind = bind::RangesCause::Kind::MARKER, .marker = static_cast<int8_t>(which)});
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -404,8 +435,8 @@ void MarkerScene::select_encoder(int32_t offset) {
 			}
 		}
 		else {
-			if (new_pos > static_cast<int32_t>(nav_.sample->lengthInSamples)) {
-				new_pos = static_cast<int32_t>(nav_.sample->lengthInSamples);
+			if (new_pos > static_cast<int32_t>(nav_.length())) {
+				new_pos = static_cast<int32_t>(nav_.length());
 			}
 		}
 	}
@@ -494,7 +525,7 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 			if (cols[idx(MarkerType::START)].colOnScreen >= x) {
 				return;
 			}
-			if (multi_range()->sampleHolder.loopEndPos != 0 && cols[idx(MarkerType::LOOP_END)].colOnScreen <= x) {
+			if (cols[idx(MarkerType::LOOP_END)].pos != 0 && cols[idx(MarkerType::LOOP_END)].colOnScreen <= x) {
 				return;
 			}
 			if (cols[idx(MarkerType::END)].colOnScreen <= x) {
@@ -502,7 +533,7 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 			}
 			const int32_t new_value = start_pos_from_col(nav_, x);
 			// Loop start and end points are not allowed to be further right than the waveform length
-			if (new_value >= static_cast<int32_t>(nav_.sample->lengthInSamples)) {
+			if (new_value >= static_cast<int32_t>(nav_.length())) {
 				return;
 			}
 			marker_type_ = MarkerType::LOOP_START;
@@ -531,7 +562,7 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 				return;
 			}
 			const int32_t new_value = end_pos_from_col(nav_, x);
-			if (new_value >= static_cast<int32_t>(nav_.sample->lengthInSamples)) {
+			if (new_value >= static_cast<int32_t>(nav_.length())) {
 				return;
 			}
 			marker_type_ = MarkerType::LOOP_END;
@@ -544,7 +575,7 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 
 		if (marker_held == MarkerType::LOOP_START && marker_pressed == MarkerType::LOOP_END) {
 			// Toggle loop lock (`:480-489`).
-			set_loop_locked(!multi_range()->sampleHolder.loopLocked);
+			set_loop_locked(!loop_locked());
 			return;
 		}
 
@@ -642,7 +673,7 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 	int32_t value = (marker_type_ < MarkerType::LOOP_END) ? start_pos_from_col(nav_, x) : end_pos_from_col(nav_, x);
 
 	{
-		const int32_t length = static_cast<int32_t>(nav_.sample->lengthInSamples);
+		const int32_t length = static_cast<int32_t>(nav_.length());
 		// Only the END marker, and only in some cases, is allowed to be further right than the
 		// waveform length
 		if (marker_type_ == MarkerType::END && allow_extra_scroll_right()) {
@@ -672,13 +703,13 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 	// `SampleMarkerEditor::horizontalEncoderAction`'s shift arm (`:688-728`): halve or double the
 	// locked loop.
 	if (loop_locked() && shift) {
-		SampleHolderForVoice& sh = multi_range()->sampleHolder;
-		uint32_t proposed_end = sh.loopEndPos;
+		const Zone z = zone();
+		uint32_t proposed_end = z.loop_end;
+		const uint32_t loop_length = z.loop_end - z.loop_start;
 
 		if (offset > 0) { // turn clockwise
-			const uint32_t loop_length = sh.loopLength();
-			proposed_end = sh.loopStartPos + 2 * loop_length;
-			if (proposed_end <= sh.endPos) {
+			proposed_end = z.loop_start + 2 * loop_length;
+			if (proposed_end <= z.end) {
 				(void)r.actions.push_back(
 				    Action{.kind = Action::Kind::Popup, .popup_string = sid(String::STRING_FOR_LOOP_DOUBLED)});
 			}
@@ -689,9 +720,8 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 			}
 		}
 		else { // turn anti-clockwise
-			const uint32_t loop_length = sh.loopLength();
 			if (loop_length > 2) {
-				proposed_end = sh.loopStartPos + loop_length / 2;
+				proposed_end = z.loop_start + loop_length / 2;
 				(void)r.actions.push_back(
 				    Action{.kind = Action::Kind::Popup, .popup_string = sid(String::STRING_FOR_LOOP_HALVED)});
 			}
@@ -703,9 +733,9 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 		}
 
 		// temporarily unlock the loop so we can write the end without moving the start
-		sh.loopLocked = false;
+		set_loop_locked(false);
 		write_value(proposed_end, MarkerType::LOOP_END);
-		sh.loopLocked = true;
+		set_loop_locked(true);
 		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 		return r;
 	}
@@ -837,7 +867,8 @@ std::optional<uint32_t> MarkerScene::next_timer() const {
 
 void MarkerScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 	(void)role;
-	if (nav_.sample == nullptr) {
+	const std::optional<services::WaveformInfo> info = menu::host_waveforms().info(where_);
+	if (!info) {
 		return;
 	}
 
@@ -879,11 +910,12 @@ void MarkerScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 
 	deluge::ui::oled::sample_position(
 	    f, deluge::gfx::oled::Rect{1, body_y(f), f.bounds().w - 1, 2 * deluge::ui::oled::kSamplePositionLineGap}, pos,
-	    nav_.sample->sampleRate);
+	    info->sample_rate);
 }
 
 void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
-	if (nav_.sample == nullptr) {
+	const std::optional<services::WaveformInfo> info = menu::host_waveforms().info(where_);
+	if (!info) {
 		return;
 	}
 
@@ -895,12 +927,11 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	// The scan can read the card, exactly as legacy's does from inside `renderMainPads`. A column
 	// it could not load stays `COL_STATUS_NOT_INVESTIGATED` and paints black, which is
 	// `waveform_full`'s own fallback -- the return value is not consulted for that reason.
-	(void)deluge::sample::find_peaks_per_col(nav_.sample, nav_.xScroll, static_cast<uint64_t>(nav_.xZoom),
-	                                         &nav_.renderData);
+	(void)menu::host_waveforms().peaks(where_, nav_.xScroll, static_cast<uint64_t>(nav_.xZoom), nav_.renderData);
 
 	std::array<deluge::ui::grid::PeakCol, kDisplayWidth> peaks{};
-	const int32_t centre = nav_.sample->getFoundValueCentrePoint();
-	const int32_t span = nav_.sample->getValueSpan();
+	const int32_t centre = info->centre;
+	const int32_t span = info->span;
 	for (int32_t x = 0; x < main_cols; x++) {
 		if (nav_.renderData.colStatus[x] != COL_STATUS_INVESTIGATED) {
 			continue;

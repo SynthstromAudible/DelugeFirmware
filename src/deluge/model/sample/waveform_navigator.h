@@ -66,6 +66,8 @@ namespace deluge::sample {
 ///       sample: two views of one sample scroll independently and each caches its own columns.
 struct WaveformNav {
 	Sample* sample{};
+	/// The waveform's length in samples, read where `sample` is null: a view that reaches its waveform by address.
+	uint64_t length_samples{};
 
 	int64_t xZoom{};
 	int64_t xScroll{};
@@ -79,6 +81,14 @@ struct WaveformNav {
 	/// every column as un-investigated.
 	/// @param holder The holder whose `waveformViewScroll`/`waveformViewZoom` to restore, or null.
 	void opened(SampleHolder* holder = nullptr);
+
+	/// @brief Adopt a remembered view, or open zoomed all the way out when @p zoom is 0.
+	/// @param scroll The remembered left edge, in samples.
+	/// @param zoom   The remembered samples per column, or 0 for none.
+	void opened(int64_t scroll, int64_t zoom);
+
+	/// @brief The waveform's length in samples: `sample`'s, else `length_samples`.
+	[[nodiscard]] uint64_t length() const;
 
 	/// @brief The zoom at which the whole sample fits across the display.
 	/// @return Samples per column, at least 1.

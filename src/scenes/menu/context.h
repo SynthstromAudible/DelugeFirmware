@@ -233,8 +233,8 @@ ModelStackWithThreeMainThings* model_stack_for(const MenuContext& ctx, void* mem
 
 /// @name The gold-knob model boundary (`services::ModKnobs`, E4 task 2)
 ///
-/// Three transactions that are not about menus at all, living here for exactly the reason
-/// `marker_written` below does: each one needs a `ModelStack` it can call members on, and this file
+/// Three transactions that are not about menus at all, living here because each one needs a
+/// `ModelStack` it can call members on, and this file
 /// plus `bindings.cpp` are the only two the `scenes-model-stack-outside-context` ratchet
 /// (`scripts/check_layer_rules.py`) lets include `model/model_stack.h`. The alternative was a third
 /// file on that rule's allow-list. Everything they take and return is POD over forward-declared
@@ -341,27 +341,10 @@ bool mod_encoder_button(const services::ModTarget& target, int32_t which_encoder
 bool mod_delete_automation(const services::ModTarget& target, int32_t which_encoder);
 /// @}
 
-/// @brief Tell the model that a sample marker moved -- the tail of `SampleMarkerEditor::writeValue`
-///        (`gui/ui/sample_marker_editor.cpp:203-215`).
-///
-/// Lives here, beside `model_stack_for`, for the reason the `scenes-model-stack-outside-context`
-/// rule exists: both arms need a `ModelStack` they can call a member on
-/// (`ModelStackWithTimelineCounter::resumePlayback`'s argument, and `addSoundFlags()`), and
-/// `model_stack_for`'s return type is only forward declared everywhere else in `src/scenes`. The
-/// alternative was a third file on that rule's allow-list.
-///
-/// @param ctx                What the marker was written to.
-/// @param marker             Which marker moved -- `Sound::sampleZoneChanged`'s first argument.
-/// @param resume_audio_clip  Only meaningful on an audio clip: was the clip playing a voice sample
-///                           before the write, so playback should be resumed after it? Legacy
-///                           computes this *before* `unassignVoiceSample` and passes it down the
-///                           same way (`:155-161`, `:203-209`).
-void marker_written(const MenuContext& ctx, MarkerType marker, bool resume_audio_clip);
-
 /// @brief Clear an audio clip -- the model half of `AudioClipView::buttonAction`'s `BACK` arm
 ///        (`gui/views/audio_clip_view.cpp:442-448`).
 ///
-/// Here for exactly the reason `marker_written` above is, and it is the only reason: `Clip::clear`
+/// Here for one reason: `Clip::clear`
 /// takes a `ModelStackWithTimelineCounter*` (`model/clip/clip.h:124`), legacy builds one with
 /// `setupModelStackWithTimelineCounter(modelStackMemory, currentSong, getCurrentClip())`
 /// (`audio_clip_view.cpp:445-446`), and `model/model_stack.h` may be included only by this file and
@@ -460,7 +443,8 @@ int32_t range_top_note(const MenuContext& ctx, int32_t index);
 ///
 /// @param ctx The context to top up; only `ctx.source` matters. A null source is a no-op success --
 ///            nothing is being edited that could want a range.
-/// @return False only on `INSUFFICIENT_RAM`, i.e. legacy's `MenuPermission::NO` arm at `:1939-1942`.
+/// @return False only where the sink refused the first range -- legacy's `INSUFFICIENT_RAM`, its
+///         `MenuPermission::NO` arm at `:1939-1942`.
 bool ensure_first_range(MenuContext& ctx);
 
 /// @brief Point @p ctx at range @p index -- `SoundEditor::setCurrentMultiRange`

@@ -22,10 +22,18 @@
 ///   * its lock icon + `invertArea` (`:1130-1133`) -> `ui::oled::title_badge`.
 ///   * its time and sample-count lines (`:1135-1222`) -> `ui::oled::sample_position`.
 ///
-/// The scan and the navigation are not widgets -- they read `Sample`, `SampleHolder` and the card,
-/// so they live one layer down in `model/sample/waveform_scan.h` and
+/// The scan and the navigation are not widgets: the scan reads the card through the waveform
+/// service (`scenes/services/waveforms.h`), and the navigation arithmetic lives in
 /// `model/sample/waveform_navigator.h`, which this layer may include and `src/ui` may not. That
 /// split is `ui/grid/waveform.h`'s own, written down before this scene existed.
+///
+/// @par Where the markers come from
+///
+/// The scene holds addresses, not engine objects: a sound's markers are its range's zone in the
+/// source's record (`RuntimeFacts::sound_state`), an audio clip's are rows of the clip's record.
+/// A move goes to the menu's sink: a sound's as its source's ranges with the marker named, an
+/// audio clip's as a marker request. The view (scroll, zoom) and the loop lock are the scene's
+/// own, kept in the view-state store (`scenes/services/view_state.h`) by waveform address.
 ///
 /// @par The waveform is on the pads only
 ///
@@ -79,6 +87,8 @@
 ///          and is not this scene's to file.
 
 #include "scenes/menu/context.h"
+#include "scenes/services/view_state.h"
+#include "scenes/services/waveform_address.h"
 #include "shell/scene.h"
 #include "ui/core/response.h"
 #include "ui/grid/effects.h"
@@ -91,9 +101,12 @@
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <string_view>
 
-class MultisampleRange;
-class SampleHolder;
+namespace deluge::instrument {
+struct RangeState;
+struct SourceState;
+} // namespace deluge::instrument
 
 namespace deluge::scenes::marker {
 
@@ -125,10 +138,10 @@ public:
 
 	/// @brief May the editor open on @p ctx at all?
 	///
-	/// The survivable spelling of `SampleMarkerEditor::opened`'s two refusals: no `Sample` on the
-	/// holder (`:121-124`, which pops up `STRING_FOR_NO_SAMPLE` and returns false) and -- an
-	/// addition, because this layer resolves the holder itself -- no holder to look at. Legacy gets
-	/// the second for free from `LoopPoint::checkPermissionToBeginSession`
+	/// The survivable spelling of `SampleMarkerEditor::opened`'s two refusals: no file loaded where
+	/// the context points (`:121-124`, which pops up `STRING_FOR_NO_SAMPLE` and returns false) and --
+	/// an addition, because this layer resolves the address itself -- no range or clip to point at.
+	/// Legacy gets the second for free from `LoopPoint::checkPermissionToBeginSession`
 	/// (`gui/menu_item/sample/loop_point.cpp:47-49`), which refuses before opening.
 	/// @param ctx The context to test.
 	/// @return True if `on_enter` will succeed.
@@ -209,14 +222,35 @@ private:
 	/// @param locked The new state.
 	void set_loop_locked(bool locked);
 
-	/// @brief The holder the markers live on: the audio clip's, or the multisample range's
+	/// @brief The four marker positions, in samples; the loop markers 0 where unset.
+	struct Zone {
+		uint64_t start{0};
+		uint64_t end{0};
+		uint32_t loop_start{0};
+		uint32_t loop_end{0};
+	};
+
+	/// @brief The waveform the markers sit on: the audio clip's, or the selected range's
 	///        (`getCurrentSampleHolder`, `:62`).
-	/// @return The holder, or null when the context resolves to neither.
-	SampleHolder* holder() const;
-	/// @brief `getCurrentMultisampleRange` (`:58`), or null on an audio clip.
-	MultisampleRange* multi_range() const;
+	/// @param ctx The context to resolve.
+	/// @return The address, or nullopt when the context names neither.
+	static std::optional<services::WaveformAddress> address_of(const menu::MenuContext& ctx);
+	/// @brief The edited source's record, or null on an audio clip or where the facts hold no sound.
+	const deluge::instrument::SourceState* source_state() const;
+	/// @brief The edited range's record, or null.
+	const deluge::instrument::RangeState* range_state() const;
+	/// @brief An integer row of the audio clip's record, or 0 where it has none.
+	/// @param path The row's path.
+	int64_t audio_clip_row(std::string_view path) const;
+	/// @brief The markers' positions, as the record holds them.
+	Zone zone() const;
+	/// @brief Is the sample played reversed?
+	bool reversed() const;
+	/// @brief The view the store remembers for the waveform, or an empty one.
+	services::SampleView view() const;
 
 	menu::MenuContext ctx_{};
+	services::WaveformAddress where_{};
 	deluge::sample::WaveformNav nav_{};
 
 	MarkerType marker_type_ = MarkerType::START;

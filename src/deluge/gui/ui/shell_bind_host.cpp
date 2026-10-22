@@ -35,6 +35,7 @@
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/param_stack.h"
 #include "model/project_bridge/patch_cable_words.h"
+#include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/setting_projection.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
@@ -48,6 +49,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
+#include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/menu/bind_host.h"
@@ -141,7 +143,7 @@ public:
 	                std::string_view text) override;
 	bool write_ranges(deluge::project::SlotAddress slot, uint8_t source,
 	                  std::span<const deluge::instrument::RangeState> ranges,
-	                  deluge::scenes::bind::RangesCause cause = deluge::scenes::bind::RangesCause::EDIT) override;
+	                  deluge::scenes::bind::RangesCause cause = {}) override;
 	bool recolour_clip(deluge::project::ClipAddress clip, int32_t offset) override;
 	bool clear_clip(deluge::project::ClipAddress clip, bool clear_automation, bool clear_sequence_and_mpe) override;
 	bool move_audio_clip_marker(deluge::project::ClipAddress clip, std::string_view path, int64_t value) override;
@@ -374,12 +376,25 @@ bool ShellEditSink::write_text(const deluge::scenes::bind::Target& target, const
 
 bool ShellEditSink::write_ranges(deluge::project::SlotAddress slot, uint8_t source,
                                  std::span<const deluge::instrument::RangeState> ranges,
-                                 deluge::scenes::bind::RangesCause /*cause*/) {
+                                 deluge::scenes::bind::RangesCause cause) {
 	if (currentSong == nullptr) {
 		return false;
 	}
 	deluge::edits::SetSourceRanges edit{slot, source, {ranges.begin(), ranges.end()}};
-	return applied(edit);
+	if (!applied(edit)) {
+		return false;
+	}
+	if (cause.kind == deluge::scenes::bind::RangesCause::Kind::MARKER) {
+		// A marker moved: the sounding voices follow the zone, and the instrument counts as edited.
+		::Sound* sound = deluge::bridge::soundAt(*currentSong, slot);
+		deluge::bridge::zoneMoved(*sound, source, static_cast<MarkerType>(cause.marker), *currentSong);
+		Instrument* instrument = sound->isDrum() ? static_cast<Instrument*>(static_cast<SoundDrum*>(sound)->kit)
+		                                         : static_cast<Instrument*>(static_cast<SoundInstrument*>(sound));
+		if (instrument != nullptr) {
+			instrument->beenEdited(true);
+		}
+	}
+	return true;
 }
 
 bool ShellEditSink::recolour_clip(deluge::project::ClipAddress clip, int32_t offset) {

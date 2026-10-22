@@ -42,10 +42,13 @@
 /// @note The spec may include `gui/` (for the legacy editor); the library may not. Same rule
 ///       `browser_scene_spec.cpp` runs under.
 
+#include "scenes/bind/write_sink.h"
 #include "scenes/marker/marker_scene.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
+#include "scenes/services/view_state.h"
 
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
@@ -83,6 +86,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <string>
 
 #include "spec/support/spec_main.h"
@@ -220,10 +224,12 @@ struct Rig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
+		currentSong = saved_song;
 	}
 
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
 	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
+		currentSong = song.song; // the app's sink and waveforms resolve addresses in the current song
 		sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
 		source = &sound->sources[0];
 		source->oscType = OscType::SAMPLE;
@@ -252,12 +258,33 @@ struct Rig {
 		return c;
 	}
 
+	/// @brief The range's waveform address.
+	deluge::scenes::services::WaveformAddress where() {
+		return {.kind = deluge::scenes::services::WaveformAddress::Kind::RANGE, .slot = *ctx().addresses.slot};
+	}
+
+	/// @brief The view the scene remembers for the range, if any.
+	std::optional<deluge::scenes::services::SampleView> view() {
+		return deluge::scenes::services::view_state().sample_view(where());
+	}
+
 	/// @brief Open the editor on @p marker, the way `LoopPoint::beginSession` does.
-	void open(MarkerType marker) {
+	/// @param sink Where the scene's writes go; the app's sink when null.
+	void open(MarkerType marker, bind::WriteSink* sink = nullptr) {
 		// Examples set the holder by hand before opening; record it as a load would, since an Edit starts from the
 		// record.
 		deluge::bridge::recordLoadedSound(*sound, *song.song);
-		marker_scene().open(ctx());
+		// Legacy remembers the view and the loop lock on the holder, the scene in the view-state store: both start
+		// from the holder's.
+		const SampleHolderForVoice& h = range->sampleHolder;
+		deluge::scenes::services::view_state().forget_unless(&song.song->project);
+		deluge::scenes::services::view_state().set_sample_view(
+		    where(), {.scroll = h.waveformViewScroll, .zoom = h.waveformViewZoom, .loop_locked = h.loopLocked});
+		MenuContext c = ctx();
+		if (sink != nullptr) {
+			c.sink = sink;
+		}
+		marker_scene().open(c);
 		shell.init(SceneId{kMarkerSceneKind, static_cast<uint16_t>(static_cast<int16_t>(marker))});
 	}
 
@@ -285,6 +312,8 @@ struct Rig {
 
 	std::string oled() { return fake.pbm(0); }
 	std::string grid() { return fake.state(); }
+
+	Song* const saved_song = currentSong;
 };
 
 /// @brief Everything about the holder either side can move, so a legacy run can start from exactly
@@ -342,6 +371,7 @@ struct AudioRig {
 	explicit AudioRig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard,
 	                  const BoardProfile& p = deluge_profile())
 	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
+		currentSong = f.song; // the app's sink and waveforms resolve addresses in the current song
 		f.clip->sampleHolder.audioFile = sample;
 		f.clip->sampleHolder.neutralPhaseIncrement = kMaxSampleValue;
 		f.clip->sampleHolder.waveformViewZoom = 0;
@@ -354,11 +384,17 @@ struct AudioRig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
+		currentSong = saved_song;
 	}
 
 	/// @brief Open the scene on @p marker over the audio clip.
-	void open(MarkerType marker) {
-		marker_scene().open(menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false));
+	/// @param sink Where the scene's writes go; the app's sink when null.
+	void open(MarkerType marker, bind::WriteSink* sink = nullptr) {
+		MenuContext c = menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
+		if (sink != nullptr) {
+			c.sink = sink;
+		}
+		marker_scene().open(c);
 		shell.init(SceneId{kMarkerSceneKind, static_cast<uint16_t>(static_cast<int16_t>(marker))});
 	}
 	void tick(uint32_t at_ms) { shell.tick(at_ms); }
@@ -374,6 +410,8 @@ struct AudioRig {
 	[[nodiscard]] std::pair<uint64_t, uint64_t> played() const {
 		return {f.clip->sampleHolder.startPos, f.clip->sampleHolder.endPos};
 	}
+
+	Song* const saved_song = currentSong;
 };
 
 void open_legacy(Rig& r, MarkerType marker) {
@@ -624,6 +662,103 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.f.clip->unassignVoiceSample(false);
 		r.f.clip->activeIfNoSolo = false;
 		playbackHandler.playbackState = saved_playback_state;
+	});
+
+	it("hands a moved marker to the menu's sink as its source's ranges, naming the marker", _ {
+		Rig r;
+		bind::RecordingSink recording;
+		r.open(MarkerType::START, &recording);
+		r.tick(0);
+		r.turn_select(1, 10);
+		r.tick(10);
+		expect(recording.gestures.size()).to_equal(size_t{1});
+		if (recording.gestures.empty()) {
+			return;
+		}
+		const bind::GestureRequest& g = recording.gestures[0];
+		expect(g.kind == bind::GestureRequest::Kind::RANGES).to_be_true();
+		expect(g.slot == *r.ctx().addresses.slot && g.source == 0).to_be_true();
+		expect(g.ranges.size()).to_equal(size_t{1});
+		expect(static_cast<int32_t>(g.ranges[0].start_pos)).to_equal(kZoomMax);
+		expect(g.cause == bind::RangesCause{.kind = bind::RangesCause::Kind::MARKER,
+		                                    .marker = static_cast<int8_t>(MarkerType::START)})
+		    .to_be_true();
+		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(0); // nothing but the sink wrote
+	});
+
+	it("hands an audio clip's moved marker to the menu's sink by the clip's address", _ {
+		AudioRig r;
+		bind::RecordingSink recording;
+		r.open(MarkerType::END, &recording);
+		r.tick(0);
+		r.turn_select(-1, 10);
+		r.tick(10);
+		expect(recording.gestures.size()).to_equal(size_t{1});
+		if (recording.gestures.empty()) {
+			return;
+		}
+		const bind::GestureRequest& g = recording.gestures[0];
+		expect(g.kind == bind::GestureRequest::Kind::MARKER).to_be_true();
+		expect(g.clip == deluge::project::ClipAddress{r.f.clip->id()}).to_be_true();
+		expect(g.text).to_equal(std::string{"endSamplePos"});
+		expect(static_cast<int64_t>(g.value)).to_equal(static_cast<int64_t>(kSampleLength - kZoomMax));
+		expect(r.played().second).to_equal(kSampleLength);
+	});
+
+	it("counts a moved marker as editing the instrument", _ {
+		Rig r;
+		r.song.instrument->editedByUser = false;
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.turn_select(1, 10);
+		r.tick(10);
+		expect(r.song.instrument->editedByUser).to_be_true();
+	});
+
+	it("remembers its view in the view-state store, not on the holder", _ {
+		Rig r;
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.x_enc_button(true, 10);
+		r.tick(10);
+		r.turn_horizontal(1, 20);
+		r.tick(20);
+		expect(r.view().has_value()).to_be_true();
+		expect(static_cast<int32_t>(r.view()->zoom)).to_equal(kZoomMax / 2);
+		expect(static_cast<int32_t>(r.range->sampleHolder.waveformViewZoom)).to_equal(0);
+	});
+
+	it("writes a source's first range into the record when the editor is reached on a source with none", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		Song* const saved = currentSong;
+		currentSong = f.song;
+		auto* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
+		deluge::edits::settingFor(*sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
+		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *f.instrument->id()};
+		const bool had_none = menu::host_runtime_facts().sound_state(slot)->sources[0].ranges.empty();
+
+		MenuContext recorded = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		bind::RecordingSink recording;
+		recorded.sink = &recording;
+		if (had_none) {
+			expect(menu::ensure_first_range(recorded)).to_be_true();
+			expect(recording.gestures.size()).to_equal(size_t{1});
+			if (recording.gestures.empty()) {
+				currentSong = saved;
+				return;
+			}
+			expect(recording.gestures[0].kind == bind::GestureRequest::Kind::RANGES).to_be_true();
+			expect(recording.gestures[0].ranges.size()).to_equal(size_t{1});
+			expect(recording.gestures[0].ranges[0].top_note).to_equal(deluge::instrument::kOpenTopNote);
+		}
+
+		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		expect(menu::ensure_first_range(ctx)).to_be_true();
+		expect(ctx.range != nullptr && ctx.range_index == 0).to_be_true();
+		expect(menu::host_runtime_facts().sound_state(slot)->sources[0].ranges.size()).to_equal(size_t{1});
+		expect(deluge::harness::soundIncoherence(*sound, *f.song)).to_equal(std::string{});
+		expect(had_none).to_be_true();
+		currentSong = saved;
 	});
 
 	it("moves a playing clip's marker through SetSetting alone without taking its voice off the sample", _ {
@@ -1116,7 +1251,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(10);
 		r.pad(7, 3, true, 20); // tap LOOP_END
 		r.tick(20);
-		const bool ported_locked = r.range->sampleHolder.loopLocked;
+		const bool ported_locked = r.view().has_value() && r.view()->loop_locked;
 
 		restore(r, before);
 		open_legacy(r, MarkerType::LOOP_START);

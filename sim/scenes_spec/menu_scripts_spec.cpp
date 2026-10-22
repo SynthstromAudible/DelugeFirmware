@@ -219,6 +219,7 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "model/clip/clip.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "modulation/params/param_descriptor.h"
@@ -517,6 +518,8 @@ MultisampleRange* install_sample_source(spec::SongFixture& song, Sample* sample)
 		range->sampleHolder.waveformViewZoom = 0; // no remembered view -- open zoomed out
 		range->sampleHolder.waveformViewScroll = 0;
 	}
+	// Set field by field: record it as a load does, so the record the scenes read is the source's truth.
+	deluge::bridge::recordLoadedSound(*sound, *song.song);
 	return range;
 }
 

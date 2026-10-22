@@ -344,6 +344,13 @@ void retuneVoices(::Sound& sound, ::Song& song) {
 	}
 }
 
+void zoneMoved(::Sound& sound, int32_t s, MarkerType marker, ::Song& song) {
+	char memory[MODEL_STACK_MAX_SIZE];
+	if (ModelStackWithSoundFlags* modelStack = modelStackFor(memory, sound, song)) {
+		sound.sampleZoneChanged(marker, s, modelStack);
+	}
+}
+
 Error applySetting(::Sound& sound, std::string_view path, const deluge::serialization::Value& value, ::Song& song) {
 	if (!deluge::instrument::check_setting(path, value)) {
 		return Error::UNSPECIFIED;

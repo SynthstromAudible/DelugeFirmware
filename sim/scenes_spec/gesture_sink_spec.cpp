@@ -157,6 +157,42 @@ describe gesture_sink("a scene's gestures through the app's sink", ${
 		currentSong = saved;
 	});
 
+	it("takes a marker editor's ranges as an edit of the instrument", _ {
+		spec::SongFixture synth = spec::make_synth_song();
+		Song* const saved = currentSong;
+		currentSong = synth.song;
+		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *synth.instrument->id()};
+		auto& sound = *static_cast<SoundInstrument*>(synth.instrument);
+		deluge::edits::settingFor(sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
+		(void)sound.sources[0].getOrCreateFirstRange();
+		deluge::edits::recordRanges(sound, 0);
+		std::vector<deluge::instrument::RangeState> ranges = menu::host_runtime_facts().sound_state(slot)->sources[0].ranges;
+		ranges[0].start_pos = 100;
+		synth.instrument->editedByUser = false;
+		expect(menu::host_write_sink().write_ranges(slot, 0, ranges,
+		                                            {.kind = bind::RangesCause::Kind::MARKER,
+		                                             .marker = static_cast<int8_t>(MarkerType::START)}))
+		    .to_be_true();
+		expect(synth.instrument->editedByUser).to_be_true();
+		expect(menu::host_runtime_facts().sound_state(slot)->sources[0].ranges[0].start_pos).to_equal(uint64_t{100});
+		currentSong = saved;
+	});
+
+	it("makes a source's first range by its slot", _ {
+		spec::SongFixture synth = spec::make_synth_song();
+		Song* const saved = currentSong;
+		currentSong = synth.song;
+		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *synth.instrument->id()};
+		auto& sound = *static_cast<SoundInstrument*>(synth.instrument);
+		deluge::edits::settingFor(sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
+		expect(menu::host_runtime_facts().sound_state(slot)->sources[0].ranges.empty()).to_be_true();
+		const std::vector<deluge::instrument::RangeState> first{{.top_note = deluge::instrument::kOpenTopNote}};
+		expect(menu::host_write_sink().write_ranges(slot, 0, first)).to_be_true();
+		expect(menu::host_runtime_facts().sound_state(slot)->sources[0].ranges.size()).to_equal(size_t{1});
+		expect(std::ssize(sound.sources[0].ranges)).to_equal(1);
+		currentSong = saved;
+	});
+
 	it("refuses each request on an address that does not resolve", _ {
 		spec::SongFixture synth = spec::make_synth_song();
 		Song* const saved = currentSong;

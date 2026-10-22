@@ -36,6 +36,14 @@ namespace deluge::bridge {
 /// @param song  The song it plays in.
 void retuneVoices(::Sound& sound, ::Song& song);
 
+/// @brief A marker of source @p s's zone moved: the sound's sounding voices follow it, and a voice the zone no longer
+/// holds ends.
+/// @param sound  The sound.
+/// @param s      The source index.
+/// @param marker The marker that moved.
+/// @param song   The song it plays in.
+void zoneMoved(::Sound& sound, int32_t s, MarkerType marker, ::Song& song);
+
 /// @brief Change @p sound's setting at @p path (a path of the Deluge instrument's settings schema) to @p value, as the
 /// sound editor's menu for it does, side effects included: the runtime's own setter for the path.
 ///

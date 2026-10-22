@@ -33,9 +33,14 @@ struct WriteRequest {
 
 /// @brief Why a source's ranges are written: a plain edit, or a marker the marker editor moved (which a sounding voice
 ///        follows, and which counts as editing the instrument).
-enum class RangesCause : uint8_t {
-	EDIT,
-	MARKER,
+struct RangesCause {
+	enum class Kind : uint8_t {
+		EDIT,
+		MARKER,
+	};
+	Kind kind{Kind::EDIT};
+	int8_t marker{0}; ///< the moved marker's `MarkerType` value (START 0 .. END 3), for a MARKER cause
+	bool operator==(const RangesCause&) const = default;
 };
 
 /// @brief Takes a menu's writes. The app's sink applies each as the target's Edit; a spec's records them.
@@ -63,7 +68,7 @@ public:
 	/// @brief Write source @p source's ranges of the sound at @p slot.
 	/// @return Whether it was taken.
 	virtual bool write_ranges(project::SlotAddress slot, uint8_t source, std::span<const instrument::RangeState> ranges,
-	                          RangesCause cause = RangesCause::EDIT) = 0;
+	                          RangesCause cause = {}) = 0;
 	/// @brief Move @p clip's colour by @p offset. Not undoable, as legacy's recolour is not.
 	/// @return Whether it was taken.
 	virtual bool recolour_clip(project::ClipAddress clip, int32_t offset) = 0;
@@ -89,7 +94,7 @@ struct GestureRequest {
 	project::SlotAddress slot{};
 	uint8_t source{0};
 	std::vector<instrument::RangeState> ranges;
-	RangesCause cause{RangesCause::EDIT};
+	RangesCause cause{};
 	project::ClipAddress clip{};
 	int64_t value{0};
 	bool clear_automation{false};
@@ -112,7 +117,7 @@ public:
 	bool delete_automation(const project::ParamAddress& address) override;
 	bool write_text(const Target& target, const Addresses& where, std::string_view text) override;
 	bool write_ranges(project::SlotAddress slot, uint8_t source, std::span<const instrument::RangeState> ranges,
-	                  RangesCause cause = RangesCause::EDIT) override;
+	                  RangesCause cause = {}) override;
 	bool recolour_clip(project::ClipAddress clip, int32_t offset) override;
 	bool clear_clip(project::ClipAddress clip, bool clear_automation, bool clear_sequence_and_mpe) override;
 	bool move_audio_clip_marker(project::ClipAddress clip, std::string_view path, int64_t value) override;

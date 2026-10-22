@@ -87,6 +87,7 @@
 #include "processing/source.h"
 #include "storage/multi_range/multi_range.h"
 
+#include <array>
 #include <iterator>
 
 namespace deluge::scenes::menu {
@@ -118,10 +119,20 @@ bool ensure_first_range(MenuContext& ctx) {
 	if (ctx.source == nullptr) {
 		return true;
 	}
-	MultiRange* first = ctx.source->getOrCreateFirstRange(); // `:1993`
-	if (first == nullptr) {
-		return false; // `:1994-1997` -- INSUFFICIENT_RAM, which legacy answers with `MenuPermission::NO`
+	if (range_count(ctx) == 0) {
+		// `:1993`, as a request: the first range, which the app makes and the record holds. A refusal is
+		// `:1994-1997`'s INSUFFICIENT_RAM, which legacy answers with `MenuPermission::NO`.
+		const std::array<deluge::instrument::RangeState, 1> first{
+		    deluge::instrument::RangeState{.top_note = deluge::instrument::kOpenTopNote}};
+		if (ctx.sink == nullptr || !ctx.addresses.slot
+		    || !ctx.sink->write_ranges(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index), first)) {
+			return false;
+		}
+		if (range_count(ctx) == 0) {
+			return true; // a sink that only records the request made nothing to point at
+		}
 	}
+	MultiRange* first = static_cast<MultiRange*>(ctx.source->ranges.getElement(0));
 	// `:2005-2007` -- the same unambiguous cases `context_for` resolves, re-applied now that a range
 	// is guaranteed to exist. A source that had none until a moment ago now has exactly one.
 	if (ctx.is_kit || range_count(ctx) == 1) {
@@ -565,32 +576,6 @@ Permission permission_for(const Node& node, const MenuContext& ctx) {
 	}
 
 	return Permission::MustSelectRange; // `:1959`
-}
-
-void marker_written(const MenuContext& ctx, MarkerType marker, bool resume_audio_clip) {
-	char memory[MODEL_STACK_MAX_SIZE];
-
-	if (ctx.is_audio_clip) {
-		// `sample_marker_editor.cpp:203-209`. Legacy builds the stack from
-		// `currentSong->setupModelStackWithCurrentClip`; the context names both the song and the
-		// clip, so this builds the same stack without reading the global (`scenes-currentSong`).
-		if (resume_audio_clip) {
-			ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, ctx.song, ctx.clip);
-			ctx.clip->resumePlayback(stack, true);
-		}
-		return;
-	}
-
-	// `:210-215`.
-	if (ctx.sound != nullptr) {
-		ModelStackWithThreeMainThings* stack = model_stack_for(ctx, memory);
-		ctx.sound->sampleZoneChanged(marker, ctx.source_index, stack->addSoundFlags());
-	}
-	if (ctx.output != nullptr) {
-		// `getCurrentInstrument()->beenEdited(true)`. This arm is the non-audio-clip one, so the
-		// output really is an `Instrument` -- the same cast legacy's `getCurrentInstrument()` makes.
-		static_cast<Instrument*>(ctx.output)->beenEdited(true);
-	}
 }
 
 void clip_cleared(Song& song, Clip& clip, ::Action* action, bool clear_automation, bool clear_sequence_and_mpe) {
