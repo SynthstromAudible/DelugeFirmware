@@ -92,5 +92,42 @@ class ScenesRows(unittest.TestCase):
         self.assertEqual(found, {})
 
 
+class ParamBackupRows(unittest.TestCase):
+    counts = ScenesRows.counts
+
+    def test_a_backup_call_keyed_by_a_cast_is_counted(self):
+        for line in (
+            "song->live.param_backup.getPreferablyWithClip((ModControllableAudio*)o, nullptr);",
+            "song->live.param_backup.backUp(static_cast<ModControllableAudio*>(o->toModControllable()), c, &p);",
+        ):
+            with self.subTest(line=line):
+                counts = self.counts(
+                    "src/deluge/model/planted.cpp", f"void f() {{\n\t{line}\n}}\n"
+                )
+                self.assertEqual(counts.get("param-backup-by-address"), 1, line)
+
+    def test_the_old_key_shape_is_counted(self):
+        counts = self.counts(
+            "src/deluge/model/project_bridge/param_backup.h",
+            "deluge::fast_map<std::pair<ModControllableAudio*, Clip*>, ParamManager> map;\n",
+        )
+        self.assertEqual(counts.get("param-backup-by-address"), 1)
+
+    def test_a_typed_owner_is_not(self):
+        counts = self.counts(
+            "src/deluge/model/planted.cpp",
+            "void f() {\n\tsong->live.param_backup.backUp(*output, nullptr, &p);\n}\n",
+        )
+        self.assertNotIn("param-backup-by-address", counts)
+
+    def test_the_tree_holds_neither(self):
+        found = {
+            key: n
+            for key, n in clr.current().items()
+            if key[1] == "param-backup-by-address"
+        }
+        self.assertEqual(found, {})
+
+
 if __name__ == "__main__":
     unittest.main()

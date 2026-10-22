@@ -684,6 +684,19 @@ RULES = [
         "2026-10-18-scenes-bind-to-model-design.md",
     ),
     (
+        # The param backup is keyed by its owner's address and clip id. A caller names the owner it holds, typed (an
+        # output or a drum); a cast to ModControllableAudio, or the old (ModControllableAudio*, Clip*) key, names the
+        # engine object the key replaced.
+        "param-backup-by-address",
+        "src/deluge/**",
+        "symbol",
+        (
+            r"\bparam_backup\.\w+\(\s*(\(\s*ModControllableAudio\s*\*\s*\)|static_cast<ModControllableAudio\s*\*>)"
+            r"|std::pair<\s*ModControllableAudio\s*\*\s*,\s*Clip\s*\*\s*>"
+        ),
+        "2026-10-18-scenes-bind-to-model-design.md",
+    ),
+    (
         # The same rule over the context builder: every Edit header but the gold knob's param address.
         "scenes-no-edits",
         "src/scenes/menu/context.cpp",
