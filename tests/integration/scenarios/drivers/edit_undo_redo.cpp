@@ -42,6 +42,7 @@
 #include "model/edits/remove_kit_row.h"
 #include "model/edits/remove_note.h"
 #include "model/edits/repeat_note_edit.h"
+#include "model/edits/resize_audio_clip.h"
 #include "model/edits/set_clip_colour.h"
 #include "model/edits/set_clip_launch_style.h"
 #include "model/edits/set_clip_length.h"
@@ -950,6 +951,54 @@ void audioClipMarkerTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
+// Drag an audio clip's sample end as one ResizeAudioClip Edit: it moves the marker, sets the length and records both
+// in one undo step, which undo and redo move together. The clips here hold no loaded file, so no clamp applies.
+void audioClipResizeTarget(Song* song) {
+	AudioClip* clip = nullptr;
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->live.clips.session_clips[c];
+		if (cl->type != ClipType::AUDIO || cl->output == nullptr || cl->output->type != OutputType::AUDIO) {
+			continue;
+		}
+		auto* ac = (AudioClip*)cl;
+		if (ac->sampleHolder.filePath.empty() || ac->sampleControls.isCurrentlyReversed()
+		    || (int64_t)ac->loopLength() * 2 > kMaxSequenceLength || !deluge::edits::clipAddressFor(*ac).has_value()) {
+			continue;
+		}
+		clip = ac;
+	}
+	if (clip == nullptr) {
+		std::fprintf(io.out, "# no-forward-sample-clip-for-resize\n");
+		return;
+	}
+	std::fprintf(io.out, "# target audio-clip-resize\n");
+	song->setCurrentClip(clip); // ConsequenceClipLength::revert resolves the clip via getCurrentClip()
+	const int32_t oldLength = clip->loopLength();
+	const uint64_t oldEnd = clip->sampleHolder.endPos;
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::ResizeAudioClip edit{*deluge::edits::clipAddressFor(*clip),
+	                                    deluge::edits::ResizeAudioClip::Kind::END, oldLength * 2, oldLength};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "resize: apply succeeds");
+	check(clip->loopLength() == oldLength * 2, "resize: length set");
+	const uint64_t newEnd = clip->sampleHolder.endPos;
+	check(newEnd != oldEnd, "resize: end marker moved");
+	check(actionLogger.firstAction[BEFORE] != nullptr && actionLogger.firstAction[BEFORE]->nextAction == nullptr,
+	      "resize: one undo step");
+
+	actionLogger.revert(BEFORE, false, false);
+	check(clip->loopLength() == oldLength, "resize: undo restores length");
+	check(clip->sampleHolder.endPos == oldEnd, "resize: undo restores marker");
+
+	actionLogger.revert(AFTER, false, false);
+	check(clip->loopLength() == oldLength * 2, "resize: redo re-applies length");
+	check(clip->sampleHolder.endPos == newEnd, "resize: redo re-applies marker");
+
+	song->setCurrentClip(nullptr);
+}
+
 // AudioClip set-sample undo, guarding ConsequenceAudioClipSetSample::revert's model-setter
 // routing (setSampleFilePath/setSampleEndPos).
 //
@@ -1438,6 +1487,7 @@ int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 	swingTarget(song);
 	clipLengthTarget(song);
 	audioClipMarkerTarget(song);
+	audioClipResizeTarget(song);
 	audioClipSetSampleTarget(song);
 	tempoTarget(song);
 	pasteTarget(song);

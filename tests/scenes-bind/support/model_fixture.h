@@ -78,6 +78,16 @@ public:
 	[[nodiscard]] CableList cables(const project::ParamAddress& owner) const override;
 	std::vector<TrackFact> track_list;
 	[[nodiscard]] std::vector<TrackFact> tracks() const override { return track_list; }
+	[[nodiscard]] std::optional<AudioClipFact> audio_clip(project::ClipAddress /*clip*/) const override {
+		return std::nullopt;
+	}
+	[[nodiscard]] bool clip_playing(project::ClipAddress /*clip*/) const override { return false; }
+	[[nodiscard]] int32_t clip_live_pos(project::ClipAddress /*clip*/) const override { return 0; }
+	[[nodiscard]] bool clip_recording_linearly(project::ClipAddress /*clip*/) const override { return false; }
+	[[nodiscard]] std::pair<int64_t, int64_t> audio_clip_samples(project::ClipAddress /*clip*/, int32_t /*scroll*/,
+	                                                             int32_t /*zoom*/) const override {
+		return {0, 0};
+	}
 };
 
 /// A song whose synth track (kSynth) and kit row (kDrum) hold the slot encode() writes for @p facts' states, which

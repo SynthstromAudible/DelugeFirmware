@@ -15,6 +15,7 @@
 #include "model/edits/clear_clip.h"
 #include "model/edits/delete_param_automation.h"
 #include "model/edits/edit.h"
+#include "model/edits/resize_audio_clip.h"
 #include "model/edits/set_cable_polarity.h"
 #include "model/edits/set_clip_colour.h"
 #include "model/edits/set_effect_setting.h"
@@ -47,6 +48,7 @@
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
@@ -153,6 +155,8 @@ public:
 	}
 	bool attach_recording(deluge::project::SlotAddress slot, uint8_t source, uint16_t range,
 	                      std::string_view path) override;
+	bool resize_audio_clip(deluge::project::ClipAddress clip, deluge::scenes::bind::ResizeKind kind, int32_t new_length,
+	                       int32_t old_length) override;
 	[[nodiscard]] uint32_t refusals() const { return refusals_; }
 
 private:
@@ -184,7 +188,20 @@ public:
 	[[nodiscard]] std::optional<int32_t> param_value(const deluge::project::ParamAddress& address) const override;
 	[[nodiscard]] deluge::scenes::bind::CableList cables(const deluge::project::ParamAddress& owner) const override;
 	[[nodiscard]] std::vector<deluge::scenes::bind::TrackFact> tracks() const override;
+	[[nodiscard]] std::optional<deluge::scenes::bind::AudioClipFact>
+	audio_clip(deluge::project::ClipAddress clip) const override;
+	[[nodiscard]] bool clip_playing(deluge::project::ClipAddress clip) const override;
+	[[nodiscard]] int32_t clip_live_pos(deluge::project::ClipAddress clip) const override;
+	[[nodiscard]] bool clip_recording_linearly(deluge::project::ClipAddress clip) const override;
+	[[nodiscard]] std::pair<int64_t, int64_t> audio_clip_samples(deluge::project::ClipAddress clip, int32_t scroll,
+	                                                             int32_t zoom) const override;
 };
+
+/// The audio clip @p clip addresses in the current song, or null.
+::AudioClip* audioClipAt(deluge::project::ClipAddress clip) {
+	::Clip* found = currentSong != nullptr ? currentSong->clipForId(clip.clip_id) : nullptr;
+	return found != nullptr && found->type == ClipType::AUDIO ? static_cast<::AudioClip*>(found) : nullptr;
+}
 
 static_assert(kMaxNumPatchCables <= deluge::scenes::bind::kMaxCables);
 
@@ -406,6 +423,35 @@ bool ShellEditSink::attach_recording(deluge::project::SlotAddress slot, uint8_t 
 		return false;
 	}
 	deluge::edits::AttachRecordedSample edit{slot, source, range, std::string{path}};
+	return applied(edit);
+}
+
+bool ShellEditSink::resize_audio_clip(deluge::project::ClipAddress clip, deluge::scenes::bind::ResizeKind kind,
+                                      int32_t new_length, int32_t old_length) {
+	if (currentSong == nullptr) {
+		return false;
+	}
+	using Kind = deluge::edits::ResizeAudioClip::Kind;
+	using Request = deluge::scenes::bind::ResizeKind;
+	Kind edit_kind = Kind::END;
+	switch (kind) {
+	case Request::END:
+		edit_kind = Kind::END;
+		break;
+	case Request::START:
+		edit_kind = Kind::START;
+		break;
+	case Request::STRETCH:
+		edit_kind = Kind::STRETCH;
+		break;
+	case Request::NO_STRETCH:
+		edit_kind = Kind::NO_STRETCH;
+		break;
+	case Request::TO_SAMPLE_LENGTH:
+		edit_kind = Kind::TO_SAMPLE_LENGTH;
+		break;
+	}
+	deluge::edits::ResizeAudioClip edit{clip, edit_kind, new_length, old_length};
 	return applied(edit);
 }
 
@@ -660,6 +706,49 @@ std::optional<int32_t> ShellRuntimeFacts::param_value(const deluge::project::Par
 	return stack != nullptr ? std::optional{stack->autoParam->getCurrentValue()} : std::nullopt;
 }
 
+std::optional<deluge::scenes::bind::AudioClipFact>
+ShellRuntimeFacts::audio_clip(deluge::project::ClipAddress clip) const {
+	::AudioClip* audio = audioClipAt(clip);
+	if (audio == nullptr || audio->output == nullptr || !audio->output->id()) {
+		return std::nullopt;
+	}
+	return deluge::scenes::bind::AudioClipFact{
+	    .track_id = *audio->output->id(),
+	    .max_zoom = audio->getMaxZoom(),
+	    .unarmed = audio->armState == ArmState::OFF,
+	    .reversed = audio->sampleControls.isCurrentlyReversed(),
+	    .session_index = currentSong->live.clips.session_clips.getIndexForClip(audio),
+	};
+}
+
+bool ShellRuntimeFacts::clip_playing(deluge::project::ClipAddress clip) const {
+	::AudioClip* audio = audioClipAt(clip);
+	return audio != nullptr && playbackHandler.playbackState != 0u && currentSong->isClipActive(audio)
+	       && playbackHandler.ticksLeftInCountIn == 0u;
+}
+
+int32_t ShellRuntimeFacts::clip_live_pos(deluge::project::ClipAddress clip) const {
+	::AudioClip* audio = audioClipAt(clip);
+	return audio != nullptr ? static_cast<int32_t>(audio->getLivePos()) : 0;
+}
+
+bool ShellRuntimeFacts::clip_recording_linearly(deluge::project::ClipAddress clip) const {
+	::AudioClip* audio = audioClipAt(clip);
+	return audio != nullptr && audio->getCurrentlyRecordingLinearly();
+}
+
+std::pair<int64_t, int64_t> ShellRuntimeFacts::audio_clip_samples(deluge::project::ClipAddress clip, int32_t scroll,
+                                                                  int32_t zoom) const {
+	::AudioClip* audio = audioClipAt(clip);
+	if (audio == nullptr) {
+		return {0, 0};
+	}
+	int64_t scroll_samples = 0;
+	int64_t zoom_samples = 0;
+	audio->getScrollAndZoomInSamples(scroll, zoom, &scroll_samples, &zoom_samples);
+	return {scroll_samples, zoom_samples};
+}
+
 std::vector<deluge::scenes::bind::TrackFact> ShellRuntimeFacts::tracks() const {
 	using deluge::scenes::bind::TrackKind;
 	std::vector<deluge::scenes::bind::TrackFact> list;
@@ -744,6 +833,12 @@ bool host_binds(const ::Song& song) {
 
 deluge::scenes::bind::WriteSink& host_write_sink() {
 	return gui::shell_edit_sink();
+}
+
+void host_grab_tempo(deluge::project::ClipAddress clip) {
+	if (::AudioClip* audio = gui::audioClipAt(clip)) {
+		playbackHandler.grabTempoFromClip(audio);
+	}
 }
 
 const deluge::scenes::services::Waveforms& host_waveforms() {

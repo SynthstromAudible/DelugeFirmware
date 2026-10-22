@@ -218,22 +218,30 @@
 /// @warning This scene must not raise `Action::Kind::LockInput`, and does not. See the warning on
 ///          `Action` in `shell/scene.h`.
 
+#include "deluge-project/clip_address.h"
+#include "scenes/bind/write_sink.h"
 #include "scenes/timeline/timeline.h"
 #include "shell/scene.h"
 #include "ui/grid/frame.h"
 #include "ui/oled/frame.h"
 
+#include "deluge-project/setting_group.h"
+#include "model/sample/waveform_render_data.h"
+#include "scenes/bind/runtime_facts.h"
+#include "scenes/services/waveform_address.h"
+
 #include "definitions_cxx.hpp"
 
 #include <cstdint>
 #include <optional>
+#include <string>
+#include <string_view>
 
-/// The legacy undo-log entry (`model/action/action.h`), not `deluge::ui::shell::Action` -- the two
-/// names collide, so every mention of this one in this file and its `.cpp` is spelled `::Action`.
-class Action;
-class AudioClip;
-class Sample;
 class Song;
+
+namespace deluge::project {
+struct DocClip;
+} // namespace deluge::project
 
 namespace deluge::scenes::audio_clip {
 
@@ -301,9 +309,12 @@ public:
 	/// this layer spells `NAVIGATION_CLIP`: legacy's scroll and zoom live on `Song`, and adopting
 	/// them here is what makes the port render from the same view legacy does.
 	///
-	/// @param clip The clip to show; null leaves the scene with nothing to draw.
-	/// @param song The song it belongs to; null is treated as "no clip".
-	void open(::AudioClip* clip, ::Song* song);
+	/// @param clip The clip to show; nullopt leaves the scene with nothing to draw.
+	/// @param song The song it belongs to, whose view (scroll, zoom, triplets) the scene starts from; null is treated
+	///             as "no clip".
+	/// @param sink Where the scene's writes go; the app's sink when null.
+	void open(std::optional<deluge::project::ClipAddress> clip, ::Song* song,
+	          deluge::scenes::bind::WriteSink* sink = nullptr);
 
 	/// @brief `PadLEDs::flashCursor`, which this layer cannot read. See the class docstring.
 	/// @param c The cursor mode.
@@ -354,16 +365,6 @@ public:
 	/// `buttonAction`'s `X_ENC`+`Y_ENC` chord (`audio_clip_view.cpp:384-391`), and this scene's own
 	/// `handle()` is the port of the second.
 	void set_clip_length_equal_to_sample_length();
-
-	/// @brief `AudioClipView::adjustLoopLength` (`audio_clip_view.cpp:771-803`): set the clip's
-	///        length, keeping the sample's own pitch and speed.
-	///
-	/// Public because `set_clip_length_equal_to_sample_length` is its only caller in legacy and the
-	/// spec drives both -- the sample-length arm through the chord, and this one with a length the
-	/// example chose, which is what makes the "shorter" direction reachable at all on a fixture whose
-	/// sample is longer than its clip.
-	/// @param new_length The clip's new loop length, in ticks.
-	void adjust_loop_length(int32_t new_length);
 
 	/// @brief The port's `currentUIMode`, restricted to the two values this scene can set.
 	///
@@ -494,9 +495,28 @@ private:
 	/// @return The column for every row, or 255.
 	int32_t compute_tick_square();
 
-	/// @return `getSample()` (`audio_clip_view.cpp:61-67`): the recorder's sample while recording
-	///         linearly, otherwise the clip's own audio file.
-	[[nodiscard]] ::Sample* current_sample() const;
+	/// @name What the scene reads: the clip's record, and the facts no record holds
+	/// @{
+	/// @return The clip's record, or null.
+	[[nodiscard]] const deluge::project::DocClip* doc() const;
+	/// @return The clip's loop length in ticks, from its record.
+	[[nodiscard]] int32_t loop_length() const;
+	/// @return What the clip's view needs of it that no record holds, or nullopt.
+	[[nodiscard]] std::optional<deluge::scenes::bind::AudioClipFact> fact() const;
+	/// @return Whether the clip records a take linearly now.
+	[[nodiscard]] bool recording_linearly() const;
+	/// @return The clip's waveform address.
+	[[nodiscard]] deluge::scenes::services::WaveformAddress waveform() const;
+	/// @return `getSample()`'s test (`audio_clip_view.cpp:61-67`): is there a waveform -- the take while recording
+	///         linearly, otherwise the clip's file?
+	[[nodiscard]] bool has_sample() const;
+	/// @return The audio track the clip plays on, or nullopt.
+	[[nodiscard]] std::optional<deluge::project::TrackAddress> track() const;
+	/// @return Row @p path of @p group on the clip's track, as text; empty where there is none.
+	[[nodiscard]] std::string track_row(deluge::project::SettingGroupId group, std::string_view path) const;
+	/// @return The track's audio mode, an index of `project::kAudioModeWords`.
+	[[nodiscard]] int32_t audio_mode() const;
+	/// @}
 
 	/// @name The UI-mode word's three operations, transcribed from `gui/ui/ui.cpp`
 	/// See the class docstring for what this scene keeps a mode word for.
@@ -575,46 +595,26 @@ private:
 	uint16_t clear_clip();
 	/// @}
 
-	/// @brief Set the clip's length through the clip-length Edit, recording into @p action.
-	/// @param new_length The new length, in ticks.
-	/// @param action     The undo action the change is recorded into; may be null.
-	void set_clip_length(uint32_t new_length, ::Action* action);
-
-	/// @name The two edits, and the length machinery they share
+	/// @name The length gestures
 	/// @{
-	/// @brief `AudioClipView::changeUnderlyingSampleLength` (`audio_clip_view.cpp:610-664`).
-	/// @param sample            The clip's sample -- `getSample()`, never null at the call sites.
-	/// @param new_length        The clip's new loop length, in ticks.
-	/// @param old_length        Its length before the edit.
-	/// @param old_length_samples `sampleHolder.getDurationInSamples(true)` before the edit.
-	void change_underlying_sample_length(const ::Sample& sample, int32_t new_length, int32_t old_length,
-	                                     uint64_t old_length_samples);
-	/// @brief `AudioClipView::changeUnderlyingSampleStart` (`audio_clip_view.cpp:667-719`).
-	/// @param sample             The clip's sample.
-	/// @param new_start_ticks    Where the clip should now start, in ticks.
-	/// @param old_length         Its length before the edit.
-	/// @param old_length_samples `sampleHolder.getDurationInSamples(true)` before the edit.
-	void change_underlying_sample_start(const ::Sample& sample, int32_t new_start_ticks, int32_t old_length,
-	                                    uint64_t old_length_samples);
-	/// @brief `AudioClipView::editClipLengthWithoutTimestretching` (`audio_clip_view.cpp:816-853`).
+	/// @brief `AudioClipView::editClipLengthWithoutTimestretching`	/// @brief
+	/// `AudioClipView::editClipLengthWithoutTimestretching` (`audio_clip_view.cpp:816-853`).
 	/// @param offset Signed detents.
 	/// @return What the shell should do.
 	deluge::ui::shell::Result edit_clip_length_without_timestretching(int32_t offset);
-	/// @brief `ClipView::changeClipLength` (`gui/views/clip_view.cpp:264-313`).
-	/// @param offset      Signed detents.
-	/// @param old_length  The clip's length before the edit.
-	/// @param[out] action The action the edit was logged under, or null.
+	/// @brief `ClipView::changeClipLength` (`gui/views/clip_view.cpp:264-313`): the new length from the view's
+	///        squares, its request, and the scroll and zoom after.
+	/// @param offset     Signed detents.
+	/// @param old_length The clip's length before the edit.
+	/// @param kind       STRETCH for the shift turn, NO_STRETCH for the shift turn with the encoder's button held.
 	/// @return The new length.
-	uint32_t change_clip_length(int32_t offset, uint32_t old_length, ::Action*& action);
-	/// @brief `ClipView::lengthenClip` (`gui/views/clip_view.cpp:75-121`).
-	/// @param new_length The new length; the caller has already checked it against `kMaxSequenceLength`.
-	/// @return The action it was logged under, or null.
-	::Action* lengthen_clip(int32_t new_length);
-	/// @brief `ClipView::shortenClip` (`gui/views/clip_view.cpp:124-144`).
-	/// @param new_length The new length; the caller has already checked it is positive.
-	/// @return The action it was logged under, or null.
-	::Action* shorten_clip(int32_t new_length);
-	/// @brief `TimelineView::displayNumberOfBarsAndBeats`' popup half (`timeline_view.cpp:241-265`).
+	uint32_t change_clip_length(int32_t offset, uint32_t old_length, deluge::scenes::bind::ResizeKind kind);
+	/// @brief `AudioClipView::adjustLoopLength`'s view half (`audio_clip_view.cpp:772-780`), after a length request.
+	/// @param old_length The length before the request.
+	/// @param new_length The length after it.
+	void after_loop_length_change(int32_t old_length, int32_t new_length);
+	/// @brief `TimelineView::displayNumberOfBarsAndBeats`' popup half	/// @brief
+	/// `TimelineView::displayNumberOfBarsAndBeats`' popup half (`timeline_view.cpp:241-265`).
 	///
 	/// The arithmetic is `TimelineState::bars_and_beats`; this is the `sprintf` and the popup.
 	/// @param number         The tick position or length to describe.
@@ -622,11 +622,17 @@ private:
 	void show_bars_and_beats(uint32_t number, bool count_from_one);
 	/// @}
 
-	/// The clip this scene shows, and the song it lives in. See `open`.
+	/// The clip this scene shows, the song whose view it starts from, and where its writes go and its facts come
+	/// from. See `open`.
 	/// @{
-	::AudioClip* clip_ = nullptr;
+	std::optional<deluge::project::ClipAddress> clip_;
 	::Song* song_ = nullptr;
+	deluge::scenes::bind::WriteSink* sink_ = nullptr;
+	const deluge::scenes::bind::RuntimeFacts* facts_ = nullptr;
 	/// @}
+
+	/// The waveform's per-column cache, the scene's own: the scan fills it for the view's scroll and zoom.
+	WaveformRenderData render_{};
 
 	/// The scroll and zoom, with `AudioClipView::supportsTriplets() == false`
 	/// (`audio_clip_view.h:38`) baked into the state at construction.

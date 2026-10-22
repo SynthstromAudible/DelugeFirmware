@@ -59,6 +59,7 @@
 ///       library may not. Same rule `marker_scene_spec.cpp` and `slicer_scene_spec.cpp` run under.
 
 #include "scenes/audio_clip/audio_clip_scene.h"
+#include "scenes/bind/write_sink.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 #include "scenes/timeline/timeline.h"
@@ -70,18 +71,23 @@
 #include "ui/core/metrics.h"
 
 #include "board_config.h"
+#include "deluge-project/setting_group.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/language.h"
 #include "gui/ui/ui.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/clip_navigation_timeline_view.h"
+#include "gui/views/session_view.h"
 #include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
+#include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
+#include "model/edits/audio_input_for.h"
+#include "model/edits/setting_edit.h"
 #include "model/sample/sample.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -317,6 +323,7 @@ struct Rig {
 	uitest::FakeSurfaceSet fake;
 	Shell shell;
 
+	Song* const saved_song = currentSong;
 	bool saved_swung_latch = currentlyActioningSwungTickOrResettingPlayPos;
 	uint8_t saved_playback_state = playbackHandler.playbackState;
 	uint8_t saved_flash_cursor = PadLEDs::flashCursor;
@@ -328,6 +335,8 @@ struct Rig {
 	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
 		ensure_display();
 		currentUIMode = UI_MODE_NONE;
+		currentSong = f.song;           // the app's sink and facts resolve the clip's address in the current song
+		f.song->setCurrentClip(f.clip); // a length undo finds its clip as the current one
 
 		// The clip's sample, attached the way `AudioClip::setupPlaybackBounds` leaves it: the whole
 		// file, forwards.
@@ -361,14 +370,19 @@ struct Rig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
-		audio_clip_scene().open(nullptr, nullptr);
+		audio_clip_scene().open(std::nullopt, nullptr);
 		audio_clip_scene().set_flash_cursor(FlashCursor::Slow);
 		PadLEDs::clearTickSquares(/*shouldSend=*/false);
 		PadLEDs::flashCursor = saved_flash_cursor;
 		playbackHandler.playbackState = saved_playback_state;
 		currentlyActioningSwungTickOrResettingPlayPos = saved_swung_latch;
 		currentUIMode = UI_MODE_NONE;
+		f.song->setCurrentClip(nullptr);
+		currentSong = saved_song;
 	}
+
+	/// @brief The clip's address.
+	[[nodiscard]] deluge::project::ClipAddress address() const { return deluge::project::ClipAddress{f.clip->id()}; }
 
 	/// @brief Write @p s into the model. It is the ONE place either side's view comes from.
 	void seed(const Sentinel& s) const {
@@ -430,7 +444,7 @@ struct Rig {
 
 	/// @brief Open the port's scene on the fixture's clip.
 	void open() {
-		audio_clip_scene().open(f.clip, f.song);
+		audio_clip_scene().open(address(), f.song);
 		shell.init(SceneId{kAudioClipSceneKind, 0});
 	}
 
@@ -445,8 +459,9 @@ struct Rig {
 	/// singleton, so an example that leaves a marker up otherwise poisons the next one. Found
 	/// exactly that way: the end-marker drag example left `end_marker_visible_` true and the
 	/// start-marker example then took the wrong branch of `padAction`.
-	void open_scene_only() {
-		audio_clip_scene().open(f.clip, f.song);
+	/// @param sink Where the scene's writes go; the app's sink when null.
+	void open_scene_only(bind::WriteSink* sink = nullptr) {
+		audio_clip_scene().open(address(), f.song, sink);
 		(void)audio_clip_scene().on_enter(SceneId{kAudioClipSceneKind, 0});
 	}
 
@@ -917,6 +932,25 @@ void lower_legacy_end_marker(Rig& r) {
 /// `getMaxLength()` (`:857-862`) then says which of those happened.
 /// @param r The rig.
 /// @return True once both latches are down, as far as `getMaxLength()` can see.
+/// @brief Name the clip's track @p name through its record, as a rename does.
+void name_track(Rig& r, const char* name) {
+	deluge::edits::trackSettingFor(*r.f.output, "name", deluge::serialization::Value::makeScalar(name));
+}
+
+/// @brief Name the clip @p name through its record, as a rename does.
+void name_clip(Rig& r, const char* name) {
+	deluge::edits::clipSettingFor(*r.f.clip, "name", deluge::serialization::Value::makeScalar(name));
+}
+
+/// @brief How many steps the undo log holds.
+int32_t undo_steps() {
+	int32_t n = 0;
+	for (const Action* a = actionLogger.firstAction[BEFORE]; a != nullptr; a = a->nextAction) {
+		n++;
+	}
+	return n;
+}
+
 bool reset_legacy_markers(Rig& r) {
 	const int32_t end = end_square_of(r);
 	(void)legacy_view.padAction(end, 0, 1);
@@ -1286,8 +1320,8 @@ describe audio_clip_scene_spec_body(
 	    it(
 	        "draws the same OLED page as legacy for a named output", _ {
 		        Rig r;
-		        r.f.output->name = "TAPE";
-		        r.f.clip->name.clear();
+		        name_track(r, "TAPE");
+		        name_clip(r, "");
 		        r.f.clip->setSection(2);
 		        r.seed(Sentinel{});
 		        r.open();
@@ -1298,20 +1332,20 @@ describe audio_clip_scene_spec_body(
 	    it(
 	        "draws the same OLED page as legacy for a named output and a named clip", _ {
 		        Rig r;
-		        r.f.output->name = "TAPE";
-		        r.f.clip->name = "VERSE";
+		        name_track(r, "TAPE");
+		        name_clip(r, "VERSE");
 		        r.f.clip->setSection(0);
 		        r.seed(Sentinel{});
 		        r.open();
 		        r.tick(0);
 		        expect(r.oled()).to_equal(legacy_oled());
-		        r.f.clip->name.clear();
+		        name_clip(r, "");
 	        });
 
 	    it(
 	        "draws the same OLED page as legacy for an unnamed output", _ {
 		        Rig r;
-		        r.f.output->name.clear();
+		        name_track(r, "");
 		        r.seed(Sentinel{});
 		        r.open();
 		        r.tick(0);
@@ -1321,17 +1355,17 @@ describe audio_clip_scene_spec_body(
 	    it(
 	        "draws the same OLED page as legacy in each of the three audio output modes", _ {
 		        Rig r;
-		        r.f.output->name = "TAPE";
-		        r.f.clip->name.clear();
+		        name_track(r, "TAPE");
+		        name_clip(r, "");
 		        r.seed(Sentinel{});
 		        for (const AudioOutputMode m :
 		             {AudioOutputMode::player, AudioOutputMode::sampler, AudioOutputMode::looper}) {
-			        r.f.output->mode = m;
+			        deluge::edits::audioModeFor(*r.f.output, m);
 			        r.open();
 			        r.tick(0);
 			        expect(r.oled()).to_equal(legacy_oled());
 		        }
-		        r.f.output->mode = AudioOutputMode::player;
+		        deluge::edits::audioModeFor(*r.f.output, AudioOutputMode::player);
 	        });
 
 	    // --- goldens --------------------------------------------------------------------------------
@@ -1339,8 +1373,8 @@ describe audio_clip_scene_spec_body(
 	    it(
 	        "draws the output name and section on a 48-row panel", _ {
 		        Rig r;
-		        r.f.output->name = "TAPE";
-		        r.f.clip->name.clear();
+		        name_track(r, "TAPE");
+		        name_clip(r, "");
 		        r.f.clip->setSection(2);
 		        r.seed(Sentinel{});
 		        r.open();
@@ -1351,8 +1385,8 @@ describe audio_clip_scene_spec_body(
 	    it(
 	        "draws the output name and section on a 64-row panel", _ {
 		        Rig r{board_64(), profile_64()};
-		        r.f.output->name = "TAPE";
-		        r.f.clip->name.clear();
+		        name_track(r, "TAPE");
+		        name_clip(r, "");
 		        r.f.clip->setSection(2);
 		        r.seed(Sentinel{});
 		        r.open();
@@ -1609,6 +1643,179 @@ describe audio_clip_scene_spec_body(
 	    // --- the edits ---------------------------------------------------------------------------------
 
 	    it(
+	        "undoes a sample-end drag as legacy does", _ {
+		        spec_fixture::QuietAudio quiet;
+		        Rig r;
+		        changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
+		        Input in;
+		        const Sentinel s{};
+		        constexpr int32_t kColumn = 9;
+
+		        r.reseed(s);
+		        expect(reset_legacy_markers(r)).to_be_true();
+		        const ModelSnapshot seeded = model_snapshot(r);
+		        expect(raise_legacy_end_marker(r)).to_be_true();
+		        (void)legacy_view.padAction(kColumn, 0, 1);
+		        const ModelSnapshot legacy = model_snapshot(r);
+		        (void)actionLogger.revert(BEFORE, false, false);
+		        const ModelSnapshot legacy_undone = model_snapshot(r);
+		        lower_legacy_end_marker(r);
+
+		        r.reseed(s);
+		        r.open_scene_only();
+		        (void)in.pad(end_square_of(r), 0, true);
+		        (void)in.pad(kColumn, 0, true);
+		        const ModelSnapshot port = model_snapshot(r);
+		        (void)actionLogger.revert(BEFORE, false, false);
+		        const ModelSnapshot port_undone = model_snapshot(r);
+
+		        expect_edit_matches(self, legacy, port, seeded);
+		        expect(port_undone == legacy_undone).to_be_true();
+		        expect(port_undone == seeded).to_be_true();
+		        nullifyUIs();
+	        });
+
+	    it(
+	        "undoes a clear as legacy does", _ {
+		        spec_fixture::QuietAudio quiet;
+		        Rig r;
+		        changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
+		        Input in;
+
+		        r.reseed(Sentinel{});
+		        r.f.clip->name = "TAKE";
+		        currentUIMode = UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON;
+		        (void)legacy_view.buttonAction(legacy_button(ButtonId::Back), true);
+		        currentUIMode = UI_MODE_NONE;
+		        (void)actionLogger.revert(BEFORE, false, false);
+		        const bool legacy_sample_back = r.f.clip->sampleHolder.audioFile != nullptr;
+		        const std::string legacy_name = r.f.clip->name;
+
+		        r.f.clip->sampleHolder.setAudioFile(r.sample);
+		        r.reseed(Sentinel{});
+		        r.f.clip->name = "TAKE";
+		        r.open_scene_only();
+		        (void)in.press(ButtonId::XEnc, true);
+		        (void)in.press(ButtonId::Back, true);
+		        (void)in.press(ButtonId::XEnc, false);
+		        expect(r.f.clip->sampleHolder.audioFile == nullptr).to_be_true();
+		        (void)actionLogger.revert(BEFORE, false, false);
+		        expect(r.f.clip->sampleHolder.audioFile != nullptr).to_equal(legacy_sample_back);
+		        expect(r.f.clip->name).to_equal(legacy_name);
+
+		        r.f.clip->sampleHolder.setAudioFile(r.sample);
+		        r.f.clip->name.clear();
+		        nullifyUIs();
+	        });
+
+	    it(
+	        "a drag while the clock runs coalesces its undo as legacy's", _ {
+		        // Shorten by one square, then lengthen back: the lengthen undoes the shorten, and with the
+		        // clock running the clip is re-synced by hand.
+		        spec_fixture::QuietAudio quiet;
+		        Rig r;
+		        changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
+		        Input in;
+		        const Sentinel s{};
+
+		        r.reseed(s);
+		        const ModelSnapshot seeded = model_snapshot(r);
+		        playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
+		        currentUIMode = UI_MODE_NONE;
+		        legacy_hold(ButtonId::Shift, true);
+		        (void)legacy_view.horizontalEncoderAction(-1);
+		        const int32_t legacy_shortened = r.f.clip->loopLength();
+		        (void)legacy_view.horizontalEncoderAction(1);
+		        legacy_hold(ButtonId::Shift, false);
+		        currentUIMode = UI_MODE_NONE;
+		        const ModelSnapshot legacy = model_snapshot(r);
+		        const int32_t legacy_steps = undo_steps();
+		        playbackHandler.playbackState = 0;
+
+		        r.reseed(s);
+		        playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
+		        r.open_scene_only();
+		        (void)in.press(ButtonId::Shift, true);
+		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, -1);
+		        const int32_t port_shortened = r.f.clip->loopLength();
+		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, 1);
+		        (void)in.press(ButtonId::Shift, false);
+		        const ModelSnapshot port = model_snapshot(r);
+		        const int32_t port_steps = undo_steps();
+		        playbackHandler.playbackState = 0;
+
+		        expect(port_shortened).to_equal(legacy_shortened);
+		        expect(port_shortened < seeded.loop_length).to_be_true();
+		        expect(port == legacy).to_be_true();
+		        expect(port == seeded).to_be_true(); // the lengthen undid the shorten
+		        expect(port_steps).to_equal(legacy_steps);
+		        nullifyUIs();
+	        });
+
+	    it(
+	        "hands each gesture to the menu's sink by the clip's address", _ {
+		        spec_fixture::QuietAudio quiet;
+		        Rig r;
+		        Input in;
+		        r.reseed(Sentinel{});
+		        const ModelSnapshot seeded = model_snapshot(r);
+		        bind::RecordingSink recording;
+		        r.open_scene_only(&recording);
+		        using Kind = bind::GestureRequest::Kind;
+		        using Resize = bind::ResizeKind;
+		        const auto last = [&recording] { return recording.gestures.back(); };
+
+		        (void)in.pad(end_square_of(r), 0, true);
+		        (void)in.pad(9, 0, true);
+		        expect(recording.gestures.size()).to_equal(size_t{1});
+		        if (recording.gestures.empty()) {
+			        return;
+		        }
+		        expect(last().kind == Kind::RESIZE && last().clip == r.address()).to_be_true();
+		        expect(last().resize == Resize::END && last().value == 480 && last().old_length == 768).to_be_true();
+		        (void)in.pad(end_square_of(r), 0, true); // the marker back down
+
+		        (void)in.press(ButtonId::Shift, true);
+		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, -1);
+		        expect(last().resize == Resize::STRETCH && last().value == 720 && last().old_length == 768)
+		            .to_be_true();
+		        (void)in.press(ButtonId::XEnc, true);
+		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, 1);
+		        expect(last().resize == Resize::NO_STRETCH && last().value == 816).to_be_true();
+		        (void)in.press(ButtonId::XEnc, false);
+		        (void)in.turn(deluge::ui::EncoderRole::Vertical, 3);
+		        expect(last().kind == Kind::RECOLOUR && last().clip == r.address() && last().value == 3).to_be_true();
+		        (void)in.press(ButtonId::Shift, false);
+
+		        (void)in.press(ButtonId::YEnc, true);
+		        (void)in.press(ButtonId::XEnc, true);
+		        expect(last().kind == Kind::RESIZE && last().resize == Resize::TO_SAMPLE_LENGTH).to_be_true();
+		        (void)in.press(ButtonId::XEnc, false);
+		        (void)in.press(ButtonId::YEnc, false);
+
+		        (void)in.press(ButtonId::XEnc, true);
+		        (void)in.press(ButtonId::Back, true);
+		        (void)in.press(ButtonId::XEnc, false);
+		        expect(last().kind == Kind::CLEAR && last().clip == r.address()).to_be_true();
+		        expect(last().clear_automation == !FlashStorage::automationClear && last().clear_sequence_and_mpe)
+		            .to_be_true();
+
+		        (void)in.turn(deluge::ui::EncoderRole::Select, 1);
+		        expect(recording.requests.size()).to_equal(size_t{1});
+		        if (!recording.requests.empty()) {
+			        const bind::WriteRequest& mode = recording.requests.back();
+			        expect(mode.target.path == "mode"
+			               && mode.target.group == deluge::project::SettingGroupId::AUDIO_INPUT)
+			            .to_be_true();
+			        expect(mode.where.track.has_value() && mode.where.track->output_id == *r.f.output->id())
+			            .to_be_true();
+			        expect(mode.menu_value).to_equal(1);
+		        }
+		        // Only requests: nothing else wrote.
+		        expect(model_snapshot(r) == seeded).to_be_true();
+	        });
+
+	    it(
 	        "writes the same loop length and end marker as legacy when the end marker is dragged", _ {
 		        spec_fixture::QuietAudio quiet;
 		        Rig r;
@@ -1831,12 +2038,12 @@ describe audio_clip_scene_spec_body(
 		        const AudioOutputMode after_legacy = r.f.output->mode;
 		        expect(after_legacy == start).to_be_false(); // legacy really moved it
 
-		        r.f.output->mode = start;
+		        deluge::edits::audioModeFor(*r.f.output, start);
 		        r.open_scene_only();
 		        (void)in.turn(deluge::ui::EncoderRole::Select, 1);
 		        expect(r.f.output->mode == after_legacy).to_be_true();
 
-		        r.f.output->mode = AudioOutputMode::player;
+		        deluge::edits::audioModeFor(*r.f.output, AudioOutputMode::player);
 	        });
 
 	    it(

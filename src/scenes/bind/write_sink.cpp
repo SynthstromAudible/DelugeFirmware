@@ -64,4 +64,14 @@ bool RecordingSink::attach_recording(project::SlotAddress slot, uint8_t source, 
 	return true;
 }
 
+bool RecordingSink::resize_audio_clip(project::ClipAddress clip, ResizeKind kind, int32_t new_length,
+                                      int32_t old_length) {
+	gestures.push_back({.kind = GestureRequest::Kind::RESIZE,
+	                    .clip = clip,
+	                    .value = new_length,
+	                    .resize = kind,
+	                    .old_length = old_length});
+	return true;
+}
+
 } // namespace deluge::scenes::bind

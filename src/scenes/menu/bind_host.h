@@ -19,6 +19,9 @@ bool host_binds(const ::Song& song);
 deluge::scenes::bind::WriteSink& host_write_sink();
 /// @brief The facts a menu needs that the model does not hold, answered from the running app.
 const deluge::scenes::bind::RuntimeFacts& host_runtime_facts();
+/// @brief Set the song's tempo from the audio clip @p clip's length, as a held tempo encoder and a pad do: a command to
+///        the running transport, which no record holds.
+void host_grab_tempo(deluge::project::ClipAddress clip);
 /// @brief The waveforms of the song the app plays.
 const deluge::scenes::services::Waveforms& host_waveforms();
 

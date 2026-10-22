@@ -43,6 +43,15 @@ struct RangesCause {
 	bool operator==(const RangesCause&) const = default;
 };
 
+/// @brief How an audio clip's length gesture resizes it.
+enum class ResizeKind : uint8_t {
+	END,              ///< the sample's end marker dragged to a new clip length
+	START,            ///< the sample's start marker dragged to a new start tick
+	STRETCH,          ///< the clip's length changed, the sample timestretched to fill it
+	NO_STRETCH,       ///< the clip's length changed with the sample's end marker, keeping its speed
+	TO_SAMPLE_LENGTH, ///< the clip's length set to the sample's
+};
+
 /// @brief Takes a menu's writes. The app's sink applies each as the target's Edit; a spec's records them.
 class WriteSink {
 public:
@@ -86,11 +95,20 @@ public:
 	/// source @p source of the sound at @p slot, which becomes a sample source.
 	/// @return Whether it was taken: false where no take at @p path is in memory or the address does not resolve.
 	virtual bool attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) = 0;
+	/// @brief Resize the audio clip @p clip, as one undo step: its length, and the sample's marker where @p kind moves
+	/// one. A lengthen right after a shorten of the same clip undoes the shorten.
+	/// @param clip       The clip.
+	/// @param kind       What the gesture moves.
+	/// @param new_length The new length in ticks (START: the new start tick; TO_SAMPLE_LENGTH: not read).
+	/// @param old_length The length the gesture started from, in ticks.
+	/// @return Whether it was taken: false where the clip does not resolve or has no sample to measure.
+	virtual bool resize_audio_clip(project::ClipAddress clip, ResizeKind kind, int32_t new_length,
+	                               int32_t old_length) = 0;
 };
 
 /// @brief A gesture request, as a RecordingSink keeps it.
 struct GestureRequest {
-	enum class Kind : uint8_t { TEXT, RANGES, RECOLOUR, CLEAR, MARKER, DEFAULT_INPUT_CHANNEL, ATTACH };
+	enum class Kind : uint8_t { TEXT, RANGES, RECOLOUR, CLEAR, MARKER, DEFAULT_INPUT_CHANNEL, ATTACH, RESIZE };
 	Kind kind{Kind::TEXT};
 	Target target{};
 	Addresses where{};
@@ -102,6 +120,8 @@ struct GestureRequest {
 	RangesCause cause{};
 	project::ClipAddress clip{};
 	int64_t value{0};
+	ResizeKind resize{ResizeKind::END};
+	int32_t old_length{0};
 	bool clear_automation{false};
 	bool clear_sequence_and_mpe{false};
 };
@@ -128,6 +148,7 @@ public:
 	bool move_audio_clip_marker(project::ClipAddress clip, std::string_view path, int64_t value) override;
 	void set_default_audio_input_channel(int32_t channel) override;
 	bool attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) override;
+	bool resize_audio_clip(project::ClipAddress clip, ResizeKind kind, int32_t new_length, int32_t old_length) override;
 	std::vector<WriteRequest> requests;
 	std::vector<GestureRequest> gestures;
 	std::vector<ParamWrite> param_writes;
