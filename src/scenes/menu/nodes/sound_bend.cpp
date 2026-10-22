@@ -16,49 +16,12 @@
  */
 
 /// @file
-/// @brief The bend-range items' `get`/`set` hooks and the exported root span. The `Node` literals
-///        are in `sound_bend.h`.
+/// @brief The bend-range subtree's exported root span. The `Node` literals are in `sound_bend.h`; each edits its
+///        range by target.
 
 #include "scenes/menu/nodes/sound_bend.h"
 
-#include "scenes/menu/context.h"
-
-#include "definitions_cxx.hpp"
-#include "model/clip/instrument_clip.h"
-#include "model/edits/bend_range_for.h"
-#include "modulation/params/param_manager.h"
-#include "modulation/params/param_set.h"
-#include "storage/flash_storage.h"
-
 namespace deluge::scenes::menu::nodes {
-
-namespace {
-
-/// @brief `bend_range::Main::readCurrentValue` / `PerFinger`'s, for whichever of the two ranges
-///        (`bend_range/main.h:27-33`, `per_finger.h:27-33`).
-///
-/// `getOrCreateExpressionParamSet(soundEditor.editingKit())` is `ctx.is_kit` here; a null result
-/// means the set could not be created, and legacy falls back to the flash default.
-int32_t bend_range(const MenuContext& ctx, int32_t which) {
-	if (ctx.params == nullptr) {
-		return FlashStorage::defaultBendRange[which];
-	}
-	ExpressionParamSet* expression = ctx.params->getOrCreateExpressionParamSet(ctx.is_kit);
-	return expression != nullptr ? expression->bendRanges[which] : FlashStorage::defaultBendRange[which];
-}
-
-/// @brief The matching write (`main.h:34-40`, `per_finger.h:34-40`): silently does nothing when the
-///        expression param set cannot be created, exactly as legacy does.
-void set_bend_range(const MenuContext& ctx, int32_t which, int32_t value) {
-	if (ctx.params == nullptr) {
-		return;
-	}
-	auto* clip = ctx.clip != nullptr && ctx.clip->type == ClipType::INSTRUMENT ? static_cast<InstrumentClip*>(ctx.clip)
-	                                                                           : nullptr;
-	deluge::edits::bendRangeFor(clip, *ctx.params, which, value);
-}
-
-} // namespace
 
 namespace {
 constexpr const Node* kRoots[] = {&bend, &drum_bend_range};

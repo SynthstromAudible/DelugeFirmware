@@ -199,6 +199,48 @@ class ConvertedScenes(unittest.TestCase):
                 self.assertEqual(self.check(name, line), [], line)
 
 
+class SceneParamWrites(unittest.TestCase):
+    def check(self, name: str, text: str, allowed=None) -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text)
+            return csm.scene_param_writes(root, allowed)
+
+    def test_a_node_writing_a_param_itself_is_reported(self):
+        for line in (
+            "with_param->autoParam->setCurrentValueInResponseToUserInput(v, with_param);",
+            "param->autoParam->setValuePossiblyForRegion(v, param, pos, length);",
+            "param->autoParam->deleteAutomation(action, param);",
+        ):
+            with self.subTest(line=line):
+                found = self.check(
+                    "menu/nodes/sound_fx.cpp", f"void hook() {{\n\t{line}\n}}\n"
+                )
+                self.assertEqual(len(found), 1, found)
+
+    def test_its_edit_is_not(self):
+        self.assertEqual(
+            self.check(
+                "menu/nodes/sound_fx.cpp",
+                "void hook() {\n\tdeluge::edits::SetParamValue(address, v).apply(song);\n}\n",
+            ),
+            [],
+        )
+
+    def test_the_gold_knobs_allowance_passes_its_line_and_no_other_write(self):
+        found = self.check(
+            "menu/context.cpp",
+            "void knob() {\n"
+            "\tparam->autoParam->setValuePossiblyForRegion(new_value, param, target.mod_pos, target.mod_length);\n"
+            "\tparam->autoParam->setCurrentValueInResponseToUserInput(new_value, param);\n"
+            "}\n",
+        )
+        self.assertEqual(len(found), 1, found)
+        self.assertIn(":3:", found[0])
+
+
 class SongStateWrites(unittest.TestCase):
     def check(self, line: str) -> list[str]:
         with tempfile.TemporaryDirectory() as tmp:

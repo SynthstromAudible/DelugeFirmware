@@ -218,20 +218,8 @@ ModFXType mod_fx_type(const MenuContext& ctx) {
 // ---------------------------------------------------------------------------------------------
 // Sound-wide
 
-bool has_lpf(const MenuContext& ctx) {
-	return filter_on(ctx, /*high_pass=*/false);
-}
-bool has_hpf(const MenuContext& ctx) {
-	return filter_on(ctx, /*high_pass=*/true);
-}
 bool is_fm(const MenuContext& ctx) {
 	return ctx.sound != nullptr && ctx.sound->getSynthMode() == ::SynthMode::FM;
-}
-bool not_fm(const MenuContext& ctx) {
-	return ctx.sound != nullptr && ctx.sound->getSynthMode() != ::SynthMode::FM;
-}
-bool not_ringmod(const MenuContext& ctx) {
-	return ctx.sound != nullptr && ctx.sound->getSynthMode() != ::SynthMode::RINGMOD;
 }
 bool is_subtractive(const MenuContext& ctx) {
 	return ctx.sound != nullptr && ctx.sound->getSynthMode() == ::SynthMode::SUBTRACTIVE;
@@ -250,24 +238,6 @@ bool osc0_transpose(const MenuContext& ctx) {
 }
 bool osc1_transpose(const MenuContext& ctx) {
 	return transpose(ctx, 1);
-}
-bool osc0_wave_index(const MenuContext& ctx) {
-	return wave_index(ctx, 0);
-}
-bool osc1_wave_index(const MenuContext& ctx) {
-	return wave_index(ctx, 1);
-}
-bool osc0_pulse_width(const MenuContext& ctx) {
-	return pulse_width(ctx, 0);
-}
-bool osc1_pulse_width(const MenuContext& ctx) {
-	return pulse_width(ctx, 1);
-}
-bool osc0_carrier_feedback(const MenuContext& ctx) {
-	return carrier_feedback(ctx, 0);
-}
-bool osc1_carrier_feedback(const MenuContext& ctx) {
-	return carrier_feedback(ctx, 1);
 }
 bool osc0_is_sample(const MenuContext& ctx) {
 	return is_sample_mode_sample(ctx, 0);
@@ -290,71 +260,6 @@ bool is_kit_row(const MenuContext& ctx) {
 }
 bool not_gate_drum_or_kit_fx(const MenuContext& ctx) {
 	return !gate_drum_row(ctx) && !kit_affect_entire(ctx);
-}
-
-bool arp_sound_only(const MenuContext& ctx) {
-	return !cv_or_midi_clip(ctx) && !non_audio_drum_row(ctx);
-}
-bool arp_rate_sound(const MenuContext& ctx) {
-	return arp_sound_only(ctx) && !kit_affect_entire(ctx);
-}
-bool is_kit_global_fx(const MenuContext& ctx) {
-	return kit_affect_entire(ctx);
-}
-
-bool randomizer_param(const MenuContext& ctx) {
-	return arp_sound_only(ctx) && arp_on(ctx);
-}
-bool randomizer_global_param(const MenuContext& ctx) {
-	// The `isGlobal` short-circuit of `randomizer_unpatched_param.h:20-24`: the three global ids
-	// stay relevant with the arpeggiator off.
-	return arp_sound_only(ctx);
-}
-bool randomizer_sound_only(const MenuContext& ctx) {
-	return !cv_or_midi_clip(ctx) && !kit_affect_entire(ctx) && !non_audio_drum_row(ctx) && arp_on(ctx);
-}
-bool randomizer_non_kit(const MenuContext& ctx) {
-	return !cv_or_midi_clip(ctx) && !ctx.is_kit && arp_on(ctx);
-}
-
-bool mod_fx_on(const MenuContext& ctx) {
-	return mod_fx_type(ctx) != ModFXType::NONE;
-}
-bool mod_fx_has_depth(const MenuContext& ctx) {
-	switch (mod_fx_type(ctx)) {
-	case ModFXType::CHORUS:
-	case ModFXType::CHORUS_STEREO:
-	case ModFXType::GRAIN:
-	case ModFXType::PHASER:
-	case ModFXType::WARBLE:
-	case ModFXType::DIMENSION:
-		return true;
-	default:
-		return false;
-	}
-}
-bool mod_fx_has_feedback(const MenuContext& ctx) {
-	switch (mod_fx_type(ctx)) {
-	case ModFXType::FLANGER:
-	case ModFXType::PHASER:
-	case ModFXType::GRAIN:
-	case ModFXType::WARBLE:
-		return true;
-	default:
-		return false;
-	}
-}
-bool mod_fx_has_offset(const MenuContext& ctx) {
-	switch (mod_fx_type(ctx)) {
-	case ModFXType::CHORUS:
-	case ModFXType::CHORUS_STEREO:
-	case ModFXType::GRAIN:
-	case ModFXType::WARBLE:
-	case ModFXType::DIMENSION:
-		return true;
-	default:
-		return false;
-	}
 }
 
 bool reverb_sidechain_on(const MenuContext& /*ctx*/) {
@@ -460,40 +365,19 @@ namespace {
 		&fn, #fn                                                                                                       \
 	}
 
-constexpr std::array<NamedPredicate, 57> kRegistry{
-    DELUGE_RELEVANCE_ROW(has_lpf),
-    DELUGE_RELEVANCE_ROW(has_hpf),
+constexpr std::array<NamedPredicate, 36> kRegistry{
     DELUGE_RELEVANCE_ROW(is_fm),
-    DELUGE_RELEVANCE_ROW(not_fm),
-    DELUGE_RELEVANCE_ROW(not_ringmod),
     DELUGE_RELEVANCE_ROW(is_subtractive),
     DELUGE_RELEVANCE_ROW(osc0_file_selector),
     DELUGE_RELEVANCE_ROW(osc1_file_selector),
     DELUGE_RELEVANCE_ROW(osc0_transpose),
     DELUGE_RELEVANCE_ROW(osc1_transpose),
-    DELUGE_RELEVANCE_ROW(osc0_wave_index),
-    DELUGE_RELEVANCE_ROW(osc1_wave_index),
-    DELUGE_RELEVANCE_ROW(osc0_pulse_width),
-    DELUGE_RELEVANCE_ROW(osc1_pulse_width),
-    DELUGE_RELEVANCE_ROW(osc0_carrier_feedback),
-    DELUGE_RELEVANCE_ROW(osc1_carrier_feedback),
     DELUGE_RELEVANCE_ROW(osc0_is_sample),
     DELUGE_RELEVANCE_ROW(osc1_is_sample),
     DELUGE_RELEVANCE_ROW(osc0_interpolation),
     DELUGE_RELEVANCE_ROW(osc1_interpolation),
     DELUGE_RELEVANCE_ROW(is_kit_row),
     DELUGE_RELEVANCE_ROW(not_gate_drum_or_kit_fx),
-    DELUGE_RELEVANCE_ROW(arp_sound_only),
-    DELUGE_RELEVANCE_ROW(arp_rate_sound),
-    DELUGE_RELEVANCE_ROW(is_kit_global_fx),
-    DELUGE_RELEVANCE_ROW(randomizer_param),
-    DELUGE_RELEVANCE_ROW(randomizer_global_param),
-    DELUGE_RELEVANCE_ROW(randomizer_sound_only),
-    DELUGE_RELEVANCE_ROW(randomizer_non_kit),
-    DELUGE_RELEVANCE_ROW(mod_fx_on),
-    DELUGE_RELEVANCE_ROW(mod_fx_has_depth),
-    DELUGE_RELEVANCE_ROW(mod_fx_has_feedback),
-    DELUGE_RELEVANCE_ROW(mod_fx_has_offset),
     DELUGE_RELEVANCE_ROW(reverb_sidechain_on),
     DELUGE_RELEVANCE_ROW(stutter_quantize_allowed),
     DELUGE_RELEVANCE_ROW(bend_submenu),
@@ -526,7 +410,7 @@ constexpr std::array<NamedPredicate, 57> kRegistry{
 // One row per predicate declared in `relevance.h` (54), plus the sixteen
 // `nodes::relevant_*_iterance_step_*` rows: declared in `nodes/note.h`, not `relevance.h`, but
 // registered here for the reason this section's own note gives. 54 + 16 = 70.
-static_assert(kRegistry.size() == 57);
+static_assert(kRegistry.size() == 36);
 
 } // namespace
 

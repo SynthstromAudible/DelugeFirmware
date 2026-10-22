@@ -37,12 +37,6 @@ namespace deluge::scenes::menu::relevance {
 /// @name Sound-wide predicates
 /// @{
 
-/// @brief Is the low-pass filter on? `filter::FilterParam::isRelevant` (`filter/param.h:42-44`),
-///        i.e. `FilterInfo::isOn()` (`filter/info.h:91`) for the LPF slot.
-bool has_lpf(const MenuContext& ctx);
-/// @brief Is the high-pass filter on? The same override for the HPF slot (`filter/param.h:42-44`,
-///        `filter/info.h:91`).
-bool has_hpf(const MenuContext& ctx);
 /// @brief Is the sound in FM mode? `modulator::Transpose::isRelevant` (`modulator/transpose.h:76-79`),
 ///        `source::patched_param::ModulatorFeedback` (`modulator_feedback.h:31-34`),
 ///        `ModulatorLevel` (`modulator_level.h:31-34`), `submenu::Modulator` (`submenu/modulator.h:25-28`)
@@ -50,12 +44,6 @@ bool has_hpf(const MenuContext& ctx);
 ///        `sound->synthMode`, the first three `sound->getSynthMode()`, which is the same member
 ///        (`processing/sound/sound.h:229`).
 bool is_fm(const MenuContext& ctx);
-/// @brief Is the sound NOT in FM mode? `osc::Type::isRelevant` (`osc/type.h:115-118`) and
-///        `patched_param::IntegerNonFM::isRelevant` (`patched_param/integer_non_fm.h:25-28`).
-bool not_fm(const MenuContext& ctx);
-/// @brief Is the sound NOT in ring-mod mode? `osc::source::Volume::isRelevant`
-///        (`osc/source/volume.h:32-35`).
-bool not_ringmod(const MenuContext& ctx);
 /// @brief Is the sound in subtractive mode? `osc::AudioRecorder::isRelevant`
 ///        (`osc/audio_recorder.h:60-63`).
 bool is_subtractive(const MenuContext& ctx);
@@ -78,25 +66,10 @@ bool osc0_transpose(const MenuContext& ctx);
 bool osc1_transpose(const MenuContext& ctx);
 /// @}
 
-/// @brief `osc::source::WaveIndex::isRelevant` (`osc/source/wave_index.h:30-35`): not FM, wavetable,
-///        and an audio file loaded.
-/// @{
-bool osc0_wave_index(const MenuContext& ctx);
-bool osc1_wave_index(const MenuContext& ctx);
 /// @}
 
-/// @brief `osc::PulseWidth::isRelevant` (`osc/pulse_width.h:39-52`): not FM; a wavetable source
-///        needs a loaded file; sample and the three input modes are out.
-/// @{
-bool osc0_pulse_width(const MenuContext& ctx);
-bool osc1_pulse_width(const MenuContext& ctx);
 /// @}
 
-/// @brief `osc::source::Feedback::isRelevant` (`osc/source/feedback.h:31-34`): FM, or the source is
-///        a DX7 operator stack.
-/// @{
-bool osc0_carrier_feedback(const MenuContext& ctx);
-bool osc1_carrier_feedback(const MenuContext& ctx);
 /// @}
 
 /// @brief `isSampleModeSample` (`gui/menu_item/sample/utils.cpp:9-15`) -- the predicate
@@ -136,40 +109,6 @@ bool is_kit_row(const MenuContext& ctx);
 ///        (`octaves.h:39-41`), `OctaveMode` (`octave_mode.h:44-46`) and `submenu::ArpMpeSubmenu`
 ///        (`submenu/arp_mpe_submenu.h:22-24`) -- one predicate, three items.
 bool not_gate_drum_or_kit_fx(const MenuContext& ctx);
-
-/// @brief A sound (not MIDI/CV, not a non-audio drum row). `ArpUnpatchedParam::isRelevant`
-///        (`arpeggiator/arp_unpatched_param.h:29-31`).
-bool arp_sound_only(const MenuContext& ctx);
-/// @brief The same, and not the kit's global-FX page. `arpeggiator::Rate::isRelevant`
-///        (`arpeggiator/rate.h:26-29`).
-bool arp_rate_sound(const MenuContext& ctx);
-/// @brief A kit's global-FX page. `arpeggiator::KitRate::isRelevant` (`arpeggiator/rate.h:26-29`),
-///        i.e. `editingKitAffectEntire()` (`sound_editor.cpp:203-205`). Declared for Task 8's kit
-///        root; batch 2 reaches it through no node.
-bool is_kit_global_fx(const MenuContext& ctx);
-
-/// @brief A sound randomizer parameter that is off when the arpeggiator is.
-///        `RandomizerUnpatchedParam::isRelevant` (`randomizer/randomizer_unpatched_param.h:31-42`)
-///        on a *non*-global parameter id.
-bool randomizer_param(const MenuContext& ctx);
-/// @brief The same override on one of its three global ids (`UNPATCHED_SPREAD_VELOCITY`,
-///        `UNPATCHED_NOTE_PROBABILITY`, `UNPATCHED_REVERSE_PROBABILITY`), which stay on with the
-///        arpeggiator off (`randomizer_unpatched_param.h:20-24`).
-bool randomizer_global_param(const MenuContext& ctx);
-/// @brief `RandomizerSoundOnlyUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h:37-40`).
-bool randomizer_sound_only(const MenuContext& ctx);
-/// @brief `RandomizerNonKitSoundUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h:52-55`).
-bool randomizer_non_kit(const MenuContext& ctx);
-
-/// @brief Is a mod-FX type selected at all? `mod_fx::Rate::isRelevant` (`mod_fx/rate.h:27-29`).
-bool mod_fx_on(const MenuContext& ctx);
-/// @brief Does the selected mod-FX type have a depth? `mod_fx::Depth_Patched::isRelevant`
-///        (`mod_fx/depth_patched.h:29-33`).
-bool mod_fx_has_depth(const MenuContext& ctx);
-/// @brief ... a feedback? `mod_fx::Feedback::isRelevant` (`mod_fx/feedback.h:28-31`).
-bool mod_fx_has_feedback(const MenuContext& ctx);
-/// @brief ... an offset? `mod_fx::Offset::isRelevant` (`mod_fx/offset.h:29-33`).
-bool mod_fx_has_offset(const MenuContext& ctx);
 
 /// @brief Is reverb ducking set to something other than AUTO? `reverb::sidechain::Shape::isRelevant`
 ///        (`reverb/sidechain/shape.h:37-39`), `sidechain::Attack` / `Release` / `Sync` in their

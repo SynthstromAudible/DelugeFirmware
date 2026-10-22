@@ -41,7 +41,7 @@
 /// | `global_mod_fx` | `globalModFXMenu` (`:1077`) | `submenu::ModFxHorizontalMenu` | Submenu (Horizontal) |
 /// | `global_distortion` | `globalDistortionMenu` (`:1088`) | `HorizontalMenu` | Submenu (Horizontal) |
 /// | `global_fx` | `globalFXMenu` (`:1096`) | `Submenu` | Submenu (Vertical) |
-/// | `global_sidechain_volume` | `globalSidechainVolumeMenu` (`:1109`) | `sidechain::GlobalVolume` | Int (param, `updates_reverb_params`) |
+/// | `global_sidechain_volume` | `globalSidechainVolumeMenu` (`:1109`) | `sidechain::GlobalVolume` | Int (param; its Edit raises the reverb's recompute) |
 /// | `global_sidechain` | `globalSidechainMenu` (`:1112`) | `HorizontalMenu` | Submenu (Horizontal) |
 // clang-format on
 ///

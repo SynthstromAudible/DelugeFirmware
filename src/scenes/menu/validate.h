@@ -96,25 +96,13 @@ enum class Flag : uint16_t {
 	RangeDependent,
 	/// @brief `Binding::scaling == Scaling::HalfPrecision` (`bindings.h`'s two named exceptions).
 	HalfPrecision,
-	/// @brief `Binding::updates_reverb_params` on a node that also has a `set` hook -- a combination
-	///        that silently does nothing.
-	///
-	/// `bindings::write` prefers the hook and returns before the flag is ever read
-	/// (`bindings.cpp`'s `write`, the `bind.set != nullptr` arm), so a table declaring both would
-	/// look like it raised `AudioEngine::mustUpdateReverbParamsBeforeNextRender` and would not.
-	/// The two legacy `UpdatingReverbParams` items (`sidechain::Shape`, `sidechain::GlobalVolume`)
-	/// are both pure `ParamRef` nodes, so the combination is a table bug rather than a shape this
-	/// tree needs -- and the right answer for a hook that *does* need the flag is to set the engine
-	/// flag inside the hook, as the sidechain attack/release/sync hooks do. Unlike the two audits
-	/// above this rule needs no expected set: it is a property of one node.
-	ReverbUpdateWithHook,
 	/// @brief Exactly one of `Node::select_chain` and `Node::chain_targets` is set.
 	///
 	/// A hook with no targets is a page the tree cannot number, validate or dump -- the chain would
 	/// navigate to a node with id 0, which `MenuScene::on_enter` can never resolve again. Targets
 	/// with no hook is the mirror: the pages are numbered and dumped but nothing can ever open them,
-	/// so they read as reachable when they are not. Like `ReverbUpdateWithHook` this needs no
-	/// expected set -- it is a property of one node.
+	/// so they read as reachable when they are not. This needs no expected set -- it is a property
+	/// of one node.
 	ChainTargetsMismatch,
 	/// @brief `Binding::adjust` on a node with no `get` -- a combination that would read through
 	///        `param` and write through the hook, silently disagreeing about where the value lives

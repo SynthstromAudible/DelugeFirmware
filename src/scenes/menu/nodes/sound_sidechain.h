@@ -11,7 +11,7 @@
 /// |---|---|---|---|
 /// | `sidechain_volume` | `sidechainVolumeShortcutMenu` (`:806`) | `sidechain::VolumeShortcut` (`sidechain/volume.h:23`) | **Custom, E2** |
 /// | `sidechain_sync` | `sidechainSyncMenu` (`:808`) | `sidechain::Sync` (`sidechain/sync.h:28`) | SyncLevel, 10 options |
-/// | `sidechain_shape` | `sidechainShapeMenu` (`:811`) | `sidechain::Shape` (`sidechain/shape.h:6`) | Int (param, `updates_reverb_params`) |
+/// | `sidechain_shape` | `sidechainShapeMenu` (`:811`) | `sidechain::Shape` (`sidechain/shape.h:6`) | Int (param; its Edit raises the reverb's recompute) |
 /// | `sidechain_send` | `sidechainSendMenu` (`:805`) | `sidechain::Send` (`sidechain/send.h:28`) | Int |
 /// | `sidechain_attack` | `sidechainAttackMenu` (`:809`) | `sidechain::Attack` (`sidechain/attack.h:28`) | Int |
 /// | `sidechain_release` | `sidechainReleaseMenu` (`:810`) | `sidechain::Release` (`sidechain/release.h:28`) | Int |
@@ -73,9 +73,8 @@ inline constexpr IntRange kSidechainRateRange{0, 50, 1};
 
 // `sidechainVolumeShortcutMenu` (`gui/ui/menus.cpp:806-807`): a `sidechain::VolumeShortcut`, which
 // is a `patch_cable_strength::Fixed` on GLOBAL_VOLUME_POST_REVERB_SEND from the SIDECHAIN source,
-// plus the reverb-recompute flag its `writeCurrentValue` raises (`sidechain/volume.h:26-29`). That
-// flag rides on the item rather than on `Binding::updates_reverb_params` because the node has no
-// `Binding` at all -- see `PatchCableStrengthItem`'s constructor.
+// plus the reverb-recompute flag its `writeCurrentValue` raises (`sidechain/volume.h:26-29`), which
+// rides on the item: the node has no `Binding` -- see `PatchCableStrengthItem`'s constructor.
 inline constexpr Node sidechain_volume =
     with_select_chain(custom(sid(deluge::l10n::String::STRING_FOR_VOLUME_DUCKING), &kSidechainVolumeItem),
                       &patch_cable_strength_chain, kPatchCableStrengthChain);

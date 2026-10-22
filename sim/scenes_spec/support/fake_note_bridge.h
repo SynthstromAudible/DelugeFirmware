@@ -5,8 +5,7 @@
 ///        (a count) and, where legacy's statement takes one, its argument, and returns a settable
 ///        value.
 ///
-/// Shape follows `sim/scenes_spec/bindings_spec.cpp`'s `FeedbackHookGuard` (`:115-123`): a
-/// function pointer cannot capture, so the struct's methods are free functions reading a single
+/// A function pointer cannot capture, so the struct's methods are free functions reading a single
 /// installed instance through `FakeNoteBridgeGuard`, which installs it in its constructor and
 /// clears the bridge in its destructor -- so a failing example cannot leak the fake into a later
 /// one.

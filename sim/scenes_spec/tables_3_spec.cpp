@@ -21,8 +21,7 @@
 ///     **every** node with a `set` hook (task-7 ruling);
 ///
 /// plus what only a complete tree can be asked: `MenuScene::roots()` resolves all ten,
-/// `validate_tree` over every root under every context, the spec E §4 `Kind`-count rule, and the
-/// new `Flag::ReverbUpdateWithHook` audit.
+/// `validate_tree` over every root under every context, and the spec E §4 `Kind`-count rule.
 ///
 /// @note The SPEC may include `gui/menu_item/` and `gui/ui/menus.h`; the library may not
 ///       (`scripts/check_layer_rules.py`'s `scenes-includes-outside`). Same rule
@@ -1634,37 +1633,6 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 		}
 	});
 
-	it("reports a set hook that would swallow the reverb-update flag", _ {
-		// The task-8 ruling, checked on a fake node rather than on the real tables (where the
-		// combination must never appear): `bindings::write` returns inside its `set` arm before the
-		// flag is read, so declaring both is a silent no-op.
-		static constexpr menu::Node kBad = [] {
-			menu::Node n = menu::param(1, {deluge::modulation::params::Kind::UNPATCHED_SOUND, 0});
-			n.bind.set = +[](const MenuContext&, int32_t) {};
-			n.bind.updates_reverb_params = true;
-			return n;
-		}();
-		static constexpr const Node* kBadRoots[] = {&kBad};
-		const auto issues = menu::validate_tree(kBadRoots, {});
-		size_t flagged = 0;
-		for (const menu::Issue& i : issues) {
-			if (i.kind == menu::Issue::Kind::FlagMismatch
-			    && i.detail == static_cast<uint16_t>(menu::Flag::ReverbUpdateWithHook)) {
-				flagged++;
-			}
-		}
-		expect(flagged).to_equal(size_t(1));
-
-		// ... and the real tables carry the flag nowhere: the two `UpdatingReverbParams` params' Edit raises the reverb's
-		// recompute itself.
-		size_t reverb_nodes = 0;
-		for (const Pair& p : tree().pairs) {
-			if (p.node->bind.updates_reverb_params) {
-				reverb_nodes++;
-			}
-		}
-		expect(reverb_nodes).to_equal(size_t(0));
-	});
 });
 
 describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {

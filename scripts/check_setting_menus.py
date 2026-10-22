@@ -25,6 +25,10 @@ Edits, which write the table and project it, and the check cannot tell that poin
 wrote through an alias would go unreported; the mapping tests, which read the table after each gesture, are what catch
 one.
 
+Nor may a file under src/scenes write a param on its AutoParam: a param menu writes through SetParamValue and deletes
+its automation through DeleteParamAutomation (model/edits/). The gold knob's turn and automation delete and a patch
+cable's strength still do, allowed line by line until 2c-2 gives them their Edits.
+
 Two gestures write the runtime themselves and record what they wrote, checked file by file: a file that writes a mod
 knob (a `modKnobs[...]` descriptor, or learnKnob()/unlearnKnobs() on what is not a menu item) also calls
 recordControlsOf(), and a file that writes a sample holder's file or zone also calls recordRanges() or rangesFor().
@@ -519,6 +523,46 @@ def converted_scene_writes(root: Path) -> list[str]:
     return found
 
 
+#: A param written on its AutoParam: a scene's param menu writes its param through SetParamValue (and deletes its
+#: automation through DeleteParamAutomation), which log the change and raise what follows it.
+SCENES_PARAM_WRITE = re.compile(
+    r"(?:->|\.)\s*(setCurrentValueInResponseToUserInput|setValuePossiblyForRegion|deleteAutomation)\s*\("
+)
+#: The param writes 2c-2 still owes an Edit, by file (relative to src/scenes) and the text the write's line holds, each
+#: with its reason.
+SCENES_PARAM_ALLOWED: dict[str, dict[str, str]] = {
+    "menu/context.cpp": {
+        "setValuePossiblyForRegion(new_value, param, target.mod_pos, target.mod_length)": "a gold knob's turn, "
+        "written for the region the view holds; 2c-2 owes it its Edit",
+        "deleteAutomation(action, param)": "shift+select on a gold knob deletes its automation; 2c-2 owes it "
+        "DeleteParamAutomation",
+    },
+    "menu/bindings.cpp": {
+        "setCurrentValueInResponseToUserInput(final_value, with_param)": "a patch cable's strength, which may "
+        "create the cable; 2c-2 owes it its Edit",
+    },
+}
+
+
+def scene_param_writes(root: Path, allowed=None) -> list[str]:
+    """Every `path:line: writes a param on its AutoParam` under @p root, less the lines @p allowed names (paths
+    relative to @p root)."""
+    allowed = SCENES_PARAM_ALLOWED if allowed is None else allowed
+    found = []
+    for path in sorted(root.rglob("*")):
+        if path.suffix not in SUFFIXES or not path.is_file():
+            continue
+        allowances = allowed.get(str(path.relative_to(root)), {})
+        for number, code in code_lines(path.read_text(errors="replace")):
+            if any(text in code for text in allowances):
+                continue
+            if match := SCENES_PARAM_WRITE.search(code):
+                found.append(
+                    f"{path}:{number}: writes a param on its AutoParam ({match.group(1)}) outside its Edit"
+                )
+    return found
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, nargs="+", default=list(DEFAULT_ROOTS))
@@ -529,6 +573,8 @@ def main(argv=None) -> int:
         found += calls(root, tuple(args.also)) + unrecorded(root)
         if root.resolve().is_relative_to(SCENES_ROOT):
             found += scene_follow_ups(root) + converted_scene_writes(root)
+            if root.resolve() == SCENES_ROOT:
+                found += scene_param_writes(root)
     found += host_writes() + song_state_writes(tuple(args.root))
     for line in found:
         print(line)

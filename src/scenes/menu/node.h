@@ -314,7 +314,6 @@ struct Binding {
 	/// `sidechain::GlobalVolume` (`sidechain/volume_global.h:6`, the song and global-FX roots task
 	/// 8 declares). Meaningful only for a `ParamRef` binding -- a `get`/`set` item that needs the
 	/// flag sets it in its own hook, as the sidechain attack/release/sync ones do.
-	bool updates_reverb_params = false;
 	/// A target write also repaints the pad grid, which shows what the value changes (an audio clip's reverse, whose
 	/// waveform the grid draws); every target write repaints the OLED.
 	bool repaints_grid = false;

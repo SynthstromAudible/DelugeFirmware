@@ -160,9 +160,8 @@ public:
 	/// @param source       `Fixed::s` -- the cable's source. Ignored unless @p which is `Fixed`.
 	/// @param updates_reverb `sidechain::VolumeShortcut::writeCurrentValue`'s extra line
 	///                     (`sidechain/volume.h:26-29`): the cable write, then
-	///                     `AudioEngine::mustUpdateReverbParamsBeforeNextRender = true`. A
-	///                     `Binding::updates_reverb_params` cannot carry it -- this node has no
-	///                     `Binding` at all -- so it is a constructor argument.
+	///                     `AudioEngine::mustUpdateReverbParamsBeforeNextRender = true`. This node
+	///                     has no `Binding`, so it is a constructor argument.
 	constexpr PatchCableStrengthItem(Which which, uint8_t param = 0, PatchSource source = PatchSource::NOT_AVAILABLE,
 	                                 bool updates_reverb = false)
 	    : which_{which}, param_{param}, source_{source}, updates_reverb_{updates_reverb} {}

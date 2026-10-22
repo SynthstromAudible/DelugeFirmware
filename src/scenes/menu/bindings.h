@@ -3,26 +3,10 @@
 /// @brief The only place the menu system reads and writes the model (spec E §4, amended by
 ///        `.superpowers/sdd/2026-08-27-ui-scenes-menus-1/task-4-brief.md`).
 ///
-/// A `Node`'s `Binding` is plain data: either a `ParamRef` (which param on the model) or a
-/// `get`/`set` pair. These five functions are what turns that data into an actual read, an actual
-/// write, a range, a name list and a MIDI-learn descriptor. Every legacy `readCurrentValue` /
-/// `writeCurrentValue` / `getFinalValue` / `getMaxValue` / `getLearningThing` override on a
-/// **`ParamRef`-backed** item collapses into them; see `bindings.cpp` for the line-by-line port
-/// table. (Items whose value does not live in a param set keep their own logic, as a `get`/`set`
-/// pair the tree supplies -- that is what `Binding::get`/`set` are for, and nothing here scales or
-/// interprets what those hooks return.)
-///
-/// @note **Which scaling a param uses is declared, not inferred** (`node.h`'s `Scaling`). The
-///       default, `Scaling::Standard`, is legacy's `patched_param::Integer` /
-///       `menu_item::UnpatchedParam` arithmetic. Two exceptions exist and Tasks 6-8 must name them
-///       at the call site, via `param()`'s trailing `scaling` argument:
-///       `Scaling::HalfPrecision` for **osc pulse width** (`gui/menu_item/osc/pulse_width.h:32,34-37`
-///       -- `LOCAL_OSC_A_PHASE_WIDTH` / `LOCAL_OSC_B_PHASE_WIDTH`) and for the **compressor params**
-///       (`gui/menu_item/audio_compressor/compressor_params.h:29-33`), which cannot take the
-///       negative stored values `Scaling::Standard` produces (`value_scaling.cpp:36`); and
-///       `Scaling::Pan` for the two pan params, which `bindings.cpp` additionally infers as a
-///       backstop (`scaling_for`) since `params::isParamPan` can recognise them and no equivalent
-///       predicate exists for the half-precision pair.
+/// A `Node`'s `Binding` is plain data: a target (a setting or a param, which `scenes/bind` reads and the menu's sink
+/// writes) or a `get`/`set` pair. These functions turn that data into a read, a write, a range, a name list and a
+/// MIDI-learn descriptor. (Items whose value has no target keep their own logic, as a `get`/`set` pair the tree
+/// supplies -- nothing here scales or interprets what those hooks return.)
 ///
 /// @note **`model/model_stack.h` and `modulation/automation/auto_param.h` are reached by
 ///       `bindings.cpp` only** -- it and `context.cpp` are the two files the
@@ -30,12 +14,9 @@
 ///       This header pulls in neither: it needs no model type but `ParamDescriptor`, which is a
 ///       leaf wrapper around an `int32_t`.
 ///
-/// @note **No `gui/menu_item/`.** The value scaling this ports (`computeCurrentValueForStandardMenuItem`
-///       and friends, `gui/menu_item/value_scaling.cpp`) lives behind the `gui/` wall the
-///       `scenes-includes-outside` ratchet enforces, so `bindings.cpp` transcribes the arithmetic
-///       with the legacy line cited on each function. `sim/scenes_spec/bindings_spec.cpp` compares
-///       the transcription against the legacy functions directly -- the spec may include `gui/`,
-///       the library may not.
+/// @note **No `gui/menu_item/`.** The value scaling the `get`/`set` items reuse (`standard_to_menu` and friends)
+///       is the param displays' (`scenes/bind/param_display.cpp`), which transcribes legacy's
+///       `gui/menu_item/value_scaling.cpp`; `sim/scenes_spec/bindings_spec.cpp` compares it with the legacy functions.
 
 #include "modulation/params/param_descriptor.h"
 #include "scenes/menu/node.h"
@@ -310,17 +291,6 @@ int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row = nu
 /// @param ctx   What is being edited.
 /// @param value The new `SequenceDirection`.
 void write_sequence_direction(const MenuContext& ctx, int32_t value);
-
-/// @brief What `write()` calls after a `ParamRef` write, in place of legacy's
-///        `view.sendMidiFollowFeedback(modelStack, knobPos)` (`gui/views/view.cpp:1730`).
-///
-/// `src/scenes` may not include `gui/views/`, so the call is inverted into a hook the application
-/// installs.
-using FeedbackHook = void (*)(const MenuContext& ctx, const Node& node, int32_t knob_pos);
-
-/// @brief Install (or, with `nullptr`, remove) the MIDI-follow feedback hook.
-/// @param hook The hook to call after each `ParamRef` write, or `nullptr` for none.
-void set_feedback_hook(FeedbackHook hook);
 
 /// @brief Write a **patch cable's** strength, creating the cable if it does not exist yet.
 ///

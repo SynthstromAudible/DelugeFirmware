@@ -47,8 +47,7 @@
 ///
 /// plus, beyond §4.4: `MissingTitle`, `NullCustom` and `RangeWithoutSpec` (three ways a node would
 /// render nothing),
-/// `FlagMismatch` with `Flag::ReverbUpdateWithHook` (task-8 ruling: a `set` hook silently swallows
-/// `Binding::updates_reverb_params`), with `Flag::ChainTargetsMismatch` (a `select_chain` hook
+/// `FlagMismatch` with `Flag::ChainTargetsMismatch` (a `select_chain` hook
 /// without its static target list, or the reverse), and with `Flag::AdjustWithoutGet`
 /// (E-note-family task 3: `Binding::adjust` on a node with no `get`, which would read through
 /// `param` and write through the hook),
@@ -318,11 +317,6 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 		        || !n.bind.names.empty() || n.bind.dynamic_names != nullptr || n.relevant != nullptr
 		        || n.bind.adjust != nullptr || n.bind.range_spec != nullptr)) {
 			add(out, Issue::Kind::FlagMismatch, &n, static_cast<uint16_t>(Flag::TargetWithHooks));
-		}
-
-		// A `set` hook plus `updates_reverb_params` is a silent no-op -- see `Flag::ReverbUpdateWithHook`.
-		if (n.bind.updates_reverb_params && n.bind.set != nullptr) {
-			add(out, Issue::Kind::FlagMismatch, &n, static_cast<uint16_t>(Flag::ReverbUpdateWithHook));
 		}
 
 		// A chain hook and its static target list are set together or not at all -- see
