@@ -22,9 +22,11 @@
 #include "model/output.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/param_stack.h"
 #include "model/project_bridge/setting_projection.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
+#include "modulation/automation/auto_param.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -130,6 +132,7 @@ public:
 	[[nodiscard]] int32_t played_bend_range(const deluge::project::SettingAddress& owner, int32_t which) const override;
 	[[nodiscard]] bool allows_note_tails(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] uint8_t arp_preset(const deluge::project::SettingAddress& address) const override;
+	[[nodiscard]] std::optional<int32_t> param_value(const deluge::project::ParamAddress& address) const override;
 };
 
 ShellEditSink& shell_edit_sink() {
@@ -328,6 +331,15 @@ bool ShellRuntimeFacts::allows_note_tails(deluge::project::SlotAddress slot) con
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithSoundFlags* stack = getModelStackFromSoundDrum(memory, drum)->addSoundFlags();
 	return drum->allowNoteTails(stack, /*disregardSampleLoop=*/true);
+}
+
+std::optional<int32_t> ShellRuntimeFacts::param_value(const deluge::project::ParamAddress& address) const {
+	if (currentSong == nullptr) {
+		return std::nullopt;
+	}
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* stack = deluge::bridge::paramStackAt(*currentSong, address, memory);
+	return stack != nullptr ? std::optional{stack->autoParam->getCurrentValue()} : std::nullopt;
 }
 
 uint8_t ShellRuntimeFacts::arp_preset(const deluge::project::SettingAddress& address) const {

@@ -15,6 +15,8 @@ struct WriteRequest {
 	Target target;
 	Addresses where;
 	int32_t menu_value{0};
+	/// PARAM only: the stored word the menu value stands for, in the param's display.
+	int32_t param_value{0};
 	bool operator==(const WriteRequest&) const = default;
 };
 

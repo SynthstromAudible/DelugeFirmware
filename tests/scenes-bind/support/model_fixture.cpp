@@ -79,4 +79,14 @@ void ModelFixture::set_state(project::SlotAddress slot, const instrument::SoundS
 	}
 }
 
+std::optional<int32_t> FakeFacts::param_value(const project::ParamAddress& address) const {
+	for (const auto& [at, value] : param_values) {
+		if (at.owner == address.owner && at.space == address.space && at.id == address.id
+		    && at.clip_id == address.clip_id) {
+			return value;
+		}
+	}
+	return std::nullopt;
+}
+
 } // namespace deluge::scenes::bind::test

@@ -2,11 +2,14 @@
 
 #include "engine-api/types/engine_id.h"
 #include "engine-api/types/setting.h"
+#include "engines/deluge/params.h"
 #include "engines/deluge/settings.h"
 #include "engines/effects/settings.h"
+#include "engines/global_effectable/params.h"
 #include "gui/l10n/setting_names.h"
 #include "scenes/bind/chain_reader.h"
 #include "scenes/bind/model_reader.h"
+#include "scenes/bind/param_display.h"
 #include "scenes/bind/setting_context.h"
 #include "scenes/bind/slot_reader.h"
 
@@ -106,6 +109,54 @@ std::optional<Resolved> resolve(const Target& target, const project::Song& model
 	return std::nullopt;
 }
 
+/// A PARAM target resolved against the song: its address, its descriptor row, and its owner's rows for its
+/// conditions.
+struct ResolvedParam {
+	project::ParamAddress address;
+	const engine::ParamInfo* info;
+	Reader reader;
+	engine::SettingContext context;
+};
+
+std::optional<ResolvedParam> resolve_param(const Target& target, const project::Song& model, const Addresses& where,
+                                           const RuntimeFacts& facts) {
+	if ((target.shown_on == Target::ShownOn::ON_LANE && !where.lane)
+	    || (target.shown_on == Target::ShownOn::OFF_LANE && where.lane)) {
+		return std::nullopt;
+	}
+	const std::optional<project::ParamAddress> address = param_address(target, where);
+	if (!address) {
+		return std::nullopt;
+	}
+	if (where.slot) {
+		const engine::ParamInfo* info = engine::find_param(instrument::kParams, target.param);
+		Reader reader{SlotReader{model, *where.slot, facts}};
+		if (info == nullptr || !reader.resolved()) {
+			return std::nullopt;
+		}
+		return ResolvedParam{*address, info, reader, setting_context(model, *where.slot, facts)};
+	}
+	const engine::ParamInfo* info = engine::find_param(global_effectable::kParams, target.param);
+	Reader reader{ChainReader{model, *where.chain, facts}};
+	if (info == nullptr || !reader.resolved()) {
+		return std::nullopt;
+	}
+	return ResolvedParam{*address, info, reader, setting_context(*where.chain, where.chain_owner)};
+}
+
+/// Whether @p resolved's param shows: its conditions hold over its owner's rows, and its partner, if any, applies.
+bool param_applies(const Target& target, const ResolvedParam& resolved, const project::Song& model,
+                   const Addresses& where, const RuntimeFacts& facts) {
+	if (!engine::conditions_hold(target.applies_when, resolved.context, resolved.reader.reader())) {
+		return false;
+	}
+	if (target.shown_with == nullptr) {
+		return true;
+	}
+	const std::optional<View> partner = view(*target.shown_with, model, where, facts);
+	return partner.has_value() && partner->applies;
+}
+
 /// A CHOICE row's listed entries: the menu values whose choice applies, in menu order, with the stored one inserted
 /// where it falls when it does not apply.
 struct Entries {
@@ -195,8 +246,58 @@ std::optional<project::SettingAddress> setting_address(const Target& target, con
 	return std::nullopt;
 }
 
+std::optional<project::ParamAddress> param_address(const Target& target, const Addresses& where) {
+	using project::OwnerId;
+	if (target.kind != Target::Kind::PARAM) {
+		return std::nullopt;
+	}
+	project::ParamAddress address{.space = project::ParamSpace::ENGINE, .id = target.param};
+	if (where.slot) {
+		if (!where.clip) {
+			return std::nullopt;
+		}
+		address.owner = where.slot->kind == project::SlotAddress::Kind::DRUM ? OwnerId::drum(where.slot->id)
+		                                                                     : OwnerId::instrument(where.slot->id);
+		address.clip_id = where.clip->clip_id;
+		return address;
+	}
+	if (!where.chain) {
+		return std::nullopt;
+	}
+	switch (where.chain_owner) {
+	case ChainOwner::KIT:
+		if (!where.clip) {
+			return std::nullopt;
+		}
+		address.owner = OwnerId::instrument(where.chain->id);
+		address.clip_id = where.clip->clip_id;
+		return address;
+	case ChainOwner::AUDIO_TRACK:
+		if (!where.clip) {
+			return std::nullopt;
+		}
+		address.owner = OwnerId::clip(where.clip->clip_id); // an audio clip holds its own params
+		return address;
+	case ChainOwner::SONG:
+		address.owner = OwnerId::song();
+		return address;
+	}
+	return std::nullopt;
+}
+
 std::optional<View> view(const Target& target, const project::Song& model, const Addresses& where,
                          const RuntimeFacts& facts) {
+	if (target.kind == Target::Kind::PARAM) {
+		const std::optional<ResolvedParam> resolved = resolve_param(target, model, where, facts);
+		const std::optional<int32_t> playing = resolved ? facts.param_value(resolved->address) : std::nullopt;
+		if (!playing) {
+			return std::nullopt;
+		}
+		View shown{.applies = param_applies(target, *resolved, model, where, facts),
+		           .value = menu_of(resolved->info->display, *playing)};
+		std::tie(shown.least, shown.greatest) = menu_range(resolved->info->display);
+		return shown;
+	}
 	const std::optional<Resolved> resolved = resolve(target, model, where, facts);
 	if (!resolved) {
 		return std::nullopt;
@@ -265,6 +366,20 @@ size_t choice_names(const Target& target, const project::Song& model, const Addr
 
 std::optional<WriteRequest> request_for(const Target& target, const project::Song& model, const Addresses& where,
                                         const RuntimeFacts& facts, int32_t menu) {
+	if (target.kind == Target::Kind::PARAM) {
+		const std::optional<ResolvedParam> resolved = resolve_param(target, model, where, facts);
+		if (!resolved) {
+			return std::nullopt;
+		}
+		const auto [least, greatest] = menu_range(resolved->info->display);
+		if (menu < least || menu > greatest) {
+			return std::nullopt;
+		}
+		return WriteRequest{.target = target,
+		                    .where = where,
+		                    .menu_value = menu,
+		                    .param_value = stored_of(resolved->info->display, menu)};
+	}
 	const std::optional<Resolved> resolved = resolve(target, model, where, facts);
 	if (!resolved) {
 		return std::nullopt;

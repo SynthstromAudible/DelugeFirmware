@@ -4,7 +4,7 @@
 # against a project::Song with no engine runtime objects, and scripts/check_library_boundary.py holds it to that.
 # The app supplies what it cannot see: the runtime facts (RuntimeFacts) and the sink that applies Edits (WriteSink).
 
-add_library(deluge_scenes_bind STATIC dispatch.cpp slot_reader.cpp chain_reader.cpp model_reader.cpp setting_context.cpp
+add_library(deluge_scenes_bind STATIC dispatch.cpp slot_reader.cpp chain_reader.cpp model_reader.cpp setting_context.cpp param_display.cpp
                                       write_sink.cpp)
 include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/optimise_for_size.cmake)
 deluge_optimise_target_for_size(deluge_scenes_bind)
@@ -16,5 +16,5 @@ if(DEFINED DELUGE_CXX_STANDARD)
   set_target_properties(deluge_scenes_bind PROPERTIES CXX_STANDARD ${DELUGE_CXX_STANDARD} CXX_STANDARD_REQUIRED ON
                                                       CXX_EXTENSIONS ON)
 endif()
-target_link_libraries(deluge_scenes_bind PUBLIC deluge_project deluge_instrument)
+target_link_libraries(deluge_scenes_bind PUBLIC deluge_project deluge_instrument deluge_global_effectable)
 target_compile_options(deluge_scenes_bind PUBLIC ${DELUGE_COMMON_COMPILE_OPTIONS})

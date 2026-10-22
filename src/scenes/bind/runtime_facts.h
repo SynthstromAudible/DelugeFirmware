@@ -5,11 +5,13 @@
 
 #include "deluge-project/fx_chain.h"
 #include "deluge-project/instrument_slot.h"
+#include "deluge-project/param_address.h"
 #include "deluge-project/setting_group.h"
 #include "engines/deluge/sound_state.h"
 #include "engines/effects/state.h"
 
 #include <cstdint>
+#include <optional>
 
 namespace deluge::scenes::bind {
 
@@ -42,6 +44,10 @@ public:
 	/// @brief The arp preset the engine holds for the arp @p address names (a CLIP_ARP or LANE_ARP owner), as an index
 	/// of engine::kArpPresetWords: a record derives its preset from its fields, so Custom is the engine's alone.
 	[[nodiscard]] virtual uint8_t arp_preset(const project::SettingAddress& address) const = 0;
+	/// @brief The value the param at @p address plays now: the engine's cursor, which automation moves at the
+	/// playhead, a latch or override holds, and stutter-type effects and recording change, where the record holds the
+	/// saved base value; nullopt where the song holds no such param.
+	[[nodiscard]] virtual std::optional<int32_t> param_value(const project::ParamAddress& address) const = 0;
 };
 
 } // namespace deluge::scenes::bind

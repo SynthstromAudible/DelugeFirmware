@@ -11,7 +11,10 @@
 #include "deluge-project/setting_group.h"
 #include "engine-api/types/setting.h"
 
+#include "deluge-project/param_address.h"
+#include "engine-api/types/param.h"
 #include <cstdint>
+
 #include <optional>
 #include <span>
 #include <string_view>
@@ -27,6 +30,7 @@ struct Target {
 		EFFECT, ///< a row of effects::kEffectSettings, on the sound at Addresses::slot, else the chain at
 		        ///< Addresses::chain
 		MODEL,  ///< a row of project::table_of(group), on the owner the Addresses name for that group
+		PARAM,  ///< a param of the owner's engine (the sound at Addresses::slot, else the chain's owner), by id
 	};
 	/// Which roots a node shows on beyond its row's applicability: a page legacy keeps a twin of for kit rows (its
 	/// note mode) shows on its own kind of root, as legacy lays them out.
@@ -57,6 +61,15 @@ struct Target {
 	std::string_view audio_clip_path{};
 	FanOutFact fan_out_fact{FanOutFact::NONE};
 	ShownOn shown_on{ShownOn::ANY};
+	/// PARAM only: the param, in the owner's engine's table (a sound's the Deluge instrument's, a chain's the global
+	/// effectable's).
+	engine::ParamId param{};
+	/// PARAM only: where the param shows, as conditions over the owner's setting rows (a sound's synth mode, an
+	/// oscillator's type, a filter's mode, the mod FX type).
+	std::span<const engine::SettingCondition> applies_when{};
+	/// PARAM only: a target the param shows only where it applies, for a condition another owner holds (the arp's
+	/// mode, on the clip's or lane's arp record).
+	const Target* shown_with{nullptr};
 
 	[[nodiscard]] constexpr bool valid() const { return kind != Kind::NONE; }
 	/// Equal when they name the same row the same way: the same fan-out rule, by identity.
@@ -64,7 +77,8 @@ struct Target {
 		return kind == other.kind && path == other.path && whole_kit == other.whole_kit
 		       && fan_out_when.data() == other.fan_out_when.data() && fan_out_when.size() == other.fan_out_when.size()
 		       && group == other.group && audio_clip_path == other.audio_clip_path && fan_out_fact == other.fan_out_fact
-		       && shown_on == other.shown_on;
+		       && shown_on == other.shown_on && param == other.param && applies_when.data() == other.applies_when.data()
+		       && applies_when.size() == other.applies_when.size() && shown_with == other.shown_with;
 	}
 };
 
@@ -95,5 +109,12 @@ struct Addresses {
 /// @param where  Where the menu edits.
 /// @return The address, or nullopt where @p where names no such owner or @p target edits no model group.
 [[nodiscard]] std::optional<project::SettingAddress> setting_address(const Target& target, const Addresses& where);
+
+/// @brief The param @p target edits at @p where: on the sound at the slot (a synth's INSTRUMENT, a sound drum's DRUM,
+/// with the clip), else on the chain's owner (a kit's INSTRUMENT with the clip, an audio track's CLIP, the SONG).
+/// @param target A PARAM target.
+/// @param where  Where the menu edits.
+/// @return The address, or nullopt for another kind of target or where @p where names no such owner.
+[[nodiscard]] std::optional<project::ParamAddress> param_address(const Target& target, const Addresses& where);
 
 } // namespace deluge::scenes::bind

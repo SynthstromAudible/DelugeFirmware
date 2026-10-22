@@ -14,6 +14,8 @@
 
 #include <cstdint>
 #include <map>
+#include <optional>
+#include <utility>
 #include <vector>
 
 namespace deluge::scenes::bind::test {
@@ -69,6 +71,9 @@ public:
 	}
 	[[nodiscard]] bool allows_note_tails(project::SlotAddress slot) const override;
 	[[nodiscard]] uint8_t arp_preset(const project::SettingAddress& /*address*/) const override { return preset; }
+	/// The value each param plays, by its address; a param absent here the song does not hold.
+	std::vector<std::pair<project::ParamAddress, int32_t>> param_values;
+	[[nodiscard]] std::optional<int32_t> param_value(const project::ParamAddress& address) const override;
 };
 
 /// A song whose synth track (kSynth) and kit row (kDrum) hold the slot encode() writes for @p facts' states, which

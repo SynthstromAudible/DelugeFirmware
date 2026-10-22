@@ -222,6 +222,7 @@ LIBRARIES: dict[str, Library] = {
             "engine-api/",
             "engines/deluge/",
             "engines/effects/",
+            "engines/global_effectable/",
             "serialization/",
             "music-theory/",
             "foundation/panic.h",
