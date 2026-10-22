@@ -98,6 +98,11 @@ void GlobalEffectable::unbindChain() {
 }
 
 void GlobalEffectable::setView(ModFXParam param, FilterType type) {
+	writeView(param, type);
+	projectModControllableSnapshot();
+}
+
+void GlobalEffectable::writeView(ModFXParam param, FilterType type) {
 	if (boundChain_ != nullptr) {
 		boundChain_->mod_fx_param = static_cast<uint8_t>(util::to_underlying(param));
 		boundChain_->filter_type = static_cast<uint8_t>(util::to_underlying(type));
@@ -106,7 +111,6 @@ void GlobalEffectable::setView(ModFXParam param, FilterType type) {
 		modFXParam_ = param;
 		filterType_ = type;
 	}
-	projectModControllableSnapshot();
 }
 
 void GlobalEffectable::projectView(deluge::snapshot::ModControllableSnapshot& copy) {
@@ -926,8 +930,8 @@ void GlobalEffectable::readEffectsFromElement(const deluge::serialization::Value
 	if (const deluge::serialization::Value* word = element.find("currentFilterType"); word && word->isScalar()) {
 		type = stringToFilterType(word->str().c_str());
 	}
-	setView(param, type);
-	setEffects(next);
+	writeView(param, type);
+	setEffects(next); // projects the view with the effects
 }
 
 ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {

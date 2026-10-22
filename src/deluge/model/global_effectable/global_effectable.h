@@ -117,6 +117,11 @@ protected:
 	virtual int32_t getParameterFromKnob(int32_t whichModEncoder);
 
 private:
+	/// @brief Sets which mod FX value and filter the knobs edit, in the bound record while there is one, without
+	/// projecting the render copy.
+	/// @param param Which mod FX value.
+	/// @param type  Which filter.
+	void writeView(ModFXParam param, FilterType type);
 	void ensureModFXParamIsValid();
 	/// @brief The compressor threshold the comp-edit knob shows: the render's.
 	/// @return The threshold (Q31).

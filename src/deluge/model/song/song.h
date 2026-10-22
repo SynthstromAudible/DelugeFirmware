@@ -203,7 +203,8 @@ public:
 	// (docs/dev/project_model_extraction.md). Named `project` rather than `model` because `model` is already the
 	// reverb-model member.
 	deluge::project::Song project;
-	/// The parts of the song the engine still holds as live objects.
+	/// The parts of the song the engine still holds as live objects. Declared after `project`: the master in it plays
+	/// its chain record, `project.master_effects`, so it goes first.
 	SongLive live;
 
 	// View/UI state that is serialized to the song file (scroll/zoom/layout/triplets/etc.).
