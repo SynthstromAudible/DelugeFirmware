@@ -35,13 +35,13 @@ import test_builds as tb
 
 SHARED_TARGET_SUBDIR = tb.SHARED_TARGET_SUBDIR
 
-# A marker line: an upper-case tag followed by a space, '=', ':' or a further '-TAG'. What a capture records.
 # The runner's own output: the real stdout as it was at startup, which no gate check can swap out from under the
 # summary. `main` binds it to a duplicate of file descriptor 1.
 OUT = sys.stdout
 # GOLDEN_SWEEP_JOBS for a test run alone: the caller's, else one per CPU.
 ALONE_SWEEP_JOBS = str(os.cpu_count() or 1)
 
+# A marker line: an upper-case tag followed by a space, '=', ':' or a further '-TAG'. What a capture records.
 MARKER = re.compile(r"^[A-Z][A-Z0-9_]*(-[A-Z0-9_]+)*([ =:]|$)")
 
 
@@ -314,7 +314,8 @@ def _run_one(
                 env=env,
                 check=False,
                 stdout=log,
-                stderr=subprocess.STDOUT,
+                # Only a buffered log needs stderr folded in; written straight through, it keeps its own.
+                stderr=None if log is OUT else subprocess.STDOUT,
             )
         if result.returncode != 0:
             print(

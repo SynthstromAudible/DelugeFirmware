@@ -767,3 +767,32 @@ class RenderCardCacheTest(unittest.TestCase):
             card = self.cache.card(root, "RS_STREAM", self.cache_root)
         self.assertEqual(card.parent.name, hashlib.sha256(read).hexdigest()[:16])
         self.assertEqual(self._files(card), self._files(self._generated("RS_STREAM")))
+
+
+class ChildStderrTest(unittest.TestCase):
+    """A test run straight through the runner's output keeps its stderr; a buffered one folds it into its log."""
+
+    def _run(self, buffered):
+        h = entry("s")
+        h.run = ["sh", "-c", "echo to-out; echo to-err >&2"]
+        root = Path(tempfile.mkdtemp())
+        with (
+            tempfile.TemporaryFile("w+") as out,
+            tempfile.TemporaryFile("w+") as buffer,
+            mock.patch.object(tt, "OUT", out),
+            mock.patch.object(tt, "_environment", return_value=dict(os.environ)),
+        ):
+            log = buffer if buffered else out
+            self.assertTrue(tt._run_one(root, h, [], False, None, log, {}))
+            log.seek(0)
+            return log.read()
+
+    def test_a_direct_run_inherits_stderr(self):
+        text = self._run(buffered=False)
+        self.assertIn("to-out", text.splitlines())
+        self.assertNotIn("to-err", text.splitlines())
+
+    def test_a_buffered_run_keeps_stderr_in_its_log(self):
+        text = self._run(buffered=True)
+        self.assertIn("to-out", text.splitlines())
+        self.assertIn("to-err", text.splitlines())
