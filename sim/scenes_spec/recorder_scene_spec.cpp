@@ -30,6 +30,9 @@
 /// @note The spec may include `gui/` (for the legacy recorder); the library may not. Same rule
 ///       `browser_scene_spec.cpp` and `marker_scene_spec.cpp` run under.
 
+#include "scenes/bind/target.h"
+#include "scenes/bind/write_sink.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/profile.h"
@@ -42,18 +45,23 @@
 #include "ui/core/led_frame.h"
 #include "ui/core/metrics.h"
 
+#include "deluge-project/setting_group.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/audio_recorder.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "integration/scenarios/slot_coherence.h"
+#include "model/edits/setting_edit.h"
+#include "model/instrument/kit.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 #include "processing/source.h"
 #include "storage/audio/audio_file_holder.h"
+#include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multisample_range.h"
 
 #include "notify/dirty_set.h"
@@ -163,10 +171,12 @@ struct Rig {
 		while (on_stack()) {
 			shell.stack().pop(deluge::ui::shell::SceneKind::Null);
 		}
+		currentSong = saved_song;
 	}
 
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
 	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
+		currentSong = song.song; // the app's sink resolves addresses in the current song
 		sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
 		source = &sound->sources[0];
 		source->oscType = OscType::SQUARE; // so "became SAMPLE" is a real observation
@@ -183,10 +193,18 @@ struct Rig {
 	}
 
 	/// @brief Open the recorder, the way `osc::AudioRecorder::beginSession` does.
-	void open() {
-		recorder_scene().open(ctx());
+	/// @param sink Where the scene's writes go; the app's sink when null.
+	void open(bind::WriteSink* sink = nullptr) {
+		MenuContext c = ctx();
+		if (sink != nullptr) {
+			c.sink = sink;
+		}
+		recorder_scene().open(c);
 		shell.init(SceneId{kRecorderSceneKind, 0});
 	}
+
+	/// @brief The sound's slot.
+	deluge::project::SlotAddress slot() { return *ctx().addresses.slot; }
 
 	/// @brief Open the recorder ON TOP of the sound menu, which is where a node actually opens it.
 	///
@@ -231,6 +249,66 @@ struct Rig {
 	}
 
 	std::string oled() { return fake.pbm(0); }
+
+	Song* const saved_song = currentSong;
+};
+
+/// @brief A finished take: the recorder's sample with a file, resident in the audio file manager at its path as the
+///        recorder's file creation leaves it, and out of it again when the scope ends.
+struct Take {
+	Sample* sample;
+	Take(SampleRecorder& rec, const char* path) : sample(rec.sample) {
+		sample->filePath = path;
+		sample->lengthInSamples = 44100;
+		sample->audioDataLengthBytes = 44100 * 3;
+		rec.numSamplesCaptured = 44100;
+		(void)audioFileManager.audioFiles.insertElement(sample);
+	}
+	~Take() {
+		const int32_t i = audioFileManager.audioFiles.searchForExactObject(sample);
+		if (i >= 0) {
+			audioFileManager.audioFiles.erase(audioFileManager.audioFiles.begin() + i);
+		}
+	}
+	Take(const Take&) = delete;
+	Take& operator=(const Take&) = delete;
+};
+
+/// @brief A kit with one sound row whose source 0 has a range, with a `Shell` for the recorder over it.
+struct KitRig {
+	spec::SongFixture song = spec::make_kit_song();
+	SoundDrum* drum = nullptr;
+	const BoardProfile& profile = deluge_profile();
+	deluge::ui::shell::SceneRegistry reg = scene_registry();
+	uitest::FakeSurfaceSet fake{deluge::ui::shell::kDelugeBoard, profile};
+	Shell shell{fake, profile, reg, deluge::ui::shell::Services{}, ShellConfig{}};
+	Song* const saved_song = currentSong;
+
+	KitRig() {
+		currentSong = song.song;
+		drum = spec::add_drum<SoundDrum>(song);
+		(void)drum->sources[0].getOrCreateFirstRange();
+	}
+	~KitRig() {
+		while (shell.stack().depth() > 0) {
+			shell.stack().pop(deluge::ui::shell::SceneKind::Null);
+		}
+		currentSong = saved_song;
+	}
+	KitRig(const KitRig&) = delete;
+	KitRig& operator=(const KitRig&) = delete;
+
+	MenuContext ctx() { return menu::context_for(*song.song, song.clip, 0, false, false, false, false); }
+
+	/// @brief The lane's name, as the record holds it.
+	std::string recorded_name() {
+		const std::optional<deluge::project::SettingAddress> address = bind::setting_address(
+		    {.kind = bind::Target::Kind::MODEL, .path = "name", .group = deluge::project::SettingGroupId::LANE},
+		    ctx().addresses);
+		const std::optional<deluge::serialization::Value> value =
+		    address ? deluge::project::read_setting(song.song->project, *address, "name") : std::nullopt;
+		return value ? value->str() : std::string{};
+	}
 };
 
 /// @brief What LEGACY draws, from LEGACY's own sentinel -- `AudioRecorder::updatedRecordingStatus`.
@@ -451,6 +529,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		Rig r;
 		MenuContext c = r.ctx();
 		c.range = nullptr;
+		c.range_index = -1;
 		expect(RecorderScene::can(c)).to_be_false();
 		recorder_scene().open(c);
 		r.shell.init(SceneId{kRecorderSceneKind, 0});
@@ -570,11 +649,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.open();
 		r.tick(0);
 		SampleRecorder* rec = recorder_scene().recorder();
-		Sample* captured = rec->sample;
-		captured->filePath = "SAMPLES/RECORD/REC000.WAV";
-		captured->lengthInSamples = 44100;
-		captured->audioDataLengthBytes = 44100 * 3;
-		rec->numSamplesCaptured = 44100;
+		const Take take{*rec, "SAMPLES/RECORD/REC000.WAV"};
+		Sample* captured = take.sample;
 		rec->status = RecorderStatus::COMPLETE;
 
 		r.tick(10);
@@ -597,17 +673,86 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.open();
 		r.tick(0);
 		SampleRecorder* rec = recorder_scene().recorder();
-		Sample* captured = rec->sample;
-		captured->filePath = "SAMPLES/RECORD/REC001.WAV";
-		captured->lengthInSamples = 44100;
-		captured->audioDataLengthBytes = 44100 * 3;
-		rec->numSamplesCaptured = 44100;
+		const Take take{*rec, "SAMPLES/RECORD/REC001.WAV"};
 		rec->status = RecorderStatus::COMPLETE;
 
 		r.tick(10);
 
 		expect(static_cast<int32_t>(r.source->oscType)).to_equal(static_cast<int32_t>(OscType::SAMPLE));
 		expect(deluge::harness::soundIncoherence(*r.sound, *r.song.song)).to_equal(std::string{});
+	});
+
+	it("attaches through one request, and the record names the take", _ {
+		Guards g;
+		{
+			Rig r;
+			bind::RecordingSink recording;
+			r.open(&recording);
+			r.tick(0);
+			SampleRecorder* rec = recorder_scene().recorder();
+			const Take take{*rec, "SAMPLES/RECORD/REC002.WAV"};
+			rec->status = RecorderStatus::COMPLETE;
+			r.tick(10);
+			expect(recording.gestures.size()).to_equal(size_t{1});
+			if (!recording.gestures.empty()) {
+				const bind::GestureRequest& attach = recording.gestures[0];
+				expect(attach.kind == bind::GestureRequest::Kind::ATTACH).to_be_true();
+				expect(attach.slot == r.slot() && attach.source == 0 && attach.range == 0).to_be_true();
+				expect(attach.text).to_equal(std::string{"SAMPLES/RECORD/REC002.WAV"});
+			}
+			// Only the request: the sink took it and nothing else wrote.
+			expect(static_cast<int32_t>(r.source->oscType)).to_equal(static_cast<int32_t>(OscType::SQUARE));
+			expect(r.on_stack()).to_be_false();
+		}
+		Rig r;
+		r.open();
+		r.tick(0);
+		SampleRecorder* rec = recorder_scene().recorder();
+		const Take take{*rec, "SAMPLES/RECORD/REC003.WAV"};
+		rec->status = RecorderStatus::COMPLETE;
+		r.tick(10);
+		const deluge::instrument::SoundState* state = menu::host_runtime_facts().sound_state(r.slot());
+		expect(state != nullptr && state->sources[0].osc_type == OscType::SAMPLE).to_be_true();
+		expect(state != nullptr && !state->sources[0].ranges.empty()
+		       && state->sources[0].ranges[0].file_path == "SAMPLES/RECORD/REC003.WAV")
+		    .to_be_true();
+	});
+
+	it("refuses an attach whose path names no take in memory, and nothing changes", _ {
+		Guards g;
+		Rig r;
+		deluge::bridge::recordLoadedSound(*r.sound, *r.song.song);
+		expect(menu::host_write_sink().attach_recording(r.slot(), 0, 0, "SAMPLES/RECORD/NOWHERE.WAV")).to_be_false();
+		expect(static_cast<int32_t>(r.source->oscType)).to_equal(static_cast<int32_t>(OscType::SQUARE));
+		expect(r.range->getAudioFileHolder()->audioFile == nullptr).to_be_true();
+		const deluge::instrument::SoundState* state = menu::host_runtime_facts().sound_state(r.slot());
+		expect(state != nullptr && state->sources[0].osc_type == OscType::SQUARE).to_be_true();
+	});
+
+	it("names a kit row's drum REC with the next free number, as a text request", _ {
+		Guards g;
+		{
+			KitRig k;
+			bind::RecordingSink recording;
+			MenuContext c = k.ctx();
+			c.sink = &recording;
+			recorder_scene().open(c);
+			k.shell.init(SceneId{kRecorderSceneKind, 0});
+			k.shell.tick(0);
+			expect(recording.gestures.size()).to_equal(size_t{1});
+			if (!recording.gestures.empty()) {
+				expect(recording.gestures[0].kind == bind::GestureRequest::Kind::TEXT).to_be_true();
+				expect(recording.gestures[0].text).to_equal(std::string{"REC1"});
+			}
+		}
+		KitRig k;
+		SoundDrum* other = spec::add_drum<SoundDrum>(k.song);
+		deluge::edits::laneSettingFor(*other, "name", deluge::serialization::Value::makeScalar("REC1"));
+		static_cast<Kit*>(k.song.instrument)->selectedDrum = k.drum; // the recorder opens on the first row
+		recorder_scene().open(k.ctx());
+		k.shell.init(SceneId{kRecorderSceneKind, 0});
+		k.shell.tick(0);
+		expect(k.recorded_name()).to_equal(std::string{"REC2"});
 	});
 
 	it("defers the whole completion arm while the SD routine is running", _ {
@@ -619,11 +764,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.open();
 		r.tick(0);
 		SampleRecorder* rec = recorder_scene().recorder();
-		Sample* captured = rec->sample;
-		captured->filePath = "SAMPLES/RECORD/REC000.WAV";
-		captured->lengthInSamples = 44100;
-		captured->audioDataLengthBytes = 44100 * 3;
-		rec->numSamplesCaptured = 44100;
+		const Take take{*rec, "SAMPLES/RECORD/REC000.WAV"};
 		rec->status = RecorderStatus::COMPLETE;
 
 		// The poll tick that would finish it, run from inside a real card routine.

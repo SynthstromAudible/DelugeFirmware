@@ -82,17 +82,22 @@ public:
 	/// @brief Make @p channel (an index of the input channel words) the input a new audio track starts on: the song's
 	/// unsaved default, which the audio-source menu sets to whatever it last picked.
 	virtual void set_default_audio_input_channel(int32_t channel) = 0;
+	/// @brief Attach the recorded take at @p path (a sample in memory, never read from the card) to range @p range of
+	/// source @p source of the sound at @p slot, which becomes a sample source.
+	/// @return Whether it was taken: false where no take at @p path is in memory or the address does not resolve.
+	virtual bool attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) = 0;
 };
 
 /// @brief A gesture request, as a RecordingSink keeps it.
 struct GestureRequest {
-	enum class Kind : uint8_t { TEXT, RANGES, RECOLOUR, CLEAR, MARKER, DEFAULT_INPUT_CHANNEL };
+	enum class Kind : uint8_t { TEXT, RANGES, RECOLOUR, CLEAR, MARKER, DEFAULT_INPUT_CHANNEL, ATTACH };
 	Kind kind{Kind::TEXT};
 	Target target{};
 	Addresses where{};
 	std::string text;
 	project::SlotAddress slot{};
 	uint8_t source{0};
+	uint16_t range{0};
 	std::vector<instrument::RangeState> ranges;
 	RangesCause cause{};
 	project::ClipAddress clip{};
@@ -122,6 +127,7 @@ public:
 	bool clear_clip(project::ClipAddress clip, bool clear_automation, bool clear_sequence_and_mpe) override;
 	bool move_audio_clip_marker(project::ClipAddress clip, std::string_view path, int64_t value) override;
 	void set_default_audio_input_channel(int32_t channel) override;
+	bool attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) override;
 	std::vector<WriteRequest> requests;
 	std::vector<GestureRequest> gestures;
 	std::vector<ParamWrite> param_writes;

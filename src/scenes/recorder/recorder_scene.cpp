@@ -8,18 +8,15 @@
 
 #include "notify/notice_queue.h"
 
+#include "scenes/bind/target.h"
+#include "scenes/bind/write_sink.h"
+
+#include "deluge-project/setting_group.h"
 #include "gui/l10n/strings.h"
 #include "model/action/action_logger.h"
-#include "model/edits/setting_edit.h"
-#include "model/instrument/kit.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/sound/sound.h"
-#include "processing/sound/sound_drum.h"
-#include "processing/source.h"
-#include "storage/audio/audio_file_holder.h"
-#include "storage/multi_range/multi_range.h"
 
 #include <cstdint>
 #include <string>
@@ -55,6 +52,9 @@ constexpr std::string_view kRecording = "Recording";
 /// this scene (`shell/notices.cpp`), and `ClearWorking` takes it away again.
 constexpr std::string_view kWorking = "Working";
 
+/// How many numbers `name_drum` tries after "REC" before it gives up: more than a kit has rows.
+constexpr int32_t kMaxRecNumber = 1000;
+
 } // namespace
 
 // ---------------------------------------------------------------------------------------------
@@ -66,7 +66,7 @@ bool RecorderScene::can(const menu::MenuContext& ctx) {
 	// `soundEditor.currentSound` as a `SoundDrum*` on a kit (`:76`). Legacy gets away with it
 	// because `checkPermissionToBeginSessionForRangeSpecificParam` refused first; this layer
 	// resolves the context itself, so it asks here.
-	if (ctx.sound == nullptr || ctx.source == nullptr || ctx.range == nullptr) {
+	if (!ctx.addresses.slot || ctx.range_index < 0) {
 		return false;
 	}
 	// `opened()`'s "If we're already recording (probably the output) then no!" (`:69-71`), which is
@@ -88,29 +88,26 @@ void RecorderScene::open(const menu::MenuContext& ctx) {
 }
 
 bool RecorderScene::name_drum() {
-	// `opened()`'s kit arm (`:74-88`).
+	// `opened()`'s kit arm (`:74-88`): the row is named "REC" and the first number from 1 no other row's
+	// name has (`Kit::makeDrumNameUnique(&name, 1)`). The sink refuses a name another row holds.
 	if (!ctx_.is_kit) {
 		return true;
 	}
-	auto* kit = static_cast<Kit*>(ctx_.output);
-	auto* drum = static_cast<SoundDrum*>(ctx_.sound);
-	if (kit == nullptr || drum == nullptr) {
-		// DIVERGENCE, labelled rather than inherited: legacy casts `soundEditor.currentSound`
-		// straight to `SoundDrum*` and dereferences it. A kit context with affect-entire on has a
-		// null `sound`, which `can()` already refuses -- so this is unreachable today and reads as
-		// "leave the drum unnamed" rather than crashing if that stops being true.
+	if (ctx_.sink == nullptr || !ctx_.addresses.lane) {
+		// A kit context with no row to name -- affect-entire, which `can()` already refuses -- leaves the
+		// drum unnamed, where legacy would have dereferenced a null `SoundDrum*`.
 		return true;
 	}
-	std::string new_name = "REC";
-	const Error error = kit->makeDrumNameUnique(&new_name, 1);
-	if (error != Error::NONE) {
-		// `display->displayError(error); return false;` (`:82-84`).
-		notify::notice_error_code(static_cast<int16_t>(error));
-		return false;
+	const bind::Target name{
+	    .kind = bind::Target::Kind::MODEL, .path = "name", .group = deluge::project::SettingGroupId::LANE};
+	for (int32_t n = 1; n <= kMaxRecNumber; n++) {
+		if (ctx_.sink->write_text(name, ctx_.addresses, "REC" + std::to_string(n))) {
+			return true;
+		}
 	}
-	deluge::edits::laneSettingFor(*drum, "name",
-	                              deluge::serialization::Value::makeScalar(std::string{new_name.c_str()}));
-	return true;
+	// `display->displayError(error); return false;` (`:82-84`).
+	notify::notice_error_code(static_cast<int16_t>(Error::UNSPECIFIED));
+	return false;
 }
 
 bool RecorderScene::setup_recording() {
@@ -213,23 +210,13 @@ void RecorderScene::end_recording_soon() {
 }
 
 void RecorderScene::attach_sample() {
-	// `process()`'s success arm (`:212-218`), through the context rather than through
-	// `soundEditor.current*`.
-	ctx_.sound->killAllVoices();
-	deluge::edits::settingFor(*ctx_.sound, deluge::edits::oscSettingPath(ctx_.source_index, "type"),
-	                          deluge::serialization::Value::makeScalar("sample"));
-	AudioFileHolder* holder = ctx_.range->getAudioFileHolder();
-	if (holder == nullptr) {
-		// DIVERGENCE, labelled like the one in `name_drum`: legacy dereferences
-		// `getAudioFileHolder()` unchecked (`:215-216`). Every `MultiRange` subclass returns a
-		// non-null holder, so this is unreachable today; it drops the sample rather than crashing
-		// if that stops being true. The recording is still finished and closed by the caller --
-		// the file is on the card either way, and only the *attach* is skipped.
+	// `process()`'s success arm (`:212-218`), as one request: the app stops the sound's voices, makes the
+	// source a sample source and puts the take, found in memory by its path, on the range.
+	if (ctx_.sink == nullptr) {
 		return;
 	}
-	holder->filePath = recorder_->sample->filePath;
-	holder->setAudioFile(recorder_->sample, ctx_.source->sampleControls.isCurrentlyReversed(), true);
-	deluge::edits::recordRanges(*ctx_.sound, ctx_.source_index);
+	(void)ctx_.sink->attach_recording(*ctx_.addresses.slot, static_cast<uint8_t>(ctx_.source_index),
+	                                  static_cast<uint16_t>(ctx_.range_index), recorder_->sample->filePath.c_str());
 }
 
 void RecorderScene::finish_recording() {

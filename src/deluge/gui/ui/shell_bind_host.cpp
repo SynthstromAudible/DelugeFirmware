@@ -11,6 +11,7 @@
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
+#include "model/edits/attach_recorded_sample.h"
 #include "model/edits/clear_clip.h"
 #include "model/edits/delete_param_automation.h"
 #include "model/edits/edit.h"
@@ -150,6 +151,8 @@ public:
 	void set_default_audio_input_channel(int32_t channel) override {
 		defaultAudioOutputInputChannel = static_cast<AudioInputChannel>(channel);
 	}
+	bool attach_recording(deluge::project::SlotAddress slot, uint8_t source, uint16_t range,
+	                      std::string_view path) override;
 	[[nodiscard]] uint32_t refusals() const { return refusals_; }
 
 private:
@@ -395,6 +398,15 @@ bool ShellEditSink::write_ranges(deluge::project::SlotAddress slot, uint8_t sour
 		}
 	}
 	return true;
+}
+
+bool ShellEditSink::attach_recording(deluge::project::SlotAddress slot, uint8_t source, uint16_t range,
+                                     std::string_view path) {
+	if (currentSong == nullptr) {
+		return false;
+	}
+	deluge::edits::AttachRecordedSample edit{slot, source, range, std::string{path}};
+	return applied(edit);
 }
 
 bool ShellEditSink::recolour_clip(deluge::project::ClipAddress clip, int32_t offset) {
