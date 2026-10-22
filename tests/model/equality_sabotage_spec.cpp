@@ -1,6 +1,7 @@
 #include "controls_test_engines.h"
 #include "engines/deluge/engine.h"
 #include "engines/deluge/params.h"
+#include "engines/effects/engine.h"
 #include "equality/equality.h"
 #include "serialization/parse_xml.h"
 #include "serialization/write_json.h"
@@ -129,8 +130,8 @@ describe equality_sabotage("the model-equality gate", ${
 	it("names the master's effects when an effect setting changes", _ {
 		EqualityFaults faults;
 		faults.on_decoded = [](SongDocument& document) {
-			document.master_effects.slots[0].state.set("modFXType",
-			                                           deluge::serialization::Value::makeScalar("chorus"));
+			document.master_effects.effects.as<deluge::effects::DelugeEffects>()->mod_fx.type =
+			    deluge::effects::ModFXType::CHORUS;
 		};
 		auto result = check_equality(fixture(), false, faults);
 		expect(result).to_have_error();

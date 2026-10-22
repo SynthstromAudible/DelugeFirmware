@@ -21,6 +21,7 @@
 #include "engines/effects/state.h"
 #include "serialization/value.h"
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <span>
@@ -71,10 +72,29 @@ struct SlotEntries {
 void decode_slot(std::string_view effect, const serialization::Value& entries, EffectStates& states,
                  const engine::CodecContext& context);
 
-/// @brief The view entries a host owner's element holds (modFXCurrentParam, currentFilterType), as a map.
+/// @brief The words a host owner's element writes for which mod-FX value its knob edits (modFXCurrentParam).
+inline constexpr std::array<std::string_view, 3> kModFxParamWords{"depth", "feedback", "offset"};
+/// @brief The words a host owner's element writes for which filter its knob edits (currentFilterType).
+inline constexpr std::array<std::string_view, 3> kFilterTypeWords{"lpf", "hpf", "eq"};
+
+/// @brief A host chain's view: which of its values the owner's knobs edit. Not an effect's state.
+struct ChainView {
+	uint8_t mod_fx_param{1}; ///< an index of kModFxParamWords; a new owner's knob edits the feedback
+	uint8_t filter_type{0};  ///< an index of kFilterTypeWords; a new owner's knob edits the low-pass filter
+	bool operator==(const ChainView&) const = default;
+};
+
+/// @brief The view a host owner's element holds. An entry it does not hold keeps @p view's; a word no index names
+/// reads as the app's parse reads it (the mod-FX offset, the low-pass filter).
 /// @param element The owner element.
-/// @return A map of the view entries it holds.
-[[nodiscard]] serialization::Value view_entries(const serialization::Value& element);
+/// @param view    The view read onto.
+/// @return The view.
+[[nodiscard]] ChainView read_view(const serialization::Value& element, ChainView view = {});
+
+/// @brief @p view's entries (modFXCurrentParam, currentFilterType) as an owner element writes them.
+/// @param view The view.
+/// @return A map of both entries.
+[[nodiscard]] serialization::Value view_value(ChainView view);
 
 /// @brief Writes @p view's entries, then @p slots' entries, into @p element in the order an owner element holds them.
 /// @param slots   The chain's slots.

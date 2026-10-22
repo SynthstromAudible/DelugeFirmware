@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "engine-api/state_handle.h"
 #include "serialization/value.h"
 
 #include <cstdint>
@@ -26,22 +27,20 @@
 
 namespace deluge::project {
 
-/// @brief One effect of a chain: which effect, and the owner element's entries it owns, kept as read. The model never
-/// interprets `state`.
+/// @brief One effect of a chain, by its id: the chain's order.
 struct FxSlot {
-	std::string effect;                                           ///< an effect id, e.g. "delay"
-	serialization::Value state = serialization::Value::makeMap(); ///< the entries, in file order
-	/// The song's input tick magnitude when `state` was written: its sync levels are relative to it.
-	int32_t tick_magnitude{1};
+	std::string effect; ///< an effect id, e.g. "delay"
 	bool operator==(const FxSlot&) const = default;
 };
 
-/// @brief A host owner's effects in processing order, the master's split at the reverb returns, and which of its
-/// values the owner's knobs edit (its saved view).
+/// @brief A host owner's effects: their order (the master's split at the reverb returns), their state, which the
+/// owner plays, and which of its values the owner's knobs edit (its saved view).
 struct FxChain {
 	std::vector<FxSlot> slots;
-	std::optional<uint32_t> reverb_return;                       ///< the master's first slot after the reverb returns
-	serialization::Value view = serialization::Value::makeMap(); ///< modFXCurrentParam, currentFilterType
+	std::optional<uint32_t> reverb_return; ///< the master's first slot after the reverb returns
+	engine::StateHandle effects;           ///< the effects' state, held for their engine
+	uint8_t mod_fx_param{1};               ///< which mod-FX value the knob edits: depth, feedback, offset
+	uint8_t filter_type{0};                ///< which filter the knob edits: low-pass, high-pass, EQ
 	bool operator==(const FxChain&) const = default;
 };
 
@@ -61,7 +60,7 @@ struct ChainCodec {
 	/// The chain an owner element of @p home holds, its sync levels relative to @p tick_magnitude.
 	FxChain (*decode)(const serialization::Value& element, ChainHome home, int32_t tick_magnitude) = nullptr;
 	/// Writes @p chain's entries into @p element, in the order an owner element holds them, its sync levels relative
-	/// to @p tick_magnitude (each slot's are relative to its own).
+	/// to @p tick_magnitude.
 	void (*encode)(const FxChain& chain, serialization::Value& element, int32_t tick_magnitude) = nullptr;
 };
 

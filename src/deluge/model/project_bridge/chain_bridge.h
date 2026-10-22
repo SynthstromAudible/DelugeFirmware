@@ -47,17 +47,14 @@ namespace deluge::bridge {
 [[nodiscard]] std::optional<deluge::project::ChainAddress> chainAddressOf(const ::ModControllableAudio& owner,
                                                                           ::Song& song);
 
-/// @brief @p state as a chain record encodes it, at @p tick_magnitude: its effects and its view. The compressor
-/// threshold is the state's setting: a clip chain's render takes its threshold from its param each block, which the
-/// setting does not follow.
-/// @param state          The host chain state to encode.
-/// @param home           Whether the chain is a clip's or the master's.
-/// @param tick_magnitude The tick magnitude to write the slots at.
+/// @brief A chain record holding @p state: its effects and its view, its slots @p home's effects in order.
+/// @param state The host chain state.
+/// @param home  Whether the chain is a clip's or the master's.
 /// @return The chain record.
 [[nodiscard]] deluge::project::FxChain encodeChainOf(const deluge::model::HostChainState& state,
-                                                     deluge::project::ChainHome home, int32_t tick_magnitude);
+                                                     deluge::project::ChainHome home);
 
-/// @brief What @p chain decodes to: each slot onto the default settings, at its own tick magnitude, then the view.
+/// @brief The state @p chain holds: its effects (the defaults when it holds none) and its view.
 /// @param chain The chain record.
 /// @return The decoded state.
 [[nodiscard]] deluge::model::HostChainState chainStateOf(const deluge::project::FxChain& chain);

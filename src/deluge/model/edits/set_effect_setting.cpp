@@ -2,6 +2,7 @@
 
 #include "engine-api/types/sync.h"
 #include "engines/effects/chain.h"
+#include "engines/effects/engine.h"
 #include "engines/effects/settings.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/project_bridge/chain_bridge.h"
@@ -24,37 +25,33 @@ Error SetEffectSetting::apply(Context& ctx) {
 	if (chain == nullptr || owner == nullptr || !effect) {
 		return Error::UNSPECIFIED;
 	}
-	const auto slot = std::ranges::find_if(chain->slots, [&](const auto& s) { return s.effect == *effect; });
-	if (slot == chain->slots.end()) {
+	if (std::ranges::none_of(chain->slots, [&](const auto& s) { return s.effect == *effect; })) {
 		return Error::UNSPECIFIED;
 	}
-	const deluge::engine::CodecContext context{.input_tick_magnitude = slot->tick_magnitude};
+	const deluge::engine::CodecContext context{.input_tick_magnitude = ctx.song.getInputTickMagnitude()};
+	const deluge::effects::Home home =
+	    chain->reverb_return ? deluge::effects::Home::MASTER : deluge::effects::Home::CLIP;
 
-	// The leaf in its file form: a sync level relative to the magnitude the slot is written at.
+	// The leaf in its file form: a sync level relative to the song's magnitude.
 	deluge::serialization::Value leaf = value_;
 	if (path_.ends_with("/syncLevel")) {
 		const int32_t level = deluge::serialization::int_of(&value_).value_or(0);
-		leaf =
-		    deluge::serialization::Value::makeNumber(deluge::engine::sync_level_to_file(level, slot->tick_magnitude));
+		leaf = deluge::serialization::Value::makeNumber(
+		    deluge::engine::sync_level_to_file(level, context.input_tick_magnitude));
 	}
-	// The record first: the effect's slot with the new leaf.
-	slot->state = deluge::bridge::withLeaf(slot->state, path_, leaf);
-
-	// Then the state, as the slot decodes onto it, set on the owner: projected to its render copy, with the chain's
-	// hand-overs. A mod FX type whose ring cannot be allocated is kept and passes the audio through; the next effects
-	// edit on this owner retries.
+	// The effect's slot as the owner's state encodes it, with the new leaf, read back onto the state and set on the
+	// owner: projected to its render copy, with the chain's hand-overs. A mod FX type whose ring cannot be allocated
+	// is kept and passes the audio through; the next effects edit on this owner retries.
 	deluge::model::HostChainState state = owner->chainState();
-	deluge::effects::decode_slot(*effect, slot->state, state.effects, context);
-	owner->setChainState(state);
-
-	// The slot in the form the state encodes to (a leaf the file writes differently, e.g. a number for a bool).
-	const deluge::effects::Home home =
-	    chain->reverb_return ? deluge::effects::Home::MASTER : deluge::effects::Home::CLIP;
-	for (deluge::effects::SlotEntries& encoded : deluge::effects::encode_chain(owner->effects(), home, context)) {
+	for (deluge::effects::SlotEntries& encoded : deluge::effects::encode_chain(state.effects, home, context)) {
 		if (encoded.effect == *effect) {
-			slot->state = std::move(encoded.entries);
+			deluge::effects::decode_slot(*effect, deluge::bridge::withLeaf(encoded.entries, path_, leaf), state.effects,
+			                             context);
 		}
 	}
+	owner->setChainState(state);
+	// The record holds what the owner now plays.
+	chain->effects = deluge::engine::StateHandle::of<deluge::effects::DelugeEffects>(owner->effects());
 	if (deluge::effects::shapes_reverb_sidechain(path_)) {
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}

@@ -21,6 +21,7 @@
 
 #include "engines/effects/chain.h"
 #include "engines/effects/codec.h"
+#include "engines/effects/engine.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
@@ -41,34 +42,40 @@ deluge::effects::Home homeOf(ChainHome home) {
 	return home == ChainHome::MASTER ? deluge::effects::Home::MASTER : deluge::effects::Home::CLIP;
 }
 
-/// @p chain's slots and view from @p slots, written at @p tick_magnitude.
-FxChain chainFrom(std::vector<deluge::effects::SlotEntries> slots, ChainHome home, int32_t tick_magnitude,
-                  deluge::serialization::Value view) {
-	FxChain chain{.reverb_return = deluge::effects::reverb_return(homeOf(home)), .view = std::move(view)};
-	for (deluge::effects::SlotEntries& slot : slots) {
-		chain.slots.push_back(FxSlot{
-		    .effect = std::string(slot.effect), .state = std::move(slot.entries), .tick_magnitude = tick_magnitude});
+// The model holds the view as indexes of the effects' view words, which name the app's enums in order.
+static_assert(util::to_underlying(ModFXParam::DEPTH) == 0 && util::to_underlying(ModFXParam::FEEDBACK) == 1
+              && util::to_underlying(ModFXParam::OFFSET) == 2 && kNumModFXParams == 3);
+static_assert(util::to_underlying(FilterType::LPF) == 0 && util::to_underlying(FilterType::HPF) == 1
+              && util::to_underlying(FilterType::EQ) == 2 && kNumFilterTypes == 3);
+
+/// A chain of @p home whose effects are @p states and whose knobs edit @p view.
+FxChain chainFrom(deluge::effects::EffectStates states, ChainHome home, deluge::effects::ChainView view) {
+	FxChain chain{.reverb_return = deluge::effects::reverb_return(homeOf(home)),
+	              .effects = deluge::engine::StateHandle::of<deluge::effects::DelugeEffects>(std::move(states)),
+	              .mod_fx_param = view.mod_fx_param,
+	              .filter_type = view.filter_type};
+	for (std::string_view effect : deluge::effects::chain_effects(homeOf(home))) {
+		chain.slots.push_back(FxSlot{.effect = std::string(effect)});
 	}
 	return chain;
 }
 
 FxChain decodeChain(const deluge::serialization::Value& element, ChainHome home, int32_t tick_magnitude) {
-	const deluge::engine::CodecContext context{.input_tick_magnitude = tick_magnitude};
 	deluge::effects::EffectStates states;
-	deluge::effects::decode(element, states, context);
-	return chainFrom(deluge::effects::encode_chain(states, homeOf(home), context), home, tick_magnitude,
-	                 deluge::effects::view_entries(element));
+	deluge::effects::decode(element, states, {.input_tick_magnitude = tick_magnitude});
+	return chainFrom(std::move(states), home, deluge::effects::read_view(element));
 }
 
 void encodeChain(const FxChain& chain, deluge::serialization::Value& element, int32_t tick_magnitude) {
-	deluge::effects::EffectStates states;
-	for (const FxSlot& slot : chain.slots) {
-		deluge::effects::decode_slot(slot.effect, slot.state, states, {.input_tick_magnitude = slot.tick_magnitude});
+	const deluge::effects::EffectStates* states = chain.effects.as<deluge::effects::DelugeEffects>();
+	if (states == nullptr) {
+		return;
 	}
 	const deluge::effects::Home home =
 	    chain.reverb_return ? deluge::effects::Home::MASTER : deluge::effects::Home::CLIP;
-	deluge::effects::write_chain(deluge::effects::encode_chain(states, home, {.input_tick_magnitude = tick_magnitude}),
-	                             chain.view, element);
+	deluge::effects::write_chain(
+	    deluge::effects::encode_chain(*states, home, {.input_tick_magnitude = tick_magnitude}),
+	    deluge::effects::view_value({.mod_fx_param = chain.mod_fx_param, .filter_type = chain.filter_type}), element);
 }
 
 /// The output's own effects owner, when it runs a host chain (a kit, an audio track).
@@ -137,37 +144,26 @@ std::optional<ChainAddress> chainAddressOf(const ::ModControllableAudio& owner, 
 	return found;
 }
 
-FxChain encodeChainOf(const deluge::model::HostChainState& state, ChainHome home, int32_t tick_magnitude) {
-	auto view = deluge::serialization::Value::makeMap();
-	view.set("modFXCurrentParam", deluge::serialization::Value::makeScalar(modFXParamToString(state.mod_fx_param)));
-	view.set("currentFilterType", deluge::serialization::Value::makeScalar(filterTypeToString(state.filter_type)));
-	return chainFrom(
-	    deluge::effects::encode_chain(state.effects, homeOf(home), {.input_tick_magnitude = tick_magnitude}), home,
-	    tick_magnitude, std::move(view));
+FxChain encodeChainOf(const deluge::model::HostChainState& state, ChainHome home) {
+	return chainFrom(state.effects, home,
+	                 {.mod_fx_param = static_cast<uint8_t>(util::to_underlying(state.mod_fx_param)),
+	                  .filter_type = static_cast<uint8_t>(util::to_underlying(state.filter_type))});
 }
 
 deluge::model::HostChainState chainStateOf(const FxChain& chain) {
 	deluge::model::HostChainState state;
-	for (const FxSlot& slot : chain.slots) {
-		deluge::effects::decode_slot(slot.effect, slot.state, state.effects,
-		                             {.input_tick_magnitude = slot.tick_magnitude});
+	if (const deluge::effects::EffectStates* effects = chain.effects.as<deluge::effects::DelugeEffects>()) {
+		state.effects = *effects;
 	}
-	if (const deluge::serialization::Value* param = chain.view.find("modFXCurrentParam");
-	    param != nullptr && param->isScalar()) {
-		state.mod_fx_param = stringToModFXParam(param->str().c_str());
-	}
-	if (const deluge::serialization::Value* type = chain.view.find("currentFilterType");
-	    type != nullptr && type->isScalar()) {
-		state.filter_type = stringToFilterType(type->str().c_str());
-	}
+	state.mod_fx_param = static_cast<ModFXParam>(std::min<int32_t>(chain.mod_fx_param, kNumModFXParams - 1));
+	state.filter_type = static_cast<FilterType>(std::min<int32_t>(chain.filter_type, kNumFilterTypes - 1));
 	return state;
 }
 
 void fillChains(::Song& song) {
-	const int32_t magnitude = song.getInputTickMagnitude();
 	forEachOutput(song, [&](::Output& output) { recordOutputChain(output, song); });
 	::GlobalEffectable& master = song.live.global_effectable;
-	song.project.master_effects = encodeChainOf(master.chainState(), ChainHome::MASTER, magnitude);
+	song.project.master_effects = encodeChainOf(master.chainState(), ChainHome::MASTER);
 	projectRecord(master, song.project.master_effects);
 	// Setting a state reserves each delay's tape in the current song, which during a load is not yet this one: the
 	// reserves are worked out again in this song.
@@ -183,7 +179,7 @@ void recordOutputChain(::Output& output, ::Song& song) {
 	if (record == nullptr) {
 		return;
 	}
-	record->effects = encodeChainOf(owner->chainState(), ChainHome::CLIP, song.getInputTickMagnitude());
+	record->effects = encodeChainOf(owner->chainState(), ChainHome::CLIP);
 	projectRecord(*owner, *record->effects);
 }
 

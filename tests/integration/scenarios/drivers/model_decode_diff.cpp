@@ -147,6 +147,14 @@ std::string what_differs(const deluge::project::DocClip& e, const deluge::projec
 	return out;
 }
 
+/// Whether @p a and @p b hold the same chain: its order, its view, and its effects as they encode (a decode starts
+/// from the default effects, a song's owner from its own seed, which no file holds).
+bool sameChain(const deluge::project::FxChain& a, const deluge::project::FxChain& b) {
+	const deluge::engine::CodecContext context{.input_tick_magnitude = 1};
+	return a.slots == b.slots && a.reverb_return == b.reverb_return && a.mod_fx_param == b.mod_fx_param
+	       && a.filter_type == b.filter_type && a.effects.encode(context) == b.effects.encode(context);
+}
+
 std::string what_differs(const deluge::project::DocOutput& e, const deluge::project::DocOutput& d) {
 	std::string out;
 	const auto num = [&](const char* name, long engine, long decoded) {
@@ -185,7 +193,7 @@ std::string what_differs(const deluge::project::DocOutput& e, const deluge::proj
 		out += " controls (engine " + std::to_string(e.controls.size()) + ", decoded "
 		       + std::to_string(d.controls.size()) + ")";
 	}
-	if (!(e.effects == d.effects)) {
+	if (e.effects.has_value() != d.effects.has_value() || (e.effects && !sameChain(*e.effects, *d.effects))) {
 		out += std::string(" effects (engine ") + (e.effects ? "a chain" : "none") + ", decoded "
 		       + (d.effects ? "a chain" : "none") + ")";
 	}
@@ -276,14 +284,22 @@ int compare_store(const char* what, const Store& engine, const Map& decoded) {
 			std::fprintf(io.err, "DECODE DIFF: %s %u is not in the decoded song\n", what, id);
 			return 3;
 		}
-		// The slots are compared on their own, after the identity records (compare_slots).
+		// The slots are compared on their own, after the identity records (compare_slots); a chain by sameChain.
 		auto withoutSlot = [](auto r) {
 			if constexpr (requires { r.instrument.reset(); }) {
 				r.instrument.reset();
 			}
+			if constexpr (requires { r.effects.reset(); }) {
+				r.effects.reset();
+			}
 			return r;
 		};
-		if (!(withoutSlot(it->second) == withoutSlot(record))) {
+		bool chainsDiffer = false;
+		if constexpr (requires { record.effects.has_value(); }) {
+			chainsDiffer = record.effects.has_value() != it->second.effects.has_value()
+			               || (record.effects && !sameChain(*record.effects, *it->second.effects));
+		}
+		if (chainsDiffer || !(withoutSlot(it->second) == withoutSlot(record))) {
 			std::fprintf(io.err, "DECODE DIFF: %s %u differs:%s\n", what, id, what_differs(record, it->second).c_str());
 			return 3;
 		}
@@ -476,7 +492,7 @@ int model_decode_diff_main(int argc, char** argv, Io driverIo) {
 	if (int r = compare_mappings("the song's mappings differ", m.mappings, "engine", d.mappings, "decoded")) {
 		return r;
 	}
-	if (!(m.master_effects == d.master_effects)) {
+	if (!sameChain(m.master_effects, d.master_effects)) {
 		std::fprintf(io.err, "DECODE DIFF: the master's effects differ (engine %zu slots, decoded %zu)\n",
 		             m.master_effects.slots.size(), d.master_effects.slots.size());
 		return 3;

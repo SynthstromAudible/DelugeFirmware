@@ -38,6 +38,7 @@
 #include "dsp/dx/dx7note.h"
 #include "engines/deluge/engine.h"
 #include "engines/deluge/settings.h"
+#include "engines/effects/engine.h"
 #include "gui/menu_item/setting_edit.h"
 #include "io/midi/cable_types/usb_hosted.h"
 #include "model/drum/drum.h"
@@ -1093,18 +1094,11 @@ void testSetEffectSetting(deluge::edits::Context& ctx) {
 		check(applied("lpfMode", Value::makeScalar("SVF_Notch")) == Error::NONE, (name + ": lpfMode applied").c_str());
 		check(o.owner->effects().filter.lpf_mode == FilterMode::SVF_NOTCH, (name + ": the owner's filter").c_str());
 		check(o.owner->modControllableSnapshot().effects == o.owner->effects(), (name + ": its render copy").c_str());
-		const deluge::project::FxChain* chain = ctx.model.resolveChain(o.address);
-		const deluge::project::FxSlot* filter = nullptr;
-		if (chain != nullptr) {
-			for (const deluge::project::FxSlot& slot : chain->slots) {
-				if (slot.effect == "filter") {
-					filter = &slot;
-				}
-			}
-		}
-		check(filter != nullptr && filter->state.find("lpfMode") != nullptr
-		          && filter->state.find("lpfMode")->str() == "SVF_Notch",
-		      (name + ": the filter slot holds it").c_str());
+		deluge::project::FxChain* chain = ctx.model.resolveChain(o.address);
+		const deluge::effects::EffectStates* held =
+		    chain != nullptr ? chain->effects.as<deluge::effects::DelugeEffects>() : nullptr;
+		check(held != nullptr && held->filter.lpf_mode == FilterMode::SVF_NOTCH,
+		      (name + ": the chain record holds it").c_str());
 		check(deluge::harness::chainIncoherence(ctx.song).empty(), (name + ": the chain is coherent").c_str());
 
 		const deluge::effects::EffectStates before = o.owner->effects();

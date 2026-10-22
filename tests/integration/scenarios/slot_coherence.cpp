@@ -168,26 +168,20 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 
 namespace {
 
-/// Where @p record and @p runtime first differ, or empty.
-std::string chainDifference(const deluge::project::FxChain& record, const deluge::project::FxChain& runtime) {
-	if (record.slots.size() != runtime.slots.size()) {
-		return "slot count " + std::to_string(record.slots.size()) + " vs " + std::to_string(runtime.slots.size());
+/// Where @p record and @p runtime first differ, or empty; the effects by their encodings at @p tick_magnitude.
+std::string chainDifference(const deluge::project::FxChain& record, const deluge::project::FxChain& runtime,
+                            int32_t tick_magnitude) {
+	if (record.slots != runtime.slots) {
+		return "slots";
 	}
-	for (size_t s = 0; s < record.slots.size(); s++) {
-		const deluge::project::FxSlot& a = record.slots[s];
-		const deluge::project::FxSlot& b = runtime.slots[s];
-		if (a.effect != b.effect) {
-			return "slot " + std::to_string(s) + " is " + a.effect + " vs " + b.effect;
-		}
-		if (const std::string d = deluge::serialization::first_difference(a.state, b.state); !d.empty()) {
-			return a.effect + " " + d;
-		}
-		if (a.tick_magnitude != b.tick_magnitude) {
-			return a.effect + " tick magnitude";
-		}
+	if (!(record.effects == runtime.effects)) {
+		const deluge::engine::CodecContext context{.input_tick_magnitude = tick_magnitude};
+		return "effects "
+		       + deluge::serialization::first_difference(record.effects.encode(context),
+		                                                 runtime.effects.encode(context));
 	}
-	if (const std::string d = deluge::serialization::first_difference(record.view, runtime.view); !d.empty()) {
-		return "view " + d;
+	if (record.mod_fx_param != runtime.mod_fx_param || record.filter_type != runtime.filter_type) {
+		return "view";
 	}
 	return record.reverb_return == runtime.reverb_return ? std::string{} : "reverb return";
 }
@@ -211,11 +205,10 @@ std::string chainIncoherence(::Song& song) {
 			}
 			::GlobalEffectable* owner = deluge::bridge::chainOwnerAt(
 			    {.kind = deluge::project::ChainAddress::Kind::OUTPUT, .id = *output->id()}, song);
-			const int32_t magnitude = record->effects->slots.empty() ? song.getInputTickMagnitude()
-			                                                         : record->effects->slots[0].tick_magnitude;
 			if (const std::string d = chainDifference(
 			        *record->effects,
-			        deluge::bridge::encodeChainOf(owner->chainState(), deluge::project::ChainHome::CLIP, magnitude));
+			        deluge::bridge::encodeChainOf(owner->chainState(), deluge::project::ChainHome::CLIP),
+			        song.getInputTickMagnitude());
 			    !d.empty()) {
 				return where + d;
 			}
@@ -228,10 +221,10 @@ std::string chainIncoherence(::Song& song) {
 		}
 	}
 	const deluge::project::FxChain& master = song.project.master_effects;
-	const int32_t magnitude = master.slots.empty() ? song.getInputTickMagnitude() : master.slots[0].tick_magnitude;
-	if (const std::string d =
-	        chainDifference(master, deluge::bridge::encodeChainOf(song.live.global_effectable.chainState(),
-	                                                              deluge::project::ChainHome::MASTER, magnitude));
+	if (const std::string d = chainDifference(
+	        master,
+	        deluge::bridge::encodeChainOf(song.live.global_effectable.chainState(), deluge::project::ChainHome::MASTER),
+	        song.getInputTickMagnitude());
 	    !d.empty()) {
 		return "master effects: " + d;
 	}

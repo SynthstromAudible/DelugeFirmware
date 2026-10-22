@@ -53,10 +53,29 @@ describe effect_chain("each home's chain of effect slots", ${
 		expect(effect_of_setting("no/such")).not_().to_have_value();
 	});
 	it("keeps a host owner's view entries apart from its effects", _ {
-		auto element = serialization::parseXml(R"(<kit modFXCurrentParam="feedback" currentFilterType="hpf"/>)");
-		const auto view = view_entries(*element->find("kit"));
-		expect(view.find("modFXCurrentParam")->str()).to_equal(std::string("feedback"));
-		expect(view.find("currentFilterType")->str()).to_equal(std::string("hpf"));
+		auto element = serialization::parseXml(R"(<kit modFXCurrentParam="depth" currentFilterType="hpf"/>)");
+		const ChainView view = read_view(*element->find("kit"));
+		expect(static_cast<int>(view.mod_fx_param)).to_equal(0);
+		expect(static_cast<int>(view.filter_type)).to_equal(1);
+	});
+	it("writes every view it reads, as the words a file holds", _ {
+		for (uint8_t param = 0; param < kModFxParamWords.size(); ++param) {
+			for (uint8_t filter = 0; filter < kFilterTypeWords.size(); ++filter) {
+				const ChainView view{.mod_fx_param = param, .filter_type = filter};
+				const serialization::Value words = view_value(view);
+				expect(words.find("modFXCurrentParam")->str()).to_equal(std::string(kModFxParamWords[param]));
+				expect(words.find("currentFilterType")->str()).to_equal(std::string(kFilterTypeWords[filter]));
+				expect(read_view(words) == view).to_be_true();
+			}
+		}
+	});
+	it("reads an owner without view entries as the default view, and an unknown word as the app's parse does", _ {
+		auto bare = serialization::parseXml(R"(<kit/>)");
+		expect(read_view(*bare->find("kit")) == ChainView{}).to_be_true();
+		auto odd = serialization::parseXml(R"(<kit modFXCurrentParam="wobble" currentFilterType="notch"/>)");
+		const ChainView view = read_view(*odd->find("kit"));
+		expect(static_cast<int>(view.mod_fx_param)).to_equal(2); // offset
+		expect(static_cast<int>(view.filter_type)).to_equal(0);  // lpf
 	});
 });
 

@@ -37,7 +37,8 @@ Error SetChainView::apply(Context& ctx) {
 		return Error::UNSPECIFIED;
 	}
 	// The record first, then the owner's state from it.
-	chain->view = deluge::bridge::withLeaf(chain->view, key_, value_);
+	chain->mod_fx_param = static_cast<uint8_t>(util::to_underlying(next.mod_fx_param));
+	chain->filter_type = static_cast<uint8_t>(util::to_underlying(next.filter_type));
 	owner->setChainState(next);
 	return Error::NONE;
 }

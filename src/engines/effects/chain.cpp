@@ -117,14 +117,29 @@ void decode_slot(std::string_view effect, const serialization::Value& entries, E
 	}
 }
 
-serialization::Value view_entries(const serialization::Value& element) {
-	serialization::Value view = serialization::Value::makeMap();
-	for (std::string_view key : kViewKeys) {
-		if (const serialization::Value* value = element.find(key)) {
-			view.set(std::string{key}, *value);
+ChainView read_view(const serialization::Value& element, ChainView view) {
+	const auto index_of = [](std::span<const std::string_view> words, const serialization::Value* value,
+	                         uint8_t unknown) -> std::optional<uint8_t> {
+		if (value == nullptr || !value->isScalar()) {
+			return std::nullopt;
 		}
-	}
+		const auto found = std::ranges::find(words, value->str());
+		return found != words.end() ? static_cast<uint8_t>(found - words.begin()) : unknown;
+	};
+	view.mod_fx_param = index_of(kModFxParamWords, element.find(kViewKeys[0]), 2).value_or(view.mod_fx_param);
+	view.filter_type = index_of(kFilterTypeWords, element.find(kViewKeys[1]), 0).value_or(view.filter_type);
 	return view;
+}
+
+serialization::Value view_value(ChainView view) {
+	serialization::Value value = serialization::Value::makeMap();
+	// An index past the words (only a record no reader wrote) writes the last word.
+	const auto word_of = [](std::span<const std::string_view> words, uint8_t index) {
+		return serialization::Value::makeScalar(std::string{words[std::min<size_t>(index, words.size() - 1)]});
+	};
+	value.set(std::string{kViewKeys[0]}, word_of(kModFxParamWords, view.mod_fx_param));
+	value.set(std::string{kViewKeys[1]}, word_of(kFilterTypeWords, view.filter_type));
+	return value;
 }
 
 void write_chain(const std::vector<SlotEntries>& slots, const serialization::Value& view,

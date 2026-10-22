@@ -5,6 +5,7 @@
 // Exit: 0 = all checks pass, 1 = a failure.
 
 #include "definitions_cxx.hpp"
+#include "engines/effects/chain.h"
 #include "engines/effects/state.h"
 #include "memory/general_memory_allocator.h"
 #include "model/edits/change_effect.h"
@@ -66,7 +67,12 @@ const deluge::project::FxChain* chainOf(GlobalEffectable& owner, Song& song) {
 
 /// Whether @p chain's view holds @p value at @p key.
 bool viewHolds(const deluge::project::FxChain* chain, const char* key, const char* value) {
-	const deluge::serialization::Value* entry = chain != nullptr ? chain->view.find(key) : nullptr;
+	if (chain == nullptr) {
+		return false;
+	}
+	const deluge::serialization::Value words =
+	    deluge::effects::view_value({.mod_fx_param = chain->mod_fx_param, .filter_type = chain->filter_type});
+	const deluge::serialization::Value* entry = words.find(key);
 	return entry != nullptr && entry->str() == value;
 }
 
