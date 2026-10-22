@@ -11,6 +11,8 @@
 #include "engines/deluge/sound_state.h"
 #include "engines/effects/state.h"
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <span>
@@ -21,6 +23,20 @@ namespace deluge::scenes::bind {
 struct CableFact {
 	engine::ParamId depth;           ///< the cable's depth id, which names its source and its destination
 	instrument::Polarity polarity{}; ///< its polarity
+};
+
+/// @brief The most patch cables a sound holds.
+inline constexpr size_t kMaxCables = 32;
+
+/// @brief A sound's patch cables, as the engine holds them, in its order.
+struct CableList {
+	std::array<CableFact, kMaxCables> items{};
+	size_t count{0};
+	[[nodiscard]] const CableFact* begin() const { return items.data(); }
+	[[nodiscard]] const CableFact* end() const { return items.data() + count; }
+	[[nodiscard]] size_t size() const { return count; }
+	[[nodiscard]] bool empty() const { return count == 0; }
+	[[nodiscard]] const CableFact& operator[](size_t i) const { return items[i]; }
 };
 
 /// @brief The facts a menu needs that are not settings, each answered by the host. Nothing else a binding reads comes
@@ -58,8 +74,8 @@ public:
 	[[nodiscard]] virtual std::optional<int32_t> param_value(const project::ParamAddress& address) const = 0;
 	/// @brief The patch cables of the sound @p owner names (a synth or a sound drum, with its clip; the id is not
 	/// read), in the order the engine holds them; empty where there is no such sound. The cables are its engine's: one
-	/// made this session is one before the song is saved. The span is good until the next call.
-	[[nodiscard]] virtual std::span<const CableFact> cables(const project::ParamAddress& owner) const = 0;
+	/// made this session is one before the song is saved.
+	[[nodiscard]] virtual CableList cables(const project::ParamAddress& owner) const = 0;
 };
 
 } // namespace deluge::scenes::bind

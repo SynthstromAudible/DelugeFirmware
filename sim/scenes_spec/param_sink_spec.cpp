@@ -43,6 +43,7 @@
 
 #include <functional>
 #include <optional>
+#include <vector>
 
 using namespace deluge::scenes;
 using bind::Addresses;
@@ -273,6 +274,39 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		expect(menu::host_write_sink().write({.target = cable, .where = nowhere, .param_value = 1})).to_be_false();
 		expect(menu::host_write_sink().write_param(lpf, 0x10000000, 0, 0)).to_be_false();
 		expect(menu::host_write_sink().delete_automation(lpf)).to_be_false();
+	});
+
+	it("keeps one sound's cables when another's are read", _ {
+		spec::SongFixture a = spec::make_synth_song();
+		spec::SongFixture b = spec::make_synth_song();
+		Song* const saved = currentSong;
+		currentSong = a.song;
+		(void)menu::host_write_sink().write({.target = cable_target(PatchSource::ENVELOPE_1,
+		                                                            deluge::modulation::params::LOCAL_LPF_RESONANCE),
+		                                     .where = on_synth(a),
+		                                     .param_value = 0x01000000});
+		const bind::RuntimeFacts& facts = menu::host_runtime_facts();
+		const auto first = facts.cables(synth_lpf(a));
+		std::vector<deluge::engine::ParamId> held;
+		for (const bind::CableFact& cable : first) {
+			held.push_back(cable.depth);
+		}
+		currentSong = b.song;
+		ParamDescriptor other;
+		other.setToHaveParamOnly(deluge::modulation::params::LOCAL_HPF_RESONANCE);
+		(void)menu::host_write_sink().write({.target = cable_target(PatchSource::RANDOM,
+		                                                            deluge::modulation::params::LOCAL_HPF_RESONANCE),
+		                                     .where = on_synth(b),
+		                                     .param_value = 0x01000000});
+		(void)facts.cables(synth_lpf(b));
+		currentSong = saved;
+		expect(held.empty()).to_be_false();
+		expect(first.size()).to_equal(held.size());
+		bool same = first.size() == held.size();
+		for (size_t i = 0; same && i < held.size(); ++i) {
+			same = first[i].depth == held[i];
+		}
+		expect(same).to_be_true();
 	});
 
 	it("reads the value the param plays where automation moves it", _ {

@@ -200,14 +200,22 @@ std::optional<deluge::project::ParamAddress> cable_address(const MenuContext& ct
 	return deluge::scenes::bind::param_address(cable, ctx.addresses);
 }
 
-/// @brief The cables of the sound @p ctx edits, in the engine's order; empty where it edits none.
-std::span<const deluge::scenes::bind::CableFact> cables_of(const MenuContext& ctx) {
-	if (ctx.facts == nullptr) {
-		return {};
+/// @brief The address of the sound @p ctx edits (its slot's owner, with the clip), or nullopt where it edits none.
+std::optional<deluge::project::ParamAddress> sound_address(const MenuContext& ctx) {
+	if (!ctx.addresses.slot || !ctx.addresses.clip) {
+		return std::nullopt;
 	}
-	const std::optional<deluge::project::ParamAddress> owner =
-	    cable_address(ctx, PatchSource::LFO_GLOBAL_1, ParamDescriptor{});
-	return owner ? ctx.facts->cables(*owner) : std::span<const deluge::scenes::bind::CableFact>{};
+	const deluge::project::SlotAddress& slot = *ctx.addresses.slot;
+	return deluge::project::ParamAddress{.owner = slot.kind == deluge::project::SlotAddress::Kind::DRUM
+	                                                  ? deluge::project::OwnerId::drum(slot.id)
+	                                                  : deluge::project::OwnerId::instrument(slot.id),
+	                                     .clip_id = ctx.addresses.clip->clip_id};
+}
+
+/// @brief The cables of the sound @p ctx edits, in the engine's order; empty where it edits none.
+deluge::scenes::bind::CableList cables_of(const MenuContext& ctx) {
+	const std::optional<deluge::project::ParamAddress> owner = sound_address(ctx);
+	return owner && ctx.facts != nullptr ? ctx.facts->cables(*owner) : deluge::scenes::bind::CableList{};
 }
 
 /// @brief A cable's two ends, as legacy's `PatchCable` holds them: its source, and its destination descriptor (the
@@ -234,16 +242,16 @@ CableEnds ends_of(deluge::engine::ParamId depth) {
 	return ends;
 }
 
-/// @brief The engine's cable from @p from to @p destination on the sound @p ctx edits, or null.
-const deluge::scenes::bind::CableFact* find_cable(const MenuContext& ctx, PatchSource from,
-                                                  ParamDescriptor destination) {
+/// @brief The engine's cable from @p from to @p destination on the sound @p ctx edits, or nullopt.
+std::optional<deluge::scenes::bind::CableFact> find_cable(const MenuContext& ctx, PatchSource from,
+                                                          ParamDescriptor destination) {
 	const deluge::engine::ParamId depth = deluge::bridge::cable_depth(from, destination);
 	for (const deluge::scenes::bind::CableFact& cable : cables_of(ctx)) {
 		if (cable.depth == depth) {
-			return &cable;
+			return cable;
 		}
 	}
-	return nullptr;
+	return std::nullopt;
 }
 
 /// @brief The value the cable plays now, as the engine stores it; nullopt where the sound has no such cable.
@@ -344,7 +352,7 @@ bool source_is_allowed(const MenuContext& ctx, PatchSource source, ParamDescript
 /// @brief `PatchCableSet::isSourcePatchedToDestinationDescriptorVolumeInspecific` -- legacy's
 ///        `shouldDrawDotOnValue` (`source_selection.cpp:52-57`).
 bool source_is_patched(const MenuContext& ctx, PatchSource source, ParamDescriptor destination) {
-	if (find_cable(ctx, source, destination) != nullptr) {
+	if (find_cable(ctx, source, destination).has_value()) {
 		return true;
 	}
 	if (destination.getJustTheParam() != params::GLOBAL_VOLUME_POST_FX) {
@@ -354,7 +362,7 @@ bool source_is_patched(const MenuContext& ctx, PatchSource source, ParamDescript
 	for (const int32_t p :
 	     {static_cast<int32_t>(params::GLOBAL_VOLUME_POST_REVERB_SEND), static_cast<int32_t>(params::LOCAL_VOLUME)}) {
 		destination.changeParam(p);
-		if (find_cable(ctx, source, destination) != nullptr) {
+		if (find_cable(ctx, source, destination).has_value()) {
 			return true;
 		}
 	}
@@ -614,7 +622,7 @@ void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) 
 	// `sound_root.h`, which includes this header, and the identity is the item either way.
 	const Node* from = state.depth > 0 ? state.path[state.depth - 1] : nullptr;
 	if (from != nullptr && from->custom == &kPatchCablesItem) {
-		const std::span<const deluge::scenes::bind::CableFact> cables = cables_of(ctx);
+		const deluge::scenes::bind::CableList cables = cables_of(ctx);
 		const int32_t cursor = state.list[state.depth - 1].cursor;
 		if (cursor >= 0 && static_cast<size_t>(cursor) < cables.size()) {
 			const CableEnds cable = ends_of(cables[cursor].depth);
@@ -660,9 +668,10 @@ void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) 
 	// no-cable case and a write-back of what it just read in the other; the port skips the
 	// round trip and keeps the read.
 	const PatchSource source = strength_source(state, which_);
-	const deluge::scenes::bind::CableFact* existing = find_cable(ctx, source, strength_destination(state, which_));
+	const std::optional<deluge::scenes::bind::CableFact> existing =
+	    find_cable(ctx, source, strength_destination(state, which_));
 	state.patch_polarity =
-	    existing != nullptr ? static_cast<Polarity>(existing->polarity) : PatchCable::getDefaultPolarity(source);
+	    existing.has_value() ? static_cast<Polarity>(existing->polarity) : PatchCable::getDefaultPolarity(source);
 
 	// `Decimal::beginSession` plus `getDefaultEditPos()` (`patch_cable_strength.h:39`): the cursor
 	// starts on the hundredths' place.
@@ -818,7 +827,7 @@ void PatchCableStrengthItem::set_polarity(const MenuContext& ctx, MenuState& sta
 	state.patch_polarity = polarity;
 	const PatchSource source = strength_source(state, which_);
 	const ParamDescriptor destination = strength_destination(state, which_);
-	if (ctx.sink != nullptr && find_cable(ctx, source, destination) != nullptr) {
+	if (ctx.sink != nullptr && find_cable(ctx, source, destination).has_value()) {
 		const std::optional<deluge::project::ParamAddress> address = cable_address(ctx, source, destination);
 		if (address) {
 			(void)ctx.sink->write({.target = {.kind = deluge::scenes::bind::Target::Kind::CABLE, .param = address->id},
@@ -840,8 +849,15 @@ void PatchCableStrengthItem::commit(const MenuContext& ctx, MenuState& state) co
 	// `PatchCableStrength::writeCurrentValue` (`patch_cable_strength.cpp:231-248`) as a cable request: the Edit makes
 	// a missing cable with the polarity the page shows (legacy's `polarity_in_the_ui_`, `:223-227`), so a polarity
 	// chosen while no cable existed survives the cable's making.
+	// On a horizontal page's column the new cable takes its source's default, as legacy applies the shown polarity
+	// only outside a horizontal menu (`:224`).
+	const Node* focused = focused_of(state);
+	const bool in_horizontal =
+	    focused != nullptr && focused->kind == Kind::Submenu && focused->layout == Layout::Horizontal;
+	const Polarity polarity =
+	    in_horizontal ? PatchCable::getDefaultPolarity(strength_source(state, which_)) : state.patch_polarity;
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
-	    cable_request(ctx, learn_descriptor(ctx, state), state.edit_int, state.patch_polarity);
+	    cable_request(ctx, learn_descriptor(ctx, state), state.edit_int, polarity);
 	if (request && ctx.sink != nullptr) {
 		(void)ctx.sink->write(*request);
 	}
@@ -876,7 +892,7 @@ const Node* patch_cables_chain(const MenuContext& ctx, const MenuState& state) {
 	// `PatchCables::selectButtonPress` (`patch_cables.cpp:164-190`). The cable the cursor is on
 	// decides: a cable whose destination is a bare param opens the regular strength page, one whose
 	// destination is itself a cable opens the range strength page.
-	const std::span<const deluge::scenes::bind::CableFact> cables = cables_of(ctx);
+	const deluge::scenes::bind::CableList cables = cables_of(ctx);
 	const int32_t cursor = state.list[state.depth < kMenuDepth ? state.depth : 0].cursor;
 	if (cursor < 0 || static_cast<size_t>(cursor) >= cables.size()) {
 		return nullptr; // `:168-172` -- no items, so the press ascends

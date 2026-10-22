@@ -1472,6 +1472,29 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		expect(nodes::kPatchCablesItem.is_automation_item()).to_be_false();
 	});
 
+	it("gives a cable it creates from a horizontal page's column the source's default polarity", _ {
+		// `getModelStack(..., allowCreation = true)` applies the shown polarity only `!isInHorizontalMenu()`
+		// (`patch_cable_strength.cpp:224`): a column's new cable takes its source's default.
+		Rigged& f = fixture();
+		install(f.ctx, f.song.song);
+		constexpr PatchSource kSource = PatchSource::LFO_GLOBAL_1;
+		const Polarity fresh = PatchCable::getDefaultPolarity(kSource);
+		menu::MenuState st{};
+		st.depth = 0;
+		st.path[0] = &nodes::sidechain; // a horizontal page, its columns custom items among them
+		st.patching_param = deluge::modulation::params::LOCAL_HPF_MORPH;
+		st.patch_source = kSource;
+		st.patch_polarity = fresh == Polarity::BIPOLAR ? Polarity::UNIPOLAR : Polarity::BIPOLAR;
+		st.edit_int = 1200;
+		nodes::kPatchCableStrengthRegularItem.commit(f.ctx, st);
+		PatchCableSet* set = f.ctx.params->getPatchCableSetAllowJibberish();
+		ParamDescriptor destination;
+		destination.setToHaveParamOnly(deluge::modulation::params::LOCAL_HPF_MORPH);
+		const uint8_t created = set->getPatchCableIndex(kSource, destination);
+		expect(created != kNoSelection).to_be_true();
+		expect(static_cast<int>(set->patchCables[created].polarity)).to_equal(static_cast<int>(fresh));
+	});
+
 	it("flips an existing cable's polarity in the engine and the record", _ {
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);

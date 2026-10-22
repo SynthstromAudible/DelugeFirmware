@@ -79,8 +79,14 @@ void ModelFixture::set_state(project::SlotAddress slot, const instrument::SoundS
 	}
 }
 
-std::span<const CableFact> FakeFacts::cables(const project::ParamAddress& /*owner*/) const {
-	return cable_list;
+CableList FakeFacts::cables(const project::ParamAddress& /*owner*/) const {
+	CableList list;
+	for (const CableFact& cable : cable_list) {
+		if (list.count < list.items.size()) {
+			list.items[list.count++] = cable;
+		}
+	}
+	return list;
 }
 
 std::optional<int32_t> FakeFacts::param_value(const project::ParamAddress& address) const {

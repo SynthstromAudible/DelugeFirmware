@@ -133,8 +133,7 @@ private:
 	/// A PARAM target's write: SetParamValue by its address, or SetKitParamValue under affect-entire on a kit row; then
 	/// MIDI follow's feedback.
 	void writeParam(const WriteRequest& request);
-	/// A CABLE target's write: SetPatchCable by its address, then MIDI follow's feedback; or, polarity only,
-	/// SetCablePolarity.
+	/// A CABLE target's write: SetPatchCable by its address, or, polarity only, SetCablePolarity.
 	void writeCable(const WriteRequest& request);
 	/// Applies @p edit on the current song, counting a refusal.
 	bool applied(deluge::edits::Edit& edit);
@@ -155,12 +154,10 @@ public:
 	[[nodiscard]] bool allows_note_tails(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] uint8_t arp_preset(const deluge::project::SettingAddress& address) const override;
 	[[nodiscard]] std::optional<int32_t> param_value(const deluge::project::ParamAddress& address) const override;
-	[[nodiscard]] std::span<const deluge::scenes::bind::CableFact>
-	cables(const deluge::project::ParamAddress& owner) const override;
-
-private:
-	mutable std::array<deluge::scenes::bind::CableFact, kMaxNumPatchCables> cables_{};
+	[[nodiscard]] deluge::scenes::bind::CableList cables(const deluge::project::ParamAddress& owner) const override;
 };
+
+static_assert(kMaxNumPatchCables <= deluge::scenes::bind::kMaxCables);
 
 ShellEditSink& shell_edit_sink() {
 	static ShellEditSink sink;
@@ -216,15 +213,9 @@ void ShellEditSink::writeCable(const WriteRequest& request) {
 		(void)applied(edit);
 		return;
 	}
+	// No MIDI-follow feedback: legacy's strength page sends none, and no CC follows a cable.
 	deluge::edits::SetPatchCable edit{*address, request.param_value, polarity};
-	if (!applied(edit)) {
-		return;
-	}
-	// MIDI follow's feedback for the cable written, as legacy's strength page sends it after every write.
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	if (ModelStackWithAutoParam* stack = deluge::bridge::paramStackAt(*currentSong, *address, memory)) {
-		view.sendMidiFollowFeedback(stack, stack->paramCollection->paramValueToKnobPos(request.param_value, stack));
-	}
+	(void)applied(edit);
 }
 
 bool ShellEditSink::applied(deluge::edits::Edit& edit) {
@@ -467,23 +458,22 @@ std::optional<int32_t> ShellRuntimeFacts::param_value(const deluge::project::Par
 	return stack != nullptr ? std::optional{stack->autoParam->getCurrentValue()} : std::nullopt;
 }
 
-std::span<const deluge::scenes::bind::CableFact>
-ShellRuntimeFacts::cables(const deluge::project::ParamAddress& owner) const {
+deluge::scenes::bind::CableList ShellRuntimeFacts::cables(const deluge::project::ParamAddress& owner) const {
+	deluge::scenes::bind::CableList list;
 	if (currentSong == nullptr) {
-		return {};
+		return list;
 	}
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	PatchCableSet* set = deluge::bridge::cableSetAt(*currentSong, owner, memory);
 	if (set == nullptr) {
-		return {};
+		return list;
 	}
-	size_t n = 0;
-	for (int32_t i = 0; i < set->numPatchCables && n < cables_.size(); ++i) {
+	for (int32_t i = 0; i < set->numPatchCables && list.count < list.items.size(); ++i) {
 		const PatchCable& cable = set->patchCables[i];
-		cables_[n++] = {.depth = deluge::bridge::cable_depth(cable.from, cable.destinationParamDescriptor),
-		                .polarity = static_cast<deluge::instrument::Polarity>(cable.polarity)};
+		list.items[list.count++] = {.depth = deluge::bridge::cable_depth(cable.from, cable.destinationParamDescriptor),
+		                            .polarity = static_cast<deluge::instrument::Polarity>(cable.polarity)};
 	}
-	return {cables_.data(), n};
+	return list;
 }
 
 uint8_t ShellRuntimeFacts::arp_preset(const deluge::project::SettingAddress& address) const {
