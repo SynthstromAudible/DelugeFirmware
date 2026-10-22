@@ -16,8 +16,10 @@
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/project_bridge/chain_bridge.h"
+#include "model/project_bridge/patch_cable_words.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
+#include "modulation/params/param.h"
 #include "processing/sound/sound_drum.h"
 
 #include "support/song_fixture.h"
@@ -84,6 +86,24 @@ Cost time_param_writes(const MenuContext& ctx, deluge::engine::ParamId param, in
 		                                 .param_value = (i % 2) != 0 ? a : b};
 		const auto start = std::chrono::steady_clock::now();
 		sink.write(request);
+		us.push_back(std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count());
+	}
+	audit.enabled = audited;
+	std::ranges::sort(us);
+	return {.median_us = us[us.size() / 2], .p95_us = us[(us.size() * 95) / 100]};
+}
+
+/// Times @p kWrites requests built by @p request_at, alternating the two stored words, through the app's sink.
+template <typename Write>
+Cost time_requests(Write&& write) {
+	deluge::bridge::TypedWriteAudit& audit = deluge::bridge::typedWriteAudit();
+	const bool audited = audit.enabled;
+	audit.enabled = false;
+	std::vector<double> us;
+	us.reserve(kWrites);
+	for (int32_t i = 0; i < kWrites; ++i) {
+		const auto start = std::chrono::steady_clock::now();
+		write(i);
 		us.push_back(std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count());
 	}
 	audit.enabled = audited;
@@ -174,6 +194,32 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 			                                            .clip_id = f.clip->id()};
 			expect(menu::host_runtime_facts().param_value(on_last) == std::optional<int32_t>{0x40000000}).to_be_true();
 		}
+		nullifyUIs();
+	});
+
+	it("measures a cable strength detent and a gold knob's region detent on a synth", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		f.song->setCurrentClip(f.clip);
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		changeRootUI(&sessionView); // each write logs its undo step, as on the device
+		ParamDescriptor pitch;
+		pitch.setToHaveParamOnly(deluge::modulation::params::LOCAL_PITCH_ADJUST);
+		const Target cable{.kind = Target::Kind::CABLE,
+		                   .param = deluge::bridge::cable_depth(PatchSource::LFO_GLOBAL_1, pitch)};
+		report("synth", 0, "cable", time_requests([&](int32_t i) {
+			       (void)menu::host_write_sink().write({.target = cable,
+			                                            .where = ctx.addresses,
+			                                            .param_value = (i % 2) != 0 ? 0x08000000 : 0x10000000,
+			                                            .polarity = deluge::instrument::Polarity::BIPOLAR});
+		       }));
+		const deluge::project::ParamAddress lpf{
+		    .owner = deluge::project::OwnerId::instrument(*f.instrument->id()),
+		    .space = deluge::project::ParamSpace::ENGINE,
+		    .id = deluge::instrument::param::kLpfFrequency,
+		    .clip_id = f.clip->id()};
+		report("synth-region", 0, "lpfFrequency", time_requests([&](int32_t i) {
+			       (void)menu::host_write_sink().write_param(lpf, (i % 2) != 0 ? 0x40000000 : -0x40000000, 0, 24);
+		       }));
 		nullifyUIs();
 	});
 
