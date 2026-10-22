@@ -126,8 +126,9 @@ const deluge::project::ChainCodec& chainCodec() {
 }
 
 std::optional<ChainAddress> chainAddressOf(const ::ModControllableAudio& owner, ::Song& song) {
-	// The chain the owner plays names it: the master's, or the record of the output the owner is.
-	const auto* effectable = dynamic_cast<const ::GlobalEffectable*>(&owner);
+	// The chain the owner plays names it: the master's, or the one an output's record of this song holds (an owner of
+	// another song plays that song's record, and gets nothing here).
+	const ::GlobalEffectable* effectable = owner.asGlobalEffectable();
 	const FxChain* bound = effectable != nullptr ? effectable->boundChain() : nullptr;
 	if (bound == nullptr) {
 		return std::nullopt;
@@ -135,13 +136,12 @@ std::optional<ChainAddress> chainAddressOf(const ::ModControllableAudio& owner, 
 	if (bound == &song.project.master_effects) {
 		return ChainAddress{.kind = ChainAddress::Kind::SONG};
 	}
-	const auto* output = dynamic_cast<const ::Output*>(&owner);
-	if (output == nullptr || !output->id()) {
-		return std::nullopt;
+	for (const auto& [id, record] : song.project.output_structure.by_id) {
+		if (record.effects && &*record.effects == bound) {
+			return ChainAddress{.kind = ChainAddress::Kind::OUTPUT, .id = id};
+		}
 	}
-	const ChainAddress address{.kind = ChainAddress::Kind::OUTPUT, .id = *output->id()};
-	// An owner of another song plays that song's record, not this one's.
-	return song.project.resolveChain(address) == bound ? std::optional{address} : std::nullopt;
+	return std::nullopt;
 }
 
 void adoptChainState(::GlobalEffectable& owner, FxChain& chain, ChainHome home) {

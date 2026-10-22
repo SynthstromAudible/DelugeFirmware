@@ -97,6 +97,7 @@ public:
 	/// @brief The chain record this owner plays, or null when it plays its own.
 	/// @return The bound record.
 	[[nodiscard]] const deluge::project::FxChain* boundChain() const { return boundChain_; }
+	[[nodiscard]] const ::GlobalEffectable* asGlobalEffectable() const override { return this; }
 	/// @return Which value the mod FX knob edits.
 	[[nodiscard]] ModFXParam modFXParam() const;
 	/// @return Which filter the filter knobs edit.

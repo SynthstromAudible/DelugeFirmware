@@ -35,6 +35,7 @@
 #include "engines/effects/state.h"
 
 class Clip;
+class GlobalEffectable;
 class Sound;
 class Knob;
 class MIDICable;
@@ -127,6 +128,9 @@ public:
 	/// @brief This owner as a sound.
 	/// @return The sound, or nullptr for a kit, an audio track or the song master.
 	[[nodiscard]] virtual ::Sound* asSound() { return nullptr; }
+	/// @brief This owner as a host chain's owner (a kit, an audio track, the song master), or null for a sound.
+	/// @return The owner, or null.
+	[[nodiscard]] virtual const ::GlobalEffectable* asGlobalEffectable() const { return nullptr; }
 	bool setModFXType(ModFXType newType);
 	/// @brief Clear the mod FX's memory, as a sound cutting its tail does: a comb type's delay line or phaser memories,
 	/// or the grain's grains and first pass.
