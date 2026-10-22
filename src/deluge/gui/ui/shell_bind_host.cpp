@@ -4,6 +4,7 @@
 #include "engine-api/types/setting.h"
 #include "engines/deluge/settings.h"
 #include "engines/deluge/words.h"
+#include "engines/effects/engine.h"
 #include "engines/effects/settings.h"
 #include "io/debug/log.h"
 #include "model/clip/instrument_clip.h"
@@ -300,8 +301,10 @@ const deluge::instrument::SoundState* ShellRuntimeFacts::sound_state(deluge::pro
 }
 
 const deluge::effects::EffectStates* ShellRuntimeFacts::chain_effects(deluge::project::ChainAddress chain) const {
-	::GlobalEffectable* owner = currentSong != nullptr ? deluge::bridge::chainOwnerAt(chain, *currentSong) : nullptr;
-	return owner != nullptr ? &owner->effects() : nullptr;
+	// The effects the chain's record holds, which its owner plays.
+	const deluge::project::FxChain* record =
+	    currentSong != nullptr ? currentSong->project.resolveChain(chain) : nullptr;
+	return record != nullptr ? record->effects.as<deluge::effects::DelugeEffects>() : nullptr;
 }
 
 int32_t ShellRuntimeFacts::played_bend_range(const deluge::project::SettingAddress& owner, int32_t which) const {

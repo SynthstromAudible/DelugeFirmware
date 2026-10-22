@@ -7,9 +7,12 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 
+#include "model/edits/change_effect.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
+#include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
+#include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
 
 #include "support/song_fixture.h"
@@ -61,6 +64,24 @@ Cost time_writes(const MenuContext& ctx, std::string_view path, int32_t a, int32
 	return {.median_us = us[us.size() / 2], .p95_us = us[(us.size() * 95) / 100]};
 }
 
+/// Times @p kWrites gestures on @p owner's chain, as a knob detent makes them (changeEffect), alternating two values.
+Cost time_effect_gestures(Song& song, ModControllableAudio& owner, std::string_view path,
+                          const deluge::serialization::Value& a, const deluge::serialization::Value& b) {
+	deluge::bridge::TypedWriteAudit& audit = deluge::bridge::typedWriteAudit();
+	const bool audited = audit.enabled;
+	audit.enabled = false;
+	std::vector<double> us;
+	us.reserve(kWrites);
+	for (int32_t i = 0; i < kWrites; ++i) {
+		const auto start = std::chrono::steady_clock::now();
+		deluge::edits::changeEffect(song, owner, path, (i % 2) != 0 ? a : b);
+		us.push_back(std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count());
+	}
+	audit.enabled = audited;
+	std::ranges::sort(us);
+	return {.median_us = us[us.size() / 2], .p95_us = us[(us.size() * 95) / 100]};
+}
+
 void report(const char* scope, int32_t drums, std::string_view path, Cost cost) {
 	char line[160];
 	snprintf(line, sizeof line, "MENU-WRITE-COST target=%.*s scope=%s drums=%d us_median=%.1f us_p95=%.1f\n",
@@ -96,6 +117,25 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 			report("kit", kKitDrums, "transpose", time_writes(ctx, "transpose", 100, -100));
 			report("kit", kKitDrums, "osc1/type", time_writes(ctx, "osc1/type", 1, 4));
 		}
+	});
+
+	it("measures a compressor knob detent on the master's chain and on a full kit's", _ {
+		using deluge::serialization::Value;
+		spec::SongFixture f = spec::make_kit_song();
+		for (int32_t d = 0; d < kKitDrums; ++d) {
+			spec::add_drum<SoundDrum>(f);
+		}
+		expect(deluge::bridge::chainAddressOf(*static_cast<Kit*>(f.instrument), *f.song).has_value()).to_be_true();
+		expect(deluge::bridge::chainAddressOf(f.song->live.global_effectable, *f.song).has_value()).to_be_true();
+		const Value low = Value::makeNumber(64 << 24);
+		const Value high = Value::makeNumber(96 << 24);
+		report("master", 0, "audioCompressor/ratio",
+		       time_effect_gestures(*f.song, f.song->live.global_effectable, "audioCompressor/ratio", low, high));
+		report("kit-chain", kKitDrums, "audioCompressor/ratio",
+		       time_effect_gestures(*f.song, *static_cast<Kit*>(f.instrument), "audioCompressor/ratio", low, high));
+		expect(f.song->live.global_effectable.effects().compressor.ratio == (96 << 24)
+		       || f.song->live.global_effectable.effects().compressor.ratio == (64 << 24))
+		    .to_be_true();
 	});
 });
 

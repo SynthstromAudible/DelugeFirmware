@@ -27,8 +27,8 @@ public:
 	/// the slot decodes to, kept equal to it by every Edit, plus what no file can hold (an FM sound's oscillator types,
 	/// a non-FM sound's modulators): a read of a row a menu does not show, which a condition may still read, needs it.
 	[[nodiscard]] virtual const instrument::SoundState* sound_state(project::SlotAddress slot) const = 0;
-	/// @brief The effects' typed state of the chain at @p chain, or nullptr when there is no such chain. It is what the
-	/// chain's record decodes to, kept equal to it by every Edit.
+	/// @brief The effects' typed state of the chain at @p chain, or nullptr when there is no such chain: what its
+	/// record holds, which its owner plays.
 	[[nodiscard]] virtual const effects::EffectStates* chain_effects(project::ChainAddress chain) const = 0;
 	/// @brief The bend range a clip or kit row whose record holds none plays: its expression set's, made after the song
 	/// loaded, or where it has none yet the one a new set starts at (the device's default, which is the user's, stored
