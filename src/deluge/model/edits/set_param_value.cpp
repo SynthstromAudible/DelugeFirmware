@@ -15,6 +15,7 @@
 #include "model/timeline_counter.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 
@@ -48,10 +49,17 @@ deluge::snapshot::RegionContext gatherRegionContext(ModelStackWithAutoParam* eng
 	return r;
 }
 /// Whether the reverb's sidechain copies the param @p stack names: any owner's sidechain shape, the song's or a global
-/// effectable's sidechain volume.
+/// effectable's sidechain volume, or a sound's cable from the sidechain to its reverb send.
 bool copiedByReverbSidechain(const ModelStackWithAutoParam& stack) {
 	namespace params = deluge::modulation::params;
 	const params::Kind kind = stack.kind;
+	if (kind == params::Kind::PATCH_CABLE) {
+		PatchSource source{};
+		ParamDescriptor destination{};
+		PatchCableSet::dissectParamId(stack.paramId, &destination, &source);
+		return source == PatchSource::SIDECHAIN
+		       && destination.isSetToParamWithNoSource(params::GLOBAL_VOLUME_POST_REVERB_SEND);
+	}
 	const bool unpatched = kind == params::Kind::UNPATCHED_SOUND || kind == params::Kind::UNPATCHED_GLOBAL;
 	return (unpatched && stack.paramId == params::UNPATCHED_SIDECHAIN_SHAPE)
 	       || (kind == params::Kind::UNPATCHED_GLOBAL && stack.paramId == params::UNPATCHED_SIDECHAIN_VOLUME);
