@@ -689,6 +689,77 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		currentSong = nullptr;
 	});
 
+	it("shows neither a turn nor a delete the app refuses as done", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_synth_song();
+		*static_cast<SoundInstrument*>(f.instrument)->getModKnobMode() = 1; // upper knob: LPF frequency
+		services::ModTarget target;
+		menu::mod_target_from_timeline(target, *f.song, f.clip);
+		Song* const saved = currentSong;
+		currentSong = nullptr; // the app's sink takes nothing with no current song
+		const services::ModTurn turn =
+		    menu::mod_encoder_turn(target, 1, 5, &ModKnobs::calculate_knob_pos_for_mod_encoder_turn);
+		const bool deleted = menu::mod_delete_automation(target, 1);
+		currentSong = saved;
+		expect(turn.param_exists).to_be_true();
+		expect(turn.value_changed).to_be_false();
+		expect(deleted).to_be_false();
+		display = nullptr;
+	});
+
+	it("writes a turn while recording the arrangement to the clip being recorded from the knob's", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_synth_song();
+		Song* const saved = currentSong;
+		currentSong = f.song;
+		auto* synth = static_cast<SoundInstrument*>(f.instrument);
+		*synth->getModKnobMode() = 1; // upper knob: LPF frequency
+		// The clip the arrangement records into: the synth's active clip, recording from the session clip.
+		InstrumentClip* recording = spec::detail::make_session_clip(f.song);
+		ParamManagerForTimeline params;
+		expect(params.cloneParamCollectionsFrom(&f.clip->paramManager, false) == Error::NONE).to_be_true();
+		recording->setAudioInstrument(synth, f.song, true, &params);
+		recording->beingRecordedFromClip = f.clip;
+		alignas(ModelStack) char memory[MODEL_STACK_MAX_SIZE];
+		expect(synth->setActiveClip(setupModelStackWithSong(memory, f.song)->addTimelineCounter(recording),
+		                            PgmChangeSend::NEVER))
+		    .to_be_true();
+		f.clip->activeIfNoSolo = true;
+		const auto lpf_on = [&](const Clip& clip) {
+			return deluge::project::ParamAddress{
+			    .owner = deluge::project::OwnerId::instrument(*f.instrument->id()),
+			    .space = deluge::project::ParamSpace::ENGINE,
+			    .id = deluge::bridge::paramIdOf(Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ),
+			    .clip_id = clip.id()};
+		};
+		const auto value_at = [&](const deluge::project::ParamAddress& address) -> std::optional<int32_t> {
+			alignas(ModelStackWithAutoParam) char at[MODEL_STACK_MAX_SIZE];
+			ModelStackWithAutoParam* stack = deluge::bridge::paramStackAt(*f.song, address, at);
+			return stack != nullptr ? std::optional{stack->autoParam->getCurrentValue()} : std::nullopt;
+		};
+		const std::optional<int32_t> session_before = value_at(lpf_on(*f.clip));
+		const std::optional<int32_t> recording_before = value_at(lpf_on(*recording));
+
+		const auto mode = playbackHandler.recording;
+		const auto state = playbackHandler.playbackState;
+		playbackHandler.recording = RecordingMode::ARRANGEMENT;
+		playbackHandler.playbackState = PLAYBACK_CLOCK_INTERNAL_ACTIVE;
+		services::ModTarget target;
+		menu::mod_target_from_timeline(target, *f.song, f.clip);
+		const services::ModTurn turn =
+		    menu::mod_encoder_turn(target, 1, 5, &ModKnobs::calculate_knob_pos_for_mod_encoder_turn);
+		playbackHandler.recording = mode;
+		playbackHandler.playbackState = state;
+
+		expect(turn.value_changed).to_be_true();
+		expect(value_at(lpf_on(*recording)) != recording_before).to_be_true();
+		expect(value_at(lpf_on(*f.clip))).to_equal(session_before);
+		currentSong = saved;
+		display = nullptr;
+	});
+
 	it("takes the non-existent-param arm without writing anything, as legacy does", _ {
 		StubDisplay stub;
 		display = &stub;
