@@ -58,10 +58,12 @@
 #include "model/clip/instrument_clip.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/project_bridge/param_ids.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
@@ -523,6 +525,40 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 		// A gold-knob turn is consumed here, exactly as `interpretEncoders` consumes it.
 		expect(r.handled).to_be_true();
+	});
+
+	it("records a stutter-rate turn while recording, as it does any param's", _ {
+		StubDisplay stub;
+		display = &stub;
+		AudioEngine::audioSampleTimer = 0;
+		spec::SongFixture f = spec::make_synth_song();
+		auto* sound = static_cast<SoundInstrument*>(f.instrument);
+		*sound->getModKnobMode() = 6; // the stutter mode: its upper knob is the stutter rate
+		const deluge::project::ParamAddress stutter{
+		    .owner = deluge::project::OwnerId::instrument(*f.instrument->id()),
+		    .space = deluge::project::ParamSpace::ENGINE,
+		    .id = deluge::bridge::paramIdOf(Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_STUTTER_RATE),
+		    .clip_id = f.clip->id()};
+
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(f.clip, false);
+		rig.knobs.set_mod_region();
+		const auto recording = playbackHandler.recording;
+		const auto state = playbackHandler.playbackState;
+		const bool armed = f.clip->armedForRecording;
+		playbackHandler.recording = RecordingMode::NORMAL;
+		playbackHandler.playbackState = PLAYBACK_CLOCK_INTERNAL_ACTIVE;
+		f.clip->armedForRecording = true;
+		f.song->setCurrentClip(f.clip);
+		DirectCtx c{1000};
+		(void)rig.knobs.handle(gold_turn(EncoderRole::GoldUpper, 5), c.ctx);
+		playbackHandler.recording = recording;
+		playbackHandler.playbackState = state;
+		f.clip->armedForRecording = armed;
+
+		const deluge::project::DocAutoParam* record = f.song->project.resolveParam(stutter);
+		expect(record != nullptr && !record->nodes.empty()).to_be_true();
 	});
 
 	it("takes the non-existent-param arm without writing anything, as legacy does", _ {

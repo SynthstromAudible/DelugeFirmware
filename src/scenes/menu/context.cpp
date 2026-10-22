@@ -749,15 +749,6 @@ services::ModTurn mod_encoder_turn(services::ModTarget& target, int32_t which_en
 	}
 	out.value_changed = true;
 
-	// `:911-918` -- the "stutter can't be automated" hack: drop the timeline counter for the write
-	// only, on a copy, so the automation write becomes a plain value write.
-	alignas(ModelStackWithAutoParam) char write_memory[MODEL_STACK_MAX_SIZE];
-	if (param->timelineCounterIsSet() && !param->paramCollection->doesParamIdAllowAutomation(param)) {
-		copyModelStack(write_memory, param, sizeof(ModelStackWithAutoParam));
-		param = reinterpret_cast<ModelStackWithAutoParam*>(write_memory);
-		param->setTimelineCounter(nullptr);
-	}
-
 	const int32_t new_value = param->paramCollection->knobPosToParamValue(new_knob_pos, param); // `:920`
 	// `:923` -- THE model write. Deleting this line must turn `mod_knobs_spec` red; see the task
 	// report's mutation table (the E2 blindness check).

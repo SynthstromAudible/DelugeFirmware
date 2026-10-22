@@ -958,16 +958,6 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 	// re-send midi cc because learned parameter value has changed
 	sendMidiFollowFeedback(modelStackWithParam, newKnobPos);
 
-	char newModelStackMemory[MODEL_STACK_MAX_SIZE];
-
-	// Hack to make it so stutter can't be automated
-	if (modelStackWithParam->timelineCounterIsSet()
-	    && !modelStackWithParam->paramCollection->doesParamIdAllowAutomation(modelStackWithParam)) {
-		copyModelStack(newModelStackMemory, modelStackWithParam, sizeof(ModelStackWithAutoParam));
-		modelStackWithParam = (ModelStackWithAutoParam*)newModelStackMemory;
-		modelStackWithParam->setTimelineCounter(nullptr);
-	}
-
 	int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
 	// Perform the actual change as an Edit.

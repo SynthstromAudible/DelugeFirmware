@@ -616,10 +616,6 @@ int32_t UnpatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAu
 	}
 }
 
-bool UnpatchedParamSet::doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) {
-	return (modelStack->paramId != params::UNPATCHED_STUTTER_RATE);
-}
-
 bool UnpatchedParamSet::shouldRecordUnautomatedParamChange(ModelStackWithParamId const* modelStack) {
 	return (modelStack->paramId != params::UNPATCHED_TEMPO);
 }
