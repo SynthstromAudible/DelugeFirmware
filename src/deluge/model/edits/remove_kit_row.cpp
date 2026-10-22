@@ -53,7 +53,7 @@ Error RemoveKitRow::apply(Context& ctx) {
 	}
 
 	// Delete the Drum we came here to delete: the render ends its voices and lets go of it before it is freed
-	ctx.song.live.param_backup.deleteForModControllable(drum_);
+	ctx.song.live.param_backup.deleteFor(drum_);
 	if (std::optional<uint32_t> drumId = drum_->id()) { // retire its tree-resident automation stores
 		ctx.model.backed_params.removeOwner(deluge::project::OwnerId::drum(*drumId));
 	}

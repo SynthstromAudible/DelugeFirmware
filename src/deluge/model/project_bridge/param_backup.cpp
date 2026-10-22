@@ -16,84 +16,236 @@
  */
 
 #include "model/project_bridge/param_backup.h"
+
+#include "model/clip/clip.h"
+#include "model/drum/drum.h"
+#include "model/instrument/kit.h"
+#include "model/output.h"
+#include "model/song/song.h"
+#include "processing/audio_output.h"
+#include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
+#include "processing/sound/sound_instrument.h"
 #include "util/exceptions.h"
+
+#include <algorithm>
 #include <utility>
 
 namespace deluge::bridge {
 
-ParamManager* ParamBackup::getForExactClip(ModControllableAudio* modControllable, Clip* clip, ParamManager* stealInto) {
-	auto itCorrectClip = map.find({modControllable, clip});
-	if (itCorrectClip == map.end()) {
-		return nullptr;
-	}
+namespace {
 
-	if (stealInto) {
-		stealInto->stealParamCollectionsFrom(
-		    &itCorrectClip->second,
-		    true); // Steal expression params too - if they're here (slightly rare case).
-		map.erase(itCorrectClip);
-		return stealInto;
-	}
-	return &itCorrectClip->second;
+std::optional<uint32_t> clipIdOf(const ::Clip* clip) {
+	return clip != nullptr ? std::optional{clip->id()} : std::nullopt;
 }
 
-ParamManager* ParamBackup::getPreferablyWithClip(ModControllableAudio* modControllable, Clip* clip,
-                                                 ParamManager* stealInto) {
-	// The entry with a null Clip (if any) sorts first for each ModControllable, so this finds it preferentially.
-	auto itAnyClip = map.lower_bound({modControllable, static_cast<Clip*>(nullptr)});
-	if (itAnyClip == map.end() || itAnyClip->first.first != modControllable) {
-		return nullptr; // If nothing with even the correct modControllable at all, get out
+/// @brief Move @p from's collections into @p stealInto, or hand @p from back.
+ParamManager* takeOrGive(ParamManager& from, ParamManager* stealInto) {
+	if (stealInto == nullptr) {
+		return &from;
 	}
+	stealInto->stealParamCollectionsFrom(&from, true); // expression params too, if they're here (slightly rare)
+	return stealInto;
+}
 
+} // namespace
+
+std::optional<project::OwnerId> BackupOwner::adopted() const {
+	if (const auto* output = std::get_if<::Output*>(&owner_)) {
+		return (*output)->docOutput_ != nullptr && (*output)->id()
+		           ? std::optional{project::OwnerId::instrument(*(*output)->id())}
+		           : std::nullopt;
+	}
+	const ::Drum* drum = std::get<::Drum*>(owner_);
+	return drum->docDrum_ != nullptr && drum->id() ? std::optional{project::OwnerId::drum(*drum->id())} : std::nullopt;
+}
+
+std::optional<project::OwnerId> BackupOwner::any_id() const {
+	if (const auto* output = std::get_if<::Output*>(&owner_)) {
+		return (*output)->id() ? std::optional{project::OwnerId::instrument(*(*output)->id())} : std::nullopt;
+	}
+	const ::Drum* drum = std::get<::Drum*>(owner_);
+	return drum->id() ? std::optional{project::OwnerId::drum(*drum->id())} : std::nullopt;
+}
+
+::Output* BackupOwner::output() const {
+	const auto* output = std::get_if<::Output*>(&owner_);
+	return output != nullptr ? *output : nullptr;
+}
+
+::Drum* BackupOwner::drum() const {
+	const auto* drum = std::get_if<::Drum*>(&owner_);
+	return drum != nullptr ? *drum : nullptr;
+}
+
+BackupOwner backupOwnerOf(::Sound& sound) {
+	if (sound.isDrum()) {
+		return BackupOwner{static_cast<::Drum&>(static_cast<::SoundDrum&>(sound))};
+	}
+	return BackupOwner{static_cast<::Output&>(static_cast<::SoundInstrument&>(sound))};
+}
+
+std::optional<BackupOwner> backupOwnerOf(::ModControllableAudio& owner, ::Song& song) {
+	const auto mine = [&](::ModControllableAudio* candidate) { return candidate == &owner; };
+	for (::Output* list :
+	     {song.live.media.first_output, static_cast<::Output*>(song.live.media.first_hibernating_instrument)}) {
+		for (::Output* output = list; output != nullptr; output = output->next) {
+			switch (output->type) {
+			case OutputType::SYNTH:
+				if (mine(static_cast<::SoundInstrument*>(output))) {
+					return BackupOwner{output};
+				}
+				break;
+			case OutputType::AUDIO:
+				if (mine(static_cast<::AudioOutput*>(output))) {
+					return BackupOwner{output};
+				}
+				break;
+			case OutputType::KIT: {
+				auto* kit = static_cast<::Kit*>(output);
+				if (mine(kit)) {
+					return BackupOwner{output};
+				}
+				for (::Drum* drum = kit->firstDrum; drum != nullptr; drum = drum->next) {
+					if (drum->type == DrumType::SOUND && mine(static_cast<::SoundDrum*>(drum))) {
+						return BackupOwner{drum};
+					}
+				}
+				break;
+			}
+			default:
+				break;
+			}
+		}
+	}
+	return std::nullopt;
+}
+
+ParamManager* ParamBackup::getForExactClip(BackupOwner owner, const ::Clip* clip, ParamManager* stealInto) {
+	const std::optional<uint32_t> clipId = clipIdOf(clip);
+	if (!owner.adopted()) {
+		auto it = std::ranges::find_if(
+		    pending, [&](const Pending& entry) { return entry.owner.is(owner) && entry.clip_id == clipId; });
+		if (it != pending.end()) {
+			ParamManager* result = takeOrGive(it->params, stealInto);
+			if (stealInto != nullptr) {
+				pending.erase(it);
+			}
+			return result;
+		}
+	}
+	const std::optional<project::OwnerId> id = owner.adopted() ? owner.adopted() : owner.any_id();
+	if (!id) {
+		return nullptr;
+	}
+	auto it = map.find({*id, clipId});
+	if (it == map.end()) {
+		return nullptr;
+	}
+	ParamManager* result = takeOrGive(it->second, stealInto);
+	if (stealInto != nullptr) {
+		map.erase(it);
+	}
+	return result;
+}
+
+ParamManager* ParamBackup::getPreferablyWithClip(BackupOwner owner, const ::Clip* clip, ParamManager* stealInto) {
+	const std::optional<uint32_t> clipId = clipIdOf(clip);
+	if (!owner.adopted()) {
+		// The no-clip entry first, as the map orders it, unless there is one for exactly the clip.
+		auto chosen = pending.end();
+		for (auto it = pending.begin(); it != pending.end(); ++it) {
+			if (!it->owner.is(owner)) {
+				continue;
+			}
+			if (clipId && it->clip_id == clipId) {
+				chosen = it;
+				break;
+			}
+			if (chosen == pending.end() || (!it->clip_id && chosen->clip_id)) {
+				chosen = it;
+			}
+		}
+		if (chosen != pending.end()) {
+			ParamManager* result = takeOrGive(chosen->params, stealInto);
+			if (stealInto != nullptr) {
+				pending.erase(chosen);
+			}
+			return result;
+		}
+	}
+	const std::optional<project::OwnerId> id = owner.adopted() ? owner.adopted() : owner.any_id();
+	if (!id) {
+		return nullptr;
+	}
+	// The entry with no clip (if any) sorts first for each owner, so this finds it preferentially.
+	auto itAnyClip = map.lower_bound({*id, std::nullopt});
+	if (itAnyClip == map.end() || itAnyClip->first.owner != *id) {
+		return nullptr;
+	}
 	auto itCorrectClip = itAnyClip;
-	if (clip && itAnyClip->first.second != clip) {
-		auto itExact = map.find({modControllable, clip});
+	if (clipId && itAnyClip->first.clip_id != clipId) {
+		auto itExact = map.find({*id, clipId});
 		if (itExact != map.end()) {
 			itCorrectClip = itExact;
 		}
 	}
-
-	if (stealInto) {
-		stealInto->stealParamCollectionsFrom(
-		    &itCorrectClip->second,
-		    true); // Steal expression params too - if they're here (slightly rare case).
+	ParamManager* result = takeOrGive(itCorrectClip->second, stealInto);
+	if (stealInto != nullptr) {
 		map.erase(itCorrectClip);
-		return stealInto;
 	}
-	return &itCorrectClip->second;
+	return result;
 }
 
-void ParamBackup::backUp(ModControllableAudio* modControllable, Clip* clip, ParamManagerForTimeline* paramManager,
+void ParamBackup::backUp(BackupOwner owner, const ::Clip* clip, ParamManagerForTimeline* paramManager,
                          bool shouldStealExpressionParamsToo) {
 	if (!paramManager->containsAnyMainParamCollections()) {
 		return;
 	}
-
-	auto it = map.find({modControllable, clip});
-
-	// If one already existed...
-	if (it != map.end()) {
-		// Let's destroy its contents and replace them
-		it->second.destructAndForgetParamCollections();
-		it->second.stealParamCollectionsFrom(paramManager, shouldStealExpressionParamsToo);
-	}
-
-	// Otherwise, insert one
-	else {
-		try {
-			auto [itNew, inserted] = map.try_emplace({modControllable, clip});
-			itNew->second.stealParamCollectionsFrom(paramManager, shouldStealExpressionParamsToo);
-		} catch (deluge::exception&) {
-			// If RAM error, destroy paramManager
-			paramManager->destructAndForgetParamCollections();
+	const std::optional<uint32_t> clipId = clipIdOf(clip);
+	try {
+		ParamManager* slot = nullptr;
+		if (const std::optional<project::OwnerId> id = owner.adopted()) {
+			slot = &map[project::BackedParamKey{*id, clipId}];
 		}
+		else {
+			auto it = std::ranges::find_if(
+			    pending, [&](const Pending& entry) { return entry.owner.is(owner) && entry.clip_id == clipId; });
+			slot = it != pending.end() ? &it->params : &pending.emplace_back(Pending{owner, clipId, {}}).params;
+		}
+		// One that already existed has its contents destroyed and replaced.
+		slot->destructAndForgetParamCollections();
+		slot->stealParamCollectionsFrom(paramManager, shouldStealExpressionParamsToo);
+	} catch (deluge::exception&) {
+		// If RAM error, destroy paramManager
+		paramManager->destructAndForgetParamCollections();
 	}
 }
 
-void ParamBackup::deleteForModControllable(ModControllableAudio* modControllable) {
-	auto it = map.lower_bound({modControllable, static_cast<Clip*>(nullptr)});
-	while (it != map.end() && it->first.first == modControllable) {
-		it = map.erase(it);
+void ParamBackup::deleteFor(BackupOwner owner) {
+	if (const std::optional<project::OwnerId> id = owner.any_id()) {
+		auto it = map.lower_bound({*id, std::nullopt});
+		while (it != map.end() && it->first.owner == *id) {
+			it = map.erase(it);
+		}
+	}
+	std::erase_if(pending, [&](const Pending& entry) { return entry.owner.is(owner); });
+}
+
+void ParamBackup::adopt(BackupOwner owner) {
+	const std::optional<project::OwnerId> id = owner.adopted();
+	if (!id) {
+		return;
+	}
+	for (auto it = pending.begin(); it != pending.end();) {
+		if (!it->owner.is(owner)) {
+			++it;
+			continue;
+		}
+		ParamManager& slot = map[project::BackedParamKey{*id, it->clip_id}];
+		slot.destructAndForgetParamCollections();
+		slot.stealParamCollectionsFrom(&it->params, true);
+		it = pending.erase(it);
 	}
 }
 

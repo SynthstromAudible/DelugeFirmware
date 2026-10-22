@@ -5592,10 +5592,7 @@ void InstrumentClipView::cancelAllAuditioning() {
 	}
 }
 
-void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording) {
-
-	D_PRINTLN("enterDrumCreator");
-
+SoundDrum* InstrumentClipView::createDrumForRow(ModelStackWithNoteRow* modelStack, bool doRecording) {
 	char const* prefix;
 	std::string soundName;
 
@@ -5615,7 +5612,7 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 	if (error != Error::NONE) {
 doDisplayError:
 		display->displayError(error);
-		return;
+		return nullptr;
 	}
 
 	void* memory = deluge::memory::alloc_fast(sizeof(SoundDrum));
@@ -5647,6 +5644,18 @@ doDisplayError:
 	                                  modelStack); // Sets noteRow->paramManager to newDrum->backedUpParamManager
 
 	kit->beenEdited();
+
+	return newDrum;
+}
+
+void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording) {
+
+	D_PRINTLN("enterDrumCreator");
+
+	SoundDrum* newDrum = createDrumForRow(modelStack, doRecording);
+	if (newDrum == nullptr) {
+		return;
+	}
 
 	setSelectedDrum(newDrum); // Does this really need to render?
 

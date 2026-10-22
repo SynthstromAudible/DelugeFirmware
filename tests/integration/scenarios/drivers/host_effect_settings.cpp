@@ -391,8 +391,7 @@ void hibernationLeg(Song& song) {
 		failed++;
 		return;
 	}
-	song.live.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr, &paramManager,
-	                              true);
+	song.live.param_backup.backUp(*kit, nullptr, &paramManager, true);
 	song.addOutput(kit);
 	const HostOwner owner{.address = {.kind = ChainAddress::Kind::OUTPUT, .id = kit->id().value_or(0)},
 	                      .name = "hibernating kit"};

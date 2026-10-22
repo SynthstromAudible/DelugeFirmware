@@ -688,7 +688,7 @@ void InstrumentLoad::abandon() {
 		newInstrument_ = nullptr;
 	}
 	if (newDrum_ != nullptr) {
-		currentSong->live.param_backup.deleteForModControllable(newDrum_);
+		currentSong->live.param_backup.deleteFor(newDrum_);
 		AudioEngine::retire(newDrum_);
 		newDrum_ = nullptr;
 	}

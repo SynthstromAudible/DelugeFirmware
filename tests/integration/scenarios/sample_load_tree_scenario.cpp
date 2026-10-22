@@ -477,8 +477,7 @@ bool writeKitPreset(const char* path, std::initializer_list<std::pair<const char
 		return fail("no kit for a preset");
 	}
 	auto* kit = static_cast<Kit*>(kitBase);
-	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr,
-	                                      &kitParams, true);
+	currentSong->live.param_backup.backUp(*kit, nullptr, &kitParams, true);
 	for (const auto& [name, sample] : drums) {
 		if (addSampleDrum(*kit, nullptr, name, sample, /*load=*/false) == nullptr) {
 			return false;
@@ -503,8 +502,7 @@ bool writePresets() {
 		return fail("the preset synth has no sample range");
 	}
 	holder->filePath = kSynthPresetSample;
-	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
-	                                      &synthParams, true);
+	currentSong->live.param_backup.backUp(*synth, nullptr, &synthParams, true);
 	if (!writeInstrumentDocument(*synth, kSynthPresetPath, "\n</sound>\n")) {
 		return false;
 	}

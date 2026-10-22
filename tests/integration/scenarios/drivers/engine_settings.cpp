@@ -885,8 +885,7 @@ int hibernationLeg(Song& song) {
 	}
 	// Its params go to the song's backups, as an instrument with no clip keeps them; a setting's side effects reach
 	// them.
-	song.live.param_backup.backUp(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
-	                              &paramManager, true);
+	song.live.param_backup.backUp(*synth, nullptr, &paramManager, true);
 	song.addOutput(synth);
 	synth->editedByUser = true;
 	song.deleteOrHibernateOutput(synth);

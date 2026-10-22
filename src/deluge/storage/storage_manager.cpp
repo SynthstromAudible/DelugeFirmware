@@ -346,8 +346,7 @@ deleteInstrumentAndGetOut:
 	}
 
 	// Check that a ParamManager was actually loaded for the Instrument, cos if not, that'd spell havoc
-	if (!song->live.param_backup.getPreferablyWithClip((ModControllableAudio*)newInstrument->toModControllable(),
-	                                                   nullptr)) {
+	if (!song->live.param_backup.getPreferablyWithClip(*newInstrument, nullptr)) {
 
 		if (outputType == OutputType::MIDI_OUT) {
 			// midi instruments make the param manager later

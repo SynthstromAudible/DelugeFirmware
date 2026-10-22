@@ -589,10 +589,10 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 			paramManager = &modelStack->getTimelineCounter()->paramManager;
 		}
 		else {
-			paramManager = modelStack->song->live.param_backup.getPreferablyWithClip(
-			    this,
-			    nullptr); // Could be NULL if a NonAudioInstrument - those don't back up any paramManagers (when they
-			              // even have them).
+			// Null for an owner with none backed up.
+			const std::optional<deluge::bridge::BackupOwner> owner =
+			    deluge::bridge::backupOwnerOf(*this, *modelStack->song);
+			paramManager = owner ? modelStack->song->live.param_backup.getPreferablyWithClip(*owner, nullptr) : nullptr;
 		}
 	}
 

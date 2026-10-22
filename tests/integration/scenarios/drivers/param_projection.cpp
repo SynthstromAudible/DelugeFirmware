@@ -1709,8 +1709,10 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		void* patSetAddrBefore = livePat;
 
 		deluge::bridge::ParamBackup backup;
-		auto* mc = reinterpret_cast<ModControllableAudio*>(0x1000); // pure map keys; never dereferenced
-		auto* clipKey = reinterpret_cast<Clip*>(0x2000);
+		// An owner no song has adopted: parked by itself, as a row being read is.
+		void* drumMemory = GeneralMemoryAllocator::get().alloc(sizeof(SoundDrum));
+		auto* mc = new (drumMemory) SoundDrum();
+		const Clip* clipKey = nullptr;
 
 		// Steal the live manager's collections into the backup ("park" it, as clip teardown does).
 		backup.backUp(mc, clipKey, &live);

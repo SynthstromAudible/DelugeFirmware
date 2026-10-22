@@ -458,7 +458,7 @@ Error AudioOutput::readFromFile(Deserializer& reader, Song* song, Clip* clip, in
 }
 
 void AudioOutput::deleteBackedUpParamManagers(Song* song) {
-	song->live.param_backup.deleteForModControllable(this);
+	song->live.param_backup.deleteFor(this);
 }
 
 Clip* AudioOutput::createNewClipForArrangementRecording(ModelStack* modelStack) {

@@ -25,6 +25,8 @@
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/param_backup.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
@@ -123,8 +125,27 @@ void forEachDelayParamManager(Song& song, const std::function<void(ModControllab
 		}
 	}
 	visit(song.live.global_effectable, song.paramManager);
+	// A backup's owner by its address, or (not yet adopted) itself.
+	const auto engineOf = [&](deluge::project::OwnerId owner) -> ModControllableAudio* {
+		if (owner.kind == deluge::project::OwnerId::Kind::DRUM) {
+			Drum* drum = deluge::bridge::drumWithId(song, owner.id);
+			return drum != nullptr && drum->type == DrumType::SOUND ? static_cast<SoundDrum*>(drum) : nullptr;
+		}
+		Output* output = song.outputForId(owner.id);
+		return output != nullptr ? static_cast<ModControllableAudio*>(output->toModControllable()) : nullptr;
+	};
 	for (auto& [key, paramManager] : song.live.param_backup.map) {
-		visit(*key.first, paramManager);
+		if (ModControllableAudio* owner = engineOf(key.owner)) {
+			visit(*owner, paramManager);
+		}
+	}
+	for (deluge::bridge::ParamBackup::Pending& entry : song.live.param_backup.pending) {
+		if (Output* output = entry.owner.output()) {
+			visit(*static_cast<ModControllableAudio*>(output->toModControllable()), entry.params);
+		}
+		else if (Drum* drum = entry.owner.drum(); drum->type == DrumType::SOUND) {
+			visit(*static_cast<SoundDrum*>(drum), entry.params);
+		}
 	}
 }
 

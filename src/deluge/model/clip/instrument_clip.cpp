@@ -2290,8 +2290,7 @@ void InstrumentClip::unassignAllNoteRowsFromDrums(ModelStackWithTimelineCounter*
 			// link to) the paramManager
 			if (shouldRetainLinksToSounds) {
 				if (thisNoteRow->paramManager.containsAnyMainParamCollections()) {
-					modelStack->song->live.param_backup.backUp((SoundDrum*)thisNoteRow->drum, this,
-					                                           &thisNoteRow->paramManager,
+					modelStack->song->live.param_backup.backUp(*thisNoteRow->drum, this, &thisNoteRow->paramManager,
 					                                           shouldBackUpExpressionParamsToo);
 				}
 			}
@@ -2317,8 +2316,8 @@ Error InstrumentClip::undoUnassignmentOfAllNoteRowsFromDrums(ModelStackWithTimel
 		NoteRow* noteRow = &noteRows[i];
 		if (noteRow->drum && noteRow->drum->type == DrumType::SOUND) {
 
-			bool success = modelStack->song->live.param_backup.getPreferablyWithClip((SoundDrum*)noteRow->drum, this,
-			                                                                         &noteRow->paramManager);
+			bool success =
+			    modelStack->song->live.param_backup.getPreferablyWithClip(*noteRow->drum, this, &noteRow->paramManager);
 
 			if (!success) {
 				if (ALPHA_OR_BETA_VERSION) {
@@ -2394,8 +2393,7 @@ void InstrumentClip::detachFromOutput(ModelStackWithTimelineCounter* modelStack,
 			                             shouldGrabMidiCommands, shouldBackUpExpressionParamsToo);
 		}
 
-		modelStack->song->live.param_backup.backUp((ModControllableAudio*)output->toModControllable(), this,
-		                                           &paramManager, shouldBackUpExpressionParamsToo);
+		modelStack->song->live.param_backup.backUp(*output, this, &paramManager, shouldBackUpExpressionParamsToo);
 	}
 
 	if (!shouldRetainLinksToOutput) {
@@ -3086,8 +3084,7 @@ doReadBendRange:
 
 				// Try grabbing the Instrument's "backed up" one
 				ModControllable* modControllable = output->toModControllable();
-				bool success = song->live.param_backup.getPreferablyWithClip((ModControllableAudio*)modControllable,
-				                                                             this, &paramManager);
+				bool success = song->live.param_backup.getPreferablyWithClip(*output, this, &paramManager);
 				if (success) {
 					char modelStackMemory[MODEL_STACK_MAX_SIZE];
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -4159,7 +4156,7 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 					// Try grabbing the Drum's "backed up" one
 					success = modelStackWithNoteRow->song->live.param_backup.getPreferablyWithClip(
-					    (SoundDrum*)thisNoteRow->drum, this, &thisNoteRow->paramManager);
+					    *thisNoteRow->drum, this, &thisNoteRow->paramManager);
 					if (success) {
 						thisNoteRow->trimParamManager(modelStackWithNoteRow);
 					}

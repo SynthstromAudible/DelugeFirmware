@@ -136,8 +136,7 @@ SoundInstrument* makeSynth() {
 	}
 	auto* synth = static_cast<SoundInstrument*>(instrument);
 	synth->setupAsBlankSynth(&paramManager, false);
-	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
-	                                      &paramManager, true);
+	currentSong->live.param_backup.backUp(*synth, nullptr, &paramManager, true);
 	return synth;
 }
 
@@ -150,8 +149,7 @@ Kit* makeKitWithSynthDrum(SoundDrum** drumOut) {
 		return nullptr;
 	}
 	auto* kit = static_cast<Kit*>(instrument);
-	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr,
-	                                      &kitParams, true);
+	currentSong->live.param_backup.backUp(*kit, nullptr, &kitParams, true);
 
 	ParamManagerForTimeline paramManager;
 	if (paramManager.setupWithPatching() != Error::NONE) {
@@ -353,7 +351,7 @@ void deleteLeg() {
 		}
 
 		g_step = "retire";
-		currentSong->live.param_backup.deleteForModControllable(g_drum);
+		currentSong->live.param_backup.deleteFor(g_drum);
 		g_kit->renderingDrums.remove(g_drum);
 		g_drum->kit = nullptr;
 		AudioEngine::retire(g_drum);

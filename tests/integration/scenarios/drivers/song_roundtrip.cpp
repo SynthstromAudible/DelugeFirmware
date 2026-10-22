@@ -75,6 +75,12 @@ long load_then_save(char* xml, size_t xmlLen, deluge::storage::DocumentFormat fo
 	}
 	currentSong = song; // load complete; some deep write paths consult the global
 
+	// Every backup the read made waits for its owner's id, and has it once the load is done.
+	if (!song->live.param_backup.pending.empty()) {
+		*loadErr = Error::BUG;
+		return -2;
+	}
+
 	// Clear the transient view selection before saving: writeToFile() otherwise serializes
 	// "selected"/"beingEdited" for the current clip and consults the root UI.
 	// That is view state, not project data — dropping it yields a view-independent canonical
@@ -112,6 +118,10 @@ int song_roundtrip_main(int argc, char** argv, Io io) {
 
 	Error e1, e2;
 	long n1 = load_then_save(orig, fileLen, deluge::storage::formatOfPath(songPath), gen1, kCap, &e1);
+	if (n1 == -2) {
+		std::fprintf(io.err, "PENDING original: a backup still waits for its owner's id after the load\n");
+		return 4;
+	}
 	if (n1 < 0) {
 		std::fprintf(io.err, "LOADFAIL original -> Error %d\n", (int)e1);
 		return 1;

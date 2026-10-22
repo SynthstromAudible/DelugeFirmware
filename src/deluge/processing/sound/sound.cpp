@@ -2271,20 +2271,19 @@ bool Sound::learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t
 void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {
 
 	// We gotta do this for any backedUpParamManagers too!
-	for (auto it = song->live.param_backup.map.lower_bound(
-	         {static_cast<ModControllableAudio*>(this), static_cast<Clip*>(nullptr)});
-	     it != song->live.param_backup.map.end() && it->first.first == this; ++it) {
-		Clip* clip = it->first.second;
-		if (clip) {
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-			    setupModelStackWithThreeMainThingsButNoNoteRow(modelStackMemory, song, this, clip, &it->second);
-			ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(modelStackWithThreeMainThings);
-		}
-		else {
-			ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(&it->second);
-		}
-	}
+	song->live.param_backup.forEachOf(
+	    deluge::bridge::backupOwnerOf(*this), [&](std::optional<uint32_t> clipId, ParamManager& params) {
+		    Clip* clip = clipId ? song->clipForId(*clipId) : nullptr;
+		    if (clip) {
+			    char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			    ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+			        setupModelStackWithThreeMainThingsButNoNoteRow(modelStackMemory, song, this, clip, &params);
+			    ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(modelStackWithThreeMainThings);
+		    }
+		    else {
+			    ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(&params);
+		    }
+	    });
 
 	song->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this); // What does this do exactly, again?
 }
@@ -2720,8 +2719,9 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 
 	// A sound with params files them with the Song
 	if (paramManager.containsAnyMainParamCollections()) {
-		modelStack->song->live.param_backup.backUp(this, (Clip*)modelStack->getTimelineCounterAllowNull(),
-		                                           &paramManager, true);
+		modelStack->song->live.param_backup.backUp(deluge::bridge::backupOwnerOf(*this),
+		                                           (Clip*)modelStack->getTimelineCounterAllowNull(), &paramManager,
+		                                           true);
 	}
 
 	doneReadingFromFile();

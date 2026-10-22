@@ -186,33 +186,35 @@ int32_t instrumentsNamed(const char* name) {
 	return found;
 }
 
-/// Whether @p owner is the song's: one of its outputs, active or hibernating, or a drum of one of its kits.
-bool ownedBySong(const ModControllableAudio* owner) {
-	for (Output* list : {currentSong->live.media.first_output,
-	                     static_cast<Output*>(currentSong->live.media.first_hibernating_instrument)}) {
-		for (Output* output = list; output != nullptr; output = output->next) {
-			if (static_cast<ModControllableAudio*>(output->toModControllable()) == owner) {
-				return true;
-			}
-			if (output->type == OutputType::KIT) {
-				for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next) {
-					if (drum->type == DrumType::SOUND
-					    && static_cast<ModControllableAudio*>(static_cast<SoundDrum*>(drum)) == owner) {
-						return true;
-					}
-				}
-			}
-		}
-	}
-	return false;
-}
-
 /// The song's backed-up param managers whose owner is not the song's: what an Instrument parsed and then dropped
 /// without being deleted leaves behind.
 int32_t orphanedParamManagers() {
 	int32_t orphans = 0;
+	// Every owner the song holds, and whether a backup is one of theirs: by address once adopted, else by itself.
+	const auto heldBySong = [](auto matches) {
+		for (Output* list : {currentSong->live.media.first_output,
+		                     static_cast<Output*>(currentSong->live.media.first_hibernating_instrument)}) {
+			for (Output* output = list; output != nullptr; output = output->next) {
+				if (matches(deluge::bridge::BackupOwner{output})) {
+					return true;
+				}
+				if (output->type == OutputType::KIT) {
+					for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next) {
+						if (matches(deluge::bridge::BackupOwner{drum})) {
+							return true;
+						}
+					}
+				}
+			}
+		}
+		return false;
+	};
 	for (const auto& [key, paramManager] : currentSong->live.param_backup.map) {
-		orphans += ownedBySong(key.first) ? 0 : 1;
+		orphans +=
+		    heldBySong([&](const deluge::bridge::BackupOwner& owner) { return owner.adopted() == key.owner; }) ? 0 : 1;
+	}
+	for (const deluge::bridge::ParamBackup::Pending& entry : currentSong->live.param_backup.pending) {
+		orphans += heldBySong([&](const deluge::bridge::BackupOwner& owner) { return owner.is(entry.owner); }) ? 0 : 1;
 	}
 	return orphans;
 }

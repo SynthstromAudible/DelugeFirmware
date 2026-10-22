@@ -418,6 +418,12 @@ public:
 
 	// public for velocity keyboard view to access
 	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
+	/// @brief Make a new sample drum on @p modelStack's row, named and added to the kit, its params backed up and taken
+	///        by the row: the drum creator's model half, before it opens the file browser or the recorder.
+	/// @param modelStack  The row.
+	/// @param doRecording Whether the drum is for a recording (its name's prefix).
+	/// @return The drum, or nullptr where it could not be made (the error is shown).
+	SoundDrum* createDrumForRow(ModelStackWithNoteRow* modelStack, bool doRecording);
 
 	ModControllableAudio* getModControllableAudioOrNone() override;
 

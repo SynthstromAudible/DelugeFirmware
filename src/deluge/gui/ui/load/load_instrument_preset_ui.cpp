@@ -1264,7 +1264,7 @@ Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadReques
 	if (currentSong->live.param_backup.getPreferablyWithClip(newDrum, instrumentClipToLoadFor, &paramManager)
 	    == nullptr) {
 		// The old drum stays where it was; the new one never reached the kit.
-		currentSong->live.param_backup.deleteForModControllable(newDrum);
+		currentSong->live.param_backup.deleteFor(newDrum);
 		AudioEngine::retire(newDrum);
 		return Error::FILE_CORRUPTED;
 	}
@@ -1308,7 +1308,7 @@ Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadReques
 		// Nothing references the old drum now, so it can go
 		kitToLoadFor->renderingDrums.remove(oldDrum);
 		kitToLoadFor->removeDrum(oldDrum);
-		currentSong->live.param_backup.deleteForModControllable(oldDrum);
+		currentSong->live.param_backup.deleteFor(oldDrum);
 		oldDrum->wontBeRenderedForAWhile();
 		// Out of the kit for good: the render's let-go of the drum must not write back into the kit's
 		// renderingDrums, which may be freed by then (SoundDrum::setSkippingRendering skips a null kit).

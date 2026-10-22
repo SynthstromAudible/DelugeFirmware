@@ -1852,8 +1852,7 @@ bool writeBlankSynthPresetFile(const char* path) {
 		return false;
 	}
 	static_cast<SoundInstrument*>(instrument)->setupAsBlankSynth(&paramManager, false);
-	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(instrument->toModControllable()), nullptr,
-	                                      &paramManager, true);
+	currentSong->live.param_backup.backUp(*instrument, nullptr, &paramManager, true);
 
 	Error error = StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
 	if (error != Error::NONE) {

@@ -312,7 +312,7 @@ void SoundInstrument::setupPatchingForAllParamManagers(Song* song) {
 }
 
 void SoundInstrument::deleteBackedUpParamManagers(Song* song) {
-	song->live.param_backup.deleteForModControllable(this);
+	song->live.param_backup.deleteFor(this);
 	// Also retire this instrument's tree-resident automation stores (keyed by Output::id), so the persistent tree
 	// stays a faithful mirror of live owners. Safe here: deleteForModControllable above destroyed every parked
 	// ParamManager, and the instrument's clips are gone by the time an Output is deleted, so nothing is still bound

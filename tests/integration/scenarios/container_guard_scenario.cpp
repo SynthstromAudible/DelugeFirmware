@@ -431,8 +431,7 @@ InstrumentClip* makeSynthClip() {
 	}
 	auto* synth = static_cast<SoundInstrument*>(instrument);
 	synth->setupAsBlankSynth(&paramManager, false);
-	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
-	                                      &paramManager, true);
+	currentSong->live.param_backup.backUp(*synth, nullptr, &paramManager, true);
 	deluge::storage::AcquireResult acquired;
 	acquired.instrument = synth;
 	acquired.loadedFromFile = true;
@@ -474,8 +473,7 @@ InstrumentClip* makeKitClip() {
 		return nullptr;
 	}
 	auto* kit = static_cast<Kit*>(instrument);
-	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr,
-	                                      &kitParams, true);
+	currentSong->live.param_backup.backUp(*kit, nullptr, &kitParams, true);
 	if (makeDrum(kit) == nullptr) {
 		return nullptr;
 	}
@@ -883,8 +881,7 @@ void editLeg() {
 		}
 		auto* synth = static_cast<SoundInstrument*>(fresh);
 		synth->setupAsBlankSynth(&paramManager, false);
-		currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
-		                                      &paramManager, true);
+		currentSong->live.param_backup.backUp(*synth, nullptr, &paramManager, true);
 		currentSong->replaceInstrument(static_cast<Instrument*>(g_clip->output), fresh);
 		break;
 	}

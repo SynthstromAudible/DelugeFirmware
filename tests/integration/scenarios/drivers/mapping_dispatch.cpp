@@ -778,8 +778,7 @@ std::string hibernationLeg(Stage& s) {
 	if (kit == nullptr) {
 		return "no kit to put to sleep";
 	}
-	s.song.live.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr, &kitParams,
-	                                true);
+	s.song.live.param_backup.backUp(*kit, nullptr, &kitParams, true);
 	s.song.addOutput(kit);
 	static_cast<Kit*>(kit)->addDrum(StorageManager::createNewDrum(DrumType::MIDI), &s.song);
 	const uint32_t kitId = *kit->id();
@@ -850,8 +849,7 @@ std::string rowRemovedLeg(Stage& s) {
 		return "no kit";
 	}
 	Kit& kit = *static_cast<Kit*>(instrument);
-	s.song.live.param_backup.backUp(static_cast<ModControllableAudio*>(kit.toModControllable()), nullptr, &kitParams,
-	                                true);
+	s.song.live.param_backup.backUp(kit, nullptr, &kitParams, true);
 	s.song.addOutput(&kit);
 	Drum* removed = StorageManager::createNewDrum(DrumType::MIDI);
 	Drum* kept = StorageManager::createNewDrum(DrumType::GATE);
@@ -1790,8 +1788,7 @@ int mapping_dispatch_main(int /*argc*/, char** /*argv*/, deluge::scenarios::driv
 		std::fprintf(io.err, "MAPPING-DISPATCH FAIL no kit to put to sleep\n");
 		return 1;
 	}
-	song.live.param_backup.backUp(static_cast<ModControllableAudio*>(sleeper->toModControllable()), nullptr,
-	                              &sleeperParams, true);
+	song.live.param_backup.backUp(*sleeper, nullptr, &sleeperParams, true);
 	song.addOutput(sleeper);
 	static_cast<Kit*>(sleeper)->addDrum(StorageManager::createNewDrum(DrumType::MIDI), &song);
 	static_cast<Kit*>(sleeper)->addDrum(StorageManager::createNewDrum(DrumType::GATE), &song);

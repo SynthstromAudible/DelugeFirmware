@@ -295,8 +295,7 @@ InstrumentClip* makeSynthClip() {
 	}
 	auto* synth = static_cast<SoundInstrument*>(instrument);
 	synth->setupAsBlankSynth(&paramManager, false);
-	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
-	                                      &paramManager, true);
+	currentSong->live.param_backup.backUp(*synth, nullptr, &paramManager, true);
 
 	deluge::storage::AcquireResult acquired;
 	acquired.instrument = synth;
@@ -356,8 +355,7 @@ InstrumentClip* makeKitClip() {
 		return nullptr;
 	}
 	auto* kit = static_cast<Kit*>(instrument);
-	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr,
-	                                      &kitParams, true);
+	currentSong->live.param_backup.backUp(*kit, nullptr, &kitParams, true);
 	SoundDrum* drum = makeDrum(kit);
 	if (drum == nullptr) {
 		return nullptr;

@@ -3683,7 +3683,7 @@ int8_t NoteRow::getColourOffset(InstrumentClip* clip) {
 /*
 void NoteRow::setDrumToNull(ModelStackWithTimelineCounter const* modelStack) {
     if (paramManager.containsAnyParamCollections()) {
-        modelStack->song->live.param_backup.backUp((SoundDrum*)drum, (Clip*)modelStack->getTimelineCounter(),
+        modelStack->song->live.param_backup.backUp(*drum, (Clip*)modelStack->getTimelineCounter(),
 &paramManager);
 
         paramManager.forgetParamCollections();
@@ -3702,7 +3702,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 	if (backupOldParamManager && paramManager.containsAnyMainParamCollections()) {
 		modelStack->song->live.param_backup.backUp(
-		    (SoundDrum*)drum, (Clip*)modelStack->getTimelineCounter(), &paramManager,
+		    *drum, (Clip*)modelStack->getTimelineCounter(), &paramManager,
 		    false); // Don't steal expression params - we'll keep them here with this NoteRow.
 	}
 	else if (!backupOldParamManager) {

@@ -456,11 +456,12 @@ void Song::deleteAllBackedUpParamManagers() {
 		AudioEngine::routineWithClusterLoading();
 		live.param_backup.map.erase(live.param_backup.map.begin());
 	}
+	live.param_backup.pending.clear();
 }
 
 void Song::deleteAllBackedUpParamManagersWithClips() {
 	for (auto it = live.param_backup.map.begin(); it != live.param_backup.map.end();) {
-		if (it->first.second != nullptr) {
+		if (it->first.clip_id.has_value()) {
 			AudioEngine::routineWithClusterLoading();
 			it = live.param_backup.map.erase(it);
 		}
@@ -468,6 +469,8 @@ void Song::deleteAllBackedUpParamManagersWithClips() {
 			++it;
 		}
 	}
+	std::erase_if(live.param_backup.pending,
+	              [](const deluge::bridge::ParamBackup::Pending& entry) { return entry.clip_id.has_value(); });
 }
 
 bool Song::completeBlankPreset(const deluge::storage::AcquireResult& acquired) {
@@ -1375,6 +1378,7 @@ void Song::adoptDrum(Drum* drum) {
 	if (!readingFromFile_) {
 		deluge::bridge::recordArrivingDrum(*drum, *this);
 	}
+	live.param_backup.adopt(*drum); // its backups, made before it had its id here, go under its id now
 }
 
 // Drop a drum's structural record on genuine destruction. Callers guard on currentSong && drum->docDrum_
@@ -1446,6 +1450,7 @@ void Song::adoptOutput(Output* output) {
 		deluge::bridge::recordArrivingOutput(*output, *this);
 	}
 	deluge::bridge::recordOutputChain(*output, *this); // a kit's or an audio track's effects are its record's too
+	live.param_backup.adopt(*output); // its backups, made before it had its id here, go under its id now
 }
 
 // Drop an output's identity record on genuine destruction. Callers guard on currentSong && docOutput_
@@ -2143,7 +2148,7 @@ loadOutput:
 		}
 
 		if (thisOutput->clipInstances.empty()
-		    && live.param_backup.getPreferablyWithClip((ModControllableAudio*)thisOutput, nullptr) == nullptr
+		    && live.param_backup.getPreferablyWithClip(*thisOutput, nullptr) == nullptr
 		    && thisOutput->type == OutputType::AUDIO) {
 			// This clip has no way to get a param manager, and no clips to help it out. Need to create a backup or
 			// things will go wrong later.
@@ -2152,8 +2157,7 @@ loadOutput:
 			paramManager.setupUnpatched();
 			GlobalEffectable::initParams(&paramManager);
 
-			this->live.param_backup.backUp((ModControllableAudio*)thisOutput->toModControllable(), nullptr,
-			                               &paramManager);
+			this->live.param_backup.backUp(*thisOutput, nullptr, &paramManager);
 		}
 
 		for (int32_t i = 0; i < std::ssize(thisOutput->clipInstances); i++) {
@@ -4102,16 +4106,17 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 
 	AudioEngine::logAction("Song::deleteBackedUpParamManagersForClip");
 
+	const uint32_t clipId = clip->id();
 	for (auto it = live.param_backup.map.begin(); it != live.param_backup.map.end();) {
-		if (it->first.second != clip) {
+		if (it->first.clip_id != clipId) {
 			++it;
 			continue;
 		}
 
 		AudioEngine::routineWithClusterLoading();
-		ModControllableAudio* modControllable = it->first.first;
+		const deluge::project::OwnerId owner = it->first.owner;
 
-		auto itNull = live.param_backup.map.find({modControllable, static_cast<Clip*>(nullptr)});
+		auto itNull = live.param_backup.map.find({owner, std::nullopt});
 
 		// If a no-Clip backup already exists for this ModControllable, replace its contents with this one's
 		if (itNull != live.param_backup.map.end()) {
@@ -4124,8 +4129,27 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 		// ParamManager, and the re-inserted entry sorts before the current position, so it won't be revisited.
 		else {
 			auto node = live.param_backup.map.extract(it++);
-			node.key().second = nullptr;
+			node.key().clip_id = std::nullopt;
 			live.param_backup.map.insert(std::move(node));
+		}
+	}
+	// An owner not yet adopted keeps its clip's backups pending: the same, by the owner itself.
+	auto& pending = live.param_backup.pending;
+	for (auto it = pending.begin(); it != pending.end();) {
+		if (it->clip_id != clipId) {
+			++it;
+			continue;
+		}
+		auto itNull = std::ranges::find_if(pending, [&](const deluge::bridge::ParamBackup::Pending& entry) {
+			return entry.owner.is(it->owner) && !entry.clip_id;
+		});
+		if (itNull != pending.end()) {
+			itNull->params.destructAndForgetParamCollections();
+			itNull->params.stealParamCollectionsFrom(&it->params);
+			it = pending.erase(it);
+		}
+		else {
+			(it++)->clip_id = std::nullopt;
 		}
 	}
 }
@@ -4431,8 +4455,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 		// Ok, back to the main task - if there's no activeClip...
 		else {
 			if (output->type == OutputType::SYNTH || output->type == OutputType::KIT) {
-				if (!live.param_backup.getPreferablyWithClip((ModControllableAudio*)output->toModControllable(),
-				                                             nullptr)) {
+				if (!live.param_backup.getPreferablyWithClip(*output, nullptr)) {
 #if ALPHA_OR_BETA_VERSION
 					deluge::notify::notice("E044");
 #endif
@@ -4609,8 +4632,7 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 		if (getClipWithOutput(thisOutput)) {}
 
 		else {
-			if (!live.param_backup.getPreferablyWithClip((ModControllableAudio*)thisOutput->toModControllable(),
-			                                             nullptr)) {
+			if (!live.param_backup.getPreferablyWithClip(*thisOutput, nullptr)) {
 				FREEZE_WITH_ERROR(errorMessageNormal);
 			}
 		}
@@ -4632,8 +4654,7 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 		}
 
 		else {
-			if (!live.param_backup.getPreferablyWithClip((ModControllableAudio*)thisInstrument->toModControllable(),
-			                                             nullptr)) {
+			if (!live.param_backup.getPreferablyWithClip(*thisInstrument, nullptr)) {
 				FREEZE_WITH_ERROR(errorMessageHibernating);
 			}
 		}
@@ -5236,7 +5257,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 
 	GlobalEffectableForClip::initParamsForAudioClip(&newParamManager);
 
-	live.param_backup.backUp((ModControllableAudio*)newOutput->toModControllable(), nullptr, &newParamManager, true);
+	live.param_backup.backUp(*newOutput, nullptr, &newParamManager, true);
 
 	if (replaceOutput) {
 		replaceOutputLowLevel(newOutput, replaceOutput);

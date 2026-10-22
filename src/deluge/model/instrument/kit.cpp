@@ -256,7 +256,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 			if (!activeClip) {
 				D_PRINTLN("nah, !activeClip");
 				if (thisDrum->type == DrumType::SOUND) {
-					paramManagerForDrum = song->live.param_backup.getPreferablyWithClip((SoundDrum*)thisDrum, NULL);
+					paramManagerForDrum = song->live.param_backup.getPreferablyWithClip(*thisDrum, NULL);
 					if (!paramManagerForDrum) {
 						goto moveOn;
 					}
@@ -278,7 +278,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 
 					if (thisDrum->type == DrumType::SOUND) {
 						auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-						song->live.param_backup.deleteForModControllable(soundDrum);
+						song->live.param_backup.deleteFor(soundDrum);
 						if (std::optional<uint32_t> drumId = thisDrum->id()) { // retire its tree stores
 							song->project.backed_params.removeOwner(deluge::project::OwnerId::drum(*drumId));
 						}
@@ -1089,8 +1089,8 @@ void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
 
 			SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 
-			ParamManager* paramManager = modelStackWithTimelineCounter->song->live.param_backup.getPreferablyWithClip(
-			    (ModControllableAudio*)soundDrum, nullptr);
+			ParamManager* paramManager =
+			    modelStackWithTimelineCounter->song->live.param_backup.getPreferablyWithClip(soundDrum, nullptr);
 			if (!paramManager) {
 				FREEZE_WITH_ERROR("E174");
 			}
@@ -1147,8 +1147,8 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 
 				SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 
-				ParamManager* paramManager = modelStack->song->live.param_backup.getPreferablyWithClip(
-				    (ModControllableAudio*)soundDrum, nullptr);
+				ParamManager* paramManager =
+				    modelStack->song->live.param_backup.getPreferablyWithClip(soundDrum, nullptr);
 				if (!paramManager) {
 					FREEZE_WITH_ERROR("E172");
 				}
@@ -1222,7 +1222,7 @@ void Kit::prepareForHibernationOrDeletion() {
 }
 
 void Kit::deleteBackedUpParamManagers(Song* song) {
-	song->live.param_backup.deleteForModControllable(this);
+	song->live.param_backup.deleteFor(this);
 	// Retire the kit's clip-level-FX tree stores (keyed by Output::id) and, below, each
 	// SoundDrum's per-drum stores (keyed by Drum::id), mirroring the param_backup purges. See
 	// SoundInstrument::deleteBackedUpParamManagers for the safety rationale. No-op when never saved (no id).
@@ -1233,7 +1233,7 @@ void Kit::deleteBackedUpParamManagers(Song* song) {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->type == DrumType::SOUND) {
 			AudioEngine::routineWithClusterLoading();
-			song->live.param_backup.deleteForModControllable((SoundDrum*)thisDrum);
+			song->live.param_backup.deleteFor(*thisDrum);
 			if (std::optional<uint32_t> drumId = thisDrum->id()) {
 				song->project.backed_params.removeOwner(deluge::project::OwnerId::drum(*drumId));
 			}
@@ -2060,7 +2060,7 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 	}
 	else {
 		if (drum->type == DrumType::SOUND) {
-			paramManagerForDrum = modelStack->song->live.param_backup.getPreferablyWithClip((SoundDrum*)drum, NULL);
+			paramManagerForDrum = modelStack->song->live.param_backup.getPreferablyWithClip(*drum, NULL);
 			if (!paramManagerForDrum) {
 				// Ron got this, June 2020, while "dragging" a row vertically in arranger
 				FREEZE_WITH_ERROR("E314");
@@ -2105,7 +2105,7 @@ void Kit::endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, i
 		}
 
 		// If still here, haven't found paramManager yet
-		paramManagerForDrum = modelStack->song->live.param_backup.getPreferablyWithClip((SoundDrum*)drum, NULL);
+		paramManagerForDrum = modelStack->song->live.param_backup.getPreferablyWithClip(*drum, NULL);
 		if (!paramManagerForDrum) {
 			FREEZE_WITH_ERROR("E312"); // Should make ALPHA_OR_BETA_VERSION after V3.0.0 release
 		}

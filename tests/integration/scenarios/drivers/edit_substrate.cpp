@@ -1036,8 +1036,7 @@ void testPresetChangeHandsOverKnobs(deluge::edits::Context& ctx) {
 	ParamManagerForTimeline oldParams;
 	Instrument* oldSynth = StorageManager::createNewInstrument(OutputType::SYNTH, &oldParams);
 	// Their params go to the song's backups, as an instrument with no clip keeps them.
-	ctx.song.live.param_backup.backUp(static_cast<ModControllableAudio*>(oldSynth->toModControllable()), nullptr,
-	                                  &oldParams, true);
+	ctx.song.live.param_backup.backUp(*oldSynth, nullptr, &oldParams, true);
 	ctx.song.addOutput(oldSynth);
 	Sound& oldSound = *static_cast<SoundInstrument*>(oldSynth);
 	const auto oldAddress = deluge::bridge::controlsAddressOf(oldSound);
@@ -1057,8 +1056,7 @@ void testPresetChangeHandsOverKnobs(deluge::edits::Context& ctx) {
 
 	ParamManagerForTimeline newParams;
 	Instrument* newSynth = StorageManager::createNewInstrument(OutputType::SYNTH, &newParams);
-	ctx.song.live.param_backup.backUp(static_cast<ModControllableAudio*>(newSynth->toModControllable()), nullptr,
-	                                  &newParams, true);
+	ctx.song.live.param_backup.backUp(*newSynth, nullptr, &newParams, true);
 	oldSynth->editedByUser = true; // so it hibernates, keeping its record
 	ctx.song.replaceInstrument(oldSynth, newSynth);
 	check(ctx.song.live.media.first_hibernating_instrument == oldSynth, "handover: the old synth hibernates");
