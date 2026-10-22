@@ -12,12 +12,17 @@
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
 #include "model/instrument/kit.h"
+#include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_stack.h"
+#include "model/project_bridge/patch_cable_words.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
+#include "modulation/params/param_manager.h"
+#include "modulation/patch/patch_cable.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
@@ -81,6 +86,42 @@ bool lands(Song& song, const ParamAddress& address) {
 	}
 	const deluge::project::DocAutoParam* record = song.project.resolveParam(address);
 	return record == nullptr || record->current_value == wanted;
+}
+
+/// The stack naming the cable from @p source to @p destination on @p owner, found (or, with @p create, made) the way
+/// legacy's menu reaches it.
+ModelStackWithAutoParam* legacy_cable(Song& song, Clip* clip, ModControllable* owner, ParamManagerForTimeline* manager,
+                                      int32_t note_row_index, NoteRow* row, PatchSource source, int32_t destination,
+                                      bool create, void* memory) {
+	ModelStackWithThreeMainThings* stack =
+	    setupModelStackWithThreeMainThingsIncludingNoteRow(memory, &song, clip, note_row_index, row, owner, manager);
+	ParamCollectionSummary* summary = manager->getPatchCableSetSummary();
+	ParamDescriptor descriptor;
+	descriptor.setToHaveParamOnly(destination);
+	ModelStackWithParamId* with_id =
+	    stack->addParamCollectionSummary(summary)->addParamId(PatchCableSet::getParamId(descriptor, source));
+	return summary->paramCollection->getAutoParamFromId(with_id, create);
+}
+
+/// The address of @p owner's cable from @p source to @p destination in @p clip.
+ParamAddress cable_address(OwnerId owner, PatchSource source, int32_t destination, uint32_t clip) {
+	ParamDescriptor descriptor;
+	descriptor.setToHaveParamOnly(destination);
+	return {.owner = owner,
+	        .space = ParamSpace::ENGINE,
+	        .id = deluge::bridge::cable_depth(source, descriptor),
+	        .clip_id = clip};
+}
+
+/// Whether the bridge finds, at @p stack's own address, the AutoParam @p stack names.
+bool finds_again(Song& song, const ModelStackWithAutoParam& stack) {
+	const std::optional<ParamAddress> address = deluge::edits::addressFor(stack);
+	if (!address) {
+		return false;
+	}
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* found = deluge::bridge::paramStackAt(song, *address, memory);
+	return found != nullptr && found->autoParam == stack.autoParam;
 }
 
 } // namespace
@@ -181,6 +222,92 @@ describe param_by_address("a param set by its address", ${
 		deluge::edits::DeleteParamAutomation clear{lpf};
 		expect(deluge::edits::apply(ctx, clear)).to_equal(Error::NONE);
 		expect(f.song->project.resolveParam(lpf)->nodes.empty()).to_be_true();
+	});
+
+	it("finds a cable's depth on a synth and on a kit row", _ {
+		spec::SongFixture synth = spec::make_synth_song();
+		auto* sound = static_cast<SoundInstrument*>(synth.instrument);
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithAutoParam* cable =
+		    legacy_cable(*synth.song, synth.clip, sound, &synth.clip->paramManager, 0, nullptr, PatchSource::LFO_GLOBAL_1,
+		                 params::LOCAL_PITCH_ADJUST, true, memory);
+		expect(cable != nullptr && cable->autoParam != nullptr).to_be_true();
+		expect(finds_again(*synth.song, *cable)).to_be_true();
+
+		spec::SongFixture kit = spec::make_kit_song();
+		auto* drum = spec::add_drum<SoundDrum>(kit);
+		int32_t row_index = 0;
+		NoteRow* row = kit.clip->getNoteRowForDrum(drum, &row_index);
+		ModelStackWithAutoParam* drum_cable = legacy_cable(*kit.song, kit.clip, drum, &row->paramManager, row_index, row,
+		                                                   PatchSource::ENVELOPE_0, params::LOCAL_LPF_FREQ, true, memory);
+		expect(drum_cable != nullptr && drum_cable->autoParam != nullptr).to_be_true();
+		expect(finds_again(*kit.song, *drum_cable)).to_be_true();
+	});
+
+	it("finds a MIDI clip's CC lane and its pitch bend", _ {
+		spec::SongFixture f = spec::make_midi_song();
+		auto* midi = static_cast<MIDIInstrument*>(f.instrument);
+		for (const int32_t cc : {74, static_cast<int32_t>(CC_NUMBER_PITCH_BEND)}) {
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* stack = setupModelStackWithThreeMainThingsIncludingNoteRow(
+			    memory, f.song, f.clip, 0, nullptr, midi, &f.clip->paramManager);
+			ModelStackWithAutoParam* lane = midi->getParamToControlFromInputMIDIChannel(cc, stack);
+			expect(lane != nullptr && lane->autoParam != nullptr).to_be_true();
+			expect(finds_again(*f.song, *lane)).to_be_true();
+		}
+	});
+
+	it("does not create a cable it cannot find", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		PatchCableSet* set = f.clip->paramManager.getPatchCableSet();
+		const uint8_t cables = set->numPatchCables;
+		const ParamAddress absent = cable_address(OwnerId::instrument(*f.instrument->id()), PatchSource::LFO_GLOBAL_2,
+		                                          params::LOCAL_OSC_A_VOLUME, f.clip->id());
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		expect(deluge::bridge::paramStackAt(*f.song, absent, memory) == nullptr).to_be_true();
+		expect(set->numPatchCables).to_equal(cables);
+	});
+
+	it("creates a cable with the polarity asked", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		const PatchSource source = PatchSource::ENVELOPE_1;
+		const Polarity asked =
+		    PatchCable::getDefaultPolarity(source) == Polarity::BIPOLAR ? Polarity::UNIPOLAR : Polarity::BIPOLAR;
+		const ParamAddress address =
+		    cable_address(OwnerId::instrument(*f.instrument->id()), source, params::LOCAL_LPF_RESONANCE, f.clip->id());
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithAutoParam* made = deluge::bridge::cableStackAt(*f.song, address, asked, memory);
+		expect(made != nullptr && made->autoParam != nullptr).to_be_true();
+		PatchCableSet* set = f.clip->paramManager.getPatchCableSet();
+		ParamDescriptor descriptor;
+		descriptor.setToHaveParamOnly(params::LOCAL_LPF_RESONANCE);
+		const uint8_t index = set->getPatchCableIndex(source, descriptor, nullptr, false);
+		expect(index != 255).to_be_true();
+		expect(set->patchCables[index].polarity == asked).to_be_true();
+		AutoParam* first = made->autoParam;
+		alignas(ModelStackWithAutoParam) char again_memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithAutoParam* again = deluge::bridge::cableStackAt(*f.song, address, asked, again_memory);
+		expect(again != nullptr && again->autoParam == first).to_be_true();
+	});
+
+	it("refuses a cable on a full set", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		PatchCableSet* set = f.clip->paramManager.getPatchCableSet();
+		const OwnerId owner = OwnerId::instrument(*f.instrument->id());
+		// Fill the set with distinct cables, from a few sources to the patched params.
+		for (const PatchSource source : {PatchSource::RANDOM, PatchSource::VELOCITY, PatchSource::NOTE}) {
+			for (int32_t p = 0; set->numPatchCables < kMaxNumPatchCables && p < params::kNumParams; ++p) {
+				alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+				(void)deluge::bridge::cableStackAt(*f.song, cable_address(owner, source, p, f.clip->id()),
+				                                   Polarity::UNIPOLAR, memory);
+			}
+		}
+		expect(set->numPatchCables).to_equal(static_cast<uint8_t>(kMaxNumPatchCables));
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		const ParamAddress one_more =
+		    cable_address(owner, PatchSource::AFTERTOUCH, params::LOCAL_LPF_FREQ, f.clip->id());
+		expect(deluge::bridge::cableStackAt(*f.song, one_more, Polarity::UNIPOLAR, memory) == nullptr).to_be_true();
+		expect(set->numPatchCables).to_equal(static_cast<uint8_t>(kMaxNumPatchCables));
 	});
 
 	it("refuses an address that names nothing", _ {

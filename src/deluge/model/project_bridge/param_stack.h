@@ -28,20 +28,33 @@
 
 class ModelStackWithAutoParam;
 class Song;
+enum class Polarity : uint8_t;
 
 namespace deluge::bridge {
 
 /// @brief The engine stack naming @p address's AutoParam in @p song: the clip by id, the output or drum by id, the
 /// drum's note row in that clip, the param collection the id is in, and the param by its runtime index.
 ///
-/// An engine param of a synth or a sound drum (INSTRUMENT or DRUM, with its clip), of a kit's own effects
-/// (INSTRUMENT, with its clip), of an audio clip (CLIP) or of the song (SONG). Another space, or an INSTRUMENT or DRUM
-/// owner without a clip, names nothing here.
+/// An engine param of a synth or a sound drum (INSTRUMENT or DRUM, with its clip; a cable's depth too), of a kit's own
+/// effects (INSTRUMENT, with its clip), of an audio clip (CLIP) or of the song (SONG); a MIDI clip's CC lane (CLIP,
+/// MIDI_CC); an expression lane of a MIDI clip or a sound. An INSTRUMENT or DRUM owner without a clip names nothing
+/// here, and nothing is created: a cable or a lane the owner does not hold yet is not found.
 ///
 /// @param song    The song holding the owner.
 /// @param address The param's address.
 /// @param memory  MODEL_STACK_MAX_SIZE bytes, aligned as ModelStackWithAutoParam, which the stack lives in.
 /// @return The stack, or null where @p song holds no such owner or param.
 [[nodiscard]] ::ModelStackWithAutoParam* paramStackAt(::Song& song, const project::ParamAddress& address, void* memory);
+
+/// @brief The engine stack naming the cable at @p address (a synth's or a sound drum's depth), made with @p polarity
+/// where the sound does not hold it yet. The record takes the new cable, polarity and all, when the sound's cable set
+/// is bound to it (it is, once relocated; the Edit that writes the cable relocates it).
+/// @param song     The song holding the sound.
+/// @param address  The cable's depth address.
+/// @param polarity The polarity a new cable takes; an existing cable keeps its own.
+/// @param memory   MODEL_STACK_MAX_SIZE bytes, aligned as ModelStackWithAutoParam, which the stack lives in.
+/// @return The stack, or null where the sound does not resolve or its cable set is full.
+[[nodiscard]] ::ModelStackWithAutoParam* cableStackAt(::Song& song, const project::ParamAddress& address,
+                                                      ::Polarity polarity, void* memory);
 
 } // namespace deluge::bridge
