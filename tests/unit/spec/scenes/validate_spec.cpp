@@ -84,9 +84,17 @@ size_t count_of(const deluge::ui::shell::FixedVector<Issue, 64>& issues, Issue::
 // -------------------------------------------------------------------------------------------
 // The clean tree: a vertical submenu over one param and one enum, both relevant, both titled.
 
+/// A value node on a relevance hook, as a hooked menu item is: the rules read its hook and its ParamRef, not a target.
+constexpr Node hooked(uint16_t name, ParamRef p, Hint h, RelevantFn rel) {
+	Node n = param(name, p, h);
+	n.bind.target = {};
+	n.relevant = rel;
+	return n;
+}
+
 constexpr uint16_t kEnumNames[] = {10, 11};
 
-constexpr Node good_param = param(101, ParamRef{params::Kind::PATCHED, 3}, Hint::Bar, always);
+constexpr Node good_param = hooked(101, ParamRef{params::Kind::PATCHED, 3}, Hint::Bar, always);
 constexpr Node good_enum = enumeration(102, kEnumNames, zero, discard);
 constexpr const Node* kGoodKids[] = {&good_param, &good_enum};
 constexpr Node good_root = submenu(100, kGoodKids);
@@ -102,7 +110,7 @@ constexpr const Node* kGoodRoots[] = {&good_root};
 // Everything else is deliberately well formed: distinct names per parent, non-zero titles, a
 // valid `ParamRef` or a `get` on every value node, and a non-null `custom` on every custom node.
 
-constexpr Node hidden_child = param(201, ParamRef{params::Kind::PATCHED, 4}, Hint::Bar, never);
+constexpr Node hidden_child = hooked(201, ParamRef{params::Kind::PATCHED, 4}, Hint::Bar, never);
 constexpr const Node* kEmptyKids[] = {&hidden_child};
 constexpr Node bad_empty = submenu(200, kEmptyKids);
 
@@ -223,8 +231,8 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 	it("flags two siblings that share a name", _ {
 		set_shortcut_table_for_test({}, 0, 0);
 		// Hook nodes sharing a predicate show together wherever either does; target nodes need a context to tell.
-		static constexpr Node a = param(404, ParamRef{params::Kind::PATCHED, 1}, Hint::Knob, always);
-		static constexpr Node b = param(404, ParamRef{params::Kind::PATCHED, 2}, Hint::Knob, always);
+		static constexpr Node a = hooked(404, ParamRef{params::Kind::PATCHED, 1}, Hint::Knob, always);
+		static constexpr Node b = hooked(404, ParamRef{params::Kind::PATCHED, 2}, Hint::Knob, always);
 		static constexpr const Node* kids[] = {&a, &b};
 		static constexpr Node root = submenu(405, kids);
 		static constexpr const Node* roots[] = {&root};

@@ -8,18 +8,24 @@
 #include "deluge-project/fx_chain.h"
 #include "deluge-project/instrument_slot.h"
 #include "deluge-project/note_address.h"
+#include "deluge-project/param_address.h"
 #include "deluge-project/setting_group.h"
+#include "engine-api/types/param.h"
 #include "engine-api/types/setting.h"
 
-#include "deluge-project/param_address.h"
-#include "engine-api/types/param.h"
 #include <cstdint>
-
 #include <optional>
 #include <span>
 #include <string_view>
 
 namespace deluge::scenes::bind {
+
+/// @brief Whose table a PARAM target's id is in: a sound's (the Deluge instrument's) or a chain's (the global
+///        effectable's). The two number their params apart, so an id means a param only with its table.
+enum class ParamTable : uint8_t {
+	SOUND,
+	CHAIN,
+};
 
 /// @brief What a node edits. A node with a target takes its value, range, choices, names and applicability from the
 /// target's descriptor and record.
@@ -64,6 +70,9 @@ struct Target {
 	/// PARAM only: the param, in the owner's engine's table (a sound's the Deluge instrument's, a chain's the global
 	/// effectable's).
 	engine::ParamId param{};
+	/// PARAM only: the table @ref param is in. On the other kind of owner the target names that table's param of the
+	/// same name, and nothing where it has none.
+	ParamTable param_table{ParamTable::SOUND};
 	/// Where the node shows beyond its row's own conditions (a PARAM target has none of its own): conditions over the
 	/// owner's setting rows (a sound's synth mode, an oscillator's type, a filter's mode, the mod FX type), all of
 	/// which hold.

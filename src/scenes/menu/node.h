@@ -838,6 +838,12 @@ constexpr deluge::engine::ParamId param_id_of(ParamRef p) {
 	}
 }
 
+/// @brief The table @ref param_id_of names @p p's param in.
+constexpr deluge::scenes::bind::ParamTable param_table_of(ParamRef p) {
+	return p.kind == deluge::modulation::params::Kind::UNPATCHED_GLOBAL ? deluge::scenes::bind::ParamTable::CHAIN
+	                                                                    : deluge::scenes::bind::ParamTable::SOUND;
+}
+
 /// @brief Where a param node shows, beyond where its owner holds the param: conditions over the owner's setting rows,
 ///        alternatives of which one must hold, and a target it shows only where that applies (a condition another
 ///        owner holds).
@@ -863,6 +869,7 @@ constexpr Node param(uint16_t name, ParamRef p, Hint h, ParamShows shows, uint16
 	n.bind.scaling = scaling;
 	n.bind.target = deluge::scenes::bind::Target{.kind = deluge::scenes::bind::Target::Kind::PARAM,
 	                                             .param = param_id_of(p),
+	                                             .param_table = param_table_of(p),
 	                                             .applies_when = shows.when,
 	                                             .applies_any = shows.any,
 	                                             .shown_with = shows.with};
@@ -873,21 +880,11 @@ constexpr Node param(uint16_t name, ParamRef p, Hint h, ParamShows shows, uint16
 ///                `patched_param::Integer` / `menu_item::UnpatchedParam`; the two exceptions
 ///                (`Scaling::HalfPrecision` for pulse width and the compressor params,
 ///                `Scaling::Pan` for the two pan params) name themselves at the call site.
-/// A param node with no relevance hook shows wherever its owner holds the param: it edits it by target.
-constexpr Node param(uint16_t name, ParamRef p, Hint h = Hint::Knob, RelevantFn rel = nullptr, uint16_t title = 0,
-                     Scaling scaling = Scaling::Standard) {
-	if (rel == nullptr) {
-		return param(name, p, h, ParamShows{}, title, scaling);
-	}
-	Node n{};
-	n.name = name;
-	n.title = title != 0 ? title : name;
-	n.kind = Kind::Int;
-	n.hint = h;
-	n.bind.param = p;
-	n.bind.scaling = scaling;
-	n.relevant = rel;
-	return n;
+/// A param node shows wherever its owner holds the param, and edits it by target. It takes no relevance hook: where it
+/// shows beyond that is a `ParamShows`.
+constexpr Node param(uint16_t name, ParamRef p, Hint h = Hint::Knob, std::nullptr_t /*no_hook*/ = nullptr,
+                     uint16_t title = 0, Scaling scaling = Scaling::Standard) {
+	return param(name, p, h, ParamShows{}, title, scaling);
 }
 
 /// @brief A node that edits a setting named by its descriptor: its value, range, choices and relevance come from the

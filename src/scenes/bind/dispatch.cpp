@@ -119,6 +119,25 @@ struct ResolvedParam {
 	engine::SettingContext context;
 };
 
+/// The param table of @p table.
+std::span<const engine::ParamInfo> params_of(ParamTable table) {
+	return table == ParamTable::SOUND ? std::span<const engine::ParamInfo>{instrument::kParams}
+	                                  : std::span<const engine::ParamInfo>{global_effectable::kParams};
+}
+
+/// The id @p target's param has on the owner @p where names: its own on an owner of its table's kind, else the id
+/// of the param of the same name in the owner's table, or nothing where that table has none.
+std::optional<engine::ParamId> param_id_on(const Target& target, const Addresses& where) {
+	const ParamTable owner = where.slot ? ParamTable::SOUND : ParamTable::CHAIN;
+	if (owner == target.param_table) {
+		return target.param;
+	}
+	const engine::ParamInfo* named = engine::find_param(params_of(target.param_table), target.param);
+	const engine::ParamInfo* there =
+	    named != nullptr ? engine::find_param(params_of(owner), named->file_name) : nullptr;
+	return there != nullptr ? std::optional{there->id} : std::nullopt;
+}
+
 std::optional<ResolvedParam> resolve_param(const Target& target, const project::Song& model, const Addresses& where,
                                            const RuntimeFacts& facts) {
 	if ((target.shown_on == Target::ShownOn::ON_LANE && !where.lane)
@@ -130,14 +149,14 @@ std::optional<ResolvedParam> resolve_param(const Target& target, const project::
 		return std::nullopt;
 	}
 	if (where.slot) {
-		const engine::ParamInfo* info = engine::find_param(instrument::kParams, target.param);
+		const engine::ParamInfo* info = engine::find_param(instrument::kParams, address->id);
 		Reader reader{SlotReader{model, *where.slot, facts}};
 		if (info == nullptr || !reader.resolved()) {
 			return std::nullopt;
 		}
 		return ResolvedParam{*address, info, reader, setting_context(model, *where.slot, facts)};
 	}
-	const engine::ParamInfo* info = engine::find_param(global_effectable::kParams, target.param);
+	const engine::ParamInfo* info = engine::find_param(global_effectable::kParams, address->id);
 	Reader reader{ChainReader{model, *where.chain, facts}};
 	if (info == nullptr || !reader.resolved()) {
 		return std::nullopt;
@@ -260,7 +279,11 @@ std::optional<project::ParamAddress> param_address(const Target& target, const A
 	if (target.kind != Target::Kind::PARAM) {
 		return std::nullopt;
 	}
-	project::ParamAddress address{.space = project::ParamSpace::ENGINE, .id = target.param};
+	const std::optional<engine::ParamId> id = param_id_on(target, where);
+	if (!id) {
+		return std::nullopt;
+	}
+	project::ParamAddress address{.space = project::ParamSpace::ENGINE, .id = *id};
 	if (where.slot) {
 		if (!where.clip) {
 			return std::nullopt;

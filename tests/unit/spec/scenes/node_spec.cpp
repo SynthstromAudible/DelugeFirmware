@@ -45,11 +45,14 @@ constexpr Node node_spec_half = param(27, ParamRef{params::Kind::PATCHED, 20}, H
 static_assert(node_spec_half.bind.scaling == Scaling::HalfPrecision);
 static_assert(node_spec_half.name == 27 && node_spec_half.title == 27 && node_spec_half.kind == Kind::Int);
 
-// A relevance predicate and a title override both flow through unchanged.
-constexpr bool node_spec_always(const MenuContext&) { return true; }
-constexpr Node node_spec_titled = param(3, ParamRef{params::Kind::UNPATCHED_SOUND, 7}, Hint::Knob, node_spec_always, /*title=*/9);
+// A title override flows through unchanged; where the node shows is its target's, never a hook.
+constexpr Node node_spec_titled = param(3, ParamRef{params::Kind::UNPATCHED_SOUND, 7}, Hint::Knob, nullptr, /*title=*/9);
 static_assert(node_spec_titled.title == 9);
-static_assert(node_spec_titled.relevant == node_spec_always);
+static_assert(node_spec_titled.relevant == nullptr && node_spec_titled.bind.target.valid());
+// A sound's param names its id in a sound's table, a global effectable's in a chain's.
+static_assert(node_spec_titled.bind.target.param_table == deluge::scenes::bind::ParamTable::SOUND);
+static_assert(param(4, ParamRef{params::Kind::UNPATCHED_GLOBAL, 7}).bind.target.param_table
+              == deluge::scenes::bind::ParamTable::CHAIN);
 
 // `int_item()`/`decimal_item()` carry a literal range through `bind.fixed_range` (see node.h's
 // note on why `range`, the dynamic-range function pointer, cannot hold a literal).

@@ -44,7 +44,9 @@ using deluge::project::ParamAddress;
 namespace {
 
 constexpr Target kSoundLpf{.kind = Target::Kind::PARAM, .param = deluge::instrument::param::kLpfFrequency};
-constexpr Target kChainLpf{.kind = Target::Kind::PARAM, .param = deluge::global_effectable::param::kLpfFrequency};
+constexpr Target kChainLpf{.kind = Target::Kind::PARAM,
+                           .param = deluge::global_effectable::param::kLpfFrequency,
+                           .param_table = bind::ParamTable::CHAIN};
 
 /// The value the engine's param at @p address plays.
 std::optional<int32_t> playing(Song& song, const ParamAddress& address) {
