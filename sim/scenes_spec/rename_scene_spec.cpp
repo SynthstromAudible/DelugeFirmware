@@ -11,6 +11,8 @@
 /// @note The spec may include `gui/` (for `l10n::String` ids); the library may not. Same rule
 ///       `menu_scene_spec.cpp` runs under.
 
+#include "deluge-project/setting_group.h"
+#include "scenes/bind/write_sink.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
@@ -29,6 +31,7 @@
 #include "gui/l10n/strings.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
 #include "model/song/song.h"
@@ -138,6 +141,9 @@ struct Rig {
 	uitest::FakeSurfaceSet fake;
 	Shell shell{fake, profile, reg, deluge::ui::shell::Services{}, ShellConfig{}};
 	uint32_t clock = 0;
+	/// The song current before the example, put back after it: `context_of` makes the fixture's song current, so the
+	/// app's sink binds it.
+	Song* const saved_song = currentSong;
 
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
@@ -154,6 +160,7 @@ struct Rig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
+		currentSong = saved_song;
 	}
 
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
@@ -255,7 +262,17 @@ spec::SongFixture kit_fixture() {
 }
 
 MenuContext context_of(spec::SongFixture& f) {
+	currentSong = f.song;
 	return menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
+}
+
+/// The name the @p group record holds for the owner @p ctx names, or empty.
+std::string recorded_name(const MenuContext& ctx, deluge::project::SettingGroupId group) {
+	const std::optional<deluge::project::SettingAddress> address = deluge::scenes::bind::setting_address(
+	    {.kind = deluge::scenes::bind::Target::Kind::MODEL, .path = "name", .group = group}, ctx.addresses);
+	const std::optional<deluge::serialization::Value> value =
+	    address ? deluge::project::read_setting(*ctx.model, *address, "name") : std::nullopt;
+	return value ? value->str() : std::string{};
 }
 
 Kit* kit_of(spec::SongFixture& f) {
@@ -405,6 +422,52 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		(void)commit(rename_scene());
 		expect(std::string{f.instrument->name}).to_equal(std::string{"Pad"});
 		expect(f.instrument->docOutput_->name).to_equal(std::string{"Pad"});
+	});
+
+	it("commits a clip name and a drum name into the record", _ {
+		select_language();
+		spec::SongFixture synth = spec::make_synth_song();
+		{
+			Rig r;
+			const MenuContext ctx = context_of(synth);
+			r.open_rename(ctx, TargetId::Clip);
+			r.tick(0);
+			r.clock = 10;
+			r.type(std::string_view{"VERSE"});
+			(void)commit(rename_scene());
+			expect(recorded_name(ctx, deluge::project::SettingGroupId::CLIP)).to_equal(std::string{"Verse"});
+		}
+		spec::SongFixture kit = kit_fixture();
+		{
+			Rig r;
+			const MenuContext ctx = context_of(kit);
+			r.open_rename(ctx, TargetId::Drum);
+			r.tick(0);
+			r.clock = 10;
+			r.type(std::string_view{"KICK"});
+			(void)commit(rename_scene());
+			expect(recorded_name(ctx, deluge::project::SettingGroupId::LANE)).to_equal(std::string{"Kick"});
+		}
+	});
+
+	it("hands its name to the menu's sink as a text request", _ {
+		select_language();
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		MenuContext ctx = context_of(f);
+		deluge::scenes::bind::RecordingSink recording;
+		ctx.sink = &recording;
+		r.open_rename(ctx, TargetId::Output);
+		r.tick(0);
+		r.clock = 10;
+		r.type(std::string_view{"PAD"});
+		(void)commit(rename_scene());
+		expect(recording.gestures.size()).to_equal(size_t(1));
+		const bool named = !recording.gestures.empty()
+		                   && recording.gestures[0].kind == deluge::scenes::bind::GestureRequest::Kind::TEXT
+		                   && recording.gestures[0].text == "Pad"
+		                   && recording.gestures[0].target.group == deluge::project::SettingGroupId::TRACK;
+		expect(named).to_be_true();
 	});
 
 	it("steps over a character that already matches the one under the cursor", _ {
@@ -746,7 +809,7 @@ describe rename_rejection("scenes::rename::RenameScene rejection", $ {
 		{
 			// Every other target takes the base `allowEmpty() == true`.
 			spec::SongFixture f = spec::make_synth_song();
-			f.clip->name = "Verse";
+			deluge::edits::clipSettingFor(*f.clip, "name", deluge::serialization::Value::makeScalar("Verse"));
 			Rig r;
 			r.open_rename(context_of(f), TargetId::Clip);
 			r.tick(0);
@@ -876,7 +939,7 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		deluge::notify::dirty().drain();
 		{
 			spec::SongFixture f = spec::make_synth_song();
-			f.clip->name = "Verse";
+			deluge::edits::clipSettingFor(*f.clip, "name", deluge::serialization::Value::makeScalar("Verse"));
 			Rig r;
 			r.open_menu(*menu::MenuScene::roots()[static_cast<size_t>(MenuContext::Root::Sound)],
 			            nodes::edit_clip_name, context_of(f));
@@ -887,7 +950,7 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		}
 		{
 			spec::SongFixture f = spec::make_synth_song();
-			f.instrument->name = "Lead";
+			deluge::edits::trackSettingFor(*f.instrument, "name", deluge::serialization::Value::makeScalar("Lead"));
 			Rig r;
 			r.open_menu(*menu::MenuScene::roots()[static_cast<size_t>(MenuContext::Root::Sound)],
 			            nodes::edit_track_name, context_of(f));

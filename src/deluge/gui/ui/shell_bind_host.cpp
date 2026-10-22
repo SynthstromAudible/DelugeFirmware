@@ -320,6 +320,32 @@ bool ShellEditSink::delete_automation(const deluge::project::ParamAddress& addre
 	return applied(edit);
 }
 
+namespace {
+
+/// Whether another of @p owner's siblings already has @p name: another clip of the clip's track, another audio track,
+/// another drum of the lane's kit, as legacy's rename editors refuse a name (`rename_clip_ui.cpp:35`,
+/// `rename_output_ui.cpp:35`, `rename_drum_ui.cpp:52`). Letter case does not count.
+bool name_taken(const deluge::project::SettingAddress& owner, std::string_view name) {
+	if (const auto* clip_at = std::get_if<deluge::project::ClipAddress>(&owner.owner)) {
+		::Clip* clip = currentSong->clipForId(clip_at->clip_id);
+		::Clip* other = clip != nullptr && clip->output != nullptr ? clip->output->getClipFromName(name) : nullptr;
+		return other != nullptr && other != clip;
+	}
+	if (const auto* track = std::get_if<deluge::project::TrackAddress>(&owner.owner)) {
+		void* other = currentSong->getAudioOutputFromName(name);
+		return other != nullptr && other != currentSong->outputForId(track->output_id);
+	}
+	if (const auto* lane = std::get_if<deluge::project::LaneAddress>(&owner.owner)) {
+		auto* kit = static_cast<::Kit*>(currentSong->outputForId(lane->kit_id));
+		::Drum* drum = deluge::bridge::drumWithId(*currentSong, lane->drum_id);
+		::Drum* other = kit != nullptr && kit->type == OutputType::KIT ? kit->getDrumFromName(name) : nullptr;
+		return other != nullptr && other != drum;
+	}
+	return false;
+}
+
+} // namespace
+
 bool ShellEditSink::write_text(const deluge::scenes::bind::Target& target, const deluge::scenes::bind::Addresses& where,
                                std::string_view text) {
 	if (currentSong == nullptr) {
@@ -327,6 +353,10 @@ bool ShellEditSink::write_text(const deluge::scenes::bind::Target& target, const
 	}
 	const std::optional<deluge::project::SettingAddress> address = deluge::scenes::bind::setting_address(target, where);
 	if (target.kind != deluge::scenes::bind::Target::Kind::MODEL || !address) {
+		refusals_++;
+		return false;
+	}
+	if (target.path == "name" && name_taken(*address, text)) {
 		refusals_++;
 		return false;
 	}

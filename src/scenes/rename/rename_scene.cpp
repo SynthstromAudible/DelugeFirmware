@@ -19,8 +19,9 @@
 /// @brief The `Target` table and the scene. See `rename_scene.h`.
 
 #include "scenes/rename/rename_scene.h"
-#include "model/edits/setting_edit.h"
 
+#include "scenes/bind/target.h"
+#include "scenes/bind/write_sink.h"
 #include "scenes/profile.h"
 
 #include "ui/core/metrics.h"
@@ -29,11 +30,7 @@
 
 #include "gui/l10n/strings.h"
 
-#include "model/clip/clip.h"
-#include "model/drum/drum.h"
-#include "model/instrument/kit.h"
-#include "model/output.h"
-#include "model/song/song.h"
+#include "deluge-project/setting_group.h"
 #include "storage/flash_storage.h"
 
 #include <algorithm>
@@ -61,85 +58,76 @@ constexpr uint16_t sid(String s) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The three targets. Each block is one legacy `RenameUI` subclass, virtual for virtual.
+// The three targets. Each block is one legacy `RenameUI` subclass, virtual for virtual: the name is its owner's
+// record's `name` row, read from the record and written as a text request; the sink refuses a name the owner's
+// siblings already have, as each subclass's `trySetName` does.
 
-/// @brief `getCurrentKit()` (`model/song/song.cpp`'s helper), reached through the context rather
-///        than the `currentSong` global -- `context_for` already resolved the clip's output and
-///        recorded that it is a kit (`context.cpp:143-145`).
-Kit* kit_of(const menu::MenuContext& ctx) {
-	return (ctx.is_kit && ctx.output != nullptr) ? static_cast<Kit*>(ctx.output) : nullptr;
+constexpr bind::Target name_row(project::SettingGroupId group) {
+	return {.kind = bind::Target::Kind::MODEL, .path = "name", .group = group};
+}
+
+/// The name @p group's record holds for the owner @p ctx names; nullopt where it names none.
+std::optional<std::string> name_in(const menu::MenuContext& ctx, project::SettingGroupId group) {
+	if (ctx.model == nullptr) {
+		return std::nullopt;
+	}
+	const std::optional<project::SettingAddress> address = bind::setting_address(name_row(group), ctx.addresses);
+	if (!address) {
+		return std::nullopt;
+	}
+	const std::optional<serialization::Value> value = project::read_setting(*ctx.model, *address, "name");
+	return value ? std::optional{value->str()} : std::nullopt;
+}
+
+bool write_name(const menu::MenuContext& ctx, project::SettingGroupId group, std::string_view name) {
+	return ctx.sink != nullptr && ctx.sink->write_text(name_row(group), ctx.addresses, name);
 }
 
 // --- Clip: `RenameClipUI` (`gui/ui/rename/rename_clip_ui.cpp:29-42`) ---
 
 bool clip_can(const menu::MenuContext& ctx) {
-	// `RenameClipUI` has no `canRename` override, so legacy's answer is the base's unconditional
-	// true. The null tests are the survivable spelling of what legacy would have done instead:
-	// dereference `clip` and `clip->output` outright.
-	return ctx.clip != nullptr && ctx.clip->output != nullptr;
+	// `RenameClipUI` has no `canRename` override, so legacy's answer is the base's unconditional true; a context with
+	// no clip has no name to edit.
+	return name_in(ctx, project::SettingGroupId::CLIP).has_value();
 }
 
-std::string_view clip_read(const menu::MenuContext& ctx) {
-	return ctx.clip->name; // `clip->name.c_str()`
+std::string clip_read(const menu::MenuContext& ctx) {
+	return name_in(ctx, project::SettingGroupId::CLIP).value_or(std::string{});
 }
 
 bool clip_write(const menu::MenuContext& ctx, std::string_view name) {
-	// "Don't allow duplicate names on clips of a single output."
-	Clip* other = ctx.clip->output->getClipFromName(name);
-	if (other != nullptr && other != ctx.clip) {
-		return false;
-	}
-	deluge::edits::clipSettingFor(*ctx.clip, "name", deluge::serialization::Value::makeScalar(std::string{name}));
-	return true;
+	return write_name(ctx, project::SettingGroupId::CLIP, name); // no two clips of a track share a name
 }
 
 // --- Output: `RenameOutputUI` (`gui/ui/rename/rename_output_ui.cpp:29-41`) ---
 
 bool output_can(const menu::MenuContext& ctx) {
-	return ctx.output != nullptr && ctx.song != nullptr;
+	return name_in(ctx, project::SettingGroupId::TRACK).has_value();
 }
 
-std::string_view output_read(const menu::MenuContext& ctx) {
-	return ctx.output->name; // `output->name.c_str()`
+std::string output_read(const menu::MenuContext& ctx) {
+	return name_in(ctx, project::SettingGroupId::TRACK).value_or(std::string{});
 }
 
 bool output_write(const menu::MenuContext& ctx, std::string_view name) {
-	// "Duplicate names not allowed for audio outputs." Legacy asks the `currentSong` global; the
-	// context's own `song` is the same object and is what this layer is allowed to read
-	// (`check_layer_rules.py`'s `scenes-currentSong` row).
-	void* other = ctx.song->getAudioOutputFromName(name);
-	if (other != nullptr && other != ctx.output) {
-		return false;
-	}
-	deluge::edits::trackSettingFor(*ctx.output, "name", deluge::serialization::Value::makeScalar(std::string{name}));
-	return true;
+	return write_name(ctx, project::SettingGroupId::TRACK, name); // no two audio tracks share a name
 }
 
 // --- Drum: `RenameDrumUI` (`gui/ui/rename/rename_drum_ui.cpp:30`) ---
 
 bool drum_can(const menu::MenuContext& ctx) {
-	// `RenameDrumUI` has no `canRename` override either; instead `getCurrentName` and `trySetName`
-	// each `FREEZE_WITH_ERROR("RN01"/"RN02")` when there is no kit or no selected drum. A freeze is
-	// not a behaviour worth porting, and `RenameUI::opened()` already has the arm that declines to
-	// open -- so the same condition refuses the entry here.
-	const Kit* kit = kit_of(ctx);
-	return kit != nullptr && kit->selectedDrum != nullptr;
+	// `RenameDrumUI` has no `canRename` override either; instead `getCurrentName` and `trySetName` each
+	// `FREEZE_WITH_ERROR("RN01"/"RN02")` when there is no kit or no selected drum. The same condition refuses the entry
+	// here, which `RenameUI::opened()` already has an arm for.
+	return ctx.is_kit && name_in(ctx, project::SettingGroupId::LANE).has_value();
 }
 
-std::string_view drum_read(const menu::MenuContext& ctx) {
-	return kit_of(ctx)->selectedDrum->name();
+std::string drum_read(const menu::MenuContext& ctx) {
+	return name_in(ctx, project::SettingGroupId::LANE).value_or(std::string{});
 }
 
 bool drum_write(const menu::MenuContext& ctx, std::string_view name) {
-	Kit* kit = kit_of(ctx);
-	// "We only allow renaming if there are no other drums with the same name."
-	Drum* other = kit->getDrumFromName(name);
-	if (other != nullptr && other != kit->selectedDrum) {
-		return false;
-	}
-	deluge::edits::laneSettingFor(*kit->selectedDrum, "name",
-	                              deluge::serialization::Value::makeScalar(std::string{name}));
-	return true;
+	return write_name(ctx, project::SettingGroupId::LANE, name); // no two drums of a kit share a name
 }
 
 constexpr std::array<Target, static_cast<size_t>(TargetId::Count)> kTargets{{
@@ -236,7 +224,7 @@ bool RenameScene::on_enter(const SceneId& id) {
 	// constructor zeroes the scroll (`rename_ui.cpp:25`); the cursor therefore starts at 0 with the
 	// *whole* existing name to its right, which is what makes typing a character that matches the
 	// one under the cursor simply step over it (see `type_char`).
-	const std::string_view current = t.read(ctx_);
+	const std::string current = t.read(ctx_);
 	len_ = static_cast<uint16_t>(std::min(current.size(), kMaxNameChars));
 	std::copy_n(current.data(), len_, buf_);
 	edit_ = deluge::ui::oled::TextEditState{};

@@ -63,11 +63,12 @@ struct Target {
 	/// that, and it is what `RenameUI::opened()` already does with `canRename()`.
 	bool (*can)(const menu::MenuContext&);
 
-	/// @brief `RenameUI::getCurrentName()`. Points into model storage; the scene copies it at
-	///        `on_enter` and never holds it.
-	std::string_view (*read)(const menu::MenuContext&);
+	/// @brief `RenameUI::getCurrentName()`, read from the owner's record.
+	std::string (*read)(const menu::MenuContext&);
 
-	/// @brief `RenameUI::trySetName()`. False rejects the name and leaves the editor open.
+	/// @brief `RenameUI::trySetName()`, as a text request to the menu's sink. False (a name another clip of the
+	///        track, audio track or drum of the kit already has, or a write refused) rejects the name and leaves the
+	///        editor open.
 	bool (*write)(const menu::MenuContext&, std::string_view);
 
 	/// @brief `RenameUI::allowEmpty()` -- true for every target but the drum
