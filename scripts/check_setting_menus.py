@@ -593,6 +593,40 @@ def scene_engine_calls(root: Path, allowed=None) -> list[str]:
     return found
 
 
+#: A knob mode or a MIDI track's knob CC written raw: a gesture calls modKnobModeFor (SetModKnobMode), modKnobCCFor
+#: (SetModKnobCC) or moveModKnobCCFor (MoveModKnobCC), which write the record and the engine.
+KNOB_WRITE = re.compile(
+    r"(?:->|\.)\s*modKnobMode\s*=(?!=)|(?<![\w)\]])\s*\*\s*modKnobModeSlot\s*=(?!=)|(?:->|\.)\s*setModKnobMode\s*\("
+    r"|(?:->|\.)\s*modKnobCCAssignments(?:\[[^\]]*\])?\s*=(?!=)"
+)
+#: The raw knob writes allowed, by file (relative to its root) and the text the write's line holds, each with its reason.
+KNOB_WRITE_ALLOWED: dict[str, dict[str, str]] = {
+    "views/view.cpp": {
+        "*modKnobModeSlot = whichButton": "a mod button pressed on a knob owner that is neither the song nor the "
+        "current output, which the model does not hold",
+    },
+}
+
+
+def knob_writes(root: Path, allowed=None) -> list[str]:
+    """Every `path:line: writes a knob ... raw` under @p root, less the lines @p allowed names (paths relative to
+    @p root)."""
+    allowed = KNOB_WRITE_ALLOWED if allowed is None else allowed
+    found = []
+    for path in sorted(root.rglob("*")):
+        if path.suffix not in SUFFIXES or not path.is_file():
+            continue
+        allowances = allowed.get(str(path.relative_to(root)), {})
+        for number, code in code_lines(path.read_text(errors="replace")):
+            if any(text in code for text in allowances):
+                continue
+            if KNOB_WRITE.search(code):
+                found.append(
+                    f"{path}:{number}: writes a knob mode or a knob's CC raw rather than through its Edit"
+                )
+    return found
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, nargs="+", default=list(DEFAULT_ROOTS))
@@ -600,7 +634,7 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     found = []
     for root in args.root:
-        found += calls(root, tuple(args.also)) + unrecorded(root)
+        found += calls(root, tuple(args.also)) + unrecorded(root) + knob_writes(root)
         if root.resolve().is_relative_to(SCENES_ROOT):
             found += scene_follow_ups(root) + converted_scene_writes(root)
             if root.resolve() == SCENES_ROOT:

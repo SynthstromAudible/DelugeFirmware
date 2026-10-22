@@ -418,5 +418,52 @@ class SceneEngineCalls(unittest.TestCase):
         self.assertEqual(csm.scene_engine_calls(csm.SCENES_ROOT), [])
 
 
+class KnobWrites(unittest.TestCase):
+    """A gesture changes a knob mode or a MIDI track's knob CC only through its Edit."""
+
+    def check(self, line: str, allowed=None) -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "planted.cpp").write_text(f"void gesture() {{\n\t{line}\n}}\n")
+            return csm.knob_writes(root, allowed={} if allowed is None else allowed)
+
+    def test_each_raw_knob_write_is_reported(self):
+        for line in (
+            "output->modKnobMode = 3;",
+            "*modKnobModeSlot = whichButton;",
+            "getCurrentOutput()->setModKnobMode(7);",
+            "instrument->modKnobCCAssignments[k] = 74;",
+            "made->modKnobCCAssignments = old->modKnobCCAssignments;",
+        ):
+            with self.subTest(line=line):
+                self.assertEqual(len(self.check(line)), 1, line)
+
+    def test_a_read_and_the_edits_are_not(self):
+        for line in (
+            "if (output->modKnobMode == 3) {}",
+            "int32_t cc = instrument->modKnobCCAssignments[k];",
+            "deluge::edits::modKnobModeFor(owner, 3);",
+            "deluge::edits::modKnobCCFor(track, 0, cc);",
+        ):
+            with self.subTest(line=line):
+                self.assertEqual(self.check(line), [], line)
+
+    def test_an_allowed_line_is_not_reported(self):
+        allowed = {
+            "planted.cpp": {
+                "*modKnobModeSlot = whichButton": "a knob owner the model does not hold"
+            }
+        }
+        self.assertEqual(
+            self.check("*modKnobModeSlot = whichButton;", allowed=allowed), []
+        )
+
+    def test_the_gestures_make_none(self):
+        found = []
+        for root in csm.DEFAULT_ROOTS:
+            found += csm.knob_writes(root)
+        self.assertEqual(found, [])
+
+
 if __name__ == "__main__":
     unittest.main()
