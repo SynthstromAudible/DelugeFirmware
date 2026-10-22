@@ -276,7 +276,7 @@ std::optional<project::SettingAddress> setting_address(const Target& target, con
 
 std::optional<project::ParamAddress> param_address(const Target& target, const Addresses& where) {
 	using project::OwnerId;
-	if (target.kind != Target::Kind::PARAM) {
+	if (target.kind != Target::Kind::PARAM && !(target.kind == Target::Kind::CABLE && where.slot)) {
 		return std::nullopt;
 	}
 	const std::optional<engine::ParamId> id = param_id_on(target, where);

@@ -1,3 +1,4 @@
+#include "engines/deluge/cables.h"
 #include "engines/deluge/params.h"
 #include "engines/global_effectable/params.h"
 #include "scenes/bind/dispatch.h"
@@ -109,6 +110,18 @@ describe bind_param("a param target", ${
 		expect(param_address(kChainTempo, kOnSynth).has_value()).to_be_false();
 		expect(param_address(kSoundBass, kOnSong)->id == deluge::global_effectable::param::kBass).to_be_true();
 		expect(param_address(kChainLpf, kOnSynth)->id == deluge::instrument::param::kLpfFrequency).to_be_true();
+	});
+
+	it("addresses a cable on a sound's slot and nowhere on a chain", _ {
+		constexpr deluge::engine::ParamId depth{deluge::instrument::kCableDepthFlag | 24u | (1u << 8)};
+		const Target cable{.kind = Target::Kind::CABLE, .param = depth};
+		const auto on_synth = param_address(cable, kOnSynth);
+		expect(on_synth.has_value() && on_synth->id == depth
+		       && on_synth->owner == OwnerId::instrument(kSynth.id))
+		    .to_be_true();
+		expect(param_address(cable, kOnKitRow).has_value()).to_be_true();
+		expect(param_address(cable, kOnKitFx).has_value()).to_be_false();
+		expect(param_address(cable, kOnSong).has_value()).to_be_false();
 	});
 
 	it("shows the value the param plays, in its display's range", _ {

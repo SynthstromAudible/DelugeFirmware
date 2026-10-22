@@ -37,6 +37,7 @@ struct Target {
 		        ///< Addresses::chain
 		MODEL,  ///< a row of project::table_of(group), on the owner the Addresses name for that group
 		PARAM,  ///< a param of the owner's engine (the sound at Addresses::slot, else the chain's owner), by id
+		CABLE,  ///< a patch cable of the sound at Addresses::slot, by its depth id in @ref param
 	};
 	/// Which roots a node shows on beyond its row's applicability: a page legacy keeps a twin of for kit rows (its
 	/// note mode) shows on its own kind of root, as legacy lays them out.

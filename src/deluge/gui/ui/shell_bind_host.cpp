@@ -10,13 +10,16 @@
 #include "io/debug/log.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
+#include "model/edits/delete_param_automation.h"
 #include "model/edits/edit.h"
+#include "model/edits/set_cable_polarity.h"
 #include "model/edits/set_effect_setting.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/edits/set_kit_lane_setting.h"
 #include "model/edits/set_kit_param_value.h"
 #include "model/edits/set_kit_setting.h"
 #include "model/edits/set_param_value.h"
+#include "model/edits/set_patch_cable.h"
 #include "model/edits/set_setting.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
@@ -31,6 +34,7 @@
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
@@ -117,6 +121,8 @@ void kit_arp_note_off(Kit* kit) {
 class ShellEditSink final : public deluge::scenes::bind::WriteSink {
 public:
 	bool write(const WriteRequest& request) override;
+	bool write_param(const deluge::project::ParamAddress& address, int32_t value, int32_t pos, int32_t length) override;
+	bool delete_automation(const deluge::project::ParamAddress& address) override;
 	[[nodiscard]] uint32_t refusals() const { return refusals_; }
 
 private:
@@ -125,6 +131,11 @@ private:
 	/// A PARAM target's write: SetParamValue by its address, or SetKitParamValue under affect-entire on a kit row; then
 	/// MIDI follow's feedback.
 	void writeParam(const WriteRequest& request);
+	/// A CABLE target's write: SetPatchCable by its address, then MIDI follow's feedback; or, polarity only,
+	/// SetCablePolarity.
+	void writeCable(const WriteRequest& request);
+	/// Applies @p edit on the current song, counting a refusal.
+	bool applied(deluge::edits::Edit& edit);
 
 	uint32_t refusals_{0};
 };
@@ -184,6 +195,57 @@ void ShellEditSink::writeParam(const WriteRequest& request) {
 	}
 }
 
+void ShellEditSink::writeCable(const WriteRequest& request) {
+	const std::optional<deluge::project::ParamAddress> address =
+	    deluge::scenes::bind::param_address(request.target, request.where);
+	if (!address) {
+		refusals_++;
+		D_PRINTLN("menu write refused: cable %x has no owner", static_cast<unsigned>(request.target.param.value));
+		return;
+	}
+	const auto polarity = static_cast<::Polarity>(request.polarity);
+	if (request.polarity_only) {
+		deluge::edits::SetCablePolarity edit{*address, polarity};
+		(void)applied(edit);
+		return;
+	}
+	deluge::edits::SetPatchCable edit{*address, request.param_value, polarity};
+	if (!applied(edit)) {
+		return;
+	}
+	// MIDI follow's feedback for the cable written, as legacy's strength page sends it after every write.
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	if (ModelStackWithAutoParam* stack = deluge::bridge::paramStackAt(*currentSong, *address, memory)) {
+		view.sendMidiFollowFeedback(stack, stack->paramCollection->paramValueToKnobPos(request.param_value, stack));
+	}
+}
+
+bool ShellEditSink::applied(deluge::edits::Edit& edit) {
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	if (deluge::edits::apply(ctx, edit) != Error::NONE) {
+		refusals_++;
+		return false;
+	}
+	return true;
+}
+
+bool ShellEditSink::write_param(const deluge::project::ParamAddress& address, int32_t value, int32_t pos,
+                                int32_t length) {
+	if (currentSong == nullptr) {
+		return false;
+	}
+	deluge::edits::SetParamValue edit{address, value, pos, length};
+	return applied(edit);
+}
+
+bool ShellEditSink::delete_automation(const deluge::project::ParamAddress& address) {
+	if (currentSong == nullptr) {
+		return false;
+	}
+	deluge::edits::DeleteParamAutomation edit{address};
+	return applied(edit);
+}
+
 bool ShellEditSink::write(const WriteRequest& request) {
 	if (currentSong == nullptr || request.target.kind == deluge::scenes::bind::Target::Kind::NONE) {
 		return false;
@@ -196,6 +258,10 @@ bool ShellEditSink::write(const WriteRequest& request) {
 void ShellEditSink::apply(const WriteRequest& request) {
 	using Kind = deluge::scenes::bind::Target::Kind;
 	const Kind kind = request.target.kind;
+	if (kind == Kind::CABLE) {
+		writeCable(request);
+		return;
+	}
 	if (kind == Kind::PARAM) {
 		writeParam(request);
 		return;
