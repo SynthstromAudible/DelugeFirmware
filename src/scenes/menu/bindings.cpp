@@ -25,8 +25,8 @@
 /// the per-kind ranges, names and learn.
 ///
 /// **Port table** -- one entry per line (a markdown table here gets reflowed into an unreadable
-/// run-on by clang-format; fix round 1, Minor 6). Every line below is transcribed, not called:
-/// `gui/menu_item/` is behind the `scenes-includes-outside` wall (task-4 ruling 1).
+/// run-on by clang-format). Every line below is transcribed, not called: `gui/menu_item/` is behind the
+/// `scenes-includes-outside` wall.
 ///
 ///   * 0..50 default -- `Param::getMaxValue`/`getMinValue` (`gui/menu_item/param.h:34-35`)
 ///   * enum default -- `Enumeration::selectEncoderAction`'s `[0, numOptions)` clamp
@@ -41,9 +41,9 @@
 ///
 ///   * The UI-mode half of the affect-entire condition. Legacy asks
 ///     `currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()`
-///     (`unpatched_param.cpp:52`). The first half is a `currentUIMode` read, which this layer may not do (task-3
-///     ruling 2), so it arrives as `MenuContext::affect_entire_held` -- a field the caller sets and `context_for`
-///     never does. It is deliberately NOT `MenuContext::affect_entire`: that is the *clip's*
+///     (`unpatched_param.cpp:52`). The first half is a `currentUIMode` read, which this layer may not do, so it
+///     arrives as `MenuContext::affect_entire_held` -- a field the caller sets and `context_for` never does. It is
+///     deliberately NOT `MenuContext::affect_entire`: that is the *clip's*
 ///     `InstrumentClip::affectEntire` setting, which is true on the kit-row grid-shortcut path
 ///     (`sound_editor.cpp:1205-1213`) where legacy edits one row only.
 ///   * `getRootUI() == &automationView` and the `lastSelectedParamID`/`Kind` match inside
@@ -51,7 +51,7 @@
 ///     notify design replaces "am I in the automation view, and is this the param it is showing?"
 ///     with unconditional facts. See `write()`'s own comment for which are raised and why.
 ///
-/// **`currentSong` references in this file: 0** (task-3 ruling 3, ratcheted by Task 12).
+/// **`currentSong` references in this file: 0** (a ratchet holds it there).
 
 #include "scenes/menu/bindings.h"
 
@@ -70,7 +70,7 @@
 #include "model/drum/drum.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
-#include "model/model_stack.h" // ruling 6 / the scenes-model-stack ratchet: this file and context.cpp only
+#include "model/model_stack.h" // the scenes-model-stack ratchet: this file and context.cpp only
 #include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/song/song.h"
@@ -118,7 +118,7 @@ bool has_model_stack(const MenuContext& ctx) {
 /// legacy does, at the same rate. That is why the window here is the full `kMaxDynamicNames`
 /// (`node.h:98` -- the documented cap on what one call may produce) rather than whatever `out` span
 /// `names()` was handed: a caller with room for four names still edits a ten-option enum over its
-/// real 0..9 range (fix round 1, Minor 3). Cost is a `std::string_view[64]` -- 512 bytes on the
+/// real 0..9 range. Cost is a `std::string_view[64]` -- 512 bytes on the
 /// 32-bit target -- in this frame for the duration of the hook call.
 size_t name_count(const Node& node, const MenuContext& ctx) {
 	if (node.bind.dynamic_names != nullptr) {
@@ -133,7 +133,7 @@ size_t name_count(const Node& node, const MenuContext& ctx) {
 /// Legacy `unpatched_param.cpp:52` / `patched_param/integer.cpp:45` -- write the whole kit rather than the
 /// selected row? `editingKitRow()` (`sound_editor.cpp:207-209`) is `is_kit && !is_kit_global_fx`;
 /// the held-button half arrives as `affect_entire_held` (see the file header). Declared in
-/// `bindings.h` since Task 6 -- a couple of the tables' own `set` hooks branch on it.
+/// `bindings.h` because a couple of the tables' own `set` hooks branch on it.
 bool writes_whole_kit(const MenuContext& ctx) {
 	return ctx.affect_entire_held && ctx.is_kit && !ctx.is_kit_global_fx && ctx.output != nullptr
 	       && ctx.clip != nullptr;
@@ -255,8 +255,7 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 		}
 		const std::optional<deluge::scenes::bind::WriteRequest> request =
 		    deluge::scenes::bind::request_for(bind.target, *ctx.model, ctx.addresses, *ctx.facts, value);
-		if (request) {
-			ctx.sink->write(*request);
+		if (request && ctx.sink->write(*request)) {
 			notify::raise(notify::Dirty::Oled);
 			if (bind.repaints_grid) {
 				notify::raise(notify::Dirty::GridMain);
@@ -274,8 +273,8 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 				//    `setKnobIndicatorLevels()` (`view.cpp:1758-1761`). `legacy_redraw_for` lists both
 				//    enumerators under `r.oled` (`gui/ui/notify_drain_mapping.cpp:20`).
 				//
-				//  * `Dirty::GridMain` -- the PAD half, and the reason the pair above is not enough (fix round 1,
-				//    Important 1). `possiblyRefreshAutomationEditorGrid` ends in
+				//  * `Dirty::GridMain` -- the PAD half, and the reason the pair above is not enough.
+				//    `possiblyRefreshAutomationEditorGrid` ends in
 				//    `uiNeedsRendering(&automationView)` (`automation_view.cpp:625`), i.e. a main-pad re-render
 				//    (`AutomationView::renderMainPads`, `:633`) -- and `ParamAutomation`/`ModTarget` appear
 				//    *only* in `r.oled`, never in `r.main_rows` (`notify_drain_mapping.cpp:13-14`). Without this
@@ -348,7 +347,7 @@ IntRange range(const Node& node, const MenuContext& ctx) {
 		// `patched_param/integer.h:35-36` and `unpatched_param.h:42-43`.
 		//
 		// This arm is also where `Kind::Bipolar`, `Range`, `MultiRange`, `Colour` and `SyncLevel`
-		// land (fix round 1, Minor 2). Their interpreters are E2's, and each will want its own
+		// land. Their interpreters are E2's, and each will want its own
 		// default -- legacy `menu_item::Bipolar`, `menu_item::Range`, `multi_range.h`,
 		// `menu_item::Colour`, `sync_level.h`. Until then 0..50 is a placeholder, not a claim:
 		// nothing in E1's tables declares one of those kinds, and every one of them will arrive
@@ -400,7 +399,7 @@ size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_vie
 		return std::min(node.bind.dynamic_names(ctx, out.first(limit)), limit);
 	}
 
-	// Ruling 2: ids resolve through the profile's `text_or_digits`, never `text_lookup` directly --
+	// Ids resolve through the profile's `text_or_digits`, never `text_lookup` directly --
 	// `shell/profile.h:147` already implements the digits fallback for an id with no entry.
 	const size_t count = std::min(node.bind.names.size(), limit);
 	for (size_t i = 0; i < count; ++i) {
@@ -513,10 +512,10 @@ bool has_instrument_clip(const MenuContext& ctx) {
 	return ctx.song != nullptr && ctx.clip != nullptr && !ctx.is_audio_clip;
 }
 
-// Task 6: `getIndividualNoteRow`'s non-kit auditioned-row arm (`sequence/direction.h:50-60`),
+// `getIndividualNoteRow`'s non-kit auditioned-row arm (`sequence/direction.h:50-60`),
 // gated by `soundEditor.selectedNoteRow` in legacy rather than transcribed as a model read.
 //
-// **The equivalence argument, narrowed to what actually holds (fix round 1).** `selectedNoteRow` is
+// **The equivalence argument, narrowed to what actually holds.** `selectedNoteRow` is
 // latched at `Direction::checkPermissionToBeginSession`'s else-if (`sequence/direction.h:117-119`):
 // `soundEditor.selectedNoteRow = isUIModeActive(UI_MODE_AUDITIONING);`, reached only when the
 // output is not a kit, and read every session this item begins. What is true is narrower than "every
@@ -551,7 +550,7 @@ bool has_instrument_clip(const MenuContext& ctx) {
 // every later audition press, letting the user switch which row Play Direction edits without leaving
 // the menu. This is a real legacy behaviour this port does not build: nothing in `src/scenes` names
 // `Root::Sound`/`Root::MidiOrCv` in this arm, and this comment records the gap rather than closing
-// it -- pre-existing, not introduced by Task 6.
+// it.
 bool note_row_bridge_direction(const MenuContext& ctx, int32_t* value) {
 	return ctx.root == MenuContext::Root::NoteRowEditor && !ctx.is_kit && note_bridge() != nullptr
 	       && note_bridge()->row_sequence_direction(value);
@@ -585,7 +584,7 @@ int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row) {
 }
 
 void write_sequence_direction(const MenuContext& ctx, int32_t value) {
-	// Fix round 1, minor d: this call is the GATE, not a redundant resolve-then-resolve-again --
+	// This call is the GATE, not a redundant resolve-then-resolve-again --
 	// `note_row_bridge_direction` answering `false` (no row, or not this root/clip shape) is exactly
 	// what sends the write down to the kit-row arm and clip fallback below instead, so the value it
 	// reads back is never used, only whether it answered at all. Calling it here and then having

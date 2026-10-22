@@ -116,10 +116,12 @@ void kit_arp_note_off(Kit* kit) {
 /// sound with no slot, is refused: logged and counted, never applied through the runtime's setter alone.
 class ShellEditSink final : public deluge::scenes::bind::WriteSink {
 public:
-	void write(const WriteRequest& request) override;
+	bool write(const WriteRequest& request) override;
 	[[nodiscard]] uint32_t refusals() const { return refusals_; }
 
 private:
+	/// Applies @p request, counting a refusal.
+	void apply(const WriteRequest& request);
 	/// A PARAM target's write: SetParamValue by its address, or SetKitParamValue under affect-entire on a kit row; then
 	/// MIDI follow's feedback.
 	void writeParam(const WriteRequest& request);
@@ -163,8 +165,7 @@ void ShellEditSink::writeParam(const WriteRequest& request) {
 	if (where.affect_entire && where.kit_output && request.target.whole_kit && where.clip && where.slot
 	    && where.slot->kind == deluge::project::SlotAddress::Kind::DRUM) {
 		// Legacy's affect-entire loop: every sound drum of the kit with a row in the clip, as one Edit.
-		deluge::edits::SetKitParamValue edit{*where.kit_output, where.clip->clip_id, request.target.param,
-		                                     request.param_value};
+		deluge::edits::SetKitParamValue edit{*where.kit_output, where.clip->clip_id, address->id, request.param_value};
 		error = deluge::edits::apply(ctx, edit);
 	}
 	else {
@@ -173,7 +174,7 @@ void ShellEditSink::writeParam(const WriteRequest& request) {
 	}
 	if (error != Error::NONE) {
 		refusals_++;
-		D_PRINTLN("menu write refused: param %u", static_cast<unsigned>(request.target.param.value));
+		D_PRINTLN("menu write refused: param %u", static_cast<unsigned>(address->id.value));
 		return;
 	}
 	// MIDI follow's feedback for the param written, as legacy's param items send it after every write.
@@ -183,12 +184,18 @@ void ShellEditSink::writeParam(const WriteRequest& request) {
 	}
 }
 
-void ShellEditSink::write(const WriteRequest& request) {
+bool ShellEditSink::write(const WriteRequest& request) {
+	if (currentSong == nullptr || request.target.kind == deluge::scenes::bind::Target::Kind::NONE) {
+		return false;
+	}
+	const uint32_t refused = refusals_;
+	apply(request);
+	return refusals_ == refused;
+}
+
+void ShellEditSink::apply(const WriteRequest& request) {
 	using Kind = deluge::scenes::bind::Target::Kind;
 	const Kind kind = request.target.kind;
-	if (currentSong == nullptr || kind == Kind::NONE) {
-		return;
-	}
 	if (kind == Kind::PARAM) {
 		writeParam(request);
 		return;

@@ -25,13 +25,14 @@ class WriteSink {
 public:
 	virtual ~WriteSink() = default;
 	/// @brief Apply, or record, @p request.
-	virtual void write(const WriteRequest& request) = 0;
+	/// @return Whether it was taken: false where the app refused it, which left the song as it was.
+	virtual bool write(const WriteRequest& request) = 0;
 };
 
 /// @brief A sink that records every request, in order.
 class RecordingSink final : public WriteSink {
 public:
-	void write(const WriteRequest& request) override;
+	bool write(const WriteRequest& request) override;
 	std::vector<WriteRequest> requests;
 };
 

@@ -1,8 +1,8 @@
 /// @file
-/// @brief Task 4's spec: `menu::bindings` read/write/range/names/learn against a REAL model.
+/// @brief Spec for `menu::bindings`: read/write/range/names/learn against a REAL model.
 ///
 /// The scaling assertions deliberately call the legacy `computeFinalValueForStandardMenuItem` /
-/// `computeCurrentValueForStandardMenuItem` / `...ForPan` directly (task-4 ruling 1: the spec may
+/// `computeCurrentValueForStandardMenuItem` / `...ForPan` directly (the spec may
 /// include `gui/menu_item/`, the library may not), so the param displays' transcription
 /// (`scenes/bind/param_display.cpp`) is checked against the original arithmetic rather than against a
 /// second copy of itself.
@@ -15,7 +15,7 @@
 #include "scenes/menu/nodes/sound_filters.h"
 
 #include "gui/l10n/l10n.h"
-#include "gui/menu_item/value_scaling.h" // ruling 1: the SPEC may include gui/menu_item/, the library may not
+#include "gui/menu_item/value_scaling.h" // the SPEC may include gui/menu_item/, the library may not
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/note/note_row.h"
@@ -145,8 +145,19 @@ describe menu_bindings_notify("scenes::menu::bindings notify", $ {
 		// The pad half of `possiblyRefreshAutomationEditorGrid` (`automation_view.cpp:625`'s
 		// `uiNeedsRendering(&automationView)`): `ParamAutomation`/`ModTarget` reach only `r.oled`
 		// (`notify_drain_mapping.cpp:20`), so without GridMain the automation grid would stop
-		// repainting (fix round 1, Important 1).
+		// repainting.
 		expect(d.has(deluge::notify::Dirty::GridMain)).to_be_true();
+	});
+
+	it("raises nothing for a param write the app's sink refuses", _ {
+		auto f = spec::make_synth_song();
+		MenuContext ctx = synth_context(f);
+		ctx.addresses.clip = deluge::project::ClipAddress{f.clip->id() + 1000}; // a clip the song does not hold
+		clear_dirty();
+
+		bindings::write(deluge::scenes::menu::nodes::lpf_freq, ctx, 22);
+
+		expect(deluge::notify::dirty().drain().any()).to_be_false();
 	});
 
 	it("raises Oled for a get/set write", _ {

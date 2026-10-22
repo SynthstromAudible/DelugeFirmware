@@ -2,8 +2,9 @@
 
 namespace deluge::scenes::bind {
 
-void RecordingSink::write(const WriteRequest& request) {
+bool RecordingSink::write(const WriteRequest& request) {
 	requests.push_back(request);
+	return true;
 }
 
 } // namespace deluge::scenes::bind
