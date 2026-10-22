@@ -8,11 +8,14 @@
 #include "engines/effects/settings.h"
 #include "gui/views/view.h"
 #include "io/debug/log.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
+#include "model/edits/clear_clip.h"
 #include "model/edits/delete_param_automation.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_cable_polarity.h"
+#include "model/edits/set_clip_colour.h"
 #include "model/edits/set_effect_setting.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/edits/set_kit_lane_setting.h"
@@ -21,6 +24,7 @@
 #include "model/edits/set_param_value.h"
 #include "model/edits/set_patch_cable.h"
 #include "model/edits/set_setting.h"
+#include "model/edits/set_source_ranges.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -125,6 +129,14 @@ public:
 	bool write(const WriteRequest& request) override;
 	bool write_param(const deluge::project::ParamAddress& address, int32_t value, int32_t pos, int32_t length) override;
 	bool delete_automation(const deluge::project::ParamAddress& address) override;
+	bool write_text(const deluge::scenes::bind::Target& target, const deluge::scenes::bind::Addresses& where,
+	                std::string_view text) override;
+	bool write_ranges(deluge::project::SlotAddress slot, uint8_t source,
+	                  std::span<const deluge::instrument::RangeState> ranges,
+	                  deluge::scenes::bind::RangesCause cause = deluge::scenes::bind::RangesCause::EDIT) override;
+	bool recolour_clip(deluge::project::ClipAddress clip, int32_t offset) override;
+	bool clear_clip(deluge::project::ClipAddress clip, bool clear_automation, bool clear_sequence_and_mpe) override;
+	bool move_audio_clip_marker(deluge::project::ClipAddress clip, std::string_view path, int64_t value) override;
 	[[nodiscard]] uint32_t refusals() const { return refusals_; }
 
 private:
@@ -242,6 +254,68 @@ bool ShellEditSink::delete_automation(const deluge::project::ParamAddress& addre
 	}
 	deluge::edits::DeleteParamAutomation edit{address};
 	return applied(edit);
+}
+
+bool ShellEditSink::write_text(const deluge::scenes::bind::Target& target, const deluge::scenes::bind::Addresses& where,
+                               std::string_view text) {
+	if (currentSong == nullptr) {
+		return false;
+	}
+	const std::optional<deluge::project::SettingAddress> address = deluge::scenes::bind::setting_address(target, where);
+	if (target.kind != deluge::scenes::bind::Target::Kind::MODEL || !address) {
+		refusals_++;
+		return false;
+	}
+	deluge::edits::SetSetting edit{*address, std::string{target.path},
+	                               deluge::serialization::Value::makeScalar(std::string{text})};
+	return applied(edit);
+}
+
+bool ShellEditSink::write_ranges(deluge::project::SlotAddress slot, uint8_t source,
+                                 std::span<const deluge::instrument::RangeState> ranges,
+                                 deluge::scenes::bind::RangesCause /*cause*/) {
+	if (currentSong == nullptr) {
+		return false;
+	}
+	deluge::edits::SetSourceRanges edit{slot, source, {ranges.begin(), ranges.end()}};
+	return applied(edit);
+}
+
+bool ShellEditSink::recolour_clip(deluge::project::ClipAddress clip, int32_t offset) {
+	if (currentSong == nullptr) {
+		return false;
+	}
+	deluge::edits::SetClipColour edit{clip, offset};
+	return applied(edit);
+}
+
+bool ShellEditSink::clear_clip(deluge::project::ClipAddress clip, bool clear_automation, bool clear_sequence_and_mpe) {
+	if (currentSong == nullptr) {
+		return false;
+	}
+	deluge::edits::ClearClip edit{clip, clear_automation, clear_sequence_and_mpe};
+	return applied(edit);
+}
+
+bool ShellEditSink::move_audio_clip_marker(deluge::project::ClipAddress clip, std::string_view path, int64_t value) {
+	if (currentSong == nullptr) {
+		return false;
+	}
+	::Clip* found = currentSong->clipForId(clip.clip_id);
+	if (found == nullptr || found->type != ClipType::AUDIO) {
+		refusals_++;
+		return false;
+	}
+	// The marker editor's move: the record's row written with the voice taken off the sample, the moved part's
+	// clusters claimed and a playing clip resumed. A write of the row by any other gesture does not reseat.
+	bool taken = false;
+	deluge::bridge::withVoiceReseated(*static_cast<::AudioClip*>(found), *currentSong, [&] {
+		deluge::edits::SetSetting edit{
+		    deluge::project::SettingAddress{.group = deluge::project::SettingGroupId::AUDIO_CLIP, .owner = clip},
+		    std::string{path}, deluge::serialization::Value::makeNumber(value)};
+		taken = applied(edit);
+	});
+	return taken;
 }
 
 bool ShellEditSink::write(const WriteRequest& request) {

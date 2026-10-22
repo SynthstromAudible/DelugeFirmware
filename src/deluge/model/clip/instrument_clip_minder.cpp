@@ -482,9 +482,6 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on) 
 	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
 			// Clear Clip
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithTimelineCounter* modelStack =
-			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, getCurrentClip());
 
 			UI* currentUI = getCurrentUI();
 
@@ -499,8 +496,8 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on) 
 			    ((currentUI != &automationView) || (currentUI == &automationView && automationView.inNoteEditor()));
 
 			deluge::edits::Context clipCtx{*currentSong, currentSong->project};
-			deluge::edits::ClearClip clearEdit{deluge::edits::clipAddressFor(*getCurrentClip()), clearAutomation,
-			                                   clearSequenceAndMPE, modelStack};
+			deluge::edits::ClearClip clearEdit{*deluge::edits::clipAddressFor(*getCurrentClip()), clearAutomation,
+			                                   clearSequenceAndMPE};
 			deluge::edits::apply(clipCtx, clearEdit);
 
 			// New default as part of Automation Clip View Implementation

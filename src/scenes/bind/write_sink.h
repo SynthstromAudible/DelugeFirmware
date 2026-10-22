@@ -5,9 +5,13 @@
 
 #include "deluge-project/param_address.h"
 #include "engines/deluge/cables.h"
+#include "engines/deluge/sound_state.h"
 #include "scenes/bind/target.h"
 
 #include <cstdint>
+#include <span>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace deluge::scenes::bind {
@@ -25,6 +29,13 @@ struct WriteRequest {
 	/// CABLE only: set an existing cable's polarity and leave its strength.
 	bool polarity_only{false};
 	bool operator==(const WriteRequest&) const = default;
+};
+
+/// @brief Why a source's ranges are written: a plain edit, or a marker the marker editor moved (which a sounding voice
+///        follows, and which counts as editing the instrument).
+enum class RangesCause : uint8_t {
+	EDIT,
+	MARKER,
 };
 
 /// @brief Takes a menu's writes. The app's sink applies each as the target's Edit; a spec's records them.
@@ -45,6 +56,41 @@ public:
 	/// @brief Delete the automation of the param at @p address.
 	/// @return Whether it was taken.
 	virtual bool delete_automation(const project::ParamAddress& address) = 0;
+	/// @brief Write @p text to the TEXT row @p target names (a MODEL target: a clip's, track's or lane's name, a MIDI
+	/// track's device definition file) on the owner @p where names.
+	/// @return Whether it was taken.
+	virtual bool write_text(const Target& target, const Addresses& where, std::string_view text) = 0;
+	/// @brief Write source @p source's ranges of the sound at @p slot.
+	/// @return Whether it was taken.
+	virtual bool write_ranges(project::SlotAddress slot, uint8_t source, std::span<const instrument::RangeState> ranges,
+	                          RangesCause cause = RangesCause::EDIT) = 0;
+	/// @brief Move @p clip's colour by @p offset. Not undoable, as legacy's recolour is not.
+	/// @return Whether it was taken.
+	virtual bool recolour_clip(project::ClipAddress clip, int32_t offset) = 0;
+	/// @brief Clear @p clip, as one undo step.
+	/// @return Whether it was taken.
+	virtual bool clear_clip(project::ClipAddress clip, bool clear_automation, bool clear_sequence_and_mpe) = 0;
+	/// @brief Move an audio clip's marker (its AUDIO_CLIP row @p path) to @p value, a playing voice reseated on the
+	/// moved sample.
+	/// @return Whether it was taken.
+	virtual bool move_audio_clip_marker(project::ClipAddress clip, std::string_view path, int64_t value) = 0;
+};
+
+/// @brief A gesture request, as a RecordingSink keeps it.
+struct GestureRequest {
+	enum class Kind : uint8_t { TEXT, RANGES, RECOLOUR, CLEAR, MARKER };
+	Kind kind{Kind::TEXT};
+	Target target{};
+	Addresses where{};
+	std::string text;
+	project::SlotAddress slot{};
+	uint8_t source{0};
+	std::vector<instrument::RangeState> ranges;
+	RangesCause cause{RangesCause::EDIT};
+	project::ClipAddress clip{};
+	int64_t value{0};
+	bool clear_automation{false};
+	bool clear_sequence_and_mpe{false};
 };
 
 /// @brief A param write by address, as a RecordingSink keeps it.
@@ -61,7 +107,14 @@ public:
 	bool write(const WriteRequest& request) override;
 	bool write_param(const project::ParamAddress& address, int32_t value, int32_t pos, int32_t length) override;
 	bool delete_automation(const project::ParamAddress& address) override;
+	bool write_text(const Target& target, const Addresses& where, std::string_view text) override;
+	bool write_ranges(project::SlotAddress slot, uint8_t source, std::span<const instrument::RangeState> ranges,
+	                  RangesCause cause = RangesCause::EDIT) override;
+	bool recolour_clip(project::ClipAddress clip, int32_t offset) override;
+	bool clear_clip(project::ClipAddress clip, bool clear_automation, bool clear_sequence_and_mpe) override;
+	bool move_audio_clip_marker(project::ClipAddress clip, std::string_view path, int64_t value) override;
 	std::vector<WriteRequest> requests;
+	std::vector<GestureRequest> gestures;
 	std::vector<ParamWrite> param_writes;
 	std::vector<project::ParamAddress> deletes;
 };

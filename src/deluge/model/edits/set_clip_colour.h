@@ -1,9 +1,8 @@
 #pragma once
 
+#include "deluge-project/clip_address.h"
 #include "model/edits/edit.h"
 #include <cstdint>
-
-class Clip;
 
 namespace deluge::edits {
 
@@ -17,13 +16,14 @@ class SetClipColour final : public Edit {
 public:
 	/// @param clip   The clip to recolour.
 	/// @param offset Delta added to the clip's current colour offset.
-	SetClipColour(Clip* clip, int32_t offset) : clip_(clip), offset_(offset) {}
+	SetClipColour(project::ClipAddress clip, int32_t offset) : clip_(clip), offset_(offset) {}
 
 	/// @copydoc Edit::apply
+	/// @return Error::UNSPECIFIED where the song holds no such clip.
 	Error apply(Context& ctx) override;
 
 private:
-	Clip* clip_;
+	project::ClipAddress clip_;
 	int32_t offset_;
 };
 

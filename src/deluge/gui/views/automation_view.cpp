@@ -1503,14 +1503,10 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 			}
 			// clear all audio clip automation
 			else {
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithTimelineCounter* modelStack =
-				    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
-
 				// clear automation, don't clear sample and mpe
 				deluge::edits::Context clipCtx{*currentSong, currentSong->project};
-				deluge::edits::ClearClip clearEdit{deluge::edits::clipAddressFor(*clip), /*clearAutomation=*/true,
-				                                   /*clearSequenceAndMPE=*/false, modelStack};
+				deluge::edits::ClearClip clearEdit{*deluge::edits::clipAddressFor(*clip), /*clearAutomation=*/true,
+				                                   /*clearSequenceAndMPE=*/false};
 				deluge::edits::apply(clipCtx, clearEdit);
 			}
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_CLEARED));

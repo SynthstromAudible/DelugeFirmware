@@ -59,6 +59,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/edits/audio_input_for.h"
+#include "model/edits/clip_address_for.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_clip_colour.h"
 #include "model/edits/set_clip_section.h"
@@ -1451,7 +1452,7 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset) {
 				return ActionResult::NOT_DEALT_WITH;
 
 			deluge::edits::Context colourCtx{*currentSong, currentSong->project};
-			deluge::edits::SetClipColour colourEdit{clip, offset};
+			deluge::edits::SetClipColour colourEdit{*deluge::edits::clipAddressFor(*clip), offset};
 			deluge::edits::apply(colourCtx, colourEdit);
 
 			requestRendering(this, 1 << selectedClipYDisplay, 0);

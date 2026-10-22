@@ -429,13 +429,9 @@ dontDeactivateMarker:
 	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
 			// Clear Clip
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithTimelineCounter* modelStack =
-			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, getCurrentClip());
-
 			deluge::edits::Context clipCtx{*currentSong, currentSong->project};
-			deluge::edits::ClearClip clearEdit{deluge::edits::clipAddressFor(*getCurrentClip()),
-			                                   !FlashStorage::automationClear, true, modelStack};
+			deluge::edits::ClearClip clearEdit{*deluge::edits::clipAddressFor(*getCurrentClip()),
+			                                   !FlashStorage::automationClear, true};
 			deluge::edits::apply(clipCtx, clearEdit);
 
 			// New default as part of Automation Clip View Implementation

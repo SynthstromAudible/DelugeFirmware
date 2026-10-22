@@ -2,9 +2,6 @@
 
 #include "deluge-project/clip_address.h"
 #include "model/edits/edit.h"
-#include <optional>
-
-class ModelStackWithTimelineCounter;
 
 namespace deluge::edits {
 
@@ -15,18 +12,19 @@ namespace deluge::edits {
 /// clearAutomation/clearSequenceAndMPE flags and handles the popup and the render.
 class ClearClip final : public Edit {
 public:
-	ClearClip(std::optional<project::ClipAddress> address, bool clearAutomation, bool clearSequenceAndMPE,
-	          ModelStackWithTimelineCounter* engineStack)
-	    : address_(address), clearAutomation_(clearAutomation), clearSequenceAndMPE_(clearSequenceAndMPE),
-	      engineStack_(engineStack) {}
-
+	/// @param address             The clip to clear.
+	/// @param clearAutomation     Whether its param automation goes too.
+	/// @param clearSequenceAndMPE Whether its notes and MPE (an audio clip: its sample) go too.
+	ClearClip(project::ClipAddress address, bool clearAutomation, bool clearSequenceAndMPE)
+	    : address_(address), clearAutomation_(clearAutomation), clearSequenceAndMPE_(clearSequenceAndMPE) {}
+	/// @copydoc Edit::apply
+	/// @return Error::UNSPECIFIED where the song holds no such clip.
 	Error apply(Context& ctx) override;
 
 private:
-	std::optional<project::ClipAddress> address_;
+	project::ClipAddress address_;
 	bool clearAutomation_;
 	bool clearSequenceAndMPE_;
-	ModelStackWithTimelineCounter* engineStack_; ///< Funnel-phase borrow.
 };
 
 } // namespace deluge::edits

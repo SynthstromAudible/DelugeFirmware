@@ -695,15 +695,12 @@ void clipClearTarget(Song* song) {
 	std::fprintf(io.out, "# target clip-clear\n");
 	song->setCurrentClip(clip); // clear's undo Consequences resolve the clip via getCurrentClip()
 
-	char mem[MODEL_STACK_MAX_SIZE]{};
-	ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(mem, song, clip);
-
 	int32_t before = totalNotes(clip);
 	actionLogger.firstAction[BEFORE] = nullptr;
 	actionLogger.firstAction[AFTER] = nullptr;
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
-	deluge::edits::ClearClip edit{deluge::edits::clipAddressFor(*clip), /*clearAutomation=*/true,
-	                              /*clearSequenceAndMPE=*/true, ms};
+	deluge::edits::ClearClip edit{*deluge::edits::clipAddressFor(*clip), /*clearAutomation=*/true,
+	                              /*clearSequenceAndMPE=*/true};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "clip-clear: apply succeeds");
 	check(totalNotes(clip) == 0, "clip-clear: all notes cleared");
 	actionLogger.revert(BEFORE, false, false);
@@ -1275,7 +1272,7 @@ void colourTarget(Song* song) {
 	int16_t before = clip->colourOffset();
 
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
-	deluge::edits::SetClipColour edit{clip, /*offset=*/5};
+	deluge::edits::SetClipColour edit{*deluge::edits::clipAddressFor(*clip), /*offset=*/5};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "colour: apply succeeds");
 	check(clip->colourOffset() == static_cast<int16_t>(before + 5), "colour: colour nudged");
 	// Loaded clips are bound (load-binding pass): the accessor reads the tree DocClip, so resolveClip agrees.
