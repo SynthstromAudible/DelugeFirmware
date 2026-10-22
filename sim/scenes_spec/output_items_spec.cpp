@@ -26,6 +26,7 @@
 /// @note The spec may include `gui/` (for the legacy menu items); the library may not. Same rule
 ///       `tables_1_spec.cpp`, `menu_actions_spec.cpp` and `browser_scene_spec.cpp` run under.
 
+#include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/bindings.h"
@@ -271,6 +272,9 @@ void press_child(Rig& r, const Node& parent, const Node& child, const MenuContex
 ///   3 = a second synth                (recordable)
 struct ClipRig {
 	spec::AudioSongFixture song = spec::make_audio_clip_song();
+	/// The song current before the example, put back after it: the fixture's song is made current, so the app's sink
+	/// binds it.
+	Song* const saved_song = currentSong;
 	Instrument* synth_a = nullptr;
 	Instrument* midi = nullptr;
 	Instrument* synth_b = nullptr;
@@ -278,8 +282,11 @@ struct ClipRig {
 	ClipRig(const ClipRig&) = delete;
 	ClipRig& operator=(const ClipRig&) = delete;
 
+	~ClipRig() { currentSong = saved_song; }
+
 	ClipRig() {
-		song.output->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
+		currentSong = song.song;
+		song.output->setInputChannel(AudioInputChannel::SPECIFIC_OUTPUT);
 		synth_a = add_synth("A");
 		midi = add_midi();
 		synth_b = add_synth("B");
@@ -309,10 +316,12 @@ struct ClipRig {
 /// @brief A MIDI clip, for `midi_device_linked`.
 struct MidiRig {
 	spec::SongFixture song = spec::make_midi_song();
+	Song* const saved_song = currentSong;
 
 	MidiRig(const MidiRig&) = delete;
 	MidiRig& operator=(const MidiRig&) = delete;
-	MidiRig() = default;
+	MidiRig() { currentSong = song.song; }
+	~MidiRig() { currentSong = saved_song; }
 
 	MIDIInstrument* instrument() { return static_cast<MIDIInstrument*>(song.instrument); }
 	MenuContext ctx() {
@@ -552,11 +561,11 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		std::vector<int> legacy;
 		std::vector<int> port;
 		for (const char* path : kPaths) {
-			rig.instrument()->deviceDefinitionFileName = path;
+			rig.instrument()->setDeviceDefinitionFileName(path);
 			midiDeviceLinkedMenu.readCurrentValue();
 			legacy.push_back(midiDeviceLinkedMenu.getValue() ? 1 : 0);
 
-			rig.instrument()->deviceDefinitionFileName = path;
+			rig.instrument()->setDeviceDefinitionFileName(path);
 			port.push_back(nodes::MidiDeviceLinkedItem::linked(rig.ctx()) ? 1 : 0);
 		}
 		expect(port).to_equal(legacy);
@@ -576,7 +585,7 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx()) == &deluge::gfx::oled::icons::uncheckedBox)
 		    .to_be_true();
 
-		rig.instrument()->deviceDefinitionFileName = "MIDI_DEVICES/DEFINITION/DEVICE1.XML";
+		rig.instrument()->setDeviceDefinitionFileName("MIDI_DEVICES/DEFINITION/DEVICE1.XML");
 		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx()) == &deluge::gfx::oled::icons::checkedBox).to_be_true();
 
 		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx()) == &deluge::gfx::oled::icons::submenuArrow).to_be_false();
@@ -634,7 +643,7 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		// What `BrowserScene`'s own `accept` does when the user picks a file
 		// (`midi_device_accept`, `browser/browser_scene.cpp`).
 		const std::string loaded = "MIDI_DEVICES/DEFINITION/DEVICE1.XML";
-		rig.instrument()->deviceDefinitionFileName = loaded;
+		rig.instrument()->setDeviceDefinitionFileName(loaded);
 
 		// The state `replace_root` would carry across, taken while the menu is parked on the item.
 		deluge::ui::shell::SceneState saved{};
@@ -655,7 +664,7 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		ScratchCard card;
 		MidiRig rig;
 		const std::string loaded = "MIDI_DEVICES/DEFINITION/DEVICE1.XML";
-		rig.instrument()->deviceDefinitionFileName = loaded;
+		rig.instrument()->setDeviceDefinitionFileName(loaded);
 
 		{
 			Rig r;
@@ -679,7 +688,7 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 	it("clears the linked file and opens nothing when one is already linked", _ {
 		CleanScenes clean;
 		MidiRig rig;
-		rig.instrument()->deviceDefinitionFileName = "MIDI_DEVICES/DEFINITION/DEVICE1.XML";
+		rig.instrument()->setDeviceDefinitionFileName("MIDI_DEVICES/DEFINITION/DEVICE1.XML");
 
 		Rig r;
 		press_child(r, nodes::midi_device_definition, nodes::midi_device_linked, rig.ctx());
@@ -704,6 +713,24 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 		if (display == nullptr) {
 			display = &d;
 		}
+	});
+
+	it("hands a turn to the menu's sink as a write of the track it records from", _ {
+		ClipRig rig;
+		rig.song.output->setOutputRecordingFrom(rig.synth_a);
+		MenuContext ctx = rig.ctx();
+		deluge::scenes::bind::RecordingSink recording;
+		ctx.sink = &recording;
+		Rig r;
+		press_child(r, nodes::root_audio_clip, nodes::specific_output_selector, ctx);
+		r.turn(1);
+		r.step();
+		const auto wrote = std::ranges::find_if(recording.requests, [&](const deluge::scenes::bind::WriteRequest& w) {
+			return w.target.group == deluge::project::SettingGroupId::AUDIO_INPUT
+			       && w.target.path == "outputRecordingFrom"
+			       && w.menu_value == static_cast<int32_t>(*rig.synth_b->id());
+		});
+		expect(wrote != recording.requests.end()).to_be_true();
 	});
 
 	it("lands where SpecificSourceOutputSelector::beginSession lands, from an invalid stored source", _ {
@@ -829,7 +856,7 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 		// valid target at all and both sides take the "No track" arm (`:64-67`) -- a different
 		// branch of the renderer from the example above.
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
-		f.output->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
+		f.output->setInputChannel(AudioInputChannel::SPECIFIC_OUTPUT);
 		f.output->setOutputRecordingFrom(nullptr);
 		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
 
@@ -851,9 +878,9 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 		std::vector<int> legacy;
 		std::vector<int> port;
 		for (const AudioInputChannel ch : {AudioInputChannel::SPECIFIC_OUTPUT, AudioInputChannel::LEFT}) {
-			rig.song.output->inputChannel = ch;
+			rig.song.output->setInputChannel(ch);
 			legacy.push_back(specificOutputSelectorMenu.isRelevant(nullptr, 0) ? 1 : 0);
-			rig.song.output->inputChannel = ch;
+			rig.song.output->setInputChannel(ch);
 			port.push_back(menu::relevance::audio_source_is_specific(rig.ctx()) ? 1 : 0);
 		}
 		expect(port).to_equal(legacy);
@@ -879,6 +906,21 @@ describe midi_instrument_records("scenes::menu MIDI instrument writes reach the 
 		expect(static_cast<int32_t>(record.output_mpe_y)).to_equal(static_cast<int32_t>(CC_EXTERNAL_MOD_WHEEL));
 		expect(record.collapse_aftertouch).to_be_true();
 		expect(record.collapse_mpe).to_be_false();
+	});
+
+	it("hands an unlink to the menu's sink as a text request", _ {
+		MidiRig rig;
+		rig.instrument()->setDeviceDefinitionFileName("MIDI_DEVICES/DEFINITION/DEVICE1.XML");
+		MenuContext ctx = rig.ctx();
+		deluge::scenes::bind::RecordingSink recording;
+		ctx.sink = &recording;
+		menu::MenuState state{};
+		nodes::kMidiDeviceLinked.on_focus(ctx, state);
+		const bool unlinked = recording.gestures.size() == 1
+		                      && recording.gestures[0].kind == deluge::scenes::bind::GestureRequest::Kind::TEXT
+		                      && recording.gestures[0].target.path == "deviceDefinitionFileName"
+		                      && recording.gestures[0].text.empty();
+		expect(unlinked).to_be_true();
 	});
 
 	it("clears a linked definition from the instrument's record when it unlinks", _ {

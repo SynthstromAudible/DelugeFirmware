@@ -20,6 +20,8 @@
 /// address the *same* `AudioOutput` -- a comparison that forgot step 3 would be reading legacy's own
 /// answer back.
 
+#include "deluge-project/setting_group.h"
+#include "scenes/bind/write_sink.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -118,6 +120,9 @@ const BoardProfile& profile_64() {
 /// @brief The audio-clip fixture plus a real `Shell` over it.
 struct Rig {
 	spec::AudioSongFixture song = spec::make_audio_clip_song();
+	/// The song current before the example, put back after it: the fixture's song is made current, so the app's sink
+	/// binds it.
+	Song* const saved_song = currentSong;
 	const BoardProfile& profile;
 	deluge::ui::shell::SceneRegistry reg = scene_registry();
 	uitest::FakeSurfaceSet fake;
@@ -138,10 +143,13 @@ struct Rig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
+		currentSong = saved_song;
 	}
 
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
-	    : profile(p), fake(board, p) {}
+	    : profile(p), fake(board, p) {
+		currentSong = song.song;
+	}
 
 	MenuContext menu_context() {
 		return menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
@@ -149,9 +157,11 @@ struct Rig {
 
 	/// @brief Open the context menu scene straight onto the audio-source descriptor, the way
 	///        `nodes::kAudioSourceItem`'s `on_focus` does.
-	void open_selector() {
+	void open_selector() { open_selector(menu_context()); }
+	/// @brief As above, over @p ctx.
+	void open_selector(const MenuContext& ctx) {
 		(void)menu::assign_node_ids(kRoots);
-		cm::context_menu_scene().open(menu_context());
+		cm::context_menu_scene().open(ctx);
 		shell.init(SceneId{cm::kContextMenuSceneKind, static_cast<uint16_t>(DescriptorId::AudioSource)});
 	}
 
@@ -187,7 +197,7 @@ struct SourceGuard {
 	SourceGuard(const SourceGuard&) = delete;
 	SourceGuard& operator=(const SourceGuard&) = delete;
 	~SourceGuard() {
-		out->inputChannel = saved_channel;
+		out->setInputChannel(saved_channel);
 		out->setOutputRecordingFrom(saved_from);
 		defaultAudioOutputInputChannel = saved_default;
 	}
@@ -195,7 +205,7 @@ struct SourceGuard {
 
 /// @brief Put @p out into a known state, the sentinel every comparison starts from.
 void seed(AudioOutput* out, AudioInputChannel channel, Output* from) {
-	out->inputChannel = channel;
+	out->setInputChannel(channel);
 	out->setOutputRecordingFrom(from);
 	defaultAudioOutputInputChannel = AudioInputChannel::UNSET;
 }
@@ -437,6 +447,48 @@ describe audio_source_move("scenes::context_menu the audio-source descriptor: co
 	});
 });
 
+describe audio_source_sink("scenes::context_menu the audio-source descriptor: through the menu's sink", $ {
+	it("hands a turn to the menu's sink as a write of the input's channel, and the song's default", _ {
+		select_language();
+		Rig r;
+		SourceGuard guard{r.song.output};
+		seed(r.song.output, AudioInputChannel::LEFT, nullptr);
+		MenuContext ctx = r.menu_context();
+		deluge::scenes::bind::RecordingSink recording;
+		ctx.sink = &recording;
+		r.open_selector(ctx);
+		r.shell.tick(5);
+		r.turn(1, 10);
+		r.shell.tick(15);
+		const bool channel = recording.requests.size() == 1
+		                     && recording.requests[0].target.group == deluge::project::SettingGroupId::AUDIO_INPUT
+		                     && recording.requests[0].target.path == "inputChannel"
+		                     && recording.requests[0].menu_value == static_cast<int32_t>(AudioInputChannel::RIGHT);
+		expect(channel).to_be_true();
+		const bool default_channel =
+		    recording.gestures.size() == 1
+		    && recording.gestures[0].kind == deluge::scenes::bind::GestureRequest::Kind::DEFAULT_INPUT_CHANNEL;
+		expect(default_channel).to_be_true();
+	});
+
+	it("leaves the record holding the channel a turn picked", _ {
+		select_language();
+		Rig r;
+		SourceGuard guard{r.song.output};
+		seed(r.song.output, AudioInputChannel::LEFT, nullptr);
+		r.open_selector();
+		r.shell.tick(5);
+		r.turn(1, 10);
+		r.shell.tick(15);
+		const std::optional<deluge::serialization::Value> recorded = deluge::project::read_setting(
+		    r.song.song->project,
+		    deluge::project::SettingAddress{.group = deluge::project::SettingGroupId::AUDIO_INPUT,
+		                                    .owner = deluge::project::TrackAddress{*r.song.output->id()}},
+		    "inputChannel");
+		expect(recorded.has_value() && recorded->str() == "right").to_be_true();
+	});
+});
+
 describe audio_source_pixels("scenes::context_menu the audio-source descriptor: pixels", $ {
 	it("draws exactly what the real legacy AudioInputSelector::renderOLED draws, footer included", _ {
 		select_language();
@@ -522,4 +574,5 @@ describe audio_source_pixels("scenes::context_menu the audio-source descriptor: 
 });
 // clang-format on
 
-DELUGE_SPEC(audio_source_spec, audio_source_table, audio_source_seed, audio_source_move, audio_source_pixels)
+DELUGE_SPEC(audio_source_spec, audio_source_table, audio_source_seed, audio_source_move, audio_source_sink,
+            audio_source_pixels)

@@ -19,9 +19,10 @@
 /// @brief The members of the two output items. See `output_items.h`.
 
 #include "scenes/menu/nodes/output_items.h"
-#include "model/edits/audio_input_for.h"
-#include "model/edits/setting_edit.h"
 
+#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/target.h"
+#include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h" // MidiDeviceLinkedItem's link arm opens this
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -34,14 +35,17 @@
 // `gfx/oled/font.h` above carries `string_width_px` -- `stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS`
 
 #include "definitions_cxx.hpp"
-#include "model/instrument/midi_instrument.h"
-#include "model/instrument/non_audio_instrument.h" // getChannel(), for the output-type label
+#include "deluge-project/setting_group.h"
 #include "model/output.h"
 #include "model/song/song.h"
-#include "processing/audio_output.h"
 
 #include <cstdint>
+#include <cstdlib>
+#include <optional>
+#include <span>
+#include <string>
 #include <string_view>
+#include <vector>
 
 // `util/functions.h` is outside this layer's include allowance (`src/scenes/CMakeLists.txt`, and
 // `scripts/check_layer_rules.py`'s `scenes-includes-outside`), so the one function needed is
@@ -74,12 +78,35 @@ void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 	                                           : std::string_view{});
 }
 
-/// @brief `(MIDIInstrument*)getCurrentOutput()` with the null/type test legacy leaves to
-///        `isRelevant` (`midi/device_definition/linked.h:51-54`).
-MIDIInstrument* midi_instrument_of(const MenuContext& ctx) {
-	return (ctx.output != nullptr && ctx.output->type == OutputType::MIDI_OUT)
-	           ? static_cast<MIDIInstrument*>(ctx.output)
-	           : nullptr;
+/// @brief The track the menu's context names, as the song holds it; nullopt where it names none.
+std::optional<bind::TrackFact> track_of(const MenuContext& ctx) {
+	if (!ctx.addresses.track || ctx.facts == nullptr) {
+		return std::nullopt;
+	}
+	for (const bind::TrackFact& track : ctx.facts->tracks()) {
+		if (track.output_id == ctx.addresses.track->output_id) {
+			return track;
+		}
+	}
+	return std::nullopt;
+}
+
+/// @brief The TRACK row @p path (its name) of the track @p output_id, as the record holds it.
+std::optional<serialization::Value> track_row(const MenuContext& ctx, uint32_t output_id, std::string_view path) {
+	if (ctx.model == nullptr) {
+		return std::nullopt;
+	}
+	return project::read_setting(
+	    *ctx.model,
+	    project::SettingAddress{.group = project::SettingGroupId::TRACK, .owner = project::TrackAddress{output_id}},
+	    path);
+}
+
+/// @brief The MIDI track the menu edits, with the type test legacy leaves to `isRelevant`
+///        (`midi/device_definition/linked.h:51-54`).
+std::optional<bind::TrackFact> midi_track_of(const MenuContext& ctx) {
+	const std::optional<bind::TrackFact> track = track_of(ctx);
+	return track && track->kind == bind::TrackKind::MIDI_OUT ? track : std::nullopt;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -87,61 +114,71 @@ MIDIInstrument* midi_instrument_of(const MenuContext& ctx) {
 //
 // Legacy keeps `audioOutputBeingEdited`, `outputIndex` and `numOutputs` as members of a singleton
 // item (`specific_output_source_selector.h:109-112`). A `CustomItem` is `const` and shared, so the
-// first is re-resolved from `MenuContext::output` on every call, the second lives in
+// first is re-resolved from the context on every call, the second lives in
 // `MenuState::list[depth].cursor` (`SourceSelectionItem`'s reason, `nodes/patch_cables.h`) and the
 // third is asked of the song each time -- which is strictly fresher than legacy's snapshot, taken
 // once in `beginSession` and then used by every subsequent `selectEncoderAction` (`:32`, `:155`).
+// An index is a position in the song's track list ("only outputs still in the main song list are
+// selectable; hibernated instruments should not display here", `:122`).
 
-/// @brief `(AudioOutput*)getCurrentOutput()`, with the type test legacy leaves to `isRelevant`
+/// @brief The audio track being edited, with the type test legacy leaves to `isRelevant`
 ///        (`specific_output_source_selector.h:102-105`) -- here `relevance::audio_source_is_specific`.
-AudioOutput* audio_output_of(const MenuContext& ctx) {
-	return (ctx.output != nullptr && ctx.output->type == OutputType::AUDIO) ? static_cast<AudioOutput*>(ctx.output)
-	                                                                        : nullptr;
+std::optional<uint32_t> editing_of(const MenuContext& ctx) {
+	const std::optional<bind::TrackFact> track = track_of(ctx);
+	return track && track->kind == bind::TrackKind::AUDIO ? std::optional{track->output_id} : std::nullopt;
 }
 
-/// @brief `canRecordFromOutput` (`:115`).
-bool can_record_from(const AudioOutput* editing, const Output* candidate) {
-	return editing != nullptr && candidate != nullptr && editing->canRecordFrom(candidate);
+/// @brief The track the audio track records from, by id; nullopt for none.
+std::optional<uint32_t> recording_from_of(const MenuContext& ctx, uint32_t editing) {
+	if (ctx.model == nullptr) {
+		return std::nullopt;
+	}
+	const std::optional<serialization::Value> id = project::read_setting(
+	    *ctx.model,
+	    project::SettingAddress{.group = project::SettingGroupId::AUDIO_INPUT, .owner = project::TrackAddress{editing}},
+	    "outputRecordingFrom");
+	const int64_t value = id ? std::strtoll(id->str().c_str(), nullptr, 10) : -1;
+	return value >= 0 ? std::optional{static_cast<uint32_t>(value)} : std::nullopt;
 }
 
-/// @brief `getRecordableOutputIndex` (`:117-132`): @p out's position in the song's output list, or
-///        -1 if it is not there or cannot be recorded from.
-int32_t recordable_index(const MenuContext& ctx, AudioOutput* editing, const Output* out) {
-	if (!can_record_from(editing, out) || ctx.song == nullptr) {
+/// @brief `getRecordableOutputIndex` (`:117-132`): @p out's position in the song's track list, or -1 if it is not
+///        there or cannot be recorded from.
+int32_t recordable_index(std::span<const bind::TrackFact> tracks, std::optional<uint32_t> editing,
+                         std::optional<uint32_t> out) {
+	if (!editing || !out) {
 		return -1;
 	}
-	// "Only outputs still in the main song list are selectable; hibernated instruments should not
-	// display here" (`:122`), which is why this walks `firstOutput` rather than asking the song for
-	// an index.
-	int32_t index = 0;
-	for (Output* candidate = ctx.song->live.media.first_output; candidate != nullptr; candidate = candidate->next) {
-		if (candidate == out) {
-			return index;
+	for (size_t i = 0; i < tracks.size(); i++) {
+		if (tracks[i].output_id == *out) {
+			return bind::can_record_from(*editing, tracks[i]) ? static_cast<int32_t>(i) : -1;
 		}
-		index++;
 	}
 	return -1;
 }
 
-/// @brief `getOutputFromSelectedIndex` (`:134-137`): the output at @p index, or null when the audio
-///        track cannot record from it.
-Output* output_at(const MenuContext& ctx, AudioOutput* editing, int32_t index) {
-	Output* out = ctx.song != nullptr ? ctx.song->getOutputFromIndex(index) : nullptr;
-	return can_record_from(editing, out) ? out : nullptr;
+/// @brief `getOutputFromSelectedIndex` (`:134-137`): the track at @p index, or null when the audio track cannot
+///        record from it.
+const bind::TrackFact* track_at(std::span<const bind::TrackFact> tracks, std::optional<uint32_t> editing,
+                                int32_t index) {
+	if (!editing || index < 0 || static_cast<size_t>(index) >= tracks.size()) {
+		return nullptr;
+	}
+	return bind::can_record_from(*editing, tracks[index]) ? &tracks[index] : nullptr;
 }
 
 /// @brief `getNextRecordableOutputIndex` (`:139-168`): walk @p offset detents from @p start,
 ///        stopping only on rows the audio track can record from and stopping dead at either end.
-int32_t next_recordable_index(const MenuContext& ctx, AudioOutput* editing, int32_t start, int32_t offset) {
+int32_t next_recordable_index(const MenuContext& ctx, std::span<const bind::TrackFact> tracks,
+                              std::optional<uint32_t> editing, int32_t start, int32_t offset) {
 	if (offset == 0) {
 		// `:141-143`. Legacy reads its `outputIndex` member here rather than `startIndex`; the only
 		// caller passes the member as `startIndex`, so the two are the same value.
-		return output_at(ctx, editing, start) != nullptr
+		return track_at(tracks, editing, start) != nullptr
 		           ? start
-		           : recordable_index(ctx, editing, editing != nullptr ? editing->getOutputRecordingFrom() : nullptr);
+		           : recordable_index(tracks, editing, editing ? recording_from_of(ctx, *editing) : std::nullopt);
 	}
 
-	const int32_t num_outputs = ctx.song != nullptr ? ctx.song->getNumOutputs() : 0;
+	const auto num_outputs = static_cast<int32_t>(tracks.size());
 	const int32_t direction = offset > 0 ? 1 : -1;
 	const int32_t steps = offset > 0 ? offset : -offset;
 	int32_t selected = start;
@@ -153,7 +190,7 @@ int32_t next_recordable_index(const MenuContext& ctx, AudioOutput* editing, int3
 			if (candidate_index < 0 || candidate_index >= num_outputs) {
 				return selected;
 			}
-			if (can_record_from(editing, ctx.song->getOutputFromIndex(candidate_index))) {
+			if (track_at(tracks, editing, candidate_index) != nullptr) {
 				selected = candidate_index;
 				break;
 			}
@@ -162,22 +199,46 @@ int32_t next_recordable_index(const MenuContext& ctx, AudioOutput* editing, int3
 	return selected;
 }
 
-/// @brief `getOutputTypeName(outputType, channel)` for @p out, with legacy's own channel arm
+/// @brief `getOutputTypeName(outputType, channel)` for @p track, with legacy's own channel arm
 ///        (`specific_output_source_selector.h:70-79`).
 ///
 /// @note That arm is **unreachable today**, and is reproduced rather than dropped so it stays
-///       correct if it ever becomes reachable: the only outputs that get here have passed
-///       `AudioOutput::canRecordFrom` (`processing/audio_output.h:109-111`), which already excludes
-///       `MIDI_OUT` and `CV`. The same filter is why an `AUDIO` source is labelled from channel 0 --
-///       i.e. always "Audio Player" (`util/functions.cpp:614-626`) whatever its `AudioOutputMode`.
+///       correct if it ever becomes reachable: the only tracks that get here can be recorded from,
+///       which already excludes MIDI and CV. The same filter is why an audio source is labelled from
+///       channel 0 -- i.e. always "Audio Player" (`util/functions.cpp:614-626`) whatever its mode.
 ///       Legacy has the identical behaviour; it is a fidelity result, not a port decision.
-std::string_view output_type_text(const Output& out) {
-	int32_t channel = 0;
-	if (out.type == OutputType::MIDI_OUT) {
-		channel = static_cast<const NonAudioInstrument&>(out).getChannel();
+std::string_view output_type_text(const bind::TrackFact& track) {
+	OutputType type = OutputType::SYNTH;
+	switch (track.kind) {
+	case bind::TrackKind::KIT:
+		type = OutputType::KIT;
+		break;
+	case bind::TrackKind::MIDI_OUT:
+		type = OutputType::MIDI_OUT;
+		break;
+	case bind::TrackKind::CV:
+		type = OutputType::CV;
+		break;
+	case bind::TrackKind::AUDIO:
+		type = OutputType::AUDIO;
+		break;
+	case bind::TrackKind::SYNTH:
+		break;
 	}
-	const char* text = getOutputTypeName(out.type, channel);
+	const char* text = getOutputTypeName(type, track.kind == bind::TrackKind::MIDI_OUT ? track.channel : 0);
 	return text != nullptr ? std::string_view{text} : std::string_view{};
+}
+
+/// @brief Write the track the audio track records from (or none) through the menu's sink.
+void write_recording_from(const MenuContext& ctx, const bind::TrackFact* from) {
+	if (ctx.sink == nullptr) {
+		return;
+	}
+	(void)ctx.sink->write({.target = {.kind = bind::Target::Kind::MODEL,
+	                                  .path = "outputRecordingFrom",
+	                                  .group = project::SettingGroupId::AUDIO_INPUT},
+	                       .where = ctx.addresses,
+	                       .menu_value = from != nullptr ? static_cast<int32_t>(from->output_id) : -1});
 }
 
 } // namespace
@@ -187,8 +248,15 @@ std::string_view output_type_text(const Output& out) {
 
 bool MidiDeviceLinkedItem::linked(const MenuContext& ctx) {
 	// `readCurrentValue` (`linked.h:33-36`).
-	const MIDIInstrument* instrument = midi_instrument_of(ctx);
-	return instrument != nullptr && !instrument->deviceDefinitionFileName.empty();
+	const std::optional<bind::TrackFact> track = midi_track_of(ctx);
+	const std::optional<serialization::Value> file =
+	    track && ctx.model != nullptr
+	        ? project::read_setting(*ctx.model,
+	                                project::SettingAddress{.group = project::SettingGroupId::INSTRUMENT_DEVICE,
+	                                                        .owner = project::TrackAddress{track->output_id}},
+	                                "deviceDefinitionFileName")
+	        : std::nullopt;
+	return file && !file->str().empty();
 }
 
 const deluge::gfx::oled::Icon* MidiDeviceLinkedItem::row_icon(const MenuContext& ctx) const {
@@ -206,9 +274,11 @@ void MidiDeviceLinkedItem::on_focus(const MenuContext& ctx, MenuState& state) co
 	if (linked(ctx)) {
 		// Unlinking (`:45-48`): the new value is false, so just clear the file name. No UI is
 		// opened, so nothing is filed and `render` is what takes the user back out.
-		if (MIDIInstrument* instrument = midi_instrument_of(ctx); instrument != nullptr) {
-			deluge::edits::trackSettingFor(*instrument, "deviceDefinitionFileName",
-			                               deluge::serialization::Value::makeScalar(""));
+		if (midi_track_of(ctx) && ctx.sink != nullptr) {
+			(void)ctx.sink->write_text({.kind = bind::Target::Kind::MODEL,
+			                            .path = "deviceDefinitionFileName",
+			                            .group = project::SettingGroupId::INSTRUMENT_DEVICE},
+			                           ctx.addresses, "");
 		}
 		return;
 	}
@@ -274,16 +344,17 @@ void SpecificOutputItem::on_focus(const MenuContext& ctx, MenuState& state) cons
 	state.list[d] = deluge::ui::ListState{};
 	state.scroll[d] = deluge::ui::ScrollText{};
 
-	AudioOutput* editing = audio_output_of(ctx);
-	int32_t index = recordable_index(ctx, editing, editing != nullptr ? editing->getOutputRecordingFrom() : nullptr);
+	const std::optional<uint32_t> editing = editing_of(ctx);
+	const std::vector<bind::TrackFact> tracks =
+	    ctx.facts != nullptr ? ctx.facts->tracks() : std::vector<bind::TrackFact>{};
+	int32_t index = recordable_index(tracks, editing, editing ? recording_from_of(ctx, *editing) : std::nullopt);
 	if (index < 0) {
 		// `:36-41` -- "if the stored source was removed or became invalid, land on the first valid
 		// target instead", and write that choice straight back to the model. A model write from
-		// `on_focus` is legacy's own (`beginSession` does exactly this) and is what
-		// `MultiRangeItem::on_focus` already does through `ctx.source`.
-		index = next_recordable_index(ctx, editing, -1, 1);
-		if (editing != nullptr) {
-			deluge::edits::audioInputSourceFor(*editing, output_at(ctx, editing, index));
+		// `on_focus` is legacy's own (`beginSession` does exactly this).
+		index = next_recordable_index(ctx, tracks, editing, -1, 1);
+		if (editing) {
+			write_recording_from(ctx, track_at(tracks, editing, index));
 		}
 	}
 	if (index < 0) {
@@ -296,14 +367,16 @@ void SpecificOutputItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 	draw_title_for(f, state);
 
 	const size_t d = depth_of(state);
-	AudioOutput* editing = audio_output_of(ctx);
+	const std::optional<uint32_t> editing = editing_of(ctx);
+	const std::vector<bind::TrackFact> tracks =
+	    ctx.facts != nullptr ? ctx.facts->tracks() : std::vector<bind::TrackFact>{};
 
 	// `selectEncoderAction` (`:49-58`). Done here rather than in `handle` for
 	// `SourceSelectionItem`'s reason: the select-encoder turn is a widget-owned shape delivered
 	// before `after_render`, so reading it from the render is what keeps the page in step with the
 	// encoder instead of one tick behind it (`browser_scene.h` §5.7 records the same finding).
 	if (const int8_t turn = f.turn(); turn != 0) {
-		const int32_t next = next_recordable_index(ctx, editing, state.list[d].cursor, turn);
+		const int32_t next = next_recordable_index(ctx, tracks, editing, state.list[d].cursor, turn);
 		if (next >= 0) { // `:51-53`
 			state.list[d].cursor = static_cast<int16_t>(next);
 			// `:56` -- `setOutputRecordingFrom(...)`. A render may not write the model
@@ -336,7 +409,7 @@ void SpecificOutputItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 	const int32_t type_h = deluge::ui::oled::text_height_for(type_font);
 	const int32_t name_h = deluge::ui::oled::text_height_for(name_font);
 
-	Output* out = output_at(ctx, editing, state.list[d].cursor);
+	const bind::TrackFact* out = track_at(tracks, editing, state.list[d].cursor);
 	if (out == nullptr) {
 		// `:64-67`. Not an l10n id: legacy's literal is not in `gui/l10n/strings.h`, and inventing
 		// one would be a change to the l10n data rather than a port (`browser_scene.h`'s
@@ -351,7 +424,9 @@ void SpecificOutputItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 		    deluge::ui::oled::TextStyle{.font = type_font, .align = deluge::ui::oled::Align::Centre});
 		// `:87-99` -- centred when it fits, left-aligned when it does not (the side-scroller legacy
 		// arms in that case has no port; see `output_items.h`).
-		const std::string_view name{out->name};
+		const std::optional<serialization::Value> named = track_row(ctx, out->output_id, "name");
+		const std::string name_text = named ? named->str() : std::string{};
+		const std::string_view name{name_text};
 		const bool fits = deluge::gfx::oled::string_width_px(name, name_h) <= area.w;
 		deluge::ui::oled::text(f, deluge::gfx::oled::Rect{area.x, area.y + 28, area.w, name_h}, name,
 		                       deluge::ui::oled::TextStyle{.font = name_font,
@@ -371,11 +446,12 @@ void SpecificOutputItem::commit(const MenuContext& ctx, MenuState& state) const 
 	// `selectEncoderAction`'s `:55-56`, in the one place a write may happen. The cursor cannot have
 	// moved between the render that set `value_changed` and this call -- `after_render` runs
 	// immediately after, with no input in between (`ActiveScalesItem::commit`'s note).
-	AudioOutput* editing = audio_output_of(ctx);
-	if (editing == nullptr) {
+	const std::optional<uint32_t> editing = editing_of(ctx);
+	if (!editing || ctx.facts == nullptr) {
 		return;
 	}
-	deluge::edits::audioInputSourceFor(*editing, output_at(ctx, editing, state.list[depth_of(state)].cursor));
+	const std::vector<bind::TrackFact> tracks = ctx.facts->tracks();
+	write_recording_from(ctx, track_at(tracks, editing, state.list[depth_of(state)].cursor));
 }
 
 deluge::ui::shell::Result SpecificOutputItem::handle(const deluge::ui::shell::UiEvent& /*event*/,

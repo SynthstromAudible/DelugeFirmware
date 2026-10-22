@@ -35,6 +35,8 @@
 #include "scenes/menu/context.h"
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/audio_input.h"
+#include "deluge-project/setting_group.h"
 #include "dsp/reverb/reverb.hpp" // dsp::Reverb::Model -- audio_engine.h only forward declares it
 #include "model/clip/audio_clip.h"
 #include "model/drum/drum.h"
@@ -285,10 +287,17 @@ bool is_midi_out(const MenuContext& ctx) {
 }
 
 bool audio_source_is_specific(const MenuContext& ctx) {
-	if (ctx.output == nullptr || ctx.output->type != OutputType::AUDIO) {
+	// An audio clip's track recording a specific track: its AUDIO_INPUT record's channel.
+	if (!ctx.is_audio_clip || !ctx.addresses.track || ctx.model == nullptr) {
 		return false;
 	}
-	return static_cast<AudioOutput*>(ctx.output)->inputChannel == AudioInputChannel::SPECIFIC_OUTPUT;
+	const std::optional<deluge::serialization::Value> channel = deluge::project::read_setting(
+	    *ctx.model,
+	    deluge::project::SettingAddress{.group = deluge::project::SettingGroupId::AUDIO_INPUT,
+	                                    .owner = *ctx.addresses.track},
+	    "inputChannel");
+	return channel
+	       && channel->str() == deluge::project::kInputChannelWords[deluge::project::kInputChannelSpecificTrack];
 }
 
 bool audio_clip_has_sample(const MenuContext& ctx) {

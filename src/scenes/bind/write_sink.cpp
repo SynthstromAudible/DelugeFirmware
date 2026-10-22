@@ -51,4 +51,8 @@ bool RecordingSink::move_audio_clip_marker(project::ClipAddress clip, std::strin
 	return true;
 }
 
+void RecordingSink::set_default_audio_input_channel(int32_t channel) {
+	gestures.push_back({.kind = GestureRequest::Kind::DEFAULT_INPUT_CHANNEL, .value = channel});
+}
+
 } // namespace deluge::scenes::bind

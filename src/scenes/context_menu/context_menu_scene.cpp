@@ -20,6 +20,9 @@
 
 #include "scenes/context_menu/context_menu_scene.h"
 
+#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/target.h"
+#include "scenes/bind/write_sink.h"
 #include "scenes/profile.h"
 
 #include "ui/core/led_frame.h"
@@ -31,26 +34,21 @@
 // `definitions_cxx.hpp` is, rather than being covered by one of the allowed subdirectories. Fix
 // round 1, Minor 2: included rather than re-declared locally, and re-implementing its body here (a
 // notice plus the other four resets) was rejected -- that would fork a legacy composite.
+#include "deluge-project/audio_input.h"
+#include "deluge-project/setting_group.h"
 #include "deluge.h"
 #include "gui/l10n/strings.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
-#include "model/edits/audio_input_for.h"
-#include "model/output.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "processing/audio_output.h"
 #include "storage/flash_storage.h"
 
 #include <algorithm>
 #include <array>
+#include <cstdlib>
+#include <optional>
 #include <string_view>
-
-// `Song::setupDefault`-adjacent song-wide default the audio-source picker writes on every turn
-// (`gui/context_menu/audio_input_selector.cpp:26`, `:193`; defined at `model/song/song.cpp:4896`).
-// Declared bare at the global scope where it is defined -- legacy's own spelling, and the precedent
-// `menu/nodes/settings.cpp` sets for `PadLEDs::flashCursor` and `jcong`.
-extern AudioInputChannel defaultAudioOutputInputChannel;
 
 namespace deluge::scenes::context_menu {
 
@@ -138,72 +136,83 @@ static_assert(std::size(kAudioSourceOptions) == static_cast<size_t>(AudioSourceO
               "the option list and the Value enum are the same list twice; a row added to one "
               "without the other silently shifts every channel mapping below");
 
-/// @brief The `AudioOutput` this menu edits -- legacy's `audioInputSelector.audioOutput`, which
+/// @brief The audio track this menu edits -- legacy's `audioInputSelector.audioOutput`, which
 ///        `AudioSourceSelector::selectButtonPress` sets from `getCurrentOutput()`
-///        (`gui/menu_item/audio_clip/audio_source_selector.h:28`).
-///
-/// `MenuContext::output` is that same output; the cast is guarded by `is_audio_clip`, which is what
-/// `context_for` resolved from the clip's type -- legacy's own cast is unguarded.
-AudioOutput* audio_output_of(const menu::MenuContext& ctx) {
-	if (!ctx.is_audio_clip || ctx.output == nullptr) {
-		return nullptr;
+///        (`gui/menu_item/audio_clip/audio_source_selector.h:28`); nullopt off an audio clip.
+std::optional<project::TrackAddress> audio_track_of(const menu::MenuContext& ctx) {
+	if (!ctx.is_audio_clip || !ctx.addresses.track || ctx.model == nullptr) {
+		return std::nullopt;
 	}
-	return static_cast<AudioOutput*>(ctx.output);
+	return ctx.addresses.track;
 }
 
-/// `getRecordableOutputInSong` (`audio_input_selector.cpp:46-58`): the saved source, but only if it
-/// is still both recordable and in the song. Transcribed -- it is a file-local static there.
-Output* recordable_output_in_song(const menu::MenuContext& ctx, AudioOutput* audio_output, Output* selected) {
-	if (audio_output == nullptr || selected == nullptr || !audio_output->canRecordFrom(selected)
-	    || ctx.song == nullptr) {
-		return nullptr;
+constexpr bind::Target audio_input_row(std::string_view path) {
+	return {.kind = bind::Target::Kind::MODEL, .path = path, .group = project::SettingGroupId::AUDIO_INPUT};
+}
+
+/// The audio track's AUDIO_INPUT row @p path, as the record holds it.
+std::optional<serialization::Value> audio_input(const menu::MenuContext& ctx, std::string_view path) {
+	const std::optional<project::TrackAddress> track = audio_track_of(ctx);
+	if (!track) {
+		return std::nullopt;
 	}
-	for (Output* output = ctx.song->live.media.first_output; output != nullptr; output = output->next) {
-		if (output == selected) {
-			return selected;
+	return project::read_setting(
+	    *ctx.model, project::SettingAddress{.group = project::SettingGroupId::AUDIO_INPUT, .owner = *track}, path);
+}
+
+/// The input channel the audio track records, as an index of the record's channel words (0, none, where it has none).
+int32_t input_channel_of(const menu::MenuContext& ctx) {
+	const std::optional<serialization::Value> word = audio_input(ctx, "inputChannel");
+	return word ? project::index_of_word(project::kInputChannelWords, word->str()).value_or(0) : 0;
+}
+
+/// The track the audio track records from, by id; nullopt for none.
+std::optional<uint32_t> recording_from_of(const menu::MenuContext& ctx) {
+	const std::optional<serialization::Value> id = audio_input(ctx, "outputRecordingFrom");
+	if (!id) {
+		return std::nullopt;
+	}
+	const int64_t value = std::strtoll(id->str().c_str(), nullptr, 10);
+	return value >= 0 ? std::optional{static_cast<uint32_t>(value)} : std::nullopt;
+}
+
+/// `getRecordableOutputInSong` (`audio_input_selector.cpp:46-58`): the saved source, but only if it is still both
+/// recordable and in the song.
+std::optional<uint32_t> recordable_track_in_song(const menu::MenuContext& ctx, std::optional<uint32_t> selected) {
+	const std::optional<project::TrackAddress> track = audio_track_of(ctx);
+	if (!track || !selected || ctx.facts == nullptr) {
+		return std::nullopt;
+	}
+	for (const bind::TrackFact& candidate : ctx.facts->tracks()) {
+		if (candidate.output_id == *selected) {
+			return bind::can_record_from(track->output_id, candidate) ? selected : std::nullopt;
 		}
 	}
-	return nullptr;
+	return std::nullopt;
 }
 
 /// `getFirstRecordableOutput` (`:61-69`).
-Output* first_recordable_output(const menu::MenuContext& ctx, AudioOutput* audio_output) {
-	if (audio_output == nullptr || ctx.song == nullptr) {
-		return nullptr;
+std::optional<uint32_t> first_recordable_track(const menu::MenuContext& ctx) {
+	const std::optional<project::TrackAddress> track = audio_track_of(ctx);
+	if (!track || ctx.facts == nullptr) {
+		return std::nullopt;
 	}
-	for (Output* output = ctx.song->live.media.first_output; output != nullptr; output = output->next) {
-		if (audio_output->canRecordFrom(output)) {
-			return output;
+	for (const bind::TrackFact& candidate : ctx.facts->tracks()) {
+		if (bind::can_record_from(track->output_id, candidate)) {
+			return candidate.output_id;
 		}
 	}
-	return nullptr;
+	return std::nullopt;
 }
 
 uint8_t initial_audio_source(const menu::MenuContext& ctx) {
 	// `AudioInputSelector::setupAndCheckAvailability` (`:87-127`), switch arm for switch arm. Its
-	// `default:` is `Value::OFF`, which also covers a null output here.
-	const AudioOutput* audio_output = audio_output_of(ctx);
-	if (audio_output == nullptr) {
+	// `default:` is `Value::OFF`, which also covers no audio track here. The channel words are the
+	// options' own order, from none (OFF) to the specific track (TRACK).
+	if (!audio_track_of(ctx)) {
 		return static_cast<uint8_t>(AudioSourceOption::Off);
 	}
-	switch (audio_output->inputChannel) {
-	case AudioInputChannel::LEFT:
-		return static_cast<uint8_t>(AudioSourceOption::Left);
-	case AudioInputChannel::RIGHT:
-		return static_cast<uint8_t>(AudioSourceOption::Right);
-	case AudioInputChannel::STEREO:
-		return static_cast<uint8_t>(AudioSourceOption::Stereo);
-	case AudioInputChannel::BALANCED:
-		return static_cast<uint8_t>(AudioSourceOption::Balanced);
-	case AudioInputChannel::MIX:
-		return static_cast<uint8_t>(AudioSourceOption::Master);
-	case AudioInputChannel::OUTPUT:
-		return static_cast<uint8_t>(AudioSourceOption::Output);
-	case AudioInputChannel::SPECIFIC_OUTPUT:
-		return static_cast<uint8_t>(AudioSourceOption::Track);
-	default:
-		return static_cast<uint8_t>(AudioSourceOption::Off);
-	}
+	return static_cast<uint8_t>(input_channel_of(ctx));
 }
 
 void on_move_audio_source(const menu::MenuContext& ctx, Selection& selection) {
@@ -214,8 +223,7 @@ void on_move_audio_source(const menu::MenuContext& ctx, Selection& selection) {
 	// Not ported: the `if (currentUIMode != 0u) return;` guard at `:135-137`. `currentUIMode` is a
 	// legacy UI global this layer may not read, and the shell's own input routing is what stands in
 	// for it -- a scene below a modal overlay is not handed the turn at all.
-	AudioOutput* audio_output = audio_output_of(ctx);
-	if (audio_output == nullptr) {
+	if (!audio_track_of(ctx) || ctx.sink == nullptr) {
 		return;
 	}
 	const auto option = static_cast<AudioSourceOption>(selection.option);
@@ -226,66 +234,48 @@ void on_move_audio_source(const menu::MenuContext& ctx, Selection& selection) {
 		selection.scroll = selection.option;
 	}
 
-	// Leaving SPECIFIC_OUTPUT clears the recording-from state (the input's Edit does), so the track that was being
-	// recorded is not left silently muted.
-	AudioInputChannel channel = AudioInputChannel::NONE;
-	switch (option) {
-	case AudioSourceOption::Left:
-		channel = AudioInputChannel::LEFT;
-		break;
-	case AudioSourceOption::Right:
-		channel = AudioInputChannel::RIGHT;
-		break;
-	case AudioSourceOption::Stereo:
-		channel = AudioInputChannel::STEREO;
-		break;
-	case AudioSourceOption::Balanced:
-		channel = AudioInputChannel::BALANCED;
-		break;
-	case AudioSourceOption::Master:
-		channel = AudioInputChannel::MIX;
-		break;
-	case AudioSourceOption::Output:
-		channel = AudioInputChannel::OUTPUT;
-		break;
-	case AudioSourceOption::Track:
-		channel = AudioInputChannel::SPECIFIC_OUTPUT;
-		break;
-	case AudioSourceOption::Off:
-	case AudioSourceOption::Count:
-	default:
-		break;
-	}
-	deluge::edits::audioInputChannelFor(*audio_output, channel);
+	// The option is the channel's word: OFF is none. Leaving the specific track clears the recording-from state (the
+	// input's Edit does), so the track that was being recorded is not left silently muted.
+	const int32_t channel = option < AudioSourceOption::Count ? static_cast<int32_t>(option) : 0;
+	(void)ctx.sink->write({.target = audio_input_row("inputChannel"), .where = ctx.addresses, .menu_value = channel});
 
 	if (option == AudioSourceOption::Track) {
 		// `:178-187` -- keep the chosen source if it is still usable, otherwise take the first one
 		// that is; none is the "none available" answer.
-		Output* record_from = recordable_output_in_song(ctx, audio_output, audio_output->getOutputRecordingFrom());
-		if (record_from == nullptr) {
-			record_from = first_recordable_output(ctx, audio_output);
+		std::optional<uint32_t> record_from = recordable_track_in_song(ctx, recording_from_of(ctx));
+		if (!record_from) {
+			record_from = first_recordable_track(ctx);
 		}
-		deluge::edits::audioInputSourceFor(*audio_output, record_from);
+		(void)ctx.sink->write({.target = audio_input_row("outputRecordingFrom"),
+		                       .where = ctx.addresses,
+		                       .menu_value = record_from ? static_cast<int32_t>(*record_from) : -1});
 	}
 
 	// `:193` -- the song-wide default follows whatever was last picked here.
-	defaultAudioOutputInputChannel = audio_output->inputChannel;
+	ctx.sink->set_default_audio_input_channel(input_channel_of(ctx));
 }
 
-std::string_view footer_audio_source(const menu::MenuContext& ctx, std::span<char> /*scratch*/) {
+std::string_view footer_audio_source(const menu::MenuContext& ctx, std::span<char> scratch) {
 	// `AudioInputSelector::renderOLED`'s tail (`:225-236`): nothing at all unless the channel is
-	// SPECIFIC_OUTPUT, then the source's name, or the literal "No track" when there is none. Both
-	// strings outlive the render -- `Output::name` is a model member and the literal is static -- so
-	// the scratch is unused, which is why the parameter is unnamed.
-	const AudioOutput* audio_output = audio_output_of(ctx);
-	if (audio_output == nullptr || audio_output->inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
+	// SPECIFIC_OUTPUT, then the source's name, or the literal "No track" when there is none.
+	if (!audio_track_of(ctx) || input_channel_of(ctx) != project::kInputChannelSpecificTrack) {
 		return {};
 	}
-	Output* record_from = recordable_output_in_song(ctx, const_cast<AudioOutput*>(audio_output),
-	                                                const_cast<AudioOutput*>(audio_output)->getOutputRecordingFrom());
-	// Legacy's own literal, not an l10n id: `audio_input_selector.cpp:231` hard-codes "No track", as
-	// it does the two `popupTextTemporary` strings in `padAction`.
-	return record_from != nullptr ? std::string_view{record_from->name.c_str()} : std::string_view{"No track"};
+	const std::optional<uint32_t> record_from = recordable_track_in_song(ctx, recording_from_of(ctx));
+	const std::optional<serialization::Value> name =
+	    record_from ? project::read_setting(*ctx.model,
+	                                        project::SettingAddress{.group = project::SettingGroupId::TRACK,
+	                                                                .owner = project::TrackAddress{*record_from}},
+	                                        "name")
+	                : std::nullopt;
+	if (!name) {
+		// Legacy's own literal, not an l10n id: `audio_input_selector.cpp:231` hard-codes "No track", as
+		// it does the two `popupTextTemporary` strings in `padAction`.
+		return std::string_view{"No track"};
+	}
+	const size_t n = std::min(name->str().size(), scratch.size());
+	std::copy_n(name->str().data(), n, scratch.data());
+	return {scratch.data(), n};
 }
 
 /// `AudioInputSelector` has no `acceptCurrentOption()` override, so it takes the base's

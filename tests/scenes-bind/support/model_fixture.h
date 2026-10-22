@@ -76,6 +76,8 @@ public:
 	[[nodiscard]] std::optional<int32_t> param_value(const project::ParamAddress& address) const override;
 	std::vector<CableFact> cable_list;
 	[[nodiscard]] CableList cables(const project::ParamAddress& owner) const override;
+	std::vector<TrackFact> track_list;
+	[[nodiscard]] std::vector<TrackFact> tracks() const override { return track_list; }
 };
 
 /// A song whose synth track (kSynth) and kit row (kDrum) hold the slot encode() writes for @p facts' states, which

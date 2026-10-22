@@ -27,6 +27,7 @@
 #include "model/edits/set_source_ranges.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
+#include "model/instrument/non_audio_instrument.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
@@ -58,6 +59,8 @@
 #include <utility>
 #include <variant>
 
+// The input a new audio track starts on: unsaved song state (`model/song/song.cpp`), set by the audio-source menu.
+extern AudioInputChannel defaultAudioOutputInputChannel;
 namespace deluge::gui {
 
 namespace {
@@ -142,6 +145,9 @@ public:
 	bool recolour_clip(deluge::project::ClipAddress clip, int32_t offset) override;
 	bool clear_clip(deluge::project::ClipAddress clip, bool clear_automation, bool clear_sequence_and_mpe) override;
 	bool move_audio_clip_marker(deluge::project::ClipAddress clip, std::string_view path, int64_t value) override;
+	void set_default_audio_input_channel(int32_t channel) override {
+		defaultAudioOutputInputChannel = static_cast<AudioInputChannel>(channel);
+	}
 	[[nodiscard]] uint32_t refusals() const { return refusals_; }
 
 private:
@@ -172,6 +178,7 @@ public:
 	[[nodiscard]] uint8_t arp_preset(const deluge::project::SettingAddress& address) const override;
 	[[nodiscard]] std::optional<int32_t> param_value(const deluge::project::ParamAddress& address) const override;
 	[[nodiscard]] deluge::scenes::bind::CableList cables(const deluge::project::ParamAddress& owner) const override;
+	[[nodiscard]] std::vector<deluge::scenes::bind::TrackFact> tracks() const override;
 };
 
 static_assert(kMaxNumPatchCables <= deluge::scenes::bind::kMaxCables);
@@ -624,6 +631,41 @@ std::optional<int32_t> ShellRuntimeFacts::param_value(const deluge::project::Par
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* stack = deluge::bridge::paramStackAt(*currentSong, address, memory);
 	return stack != nullptr ? std::optional{stack->autoParam->getCurrentValue()} : std::nullopt;
+}
+
+std::vector<deluge::scenes::bind::TrackFact> ShellRuntimeFacts::tracks() const {
+	using deluge::scenes::bind::TrackKind;
+	std::vector<deluge::scenes::bind::TrackFact> list;
+	if (currentSong == nullptr) {
+		return list;
+	}
+	for (::Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
+		if (!output->id()) {
+			continue; // a track the song has not given an id cannot be named
+		}
+		deluge::scenes::bind::TrackFact fact{.output_id = *output->id()};
+		switch (output->type) {
+		case OutputType::KIT:
+			fact.kind = TrackKind::KIT;
+			break;
+		case OutputType::MIDI_OUT:
+			fact.kind = TrackKind::MIDI_OUT;
+			fact.channel = static_cast<::NonAudioInstrument*>(output)->getChannel();
+			break;
+		case OutputType::CV:
+			fact.kind = TrackKind::CV;
+			fact.channel = static_cast<::NonAudioInstrument*>(output)->getChannel();
+			break;
+		case OutputType::AUDIO:
+			fact.kind = TrackKind::AUDIO;
+			break;
+		default:
+			fact.kind = TrackKind::SYNTH;
+			break;
+		}
+		list.push_back(fact);
+	}
+	return list;
 }
 
 deluge::scenes::bind::CableList ShellRuntimeFacts::cables(const deluge::project::ParamAddress& owner) const {

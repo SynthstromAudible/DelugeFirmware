@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <vector>
 
 namespace deluge::scenes::bind {
 
@@ -38,6 +39,23 @@ struct CableList {
 	[[nodiscard]] bool empty() const { return count == 0; }
 	[[nodiscard]] const CableFact& operator[](size_t i) const { return items[i]; }
 };
+
+/// @brief What kind of track an output is.
+enum class TrackKind : uint8_t { SYNTH, KIT, MIDI_OUT, CV, AUDIO };
+
+/// @brief One of the song's tracks, as the host holds them: its id, its kind, and (MIDI and CV) its channel.
+struct TrackFact {
+	uint32_t output_id{0};
+	TrackKind kind{TrackKind::SYNTH};
+	int32_t channel{0};
+	bool operator==(const TrackFact&) const = default;
+};
+
+/// @brief Whether the audio track @p editing may record from @p track: another track, and one that sounds (not a
+///        MIDI or CV track), as `AudioOutput::canRecordFrom` decides.
+[[nodiscard]] constexpr bool can_record_from(uint32_t editing, const TrackFact& track) {
+	return track.output_id != editing && track.kind != TrackKind::MIDI_OUT && track.kind != TrackKind::CV;
+}
 
 /// @brief The facts a menu needs that are not settings, each answered by the host. Nothing else a binding reads comes
 /// from outside the model.
@@ -76,6 +94,9 @@ public:
 	/// read), in the order the engine holds them; empty where there is no such sound. The cables are its engine's: one
 	/// made this session is one before the song is saved.
 	[[nodiscard]] virtual CableList cables(const project::ParamAddress& owner) const = 0;
+	/// @brief The song's tracks, in its order: which outputs exist, and their kinds, which the model's records do not
+	/// hold.
+	[[nodiscard]] virtual std::vector<TrackFact> tracks() const = 0;
 };
 
 } // namespace deluge::scenes::bind
