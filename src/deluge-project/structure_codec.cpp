@@ -45,7 +45,7 @@ Value text(std::string_view s) {
 }
 
 /// @brief A mod knob's CC as its `cc` word names it: `none`, `bend`, `aftertouch` (any case, as the firmware reads
-/// them) or a number; anything else sends nothing.
+/// them) or a number (CC 1 as the Y axis); anything else sends nothing.
 ModKnobCc mod_knob_cc_of(const Value* word) {
 	if (const std::string* name = text_of(word)) {
 		std::string lower = *name;
@@ -62,7 +62,9 @@ ModKnobCc mod_knob_cc_of(const Value* word) {
 		}
 	}
 	if (auto number = int_of(word)) {
-		return {.kind = ModKnobCc::Kind::NUMBER, .number = static_cast<uint8_t>(*number)};
+		// CC 1, the mod wheel, is read as the Y axis, as the firmware reads it.
+		return {.kind = ModKnobCc::Kind::NUMBER,
+		        .number = *number == 1 ? ModKnobCc::kYAxisNumber : static_cast<uint8_t>(*number)};
 	}
 	return {};
 }

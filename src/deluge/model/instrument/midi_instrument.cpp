@@ -37,6 +37,7 @@
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
 #include "util/etl_string.h"
+#include <algorithm>
 #include <cstring>
 #include <iterator>
 #include <string_view>
@@ -827,6 +828,17 @@ int32_t MIDIInstrument::changeControlNumberForModKnob(int32_t offset, int32_t wh
 	return modKnobCCAssignments[knob];
 }
 
+static_assert(deluge::project::ModKnobCc::kYAxisNumber == CC_NUMBER_Y_AXIS);
+
+void MIDIInstrument::markEdited() {
+	editedByUser = true;
+	if (docOutput_ != nullptr && docOutput_->mod_knob_ccs.empty()) {
+		for (const int8_t cc : modKnobCCAssignments) {
+			docOutput_->mod_knob_ccs.push_back(modKnobCcOf(cc));
+		}
+	}
+}
+
 void MIDIInstrument::copyModKnobCCsFrom(const MIDIInstrument& other) {
 	modKnobCCAssignments = other.modKnobCCAssignments;
 	editedByUser = other.editedByUser; // whether there are any assignments, which the track then saves
@@ -859,29 +871,6 @@ deluge::project::ModKnobCc MIDIInstrument::modKnobCcOf(int8_t cc) {
 		return {.kind = Kind::AFTERTOUCH};
 	}
 	return {.kind = Kind::NUMBER, .number = static_cast<uint8_t>(cc)};
-}
-
-int32_t MIDIInstrument::getFirstUnusedCC(ModelStackWithThreeMainThings* modelStack, int32_t direction, int32_t startAt,
-                                         int32_t stopAt) {
-
-	int32_t proposedCC = startAt;
-
-	while (true) {
-		ModelStackWithAutoParam* modelStackWithAutoParam =
-		    getParamToControlFromInputMIDIChannel(proposedCC, modelStack);
-		if (!modelStackWithAutoParam->autoParam
-		    || !modelStackWithAutoParam->autoParam->isAutomated(*modelStackWithAutoParam->doc())) {
-			return proposedCC;
-		}
-
-		proposedCC = getNextSelectableCC(proposedCC, direction);
-
-		if (proposedCC == stopAt) {
-			return -1;
-		}
-	}
-
-	// It does always return something, above
 }
 
 Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
@@ -957,19 +946,39 @@ int32_t MIDIInstrument::moveKnobCCAutomation(int32_t knob, int32_t offset, Song&
 	const auto stackOf = [&](InstrumentClip* clip, char* memory) {
 		return setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, this, clip, &clip->paramManager);
 	};
-
-	// A CC no clip of the track automates.
-	int32_t newCC = getNextSelectableCC(oldCC, offset);
-	for (InstrumentClip* clip : clips) {
+	// Whether @p clip holds @p cc's param already: a plain CC only once something set it; an expression dimension
+	// (bend, aftertouch, the Y axis) always. Looking it up through the stack would make it.
+	const auto holds = [&](InstrumentClip* clip, int32_t cc) {
+		if (cc >= CC_NUMBER_PITCH_BEND) {
+			return true;
+		}
+		MIDIParamCollection* ccs = clip->paramManager.getMIDIParamCollection();
+		return ccs != nullptr && ccs->params.getParamFromCC(cc) != nullptr;
+	};
+	const auto automatedIn = [&](InstrumentClip* clip, int32_t cc) {
+		if (!holds(clip, cc)) {
+			return false;
+		}
 		char memory[MODEL_STACK_MAX_SIZE];
-		newCC = getFirstUnusedCC(stackOf(clip, memory), offset, newCC, oldCC);
-		if (newCC == -1) {
+		ModelStackWithAutoParam* param = getParamToControlFromInputMIDIChannel(cc, stackOf(clip, memory));
+		return param->autoParam != nullptr && param->autoParam->isAutomated(*param->doc());
+	};
+
+	// The next CC no clip of the track automates.
+	int32_t newCC = getNextSelectableCC(oldCC, offset);
+	for (int32_t tried = 0; std::ranges::any_of(clips, [&](InstrumentClip* clip) { return automatedIn(clip, newCC); });
+	     tried++) {
+		newCC = getNextSelectableCC(newCC, offset);
+		if (newCC == oldCC || tried >= kNumCCExpression) { // round to the start: every other CC is automated
 			return -1;
 		}
 	}
+	// Each clip that holds the old CC carries it to the new one; a clip without it has nothing to carry.
 	for (InstrumentClip* clip : clips) {
-		char memory[MODEL_STACK_MAX_SIZE];
-		moveAutomationToDifferentCC(oldCC, newCC, stackOf(clip, memory));
+		if (holds(clip, oldCC)) {
+			char memory[MODEL_STACK_MAX_SIZE];
+			moveAutomationToDifferentCC(oldCC, newCC, stackOf(clip, memory));
+		}
 	}
 	modKnobCCAssignments[knob] = static_cast<int8_t>(newCC);
 	editedByUser = true;

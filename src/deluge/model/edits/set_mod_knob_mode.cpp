@@ -33,8 +33,8 @@ bool modKnobModeFor(KnobModeOwner owner, uint8_t mode) {
 	return deluge::edits::apply(ctx, edit) == Error::NONE;
 }
 
-bool modKnobModeForSlot(const uint8_t* slot, uint8_t mode) {
-	if (currentSong == nullptr) {
+bool modKnobModeForSlot(uint8_t* slot, uint8_t mode) {
+	if (currentSong == nullptr || mode >= kNumModButtons) {
 		return false;
 	}
 	if (slot == &currentSong->live.global_effectable.modKnobMode) {
@@ -48,6 +48,7 @@ bool modKnobModeForSlot(const uint8_t* slot, uint8_t mode) {
 			}
 		}
 	}
+	*slot = mode; // an owner outside the song: its engine field alone
 	return false;
 }
 

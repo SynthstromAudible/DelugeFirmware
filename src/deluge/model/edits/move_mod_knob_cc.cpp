@@ -23,11 +23,8 @@ Error MoveModKnobCC::apply(Context& ctx) {
 	if (moved < 0) {
 		return Error::UNSPECIFIED;
 	}
-	std::vector<project::ModKnobCc>& ccs = output->docOutput_->mod_knob_ccs;
-	if (ccs.size() <= knob_) {
-		ccs.resize(knob_ + 1);
-	}
-	ccs[knob_] = MIDIInstrument::modKnobCcOf(static_cast<int8_t>(moved));
+	midi.markEdited(); // its record holds every knob
+	output->docOutput_->mod_knob_ccs[knob_] = MIDIInstrument::modKnobCcOf(static_cast<int8_t>(moved));
 	moved_to_ = moved;
 	return Error::NONE;
 }

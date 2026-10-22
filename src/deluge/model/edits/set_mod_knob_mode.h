@@ -38,9 +38,10 @@ bool modKnobModeFor(KnobModeOwner owner, uint8_t mode);
 /// @brief Set the knob mode whose engine field is @p slot (`ModControllable::getModKnobMode()`): the song's own, or
 ///        the output whose field it is (a kit row's slot is its kit's), among the song's outputs and hibernating
 ///        instruments.
+/// A slot no owner in the current song has (a knob owner outside it) takes the mode alone: it has no record here.
 /// @param slot The engine field the knob owner names.
 /// @param mode The mod button.
 /// @return Whether the Edit applied; false for a slot no owner in the current song has.
-bool modKnobModeForSlot(const uint8_t* slot, uint8_t mode);
+bool modKnobModeForSlot(uint8_t* slot, uint8_t mode);
 
 } // namespace deluge::edits

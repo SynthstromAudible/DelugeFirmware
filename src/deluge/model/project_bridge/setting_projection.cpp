@@ -267,7 +267,7 @@ Error applyTrackSetting(::Output& output, std::string_view path, const Value& va
 		}
 		midi.setNameForCC(static_cast<int32_t>(*cc), value.str());
 		// A device's labels are saved with the track only once it counts as edited.
-		midi.editedByUser = true;
+		midi.markEdited();
 		return Error::NONE;
 	}
 	if (!v) {
@@ -278,19 +278,19 @@ Error applyTrackSetting(::Output& output, std::string_view path, const Value& va
 	}
 	else if (path == "outputMpeY") {
 		midi.setOutputMPEY(static_cast<CCNumber>(*v));
-		midi.editedByUser = true; // the device definition saves it only once the track counts as edited
+		midi.markEdited(); // the device definition saves it only once the track counts as edited
 	}
 	else if (path == "collapseAftertouch") {
 		midi.setCollapseAftertouch(*v != 0);
-		midi.editedByUser = true;
+		midi.markEdited();
 	}
 	else if (path == "collapseMpe") {
 		midi.setCollapseMPE(*v != 0);
-		midi.editedByUser = true;
+		midi.markEdited();
 	}
 	else if (path == "hideUnlabeledCC") {
 		midi.hideUnlabeledCC = *v != 0;
-		midi.editedByUser = true;
+		midi.markEdited();
 	}
 	else {
 		return Error::UNSPECIFIED;

@@ -431,6 +431,8 @@ class KnobWrites(unittest.TestCase):
         for line in (
             "output->modKnobMode = 3;",
             "*modKnobModeSlot = whichButton;",
+            "*mode_pointer = static_cast<uint8_t>(which_button);",
+            "*modKnobModePointer = 2;",
             "getCurrentOutput()->setModKnobMode(7);",
             "instrument->modKnobCCAssignments[k] = 74;",
             "made->modKnobCCAssignments = old->modKnobCCAssignments;",
@@ -441,6 +443,7 @@ class KnobWrites(unittest.TestCase):
     def test_a_read_and_the_edits_are_not(self):
         for line in (
             "if (output->modKnobMode == 3) {}",
+            "const uint8_t* mode_pointer = target_.mod_controllable->getModKnobMode();",
             "int32_t cc = instrument->modKnobCCAssignments[k];",
             "deluge::edits::modKnobModeFor(owner, 3);",
             "deluge::edits::modKnobCCFor(track, 0, cc);",

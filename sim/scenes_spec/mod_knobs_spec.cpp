@@ -1229,6 +1229,26 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 	// --- E4 task 3: the buttons, the mode, the LEDs and the indicators -------------------------
 
+	it("a mod button changes the knob owner's mode in its record: a track's and the song's", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(f.clip, false);
+		rig.knobs.mod_button_action(5, true);
+		rig.knobs.mod_button_action(5, false);
+		const deluge::project::DocOutput* record = f.song->project.output_structure.find(*f.instrument->id());
+		expect(record != nullptr && record->mod_knob_mode == 5).to_be_true();
+
+		rig.knobs.set_target_without_timeline(&f.song->live.global_effectable, &f.song->paramManager);
+		rig.knobs.mod_button_action(3, true);
+		rig.knobs.mod_button_action(3, false);
+		expect(f.song->project.mod_knob_mode).to_equal(uint8_t{3});
+		display = nullptr;
+	});
+
 	it("declares the eight mod LEDs exactly as View::setModLedStates writes them, in every mode", _ {
 		// The mode -> LED table, asserted BY IDENTITY: all eight declarations, on every one of the
 		// eight modes, with each side driven into that mode through its own `modButtonAction` and

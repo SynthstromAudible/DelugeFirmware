@@ -21,6 +21,7 @@
 
 #include "scenes/services/mod_knobs.h"
 
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h" // the four model transactions (see the class doc)
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
@@ -520,7 +521,7 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 	// sees the new mod-button parameter context. Legacy's `:1532` is the *unguarded write* half of
 	// the defect the @warning above describes.
 	if (uint8_t* mode_pointer = target_.mod_controllable->getModKnobMode(); mode_pointer != nullptr) {
-		*mode_pointer = static_cast<uint8_t>(which_button);
+		(void)menu::host_write_sink().knob_mode_at(mode_pointer, static_cast<uint8_t>(which_button));
 	}
 
 	// `:1534-1535`. This is the call that reaches `ModControllableAudio::displayOtherModKnobSettings`

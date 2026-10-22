@@ -14,13 +14,9 @@ Error SetModKnobCC::apply(Context& ctx) {
 	if (knob_ >= midi.modKnobCCAssignments.size()) {
 		return Error::UNSPECIFIED;
 	}
-	std::vector<project::ModKnobCc>& ccs = output->docOutput_->mod_knob_ccs;
-	if (ccs.size() <= knob_) {
-		ccs.resize(knob_ + 1);
-	}
-	ccs[knob_] = cc_;
+	midi.markEdited(); // the track now saves its knobs, and its record holds every one
+	output->docOutput_->mod_knob_ccs[knob_] = cc_;
 	midi.modKnobCCAssignments[knob_] = MIDIInstrument::engineCcOf(cc_);
-	midi.editedByUser = true; // the track now saves its knobs
 	return Error::NONE;
 }
 

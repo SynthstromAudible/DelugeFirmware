@@ -105,6 +105,9 @@ public:
 	///        through SetModKnobCC.
 	/// @return The knob's CC now.
 	int32_t changeControlNumberForModKnob(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode);
+	/// @brief Count the track as edited, so it saves its device settings and its knobs: its record then holds every
+	///        knob, as the save writes them.
+	void markEdited();
 	/// @brief Take @p other's mod-knob CCs, and whether it saves them, on an instrument no song has adopted yet:
 	///        adoption records them.
 	/// @param other The instrument whose knobs this one copies.
@@ -113,8 +116,6 @@ public:
 	static int8_t engineCcOf(const deluge::project::ModKnobCc& cc);
 	/// @brief The record's spelling of engine CC word @p cc.
 	static deluge::project::ModKnobCc modKnobCcOf(int8_t cc);
-	int32_t getFirstUnusedCC(ModelStackWithThreeMainThings* modelStack, int32_t direction, int32_t startAt,
-	                         int32_t stopAt);
 	Error moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC, ModelStackWithThreeMainThings* modelStack);
 	/// @brief Move knob @p knob (0 then 1 of each mod button in turn) to the next CC @p offset away that no clip of the
 	///        track automates, carrying the old CC's automation in every clip of the track. The engine half of

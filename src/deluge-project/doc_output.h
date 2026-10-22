@@ -37,6 +37,9 @@ struct ModKnobCc {
 		BEND,       ///< sends pitch bend
 		AFTERTOUCH, ///< sends channel aftertouch
 	};
+	/// The number a file says for the expression Y axis; a file's CC 1 (the mod wheel) is read as it too.
+	static constexpr uint8_t kYAxisNumber = 122;
+
 	Kind kind{Kind::NONE};
 	uint8_t number{0}; ///< the CC, for NUMBER
 	bool operator==(const ModKnobCc&) const = default;

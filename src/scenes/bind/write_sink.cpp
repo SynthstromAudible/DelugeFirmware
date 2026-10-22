@@ -97,4 +97,9 @@ bool RecordingSink::write_source_transpose(const Addresses& where, uint8_t sourc
 	return true;
 }
 
+bool RecordingSink::knob_mode_at(uint8_t* /*slot*/, uint8_t mode) {
+	gestures.push_back({.kind = GestureRequest::Kind::KNOB_MODE, .value = mode});
+	return true;
+}
+
 } // namespace deluge::scenes::bind

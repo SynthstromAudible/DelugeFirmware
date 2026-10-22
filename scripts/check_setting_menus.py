@@ -596,7 +596,7 @@ def scene_engine_calls(root: Path, allowed=None) -> list[str]:
 #: A knob mode or a MIDI track's knob CC written raw: a gesture calls modKnobModeFor (SetModKnobMode), modKnobCCFor
 #: (SetModKnobCC) or moveModKnobCCFor (MoveModKnobCC), which write the record and the engine.
 KNOB_WRITE = re.compile(
-    r"(?:->|\.)\s*modKnobMode\s*=(?!=)|(?<![\w)\]])\s*\*\s*modKnobModeSlot\s*=(?!=)|(?:->|\.)\s*setModKnobMode\s*\("
+    r"(?:->|\.)\s*modKnobMode\s*=(?!=)|(?<![\w)\]])\s*\*\s*(?:modKnobModeSlot|modKnobModePointer|mode_pointer)\s*=(?!=)|(?:->|\.)\s*setModKnobMode\s*\("
     r"|(?:->|\.)\s*modKnobCCAssignments(?:\[[^\]]*\])?\s*=(?!=)"
 )
 #: The raw knob writes allowed, by file (relative to its root) and the text the write's line holds, each with its reason:

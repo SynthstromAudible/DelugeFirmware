@@ -132,6 +132,10 @@ public:
 	/// @return Whether it was taken.
 	virtual bool write_source_transpose(const Addresses& where, uint8_t source, std::optional<uint16_t> range,
 	                                    int32_t menu_value) = 0;
+	/// @brief Set the gold knobs' mode of the knob owner whose engine field @p slot is (the song's own, or an
+	/// output's) to @p mode. The gold knob's target names its owner by that field.
+	/// @return Whether it was taken: false where no owner in the song has the field.
+	virtual bool knob_mode_at(uint8_t* slot, uint8_t mode) = 0;
 };
 
 /// @brief A gesture request, as a RecordingSink keeps it.
@@ -146,7 +150,8 @@ struct GestureRequest {
 		ATTACH,
 		RESIZE,
 		LEARN,
-		TRANSPOSE
+		TRANSPOSE,
+		KNOB_MODE
 	};
 	Kind kind{Kind::TEXT};
 	Target target{};
@@ -196,6 +201,7 @@ public:
 	           std::optional<LearnInput> input) override;
 	bool write_source_transpose(const Addresses& where, uint8_t source, std::optional<uint16_t> range,
 	                            int32_t menu_value) override;
+	bool knob_mode_at(uint8_t* slot, uint8_t mode) override;
 	std::vector<WriteRequest> requests;
 	std::vector<GestureRequest> gestures;
 	std::vector<ParamWrite> param_writes;

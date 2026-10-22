@@ -26,6 +26,7 @@
 #include "model/edits/set_kit_lane_setting.h"
 #include "model/edits/set_kit_param_value.h"
 #include "model/edits/set_kit_setting.h"
+#include "model/edits/set_mod_knob_mode.h"
 #include "model/edits/set_param_value.h"
 #include "model/edits/set_patch_cable.h"
 #include "model/edits/set_setting.h"
@@ -165,6 +166,7 @@ public:
 	           std::optional<deluge::scenes::bind::LearnInput> input) override;
 	bool write_source_transpose(const deluge::scenes::bind::Addresses& where, uint8_t source,
 	                            std::optional<uint16_t> range, int32_t menu_value) override;
+	bool knob_mode_at(uint8_t* slot, uint8_t mode) override { return deluge::edits::modKnobModeForSlot(slot, mode); }
 	[[nodiscard]] uint32_t refusals() const { return refusals_; }
 
 private:
