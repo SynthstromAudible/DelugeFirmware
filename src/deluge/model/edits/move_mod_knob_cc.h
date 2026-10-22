@@ -22,8 +22,8 @@ public:
 	    : track_(track), knob_(knob), offset_(offset) {}
 
 	/// @copydoc Edit::apply
-	/// @return Error::UNSPECIFIED for a track that is not a MIDI track of the song, a knob past the last, a knob that
-	///         sends no CC, or no CC free in every clip.
+	/// @return Error::UNSPECIFIED for a track that is not a MIDI track of the song, a knob past the last, or no CC
+	///         free in every clip. A knob that sends no CC is left as it is, and moved_to() names its word.
 	Error apply(Context& ctx) override;
 
 	/// @brief The knob's CC after a successful apply.

@@ -2,6 +2,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/output.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/song/song.h"
 
 namespace deluge::edits {
@@ -15,7 +16,7 @@ Error SetModKnobMode::apply(Context& ctx) {
 		ctx.song.live.global_effectable.modKnobMode = mode_;
 		return Error::NONE;
 	}
-	Output* output = ctx.song.outputForId(std::get<project::TrackAddress>(owner_).output_id);
+	Output* output = deluge::bridge::outputWithId(ctx.song, std::get<project::TrackAddress>(owner_).output_id);
 	if (output == nullptr) {
 		return Error::UNSPECIFIED;
 	}
@@ -30,6 +31,24 @@ bool modKnobModeFor(KnobModeOwner owner, uint8_t mode) {
 	Context ctx{*currentSong, currentSong->project};
 	SetModKnobMode edit{owner, mode};
 	return deluge::edits::apply(ctx, edit) == Error::NONE;
+}
+
+bool modKnobModeForSlot(const uint8_t* slot, uint8_t mode) {
+	if (currentSong == nullptr) {
+		return false;
+	}
+	if (slot == &currentSong->live.global_effectable.modKnobMode) {
+		return modKnobModeFor(project::SongAddress{}, mode);
+	}
+	for (Output* list : {currentSong->live.media.first_output,
+	                     static_cast<Output*>(currentSong->live.media.first_hibernating_instrument)}) {
+		for (Output* output = list; output != nullptr; output = output->next) {
+			if (slot == &output->modKnobMode) {
+				return modKnobModeFor(project::TrackAddress{currentSong->outputIdFor(*output)}, mode);
+			}
+		}
+	}
+	return false;
 }
 
 } // namespace deluge::edits

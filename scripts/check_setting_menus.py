@@ -599,13 +599,9 @@ KNOB_WRITE = re.compile(
     r"(?:->|\.)\s*modKnobMode\s*=(?!=)|(?<![\w)\]])\s*\*\s*modKnobModeSlot\s*=(?!=)|(?:->|\.)\s*setModKnobMode\s*\("
     r"|(?:->|\.)\s*modKnobCCAssignments(?:\[[^\]]*\])?\s*=(?!=)"
 )
-#: The raw knob writes allowed, by file (relative to its root) and the text the write's line holds, each with its reason.
-KNOB_WRITE_ALLOWED: dict[str, dict[str, str]] = {
-    "views/view.cpp": {
-        "*modKnobModeSlot = whichButton": "a mod button pressed on a knob owner that is neither the song nor the "
-        "current output, which the model does not hold",
-    },
-}
+#: The raw knob writes allowed, by file (relative to its root) and the text the write's line holds, each with its reason:
+#: none.
+KNOB_WRITE_ALLOWED: dict[str, dict[str, str]] = {}
 
 
 def knob_writes(root: Path, allowed=None) -> list[str]:

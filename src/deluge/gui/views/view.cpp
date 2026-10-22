@@ -1580,22 +1580,10 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 
 				// change the button selection before calling mod button action so that mod button action
 				// knows the mod button parameter context
-				// getModKnobMode() names the song's own mode for the song's knobs, else the output's: a synth's, a
-				// MIDI or CV track's, an audio track's or a kit's (a kit row's knobs are its kit's). The pointer says
-				// which, without a downcast; each is the model's, changed through its Edit.
-				uint8_t* modKnobModeSlot = activeModControllableModelStack.modControllable->getModKnobMode();
-				Output* currentOutputForModKnob = getCurrentOutput();
-				if (modKnobModeSlot == &currentSong->live.global_effectable.modKnobMode) {
-					(void)deluge::edits::modKnobModeFor(deluge::project::SongAddress{}, whichButton);
-				}
-				else if (currentOutputForModKnob != nullptr
-				         && modKnobModeSlot == &currentOutputForModKnob->modKnobMode) {
-					(void)deluge::edits::modKnobModeFor(
-					    deluge::project::TrackAddress{currentSong->outputIdFor(*currentOutputForModKnob)}, whichButton);
-				}
-				else {
-					*modKnobModeSlot = whichButton; // a knob owner the model does not hold
-				}
+				// The knob owner's mode: the song's own, or its output's (a kit row's knobs are its kit's), wherever it
+				// is.
+				(void)deluge::edits::modKnobModeForSlot(
+				    activeModControllableModelStack.modControllable->getModKnobMode(), whichButton);
 
 				activeModControllableModelStack.modControllable->modButtonAction(
 				    whichButton, true, (ParamManagerForTimeline*)activeModControllableModelStack.paramManager);

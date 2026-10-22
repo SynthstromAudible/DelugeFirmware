@@ -14,6 +14,11 @@ Error MoveModKnobCC::apply(Context& ctx) {
 	if (knob_ >= midi.modKnobCCAssignments.size()) {
 		return Error::UNSPECIFIED;
 	}
+	// A knob that sends nothing stays so: legacy's move reports it as it is.
+	if (midi.modKnobCCAssignments[knob_] >= CC_NUMBER_NONE) {
+		moved_to_ = midi.modKnobCCAssignments[knob_];
+		return Error::NONE;
+	}
 	const int32_t moved = midi.moveKnobCCAutomation(knob_, offset_, ctx.song);
 	if (moved < 0) {
 		return Error::UNSPECIFIED;
