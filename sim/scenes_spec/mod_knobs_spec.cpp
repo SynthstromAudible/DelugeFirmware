@@ -52,14 +52,23 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
+#include "gui/ui/ui.h"
+#include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
+#include "model/action/action.h"
+#include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/instrument/midi_instrument.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/model_stack.h"
 #include "model/project_bridge/param_ids.h"
+#include "model/project_bridge/param_stack.h"
+#include "model/project_bridge/patch_cable_words.h"
 #include "model/song/song.h"
+#include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -73,6 +82,7 @@
 
 #include "cppspec.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <optional>
@@ -559,6 +569,124 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 		const deluge::project::DocAutoParam* record = f.song->project.resolveParam(stutter);
 		expect(record != nullptr && !record->nodes.empty()).to_be_true();
+	});
+
+	it("writes a region turn as a region in the record", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_synth_song();
+		*static_cast<SoundInstrument*>(f.instrument)->getModKnobMode() = 1; // the filter mode: upper knob is LPF frequency
+		const deluge::project::ParamAddress lpf{
+		    .owner = deluge::project::OwnerId::instrument(*f.instrument->id()),
+		    .space = deluge::project::ParamSpace::ENGINE,
+		    .id = deluge::bridge::paramIdOf(Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ),
+		    .clip_id = f.clip->id()};
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(f.clip, false);
+		rig.knobs.set_mod_region(24, 24);
+		DirectCtx c{1000};
+		(void)rig.knobs.handle(gold_turn(EncoderRole::GoldUpper, 5), c.ctx);
+		const deluge::project::DocAutoParam* record = f.song->project.resolveParam(lpf);
+		expect(record != nullptr && !record->nodes.empty()).to_be_true();
+		const bool at_region = record != nullptr && std::ranges::any_of(record->nodes, [](const auto& node) {
+			return node.pos == 24;
+		});
+		expect(at_region).to_be_true();
+		display = nullptr;
+	});
+
+	it("writes a knob on a cable and on a MIDI clip's CC", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture synth = spec::make_synth_song();
+		*static_cast<SoundInstrument*>(synth.instrument)->getModKnobMode() = 5; // lower knob: LFO1 -> pitch
+		ParamDescriptor pitch;
+		pitch.setToHaveParamOnly(deluge::modulation::params::LOCAL_PITCH_ADJUST);
+		const deluge::project::ParamAddress vibrato{
+		    .owner = deluge::project::OwnerId::instrument(*synth.instrument->id()),
+		    .space = deluge::project::ParamSpace::ENGINE,
+		    .id = deluge::bridge::cable_depth(PatchSource::LFO_GLOBAL_1, pitch),
+		    .clip_id = synth.clip->id()};
+		const auto value_at = [](Song& song, const deluge::project::ParamAddress& address) -> std::optional<int32_t> {
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithAutoParam* stack = deluge::bridge::paramStackAt(song, address, memory);
+			return stack != nullptr ? std::optional{stack->autoParam->getCurrentValue()} : std::nullopt;
+		};
+		const std::optional<int32_t> vibrato_before = value_at(*synth.song, vibrato);
+		{
+			KnobRig rig;
+			rig.knobs.set_song(synth.song);
+			rig.knobs.set_target_with_timeline(synth.clip, false);
+			rig.knobs.set_mod_region();
+			DirectCtx c{1000};
+			(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 5), c.ctx);
+		}
+		const std::optional<int32_t> vibrato_after = value_at(*synth.song, vibrato);
+		expect(vibrato_after.has_value() && vibrato_after != vibrato_before).to_be_true();
+
+		spec::SongFixture midi = spec::make_midi_song();
+		auto* instrument = static_cast<MIDIInstrument*>(midi.instrument);
+		*instrument->getModKnobMode() = 0;
+		instrument->modKnobCCAssignments[0] = 74; // mode 0's lower knob
+		const deluge::project::ParamAddress cc74{.owner = deluge::project::OwnerId::clip(midi.clip->id()),
+		                                         .space = deluge::project::ParamSpace::MIDI_CC,
+		                                         .id = deluge::engine::ParamId{74}};
+		const std::optional<int32_t> cc_before = value_at(*midi.song, cc74);
+		{
+			KnobRig rig;
+			rig.knobs.set_song(midi.song);
+			rig.knobs.set_target_with_timeline(midi.clip, false);
+			rig.knobs.set_mod_region();
+			DirectCtx c{1000};
+			(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 5), c.ctx);
+		}
+		const std::optional<int32_t> cc_after = value_at(*midi.song, cc74);
+		expect(cc_after.has_value() && cc_after != cc_before).to_be_true();
+		display = nullptr;
+	});
+
+	it("deletes the knob's automation on a shift+push, as one undo step", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		*static_cast<SoundInstrument*>(f.instrument)->getModKnobMode() = 0; // lower knob: pan
+		const deluge::project::ParamAddress pan{
+		    .owner = deluge::project::OwnerId::instrument(*f.instrument->id()),
+		    .space = deluge::project::ParamSpace::ENGINE,
+		    .id = deluge::bridge::paramIdOf(Kind::PATCHED, deluge::modulation::params::LOCAL_PAN),
+		    .clip_id = f.clip->id()};
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(f.clip, false);
+		rig.knobs.set_mod_region(0, 24);
+		DirectCtx c{1000};
+		(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 5), c.ctx);
+		expect(f.song->project.resolveParam(pan)->nodes.empty()).to_be_false();
+
+		changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
+		actionLogger.deleteAllLogs();
+		UiEvent push{};
+		push.kind = UiEvent::Kind::EncoderButton;
+		push.button = ButtonId::ModEnc0;
+		push.on = true;
+		struct ShiftCtx {
+			deluge::ui::shell::ButtonSet held{};
+			deluge::ui::PadMask pads{};
+			UiContext ctx;
+			ShiftCtx() : ctx{held, pads, true, false, 0, deluge_profile()} {}
+		} shifted;
+		(void)rig.knobs.handle(push, shifted.ctx);
+		expect(f.song->project.resolveParam(pan)->nodes.empty()).to_be_true();
+		Action* action = actionLogger.firstAction[BEFORE];
+		expect(action != nullptr && action->nextAction == nullptr).to_be_true();
+		expect(actionLogger.revert(BEFORE, false, false)).to_be_true();
+		expect(f.song->project.resolveParam(pan)->nodes.empty()).to_be_false();
+		actionLogger.deleteAllLogs();
+		nullifyUIs();
+		display = nullptr;
+		currentSong = nullptr;
 	});
 
 	it("takes the non-existent-param arm without writing anything, as legacy does", _ {

@@ -238,16 +238,15 @@ class SceneParamWrites(unittest.TestCase):
             [],
         )
 
-    def test_the_gold_knobs_allowance_passes_its_line_and_no_other_write(self):
+    def test_the_gold_knobs_writes_are_reported_in_context_too(self):
         found = self.check(
             "menu/context.cpp",
             "void knob() {\n"
             "\tparam->autoParam->setValuePossiblyForRegion(new_value, param, target.mod_pos, target.mod_length);\n"
-            "\tparam->autoParam->setCurrentValueInResponseToUserInput(new_value, param);\n"
+            "\tparam->autoParam->deleteAutomation(action, param);\n"
             "}\n",
         )
-        self.assertEqual(len(found), 1, found)
-        self.assertIn(":3:", found[0])
+        self.assertEqual(len(found), 2, found)
 
 
 class SongStateWrites(unittest.TestCase):

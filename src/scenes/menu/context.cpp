@@ -57,17 +57,18 @@
 
 #include "scenes/menu/context.h"
 
+#include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/bindings.h"
 
 #include "scenes/menu/node.h"
 
-#include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/drum/non_audio_drum.h"
+#include "model/edits/param_address_for.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -750,9 +751,13 @@ services::ModTurn mod_encoder_turn(services::ModTarget& target, int32_t which_en
 	out.value_changed = true;
 
 	const int32_t new_value = param->paramCollection->knobPosToParamValue(new_knob_pos, param); // `:920`
-	// `:923` -- THE model write. Deleting this line must turn `mod_knobs_spec` red; see the task
-	// report's mutation table (the E2 blindness check).
-	param->autoParam->setValuePossiblyForRegion(new_value, param, target.mod_pos, target.mod_length);
+	// `:923` -- the write, as the param's Edit by its address, over the region the view holds. A knob's owner made
+	// this session takes its durable id first, so it has an address.
+	(void)param->doc();
+	if (const std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*param)) {
+		(void)host_write_sink().write_param(*address, new_value, static_cast<int32_t>(target.mod_pos),
+		                                    static_cast<int32_t>(target.mod_length));
+	}
 
 	if (target.timeline_counter_set()) { // `:925`
 		const bool note_tails_allowed_after = param->modControllable->allowNoteTails(temp->addSoundFlags());
@@ -862,8 +867,11 @@ bool mod_delete_automation(const services::ModTarget& target, int32_t which_enco
 	if (param == nullptr || param->autoParam == nullptr) {
 		return false; // `:1356`
 	}
-	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED); // `:1357`
-	param->autoParam->deleteAutomation(action, param);                                                      // `:1358`
+	// `:1357-1358`, as the param's Edit by its address.
+	(void)param->doc();
+	if (const std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*param)) {
+		(void)host_write_sink().delete_automation(*address);
+	}
 	return true; // `:1359`'s popup is the caller's, as an `Action::Kind::Popup`.
 }
 

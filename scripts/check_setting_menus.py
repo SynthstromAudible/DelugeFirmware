@@ -27,7 +27,6 @@ one.
 
 Nor may a file under src/scenes write a param on its AutoParam: a param menu writes through SetParamValue and deletes
 its automation through DeleteParamAutomation, nor set a cable's polarity on its set (SetCablePolarity) (model/edits/).
-The gold knob's turn and automation delete have no Edit yet and still do, each allowed by its line.
 
 Two gestures write the runtime themselves and record what they wrote, checked file by file: a file that writes a mod
 knob (a `modKnobs[...]` descriptor, or learnKnob()/unlearnKnobs() on what is not a menu item) also calls
@@ -531,16 +530,9 @@ SCENES_PARAM_WRITE = re.compile(
     r"(?:->|\.)\s*(set(?:CurrentValue\w*|Value\w*ForRegion|NodeAtPos)|deleteAutomation\w*|deleteNodesWithinRegion"
     r"|homogenizeRegion|nudgeNonInterpolatingNodesAtPos|setPolarity)\s*\("
 )
-#: The param writes that have no Edit yet, by file (relative to src/scenes) and the text the write's line holds, each
-#: with its reason.
-SCENES_PARAM_ALLOWED: dict[str, dict[str, str]] = {
-    "menu/context.cpp": {
-        "setValuePossiblyForRegion(new_value, param, target.mod_pos, target.mod_length)": "a gold knob's turn, "
-        "written for the region the view holds, which SetParamValue's address form does not yet take",
-        "deleteAutomation(action, param)": "shift+select on a gold knob deletes its automation; the knob has no param address to "
-        "hand DeleteParamAutomation yet",
-    },
-}
+#: The raw param writes allowed under src/scenes, by file (relative to src/scenes) and the text the write's line
+#: holds, each with its reason: none.
+SCENES_PARAM_ALLOWED: dict[str, dict[str, str]] = {}
 
 
 def scene_param_writes(root: Path, allowed=None) -> list[str]:
