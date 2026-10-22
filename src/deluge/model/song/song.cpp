@@ -5362,6 +5362,10 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 	// above); oldOutput may only be hibernated, not destroyed.
 	newOutput->seedDocOutputIdentity();
 	oldOutput->seedDocOutputIdentity();
+	// The new output joins the model now, as addOutput's does: its record, and its backups under its id.
+	if (!readingFromFile_) {
+		adoptOutput(newOutput);
+	}
 
 	// Properly do away with the oldInstrument
 	deleteOrAddToHibernationListOutput(oldOutput);

@@ -95,17 +95,6 @@ class ScenesRows(unittest.TestCase):
 class ParamBackupRows(unittest.TestCase):
     counts = ScenesRows.counts
 
-    def test_a_backup_call_keyed_by_a_cast_is_counted(self):
-        for line in (
-            "song->live.param_backup.getPreferablyWithClip((ModControllableAudio*)o, nullptr);",
-            "song->live.param_backup.backUp(static_cast<ModControllableAudio*>(o->toModControllable()), c, &p);",
-        ):
-            with self.subTest(line=line):
-                counts = self.counts(
-                    "src/deluge/model/planted.cpp", f"void f() {{\n\t{line}\n}}\n"
-                )
-                self.assertEqual(counts.get("param-backup-by-address"), 1, line)
-
     def test_the_old_key_shape_is_counted(self):
         counts = self.counts(
             "src/deluge/model/project_bridge/param_backup.h",

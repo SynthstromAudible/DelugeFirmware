@@ -2273,6 +2273,7 @@ void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {
 	// We gotta do this for any backedUpParamManagers too!
 	song->live.param_backup.forEachOf(
 	    deluge::bridge::backupOwnerOf(*this), [&](std::optional<uint32_t> clipId, ParamManager& params) {
+		    // A clip only an undo step holds is not in the song: its parked params take the clip-less form.
 		    Clip* clip = clipId ? song->clipForId(*clipId) : nullptr;
 		    if (clip) {
 			    char modelStackMemory[MODEL_STACK_MAX_SIZE];

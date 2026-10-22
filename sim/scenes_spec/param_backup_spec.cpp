@@ -157,6 +157,24 @@ describe param_backup("the song's param backup, by owner and clip id", ${
 		}
 		currentSong = saved;
 	});
+
+	it("an audio track the arranger makes in place of another is adopted, its backup under its id", _ {
+		deluge::scenes::spec::AudioSongFixture f = deluge::scenes::spec::make_audio_clip_song();
+		Song* const saved = currentSong;
+		currentSong = f.song;
+		Output* old = f.clip->output;
+		AudioOutput* made = f.song->createNewAudioOutput(old);
+		expect(made != nullptr).to_be_true();
+		if (made != nullptr) {
+			expect(made->docOutput_ != nullptr && made->id().has_value()).to_be_true();
+			expect(f.song->live.param_backup.pending.empty()).to_be_true();
+			if (made->id()) {
+				expect(f.song->live.param_backup.map.count({OwnerId::instrument(*made->id()), std::nullopt}))
+				    .to_equal(size_t{1});
+			}
+		}
+		currentSong = saved;
+	});
 });
 // clang-format on
 

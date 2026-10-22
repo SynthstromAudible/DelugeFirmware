@@ -684,16 +684,12 @@ RULES = [
         "2026-10-18-scenes-bind-to-model-design.md",
     ),
     (
-        # The param backup is keyed by its owner's address and clip id. A caller names the owner it holds, typed (an
-        # output or a drum); a cast to ModControllableAudio, or the old (ModControllableAudio*, Clip*) key, names the
-        # engine object the key replaced.
+        # The param backup is keyed by its owner's address and clip id. The old (ModControllableAudio*, Clip*) key names
+        # the engine object the address replaced. (A cast at a call site no longer compiles, so it needs no row.)
         "param-backup-by-address",
         "src/deluge/**",
         "symbol",
-        (
-            r"\bparam_backup\.\w+\(\s*(\(\s*ModControllableAudio\s*\*\s*\)|static_cast<ModControllableAudio\s*\*>)"
-            r"|std::pair<\s*ModControllableAudio\s*\*\s*,\s*Clip\s*\*\s*>"
-        ),
+        r"std::pair<\s*ModControllableAudio\s*\*\s*,\s*Clip\s*\*\s*>",
         "2026-10-18-scenes-bind-to-model-design.md",
     ),
     (

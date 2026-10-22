@@ -131,7 +131,7 @@ void forEachDelayParamManager(Song& song, const std::function<void(ModControllab
 			Drum* drum = deluge::bridge::drumWithId(song, owner.id);
 			return drum != nullptr && drum->type == DrumType::SOUND ? static_cast<SoundDrum*>(drum) : nullptr;
 		}
-		Output* output = song.outputForId(owner.id);
+		Output* output = deluge::bridge::outputWithId(song, owner.id); // hibernating instruments too
 		return output != nullptr ? static_cast<ModControllableAudio*>(output->toModControllable()) : nullptr;
 	};
 	for (auto& [key, paramManager] : song.live.param_backup.map) {
