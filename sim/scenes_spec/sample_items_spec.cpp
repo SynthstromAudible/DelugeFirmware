@@ -51,6 +51,7 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "model/clip/audio_clip.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
@@ -269,6 +270,8 @@ struct SoundRig {
 		if (second_source) {
 			setup_source(1, 64);
 		}
+		// Set up field by field: record it as a load does, so the record the menu reads is the sound's truth.
+		deluge::bridge::recordLoadedSound(*sound, *song.song);
 	}
 
 	void setup_source(int32_t i, int32_t num_clusters) {
@@ -280,6 +283,7 @@ struct SoundRig {
 		range[i] = static_cast<MultisampleRange*>(source[i]->getOrCreateFirstRange());
 		range[i]->sampleHolder.audioFile = sample[i];
 		range[i]->sampleHolder.filePath = i == 0 ? "SAMPLES/OSC_A/A1.WAV" : "SAMPLES/OSC_B/B1.WAV";
+		sample[i]->filePath = range[i]->sampleHolder.filePath; // the record names the range's file by its sample
 		range[i]->sampleHolder.startPos = 0;
 		range[i]->sampleHolder.endPos = sample[i]->lengthInSamples;
 		range[i]->sampleHolder.loopStartPos = 0;
@@ -329,7 +333,7 @@ struct ClipRig {
 	    : fake(deluge::ui::shell::kDelugeBoard, deluge_profile()),
 	      shell(fake, deluge_profile(), reg, deluge::ui::shell::Services{}, ShellConfig{}) {
 		song.clip->sampleHolder.audioFile = sample;
-		song.clip->sampleHolder.filePath = "SAMPLES/OSC_A/A1.WAV";
+		song.clip->setSampleFilePath("SAMPLES/OSC_A/A1.WAV");
 		song.clip->sampleHolder.startPos = 0;
 		song.clip->sampleHolder.endPos = sample->lengthInSamples;
 		song.clip->sampleHolder.waveformViewZoom = 0;
@@ -719,6 +723,7 @@ describe sample_items_relevance("scenes::menu the sample items: relevance agains
 				auto* range = static_cast<MultisampleRange*>(s.getOrCreateFirstRange());
 				range->sampleHolder.audioFile = (i == which && c.load_file) ? sample : nullptr;
 			}
+			deluge::bridge::recordLoadedSound(*sound, *song.song); // the record the port reads
 		};
 
 		std::vector<std::string> observed;

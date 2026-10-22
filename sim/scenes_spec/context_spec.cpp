@@ -1,6 +1,7 @@
 #include "scenes/menu/context.h"
 
 #include "model/clip/instrument_clip.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
@@ -251,6 +252,7 @@ describe menu_permission("scenes::menu::permission_for", $ {
 		auto* sound = static_cast<SoundInstrument*>(f.instrument);
 		sound->sources[0].ranges.insertMultiRange(0);
 		sound->sources[0].ranges.insertMultiRange(1);
+		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 
 		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		expect(ctx.range == nullptr).to_be_true();
@@ -264,6 +266,7 @@ describe menu_permission("scenes::menu::permission_for", $ {
 		auto* sound = static_cast<SoundInstrument*>(f.instrument);
 		sound->sources[0].ranges.insertMultiRange(0);
 		sound->sources[0].ranges.insertMultiRange(1);
+		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 
 		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		expect(param_node.range_dependent).to_be_false();
@@ -274,6 +277,7 @@ describe menu_permission("scenes::menu::permission_for", $ {
 		auto f = spec::make_synth_song();
 		auto* sound = static_cast<SoundInstrument*>(f.instrument);
 		sound->sources[0].ranges.insertMultiRange(0);
+		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 
 		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		expect(ctx.range == sound->sources[0].ranges.getElement(0)).to_be_true();
@@ -289,6 +293,7 @@ describe menu_permission("scenes::menu::permission_for", $ {
 		auto* sound = static_cast<SoundInstrument*>(f.instrument);
 		sound->sources[0].ranges.insertMultiRange(0);
 		sound->sources[0].ranges.insertMultiRange(1);
+		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 
 		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		ctx.range = sound->sources[0].ranges.getElement(1);
@@ -302,6 +307,7 @@ describe menu_permission("scenes::menu::permission_for", $ {
 		auto* sound = static_cast<SoundInstrument*>(f.instrument);
 		sound->sources[0].ranges.insertMultiRange(0);
 		sound->sources[0].ranges.insertMultiRange(1);
+		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 
 		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		expect(static_cast<int>(menu::permission_for(submenu_node, ctx))).to_equal(static_cast<int>(Permission::Yes));
@@ -312,6 +318,7 @@ describe menu_permission("scenes::menu::permission_for", $ {
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
 		drum->sources[0].ranges.insertMultiRange(0);
 		drum->sources[0].ranges.insertMultiRange(1);
+		deluge::edits::recordRanges(*drum, 0); // recorded, as a gesture records them
 
 		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		expect(static_cast<int>(menu::permission_for(range_dependent_node, ctx)))

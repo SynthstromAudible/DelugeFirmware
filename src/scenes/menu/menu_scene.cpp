@@ -474,9 +474,9 @@ bool MenuScene::on_enter(const SceneId& id) {
 			// `MUST_SELECT_RANGE` (`:2014`): a range-dependent item on a source with more than one
 			// range and none remembered. Spelled as "the allocation did not resolve one" rather
 			// than by calling `permission_for`, whose first statement is the relevance fold above.
-			// `ctx_.source` is what `ensure_first_range` itself guards on, so a context with no
-			// source took its no-op success and must not land on a picker.
-			if (ctx_.source != nullptr && ctx_.range == nullptr) {
+			// A context with no sound took `ensure_first_range`'s no-op success and must not land on a
+			// picker.
+			if (ctx_.addresses.slot && ctx_.range_index < 0) {
 				// `sound_editor.cpp:1855-1859`: `multiRangeMenu.menuItemHeadingTo =
 				// horizontal_menu_child; newItem = &multiRangeMenu;` -- the picker is opened
 				// *instead of* the item, and the item is remembered for the picker's own select

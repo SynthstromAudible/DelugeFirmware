@@ -206,6 +206,7 @@
 #include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
 #include "scenes/rename/rename_scene.h"
+#include "scenes/services/view_state.h"
 
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
@@ -219,6 +220,7 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "model/clip/clip.h"
+#include "model/edits/setting_edit.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
@@ -858,6 +860,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// test uses, here against the REAL `nodes::source0_transpose` instead of a synthetic param.
 		sound->sources[0].ranges.insertMultiRange(0);
 		sound->sources[0].ranges.insertMultiRange(1);
+		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 		const MenuContext ctx = menu::context_for(*song.song, song.clip, 0, false, false, false, false);
 		(void)menu::assign_node_ids(kRangePermRoots);
 		menu_scene().open(range_perm_root, ctx);
@@ -891,9 +894,11 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// business dropping them -- the item is still the one the picker was standing in for.
 		expect(menu_scene().state().range_picker_pending).to_be_true();
 		expect(menu_scene().state().pending_after_range == &nodes::source0_transpose).to_be_true();
-		// And the picker really ran `MultiRange::beginSession` on this source: `defaultRangeI` was -1
-		// and is now `numRanges >> 1` (`multi_range.cpp:46-50`), written back by `menu::select_range`.
-		expect(static_cast<int>(sound->sources[0].defaultRangeI)).to_equal(1);
+		// And the picker really ran `MultiRange::beginSession` on this source: nothing was remembered,
+		// so it took `numRanges >> 1` (`multi_range.cpp:46-50`), which `menu::select_range` remembers.
+		expect(services::view_state().last_range(
+		           deluge::project::SlotAddress{deluge::project::SlotAddress::Kind::OUTPUT, *song.instrument->id()}, 0))
+		    .to_equal(std::optional<uint16_t>{1});
 		// The leaf itself was never opened, so its model value is untouched.
 		expect(bindings::read(nodes::source0_transpose, ctx)).to_equal(before);
 	});

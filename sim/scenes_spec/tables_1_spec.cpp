@@ -31,6 +31,7 @@
 #include "scenes/menu/validate.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
+#include "scenes/services/view_state.h"
 
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
@@ -59,6 +60,7 @@ using deluge::hid::display::OLED;
 #include "gui/menu_item/filter_route.h"
 
 #include "model/clip/instrument_clip.h"
+#include "model/edits/setting_edit.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
@@ -413,6 +415,9 @@ struct RangeFixture {
 		for (int32_t i = 0; i < n; i++) {
 			(void)sound->sources[0].ranges.insertMultiRange(i);
 		}
+		if (n > 0) {
+			deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
+		}
 		ctx = menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		currentSong = song.song;
 		song.song->setCurrentClip(song.clip);
@@ -448,6 +453,7 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 		f.ctx.source->ranges.getElement(0)->topNote = 47;  // B2
 		f.ctx.source->ranges.getElement(1)->topNote = 71;  // B4
 		f.ctx.source->ranges.getElement(2)->topNote = 32767;
+		deluge::edits::recordRanges(*static_cast<SoundInstrument*>(f.song.instrument), 0);
 
 		expect(menu::range_count(f.ctx)).to_equal(int32_t(3));
 		size_t compared = 0;
@@ -518,14 +524,14 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 		expect(menu::range_count(f.ctx)).to_equal(int32_t(1));
 	});
 
-	it("selects a range the way setCurrentMultiRange does, and remembers it on the Source", _ {
+	it("selects a range the way setCurrentMultiRange does, and remembers it in the scenes' view state", _ {
 		RangeFixture f{3};
 		menu::select_range(f.ctx, 2);
 		expect(static_cast<int>(f.ctx.range_index)).to_equal(2);
 		expect(f.ctx.range == f.ctx.source->ranges.getElement(2)).to_be_true();
-		// `multi_range.cpp:239` -- the choice sticks on the source, which is what `on_focus` reads
+		// `multi_range.cpp:239` -- the choice sticks for the source, which is what `on_focus` reads
 		// back on the next visit.
-		expect(static_cast<int>(f.ctx.source->defaultRangeI)).to_equal(2);
+		expect(services::view_state().last_range(*f.ctx.addresses.slot, 0)).to_equal(std::optional<uint16_t>{2});
 		// Out of range is ignored rather than clamped -- every caller has clamped already.
 		menu::select_range(f.ctx, 7);
 		expect(static_cast<int>(f.ctx.range_index)).to_equal(2);
@@ -708,7 +714,7 @@ describe tables_1_values("scenes::menu batch-1 tables: values", $ {
 		// The 20 predicates `relevance.h` declares plus the sixteen `nodes::relevant_*_iterance_step_*`
 		// rows (`relevance.cpp`'s `static_assert` is the authority; this asserts the count is
 		// deliberate). 20 + 16 = 36.
-		expect(registry.size()).to_equal(size_t(36));
+		expect(registry.size()).to_equal(size_t(34));
 		for (size_t i = 0; i < registry.size(); i++) {
 			expect(registry[i].fn != nullptr).to_be_true();
 			expect(registry[i].name.empty()).to_be_false();

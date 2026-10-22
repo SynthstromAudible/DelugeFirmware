@@ -420,10 +420,22 @@ namespace {
 ///        minus the audition arm `bindings.h` documents as belonging to `NoteClipScene`. A kit row the clip is not on
 ///        affect-entire for has its own (`:31-37`), when it has a note row; anything else edits the clip's.
 deluge::scenes::bind::Target direction_target(const MenuContext& ctx) {
-	const bool row = !ctx.affect_entire && ctx.is_kit && ctx.addresses.note_row.has_value();
+	const bool row = !ctx.affect_entire && ctx.is_kit && ctx.addresses.lane.has_value();
 	return {.kind = deluge::scenes::bind::Target::Kind::MODEL,
 	        .path = "sequenceDirection",
 	        .group = row ? deluge::project::SettingGroupId::NOTE_ROW : deluge::project::SettingGroupId::CLIP};
+}
+
+/// @brief The addresses the play direction resolves against: the kit row's note row is its lane's, whatever kind of
+///        drum it plays.
+deluge::scenes::bind::Addresses direction_where(const MenuContext& ctx) {
+	deluge::scenes::bind::Addresses where = ctx.addresses;
+	if (ctx.addresses.lane && ctx.addresses.clip) {
+		where.note_row = deluge::project::NoteRowAddress{.clip_id = ctx.addresses.clip->clip_id,
+		                                                 .is_kit = true,
+		                                                 .row_key = static_cast<int32_t>(ctx.addresses.lane->drum_id)};
+	}
+	return where;
 }
 
 /// @brief Is @p ctx one this pair of functions can work on at all: an instrument clip of the song the app plays?
@@ -496,7 +508,7 @@ int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row) {
 		*from_note_row = target.group == deluge::project::SettingGroupId::NOTE_ROW;
 	}
 	const std::optional<deluge::scenes::bind::View> shown =
-	    deluge::scenes::bind::view(target, *ctx.model, ctx.addresses, *ctx.facts);
+	    deluge::scenes::bind::view(target, *ctx.model, direction_where(ctx), *ctx.facts);
 	return shown ? shown->value : 0;
 }
 
@@ -521,7 +533,7 @@ void write_sequence_direction(const MenuContext& ctx, int32_t value) {
 	}
 	// `direction.h:83-89`: the kit row's note row, else the clip.
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
-	    deluge::scenes::bind::request_for(direction_target(ctx), *ctx.model, ctx.addresses, *ctx.facts, value);
+	    deluge::scenes::bind::request_for(direction_target(ctx), *ctx.model, direction_where(ctx), *ctx.facts, value);
 	if (request) {
 		(void)ctx.sink->write(*request);
 	}

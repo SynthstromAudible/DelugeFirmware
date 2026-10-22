@@ -56,33 +56,7 @@
 
 namespace deluge::scenes::menu::nodes {
 
-namespace {
-
-/// @brief The context's output as a `MIDIInstrument`, or null.
-///
-/// Legacy's own comment on these items is "this is safe since it's only shown in midi clips"
-/// (`midi/y_axis_to_cc1.h:22`) -- it casts unconditionally. The `relevance::is_midi_out` guard on
-/// every node below says the same thing declaratively; this test is the belt to that brace, so a
-/// hook driven from a spec or from E2's shortcut path cannot corrupt a CV instrument.
-MIDIInstrument* midi_instrument(const MenuContext& ctx) {
-	if (ctx.output == nullptr || ctx.output->type != OutputType::MIDI_OUT) {
-		return nullptr;
-	}
-	return static_cast<MIDIInstrument*>(ctx.output);
-}
-
-/// @brief The context's instrument clip, or null -- `getCurrentInstrumentClip()`.
-InstrumentClip* instrument_clip(const MenuContext& ctx) {
-	return (ctx.clip != nullptr && ctx.clip->type == ClipType::INSTRUMENT) ? static_cast<InstrumentClip*>(ctx.clip)
-	                                                                       : nullptr;
-}
-
-/// @brief The context's audio clip, or null -- `getCurrentAudioClip()`.
-AudioClip* audio_clip(const MenuContext& ctx) {
-	return (ctx.clip != nullptr && ctx.clip->type == ClipType::AUDIO) ? static_cast<AudioClip*>(ctx.clip) : nullptr;
-}
-
-} // namespace
+namespace {} // namespace
 
 // ---------------------------------------------------------------------------------------------
 // The MIDI / CV root
@@ -91,7 +65,7 @@ const Node& midi_or_cv_root(const MenuContext& ctx) {
 	// `sound_editor.cpp:1780-1788`: one object, two titles, chosen by output type. CV first because
 	// a null output (which `setup()` cannot produce for this root, but a spec can) should read as
 	// the MIDI spelling -- the constructor's own argument.
-	return (ctx.output != nullptr && ctx.output->type == OutputType::CV) ? root_cv : root_midi_or_cv;
+	return ctx.addresses.instrument == deluge::engine::SettingContext::Instrument::CV ? root_cv : root_midi_or_cv;
 }
 
 // ---------------------------------------------------------------------------------------------

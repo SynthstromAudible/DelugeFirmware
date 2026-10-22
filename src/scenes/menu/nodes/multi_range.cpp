@@ -19,6 +19,8 @@
 /// @brief `MultiRangeItem`'s members and the picker's chain hook. See `multi_range.h`.
 
 #include "scenes/menu/nodes/multi_range.h"
+#include "deluge-project/song.h"
+#include "scenes/services/view_state.h"
 
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -129,16 +131,23 @@ std::string_view range_row_label(const MenuContext& ctx, int32_t index, char* bu
 
 void MultiRangeItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// `MultiRange::beginSession` (`multi_range.cpp:39-65`).
+	// The default is the range last chosen for this source -- the scenes' view state, by slot and source.
 	const int32_t count = range_count(ctx);
-	if (ctx.source != nullptr) {
-		if (ctx.range != nullptr) { // `:41-44` -- a range is already selected, so it is the default
-			ctx.source->defaultRangeI = ctx.range_index;
+	int32_t cursor = 0;
+	if (ctx.addresses.slot) {
+		if (ctx.model != nullptr) {
+			services::view_state().forget_unless(ctx.model->identity());
 		}
-		if (ctx.source->defaultRangeI < 0 || ctx.source->defaultRangeI >= count) { // `:46-50`
-			ctx.source->defaultRangeI = count >> 1;
+		const auto source = static_cast<uint8_t>(ctx.source_index);
+		if (ctx.range_index >= 0) { // `:41-44` -- a range is already selected, so it is the default
+			services::view_state().set_last_range(*ctx.addresses.slot, source, static_cast<uint16_t>(ctx.range_index));
+		}
+		const std::optional<uint16_t> last = services::view_state().last_range(*ctx.addresses.slot, source);
+		cursor = last && *last < count ? *last : count >> 1; // `:46-50`, which writes the default back
+		if (count > 0) {
+			services::view_state().set_last_range(*ctx.addresses.slot, source, static_cast<uint16_t>(cursor));
 		}
 	}
-	const int32_t cursor = ctx.source != nullptr ? ctx.source->defaultRangeI : 0;
 
 	state.list[depth_of(state)] = deluge::ui::ListState{};
 	state.list[depth_of(state)].cursor = static_cast<int16_t>(cursor);

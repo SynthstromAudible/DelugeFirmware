@@ -62,6 +62,7 @@
 #include "scenes/menu/bindings.h"
 
 #include "scenes/menu/node.h"
+#include "scenes/services/view_state.h"
 
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
@@ -102,28 +103,42 @@ MultiRange* first_range(Source& source) {
 
 } // namespace
 
+namespace {
+
+/// @brief The edited source's record, or null where the context edits no sound.
+const deluge::instrument::SourceState* source_state(const MenuContext& ctx) {
+	if (ctx.facts == nullptr || !ctx.addresses.slot || ctx.source_index < 0 || ctx.source_index >= kNumSources) {
+		return nullptr;
+	}
+	const deluge::instrument::SoundState* state = ctx.facts->sound_state(*ctx.addresses.slot);
+	return state != nullptr ? &state->sources[ctx.source_index] : nullptr;
+}
+
+} // namespace
+
 int32_t range_count(const MenuContext& ctx) {
 	// `std::ssize(source->ranges)` at `:2005`.
-	return ctx.source != nullptr ? static_cast<int32_t>(std::ssize(ctx.source->ranges)) : 0;
+	const deluge::instrument::SourceState* source = source_state(ctx);
+	return source != nullptr ? static_cast<int32_t>(source->ranges.size()) : 0;
 }
 
 int32_t range_top_note(const MenuContext& ctx, int32_t index) {
 	if (index < 0 || index >= range_count(ctx)) {
-		return 32767; // `Source::getOrCreateFirstRange`'s own "top of the keyboard" value (`source.cpp:165`)
+		return deluge::instrument::kOpenTopNote; // `Source::getOrCreateFirstRange`'s "top of the keyboard"
 	}
-	return static_cast<MultiRange*>(ctx.source->ranges.getElement(index))->topNote;
+	return source_state(ctx)->ranges[static_cast<size_t>(index)].top_note;
 }
 
 bool ensure_first_range(MenuContext& ctx) {
-	if (ctx.source == nullptr) {
-		return true;
+	if (!ctx.addresses.slot) {
+		return true; // no sound: nothing is being edited that could want a range
 	}
 	if (range_count(ctx) == 0) {
 		// `:1993`, as a request: the first range, which the app makes and the record holds. A refusal is
 		// `:1994-1997`'s INSUFFICIENT_RAM, which legacy answers with `MenuPermission::NO`.
 		const std::array<deluge::instrument::RangeState, 1> first{deluge::instrument::RangeState{
 		    .top_note = deluge::instrument::kOpenTopNote, .end_pos = deluge::instrument::kUnsetEndPos}};
-		if (ctx.sink == nullptr || !ctx.addresses.slot
+		if (ctx.sink == nullptr
 		    || !ctx.sink->write_ranges(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index), first)) {
 			return false;
 		}
@@ -131,26 +146,29 @@ bool ensure_first_range(MenuContext& ctx) {
 			return true; // a sink that only records the request made nothing to point at
 		}
 	}
-	MultiRange* first = static_cast<MultiRange*>(ctx.source->ranges.getElement(0));
 	// `:2005-2007` -- the same unambiguous cases `context_for` resolves, re-applied now that a range
 	// is guaranteed to exist. A source that had none until a moment ago now has exactly one.
 	if (ctx.is_kit || range_count(ctx) == 1) {
-		ctx.range = first;
 		ctx.range_index = 0;
+		ctx.range = ctx.source != nullptr ? first_range(*ctx.source) : nullptr;
 	}
 	return true;
 }
 
 void select_range(MenuContext& ctx, int32_t index) {
-	if (ctx.source == nullptr || index < 0 || index >= range_count(ctx)) {
+	if (index < 0 || index >= range_count(ctx)) {
 		return;
 	}
 	// `SoundEditor::setCurrentMultiRange` (`:1983-1986`).
-	ctx.range = static_cast<MultiRange*>(ctx.source->ranges.getElement(index));
 	ctx.range_index = static_cast<int16_t>(index);
-	// `MultiRange::selectEncoderAction`'s own `defaultRangeI` write (`multi_range.cpp:239`), which
-	// is what makes the choice stick across a later visit to the same source.
-	ctx.source->defaultRangeI = index;
+	ctx.range = ctx.source != nullptr ? static_cast<MultiRange*>(ctx.source->ranges.getElement(index)) : nullptr;
+	// `MultiRange::selectEncoderAction`'s own `defaultRangeI` write (`multi_range.cpp:239`), which is what makes the
+	// choice stick across a later visit to the same source: the scenes' view state, by slot and source.
+	if (ctx.model != nullptr) {
+		services::view_state().forget_unless(ctx.model->identity());
+	}
+	services::view_state().set_last_range(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index),
+	                                      static_cast<uint16_t>(index));
 }
 
 void select_source(MenuContext& ctx, int8_t index) {
@@ -550,7 +568,7 @@ Permission permission_for(const Node& node, const MenuContext& ctx) {
 	// patched param on a multisampled sound included, takes the base rule above and opens: legacy
 	// routes it through `MenuItem::checkPermissionToBeginSession` (`menu_item.cpp:27-31`), which
 	// returns YES without ever looking at a range.
-	if (!node.range_dependent || ctx.sound == nullptr) {
+	if (!node.range_dependent || !ctx.addresses.slot) {
 		return Permission::Yes;
 	}
 
@@ -570,7 +588,7 @@ Permission permission_for(const Node& node, const MenuContext& ctx) {
 	// Unreachable for a context straight out of `context_for`: the only cases that set `ctx.range`
 	// (kit row, single range) already returned `Yes` above. This is E2's entry point -- once the
 	// picker writes a chosen range back into the context, this is the arm that lets the item open.
-	if (ctx.range != nullptr) {
+	if (ctx.range_index >= 0) {
 		return Permission::Yes;
 	}
 

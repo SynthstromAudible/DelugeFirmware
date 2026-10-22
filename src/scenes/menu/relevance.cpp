@@ -37,20 +37,12 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/audio_input.h"
 #include "deluge-project/setting_group.h"
-#include "dsp/reverb/reverb.hpp" // dsp::Reverb::Model -- audio_engine.h only forward declares it
-#include "model/clip/audio_clip.h"
-#include "model/drum/drum.h"
-#include "model/instrument/cv_instrument.h"
-#include "model/instrument/kit.h"
-#include "model/mod_controllable/filters/filter_config.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
-#include "model/output.h"
+#include "deluge-project/song.h"
+#include "engines/deluge/sound_state.h"
 #include "model/settings/runtime_feature_settings.h"
-#include "modulation/arpeggiator.h"
-#include "processing/audio_output.h"
-#include "processing/engines/audio_engine.h"
-#include "processing/sound/sound.h"
-#include "processing/source.h"
+#include "scenes/bind/runtime_facts.h"
+#include "scenes/menu/bind_host.h"
+#include "scenes/services/waveforms.h"
 
 #include <array>
 
@@ -58,32 +50,25 @@ namespace deluge::scenes::menu::relevance {
 
 namespace {
 
-/// @brief Source @p index of the context's sound, or null when there is no sound.
-const Source* source_of(const MenuContext& ctx, uint8_t index) {
-	return ctx.sound != nullptr ? &ctx.sound->sources[index] : nullptr;
+using deluge::instrument::OscType;
+using deluge::instrument::SynthMode;
+
+/// @brief The edited sound's state, as its record holds it, or null where the context edits no sound.
+const deluge::instrument::SoundState* sound_state(const MenuContext& ctx) {
+	return ctx.facts != nullptr && ctx.addresses.slot ? ctx.facts->sound_state(*ctx.addresses.slot) : nullptr;
 }
 
-/// @brief `Source::hasAtLeastOneAudioFileLoaded()` on a source that may not exist.
-bool loaded(const Source* source) {
-	// `hasAtLeastOneAudioFileLoaded` is non-const in the model; the const_cast keeps the predicate
-	// signature honest about not mutating anything.
-	return source != nullptr && const_cast<Source*>(source)->hasAtLeastOneAudioFileLoaded();
-}
-
-/// @brief `FilterInfo::isOn()` (`gui/menu_item/filter/info.h:91`) for whichever slot.
-bool filter_on(const MenuContext& ctx, bool high_pass) {
-	if (ctx.mod == nullptr) {
-		return false;
-	}
-	const auto& filter = ctx.mod->modControllableSnapshot().effects.filter;
-	return (high_pass ? filter.hpf_mode : filter.lpf_mode) != ::FilterMode::OFF;
+/// @brief Does source @p index hold a loaded audio file? `Source::hasAtLeastOneAudioFileLoaded`: a fact of the card.
+bool loaded(const MenuContext& ctx, uint8_t index) {
+	return ctx.facts != nullptr && ctx.addresses.slot
+	       && ((ctx.facts->loaded_sources(*ctx.addresses.slot) >> index) & 1U) != 0;
 }
 
 /// @brief `isSampleModeSample` (`gui/menu_item/sample/utils.cpp:9-15`).
 bool is_sample_mode_sample(const MenuContext& ctx, uint8_t index) {
-	const Source* source = source_of(ctx, index);
-	return ctx.sound != nullptr && ctx.sound->getSynthMode() == ::SynthMode::SUBTRACTIVE && source != nullptr
-	       && source->oscType == OscType::SAMPLE && loaded(source);
+	const deluge::instrument::SoundState* state = sound_state(ctx);
+	return state != nullptr && state->synth_mode == SynthMode::SUBTRACTIVE
+	       && state->sources[index].osc_type == OscType::SAMPLE && loaded(ctx, index);
 }
 
 /// @brief `FileSelector::isRelevant` (`gui/menu_item/file_selector.cpp:54-65`): browsing can load a sample even when
@@ -92,127 +77,25 @@ bool file_selector(const MenuContext& ctx, uint8_t index) {
 	if (ctx.is_audio_clip) {
 		return true; // `:55-57` -- `getCurrentClip()->type == ClipType::AUDIO`
 	}
-	const Source* source = source_of(ctx, index);
-	if (ctx.sound == nullptr || source == nullptr) {
+	const deluge::instrument::SoundState* state = sound_state(ctx);
+	if (state == nullptr) {
 		return false;
 	}
-	const ::SynthMode mode = ctx.sound->getSynthMode();
-	return mode == ::SynthMode::SUBTRACTIVE || (mode == ::SynthMode::RINGMOD && source->oscType == OscType::WAVETABLE);
+	return state->synth_mode == SynthMode::SUBTRACTIVE
+	       || (state->synth_mode == SynthMode::RINGMOD && state->sources[index].osc_type == OscType::WAVETABLE);
 }
 
 /// @brief `sample::Transpose::isRelevant` (`gui/menu_item/sample/transpose.h:139-145`).
 bool transpose(const MenuContext& ctx, uint8_t index) {
-	const Source* source = source_of(ctx, index);
-	if (source == nullptr) {
+	const deluge::instrument::SoundState* state = sound_state(ctx);
+	if (state == nullptr) {
 		return false;
 	}
-	if (source->oscType == OscType::SAMPLE || source->oscType == OscType::WAVETABLE) {
-		return loaded(source);
+	const OscType type = state->sources[index].osc_type;
+	if (type == OscType::SAMPLE || type == OscType::WAVETABLE) {
+		return loaded(ctx, index);
 	}
 	return true;
-}
-
-/// @brief `osc::source::WaveIndex::isRelevant` (`gui/menu_item/osc/source/wave_index.h:30-35`).
-bool wave_index(const MenuContext& ctx, uint8_t index) {
-	const Source* source = source_of(ctx, index);
-	return ctx.sound != nullptr && source != nullptr && ctx.sound->getSynthMode() != ::SynthMode::FM
-	       && source->oscType == OscType::WAVETABLE && loaded(source);
-}
-
-/// @brief `osc::PulseWidth::isRelevant` (`gui/menu_item/osc/pulse_width.h:39-52`).
-bool pulse_width(const MenuContext& ctx, uint8_t index) {
-	const Source* source = source_of(ctx, index);
-	if (ctx.sound == nullptr || source == nullptr) {
-		return false;
-	}
-	if (ctx.sound->getSynthMode() == ::SynthMode::FM) {
-		return false;
-	}
-	if (source->oscType == OscType::WAVETABLE) {
-		return loaded(source);
-	}
-	return source->oscType != OscType::SAMPLE && source->oscType != OscType::INPUT_L
-	       && source->oscType != OscType::INPUT_R && source->oscType != OscType::INPUT_STEREO;
-}
-
-/// @brief `osc::source::Feedback::isRelevant` (`gui/menu_item/osc/source/feedback.h:31-34`).
-bool carrier_feedback(const MenuContext& ctx, uint8_t index) {
-	const Source* source = source_of(ctx, index);
-	return ctx.sound != nullptr && source != nullptr
-	       && (ctx.sound->getSynthMode() == ::SynthMode::FM || source->oscType == OscType::DX7);
-}
-
-/// @brief `sample::Interpolation::isRelevant` (`gui/menu_item/sample/interpolation.h:61-71`).
-bool interpolation(const MenuContext& ctx, uint8_t index) {
-	if (ctx.is_audio_clip) {
-		return true;
-	}
-	const Source* source = source_of(ctx, index);
-	if (ctx.sound == nullptr || source == nullptr) {
-		return false;
-	}
-	return ctx.sound->getSynthMode() == ::SynthMode::SUBTRACTIVE
-	       && ((source->oscType == OscType::SAMPLE && loaded(source)) || source->oscType == OscType::INPUT_L
-	           || source->oscType == OscType::INPUT_R || source->oscType == OscType::INPUT_STEREO);
-}
-
-// ---------------------------------------------------------------------------------------------
-// Batch 2's shared clip-shape tests -- the `SoundEditor::editing*` family
-// (`gui/ui/sound_editor.cpp:199-240`) against `MenuContext` instead of globals.
-
-/// @brief `SoundEditor::editingCVOrMIDIClip()` (`sound_editor.cpp:211-213`).
-bool cv_or_midi_clip(const MenuContext& ctx) {
-	return ctx.output != nullptr && (ctx.output->type == OutputType::MIDI_OUT || ctx.output->type == OutputType::CV);
-}
-
-/// @brief `getCurrentKit()->selectedDrum`, or null when a kit is not what is being edited.
-///
-/// Read from `ctx.output` rather than from `MenuContext::root`: `context_for` only reaches
-/// `Root::MidiDrum` / `Root::GateDrum` when the kit's global-FX page is *not* open
-/// (`context.cpp:269-275`), whereas legacy's `editingNonAudioDrumRow()` asks about the selected
-/// drum whatever page is open. Going to the kit keeps the transcription exact.
-const Drum* selected_drum(const MenuContext& ctx) {
-	if (!ctx.is_kit || ctx.output == nullptr) {
-		return nullptr;
-	}
-	return static_cast<const Kit*>(ctx.output)->selectedDrum;
-}
-
-/// @brief `SoundEditor::editingNonAudioDrumRow()` (`sound_editor.cpp:215-222`).
-bool non_audio_drum_row(const MenuContext& ctx) {
-	const Drum* drum = selected_drum(ctx);
-	return drum != nullptr && (drum->type == DrumType::MIDI || drum->type == DrumType::GATE);
-}
-
-/// @brief `SoundEditor::editingMidiDrumRow()` (`sound_editor.cpp:224-231`).
-bool midi_drum_row(const MenuContext& ctx) {
-	const Drum* drum = selected_drum(ctx);
-	return drum != nullptr && drum->type == DrumType::MIDI;
-}
-
-/// @brief `SoundEditor::editingGateDrumRow()` (`sound_editor.cpp:233-240`).
-bool gate_drum_row(const MenuContext& ctx) {
-	const Drum* drum = selected_drum(ctx);
-	return drum != nullptr && drum->type == DrumType::GATE;
-}
-
-/// @brief `SoundEditor::editingKitAffectEntire()` (`sound_editor.cpp:203-205`) -- the kit's own
-///        global-FX page, which is what `setupKitGlobalFXMenu` selects (`context.h`'s
-///        `kit_global_fx`).
-bool kit_affect_entire(const MenuContext& ctx) {
-	return ctx.is_kit && ctx.is_kit_global_fx;
-}
-
-/// @brief Is the arpeggiator on? The `soundEditor.currentArpSettings->mode != ArpMode::OFF` test
-///        the randomizer items share. A context with no arp settings answers false rather than
-///        dereferencing null (`relevance.cpp`'s file note).
-bool arp_on(const MenuContext& ctx) {
-	return ctx.arp != nullptr && ctx.arp->mode != ArpMode::OFF;
-}
-
-/// @brief `ModControllableAudio::getModFXType()` on a context that may have no mod controllable.
-ModFXType mod_fx_type(const MenuContext& ctx) {
-	return ctx.mod != nullptr ? ctx.mod->getModFXType() : ModFXType::NONE;
 }
 
 } // namespace
@@ -221,10 +104,12 @@ ModFXType mod_fx_type(const MenuContext& ctx) {
 // Sound-wide
 
 bool is_fm(const MenuContext& ctx) {
-	return ctx.sound != nullptr && ctx.sound->getSynthMode() == ::SynthMode::FM;
+	const deluge::instrument::SoundState* state = sound_state(ctx);
+	return state != nullptr && state->synth_mode == SynthMode::FM;
 }
 bool is_subtractive(const MenuContext& ctx) {
-	return ctx.sound != nullptr && ctx.sound->getSynthMode() == ::SynthMode::SUBTRACTIVE;
+	const deluge::instrument::SoundState* state = sound_state(ctx);
+	return state != nullptr && state->synth_mode == SynthMode::SUBTRACTIVE;
 }
 // ---------------------------------------------------------------------------------------------
 // Per-source
@@ -247,13 +132,6 @@ bool osc0_is_sample(const MenuContext& ctx) {
 bool osc1_is_sample(const MenuContext& ctx) {
 	return is_sample_mode_sample(ctx, 1);
 }
-bool osc0_interpolation(const MenuContext& ctx) {
-	return interpolation(ctx, 0);
-}
-bool osc1_interpolation(const MenuContext& ctx) {
-	return interpolation(ctx, 1);
-}
-
 // ---------------------------------------------------------------------------------------------
 // Batch 2 -- the rest of the sound-editor root
 
@@ -261,29 +139,43 @@ bool is_kit_row(const MenuContext& ctx) {
 	return ctx.is_kit && !ctx.is_kit_global_fx;
 }
 bool not_gate_drum_or_kit_fx(const MenuContext& ctx) {
-	return !gate_drum_row(ctx) && !kit_affect_entire(ctx);
+	// `!editingGateDrumRow() && !editingKitAffectEntire()` (`sound_editor.cpp:203-240`). The kit's own global-FX page
+	// answers false whatever row is selected, so the selected row's kind matters only off it, where the root names it.
+	return ctx.root != MenuContext::Root::GateDrum && !(ctx.is_kit && ctx.is_kit_global_fx);
 }
 
-bool reverb_sidechain_on(const MenuContext& /*ctx*/) {
-	return AudioEngine::reverbSidechainVolume >= 0; // `reverb/sidechain/shape.h:32`
+bool reverb_sidechain_on(const MenuContext& ctx) {
+	return ctx.model != nullptr && ctx.model->reverb.sidechain_volume >= 0; // `reverb/sidechain/shape.h:32`
 }
 
 bool stutter_quantize_allowed(const MenuContext& ctx) {
-	return ctx.mod != nullptr && (ctx.mod->isSong() || !ctx.mod->effects().stutter.use_song_stutter);
+	// The song's own stutter always offers quantize; anything else's does unless it plays the song's.
+	if (ctx.facts == nullptr) {
+		return false;
+	}
+	if (const deluge::instrument::SoundState* state = sound_state(ctx); state != nullptr) {
+		return !state->effects.stutter.use_song_stutter;
+	}
+	if (!ctx.addresses.chain) {
+		return false;
+	}
+	if (ctx.addresses.chain_owner == bind::ChainOwner::SONG) {
+		return true;
+	}
+	const deluge::effects::EffectStates* effects = ctx.facts->chain_effects(*ctx.addresses.chain);
+	return effects != nullptr && !effects->stutter.use_song_stutter;
 }
 
 bool bend_submenu(const MenuContext& ctx) {
-	if (ctx.output == nullptr) {
-		return false;
-	}
-	const OutputType type = ctx.output->type;
-	return type == OutputType::SYNTH || type == OutputType::CV || type == OutputType::MIDI_OUT;
+	using Instrument = deluge::engine::SettingContext::Instrument;
+	const Instrument type = ctx.addresses.instrument;
+	return type == Instrument::SYNTH || type == Instrument::CV || type == Instrument::MIDI;
 }
 
 // --- Batch 3 (Task 8) -------------------------------------------------------------------------
 
 bool is_midi_out(const MenuContext& ctx) {
-	return ctx.output != nullptr && ctx.output->type == OutputType::MIDI_OUT;
+	return ctx.addresses.instrument == deluge::engine::SettingContext::Instrument::MIDI;
 }
 
 bool audio_source_is_specific(const MenuContext& ctx) {
@@ -301,10 +193,13 @@ bool audio_source_is_specific(const MenuContext& ctx) {
 }
 
 bool audio_clip_has_sample(const MenuContext& ctx) {
-	if (ctx.clip == nullptr || ctx.clip->type != ClipType::AUDIO) {
+	// A fact of the card: the clip's file is loaded.
+	if (!ctx.is_audio_clip || !ctx.addresses.clip || ctx.facts == nullptr) {
 		return false;
 	}
-	return static_cast<AudioClip*>(ctx.clip)->sampleHolder.audioFile != nullptr;
+	return menu::host_waveforms()
+	    .info({.kind = deluge::scenes::services::WaveformAddress::Kind::AUDIO_CLIP, .clip = *ctx.addresses.clip})
+	    .has_value();
 }
 
 bool battery_shown(const MenuContext& /*ctx*/) {
@@ -374,7 +269,7 @@ namespace {
 		&fn, #fn                                                                                                       \
 	}
 
-constexpr std::array<NamedPredicate, 36> kRegistry{
+constexpr std::array<NamedPredicate, 34> kRegistry{
     DELUGE_RELEVANCE_ROW(is_fm),
     DELUGE_RELEVANCE_ROW(is_subtractive),
     DELUGE_RELEVANCE_ROW(osc0_file_selector),
@@ -383,8 +278,6 @@ constexpr std::array<NamedPredicate, 36> kRegistry{
     DELUGE_RELEVANCE_ROW(osc1_transpose),
     DELUGE_RELEVANCE_ROW(osc0_is_sample),
     DELUGE_RELEVANCE_ROW(osc1_is_sample),
-    DELUGE_RELEVANCE_ROW(osc0_interpolation),
-    DELUGE_RELEVANCE_ROW(osc1_interpolation),
     DELUGE_RELEVANCE_ROW(is_kit_row),
     DELUGE_RELEVANCE_ROW(not_gate_drum_or_kit_fx),
     DELUGE_RELEVANCE_ROW(reverb_sidechain_on),
@@ -416,10 +309,10 @@ constexpr std::array<NamedPredicate, 36> kRegistry{
 
 #undef DELUGE_RELEVANCE_ROW
 
-// One row per predicate declared in `relevance.h` (54), plus the sixteen
+// One row per predicate declared in `relevance.h` (18), plus the sixteen
 // `nodes::relevant_*_iterance_step_*` rows: declared in `nodes/note.h`, not `relevance.h`, but
-// registered here for the reason this section's own note gives. 54 + 16 = 70.
-static_assert(kRegistry.size() == 36);
+// registered here for the reason this section's own note gives. 18 + 16 = 34.
+static_assert(kRegistry.size() == 34);
 
 } // namespace
 

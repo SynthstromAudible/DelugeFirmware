@@ -22,6 +22,7 @@
 #include "scenes/menu/shortcuts.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
+#include "scenes/services/view_state.h"
 
 #include "notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
@@ -34,6 +35,7 @@
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/setting_edit.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
@@ -933,6 +935,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		sound->sources[0].ranges.insertMultiRange(0);
 		sound->sources[0].ranges.insertMultiRange(1);
+		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 		(void)r.open(settings_root);
 		r.shell.tick(0);
 
@@ -959,7 +962,9 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// the picker opens on `numRanges >> 1` -- range 1 of the two -- and `select_range` writes that
 		// back, which is legacy's `soundEditor.currentSource->defaultRangeI = ...` (`:225`).
 		expect(cursor_of(1)).to_equal(1);
-		expect(static_cast<int>(sound->sources[0].defaultRangeI)).to_equal(1);
+		expect(services::view_state().last_range(
+		           deluge::project::SlotAddress{deluge::project::SlotAddress::Kind::OUTPUT, *r.song.instrument->id()}, 0))
+		    .to_equal(std::optional<uint16_t>{1});
 
 		// A select press on the picker chains to the node it stood in for -- `MultiRange::selectButtonPress`
 		// returning `menuItemHeadingTo` (`multi_range.cpp:360-362`) -- and this time the permission
@@ -1062,6 +1067,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		sound->sources[0].ranges.insertMultiRange(0);
 		sound->sources[0].ranges.insertMultiRange(1);
+		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 
 		(void)r.open(transpose_leaf);
 		r.shell.tick(0);

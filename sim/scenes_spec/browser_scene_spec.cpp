@@ -1279,7 +1279,7 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		// `SampleBrowser::opened`'s first arm: the holder's path decides where the browser opens and
 		// which entry it lands on (`sample_browser.cpp:131`).
-		f.clip->sampleHolder.filePath = "SAMPLES/CLIPS/A3.WAV";
+		f.clip->setSampleFilePath("SAMPLES/CLIPS/A3.WAV");
 
 		Rig r;
 		r.open(context_of(f), BrowserId::Sample);
@@ -1392,7 +1392,7 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		auto* instrument = static_cast<MIDIInstrument*>(f.instrument);
 		// `setupForLoadingMidiDeviceDefinition` splits the remembered path into a directory and the
 		// name to select (`load_midi_device_definition_ui.cpp:100-121`).
-		instrument->deviceDefinitionFileName = "MIDI_DEVICES/DEFINITION/DEVICE1.XML";
+		instrument->setDeviceDefinitionFileName("MIDI_DEVICES/DEFINITION/DEVICE1.XML");
 
 		std::string dir;
 		std::string name;

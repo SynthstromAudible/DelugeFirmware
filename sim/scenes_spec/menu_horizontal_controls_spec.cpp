@@ -30,6 +30,7 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
+#include "model/edits/setting_edit.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "processing/sound/sound_instrument.h"
@@ -693,6 +694,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		sound->sources[0].ranges.insertMultiRange(0);
 		sound->sources[0].ranges.insertMultiRange(1); // two ranges: MustSelectRange, not Yes
+		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
 
@@ -735,6 +737,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		sound->sources[0].ranges.insertMultiRange(0);
 		sound->sources[0].ranges.insertMultiRange(1); // two ranges: MustSelectRange, not Yes
+		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
 

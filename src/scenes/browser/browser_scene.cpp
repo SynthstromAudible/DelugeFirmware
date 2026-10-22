@@ -29,19 +29,20 @@
 
 #include "gui/l10n/strings.h"
 
-#include "model/clip/audio_clip.h"
-#include "model/instrument/midi_instrument.h"
-#include "model/output.h"
-#include "storage/audio/audio_file_holder.h"
+#include "deluge-project/setting_group.h"
+#include "deluge-project/song.h"
+#include "engines/deluge/sound_state.h"
+#include "scenes/bind/runtime_facts.h"
 #include "storage/file_catalogue.h"
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
-#include "storage/multi_range/multi_range.h"
 #include "storage/storage_manager.h"
 
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <optional>
+#include <string>
 
 namespace deluge::scenes::browser {
 
@@ -141,19 +142,34 @@ char const* kAudioExtensions[] = {"WAV", "AIFF", "AIF", nullptr};
 
 // --- Sample: `SampleBrowser` (`gui/ui/browser/sample_browser.cpp`) ---
 
-/// @brief `SoundEditor::getCurrentAudioFileHolder` (`gui/ui/sound_editor.cpp:2026-2035`), reached
-///        through the context rather than through the `soundEditor` global.
-///
-/// The two arms are the same two: an audio clip's own `sampleHolder`, or the selected
-/// `MultiRange`'s holder. `context_for` already resolved both (`context.cpp`), so no UI read is
-/// needed to pick between them.
+/// @brief The file `SoundEditor::getCurrentAudioFileHolder` (`gui/ui/sound_editor.cpp:2026-2035`) holds, as the
+///        record names it: an audio clip's own, or the selected range's.
 /// @param ctx What the browser was opened over.
-/// @return The holder, or null when neither arm resolves.
-AudioFileHolder* audio_file_holder(const menu::MenuContext& ctx) {
-	if (ctx.is_audio_clip) {
-		return ctx.clip != nullptr ? &static_cast<AudioClip*>(ctx.clip)->sampleHolder : nullptr;
+/// @return The path (empty for a holder with no file), or nullopt when neither arm resolves.
+std::optional<std::string> sample_path(const menu::MenuContext& ctx) {
+	if (ctx.model == nullptr) {
+		return std::nullopt;
 	}
-	return ctx.range != nullptr ? ctx.range->getAudioFileHolder() : nullptr;
+	if (ctx.is_audio_clip) {
+		if (!ctx.addresses.clip) {
+			return std::nullopt;
+		}
+		const auto& clips = ctx.model->audio_clip_structure.by_id;
+		const auto found = clips.find(ctx.addresses.clip->clip_id);
+		return found != clips.end() ? std::optional{found->second.file_path} : std::nullopt;
+	}
+	if (ctx.facts == nullptr || !ctx.addresses.slot || ctx.range_index < 0 || ctx.source_index < 0
+	    || ctx.source_index >= kNumSources) {
+		return std::nullopt;
+	}
+	const deluge::instrument::SoundState* state = ctx.facts->sound_state(*ctx.addresses.slot);
+	if (state == nullptr) {
+		return std::nullopt;
+	}
+	const auto& ranges = state->sources[ctx.source_index].ranges;
+	return static_cast<size_t>(ctx.range_index) < ranges.size()
+	           ? std::optional{ranges[static_cast<size_t>(ctx.range_index)].file_path}
+	           : std::nullopt;
 }
 
 bool sample_can(const menu::MenuContext& ctx) {
@@ -161,7 +177,7 @@ bool sample_can(const menu::MenuContext& ctx) {
 	// `soundEditor.getCurrentAudioFileHolder()->filePath` (`sample_browser.cpp:131`). Declining to
 	// open is the survivable spelling of that dereference, exactly as `rename::Target::can` is for
 	// `RenameDrumUI`'s `FREEZE_WITH_ERROR`.
-	return audio_file_holder(ctx) != nullptr;
+	return sample_path(ctx).has_value();
 }
 
 void sample_start_at(const menu::MenuContext& ctx, std::string& dir, std::string& name) {
@@ -184,8 +200,8 @@ void sample_start_at(const menu::MenuContext& ctx, std::string& dir, std::string
 	// `lastFilePathLoaded` lives on a `gui/` object this layer may not name, so closing the divergence
 	// means the value arriving through `MenuContext` or a `Services` hook -- not a mirror written
 	// here. Natural home: beside `menu::performance_editing_mode()`.
-	const AudioFileHolder* holder = audio_file_holder(ctx);
-	const std::string_view path = holder != nullptr ? std::string_view{holder->filePath} : std::string_view{};
+	const std::optional<std::string> held = sample_path(ctx);
+	const std::string_view path = held ? std::string_view{*held} : std::string_view{};
 	if (path.empty() || !case_prefix_equal(path, "SAMPLES/", 8)) {
 		return; // dir stays empty -> `Descriptor::default_dir`
 	}
@@ -224,10 +240,16 @@ AcceptOutcome sample_accept(const menu::MenuContext& ctx, std::string_view path,
 /// @brief `MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER` (`load_midi_device_definition_ui.cpp:36`).
 constexpr std::string_view kMidiDeviceDir = "MIDI_DEVICES/DEFINITION";
 
-MIDIInstrument* midi_instrument_of(const menu::MenuContext& ctx) {
-	return (ctx.output != nullptr && ctx.output->type == OutputType::MIDI_OUT)
-	           ? static_cast<MIDIInstrument*>(ctx.output)
-	           : nullptr;
+/// @brief The MIDI track's remembered device definition file, as its record holds it, or nullopt off a MIDI track.
+std::optional<std::string> midi_device_file(const menu::MenuContext& ctx) {
+	if (ctx.addresses.instrument != deluge::engine::SettingContext::Instrument::MIDI || !ctx.addresses.track
+	    || ctx.model == nullptr) {
+		return std::nullopt;
+	}
+	const std::optional<deluge::serialization::Value> file = deluge::project::read_setting(
+	    *ctx.model, {.group = deluge::project::SettingGroupId::INSTRUMENT_DEVICE, .owner = *ctx.addresses.track},
+	    "deviceDefinitionFileName");
+	return file ? file->str() : std::string{};
 }
 
 bool midi_device_can(const menu::MenuContext& ctx) {
@@ -236,17 +258,17 @@ bool midi_device_can(const menu::MenuContext& ctx) {
 	// (`scenes-no-root-ui`); the menu tree only reaches this item from a clip minder anyway, since
 	// `midi_device_linked` hangs off the MIDI/CV root, so the surviving test is the one that
 	// discriminates.
-	return midi_instrument_of(ctx) != nullptr;
+	return midi_device_file(ctx).has_value();
 }
 
 void midi_device_start_at(const menu::MenuContext& ctx, std::string& dir, std::string& name) {
 	// `setupForLoadingMidiDeviceDefinition` (`:83-124`): with no remembered file, open on the
 	// default folder; otherwise split the remembered path and select that file, extension included.
-	const MIDIInstrument* instrument = midi_instrument_of(ctx);
-	if (instrument == nullptr || instrument->deviceDefinitionFileName.empty()) {
+	const std::optional<std::string> file = midi_device_file(ctx);
+	if (!file || file->empty()) {
 		return; // dir stays empty -> `Descriptor::default_dir`
 	}
-	const std::string_view path = instrument->deviceDefinitionFileName;
+	const std::string_view path = *file;
 	const size_t slash = path.rfind('/');
 	if (slash == std::string_view::npos) {
 		return;
@@ -272,7 +294,7 @@ AcceptOutcome midi_device_accept(const menu::MenuContext& ctx, std::string_view 
 	// instrument load (`gui/ui/load/instrument_load.h`), which this layer may not name. The scene
 	// parks the path, as the `Sample` descriptor does, and `gui::ui::dispatchShellChoices` requests
 	// the load.
-	if (midi_instrument_of(ctx) == nullptr) {
+	if (!midi_device_file(ctx)) {
 		error = Error::FILE_NOT_FOUND;
 		return AcceptOutcome::Stay;
 	}

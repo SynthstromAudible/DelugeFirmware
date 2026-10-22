@@ -83,13 +83,6 @@ bool osc1_is_sample(const MenuContext& ctx);
 
 /// @}
 
-/// @brief `sample::Interpolation::isRelevant` (`sample/interpolation.h:61-71`): an audio clip, or a
-///        subtractive sound whose source is a loaded sample or one of the three input modes.
-/// @{
-bool osc0_interpolation(const MenuContext& ctx);
-bool osc1_interpolation(const MenuContext& ctx);
-/// @}
-
 /// @}
 
 /// @name Batch-2 predicates -- the rest of the sound-editor root (Task 7)

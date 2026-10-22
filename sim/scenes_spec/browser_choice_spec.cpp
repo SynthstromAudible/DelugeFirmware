@@ -60,6 +60,7 @@
 #include "gui/ui/shell_host_ui.h"
 #include "hid/display/display.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
@@ -297,8 +298,10 @@ struct SongRig {
 		range = static_cast<MultisampleRange*>(source->getOrCreateFirstRange());
 		range->sampleHolder.audioFile = sample;
 		range->sampleHolder.filePath = std::string{kChosenPath};
+		sample->filePath = std::string{kChosenPath}; // the record names the range's file by its sample
 		range->sampleHolder.startPos = 0;
 		range->sampleHolder.endPos = sample->lengthInSamples;
+		deluge::bridge::recordLoadedSound(*sound, *song.song); // set field by field: recorded as a load does
 	}
 
 	/// @brief The context `SoundEditor::setup` would have resolved for source 0.
