@@ -213,6 +213,14 @@ class SceneParamWrites(unittest.TestCase):
             "with_param->autoParam->setCurrentValueInResponseToUserInput(v, with_param);",
             "param->autoParam->setValuePossiblyForRegion(v, param, pos, length);",
             "param->autoParam->deleteAutomation(action, param);",
+            "param->autoParam->setValueForRegion(pos, length, v, param);",
+            "param->autoParam->setCurrentValueWithNoReversionOrRecording(param, v);",
+            "param->autoParam->setCurrentValueBasicForSetup(v);",
+            "param->autoParam->deleteAutomationBasicForSetup(doc);",
+            "param->autoParam->deleteNodesWithinRegion(param, pos, length);",
+            "param->autoParam->setNodeAtPos(doc, pos, v, true);",
+            "param->autoParam->homogenizeRegion(param, pos, length, v, false, false, 0, false);",
+            "param->autoParam->nudgeNonInterpolatingNodesAtPos(pos, 1, length, action, param);",
         ):
             with self.subTest(line=line):
                 found = self.check(

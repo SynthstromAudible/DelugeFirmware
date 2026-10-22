@@ -523,10 +523,12 @@ def converted_scene_writes(root: Path) -> list[str]:
     return found
 
 
-#: A param written on its AutoParam: a scene's param menu writes its param through SetParamValue (and deletes its
-#: automation through DeleteParamAutomation), which log the change and raise what follows it.
+#: A param's value or automation written on its AutoParam: a scene's param menu writes its param through
+#: SetParamValue (and deletes its automation through DeleteParamAutomation), which log the change and raise what
+#: follows it.
 SCENES_PARAM_WRITE = re.compile(
-    r"(?:->|\.)\s*(setCurrentValueInResponseToUserInput|setValuePossiblyForRegion|deleteAutomation)\s*\("
+    r"(?:->|\.)\s*(set(?:CurrentValue\w*|Value\w*ForRegion|NodeAtPos)|deleteAutomation\w*|deleteNodesWithinRegion"
+    r"|homogenizeRegion|nudgeNonInterpolatingNodesAtPos)\s*\("
 )
 #: The param writes that have no Edit yet, by file (relative to src/scenes) and the text the write's line holds, each
 #: with its reason.
