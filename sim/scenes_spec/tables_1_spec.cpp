@@ -595,8 +595,8 @@ describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 			// takes its `!rootUIIsClipMinderScreen()` arm (`gui/ui/sound_editor.cpp:2041`) and
 			// returns the *song's* stack -- so an unpatched item reports UNPATCHED_GLOBAL here and
 			// UNPATCHED_SOUND on a real sound-editor screen. A `ParamRef` states one kind
-			// statically, and `bindings.cpp` treats the two identically (`serves_param`,
-			// `add_param`), so both spellings are accepted for an unpatched node.
+			// statically, and the node's PARAM target names the param by id either way, so both
+			// spellings are accepted for an unpatched node.
 			const bool unpatched = kind == deluge::modulation::params::Kind::UNPATCHED_SOUND
 			                       || kind == deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
 			if (unpatched) {

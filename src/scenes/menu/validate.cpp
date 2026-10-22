@@ -34,8 +34,8 @@
 ///   * *`ParamRef` resolves* -> `BadParamRef`. Structural, not model-backed: the kind must be one
 ///     `bindings.cpp` can serve and the index must be inside that kind's parameter space
 ///     (`modulation/params/param.h:253-260`). Whether a *particular* song's param manager holds the
-///     collection is `bindings::read`/`write`'s own `serves_param` test, at the point of use, and is
-///     not something a static tree check can decide.
+///     param is `bridge::paramStackAt`'s answer, at the point of use, and is not something a static
+///     tree check can decide.
 ///   * *`Enum` names* -> `EnumWithoutNames`.
 ///   * *shortcut cells* -> `ShortcutToNothing`, over every `MenuContext::Root` and both shift
 ///     layers.

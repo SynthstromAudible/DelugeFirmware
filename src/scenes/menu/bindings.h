@@ -63,9 +63,8 @@ size_t listed_children(const Node& node, const MenuContext& ctx, std::span<const
 
 /// @brief Read what @p node currently shows, in menu units (0..50 for a standard param).
 ///
-/// A `ParamRef` binding reads the param set's stored value and scales it the way legacy's
-/// `readCurrentValue` did; a `get`/`set` binding just calls `get`. A binding with neither, or a
-/// context whose param manager cannot serve the param, reads 0.
+/// A target binding reads through `bind::read` (a PARAM target: the value its param plays, scaled to
+/// menu units); a `get`/`set` binding just calls `get`. A binding with neither reads 0.
 ///
 /// @param node The item to read.
 /// @param ctx  What is being edited (`context_for`'s output).
@@ -74,11 +73,10 @@ int32_t read(const Node& node, const MenuContext& ctx);
 
 /// @brief Write @p value (menu units) into the model, exactly as legacy's `writeCurrentValue` did.
 ///
-/// A `ParamRef` binding goes through `model_stack_for` -> `get{Patched,Unpatched}AutoParamFromId`
-/// -> `AutoParam::setCurrentValueInResponseToUserInput`, extends the write to every `SoundDrum` in
-/// the kit when affect-entire is held on a kit row, calls the feedback hook with the resulting knob
-/// position, and raises `Dirty::ParamAutomation` + `Dirty::ModTarget`. A `get`/`set` binding calls
-/// `set` and raises `Dirty::Oled`.
+/// A target binding hands its write to the app's sink (a PARAM target: `SetParamValue`, or
+/// `SetKitParamValue` when affect-entire is held on a kit row) and raises `Dirty::Oled`, plus
+/// `Dirty::ParamAutomation`, `Dirty::ModTarget` and `Dirty::GridMain` for a param. A `get`/`set`
+/// binding calls `set` and raises `Dirty::Oled`.
 ///
 /// @param node  The item to write.
 /// @param ctx   What is being edited.

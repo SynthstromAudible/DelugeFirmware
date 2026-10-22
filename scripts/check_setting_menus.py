@@ -27,7 +27,7 @@ one.
 
 Nor may a file under src/scenes write a param on its AutoParam: a param menu writes through SetParamValue and deletes
 its automation through DeleteParamAutomation (model/edits/). The gold knob's turn and automation delete and a patch
-cable's strength still do, allowed line by line until 2c-2 gives them their Edits.
+cable's strength have no Edit yet and still do, each allowed by its line.
 
 Two gestures write the runtime themselves and record what they wrote, checked file by file: a file that writes a mod
 knob (a `modKnobs[...]` descriptor, or learnKnob()/unlearnKnobs() on what is not a menu item) also calls
@@ -528,18 +528,18 @@ def converted_scene_writes(root: Path) -> list[str]:
 SCENES_PARAM_WRITE = re.compile(
     r"(?:->|\.)\s*(setCurrentValueInResponseToUserInput|setValuePossiblyForRegion|deleteAutomation)\s*\("
 )
-#: The param writes 2c-2 still owes an Edit, by file (relative to src/scenes) and the text the write's line holds, each
+#: The param writes that have no Edit yet, by file (relative to src/scenes) and the text the write's line holds, each
 #: with its reason.
 SCENES_PARAM_ALLOWED: dict[str, dict[str, str]] = {
     "menu/context.cpp": {
         "setValuePossiblyForRegion(new_value, param, target.mod_pos, target.mod_length)": "a gold knob's turn, "
-        "written for the region the view holds; 2c-2 owes it its Edit",
-        "deleteAutomation(action, param)": "shift+select on a gold knob deletes its automation; 2c-2 owes it "
-        "DeleteParamAutomation",
+        "written for the region the view holds, which SetParamValue's address form does not yet take",
+        "deleteAutomation(action, param)": "shift+select on a gold knob deletes its automation; the knob has no param address to "
+        "hand DeleteParamAutomation yet",
     },
     "menu/bindings.cpp": {
         "setCurrentValueInResponseToUserInput(final_value, with_param)": "a patch cable's strength, which may "
-        "create the cable; 2c-2 owes it its Edit",
+        "create the cable, which no Edit does yet",
     },
 }
 

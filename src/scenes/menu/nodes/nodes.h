@@ -123,8 +123,7 @@ inline constexpr std::span<const Node* const> kRangeDependentNodes{kRangeDepende
 /// `computeFinalValueForHalfPrecisionMenuItem` over `gui/menu_item/` finds exactly those two
 /// classes; every other batch-2 param class keeps `patched_param::Integer`'s or
 /// `UnpatchedParam`'s standard scaling, and the two pan items (`panMenu`, `reverbPanMenu`) use
-/// `Scaling::Pan`, which is a different flag with its own inference backstop (`bindings.cpp`'s
-/// `scaling_for`).
+/// `Scaling::Pan`, which is a different flag.
 inline constexpr const Node* kHalfPrecisionArray[] = {&osc0_pulse_width, &osc1_pulse_width, &comp_threshold};
 inline constexpr std::span<const Node* const> kHalfPrecisionNodes{kHalfPrecisionArray};
 

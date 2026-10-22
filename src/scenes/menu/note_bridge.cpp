@@ -5,7 +5,7 @@ namespace deluge::scenes::menu {
 namespace {
 
 /// @brief The installed bridge, or null. A single pointer, set once at start-up by the
-///        application; no heap, no ownership -- mirrors `bindings.cpp`'s `g_feedback_hook`.
+///        application; no heap, no ownership.
 const NoteBridge* g_note_bridge = nullptr;
 
 } // namespace
