@@ -2457,10 +2457,16 @@ int32_t SoundEditor::getCurrentZoneIndex(int32_t sourceId) {
 		return 0;
 	}
 
-	// The zone picked for this editing session, while the editor still holds it.
-	if (currentSourceIndex == sourceId && currentMultiRange != nullptr && currentMultiRangeIndex >= 0
-	    && currentMultiRangeIndex < numRanges) {
-		return currentMultiRangeIndex;
+	// The zone picked for this editing session, while the editor still holds it. Found by address rather
+	// than read from currentMultiRangeIndex: setCurrentSource() can point currentMultiRange at the first
+	// zone without updating the index, and a title built from the index would then name a different zone
+	// from the one the pads, the browser and the marker editor are working on.
+	if (currentSourceIndex == sourceId && currentMultiRange != nullptr) {
+		for (int32_t i = 0; i < numRanges; i++) {
+			if (source.ranges.getElement(i) == currentMultiRange) {
+				return i;
+			}
+		}
 	}
 
 	// Otherwise the source's own record of its current zone. currentMultiRange is transient - several
