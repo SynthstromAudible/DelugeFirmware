@@ -24,6 +24,7 @@
 #include "storage/audio/audio_file_holder.h"
 #include "storage/multi_range/multi_range.h"
 
+#include "support/menu_engine.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -68,7 +69,7 @@ describe sample_ready_redraws("a source's file finishing loading, or being taken
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
 		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
-		deluge::edits::settingFor(*ctx.sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
+		deluge::edits::settingFor(*spec::menu_engine(ctx).sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
 		PageRig r;
 		r.open(menu::nodes::source0, ctx);
 		r.shell.tick(20);
@@ -78,7 +79,7 @@ describe sample_ready_redraws("a source's file finishing loading, or being taken
 		expect(bindings::relevant(menu::nodes::sample0_repeat, ctx)).to_be_false();
 
 		auto* sample = static_cast<AudioFile*>(new (deluge::memory::alloc_fast(sizeof(Sample))) Sample());
-		AudioFileHolder* holder = ctx.sound->sources[0].getOrCreateFirstRange()->getAudioFileHolder();
+		AudioFileHolder* holder = spec::menu_engine(ctx).sound->sources[0].getOrCreateFirstRange()->getAudioFileHolder();
 		holder->AudioFileHolder::setAudioFile(sample, false, false, CLUSTER_DONT_LOAD);
 		r.shell.tick(60);
 		expect(r.fake.blits.size() > settled).to_be_true();

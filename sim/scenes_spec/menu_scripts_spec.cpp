@@ -234,6 +234,7 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 
+#include "support/menu_engine.h"
 #include "support/no_notification_sink.h"
 #include "support/song_fixture.h"
 
@@ -1193,7 +1194,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		ParamDescriptor plain;
 		plain.setToHaveParamAndSource(deluge::modulation::params::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1);
 		expect(seed_cable(ctx, plain, 1234)).to_be_true();
-		PatchCableSet* const set = ctx.params->getPatchCableSetAllowJibberish();
+		PatchCableSet* const set = spec::menu_engine(ctx).params->getPatchCableSetAllowJibberish();
 		expect(set != nullptr).to_be_true();
 		ParamDescriptor destination;
 		destination.setToHaveParamOnly(deluge::modulation::params::LOCAL_LPF_FREQ);

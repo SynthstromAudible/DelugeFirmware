@@ -137,14 +137,15 @@ void set_word(Sound& sound, std::string_view path, std::string_view word) {
 	sound_setting(sound, path, word);
 }
 void set_arp(const MenuContext& ctx, std::string_view mode) {
-	deluge::edits::arpSettingFor(*ctx.arp, "arpeggiator/arpMode", Value::makeScalar(std::string{mode}));
+	deluge::edits::arpSettingFor(*spec::menu_engine(ctx).arp, "arpeggiator/arpMode",
+	                             Value::makeScalar(std::string{mode}));
 }
 void set_song_stutter(const MenuContext& ctx, bool use) {
 	deluge::edits::effectSettingFor(*ctx.mod, "stutter/useSongStutter", Value::makeNumber(use ? 1 : 0));
 }
 /// A sound as `enter` leaves it, poly, its arp off, using the song's stutter.
 void plain_sound(const MenuContext& ctx) {
-	set_word(*ctx.sound, "polyphonic", "poly");
+	set_word(*spec::menu_engine(ctx).sound, "polyphonic", "poly");
 	set_arp(ctx, "off");
 	set_song_stutter(ctx, true);
 }
@@ -154,8 +155,8 @@ void plain_kit(const MenuContext& ctx, std::string_view arp_mode) {
 	set_song_stutter(ctx, true);
 }
 void osc_types(const MenuContext& ctx, OscType first, OscType second) {
-	set_word(*ctx.sound, "osc1/type", deluge::instrument::to_string(first));
-	set_word(*ctx.sound, "osc2/type", deluge::instrument::to_string(second));
+	set_word(*spec::menu_engine(ctx).sound, "osc1/type", deluge::instrument::to_string(first));
+	set_word(*spec::menu_engine(ctx).sound, "osc2/type", deluge::instrument::to_string(second));
 }
 
 const std::vector<Family> kSoundFamilies{Family::INSTRUMENT, Family::EFFECT,      Family::ARP,
@@ -171,7 +172,7 @@ const std::vector<Family> kAudioFamilies{Family::AUDIO_CLIP, Family::EFFECT, Fam
 const std::vector<Family> kSongFamilies{Family::SONG, Family::EFFECT};
 
 void set_cv_channel(const MenuContext& ctx, int32_t channel) {
-	deluge::edits::trackSettingFor(*ctx.output, "channel", Value::makeNumber(channel));
+	deluge::edits::trackSettingFor(*spec::menu_engine(ctx).output, "channel", Value::makeNumber(channel));
 }
 void set_song(std::string_view path, int32_t value) {
 	deluge::edits::songSettingFor(path, Value::makeNumber(value));
@@ -187,14 +188,15 @@ AudioFile* fake_file() {
 }
 /// Give source @p source of the sound @p ctx edits a loaded file.
 void load_file(const MenuContext& ctx, int32_t source) {
-	ctx.sound->sources[source].getOrCreateFirstRange()->getAudioFileHolder()->audioFile = fake_file();
+	spec::menu_engine(ctx).sound->sources[source].getOrCreateFirstRange()->getAudioFileHolder()->audioFile =
+	    fake_file();
 }
 /// Take every fake file off the sound @p ctx edits, before its oscillator types change again.
 void unload_files(const MenuContext& ctx) {
-	if (ctx.sound == nullptr) {
+	if (spec::menu_engine(ctx).sound == nullptr) {
 		return;
 	}
-	for (Source& source : ctx.sound->sources) {
+	for (Source& source : spec::menu_engine(ctx).sound->sources) {
 		for (int32_t e = 0; e < std::ssize(source.ranges); ++e) {
 			source.ranges.getElement(e)->getAudioFileHolder()->audioFile = nullptr;
 		}
@@ -203,9 +205,9 @@ void unload_files(const MenuContext& ctx) {
 /// The descriptor context @p where stands for, with the sources that hold a file as the host reads them off the sound.
 SettingContext descriptor_context(const Fixture& fixture, const MenuContext& ctx, Family family) {
 	SettingContext shown = context_of(fixture.where, family);
-	if (ctx.sound != nullptr) {
+	if (spec::menu_engine(ctx).sound != nullptr) {
 		for (int32_t i = 0; i < static_cast<int32_t>(deluge::engine::kMaxSoundSources); ++i) {
-			if (ctx.sound->sources[i].hasAtLeastOneAudioFileLoaded()) {
+			if (spec::menu_engine(ctx).sound->sources[i].hasAtLeastOneAudioFileLoaded()) {
 				shown.loaded_sources |= static_cast<uint8_t>(1 << i);
 			}
 		}
@@ -221,12 +223,12 @@ const std::vector<Fixture>& fixtures() {
 	    {"a mono synth", Where::SYNTH, kSoundFamilies,
 	     [](const MenuContext& c) {
 		     plain_sound(c);
-		     set_word(*c.sound, "polyphonic", "mono");
+		     set_word(*spec::menu_engine(c).sound, "polyphonic", "mono");
 	     }},
 	    {"a legato synth", Where::SYNTH, kSoundFamilies,
 	     [](const MenuContext& c) {
 		     plain_sound(c);
-		     set_word(*c.sound, "polyphonic", "legato");
+		     set_word(*spec::menu_engine(c).sound, "polyphonic", "legato");
 	     }},
 	    {"a synth playing samples with no file", Where::SYNTH_SAMPLE, kSoundFamilies,
 	     [](const MenuContext& c) { plain_sound(c); }},
@@ -268,21 +270,21 @@ const std::vector<Fixture>& fixtures() {
 	    {"a synth with other LFO waves", Where::SYNTH, kSoundFamilies,
 	     [](const MenuContext& c) {
 		     plain_sound(c);
-		     set_word(*c.sound, "lfo1/type", deluge::instrument::to_string(LFOType::SINE));
-		     set_word(*c.sound, "lfo2/type", deluge::instrument::to_string(LFOType::RANDOM_WALK));
-		     set_word(*c.sound, "lfo3/type", deluge::instrument::to_string(LFOType::WARBLER));
+		     set_word(*spec::menu_engine(c).sound, "lfo1/type", deluge::instrument::to_string(LFOType::SINE));
+		     set_word(*spec::menu_engine(c).sound, "lfo2/type", deluge::instrument::to_string(LFOType::RANDOM_WALK));
+		     set_word(*spec::menu_engine(c).sound, "lfo3/type", deluge::instrument::to_string(LFOType::WARBLER));
 	     }},
 	    {"an FM synth whose first oscillator holds a sample", Where::SYNTH, kSoundFamilies,
 	     [](const MenuContext& c) {
 		     plain_sound(c);
 		     osc_types(c, OscType::SAMPLE, OscType::SQUARE);
-		     set_word(*c.sound, "mode", "fm");
+		     set_word(*spec::menu_engine(c).sound, "mode", "fm");
 	     }},
 	    {"an FM synth whose oscillators hold wavetables", Where::SYNTH, kSoundFamilies,
 	     [](const MenuContext& c) {
 		     plain_sound(c);
 		     osc_types(c, OscType::WAVETABLE, OscType::WAVETABLE);
-		     set_word(*c.sound, "mode", "fm");
+		     set_word(*spec::menu_engine(c).sound, "mode", "fm");
 	     }},
 	    {"a synth playing loaded samples", Where::SYNTH, kSoundFamilies,
 	     [](const MenuContext& c) {
@@ -309,14 +311,14 @@ const std::vector<Fixture>& fixtures() {
 		     plain_sound(c);
 		     osc_types(c, OscType::WAVETABLE, OscType::WAVETABLE);
 		     load_file(c, 1);
-		     set_word(*c.sound, "mode", "fm");
+		     set_word(*spec::menu_engine(c).sound, "mode", "fm");
 	     }},
 	    {"an FM synth whose first oscillator holds a loaded sample", Where::SYNTH, kSoundFamilies,
 	     [](const MenuContext& c) {
 		     plain_sound(c);
 		     osc_types(c, OscType::SAMPLE, OscType::SQUARE);
 		     load_file(c, 0);
-		     set_word(*c.sound, "mode", "fm");
+		     set_word(*spec::menu_engine(c).sound, "mode", "fm");
 	     }},
 	    {"a kit's sound row", Where::KIT_LANE, kLaneFamilies, [](const MenuContext& c) { plain_sound(c); }},
 	    {"a kit's sound row with its own stutter", Where::KIT_LANE, kLaneFamilies,
@@ -333,7 +335,7 @@ const std::vector<Fixture>& fixtures() {
 	    {"a kit's sound row in FM", Where::KIT_LANE, kLaneFamilies,
 	     [](const MenuContext& c) {
 		     plain_sound(c);
-		     set_word(*c.sound, "mode", "fm");
+		     set_word(*spec::menu_engine(c).sound, "mode", "fm");
 	     }},
 	    {"a kit's sound row with its arp on", Where::KIT_LANE, kLaneFamilies,
 	     [](const MenuContext& c) {
@@ -388,13 +390,13 @@ const std::vector<Fixture>& fixtures() {
 	     }},
 	    {"an audio clip", Where::AUDIO_CLIP, kAudioFamilies,
 	     [](const MenuContext& c) {
-		     deluge::edits::audioInputSettingFor(static_cast<AudioOutput&>(*c.output), "inputChannel",
-		                                         Value::makeScalar("left"));
+		     deluge::edits::audioInputSettingFor(static_cast<AudioOutput&>(*spec::menu_engine(c).output),
+		                                         "inputChannel", Value::makeScalar("left"));
 	     }},
 	    {"an audio clip recording another track", Where::AUDIO_CLIP, kAudioFamilies,
 	     [](const MenuContext& c) {
-		     deluge::edits::audioInputSettingFor(static_cast<AudioOutput&>(*c.output), "inputChannel",
-		                                         Value::makeScalar("specificTrack"));
+		     deluge::edits::audioInputSettingFor(static_cast<AudioOutput&>(*spec::menu_engine(c).output),
+		                                         "inputChannel", Value::makeScalar("specificTrack"));
 	     }},
 	    {"the song with the freeverb", Where::SONG, kSongFamilies,
 	     [](const MenuContext&) {

@@ -439,7 +439,7 @@ bool MenuScene::on_enter(const SceneId& id) {
 		// `gui/ui/shell_menu_entry.cpp`'s table -- `soundEditor.setup(getCurrentInstrumentClip(),
 		// &menu_item::file0SelectorMenu, 0)`, `gui/views/instrument_clip_view.cpp:515` -- and the
 		// shortcut-pad jump, which comes back through here as an `Action::Kind::Replace`
-		// (`handle`'s `Replace` arm), both arrived with `ctx_.range` still null on a source with no
+		// (`handle`'s `Replace` arm), both arrived with no range selected on a source with no
 		// ranges yet. **Measured** at level 3 on a fresh synth clip: the toggle-OFF leg opened the
 		// sample browser and the toggle-ON leg did not, because `browser::sample_can` refuses a
 		// null `AudioFileHolder` (`scenes/browser/browser_scene.cpp:152-164`) and the push was
@@ -470,7 +470,7 @@ bool MenuScene::on_enter(const SceneId& id) {
 			}
 			// `:2005-2014`, the two arms after that allocation. `ensure_first_range` has already
 			// applied the first -- a kit row or a single range is unambiguous, so it points
-			// `ctx_.range` at range 0 (`:2005-2007`). What is left is legacy's own
+			// `ctx_.range_index` at range 0 (`:2005-2007`). What is left is legacy's own
 			// `MUST_SELECT_RANGE` (`:2014`): a range-dependent item on a source with more than one
 			// range and none remembered. Spelled as "the allocation did not resolve one" rather
 			// than by calling `permission_for`, whose first statement is the relevance fold above.
@@ -2113,7 +2113,7 @@ deluge::ui::grid::GreyoutMask MenuScene::greyout_mask() const {
 	if (ctx_.root == MenuContext::Root::NoteRowEditor) {
 		return {};
 	}
-	if (ctx_.clip != nullptr && !ctx_.is_song_view && !ctx_.is_audio_clip) {
+	if (ctx_.addresses.clip && !ctx_.is_song_view && !ctx_.is_audio_clip) {
 		return {0xFFFFFFFEu, 0}; // `:236` / `:283` INSTRUMENT_CLIP, the plain sound-editor arm
 	}
 	// `:252` default -- which is where an AUDIO_CLIP root UI lands too: legacy's switch has no

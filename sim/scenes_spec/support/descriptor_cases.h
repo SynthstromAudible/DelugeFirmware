@@ -279,6 +279,7 @@ using deluge::hid::display::OLED;
 #include "storage/flash_storage.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
+#include "support/menu_engine.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -508,17 +509,18 @@ inline void legacy_write(::MenuItem* item, int32_t menu) {
 /// Point the `soundEditor` globals at what @p ctx edits, as the sound editor's setup does.
 inline void install(const MenuContext& ctx, Song* song) {
 	currentSong = song;
-	if (ctx.clip != nullptr) {
-		song->setCurrentClip(ctx.clip);
+	const spec::MenuEngine engine = spec::menu_engine(ctx);
+	if (engine.clip != nullptr) {
+		song->setCurrentClip(engine.clip);
 	}
-	soundEditor.currentSound = ctx.sound;
+	soundEditor.currentSound = engine.sound;
 	soundEditor.currentModControllable = ctx.mod;
-	soundEditor.currentParamManager = ctx.params;
+	soundEditor.currentParamManager = engine.params;
 	soundEditor.currentSourceIndex = ctx.source_index;
-	soundEditor.currentSource = ctx.source;
-	soundEditor.currentMultiRange = ctx.range;
+	soundEditor.currentSource = engine.source;
+	soundEditor.currentMultiRange = engine.range;
 	soundEditor.currentMultiRangeIndex = ctx.range_index;
-	soundEditor.currentArpSettings = ctx.arp;
+	soundEditor.currentArpSettings = engine.arp;
 	soundEditor.setupKitGlobalFXMenu = ctx.is_kit_global_fx;
 	soundEditor.allowsNoteTails = true;
 	currentUIMode = 0;
@@ -688,7 +690,7 @@ inline const MenuContext& enter(Where where, int8_t source = 0) {
 	case Where::SYNTH_FM:
 	case Where::SYNTH_RINGMOD: {
 		Synth& s = synth();
-		Sound& sound = *s.ctx.sound;
+		Sound& sound = *spec::menu_engine(s.ctx).sound;
 		sound_setting(sound, "mode", "subtractive");
 		const std::string_view type = where == Where::SYNTH_SAMPLE ? "sample" : "square";
 		sound_setting(sound, "osc1/type", type);
@@ -954,14 +956,14 @@ inline void set_stored(Family family, const MenuContext& ctx, Where where, const
 	const Value value = file_form(row, stored);
 	switch (family) {
 	case Family::INSTRUMENT:
-		deluge::edits::settingFor(*ctx.sound, row.path, value);
+		deluge::edits::settingFor(*spec::menu_engine(ctx).sound, row.path, value);
 		return;
 	case Family::EFFECT:
 		deluge::edits::effectSettingFor(*ctx.mod, row.path, value);
 		return;
 	case Family::ARP:
 	case Family::ARP_HOST:
-		deluge::edits::arpSettingFor(*ctx.arp, row.path, value);
+		deluge::edits::arpSettingFor(*spec::menu_engine(ctx).arp, row.path, value);
 		return;
 	case Family::AUDIO_CLIP:
 		deluge::edits::audioClipSettingFor(*audio_clip().song.clip, row.path, value);
@@ -970,21 +972,21 @@ inline void set_stored(Family family, const MenuContext& ctx, Where where, const
 		deluge::edits::songSettingFor(row.path, value);
 		return;
 	case Family::CLIP_VALUES:
-		deluge::edits::clipValueSettingFor(*static_cast<InstrumentClip*>(ctx.clip), row.path, value);
+		deluge::edits::clipValueSettingFor(*static_cast<InstrumentClip*>(spec::menu_engine(ctx).clip), row.path, value);
 		return;
 	case Family::NOTE_ROW: {
-		auto& clip = *static_cast<InstrumentClip*>(ctx.clip);
+		auto& clip = *static_cast<InstrumentClip*>(spec::menu_engine(ctx).clip);
 		deluge::edits::noteRowSettingFor(*clip.getNoteRowForDrum(kit_lane().drum), clip, row.path, value);
 		return;
 	}
 	case Family::CLIP:
-		deluge::edits::clipSettingFor(*ctx.clip, row.path, value);
+		deluge::edits::clipSettingFor(*spec::menu_engine(ctx).clip, row.path, value);
 		return;
 	case Family::INSTRUMENT_DEVICE:
-		deluge::edits::trackSettingFor(*ctx.output, row.path, value);
+		deluge::edits::trackSettingFor(*spec::menu_engine(ctx).output, row.path, value);
 		return;
 	case Family::AUDIO_INPUT:
-		deluge::edits::audioInputSettingFor(static_cast<AudioOutput&>(*ctx.output), row.path, value);
+		deluge::edits::audioInputSettingFor(static_cast<AudioOutput&>(*spec::menu_engine(ctx).output), row.path, value);
 		return;
 	}
 	(void)where;
@@ -995,14 +997,14 @@ inline std::optional<int32_t> get_stored(Family family, const MenuContext& ctx, 
 	std::optional<Value> value;
 	switch (family) {
 	case Family::INSTRUMENT:
-		value = deluge::instrument::setting_value(*ctx.sound->boundState(), row.path);
+		value = deluge::instrument::setting_value(*spec::menu_engine(ctx).sound->boundState(), row.path);
 		break;
 	case Family::EFFECT:
 		value = deluge::effects::effect_setting_value(ctx.mod->effects(), row.path);
 		break;
 	case Family::ARP:
 	case Family::ARP_HOST:
-		return arp_field(*ctx.arp, row.path);
+		return arp_field(*spec::menu_engine(ctx).arp, row.path);
 	case Family::AUDIO_CLIP: {
 		AudioClipRig& a = audio_clip();
 		const auto address = deluge::bridge::audioClipAddressOf(*a.song.clip, *a.song.song);
@@ -1019,7 +1021,8 @@ inline std::optional<int32_t> get_stored(Family family, const MenuContext& ctx, 
 		break;
 	case Family::CLIP_VALUES: {
 		Song& song = song_of(where);
-		const auto address = deluge::bridge::clipAddressOf(*static_cast<InstrumentClip*>(ctx.clip), song);
+		const auto address =
+		    deluge::bridge::clipAddressOf(*static_cast<InstrumentClip*>(spec::menu_engine(ctx).clip), song);
 		if (!address) {
 			return std::nullopt;
 		}
@@ -1028,7 +1031,7 @@ inline std::optional<int32_t> get_stored(Family family, const MenuContext& ctx, 
 		break;
 	}
 	case Family::NOTE_ROW: {
-		auto& clip = *static_cast<InstrumentClip*>(ctx.clip);
+		auto& clip = *static_cast<InstrumentClip*>(spec::menu_engine(ctx).clip);
 		NoteRow* note_row = clip.getNoteRowForDrum(kit_lane().drum);
 		const auto address = deluge::bridge::noteRowAddressOf(*note_row, clip, song_of(where));
 		if (!address) {
@@ -1039,7 +1042,7 @@ inline std::optional<int32_t> get_stored(Family family, const MenuContext& ctx, 
 		break;
 	}
 	case Family::CLIP: {
-		const auto address = deluge::bridge::clipAddressOf(*ctx.clip, song_of(where));
+		const auto address = deluge::bridge::clipAddressOf(*spec::menu_engine(ctx).clip, song_of(where));
 		if (!address) {
 			return std::nullopt;
 		}
@@ -1049,7 +1052,7 @@ inline std::optional<int32_t> get_stored(Family family, const MenuContext& ctx, 
 	}
 	case Family::INSTRUMENT_DEVICE:
 	case Family::AUDIO_INPUT: {
-		const auto address = deluge::bridge::trackAddressOf(*ctx.output, song_of(where));
+		const auto address = deluge::bridge::trackAddressOf(*spec::menu_engine(ctx).output, song_of(where));
 		if (!address) {
 			return std::nullopt;
 		}
@@ -1211,7 +1214,7 @@ struct SpecReader {
 			        switch (owner.family) {
 			        case Family::INSTRUMENT: {
 				        const std::optional<int32_t> held =
-				            deluge::instrument::held_setting(*owner.ctx.sound->boundState(), path);
+				            deluge::instrument::held_setting(*spec::menu_engine(owner.ctx).sound->boundState(), path);
 				        if (!held) {
 					        owner.unknown.emplace_back(path);
 				        }
@@ -1219,7 +1222,7 @@ struct SpecReader {
 			        }
 			        case Family::ARP:
 			        case Family::ARP_HOST:
-				        return arp_field(*owner.ctx.arp, path);
+				        return arp_field(*spec::menu_engine(owner.ctx).arp, path);
 			        default:
 				        return get_stored(owner.family, owner.ctx, owner.where, *row);
 			        }
@@ -1842,10 +1845,11 @@ inline const SettingInfo& table_row(Family family, std::string_view path) {
 inline bool note_for_drum_differs() {
 	const MenuContext& ctx = enter(Where::KIT_LANE);
 	const SettingInfo& row = table_row(Family::INSTRUMENT, "midiOutput/noteForDrum");
-	const uint8_t before = ctx.sound->outputMidiNoteForDrum;
-	ctx.sound->outputMidiNoteForDrum = MIDI_NOTE_NONE;
+	Sound& sound = *spec::menu_engine(ctx).sound;
+	const uint8_t before = sound.outputMidiNoteForDrum;
+	sound.outputMidiNoteForDrum = MIDI_NOTE_NONE;
 	const int32_t shown = legacy_read(&outputMidiNoteForDrumMenu);
-	ctx.sound->outputMidiNoteForDrum = before;
+	sound.outputMidiNoteForDrum = before;
 	const int32_t unset = int32_t{MIDI_NOTE_NONE};
 	return unset > deluge::engine::stored_bounds(row).second && shown == to_menu(row, unset);
 }

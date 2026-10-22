@@ -250,13 +250,8 @@ struct Rig {
 	}
 
 	MenuContext ctx() {
-		MenuContext c = menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
-		// `context_for` resolves the range only when the source has exactly one; it does here, so
-		// this is an assertion about the fixture rather than an override.
-		c.range = range;
-		c.source = source;
-		c.sample_controls = &source->sampleControls;
-		return c;
+		// `context_for` resolves the range only when the source has exactly one, as it has here.
+		return menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
 	}
 
 	/// @brief The range's waveform address.
@@ -764,7 +759,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
 		expect(menu::ensure_first_range(ctx)).to_be_true();
-		expect(ctx.range != nullptr && ctx.range_index == 0).to_be_true();
+		expect(ctx.range_index).to_equal(static_cast<int16_t>(0));
 		expect(menu::host_runtime_facts().sound_state(slot)->sources[0].ranges.size()).to_equal(size_t{1});
 		expect(deluge::harness::soundIncoherence(*sound, *f.song)).to_equal(std::string{});
 		// The range is the one a source makes for itself, as legacy's getOrCreateFirstRange leaves it.

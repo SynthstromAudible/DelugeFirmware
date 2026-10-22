@@ -106,6 +106,7 @@ using deluge::hid::display::OLED;
 
 #include "support/fake_note_bridge.h"
 #include "support/host_flash.h"
+#include "support/menu_engine.h"
 #include "support/song_fixture.h"
 
 #include "spec/gfx/support/golden.h"
@@ -180,23 +181,18 @@ struct ValuePeek : legacy::Value<T> {
 ///        which `context_for` never sets).
 void install(const MenuContext& ctx, Song* song) {
 	currentSong = song;
-	song->setCurrentClip(ctx.clip);
-	soundEditor.currentSound = ctx.sound;
+	song->setCurrentClip(spec::menu_engine(ctx).clip);
+	soundEditor.currentSound = spec::menu_engine(ctx).sound;
 	soundEditor.currentModControllable = ctx.mod;
-	soundEditor.currentParamManager = ctx.params;
+	soundEditor.currentParamManager = spec::menu_engine(ctx).params;
 	soundEditor.currentSourceIndex = ctx.source_index;
-	soundEditor.currentSource = ctx.source;
-	soundEditor.currentMultiRange = ctx.range;
+	soundEditor.currentSource = spec::menu_engine(ctx).source;
+	soundEditor.currentMultiRange = spec::menu_engine(ctx).range;
 	soundEditor.currentMultiRangeIndex = ctx.range_index;
-	soundEditor.currentArpSettings = ctx.arp;
+	soundEditor.currentArpSettings = spec::menu_engine(ctx).arp;
 	// `SoundEditor::setup` derives the sidechain from the mod-controllable (`sound_editor.cpp:2086-2088`).
 	soundEditor.currentSidechain = ctx.mod != nullptr ? &ctx.mod->core().sidechain() : nullptr;
-	soundEditor.allowsNoteTails = true;
-	if (ctx.sound != nullptr) {
-		char memory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* stack = menu::model_stack_for(ctx, memory);
-		soundEditor.allowsNoteTails = ctx.sound->allowNoteTails(stack->addSoundFlags(), true);
-	}
+	soundEditor.allowsNoteTails = spec::sound_allows_note_tails(ctx);
 	// `SoundEditor::editingKitAffectEntire()` (`sound_editor.cpp:203-205`) reads this member, and the
 	// whole kit-global-FX arpeggiator page's relevance turns on it. `context_for` takes the same fact
 	// as its `kit_global_fx` argument and reports it back as `is_kit_global_fx`.
@@ -537,7 +533,8 @@ bool relevance_reads_root_ui(const Node& node) {
 /// which returns false for a null sound, and the example below asserts exactly that instead of
 /// calling the legacy override.
 bool legacy_relevance_needs_sound(const Pair& p) {
-	return p.root->ctx.sound == nullptr && (p.node == &nodes::sample0_recorder || p.node == &nodes::sample1_recorder);
+	return spec::menu_engine(p.root->ctx).sound == nullptr
+	       && (p.node == &nodes::sample0_recorder || p.node == &nodes::sample1_recorder);
 }
 
 /// @brief Nodes whose **legacy** `writeCurrentValue()` this spec cannot drive, and why. Every one
@@ -1189,7 +1186,7 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 			// song, performance and settings roots have none by construction (`context_for`'s
 			// `clip == nullptr` arm is what selects them), so the *kind* half of this comparison is
 			// restricted to the seven clip-backed roots; the *index* half above covers all ten.
-			if (p.root->ctx.clip == nullptr) {
+			if (spec::menu_engine(p.root->ctx).clip == nullptr) {
 				continue;
 			}
 			const auto kind = p.item->getParamKind();
@@ -1437,8 +1434,8 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 			return;
 		}
 		// The fixture really is a MIDI param manager, and it really does look servable structurally.
-		expect(midi->ctx.params != nullptr).to_be_true();
-		expect(midi->ctx.params->containsAnyParamCollectionsIncludingExpression()).to_be_true();
+		expect(spec::menu_engine(midi->ctx).params != nullptr).to_be_true();
+		expect(spec::menu_engine(midi->ctx).params->containsAnyParamCollectionsIncludingExpression()).to_be_true();
 
 		// Fix round 1, I1. `summaries[1]` being non-null is NOT proof of a `PatchedParamSet`:
 		// `setupMIDI` leaves `expressionParamSetOffset == 1` (`param_manager.cpp:66-69`), so
@@ -1447,8 +1444,8 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 		// (`gui/menu_item/bend_range/main.h:30`) from `bendMenu`, which is a child of this very root.
 		// So the scenario is reproduced here rather than assumed away: create the expression set the
 		// way a user editing bend range would, then assert a PATCHED `ParamRef` is *still* refused.
-		expect(midi->ctx.params->getOrCreateExpressionParamSet() != nullptr).to_be_true();
-		expect(midi->ctx.params->summaries[1].paramCollection != nullptr).to_be_true();
+		expect(spec::menu_engine(midi->ctx).params->getOrCreateExpressionParamSet() != nullptr).to_be_true();
+		expect(spec::menu_engine(midi->ctx).params->summaries[1].paramCollection != nullptr).to_be_true();
 
 		install(midi->ctx, midi->song);
 		static constexpr Node kPatchedProbe =
@@ -1720,19 +1717,19 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 
 		{ // --- synth_mode: `Sound::setSynthMode` on the target, not just a stored int ------------
 			const Root& sound = installed_root("sound");
-			const SynthMode before = sound.ctx.sound->getSynthMode();
+			const SynthMode before = spec::menu_engine(sound.ctx).sound->getSynthMode();
 			// The model refuses RINGMOD unless both oscillators can be ring-modulated, as legacy's
 			// relevance does; SAW on both, and the fixture's own types put back after.
-			const OscType before_osc[] = {sound.ctx.sound->sources[0].getOscType(), sound.ctx.sound->sources[1].getOscType()};
-			sound.ctx.sound->sources[0].setOscType(OscType::SAW);
-			sound.ctx.sound->sources[1].setOscType(OscType::SAW);
+			const OscType before_osc[] = {spec::menu_engine(sound.ctx).sound->sources[0].getOscType(), spec::menu_engine(sound.ctx).sound->sources[1].getOscType()};
+			spec::menu_engine(sound.ctx).sound->sources[0].setOscType(OscType::SAW);
+			spec::menu_engine(sound.ctx).sound->sources[1].setOscType(OscType::SAW);
 			menu::bindings::write(nodes::synth_mode, sound.ctx, static_cast<int32_t>(SynthMode::RINGMOD));
-			expect(sound.ctx.sound->getSynthMode() == SynthMode::RINGMOD).to_be_true();
+			expect(spec::menu_engine(sound.ctx).sound->getSynthMode() == SynthMode::RINGMOD).to_be_true();
 			menu::bindings::write(nodes::synth_mode, sound.ctx, static_cast<int32_t>(SynthMode::SUBTRACTIVE));
-			expect(sound.ctx.sound->getSynthMode() == SynthMode::SUBTRACTIVE).to_be_true();
-			sound.ctx.sound->setSynthMode(before, sound.ctx.song);
-			sound.ctx.sound->sources[0].setOscType(before_osc[0]);
-			sound.ctx.sound->sources[1].setOscType(before_osc[1]);
+			expect(spec::menu_engine(sound.ctx).sound->getSynthMode() == SynthMode::SUBTRACTIVE).to_be_true();
+			spec::menu_engine(sound.ctx).sound->setSynthMode(before, sound.ctx.song);
+			spec::menu_engine(sound.ctx).sound->sources[0].setOscType(before_osc[0]);
+			spec::menu_engine(sound.ctx).sound->sources[1].setOscType(before_osc[1]);
 			covered.insert(&nodes::synth_mode);
 		}
 
@@ -1742,16 +1739,16 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			// `bindings::read` sees only the middle one, which is why deleting either of the others
 			// used to leave this suite green.
 			const Root& sound = installed_root("sound");
-			ArpeggiatorSettings* arp = sound.ctx.arp;
+			ArpeggiatorSettings* arp = spec::menu_engine(sound.ctx).arp;
 			expect(arp != nullptr).to_be_true();
 			// `silence_for_arp_toggle` only fires on a clip that is actually sounding
 			// (`sound_arp.cpp:94`, legacy `mode.h:30`). `song_fixture.h` builds the clip without
 			// making it its output's active one -- nothing in the fixture plays -- so this is the
 			// one bit of state the example has to arrange for itself.
-			expect(sound.ctx.clip != nullptr).to_be_true();
-			Clip* const saved_active = OutputPeek::active_clip_of(*sound.ctx.output);
-			OutputPeek::active_clip_of(*sound.ctx.output) = sound.ctx.clip;
-			expect(sound.ctx.clip->isActiveOnOutput()).to_be_true();
+			expect(spec::menu_engine(sound.ctx).clip != nullptr).to_be_true();
+			Clip* const saved_active = OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx).output);
+			OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx).output) = spec::menu_engine(sound.ctx).clip;
+			expect(spec::menu_engine(sound.ctx).clip->isActiveOnOutput()).to_be_true();
 
 			arp->mode = ArpMode::OFF;
 			arp->preset = ArpPreset::OFF;
@@ -1759,7 +1756,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			arp->noteMode = ArpNoteMode::DOWN;
 			// `Sound::allNotesOff` clears this first thing (`sound.cpp:1761-1763`) -- the one effect
 			// of `silence_for_arp_toggle`'s synth arm that survives in model state a spec can read.
-			sound.ctx.sound->invertReversed = true;
+			spec::menu_engine(sound.ctx).sound->invertReversed = true;
 
 			menu::bindings::write(nodes::arp_mode, sound.ctx, static_cast<int32_t>(ArpMode::ARP));
 
@@ -1768,23 +1765,23 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			// unless `updatePresetFromCurrentSettings()` actually ran.
 			expect(arp->preset == ArpPreset::DOWN).to_be_true();
 			// ... and this is true only if `silence_for_arp_toggle` reached the synth arm.
-			expect(sound.ctx.sound->invertReversed).to_be_false();
-			OutputPeek::active_clip_of(*sound.ctx.output) = saved_active;
+			expect(spec::menu_engine(sound.ctx).sound->invertReversed).to_be_false();
+			OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx).output) = saved_active;
 			covered.insert(&nodes::arp_mode);
 		}
 
 		{ // --- arp_preset: the settings re-derivation, the restart flag, the silence block -------
 			const Root& sound = installed_root("sound");
-			ArpeggiatorSettings* arp = sound.ctx.arp;
-			Clip* const saved_active = OutputPeek::active_clip_of(*sound.ctx.output);
-			OutputPeek::active_clip_of(*sound.ctx.output) = sound.ctx.clip;
+			ArpeggiatorSettings* arp = spec::menu_engine(sound.ctx).arp;
+			Clip* const saved_active = OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx).output);
+			OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx).output) = spec::menu_engine(sound.ctx).clip;
 
 			arp->mode = ArpMode::OFF;
 			arp->preset = ArpPreset::OFF;
 			arp->octaveMode = ArpOctaveMode::RANDOM;
 			arp->noteMode = ArpNoteMode::RANDOM;
 			arp->flagForceArpRestart = false;
-			sound.ctx.sound->invertReversed = true;
+			spec::menu_engine(sound.ctx).sound->invertReversed = true;
 
 			menu::bindings::write(nodes::arp_preset, sound.ctx, static_cast<int32_t>(ArpPreset::DOWN));
 
@@ -1795,12 +1792,12 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			expect(arp->octaveMode == ArpOctaveMode::DOWN).to_be_true();
 			expect(arp->noteMode == ArpNoteMode::DOWN).to_be_true();
 			expect(arp->flagForceArpRestart).to_be_true();
-			expect(sound.ctx.sound->invertReversed).to_be_false();
+			expect(spec::menu_engine(sound.ctx).sound->invertReversed).to_be_false();
 
 			arp->mode = ArpMode::OFF;
 			arp->preset = ArpPreset::OFF;
 			arp->flagForceArpRestart = false;
-			OutputPeek::active_clip_of(*sound.ctx.output) = saved_active;
+			OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx).output) = saved_active;
 			covered.insert(&nodes::arp_preset);
 		}
 
@@ -1817,7 +1814,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 
 		{ // --- audio_clip_reverse: the clip's own sample controls --------------------------------
 			const Root& audio = installed_root("audio clip");
-			auto* clip = static_cast<AudioClip*>(audio.ctx.clip);
+			auto* clip = static_cast<AudioClip*>(spec::menu_engine(audio.ctx).clip);
 			expect(clip != nullptr).to_be_true();
 			const bool before = clip->sampleControls.reversed;
 			menu::bindings::write(nodes::audio_clip_reverse, audio.ctx, 1);
@@ -1937,7 +1934,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			}
 			// A param node is only round-trippable where the context can actually serve it; the
 			// settings root has no param manager at all.
-			if (p.root->ctx.params == nullptr) {
+			if (spec::menu_engine(p.root->ctx).params == nullptr) {
 				continue;
 			}
 			install(p.root->ctx, p.root->song);

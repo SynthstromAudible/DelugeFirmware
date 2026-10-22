@@ -36,6 +36,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 
+#include "support/menu_engine.h"
 #include "support/no_notification_sink.h"
 #include "support/song_fixture.h"
 
@@ -474,18 +475,18 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		menu_scene().open(nodes::randomizer, ctx);
 		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(nodes::randomizer)});
 		r.shell.tick(0);
-		ctx.arp->randomizerLock = false;
+		spec::menu_engine(ctx).arp->randomizerLock = false;
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(0); // default focus
 
 		r.enter(100);
 		r.shell.tick(110);
-		expect(ctx.arp->randomizerLock).to_be_true();
+		expect(spec::menu_engine(ctx).arp->randomizerLock).to_be_true();
 		expect(depth_of()).to_equal(0); // stayed -- no ascend, no chain
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(0);
 
 		r.enter(400);
 		r.shell.tick(410);
-		expect(ctx.arp->randomizerLock).to_be_false(); // flips right back
+		expect(spec::menu_engine(ctx).arp->randomizerLock).to_be_false(); // flips right back
 	});
 
 	it("SYNTH focuses randomizer_lock; pressing SYNTH again flips it and notifies -- the "
@@ -500,7 +501,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		menu_scene().open(nodes::randomizer, ctx);
 		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(nodes::randomizer)});
 		r.shell.tick(0);
-		ctx.arp->randomizerLock = false;
+		spec::menu_engine(ctx).arp->randomizerLock = false;
 
 		r.press(kKitX, kKitY, 200); // move focus off column 0 first (spread_gate, column 1)
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
@@ -508,7 +509,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		(void)last_notice(); // drain
 		r.press(kSynthX, kSynthY, 500); // new focus onto randomizer_lock: notifies, does not flip
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(0);
-		expect(ctx.arp->randomizerLock).to_be_false();
+		expect(spec::menu_engine(ctx).arp->randomizerLock).to_be_false();
 		std::string title;
 		{
 			const deluge::notify::Notice n = expect_one_notification(self, raised_notices());
@@ -518,7 +519,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 		(void)last_notice(); // drain
 		r.press(kSynthX, kSynthY, 800); // already focused: flips and notifies
-		expect(ctx.arp->randomizerLock).to_be_true();
+		expect(spec::menu_engine(ctx).arp->randomizerLock).to_be_true();
 		{
 			const deluge::notify::Notice n = expect_one_notification(self, raised_notices());
 			expect(std::string(n.notification_title())).to_equal(title); // the same column, notified again

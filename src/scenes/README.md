@@ -113,8 +113,7 @@ Rules:
    `model/**`, `modulation/**`, `playback/**`, `processing/**`, `storage/**`, `gui/l10n/**`,
    `definitions_cxx.hpp`.
    Never `gui/` otherwise, never `hid/`. `model/model_stack.h` is narrower still: only
-   `menu/context.cpp` and `menu/bindings.cpp` may include it, and `menu::model_stack_for()` is
-   the single entry point everything else uses to reach a `ModelStack` (task-3 ruling 6).
+   `menu/context.cpp` and `menu/bindings.cpp` may include it.
    Two more narrow rows, both added by E3 task 12 and both with a zero baseline:
    **`scenes-listing-through-the-seam`** confines `FileCatalogue`'s six *dispatching* entry points
    (`readFileItemsForFolder`, `sortFileItems`, `cullSomeFileItems`, `deleteSomeFileItems`,
@@ -955,7 +954,7 @@ Seven things are worth finding from here rather than from the header.
   site, and the scene keeps everything else: the slice table, the modes, the guards, the
   `LatestWins` coalescer, the `storage::Owner` dispatch and the re-entry gate. That split is what
   makes the port measurable -- the parts an oracle can compare against legacy are all on this side of
-  it -- and it is the same seam `menu::model_stack_for()` and `browser::Listing` are. A null `ops()`
+  it -- and it is the same seam `browser::Listing` is. A null `ops()`
   is the honest default while nothing links `deluge_scenes` into an application; it is not a licence
   to leave a call out.
 * **The commit does not need `RecorderScene`'s SD-routine guard, and that is a finding, not an

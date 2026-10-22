@@ -36,6 +36,7 @@
 #include "scenes/menu/nodes/sound_voice.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
+#include "support/menu_engine.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -684,7 +685,7 @@ describe song_settings_edit("SetSetting", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
 		const auto ctx = deluge::scenes::menu::context_for(*f.song, f.clip, 0, false, false, false, false);
-		const deluge::instrument::SoundState* state = ctx.sound->boundState();
+		const deluge::instrument::SoundState* state = spec::menu_engine(ctx).sound->boundState();
 		expect(state != nullptr).to_be_true();
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::polyphony, ctx, static_cast<int32_t>(PolyphonyMode::LEGATO));
 		expect(state->polyphonic == PolyphonyMode::LEGATO).to_be_true();
@@ -702,11 +703,11 @@ describe song_settings_edit("SetSetting", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
 		const auto ctx = deluge::scenes::menu::context_for(*f.song, f.clip, 0, false, false, false, false);
-		const deluge::instrument::SoundState* state = ctx.sound->boundState();
+		const deluge::instrument::SoundState* state = spec::menu_engine(ctx).sound->boundState();
 		expect(state != nullptr).to_be_true();
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::output_midi_note, ctx, 61);
 		expect(static_cast<int>(state->output_midi_note_for_drum)).to_equal(61);
-		expect(static_cast<int>(ctx.sound->outputMidiNoteForDrum)).to_equal(61);
+		expect(static_cast<int>(spec::menu_engine(ctx).sound->outputMidiNoteForDrum)).to_equal(61);
 	});
 
 	it("records the note-for-drum menu's note on every sound drum of a kit when affect-entire is held", _ {

@@ -18,10 +18,8 @@
 ///       `session_view_root` / `kit_global_fx` arguments. See `context.cpp` for the branch-by-branch
 ///       mapping and for what stayed behind.
 ///
-/// @note **`model/model_stack.h` is included by `context.cpp` only** (task-3 ruling 6) -- and, from
-///       Task 4, by `bindings.cpp`. `model_stack_for()` below is the single entry point the rest of
-///       `src/scenes` uses to reach a `ModelStack`, which is why this header forward declares
-///       `ModelStackWithThreeMainThings` rather than including the model-stack header.
+/// @note **`model/model_stack.h` is included by `context.cpp` only**, for the gold-knob boundary below, which builds
+///       its stacks from a `ModTarget` until the knobs bind by address.
 
 #include "definitions_cxx.hpp"
 #include "scenes/bind/runtime_facts.h"
@@ -31,18 +29,10 @@
 
 #include <cstdint>
 
-class ArpeggiatorSettings;
 class Clip;
 class MIDICable;
 class ModControllableAudio;
-class ModelStackWithThreeMainThings;
-class MultiRange;
-class Output;
-class ParamManagerForTimeline;
-class SampleControls;
 class Song;
-class Sound;
-class Source;
 
 namespace deluge::project {
 class Song;
@@ -58,9 +48,9 @@ struct Node;
 /// (`.superpowers/sdd/2026-08-27-ui-scenes-menus/menu-survey-summary.md`, "SoundEditor"): a menu
 /// hook is handed a `const MenuContext&` instead of reading a global.
 ///
-/// Every pointer may be null -- which combination is null is exactly what `context_for()`'s branch
-/// resolved, and is meaningful (e.g. `sound == nullptr` on a MIDI clip, `params == nullptr` in the
-/// settings root).
+/// It holds what a node edits by address -- the record (`model`), the owners (`addresses`) -- and what it reads and
+/// writes through: the host's runtime facts and its sink. Its flags say which kind of context `context_for()`
+/// resolved. The engine objects it was built from stay in the builder.
 struct MenuContext {
 	/// @brief Which root menu `setup()` would have opened (`sound_editor.cpp:1770-1826`).
 	///
@@ -87,18 +77,16 @@ struct MenuContext {
 		Count,
 	};
 
+	/// @brief The song, for the device and session menus that act on the running song itself (its threshold
+	///        recording mode, its stem export, the velocity default every instrument takes). Everything else a node
+	///        edits it reaches through `model`, `addresses`, `facts` and `sink`.
 	Song* song = nullptr;
-	Clip* clip = nullptr;
-	Output* output = nullptr;
-	Sound* sound = nullptr;
+	/// @brief What the gold knobs and the parameter popup act on, until they bind by address.
 	ModControllableAudio* mod = nullptr;
-	ParamManagerForTimeline* params = nullptr;
-	ArpeggiatorSettings* arp = nullptr;
-	MultiRange* range = nullptr;
+	/// @brief The range the menu edits, by index into the source's ranges; -1 for none chosen.
 	int16_t range_index = -1;
+	/// @brief The sound source the menu edits.
 	int8_t source_index = 0;
-	Source* source = nullptr;
-	SampleControls* sample_controls = nullptr;
 
 	/// @brief `soundEditor.currentMIDICable`. `setup()` never assigns it (the MIDI-device menus do,
 	///        from their own selection), so `context_for()` always leaves it null.
@@ -205,29 +193,6 @@ struct MenuContext {
 ///                                rather than a re-read of the clip.
 MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool performance_view,
                         bool session_or_arranger_root, bool session_view_root, bool kit_global_fx);
-
-/// @brief Build the model stack a binding reads and writes through -- the port of
-///        `SoundEditor::getCurrentModelStack` (`sound_editor.cpp:2037-2060`).
-///
-/// @pre @p ctx came from `context_for` with `ctx.resolved == true`, and either `ctx.is_song_view` or
-///      `ctx.clip != nullptr`. A settings-root context (no clip, no song view) has no timeline
-///      counter and would yield a stack over a null one; legacy failed the same case louder, by
-///      dereferencing a null `instrument` at `sound_editor.cpp:2039-2044`.
-/// @param memory `MODEL_STACK_MAX_SIZE` bytes supplied by the caller (a `ModelStack` is built in
-///               place, never allocated -- this library takes no heap).
-///
-/// @note **Declare that buffer `alignas(ModelStackWithAutoParam) char[MODEL_STACK_MAX_SIZE]`.**
-///       Every scratch buffer in `src/scenes` that backs a model stack does (fix round 2, M4);
-///       `bindings.cpp` and `context.cpp` used to be split half and half between the aligned form
-///       and legacy's bare `char[MODEL_STACK_MAX_SIZE]`, which read as a deliberate distinction and
-///       was not one. A `ModelStack*` is placement-constructed into these bytes, and the widest
-///       member of the family is `ModelStackWithAutoParam`; a bare `char[]` has alignment 1, so the
-///       stack objects land at whatever offset the frame happens to give them. x86-64 tolerates
-///       that, the ARM target need not. Legacy uses the bare idiom throughout, so this is not a bug
-///       being fixed here so much as one not being inherited -- but it is uniform in this layer, on
-///       purpose, and a new scratch buffer should copy the aligned spelling.
-/// @return a stack whose `modControllable` is `ctx.mod` and whose `paramManager` is `ctx.params`.
-ModelStackWithThreeMainThings* model_stack_for(const MenuContext& ctx, void* memory);
 
 /// @name The gold-knob model boundary (`services::ModKnobs`, E4 task 2)
 ///
@@ -362,10 +327,10 @@ enum class Permission : uint8_t {
 /// source with more than one `MultiRange` and none selected gets `MustSelectRange`.
 Permission permission_for(const Node& node, const MenuContext& ctx);
 
-/// @brief How many `MultiRange`s the addressed source has -- `std::ssize(source->ranges)`.
+/// @brief How many ranges the addressed source records.
 ///
-/// Exposed (E2 task 9) because the range picker draws one row per range and has to know how many
-/// there are; a null `ctx.source` has none.
+/// The range picker draws one row per range and has to know how many there are; a context with no
+/// sound has none.
 int32_t range_count(const MenuContext& ctx);
 
 /// @brief The `topNote` of @p index's range, or `INT16_MAX` (legacy's own 32767 sentinel for "the
@@ -391,12 +356,11 @@ int32_t range_top_note(const MenuContext& ctx, int32_t index);
 /// open its browser on a source with no ranges.
 ///
 /// On success it also mirrors legacy's `*previouslySelectedRange = firstRange` (`:1951`): when the
-/// choice cannot be ambiguous (a kit row, or exactly one range) `ctx.range`/`ctx.range_index` are
-/// pointed at range 0, exactly as `context_for` does for a context resolved with ranges already
-/// present.
+/// choice cannot be ambiguous (a kit row, or exactly one range) `ctx.range_index` is pointed at
+/// range 0, exactly as `context_for` does for a context resolved with ranges already present.
 ///
-/// @param ctx The context to top up; only `ctx.source` matters. A null source is a no-op success --
-///            nothing is being edited that could want a range.
+/// @param ctx The context to top up; only its sound and source matter. A context with no sound is a
+///            no-op success -- nothing is being edited that could want a range.
 /// @return False only where the sink refused the first range -- legacy's `INSUFFICIENT_RAM`, its
 ///         `MenuPermission::NO` arm at `:1939-1942`.
 bool ensure_first_range(MenuContext& ctx);

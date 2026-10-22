@@ -65,6 +65,7 @@ using deluge::hid::display::OLED;
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 
+#include "support/menu_engine.h"
 #include "support/song_fixture.h"
 
 #include "spec/gfx/support/golden.h"
@@ -138,12 +139,12 @@ struct Fixture {
 	Fixture() {
 		select_language();
 		ctx = menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
-		soundEditor.currentSound = ctx.sound;
+		soundEditor.currentSound = spec::menu_engine(ctx).sound;
 		soundEditor.currentModControllable = ctx.mod;
-		soundEditor.currentParamManager = ctx.params;
+		soundEditor.currentParamManager = spec::menu_engine(ctx).params;
 		soundEditor.currentSourceIndex = ctx.source_index;
-		soundEditor.currentSource = ctx.source;
-		soundEditor.currentMultiRange = ctx.range;
+		soundEditor.currentSource = spec::menu_engine(ctx).source;
+		soundEditor.currentMultiRange = spec::menu_engine(ctx).range;
 		soundEditor.currentMultiRangeIndex = ctx.range_index;
 	}
 };
@@ -421,12 +422,12 @@ struct RangeFixture {
 		ctx = menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		currentSong = song.song;
 		song.song->setCurrentClip(song.clip);
-		soundEditor.currentSound = ctx.sound;
+		soundEditor.currentSound = spec::menu_engine(ctx).sound;
 		soundEditor.currentModControllable = ctx.mod;
-		soundEditor.currentParamManager = ctx.params;
+		soundEditor.currentParamManager = spec::menu_engine(ctx).params;
 		soundEditor.currentSourceIndex = ctx.source_index;
-		soundEditor.currentSource = ctx.source;
-		soundEditor.currentMultiRange = ctx.range;
+		soundEditor.currentSource = spec::menu_engine(ctx).source;
+		soundEditor.currentMultiRange = spec::menu_engine(ctx).range;
 		soundEditor.currentMultiRangeIndex = ctx.range_index;
 	}
 	~RangeFixture() {
@@ -450,9 +451,9 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 		RangeFixture f{3};
 		// Give the three ranges distinct, realistic top notes so the labels are not all the same
 		// string -- an all-"top" list would pass a comparison that only ever looked at one arm.
-		f.ctx.source->ranges.getElement(0)->topNote = 47;  // B2
-		f.ctx.source->ranges.getElement(1)->topNote = 71;  // B4
-		f.ctx.source->ranges.getElement(2)->topNote = 32767;
+		spec::menu_engine(f.ctx).source->ranges.getElement(0)->topNote = 47;  // B2
+		spec::menu_engine(f.ctx).source->ranges.getElement(1)->topNote = 71;  // B4
+		spec::menu_engine(f.ctx).source->ranges.getElement(2)->topNote = 32767;
 		deluge::edits::recordRanges(*static_cast<SoundInstrument*>(f.song.instrument), 0);
 
 		expect(menu::range_count(f.ctx)).to_equal(int32_t(3));
@@ -506,14 +507,14 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 		// `MenuScene::enter_child` is what calls it.
 		RangeFixture f{0};
 		expect(menu::range_count(f.ctx)).to_equal(int32_t(0));
-		expect(f.ctx.range == nullptr).to_be_true();
+		expect(spec::menu_engine(f.ctx).range == nullptr).to_be_true();
 
 		expect(menu::ensure_first_range(f.ctx)).to_be_true();
 		// One range now exists, and -- the second half of `:1952-1954`'s `*previouslySelectedRange =
 		// firstRange` -- the context points at it, so a range-dependent item opens rather than
 		// bouncing to a one-row picker.
 		expect(menu::range_count(f.ctx)).to_equal(int32_t(1));
-		expect(f.ctx.range != nullptr).to_be_true();
+		expect(spec::menu_engine(f.ctx).range != nullptr).to_be_true();
 		expect(static_cast<int>(f.ctx.range_index)).to_equal(0);
 		expect(menu::permission_for(nodes::source0_transpose, f.ctx) == menu::Permission::Yes).to_be_true();
 		// `Source::getOrCreateFirstRange` gives the new range the top of the keyboard (`source.cpp:165`).
@@ -528,7 +529,7 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 		RangeFixture f{3};
 		menu::select_range(f.ctx, 2);
 		expect(static_cast<int>(f.ctx.range_index)).to_equal(2);
-		expect(f.ctx.range == f.ctx.source->ranges.getElement(2)).to_be_true();
+		expect(spec::menu_engine(f.ctx).range == spec::menu_engine(f.ctx).source->ranges.getElement(2)).to_be_true();
 		// `multi_range.cpp:239` -- the choice sticks for the source, which is what `on_focus` reads
 		// back on the next visit.
 		expect(services::view_state().last_range(*f.ctx.addresses.slot, 0)).to_equal(std::optional<uint16_t>{2});

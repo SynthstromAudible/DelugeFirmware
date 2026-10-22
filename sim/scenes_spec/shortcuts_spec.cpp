@@ -47,6 +47,7 @@
 #include "model/song/song.h"
 #include "processing/sound/sound_instrument.h"
 
+#include "support/menu_engine.h"
 #include "support/song_fixture.h"
 
 #include "spec/shell/support/fake_surfaces.h"
@@ -120,15 +121,16 @@ void install_sound_context() {
 	static const MenuContext ctx =
 	    menu::context_for(*fixture.song, fixture.clip, 0, false, false, false, /*kit_global_fx=*/false);
 	currentSong = fixture.song;
-	fixture.song->setCurrentClip(ctx.clip);
-	soundEditor.currentSound = ctx.sound;
+	const spec::MenuEngine engine = spec::menu_engine(ctx);
+	fixture.song->setCurrentClip(engine.clip);
+	soundEditor.currentSound = engine.sound;
 	soundEditor.currentModControllable = ctx.mod;
-	soundEditor.currentParamManager = ctx.params;
+	soundEditor.currentParamManager = engine.params;
 	soundEditor.currentSourceIndex = ctx.source_index;
-	soundEditor.currentSource = ctx.source;
-	soundEditor.currentMultiRange = ctx.range;
+	soundEditor.currentSource = engine.source;
+	soundEditor.currentMultiRange = engine.range;
 	soundEditor.currentMultiRangeIndex = ctx.range_index;
-	soundEditor.currentArpSettings = ctx.arp;
+	soundEditor.currentArpSettings = engine.arp;
 	soundEditor.setupKitGlobalFXMenu = false;
 	soundEditor.navigationDepth = 0;
 }

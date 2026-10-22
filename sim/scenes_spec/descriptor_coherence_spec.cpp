@@ -151,7 +151,7 @@ struct UnsetProbe {
 };
 
 void unset_note_for_drum(const deluge::scenes::menu::MenuContext& ctx) {
-	ctx.sound->setOutputMidiNoteForDrum(MIDI_NOTE_NONE);
+	spec::menu_engine(ctx).sound->setOutputMidiNoteForDrum(MIDI_NOTE_NONE);
 }
 
 const UnsetProbe* unset_probe_of(std::string_view path) {

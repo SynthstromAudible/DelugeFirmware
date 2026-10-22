@@ -85,7 +85,7 @@ inline const MultiRangeItem kMultiRangeItem{};
 /// Exported rather than kept file-local for exactly that reason: it is the one piece of this page
 /// with a legacy counterpart a spec can call.
 ///
-/// @param ctx     What is being edited; `ctx.source`'s ranges supply the note numbers.
+/// @param ctx     What is being edited; the addressed source's recorded ranges supply the note numbers.
 /// @param index   Which range's row.
 /// @param buf     Caller-owned storage the label is written into.
 /// @param cap     `buf`'s size.

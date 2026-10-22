@@ -60,6 +60,7 @@
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
 
+#include "support/menu_engine.h"
 #include "support/song_fixture.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
@@ -298,9 +299,6 @@ struct SoundRig {
 	///        scene over source 1 has to say so itself.
 	MenuContext ctx() {
 		MenuContext c = menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
-		c.source = source[0];
-		c.range = range[0];
-		c.sample_controls = &source[0]->sampleControls;
 		c.range_index = 0;
 		return c;
 	}
@@ -651,7 +649,7 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 
 	it("sample1_recorder opens it over source 1, which is what a missing range proves", _ {
 		// The per-source discriminator for this scene. Oscillator 1 is left a square wave with no
-		// `MultiRange` at all, so `RecorderScene::can`'s `ctx.range == nullptr` refusal fires -- but
+		// `MultiRange` at all, so `RecorderScene::can`'s no-range refusal fires -- but
 		// only if the item re-pointed the context at source 1. Wired to source 0 it would find source
 		// 0's range and open, which is what makes this a test of `select_source` and not of `can`.
 		spec::QuietAudio quiet;
@@ -674,30 +672,31 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		// `menu::select_source` folds in `SoundEditor::setup`'s `:1786-1788`, which nulls a
 		// remembered range whenever the source index moves. Asserted directly, because the two
 		// examples above can only see it through a scene: without it, a context resolved for source
-		// 0 and re-pointed at source 1 would still name source 0's `MultiRange`, and every scene here
-		// dereferences `ctx.range`.
+		// 0 and re-pointed at source 1 would still name source 0's range, and every scene here
+		// opens on the range the context names.
 		spec::QuietAudio quiet;
 		CleanScenes clean;
 		SoundRig r{/*second_source=*/true};
 		MenuContext c = r.ctx();
-		expect(c.range == r.range[0]).to_be_true();
+		expect(spec::menu_engine(c).range == r.range[0]).to_be_true();
 
 		menu::select_source(c, 1);
 		expect(static_cast<int>(c.source_index)).to_equal(1);
-		expect(c.source == r.source[1]).to_be_true();
-		expect(c.range == r.range[1]).to_be_true();
-		expect(c.sample_controls == &r.source[1]->sampleControls).to_be_true();
+		const spec::MenuEngine engine = spec::menu_engine(c);
+		expect(engine.source == r.source[1]).to_be_true();
+		expect(engine.range == r.range[1]).to_be_true();
+		expect(engine.sample_controls == &r.source[1]->sampleControls).to_be_true();
 
 		// Re-selecting the source already named keeps the selected range -- `setCurrentSource`'s own
 		// `currentMultiRange == nullptr` guard (`sound_editor.cpp:247`), which is what stops a
 		// range the picker chose from being thrown away by the item that opens on it.
 		menu::select_source(c, 1);
-		expect(c.range == r.range[1]).to_be_true();
+		expect(spec::menu_engine(c).range == r.range[1]).to_be_true();
 
 		// A context with no `Sound` is left exactly as it is -- the audio-clip case.
 		MenuContext none{};
 		menu::select_source(none, 1);
-		expect(none.source == nullptr).to_be_true();
+		expect(none.range_index).to_equal(static_cast<int16_t>(-1));
 		expect(static_cast<int>(none.source_index)).to_equal(0);
 	});
 });

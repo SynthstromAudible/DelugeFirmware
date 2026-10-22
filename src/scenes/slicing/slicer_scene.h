@@ -281,8 +281,7 @@ struct SliceCommit {
 /// scene keeps every part of those functions that is state, arithmetic or a guard, which is the
 /// part an oracle can compare against legacy; the parts below are the part it cannot.
 ///
-/// The same split `menu::model_stack_for()` makes for the model stack and
-/// `scenes::browser::Listing` makes for the card, and for the same reason: one named place that
+/// The same split `scenes::browser::Listing` makes for the card, and for the same reason: one named place that
 /// knows how to reach the thing, rather than a hole in the layer rule.
 ///
 /// @warning **A null `SlicerScene::ops()` is not an error and not a stub.** Nothing links

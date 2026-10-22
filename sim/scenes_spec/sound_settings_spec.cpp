@@ -15,6 +15,7 @@
 #include "model/instrument/kit.h"
 #include "processing/sound/sound_drum.h"
 
+#include "support/menu_engine.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -179,7 +180,7 @@ describe sound_settings_listed("the menu lists a target node only where its sett
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
 		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
-		deluge::edits::settingFor(*ctx.sound, "osc1/type", deluge::serialization::Value::makeScalar("saw"));
+		deluge::edits::settingFor(*spec::menu_engine(ctx).sound, "osc1/type", deluge::serialization::Value::makeScalar("saw"));
 		std::array<const Node*, menu::kMaxDynamicChildren> listed{};
 		const size_t n = bindings::listed_children(menu::nodes::source0, ctx, listed);
 		const auto lists = [&](const Node& node) {
@@ -196,7 +197,7 @@ describe sound_settings_listed("the menu lists a target node only where its sett
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
 		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
-		deluge::edits::settingFor(*ctx.sound, "polyphonic", deluge::serialization::Value::makeScalar("mono"));
+		deluge::edits::settingFor(*spec::menu_engine(ctx).sound, "polyphonic", deluge::serialization::Value::makeScalar("mono"));
 		std::array<const Node*, menu::kMaxDynamicChildren> listed{};
 		const size_t n = bindings::listed_children(menu::nodes::voice, ctx, listed);
 		expect(std::find(listed.begin(), listed.begin() + static_cast<std::ptrdiff_t>(n), &menu::nodes::voice_count)

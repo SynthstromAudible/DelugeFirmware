@@ -27,9 +27,15 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/audio_clip_view.h"
+#include "model/clip/audio_clip.h"
+#include "model/clip/instrument_clip.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
+#include "processing/sound/sound_drum.h"
+#include "processing/source.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -63,6 +69,53 @@ std::string enteredTextFor(std::string_view name) {
 	return std::string{dot == std::string_view::npos ? name : name.substr(0, dot)};
 }
 
+/// @brief The engine objects the menu's context names by address, resolved in the current song: what
+///        `SoundEditor::setup` would have resolved for the same visit.
+/// @param menuCtx The menu's context.
+/// @return The sound, its source, range and sample controls, the clip's (or kit row's) params and arp.
+SoundEditor::ResolvedContext resolvedFor(const deluge::scenes::menu::MenuContext& menuCtx) {
+	SoundEditor::ResolvedContext resolved{.sound = nullptr,
+	                                      .mod = menuCtx.mod,
+	                                      .params = nullptr,
+	                                      .arp = nullptr,
+	                                      .range = nullptr,
+	                                      .rangeIndex = menuCtx.range_index,
+	                                      .sourceIndex = menuCtx.source_index,
+	                                      .source = nullptr,
+	                                      .sampleControls = nullptr};
+	if (currentSong == nullptr) {
+		return resolved;
+	}
+	::Clip* clip = menuCtx.addresses.clip ? currentSong->clipForId(menuCtx.addresses.clip->clip_id) : nullptr;
+	auto* instrumentClip =
+	    clip != nullptr && clip->type == ClipType::INSTRUMENT ? static_cast<InstrumentClip*>(clip) : nullptr;
+	if (clip != nullptr) {
+		resolved.params = &clip->paramManager;
+		resolved.arp = instrumentClip != nullptr ? &instrumentClip->arpSettings : nullptr;
+	}
+	if (menuCtx.addresses.slot) {
+		::Sound* sound = deluge::bridge::soundAt(*currentSong, *menuCtx.addresses.slot);
+		resolved.sound = sound;
+		if (sound != nullptr) {
+			resolved.source = &sound->sources[menuCtx.source_index];
+			resolved.sampleControls = &resolved.source->sampleControls;
+			if (menuCtx.range_index >= 0 && menuCtx.range_index < std::ssize(resolved.source->ranges)) {
+				resolved.range = resolved.source->ranges.getElement(menuCtx.range_index);
+			}
+			if (sound->isDrum() && instrumentClip != nullptr) {
+				auto* drum = static_cast<SoundDrum*>(sound);
+				NoteRow* row = instrumentClip->getNoteRowForDrum(drum);
+				resolved.params = row != nullptr ? &row->paramManager : nullptr;
+				resolved.arp = &drum->arpSettings;
+			}
+		}
+	}
+	else if (menuCtx.is_audio_clip && clip != nullptr) {
+		resolved.sampleControls = &static_cast<AudioClip*>(clip)->sampleControls;
+	}
+	return resolved;
+}
+
 /// @brief Load the chosen sample, the way `SampleBrowser::enterKeyPress`'s file arm does.
 ///
 /// The claim reads the editor's resolved context (`soundEditor.currentSound`, `currentSource`,
@@ -80,18 +133,7 @@ std::string enteredTextFor(std::string_view name) {
 /// @param path   The chosen file's full path.
 /// @param target @p path split; its filename names the entered text.
 void claimSampleFile(std::string_view path, const SampleClaimTarget& target) {
-	const deluge::scenes::menu::MenuContext& menuCtx = deluge::scenes::menu_scene().menu_context();
-	soundEditor.adoptResolvedContext(SoundEditor::ResolvedContext{
-	    .sound = menuCtx.sound,
-	    .mod = menuCtx.mod,
-	    .params = menuCtx.params,
-	    .arp = menuCtx.arp,
-	    .range = menuCtx.range,
-	    .rangeIndex = menuCtx.range_index,
-	    .sourceIndex = menuCtx.source_index,
-	    .source = menuCtx.source,
-	    .sampleControls = menuCtx.sample_controls,
-	});
+	soundEditor.adoptResolvedContext(resolvedFor(deluge::scenes::menu_scene().menu_context()));
 	claimDispatch({
 	    .path = std::string{path},
 	    .enteredText = enteredTextFor(target.name),

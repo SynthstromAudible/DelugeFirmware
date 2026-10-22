@@ -18,6 +18,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 
+#include "support/menu_engine.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -78,8 +79,8 @@ std::set<std::string> paths_of(const Node& root) {
 
 /// The effects of the owner @p ctx edits: its sound's, else its chain's.
 const deluge::effects::EffectStates* owner_effects(const MenuContext& ctx) {
-	if (ctx.sound != nullptr) {
-		return &ctx.sound->effects();
+	if (::Sound* sound = spec::menu_engine(ctx).sound; sound != nullptr) {
+		return &sound->effects();
 	}
 	::GlobalEffectable* owner =
 	    ctx.addresses.chain ? deluge::bridge::chainOwnerAt(*ctx.addresses.chain, *ctx.song) : nullptr;

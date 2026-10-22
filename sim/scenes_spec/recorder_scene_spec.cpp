@@ -68,6 +68,7 @@
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
 
+#include "support/menu_engine.h"
 #include "support/song_fixture.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
@@ -187,9 +188,7 @@ struct Rig {
 
 	MenuContext ctx() {
 		MenuContext c = menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
-		c.range = range;
-		c.source = source;
-		c.sample_controls = &source->sampleControls;
+		c.range_index = 0;
 		return c;
 	}
 
@@ -555,7 +554,6 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		Guards g;
 		Rig r;
 		MenuContext c = r.ctx();
-		c.range = nullptr;
 		c.range_index = -1;
 		expect(RecorderScene::can(c)).to_be_false();
 		recorder_scene().open(c);

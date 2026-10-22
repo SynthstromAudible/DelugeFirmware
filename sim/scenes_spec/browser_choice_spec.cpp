@@ -307,9 +307,6 @@ struct SongRig {
 	/// @brief The context `SoundEditor::setup` would have resolved for source 0.
 	MenuContext ctx() {
 		MenuContext c = menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
-		c.source = source;
-		c.range = range;
-		c.sample_controls = &source->sampleControls;
 		c.range_index = 0;
 		return c;
 	}

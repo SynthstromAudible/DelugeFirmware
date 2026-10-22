@@ -127,8 +127,8 @@ size_t name_count(const Node& node, const MenuContext& ctx) {
 /// the held-button half arrives as `affect_entire_held` (see the file header). Declared in
 /// `bindings.h` because a couple of the tables' own `set` hooks branch on it.
 bool writes_whole_kit(const MenuContext& ctx) {
-	return ctx.affect_entire_held && ctx.is_kit && !ctx.is_kit_global_fx && ctx.output != nullptr
-	       && ctx.clip != nullptr;
+	return ctx.affect_entire_held && ctx.is_kit && !ctx.is_kit_global_fx && ctx.addresses.kit_output.has_value()
+	       && ctx.addresses.clip.has_value();
 }
 
 void write_song(const MenuContext& ctx, std::string_view path, int32_t value) {

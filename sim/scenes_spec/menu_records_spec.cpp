@@ -46,20 +46,6 @@ void give_three_ranges(::Sound& sound, int32_t s) {
 	deluge::edits::recordRanges(sound, s);
 }
 
-/// @brief @p ctx with every engine pointer gone, as a context holding only addresses is.
-MenuContext addresses_only(MenuContext ctx) {
-	ctx.sound = nullptr;
-	ctx.source = nullptr;
-	ctx.range = nullptr;
-	ctx.output = nullptr;
-	ctx.clip = nullptr;
-	ctx.mod = nullptr;
-	ctx.arp = nullptr;
-	ctx.params = nullptr;
-	ctx.sample_controls = nullptr;
-	return ctx;
-}
-
 /// @brief The cursor the range picker opens on over @p ctx.
 int32_t picker_cursor(const MenuContext& ctx) {
 	menu::MenuState state{};
@@ -78,14 +64,14 @@ describe menu_records("a menu's questions, answered from the record", ${
 		give_three_ranges(sound, 1);
 		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
 		services::view_state().forget_unless(f.song->project.identity());
-		expect(menu::range_count(addresses_only(ctx))).to_equal(3);
-		expect(menu::range_top_note(addresses_only(ctx), 1)).to_equal(60);
+		expect(menu::range_count(ctx)).to_equal(3);
+		expect(menu::range_top_note(ctx, 1)).to_equal(60);
 		menu::select_range(ctx, 2);
 		expect(services::view_state().last_range(*ctx.addresses.slot, 0)).to_equal(std::optional<uint16_t>{2});
 		const MenuContext again = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
-		expect(picker_cursor(addresses_only(again))).to_equal(2);
+		expect(picker_cursor(again)).to_equal(2);
 		const MenuContext other = menu::context_for(*f.song, f.clip, 1, false, false, false, false);
-		expect(picker_cursor(addresses_only(other))).to_equal(1);
+		expect(picker_cursor(other)).to_equal(1);
 	});
 
 	it("opens the range picker on the middle range when the one remembered is past the end", _ {
@@ -94,7 +80,7 @@ describe menu_records("a menu's questions, answered from the record", ${
 		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
 		services::view_state().forget_unless(f.song->project.identity());
 		services::view_state().set_last_range(*ctx.addresses.slot, 0, 7);
-		expect(picker_cursor(addresses_only(ctx))).to_equal(1);
+		expect(picker_cursor(ctx)).to_equal(1);
 	});
 
 	it("opens the sample browser on the range's recorded file", _ {
@@ -107,7 +93,7 @@ describe menu_records("a menu's questions, answered from the record", ${
 		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
 		std::string dir;
 		std::string name;
-		browser::descriptor(browser::BrowserId::Sample).start_at(addresses_only(ctx), dir, name);
+		browser::descriptor(browser::BrowserId::Sample).start_at(ctx, dir, name);
 		const deluge::instrument::SoundState* state = menu::host_runtime_facts().sound_state(*ctx.addresses.slot);
 		expect(state != nullptr && !state->sources[0].ranges.empty()).to_be_true();
 		const std::string recorded = state != nullptr && !state->sources[0].ranges.empty()
@@ -117,10 +103,10 @@ describe menu_records("a menu's questions, answered from the record", ${
 		expect(dir + "/" + name).to_equal(recorded);
 	});
 
-	it("answers each sound predicate from the record on a context with no engine objects", _ {
+	it("answers each sound predicate from the record", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
-		const MenuContext subtractive = addresses_only(menu::context_for(*f.song, f.clip, 0, false, false, false, false));
+		const MenuContext subtractive = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
 		expect(menu::relevance::is_subtractive(subtractive)).to_be_true();
 		expect(menu::relevance::is_fm(subtractive)).to_be_false();
 		expect(menu::relevance::osc0_file_selector(subtractive)).to_be_true();
@@ -129,13 +115,13 @@ describe menu_records("a menu's questions, answered from the record", ${
 		expect(menu::relevance::stutter_quantize_allowed(subtractive)).to_equal(
 		    !sound.effects().stutter.use_song_stutter);
 		deluge::edits::settingFor(sound, "mode", Value::makeScalar("fm"));
-		const MenuContext fm = addresses_only(menu::context_for(*f.song, f.clip, 0, false, false, false, false));
+		const MenuContext fm = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
 		expect(menu::relevance::is_fm(fm)).to_be_true();
 		expect(menu::relevance::is_subtractive(fm)).to_be_false();
 
 		spec::SongFixture midi = spec::make_midi_song();
 		const MenuContext on_midi =
-		    addresses_only(menu::context_for(*midi.song, midi.clip, 0, false, false, false, false));
+		    menu::context_for(*midi.song, midi.clip, 0, false, false, false, false);
 		expect(menu::relevance::is_midi_out(on_midi)).to_be_true();
 	});
 
@@ -150,6 +136,54 @@ describe menu_records("a menu's questions, answered from the record", ${
 		if (!recording.requests.empty()) {
 			expect(recording.requests[0].target.group == deluge::project::SettingGroupId::NOTE_ROW).to_be_true();
 		}
+	});
+
+	it("reads and writes nothing of a song the app does not play, on every node of every clip root", _ {
+		// The menus' sink and facts act on the song the app plays: over any other song every node finds nothing to
+		// edit, and a write changes nothing of it.
+		spec::SongFixture synth = spec::make_synth_song();
+		spec::SongFixture kit = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(kit);
+		spec::SongFixture midi = spec::make_midi_song();
+		spec::AudioSongFixture audio = spec::make_audio_clip_song();
+		spec::SongFixture playing = spec::make_synth_song(); // the song the app plays: none of the above
+		currentSong = playing.song;
+
+		struct Case {
+			Song* song;
+			Clip* clip;
+		};
+		const Case cases[] = {{synth.song, synth.clip}, {kit.song, kit.clip}, {midi.song, midi.clip},
+		                      {audio.song, audio.clip}};
+		size_t written = 0;
+		for (const Case& c : cases) {
+			const MenuContext ctx = menu::context_for(*c.song, c.clip, 0, false, false, false, false);
+			expect(ctx.facts == nullptr && ctx.sink == nullptr).to_be_true();
+			const deluge::project::DocClip before =
+			    *c.song->project.resolveClip(deluge::project::ClipAddress{c.clip->id()});
+			const auto swing = c.song->project.groove.swing_interval;
+			std::vector<const menu::Node*> stack{menu::MenuScene::roots().begin(), menu::MenuScene::roots().end()};
+			while (!stack.empty()) {
+				const menu::Node* node = stack.back();
+				stack.pop_back();
+				if (node == nullptr || node == menu::MenuScene::roots()[static_cast<size_t>(MenuContext::Root::Settings)]) {
+					continue;
+				}
+				for (const menu::Node* child : node->children) {
+					stack.push_back(child);
+				}
+				if (node->bind.target.valid() || node->bind.param.valid() || node->bind.set != nullptr) {
+					const menu::IntRange range = menu::bindings::range(*node, ctx);
+					const int32_t now = menu::bindings::read(*node, ctx);
+					menu::bindings::write(*node, ctx, now < range.max ? now + 1 : range.min);
+					written++;
+				}
+			}
+			expect(*c.song->project.resolveClip(deluge::project::ClipAddress{c.clip->id()}) == before).to_be_true();
+			expect(c.song->project.groove.swing_interval == swing).to_be_true();
+		}
+		expect(written > size_t{100}).to_be_true();
+		currentSong = playing.song;
 	});
 });
 

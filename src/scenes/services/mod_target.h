@@ -7,8 +7,8 @@
 /// This header is the *data* half of the mod-knob model boundary. The *code* half lives in
 /// `scenes/menu/context.cpp`, which is one of the two files the
 /// `scenes-model-stack-outside-context` ratchet (`scripts/check_layer_rules.py`) lets include
-/// `model/model_stack.h`; the declarations are in `scenes/menu/context.h`, beside `model_stack_for`,
-/// whose `@name` block records why a non-menu concern lands there rather than on a third
+/// `model/model_stack.h`; the declarations are in `scenes/menu/context.h`, whose `@name` block
+/// records why a non-menu concern lands there rather than on a third
 /// allow-listed file. Everything in this header is POD over forward-declared
 /// pointers, so `mod_knobs.{h,cpp}` -- and any later reader -- can carry the target around without
 /// ever naming a `ModelStack`.

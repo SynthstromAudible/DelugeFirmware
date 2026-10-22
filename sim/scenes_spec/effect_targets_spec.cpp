@@ -84,7 +84,7 @@ describe effect_targets("an effect target's write reaches the owner its menu nam
 		expect(ctx.addresses.chain.has_value()).to_be_false();
 		const FilterMode master = lpf_of(f.song->live.global_effectable);
 		write_notch(ctx);
-		expect(lpf_of(*ctx.sound) == FilterMode::SVF_NOTCH).to_be_true();
+		expect(lpf_of(*static_cast<SoundInstrument*>(f.instrument)) == FilterMode::SVF_NOTCH).to_be_true();
 		expect(lpf_of(f.song->live.global_effectable) == master).to_be_true();
 	});
 

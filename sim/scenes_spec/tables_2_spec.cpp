@@ -88,6 +88,7 @@ using deluge::hid::display::OLED;
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 
+#include "support/menu_engine.h"
 #include "support/song_fixture.h"
 
 #include "spec/gfx/support/golden.h"
@@ -177,25 +178,20 @@ void select_language() {
 /// fixtures has to say which one is live before calling into the model's `getCurrent*()` helpers.
 void install(const MenuContext& ctx, Song* song) {
 	currentSong = song;
-	song->setCurrentClip(ctx.clip);
-	soundEditor.currentSound = ctx.sound;
+	song->setCurrentClip(spec::menu_engine(ctx).clip);
+	soundEditor.currentSound = spec::menu_engine(ctx).sound;
 	soundEditor.currentModControllable = ctx.mod;
-	soundEditor.currentParamManager = ctx.params;
+	soundEditor.currentParamManager = spec::menu_engine(ctx).params;
 	soundEditor.currentSourceIndex = ctx.source_index;
-	soundEditor.currentSource = ctx.source;
-	soundEditor.currentMultiRange = ctx.range;
+	soundEditor.currentSource = spec::menu_engine(ctx).source;
+	soundEditor.currentMultiRange = spec::menu_engine(ctx).range;
 	soundEditor.currentMultiRangeIndex = ctx.range_index;
-	soundEditor.currentArpSettings = ctx.arp;
+	soundEditor.currentArpSettings = spec::menu_engine(ctx).arp;
 	// `SoundEditor::setup` caches this once per entry (`sound_editor.cpp:1866-1871`), and
 	// `arpeggiator::IncludeInKitArp` reads the cached copy. Computed here the way legacy computes
 	// it -- straight from `Sound::allowNoteTails` over the fixture's own model stack -- so the
 	// comparison against the port's `allows_note_tails` fact stays a real one.
-	soundEditor.allowsNoteTails = true;
-	if (ctx.sound != nullptr) {
-		char memory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* stack = menu::model_stack_for(ctx, memory);
-		soundEditor.allowsNoteTails = ctx.sound->allowNoteTails(stack->addSoundFlags(), true);
-	}
+	soundEditor.allowsNoteTails = spec::sound_allows_note_tails(ctx);
 	// Legacy's affect-entire branches all test this (`unpatched_param.cpp:52` and the twenty-odd
 	// items that spell the same condition); the port's half is `MenuContext::affect_entire_held`.
 	// Kept in step so a spec that sets one sets the other.
@@ -1400,7 +1396,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		constexpr PatchSource kSource = PatchSource::ENVELOPE_3;
 		ParamDescriptor learn;
 		learn.setToHaveParamAndSource(deluge::modulation::params::LOCAL_HPF_RESONANCE, kSource);
-		PatchCableSet* set = f.ctx.params->getPatchCableSetAllowJibberish();
+		PatchCableSet* set = spec::menu_engine(f.ctx).params->getPatchCableSetAllowJibberish();
 		expect(set != nullptr).to_be_true();
 		expect(set->getPatchCableIndex(kSource, [] {
 			ParamDescriptor d;
@@ -1487,7 +1483,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		st.patch_polarity = fresh == Polarity::BIPOLAR ? Polarity::UNIPOLAR : Polarity::BIPOLAR;
 		st.edit_int = 1200;
 		nodes::kPatchCableStrengthRegularItem.commit(f.ctx, st);
-		PatchCableSet* set = f.ctx.params->getPatchCableSetAllowJibberish();
+		PatchCableSet* set = spec::menu_engine(f.ctx).params->getPatchCableSetAllowJibberish();
 		ParamDescriptor destination;
 		destination.setToHaveParamOnly(deluge::modulation::params::LOCAL_HPF_MORPH);
 		const uint8_t created = set->getPatchCableIndex(kSource, destination);
@@ -1502,7 +1498,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		ParamDescriptor learn;
 		learn.setToHaveParamAndSource(deluge::modulation::params::LOCAL_OSC_A_PITCH_ADJUST, kSource);
 		expect(seed_cable(f.ctx, learn, 1500)).to_be_true();
-		PatchCableSet* set = f.ctx.params->getPatchCableSetAllowJibberish();
+		PatchCableSet* set = spec::menu_engine(f.ctx).params->getPatchCableSetAllowJibberish();
 		ParamDescriptor destination;
 		destination.setToHaveParamOnly(deluge::modulation::params::LOCAL_OSC_A_PITCH_ADJUST);
 		const uint8_t index = set->getPatchCableIndex(kSource, destination);
@@ -1526,7 +1522,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		menu::MenuContext ctx =
 		    menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		install(ctx, song.song);
-		PatchCableSet* set = ctx.params->getPatchCableSetAllowJibberish();
+		PatchCableSet* set = spec::menu_engine(ctx).params->getPatchCableSetAllowJibberish();
 		for (const PatchSource source : {PatchSource::RANDOM, PatchSource::VELOCITY, PatchSource::NOTE}) {
 			for (int32_t p = 0; set->numPatchCables < kMaxNumPatchCables && p < deluge::modulation::params::kNumParams;
 			     ++p) {
@@ -1551,7 +1547,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 	it("opens the strength page the selected cable needs, and installs that cable's own sources", _ {
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
-		PatchCableSet* set = f.ctx.params->getPatchCableSetAllowJibberish();
+		PatchCableSet* set = spec::menu_engine(f.ctx).params->getPatchCableSetAllowJibberish();
 		expect(set != nullptr).to_be_true();
 
 		// Two cables: one to a bare param, one to another cable's depth. `PatchCables::selectButtonPress`
@@ -1994,17 +1990,17 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		{ // --- synth_mode --------------------------------------------------------------------
 			// Ring mod takes two ring-moddable oscillators (the model refuses it otherwise, as legacy's menu does), so
 			// both sources are saws while the hook is driven.
-			const OscType osc_before[2] = {f.ctx.sound->sources[0].getOscType(), f.ctx.sound->sources[1].getOscType()};
-			f.ctx.sound->sources[0].setOscType(OscType::SAW);
-			f.ctx.sound->sources[1].setOscType(OscType::SAW);
-			const SynthMode before = f.ctx.sound->getSynthMode();
+			const OscType osc_before[2] = {spec::menu_engine(f.ctx).sound->sources[0].getOscType(), spec::menu_engine(f.ctx).sound->sources[1].getOscType()};
+			spec::menu_engine(f.ctx).sound->sources[0].setOscType(OscType::SAW);
+			spec::menu_engine(f.ctx).sound->sources[1].setOscType(OscType::SAW);
+			const SynthMode before = spec::menu_engine(f.ctx).sound->getSynthMode();
 			menu::bindings::write(nodes::synth_mode, f.ctx, static_cast<int32_t>(SynthMode::RINGMOD));
-			expect(f.ctx.sound->getSynthMode() == SynthMode::RINGMOD).to_be_true();
+			expect(spec::menu_engine(f.ctx).sound->getSynthMode() == SynthMode::RINGMOD).to_be_true();
 			menu::bindings::write(nodes::synth_mode, f.ctx, static_cast<int32_t>(SynthMode::SUBTRACTIVE));
-			expect(f.ctx.sound->getSynthMode() == SynthMode::SUBTRACTIVE).to_be_true();
-			f.ctx.sound->setSynthMode(before, f.ctx.song);
-			f.ctx.sound->sources[0].setOscType(osc_before[0]);
-			f.ctx.sound->sources[1].setOscType(osc_before[1]);
+			expect(spec::menu_engine(f.ctx).sound->getSynthMode() == SynthMode::SUBTRACTIVE).to_be_true();
+			spec::menu_engine(f.ctx).sound->setSynthMode(before, f.ctx.song);
+			spec::menu_engine(f.ctx).sound->sources[0].setOscType(osc_before[0]);
+			spec::menu_engine(f.ctx).sound->sources[1].setOscType(osc_before[1]);
 			covered++;
 		}
 
@@ -2021,12 +2017,12 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		// `silence_for_arp_toggle` only fires on a clip that is actually sounding
 		// (`sound_arp.cpp:94`, legacy `mode.h:30`), and `song_fixture.h` never makes its clip the
 		// output's active one -- nothing in the fixture plays. Arranged here, and put back.
-		Clip* const saved_active = OutputPeek::active_clip_of(*f.ctx.output);
-		OutputPeek::active_clip_of(*f.ctx.output) = f.ctx.clip;
-		expect(f.ctx.clip->isActiveOnOutput()).to_be_true();
+		Clip* const saved_active = OutputPeek::active_clip_of(*spec::menu_engine(f.ctx).output);
+		OutputPeek::active_clip_of(*spec::menu_engine(f.ctx).output) = spec::menu_engine(f.ctx).clip;
+		expect(spec::menu_engine(f.ctx).clip->isActiveOnOutput()).to_be_true();
 
 		{ // --- arp_mode: the silence block and the preset re-derivation ----------------------
-			ArpeggiatorSettings* arp = f.ctx.arp;
+			ArpeggiatorSettings* arp = spec::menu_engine(f.ctx).arp;
 			expect(arp != nullptr).to_be_true();
 			arp->mode = ArpMode::OFF;
 			arp->preset = ArpPreset::OFF;
@@ -2034,7 +2030,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			arp->noteMode = ArpNoteMode::DOWN;
 			// `Sound::allNotesOff` clears this first thing (`sound.cpp:1761-1763`): the one effect
 			// of `silence_for_arp_toggle`'s synth arm that lands in readable model state.
-			f.ctx.sound->invertReversed = true;
+			spec::menu_engine(f.ctx).sound->invertReversed = true;
 
 			menu::bindings::write(nodes::arp_mode, f.ctx, static_cast<int32_t>(ArpMode::ARP));
 
@@ -2042,18 +2038,18 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			// DOWN/DOWN is `ArpPreset::DOWN` (`arpeggiator.cpp:1936-1938`) -- false unless
 			// `updatePresetFromCurrentSettings()` ran.
 			expect(arp->preset == ArpPreset::DOWN).to_be_true();
-			expect(f.ctx.sound->invertReversed).to_be_false();
+			expect(spec::menu_engine(f.ctx).sound->invertReversed).to_be_false();
 			covered++;
 		}
 
 		{ // --- arp_preset: the settings re-derivation, the restart flag, the silence block ----
-			ArpeggiatorSettings* arp = f.ctx.arp;
+			ArpeggiatorSettings* arp = spec::menu_engine(f.ctx).arp;
 			arp->mode = ArpMode::OFF;
 			arp->preset = ArpPreset::OFF;
 			arp->octaveMode = ArpOctaveMode::RANDOM;
 			arp->noteMode = ArpNoteMode::RANDOM;
 			arp->flagForceArpRestart = false;
-			f.ctx.sound->invertReversed = true;
+			spec::menu_engine(f.ctx).sound->invertReversed = true;
 
 			menu::bindings::write(nodes::arp_preset, f.ctx, static_cast<int32_t>(ArpPreset::DOWN));
 
@@ -2064,7 +2060,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			expect(arp->octaveMode == ArpOctaveMode::DOWN).to_be_true();
 			expect(arp->noteMode == ArpNoteMode::DOWN).to_be_true();
 			expect(arp->flagForceArpRestart).to_be_true();
-			expect(f.ctx.sound->invertReversed).to_be_false();
+			expect(spec::menu_engine(f.ctx).sound->invertReversed).to_be_false();
 
 			arp->mode = ArpMode::OFF;
 			arp->preset = ArpPreset::OFF;
@@ -2072,7 +2068,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			covered++;
 		}
 
-		OutputPeek::active_clip_of(*f.ctx.output) = saved_active;
+		OutputPeek::active_clip_of(*spec::menu_engine(f.ctx).output) = saved_active;
 		expect(covered).to_equal(std::size(kLegacyWriteNeedsUi));
 
 		// --- and the kit sweep the generic `*_writes` loop cannot reach for these two ----------

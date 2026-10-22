@@ -112,10 +112,8 @@
 ///     `setupModelStackWithSong(...)->addTimelineCounter(...)->addOtherTwoThingsButNoNoteRow(...)`
 ///     `->addParamCollection(...)` and calls `ExpressionParamSet::clearValues(modelStack)`.
 ///     `model/model_stack.h` is confined to `menu/context.cpp` and `menu/bindings.cpp`
-///     (`scenes-model-stack-outside-context`), and the one seam out of that confinement,
-///     `menu::model_stack_for(const MenuContext&, void*)` (`scenes/menu/context.h:218`), builds a
-///     `ModelStackWithThreeMainThings` from a *menu* context -- not this stack, and not from an
-///     `Instrument` alone. Counted by `unported_calls(UnportedCall::ClearMonoExpression)` rather
+///     (`scenes-model-stack-outside-context`), and neither builds this stack from an `Instrument`
+///     alone. Counted by `unported_calls(UnportedCall::ClearMonoExpression)` rather
 ///     than silently dropped, following `GlobalControls::unported_opens`'s precedent: the counter
 ///     exists so a spec can prove the arm reached the point legacy makes the call at, which is the
 ///     only part of it this layer can assert.

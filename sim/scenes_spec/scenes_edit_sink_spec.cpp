@@ -32,6 +32,7 @@
 #include "storage/audio/audio_file_holder.h"
 #include "storage/multi_range/multi_range.h"
 
+#include "support/menu_engine.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -124,10 +125,10 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
 		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
-		set_polyphony(*ctx.sound, "poly");
+		set_polyphony(*spec::menu_engine(ctx).sound, "poly");
 		bindings::write(kMaxVoices, ctx, 5);
-		expect(static_cast<int>(ctx.sound->boundState()->max_voice_count)).to_equal(5);
-		expect(static_cast<int>(ctx.sound->maxVoiceCount)).to_equal(5);
+		expect(static_cast<int>(spec::menu_engine(ctx).sound->boundState()->max_voice_count)).to_equal(5);
+		expect(static_cast<int>(spec::menu_engine(ctx).sound->maxVoiceCount)).to_equal(5);
 		expect(bindings::read(kMaxVoices, ctx)).to_equal(5);
 	});
 
@@ -311,14 +312,14 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
 		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
-		const int before = ctx.sound->boundState()->max_voice_count;
+		const int before = spec::menu_engine(ctx).sound->boundState()->max_voice_count;
 		const uint32_t refused = deluge::gui::shellEditRefusals();
 		menu::host_write_sink().write(bind::WriteRequest{
 		    .target = kMaxVoices.bind.target,
 		    .where = bind::Addresses{.slot = deluge::project::SlotAddress{deluge::project::SlotAddress::Kind::DRUM, 9999}},
 		    .menu_value = 2});
 		expect(deluge::gui::shellEditRefusals()).to_equal(refused + 1);
-		expect(static_cast<int>(ctx.sound->boundState()->max_voice_count)).to_equal(before);
+		expect(static_cast<int>(spec::menu_engine(ctx).sound->boundState()->max_voice_count)).to_equal(before);
 	});
 
 	it("shows no target node on a kit row with no note row", _ {

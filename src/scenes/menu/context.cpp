@@ -94,17 +94,6 @@ namespace deluge::scenes::menu {
 
 namespace {
 
-/// @brief `Source::ranges` holds `MultiRange*` by base pointer; element 0 is what `setup()`'s
-///        auto-selection (`:1889`) and `checkPermissionToBeginSessionForRangeSpecificParam`'s
-///        single-range shortcut (`:2005`) both reach for.
-MultiRange* first_range(Source& source) {
-	return source.ranges.empty() ? nullptr : static_cast<MultiRange*>(source.ranges.getElement(0));
-}
-
-} // namespace
-
-namespace {
-
 /// @brief The edited source's record, or null where the context edits no sound.
 const deluge::instrument::SourceState* source_state(const MenuContext& ctx) {
 	if (ctx.facts == nullptr || !ctx.addresses.slot || ctx.source_index < 0 || ctx.source_index >= kNumSources) {
@@ -150,7 +139,6 @@ bool ensure_first_range(MenuContext& ctx) {
 	// is guaranteed to exist. A source that had none until a moment ago now has exactly one.
 	if (ctx.is_kit || range_count(ctx) == 1) {
 		ctx.range_index = 0;
-		ctx.range = ctx.source != nullptr ? first_range(*ctx.source) : nullptr;
 	}
 	return true;
 }
@@ -161,7 +149,6 @@ void select_range(MenuContext& ctx, int32_t index) {
 	}
 	// `SoundEditor::setCurrentMultiRange` (`:1983-1986`).
 	ctx.range_index = static_cast<int16_t>(index);
-	ctx.range = ctx.source != nullptr ? static_cast<MultiRange*>(ctx.source->ranges.getElement(index)) : nullptr;
 	// `MultiRange::selectEncoderAction`'s own `defaultRangeI` write (`multi_range.cpp:239`), which is what makes the
 	// choice stick across a later visit to the same source: the scenes' view state, by slot and source.
 	if (ctx.model != nullptr) {
@@ -172,31 +159,22 @@ void select_range(MenuContext& ctx, int32_t index) {
 }
 
 void select_source(MenuContext& ctx, int8_t index) {
-	if (ctx.sound == nullptr || index < 0 || index >= kNumSources) {
+	if (!ctx.addresses.slot || index < 0 || index >= kNumSources) {
 		return;
 	}
-	// `SoundEditor::setup`'s `:1841-1843`, folded in here because this is the port of the one place
-	// legacy changes source index mid-menu. A range remembered for the *other* source names a
-	// different sample entirely, and every caller of this is about to hand the context to a scene
-	// that dereferences `ctx.range`.
+	// `SoundEditor::setup`'s `:1841-1843`, folded in here because this is the port of the one place legacy changes
+	// source index mid-menu: a range remembered for the *other* source names a different sample entirely.
 	//
-	// NARROWED, deliberately: legacy's condition is a disjunction, and only the second half is
-	// ported. The first -- `currentUI != &soundEditor && currentUI != &sampleMarkerEditor` -- drops
-	// the remembered range whenever the menu is being *entered* rather than navigated within, which
-	// it has to do because `currentMultiRange` is a `SoundEditor` member that outlives every visit.
-	// `MenuContext` is not: `context_for` builds a fresh one per entry and resolves `range` from
-	// scratch (`:1887-1891`'s arm below), so there is no stale range for that half to clear. It is
-	// also a UI read this layer may not make (`scenes-no-root-ui`). The surviving half is the one
-	// that fires *inside* a session, which is exactly what this function is for.
+	// NARROWED, deliberately: legacy's condition is a disjunction, and only the second half is ported. The first --
+	// `currentUI != &soundEditor && currentUI != &sampleMarkerEditor` -- drops the remembered range whenever the menu
+	// is being *entered* rather than navigated within, which it has to do because `currentMultiRange` is a
+	// `SoundEditor` member that outlives every visit. `MenuContext` is not: `context_for` builds a fresh one per entry.
+	// It is also a UI read this layer may not make (`scenes-no-root-ui`).
 	if (ctx.source_index != index) {
-		ctx.range = nullptr;
 		ctx.range_index = -1;
 	}
 	ctx.source_index = index;
-	ctx.source = &ctx.sound->sources[index];                   // `:243`
-	ctx.sample_controls = &ctx.source->sampleControls;         // `:245`
-	if (ctx.range == nullptr && !ctx.source->ranges.empty()) { // `:247-249`
-		ctx.range = static_cast<MultiRange*>(ctx.source->ranges.getElement(0));
+	if (ctx.range_index < 0 && range_count(ctx) > 0) { // `:247-249`
 		ctx.range_index = 0;
 	}
 }
@@ -205,7 +183,9 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
                         bool session_or_arranger_root, bool session_view_root, bool kit_global_fx) {
 	MenuContext ctx{};
 	ctx.song = &song;
-	ctx.clip = clip;
+	// The engine objects the context is resolved from; it keeps their addresses, not them.
+	Output* output = nullptr;
+	Sound* sound = nullptr;
 	ctx.source_index = source_index;
 	// Legacy's `!rootUIIsClipMinderScreen()`: performance view is not a clip minder either, whatever its caller says of
 	// the session and arranger.
@@ -244,15 +224,14 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 		alignas(ModelStackWithAutoParam) char stack_memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* stack = song.setupModelStackWithSongAsTimelineCounter(stack_memory);
 		if (stack != nullptr) {
-			ctx.params = static_cast<ParamManagerForTimeline*>(stack->paramManager);
 			ctx.mod = static_cast<ModControllableAudio*>(stack->modControllable);
 		}
 	}
 
 	// `:1696-1762`
 	else if (clip != nullptr) {
-		ctx.output = clip->output;      // `:1697`
-		output_type = ctx.output->type; // `:1698`
+		output = clip->output;      // `:1697`
+		output_type = output->type; // `:1698`
 		ctx.is_kit = output_type == OutputType::KIT;
 		ctx.is_audio_clip = clip->type == ClipType::AUDIO;
 
@@ -262,7 +241,7 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 
 			// `:1704-1740` -- Kit.
 			if (ctx.is_kit) {
-				Drum* selected_drum = static_cast<Kit*>(ctx.output)->selectedDrum; // `:1706`
+				Drum* selected_drum = static_cast<Kit*>(output)->selectedDrum; // `:1706`
 
 				// `:1708-1713` -- affect-entire ("kit global FX"): the kit itself is the mod
 				// controllable and the clip's own param manager is what is edited.
@@ -277,14 +256,12 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 				// (`sound_editor.cpp:1205-1213`) enters with it false while `affectEntire` is true,
 				// and legacy edits the row's params rather than the kit's. Deriving the branch from
 				// `affectEntire` would silently take the kit path there -- and with it a different
-				// root (`KitGlobalFx` vs `Drum`) and a different `model_stack_for` arm.
+				// root (`KitGlobalFx` vs `Drum`) and different addresses.
 				//
 				// `ctx.affect_entire` below still reports the clip's own setting, so a caller can
 				// see both facts.
 				if (kit_global_fx) {
-					ctx.mod = static_cast<ModControllableAudio*>(ctx.output->toModControllable());
-					ctx.params = &instrument_clip->paramManager;
-					ctx.arp = &instrument_clip->arpSettings;
+					ctx.mod = static_cast<ModControllableAudio*>(output->toModControllable());
 					ctx.is_kit_global_fx = true;
 				}
 
@@ -300,17 +277,13 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 						}
 						else {
 							auto* sound_drum = static_cast<SoundDrum*>(selected_drum);
-							ctx.sound = sound_drum;
+							sound = sound_drum;
 							ctx.mod = sound_drum;
-							ctx.params = &note_row->paramManager;
-							ctx.arp = &sound_drum->arpSettings;
 						}
 					}
 
 					// `:1727-1729` -- a MIDI or gate drum: an arpeggiator and nothing else.
-					else if (selected_drum->type == DrumType::MIDI || selected_drum->type == DrumType::GATE) {
-						ctx.arp = &static_cast<NonAudioDrum*>(selected_drum)->arpSettings;
-					}
+					else if (selected_drum->type == DrumType::MIDI || selected_drum->type == DrumType::GATE) {}
 				}
 
 				// `:1732-1739` -- a kit with neither affect-entire nor a selected drum: nothing to
@@ -325,22 +298,18 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 			else {
 				// `:1744-1748` -- Synth.
 				if (output_type == OutputType::SYNTH) {
-					auto* synth = static_cast<SoundInstrument*>(ctx.output);
-					ctx.sound = synth;
+					auto* synth = static_cast<SoundInstrument*>(output);
+					sound = synth;
 					ctx.mod = synth;
 				}
 
 				// `:1750` -- CV or MIDI: not much happens (no sound, no mod controllable).
-
-				ctx.params = &clip->paramManager;        // `:1752`
-				ctx.arp = &instrument_clip->arpSettings; // `:1753`
 			}
 		}
 
 		// `:1757-1761` -- AudioClips.
 		else {
-			ctx.params = &clip->paramManager;
-			ctx.mod = static_cast<ModControllableAudio*>(ctx.output->toModControllable());
+			ctx.mod = static_cast<ModControllableAudio*>(output->toModControllable());
 		}
 	}
 
@@ -382,11 +351,11 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 				ctx.root = MenuContext::Root::KitGlobalFx;
 			}
 			else if (ctx.is_kit && !ctx.is_kit_global_fx && ctx.is_drum
-			         && static_cast<Kit*>(ctx.output)->selectedDrum->type == DrumType::MIDI) { // `:1794-1798`
+			         && static_cast<Kit*>(output)->selectedDrum->type == DrumType::MIDI) { // `:1794-1798`
 				ctx.root = MenuContext::Root::MidiDrum;
 			}
 			else if (ctx.is_kit && !ctx.is_kit_global_fx && ctx.is_drum
-			         && static_cast<Kit*>(ctx.output)->selectedDrum->type == DrumType::GATE) { // `:1800-1804`
+			         && static_cast<Kit*>(output)->selectedDrum->type == DrumType::GATE) { // `:1800-1804`
 				ctx.root = MenuContext::Root::GateDrum;
 			}
 			else { // `:1806-1808`
@@ -412,41 +381,25 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 	}
 
 	// ---------------------------------------------------------------------------------------
-	// Part 3: the derived `current*` fields (`:1873-1897`).
+	// Part 3: the range (`:1873-1897`).
 	// ---------------------------------------------------------------------------------------
 
-	if (ctx.sound != nullptr) {                             // `:1881-1892`
-		ctx.source = &ctx.sound->sources[ctx.source_index]; // `:1883`
-		ctx.sample_controls = &ctx.source->sampleControls;  // `:1884`
-
+	if (sound != nullptr) { // `:1881-1892`
 		// `:1887-1891` -- auto-select the first range. `setup()` does this only once
 		// `checkPermissionToBeginSession` has returned YES for the *specific item* being opened,
 		// which `context_for` has no item to ask. So the selection is made exactly where the
 		// permission rule itself would be unambiguous
 		// (`checkPermissionToBeginSessionForRangeSpecificParam:1950` -- a kit, or a single range),
-		// and left null when a choice is genuinely pending; `permission_for()` below then reports
+		// and left unchosen when a choice is genuinely pending; `permission_for()` below then reports
 		// `MustSelectRange` for that case, as it must.
 		//
-		// That this is narrower than `:1887` costs nothing observable (fix round 1, Minor 3): the
-		// only consumers of `currentMultiRange` in legacy are the range-dependent items
-		// (`Node::range_dependent` -- sample transpose, loop point, the file selector, the audio
-		// recorder, the picker) plus `getCurrentAudioFileHolder`/`isUntransposedNoteWithinRange`,
-		// which serve them. An ordinary patched param never reads it -- its value comes from
-		// `bind.param` through the `ModelStack` -- so leaving `ctx.range` null for a multi-range
-		// source is invisible to every node that is not asking for a range in the first place.
-		//
-		// `ctx.range` is therefore the *selected/remembered* range, i.e. the input `permission_for`
+		// `range_index` is therefore the *selected/remembered* range, i.e. the input `permission_for`
 		// reads, matching legacy's `newRange` at `:1839-1843` rather than its post-permission
 		// assignment at `:1889`.
-		const std::ptrdiff_t ranges = std::ssize(ctx.source->ranges);
+		const std::ptrdiff_t ranges = std::ssize(sound->sources[ctx.source_index].ranges);
 		if (ranges == 1 || (ctx.is_kit && ranges > 0)) {
-			ctx.range = first_range(*ctx.source);
 			ctx.range_index = 0;
 		}
-	}
-	else if (ctx.is_audio_clip) { // `:1893-1897`
-		auto* audio_clip = static_cast<AudioClip*>(clip);
-		ctx.sample_controls = &audio_clip->sampleControls;
 	}
 
 	// What a target node binds through: the model, the edited sound's slot, the kit an affect-entire write fans out
@@ -458,17 +411,17 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 		ctx.sink = &host_write_sink();
 	}
 	// An unresolved context (a kit row with no note row) is one legacy refuses to open: it names nothing to edit.
-	if (ctx.resolved && ctx.sound != nullptr) {
-		ctx.addresses.slot = deluge::bridge::slotAddressOf(*ctx.sound);
+	if (ctx.resolved && sound != nullptr) {
+		ctx.addresses.slot = deluge::bridge::slotAddressOf(*sound);
 	}
-	if (ctx.resolved && ctx.is_kit && ctx.output != nullptr) {
-		ctx.addresses.kit_output = ctx.output->id();
+	if (ctx.resolved && ctx.is_kit && output != nullptr) {
+		ctx.addresses.kit_output = output->id();
 	}
 	// The records a model target edits: the clip and its track, a kit row's lane and (a sound row's) note row; and what
 	// plays them, which the model does not hold but the root does.
-	if (ctx.resolved && !ctx.is_song_view && clip != nullptr && ctx.output != nullptr && ctx.output->id()) {
+	if (ctx.resolved && !ctx.is_song_view && clip != nullptr && output != nullptr && output->id()) {
 		ctx.addresses.clip = deluge::project::ClipAddress{clip->id()};
-		ctx.addresses.track = deluge::project::TrackAddress{*ctx.output->id()};
+		ctx.addresses.track = deluge::project::TrackAddress{*output->id()};
 		using Instrument = deluge::engine::SettingContext::Instrument;
 		switch (output_type) {
 		case OutputType::SYNTH:
@@ -490,9 +443,9 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 			break;
 		}
 		if (ctx.is_drum) {
-			const Drum* drum = static_cast<Kit*>(ctx.output)->selectedDrum;
+			const Drum* drum = static_cast<Kit*>(output)->selectedDrum;
 			if (drum != nullptr && drum->id()) {
-				ctx.addresses.lane = deluge::project::LaneAddress{*ctx.output->id(), *drum->id()};
+				ctx.addresses.lane = deluge::project::LaneAddress{*output->id(), *drum->id()};
 				if (drum->type == DrumType::SOUND) {
 					ctx.addresses.note_row = deluge::project::NoteRowAddress{
 					    .clip_id = clip->id(), .is_kit = true, .row_key = static_cast<int32_t>(*drum->id())};
@@ -502,7 +455,7 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 	}
 	// The chain an effect target edits when no sound is: the whole kit's, an audio track's or the master's. The model's
 	// address cannot say which kind of output holds it; the root can.
-	if (ctx.resolved && ctx.sound == nullptr && ctx.mod != nullptr) {
+	if (ctx.resolved && sound == nullptr && ctx.mod != nullptr) {
 		ctx.addresses.chain = deluge::bridge::chainAddressOf(*ctx.mod, song);
 		ctx.addresses.chain_owner = ctx.is_song_view    ? bind::ChainOwner::SONG
 		                            : ctx.is_audio_clip ? bind::ChainOwner::AUDIO_TRACK
@@ -510,42 +463,6 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 	}
 
 	return ctx;
-}
-
-ModelStackWithThreeMainThings* model_stack_for(const MenuContext& ctx, void* memory) {
-	// `:2041-2043` -- not a clip-minder screen: the song is the timeline counter and brings its own
-	// param manager and global effectable.
-	if (ctx.is_song_view) {
-		return ctx.song->setupModelStackWithSongAsTimelineCounter(memory);
-	}
-
-	// `:2044-2048` -- kit with affect-entire: the clip is the timeline counter, and the context's
-	// own mod controllable + param manager are attached with no note row.
-	//
-	// Keyed on `is_kit_global_fx` rather than `affect_entire` for the same reason part 2's root arms
-	// are: it must agree with which branch part 1 actually took, or a kit-row shortcut context
-	// (affect-entire on, editing one row) would get a no-note-row stack over row params.
-	if (ctx.is_kit && ctx.is_kit_global_fx) {
-		ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, ctx.song, ctx.clip);
-		return stack->addOtherTwoThingsButNoNoteRow(ctx.mod, ctx.params);
-	}
-
-	// `:2049-2059` -- everything else: a note row too, when a kit drum is selected.
-	//
-	// `noteRowIndex` is left uninitialised by `getCurrentModelStack` when there is no selected drum
-	// (`:2051`); it is zero-initialised here, since `addNoteRow(id, nullptr)` stores the id either
-	// way and an indeterminate value is a real (if currently harmless) UB read.
-	NoteRow* note_row = nullptr;
-	int32_t note_row_index = 0;
-	if (ctx.is_kit) {
-		Drum* selected_drum = static_cast<Kit*>(ctx.output)->selectedDrum;
-		if (selected_drum != nullptr) {
-			note_row = static_cast<InstrumentClip*>(ctx.clip)->getNoteRowForDrum(selected_drum, &note_row_index);
-		}
-	}
-
-	return setupModelStackWithThreeMainThingsIncludingNoteRow(memory, ctx.song, ctx.clip, note_row_index, note_row,
-	                                                          ctx.mod, ctx.params);
 }
 
 Permission permission_for(const Node& node, const MenuContext& ctx) {
@@ -573,19 +490,19 @@ Permission permission_for(const Node& node, const MenuContext& ctx) {
 	}
 
 	// `:1950` -- a kit row is always range-unambiguous (one range per drum), and so is a source
-	// with exactly one range. `context_for` has already pointed `ctx.range` at that range.
+	// with exactly one range. `context_for` has already pointed `ctx.range_index` at that range.
 	if (ctx.is_kit || range_count(ctx) <= 1) {
 		return Permission::Yes;
 	}
 
 	// `:1955-1957` -- a range is already selected for this source index (`ctx.source_index` is what
-	// `context_for` resolved `ctx.source`/`ctx.range` against, so the legacy
+	// `context_for` resolved `ctx.range_index` against, so the legacy
 	// `currentSourceIndex == whichThing` test holds by construction). Legacy's
 	// `getCurrentUI() == &soundEditor` guard is dropped as a UI read; it is redundant here because
 	// legacy already nulls the remembered range at `:1784-1788` whenever the UI or source index
 	// changed, which is the same condition.
 	//
-	// Unreachable for a context straight out of `context_for`: the only cases that set `ctx.range`
+	// Unreachable for a context straight out of `context_for`: the only cases that set `ctx.range_index`
 	// (kit row, single range) already returned `Yes` above. This is E2's entry point -- once the
 	// picker writes a chosen range back into the context, this is the arm that lets the item open.
 	if (ctx.range_index >= 0) {
