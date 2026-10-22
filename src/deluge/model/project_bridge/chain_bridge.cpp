@@ -19,14 +19,18 @@
 
 #include "model/mod_controllable/delay_type.h"
 
+#include "engine-api/types/sync.h"
 #include "engines/effects/chain.h"
 #include "engines/effects/codec.h"
 #include "engines/effects/engine.h"
+#include "engines/effects/settings.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "processing/audio_output.h"
+#include "serialization/tree.h"
 #include "util/functions.h"
 
 namespace deluge::bridge {
@@ -160,6 +164,43 @@ void recordOutputChain(::Output& output, ::Song& song) {
 		record->effects.emplace();
 	}
 	adoptChainState(*owner, *record->effects, ChainHome::CLIP);
+}
+
+void auditEffectWrite(const deluge::effects::EffectStates& before, deluge::effects::Home home, std::string_view path,
+                      const deluge::serialization::Value& value, int32_t tick_magnitude,
+                      const deluge::effects::EffectStates& got) {
+	TypedWriteAudit& audit = typedWriteAudit();
+	const std::optional<std::string_view> effect = deluge::effects::effect_of_setting(path);
+	if (!audit.enabled || !effect) {
+		return;
+	}
+	const deluge::engine::CodecContext context{.input_tick_magnitude = tick_magnitude};
+	deluge::serialization::Value leaf = value;
+	if (path.ends_with("/syncLevel")) {
+		const int32_t level = deluge::serialization::int_of(&value).value_or(0);
+		leaf = deluge::serialization::Value::makeNumber(deluge::engine::sync_level_to_file(level, tick_magnitude));
+	}
+	deluge::effects::EffectStates treeWay = before;
+	for (deluge::effects::SlotEntries& slot : deluge::effects::encode_chain(before, home, context)) {
+		if (slot.effect == *effect) {
+			deluge::effects::decode_slot(*effect, withLeaf(slot.entries, path, leaf), treeWay, context);
+		}
+	}
+	audit.writes++;
+	if (treeWay == got) {
+		return;
+	}
+	deluge::effects::EffectStates kept = treeWay; // the tree way, with what the file could not hold
+	(void)deluge::effects::write_effect_setting(kept, path, value);
+	if (kept == got) {
+		return;
+	}
+	audit.mismatches++;
+	if (audit.first.empty()) {
+		audit.first = std::string(path) + "=" + value.str() + ": "
+		              + deluge::serialization::first_difference(deluge::effects::encode(got, context),
+		                                                        deluge::effects::encode(treeWay, context));
+	}
 }
 
 ::GlobalEffectable* chainOwnerOf(::Output& output) {

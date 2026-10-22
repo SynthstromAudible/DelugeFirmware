@@ -20,6 +20,7 @@
 #include "model/output.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/mapping_bridge.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -492,10 +493,31 @@ int host_effect_settings_main(int argc, char** argv, Io driverIo) {
 		ok++;
 	}
 	reserveLeg(*song, owners);
+	// Every typed write checked against the tree way: the setting legs, then a kit's and the master's again with the
+	// song's tick magnitude two steps on, where a sync level's file form differs.
+	deluge::bridge::typedWriteAudit() = {.enabled = true};
 	for (const HostOwner& owner : owners) {
 		settingLegs(*song, owner);
 	}
+	song->project.transport.inside_world_tick_magnitude += 2;
+	for (const HostOwner& owner : kitAndMaster(owners)) {
+		settingLegs(*song, owner);
+	}
+	song->project.transport.inside_world_tick_magnitude -= 2;
 	magnitudeLeg(*song, owners);
+	{
+		const deluge::bridge::TypedWriteAudit& audit = deluge::bridge::typedWriteAudit();
+		std::fprintf(io.err, "EFFECT-WRITE-AUDIT writes=%u mismatches=%u %s\n", static_cast<unsigned>(audit.writes),
+		             static_cast<unsigned>(audit.mismatches), audit.first.c_str());
+		if (audit.writes == 0 || audit.mismatches != 0) {
+			fail(owners.back(), "audit", Value::makeNumber(static_cast<int32_t>(audit.mismatches)),
+			     audit.writes == 0 ? "no effect write was audited" : audit.first);
+		}
+		else {
+			ok++;
+		}
+		deluge::bridge::typedWriteAudit() = {}; // the cost leg times the write alone
+	}
 	hibernationLeg(*song);
 	ringFailureLeg(*song);
 	costLeg(*song);

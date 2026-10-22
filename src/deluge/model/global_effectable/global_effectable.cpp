@@ -61,63 +61,52 @@ void GlobalEffectable::cloneFrom(ModControllableAudio* other) {
 	ModControllableAudio::cloneFrom(other);
 
 	const auto& from = static_cast<GlobalEffectable&>(*other);
-	deluge::model::HostChainState next = chainState();
-	next.mod_fx_param = from.modFXParam();
-	next.filter_type = from.filterType();
-	setChainState(next);
-}
-
-deluge::model::HostChainState GlobalEffectable::chainState() const {
-	return {.effects = effects(), .mod_fx_param = modFXParam(), .filter_type = filterType()};
+	setView(from.modFXParam(), from.filterType());
 }
 
 ModFXParam GlobalEffectable::modFXParam() const {
 	return boundChain_ != nullptr
 	           ? static_cast<ModFXParam>(std::min<int32_t>(boundChain_->mod_fx_param, kNumModFXParams - 1))
-	           : chainState_.mod_fx_param;
+	           : modFXParam_;
 }
 
 FilterType GlobalEffectable::filterType() const {
 	return boundChain_ != nullptr
 	           ? static_cast<FilterType>(std::min<int32_t>(boundChain_->filter_type, kNumFilterTypes - 1))
-	           : chainState_.filter_type;
+	           : filterType_;
 }
 
 void GlobalEffectable::bindChain(deluge::project::FxChain& chain) {
 	if (boundChain_ == &chain) {
 		return;
 	}
-	const deluge::model::HostChainState playing = chainState();
-	chain.effects = deluge::engine::StateHandle::of<deluge::effects::DelugeEffects>(playing.effects);
-	chain.mod_fx_param = static_cast<uint8_t>(util::to_underlying(playing.mod_fx_param));
-	chain.filter_type = static_cast<uint8_t>(util::to_underlying(playing.filter_type));
+	chain.effects = deluge::engine::StateHandle::of<deluge::effects::DelugeEffects>(effects());
+	chain.mod_fx_param = static_cast<uint8_t>(util::to_underlying(modFXParam()));
+	chain.filter_type = static_cast<uint8_t>(util::to_underlying(filterType()));
 	boundChain_ = &chain;
 	bindEffects(chain.effects.as<deluge::effects::DelugeEffects>());
-	chainState_ = {}; // the record holds them now
 }
 
 void GlobalEffectable::unbindChain() {
 	if (boundChain_ == nullptr) {
 		return;
 	}
-	chainState_.mod_fx_param = modFXParam();
-	chainState_.filter_type = filterType();
-	bindEffects(&chainState_.effects); // copies the record's effects in
+	modFXParam_ = modFXParam();
+	filterType_ = filterType();
+	bindEffects(nullptr); // copies the record's effects in
 	boundChain_ = nullptr;
 }
 
-void GlobalEffectable::setChainState(const deluge::model::HostChainState& next) {
+void GlobalEffectable::setView(ModFXParam param, FilterType type) {
 	if (boundChain_ != nullptr) {
-		boundChain_->mod_fx_param = static_cast<uint8_t>(util::to_underlying(next.mod_fx_param));
-		boundChain_->filter_type = static_cast<uint8_t>(util::to_underlying(next.filter_type));
+		boundChain_->mod_fx_param = static_cast<uint8_t>(util::to_underlying(param));
+		boundChain_->filter_type = static_cast<uint8_t>(util::to_underlying(type));
 	}
 	else {
-		chainState_.mod_fx_param = next.mod_fx_param;
-		chainState_.filter_type = next.filter_type;
+		modFXParam_ = param;
+		filterType_ = type;
 	}
-	// The effects and the view reach the render copy together. Projected even when unchanged: a mod FX ring or a grain
-	// that could not be allocated is retried at every effects edit.
-	setEffects(next.effects);
+	projectModControllableSnapshot();
 }
 
 void GlobalEffectable::projectView(deluge::snapshot::ModControllableSnapshot& copy) {
@@ -818,10 +807,10 @@ void GlobalEffectable::ensureModFXParamIsValid() {
 }
 
 void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutomation) {
-	const deluge::model::HostChainState saved = chainState(); // its record's, while it plays one
-	writer.writeAttribute("modFXCurrentParam", modFXParamToString(saved.mod_fx_param));
-	writer.writeAttribute("currentFilterType", filterTypeToString(saved.filter_type));
-	ModControllableAudio::writeAttributesToFile(writer, saved.effects);
+	// Its record's, while it plays one.
+	writer.writeAttribute("modFXCurrentParam", modFXParamToString(modFXParam()));
+	writer.writeAttribute("currentFilterType", filterTypeToString(filterType()));
+	ModControllableAudio::writeAttributesToFile(writer, effects());
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	// <--
 }
@@ -837,8 +826,7 @@ void GlobalEffectable::writeTagsToFile(Serializer& writer, ParamManager* paramMa
 	}
 
 	// A clip chain's render follows its threshold param; the file holds the setting, as the record does.
-	const deluge::model::HostChainState saved = chainState();
-	ModControllableAudio::writeTagsToFile(writer, saved.effects, knobsSong, knobsOwner);
+	ModControllableAudio::writeTagsToFile(writer, effects(), knobsSong, knobsOwner);
 }
 
 void GlobalEffectable::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
@@ -927,16 +915,19 @@ Error GlobalEffectable::readTagFromFile(Deserializer& reader, char const* tagNam
 }
 
 void GlobalEffectable::readEffectsFromElement(const deluge::serialization::Value& element, int32_t tickMagnitude) {
-	deluge::model::HostChainState next = chainState();
-	deluge::effects::decode(element, next.effects, {.input_tick_magnitude = tickMagnitude});
+	deluge::effects::EffectStates next = effects();
+	deluge::effects::decode(element, next, {.input_tick_magnitude = tickMagnitude});
 	delayTypePending = !deluge::effects::saves_delay_type(element);
-	if (const deluge::serialization::Value* param = element.find("modFXCurrentParam"); param && param->isScalar()) {
-		next.mod_fx_param = stringToModFXParam(param->str().c_str());
+	ModFXParam param = modFXParam();
+	FilterType type = filterType();
+	if (const deluge::serialization::Value* word = element.find("modFXCurrentParam"); word && word->isScalar()) {
+		param = stringToModFXParam(word->str().c_str());
 	}
-	if (const deluge::serialization::Value* type = element.find("currentFilterType"); type && type->isScalar()) {
-		next.filter_type = stringToFilterType(type->str().c_str());
+	if (const deluge::serialization::Value* word = element.find("currentFilterType"); word && word->isScalar()) {
+		type = stringToFilterType(word->str().c_str());
 	}
-	setChainState(next);
+	setView(param, type);
+	setEffects(next);
 }
 
 ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {

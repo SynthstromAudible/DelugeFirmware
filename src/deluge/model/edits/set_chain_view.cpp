@@ -1,46 +1,46 @@
 #include "model/edits/set_chain_view.h"
 
+#include "engines/effects/chain.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/project_bridge/chain_bridge.h"
-#include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
-#include "util/functions.h"
 
-#include <cstring>
+#include <algorithm>
+#include <optional>
+#include <span>
 
 namespace deluge::edits {
 
 Error SetChainView::apply(Context& ctx) {
 	deluge::project::FxChain* chain = ctx.model.resolveChain(chain_);
 	::GlobalEffectable* owner = deluge::bridge::chainOwnerAt(chain_, ctx.song);
-	if (chain == nullptr || owner == nullptr || !value_.isScalar()) {
+	if (chain == nullptr || owner == nullptr || owner->boundChain() != chain || !value_.isScalar()) {
 		return Error::UNSPECIFIED;
 	}
-	const char* word = value_.str().c_str();
-	deluge::model::HostChainState next = owner->chainState();
-	// A word is taken only when it names a value: each parse falls back on an unknown word, which would not round-trip.
+	// A word is taken only when it names a value.
+	const std::string_view word = value_.str();
+	const auto index_of = [&](std::span<const std::string_view> words) -> std::optional<size_t> {
+		const auto found = std::ranges::find(words, word);
+		return found != words.end() ? std::optional{static_cast<size_t>(found - words.begin())} : std::nullopt;
+	};
 	if (key_ == "modFXCurrentParam") {
-		const ModFXParam param = stringToModFXParam(word);
-		if (std::strcmp(modFXParamToString(param), word) != 0) {
+		const std::optional<size_t> index = index_of(deluge::effects::kModFxParamWords);
+		if (!index) {
 			return Error::UNSPECIFIED;
 		}
-		next.mod_fx_param = param;
+		owner->setView(static_cast<ModFXParam>(*index), owner->filterType());
 	}
 	else if (key_ == "currentFilterType") {
-		const FilterType type = stringToFilterType(word);
-		if (std::strcmp(filterTypeToString(type), word) != 0) {
+		const std::optional<size_t> index = index_of(deluge::effects::kFilterTypeWords);
+		if (!index) {
 			return Error::UNSPECIFIED;
 		}
-		next.filter_type = type;
+		owner->setView(owner->modFXParam(), static_cast<FilterType>(*index));
 	}
 	else {
 		return Error::UNSPECIFIED;
 	}
-	// The record first, then the owner's state from it.
-	chain->mod_fx_param = static_cast<uint8_t>(util::to_underlying(next.mod_fx_param));
-	chain->filter_type = static_cast<uint8_t>(util::to_underlying(next.filter_type));
-	owner->setChainState(next);
-	return Error::NONE;
+	return Error::NONE; // the owner plays its record's view, so this wrote the record
 }
 
 } // namespace deluge::edits

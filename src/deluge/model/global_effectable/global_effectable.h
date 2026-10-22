@@ -20,7 +20,6 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/fx_chain.h"
 #include "engines/effects/filter.h"
-#include "model/fx/host_chain_state.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "modulation/arpeggiator.h"
 #include "serialization/value.h"
@@ -84,13 +83,11 @@ public:
 	/// @brief The chain's filters: a clip chain's or the master's.
 	/// @return The filters.
 	[[nodiscard]] virtual deluge::effects::Filter& filter() = 0;
-	/// @brief The chain's settings and view: its record's while it is bound to one, else its own.
-	/// @return The settings and view.
-	[[nodiscard]] deluge::model::HostChainState chainState() const;
-	/// @brief Sets the chain's settings and view, in its record while it is bound to one: the effects through
-	/// setEffects, which projects the render copy and makes the chain's hand-overs.
-	/// @param next The settings and view to adopt.
-	void setChainState(const deluge::model::HostChainState& next);
+	/// @brief Sets which value the mod FX knob and which filter the filter knobs edit, in the bound record while there
+	/// is one, and projects the render copy.
+	/// @param param Which mod FX value.
+	/// @param type  Which filter.
+	void setView(ModFXParam param, FilterType type);
 	/// @brief Plays the effects and view @p chain holds from now on, @p chain taking what this owner plays now.
 	/// Binding to the chain already bound does nothing.
 	/// @param chain The owner's chain record, which outlives the binding (unbindChain() runs before it goes).
@@ -100,9 +97,6 @@ public:
 	/// @brief The chain record this owner plays, or null when it plays its own.
 	/// @return The bound record.
 	[[nodiscard]] const deluge::project::FxChain* boundChain() const { return boundChain_; }
-	/// @brief Binds effects() to the chain state: each derived owner calls it in its constructor, once its chain
-	/// exists.
-	void bindChainState() { bindEffects(&chainState_.effects); }
 	/// @return Which value the mod FX knob edits.
 	[[nodiscard]] ModFXParam modFXParam() const;
 	/// @return Which filter the filter knobs edit.
@@ -126,8 +120,10 @@ private:
 	/// @brief The compressor threshold the comp-edit knob shows: the render's.
 	/// @return The threshold (Q31).
 	[[nodiscard]] q31_t displayedCompressorThreshold();
-	/// @brief The chain's settings and view while no record holds them; effects() is bound to its effects then.
-	deluge::model::HostChainState chainState_{};
+	/// @brief Which value the mod FX knob edits while no record holds the view.
+	ModFXParam modFXParam_{ModFXParam::FEEDBACK};
+	/// @brief Which filter the filter knobs edit while no record holds the view.
+	FilterType filterType_{FilterType::LPF};
 	/// @brief The record whose effects and view this owner plays, or null.
 	deluge::project::FxChain* boundChain_{nullptr};
 	void displayCompressorAndReverbSettings(bool on);
