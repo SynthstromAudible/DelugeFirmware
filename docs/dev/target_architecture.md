@@ -248,8 +248,11 @@ scales, sample/wavetable *metadata*, sync. Pure data + musical logic. Four
 subtractions define it: no serialization members (moves to `deluge-files`
 binding code), no UI calls (becomes notifications), no direct allocator
 protocol knowledge, and no undo bookkeeping (moves to `deluge-commands`).
-`ModelStack` survives and becomes the standard way context is threaded (it
-replaces `currentSong` lookups as call sites are converted).
+`ModelStack` is retired: model code and Edits name their targets by address
+(`OwnerId`/`ParamAddress`/durable ids) and resolve them at execute, and the
+engine plays snapshots. Until each path is re-keyed, one bridge per kind of
+target turns an address into a stack below the Edit (the param path's is
+`bridge::paramStackAt`); no new code builds a stack outside such a bridge.
 
 **deluge-commands** — the model-mutation gate (§4.4): command types, command
 execution (validate → mutate → record `Consequence`), and the ActionLogger
@@ -391,8 +394,7 @@ preserved by construction: it *coalesces*. The notification channel is:
 
 `deluge-commands` is the single gate for model mutation:
 
-- A **command** = validated intent (+ the `ModelStack` context it applies
-  to). Execution: permission check → mutate model → record `Consequence`
+- A **command** = validated intent, addressed by id (no `ModelStack`). Execution: permission check → mutate model → record `Consequence`
   for undo → raise notifications. `[task]` only.
 - The existing Action/Consequence machinery is **absorbed, not rewritten** —
   it already implements consequence-based undo well; what changes is that
@@ -838,8 +840,8 @@ are the params track (§7.3), which interleaves.
 10. ◆ Params steps 4–6 (hierarchical addresses, compiled slots with
     snapshot-swap publication, source registry).
 11. **`deluge-model`** closes: no UI, no serializer, no allocator protocol,
-    no undo bookkeeping; `ModelStack` threading replaces `currentSong` per
-    call site.
+    no undo bookkeeping; addresses replace `currentSong` per call site, and
+    the transitional address→`ModelStack` bridges are retired.
 12. **Menu system → data + interpreter** (registry-driven param items).
 13. **Display presenter sets**: semantic-state vocabulary catalogued from the
     350 branch sites; views-oled/views-7seg stood up; `Display` god-interface

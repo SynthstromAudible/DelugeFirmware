@@ -9,11 +9,14 @@
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h" // Clip::getCurrentlyRecordingLinearly (region context)
 #include "model/model_stack.h"
+#include "model/project_bridge/param_stack.h"
 #include "model/snapshot/param_snapshot.h" // ParamSnapshot::applyPatch
 #include "model/song/song.h"               // engine Song (tc != song comparison)
 #include "model/timeline_counter.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/param.h"
 #include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
 
 namespace deluge::edits {
 
@@ -44,9 +47,35 @@ deluge::snapshot::RegionContext gatherRegionContext(ModelStackWithAutoParam* eng
 	}
 	return r;
 }
+/// Whether the reverb's sidechain copies the param @p stack names: any owner's sidechain shape, the song's or a global
+/// effectable's sidechain volume.
+bool copiedByReverbSidechain(const ModelStackWithAutoParam& stack) {
+	namespace params = deluge::modulation::params;
+	const params::Kind kind = stack.kind;
+	const bool unpatched = kind == params::Kind::UNPATCHED_SOUND || kind == params::Kind::UNPATCHED_GLOBAL;
+	return (unpatched && stack.paramId == params::UNPATCHED_SIDECHAIN_SHAPE)
+	       || (kind == params::Kind::UNPATCHED_GLOBAL && stack.paramId == params::UNPATCHED_SIDECHAIN_VOLUME);
+}
 } // namespace
 
 Error SetParamValue::apply(Context& ctx) {
+	ModelStackWithAutoParam* const borrowed = engineStack_;
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	if (borrowed == nullptr) {
+		engineStack_ = address_ ? deluge::bridge::paramStackAt(ctx.song, *address_, memory) : nullptr;
+		if (engineStack_ == nullptr) {
+			return Error::UNSPECIFIED;
+		}
+	}
+	const Error error = write(ctx);
+	if (error == Error::NONE && copiedByReverbSidechain(*engineStack_)) {
+		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+	}
+	engineStack_ = borrowed; // a resolved stack lives in this frame only
+	return error;
+}
+
+Error SetParamValue::write(Context& ctx) {
 	// The Edit owns its undo record: snapshot the before-state into the open Action up front, replicating the guard
 	// at the interior log site (auto_param.cpp setCurrentValueInResponseToUserInput, "record value change")
 	// evaluated pre-mutation. The interior log then dedupes via Action::containsConsequenceParamChange, so this

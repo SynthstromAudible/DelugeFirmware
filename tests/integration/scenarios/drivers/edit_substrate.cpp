@@ -54,6 +54,8 @@
 #include "model/model_stack.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/mapping_bridge.h"
+#include "model/project_bridge/param_ids.h"
+#include "model/project_bridge/param_stack.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/project_bridge/source_bridge.h"
@@ -246,6 +248,41 @@ void testDeleteParamAutomation(deluge::edits::Context& ctx) {
 	Action* a = actionLogger.firstAction[BEFORE];
 	check(a != nullptr && a->type == ActionType::AUTOMATION_DELETE, "delete: AUTOMATION_DELETE Action opened");
 	check(a != nullptr && a->firstConsequence != nullptr, "delete: undo Consequence recorded (stolen nodes)");
+}
+
+// The param Edits by address open the undo steps the stack form opens: a turn of the song's filter one
+// PARAM_UNAUTOMATED_VALUE_CHANGE Action, a clear of its automation one AUTOMATION_DELETE Action holding the cleared
+// nodes.
+void testParamEditsByAddressUndo(deluge::edits::Context& ctx) {
+	namespace params = deluge::modulation::params;
+	const deluge::project::ParamAddress address{
+	    .owner = deluge::project::OwnerId::song(),
+	    .space = deluge::project::ParamSpace::ENGINE,
+	    .id = deluge::bridge::paramIdOf(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_FREQ)};
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+	deluge::edits::SetParamValue turn{address, 0x12345678};
+	check(deluge::edits::apply(ctx, turn) == Error::NONE, "by address: a turn applies");
+	Action* a = actionLogger.firstAction[BEFORE];
+	check(a != nullptr && a->type == ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE && a->nextAction == nullptr,
+	      "by address: a turn is one param-change undo step");
+	// The bare song's own params have no record yet: the engine's view of the lane (doc()) holds what it plays.
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* lane = deluge::bridge::paramStackAt(ctx.song, address, memory);
+	check(lane != nullptr && lane->autoParam->getCurrentValue() == 0x12345678, "by address: the param plays the turn");
+	if (lane == nullptr) {
+		return;
+	}
+	actionLogger.firstAction[BEFORE] = nullptr;
+	deluge::project::setNodeAtPos(*lane->doc(), 0, 100, false);
+	deluge::project::setNodeAtPos(*lane->doc(), 32, -200, true);
+	deluge::edits::DeleteParamAutomation clear{address};
+	check(deluge::edits::apply(ctx, clear) == Error::NONE && lane->doc()->nodes.empty(),
+	      "by address: a clear empties the automation");
+	a = actionLogger.firstAction[BEFORE];
+	check(a != nullptr && a->type == ActionType::AUTOMATION_DELETE && a->firstConsequence != nullptr,
+	      "by address: a clear is one undo step holding the nodes");
+	actionLogger.firstAction[BEFORE] = nullptr;
 }
 
 // PasteParamAutomation funnels the automation-paste site. Seed a clipboard, paste via the Edit,
@@ -1434,6 +1471,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	testSetParamValuePilot(ctx);
 	testSetParamValueRegionAndFlag(ctx);
 	testDeleteParamAutomation(ctx);
+	testParamEditsByAddressUndo(ctx);
 	testPasteParamAutomation(ctx);
 	testInlinePokeCharacterization(ctx, audioClip);
 	testParamSnapshotEquivalence(ctx, song, audioClip);
