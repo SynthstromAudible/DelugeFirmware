@@ -550,7 +550,15 @@ public:
 	}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
+		// HorizontalMenu::beginSession() keeps the editor's zone only while a range-dependent item is under
+		// the cursor, and the first time a page opens there is no item under the cursor yet - so the zone
+		// this page is entered with would be dropped, and setCurrentSource() would fall back to the first
+		// zone. Carry it across the call, as RoundRobinSubmenu::beginSession() does.
+		::MultiRange* selectedRange = soundEditor.currentMultiRange;
+		int16_t selectedRangeIndex = soundEditor.currentMultiRangeIndex;
 		HorizontalMenu::beginSession(navigatedBackwardFrom);
+		soundEditor.currentMultiRange = selectedRange;
+		soundEditor.currentMultiRangeIndex = selectedRangeIndex;
 		soundEditor.setCurrentSource(sourceId_);
 		// While this slot's menu is open, auditioning plays this exact slot (without advancing the cycle).
 		MultisampleRange::setAuditionSlot(getRoundRobinRange(sourceId_), slotIndex_);
