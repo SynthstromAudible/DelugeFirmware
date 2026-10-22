@@ -2523,9 +2523,6 @@ void View::completeNavigateThroughPresetsForInstrumentClip(int32_t offset, Instr
 					MIDIInstrument* newMIDIInstrument = (MIDIInstrument*)newInstrument;
 					MIDIInstrument* oldMIDIInstrument = (MIDIInstrument*)clip->output;
 					newMIDIInstrument->copyModKnobCCsFrom(*oldMIDIInstrument);
-					newInstrument->editedByUser =
-					    oldNonAudioInstrument->editedByUser; // This keeps a record of "whether there are any CC
-					                                         // assignments", so must be copied across
 				}
 
 				// And, we'd better copy the default velocity too

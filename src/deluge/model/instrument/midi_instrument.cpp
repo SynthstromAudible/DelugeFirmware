@@ -62,9 +62,12 @@ void MIDIInstrument::seedDocOutputIdentity() {
 		docOutput_->collapse_mpe = collapseMPE;
 		docOutput_->output_mpe_y = static_cast<uint8_t>(outputMPEY);
 		docOutput_->hide_unlabeled_cc = hideUnlabeledCC;
+		// What the track saves: every knob once it is edited, none before.
 		docOutput_->mod_knob_ccs.clear();
-		for (const int8_t cc : modKnobCCAssignments) {
-			docOutput_->mod_knob_ccs.push_back(modKnobCcOf(cc));
+		if (editedByUser) {
+			for (const int8_t cc : modKnobCCAssignments) {
+				docOutput_->mod_knob_ccs.push_back(modKnobCcOf(cc));
+			}
 		}
 		docOutput_->cc_labels.clear();
 		for (const auto& [cc, label] : labels) {
@@ -826,6 +829,7 @@ int32_t MIDIInstrument::changeControlNumberForModKnob(int32_t offset, int32_t wh
 
 void MIDIInstrument::copyModKnobCCsFrom(const MIDIInstrument& other) {
 	modKnobCCAssignments = other.modKnobCCAssignments;
+	editedByUser = other.editedByUser; // whether there are any assignments, which the track then saves
 }
 
 int8_t MIDIInstrument::engineCcOf(const deluge::project::ModKnobCc& cc) {

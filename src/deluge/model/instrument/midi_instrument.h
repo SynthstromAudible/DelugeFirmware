@@ -105,7 +105,8 @@ public:
 	///        through SetModKnobCC.
 	/// @return The knob's CC now.
 	int32_t changeControlNumberForModKnob(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode);
-	/// @brief Take @p other's mod-knob CCs, on an instrument no song has adopted yet: adoption records them.
+	/// @brief Take @p other's mod-knob CCs, and whether it saves them, on an instrument no song has adopted yet:
+	///        adoption records them.
 	/// @param other The instrument whose knobs this one copies.
 	void copyModKnobCCsFrom(const MIDIInstrument& other);
 	/// @brief What engine CC word @p cc names.
