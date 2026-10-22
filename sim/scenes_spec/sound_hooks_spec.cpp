@@ -170,6 +170,72 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		}
 	});
 
+	it("hands a source's own transpose to the sink with no range, and a sample source's with its range", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		deluge::edits::settingFor(*static_cast<SoundInstrument*>(f.instrument), "osc1/type", Value::makeScalar("saw"));
+		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		bind::RecordingSink recording;
+		ctx.sink = &recording;
+		menu::bindings::write(nodes::source0_transpose, ctx, 100);
+		expect(recording.gestures.size() == 1 && !recording.gestures[0].range.has_value()).to_be_true();
+
+		spec::SongFixture sampled = spec::make_synth_song();
+		give_sample_range(*static_cast<SoundInstrument*>(sampled.instrument));
+		MenuContext on_range = menu::context_for(*sampled.song, sampled.clip, 0, false, false, false, false);
+		bind::RecordingSink range_recording;
+		on_range.sink = &range_recording;
+		menu::bindings::write(nodes::source0_transpose, on_range, 100);
+		expect(range_recording.gestures.size() == 1
+		       && range_recording.gestures[0].range == std::optional<uint16_t>{0})
+		    .to_be_true();
+	});
+
+	it("sets a whole kit's interpolation on each sound drum that takes it", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		SoundDrum* sampled = spec::add_drum<SoundDrum>(f);
+		SoundDrum* synth = spec::add_drum<SoundDrum>(f);
+		(void)spec::add_drum<MIDIDrum>(f);
+		give_sample_range(*sampled);
+		give_sample_range(*synth);
+		deluge::edits::settingFor(*synth, "osc1/type", Value::makeScalar("saw"));
+		static_cast<Kit*>(f.instrument)->selectedDrum = sampled;
+		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		ctx.affect_entire_held = true;
+		ctx.addresses.affect_entire = menu::bindings::writes_whole_kit(ctx); // as the menu scene keeps it
+		const deluge::project::SlotAddress sampled_slot{deluge::project::SlotAddress::Kind::DRUM, *sampled->id()};
+		const deluge::project::SlotAddress synth_slot{deluge::project::SlotAddress::Kind::DRUM, *synth->id()};
+		expect(menu::bindings::read(nodes::sample0_interpolation, ctx)).to_equal(1); // SMOOTH, the default
+		menu::bindings::write(nodes::sample0_interpolation, ctx, 0);                  // LINEAR
+		const deluge::instrument::SoundState* a = state_at(sampled_slot);
+		const deluge::instrument::SoundState* b = state_at(synth_slot);
+		expect(a != nullptr && a->sources[0].interpolation_mode == deluge::engine::InterpolationMode::LINEAR)
+		    .to_be_true();
+		// A synth source takes no interpolation: legacy's per-drum setting write refuses it too.
+		expect(b != nullptr && b->sources[0].interpolation_mode == deluge::engine::InterpolationMode::SMOOTH)
+		    .to_be_true();
+	});
+
+	it("sets a whole kit's stutter direction on each sound drum", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		SoundDrum* sampled = spec::add_drum<SoundDrum>(f);
+		SoundDrum* synth = spec::add_drum<SoundDrum>(f);
+		(void)spec::add_drum<MIDIDrum>(f);
+		give_sample_range(*sampled);
+		give_sample_range(*synth);
+		deluge::edits::settingFor(*synth, "osc1/type", Value::makeScalar("saw"));
+		static_cast<Kit*>(f.instrument)->selectedDrum = sampled;
+		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		ctx.affect_entire_held = true;
+		ctx.addresses.affect_entire = menu::bindings::writes_whole_kit(ctx); // as the menu scene keeps it
+		const deluge::project::SlotAddress sampled_slot{deluge::project::SlotAddress::Kind::DRUM, *sampled->id()};
+		const deluge::project::SlotAddress synth_slot{deluge::project::SlotAddress::Kind::DRUM, *synth->id()};
+		menu::bindings::write(nodes::stutter_direction, ctx, 2); // reversed
+		const deluge::instrument::SoundState* a = state_at(sampled_slot);
+		const deluge::instrument::SoundState* b = state_at(synth_slot);
+		expect(a != nullptr && a->effects.stutter.reversed && !a->effects.stutter.use_song_stutter).to_be_true();
+		expect(b != nullptr && b->effects.stutter.reversed && !b->effects.stutter.use_song_stutter).to_be_true();
+	});
+
 	it("offers 'use song' on a sound's stutter and not on the song's own", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		const MenuContext on_sound = menu::context_for(*f.song, f.clip, 0, false, false, false, false);

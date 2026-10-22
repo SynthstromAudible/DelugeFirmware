@@ -88,6 +88,7 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "model/action/action_logger.h"
+#include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/edits/learn_mapping.h"
@@ -104,6 +105,7 @@
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
+#include "storage/flash_storage.h"
 
 #include "support/card_access.h" // before <cppspec.hpp> -- see its @warning
 #include "support/song_fixture.h"
@@ -1761,6 +1763,157 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		                               fixture.clip->id()))
 		    .to_equal(std::optional<int32_t>{0x18000000});
 		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
+		currentSong = saved;
+	});
+
+	it("an input learn makes a synth's expression set with a synth's bend defaults", _ {
+		// A drum's set starts its finger range at the main range; a track's at its own default.
+		static spec::SongFixture fixture = spec::make_synth_song();
+		give_active_clip(fixture);
+		Song* const saved = currentSong;
+		currentSong = fixture.song;
+		expect(FlashStorage::defaultBendRange[BEND_RANGE_MAIN] != FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL])
+		    .to_be_true();
+		expect(fixture.clip->paramManager.getExpressionParamSet() == nullptr).to_be_true();
+		const CableDefaults defaults{cables().a, 3, 0, 7};
+
+		LearnRig rig;
+		rig.ml.set_song(fixture.song);
+		rig.ml.begin();
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
+		rig.ml.note_on_received(cables().a, 3, 60, 127);
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), false);
+
+		const ExpressionParamSet* expression = fixture.clip->paramManager.getExpressionParamSet();
+		expect(expression != nullptr).to_be_true();
+		if (expression != nullptr) {
+			expect(static_cast<int32_t>(expression->bendRanges[BEND_RANGE_FINGER_LEVEL]))
+			    .to_equal(static_cast<int32_t>(FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL]));
+		}
+		currentSong = saved;
+	});
+
+	it("a kit row learned from a CC takes no bend range", _ {
+		// A CC arrives as a note-on on `channel + IS_A_CC`, which names no channel or zone of the cable's.
+		static spec::SongFixture fixture = spec::make_kit_song();
+		static SoundDrum* drum = spec::add_drum<SoundDrum>(fixture);
+		give_active_clip(fixture);
+		Song* const saved = currentSong;
+		currentSong = fixture.song;
+		fixture.song->setCurrentClip(fixture.clip);
+		const deluge::scenes::menu::MenuContext ctx =
+		    deluge::scenes::menu::context_for(*fixture.song, fixture.clip, 0, false, false, false, false);
+		expect(ctx.addresses.note_row.has_value()).to_be_true();
+		const std::string before =
+		    ctx.addresses.note_row
+		        ? recorded_row(*fixture.song, deluge::project::SettingGroupId::NOTE_ROW, *ctx.addresses.note_row, "bendRange")
+		        : std::string{};
+		// Channel 0 + IS_A_CC read as an MPE zone names zone 2, past the cable's two: plant a range where that zone's
+		// finger range would be read, inside the cable.
+		const int32_t misread_zone = IS_A_CC - MIDI_CHANNEL_MPE_LOWER_ZONE;
+		auto* const misread = reinterpret_cast<uint8_t*>(&cables().a.mpeZoneBendRanges[0][0])
+		                      + (misread_zone * 2) + BEND_RANGE_FINGER_LEVEL;
+		expect(misread < reinterpret_cast<uint8_t*>(&cables().a) + sizeof(::MIDICable)).to_be_true();
+		const uint8_t zone_finger = *misread;
+		*misread = 9;
+
+		LearnRig rig;
+		rig.ml.set_song(fixture.song);
+		rig.ml.begin();
+		rig.ml.thing_pressed(LearnTarget::drum_input(*drum->id()), true);
+		rig.ml.cc_received(cables().a, 0, 74, 100);
+		rig.ml.thing_pressed(LearnTarget::drum_input(*drum->id()), false);
+
+		*misread = zone_finger;
+		expect(drum->midiInput.channelOrZone).to_equal(static_cast<int32_t>(IS_A_CC));
+		if (ctx.addresses.note_row) {
+			expect(recorded_row(*fixture.song, deluge::project::SettingGroupId::NOTE_ROW, *ctx.addresses.note_row,
+			                    "bendRange"))
+			    .to_equal(before);
+		}
+		fixture.song->setCurrentClip(nullptr);
+		currentSong = saved;
+	});
+
+	it("an input learn writes the velocity cable into every clip of the track, the arrangement's own too", _ {
+		static spec::SongFixture fixture = spec::make_synth_song();
+		give_active_clip(fixture);
+		Song* const saved = currentSong;
+		currentSong = fixture.song;
+		auto* synth = static_cast<SoundInstrument*>(fixture.instrument);
+		const auto clone_onto = [&](InstrumentClip* clip) {
+			ParamManagerForTimeline params;
+			expect(params.cloneParamCollectionsFrom(&fixture.clip->paramManager, false) == Error::NONE).to_be_true();
+			clip->setAudioInstrument(synth, fixture.song, true, &params);
+		};
+		InstrumentClip* second = spec::detail::make_session_clip(fixture.song);
+		clone_onto(second);
+		InstrumentClip* arranged = spec::detail::place<InstrumentClip>(*fixture.song);
+		arranged->setLoopLength(fixture.clip->loopLength());
+		(void)fixture.song->live.clips.arrangement_only_clips.insertClipAt(arranged, 0);
+		clone_onto(arranged);
+		arranged->setSection(255);
+		const int32_t at = synth->clipInstances.insertSorted(0).value_or(-1);
+		expect(at >= 0).to_be_true();
+		if (at >= 0) {
+			synth->clipInstances[at].clip = arranged;
+			synth->clipInstances[at].length = arranged->loopLength();
+		}
+		expect(arranged->isArrangementOnlyClip()).to_be_true();
+		const CableDefaults defaults{cables().a, 8, 0x14000000, 0};
+
+		LearnRig rig;
+		rig.ml.set_song(fixture.song);
+		rig.ml.begin();
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*synth->id()), true);
+		rig.ml.note_on_received(cables().a, 8, 60, 127);
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*synth->id()), false);
+
+		const deluge::project::OwnerId owner = deluge::project::OwnerId::instrument(*synth->id());
+		for (const Clip* clip : {static_cast<const Clip*>(fixture.clip), static_cast<const Clip*>(second),
+		                         static_cast<const Clip*>(arranged)}) {
+			expect(recorded_velocity_cable(*fixture.song, owner, clip->id())).to_equal(std::optional<int32_t>{0x14000000});
+		}
+		currentSong = saved;
+	});
+
+	it("an input learn on a kit row leaves the row's automated bend range alone", _ {
+		static spec::SongFixture fixture = spec::make_kit_song();
+		static SoundDrum* drum = spec::add_drum<SoundDrum>(fixture);
+		give_active_clip(fixture);
+		Song* const saved = currentSong;
+		currentSong = fixture.song;
+		fixture.song->setCurrentClip(fixture.clip);
+		NoteRow* row = fixture.clip->getNoteRowForDrum(drum);
+		expect(row != nullptr).to_be_true();
+		(void)row->paramManager.getOrCreateExpressionParamSet(true); // a played bend made it, as a note would
+		const deluge::project::ParamAddress bend{.owner = deluge::project::OwnerId::drum(*drum->id()),
+		                                         .space = deluge::project::ParamSpace::EXPRESSION,
+		                                         .id = deluge::engine::ParamId{0},
+		                                         .clip_id = fixture.clip->id()};
+		expect(deluge::scenes::menu::host_write_sink().write_param(bend, 0x10000000, 0, 24)).to_be_true();
+		const deluge::scenes::menu::MenuContext ctx =
+		    deluge::scenes::menu::context_for(*fixture.song, fixture.clip, 0, false, false, false, false);
+		const std::string before =
+		    ctx.addresses.note_row
+		        ? recorded_row(*fixture.song, deluge::project::SettingGroupId::NOTE_ROW, *ctx.addresses.note_row, "bendRange")
+		        : std::string{};
+		const CableDefaults defaults{cables().b, 6, 0, 9};
+
+		LearnRig rig;
+		rig.ml.set_song(fixture.song);
+		rig.ml.begin();
+		rig.ml.thing_pressed(LearnTarget::drum_input(*drum->id()), true);
+		rig.ml.note_on_received(cables().b, 6, 40, 127);
+		rig.ml.thing_pressed(LearnTarget::drum_input(*drum->id()), false);
+
+		expect(ctx.addresses.note_row.has_value()).to_be_true();
+		if (ctx.addresses.note_row) {
+			expect(recorded_row(*fixture.song, deluge::project::SettingGroupId::NOTE_ROW, *ctx.addresses.note_row,
+			                    "bendRange"))
+			    .to_equal(before);
+		}
+		fixture.song->setCurrentClip(nullptr);
 		currentSong = saved;
 	});
 

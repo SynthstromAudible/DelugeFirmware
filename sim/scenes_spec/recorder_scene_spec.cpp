@@ -722,7 +722,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 			if (!recording.gestures.empty()) {
 				const bind::GestureRequest& attach = recording.gestures[0];
 				expect(attach.kind == bind::GestureRequest::Kind::ATTACH).to_be_true();
-				expect(attach.slot == r.slot() && attach.source == 0 && attach.range == 0).to_be_true();
+				expect(attach.slot == r.slot() && attach.source == 0 && attach.range == std::optional<uint16_t>{0}).to_be_true();
 				expect(attach.text).to_equal(std::string{"SAMPLES/RECORD/REC002.WAV"});
 			}
 			// Only the request: the sink took it and nothing else wrote.

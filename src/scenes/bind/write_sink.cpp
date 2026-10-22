@@ -92,7 +92,7 @@ bool RecordingSink::write_source_transpose(const Addresses& where, uint8_t sourc
 	gestures.push_back({.kind = GestureRequest::Kind::TRANSPOSE,
 	                    .where = where,
 	                    .source = source,
-	                    .range = range.value_or(0),
+	                    .range = range,
 	                    .value = menu_value});
 	return true;
 }

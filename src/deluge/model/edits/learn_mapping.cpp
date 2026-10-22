@@ -113,9 +113,10 @@ void velocityCableFor(Context& ctx, project::OwnerId owner, ::Clip& clip, const 
 	(void)deluge::edits::apply(ctx, write);
 }
 
-/// Is @p params' expression bend automated? An automated bend's range is the automation's to keep.
-bool bendAutomated(::ParamManager& params) {
-	ExpressionParamSet* expression = params.getOrCreateExpressionParamSet(true);
+/// Is @p params' expression bend automated? An automated bend's range is the automation's to keep. A set made here
+/// takes a drum's or a track's bend defaults, as @p forDrum says.
+bool bendAutomated(::ParamManager& params, bool forDrum) {
+	ExpressionParamSet* expression = params.getOrCreateExpressionParamSet(forDrum);
 	return expression == nullptr || expression->params[0].isAutomated(*expression->docForParam(0));
 }
 
@@ -123,13 +124,16 @@ bool bendAutomated(::ParamManager& params) {
 /// velocity-to-level default on the row in every kit clip.
 void laneInputLearned(Context& ctx, ::Kit& kit, ::Drum& drum, const InputLearn& input) {
 	const ::MIDICable& cable = *input.cable;
+	// A CC learned as a note names no channel or zone of the cable's, so it brings no bend range.
 	const int32_t zone = input.channel_or_zone - MIDI_CHANNEL_MPE_LOWER_ZONE;
-	const int32_t bend = zone >= 0 ? cable.mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL]
-	                               : cable.inputChannels[input.channel_or_zone].bendRange;
+	const int32_t bend = input.channel_or_zone >= IS_A_CC ? 0
+	                     : zone >= 0                      ? cable.mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL]
+	                                                      : cable.inputChannels[input.channel_or_zone].bendRange;
 	::Clip* current = ctx.song.getCurrentClip();
 	if (bend != 0 && current != nullptr && current->type == ClipType::INSTRUMENT && current->output == &kit) {
 		auto* clip = static_cast<::InstrumentClip*>(current);
-		if (::NoteRow* row = clip->getNoteRowForDrum(&drum); row != nullptr && !bendAutomated(row->paramManager)) {
+		if (::NoteRow* row = clip->getNoteRowForDrum(&drum);
+		    row != nullptr && !bendAutomated(row->paramManager, /*forDrum=*/true)) {
 			bendRangeFor(clip, row->paramManager, BEND_RANGE_FINGER_LEVEL, bend);
 		}
 	}
@@ -160,10 +164,10 @@ void trackInputLearned(Context& ctx, ::Instrument& instrument, const InputLearn&
 			bendRangeFor(active, *params, BEND_RANGE_FINGER_LEVEL, finger);
 		}
 	}
-	else {
+	else if (input.channel_or_zone < IS_A_CC) {
 		main = cable.inputChannels[input.channel_or_zone].bendRange;
 	}
-	if (main != 0 && params != nullptr && !bendAutomated(*params)) {
+	if (main != 0 && params != nullptr && !bendAutomated(*params, /*forDrum=*/false)) {
 		bendRangeFor(active, *params, BEND_RANGE_MAIN, main);
 	}
 	if (instrument.type != OutputType::SYNTH || cable.defaultVelocityToLevel == 0) {

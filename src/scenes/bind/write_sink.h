@@ -154,7 +154,7 @@ struct GestureRequest {
 	std::string text;
 	project::SlotAddress slot{};
 	uint8_t source{0};
-	uint16_t range{0};
+	std::optional<uint16_t> range; ///< the range an ATTACH or TRANSPOSE names; none for a source's own transpose
 	std::vector<instrument::RangeState> ranges;
 	RangesCause cause{};
 	project::ClipAddress clip{};
