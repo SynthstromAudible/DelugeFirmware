@@ -78,4 +78,13 @@ void RecordingSink::set_undo_scroll_after(project::ClipAddress clip, int32_t x_s
 	undo_scrolls.emplace_back(clip, x_scroll);
 }
 
+bool RecordingSink::learn(project::MappingTarget target, std::optional<project::MidiCommand> command,
+                          std::optional<LearnInput> input) {
+	gestures.push_back({.kind = GestureRequest::Kind::LEARN,
+	                    .mapping = std::move(target),
+	                    .command = std::move(command),
+	                    .input = input});
+	return true;
+}
+
 } // namespace deluge::scenes::bind

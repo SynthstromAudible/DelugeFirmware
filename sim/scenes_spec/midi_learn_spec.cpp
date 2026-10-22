@@ -74,6 +74,7 @@
 #include "shell/scene_stack.h"
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/setting_group.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
@@ -88,13 +89,20 @@
 #include "io/midi/midi_engine.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
+#include "model/edits/learn_mapping.h"
 #include "model/instrument/kit.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/midi_command.h"
+#include "model/project_bridge/patch_cable_words.h"
 #include "model/song/song.h"
+#include "modulation/params/param_descriptor.h"
+#include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound_drum.h"
+#include "scenes/bind/write_sink.h"
+#include "scenes/menu/bind_host.h"
+#include "scenes/menu/context.h"
 
 #include "support/card_access.h" // before <cppspec.hpp> -- see its @warning
 #include "support/song_fixture.h"
@@ -509,6 +517,45 @@ void give_active_clip(spec::SongFixture& fixture) {
 	fixture.instrument->setActiveClip(stack, PgmChangeSend::NEVER);
 }
 
+/// @brief The velocity-to-level cable of @p owner in clip @p clip, as its record holds it, or nullopt.
+std::optional<int32_t> recorded_velocity_cable(::Song& song, deluge::project::OwnerId owner, uint32_t clip) {
+	ParamDescriptor volume;
+	volume.setToHaveParamOnly(deluge::modulation::params::LOCAL_VOLUME);
+	const deluge::project::ParamAddress cable{.owner = owner,
+	                                          .space = deluge::project::ParamSpace::ENGINE,
+	                                          .id = deluge::bridge::cable_depth(PatchSource::VELOCITY, volume),
+	                                          .clip_id = clip};
+	const deluge::project::DocAutoParam* doc = song.project.resolveParam(cable);
+	return doc != nullptr ? std::optional<int32_t>{doc->current_value} : std::nullopt;
+}
+
+/// @brief Row @p path of @p group on @p owner, as text; empty where there is none.
+std::string recorded_row(::Song& song, deluge::project::SettingGroupId group, deluge::project::SettingOwner owner,
+                         std::string_view path) {
+	const std::optional<deluge::serialization::Value> value =
+	    deluge::project::read_setting(song.project, {.group = group, .owner = owner}, path);
+	return value ? value->str() : std::string{};
+}
+
+/// @brief Set @p cable's velocity-to-level default and channel @p channel's bend range for the scope.
+struct CableDefaults {
+	::MIDICable& cable;
+	uint8_t channel;
+	int32_t velocity;
+	uint8_t bend;
+	CableDefaults(::MIDICable& c, uint8_t ch, int32_t v, uint8_t b)
+	    : cable(c), channel(ch), velocity(c.defaultVelocityToLevel), bend(c.inputChannels[ch].bendRange) {
+		cable.defaultVelocityToLevel = v;
+		cable.inputChannels[ch].bendRange = b;
+	}
+	~CableDefaults() {
+		cable.defaultVelocityToLevel = velocity;
+		cable.inputChannels[channel].bendRange = bend;
+	}
+	CableDefaults(const CableDefaults&) = delete;
+	CableDefaults& operator=(const CableDefaults&) = delete;
+};
+
 } // namespace
 
 // ------------------------------------------------------------------------------------------------
@@ -580,7 +627,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		LearnRig rig;
 		rig.ml.set_song(fixture.song);
 		rig.ml.begin();
-		rig.ml.thing_pressed(LearnTarget::clip(*fixture.clip), true);
+		rig.ml.thing_pressed(LearnTarget::clip(deluge::project::ClipAddress{fixture.clip->id()}), true);
 		rig.ml.note_on_received(cables().b, 5, 70, 100);
 
 		expect(Learned::of(slot).channel_or_zone != kPoisonChannel).to_be_true();
@@ -611,7 +658,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		LearnRig rig;
 		rig.ml.set_song(fixture.song);
 		rig.ml.begin();
-		rig.ml.thing_pressed(LearnTarget::note_row_mute(*row), true);
+		rig.ml.thing_pressed(LearnTarget::note_row_mute(row->drum != nullptr ? row->drum->id() : std::nullopt), true);
 		rig.ml.note_on_received(cables().a, 7, 41, 127);
 
 		expect(Learned::of(slot).channel_or_zone != kPoisonChannel).to_be_true();
@@ -643,9 +690,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		LearnRig rig;
 		rig.ml.set_song(fixture.song);
 		rig.ml.begin();
-		rig.ml.thing_pressed(LearnTarget::drum_input(*drum, *kit), true);
-		expect(rig.ml.pressed().drum == drum).to_be_true();
-		expect(rig.ml.pressed().kit == kit).to_be_true();
+		rig.ml.thing_pressed(LearnTarget::drum_input(*drum->id()), true);
+		expect(rig.ml.pressed().mapping == deluge::project::MappingTarget{deluge::project::LaneInputTarget{*drum->id()}})
+		    .to_be_true();
 		rig.ml.note_on_received(cables().b, 2, 36, 127);
 
 		expect(Learned::of(slot).channel_or_zone != kPoisonChannel).to_be_true();
@@ -676,8 +723,10 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		LearnRig rig;
 		rig.ml.set_song(fixture.song);
 		rig.ml.begin();
-		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument), true);
-		expect(rig.ml.pressed().instrument == fixture.instrument).to_be_true();
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
+		expect(rig.ml.pressed().mapping
+		       == deluge::project::MappingTarget{deluge::project::TrackInputTarget{*fixture.instrument->id()}})
+		    .to_be_true();
 		const uint32_t before = rig.ml.unported_calls(LearnService::UnportedCall::ClearMonoExpression);
 		rig.ml.note_on_received(cables().a, 9, 55, 127);
 
@@ -916,7 +965,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.ml.set_song(fixture.song);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 3), true);
-		rig.ml.thing_pressed(LearnTarget::clip(*fixture.clip), false);
+		rig.ml.thing_pressed(LearnTarget::clip(deluge::project::ClipAddress{fixture.clip->id()}), false);
 		expect(rig.ml.pressed().kind == ::MidiLearn::SECTION).to_be_true();
 		// The held target is still section 3: its learn edits a scratch committed to that section's record.
 		expect(rig.ml.pressed().section_index == section_slot.index).to_be_true();
@@ -1217,12 +1266,15 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(reset_legacy_learn()).to_be_true();
 
 		expect(poison(slot)).to_be_true();
-		slot.clear(); // the arm's third conjunct: it only fires on an EMPTY slot (`:778`)
+		// The arm's third conjunct: it only fires on an EMPTY slot (`:778`), which the song's mapping table holds.
+		(void)deluge::edits::learnedMappingIn(*fixture.song,
+		                                      deluge::project::TrackInputTarget{*fixture.instrument->id()},
+		                                      ::LearnedMIDI{});
 
 		LearnRig rig;
 		rig.ml.set_song(fixture.song);
 		rig.ml.begin();
-		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument), true);
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
 		rig.ml.cc_received(cables().b, 8, 74, 100);
 
 		expect(Learned::of(slot).describe()).to_equal(legacy.describe());
@@ -1486,12 +1538,12 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		LearnRig rig;
 		rig.ml.set_song(fixture.song);
 		rig.ml.begin();
-		rig.ml.thing_pressed(LearnTarget::clip(*fixture.clip), true);
+		rig.ml.thing_pressed(LearnTarget::clip(deluge::project::ClipAddress{fixture.clip->id()}), true);
 		rig.ml.note_on_received(cables().b, 5, 61, 127);
-		rig.ml.thing_pressed(LearnTarget::clip(*fixture.clip), false);
+		rig.ml.thing_pressed(LearnTarget::clip(deluge::project::ClipAddress{fixture.clip->id()}), false);
 		expect(held(*fixture.song, target) == command(cables().b, 5, 61)).to_be_true();
-		rig.ml.thing_pressed(LearnTarget::clip(*fixture.clip), true);
-		rig.ml.thing_pressed(LearnTarget::clip(*fixture.clip), false);
+		rig.ml.thing_pressed(LearnTarget::clip(deluge::project::ClipAddress{fixture.clip->id()}), true);
+		rig.ml.thing_pressed(LearnTarget::clip(deluge::project::ClipAddress{fixture.clip->id()}), false);
 		expect(fixture.song->project.mappings.find(target) == nullptr).to_be_true();
 	});
 
@@ -1518,12 +1570,12 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		LearnRig rig;
 		rig.ml.set_song(fixture.song);
 		rig.ml.begin();
-		rig.ml.thing_pressed(LearnTarget::note_row_mute(*row), true);
-		rig.ml.thing_pressed(LearnTarget::note_row_mute(*row), false);
+		rig.ml.thing_pressed(LearnTarget::note_row_mute(row->drum != nullptr ? row->drum->id() : std::nullopt), true);
+		rig.ml.thing_pressed(LearnTarget::note_row_mute(row->drum != nullptr ? row->drum->id() : std::nullopt), false);
 		expect(fixture.song->project.mappings.find(mute) == nullptr).to_be_true();
-		rig.ml.thing_pressed(LearnTarget::drum_input(*drum, *kit), true);
+		rig.ml.thing_pressed(LearnTarget::drum_input(*drum->id()), true);
 		rig.ml.note_on_received(cables().b, 8, 42, 127);
-		rig.ml.thing_pressed(LearnTarget::drum_input(*drum, *kit), false);
+		rig.ml.thing_pressed(LearnTarget::drum_input(*drum->id()), false);
 		expect(held(*fixture.song, input) == command(cables().b, 8, 42)).to_be_true();
 	});
 
@@ -1543,8 +1595,8 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		LearnRig rig;
 		rig.ml.set_song(fixture.song);
 		rig.ml.begin();
-		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument), true);
-		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument), false);
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), false);
 		expect(fixture.song->project.mappings.find(target) == nullptr).to_be_true();
 		expect(fixture.instrument->midiInput.containsSomething()).to_be_false();
 	});
@@ -1567,10 +1619,10 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		LearnRig rig;
 		rig.ml.set_song(fixture.song);
 		rig.ml.begin();
-		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument), true);
-		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument), false); // unlearned
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), false); // unlearned
 		expect(fixture.song->project.mappings.find(target) == nullptr).to_be_true();
-		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument), true);
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
 		rig.ml.cc_received(cables().a, 3, 74, 100);
 		expect(held(*fixture.song, target).channel_or_zone == 3).to_be_true();
 		expect(fixture.instrument->midiInput.channelOrZone == 3).to_be_true();
@@ -1584,11 +1636,137 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		LearnRig rig;
 		rig.ml.set_song(fixture.song);
 		rig.ml.begin();
-		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument), true);
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
 		rig.ml.note_on_received(cables().b, 4, 48, 127);
 		expect(held(*fixture.song, target) == command(cables().b, 4, 48)).to_be_true();
 		expect(fixture.instrument->midiInput.channelOrZone == 4).to_be_true();
 		expect(fixture.instrument->midiInput.cable == &cables().b).to_be_true();
+	});
+
+	it("a pad learn hands the sink one learn request by its mapping target, with the note's cable on an input", _ {
+		static spec::SongFixture fixture = spec::make_synth_song();
+		deluge::scenes::bind::RecordingSink recording;
+		LearnRig rig;
+		rig.ml.set_song(fixture.song);
+		rig.ml.set_sink(&recording);
+		rig.ml.begin();
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
+		rig.ml.note_on_received(cables().a, 4, 52, 127);
+		expect(recording.gestures.size()).to_equal(size_t{1});
+		if (!recording.gestures.empty()) {
+			const deluge::scenes::bind::GestureRequest& learn = recording.gestures[0];
+			expect(learn.kind == deluge::scenes::bind::GestureRequest::Kind::LEARN).to_be_true();
+			expect(learn.mapping
+			       == deluge::project::MappingTarget{deluge::project::TrackInputTarget{*fixture.instrument->id()}})
+			    .to_be_true();
+			expect(learn.command.has_value() && *learn.command == command(cables().a, 4, 52)).to_be_true();
+			expect(learn.input == deluge::scenes::bind::LearnInput{.cable = &cables().a, .channel_or_zone = 4})
+			    .to_be_true();
+		}
+		expect(fixture.song->project.mappings.find(deluge::project::TrackInputTarget{*fixture.instrument->id()})
+		       == nullptr)
+		    .to_be_true(); // only the request: nothing else wrote
+	});
+
+	it("a release that deletes hands the sink an unlearn", _ {
+		static spec::SongFixture fixture = spec::make_synth_song();
+		deluge::scenes::bind::RecordingSink recording;
+		LearnRig rig;
+		rig.ml.set_song(fixture.song);
+		rig.ml.set_sink(&recording);
+		rig.ml.begin();
+		rig.ml.thing_pressed(LearnTarget::clip(deluge::project::ClipAddress{fixture.clip->id()}), true);
+		rig.ml.thing_pressed(LearnTarget::clip(deluge::project::ClipAddress{fixture.clip->id()}), false);
+		expect(recording.gestures.size()).to_equal(size_t{1});
+		if (!recording.gestures.empty()) {
+			expect(recording.gestures[0].mapping
+			       == deluge::project::MappingTarget{deluge::project::ClipMuteTarget{fixture.clip->id()}})
+			    .to_be_true();
+			expect(recording.gestures[0].command.has_value()).to_be_false();
+		}
+	});
+
+	it("an input learn on a synth records the velocity-to-level cable and the bend range", _ {
+		static spec::SongFixture fixture = spec::make_synth_song();
+		give_active_clip(fixture);
+		Song* const saved = currentSong;
+		currentSong = fixture.song;
+		const CableDefaults defaults{cables().a, 5, 0x20000000, 7};
+		const uint32_t id = *fixture.instrument->id();
+
+		LearnRig rig;
+		rig.ml.set_song(fixture.song);
+		rig.ml.begin();
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
+		rig.ml.note_on_received(cables().a, 5, 60, 127);
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), false);
+
+		expect(recorded_velocity_cable(*fixture.song, deluge::project::OwnerId::instrument(id), fixture.clip->id()))
+		    .to_equal(std::optional<int32_t>{0x20000000});
+		expect(recorded_row(*fixture.song, deluge::project::SettingGroupId::CLIP_VALUES,
+		                    deluge::project::ClipAddress{fixture.clip->id()}, "bendRange"))
+		    .to_equal(std::string{"7"});
+		currentSong = saved;
+	});
+
+	it("an input learn on a kit row records the cable at that row and the row's bend range", _ {
+		static spec::SongFixture fixture = spec::make_kit_song();
+		static SoundDrum* drum = spec::add_drum<SoundDrum>(fixture);
+		auto* const kit = static_cast<Kit*>(fixture.instrument);
+		give_active_clip(fixture);
+		Song* const saved = currentSong;
+		currentSong = fixture.song;
+		fixture.song->setCurrentClip(fixture.clip);
+		const CableDefaults defaults{cables().b, 2, 0x10000000, 5};
+
+		LearnRig rig;
+		rig.ml.set_song(fixture.song);
+		rig.ml.begin();
+		rig.ml.thing_pressed(LearnTarget::drum_input(*drum->id()), true);
+		rig.ml.note_on_received(cables().b, 2, 36, 127);
+		rig.ml.thing_pressed(LearnTarget::drum_input(*drum->id()), false);
+
+		expect(recorded_velocity_cable(*fixture.song, deluge::project::OwnerId::drum(*drum->id()), fixture.clip->id()))
+		    .to_equal(std::optional<int32_t>{0x10000000});
+		const deluge::scenes::menu::MenuContext ctx =
+		    deluge::scenes::menu::context_for(*fixture.song, fixture.clip, 0, false, false, false, false);
+		expect(ctx.addresses.note_row.has_value()).to_be_true();
+		if (ctx.addresses.note_row) {
+			expect(recorded_row(*fixture.song, deluge::project::SettingGroupId::NOTE_ROW, *ctx.addresses.note_row,
+			                    "bendRange"))
+			    .to_equal(std::string{"5"});
+		}
+		fixture.song->setCurrentClip(nullptr);
+		currentSong = saved;
+	});
+
+	it("an input learn leaves an automated bend range alone", _ {
+		static spec::SongFixture fixture = spec::make_synth_song();
+		give_active_clip(fixture);
+		Song* const saved = currentSong;
+		currentSong = fixture.song;
+		const uint32_t id = *fixture.instrument->id();
+		const deluge::project::ParamAddress bend{.owner = deluge::project::OwnerId::instrument(id),
+		                                         .space = deluge::project::ParamSpace::EXPRESSION,
+		                                         .id = deluge::engine::ParamId{0},
+		                                         .clip_id = fixture.clip->id()};
+		(void)fixture.clip->paramManager.getOrCreateExpressionParamSet(); // a played bend made it, as a note would
+		expect(deluge::scenes::menu::host_write_sink().write_param(bend, 0x10000000, 0, 24)).to_be_true();
+		const std::string before = recorded_row(*fixture.song, deluge::project::SettingGroupId::CLIP_VALUES,
+		                                        deluge::project::ClipAddress{fixture.clip->id()}, "bendRange");
+		const CableDefaults defaults{cables().a, 6, 0, 9};
+
+		LearnRig rig;
+		rig.ml.set_song(fixture.song);
+		rig.ml.begin();
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
+		rig.ml.note_on_received(cables().a, 6, 61, 127);
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), false);
+
+		expect(recorded_row(*fixture.song, deluge::project::SettingGroupId::CLIP_VALUES,
+		                    deluge::project::ClipAddress{fixture.clip->id()}, "bendRange"))
+		    .to_equal(before);
+		currentSong = saved;
 	});
 });
 // clang-format on

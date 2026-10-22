@@ -3,19 +3,32 @@
 /// @file
 /// @brief Where a menu's writes go: requests a host applies as Edits, so the scenes name no Edit and no engine object.
 
+#include "deluge-project/mapping_table.h"
+#include "deluge-project/midi_command.h"
 #include "deluge-project/param_address.h"
 #include "engines/deluge/cables.h"
 #include "engines/deluge/sound_state.h"
 #include "scenes/bind/target.h"
 
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
+class MIDICable;
+
 namespace deluge::scenes::bind {
+
+/// @brief A note heard on a track's or kit row's input learn: the cable it came on and its channel or MPE zone, which
+/// the learn takes the bend ranges and velocity default of.
+struct LearnInput {
+	const ::MIDICable* cable{nullptr};
+	int32_t channel_or_zone{0};
+	bool operator==(const LearnInput&) const = default;
+};
 
 /// @brief One menu write: what, where, and the menu value the user chose.
 struct WriteRequest {
@@ -108,11 +121,16 @@ public:
 	/// @brief Record @p x_scroll as the view a redo of @p clip's last length change returns to: the view scrolls after
 	/// the change, so the step learns it after.
 	virtual void set_undo_scroll_after(project::ClipAddress clip, int32_t x_scroll) = 0;
+	/// @brief Learn @p command as what @p target is played by, or unlearn @p target when @p command is nullopt.
+	/// @param input A note learned on a track's or kit row's input: what the learn takes from the note's cable.
+	/// @return Whether it was taken: false where @p target's owner is not in the song.
+	virtual bool learn(project::MappingTarget target, std::optional<project::MidiCommand> command,
+	                   std::optional<LearnInput> input) = 0;
 };
 
 /// @brief A gesture request, as a RecordingSink keeps it.
 struct GestureRequest {
-	enum class Kind : uint8_t { TEXT, RANGES, RECOLOUR, CLEAR, MARKER, DEFAULT_INPUT_CHANNEL, ATTACH, RESIZE };
+	enum class Kind : uint8_t { TEXT, RANGES, RECOLOUR, CLEAR, MARKER, DEFAULT_INPUT_CHANNEL, ATTACH, RESIZE, LEARN };
 	Kind kind{Kind::TEXT};
 	Target target{};
 	Addresses where{};
@@ -126,6 +144,9 @@ struct GestureRequest {
 	int64_t value{0};
 	ResizeKind resize{ResizeKind::END};
 	int32_t old_length{0};
+	std::optional<project::MappingTarget> mapping;
+	std::optional<project::MidiCommand> command;
+	std::optional<LearnInput> input;
 	bool clear_automation{false};
 	bool clear_sequence_and_mpe{false};
 };
@@ -154,6 +175,8 @@ public:
 	bool attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) override;
 	bool resize_audio_clip(project::ClipAddress clip, ResizeKind kind, int32_t new_length, int32_t old_length) override;
 	void set_undo_scroll_after(project::ClipAddress clip, int32_t x_scroll) override;
+	bool learn(project::MappingTarget target, std::optional<project::MidiCommand> command,
+	           std::optional<LearnInput> input) override;
 	std::vector<WriteRequest> requests;
 	std::vector<GestureRequest> gestures;
 	std::vector<ParamWrite> param_writes;

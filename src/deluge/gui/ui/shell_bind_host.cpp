@@ -17,6 +17,7 @@
 #include "model/edits/clear_clip.h"
 #include "model/edits/delete_param_automation.h"
 #include "model/edits/edit.h"
+#include "model/edits/learn_mapping.h"
 #include "model/edits/resize_audio_clip.h"
 #include "model/edits/set_cable_polarity.h"
 #include "model/edits/set_clip_colour.h"
@@ -160,6 +161,8 @@ public:
 	bool resize_audio_clip(deluge::project::ClipAddress clip, deluge::scenes::bind::ResizeKind kind, int32_t new_length,
 	                       int32_t old_length) override;
 	void set_undo_scroll_after(deluge::project::ClipAddress clip, int32_t x_scroll) override;
+	bool learn(deluge::project::MappingTarget target, std::optional<deluge::project::MidiCommand> command,
+	           std::optional<deluge::scenes::bind::LearnInput> input) override;
 	[[nodiscard]] uint32_t refusals() const { return refusals_; }
 
 private:
@@ -466,6 +469,25 @@ bool ShellEditSink::resize_audio_clip(deluge::project::ClipAddress clip, deluge:
 	resize_action_ = edit.lengthAction();
 	resize_clip_ = clip;
 	return true;
+}
+
+bool ShellEditSink::learn(deluge::project::MappingTarget target, std::optional<deluge::project::MidiCommand> command,
+                          std::optional<deluge::scenes::bind::LearnInput> input) {
+	if (currentSong == nullptr) {
+		return false;
+	}
+	if (!command) {
+		deluge::edits::UnlearnMapping edit{std::move(target)};
+		return applied(edit);
+	}
+	std::optional<deluge::edits::InputLearn> learned_input;
+	if (input) {
+		learned_input = deluge::edits::InputLearn{.cable = input->cable, .channel_or_zone = input->channel_or_zone};
+	}
+	deluge::edits::LearnMapping edit{
+	    deluge::project::Mapping{.source = std::move(*command), .target = std::move(target)}, std::nullopt,
+	    learned_input};
+	return applied(edit);
 }
 
 void ShellEditSink::set_undo_scroll_after(deluge::project::ClipAddress clip, int32_t x_scroll) {

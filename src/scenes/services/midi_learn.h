@@ -130,9 +130,12 @@
 ///     which happens for free on the next `leds()` pass. Recorded here so the absence is not read
 ///     as an omission.
 
+#include "scenes/bind/write_sink.h"
 #include "scenes/services/learn_mode.h"
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/clip_address.h"
+#include "deluge-project/mapping_table.h"
 
 #include "ui/core/led_frame.h"
 
@@ -143,13 +146,8 @@
 #include <cstdint>
 #include <optional>
 
-class Clip;
-class Drum;
-class Instrument;
-class Kit;
 class LearnedMIDI;
 class MIDICable;
-class NoteRow;
 class Song;
 
 namespace deluge::scenes::services {
@@ -184,21 +182,12 @@ struct LearnTarget {
 	/// (`view.cpp:616-629`) and `noteOnReceivedForMidiLearn`'s dispatch (`:644-758`) are both
 	/// written against these exact enumerators, and a parallel enum would be a table to drift.
 	::MidiLearn kind = ::MidiLearn::NONE;
-	/// @brief The `LearnedMIDI` a note-on or CC commits into -- legacy's `learnedThing`
-	///        (`gui/views/view.h:113`). Null exactly when `kind` is `NONE`.
+	/// @brief The global command a note-on or CC is written into in place, or the section's scratch command;
+	///        null for every other target, which the song's mapping table holds.
 	::LearnedMIDI* thing = nullptr;
-	/// @brief `instrumentPressedForMIDILearn` (`view.cpp:601`). Set only for `INSTRUMENT_INPUT`.
-	::Instrument* instrument = nullptr;
-	/// @brief `drumPressedForMIDILearn` (`view.cpp:582`): the kit row whose input or mute this learns.
-	///        Set only for `DRUM_INPUT` and `NOTEROW_MUTE`.
-	::Drum* drum = nullptr;
-	/// @brief `kitPressedForMIDILearn` (`view.cpp:583`). Set only for `DRUM_INPUT`; legacy keeps it
-	///        purely so `grabVelocityToLevel…ForDrum` can search faster (`:566-567`).
-	::Kit* kit = nullptr;
-	/// @brief The clip whose mute this learns. Set only for `CLIP`.
-	::Clip* held_clip = nullptr;
-	/// @brief The song whose section this learns into. Set only for `SECTION`.
-	::Song* song = nullptr;
+	/// @brief What the song's mapping table binds the command to: a section, a clip's or kit row's mute, a kit
+	///        row's or track's input. Nullopt for a global command and for `NONE`.
+	std::optional<deluge::project::MappingTarget> mapping;
 	/// @brief The section index. Set only for `SECTION`.
 	uint8_t section_index = 0;
 
@@ -210,28 +199,23 @@ struct LearnTarget {
 	/// @param section The section index.
 	/// @return The target.
 	static LearnTarget section(::Song& song, uint8_t section);
-	/// @brief `View::clipStatusMidiLearnPadPressed`'s target (`view.cpp:551-553`):
-	///        `&whichClip->muteMIDICommand`.
+	/// @brief `View::clipStatusMidiLearnPadPressed`'s target (`view.cpp:551-553`): the clip's mute.
 	/// @param clip The clip whose status pad was pressed.
 	/// @return The target.
-	static LearnTarget clip(::Clip& clip);
-	/// @brief `View::noteRowMuteMidiLearnPadPressed`'s target (`view.cpp:565-567`):
-	///        `&whichNoteRow->drum->muteMIDICommand`.
-	/// @param note_row The note row, whose `drum` legacy dereferences unguarded at `:550` -- every
-	///                 call site has already checked it (`gui/views/instrument_clip_view.cpp:2270`).
-	/// @return The target, or a `NONE` target if the row has no drum.
-	static LearnTarget note_row_mute(::NoteRow& note_row);
-	/// @brief `View::drumMidiLearnPadPressed`'s target (`view.cpp:579-584`): `&drum->midiInput`,
-	///        plus the drum and its kit.
-	/// @param drum The drum under the pad.
-	/// @param kit  The kit it belongs to.
+	static LearnTarget clip(deluge::project::ClipAddress clip);
+	/// @brief `View::noteRowMuteMidiLearnPadPressed`'s target (`view.cpp:565-567`): the row's drum's mute.
+	/// @param drum_id The row's drum's id, or nullopt for a row with no drum, which every call site has already
+	///                refused (`gui/views/instrument_clip_view.cpp:2270`).
+	/// @return The target, or a `NONE` target for a row with no drum.
+	static LearnTarget note_row_mute(std::optional<uint32_t> drum_id);
+	/// @brief `View::drumMidiLearnPadPressed`'s target (`view.cpp:579-584`): the kit row's input.
+	/// @param drum_id The row's drum's id.
 	/// @return The target.
-	static LearnTarget drum_input(::Drum& drum, ::Kit& kit);
-	/// @brief `View::instrumentMidiLearnPadPressed`'s target (`view.cpp:598-601`):
-	///        `&instrument->midiInput`, plus the instrument.
-	/// @param instrument The instrument under the pad.
+	static LearnTarget drum_input(uint32_t drum_id);
+	/// @brief `View::instrumentMidiLearnPadPressed`'s target (`view.cpp:598-601`): the track's input.
+	/// @param output_id The track's id.
 	/// @return The target.
-	static LearnTarget instrument_input(::Instrument& instrument);
+	static LearnTarget instrument_input(uint32_t output_id);
 	/// @brief The `PLAY`/`RECORD`/`TAP_TEMPO` button targets (`view.cpp:156`, `:208`, `:224`):
 	///        `&midiEngine.globalMIDICommands[to_underlying(command)]`.
 	/// @param command Which global command; `PLAY`, `RECORD` or `TAP` are the three reachable here.
@@ -285,6 +269,8 @@ public:
 	/// arms skip the parts that need it, and the three-field write still happens.
 	/// @param song The song, or null.
 	void set_song(::Song* song) { song_ = song; }
+	/// @brief Where the learns go; the app's sink, over the song the app plays, when null.
+	void set_sink(deluge::scenes::bind::WriteSink* sink) { sink_ = sink; }
 
 	/// @name The mode
 	/// @{
@@ -430,21 +416,17 @@ private:
 	void release_pressed_thing();
 	/// @brief `View::midiLearnFlash`'s toggle-and-re-arm (`view.cpp:814-815`).
 	void flash_step();
-	/// @brief The port of `noteOnReceivedForMidiLearn`'s `DRUM_INPUT` arm (`view.cpp:646-678`).
-	void commit_drum_extras(::MIDICable& cable, int32_t channel_or_zone);
-	/// @brief The port of its `INSTRUMENT_INPUT` arm (`view.cpp:694-757`).
-	void commit_instrument_extras(::MIDICable& cable, int32_t channel_or_zone);
-	/// @brief `getCurrentInstrument()` (`model/song/song.cpp:120-133`), resolved from `song_`.
-	///
-	/// Every `getCurrent*()` free function in `model/song/song.h` is
-	/// `currentSong->getCurrentClip()->…` and nothing else, so resolving them from this service's
-	/// own `song_` is the same read spelled without the global `scenes-currentSong` forbids -- not
-	/// a substitution. Null when there is no song, no current clip, or an audio/none output.
-	/// @return The current clip's instrument, or null.
-	::Instrument* current_instrument() const;
+	/// @brief `View::commitLearnedThing`: make @p learned the held target's command -- through the sink for a
+	///        song binding, in place for a global command.
+	/// @param learned The command, or a cleared one to unlearn.
+	/// @param input   A note learned on an input: what the learn takes from its cable.
+	void commit(const ::LearnedMIDI& learned, std::optional<deluge::scenes::bind::LearnInput> input = std::nullopt);
+	/// @brief The sink the learns go to, or null.
+	[[nodiscard]] deluge::scenes::bind::WriteSink* sink() const;
 
 	deluge::ui::shell::SceneStack& stack_;
 	::Song* song_ = nullptr;
+	deluge::scenes::bind::WriteSink* sink_ = nullptr;
 
 	/// `currentUIMode == UI_MODE_MIDI_LEARN`.
 	bool active_ = false;

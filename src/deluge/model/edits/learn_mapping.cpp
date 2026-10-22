@@ -3,11 +3,23 @@
 #include "io/debug/log.h"
 #include "io/midi/learned_midi.h"
 #include "io/midi/mapping_index.h"
+#include "io/midi/midi_device.h"
+#include "model/clip/instrument_clip.h"
+#include "model/drum/drum.h"
+#include "model/edits/bend_range_for.h"
+#include "model/edits/set_patch_cable.h"
+#include "model/instrument/instrument.h"
+#include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/note/note_row.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/midi_command.h"
+#include "model/project_bridge/patch_cable_words.h"
 #include "model/song/song.h"
+#include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable.h"
+#include "processing/sound/sound_drum.h"
 
 #include <algorithm>
 #include <optional>
@@ -58,6 +70,136 @@ std::optional<deluge::project::ParamTarget> knobTargetIn(::ModControllableAudio&
 	    deluge::bridge::knobTargetOf(param, isSound ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL)};
 }
 
+/// The kit whose row @p drum is.
+::Kit* kitOf(::Song& song, const ::Drum& drum) {
+	for (::Output* list :
+	     {song.live.media.first_output, static_cast<::Output*>(song.live.media.first_hibernating_instrument)}) {
+		for (::Output* output = list; output != nullptr; output = output->next) {
+			if (output->type == OutputType::KIT && static_cast<::Kit*>(output)->drumWithId(*drum.id()) == &drum) {
+				return static_cast<::Kit*>(output);
+			}
+		}
+	}
+	return nullptr;
+}
+
+/// Every clip @p output plays in: its session clips, then its arrangement-only ones.
+template <typename Visit>
+void forEachClipOf(::Song& song, ::Output& output, Visit visit) {
+	for (::Clip* clip : song.live.clips.session_clips) {
+		if (clip->output == &output) {
+			visit(*clip);
+		}
+	}
+	for (int32_t i = 0; i < std::ssize(output.clipInstances); i++) {
+		::Clip* clip = output.clipInstances[i].clip;
+		if (clip != nullptr && clip->isArrangementOnlyClip()) {
+			visit(*clip);
+		}
+	}
+}
+
+/// Make @p cable's velocity-to-level default the velocity-to-level cable of @p owner in @p clip.
+void velocityCableFor(Context& ctx, project::OwnerId owner, ::Clip& clip, const ::MIDICable& cable) {
+	ParamDescriptor volume;
+	volume.setToHaveParamOnly(deluge::modulation::params::LOCAL_VOLUME);
+	SetPatchCable write{{.owner = owner,
+	                     .space = project::ParamSpace::ENGINE,
+	                     .id = deluge::bridge::cable_depth(PatchSource::VELOCITY, volume),
+	                     .clip_id = clip.id()},
+	                    cable.defaultVelocityToLevel,
+	                    PatchCable::getDefaultPolarity(PatchSource::VELOCITY)};
+	(void)deluge::edits::apply(ctx, write);
+}
+
+/// Is @p params' expression bend automated? An automated bend's range is the automation's to keep.
+bool bendAutomated(::ParamManager& params) {
+	ExpressionParamSet* expression = params.getOrCreateExpressionParamSet(true);
+	return expression == nullptr || expression->params[0].isAutomated(*expression->docForParam(0));
+}
+
+/// A kit row's input learned from a note: the row's bend range from the note's channel or zone, and the cable's
+/// velocity-to-level default on the row in every kit clip.
+void laneInputLearned(Context& ctx, ::Kit& kit, ::Drum& drum, const InputLearn& input) {
+	const ::MIDICable& cable = *input.cable;
+	const int32_t zone = input.channel_or_zone - MIDI_CHANNEL_MPE_LOWER_ZONE;
+	const int32_t bend = zone >= 0 ? cable.mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL]
+	                               : cable.inputChannels[input.channel_or_zone].bendRange;
+	::Clip* current = ctx.song.getCurrentClip();
+	if (bend != 0 && current != nullptr && current->type == ClipType::INSTRUMENT && current->output == &kit) {
+		auto* clip = static_cast<::InstrumentClip*>(current);
+		if (::NoteRow* row = clip->getNoteRowForDrum(&drum); row != nullptr && !bendAutomated(row->paramManager)) {
+			bendRangeFor(clip, row->paramManager, BEND_RANGE_FINGER_LEVEL, bend);
+		}
+	}
+	if (drum.type != DrumType::SOUND || cable.defaultVelocityToLevel == 0) {
+		return;
+	}
+	forEachClipOf(ctx.song, kit, [&](::Clip& clip) {
+		if (static_cast<::InstrumentClip&>(clip).getNoteRowForDrum(&drum) != nullptr) {
+			velocityCableFor(ctx, project::OwnerId::drum(*drum.id()), clip, cable);
+		}
+	});
+}
+
+/// A track's input learned from a note: its bend ranges from the note's channel or zone, and, for a synth, the cable's
+/// velocity-to-level default in every clip it plays in.
+void trackInputLearned(Context& ctx, ::Instrument& instrument, const InputLearn& input) {
+	const ::MIDICable& cable = *input.cable;
+	// Null for a CV track with no clips.
+	::ParamManager* params = instrument.getParamManager(&ctx.song);
+	auto* active = static_cast<::InstrumentClip*>(instrument.getActiveClip());
+	int32_t main = 0;
+	if (input.channel_or_zone == MIDI_CHANNEL_MPE_LOWER_ZONE || input.channel_or_zone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
+		const int32_t zone = input.channel_or_zone - MIDI_CHANNEL_MPE_LOWER_ZONE;
+		main = cable.mpeZoneBendRanges[zone][BEND_RANGE_MAIN];
+		const int32_t finger = cable.mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
+		if (finger != 0 && (active == nullptr || !active->hasAnyPitchExpressionAutomationOnNoteRows())
+		    && params != nullptr && params->getOrCreateExpressionParamSet() != nullptr) {
+			bendRangeFor(active, *params, BEND_RANGE_FINGER_LEVEL, finger);
+		}
+	}
+	else {
+		main = cable.inputChannels[input.channel_or_zone].bendRange;
+	}
+	if (main != 0 && params != nullptr && !bendAutomated(*params)) {
+		bendRangeFor(active, *params, BEND_RANGE_MAIN, main);
+	}
+	if (instrument.type != OutputType::SYNTH || cable.defaultVelocityToLevel == 0) {
+		return;
+	}
+	forEachClipOf(ctx.song, instrument, [&](::Clip& clip) {
+		velocityCableFor(ctx, project::OwnerId::instrument(*instrument.id()), clip, cable);
+	});
+}
+
+/// What learning or unlearning @p target's input brings: the instrument counts as edited, and a note learned brings
+/// @p input's bend ranges and velocity cable.
+void inputLearned(Context& ctx, const project::MappingTarget& target, const std::optional<InputLearn>& input) {
+	if (const auto* track = std::get_if<project::TrackInputTarget>(&target)) {
+		::Output* output = ctx.song.outputForId(track->output_id);
+		if (output == nullptr || output->type == OutputType::AUDIO) {
+			return;
+		}
+		auto& instrument = static_cast<::Instrument&>(*output);
+		instrument.beenEdited(false);
+		if (input && input->cable != nullptr) {
+			trackInputLearned(ctx, instrument, *input);
+		}
+	}
+	else if (const auto* lane = std::get_if<project::LaneInputTarget>(&target)) {
+		::Drum* drum = deluge::bridge::drumWithId(ctx.song, lane->drum_id);
+		::Kit* kit = drum != nullptr ? kitOf(ctx.song, *drum) : nullptr;
+		if (kit == nullptr) {
+			return;
+		}
+		kit->beenEdited(false);
+		if (input && input->cable != nullptr) {
+			laneInputLearned(ctx, *kit, *drum, *input);
+		}
+	}
+}
+
 } // namespace
 
 Error LearnMapping::apply(Context& ctx) {
@@ -78,14 +220,22 @@ Error LearnMapping::apply(Context& ctx) {
 	const Error projected = replacing
 	                            ? deluge::bridge::projectRelearnedKnob(ctx.song, *param, *replaces_, mapping_.source)
 	                            : deluge::bridge::projectMapping(ctx.song, mapping_.target);
-	return project(ctx, projected, std::move(before));
+	const Error result = project(ctx, projected, std::move(before));
+	if (result == Error::NONE) {
+		inputLearned(ctx, mapping_.target, input_);
+	}
+	return result;
 }
 
 Error UnlearnMapping::apply(Context& ctx) {
 	deluge::bridge::applyPendingMappingOps(ctx.song); // a write the render made first lands first
 	deluge::project::MappingTable before = ctx.model.mappings;
 	ctx.model.mappings.unlearn(target_);
-	return project(ctx, deluge::bridge::projectMapping(ctx.song, target_), std::move(before));
+	const Error result = project(ctx, deluge::bridge::projectMapping(ctx.song, target_), std::move(before));
+	if (result == Error::NONE) {
+		inputLearned(ctx, target_, std::nullopt);
+	}
+	return result;
 }
 
 Error learnedMappingIn(::Song& song, deluge::project::MappingTarget target, const ::LearnedMIDI& learned) {

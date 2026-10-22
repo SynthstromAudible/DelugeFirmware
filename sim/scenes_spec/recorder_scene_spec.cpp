@@ -271,6 +271,10 @@ struct RefusingSink final : bind::WriteSink {
 	bool attach_recording(deluge::project::SlotAddress, uint8_t, uint16_t, std::string_view) override { return false; }
 	bool resize_audio_clip(deluge::project::ClipAddress, bind::ResizeKind, int32_t, int32_t) override { return false; }
 	void set_undo_scroll_after(deluge::project::ClipAddress, int32_t) override {}
+	bool learn(deluge::project::MappingTarget, std::optional<deluge::project::MidiCommand>,
+	           std::optional<bind::LearnInput>) override {
+		return false;
+	}
 };
 
 /// @brief A finished take: the recorder's sample with a file, resident in the audio file manager at its path as the

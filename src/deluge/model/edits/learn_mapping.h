@@ -18,20 +18,33 @@ class Song;
 
 namespace deluge::edits {
 
+/// @brief What a note heard on an input learn brings with it: the cable it came on and its channel or MPE zone.
+struct InputLearn {
+	const ::MIDICable* cable;
+	int32_t channel_or_zone;
+};
+
 /// @brief Learn a binding: write it into the song's mapping table, then project the target's entries onto the engine
 /// field that plays them.
 ///
 /// The table (`deluge-project/mapping_table.h`) is the bindings' truth; the projection
 /// (`model/project_bridge/mapping_bridge.h`) brings the engine's copy into line.
 ///
+/// A track's or kit row's input learned counts as editing the instrument. With @p input -- a note learned -- it also
+/// takes what the note's cable sets: the bend ranges the cable's channel or MPE zone holds (each left alone where the
+/// expression bend is automated), written to the clip's or row's records, and the cable's velocity-to-level default,
+/// written as the velocity-to-level patch cable of every clip the synth or sound row plays in.
+///
 /// @note Learning records no undo.
 class LearnMapping final : public Edit {
 public:
 	/// @param mapping  The binding to learn (MappingTable::learn's rules decide what it replaces).
 	/// @param replaces For a ParamTarget: the source of the knob it takes the place of (MappingTable::relearn).
+	/// @param input    For a track's or kit row's input learned from a note: the note's cable and channel.
 	explicit LearnMapping(deluge::project::Mapping mapping,
-	                      std::optional<deluge::project::MidiCommand> replaces = std::nullopt)
-	    : mapping_(std::move(mapping)), replaces_(std::move(replaces)) {}
+	                      std::optional<deluge::project::MidiCommand> replaces = std::nullopt,
+	                      std::optional<InputLearn> input = std::nullopt)
+	    : mapping_(std::move(mapping)), replaces_(std::move(replaces)), input_(input) {}
 
 	/// @copydoc Edit::apply
 	/// @return Error::UNSPECIFIED, with the table as it was, when the target's owner is not in the song; otherwise
@@ -41,10 +54,12 @@ public:
 private:
 	deluge::project::Mapping mapping_;
 	std::optional<deluge::project::MidiCommand> replaces_;
+	std::optional<InputLearn> input_;
 };
 
 /// @brief Unlearn a target: drop its entries from the song's mapping table (for a param, every knob on it), then
 /// project what is left onto the engine field that plays it. A target the table holds nothing for is left as it is.
+/// A track's or kit row's input unlearned counts as editing the instrument.
 ///
 /// @note Unlearning records no undo.
 class UnlearnMapping final : public Edit {
