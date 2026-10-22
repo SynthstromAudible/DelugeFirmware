@@ -1392,7 +1392,7 @@ void editLeg() {
 		deluge::model::SongStutter& stutter = currentSong->live.stutter;
 		UnpatchedParamSet* unpatched = g_clip->paramManager.getUnpatchedParamSet();
 		auto& rateParam = unpatched->params[deluge::modulation::params::UNPATCHED_STUTTER_RATE];
-		// A knob position of 20 snaps to 32nds: the param to 0, the knob offset to 8.
+		// A knob position of 20 snaps to 32nds: the rate of knob position 8.
 		const int32_t before = unpatched->knobPosToParamValue(20, nullptr);
 		rateParam.setCurrentValueBasicForSetup(0);
 		const auto rate = static_cast<uint32_t>(
@@ -1428,11 +1428,11 @@ void editLeg() {
 			break;
 		}
 		UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();
-		// A knob position of 20 snaps to 32nds: the knob offset to 8.
+		// A knob position of 20 snaps to 32nds, knob position 8: the snap's offset from the param is -12.
 		unpatched->params[deluge::modulation::params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(
 		    unpatched->knobPosToParamValue(20, nullptr));
 		lone->beginStutter(&paramManager);
-		const bool began = stutter.isStuttering(*lone) && stutter.lastQuantizedKnobDiff == 8;
+		const bool began = stutter.isStuttering(*lone) && stutter.lastQuantizedKnobDiff == 8 - 20;
 		AudioEngine::retire(static_cast<Output*>(lone));
 		renderBlocks(3);
 		AudioEngine::reclaimRetired();

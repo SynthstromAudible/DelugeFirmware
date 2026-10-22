@@ -887,7 +887,8 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 	const int32_t paramValue = unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE);
 	const int32_t knobDiffBefore = stutter.lastQuantizedKnobDiff;
 	if (settings.quantized) {
-		int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, nullptr);
+		const int32_t basePos = unpatchedParams->paramValueToKnobPos(paramValue, nullptr);
+		int32_t knobPos = basePos;
 		if (knobPos < -39) {
 			knobPos = -16; // 4ths
 		}
@@ -903,23 +904,19 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 		else {
 			knobPos = 16; // 64ths
 		}
-		// Save current values for later recovering them
+		// The param stays where it is, so automation playing it back sets the absolute value it recorded: the note
+		// length is the snap moved by however far the param has moved from where it began, which is the param plus
+		// the snap's offset from it.
 		stutter.valueBeforeStuttering = paramValue;
-		stutter.lastQuantizedKnobDiff = knobPos;
-
-		// When stuttering, we center the value at 0, so the center is the reference for the stutter rate that we
-		// selected just before pressing the knob and we use the lastQuantizedKnobDiff value to calculate the relative
-		// (real) value
-		unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(0);
+		stutter.lastQuantizedKnobDiff = knobPos - basePos;
 	}
 
 	const auto rate = static_cast<uint32_t>(
 	    deluge::model::stutterRate(paramManager, stutter.lastQuantizedKnobDiff, currentSong->getInputTickMagnitude(),
 	                               playbackHandler.getTimePerInternalTickInverse()));
 	if (stutter.begin(*this, settings, rate) != Error::NONE) {
-		// No stutter: the param and the snap memory go back to how they were.
+		// No stutter: the snap memory goes back to how it was.
 		if (settings.quantized) {
-			unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(paramValue);
 			stutter.lastQuantizedKnobDiff = knobDiffBefore;
 		}
 		return;
@@ -943,9 +940,8 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 				    stutter.valueBeforeStuttering);
 			}
 			else {
-				// Regular Stutter FX (if below middle value, reset it back to middle)
-				// Normally we shouldn't call this directly, but it's ok because automation isn't allowed for stutter
-				// anyway
+				// Regular Stutter FX (if below middle value, reset it back to middle). Not an Edit: like the quantized
+				// restore above, it puts the knob back where the gesture expects it, and records nothing
 				if (unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE) < 0) {
 					unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(0);
 				}
