@@ -10,6 +10,8 @@
 
 #include <cstdint>
 #include <optional>
+#include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -20,18 +22,24 @@ struct SampleView {
 	int64_t scroll{0};
 	int64_t zoom{0};
 	bool loop_locked{false};
+	std::string file; ///< the file it was viewing, which the view belongs to
 };
 
 /// @brief The scenes' view state for one song: a lookup for another song finds nothing.
 class ViewStateStore {
 public:
-	/// @brief Empty the store unless it holds @p song's view state.
-	void forget_unless(const void* song) {
+	/// @brief Empty the store unless it holds the view state of the song whose identity is @p song.
+	void forget_unless(uint64_t song) {
 		if (song != song_) {
 			sample_views_.clear();
 			last_ranges_.clear();
 			song_ = song;
 		}
+	}
+	/// @brief The view remembered at @p address while it showed @p file, or nullopt.
+	[[nodiscard]] std::optional<SampleView> sample_view(const WaveformAddress& address, std::string_view file) const {
+		const std::optional<SampleView> view = sample_view(address);
+		return view && view->file == file ? view : std::nullopt;
 	}
 	[[nodiscard]] std::optional<SampleView> sample_view(const WaveformAddress& address) const {
 		for (const auto& [at, view] : sample_views_) {
@@ -69,7 +77,7 @@ public:
 	}
 
 private:
-	const void* song_{nullptr};
+	uint64_t song_{0};
 	std::vector<std::pair<WaveformAddress, SampleView>> sample_views_;
 	std::vector<std::pair<std::pair<project::SlotAddress, uint8_t>, uint16_t>> last_ranges_;
 };

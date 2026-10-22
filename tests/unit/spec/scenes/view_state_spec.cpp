@@ -20,9 +20,9 @@ const WaveformAddress kClip{.kind = WaveformAddress::Kind::AUDIO_CLIP, .clip = {
 describe scenes_view_state("a scene's view state", ${
 	it("remembers a view per address and forgets it for another song", _ {
 		ViewStateStore store;
-		const int song_a = 0;
-		const int song_b = 0;
-		store.forget_unless(&song_a);
+		constexpr uint64_t song_a = 1;
+		constexpr uint64_t song_b = 2;
+		store.forget_unless(song_a);
 		expect(store.sample_view(kRange).has_value()).to_be_false();
 		store.set_sample_view(kRange, {.scroll = 100, .zoom = 4, .loop_locked = true});
 		store.set_sample_view(kClip, {.scroll = 5, .zoom = 2, .loop_locked = false});
@@ -34,9 +34,17 @@ describe scenes_view_state("a scene's view state", ${
 		store.set_sample_view(kRange, {.scroll = 1, .zoom = 1, .loop_locked = false});
 		expect(store.sample_view(kRange)->scroll).to_equal(int64_t{1});
 
-		store.forget_unless(&song_b);
+		store.forget_unless(song_b);
 		expect(store.sample_view(kRange).has_value()).to_be_false();
 		expect(store.last_range({deluge::project::SlotAddress::Kind::OUTPUT, 7}, 1).has_value()).to_be_false();
+	});
+
+	it("forgets a remembered view whose waveform is now another file", _ {
+		ViewStateStore store;
+		store.forget_unless(1);
+		store.set_sample_view(kRange, {.scroll = 100, .zoom = 4, .loop_locked = true, .file = "A.WAV"});
+		expect(store.sample_view(kRange, "A.WAV").has_value()).to_be_true();
+		expect(store.sample_view(kRange, "B.WAV").has_value()).to_be_false();
 	});
 });
 

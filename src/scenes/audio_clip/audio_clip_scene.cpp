@@ -731,6 +731,7 @@ Result AudioClipScene::clip_horizontal_encoder_action(int32_t offset, const UiCo
 		// `:167-169`'s SD defer: none, as above.
 		const uint32_t new_length = change_clip_length(offset, old_length, ResizeKind::STRETCH); // `:171-173`
 		show_bars_and_beats(new_length, /*count_from_one=*/false);                               // `:175`
+		note_undo_scroll();                                                                      // `:178`
 		(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll});
 		return r;
 	}
@@ -884,8 +885,17 @@ Result AudioClipScene::edit_clip_length_without_timestretching(int32_t offset) {
 	    change_clip_length(offset, static_cast<uint32_t>(loop_length()), ResizeKind::NO_STRETCH);
 
 	show_bars_and_beats(new_length, /*count_from_one=*/false); // `:830`
+	note_undo_scroll();                                        // `:831-833`
 	(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll});
 	return r;
+}
+
+void AudioClipScene::note_undo_scroll() {
+	// `action->xScrollClip[AFTER] = ...` after each length edit: the view scrolled after the change, so the step
+	// learns where a redo returns to now.
+	if (clip_ && sink_ != nullptr) {
+		sink_->set_undo_scroll_after(*clip_, timeline_.x_scroll);
+	}
 }
 
 void AudioClipScene::after_loop_length_change(int32_t old_length, int32_t new_length) {
@@ -917,6 +927,7 @@ void AudioClipScene::set_clip_length_equal_to_sample_length() {
 		return;
 	}
 	after_loop_length_change(old_length, loop_length());                                       // `:745`
+	note_undo_scroll();                                                                        // `:781-783`
 	deluge::notify::notice_string(sid(deluge::l10n::String::STRING_FOR_CLIP_LENGTH_ADJUSTED)); // `:746`
 }
 
@@ -1111,6 +1122,10 @@ void AudioClipScene::render_grid(GridFrame& f) {
 	const std::optional<deluge::scenes::services::WaveformInfo> info =
 	    clip_ ? menu::host_waveforms().info(waveform()) : std::nullopt;
 	const std::optional<deluge::scenes::bind::AudioClipFact> clip_fact = fact();
+	if (info && info->identity != waveform_identity_) {
+		waveform_identity_ = info->identity;
+		render_.xScroll = -1; // the cached columns are another waveform's
+	}
 	// `renderMainPads`' two "just clear the display" arms (`:105-111`, `:113-120`): no sample, or no clip. The
 	// frame arrives cleared, so there is nothing to erase -- but the two arms still `return`, which
 	// means no waveform, no grey, no markers and (legacy's driver still substitutes) the cursor.

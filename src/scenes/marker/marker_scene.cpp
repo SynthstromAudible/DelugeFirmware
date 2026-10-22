@@ -18,6 +18,7 @@
 #include "scenes/services/waveforms.h"
 
 #include "deluge-project/setting_group.h"
+#include "deluge-project/song.h"
 #include "gui/l10n/strings.h"
 #include "model/sample/waveform_scan.h"
 #include "serialization/tree.h"
@@ -154,8 +155,24 @@ bool MarkerScene::reversed() const {
 	return source != nullptr && source->reversed;
 }
 
+std::string MarkerScene::file() const {
+	const deluge::instrument::RangeState* range = range_state();
+	return range != nullptr ? range->file_path : std::string{};
+}
+
 services::SampleView MarkerScene::view() const {
-	return services::view_state().sample_view(where_).value_or(services::SampleView{});
+	// A view remembered for another file -- the range now holds a different sample -- is not this one's.
+	services::SampleView v = services::view_state().sample_view(where_, file()).value_or(services::SampleView{});
+	v.file = file();
+	return v;
+}
+
+void MarkerScene::follow_waveform(const services::WaveformInfo& info) {
+	nav_.length_samples = info.length_samples;
+	if (info.identity != waveform_identity_) {
+		waveform_identity_ = info.identity;
+		nav_.renderData.xScroll = -1; // the cached columns are another waveform's
+	}
 }
 
 bool MarkerScene::loop_locked() const {
@@ -215,9 +232,10 @@ bool MarkerScene::on_enter(const SceneId& id) {
 	                   : MarkerType::START;
 
 	where_ = *address_of(ctx_);
-	services::view_state().forget_unless(ctx_.model);
+	services::view_state().forget_unless(ctx_.model != nullptr ? ctx_.model->identity() : 0);
 	nav_.sample = nullptr;
-	nav_.length_samples = menu::host_waveforms().info(where_)->length_samples;
+	waveform_identity_ = 0;
+	follow_waveform(*menu::host_waveforms().info(where_));
 	const services::SampleView remembered = view();
 	nav_.opened(remembered.scroll, remembered.zoom); // `:126`
 
@@ -918,6 +936,7 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	if (!info) {
 		return;
 	}
+	follow_waveform(*info);
 
 	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kDisplayWidth);
 

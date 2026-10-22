@@ -73,6 +73,7 @@
 
 #include "integration/scenarios/slot_coherence.h"
 #include "model/project_bridge/slot_bridge.h"
+#include "model/project_bridge/source_bridge.h"
 #include "support/song_fixture.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
@@ -263,6 +264,13 @@ struct Rig {
 		return {.kind = deluge::scenes::services::WaveformAddress::Kind::RANGE, .slot = *ctx().addresses.slot};
 	}
 
+	/// @brief The file the range's record names.
+	std::string recorded_file() {
+		const deluge::instrument::SoundState* state = menu::host_runtime_facts().sound_state(*ctx().addresses.slot);
+		return state != nullptr && !state->sources[0].ranges.empty() ? state->sources[0].ranges[0].file_path
+		                                                             : std::string{};
+	}
+
 	/// @brief The view the scene remembers for the range, if any.
 	std::optional<deluge::scenes::services::SampleView> view() {
 		return deluge::scenes::services::view_state().sample_view(where());
@@ -277,9 +285,11 @@ struct Rig {
 		// Legacy remembers the view and the loop lock on the holder, the scene in the view-state store: both start
 		// from the holder's.
 		const SampleHolderForVoice& h = range->sampleHolder;
-		deluge::scenes::services::view_state().forget_unless(&song.song->project);
-		deluge::scenes::services::view_state().set_sample_view(
-		    where(), {.scroll = h.waveformViewScroll, .zoom = h.waveformViewZoom, .loop_locked = h.loopLocked});
+		deluge::scenes::services::view_state().forget_unless(song.song->project.identity());
+		deluge::scenes::services::view_state().set_sample_view(where(), {.scroll = h.waveformViewScroll,
+		                                                                 .zoom = h.waveformViewZoom,
+		                                                                 .loop_locked = h.loopLocked,
+		                                                                 .file = recorded_file()});
 		MenuContext c = ctx();
 		if (sink != nullptr) {
 			c.sink = sink;
@@ -757,8 +767,60 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(ctx.range != nullptr && ctx.range_index == 0).to_be_true();
 		expect(menu::host_runtime_facts().sound_state(slot)->sources[0].ranges.size()).to_equal(size_t{1});
 		expect(deluge::harness::soundIncoherence(*sound, *f.song)).to_equal(std::string{});
+		// The range is the one a source makes for itself, as legacy's getOrCreateFirstRange leaves it.
+		deluge::edits::settingFor(*sound, "osc2/type", deluge::serialization::Value::makeScalar("sample"));
+		(void)sound->sources[1].getOrCreateFirstRange();
+		const std::vector<deluge::instrument::RangeState> legacy = deluge::bridge::rangesOf(sound->sources[1]);
+		const std::vector<deluge::instrument::RangeState>& first =
+		    menu::host_runtime_facts().sound_state(slot)->sources[0].ranges;
+		expect(!legacy.empty() && !first.empty() && first[0] == legacy[0]).to_be_true();
 		expect(had_none).to_be_true();
 		currentSong = saved;
+	});
+
+	it("forgets a loop lock remembered for another file at the same range", _ {
+		Rig r;
+		r.sample->filePath = "SAMPLES/A.WAV"; // the record names the range's file by its sample's path
+		r.range->sampleHolder.filePath = "SAMPLES/A.WAV";
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
+		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
+		r.open(MarkerType::LOOP_START);
+		r.tick(0);
+		expect(menu::host_runtime_facts().sound_state(*r.ctx().addresses.slot)->sources[0].ranges[0].file_path)
+		    .to_equal(std::string{"SAMPLES/A.WAV"});
+		deluge::scenes::services::view_state().set_sample_view(r.where(),
+		                                                       {.zoom = kZoomMax, .loop_locked = true, .file = "SAMPLES/B.WAV"});
+		r.turn_select(1, 10);
+		r.tick(10);
+		// Unlocked: the loop start moves alone.
+		expect(static_cast<int32_t>(r.range->sampleHolder.loopStartPos)).to_equal(5 * kZoomMax);
+		expect(static_cast<int32_t>(r.range->sampleHolder.loopEndPos)).to_equal(8 * kZoomMax);
+
+		deluge::scenes::services::view_state().set_sample_view(r.where(),
+		                                                       {.zoom = kZoomMax, .loop_locked = true, .file = "SAMPLES/A.WAV"});
+		r.turn_select(1, 20);
+		r.tick(20);
+		// Locked, for this file: the loop end keeps its length from the start.
+		expect(static_cast<int32_t>(r.range->sampleHolder.loopStartPos)).to_equal(6 * kZoomMax);
+		expect(static_cast<int32_t>(r.range->sampleHolder.loopEndPos)).to_equal(9 * kZoomMax);
+	});
+
+	it("reads the waveform's length again when the range's sample changes under it", _ {
+		Rig r;
+		r.open(MarkerType::END);
+		r.tick(0);
+		Sample* half = make_sample();
+		half->lengthInSamples = kSampleLength / 2;
+		half->audioDataLengthBytes = kSampleLength / 2 * kBytesPerFrame;
+		r.range->sampleHolder.audioFile = half;
+		r.tick(10);
+		r.turn_select(1, 20);
+		r.tick(20);
+		// The END marker clamps at the sample now on the range, not the one the editor opened on.
+		expect(static_cast<int64_t>(r.range->sampleHolder.endPos)).to_equal(static_cast<int64_t>(kSampleLength / 2));
+		r.range->sampleHolder.audioFile = r.sample;
 	});
 
 	it("moves a playing clip's marker through SetSetting alone without taking its voice off the sample", _ {

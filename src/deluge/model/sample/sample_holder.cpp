@@ -16,6 +16,7 @@
  */
 
 #include "model/sample/sample_holder.h"
+#include "engines/deluge/sound_state.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "hid/display/display.h"
 #include "model/sample/sample.h"
@@ -37,7 +38,7 @@ static DelugeLoadMode loadModeFor(int32_t clusterLoadInstruction) {
 
 SampleHolder::SampleHolder() {
 	startPos = 0;
-	endPos = 9999999;
+	endPos = deluge::instrument::kUnsetEndPos;
 	waveformViewZoom = 0;
 	audioFileType = AudioFileType::SAMPLE;
 }
@@ -134,7 +135,7 @@ void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manual
 		// Otherwise, simply make sure that the zone doesn't exceed the length of the sample
 		else {
 			startPos = std::min<uint64_t>(startPos, lengthInSamples);
-			if (endPos == 0 || endPos == 9999999) {
+			if (endPos == 0 || endPos == deluge::instrument::kUnsetEndPos) {
 				endPos = lengthInSamples;
 			}
 			if (endPos <= startPos) {

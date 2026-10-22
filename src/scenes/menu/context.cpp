@@ -121,8 +121,8 @@ bool ensure_first_range(MenuContext& ctx) {
 	if (range_count(ctx) == 0) {
 		// `:1993`, as a request: the first range, which the app makes and the record holds. A refusal is
 		// `:1994-1997`'s INSUFFICIENT_RAM, which legacy answers with `MenuPermission::NO`.
-		const std::array<deluge::instrument::RangeState, 1> first{
-		    deluge::instrument::RangeState{.top_note = deluge::instrument::kOpenTopNote}};
+		const std::array<deluge::instrument::RangeState, 1> first{deluge::instrument::RangeState{
+		    .top_note = deluge::instrument::kOpenTopNote, .end_pos = deluge::instrument::kUnsetEndPos}};
 		if (ctx.sink == nullptr || !ctx.addresses.slot
 		    || !ctx.sink->write_ranges(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index), first)) {
 			return false;

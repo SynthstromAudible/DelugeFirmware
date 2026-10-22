@@ -1067,6 +1067,26 @@ describe audio_clip_scene_spec_body(
 	        });
 
 	    it(
+	        "draws the new sample's waveform when the clip's sample changes under it", _ {
+		        Rig r;
+		        r.seed(Sentinel{});
+		        r.open();
+		        r.tick(0);
+		        Sample* flat = make_sample();
+		        for (int32_t i = 0; i < kNumClusters; i++) {
+			        OverviewCacheEntry& e = flat->overviewCacheEntry(static_cast<uint32_t>(i));
+			        e.min = -100;
+			        e.max = 100;
+		        }
+		        r.f.clip->sampleHolder.audioFile = flat;
+		        r.f.clip->renderData.xScroll = -1; // as the clip's own sample changes leave it, for legacy's scan
+		        deluge::notify::raise(deluge::notify::Dirty::GridMain); // a repaint, which says nothing of the sample
+		        r.tick(10);
+		        expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform(16));
+		        r.f.clip->sampleHolder.audioFile = r.sample;
+	        });
+
+	    it(
 	        "draws the same pads as legacy at 64 rows", _ {
 		        // The pad grid is 8 rows on both boards -- the 64 is the OLED panel's height -- so legacy's
 		        // image is still the whole oracle here, and this example proves the port does not read the
@@ -1766,6 +1786,35 @@ describe audio_clip_scene_spec_body(
 		                                      static_cast<int32_t>(kMaxSequenceLength) + 1, 768))
 		            .to_be_false();
 		        expect(model_snapshot(r) == seeded).to_be_true();
+	        });
+
+	    it(
+	        "records the view a redo returns to, as legacy does", _ {
+		        spec_fixture::QuietAudio quiet;
+		        Rig r;
+		        changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
+		        Input in;
+		        const Sentinel s{};
+
+		        r.reseed(s);
+		        currentUIMode = UI_MODE_NONE;
+		        legacy_hold(ButtonId::Shift, true);
+		        (void)legacy_view.horizontalEncoderAction(1);
+		        legacy_hold(ButtonId::Shift, false);
+		        currentUIMode = UI_MODE_NONE;
+		        const int32_t legacy_after = actionLogger.firstAction[BEFORE]->xScrollClip[AFTER];
+
+		        r.reseed(s);
+		        r.open_scene_only();
+		        (void)in.press(ButtonId::Shift, true);
+		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, 1);
+		        (void)in.press(ButtonId::Shift, false);
+		        const int32_t port_after = actionLogger.firstAction[BEFORE]->xScrollClip[AFTER];
+
+		        expect(port_after).to_equal(legacy_after);
+		        expect(port_after).to_equal(r.scene().timeline().x_scroll);
+		        expect(port_after != s.x_scroll).to_be_true(); // the lengthen really scrolled
+		        nullifyUIs();
 	        });
 
 	    it(

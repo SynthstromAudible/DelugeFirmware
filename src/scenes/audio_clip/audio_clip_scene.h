@@ -613,6 +613,8 @@ private:
 	/// @param old_length The length before the request.
 	/// @param new_length The length after it.
 	void after_loop_length_change(int32_t old_length, int32_t new_length);
+	/// @brief Tell the sink where a redo of the last length change scrolls back to: the view as it is now.
+	void note_undo_scroll();
 	/// @brief `TimelineView::displayNumberOfBarsAndBeats`' popup half	/// @brief
 	/// `TimelineView::displayNumberOfBarsAndBeats`' popup half (`timeline_view.cpp:241-265`).
 	///
@@ -633,6 +635,8 @@ private:
 
 	/// The waveform's per-column cache, the scene's own: the scan fills it for the view's scroll and zoom.
 	WaveformRenderData render_{};
+	/// The identity of the waveform render_ holds.
+	uint64_t waveform_identity_ = 0;
 
 	/// The scroll and zoom, with `AudioClipView::supportsTriplets() == false`
 	/// (`audio_clip_view.h:38`) baked into the state at construction.

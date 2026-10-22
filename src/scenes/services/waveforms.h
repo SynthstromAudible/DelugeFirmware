@@ -22,6 +22,7 @@ struct WaveformInfo {
 	int32_t centre{0};     ///< the value the bars are centred on
 	int32_t span{0};       ///< the value range the bars are scaled to
 	bool recording{false}; ///< an audio clip's take being recorded, not its file
+	uint64_t identity{0};  ///< which waveform this is: another file, or a take, has another
 };
 
 /// @brief The waveforms of the current song, answered by the host from the samples the addresses name.

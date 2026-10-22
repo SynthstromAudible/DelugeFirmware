@@ -51,6 +51,7 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "integration/scenarios/slot_coherence.h"
+#include "memory/heaps.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/project_bridge/slot_bridge.h"
@@ -251,6 +252,25 @@ struct Rig {
 	std::string oled() { return fake.pbm(0); }
 
 	Song* const saved_song = currentSong;
+};
+
+/// @brief A sink that refuses every request.
+struct RefusingSink final : bind::WriteSink {
+	bool write(const bind::WriteRequest&) override { return false; }
+	bool write_param(const deluge::project::ParamAddress&, int32_t, int32_t, int32_t) override { return false; }
+	bool delete_automation(const deluge::project::ParamAddress&) override { return false; }
+	bool write_text(const bind::Target&, const bind::Addresses&, std::string_view) override { return false; }
+	bool write_ranges(deluge::project::SlotAddress, uint8_t, std::span<const deluge::instrument::RangeState>,
+	                  bind::RangesCause) override {
+		return false;
+	}
+	bool recolour_clip(deluge::project::ClipAddress, int32_t) override { return false; }
+	bool clear_clip(deluge::project::ClipAddress, bool, bool) override { return false; }
+	bool move_audio_clip_marker(deluge::project::ClipAddress, std::string_view, int64_t) override { return false; }
+	void set_default_audio_input_channel(int32_t) override {}
+	bool attach_recording(deluge::project::SlotAddress, uint8_t, uint16_t, std::string_view) override { return false; }
+	bool resize_audio_clip(deluge::project::ClipAddress, bind::ResizeKind, int32_t, int32_t) override { return false; }
+	void set_undo_scroll_after(deluge::project::ClipAddress, int32_t) override {}
 };
 
 /// @brief A finished take: the recorder's sample with a file, resident in the audio file manager at its path as the
@@ -727,6 +747,56 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(r.range->getAudioFileHolder()->audioFile == nullptr).to_be_true();
 		const deluge::instrument::SoundState* state = menu::host_runtime_facts().sound_state(r.slot());
 		expect(state != nullptr && state->sources[0].osc_type == OscType::SQUARE).to_be_true();
+	});
+
+	it("reports an attach the app refuses", _ {
+		Guards g;
+		Rig r;
+		RefusingSink refusing;
+		r.open(&refusing);
+		r.tick(0);
+		SampleRecorder* rec = recorder_scene().recorder();
+		rec->numSamplesCaptured = 44100;
+		rec->status = RecorderStatus::COMPLETE;
+		r.tick(10);
+		bool error_shown = false;
+		deluge::notify::Notice notice;
+		while (deluge::notify::notices().pop(notice)) {
+			error_shown = error_shown || notice.kind == deluge::notify::Notice::Kind::Error;
+		}
+		expect(error_shown).to_be_true();
+		expect(r.range->getAudioFileHolder()->audioFile == nullptr).to_be_true();
+		expect(r.on_stack()).to_be_false();
+	});
+
+	it("attaches the recorder's own take where another sample in memory has its path", _ {
+		Guards g;
+		Rig r;
+		r.open();
+		r.tick(0);
+		SampleRecorder* rec = recorder_scene().recorder();
+		const Take take{*rec, "SAMPLES/RECORD/REC005.WAV"};
+		void* memory = deluge::memory::alloc_fast(sizeof(Sample));
+		auto* stale = new (memory) Sample();
+		stale->filePath = "SAMPLES/RECORD/REC005.WAV";
+		(void)audioFileManager.audioFiles.insertElement(stale);
+		rec->status = RecorderStatus::COMPLETE;
+		r.tick(10);
+		expect(r.range->getAudioFileHolder()->audioFile == static_cast<AudioFile*>(take.sample)).to_be_true();
+		const int32_t i = audioFileManager.audioFiles.searchForExactObject(stale);
+		if (i >= 0) {
+			audioFileManager.audioFiles.erase(audioFileManager.audioFiles.begin() + i);
+		}
+	});
+
+	it("renames a kit row already called REC1, as legacy's unique-name search counts the row's own name", _ {
+		Guards g;
+		KitRig k;
+		deluge::edits::laneSettingFor(*k.drum, "name", deluge::serialization::Value::makeScalar("REC1"));
+		recorder_scene().open(k.ctx());
+		k.shell.init(SceneId{kRecorderSceneKind, 0});
+		k.shell.tick(0);
+		expect(k.recorded_name()).to_equal(std::string{"REC2"});
 	});
 
 	it("names a kit row's drum REC with the next free number, as a text request", _ {

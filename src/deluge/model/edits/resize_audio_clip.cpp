@@ -110,15 +110,17 @@ public:
 	}
 
 	/// Lengthen or shorten the clip to @p newLength, the sample timestretched to fill it.
-	void length(int32_t newLength, int32_t oldLength) {
+	/// @return The undo step it was logged in, or null.
+	::Action* length(int32_t newLength, int32_t oldLength) {
 		if (newLength > oldLength) {
 			if (newLength <= static_cast<int32_t>(kMaxSequenceLength)) {
-				lengthen(newLength);
+				return lengthen(newLength);
 			}
 		}
 		else if (newLength < oldLength && newLength > 0) {
-			shorten(newLength);
+			return shorten(newLength);
 		}
+		return nullptr;
 	}
 
 private:
@@ -148,7 +150,8 @@ private:
 	}
 
 	/// A lengthen right after a shorten of this clip undoes the shorten first; a paste being built absorbs it.
-	void lengthen(int32_t newLength) {
+	::Action* lengthen(int32_t newLength) {
+		::Action* action = nullptr;
 		::Action* const first = actionLogger.firstAction[BEFORE];
 		const bool undoing = first != nullptr && first->openForAdditions
 		                     && first->type == ActionType::CLIP_LENGTH_DECREASE && first->currentClip == &clip_;
@@ -164,7 +167,7 @@ private:
 			if (nowFirst != nullptr && nowFirst->type == ActionType::PATTERN_PASTE) {
 				type = ActionType::PATTERN_PASTE;
 			}
-			::Action* action = actionLogger.getNewAction(type, ActionAddition::ALLOWED);
+			action = actionLogger.getNewAction(type, ActionAddition::ALLOWED);
 			if (action != nullptr && action->currentClip != &clip_) {
 				action = actionLogger.getNewAction(type, ActionAddition::NOT_ALLOWED);
 			}
@@ -175,10 +178,11 @@ private:
 			char memory[MODEL_STACK_MAX_SIZE];
 			currentPlaybackMode->reSyncClip(setupModelStackWithTimelineCounter(memory, &ctx_.song, &clip_));
 		}
+		return action;
 	}
 
 	/// Successive shortens of one clip coalesce into one undo step, which records the original length once.
-	void shorten(int32_t newLength) {
+	::Action* shorten(int32_t newLength) {
 		::Action* action = nullptr;
 		::Action* const first = actionLogger.firstAction[BEFORE];
 		if (first != nullptr && first->type == ActionType::PATTERN_PASTE) {
@@ -191,6 +195,7 @@ private:
 			}
 		}
 		setLength(static_cast<uint32_t>(newLength), action);
+		return action;
 	}
 
 	Context& ctx_;
@@ -223,14 +228,14 @@ Error ResizeAudioClip::apply(Context& ctx) {
 		return Error::NONE;
 	}
 	case Kind::STRETCH:
-		resize.length(new_length_, old_length_);
+		length_action_ = resize.length(new_length_, old_length_);
 		return Error::NONE;
 	case Kind::NO_STRETCH:
 		// The sample's end moves to whatever length the clip gets, so a length no clip may have is refused whole.
 		if (new_length_ <= 0 || new_length_ > static_cast<int32_t>(kMaxSequenceLength)) {
 			return Error::UNSPECIFIED;
 		}
-		resize.length(new_length_, old_length_);
+		length_action_ = resize.length(new_length_, old_length_);
 		if (const ::Sample* sample = resize.guideSample(); sample != nullptr) {
 			resize.sampleLength(sample, new_length_, oldLength, oldLengthSamples);
 		}
@@ -240,7 +245,7 @@ Error ResizeAudioClip::apply(Context& ctx) {
 		if (holder == nullptr) {
 			return Error::UNSPECIFIED;
 		}
-		resize.length(holder->getLoopLengthAtSystemSampleRate(true), oldLength);
+		length_action_ = resize.length(holder->getLoopLengthAtSystemSampleRate(true), oldLength);
 		return Error::NONE;
 	}
 	}

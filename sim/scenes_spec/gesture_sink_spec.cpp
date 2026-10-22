@@ -17,6 +17,7 @@
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/project_bridge/param_ids.h"
+#include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "processing/sound/sound_drum.h"
@@ -186,10 +187,19 @@ describe gesture_sink("a scene's gestures through the app's sink", ${
 		auto& sound = *static_cast<SoundInstrument*>(synth.instrument);
 		deluge::edits::settingFor(sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
 		expect(menu::host_runtime_facts().sound_state(slot)->sources[0].ranges.empty()).to_be_true();
-		const std::vector<deluge::instrument::RangeState> first{{.top_note = deluge::instrument::kOpenTopNote}};
+		const std::vector<deluge::instrument::RangeState> first{
+		    {.top_note = deluge::instrument::kOpenTopNote, .end_pos = deluge::instrument::kUnsetEndPos}};
 		expect(menu::host_write_sink().write_ranges(slot, 0, first)).to_be_true();
 		expect(menu::host_runtime_facts().sound_state(slot)->sources[0].ranges.size()).to_equal(size_t{1});
 		expect(std::ssize(sound.sources[0].ranges)).to_equal(1);
+		// The range is the one a source makes for itself, as legacy's getOrCreateFirstRange leaves it.
+		deluge::edits::settingFor(sound, "osc2/type", deluge::serialization::Value::makeScalar("sample"));
+		(void)sound.sources[1].getOrCreateFirstRange();
+		const std::vector<deluge::instrument::RangeState> legacy = deluge::bridge::rangesOf(sound.sources[1]);
+		const std::vector<deluge::instrument::RangeState> recorded =
+		    menu::host_runtime_facts().sound_state(slot)->sources[0].ranges;
+		expect(!legacy.empty() && recorded[0] == legacy[0]).to_be_true();
+		expect(static_cast<int64_t>(recorded[0].end_pos)).to_equal(static_cast<int64_t>(legacy[0].end_pos));
 		currentSong = saved;
 	});
 

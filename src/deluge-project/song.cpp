@@ -23,6 +23,11 @@ namespace deluge::project {
 
 Song::Song() = default;
 
+uint64_t Song::nextIdentity() {
+	static uint64_t last = 0;
+	return ++last;
+}
+
 namespace {
 /// Resolve a MIDI-CC lane within a tree-resident manager by IDENTITY. The address's id is the CC
 /// number (the MIDIParamVector keys by cc); scan the manager's per-clip CC store for it. Identity, not index: a

@@ -8,6 +8,8 @@
 #include "engines/effects/settings.h"
 #include "gui/views/view.h"
 #include "io/debug/log.h"
+#include "model/action/action.h"
+#include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
@@ -157,6 +159,7 @@ public:
 	                      std::string_view path) override;
 	bool resize_audio_clip(deluge::project::ClipAddress clip, deluge::scenes::bind::ResizeKind kind, int32_t new_length,
 	                       int32_t old_length) override;
+	void set_undo_scroll_after(deluge::project::ClipAddress clip, int32_t x_scroll) override;
 	[[nodiscard]] uint32_t refusals() const { return refusals_; }
 
 private:
@@ -171,6 +174,9 @@ private:
 	bool applied(deluge::edits::Edit& edit);
 
 	uint32_t refusals_{0};
+	/// The undo step the last length change opened, and its clip: what a redo of it scrolls the view back to.
+	::Action* resize_action_{nullptr};
+	deluge::project::ClipAddress resize_clip_{};
 };
 
 /// The runtime facts, answered from the running app: the audio engine's inputs, each sound's sources and typed
@@ -221,7 +227,8 @@ public:
 		                                              .max_peak_from_zero = at.sample->getMaxPeakFromZero(),
 		                                              .centre = at.sample->getFoundValueCentrePoint(),
 		                                              .span = at.sample->getValueSpan(),
-		                                              .recording = at.recorder != nullptr};
+		                                              .recording = at.recorder != nullptr,
+		                                              .identity = reinterpret_cast<uintptr_t>(at.sample)};
 	}
 	bool peaks(const deluge::scenes::services::WaveformAddress& address, int64_t scroll, uint64_t zoom,
 	           WaveformRenderData& cache, int32_t x_start, int32_t x_end) const override {
@@ -452,7 +459,28 @@ bool ShellEditSink::resize_audio_clip(deluge::project::ClipAddress clip, deluge:
 		break;
 	}
 	deluge::edits::ResizeAudioClip edit{clip, edit_kind, new_length, old_length};
-	return applied(edit);
+	resize_action_ = nullptr;
+	if (!applied(edit)) {
+		return false;
+	}
+	resize_action_ = edit.lengthAction();
+	resize_clip_ = clip;
+	return true;
+}
+
+void ShellEditSink::set_undo_scroll_after(deluge::project::ClipAddress clip, int32_t x_scroll) {
+	::Action* const step = resize_action_;
+	resize_action_ = nullptr; // one view per length change
+	if (step == nullptr || !(clip == resize_clip_)) {
+		return;
+	}
+	// The step is the log's still, unless something since has replaced the log.
+	for (::Action* action = actionLogger.firstAction[BEFORE]; action != nullptr; action = action->nextAction) {
+		if (action == step) {
+			action->xScrollClip[AFTER] = x_scroll;
+			return;
+		}
+	}
 }
 
 bool ShellEditSink::recolour_clip(deluge::project::ClipAddress clip, int32_t offset) {

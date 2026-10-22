@@ -10,9 +10,9 @@ namespace deluge::edits {
 
 /// @brief Attach a recorded take to one range of a sound's source, which becomes a sample source.
 ///
-/// apply() finds the take by its path among the samples in memory (a recorder's sample is there once its file
-/// exists), never reading the card; stops the sound's voices; sets the source's type to sample; puts the take on the
-/// range; and records the source's ranges. Records no undo: a recording has already cleared the undo log.
+/// apply() finds the take by its path -- a recorder's take first, else a sample in memory -- never reading the card;
+/// stops the sound's voices; sets the source's type to sample; puts the take on the range; and records the source's
+/// ranges. Records no undo: a recording has already cleared the undo log.
 class AttachRecordedSample final : public Edit {
 public:
 	/// @param slot   The sound's slot.

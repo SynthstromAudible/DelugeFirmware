@@ -46,6 +46,9 @@ class Song {
 public:
 	Song();
 
+	/// @brief This song's identity: no other song made in this run has it, even one made where this one was.
+	[[nodiscard]] uint64_t identity() const { return identity_; }
+
 	/// @brief Id-addressable DOM param resolution: map a stable `ParamAddress` to the live `DocAutoParam` in the tree
 	/// (song-global → `master_params`; clips → the per-clip store by id).
 	///
@@ -121,6 +124,12 @@ public:
 	DrumStructure drum_structure;            // per-drum structural records (channel/note…), keyed by Drum::id
 	AudioClipStructure audio_clip_structure; // per-AudioClip descriptor records, keyed by Clip::id
 	OutputStructure output_structure;        // per-output identity records (name/colour…), keyed by Output::id
+
+private:
+	/// @brief The next identity: counts up for the whole run.
+	static uint64_t nextIdentity();
+
+	uint64_t identity_{nextIdentity()};
 };
 
 } // namespace deluge::project

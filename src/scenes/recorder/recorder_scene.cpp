@@ -12,6 +12,7 @@
 #include "scenes/bind/write_sink.h"
 
 #include "deluge-project/setting_group.h"
+#include "deluge-project/song.h"
 #include "gui/l10n/strings.h"
 #include "model/action/action_logger.h"
 #include "model/sample/sample.h"
@@ -100,8 +101,16 @@ bool RecorderScene::name_drum() {
 	}
 	const bind::Target name{
 	    .kind = bind::Target::Kind::MODEL, .path = "name", .group = deluge::project::SettingGroupId::LANE};
+	// The row's own name counts as taken, as `makeDrumNameUnique` counts it: a row already called REC1 becomes REC2.
+	const std::optional<deluge::project::SettingAddress> at = bind::setting_address(name, ctx_.addresses);
+	const std::optional<deluge::serialization::Value> own =
+	    at && ctx_.model != nullptr ? deluge::project::read_setting(*ctx_.model, *at, "name") : std::nullopt;
 	for (int32_t n = 1; n <= kMaxRecNumber; n++) {
-		if (ctx_.sink->write_text(name, ctx_.addresses, "REC" + std::to_string(n))) {
+		const std::string candidate = "REC" + std::to_string(n);
+		if (own && own->str() == candidate) {
+			continue;
+		}
+		if (ctx_.sink->write_text(name, ctx_.addresses, candidate)) {
 			return true;
 		}
 	}
@@ -215,8 +224,11 @@ void RecorderScene::attach_sample() {
 	if (ctx_.sink == nullptr) {
 		return;
 	}
-	(void)ctx_.sink->attach_recording(*ctx_.addresses.slot, static_cast<uint8_t>(ctx_.source_index),
-	                                  static_cast<uint16_t>(ctx_.range_index), recorder_->sample->filePath.c_str());
+	if (!ctx_.sink->attach_recording(*ctx_.addresses.slot, static_cast<uint8_t>(ctx_.source_index),
+	                                 static_cast<uint16_t>(ctx_.range_index), recorder_->sample->filePath.c_str())) {
+		// The take is on the card, but the sound did not get it.
+		notify::notice_error_code(static_cast<int16_t>(Error::UNSPECIFIED));
+	}
 }
 
 void RecorderScene::finish_recording() {

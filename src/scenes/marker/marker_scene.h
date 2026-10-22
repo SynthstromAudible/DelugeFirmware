@@ -89,6 +89,7 @@
 #include "scenes/menu/context.h"
 #include "scenes/services/view_state.h"
 #include "scenes/services/waveform_address.h"
+#include "scenes/services/waveforms.h"
 #include "shell/scene.h"
 #include "ui/core/response.h"
 #include "ui/grid/effects.h"
@@ -101,6 +102,7 @@
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <string>
 #include <string_view>
 
 namespace deluge::instrument {
@@ -246,11 +248,17 @@ private:
 	Zone zone() const;
 	/// @brief Is the sample played reversed?
 	bool reversed() const;
-	/// @brief The view the store remembers for the waveform, or an empty one.
+	/// @brief The file the range plays, which a remembered view belongs to; empty on an audio clip.
+	std::string file() const;
+	/// @brief The view the store remembers for the waveform while it shows file(), or an empty one for it.
 	services::SampleView view() const;
+	/// @brief Follow the waveform @p info describes: its length, and a fresh cache when it is another waveform.
+	void follow_waveform(const services::WaveformInfo& info);
 
 	menu::MenuContext ctx_{};
 	services::WaveformAddress where_{};
+	/// The identity of the waveform nav_'s cache holds.
+	uint64_t waveform_identity_ = 0;
 	deluge::sample::WaveformNav nav_{};
 
 	MarkerType marker_type_ = MarkerType::START;

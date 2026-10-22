@@ -12,6 +12,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace deluge::scenes::bind {
@@ -104,6 +105,9 @@ public:
 	/// @return Whether it was taken: false where the clip does not resolve or has no sample to measure.
 	virtual bool resize_audio_clip(project::ClipAddress clip, ResizeKind kind, int32_t new_length,
 	                               int32_t old_length) = 0;
+	/// @brief Record @p x_scroll as the view a redo of @p clip's last length change returns to: the view scrolls after
+	/// the change, so the step learns it after.
+	virtual void set_undo_scroll_after(project::ClipAddress clip, int32_t x_scroll) = 0;
 };
 
 /// @brief A gesture request, as a RecordingSink keeps it.
@@ -149,10 +153,12 @@ public:
 	void set_default_audio_input_channel(int32_t channel) override;
 	bool attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) override;
 	bool resize_audio_clip(project::ClipAddress clip, ResizeKind kind, int32_t new_length, int32_t old_length) override;
+	void set_undo_scroll_after(project::ClipAddress clip, int32_t x_scroll) override;
 	std::vector<WriteRequest> requests;
 	std::vector<GestureRequest> gestures;
 	std::vector<ParamWrite> param_writes;
 	std::vector<project::ParamAddress> deletes;
+	std::vector<std::pair<project::ClipAddress, int32_t>> undo_scrolls; ///< each set_undo_scroll_after, in order
 };
 
 } // namespace deluge::scenes::bind

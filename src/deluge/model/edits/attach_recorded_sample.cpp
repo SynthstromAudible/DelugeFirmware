@@ -5,7 +5,9 @@
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
 #include "model/sample/sample.h"
+#include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
+#include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 #include "storage/audio/audio_file_holder.h"
@@ -18,8 +20,14 @@ namespace deluge::edits {
 
 namespace {
 
-/// The sample in memory at @p path, or null: a lookup that never reads the card.
+/// The take a recorder holds at @p path, or else the sample in memory there, or null: a lookup that never reads the
+/// card. A recorder's own take wins over any other sample a file of that path left in memory.
 ::Sample* residentSample(const std::string& path) {
+	for (SampleRecorder* recorder = AudioEngine::firstRecorder; recorder != nullptr; recorder = recorder->next) {
+		if (recorder->sample != nullptr && strcasecmp(recorder->sample->filePath.c_str(), path.c_str()) == 0) {
+			return recorder->sample;
+		}
+	}
 	const AudioFileVector& files = audioFileManager.audioFiles;
 	// The files are sorted by path, so a sample and a wavetable of one file sit together from the first match.
 	for (auto i = static_cast<size_t>(files.search(path.c_str())); i < files.size(); i++) {

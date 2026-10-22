@@ -5,6 +5,8 @@
 
 #include <cstdint>
 
+class Action;
+
 namespace deluge::edits {
 
 /// @brief Resize an audio clip by one of its length gestures, as one undo step.
@@ -13,6 +15,9 @@ namespace deluge::edits {
 /// shorten and, with the clock running, re-syncs the clip; successive shortens coalesce; a paste being built absorbs
 /// either), the sample marker's move through the clip's AUDIO_CLIP row, the length (SetClipLength), and the length
 /// consequence's marker, so an undo restores both.
+///
+/// @note The coalescing compares each undo step's clip with this one, and a step takes its clip from the song's current
+///       clip: resize the clip the user is looking at, as its view does.
 class ResizeAudioClip final : public Edit {
 public:
 	/// @brief What the gesture moves.
@@ -36,11 +41,16 @@ public:
 	/// sample to measure, or NO_STRETCH asks for no length or more than kMaxSequenceLength.
 	Error apply(Context& ctx) override;
 
+	/// @brief The undo step the clip's length change was logged in (not a marker drag's), or null: what a redo of it
+	/// scrolls the view back to, which the view learns only after it scrolls.
+	[[nodiscard]] ::Action* lengthAction() const { return length_action_; }
+
 private:
 	project::ClipAddress clip_;
 	Kind kind_;
 	int32_t new_length_;
 	int32_t old_length_;
+	::Action* length_action_{nullptr};
 };
 
 } // namespace deluge::edits

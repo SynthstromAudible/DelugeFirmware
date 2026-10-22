@@ -74,4 +74,8 @@ bool RecordingSink::resize_audio_clip(project::ClipAddress clip, ResizeKind kind
 	return true;
 }
 
+void RecordingSink::set_undo_scroll_after(project::ClipAddress clip, int32_t x_scroll) {
+	undo_scrolls.emplace_back(clip, x_scroll);
+}
+
 } // namespace deluge::scenes::bind

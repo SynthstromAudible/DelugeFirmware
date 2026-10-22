@@ -35,6 +35,9 @@ namespace deluge::instrument {
 /// it.
 inline constexpr int16_t kOpenTopNote = 32767;
 
+/// @brief The end a range's zone has before a file sets it: a file loaded into it plays to its own end.
+inline constexpr uint64_t kUnsetEndPos = 9999999;
+
 /// @brief One sample or wavetable key-split range of a source, ordered by `top_note` (the highest MIDI note it covers).
 /// A wavetable range uses only `top_note` and `file_path`.
 struct RangeState {
