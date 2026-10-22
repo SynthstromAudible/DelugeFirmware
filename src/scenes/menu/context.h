@@ -31,8 +31,6 @@
 
 #include <cstdint>
 
-/// The legacy undo-log entry (`model/action/action.h`), not `deluge::ui::shell::Action`.
-class Action;
 class ArpeggiatorSettings;
 class Clip;
 class MIDICable;
@@ -340,50 +338,6 @@ bool mod_encoder_button(const services::ModTarget& target, int32_t which_encoder
 ///         test, and therefore whether the popup is shown.
 bool mod_delete_automation(const services::ModTarget& target, int32_t which_encoder);
 /// @}
-
-/// @brief Clear an audio clip -- the model half of `AudioClipView::buttonAction`'s `BACK` arm
-///        (`gui/views/audio_clip_view.cpp:442-448`).
-///
-/// Here for one reason: `Clip::clear`
-/// takes a `ModelStackWithTimelineCounter*` (`model/clip/clip.h:124`), legacy builds one with
-/// `setupModelStackWithTimelineCounter(modelStackMemory, currentSong, getCurrentClip())`
-/// (`audio_clip_view.cpp:445-446`), and `model/model_stack.h` may be included only by this file and
-/// `bindings.cpp` (`scenes-model-stack-outside-context`). Everything else about that arm -- the
-/// `actionLogger` transaction, the `FlashStorage::automationClear` read that decides the two
-/// arguments and the popup, the marker latch and the redraw -- stays with the scene, which is where
-/// legacy has it too.
-///
-/// Takes the song and clip as arguments rather than a `MenuContext` because its caller is a scene,
-/// not a menu item; the file's own rule is about `model_stack.h`, not about menus.
-///
-/// @param song                    The song the clip belongs to.
-/// @param clip                    The clip to clear.
-/// @param action                  The undo entry to log against, or null -- `actionLogger` is
-///                                reachable from the caller, `ModelStack` is not.
-/// @param clear_automation        Legacy's `!FlashStorage::automationClear` (`:430`).
-/// @param clear_sequence_and_mpe  Legacy's literal `true` at the same call.
-void clip_cleared(Song& song, Clip& clip, ::Action* action, bool clear_automation, bool clear_sequence_and_mpe);
-
-/// @brief Re-sync a clip to the transport -- `ClipView::lengthenClip`'s `else` branch
-///        (`gui/views/clip_view.cpp:111-118`).
-///
-/// Here for the same one reason as the two above: `PlaybackMode::reSyncClip` takes a
-/// `ModelStackWithTimelineCounter*` (`playback/mode/playback_mode.h:61`) and legacy builds one from
-/// `currentSong->setupModelStackWithCurrentClip` (`clip_view.cpp:113-114`). The *decision* to call
-/// it -- that a shorten was just undone and a clock is running -- stays with the caller, exactly
-/// where legacy has it.
-///
-/// @warning **No spec drives this.** Its one caller is `AudioClipScene::lengthen_clip`'s `else`
-///          arm, reachable only when a shorten of the same clip was just undone AND a clock is
-///          running (`clip_view.cpp:112`) -- and a `sim/scenes_spec` process has no transport, so
-///          `sim/scenes_spec/audio_clip_scene_spec.cpp` covers every other path through
-///          `lengthen_clip` and not this one. It is written from the citation and **unmeasured**;
-///          treat it as unverified until something can start playback in a spec, and do not assume
-///          a later refactor of it is covered by the audio-clip suite.
-///
-/// @param song The song the clip belongs to.
-/// @param clip The clip to re-sync.
-void clip_resynced(Song& song, Clip& clip);
 
 /// @brief May a session begin on @p node in @p ctx? Spec E §4.1's one rule in place of the
 ///        per-item `checkPermissionToBeginSession` overrides.

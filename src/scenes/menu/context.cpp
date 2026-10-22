@@ -79,7 +79,6 @@
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
-#include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
@@ -576,26 +575,6 @@ Permission permission_for(const Node& node, const MenuContext& ctx) {
 	}
 
 	return Permission::MustSelectRange; // `:1959`
-}
-
-void clip_cleared(Song& song, Clip& clip, ::Action* action, bool clear_automation, bool clear_sequence_and_mpe) {
-	// `audio_clip_view.cpp:444-448`. Legacy builds the stack from `currentSong` and
-	// `getCurrentClip()`; the caller names both, so this builds the same stack without reading the
-	// global (`scenes-currentSong`). `Clip::clear` is virtual, so the `AudioClip` override
-	// (`model/clip/audio_clip.cpp`) is what runs -- there is no cast here and none in legacy either
-	// beyond `getCurrentAudioClip()`'s.
-	char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, &song, &clip);
-	clip.clear(action, stack, clear_automation, clear_sequence_and_mpe);
-}
-
-void clip_resynced(Song& song, Clip& clip) {
-	// `clip_view.cpp:113-116`. **Unmeasured** -- see the `@warning` on the declaration: its only
-	// caller needs a running clock, and a spec process has no transport.
-
-	char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, &song, &clip);
-	currentPlaybackMode->reSyncClip(stack);
 }
 
 // -- The gold-knob model boundary (`services::ModKnobs`, E4 task 2) ---------------------------
