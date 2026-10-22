@@ -49,9 +49,7 @@ Error SetEffectSetting::apply(Context& ctx) {
 			                             context);
 		}
 	}
-	owner->setChainState(state);
-	// The record holds what the owner now plays.
-	chain->effects = deluge::engine::StateHandle::of<deluge::effects::DelugeEffects>(owner->effects());
+	owner->setChainState(state); // the owner plays its record's effects, so this writes the record
 	if (deluge::effects::shapes_reverb_sidechain(path_)) {
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}

@@ -90,15 +90,6 @@ void encodeChain(const FxChain& chain, deluge::serialization::Value& element, in
 	}
 }
 
-/// @brief @p owner's state set from @p record, when the record decodes to anything else (it does not when the codec
-/// round-trips, so a load sets no state twice).
-void projectRecord(::GlobalEffectable& owner, const FxChain& record) {
-	const deluge::model::HostChainState decoded = chainStateOf(record);
-	if (decoded != owner.chainState()) {
-		owner.setChainState(decoded);
-	}
-}
-
 template <class F>
 void forEachOutput(::Song& song, F&& f) {
 	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
@@ -160,11 +151,21 @@ deluge::model::HostChainState chainStateOf(const FxChain& chain) {
 	return state;
 }
 
+void adoptChainState(::GlobalEffectable& owner, FxChain& chain, ChainHome home) {
+	if (owner.boundChain() == &chain) {
+		return;
+	}
+	chain.slots.clear();
+	for (std::string_view effect : deluge::effects::chain_effects(homeOf(home))) {
+		chain.slots.push_back(FxSlot{.effect = std::string(effect)});
+	}
+	chain.reverb_return = deluge::effects::reverb_return(homeOf(home));
+	owner.bindChain(chain);
+}
+
 void fillChains(::Song& song) {
 	forEachOutput(song, [&](::Output& output) { recordOutputChain(output, song); });
-	::GlobalEffectable& master = song.live.global_effectable;
-	song.project.master_effects = encodeChainOf(master.chainState(), ChainHome::MASTER);
-	projectRecord(master, song.project.master_effects);
+	adoptChainState(song.live.global_effectable, song.project.master_effects, ChainHome::MASTER);
 	// Setting a state reserves each delay's tape in the current song, which during a load is not yet this one: the
 	// reserves are worked out again in this song.
 	deluge::model::refreshDelayReserves(song);
@@ -176,11 +177,17 @@ void recordOutputChain(::Output& output, ::Song& song) {
 		return;
 	}
 	deluge::project::DocOutput* record = song.project.output_structure.find(*output.id());
-	if (record == nullptr) {
+	if (record == nullptr || record != output.docOutput_) {
 		return;
 	}
-	record->effects = encodeChainOf(owner->chainState(), ChainHome::CLIP);
-	projectRecord(*owner, *record->effects);
+	if (!record->effects) {
+		record->effects.emplace();
+	}
+	adoptChainState(*owner, *record->effects, ChainHome::CLIP);
+}
+
+::GlobalEffectable* chainOwnerOf(::Output& output) {
+	return ownerOf(output);
 }
 
 } // namespace deluge::bridge

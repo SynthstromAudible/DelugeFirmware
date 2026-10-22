@@ -59,15 +59,27 @@ namespace deluge::bridge {
 /// @return The decoded state.
 [[nodiscard]] deluge::model::HostChainState chainStateOf(const deluge::project::FxChain& chain);
 
-/// @brief After a song read: every kit's, audio track's and the master's chain record made from what the owner loaded
-/// (its element decoded onto the owner's defaults), then its state set from the record.
-/// @param song The song just read.
+/// @brief @p owner plays @p chain from now on: the chain takes @p home's slots and what the owner plays. Nothing when
+/// the owner already plays it.
+/// @param owner The host owner.
+/// @param chain Its chain record.
+/// @param home  Whether the chain is a clip's or the master's.
+void adoptChainState(::GlobalEffectable& owner, deluge::project::FxChain& chain, deluge::project::ChainHome home);
+
+/// @brief After a song read, and in a new song: every kit, audio track and the master plays its chain record, which
+/// takes what the owner loaded; then the delays' reserves are worked out in this song.
+/// @param song The song.
 void fillChains(::Song& song);
 
-/// @brief A host owner that joined or was rebuilt natively (adopted, created, cloned, a preset read over it): its chain
-/// record made from what it holds, then its state set from the record.
+/// @brief A host owner that joined the song (adopted, created, a preset read over it) plays its own chain record, made
+/// when it has none. Nothing for another output, or one whose record is not its own.
 /// @param output The host owner's output.
 /// @param song   The song it belongs to.
 void recordOutputChain(::Output& output, ::Song& song);
+
+/// @brief @p output's effects owner when it runs a host chain (a kit, an audio track), else null.
+/// @param output The output.
+/// @return The owner, or null.
+[[nodiscard]] ::GlobalEffectable* chainOwnerOf(::Output& output);
 
 } // namespace deluge::bridge

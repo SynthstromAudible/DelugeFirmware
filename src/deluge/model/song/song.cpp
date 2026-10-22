@@ -1456,6 +1456,9 @@ void Song::removeDocOutput(Output* output) {
 			// It plays its record's state, which goes now. The double static_cast lands on the Sound base subobject.
 			static_cast<Sound*>(static_cast<SoundInstrument*>(output))->unbindState();
 		}
+		else if (::GlobalEffectable* owner = deluge::bridge::chainOwnerOf(*output)) {
+			owner->unbindChain(); // a kit or an audio track plays its chain record, which goes now
+		}
 		project.output_structure.remove(*output->id());
 		deluge::bridge::forgetOutputMappings(*this, *output->id());
 		if (output->type == OutputType::KIT) { // a kit's rows go with it, their records too

@@ -43,6 +43,7 @@
 #include "io/midi/cable_types/usb_hosted.h"
 #include "model/drum/drum.h"
 #include "model/edits/learn_mapping.h"
+#include "model/edits/set_chain_view.h"
 #include "model/edits/set_controls.h"
 #include "model/edits/set_dx_patch.h"
 #include "model/edits/set_effect_setting.h"
@@ -1182,6 +1183,69 @@ void testTwoOutputsOneIdInFile() {
 	      "read ids: a write to one synth reaches only its own record");
 }
 
+/// The effects a chain record holds for @p address, or null.
+const deluge::effects::EffectStates* recordEffects(deluge::edits::Context& ctx, deluge::project::ChainAddress address) {
+	deluge::project::FxChain* chain = ctx.model.resolveChain(address);
+	return chain != nullptr ? chain->effects.as<deluge::effects::DelugeEffects>() : nullptr;
+}
+
+/// A host owner (a kit, an audio track, the master) plays the effects its chain record holds: a write to one is a
+/// write to the other. A kit or audio track whose record goes while it lives (a deleted track, which the render frees
+/// later) takes its effects back first; a clone plays its own record, not its source's.
+void testChainRecordOwnsState(deluge::edits::Context& ctx) {
+	using deluge::project::ChainAddress;
+	ParamManagerForTimeline kitParams;
+	Instrument* kitOutput = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
+	auto& kit = *static_cast<Kit*>(kitOutput);
+	deluge::effects::EffectStates seeded = kit.effects();
+	seeded.filter.lpf_mode = FilterMode::SVF_BAND;
+	kit.setEffects(seeded); // what it plays before it joins the song
+	ctx.song.addOutput(kitOutput);
+	const ChainAddress kitChain{.kind = ChainAddress::Kind::OUTPUT, .id = kitOutput->id().value_or(0)};
+	check(recordEffects(ctx, kitChain) == &kit.effects(), "chain ownership: a kit plays its record's effects");
+	check(kit.effects().filter.lpf_mode == FilterMode::SVF_BAND, "chain ownership: its record took what it played");
+
+	AudioOutput* audio = ctx.song.createNewAudioOutput();
+	const ChainAddress audioChain{.kind = ChainAddress::Kind::OUTPUT, .id = audio->id().value_or(0)};
+	check(recordEffects(ctx, audioChain) == &audio->effects(),
+	      "chain ownership: an audio track plays its record's effects");
+	check(recordEffects(ctx, {.kind = ChainAddress::Kind::SONG}) == &ctx.song.live.global_effectable.effects(),
+	      "chain ownership: the master plays its record's effects");
+
+	deluge::edits::SetChainView view{kitChain, "currentFilterType", deluge::serialization::Value::makeScalar("hpf")};
+	check(deluge::edits::apply(ctx, view) == Error::NONE && kit.filterType() == FilterType::HPF
+	          && ctx.model.resolveChain(kitChain)->filter_type == util::to_underlying(FilterType::HPF),
+	      "chain ownership: the knobs' view is the record's");
+
+	AudioOutput* clone = ctx.song.createNewAudioOutput();
+	deluge::effects::EffectStates notch = audio->effects();
+	notch.filter.lpf_mode = FilterMode::SVF_NOTCH;
+	audio->setEffects(notch);
+	clone->cloneFrom(audio);
+	const ChainAddress cloneChain{.kind = ChainAddress::Kind::OUTPUT, .id = clone->id().value_or(0)};
+	check(recordEffects(ctx, cloneChain) == &clone->effects() && &clone->effects() != &audio->effects()
+	          && clone->effects().filter.lpf_mode == FilterMode::SVF_NOTCH,
+	      "chain ownership: a cloned audio track plays its own record, holding what it cloned");
+
+	// Deleted as a track is: the record goes now, the owner when the render lets go of it.
+	const deluge::effects::EffectStates* kitRecord = &kit.effects();
+	ctx.song.deleteOutputThatIsInMainList(&kit, false);
+	check(&kit.effects() != kitRecord && kit.effects().filter.lpf_mode == FilterMode::SVF_BAND
+	          && kit.filterType() == FilterType::HPF,
+	      "chain ownership: a kit whose record goes keeps its effects and view");
+	deluge::effects::EffectStates after = kit.effects();
+	after.filter.lpf_mode = FilterMode::SVF_NOTCH;
+	kit.setEffects(after);
+	check(kit.effects().filter.lpf_mode == FilterMode::SVF_NOTCH, "chain ownership: and its setters still write them");
+	AudioEngine::retire(&kit);
+
+	const deluge::effects::EffectStates* audioRecord = &audio->effects();
+	ctx.song.deleteOutputThatIsInMainList(audio, false);
+	check(&audio->effects() != audioRecord && audio->effects().filter.lpf_mode == FilterMode::SVF_NOTCH,
+	      "chain ownership: an audio track whose record goes keeps its effects");
+	AudioEngine::retire(audio);
+}
+
 /// A song file that names two kits with one id and two audio tracks with another reads into four records: each host
 /// owner keeps the effects it read, on a record of its own.
 void testTwoHostOwnersOneIdInFile() {
@@ -1369,6 +1433,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	testTwoOutputsOneIdInFile();
 	testTwoHostOwnersOneIdInFile();
 	testHostOwnerDestroyedDropsRecord(ctx);
+	testChainRecordOwnsState(ctx);
 	testDrumIdsAreUnique(ctx);
 	testRemovalDropsOnlyOwnRecords(ctx);
 	testSetDxPatch(ctx);

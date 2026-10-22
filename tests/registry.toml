@@ -2531,6 +2531,23 @@ runtime = "~5m"
 env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }
 
 [[harness]]
+name = "app-asan-effect-owners"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "sanitizer"
+status = "gate"
+gates = "the effect-owners gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning: a kit, an audio track and the master play their chain records' effects, so a record freed under one would read freed memory, and that is fatal here"
+scenario = "effect_owners"
+markers = ["DRV-EXIT"]
+result = "DRV-EXIT code=0"
+builds = ["golden-vt-render-asan"]
+requires = ["clang-asan"]
+tier = "nightly"
+runtime = "~20s"
+env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }
+
+[[harness]]
 name = "app-asan-edit-substrate"
 path = "."
 level = "integration"

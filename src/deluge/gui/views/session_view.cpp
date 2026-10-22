@@ -66,7 +66,6 @@
 #include "model/instrument/instrument.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/note/note_row.h"
-#include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/mapping_bridge.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
@@ -3778,8 +3777,7 @@ Clip* SessionView::gridPlaceNewClip(Clip* newClip, uint32_t targetSection, Outpu
 			if (targetOutput && targetOutput != sourceClip->output && targetOutput->type == OutputType::AUDIO) {
 				((AudioOutput*)targetOutput)->cloneFrom((AudioOutput*)(sourceClip->output));
 				deluge::bridge::cloneOutputMappings(*sourceClip->output, *targetOutput,
-				                                    *currentSong);              // the learned knobs it cloned
-				deluge::bridge::recordOutputChain(*targetOutput, *currentSong); // and the effects
+				                                    *currentSong); // the learned knobs it cloned
 				newAudioClip->setOutput(modelStack, targetOutput);
 			}
 		}
