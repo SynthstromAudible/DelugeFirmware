@@ -1,16 +1,20 @@
 // The knob records: the song's own knob mode and a MIDI track's mod-knob CC assignments are the model's, read from a
 // song and saved from the record, and every change to them is an Edit that takes no undo step.
 
+#include "model/edits/move_mod_knob_cc.h"
 #include "model/edits/set_mod_knob_cc.h"
 #include "model/edits/set_mod_knob_mode.h"
 
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "model/clip/instrument_clip.h"
 #include "model/edits/edit.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/model_stack.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
+#include "modulation/automation/auto_param.h"
 #include "storage/storage_manager.h"
 
 #include "integration/scenarios/drivers/driver.h"
@@ -245,6 +249,55 @@ describe knob_records("the knob records, by Edit", ${
 					    .to_be_true();
 				}
 			}
+		}
+		currentSong = before;
+	});
+
+	it("moving a knob's CC carries its automation in both clips, and the record names the new CC", _ {
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_midi_song();
+		Song* const before = currentSong;
+		currentSong = f.song;
+		auto* midi = static_cast<MIDIInstrument*>(f.instrument);
+		InstrumentClip* second = deluge::scenes::spec::detail::make_session_clip(f.song);
+		{
+			ParamManagerForTimeline params;
+			params.setupMIDI();
+			second->setAudioInstrument(midi, f.song, true, &params);
+		}
+		expect(deluge::edits::modKnobCCFor(deluge::project::TrackAddress{*midi->id()}, 0,
+		                                   ModKnobCc{.kind = ModKnobCc::Kind::NUMBER, .number = 74}))
+		    .to_be_true();
+		// Automation on CC 74 in each clip: a held-pad region over the whole clip.
+		const auto stackOf = [&](InstrumentClip* clip, char* memory) {
+			return setupModelStackWithThreeMainThingsButNoNoteRow(memory, f.song, midi, clip, &clip->paramManager);
+		};
+		const auto automated = [&](InstrumentClip* clip, int32_t cc) {
+			char memory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithAutoParam* param = midi->getParamToControlFromInputMIDIChannel(cc, stackOf(clip, memory));
+			return param != nullptr && param->autoParam != nullptr && param->autoParam->isAutomated(*param->doc());
+		};
+		for (InstrumentClip* clip : {f.clip, second}) {
+			char memory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithAutoParam* param = midi->getParamToControlFromInputMIDIChannel(74, stackOf(clip, memory));
+			expect(param != nullptr && param->autoParam != nullptr).to_be_true();
+			if (param != nullptr && param->autoParam != nullptr) {
+				param->autoParam->setValuePossiblyForRegion(1 << 28, param, 0, clip->loopLength() / 2);
+			}
+			expect(automated(clip, 74)).to_be_true();
+		}
+
+		const std::optional<int32_t> moved =
+		    deluge::edits::moveModKnobCCFor(deluge::project::TrackAddress{*midi->id()}, 0, 1);
+		expect(moved.has_value() && *moved != 74).to_be_true();
+		if (moved) {
+			for (InstrumentClip* clip : {f.clip, second}) {
+				expect(automated(clip, *moved)).to_be_true();
+				expect(automated(clip, 74)).to_be_false();
+			}
+			expect(midi->docOutput_->mod_knob_ccs[0]
+			       == (ModKnobCc{.kind = ModKnobCc::Kind::NUMBER, .number = static_cast<uint8_t>(*moved)}))
+			    .to_be_true();
+			expect(static_cast<int32_t>(midi->modKnobCCAssignments[0])).to_equal(*moved);
 		}
 		currentSong = before;
 	});

@@ -45,6 +45,7 @@
 #include "model/edits/clear_clip.h"
 #include "model/edits/clip_address_for.h"
 #include "model/edits/edit.h"
+#include "model/edits/move_mod_knob_cc.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
@@ -89,8 +90,11 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 				view.setKnobIndicatorLevels();
 			}
 			else {
-				newCC = instrument->moveAutomationToDifferentCC(offset, editingMIDICCForWhichModKnob,
-				                                                instrument->modKnobMode, modelStackWithThreeMainThings);
+				const std::optional<int32_t> moved = deluge::edits::moveModKnobCCFor(
+				    deluge::project::TrackAddress{currentSong->outputIdFor(*instrument)},
+				    static_cast<uint8_t>(instrument->modKnobMode * kNumPhysicalModKnobs + editingMIDICCForWhichModKnob),
+				    offset);
+				newCC = moved.value_or(-1);
 				if (newCC == -1) {
 					display->displayPopup(
 					    deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_FURTHER_UNUSED_MIDI_PARAMS));

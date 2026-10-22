@@ -115,8 +115,11 @@ public:
 	int32_t getFirstUnusedCC(ModelStackWithThreeMainThings* modelStack, int32_t direction, int32_t startAt,
 	                         int32_t stopAt);
 	Error moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC, ModelStackWithThreeMainThings* modelStack);
-	int32_t moveAutomationToDifferentCC(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode,
-	                                    ModelStackWithThreeMainThings* modelStack);
+	/// @brief Move knob @p knob (0 then 1 of each mod button in turn) to the next CC @p offset away that no clip of the
+	///        track automates, carrying the old CC's automation in every clip of the track. The engine half of
+	///        MoveModKnobCC, which records the new CC.
+	/// @return The new CC, or -1 for a knob that sends no CC or no free CC.
+	int32_t moveKnobCCAutomation(int32_t knob, int32_t offset, Song& song);
 	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable, bool on,
 	                       int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
 	                       bool* doingMidiThru) override;

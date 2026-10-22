@@ -932,86 +932,42 @@ Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
 	return Error::NONE;
 }
 
-int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode,
-                                                    ModelStackWithThreeMainThings* modelStack) {
-
-	int8_t* cc = &modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + whichModEncoder];
-
-	if (*cc >= CC_NUMBER_NONE) {
-		return *cc;
+int32_t MIDIInstrument::moveKnobCCAutomation(int32_t knob, int32_t offset, Song& song) {
+	const int32_t oldCC = modKnobCCAssignments[knob];
+	if (oldCC >= CC_NUMBER_NONE) {
+		return -1;
 	}
-
-	int32_t newCC = getNextSelectableCC(*cc, offset);
-
-	// Need to pick a new cc which is blank on all Clips' ParamManagers with this Instrument
-	// For each Clip in session and arranger for specific Output (that Output is "this")
-	int32_t numElements = std::ssize(modelStack->song->live.clips.session_clips);
-	bool doingArrangementClips = false;
-	// TODO: Should use AllClips, but less obvious so later.
-traverseClips:
-	for (int32_t c = 0; c < numElements; c++) {
-		Clip* clip;
-		if (!doingArrangementClips) {
-			clip = modelStack->song->live.clips.session_clips[c];
-			if (clip->output != this) {
-				continue;
-			}
+	// Every clip of the track, each through its own stack: the session's, then the arrangement's own.
+	std::vector<InstrumentClip*> clips;
+	for (Clip* clip : song.live.clips.session_clips) {
+		if (clip->output == this) {
+			clips.push_back(static_cast<InstrumentClip*>(clip));
 		}
-		else {
-			ClipInstance* clipInstance = &clipInstances[c];
-			if (!clipInstance->clip) {
-				continue;
-			}
-			if (!clipInstance->clip->isArrangementOnlyClip()) {
-				continue;
-			}
-			clip = clipInstance->clip;
+	}
+	for (int32_t c = 0; c < std::ssize(clipInstances); c++) {
+		Clip* clip = clipInstances[c].clip;
+		if (clip != nullptr && clip->isArrangementOnlyClip()) {
+			clips.push_back(static_cast<InstrumentClip*>(clip));
 		}
+	}
+	const auto stackOf = [&](InstrumentClip* clip, char* memory) {
+		return setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, this, clip, &clip->paramManager);
+	};
 
-		newCC = getFirstUnusedCC(modelStack, offset, newCC, *cc);
+	// A CC no clip of the track automates.
+	int32_t newCC = getNextSelectableCC(oldCC, offset);
+	for (InstrumentClip* clip : clips) {
+		char memory[MODEL_STACK_MAX_SIZE];
+		newCC = getFirstUnusedCC(stackOf(clip, memory), offset, newCC, oldCC);
 		if (newCC == -1) {
 			return -1;
 		}
 	}
-	if (!doingArrangementClips) {
-		doingArrangementClips = true;
-		numElements = std::ssize(clipInstances);
-		goto traverseClips;
+	for (InstrumentClip* clip : clips) {
+		char memory[MODEL_STACK_MAX_SIZE];
+		moveAutomationToDifferentCC(oldCC, newCC, stackOf(clip, memory));
 	}
-
-	// And then tell all Clips' ParamManagers with this Instrument to change that CC
-	// For each Clip in session and arranger for specific Output (that Output is "this")
-	numElements = std::ssize(modelStack->song->live.clips.session_clips);
-	doingArrangementClips = false;
-traverseClips2:
-	for (int32_t c = 0; c < numElements; c++) {
-		Clip* clip;
-		if (!doingArrangementClips) {
-			clip = modelStack->song->live.clips.session_clips[c];
-			if (clip->output != this) {
-				continue;
-			}
-		}
-		else {
-			ClipInstance* clipInstance = &clipInstances[c];
-			if (!clipInstance->clip) {
-				continue;
-			}
-			if (!clipInstance->clip->isArrangementOnlyClip()) {
-				continue;
-			}
-			clip = clipInstance->clip;
-		}
-
-		moveAutomationToDifferentCC(*cc, newCC, modelStack);
-	}
-	if (!doingArrangementClips) {
-		doingArrangementClips = true;
-		numElements = std::ssize(clipInstances);
-		goto traverseClips2;
-	}
-
-	*cc = newCC;
+	modKnobCCAssignments[knob] = static_cast<int8_t>(newCC);
 	editedByUser = true;
 	return newCC;
 }
