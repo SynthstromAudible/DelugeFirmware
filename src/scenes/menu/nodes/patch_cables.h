@@ -182,6 +182,12 @@ public:
 	/// cable the page makes later takes it.
 	void set_polarity(const MenuContext& ctx, MenuState& state, Polarity polarity) const;
 
+	/// `PatchCableStrength : Automation` (`patch_cable_strength.h:29`): shift + select deletes the cable's automation.
+	bool is_automation_item() const override { return true; }
+	/// The address of the cable this page edits.
+	std::optional<deluge::project::ParamAddress> automation_address(const MenuContext& ctx,
+	                                                                const MenuState& state) const override;
+
 private:
 	Which which_;
 	uint8_t param_;
@@ -233,9 +239,8 @@ extern const Node patch_cable_strength_range;
 /// function happens in `SourceSelectionItem::on_focus` instead -- a `SelectChainFn` is handed a
 /// **`const MenuState&`** and cannot write it (see `MenuState::patching_param`).
 ///
-/// The shift-held arm (`Automation::selectButtonPress`, automation delete) has no port: `SelectChainFn`
-/// is not passed the button state, and `Automation` is `gui/menu_item/`. E2 task 3 recorded that
-/// same gap for every other chaining node.
+/// The shift-held arm (`Automation::selectButtonPress`, automation delete) is the interpreter's
+/// (`MenuScene::after_render`), which sees shift; this hook answers the unshifted press.
 const Node* patched_param_chain(const MenuContext& ctx, const MenuState& state);
 
 /// @brief `source_selection::Regular::selectButtonPress` (`source_selection/regular.cpp:32-34`).

@@ -627,6 +627,18 @@ struct CustomItem {
 		return descriptor;
 	}
 	/// @}
+
+	/// @name Automation
+	/// @{
+	/// @brief Whether shift + select on this item deletes its param's automation, as on legacy's `Automation` items
+	/// (`gui/menu_item/automation/automation.cpp:38-58`).
+	virtual bool is_automation_item() const { return false; }
+	/// @brief The address of the param whose automation shift + select deletes; nullopt where the menu edits none.
+	virtual std::optional<deluge::project::ParamAddress> automation_address(const MenuContext& /*ctx*/,
+	                                                                        const MenuState& /*state*/) const {
+		return std::nullopt;
+	}
+	/// @}
 };
 
 /// @brief One menu item or submenu, as plain data.

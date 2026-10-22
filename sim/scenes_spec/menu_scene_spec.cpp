@@ -11,6 +11,8 @@
 /// @note The spec may include `gui/` (for `l10n::String` ids); the library may not. Same rule
 ///       `bindings_spec.cpp` runs under.
 
+#include "scenes/bind/write_sink.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -27,7 +29,12 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
+#include "gui/ui/ui.h"
+#include "gui/views/session_view.h"
+#include "model/action/action.h"
+#include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/project_bridge/param_ids.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "modulation/sync.h" // NUM_SYNC_VALUES
@@ -1369,6 +1376,81 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		r.shell.tick(40);
 		expect(menu::bindings::read(lpf_freq, ctx)).to_equal(before - 1);
 		expect(deluge::notify::dirty().has(deluge::notify::Dirty::ParamAutomation)).to_be_true();
+	});
+
+	it("deletes a param's automation on shift+select, on a leaf and on a horizontal column, and stays put", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Song* const saved_song = currentSong;
+		const auto lpf_of = [](const spec::SongFixture& s) {
+			return deluge::project::ParamAddress{
+			    .owner = deluge::project::OwnerId::instrument(*s.instrument->id()),
+			    .space = deluge::project::ParamSpace::ENGINE,
+			    .id = deluge::bridge::paramIdOf(deluge::modulation::params::Kind::PATCHED,
+			                                    deluge::modulation::params::LOCAL_LPF_FREQ),
+			    .clip_id = s.clip->id()};
+		};
+		const std::string deleted{deluge::l10n::get(String::STRING_FOR_AUTOMATION_DELETED)};
+		{
+			Rig r;
+			currentSong = r.song.song;
+			(void)r.open(nodes::lpf_freq);
+			r.shell.tick(0);
+			const auto lpf = lpf_of(r.song);
+			expect(menu::host_write_sink().write_param(lpf, 0x20000000, 0, 24)).to_be_true();
+			expect(r.song.song->project.resolveParam(lpf)->nodes.empty()).to_be_false();
+			changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
+			actionLogger.deleteAllLogs();
+			r.button(kShiftX, kShiftY, true, 10);
+			r.enter(20);
+			r.shell.tick(30);
+			r.button(kShiftX, kShiftY, false, 40);
+			r.shell.tick(50);
+			expect(r.song.song->project.resolveParam(lpf)->nodes.empty()).to_be_true();
+			expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
+			expect(depth_of()).to_equal(0);
+			expect(r.shell.notices().last_popup_text()).to_equal(deleted);
+			Action* action = actionLogger.firstAction[BEFORE];
+			expect(action != nullptr && action->nextAction == nullptr).to_be_true();
+			expect(actionLogger.revert(BEFORE, false, false)).to_be_true();
+			expect(r.song.song->project.resolveParam(lpf)->nodes.empty()).to_be_false();
+			actionLogger.deleteAllLogs();
+			nullifyUIs();
+		}
+		{
+			Rig r;
+			currentSong = r.song.song;
+			(void)r.open(nodes::lpf);
+			r.shell.tick(0);
+			r.button(kKitX, kKitY, true, 200); // the KIT button focuses the second column, FREQ
+			r.shell.tick(205);
+			r.button(kKitX, kKitY, false, 210);
+			r.shell.tick(215);
+			expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
+			const auto lpf = lpf_of(r.song);
+			expect(menu::host_write_sink().write_param(lpf, 0x20000000, 0, 24)).to_be_true();
+			r.button(kShiftX, kShiftY, true, 230);
+			r.enter(240);
+			r.shell.tick(250);
+			r.button(kShiftX, kShiftY, false, 260);
+			r.shell.tick(270);
+			expect(r.song.song->project.resolveParam(lpf)->nodes.empty()).to_be_true();
+			expect(menu_scene().focused() == &nodes::lpf).to_be_true(); // not the source picker FREQ chains to
+			expect(r.shell.notices().last_popup_text()).to_equal(deleted);
+		}
+		{
+			Rig r;
+			currentSong = r.song.song;
+			(void)r.open(nodes::lpf_mode);
+			r.shell.tick(0);
+			r.button(kShiftX, kShiftY, true, 10);
+			r.enter(20);
+			r.shell.tick(30);
+			r.button(kShiftX, kShiftY, false, 40);
+			r.shell.tick(50);
+			expect(r.shell.notices().last_popup_text() != deleted).to_be_true(); // not an automation item
+		}
+		currentSong = saved_song;
 	});
 });
 

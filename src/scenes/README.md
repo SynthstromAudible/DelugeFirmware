@@ -1566,11 +1566,11 @@ with it: the four arp ones (`menus.cpp:511-521`) and `cvSubmenu` / `gateModeMenu
 nobody owned and because `SelectChainFn` takes a `const MenuState&` and so cannot write
 `soundEditor.patchingParamSelected`; the resolution is that the *target* writes it, from
 `SourceSelectionItem::on_focus`, reading the param out of the node the chain came from
-(`path[depth - 1]`). The shift-held automation-delete arm is still not ported — `SelectChainFn` is
-not passed the button state, so no node in the tree can express it. That divergence is also recorded
-as a named exclusion **at the comparison** (`kPatchedParamShiftArmPorted`,
-`sim/scenes_spec/tables_2_spec.cpp`), with a `static_assert` on `SelectChainFn`'s signature so the
-exclusion has to be re-argued if the signature ever grows a way to see shift.
+(`path[depth - 1]`). The shift-held arm — delete the param's automation — is the interpreter's, not
+the chain's: `MenuScene::after_render` sends `DeleteParamAutomation` for every automation item (a
+param node, a transpose's learned param, a cable strength page through
+`CustomItem::automation_address`), raises the popup and stays put, on a leaf and on a horizontal
+page's value column. `tables_2_spec` pins the item set against legacy's `Automation` items.
 
 That task also declared the rest of the patch-cable graph — `patch_cable_strength_regular`,
 `source_selection_range`, `patch_cable_strength_range` — plus the range picker `multi_range`, and

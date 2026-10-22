@@ -830,6 +830,12 @@ void PatchCableStrengthItem::set_polarity(const MenuContext& ctx, MenuState& sta
 	deluge::notify::dirty().raise(deluge::notify::Dirty::Oled);
 }
 
+std::optional<deluge::project::ParamAddress> PatchCableStrengthItem::automation_address(const MenuContext& ctx,
+                                                                                        const MenuState& state) const {
+	const ParamDescriptor learn = learn_descriptor(ctx, state);
+	return cable_address(ctx, learn.getBottomLevelSource(), learn.getDestination());
+}
+
 void PatchCableStrengthItem::commit(const MenuContext& ctx, MenuState& state) const {
 	// `PatchCableStrength::writeCurrentValue` (`patch_cable_strength.cpp:231-248`) as a cable request: the Edit makes
 	// a missing cable with the polarity the page shows (legacy's `polarity_in_the_ui_`, `:223-227`), so a polarity

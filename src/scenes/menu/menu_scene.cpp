@@ -30,6 +30,8 @@
 
 #include "scenes/menu/nodes/nodes.h" // `roots()`' table (task 8)
 
+#include "scenes/bind/dispatch.h"
+#include "scenes/bind/write_sink.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/shortcuts.h"
@@ -808,6 +810,7 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 
 	st_.render_resp = {};
 	st_.column_press = false;
+	st_.select_shift = f.shift();
 
 	// **The depth test precedes the read** (task-5 ruling 3). At depth 0 `back_pressed()` is never
 	// called at all, so the input stays unclaimed and `Router::route_post_render` delivers
@@ -1669,7 +1672,29 @@ Result MenuScene::after_render() {
 		}
 	}
 
-	if (st_.render_resp.entered) {
+	// `Automation::selectButtonPress` (`gui/menu_item/automation/automation.cpp:38-58`): shift + select on an
+	// automation item deletes its param's automation, raises the popup where there was a param, and stays put -- on a
+	// leaf, and on a horizontal page's value column, which `Submenu::selectButtonPress` forwards the press to.
+	bool deleting_automation = false;
+	if (st_.select_shift && (st_.render_resp.entered || st_.column_press)) {
+		const Node* item =
+		    st_.render_resp.entered ? (node->kind == Kind::Submenu ? nullptr : node) : selected_child(*node);
+		if (item != nullptr && is_automation_item(*item)) {
+			deleting_automation = true;
+			const std::optional<deluge::project::ParamAddress> address = automation_address(*item, ctx_, st_);
+			if (address && ctx_.sink != nullptr && ctx_.sink->delete_automation(*address)) {
+				(void)r.actions.push_back(
+				    Action{.kind = Action::Kind::Popup,
+				           .popup_string = static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED)});
+				repaint = true;
+			}
+		}
+	}
+
+	if (deleting_automation) {
+		// No navigation: legacy's shift arm answers NO_NAVIGATION.
+	}
+	else if (st_.render_resp.entered) {
 		if (node->kind == Kind::Submenu) {
 			if (const Node* child = selected_child(*node); child != nullptr) {
 				enter_child(*child);
@@ -2235,6 +2260,27 @@ bool MenuScene::go_up_one_level() {
 
 void MenuScene::enter_submenu(const Node& node) {
 	descend_to(node); // `sound_editor.cpp:364-368`
+}
+
+bool is_automation_item(const Node& item) {
+	if (item.custom != nullptr) {
+		return item.custom->is_automation_item();
+	}
+	return item.bind.param.valid();
+}
+
+std::optional<deluge::project::ParamAddress> automation_address(const Node& item, const MenuContext& ctx,
+                                                                const MenuState& state) {
+	if (item.custom != nullptr) {
+		return item.custom->automation_address(ctx, state);
+	}
+	if (!item.bind.param.valid()) {
+		return std::nullopt;
+	}
+	const deluge::scenes::bind::Target param{.kind = deluge::scenes::bind::Target::Kind::PARAM,
+	                                         .param = param_id_of(item.bind.param),
+	                                         .param_table = param_table_of(item.bind.param)};
+	return deluge::scenes::bind::param_address(param, ctx.addresses);
 }
 
 } // namespace deluge::scenes::menu

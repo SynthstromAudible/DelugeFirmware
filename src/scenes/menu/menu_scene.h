@@ -252,6 +252,9 @@ struct MenuState {
 	/// focused. This field's old doc attributed the notification to that call by mistake; a select
 	/// press on a value column raises no notification (spec E-note-family §3.2's third bullet).
 	bool column_press = false;
+	/// Whether shift was held on this tick's frame: a select press with it on an automation item deletes the item's
+	/// param's automation instead of navigating (`MenuScene::after_render`).
+	bool select_shift = false;
 	/// Spec E §4.1's `MustSelectRange` outcome. E1 recorded it and left the node unentered; E2 task
 	/// 9 acts on it -- `enter_child` descends into `nodes::multi_range` instead, which is legacy's
 	/// own substitution at `sound_editor.cpp:1857-1858` (`multiRangeMenu.menuItemHeadingTo = newItem`
@@ -963,5 +966,15 @@ public:
 	void enter_submenu(const Node& node);
 	/// @}
 };
+
+/// @brief Whether shift + select on @p item deletes its param's automation: a param node, a node whose value is learned
+///        as a param (the transposes), or a custom item that says so (the cable strength pages) -- legacy's
+///        `Automation` items.
+bool is_automation_item(const Node& item);
+
+/// @brief The address of the param whose automation shift + select on @p item deletes, on the owner @p ctx edits;
+///        nullopt where it edits none.
+std::optional<deluge::project::ParamAddress> automation_address(const Node& item, const MenuContext& ctx,
+                                                                const MenuState& state);
 
 } // namespace deluge::scenes::menu
