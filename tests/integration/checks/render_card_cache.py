@@ -10,6 +10,7 @@ rename, and a rename that loses the race leaves the winner's in place.
 """
 
 import hashlib
+import importlib.abc
 import importlib.util
 import os
 import shutil
@@ -25,21 +26,41 @@ _loading = threading.Lock()
 def generator_key(root: Path) -> str:
     """The cache key for the generator under @p root: a prefix of its source's sha256 (it imports only the standard
     library, so its source is its whole input)."""
-    return hashlib.sha256((root / GENERATOR).read_bytes()).hexdigest()[:16]
+    return _key((root / GENERATOR).read_bytes())
+
+
+def _key(source: bytes) -> str:
+    return hashlib.sha256(source).hexdigest()[:16]
+
+
+class _SourceBytes(importlib.abc.SourceLoader):
+    """Loads a module from source already read, rather than reading its file again."""
+
+    def __init__(self, path: Path, source: bytes):
+        self.path = str(path)
+        self.source = source
+
+    def get_filename(self, fullname: str) -> str:
+        return self.path
+
+    def get_data(self, path: str) -> bytes:
+        return self.source
 
 
 def _generator(root: Path):
-    """The generator module under @p root, loaded once per key."""
-    key = generator_key(root)
+    """The generator under @p root and its key, both from one read of its source, so a card filed under a key is
+    always that source's."""
+    source = (root / GENERATOR).read_bytes()
+    key = _key(source)
     with _loading:
         if key not in _loaded:
-            spec = importlib.util.spec_from_file_location(
-                f"make_render_song_{key}", root / GENERATOR
+            spec = importlib.util.spec_from_loader(
+                f"make_render_song_{key}", _SourceBytes(root / GENERATOR, source)
             )
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             _loaded[key] = module
-        return _loaded[key]
+        return key, _loaded[key]
 
 
 def _temporary(path: Path) -> Path:
@@ -84,10 +105,10 @@ def card(root: Path, song: str, cache_root: Path | None = None) -> Path:
 
     @p cache_root defaults to build/render-cards under @p root. Raises ValueError for a song the generator does not
     know."""
-    generator = _generator(root)
+    key, generator = _generator(root)
     if song != "RS_STREAM" and song not in generator.SONGS:
         raise ValueError(f"unknown song {song}")
-    base = _base(cache_root or root / "build" / "render-cards", generator_key(root))
+    base = _base(cache_root or root / "build" / "render-cards", key)
     final = base / song
     if final.is_dir():
         return final

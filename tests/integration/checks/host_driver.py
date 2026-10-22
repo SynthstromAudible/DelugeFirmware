@@ -50,6 +50,7 @@ def run(gate):
     # A process of its own: the runner prints to stdout, and gates run on several threads at once.
     ran = subprocess.run(
         [sys.executable, str(golden / f"{RUNNERS[gate.entry.scenario]}.py"), *argv],
+        env=gate.env,
         capture_output=True,
         text=True,
         check=False,

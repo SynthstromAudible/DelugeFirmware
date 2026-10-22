@@ -2102,6 +2102,7 @@ check = "tests/integration/checks/host_driver.py"
 builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
+alone = true
 runtime = "~10s"
 
 [[harness]]
@@ -2133,6 +2134,7 @@ check = "tests/integration/checks/host_driver.py"
 builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
+alone = true
 runtime = "~30s"
 
 [[harness]]
@@ -2148,6 +2150,7 @@ check = "tests/integration/checks/host_driver.py"
 builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
+alone = true
 runtime = "~30s"
 
 [[harness]]
@@ -2179,6 +2182,7 @@ check = "tests/integration/checks/host_driver.py"
 builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
+alone = true
 runtime = "~20s"
 
 [[harness]]
@@ -2210,6 +2214,7 @@ check = "tests/integration/checks/host_driver.py"
 builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
+alone = true
 runtime = "~20s"
 
 [[harness]]
@@ -2225,6 +2230,7 @@ check = "tests/integration/checks/host_driver.py"
 builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
+alone = true
 runtime = "~10s"
 
 [[harness]]
@@ -2240,6 +2246,7 @@ check = "tests/integration/checks/host_driver.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+alone = true
 runtime = "~10s"
 
 [[harness]]
@@ -2255,6 +2262,7 @@ check = "tests/integration/checks/host_driver.py"
 builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
+alone = true
 runtime = "~10s"
 
 [[harness]]
@@ -2270,6 +2278,7 @@ check = "tests/integration/checks/host_driver.py"
 builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
+alone = true
 runtime = "~5s"
 
 [[harness]]
@@ -2285,6 +2294,7 @@ check = "tests/integration/checks/host_driver.py"
 builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
+alone = true
 runtime = "~5s"
 
 [[harness]]
@@ -2300,6 +2310,7 @@ check = "tests/integration/checks/host_driver.py"
 builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
+alone = true
 runtime = "~10s"
 
 [[harness]]
@@ -2315,6 +2326,7 @@ check = "tests/integration/checks/host_driver.py"
 builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
+alone = true
 runtime = "~10s"
 
 [[harness]]

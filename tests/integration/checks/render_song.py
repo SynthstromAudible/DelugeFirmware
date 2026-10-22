@@ -110,13 +110,17 @@ def _generate(gate, name: str = "RS_STREAM") -> dict[str, str] | None:
 
 
 def update_record(path: Path, name: str, record: dict) -> None:
-    """Record @p record as @p name in the records file @p path, holding a lock across the read and the write: gates
-    running at once update the same file."""
-    with open(path.with_suffix(".json.lock"), "w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        records = json.loads(path.read_text()) if path.exists() else {}
+    """Record @p record as @p name in the records file @p path, holding a lock on it across the read and the write:
+    gates running at once update the same file."""
+    with open(path, "a+") as records_file:
+        fcntl.flock(records_file, fcntl.LOCK_EX)
+        records_file.seek(0)
+        text = records_file.read()
+        records = json.loads(text) if text else {}
         records[name] = record
-        path.write_text(json.dumps(records, indent=1, sort_keys=True) + "\n")
+        records_file.seek(0)
+        records_file.truncate()
+        records_file.write(json.dumps(records, indent=1, sort_keys=True) + "\n")
 
 
 def generated_song(env: dict[str, str]) -> str:

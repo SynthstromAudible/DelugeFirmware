@@ -5,6 +5,7 @@ Run directly with:
     python3 scripts/tasks/test_harness_registry.py
 """
 
+import hashlib
 import importlib.util
 import io
 import json
@@ -586,6 +587,20 @@ class HostDriverTest(unittest.TestCase):
         for _, lines, _ in gates:
             self.assertIn("HELLO", lines)
 
+    def test_the_gate_environment_reaches_the_runner(self):
+        (self.root / "tests/golden/fake_run.py").write_text(
+            "import os, sys\n"
+            "def main(argv=None):\n"
+            "    print('PROBE=' + os.environ.get('PROBE', 'unset'))\n"
+            "    return 0\n"
+            "if __name__ == '__main__':\n"
+            "    sys.exit(main())\n"
+        )
+        gate, lines, _ = self._gate()
+        gate.env = {**os.environ, "PROBE": "from-gate"}
+        self.host_driver.run(gate)
+        self.assertIn("PROBE=from-gate", lines)
+
 
 class SongRecordsTest(unittest.TestCase):
     def test_parallel_updates_all_land(self):
@@ -604,6 +619,12 @@ class SongRecordsTest(unittest.TestCase):
             t.join()
         records = json.loads(path.read_text())
         self.assertEqual(sorted(records), sorted(f"S{i}" for i in range(16)))
+
+    def test_an_update_leaves_no_other_file(self):
+        render_song = _load_check_module("render_song")
+        directory = Path(tempfile.mkdtemp())
+        render_song.update_record(directory / "songs.json", "S", {"sha256": "0"})
+        self.assertEqual([p.name for p in directory.iterdir()], ["songs.json"])
 
 
 class CtestStepsTest(unittest.TestCase):
@@ -681,7 +702,7 @@ class RenderCardCacheTest(unittest.TestCase):
             )
 
     def test_second_call_does_not_synthesise(self):
-        generator = self.cache._generator(self.REPO)
+        _, generator = self.cache._generator(self.REPO)
         calls = []
         real = generator.sample_frames
         with mock.patch.object(
@@ -729,3 +750,20 @@ class RenderCardCacheTest(unittest.TestCase):
     def test_unknown_song_raises(self):
         with self.assertRaises(ValueError):
             self.cache.card(self.REPO, "RS_NO_SUCH_SONG", self.cache_root)
+
+    def test_the_key_and_the_card_come_from_the_same_generator_bytes(self):
+        # The file changes between reads (an edit mid-run): the bytes the key hashes are on disk no longer.
+        root = Path(tempfile.mkdtemp())
+        generator = root / "tests/integration/golden/songs/make_render_song.py"
+        generator.parent.mkdir(parents=True)
+        read = self.GENERATOR.read_bytes()
+        generator.write_bytes(read.replace(b'"RSA"', b'"RSZ"'))
+        real = Path.read_bytes
+        with mock.patch.object(
+            Path,
+            "read_bytes",
+            lambda p: read if p == generator else real(p),
+        ):
+            card = self.cache.card(root, "RS_STREAM", self.cache_root)
+        self.assertEqual(card.parent.name, hashlib.sha256(read).hexdigest()[:16])
+        self.assertEqual(self._files(card), self._files(self._generated("RS_STREAM")))
