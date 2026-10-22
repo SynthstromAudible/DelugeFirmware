@@ -76,8 +76,11 @@ fn emit_git_version(repo_root: &Path) {
     let dirty = git(&["status", "--porcelain"]).is_some_and(|status| !status.is_empty());
     println!("cargo:rustc-env=DELUGE_SIM_GIT_COMMIT={commit}");
     println!("cargo:rustc-env=DELUGE_SIM_GIT_DIRTY={}", u8::from(dirty));
-    if let Some(git_dir) = git(&["rev-parse", "--absolute-git-dir"]) {
-        println!("cargo:rerun-if-changed={git_dir}/HEAD");
-        println!("cargo:rerun-if-changed={git_dir}/index");
-    }
+    // Re-read on every build: no file cargo can watch says whether the work tree changed (`git
+    // status` itself rewrites the index), and `dbt sim` reruns this script every time anyway.
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+    println!(
+        "cargo:rerun-if-changed={}",
+        out_dir.join("always-rerun").display()
+    );
 }
