@@ -1,22 +1,22 @@
 #pragma once
 
-/// @brief The nine non-settings roots as data (task 8, batch 3), plus the shared "global"
+/// @brief The nine non-settings roots as data, plus the shared "global"
 ///        (`GlobalEffectable`) pages they hang off.
 ///
-/// Batch 1 declared the six generated subtrees, batch 2 the sound-editor root. This file declares
+/// The generated subtrees and the sound-editor root are declared elsewhere. This file declares
 /// everything `SoundEditor::setup` can open that is *not* that root and not the settings root
 /// (`settings.h`): the kit-drum root, the MIDI/CV root, the MIDI- and gate-drum roots, the audio
 /// clip root, the performance-view root, the song root and the kit global-FX root -- and the
-/// pages they share, which are the `UnpatchedGlobal` twins of batch 2's patched/sound pages.
+/// pages they share, which are the `UnpatchedGlobal` twins of the sound-editor root's patched/sound pages.
 ///
-/// **Why the global pages are new nodes and not the batch-2 ones.** `params::UnpatchedGlobal` and
+/// **Why the global pages are new nodes and not the sound-editor root's.** `params::UnpatchedGlobal` and
 /// `params::UnpatchedSound` both start at `UNPATCHED_NUM_SHARED`
 /// (`modulation/params/param.h:211-236`), so `UNPATCHED_LPF_FREQ` and `UNPATCHED_PORTAMENTO` are
 /// the *same integer* in two different numbering spaces -- only `ParamRef::kind` separates them.
 /// A page whose params are `GlobalEffectable`'s therefore needs its own nodes, carrying
 /// `Kind::UNPATCHED_GLOBAL`. Where a legacy page uses a **shared** param
 /// (`param.h:177-208` -- the stutter rate, the EQ four, the sidechain shape, the arp params, the
-/// bitcrush and decimation) the id is identical on both sides and this file names batch 2's node
+/// bitcrush and decimation) the id is identical on both sides and this file names the sound-editor root's node
 /// rather than declaring a second one, exactly as `sound_actions.h` names `sample0_recorder`.
 ///
 // clang-format off
@@ -47,9 +47,9 @@
 ///
 /// @note **`globalEQMenu` (`:1005`) and `eqMenu` (`:752`) are the same four children**
 ///       (`bassMenu`, `trebleMenu`, `bassFreqMenu`, `trebleFreqMenu`, all shared-numbering
-///       `UnpatchedParam`s) under the same name, so `global_fx` names batch 2's `eq` rather than
+///       `UnpatchedParam`s) under the same name, so `global_fx` names the sound-editor root's `eq` rather than
 ///       declaring an identical second page. `stutterMenu` is literally the same legacy object in
-///       both trees, and so is batch 2's `stutter` node.
+///       both trees, and so is the sound-editor root's `stutter` node.
 ///
 /// @note **The MIDI/CV root carries two titles.** `SoundEditor::setup` rewrites the single
 ///       `soundEditorRootMenuMIDIOrCV` object's `title` member on the way in --
@@ -61,59 +61,48 @@
 ///       `MenuScene::roots()` holds the MIDI spelling because that is the constructor argument in
 ///       `menus.cpp`. Both are in `kBatch3Roots`, so both get node ids and both are validated.
 ///
-/// @note **What is a `Kind::Custom` placeholder here, and why.** Every one is an item whose value
-///       or whose action lives behind the `scenes-includes-outside` wall -- `gui/` or `hid/` --
-///       which no `get`/`set` hook in this layer may reach:
+/// @note **No item here is a `Kind::Custom` placeholder.** Each item whose value or whose action lives behind
+///       the `scenes-includes-outside` wall -- `gui/` or `hid/`, which no `get`/`set` hook in this layer may
+///       reach -- is a real node item:
 ///
-///         * (`drum_name_edit` is no longer one. `EditName::beginSession` opens `RenameUI`
-///           (`gui/menu_item/edit_name.cpp`), and the node now points at a real
-///           `nodes::EditNameItem` (`edit_name.h`) that opens `rename::RenameScene` on
-///           `rename::TargetId::Drum` -- legacy's `EditName::Target::DRUM` -> `renameDrumUI` --
-///           exactly as `sound_actions.h`'s two do for the clip and the track.)
-///         * (`midi_device_linked` is no longer one -- E3 task 7. `nodes::MidiDeviceLinkedItem`
-///           (`nodes/output_items.h`) ports the whole `Toggle`: the ON arm opens
-///           `browser::BrowserScene` on `BrowserId::MidiDeviceDefinition`
-///           (`midi/device_definition/linked.h:42`) and the OFF arm clears the linked file name
-///           (`:45-48`).)
-///         * (`set_clip_length` is no longer one -- task 11b. It, `start_stem_export`,
-///           `song_midi_learn` and `configure_song_macros` are `nodes::ActionItem`s that file a
-///           `MenuAction` through `MenuState::pending_action`, the verb counterpart of
-///           `pending_scene` -- see `scenes/menu/action.h`. The action is *filed*, not performed:
-///           performing it is the wiring plan's.)
-///         * (`audio_source_selector` is no longer one -- task 11b. It is a
-///           `nodes::ContextMenuItem` on `context_menu::DescriptorId::AudioSource`, the sixth
-///           descriptor, which is what the three `Descriptor` hooks task 6 anticipated were for.)
-///         * (`specific_output_selector` is no longer one -- E3 task 7.
-///           `nodes::SpecificOutputItem` (`nodes/output_items.h`) is the real page: the song's
-///           output list walked with the select encoder, skipping every output the audio track
-///           cannot record from (`audio_clip/specific_output_source_selector.h:26`).)
-///         * `audio_clip_waveform` -- the marker editor (`audio_clip/sample_marker_editor.h:26`).
-///         * (`perform_editor` is no longer one -- task 11b. `nodes::PerformEditorItem` renders the
-///           three-option list and files `MenuAction::OpenPerformanceView`; the mode it shows is
-///           mirrored on this side of the wall by `menu::performance_editing_mode()`, which
-///           five writers keep in step, four of them in `PerformanceView` (F2 task 5, `action.h`).)
-///         * (`active_scales` is no longer one -- task 11b. `nodes::ActiveScalesItem`
-///           (`nodes/scales.h`) is the real item: one row per preset scale with a checkbox, over
-///           `ui::oled::list`, which already ports the renderer legacy's own
-///           `drawSubmenuItemsForOled` was adapted from.)
+///         * `drum_name_edit` is a `nodes::EditNameItem` (`edit_name.h`) that opens `rename::RenameScene` on
+///           `rename::TargetId::Drum` -- legacy's `EditName::Target::DRUM` -> `renameDrumUI` (`EditName::beginSession`
+///           opens `RenameUI`, `gui/menu_item/edit_name.cpp`) -- exactly as `sound_actions.h`'s two do for the clip
+///           and the track.
+///         * `midi_device_linked` is a `nodes::MidiDeviceLinkedItem` (`nodes/output_items.h`) that ports the whole
+///           `Toggle`: the ON arm opens `browser::BrowserScene` on `BrowserId::MidiDeviceDefinition`
+///           (`midi/device_definition/linked.h:42`) and the OFF arm clears the linked file name (`:45-48`).
+///         * `set_clip_length`, `start_stem_export`, `song_midi_learn` and `configure_song_macros` are
+///           `nodes::ActionItem`s that file a `MenuAction` through `MenuState::pending_action`, the verb
+///           counterpart of `pending_scene` -- see `scenes/menu/action.h`. The action is *filed*, not performed:
+///           performing it is the wiring's job.
+///         * `audio_source_selector` is a `nodes::ContextMenuItem` on `context_menu::DescriptorId::AudioSource`.
+///         * `specific_output_selector` is a `nodes::SpecificOutputItem` (`nodes/output_items.h`): the song's
+///           output list walked with the select encoder, skipping every output the audio track cannot record
+///           from (`audio_clip/specific_output_source_selector.h:26`).
+///         * `audio_clip_waveform` is the marker editor (`audio_clip/sample_marker_editor.h:26`).
+///         * `perform_editor` is a `nodes::PerformEditorItem` that renders the three-option list and files
+///           `MenuAction::OpenPerformanceView`; the mode it shows is mirrored on this side of the wall by
+///           `menu::performance_editing_mode()`, which five writers keep in step, four of them in
+///           `PerformanceView` (`action.h`).
+///         * `active_scales` is a `nodes::ActiveScalesItem` (`nodes/scales.h`): one row per preset scale with a
+///           checkbox, over `ui::oled::list`, which already ports the renderer legacy's own
+///           `drawSubmenuItemsForOled` was adapted from.
 ///
-///       **Nothing is still listed.** E3 task 7 retired the last two, so no node anywhere in the
-///       tree points at `nodes::kPending` and `validate_tree` reports no `PlaceholderCustom` at all
-///       (`validate.h`'s `kPendingCustomNodes`, now 0, and the option that used to suppress the
-///       rule is gone with them). Every `Kind::Custom` node counts as **one node** against
-///       `kMaxCustomNodes` (fix round 2, I4: the cap counts nodes, not distinct `CustomItem`
-///       instances -- counting instances made it 1 for the whole tree and inert), so retiring a
-///       placeholder moved no ratchet.
+///       No node anywhere in the tree points at `nodes::kPending`, so `validate_tree` reports no
+///       `PlaceholderCustom` at all (`validate.h`'s `kPendingCustomNodes` is 0).
+///       Every `Kind::Custom` node counts as **one node** against `kMaxCustomNodes` (the cap counts nodes, not
+///       distinct `CustomItem` instances).
 
 #include "scenes/menu/node.h"
-#include "scenes/menu/nodes/actions.h"            // the five action items (task 11b)
-#include "scenes/menu/nodes/context_menu_items.h" // kAudioSourceItem (task 11b)
+#include "scenes/menu/nodes/actions.h"            // the five action items
+#include "scenes/menu/nodes/context_menu_items.h" // kAudioSourceItem
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/edit_name.h"    // kEditDrumName
-#include "scenes/menu/nodes/output_items.h" // kMidiDeviceLinked, kSpecificOutputSelector (task 7)
+#include "scenes/menu/nodes/output_items.h" // kMidiDeviceLinked, kSpecificOutputSelector
 #include "scenes/menu/nodes/param_shows.h"
 #include "scenes/menu/nodes/sample.h" // kAudioClipWaveform
-#include "scenes/menu/nodes/scales.h" // kSongActiveScalesItem (task 11b)
+#include "scenes/menu/nodes/scales.h" // kSongActiveScalesItem
 #include "scenes/menu/nodes/sound_arp.h"
 #include "scenes/menu/nodes/sound_bend.h"
 #include "scenes/menu/nodes/sound_compressor.h"
@@ -185,7 +174,7 @@ inline constexpr Node kit_clip_master =
 // The global filters page
 //
 // `filter::UnpatchedFilterParam`'s relevance is `FilterInfo::isOn()` for its own slot
-// (`filter/param.h:87-89`) -- the same predicate batch 1's patched filter params use.
+// (`filter/param.h:87-89`) -- the same predicate the patched filter params use.
 
 inline constexpr Node global_lpf_freq =
     param(sid(String::STRING_FOR_FREQUENCY), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_LPF_FREQ}, Hint::Bar,
@@ -259,9 +248,9 @@ inline constexpr Node global_fx = submenu(sid(String::STRING_FOR_FX), kGlobalFxC
 // The global sidechain page
 //
 // `sidechain::GlobalVolume` is the second `unpatched_param::UpdatingReverbParams` in the whole tree
-// (`sidechain/volume_global.h:6`; the first is batch 2's `sidechain_shape`): the reverb recomputes after a write to
-// it, which SetParamValue raises for the param. Its rendering style is SIDECHAIN_DUCKING (`volume_global.h:10`), i.e.
-// `Hint::Ducking`.
+// (`sidechain/volume_global.h:6`; the first is the sound-editor root's `sidechain_shape`): the reverb recomputes
+// after a write to it, which SetParamValue raises for the param. Its rendering style is SIDECHAIN_DUCKING
+// (`volume_global.h:10`), i.e. `Hint::Ducking`.
 
 inline constexpr Node global_sidechain_volume =
     param(sid(String::STRING_FOR_VOLUME_DUCKING), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_SIDECHAIN_VOLUME},
