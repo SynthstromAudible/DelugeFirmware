@@ -6,6 +6,7 @@
 #include "engines/deluge/words.h"
 #include "engines/effects/engine.h"
 #include "engines/effects/settings.h"
+#include "gui/views/view.h"
 #include "io/debug/log.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
@@ -13,7 +14,9 @@
 #include "model/edits/set_effect_setting.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/edits/set_kit_lane_setting.h"
+#include "model/edits/set_kit_param_value.h"
 #include "model/edits/set_kit_setting.h"
+#include "model/edits/set_param_value.h"
 #include "model/edits/set_setting.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
@@ -117,6 +120,10 @@ public:
 	[[nodiscard]] uint32_t refusals() const { return refusals_; }
 
 private:
+	/// A PARAM target's write: SetParamValue by its address, or SetKitParamValue under affect-entire on a kit row; then
+	/// MIDI follow's feedback.
+	void writeParam(const WriteRequest& request);
+
 	uint32_t refusals_{0};
 };
 
@@ -142,10 +149,48 @@ ShellEditSink& shell_edit_sink() {
 
 } // namespace
 
+void ShellEditSink::writeParam(const WriteRequest& request) {
+	const std::optional<deluge::project::ParamAddress> address =
+	    deluge::scenes::bind::param_address(request.target, request.where);
+	if (!address) {
+		refusals_++;
+		D_PRINTLN("menu write refused: param %u has no owner", static_cast<unsigned>(request.target.param.value));
+		return;
+	}
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	Error error = Error::NONE;
+	const deluge::scenes::bind::Addresses& where = request.where;
+	if (where.affect_entire && where.kit_output && request.target.whole_kit && where.clip && where.slot
+	    && where.slot->kind == deluge::project::SlotAddress::Kind::DRUM) {
+		// Legacy's affect-entire loop: every sound drum of the kit with a row in the clip, as one Edit.
+		deluge::edits::SetKitParamValue edit{*where.kit_output, where.clip->clip_id, request.target.param,
+		                                     request.param_value};
+		error = deluge::edits::apply(ctx, edit);
+	}
+	else {
+		deluge::edits::SetParamValue edit{*address, request.param_value};
+		error = deluge::edits::apply(ctx, edit);
+	}
+	if (error != Error::NONE) {
+		refusals_++;
+		D_PRINTLN("menu write refused: param %u", static_cast<unsigned>(request.target.param.value));
+		return;
+	}
+	// MIDI follow's feedback for the param written, as legacy's param items send it after every write.
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	if (ModelStackWithAutoParam* stack = deluge::bridge::paramStackAt(*currentSong, *address, memory)) {
+		view.sendMidiFollowFeedback(stack, stack->paramCollection->paramValueToKnobPos(request.param_value, stack));
+	}
+}
+
 void ShellEditSink::write(const WriteRequest& request) {
 	using Kind = deluge::scenes::bind::Target::Kind;
 	const Kind kind = request.target.kind;
 	if (currentSong == nullptr || kind == Kind::NONE) {
+		return;
+	}
+	if (kind == Kind::PARAM) {
+		writeParam(request);
 		return;
 	}
 	// A model group's record (a MODEL target, or a sound setting on an audio clip), else a sound's or a chain's.
