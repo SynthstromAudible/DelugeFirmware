@@ -456,7 +456,10 @@ void Song::deleteAllBackedUpParamManagers() {
 		AudioEngine::routineWithClusterLoading();
 		live.param_backup.map.erase(live.param_backup.map.begin());
 	}
-	live.param_backup.pending.clear();
+	while (!live.param_backup.pending.empty()) {
+		AudioEngine::routineWithClusterLoading();
+		live.param_backup.pending.pop_front();
+	}
 }
 
 void Song::deleteAllBackedUpParamManagersWithClips() {
@@ -469,8 +472,13 @@ void Song::deleteAllBackedUpParamManagersWithClips() {
 			++it;
 		}
 	}
-	std::erase_if(live.param_backup.pending,
-	              [](const deluge::bridge::ParamBackup::Pending& entry) { return entry.clip_id.has_value(); });
+	std::erase_if(live.param_backup.pending, [](const deluge::bridge::ParamBackup::Pending& entry) {
+		if (!entry.clip_id.has_value()) {
+			return false;
+		}
+		AudioEngine::routineWithClusterLoading();
+		return true;
+	});
 }
 
 bool Song::completeBlankPreset(const deluge::storage::AcquireResult& acquired) {
@@ -4140,6 +4148,7 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 			++it;
 			continue;
 		}
+		AudioEngine::routineWithClusterLoading();
 		auto itNull = std::ranges::find_if(pending, [&](const deluge::bridge::ParamBackup::Pending& entry) {
 			return entry.owner.is(it->owner) && !entry.clip_id;
 		});
