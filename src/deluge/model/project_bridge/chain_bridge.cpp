@@ -192,12 +192,8 @@ void auditEffectWrite(const deluge::effects::EffectStates& before, deluge::effec
 		}
 	}
 	audit.writes++;
-	if (treeWay == got) {
-		return;
-	}
-	deluge::effects::EffectStates kept = treeWay; // the tree way, with what the file could not hold
-	(void)deluge::effects::write_effect_setting(kept, path, value);
-	if (kept == got) {
+	// A value the file cannot hold differs only where the file cannot tell: both encode alike.
+	if (treeWay == got || deluge::effects::encode(got, context) == deluge::effects::encode(treeWay, context)) {
 		return;
 	}
 	audit.mismatches++;

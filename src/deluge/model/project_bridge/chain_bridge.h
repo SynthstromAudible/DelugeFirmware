@@ -63,8 +63,9 @@ void recordOutputChain(::Output& output, ::Song& song);
 
 /// @brief Under the typed-write audit (typedWriteAudit()), compare @p got, the typed write of @p value at @p path onto
 /// @p before, with the tree way: @p before's chain encoded at @p tick_magnitude, the leaf written into its effect's
-/// slot in its file form, and the slot read back onto @p before. They agree, or the tree way lost a value the file
-/// cannot hold and the typed write kept it; else the audit counts a mismatch.
+/// slot in its file form, and the slot read back onto @p before. They agree, or differ only where the file cannot
+/// tell (both encode alike: a value the file cannot hold, which the typed write kept); else the audit counts a
+/// mismatch.
 /// @param before         What the owner played.
 /// @param home           Whether the chain is a clip's or the master's.
 /// @param path           The setting's path.
