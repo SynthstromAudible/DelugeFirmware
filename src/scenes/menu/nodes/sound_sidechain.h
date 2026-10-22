@@ -36,6 +36,7 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
+#include "scenes/menu/nodes/param_shows.h"
 #include "scenes/menu/nodes/patch_cables.h" // the volume-ducking item is a fixed patch cable
 #include "scenes/menu/nodes/sound_osc.h"    // kPending
 #include "scenes/menu/relevance.h"
@@ -87,10 +88,10 @@ inline constexpr Node sidechain_sync =
 // `AudioEngine::mustUpdateReverbParamsBeforeNextRender = true` (`updating_reverb_params.h:26-29`).
 // `with_reverb_update` is what carries that; see `Binding::updates_reverb_params` for why it is a
 // flag rather than a `set` hook (review round 1, I2).
-inline constexpr Node sidechain_shape = with_reverb_update(
-    param(sid(deluge::l10n::String::STRING_FOR_SHAPE),
-          {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_SIDECHAIN_SHAPE},
-          Hint::Knob, nullptr, sid(deluge::l10n::String::STRING_FOR_SIDECH_SHAPE_MENU_TITLE)));
+inline constexpr Node sidechain_shape =
+    (param(sid(deluge::l10n::String::STRING_FOR_SHAPE),
+           {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_SIDECHAIN_SHAPE},
+           Hint::Knob, nullptr, sid(deluge::l10n::String::STRING_FOR_SIDECH_SHAPE_MENU_TITLE)));
 inline constexpr Node sidechain_send =
     with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SEND_TO_SIDECHAIN), Kind::Int,
                             {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "sideChainSend"}, Hint::Bar),

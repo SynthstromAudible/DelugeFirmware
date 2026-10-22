@@ -746,6 +746,16 @@ bool reachable_by_children(const Node* target) {
 	return false;
 }
 
+/// Whether writing @p node's param makes the reverb recompute: the Edit raises it for a sidechain's shape (a sound's or
+/// a global effectable's) and the global sidechain volume, the params legacy's two `UpdatingReverbParams` items edit.
+bool raises_reverb(const Node& node) {
+	namespace params = deluge::modulation::params;
+	const auto& p = node.bind.param;
+	return ((p.kind == params::Kind::UNPATCHED_SOUND || p.kind == params::Kind::UNPATCHED_GLOBAL)
+	        && p.index == params::UNPATCHED_SIDECHAIN_SHAPE)
+	       || (p.kind == params::Kind::UNPATCHED_GLOBAL && p.index == params::UNPATCHED_SIDECHAIN_VOLUME);
+}
+
 } // namespace
 
 // clang-format off
@@ -1715,9 +1725,11 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		// positions* they were driven from, since a node reachable from two parents appears twice.
 		size_t pair_probes = 0;
 		for (const Pair& p : tree().pairs) {
-			// A target node's `ParamRef` is learn-only: its value is its setting's, which descriptor_coherence_spec and
-			// sound_settings_spec drive.
-			if (!p.node->bind.param.valid() || p.node->bind.target.valid() || p.node->bind.set != nullptr
+			// A setting target's `ParamRef` is learn-only: its value is its setting's, which descriptor_coherence_spec and
+			// sound_settings_spec drive. A param target's value is its param's.
+			const bool setting_target = p.node->bind.target.valid()
+			                            && p.node->bind.target.kind != deluge::scenes::bind::Target::Kind::PARAM;
+			if (!p.node->bind.param.valid() || setting_target || p.node->bind.set != nullptr
 			    || p.node->kind == menu::Kind::Custom) {
 				continue;
 			}
@@ -1728,8 +1740,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 				AudioEngine::mustUpdateReverbParamsBeforeNextRender = false;
 				menu::bindings::write(*p.node, f.ctx, v);
 				expect(menu::bindings::read(*p.node, f.ctx)).to_equal(v);
-				expect(AudioEngine::mustUpdateReverbParamsBeforeNextRender)
-				    .to_equal(p.node->bind.updates_reverb_params);
+				expect(AudioEngine::mustUpdateReverbParamsBeforeNextRender).to_equal(raises_reverb(*p.node));
 				exercised++;
 				covered.insert(p.node);
 			}
@@ -1739,16 +1750,16 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			expect(covered.contains(n)).to_be_true();
 		}
 		expect(exercised).to_equal(size_t(3) * pair_probes);
-		// Exactly one node in this tree carries the flag; the other `UpdatingReverbParams` item,
+		// Exactly one node in this tree edits such a param; the other `UpdatingReverbParams` item,
 		// `sidechain::GlobalVolume` (`sidechain/volume_global.h:6`), belongs to task 8's roots.
-		size_t flagged = 0;
+		std::set<const Node*> flagged;
 		for (const Pair& p : tree().pairs) {
-			if (p.node->bind.updates_reverb_params) {
-				flagged++;
-				expect(p.node == &nodes::sidechain_shape).to_be_true();
+			if (raises_reverb(*p.node)) {
+				flagged.insert(p.node);
 			}
 		}
-		expect(flagged).to_equal(size_t(1));
+		expect(flagged.size()).to_equal(size_t(1));
+		expect(flagged.contains(&nodes::sidechain_shape)).to_be_true();
 	});
 
 	it("sweeps both drums of a kit exactly as legacy's affect-entire loop does", _ {

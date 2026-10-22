@@ -64,9 +64,12 @@ struct Target {
 	/// PARAM only: the param, in the owner's engine's table (a sound's the Deluge instrument's, a chain's the global
 	/// effectable's).
 	engine::ParamId param{};
-	/// PARAM only: where the param shows, as conditions over the owner's setting rows (a sound's synth mode, an
-	/// oscillator's type, a filter's mode, the mod FX type).
+	/// Where the node shows beyond its row's own conditions (a PARAM target has none of its own): conditions over the
+	/// owner's setting rows (a sound's synth mode, an oscillator's type, a filter's mode, the mod FX type), all of
+	/// which hold.
 	std::span<const engine::SettingCondition> applies_when{};
+	/// Beyond applies_when: alternatives, every condition of one of which holds; none for no alternatives.
+	std::span<const std::span<const engine::SettingCondition>> applies_any{};
 	/// PARAM only: a target the param shows only where it applies, for a condition another owner holds (the arp's
 	/// mode, on the clip's or lane's arp record).
 	const Target* shown_with{nullptr};
@@ -78,7 +81,8 @@ struct Target {
 		       && fan_out_when.data() == other.fan_out_when.data() && fan_out_when.size() == other.fan_out_when.size()
 		       && group == other.group && audio_clip_path == other.audio_clip_path && fan_out_fact == other.fan_out_fact
 		       && shown_on == other.shown_on && param == other.param && applies_when.data() == other.applies_when.data()
-		       && applies_when.size() == other.applies_when.size() && shown_with == other.shown_with;
+		       && applies_when.size() == other.applies_when.size() && applies_any.data() == other.applies_any.data()
+		       && applies_any.size() == other.applies_any.size() && shown_with == other.shown_with;
 	}
 };
 

@@ -323,6 +323,7 @@ describe menu_permission("scenes::menu::permission_for", $ {
 		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
 
 		menu::Node irrelevant = param_node;
+		irrelevant.bind.target = {}; // a hook node: its predicate decides
 		irrelevant.relevant = [](const MenuContext&) { return false; };
 		expect(static_cast<int>(menu::permission_for(irrelevant, ctx))).to_equal(static_cast<int>(Permission::No));
 	});

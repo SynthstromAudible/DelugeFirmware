@@ -222,8 +222,9 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 
 	it("flags two siblings that share a name", _ {
 		set_shortcut_table_for_test({}, 0, 0);
-		static constexpr Node a = param(404, ParamRef{params::Kind::PATCHED, 1});
-		static constexpr Node b = param(404, ParamRef{params::Kind::PATCHED, 2});
+		// Hook nodes sharing a predicate show together wherever either does; target nodes need a context to tell.
+		static constexpr Node a = param(404, ParamRef{params::Kind::PATCHED, 1}, Hint::Knob, always);
+		static constexpr Node b = param(404, ParamRef{params::Kind::PATCHED, 2}, Hint::Knob, always);
 		static constexpr const Node* kids[] = {&a, &b};
 		static constexpr Node root = submenu(405, kids);
 		static constexpr const Node* roots[] = {&root};

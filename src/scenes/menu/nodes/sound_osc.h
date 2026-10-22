@@ -96,6 +96,7 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/fan_out_rules.h"
+#include "scenes/menu/nodes/param_shows.h"
 #include "scenes/menu/nodes/patch_cables.h" // with_patch_chain -- every PATCHED param chains
 #include "scenes/menu/nodes/sample.h"       // the six bespoke items this subtree's nodes point at
 #include "scenes/menu/relevance.h"
@@ -180,18 +181,18 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 	    sid(deluge::l10n::String::STRING_FOR_WAVE_INDEX),                                                              \
 	    {deluge::modulation::params::Kind::PATCHED,                                                                    \
 	     static_cast<uint8_t>(deluge::modulation::params::LOCAL_OSC_A_WAVE_INDEX + (i))},                              \
-	    Hint::Slider, relevance::osc##i##_wave_index, sid(deluge::l10n::String::STRING_FOR_OSC_WAVE_IND_MENU_TITLE))); \
+	    Hint::Slider, param_shows::kOscWaveIndex[i], sid(deluge::l10n::String::STRING_FOR_OSC_WAVE_IND_MENU_TITLE)));  \
 	inline constexpr Node osc##i##_pulse_width =                                                                       \
 	    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_PULSE_WIDTH),                                      \
 	                           {deluge::modulation::params::Kind::PATCHED,                                             \
 	                            static_cast<uint8_t>(deluge::modulation::params::LOCAL_OSC_A_PHASE_WIDTH + (i))},      \
-	                           Hint::None, relevance::osc##i##_pulse_width,                                            \
+	                           Hint::None, param_shows::kOscPulseWidth[i],                                             \
 	                           sid(deluge::l10n::String::STRING_FOR_OSC_P_WIDTH_MENU_TITLE), Scaling::HalfPrecision)); \
 	inline constexpr Node source##i##_feedback =                                                                       \
 	    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_FEEDBACK),                                         \
 	                           {deluge::modulation::params::Kind::PATCHED,                                             \
 	                            static_cast<uint8_t>(deluge::modulation::params::LOCAL_CARRIER_0_FEEDBACK + (i))},     \
-	                           Hint::Bar, relevance::osc##i##_carrier_feedback,                                        \
+	                           Hint::Bar, param_shows::kOscCarrierFeedback[i],                                         \
 	                           sid(deluge::l10n::String::STRING_FOR_CARRIER_FEED_MENU_TITLE)));                        \
 	inline constexpr Node osc##i##_phase =                                                                             \
 	    with_hint(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RETRIGGER_PHASE), Kind::Decimal,        \
@@ -248,7 +249,7 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 	    param(sid(deluge::l10n::String::STRING_FOR_FEEDBACK),                                                          \
 	          {deluge::modulation::params::Kind::PATCHED,                                                              \
 	           static_cast<uint8_t>(deluge::modulation::params::LOCAL_MODULATOR_0_FEEDBACK + (i))},                    \
-	          Hint::Bar, relevance::is_fm, sid(deluge::l10n::String::STRING_FOR_FM_MOD_FBACK_MENU_TITLE)));            \
+	          Hint::Bar, param_shows::kOnFm, sid(deluge::l10n::String::STRING_FOR_FM_MOD_FBACK_MENU_TITLE)));          \
 	inline constexpr Node modulator##i##_phase_node =                                                                  \
 	    with_hint(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RETRIGGER_PHASE), Kind::Decimal,        \
 	                                      {.kind = deluge::scenes::bind::Target::Kind::SOUND,                          \
@@ -299,23 +300,23 @@ inline constexpr Node recorder =
 inline constexpr Node source0_volume =
     with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_OSC_LEVEL_MENU_TITLE),
                            {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_OSC_A_VOLUME},
-                           Hint::Bar, relevance::not_ringmod));
+                           Hint::Bar, param_shows::kOffRingMod));
 inline constexpr Node source1_volume =
     with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_OSC_LEVEL_MENU_TITLE),
                            {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_OSC_B_VOLUME},
-                           Hint::Bar, relevance::not_ringmod));
+                           Hint::Bar, param_shows::kOffRingMod));
 inline constexpr Node modulator0_volume = with_patch_chain(
     param(sid(deluge::l10n::String::STRING_FOR_FM_MOD_LEVEL_MENU_TITLE),
           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_MODULATOR_0_VOLUME}, Hint::Bar,
-          relevance::is_fm));
+          param_shows::kOnFm));
 inline constexpr Node modulator1_volume = with_patch_chain(
     param(sid(deluge::l10n::String::STRING_FOR_FM_MOD_LEVEL_MENU_TITLE),
           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_MODULATOR_1_VOLUME}, Hint::Bar,
-          relevance::is_fm));
+          param_shows::kOnFm));
 inline constexpr Node noise =
     with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_NOISE_LEVEL),
                            {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_NOISE_VOLUME},
-                           Hint::Bar, relevance::not_fm));
+                           Hint::Bar, param_shows::kOffFm));
 inline constexpr Node osc_sync = setting_item(sid(deluge::l10n::String::STRING_FOR_OSCILLATOR_SYNC), Kind::Toggle,
                                               {.kind = deluge::scenes::bind::Target::Kind::SOUND,
                                                .path = "osc2/oscillatorSync",

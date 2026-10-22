@@ -213,6 +213,15 @@ bool co_visible(const Node& a, const Node& b, std::span<const MenuContext> conte
 	if (a.relevant == b.relevant && !a.bind.target.valid() && !b.bind.target.valid()) {
 		return true;
 	}
+	// Two param nodes on the same conditions show together wherever either does (a pair of oscillators' levels).
+	const deluge::scenes::bind::Target& at = a.bind.target;
+	const deluge::scenes::bind::Target& bt = b.bind.target;
+	if (at.kind == deluge::scenes::bind::Target::Kind::PARAM && bt.kind == deluge::scenes::bind::Target::Kind::PARAM
+	    && at.applies_when.data() == bt.applies_when.data() && at.applies_when.size() == bt.applies_when.size()
+	    && at.applies_any.data() == bt.applies_any.data() && at.applies_any.size() == bt.applies_any.size()
+	    && at.shown_with == bt.shown_with && at.shown_on == bt.shown_on) {
+		return true;
+	}
 	for (const MenuContext& ctx : contexts) {
 		if (bindings::relevant(a, ctx) && bindings::relevant(b, ctx)) {
 			return true;

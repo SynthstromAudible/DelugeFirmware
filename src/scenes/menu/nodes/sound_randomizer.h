@@ -61,6 +61,7 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
+#include "scenes/menu/nodes/param_shows.h"
 #include "scenes/menu/nodes/sound_arp.h" // arp_row
 #include "scenes/menu/relevance.h"
 
@@ -94,66 +95,66 @@ inline constexpr Node randomizer_lock =
 // `RandomizerUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h:31-42`) -- the non-global
 // ids need the arpeggiator on, the three global ones do not.
 DELUGE_RANDOMIZER_PARAM(spread_gate, STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
-                        UNPATCHED_ARP_SPREAD_GATE, relevance::randomizer_param, Hint::Bar);
+                        UNPATCHED_ARP_SPREAD_GATE, param_shows::kRandomizer, Hint::Bar);
 DELUGE_RANDOMIZER_MIDI(spread_gate_midi, STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
                        "arpeggiator/spreadGate", Hint::Bar);
 
 // `RandomizerSoundOnlyUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h:37-40`).
 DELUGE_RANDOMIZER_PARAM(spread_octave, STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE,
-                        UNPATCHED_ARP_SPREAD_OCTAVE, relevance::randomizer_sound_only, Hint::Bar);
+                        UNPATCHED_ARP_SPREAD_OCTAVE, param_shows::kRandomizerSoundOnly, Hint::Bar);
 DELUGE_RANDOMIZER_MIDI(spread_octave_midi, STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE,
                        "arpeggiator/spreadOctave", Hint::Bar);
 
 DELUGE_RANDOMIZER_PARAM(spread_velocity, STRING_FOR_SPREAD_VELOCITY, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE,
-                        UNPATCHED_SPREAD_VELOCITY, relevance::randomizer_global_param, Hint::Bar);
+                        UNPATCHED_SPREAD_VELOCITY, ParamShows{}, Hint::Bar);
 DELUGE_RANDOMIZER_MIDI(spread_velocity_midi, STRING_FOR_SPREAD_VELOCITY, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE,
                        "arpeggiator/spreadVelocity", Hint::Bar);
 
 DELUGE_RANDOMIZER_PARAM(ratchet_amount, STRING_FOR_NUMBER_OF_RATCHETS, STRING_FOR_ARP_RATCHETS_MENU_TITLE,
-                        UNPATCHED_ARP_RATCHET_AMOUNT, relevance::randomizer_param, Hint::Bar);
+                        UNPATCHED_ARP_RATCHET_AMOUNT, param_shows::kRandomizer, Hint::Bar);
 DELUGE_RANDOMIZER_MIDI(ratchet_amount_midi, STRING_FOR_NUMBER_OF_RATCHETS, STRING_FOR_ARP_RATCHETS_MENU_TITLE,
                        "arpeggiator/ratchetAmount", Hint::Bar);
 
 DELUGE_RANDOMIZER_PARAM(ratchet_probability, STRING_FOR_RATCHET_PROBABILITY,
                         STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE, UNPATCHED_ARP_RATCHET_PROBABILITY,
-                        relevance::randomizer_param, Hint::Percent);
+                        param_shows::kRandomizer, Hint::Percent);
 DELUGE_RANDOMIZER_MIDI(ratchet_probability_midi, STRING_FOR_RATCHET_PROBABILITY,
                        STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE, "arpeggiator/ratchetProbability", Hint::Percent);
 
 // `RandomizerNonKitSoundUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h:52-55`).
 DELUGE_RANDOMIZER_PARAM(chord_polyphony, STRING_FOR_CHORD_POLYPHONY, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE,
-                        UNPATCHED_ARP_CHORD_POLYPHONY, relevance::randomizer_non_kit, Hint::Bar);
+                        UNPATCHED_ARP_CHORD_POLYPHONY, param_shows::kRandomizerNonKit, Hint::Bar);
 DELUGE_RANDOMIZER_MIDI(chord_polyphony_midi, STRING_FOR_CHORD_POLYPHONY, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE,
                        "arpeggiator/chordPolyphony", Hint::Bar);
 
 DELUGE_RANDOMIZER_PARAM(chord_probability, STRING_FOR_CHORD_PROBABILITY, STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE,
-                        UNPATCHED_ARP_CHORD_PROBABILITY, relevance::randomizer_non_kit, Hint::Percent);
+                        UNPATCHED_ARP_CHORD_PROBABILITY, param_shows::kRandomizerNonKit, Hint::Percent);
 DELUGE_RANDOMIZER_MIDI(chord_probability_midi, STRING_FOR_CHORD_PROBABILITY,
                        STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE, "arpeggiator/chordProbability", Hint::Percent);
 
 DELUGE_RANDOMIZER_PARAM(note_probability, STRING_FOR_NOTE_PROBABILITY, STRING_FOR_NOTE_PROBABILITY_MENU_TITLE,
-                        UNPATCHED_NOTE_PROBABILITY, relevance::randomizer_global_param, Hint::Percent);
+                        UNPATCHED_NOTE_PROBABILITY, ParamShows{}, Hint::Percent);
 DELUGE_RANDOMIZER_MIDI(note_probability_midi, STRING_FOR_NOTE_PROBABILITY, STRING_FOR_NOTE_PROBABILITY_MENU_TITLE,
                        "arpeggiator/noteProbability", Hint::Percent);
 
 DELUGE_RANDOMIZER_PARAM(swap_probability, STRING_FOR_SWAP_PROBABILITY, STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE,
-                        UNPATCHED_ARP_SWAP_PROBABILITY, relevance::randomizer_param, Hint::Percent);
+                        UNPATCHED_ARP_SWAP_PROBABILITY, param_shows::kRandomizer, Hint::Percent);
 DELUGE_RANDOMIZER_MIDI(swap_probability_midi, STRING_FOR_SWAP_PROBABILITY, STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE,
                        "arpeggiator/swapProbability", Hint::Percent);
 
 DELUGE_RANDOMIZER_PARAM(bass_probability, STRING_FOR_BASS_PROBABILITY, STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE,
-                        UNPATCHED_ARP_BASS_PROBABILITY, relevance::randomizer_param, Hint::Percent);
+                        UNPATCHED_ARP_BASS_PROBABILITY, param_shows::kRandomizer, Hint::Percent);
 DELUGE_RANDOMIZER_MIDI(bass_probability_midi, STRING_FOR_BASS_PROBABILITY, STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE,
                        "arpeggiator/bassProbability", Hint::Percent);
 
 DELUGE_RANDOMIZER_PARAM(glide_probability, STRING_FOR_GLIDE_PROBABILITY, STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE,
-                        UNPATCHED_ARP_GLIDE_PROBABILITY, relevance::randomizer_param, Hint::Percent);
+                        UNPATCHED_ARP_GLIDE_PROBABILITY, param_shows::kRandomizer, Hint::Percent);
 DELUGE_RANDOMIZER_MIDI(glide_probability_midi, STRING_FOR_GLIDE_PROBABILITY,
                        STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE, "arpeggiator/glideProbability", Hint::Percent);
 
 // The one setting with no MIDI/CV twin (`menus.cpp:595-597`).
 DELUGE_RANDOMIZER_PARAM(reverse_probability, STRING_FOR_REVERSE_PROBABILITY, STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE,
-                        UNPATCHED_REVERSE_PROBABILITY, relevance::randomizer_global_param, Hint::Percent);
+                        UNPATCHED_REVERSE_PROBABILITY, ParamShows{}, Hint::Percent);
 
 #undef DELUGE_RANDOMIZER_MIDI
 #undef DELUGE_RANDOMIZER_PARAM

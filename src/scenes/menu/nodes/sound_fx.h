@@ -80,6 +80,7 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
+#include "scenes/menu/nodes/param_shows.h"
 #include "scenes/menu/nodes/patch_cables.h"    // with_patch_chain -- every PATCHED param chains
 #include "scenes/menu/nodes/sound_lfo.h"       // kSyncLevelRange
 #include "scenes/menu/nodes/sound_osc.h"       // the noise level
@@ -272,19 +273,19 @@ inline constexpr Node mod_fx_type =
 inline constexpr Node mod_fx_depth =
     with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_DEPTH),
                            {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_MOD_FX_DEPTH},
-                           Hint::Bar, relevance::mod_fx_has_depth, sid(deluge::l10n::String::STRING_FOR_MODFX_DEPTH)));
+                           Hint::Bar, param_shows::kModFxDepth, sid(deluge::l10n::String::STRING_FOR_MODFX_DEPTH)));
 inline constexpr Node mod_fx_rate =
     with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_RATE),
                            {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_MOD_FX_RATE},
-                           Hint::Knob, relevance::mod_fx_on, sid(deluge::l10n::String::STRING_FOR_MODFX_RATE)));
+                           Hint::Knob, param_shows::kModFxIsOn, sid(deluge::l10n::String::STRING_FOR_MODFX_RATE)));
 inline constexpr Node mod_fx_feedback =
     param(sid(deluge::l10n::String::STRING_FOR_FEEDBACK),
           {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_MOD_FX_FEEDBACK},
-          Hint::Knob, relevance::mod_fx_has_feedback, sid(deluge::l10n::String::STRING_FOR_MODFX_FEEDBACK));
+          Hint::Knob, param_shows::kModFxFeedback, sid(deluge::l10n::String::STRING_FOR_MODFX_FEEDBACK));
 inline constexpr Node mod_fx_offset =
     param(sid(deluge::l10n::String::STRING_FOR_OFFSET),
           {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_MOD_FX_OFFSET},
-          Hint::Knob, relevance::mod_fx_has_offset, sid(deluge::l10n::String::STRING_FOR_MODFX_OFFSET));
+          Hint::Knob, param_shows::kModFxOffset, sid(deluge::l10n::String::STRING_FOR_MODFX_OFFSET));
 
 inline constexpr const Node* kModFxChildren[] = {&mod_fx_type, &mod_fx_depth, &mod_fx_rate, &mod_fx_feedback,
                                                  &mod_fx_offset};

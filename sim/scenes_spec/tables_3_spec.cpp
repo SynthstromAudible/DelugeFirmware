@@ -1011,6 +1011,16 @@ bool reachable_by_children(const Node* target) {
 	return false;
 }
 
+/// Whether writing @p node's param makes the reverb recompute: the Edit raises it for a sidechain's shape (a sound's or
+/// a global effectable's) and the global sidechain volume, the params legacy's two `UpdatingReverbParams` items edit.
+bool raises_reverb(const Node& node) {
+	namespace params = deluge::modulation::params;
+	const auto& p = node.bind.param;
+	return ((p.kind == params::Kind::UNPATCHED_SOUND || p.kind == params::Kind::UNPATCHED_GLOBAL)
+	        && p.index == params::UNPATCHED_SIDECHAIN_SHAPE)
+	       || (p.kind == params::Kind::UNPATCHED_GLOBAL && p.index == params::UNPATCHED_SIDECHAIN_VOLUME);
+}
+
 } // namespace
 
 // clang-format off
@@ -1156,7 +1166,10 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 			// `Decimal`, so legacy's `getParamIndex()` is the base's invalid one and only
 			// `getLearningThing()` (`audio_clip/transpose.h:52-56`) names the param. Compared there
 			// instead, exactly as `tables_2_spec` compares the four `menu_item::Transpose` nodes.
-			if (p.node->bind.get != nullptr || p.node->bind.target.valid()) { // a hook or a target owns its value
+			// A hook or a setting target owns its value; a param target's ParamRef is still the legacy item's param.
+			if (p.node->bind.get != nullptr
+			    || (p.node->bind.target.valid()
+			        && p.node->bind.target.kind != deluge::scenes::bind::Target::Kind::PARAM)) {
 				auto* learner = dynamic_cast<::MenuItemWithCCLearning*>(p.item);
 				expect(learner != nullptr).to_be_true();
 				if (learner != nullptr) {
@@ -1967,8 +1980,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 				// own root's context shows, and a relevant param node is servable by construction
 				// (that is what `serves_for` decides). So the round trip is asserted outright.
 				expect(menu::bindings::read(*p.node, p.root->ctx)).to_equal(v);
-				expect(AudioEngine::mustUpdateReverbParamsBeforeNextRender)
-				    .to_equal(p.node->bind.updates_reverb_params);
+				expect(AudioEngine::mustUpdateReverbParamsBeforeNextRender).to_equal(raises_reverb(*p.node));
 				exercised++;
 			}
 		}
@@ -1976,7 +1988,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 
 		std::set<const Node*> reverb;
 		for (const Pair& p : tree().pairs) {
-			if (p.node->bind.updates_reverb_params) {
+			if (raises_reverb(*p.node)) {
 				reverb.insert(p.node);
 			}
 		}

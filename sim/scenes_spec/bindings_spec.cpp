@@ -40,41 +40,49 @@ namespace bindings = deluge::scenes::menu::bindings;
 
 namespace {
 
+/// @brief Every node below shows everywhere: a hook, which keeps it on the menus' own param path (bindings.cpp's), the
+///        path these examples drive; a hookless param node edits by its PARAM target instead (param_sink_spec).
+bool shown(const MenuContext&) {
+	return true;
+}
+
 /// @brief An ordinary patched param -- legacy `patched_param::Integer` (`patched_param/integer.cpp`).
 constexpr Node lpf_freq_node = menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_FREQUENCY),
-                                           {params::Kind::PATCHED, params::LOCAL_LPF_FREQ});
+                                           {params::Kind::PATCHED, params::LOCAL_LPF_FREQ}, menu::Hint::Knob, shown);
 
 /// @brief An unpatched (sound) param -- legacy `menu_item::UnpatchedParam` (`unpatched_param.cpp`).
-constexpr Node bass_node = menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_BASS),
-                                       {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_BASS});
+constexpr Node bass_node =
+    menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_BASS),
+                {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_BASS}, menu::Hint::Knob, shown);
 
 /// @brief An unpatched GLOBAL param, on a kit clip's own (global-effectable) param manager.
-constexpr Node global_volume_node = menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_VOLUME_LEVEL),
-                                                {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME});
+constexpr Node global_volume_node =
+    menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_VOLUME_LEVEL),
+                {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME}, menu::Hint::Knob, shown);
 
 /// @brief Legacy `patched_param::Pan` (`patched_param/pan.h:26-28`): the relative range and the pan
 ///        scaling, here left at `Scaling::Standard` so `scaling_for`'s `Hint::Pan` /
 ///        `params::isParamPan` backstop is the thing under test.
 constexpr Node pan_node = menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PAN),
-                                      {params::Kind::PATCHED, params::LOCAL_PAN}, menu::Hint::Pan);
+                                      {params::Kind::PATCHED, params::LOCAL_PAN}, menu::Hint::Pan, shown);
 
 /// @brief The same param with `Scaling::Pan` named explicitly and no `Hint::Pan` -- the declared
 ///        route, which must reach the same arithmetic as the inferred one above.
 constexpr Node pan_declared_node =
     menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PAN), {params::Kind::PATCHED, params::LOCAL_PAN},
-                menu::Hint::Knob, nullptr, /*title=*/0, menu::Scaling::Pan);
+                menu::Hint::Knob, shown, /*title=*/0, menu::Scaling::Pan);
 
 /// @brief Legacy `osc::PulseWidth` (`osc/pulse_width.h:32,34-37`) -- a patched param on
 ///        `Scaling::HalfPrecision`, which has no inferable spelling and must be declared.
 constexpr Node pulse_width_node = menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PULSE_WIDTH),
                                               {params::Kind::PATCHED, params::LOCAL_OSC_A_PHASE_WIDTH},
-                                              menu::Hint::Knob, nullptr, /*title=*/0, menu::Scaling::HalfPrecision);
+                                              menu::Hint::Knob, shown, /*title=*/0, menu::Scaling::HalfPrecision);
 
 /// @brief Legacy `audio_compressor::CompParam` (`audio_compressor/compressor_params.h:29-33`) -- the
 ///        unpatched half of the same scaling.
 constexpr Node comp_threshold_node =
     menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_THRESHOLD),
-                {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_COMPRESSOR_THRESHOLD}, menu::Hint::Knob, nullptr,
+                {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_COMPRESSOR_THRESHOLD}, menu::Hint::Knob, shown,
                 /*title=*/0, menu::Scaling::HalfPrecision);
 
 /// @brief The `Kind::Enum` names table -- two real l10n ids.

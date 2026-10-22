@@ -62,6 +62,7 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
+#include "scenes/menu/nodes/param_shows.h"
 #include "scenes/menu/nodes/patch_cables.h" // with_patch_chain -- every PATCHED param chains
 #include "scenes/menu/nodes/sound_lfo.h"    // kSyncLevelRange
 #include "scenes/menu/relevance.h"
@@ -185,14 +186,14 @@ inline constexpr Node arp_preset =
 inline constexpr Node arp_gate =
     param(sid(deluge::l10n::String::STRING_FOR_GATE),
           {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_ARP_GATE},
-          Hint::LengthSlider, relevance::arp_sound_only, sid(deluge::l10n::String::STRING_FOR_ARP_GATE_MENU_TITLE));
+          Hint::LengthSlider, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_GATE_MENU_TITLE));
 inline constexpr Node arp_sync = with_title(
     setting_item(sid(deluge::l10n::String::STRING_FOR_SYNC), Kind::SyncLevel, arp_row("arpeggiator/syncLevel")),
     sid(deluge::l10n::String::STRING_FOR_ARP_SYNC_MENU_TITLE));
-inline constexpr Node arp_rate = with_patch_chain(
-    param(sid(deluge::l10n::String::STRING_FOR_RATE),
-          {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_ARP_RATE}, Hint::Knob,
-          relevance::arp_rate_sound, sid(deluge::l10n::String::STRING_FOR_ARP_RATE_MENU_TITLE)));
+inline constexpr Node arp_rate =
+    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_RATE),
+                           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_ARP_RATE},
+                           Hint::Knob, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_RATE_MENU_TITLE)));
 
 inline constexpr const Node* kArpBasicChildren[] = {&arp_preset, &arp_gate, &arp_sync, &arp_rate};
 inline constexpr Node arp_basic =
@@ -230,7 +231,7 @@ inline constexpr Node arp_chord_simulator = with_title(
 inline constexpr Node arp_rhythm = with_slots(
     param(sid(deluge::l10n::String::STRING_FOR_RHYTHM),
           {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_ARP_RHYTHM},
-          Hint::None, relevance::arp_sound_only, sid(deluge::l10n::String::STRING_FOR_ARP_RHYTHM_MENU_TITLE)),
+          Hint::None, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_RHYTHM_MENU_TITLE)),
     2);
 /// A MIDI or CV arp's host values are settings, which legacy's items write on the selected arp alone.
 inline constexpr Node arp_rhythm_midi =
@@ -241,7 +242,7 @@ inline constexpr Node arp_rhythm_midi =
 inline constexpr Node arp_sequence_length = param(
     sid(deluge::l10n::String::STRING_FOR_SEQUENCE_LENGTH),
     {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_ARP_SEQUENCE_LENGTH},
-    Hint::None, relevance::arp_sound_only, sid(deluge::l10n::String::STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE));
+    Hint::None, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE));
 inline constexpr Node arp_sequence_length_midi =
     with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SEQUENCE_LENGTH), Kind::Int,
                             arp_row("arpeggiator/sequenceLength", false)),

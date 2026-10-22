@@ -632,6 +632,13 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 			if (bind.repaints_grid) {
 				notify::raise(notify::Dirty::GridMain);
 			}
+			if (bind.target.kind == deluge::scenes::bind::Target::Kind::PARAM) {
+				// A param's automation display, its knob indicators and the automation view's grid, as after every
+				// param write (see the param arm below for each).
+				notify::raise(notify::Dirty::ParamAutomation);
+				notify::raise(notify::Dirty::ModTarget);
+				notify::raise(notify::Dirty::GridMain);
+			}
 		}
 		return;
 	}

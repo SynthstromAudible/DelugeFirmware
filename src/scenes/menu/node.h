@@ -17,6 +17,8 @@
 ///       *declare* those types here (as references, or as a return type never invoked from this
 ///       header), which never requires a complete type, so this header stays free of the shell's
 ///       and the oled toolkit's own dependency closures.
+#include "engines/deluge/params.h"
+#include "engines/global_effectable/params.h"
 #include "gfx/oled/icons.h" // CustomItem::row_icon's default answer -- one `extern const Icon`
 #include "modulation/params/param.h"
 #include "modulation/params/param_descriptor.h" // CustomItem::learn_descriptor -- returned by value
@@ -821,12 +823,63 @@ constexpr Node with_permitted(Node n, PermittedFn fn) {
 // ---------------------------------------------------------------------------------------------
 // Builders. All `constexpr`; `title` defaults to `name` (0 means "use name").
 
+/// @brief The id @p p's param has in its owner's engine's table: a sound's (patched or unpatched) in the Deluge
+///        instrument's, a global effectable's in its own.
+constexpr deluge::engine::ParamId param_id_of(ParamRef p) {
+	using deluge::modulation::params::Kind;
+	switch (p.kind) {
+	case Kind::PATCHED:
+		return deluge::instrument::param_id({deluge::instrument::RuntimeSet::PATCHED, p.index});
+	case Kind::UNPATCHED_SOUND:
+		return deluge::instrument::param_id({deluge::instrument::RuntimeSet::UNPATCHED, p.index});
+	case Kind::UNPATCHED_GLOBAL:
+		return deluge::global_effectable::param_id(p.index);
+	default:
+		return {};
+	}
+}
+
+/// @brief Where a param node shows, beyond where its owner holds the param: conditions over the owner's setting rows,
+///        alternatives of which one must hold, and a target it shows only where that applies (a condition another
+///        owner holds).
+struct ParamShows {
+	std::span<const deluge::engine::SettingCondition> when{};
+	std::span<const std::span<const deluge::engine::SettingCondition>> any{};
+	const deluge::scenes::bind::Target* with{nullptr};
+};
+
+/// @brief A node that edits a param by its descriptor and address: its value, range and display come from the PARAM
+///        target, its writes go to the menu's write sink, and it shows where @p shows says. Its `ParamRef` stays for
+///        learn.
+/// @param scaling Which value scaling the `ParamRef` names for learn (`Scaling`); the target's display is the
+///                descriptor's, which equals it.
+constexpr Node param(uint16_t name, ParamRef p, Hint h, ParamShows shows, uint16_t title = 0,
+                     Scaling scaling = Scaling::Standard) {
+	Node n{};
+	n.name = name;
+	n.title = title != 0 ? title : name;
+	n.kind = Kind::Int;
+	n.hint = h;
+	n.bind.param = p;
+	n.bind.scaling = scaling;
+	n.bind.target = deluge::scenes::bind::Target{.kind = deluge::scenes::bind::Target::Kind::PARAM,
+	                                             .param = param_id_of(p),
+	                                             .applies_when = shows.when,
+	                                             .applies_any = shows.any,
+	                                             .shown_with = shows.with};
+	return n;
+}
+
 /// @param scaling Which value scaling this param uses (`Scaling`). The default matches legacy's
 ///                `patched_param::Integer` / `menu_item::UnpatchedParam`; the two exceptions
 ///                (`Scaling::HalfPrecision` for pulse width and the compressor params,
 ///                `Scaling::Pan` for the two pan params) name themselves at the call site.
+/// A param node with no relevance hook shows wherever its owner holds the param: it edits it by target.
 constexpr Node param(uint16_t name, ParamRef p, Hint h = Hint::Knob, RelevantFn rel = nullptr, uint16_t title = 0,
                      Scaling scaling = Scaling::Standard) {
+	if (rel == nullptr) {
+		return param(name, p, h, ParamShows{}, title, scaling);
+	}
 	Node n{};
 	n.name = name;
 	n.title = title != 0 ? title : name;

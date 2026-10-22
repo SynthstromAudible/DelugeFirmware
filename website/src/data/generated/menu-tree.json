@@ -277,7 +277,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_sound_only",
                 "id": 26,
                 "name": "Gate",
                 "title": "Arp gate",
@@ -290,7 +289,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_rate_sound",
                 "id": 28,
                 "name": "Rate",
                 "select_chain": [
@@ -382,7 +380,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_sound_only",
                 "id": 36,
                 "name": "Rhythm",
                 "title": "Arp rhythm",
@@ -395,7 +392,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_sound_only",
                 "id": 38,
                 "name": "Sequence Length",
                 "title": "Arp seq length",
@@ -449,7 +445,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 45,
             "name": "Gate Spread",
             "title": "Arp gate spread",
@@ -462,7 +457,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_sound_only",
             "id": 47,
             "name": "Octave Spread",
             "title": "Arp octa spread",
@@ -475,7 +469,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_global_param",
             "id": 49,
             "name": "Velocity Spread",
             "title": "Velocity spread",
@@ -488,7 +481,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 51,
             "name": "Ratchet Amount",
             "title": "Arp ratc amount",
@@ -501,7 +493,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 53,
             "name": "Ratchet Probability",
             "title": "Arp ratc prob",
@@ -514,7 +505,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_kit",
             "id": 55,
             "name": "Chord Polyphony",
             "title": "Arp chord poly",
@@ -527,7 +517,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_kit",
             "id": 57,
             "name": "Chord Probability",
             "title": "Arp chord prob",
@@ -540,7 +529,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_global_param",
             "id": 59,
             "name": "Note Probability",
             "title": "Note prob",
@@ -553,7 +541,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 61,
             "name": "Swap Probability",
             "title": "Arp swap prob",
@@ -566,7 +553,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 63,
             "name": "Bass Probability",
             "title": "Arp bass prob",
@@ -579,7 +565,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 65,
             "name": "Glide Probability",
             "title": "Arp glide prob",
@@ -592,7 +577,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_global_param",
             "id": 67,
             "name": "Reverse Probability",
             "title": "Reverse prob",
@@ -664,7 +648,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "has_lpf",
                 "id": 78,
                 "name": "Frequency",
                 "select_chain": [
@@ -712,7 +695,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "has_lpf",
                 "id": 79,
                 "name": "Resonance",
                 "select_chain": [
@@ -760,7 +742,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "has_lpf",
                 "id": 80,
                 "name": "LPF morph",
                 "select_chain": [
@@ -822,7 +803,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "has_hpf",
                 "id": 83,
                 "name": "Frequency",
                 "select_chain": [
@@ -870,7 +850,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "has_hpf",
                 "id": 84,
                 "name": "Resonance",
                 "select_chain": [
@@ -918,7 +897,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "has_hpf",
                 "id": 85,
                 "name": "HPF Morph",
                 "select_chain": [
@@ -1309,7 +1287,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_has_depth",
                 "id": 120,
                 "name": "Depth",
                 "select_chain": [
@@ -1357,7 +1334,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_on",
                 "id": 121,
                 "name": "Rate",
                 "select_chain": [
@@ -1405,14 +1381,12 @@
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_has_feedback",
                 "id": 122,
                 "name": "Feedback",
                 "title": "MOD-FX feedback",
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_has_offset",
                 "id": 123,
                 "name": "Offset",
                 "title": "MOD-FX offset",
@@ -1499,7 +1473,6 @@
             "type": "submenu"
           },
           {
-            "available_when": "not_fm",
             "id": 129,
             "name": "Noise level",
             "select_chain": [
@@ -1690,7 +1663,6 @@
             "type": "basic"
           },
           {
-            "available_when": "osc0_wave_index",
             "id": 141,
             "name": "Wave-index",
             "select_chain": [
@@ -1738,7 +1710,6 @@
             "type": "basic"
           },
           {
-            "available_when": "osc0_pulse_width",
             "id": 142,
             "name": "Pulse Width",
             "select_chain": [
@@ -1786,7 +1757,6 @@
             "type": "basic"
           },
           {
-            "available_when": "osc0_carrier_feedback",
             "id": 143,
             "name": "Feedback",
             "select_chain": [
@@ -1960,7 +1930,6 @@
             "type": "basic"
           },
           {
-            "available_when": "osc1_wave_index",
             "id": 156,
             "name": "Wave-index",
             "select_chain": [
@@ -2008,7 +1977,6 @@
             "type": "basic"
           },
           {
-            "available_when": "osc1_pulse_width",
             "id": 157,
             "name": "Pulse Width",
             "select_chain": [
@@ -2056,7 +2024,6 @@
             "type": "basic"
           },
           {
-            "available_when": "osc1_carrier_feedback",
             "id": 158,
             "name": "Feedback",
             "select_chain": [
@@ -2217,7 +2184,6 @@
             "type": "basic"
           },
           {
-            "available_when": "is_fm",
             "id": 169,
             "name": "Feedback",
             "select_chain": [
@@ -2329,7 +2295,6 @@
             "type": "basic"
           },
           {
-            "available_when": "is_fm",
             "id": 173,
             "name": "Feedback",
             "select_chain": [
@@ -2399,7 +2364,6 @@
       {
         "children": [
           {
-            "available_when": "not_ringmod",
             "id": 177,
             "name": "Osc* level",
             "select_chain": [
@@ -2447,7 +2411,6 @@
             "type": "basic"
           },
           {
-            "available_when": "not_ringmod",
             "id": 178,
             "name": "Osc* level",
             "select_chain": [
@@ -2495,7 +2458,6 @@
             "type": "basic"
           },
           {
-            "available_when": "is_fm",
             "id": 179,
             "name": "FM Mod* level",
             "select_chain": [
@@ -2543,7 +2505,6 @@
             "type": "basic"
           },
           {
-            "available_when": "is_fm",
             "id": 180,
             "name": "FM Mod* level",
             "select_chain": [
@@ -2591,7 +2552,6 @@
             "type": "basic"
           },
           {
-            "available_when": "not_fm",
             "id": 129,
             "name": "Noise level",
             "select_chain": [
@@ -4165,7 +4125,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_sound_only",
                 "id": 26,
                 "name": "Gate",
                 "title": "Arp gate",
@@ -4178,7 +4137,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_rate_sound",
                 "id": 28,
                 "name": "Rate",
                 "select_chain": [
@@ -4270,7 +4228,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_sound_only",
                 "id": 36,
                 "name": "Rhythm",
                 "title": "Arp rhythm",
@@ -4283,7 +4240,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_sound_only",
                 "id": 38,
                 "name": "Sequence Length",
                 "title": "Arp seq length",
@@ -4337,7 +4293,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 45,
             "name": "Gate Spread",
             "title": "Arp gate spread",
@@ -4350,7 +4305,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_sound_only",
             "id": 47,
             "name": "Octave Spread",
             "title": "Arp octa spread",
@@ -4363,7 +4317,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_global_param",
             "id": 49,
             "name": "Velocity Spread",
             "title": "Velocity spread",
@@ -4376,7 +4329,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 51,
             "name": "Ratchet Amount",
             "title": "Arp ratc amount",
@@ -4389,7 +4341,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 53,
             "name": "Ratchet Probability",
             "title": "Arp ratc prob",
@@ -4402,7 +4353,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_kit",
             "id": 55,
             "name": "Chord Polyphony",
             "title": "Arp chord poly",
@@ -4415,7 +4365,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_kit",
             "id": 57,
             "name": "Chord Probability",
             "title": "Arp chord prob",
@@ -4428,7 +4377,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_global_param",
             "id": 59,
             "name": "Note Probability",
             "title": "Note prob",
@@ -4441,7 +4389,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 61,
             "name": "Swap Probability",
             "title": "Arp swap prob",
@@ -4454,7 +4401,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 63,
             "name": "Bass Probability",
             "title": "Arp bass prob",
@@ -4467,7 +4413,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 65,
             "name": "Glide Probability",
             "title": "Arp glide prob",
@@ -4480,7 +4425,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_global_param",
             "id": 67,
             "name": "Reverse Probability",
             "title": "Reverse prob",
@@ -4552,7 +4496,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "has_lpf",
                 "id": 78,
                 "name": "Frequency",
                 "select_chain": [
@@ -4600,7 +4543,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "has_lpf",
                 "id": 79,
                 "name": "Resonance",
                 "select_chain": [
@@ -4648,7 +4590,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "has_lpf",
                 "id": 80,
                 "name": "LPF morph",
                 "select_chain": [
@@ -4710,7 +4651,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "has_hpf",
                 "id": 83,
                 "name": "Frequency",
                 "select_chain": [
@@ -4758,7 +4698,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "has_hpf",
                 "id": 84,
                 "name": "Resonance",
                 "select_chain": [
@@ -4806,7 +4745,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "has_hpf",
                 "id": 85,
                 "name": "HPF Morph",
                 "select_chain": [
@@ -5197,7 +5135,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_has_depth",
                 "id": 120,
                 "name": "Depth",
                 "select_chain": [
@@ -5245,7 +5182,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_on",
                 "id": 121,
                 "name": "Rate",
                 "select_chain": [
@@ -5293,14 +5229,12 @@
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_has_feedback",
                 "id": 122,
                 "name": "Feedback",
                 "title": "MOD-FX feedback",
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_has_offset",
                 "id": 123,
                 "name": "Offset",
                 "title": "MOD-FX offset",
@@ -5387,7 +5321,6 @@
             "type": "submenu"
           },
           {
-            "available_when": "not_fm",
             "id": 129,
             "name": "Noise level",
             "select_chain": [
@@ -5578,7 +5511,6 @@
             "type": "basic"
           },
           {
-            "available_when": "osc0_wave_index",
             "id": 141,
             "name": "Wave-index",
             "select_chain": [
@@ -5626,7 +5558,6 @@
             "type": "basic"
           },
           {
-            "available_when": "osc0_pulse_width",
             "id": 142,
             "name": "Pulse Width",
             "select_chain": [
@@ -5674,7 +5605,6 @@
             "type": "basic"
           },
           {
-            "available_when": "osc0_carrier_feedback",
             "id": 143,
             "name": "Feedback",
             "select_chain": [
@@ -5848,7 +5778,6 @@
             "type": "basic"
           },
           {
-            "available_when": "osc1_wave_index",
             "id": 156,
             "name": "Wave-index",
             "select_chain": [
@@ -5896,7 +5825,6 @@
             "type": "basic"
           },
           {
-            "available_when": "osc1_pulse_width",
             "id": 157,
             "name": "Pulse Width",
             "select_chain": [
@@ -5944,7 +5872,6 @@
             "type": "basic"
           },
           {
-            "available_when": "osc1_carrier_feedback",
             "id": 158,
             "name": "Feedback",
             "select_chain": [
@@ -6105,7 +6032,6 @@
             "type": "basic"
           },
           {
-            "available_when": "is_fm",
             "id": 169,
             "name": "Feedback",
             "select_chain": [
@@ -6217,7 +6143,6 @@
             "type": "basic"
           },
           {
-            "available_when": "is_fm",
             "id": 173,
             "name": "Feedback",
             "select_chain": [
@@ -6287,7 +6212,6 @@
       {
         "children": [
           {
-            "available_when": "not_ringmod",
             "id": 177,
             "name": "Osc* level",
             "select_chain": [
@@ -6335,7 +6259,6 @@
             "type": "basic"
           },
           {
-            "available_when": "not_ringmod",
             "id": 178,
             "name": "Osc* level",
             "select_chain": [
@@ -6383,7 +6306,6 @@
             "type": "basic"
           },
           {
-            "available_when": "is_fm",
             "id": 179,
             "name": "FM Mod* level",
             "select_chain": [
@@ -6431,7 +6353,6 @@
             "type": "basic"
           },
           {
-            "available_when": "is_fm",
             "id": 180,
             "name": "FM Mod* level",
             "select_chain": [
@@ -6479,7 +6400,6 @@
             "type": "basic"
           },
           {
-            "available_when": "not_fm",
             "id": 129,
             "name": "Noise level",
             "select_chain": [
@@ -7976,7 +7896,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_sound_only",
                 "id": 36,
                 "name": "Rhythm",
                 "title": "Arp rhythm",
@@ -7989,7 +7908,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_sound_only",
                 "id": 38,
                 "name": "Sequence Length",
                 "title": "Arp seq length",
@@ -8043,7 +7961,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 45,
             "name": "Gate Spread",
             "title": "Arp gate spread",
@@ -8056,7 +7973,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_sound_only",
             "id": 47,
             "name": "Octave Spread",
             "title": "Arp octa spread",
@@ -8069,7 +7985,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_global_param",
             "id": 49,
             "name": "Velocity Spread",
             "title": "Velocity spread",
@@ -8082,7 +7997,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 51,
             "name": "Ratchet Amount",
             "title": "Arp ratc amount",
@@ -8095,7 +8009,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 53,
             "name": "Ratchet Probability",
             "title": "Arp ratc prob",
@@ -8108,7 +8021,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_kit",
             "id": 55,
             "name": "Chord Polyphony",
             "title": "Arp chord poly",
@@ -8121,7 +8033,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_kit",
             "id": 57,
             "name": "Chord Probability",
             "title": "Arp chord prob",
@@ -8134,7 +8045,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_global_param",
             "id": 59,
             "name": "Note Probability",
             "title": "Note prob",
@@ -8147,7 +8057,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 61,
             "name": "Swap Probability",
             "title": "Arp swap prob",
@@ -8160,7 +8069,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 63,
             "name": "Bass Probability",
             "title": "Arp bass prob",
@@ -8173,7 +8081,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 65,
             "name": "Glide Probability",
             "title": "Arp glide prob",
@@ -8186,7 +8093,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_global_param",
             "id": 67,
             "name": "Reverse Probability",
             "title": "Reverse prob",
@@ -8403,7 +8309,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_sound_only",
                 "id": 36,
                 "name": "Rhythm",
                 "title": "Arp rhythm",
@@ -8416,7 +8321,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_sound_only",
                 "id": 38,
                 "name": "Sequence Length",
                 "title": "Arp seq length",
@@ -8470,7 +8374,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 45,
             "name": "Gate Spread",
             "title": "Arp gate spread",
@@ -8483,7 +8386,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_sound_only",
             "id": 47,
             "name": "Octave Spread",
             "title": "Arp octa spread",
@@ -8496,7 +8398,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_global_param",
             "id": 49,
             "name": "Velocity Spread",
             "title": "Velocity spread",
@@ -8509,7 +8410,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 51,
             "name": "Ratchet Amount",
             "title": "Arp ratc amount",
@@ -8522,7 +8422,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 53,
             "name": "Ratchet Probability",
             "title": "Arp ratc prob",
@@ -8535,7 +8434,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_kit",
             "id": 55,
             "name": "Chord Polyphony",
             "title": "Arp chord poly",
@@ -8548,7 +8446,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_kit",
             "id": 57,
             "name": "Chord Probability",
             "title": "Arp chord prob",
@@ -8561,7 +8458,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_global_param",
             "id": 59,
             "name": "Note Probability",
             "title": "Note prob",
@@ -8574,7 +8470,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 61,
             "name": "Swap Probability",
             "title": "Arp swap prob",
@@ -8587,7 +8482,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 63,
             "name": "Bass Probability",
             "title": "Arp bass prob",
@@ -8600,7 +8494,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 65,
             "name": "Glide Probability",
             "title": "Arp glide prob",
@@ -8613,7 +8506,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_global_param",
             "id": 67,
             "name": "Reverse Probability",
             "title": "Reverse prob",
@@ -8770,7 +8662,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_sound_only",
                 "id": 36,
                 "name": "Rhythm",
                 "title": "Arp rhythm",
@@ -8783,7 +8674,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_sound_only",
                 "id": 38,
                 "name": "Sequence Length",
                 "title": "Arp seq length",
@@ -8837,7 +8727,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 45,
             "name": "Gate Spread",
             "title": "Arp gate spread",
@@ -8850,7 +8739,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_sound_only",
             "id": 47,
             "name": "Octave Spread",
             "title": "Arp octa spread",
@@ -8863,7 +8751,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_global_param",
             "id": 49,
             "name": "Velocity Spread",
             "title": "Velocity spread",
@@ -8876,7 +8763,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 51,
             "name": "Ratchet Amount",
             "title": "Arp ratc amount",
@@ -8889,7 +8775,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 53,
             "name": "Ratchet Probability",
             "title": "Arp ratc prob",
@@ -8902,7 +8787,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_kit",
             "id": 55,
             "name": "Chord Polyphony",
             "title": "Arp chord poly",
@@ -8915,7 +8799,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_kit",
             "id": 57,
             "name": "Chord Probability",
             "title": "Arp chord prob",
@@ -8928,7 +8811,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_global_param",
             "id": 59,
             "name": "Note Probability",
             "title": "Note prob",
@@ -8941,7 +8823,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 61,
             "name": "Swap Probability",
             "title": "Arp swap prob",
@@ -8954,7 +8835,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 63,
             "name": "Bass Probability",
             "title": "Arp bass prob",
@@ -8967,7 +8847,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 65,
             "name": "Glide Probability",
             "title": "Arp glide prob",
@@ -8980,7 +8859,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_global_param",
             "id": 67,
             "name": "Reverse Probability",
             "title": "Reverse prob",
@@ -9417,14 +9295,12 @@
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_has_feedback",
                 "id": 122,
                 "name": "Feedback",
                 "title": "MOD-FX feedback",
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_has_offset",
                 "id": 123,
                 "name": "Offset",
                 "title": "MOD-FX offset",
@@ -9884,14 +9760,12 @@
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_has_feedback",
                 "id": 122,
                 "name": "Feedback",
                 "title": "MOD-FX feedback",
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_has_offset",
                 "id": 123,
                 "name": "Offset",
                 "title": "MOD-FX offset",
@@ -10258,14 +10132,12 @@
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_has_feedback",
                 "id": 122,
                 "name": "Feedback",
                 "title": "MOD-FX feedback",
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_has_offset",
                 "id": 123,
                 "name": "Offset",
                 "title": "MOD-FX offset",
@@ -10556,7 +10428,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_sound_only",
                 "id": 26,
                 "name": "Gate",
                 "title": "Arp gate",
@@ -10620,7 +10491,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_sound_only",
                 "id": 36,
                 "name": "Rhythm",
                 "title": "Arp rhythm",
@@ -10633,7 +10503,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_sound_only",
                 "id": 38,
                 "name": "Sequence Length",
                 "title": "Arp seq length",
@@ -10660,7 +10529,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "randomizer_param",
                 "id": 45,
                 "name": "Gate Spread",
                 "title": "Arp gate spread",
@@ -10673,7 +10541,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "randomizer_sound_only",
                 "id": 47,
                 "name": "Octave Spread",
                 "title": "Arp octa spread",
@@ -10686,7 +10553,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "randomizer_global_param",
                 "id": 49,
                 "name": "Velocity Spread",
                 "title": "Velocity spread",
@@ -10699,7 +10565,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "randomizer_param",
                 "id": 51,
                 "name": "Ratchet Amount",
                 "title": "Arp ratc amount",
@@ -10712,7 +10577,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "randomizer_param",
                 "id": 53,
                 "name": "Ratchet Probability",
                 "title": "Arp ratc prob",
@@ -10725,7 +10589,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "randomizer_non_kit",
                 "id": 55,
                 "name": "Chord Polyphony",
                 "title": "Arp chord poly",
@@ -10738,7 +10601,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "randomizer_non_kit",
                 "id": 57,
                 "name": "Chord Probability",
                 "title": "Arp chord prob",
@@ -10751,7 +10613,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "randomizer_global_param",
                 "id": 59,
                 "name": "Note Probability",
                 "title": "Note prob",
@@ -10764,7 +10625,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "randomizer_param",
                 "id": 61,
                 "name": "Swap Probability",
                 "title": "Arp swap prob",
@@ -10777,7 +10637,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "randomizer_param",
                 "id": 63,
                 "name": "Bass Probability",
                 "title": "Arp bass prob",
@@ -10790,7 +10649,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "randomizer_param",
                 "id": 65,
                 "name": "Glide Probability",
                 "title": "Arp glide prob",
@@ -10803,7 +10661,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "randomizer_global_param",
                 "id": 67,
                 "name": "Reverse Probability",
                 "title": "Reverse prob",
@@ -11171,14 +11028,12 @@
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_has_feedback",
                 "id": 122,
                 "name": "Feedback",
                 "title": "MOD-FX feedback",
                 "type": "basic"
               },
               {
-                "available_when": "mod_fx_has_offset",
                 "id": 123,
                 "name": "Offset",
                 "title": "MOD-FX offset",
@@ -12579,7 +12434,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_sound_only",
                 "id": 36,
                 "name": "Rhythm",
                 "title": "Arp rhythm",
@@ -12592,7 +12446,6 @@
                 "type": "basic"
               },
               {
-                "available_when": "arp_sound_only",
                 "id": 38,
                 "name": "Sequence Length",
                 "title": "Arp seq length",
@@ -12646,7 +12499,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 45,
             "name": "Gate Spread",
             "title": "Arp gate spread",
@@ -12659,7 +12511,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_sound_only",
             "id": 47,
             "name": "Octave Spread",
             "title": "Arp octa spread",
@@ -12672,7 +12523,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_global_param",
             "id": 49,
             "name": "Velocity Spread",
             "title": "Velocity spread",
@@ -12685,7 +12535,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 51,
             "name": "Ratchet Amount",
             "title": "Arp ratc amount",
@@ -12698,7 +12547,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 53,
             "name": "Ratchet Probability",
             "title": "Arp ratc prob",
@@ -12711,7 +12559,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_kit",
             "id": 55,
             "name": "Chord Polyphony",
             "title": "Arp chord poly",
@@ -12724,7 +12571,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_non_kit",
             "id": 57,
             "name": "Chord Probability",
             "title": "Arp chord prob",
@@ -12737,7 +12583,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_global_param",
             "id": 59,
             "name": "Note Probability",
             "title": "Note prob",
@@ -12750,7 +12595,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 61,
             "name": "Swap Probability",
             "title": "Arp swap prob",
@@ -12763,7 +12607,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 63,
             "name": "Bass Probability",
             "title": "Arp bass prob",
@@ -12776,7 +12619,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_param",
             "id": 65,
             "name": "Glide Probability",
             "title": "Arp glide prob",
@@ -12789,7 +12631,6 @@
             "type": "basic"
           },
           {
-            "available_when": "randomizer_global_param",
             "id": 67,
             "name": "Reverse Probability",
             "title": "Reverse prob",

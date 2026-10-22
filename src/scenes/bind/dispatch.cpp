@@ -13,6 +13,7 @@
 #include "scenes/bind/setting_context.h"
 #include "scenes/bind/slot_reader.h"
 
+#include <algorithm>
 #include <array>
 #include <tuple>
 #include <variant>
@@ -144,10 +145,18 @@ std::optional<ResolvedParam> resolve_param(const Target& target, const project::
 	return ResolvedParam{*address, info, reader, setting_context(*where.chain, where.chain_owner)};
 }
 
+/// Whether @p target's own conditions, beyond its row's, hold in @p context over @p reader.
+bool target_conditions_hold(const Target& target, const engine::SettingContext& context, engine::SettingReader reader) {
+	const auto holds = [&](std::span<const engine::SettingCondition> conditions) {
+		return engine::conditions_hold(conditions, context, reader);
+	};
+	return holds(target.applies_when) && (target.applies_any.empty() || std::ranges::any_of(target.applies_any, holds));
+}
+
 /// Whether @p resolved's param shows: its conditions hold over its owner's rows, and its partner, if any, applies.
 bool param_applies(const Target& target, const ResolvedParam& resolved, const project::Song& model,
                    const Addresses& where, const RuntimeFacts& facts) {
-	if (!engine::conditions_hold(target.applies_when, resolved.context, resolved.reader.reader())) {
+	if (!target_conditions_hold(target, resolved.context, resolved.reader.reader())) {
 		return false;
 	}
 	if (target.shown_with == nullptr) {
@@ -289,12 +298,14 @@ std::optional<View> view(const Target& target, const project::Song& model, const
                          const RuntimeFacts& facts) {
 	if (target.kind == Target::Kind::PARAM) {
 		const std::optional<ResolvedParam> resolved = resolve_param(target, model, where, facts);
-		const std::optional<int32_t> playing = resolved ? facts.param_value(resolved->address) : std::nullopt;
-		if (!playing) {
+		if (!resolved) {
 			return std::nullopt;
 		}
+		// Where the runtime holds the param, the value it plays; where it does not (an owner not yet in the song the
+		// engine runs), the value a new owner starts with. Where it shows is the owner's rows' either way.
+		const int32_t playing = facts.param_value(resolved->address).value_or(resolved->info->default_value);
 		View shown{.applies = param_applies(target, *resolved, model, where, facts),
-		           .value = menu_of(resolved->info->display, *playing)};
+		           .value = menu_of(resolved->info->display, playing)};
 		std::tie(shown.least, shown.greatest) = menu_range(resolved->info->display);
 		return shown;
 	}
@@ -308,7 +319,8 @@ std::optional<View> view(const Target& target, const project::Song& model, const
 	if (!stored || !partner) {
 		return std::nullopt;
 	}
-	View shown{.applies = engine::setting_applies(row, resolved->context, resolved->reader.reader())};
+	View shown{.applies = engine::setting_applies(row, resolved->context, resolved->reader.reader())
+	                      && target_conditions_hold(target, resolved->context, resolved->reader.reader())};
 	if (row.kind == engine::SettingKind::CHOICE) {
 		const Entries entries = entries_of(*resolved, *stored);
 		shown.value = static_cast<int32_t>(entries.current);

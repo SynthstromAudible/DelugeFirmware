@@ -103,7 +103,10 @@ describe bind_param("a param target", ${
 		expect(width.has_value() && width->value == 50 && width->least == 0 && width->greatest == 50).to_be_true();
 		const auto lpf = view(kChainLpf, f.song, kOnSong, f.facts);
 		expect(lpf.has_value() && lpf->value == 0).to_be_true();
-		expect(view(kSoundLpf, f.song, kOnSynth, f.facts).has_value()).to_be_false(); // the engine plays no such param
+		// A param the runtime does not hold shows the value a new owner starts with.
+		const auto unheld = view(kSoundLpf, f.song, kOnSynth, f.facts);
+		const auto* lpf_row = deluge::engine::find_param(deluge::instrument::kParams, kSoundLpf.param);
+		expect(unheld.has_value() && unheld->value == menu_of(lpf_row->display, lpf_row->default_value)).to_be_true();
 	});
 
 	it("applies where its conditions hold over the owner's rows, and where its partner shows", _ {
