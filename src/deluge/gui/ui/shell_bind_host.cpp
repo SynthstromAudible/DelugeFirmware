@@ -36,6 +36,9 @@
 #include "model/project_bridge/patch_cable_words.h"
 #include "model/project_bridge/setting_projection.h"
 #include "model/project_bridge/slot_bridge.h"
+#include "model/sample/sample.h"
+#include "model/sample/sample_recorder.h"
+#include "model/sample/waveform_scan.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_set.h"
@@ -44,9 +47,11 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
+#include "processing/source.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/menu/bind_host.h"
 #include "storage/flash_storage.h"
+#include "storage/multi_range/multisample_range.h"
 
 #include <array>
 #include <string>
@@ -170,6 +175,65 @@ public:
 };
 
 static_assert(kMaxNumPatchCables <= deluge::scenes::bind::kMaxCables);
+
+/// The waveforms of the current song: the sample a sound's source range holds, or an audio clip's (its recorder's
+/// take while it records linearly, as legacy's audio clip view draws it).
+class ShellWaveforms final : public deluge::scenes::services::Waveforms {
+public:
+	[[nodiscard]] std::optional<deluge::scenes::services::WaveformInfo>
+	info(const deluge::scenes::services::WaveformAddress& address) const override {
+		const Resolved at = resolve(address);
+		if (at.sample == nullptr) {
+			return std::nullopt;
+		}
+		return deluge::scenes::services::WaveformInfo{.length_samples = at.sample->lengthInSamples,
+		                                              .sample_rate = at.sample->sampleRate,
+		                                              .channels = at.sample->numChannels,
+		                                              .max_peak_from_zero = at.sample->getMaxPeakFromZero(),
+		                                              .centre = at.sample->getFoundValueCentrePoint(),
+		                                              .span = at.sample->getValueSpan(),
+		                                              .recording = at.recorder != nullptr};
+	}
+	bool peaks(const deluge::scenes::services::WaveformAddress& address, int64_t scroll, uint64_t zoom,
+	           WaveformRenderData& cache, int32_t x_start, int32_t x_end) const override {
+		const Resolved at = resolve(address);
+		return at.sample != nullptr
+		       && deluge::sample::find_peaks_per_col(at.sample, scroll, zoom, &cache, at.recorder, x_start, x_end);
+	}
+
+private:
+	struct Resolved {
+		::Sample* sample{nullptr};
+		::SampleRecorder* recorder{nullptr};
+	};
+	static Resolved resolve(const deluge::scenes::services::WaveformAddress& address) {
+		using Kind = deluge::scenes::services::WaveformAddress::Kind;
+		if (currentSong == nullptr) {
+			return {};
+		}
+		if (address.kind == Kind::AUDIO_CLIP) {
+			::Clip* clip = currentSong->clipForId(address.clip.clip_id);
+			if (clip == nullptr || clip->type != ClipType::AUDIO) {
+				return {};
+			}
+			auto* audio = static_cast<::AudioClip*>(clip);
+			if (audio->getCurrentlyRecordingLinearly()) {
+				return audio->recorder != nullptr ? Resolved{audio->recorder->sample, audio->recorder} : Resolved{};
+			}
+			return {static_cast<::Sample*>(audio->sampleHolder.audioFile)};
+		}
+		::Sound* sound = deluge::bridge::soundAt(*currentSong, address.slot);
+		if (sound == nullptr || address.source >= kNumSources) {
+			return {};
+		}
+		::Source& source = sound->sources[address.source];
+		if (source.ranges.size() <= address.range || source.ranges.currentElementSize() != sizeof(MultisampleRange)) {
+			return {};
+		}
+		auto* range = static_cast<MultisampleRange*>(source.ranges.getElement(address.range));
+		return {static_cast<::Sample*>(range->sampleHolder.audioFile)};
+	}
+};
 
 ShellEditSink& shell_edit_sink() {
 	static ShellEditSink sink;
@@ -581,6 +645,11 @@ bool host_binds(const ::Song& song) {
 
 deluge::scenes::bind::WriteSink& host_write_sink() {
 	return gui::shell_edit_sink();
+}
+
+const deluge::scenes::services::Waveforms& host_waveforms() {
+	static const gui::ShellWaveforms waveforms;
+	return waveforms;
 }
 
 const deluge::scenes::bind::RuntimeFacts& host_runtime_facts() {

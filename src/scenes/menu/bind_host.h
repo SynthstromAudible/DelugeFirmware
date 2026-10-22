@@ -6,6 +6,7 @@
 
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/write_sink.h"
+#include "scenes/services/waveforms.h"
 
 class Song;
 
@@ -18,5 +19,7 @@ bool host_binds(const ::Song& song);
 deluge::scenes::bind::WriteSink& host_write_sink();
 /// @brief The facts a menu needs that the model does not hold, answered from the running app.
 const deluge::scenes::bind::RuntimeFacts& host_runtime_facts();
+/// @brief The waveforms of the song the app plays.
+const deluge::scenes::services::Waveforms& host_waveforms();
 
 } // namespace deluge::scenes::menu
