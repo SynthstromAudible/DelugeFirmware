@@ -226,6 +226,10 @@ Error ResizeAudioClip::apply(Context& ctx) {
 		resize.length(new_length_, old_length_);
 		return Error::NONE;
 	case Kind::NO_STRETCH:
+		// The sample's end moves to whatever length the clip gets, so a length no clip may have is refused whole.
+		if (new_length_ <= 0 || new_length_ > static_cast<int32_t>(kMaxSequenceLength)) {
+			return Error::UNSPECIFIED;
+		}
 		resize.length(new_length_, old_length_);
 		if (const ::Sample* sample = resize.guideSample(); sample != nullptr) {
 			resize.sampleLength(sample, new_length_, oldLength, oldLengthSamples);

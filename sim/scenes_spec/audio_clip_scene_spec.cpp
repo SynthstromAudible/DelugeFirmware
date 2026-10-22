@@ -60,6 +60,7 @@
 
 #include "scenes/audio_clip/audio_clip_scene.h"
 #include "scenes/bind/write_sink.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 #include "scenes/timeline/timeline.h"
@@ -1750,6 +1751,21 @@ describe audio_clip_scene_spec_body(
 		        expect(port == seeded).to_be_true(); // the lengthen undid the shorten
 		        expect(port_steps).to_equal(legacy_steps);
 		        nullifyUIs();
+	        });
+
+	    it(
+	        "refuses a length change without timestretching to no length or past the longest a clip may be", _ {
+		        spec_fixture::QuietAudio quiet;
+		        Rig r;
+		        r.reseed(Sentinel{});
+		        const ModelSnapshot seeded = model_snapshot(r);
+		        bind::WriteSink& sink = deluge::scenes::menu::host_write_sink();
+		        expect(sink.resize_audio_clip(r.address(), bind::ResizeKind::NO_STRETCH, 0, 768)).to_be_false();
+		        expect(model_snapshot(r) == seeded).to_be_true();
+		        expect(sink.resize_audio_clip(r.address(), bind::ResizeKind::NO_STRETCH,
+		                                      static_cast<int32_t>(kMaxSequenceLength) + 1, 768))
+		            .to_be_false();
+		        expect(model_snapshot(r) == seeded).to_be_true();
 	        });
 
 	    it(

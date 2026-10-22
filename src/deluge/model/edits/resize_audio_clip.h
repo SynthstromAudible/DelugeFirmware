@@ -32,8 +32,8 @@ public:
 	    : clip_(clip), kind_(kind), new_length_(new_length), old_length_(old_length) {}
 
 	/// @copydoc Edit::apply
-	/// @return Error::UNSPECIFIED where the clip is not an audio clip of the song, or START or TO_SAMPLE_LENGTH has
-	/// no sample to measure.
+	/// @return Error::UNSPECIFIED where the clip is not an audio clip of the song, START or TO_SAMPLE_LENGTH has no
+	/// sample to measure, or NO_STRETCH asks for no length or more than kMaxSequenceLength.
 	Error apply(Context& ctx) override;
 
 private:

@@ -837,10 +837,9 @@ uint32_t AudioClipScene::change_clip_length(int32_t offset, uint32_t old_length,
 		new_length = right_on_square ? old_length - static_cast<uint32_t>(timeline_.length_chop_amount(end_square))
 		                             : static_cast<uint32_t>(timeline_.pos_from_square(end_square));
 	}
-	// `:275`, `:296`. A length change without timestretching moves the sample's end whatever the clip does
-	// (`audio_clip_view.cpp:820-828`), so its request goes either way.
+	// `:275`, `:296`: only a length a clip may have is asked for.
 	const bool changes = lengthens ? new_length <= static_cast<uint32_t>(kMaxSequenceLength) : new_length > 0;
-	if ((changes || kind == ResizeKind::NO_STRETCH) && sink_ != nullptr) {
+	if (changes && sink_ != nullptr) {
 		(void)sink_->resize_audio_clip(*clip_, kind, static_cast<int32_t>(new_length),
 		                               static_cast<int32_t>(old_length));
 	}
