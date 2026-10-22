@@ -87,6 +87,27 @@ def _sample(base: Path, generator, path: str) -> Path:
     return sample
 
 
+def _alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _remove_abandoned(base: Path) -> None:
+    """Remove the temporary copies in @p base whose writer has exited: a run killed mid-fill leaves them."""
+    for entry in list(base.rglob("*.tmp-*")):
+        pid = entry.name.rsplit(".tmp-", 1)[1].split("-", 1)[0]
+        if pid.isdigit() and not _alive(int(pid)) and entry.exists():
+            if entry.is_dir():
+                shutil.rmtree(entry, ignore_errors=True)
+            else:
+                entry.unlink(missing_ok=True)
+
+
 def _base(cache_root: Path, key: str) -> Path:
     """The key's directory, made on first use; making it removes every other key's."""
     base = cache_root / key
@@ -94,7 +115,7 @@ def _base(cache_root: Path, key: str) -> Path:
         cache_root.mkdir(parents=True, exist_ok=True)
         base.mkdir(exist_ok=True)
         for stale in cache_root.iterdir():
-            if stale.name != key and ".tmp-" not in stale.name:
+            if stale.name != key:
                 shutil.rmtree(stale, ignore_errors=True)
     return base
 
@@ -112,6 +133,7 @@ def card(root: Path, song: str, cache_root: Path | None = None) -> Path:
     final = base / song
     if final.is_dir():
         return final
+    _remove_abandoned(base)
 
     tmp = _temporary(final)
     shutil.rmtree(tmp, ignore_errors=True)

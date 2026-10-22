@@ -768,6 +768,24 @@ class RenderCardCacheTest(unittest.TestCase):
         self.assertEqual(card.parent.name, hashlib.sha256(read).hexdigest()[:16])
         self.assertEqual(self._files(card), self._files(self._generated("RS_STREAM")))
 
+    def test_a_dead_writers_leftovers_are_removed(self):
+        key = self.cache.generator_key(self.REPO)
+        base = self.cache_root / key
+        base.mkdir(parents=True)
+        dead = subprocess.Popen(["true"])
+        dead.wait()
+        leftover = base / f"RS_KIT_FX.tmp-{dead.pid}-1"
+        live = base / f"RS_KIT_DRY.tmp-{os.getpid()}-1"
+        leftover.mkdir()
+        live.mkdir()
+        sample = base / "samples/SAMPLES/RS" / f"A.WAV.tmp-{dead.pid}-1"
+        sample.parent.mkdir(parents=True)
+        sample.write_bytes(b"partial")
+        self.cache.card(self.REPO, "RS_STREAM", self.cache_root)
+        self.assertFalse(leftover.exists())
+        self.assertFalse(sample.exists())
+        self.assertTrue(live.exists())
+
 
 class ChildStderrTest(unittest.TestCase):
     """A test run straight through the runner's output keeps its stderr; a buffered one folds it into its log."""
