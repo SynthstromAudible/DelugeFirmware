@@ -42,6 +42,7 @@
 #include "gui/menu_item/setting_edit.h"
 #include "io/midi/cable_types/usb_hosted.h"
 #include "model/drum/drum.h"
+#include "model/edits/change_effect.h"
 #include "model/edits/learn_mapping.h"
 #include "model/edits/set_chain_view.h"
 #include "model/edits/set_controls.h"
@@ -1246,6 +1247,20 @@ void testChainRecordOwnsState(deluge::edits::Context& ctx) {
 	AudioEngine::retire(audio);
 }
 
+/// A kit an undo removed from the song's lists (kept for a redo, still playing its record) takes a gesture on its
+/// effects, as it did before it played a record.
+void testGestureOnUndoHeldOwner(deluge::edits::Context& ctx) {
+	ParamManagerForTimeline kitParams;
+	Instrument* kitOutput = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
+	auto& kit = *static_cast<Kit*>(kitOutput);
+	ctx.song.addOutput(kitOutput);
+	ctx.song.removeOutputFromMainList(kitOutput); // as an undo of its creation removes it
+	deluge::edits::changeEffect(ctx.song, kit, "lpfMode", deluge::serialization::Value::makeScalar("SVF_Notch"));
+	check(kit.effects().filter.lpf_mode == FilterMode::SVF_NOTCH, "undo-held owner: a gesture still reaches it");
+	ctx.song.addOutput(kitOutput, true); // as its redo puts it back
+	check(deluge::harness::chainIncoherence(ctx.song).empty(), "undo-held owner: put back, it plays its record");
+}
+
 /// A song file that names two kits with one id and two audio tracks with another reads into four records: each host
 /// owner keeps the effects it read, on a record of its own.
 void testTwoHostOwnersOneIdInFile() {
@@ -1434,6 +1449,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	testTwoHostOwnersOneIdInFile();
 	testHostOwnerDestroyedDropsRecord(ctx);
 	testChainRecordOwnsState(ctx);
+	testGestureOnUndoHeldOwner(ctx);
 	testDrumIdsAreUnique(ctx);
 	testRemovalDropsOnlyOwnRecords(ctx);
 	testSetDxPatch(ctx);

@@ -73,6 +73,11 @@ FxChain decodeChain(const deluge::serialization::Value& element, ChainHome home,
 void encodeChain(const FxChain& chain, deluge::serialization::Value& element, int32_t tick_magnitude) {
 	const deluge::effects::EffectStates* states = chain.effects.as<deluge::effects::DelugeEffects>();
 	if (states == nullptr) {
+		// Every chain record is made by binding its owner, which gives it the owner's effects: one without them would
+		// save an owner element with no effects.
+		if constexpr (ALPHA_OR_BETA_VERSION) {
+			FREEZE_WITH_ERROR("E470");
+		}
 		return;
 	}
 	const deluge::effects::Home home =
@@ -138,7 +143,10 @@ std::optional<ChainAddress> chainAddressOf(const ::ModControllableAudio& owner, 
 	}
 	for (const auto& [id, record] : song.project.output_structure.by_id) {
 		if (record.effects && &*record.effects == bound) {
-			return ChainAddress{.kind = ChainAddress::Kind::OUTPUT, .id = id};
+			// An output out of the song's lists (one an undo holds for its redo) plays its record but is not one of
+			// the song's owners: a gesture on it goes to its setters.
+			const ChainAddress address{.kind = ChainAddress::Kind::OUTPUT, .id = id};
+			return chainOwnerAt(address, song) == effectable ? std::optional{address} : std::nullopt;
 		}
 	}
 	return std::nullopt;
