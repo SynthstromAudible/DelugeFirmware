@@ -1218,7 +1218,11 @@ void MenuScene::render_leaf_sync_level(deluge::ui::oled::OledFrame& f, const Nod
 	etl::string<30> buffer;
 	std::string_view text_val;
 	if (st_.edit_int != 0) {
-		syncValueToString(static_cast<uint32_t>(st_.edit_int), buffer, ctx_.song->getInputTickMagnitude());
+		syncValueToString(static_cast<uint32_t>(st_.edit_int), buffer,
+		                  ctx_.model != nullptr
+		                      ? ctx_.model->transport.inside_world_tick_magnitude
+		                            + ctx_.model->transport.inside_world_tick_magnitude_offset_from_bpm
+		                      : 0);
 		text_val = std::string_view{buffer.data(), buffer.size()};
 	}
 	else {

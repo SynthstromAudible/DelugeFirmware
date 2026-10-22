@@ -26,12 +26,12 @@
 #include "scenes/menu/context.h"
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/song.h"
 #include "dsp/reverb/reverb.hpp"
 #include "engine-api/types/sync.h"
 #include "engines/deluge/sound_state.h"
 #include "engines/effects/state.h"
 #include "engines/effects/words.h"
-#include "model/edits/setting_edit.h"
 #include "model/song/song.h"
 #include "modulation/sync.h"
 #include "processing/engines/audio_engine.h"
@@ -100,39 +100,33 @@ void write_stutter(const MenuContext& ctx, std::string_view path, bool on) {
 // SetSetting that projects it onto the engine.
 
 int32_t get_reverb_sidechain_volume(const MenuContext& ctx) {
-	if (ctx.song == nullptr) {
+	if (ctx.model == nullptr) {
 		return 0;
 	}
-	return ctx.song->project.reverb.sidechain_volume / 21474836; // `reverb/sidechain/volume.h`
+	return ctx.model->reverb.sidechain_volume / 21474836; // `reverb/sidechain/volume.h`
 }
 void set_reverb_sidechain_volume(const MenuContext& ctx, int32_t value) {
-	if (ctx.song == nullptr) {
-		return;
-	}
-	deluge::edits::songSettingFor("reverb/compressor/volume",
-	                              deluge::serialization::Value::makeNumber(value * 21474836));
+	bindings::write_song(ctx, "reverb/compressor/volume", value * 21474836);
 }
 
 // The reverb's sidechain is the engine's own (`sidechain::Attack` and its siblings with
 // `is_reverb_sidechain_`), with no affect-entire loop: there is one reverb sidechain, not one per drum.
 
 int32_t get_reverb_sidechain_sync(const MenuContext& ctx) {
-	if (ctx.song == nullptr) {
+	if (ctx.model == nullptr) {
 		return 0;
 	}
 	// The sync type is runtime-only for the reverb; the level is the song's.
-	return sidechain_sync_to_menu(AudioEngine::reverbSidechainSettings.sync_type,
-	                              ctx.song->project.reverb.sidechain_sync);
+	return sidechain_sync_to_menu(AudioEngine::reverbSidechainSettings.sync_type, ctx.model->reverb.sidechain_sync);
 }
 void set_reverb_sidechain_sync(const MenuContext& ctx, int32_t value) {
-	if (ctx.song == nullptr) {
+	if (ctx.sink == nullptr) {
 		return;
 	}
 	// The sync type is the engine's alone; the level is the song's record.
 	AudioEngine::reverbSidechainSettings.sync_type = syncValueToSyncType(value);
-	deluge::edits::songSettingFor(
-	    "reverb/compressor/syncLevel",
-	    deluge::serialization::Value::makeNumber(deluge::engine::index_of(syncValueToSyncLevel(value))));
+	bindings::write_song(ctx, "reverb/compressor/syncLevel",
+	                     static_cast<int32_t>(deluge::engine::index_of(syncValueToSyncLevel(value))));
 }
 
 // ---------------------------------------------------------------------------------------------

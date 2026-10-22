@@ -39,10 +39,9 @@
 #include "scenes/menu/context.h"
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/song.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
-#include "model/edits/arp_setting_for.h"
-#include "model/edits/setting_edit.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/midi_instrument.h"
@@ -102,14 +101,10 @@ const Node& midi_or_cv_root(const MenuContext& ctx) {
 // The song root
 
 int32_t get_swing_interval(const MenuContext& ctx) {
-	return ctx.song != nullptr ? static_cast<int32_t>(ctx.song->project.groove.swing_interval)
-	                           : 0; // `swing/interval.h`
+	return ctx.model != nullptr ? static_cast<int32_t>(ctx.model->groove.swing_interval) : 0; // `swing/interval.h`
 }
 void set_swing_interval(const MenuContext& ctx, int32_t value) {
-	if (ctx.song != nullptr) {
-		deluge::edits::songSettingFor("swingInterval",
-		                              deluge::serialization::Value::makeNumber(value)); // `swing/interval.h`
-	}
+	bindings::write_song(ctx, "swingInterval", value); // `swing/interval.h`
 }
 
 int32_t get_song_threshold_recording(const MenuContext& ctx) {

@@ -29,7 +29,6 @@
 
 #include "definitions_cxx.hpp"
 #include "model/drum/drum.h"
-#include "model/edits/arp_setting_for.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
 #include "modulation/arpeggiator.h"

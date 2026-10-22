@@ -20,6 +20,7 @@
 
 #include "scenes/menu/nodes/scales.h"
 
+#include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/profile.h"
@@ -29,12 +30,13 @@
 
 #include "gfx/oled/icons.h"
 
-#include "model/edits/setting_edit.h"
+#include "deluge-project/song.h"
 #include "model/scale/preset_scales.h"
 #include "model/song/song.h"
 #include "storage/flash_storage.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -60,6 +62,19 @@ size_t depth_of(const MenuState& state) {
 	return state.depth < kMenuDepth ? state.depth : 0;
 }
 
+/// @brief The song's row for preset scale @p index's toggle, "scales/disabled/<index>". Built once, so the request's
+///        path outlives it.
+std::string_view disabled_path(size_t index) {
+	static const std::array<std::string, kScaleRows> paths = [] {
+		std::array<std::string, kScaleRows> out;
+		for (size_t i = 0; i < kScaleRows; i++) {
+			out[i] = "scales/disabled/" + std::to_string(i);
+		}
+		return out;
+	}();
+	return paths[index];
+}
+
 /// @brief The node on screen, so the item can draw its own title and name itself as the write's
 ///        target. The helper `dynamic.cpp` and `settings.cpp` keep.
 const Node* focused_of(const MenuState& state) {
@@ -79,8 +94,8 @@ bool ActiveScalesItem::is_disabled(const MenuContext& ctx, size_t index) const {
 	if (set_ == ScaleSet::Default) {
 		return FlashStorage::defaultDisabledPresetScales[index];
 	}
-	if (ctx.song != nullptr) {
-		return ctx.song->project.scale.disabled_preset_scales[index];
+	if (ctx.model != nullptr) {
+		return ctx.model->scale.disabled_preset_scales[index];
 	}
 	return false;
 }
@@ -95,9 +110,8 @@ void ActiveScalesItem::set_disabled(const MenuContext& ctx, size_t index, bool v
 	if (set_ == ScaleSet::Default) {
 		FlashStorage::defaultDisabledPresetScales[index] = value;
 	}
-	else if (ctx.song != nullptr) {
-		deluge::edits::songSettingFor("scales/disabled/" + std::to_string(index),
-		                              deluge::serialization::Value::makeNumber(value ? 1 : 0));
+	else {
+		bindings::write_song(ctx, disabled_path(index), value ? 1 : 0);
 	}
 }
 

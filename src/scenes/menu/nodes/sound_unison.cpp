@@ -24,7 +24,6 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 
-#include "model/edits/setting_edit.h"
 #include "processing/sound/sound.h"
 #include "serialization/value.h"
 

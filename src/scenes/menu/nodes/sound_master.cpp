@@ -26,7 +26,6 @@
 
 #include "definitions_cxx.hpp"
 #include "engines/deluge/words.h"
-#include "model/edits/setting_edit.h"
 #include "processing/sound/sound.h"
 #include "serialization/value.h"
 

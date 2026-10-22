@@ -129,6 +129,13 @@ size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_vie
 ///         param.
 ParamDescriptor learn_target(const Node& node, const MenuContext& ctx);
 
+/// @brief Write the song's row @p path to @p value (its menu value) through @p ctx's sink: a SONG request. A
+///        context with no sink -- a song the app does not play -- writes nothing.
+/// @param ctx   What is being edited.
+/// @param path  The row, which outlives the call.
+/// @param value The menu value.
+void write_song(const MenuContext& ctx, std::string_view path, int32_t value);
+
 /// @brief Would a write from @p ctx sweep every `SoundDrum` in the kit?
 ///
 /// Legacy's `currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR &&

@@ -30,12 +30,13 @@
 #include "gui/l10n/strings.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
-#include "model/edits/setting_edit.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "scenes/bind/write_sink.h"
+#include "scenes/menu/bind_host.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -74,6 +75,18 @@ using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
 namespace {
+
+/// @brief Make clip @p clip_id the song's sync-scaling clip (-1 for none): a SONG request to the app's sink, over the
+///        song it plays. Another song's is left alone.
+void write_sync_scaling(::Song* song, int32_t clip_id) {
+	if (song == nullptr || !menu::host_binds(*song)) {
+		return;
+	}
+	(void)menu::host_write_sink().write({.target = {.kind = bind::Target::Kind::MODEL,
+	                                                .path = "syncScalingClip",
+	                                                .group = deluge::project::SettingGroupId::SONG},
+	                                     .menu_value = clip_id});
+}
 
 /// @brief One `l10n::String` as the `uint16_t` `Action::popup_string` carries, exactly as every
 ///        other scene in this tree spells it.
@@ -295,10 +308,10 @@ void GlobalControls::handle_sync_scaling(bool on, const UiContext& ctx, Result& 
 			return;
 		}
 		// The setting's Edit re-derives the tick magnitude and re-syncs the internal ticks.
-		deluge::edits::songSettingFor("syncScalingClip", deluge::serialization::Value::makeNumber(clip->id()));
+		write_sync_scaling(song_, static_cast<int32_t>(clip->id()));
 	}
 	else {
-		deluge::edits::songSettingFor("syncScalingClip", deluge::serialization::Value::makeNumber(-1));
+		write_sync_scaling(song_, -1);
 	}
 
 	actionLogger.deleteAllLogs(); // can't undo past this

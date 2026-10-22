@@ -131,6 +131,16 @@ bool writes_whole_kit(const MenuContext& ctx) {
 	       && ctx.clip != nullptr;
 }
 
+void write_song(const MenuContext& ctx, std::string_view path, int32_t value) {
+	if (ctx.sink == nullptr) {
+		return;
+	}
+	(void)ctx.sink->write({.target = {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+	                                  .path = path,
+	                                  .group = deluge::project::SettingGroupId::SONG},
+	                       .menu_value = value});
+}
+
 bool relevant(const Node& node, const MenuContext& ctx) {
 	if (node.bind.target.valid()) {
 		const std::optional<deluge::scenes::bind::View> shown = target_view(node, ctx);
