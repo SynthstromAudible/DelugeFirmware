@@ -30,6 +30,9 @@ struct EngineId {
 /// @brief The Deluge instrument: today's whole sound pipeline as one engine.
 inline constexpr EngineId kDelugeInstrument{"deluge.instrument"};
 
+/// @brief The Deluge effects: a host owner's (a kit's, an audio track's, the song master's) effect chain.
+inline constexpr EngineId kDelugeEffects{"deluge.effects"};
+
 /// @brief The params the song master, a kit's affect-entire and an audio track share, until each effect declares
 /// its own.
 inline constexpr EngineId kGlobalEffectable{"deluge.global-effectable"};
