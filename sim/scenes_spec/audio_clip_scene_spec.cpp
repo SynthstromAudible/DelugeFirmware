@@ -61,6 +61,8 @@
 #include "scenes/audio_clip/audio_clip_scene.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
+#include "scenes/menu/context.h"
+#include "scenes/menu/relevance.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 #include "scenes/timeline/timeline.h"
@@ -90,6 +92,7 @@
 #include "model/edits/audio_input_for.h"
 #include "model/edits/setting_edit.h"
 #include "model/sample/sample.h"
+#include "model/sample/sample_recorder.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "playback/mode/arrangement.h"
@@ -2234,6 +2237,20 @@ describe audio_clip_scene_spec_body(
 		        expect_grid_has_content(self, r, 64 + 8);
 		        expect_golden(self, "../ui/scenes/audio_clip_pads.state", r.grid());
 		        playbackHandler.playbackState = 0;
+	        });
+
+	    it(
+	        "offers the Waveform item on a clip whose file is loaded, and not while the clip is still recording", _ {
+		        // Legacy tests the clip's own file, which a linear recording has not attached yet.
+		        Rig r;
+		        const deluge::scenes::menu::MenuContext ctx =
+		            deluge::scenes::menu::context_for(*r.f.song, r.f.clip, 0, false, false, false, false);
+		        expect(deluge::scenes::menu::relevance::audio_clip_has_sample(ctx)).to_be_true();
+		        auto* recorder = new SampleRecorder(); // left to the heap: its destructor would free the take
+		        recorder->sample = r.sample;
+		        r.f.clip->recorder = recorder;
+		        expect(deluge::scenes::menu::relevance::audio_clip_has_sample(ctx)).to_be_false();
+		        r.f.clip->recorder = nullptr;
 	        });
     });
 // NOLINTEND(readability-function-cognitive-complexity)

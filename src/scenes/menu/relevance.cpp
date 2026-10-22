@@ -193,13 +193,13 @@ bool audio_source_is_specific(const MenuContext& ctx) {
 }
 
 bool audio_clip_has_sample(const MenuContext& ctx) {
-	// A fact of the card: the clip's file is loaded.
+	// A fact of the card: the clip's file is loaded. A take still being recorded is no file yet.
 	if (!ctx.is_audio_clip || !ctx.addresses.clip || ctx.facts == nullptr) {
 		return false;
 	}
-	return menu::host_waveforms()
-	    .info({.kind = deluge::scenes::services::WaveformAddress::Kind::AUDIO_CLIP, .clip = *ctx.addresses.clip})
-	    .has_value();
+	const std::optional<deluge::scenes::services::WaveformInfo> info = menu::host_waveforms().info(
+	    {.kind = deluge::scenes::services::WaveformAddress::Kind::AUDIO_CLIP, .clip = *ctx.addresses.clip});
+	return info && !info->recording;
 }
 
 bool battery_shown(const MenuContext& /*ctx*/) {

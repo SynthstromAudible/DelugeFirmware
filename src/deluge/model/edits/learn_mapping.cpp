@@ -108,7 +108,8 @@ void velocityCableFor(Context& ctx, project::OwnerId owner, ::Clip& clip, const 
 	                     .id = deluge::bridge::cable_depth(PatchSource::VELOCITY, volume),
 	                     .clip_id = clip.id()},
 	                    cable.defaultVelocityToLevel,
-	                    PatchCable::getDefaultPolarity(PatchSource::VELOCITY)};
+	                    PatchCable::getDefaultPolarity(PatchSource::VELOCITY),
+	                    SetPatchCable::Write::SETUP};
 	(void)deluge::edits::apply(ctx, write);
 }
 

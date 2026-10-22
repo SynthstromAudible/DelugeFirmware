@@ -87,6 +87,7 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
+#include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/edits/learn_mapping.h"
@@ -1737,6 +1738,29 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 			    .to_equal(std::string{"5"});
 		}
 		fixture.song->setCurrentClip(nullptr);
+		currentSong = saved;
+	});
+
+	it("an input learn's velocity cable and bend range record no undo step", _ {
+		// Legacy writes both as a setup write (`setCurrentValueBasicForSetup`): learning is no edit to undo.
+		static spec::SongFixture fixture = spec::make_synth_song();
+		give_active_clip(fixture);
+		Song* const saved = currentSong;
+		currentSong = fixture.song;
+		const CableDefaults defaults{cables().a, 4, 0x18000000, 6};
+		actionLogger.deleteAllLogs();
+
+		LearnRig rig;
+		rig.ml.set_song(fixture.song);
+		rig.ml.begin();
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
+		rig.ml.note_on_received(cables().a, 4, 62, 127);
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), false);
+
+		expect(recorded_velocity_cable(*fixture.song, deluge::project::OwnerId::instrument(*fixture.instrument->id()),
+		                               fixture.clip->id()))
+		    .to_equal(std::optional<int32_t>{0x18000000});
+		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
 		currentSong = saved;
 	});
 
