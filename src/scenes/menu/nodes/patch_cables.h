@@ -35,7 +35,7 @@
 /// @note **The last-but-two edge closes a genuine cycle**, and it is legacy's, not an artefact of
 ///       the port: from the range-strength page a select press goes back to the range source
 ///       picker, whose own select press returns to the strength page. It is the first cyclic chain
-///       in the tree, so `deluge_menu_dump` grew the `"ref"` stub its own `fail_on_chain_cycle`
+///       in the tree, so the menu dump grew the `"ref"` stub its own `fail_on_chain_cycle`
 ///       comment had been asking for (`menu_dump_main.cpp`). `assign_node_ids` and `validate.cpp`
 ///       already survived a cycle (both stop at a node they have seen).
 ///

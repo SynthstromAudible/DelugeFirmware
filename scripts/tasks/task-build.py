@@ -211,8 +211,13 @@ def stage_artifacts(root: Path, config: str) -> int:
 
     out_dir = root / BUILD_DIR / config
     out_dir.mkdir(parents=True, exist_ok=True)
+    # The previous build's outputs go first: a staging that fails below must not leave them beside
+    # an ELF that does not match them.
+    for suffix in (".elf", ".bin", ".hex", ".nmdump"):
+        (out_dir / f"deluge{suffix}").unlink(missing_ok=True)
     elf = out_dir / "deluge.elf"
-    shutil.copy2(src_elf, elf)
+    staging = out_dir / "deluge.elf.staging"
+    shutil.copy2(src_elf, staging)
 
     gcc_bin = root / "toolchain/current/arm-none-eabi-gcc/bin"
     objcopy = gcc_bin / "arm-none-eabi-objcopy"
@@ -220,7 +225,8 @@ def stage_artifacts(root: Path, config: str) -> int:
 
     # The SDRAM content's load copy is written here, after the link (sdram_pack.py); the image
     # derived below carries it, and the boot cannot start without it.
-    packed = sdram_pack.pack_elf(elf, objcopy)
+    packed = sdram_pack.pack_elf(staging, objcopy)
+    staging.replace(elf)
     print(
         f"Packed .sdram_init: {packed.raw} B -> {packed.packed} B "
         f"(of {packed.reserve} B reserved)"

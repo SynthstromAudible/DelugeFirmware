@@ -41,9 +41,6 @@ pub const RUST_SDRAM_BASE: usize = SDRAM_BASE + SDRAM_SIZE - RUST_SDRAM_RESERVE;
 /// # Safety
 ///
 /// Call exactly once, after SDRAM is initialised and before any code reads SDRAM-resident globals.
-// Never inlined: it is linked into the boot-only tail of the image (`.boot_text` in
-// `linker/sdram_sections.x`), which the heap takes back once it has run.
-#[inline(never)]
 pub unsafe fn init_sdram_memory() {
     unsafe {
         zero(

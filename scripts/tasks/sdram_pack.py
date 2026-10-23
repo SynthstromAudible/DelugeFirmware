@@ -93,6 +93,5 @@ def pack_elf(elf: Path, objcopy: Path) -> PackResult:
             raise ValueError(
                 "sdram_pack: the pack written into the ELF does not inflate to .sdram_init"
             )
-    return PackResult(
-        raw=len(raw), packed=HEADER.size + len(zlib.compress(raw, 9)), reserve=reserve
-    )
+    _, stream_len = HEADER.unpack_from(packed)
+    return PackResult(raw=len(raw), packed=HEADER.size + stream_len, reserve=reserve)

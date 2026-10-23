@@ -19,7 +19,7 @@
 ///       on the way into `source1Menu` (legacy did it in `submenu::ActualSource::beginSession` ->
 ///       `SoundEditor::setCurrentSource`, `sound_editor.cpp:242`), so the field would still say 0.
 ///
-/// @note **`name_of`** exists for Task 10's `deluge_menu_dump`, which has to print *which*
+/// @note **`name_of`** exists for Task 10's menu dump, which has to print *which*
 ///       predicate guards a node, and for the specs, which assert the registry covers every
 ///       predicate this header declares.
 

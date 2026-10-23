@@ -93,7 +93,7 @@ namespace {
 /// the ported menu, which nothing opens while the toggle is off (`openShellMenu`,
 /// `gui/ui/shell_menu_entry.cpp`). It reads nothing, calls nothing else, touches no legacy state and
 /// cannot fail. With the toggle off it is a store to a byte no one loads.
-void syncEditingModeMirror([[maybe_unused]] const PerformanceView& v) {
+void syncEditingModeMirror(const PerformanceView& v) {
 	PerformanceEditingMode mode = PerformanceEditingMode::DISABLED;
 	if (v.defaultEditingMode) {
 		mode = v.editingParam ? PerformanceEditingMode::PARAM : PerformanceEditingMode::VALUE;

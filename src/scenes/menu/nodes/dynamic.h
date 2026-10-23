@@ -24,7 +24,7 @@
 ///           list that a hook could decide that the table cannot.
 ///
 ///       So all three are `CustomItem`s that draw their own list, which is also what legacy does.
-///       `deluge_menu_dump`'s fail-closed arm for `dynamic_children` therefore stays exactly as
+///       The menu dump's fail-closed arm for `dynamic_children` therefore stays exactly as
 ///       Task 9 left it: there is still no real case to design its JSON shape against, and
 ///       inventing one unexercised is the mistake that arm exists to prevent.
 ///

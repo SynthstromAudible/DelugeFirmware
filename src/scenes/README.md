@@ -5,7 +5,7 @@ spec E of the UI stack redesign). E1 is complete as of the twelve tasks of
 `docs/superpowers/plans/2026-08-27-ui-scenes-menus-1.md`: the library target and the shared CppSpec
 CMake module, the l10n bridge and `scenes::deluge_profile()`, the declarative `Node` tree with all
 ten root tables, `MenuContext` resolution, `bindings::read`/`write`, the `MenuScene` interpreter,
-the shortcut tables, the validator, the node-id registry and `deluge_menu_dump`.
+the shortcut tables, the validator, the node-id registry and the menu dump.
 
 E2 is complete as of the thirteen tasks of `docs/superpowers/plans/2026-08-30-ui-scenes-menus-2.md`:
 every remaining legacy menu item that needs no card access now has a real implementation behind it.
@@ -452,7 +452,7 @@ argument in the header rather than by a test, which is why the argument is writt
 
 Every `Node::relevant` predicate is a plain `bool(const MenuContext&)` function pointer — no
 virtual dispatch, no per-node closure. `relevance::name_of(RelevantFn)` is the reverse lookup Task
-10's `deluge_menu_dump` needs to print *which* predicate a node uses (not just that it has one): a
+10's menu dump needs to print *which* predicate a node uses (not just that it has one): a
 table of `{predicate, name}` rows, guarded by a `static_assert` on the row count so adding a
 predicate without adding its row is a build failure rather than a dump that silently prints `"?"`.
 `name_of(nullptr)` answers `"always"` — a node with no `relevant` hook is unconditionally relevant.
@@ -511,9 +511,9 @@ edit could silently repoint. Only statically-declared children (`Node::children`
 `dynamic_children` node's children are never reachable here and are never addressable by id (see
 the dump's own fail-closed behaviour below for the same limitation from another angle).
 
-### The dump and its CI diff (`menu/menu_dump_main.cpp`, `deluge_menu_dump`)
+### The dump and its CI diff (`tests/integration/scenarios/menu_dump.cpp`)
 
-`deluge_menu_dump` is a headless host tool (`sim/CMakeLists.txt`, no hardware) that walks the tree
+The menu dump is golden_vt_render's `menu_dump` scenario, host-only and outside this library, that walks the tree
 under every `MenuContext::Root` and prints it as JSON, close to but not identical to the retired
 Python DSL's (`gui/menu_item/generate`, `dmui/visitor/doc_emitter.py`) schema: every entry's
 `"description"` key is **structurally absent**, not present-but-empty (`Node` carries no such
@@ -526,7 +526,7 @@ selectors, the three the plan expected, are all self-drawing `CustomItem`s
 (`menu/nodes/dynamic.h`), because a submenu row is labelled from one static l10n string id and a
 device row's label is a runtime string. The count is pinned at zero by a spec, so the arm still
 guards a case nothing produces. `scripts/menu_dump_check.sh`
-is the CI regression net: it rebuilds `deluge_menu_dump`, regenerates
+is the CI regression net: it runs the dump, regenerates
 `website/src/data/generated/menu-tree.json` from its output, and fails loudly if that changes
 anything already committed — i.e. the declarative tree drifted from the JSON a `.state` golden's
 `app16/<id>` entries are meant to resolve against. Run it locally after configuring `build-sim`
@@ -1544,7 +1544,7 @@ brightness, screensaver suppression, canvas flags, sticky shift);
 **`selectButtonPress()` chaining is now ported** (E2 task 3) as `Node::select_chain` plus
 `Node::chain_targets` — a hook that names the menu a select press opens (null = "ascend", legacy's
 own spelling) and a static span of every node that hook may return, which is what lets
-`assign_node_ids`, `validate_tree` and `deluge_menu_dump` reach the seven pages no children span
+`assign_node_ids`, `validate_tree` and the menu dump reach the seven pages no children span
 names. Six of the eight rows in the design spec's sweep are implemented: `arp_preset` →
 `arpOctaveModeToNoteModeMenu`, or its drum twin on a kit row, when the preset is CUSTOM
 (`arpeggiator/preset_mode.h:109-118`); `arpOctaveModeToNoteMode` / its drum twin → the note mode
@@ -1575,7 +1575,7 @@ That task also declared the rest of the patch-cable graph — `patch_cable_stren
 gave `patch_cables` (MOD MATRIX), `vibrato` and `sidechain_volume` their real items. Two consequences
 worth knowing: the strength/range pair is the tree's **first cyclic chain** (legacy's own — from the
 range-strength page a select press goes back to the range source picker and straight back again), so
-`deluge_menu_dump` grew the `"ref"` stub its `fail_on_chain_cycle` comment had been asking for; and
+The menu dump grew the `"ref"` stub its `fail_on_chain_cycle` comment had been asking for; and
 `MenuScene::enter_child` now *acts* on `Permission::MustSelectRange` by descending into the picker,
 which is legacy's `multiRangeMenu.menuItemHeadingTo` substitution (`sound_editor.cpp:1857-1858`).
 

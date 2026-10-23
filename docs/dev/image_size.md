@@ -117,18 +117,19 @@ addresses.
 Linking `deluge_ui_shell`, `deluge_scenes`, `deluge_scenes_bind` and the `gui/ui/shell_*` guest beside the legacy
 menu, measured on `RelWithDebInfo`:
 
-| | Before (`f882c6678`) | After (`e4efe0ab7`) |
+| | Before (`f882c6678`) | After |
 |---|---:|---:|
-| SRAM heap | 264,784 B | **134,800 B** |
-| `.text` | 1,615,676 B | 1,790,816 B |
+| SRAM heap | 264,784 B | **127,088 B** |
+| `.text` | 1,615,676 B | 1,798,528 B |
 | `.rodata` | 509,052 B | 442,956 B |
 | `.bss` | 327,380 B | 327,876 B |
 | `.ARM.extab` + `.ARM.exidx` | 130,192 B | 146,612 B |
-| `.sdram_init` (image: its pack) | 72,612 B (72,612 B) | 269,556 B (27,558 B in a 33,950 B reserve) |
+| `.sdram_init` (image: its pack) | 72,612 B (72,612 B) | 269,556 B (27,668 B in a 33,950 B reserve) |
 
 - The SDRAM content's load copy is deflated (`scripts/tasks/sdram_pack.py`, at staging) and inflated at boot
-  (`miniz_oxide`, no allocator). The inflate code is linked into `.boot_text` in the boot-only tail (7,428 B), so it
-  costs nothing in steady state; its tables (about 1.8 KB of anonymous `.rodata`) stay in SRAM.
+  (`miniz_oxide`, no allocator, about 9 KB of SRAM text and tables). The inflate code stays in `.text`: in the reclaimed
+  tail, `--icf=safe` would fold other crates' identical functions onto its copies, and their callers would run heap
+  memory.
 - In `.sdram_init`: the scenes' menu node and cell tables (118,795 B, `deluge::scenes::menu`, ASSERTed over 64 KB), the
   legacy menu items' vtables (74 KB) and the scenes'. In `.sdram_bss`: `shellHostUI` (25.7 KB) and the scenes'
   statics (13 KB). The UI tier alone reads any of them.

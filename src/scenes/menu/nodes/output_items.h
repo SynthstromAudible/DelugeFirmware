@@ -59,7 +59,7 @@
 ///     the `CustomItem::row_icon` hook this needed (`scenes/menu/node.h`) and
 ///     `MidiDeviceLinkedItem::row_icon` below answers it with the box, so the row is no longer
 ///     write-only from the user's side. The node still stays `Kind::Custom`, because the committed
-///     `deluge_menu_dump` JSON carries the node's type. **The second text row is still owed**:
+///     menu-dump JSON carries the node's type. **The second text row is still owed**:
 ///     `ui::oled::ListRow` carries one label and one icon (`ui/oled/list.h`), and a second line of
 ///     text under a row is a `list` change rather than an item's.
 ///   * **`on_focus` toggles, so a *restore* toggles too.** `MenuScene::restore_state` re-runs

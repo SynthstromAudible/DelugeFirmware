@@ -2,7 +2,7 @@
 
 /// @brief The stable node-id registry (ruling Q7): `SceneId::arg` is a stable node id, not a
 ///        pointer -- `MenuScene::on_enter` resolves it through `node_by_id`, `validate_tree`
-///        (Task 6) calls `assign_node_ids` before its checks, and `deluge_menu_dump` (Task 10)
+///        (Task 6) calls `assign_node_ids` before its checks, and the menu dump (Task 10)
 ///        emits the ids it produces.
 #include "scenes/menu/node.h"
 

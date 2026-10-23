@@ -19,7 +19,7 @@
 /// `Node::chain_targets` is therefore `nodes::kRangeDependentNodes`: the only nodes that can ever
 /// set `pending_after_range` are the ones `permission_for`'s range rule fires on, i.e. exactly the
 /// nodes carrying `Node::range_dependent` (`nodes/nodes.h`, ten of them). That span is also what
-/// makes this page *reachable* for `assign_node_ids` / `validate_tree` / `deluge_menu_dump`, which
+/// makes this page *reachable* for `assign_node_ids` / `validate_tree` / the menu dump, which
 /// walk `children` and `chain_targets` -- see `nodes.h`, where the page joins `kAllRoots` for the
 /// same reason `root_cv` did.
 ///

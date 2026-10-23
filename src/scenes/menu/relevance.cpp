@@ -229,7 +229,7 @@ bool is_session_view(const MenuContext& ctx) {
 // **The sixteen `nodes::relevant_*_iterance_step_*` rows below are the one exception to "declared
 // in `relevance.h`".** They are `scenes/menu/nodes/note.h`'s (spec E-note-family task 5), not this
 // header's, but `name_of` is the only mechanism that turns a `RelevantFn` into a printable name --
-// `deluge_menu_dump`'s "available_when" field calls it on every node's `relevant`, note family
+// The menu dump's "available_when" field calls it on every node's `relevant`, note family
 // included -- and an unregistered predicate there prints `"?"`, not silence: fix round 1 caught
 // sixteen `"?"` entries in the committed dump this way
 // (`website/src/data/generated/menu-tree.json`) that no *running* spec had noticed, because

@@ -7,9 +7,9 @@
  *
  * The SRAM heap (region 1) is rza1-rt's link.x's [__sram_heap_start, __sram_heap_end).
  *
- * Loadable SDRAM content (.sdram_init) gets a VMA in SDRAM but an LMA in SRAM (`> SDRAM AT> RAM`),
- * since the debugger can't write SDRAM at download; the Rust boot copies it after Board::new.
- * NOLOAD bss is zeroed by the boot.
+ * Initialised SDRAM content (.sdram_init) is linked at its SDRAM address only; the image carries it
+ * deflated in .sdram_init_pack, written by the build's staging, since the debugger can't write
+ * SDRAM at download. The Rust boot inflates it after Board::new. NOLOAD bss is zeroed by the boot.
  *
  * An input section goes to the FIRST output section whose pattern matches it, in command-line
  * script order and before the INSERTs are applied. rza1-rt's link.x's `.bss` takes every `.bss.*` and its
@@ -44,7 +44,9 @@ SECTIONS {
         /* The scenes' statics: the menu's node-id tables, the scene singletons and their buffers,
          * which the UI tier alone touches, after the boot has zeroed this region. Matched by the
          * `deluge::scenes` namespace in the mangled name. */
+        __scenes_bss_start = .;
         *(.bss.*6deluge6scenes*)
+        __scenes_bss_end = .;
         __sdram_bss_end = .;
     } > SDRAM
 } INSERT BEFORE .bss;
@@ -97,8 +99,10 @@ SECTIONS {
         __scenes_menu_tables_end = .;
         /* The menus' vtables: the legacy menu items' and the scenes'. Virtual calls on a menu item
          * or a scene come from the UI tier only. */
+        __menu_vtables_start = .;
         *(.rodata._ZTV*9menu_item*)
         *(.rodata._ZTV*6deluge6scenes*)
+        __menu_vtables_end = .;
         PROVIDE(__sdram_init_end = .);
     } > SDRAM
 
@@ -110,15 +114,6 @@ SECTIONS {
         BYTE(0)
         . = __sdram_init_pack_start + SIZEOF(.sdram_init) / 8 + 256;
         __sdram_init_pack_end = .;
-    } > RAM
-
-    /* The code that inflates it (boot_mem.rs, sdram_pack.rs and the inflate crate it calls), run
-     * once before the heap exists: it is part of the tail the heap takes back. */
-    .boot_text : ALIGN(4) {
-        *(.text.*8boot_mem*)
-        *(.text.*10sdram_pack*)
-        *(.text.*11miniz_oxide*)
-        *(.rodata.*11miniz_oxide*)
     } > RAM
 
     /* The end of all static SDRAM content, where the SDRAM heap starts. `.sdram_bss` precedes
@@ -146,4 +141,11 @@ SECTIONS {
      * matches them and they sit in SRAM's .rodata. */
     ASSERT(__scenes_menu_tables_end - __scenes_menu_tables_start > 65536,
            "sdram_sections.x: the scenes' menu tables fell back to SRAM (no deluge::scenes::menu data in .sdram_init)")
+
+    /* The menus' vtables are about 75 KB and the scenes' statics about 13 KB; far less means a
+     * rename stopped the patterns matching them. */
+    ASSERT(__menu_vtables_end - __menu_vtables_start > 49152,
+           "sdram_sections.x: the menus' vtables fell back to SRAM (no menu_item or deluge::scenes vtables in .sdram_init)")
+    ASSERT(__scenes_bss_end - __scenes_bss_start > 8192,
+           "sdram_sections.x: the scenes' statics fell back to SRAM (no deluge::scenes .bss in .sdram_bss)")
 } INSERT AFTER .ARM.exidx;

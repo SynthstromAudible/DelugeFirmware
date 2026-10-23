@@ -667,7 +667,7 @@ struct Node {
 	/// **Why a span beside the hook, rather than the hook alone.** `select_chain` is a function of a
 	/// live `MenuContext`, so nothing that walks the tree ahead of time can call it -- and the tree
 	/// *is* walked ahead of time, three times: `assign_node_ids` numbers it, `validate_tree` checks
-	/// it, and `deluge_menu_dump` prints it. Legacy has four pages that no submenu literal names at
+	/// it, and the menu dump prints it. Legacy has four pages that no submenu literal names at
 	/// all and that a chain is the *only* way to reach (`arpOctaveModeToNoteModeMenu` and its three
 	/// relatives, `menus.cpp:511-521`), plus three more under the settings root (`cvSubmenu`,
 	/// `gateModeMenu`, `gateOffTimeMenu`). Without a static spelling of "these are the possible
