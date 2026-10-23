@@ -127,6 +127,9 @@ mod ffi_extra;
 #[cfg(feature = "host_app")]
 mod host_link_stubs;
 pub mod scheduler;
+// The boot's inflate of the SDRAM content (boot_mem); on the host only its tests use it.
+#[cfg_attr(not(target_os = "none"), allow(dead_code))]
+mod sdram_pack;
 mod services;
 /// The emulator's panel, plugged into deluge-bsp's host-panel hook.
 #[cfg(feature = "sim")]

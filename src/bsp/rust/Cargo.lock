@@ -1296,6 +1296,7 @@ dependencies = [
  "env_logger",
  "heapless 0.8.0",
  "log",
+ "miniz_oxide 0.8.9",
  "rtt-target",
  "rza1-alloc",
  "rza1l-hal",

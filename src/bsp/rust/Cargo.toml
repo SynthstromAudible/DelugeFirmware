@@ -24,6 +24,8 @@ embassy-futures = "0.1.2"
 log = "0.4"
 rtt-target = { version = "0.6", features = ["log"], optional = true }
 heapless = { version = "0.8", default-features = false }
+# The boot's inflate of the SDRAM content (sdram_pack.rs): no allocator.
+miniz_oxide = { version = "0.8.9", default-features = false }
 
 # The header decoder the audio loader walks headers through, and whose C ABI the app calls.
 deluge_audio_format = { path = "../../../crates/deluge_audio_format" }

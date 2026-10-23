@@ -61,13 +61,16 @@ SECTIONS {
 
 /* ---- The image's tail: what only the boot reads ----
  *
- * The SDRAM content's load copy and the C++ constructor list end the image, after .ARM.exidx. The
- * boot copies the one to SDRAM and runs the other (boot_mem.rs) before the app creates its heaps,
- * and neither is read again, so the SRAM heap starts where this tail does (`__sram_heap_base`,
- * which rza1-rt's link.x honours). Placing them here also keeps the vector table the image's first
- * loadable byte, where the bootloader reads its header. */
+ * The SDRAM content's load copy, compressed, and the C++ constructor list end the image, after
+ * .ARM.exidx. The boot inflates the one into SDRAM and runs the other (boot_mem.rs) before the app
+ * creates its heaps, and neither is read again, so the SRAM heap starts where this tail does
+ * (`__sram_heap_base`, which rza1-rt's link.x honours). Placing them here also keeps the vector
+ * table the image's first loadable byte, where the bootloader reads its header. */
 SECTIONS {
-    /* Initialised SDRAM content: VMA in SDRAM, LMA in SRAM (copied at boot). */
+    /* Initialised SDRAM content, linked at its SDRAM address only: the ELF carries the bytes, the
+     * image carries them deflated in .sdram_init_pack below. The build's staging
+     * (scripts/tasks/sdram_pack.py) packs them and makes this section no-load, so neither the image
+     * nor a debugger's load writes SDRAM before the boot has started it. */
     .sdram_init : ALIGN(16) {
         PROVIDE(__sdram_init_start = .);
         *(.sdram_text .sdram_text*)
@@ -83,8 +86,25 @@ SECTIONS {
         *(.rodata.*11menu_tables*)
         __menu_tables_end = .;
         PROVIDE(__sdram_init_end = .);
-    } > SDRAM AT> RAM
-    PROVIDE(__sdram_init_lma = LOADADDR(.sdram_init));
+    } > SDRAM
+
+    /* The deflated load copy, reserved zero-filled at a quarter of the content (the setting tables
+     * deflate to about a tenth) and written after the link; the staging fails when it does not fit. */
+    .sdram_init_pack : ALIGN(16) {
+        __sdram_init_pack_start = .;
+        BYTE(0)
+        . = __sdram_init_pack_start + SIZEOF(.sdram_init) / 4 + 256;
+        __sdram_init_pack_end = .;
+    } > RAM
+
+    /* The code that inflates it (boot_mem.rs, sdram_pack.rs and the inflate crate it calls), run
+     * once before the heap exists: it is part of the tail the heap takes back. */
+    .boot_text : ALIGN(4) {
+        *(.text.*8boot_mem*)
+        *(.text.*10sdram_pack*)
+        *(.text.*11miniz_oxide*)
+        *(.rodata.*11miniz_oxide*)
+    } > RAM
 
     /* The end of all static SDRAM content, where the SDRAM heap starts. `.sdram_bss` precedes
      * `.sdram_init` in the region, but neither the boot nor the heap relies on which comes first. */
@@ -100,7 +120,7 @@ SECTIONS {
         PROVIDE(__init_array_end = .);
     } > RAM
 
-    __sram_heap_base = ALIGN(__sdram_init_lma, 16);
+    __sram_heap_base = ALIGN(__sdram_init_pack_start, 16);
 
     /* The setting tables are about 16 KB: far less here means the pattern above no longer
      * matches them and they sit in SRAM's .rodata. */

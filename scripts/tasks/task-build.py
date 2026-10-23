@@ -28,6 +28,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+import sdram_pack
 import util
 
 # The C++ targets the Rust build script archives + links (mirrors its panic message).
@@ -213,6 +214,14 @@ def stage_artifacts(root: Path, config: str) -> int:
     gcc_bin = root / "toolchain/current/arm-none-eabi-gcc/bin"
     objcopy = gcc_bin / "arm-none-eabi-objcopy"
     nm = gcc_bin / "arm-none-eabi-nm"
+
+    # The SDRAM content's load copy is written here, after the link (sdram_pack.py); the image
+    # derived below carries it, and the boot cannot start without it.
+    packed = sdram_pack.pack_elf(elf, objcopy)
+    print(
+        f"Packed .sdram_init: {packed.raw} B -> {packed.packed} B "
+        f"(of {packed.reserve} B reserved)"
+    )
 
     for fmt, suffix in (("binary", ".bin"), ("ihex", ".hex")):
         result = util.run(
