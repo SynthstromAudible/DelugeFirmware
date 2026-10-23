@@ -38,8 +38,9 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/edit.h"
-#include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
+#include "model/project_bridge/param_ids.h"
+#include "model/project_bridge/param_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "playback/mode/arrangement.h"
@@ -103,6 +104,29 @@ void syncEditingModeMirror([[maybe_unused]] const PerformanceView& v) {
 	}
 	deluge::scenes::menu::set_performance_editing_mode(mode);
 #endif
+}
+
+/// Are the gold knobs on the song, which the performance view's columns act on?
+bool knobsOnSong() {
+	return std::holds_alternative<deluge::project::SongFocus>(view.knobFocus().owner);
+}
+
+/// @p paramID of @p kind's name, as the song's filter modes name it.
+char const* songParamName(params::Kind kind, int32_t paramID) {
+	const deluge::effects::FilterState& filter = currentSong->live.global_effectable.effects().filter;
+	return params::getParamDisplayName(kind, paramID, filter.lpf_mode, filter.hpf_mode);
+}
+
+/// Is @p paramID of @p kind the song's stutter rate, quantized?
+bool isSongQuantizedStutter(params::Kind kind, int32_t paramID) {
+	return knobsOnSong() && (kind == params::Kind::UNPATCHED_GLOBAL || kind == params::Kind::UNPATCHED_SOUND)
+	       && paramID == params::UNPATCHED_STUTTER_RATE
+	       && currentSong->live.global_effectable.effects().stutter.quantized;
+}
+
+/// Begin, or end, the song's stutter.
+void songStutter(bool begin) {
+	(void)deluge::bridge::stutterAt(*currentSong, {.owner = deluge::project::OwnerId::song()}, begin);
 }
 
 } // namespace
@@ -590,8 +614,7 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 	if (editingParam) {
 		// display parameter name
 		char parameterName[30];
-		strncpy(parameterName,
-		        getParamDisplayName(paramKind, paramID, (ModControllableAudio*)View::KnobStack{view}.owner()), 29);
+		strncpy(parameterName, songParamName(paramKind, paramID), 29);
 		{
 			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 			deluge::hid::display::OLED::clearMainImage();
@@ -615,8 +638,7 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 
 			// display parameter name
 			char parameterName[30];
-			strncpy(parameterName,
-			        getParamDisplayName(paramKind, paramID, (ModControllableAudio*)View::KnobStack{view}.owner()), 29);
+			strncpy(parameterName, songParamName(paramKind, paramID), 29);
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
@@ -628,8 +650,7 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 			// display parameter value
 			yPos = yPos + 24;
 
-			if (params::isParamQuantizedStutter(paramKind, paramID,
-			                                    (ModControllableAudio*)View::KnobStack{view}.owner())) {
+			if (isSongQuantizedStutter(paramKind, paramID)) {
 				char const* buffer;
 				if (knobPos < -39) { // 4ths stutter: no leds turned on
 					buffer = "4ths";
@@ -1427,13 +1448,12 @@ bool PerformanceView::setParameterValue(ModelStackWithThreeMainThings* modelStac
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
-		if (modelStackWithParam->getTimelineCounter() == View::KnobStack{view}.counter()) {
+		if (knobsOnSong()) {
 
 			// if switching to a new pad in the stutter column and stuttering is already active
 			// e.g. it means a pad was held before, end previous stutter before starting stutter again
 			if (params::isParamStutter(paramKind, paramID) && (isUIModeActive(UI_MODE_STUTTERING))) {
-				((ModControllableAudio*)View::KnobStack{view}.owner())
-				    ->endStutter((ParamManagerForTimeline*)View::KnobStack{view}.params());
+				songStutter(false);
 			}
 
 			if (fxPress[xDisplay].previousKnobPosition == kNoSelection) {
@@ -1447,20 +1467,19 @@ bool PerformanceView::setParameterValue(ModelStackWithThreeMainThings* modelStac
 			    modelStackWithParam->paramCollection->knobPosToParamValue(knobPos, modelStackWithParam);
 
 			deluge::edits::Context editCtx{*currentSong, currentSong->project};
-			deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newParameterValue,
-			                                  static_cast<int32_t>(view.modPos()),
-			                                  static_cast<int32_t>(view.modLength()), modelStackWithParam};
+			deluge::edits::SetParamValue edit{
+			    deluge::bridge::addressOf(deluge::project::OwnerId::song(), modelStackWithParam->kind,
+			                              modelStackWithParam->paramId),
+			    newParameterValue, static_cast<int32_t>(view.modPos()), static_cast<int32_t>(view.modLength())};
 			deluge::edits::apply(editCtx, edit);
 
 			if (!defaultEditingMode && params::isParamStutter(paramKind, paramID)
 			    && (fxPress[xDisplay].previousKnobPosition != knobPos)) {
-				((ModControllableAudio*)View::KnobStack{view}.owner())
-				    ->beginStutter((ParamManagerForTimeline*)View::KnobStack{view}.params());
+				songStutter(true);
 			}
 
 			if (renderDisplay) {
-				if (params::isParamQuantizedStutter(paramKind, paramID,
-				                                    (ModControllableAudio*)View::KnobStack{view}.owner())) {
+				if (isSongQuantizedStutter(paramKind, paramID)) {
 					renderFXDisplay(paramKind, paramID, knobPos);
 				}
 				else {
@@ -1485,15 +1504,14 @@ void PerformanceView::getParameterValue(ModelStackWithThreeMainThings* modelStac
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
-		if (modelStackWithParam->getTimelineCounter() == View::KnobStack{view}.counter()) {
+		if (knobsOnSong()) {
 
 			int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos(), modelStackWithParam);
 
 			int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 
 			if (renderDisplay && (fxPress[xDisplay].currentKnobPosition != knobPos)) {
-				if (params::isParamQuantizedStutter(paramKind, paramID,
-				                                    (ModControllableAudio*)View::KnobStack{view}.owner())) {
+				if (isSongQuantizedStutter(paramKind, paramID)) {
 					renderFXDisplay(paramKind, paramID, knobPos);
 				}
 				else {
@@ -1633,29 +1651,18 @@ void PerformanceView::modEncoderAction(int32_t whichModEncoder, int32_t offset) 
 /// used to reset stutter if it's already active
 void PerformanceView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	// release stutter if it's already active before beginning stutter again
-	if (on) {
-		int32_t modKnobMode = -1;
-		View::KnobStack knobs{view};
-		if (knobs.owner() != nullptr) {
-			uint8_t* modKnobModePointer = knobs.owner()->getModKnobMode();
-			if (modKnobModePointer) {
-				modKnobMode = *modKnobModePointer;
+	// Stutter section: the upper knob of mod button 6
+	if (on && view.getModKnobMode() == 6 && whichModEncoder == 1) {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* modelStack =
+		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-				// Stutter section
-				if ((modKnobMode == 6) && (whichModEncoder == 1)) {
-					char modelStackMemory[MODEL_STACK_MAX_SIZE];
-					ModelStackWithThreeMainThings* modelStack =
-					    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+		releaseStutter(modelStack);
 
-					releaseStutter(modelStack);
+		uiNeedsRendering(this, 0xFFFFFFFF, 0); // refresh main pads only
 
-					uiNeedsRendering(this, 0xFFFFFFFF, 0); // refresh main pads only
-
-					if (onFXDisplay) {
-						renderViewDisplay();
-					}
-				}
-			}
+		if (onFXDisplay) {
+			renderViewDisplay();
 		}
 	}
 	if (isUIModeActive(UI_MODE_STUTTERING) && lastPadPress.isActive
@@ -2032,9 +2039,8 @@ void PerformanceView::loadDefaultLayout() {
 		memcpy(&backupXMLDefaultLayoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay],
 		       sizeof(ParamsForPerformance));
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-			if (params::isParamQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
-			                                    layoutForPerformance[xDisplay].paramID,
-			                                    (ModControllableAudio*)View::KnobStack{view}.owner())) {
+			if (isSongQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
+			                           layoutForPerformance[xDisplay].paramID)) {
 				defaultFXValues[xDisplay][yDisplay] = quantizedStutterPressValues[yDisplay];
 				backupXMLDefaultFXValues[xDisplay][yDisplay] = defaultFXValues[xDisplay][yDisplay];
 			}
@@ -2139,9 +2145,8 @@ void PerformanceView::readDefaultFXRowNumberValuesFromFile(Deserializer& reader,
 					defaultFXValues[xDisplay][yDisplay] = kKnobPosOffset;
 				}
 
-				if (params::isParamQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
-				                                    layoutForPerformance[xDisplay].paramID,
-				                                    (ModControllableAudio*)View::KnobStack{view}.owner())) {
+				if (isSongQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
+				                           layoutForPerformance[xDisplay].paramID)) {
 					defaultFXValues[xDisplay][yDisplay] = quantizedStutterPressValues[yDisplay];
 				}
 
