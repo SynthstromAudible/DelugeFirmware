@@ -94,6 +94,18 @@ private:
 	std::string name_;
 };
 
+/// @brief A knobs' service that keeps every event the router hands it, and takes it.
+class KnobRecorder final : public Service {
+public:
+	std::vector<UiEvent> seen;
+	Result handle(const UiEvent& event, const UiContext&) override {
+		seen.push_back(event);
+		Result result;
+		result.handled = true;
+		return result;
+	}
+};
+
 /// A `DELUGE_EVENT_BUTTON` at matrix (x, y), the same shorthand `router_spec.cpp` uses.
 DelugeInputEvent board_button(uint8_t x, uint8_t y, bool on) {
 	return DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(on ? 255 : 0)};
@@ -328,6 +340,23 @@ describe shell_services("shell::Shell::set_services", $ {
 		r.shell.tick(2000);
 		expect(r.shell.screensaver_push_refused()).to_equal(uint32_t(1));
 		expect(installed.ticks).to_equal(1);
+	});
+
+	it("routes a lowered turn to the knobs' service as it is, the first after a pause included", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		KnobRecorder knobs;
+		r.shell.set_services(Services{.mod_knobs = &knobs});
+		expect(r.shell.route_lowered_turn(deluge::ui::EncoderRole::GoldUpper, 3, 1000)).to_be_true();
+		expect(r.shell.route_lowered_turn(deluge::ui::EncoderRole::GoldUpper, 3, 5000)).to_be_true();
+		expect(knobs.seen.size()).to_equal(size_t(2));
+		for (const UiEvent& e : knobs.seen) {
+			expect(e.kind == UiEvent::Kind::Encoder && e.encoder == deluge::ui::EncoderRole::GoldUpper && e.delta == 3 && e.lowered)
+			    .to_be_true();
+		}
+		r.shell.set_services(Services{});
 	});
 });
 // clang-format on

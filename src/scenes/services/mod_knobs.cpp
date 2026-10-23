@@ -276,7 +276,8 @@ Result ModKnobs::handle(const deluge::ui::shell::UiEvent& event, const deluge::u
 
 	// `hid/encoder_input.cpp:192`: `offset * encoder.calcNextKnobSpeed(offset)`, narrowed back to `int8_t` as legacy
 	// narrows it (truncation toward zero).
-	const double speed = lowering_.calc_next_knob_speed(event.encoder, event.delta, ctx.now_ms);
+	// A host's lowered turn is accelerated already.
+	const double speed = event.lowered ? 1.0 : lowering_.calc_next_knob_speed(event.encoder, event.delta, ctx.now_ms);
 	const int32_t offset = static_cast<int8_t>(static_cast<double>(event.delta) * speed);
 	return mod_encoder_action(which_encoder, offset, ctx.now_ms);
 }

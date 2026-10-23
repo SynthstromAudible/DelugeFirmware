@@ -143,6 +143,9 @@ struct UiEvent {
 	ButtonId button = ButtonId::None; ///< `Button`/`EncoderButton`: which button.
 	EncoderRole encoder{};            ///< `Encoder`: which encoder turned.
 	int8_t delta = 0;                 ///< `Encoder`: signed turn magnitude.
+	/// `Encoder`: @ref delta is a host's already-lowered turn (`Shell::route_lowered_turn`), filtered and accelerated,
+	/// which its consumer applies as it is.
+	bool lowered = false;
 	/// `MidiNoteOn`/`MidiCc`: channel, or the MPE zone `MIDIPort::channelToZone` mapped it to.
 	/// Never a `+ IS_A_CC`/`+ IS_A_PC` composite -- that encoding is `LearnedMIDI`'s and the
 	/// service applies it (`services::MidiLearn::cc_received`), so this field stays the raw

@@ -1253,6 +1253,44 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(rig.knobs.focus().region.length).to_equal(view.modLength());
 	});
 
+	it("applies a lowered turn as it is, however fast the turns come", _ {
+		// A host's lowered turn (`Shell::route_lowered_turn`) is accelerated already: a fast run of them moves the
+		// model exactly as a slow run of plain turns at the multiplier's 1.0 floor does.
+		StubDisplay stub;
+		display = &stub;
+
+		spec::SongFixture f = spec::make_synth_song();
+		InstrumentClip* slow_clip = f.clip;
+		InstrumentClip* lowered_clip = add_synth_clip(f.song, "1");
+		seed_params(slow_clip->paramManager, 0);
+		seed_params(lowered_clip->paramManager, 0);
+		{
+			KnobRig rig;
+			rig.set_song(f.song);
+			rig.set_target_with_timeline(slow_clip, false);
+			rig.knobs.set_mod_region();
+			for (uint32_t i = 0; i < 4; i++) {
+				DirectCtx c{1000 + i * 1000};
+				(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 1), c.ctx);
+			}
+		}
+		{
+			KnobRig rig;
+			rig.set_song(f.song);
+			rig.set_target_with_timeline(lowered_clip, false);
+			rig.knobs.set_mod_region();
+			for (uint32_t i = 0; i < 4; i++) {
+				DirectCtx c{1000 + i * 10};
+				UiEvent turn = gold_turn(EncoderRole::GoldLower, 1);
+				turn.lowered = true;
+				(void)rig.knobs.handle(turn, c.ctx);
+			}
+		}
+		expect(differences(param_snapshot(slow_clip->paramManager), param_snapshot(lowered_clip->paramManager)))
+		    .to_equal(0);
+		display = nullptr;
+	});
+
 	it("accelerates a repeated turn through InputLowering::calc_next_knob_speed", _ {
 		// The carry item E1 opened and this task closes. `calc_next_knob_speed` itself is pinned by
 		// `tests/spec/shell/input_lowering_spec.cpp` against the legacy arithmetic; what is checked

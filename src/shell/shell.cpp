@@ -298,6 +298,16 @@ bool Shell::route_midi(const UiEvent& event, uint32_t now_ms) {
 	return router_.route(event, make_context(now_ms));
 }
 
+bool Shell::route_lowered_turn(EncoderRole role, int8_t offset, uint32_t now_ms) {
+	// A user touched the box, as the board feeds note.
+	screensaver_.note_activity(now_ms);
+	UiEvent e{UiEvent::Kind::Encoder};
+	e.encoder = role;
+	e.delta = offset;
+	e.lowered = true;
+	return router_.route(e, make_context(now_ms));
+}
+
 void Shell::set_sd_busy(bool busy) {
 	// Releasing the lock replays the whole deferred queue through the ordinary lowering path
 	// (`InputLowering::set_sd_busy`), which writes the tick-scoped state -- the detent sums, the pad
