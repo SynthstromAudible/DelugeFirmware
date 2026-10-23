@@ -796,29 +796,14 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 }
 
 ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
-	// **The two gold-knob pushes are deliberately not fed, and F1 task 8 is what made that
-	// necessary.** `Buttons::buttonAction` delivers MOD_ENCODER_0/1 **twice**: once here at
-	// `hid/buttons.cpp:134`, like any other button, and once through its tail's
-	// `getCurrentUI()->modEncoderButtonAction(0, on)` / `(1, on)` (`:226-231`), whose base
-	// implementation is a bare forward to `view` (`gui/ui/ui.cpp:43-45`) that this class keeps.
-	// `Router::is_mod_or_gold` routes `EncoderButton{ModEnc0}`/`{ModEnc1}` to `mod_knobs` (shell
-	// spec §15.5), and `ModKnobs::mod_encoder_button_action` is the port of the very function
-	// `view` is about to run (`gui/views/view.cpp:1349-1366`). So with `ModKnobs` installed and its
-	// target seeded, feeding the press would perform the gesture **twice** -- two
-	// delete-automations, or two `ModControllable::modEncoderButtonAction` toggles -- where
-	// `SoundEditor` performs it once. Task 6 recorded the double delivery as inert and left the
-	// ordering to this task; it stopped being inert the moment the service got a non-null target.
-	//
-	// Dropping the feed rather than overriding `modEncoderButtonAction` is the conservative half of
-	// that choice: it leaves the gesture running **legacy's own code**, which is parity by
-	// construction (global constraint 1), where routing it to the port would make parity depend on
-	// the port's fidelity for no tenant that wants it -- `MenuScene` claims neither id
-	// (`grep -rn ModEnc src/scenes/menu` is empty). What it costs is one line legacy runs and this
-	// path does not: `View::modEncoderButtonAction_changeModControllable`'s value refresh is
-	// guarded on `getCurrentUI() == &soundEditor` (`view.cpp:1390-1392`), which is false while the
-	// guest is what is open, so the ported menu's displayed value goes stale after a gold-knob
-	// push. Recorded as a divergence for F1 task 9/11 rather than papered over here.
+	// The two gold-knob pushes are the knobs' service's: fed here, ahead of the note mode, which has no arm for them.
+	// `Buttons::buttonAction` delivers each press twice -- here, and to `modEncoderButtonAction` in its tail, which
+	// does nothing -- so it is performed once. `NOT_DEALT_WITH` keeps that tail, and the shift and transport handling
+	// above it, running (see the end of this function).
 	if (b == deluge::hid::button::MOD_ENCODER_0 || b == deluge::hid::button::MOD_ENCODER_1) {
+		const Cartesian xy = deluge::hid::button::toXY(b);
+		feed(DelugeInputEvent{DELUGE_EVENT_BUTTON, static_cast<uint8_t>(xy.x), static_cast<uint8_t>(xy.y),
+		                      static_cast<int16_t>(on ? 255 : 0)});
 		armTickSoon();
 		return ActionResult::NOT_DEALT_WITH;
 	}
@@ -897,6 +882,25 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 	// returns. So `exitUI()` keeps being driven whatever this returns.
 	armTickSoon();
 	return ActionResult::NOT_DEALT_WITH;
+}
+
+void ShellHostUI::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+	// 0 is the lower knob, 1 the upper, as `interpretEncoders` numbers them; @p offset is legacy's lowered turn.
+	(void)shell_.route_lowered_turn(whichModEncoder == 0 ? EncoderRole::GoldLower : EncoderRole::GoldUpper,
+	                                static_cast<int8_t>(std::clamp<int32_t>(offset, -127, 127)), nowMs());
+	armTickSoon();
+}
+
+void ShellHostUI::modEncoderButtonAction(uint8_t /*whichModEncoder*/, bool /*on*/) {
+}
+
+void ShellHostUI::modButtonAction(uint8_t whichButton, bool on) {
+	if (whichButton >= std::size(deluge::hid::button::ZmodButtonX)) {
+		return;
+	}
+	feed(DelugeInputEvent{DELUGE_EVENT_BUTTON, deluge::hid::button::ZmodButtonX[whichButton],
+	                      deluge::hid::button::ZmodButtonY[whichButton], static_cast<int16_t>(on ? 255 : 0)});
+	armTickSoon();
 }
 
 ActionResult ShellHostUI::horizontalEncoderAction(int32_t offset) {

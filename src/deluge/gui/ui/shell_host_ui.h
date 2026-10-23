@@ -63,9 +63,6 @@ namespace deluge::gui::ui {
 /// | not overridden | line | why |
 /// |---|---|---|
 /// | `~UI` | `ui.h:94` | Defaulted. This class owns its members by value; the implicit destructor is correct. |
-/// | `modEncoderAction` | `ui.h:104` | **The three gold-knob hooks stay with `view`, and F1 task 6 decided that deliberately against its own brief -- see `@par The gold knobs` below.** The base forwards to `view` (`ui.cpp:35-37`), legacy's own mod-knob path, which is where `SoundEditor::modEncoderAction` ends up **only from its innermost `else`** (`gui/ui/sound_editor.cpp:1659`) -- so this is *not* parity, and what it drops is in `@par What leaving the mod hooks on the base costs`. Task 8's, with `ModKnobs`. |
-/// | `modButtonAction` | `ui.h:105` | Base forwards to `view` (`ui.cpp:39-41`); `SoundEditor` does not override it at all, so this row -- alone of the three -- really is legacy's behaviour unchanged. Legacy never routes a mod button to `buttonAction` either -- `Buttons::buttonAction` intercepts the eight of them and `goto dealtWith`s (`hid/buttons.cpp:99-107`) -- so **the shell never sees `ButtonId::Mod0`..`Mod7` under the guest at all.** Recorded as a gap, not a decision, and it has a second-order cost: see `@par Shift`. |
-/// | `modEncoderButtonAction` | `ui.h:106` | Base forwards to `view` (`ui.cpp:43-45`), which is where `SoundEditor` lands only from its own `else` (`gui/ui/sound_editor.cpp:1664-1671`), losing its `automationView` redirect -- see the same `@par`. **F1 task 8 settled the ordering shell spec §15.5 asks about, and settled it the other way: `view` keeps the push and the shell never sees it.** With `ModKnobs` installed and its target seeded, feeding the press as well would run the same gesture twice -- `ModKnobs::mod_encoder_button_action` is the port of the `view` function this row forwards to -- so `buttonAction` below drops `ButtonId::ModEnc0`/`ModEnc1` instead. What that costs is one line: `View::modEncoderButtonAction_changeModControllable`'s value refresh is guarded on `getCurrentUI() == &soundEditor` (`gui/views/view.cpp:1390-1392`), false under the guest, so the ported menu's displayed value goes stale after a gold-knob push. Note the dispatch is *gated on this class's `buttonAction`*: `Buttons` only reaches it when the current UI returned `NOT_DEALT_WITH` (`hid/buttons.cpp:134-141`, the arms at `:226-231`), which is one more reason `buttonAction` below returns that value. |
 /// | `graphicsRoutine` | `ui.h:108` | **Deliberately kept.** The base runs the *root* view's per-frame animation whenever `canSeeViewUnderneath()` (`ui.cpp:47-51`), and `SoundEditor` does not override it either -- so the clip view under an open menu keeps its playhead moving. Overriding it would stop that. |
 /// | `toClipMinder` | `ui.h:122` | Null, as `SoundEditor` leaves it. A guest is not a clip minder; `currentUIIsClipMinderScreen()` must keep answering about the view underneath. |
 /// | `toTimelineView` | `ui.h:127` | Null, as `SoundEditor` leaves it, for the same reason. |
@@ -204,70 +201,31 @@ namespace deluge::gui::ui {
 ///    `view.setActiveModControllableTimelineCounter(...)` and so `setKnobIndicatorLevels()`. See
 ///    that function for the two residual cases.
 ///
-/// @par The gold knobs: why `modEncoderAction` is NOT wired, against the brief
+/// @par The gold knobs are the scenes' `ModKnobs`
 ///
-/// Spec F §2.1 and F1's task-6 brief both list `modEncoderAction` among the hooks that "forward
-/// into the shell's `InputLowering`". Doing that would corrupt the value, arithmetically:
+/// The guest's gold knobs go to the shell's router, which hands `Encoder{GoldLower/GoldUpper}`,
+/// `EncoderButton{ModEnc0/1}` and `Button{Mod0..7}` to the knobs' service; that service and legacy's
+/// `View` keep one focus (`View::knobFocus()`), so what the knobs point at is the same either side
+/// of an open guest.
 ///
-///  - The shell's only encoder entry points take **raw A-pin edges**
-///    (`Shell::on_encoder_edges`, `shell/shell.h:295`; `DELUGE_EVENT_ENCODER`'s `value`,
-///    `shell/input_lowering.h:133-138`), and legacy has already turned a gold knob's edges into an
-///    accelerated magnitude before it calls: `interpretEncoders` hands over
-///    `offset * encoder.calcNextKnobSpeed(offset)` (`hid/encoder_input.cpp:192-194`), where
-///    `calcNextKnobSpeed` returns `clamp(speed, 1.0, 3.0)` (`hid/encoders.cpp:76`).
-///  - **The lowering does not re-accelerate it; `ModKnobs` does.** The `EncoderKind::Accelerating`
-///    branch is `delta = edges` and its own comment says so -- "the raw edge count is the magnitude;
-///    acceleration is applied by whoever consumes it, through `calc_next_knob_speed`"
-///    (`shell/input_lowering.cpp:187-193`). The one consumer is F1 task 8's service
-///    (`scenes/services/mod_knobs.cpp:274`), which multiplies by
-///    `InputLowering::calc_next_knob_speed` (`shell/input_lowering.h:366`). So the second
-///    multiplication is real but lands one layer further down than a reading of the lowering alone
-///    would suggest.
-///  - **The factor is ~18x, not 9x, because the Accelerating branch does not divide by
-///    `edges_per_detent`.** `feedDetents` below multiplies by it on the way in (2 on the Deluge) and
-///    only the `Detented` branch divides it back out (`shell/input_lowering.cpp:178-186`). So a
-///    forwarded gold turn of `e` raw edges reaches `ModKnobs` as `2 * e * s_legacy` and leaves it as
-///    `2 * e * s_legacy * s_shell`, up to **18x** the raw edge count where legacy delivers at most
-///    3x -- and 2x even with both speeds at their 1.0 floor.
-///  - It would also acquire a debounce legacy does not have, and this one *is* in the lowering.
-///    `InputLowering::action_gold_turn` (`shell/input_lowering.cpp:191`) swallows the first turn
-///    after a 500 ms pause; legacy's counterpart is dead code -- the field the wiggle test reads is
-///    only ever written in a branch guarded by `offset != 0` that also requires `offset == 0`
-///    (`hid/encoder_input.cpp:187-202`), which the lowering's own note at
-///    `shell/input_lowering.cpp:206-213` already records.
+///  - **A turn arrives lowered.** `interpretEncoders` has applied legacy's wiggle check and
+///    `calcNextKnobSpeed` before it calls `modEncoderAction` (`hid/encoder_input.cpp`), so the turn
+///    goes to `Shell::route_lowered_turn`, not into the lowering: the lowering's `action_gold_turn`
+///    would swallow the first turn after a pause, which legacy's own (dead) wiggle check never does,
+///    and `ModKnobs` would accelerate it a second time.
+///  - **A push is fed once.** `Buttons::buttonAction` delivers MOD_ENCODER_0/1 twice: to
+///    `buttonAction`, which feeds it, and to `modEncoderButtonAction` in its tail, which here does
+///    nothing.
+///  - **A mod button is fed as its matrix button.** `Buttons` hands the eight to `modButtonAction`
+///    and never to `buttonAction` (`hid/buttons.cpp:99-107`).
+///  - **The knob popup outlives the guest.** `ModKnobs`' param popup is a passive overlay; when only
+///    such overlays are left the guest closes, and its close hook shows the popup through legacy's
+///    display notification for the lifetime it had left, as legacy's own popup outlives the menu.
 ///
-/// So the mapping is not a mapping, and what the gold knobs need is F1 task 8's `ModKnobs` service
-/// plus a shell entry point that accepts an already-lowered turn.
-///
-/// @par What leaving the mod hooks on the base costs, which is NOT nothing
-///
-/// **`SoundEditor` does override two of the three, and calling this parity would be wrong.**
-/// `SoundEditor::modEncoderAction` (`gui/ui/sound_editor.cpp:1638-1662`) reaches
-/// `UI::modEncoderAction` only from its innermost `else` (`:1604`); above it are two arms this guest
-/// has no counterpart for:
-///
-///  - the `automationView` redirect (`:1584-1586`), and
-///  - **`UI_MODE_MIDI_LEARN` -> `getCurrentMenuItem()->learnKnob(...)`** (`:1589-1601`) -- so under
-///    the toggle, **MIDI-learning a menu parameter to a gold knob silently stops working.**
-///
-/// `modEncoderButtonAction` has the same shape, minus the learn arm (`:1609-1616`).
-/// `modButtonAction` really is untouched by `SoundEditor`, so that one row *is* parity.
-///
-/// **Still not closable, and F1 task 8 -- which was named as the task that would close it -- found
-/// out why.** Task 6 recorded that the port's answer was "the routed-to-`MenuScene` path", after
-/// `ModKnobs`'s own note (`scenes/services/mod_knobs.h`: *"what it would have cost is
-/// `SoundEditor::modEncoderAction`'s MIDI-learn arm ... whose port is `MenuScene`"*), and that it
-/// needed the service installed **and** the gold turn routed. The service is now installed. The
-/// other half does not help, because **there is no destination**: legacy's arm calls
-/// `getCurrentMenuItem()->learnKnob(...)` (`gui/ui/sound_editor.cpp:1644-1656`), and
-/// `MenuItem::learnKnob` (`gui/menu_item/menu_item.h:181`, implemented by
-/// `MenuItemWithCCLearning::learnKnob`, `gui/menu_item/menu_item_with_cc_learning.cpp:43-57`) has
-/// **no port at all** -- `grep -rn "learn_knob" src/scenes` is empty. `MenuScene` has the *other*
-/// three learn entry points (`learn_note_on`, `learn_cc`, `learn_program_change`,
-/// `scenes/menu/menu_scene.h`), which are `SoundEditor`'s three MIDI-message members; the knob arm
-/// is a fourth and was never ported. Adding it is a `CustomItem` hook plus a port of
-/// `soundEditor.currentModControllable`, i.e. scenes-layer work, not wiring. Recorded as a
-/// divergence with the real condition on it, and the claim in `mod_knobs.h` corrected.
+/// **What it costs.** `SoundEditor::modEncoderAction`'s two arms above its forward to `view` --
+/// the `automationView` redirect and `UI_MODE_MIDI_LEARN`'s `getCurrentMenuItem()->learnKnob(...)`
+/// (`gui/ui/sound_editor.cpp`) -- have no counterpart: `MenuItem::learnKnob` has no port, so
+/// MIDI-learning a menu parameter to a gold knob does nothing under the guest.
 ///
 /// @par MIDI learn: two of the four messages are forwarded, and NONE of them is reachable yet
 ///
@@ -378,7 +336,7 @@ namespace deluge::gui::ui {
 ///     (`short_press_ms`, `edges_per_detent`) are a constant and a board fact.
 ///  3. **Mod buttons.** Legacy clears `considerShiftReleaseForSticky` on *every* button press
 ///     including the eight mod buttons (`hid/buttons.cpp:88-95`, above the mod-button interception
-///     at `:99-107`); the shell never sees them (the `modButtonAction` row above), so
+///     at `:99-107`); the shell sees them only as `modButtonAction` feeds them, after that clear, so
 ///     shift-hold + mod-button + shift-tap latches shift in the shell and not in legacy.
 class ShellHostUI final : public ::UI {
 public:
@@ -449,6 +407,12 @@ public:
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	ActionResult verticalEncoderAction(int32_t offset) override;
 	void selectEncoderAction(int8_t offset) override;
+	/// @brief Route legacy's lowered gold turn to the knobs' service; @see `@par The gold knobs`.
+	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
+	/// @brief Nothing: `buttonAction` already fed the press (`Buttons` delivers it twice).
+	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
+	/// @brief Feed mod button @p whichButton as its matrix button.
+	void modButtonAction(uint8_t whichButton, bool on) override;
 	ActionResult timerCallback() override;
 	bool opened() override;
 	void focusRegained() override;

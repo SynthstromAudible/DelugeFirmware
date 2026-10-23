@@ -360,6 +360,26 @@ public:
 	}
 };
 
+/// @brief The guest's gold-knob service, as far as this spec asks of it: every event the router hands it.
+class KnobRecorder final : public Service {
+public:
+	std::vector<UiEvent> seen;
+	Result handle(const UiEvent& event, const UiContext& /*ctx*/) override {
+		seen.push_back(event);
+		Result result;
+		result.handled = true;
+		return result;
+	}
+	/// @brief How many of the events it saw were of @p kind.
+	[[nodiscard]] size_t count(UiEvent::Kind kind) const {
+		size_t n = 0;
+		for (const UiEvent& e : seen) {
+			n += e.kind == kind ? 1 : 0;
+		}
+		return n;
+	}
+};
+
 /// @brief Put the guest's clock at \p ms.
 ///
 /// `ShellHostUI::nowMs()` is `getSystemTime() * 1000` truncated to an integer, and `getSystemTime()`
@@ -1662,43 +1682,24 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		}
 	});
 
-	it("does not feed the two gold-knob pushes, which legacy delivers twice", _ {
-		// `Buttons::buttonAction` calls this hook for MOD_ENCODER_0/1 at `hid/buttons.cpp:134` and
-		// then calls `modEncoderButtonAction` for the same press in its tail (`:226-231`), whose
-		// base forwards to `view` -- the very function `ModKnobs::mod_encoder_button_action` ports.
-		// Feeding the press as well would perform the gesture twice once task 8's `ModKnobs` has a
-		// target. Varying the button rather than the guest: SAVE (a button no arm in that tail
-		// names) goes through on the same rig, so this is about these two ids and not about
-		// `buttonAction` having stopped feeding.
+	it("feeds each gold-knob push once, though legacy delivers it twice", _ {
+		// `Buttons::buttonAction` calls this hook for MOD_ENCODER_0/1 at `hid/buttons.cpp:134` and then calls
+		// `modEncoderButtonAction` for the same press in its tail. The first feeds the shell, whose router hands
+		// `EncoderButton{ModEnc0/1}` to the knobs' service; the second is the guest's and does nothing.
 		Rig r;
 		expect(r.open()).to_be_true();
-		r.base.seen.clear();
-		// Clear what `opened()` armed, so the arm asserted below can only be this hook's. Legacy
-		// does the same thing to the guest all the time -- `openUI`/`closeUI` unset `UI_SPECIFIC`
-		// before handing control on (`gui/ui/ui.cpp:197`, `:233`).
-		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
-		fakelegacyui::timer_arms.clear();
-
-		// `NOT_DEALT_WITH` is load-bearing on this arm too, and for a reason the drop makes sharper:
-		// `DEALT_WITH` would `goto dealtWith` (`hid/buttons.cpp:139-141`) and skip the tail at
-		// `:226-231`, so `view` would never see the push either and the gesture would be lost
-		// outright rather than handed to legacy.
-		expect(r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_0, true)
-		       == ActionResult::NOT_DEALT_WITH)
+		KnobRecorder knobs;
+		r.guest.shell().set_services(Services{.mod_knobs = &knobs});
+		fakelegacyui::reset();
+		fakelegacyui::current_ui = &r.guest;
+		// `NOT_DEALT_WITH` keeps legacy's tail, and the shift and transport handling above it, running.
+		expect(r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_1, true) == ActionResult::NOT_DEALT_WITH)
 		    .to_be_true();
-		expect(r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_1, true)
-		       == ActionResult::NOT_DEALT_WITH)
-		    .to_be_true();
+		static_cast<::UI&>(r.guest).modEncoderButtonAction(1, true);
 		r.guest.shell().tick(10);
-		expect(r.base.seen.empty()).to_be_true();
-
-		// **A dropped press is still a re-arm**, asserted before anything else arms the timer: the
-		// guest asks for a tick even though it fed nothing itself.
-		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
-
-		(void)r.guest.buttonAction(deluge::hid::button::SAVE, true);
-		r.guest.shell().tick(20);
-		expect(r.base.seen.size()).to_equal(size_t(1));
+		expect(knobs.count(UiEvent::Kind::EncoderButton)).to_equal(size_t(1));
+		expect(fakelegacyui::mod_encoder_button_actions).to_equal(0);
+		r.guest.shell().set_services(Services{});
 	});
 
 	it("reads shift out of the events it feeds, in both directions", _ {
@@ -1885,27 +1886,35 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 	// ---- input: the hooks deliberately NOT wired ------------------------------------------------
 
-	it("leaves all three gold-knob hooks on the base, so legacy's `view` still gets them", _ {
+	it("hands a gold turn, a mod button and a gold push to the knobs' service, and none to legacy's `view`", _ {
 		Rig r;
 		expect(r.open()).to_be_true();
-		r.base.seen.clear();
+		KnobRecorder knobs;
+		r.guest.shell().set_services(Services{.mod_knobs = &knobs});
 		fakelegacyui::reset();
+		fakelegacyui::current_ui = &r.guest;
 
-		// Forwarding these into the lowering would double-accelerate them: legacy has already
-		// applied `calcNextKnobSpeed` before it calls (`hid/encoder_input.cpp:192-194`), and the
-		// shell applies its own to any `EncoderKind::Accelerating` role
-		// (`shell/input_lowering.cpp:187-193`). See the class's `@par The gold knobs`.
-		static_cast<::UI&>(r.guest).modEncoderAction(0, 7);
+		// The turn as legacy lowered it -- its wiggle check and acceleration applied -- reaches the service as it is.
+		set_clock_ms(1000);
+		static_cast<::UI&>(r.guest).modEncoderAction(0, 3);
 		static_cast<::UI&>(r.guest).modButtonAction(2, true);
-		static_cast<::UI&>(r.guest).modEncoderButtonAction(1, true);
+		static_cast<::UI&>(r.guest).modButtonAction(2, false);
+		(void)r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_0, true);
+		static_cast<::UI&>(r.guest).modEncoderButtonAction(0, true);
+		r.guest.shell().tick(1001);
 
-		expect(fakelegacyui::mod_encoder_actions).to_equal(1);
-		expect(fakelegacyui::mod_button_actions).to_equal(1);
-		expect(fakelegacyui::mod_encoder_button_actions).to_equal(1);
-
-		// And nothing reached the shell, on this tick or any later one.
-		r.guest.shell().tick(1);
-		expect(r.base.seen.empty()).to_be_true();
+		expect(knobs.count(UiEvent::Kind::Encoder)).to_equal(size_t(1));
+		for (const UiEvent& e : knobs.seen) {
+			if (e.kind == UiEvent::Kind::Encoder) {
+				expect(e.encoder == deluge::ui::EncoderRole::GoldLower && e.delta == 3 && e.lowered).to_be_true();
+			}
+		}
+		expect(knobs.count(UiEvent::Kind::Button)).to_equal(size_t(2));
+		expect(knobs.count(UiEvent::Kind::EncoderButton)).to_equal(size_t(1));
+		expect(fakelegacyui::mod_encoder_actions).to_equal(0);
+		expect(fakelegacyui::mod_button_actions).to_equal(0);
+		expect(fakelegacyui::mod_encoder_button_actions).to_equal(0);
+		r.guest.shell().set_services(Services{});
 	});
 
 	// ---- the tick: arming ------------------------------------------------------------------------

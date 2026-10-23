@@ -1368,6 +1368,25 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(overlay::param_popup_scene().remaining_ms() > 0).to_be_true();
 	});
 
+	it("takes the notification slot when its popup shows, as legacy's knob popup replaces a notification", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_synth_song();
+		KnobRig rig;
+		rig.set_song(f.song);
+		rig.set_target_with_timeline(f.clip, false);
+		rig.knobs.set_mod_region();
+		deluge::notify::Notice n;
+		while (deluge::notify::notices().pop(n)) {}
+		DirectCtx c{60'000};
+		(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 1), c.ctx);
+		bool cancelled = false;
+		while (deluge::notify::notices().pop(n)) {
+			cancelled = cancelled || n.kind == deluge::notify::Notice::Kind::CancelNotification;
+		}
+		expect(cancelled).to_be_true();
+	});
+
 	it("suppresses the popup when the menu is focused on a horizontal page's same-param column",
 	   _ {
 		// `ModKnobs::popup_suppressed` (`scenes/services/mod_knobs.cpp:342`) now compares against
