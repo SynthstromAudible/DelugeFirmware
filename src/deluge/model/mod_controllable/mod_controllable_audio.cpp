@@ -665,9 +665,9 @@ void ModControllableAudio::handleLearnedKnob(MIDIKnob& knob, MIDICable& cable, u
 
 		// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
 		// region.
-		if (view.modLength && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-			modPos = view.modPos;
-			modLength = view.modLength;
+		if (view.stepEditRegionHolds(*timelineCounter)) {
+			modPos = view.modPos();
+			modLength = view.modLength();
 			isStepEditing = true;
 		}
 
@@ -759,9 +759,9 @@ void ModControllableAudio::handleLearnedKnob(MIDIKnob& knob, MIDICable& cable, u
 
 		// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
 		// region.
-		if (view.modLength && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-			modPos = view.modPos;
-			modLength = view.modLength;
+		if (view.stepEditRegionHolds(*timelineCounter)) {
+			modPos = view.modPos();
+			modLength = view.modLength();
 			isStepEditing = true;
 		}
 	}
@@ -844,9 +844,9 @@ bool ModControllableAudio::handleLearnedPitchBend(MIDIKnob& knob, uint8_t data1,
 
 	if (modelStack->timelineCounterIsSet()) {
 		TimelineCounter* timelineCounter = modelStack->getTimelineCounter();
-		if (view.modLength && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-			modPos = view.modPos;
-			modLength = view.modLength;
+		if (view.stepEditRegionHolds(*timelineCounter)) {
+			modPos = view.modPos();
+			modLength = view.modLength();
 		}
 
 		timelineCounter->possiblyCloneForArrangementRecording(modelStack);
@@ -1328,7 +1328,7 @@ void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, b
 	}
 	// in the song context,
 	// the bottom knob for modButton 6 (stutter) doesn't have a parameter
-	if (!((whichModButton == 6) && (!view.isClipContext()))) {
+	if (!((whichModButton == 6) && (!view.knobsOnClipContext()))) {
 		// if we have an OLED display, we want to add a new line so we can
 		// display the bottom gold knob param below the top gold knob param
 		popupMsg.append("\n");

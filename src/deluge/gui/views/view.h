@@ -26,6 +26,7 @@
 #include "processing/audio_output.h"
 #include "storage/preset_acquisition.h"
 #include <cstdint>
+#include <optional>
 
 class InstrumentClip;
 class NoteRow;
@@ -96,13 +97,31 @@ public:
 	[[nodiscard]] const deluge::project::KnobFocus& knobFocus() const { return knobFocus_; }
 	/// @copydoc knobFocus() const
 	[[nodiscard]] deluge::project::KnobFocus& knobFocus() { return knobFocus_; }
-	/// @brief [interaction] Whether the active model stack names @p song or anything it owns: the song itself, one of
-	///        its clips, or one of its outputs (main or hibernating) as the ModControllable.
-	///
-	/// Walks only what the song owns -- its clip arrays and output lists -- and compares; it follows none of the song's
-	/// per-clip reference fields (currentClip, syncScalingClip, beingRecordedFromClip), which may name clips already
-	/// freed. @p song must be alive.
-	bool activeModControllableNamesSong(Song* song) const;
+	/// @brief [interaction] The clip the knobs are on, by id: none for the song, an arranger row with no clip, or no
+	///        focus. A take the arrangement records is named by the session clip it records.
+	[[nodiscard]] std::optional<uint32_t> knobsClipId() const;
+	/// @brief [interaction] Are the knobs on @p clip of @p song? Compares ids and the song's identity; dereferences
+	///        nothing the knobs name.
+	[[nodiscard]] bool knobsOnClip(const Song& song, const Clip& clip) const;
+	/// @brief [interaction] Are the knobs on the kit row @p drum of @p song?
+	[[nodiscard]] bool knobsOnDrum(const Song& song, const Drum& drum) const;
+	/// @brief [interaction] Are the knobs on something of a clip (a track's knobs, a CV track's included), not the
+	///        song's or nothing?
+	[[nodiscard]] bool knobsOnClipContext() const { return knobsOnClipContext_; }
+	/// @brief [interaction] Does a held pad's step-edit region hold on @p counter (and, given one, on the row @p
+	///        noteRowId)? Only a clip of the current song the knobs are on holds one.
+	[[nodiscard]] bool stepEditRegionHolds(const TimelineCounter& counter,
+	                                       std::optional<int32_t> noteRowId = std::nullopt) const;
+	/// @brief [interaction] The held region's start, or 0xFFFFFFFF for none (an AutoParam's "current value" pos).
+	[[nodiscard]] uint32_t modPos() const { return knobFocus_.region.pos; }
+	/// @brief [interaction] The held region's length; 0 for none.
+	[[nodiscard]] uint32_t modLength() const { return knobFocus_.region.length; }
+	/// @brief [interaction] The held note's row id.
+	[[nodiscard]] int32_t modNoteRowId() const { return knobFocus_.region.note_row_id; }
+	/// @brief [interaction] Let go of the knobs if they are on @p clip, which is about to go.
+	void releaseKnobsIfOn(const Clip& clip);
+	/// @brief [interaction] Let go of the knobs if they are on @p song or anything it owns, which is about to go.
+	void releaseKnobsIfOnSong(const Song& song);
 	/// @brief [interaction] The recording of the arrangement-only clip @p from has moved on to its clone @p to: point
 	///        the active model stack at @p to, if it still names @p from. The ModControllable (the output) stays.
 	///
@@ -224,13 +243,6 @@ public:
 
 	uint32_t timeSaveButtonPressed{};
 
-	int32_t modNoteRowId{};
-	uint32_t modPos;
-	// 0 if not currently editing a region / step / holding a note. If you're gonna refer to this, you absolutely have
-	// to first check that the TimelineCounter you're thinking of setting some automation on
-	// == activeModControllableTimelineCounter
-	uint32_t modLength;
-
 	int32_t calculateKnobPosForDisplay(deluge::modulation::params::Kind kind, int32_t paramID, int32_t knobPos);
 	void displayModEncoderValuePopup(deluge::modulation::params::Kind kind, int32_t paramID, int32_t newKnobPos,
 	                                 PatchSource source1 = PatchSource::NONE, PatchSource source2 = PatchSource::NONE);
@@ -244,8 +256,6 @@ public:
 	bool potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]);
 
 	void getParameterNameFromModEncoder(int32_t whichModEncoder, char* parameterName);
-
-	bool isClipContext();
 
 	int32_t calculateKnobPosForModEncoderTurn(deluge::modulation::params::Kind kind, int32_t knobPos, int32_t offset);
 
@@ -276,7 +286,10 @@ private:
 	///        meter.
 	void refreshKnobFocus();
 
-	deluge::project::KnobFocus knobFocus_{};
+	deluge::project::KnobFocus knobFocus_{.region = {.pos = 0xFFFFFFFF}};
+	/// The song the focus's ids are in, as an identity only: never dereferenced.
+	const Song* knobSong_{};
+	bool knobsOnClipContext_{};
 
 	void pretendModKnobsUntouchedForAWhile();
 	void instrumentBeenEdited();

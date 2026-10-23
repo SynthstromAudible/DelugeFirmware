@@ -7819,8 +7819,7 @@ void InstrumentClipView::reportMPEInitialValuesForNoteEditing(ModelStackWithNote
 
 	// MPE stuff - if editing note, we need to take note of the initial values which might have been sent before
 	// this note-on.
-	if (noteRow && view.modLength && modelStack->noteRowId == view.modNoteRowId
-	    && modelStack->getTimelineCounter() == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+	if (noteRow && view.stepEditRegionHolds(*modelStack->getTimelineCounter(), modelStack->noteRowId)) {
 
 		noteRow->paramManager.ensureExpressionParamSetExists(); // If this fails, we'll detect that below.
 
@@ -7873,8 +7872,7 @@ void InstrumentClipView::reportNoteOffForMPEEditing(ModelStackWithNoteRow* model
 
 	// MPE stuff for note off - if they're still "editing" a note, they'll want the values from half a second ago,
 	// or the values from when they pressed hardest.
-	if (view.modLength && modelStack->noteRowId == view.modNoteRowId
-	    && modelStack->getTimelineCounter() == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+	if (view.stepEditRegionHolds(*modelStack->getTimelineCounter(), modelStack->noteRowId)) {
 
 		ParamCollectionSummary* mpeParamsSummary = noteRow->paramManager.getExpressionParamSetSummary();
 		ExpressionParamSet* mpeParams = (ExpressionParamSet*)mpeParamsSummary->paramCollection;
@@ -7903,8 +7901,8 @@ void InstrumentClipView::reportNoteOffForMPEEditing(ModelStackWithNoteRow* model
 
 			deluge::edits::Context editCtx{*currentSong, currentSong->project};
 			deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithAutoParam), newValue,
-			                                  static_cast<int32_t>(view.modPos), static_cast<int32_t>(view.modLength),
-			                                  modelStackWithAutoParam};
+			                                  static_cast<int32_t>(view.modPos()),
+			                                  static_cast<int32_t>(view.modLength()), modelStackWithAutoParam};
 			deluge::edits::apply(editCtx, edit);
 		}
 

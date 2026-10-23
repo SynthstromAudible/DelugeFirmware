@@ -178,13 +178,6 @@ void letGoOfSound(Sound& sound) {
 	AudioEngine::sounds.remove(&sound);
 }
 
-/// [interaction] Stop the view's active ModControllable model stack naming @p clip. Dereferences nothing.
-void clearViewIfClip(Clip const* clip) {
-	if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip) {
-		view.releaseActiveModControllable();
-	}
-}
-
 /// [render] Drop every reference the render keeps from block to block to a retired clip. The caller already unlinked
 /// it from its song's arrays, clip instances and output (Clip::prepareForDestruction()), and AudioEngine::retire(Clip*)
 /// already cleared the ones the interaction tier writes (currentClip, syncScalingClip, the view's active stack). This
@@ -2471,7 +2464,7 @@ void retire(Clip* clip) {
 			currentSong->setSyncScalingClipRaw(nullptr);
 		}
 	}
-	clearViewIfClip(clip);
+	view.releaseKnobsIfOn(*clip);
 	handOver(RetireRequest{.clip = clip}, clip, [](void* p) {
 		auto* c = static_cast<Clip*>(p);
 		void* memory = dynamic_cast<void*>(c);
@@ -2491,9 +2484,7 @@ void retire(Song* song) {
 	// dropped). Apply what the render asked for, then drop it, so no handler reaches the old song through it and no
 	// request is left naming the song once it is freed.
 	deluge::playback::applyRenderRequests();
-	if (view.activeModControllableNamesSong(song)) {
-		view.releaseActiveModControllable();
-	}
+	view.releaseKnobsIfOnSong(*song);
 	handOver(RetireRequest{.song = song}, song, [](void* p) {
 		auto* s = static_cast<Song*>(p);
 		for (Output* first :

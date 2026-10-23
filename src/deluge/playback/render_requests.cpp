@@ -119,8 +119,11 @@ void songSwapInteractionSide(Song* outgoing, bool posted) {
 	}
 	// Posted, the knobs are let go of only if they still name the outgoing song: an interaction job the render
 	// preempted may have put them on the incoming one since. At the swap itself, nothing else can be under them.
-	if (!posted || (outgoing != nullptr && view.activeModControllableNamesSong(outgoing))) {
+	if (!posted) {
 		view.releaseActiveModControllable();
+	}
+	else if (outgoing != nullptr) {
+		view.releaseKnobsIfOnSong(*outgoing);
 	}
 	// Not cleared outright: a note-on a preempted MIDI handler sent to the incoming song keeps its clip, so its
 	// note-off still reaches it.

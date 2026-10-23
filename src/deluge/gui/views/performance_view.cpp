@@ -1443,7 +1443,7 @@ bool PerformanceView::setParameterValue(ModelStackWithThreeMainThings* modelStac
 
 			if (fxPress[xDisplay].previousKnobPosition == kNoSelection) {
 				int32_t oldParameterValue =
-				    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+				    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos(), modelStackWithParam);
 				fxPress[xDisplay].previousKnobPosition =
 				    modelStackWithParam->paramCollection->paramValueToKnobPos(oldParameterValue, modelStackWithParam);
 			}
@@ -1453,8 +1453,8 @@ bool PerformanceView::setParameterValue(ModelStackWithThreeMainThings* modelStac
 
 			deluge::edits::Context editCtx{*currentSong, currentSong->project};
 			deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newParameterValue,
-			                                  static_cast<int32_t>(view.modPos), static_cast<int32_t>(view.modLength),
-			                                  modelStackWithParam};
+			                                  static_cast<int32_t>(view.modPos()),
+			                                  static_cast<int32_t>(view.modLength()), modelStackWithParam};
 			deluge::edits::apply(editCtx, edit);
 
 			if (!defaultEditingMode && params::isParamStutter(paramKind, paramID)
@@ -1494,7 +1494,7 @@ void PerformanceView::getParameterValue(ModelStackWithThreeMainThings* modelStac
 		if (modelStackWithParam->getTimelineCounter()
 		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
-			int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+			int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos(), modelStackWithParam);
 
 			int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 

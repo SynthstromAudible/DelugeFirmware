@@ -2564,7 +2564,7 @@ void Song::deleteSoundsWhichWontSound() {
 		Clip* clip = *it;
 
 		AudioEngine::routineWithClusterLoading();
-		if (!clip->isActiveOnOutput() && clip != view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+		if (!clip->isActiveOnOutput() && !view.knobsOnClip(*this, *clip)) {
 			// Arranger ClipInstances may still reference this Clip - remove them so they don't dangle (E455)
 			clip->output->deleteAnyInstancesOfClip(clip);
 			it.deleteClip(InstrumentRemoval::NONE);

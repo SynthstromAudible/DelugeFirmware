@@ -1072,9 +1072,9 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 
 		// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
 		// region.
-		if (view.modLength && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-			modPos = view.modPos;
-			modLength = view.modLength;
+		if (view.stepEditRegionHolds(*timelineCounter)) {
+			modPos = view.modPos();
+			modLength = view.modLength();
 			isStepEditing = true;
 		}
 
@@ -1322,15 +1322,14 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation)
 
 			// Only if this exact TimelineCounter is having automation step-edited, we can send the value for just a
 			// region.
-			if (view.modLength
-			    && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+			if (view.stepEditRegionHolds(*timelineCounter)) {
 
 				// don't send automation feedback if you're step editing
 				if (isAutomation) {
 					return;
 				}
 
-				modPos = view.modPos;
+				modPos = view.modPos();
 				isStepEditing = true;
 			}
 		}

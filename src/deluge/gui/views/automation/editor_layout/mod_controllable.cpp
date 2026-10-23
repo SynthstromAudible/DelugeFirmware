@@ -670,7 +670,7 @@ void AutomationEditorLayoutModControllable::automationModEncoderActionForUnselec
 		if (modelStackWithParam->getTimelineCounter()
 		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
-			int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, view.modPos);
+			int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, view.modPos());
 
 			int32_t newKnobPos = calculateAutomationKnobPosForModEncoderTurn(modelStackWithParam, knobPos, offset);
 
@@ -682,8 +682,8 @@ void AutomationEditorLayoutModControllable::automationModEncoderActionForUnselec
 
 			deluge::edits::Context editCtx{*currentSong, currentSong->project};
 			deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue,
-			                                  static_cast<int32_t>(view.modPos), static_cast<int32_t>(view.modLength),
-			                                  modelStackWithParam};
+			                                  static_cast<int32_t>(view.modPos()),
+			                                  static_cast<int32_t>(view.modLength()), modelStackWithParam};
 			deluge::edits::apply(editCtx, edit);
 
 			if (!getOnArrangerView()) {

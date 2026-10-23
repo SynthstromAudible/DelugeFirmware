@@ -15,7 +15,7 @@
 ///
 ///   * the `ModControllableAudio*`-aware LPF/HPF-morph name and the stutter-quantization bucket
 ///     text (`isParamQuantizedStutter` has no context-free overload at all); and
-///   * the MIDI-clip CC/expression-axis naming (`isClipContext() && getCurrentOutputType() ==
+///   * the MIDI-clip CC/expression-axis naming (`knobsOnClipContext() && getCurrentOutputType() ==
 ///     OutputType::MIDI_OUT`).
 ///
 /// They are no longer *unreachable*, which is what this note said when E4 task 1 wrote it: task 2
@@ -33,7 +33,7 @@
 /// reaches is one `View::activeModControllableModelStack` never touches for it -- its
 /// `modControllable` is null by construction (`ModelStackWithThreeMainThings
 /// activeModControllableModelStack{}`, `view.h:120`), which is exactly what makes
-/// `isClipContext()` false and every `ModControllableAudio*`-taking call fall back -- so nothing
+/// `knobsOnClipContext()` false and every `ModControllableAudio*`-taking call fall back -- so nothing
 /// here reads `currentSong`.
 
 #include "scenes/overlay/param_popup_scene.h"

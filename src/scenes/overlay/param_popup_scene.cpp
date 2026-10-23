@@ -111,7 +111,7 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 		                          : deluge::modulation::params::getPatchedParamShortName(type));
 	}
 	else if (context.midi_clip) {
-		// `:1122-1147`. The caller has already resolved `isClipContext() && getCurrentOutputType()
+		// `:1122-1147`. The caller has already resolved `knobsOnClipContext() && getCurrentOutputType()
 		// == OutputType::MIDI_OUT`; a non-null instrument *is* that test having passed.
 		if (kind == Kind::EXPRESSION) {
 			if (param_id == X_PITCH_BEND) {

@@ -126,8 +126,6 @@ View::View() {
 
 	memset(&activeModControllableModelStack, 0, sizeof(activeModControllableModelStack));
 
-	modLength = 0;
-	modPos = 0xFFFFFFFF;
 	clipArmFlashOn = false;
 	renderedVUMeter = false;
 	cachedMaxYDisplayForVUMeterL = 255;
@@ -910,7 +908,7 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 
 	params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
-	int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+	int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos(), modelStackWithParam);
 	int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 	int32_t newKnobPos = calculateKnobPosForModEncoderTurn(kind, knobPos, offset);
 
@@ -964,7 +962,7 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 	// Perform the actual change as an Edit.
 	deluge::edits::Context editContext{*currentSong, currentSong->project};
 	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue,
-	                                  static_cast<int32_t>(modPos), static_cast<int32_t>(modLength),
+	                                  static_cast<int32_t>(modPos()), static_cast<int32_t>(modLength()),
 	                                  modelStackWithParam};
 	deluge::edits::apply(editContext, edit);
 
@@ -1166,7 +1164,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 			parameter_name.append(modulation::params::getPatchedParamShortName(
 			    paramID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable));
 		}
-		else if (isClipContext() && getCurrentOutputType() == OutputType::MIDI_OUT) {
+		else if (knobsOnClipContext() && getCurrentOutputType() == OutputType::MIDI_OUT) {
 			MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
 			if (kind == params::Kind::EXPRESSION) {
 				if (paramID == X_PITCH_BEND) {
@@ -1462,7 +1460,7 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 	bool isBipolar = false;
 
 	if (modelStackWithParam->autoParam) {
-		int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+		int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos(), modelStackWithParam);
 		ParamCollection* paramCollection = modelStackWithParam->paramCollection;
 		params::Kind kind = paramCollection->getParamKind();
 		isBipolar = deluge::modulation::params::isParamBipolar(kind, modelStackWithParam->paramId);
@@ -1610,7 +1608,7 @@ void View::setModLedStates() {
 	}
 
 	// here we will set a boolean flag to let the function know whether we are dealing with the Song context
-	bool itsTheSong = !isClipContext();
+	bool itsTheSong = !knobsOnClipContext();
 
 	// here we will set a boolean flag to let the function know if affect entire is enabled
 	// so that it can correctly illuminate the affect entire LED indicator
@@ -1767,7 +1765,7 @@ void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool update
 void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos, bool isAutomation) {
 	if (midiFollow.isFeedbackEnabled()) {
 		// check if we're dealing with a clip context param (don't send feedback for song params)
-		if (isClipContext()) {
+		if (knobsOnClipContext()) {
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 				int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
@@ -1783,15 +1781,6 @@ void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, 
 }
 
 // sets flag to let caller know if we are dealing with clip context
-bool View::isClipContext() {
-	bool itsAClip = false;
-	if (activeModControllableModelStack.modControllable) {
-		itsAClip = (activeModControllableModelStack.timelineCounterIsSet()
-		            && activeModControllableModelStack.getTimelineCounter() != currentSong);
-	}
-	return itsAClip;
-}
-
 void View::displayAutomation() {
 	if (pendingParamAutomationUpdatesModLevels) {
 		setKnobIndicatorLevels();
@@ -1813,7 +1802,7 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 	if (knobFocus_.vu_meter
 	    && ((activeModControllableModelStack.modControllable
 	         && *activeModControllableModelStack.modControllable->getModKnobMode() == 0)
-	        || (isClipContext() && renderedVUMeter))) {
+	        || (knobsOnClipContext() && renderedVUMeter))) {
 		PadLEDs::renderingLock = true;
 
 		// get max Y display that would be rendered based on AudioEngine::approxRMSLevel
@@ -1981,20 +1970,65 @@ void View::releaseActiveModControllable() {
 	activeModControllableModelStack.setTimelineCounter(nullptr);
 	activeModControllableModelStack.paramManager = nullptr;
 	knobFocus_.owner = std::monostate{};
+	knobSong_ = nullptr;
+	knobsOnClipContext_ = false;
 }
 
 void View::refreshKnobFocus() {
-	knobFocus_.owner = currentSong != nullptr
-	                       ? deluge::gui::knobFocusFromStack(*currentSong, activeModControllableModelStack).owner
-	                       : std::monostate{};
+	const ModelStackWithThreeMainThings& stack = activeModControllableModelStack;
+	knobFocus_.owner =
+	    currentSong != nullptr ? deluge::gui::knobFocusFromStack(*currentSong, stack).owner : std::monostate{};
+	knobSong_ = currentSong;
+	knobsOnClipContext_ =
+	    stack.modControllable != nullptr && stack.timelineCounterIsSet() && stack.getTimelineCounter() != currentSong;
+}
+
+std::optional<uint32_t> View::knobsClipId() const {
+	return std::visit(
+	    [](const auto& owner) -> std::optional<uint32_t> {
+		    if constexpr (requires { owner.clip; }) {
+			    return owner.clip ? std::optional{owner.clip->clip_id} : std::nullopt;
+		    }
+		    return std::nullopt;
+	    },
+	    knobFocus_.owner);
+}
+
+bool View::knobsOnClip(const Song& song, const Clip& clip) const {
+	return knobSong_ == &song && knobsClipId() == clip.id();
+}
+
+bool View::knobsOnDrum(const Song& song, const Drum& drum) const {
+	const auto* sound = std::get_if<deluge::project::SoundFocus>(&knobFocus_.owner);
+	return knobSong_ == &song && sound != nullptr && sound->slot.kind == deluge::project::SlotAddress::Kind::DRUM
+	       && drum.id() == sound->slot.id;
+}
+
+bool View::stepEditRegionHolds(const TimelineCounter& counter, std::optional<int32_t> noteRowId) const {
+	// A region is a clip's step edit: the song's own params never take one.
+	if (knobFocus_.region.length == 0 || currentSong == nullptr || &counter == currentSong) {
+		return false;
+	}
+	return knobsOnClip(*currentSong, static_cast<const Clip&>(counter))
+	       && (!noteRowId || *noteRowId == knobFocus_.region.note_row_id);
+}
+
+void View::releaseKnobsIfOn(const Clip& clip) {
+	// The stack's timeline counter is the take a recording writes to, which the focus names by its session clip.
+	if (knobsClipId() == clip.id() || activeModControllableModelStack.getTimelineCounterAllowNull() == &clip) {
+		releaseActiveModControllable();
+	}
+}
+
+void View::releaseKnobsIfOnSong(const Song& song) {
+	if (knobSong_ == &song) {
+		releaseActiveModControllable();
+	}
 }
 
 void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
 
-	modPos = pos;
-	modLength = length;
-	modNoteRowId = noteRowId;
-	knobFocus_.region = {.pos = pos, .length = length};
+	knobFocus_.region = {.pos = pos, .length = length, .note_row_id = noteRowId};
 
 	pretendModKnobsUntouchedForAWhile();
 

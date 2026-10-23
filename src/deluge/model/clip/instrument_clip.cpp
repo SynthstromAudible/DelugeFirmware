@@ -3373,7 +3373,7 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 			    && (!noteRow->drum || noteRow->drum->type != DrumType::SOUND
 			        || ((SoundDrum*)noteRow->drum)->skippingRendering)
 			    && (!noteRow->drum || noteRow->drum->type != DrumType::SOUND
-			        || (SoundDrum*)noteRow->drum != view.activeModControllableModelStack.modControllable)) {
+			        || !view.knobsOnDrum(*song, *noteRow->drum))) {
 
 				// OI!! Don't nest any of those conditions inside other if statements. We need the "else" below to take
 				// effect. Thanks

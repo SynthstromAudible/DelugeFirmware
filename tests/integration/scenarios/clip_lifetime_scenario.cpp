@@ -153,6 +153,8 @@ int32_t g_ticks = 0;
 
 /// The clip the leg deletes. Once the deletion has run it may be freed: it is only compared, never dereferenced.
 Clip* g_victim = nullptr;
+/// The victim's id, taken while it was alive: the knobs' focus names a clip by id.
+uint32_t g_victimId = 0;
 /// RECORDSOURCE: the clip that records from the victim. Survives the leg.
 Clip* g_recorder = nullptr;
 /// The clip the scenario points the song and the view back at between legs: the boot song's first clip, never deleted.
@@ -553,6 +555,7 @@ bool setupLeg() {
 			return false;
 		}
 		g_victim = clip;
+		g_victimId = clip->id();
 		if (g_leg == Leg::SaveKit) {
 			// A second drum, added after the clip was made: no note row in any clip has it. Kit::writeDataToFile()
 			// destroys exactly such a drum when the song is saved.
@@ -584,6 +587,7 @@ bool setupLeg() {
 		return false;
 	}
 	g_victim = clip;
+	g_victimId = clip->id();
 	g_sound = static_cast<SoundInstrument*>(clip->output);
 	switch (g_leg) {
 	case Leg::SessionDelete:
@@ -875,6 +879,12 @@ void printDrumDangling() {
 	       g_kit->renderingDrums.contains(g_drum) ? 1 : 0);
 }
 
+/// Do the knobs still name @p clip: their stack by its address, or their focus by the victim's id?
+bool viewNames(Clip const* clip) {
+	return view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip
+	       || (clip == g_victim && view.knobsClipId() == g_victimId);
+}
+
 /// Which of the render's references still hold the deleted clip's address, just after its deletion. Compared by
 /// value only. The activeClip of the clip's own output cannot be read here: that output may be gone.
 void printDangling() {
@@ -890,8 +900,7 @@ void printDangling() {
 	                    || currentSong->live.clips.arrangement_only_clips.getIndexForClip(g_victim) >= 0;
 	printf("CL-DANGLING leg=%s current=%d sync=%d view=%d recordSource=%d inSong=%d\n", legName(g_leg),
 	       currentSong->getCurrentClip() == clip ? 1 : 0, currentSong->live.sync_scaling_clip == clip ? 1 : 0,
-	       view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip ? 1 : 0, recordSource ? 1 : 0,
-	       inSong ? 1 : 0);
+	       viewNames(g_victim) ? 1 : 0, recordSource ? 1 : 0, inSong ? 1 : 0);
 }
 
 /// A song leg's clean-up: the old song is gone, and with it every pointer the leg held (the new song may have been
@@ -1109,8 +1118,7 @@ void runTick() {
 		if (isClipLeg(g_leg)) {
 			printf("CL-PROBE leg=%s playing=%d ticks=%d voices=%d current=%d sync=%d view=%d recordSource=%d\n",
 			       legName(g_leg), playing ? 1 : 0, ticks, voices, currentSong->getCurrentClip() == g_victim ? 1 : 0,
-			       currentSong->live.sync_scaling_clip == g_victim ? 1 : 0,
-			       view.activeModControllableModelStack.getTimelineCounterAllowNull() == g_victim ? 1 : 0,
+			       currentSong->live.sync_scaling_clip == g_victim ? 1 : 0, viewNames(g_victim) ? 1 : 0,
 			       (g_recorder != nullptr && g_recorder->beingRecordedFromClip == g_victim) ? 1 : 0);
 		}
 		else if (g_kit != nullptr) {
@@ -1121,7 +1129,7 @@ void runTick() {
 			// view=1: the view's active timeline counter is the old song's synth clip, which the armed swap leaves in
 			// place until the old song is gone (LoadSongUI::runBeginSegment() says so).
 			printf("CL-PROBE leg=%s playing=%d ticks=%d voices=%d view=%d\n", legName(g_leg), playing ? 1 : 0, ticks,
-			       voices, view.activeModControllableModelStack.getTimelineCounterAllowNull() == g_victim ? 1 : 0);
+			       voices, viewNames(g_victim) ? 1 : 0);
 		}
 		if (plays && ticks <= 0) {
 			fail("the render actioned no ticks: the clock never ran");
@@ -1165,8 +1173,7 @@ void runTick() {
 			// Before any block: what the interaction tier itself can still read of the retired clip. Its handlers run
 			// between the retire and the render's let-go, so these must already be clear.
 			printf("CL-WINDOW leg=%s currentClip=%d view=%d\n", legName(g_leg),
-			       currentSong->getCurrentClip() == g_victim ? 1 : 0,
-			       view.activeModControllableModelStack.getTimelineCounterAllowNull() == g_victim ? 1 : 0);
+			       currentSong->getCurrentClip() == g_victim ? 1 : 0, viewNames(g_victim) ? 1 : 0);
 		}
 		if (isClipLeg(g_leg)) {
 			printDangling();

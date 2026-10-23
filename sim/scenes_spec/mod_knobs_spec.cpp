@@ -1247,14 +1247,14 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.set_target_with_timeline(f.clip, false);
 		rig.knobs.set_mod_region(1234, 56);
 
-		expect(rig.knobs.focus().region.pos).to_equal(view.modPos);
-		expect(rig.knobs.focus().region.length).to_equal(view.modLength);
+		expect(rig.knobs.focus().region.pos).to_equal(view.modPos());
+		expect(rig.knobs.focus().region.length).to_equal(view.modLength());
 
 		// And the defaulted call is legacy's defaulted call (`view.h:81`).
 		view.setModRegion();
 		rig.knobs.set_mod_region();
-		expect(rig.knobs.focus().region.pos).to_equal(view.modPos);
-		expect(rig.knobs.focus().region.length).to_equal(view.modLength);
+		expect(rig.knobs.focus().region.pos).to_equal(view.modPos());
+		expect(rig.knobs.focus().region.length).to_equal(view.modLength());
 	});
 
 	it("accelerates a repeated turn through InputLowering::calc_next_knob_speed", _ {
@@ -1485,7 +1485,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(port_unnamed == port_named).to_be_false();
 	});
 
-	it("agrees with View::isClipContext on every reachable target shape", _ {
+	it("agrees with View::knobsOnClipContext on every reachable target shape", _ {
 		// Fix round 1, Important 1: the port's predicate dropped legacy's outer
 		// `if (activeModControllableModelStack.modControllable)` (`view.cpp:1751`), so a target with
 		// a clip counter but no resolved mod controllable read as a clip context here and not in
@@ -1503,27 +1503,27 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// 1. No counter, no controllable.
 		view.setActiveModControllableTimelineCounter(nullptr, false);
 		rig.set_target_with_timeline(nullptr, false);
-		expect(deluge::scenes::services::is_clip_context(rig.knobs.focus())).to_equal(view.isClipContext());
-		expect(view.isClipContext()).to_be_false();
+		expect(deluge::scenes::services::is_clip_context(rig.knobs.focus())).to_equal(view.knobsOnClipContext());
+		expect(view.knobsOnClipContext()).to_be_false();
 
 		// 2. No counter, a controllable.
 		view.setActiveModControllableWithoutTimelineCounter(sound, &f.clip->paramManager);
 		rig.set_target_without_timeline(sound, &f.clip->paramManager);
-		expect(deluge::scenes::services::is_clip_context(rig.knobs.focus())).to_equal(view.isClipContext());
-		expect(view.isClipContext()).to_be_false();
+		expect(deluge::scenes::services::is_clip_context(rig.knobs.focus())).to_equal(view.knobsOnClipContext());
+		expect(view.knobsOnClipContext()).to_be_false();
 
 		// 3. A clip counter and a controllable -- the only true case.
 		view.setActiveModControllableTimelineCounter(f.clip, false);
 		rig.set_target_with_timeline(f.clip, false);
-		expect(deluge::scenes::services::is_clip_context(rig.knobs.focus())).to_equal(view.isClipContext());
-		expect(view.isClipContext()).to_be_true();
+		expect(deluge::scenes::services::is_clip_context(rig.knobs.focus())).to_equal(view.knobsOnClipContext());
+		expect(view.knobsOnClipContext()).to_be_true();
 
-		// 4. A clip counter and NO controllable: legacy's stack dropped into that shape, and its focus is none.
+		// 4. A clip counter and NO controllable: legacy's stack dropped into that shape, and its focus is none. View
+		//    answers from what its writers saw, and no writer leaves this shape, so only the port side is asked.
 		view.activeModControllableModelStack.modControllable = nullptr;
 		const deluge::scenes::bind::KnobFocus no_controllable =
 		    deluge::gui::knobFocusOf(*f.song, view.activeModControllableModelStack);
-		expect(deluge::scenes::services::is_clip_context(no_controllable)).to_equal(view.isClipContext());
-		expect(view.isClipContext()).to_be_false();
+		expect(deluge::scenes::services::is_clip_context(no_controllable)).to_be_false();
 
 		// 5. The SONG as the counter, with a controllable: set, but not a clip. `affectEntire` is
 		//    what makes `Song::getActiveModControllable` resolve one at all (`song.cpp:5537-5544`);
@@ -1531,8 +1531,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		f.song->persistentView.affectEntire = true;
 		view.setActiveModControllableTimelineCounter(f.song, false);
 		rig.set_target_with_timeline(f.song, false);
-		expect(deluge::scenes::services::is_clip_context(rig.knobs.focus())).to_equal(view.isClipContext());
-		expect(view.isClipContext()).to_be_false();
+		expect(deluge::scenes::services::is_clip_context(rig.knobs.focus())).to_equal(view.knobsOnClipContext());
+		expect(view.knobsOnClipContext()).to_be_false();
 		// ...and it really is pointed at something, so shape 5 is not shape 1 in disguise.
 		expect(std::holds_alternative<deluge::scenes::bind::SongFocus>(rig.knobs.focus().owner)).to_be_true();
 	});
@@ -1762,6 +1762,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.set_song(pf.song);
 		currentSong = pf.song;
 		rig.set_target_with_timeline(pf.song, false); // the song, so `itsTheSong` is true
+		currentSong = f.song;
 		view.setActiveModControllableTimelineCounter(f.song, false);
 
 		// `View::knobFocus().vu_meter` is a process-global `View` member and an earlier example in this

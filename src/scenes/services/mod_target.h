@@ -11,7 +11,7 @@
 
 namespace deluge::scenes::services {
 
-/// @brief Whether the gold knobs are on a clip rather than the song: `View::isClipContext`
+/// @brief Whether the gold knobs are on a clip rather than the song: `View::knobsOnClipContext`
 ///        (`view.cpp:1749-1756`) -- an owner, in a clip.
 /// @param focus What the knobs point at.
 /// @return True for a clip's owner; false for the song, an arranger row with no clip, or no focus.

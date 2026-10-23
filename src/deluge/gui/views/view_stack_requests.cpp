@@ -20,41 +20,13 @@
 
 #include "gui/views/view.h"
 #include "model/clip/clip.h"
-#include "model/clip/clip_array.h"
 #include "model/model_stack.h"
-#include "model/output.h"
 #include "model/song/song.h"
 
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <iterator>
-
-bool View::activeModControllableNamesSong(Song* song) const {
-	ModelStackWithThreeMainThings const& stack = activeModControllableModelStack;
-	TimelineCounter const* counter = stack.getTimelineCounterAllowNull();
-	if (counter == song || stack.modControllable == &song->live.global_effectable) {
-		return true;
-	}
-	for (ClipArray const* array : {&song->live.clips.session_clips, &song->live.clips.arrangement_only_clips}) {
-		for (Clip const* clip : *array) {
-			if (counter == clip) {
-				return true;
-			}
-		}
-	}
-	if (stack.modControllable != nullptr) {
-		for (Output* first :
-		     {song->live.media.first_output, static_cast<Output*>(song->live.media.first_hibernating_instrument)}) {
-			for (Output* output = first; output != nullptr; output = output->next) {
-				if (stack.modControllable == output->toModControllable()) {
-					return true;
-				}
-			}
-		}
-	}
-	return false;
-}
 
 void View::followRecordingToClip(Clip* from, Clip* to) {
 	ModelStackWithThreeMainThings& stack = activeModControllableModelStack;

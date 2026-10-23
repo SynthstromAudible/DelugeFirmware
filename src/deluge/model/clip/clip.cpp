@@ -595,8 +595,7 @@ Error Clip::resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* model
 }
 
 bool Clip::deleteSoundsWhichWontSound(Song* song) {
-	return (output->isSkippingRendering() && !song->isClipActive(this)
-	        && this != view.activeModControllableModelStack.getTimelineCounterAllowNull()
+	return (output->isSkippingRendering() && !song->isClipActive(this) && !view.knobsOnClip(*song, *this)
 	        && this != song->live.sync_scaling_clip);
 }
 

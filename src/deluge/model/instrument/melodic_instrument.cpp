@@ -671,10 +671,9 @@ void MelodicInstrument::processParamFromInputMIDIChannel(int32_t cc, int32_t new
 
 		// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
 		// region.
-		if (view.modLength
-		    && modelStack->getTimelineCounter() == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-			modPos = view.modPos;
-			modLength = view.modLength;
+		if (view.stepEditRegionHolds(*modelStack->getTimelineCounter())) {
+			modPos = view.modPos();
+			modLength = view.modLength();
 		}
 	}
 

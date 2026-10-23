@@ -4458,9 +4458,7 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 
 	// Only if this exact TimelineCounter and NoteRow is having automation step-edited, we can set the value for
 	// just a region.
-	if (view.modLength && modelStackWithAutoParam->noteRowId == view.modNoteRowId
-	    && modelStackWithAutoParam->getTimelineCounter()
-	           == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+	if (view.stepEditRegionHolds(*modelStackWithAutoParam->getTimelineCounter(), modelStackWithAutoParam->noteRowId)) {
 
 		// As well as just setting values now, InstrumentClipView keeps a record, for in case the user then
 		// releases the note, in which case we'll want the values from when they pressed hardest etc.
@@ -4470,7 +4468,7 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 		// releasing this MIDI note.
 		deluge::edits::Context editCtx{*currentSong, currentSong->project};
 		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithAutoParam), newValueBig,
-		                                  static_cast<int32_t>(view.modPos), static_cast<int32_t>(view.modLength),
+		                                  static_cast<int32_t>(view.modPos()), static_cast<int32_t>(view.modLength()),
 		                                  modelStackWithAutoParam};
 		deluge::edits::apply(editCtx, edit);
 	}

@@ -87,7 +87,7 @@ void seedKnobFocus(deluge::scenes::services::ModKnobs& knobs) {
 	// No MIDI-follow feedback: this re-asserts a target legacy already set and sent.
 	knobs.set_focus(deluge::gui::knobFocusOf(*currentSong, view.activeModControllableModelStack),
 	                /*send_midi_feedback=*/false);
-	knobs.set_mod_region(view.modPos, view.modLength);
+	knobs.set_mod_region(view.modPos(), view.modLength());
 }
 
 } // namespace

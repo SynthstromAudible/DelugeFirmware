@@ -131,7 +131,7 @@ void popup_text(const std::string& text) {
 } // namespace
 
 bool is_clip_context(const bind::KnobFocus& focus) {
-	// `View::isClipContext` (`view.cpp:1749-1756`): an owner, in a clip.
+	// `View::knobsOnClipContext` (`view.cpp:1749-1756`): an owner, in a clip.
 	if (const auto* sound = std::get_if<bind::SoundFocus>(&focus.owner)) {
 		return sound->clip.has_value();
 	}
