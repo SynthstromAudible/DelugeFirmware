@@ -112,6 +112,31 @@ merges adjacent identical `CANTUNWIND` entries. With no unwinder left, `.ARM.exi
 is up to a further ~87 KB (*estimate*). Nothing else reads the tables: the fault reporter scans the stack for code
 addresses.
 
+### The scenes in the device image (P3d-1c step 3a, `feat/ui-integration`)
+
+Linking `deluge_ui_shell`, `deluge_scenes`, `deluge_scenes_bind` and the `gui/ui/shell_*` guest beside the legacy
+menu, measured on `RelWithDebInfo`:
+
+| | Before (`f882c6678`) | After (`e4efe0ab7`) |
+|---|---:|---:|
+| SRAM heap | 264,784 B | **134,800 B** |
+| `.text` | 1,615,676 B | 1,790,816 B |
+| `.rodata` | 509,052 B | 442,956 B |
+| `.bss` | 327,380 B | 327,876 B |
+| `.ARM.extab` + `.ARM.exidx` | 130,192 B | 146,612 B |
+| `.sdram_init` (image: its pack) | 72,612 B (72,612 B) | 269,556 B (27,558 B in a 33,950 B reserve) |
+
+- The SDRAM content's load copy is deflated (`scripts/tasks/sdram_pack.py`, at staging) and inflated at boot
+  (`miniz_oxide`, no allocator). The inflate code is linked into `.boot_text` in the boot-only tail (7,428 B), so it
+  costs nothing in steady state; its tables (about 1.8 KB of anonymous `.rodata`) stay in SRAM.
+- In `.sdram_init`: the scenes' menu node and cell tables (118,795 B, `deluge::scenes::menu`, ASSERTed over 64 KB), the
+  legacy menu items' vtables (74 KB) and the scenes'. In `.sdram_bss`: `shellHostUI` (25.7 KB) and the scenes'
+  statics (13 KB). The UI tier alone reads any of them.
+- What stays in SRAM is code: the scenes' 98 KB and the shell and guest's 18 KB, beside the legacy menu items' 104 KB
+  and `SoundEditor`'s 10 KB. Retiring the legacy menu (step 3d) returns the last two.
+- Without the compression the image did not link: the load copy of the moved tables alone overflowed SRAM by
+  60,476 B.
+
 ## Placement waste
 
 Read off the linker scripts and the image's symbols. The load-copy item is built and measured (see
@@ -122,10 +147,11 @@ Read off the linker scripts and the image's symbols. The load-copy item is built
   not need it. Starting the heap at the unrounded image end returns 0–64 KB (41 KB at `10e2f7133`). It also moves the
   image ceiling from `0x202E0000` to the RTT reserve at `0x202EB000`. The `code_end` metadata can keep the rounded
   value.
-- **The `.sdram_init` load copy is returned to the heap.** It is placed `AT> RAM` at the end of the image, in the
-  boot-only tail after `.ARM.exidx`, and `__sram_heap_base` is its LMA. The boot copies it to SDRAM (`boot_mem.rs`)
-  before the app creates its heaps, so anything placed in SDRAM costs SRAM only between the bootloader's copy and the
-  boot's, and nothing in steady state (see [Applied](#applied)).
+- **The `.sdram_init` load copy is compressed and returned to the heap.** `.sdram_init` is linked at its SDRAM address
+  only; the build's staging deflates it into `.sdram_init_pack`, reserved at an eighth of its size in the boot-only
+  tail after `.ARM.exidx`, and `__sram_heap_base` is the pack's start. The boot inflates it into SDRAM
+  (`boot_mem.rs`, `sdram_pack.rs`) before the app creates its heaps, so anything placed in SDRAM costs about a tenth
+  of its size in the image until the boot, and nothing in steady state (see [Applied](#applied)).
 - **SDRAM can run code.** The MMU maps it executable and write-back cached (section attribute `0x1DEE`, XN = 0). The
   `PLACE_SDRAM_TEXT` "problems with execution from SDRAM" note in `board_config.h` dates from the legacy BSP. If the
   boot copies text into SDRAM with the caches on, it must clean the D-cache and invalidate the I-cache afterwards.
