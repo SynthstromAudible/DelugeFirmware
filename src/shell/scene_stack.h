@@ -153,6 +153,9 @@ public:
 	/// everything, exactly as an empty stack does.
 	/// @return The input-frontmost scene, or the `NullScene` when there is none.
 	Scene& input_top();
+	/// @brief Is some stacked scene not `Scene::input_transparent()` -- one that takes input?
+	/// @return False for an empty stack, or one holding only passive overlays.
+	bool has_input_scene() const;
 	/// @brief The bottom scene.
 	/// @return The root scene, or null when the stack is empty.
 	Scene* root();

@@ -227,6 +227,15 @@ Scene& SceneStack::input_top() {
 	return null_;
 }
 
+bool SceneStack::has_input_scene() const {
+	for (size_t i = 0; i < n_; i++) {
+		if (!stack_[i]->input_transparent()) {
+			return true;
+		}
+	}
+	return false;
+}
+
 Scene* SceneStack::root() {
 	return n_ > 0 ? stack_[0] : nullptr;
 }

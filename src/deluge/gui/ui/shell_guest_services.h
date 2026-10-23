@@ -64,6 +64,10 @@ namespace deluge::gui::ui {
 /// uncovered.
 void wireShellGuestServices();
 
+/// @brief The guest's close hook: a knob popup still showing goes to legacy's display notification, with the
+///        lifetime it had left, as legacy's own popup outlives the menu. `wireShellGuestServices()` installs it.
+void handOffGuestOverlays();
+
 /// @brief `SoundEditor::noteOnReceivedForMidiLearn`'s body (`gui/ui/sound_editor.cpp:1612-1614`),
 ///        for the ported menu.
 ///

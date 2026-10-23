@@ -104,6 +104,13 @@ struct PopupContext {
 	bool stuttering = false;
 };
 
+/// @brief What a param popup was showing when it was handed to another display, and for how much longer.
+struct ShownPopup {
+	std::string name;
+	std::string value;
+	uint32_t remaining_ms{0};
+};
+
 /// @brief The mod-encoder value popup. One instance for the whole application (`registry.h`).
 class ParamPopupScene final : public deluge::ui::shell::Scene {
 public:
@@ -176,6 +183,10 @@ public:
 	/// @{
 	/// @return Milliseconds left before the shown popup expires; 0 if nothing is showing.
 	uint32_t remaining_ms() const { return remaining_ms_; }
+	/// @brief Give up what is showing to another display: a deferred update is flushed first, as its timer would
+	///        have shown it, and then nothing shows here.
+	/// @return The shown name and value and the lifetime left; none when nothing shows.
+	std::optional<ShownPopup> hand_off();
 	/// @return The text last actually shown (post-arbitration), for specs.
 	std::string_view shown_name() const { return {name_, name_len_}; }
 	/// @return ditto, the value half.

@@ -541,7 +541,9 @@ ActionResult ShellHostUI::timerCallback() {
 	// arms nothing: `closeUI` unsets `TimerName::UI_SPECIFIC` itself (`gui/ui/ui.cpp:197`) before
 	// handing focus to the UI beneath, so a re-arm here would either be undone one line later or
 	// deliver this guest's `timerCallback` to that UI (`gui/ui_timer_manager.cpp:143`).
-	if (shell_.stack().depth() == 0) {
+	// Nothing left that takes input -- an empty stack, or only passive overlays (a knob popup, a console line) -- is a
+	// guest with nothing to offer: it closes, and `closeGuest` hands what the overlays show to legacy.
+	if (!shell_.stack().has_input_scene()) {
 		closeGuest();
 		return ActionResult::DEALT_WITH;
 	}
@@ -575,7 +577,7 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 	// (`:115` in `openPerformanceView`, `:373` and `:383` for the two context menus), against eight
 	// `case` labels; tasks 6 and 7's `SetShortcutsVersion` and `ScreensaverSettingsChanged` open
 	// nothing. And legacy's own `NO_NAVIGATION` semantics mean the ported menu correctly stays on the
-	// shell stack when they do. So `timerCallback`'s `depth() == 0` close does not fire, control
+	// shell stack when they do. So `timerCallback`'s no-input-scene close does not fire, control
 	// reaches the `rearmTimer` below, and the UI that has just been opened over the guest gets the
 	// timer.
 	//
@@ -1017,19 +1019,23 @@ ActionResult ShellHostUI::exitUI() {
 	//
 	// So both directions of the contract this task does own, spelled out:
 	//
-	//  - **Shell stack still occupied after the pop** -- something inside the guest took the exit.
-	//    `DEALT_WITH`, and the guest stays open. Returning `NOT_DEALT_WITH` here would be a lie
-	//    about a press that was consumed, and closing here would pop the guest a level early.
-	//  - **Shell stack empty after the pop** -- the guest has nothing left to show and is itself
-	//    what Back leaves. `close()` (which is `closeUI(this)`, `gui/ui/ui.cpp:57-59`), then
-	//    `ACTIONED_AND_CAUSED_CHANGE`.
+	//  - **A scene that takes input is still stacked after the exit** -- something inside the guest
+	//    took it. `DEALT_WITH`, and the guest stays open. Returning `NOT_DEALT_WITH` here would be a
+	//    lie about a press that was consumed, and closing here would pop the guest a level early.
+	//  - **None is** -- the stack is empty or holds only passive overlays (a knob popup, a console
+	//    line): the guest has nothing left to offer and is itself what Back leaves. `closeGuest()`
+	//    hands the overlays to legacy and closes, then `ACTIONED_AND_CAUSED_CHANGE`.
 	//
-	// `pop()` with no argument is "just the top" (`shell/scene_stack.h:69-73`), and it is called
-	// unguarded: `SceneStack::pop` returns immediately on an empty stack
-	// (`shell/scene_stack.cpp:63-66`), so a `depth() != 0` test here would be a second copy of a
-	// check the stack already makes -- and one that reads as though the call were unsafe without it.
-	shell_.stack().pop();
-	if (shell_.stack().depth() != 0) {
+	// What Back leaves is the input top, not the raw top: a passive overlay drawn over it is not
+	// the scene the user is in. `pop()` covers a stack of nothing but overlays (or none:
+	// `SceneStack::pop` returns at once on an empty stack).
+	if (shell_.stack().has_input_scene()) {
+		(void)shell_.stack().remove(shell_.stack().input_top().kind());
+	}
+	else {
+		shell_.stack().pop();
+	}
+	if (shell_.stack().has_input_scene()) {
 		// The stack moved, so the next tick will re-render everything (`SceneStack::pop` sets
 		// `changed_`, `shell/scene_stack.cpp:63-82`, which `Shell::tick` turns into a repaint request
 		// on every gate, `shell/shell.cpp:349-361`) -- but nothing schedules that tick. This hook is
@@ -1128,6 +1134,12 @@ void ShellHostUI::closeGuest() {
 	// `exitCompletely` asks nothing between its note arms and its `close()`, and `closeUI` searches the
 	// hierarchy for this guest rather than assuming it is on top (`gui/ui/ui.cpp:183-192`).
 	exitNoteModeBeforeClose();
+
+	// What passive overlays still show goes to legacy's display, then the stack empties so the next open starts clean.
+	if (closeHook_ != nullptr) {
+		closeHook_();
+	}
+	shell_.stack().reset();
 
 	// No arm on the close path: `close()` is `closeUI(this)` (`gui/ui/ui.cpp:57-59`), which unsets
 	// `TimerName::UI_SPECIFIC` itself (`gui/ui/ui.cpp:197`) before handing focus to the UI beneath

@@ -32,7 +32,10 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
 
+#include "gui/ui_timer_manager.h"
+#include "hid/display/display.h"
 #include "hid/display/screensaver.h"
+#include "scenes/overlay/param_popup_scene.h"
 
 #include "model/model_stack.h"
 #include "model/song/song.h"
@@ -43,6 +46,8 @@
 #include "cppspec.hpp"
 
 #include <cstdint>
+#include <optional>
+#include <string>
 
 #include "spec/support/spec_main.h"
 
@@ -267,6 +272,56 @@ describe boot_services("the three services, installed into the guest's own Shell
 		currentSong = saved_song;
 		deluge::gui::ui::wireShellGuestServices();
 	});
+	it("hands a showing knob popup to legacy's display when the guest closes, with its remaining lifetime", _ {
+		struct NotificationDisplay final : deluge::hid::Display {
+			std::string title;
+			std::string value;
+			constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
+			void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
+			void popupText(char const*, PopupType) override {}
+			void popupTextTemporary(char const*, PopupType) override {}
+			void cancelPopup() override {}
+			void freezeWithError(char const*) override {}
+			void displayError(Error) override {}
+			void removeWorkingAnimation() override {}
+			void displayLoadingAnimationText(char const*, bool, bool) override {}
+			void removeLoadingAnimation() override {}
+			bool hasPopup() override { return false; }
+			bool hasPopupOfType(PopupType) override { return false; }
+			void consoleText(char const*) override {}
+			void timerRoutine() override {}
+			void displayNotification(std::string_view t, std::optional<std::string_view> v) override {
+				title = t;
+				value = v.value_or("");
+			}
+		};
+		NotificationDisplay stub;
+		deluge::hid::Display* const saved = display;
+		display = &stub;
+		auto& popup = deluge::scenes::overlay::param_popup_scene();
+		popup.tick(100'000);
+		uiTimerManager.unsetTimer(TimerName::DISPLAY);
+		(void)popup.show(deluge::modulation::params::Kind::UNPATCHED_GLOBAL,
+		                 deluge::modulation::params::UNPATCHED_VOLUME, 0, PatchSource::NONE, PatchSource::NONE,
+		                 5'000'000, {});
+		const std::string name{popup.shown_name()};
+		const std::string value{popup.shown_value()};
+		popup.tick(600);
+
+		deluge::gui::ui::handOffGuestOverlays();
+		expect(stub.title).to_equal(name);
+		expect(stub.value).to_equal(value);
+		expect(uiTimerManager.isTimerSet(TimerName::DISPLAY)).to_be_true();
+		expect(popup.remaining_ms()).to_equal(uint32_t(0));
+
+		// Nothing showing: nothing handed.
+		stub.title.clear();
+		deluge::gui::ui::handOffGuestOverlays();
+		expect(stub.title.empty()).to_be_true();
+		uiTimerManager.unsetTimer(TimerName::DISPLAY);
+		display = saved;
+	});
+
 	it("tells the guest's knobs whether the UI mode lets a mod button act, as View answers it", _ {
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		Song* const saved_song = currentSong;

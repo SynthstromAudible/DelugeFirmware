@@ -518,6 +518,42 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		expect(r.shell.stack().depth()).to_equal(1u);
 		expect(r.shell.stack().id_at(0).kind).to_equal(SceneKind::FirstApp);
 	});
+
+	it("hands off what it shows and its remaining lifetime, and stops showing", _ {
+		auto& popup = param_popup_scene();
+		popup.tick(100'000);
+		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 0, PatchSource::NONE, PatchSource::NONE, 7'000'000,
+		                 {});
+		const std::string name{popup.shown_name()};
+		const std::string value{popup.shown_value()};
+		popup.tick(600);
+		const std::optional<overlay::ShownPopup> handed = popup.hand_off();
+		expect(handed.has_value()).to_be_true();
+		if (handed) {
+			expect(handed->name).to_equal(name);
+			expect(handed->value).to_equal(value);
+			expect(handed->remaining_ms).to_equal(uint32_t(1400));
+		}
+		expect(popup.remaining_ms()).to_equal(uint32_t(0));
+		expect(popup.hand_off().has_value()).to_be_false();
+	});
+
+	it("hands off a pending update, flushed first", _ {
+		auto& popup = param_popup_scene();
+		popup.tick(100'000);
+		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 0, PatchSource::NONE, PatchSource::NONE, 8'000'000,
+		                 {});
+		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 20, PatchSource::NONE, PatchSource::NONE, 8'000'010,
+		                 {});
+		const std::optional<overlay::ShownPopup> handed = popup.hand_off();
+		// The newer value, as the shown popup would have read once its deferred flush ran.
+		popup.tick(100'000);
+		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 20, PatchSource::NONE, PatchSource::NONE, 9'000'000,
+		                 {});
+		const std::string latest{popup.shown_value()};
+		expect(handed.has_value() && handed->value == latest).to_be_true();
+		popup.tick(100'000);
+	});
 });
 // clang-format on
 

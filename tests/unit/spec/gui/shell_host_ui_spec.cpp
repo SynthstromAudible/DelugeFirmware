@@ -1569,6 +1569,38 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::service_wirings).to_equal(0);
 	});
 
+	it("closes when only an input-transparent overlay is left, running the close hook first", _ {
+		static int hook_calls = 0;
+		static size_t closed_at_hook = 0;
+		hook_calls = 0;
+		Rig r;
+		expect(r.open(kBase)).to_be_true();
+		r.over.passive = true;
+		expect(r.guest.shell().stack().push(SceneId{kOver, 0})).to_be_true();
+		ShellHostUI::setCloseHook([] {
+			hook_calls++;
+			closed_at_hook = fakelegacyui::closed.size();
+		});
+		expect(r.guest.shell().stack().remove(kBase)).to_be_true();
+		(void)r.guest.timerCallback();
+		expect(hook_calls).to_equal(1);
+		expect(closed_at_hook).to_equal(size_t(0));
+		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
+		expect(r.guest.shell().stack().depth()).to_equal(size_t(0));
+		ShellHostUI::setCloseHook(nullptr);
+		r.over.passive = false;
+	});
+
+	it("closes on Back when only an input-transparent overlay is left over the popped scene", _ {
+		Rig r;
+		expect(r.open(kBase)).to_be_true();
+		r.over.passive = true;
+		expect(r.guest.shell().stack().push(SceneId{kOver, 0})).to_be_true();
+		expect(r.guest.exitUI() == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
+		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
+		r.over.passive = false;
+	});
+
 	it("hands the knob indicator rings back on the close path, and only on the close path", _ {
 		// `GuestSurfaceSet::set_indicator` writes the hardware without legacy's
 		// `knobIndicatorLevels[]` shadow, so `actuallySetKnobIndicatorLevel`'s early-out

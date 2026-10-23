@@ -247,6 +247,17 @@ describe shell_scene_stack("shell::SceneStack", $ {
 	// on the scene beneath -- and `SlicerScene::on_resume` is `Slicer::focusRegained`
 	// (`gui/ui/slicer.cpp:59-72`), which wipes the slice table. See §15.7 of the shell design spec.
 
+	it("has an input scene only while a non-transparent scene is stacked", _ {
+		Rig r;
+		expect(r.st.has_input_scene()).to_be_false();
+		expect(r.st.push({kA})).to_be_true();
+		expect(r.st.push({kT})).to_be_true();
+		expect(r.st.has_input_scene()).to_be_true();
+		expect(r.st.remove(kA)).to_be_true();
+		expect(r.st.depth()).to_equal(size_t(1));
+		expect(r.st.has_input_scene()).to_be_false();
+	});
+
 	it("removing an input-transparent scene notifies nobody", _ {
 		Rig r;
 		expect(r.st.push({kA})).to_be_true();

@@ -408,6 +408,12 @@ public:
 	deluge::ui::shell::SceneId getInitialScene() const { return initial_; }
 	/// @}
 
+	/// @brief What the guest runs as it closes, before it empties its stack: the hand-off of what its passive overlays
+	///        still show to legacy's display (installed by `wireShellGuestServices()`, which may name the scenes).
+	using CloseHook = void (*)();
+	/// @brief Install @p hook, or none.
+	static void setCloseHook(CloseHook hook) { closeHook_ = hook; }
+
 	/// @brief The shell this guest runs. Tasks 6-8 reach the input lowering, the services and the
 	///        tick through here.
 	deluge::ui::shell::Shell& shell() { return shell_; }
@@ -586,6 +592,7 @@ private:
 
 	/// The scene `opened()` pushes; `SceneKind::Null` until a caller sets one.
 	deluge::ui::shell::SceneId initial_{};
+	static inline CloseHook closeHook_ = nullptr;
 	/// @brief The config `shell_` was built with, kept so `feedDetents` can read
 	///        `edges_per_detent` back.
 	///

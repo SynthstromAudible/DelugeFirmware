@@ -315,6 +315,22 @@ Result ParamPopupScene::handle(const deluge::ui::shell::UiEvent& /*event*/,
 	return Result::unhandled();
 }
 
+std::optional<ShownPopup> ParamPopupScene::hand_off() {
+	if (has_pending_) {
+		// The deferred flush, at the instant it was scheduled to fire (`tick`'s pending arm).
+		has_pending_ = false;
+		(void)attempt_display(pending_kind_, pending_param_id_, pending_knob_pos_, pending_source1_, pending_source2_,
+		                      last_actual_display_ms_ + kMinUpdateIntervalMs, pending_context_);
+	}
+	if (remaining_ms_ == 0) {
+		return std::nullopt;
+	}
+	ShownPopup shown{
+	    .name = std::string{shown_name()}, .value = std::string{shown_value()}, .remaining_ms = remaining_ms_};
+	remaining_ms_ = 0;
+	return shown;
+}
+
 void ParamPopupScene::tick(uint32_t dt_ms) {
 	if (remaining_ms_ > 0) {
 		remaining_ms_ = dt_ms >= remaining_ms_ ? 0 : remaining_ms_ - dt_ms;

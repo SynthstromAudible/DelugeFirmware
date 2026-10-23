@@ -22,12 +22,14 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
+#include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
+#include "hid/display/display.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "scenes/menu/menu_scene.h"
@@ -74,8 +76,17 @@ GuestServices& guestServices() {
 
 } // namespace
 
+void handOffGuestOverlays() {
+	if (const std::optional<deluge::scenes::overlay::ShownPopup> shown =
+	        deluge::scenes::overlay::param_popup_scene().hand_off()) {
+		display->displayNotification(shown->name, shown->value);
+		uiTimerManager.setTimer(TimerName::DISPLAY, static_cast<int32_t>(shown->remaining_ms));
+	}
+}
+
 void wireShellGuestServices() {
 	GuestServices& services = guestServices();
+	ShellHostUI::setCloseHook(&handOffGuestOverlays);
 
 	// `currentSong`, which `src/scenes` may not read for itself (`check_layer_rules.py`'s
 	// `scenes-currentSong` row) and which all three services resolve against
