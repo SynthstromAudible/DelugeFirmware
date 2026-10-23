@@ -59,6 +59,7 @@ struct ParamsForPerformance {
 class PerformanceView final : public ClipNavigationTimelineView {
 	/// @brief The settings-channel gate's view into the defaults-read state; see `settings_channel_scenario.cpp`.
 	friend struct SettingsChannelProbe;
+	friend struct PerformanceViewKnobsProbe;
 
 public:
 	PerformanceView();
