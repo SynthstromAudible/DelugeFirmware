@@ -29,6 +29,7 @@
 /// knows), and never mutates the model from `render_oled`/`render_grid` -- `after_render()` and
 /// `handle()` are the two places a write may happen.
 
+#include "deluge-project/mapping_table.h"
 #include "notify/dirty_set.h"
 #include "scenes/menu/action.h"
 #include "scenes/menu/context.h"
@@ -577,10 +578,9 @@ public:
 	///       `getLearningThing()` (`bindings.h`'s `learn_target`): "which automatable parameter
 	///       would a CC bind to". The `learn_*` entry points below are the other learn path
 	///       entirely -- `midi::Command`'s, which binds a whole MIDI *message* to a
-	///       `GlobalMIDICommand` transport action and never touches a `ParamDescriptor`. The
-	///       twelve `midi_command_*` nodes have no `bind.param`, so this returns a null descriptor
-	///       for every one of them.
-	ParamDescriptor learn_target() const;
+	///       `GlobalMIDICommand` transport action and never touches a param. The twelve
+	///       `midi_command_*` nodes have no `bind.param`, so this returns none for every one of them.
+	std::optional<deluge::project::ParamTarget> learn_target() const;
 
 	/// @name MIDI-learn entry points -- the port of `SoundEditor`'s own three delivery members.
 	///

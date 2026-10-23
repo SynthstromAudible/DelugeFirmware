@@ -32,6 +32,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
@@ -75,7 +76,7 @@ std::string enteredTextFor(std::string_view name) {
 /// @return The sound, its source, range and sample controls, the clip's (or kit row's) params and arp.
 SoundEditor::ResolvedContext resolvedFor(const deluge::scenes::menu::MenuContext& menuCtx) {
 	SoundEditor::ResolvedContext resolved{.sound = nullptr,
-	                                      .mod = menuCtx.mod,
+	                                      .mod = nullptr,
 	                                      .params = nullptr,
 	                                      .arp = nullptr,
 	                                      .range = nullptr,
@@ -85,6 +86,10 @@ SoundEditor::ResolvedContext resolvedFor(const deluge::scenes::menu::MenuContext
 	                                      .sampleControls = nullptr};
 	if (currentSong == nullptr) {
 		return resolved;
+	}
+	// The sound, or the chain's owner, by address.
+	if (menuCtx.addresses.chain) {
+		resolved.mod = deluge::bridge::chainOwnerAt(*menuCtx.addresses.chain, *currentSong);
 	}
 	::Clip* clip = menuCtx.addresses.clip ? currentSong->clipForId(menuCtx.addresses.clip->clip_id) : nullptr;
 	auto* instrumentClip =
@@ -96,6 +101,7 @@ SoundEditor::ResolvedContext resolvedFor(const deluge::scenes::menu::MenuContext
 	if (menuCtx.addresses.slot) {
 		::Sound* sound = deluge::bridge::soundAt(*currentSong, *menuCtx.addresses.slot);
 		resolved.sound = sound;
+		resolved.mod = sound;
 		if (sound != nullptr) {
 			resolved.source = &sound->sources[menuCtx.source_index];
 			resolved.sampleControls = &resolved.source->sampleControls;

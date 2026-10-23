@@ -3,6 +3,7 @@
 // can hold note tails. The kit clip's own arp is left alone.
 
 #include "deluge-project/setting_group.h"
+#include "gui/ui/menu_view_of.h"
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
 #include "model/edits/edit.h"
@@ -97,7 +98,7 @@ describe set_kit_lane_setting("an arp setting written across a kit's lanes", ${
 		    *patched->docForParam(deluge::modulation::params::LOCAL_ENV_0_SUSTAIN), std::numeric_limits<int32_t>::min());
 		patched->params[deluge::modulation::params::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
 		    *patched->docForParam(deluge::modulation::params::LOCAL_ENV_0_RELEASE), std::numeric_limits<int32_t>::max());
-		const MenuContext ctx = menu::context_for(*l.f.song, l.f.clip, 0, false, false, false, false);
+		const MenuContext ctx = menu::context_for(*l.f.song, deluge::gui::menuViewOf(*l.f.song, l.f.clip), 0, false, false, false, false);
 		const bool sound_tails = spec::drum_allows_note_tails(l.sound);
 		const bool second_tails = spec::drum_allows_note_tails(l.second);
 		const std::string sound_before = lane(l, *l.sound, "arpeggiator/kitArp");

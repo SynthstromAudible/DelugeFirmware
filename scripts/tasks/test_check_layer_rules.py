@@ -1,5 +1,5 @@
 #! /usr/bin/env python3
-"""Unit tests for check_layer_rules.py's scenes rows: the scenes name no Edit and no engine object.
+"""Unit tests for check_layer_rules.py's scenes rows: the scenes name no Edit, no ModelStack and no engine object.
 
 Run directly with:
     python3 scripts/tasks/test_check_layer_rules.py
@@ -37,13 +37,6 @@ class ScenesRows(unittest.TestCase):
         )
         self.assertEqual(counts.get("scenes-no-edits"), 1)
 
-    def test_the_gold_knob_s_address_in_the_context_is_not(self):
-        counts = self.counts(
-            "src/scenes/menu/context.cpp",
-            '#include "model/edits/param_address_for.h"\n',
-        )
-        self.assertNotIn("scenes-no-edits", counts)
-
     def test_another_edit_in_the_context_is_counted(self):
         counts = self.counts(
             "src/scenes/menu/context.cpp", '#include "model/edits/setting_edit.h"\n'
@@ -64,30 +57,45 @@ class ScenesRows(unittest.TestCase):
                 )
                 self.assertEqual(counts.get("scenes-no-engine-pointers"), 1, line)
 
-    def test_a_comment_and_an_allowed_file_are_not(self):
+    def test_a_comment_is_not(self):
         comment = self.counts(
             "src/scenes/menu/nodes/planted.cpp",
             "/// Legacy's `Sound*` is not held here.\n",
         )
         self.assertNotIn("scenes-no-engine-pointers", comment)
+
+    def test_no_scene_file_is_allowed_an_engine_pointer_a_model_stack_or_an_edit(self):
+        plants = {
+            "scenes-no-engine-pointers": "void f() {\n\tSound* sound = nullptr;\n}\n",
+            "scenes-model-stack": '#include "modulation/automation/auto_param.h"\n',
+            "scenes-model-stack-outside-context": '#include "model/model_stack.h"\n',
+            "scenes-no-edits": '#include "model/edits/param_address_for.h"\n',
+        }
         for rel in (
             "src/scenes/menu/context.cpp",
             "src/scenes/menu/context.h",
+            "src/scenes/menu/bindings.cpp",
             "src/scenes/overlay/param_popup_scene.h",
+            "src/scenes/overlay/param_popup_scene.cpp",
             "src/scenes/services/mod_knobs.cpp",
+            "src/scenes/services/mod_knobs.h",
             "src/scenes/services/mod_target.h",
         ):
-            with self.subTest(rel=rel):
-                self.assertNotIn(
-                    "scenes-no-engine-pointers",
-                    self.counts(rel, "Sound* sound = nullptr;\n"),
-                )
+            for rule, text in plants.items():
+                with self.subTest(rel=rel, rule=rule):
+                    self.assertEqual(self.counts(rel, text).get(rule), 1)
 
-    def test_the_scenes_hold_neither(self):
+    def test_the_scenes_hold_none(self):
         found = {
             key: n
             for key, n in clr.current().items()
-            if key[1] in ("scenes-no-edits", "scenes-no-engine-pointers")
+            if key[1]
+            in (
+                "scenes-no-edits",
+                "scenes-no-engine-pointers",
+                "scenes-model-stack",
+                "scenes-model-stack-outside-context",
+            )
         }
         self.assertEqual(found, {})
 

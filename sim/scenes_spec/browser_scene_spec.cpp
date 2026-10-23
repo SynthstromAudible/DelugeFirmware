@@ -29,6 +29,7 @@
 /// @note The spec may include `gui/` (for `l10n::String` ids and the legacy renderer); the library
 ///       may not. Same rule `menu_scene_spec.cpp` and `context_menu_scene_spec.cpp` run under.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/menu/context.h"
 #include "scenes/profile.h"
@@ -550,11 +551,13 @@ struct Rig {
 };
 
 MenuContext context_of(spec::SongFixture& f) {
-	return menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
+	return menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false,
+	                         /*kit_global_fx=*/false);
 }
 
 MenuContext context_of(spec::AudioSongFixture& f) {
-	return menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
+	return menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false,
+	                         /*kit_global_fx=*/false);
 }
 
 /// @brief The catalogue's contents as one comma-joined string, so an order mismatch prints as an

@@ -2,6 +2,7 @@
 // MIDI or gate) lane arp; the whole kit's clip arp. Each node shown on a root reads and writes that owner's record,
 // never another root's, and choosing the Custom preset still opens the octave and note pages.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/target.h"
 #include "scenes/menu/bindings.h"
@@ -79,7 +80,7 @@ struct Root {
 };
 
 MenuContext at(Song& song, Clip* clip, bool kit_global_fx = false) {
-	return menu::context_for(song, clip, 0, false, false, false, kit_global_fx);
+	return menu::context_for(song, deluge::gui::menuViewOf(song, clip), 0, false, false, false, kit_global_fx);
 }
 
 /// Which nodes of kArpTargets, shown at @p root, do not read back what they wrote, or whose write names another owner.

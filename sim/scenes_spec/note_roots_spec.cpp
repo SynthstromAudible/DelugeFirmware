@@ -6,6 +6,7 @@
 /// `MenuScene::grid_pad_claim()` for these two roots is `menu_grid_claim_spec.cpp`'s (extended,
 /// not here) -- it already owns every other root's row of that same table.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -101,7 +102,7 @@ describe note_roots_table("scenes::menu MenuContext::Root::NoteEditor / NoteRowE
 		// `Root::Sound` (`shortcuts_spec.cpp` pins it at (8, 7)), so focusing on IT under each note
 		// root is what actually exercises the table lookup this claim is about.
 		spec::SongFixture fx = spec::make_synth_song();
-		MenuContext ctx = menu::context_for(*fx.song, fx.clip, 0, false, false, false, false);
+		MenuContext ctx = menu::context_for(*fx.song, deluge::gui::menuViewOf(*fx.song, fx.clip), 0, false, false, false, false);
 		auto& scene = menu_scene();
 
 		// A render at tick 0 falls in the cycle's SOURCE phase (`phase < kSourceBlinkMs`), which
@@ -146,7 +147,7 @@ describe note_roots_table("scenes::menu MenuContext::Root::NoteEditor / NoteRowE
 		// `gui/ui/sound_editor.cpp:274-281`: `inNoteEditor()` greys the sidebar only (`cols = 0x03`,
 		// `rows = 0`); `inNoteRowEditor()` greys nothing (`doGreyout = false`).
 		spec::SongFixture fx = spec::make_synth_song();
-		MenuContext ctx = menu::context_for(*fx.song, fx.clip, 0, false, false, false, false);
+		MenuContext ctx = menu::context_for(*fx.song, deluge::gui::menuViewOf(*fx.song, fx.clip), 0, false, false, false, false);
 		auto& scene = menu_scene();
 
 		ctx.root = MenuContext::Root::NoteEditor;
@@ -166,7 +167,7 @@ describe note_roots_table("scenes::menu MenuContext::Root::NoteEditor / NoteRowE
 describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequence_direction under Root::NoteRowEditor", $ {
 	it("on a non-kit clip, reads and writes the auditioned row through the bridge, and offers NONE", _ {
 		spec::SongFixture fx = spec::make_synth_song();
-		MenuContext ctx = menu::context_for(*fx.song, fx.clip, 0, false, false, false, false);
+		MenuContext ctx = menu::context_for(*fx.song, deluge::gui::menuViewOf(*fx.song, fx.clip), 0, false, false, false, false);
 		expect(ctx.is_kit).to_be_false();
 		ctx.root = MenuContext::Root::NoteRowEditor;
 
@@ -188,7 +189,7 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 
 	it("falls back to the clip's own mode when the bridge answers false (no auditioned row)", _ {
 		spec::SongFixture fx = spec::make_synth_song();
-		MenuContext ctx = menu::context_for(*fx.song, fx.clip, 0, false, false, false, false);
+		MenuContext ctx = menu::context_for(*fx.song, deluge::gui::menuViewOf(*fx.song, fx.clip), 0, false, false, false, false);
 		ctx.root = MenuContext::Root::NoteRowEditor;
 		deluge::edits::clipSettingFor(*fx.clip, "sequenceDirection", deluge::serialization::Value::makeScalar(std::string{deluge::project::to_string(SequenceDirection::REVERSE)}));
 
@@ -213,7 +214,7 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 		// (`sequence/direction.h:117-119`), so a kit clip has no equivalent to model here at all.
 		spec::SongFixture fx = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(fx);
-		MenuContext ctx = menu::context_for(*fx.song, fx.clip, 0, false, false, false, /*kit_global_fx=*/false);
+		MenuContext ctx = menu::context_for(*fx.song, deluge::gui::menuViewOf(*fx.song, fx.clip), 0, false, false, false, /*kit_global_fx=*/false);
 		expect(ctx.resolved).to_be_true();
 		expect(ctx.is_kit).to_be_true();
 		ctx.root = MenuContext::Root::NoteRowEditor;
@@ -241,7 +242,7 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 
 	it("under any other root, is unchanged: the bridge is never consulted", _ {
 		spec::SongFixture fx = spec::make_synth_song();
-		MenuContext ctx = menu::context_for(*fx.song, fx.clip, 0, false, false, false, false);
+		MenuContext ctx = menu::context_for(*fx.song, deluge::gui::menuViewOf(*fx.song, fx.clip), 0, false, false, false, false);
 		expect(ctx.root == MenuContext::Root::NoteRowEditor).to_be_false();
 		deluge::edits::clipSettingFor(*fx.clip, "sequenceDirection", deluge::serialization::Value::makeScalar(std::string{deluge::project::to_string(SequenceDirection::REVERSE)}));
 

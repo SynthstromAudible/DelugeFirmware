@@ -5,7 +5,11 @@
 ///        lock, the range last edited. View state, keyed by address; never written to the song or a sound, and not
 ///        saved.
 
+#include "deluge-project/clip_address.h"
+#include "deluge-project/drum_type.h"
 #include "deluge-project/instrument_slot.h"
+#include "deluge-project/setting_group.h"
+#include "scenes/bind/runtime_facts.h"
 #include "scenes/services/waveform_address.h"
 
 #include <cstdint>
@@ -16,6 +20,21 @@
 #include <vector>
 
 namespace deluge::scenes::services {
+
+/// @brief What a menu opens over, as the view shows it: the clip and its track, what plays it, the kit row selected and
+///        the clip's affect-entire. The view's facts, which the song's records do not hold; the app fills it from the
+///        view it opens the menu from.
+struct MenuView {
+	std::optional<project::ClipAddress> clip;   ///< the clip; none for a song-level or settings menu
+	std::optional<project::TrackAddress> track; ///< the clip's track
+	bind::TrackKind kind{bind::TrackKind::SYNTH};
+	bool audio_clip{false};               ///< the clip is an audio clip
+	std::optional<uint32_t> selected_row; ///< a kit's selected row, by its drum id
+	project::DrumType selected_row_type{project::DrumType::SOUND};
+	bool row_in_clip{false};   ///< the selected row has its note row in the clip
+	bool affect_entire{false}; ///< the kit clip's affect-entire
+	bool operator==(const MenuView&) const = default;
+};
 
 /// @brief How a waveform was last viewed.
 struct SampleView {
@@ -75,11 +94,16 @@ public:
 		}
 		last_ranges_.emplace_back(std::pair{slot, source}, range);
 	}
+	/// @brief The clip the views have open, as a menu would open over it: what the global buttons and MIDI learn ask
+	///        of "the current clip". The app tells the store; none until it does.
+	[[nodiscard]] const MenuView& current_view() const { return current_view_; }
+	void set_current_view(const MenuView& view) { current_view_ = view; }
 
 private:
 	uint64_t song_{0};
 	std::vector<std::pair<WaveformAddress, SampleView>> sample_views_;
 	std::vector<std::pair<std::pair<project::SlotAddress, uint8_t>, uint16_t>> last_ranges_;
+	MenuView current_view_{};
 };
 
 /// @brief The scenes' one store.

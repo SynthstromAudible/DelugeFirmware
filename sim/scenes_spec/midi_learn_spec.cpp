@@ -64,8 +64,10 @@
 /// the two callers of `View::buttonAction` and why "the current UI is the root UI" IS the
 /// reachability rule.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/services/global_controls.h"
 #include "scenes/services/midi_learn.h"
+#include "scenes/services/view_state.h"
 
 #include "shell/input_lowering.h"
 #include "shell/leds.h"
@@ -1274,11 +1276,15 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		                                      deluge::project::TrackInputTarget{*fixture.instrument->id()},
 		                                      ::LearnedMIDI{});
 
+		// The clip the view has open is the MIDI track's, as the app tells the view state.
+		deluge::scenes::services::view_state().set_current_view(
+		    deluge::gui::menuViewOf(*fixture.song, fixture.song->getCurrentClip()));
 		LearnRig rig;
 		rig.ml.set_song(fixture.song);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
 		rig.ml.cc_received(cables().b, 8, 74, 100);
+		deluge::scenes::services::view_state().set_current_view({});
 
 		expect(Learned::of(slot).describe()).to_equal(legacy.describe());
 	});
@@ -1619,6 +1625,9 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		expect(fixture.instrument->midiInput.cable == &cables().b).to_be_true();
 		expect(reset_legacy_learn()).to_be_true();
 
+		// The clip the view has open is the MIDI track's, as the app tells the view state.
+		deluge::scenes::services::view_state().set_current_view(
+		    deluge::gui::menuViewOf(*fixture.song, fixture.song->getCurrentClip()));
 		LearnRig rig;
 		rig.ml.set_song(fixture.song);
 		rig.ml.begin();
@@ -1627,6 +1636,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		expect(fixture.song->project.mappings.find(target) == nullptr).to_be_true();
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
 		rig.ml.cc_received(cables().a, 3, 74, 100);
+		deluge::scenes::services::view_state().set_current_view({});
 		expect(held(*fixture.song, target).channel_or_zone == 3).to_be_true();
 		expect(fixture.instrument->midiInput.channelOrZone == 3).to_be_true();
 		expect(fixture.instrument->midiInput.cable == &cables().a).to_be_true();
@@ -1720,6 +1730,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		Song* const saved = currentSong;
 		currentSong = fixture.song;
 		fixture.song->setCurrentClip(fixture.clip);
+		deluge::scenes::services::view_state().set_current_view(deluge::gui::menuViewOf(*fixture.song, fixture.clip));
 		const CableDefaults defaults{cables().b, 2, 0x10000000, 5};
 
 		LearnRig rig;
@@ -1732,7 +1743,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		expect(recorded_velocity_cable(*fixture.song, deluge::project::OwnerId::drum(*drum->id()), fixture.clip->id()))
 		    .to_equal(std::optional<int32_t>{0x10000000});
 		const deluge::scenes::menu::MenuContext ctx =
-		    deluge::scenes::menu::context_for(*fixture.song, fixture.clip, 0, false, false, false, false);
+		    deluge::scenes::menu::context_for(*fixture.song, deluge::gui::menuViewOf(*fixture.song, fixture.clip), 0, false, false, false, false);
 		expect(ctx.addresses.note_row.has_value()).to_be_true();
 		if (ctx.addresses.note_row) {
 			expect(recorded_row(*fixture.song, deluge::project::SettingGroupId::NOTE_ROW, *ctx.addresses.note_row,
@@ -1740,6 +1751,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 			    .to_equal(std::string{"5"});
 		}
 		fixture.song->setCurrentClip(nullptr);
+		deluge::scenes::services::view_state().set_current_view({});
 		currentSong = saved;
 	});
 
@@ -1801,8 +1813,9 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		Song* const saved = currentSong;
 		currentSong = fixture.song;
 		fixture.song->setCurrentClip(fixture.clip);
+		deluge::scenes::services::view_state().set_current_view(deluge::gui::menuViewOf(*fixture.song, fixture.clip));
 		const deluge::scenes::menu::MenuContext ctx =
-		    deluge::scenes::menu::context_for(*fixture.song, fixture.clip, 0, false, false, false, false);
+		    deluge::scenes::menu::context_for(*fixture.song, deluge::gui::menuViewOf(*fixture.song, fixture.clip), 0, false, false, false, false);
 		expect(ctx.addresses.note_row.has_value()).to_be_true();
 		const std::string before =
 		    ctx.addresses.note_row
@@ -1832,6 +1845,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 			    .to_equal(before);
 		}
 		fixture.song->setCurrentClip(nullptr);
+		deluge::scenes::services::view_state().set_current_view({});
 		currentSong = saved;
 	});
 
@@ -1884,6 +1898,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		Song* const saved = currentSong;
 		currentSong = fixture.song;
 		fixture.song->setCurrentClip(fixture.clip);
+		deluge::scenes::services::view_state().set_current_view(deluge::gui::menuViewOf(*fixture.song, fixture.clip));
 		NoteRow* row = fixture.clip->getNoteRowForDrum(drum);
 		expect(row != nullptr).to_be_true();
 		(void)row->paramManager.getOrCreateExpressionParamSet(true); // a played bend made it, as a note would
@@ -1893,7 +1908,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		                                         .clip_id = fixture.clip->id()};
 		expect(deluge::scenes::menu::host_write_sink().write_param(bend, 0x10000000, 0, 24)).to_be_true();
 		const deluge::scenes::menu::MenuContext ctx =
-		    deluge::scenes::menu::context_for(*fixture.song, fixture.clip, 0, false, false, false, false);
+		    deluge::scenes::menu::context_for(*fixture.song, deluge::gui::menuViewOf(*fixture.song, fixture.clip), 0, false, false, false, false);
 		const std::string before =
 		    ctx.addresses.note_row
 		        ? recorded_row(*fixture.song, deluge::project::SettingGroupId::NOTE_ROW, *ctx.addresses.note_row, "bendRange")
@@ -1914,6 +1929,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 			    .to_equal(before);
 		}
 		fixture.song->setCurrentClip(nullptr);
+		deluge::scenes::services::view_state().set_current_view({});
 		currentSong = saved;
 	});
 

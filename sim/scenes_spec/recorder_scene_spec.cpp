@@ -30,6 +30,7 @@
 /// @note The spec may include `gui/` (for the legacy recorder); the library may not. Same rule
 ///       `browser_scene_spec.cpp` and `marker_scene_spec.cpp` run under.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/bind/target.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
@@ -187,7 +188,8 @@ struct Rig {
 	}
 
 	MenuContext ctx() {
-		MenuContext c = menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
+		MenuContext c = menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, song.clip), 0, false, false,
+		                                  false, /*kit_global_fx=*/false);
 		c.range_index = 0;
 		return c;
 	}
@@ -335,7 +337,10 @@ struct KitRig {
 	KitRig(const KitRig&) = delete;
 	KitRig& operator=(const KitRig&) = delete;
 
-	MenuContext ctx() { return menu::context_for(*song.song, song.clip, 0, false, false, false, false); }
+	MenuContext ctx() {
+		return menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, song.clip), 0, false, false, false,
+		                         false);
+	}
 
 	/// @brief The lane's name, as the record holds it.
 	std::string recorded_name() {

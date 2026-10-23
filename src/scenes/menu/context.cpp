@@ -16,8 +16,8 @@
  */
 
 /// @file
-/// @brief The port of `SoundEditor::setup`'s context resolution, `getCurrentModelStack`, and the
-///        common `checkPermissionToBeginSession` rule. See `context.h` for the interface.
+/// @brief The port of `SoundEditor::setup`'s context resolution and the common `checkPermissionToBeginSession` rule,
+///        over the song's records and what the view says it opened over (`services::MenuView`). See `context.h`.
 ///
 /// **What did NOT come across** (task-3 ruling 2 -- `setup()` is half context resolution, half UI
 /// choreography, and only the first half belongs in `src/scenes`). UI side, not ported:
@@ -25,7 +25,7 @@
 ///   * `:1684` `getCurrentUI()`, `:1687` `rootUIIsClipMinderScreen()`, `:1709`
 ///     `setupKitGlobalFXMenu`, `:1774`/`:1777` `currentUIMode`, `:1816`/`:1819` the
 ///     `currentUI ==` comparisons and `Buttons::isShiftButtonPressed()` -- reduced to
-///     `context_for`'s three `bool` arguments.
+///     `context_for`'s `bool` arguments; the clip, its kit's selected row and affect-entire to its `MenuView`.
 ///   * `:1734-1737` the "select a row or affect entire" popup, `:1849` the "parameter not
 ///     applicable" popup, `:1864` `display->cancelPopup()` -- every `display->` call.
 ///   * `:1781`/`:1786` retitling the shared `soundEditorRootMenuMIDIOrCV` singleton -- an artefact
@@ -49,11 +49,8 @@
 ///     range (and can fail with `INSUFFICIENT_RAM`). `permission_for` is a pure predicate and does
 ///     not; whoever opens a range-dependent item must do the allocation.
 ///
-/// **`currentSong` references in this file: 0.** Ruling 3 confines the global to this translation
-/// unit and Task 12 ratchets the count; every place `setup()` and `getCurrentModelStack()` reached
-/// for `currentSong` (`:1690`, `:2042`, `:2045`, `:2059`) or for a `getCurrent*()` helper that
-/// reads it (`:2038`, `:2039`, `:2059`) takes it from `MenuContext::song` here instead, which is
-/// the `Song&` the caller passed to `context_for`. The baseline Task 12 should record is 0.
+/// **`currentSong` references in this file: 0.** Every place `setup()` reached for `currentSong` or a `getCurrent*()`
+/// helper takes the `Song&` the caller passed to `context_for` (`MenuContext::song`) instead.
 
 #include "scenes/menu/context.h"
 
@@ -64,27 +61,7 @@
 #include "scenes/menu/node.h"
 #include "scenes/services/view_state.h"
 
-#include "model/clip/audio_clip.h"
-#include "model/clip/clip.h"
-#include "model/clip/instrument_clip.h"
-#include "model/drum/drum.h"
-#include "model/drum/non_audio_drum.h"
-#include "model/instrument/instrument.h"
-#include "model/instrument/kit.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
-#include "model/model_stack.h" // ruling 6: this file and bindings.cpp only
-#include "model/note/note_row.h"
-#include "model/output.h"
-#include "model/project_bridge/chain_bridge.h"
-#include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
-#include "modulation/params/param_manager.h"
-#include "playback/playback_handler.h"
-#include "processing/sound/sound.h"
-#include "processing/sound/sound_drum.h"
-#include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
-#include "storage/multi_range/multi_range.h"
 
 #include <array>
 #include <iterator>
@@ -178,183 +155,92 @@ void select_source(MenuContext& ctx, int8_t index) {
 	}
 }
 
-MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool performance_view,
+MenuContext context_for(Song& song, const services::MenuView& view, int8_t source_index, bool performance_view,
                         bool session_or_arranger_root, bool session_view_root, bool kit_global_fx) {
+	using bind::TrackKind;
 	MenuContext ctx{};
 	ctx.song = &song;
-	// The engine objects the context is resolved from; it keeps their addresses, not them.
-	Output* output = nullptr;
-	Sound* sound = nullptr;
 	ctx.source_index = source_index;
 	// Legacy's `!rootUIIsClipMinderScreen()`: performance view is not a clip minder either, whatever its caller says of
 	// the session and arranger.
 	ctx.is_song_view = session_or_arranger_root || performance_view;
-	// The second, narrower root-UI fact -- `getRootUI() == &sessionView` rather than
-	// `!rootUIIsClipMinderScreen()`. It steers no branch in this function: `:1819-1822` funnels the
-	// session, arranger and song-automation views into one root, and only `relevance::is_session_view`
-	// (the two `song::` items' `isRelevant`) ever asks which of the three it was.
+	// The narrower root-UI fact, `getRootUI() == &sessionView`: it steers no branch here, only
+	// `relevance::is_session_view`.
 	ctx.is_session_view = session_view_root;
 	ctx.is_performance = performance_view;
 	ctx.resolved = true;
 
-	InstrumentClip* instrument_clip = nullptr;
-	OutputType output_type = OutputType::NONE;
-
 	// ---------------------------------------------------------------------------------------
-	// Part 1: which sound / param manager / arp / mod controllable (`:1686-1762`).
-	//
-	// Note the asymmetry with part 2, transcribed as-is: part 1 keys off
-	// `!rootUIIsClipMinderScreen()` FIRST and only then looks at `clip`, while part 2 keys off
-	// `clip` first. A caller in a session view that also passes a clip therefore gets the song's
-	// param manager with a clip root -- exactly what `setup()` does today.
-	//
-	// Part 3 inherits the same asymmetry in one more place: its audio-clip arm is guarded by
-	// `ctx.is_audio_clip`, which only part 1's `else if (clip != nullptr)` arm ever sets, whereas
-	// legacy `:1893` tests `clip->type` unguarded. So in the session-root-with-an-audio-clip case
-	// legacy still fills `currentSampleControls`/`currentPriority` and this port leaves them null.
-	// Deliberate, and the trade runs the other way too: legacy `:1893` dereferences `clip` when
-	// `clip == nullptr` (the settings root with no sound), a latent null-deref this port does not
-	// inherit -- so do NOT "restore fidelity" by dropping the guard.
+	// Part 1: which sound or chain (`:1686-1762`). Part 1 keys off the song view FIRST and only then looks at the
+	// clip, while part 2 keys off the clip first: a song-view caller that also passes a clip gets the song's chain
+	// with a clip root, as `setup()` does.
 	// ---------------------------------------------------------------------------------------
-
-	// `:1686-1695` -- performance / session / arranger: the song's own param manager and global
-	// effectable, read off a song-as-timeline-counter stack.
+	std::optional<project::SlotAddress> slot;
+	std::optional<project::ChainAddress> chain;
 	if (ctx.is_song_view) {
-		alignas(ModelStackWithAutoParam) char stack_memory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* stack = song.setupModelStackWithSongAsTimelineCounter(stack_memory);
-		if (stack != nullptr) {
-			ctx.mod = static_cast<ModControllableAudio*>(stack->modControllable);
-		}
+		// `:1686-1695` -- the song's own chain.
+		chain = project::ChainAddress{.kind = project::ChainAddress::Kind::SONG};
 	}
-
-	// `:1696-1762`
-	else if (clip != nullptr) {
-		output = clip->output;      // `:1697`
-		output_type = output->type; // `:1698`
-		ctx.is_kit = output_type == OutputType::KIT;
-		ctx.is_audio_clip = clip->type == ClipType::AUDIO;
-
-		// `:1700-1755` -- InstrumentClips.
-		if (clip->type == ClipType::INSTRUMENT) {
-			instrument_clip = static_cast<InstrumentClip*>(clip); // `:1702`
-
-			// `:1704-1740` -- Kit.
-			if (ctx.is_kit) {
-				Drum* selected_drum = static_cast<Kit*>(output)->selectedDrum; // `:1706`
-
-				// `:1708-1713` -- affect-entire ("kit global FX"): the kit itself is the mod
-				// controllable and the clip's own param manager is what is edited.
-				//
-				// `setup()` gates this on its `setupKitGlobalFXMenu` member, which is the fourth
-				// UI fact `context_for` takes as an argument. It is NOT the same as the clip's
-				// `affectEntire`: the member is only ever set true (from
-				// `outputType == KIT && instrumentClip->affectEntire` --
-				// `model/clip/instrument_clip_minder.cpp:393-417`,
-				// `gui/views/automation_view.cpp:1623-1625`) and is cleared on menu exit
-				// (`sound_editor.cpp:189`, `:768`), so the kit-row grid-shortcut path
-				// (`sound_editor.cpp:1205-1213`) enters with it false while `affectEntire` is true,
-				// and legacy edits the row's params rather than the kit's. Deriving the branch from
-				// `affectEntire` would silently take the kit path there -- and with it a different
-				// root (`KitGlobalFx` vs `Drum`) and different addresses.
-				//
-				// `ctx.affect_entire` below still reports the clip's own setting, so a caller can
-				// see both facts.
-				if (kit_global_fx) {
-					ctx.mod = static_cast<ModControllableAudio*>(output->toModControllable());
-					ctx.is_kit_global_fx = true;
-				}
-
-				// `:1715-1730` -- a selected drum.
-				else if (selected_drum != nullptr) {
-					ctx.is_drum = true;
-
-					// `:1717-1726` -- a SoundDrum: its note row holds the param manager.
-					if (selected_drum->type == DrumType::SOUND) {
-						NoteRow* note_row = instrument_clip->getNoteRowForDrum(selected_drum); // `:1718`
-						if (note_row == nullptr) {
-							ctx.resolved = false; // `:1719-1721` -- `setup()` returns false
-						}
-						else {
-							auto* sound_drum = static_cast<SoundDrum*>(selected_drum);
-							sound = sound_drum;
-							ctx.mod = sound_drum;
-						}
+	else if (view.clip && view.track) {
+		ctx.is_kit = view.kind == TrackKind::KIT;
+		ctx.is_audio_clip = view.audio_clip;
+		const uint32_t track = view.track->output_id;
+		if (view.audio_clip) {
+			// `:1757-1761` -- an audio track's chain.
+			chain = project::ChainAddress{.kind = project::ChainAddress::Kind::OUTPUT, .id = track};
+		}
+		else if (ctx.is_kit) {
+			// `:1708-1713` -- affect-entire ("kit global FX"), which the caller says (`setupKitGlobalFXMenu`): the
+			// kit's own chain. Not the clip's affect-entire: the kit-row grid shortcut enters with it on and edits the
+			// row.
+			if (kit_global_fx) {
+				chain = project::ChainAddress{.kind = project::ChainAddress::Kind::OUTPUT, .id = track};
+				ctx.is_kit_global_fx = true;
+			}
+			// `:1715-1730` -- a selected row: a sound row with its note row in the clip is a sound to edit, one without
+			// is refused (`:1719-1721`); a MIDI or gate row has an arpeggiator and nothing else.
+			else if (view.selected_row) {
+				ctx.is_drum = true;
+				if (view.selected_row_type == project::DrumType::SOUND) {
+					if (view.row_in_clip) {
+						slot = project::SlotAddress{.kind = project::SlotAddress::Kind::DRUM, .id = *view.selected_row};
 					}
-
-					// `:1727-1729` -- a MIDI or gate drum: an arpeggiator and nothing else.
-					else if (selected_drum->type == DrumType::MIDI || selected_drum->type == DrumType::GATE) {}
-				}
-
-				// `:1732-1739` -- a kit with neither affect-entire nor a selected drum: nothing to
-				// edit. (`setup()` also pops up "select a row or affect entire" for the sequence
-				// direction item; UI side, not ported.)
-				else {
-					ctx.resolved = false;
+					else {
+						ctx.resolved = false;
+					}
 				}
 			}
-
-			// `:1742-1754` -- synth, MIDI or CV.
+			// `:1732-1739` -- neither affect-entire nor a selected row: nothing to edit.
 			else {
-				// `:1744-1748` -- Synth.
-				if (output_type == OutputType::SYNTH) {
-					auto* synth = static_cast<SoundInstrument*>(output);
-					sound = synth;
-					ctx.mod = synth;
-				}
-
-				// `:1750` -- CV or MIDI: not much happens (no sound, no mod controllable).
+				ctx.resolved = false;
 			}
 		}
-
-		// `:1757-1761` -- AudioClips.
-		else {
-			ctx.mod = static_cast<ModControllableAudio*>(output->toModControllable());
+		else if (view.kind == TrackKind::SYNTH) {
+			slot = project::SlotAddress{.kind = project::SlotAddress::Kind::OUTPUT, .id = track};
 		}
+		// `:1750` -- CV or MIDI: no sound, no chain.
 	}
 
-	// A resolved output, reported whichever branch part 1 took: the kit clip's own `affectEntire`.
-	// Kit-only, so that a synth clip (whose `affectEntire` member exists but means nothing) reports
-	// false, as the task-3 brief's first case requires.
-	ctx.affect_entire = ctx.is_kit && instrument_clip != nullptr && instrument_clip->affectEntire;
+	// The kit clip's own affect-entire, whichever branch part 1 took (a synth clip's means nothing).
+	ctx.affect_entire = ctx.is_kit && !ctx.is_audio_clip && view.affect_entire;
 
 	// ---------------------------------------------------------------------------------------
-	// Part 2: which root menu (`:1769-1827`, the `item == nullptr` arm -- an explicitly requested
-	// `item` is the caller's own choice and has no analogue here).
-	//
-	// The three kit arms below are spelled with `is_kit_global_fx` where legacy `:1790`/`:1794`/
-	// `:1800` spell `instrumentClip->affectEntire`. Inside this arm's own domain the two are the
-	// same fact: `:1790` is only ever evaluated when `item == nullptr`, and every caller that
-	// passes no item sets `setupKitGlobalFXMenu` from `affectEntire`, while the one caller where
-	// they differ -- the kit-row grid shortcut (`:1205-1213`) -- always passes an item and so never
-	// reaches here. Outside it, this spelling is what keeps the root consistent with the
-	// `params`/`mod`/`arp` part 1 just resolved: a shortcut caller editing one row gets `Drum`
-	// (or `MidiDrum`/`GateDrum`), not `KitGlobalFx` over row params.
+	// Part 2: which root menu (`:1769-1827`, the `item == nullptr` arm). The kit arms read `is_kit_global_fx` where
+	// legacy reads the clip's affect-entire: the same fact wherever no item is passed, and on the grid shortcut it
+	// keeps the root consistent with what part 1 edits. The note-editor roots are the caller's (`NoteMode`).
 	// ---------------------------------------------------------------------------------------
-
-	if (clip != nullptr) { // `:1770`
-		if (clip->type == ClipType::INSTRUMENT) {
-			// `:1774-1779` -- the `UI_MODE_NOTES_PRESSED` / `UI_MODE_AUDITIONING` note-editor roots
-			// are not chosen here: legacy reads `currentUIMode` for them (`:1774`, `:1777`), which is UI
-			// side, so this function never assigns `Root::NoteEditor`/`Root::NoteRowEditor`. The caller
-			// names them instead, through `NoteMode` (`util/shell_menu_entry.h`), and `openShellMenu`
-			// overrides `ctx.root` with it after this function returns
-			// (`gui/ui/shell_menu_entry.cpp:136-139`).
-
-			if (output_type == OutputType::MIDI_OUT) { // `:1780-1784`
-				ctx.root = MenuContext::Root::MidiOrCv;
-			}
-			else if (output_type == OutputType::CV) { // `:1785-1788`, the `goto doMIDIOrCV` arm
+	if (view.clip) { // `:1770`
+		if (!view.audio_clip) {
+			if (view.kind == TrackKind::MIDI_OUT || view.kind == TrackKind::CV) { // `:1780-1788`
 				ctx.root = MenuContext::Root::MidiOrCv;
 			}
 			else if (ctx.is_kit && ctx.is_kit_global_fx) { // `:1790-1792`
 				ctx.root = MenuContext::Root::KitGlobalFx;
 			}
-			else if (ctx.is_kit && !ctx.is_kit_global_fx && ctx.is_drum
-			         && static_cast<Kit*>(output)->selectedDrum->type == DrumType::MIDI) { // `:1794-1798`
+			else if (ctx.is_kit && ctx.is_drum && view.selected_row_type == project::DrumType::MIDI) { // `:1794-1798`
 				ctx.root = MenuContext::Root::MidiDrum;
 			}
-			else if (ctx.is_kit && !ctx.is_kit_global_fx && ctx.is_drum
-			         && static_cast<Kit*>(output)->selectedDrum->type == DrumType::GATE) { // `:1800-1804`
+			else if (ctx.is_kit && ctx.is_drum && view.selected_row_type == project::DrumType::GATE) { // `:1800-1804`
 				ctx.root = MenuContext::Root::GateDrum;
 			}
 			else { // `:1806-1808`
@@ -365,97 +251,78 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 			ctx.root = MenuContext::Root::AudioClip;
 		}
 	}
-	else {
-		if (performance_view) { // `:1816-1818`
-			ctx.root = MenuContext::Root::Performance;
-		}
-		// `:1819-1822` -- the WIDE bool on purpose: legacy's three views share one root menu, and
-		// `session_view_root` only narrows what is *relevant* inside it, never which root is picked.
-		else if (session_or_arranger_root) {
-			ctx.root = MenuContext::Root::Song;
-		}
-		else { // `:1823-1825`
-			ctx.root = MenuContext::Root::Settings;
-		}
+	else if (performance_view) { // `:1816-1818`
+		ctx.root = MenuContext::Root::Performance;
+	}
+	// `:1819-1822` -- the wide fact: the three song views share one root.
+	else if (session_or_arranger_root) {
+		ctx.root = MenuContext::Root::Song;
+	}
+	else { // `:1823-1825`
+		ctx.root = MenuContext::Root::Settings;
+	}
+
+	// What a target node binds through: the model, the addresses, and the app's facts and sink, which act on the song
+	// it plays: a context over any other song binds nothing through them.
+	ctx.model = &song.project;
+	if (host_binds(song)) {
+		ctx.facts = &host_runtime_facts();
+		ctx.sink = &host_write_sink();
+	}
+	// An unresolved context (a kit row with no note row) names nothing to edit.
+	if (ctx.resolved && slot) {
+		ctx.addresses.slot = slot;
+	}
+	if (ctx.resolved && ctx.is_kit && view.track) {
+		ctx.addresses.kit_output = view.track->output_id;
 	}
 
 	// ---------------------------------------------------------------------------------------
-	// Part 3: the range (`:1873-1897`).
+	// Part 3: the range (`:1873-1897`). `setup()` selects the first range once the item's permission is YES; with no
+	// item to ask, it is selected where that rule is unambiguous (a kit row, or a single range), and left for the
+	// range picker otherwise (`permission_for` then says `MustSelectRange`).
 	// ---------------------------------------------------------------------------------------
-
-	if (sound != nullptr) { // `:1881-1892`
-		// `:1887-1891` -- auto-select the first range. `setup()` does this only once
-		// `checkPermissionToBeginSession` has returned YES for the *specific item* being opened,
-		// which `context_for` has no item to ask. So the selection is made exactly where the
-		// permission rule itself would be unambiguous
-		// (`checkPermissionToBeginSessionForRangeSpecificParam:1950` -- a kit, or a single range),
-		// and left unchosen when a choice is genuinely pending; `permission_for()` below then reports
-		// `MustSelectRange` for that case, as it must.
-		//
-		// `range_index` is therefore the *selected/remembered* range, i.e. the input `permission_for`
-		// reads, matching legacy's `newRange` at `:1839-1843` rather than its post-permission
-		// assignment at `:1889`.
-		const std::ptrdiff_t ranges = std::ssize(sound->sources[ctx.source_index].ranges);
+	if (ctx.addresses.slot) {
+		const int32_t ranges = range_count(ctx);
 		if (ranges == 1 || (ctx.is_kit && ranges > 0)) {
 			ctx.range_index = 0;
 		}
 	}
 
-	// What a target node binds through: the model, the edited sound's slot, the kit an affect-entire write fans out
-	// over, and the app's facts and sink.
-	ctx.model = &song.project;
-	// The app's facts and sink act on the song it plays: a context over any other song binds nothing through them.
-	if (host_binds(song)) {
-		ctx.facts = &host_runtime_facts();
-		ctx.sink = &host_write_sink();
-	}
-	// An unresolved context (a kit row with no note row) is one legacy refuses to open: it names nothing to edit.
-	if (ctx.resolved && sound != nullptr) {
-		ctx.addresses.slot = deluge::bridge::slotAddressOf(*sound);
-	}
-	if (ctx.resolved && ctx.is_kit && output != nullptr) {
-		ctx.addresses.kit_output = output->id();
-	}
-	// The records a model target edits: the clip and its track, a kit row's lane and (a sound row's) note row; and what
-	// plays them, which the model does not hold but the root does.
-	if (ctx.resolved && !ctx.is_song_view && clip != nullptr && output != nullptr && output->id()) {
-		ctx.addresses.clip = deluge::project::ClipAddress{clip->id()};
-		ctx.addresses.track = deluge::project::TrackAddress{*output->id()};
+	// The records a model target edits: the clip and its track, a kit row's lane and (a sound row's) note row; and
+	// what plays them, which the model does not hold but the view does.
+	if (ctx.resolved && !ctx.is_song_view && view.clip && view.track) {
+		ctx.addresses.clip = view.clip;
+		ctx.addresses.track = view.track;
 		using Instrument = deluge::engine::SettingContext::Instrument;
-		switch (output_type) {
-		case OutputType::SYNTH:
+		switch (view.kind) {
+		case TrackKind::SYNTH:
 			ctx.addresses.instrument = Instrument::SYNTH;
 			break;
-		case OutputType::KIT:
+		case TrackKind::KIT:
 			ctx.addresses.instrument = Instrument::KIT;
 			break;
-		case OutputType::MIDI_OUT:
+		case TrackKind::MIDI_OUT:
 			ctx.addresses.instrument = Instrument::MIDI;
 			break;
-		case OutputType::CV:
+		case TrackKind::CV:
 			ctx.addresses.instrument = Instrument::CV;
 			break;
-		case OutputType::AUDIO:
+		case TrackKind::AUDIO:
 			ctx.addresses.instrument = Instrument::AUDIO;
 			break;
-		default:
-			break;
 		}
-		if (ctx.is_drum) {
-			const Drum* drum = static_cast<Kit*>(output)->selectedDrum;
-			if (drum != nullptr && drum->id()) {
-				ctx.addresses.lane = deluge::project::LaneAddress{*output->id(), *drum->id()};
-				if (drum->type == DrumType::SOUND) {
-					ctx.addresses.note_row = deluge::project::NoteRowAddress{
-					    .clip_id = clip->id(), .is_kit = true, .row_key = static_cast<int32_t>(*drum->id())};
-				}
+		if (ctx.is_drum && view.selected_row) {
+			ctx.addresses.lane = project::LaneAddress{view.track->output_id, *view.selected_row};
+			if (view.selected_row_type == project::DrumType::SOUND) {
+				ctx.addresses.note_row = project::NoteRowAddress{
+				    .clip_id = view.clip->clip_id, .is_kit = true, .row_key = static_cast<int32_t>(*view.selected_row)};
 			}
 		}
 	}
-	// The chain an effect target edits when no sound is: the whole kit's, an audio track's or the master's. The model's
-	// address cannot say which kind of output holds it; the root can.
-	if (ctx.resolved && sound == nullptr && ctx.mod != nullptr) {
-		ctx.addresses.chain = deluge::bridge::chainAddressOf(*ctx.mod, song);
+	// The chain an effect target edits when no sound is: the whole kit's, an audio track's or the master's.
+	if (ctx.resolved && !ctx.addresses.slot && chain) {
+		ctx.addresses.chain = chain;
 		ctx.addresses.chain_owner = ctx.is_song_view    ? bind::ChainOwner::SONG
 		                            : ctx.is_audio_clip ? bind::ChainOwner::AUDIO_TRACK
 		                                                : bind::ChainOwner::KIT;

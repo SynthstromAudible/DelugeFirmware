@@ -3,6 +3,7 @@
 // direction (inheriting the song's stutter on "use song") and quantize, and the play direction (a kit row's note row,
 // else the clip). Each is a request to the menu's sink; with the app's sink, the record holds the result.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/bindings.h"
@@ -63,7 +64,7 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		spec::SongFixture f = spec::make_synth_song();
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		give_sample_range(sound);
-		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
 		bind::RecordingSink recording;
 		MenuContext recorded = ctx;
 		recorded.sink = &recording;
@@ -93,7 +94,7 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		give_sample_range(*sampled);
 		deluge::edits::settingFor(*synth, "osc1/type", Value::makeScalar("saw"));
 		static_cast<Kit*>(f.instrument)->selectedDrum = sampled;
-		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
 		ctx.affect_entire_held = true;
 		menu::bindings::write(nodes::source0_transpose, ctx, 300);
 		const deluge::project::SlotAddress sampled_slot{deluge::project::SlotAddress::Kind::DRUM, *sampled->id()};
@@ -107,7 +108,7 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 	it("writes interpolation as oscN/linearInterpolation through the sink", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		give_sample_range(*static_cast<SoundInstrument*>(f.instrument));
-		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
 		bind::RecordingSink recording;
 		ctx.sink = &recording;
 		menu::bindings::write(nodes::sample0_interpolation, ctx, 0); // LINEAR
@@ -121,7 +122,7 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		spec::SongFixture f = spec::make_synth_song();
 		deluge::edits::changeEffect(*f.song, f.song->live.global_effectable, "stutter/quantized", Value::makeNumber(1));
 		deluge::edits::changeEffect(*f.song, f.song->live.global_effectable, "stutter/reverse", Value::makeNumber(1));
-		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
 		bind::RecordingSink recording;
 		MenuContext recorded = ctx;
 		recorded.sink = &recording;
@@ -138,7 +139,7 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		spec::SongFixture f = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
 		deluge::edits::changeEffect(*f.song, *drum, "stutter/useSongStutter", Value::makeNumber(1));
-		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
 		ctx.affect_entire_held = true;
 		bind::RecordingSink recording;
 		ctx.sink = &recording;
@@ -149,7 +150,7 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 	it("writes the play direction to a kit row's note row, and else to the clip", _ {
 		spec::SongFixture kit = spec::make_kit_song();
 		(void)spec::add_drum<SoundDrum>(kit);
-		MenuContext on_row = menu::context_for(*kit.song, kit.clip, 0, false, false, false, false);
+		MenuContext on_row = menu::context_for(*kit.song, deluge::gui::menuViewOf(*kit.song, kit.clip), 0, false, false, false, false);
 		bind::RecordingSink recording;
 		on_row.sink = &recording;
 		menu::bindings::write(nodes::sequence_direction, on_row, 2);
@@ -160,7 +161,7 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		}
 
 		spec::SongFixture synth = spec::make_synth_song();
-		MenuContext on_clip = menu::context_for(*synth.song, synth.clip, 0, false, false, false, false);
+		MenuContext on_clip = menu::context_for(*synth.song, deluge::gui::menuViewOf(*synth.song, synth.clip), 0, false, false, false, false);
 		bind::RecordingSink clip_recording;
 		on_clip.sink = &clip_recording;
 		menu::bindings::write(nodes::sequence_direction, on_clip, 1);
@@ -173,7 +174,7 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 	it("hands a source's own transpose to the sink with no range, and a sample source's with its range", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		deluge::edits::settingFor(*static_cast<SoundInstrument*>(f.instrument), "osc1/type", Value::makeScalar("saw"));
-		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
 		bind::RecordingSink recording;
 		ctx.sink = &recording;
 		menu::bindings::write(nodes::source0_transpose, ctx, 100);
@@ -181,7 +182,7 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 
 		spec::SongFixture sampled = spec::make_synth_song();
 		give_sample_range(*static_cast<SoundInstrument*>(sampled.instrument));
-		MenuContext on_range = menu::context_for(*sampled.song, sampled.clip, 0, false, false, false, false);
+		MenuContext on_range = menu::context_for(*sampled.song, deluge::gui::menuViewOf(*sampled.song, sampled.clip), 0, false, false, false, false);
 		bind::RecordingSink range_recording;
 		on_range.sink = &range_recording;
 		menu::bindings::write(nodes::source0_transpose, on_range, 100);
@@ -199,7 +200,7 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		give_sample_range(*synth);
 		deluge::edits::settingFor(*synth, "osc1/type", Value::makeScalar("saw"));
 		static_cast<Kit*>(f.instrument)->selectedDrum = sampled;
-		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
 		ctx.affect_entire_held = true;
 		ctx.addresses.affect_entire = menu::bindings::writes_whole_kit(ctx); // as the menu scene keeps it
 		const deluge::project::SlotAddress sampled_slot{deluge::project::SlotAddress::Kind::DRUM, *sampled->id()};
@@ -224,7 +225,7 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		give_sample_range(*synth);
 		deluge::edits::settingFor(*synth, "osc1/type", Value::makeScalar("saw"));
 		static_cast<Kit*>(f.instrument)->selectedDrum = sampled;
-		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
 		ctx.affect_entire_held = true;
 		ctx.addresses.affect_entire = menu::bindings::writes_whole_kit(ctx); // as the menu scene keeps it
 		const deluge::project::SlotAddress sampled_slot{deluge::project::SlotAddress::Kind::DRUM, *sampled->id()};
@@ -238,8 +239,8 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 
 	it("offers 'use song' on a sound's stutter and not on the song's own", _ {
 		spec::SongFixture f = spec::make_synth_song();
-		const MenuContext on_sound = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
-		const MenuContext on_song = menu::context_for(*f.song, nullptr, 0, false, true, true, false);
+		const MenuContext on_sound = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
+		const MenuContext on_song = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, nullptr), 0, false, true, true, false);
 		std::string_view names[8]{};
 		deluge::ui::shell::TextScratch scratch[8]{};
 		expect(menu::bindings::names(nodes::stutter_direction, on_sound, names, scratch)).to_equal(size_t{5});

@@ -30,6 +30,7 @@
 ///       (`scripts/check_layer_rules.py`'s `scenes-includes-outside`). Same rule every other
 ///       `tables_*_spec.cpp` here runs under.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -237,7 +238,8 @@ Fixture& fixture() {
 		// The settings root's own context (`tables_3_spec.cpp`'s "settings" fixture): no clip, not a
 		// session root. `context_for` never assigns `midi_cable` -- the device list publishes it --
 		// so this spec sets it, exactly as `MenuScene::after_render` would.
-		k.ctx = menu::context_for(*k.song.song, nullptr, 0, false, false, false, false);
+		k.ctx = menu::context_for(*k.song.song, deluge::gui::menuViewOf(*k.song.song, nullptr), 0, false, false, false,
+		                          false);
 		return k;
 	}();
 	return f;

@@ -116,6 +116,8 @@ public:
 	[[nodiscard]] virtual bool clip_playing(project::ClipAddress clip) const = 0;
 	/// @brief Playback: @p clip's play position now, in ticks: the engine's, moved by the clock.
 	[[nodiscard]] virtual int32_t clip_live_pos(project::ClipAddress clip) const = 0;
+	/// @brief Whether @p clip plays only in the arrangement (a take or an arranger clip), not in the session.
+	[[nodiscard]] virtual bool clip_arrangement_only(project::ClipAddress clip) const = 0;
 	/// @brief Recording: whether @p clip records a take linearly now, which a recorder holds while it captures.
 	[[nodiscard]] virtual bool clip_recording_linearly(project::ClipAddress clip) const = 0;
 	/// @brief Whether a stutter is playing: the song's stutter, which a gold knob's push begins, is live state no

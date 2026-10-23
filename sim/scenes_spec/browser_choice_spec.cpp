@@ -36,6 +36,7 @@
 /// @note The spec may include `gui/` (for the dispatcher and the guest); the library may not. Same
 ///       rule `sample_items_spec.cpp` and `browser_scene_spec.cpp` run under.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
@@ -306,7 +307,8 @@ struct SongRig {
 
 	/// @brief The context `SoundEditor::setup` would have resolved for source 0.
 	MenuContext ctx() {
-		MenuContext c = menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
+		MenuContext c = menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, song.clip), 0, false, false,
+		                                  false, /*kit_global_fx=*/false);
 		c.range_index = 0;
 		return c;
 	}
@@ -472,8 +474,8 @@ struct MidiRig {
 	void open_browser() {
 		select_language();
 		instrument()->deviceDefinitionFileName.clear();
-		browser::browser_scene().open(
-		    menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false));
+		browser::browser_scene().open(menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, song.clip), 0,
+		                                                false, false, false, /*kit_global_fx=*/false));
 		shell.init(
 		    SceneId{browser::kBrowserSceneKind, static_cast<uint16_t>(browser::BrowserId::MidiDeviceDefinition)});
 		for (int32_t i = 0; i < 4; i++) {

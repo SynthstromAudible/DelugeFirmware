@@ -129,6 +129,7 @@
 ///
 /// @note Like `menu_scripts_spec.cpp`, this file may include `gui/` and `hid/`; the library may not.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/audio_clip/audio_clip_scene.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
@@ -730,7 +731,7 @@ describe scene_scripts("scenes E4 level-2 acceptance scripts", $ {
 		SceneReset reset;
 		spec::QuietAudio quiet;
 		spec::SongFixture song = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*song.song, song.clip, 0, false, false, false, false);
+		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, song.clip), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::saturation, ctx);
 		const int32_t before = bindings::read(nodes::saturation, ctx);

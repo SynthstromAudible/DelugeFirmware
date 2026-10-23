@@ -64,10 +64,12 @@
 /// that matters is `TimelineView::buttonAction`'s final `else`
 /// (`gui/views/timeline_view.cpp:119-121`), which every root view inherits.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
 #include "scenes/services/global_controls.h"
 #include "scenes/services/learn_mode.h"
+#include "scenes/services/view_state.h"
 
 #include "shell/input_lowering.h"
 #include "shell/leds.h"
@@ -857,6 +859,9 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		GlobalControls::ViewState vs;
 		vs.current_ui_is_clip_minder = true;
 		rig.gc.set_view_state(vs);
+		// The clip that minder has open, as the app tells the view state.
+		deluge::scenes::services::view_state().set_current_view(
+		    deluge::gui::menuViewOf(*legacy_fixture.song, legacy_fixture.song->getCurrentClip()));
 		rig.press(ButtonId::SyncScaling, true, 18'000);
 		expect(legacy_fixture.song->getSyncScalingClip() == legacy_fixture.song->getCurrentClip()).to_be_true();
 		rig.press(ButtonId::SyncScaling, false, 18'005);

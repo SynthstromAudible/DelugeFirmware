@@ -1,6 +1,7 @@
 // The song-level items a menu builds from hooks -- the swing interval, the reverb sidechain's volume and sync level, a
 // song scale's toggle -- write the song's record through the menu's sink, as SONG requests.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/bindings.h"
@@ -28,7 +29,7 @@ namespace {
 
 /// @brief A song-level menu context over @p f's song.
 MenuContext song_context(spec::SongFixture& f) {
-	return menu::context_for(*f.song, nullptr, 0, false, true, true, false);
+	return menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, nullptr), 0, false, true, true, false);
 }
 
 /// @brief Whether @p recording holds exactly one SONG request, for @p path, of @p value.

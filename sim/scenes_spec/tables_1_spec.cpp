@@ -20,6 +20,7 @@
 ///       (`scripts/check_layer_rules.py`'s `scenes-includes-outside`). Same rule
 ///       `bindings_spec.cpp` and `menu_scene_spec.cpp` run under.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -138,9 +139,10 @@ struct Fixture {
 
 	Fixture() {
 		select_language();
-		ctx = menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
+		ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, song.clip), 0, false, false, false,
+		                        /*kit_global_fx=*/false);
 		soundEditor.currentSound = spec::menu_engine(ctx).sound;
-		soundEditor.currentModControllable = ctx.mod;
+		soundEditor.currentModControllable = deluge::scenes::spec::menu_engine(ctx).mod;
 		soundEditor.currentParamManager = spec::menu_engine(ctx).params;
 		soundEditor.currentSourceIndex = ctx.source_index;
 		soundEditor.currentSource = spec::menu_engine(ctx).source;
@@ -419,11 +421,12 @@ struct RangeFixture {
 		if (n > 0) {
 			deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 		}
-		ctx = menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
+		ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, song.clip), 0, false, false, false,
+		                        /*kit_global_fx=*/false);
 		currentSong = song.song;
 		song.song->setCurrentClip(song.clip);
 		soundEditor.currentSound = spec::menu_engine(ctx).sound;
-		soundEditor.currentModControllable = ctx.mod;
+		soundEditor.currentModControllable = deluge::scenes::spec::menu_engine(ctx).mod;
 		soundEditor.currentParamManager = spec::menu_engine(ctx).params;
 		soundEditor.currentSourceIndex = ctx.source_index;
 		soundEditor.currentSource = spec::menu_engine(ctx).source;
@@ -577,7 +580,7 @@ describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 				continue;
 			}
 			learnable++;
-			expect(menu::bindings::learn_target(*p.node, f.ctx) == learner->getLearningThing()).to_be_true();
+			expect(deluge::scenes::spec::learns_as(menu::bindings::learn_target(*p.node, f.ctx), learner->getLearningThing(), f.ctx)).to_be_true();
 		}
 		// The four transposes plus every `ParamRef` leaf; a drop to 0 would make the loop vacuous.
 		expect(learnable > size_t(40)).to_be_true();
@@ -676,7 +679,7 @@ describe tables_1_values("scenes::menu batch-1 tables: values", $ {
 	it("agrees with the legacy isRelevant on the fixture sound", _ {
 		Fixture& f = fixture();
 		for (const Pair& p : all_pairs()) {
-			const bool want = p.item->isRelevant(f.ctx.mod, f.ctx.source_index);
+			const bool want = p.item->isRelevant(deluge::scenes::spec::menu_engine(f.ctx).mod, f.ctx.source_index);
 			const bool got = menu::bindings::relevant(*p.node, f.ctx);
 			expect(got == want).to_be_true();
 		}

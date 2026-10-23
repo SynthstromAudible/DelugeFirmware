@@ -72,7 +72,6 @@
 #include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/song/song.h"
-#include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_manager.h"
@@ -361,30 +360,27 @@ size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_vie
 	return count;
 }
 
-ParamDescriptor learn_target(const Node& node, const MenuContext& /*ctx*/) {
-	ParamDescriptor descriptor;
-	descriptor.setToNull();
-
-	if (!node.bind.param.valid()) {
-		return descriptor;
+std::optional<deluge::project::ControlsAddress> controls_owner(const MenuContext& ctx) {
+	using Kind = deluge::project::ControlsAddress::Kind;
+	if (const auto& slot = ctx.addresses.slot) {
+		return deluge::project::ControlsAddress{
+		    .kind = slot->kind == deluge::project::SlotAddress::Kind::DRUM ? Kind::DRUM : Kind::OUTPUT, .id = slot->id};
 	}
-
-	switch (node.bind.param.kind) {
-	case params::Kind::PATCHED:
-		// `PatchedParam::getLearningThing` (`gui/menu_item/patched_param.cpp:51-55`).
-		descriptor.setToHaveParamOnly(node.bind.param.index);
-		break;
-	case params::Kind::UNPATCHED_SOUND:
-	case params::Kind::UNPATCHED_GLOBAL:
-		// `UnpatchedParam::getLearningThing` (`gui/menu_item/unpatched_param.cpp:88-92`) -- the
-		// unpatched ids are offset into the shared numbering by `UNPATCHED_START`
-		// (`modulation/params/param.h:171`).
-		descriptor.setToHaveParamOnly(node.bind.param.index + params::UNPATCHED_START);
-		break;
-	default:
-		break;
+	if (const auto& chain = ctx.addresses.chain) {
+		return chain->kind == deluge::project::ChainAddress::Kind::SONG
+		           ? deluge::project::ControlsAddress{.kind = Kind::SONG}
+		           : deluge::project::ControlsAddress{.kind = Kind::OUTPUT, .id = chain->id};
 	}
-	return descriptor;
+	return std::nullopt;
+}
+
+std::optional<deluge::project::ParamTarget> learn_target(const Node& node, const MenuContext& ctx) {
+	// `PatchedParam`/`UnpatchedParam::getLearningThing`: the node's param, by its engine id.
+	const std::optional<deluge::project::ControlsAddress> owner = controls_owner(ctx);
+	if (!node.bind.param.valid() || !owner) {
+		return std::nullopt;
+	}
+	return deluge::project::ParamTarget{.owner = *owner, .param = param_id_of(node.bind.param)};
 }
 
 // ---------------------------------------------------------------------------------------------

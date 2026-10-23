@@ -28,6 +28,7 @@
 ///     (`gui/ui_timer_manager.cpp:157-171`), both view-side and not ported; only the *arming* is
 ///     compared here.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
@@ -1172,7 +1173,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.set_target_with_timeline(f.clip, false);
 		rig.knobs.set_mod_region();
 
-		const menu::MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		const menu::MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
 		(void)menu::assign_node_ids(mod_knobs_spec_nodes::kRoots);
 		menu_scene().open(mod_knobs_spec_nodes::res_page, ctx);
 		expect(rig.stack.push(SceneId{SceneKind::FirstApp, menu::node_id(mod_knobs_spec_nodes::res_page)}))

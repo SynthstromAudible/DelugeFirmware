@@ -11,6 +11,7 @@
 /// @note The SPEC may include `gui/menu_item/`; the library may not (`scripts/check_layer_rules.py`).
 
 #include "support/descriptor_cases.h"
+#include "support/menu_engine.h"
 
 #include "engines/deluge/params.h"
 #include "engines/global_effectable/params.h"
@@ -248,9 +249,9 @@ void check_morphs(auto& self) {
 		for (const FilterMode hpf_mode : hpf_modes) {
 			const int lpf = static_cast<int>(lpf_mode);
 			const int hpf = static_cast<int>(hpf_mode);
-			deluge::edits::effectSettingFor(*ctx.mod, "lpfMode",
+			deluge::edits::effectSettingFor(*deluge::scenes::spec::menu_engine(ctx).mod, "lpfMode",
 			                                Value::makeScalar(std::string{deluge::effects::to_string(lpf_mode)}));
-			deluge::edits::effectSettingFor(*ctx.mod, "hpfMode",
+			deluge::edits::effectSettingFor(*deluge::scenes::spec::menu_engine(ctx).mod, "hpfMode",
 			                                Value::makeScalar(std::string{deluge::effects::to_string(hpf_mode)}));
 			for (const Morph& morph : morphs) {
 				const Legacy legacy = legacy_of(morph.id, morph.engine);
@@ -258,7 +259,9 @@ void check_morphs(auto& self) {
 				const std::string at = "morph " + std::to_string(morph.id.value) + " lpf " + std::to_string(lpf)
 				                       + " hpf " + std::to_string(hpf) + " ";
 				expect(at + param_text(morph.engine, morph.id, state))
-				    .to_equal(at + params::getParamDisplayName(legacy.kind, legacy.index, ctx.mod));
+				    .to_equal(at
+				              + params::getParamDisplayName(legacy.kind, legacy.index,
+				                                            deluge::scenes::spec::menu_engine(ctx).mod));
 			}
 		}
 	}

@@ -16,6 +16,7 @@
  */
 
 #include "util/shell_menu_entry.h"
+#include "gui/ui/menu_view_of.h"
 
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
@@ -117,8 +118,9 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 		return false;
 	}
 
-	menu::MenuContext ctx = menu::context_for(*currentSong, clip, static_cast<int8_t>(sourceIndex), performanceView,
-	                                          sessionOrArrangerRoot, sessionViewRoot, kitGlobalFx);
+	menu::MenuContext ctx =
+	    menu::context_for(*currentSong, deluge::gui::menuViewOf(*currentSong, clip), static_cast<int8_t>(sourceIndex),
+	                      performanceView, sessionOrArrangerRoot, sessionViewRoot, kitGlobalFx);
 	// `MenuContext::resolved` is where `setup()`'s two outright refusals live -- a kit whose selected
 	// `SoundDrum` has no note row (`gui/ui/sound_editor.cpp:1719-1721`) and a kit with neither
 	// affect-entire nor a selected drum (`:1733-1739`). Both are `return false` in legacy, and both

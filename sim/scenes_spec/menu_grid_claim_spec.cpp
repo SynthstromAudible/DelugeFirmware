@@ -13,6 +13,7 @@
 /// and resets `st_` without needing a `Shell` at all, `scenes/menu/menu_scene.cpp:331-335`) and
 /// reads the new virtual straight off it.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/nodes/nodes.h"
@@ -38,7 +39,8 @@ namespace {
 ///        performance view, no session/arranger root -- `context_for`'s branch that lands on
 ///        `MenuContext::Root::Sound` (`scenes/menu/context.cpp:357`).
 MenuContext sound_context(spec::SongFixture& fx) {
-	return menu::context_for(*fx.song, fx.clip, 0, false, false, false, /*kit_global_fx=*/false);
+	return menu::context_for(*fx.song, deluge::gui::menuViewOf(*fx.song, fx.clip), 0, false, false, false,
+	                         /*kit_global_fx=*/false);
 }
 
 } // namespace

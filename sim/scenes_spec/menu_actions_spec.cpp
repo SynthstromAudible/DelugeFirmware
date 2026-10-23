@@ -40,6 +40,7 @@
 /// preceded those bodies is kept -- it is what says the right *item* files the right *action*, which
 /// no effect assertion can say on its own.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/action.h"
 #include "scenes/menu/bindings.h"
@@ -199,9 +200,10 @@ struct Rig {
 		// is the arm being stood in for; `sessionView` of its three views, because that is the one
 		// where both items are shown.
 		const bool song_root = &root == &nodes::root_song;
-		const MenuContext ctx = menu::context_for(*song.song, song_root ? nullptr : song.clip, 0, false,
-		                                          /*session_or_arranger_root=*/song_root,
-		                                          /*session_view_root=*/song_root, /*kit_global_fx=*/false);
+		const MenuContext ctx = menu::context_for(
+		    *song.song, deluge::gui::menuViewOf(*song.song, song_root ? nullptr : song.clip), 0, false,
+		    /*session_or_arranger_root=*/song_root,
+		    /*session_view_root=*/song_root, /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(kRoots);
 		menu_scene().open(root, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});
@@ -267,9 +269,10 @@ struct GuestRig {
 	/// session-view context, then let `opened()` do the `Shell::init` push.
 	bool open(const Node& root) {
 		const bool song_root = &root == &nodes::root_song;
-		const MenuContext ctx = menu::context_for(*song.song, song_root ? nullptr : song.clip, 0, false,
-		                                          /*session_or_arranger_root=*/song_root,
-		                                          /*session_view_root=*/song_root, /*kit_global_fx=*/false);
+		const MenuContext ctx = menu::context_for(
+		    *song.song, deluge::gui::menuViewOf(*song.song, song_root ? nullptr : song.clip), 0, false,
+		    /*session_or_arranger_root=*/song_root,
+		    /*session_view_root=*/song_root, /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(kRoots);
 		menu_scene().open(root, ctx);
 		ui.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(root)});
@@ -515,9 +518,10 @@ struct GlobalGuestGuard {
 /// process, and so no root view's `focusRegained` either.
 bool open_global_guest(const Node& root, spec::SongFixture& song) {
 	const bool song_root = &root == &nodes::root_song;
-	const MenuContext ctx = menu::context_for(*song.song, song_root ? nullptr : song.clip, 0, false,
-	                                          /*session_or_arranger_root=*/song_root,
-	                                          /*session_view_root=*/song_root, /*kit_global_fx=*/false);
+	const MenuContext ctx =
+	    menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, song_root ? nullptr : song.clip), 0, false,
+	                      /*session_or_arranger_root=*/song_root,
+	                      /*session_view_root=*/song_root, /*kit_global_fx=*/false);
 	(void)menu::assign_node_ids(kRoots);
 	menu_scene().open(root, ctx);
 	shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(root)});
@@ -544,9 +548,10 @@ bool open_global_guest(const Node& root, spec::SongFixture& song) {
 ///          spells out. Teardown is `UiStackGuard`'s `nullifyUIs()`, never `closeUI`.
 bool open_global_guest_on_ui_stack(const Node& root, spec::SongFixture& song) {
 	const bool song_root = &root == &nodes::root_song;
-	const MenuContext ctx = menu::context_for(*song.song, song_root ? nullptr : song.clip, 0, false,
-	                                          /*session_or_arranger_root=*/song_root,
-	                                          /*session_view_root=*/song_root, /*kit_global_fx=*/false);
+	const MenuContext ctx =
+	    menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, song_root ? nullptr : song.clip), 0, false,
+	                      /*session_or_arranger_root=*/song_root,
+	                      /*session_view_root=*/song_root, /*kit_global_fx=*/false);
 	(void)menu::assign_node_ids(kRoots);
 	menu_scene().open(root, ctx);
 	shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(root)});

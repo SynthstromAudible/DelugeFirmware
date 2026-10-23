@@ -18,6 +18,8 @@
 ///       is the param displays' (`scenes/bind/param_display.cpp`), which transcribes legacy's
 ///       `gui/menu_item/value_scaling.cpp`; `sim/scenes_spec/bindings_spec.cpp` compares it with the legacy functions.
 
+#include "deluge-project/controller_mapping.h"
+#include "deluge-project/mapping_table.h"
 #include "modulation/params/param_descriptor.h"
 #include "scenes/menu/node.h"
 #include "shell/profile.h" // ui::shell::TextScratch
@@ -118,16 +120,16 @@ IntRange range(const Node& node, const MenuContext& ctx);
 size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_view> out,
              std::span<deluge::ui::shell::TextScratch> scratch);
 
-/// @brief The `ParamDescriptor` MIDI/CC learn (E3) binds to @p node.
-///
-/// The port of `PatchedParam::getLearningThing` (`gui/menu_item/patched_param.cpp:51-55`) and
-/// `UnpatchedParam::getLearningThing` (`gui/menu_item/unpatched_param.cpp:88-92`).
-///
+/// @brief What a MIDI knob learned on @p node turns: the param, on the controls of the owner @p ctx edits --
+///        `PatchedParam`/`UnpatchedParam::getLearningThing` (`gui/menu_item/patched_param.cpp:51-55`,
+///        `unpatched_param.cpp:88-92`), by address.
 /// @param node The item to learn.
 /// @param ctx  What is being edited.
-/// @return The descriptor, or a null one (`ParamDescriptor::isNull()`) for a node with no learnable
-///         param.
-ParamDescriptor learn_target(const Node& node, const MenuContext& ctx);
+/// @return The target, or none for a node with no learnable param or a context that edits no owner.
+std::optional<deluge::project::ParamTarget> learn_target(const Node& node, const MenuContext& ctx);
+
+/// @brief The controls a learn on @p ctx's owner lands on: its sound's, or its chain's owner's.
+std::optional<deluge::project::ControlsAddress> controls_owner(const MenuContext& ctx);
 
 /// @brief Write the song's row @p path to @p value (its menu value) through @p ctx's sink: a SONG request. A
 ///        context with no sink -- a song the app does not play -- writes nothing.

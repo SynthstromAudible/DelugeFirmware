@@ -7,7 +7,9 @@
 /// (`scenes/bind/param_display.cpp`) is checked against the original arithmetic rather than against a
 /// second copy of itself.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/menu/bindings.h"
+#include "support/menu_engine.h"
 
 #include "scenes/bind/param_display.h"
 #include "scenes/menu/context.h"
@@ -77,7 +79,8 @@ void clear_dirty() {
 }
 
 MenuContext synth_context(spec::SongFixture& f) {
-	return menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
+	return menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false,
+	                         /*kit_global_fx=*/false);
 }
 
 } // namespace
@@ -263,19 +266,19 @@ describe menu_bindings_range_names("scenes::menu::bindings range/names/learn", $
 		expect(std::string(out[2])).to_equal(std::string("three"));
 	});
 
-	it("builds the learn descriptor legacy builds, patched and unpatched", _ {
+	it("learns the param legacy's descriptor names, patched and unpatched, on the edited sound's controls", _ {
 		auto f = spec::make_synth_song();
 		const MenuContext ctx = synth_context(f);
 
 		ParamDescriptor patched;
 		patched.setToHaveParamOnly(params::LOCAL_LPF_FREQ); // patched_param.cpp:51-55
-		expect(bindings::learn_target(lpf_freq_node, ctx) == patched).to_be_true();
+		expect(deluge::scenes::spec::learns_as(bindings::learn_target(lpf_freq_node, ctx), patched, ctx)).to_be_true();
 
 		ParamDescriptor unpatched;
 		unpatched.setToHaveParamOnly(params::UNPATCHED_BASS + params::UNPATCHED_START); // unpatched_param.cpp:88-92
-		expect(bindings::learn_target(bass_node, ctx) == unpatched).to_be_true();
+		expect(deluge::scenes::spec::learns_as(bindings::learn_target(bass_node, ctx), unpatched, ctx)).to_be_true();
 
-		expect(bindings::learn_target(toggle_node, ctx).isNull()).to_be_true();
+		expect(bindings::learn_target(toggle_node, ctx).has_value()).to_be_false();
 	});
 });
 // clang-format on

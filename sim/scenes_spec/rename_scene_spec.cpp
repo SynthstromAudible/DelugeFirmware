@@ -12,6 +12,7 @@
 ///       `menu_scene_spec.cpp` runs under.
 
 #include "deluge-project/setting_group.h"
+#include "gui/ui/menu_view_of.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -263,7 +264,8 @@ spec::SongFixture kit_fixture() {
 
 MenuContext context_of(spec::SongFixture& f) {
 	currentSong = f.song;
-	return menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
+	return menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false,
+	                         /*kit_global_fx=*/false);
 }
 
 /// The name the @p group record holds for the owner @p ctx names, or empty.

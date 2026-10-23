@@ -2,6 +2,7 @@
 // marked, and turning off it moves among the choices that apply without the cursor slipping when the marked entry
 // leaves the list.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -78,7 +79,7 @@ describe stale_choice_scene("the menu scene over a stored choice that no longer 
 		spec::SongFixture f = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
 		deluge::edits::settingFor(*drum, "osc1/type", deluge::serialization::Value::makeScalar("dx7"));
-		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
 		LeafRig r;
 		r.open(menu::nodes::osc0_type, ctx);
 		const OscType first = drum->boundState()->sources[0].osc_type;

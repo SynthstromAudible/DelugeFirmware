@@ -25,6 +25,7 @@
 ///       (`scripts/check_layer_rules.py`'s `scenes-includes-outside`). Same rule
 ///       `bindings_spec.cpp`, `menu_scene_spec.cpp` and `tables_1_spec.cpp` run under.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -180,7 +181,7 @@ void install(const MenuContext& ctx, Song* song) {
 	currentSong = song;
 	song->setCurrentClip(spec::menu_engine(ctx).clip);
 	soundEditor.currentSound = spec::menu_engine(ctx).sound;
-	soundEditor.currentModControllable = ctx.mod;
+	soundEditor.currentModControllable = deluge::scenes::spec::menu_engine(ctx).mod;
 	soundEditor.currentParamManager = spec::menu_engine(ctx).params;
 	soundEditor.currentSourceIndex = ctx.source_index;
 	soundEditor.currentSource = spec::menu_engine(ctx).source;
@@ -218,7 +219,8 @@ Rigged& fixture() {
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 		Rigged r;
 		r.song = spec::make_synth_song();
-		r.ctx = menu::context_for(*r.song.song, r.song.clip, 0, false, false, false, /*kit_global_fx=*/false);
+		r.ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(*r.song.song, r.song.clip), 0, false, false,
+		                          false, /*kit_global_fx=*/false);
 		return r;
 	}();
 	install(f.ctx, f.song.song);
@@ -245,7 +247,8 @@ KitRig& kit_fixture() {
 		r.drum_a = spec::add_drum<SoundDrum>(r.song);
 		r.drum_b = spec::add_drum<SoundDrum>(r.song);
 		static_cast<Kit*>(r.song.instrument)->selectedDrum = r.drum_a;
-		r.ctx = menu::context_for(*r.song.song, r.song.clip, 0, false, false, false, /*kit_global_fx=*/false);
+		r.ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(*r.song.song, r.song.clip), 0, false, false,
+		                          false, /*kit_global_fx=*/false);
 		return r;
 	}();
 	return k;
@@ -255,7 +258,8 @@ KitRig& kit_fixture() {
 MenuContext select_drum(KitRig& k, Drum* drum, bool affect_entire_held = false) {
 	static_cast<Kit*>(k.song.instrument)->selectedDrum = drum;
 	currentSong = k.song.song; // a context binds the app's facts and sink over the current song only
-	MenuContext ctx = menu::context_for(*k.song.song, k.song.clip, 0, false, false, false, /*kit_global_fx=*/false);
+	MenuContext ctx = menu::context_for(*k.song.song, deluge::gui::menuViewOf(*k.song.song, k.song.clip), 0, false,
+	                                    false, false, /*kit_global_fx=*/false);
 	ctx.affect_entire_held = affect_entire_held;
 	ctx.addresses.affect_entire = menu::bindings::writes_whole_kit(ctx); // as the menu scene sets it
 	install(ctx, k.song.song);
@@ -801,7 +805,7 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 				continue;
 			}
 			learnable++;
-			expect(menu::bindings::learn_target(*p.node, f.ctx) == learner->getLearningThing()).to_be_true();
+			expect(deluge::scenes::spec::learns_as(menu::bindings::learn_target(*p.node, f.ctx), learner->getLearningThing(), f.ctx)).to_be_true();
 		}
 		// Every `ParamRef` leaf in the root tree plus the four transposes; a drop to 0 would make
 		// the loop vacuous.
@@ -905,7 +909,7 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 					continue; // a page this context never opens (the bend ranges on a kit row)
 				}
 				soundEditor.navigationDepth = p.navigation_depth();
-				const bool want = p.item->isRelevant(c.ctx.mod, c.ctx.source_index);
+				const bool want = p.item->isRelevant(deluge::scenes::spec::menu_engine(c.ctx).mod, c.ctx.source_index);
 				const bool got = menu::bindings::relevant(*p.node, c.ctx);
 				const std::string at = std::string{c.name} + " " + text_of(p.node->name) + " ";
 				expect(at + (got ? "shows" : "hides")).to_equal(at + (want ? "shows" : "hides"));
@@ -1520,7 +1524,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 	it("refuses a strength write on a full cable set, creating nothing", _ {
 		spec::SongFixture song = spec::make_synth_song();
 		menu::MenuContext ctx =
-		    menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
+		    menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, song.clip), 0, false, false, false, /*kit_global_fx=*/false);
 		install(ctx, song.song);
 		PatchCableSet* set = spec::menu_engine(ctx).params->getPatchCableSetAllowJibberish();
 		for (const PatchSource source : {PatchSource::RANDOM, PatchSource::VELOCITY, PatchSource::NOTE}) {
@@ -2005,12 +2009,12 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		}
 
 		{ // --- mod_fx_type -------------------------------------------------------------------
-			const ModFXType before = f.ctx.mod->getModFXType();
+			const ModFXType before = deluge::scenes::spec::menu_engine(f.ctx).mod->getModFXType();
 			menu::bindings::write(nodes::mod_fx_type, f.ctx, static_cast<int32_t>(ModFXType::NONE));
-			expect(f.ctx.mod->getModFXType() == ModFXType::NONE).to_be_true();
+			expect(deluge::scenes::spec::menu_engine(f.ctx).mod->getModFXType() == ModFXType::NONE).to_be_true();
 			menu::bindings::write(nodes::mod_fx_type, f.ctx, static_cast<int32_t>(ModFXType::FLANGER));
-			expect(f.ctx.mod->getModFXType() == ModFXType::FLANGER).to_be_true();
-			(void)f.ctx.mod->setModFXType(before);
+			expect(deluge::scenes::spec::menu_engine(f.ctx).mod->getModFXType() == ModFXType::FLANGER).to_be_true();
+			(void)deluge::scenes::spec::menu_engine(f.ctx).mod->setModFXType(before);
 			covered++;
 		}
 

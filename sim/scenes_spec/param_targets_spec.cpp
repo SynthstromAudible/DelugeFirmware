@@ -2,6 +2,7 @@
 // tables' fixtures do not visit: the randomizer's columns only while the arp is on (a synth's chord columns not on a
 // kit row), and an oscillator's pulse width only for a type that has one.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/nodes/sound_arp.h"
@@ -28,7 +29,7 @@ namespace nodes = menu::nodes;
 
 MenuContext at(Song& song, Clip* clip) {
 	song.setCurrentClip(clip);
-	return menu::context_for(song, clip, 0, false, false, false, false);
+	return menu::context_for(song, deluge::gui::menuViewOf(song, clip), 0, false, false, false, false);
 }
 
 /// Turns the arp of @p ctx's root on or off, through its menu.

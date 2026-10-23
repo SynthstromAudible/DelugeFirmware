@@ -2,6 +2,7 @@
 // targets, and every one that applies reads, ranges and writes through the binding library and the app's sink, landing
 // on the owner the root names.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/bindings.h"
@@ -169,35 +170,35 @@ describe effect_settings_targets("the effect menus on targets, on every owner", 
 
 	it("reads, ranges and writes every effect node on a synth", _ {
 		spec::SongFixture f = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
 		expect(all_disagreements(menu::nodes::sound_root, ctx)).to_equal(std::string{});
 	});
 
 	it("reads, ranges and writes every effect node on a kit row", _ {
 		spec::SongFixture f = spec::make_kit_song();
 		spec::add_drum<SoundDrum>(f);
-		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
 		expect(all_disagreements(menu::nodes::root_drum, ctx)).to_equal(std::string{});
 	});
 
 	it("reads, ranges and writes every effect node on the whole kit", _ {
 		spec::SongFixture f = spec::make_kit_song();
 		spec::add_drum<SoundDrum>(f);
-		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/true);
+		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, /*kit_global_fx=*/true);
 		expect(all_disagreements(menu::nodes::root_kit_global_fx, ctx)).to_equal(std::string{});
 	});
 
 	it("reads, ranges and writes every effect node on an audio track", _ {
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
-		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
 		expect(all_disagreements(menu::nodes::root_audio_clip, ctx)).to_equal(std::string{});
 	});
 
 	it("reads, ranges and writes every effect node on the master, from the song and from performance view", _ {
 		spec::SongFixture f = spec::make_synth_song();
-		const MenuContext song = menu::context_for(*f.song, nullptr, 0, false, true, false, false);
+		const MenuContext song = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, nullptr), 0, false, true, false, false);
 		expect(all_disagreements(menu::nodes::root_song, song)).to_equal(std::string{});
-		const MenuContext performance = menu::context_for(*f.song, nullptr, 0, true, false, false, false);
+		const MenuContext performance = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, nullptr), 0, true, false, false, false);
 		expect(all_disagreements(menu::nodes::root_performance, performance)).to_equal(std::string{});
 	});
 });

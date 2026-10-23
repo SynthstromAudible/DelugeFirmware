@@ -4,6 +4,8 @@
 // visit. The scenes hold addresses only; a spec comparing against legacy items, or setting a fixture up through an
 // engine object, resolves them here.
 
+#include "model/project_bridge/controls_bridge.h"
+#include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 
 #include "model/clip/audio_clip.h"
@@ -12,6 +14,7 @@
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
@@ -29,6 +32,7 @@ struct MenuEngine {
 	Source* source = nullptr;                  ///< the sound's source at the context's index
 	MultiRange* range = nullptr;               ///< the source's range at the context's index
 	SampleControls* sample_controls = nullptr; ///< the source's, or the audio clip's
+	ModControllableAudio* mod = nullptr;       ///< the sound, or the chain's owner (the song, a kit, an audio track)
 };
 
 /// @brief Resolve @p ctx's addresses in its song.
@@ -68,8 +72,12 @@ inline MenuEngine menu_engine(const deluge::scenes::menu::MenuContext& ctx) {
 			e.params = nullptr;
 		}
 	}
+	if (ctx.addresses.chain) {
+		e.mod = deluge::bridge::chainOwnerAt(*ctx.addresses.chain, song);
+	}
 	if (ctx.addresses.slot) {
 		e.sound = deluge::bridge::soundAt(song, *ctx.addresses.slot);
+		e.mod = e.sound;
 		if (e.sound != nullptr) {
 			e.source = &e.sound->sources[ctx.source_index];
 			e.sample_controls = &e.source->sampleControls;
@@ -79,6 +87,19 @@ inline MenuEngine menu_engine(const deluge::scenes::menu::MenuContext& ctx) {
 		}
 	}
 	return e;
+}
+
+/// @brief Whether the port's learn target @p port is legacy's learning thing @p legacy, on @p ctx's owner: the same
+///        param by its engine id, or neither.
+inline bool learns_as(const std::optional<deluge::project::ParamTarget>& port, ParamDescriptor legacy,
+                      const deluge::scenes::menu::MenuContext& ctx) {
+	if (legacy.isNull()) {
+		return !port.has_value();
+	}
+	const auto unpatched = ctx.addresses.slot ? deluge::modulation::params::Kind::UNPATCHED_SOUND
+	                                          : deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
+	return port && port->owner == deluge::scenes::menu::bindings::controls_owner(ctx)
+	       && port->param == deluge::bridge::knobTargetOf(legacy, unpatched);
 }
 
 /// @brief Can the sound @p ctx edits hold note tails: `Sound::allowNoteTails` over the stack `SoundEditor::setup`
@@ -96,7 +117,7 @@ inline bool sound_allows_note_tails(const deluge::scenes::menu::MenuContext& ctx
 	}
 	char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* stack = setupModelStackWithThreeMainThingsIncludingNoteRow(
-	    memory, ctx.song, e.clip, note_row_index, note_row, ctx.mod, e.params);
+	    memory, ctx.song, e.clip, note_row_index, note_row, e.mod, e.params);
 	return e.sound->allowNoteTails(stack->addSoundFlags(), /*disregardSampleLoop=*/true);
 }
 

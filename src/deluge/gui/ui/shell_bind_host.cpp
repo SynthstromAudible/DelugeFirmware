@@ -219,6 +219,10 @@ public:
 	[[nodiscard]] bool clip_playing(deluge::project::ClipAddress clip) const override;
 	[[nodiscard]] int32_t clip_live_pos(deluge::project::ClipAddress clip) const override;
 	[[nodiscard]] bool clip_recording_linearly(deluge::project::ClipAddress clip) const override;
+	[[nodiscard]] bool clip_arrangement_only(deluge::project::ClipAddress clip) const override {
+		const ::Clip* found = currentSong != nullptr ? currentSong->clipForId(clip.clip_id) : nullptr;
+		return found != nullptr && found->isArrangementOnlyClip();
+	}
 	[[nodiscard]] bool stutter_active() const override {
 		return currentSong != nullptr && currentSong->live.stutter.active();
 	}

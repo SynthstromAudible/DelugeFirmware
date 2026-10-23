@@ -21,6 +21,7 @@
 ///       `nullifyUIs()` is the teardown for the UI hierarchy: it is legacy's own "no UI is open"
 ///       and, unlike `closeUI`, it is well defined when the guest is the only thing on the stack.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
@@ -162,7 +163,8 @@ spec::QuietAudio& quiet_audio() {
 
 bool openGuestOnPlayCommand(Song& song) {
 	(void)quiet_audio();
-	const menu::MenuContext ctx = menu::context_for(song, nullptr, 0, false, false, false, false);
+	const menu::MenuContext ctx =
+	    menu::context_for(song, deluge::gui::menuViewOf(song, nullptr), 0, false, false, false, false);
 	const uint16_t arg = menu::node_id(nodes::midi_command_play);
 	if (arg == 0) {
 		return false;

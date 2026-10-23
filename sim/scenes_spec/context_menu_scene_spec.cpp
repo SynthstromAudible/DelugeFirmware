@@ -17,6 +17,7 @@
 /// @note The spec may include `gui/`; the library may not. Same rule `menu_scene_spec.cpp` and
 ///       `rename_scene_spec.cpp` run under.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/context.h"
 #include "scenes/profile.h"
@@ -192,7 +193,8 @@ bool has_action(const Result& r, ShellAction::Kind k) {
 }
 
 MenuContext context_of(spec::SongFixture& f) {
-	return menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
+	return menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false,
+	                         /*kit_global_fx=*/false);
 }
 
 /// @brief Drop the rows the faceplate hides from a PBM.

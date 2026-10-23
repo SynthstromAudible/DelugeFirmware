@@ -16,6 +16,7 @@
  */
 
 #include "scenes/services/midi_learn.h"
+#include "scenes/services/view_state.h"
 
 #include "io/midi/learned_midi.h"
 #include "io/midi/midi_device.h"
@@ -329,9 +330,8 @@ void MidiLearn::cc_received(::MIDICable& cable, int32_t channel, int32_t cc, int
 		// not the held instrument; the two are the same on every path that reaches here (the pad
 		// that set the target is on the current clip's output) but the question is legacy's, so
 		// the port asks legacy's.
-		::Clip* const clip = song_ != nullptr ? song_->getCurrentClip() : nullptr;
-		const bool current_output_is_midi =
-		    clip != nullptr && clip->output != nullptr && clip->output->type == OutputType::MIDI_OUT;
+		const MenuView& current = services::view_state().current_view();
+		const bool current_output_is_midi = current.clip && current.kind == bind::TrackKind::MIDI_OUT;
 		// The input the track holds now, from the song's mapping table.
 		const deluge::project::Mapping* const held =
 		    song_ != nullptr && pressed_.mapping ? song_->project.mappings.find(*pressed_.mapping) : nullptr;

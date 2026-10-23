@@ -20,6 +20,8 @@
 ///        MIDI-learn boundary and the full list of what is deliberately not ported.
 
 #include "scenes/services/global_controls.h"
+#include "scenes/bind/runtime_facts.h"
+#include "scenes/services/view_state.h"
 
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -285,7 +287,7 @@ void GlobalControls::handle_sync_scaling(bool on, const UiContext& ctx, Result& 
 		return;
 	}
 
-	if (song_->getSyncScalingClip() == nullptr) { // `:372`
+	if (!song_->project.transport.sync_scaling_clip_id) { // `:372`
 		if (!view_.current_ui_is_clip_minder) {
 			// `:373-376` `indicator_leds::indicateAlertOnLed(IndicatorLED::CLIP_VIEW)`, which is
 			// `blinkLed(led, 3, 1)` (`hid/led/indicator_leds.cpp:160-162`). Here that is a deadline
@@ -293,22 +295,23 @@ void GlobalControls::handle_sync_scaling(bool on, const UiContext& ctx, Result& 
 			clip_view_alert_until_ms_ = ctx.now_ms + kAlertMs;
 			return;
 		}
-		Clip* const clip = song_->getCurrentClip();
-		if (clip == nullptr) {
-			// Legacy dereferences `getCurrentClip()` unguarded at `:379`; a clip minder always has
-			// one. Refusing rather than crashing is this layer's own guard, not a ported branch.
+		// The clip the view has open: legacy dereferences `getCurrentClip()` unguarded at `:379` (a clip minder always
+		// has one); with none, or a song the app does not play, nothing is done.
+		const std::optional<project::ClipAddress> clip = services::view_state().current_view().clip;
+		if (!clip || !menu::host_binds(*song_)) {
 			return;
 		}
-		if (clip->isArrangementOnlyClip()) { // `:379-381`
+		const bind::RuntimeFacts& facts = menu::host_runtime_facts();
+		if (facts.clip_arrangement_only(*clip)) { // `:379-381`
 			refuse();
 			return;
 		}
-		if (clip->getCurrentlyRecordingLinearly()) { // `:384-386`
+		if (facts.clip_recording_linearly(*clip)) { // `:384-386`
 			refuse();
 			return;
 		}
 		// The setting's Edit re-derives the tick magnitude and re-syncs the internal ticks.
-		write_sync_scaling(song_, static_cast<int32_t>(clip->id()));
+		write_sync_scaling(song_, static_cast<int32_t>(clip->clip_id));
 	}
 	else {
 		write_sync_scaling(song_, -1);
@@ -339,7 +342,7 @@ void GlobalControls::handle_settings_menu(const UiContext& ctx, Result& result) 
 	// Buttons::isShiftButtonPressed()` (`view.cpp:450`). So the root is `settingsRootMenu`
 	// (`:1769`) whatever view is on screen, and `context_for`'s two matching arguments are passed
 	// false for exactly that reason rather than because the view is unknown here.
-	const menu::MenuContext menu_ctx = menu::context_for(*song_, /*clip=*/nullptr, /*source_index=*/0,
+	const menu::MenuContext menu_ctx = menu::context_for(*song_, services::MenuView{}, /*source_index=*/0,
 	                                                     /*performance_view=*/false,
 	                                                     /*session_or_arranger_root=*/false,
 	                                                     /*session_view_root=*/false, /*kit_global_fx=*/false);
@@ -630,24 +633,20 @@ void GlobalControls::leds(deluge::ui::LedFrame& frame) {
 
 	// `View::setTimeBaseScaleLedState` (`view.cpp:519-529`), which is the whole of
 	// `View::setLedStates` (`:514-516`).
-	Clip* const sync_clip = song_ != nullptr ? song_->getSyncScalingClip() : nullptr;
-	if (view_.current_ui_is_clip_minder && song_ != nullptr && song_->getCurrentClip() == sync_clip
-	    && sync_clip != nullptr) {
+	if (blinking_sync_scaling()) {
 		// `:504-506` `indicator_leds::blinkLed(IndicatorLED::SYNC_SCALING)` -- the defaults are
 		// `numBlinks` 255 (forever) and `blinkingType` 0, whose period is `kFlashTime`
 		// (`definitions_cxx.hpp:159`), carried by the toolkit as `deluge::ui::kFlashTime`.
 		//
-		// The `sync_clip != nullptr` conjunct is NOT in legacy, and it is not a widening: legacy's
-		// `getCurrentClip() == currentSong->getSyncScalingClip()` is true when both are null, and
-		// it then blinks an LED for a scaling clip that does not exist. It cannot happen on the
-		// device because `toClipMinder()` implies a current clip, but this layer's `song_` may be a
-		// fixture with neither. Stated rather than silent.
+		// A sync-scaling clip must exist: legacy's `getCurrentClip() == getSyncScalingClip()` is also true when both
+		// are null, which the device never reaches (a clip minder always has a clip).
 		(void)frame.set(
 		    led(ButtonId::SyncScaling),
 		    deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, static_cast<uint16_t>(deluge::ui::kFlashTime), 0});
 	}
 	else {
-		(void)frame.set(led(ButtonId::SyncScaling), sync_clip != nullptr ? kOn : kOff); // `:510`
+		(void)frame.set(led(ButtonId::SyncScaling),
+		                song_ != nullptr && song_->project.transport.sync_scaling_clip_id ? kOn : kOff); // `:510`
 	}
 
 	// `View::buttonAction`'s own two LEDs: SAVE on while held (`view.cpp:243`), off otherwise
@@ -751,9 +750,13 @@ std::optional<uint32_t> GlobalControls::next_timer() const {
 }
 
 bool GlobalControls::blinking_sync_scaling() const {
-	Clip* const sync_clip = song_ != nullptr ? song_->getSyncScalingClip() : nullptr;
-	return view_.current_ui_is_clip_minder && sync_clip != nullptr && song_ != nullptr
-	       && song_->getCurrentClip() == sync_clip;
+	// The sync-scaling clip is the one the view has open (`view.cpp:504-506`).
+	if (!view_.current_ui_is_clip_minder || song_ == nullptr) {
+		return false;
+	}
+	const std::optional<uint32_t> sync_clip = song_->project.transport.sync_scaling_clip_id;
+	const std::optional<project::ClipAddress> current = services::view_state().current_view().clip;
+	return sync_clip && current && current->clip_id == *sync_clip;
 }
 
 } // namespace deluge::scenes::services

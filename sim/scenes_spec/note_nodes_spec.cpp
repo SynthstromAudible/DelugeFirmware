@@ -25,6 +25,7 @@
 ///       library may not (`scripts/check_layer_rules.py`'s `scenes-includes-outside`). Same rule
 ///       `tables_2_spec.cpp` and `tables_3_spec.cpp` run under.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -518,7 +519,7 @@ describe note_nodes_validation("scenes::menu note editor/note-row editor: valida
 		guard.fake.row_auditioning_value = true;
 		spec::SongFixture song = spec::make_synth_song();
 		const menu::MenuContext ctx =
-		    menu::context_for(*song.song, song.clip, 0, false, false, false, false);
+		    menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, song.clip), 0, false, false, false, false);
 		const menu::MenuContext contexts[] = {ctx};
 		const auto issues = menu::validate_tree(nodes::kAllRoots, contexts, nodes::kRangeDependentNodes,
 		                                        nodes::kHalfPrecisionNodes, menu::ValidateOptions{});

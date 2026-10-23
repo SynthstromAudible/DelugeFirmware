@@ -26,6 +26,7 @@
 /// @note The spec may include `gui/` (for the legacy menu items); the library may not. Same rule
 ///       `tables_1_spec.cpp`, `menu_actions_spec.cpp` and `browser_scene_spec.cpp` run under.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/l10n_bridge.h"
@@ -309,7 +310,8 @@ struct ClipRig {
 	}
 
 	MenuContext ctx() {
-		return menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
+		return menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, song.clip), 0, false, false, false,
+		                         /*kit_global_fx=*/false);
 	}
 };
 
@@ -325,7 +327,8 @@ struct MidiRig {
 
 	MIDIInstrument* instrument() { return static_cast<MIDIInstrument*>(song.instrument); }
 	MenuContext ctx() {
-		return menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
+		return menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, song.clip), 0, false, false, false,
+		                         /*kit_global_fx=*/false);
 	}
 };
 
@@ -858,7 +861,7 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		f.output->setInputChannel(AudioInputChannel::SPECIFIC_OUTPUT);
 		f.output->setOutputRecordingFrom(nullptr);
-		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
+		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, /*kit_global_fx=*/false);
 
 		Rig r;
 		press_child(r, nodes::root_audio_clip, nodes::specific_output_selector, ctx);

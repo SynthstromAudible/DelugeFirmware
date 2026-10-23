@@ -18,6 +18,7 @@
 #include "gui/ui/shell_guest_services.h"
 
 #include "gui/ui/knob_focus_of.h"
+#include "gui/ui/menu_view_of.h"
 
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/shell_host_ui.h"
@@ -101,6 +102,10 @@ void wireShellGuestServices() {
 	services.knobs.set_song(currentSong);
 	services.controls.set_song(currentSong);
 	seedKnobFocus(services.knobs);
+	// The clip the views have open, which the global buttons and MIDI learn ask about.
+	deluge::scenes::services::view_state().set_current_view(
+	    currentSong != nullptr ? deluge::gui::menuViewOf(*currentSong, currentSong->getCurrentClip())
+	                           : deluge::scenes::services::MenuView{});
 
 	// The two `ViewState` blocks -- the questions about *which legacy view is on screen* that a
 	// service in `src/scenes` has no way to ask. Each field is its own doc comment's legacy

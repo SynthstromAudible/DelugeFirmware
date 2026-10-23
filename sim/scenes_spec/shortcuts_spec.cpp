@@ -23,6 +23,7 @@
 ///       (`scripts/check_layer_rules.py`'s `scenes-includes-outside`). Same rule the `tables_*`
 ///       specs run under.
 
+#include "gui/ui/menu_view_of.h"
 #include "processing/engines/audio_engine.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -119,12 +120,13 @@ void install_sound_context() {
 	select_language();
 	static spec::SongFixture fixture = spec::make_synth_song();
 	static const MenuContext ctx =
-	    menu::context_for(*fixture.song, fixture.clip, 0, false, false, false, /*kit_global_fx=*/false);
+	    menu::context_for(*fixture.song, deluge::gui::menuViewOf(*fixture.song, fixture.clip), 0, false, false, false,
+	                      /*kit_global_fx=*/false);
 	currentSong = fixture.song;
 	const spec::MenuEngine engine = spec::menu_engine(ctx);
 	fixture.song->setCurrentClip(engine.clip);
 	soundEditor.currentSound = engine.sound;
-	soundEditor.currentModControllable = ctx.mod;
+	soundEditor.currentModControllable = deluge::scenes::spec::menu_engine(ctx).mod;
 	soundEditor.currentParamManager = engine.params;
 	soundEditor.currentSourceIndex = ctx.source_index;
 	soundEditor.currentSource = engine.source;

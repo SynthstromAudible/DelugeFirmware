@@ -2,6 +2,7 @@
 // device, a clip's values, an audio clip's, a kit row's note row, a clip's arp or a kit lane's; and the root fills the
 // addresses and the instrument the target resolves against. The host's facts answer as the engine does.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
@@ -69,11 +70,11 @@ std::string stored_text(SettingGroupId group, std::string_view path, int32_t men
 }
 
 MenuContext song_root(Song& song) {
-	return menu::context_for(song, nullptr, 0, false, true, true, false);
+	return menu::context_for(song, deluge::gui::menuViewOf(song, nullptr), 0, false, true, true, false);
 }
 
 MenuContext clip_root(Song& song, Clip* clip) {
-	return menu::context_for(song, clip, 0, false, false, false, false);
+	return menu::context_for(song, deluge::gui::menuViewOf(song, clip), 0, false, false, false, false);
 }
 
 } // namespace

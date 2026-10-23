@@ -23,6 +23,7 @@
 /// @note The SPEC may include `gui/menu_item/`; the library may not (`scripts/check_layer_rules.py`).
 
 #include "support/descriptor_cases.h"
+#include "support/menu_engine.h"
 
 #include <algorithm>
 #include <new>
@@ -141,7 +142,8 @@ void set_arp(const MenuContext& ctx, std::string_view mode) {
 	                             Value::makeScalar(std::string{mode}));
 }
 void set_song_stutter(const MenuContext& ctx, bool use) {
-	deluge::edits::effectSettingFor(*ctx.mod, "stutter/useSongStutter", Value::makeNumber(use ? 1 : 0));
+	deluge::edits::effectSettingFor(*deluge::scenes::spec::menu_engine(ctx).mod, "stutter/useSongStutter",
+	                                Value::makeNumber(use ? 1 : 0));
 }
 /// A sound as `enter` leaves it, poly, its arp off, using the song's stutter.
 void plain_sound(const MenuContext& ctx) {

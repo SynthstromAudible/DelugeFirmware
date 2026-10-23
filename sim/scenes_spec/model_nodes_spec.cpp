@@ -3,6 +3,7 @@
 // names. A bend range no clip holds shows the device's default, the reverb sidechain's top shape step is the
 // descriptor's, and a voice priority or pitch/speed menu edits an audio clip's own row there.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/target.h"
 #include "scenes/menu/bindings.h"
@@ -45,7 +46,7 @@ namespace {
 namespace nodes = menu::nodes;
 
 MenuContext at(Song& song, Clip* clip) {
-	return menu::context_for(song, clip, 0, false, false, false, false);
+	return menu::context_for(song, deluge::gui::menuViewOf(song, clip), 0, false, false, false, false);
 }
 
 /// The owner @p group's records take at @p ctx.

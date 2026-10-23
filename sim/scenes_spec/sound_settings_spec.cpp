@@ -2,6 +2,7 @@
 // of instrument::kSettings names it as its target, and the menu reads, ranges and writes it through the binding
 // library, on a synth and on a kit row.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/bindings.h"
@@ -154,7 +155,7 @@ describe sound_settings_targets("the sound's instrument settings on targets", ${
 	it("reads, ranges and writes every target node through the binding library on a synth", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
-		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
 		std::string found;
 		for (const Node* node : target_nodes()) {
 			found += disagreements(*node, ctx);
@@ -165,7 +166,7 @@ describe sound_settings_targets("the sound's instrument settings on targets", ${
 	it("reads, ranges and writes every target node through the binding library on a kit row", _ {
 		spec::SongFixture f = spec::make_kit_song();
 		spec::add_drum<SoundDrum>(f);
-		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
 		std::string found;
 		for (const Node* node : target_nodes()) {
 			found += disagreements(*node, ctx);
@@ -179,7 +180,7 @@ describe sound_settings_listed("the menu lists a target node only where its sett
 	it("leaves the sample rows off a saw oscillator's page, and lists them on a loaded sample's", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
-		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
 		deluge::edits::settingFor(*spec::menu_engine(ctx).sound, "osc1/type", deluge::serialization::Value::makeScalar("saw"));
 		std::array<const Node*, menu::kMaxDynamicChildren> listed{};
 		const size_t n = bindings::listed_children(menu::nodes::source0, ctx, listed);
@@ -196,7 +197,7 @@ describe sound_settings_listed("the menu lists a target node only where its sett
 	it("leaves max voices off a mono sound's voice page", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
-		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
 		deluge::edits::settingFor(*spec::menu_engine(ctx).sound, "polyphonic", deluge::serialization::Value::makeScalar("mono"));
 		std::array<const Node*, menu::kMaxDynamicChildren> listed{};
 		const size_t n = bindings::listed_children(menu::nodes::voice, ctx, listed);

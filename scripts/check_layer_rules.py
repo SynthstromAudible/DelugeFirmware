@@ -338,6 +338,10 @@ LEGACY_PORT_SEAMS = (
     # `scenes::bind::KnobFocus` because it builds one; it goes when the views keep a focus of their own (2e-3).
     "src/deluge/gui/ui/knob_focus_of.h",
     "src/deluge/gui/ui/knob_focus_of.cpp",
+    # And the menu's: what a menu opens over (the clip, its track and kind, the kit row selected, affect-entire), from
+    # the clip a legacy view has open, until the views keep it.
+    "src/deluge/gui/ui/menu_view_of.h",
+    "src/deluge/gui/ui/menu_view_of.cpp",
     "src/deluge/gui/ui/shell_menu_entry.cpp",
     "src/deluge/gui/ui/sound_editor.cpp",
     "src/deluge/gui/views/performance_view.cpp",
@@ -621,20 +625,10 @@ RULES = [
         "2026-08-26-ui-scenes-menus-design.md",
     ),
     (
-        # Narrower than the rule above, and the reason `menu::model_stack_for()` exists (spec E1
-        # task-3 ruling 6): `model/model_stack.h` may be reached only by the two files that own the
-        # model-stack boundary. Everything else in src/scenes goes through `model_stack_for`, so
-        # there is exactly one place that knows how a menu's stack is assembled.
-        #
-        # `menu/bindings.cpp` does not exist yet -- Task 4 adds it; excluding it now means that task
-        # needs no edit here. Added in fix round 1 (Minor 8): the restriction was prose in
-        # src/scenes/README.md while every other rule in this stack is machine-checked.
+        # Narrower than the rule above: no scene reaches `model/model_stack.h`. The scenes address the model's
+        # records and act through the runtime facts and the write sink; an engine stack is the app's to build.
         "scenes-model-stack-outside-context",
-        (
-            "src/scenes/**",
-            "src/scenes/menu/context.cpp",
-            "src/scenes/menu/bindings.cpp",
-        ),
+        "src/scenes/**",
         "include",
         r"^model/model_stack\.h$",
         "2026-08-26-ui-scenes-menus-design.md",
@@ -664,25 +658,19 @@ RULES = [
         "2026-08-26-ui-scenes-menus-design.md",
     ),
     (
-        # Narrower still than scenes-model-stack-outside-context: `modulation/automation/auto_param.h`
-        # carries the same "reach into the model stack machinery directly" risk as `model_stack.h`
-        # itself, so it is confined to the same two files.
+        # `modulation/automation/auto_param.h` reaches into the same machinery as `model_stack.h`, and no scene
+        # includes it either.
         "scenes-model-stack",
-        (
-            "src/scenes/**",
-            "src/scenes/menu/bindings.cpp",
-            "src/scenes/menu/context.cpp",
-        ),
+        "src/scenes/**",
         "include",
         r"^(model/model_stack\.h|modulation/automation/auto_param\.h)",
         "2026-08-26-ui-scenes-menus-design.md",
     ),
     (
         # A scene names no Edit: it hands a request to its menu's sink, which the app applies as the Edit, so the
-        # scenes build against the model's records and never reach the engine through an Edit's arguments. The menu's
-        # context builder is allowed `param_address_for.h` alone, for the gold knob's param address.
+        # scenes build against the model's records and never reach the engine through an Edit's arguments.
         "scenes-no-edits",
-        ("src/scenes/**", "src/scenes/menu/context.cpp"),
+        "src/scenes/**",
         "include",
         r"^model/edits/",
         "2026-10-18-scenes-bind-to-model-design.md",
@@ -697,29 +685,10 @@ RULES = [
         "2026-10-18-scenes-bind-to-model-design.md",
     ),
     (
-        # The same rule over the context builder: every Edit header but the gold knob's param address.
-        "scenes-no-edits",
-        "src/scenes/menu/context.cpp",
-        "include",
-        r"^model/edits/(?!param_address_for\.h$)",
-        "2026-10-18-scenes-bind-to-model-design.md",
-    ),
-    (
-        # A scene holds no engine object: a menu's context holds addresses into the model, and its reads come from the
-        # records and the runtime facts. The files allowed are where one is still the subject:
-        #   menu/context.{h,cpp}       the context builder walks the engine to derive the addresses, and keeps `mod`
-        #                              for the param popup and the gold knob;
-        #   overlay/param_popup_scene  the param popup, which edits the view's mod controllable;
-        #   services/mod_knobs, mod_target
-        #                              the gold knobs, which turn the mod controllable's knobs.
+        # A scene holds no engine object: a menu's context and the gold knobs' focus hold addresses into the model,
+        # and their reads come from the records and the runtime facts.
         "scenes-no-engine-pointers",
-        (
-            "src/scenes/**",
-            "src/scenes/menu/context.{h,cpp}",
-            "src/scenes/overlay/param_popup_scene.{h,cpp}",
-            "src/scenes/services/mod_knobs.{h,cpp}",
-            "src/scenes/services/mod_target.h",
-        ),
+        "src/scenes/**",
         "symbol",
         (
             r"\b(Sound|ModControllableAudio|ParamManager\w*|Output|ArpeggiatorSettings|Source|MultiRange|AudioClip"

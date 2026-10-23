@@ -28,6 +28,8 @@
 
 #include "scenes/menu/menu_scene.h"
 
+#include "model/project_bridge/controls_bridge.h"
+
 #include "scenes/menu/nodes/nodes.h" // `roots()`' table (task 8)
 
 #include "scenes/bind/dispatch.h"
@@ -591,10 +593,10 @@ void MenuScene::read_value_again() {
 	}
 }
 
-ParamDescriptor MenuScene::learn_target() const {
+std::optional<deluge::project::ParamTarget> MenuScene::learn_target() const {
 	const Node* node = focused();
 	if (node == nullptr) {
-		return {};
+		return std::nullopt;
 	}
 	// A bespoke item whose descriptor is not a `Binding::param` answers first -- the three
 	// patch-cable-strength pages, whose `getLearningThing()` is assembled from the navigation state
@@ -603,8 +605,11 @@ ParamDescriptor MenuScene::learn_target() const {
 	// node use.
 	if (node->kind == Kind::Custom && node->custom != nullptr) {
 		const ParamDescriptor from_item = node->custom->learn_descriptor(ctx_, st_);
-		if (!from_item.isNull()) {
-			return from_item;
+		const std::optional<deluge::project::ControlsAddress> owner = bindings::controls_owner(ctx_);
+		if (!from_item.isNull() && owner) {
+			return deluge::project::ParamTarget{
+			    .owner = *owner,
+			    .param = deluge::bridge::knobTargetOf(from_item, deluge::modulation::params::Kind::UNPATCHED_SOUND)};
 		}
 	}
 	return bindings::learn_target(*node, ctx_);

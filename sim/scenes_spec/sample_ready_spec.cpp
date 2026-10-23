@@ -2,6 +2,7 @@
 // an untargeted fact on which the shell repaints the OLED, and the page then lists the rows a loaded sample makes
 // apply.
 
+#include "gui/ui/menu_view_of.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -68,7 +69,7 @@ describe sample_ready_redraws("a source's file finishing loading, or being taken
 	it("repaints the open page, which then lists the rows a loaded sample makes apply", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
-		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
 		deluge::edits::settingFor(*spec::menu_engine(ctx).sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
 		PageRig r;
 		r.open(menu::nodes::source0, ctx);

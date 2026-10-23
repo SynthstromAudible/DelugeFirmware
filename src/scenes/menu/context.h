@@ -22,12 +22,11 @@
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/target.h"
 #include "scenes/bind/write_sink.h"
+#include "scenes/services/view_state.h"
 
 #include <cstdint>
 
-class Clip;
 class MIDICable;
-class ModControllableAudio;
 class Song;
 
 namespace deluge::project {
@@ -77,8 +76,6 @@ struct MenuContext {
 	///        recording mode, its stem export, the velocity default every instrument takes). Everything else a node
 	///        edits it reaches through `model`, `addresses`, `facts` and `sink`.
 	Song* song = nullptr;
-	/// @brief What the gold knobs and the parameter popup act on, until they bind by address.
-	ModControllableAudio* mod = nullptr;
 	/// @brief The range the menu edits, by index into the source's ranges; -1 for none chosen.
 	int16_t range_index = -1;
 	/// @brief The sound source the menu edits.
@@ -162,7 +159,9 @@ struct MenuContext {
 ///
 /// @param song                    the song that owns @p clip; used instead of the `currentSong`
 ///                                global wherever `setup()` reached for it (task-3 ruling 3).
-/// @param clip                    the clip being edited, or null for a song-level / settings menu.
+/// @param view                    what the menu opens over, as the view shows it: the clip (none for a song-level
+///                                or settings menu), its track and what plays it, the kit row selected, the clip's
+///                                affect-entire.
 /// @param source_index            which of a `Sound`'s two sources the menu addresses
 ///                                (`setup()`'s `sourceIndex`).
 /// @param performance_view        `setup()`'s `currentUI == &performanceView && !shift` (`:1816`).
@@ -186,7 +185,7 @@ struct MenuContext {
 ///                                shortcut (`sound_editor.cpp:1205-1213`) is the caller that passes
 ///                                false with affect-entire on, and it is why this is an argument
 ///                                rather than a re-read of the clip.
-MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool performance_view,
+MenuContext context_for(Song& song, const services::MenuView& view, int8_t source_index, bool performance_view,
                         bool session_or_arranger_root, bool session_view_root, bool kit_global_fx);
 
 /// @brief May a session begin on @p node in @p ctx? Spec E §4.1's one rule in place of the
