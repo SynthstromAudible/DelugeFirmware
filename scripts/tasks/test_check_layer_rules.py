@@ -126,6 +126,39 @@ class ParamBackupRows(unittest.TestCase):
         self.assertEqual(found, {})
 
 
+class ViewKnobRows(unittest.TestCase):
+    counts = ScenesRows.counts
+
+    def test_a_legacy_file_naming_the_knob_stack_is_counted(self):
+        counts = self.counts(
+            "src/deluge/gui/views/planted.cpp",
+            "void f() {\n\t(void)view.activeModControllableModelStack.modControllable;\n}\n",
+        )
+        self.assertEqual(counts.get("views-no-knob-stack"), 1)
+
+    def test_a_view_casting_the_knobs_owner_is_counted(self):
+        counts = self.counts(
+            "src/deluge/gui/views/session_view.cpp",
+            "void f() {\n\t((ModControllableAudio*)View::KnobStack{view}.owner())->endStutter(nullptr);\n}\n",
+        )
+        self.assertEqual(counts.get("views-no-knob-owner-cast"), 1)
+
+    def test_the_automation_view_is_not_yet(self):
+        counts = self.counts(
+            "src/deluge/gui/views/automation/editor_layout/planted.cpp",
+            "void f() {\n\t(void)(ModControllableAudio*)View::KnobStack{view}.owner();\n}\n",
+        )
+        self.assertNotIn("views-no-knob-owner-cast", counts)
+
+    def test_the_tree_holds_neither(self):
+        found = {
+            key: n
+            for key, n in clr.current().items()
+            if key[1] in ("views-no-knob-stack", "views-no-knob-owner-cast")
+        }
+        self.assertEqual(found, {})
+
+
 class LegacyPortSeams(unittest.TestCase):
     def test_no_legacy_file_is_a_knob_focus_seam(self):
         """The views keep the gold knobs' focus as addresses: no legacy file builds one for the scenes."""

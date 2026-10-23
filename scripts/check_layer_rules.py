@@ -672,6 +672,28 @@ RULES = [
         "2026-10-18-scenes-bind-to-model-design.md",
     ),
     (
+        # The gold knobs' focus is addresses (View::knobFocus()); a gesture resolves the owner's stack when it acts
+        # (bridge::knobOwnerStackAt). No legacy file keeps the knobs a long-lived stack.
+        "views-no-knob-stack",
+        "src/deluge/**",
+        "symbol",
+        r"\bactiveModControllableModelStack\b",
+        "2026-10-18-scenes-bind-to-model-design.md",
+    ),
+    (
+        # A view acts on the knobs' owner by address (bridge::stutterAt, the focus's comp view, knobMode), not through
+        # an engine cast of the owner it resolves. The automation view and its editor layout are still the stack's.
+        "views-no-knob-owner-cast",
+        (
+            "src/deluge/gui/views/**",
+            "src/deluge/gui/views/automation_view.cpp",
+            "src/deluge/gui/views/automation/**",
+        ),
+        "symbol",
+        r"\(\s*ModControllableAudio\s*\*\s*\)\s*View::KnobStack",
+        "2026-10-18-scenes-bind-to-model-design.md",
+    ),
+    (
         # The param backup is keyed by its owner's address and clip id. The old (ModControllableAudio*, Clip*) key names
         # the engine object the address replaced. (A cast at a call site no longer compiles, so it needs no row.)
         "param-backup-by-address",
