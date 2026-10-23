@@ -67,6 +67,7 @@ using namespace gui;
 #define PERFORM_DEFAULTS_ROW_TAG "row"
 #define PERFORM_DEFAULTS_ON "On"
 #define PERFORM_DEFAULTS_OFF "Off"
+#define PERFORM_SONG_INITIALIZED_TAG "initialized"
 
 using namespace deluge::modulation::params;
 
@@ -177,14 +178,28 @@ const int32_t delayPadPressValues[kDisplayHeight] = {0, 9, 18, 27, 36, 45, 54, 6
 const int32_t quantizedStutterPressValues[kDisplayHeight] = {-52, -37, -22, -7, 8, 23, 38, 53};
 
 PLACE_SDRAM_BSS PerformanceView performanceView{};
+// Parsing must not change the playing song, even if the load fails or the swap is delayed.
+static PLACE_SDRAM_BSS PerformanceViewSettings pendingPerformanceSettings{};
+// The layout a song falls back to when it has no saved layout (PerformanceView.XML, or the built-in layout).
+static PLACE_SDRAM_BSS PerformanceViewSettings defaultPerformanceSettings{};
+
+static bool isValidHeldRow(const FXColumnPress& press) {
+	return press.yDisplay >= 0 && press.yDisplay < kDisplayHeight;
+}
 
 // initialize variables
 PerformanceView::PerformanceView() {
+	initialize();
+}
+
+void PerformanceView::initialize() {
 	successfullyReadDefaultsFromFile = false;
 
 	anyChangesToSave = false;
 
 	defaultEditingMode = false;
+
+	editingParam = false;
 
 	layoutVariant = 1;
 
@@ -281,7 +296,7 @@ void PerformanceView::focusRegained() {
 	view.setActiveModControllableTimelineCounter(currentSong);
 
 	if (!successfullyReadDefaultsFromFile) {
-		readDefaultsFromFile();
+		readDefaultsFromFile(false);
 		actionLogger.deleteAllLogs();
 	}
 
@@ -849,7 +864,6 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 	else if (b == KEYBOARD && isUIModeActive(UI_MODE_HOLDING_SAVE_BUTTON)) {
 		if (on) {
 			savePerformanceViewLayout();
-			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
 			exitUIMode(UI_MODE_HOLDING_SAVE_BUTTON);
 		}
 	}
@@ -1705,17 +1719,23 @@ void PerformanceView::updateLayoutChangeStatus() {
 
 /// update saved perfomance view layout and update saved changes status
 void PerformanceView::savePerformanceViewLayout() {
-	writeDefaultsToFile();
+	if (writeDefaultsToFile()) {
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
+	}
 	updateLayoutChangeStatus();
 }
 
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
-void PerformanceView::writeDefaultsToFile() {
-	// PerformanceView.xml
+bool PerformanceView::writeDefaultsToFile() {
+	// A failed overwrite may leave the SD card template incomplete, so the next load
+	// re-reads what's actually on the card instead of trusting this cache.
+	defaultPerformanceSettings.hasLayout = false;
+
+	// PerformanceView.xml (createXMLFile displays its own errors)
 	Error error = StorageManager::createXMLFile(PERFORM_DEFAULTS_XML, smSerializer, true);
 	if (error != Error::NONE) {
-		return;
+		return false;
 	}
 	Serializer& writer = GetSerializer();
 	//<defaults>
@@ -1732,22 +1752,55 @@ void PerformanceView::writeDefaultsToFile() {
 
 	writer.writeClosingTag(PERFORM_DEFAULTS_TAG);
 
-	writer.closeFileAfterWriting();
+	// Reopen the template for verification before the writer's final close.
+	error = writer.closeFileAfterWriting(PERFORM_DEFAULTS_XML);
+	if (error != Error::NONE) {
+		display->displayError(error);
+		return false;
+	}
+
+	backupSavedLayout();
+
+	memcpy(defaultPerformanceSettings.layout, layoutForPerformance, sizeof(defaultPerformanceSettings.layout));
+	memcpy(defaultPerformanceSettings.values, defaultFXValues, sizeof(defaultPerformanceSettings.values));
+	memcpy(defaultPerformanceSettings.presses, fxPress, sizeof(defaultPerformanceSettings.presses));
+	// XML stores the held row, not the live value after a mod-encoder adjustment.
+	// Keep the cache equivalent to reading that row back from the template.
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		auto& press = defaultPerformanceSettings.presses[xDisplay];
+		if (press.padPressHeld) {
+			if (isValidHeldRow(press)) {
+				press.currentKnobPosition = defaultPerformanceSettings.values[xDisplay][press.yDisplay];
+			}
+			else {
+				initFXPress(press);
+			}
+		}
+	}
+	defaultPerformanceSettings.hasLayout = true;
 
 	anyChangesToSave = false;
+	return true;
 }
 
 /// creates "FX1 - FX16 tags"
 /// limiting # of FX to the # of columns on the grid (16 = kDisplayWidth)
 /// could expand # of FX in the future if we allow user to selected from a larger bank of FX / build their own FX
 void PerformanceView::writeSettingsToFile(Serializer& writer) {
+	// An unopened view has no layout yet. Do not save it as an intentionally empty layout.
+	if (!successfullyReadDefaultsFromFile) {
+		return;
+	}
 	writer.writeOpeningTagBeginning("performanceView");
 	writer.writeOpeningTagEnd();
+	// Distinguishes a deliberately empty layout from the empty layouts saved by 1.3 release candidates
+	writer.writeTag(PERFORM_SONG_INITIALIZED_TAG, 1);
 	writer.writeOpeningTagBeginning(PERFORM_DEFAULTS_FXVALUES_TAG);
 	writer.writeOpeningTagEnd();
 	writeDefaultFXValuesToFile(writer);
 	writer.writeClosingTag(PERFORM_DEFAULTS_FXVALUES_TAG);
 	writer.writeClosingTag("performanceView");
+	backupSavedLayout();
 }
 
 void PerformanceView::writeDefaultFXValuesToFile(Serializer& writer) {
@@ -1778,9 +1831,6 @@ void PerformanceView::writeDefaultFXParamToFile(Serializer& writer, int32_t xDis
 	}
 	//<param>
 	writer.writeTag(PERFORM_DEFAULTS_PARAM_TAG, paramName);
-
-	memcpy(&backupXMLDefaultLayoutForPerformance[xDisplay], &layoutForPerformance[xDisplay],
-	       sizeof(ParamsForPerformance));
 }
 
 /// creates "8 - 1 row # tags within a "row" tag"
@@ -1794,8 +1844,6 @@ void PerformanceView::writeDefaultFXRowValuesToFile(Serializer& writer, int32_t 
 	for (int32_t yDisplay = kDisplayHeight - 1; yDisplay >= 0; yDisplay--) {
 		intToString(yDisplay + 1, rowNumber);
 		writer.writeTag(rowNumber, defaultFXValues[xDisplay][yDisplay] + kKnobPosOffset);
-
-		backupXMLDefaultFXValues[xDisplay][yDisplay] = defaultFXValues[xDisplay][yDisplay];
 	}
 	writer.writeClosingTag(PERFORM_DEFAULTS_ROW_TAG);
 }
@@ -1814,8 +1862,6 @@ void PerformanceView::writeDefaultFXHoldStatusToFile(Serializer& writer, int32_t
 		writer.writeTag(PERFORM_DEFAULTS_ROW_TAG, fxPress[xDisplay].yDisplay + 1);
 		//<resetValue>
 		writer.writeTag(PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG, fxPress[xDisplay].previousKnobPosition + kKnobPosOffset);
-
-		memcpy(&backupXMLDefaultFXPress[xDisplay], &fxPress[xDisplay], sizeof(FXColumnPress));
 	}
 	else {
 		//<status>
@@ -1824,8 +1870,6 @@ void PerformanceView::writeDefaultFXHoldStatusToFile(Serializer& writer, int32_t
 		writer.writeTag(PERFORM_DEFAULTS_ROW_TAG, kNoSelection);
 		//<resetValue>
 		writer.writeTag(PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG, kNoSelection);
-
-		initFXPress(backupXMLDefaultFXPress[xDisplay]);
 	}
 
 	writer.writeClosingTag(PERFORM_DEFAULTS_HOLD_TAG);
@@ -1841,7 +1885,7 @@ void PerformanceView::loadPerformanceViewLayout() {
 		readDefaultsFromBackedUpFile();
 	}
 	else {
-		readDefaultsFromFile();
+		readDefaultsFromFile(true);
 	}
 	actionLogger.deleteAllLogs();
 	backupPerformanceLayout();
@@ -1866,9 +1910,29 @@ void PerformanceView::readDefaultsFromBackedUpFile() {
 }
 
 /// read defaults from XML
-void PerformanceView::readDefaultsFromFile() {
+void PerformanceView::readDefaultsFromFile(bool applyHeldPads) {
 	// no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {
+		return;
+	}
+
+	loadDefaultSettings();
+	applySettings(defaultPerformanceSettings, applyHeldPads);
+	if (!applyHeldPads) {
+		// Opening the view must not change parameter values, so start with no pads held.
+		// The template's held pads stay in the backup, so pressing Load applies them.
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+			initFXPress(fxPress[xDisplay]);
+			if (!backupXMLDefaultFXPress[xDisplay].padPressHeld) {
+				initFXPress(backupXMLDefaultFXPress[xDisplay]);
+			}
+		}
+	}
+}
+
+/// read the default layout from XML once, falling back to the built-in layout
+void PerformanceView::loadDefaultSettings() {
+	if (defaultPerformanceSettings.hasLayout) {
 		return;
 	}
 
@@ -1889,7 +1953,7 @@ void PerformanceView::readDefaultsFromFile() {
 			}
 		}
 		if (!success) {
-			loadDefaultLayout();
+			loadDefaultLayout(defaultPerformanceSettings);
 			return;
 		}
 	}
@@ -1897,59 +1961,133 @@ void PerformanceView::readDefaultsFromFile() {
 	//<defaults>
 	Error error = StorageManager::openXMLFile(&fp, smDeserializer, PERFORM_DEFAULTS_TAG);
 	if (error != Error::NONE) {
-		loadDefaultLayout();
+		loadDefaultLayout(defaultPerformanceSettings);
 		return;
 	}
+	initializeSettings(defaultPerformanceSettings);
 	Deserializer& reader = smDeserializer;
 	char const* tagName;
 	// step into the <defaultFXValues> tag
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, PERFORM_DEFAULTS_FXVALUES_TAG)) {
-			readDefaultFXValuesFromFile(reader);
+			readDefaultFXValuesFromFile(reader, defaultPerformanceSettings);
 		}
 		reader.exitTag();
 	}
 	smDeserializer.closeWriter();
 
-	successfullyReadDefaultsFromFile = true;
+	if (!defaultPerformanceSettings.hasLayout) {
+		loadDefaultLayout(defaultPerformanceSettings);
+	}
 }
 
 /// if no XML file exists, load default layout (paramKind, paramID, xDisplay, yDisplay, rowColour, rowTailColour)
-void PerformanceView::loadDefaultLayout() {
+void PerformanceView::loadDefaultLayout(PerformanceViewSettings& settings) {
+	initializeSettings(settings);
+	memcpy(settings.layout, defaultLayoutForPerformance.data(), sizeof(settings.layout));
+	settings.hasLayout = true;
+}
+
+/// after writing the layout to a file, remember it as the last saved layout
+void PerformanceView::backupSavedLayout() {
+	memcpy(backupXMLDefaultLayoutForPerformance, layoutForPerformance, sizeof(backupXMLDefaultLayoutForPerformance));
+	memcpy(backupXMLDefaultFXValues, defaultFXValues, sizeof(backupXMLDefaultFXValues));
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-		memcpy(&layoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay], sizeof(ParamsForPerformance));
-		memcpy(&backupXMLDefaultLayoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay],
-		       sizeof(ParamsForPerformance));
+		if (fxPress[xDisplay].padPressHeld) {
+			memcpy(&backupXMLDefaultFXPress[xDisplay], &fxPress[xDisplay], sizeof(FXColumnPress));
+		}
+		else {
+			initFXPress(backupXMLDefaultFXPress[xDisplay]);
+		}
+	}
+}
+
+void PerformanceView::initializeSettings(PerformanceViewSettings& settings) {
+	settings.hasLayout = false;
+	settings.initialized = false;
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		initLayout(settings.layout[xDisplay]);
+		initFXPress(settings.presses[xDisplay]);
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-			if (params::isParamQuantizedStutter(
-			        layoutForPerformance[xDisplay].paramKind, layoutForPerformance[xDisplay].paramID,
-			        (ModControllableAudio*)view.activeModControllableModelStack.modControllable)) {
+			settings.values[xDisplay][yDisplay] = getKnobPosForSinglePadPress(xDisplay, yDisplay);
+		}
+	}
+}
+
+// Begin a new song or file load without changing the active performance state.
+void PerformanceView::resetSettingsForSongLoad() {
+	initializeSettings(pendingPerformanceSettings);
+}
+
+static bool hasAssignedParam(const PerformanceViewSettings& settings) {
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		if (settings.layout[xDisplay].paramKind != params::Kind::NONE) {
+			return true;
+		}
+	}
+	return false;
+}
+
+// Called only after currentSong has been replaced. No SD card IO is safe in the song swap.
+void PerformanceView::finishSettingsForSongLoad() {
+	initialize();
+	// 1.3 release candidates saved an empty layout to songs when performance view had not been opened.
+	// Those songs have no initialized marker, so treat their empty layout as no saved layout.
+	if (pendingPerformanceSettings.hasLayout
+	    && (pendingPerformanceSettings.initialized || hasAssignedParam(pendingPerformanceSettings))) {
+		applySettings(pendingPerformanceSettings, false);
+	}
+	// Otherwise focusRegained() will try the SD card template, then the built-in defaults.
+}
+
+void PerformanceView::applySettings(const PerformanceViewSettings& settings, bool initializeHeldEffects) {
+	memcpy(layoutForPerformance, settings.layout, sizeof(layoutForPerformance));
+	memcpy(defaultFXValues, settings.values, sizeof(defaultFXValues));
+	memcpy(fxPress, settings.presses, sizeof(fxPress));
+	memcpy(backupXMLDefaultLayoutForPerformance, settings.layout, sizeof(backupXMLDefaultLayoutForPerformance));
+	memcpy(backupXMLDefaultFXValues, settings.values, sizeof(backupXMLDefaultFXValues));
+	memcpy(backupXMLDefaultFXPress, settings.presses, sizeof(backupXMLDefaultFXPress));
+	successfullyReadDefaultsFromFile = settings.hasLayout;
+	updateQuantizedStutterValues();
+	if (initializeHeldEffects) {
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+			initializeHeldFX(xDisplay);
+		}
+	}
+}
+
+void PerformanceView::updateQuantizedStutterValues() {
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		if (params::isParamStutter(layoutForPerformance[xDisplay].paramKind, layoutForPerformance[xDisplay].paramID)
+		    && currentSong->globalEffectable.stutterConfig.quantized) {
+			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 				defaultFXValues[xDisplay][yDisplay] = quantizedStutterPressValues[yDisplay];
-				backupXMLDefaultFXValues[xDisplay][yDisplay] = defaultFXValues[xDisplay][yDisplay];
+				backupXMLDefaultFXValues[xDisplay][yDisplay] = quantizedStutterPressValues[yDisplay];
 			}
 		}
 	}
-	successfullyReadDefaultsFromFile = true;
 }
 
-void PerformanceView::readSettingsFromFile(Deserializer& reader) {
+void PerformanceView::readSettingsForSongLoad(Deserializer& reader) {
 	char const* tagName;
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, PERFORM_DEFAULTS_FXVALUES_TAG)) {
+		if (!strcmp(tagName, PERFORM_SONG_INITIALIZED_TAG)) {
+			pendingPerformanceSettings.initialized = reader.readTagOrAttributeValueInt() != 0;
+		}
+		else if (!strcmp(tagName, PERFORM_DEFAULTS_FXVALUES_TAG)) {
 			// don't need to initialize held effects when readings settings from song file
 			// because held values are already persisted to the songParams section of the song file
 			// you also don't want to override the current song's parameter values if the loaded song
 			// has not been loaded yet (e.g. is not currentSong)
-			readDefaultFXValuesFromFile(reader, false);
+			readDefaultFXValuesFromFile(reader, pendingPerformanceSettings);
 		}
 		reader.exitTag();
 	}
 	reader.exitTag("performanceView", true);
-	successfullyReadDefaultsFromFile = true;
 }
 
-void PerformanceView::readDefaultFXValuesFromFile(Deserializer& reader, bool initializeHeldEffects) {
+void PerformanceView::readDefaultFXValuesFromFile(Deserializer& reader, PerformanceViewSettings& settings) {
 	char const* tagName;
 	char tagNameFX[5];
 	tagNameFX[0] = 'F';
@@ -1963,7 +2101,7 @@ void PerformanceView::readDefaultFXValuesFromFile(Deserializer& reader, bool ini
 			intToString(xDisplay + 1, &tagNameFX[2]);
 
 			if (!strcmp(tagName, tagNameFX)) {
-				readDefaultFXParamAndRowValuesFromFile(reader, xDisplay, initializeHeldEffects);
+				readDefaultFXParamAndRowValuesFromFile(reader, xDisplay, settings);
 				break;
 			}
 		}
@@ -1972,20 +2110,20 @@ void PerformanceView::readDefaultFXValuesFromFile(Deserializer& reader, bool ini
 }
 
 void PerformanceView::readDefaultFXParamAndRowValuesFromFile(Deserializer& reader, int32_t xDisplay,
-                                                             bool initializeHeldEffects) {
+                                                             PerformanceViewSettings& settings) {
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		//<param>
 		if (!strcmp(tagName, PERFORM_DEFAULTS_PARAM_TAG)) {
-			readDefaultFXParamFromFile(reader, xDisplay);
+			readDefaultFXParamFromFile(reader, xDisplay, settings);
 		}
 		//<row>
 		else if (!strcmp(tagName, PERFORM_DEFAULTS_ROW_TAG)) {
-			readDefaultFXRowNumberValuesFromFile(reader, xDisplay);
+			readDefaultFXRowNumberValuesFromFile(reader, xDisplay, settings);
 		}
 		//<hold>
 		else if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_TAG)) {
-			readDefaultFXHoldStatusFromFile(reader, xDisplay, initializeHeldEffects);
+			readDefaultFXHoldStatusFromFile(reader, xDisplay, settings);
 		}
 		reader.exitTag();
 	}
@@ -1994,24 +2132,31 @@ void PerformanceView::readDefaultFXParamAndRowValuesFromFile(Deserializer& reade
 /// compares param name from <param> tag to the list of params available for use in performance view
 /// if param is found, it loads the layout info for that param into the view (paramKind, paramID, xDisplay, yDisplay,
 /// rowColour, rowTailColour)
-void PerformanceView::readDefaultFXParamFromFile(Deserializer& reader, int32_t xDisplay) {
+void PerformanceView::readDefaultFXParamFromFile(Deserializer& reader, int32_t xDisplay,
+                                                 PerformanceViewSettings& settings) {
 	char const* paramName;
 	char const* tagName = reader.readTagOrAttributeValue();
+
+	// An explicitly unassigned column is a valid saved layout setting too.
+	if (!strcmp(tagName, PERFORM_DEFAULTS_NO_PARAM)) {
+		initLayout(settings.layout[xDisplay]);
+		settings.hasLayout = true;
+		return;
+	}
 
 	for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
 		paramName = params::paramNameForFile(songParamsForPerformance[i].paramKind,
 		                                     params::UNPATCHED_START + songParamsForPerformance[i].paramID);
 		if (!strcmp(tagName, paramName)) {
-			memcpy(&layoutForPerformance[xDisplay], &songParamsForPerformance[i], sizeof(ParamsForPerformance));
-
-			memcpy(&backupXMLDefaultLayoutForPerformance[xDisplay], &layoutForPerformance[xDisplay],
-			       sizeof(ParamsForPerformance));
+			memcpy(&settings.layout[xDisplay], &songParamsForPerformance[i], sizeof(ParamsForPerformance));
+			settings.hasLayout = true;
 			break;
 		}
 	}
 }
 
-void PerformanceView::readDefaultFXRowNumberValuesFromFile(Deserializer& reader, int32_t xDisplay) {
+void PerformanceView::readDefaultFXRowNumberValuesFromFile(Deserializer& reader, int32_t xDisplay,
+                                                           PerformanceViewSettings& settings) {
 	char const* tagName;
 	char rowNumber[5];
 	// loop through all row <#> number tags
@@ -2021,20 +2166,12 @@ void PerformanceView::readDefaultFXRowNumberValuesFromFile(Deserializer& reader,
 		for (int32_t yDisplay = kDisplayHeight - 1; yDisplay >= 0; yDisplay--) {
 			intToString(yDisplay + 1, rowNumber);
 			if (!strcmp(tagName, rowNumber)) {
-				defaultFXValues[xDisplay][yDisplay] = reader.readTagOrAttributeValueInt() - kKnobPosOffset;
+				settings.values[xDisplay][yDisplay] = reader.readTagOrAttributeValueInt() - kKnobPosOffset;
 
 				// check if a value greater than 64 was entered as a default value in xml file
-				if (defaultFXValues[xDisplay][yDisplay] > kKnobPosOffset) {
-					defaultFXValues[xDisplay][yDisplay] = kKnobPosOffset;
+				if (settings.values[xDisplay][yDisplay] > kKnobPosOffset) {
+					settings.values[xDisplay][yDisplay] = kKnobPosOffset;
 				}
-
-				if (params::isParamQuantizedStutter(
-				        layoutForPerformance[xDisplay].paramKind, layoutForPerformance[xDisplay].paramID,
-				        (ModControllableAudio*)view.activeModControllableModelStack.modControllable)) {
-					defaultFXValues[xDisplay][yDisplay] = quantizedStutterPressValues[yDisplay];
-				}
-
-				backupXMLDefaultFXValues[xDisplay][yDisplay] = defaultFXValues[xDisplay][yDisplay];
 
 				break;
 			}
@@ -2044,7 +2181,7 @@ void PerformanceView::readDefaultFXRowNumberValuesFromFile(Deserializer& reader,
 }
 
 void PerformanceView::readDefaultFXHoldStatusFromFile(Deserializer& reader, int32_t xDisplay,
-                                                      bool initializeHeldEffects) {
+                                                      PerformanceViewSettings& settings) {
 	char const* tagName;
 	// loop through the hold tags
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -2052,13 +2189,9 @@ void PerformanceView::readDefaultFXHoldStatusFromFile(Deserializer& reader, int3
 		if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_STATUS_TAG)) {
 			char const* holdStatus = reader.readTagOrAttributeValue();
 			if (!strcmp(holdStatus, PERFORM_DEFAULTS_ON)) {
-				if (!params::isParamStutter(layoutForPerformance[xDisplay].paramKind,
-				                            layoutForPerformance[xDisplay].paramID)) {
-					fxPress[xDisplay].padPressHeld = true;
-					fxPress[xDisplay].timeLastPadPress = AudioEngine::audioSampleTimer;
-
-					backupXMLDefaultFXPress[xDisplay].padPressHeld = fxPress[xDisplay].padPressHeld;
-					backupXMLDefaultFXPress[xDisplay].timeLastPadPress = fxPress[xDisplay].timeLastPadPress;
+				if (!params::isParamStutter(settings.layout[xDisplay].paramKind, settings.layout[xDisplay].paramID)) {
+					settings.presses[xDisplay].padPressHeld = true;
+					settings.presses[xDisplay].timeLastPadPress = AudioEngine::audioSampleTimer;
 				}
 			}
 		}
@@ -2066,26 +2199,24 @@ void PerformanceView::readDefaultFXHoldStatusFromFile(Deserializer& reader, int3
 		else if (!strcmp(tagName, PERFORM_DEFAULTS_ROW_TAG)) {
 			int32_t yDisplay = reader.readTagOrAttributeValueInt();
 			if ((yDisplay >= 1) && (yDisplay <= 8)) {
-				fxPress[xDisplay].yDisplay = yDisplay - 1;
-				fxPress[xDisplay].currentKnobPosition = defaultFXValues[xDisplay][fxPress[xDisplay].yDisplay];
-
-				backupXMLDefaultFXPress[xDisplay].yDisplay = fxPress[xDisplay].yDisplay;
-				backupXMLDefaultFXPress[xDisplay].currentKnobPosition = fxPress[xDisplay].currentKnobPosition;
+				settings.presses[xDisplay].yDisplay = yDisplay - 1;
+				settings.presses[xDisplay].currentKnobPosition =
+				    settings.values[xDisplay][settings.presses[xDisplay].yDisplay];
 			}
 		}
 		//<resetValue>
 		else if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG)) {
-			fxPress[xDisplay].previousKnobPosition = reader.readTagOrAttributeValueInt() - kKnobPosOffset;
+			settings.presses[xDisplay].previousKnobPosition = reader.readTagOrAttributeValueInt() - kKnobPosOffset;
 			// check if a value greater than 64 was entered as a default value in xml file
-			if (fxPress[xDisplay].previousKnobPosition > kKnobPosOffset) {
-				fxPress[xDisplay].previousKnobPosition = kKnobPosOffset;
+			if (settings.presses[xDisplay].previousKnobPosition > kKnobPosOffset) {
+				settings.presses[xDisplay].previousKnobPosition = kKnobPosOffset;
 			}
-			backupXMLDefaultFXPress[xDisplay].previousKnobPosition = fxPress[xDisplay].previousKnobPosition;
 		}
 		reader.exitTag();
 	}
-	if (initializeHeldEffects) {
-		initializeHeldFX(xDisplay);
+	// A hold without a valid row can't be applied or saved, so drop it
+	if (settings.presses[xDisplay].padPressHeld && !isValidHeldRow(settings.presses[xDisplay])) {
+		initFXPress(settings.presses[xDisplay]);
 	}
 }
 
@@ -2093,16 +2224,20 @@ void PerformanceView::initializeHeldFX(int32_t xDisplay) {
 	if (fxPress[xDisplay].padPressHeld) {
 		// set the value associated with the held pad
 		if ((fxPress[xDisplay].currentKnobPosition != kNoSelection)
-		    && (fxPress[xDisplay].previousKnobPosition != kNoSelection)) {
+		    && (fxPress[xDisplay].previousKnobPosition != kNoSelection) && isValidHeldRow(fxPress[xDisplay])) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithThreeMainThings* modelStack =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
 			if ((layoutForPerformance[xDisplay].paramKind != params::Kind::NONE)
 			    && (layoutForPerformance[xDisplay].paramID != kNoParamID)) {
-				setParameterValue(modelStack, layoutForPerformance[xDisplay].paramKind,
-				                  layoutForPerformance[xDisplay].paramID, xDisplay,
-				                  defaultFXValues[xDisplay][fxPress[xDisplay].yDisplay], false);
+				int32_t knobPos = defaultFXValues[xDisplay][fxPress[xDisplay].yDisplay];
+				if (setParameterValue(modelStack, layoutForPerformance[xDisplay].paramKind,
+				                      layoutForPerformance[xDisplay].paramID, xDisplay, knobPos, false)) {
+					// Temporary pad presses must restore the row value we just applied,
+					// not a live mod-encoder value retained in the saved backup.
+					fxPress[xDisplay].currentKnobPosition = knobPos;
+				}
 			}
 		}
 	}

@@ -34,6 +34,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -397,6 +398,7 @@ void setupBlankSong() {
 	preLoadedSong->ensureAtLeastOneSessionClip();
 
 	currentSong = preLoadedSong;
+	performanceView.finishSettingsForSongLoad();
 	preLoadedSong = nullptr;
 
 	AudioEngine::getReverbParamsFromSong(currentSong);

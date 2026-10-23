@@ -253,6 +253,8 @@ Clip* Song::getCurrentClip() {
 
 // It's not super clear to me why this isn't done as part of the constructor.
 void Song::setupDefault() {
+	performanceView.resetSettingsForSongLoad();
+
 	inClipMinderViewOnLoad = true;
 
 	seedRandom();
@@ -1417,6 +1419,8 @@ weAreInArrangementEditorOrInClipInstance:
 Error Song::readFromFile(Deserializer& reader) {
 	D_PRINTLN("DEBUG: readFromFile");
 
+	performanceView.resetSettingsForSongLoad();
+
 	outputClipInstanceListIsCurrentlyInvalid = true;
 
 	D_PRINTLN("");
@@ -2074,7 +2078,7 @@ loadOutput:
 			}
 
 			else if (!strcmp(tagName, "performanceView")) {
-				performanceView.readSettingsFromFile(reader);
+				performanceView.readSettingsForSongLoad(reader);
 			}
 
 			else if (!strcmp(tagName, "tracks") || !strcmp(tagName, "sessionClips")) {
