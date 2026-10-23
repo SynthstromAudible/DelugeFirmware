@@ -11,3 +11,6 @@ target_include_directories(deluge_ui_shell PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../.
 target_link_libraries(deluge_ui_shell PUBLIC deluge_ui_core deluge_ui_oled deluge_ui_grid deluge_notify)
 target_compile_options(deluge_ui_shell PRIVATE ${DELUGE_COMMON_COMPILE_OPTIONS})
 set_target_properties(deluge_ui_shell PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES)
+# UI code, run at menu and input rate: built for size, as deluge_scenes_bind is.
+include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/optimise_for_size.cmake)
+deluge_optimise_target_for_size(deluge_ui_shell)

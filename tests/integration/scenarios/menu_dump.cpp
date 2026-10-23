@@ -124,7 +124,7 @@
 /// indentation, one trailing newline at end of file. golden_vt_render's `menu_dump` scenario writes it, and
 /// `scripts/menu_dump_check.sh` diffs the result byte-for-byte against the committed
 /// `website/src/data/generated/menu-tree.json`.
-#include "scenes/menu/menu_dump.h"
+#include "scenarios/menu_dump.h"
 
 #include "gui/l10n/l10n.h"
 #include "scenes/menu/node.h"

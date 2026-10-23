@@ -35,7 +35,6 @@ add_library(deluge_scenes STATIC
     registry.cpp
     menu/bindings.cpp
     menu/context.cpp
-    menu/menu_dump.cpp
     menu/menu_scene.cpp
     menu/node_id.cpp
     menu/note_bridge.cpp
@@ -165,3 +164,6 @@ endif()
 target_link_libraries(deluge_scenes PUBLIC deluge_ui_shell deluge_scenes_bind $<COMPILE_ONLY:deluge_app>)
 target_compile_options(deluge_scenes PRIVATE ${DELUGE_COMMON_COMPILE_OPTIONS})
 set_target_properties(deluge_scenes PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES)
+# UI code, run at menu and input rate: built for size, as deluge_scenes_bind is.
+include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/optimise_for_size.cmake)
+deluge_optimise_target_for_size(deluge_scenes)

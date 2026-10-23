@@ -17,7 +17,7 @@
 
 #include "scenarios/menu_dump_scenario.h"
 
-#include "scenes/menu/menu_dump.h"
+#include "scenarios/menu_dump.h"
 
 #include <cstdio>
 #include <cstdlib>
