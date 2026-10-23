@@ -8,6 +8,7 @@
 #include "model/action/action.h" // recordParamChangeIfNotAlreadySnapshotted (region undo snapshot)
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h" // Clip::getCurrentlyRecordingLinearly (region context)
+#include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/param_stack.h"
 #include "model/snapshot/param_snapshot.h" // ParamSnapshot::applyPatch
@@ -64,13 +65,33 @@ bool copiedByReverbSidechain(const ModelStackWithAutoParam& stack) {
 	return (unpatched && stack.paramId == params::UNPATCHED_SIDECHAIN_SHAPE)
 	       || (kind == params::Kind::UNPATCHED_GLOBAL && stack.paramId == params::UNPATCHED_SIDECHAIN_VOLUME);
 }
+
+/// Mark the instrument that owns @p address edited: an INSTRUMENT owner, or the kit holding a DRUM owner.
+void markOwnerEdited(::Song& song, const project::ParamAddress& address) {
+	using Kind = project::OwnerId::Kind;
+	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
+		const bool owns = address.owner.kind == Kind::INSTRUMENT
+		                      ? output->id() == address.owner.id
+		                      : address.owner.kind == Kind::DRUM && output->type == OutputType::KIT
+		                            && static_cast<Kit*>(output)->drumWithId(address.owner.id) != nullptr;
+		if (owns) {
+			if (output->type != OutputType::AUDIO) {
+				static_cast<Instrument*>(output)->beenEdited();
+			}
+			return;
+		}
+	}
+}
 } // namespace
 
 Error SetParamValue::apply(Context& ctx) {
 	ModelStackWithAutoParam* const borrowed = engineStack_;
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	if (borrowed == nullptr) {
-		engineStack_ = address_ ? deluge::bridge::paramStackAt(ctx.song, *address_, memory) : nullptr;
+		if (address_) {
+			engineStack_ = resolve_ == Resolve::WRITE ? deluge::bridge::paramStackForWrite(ctx.song, *address_, memory)
+			                                          : deluge::bridge::paramStackAt(ctx.song, *address_, memory);
+		}
 		if (engineStack_ == nullptr) {
 			return Error::UNSPECIFIED;
 		}
@@ -78,6 +99,9 @@ Error SetParamValue::apply(Context& ctx) {
 	const Error error = write(ctx);
 	if (error == Error::NONE && copiedByReverbSidechain(*engineStack_)) {
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+	}
+	if (error == Error::NONE && resolve_ == Resolve::WRITE) {
+		markOwnerEdited(ctx.song, *address_);
 	}
 	engineStack_ = borrowed; // a resolved stack lives in this frame only
 	return error;

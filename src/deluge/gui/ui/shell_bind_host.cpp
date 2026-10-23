@@ -807,7 +807,7 @@ std::optional<int32_t> ShellRuntimeFacts::param_value(const deluge::project::Par
 		return std::nullopt;
 	}
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithAutoParam* stack = deluge::bridge::paramStackAt(*currentSong, address, memory);
+	ModelStackWithAutoParam* stack = deluge::bridge::paramStackFollowingTake(*currentSong, address, memory);
 	return stack != nullptr ? std::optional{stack->autoParam->getCurrentValue()} : std::nullopt;
 }
 

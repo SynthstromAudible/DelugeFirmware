@@ -15,15 +15,22 @@ namespace deluge::edits {
 /// automation view.
 class SetParamValue final : public Edit {
 public:
+	/// @brief How the address form finds its param.
+	enum class Resolve : uint8_t {
+		READ,  ///< as it stands (bridge::paramStackAt): an address that names no param is refused
+		WRITE, ///< as a knob writes it (bridge::paramStackForWrite): what it turns is made, the take written while
+		       ///< the arrangement records, and an INSTRUMENT or DRUM owner marked edited
+	};
+
 	SetParamValue(std::optional<project::ParamAddress> address, int32_t newValue, int32_t pos, int32_t length,
 	              ModelStackWithAutoParam* engineStack, bool mayDeleteNodesInLinearRun = true)
 	    : address_(address), newValue_(newValue), pos_(pos), length_(length),
 	      mayDeleteNodesInLinearRun_(mayDeleteNodesInLinearRun), engineStack_(engineStack) {}
-	/// @brief The param at @p address, which apply() finds in the song itself (bridge::paramStackAt); an address that
-	/// names no param is refused.
-	SetParamValue(project::ParamAddress address, int32_t newValue, int32_t pos = 0, int32_t length = 0)
+	/// @brief The param at @p address, which apply() finds in the song itself as @p resolve says.
+	SetParamValue(project::ParamAddress address, int32_t newValue, int32_t pos = 0, int32_t length = 0,
+	              Resolve resolve = Resolve::READ)
 	    : address_(address), newValue_(newValue), pos_(pos), length_(length), mayDeleteNodesInLinearRun_(true),
-	      engineStack_(nullptr) {}
+	      resolve_(resolve), engineStack_(nullptr) {}
 
 	/// @brief Write the value, then raise the reverb's recompute for a param the reverb's sidechain copies (a
 	/// sidechain's shape, the song's sidechain volume).
@@ -46,6 +53,7 @@ private:
 	/// Engine-only node-pruning hint (not domain intent): forwarded to setValuePossiblyForRegion. MIDI/MPE sites
 	/// pass false so a value that may be re-emitted as MIDI isn't pruned.
 	bool mayDeleteNodesInLinearRun_;
+	Resolve resolve_{Resolve::READ};
 	/// Engine-side resolution the mutation delegates to: the caller's, or, for the address form, the stack apply()
 	/// resolves in its own frame. Valid only for the duration of apply(); never stored beyond it.
 	ModelStackWithAutoParam* engineStack_;

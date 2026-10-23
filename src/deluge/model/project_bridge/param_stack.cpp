@@ -24,11 +24,13 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "playback/playback_handler.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -161,10 +163,9 @@ OwnerStack ownerStackAt(::Song& song, const project::ParamAddress& address, void
 	return {};
 }
 
-} // namespace
-
-ModelStackWithAutoParam* paramStackAt(::Song& song, const project::ParamAddress& address, void* memory) {
-	const OwnerStack owner = ownerStackAt(song, address, memory);
+/// @p address's param in @p owner's stack, made where @p create allows: a cable (with its source's default polarity), a
+/// MIDI CC lane, an expression lane and the set that holds it.
+ModelStackWithAutoParam* paramInOwner(const OwnerStack& owner, const project::ParamAddress& address, bool create) {
 	if (owner.stack == nullptr) {
 		return nullptr;
 	}
@@ -172,7 +173,7 @@ ModelStackWithAutoParam* paramStackAt(::Song& song, const project::ParamAddress&
 	case project::ParamSpace::ENGINE:
 		if (owner.holder == Holder::SOUND) {
 			return instrument::is_cable_depth(address.id)
-			           ? cableIn(owner.stack, address.id, false)
+			           ? cableIn(owner.stack, address.id, create)
 			           : paramIn(owner.stack, address.id, {params::Kind::PATCHED, params::Kind::UNPATCHED_SOUND});
 		}
 		return owner.holder == Holder::EFFECTABLE ? paramIn(owner.stack, address.id, {params::Kind::UNPATCHED_GLOBAL})
@@ -180,15 +181,127 @@ ModelStackWithAutoParam* paramStackAt(::Song& song, const project::ParamAddress&
 	case project::ParamSpace::MIDI_CC:
 		return owner.holder == Holder::MIDI_CLIP
 		           ? paramInCollection(owner.stack, owner.stack->paramManager->getMIDIParamCollectionSummary(),
-		                               static_cast<int32_t>(address.id.value), false)
+		                               static_cast<int32_t>(address.id.value), create)
 		           : nullptr;
 	case project::ParamSpace::EXPRESSION:
-		return owner.holder == Holder::MIDI_CLIP || owner.holder == Holder::SOUND
-		           ? paramInCollection(owner.stack, owner.stack->paramManager->getExpressionParamSetSummary(),
-		                               static_cast<int32_t>(address.id.value), false)
-		           : nullptr;
+		if (owner.holder != Holder::MIDI_CLIP && owner.holder != Holder::SOUND) {
+			return nullptr;
+		}
+		if (create) {
+			(void)owner.stack->paramManager->ensureExpressionParamSetExists(address.owner.kind
+			                                                                == project::OwnerId::Kind::DRUM);
+		}
+		return paramInCollection(owner.stack, owner.stack->paramManager->getExpressionParamSetSummary(),
+		                         static_cast<int32_t>(address.id.value), create);
 	}
 	return nullptr;
+}
+
+/// The clip a write or a read of @p clip lands in while the arrangement records it: its take, which a write makes
+/// (cloning @p clip once) and a read only follows; else @p clip itself.
+::Clip* takeOf(::Song& song, ::Clip& clip, bool make, void* memory) {
+	if (playbackHandler.recording != RecordingMode::ARRANGEMENT || !playbackHandler.isEitherClockActive()
+	    || clip.isArrangementOnlyClip() || !song.isClipActive(&clip) || clip.output == nullptr) {
+		return &clip;
+	}
+	::Clip* active = clip.output->getActiveClip();
+	if (active != nullptr && active->beingRecordedFromClip == &clip) {
+		return active;
+	}
+	if (!make) {
+		return &clip;
+	}
+	ModelStackWithTimelineCounter* stack = setupModelStackWithSong(memory, &song)->addTimelineCounter(&clip);
+	(void)clip.possiblyCloneForArrangementRecording(stack);
+	return static_cast<::Clip*>(stack->getTimelineCounter());
+}
+
+/// @p address with its clip moved to @p clip: an INSTRUMENT or DRUM owner's clip id, or a CLIP owner's own id.
+project::ParamAddress inClip(project::ParamAddress address, const ::Clip& clip) {
+	if (address.owner.kind == project::OwnerId::Kind::CLIP) {
+		address.owner.id = clip.id();
+	}
+	else {
+		address.clip_id = clip.id();
+	}
+	return address;
+}
+
+/// The stack of an INSTRUMENT or DRUM owner with no clip: its backed-up params, which an arranger row edits.
+OwnerStack backedOwnerStack(::Song& song, const project::ParamAddress& address, void* memory) {
+	using Kind = project::OwnerId::Kind;
+	if (address.owner.kind == Kind::DRUM) {
+		::Drum* drum = song.drumForId(address.owner.id);
+		if (drum == nullptr || drum->type != DrumType::SOUND) {
+			return {};
+		}
+		auto* sound = static_cast<SoundDrum*>(drum);
+		ParamManager* params = song.live.param_backup.getPreferablyWithClip(*drum, nullptr);
+		return params != nullptr
+		           ? OwnerStack{setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, sound, nullptr, params),
+		                        Holder::SOUND}
+		           : OwnerStack{};
+	}
+	if (address.owner.kind != Kind::INSTRUMENT) {
+		return {};
+	}
+	::Output* output = outputWithId(song, address.owner.id);
+	if (output == nullptr) {
+		return {};
+	}
+	ParamManager* params = song.live.param_backup.getPreferablyWithClip(*output, nullptr);
+	if (params == nullptr) {
+		return {};
+	}
+	switch (output->type) {
+	case OutputType::SYNTH:
+		return {setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, static_cast<::SoundInstrument*>(output),
+		                                                       nullptr, params),
+		        Holder::SOUND};
+	case OutputType::KIT:
+		return {
+		    setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, static_cast<::Kit*>(output), nullptr, params),
+		    Holder::EFFECTABLE};
+	case OutputType::AUDIO:
+		return {setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, static_cast<::AudioOutput*>(output),
+		                                                       nullptr, params),
+		        Holder::EFFECTABLE};
+	default:
+		return {};
+	}
+}
+
+/// The clip @p address names, by its INSTRUMENT/DRUM clip id or its CLIP owner's id; null for none.
+::Clip* clipOf(::Song& song, const project::ParamAddress& address) {
+	if (address.owner.kind == project::OwnerId::Kind::CLIP) {
+		return song.clipForId(address.owner.id);
+	}
+	return address.clip_id ? song.clipForId(*address.clip_id) : nullptr;
+}
+
+} // namespace
+
+ModelStackWithAutoParam* paramStackAt(::Song& song, const project::ParamAddress& address, void* memory) {
+	return paramInOwner(ownerStackAt(song, address, memory), address, false);
+}
+
+ModelStackWithAutoParam* paramStackForWrite(::Song& song, project::ParamAddress& address, void* memory) {
+	using Kind = project::OwnerId::Kind;
+	if ((address.owner.kind == Kind::INSTRUMENT || address.owner.kind == Kind::DRUM) && !address.clip_id) {
+		return paramInOwner(backedOwnerStack(song, address, memory), address, true);
+	}
+	if (::Clip* clip = clipOf(song, address)) {
+		address = inClip(address, *takeOf(song, *clip, true, memory));
+	}
+	return paramInOwner(ownerStackAt(song, address, memory), address, true);
+}
+
+ModelStackWithAutoParam* paramStackFollowingTake(::Song& song, const project::ParamAddress& address, void* memory) {
+	if (::Clip* clip = clipOf(song, address)) {
+		const project::ParamAddress followed = inClip(address, *takeOf(song, *clip, false, memory));
+		return paramInOwner(ownerStackAt(song, followed, memory), followed, false);
+	}
+	return paramStackAt(song, address, memory);
 }
 
 PatchCableSet* cableSetAt(::Song& song, const project::ParamAddress& owner, void* memory) {

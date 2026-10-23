@@ -47,6 +47,27 @@ namespace deluge::bridge {
 /// @return The stack, or null where @p song holds no such owner or param.
 [[nodiscard]] ::ModelStackWithAutoParam* paramStackAt(::Song& song, const project::ParamAddress& address, void* memory);
 
+/// @brief The engine stack a write of @p address lands in, making what it turns: a cable (with its source's default
+/// polarity), a MIDI CC lane, an expression lane. While the arrangement records the clip, the write lands in its take,
+/// which is made once (the clip cloned) and @p address is moved to it. An INSTRUMENT or DRUM owner with no clip id
+/// names its backed-up params, which an arranger row edits.
+///
+/// @param song    The song holding the owner.
+/// @param address The param's address; on return, the address the write lands at.
+/// @param memory  MODEL_STACK_MAX_SIZE bytes, aligned as ModelStackWithAutoParam, which the stack lives in.
+/// @return The stack, or null where @p song holds no such owner or the param cannot be made.
+[[nodiscard]] ::ModelStackWithAutoParam* paramStackForWrite(::Song& song, project::ParamAddress& address, void* memory);
+
+/// @brief The engine stack a read of @p address shows: the clip's take while the arrangement records it, else as
+/// paramStackAt. Nothing is made, the take included.
+///
+/// @param song    The song holding the owner.
+/// @param address The param's address.
+/// @param memory  MODEL_STACK_MAX_SIZE bytes, aligned as ModelStackWithAutoParam, which the stack lives in.
+/// @return The stack, or null where @p song holds no such owner or param.
+[[nodiscard]] ::ModelStackWithAutoParam* paramStackFollowingTake(::Song& song, const project::ParamAddress& address,
+                                                                 void* memory);
+
 /// @brief The engine stack naming the cable at @p address (a synth's or a sound drum's depth), made with @p polarity
 /// where the sound does not hold it yet. The record takes the new cable, polarity and all, when the sound's cable set
 /// is bound to it (it is, once relocated; the Edit that writes the cable relocates it).
