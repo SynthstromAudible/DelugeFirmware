@@ -6,6 +6,7 @@
 #include "scenes/bind/knob_focus.h"
 
 #include <cstdint>
+#include <optional>
 #include <string_view>
 #include <variant>
 
@@ -31,5 +32,9 @@ struct KnobAssignment {
 /// @brief What knob @p knob (0 the lower, 1 the upper) of @p focus moves, from the song's records: the mode, a sound's
 ///        controls, a chain's view, a MIDI track's CCs, and the focus's compressor view.
 [[nodiscard]] KnobAssignment knob_assignment(const project::Song& song, const KnobFocus& focus, int32_t knob);
+
+/// @brief The owner @p focus's knobs move params of, as an address with no param: its owner id and clip id. None for
+///        no focus, or a MIDI track with no clip.
+[[nodiscard]] std::optional<project::ParamAddress> knob_owner(const KnobFocus& focus);
 
 } // namespace deluge::scenes::bind

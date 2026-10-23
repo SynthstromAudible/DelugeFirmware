@@ -20,7 +20,9 @@
 #include "model/edits/learn_mapping.h"
 #include "model/edits/resize_audio_clip.h"
 #include "model/edits/set_cable_polarity.h"
+#include "model/edits/set_chain_view.h"
 #include "model/edits/set_clip_colour.h"
+#include "model/edits/set_controls.h"
 #include "model/edits/set_effect_setting.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/edits/set_kit_lane_setting.h"
@@ -59,6 +61,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 #include "scenes/bind/dispatch.h"
+#include "scenes/bind/knob_assignment.h"
 #include "scenes/menu/bind_host.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
@@ -166,7 +169,14 @@ public:
 	           std::optional<deluge::scenes::bind::LearnInput> input) override;
 	bool write_source_transpose(const deluge::scenes::bind::Addresses& where, uint8_t source,
 	                            std::optional<uint16_t> range, int32_t menu_value) override;
-	bool knob_mode_at(uint8_t* slot, uint8_t mode) override { return deluge::edits::modKnobModeForSlot(slot, mode); }
+	bool knob_mode(deluge::project::KnobModeOwner owner, uint8_t mode) override {
+		return deluge::edits::modKnobModeFor(owner, mode);
+	}
+	bool chain_view(deluge::project::ChainAddress chain, std::string_view key, std::string_view word) override;
+	bool write_controls(deluge::project::ControlsAddress owner,
+	                    std::vector<deluge::project::ControllerMapping> controls) override;
+	bool stutter(const deluge::scenes::bind::KnobFocus& focus, bool begin) override;
+	bool grab_region(const deluge::scenes::bind::KnobFocus& focus, uint32_t pos) override;
 	[[nodiscard]] uint32_t refusals() const { return refusals_; }
 
 private:
@@ -800,6 +810,36 @@ bool ShellRuntimeFacts::allows_note_tails(deluge::project::SlotAddress slot) con
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithSoundFlags* stack = getModelStackFromSoundDrum(memory, drum)->addSoundFlags();
 	return drum->allowNoteTails(stack, /*disregardSampleLoop=*/true);
+}
+
+bool ShellEditSink::chain_view(deluge::project::ChainAddress chain, std::string_view key, std::string_view word) {
+	if (currentSong == nullptr) {
+		return false;
+	}
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::SetChainView edit{chain, std::string{key},
+	                                 deluge::serialization::Value::makeScalar(std::string{word})};
+	return deluge::edits::apply(ctx, edit) == Error::NONE;
+}
+
+bool ShellEditSink::write_controls(deluge::project::ControlsAddress owner,
+                                   std::vector<deluge::project::ControllerMapping> controls) {
+	if (currentSong == nullptr) {
+		return false;
+	}
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::SetControls edit{owner, std::move(controls)};
+	return deluge::edits::apply(ctx, edit) == Error::NONE;
+}
+
+bool ShellEditSink::stutter(const deluge::scenes::bind::KnobFocus& focus, bool begin) {
+	const std::optional<deluge::project::ParamAddress> owner = deluge::scenes::bind::knob_owner(focus);
+	return currentSong != nullptr && owner && deluge::bridge::stutterAt(*currentSong, *owner, begin);
+}
+
+bool ShellEditSink::grab_region(const deluge::scenes::bind::KnobFocus& focus, uint32_t pos) {
+	const std::optional<deluge::project::ParamAddress> owner = deluge::scenes::bind::knob_owner(focus);
+	return currentSong != nullptr && owner && deluge::bridge::grabRegionAt(*currentSong, *owner, pos);
 }
 
 std::optional<int32_t> ShellRuntimeFacts::param_value(const deluge::project::ParamAddress& address) const {

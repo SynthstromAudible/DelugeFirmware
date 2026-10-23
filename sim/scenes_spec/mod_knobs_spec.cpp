@@ -50,6 +50,7 @@
 #include "shell/router.h"
 #include "shell/scene_stack.h"
 
+#include "engines/deluge/params.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/ui/ui.h"
@@ -1247,6 +1248,40 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.knobs.mod_button_action(3, false);
 		expect(f.song->project.mod_knob_mode).to_equal(uint8_t{3});
 		display = nullptr;
+	});
+
+	it("a push cycles the filter knob and the record's view and controls follow", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(f.clip, false);
+		rig.knobs.mod_button_action(1, true);
+		rig.knobs.mod_button_action(1, false);
+		UiEvent push{};
+		push.kind = UiEvent::Kind::EncoderButton;
+		push.button = ButtonId::ModEnc1;
+		push.on = true;
+		DirectCtx plain{0};
+		(void)rig.knobs.handle(push, plain.ctx);
+		const deluge::project::DocOutput* record = f.song->project.output_structure.find(*f.instrument->id());
+		const deluge::project::ModKnobControl upper{.button = 1, .knob = 1};
+		bool cycled = false;
+		for (const deluge::project::ControllerMapping& mapping : record->controls) {
+			cycled |= mapping.control == upper && mapping.target == deluge::instrument::param::kHpfFrequency;
+		}
+		expect(cycled).to_be_true();
+
+		rig.knobs.set_target_without_timeline(&f.song->live.global_effectable, &f.song->paramManager);
+		const uint8_t before = f.song->project.master_effects.filter_type;
+		rig.knobs.mod_button_action(1, true);
+		rig.knobs.mod_button_action(1, false);
+		(void)rig.knobs.handle(push, plain.ctx);
+		expect(f.song->project.master_effects.filter_type != before).to_be_true();
+		display = nullptr;
+		currentSong = nullptr;
 	});
 
 	it("declares the eight mod LEDs exactly as View::setModLedStates writes them, in every mode", _ {

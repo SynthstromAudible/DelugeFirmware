@@ -77,6 +77,7 @@
 #include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/project_bridge/chain_bridge.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -755,7 +756,44 @@ bool mod_encoder_button(const services::ModTarget& target, int32_t which_encoder
 	// `:1364-1366` copies the stack before handing it over, because `ModControllable`
 	// implementations write to it; here `active` is already a scratch copy, so it is handed over
 	// directly.
-	return target.mod_controllable->modEncoderButtonAction(which_encoder, on, active); // `:1368-1369`
+	const bool edited = target.mod_controllable->modEncoderButtonAction(which_encoder, on, active); // `:1368-1369`
+	// `:1420`: a press may cycle a knob to its next param (LPF, HPF, EQ), so its owner's mappings go to the record.
+	const std::optional<project::ControlsAddress> address =
+	    target.song != nullptr ? bridge::controlsAddressOf(*target.mod_controllable, *target.song) : std::nullopt;
+	if (address && address->kind != project::ControlsAddress::Kind::SONG && host_binds(*target.song)) {
+		bool is_sound = false;
+		::ModControllableAudio* owner = bridge::controlsOwnerAt(*target.song, *address, &is_sound);
+		if (owner != nullptr) {
+			(void)host_write_sink().write_controls(*address, is_sound
+			                                                     ? bridge::controlsOf(static_cast<::Sound&>(*owner))
+			                                                     : std::vector<project::ControllerMapping>{});
+		}
+	}
+	return edited;
+}
+
+bool mod_knob_mode(const services::ModTarget& target, uint8_t mode) {
+	uint8_t* slot = target.mod_controllable != nullptr ? target.mod_controllable->getModKnobMode() : nullptr;
+	if (slot == nullptr || target.song == nullptr) {
+		return false;
+	}
+	if (!host_binds(*target.song)) {
+		*slot = mode; // a song the app does not play: its engine field alone
+		return false;
+	}
+	if (slot == &target.song->live.global_effectable.modKnobMode) {
+		return host_write_sink().knob_mode(project::SongAddress{}, mode);
+	}
+	for (Output* list : {target.song->live.media.first_output,
+	                     static_cast<Output*>(target.song->live.media.first_hibernating_instrument)}) {
+		for (Output* output = list; output != nullptr; output = output->next) {
+			if (slot == &output->modKnobMode) {
+				return host_write_sink().knob_mode(project::TrackAddress{target.song->outputIdFor(*output)}, mode);
+			}
+		}
+	}
+	*slot = mode; // an owner outside the song: its engine field alone
+	return false;
 }
 
 bool mod_delete_automation(const services::ModTarget& target, int32_t which_encoder) {

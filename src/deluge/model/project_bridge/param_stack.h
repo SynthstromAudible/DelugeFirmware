@@ -68,6 +68,21 @@ namespace deluge::bridge {
 [[nodiscard]] ::ModelStackWithAutoParam* paramStackFollowingTake(::Song& song, const project::ParamAddress& address,
                                                                  void* memory);
 
+/// @brief Begin, or end, the stutter on @p owner's chain (a sound's, a kit's or audio clip's, the song's), in the clip
+/// @p owner names.
+/// @param song  The song holding the owner.
+/// @param owner The owner, as an address with no param.
+/// @param begin Begin (true) or end the stutter.
+/// @return Whether the owner resolved.
+bool stutterAt(::Song& song, const project::ParamAddress& owner, bool begin);
+
+/// @brief Set @p owner's params in its clip to their automated values at @p pos, as a held pad grabs them.
+/// @param song  The song holding the owner.
+/// @param owner The owner, as an address with no param.
+/// @param pos   The position in the clip, in ticks.
+/// @return Whether the owner resolved.
+bool grabRegionAt(::Song& song, const project::ParamAddress& owner, uint32_t pos);
+
 /// @brief The engine stack naming the cable at @p address (a synth's or a sound drum's depth), made with @p polarity
 /// where the sound does not hold it yet. The record takes the new cable, polarity and all, when the sound's cable set
 /// is bound to it (it is, once relocated; the Edit that writes the cable relocates it).

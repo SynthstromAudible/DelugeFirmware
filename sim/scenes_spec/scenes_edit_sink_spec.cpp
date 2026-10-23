@@ -3,6 +3,7 @@
 // does not resolve. Against legacy ::Song fixtures, as the sink applies Edits to a running song.
 
 #include "scenes/bind/dispatch.h"
+#include "scenes/bind/knob_focus.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/bindings.h"
@@ -15,6 +16,7 @@
 
 #include "engines/deluge/codec.h"
 #include "engines/deluge/engine.h"
+#include "engines/deluge/params.h"
 #include "engines/deluge/settings.h"
 #include "engines/deluge/sound_state.h"
 #include "engines/effects/settings.h"
@@ -284,6 +286,69 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		bindings::write(menu::nodes::osc0_type, ctx, 4); // the fifth listed type: saw
 		expect(selected->boundState()->sources[0].osc_type == deluge::instrument::OscType::SAW).to_be_true();
 		expect(other->boundState()->sources[0].osc_type == before).to_be_true();
+	});
+
+	it("each knob request reaches its Edit or command, and the recording sink keeps it", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		bind::WriteSink& sink = menu::host_write_sink();
+		const uint32_t id = *f.instrument->id();
+		deluge::project::Song& model = f.song->project;
+
+		expect(sink.knob_mode(deluge::project::TrackAddress{id}, 3)).to_be_true();
+		expect(model.output_structure.find(id)->mod_knob_mode).to_equal(uint8_t{3});
+		expect(sink.knob_mode(deluge::project::SongAddress{}, 2)).to_be_true();
+		expect(model.mod_knob_mode).to_equal(uint8_t{2});
+
+		const deluge::project::ChainAddress song_chain{.kind = deluge::project::ChainAddress::Kind::SONG};
+		expect(sink.chain_view(song_chain, "currentFilterType", "hpf")).to_be_true();
+		expect(model.master_effects.filter_type).to_equal(uint8_t{1});
+		expect(sink.chain_view(song_chain, "currentFilterType", "none")).to_be_false();
+
+		std::vector<deluge::project::ControllerMapping> controls = model.output_structure.find(id)->controls;
+		const deluge::project::ModKnobControl upper{.button = 1, .knob = 1};
+		for (deluge::project::ControllerMapping& mapping : controls) {
+			if (mapping.control == upper) {
+				mapping.target = deluge::instrument::param::kHpfFrequency;
+			}
+		}
+		const deluge::project::ControlsAddress synth{.kind = deluge::project::ControlsAddress::Kind::OUTPUT, .id = id};
+		expect(sink.write_controls(synth, controls)).to_be_true();
+		expect(model.output_structure.find(id)->controls == controls).to_be_true();
+
+		const bind::KnobFocus song_focus{.owner = bind::SongFocus{}};
+		expect(sink.stutter(song_focus, true)).to_be_true();
+		expect(f.song->live.stutter.active()).to_be_true();
+		expect(sink.stutter(song_focus, false)).to_be_true();
+		expect(f.song->live.stutter.active()).to_be_false();
+
+		const bind::KnobFocus sound_focus{
+		    .owner = bind::SoundFocus{.slot = {.kind = deluge::project::SlotAddress::Kind::OUTPUT, .id = id},
+		                              .clip = deluge::project::ClipAddress{f.clip->id()}}};
+		expect(sink.grab_region(sound_focus, 0)).to_be_true();
+		expect(sink.grab_region(bind::KnobFocus{}, 0)).to_be_false();
+
+		bind::RecordingSink recording;
+		(void)recording.knob_mode(deluge::project::TrackAddress{id}, 3);
+		(void)recording.chain_view(song_chain, "currentFilterType", "hpf");
+		(void)recording.write_controls(synth, controls);
+		(void)recording.stutter(song_focus, true);
+		(void)recording.grab_region(sound_focus, 96);
+		using GK = bind::GestureRequest::Kind;
+		expect(recording.gestures.size()).to_equal(size_t{5});
+		if (recording.gestures.size() == 5) {
+			const auto& g = recording.gestures;
+			expect(g[0].kind == GK::KNOB_MODE && g[0].knob_owner == std::optional<deluge::project::KnobModeOwner>{
+			                                                             deluge::project::TrackAddress{id}}
+			       && g[0].value == 3)
+			    .to_be_true();
+			expect(g[1].kind == GK::CHAIN_VIEW && g[1].chain == song_chain && g[1].key == "currentFilterType"
+			       && g[1].text == "hpf")
+			    .to_be_true();
+			expect(g[2].kind == GK::CONTROLS && g[2].controls_address == synth && g[2].controls == controls)
+			    .to_be_true();
+			expect(g[3].kind == GK::STUTTER && g[3].focus == song_focus && g[3].begin).to_be_true();
+			expect(g[4].kind == GK::GRAB_REGION && g[4].focus == sound_focus && g[4].value == 96).to_be_true();
+		}
 	});
 
 	it("binds nothing through the app for a song it does not play", _ {

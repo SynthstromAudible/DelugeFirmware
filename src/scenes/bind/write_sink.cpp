@@ -97,8 +97,30 @@ bool RecordingSink::write_source_transpose(const Addresses& where, uint8_t sourc
 	return true;
 }
 
-bool RecordingSink::knob_mode_at(uint8_t* /*slot*/, uint8_t mode) {
-	gestures.push_back({.kind = GestureRequest::Kind::KNOB_MODE, .value = mode});
+bool RecordingSink::knob_mode(project::KnobModeOwner owner, uint8_t mode) {
+	gestures.push_back({.kind = GestureRequest::Kind::KNOB_MODE, .value = mode, .knob_owner = owner});
+	return true;
+}
+
+bool RecordingSink::chain_view(project::ChainAddress chain, std::string_view key, std::string_view word) {
+	gestures.push_back(
+	    {.kind = GestureRequest::Kind::CHAIN_VIEW, .text = std::string{word}, .chain = chain, .key = std::string{key}});
+	return true;
+}
+
+bool RecordingSink::write_controls(project::ControlsAddress owner, std::vector<project::ControllerMapping> controls) {
+	gestures.push_back(
+	    {.kind = GestureRequest::Kind::CONTROLS, .controls_address = owner, .controls = std::move(controls)});
+	return true;
+}
+
+bool RecordingSink::stutter(const KnobFocus& focus, bool begin) {
+	gestures.push_back({.kind = GestureRequest::Kind::STUTTER, .focus = focus, .begin = begin});
+	return true;
+}
+
+bool RecordingSink::grab_region(const KnobFocus& focus, uint32_t pos) {
+	gestures.push_back({.kind = GestureRequest::Kind::GRAB_REGION, .value = pos, .focus = focus});
 	return true;
 }
 

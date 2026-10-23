@@ -279,6 +279,14 @@ OwnerStack backedOwnerStack(::Song& song, const project::ParamAddress& address, 
 	return address.clip_id ? song.clipForId(*address.clip_id) : nullptr;
 }
 
+/// The stack of @p owner: its clip's, or, with no clip, an INSTRUMENT or DRUM owner's backed-up params.
+OwnerStack ownerOrBackedStack(::Song& song, const project::ParamAddress& owner, void* memory) {
+	using Kind = project::OwnerId::Kind;
+	return (owner.owner.kind == Kind::INSTRUMENT || owner.owner.kind == Kind::DRUM) && !owner.clip_id
+	           ? backedOwnerStack(song, owner, memory)
+	           : ownerStackAt(song, owner, memory);
+}
+
 } // namespace
 
 ModelStackWithAutoParam* paramStackAt(::Song& song, const project::ParamAddress& address, void* memory) {
@@ -286,14 +294,40 @@ ModelStackWithAutoParam* paramStackAt(::Song& song, const project::ParamAddress&
 }
 
 ModelStackWithAutoParam* paramStackForWrite(::Song& song, project::ParamAddress& address, void* memory) {
-	using Kind = project::OwnerId::Kind;
-	if ((address.owner.kind == Kind::INSTRUMENT || address.owner.kind == Kind::DRUM) && !address.clip_id) {
-		return paramInOwner(backedOwnerStack(song, address, memory), address, true);
-	}
 	if (::Clip* clip = clipOf(song, address)) {
 		address = inClip(address, *takeOf(song, *clip, true, memory));
 	}
-	return paramInOwner(ownerStackAt(song, address, memory), address, true);
+	return paramInOwner(ownerOrBackedStack(song, address, memory), address, true);
+}
+
+bool stutterAt(::Song& song, const project::ParamAddress& owner, bool begin) {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	const OwnerStack found = ownerOrBackedStack(song, owner, memory);
+	if (found.stack == nullptr || found.holder == Holder::NONE || found.holder == Holder::MIDI_CLIP) {
+		return false;
+	}
+	auto* audio = static_cast<ModControllableAudio*>(found.stack->modControllable);
+	auto* params = static_cast<ParamManagerForTimeline*>(found.stack->paramManager);
+	if (begin) {
+		audio->beginStutter(params);
+	}
+	else {
+		audio->endStutter(params);
+	}
+	if (found.holder == Holder::SOUND) {
+		static_cast<::Sound*>(audio)->reassessRenderSkippingStatus(found.stack->addSoundFlags());
+	}
+	return true;
+}
+
+bool grabRegionAt(::Song& song, const project::ParamAddress& owner, uint32_t pos) {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	const OwnerStack found = ownerOrBackedStack(song, owner, memory);
+	if (found.stack == nullptr || found.stack->paramManager == nullptr) {
+		return false;
+	}
+	found.stack->paramManager->toForTimeline()->grabValuesFromPos(pos, found.stack);
+	return true;
 }
 
 ModelStackWithAutoParam* paramStackFollowingTake(::Song& song, const project::ParamAddress& address, void* memory) {

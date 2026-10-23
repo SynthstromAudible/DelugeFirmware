@@ -503,9 +503,7 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 	// `:1530-1532` -- change the selection *before* calling the mod-button action, so that action
 	// sees the new mod-button parameter context. Legacy's `:1532` is the *unguarded write* half of
 	// the defect the @warning above describes.
-	if (uint8_t* mode_pointer = target_.mod_controllable->getModKnobMode(); mode_pointer != nullptr) {
-		(void)menu::host_write_sink().knob_mode_at(mode_pointer, static_cast<uint8_t>(which_button));
-	}
+	(void)menu::mod_knob_mode(target_, static_cast<uint8_t>(which_button));
 
 	// `:1534-1535`. This is the call that reaches `ModControllableAudio::displayOtherModKnobSettings`
 	// (`model/mod_controllable/mod_controllable_audio.cpp:1651-1701`) and, through it, legacy's own

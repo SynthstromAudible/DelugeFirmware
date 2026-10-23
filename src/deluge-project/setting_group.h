@@ -109,6 +109,9 @@ using LaneAddress = KitRowAddress;
 /// @brief Whose record a setting is on.
 using SettingOwner = std::variant<SongAddress, TrackAddress, LaneAddress, ClipAddress, NoteRowAddress>;
 
+/// @brief Whose gold knobs a mode belongs to: the song's own, or a track's (a kit row's knobs are its kit's).
+using KnobModeOwner = std::variant<SongAddress, TrackAddress>;
+
 /// @brief One group on one owner.
 struct SettingAddress {
 	SettingGroupId group{SettingGroupId::SONG};

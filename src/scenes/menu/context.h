@@ -290,6 +290,11 @@ services::ModIndicatorInfo mod_indicator_info(const services::ModTarget& target,
 /// @return Legacy's `anyEditingDone` (`:1370`).
 bool mod_encoder_button(const services::ModTarget& target, int32_t which_encoder, bool on);
 
+/// @brief Set the gold-knob mode of @p target's knob owner (the song's own, an output's, a kit row's kit's) to @p mode
+///        through the sink; an owner outside the song takes it in its engine field alone.
+/// @return Whether the sink took it.
+bool mod_knob_mode(const services::ModTarget& target, uint8_t mode);
+
 /// @brief Delete a gold knob's param automation -- `View::modEncoderButtonAction_deleteAutomation`
 ///        (`view.cpp:1368-1378`).
 ///

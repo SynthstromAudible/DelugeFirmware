@@ -3,11 +3,14 @@
 /// @file
 /// @brief Where a menu's writes go: requests a host applies as Edits, so the scenes name no Edit and no engine object.
 
+#include "deluge-project/controller_mapping.h"
+#include "deluge-project/fx_chain.h"
 #include "deluge-project/mapping_table.h"
 #include "deluge-project/midi_command.h"
 #include "deluge-project/param_address.h"
 #include "engines/deluge/cables.h"
 #include "engines/deluge/sound_state.h"
+#include "scenes/bind/knob_focus.h"
 #include "scenes/bind/target.h"
 
 #include <cstdint>
@@ -132,10 +135,23 @@ public:
 	/// @return Whether it was taken.
 	virtual bool write_source_transpose(const Addresses& where, uint8_t source, std::optional<uint16_t> range,
 	                                    int32_t menu_value) = 0;
-	/// @brief Set the gold knobs' mode of the knob owner whose engine field @p slot is (the song's own, or an
-	/// output's) to @p mode. The gold knob's target names its owner by that field.
-	/// @return Whether it was taken: false where no owner in the song has the field.
-	virtual bool knob_mode_at(uint8_t* slot, uint8_t mode) = 0;
+	/// @brief Set @p owner's gold-knob mode to @p mode.
+	/// @return Whether it was taken: false for a mode past the last button or a track the song does not hold.
+	virtual bool knob_mode(project::KnobModeOwner owner, uint8_t mode) = 0;
+	/// @brief Set the view word @p word of @p chain's view key @p key (`currentFilterType`, `modFXCurrentParam`): which
+	/// value its knobs edit.
+	/// @return Whether it was taken: false for a chain, key or word that does not resolve.
+	virtual bool chain_view(project::ChainAddress chain, std::string_view key, std::string_view word) = 0;
+	/// @brief Make @p controls the knob mappings of @p owner, as a push that cycles a knob's param leaves them.
+	/// @return Whether it was taken.
+	virtual bool write_controls(project::ControlsAddress owner, std::vector<project::ControllerMapping> controls) = 0;
+	/// @brief Begin (or end) the stutter on @p focus's owner: a runtime command, nothing saved.
+	/// @return Whether it was taken: false where @p focus names no owner with a chain.
+	virtual bool stutter(const KnobFocus& focus, bool begin) = 0;
+	/// @brief Set @p focus's params to their automated values at @p pos in its clip, as a held pad grabs them: a
+	/// runtime command, nothing saved.
+	/// @return Whether it was taken: false where @p focus names no owner.
+	virtual bool grab_region(const KnobFocus& focus, uint32_t pos) = 0;
 };
 
 /// @brief A gesture request, as a RecordingSink keeps it.
@@ -151,7 +167,11 @@ struct GestureRequest {
 		RESIZE,
 		LEARN,
 		TRANSPOSE,
-		KNOB_MODE
+		KNOB_MODE,
+		CHAIN_VIEW,
+		CONTROLS,
+		STUTTER,
+		GRAB_REGION,
 	};
 	Kind kind{Kind::TEXT};
 	Target target{};
@@ -171,6 +191,13 @@ struct GestureRequest {
 	std::optional<LearnInput> input;
 	bool clear_automation{false};
 	bool clear_sequence_and_mpe{false};
+	std::optional<project::KnobModeOwner> knob_owner; ///< a KNOB_MODE's owner; its mode is @ref value
+	project::ChainAddress chain{};                    ///< a CHAIN_VIEW's chain; its key, and its word in @ref text
+	std::string key;
+	std::optional<project::ControlsAddress> controls_address; ///< a CONTROLS' owner
+	std::vector<project::ControllerMapping> controls;
+	KnobFocus focus{}; ///< a STUTTER's or GRAB_REGION's focus; a GRAB_REGION's position is @ref value
+	bool begin{false}; ///< a STUTTER's begin (true) or end
 };
 
 /// @brief A param write by address, as a RecordingSink keeps it.
@@ -201,7 +228,11 @@ public:
 	           std::optional<LearnInput> input) override;
 	bool write_source_transpose(const Addresses& where, uint8_t source, std::optional<uint16_t> range,
 	                            int32_t menu_value) override;
-	bool knob_mode_at(uint8_t* slot, uint8_t mode) override;
+	bool knob_mode(project::KnobModeOwner owner, uint8_t mode) override;
+	bool chain_view(project::ChainAddress chain, std::string_view key, std::string_view word) override;
+	bool write_controls(project::ControlsAddress owner, std::vector<project::ControllerMapping> controls) override;
+	bool stutter(const KnobFocus& focus, bool begin) override;
+	bool grab_region(const KnobFocus& focus, uint32_t pos) override;
 	std::vector<WriteRequest> requests;
 	std::vector<GestureRequest> gestures;
 	std::vector<ParamWrite> param_writes;

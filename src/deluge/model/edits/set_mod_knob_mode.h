@@ -8,8 +8,7 @@
 
 namespace deluge::edits {
 
-/// @brief Whose gold knobs a mode belongs to: the song's own, or a track's (a kit row's knobs are its kit's).
-using KnobModeOwner = std::variant<project::SongAddress, project::TrackAddress>;
+using project::KnobModeOwner;
 
 /// @brief Set which mod button's pair of params the gold knobs edit, in the record and the engine.
 ///

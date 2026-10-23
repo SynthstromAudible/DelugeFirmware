@@ -199,19 +199,36 @@ KnobAssignment knob_assignment(const project::Song& song, const KnobFocus& focus
 		return chain_knob(song, focus, OwnerId::song(), std::nullopt, &song.master_effects, true, mode, knob);
 	}
 	if (const auto* chain = std::get_if<ChainFocus>(&focus.owner)) {
-		const project::FxChain* record = song.resolveChain(chain->chain);
-		if (chain->owner == ChainOwner::AUDIO_TRACK) {
-			const OwnerId owner =
-			    chain->clip ? OwnerId::clip(chain->clip->clip_id) : OwnerId::instrument(chain->chain.id);
-			return chain_knob(song, focus, owner, std::nullopt, record, false, mode, knob);
-		}
-		return chain_knob(song, focus, OwnerId::instrument(chain->chain.id), clip_id(chain->clip), record, false, mode,
-		                  knob);
+		const ParamAddress owner = *knob_owner(focus);
+		return chain_knob(song, focus, owner.owner, owner.clip_id, song.resolveChain(chain->chain), false, mode, knob);
 	}
 	if (const auto* midi = std::get_if<MidiFocus>(&focus.owner)) {
 		return midi_knob(song, *midi, mode, knob);
 	}
 	return {};
+}
+
+std::optional<ParamAddress> knob_owner(const KnobFocus& focus) {
+	if (std::holds_alternative<SongFocus>(focus.owner)) {
+		return ParamAddress{.owner = OwnerId::song()};
+	}
+	if (const auto* sound = std::get_if<SoundFocus>(&focus.owner)) {
+		return ParamAddress{.owner = sound->slot.kind == project::SlotAddress::Kind::DRUM
+		                                 ? OwnerId::drum(sound->slot.id)
+		                                 : OwnerId::instrument(sound->slot.id),
+		                    .clip_id = clip_id(sound->clip)};
+	}
+	if (const auto* chain = std::get_if<ChainFocus>(&focus.owner)) {
+		if (chain->owner == ChainOwner::AUDIO_TRACK) {
+			return ParamAddress{.owner = chain->clip ? OwnerId::clip(chain->clip->clip_id)
+			                                         : OwnerId::instrument(chain->chain.id)};
+		}
+		return ParamAddress{.owner = OwnerId::instrument(chain->chain.id), .clip_id = clip_id(chain->clip)};
+	}
+	if (const auto* midi = std::get_if<MidiFocus>(&focus.owner); midi != nullptr && midi->clip) {
+		return ParamAddress{.owner = OwnerId::clip(midi->clip->clip_id)};
+	}
+	return std::nullopt;
 }
 
 } // namespace deluge::scenes::bind

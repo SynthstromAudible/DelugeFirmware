@@ -277,7 +277,13 @@ struct RefusingSink final : bind::WriteSink {
 	bool write_source_transpose(const bind::Addresses&, uint8_t, std::optional<uint16_t>, int32_t) override {
 		return false;
 	}
-	bool knob_mode_at(uint8_t*, uint8_t) override { return false; }
+	bool knob_mode(deluge::project::KnobModeOwner, uint8_t) override { return false; }
+	bool chain_view(deluge::project::ChainAddress, std::string_view, std::string_view) override { return false; }
+	bool write_controls(deluge::project::ControlsAddress, std::vector<deluge::project::ControllerMapping>) override {
+		return false;
+	}
+	bool stutter(const bind::KnobFocus&, bool) override { return false; }
+	bool grab_region(const bind::KnobFocus&, uint32_t) override { return false; }
 };
 
 /// @brief A finished take: the recorder's sample with a file, resident in the audio file manager at its path as the
