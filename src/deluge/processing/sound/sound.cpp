@@ -52,6 +52,7 @@
 #include "model/sample/sample.h"
 #include "model/sample/sample_low_level_reader.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "model/song/reverb_presets.h"
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
 #include "model/voice/voice.h"
@@ -3544,7 +3545,7 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 	// Cycle through reverb presets
 	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::GLOBAL_REVERB_AMOUNT)) {
 		if (on) {
-			view.cycleThroughReverbPresets();
+			deluge::model::cycleReverbPreset(*currentSong);
 
 			// if mod button is pressed, update mod button pop up
 			if (Buttons::isButtonPressed(
@@ -3552,8 +3553,8 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 				displaySidechainAndReverbSettings(on);
 			}
 			else {
-				deluge::notify::notice(
-				    std::string_view(view.getReverbPresetDisplayName(view.getCurrentReverbPreset())));
+				deluge::notify::notice(std::string_view(
+				    deluge::model::reverbPresetName(deluge::model::reverbPresetOf(currentSong->project))));
 			}
 		}
 		return false;

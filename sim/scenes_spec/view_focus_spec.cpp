@@ -12,6 +12,7 @@
 
 #include "deluge-project/knob_focus.h"
 #include "engines/deluge/params.h"
+#include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
 #include "io/midi/midi_device_manager.h"
 #include "model/action/action_logger.h"
@@ -20,9 +21,11 @@
 #include "model/edits/edit.h"
 #include "model/edits/learn_mapping.h"
 #include "model/edits/set_param_value.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/param_stack.h"
+#include "model/song/reverb_presets.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "playback/playback_handler.h"
@@ -576,6 +579,24 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		actionLogger.deleteAllLogs();
 		nullifyUIs();
 		view.releaseActiveModControllable();
+		currentSong = nullptr;
+	});
+
+	it("cycles the song's reverb preset and names it, from the song's reverb", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		const auto set = [&](size_t preset) {
+			deluge::edits::songSettingFromMenu("reverb/roomSize", deluge::model::kReverbPresetRoomSize[preset]);
+			deluge::edits::songSettingFromMenu("reverb/dampening", deluge::model::kReverbPresetDamping[preset]);
+		};
+		for (size_t preset = 0; preset < deluge::model::kNumReverbPresets; preset++) {
+			set(preset);
+			expect(deluge::model::reverbPresetOf(f.song->project)).to_equal(preset);
+			deluge::model::cycleReverbPreset(*f.song);
+			expect(deluge::model::reverbPresetOf(f.song->project)).to_equal((preset + 1) % deluge::model::kNumReverbPresets);
+		}
+		expect(std::string{deluge::model::reverbPresetName(0)}).to_equal(std::string{deluge::l10n::get(deluge::l10n::String::STRING_FOR_SMALL_ROOM_REVERB)});
+		expect(std::string{deluge::model::reverbPresetName(2)}).to_equal(std::string{deluge::l10n::get(deluge::l10n::String::STRING_FOR_LARGE_ROOM_REVERB)});
 		currentSong = nullptr;
 	});
 });

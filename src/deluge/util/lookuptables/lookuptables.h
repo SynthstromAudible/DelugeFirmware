@@ -22,7 +22,7 @@
 #include <array>
 #include <cstdint>
 
-// NOTE: the preset *name* / iterance tables (presetReverbNames, chordNames, iterancePresets) that need
+// NOTE: the preset *name* / iterance tables (chordNames, iterancePresets) that need
 // gui/l10n + model/iterance live in util/lookuptables/preset_tables.h, so this header stays a leaf of
 // numeric DSP tables (no gui/ or model/ reach). Include preset_tables.h if you need those.
 
@@ -57,11 +57,6 @@ extern const int32_t timeStretchAdjustTable[193];
 inline constexpr const auto& attackRateTable = deluge::engine::kSidechainAttackRates;
 inline constexpr const auto& releaseRateTable = deluge::engine::kSidechainReleaseRates;
 extern const int32_t releaseRateTable64[65];
-
-#define NUM_PRESET_REVERBS 3
-const uint8_t presetReverbRoomSize[NUM_PRESET_REVERBS] = {16, 30, 44};
-const uint8_t presetReverbDamping[NUM_PRESET_REVERBS] = {29, 36, 45};
-// presetReverbNames -> util/lookuptables/preset_tables.h (needs l10n::String)
 
 extern const uint8_t noteCodeToNoteLetter[];
 extern const uint8_t noteCodeToNoteLetterFlats[];

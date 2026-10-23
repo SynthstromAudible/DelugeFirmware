@@ -19,7 +19,7 @@
 
 #include "util/lookuptables/lookuptables.h"
 #include "definitions_cxx.hpp"
-// The l10n/iterance preset tables (presetReverbNames, chordNames, iterancePresets) live in preset_tables.cpp
+// The l10n/iterance preset tables (chordNames, iterancePresets) live in preset_tables.cpp
 // so this TU stays gui-free (numeric DSP tables only).
 
 alignas(16) const uint16_t centAdjustTableSmall[257] = {

@@ -37,6 +37,7 @@
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
+#include "model/song/reverb_presets.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
@@ -189,7 +190,7 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 				return true;
 			}
 			else if (whichModEncoder == 0) { // reverb
-				view.cycleThroughReverbPresets();
+				deluge::model::cycleReverbPreset(*currentSong);
 
 				// if mod button is pressed, update mod button pop up
 				if (Buttons::isButtonPressed(
@@ -197,8 +198,8 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 					displaySidechainAndReverbSettings(on);
 				}
 				else {
-					deluge::notify::notice(
-					    std::string_view(view.getReverbPresetDisplayName(view.getCurrentReverbPreset())));
+					deluge::notify::notice(std::string_view(
+					    deluge::model::reverbPresetName(deluge::model::reverbPresetOf(currentSong->project))));
 				}
 				return true;
 			}

@@ -23,12 +23,6 @@
 #include "sequence/iterance.h"
 #include <array>
 
-deluge::l10n::String presetReverbNames[] = {
-    deluge::l10n::String::STRING_FOR_SMALL_ROOM_REVERB,  //<
-    deluge::l10n::String::STRING_FOR_MEDIUM_ROOM_REVERB, //<
-    deluge::l10n::String::STRING_FOR_LARGE_ROOM_REVERB,  //<
-};
-
 const std::array<Iterance, kNumIterancePresets> iterancePresets = {
     Iterance{0, 1}, // first
     Iterance{0, 2}, // last

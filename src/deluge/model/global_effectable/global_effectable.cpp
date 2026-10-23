@@ -35,6 +35,7 @@
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "model/song/reverb_presets.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
@@ -219,7 +220,7 @@ void GlobalEffectable::displayCompressorAndReverbSettings(bool on, const deluge:
 		}
 		else {
 			// Reverb
-			popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+			popupMsg.append(deluge::model::reverbPresetName(deluge::model::reverbPresetOf(currentSong->project)));
 		}
 
 		display->popupText(popupMsg.c_str());
@@ -475,7 +476,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				// in the compressor view, cycle through the comp params
 				// otherwise cycle reverb sizes
 				if (!compView.editing) {
-					view.cycleThroughReverbPresets();
+					deluge::model::cycleReverbPreset(*currentSong);
 
 					// if mod button is pressed, update mod button pop up
 					if (Buttons::isButtonPressed(
@@ -483,8 +484,8 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 						displayCompressorAndReverbSettings(on, compView);
 					}
 					else {
-						deluge::notify::notice(
-						    std::string_view(view.getReverbPresetDisplayName(view.getCurrentReverbPreset())));
+						deluge::notify::notice(std::string_view(
+						    deluge::model::reverbPresetName(deluge::model::reverbPresetOf(currentSong->project))));
 					}
 				}
 				else {

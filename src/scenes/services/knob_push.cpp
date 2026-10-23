@@ -12,6 +12,7 @@
 #include "gui/l10n/strings.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_fx_names.h"
+#include "model/song/reverb_presets.h"
 #include "modulation/params/param.h"
 
 #include <algorithm>
@@ -30,11 +31,6 @@ namespace ge = deluge::global_effectable::param;
 namespace ip = deluge::instrument::param;
 namespace params = deluge::modulation::params;
 
-/// The reverb presets a push cycles through: their room sizes and dampings in the song menu's units, and names.
-constexpr std::array<int32_t, 3> kReverbRoomSize{16, 30, 44};
-constexpr std::array<int32_t, 3> kReverbDamping{29, 36, 45};
-constexpr std::array<String, 3> kReverbNames{
-    String::STRING_FOR_SMALL_ROOM_REVERB, String::STRING_FOR_MEDIUM_ROOM_REVERB, String::STRING_FOR_LARGE_ROOM_REVERB};
 /// The song compressor's lower-knob settings, by name, in the compressor view's order.
 constexpr std::array<const char*, 5> kCompParamNames{"ratio", "attack", "release", "hpf", "blend"};
 
@@ -45,22 +41,6 @@ const char* text(String s) {
 /// The song's input tick magnitude, as its transport records it.
 int32_t tick_magnitude(const project::Song& song) {
 	return song.transport.inside_world_tick_magnitude + song.transport.inside_world_tick_magnitude_offset_from_bpm;
-}
-
-/// The reverb preset nearest the song's reverb (`View::getCurrentReverbPreset`).
-size_t reverb_preset(const project::Song& song) {
-	const auto room = static_cast<int32_t>(song.reverb.room_size * 50);
-	const auto damping = static_cast<int32_t>(song.reverb.damping * 50);
-	size_t nearest = 0;
-	int32_t least = 1000;
-	for (size_t p = 0; p < kReverbRoomSize.size(); p++) {
-		const int32_t distance = std::abs(room - kReverbRoomSize[p]) + std::abs(damping - kReverbDamping[p]);
-		if (distance < least) {
-			least = distance;
-			nearest = p;
-		}
-	}
-	return nearest;
 }
 
 const char* filter_type_name(FilterType type) {
@@ -179,7 +159,8 @@ std::string delay_popup(const project::Song& song, const effects::EffectStates& 
 }
 
 std::string sidechain_reverb_popup(const project::Song& song, const effects::EffectStates& fx) {
-	return std::string{"Sidechain: "} + sidechain_name(song, fx) + "\n" + text(kReverbNames[reverb_preset(song)]);
+	return std::string{"Sidechain: "} + sidechain_name(song, fx) + "\n"
+	       + deluge::model::reverbPresetName(deluge::model::reverbPresetOf(song));
 }
 
 std::string comp_reverb_popup(const project::Song& song, const bind::CompView& comp) {
@@ -187,7 +168,7 @@ std::string comp_reverb_popup(const project::Song& song, const bind::CompView& c
 	if (comp.editing) {
 		return out + "Comp Param: " + kCompParamNames[comp.param % kCompParamNames.size()];
 	}
-	return out + text(kReverbNames[reverb_preset(song)]);
+	return out + deluge::model::reverbPresetName(deluge::model::reverbPresetOf(song));
 }
 
 std::string mod_fx_popup(effects::ModFXType type, ModFXParam param) {
@@ -313,14 +294,15 @@ void push_filter_mode(KnobPush& out, effects::EffectStates fx, bool lpf, const P
 
 /// The next reverb preset, as two song settings.
 void push_reverb(KnobPush& out, const project::Song& song) {
-	const size_t next = (reverb_preset(song) + 1) % kReverbRoomSize.size();
-	out.song.emplace_back("reverb/roomSize", kReverbRoomSize[next]);
-	out.song.emplace_back("reverb/dampening", kReverbDamping[next]);
+	const size_t next = (deluge::model::reverbPresetOf(song) + 1) % deluge::model::kNumReverbPresets;
+	out.song.emplace_back("reverb/roomSize", deluge::model::kReverbPresetRoomSize[next]);
+	out.song.emplace_back("reverb/dampening", deluge::model::kReverbPresetDamping[next]);
 }
 
 /// The reverb name after @p out's preset change.
 const char* pushed_reverb_name(const project::Song& song) {
-	return text(kReverbNames[(reverb_preset(song) + 1) % kReverbRoomSize.size()]);
+	return deluge::model::reverbPresetName((deluge::model::reverbPresetOf(song) + 1)
+	                                       % deluge::model::kNumReverbPresets);
 }
 
 KnobPush push_sound(const project::Song& song, const bind::KnobFocus& focus, const bind::SoundFocus& sound,

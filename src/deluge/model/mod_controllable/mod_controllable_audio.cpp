@@ -53,6 +53,7 @@
 #include "model/project_bridge/midi_command.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
+#include "model/song/reverb_presets.h"
 #include "model/song/song.h"
 #include "modulation/knob.h"
 #include "modulation/params/param_set.h"
@@ -1271,7 +1272,7 @@ void ModControllableAudio::displaySidechainAndReverbSettings(bool on) {
 		popupMsg.append("\n");
 
 		// Reverb
-		popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+		popupMsg.append(deluge::model::reverbPresetName(deluge::model::reverbPresetOf(currentSong->project)));
 
 		display->popupText(popupMsg.c_str());
 	}
