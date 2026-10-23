@@ -66,6 +66,9 @@ struct ParamInfo {
 	/// The stored word a new instance starts with.
 	int32_t default_value{0};
 	ParamRange range{};
+	/// A gold knob's indicator blinks at the param's middle value (a centre that means "none": pan, pitch, an EQ
+	/// band, the delay).
+	bool indicates_middle{false};
 };
 
 /// @brief A dense run of ids an engine stores together: @c count ids from @c first.

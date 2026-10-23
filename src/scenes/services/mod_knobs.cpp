@@ -21,6 +21,7 @@
 
 #include "scenes/services/mod_knobs.h"
 
+#include "scenes/bind/knob_math.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h" // the four model transactions (see the class doc)
 #include "scenes/menu/menu_scene.h"
@@ -87,32 +88,14 @@ bool is_clip_context(const ModTarget& target) {
 // -- Pure arithmetic ---------------------------------------------------------------------------
 
 int32_t ModKnobs::calculate_knob_pos_for_mod_encoder_turn(Kind kind, int32_t knob_pos, int32_t offset) {
-	// `View::calculateKnobPosForModEncoderTurn` (`view.cpp:966-987`), transcribed.
-	int32_t lower_limit = 0;
-	int32_t upper_limit = 64;
-
-	if (kind == Kind::PATCH_CABLE) {
-		lower_limit = std::min(-192, knob_pos);
-	}
-	else {
-		lower_limit = std::min(-64, knob_pos);
-		if (kind == Kind::MIDI) {
-			upper_limit = 63;
-		}
-	}
-	return std::clamp(knob_pos + offset, lower_limit, upper_limit);
+	const bind::KnobKind knob = kind == Kind::PATCH_CABLE ? bind::KnobKind::CABLE
+	                            : kind == Kind::MIDI      ? bind::KnobKind::MIDI_CC
+	                                                      : bind::KnobKind::PARAM;
+	return bind::turn(knob, knob_pos, offset);
 }
 
 int32_t ModKnobs::convert_patch_cable_knob_pos_to_indicator_level(int32_t knob_pos) {
-	// `View::convertPatchCableKnobPosToIndicatorLevel` (`view.cpp:1490-1503`), transcribed,
-	// including the "so it only returns 64 once" adjustment and its comment's reasoning: the
-	// indicator is centred on 64, and without this a position of both 0 and something just past it
-	// would map to 64 and blink twice.
-	int32_t new_knob_pos = (knob_pos + kMaxKnobPos) >> 1;
-	if (new_knob_pos == 64 && knob_pos != 0) {
-		new_knob_pos += knob_pos;
-	}
-	return new_knob_pos;
+	return bind::fold_cable(knob_pos);
 }
 
 // -- The target --------------------------------------------------------------------------------
