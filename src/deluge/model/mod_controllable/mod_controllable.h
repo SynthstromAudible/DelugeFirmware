@@ -17,6 +17,7 @@
 
 #pragma once
 #include "definitions_cxx.hpp"
+#include "deluge-project/knob_focus.h"
 #include "modulation/params/param.h"
 
 class ParamManagerForTimeline;
@@ -41,13 +42,19 @@ class ModControllable {
 public:
 	ModControllable() = default;
 	virtual ~ModControllable() = default;
-	virtual bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) {
+	/// @name The gold knobs
+	/// The compressor view (`comp`) is the knobs' own view state, which a chain's knobs follow and others ignore; a
+	/// push into or around it moves the view it is given, and none given moves a view nothing keeps.
+	/// @{
+	virtual bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack,
+	                                    deluge::project::CompView* comp = nullptr) {
 		return false;
 	} // Returns whether Instrument was changed
-	virtual void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {};
-	virtual ModelStackWithAutoParam*
-	getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
-	                       bool allowCreation = true); // Check that autoParam isn't NULL, after calling this.
+	virtual void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
+	                             const deluge::project::CompView& comp = {}) {};
+	virtual ModelStackWithAutoParam* getParamFromModEncoder(
+	    int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack, bool allowCreation = true,
+	    const deluge::project::CompView& comp = {}); // Check that autoParam isn't NULL, after calling this.
 
 	/// Check that autoParam isn't NULL, after calling this
 	virtual ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack);
@@ -55,18 +62,19 @@ public:
 	virtual uint8_t* getModKnobMode(); // Return NULL if different modes not supported
 	virtual bool isKit() { return false; }
 	virtual bool isSong() { return false; }
-	virtual bool isEditingComp() { return false; }
 	virtual bool valueChangedEnoughToMatter(int32_t old_value, int32_t new_value, deluge::modulation::params::Kind kind,
 	                                        uint32_t paramID) {
 		return old_value != new_value;
 	}
 	virtual int32_t getKnobPosForNonExistentParam(
-	    int32_t whichModEncoder,
-	    ModelStackWithAutoParam* modelStack); // modelStack->autoParam will be NULL in this rare case!!
+	    int32_t whichModEncoder, ModelStackWithAutoParam* modelStack,
+	    const deluge::project::CompView& comp = {}); // modelStack->autoParam will be NULL in this rare case!!
 	virtual ActionResult modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
-	                                                         ModelStackWithAutoParam* modelStack) {
+	                                                         ModelStackWithAutoParam* modelStack,
+	                                                         const deluge::project::CompView& comp = {}) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
+	/// @}
 	virtual bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) { return true; }
 	virtual void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
 	                                                      int32_t channelOrNoteNumber,

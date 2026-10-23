@@ -349,8 +349,10 @@ public:
 	bool renderingOscillatorSyncEver(ParamManager* paramManager);
 	void setupAsBlankSynth(ParamManager* paramManager, bool is_dx = false);
 	void setupAsDefaultSynth(ParamManager* paramManager);
-	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) final;
-	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) final;
+	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
+	                     const deluge::project::CompView& comp = {}) final;
+	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack,
+	                            deluge::project::CompView* comp = nullptr) final;
 	// The real body; the override above wraps it to re-seed the modKnobs record after any in-place reassignment,
 	// so this function's many early returns need no re-seed of their own.
 	bool modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack);
@@ -376,7 +378,8 @@ public:
 	virtual void setupPatchingForAllParamManagers(Song* song) {}
 	// void channelAftertouchReceivedFromInputMIDIChannel(int32_t newValue);
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
-	                                                bool allowCreation = true) final;
+	                                                bool allowCreation = true,
+	                                                const deluge::project::CompView& comp = {}) final;
 	void reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, bool shouldJustCutModFX = false);
 	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
 	                            GlobalEffectableForClip** globalEffectableWithMostReverb,

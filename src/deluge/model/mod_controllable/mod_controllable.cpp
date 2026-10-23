@@ -21,7 +21,8 @@
 #include "modulation/automation/auto_param.h"
 
 // modelStack->autoParam will be NULL in this rare case!!
-int32_t ModControllable::getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) {
+int32_t ModControllable::getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack,
+                                                       const deluge::project::CompView& comp) {
 	return -64;
 }
 
@@ -32,7 +33,8 @@ void setTheAutoParamToNull(ModelStackWithThreeMainThings* modelStack) {
 
 ModelStackWithAutoParam* ModControllable::getParamFromModEncoder(int32_t whichModEncoder,
                                                                  ModelStackWithThreeMainThings* modelStack,
-                                                                 bool allowCreation) {
+                                                                 bool allowCreation,
+                                                                 const deluge::project::CompView& comp) {
 	setTheAutoParamToNull(modelStack);
 	return (ModelStackWithAutoParam*)modelStack;
 }

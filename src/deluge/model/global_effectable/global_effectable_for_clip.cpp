@@ -131,7 +131,7 @@ int32_t GlobalEffectableForClip::getSidechainVolumeAmountAsPatchCableDepth(Param
 	return (sidechainVolumeParam >> 2) + 536870912;
 }
 
-int32_t GlobalEffectableForClip::getParameterFromKnob(int32_t whichModEncoder) {
+int32_t GlobalEffectableForClip::getParameterFromKnob(int32_t whichModEncoder, const deluge::project::CompView& comp) {
 
 	int32_t modKnobMode = *getModKnobMode();
 
@@ -142,20 +142,22 @@ int32_t GlobalEffectableForClip::getParameterFromKnob(int32_t whichModEncoder) {
 		return params::UNPATCHED_PITCH_ADJUST;
 	}
 
-	return GlobalEffectable::getParameterFromKnob(whichModEncoder);
+	return GlobalEffectable::getParameterFromKnob(whichModEncoder, comp);
 }
 
-void GlobalEffectableForClip::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
+void GlobalEffectableForClip::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
+                                              const deluge::project::CompView& comp) {
 	if (whichModButton == 4) {
 		displaySidechainAndReverbSettings(on);
 		return;
 	}
 
-	GlobalEffectable::modButtonAction(whichModButton, on, paramManager);
+	GlobalEffectable::modButtonAction(whichModButton, on, paramManager, comp);
 }
 
 bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
-                                                     ModelStackWithThreeMainThings* modelStack) {
+                                                     ModelStackWithThreeMainThings* modelStack,
+                                                     deluge::project::CompView* comp) {
 
 	if (on && !Buttons::isShiftButtonPressed()) {
 		int32_t modKnobMode = *getModKnobMode();
@@ -203,7 +205,7 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 		}
 	}
 
-	return GlobalEffectable::modEncoderButtonAction(whichModEncoder, on, modelStack);
+	return GlobalEffectable::modEncoderButtonAction(whichModEncoder, on, modelStack, comp);
 }
 
 // We pass activeClip into this because although each child of GlobalEffectableForClip inherits Output, one of them does

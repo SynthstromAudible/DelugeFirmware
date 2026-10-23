@@ -94,8 +94,8 @@ void checkGestures(GlobalEffectable& owner, ParamManagerForTimeline& paramManage
 	*owner.getModKnobMode() = 4;
 	(void)owner.modEncoderActionForNonExistentParam(5, 1, nullptr);
 	coherent("the compressor's threshold knob");
-	owner.currentCompParam = CompParam::ATTACK;
-	(void)owner.modEncoderActionForNonExistentParam(5, 0, nullptr);
+	(void)owner.modEncoderActionForNonExistentParam(
+	    5, 0, nullptr, deluge::project::CompView{.editing = true, .param = static_cast<uint8_t>(CompParam::ATTACK)});
 	coherent("the compressor's attack knob");
 	if (clipChain) {
 		(void)owner.modEncoderButtonAction(1, true, stack);

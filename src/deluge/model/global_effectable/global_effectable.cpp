@@ -52,9 +52,6 @@ namespace params = deluge::modulation::params;
 
 GlobalEffectable::GlobalEffectable() {
 	unpatchedParamKind_ = params::Kind::UNPATCHED_GLOBAL;
-
-	editingComp = false;
-	currentCompParam = CompParam::RATIO;
 }
 
 void GlobalEffectable::cloneFrom(ModControllableAudio* other) {
@@ -175,7 +172,8 @@ void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramMana
 	    *unpatchedParams->docForParam(params::UNPATCHED_VOLUME), -536870912);
 }
 
-void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
+void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
+                                       const deluge::project::CompView& comp) {
 
 	// leave stutter running in perfomance session view
 	if (getRootUI() != &performanceView) {
@@ -193,7 +191,7 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 	}
 	// Compressor / Reverb
 	else if (whichModButton == 4) {
-		displayCompressorAndReverbSettings(on);
+		displayCompressorAndReverbSettings(on, comp);
 	}
 	// Mod FX
 	else if (whichModButton == 5) {
@@ -208,16 +206,16 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 	}
 }
 
-void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
+void GlobalEffectable::displayCompressorAndReverbSettings(bool on, const deluge::project::CompView& comp) {
 	if (on) {
 		etl::string<100> popupMsg;
 		popupMsg.append("Comp Mode: ");
-		popupMsg.append(getCompressorModeDisplayName());
+		popupMsg.append(getCompressorModeDisplayName(comp));
 		popupMsg.append("\n");
 
-		if (editingComp) {
+		if (comp.editing) {
 			popupMsg.append("Comp Param: ");
-			popupMsg.append(getCompressorParamDisplayName());
+			popupMsg.append(getCompressorParamDisplayName(comp));
 		}
 		else {
 			// Reverb
@@ -234,14 +232,13 @@ void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
 	}
 }
 
-char const* GlobalEffectable::getCompressorModeDisplayName() {
-	return editingComp ? "FULL" : "ONE";
+char const* GlobalEffectable::getCompressorModeDisplayName(const deluge::project::CompView& comp) {
+	return comp.editing ? "FULL" : "ONE";
 }
 
-char const* GlobalEffectable::getCompressorParamDisplayName() {
-	currentCompParam = static_cast<CompParam>(util::to_underlying(currentCompParam) % maxCompParam);
+char const* GlobalEffectable::getCompressorParamDisplayName(const deluge::project::CompView& comp) {
 	const char* params[util::to_underlying(CompParam::LAST)] = {"ratio", "attack", "release", "hpf", "blend"};
-	return params[int(currentCompParam)];
+	return params[comp.param % util::to_underlying(CompParam::LAST)];
 }
 
 void GlobalEffectable::displayModFXSettings(bool on) {
@@ -273,7 +270,11 @@ char const* GlobalEffectable::getModFXParamDisplayName() {
 
 // Returns whether Instrument changed
 bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
-                                              ModelStackWithThreeMainThings* modelStack) {
+                                              ModelStackWithThreeMainThings* modelStack,
+                                              deluge::project::CompView* comp) {
+	// A push with no comp view to move edits a view of its own, which nothing keeps.
+	deluge::project::CompView unkept{};
+	deluge::project::CompView& compView = comp != nullptr ? *comp : unkept;
 	using enum l10n::String;
 	int32_t modKnobMode = *getModKnobMode();
 
@@ -471,15 +472,15 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	else if (modKnobMode == 4) {
 		if (whichModEncoder == 0) { // Reverb
 			if (on) {
-				// if we're in full mode/editingComp then we cycle through the comp params
+				// in the compressor view, cycle through the comp params
 				// otherwise cycle reverb sizes
-				if (!editingComp) {
+				if (!compView.editing) {
 					view.cycleThroughReverbPresets();
 
 					// if mod button is pressed, update mod button pop up
 					if (Buttons::isButtonPressed(
 					        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
-						displayCompressorAndReverbSettings(on);
+						displayCompressorAndReverbSettings(on, compView);
 					}
 					else {
 						deluge::notify::notice(
@@ -487,31 +488,30 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					}
 				}
 				else {
-					currentCompParam =
-					    static_cast<CompParam>((util::to_underlying(currentCompParam) + 1) % maxCompParam);
+					compView.param = (compView.param + 1) % util::to_underlying(CompParam::LAST);
 
 					// if mod button is pressed, update mod button pop up
 					if (Buttons::isButtonPressed(
 					        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
-						displayCompressorAndReverbSettings(on);
+						displayCompressorAndReverbSettings(on, compView);
 					}
 					else {
-						deluge::notify::notice(std::string_view(getCompressorParamDisplayName()));
+						deluge::notify::notice(std::string_view(getCompressorParamDisplayName(compView)));
 					}
 				}
 			}
 		}
 		else {
 			if (on) {
-				editingComp = !editingComp;
+				compView.editing = !compView.editing;
 
 				// if mod button is pressed, update mod button pop up
 				if (Buttons::isButtonPressed(
 				        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
-					displayCompressorAndReverbSettings(on);
+					displayCompressorAndReverbSettings(on, compView);
 				}
 				else {
-					deluge::notify::notice(std::string_view(getCompressorModeDisplayName()));
+					deluge::notify::notice(std::string_view(getCompressorModeDisplayName(compView)));
 				}
 			}
 		}
@@ -527,7 +527,8 @@ q31_t GlobalEffectable::displayedCompressorThreshold() {
 	return isSong() ? effects().compressor.threshold : core().compressor().dsp().threshold();
 }
 
-int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) {
+int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack,
+                                                        const deluge::project::CompView& comp) {
 	int current = 0;
 	if (*getModKnobMode() == 4) {
 
@@ -536,7 +537,7 @@ int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder,
 			current = (displayedCompressorThreshold() >> 24);
 		}
 		else if (whichModEncoder == 0) {
-			switch (currentCompParam) {
+			switch (static_cast<CompParam>(comp.param)) {
 
 			case CompParam::RATIO:
 				current = (effects().compressor.ratio >> 24);
@@ -570,7 +571,8 @@ int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder,
 }
 
 ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
-                                                                   ModelStackWithAutoParam* modelStack) {
+                                                                   ModelStackWithAutoParam* modelStack,
+                                                                   const deluge::project::CompView& comp) {
 	if (*getModKnobMode() == 4) {
 		etl::string<40> parameterName;
 		etl::string<40> parameterValue;
@@ -592,7 +594,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 			unit = "";
 		}
 		else if (whichModEncoder == 0) {
-			switch (currentCompParam) {
+			switch (static_cast<CompParam>(comp.param)) {
 
 			case CompParam::RATIO:
 				parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RATIO));
@@ -683,7 +685,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 }
 
 // Always check this doesn't return NULL!
-int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder) {
+int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder, const deluge::project::CompView& comp) {
 
 	int32_t modKnobMode = *getModKnobMode();
 
@@ -730,7 +732,7 @@ int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder) {
 	}
 
 	else if (modKnobMode == 4) {
-		if (whichModEncoder == 0 && !editingComp) {
+		if (whichModEncoder == 0 && !comp.editing) {
 			return params::UNPATCHED_REVERB_SEND_AMOUNT;
 		}
 	}
@@ -768,12 +770,13 @@ int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder) {
 
 ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int32_t whichModEncoder,
                                                                   ModelStackWithThreeMainThings* modelStack,
-                                                                  bool allowCreation) {
+                                                                  bool allowCreation,
+                                                                  const deluge::project::CompView& comp) {
 	ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
 	ParamCollection* paramCollection = summary->paramCollection;
 	int32_t paramId;
 
-	paramId = getParameterFromKnob(whichModEncoder);
+	paramId = getParameterFromKnob(whichModEncoder, comp);
 
 	ModelStackWithParamId* newModelStack1 = modelStack->addParamCollectionAndId(paramCollection, summary, paramId);
 

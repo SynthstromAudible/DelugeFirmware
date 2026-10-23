@@ -127,13 +127,17 @@ public:
 	                       bool* doingMidiThru) override;
 
 	// ModControllable implementation
-	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) override;
-	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) override;
+	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack,
+	                            deluge::project::CompView* comp = nullptr) override;
+	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
+	                     const deluge::project::CompView& comp = {}) override;
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
-	                                                bool allowCreation = true) override;
+	                                                bool allowCreation = true,
+	                                                const deluge::project::CompView& comp = {}) override;
 	uint8_t* getModKnobMode() override { return &modKnobMode; }
 
-	int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) override;
+	int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack,
+	                                      const deluge::project::CompView& comp = {}) override;
 	ModelStackWithAutoParam* getParamToControlFromInputMIDIChannel(int32_t cc,
 	                                                               ModelStackWithThreeMainThings* modelStack) override;
 	bool doesAutomationExistOnMIDIParam(ModelStackWithThreeMainThings* modelStack, int32_t cc);

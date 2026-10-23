@@ -311,6 +311,8 @@ private:
 	deluge::project::KnobFocus knobFocus_{};
 	/// The song the focus's ids are in, as an identity only: never dereferenced.
 	const Song* knobSong_{};
+	/// The song the compressor view was opened in, as an identity only: a new song starts out of it.
+	const Song* compSong_{};
 	bool knobsOnClipContext_{};
 	/// The param manager of the owner the knobs move, as an identity: the render compares an automation's against it.
 	std::atomic<const ParamManager*> knobParamManager_{};
@@ -327,7 +329,7 @@ private:
 	bool renderedVUMeter;
 
 	// mod encoder action
-	void modEncoderAction_nonExistentParam(int32_t whichModEncoder, int32_t offset,
+	void modEncoderAction_nonExistentParam(ModControllable& owner, int32_t whichModEncoder, int32_t offset,
 	                                       ModelStackWithAutoParam* modelStackWithParam);
 	void modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offset,
 	                                    ModelStackWithAutoParam* modelStackWithParam, bool noteTailsAllowedBefore);

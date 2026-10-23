@@ -76,6 +76,7 @@ struct Side {
 	std::function<void()> point_view; ///< points legacy's view at the owner, which its knob names read
 	bind::KnobFocus focus;
 	KnobModeOwner mode_owner;
+	deluge::project::CompView comp{}; ///< the engine side's compressor view, which its pushes move
 };
 
 /// @brief What a push leaves that the two sides are compared on.
@@ -180,7 +181,7 @@ std::string push_both(Side& legacy, Side& port, uint8_t mode, int32_t knob, bool
 	hold_mod_button(mode, held);
 	{
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-		(void)legacy.engine->modEncoderButtonAction(knob, true, legacy.stack_of(memory));
+		(void)legacy.engine->modEncoderButtonAction(knob, true, legacy.stack_of(memory), &legacy.comp);
 	}
 	// As View's push does: a knob cycled to its next param is its owner's mappings.
 	deluge::edits::recordControlsOf(*legacy.engine);
@@ -189,7 +190,7 @@ std::string push_both(Side& legacy, Side& port, uint8_t mode, int32_t knob, bool
 	{
 		currentSong = legacy.song;
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-		(void)legacy.engine->modEncoderButtonAction(knob, false, legacy.stack_of(memory));
+		(void)legacy.engine->modEncoderButtonAction(knob, false, legacy.stack_of(memory), &legacy.comp);
 	}
 
 	// The port's push, applied through the app's sink.
@@ -288,7 +289,7 @@ std::vector<std::string> press_buttons(Side& legacy, Side& port, const std::stri
 		(void)deluge::edits::modKnobModeFor(legacy.mode_owner, button);
 		legacy.point_view();
 		stub.popup.clear();
-		legacy.engine->modButtonAction(button, true, nullptr);
+		legacy.engine->modButtonAction(button, true, nullptr, legacy.comp);
 		currentSong = port.song;
 		(void)deluge::edits::modKnobModeFor(port.mode_owner, button);
 		const std::string ported =
@@ -412,16 +413,12 @@ describe knob_push("what a gold knob's push and a mod button do, from the record
 		deluge::scenes::spec::SongFixture b = deluge::scenes::spec::make_synth_song();
 		Side legacy = song_side(a);
 		Side port = song_side(b);
-		GlobalEffectable& ge = a.song->live.global_effectable;
 		const auto found = push_everything(legacy, port, "song", [&]() -> std::string {
-			if (ge.editingComp != port.focus.comp.editing
-			    || static_cast<uint8_t>(ge.currentCompParam) != port.focus.comp.param) {
+			if (legacy.comp != port.focus.comp) {
 				return "compressor view";
 			}
 			return {};
 		});
-		ge.editingComp = false;
-		ge.currentCompParam = CompParam::RATIO;
 		report(found);
 		expect(found.empty()).to_be_true();
 		currentSong = before;

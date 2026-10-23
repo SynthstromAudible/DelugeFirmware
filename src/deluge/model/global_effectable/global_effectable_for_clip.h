@@ -42,8 +42,10 @@ public:
 	[[nodiscard]] deluge::effects::Filter& filter() final { return chain_.filter(); }
 
 	int32_t getSidechainVolumeAmountAsPatchCableDepth(ParamManager* paramManager);
-	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) final;
-	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) final;
+	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
+	                     const deluge::project::CompView& comp = {}) final;
+	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack,
+	                            deluge::project::CompView* comp = nullptr) final;
 	virtual Output* toOutput() = 0;
 	void getThingWithMostReverb(Clip* activeClip, Sound** soundWithMostReverb,
 	                            ParamManager** paramManagerWithMostReverb,
@@ -54,7 +56,7 @@ public:
 	deluge::effects::ClipChain chain_;
 
 protected:
-	int32_t getParameterFromKnob(int32_t whichModEncoder) final;
+	int32_t getParameterFromKnob(int32_t whichModEncoder, const deluge::project::CompView& comp) final;
 	void renderOutput(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
 	                  std::span<StereoSample> output, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
 	                  int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,

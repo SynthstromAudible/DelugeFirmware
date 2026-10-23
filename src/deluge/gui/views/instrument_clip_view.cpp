@@ -1059,7 +1059,8 @@ void InstrumentClipView::copyAutomation(int32_t whichModEncoder, int32_t navSysI
 		return;
 	}
 
-	ModelStackWithAutoParam* modelStack = knobs.owner()->getParamFromModEncoder(whichModEncoder, knobs.stack, false);
+	ModelStackWithAutoParam* modelStack =
+	    knobs.owner()->getParamFromModEncoder(whichModEncoder, knobs.stack, false, view.knobFocus().comp);
 	if (modelStack && modelStack->autoParam) {
 
 		// Ok this is cursed, but will work fine so long as
@@ -1299,7 +1300,7 @@ void InstrumentClipView::pasteAutomation(int32_t whichModEncoder, int32_t navSys
 	}
 
 	ModelStackWithAutoParam* modelStackWithAutoParam =
-	    knobs.owner()->getParamFromModEncoder(whichModEncoder, knobs.stack, true);
+	    knobs.owner()->getParamFromModEncoder(whichModEncoder, knobs.stack, true, view.knobFocus().comp);
 	if (!modelStackWithAutoParam || !modelStackWithAutoParam->autoParam) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_PASTE_AUTOMATION));
 		return;

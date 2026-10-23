@@ -111,8 +111,8 @@ void MIDIInstrument::setOutputMPEY(CCNumber v) {
 }
 
 // Returns whether any change made. For MIDI Instruments, this has no consequence
-bool MIDIInstrument::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
-                                            ModelStackWithThreeMainThings* modelStack) {
+bool MIDIInstrument::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack,
+                                            deluge::project::CompView* comp) {
 
 	if (on) {
 		if (currentUIMode == UI_MODE_NONE) {
@@ -186,7 +186,8 @@ bool MIDIInstrument::appendCCName(etl::istring& buf, int32_t cc) {
 	return false;
 }
 
-void MIDIInstrument::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
+void MIDIInstrument::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
+                                     const deluge::project::CompView& comp) {
 	// If we're leaving this mod function or anything else is happening, we want to be sure that stutter has stopped
 	if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
 		currentUIMode = UI_MODE_NONE;
@@ -216,7 +217,8 @@ void MIDIInstrument::modButtonAction(uint8_t whichModButton, bool on, ParamManag
 
 ModelStackWithAutoParam* MIDIInstrument::getParamFromModEncoder(int32_t whichModEncoder,
                                                                 ModelStackWithThreeMainThings* modelStack,
-                                                                bool allowCreation) {
+                                                                bool allowCreation,
+                                                                const deluge::project::CompView& comp) {
 
 	if (!modelStack->paramManager) { // Could be NULL - if the user is holding down an audition pad in Arranger, and we
 		                             // have no Clips
@@ -230,7 +232,8 @@ noParam:
 }
 
 // modelStack->autoParam will be NULL in this rare case!!
-int32_t MIDIInstrument::getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) {
+int32_t MIDIInstrument::getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack,
+                                                      const deluge::project::CompView& comp) {
 	if (modelStack->autoParam
 	    && (modelStack->paramId < kNumRealCCNumbers || modelStack->paramId == CC_NUMBER_PITCH_BEND)) {
 		return 0;

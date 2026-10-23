@@ -495,6 +495,39 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		view.releaseActiveModControllable();
 		currentSong = nullptr;
 	});
+
+	it("keeps the compressor view in the focus: pushed into, cycled, kept across a re-point, fresh for a new song", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		f.song->persistentView.affectEntire = true;
+		*f.song->live.global_effectable.getModKnobMode() = 4;
+		f.song->project.mod_knob_mode = 4;
+		view.setActiveModControllableTimelineCounter(f.song, false);
+		view.knobFocus().comp = {};
+		view.modEncoderButtonAction(1, true);
+		view.modEncoderButtonAction(1, false);
+		expect(view.knobFocus().comp.editing).to_be_true();
+		view.modEncoderButtonAction(0, true);
+		view.modEncoderButtonAction(0, false);
+		view.modEncoderButtonAction(0, true);
+		view.modEncoderButtonAction(0, false);
+		expect(static_cast<int>(view.knobFocus().comp.param)).to_equal(2);
+
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		view.setActiveModControllableTimelineCounter(f.song, false);
+		expect(view.knobFocus().comp == project::CompView{.editing = true, .param = 2}).to_be_true();
+		expect(view.knobMode() == 4 && view.knobFocus().comp.editing).to_be_true(); // the gain-reduction meter's ask
+
+		spec::SongFixture next = spec::make_synth_song();
+		currentSong = next.song;
+		next.song->persistentView.affectEntire = true;
+		view.setActiveModControllableTimelineCounter(next.song, false);
+		expect(view.knobFocus().comp == project::CompView{}).to_be_true();
+		view.releaseActiveModControllable();
+		currentSong = nullptr;
+	});
 });
 // clang-format on
 

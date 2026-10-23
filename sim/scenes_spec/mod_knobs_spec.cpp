@@ -753,11 +753,9 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			view.modEncoderButtonAction(0, false);
 		}
 		view.modEncoderAction(0, 5);
-		GlobalEffectable& ge = legacy_song.song->live.global_effectable;
-		const bool legacy_editing = ge.editingComp;
-		const auto legacy_param = static_cast<uint8_t>(ge.currentCompParam);
-		ge.editingComp = false;
-		ge.currentCompParam = CompParam::RATIO;
+		const bool legacy_editing = view.knobFocus().comp.editing;
+		const uint8_t legacy_param = view.knobFocus().comp.param;
+		view.knobFocus().comp = {};
 
 		// The port, the same gestures through the service.
 		currentSong = port_song.song;
@@ -2055,8 +2053,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			push.button = ButtonId::ModEnc0;
 			(void)rig.knobs.handle(push, c.ctx);
 		});
-		legacy_song.song->live.global_effectable.editingComp = false;
-		legacy_song.song->live.global_effectable.currentCompParam = CompParam::RATIO;
+		view.knobFocus().comp = {};
 		report_indicators(found);
 		expect(found.empty()).to_be_true();
 		display = nullptr;

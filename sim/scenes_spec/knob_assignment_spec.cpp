@@ -57,7 +57,7 @@ std::vector<std::string> disagreements(::Song& song, ModControllable& engine, co
 		for (int32_t knob = 0; knob < 2; knob++) {
 			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			// As a turn asks: a cable the sound's knob names is made, which the record names already.
-			ModelStackWithAutoParam* legacy = engine.getParamFromModEncoder(knob, stack_of(memory), true);
+			ModelStackWithAutoParam* legacy = engine.getParamFromModEncoder(knob, stack_of(memory), true, focus.comp);
 			const bind::KnobAssignment port = bind::knob_assignment(song.project, focus, knob);
 			const std::string at = label + " mode " + std::to_string(mode) + " knob " + std::to_string(knob) + ": ";
 			if (legacy != nullptr && legacy->autoParam != nullptr) {
@@ -193,8 +193,6 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 		std::vector<std::string> found;
 		for (const bool editing : {false, true}) {
 			for (uint8_t param = 0; param < (editing ? 5 : 1); param++) {
-				ge.editingComp = editing;
-				ge.currentCompParam = static_cast<CompParam>(param);
 				const bind::KnobFocus focus{.owner = bind::SongFocus{}, .comp = {.editing = editing, .param = param}};
 				auto more = over_views(ge, [&](const std::string& view) {
 					return disagreements(*f.song, ge, focus, deluge::project::SongAddress{}, [&](char* memory) {
@@ -204,8 +202,6 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 				found.insert(found.end(), more.begin(), more.end());
 			}
 		}
-		ge.editingComp = false;
-		ge.currentCompParam = CompParam::RATIO;
 		report(found);
 		expect(found.empty()).to_be_true();
 		currentSong = before;
