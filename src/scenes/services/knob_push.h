@@ -72,6 +72,12 @@ struct KnobPush {
 [[nodiscard]] std::string mod_button_popup(const project::Song& song, const bind::KnobFocus& focus, int32_t button,
                                            const PushInputs& inputs);
 
+/// @brief Whether a stutter-rate knob on an owner with effects @p owner is quantized: the song's stutter's setting
+///        (@p song) where the owner plays the song's stutter, else its own.
+[[nodiscard]] constexpr bool stutter_quantized(const effects::EffectStates& owner, const effects::EffectStates& song) {
+	return owner.stutter.use_song_stutter ? song.stutter.quantized : owner.stutter.quantized;
+}
+
 /// @brief What turning a gold knob on the song's compressor setting @p arm by @p offset does.
 struct CompTurn {
 	std::string_view path;      ///< the compressor setting

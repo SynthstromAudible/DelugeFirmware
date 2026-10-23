@@ -45,8 +45,15 @@
 
 #include "gui/views/view.h"
 #include "hid/display/oled.h"
+#include "model/global_effectable/global_effectable.h"
+#include "model/instrument/midi_instrument.h"
+#include "model/song/song.h"
 #include "modulation/params/param.h"
+#include "processing/sound/sound_instrument.h"
+#include "scenes/services/knob_push.h"
+
 #include "processing/engines/audio_engine.h"
+#include "support/song_fixture.h"
 
 #include "spec/gfx/support/golden.h"
 #include "spec/gfx/support/pbm.h"
@@ -284,6 +291,84 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 			// 11 -- is as far as either side has an opinion.
 			expect(rows(r64.fake.pbm(0), 128, 0, 16)).to_equal(rows(legacy_pbm, 128, 5, 16));
 		}
+	});
+
+	it("names and values the param from the records: a sound's filter, a chain's, the song's stutter, a MIDI clip's CC",
+	   _ {
+		using deluge::effects::FilterMode;
+		namespace params = deluge::modulation::params;
+		Song* const before = currentSong;
+		uint32_t now = 3'000'000;
+		// The name and value the popup shows for one param, from its own drained state.
+		const auto shown = [&now](Kind kind, int32_t id, overlay::PopupContext popup) {
+			param_popup_scene().tick(100'000);
+			now += 100'000;
+			(void)param_popup_scene().show(kind, id, 0, PatchSource::NONE, PatchSource::NONE, now, popup);
+			return std::pair{std::string{param_popup_scene().shown_name()},
+			                 std::string{param_popup_scene().shown_value()}};
+		};
+
+		// A sound's ladder filters rename its morphs, as the engine-pointer overloads name them.
+		spec::SongFixture synth = spec::make_synth_song();
+		auto* sound = static_cast<SoundInstrument*>(synth.instrument);
+		sound->setLpfMode(FilterMode::TRANSISTOR_24DB);
+		ModControllableAudio* mca = sound;
+		overlay::PopupContext of_sound;
+		of_sound.effects = &mca->effects();
+		for (const int32_t morph : {static_cast<int32_t>(params::LOCAL_LPF_MORPH), static_cast<int32_t>(params::LOCAL_HPF_MORPH)}) {
+			expect(shown(Kind::PATCHED, morph, of_sound).first)
+			    .to_equal(std::string{params::getParamDisplayName(Kind::PATCHED, morph, mca)});
+		}
+		expect(std::string{params::getPatchedParamShortName(params::LOCAL_LPF_MORPH, mca)})
+		    .to_equal(std::string{params::getPatchedParamShortName(params::LOCAL_LPF_MORPH, of_sound.effects->filter.lpf_mode,
+		                                                           of_sound.effects->filter.hpf_mode)});
+
+		// A chain's: the song's own, its high-pass a ladder.
+		GlobalEffectable& master = synth.song->live.global_effectable;
+		overlay::PopupContext of_chain;
+		of_chain.effects = &master.effects();
+		expect(shown(Kind::UNPATCHED_GLOBAL, params::UNPATCHED_HPF_MORPH, of_chain).first)
+		    .to_equal(std::string{params::getParamDisplayName(Kind::UNPATCHED_GLOBAL, params::UNPATCHED_HPF_MORPH,
+		                                                      static_cast<ModControllableAudio*>(&master))});
+
+		// The song's stutter: a sound playing the song's stutter is quantized as the song's is, as the engine says.
+		for (const bool song_quantized : {false, true}) {
+			for (const bool own_quantized : {false, true}) {
+				for (const bool use_song : {false, true}) {
+					deluge::effects::EffectStates own = mca->effects();
+					own.stutter.use_song_stutter = use_song;
+					own.stutter.quantized = own_quantized;
+					deluge::effects::EffectStates song = master.effects();
+					song.stutter.quantized = song_quantized;
+					const bool port = services::stutter_quantized(own, song);
+					const bool legacy = use_song ? song_quantized : own_quantized;
+					expect(port).to_equal(legacy);
+				}
+			}
+		}
+		overlay::PopupContext quantized = of_sound;
+		quantized.stutter_quantized = params::isParamQuantizedStutter(Kind::UNPATCHED_SOUND, params::UNPATCHED_STUTTER_RATE, mca);
+		overlay::PopupContext unquantized = of_sound;
+		expect(quantized.stutter_quantized).to_be_true(); // the default song stutter is quantized
+		expect(shown(Kind::UNPATCHED_SOUND, params::UNPATCHED_STUTTER_RATE, quantized).second)
+		    .not_()
+		    .to_equal(shown(Kind::UNPATCHED_SOUND, params::UNPATCHED_STUTTER_RATE, unquantized).second);
+
+		// A MIDI clip's CC: its label from the track's record, as the instrument names it.
+		spec::SongFixture midi = spec::make_midi_song();
+		auto* instrument = static_cast<MIDIInstrument*>(midi.instrument);
+		instrument->setNameForCC(74, "Cutoff");
+		instrument->seedDocOutputIdentity();
+		const deluge::project::DocOutput* record = midi.song->project.output_structure.find(*instrument->id());
+		expect(record != nullptr).to_be_true();
+		if (record != nullptr) {
+			overlay::PopupContext of_midi;
+			of_midi.midi_clip = true;
+			of_midi.cc_labels = &record->cc_labels;
+			expect(shown(Kind::MIDI, 74, of_midi).first).to_equal(std::string{instrument->getNameFromCC(74)});
+			expect(shown(Kind::MIDI, 75, of_midi).first).to_equal(std::string{"CC 75"});
+		}
+		currentSong = before;
 	});
 
 	it("ports the patch-cable name form, source1->source2->name, against the real getPatchedParamShortName", _ {

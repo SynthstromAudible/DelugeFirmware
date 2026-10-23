@@ -354,8 +354,7 @@ Result ModKnobs::mod_encoder_action(int32_t which_encoder, int32_t offset, uint3
 	}
 	const effects::EffectStates* song_fx =
 	    facts.chain_effects(project::ChainAddress{.kind = project::ChainAddress::Kind::SONG});
-	const bool quantized = fx != nullptr && song_fx != nullptr
-	                       && (fx->stutter.use_song_stutter ? song_fx->stutter.quantized : fx->stutter.quantized);
+	const bool quantized = fx != nullptr && song_fx != nullptr && stutter_quantized(*fx, *song_fx);
 	turn.should_indicate_middle_value = bind::indicates_middle(*address, info, quantized, facts.stutter_active());
 
 	send_midi_follow_feedback(turn.kind, turn.param_id, turn.new_knob_pos, true, false); // `:908`
@@ -416,9 +415,8 @@ bool ModKnobs::show_popup(const ModTurn& turn, uint32_t now_ms) {
 	}
 	const effects::EffectStates* song_fx =
 	    facts.chain_effects(project::ChainAddress{.kind = project::ChainAddress::Kind::SONG});
-	context.stutter_quantized = context.effects != nullptr && song_fx != nullptr
-	                            && (context.effects->stutter.use_song_stutter ? song_fx->stutter.quantized
-	                                                                          : context.effects->stutter.quantized);
+	context.stutter_quantized =
+	    context.effects != nullptr && song_fx != nullptr && stutter_quantized(*context.effects, *song_fx);
 	if (const auto* midi = std::get_if<bind::MidiFocus>(&focus_.owner); midi != nullptr && midi->clip) {
 		context.midi_clip = true;
 		if (const project::DocOutput* output = song_->project.output_structure.find(midi->track.output_id)) {
@@ -752,8 +750,7 @@ ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
 				fx = facts.chain_effects(std::get<project::ChainAddress>(*owner));
 			}
 		}
-		out.quantized_stutter = fx != nullptr && song_fx != nullptr
-		                        && (fx->stutter.use_song_stutter ? song_fx->stutter.quantized : fx->stutter.quantized);
+		out.quantized_stutter = fx != nullptr && song_fx != nullptr && stutter_quantized(*fx, *song_fx);
 	}
 	return out;
 }
