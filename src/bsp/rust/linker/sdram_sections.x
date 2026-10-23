@@ -41,6 +41,10 @@ SECTIONS {
          * SRAM, which shows as lost headroom, never as a fault. */
         *(.bss._RNv*15deluge_bsp_rust7channel*)
         *(.bss._RNv*15deluge_bsp_rust7storage6efatfs6device*)
+        /* The scenes' statics: the menu's node-id tables, the scene singletons and their buffers,
+         * which the UI tier alone touches, after the boot has zeroed this region. Matched by the
+         * `deluge::scenes` namespace in the mangled name. */
+        *(.bss.*6deluge6scenes*)
         __sdram_bss_end = .;
     } > SDRAM
 } INSERT BEFORE .bss;
@@ -85,15 +89,26 @@ SECTIONS {
         __menu_tables_start = .;
         *(.rodata.*11menu_tables*)
         __menu_tables_end = .;
+        /* The scenes' menu: its node and cell tables, read by the menu scene and its shortcuts, never
+         * the audio tier or an interrupt. Matched by the `deluge::scenes::menu` namespace in the
+         * mangled name, so a rename returns them to SRAM, as for the setting tables above. */
+        __scenes_menu_tables_start = .;
+        *(.rodata.*6deluge6scenes4menu*)
+        __scenes_menu_tables_end = .;
+        /* The menus' vtables: the legacy menu items' and the scenes'. Virtual calls on a menu item
+         * or a scene come from the UI tier only. */
+        *(.rodata._ZTV*9menu_item*)
+        *(.rodata._ZTV*6deluge6scenes*)
         PROVIDE(__sdram_init_end = .);
     } > SDRAM
 
-    /* The deflated load copy, reserved zero-filled at a quarter of the content (the setting tables
-     * deflate to about a tenth) and written after the link; the staging fails when it does not fit. */
+    /* The deflated load copy, reserved zero-filled at an eighth of the content (the setting and
+     * menu tables deflate to about a tenth) and written after the link; the staging fails when it
+     * does not fit. */
     .sdram_init_pack : ALIGN(16) {
         __sdram_init_pack_start = .;
         BYTE(0)
-        . = __sdram_init_pack_start + SIZEOF(.sdram_init) / 4 + 256;
+        . = __sdram_init_pack_start + SIZEOF(.sdram_init) / 8 + 256;
         __sdram_init_pack_end = .;
     } > RAM
 
@@ -126,4 +141,9 @@ SECTIONS {
      * matches them and they sit in SRAM's .rodata. */
     ASSERT(__menu_tables_end - __menu_tables_start > 8192,
            "sdram_sections.x: the setting tables fell back to SRAM (no menu_tables data in .sdram_init)")
+
+    /* The scenes' menu tables are about 119 KB: far less here means the pattern above no longer
+     * matches them and they sit in SRAM's .rodata. */
+    ASSERT(__scenes_menu_tables_end - __scenes_menu_tables_start > 65536,
+           "sdram_sections.x: the scenes' menu tables fell back to SRAM (no deluge::scenes::menu data in .sdram_init)")
 } INSERT AFTER .ARM.exidx;

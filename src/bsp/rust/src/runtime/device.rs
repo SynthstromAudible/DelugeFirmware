@@ -184,7 +184,7 @@ pub fn start() -> ! {
     log::info!("deluge-rust: boot — Rust/Embassy BSP for RZ/A1L");
     log::info!("deluge-rust: clocks/MMU/cache/SDRAM/GIC up");
 
-    // Zero the app's SDRAM .bss and copy .sdram_init from its SRAM load address (a debugger
+    // Zero the app's SDRAM .bss and inflate .sdram_init from its compressed load copy (a debugger
     // cannot write SDRAM at download).
     unsafe { boot_mem::init_sdram_memory() };
 

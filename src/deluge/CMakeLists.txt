@@ -57,12 +57,7 @@ endif()
 # dispatchers) is in the app only on the host, which also builds deluge_ui_shell and deluge_scenes.
 # The device image runs the legacy SoundEditor and links neither; DELUGE_UI_SHELL tells the legacy
 # call sites which of the two they are built against.
-set(_ui_shell_on FALSE)
-if(DELUGE_HOST)
-  set(_ui_shell_on TRUE)
-else()
-  list(FILTER deluge_SOURCES EXCLUDE REGEX .*/gui/ui/shell_[^/]*$)
-endif()
+set(_ui_shell_on TRUE)
 
 # ---------------------------------------------------------------------------
 # deluge_app: the PORTABLE application. It links only the portable libraries and

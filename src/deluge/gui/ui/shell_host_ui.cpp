@@ -1162,4 +1162,5 @@ bool ShellHostUI::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, 
 
 } // namespace deluge::gui::ui
 
-deluge::gui::ui::ShellHostUI shellHostUI{deluge::scenes::scene_registry()};
+// SDRAM: the guest and its scene stack are menu-time state, never read by the audio tier or an interrupt.
+PLACE_SDRAM_BSS deluge::gui::ui::ShellHostUI shellHostUI{deluge::scenes::scene_registry()};

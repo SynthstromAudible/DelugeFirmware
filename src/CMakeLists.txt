@@ -12,11 +12,14 @@ add_subdirectory(midi)       # deluge_midi: pure MIDI protocol library (app + te
 add_subdirectory(deluge-project) # deluge_project: the project model (deluge::project::Song)
 add_subdirectory(gfx)        # deluge_gfx_oled / deluge_gfx_grid: pure drawing primitives
 add_subdirectory(ui)         # deluge_ui_core / deluge_ui_oled / deluge_ui_grid: the immediate-mode toolkit
+add_subdirectory(shell)      # deluge_ui_shell: surfaces, scene stack, input lowering, services, tick, flush
 add_subdirectory(notify)     # deluge_notify: model->UI notification channel
 add_subdirectory(OSLikeStuff)
 add_subdirectory(deluge)     # deluge_app: the portable application (platform-agnostic)
-# deluge_ui_shell and deluge_scenes are not built here: the device image runs the legacy UI, and
-# only the host tree (sim/CMakeLists.txt) builds the shell, its scenes and the app's DELUGE_UI_SHELL half.
+# deluge_scenes (with deluge_scenes_bind): the first UI layer allowed to include the model. It
+# compiles against deluge_app, so it comes after deluge_app exists. Archived into the firmware by
+# the Rust BSP's build script beside deluge_app.
+add_subdirectory(scenes)
 add_subdirectory(NE10)
 add_subdirectory(lib)
 

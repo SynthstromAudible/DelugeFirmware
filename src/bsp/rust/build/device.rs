@@ -123,7 +123,8 @@ fn archive_app_objects(
             "C++ app objects not found at {}. Build them first:\n  \
              cmake --build {} --target deluge_app NE10 eyalroz_printf \
              deluge_dsp deluge_dsp_fixed deluge_dsp_float deluge_foundation deluge_serialization deluge_music_theory deluge_project deluge_instrument deluge_effects deluge_midi \
-             deluge_gfx_oled deluge_gfx_grid deluge_ui_core deluge_ui_oled deluge_ui_grid deluge_notify",
+             deluge_gfx_oled deluge_gfx_grid deluge_ui_core deluge_ui_oled deluge_ui_grid deluge_ui_shell \
+             deluge_notify deluge_scenes deluge_scenes_bind",
             app_objs_dir.display(),
             build_dir.display()
         );
@@ -158,9 +159,7 @@ fn archive_app_objects(
 /// Emits the app archive and its static libraries as one `--start-group`, because the references
 /// are mutual: the C++ app calls the `deluge_*` services, and this crate calls `deluge_app_init`.
 fn link_app_closure(build_dir: &Path, cfg: &str, app_objs_archive: &Path) {
-    // No deluge_ui_shell or deluge_scenes: the device image runs the legacy UI, and the app builds
-    // its shell half only with DELUGE_UI_SHELL (src/deluge/CMakeLists.txt), on the host.
-    let deps: [(&str, &str); 18] = [
+    let deps: [(&str, &str); 21] = [
         ("src/NE10", "libNE10.a"),
         ("src/lib", "libeyalroz_printf.a"),
         ("src/deluge/dsp", "libdeluge_dsp.a"),
@@ -178,7 +177,10 @@ fn link_app_closure(build_dir: &Path, cfg: &str, app_objs_archive: &Path) {
         ("src/ui", "libdeluge_ui_core.a"),
         ("src/ui", "libdeluge_ui_oled.a"),
         ("src/ui", "libdeluge_ui_grid.a"),
+        ("src/shell", "libdeluge_ui_shell.a"),
         ("src/notify", "libdeluge_notify.a"),
+        ("src/scenes", "libdeluge_scenes.a"),
+        ("src/scenes/bind", "libdeluge_scenes_bind.a"),
     ];
 
     println!("cargo:rustc-link-arg=-Wl,--start-group");
