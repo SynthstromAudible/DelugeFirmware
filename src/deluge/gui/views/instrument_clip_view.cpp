@@ -74,6 +74,7 @@
 #include "model/edits/nudge_note.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/paste_note_row.h"
+#include "model/edits/paste_param_automation.h"
 #include "model/edits/remove_kit_row.h"
 #include "model/edits/remove_note.h"
 #include "model/edits/repeat_note_edit.h"
@@ -90,6 +91,7 @@
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/param_stack.h"
 #include "model/scale/utils.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -1054,13 +1056,14 @@ void InstrumentClipView::copyAutomation(int32_t whichModEncoder, int32_t navSysI
 		return;
 	}
 
-	View::KnobStack knobs{view};
-	if (knobs.owner() == nullptr) {
+	const std::optional<deluge::project::ParamAddress> address = view.knobAddress(whichModEncoder);
+	if (!address) {
 		return;
 	}
 
-	ModelStackWithAutoParam* modelStack =
-	    knobs.owner()->getParamFromModEncoder(whichModEncoder, knobs.stack, false, view.knobFocus().comp);
+	// The knob's param as a read shows it: the take's while the arrangement records the clip.
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* modelStack = deluge::bridge::paramStackFollowingTake(*currentSong, *address, memory);
 	if (modelStack && modelStack->autoParam) {
 
 		// Ok this is cursed, but will work fine so long as
@@ -1294,32 +1297,18 @@ void InstrumentClipView::pasteAutomation(int32_t whichModEncoder, int32_t navSys
 
 	float scaleFactor = (float)pastedAutomationWidth / copiedParamAutomation.width;
 
-	View::KnobStack knobs{view};
-	if (knobs.owner() == nullptr) {
-		return;
-	}
-
-	ModelStackWithAutoParam* modelStackWithAutoParam =
-	    knobs.owner()->getParamFromModEncoder(whichModEncoder, knobs.stack, true, view.knobFocus().comp);
-	if (!modelStackWithAutoParam || !modelStackWithAutoParam->autoParam) {
+	// The knob's param, made where it is a cable not made yet, in the take while the arrangement records.
+	const std::optional<deluge::project::ParamAddress> address = view.knobAddress(whichModEncoder);
+	if (!address) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_PASTE_AUTOMATION));
 		return;
 	}
-
-	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_PASTE, ActionAddition::NOT_ALLOWED);
-
-	if (action) {
-		action->recordParamChangeIfNotAlreadySnapshotted(modelStackWithAutoParam, false);
+	deluge::edits::Context editCtx{*currentSong, currentSong->project};
+	deluge::edits::PasteParamAutomation paste{*address, startPos, endPos, scaleFactor, &copiedParamAutomation};
+	if (deluge::edits::apply(editCtx, paste) != Error::NONE) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_PASTE_AUTOMATION));
+		return;
 	}
-
-	bool isPatchCable = (modelStackWithAutoParam->paramCollection
-	                     == modelStackWithAutoParam->paramManager->getPatchCableSetAllowJibberish());
-	// Ok this is cursed, but will work fine so long as
-	// the possibly invalid memory here doesn't accidentally
-	// equal modelStack->paramCollection.
-
-	modelStackWithAutoParam->autoParam->paste(startPos, endPos, scaleFactor, modelStackWithAutoParam,
-	                                          &copiedParamAutomation, isPatchCable);
 
 	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_PASTED));
 	if (playbackHandler.isEitherClockActive()) {

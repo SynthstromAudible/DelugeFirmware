@@ -5,6 +5,7 @@
 
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/views/knob_focus_from_stack.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -13,9 +14,12 @@
 #include "engines/deluge/params.h"
 #include "hid/display/display.h"
 #include "io/midi/midi_device_manager.h"
+#include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/edit.h"
 #include "model/edits/learn_mapping.h"
+#include "model/edits/set_param_value.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/param_stack.h"
@@ -525,6 +529,52 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		next.song->persistentView.affectEntire = true;
 		view.setActiveModControllableTimelineCounter(next.song, false);
 		expect(view.knobFocus().comp == project::CompView{}).to_be_true();
+		view.releaseActiveModControllable();
+		currentSong = nullptr;
+	});
+
+	it("copies a knob's automation and pastes it into another clip's knob by address, as one undo step", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture a = spec::make_synth_song();
+		spec::SongFixture b = add_synth_clip(a);
+		currentSong = a.song;
+		*a.instrument->toModControllable()->getModKnobMode() = 0;
+		*b.instrument->toModControllable()->getModKnobMode() = 0;
+		const auto pan_of = [](const spec::SongFixture& f) {
+			return project::ParamAddress{.owner = project::OwnerId::instrument(*f.instrument->id()),
+			                             .space = project::ParamSpace::ENGINE, .id = deluge::instrument::param::kPan,
+			                             .clip_id = f.clip->id()};
+		};
+		const auto names = [](const std::optional<project::ParamAddress>& got, const project::ParamAddress& want) {
+			return got && got->owner.kind == want.owner.kind && got->owner.id == want.owner.id
+			       && got->space == want.space && got->id == want.id && got->clip_id == want.clip_id;
+		};
+		const auto automated = [&](const spec::SongFixture& f) {
+			const deluge::project::DocAutoParam* param = a.song->project.resolveParam(pan_of(f));
+			return param != nullptr && !param->nodes.empty();
+		};
+		deluge::edits::Context ctx{*a.song, a.song->project};
+		deluge::edits::SetParamValue seed{pan_of(a), 1 << 28, 0, 48};
+		expect(deluge::edits::apply(ctx, seed) == Error::NONE).to_be_true();
+		expect(automated(a)).to_be_true();
+		expect(automated(b)).to_be_false();
+
+		view.setActiveModControllableTimelineCounter(a.clip, false);
+		expect(names(view.knobAddress(0), pan_of(a))).to_be_true();
+		instrumentClipView.copyAutomation(0);
+		changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
+		view.setActiveModControllableTimelineCounter(b.clip, false);
+		expect(names(view.knobAddress(0), pan_of(b))).to_be_true();
+		actionLogger.deleteAllLogs();
+		instrumentClipView.pasteAutomation(0);
+		expect(automated(b)).to_be_true();
+		Action* action = actionLogger.firstAction[BEFORE];
+		expect(action != nullptr && action->nextAction == nullptr).to_be_true();
+		expect(actionLogger.revert(BEFORE, false, false)).to_be_true();
+		expect(automated(b)).to_be_false();
+		actionLogger.deleteAllLogs();
+		nullifyUIs();
 		view.releaseActiveModControllable();
 		currentSong = nullptr;
 	});

@@ -141,6 +141,10 @@ public:
 	[[nodiscard]] uint32_t modLength() const { return knobFocus_.region.length; }
 	/// @brief [interaction] The held note's row id.
 	[[nodiscard]] int32_t modNoteRowId() const { return knobFocus_.region.note_row_id; }
+	/// @brief [interaction] The address of the param knob @p whichModEncoder moves (0 the lower, 1 the upper), in the
+	///        clip the focus names: one the owner holds, or a cable a turn would make.
+	/// @return The address, or none for a knob with no param or no focus.
+	[[nodiscard]] std::optional<deluge::project::ParamAddress> knobAddress(int32_t whichModEncoder) const;
 	/// @brief [interaction] The mod button the knobs follow, from the records: the song's, a track's, a kit row's
 	///        kit's.
 	/// @return The mode, or -1 for no focus (a CV track's included, which has no modes).

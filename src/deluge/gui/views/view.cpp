@@ -2042,6 +2042,17 @@ void View::releaseKnobsIfOn(const Clip& clip) {
 	}
 }
 
+std::optional<deluge::project::ParamAddress> View::knobAddress(int32_t whichModEncoder) const {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* stack = knobOwnerStack(memory);
+	if (stack == nullptr || stack->modControllable == nullptr) {
+		return std::nullopt;
+	}
+	ModelStackWithAutoParam* param =
+	    stack->modControllable->getParamFromModEncoder(whichModEncoder, stack, false, knobFocus_.comp);
+	return isParamOfKnob(param) ? knobParamAddress(*param) : std::nullopt;
+}
+
 int32_t View::knobMode() const {
 	if (std::holds_alternative<std::monostate>(knobFocus_.owner) || currentSong == nullptr
 	    || knobSong_ != currentSong) {
