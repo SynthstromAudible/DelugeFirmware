@@ -1338,8 +1338,8 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 
 				// If also stuttering, stop that
 				if (isUIModeActive(UI_MODE_STUTTERING)) {
-					((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-					    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
+					((ModControllableAudio*)View::KnobStack{view}.owner())
+					    ->endStutter((ParamManagerForTimeline*)View::KnobStack{view}.params());
 				}
 
 				if (x == xPressed && y == yPressedEffective) {
@@ -1793,8 +1793,8 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 
 	// First, stop any stuttering. This may then put us back in one of the subModes dealt with below
 	if (isUIModeActive(UI_MODE_STUTTERING)) {
-		((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-		    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
+		((ModControllableAudio*)View::KnobStack{view}.owner())
+		    ->endStutter((ParamManagerForTimeline*)View::KnobStack{view}.params());
 	}
 
 	// --------------

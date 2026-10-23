@@ -41,11 +41,6 @@ namespace deluge::playback {
 /// @param outgoing the song swapped out, or nullptr when there was none (it was already retired)
 void songSwappedOut(Song* outgoing);
 
-/// @brief [render] or [interaction] The recording of the arrangement-only clip @p from has moved on to its clone
-///        @p to: point the view's active model stack at @p to, if it still names @p from -- at once on the interaction
-///        tier, by request on the render.
-void recordingMovedToClip(Clip* from, Clip* to);
-
 /// @brief [render] or [interaction] A repeat of the armed launch has passed and more remain: show how many
 ///        (Session::showLaunchRepeatsRemaining()) -- at once on the interaction tier, by request on the render.
 void launchRepeatCounted();

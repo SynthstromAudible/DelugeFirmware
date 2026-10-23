@@ -2504,9 +2504,6 @@ void Session::doTickForward(int32_t posIncrement) {
 			if (modelStackWithTimelineCounter->getTimelineCounter() != clip) {
 				Clip* newClip = (Clip*)modelStackWithTimelineCounter->getTimelineCounter();
 				newClip->processCurrentPos(modelStackWithTimelineCounter, 0);
-
-				// The knobs follow the recording on to the new clip, if they were on the old one.
-				deluge::playback::recordingMovedToClip(clip, newClip);
 			}
 		}
 	}

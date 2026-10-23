@@ -8,7 +8,8 @@ could still reach them.
 ## Why this gate exists
 
 The render holds clip pointers across blocks: the current song's currentClip and syncScalingClip, every clip's
-beingRecordedFromClip, view.activeModControllableModelStack's timeline counter, and each output's activeClip.
+beingRecordedFromClip, and each output's activeClip. The gold knobs name a clip by id, which must not stay on a
+retired clip.
 Song::deleteClipObject() destroys a clip at once, on the interaction tier, and no deletion path clears all of those
 first -- ~Clip's own fallback clears only currentClip. The clip deletion paths hand the clip to the render
 (AudioEngine::retire(Clip*)), which drops those references at its next block before the clip is freed. SAVEKIT and
@@ -86,7 +87,7 @@ after it:
                     (pendingAtFree=0); otherwise its ~SampleHolder later writes into the freed Sample (E219 on alpha).
                     CL-CLEARSAMPLE says whether the Sample is gone and what was still waiting when it went.
     CL-WINDOW       SESSIONDELETE and ARRANGERNOUNDO, just after the deletion and before any block: whether the song's
-                    currentClip or the view's active timeline counter still names the retired clip. Required 0 and 0.
+                    currentClip or the gold knobs' focus still names the retired clip. Required 0 and 0.
     CL-FREED        per clip leg, before its leg line: the scenario renders a few blocks and reclaims, so the retired
                     clip is destroyed (and ~Clip()'s check runs) inside its own leg; pending= is what is still waiting.
     CL-RECLAIM      printed twice: once after the other legs and before WONTSOUND, and once more after WONTSOUND has

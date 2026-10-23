@@ -591,9 +591,7 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 		// display parameter name
 		char parameterName[30];
 		strncpy(parameterName,
-		        getParamDisplayName(paramKind, paramID,
-		                            (ModControllableAudio*)view.activeModControllableModelStack.modControllable),
-		        29);
+		        getParamDisplayName(paramKind, paramID, (ModControllableAudio*)View::KnobStack{view}.owner()), 29);
 		{
 			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 			deluge::hid::display::OLED::clearMainImage();
@@ -618,9 +616,7 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 			// display parameter name
 			char parameterName[30];
 			strncpy(parameterName,
-			        getParamDisplayName(paramKind, paramID,
-			                            (ModControllableAudio*)view.activeModControllableModelStack.modControllable),
-			        29);
+			        getParamDisplayName(paramKind, paramID, (ModControllableAudio*)View::KnobStack{view}.owner()), 29);
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
@@ -632,8 +628,8 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 			// display parameter value
 			yPos = yPos + 24;
 
-			if (params::isParamQuantizedStutter(
-			        paramKind, paramID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable)) {
+			if (params::isParamQuantizedStutter(paramKind, paramID,
+			                                    (ModControllableAudio*)View::KnobStack{view}.owner())) {
 				char const* buffer;
 				if (knobPos < -39) { // 4ths stutter: no leds turned on
 					buffer = "4ths";
@@ -1431,14 +1427,13 @@ bool PerformanceView::setParameterValue(ModelStackWithThreeMainThings* modelStac
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
-		if (modelStackWithParam->getTimelineCounter()
-		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+		if (modelStackWithParam->getTimelineCounter() == View::KnobStack{view}.counter()) {
 
 			// if switching to a new pad in the stutter column and stuttering is already active
 			// e.g. it means a pad was held before, end previous stutter before starting stutter again
 			if (params::isParamStutter(paramKind, paramID) && (isUIModeActive(UI_MODE_STUTTERING))) {
-				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-				    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
+				((ModControllableAudio*)View::KnobStack{view}.owner())
+				    ->endStutter((ParamManagerForTimeline*)View::KnobStack{view}.params());
 			}
 
 			if (fxPress[xDisplay].previousKnobPosition == kNoSelection) {
@@ -1459,14 +1454,13 @@ bool PerformanceView::setParameterValue(ModelStackWithThreeMainThings* modelStac
 
 			if (!defaultEditingMode && params::isParamStutter(paramKind, paramID)
 			    && (fxPress[xDisplay].previousKnobPosition != knobPos)) {
-				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-				    ->beginStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
+				((ModControllableAudio*)View::KnobStack{view}.owner())
+				    ->beginStutter((ParamManagerForTimeline*)View::KnobStack{view}.params());
 			}
 
 			if (renderDisplay) {
-				if (params::isParamQuantizedStutter(
-				        paramKind, paramID,
-				        (ModControllableAudio*)view.activeModControllableModelStack.modControllable)) {
+				if (params::isParamQuantizedStutter(paramKind, paramID,
+				                                    (ModControllableAudio*)View::KnobStack{view}.owner())) {
 					renderFXDisplay(paramKind, paramID, knobPos);
 				}
 				else {
@@ -1491,17 +1485,15 @@ void PerformanceView::getParameterValue(ModelStackWithThreeMainThings* modelStac
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
-		if (modelStackWithParam->getTimelineCounter()
-		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+		if (modelStackWithParam->getTimelineCounter() == View::KnobStack{view}.counter()) {
 
 			int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos(), modelStackWithParam);
 
 			int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 
 			if (renderDisplay && (fxPress[xDisplay].currentKnobPosition != knobPos)) {
-				if (params::isParamQuantizedStutter(
-				        paramKind, paramID,
-				        (ModControllableAudio*)view.activeModControllableModelStack.modControllable)) {
+				if (params::isParamQuantizedStutter(paramKind, paramID,
+				                                    (ModControllableAudio*)View::KnobStack{view}.owner())) {
 					renderFXDisplay(paramKind, paramID, knobPos);
 				}
 				else {
@@ -1643,8 +1635,9 @@ void PerformanceView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	// release stutter if it's already active before beginning stutter again
 	if (on) {
 		int32_t modKnobMode = -1;
-		if (view.activeModControllableModelStack.modControllable) {
-			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
+		View::KnobStack knobs{view};
+		if (knobs.owner() != nullptr) {
+			uint8_t* modKnobModePointer = knobs.owner()->getModKnobMode();
 			if (modKnobModePointer) {
 				modKnobMode = *modKnobModePointer;
 
@@ -2039,9 +2032,9 @@ void PerformanceView::loadDefaultLayout() {
 		memcpy(&backupXMLDefaultLayoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay],
 		       sizeof(ParamsForPerformance));
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-			if (params::isParamQuantizedStutter(
-			        layoutForPerformance[xDisplay].paramKind, layoutForPerformance[xDisplay].paramID,
-			        (ModControllableAudio*)view.activeModControllableModelStack.modControllable)) {
+			if (params::isParamQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
+			                                    layoutForPerformance[xDisplay].paramID,
+			                                    (ModControllableAudio*)View::KnobStack{view}.owner())) {
 				defaultFXValues[xDisplay][yDisplay] = quantizedStutterPressValues[yDisplay];
 				backupXMLDefaultFXValues[xDisplay][yDisplay] = defaultFXValues[xDisplay][yDisplay];
 			}
@@ -2146,9 +2139,9 @@ void PerformanceView::readDefaultFXRowNumberValuesFromFile(Deserializer& reader,
 					defaultFXValues[xDisplay][yDisplay] = kKnobPosOffset;
 				}
 
-				if (params::isParamQuantizedStutter(
-				        layoutForPerformance[xDisplay].paramKind, layoutForPerformance[xDisplay].paramID,
-				        (ModControllableAudio*)view.activeModControllableModelStack.modControllable)) {
+				if (params::isParamQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
+				                                    layoutForPerformance[xDisplay].paramID,
+				                                    (ModControllableAudio*)View::KnobStack{view}.owner())) {
 					defaultFXValues[xDisplay][yDisplay] = quantizedStutterPressValues[yDisplay];
 				}
 

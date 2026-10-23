@@ -732,12 +732,12 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
 		view.setActiveModControllableTimelineCounter(fx.clip, false);
-		expect(view.activeModControllableModelStack.modControllable == row0->toModControllable()).to_be_true();
+		expect(View::KnobStack{view}.owner() == row0->toModControllable()).to_be_true();
 
 		expect(guest::noteModeLegacyCalls().noteRowEditorPad(kDisplayWidth + 1, 1, 1)).to_be_true();
 
 		expect(kit->selectedDrum == row1).to_be_true();
-		expect(view.activeModControllableModelStack.modControllable == row1->toModControllable()).to_be_true();
+		expect(View::KnobStack{view}.owner() == row1->toModControllable()).to_be_true();
 	});
 
 	it("nudging a held note out of its square goes up one level -- nudgeNotes' goUpOneLevel", _ {

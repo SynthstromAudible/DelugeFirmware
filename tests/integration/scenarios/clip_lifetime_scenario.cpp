@@ -879,10 +879,9 @@ void printDrumDangling() {
 	       g_kit->renderingDrums.contains(g_drum) ? 1 : 0);
 }
 
-/// Do the knobs still name @p clip: their stack by its address, or their focus by the victim's id?
+/// Do the knobs still name @p clip, the victim: their focus by its id?
 bool viewNames(Clip const* clip) {
-	return view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip
-	       || (clip == g_victim && view.knobsClipId() == g_victimId);
+	return clip == g_victim && view.knobsClipId() == g_victimId;
 }
 
 /// Which of the render's references still hold the deleted clip's address, just after its deletion. Compared by
@@ -937,7 +936,7 @@ void cleanUpLeg() {
 	if (currentSong->getCurrentClip() == victim) {
 		currentSong->setCurrentClip(g_home);
 	}
-	if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == victim) {
+	if (view.knobsOnClip(*currentSong, *victim)) {
 		view.setActiveModControllableTimelineCounter(g_home);
 	}
 	if (currentSong->live.sync_scaling_clip == victim) {

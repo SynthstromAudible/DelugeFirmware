@@ -975,8 +975,8 @@ midiLearnMelodicInstrumentAction:
 
 				// Stop stuttering if we are
 				if (isUIModeActive(UI_MODE_STUTTERING)) {
-					((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-					    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
+					((ModControllableAudio*)View::KnobStack{view}.owner())
+					    ->endStutter((ParamManagerForTimeline*)View::KnobStack{view}.params());
 				}
 
 				// A song load releases held pads before it takes the UIs down; the tap must not enter a clip then.
@@ -1108,8 +1108,8 @@ justEndClipPress:
 void SessionView::clipPressEnded() {
 	// End stuttering since this can also end selection
 	if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) && isUIModeActive(UI_MODE_STUTTERING)) {
-		((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-		    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
+		((ModControllableAudio*)View::KnobStack{view}.owner())
+		    ->endStutter((ParamManagerForTimeline*)View::KnobStack{view}.params());
 	}
 
 	if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {
@@ -2307,11 +2307,12 @@ void SessionView::potentiallyUpdateCompressorLEDs() {
 	if (currentUIMode == UI_MODE_NONE) {
 		int32_t modKnobMode = -1;
 		bool editingComp = false;
-		if (view.activeModControllableModelStack.modControllable) {
-			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
+		View::KnobStack knobs{view};
+		if (knobs.owner() != nullptr) {
+			uint8_t* modKnobModePointer = knobs.owner()->getModKnobMode();
 			if (modKnobModePointer) {
 				modKnobMode = *modKnobModePointer;
-				editingComp = view.activeModControllableModelStack.modControllable->isEditingComp();
+				editingComp = knobs.owner()->isEditingComp();
 			}
 		}
 		if (modKnobMode == 4 && editingComp) { // upper

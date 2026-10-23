@@ -114,13 +114,9 @@ bool outputIsInSong(Song const& song, Output const* output) {
 }
 
 /// Whether anything the render reads between blocks still points at @p clip: the current song's currentClip or
-/// syncScalingClip, another of its clips' beingRecordedFromClip, the view's active ModControllable timeline counter,
-/// or the activeClip of an output the current song still holds. Only the current song is looked at: the render reaches
-/// clips through currentSong alone.
+/// syncScalingClip, another of its clips' beingRecordedFromClip, or the activeClip of an output the current song still
+/// holds. Only the current song is looked at: the render reaches clips through currentSong alone.
 bool renderStillReferences(Clip* clip) {
-	if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == static_cast<TimelineCounter*>(clip)) {
-		return true;
-	}
 	if (currentSong == nullptr) {
 		return false;
 	}

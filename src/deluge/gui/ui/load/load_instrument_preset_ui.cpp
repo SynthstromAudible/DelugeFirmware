@@ -549,13 +549,15 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 	}
 	switch (request.consumer) {
 	case PresetConsumer::BlankSongPreset: {
-		// The swap frees the default synth, and the view still points at it if its clip was the one on screen: the
-		// knob indicators and automation display would read freed memory.
-		const ModControllable* defaultSynth = currentSong->blankPresetInstrument != nullptr
-		                                          ? currentSong->blankPresetInstrument->toModControllable()
-		                                          : nullptr;
-		if (currentSong->completeBlankPreset(acquired)
-		    && view.activeModControllableModelStack.modControllable == defaultSynth) {
+		// The swap replaces the default synth, which the knobs still name if its clip was the one on screen: they move
+		// on to the preset that replaced it.
+		const std::optional<uint32_t> defaultSynth =
+		    currentSong->blankPresetInstrument != nullptr ? currentSong->blankPresetInstrument->id() : std::nullopt;
+		const auto* knobs = std::get_if<deluge::project::SoundFocus>(&view.knobFocus().owner);
+		const bool knobsOnDefault = knobs != nullptr && defaultSynth
+		                            && knobs->slot.kind == deluge::project::SlotAddress::Kind::OUTPUT
+		                            && knobs->slot.id == *defaultSynth;
+		if (currentSong->completeBlankPreset(acquired) && knobsOnDefault) {
 			view.setActiveModControllableTimelineCounter(acquired.instrument->getActiveClip());
 		}
 		break;

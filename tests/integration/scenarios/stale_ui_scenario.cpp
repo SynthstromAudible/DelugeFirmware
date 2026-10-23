@@ -537,8 +537,7 @@ void stepEditorRun() {
 			g_staleEditor++;
 		}
 		if (swapped
-		    && (view.activeModControllableModelStack.getTimelineCounterAllowNull() == g_clipBefore
-		        || view.activeModControllableModelStack.modControllable == g_modBefore)) {
+		    && (View::KnobStack{view}.counter() == g_clipBefore || View::KnobStack{view}.owner() == g_modBefore)) {
 			g_staleView++;
 		}
 		// swap_work: the first interaction-tier entry after an armed swap the render made. Each is one, as every
@@ -819,8 +818,8 @@ void stepFailedRun() {
 }
 
 /// The session view's own gesture for recording into the arranger -- RECORD held, SESSION pressed, the clock
-/// stopped -- with a new audio clip launched. The knobs are put on the clip, and a knob turn then moves them on to the
-/// arrangement-only clip the arranger records it into (View::getModelStackWithParam()).
+/// stopped -- with a new audio clip launched. The knobs are put on the clip, and a knob turn then writes the
+/// arrangement-only clip the arranger records it into, which the knobs then resolve to.
 void stepArrangeSetup() {
 	using namespace deluge::hid;
 	if (playbackHandler.isEitherClockActive()) {
@@ -851,7 +850,7 @@ void stepArrangeSetup() {
 	view.setActiveModControllableTimelineCounter(clip);
 	encoders::modEncoderAt(0).applyEdges(1);
 	(void)encoders::interpretEncoders();
-	Clip* into = static_cast<Clip*>(view.activeModControllableModelStack.getTimelineCounterAllowNull());
+	Clip* into = static_cast<Clip*>(View::KnobStack{view}.counter());
 	if (into == nullptr || into == clip || into->beingRecordedFromClip != clip) {
 		fail("SU-ARRANGE", "the knob turn did not move the knobs on to the clip the arranger records into");
 		g_stage = Stage::Report;
@@ -876,10 +875,10 @@ void stepArrangeRun() {
 		return;
 	}
 	g_movedTo = active;
-	ModelStackWithThreeMainThings const& stack = view.activeModControllableModelStack;
-	const bool followed = stack.getTimelineCounterAllowNull() == g_movedTo;
-	const bool params = stack.paramManager == &g_movedTo->paramManager;
-	const bool output = stack.modControllable == g_movedTo->output->toModControllable();
+	const View::KnobStack knobs{view};
+	const bool followed = knobs.counter() == g_movedTo;
+	const bool params = knobs.params() == &g_movedTo->paramManager;
+	const bool output = knobs.owner() == g_movedTo->output->toModControllable();
 	printf("SU-ARRANGE moved=1 followed=%d params=%d output=%d renderWrites=%d steps=%d\n", followed ? 1 : 0,
 	       params ? 1 : 0, output ? 1 : 0, View::renderStackWrites() - g_stackWritesAtLegStart, g_steps);
 	if (!followed || !params || !output) {

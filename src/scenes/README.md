@@ -1388,7 +1388,7 @@ builds the `deluge_scenes` closure.
 > and every tick the guest runs it declares all eight mod LEDs **off**
 > (`services/mod_knobs.cpp:729-739`) and level **0** on both gold knobs (`:687-694`). So the wiring
 > re-seeds `currentSong`, `View`'s active mod controllable and mod region and both `ViewState`
-> blocks, at boot and on every open — mirroring `view.activeModControllableModelStack` rather than
+> blocks, at boot and on every open — mirroring `View::knobFocus()` rather than
 > keeping a second source of truth. And a service can reach *shared shell state out of band of the
 > router*: `ModKnobs::pretend_knobs_untouched()` writes `InputLowering`'s own `last_turn_ms_` array
 > at construction, which is the state the gold-knob wiggle debounce reads, so seeding a `mod_target`

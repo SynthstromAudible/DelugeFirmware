@@ -17,7 +17,6 @@
 
 #include "gui/ui/shell_guest_services.h"
 
-#include "gui/ui/knob_focus_of.h"
 #include "gui/ui/menu_view_of.h"
 
 #include "gui/ui/load/load_song_ui.h"
@@ -70,8 +69,7 @@ GuestServices& guestServices() {
 	return services;
 }
 
-/// @brief Point the gold knobs where legacy's `View` points them: the focus of `View::activeModControllableModelStack`
-///        and the mod region beside it (`gui/views/view.h:120-135`).
+/// @brief Point the gold knobs where legacy's `View` points them: its focus's owner and the mod region beside it.
 ///
 /// The root views set legacy's target (`InstrumentClipMinder::focusRegained` and the others); until the views keep a
 /// focus of their own, the guest reads theirs at boot and on every guest open. An unpointed `ModKnobs` blanks the
@@ -85,8 +83,7 @@ void seedKnobFocus(deluge::scenes::services::ModKnobs& knobs) {
 		return;
 	}
 	// No MIDI-follow feedback: this re-asserts a target legacy already set and sent.
-	knobs.set_focus(deluge::gui::knobFocusOf(*currentSong, view.activeModControllableModelStack),
-	                /*send_midi_feedback=*/false);
+	knobs.set_focus({.owner = view.knobFocus().owner}, /*send_midi_feedback=*/false);
 	knobs.set_mod_region(view.modPos(), view.modLength());
 }
 

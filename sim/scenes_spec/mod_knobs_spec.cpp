@@ -1198,9 +1198,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.set_song(f.song);
 		rig.set_target_with_timeline(clip, false);
 
-		// The owner legacy's own resolved stack names, as addresses: the synth, on its clip.
-		expect(rig.knobs.focus() == deluge::gui::knobFocusOf(*f.song, view.activeModControllableModelStack))
-		    .to_be_true();
+		// The owner legacy's view names, as addresses: the synth, on its clip.
+		expect(rig.knobs.focus().owner == view.knobFocus().owner).to_be_true();
 		const auto* sound = std::get_if<deluge::scenes::bind::SoundFocus>(&rig.knobs.focus().owner);
 		expect(sound != nullptr && sound->slot.id == *f.instrument->id() && sound->clip
 		       && sound->clip->clip_id == clip->id())
@@ -1227,9 +1226,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.set_song(f.song);
 		rig.set_target_without_timeline(controllable, params);
 
-		expect(view.activeModControllableModelStack.timelineCounterIsSet()).to_be_false();
-		expect(rig.knobs.focus() == deluge::gui::knobFocusOf(*f.song, view.activeModControllableModelStack))
-		    .to_be_true();
+		expect(View::KnobStack{view}.counter() == nullptr).to_be_true();
+		expect(rig.knobs.focus().owner == view.knobFocus().owner).to_be_true();
 		const auto* sound = std::get_if<deluge::scenes::bind::SoundFocus>(&rig.knobs.focus().owner);
 		expect(sound != nullptr && !sound->clip).to_be_true(); // no clip: an arranger row's backed params
 	});
@@ -1455,7 +1453,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 		constexpr int32_t kMorph = deluge::modulation::params::LOCAL_LPF_MORPH;
 
-		// Legacy, with the context it reads off `View::activeModControllableModelStack`.
+		// Legacy, with the context it reads off `View`'s knobs.
 		AudioEngine::audioSampleTimer = 0;
 		stub.showing = false;
 		view.setActiveModControllableTimelineCounter(f.clip, false);
@@ -1486,11 +1484,9 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("agrees with View::knobsOnClipContext on every reachable target shape", _ {
-		// Fix round 1, Important 1: the port's predicate dropped legacy's outer
-		// `if (activeModControllableModelStack.modControllable)` (`view.cpp:1751`), so a target with
-		// a clip counter but no resolved mod controllable read as a clip context here and not in
-		// legacy -- which makes `target_changed` send a MIDI CC legacy would never send. Shape 4 is
-		// the one that fails without the guard.
+		// Legacy's clip context needs a resolved mod controllable as well as a clip counter: a target
+		// with a clip counter and none is not a clip context, or `target_changed` would send a MIDI CC
+		// legacy never sends. Shape 4 is the one that fails without that guard.
 		StubDisplay stub;
 		display = &stub;
 
@@ -1520,9 +1516,9 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 		// 4. A clip counter and NO controllable: legacy's stack dropped into that shape, and its focus is none. View
 		//    answers from what its writers saw, and no writer leaves this shape, so only the port side is asked.
-		view.activeModControllableModelStack.modControllable = nullptr;
-		const deluge::scenes::bind::KnobFocus no_controllable =
-		    deluge::gui::knobFocusOf(*f.song, view.activeModControllableModelStack);
+		View::KnobStack knobs{view};
+		knobs.stack->modControllable = nullptr;
+		const deluge::scenes::bind::KnobFocus no_controllable = deluge::gui::knobFocusOf(*f.song, *knobs.stack);
 		expect(deluge::scenes::services::is_clip_context(no_controllable)).to_be_false();
 
 		// 5. The SONG as the counter, with a controllable: set, but not a clip. `affectEntire` is

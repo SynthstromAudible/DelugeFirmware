@@ -8,14 +8,17 @@
 
 #include "deluge-project/knob_focus.h"
 #include "engines/deluge/params.h"
+#include "hid/display/display.h"
 #include "io/midi/midi_device_manager.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/learn_mapping.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/param_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
+#include "playback/playback_handler.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -28,6 +31,7 @@
 #include "spec/support/spec_main.h"
 
 #include <optional>
+#include <string>
 
 namespace {
 
@@ -73,6 +77,58 @@ bool volumeAutomated(const spec::SongFixture& f) {
 	                                  .id = deluge::instrument::param::kVolume,
 	                                  .clip_id = f.clip->id()});
 	return param != nullptr && !param->nodes.empty();
+}
+
+/// @brief The display View's popups draw on: what it last popped up, kept.
+struct StubDisplay final : deluge::hid::Display {
+	std::string popup;
+	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
+	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
+	void popupText(char const* text, PopupType) override { popup = text; }
+	void popupTextTemporary(char const*, PopupType) override {}
+	void cancelPopup() override {}
+	void freezeWithError(char const*) override {}
+	void displayError(Error) override {}
+	void removeWorkingAnimation() override {}
+	void displayLoadingAnimationText(char const*, bool, bool) override {}
+	void removeLoadingAnimation() override {}
+	bool hasPopup() override { return false; }
+	bool hasPopupOfType(PopupType) override { return false; }
+	void consoleText(char const*) override {}
+	void timerRoutine() override {}
+	void displayNotification(std::string_view, std::optional<std::string_view>) override {}
+};
+
+/// @brief The arrangement recording @p f's session clip at 0, for as long as it lives.
+struct ArrangementRecording {
+	RecordingMode mode = playbackHandler.recording;
+	decltype(playbackHandler.playbackState) state = playbackHandler.playbackState;
+	explicit ArrangementRecording(const spec::SongFixture& f) {
+		f.clip->activeIfNoSolo = true;
+		const int32_t at = f.instrument->clipInstances.insertSorted(0).value_or(-1);
+		if (at >= 0) {
+			f.instrument->clipInstances[at].clip = f.clip;
+			f.instrument->clipInstances[at].length = f.clip->loopLength();
+		}
+		playbackHandler.recording = RecordingMode::ARRANGEMENT;
+		playbackHandler.playbackState = PLAYBACK_CLOCK_INTERNAL_ACTIVE;
+	}
+	ArrangementRecording(const ArrangementRecording&) = delete;
+	ArrangementRecording& operator=(const ArrangementRecording&) = delete;
+	~ArrangementRecording() {
+		playbackHandler.recording = mode;
+		playbackHandler.playbackState = state;
+	}
+};
+
+/// @brief @p f's synth's pan on @p clip (none: its backed-up params), the param mode 0's lower knob turns.
+std::optional<int32_t> panOn(const spec::SongFixture& f, std::optional<uint32_t> clip) {
+	return deluge::bridge::paramValueAt(*f.song,
+	                                    {.owner = project::OwnerId::instrument(*f.instrument->id()),
+	                                     .space = project::ParamSpace::ENGINE,
+	                                     .id = deluge::instrument::param::kPan,
+	                                     .clip_id = clip},
+	                                    0xFFFFFFFF);
 }
 
 } // namespace
@@ -268,7 +324,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		expect(std::holds_alternative<project::SoundFocus>(focus().owner)).to_be_true();
 		view.releaseKnobsIfOn(*f.clip);
 		expect(std::holds_alternative<std::monostate>(focus().owner)).to_be_true();
-		expect(view.activeModControllableModelStack.getTimelineCounterAllowNull() == nullptr).to_be_true();
+		expect(View::KnobStack{view}.stack == nullptr).to_be_true();
 
 		view.setActiveModControllableTimelineCounter(f.clip, false);
 		spec::SongFixture elsewhere = spec::make_synth_song();
@@ -277,6 +333,94 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		expect(std::holds_alternative<project::SoundFocus>(focus().owner)).to_be_true();
 		view.releaseKnobsIfOnSong(*f.song);
 		expect(std::holds_alternative<std::monostate>(focus().owner)).to_be_true();
+		currentSong = nullptr;
+	});
+
+	it("clones once when View turns a knob while the arrangement records, and leaves the session clip", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		*f.instrument->toModControllable()->getModKnobMode() = 0;
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		const std::optional<int32_t> session_before = panOn(f, f.clip->id());
+		const size_t arranged = f.song->live.clips.arrangement_only_clips.size();
+		Clip* recorded = nullptr;
+		{
+			ArrangementRecording recording{f};
+			view.modEncoderAction(0, 5);
+			view.modEncoderAction(0, 5);
+			recorded = f.instrument->getActiveClip();
+		}
+		expect(f.song->live.clips.arrangement_only_clips.size()).to_equal(arranged + 1);
+		expect(recorded != nullptr && recorded != f.clip && recorded->beingRecordedFromClip == f.clip).to_be_true();
+		expect(panOn(f, f.clip->id()) == session_before).to_be_true();
+		if (recorded != nullptr && recorded != f.clip) {
+			expect(panOn(f, recorded->id()) != session_before).to_be_true();
+		}
+		expect(view.knobsClipId() == std::optional<uint32_t>{f.clip->id()}).to_be_true();
+		view.releaseActiveModControllable();
+		currentSong = nullptr;
+	});
+
+	it("makes no take for a mod-button press while the arrangement records", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		*f.instrument->toModControllable()->getModKnobMode() = 0;
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		const size_t arranged = f.song->live.clips.arrangement_only_clips.size();
+		{
+			ArrangementRecording recording{f};
+			view.modButtonAction(2, true);
+			view.modButtonAction(2, false);
+		}
+		expect(f.song->live.clips.arrangement_only_clips.size()).to_equal(arranged);
+		expect(f.instrument->getActiveClip() == f.clip || f.instrument->getActiveClip() == nullptr).to_be_true();
+		*f.instrument->toModControllable()->getModKnobMode() = 0;
+		view.releaseActiveModControllable();
+		currentSong = nullptr;
+	});
+
+	it("writes an arranger row's backed-up params when View turns a knob on a row with no clip", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		ParamManagerForTimeline params;
+		auto* synth = static_cast<SoundInstrument*>(StorageManager::createNewInstrument(OutputType::SYNTH, &params));
+		synth->setupAsDefaultSynth(&params);
+		f.song->live.param_backup.backUp(*synth, nullptr, &params, true);
+		f.song->addOutput(synth);
+		const spec::SongFixture row{.song = f.song, .clip = nullptr, .instrument = synth};
+		*synth->getModKnobMode() = 0;
+		view.setActiveModControllableWithoutTimelineCounter(synth,
+		                                                    f.song->live.param_backup.getPreferablyWithClip(*synth, nullptr));
+		const std::optional<int32_t> before = panOn(row, std::nullopt);
+		view.modEncoderAction(0, 7);
+		expect(before.has_value()).to_be_true();
+		expect(panOn(row, std::nullopt) != before).to_be_true();
+		view.releaseActiveModControllable();
+		currentSong = nullptr;
+	});
+
+	it("stays on the session clip after the arrangement stops recording", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		*f.instrument->toModControllable()->getModKnobMode() = 0;
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		{
+			ArrangementRecording recording{f};
+			view.modEncoderAction(0, 3);
+		}
+		expect(view.knobsClipId() == std::optional<uint32_t>{f.clip->id()}).to_be_true();
+		const std::optional<int32_t> session_before = panOn(f, f.clip->id());
+		view.modEncoderAction(0, 3);
+		expect(panOn(f, f.clip->id()) != session_before).to_be_true();
+		view.releaseActiveModControllable();
 		currentSong = nullptr;
 	});
 });

@@ -75,7 +75,7 @@ struct RealServices {
 			if (mod_target != nullptr && song != nullptr) {
 				// Where legacy's view points the knobs at the clip, as the guest seeds them.
 				view.setActiveModControllableTimelineCounter(mod_target, false);
-				knobs->set_focus(deluge::gui::knobFocusOf(*song, view.activeModControllableModelStack), false);
+				knobs->set_focus({.owner = view.knobFocus().owner}, false);
 				knobs->set_mod_region();
 			}
 			shell.set_services({&*knobs, &*controls, &*learn});

@@ -97,10 +97,10 @@ std::optional<uint32_t> feedback_stamp(spec::SongFixture& synth, const std::func
 	const LearnedMIDI saved_a = midiEngine.midiFollowChannelType[0];
 	midiEngine.midiFollowFeedbackChannelType = MIDIFollowFeedbackChannelType::A;
 	midiEngine.midiFollowChannelType[0].channelOrZone = 0;
-	const ModelStackWithThreeMainThings saved_active = view.activeModControllableModelStack;
-	view.activeModControllableModelStack.song = synth.song;
-	view.activeModControllableModelStack.setTimelineCounter(synth.clip);
-	view.activeModControllableModelStack.modControllable = static_cast<SoundInstrument*>(synth.instrument);
+	Song* const saved_song = currentSong;
+	currentSong = synth.song;
+	view.setActiveModControllableTimelineCounter(synth.clip, false);
+	currentSong = saved_song;
 	const int32_t cc = midiFollow.getCCFromParam(deluge::modulation::params::Kind::PATCHED,
 	                                             deluge::modulation::params::LOCAL_LPF_FREQ);
 	const uint32_t timer = AudioEngine::audioSampleTimer;
@@ -111,7 +111,7 @@ std::optional<uint32_t> feedback_stamp(spec::SongFixture& synth, const std::func
 	write();
 	const uint32_t sent = cc != MIDI_CC_NONE ? midiFollow.timeLastCCSent[cc] : 0;
 	AudioEngine::audioSampleTimer = timer;
-	view.activeModControllableModelStack = saved_active;
+	view.releaseActiveModControllable();
 	midiEngine.midiFollowFeedbackChannelType = saved_type;
 	midiEngine.midiFollowChannelType[0] = saved_a;
 	return cc != MIDI_CC_NONE ? std::optional{sent} : std::nullopt;

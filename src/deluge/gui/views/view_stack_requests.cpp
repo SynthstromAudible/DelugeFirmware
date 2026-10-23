@@ -15,40 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// View::activeModControllableModelStack's single owner: only the interaction tier writes the stack, and the render asks
-// it for changes through deluge::playback's request queue (playback/render_requests.h).
+// The knobs' render-visible words: only the interaction tier writes them, and the render asks for a release through
+// deluge::playback's request queue (playback/render_requests.h).
 
 #include "gui/views/view.h"
-#include "model/clip/clip.h"
-#include "model/model_stack.h"
-#include "model/song/song.h"
 
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <iterator>
 
-void View::followRecordingToClip(Clip* from, Clip* to) {
-	ModelStackWithThreeMainThings& stack = activeModControllableModelStack;
-	if (stack.getTimelineCounterAllowNull() == from) {
-		stack.setTimelineCounter(to);
-		stack.paramManager = &to->paramManager;
-		refreshKnobFocus();
-	}
-}
-
 #if defined(DELUGE_HOST)
 namespace {
 std::atomic<bool> g_watchRenderStackWrites{false};
 std::atomic<int32_t> g_renderStackWrites{0};
-
-void snapshotStack(void const* (&out)[4]) {
-	ModelStackWithThreeMainThings const& stack = view.activeModControllableModelStack;
-	out[0] = stack.song;
-	out[1] = stack.getTimelineCounterAllowNull();
-	out[2] = stack.modControllable;
-	out[3] = stack.paramManager;
-}
 } // namespace
 
 void View::watchRenderStackWrites(bool on) {
@@ -63,7 +43,8 @@ int32_t View::renderStackWrites() {
 View::RenderBlockStackWatch::RenderBlockStackWatch()
     : watching_{g_watchRenderStackWrites.load(std::memory_order_acquire)} {
 	if (watching_) {
-		snapshotStack(before_);
+		before_[0] = view.knobSong_;
+		before_[1] = view.knobParamManager_.load(std::memory_order_relaxed);
 	}
 }
 
@@ -71,8 +52,7 @@ View::RenderBlockStackWatch::~RenderBlockStackWatch() {
 	if (!watching_) {
 		return;
 	}
-	void const* after[4];
-	snapshotStack(after);
+	void const* after[2]{view.knobSong_, view.knobParamManager_.load(std::memory_order_relaxed)};
 	if (!std::equal(std::begin(before_), std::end(before_), std::begin(after))) {
 		g_renderStackWrites.fetch_add(1, std::memory_order_relaxed);
 	}

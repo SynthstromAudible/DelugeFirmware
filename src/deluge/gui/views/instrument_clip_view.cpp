@@ -1054,12 +1054,12 @@ void InstrumentClipView::copyAutomation(int32_t whichModEncoder, int32_t navSysI
 		return;
 	}
 
-	if (!view.activeModControllableModelStack.modControllable) {
+	View::KnobStack knobs{view};
+	if (knobs.owner() == nullptr) {
 		return;
 	}
 
-	ModelStackWithAutoParam* modelStack = view.activeModControllableModelStack.modControllable->getParamFromModEncoder(
-	    whichModEncoder, &view.activeModControllableModelStack, false);
+	ModelStackWithAutoParam* modelStack = knobs.owner()->getParamFromModEncoder(whichModEncoder, knobs.stack, false);
 	if (modelStack && modelStack->autoParam) {
 
 		// Ok this is cursed, but will work fine so long as
@@ -1293,13 +1293,13 @@ void InstrumentClipView::pasteAutomation(int32_t whichModEncoder, int32_t navSys
 
 	float scaleFactor = (float)pastedAutomationWidth / copiedParamAutomation.width;
 
-	if (!view.activeModControllableModelStack.modControllable) {
+	View::KnobStack knobs{view};
+	if (knobs.owner() == nullptr) {
 		return;
 	}
 
 	ModelStackWithAutoParam* modelStackWithAutoParam =
-	    view.activeModControllableModelStack.modControllable->getParamFromModEncoder(
-	        whichModEncoder, &view.activeModControllableModelStack, true);
+	    knobs.owner()->getParamFromModEncoder(whichModEncoder, knobs.stack, true);
 	if (!modelStackWithAutoParam || !modelStackWithAutoParam->autoParam) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_PASTE_AUTOMATION));
 		return;

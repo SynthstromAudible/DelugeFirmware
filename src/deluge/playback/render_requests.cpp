@@ -42,7 +42,7 @@ namespace {
 /// Work on interaction-owned state the render asks the interaction tier to do.
 struct RenderRequest {
 	/// NOTHING: host only, a filler the harness floods the queue with.
-	enum class Kind : uint8_t { SONG_SWAPPED_OUT, RECORDING_MOVED, LAUNCH_REPEAT_COUNTED, NOTHING };
+	enum class Kind : uint8_t { SONG_SWAPPED_OUT, LAUNCH_REPEAT_COUNTED, NOTHING };
 	Kind kind = Kind::SONG_SWAPPED_OUT;
 	/// Made on the render, so applied after other interaction work may have run since: changes only what still names
 	/// the objects the request names. Made on the interaction tier, it is applied at the swap itself.
@@ -50,9 +50,6 @@ struct RenderRequest {
 	/// SONG_SWAPPED_OUT made on the interaction tier: the outgoing song. Posted, the request is only a marker of where
 	/// the swap falls among the others; the outgoing song travels in g_pendingSwap.
 	Song* song = nullptr;
-	/// RECORDING_MOVED: the clip the recording left, and the clone it moved on to.
-	Clip* from = nullptr;
-	Clip* to = nullptr;
 };
 
 /// [render] -> [interaction] The render's requests, in order. A song swap posts one, an armed launch one per repeat
@@ -157,9 +154,6 @@ void applyRequest(RenderRequest const& request) {
 			songSwapInteractionSide(request.song, false);
 		}
 		break;
-	case RenderRequest::Kind::RECORDING_MOVED:
-		view.followRecordingToClip(request.from, request.to);
-		break;
 	case RenderRequest::Kind::LAUNCH_REPEAT_COUNTED:
 		session.showLaunchRepeatsRemaining();
 		break;
@@ -213,10 +207,6 @@ void request(RenderRequest const& request) {
 
 void songSwappedOut(Song* outgoing) {
 	request({.kind = RenderRequest::Kind::SONG_SWAPPED_OUT, .song = outgoing});
-}
-
-void recordingMovedToClip(Clip* from, Clip* to) {
-	request({.kind = RenderRequest::Kind::RECORDING_MOVED, .from = from, .to = to});
 }
 
 void launchRepeatCounted() {

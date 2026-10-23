@@ -331,7 +331,8 @@ bool stutterAt(::Song& song, const project::ParamAddress& owner, bool begin) {
 
 bool grabRegionAt(::Song& song, const project::ParamAddress& owner, uint32_t pos) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	const OwnerStack found = ownerOrBackedStack(song, followingTake(song, owner, memory), memory);
+	// A held pad's region is a clip's (or the song's): an arranger row's backup has no position to grab from.
+	const OwnerStack found = ownerStackAt(song, followingTake(song, owner, memory), memory);
 	// `View::setModRegion` grabs only where the owner holds its main params.
 	if (found.stack == nullptr || found.stack->paramManager == nullptr
 	    || !found.stack->paramManager->containsAnyMainParamCollections()) {
@@ -362,6 +363,21 @@ std::optional<int32_t> paramValueAt(::Song& song, const project::ParamAddress& a
 		return std::nullopt;
 	}
 	return stack->autoParam->getValuePossiblyAtPos(static_cast<int32_t>(pos), stack);
+}
+
+ModelStackWithThreeMainThings* knobOwnerStackAt(::Song& song, const project::KnobFocus& focus, void* memory) {
+	if (const auto* midi = std::get_if<project::MidiFocus>(&focus.owner); midi != nullptr && !midi->clip) {
+		::Output* output = outputWithId(song, midi->track.output_id);
+		return output != nullptr && output->type == OutputType::MIDI_OUT
+		           ? setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, output->toModControllable(), nullptr,
+		                                                            output->getParamManager(&song))
+		           : nullptr;
+	}
+	const std::optional<project::ParamAddress> owner = project::knob_owner(focus);
+	if (!owner) {
+		return nullptr;
+	}
+	return ownerOrBackedStack(song, followingTake(song, *owner, memory), memory).stack;
 }
 
 PatchCableSet* cableSetAt(::Song& song, const project::ParamAddress& owner, void* memory) {

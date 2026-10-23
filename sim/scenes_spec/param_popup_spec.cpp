@@ -30,9 +30,8 @@
 /// assignment on a bare fixture takes the non-existent-param arm before any popup is shown).
 ///
 /// No `SongFixture` (unlike every other file in this directory): every code path this spec
-/// reaches is one `View::activeModControllableModelStack` never touches for it -- its
-/// `modControllable` is null by construction (`ModelStackWithThreeMainThings
-/// activeModControllableModelStack{}`, `view.h:120`), which is exactly what makes
+/// reaches is one `View`'s knobs never resolve an owner for -- its focus is none by construction
+/// (`View::knobFocus()`), which is exactly what makes
 /// `knobsOnClipContext()` false and every `ModControllableAudio*`-taking call fall back -- so nothing
 /// here reads `currentSong`.
 

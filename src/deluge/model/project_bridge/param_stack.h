@@ -24,12 +24,14 @@
 /// that still need one (undo's pre-log, recording automation, the engine's projection of a write) take it from here,
 /// below the Edit, so nothing above an Edit builds one.
 
+#include "deluge-project/knob_focus.h"
 #include "deluge-project/param_address.h"
 
 #include <cstdint>
 #include <optional>
 
 class ModelStackWithAutoParam;
+class ModelStackWithThreeMainThings;
 class PatchCableSet;
 class Song;
 enum class Polarity : uint8_t;
@@ -86,7 +88,8 @@ namespace deluge::bridge {
 bool stutterAt(::Song& song, const project::ParamAddress& owner, bool begin);
 
 /// @brief Set @p owner's params in its clip (its take while the arrangement records it) to their automated values at
-/// @p pos, as a held pad grabs them, where it holds its main params.
+/// @p pos, as a held pad grabs them, where it holds its main params. An owner with no clip (an arranger row) grabs
+/// nothing.
 /// @param song  The song holding the owner.
 /// @param owner The owner, as an address with no param.
 /// @param pos   The position in the clip, in ticks.
@@ -112,6 +115,17 @@ bool midiCcSelectAt(::Song& song, const project::ParamAddress& owner, int32_t kn
 /// @return The stack, or null where the sound does not resolve or its cable set is full.
 [[nodiscard]] ::ModelStackWithAutoParam* cableStackAt(::Song& song, const project::ParamAddress& address,
                                                       ::Polarity polarity, void* memory);
+
+/// @brief The engine stack of the owner the gold knobs of @p focus move: the song's, a synth's or a kit row's (with its
+/// note row), a kit's or an audio track's, a MIDI track's; in the clip the focus names, following the take the
+/// arrangement records it into without making one; with no clip, an arranger row's backed-up params (a MIDI track's
+/// own param manager). Nothing is made.
+/// @param song   The song the focus is in.
+/// @param focus  What the knobs point at.
+/// @param memory MODEL_STACK_MAX_SIZE bytes, aligned as ModelStackWithAutoParam, which the stack lives in.
+/// @return The stack, or null for no focus (a CV track's included) or an owner @p song does not hold.
+[[nodiscard]] ::ModelStackWithThreeMainThings* knobOwnerStackAt(::Song& song, const project::KnobFocus& focus,
+                                                                void* memory);
 
 /// @brief The patch cables of the sound @p owner names (a synth or a sound drum, with its clip; the id is not read).
 /// @param song   The song holding the sound.

@@ -28,6 +28,7 @@
 #include "model/edits/paste_param_automation.h"
 #include "model/edits/set_param_value.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/project_bridge/param_stack.h"
 #include "model/song/song.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/playback_mode.h"
@@ -358,12 +359,11 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 			}
 
 			parameterName.append(params::getPatchedParamShortName(
-			    lastSelectedParamID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable));
+			    lastSelectedParamID, (ModControllableAudio*)View::KnobStack{view}.owner()));
 		}
 		else {
 			parameterName.append(deluge::modulation::params::getParamDisplayName(
-			    lastSelectedParamKind, lastSelectedParamID,
-			    (ModControllableAudio*)view.activeModControllableModelStack.modControllable));
+			    lastSelectedParamKind, lastSelectedParamID, (ModControllableAudio*)View::KnobStack{view}.owner()));
 		}
 	}
 	else {
@@ -667,8 +667,7 @@ void AutomationEditorLayoutModControllable::automationModEncoderActionForUnselec
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
-		if (modelStackWithParam->getTimelineCounter()
-		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+		if (modelStackWithParam->getTimelineCounter() == View::KnobStack{view}.counter()) {
 
 			int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, view.modPos());
 
@@ -977,11 +976,12 @@ void AutomationEditorLayoutModControllable::updateAutomationModPosition(ModelSta
 
 	if (!playbackHandler.isEitherClockActive() || getPadSelectionOn()) {
 		if (modelStack && modelStack->autoParam) {
-			if (modelStack->getTimelineCounter()
-			    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+			if (modelStack->getTimelineCounter() == View::KnobStack{view}.counter()) {
 
-				view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-				    squareStart, &view.activeModControllableModelStack);
+				if (const std::optional<deluge::project::ParamAddress> owner =
+				        deluge::project::knob_owner(view.knobFocus())) {
+					(void)deluge::bridge::grabRegionAt(*currentSong, *owner, squareStart);
+				}
 
 				int32_t knobPos = getAutomationParameterKnobPos(modelStack, squareStart) + kKnobPosOffset;
 
