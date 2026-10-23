@@ -54,7 +54,10 @@ struct GuestServices {
 
 	explicit GuestServices(deluge::ui::shell::Shell& shell)
 	    : learn(shell.stack()), knobs(deluge::scenes::overlay::param_popup_scene(), shell.stack(), shell.lowering()),
-	      controls(shell.stack(), shell.lowering(), learn) {}
+	      controls(shell.stack(), shell.lowering(), learn) {
+		// One focus for the gold knobs: the legacy views set it, and the guest's knobs read and move it.
+		knobs.use_focus(view.knobFocus());
+	}
 };
 
 /// @brief The one set, built on first use over `shellHostUI`'s own `Shell`.
@@ -69,24 +72,6 @@ GuestServices& guestServices() {
 	return services;
 }
 
-/// @brief Point the gold knobs where legacy's `View` points them: its focus's owner and the mod region beside it.
-///
-/// The root views set legacy's target (`InstrumentClipMinder::focusRegained` and the others); until the views keep a
-/// focus of their own, the guest reads theirs at boot and on every guest open. An unpointed `ModKnobs` blanks the
-/// mod LEDs and the indicator rings legacy is showing, so seeding is what makes the guest's LEDs equal
-/// `SoundEditor`'s.
-///
-/// @warning **A snapshot, not a subscription**: nothing changes `view`'s target while a menu is open (the root view
-///          underneath takes no input), so it holds for a guest session.
-void seedKnobFocus(deluge::scenes::services::ModKnobs& knobs) {
-	if (currentSong == nullptr) {
-		return;
-	}
-	// No MIDI-follow feedback: this re-asserts a target legacy already set and sent.
-	knobs.set_focus({.owner = view.knobFocus().owner}, /*send_midi_feedback=*/false);
-	knobs.set_mod_region(view.modPos(), view.modLength());
-}
-
 } // namespace
 
 void wireShellGuestServices() {
@@ -98,7 +83,8 @@ void wireShellGuestServices() {
 	services.learn.set_song(currentSong);
 	services.knobs.set_song(currentSong);
 	services.controls.set_song(currentSong);
-	seedKnobFocus(services.knobs);
+	// A guest opens with the knobs untouched, so its first turn is not taken as a repeat of the last.
+	services.knobs.pretend_knobs_untouched();
 	// The clip the views have open, which the global buttons and MIDI learn ask about.
 	deluge::scenes::services::view_state().set_current_view(currentSong != nullptr
 	                                                            ? deluge::gui::menuViewOf(currentSong->getCurrentClip())

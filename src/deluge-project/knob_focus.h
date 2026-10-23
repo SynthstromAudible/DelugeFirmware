@@ -67,9 +67,9 @@ struct MidiFocus {
 
 /// @brief The part of a clip a held pad names: knob turns write a region there.
 struct ModRegion {
-	uint32_t pos{0};
-	uint32_t length{0};     ///< 0: no region is held
-	int32_t note_row_id{0}; ///< the held note's row, for a write to that row's expression params
+	uint32_t pos{0xFFFFFFFF}; ///< 0xFFFFFFFF: at the playhead
+	uint32_t length{0};       ///< 0: no region is held
+	int32_t note_row_id{0};   ///< the held note's row, for a write to that row's expression params
 	bool operator==(const ModRegion&) const = default;
 };
 

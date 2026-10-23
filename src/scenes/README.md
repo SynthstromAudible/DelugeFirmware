@@ -1384,15 +1384,14 @@ again from `ShellHostUI::opened()`. It is a separate translation unit rather tha
 builds the `deluge_scenes` closure.
 
 > **Installing is not sufficient, and this is the part to read before installing a fourth service.**
-> An unseeded `ModKnobs` is not inert: with `mod_controllable == nullptr` it reports `mode() == -1`,
-> and every tick the guest runs it declares all eight mod LEDs **off**
-> (`services/mod_knobs.cpp:729-739`) and level **0** on both gold knobs (`:687-694`). So the wiring
-> re-seeds `currentSong`, `View`'s active mod controllable and mod region and both `ViewState`
-> blocks, at boot and on every open — mirroring `View::knobFocus()` rather than
-> keeping a second source of truth. And a service can reach *shared shell state out of band of the
-> router*: `ModKnobs::pretend_knobs_untouched()` writes `InputLowering`'s own `last_turn_ms_` array
-> at construction, which is the state the gold-knob wiggle debounce reads, so seeding a `mod_target`
-> changes what the *next user gesture* does. That is the seam the level-2 re-record turned up
+> A `ModKnobs` with no focus is not inert: it reports `mode() == -1`, and every tick the guest runs
+> it declares all eight mod LEDs **off** and level **0** on both gold knobs. So the guest's
+> `ModKnobs` keeps no focus of its own: it reads and moves `View::knobFocus()` (`use_focus`), the
+> one store the legacy views set, and the wiring re-seeds `currentSong` and both `ViewState` blocks
+> at boot and on every open. And a service can reach *shared shell state out of band of the
+> router*: `ModKnobs::pretend_knobs_untouched()` writes `InputLowering`'s own `last_turn_ms_` array,
+> which is the state the gold-knob wiggle debounce reads, so the wiring calls it on every open --
+> it changes what the *next user gesture* does. That is the seam the level-2 re-record turned up
 > (carry-table row 30) and the one to check for when the next service lands.
 
 **A note on the two lists, because they are different threes.** This section's three are the

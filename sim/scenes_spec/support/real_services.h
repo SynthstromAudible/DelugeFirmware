@@ -19,7 +19,7 @@
 #include "scenes/services/midi_learn.h"
 #include "scenes/services/mod_knobs.h"
 
-#include "gui/ui/knob_focus_of.h"
+#include "gui/views/knob_focus_from_stack.h"
 #include "gui/views/view.h"
 #include "shell/shell.h"
 
@@ -75,8 +75,8 @@ struct RealServices {
 			if (mod_target != nullptr && song != nullptr) {
 				// Where legacy's view points the knobs at the clip, as the guest seeds them.
 				view.setActiveModControllableTimelineCounter(mod_target, false);
-				knobs->set_focus({.owner = view.knobFocus().owner}, false);
-				knobs->set_mod_region();
+				knobs->use_focus(view.knobFocus());
+				knobs->pretend_knobs_untouched();
 			}
 			shell.set_services({&*knobs, &*controls, &*learn});
 		};

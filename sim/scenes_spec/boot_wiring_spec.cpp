@@ -267,6 +267,36 @@ describe boot_services("the three services, installed into the guest's own Shell
 		currentSong = saved_song;
 		deluge::gui::ui::wireShellGuestServices();
 	});
+	it("the guest's knobs are View's: a mod button pressed in the guest moves View's mode and VU flag", _ {
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		Song* const saved_song = currentSong;
+		currentSong = f.song;
+		f.song->persistentView.affectEntire = true;
+		view.setActiveModControllableTimelineCounter(f.song, false);
+		view.knobFocus().vu_meter = false;
+		deluge::gui::ui::wireShellGuestServices();
+		auto* knobs = static_cast<services::ModKnobs*>(shellHostUI.shell().services().mod_knobs);
+		expect(&knobs->focus() == &view.knobFocus()).to_be_true();
+
+		knobs->mod_button_action(1, true);
+		knobs->mod_button_action(1, false);
+		expect(view.getModKnobMode()).to_equal(1);
+		knobs->mod_button_action(0, true);
+		knobs->mod_button_action(0, false);
+		knobs->mod_button_action(0, true);
+		knobs->mod_button_action(0, false);
+		expect(view.getModKnobMode()).to_equal(0);
+		expect(view.knobFocus().vu_meter).to_be_true();
+
+		view.setModRegion(96, 48, 0);
+		expect(knobs->focus().region == deluge::project::ModRegion{.pos = 96, .length = 48}).to_be_true();
+
+		view.setModRegion();
+		view.knobFocus().vu_meter = false;
+		view.releaseActiveModControllable();
+		currentSong = saved_song;
+		deluge::gui::ui::wireShellGuestServices();
+	});
 });
 // clang-format on
 

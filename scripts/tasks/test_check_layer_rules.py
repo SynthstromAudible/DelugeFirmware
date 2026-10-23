@@ -126,5 +126,11 @@ class ParamBackupRows(unittest.TestCase):
         self.assertEqual(found, {})
 
 
+class LegacyPortSeams(unittest.TestCase):
+    def test_no_legacy_file_is_a_knob_focus_seam(self):
+        """The views keep the gold knobs' focus as addresses: no legacy file builds one for the scenes."""
+        self.assertEqual([p for p in clr.LEGACY_PORT_SEAMS if "knob_focus" in p], [])
+
+
 if __name__ == "__main__":
     unittest.main()

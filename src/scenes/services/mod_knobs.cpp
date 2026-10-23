@@ -151,7 +151,7 @@ bool ModKnobs::bound() const {
 }
 
 const effects::EffectStates* ModKnobs::owner_effects() const {
-	const std::optional<EffectOwner> owner = effect_owner(focus_);
+	const std::optional<EffectOwner> owner = effect_owner(*focus_);
 	if (!owner) {
 		return nullptr;
 	}
@@ -172,12 +172,8 @@ bool ModKnobs::owner_stutter_quantized() const {
 
 void ModKnobs::set_focus(const bind::KnobFocus& focus, bool send_midi_feedback) {
 	pretend_knobs_untouched(); // `:1871`, `:1903`
-	// The mod region and the compressor view are the knobs' own view state, which a new focus keeps.
-	const bind::ModRegion region = focus_.region;
-	const bind::CompView comp = focus_.comp;
-	focus_ = focus;
-	focus_.region = region;
-	focus_.comp = comp;
+	// The mod region, the compressor view and the VU meter are the knobs' own view state, which a new focus keeps.
+	focus_->owner = focus.owner;
 	selecting_cc_ = false;
 	if (send_midi_feedback) {
 		send_midi_follow_feedback(Kind::NONE, 0, kNoSelection, false, false); // `:1896` / `:1920`
@@ -185,11 +181,11 @@ void ModKnobs::set_focus(const bind::KnobFocus& focus, bool send_midi_feedback) 
 }
 
 void ModKnobs::set_mod_region(uint32_t pos, uint32_t length) {
-	focus_.region = {.pos = pos, .length = length}; // `:1925-1926`
-	pretend_knobs_untouched();                      // `:1929`
+	focus_->region = {.pos = pos, .length = length}; // `:1925-1926`
+	pretend_knobs_untouched();                       // `:1929`
 	// `:1931-1935` -- holding a note on a stopped clip grabs its params' values from there.
-	if (length != 0 && is_clip_context(focus_) && !playbackHandler.isEitherClockActive() && bound()) {
-		(void)menu::host_write_sink().grab_region(focus_, pos);
+	if (length != 0 && is_clip_context(*focus_) && !playbackHandler.isEitherClockActive() && bound()) {
+		(void)menu::host_write_sink().grab_region(*focus_, pos);
 	}
 	// `:1946-1947` -- unless midi follow feedback automation is disabled.
 	if (midiEngine.midiFollowFeedbackAutomation != MIDIFollowFeedbackAutomationMode::DISABLED) {
@@ -199,10 +195,10 @@ void ModKnobs::set_mod_region(uint32_t pos, uint32_t length) {
 
 int32_t ModKnobs::mode() const {
 	// `View::getModKnobMode` (`view.cpp:1697-1706`).
-	if (song_ == nullptr || std::holds_alternative<std::monostate>(focus_.owner)) {
+	if (song_ == nullptr || std::holds_alternative<std::monostate>(focus_->owner)) {
 		return -1;
 	}
-	return bind::knob_mode(song_->project, focus_);
+	return bind::knob_mode(song_->project, *focus_);
 }
 
 void ModKnobs::pretend_knobs_untouched() {
@@ -213,7 +209,7 @@ void ModKnobs::pretend_knobs_untouched() {
 
 void ModKnobs::notify_param_automation_occurred(const ParamAddress& owner, bool update_mod_levels) {
 	// `View::notifyParamAutomationOccurred` (`view.cpp:1708-1729`), for the knobs' owner's params.
-	const std::optional<ParamAddress> ours = bind::knob_owner(focus_);
+	const std::optional<ParamAddress> ours = bind::knob_owner(*focus_);
 	if (!ours || !(ours->owner == owner.owner) || ours->clip_id != owner.clip_id) {
 		return;
 	}
@@ -281,15 +277,15 @@ Result ModKnobs::handle(const deluge::ui::shell::UiEvent& event, const deluge::u
 
 Result ModKnobs::mod_encoder_action(int32_t which_encoder, int32_t offset, uint32_t now_ms) {
 	// `View::modEncoderAction` (`view.cpp:835-859`). Legacy consumes a gold-knob turn unconditionally.
-	if (!bound() || std::holds_alternative<std::monostate>(focus_.owner)) {
+	if (!bound() || std::holds_alternative<std::monostate>(focus_->owner)) {
 		Result result;
 		result.handled = true;
 		return result;
 	}
 	Result result = turn_knob(which_encoder, offset, now_ms);
 	// `:840` -- every turn on a clip marks its instrument edited, whatever it wrote.
-	if (is_clip_context(focus_)) {
-		(void)menu::host_write_sink().instrument_edited(focus_);
+	if (is_clip_context(*focus_)) {
+		(void)menu::host_write_sink().instrument_edited(*focus_);
 	}
 	return result;
 }
@@ -299,7 +295,7 @@ Result ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_m
 	result.handled = true;
 	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
 	bind::WriteSink& sink = menu::host_write_sink();
-	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, focus_, which_encoder);
+	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder);
 
 	if (const auto* comp = std::get_if<bind::CompArm>(&assignment.target)) {
 		// The song's compressor knobs edit settings, not params (`modEncoderActionForNonExistentParam`).
@@ -321,8 +317,8 @@ Result ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_m
 	// `modEncoderAction_existentParam` (`:853-948`). A knob on a param its owner does not hold yet reads 0: the write
 	// makes it.
 	const deluge::engine::ParamInfo* info = info_of(*address, assignment.kind);
-	const bool at_region = focus_.region.pos != 0xFFFFFFFF;
-	const std::optional<int32_t> value = facts.param_value_at(*address, focus_.region.pos);
+	const bool at_region = focus_->region.pos != 0xFFFFFFFF;
+	const std::optional<int32_t> value = facts.param_value_at(*address, focus_->region.pos);
 	ModTurn turn;
 	turn.kind = assignment.kind;
 	turn.param_id = legacy_id(*address, assignment.kind);
@@ -338,11 +334,11 @@ Result ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_m
 		return result; // `:902-904`
 	}
 
-	const auto* sound = std::get_if<bind::SoundFocus>(&focus_.owner);
+	const auto* sound = std::get_if<bind::SoundFocus>(&focus_->owner);
 	const bool tails_before = sound != nullptr && sound->clip && facts.allows_note_tails(sound->slot);
 	const int32_t new_value = bind::value_of_knob(*address, info, turn.new_knob_pos);
-	const int32_t pos = at_region ? static_cast<int32_t>(focus_.region.pos) : 0;
-	if (!sink.write_param(*address, new_value, pos, static_cast<int32_t>(focus_.region.length))) {
+	const int32_t pos = at_region ? static_cast<int32_t>(focus_->region.pos) : 0;
+	if (!sink.write_param(*address, new_value, pos, static_cast<int32_t>(focus_->region.length))) {
 		return result; // refused: nothing changed, so nothing is fed back
 	}
 	turn.value_changed = true;
@@ -403,7 +399,7 @@ bool ModKnobs::show_popup(const ModTurn& turn, uint32_t now_ms) {
 		context.filter = fx->filter;
 	}
 	context.stutter_quantized = owner_stutter_quantized();
-	if (const auto* midi = std::get_if<bind::MidiFocus>(&focus_.owner); midi != nullptr && midi->clip) {
+	if (const auto* midi = std::get_if<bind::MidiFocus>(&focus_->owner); midi != nullptr && midi->clip) {
 		context.midi_clip = true;
 		const project::DocOutput* output = song_->project.output_structure.find(midi->track.output_id);
 		if (output != nullptr && turn.kind == Kind::MIDI) {
@@ -474,15 +470,15 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 	if (view_.in_automation_editor && !(view_.automation_on_arranger && which_button == 0)) {
 		return;
 	}
-	pretend_knobs_untouched();                                              // `:1508`
-	if (std::holds_alternative<std::monostate>(focus_.owner) || !bound()) { // `:1510`
+	pretend_knobs_untouched();                                               // `:1508`
+	if (std::holds_alternative<std::monostate>(focus_->owner) || !bound()) { // `:1510`
 		return;
 	}
 	bind::WriteSink& sink = menu::host_write_sink();
 
 	// A MIDI track choosing its knob's CC: any mod button ends that, and does nothing else.
 	if (selecting_cc_) {
-		(void)sink.midi_cc_select(focus_, selecting_knob_, false);
+		(void)sink.midi_cc_select(*focus_, selecting_knob_, false);
 		selecting_cc_ = false;
 		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelPopup);
 		return;
@@ -495,10 +491,10 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 		}
 		// `:1513-1529` -- pressing the selected button 0 toggles the VU meter, outside a clip minder.
 		if (!view_.root_is_clip_minder && mode() == which_button && which_button == 0) {
-			display_vu_meter_ = !display_vu_meter_;
+			focus_->vu_meter = !focus_->vu_meter;
 		}
 		// `:1530-1532` -- the mode changes before the button's own action, which reads it.
-		if (const std::optional<project::KnobModeOwner> owner = mode_owner(focus_)) {
+		if (const std::optional<project::KnobModeOwner> owner = mode_owner(*focus_)) {
 			(void)sink.knob_mode(*owner, static_cast<uint8_t>(which_button));
 		}
 	}
@@ -506,13 +502,13 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 	// `ModControllable::modButtonAction` (`:1534-1535`, `:1541-1544`): the end of a stutter, then the button's popup
 	// on a press and its removal on a release. A clip's chain leaves the stutter on its compressor button; the song's
 	// chain leaves it running on performance view.
-	const bool chain = std::holds_alternative<bind::ChainFocus>(focus_.owner);
-	const bool song = std::holds_alternative<bind::SongFocus>(focus_.owner);
-	const bool ends_stutter = std::holds_alternative<bind::SoundFocus>(focus_.owner)
+	const bool chain = std::holds_alternative<bind::ChainFocus>(focus_->owner);
+	const bool song = std::holds_alternative<bind::SongFocus>(focus_->owner);
+	const bool ends_stutter = std::holds_alternative<bind::SoundFocus>(focus_->owner)
 	                          || (chain && which_button != 4 && !view_.root_is_performance)
 	                          || (song && !view_.root_is_performance);
 	if (ends_stutter) {
-		(void)sink.stutter(focus_, false);
+		(void)sink.stutter(*focus_, false);
 	}
 	if (!on) {
 		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelPopup);
@@ -523,13 +519,13 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 	if (const effects::EffectStates* fx = owner_effects()) {
 		inputs.effects = *fx;
 	}
-	if (const auto* sound = std::get_if<bind::SoundFocus>(&focus_.owner)) {
+	if (const auto* sound = std::get_if<bind::SoundFocus>(&focus_->owner)) {
 		const instrument::SoundState* state = facts.sound_state(sound->slot);
 		inputs.fm = state != nullptr && state->synth_mode == SynthMode::FM;
 	}
 	inputs.alt_delay = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
-	inputs.clip_context = is_clip_context(focus_);
-	if (const std::string text = mod_button_popup(song_->project, focus_, which_button, inputs); !text.empty()) {
+	inputs.clip_context = is_clip_context(*focus_);
+	if (const std::string text = mod_button_popup(song_->project, *focus_, which_button, inputs); !text.empty()) {
 		popup_text(text);
 	}
 }
@@ -538,13 +534,13 @@ Result ModKnobs::mod_encoder_button_action(int32_t which_encoder, bool on, bool 
 	// `View::modEncoderButtonAction` (`view.cpp:1349-1366`). Legacy's tail always reaches `dealtWith`.
 	Result result;
 	result.handled = true;
-	if (learn || std::holds_alternative<std::monostate>(focus_.owner) || !bound()) {
+	if (learn || std::holds_alternative<std::monostate>(focus_->owner) || !bound()) {
 		return result; // `:1336-1340`
 	}
 	bind::WriteSink& sink = menu::host_write_sink();
 
 	if (shift && on) { // `:1342-1344` -- delete the knob's automation
-		const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, focus_, which_encoder);
+		const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder);
 		const auto* address = std::get_if<ParamAddress>(&assignment.target);
 		if (address != nullptr && menu::host_runtime_facts().param_value(*address).has_value()
 		    && sink.delete_knob_automation(*address)) {
@@ -562,25 +558,25 @@ Result ModKnobs::mod_encoder_button_action(int32_t which_encoder, bool on, bool 
 	if (const effects::EffectStates* fx = owner_effects()) {
 		inputs.effects = *fx;
 	}
-	if (const auto* sound = std::get_if<bind::SoundFocus>(&focus_.owner)) {
+	if (const auto* sound = std::get_if<bind::SoundFocus>(&focus_->owner)) {
 		const instrument::SoundState* state = facts.sound_state(sound->slot);
 		inputs.fm = state != nullptr && state->synth_mode == SynthMode::FM;
 	}
 	inputs.alt_delay = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
 	inputs.button_held = mode_held;
-	inputs.clip_context = is_clip_context(focus_);
-	const KnobPush push = knob_push(song_->project, focus_, which_encoder, on, inputs);
+	inputs.clip_context = is_clip_context(*focus_);
+	const KnobPush push = knob_push(song_->project, *focus_, which_encoder, on, inputs);
 	if (push.midi_cc_select) {
 		// The instrument takes it from a clip minder with no UI mode active; a release ends it.
-		selecting_cc_ = sink.midi_cc_select(focus_, which_encoder, on) && on;
+		selecting_cc_ = sink.midi_cc_select(*focus_, which_encoder, on) && on;
 		selecting_knob_ = which_encoder;
 	}
 	// `:1371` -- a push that edited the instrument marks it, on a clip.
-	if (apply_push(sink, focus_, push) && push.edited && is_clip_context(focus_)) {
-		(void)sink.instrument_edited(focus_);
+	if (apply_push(sink, *focus_, push) && push.edited && is_clip_context(*focus_)) {
+		(void)sink.instrument_edited(*focus_);
 	}
 	if (push.comp) {
-		focus_.comp = *push.comp;
+		focus_->comp = *push.comp;
 	}
 	if (!push.popup.empty()) {
 		popup_text(push.popup);
@@ -687,7 +683,7 @@ ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
 	// The reads `View::setKnobIndicatorLevel` makes (`view.cpp:1407-1460`), from the records and the facts.
 	ModIndicatorInfo out{};
 	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
-	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, focus_, which_encoder);
+	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder);
 	if (const auto* comp = std::get_if<bind::CompArm>(&assignment.target)) {
 		const effects::EffectStates* fx =
 		    facts.chain_effects(project::ChainAddress{.kind = project::ChainAddress::Kind::SONG});
@@ -696,7 +692,7 @@ ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
 		return out;
 	}
 	const auto* address = std::get_if<ParamAddress>(&assignment.target);
-	if (address == nullptr && std::holds_alternative<bind::MidiFocus>(focus_.owner)) {
+	if (address == nullptr && std::holds_alternative<bind::MidiFocus>(focus_->owner)) {
 		// A MIDI knob that sends nothing, or a MIDI track with no clip, shows at its midpoint (legacy's param 0).
 		out.patch_cable_default = true;
 		return out;
@@ -707,7 +703,7 @@ ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
 		out.non_existent_knob_pos = -64;
 		return out;
 	}
-	const std::optional<int32_t> value = facts.param_value_at(*address, focus_.region.pos);
+	const std::optional<int32_t> value = facts.param_value_at(*address, focus_->region.pos);
 	// A MIDI clip's CC or expression lane it has not made yet shows as one at 0 (legacy makes it to show it); a cable
 	// the sound does not hold yet shows at its midpoint.
 	const bool lane = address->space != ParamSpace::ENGINE;
@@ -736,7 +732,7 @@ void ModKnobs::declare_indicators(deluge::ui::LedFrame& frame) {
 	if (view_.in_automation_editor) {
 		return; // `:1385-1388` -- the automation editor's own display owns the columns
 	}
-	if (std::holds_alternative<std::monostate>(focus_.owner) || !bound()) {
+	if (std::holds_alternative<std::monostate>(focus_->owner) || !bound()) {
 		// `:1398-1400` `indicator_leds::clearKnobIndicatorLevels()`.
 		for (int32_t k = 0; k < kKnobCount; k++) {
 			(void)frame.indicator(static_cast<deluge::ui::IndicatorId>(k), deluge::ui::knob_indicator_levels(0, false));
@@ -764,8 +760,8 @@ void ModKnobs::leds(deluge::ui::LedFrame& frame) {
 	// `View::setModLedStates`' final block, "Sort out actual mod LEDs" (`view.cpp:1676-1695`). The
 	// three LED groups above it (AFFECT_ENTIRE, CLIP_VIEW, SESSION_VIEW) are root-view questions
 	// and are not this service's -- see the class doc.
-	const bool its_the_song = !is_clip_context(focus_); // `:1559`
-	const int32_t mod_knob_mode = mode();               // `:1660`
+	const bool its_the_song = !is_clip_context(*focus_); // `:1559`
+	const int32_t mod_knob_mode = mode();                // `:1660`
 
 	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
 	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
@@ -779,7 +775,7 @@ void ModKnobs::leds(deluge::ui::LedFrame& frame) {
 	for (int32_t i = 0; i < kNumModButtons; i++) { // `:1662`
 		const bool on = (i == mod_knob_mode);      // `:1663`
 		deluge::ui::LedState state = kOff;
-		if (its_the_song && on && mod_knob_mode == 0 && display_vu_meter_) {
+		if (its_the_song && on && mod_knob_mode == 0 && focus_->vu_meter) {
 			state = kBlink; // `:1666-1667` -- the volume mod LED blinks while the VU meter is up
 		}
 		else if (view_.in_automation_editor) {
@@ -800,7 +796,7 @@ void ModKnobs::send_midi_follow_feedback(Kind kind, int32_t param_id, int32_t kn
 	if (!midiFollow.isFeedbackEnabled()) {
 		return;
 	}
-	if (!is_clip_context(focus_)) { // `:1716` -- don't send feedback for song params
+	if (!is_clip_context(*focus_)) { // `:1716` -- don't send feedback for song params
 		return;
 	}
 	if (have_param) {

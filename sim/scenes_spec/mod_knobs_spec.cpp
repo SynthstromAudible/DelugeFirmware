@@ -37,7 +37,7 @@
 #include "scenes/registry.h"
 #include "scenes/services/mod_knobs.h"
 
-#include "gui/ui/knob_focus_of.h"
+#include "gui/views/knob_focus_from_stack.h"
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/bind/knob_math.h"
 
@@ -437,7 +437,7 @@ deluge::scenes::bind::KnobFocus focus_of(Song& song, TimelineCounter* counter) {
 	else {
 		stack->addOtherTwoThingsButNoNoteRow(nullptr, nullptr);
 	}
-	return deluge::gui::knobFocusOf(song, *reinterpret_cast<ModelStackWithThreeMainThings*>(memory));
+	return deluge::gui::knobFocusFromStack(song, *reinterpret_cast<ModelStackWithThreeMainThings*>(memory));
 }
 
 /// @brief The knobs' focus on a bare mod controllable, as `View::setActiveModControllableWithoutTimelineCounter`.
@@ -446,7 +446,7 @@ deluge::scenes::bind::KnobFocus focus_without(Song& song, ModControllable* contr
 	(void)setupModelStackWithSong(memory, &song)
 	    ->addTimelineCounter(nullptr)
 	    ->addOtherTwoThingsButNoNoteRow(controllable, params);
-	return deluge::gui::knobFocusOf(song, *reinterpret_cast<ModelStackWithThreeMainThings*>(memory));
+	return deluge::gui::knobFocusFromStack(song, *reinterpret_cast<ModelStackWithThreeMainThings*>(memory));
 }
 
 struct KnobRig {
@@ -1518,7 +1518,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		//    answers from what its writers saw, and no writer leaves this shape, so only the port side is asked.
 		View::KnobStack knobs{view};
 		knobs.stack->modControllable = nullptr;
-		const deluge::scenes::bind::KnobFocus no_controllable = deluge::gui::knobFocusOf(*f.song, *knobs.stack);
+		const deluge::scenes::bind::KnobFocus no_controllable = deluge::gui::knobFocusFromStack(*f.song, *knobs.stack);
 		expect(deluge::scenes::services::is_clip_context(no_controllable)).to_be_false();
 
 		// 5. The SONG as the counter, with a controllable: set, but not a clip. `affectEntire` is

@@ -76,6 +76,8 @@ public:
 	/// @param popup    The value popup this service shows through.
 	/// @param stack    The scene stack it pushes that popup onto.
 	/// @param lowering The input lowering it reads acceleration from and backdates the "last turned" clock on.
+	ModKnobs(const ModKnobs&) = delete;
+	ModKnobs& operator=(const ModKnobs&) = delete;
 	ModKnobs(overlay::ParamPopupScene& popup, deluge::ui::shell::SceneStack& stack,
 	         deluge::ui::shell::InputLowering& lowering)
 	    : popup_(popup), stack_(stack), lowering_(lowering) {}
@@ -104,7 +106,11 @@ public:
 	int32_t mode() const;
 
 	/// @return What the knobs point at.
-	const bind::KnobFocus& focus() const { return focus_; }
+	const bind::KnobFocus& focus() const { return *focus_; }
+
+	/// @brief Keep the focus in @p store, which the legacy views keep too, rather than in this service's own.
+	/// @param store The one focus store; it outlives this service.
+	void use_focus(bind::KnobFocus& store) { focus_ = &store; }
 
 	/// @}
 
@@ -145,10 +151,9 @@ public:
 	/// @param on           Press or release.
 	void mod_button_action(int32_t which_button, bool on);
 
-	/// @brief Is the VU meter shown? (`View::knobFocus().vu_meter`), which pressing the selected mod button 0 outside a
-	/// clip
-	///        minder toggles; its one effect here is the blinking volume mod LED.
-	bool display_vu_meter() const { return display_vu_meter_; }
+	/// @brief Is the VU meter shown? (the focus's, which View keeps too), which pressing the selected mod button 0
+	///        outside a clip minder toggles; its one effect here is the blinking volume mod LED.
+	bool display_vu_meter() const { return focus_->vu_meter; }
 
 	/// @brief Backdate both knobs' "last turned" clocks -- `View::pretendModKnobsUntouchedForAWhile`.
 	void pretend_knobs_untouched();
@@ -232,7 +237,10 @@ private:
 	deluge::ui::shell::SceneStack& stack_;
 	deluge::ui::shell::InputLowering& lowering_;
 	Song* song_ = nullptr;
-	bind::KnobFocus focus_{};
+	/// The focus this service keeps when it is given no store.
+	bind::KnobFocus own_focus_{};
+	/// Where the focus is kept: @ref own_focus_, or the store @ref use_focus names.
+	bind::KnobFocus* focus_ = &own_focus_;
 	/// A MIDI track's knob (@ref selecting_knob_) is choosing its CC, which the next mod button ends.
 	bool selecting_cc_ = false;
 	int32_t selecting_knob_ = 0;
@@ -241,7 +249,6 @@ private:
 	bool blink_indicator_[kKnobCount]{};
 	bool blink_indicator_bipolar_[kKnobCount]{};
 	uint32_t blink_indicator_start_ms_[kKnobCount]{};
-	bool display_vu_meter_ = false;
 	ViewState view_{};
 	std::optional<uint32_t> automation_display_ms_;
 	bool automation_updates_mod_levels_ = false;

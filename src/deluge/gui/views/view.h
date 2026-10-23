@@ -302,7 +302,7 @@ private:
 	[[nodiscard]] std::optional<deluge::project::ParamAddress>
 	knobParamAddress(const ModelStackWithAutoParam& param) const;
 
-	deluge::project::KnobFocus knobFocus_{.region = {.pos = 0xFFFFFFFF}};
+	deluge::project::KnobFocus knobFocus_{};
 	/// The song the focus's ids are in, as an identity only: never dereferenced.
 	const Song* knobSong_{};
 	bool knobsOnClipContext_{};
