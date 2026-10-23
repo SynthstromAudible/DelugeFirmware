@@ -421,12 +421,6 @@ bool ModKnobs::show_popup(const ModTurn& turn, uint32_t now_ms) {
 	// The popup's `show` reports whether it redrew; a second detent on an open popup moves its text, and only the
 	// caller's `Repaint` draws it.
 	const bool committed = popup_.show(turn.kind, turn.param_id, turn.new_knob_pos, source1, source2, now_ms, context);
-	// Legacy's knob popup is the display's notification (`View::displayModEncoderValuePopup`), so drawing it replaces
-	// whatever notification was up -- a menu column's value, say.
-	if (committed) {
-		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
-	}
-
 	// The popup is a scene: pushed when not stacked yet (it is input-transparent, so one may sit above it).
 	for (const deluge::ui::shell::Scene* scene : stack_.scenes()) {
 		if (scene->kind() == overlay::kParamPopupSceneKind) {

@@ -147,13 +147,12 @@ void openPerformanceView(PerformanceEditingMode mode) {
 /// the menu down with it, and "close the editor" should not mean that. This is that same statement,
 /// reached by a different press, so the two exits of the ported menu agree by construction.
 ///
-/// Emptying the stack is the whole of it, because `ShellHostUI::timerCallback` closes the guest
-/// itself the moment the stack is empty (`gui/ui/shell_host_ui.cpp:556-559`) -- F1 task 11's fix,
-/// and the only close path the guest has besides `exitUI`'s (`:1127`). The two alternatives were
-/// both tried on paper and both are broken:
+/// Taking the menu off is the whole of it, because `ShellHostUI::timerCallback` closes the guest
+/// itself once nothing stacked takes input (`gui/ui/shell_host_ui.cpp`), the only close path the
+/// guest has besides `exitUI`'s. The two alternatives were both tried on paper and both are broken:
 ///
-///   * **`closeGuest()` from here, without emptying the stack.** The stack is still occupied, so
-///     `:556` does not fire and `rearmTimer` at `:565` runs. **The timer half of this is now
+///   * **`closeGuest()` from here, leaving the menu stacked.** The menu still takes input, so the
+///     tick's close does not fire and `rearmTimer` runs. **The timer half of this is now
 ///     guarded** -- `rearmTimer` refuses when this guest is not the current UI (`:630`) --
 ///     but read the rest, because the guard was added for a sibling of this exact mistake and the
 ///     bullet is why it exists. Unguarded it armed `TimerName::UI_SPECIFIC` for a UI that is no
@@ -163,8 +162,8 @@ void openPerformanceView(PerformanceEditingMode mode) {
 ///     still rules this alternative out is simpler: it closes the UI while leaving the ported menu
 ///     on the shell stack, so the next open would resume a menu session this one was supposed to
 ///     have ended. That is not `exitCompletely()`.
-///   * **Empty the stack *and* `closeGuest()` from here.** Then `:555` fires too and closes a second
-///     time, and the second `closeUI(&shellHostUI)` is the index `-1` read above.
+///   * **Take the menu off *and* `closeGuest()` from here.** Then the tick's close fires too and
+///     closes a second time, and the second `closeUI(&shellHostUI)` is the index `-1` read above.
 ///
 /// @par The `shellHostUI` global, deliberately
 ///

@@ -50,14 +50,15 @@
 /// @par Timing: a deadline, not a wall clock
 ///
 /// `Scene::tick(dt_ms)` receives no absolute time and `Scene::next_timer()` takes no arguments, so
-/// nothing here can read "now" outside of a `show()` call (which does receive `now_ms`, exactly as
+/// nothing here can read "now" outside of a `show()` or `hand_off()` call (which do receive `now_ms`, exactly as
 /// `UiContext::now_ms` reaches `handle()`). Two independent deadlines are tracked, both as
 /// "milliseconds remaining", counted down by `tick(dt_ms)`:
 ///
 ///   * `remaining_ms_` -- the shown popup's lifetime (legacy's `TimerName::DISPLAY`, reset to
 ///     2000ms by both an actual redraw and a same-parameter refresh). Zero means nothing is
-///     showing. `next_timer()` reports it so the shell wakes the OLED surface exactly once more,
-///     at expiry; `render_oled` then draws nothing and `after_render()` files
+///     showing. Each reset also records the clock time it runs out, which `hand_off()` reads against
+///     its own `now_ms`: a hand-off between ticks gives what is truly left. `next_timer()` reports it so the shell
+///     wakes the OLED surface exactly once more, at expiry; `render_oled` then draws nothing and `after_render()` files
 ///     `Action::Kind::Remove` (never `Pop`, which would also take down whatever a caller has
 ///     legitimately stacked above a passive, `input_transparent`-shaped overlay like this one --
 ///     see the warning on `Action` in `shell/scene.h`).
@@ -106,9 +107,19 @@ struct PopupContext {
 
 /// @brief What a param popup was showing when it was handed to another display, and for how much longer.
 struct ShownPopup {
+	/// The param name line, as drawn.
 	std::string name;
+	/// The value line, as drawn.
 	std::string value;
+	/// What is left of the popup's lifetime, at most `kPopupLifetimeMs`.
 	uint32_t remaining_ms{0};
+	/// The param shown, its value as the change check compares it, and its patch sources: what the receiving
+	/// display needs to tell a later draw of the same param and value from a change.
+	deluge::modulation::params::Kind kind{deluge::modulation::params::Kind::NONE};
+	int32_t param_id{-1};
+	int32_t display_value{0};
+	PatchSource source1{PatchSource::NONE};
+	PatchSource source2{PatchSource::NONE};
 };
 
 /// @brief The mod-encoder value popup. One instance for the whole application (`registry.h`).
@@ -143,6 +154,9 @@ public:
 	///         that draws the popup *disappearing*. E4 task 13 found exactly that by looking at a
 	///         golden: a second gold-knob detent moved this scene's text from "26" to "45" and the
 	///         panel kept showing "26" until the popup expired.
+	///
+	/// @note A draw, here or in `tick()`'s deferred flush, raises a `CancelNotification` notice: legacy's popup is the
+	///       display's notification, so it replaces whatever notification was up. A hand-off raises none.
 	bool show(deluge::modulation::params::Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
 	          PatchSource source2, uint32_t now_ms, PopupContext context = {});
 
@@ -185,8 +199,9 @@ public:
 	uint32_t remaining_ms() const { return remaining_ms_; }
 	/// @brief Give up what is showing to another display: a deferred update is flushed first, as its timer would
 	///        have shown it, and then nothing shows here.
-	/// @return The shown name and value and the lifetime left; none when nothing shows.
-	std::optional<ShownPopup> hand_off();
+	/// @param now_ms The clock at the hand-off: the lifetime left is read off it, ticked or not.
+	/// @return What shows and the lifetime left; none when nothing shows or the lifetime has run out by @p now_ms.
+	std::optional<ShownPopup> hand_off(uint32_t now_ms);
 	/// @return The text last actually shown (post-arbitration), for specs.
 	std::string_view shown_name() const { return {name_, name_len_}; }
 	/// @return ditto, the value half.
@@ -209,9 +224,10 @@ private:
 	char value_[kTextCap + 1] = {};
 	size_t value_len_ = 0;
 
-	uint32_t remaining_ms_ = 0; // 0: nothing showing. The popup's own lifetime countdown.
-	bool was_showing_ = false;  // Set true whenever remaining_ms_ becomes nonzero; after_render's
-	                            // "just expired" edge.
+	uint32_t remaining_ms_ = 0;  // 0: nothing showing. The popup's own lifetime countdown.
+	uint32_t expires_at_ms_ = 0; // The clock time the lifetime runs out, for a hand-off between ticks.
+	bool was_showing_ = false;   // Set true whenever remaining_ms_ becomes nonzero; after_render's
+	                             // "just expired" edge.
 
 	// `last_param_*`/`last_display_value_`: legacy's change-detection statics (view.cpp:1105-1109).
 	deluge::modulation::params::Kind last_param_kind_ = deluge::modulation::params::Kind::NONE;

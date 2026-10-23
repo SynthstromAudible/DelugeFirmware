@@ -277,6 +277,15 @@ public:
 	void displayModEncoderValuePopup(deluge::modulation::params::Kind kind, int32_t paramID, int32_t newKnobPos,
 	                                 PatchSource source1 = PatchSource::NONE, PatchSource source2 = PatchSource::NONE);
 	void flushPendingModEncoderValuePopup();
+	/// @brief Take a param popup another display path drew as this view's own, so the next
+	///        `displayModEncoderValuePopup` compares against it and holds the display for it.
+	/// @param kind         The param's kind.
+	/// @param paramID      The param id within @p kind.
+	/// @param displayValue The value shown, as `displayModEncoderValuePopup` compares it.
+	/// @param source1      The first patch source, for `Kind::PATCH_CABLE`.
+	/// @param source2      The second patch source, or `PatchSource::NONE`.
+	void adoptModEncoderValuePopup(deluge::modulation::params::Kind kind, int32_t paramID, int32_t displayValue,
+	                               PatchSource source1, PatchSource source2);
 	void potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStackWithAutoParam* modelStackWithParam,
 	                                       int32_t newKnobPos);
 	void sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam = nullptr, int32_t knobPos = kNoSelection,

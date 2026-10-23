@@ -54,10 +54,10 @@ namespace deluge::gui::ui {
 ///
 /// The failure mode this list exists for is a guest that silently inherits a `UI` default where it
 /// should have forwarded: nothing breaks until a scene needs that hook, and by then it reads as a
-/// scene bug. `::UI` declares 32 virtuals (`gui/ui/ui.h:94-173`, `grep -n virtual`); eighteen are
-/// overridden below and the other fourteen are listed here with the reason. (Sixteen and sixteen
-/// until F1 task 10, which took `pcReceivedForMidiLearn` and `noteOnReceivedForMidiLearn` off this
-/// list -- see `@par MIDI learn` below, and read it before assuming that path is live.)
+/// scene bug. `::UI` declares 32 virtuals (`gui/ui/ui.h:94-173`, `grep -n virtual`); twenty-one are
+/// overridden below and the other eleven are listed here with the reason. Two of the overridden,
+/// `pcReceivedForMidiLearn` and `noteOnReceivedForMidiLearn`, carry nothing yet -- see `@par MIDI
+/// learn` below before assuming that path is live.
 ///
 // clang-format off
 /// | not overridden | line | why |
@@ -222,10 +222,14 @@ namespace deluge::gui::ui {
 ///    such overlays are left the guest closes, and its close hook shows the popup through legacy's
 ///    display notification for the lifetime it had left, as legacy's own popup outlives the menu.
 ///
-/// **What it costs.** `SoundEditor::modEncoderAction`'s two arms above its forward to `view` --
-/// the `automationView` redirect and `UI_MODE_MIDI_LEARN`'s `getCurrentMenuItem()->learnKnob(...)`
-/// (`gui/ui/sound_editor.cpp`) -- have no counterpart: `MenuItem::learnKnob` has no port, so
-/// MIDI-learning a menu parameter to a gold knob does nothing under the guest.
+/// **What it costs.** `SoundEditor::modEncoderAction`'s two arms above its forward to `view`
+/// (`gui/ui/sound_editor.cpp`) have no counterpart, so under the guest:
+///
+///  - **In MIDI-learn mode a gold turn edits the knob's param instead of learning it.** Legacy's
+///    `UI_MODE_MIDI_LEARN` arm calls `getCurrentMenuItem()->learnKnob(...)` and forwards nothing;
+///    `MenuItem::learnKnob` has no port.
+///  - **Over automation view a gold turn edits through `ModKnobs`**, where legacy hands it to
+///    `automationView.modEncoderAction`.
 ///
 /// @par MIDI learn: two of the four messages are forwarded, and NONE of them is reachable yet
 ///
@@ -310,34 +314,18 @@ namespace deluge::gui::ui {
 /// `InputLowering::toggle_shift` is a line-for-line port of `Buttons::commandToggleShift`
 /// (`shell/input_lowering.cpp:306-326` against `hid/buttons.cpp:237-278`).
 ///
-/// Three ways they still diverge, all measured rather than predicted, none fixable from this file:
+/// Each divergence this once had is closed:
 ///
-///  1. **The sticky-shift feature flag.** Legacy reads
-///     `runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky)` at release time
-///     (`hid/buttons.cpp:250`); the shell reads `LoweringConfig::shift_is_sticky`, which this class
-///     constructs as its default **false** (`shell/input_lowering.h:29-31`) and nothing sets. With
-///     the setting on, legacy latches shift on a tap and this shell does not -- and `ctx.shift` is
-///     the whole gate on the menu's shortcut-pad jump (`scenes/menu/menu_scene.cpp:2004`), so under
-///     the toggle a sticky-shift user loses shortcut pads. **A release blocker for the toggle**,
-///     and it belongs with the boot wiring: `LoweringConfig` is construction-time
-///     (`shell/shell.h:27-29`) and this object is a static-init global that cannot read flash.
-///     Same class of gap, same home, as `ShellConfig::screensaver_idle_ms`'s own warning
-///     (`shell/shell.h:30-43`).
-///  2. ~~`hold_time_ms` is a constant here and a setting there.~~ **Closed by F1 task 8.** The tap
-///     threshold is `FlashStorage::holdTime` (audio samples) in legacy and
-///     `LoweringConfig::hold_time_ms` in the shell; `feed()` now converts and seats it through
-///     `InputLowering::set_hold_time_ms` on **every** pad and button, which is where legacy's own
-///     live read happens (`hid/buttons.cpp:264`). Not once per open: `nodes::set_default_hold_time`
-///     (`scenes/menu/nodes/settings.cpp`) is the ported settings item and writes the flash global
-///     from *inside* the guest, so a per-open seed would lag it by a whole session. Task 6 deferred
-///     it because
-///     no `LoweringConfig` mutator existed for it; task 8 added the one, on the same argument that
-///     justified `set_shift_is_sticky` -- these two fields are settings, and the other two
-///     (`short_press_ms`, `edges_per_detent`) are a constant and a board fact.
-///  3. **Mod buttons.** Legacy clears `considerShiftReleaseForSticky` on *every* button press
-///     including the eight mod buttons (`hid/buttons.cpp:88-95`, above the mod-button interception
-///     at `:99-107`); the shell sees them only as `modButtonAction` feeds them, after that clear, so
-///     shift-hold + mod-button + shift-tap latches shift in the shell and not in legacy.
+///  - **The sticky-shift feature flag.** `opened()` seeds `LoweringConfig::shift_is_sticky` from
+///    `RuntimeFeatureSettingType::ShiftIsSticky` through `InputLowering::set_shift_is_sticky`, and
+///    `ShiftIsSticky::writeCurrentValue` mirrors a live change.
+///  - **`hold_time_ms`.** `feed()` seats `FlashStorage::holdTime` (audio samples) through
+///    `InputLowering::set_hold_time_ms` on every pad and button, which is where legacy's own live read
+///    happens (`hid/buttons.cpp:264`): `nodes::set_default_hold_time` writes the flash global from
+///    inside the guest, so a per-open seed would lag it by a whole session.
+///  - **Mod buttons.** Legacy clears `considerShiftReleaseForSticky` on every button press including
+///    the eight mod buttons (`hid/buttons.cpp:88-95`); `modButtonAction` feeds them as matrix buttons,
+///    so `InputLowering::on_button` clears its own on the same presses.
 class ShellHostUI final : public ::UI {
 public:
 	/// @brief Build the guest over \p board and \p registry.
@@ -366,11 +354,14 @@ public:
 	deluge::ui::shell::SceneId getInitialScene() const { return initial_; }
 	/// @}
 
-	/// @brief What the guest runs as it closes, before it empties its stack: the hand-off of what its passive overlays
-	///        still show to legacy's display (installed by `wireShellGuestServices()`, which may name the scenes).
-	using CloseHook = void (*)();
+	/// @brief What the guest runs as it closes, before it empties its stack, given its clock: the hand-off of the knob
+	///        popup still showing to legacy's display (installed by `wireShellGuestServices()`, which may name the
+	///        scenes). The other passive overlays go with the stack.
+	using CloseHook = void (*)(uint32_t now_ms);
 	/// @brief Install @p hook, or none.
 	static void setCloseHook(CloseHook hook) { closeHook_ = hook; }
+	/// @brief The hook installed; none when none is.
+	static CloseHook closeHook() { return closeHook_; }
 
 	/// @brief The shell this guest runs. Tasks 6-8 reach the input lowering, the services and the
 	///        tick through here.
@@ -556,6 +547,7 @@ private:
 
 	/// The scene `opened()` pushes; `SceneKind::Null` until a caller sets one.
 	deluge::ui::shell::SceneId initial_{};
+	/// The hook `closeGuest()` runs; see `CloseHook`.
 	static inline CloseHook closeHook_ = nullptr;
 	/// @brief The config `shell_` was built with, kept so `feedDetents` can read
 	///        `edges_per_detent` back.

@@ -542,7 +542,7 @@ ActionResult ShellHostUI::timerCallback() {
 	// handing focus to the UI beneath, so a re-arm here would either be undone one line later or
 	// deliver this guest's `timerCallback` to that UI (`gui/ui_timer_manager.cpp:143`).
 	// Nothing left that takes input -- an empty stack, or only passive overlays (a knob popup, a console line) -- is a
-	// guest with nothing to offer: it closes, and `closeGuest` hands what the overlays show to legacy.
+	// guest with nothing to offer: it closes, and `closeGuest` hands a showing knob popup to legacy and drops the rest.
 	if (!shell_.stack().has_input_scene()) {
 		closeGuest();
 		return ActionResult::DEALT_WITH;
@@ -777,9 +777,9 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 			// `UI_SPECIFIC` while some other UI is current would deliver the tick to *that* UI
 			// (`UITimerManager::routine`, `gui/ui_timer_manager.cpp:143`), not to this one -- so the
 			// guard is here instead (I1): arm only when this guest is still the current UI. `Exit` is
-			// unaffected by the guard -- the guest is current after its own stack empties -- and the
-			// arm is *required* there: the tick is what notices the empty stack and closes the guest
-			// (`:555-558`).
+			// unaffected by the guard -- the guest is current after the menu leaves its stack -- and the
+			// arm is *required* there: the tick is what notices nothing stacked takes input and closes
+			// the guest (`timerCallback`).
 			(void)forwardGridPad(x, y, velocity);
 			if (getCurrentUI() == this) {
 				armTickSoon();
@@ -1028,16 +1028,13 @@ ActionResult ShellHostUI::exitUI() {
 	//    lie about a press that was consumed, and closing here would pop the guest a level early.
 	//  - **None is** -- the stack is empty or holds only passive overlays (a knob popup, a console
 	//    line): the guest has nothing left to offer and is itself what Back leaves. `closeGuest()`
-	//    hands the overlays to legacy and closes, then `ACTIONED_AND_CAUSED_CHANGE`.
+	//    hands a showing knob popup to legacy, drops the other overlays and closes, then
+	//    `ACTIONED_AND_CAUSED_CHANGE`.
 	//
 	// What Back leaves is the input top, not the raw top: a passive overlay drawn over it is not
-	// the scene the user is in. `pop()` covers a stack of nothing but overlays (or none:
-	// `SceneStack::pop` returns at once on an empty stack).
+	// the scene the user is in.
 	if (shell_.stack().has_input_scene()) {
 		(void)shell_.stack().remove(shell_.stack().input_top().kind());
-	}
-	else {
-		shell_.stack().pop();
 	}
 	if (shell_.stack().has_input_scene()) {
 		// The stack moved, so the next tick will re-render everything (`SceneStack::pop` sets
@@ -1079,50 +1076,9 @@ void ShellHostUI::closeGuest() {
 	// `UI_MODE_CLIP_PRESSED_IN_SONG_VIEW` / `UI_MODE_HOLDING_ARRANGEMENT_ROW` is active, so a guest
 	// closed during either leaves the rings dark until the next thing that sets levels.
 	//
-	// **A second residual, and this one is a known divergence, recorded rather than fixed**
-	// (note-family Task 7, fix round 1). Legacy's note exit runs the instant `exitCompletely` does
-	// (`gui/ui/sound_editor.cpp:749-761`). Here it runs from this function, which the tick calls only
-	// once the stack is empty (`:556`), so a note-mode exit that removes the menu from under another
-	// scene waits for that scene to leave. `closePortedMenu()` removes the menu and nothing else
-	// (`gui/ui/shell_action_dispatch.cpp:190`), and it is what the note modes' own pad exits perform:
-	// the note editor's sidebar `Exit` and `NoteRowEditor`'s `false` (`gui/ui/shell_pad_forward.cpp`).
-	// A pad reaches those arms whatever input-transparent scene sits over the menu, because
-	// `claimsGridPad` asks `input_top()` (`:764`), which skips such scenes (`shell/scene_stack.h:146-155`),
-	// and both note roots claim no pad (`scenes/menu/menu_scene.h:518-522`). Measured reachable three
-	// ways:
-	//
-	//   * **The console strip -- no longer from the column notification** (note-family Task 8b).
-	//     `MenuScene::notify_column` fires for a value change or a column focus in a horizontal menu
-	//     (`scenes/menu/menu_scene.cpp:1682`, `:1976`, `:1986`), and both note roots are horizontal.
-	//     It used to raise a `Kind::Console` notice that this shell's drain (`shell/shell.cpp:330`) and
-	//     legacy's `drain_notifications` (`gui/ui/ui.cpp:387`, run from a repeating task,
-	//     `deluge.cpp:562`) raced for. It now raises `Kind::Notification`, and that kind does not race:
-	//     both consumers end in the same `showNoticeNotification` call (`gui/ui/notify_drain.h:29`) --
-	//     legacy's drain directly (`gui/ui/notify_drain.cpp:179`), this shell's through the sink
-	//     `wireShellNotificationSink()` installs at boot (`shell/notices.cpp:363-367`) -- and neither
-	//     pushes a scene. Every other kind still races, since the two pop the same queue and which one
-	//     wins is the scheduler's call: any other `Kind::Console` notice this shell pops still pushes
-	//     `SceneKind::Console` (`shell/notices.cpp:294-302`), which is input-transparent
-	//     (`shell/notices.h:215`) and is removed only once its lines expire
-	//     (`shell/notices.cpp:460-461`, `kConsoleLineMs` at `:46`).
-	//   * **The popup.** The note modes' select guards raise "Select Note" / "Select Row" as `Text`
-	//     notices (`scenes/menu/nodes/note.cpp:174`, `:182`), which the same race turns into a popup
-	//     scene on the stack (`shell/notices.cpp:428-436`), also input-transparent (`shell/notices.h:111`).
-	//   * **The screensaver.** `shell::Screensaver` pushes its scene on idle
-	//     (`shell/screensaver.cpp:60`). That scene is input-transparent
-	//     (`scenes/overlay/screensaver_scene.h:180`), and only input fed through
-	//     `Shell::on_board_event` / `on_encoder_edges` wakes it (`shell/shell.cpp:273`, `:279`) -- which
-	//     a forwarded pad never is.
-	//
-	// In each case `activeNoteMode()` answers `None` from that pad onwards, while `exitNoteEditor()` /
-	// `exitNoteRowEditor()` waits: for a console line's lifetime, a popup's, or the next fed input.
-	// The close mechanism is deliberately unchanged: this function is the plan's home for site 4, and
-	// moving the exit is a ruling rather than a fix.
-	//
-	// (This function used to say it was "the only close path the guest owns". It is now the *body*
-	// of both of the guest's own close paths -- `exitUI`'s long-press Back and `timerCallback`'s
-	// short one -- which is what F1 task 11's A/B forced. A `closeUI(&shellHostUI)` from somewhere
-	// else still has no hook to run it from, since `UI` declares none.)
+	// This function is the body of both of the guest's own close paths -- `exitUI`'s long-press Back
+	// and `timerCallback`'s close once nothing stacked takes input. A `closeUI(&shellHostUI)` from
+	// elsewhere has no hook to run it from, since `UI` declares none.
 	indicator_leds::clearKnobIndicatorLevels();
 
 	// **Then the note mode's own exit, which `SoundEditor::exitCompletely` runs before its `close()`**:
@@ -1130,7 +1086,7 @@ void ShellHostUI::closeGuest() {
 	// (`gui/ui/sound_editor.cpp:749-756`), and `close()` at `:761`. `exitNoteModeBeforeClose`
 	// (`gui/ui/shell_note_mode.h`) is that arm. It keys on the menu's root rather than on the stack,
 	// because on both paths into this function the menu has already left the stack. Here, below the
-	// indicator clear and immediately before `close()`, because a close first would run the root
+	// indicator clear and before `close()`, because a close first would run the root
 	// view's `focusRegained` (`gui/ui/ui.cpp:199`) while the note selection legacy clears first was
 	// still set.
 	//
@@ -1139,9 +1095,9 @@ void ShellHostUI::closeGuest() {
 	// hierarchy for this guest rather than assuming it is on top (`gui/ui/ui.cpp:183-192`).
 	exitNoteModeBeforeClose();
 
-	// What passive overlays still show goes to legacy's display, then the stack empties so the next open starts clean.
+	// The knob popup still showing goes to legacy's display, then the stack empties so the next open starts clean.
 	if (closeHook_ != nullptr) {
-		closeHook_();
+		closeHook_(nowMs());
 	}
 	shell_.stack().reset();
 

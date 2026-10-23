@@ -9,6 +9,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "modulation/arpeggiator_rhythms.h"
+#include "notify/notice_queue.h"
 
 #include <algorithm>
 #include <cmath>
@@ -200,9 +201,23 @@ int32_t format_value(Kind kind, int32_t param_id, int32_t knob_pos, const PopupC
 
 } // namespace
 
+namespace {
+
+/// @brief Legacy's knob popup is the display's notification (`View::displayModEncoderValuePopup`), so every draw
+///        replaces whatever notification was up -- a menu column's value, say.
+void take_notification_slot() {
+	deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
+}
+
+} // namespace
+
 bool ParamPopupScene::show(Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1, PatchSource source2,
                            uint32_t now_ms, PopupContext context) {
-	return attempt_display(kind, param_id, knob_pos, source1, source2, now_ms, context);
+	const bool committed = attempt_display(kind, param_id, knob_pos, source1, source2, now_ms, context);
+	if (committed) {
+		take_notification_slot();
+	}
+	return committed;
 }
 
 bool ParamPopupScene::attempt_display(Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
@@ -257,6 +272,7 @@ bool ParamPopupScene::attempt_display(Kind kind, int32_t param_id, int32_t knob_
 		std::memcpy(value_, value_buf, value.len + 1);
 		value_len_ = value.len;
 		remaining_ms_ = kPopupLifetimeMs;
+		expires_at_ms_ = now_ms + kPopupLifetimeMs;
 		was_showing_ = true;
 
 		last_param_kind_ = kind;
@@ -297,6 +313,7 @@ bool ParamPopupScene::attempt_display(Kind kind, int32_t param_id, int32_t knob_
 	}
 	else if (current_param_owns_display && notification_active) {
 		remaining_ms_ = kPopupLifetimeMs;
+		expires_at_ms_ = now_ms + kPopupLifetimeMs;
 		last_display_update_ms_ = now_ms;
 	}
 	// Else: none of the above -- exactly legacy's implicit fourth arm, nothing changes.
@@ -315,20 +332,28 @@ Result ParamPopupScene::handle(const deluge::ui::shell::UiEvent& /*event*/,
 	return Result::unhandled();
 }
 
-std::optional<ShownPopup> ParamPopupScene::hand_off() {
+std::optional<ShownPopup> ParamPopupScene::hand_off(uint32_t now_ms) {
 	if (has_pending_) {
-		// The deferred flush, at the instant it was scheduled to fire (`tick`'s pending arm).
+		// The deferred flush, at the instant it was scheduled to fire (`tick`'s pending arm). The display it is
+		// handed to draws it, so it takes no notification slot here.
 		has_pending_ = false;
 		(void)attempt_display(pending_kind_, pending_param_id_, pending_knob_pos_, pending_source1_, pending_source2_,
 		                      last_actual_display_ms_ + kMinUpdateIntervalMs, pending_context_);
 	}
-	if (remaining_ms_ == 0) {
+	const bool showing = remaining_ms_ > 0;
+	remaining_ms_ = 0;
+	const auto left = static_cast<int32_t>(expires_at_ms_ - now_ms);
+	if (!showing || left <= 0) {
 		return std::nullopt;
 	}
-	ShownPopup shown{
-	    .name = std::string{shown_name()}, .value = std::string{shown_value()}, .remaining_ms = remaining_ms_};
-	remaining_ms_ = 0;
-	return shown;
+	return ShownPopup{.name = std::string{shown_name()},
+	                  .value = std::string{shown_value()},
+	                  .remaining_ms = std::min(static_cast<uint32_t>(left), kPopupLifetimeMs),
+	                  .kind = last_param_kind_,
+	                  .param_id = last_param_id_,
+	                  .display_value = last_display_value_,
+	                  .source1 = last_source1_,
+	                  .source2 = last_source2_};
 }
 
 void ParamPopupScene::tick(uint32_t dt_ms) {
@@ -342,8 +367,10 @@ void ParamPopupScene::tick(uint32_t dt_ms) {
 			// exact by construction, since that is the instant this flush was scheduled to fire.
 			const uint32_t flush_now_ms = last_actual_display_ms_ + kMinUpdateIntervalMs;
 			has_pending_ = false;
-			(void)attempt_display(pending_kind_, pending_param_id_, pending_knob_pos_, pending_source1_,
-			                      pending_source2_, flush_now_ms, pending_context_);
+			if (attempt_display(pending_kind_, pending_param_id_, pending_knob_pos_, pending_source1_, pending_source2_,
+			                    flush_now_ms, pending_context_)) {
+				take_notification_slot();
+			}
 		}
 		else {
 			pending_flush_remaining_ms_ -= dt_ms;

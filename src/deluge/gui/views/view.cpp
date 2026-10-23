@@ -1045,29 +1045,62 @@ void View::potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStack
 	}
 }
 
+namespace {
+
+/// @brief What the mod-encoder value popup last drew, and which param holds the display.
+struct ModEncoderPopupState {
+	// Cache last displayed values to avoid unnecessary notifications
+	params::Kind last_param_kind = params::Kind::NONE;
+	int32_t last_param_id = -1;
+	int32_t last_display_value = INT32_MIN;
+	PatchSource last_source1 = PatchSource::NONE;
+	PatchSource last_source2 = PatchSource::NONE;
+
+	// Display arbitration for multiple mod encoders ("juggling ball" system)
+	params::Kind display_owner_kind = params::Kind::NONE;
+	int32_t display_owner_param_id = -1;
+	PatchSource display_owner_source1 = PatchSource::NONE;
+	PatchSource display_owner_source2 = PatchSource::NONE;
+	uint32_t display_ownership_start_time = 0;
+	uint32_t last_display_update_time = 0; // Used for timeout detection in arbitration
+	uint32_t last_actual_display_time = 0; // Used for frequency throttling
+};
+
+ModEncoderPopupState modEncoderPopupState;
+
+} // namespace
+
+void View::adoptModEncoderValuePopup(params::Kind kind, int32_t paramID, int32_t displayValue, PatchSource source1,
+                                     PatchSource source2) {
+	const uint32_t now = AudioEngine::audioSampleTimer;
+	modEncoderPopupState = ModEncoderPopupState{
+	    .last_param_kind = kind,
+	    .last_param_id = paramID,
+	    .last_display_value = displayValue,
+	    .last_source1 = source1,
+	    .last_source2 = source2,
+	    .display_owner_kind = kind,
+	    .display_owner_param_id = paramID,
+	    .display_owner_source1 = source1,
+	    .display_owner_source2 = source2,
+	    .display_ownership_start_time = now,
+	    .last_display_update_time = now,
+	    .last_actual_display_time = now,
+	};
+	// A deferred update of legacy's own would replay over the adopted popup.
+	hasPendingModEncoderValuePopup = false;
+	uiTimerManager.unsetTimer(TimerName::MOD_ENCODER_POPUP_FLUSH);
+}
+
 void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32_t newKnobPos, PatchSource source1,
                                        PatchSource source2) {
 	alignas(ModelStackWithAutoParam) char knobsMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* knobs = knobOwnerStack(knobsMemory);
 	auto* knobOwner = knobs != nullptr ? (ModControllableAudio*)knobs->modControllable : nullptr;
 
-	// Cache last displayed values to avoid unnecessary notifications
-	static params::Kind last_param_kind = params::Kind::NONE;
-	static int32_t last_param_id = -1;
-	static int32_t last_display_value = INT32_MIN;
-	static PatchSource last_source1 = PatchSource::NONE;
-	static PatchSource last_source2 = PatchSource::NONE;
-
-	// Display arbitration for multiple mod encoders ("juggling ball" system)
-	static params::Kind display_owner_kind = params::Kind::NONE;
-	static int32_t display_owner_param_id = -1;
-	static PatchSource display_owner_source1 = PatchSource::NONE;
-	static PatchSource display_owner_source2 = PatchSource::NONE;
-	static uint32_t display_ownership_start_time = 0;
-	static uint32_t last_display_update_time = 0; // Used for timeout detection in arbitration
-	static uint32_t last_actual_display_time = 0; // Used for frequency throttling
-
-	// Timing constants for display arbitration (in AudioEngine sample units)
+	auto& [last_param_kind, last_param_id, last_display_value, last_source1, last_source2, display_owner_kind,
+	       display_owner_param_id, display_owner_source1, display_owner_source2, display_ownership_start_time,
+	       last_display_update_time, last_actual_display_time] = modEncoderPopupState;
 
 	uint32_t current_time = AudioEngine::audioSampleTimer;
 

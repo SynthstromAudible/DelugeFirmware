@@ -1597,7 +1597,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.open(kBase)).to_be_true();
 		r.over.passive = true;
 		expect(r.guest.shell().stack().push(SceneId{kOver, 0})).to_be_true();
-		ShellHostUI::setCloseHook([] {
+		ShellHostUI::setCloseHook([](uint32_t /*now_ms*/) {
 			hook_calls++;
 			closed_at_hook = fakelegacyui::closed.size();
 		});

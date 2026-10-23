@@ -244,6 +244,13 @@ std::string rows(const std::string& pbm, int width, int first, int count) {
 
 // clang-format off
 describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
+	// Each draw files a notification cancel; a later example's shell would drain it into a display it may not have.
+	after_each([] {
+		deluge::notify::Notice notice;
+		while (deluge::notify::notices().pop(notice)) {
+		}
+	});
+
 
 	it("draws exactly what the real legacy OLED::displayNotification draws, at both panel geometries", _ {
 		// Fresh legacy state: the first-ever call to `displayModEncoderValuePopup` in this process,
@@ -500,6 +507,10 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 	});
 
 	it("removes only itself from a real stack, leaving what is above it exactly where it was", _ {
+		// The shell drains the popup's notification cancel into the display, as in the app.
+		SpyDisplay spy;
+		deluge::hid::Display* const saved = display;
+		display = &spy;
 		Rig r;
 		r.open();
 		param_popup_scene().show(Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_RATE, 0, PatchSource::NONE,
@@ -517,6 +528,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		r.tick(9'000'000 + 2000);
 		expect(r.shell.stack().depth()).to_equal(1u);
 		expect(r.shell.stack().id_at(0).kind).to_equal(SceneKind::FirstApp);
+		display = saved;
 	});
 
 	it("hands off what it shows and its remaining lifetime, and stops showing", _ {
@@ -527,15 +539,34 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		const std::string name{popup.shown_name()};
 		const std::string value{popup.shown_value()};
 		popup.tick(600);
-		const std::optional<overlay::ShownPopup> handed = popup.hand_off();
+		const std::optional<overlay::ShownPopup> handed = popup.hand_off(7'000'600);
 		expect(handed.has_value()).to_be_true();
 		if (handed) {
 			expect(handed->name).to_equal(name);
 			expect(handed->value).to_equal(value);
 			expect(handed->remaining_ms).to_equal(uint32_t(1400));
+			expect(handed->kind == Kind::UNPATCHED_GLOBAL).to_be_true();
+			expect(handed->param_id).to_equal(int32_t(UNPATCHED_VOLUME));
 		}
 		expect(popup.remaining_ms()).to_equal(uint32_t(0));
-		expect(popup.hand_off().has_value()).to_be_false();
+		expect(popup.hand_off(7'000'600).has_value()).to_be_false();
+	});
+
+	it("reads the lifetime left off the clock, whether or not it has ticked since", _ {
+		auto& popup = param_popup_scene();
+		popup.tick(100'000);
+		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 5, PatchSource::NONE, PatchSource::NONE, 7'500'000,
+		                 {});
+		// No tick since the show: a hand-off 900 ms on has 1100 ms left.
+		const std::optional<overlay::ShownPopup> later = popup.hand_off(7'500'900);
+		expect(later.has_value() && later->remaining_ms == 1100).to_be_true();
+
+		popup.tick(100'000);
+		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 7, PatchSource::NONE, PatchSource::NONE, 7'600'000,
+		                 {});
+		// Expired by the clock, though no tick has counted it down: nothing to hand.
+		expect(popup.hand_off(7'602'500).has_value()).to_be_false();
+		popup.tick(100'000);
 	});
 
 	it("hands off a pending update, flushed first", _ {
@@ -545,7 +576,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		                 {});
 		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 20, PatchSource::NONE, PatchSource::NONE, 8'000'010,
 		                 {});
-		const std::optional<overlay::ShownPopup> handed = popup.hand_off();
+		const std::optional<overlay::ShownPopup> handed = popup.hand_off(8'000'020);
 		// The newer value, as the shown popup would have read once its deferred flush ran.
 		popup.tick(100'000);
 		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 20, PatchSource::NONE, PatchSource::NONE, 9'000'000,
@@ -553,6 +584,38 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		const std::string latest{popup.shown_value()};
 		expect(handed.has_value() && handed->value == latest).to_be_true();
 		popup.tick(100'000);
+	});
+
+	it("takes the notification slot whenever it draws, a deferred update included, and not on a hand-off", _ {
+		// Legacy's knob popup is the display's notification (`View::displayModEncoderValuePopup`): every draw
+		// replaces whatever notification was up. A hand-off gives the popup to that very slot, so it cancels nothing.
+		using deluge::notify::Notice;
+		const auto cancels = [] {
+			int n = 0;
+			Notice notice;
+			while (deluge::notify::notices().pop(notice)) {
+				n += notice.kind == Notice::Kind::CancelNotification ? 1 : 0;
+			}
+			return n;
+		};
+		auto& popup = param_popup_scene();
+		popup.tick(100'000);
+		(void)cancels();
+		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 0, PatchSource::NONE, PatchSource::NONE, 10'000'000,
+		                 {});
+		expect(cancels()).to_equal(1);
+		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 20, PatchSource::NONE, PatchSource::NONE, 10'000'010,
+		                 {});
+		expect(cancels()).to_equal(0); // deferred: nothing drawn yet
+		popup.tick(100);                // the deferred flush draws
+		expect(cancels()).to_equal(1);
+		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 40, PatchSource::NONE, PatchSource::NONE, 10'000'200,
+		                 {});
+		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 60, PatchSource::NONE, PatchSource::NONE, 10'000'210,
+		                 {});
+		(void)cancels();
+		expect(popup.hand_off(10'000'220).has_value()).to_be_true();
+		expect(cancels()).to_equal(0);
 	});
 });
 // clang-format on
