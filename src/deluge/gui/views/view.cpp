@@ -38,6 +38,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/knob_focus_from_stack.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "hid/buttons.h"
@@ -128,7 +129,6 @@ View::View() {
 	modLength = 0;
 	modPos = 0xFFFFFFFF;
 	clipArmFlashOn = false;
-	displayVUMeter = false;
 	renderedVUMeter = false;
 	cachedMaxYDisplayForVUMeterL = 255;
 	cachedMaxYDisplayForVUMeterR = 255;
@@ -1569,7 +1569,7 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 						// you just pressed the volume mod button and it was already selected previously
 						// toggle displaying VU Meter on / off
 						if (whichButton == 0) {
-							displayVUMeter = !displayVUMeter;
+							knobFocus_.vu_meter = !knobFocus_.vu_meter;
 						}
 					}
 					// refresh sidebar if VU meter previously rendered is still showing
@@ -1717,7 +1717,7 @@ void View::setModLedStates() {
 		bool on = (i == modKnobMode);
 		// if you're in a song view and volume mod button is selected and VU meter is enabled
 		// blink volume mod led
-		if (itsTheSong && on && modKnobMode == 0 && view.displayVUMeter) {
+		if (itsTheSong && on && modKnobMode == 0 && knobFocus_.vu_meter) {
 			indicator_leds::blinkLed(indicator_leds::modLed[i]);
 		}
 		// if you're in the Automation View Automation Editor, turn off Mod LED's
@@ -1810,7 +1810,7 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 	// or
 	// 2) we've pressed a clip while vu meter was active
 	// then let's continue to render VU meter
-	if (displayVUMeter
+	if (knobFocus_.vu_meter
 	    && ((activeModControllableModelStack.modControllable
 	         && *activeModControllableModelStack.modControllable->getModKnobMode() == 0)
 	        || (isClipContext() && renderedVUMeter))) {
@@ -1934,6 +1934,7 @@ void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCoun
 	else {
 		modelStack->addOtherTwoThingsButNoNoteRow(nullptr, nullptr);
 	}
+	refreshKnobFocus();
 
 	setModLedStates();
 	setKnobIndicatorLevels();
@@ -1959,6 +1960,7 @@ void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modCo
 	setupModelStackWithSong(&activeModControllableModelStack, currentSong)
 	    ->addTimelineCounter(nullptr)
 	    ->addOtherTwoThingsButNoNoteRow(modControllable, paramManager);
+	refreshKnobFocus();
 
 	setModLedStates();
 	setKnobIndicatorLevels();
@@ -1978,6 +1980,13 @@ void View::releaseActiveModControllable() {
 	activeModControllableModelStack.modControllable = nullptr;
 	activeModControllableModelStack.setTimelineCounter(nullptr);
 	activeModControllableModelStack.paramManager = nullptr;
+	knobFocus_.owner = std::monostate{};
+}
+
+void View::refreshKnobFocus() {
+	knobFocus_.owner = currentSong != nullptr
+	                       ? deluge::gui::knobFocusFromStack(*currentSong, activeModControllableModelStack).owner
+	                       : std::monostate{};
 }
 
 void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
@@ -1985,6 +1994,7 @@ void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
 	modPos = pos;
 	modLength = length;
 	modNoteRowId = noteRowId;
+	knobFocus_.region = {.pos = pos, .length = length};
 
 	pretendModKnobsUntouchedForAWhile();
 

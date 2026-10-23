@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/knob_focus.h"
 #include "gui/colour/colour.h"
 #include "hid/button.h"
 #include "model/model_stack.h"
@@ -90,6 +91,11 @@ public:
 	/// freed -- since the knobs reach the view whichever UI is on top. Writes only the model stack; the knob
 	/// indicators and mod LEDs are left to the caller.
 	void releaseActiveModControllable();
+	/// @brief [interaction] What the gold knobs point at, as addresses: the owner the active model stack names, the
+	///        region a held pad names, the song's compressor view and its VU meter.
+	[[nodiscard]] const deluge::project::KnobFocus& knobFocus() const { return knobFocus_; }
+	/// @copydoc knobFocus() const
+	[[nodiscard]] deluge::project::KnobFocus& knobFocus() { return knobFocus_; }
 	/// @brief [interaction] Whether the active model stack names @p song or anything it owns: the song itself, one of
 	///        its clips, or one of its outputs (main or hibernating) as the ModControllable.
 	///
@@ -235,7 +241,6 @@ public:
 	                            bool isAutomation = false);
 
 	// vu meter rendering
-	bool displayVUMeter;
 	bool potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]);
 
 	void getParameterNameFromModEncoder(int32_t whichModEncoder, char* parameterName);
@@ -267,6 +272,12 @@ public:
 #endif
 
 private:
+	/// @brief Set the focus's owner from activeModControllableModelStack, keeping its region, compressor view and VU
+	///        meter.
+	void refreshKnobFocus();
+
+	deluge::project::KnobFocus knobFocus_{};
+
 	void pretendModKnobsUntouchedForAWhile();
 	void instrumentBeenEdited();
 	void clearMelodicInstrumentMonoExpressionIfPossible();

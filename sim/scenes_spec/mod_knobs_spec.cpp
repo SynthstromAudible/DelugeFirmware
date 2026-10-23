@@ -1738,7 +1738,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 	it("blinks the volume mod LED when the VU meter is on, and only in the song context", _ {
 		// `view.cpp:1683-1684` -- the one row of the table that is not "on iff selected", and the
-		// only reason `displayVUMeter` is ported at all. It needs three things at once: the song
+		// only reason the VU meter is ported at all. It needs three things at once: the song
 		// context, mod button 0 selected, and the meter on. Each side toggles the meter through its
 		// own `modButtonAction` -- pressing the already-selected button 0 outside a clip minder
 		// (`:1517-1523`) -- so this drives the toggle as well as the LED it feeds.
@@ -1764,12 +1764,12 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.set_target_with_timeline(pf.song, false); // the song, so `itsTheSong` is true
 		view.setActiveModControllableTimelineCounter(f.song, false);
 
-		// `View::displayVUMeter` is a process-global `View` member and an earlier example in this
+		// `View::knobFocus().vu_meter` is a process-global `View` member and an earlier example in this
 		// file has already toggled it; `ModKnobs::display_vu_meter_` is fresh with each `KnobRig`.
 		// Putting the legacy side into the port's known start state is aligning the two sentinels,
 		// not deriving one from the other -- everything compared below is produced afterwards, by
 		// each side's own `modButtonAction`.
-		view.displayVUMeter = false;
+		view.knobFocus().vu_meter = false;
 		expect(rig.knobs.display_vu_meter()).to_be_false();
 
 		// Select a different mod button first, so the press that follows is a *selection* and not
@@ -1785,7 +1785,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		view.modButtonAction(0, true);
 		currentSong = pf.song;
 		rig.knobs.mod_button_action(0, true);
-		expect(rig.knobs.display_vu_meter()).to_equal(view.displayVUMeter);
+		expect(rig.knobs.display_vu_meter()).to_equal(view.knobFocus().vu_meter);
 		{
 			deluge::ui::LedFrame frame;
 			currentSong = pf.song;
@@ -1799,7 +1799,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		view.modButtonAction(0, true);
 		currentSong = pf.song;
 		rig.knobs.mod_button_action(0, true);
-		expect(view.displayVUMeter).to_be_true();
+		expect(view.knobFocus().vu_meter).to_be_true();
 		expect(rig.knobs.display_vu_meter()).to_be_true();
 		{
 			deluge::ui::LedFrame frame;

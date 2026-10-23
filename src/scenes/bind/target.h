@@ -7,6 +7,7 @@
 #include "deluge-project/clip_address.h"
 #include "deluge-project/fx_chain.h"
 #include "deluge-project/instrument_slot.h"
+#include "deluge-project/knob_focus.h"
 #include "deluge-project/note_address.h"
 #include "deluge-project/param_address.h"
 #include "deluge-project/setting_group.h"
@@ -96,8 +97,7 @@ struct Target {
 	}
 };
 
-/// @brief Which kind of output holds a chain: the model's ChainAddress cannot tell a kit from an audio track.
-enum class ChainOwner : uint8_t { KIT, AUDIO_TRACK, SONG };
+using project::ChainOwner;
 
 /// @brief Where the menu edits: addresses into the model.
 struct Addresses {

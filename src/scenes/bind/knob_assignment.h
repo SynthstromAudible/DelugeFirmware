@@ -33,8 +33,4 @@ struct KnobAssignment {
 ///        controls, a chain's view, a MIDI track's CCs, and the focus's compressor view.
 [[nodiscard]] KnobAssignment knob_assignment(const project::Song& song, const KnobFocus& focus, int32_t knob);
 
-/// @brief The owner @p focus's knobs move params of, as an address with no param: its owner id and clip id. None for
-///        no focus, or a MIDI track with no clip.
-[[nodiscard]] std::optional<project::ParamAddress> knob_owner(const KnobFocus& focus);
-
 } // namespace deluge::scenes::bind

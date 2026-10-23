@@ -739,7 +739,7 @@ void SessionView::beginEditingSectionRepeatsNum() {
 ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
 	// don't interact with sidebar if VU Meter is displayed
 	// and you're in the volume/pan mod knob mode (0)
-	if (xDisplay >= kDisplayWidth && view.displayVUMeter && (view.getModKnobMode() == 0)) {
+	if (xDisplay >= kDisplayWidth && view.knobFocus().vu_meter && (view.getModKnobMode() == 0)) {
 		return ActionResult::DEALT_WITH;
 	}
 

@@ -61,6 +61,7 @@ void View::followRecordingToClip(Clip* from, Clip* to) {
 	if (stack.getTimelineCounterAllowNull() == from) {
 		stack.setTimelineCounter(to);
 		stack.paramManager = &to->paramManager;
+		refreshKnobFocus();
 	}
 }
 

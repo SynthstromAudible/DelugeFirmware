@@ -1648,7 +1648,7 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 	}
 
 	// don't interact with sidebar if VU Meter is displayed
-	if (onArrangerView && x >= kDisplayWidth && view.displayVUMeter) {
+	if (onArrangerView && x >= kDisplayWidth && view.knobFocus().vu_meter) {
 		return ActionResult::DEALT_WITH;
 	}
 

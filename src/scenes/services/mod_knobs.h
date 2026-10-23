@@ -145,7 +145,8 @@ public:
 	/// @param on           Press or release.
 	void mod_button_action(int32_t which_button, bool on);
 
-	/// @brief Is the VU meter shown? (`View::displayVUMeter`), which pressing the selected mod button 0 outside a clip
+	/// @brief Is the VU meter shown? (`View::knobFocus().vu_meter`), which pressing the selected mod button 0 outside a
+	/// clip
 	///        minder toggles; its one effect here is the blinking volume mod LED.
 	bool display_vu_meter() const { return display_vu_meter_; }
 
