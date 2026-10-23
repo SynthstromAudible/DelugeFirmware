@@ -132,6 +132,11 @@ bool RecordingSink::midi_cc_select(const KnobFocus& focus, int32_t knob, bool on
 	return true;
 }
 
+bool RecordingSink::velocity_to_level_everywhere(const ::MIDICable& cable) {
+	gestures.push_back({.kind = GestureRequest::Kind::VELOCITY_EVERYWHERE, .input = LearnInput{.cable = &cable}});
+	return true;
+}
+
 bool RecordingSink::grab_region(const KnobFocus& focus, uint32_t pos) {
 	gestures.push_back({.kind = GestureRequest::Kind::GRAB_REGION, .value = pos, .focus = focus});
 	return true;

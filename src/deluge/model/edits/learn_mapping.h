@@ -5,12 +5,14 @@
 
 #include "deluge-project/mapping_table.h"
 #include "deluge-project/midi_command.h"
+#include "deluge-project/param_address.h"
 #include "model/edits/edit.h"
 #include "modulation/params/param_descriptor.h"
 
 #include <optional>
 #include <utility>
 
+class Clip;
 class LearnedMIDI;
 class MIDICable;
 class ModControllableAudio;
@@ -23,6 +25,10 @@ struct InputLearn {
 	const ::MIDICable* cable;
 	int32_t channel_or_zone;
 };
+
+/// @brief Make @p cable's velocity-to-level default the velocity-to-level cable of @p owner (a synth or a sound kit
+///        row) in @p clip: a default set up for the user, as legacy's setCurrentValueBasicForSetup, with no undo step.
+void velocityCableFor(Context& ctx, project::OwnerId owner, ::Clip& clip, const ::MIDICable& cable);
 
 /// @brief Learn a binding: write it into the song's mapping table, then project the target's entries onto the engine
 /// field that plays them.

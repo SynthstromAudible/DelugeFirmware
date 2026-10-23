@@ -172,15 +172,15 @@ int32_t get_device_velocity_to_level(const MenuContext& ctx) {
 }
 
 void set_device_velocity_to_level(const MenuContext& ctx, int32_t value) {
-	// `DefaultVelocityToLevel::writeCurrentValue` (`:33-37`). The `currentSong` deref is
-	// `ctx.song` here (task-3 ruling 3), and it is guarded: the settings root resolves a song, but
-	// nothing in this layer may assume one.
+	// `DefaultVelocityToLevel::writeCurrentValue` (`:33-37`): the cable's default, then every input on it takes it, by
+	// the app's Edit through the sink (none for a song the app does not play).
 	if (ctx.midi_cable == nullptr) {
 		return;
 	}
 	ctx.midi_cable->defaultVelocityToLevel = value * (2147483648 / (kMaxMenuValue * 2));
-	if (ctx.song != nullptr) {
-		ctx.song->grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything(*ctx.midi_cable);
+	// Every synth and sound row on the cable takes its new default, by the app's Edit.
+	if (ctx.sink != nullptr) {
+		(void)ctx.sink->velocity_to_level_everywhere(*ctx.midi_cable);
 	}
 	MIDIDeviceManager::anyChangesToSave = true;
 }

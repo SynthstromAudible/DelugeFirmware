@@ -290,6 +290,7 @@ struct RefusingSink final : bind::WriteSink {
 		return false;
 	}
 	bool midi_cc_select(const bind::KnobFocus&, int32_t, bool) override { return false; }
+	bool velocity_to_level_everywhere(const ::MIDICable&) override { return false; }
 };
 
 /// @brief A finished take: the recorder's sample with a file, resident in the audio file manager at its path as the

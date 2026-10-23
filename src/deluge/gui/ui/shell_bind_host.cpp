@@ -33,6 +33,7 @@
 #include "model/edits/set_patch_cable.h"
 #include "model/edits/set_setting.h"
 #include "model/edits/set_source_ranges.h"
+#include "model/edits/set_velocity_to_level.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/non_audio_instrument.h"
@@ -180,6 +181,10 @@ public:
 	bool write_effect(const deluge::scenes::bind::EffectOwner& owner, std::string_view path,
 	                  const deluge::serialization::Value& value) override;
 	bool midi_cc_select(const deluge::scenes::bind::KnobFocus& focus, int32_t knob, bool on) override;
+	bool velocity_to_level_everywhere(const ::MIDICable& cable) override {
+		deluge::edits::SetVelocityToLevelEverywhere edit{cable};
+		return currentSong != nullptr && applied(edit);
+	}
 	[[nodiscard]] uint32_t refusals() const { return refusals_; }
 
 private:

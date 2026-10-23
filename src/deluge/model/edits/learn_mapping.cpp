@@ -99,20 +99,6 @@ void forEachClipOf(::Song& song, ::Output& output, Visit visit) {
 	}
 }
 
-/// Make @p cable's velocity-to-level default the velocity-to-level cable of @p owner in @p clip.
-void velocityCableFor(Context& ctx, project::OwnerId owner, ::Clip& clip, const ::MIDICable& cable) {
-	ParamDescriptor volume;
-	volume.setToHaveParamOnly(deluge::modulation::params::LOCAL_VOLUME);
-	SetPatchCable write{{.owner = owner,
-	                     .space = project::ParamSpace::ENGINE,
-	                     .id = deluge::bridge::cable_depth(PatchSource::VELOCITY, volume),
-	                     .clip_id = clip.id()},
-	                    cable.defaultVelocityToLevel,
-	                    PatchCable::getDefaultPolarity(PatchSource::VELOCITY),
-	                    SetPatchCable::Write::SETUP};
-	(void)deluge::edits::apply(ctx, write);
-}
-
 /// Is @p params' expression bend automated? An automated bend's range is the automation's to keep. A set made here
 /// takes a drum's or a track's bend defaults, as @p forDrum says.
 bool bendAutomated(::ParamManager& params, bool forDrum) {
@@ -206,6 +192,19 @@ void inputLearned(Context& ctx, const project::MappingTarget& target, const std:
 }
 
 } // namespace
+
+void velocityCableFor(Context& ctx, project::OwnerId owner, ::Clip& clip, const ::MIDICable& cable) {
+	ParamDescriptor volume;
+	volume.setToHaveParamOnly(deluge::modulation::params::LOCAL_VOLUME);
+	SetPatchCable write{{.owner = owner,
+	                     .space = project::ParamSpace::ENGINE,
+	                     .id = deluge::bridge::cable_depth(PatchSource::VELOCITY, volume),
+	                     .clip_id = clip.id()},
+	                    cable.defaultVelocityToLevel,
+	                    PatchCable::getDefaultPolarity(PatchSource::VELOCITY),
+	                    SetPatchCable::Write::SETUP};
+	(void)deluge::edits::apply(ctx, write);
+}
 
 Error LearnMapping::apply(Context& ctx) {
 	deluge::bridge::applyPendingMappingOps(ctx.song); // a write the render made first lands first

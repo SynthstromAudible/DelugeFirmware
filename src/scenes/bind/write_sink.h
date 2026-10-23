@@ -165,6 +165,10 @@ public:
 	/// encoder: a runtime command on the clip minder's state.
 	/// @return Whether it was taken.
 	virtual bool midi_cc_select(const KnobFocus& focus, int32_t knob, bool on) = 0;
+	/// @brief Give every synth and sound kit row whose input is @p cable its velocity-to-level default, in every clip:
+	/// the device menu's "for everything", a default set up for the user with no undo step.
+	/// @return Whether it was taken.
+	virtual bool velocity_to_level_everywhere(const ::MIDICable& cable) = 0;
 };
 
 /// @brief A gesture request, as a RecordingSink keeps it.
@@ -187,6 +191,7 @@ struct GestureRequest {
 		GRAB_REGION,
 		EFFECT_WORD,
 		MIDI_CC_SELECT,
+		VELOCITY_EVERYWHERE,
 	};
 	Kind kind{Kind::TEXT};
 	Target target{};
@@ -251,6 +256,7 @@ public:
 	bool grab_region(const KnobFocus& focus, uint32_t pos) override;
 	bool write_effect(const EffectOwner& owner, std::string_view path, const serialization::Value& value) override;
 	bool midi_cc_select(const KnobFocus& focus, int32_t knob, bool on) override;
+	bool velocity_to_level_everywhere(const ::MIDICable& cable) override;
 	std::vector<WriteRequest> requests;
 	std::vector<GestureRequest> gestures;
 	std::vector<ParamWrite> param_writes;

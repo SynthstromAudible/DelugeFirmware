@@ -67,7 +67,13 @@
 
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
+#include "model/action/action_logger.h"
+#include "model/clip/instrument_clip.h"
+#include "model/project_bridge/patch_cable_words.h"
 #include "model/song/song.h"
+#include "processing/sound/sound_drum.h"
+#include "processing/sound/sound_instrument.h"
+#include "storage/storage_manager.h"
 
 #include "support/song_fixture.h"
 
@@ -487,6 +493,51 @@ describe midi_device_per_cable("scenes::menu E3 task 8: the per-cable binding fa
 			expect(bindings::read(nodes::device_default_velocity_to_level, ctx))
 			    .to_equal(defaultVelocityToLevelMenu.getValue());
 		}
+	});
+
+	it("writes every synth's and sound row's velocity cable in every clip, in the record, with no undo step", _ {
+		// `DefaultVelocityToLevel::writeCurrentValue`'s tail, `Song::grabVelocityToLevelFromMIDICableAndSetupPatching
+		// ForEverything`: every synth and sound row whose input is the cable takes its default in every clip.
+		spec::SongFixture f = spec::make_kit_song();
+		Song* const before = currentSong;
+		currentSong = f.song;
+		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
+		InstrumentClip* synth_clip = spec::detail::make_session_clip(f.song);
+		ParamManagerForTimeline params;
+		auto* synth = static_cast<SoundInstrument*>(StorageManager::createNewInstrument(OutputType::SYNTH, &params));
+		synth->dirPath = "SYNTHS";
+		synth->name = "VEL";
+		synth->setupAsDefaultSynth(&params);
+		spec::detail::attach(f.song, synth_clip, synth, params);
+
+		SpecCable cable{"CABLE V"};
+		cable.defaultVelocityToLevel = 0;
+		for (::LearnedMIDI* input : {&synth->midiInput, &drum->midiInput}) {
+			input->cable = &cable;
+			input->channelOrZone = 0;
+		}
+		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, nullptr), 0, false, false, false,
+		                                    false);
+		ctx.midi_cable = &cable;
+		actionLogger.deleteAllLogs();
+
+		bindings::write(nodes::device_default_velocity_to_level, ctx, 25);
+
+		const int32_t want = cable.defaultVelocityToLevel;
+		expect(want != 0).to_be_true();
+		ParamDescriptor volume;
+		volume.setToHaveParamOnly(deluge::modulation::params::LOCAL_VOLUME);
+		const deluge::engine::ParamId depth = deluge::bridge::cable_depth(PatchSource::VELOCITY, volume);
+		const auto recorded = [&](deluge::project::OwnerId owner, const Clip& clip) -> std::optional<int32_t> {
+			const deluge::project::DocAutoParam* param = f.song->project.resolveParam(
+			    {.owner = owner, .space = deluge::project::ParamSpace::ENGINE, .id = depth, .clip_id = clip.id()});
+			return param != nullptr ? std::optional{param->current_value} : std::nullopt;
+		};
+		expect(recorded(deluge::project::OwnerId::instrument(*synth->id()), *synth_clip) == std::optional{want})
+		    .to_be_true();
+		expect(recorded(deluge::project::OwnerId::drum(*drum->id()), *f.clip) == std::optional{want}).to_be_true();
+		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
+		currentSong = before;
 	});
 
 	it("writes each of the four per-device clock/relative/thru toggles to its own field, and only it", _ {
