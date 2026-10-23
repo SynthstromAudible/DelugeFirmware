@@ -163,7 +163,7 @@ jobs:
 
       - name: Comment on PR
         if: steps.baseline.outputs.found == 'true'
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: firmware-size
           number: ${{ steps.pr.outputs.number }}
