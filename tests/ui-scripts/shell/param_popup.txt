@@ -15,8 +15,8 @@
 # reports true for `SurfaceRole::Main` precisely so the scene beneath shows around it.
 #
 # **The turn at 100 ms is SWALLOWED, and that is the port working, not the script failing.**
-# `ModKnobs::set_target_with_timeline` opens with `pretend_knobs_untouched()`
-# (`services/mod_knobs.cpp:120`, legacy's `View::pretendModKnobsUntouchedForAWhile`,
+# `ModKnobs::set_focus` opens with `pretend_knobs_untouched()`
+# (legacy's `View::pretendModKnobsUntouchedForAWhile`,
 # `view.cpp:1968-1972`), which backdates `InputLowering::last_turn_ms_` by a second -- so the next
 # gold turn is not "recent" and `InputLowering::action_gold_turn` writes it off as the opening half
 # of a possible wiggle (`input_lowering.cpp:206-231`). Every gold gesture on the device therefore

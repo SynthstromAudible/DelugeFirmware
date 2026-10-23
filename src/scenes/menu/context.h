@@ -17,15 +17,11 @@
 ///       reduces it to `context_for`'s `performance_view` / `session_or_arranger_root` /
 ///       `session_view_root` / `kit_global_fx` arguments. See `context.cpp` for the branch-by-branch
 ///       mapping and for what stayed behind.
-///
-/// @note **`model/model_stack.h` is included by `context.cpp` only**, for the gold-knob boundary below, which builds
-///       its stacks from a `ModTarget` until the knobs bind by address.
 
 #include "definitions_cxx.hpp"
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/target.h"
 #include "scenes/bind/write_sink.h"
-#include "scenes/services/mod_target.h" // the gold-knob boundary's POD arguments and results
 
 #include <cstdint>
 
@@ -192,121 +188,6 @@ struct MenuContext {
 ///                                rather than a re-read of the clip.
 MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool performance_view,
                         bool session_or_arranger_root, bool session_view_root, bool kit_global_fx);
-
-/// @name The gold-knob model boundary (`services::ModKnobs`, E4 task 2)
-///
-/// Three transactions that are not about menus at all, living here because each one needs a
-/// `ModelStack` it can call members on, and this file
-/// plus `bindings.cpp` are the only two the `scenes-model-stack-outside-context` ratchet
-/// (`scripts/check_layer_rules.py`) lets include `model/model_stack.h`. The alternative was a third
-/// file on that rule's allow-list. Everything they take and return is POD over forward-declared
-/// pointers (`scenes/services/mod_target.h`), so `mod_knobs.cpp` -- which owns all of the *policy*
-/// these three deliberately leave out (the popup, the MIDI feedback, the indicator blink, the
-/// repaint, every arm's UI read) -- never names a stack type.
-/// @{
-
-/// @brief Point @p target at what @p counter's active mod controllable is -- the stack half of
-///        `View::setActiveModControllableTimelineCounter` (`gui/views/view.cpp:1884-1916`).
-///
-/// `:1868-1870`'s `getTimelineCounterToRecordTo()` redirection, `:1872-1873`'s stack setup, and the
-/// `getActiveModControllable` / `addOtherTwoThingsButNoNoteRow` fork at `:1875-1881`. Everything
-/// else in that function (the LED and indicator refresh, the VU-meter sidebar invalidation, the
-/// MIDI feedback) is `ModKnobs`'.
-///
-/// @param target  Overwritten with the resolved song / timeline counter / note row / mod
-///                controllable / param manager. Its `mod_pos`/`mod_length`/`mod_note_row_id` are
-///                left alone -- legacy's are separate globals and this call does not touch them.
-/// @param song    The song, in place of `currentSong` (`:1873`; `scenes-currentSong`).
-/// @param counter The timeline counter to point at, or null for "no timeline".
-void mod_target_from_timeline(services::ModTarget& target, Song& song, TimelineCounter* counter);
-
-/// @brief Turn one gold knob against the model -- `View::modEncoderAction` (`view.cpp:835-859`),
-///        `modEncoderAction_nonExistentParam` (`:843-852`) and `modEncoderAction_existentParam`
-///        (`:853-948`), minus the popup and minus every UI read.
-///
-/// One call, not a read/decide/write triple, because legacy resolves the param stack exactly once:
-/// `getModelStackWithParam` (`:971-1010`) has side effects --
-/// `TimelineCounter::possiblyCloneForArrangementRecording`, and the re-fetch that follows it -- that
-/// must not happen twice for one turn. @p next_knob_pos is how the caller keeps its own policy
-/// (`calculateKnobPosForModEncoderTurn`) out here anyway.
-///
-/// The popup deliberately does *not* happen inside: legacy shows it at `:899` between reading the
-/// old position and writing the new one, but it reads nothing the write changes, so the caller
-/// shows it afterwards from `ModTurn`'s `kind`/`param_id`/`new_knob_pos` -- which are filled in on
-/// the unchanged-value path too, exactly as legacy's `:902` early return happens *after* the popup.
-///
-/// @param target        What is being edited; updated in place if the arrangement-recording clone
-///                      replaced it (`:992-1000`).
-/// @param which_encoder 0 for the lower gold knob (`mod0`), 1 for the upper (`mod1`) --
-///                      `hid/encoders.h:80-81`.
-/// @param offset        The (already accelerated) signed turn.
-/// @param next_knob_pos The caller's `calculateKnobPosForModEncoderTurn`.
-/// @return What happened; `has_controllable` false means nothing did.
-services::ModTurn mod_encoder_turn(services::ModTarget& target, int32_t which_encoder, int32_t offset,
-                                   services::NextKnobPosFn next_knob_pos);
-
-/// @brief What param a gold knob addresses right now -- `View::getModelStackWithParam`
-///        (`view.cpp:988-1027`) as `View::getParameterNameFromModEncoder` (`:1029-1033`) calls it.
-///
-/// @warning Runs `getModelStackWithParam`'s side effects, clone included, exactly as legacy's own
-///          naming path does. It is not a free observation.
-/// @param target        What is being edited; updated in place, as in `mod_encoder_turn`.
-/// @param which_encoder 0 for the lower gold knob, 1 for the upper.
-/// @return The param's kind and id, or `param_exists == false`.
-services::ModParamInfo mod_param_info(services::ModTarget& target, int32_t which_encoder);
-
-/// @brief Permanently grab automation values from @p target's `mod_pos` -- `View::setModRegion`'s
-///        held-note branch (`view.cpp:1945-1955`).
-///
-/// The caller has already checked everything `:1928-1932` tests except the last clause; this runs
-/// `ParamManagerForTimeline::grabValuesFromPos` (`:1937-1938`), which needs the stack.
-/// @param target What is being edited. A no-op unless it has both a mod controllable and a param
-///               manager with main param collections.
-void mod_region_grab_values(const services::ModTarget& target);
-
-/// @brief Read what a gold knob's indicator column should show -- the model half of
-///        `View::setKnobIndicatorLevel` (`gui/views/view.cpp:1420-1485`).
-///
-/// Resolves the param stack with `getParamFromModEncoder(whichModEncoder, …, false)` -- legacy's
-/// own third argument at `:1407-1408`, which is why this is **not** `mod_param_info`: that one goes
-/// through `getModelStackWithParam` and runs the arrangement-recording clone, and levelling an
-/// indicator must not. Every clamp, stutter bucket, offset and patch-cable fold legacy then applies
-/// stays in `mod_knobs.cpp`.
-/// @param target        What is being edited. Not modified: no clone runs.
-/// @param which_encoder 0 for the lower gold knob, 1 for the upper.
-/// @return The reads, or a default-constructed value when there is no mod controllable.
-services::ModIndicatorInfo mod_indicator_info(const services::ModTarget& target, int32_t which_encoder);
-
-/// @brief Press or release a gold knob -- the model half of
-///        `View::modEncoderButtonAction_changeModControllable` (`view.cpp:1380-1394`).
-///
-/// `:1364-1366`'s stack copy and `:1368-1369`'s
-/// `ModControllable::modEncoderButtonAction(whichModEncoder, on, modelStack)`. The
-/// `instrumentBeenEdited()` that follows it, the indicator re-level and the sound-editor
-/// `readValueAgain()` are all `ModKnobs`'.
-/// @param target        What is being edited.
-/// @param which_encoder 0 for the lower gold knob, 1 for the upper.
-/// @param on            Press (true) or release (false).
-/// @return Legacy's `anyEditingDone` (`:1370`).
-bool mod_encoder_button(const services::ModTarget& target, int32_t which_encoder, bool on);
-
-/// @brief Set the gold-knob mode of @p target's knob owner (the song's own, an output's, a kit row's kit's) to @p mode
-///        through the sink; an owner outside the song takes it in its engine field alone.
-/// @return Whether the sink took it.
-bool mod_knob_mode(const services::ModTarget& target, uint8_t mode);
-
-/// @brief Delete a gold knob's param automation -- `View::modEncoderButtonAction_deleteAutomation`
-///        (`view.cpp:1368-1378`).
-///
-/// Includes the `ActionType::AUTOMATION_DELETE` action-log entry (`:1357`) and the
-/// `AutoParam::deleteAutomation` call (`:1358`); the "Automation deleted" popup is `ModKnobs`',
-/// raised as an `Action::Kind::Popup` rather than by calling `display` from the model layer.
-/// @param target        What is being edited.
-/// @param which_encoder 0 for the lower gold knob, 1 for the upper.
-/// @return True when there was an `autoParam` and its automation was deleted -- legacy's `:1356`
-///         test, and therefore whether the popup is shown.
-bool mod_delete_automation(const services::ModTarget& target, int32_t which_encoder);
-/// @}
 
 /// @brief May a session begin on @p node in @p ctx? Spec E §4.1's one rule in place of the
 ///        per-item `checkPermissionToBeginSession` overrides.

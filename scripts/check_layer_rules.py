@@ -334,6 +334,10 @@ LEGACY_PORT_SEAMS = (
     # engine's inputs, a sound's loaded sources and typed state). Host builds only (gui/ui/shell_*). Its HEADER
     # (`shell_bind_host.h`) is deliberately NOT listed: it declares one count and names no port type.
     "src/deluge/gui/ui/shell_bind_host.cpp",
+    # Step 2e-2: the gold knobs' focus, as addresses, from the engine stack a legacy view points them at. It names
+    # `scenes::bind::KnobFocus` because it builds one; it goes when the views keep a focus of their own (2e-3).
+    "src/deluge/gui/ui/knob_focus_of.h",
+    "src/deluge/gui/ui/knob_focus_of.cpp",
     "src/deluge/gui/ui/shell_menu_entry.cpp",
     "src/deluge/gui/ui/sound_editor.cpp",
     "src/deluge/gui/views/performance_view.cpp",

@@ -18,6 +18,9 @@
 #include "scenes/services/global_controls.h"
 #include "scenes/services/midi_learn.h"
 #include "scenes/services/mod_knobs.h"
+
+#include "gui/ui/knob_focus_of.h"
+#include "gui/views/view.h"
 #include "shell/shell.h"
 
 #include <functional>
@@ -45,9 +48,8 @@ struct RealServices {
 	std::optional<services::ModKnobs> knobs;
 	std::optional<services::GlobalControls> controls;
 
-	/// The song every service is told about, and the timeline counter `ModKnobs` points at. Both
-	/// are set by the caller before the run; a null `mod_target` leaves the knobs unpointed, which
-	/// is `set_target_with_timeline`'s own "no target" state.
+	/// The song every service is told about, and the timeline counter `ModKnobs` points at (its focus as legacy's
+	/// view resolves it). Both are set by the caller before the run; a null `mod_target` leaves the knobs unpointed.
 	Song* song = nullptr;
 	TimelineCounter* mod_target = nullptr;
 
@@ -70,8 +72,10 @@ struct RealServices {
 			learn->set_song(song);
 			knobs->set_song(song);
 			controls->set_song(song);
-			if (mod_target != nullptr) {
-				knobs->set_target_with_timeline(mod_target, false);
+			if (mod_target != nullptr && song != nullptr) {
+				// Where legacy's view points the knobs at the clip, as the guest seeds them.
+				view.setActiveModControllableTimelineCounter(mod_target, false);
+				knobs->set_focus(deluge::gui::knobFocusOf(*song, view.activeModControllableModelStack), false);
 				knobs->set_mod_region();
 			}
 			shell.set_services({&*knobs, &*controls, &*learn});

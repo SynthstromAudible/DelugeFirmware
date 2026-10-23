@@ -243,16 +243,14 @@ describe boot_services("the three services, installed into the guest's own Shell
 		deluge::gui::ui::wireShellGuestServices();
 
 		auto* knobs = static_cast<services::ModKnobs*>(shellHostUI.shell().services().mod_knobs);
-		expect(knobs->target().song == f.song).to_be_true();
-		expect(knobs->target().timeline_counter == static_cast<TimelineCounter*>(f.clip)).to_be_true();
-		// The pointers legacy resolved, compared against legacy's own live stack rather than
-		// against anything this spec computed -- the port is re-running
-		// `setActiveModControllableTimelineCounter`'s resolution, so the two must agree.
-		expect(knobs->target().mod_controllable == view.activeModControllableModelStack.modControllable).to_be_true();
-		expect(knobs->target().param_manager == view.activeModControllableModelStack.paramManager).to_be_true();
-		expect(knobs->target().mod_controllable != nullptr).to_be_true();
-		// Which is what makes the LEDs legacy's: `mode()` is `ModControllable::getModKnobMode`, and
-		// -1 is the "no target" answer that turns every mod LED off.
+		// The focus is the synth on its clip: the owner legacy's stack resolved, as addresses.
+		const auto* sound = std::get_if<deluge::scenes::bind::SoundFocus>(&knobs->focus().owner);
+		expect(sound != nullptr).to_be_true();
+		if (sound != nullptr) {
+			expect(sound->slot.id == *f.instrument->id()).to_be_true();
+			expect(sound->clip.has_value() && sound->clip->clip_id == f.clip->id()).to_be_true();
+		}
+		// Which is what makes the LEDs legacy's: -1 is the "no focus" answer that turns every mod LED off.
 		expect(knobs->mode() >= 0).to_be_true();
 
 		// The other two take the song and nothing else this layer can check from outside.
@@ -260,11 +258,10 @@ describe boot_services("the three services, installed into the guest's own Shell
 		       == f.song)
 		    .to_be_true();
 
-		// Vary the thing the assertion is about: with no timeline counter at all, the port must land
-		// in the *other* of legacy's two entry-point shapes rather than keep the old target.
+		// Vary it: with no timeline counter, legacy's view points at nothing, and so does the focus.
 		view.setActiveModControllableTimelineCounter(nullptr);
 		deluge::gui::ui::wireShellGuestServices();
-		expect(knobs->target().timeline_counter == nullptr).to_be_true();
+		expect(std::holds_alternative<std::monostate>(knobs->focus().owner)).to_be_true();
 
 		view.setActiveModControllableTimelineCounter(nullptr);
 		currentSong = saved_song;

@@ -41,8 +41,8 @@
 # nobody at all) and one with real ones (where it reaches `ModKnobs`).
 #
 # **The first gold detent is swallowed, and that is the port working.** `RealServices::installer`
-# calls `ModKnobs::set_target_with_timeline`, which opens with `pretend_knobs_untouched()`
-# (`services/mod_knobs.cpp:120`, legacy's `View::pretendModKnobsUntouchedForAWhile`,
+# calls `ModKnobs::set_focus`, which opens with `pretend_knobs_untouched()`
+# (legacy's `View::pretendModKnobsUntouchedForAWhile`,
 # `view.cpp:1968-1972`) -- so `InputLowering::action_gold_turn` writes the next turn off as the
 # opening half of a possible wiggle. `param_popup.txt` carries the same note and the same two-turn
 # opening for the same reason. This half is unaffected by the select-encoder fix: it was always about

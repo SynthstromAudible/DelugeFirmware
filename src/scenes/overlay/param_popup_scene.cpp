@@ -8,7 +8,6 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "model/instrument/midi_instrument.h" // `PopupContext::midi_instrument`'s `getNameFromCC`
 #include "modulation/arpeggiator_rhythms.h"
 
 #include <algorithm>
@@ -106,10 +105,13 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 			out.append(source_short_name(source2));
 			out.append("->");
 		}
-		out.append(deluge::modulation::params::getPatchedParamShortName(
-		    static_cast<deluge::modulation::params::ParamType>(param_id), context.mod));
+		const auto type = static_cast<deluge::modulation::params::ParamType>(param_id);
+		out.append(context.effects != nullptr
+		               ? deluge::modulation::params::getPatchedParamShortName(type, context.effects->filter.lpf_mode,
+		                                                                      context.effects->filter.hpf_mode)
+		               : deluge::modulation::params::getPatchedParamShortName(type));
 	}
-	else if (context.midi_instrument != nullptr) {
+	else if (context.midi_clip) {
 		// `:1122-1147`. The caller has already resolved `isClipContext() && getCurrentOutputType()
 		// == OutputType::MIDI_OUT`; a non-null instrument *is* that test having passed.
 		if (kind == Kind::EXPRESSION) {
@@ -125,9 +127,13 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 			}
 		}
 		else if (param_id >= 0 && param_id < kNumRealCCNumbers) {
-			const std::string_view name = context.midi_instrument->getNameFromCC(param_id);
-			if (!name.empty()) {
-				out.append(name);
+			const std::string* label = nullptr;
+			if (context.cc_labels != nullptr) {
+				const auto found = context.cc_labels->find(static_cast<uint8_t>(param_id));
+				label = found != context.cc_labels->end() && !found->second.empty() ? &found->second : nullptr;
+			}
+			if (label != nullptr) {
+				out.append(*label);
 			}
 			else {
 				out.append("CC ");
@@ -136,7 +142,10 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 		}
 	}
 	else {
-		const char* name = deluge::modulation::params::getParamDisplayName(kind, param_id, context.mod);
+		const char* name = context.effects != nullptr
+		                       ? deluge::modulation::params::getParamDisplayName(
+		                             kind, param_id, context.effects->filter.lpf_mode, context.effects->filter.hpf_mode)
+		                       : deluge::modulation::params::getParamDisplayName(kind, param_id);
 		if (name != deluge::l10n::get(deluge::l10n::String::STRING_FOR_NONE)) {
 			out.append(name);
 		}
@@ -145,10 +154,7 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 
 /// @brief The value half of `displayModEncoderValuePopup` (`view.cpp:1173-1212`).
 ///
-/// The stutter-quantization arm needs both halves of legacy's guard: `isParamQuantizedStutter`,
-/// which has no context-free overload (a null `ModControllableAudio*` reads as "not quantized"),
-/// and `!isUIModeActive(UI_MODE_STUTTERING)`, which no port caller can answer true yet --
-/// `PopupContext` carries both, see the header.
+/// A quantized stutter rate shows its bucket while no stutter plays; `PopupContext` says both.
 /// @param kind          The param's kind.
 /// @param param_id      The param id within @p kind.
 /// @param knob_pos      The raw knob position (pre-`kKnobPosOffset`).
@@ -157,7 +163,8 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 /// @return The value used for the arbitration's change-detection (legacy's
 ///         `current_display_value`).
 int32_t format_value(Kind kind, int32_t param_id, int32_t knob_pos, const PopupContext& context, FixedAppend& out) {
-	if (deluge::modulation::params::isParamQuantizedStutter(kind, param_id, context.mod) && !context.stuttering) {
+	if (deluge::modulation::params::isParamStutter(kind, param_id) && context.stutter_quantized
+	    && !context.stuttering) {
 		int32_t display_value;
 		const char* text;
 		if (knob_pos < -39) {

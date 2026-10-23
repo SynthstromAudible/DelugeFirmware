@@ -17,6 +17,8 @@
 
 #include "gui/ui/shell_guest_services.h"
 
+#include "gui/ui/knob_focus_of.h"
+
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
@@ -67,48 +69,24 @@ GuestServices& guestServices() {
 	return services;
 }
 
-/// @brief Mirror `View::activeModControllableModelStack` into the port's `ModTarget`.
+/// @brief Point the gold knobs where legacy's `View` points them: the focus of `View::activeModControllableModelStack`
+///        and the mod region beside it (`gui/views/view.h:120-135`).
 ///
-/// Legacy's gold-knob state is a live `ModelStackWithThreeMainThings` on `View` (`gui/views/view.h:120`),
-/// set by whichever root view is open -- `InstrumentClipMinder::focusRegained` calls
-/// `view.setActiveModControllableTimelineCounter(getCurrentInstrumentClip())`
-/// (`model/clip/instrument_clip_minder.cpp:291-295`), and the other views their own equivalents.
-/// `ModKnobs` keeps the same six pointers as POD (`scenes/services/mod_target.h`) and nothing sets
-/// them for it, so an installed-but-unseeded `ModKnobs` reports `mode() == -1` and
-/// `target_.mod_controllable == nullptr` -- which makes its `leds()` declare **all eight mod LEDs
-/// off** (`services/mod_knobs.cpp:729-739`) and its `declare_indicators` declare **level 0 on both
-/// gold knobs** (`:687-694`, the port of `indicator_leds::clearKnobIndicatorLevels`). Both are
-/// written every tick the guest runs, so an unseeded service is not inert: it blanks the mod LEDs
-/// and the two indicator rings that legacy is showing. Seeding is what makes the guest's LEDs equal
-/// `SoundEditor`'s (plan F1, global constraint 1), not a nicety.
+/// The root views set legacy's target (`InstrumentClipMinder::focusRegained` and the others); until the views keep a
+/// focus of their own, the guest reads theirs at boot and on every guest open. An unpointed `ModKnobs` blanks the
+/// mod LEDs and the indicator rings legacy is showing, so seeding is what makes the guest's LEDs equal
+/// `SoundEditor`'s.
 ///
-/// The mirror uses legacy's own two entry-point shapes rather than a field copy, because those are
-/// what `View` itself distinguishes: `setActiveModControllableTimelineCounter` (`view.cpp:1884-1916`)
-/// resolves the controllable and param manager *from* a counter, and
-/// `setActiveModControllableWithoutTimelineCounter` (`:1900-1922`) is handed them directly and
-/// leaves the counter null. `ModelStackWithTimelineCounter::timelineCounterIsSet()`
-/// (`model/model_stack.h:145`) is exactly the discriminator legacy's own `ModTarget` doc cites.
-///
-/// @warning **A snapshot, not a subscription.** Legacy re-reads the member on every turn; this
-///          re-reads it whenever `wireShellGuestServices()` is called, i.e. at boot and on every
-///          guest open. Nothing changes `view`'s target while a menu is open (the root view
-///          underneath is not taking input), so the snapshot is current for the whole of a guest
-///          session -- but that is an argument about the first tenant, not a general one.
-void seedModTarget(deluge::scenes::services::ModKnobs& knobs) {
-	ModelStackWithThreeMainThings& stack = view.activeModControllableModelStack;
-	if (stack.timelineCounterIsSet()) {
-		// `send_midi_feedback` false: legacy sends it when the target *changes*
-		// (`view.cpp:1913`), and this call is re-asserting a target legacy already set. Passing
-		// true would emit a `sendCCWithoutModelStackForMidiFollowFeedback` burst on every guest
-		// open that legacy has no counterpart for.
-		knobs.set_target_with_timeline(stack.getTimelineCounter(), /*send_midi_feedback=*/false);
+/// @warning **A snapshot, not a subscription**: nothing changes `view`'s target while a menu is open (the root view
+///          underneath takes no input), so it holds for a guest session.
+void seedKnobFocus(deluge::scenes::services::ModKnobs& knobs) {
+	if (currentSong == nullptr) {
+		return;
 	}
-	else {
-		knobs.set_target_without_timeline(stack.modControllable, stack.paramManager);
-	}
-	// `View::modPos` / `modLength` / `modNoteRowId` (`gui/views/view.h:130-135`), the three globals
-	// `View::setModRegion` writes (`view.cpp:1940-1967`) and every automation read/write uses.
-	knobs.set_mod_region(view.modPos, view.modLength, view.modNoteRowId);
+	// No MIDI-follow feedback: this re-asserts a target legacy already set and sent.
+	knobs.set_focus(deluge::gui::knobFocusOf(*currentSong, view.activeModControllableModelStack),
+	                /*send_midi_feedback=*/false);
+	knobs.set_mod_region(view.modPos, view.modLength);
 }
 
 } // namespace
@@ -122,9 +100,7 @@ void wireShellGuestServices() {
 	services.learn.set_song(currentSong);
 	services.knobs.set_song(currentSong);
 	services.controls.set_song(currentSong);
-	// After `set_song`, never before: `ModKnobs::set_target_with_timeline` is a no-op with a null
-	// song and says so at the code (`services/mod_knobs.cpp:121-126`).
-	seedModTarget(services.knobs);
+	seedKnobFocus(services.knobs);
 
 	// The two `ViewState` blocks -- the questions about *which legacy view is on screen* that a
 	// service in `src/scenes` has no way to ask. Each field is its own doc comment's legacy

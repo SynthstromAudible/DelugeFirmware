@@ -6,6 +6,7 @@
 #include "engines/deluge/cables.h"
 #include "engines/deluge/params.h"
 #include "engines/effects/chain.h"
+#include "engines/effects/compressor.h"
 #include "engines/global_effectable/params.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -16,6 +17,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdlib>
+#include <limits>
 
 namespace deluge::scenes::services {
 
@@ -645,6 +647,65 @@ std::string mod_button_popup(const project::Song& song, const bind::KnobFocus& f
 	default:
 		return names_popup(song, focus, button, inputs);
 	}
+}
+
+namespace {
+
+/// The compressor setting's stored value, by its path.
+int32_t comp_value(std::string_view path, const effects::EffectStates& fx) {
+	const effects::CompressorState& c = fx.compressor;
+	return path == "audioCompressor/thresh"    ? c.threshold
+	       : path == "audioCompressor/ratio"   ? c.ratio
+	       : path == "audioCompressor/attack"  ? c.attack
+	       : path == "audioCompressor/release" ? c.release
+	       : path == "audioCompressor/compHPF" ? c.sidechain_hpf
+	                                           : c.blend;
+}
+
+} // namespace
+
+int32_t comp_knob_pos(const bind::CompArm& arm, const effects::EffectStates& effects) {
+	return (comp_value(arm.path, effects) >> 24) - 64;
+}
+
+CompTurn comp_turn(const bind::CompArm& arm, const effects::EffectStates& effects, int32_t offset) {
+	const int32_t knob = std::clamp(comp_knob_pos(arm, effects) + offset, -64, 64);
+	// The top of the knob's travel saturates to the whole Q31 range.
+	const int32_t stored = knob == 64 ? std::numeric_limits<int32_t>::max() : (knob + 64) << 24;
+	CompTurn out{.path = arm.path, .value = serialization::Value::makeNumber(stored)};
+	int32_t shown = 0;
+	const char* unit = "";
+	if (arm.path == "audioCompressor/thresh") {
+		out.title = text(String::STRING_FOR_THRESHOLD);
+		shown = (64 + knob) * kMaxMenuValue / 128;
+	}
+	else if (arm.path == "audioCompressor/ratio") {
+		out.title = text(String::STRING_FOR_RATIO);
+		shown = static_cast<int32_t>(dsp::fixed::compressor_ratio(stored));
+		unit = " : 1";
+	}
+	else if (arm.path == "audioCompressor/attack") {
+		out.title = text(String::STRING_FOR_ATTACK);
+		shown = static_cast<int32_t>(dsp::fixed::compressor_attack_ms(stored));
+		unit = " MS";
+	}
+	else if (arm.path == "audioCompressor/release") {
+		out.title = text(String::STRING_FOR_RELEASE);
+		shown = static_cast<int32_t>(dsp::fixed::compressor_release_ms(stored));
+		unit = " MS";
+	}
+	else if (arm.path == "audioCompressor/compHPF") {
+		out.title = text(String::STRING_FOR_HPF);
+		shown = static_cast<int32_t>(dsp::fixed::compressor_sidechain_hz(stored));
+		unit = " HZ";
+	}
+	else {
+		out.title = text(String::STRING_FOR_BLEND);
+		shown = dsp::fixed::compressor_blend_percent(stored);
+		unit = " %";
+	}
+	out.value_text = std::to_string(shown) + unit;
+	return out;
 }
 
 bool apply_push(bind::WriteSink& sink, const bind::KnobFocus& focus, const KnobPush& push) {

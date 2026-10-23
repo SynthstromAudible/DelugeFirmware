@@ -787,7 +787,7 @@ routed events, declares LEDs and holds a timer but is never pushed and draws not
 
 | service | what it ports | LEDs it declares |
 |---|---|---|
-| `services::ModKnobs` | the `ModTarget`, gold-knob turns and their acceleration, mod-button mode, knob indicators (`View::modEncoderAction`, `modButtonAction`, `modEncoderButtonAction`, `setModLedStates`, `setKnobIndicatorLevel`) | the eight mod LEDs, both knob indicators |
+| `services::ModKnobs` | the knobs' focus (`bind::KnobFocus`), gold-knob turns, pushes and their acceleration, mod-button mode, knob indicators (`View::modEncoderAction`, `modButtonAction`, `modEncoderButtonAction`, `setModLedStates`, `setKnobIndicatorLevel`) | the eight mod LEDs, both knob indicators |
 | `services::GlobalControls` | transport buttons, the record combo, tempo encoder and button, tap tempo, sync scaling, the BACK long-press, undo/redo (`Buttons::buttonAction`'s tail plus `View::buttonAction`'s global arms) | Play, Record, TapTempo, SyncScaling, Save, Load, Clip |
 | `services::MidiLearn` | learn mode, the pressed thing, the flash phase (`View::startMIDILearn`/`endMIDILearn`, the six `*MidiLearnPadPressed`, `noteOnReceivedForMidiLearn`, `ccReceivedForMIDILearn`, `midiLearnFlash`) | Learn, and it **overwrites** three LEDs `GlobalControls` declares |
 

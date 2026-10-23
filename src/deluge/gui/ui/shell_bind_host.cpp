@@ -219,6 +219,9 @@ public:
 	[[nodiscard]] bool clip_playing(deluge::project::ClipAddress clip) const override;
 	[[nodiscard]] int32_t clip_live_pos(deluge::project::ClipAddress clip) const override;
 	[[nodiscard]] bool clip_recording_linearly(deluge::project::ClipAddress clip) const override;
+	[[nodiscard]] bool stutter_active() const override {
+		return currentSong != nullptr && currentSong->live.stutter.active();
+	}
 	[[nodiscard]] std::pair<int64_t, int64_t> audio_clip_samples(deluge::project::ClipAddress clip, int32_t scroll,
 	                                                             int32_t zoom) const override;
 };
@@ -364,7 +367,8 @@ bool ShellEditSink::write_param(const deluge::project::ParamAddress& address, in
 	if (currentSong == nullptr) {
 		return false;
 	}
-	deluge::edits::SetParamValue edit{address, value, pos, length};
+	// A gold knob's write: what it turns is made, a take recording the clip is written, and the instrument is edited.
+	deluge::edits::SetParamValue edit{address, value, pos, length, deluge::edits::SetParamValue::Resolve::WRITE};
 	return applied(edit);
 }
 
@@ -845,18 +849,56 @@ bool ShellEditSink::grab_region(const deluge::scenes::bind::KnobFocus& focus, ui
 	return currentSong != nullptr && owner && deluge::bridge::grabRegionAt(*currentSong, *owner, pos);
 }
 
+namespace {
+
+/// Mark the instrument whose effects @p owner names edited: a synth's, a kit row's kit's, a kit's own chain's.
+void markEffectOwnerEdited(::Song& song, const deluge::scenes::bind::EffectOwner& owner) {
+	if (const auto* slot = std::get_if<deluge::project::SlotAddress>(&owner)) {
+		if (slot->kind == deluge::project::SlotAddress::Kind::OUTPUT) {
+			if (Output* output = deluge::bridge::outputWithId(song, slot->id); output != nullptr) {
+				static_cast<Instrument*>(output)->beenEdited();
+			}
+			return;
+		}
+		for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
+			if (output->type == OutputType::KIT && static_cast<Kit*>(output)->drumWithId(slot->id) != nullptr) {
+				static_cast<Kit*>(output)->beenEdited();
+				return;
+			}
+		}
+		return;
+	}
+	const auto chain = std::get<deluge::project::ChainAddress>(owner);
+	if (chain.kind == deluge::project::ChainAddress::Kind::OUTPUT) {
+		if (Output* output = deluge::bridge::outputWithId(song, chain.id);
+		    output != nullptr && output->type == OutputType::KIT) {
+			static_cast<Kit*>(output)->beenEdited();
+		}
+	}
+}
+
+} // namespace
+
 bool ShellEditSink::write_effect(const deluge::scenes::bind::EffectOwner& owner, std::string_view path,
                                  const deluge::serialization::Value& value) {
 	if (currentSong == nullptr) {
 		return false;
 	}
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	bool taken = false;
 	if (const auto* slot = std::get_if<deluge::project::SlotAddress>(&owner)) {
 		deluge::edits::SetEngineSetting edit{*slot, std::string{path}, value};
-		return deluge::edits::apply(ctx, edit) == Error::NONE;
+		taken = deluge::edits::apply(ctx, edit) == Error::NONE;
 	}
-	deluge::edits::SetEffectSetting edit{std::get<deluge::project::ChainAddress>(owner), std::string{path}, value};
-	return deluge::edits::apply(ctx, edit) == Error::NONE;
+	else {
+		deluge::edits::SetEffectSetting edit{std::get<deluge::project::ChainAddress>(owner), std::string{path}, value};
+		taken = deluge::edits::apply(ctx, edit) == Error::NONE;
+	}
+	// A gesture's effect write edits the instrument that holds the effects: a sound's, a kit's chain's.
+	if (taken) {
+		markEffectOwnerEdited(*currentSong, owner);
+	}
+	return taken;
 }
 
 bool ShellEditSink::midi_cc_select(const deluge::scenes::bind::KnobFocus& focus, int32_t knob, bool on) {

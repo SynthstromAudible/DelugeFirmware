@@ -161,8 +161,8 @@
 ///      same array from the other side, through `InputLowering::pretend_knob_untouched`
 ///      (`input_lowering.cpp:451-461`): `last_turn_ms_[role] = now_ms - kPretendUntouchedMs`, and
 ///      `kPretendUntouchedMs` is 1000 (`input_lowering.h:395`).
-///   3. `RealServices::installer()` reaches it twice at construction -- `set_target_with_timeline`
-///      (`mod_knobs.cpp:120`) and `set_mod_region` (`:165`) -- but **only when a `mod_target` is
+///   3. `RealServices::installer()` reaches it twice at construction -- `set_focus` and
+///      `set_mod_region` -- but **only when a `mod_target` is
 ///      seeded**, since both are skipped for a null one. That is the whole reason the fixture below
 ///      leaves it null.
 ///

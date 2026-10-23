@@ -7,34 +7,13 @@
 ///
 /// The port of `View::displayModEncoderValuePopup` (`gui/views/view.cpp:1101-1305`),
 /// `View::flushPendingModEncoderValuePopup` (`:1290-1301`) and `View::calculateKnobPosForDisplay`
-/// (`:1302-1325`). `ModKnobs` (E4 task 2) is the caller this scene exists for -- it does not exist
-/// yet, so this scene is driven directly by its own `show()` in every spec here, exactly the way a
-/// future `ModKnobs::mod_encoder_action` will drive it.
+/// (`:1302-1325`). `ModKnobs` shows it on a gold-knob turn.
 ///
-/// @par The context `show()` carries, and why
+/// @par The context `show()` carries
 ///
-/// Legacy's function reads `view.activeModControllableModelStack.modControllable` (a
-/// `ModControllableAudio*`) and the current clip/output for three of its arms. E4 task 1 shipped
-/// `show()` with legacy's five value-conversion parameters only, which left those three arms
-/// permanently unreachable; task 2 -- `services::ModKnobs`, the first real caller, and the class
-/// that *has* that context -- widened the signature rather than leave them uncovered, on the
-/// reasoning that this is cheap with one caller and expensive with three. The extra argument is
-/// `PopupContext`, defaulted so a caller with no context still gets exactly task 1's behaviour:
-///
-///   * `PopupContext::mod` reaches `getPatchedParamShortName`/`getParamDisplayName`'s
-///     two-argument overloads (the LPF/HPF-morph-aware name) and `isParamQuantizedStutter` (the
-///     "4ths"/"8ths"/... rate-bucket text). All three null-check it and fall back, so a default
-///     `PopupContext` is the old behaviour exactly.
-///   * `PopupContext::midi_instrument` is legacy's `isClipContext() && getCurrentOutputType() ==
-///     OutputType::MIDI_OUT` **and** its `(MIDIInstrument*)getCurrentOutput()` in one pointer: the
-///     caller resolves the two-part test and hands over the instrument, or null. It selects the
-///     MIDI-clip naming arm (Pitch Bend / Channel Pressure / Mod Wheel for `Kind::EXPRESSION`,
-///     else the CC's own name or `"CC <n>"`).
-///   * `PopupContext::stuttering` is legacy's `!isUIModeActive(UI_MODE_STUTTERING)`, negated to a
-///     positive. **No caller can set it true yet** -- nothing in the port owns the stutter gesture
-///     -- so the rate-bucket text is currently always shown when the param qualifies, which is
-///     what legacy does whenever a stutter is *not* in progress. Recorded here rather than
-///     silently assumed.
+/// Three of legacy's arms read the knob owner: the morph params' filter-aware names, the stutter rate's bucket
+/// text, and a MIDI clip's CC names. `PopupContext` carries what they read, from the records and the runtime
+/// facts; a default `PopupContext` gives the context-free text.
 ///
 /// @par What is deliberately not ported
 ///
@@ -96,12 +75,13 @@
 #include "definitions_cxx.hpp"
 #include "modulation/params/param.h"
 
-#include <cstdint>
-#include <optional>
-#include <string_view>
+#include "engines/effects/state.h"
 
-class MIDIInstrument;
-class ModControllableAudio;
+#include <cstdint>
+#include <map>
+#include <optional>
+#include <string>
+#include <string_view>
 
 namespace deluge::scenes::overlay {
 
@@ -109,21 +89,19 @@ namespace deluge::scenes::overlay {
 inline constexpr deluge::ui::shell::SceneKind kParamPopupSceneKind =
     static_cast<deluge::ui::shell::SceneKind>(static_cast<uint8_t>(deluge::ui::shell::SceneKind::FirstApp) + 6);
 
-/// @brief The model context legacy's popup reads off `View` and `getCurrentOutput()`, as three
-///        plain values a caller supplies.
+/// @brief What the popup reads beyond the param: the knob owner's records and the stutter's live state.
 ///
-/// Default-constructed, this is exactly "no context": every arm it unlocks null-checks its own
-/// field and falls back to the context-free path, which is what E4 task 1 shipped. See the class
-/// doc above for the per-field mapping and its citations.
+/// Default-constructed, this is "no context": each arm it unlocks falls back to the context-free text.
 struct PopupContext {
-	/// `view.activeModControllableModelStack.modControllable`, cast to `ModControllableAudio*`
-	/// exactly as legacy casts it (`view.cpp:1136`, `:1166-1167`, `:1177-1178`).
-	ModControllableAudio* mod = nullptr;
-	/// Non-null iff legacy's `isClipContext() && getCurrentOutputType() == OutputType::MIDI_OUT`
-	/// (`view.cpp:1139`), in which case it is `(MIDIInstrument*)getCurrentOutput()` (`:1140`).
-	MIDIInstrument* midi_instrument = nullptr;
-	/// `isUIModeActive(UI_MODE_STUTTERING)` (`view.cpp:1179`). Nothing in the port owns the stutter
-	/// gesture yet, so no caller sets this true; see the class doc.
+	/// The knob owner's effect settings, whose filter modes name the morph params; null for none.
+	const deluge::effects::EffectStates* effects = nullptr;
+	/// The stutter rate the knob turns is quantized: the song's stutter's setting where the owner plays the song's.
+	bool stutter_quantized = false;
+	/// The knobs are on a MIDI clip, whose CCs and expression the popup names.
+	bool midi_clip = false;
+	/// The MIDI track's names for its CCs, from its record; null for none.
+	const std::map<uint8_t, std::string>* cc_labels = nullptr;
+	/// A stutter is playing, which shows the rate's value instead of its bucket.
 	bool stuttering = false;
 };
 

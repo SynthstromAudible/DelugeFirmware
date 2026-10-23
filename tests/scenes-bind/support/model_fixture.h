@@ -84,6 +84,7 @@ public:
 	[[nodiscard]] bool clip_playing(project::ClipAddress /*clip*/) const override { return false; }
 	[[nodiscard]] int32_t clip_live_pos(project::ClipAddress /*clip*/) const override { return 0; }
 	[[nodiscard]] bool clip_recording_linearly(project::ClipAddress /*clip*/) const override { return false; }
+	[[nodiscard]] bool stutter_active() const override { return false; }
 	[[nodiscard]] std::pair<int64_t, int64_t> audio_clip_samples(project::ClipAddress /*clip*/, int32_t /*scroll*/,
 	                                                             int32_t /*zoom*/) const override {
 		return {0, 0};

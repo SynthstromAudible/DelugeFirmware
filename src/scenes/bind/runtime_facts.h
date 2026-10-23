@@ -118,6 +118,9 @@ public:
 	[[nodiscard]] virtual int32_t clip_live_pos(project::ClipAddress clip) const = 0;
 	/// @brief Recording: whether @p clip records a take linearly now, which a recorder holds while it captures.
 	[[nodiscard]] virtual bool clip_recording_linearly(project::ClipAddress clip) const = 0;
+	/// @brief Whether a stutter is playing: the song's stutter, which a gold knob's push begins, is live state no
+	/// record holds.
+	[[nodiscard]] virtual bool stutter_active() const = 0;
 	/// @brief The view of the audio clip @p clip at @p scroll and @p zoom ticks, in samples: what the waveform scan
 	/// takes. A take recorded without the clock measures from what it has captured.
 	/// @return The scroll and the zoom (samples per column); {0, 0} where there is no such audio clip.

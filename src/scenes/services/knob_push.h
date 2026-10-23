@@ -9,6 +9,7 @@
 #include "deluge-project/instrument_slot.h"
 #include "deluge-project/song.h"
 #include "engines/effects/state.h"
+#include "scenes/bind/knob_assignment.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/bind/write_sink.h"
 #include "serialization/value.h"
@@ -70,6 +71,20 @@ struct KnobPush {
 /// @return The popup's text; empty for none.
 [[nodiscard]] std::string mod_button_popup(const project::Song& song, const bind::KnobFocus& focus, int32_t button,
                                            const PushInputs& inputs);
+
+/// @brief What turning a gold knob on the song's compressor setting @p arm by @p offset does.
+struct CompTurn {
+	std::string_view path;      ///< the compressor setting
+	serialization::Value value; ///< its new value
+	std::string title;          ///< the notification's title: the setting's name
+	std::string value_text;     ///< and its value, in its units
+};
+
+/// @brief The knob position (-64..64) the song's compressor setting @p arm is at.
+[[nodiscard]] int32_t comp_knob_pos(const bind::CompArm& arm, const effects::EffectStates& effects);
+
+/// @brief Turn the song's compressor setting @p arm by @p offset knob steps.
+[[nodiscard]] CompTurn comp_turn(const bind::CompArm& arm, const effects::EffectStates& effects, int32_t offset);
 
 /// @brief Send @p push's requests to @p sink: its effect settings, song settings, chain view, knobs and stutter.
 /// @return Whether the sink took every one.
