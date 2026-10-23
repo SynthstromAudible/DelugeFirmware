@@ -137,6 +137,17 @@ bool RecordingSink::velocity_to_level_everywhere(const ::MIDICable& cable) {
 	return true;
 }
 
+bool RecordingSink::delete_knob_automation(const project::ParamAddress& address) {
+	gestures.push_back({.kind = GestureRequest::Kind::DELETE_KNOB_AUTOMATION});
+	deletes.push_back(address);
+	return true;
+}
+
+bool RecordingSink::instrument_edited(const KnobFocus& focus) {
+	gestures.push_back({.kind = GestureRequest::Kind::INSTRUMENT_EDITED, .focus = focus});
+	return true;
+}
+
 bool RecordingSink::grab_region(const KnobFocus& focus, uint32_t pos) {
 	gestures.push_back({.kind = GestureRequest::Kind::GRAB_REGION, .value = pos, .focus = focus});
 	return true;

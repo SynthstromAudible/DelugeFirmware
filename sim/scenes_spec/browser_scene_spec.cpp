@@ -551,12 +551,12 @@ struct Rig {
 };
 
 MenuContext context_of(spec::SongFixture& f) {
-	return menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false,
+	return menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
 	                         /*kit_global_fx=*/false);
 }
 
 MenuContext context_of(spec::AudioSongFixture& f) {
-	return menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false,
+	return menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
 	                         /*kit_global_fx=*/false);
 }
 

@@ -102,6 +102,10 @@ public:
 	/// playhead, a latch or override holds, and stutter-type effects and recording change, where the record holds the
 	/// saved base value; nullopt where the song holds no such param.
 	[[nodiscard]] virtual std::optional<int32_t> param_value(const project::ParamAddress& address) const = 0;
+	/// @brief @p address's value at @p pos in its clip, as its automation reads there (the take's while the
+	/// arrangement records the clip, in the clip's or the note row's own loop); its current value at 0xFFFFFFFF.
+	[[nodiscard]] virtual std::optional<int32_t> param_value_at(const project::ParamAddress& address,
+	                                                            uint32_t pos) const = 0;
 	/// @brief The patch cables of the sound @p owner names (a synth or a sound drum, with its clip; the id is not
 	/// read), in the order the engine holds them; empty where there is no such sound. The cables are its engine's: one
 	/// made this session is one before the song is saved.

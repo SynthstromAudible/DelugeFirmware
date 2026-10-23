@@ -4,7 +4,7 @@ namespace deluge::scenes::services {
 
 using deluge::l10n::String;
 
-std::string_view source_short_name(PatchSource source) {
+const char* source_short_name(PatchSource source) {
 	switch (source) {
 	case PatchSource::LFO_GLOBAL_1:
 		return "lfo1";

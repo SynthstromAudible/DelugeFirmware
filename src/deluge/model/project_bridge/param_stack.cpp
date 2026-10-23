@@ -27,6 +27,7 @@
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/song/song.h"
+#include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -287,6 +288,14 @@ OwnerStack ownerOrBackedStack(::Song& song, const project::ParamAddress& owner, 
 	           : ownerStackAt(song, owner, memory);
 }
 
+/// @p owner moved to the take the arrangement records its clip into, where there is one; never made here.
+project::ParamAddress followingTake(::Song& song, project::ParamAddress owner, void* memory) {
+	if (::Clip* clip = clipOf(song, owner)) {
+		owner = inClip(owner, *takeOf(song, *clip, false, memory));
+	}
+	return owner;
+}
+
 } // namespace
 
 ModelStackWithAutoParam* paramStackAt(::Song& song, const project::ParamAddress& address, void* memory) {
@@ -302,7 +311,7 @@ ModelStackWithAutoParam* paramStackForWrite(::Song& song, project::ParamAddress&
 
 bool stutterAt(::Song& song, const project::ParamAddress& owner, bool begin) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	const OwnerStack found = ownerOrBackedStack(song, owner, memory);
+	const OwnerStack found = ownerOrBackedStack(song, followingTake(song, owner, memory), memory);
 	if (found.stack == nullptr || found.holder == Holder::NONE || found.holder == Holder::MIDI_CLIP) {
 		return false;
 	}
@@ -322,8 +331,10 @@ bool stutterAt(::Song& song, const project::ParamAddress& owner, bool begin) {
 
 bool grabRegionAt(::Song& song, const project::ParamAddress& owner, uint32_t pos) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	const OwnerStack found = ownerOrBackedStack(song, owner, memory);
-	if (found.stack == nullptr || found.stack->paramManager == nullptr) {
+	const OwnerStack found = ownerOrBackedStack(song, followingTake(song, owner, memory), memory);
+	// `View::setModRegion` grabs only where the owner holds its main params.
+	if (found.stack == nullptr || found.stack->paramManager == nullptr
+	    || !found.stack->paramManager->containsAnyMainParamCollections()) {
 		return false;
 	}
 	found.stack->paramManager->toForTimeline()->grabValuesFromPos(pos, found.stack);
@@ -332,20 +343,25 @@ bool grabRegionAt(::Song& song, const project::ParamAddress& owner, uint32_t pos
 
 bool midiCcSelectAt(::Song& song, const project::ParamAddress& owner, int32_t knob, bool on) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	const OwnerStack found = ownerStackAt(song, owner, memory);
+	const OwnerStack found = ownerStackAt(song, followingTake(song, owner, memory), memory);
 	if (found.stack == nullptr || found.holder != Holder::MIDI_CLIP) {
 		return false;
 	}
-	(void)found.stack->modControllable->modEncoderButtonAction(static_cast<uint8_t>(knob), on, found.stack);
-	return true;
+	return found.stack->modControllable->modEncoderButtonAction(static_cast<uint8_t>(knob), on, found.stack);
 }
 
 ModelStackWithAutoParam* paramStackFollowingTake(::Song& song, const project::ParamAddress& address, void* memory) {
-	if (::Clip* clip = clipOf(song, address)) {
-		const project::ParamAddress followed = inClip(address, *takeOf(song, *clip, false, memory));
-		return paramInOwner(ownerStackAt(song, followed, memory), followed, false);
+	const project::ParamAddress followed = followingTake(song, address, memory);
+	return paramInOwner(ownerOrBackedStack(song, followed, memory), followed, false);
+}
+
+std::optional<int32_t> paramValueAt(::Song& song, const project::ParamAddress& address, uint32_t pos) {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* stack = paramStackFollowingTake(song, address, memory);
+	if (stack == nullptr || stack->autoParam == nullptr) {
+		return std::nullopt;
 	}
-	return paramStackAt(song, address, memory);
+	return stack->autoParam->getValuePossiblyAtPos(static_cast<int32_t>(pos), stack);
 }
 
 PatchCableSet* cableSetAt(::Song& song, const project::ParamAddress& owner, void* memory) {

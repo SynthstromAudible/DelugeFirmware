@@ -181,6 +181,11 @@ public:
 	bool write_effect(const deluge::scenes::bind::EffectOwner& owner, std::string_view path,
 	                  const deluge::serialization::Value& value) override;
 	bool midi_cc_select(const deluge::scenes::bind::KnobFocus& focus, int32_t knob, bool on) override;
+	bool delete_knob_automation(const deluge::project::ParamAddress& address) override {
+		deluge::edits::DeleteParamAutomation edit{address, ActionAddition::NOT_ALLOWED, /*follow_take=*/true};
+		return currentSong != nullptr && applied(edit);
+	}
+	bool instrument_edited(const deluge::scenes::bind::KnobFocus& focus) override;
 	bool velocity_to_level_everywhere(const ::MIDICable& cable) override {
 		deluge::edits::SetVelocityToLevelEverywhere edit{cable};
 		return currentSong != nullptr && applied(edit);
@@ -217,6 +222,10 @@ public:
 	[[nodiscard]] bool allows_note_tails(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] uint8_t arp_preset(const deluge::project::SettingAddress& address) const override;
 	[[nodiscard]] std::optional<int32_t> param_value(const deluge::project::ParamAddress& address) const override;
+	[[nodiscard]] std::optional<int32_t> param_value_at(const deluge::project::ParamAddress& address,
+	                                                    uint32_t pos) const override {
+		return currentSong != nullptr ? deluge::bridge::paramValueAt(*currentSong, address, pos) : std::nullopt;
+	}
 	[[nodiscard]] deluge::scenes::bind::CableList cables(const deluge::project::ParamAddress& owner) const override;
 	[[nodiscard]] std::vector<deluge::scenes::bind::TrackFact> tracks() const override;
 	[[nodiscard]] std::optional<deluge::scenes::bind::AudioClipFact>
@@ -832,10 +841,9 @@ bool ShellEditSink::chain_view(deluge::project::ChainAddress chain, std::string_
 	if (currentSong == nullptr) {
 		return false;
 	}
-	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::SetChainView edit{chain, std::string{key},
 	                                 deluge::serialization::Value::makeScalar(std::string{word})};
-	return deluge::edits::apply(ctx, edit) == Error::NONE;
+	return applied(edit);
 }
 
 bool ShellEditSink::write_controls(deluge::project::ControlsAddress owner,
@@ -843,9 +851,8 @@ bool ShellEditSink::write_controls(deluge::project::ControlsAddress owner,
 	if (currentSong == nullptr) {
 		return false;
 	}
-	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::SetControls edit{owner, std::move(controls)};
-	return deluge::edits::apply(ctx, edit) == Error::NONE;
+	return applied(edit);
 }
 
 bool ShellEditSink::stutter(const deluge::scenes::bind::KnobFocus& focus, bool begin) {
@@ -860,30 +867,20 @@ bool ShellEditSink::grab_region(const deluge::scenes::bind::KnobFocus& focus, ui
 
 namespace {
 
-/// Mark the instrument whose effects @p owner names edited: a synth's, a kit row's kit's, a kit's own chain's.
-void markEffectOwnerEdited(::Song& song, const deluge::scenes::bind::EffectOwner& owner) {
-	if (const auto* slot = std::get_if<deluge::project::SlotAddress>(&owner)) {
-		if (slot->kind == deluge::project::SlotAddress::Kind::OUTPUT) {
-			if (Output* output = deluge::bridge::outputWithId(song, slot->id); output != nullptr) {
-				static_cast<Instrument*>(output)->beenEdited();
-			}
-			return;
-		}
-		for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
-			if (output->type == OutputType::KIT && static_cast<Kit*>(output)->drumWithId(slot->id) != nullptr) {
-				static_cast<Kit*>(output)->beenEdited();
-				return;
-			}
-		}
-		return;
+/// The instrument @p focus's knobs edit: a synth, a kit row's kit, a kit's own chain; none for an audio track, a
+/// MIDI track (whose edited flag is no instrument's) or the song.
+Instrument* knobInstrumentOf(::Song& song, const deluge::scenes::bind::KnobFocus& focus) {
+	namespace bind = deluge::scenes::bind;
+	std::optional<uint32_t> id;
+	if (const auto* sound = std::get_if<bind::SoundFocus>(&focus.owner)) {
+		id = sound->kit ? sound->kit : std::optional{sound->slot.id};
 	}
-	const auto chain = std::get<deluge::project::ChainAddress>(owner);
-	if (chain.kind == deluge::project::ChainAddress::Kind::OUTPUT) {
-		if (Output* output = deluge::bridge::outputWithId(song, chain.id);
-		    output != nullptr && output->type == OutputType::KIT) {
-			static_cast<Kit*>(output)->beenEdited();
-		}
+	else if (const auto* chain = std::get_if<bind::ChainFocus>(&focus.owner);
+	         chain && chain->owner == bind::ChainOwner::KIT) {
+		id = chain->chain.id;
 	}
+	Output* output = id ? deluge::bridge::outputWithId(song, *id) : nullptr;
+	return output != nullptr && output->type != OutputType::AUDIO ? static_cast<Instrument*>(output) : nullptr;
 }
 
 } // namespace
@@ -893,21 +890,21 @@ bool ShellEditSink::write_effect(const deluge::scenes::bind::EffectOwner& owner,
 	if (currentSong == nullptr) {
 		return false;
 	}
-	deluge::edits::Context ctx{*currentSong, currentSong->project};
-	bool taken = false;
 	if (const auto* slot = std::get_if<deluge::project::SlotAddress>(&owner)) {
 		deluge::edits::SetEngineSetting edit{*slot, std::string{path}, value};
-		taken = deluge::edits::apply(ctx, edit) == Error::NONE;
+		return applied(edit);
 	}
-	else {
-		deluge::edits::SetEffectSetting edit{std::get<deluge::project::ChainAddress>(owner), std::string{path}, value};
-		taken = deluge::edits::apply(ctx, edit) == Error::NONE;
+	deluge::edits::SetEffectSetting edit{std::get<deluge::project::ChainAddress>(owner), std::string{path}, value};
+	return applied(edit);
+}
+
+bool ShellEditSink::instrument_edited(const deluge::scenes::bind::KnobFocus& focus) {
+	Instrument* instrument = currentSong != nullptr ? knobInstrumentOf(*currentSong, focus) : nullptr;
+	if (instrument == nullptr) {
+		return false;
 	}
-	// A gesture's effect write edits the instrument that holds the effects: a sound's, a kit's chain's.
-	if (taken) {
-		markEffectOwnerEdited(*currentSong, owner);
-	}
-	return taken;
+	instrument->beenEdited();
+	return true;
 }
 
 bool ShellEditSink::midi_cc_select(const deluge::scenes::bind::KnobFocus& focus, int32_t knob, bool on) {

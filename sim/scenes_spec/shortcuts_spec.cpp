@@ -120,7 +120,7 @@ void install_sound_context() {
 	select_language();
 	static spec::SongFixture fixture = spec::make_synth_song();
 	static const MenuContext ctx =
-	    menu::context_for(*fixture.song, deluge::gui::menuViewOf(*fixture.song, fixture.clip), 0, false, false, false,
+	    menu::context_for(*fixture.song, deluge::gui::menuViewOf(fixture.clip), 0, false, false, false,
 	                      /*kit_global_fx=*/false);
 	currentSong = fixture.song;
 	const spec::MenuEngine engine = spec::menu_engine(ctx);

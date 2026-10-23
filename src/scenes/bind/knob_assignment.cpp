@@ -84,9 +84,8 @@ KnobAssignment sound_knob(const project::Song& song, const SoundFocus& focus, ui
 
 /// A chain's knob: the global effectable's table over the mode, the chain's filter and mod-FX views, and on the song
 /// its compressor view. A clip's chain trades the song's compressor knobs for the sidechain volume and pitch.
-KnobAssignment chain_knob(const project::Song& song, const KnobFocus& focus, OwnerId owner,
-                          std::optional<uint32_t> clip, const project::FxChain* chain, bool is_song, uint8_t mode,
-                          int32_t knob) {
+KnobAssignment chain_knob(const KnobFocus& focus, OwnerId owner, std::optional<uint32_t> clip,
+                          const project::FxChain* chain, bool is_song, uint8_t mode, int32_t knob) {
 	const auto param = [&](engine::ParamId id) {
 		return KnobAssignment{.target =
 		                          ParamAddress{.owner = owner, .space = ParamSpace::ENGINE, .id = id, .clip_id = clip},
@@ -137,7 +136,6 @@ KnobAssignment chain_knob(const project::Song& song, const KnobFocus& focus, Own
 	default: // 2: the envelopes, which a chain has none of
 		return {};
 	}
-	(void)song;
 }
 
 /// A MIDI track's knob: the CC its record names for the mode's button, in its clip.
@@ -196,11 +194,11 @@ KnobAssignment knob_assignment(const project::Song& song, const KnobFocus& focus
 		return sound_knob(song, *sound, mode, knob);
 	}
 	if (std::holds_alternative<SongFocus>(focus.owner)) {
-		return chain_knob(song, focus, OwnerId::song(), std::nullopt, &song.master_effects, true, mode, knob);
+		return chain_knob(focus, OwnerId::song(), std::nullopt, &song.master_effects, true, mode, knob);
 	}
 	if (const auto* chain = std::get_if<ChainFocus>(&focus.owner)) {
 		const ParamAddress owner = *knob_owner(focus);
-		return chain_knob(song, focus, owner.owner, owner.clip_id, song.resolveChain(chain->chain), false, mode, knob);
+		return chain_knob(focus, owner.owner, owner.clip_id, song.resolveChain(chain->chain), false, mode, knob);
 	}
 	if (const auto* midi = std::get_if<MidiFocus>(&focus.owner)) {
 		return midi_knob(song, *midi, mode, knob);

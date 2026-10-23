@@ -70,7 +70,7 @@ describe gesture_sink("a scene's gestures through the app's sink", ${
 		spec::SongFixture synth = spec::make_synth_song();
 		Song* const saved = currentSong;
 		currentSong = synth.song;
-		const MenuContext on_synth = menu::context_for(*synth.song, deluge::gui::menuViewOf(*synth.song, synth.clip), 0, false, false, false, false);
+		const MenuContext on_synth = menu::context_for(*synth.song, deluge::gui::menuViewOf(synth.clip), 0, false, false, false, false);
 		bind::WriteSink& sink = menu::host_write_sink();
 		using deluge::project::SettingGroupId;
 		expect(sink.write_text(name_of(SettingGroupId::TRACK), on_synth.addresses, "BASSLINE")).to_be_true();
@@ -81,7 +81,7 @@ describe gesture_sink("a scene's gestures through the app's sink", ${
 		spec::SongFixture kit = spec::make_kit_song();
 		(void)spec::add_drum<SoundDrum>(kit);
 		currentSong = kit.song;
-		const MenuContext on_row = menu::context_for(*kit.song, deluge::gui::menuViewOf(*kit.song, kit.clip), 0, false, false, false, false);
+		const MenuContext on_row = menu::context_for(*kit.song, deluge::gui::menuViewOf(kit.clip), 0, false, false, false, false);
 		expect(sink.write_text(name_of(SettingGroupId::LANE), on_row.addresses, "KICK")).to_be_true();
 		expect(recorded_name(*kit.song, SettingGroupId::LANE, on_row.addresses)).to_equal(std::string{"KICK"});
 		currentSong = saved;
@@ -210,7 +210,7 @@ describe gesture_sink("a scene's gestures through the app's sink", ${
 		currentSong = synth.song;
 		bind::WriteSink& sink = menu::host_write_sink();
 		const deluge::project::ClipAddress nowhere{synth.clip->id() + 1000};
-		bind::Addresses lost = menu::context_for(*synth.song, deluge::gui::menuViewOf(*synth.song, synth.clip), 0, false, false, false, false).addresses;
+		bind::Addresses lost = menu::context_for(*synth.song, deluge::gui::menuViewOf(synth.clip), 0, false, false, false, false).addresses;
 		lost.clip = nowhere;
 		expect(sink.write_text(name_of(deluge::project::SettingGroupId::CLIP), lost, "X")).to_be_false();
 		expect(sink.clear_clip(nowhere, true, true)).to_be_false();

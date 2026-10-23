@@ -219,8 +219,8 @@ Rigged& fixture() {
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 		Rigged r;
 		r.song = spec::make_synth_song();
-		r.ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(*r.song.song, r.song.clip), 0, false, false,
-		                          false, /*kit_global_fx=*/false);
+		r.ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false,
+		                          /*kit_global_fx=*/false);
 		return r;
 	}();
 	install(f.ctx, f.song.song);
@@ -247,8 +247,8 @@ KitRig& kit_fixture() {
 		r.drum_a = spec::add_drum<SoundDrum>(r.song);
 		r.drum_b = spec::add_drum<SoundDrum>(r.song);
 		static_cast<Kit*>(r.song.instrument)->selectedDrum = r.drum_a;
-		r.ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(*r.song.song, r.song.clip), 0, false, false,
-		                          false, /*kit_global_fx=*/false);
+		r.ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false,
+		                          /*kit_global_fx=*/false);
 		return r;
 	}();
 	return k;
@@ -258,8 +258,8 @@ KitRig& kit_fixture() {
 MenuContext select_drum(KitRig& k, Drum* drum, bool affect_entire_held = false) {
 	static_cast<Kit*>(k.song.instrument)->selectedDrum = drum;
 	currentSong = k.song.song; // a context binds the app's facts and sink over the current song only
-	MenuContext ctx = menu::context_for(*k.song.song, deluge::gui::menuViewOf(*k.song.song, k.song.clip), 0, false,
-	                                    false, false, /*kit_global_fx=*/false);
+	MenuContext ctx = menu::context_for(*k.song.song, deluge::gui::menuViewOf(k.song.clip), 0, false, false, false,
+	                                    /*kit_global_fx=*/false);
 	ctx.affect_entire_held = affect_entire_held;
 	ctx.addresses.affect_entire = menu::bindings::writes_whole_kit(ctx); // as the menu scene sets it
 	install(ctx, k.song.song);
@@ -1524,7 +1524,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 	it("refuses a strength write on a full cable set, creating nothing", _ {
 		spec::SongFixture song = spec::make_synth_song();
 		menu::MenuContext ctx =
-		    menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, song.clip), 0, false, false, false, /*kit_global_fx=*/false);
+		    menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, /*kit_global_fx=*/false);
 		install(ctx, song.song);
 		PatchCableSet* set = spec::menu_engine(ctx).params->getPatchCableSetAllowJibberish();
 		for (const PatchSource source : {PatchSource::RANDOM, PatchSource::VELOCITY, PatchSource::NOTE}) {

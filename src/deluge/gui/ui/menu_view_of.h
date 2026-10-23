@@ -6,14 +6,12 @@
 #include "scenes/services/view_state.h"
 
 class Clip;
-class Song;
 
 namespace deluge::gui {
 
 /// @brief @p clip as the menu's view: its address and track, what plays it, the kit row selected (and whether its note
 ///        row is in the clip), and the clip's affect-entire.
-/// @param song The song holding @p clip.
 /// @param clip The clip the menu opens over, or null for a song-level or settings menu.
-[[nodiscard]] scenes::services::MenuView menuViewOf(::Song& song, ::Clip* clip);
+[[nodiscard]] scenes::services::MenuView menuViewOf(::Clip* clip);
 
 } // namespace deluge::gui

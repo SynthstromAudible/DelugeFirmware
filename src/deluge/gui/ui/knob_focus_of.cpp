@@ -92,8 +92,6 @@ bind::KnobFocus knobFocusOf(::Song& song, const ModelStackWithThreeMainThings& s
 	else if (controllable != nullptr) {
 		focus.owner = bind::SongFocus{};
 	}
-	const GlobalEffectable& master = song.live.global_effectable;
-	focus.comp = {.editing = master.editingComp, .param = static_cast<uint8_t>(master.currentCompParam)};
 	return focus;
 }
 

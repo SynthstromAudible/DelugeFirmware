@@ -40,6 +40,7 @@
 /// @warning **No wall clock.** `Service::tick(now_ms, dt_ms)` is the only place a clock arrives; the `set_*` entry
 ///          points backdate against the last `now_ms` the service was ticked with (`pretend_knobs_untouched()`).
 
+#include "engines/effects/state.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/services/mod_target.h"
@@ -181,12 +182,6 @@ public:
 	bool automation_updates_mod_levels() const { return automation_updates_mod_levels_; }
 	/// @}
 
-	/// @brief `View::calculateKnobPosForModEncoderTurn`: `knob_pos + offset`, clamped to the kind's range.
-	static int32_t calculate_knob_pos_for_mod_encoder_turn(deluge::modulation::params::Kind kind, int32_t knob_pos,
-	                                                       int32_t offset);
-	/// @brief `View::convertPatchCableKnobPosToIndicatorLevel`: a cable's position folded into the indicator's range.
-	static int32_t convert_patch_cable_knob_pos_to_indicator_level(int32_t knob_pos);
-
 	/// @brief One knob's indicator level -- the arithmetic half of `View::setKnobIndicatorLevel`.
 	struct IndicatorLevel {
 		/// False where legacy reads an uninitialised position (see `ModIndicatorInfo`).
@@ -200,8 +195,10 @@ public:
 	static IndicatorLevel indicator_level(const ModIndicatorInfo& info, bool stuttering);
 
 private:
-	/// @brief One gold-knob turn -- `View::modEncoderAction`.
+	/// @brief One gold-knob turn -- `View::modEncoderAction`: the turn, then the instrument marked edited on a clip.
 	deluge::ui::shell::Result mod_encoder_action(int32_t which_encoder, int32_t offset, uint32_t now_ms);
+	/// @brief The turn itself: the comp arm's setting, or the param's write, popup, feedback and detent.
+	deluge::ui::shell::Result turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms);
 	/// @brief Hand @p turn to the popup and push it if it is not stacked yet.
 	/// @return True when the popup redrew, so the caller owes a `Repaint`.
 	bool show_popup(const ModTurn& turn, uint32_t now_ms);
@@ -225,14 +222,19 @@ private:
 	                               bool have_param, bool is_automation);
 	/// @brief Whether the app's facts and sink act on the song the knobs read.
 	bool bound() const;
+	/// @brief The focus's owner's effect settings: a sound's own, or its chain's; null for none.
+	const effects::EffectStates* owner_effects() const;
+	/// @brief A stutter-rate knob on the focus's owner is quantized.
+	bool owner_stutter_quantized() const;
 
 	overlay::ParamPopupScene& popup_;
 	deluge::ui::shell::SceneStack& stack_;
 	deluge::ui::shell::InputLowering& lowering_;
 	Song* song_ = nullptr;
 	bind::KnobFocus focus_{};
-	/// A MIDI track's knob is choosing its CC, which the next mod button ends.
+	/// A MIDI track's knob (@ref selecting_knob_) is choosing its CC, which the next mod button ends.
 	bool selecting_cc_ = false;
+	int32_t selecting_knob_ = 0;
 	/// The last clock `tick()` saw.
 	uint32_t now_ms_ = 0;
 	bool blink_indicator_[kKnobCount]{};

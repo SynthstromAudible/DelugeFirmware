@@ -25,8 +25,10 @@ public:
 	/// names no param is refused.
 	/// @param address  The param's address.
 	/// @param addition The Action-coalescing policy.
-	explicit DeleteParamAutomation(project::ParamAddress address, ActionAddition addition = ActionAddition::NOT_ALLOWED)
-	    : address_(address), engineStack_(nullptr), addition_(addition) {}
+	/// @param follow_take A gold knob's delete: while the arrangement records the clip, its take's (made once).
+	explicit DeleteParamAutomation(project::ParamAddress address, ActionAddition addition = ActionAddition::NOT_ALLOWED,
+	                               bool follow_take = false)
+	    : address_(address), engineStack_(nullptr), addition_(addition), follow_take_(follow_take) {}
 
 	/// @copydoc Edit::apply
 	Error apply(Context& ctx) override;
@@ -38,6 +40,7 @@ private:
 	ModelStackWithAutoParam* engineStack_;
 	/// The Action-coalescing policy (tempo passes ALLOWED; others NOT_ALLOWED).
 	ActionAddition addition_;
+	bool follow_take_{false};
 };
 
 } // namespace deluge::edits

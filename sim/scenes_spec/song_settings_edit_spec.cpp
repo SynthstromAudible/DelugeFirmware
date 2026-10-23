@@ -586,7 +586,7 @@ describe song_settings_edit("SetSetting", $ {
 		spec::SongFixture f = spec::make_midi_song();
 		activate(f);
 		f.song->setCurrentClip(f.clip);
-		const auto ctx = deluge::scenes::menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
+		const auto ctx = deluge::scenes::menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::arp_mode, ctx, 1);
 		(void)midiQueued();
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::arp_mode, ctx, 0);
@@ -598,7 +598,7 @@ describe song_settings_edit("SetSetting", $ {
 	it("records a MIDI clip's arp rate set from the scenes", _ {
 		spec::SongFixture f = spec::make_midi_song();
 		f.song->setCurrentClip(f.clip);
-		const auto ctx = deluge::scenes::menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
+		const auto ctx = deluge::scenes::menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::arp_rate_midi, ctx, 40);
 		const SettingAddress arp{SettingGroupId::CLIP_ARP, *deluge::bridge::clipAddressOf(*f.clip, *f.song)};
 		expect(recorded(*f.song, arp, "arpeggiator/rate")).to_equal(std::to_string(f.clip->arpSettings.rate));
@@ -685,7 +685,7 @@ describe song_settings_edit("SetSetting", $ {
 	it("records a synth's polyphony, voice count and MIDI output channel set from the scenes", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
-		const auto ctx = deluge::scenes::menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
+		const auto ctx = deluge::scenes::menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		const deluge::instrument::SoundState* state = spec::menu_engine(ctx).sound->boundState();
 		expect(state != nullptr).to_be_true();
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::polyphony, ctx, static_cast<int32_t>(PolyphonyMode::LEGATO));
@@ -703,7 +703,7 @@ describe song_settings_edit("SetSetting", $ {
 	it("records the note-for-drum menu's note in the sound's state", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
-		const auto ctx = deluge::scenes::menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
+		const auto ctx = deluge::scenes::menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		const deluge::instrument::SoundState* state = spec::menu_engine(ctx).sound->boundState();
 		expect(state != nullptr).to_be_true();
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::output_midi_note, ctx, 61);
@@ -715,7 +715,7 @@ describe song_settings_edit("SetSetting", $ {
 		spec::SongFixture f = spec::make_kit_song();
 		SoundDrum* first = spec::add_drum<SoundDrum>(f);
 		SoundDrum* second = spec::add_drum<SoundDrum>(f);
-		auto ctx = deluge::scenes::menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
+		auto ctx = deluge::scenes::menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		ctx.affect_entire_held = true;
 		ctx.addresses.affect_entire = deluge::scenes::menu::bindings::writes_whole_kit(ctx);
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::output_midi_note, ctx, 72);
@@ -731,7 +731,7 @@ describe song_settings_edit("SetSetting", $ {
 		const auto clip = deluge::bridge::audioClipAddressOf(*f.clip, *f.song);
 		expect(clip.has_value()).to_be_true();
 		const SettingAddress address{SettingGroupId::AUDIO_CLIP, *clip};
-		const auto ctx = deluge::scenes::menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
+		const auto ctx = deluge::scenes::menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		for (const int32_t menu : {0, 1, 25, 49, 50}) {
 			deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::audio_clip_attack, ctx, menu);
 			expect(deluge::scenes::menu::bindings::read(deluge::scenes::menu::nodes::audio_clip_attack, ctx))

@@ -169,6 +169,14 @@ public:
 	/// the device menu's "for everything", a default set up for the user with no undo step.
 	/// @return Whether it was taken.
 	virtual bool velocity_to_level_everywhere(const ::MIDICable& cable) = 0;
+	/// @brief Delete the automation of the param at @p address as a gold knob's shift+push does: while the arrangement
+	/// records the clip, in its take.
+	/// @return Whether it was taken.
+	virtual bool delete_knob_automation(const project::ParamAddress& address) = 0;
+	/// @brief Mark the instrument @p focus's knobs edit as edited by the user (a synth, a kit row's kit, a kit's own
+	/// chain): a runtime flag no record holds, which a gesture that edited it sets.
+	/// @return Whether it was taken.
+	virtual bool instrument_edited(const KnobFocus& focus) = 0;
 };
 
 /// @brief A gesture request, as a RecordingSink keeps it.
@@ -192,6 +200,8 @@ struct GestureRequest {
 		EFFECT_WORD,
 		MIDI_CC_SELECT,
 		VELOCITY_EVERYWHERE,
+		DELETE_KNOB_AUTOMATION,
+		INSTRUMENT_EDITED,
 	};
 	Kind kind{Kind::TEXT};
 	Target target{};
@@ -257,6 +267,8 @@ public:
 	bool write_effect(const EffectOwner& owner, std::string_view path, const serialization::Value& value) override;
 	bool midi_cc_select(const KnobFocus& focus, int32_t knob, bool on) override;
 	bool velocity_to_level_everywhere(const ::MIDICable& cable) override;
+	bool delete_knob_automation(const project::ParamAddress& address) override;
+	bool instrument_edited(const KnobFocus& focus) override;
 	std::vector<WriteRequest> requests;
 	std::vector<GestureRequest> gestures;
 	std::vector<ParamWrite> param_writes;

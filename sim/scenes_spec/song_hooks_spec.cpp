@@ -29,7 +29,7 @@ namespace {
 
 /// @brief A song-level menu context over @p f's song.
 MenuContext song_context(spec::SongFixture& f) {
-	return menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, nullptr), 0, false, true, true, false);
+	return menu::context_for(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, true, true, false);
 }
 
 /// @brief Whether @p recording holds exactly one SONG request, for @p path, of @p value.

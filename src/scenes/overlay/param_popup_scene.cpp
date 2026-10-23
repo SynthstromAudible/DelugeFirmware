@@ -61,7 +61,7 @@ struct FixedAppend {
 
 /// @brief @p source's short name, as a C string for the fixed appender.
 const char* source_short_name(PatchSource source) {
-	return services::source_short_name(source).data();
+	return services::source_short_name(source);
 }
 
 /// @brief `View::calculateKnobPosForDisplay` (`view.cpp:1319-1342`), transcribed. The unused
@@ -106,10 +106,9 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 			out.append("->");
 		}
 		const auto type = static_cast<deluge::modulation::params::ParamType>(param_id);
-		out.append(context.effects != nullptr
-		               ? deluge::modulation::params::getPatchedParamShortName(type, context.effects->filter.lpf_mode,
-		                                                                      context.effects->filter.hpf_mode)
-		               : deluge::modulation::params::getPatchedParamShortName(type));
+		out.append(context.filter ? deluge::modulation::params::getPatchedParamShortName(type, context.filter->lpf_mode,
+		                                                                                 context.filter->hpf_mode)
+		                          : deluge::modulation::params::getPatchedParamShortName(type));
 	}
 	else if (context.midi_clip) {
 		// `:1122-1147`. The caller has already resolved `isClipContext() && getCurrentOutputType()
@@ -127,13 +126,8 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 			}
 		}
 		else if (param_id >= 0 && param_id < kNumRealCCNumbers) {
-			const std::string* label = nullptr;
-			if (context.cc_labels != nullptr) {
-				const auto found = context.cc_labels->find(static_cast<uint8_t>(param_id));
-				label = found != context.cc_labels->end() && !found->second.empty() ? &found->second : nullptr;
-			}
-			if (label != nullptr) {
-				out.append(*label);
+			if (!context.cc_label.empty()) {
+				out.append(context.cc_label);
 			}
 			else {
 				out.append("CC ");
@@ -142,10 +136,9 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 		}
 	}
 	else {
-		const char* name = context.effects != nullptr
-		                       ? deluge::modulation::params::getParamDisplayName(
-		                             kind, param_id, context.effects->filter.lpf_mode, context.effects->filter.hpf_mode)
-		                       : deluge::modulation::params::getParamDisplayName(kind, param_id);
+		const char* name = context.filter ? deluge::modulation::params::getParamDisplayName(
+		                                        kind, param_id, context.filter->lpf_mode, context.filter->hpf_mode)
+		                                  : deluge::modulation::params::getParamDisplayName(kind, param_id);
 		if (name != deluge::l10n::get(deluge::l10n::String::STRING_FOR_NONE)) {
 			out.append(name);
 		}

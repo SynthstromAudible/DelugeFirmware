@@ -314,19 +314,19 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		sound->setLpfMode(FilterMode::TRANSISTOR_24DB);
 		ModControllableAudio* mca = sound;
 		overlay::PopupContext of_sound;
-		of_sound.effects = &mca->effects();
+		of_sound.filter = mca->effects().filter;
 		for (const int32_t morph : {static_cast<int32_t>(params::LOCAL_LPF_MORPH), static_cast<int32_t>(params::LOCAL_HPF_MORPH)}) {
 			expect(shown(Kind::PATCHED, morph, of_sound).first)
 			    .to_equal(std::string{params::getParamDisplayName(Kind::PATCHED, morph, mca)});
 		}
 		expect(std::string{params::getPatchedParamShortName(params::LOCAL_LPF_MORPH, mca)})
-		    .to_equal(std::string{params::getPatchedParamShortName(params::LOCAL_LPF_MORPH, of_sound.effects->filter.lpf_mode,
-		                                                           of_sound.effects->filter.hpf_mode)});
+		    .to_equal(std::string{params::getPatchedParamShortName(params::LOCAL_LPF_MORPH, of_sound.filter->lpf_mode,
+		                                                           of_sound.filter->hpf_mode)});
 
 		// A chain's: the song's own, its high-pass a ladder.
 		GlobalEffectable& master = synth.song->live.global_effectable;
 		overlay::PopupContext of_chain;
-		of_chain.effects = &master.effects();
+		of_chain.filter = master.effects().filter;
 		expect(shown(Kind::UNPATCHED_GLOBAL, params::UNPATCHED_HPF_MORPH, of_chain).first)
 		    .to_equal(std::string{params::getParamDisplayName(Kind::UNPATCHED_GLOBAL, params::UNPATCHED_HPF_MORPH,
 		                                                      static_cast<ModControllableAudio*>(&master))});
@@ -364,8 +364,9 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		if (record != nullptr) {
 			overlay::PopupContext of_midi;
 			of_midi.midi_clip = true;
-			of_midi.cc_labels = &record->cc_labels;
+			of_midi.cc_label = record->cc_labels.at(74);
 			expect(shown(Kind::MIDI, 74, of_midi).first).to_equal(std::string{instrument->getNameFromCC(74)});
+			of_midi.cc_label.clear(); // CC 75 has no name
 			expect(shown(Kind::MIDI, 75, of_midi).first).to_equal(std::string{"CC 75"});
 		}
 		currentSong = before;

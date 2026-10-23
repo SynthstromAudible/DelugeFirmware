@@ -32,7 +32,6 @@
 
 #include "shell/input_lowering.h"
 
-#include "deluge-project/param_edit.h"
 #include "engines/deluge/cables.h"
 #include "engines/deluge/params.h"
 #include "engines/global_effectable/params.h"
@@ -48,12 +47,10 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <limits>
 
 namespace deluge::scenes::services {
 
 using deluge::modulation::params::Kind;
-using deluge::project::OwnerId;
 using deluge::project::ParamAddress;
 using deluge::project::ParamSpace;
 using deluge::ui::EncoderRole;
@@ -147,30 +144,40 @@ bool is_clip_context(const bind::KnobFocus& focus) {
 	return false;
 }
 
-// -- Pure arithmetic ---------------------------------------------------------------------------
-
-int32_t ModKnobs::calculate_knob_pos_for_mod_encoder_turn(Kind kind, int32_t knob_pos, int32_t offset) {
-	const bind::KnobKind knob = kind == Kind::PATCH_CABLE ? bind::KnobKind::CABLE
-	                            : kind == Kind::MIDI      ? bind::KnobKind::MIDI_CC
-	                                                      : bind::KnobKind::PARAM;
-	return bind::turn(knob, knob_pos, offset);
-}
-
-int32_t ModKnobs::convert_patch_cable_knob_pos_to_indicator_level(int32_t knob_pos) {
-	return bind::fold_cable(knob_pos);
-}
-
 // -- What the knobs point at -------------------------------------------------------------------
 
 bool ModKnobs::bound() const {
 	return song_ != nullptr && menu::host_binds(*song_);
 }
 
+const effects::EffectStates* ModKnobs::owner_effects() const {
+	const std::optional<EffectOwner> owner = effect_owner(focus_);
+	if (!owner) {
+		return nullptr;
+	}
+	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
+	if (const auto* slot = std::get_if<project::SlotAddress>(&*owner)) {
+		const instrument::SoundState* state = facts.sound_state(*slot);
+		return state != nullptr ? &state->effects : nullptr;
+	}
+	return facts.chain_effects(std::get<project::ChainAddress>(*owner));
+}
+
+bool ModKnobs::owner_stutter_quantized() const {
+	const effects::EffectStates* fx = owner_effects();
+	const effects::EffectStates* song =
+	    menu::host_runtime_facts().chain_effects(project::ChainAddress{.kind = project::ChainAddress::Kind::SONG});
+	return fx != nullptr && song != nullptr && stutter_quantized(*fx, *song);
+}
+
 void ModKnobs::set_focus(const bind::KnobFocus& focus, bool send_midi_feedback) {
 	pretend_knobs_untouched(); // `:1871`, `:1903`
+	// The mod region and the compressor view are the knobs' own view state, which a new focus keeps.
 	const bind::ModRegion region = focus_.region;
+	const bind::CompView comp = focus_.comp;
 	focus_ = focus;
 	focus_.region = region;
+	focus_.comp = comp;
 	selecting_cc_ = false;
 	if (send_midi_feedback) {
 		send_midi_follow_feedback(Kind::NONE, 0, kNoSelection, false, false); // `:1896` / `:1920`
@@ -274,11 +281,22 @@ Result ModKnobs::handle(const deluge::ui::shell::UiEvent& event, const deluge::u
 
 Result ModKnobs::mod_encoder_action(int32_t which_encoder, int32_t offset, uint32_t now_ms) {
 	// `View::modEncoderAction` (`view.cpp:835-859`). Legacy consumes a gold-knob turn unconditionally.
-	Result result;
-	result.handled = true;
 	if (!bound() || std::holds_alternative<std::monostate>(focus_.owner)) {
+		Result result;
+		result.handled = true;
 		return result;
 	}
+	Result result = turn_knob(which_encoder, offset, now_ms);
+	// `:840` -- every turn on a clip marks its instrument edited, whatever it wrote.
+	if (is_clip_context(focus_)) {
+		(void)menu::host_write_sink().instrument_edited(focus_);
+	}
+	return result;
+}
+
+Result ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms) {
+	Result result;
+	result.handled = true;
 	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
 	bind::WriteSink& sink = menu::host_write_sink();
 	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, focus_, which_encoder);
@@ -304,19 +322,8 @@ Result ModKnobs::mod_encoder_action(int32_t which_encoder, int32_t offset, uint3
 	// makes it.
 	const deluge::engine::ParamInfo* info = info_of(*address, assignment.kind);
 	const bool at_region = focus_.region.pos != 0xFFFFFFFF;
-	std::optional<int32_t> value = facts.param_value(*address);
-	if (at_region) {
-		if (const project::DocAutoParam* automation = song_->project.resolveParam(*address)) {
-			const uint32_t clip_id =
-			    address->owner.kind == OwnerId::Kind::CLIP ? address->owner.id : address->clip_id.value_or(0);
-			const project::DocClip* clip = song_->project.clip_structure.find(clip_id);
-			value = project::getValueAtPos(*automation, focus_.region.pos,
-			                               clip != nullptr ? clip->loop_length : std::numeric_limits<int32_t>::max());
-		}
-	}
+	const std::optional<int32_t> value = facts.param_value_at(*address, focus_.region.pos);
 	ModTurn turn;
-	turn.has_controllable = true;
-	turn.param_exists = true;
 	turn.kind = assignment.kind;
 	turn.param_id = legacy_id(*address, assignment.kind);
 	turn.old_knob_pos = bind::knob_pos_of(*address, info, value.value_or(0));
@@ -342,20 +349,8 @@ Result ModKnobs::mod_encoder_action(int32_t which_encoder, int32_t offset, uint3
 	turn.note_tails_changed =
 	    sound != nullptr && sound->clip && tails_before != facts.allows_note_tails(sound->slot); // `:929`
 
-	const effects::EffectStates* fx = nullptr;
-	if (const std::optional<EffectOwner> owner = effect_owner(focus_)) {
-		if (const auto* slot = std::get_if<project::SlotAddress>(&*owner)) {
-			const instrument::SoundState* state = facts.sound_state(*slot);
-			fx = state != nullptr ? &state->effects : nullptr;
-		}
-		else {
-			fx = facts.chain_effects(std::get<project::ChainAddress>(*owner));
-		}
-	}
-	const effects::EffectStates* song_fx =
-	    facts.chain_effects(project::ChainAddress{.kind = project::ChainAddress::Kind::SONG});
-	const bool quantized = fx != nullptr && song_fx != nullptr && stutter_quantized(*fx, *song_fx);
-	turn.should_indicate_middle_value = bind::indicates_middle(*address, info, quantized, facts.stutter_active());
+	turn.should_indicate_middle_value =
+	    bind::indicates_middle(*address, info, owner_stutter_quantized(), facts.stutter_active());
 
 	send_midi_follow_feedback(turn.kind, turn.param_id, turn.new_knob_pos, true, false); // `:908`
 	if (turn.note_tails_changed) {
@@ -402,28 +397,23 @@ bool ModKnobs::show_popup(const ModTurn& turn, uint32_t now_ms) {
 	}
 
 	// What the popup reads of the owner: its effects' filter modes, its stutter, a MIDI track's CC names.
-	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
+	// Copied, not pointed at: the popup shows it on a later tick.
 	overlay::PopupContext context;
-	if (const std::optional<EffectOwner> owner = effect_owner(focus_)) {
-		if (const auto* slot = std::get_if<project::SlotAddress>(&*owner)) {
-			const instrument::SoundState* state = facts.sound_state(*slot);
-			context.effects = state != nullptr ? &state->effects : nullptr;
-		}
-		else {
-			context.effects = facts.chain_effects(std::get<project::ChainAddress>(*owner));
-		}
+	if (const effects::EffectStates* fx = owner_effects()) {
+		context.filter = fx->filter;
 	}
-	const effects::EffectStates* song_fx =
-	    facts.chain_effects(project::ChainAddress{.kind = project::ChainAddress::Kind::SONG});
-	context.stutter_quantized =
-	    context.effects != nullptr && song_fx != nullptr && stutter_quantized(*context.effects, *song_fx);
+	context.stutter_quantized = owner_stutter_quantized();
 	if (const auto* midi = std::get_if<bind::MidiFocus>(&focus_.owner); midi != nullptr && midi->clip) {
 		context.midi_clip = true;
-		if (const project::DocOutput* output = song_->project.output_structure.find(midi->track.output_id)) {
-			context.cc_labels = &output->cc_labels;
+		const project::DocOutput* output = song_->project.output_structure.find(midi->track.output_id);
+		if (output != nullptr && turn.kind == Kind::MIDI) {
+			if (const auto label = output->cc_labels.find(static_cast<uint8_t>(turn.param_id));
+			    label != output->cc_labels.end()) {
+				context.cc_label = label->second;
+			}
 		}
 	}
-	context.stuttering = facts.stutter_active();
+	context.stuttering = menu::host_runtime_facts().stutter_active();
 
 	// The popup's `show` reports whether it redrew; a second detent on an open popup moves its text, and only the
 	// caller's `Repaint` draws it.
@@ -448,7 +438,7 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 	if (turn.kind == Kind::PATCH_CABLE) {
 		// `:1063-1065` -- a patch cable is -128..+128; fold it into the indicator's range so "the
 		// middle" is the same number the indicator blinks at.
-		knob_pos = convert_patch_cable_knob_pos_to_indicator_level(knob_pos + kKnobPosOffset) - kKnobPosOffset;
+		knob_pos = bind::fold_cable(knob_pos + kKnobPosOffset) - kKnobPosOffset;
 	}
 
 	if (knob_pos == 0 && turn.should_indicate_middle_value) { // `:1071`
@@ -492,7 +482,7 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 
 	// A MIDI track choosing its knob's CC: any mod button ends that, and does nothing else.
 	if (selecting_cc_) {
-		(void)sink.midi_cc_select(focus_, 0, false);
+		(void)sink.midi_cc_select(focus_, selecting_knob_, false);
 		selecting_cc_ = false;
 		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelPopup);
 		return;
@@ -530,16 +520,12 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 	}
 	PushInputs inputs;
 	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
-	if (const std::optional<EffectOwner> owner = effect_owner(focus_)) {
-		if (const auto* slot = std::get_if<project::SlotAddress>(&*owner)) {
-			if (const instrument::SoundState* state = facts.sound_state(*slot)) {
-				inputs.effects = state->effects;
-				inputs.fm = state->synth_mode == SynthMode::FM;
-			}
-		}
-		else if (const effects::EffectStates* states = facts.chain_effects(std::get<project::ChainAddress>(*owner))) {
-			inputs.effects = *states;
-		}
+	if (const effects::EffectStates* fx = owner_effects()) {
+		inputs.effects = *fx;
+	}
+	if (const auto* sound = std::get_if<bind::SoundFocus>(&focus_.owner)) {
+		const instrument::SoundState* state = facts.sound_state(sound->slot);
+		inputs.fm = state != nullptr && state->synth_mode == SynthMode::FM;
 	}
 	inputs.alt_delay = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
 	inputs.clip_context = is_clip_context(focus_);
@@ -561,7 +547,7 @@ Result ModKnobs::mod_encoder_button_action(int32_t which_encoder, bool on, bool 
 		const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, focus_, which_encoder);
 		const auto* address = std::get_if<ParamAddress>(&assignment.target);
 		if (address != nullptr && menu::host_runtime_facts().param_value(*address).has_value()
-		    && sink.delete_automation(*address)) {
+		    && sink.delete_knob_automation(*address)) {
 			(void)result.actions.push_back(
 			    Action{.kind = Action::Kind::Popup,
 			           .surface = deluge::ui::shell::SurfaceRole::Main,
@@ -573,26 +559,26 @@ Result ModKnobs::mod_encoder_button_action(int32_t which_encoder, bool on, bool 
 	// `modEncoderButtonAction_changeModControllable` (`:1363-1377`): the push's table, sent to the sink.
 	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
 	PushInputs inputs;
-	if (const std::optional<EffectOwner> owner = effect_owner(focus_)) {
-		if (const auto* slot = std::get_if<project::SlotAddress>(&*owner)) {
-			if (const instrument::SoundState* state = facts.sound_state(*slot)) {
-				inputs.effects = state->effects;
-				inputs.fm = state->synth_mode == SynthMode::FM;
-			}
-		}
-		else if (const effects::EffectStates* states = facts.chain_effects(std::get<project::ChainAddress>(*owner))) {
-			inputs.effects = *states;
-		}
+	if (const effects::EffectStates* fx = owner_effects()) {
+		inputs.effects = *fx;
+	}
+	if (const auto* sound = std::get_if<bind::SoundFocus>(&focus_.owner)) {
+		const instrument::SoundState* state = facts.sound_state(sound->slot);
+		inputs.fm = state != nullptr && state->synth_mode == SynthMode::FM;
 	}
 	inputs.alt_delay = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
 	inputs.button_held = mode_held;
 	inputs.clip_context = is_clip_context(focus_);
 	const KnobPush push = knob_push(song_->project, focus_, which_encoder, on, inputs);
 	if (push.midi_cc_select) {
-		(void)sink.midi_cc_select(focus_, which_encoder, on);
-		selecting_cc_ = on;
+		// The instrument takes it from a clip minder with no UI mode active; a release ends it.
+		selecting_cc_ = sink.midi_cc_select(focus_, which_encoder, on) && on;
+		selecting_knob_ = which_encoder;
 	}
-	(void)apply_push(sink, focus_, push);
+	// `:1371` -- a push that edited the instrument marks it, on a clip.
+	if (apply_push(sink, focus_, push) && push.edited && is_clip_context(focus_)) {
+		(void)sink.instrument_edited(focus_);
+	}
 	if (push.comp) {
 		focus_.comp = *push.comp;
 	}
@@ -644,7 +630,7 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 		knob_pos += kKnobPosOffset; // `:1447`
 
 		if (info.kind == Kind::PATCH_CABLE) { // `:1449-1451`
-			knob_pos = convert_patch_cable_knob_pos_to_indicator_level(knob_pos);
+			knob_pos = bind::fold_cable(knob_pos);
 		}
 		out.declared = true;
 		// **The `uint8_t` is legacy's, not a narrowing this port introduces**, and the E4 final
@@ -710,24 +696,22 @@ ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
 		return out;
 	}
 	const auto* address = std::get_if<ParamAddress>(&assignment.target);
+	if (address == nullptr && std::holds_alternative<bind::MidiFocus>(focus_.owner)) {
+		// A MIDI knob that sends nothing, or a MIDI track with no clip, shows at its midpoint (legacy's param 0).
+		out.patch_cable_default = true;
+		return out;
+	}
 	if (address == nullptr) {
 		// A chain's knob with no param on this button shows at the bottom (`getKnobPosForNonExistentParam`).
 		out.non_existent_param = true;
 		out.non_existent_knob_pos = -64;
 		return out;
 	}
-	std::optional<int32_t> value = facts.param_value(*address);
-	if (focus_.region.pos != 0xFFFFFFFF && value) {
-		if (const project::DocAutoParam* automation = song_->project.resolveParam(*address)) {
-			const uint32_t clip_id =
-			    address->owner.kind == OwnerId::Kind::CLIP ? address->owner.id : address->clip_id.value_or(0);
-			const project::DocClip* clip = song_->project.clip_structure.find(clip_id);
-			value = project::getValueAtPos(*automation, focus_.region.pos,
-			                               clip != nullptr ? clip->loop_length : std::numeric_limits<int32_t>::max());
-		}
-	}
-	if (!value) {
-		// A cable or a lane the owner does not hold yet shows at its midpoint.
+	const std::optional<int32_t> value = facts.param_value_at(*address, focus_.region.pos);
+	// A MIDI clip's CC or expression lane it has not made yet shows as one at 0 (legacy makes it to show it); a cable
+	// the sound does not hold yet shows at its midpoint.
+	const bool lane = address->space != ParamSpace::ENGINE;
+	if (!value && !lane) {
 		out.patch_cable_default = true;
 		return out;
 	}
@@ -735,22 +719,10 @@ ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
 	out.has_auto_param = true;
 	out.kind = assignment.kind;
 	out.param_id = legacy_id(*address, assignment.kind);
-	out.knob_pos = bind::knob_pos_of(*address, info, *value);
+	out.knob_pos = bind::knob_pos_of(*address, info, value.value_or(0));
 	out.bipolar = bind::bipolar(*address, info);
 	if (info != nullptr && info->file_name == "stutterRate") {
-		const effects::EffectStates* song_fx =
-		    facts.chain_effects(project::ChainAddress{.kind = project::ChainAddress::Kind::SONG});
-		const effects::EffectStates* fx = nullptr;
-		if (const std::optional<EffectOwner> owner = effect_owner(focus_)) {
-			if (const auto* slot = std::get_if<project::SlotAddress>(&*owner)) {
-				const instrument::SoundState* state = facts.sound_state(*slot);
-				fx = state != nullptr ? &state->effects : nullptr;
-			}
-			else {
-				fx = facts.chain_effects(std::get<project::ChainAddress>(*owner));
-			}
-		}
-		out.quantized_stutter = fx != nullptr && song_fx != nullptr && stutter_quantized(*fx, *song_fx);
+		out.quantized_stutter = owner_stutter_quantized();
 	}
 	return out;
 }

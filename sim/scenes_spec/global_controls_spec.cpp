@@ -861,7 +861,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.set_view_state(vs);
 		// The clip that minder has open, as the app tells the view state.
 		deluge::scenes::services::view_state().set_current_view(
-		    deluge::gui::menuViewOf(*legacy_fixture.song, legacy_fixture.song->getCurrentClip()));
+		    deluge::gui::menuViewOf(legacy_fixture.song->getCurrentClip()));
 		rig.press(ButtonId::SyncScaling, true, 18'000);
 		expect(legacy_fixture.song->getSyncScalingClip() == legacy_fixture.song->getCurrentClip()).to_be_true();
 		rig.press(ButtonId::SyncScaling, false, 18'005);

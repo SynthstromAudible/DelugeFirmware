@@ -12,8 +12,8 @@
 namespace deluge::scenes::services {
 
 /// @brief @p source's four-character name, as the mod matrix's columns and a cable's popup show it.
-/// @return Its short name, or `"----"` for anything without one.
-[[nodiscard]] std::string_view source_short_name(PatchSource source);
+/// @return Its short name, a string literal, or `"----"` for anything without one.
+[[nodiscard]] const char* source_short_name(PatchSource source);
 
 /// @brief The string @p source's full name is, as a lone cable's name shows it.
 /// @return Its string id, or the unknown source's.

@@ -78,7 +78,6 @@
 #include "engines/effects/state.h"
 
 #include <cstdint>
-#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -93,14 +92,14 @@ inline constexpr deluge::ui::shell::SceneKind kParamPopupSceneKind =
 ///
 /// Default-constructed, this is "no context": each arm it unlocks falls back to the context-free text.
 struct PopupContext {
-	/// The knob owner's effect settings, whose filter modes name the morph params; null for none.
-	const deluge::effects::EffectStates* effects = nullptr;
+	/// The knob owner's filters, whose modes name the morph params; none for no owner.
+	std::optional<deluge::effects::FilterState> filter;
 	/// The stutter rate the knob turns is quantized: the song's stutter's setting where the owner plays the song's.
 	bool stutter_quantized = false;
 	/// The knobs are on a MIDI clip, whose CCs and expression the popup names.
 	bool midi_clip = false;
-	/// The MIDI track's names for its CCs, from its record; null for none.
-	const std::map<uint8_t, std::string>* cc_labels = nullptr;
+	/// The MIDI track's name for the knob's CC, from its record; empty for none.
+	std::string cc_label;
 	/// A stutter is playing, which shows the rate's value instead of its bucket.
 	bool stuttering = false;
 };

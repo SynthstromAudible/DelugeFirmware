@@ -193,7 +193,7 @@ bool has_action(const Result& r, ShellAction::Kind k) {
 }
 
 MenuContext context_of(spec::SongFixture& f) {
-	return menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false,
+	return menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
 	                         /*kit_global_fx=*/false);
 }
 

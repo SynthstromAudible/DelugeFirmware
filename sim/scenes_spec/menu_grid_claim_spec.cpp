@@ -39,7 +39,7 @@ namespace {
 ///        performance view, no session/arranger root -- `context_for`'s branch that lands on
 ///        `MenuContext::Root::Sound` (`scenes/menu/context.cpp:357`).
 MenuContext sound_context(spec::SongFixture& fx) {
-	return menu::context_for(*fx.song, deluge::gui::menuViewOf(*fx.song, fx.clip), 0, false, false, false,
+	return menu::context_for(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, false, false, false,
 	                         /*kit_global_fx=*/false);
 }
 

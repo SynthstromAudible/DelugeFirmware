@@ -163,7 +163,7 @@ describe menu_write_profile("a kit-wide menu write's cost, by phase", ${
 		for (int32_t d = 0; d < kKitDrums; ++d) {
 			spec::add_drum<SoundDrum>(f);
 		}
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
+		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		expect(menu::host_binds(*f.song)).to_be_true();
 		expect(ctx.addresses.kit_output.has_value()).to_be_true();
 		profile(f, "voicePriority", 0, 2);

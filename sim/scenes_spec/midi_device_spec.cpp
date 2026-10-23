@@ -244,8 +244,7 @@ Fixture& fixture() {
 		// The settings root's own context (`tables_3_spec.cpp`'s "settings" fixture): no clip, not a
 		// session root. `context_for` never assigns `midi_cable` -- the device list publishes it --
 		// so this spec sets it, exactly as `MenuScene::after_render` would.
-		k.ctx = menu::context_for(*k.song.song, deluge::gui::menuViewOf(*k.song.song, nullptr), 0, false, false, false,
-		                          false);
+		k.ctx = menu::context_for(*k.song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
 		return k;
 	}();
 	return f;
@@ -516,7 +515,7 @@ describe midi_device_per_cable("scenes::menu E3 task 8: the per-cable binding fa
 			input->cable = &cable;
 			input->channelOrZone = 0;
 		}
-		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, nullptr), 0, false, false, false,
+		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false,
 		                                    false);
 		ctx.midi_cable = &cable;
 		actionLogger.deleteAllLogs();

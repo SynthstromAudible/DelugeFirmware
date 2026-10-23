@@ -164,7 +164,7 @@ spec::QuietAudio& quiet_audio() {
 bool openGuestOnPlayCommand(Song& song) {
 	(void)quiet_audio();
 	const menu::MenuContext ctx =
-	    menu::context_for(song, deluge::gui::menuViewOf(song, nullptr), 0, false, false, false, false);
+	    menu::context_for(song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
 	const uint16_t arg = menu::node_id(nodes::midi_command_play);
 	if (arg == 0) {
 		return false;

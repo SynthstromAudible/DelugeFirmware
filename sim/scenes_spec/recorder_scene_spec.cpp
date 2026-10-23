@@ -188,8 +188,8 @@ struct Rig {
 	}
 
 	MenuContext ctx() {
-		MenuContext c = menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, song.clip), 0, false, false,
-		                                  false, /*kit_global_fx=*/false);
+		MenuContext c = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                                  /*kit_global_fx=*/false);
 		c.range_index = 0;
 		return c;
 	}
@@ -291,6 +291,8 @@ struct RefusingSink final : bind::WriteSink {
 	}
 	bool midi_cc_select(const bind::KnobFocus&, int32_t, bool) override { return false; }
 	bool velocity_to_level_everywhere(const ::MIDICable&) override { return false; }
+	bool delete_knob_automation(const deluge::project::ParamAddress&) override { return false; }
+	bool instrument_edited(const bind::KnobFocus&) override { return false; }
 };
 
 /// @brief A finished take: the recorder's sample with a file, resident in the audio file manager at its path as the
@@ -339,8 +341,7 @@ struct KitRig {
 	KitRig& operator=(const KitRig&) = delete;
 
 	MenuContext ctx() {
-		return menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, song.clip), 0, false, false, false,
-		                         false);
+		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 	}
 
 	/// @brief The lane's name, as the record holds it.

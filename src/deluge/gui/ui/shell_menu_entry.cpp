@@ -119,7 +119,7 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 	}
 
 	menu::MenuContext ctx =
-	    menu::context_for(*currentSong, deluge::gui::menuViewOf(*currentSong, clip), static_cast<int8_t>(sourceIndex),
+	    menu::context_for(*currentSong, deluge::gui::menuViewOf(clip), static_cast<int8_t>(sourceIndex),
 	                      performanceView, sessionOrArrangerRoot, sessionViewRoot, kitGlobalFx);
 	// `MenuContext::resolved` is where `setup()`'s two outright refusals live -- a kit whose selected
 	// `SoundDrum` has no note row (`gui/ui/sound_editor.cpp:1719-1721`) and a kit with neither

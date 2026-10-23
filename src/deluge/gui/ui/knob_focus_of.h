@@ -15,7 +15,7 @@ namespace deluge::gui {
 ///        the arrangement records is named by the session clip it records, as the focus keeps.
 /// @param song  The song the stack is in.
 /// @param stack The view's stack: its timeline counter, mod controllable and note row.
-/// @return The focus, with no region and the compressor view of the song's chain.
+/// @return The focus, with no region and no compressor view: those are the knobs' own view state.
 [[nodiscard]] scenes::bind::KnobFocus knobFocusOf(::Song& song, const ModelStackWithThreeMainThings& stack);
 
 } // namespace deluge::gui

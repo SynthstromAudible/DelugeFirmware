@@ -11,7 +11,10 @@ Error DeleteParamAutomation::apply(Context& ctx) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* stack = engineStack_;
 	if (stack == nullptr) {
-		stack = address_ ? deluge::bridge::paramStackAt(ctx.song, *address_, memory) : nullptr;
+		if (address_) {
+			stack = follow_take_ ? deluge::bridge::paramStackForWrite(ctx.song, *address_, memory)
+			                     : deluge::bridge::paramStackAt(ctx.song, *address_, memory);
+		}
 		if (stack == nullptr) {
 			return Error::UNSPECIFIED;
 		}

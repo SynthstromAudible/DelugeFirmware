@@ -8,6 +8,7 @@
 #include "engines/deluge/params.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/edit.h"
+#include "model/fx/song_stutter.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/param_ids.h"
@@ -149,6 +150,125 @@ describe knob_writes("a gold knob's write by address", ${
 		expect(value_at(*f.song, on(*f.clip)) == session_before).to_be_true();
 		expect(read == std::optional<int32_t>{1 << 26}).to_be_true();
 		expect(f.song->live.clips.arrangement_only_clips.size()).to_equal(arranged_before);
+		currentSong = before;
+	});
+
+	it("reads an arranger row's backed-up params where the row has no clip", _ {
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		Song* const before = currentSong;
+		currentSong = f.song;
+		ParamManagerForTimeline params;
+		auto* row = static_cast<SoundInstrument*>(StorageManager::createNewInstrument(OutputType::SYNTH, &params));
+		row->setupAsDefaultSynth(&params);
+		f.song->live.param_backup.backUp(*row, nullptr, &params, true);
+		f.song->addOutput(row);
+		const ParamAddress address{.owner = OwnerId::instrument(*row->id()), .space = ParamSpace::ENGINE,
+		                           .id = deluge::instrument::param::kLpfFrequency};
+		expect(turn(*f.song, address, 1 << 27)).to_be_true();
+		expect(deluge::scenes::menu::host_runtime_facts().param_value(address) == std::optional<int32_t>{1 << 27})
+		    .to_be_true();
+		currentSong = before;
+	});
+
+	it("deletes, reads at a position and stutters the take while the arrangement records, the session clip left", _ {
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		Song* const before = currentSong;
+		currentSong = f.song;
+		auto* synth = static_cast<SoundInstrument*>(f.instrument);
+		InstrumentClip* take = deluge::scenes::spec::detail::make_session_clip(f.song);
+		ParamManagerForTimeline params;
+		expect(params.cloneParamCollectionsFrom(&f.clip->paramManager, false) == Error::NONE).to_be_true();
+		take->setAudioInstrument(synth, f.song, true, &params);
+		take->beingRecordedFromClip = f.clip;
+		alignas(ModelStack) char memory[MODEL_STACK_MAX_SIZE];
+		expect(synth->setActiveClip(setupModelStackWithSong(memory, f.song)->addTimelineCounter(take), PgmChangeSend::NEVER))
+		    .to_be_true();
+		f.clip->activeIfNoSolo = true;
+		const auto on = [&](const Clip& clip, deluge::engine::ParamId id) {
+			return ParamAddress{.owner = OwnerId::instrument(*synth->id()), .space = ParamSpace::ENGINE, .id = id,
+			                    .clip_id = clip.id()};
+		};
+		const deluge::engine::ParamId lpf = deluge::instrument::param::kLpfFrequency;
+		// Each clip holds its own automation of the filter, and its own stutter rate.
+		const auto region = [&](const ParamAddress& address, int32_t value) {
+			deluge::edits::Context ctx{*f.song, f.song->project};
+			SetParamValue write{address, value, 0, 48};
+			return deluge::edits::apply(ctx, write) == Error::NONE;
+		};
+		expect(region(on(*f.clip, lpf), 1 << 24) && region(on(*take, lpf), 1 << 28)).to_be_true();
+		expect(turn(*f.song, on(*f.clip, deluge::instrument::param::kStutterRate), -(1 << 29))).to_be_true();
+		expect(turn(*f.song, on(*take, deluge::instrument::param::kStutterRate), 1 << 29)).to_be_true();
+		const auto automated = [&](const ParamAddress& address) {
+			const deluge::project::DocAutoParam* param = f.song->project.resolveParam(address);
+			return param != nullptr && !param->nodes.empty();
+		};
+
+		const auto mode = playbackHandler.recording;
+		const auto state = playbackHandler.playbackState;
+		playbackHandler.recording = RecordingMode::ARRANGEMENT;
+		playbackHandler.playbackState = PLAYBACK_CLOCK_INTERNAL_ACTIVE;
+		const std::optional<int32_t> at_pos =
+		    deluge::scenes::menu::host_runtime_facts().param_value_at(on(*f.clip, lpf), 0);
+		const deluge::scenes::bind::KnobFocus focus{
+		    .owner = deluge::scenes::bind::SoundFocus{.slot = {deluge::project::SlotAddress::Kind::OUTPUT, *synth->id()},
+		                                              .clip = deluge::project::ClipAddress{f.clip->id()}}};
+		(void)deluge::scenes::menu::host_write_sink().stutter(focus, true);
+		const int32_t before_stutter = f.song->live.stutter.valueBeforeStuttering;
+		(void)deluge::scenes::menu::host_write_sink().stutter(focus, false);
+		const bool deleted = deluge::scenes::menu::host_write_sink().delete_knob_automation(on(*f.clip, lpf));
+		playbackHandler.recording = mode;
+		playbackHandler.playbackState = state;
+
+		expect(at_pos == std::optional<int32_t>{1 << 28}).to_be_true(); // the take's automation
+		expect(before_stutter).to_equal(1 << 29);                       // the take's stutter rate
+		expect(deleted).to_be_true();
+		expect(automated(on(*take, lpf))).to_be_false();
+		expect(automated(on(*f.clip, lpf))).to_be_true();
+		currentSong = before;
+	});
+
+	it("makes the take once while the arrangement records, and a read makes none", _ {
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		Song* const before = currentSong;
+		currentSong = f.song;
+		auto* synth = static_cast<SoundInstrument*>(f.instrument);
+		f.clip->activeIfNoSolo = true;
+		// The arrangement's instance of the session clip, where the recording is.
+		const int32_t at = synth->clipInstances.insertSorted(0).value_or(-1);
+		expect(at >= 0).to_be_true();
+		if (at >= 0) {
+			synth->clipInstances[at].clip = f.clip;
+			synth->clipInstances[at].length = f.clip->loopLength();
+		}
+		const ParamAddress session{.owner = OwnerId::instrument(*synth->id()), .space = ParamSpace::ENGINE,
+		                           .id = deluge::instrument::param::kLpfFrequency, .clip_id = f.clip->id()};
+		const std::optional<int32_t> session_before = value_at(*f.song, session);
+		const size_t arranged = f.song->live.clips.arrangement_only_clips.size();
+
+		const auto mode = playbackHandler.recording;
+		const auto state = playbackHandler.playbackState;
+		playbackHandler.recording = RecordingMode::ARRANGEMENT;
+		playbackHandler.playbackState = PLAYBACK_CLOCK_INTERNAL_ACTIVE;
+		(void)deluge::scenes::menu::host_runtime_facts().param_value(session);
+		const size_t after_read = f.song->live.clips.arrangement_only_clips.size();
+		expect(turn(*f.song, session, 1 << 26)).to_be_true();
+		const size_t after_turn = f.song->live.clips.arrangement_only_clips.size();
+		expect(turn(*f.song, session, 1 << 25)).to_be_true();
+		const size_t after_second = f.song->live.clips.arrangement_only_clips.size();
+		Clip* const recorded = synth->getActiveClip();
+		playbackHandler.recording = mode;
+		playbackHandler.playbackState = state;
+
+		expect(after_read).to_equal(arranged);
+		expect(after_turn).to_equal(arranged + 1);
+		expect(after_second).to_equal(arranged + 1);
+		expect(recorded != nullptr && recorded != f.clip && recorded->beingRecordedFromClip == f.clip).to_be_true();
+		if (recorded != nullptr && recorded != f.clip) {
+			ParamAddress in_take = session;
+			in_take.clip_id = recorded->id();
+			expect(value_at(*f.song, in_take) == std::optional<int32_t>{1 << 25}).to_be_true();
+		}
+		expect(value_at(*f.song, session) == session_before).to_be_true();
 		currentSong = before;
 	});
 

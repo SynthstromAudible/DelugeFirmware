@@ -20,72 +20,49 @@ bool is_clip_context(const bind::KnobFocus& focus);
 /// @brief What one gold-knob turn on a param did, and what finishing it needs (the popup, the MIDI feedback, the
 ///        indicator blink, the repaint) -- `View::modEncoderAction_existentParam` (`view.cpp:853-948`).
 struct ModTurn {
-	/// The knobs have an owner (`view.cpp:841`).
-	bool has_controllable = false;
-	/// The knob names a param (`view.cpp:847`, negated).
-	bool param_exists = false;
-	/// The non-existent-param arm changed something (`view.cpp:865`).
-	bool caused_change = false;
-
-	/// `modelStackWithParam->paramCollection->getParamKind()` (`view.cpp:876`).
+	/// The param's kind, as the popup and MIDI follow name it.
 	deluge::modulation::params::Kind kind = deluge::modulation::params::Kind::NONE;
-	/// `modelStackWithParam->paramId` (`view.cpp:910`).
+	/// The param's id in its kind's numbering (a cable's packed word, a CC number).
 	int32_t param_id = 0;
-	/// The knob position before the turn (`view.cpp:879`).
+	/// The knob position before the turn.
 	int32_t old_knob_pos = 0;
-	/// `calculateKnobPosForModEncoderTurn`'s output (`view.cpp:880`) -- what the popup shows, and
-	/// what was written, whether or not it differed.
+	/// The position after it -- what the popup shows, and what was written where it differs.
 	int32_t new_knob_pos = 0;
-	/// `new_knob_pos != old_knob_pos` -- legacy's `:902` early return, which happens *after* the
-	/// popup and before everything else.
+	/// The turn wrote a new value (legacy's `:902` early return is the other case).
 	bool value_changed = false;
-
-	/// `noteTailsAllowedBefore != noteTailsAllowedAfter` (`view.cpp:946`) -- the pad re-render.
+	/// The sound's note tails changed with the value (`view.cpp:946`): the pads repaint.
 	bool note_tails_changed = false;
-	/// `paramCollection->shouldParamIndicateMiddleValue(…)` (`view.cpp:1085-1086`), for
-	/// `potentiallyMakeItHarderToTurnKnob`.
+	/// The param shows its middle (`potentiallyMakeItHarderToTurnKnob`'s detent).
 	bool should_indicate_middle_value = false;
 };
 
-/// @brief The model reads `View::setKnobIndicatorLevel` (`view.cpp:1420-1485`) makes, before any
-///        of the arithmetic it then does with them.
+/// @brief What a gold knob's indicator reads -- the reads `View::setKnobIndicatorLevel` (`view.cpp:1420-1485`)
+///        makes, from the records and the runtime facts; `ModKnobs::indicator_level` does the arithmetic.
 ///
-/// Split exactly as `ModTurn` is: the transaction resolves the param stack and reads it, and every
-/// clamp, bucket and offset stays in `mod_knobs.cpp` where a spec can mutate it as a pure function.
+/// The three booleans are legacy's own three-way branch: a param the owner holds, a knob with no param (its
+/// non-existent arm), and a cable not made yet, shown at its midpoint.
 ///
-/// The three booleans below are legacy's own three-way branch, and they are not exclusive by
-/// accident: `has_auto_param` is `:1413`, and when it is false legacy tests `paramId == 255`
-/// (`:1454`) and then `!((paramId & 0x0000FF00) == 0x0000FF00)` (`:1460`).
-///
-/// @warning **When none of those three holds, legacy reads an uninitialised `int32_t knobPos`**
-///          (declared `view.cpp:1427`, consumed `:1485`) and lights a gold knob's indicator column
-///          from it. Legacy defect 5 of 5 in `src/scenes/README.md`'s "Defects this port found in
-///          shipping firmware"; `ModKnobs::indicator_level` carries the full note and declares
-///          nothing for that knob rather than inventing a value.
+/// @warning **When none of those three holds, legacy reads an uninitialised `int32_t knobPos`** (declared
+///          `view.cpp:1427`, consumed `:1485`); `ModKnobs::indicator_level` declares nothing for that knob.
 struct ModIndicatorInfo {
-	/// `modelStackWithParam->autoParam` is non-null (`view.cpp:1430`).
+	/// The knob names a param (or a MIDI lane, shown at 0 until it is made).
 	bool has_auto_param = false;
-	/// `paramCollection->getParamKind()` (`:1416`).
+	/// The param's kind.
 	deluge::modulation::params::Kind kind = deluge::modulation::params::Kind::NONE;
-	/// `modelStackWithParam->paramId` (`:1417`).
+	/// The param's id in its kind's numbering.
 	int32_t param_id = 0;
-	/// `paramCollection->paramValueToKnobPos(autoParam->getValuePossiblyAtPos(modPos, …), …)`
-	/// (`:1414-1418`).
+	/// The value's knob position, at the held region or the playhead.
 	int32_t knob_pos = 0;
-	/// `isParamBipolar(kind, paramId)` (`:1417`).
+	/// The param is bipolar.
 	bool bipolar = false;
-	/// `isParamQuantizedStutter(kind, paramId, (ModControllableAudio*)modControllable)` (`:1428-1429`).
-	/// Legacy ands this with `!isUIModeActive(UI_MODE_STUTTERING)`, which is a UI read this layer
-	/// cannot make; only the model half is reported.
+	/// A stutter rate that is quantized, whose position snaps to its buckets while no stutter plays.
 	bool quantized_stutter = false;
 
-	/// The no-`autoParam` arm's `paramId == 255` (`:1454`).
+	/// The knob has no param on this button (the song's compressor knobs, a chain's empty knob).
 	bool non_existent_param = false;
-	/// `modControllable->getKnobPosForNonExistentParam(whichModEncoder, …)` (`:1455-1456`), valid
-	/// iff `non_existent_param`.
+	/// Its position, valid iff `non_existent_param`.
 	int32_t non_existent_knob_pos = 0;
-	/// The no-`autoParam` arm's `!((paramId & 0x0000FF00) == 0x0000FF00)` (`:1460`) -- "not just a
-	/// param, so it is a patch cable", which legacy shows at its 0 midpoint.
+	/// A cable the sound does not hold yet, or a MIDI knob that sends nothing, shown at its midpoint.
 	bool patch_cable_default = false;
 };
 

@@ -252,7 +252,7 @@ struct Rig {
 
 	MenuContext ctx() {
 		// `context_for` resolves the range only when the source has exactly one, as it has here.
-		return menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, song.clip), 0, false, false, false,
+		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
 		                         /*kit_global_fx=*/false);
 	}
 
@@ -397,7 +397,7 @@ struct AudioRig {
 	/// @brief Open the scene on @p marker over the audio clip.
 	/// @param sink Where the scene's writes go; the app's sink when null.
 	void open(MarkerType marker, bind::WriteSink* sink = nullptr) {
-		MenuContext c = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false,
+		MenuContext c = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
 		                                  /*kit_global_fx=*/false);
 		if (sink != nullptr) {
 			c.sink = sink;
@@ -745,7 +745,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *f.instrument->id()};
 		const bool had_none = menu::host_runtime_facts().sound_state(slot)->sources[0].ranges.empty();
 
-		MenuContext recorded = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
+		MenuContext recorded = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		bind::RecordingSink recording;
 		recorded.sink = &recording;
 		if (had_none) {
@@ -760,7 +760,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			expect(recording.gestures[0].ranges[0].top_note).to_equal(deluge::instrument::kOpenTopNote);
 		}
 
-		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
+		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		expect(menu::ensure_first_range(ctx)).to_be_true();
 		expect(ctx.range_index).to_equal(static_cast<int16_t>(0));
 		expect(menu::host_runtime_facts().sound_state(slot)->sources[0].ranges.size()).to_equal(size_t{1});

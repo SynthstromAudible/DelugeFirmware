@@ -67,8 +67,8 @@ describe param_chain_targets("a param node a sound and a host chain share", ${
 		spec::SongFixture kit = spec::make_kit_song();
 		auto* drum = spec::add_drum<SoundDrum>(kit);
 		kit.song->setCurrentClip(kit.clip);
-		const MenuContext on_row = menu::context_for(*kit.song, deluge::gui::menuViewOf(*kit.song, kit.clip), 0, false, false, false, false);
-		const MenuContext on_fx = menu::context_for(*kit.song, deluge::gui::menuViewOf(*kit.song, kit.clip), 0, false, false, false, true);
+		const MenuContext on_row = menu::context_for(*kit.song, deluge::gui::menuViewOf(kit.clip), 0, false, false, false, false);
+		const MenuContext on_fx = menu::context_for(*kit.song, deluge::gui::menuViewOf(kit.clip), 0, false, false, false, true);
 		const auto row_bass = [&] {
 			return playing(*kit.song, OwnerId::drum(*drum->id()), params::Kind::UNPATCHED_SOUND, params::UNPATCHED_BASS,
 			               kit.clip->id());
@@ -90,7 +90,7 @@ describe param_chain_targets("a param node a sound and a host chain share", ${
 	it("edits an audio track's clip and the song's own", _ {
 		spec::AudioSongFixture audio = spec::make_audio_clip_song();
 		audio.song->setCurrentClip(audio.clip);
-		const MenuContext on_audio = menu::context_for(*audio.song, deluge::gui::menuViewOf(*audio.song, audio.clip), 0, false, false, false, false);
+		const MenuContext on_audio = menu::context_for(*audio.song, deluge::gui::menuViewOf(audio.clip), 0, false, false, false, false);
 		const auto clip_bass = [&] {
 			return playing(*audio.song, OwnerId::clip(audio.clip->id()), params::Kind::UNPATCHED_GLOBAL,
 			               params::UNPATCHED_BASS, std::nullopt);
@@ -106,7 +106,7 @@ describe param_chain_targets("a param node a sound and a host chain share", ${
 		expect(song_bass()).to_equal(song_before);
 
 		audio.song->setCurrentClip(nullptr);
-		const MenuContext on_song = menu::context_for(*audio.song, deluge::gui::menuViewOf(*audio.song, nullptr), 0, false, true, false, false);
+		const MenuContext on_song = menu::context_for(*audio.song, deluge::gui::menuViewOf(nullptr), 0, false, true, false, false);
 		const auto clip_now = clip_bass();
 		(void)turn(nodes::eq_bass, on_song);
 		expect(song_bass() != song_before).to_be_true();
@@ -117,8 +117,8 @@ describe param_chain_targets("a param node a sound and a host chain share", ${
 		spec::SongFixture kit = spec::make_kit_song();
 		(void)spec::add_drum<SoundDrum>(kit);
 		kit.song->setCurrentClip(kit.clip);
-		const MenuContext on_fx = menu::context_for(*kit.song, deluge::gui::menuViewOf(*kit.song, kit.clip), 0, false, false, false, true);
-		const MenuContext on_row = menu::context_for(*kit.song, deluge::gui::menuViewOf(*kit.song, kit.clip), 0, false, false, false, false);
+		const MenuContext on_fx = menu::context_for(*kit.song, deluge::gui::menuViewOf(kit.clip), 0, false, false, false, true);
+		const MenuContext on_row = menu::context_for(*kit.song, deluge::gui::menuViewOf(kit.clip), 0, false, false, false, false);
 		expect(menu::bindings::relevant(nodes::arp_kit_rate, on_fx)).to_be_true();
 		expect(menu::bindings::relevant(nodes::arp_kit_rate, on_row)).to_be_false();
 	});
@@ -126,7 +126,7 @@ describe param_chain_targets("a param node a sound and a host chain share", ${
 	it("shows a host chain's filter params only where its filter is on", _ {
 		spec::SongFixture kit = spec::make_kit_song();
 		kit.song->setCurrentClip(kit.clip);
-		const MenuContext on_fx = menu::context_for(*kit.song, deluge::gui::menuViewOf(*kit.song, kit.clip), 0, false, false, false, true);
+		const MenuContext on_fx = menu::context_for(*kit.song, deluge::gui::menuViewOf(kit.clip), 0, false, false, false, true);
 		auto& owner = *static_cast<Kit*>(kit.instrument);
 		deluge::edits::changeEffect(*kit.song, owner, "lpfMode", deluge::serialization::Value::makeScalar("Off"));
 		expect(menu::bindings::relevant(nodes::global_lpf_freq, on_fx)).to_be_false();

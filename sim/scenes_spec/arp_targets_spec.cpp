@@ -80,7 +80,7 @@ struct Root {
 };
 
 MenuContext at(Song& song, Clip* clip, bool kit_global_fx = false) {
-	return menu::context_for(song, deluge::gui::menuViewOf(song, clip), 0, false, false, false, kit_global_fx);
+	return menu::context_for(song, deluge::gui::menuViewOf(clip), 0, false, false, false, kit_global_fx);
 }
 
 /// Which nodes of kArpTargets, shown at @p root, do not read back what they wrote, or whose write names another owner.

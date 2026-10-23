@@ -244,55 +244,54 @@ std::vector<Root>& roots() {
 
 		{ // sound (batch 2's root, re-checked here as part of the whole tree)
 			static spec::SongFixture synth = spec::make_synth_song();
-			r.push_back({"sound", &soundEditorRootMenu, &nodes::sound_root,
-			             menu::context_for(*synth.song, deluge::gui::menuViewOf(*synth.song, synth.clip), 0, false,
-			                               false, false, false),
-			             synth.song});
+			r.push_back(
+			    {"sound", &soundEditorRootMenu, &nodes::sound_root,
+			     menu::context_for(*synth.song, deluge::gui::menuViewOf(synth.clip), 0, false, false, false, false),
+			     synth.song});
 		}
 		{ // kit row with a SoundDrum
 			static spec::SongFixture kit = spec::make_kit_song();
 			static SoundDrum* drum = spec::add_drum<SoundDrum>(kit);
 			static_cast<Kit*>(kit.instrument)->selectedDrum = drum;
 			r.push_back({"drum", &soundEditorRootMenuDrum, &nodes::root_drum,
-			             menu::context_for(*kit.song, deluge::gui::menuViewOf(*kit.song, kit.clip), 0, false, false,
-			                               false, false),
+			             menu::context_for(*kit.song, deluge::gui::menuViewOf(kit.clip), 0, false, false, false, false),
 			             kit.song});
 		}
 		{ // MIDI clip
 			static spec::SongFixture midi = spec::make_midi_song();
-			r.push_back({"midi/cv", &soundEditorRootMenuMIDIOrCV, &nodes::root_midi_or_cv,
-			             menu::context_for(*midi.song, deluge::gui::menuViewOf(*midi.song, midi.clip), 0, false, false,
-			                               false, false),
-			             midi.song});
+			r.push_back(
+			    {"midi/cv", &soundEditorRootMenuMIDIOrCV, &nodes::root_midi_or_cv,
+			     menu::context_for(*midi.song, deluge::gui::menuViewOf(midi.clip), 0, false, false, false, false),
+			     midi.song});
 		}
 		{ // kit row with a MIDIDrum, and one with a GateDrum
 			static spec::SongFixture midi_kit = spec::make_kit_song();
 			static MIDIDrum* midi_drum = spec::add_drum<MIDIDrum>(midi_kit);
 			static_cast<Kit*>(midi_kit.instrument)->selectedDrum = midi_drum;
 			r.push_back({"midi drum", &soundEditorRootMenuMidiDrum, &nodes::root_midi_drum,
-			             menu::context_for(*midi_kit.song, deluge::gui::menuViewOf(*midi_kit.song, midi_kit.clip), 0,
-			                               false, false, false, false),
+			             menu::context_for(*midi_kit.song, deluge::gui::menuViewOf(midi_kit.clip), 0, false, false,
+			                               false, false),
 			             midi_kit.song});
 
 			static spec::SongFixture gate_kit = spec::make_kit_song();
 			static GateDrum* gate_drum = spec::add_drum<GateDrum>(gate_kit);
 			static_cast<Kit*>(gate_kit.instrument)->selectedDrum = gate_drum;
 			r.push_back({"gate drum", &soundEditorRootMenuGateDrum, &nodes::root_gate_drum,
-			             menu::context_for(*gate_kit.song, deluge::gui::menuViewOf(*gate_kit.song, gate_kit.clip), 0,
-			                               false, false, false, false),
+			             menu::context_for(*gate_kit.song, deluge::gui::menuViewOf(gate_kit.clip), 0, false, false,
+			                               false, false),
 			             gate_kit.song});
 		}
 		{ // audio clip
 			static spec::AudioSongFixture audio = spec::make_audio_clip_song();
-			r.push_back({"audio clip", &soundEditorRootMenuAudioClip, &nodes::root_audio_clip,
-			             menu::context_for(*audio.song, deluge::gui::menuViewOf(*audio.song, audio.clip), 0, false,
-			                               false, false, false),
-			             audio.song});
+			r.push_back(
+			    {"audio clip", &soundEditorRootMenuAudioClip, &nodes::root_audio_clip,
+			     menu::context_for(*audio.song, deluge::gui::menuViewOf(audio.clip), 0, false, false, false, false),
+			     audio.song});
 		}
 		{ // performance view and the session/arranger root: no clip
 			static spec::SongFixture song_view = spec::make_synth_song();
 			r.push_back({"performance", &soundEditorRootMenuPerformanceView, &nodes::root_performance,
-			             menu::context_for(*song_view.song, deluge::gui::menuViewOf(*song_view.song, nullptr), 0,
+			             menu::context_for(*song_view.song, deluge::gui::menuViewOf(nullptr), 0,
 			                               /*performance_view=*/true,
 			                               /*session_or_arranger_root=*/true, /*session_view_root=*/false, false),
 			             song_view.song, &performanceView});
@@ -301,7 +300,7 @@ std::vector<Root>& roots() {
 			// The arranger and song-automation readings of this same root are the dedicated example
 			// below, which drives all three from one table.
 			r.push_back({"song", &soundEditorRootMenuSongView, &nodes::root_song,
-			             menu::context_for(*song_view.song, deluge::gui::menuViewOf(*song_view.song, nullptr), 0, false,
+			             menu::context_for(*song_view.song, deluge::gui::menuViewOf(nullptr), 0, false,
 			                               /*session_or_arranger_root=*/true,
 			                               /*session_view_root=*/true, false),
 			             song_view.song, &sessionView});
@@ -311,16 +310,16 @@ std::vector<Root>& roots() {
 			(void)spec::add_drum<SoundDrum>(kit_fx);
 			kit_fx.clip->affectEntire = true;
 			r.push_back({"kit global fx", &soundEditorRootMenuKitGlobalFX, &nodes::root_kit_global_fx,
-			             menu::context_for(*kit_fx.song, deluge::gui::menuViewOf(*kit_fx.song, kit_fx.clip), 0, false,
-			                               false, false, /*kit_global_fx=*/true),
+			             menu::context_for(*kit_fx.song, deluge::gui::menuViewOf(kit_fx.clip), 0, false, false, false,
+			                               /*kit_global_fx=*/true),
 			             kit_fx.song});
 		}
 		{ // settings: no clip, not a session root
 			static spec::SongFixture settings = spec::make_synth_song();
-			r.push_back({"settings", &settingsRootMenu, &nodes::root_settings,
-			             menu::context_for(*settings.song, deluge::gui::menuViewOf(*settings.song, nullptr), 0, false,
-			                               false, false, false),
-			             settings.song});
+			r.push_back(
+			    {"settings", &settingsRootMenu, &nodes::root_settings,
+			     menu::context_for(*settings.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false),
+			     settings.song});
 		}
 		return r;
 	}();
@@ -337,8 +336,7 @@ CvRig& cv_fixture() {
 	static CvRig c = [] {
 		CvRig k;
 		k.song = spec::make_cv_song();
-		k.ctx = menu::context_for(*k.song.song, deluge::gui::menuViewOf(*k.song.song, k.song.clip), 0, false, false,
-		                          false, false);
+		k.ctx = menu::context_for(*k.song.song, deluge::gui::menuViewOf(k.song.clip), 0, false, false, false, false);
 		return k;
 	}();
 	return c;
@@ -1367,7 +1365,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 		}
 
 		for (const Case& c : cases) {
-			const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, nullptr), 0, /*performance_view=*/false,
+			const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(nullptr), 0, /*performance_view=*/false,
 			                                          /*session_or_arranger_root=*/true, c.session_view_root, false);
 			// All three views take the same root: the port must differ on relevance, not on routing.
 			expect(static_cast<int>(ctx.root)).to_equal(static_cast<int>(MenuContext::Root::Song));

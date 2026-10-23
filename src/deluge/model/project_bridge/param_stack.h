@@ -26,6 +26,9 @@
 
 #include "deluge-project/param_address.h"
 
+#include <cstdint>
+#include <optional>
+
 class ModelStackWithAutoParam;
 class PatchCableSet;
 class Song;
@@ -58,8 +61,9 @@ namespace deluge::bridge {
 /// @return The stack, or null where @p song holds no such owner or the param cannot be made.
 [[nodiscard]] ::ModelStackWithAutoParam* paramStackForWrite(::Song& song, project::ParamAddress& address, void* memory);
 
-/// @brief The engine stack a read of @p address shows: the clip's take while the arrangement records it, else as
-/// paramStackAt. Nothing is made, the take included.
+/// @brief The engine stack a read of @p address shows: the clip's take while the arrangement records it, and an
+/// INSTRUMENT or DRUM owner with no clip id's backed-up params; else as paramStackAt. Nothing is made, the take
+/// included.
 ///
 /// @param song    The song holding the owner.
 /// @param address The param's address.
@@ -68,15 +72,21 @@ namespace deluge::bridge {
 [[nodiscard]] ::ModelStackWithAutoParam* paramStackFollowingTake(::Song& song, const project::ParamAddress& address,
                                                                  void* memory);
 
+/// @brief @p address's value at @p pos in its clip (the take's while the arrangement records it), as automation reads
+/// it; its current value at 0xFFFFFFFF.
+/// @return The value, or none where @p song holds no such param.
+[[nodiscard]] std::optional<int32_t> paramValueAt(::Song& song, const project::ParamAddress& address, uint32_t pos);
+
 /// @brief Begin, or end, the stutter on @p owner's chain (a sound's, a kit's or audio clip's, the song's), in the clip
-/// @p owner names.
+/// @p owner names (its take while the arrangement records it).
 /// @param song  The song holding the owner.
 /// @param owner The owner, as an address with no param.
 /// @param begin Begin (true) or end the stutter.
 /// @return Whether the owner resolved.
 bool stutterAt(::Song& song, const project::ParamAddress& owner, bool begin);
 
-/// @brief Set @p owner's params in its clip to their automated values at @p pos, as a held pad grabs them.
+/// @brief Set @p owner's params in its clip (its take while the arrangement records it) to their automated values at
+/// @p pos, as a held pad grabs them, where it holds its main params.
 /// @param song  The song holding the owner.
 /// @param owner The owner, as an address with no param.
 /// @param pos   The position in the clip, in ticks.
@@ -89,7 +99,7 @@ bool grabRegionAt(::Song& song, const project::ParamAddress& owner, uint32_t pos
 /// @param owner The MIDI clip, as an address with no param.
 /// @param knob  0 the lower, 1 the upper.
 /// @param on    Press (true) or release.
-/// @return Whether the owner resolved to a MIDI clip.
+/// @return Whether the instrument took the gesture (legacy's: from a clip minder with no UI mode active).
 bool midiCcSelectAt(::Song& song, const project::ParamAddress& owner, int32_t knob, bool on);
 
 /// @brief The engine stack naming the cable at @p address (a synth's or a sound drum's depth), made with @p polarity

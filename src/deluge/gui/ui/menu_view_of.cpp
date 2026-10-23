@@ -8,8 +8,7 @@
 
 namespace deluge::gui {
 
-scenes::services::MenuView menuViewOf(::Song& song, ::Clip* clip) {
-	(void)song;
+scenes::services::MenuView menuViewOf(::Clip* clip) {
 	scenes::services::MenuView view;
 	if (clip == nullptr || clip->output == nullptr || !clip->output->id()) {
 		return view;

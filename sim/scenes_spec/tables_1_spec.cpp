@@ -139,7 +139,7 @@ struct Fixture {
 
 	Fixture() {
 		select_language();
-		ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, song.clip), 0, false, false, false,
+		ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
 		                        /*kit_global_fx=*/false);
 		soundEditor.currentSound = spec::menu_engine(ctx).sound;
 		soundEditor.currentModControllable = deluge::scenes::spec::menu_engine(ctx).mod;
@@ -421,7 +421,7 @@ struct RangeFixture {
 		if (n > 0) {
 			deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 		}
-		ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, song.clip), 0, false, false, false,
+		ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
 		                        /*kit_global_fx=*/false);
 		currentSong = song.song;
 		song.song->setCurrentClip(song.clip);

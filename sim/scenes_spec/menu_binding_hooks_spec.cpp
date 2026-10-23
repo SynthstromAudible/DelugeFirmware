@@ -189,8 +189,8 @@ struct Rig {
 	explicit Rig(const BoardProfile& p = deluge_profile()) : profile(p), fake(deluge::ui::shell::kDelugeBoard, p) {}
 
 	menu::MenuContext open(const menu::Node& root) {
-		const menu::MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, song.clip), 0,
-		                                                false, false, false, /*kit_global_fx=*/false);
+		const menu::MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false,
+		                                                false, /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(kRoots);
 		menu_scene().open(root, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});

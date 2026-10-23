@@ -81,7 +81,7 @@ namespace {
 /// on the guest's *scene* stack, not the guest on `uiNavigationHierarchy` -- the root UI for the one
 /// example that calls this is seated separately, with `setRootUILowLevel`.
 bool open_menu_on_global_guest(Song& song) {
-	const MenuContext ctx = menu::context_for(song, deluge::gui::menuViewOf(song, nullptr), 0, false,
+	const MenuContext ctx = menu::context_for(song, deluge::gui::menuViewOf(nullptr), 0, false,
 	                                          /*session_or_arranger_root=*/true, /*session_view_root=*/true,
 	                                          /*kit_global_fx=*/false);
 	static const Node* const roots[] = {&nodes::root_song};
@@ -152,7 +152,7 @@ struct RecordingNotePads {
 ///        stack entirely -- none of them asks `Scene::grid_pad_claim()` of these nodes.
 void open_menu_node(Song& song, InstrumentClip* clip, const Node& node) {
 	const MenuContext ctx =
-	    menu::context_for(song, deluge::gui::menuViewOf(song, clip), 0, false, /*session_or_arranger_root=*/false,
+	    menu::context_for(song, deluge::gui::menuViewOf(clip), 0, false, /*session_or_arranger_root=*/false,
 	                      /*session_view_root=*/false, /*kit_global_fx=*/false);
 	menu_scene().open(node, ctx);
 }

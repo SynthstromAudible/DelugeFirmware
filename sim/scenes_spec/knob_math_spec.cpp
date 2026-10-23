@@ -3,7 +3,6 @@
 // patch cable, the three expression dimensions and a MIDI CC.
 
 #include "scenes/bind/knob_math.h"
-#include "scenes/services/mod_knobs.h"
 
 #include "engines/deluge/cables.h"
 #include "engines/deluge/params.h"
@@ -168,7 +167,7 @@ describe knob_math("the gold knob's position, from the param's descriptor", ${
 		expect(bind::indicates_middle(address, rate, true, true)).to_be_true();
 	});
 
-	it("turns and folds as the gold knob does", _ {
+	it("turns as the gold knob does", _ {
 		using bind::KnobKind;
 		expect(bind::turn(KnobKind::PARAM, 0, 1)).to_equal(1);
 		expect(bind::turn(KnobKind::PARAM, 64, 1)).to_equal(64);
@@ -176,12 +175,6 @@ describe knob_math("the gold knob's position, from the param's descriptor", ${
 		expect(bind::turn(KnobKind::MIDI_CC, 63, 1)).to_equal(63);
 		expect(bind::turn(KnobKind::CABLE, -192, -1)).to_equal(-192);
 		expect(bind::turn(KnobKind::CABLE, -100, -1)).to_equal(-101);
-		for (int32_t pos = -192; pos <= 64; pos++) {
-			if (bind::fold_cable(pos) != deluge::scenes::services::ModKnobs::convert_patch_cable_knob_pos_to_indicator_level(pos)) {
-				expect(pos).to_equal(INT32_MIN); // names the first position that differs
-				break;
-			}
-		}
 		const ParamAddress cc{.space = ParamSpace::MIDI_CC, .id = {74}};
 		expect(bind::knob_kind(cc) == KnobKind::MIDI_CC).to_be_true();
 	});

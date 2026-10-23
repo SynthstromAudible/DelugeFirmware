@@ -2245,7 +2245,7 @@ describe audio_clip_scene_spec_body(
 		        // Legacy tests the clip's own file, which a linear recording has not attached yet.
 		        Rig r;
 		        const deluge::scenes::menu::MenuContext ctx = deluge::scenes::menu::context_for(
-		            *r.f.song, deluge::gui::menuViewOf(*r.f.song, r.f.clip), 0, false, false, false, false);
+		            *r.f.song, deluge::gui::menuViewOf(r.f.clip), 0, false, false, false, false);
 		        expect(deluge::scenes::menu::relevance::audio_clip_has_sample(ctx)).to_be_true();
 		        auto* recorder = new SampleRecorder(); // left to the heap: its destructor would free the take
 		        recorder->sample = r.sample;

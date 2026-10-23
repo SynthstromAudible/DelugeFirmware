@@ -242,8 +242,8 @@ struct Rig {
 	explicit Rig(const BoardProfile& p = deluge_profile()) : profile(p), fake(deluge::ui::shell::kDelugeBoard, p) {}
 
 	MenuContext open(const Node& root) {
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(*song.song, song.clip), 0, false,
-		                                          false, false, /*kit_global_fx=*/false);
+		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false,
+		                                          false, /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(kRoots);
 		menu_scene().open(root, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});
@@ -471,7 +471,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// Not `r.open()`: that assigns ids over this file's own local `kRoots`, not the real tree
 		// `nodes::randomizer` lives in.
 		const MenuContext ctx =
-		    menu::context_for(*r.song.song, deluge::gui::menuViewOf(*r.song.song, r.song.clip), 0, false, false, false, /*kit_global_fx=*/false);
+		    menu::context_for(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false, /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::randomizer, ctx);
 		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(nodes::randomizer)});
@@ -497,7 +497,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		deluge::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx =
-		    menu::context_for(*r.song.song, deluge::gui::menuViewOf(*r.song.song, r.song.clip), 0, false, false, false, /*kit_global_fx=*/false);
+		    menu::context_for(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false, /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::randomizer, ctx);
 		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(nodes::randomizer)});

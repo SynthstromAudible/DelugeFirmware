@@ -39,6 +39,7 @@
 
 #include "gui/ui/knob_focus_of.h"
 #include "scenes/bind/knob_assignment.h"
+#include "scenes/bind/knob_math.h"
 
 #include "shell/input_lowering.h"
 #include "shell/profiles/deluge.h"
@@ -87,6 +88,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -178,7 +180,7 @@ InstrumentClip* add_synth_clip(Song* song, const char* name) {
 /// the model, not what either side reported having put there.
 /// @param pm The param manager to read.
 /// @return One entry per param, patched set first.
-std::vector<int32_t> param_snapshot(ParamManagerForTimeline& pm) {
+std::vector<int32_t> param_snapshot(ParamManager& pm) {
 	std::vector<int32_t> out;
 	if (PatchedParamSet* patched = pm.getPatchedParamSet(); patched != nullptr) {
 		for (int32_t i = 0; i < patched->getNumParams(); i++) {
@@ -215,7 +217,7 @@ int32_t differences(const std::vector<int32_t>& a, const std::vector<int32_t>& b
 /// expectation is derived from the other side's state.
 /// @param pm    The param manager to seed.
 /// @param value The value to write into every param.
-void seed_params(ParamManagerForTimeline& pm, int32_t value) {
+void seed_params(ParamManager& pm, int32_t value) {
 	if (PatchedParamSet* patched = pm.getPatchedParamSet(); patched != nullptr) {
 		for (int32_t i = 0; i < patched->getNumParams(); i++) {
 			patched->params[i].setCurrentValueBasicForSetup(value);
@@ -480,6 +482,73 @@ struct KnobRig {
 	}
 };
 
+/// @brief Both knob indicators, legacy's `View::setKnobIndicatorLevel` on one song against the port on its twin, over
+///        every mode and a turn each way on each knob: where they first differ, by mode, offset and knob.
+/// @param legacy_song The song legacy's view points into, current while it acts.
+/// @param port_song   The port's twin, current while it acts.
+/// @param after_modes Run on both sides once the modes are done (a push), then compared again; may be empty.
+std::vector<std::string> indicator_disagreements(KnobRig& rig, Song* legacy_song, Song* port_song,
+                                                 const std::string& label,
+                                                 const std::function<void(DirectCtx&)>& after_modes = {}) {
+	std::vector<std::string> found;
+	const auto compare = [&](const std::string& at) {
+		currentSong = port_song;
+		deluge::ui::LedFrame frame;
+		rig.knobs.leds(frame);
+		currentSong = legacy_song;
+		for (int32_t k = 0; k < 2; k++) {
+			poke_legacy_indicator(k);
+			view.setKnobIndicatorLevel(static_cast<uint8_t>(k));
+			const uint8_t* legacy = legacy_indicator(k);
+			const deluge::ui::KnobIndicator* port = frame.indicator_or_null(static_cast<deluge::ui::IndicatorId>(k));
+			const std::string where = label + " " + at + " knob=" + std::to_string(k);
+			if (legacy == nullptr || port == nullptr) {
+				found.push_back(where + (legacy == nullptr ? " legacy-null" : " port-null"));
+				continue;
+			}
+			for (int32_t seg = 0; seg < 4; seg++) {
+				if (port->levels[seg] != legacy[seg]) {
+					found.push_back(where + " seg=" + std::to_string(seg) + " port=" + std::to_string(port->levels[seg])
+					                + " legacy=" + std::to_string(legacy[seg]));
+					break;
+				}
+			}
+		}
+	};
+	DirectCtx c{0};
+	for (int32_t mode = 0; mode < 8; mode++) {
+		currentSong = legacy_song;
+		view.modButtonAction(static_cast<uint8_t>(mode), true);
+		view.modButtonAction(static_cast<uint8_t>(mode), false);
+		currentSong = port_song;
+		rig.knobs.mod_button_action(mode, true);
+		rig.knobs.mod_button_action(mode, false);
+		for (int32_t offset : {0, 7, -13}) {
+			if (offset != 0) {
+				currentSong = legacy_song;
+				view.modEncoderAction(0, offset);
+				view.modEncoderAction(1, -offset);
+				currentSong = port_song;
+				(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, static_cast<int8_t>(offset)), c.ctx);
+				(void)rig.knobs.handle(gold_turn(EncoderRole::GoldUpper, static_cast<int8_t>(-offset)), c.ctx);
+			}
+			compare("mode=" + std::to_string(mode) + " offset=" + std::to_string(offset));
+		}
+	}
+	if (after_modes) {
+		after_modes(c);
+		compare("after");
+	}
+	return found;
+}
+
+/// @brief Report each disagreement as its own line.
+void report_indicators(const std::vector<std::string>& found) {
+	for (const std::string& why : found) {
+		std::fputs(("MOD-INDICATOR " + why + "\n").c_str(), stdout);
+	}
+}
+
 } // namespace
 
 // clang-format off
@@ -504,7 +573,10 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			for (const int32_t pos : positions) {
 				for (const int32_t offset : offsets) {
 					const int32_t legacy = view.calculateKnobPosForModEncoderTurn(kind, pos, offset);
-					const int32_t port = ModKnobs::calculate_knob_pos_for_mod_encoder_turn(kind, pos, offset);
+					const auto knob = kind == Kind::PATCH_CABLE ? deluge::scenes::bind::KnobKind::CABLE
+					                  : kind == Kind::MIDI      ? deluge::scenes::bind::KnobKind::MIDI_CC
+					                                            : deluge::scenes::bind::KnobKind::PARAM;
+					const int32_t port = deluge::scenes::bind::turn(knob, pos, offset);
 					if (legacy != port) {
 						// Name the disagreeing triple rather than just "false is not true".
 						const std::string where = "kind=" + std::to_string(static_cast<int>(kind))
@@ -523,7 +595,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	it("folds a patch cable's position exactly as View::convertPatchCableKnobPosToIndicatorLevel does", _ {
 		for (int32_t pos = -192; pos <= 192; pos++) {
 			const int32_t legacy = view.convertPatchCableKnobPosToIndicatorLevel(pos);
-			const int32_t port = ModKnobs::convert_patch_cable_knob_pos_to_indicator_level(pos);
+			const int32_t port = deluge::scenes::bind::fold_cable(pos);
 			if (legacy != port) {
 				expect("pos=" + std::to_string(pos) + " port=" + std::to_string(port)).to_equal(
 				    "pos=" + std::to_string(pos) + " legacy=" + std::to_string(legacy));
@@ -728,6 +800,116 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		const Result r = rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 5), c.ctx);
 		expect(r.handled).to_be_true();
 		expect(r.actions.size()).to_equal(size_t(0));
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("turns an arranger row with no clip from its backed-up value, as legacy does", _ {
+		StubDisplay stub;
+		display = &stub;
+		AudioEngine::audioSampleTimer = 0;
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		const auto row = [&](const char* name) {
+			ParamManagerForTimeline params;
+			auto* synth = static_cast<SoundInstrument*>(StorageManager::createNewInstrument(OutputType::SYNTH, &params));
+			synth->dirPath = "SYNTHS";
+			synth->name = name;
+			synth->setupAsDefaultSynth(&params);
+			f.song->live.param_backup.backUp(*synth, nullptr, &params, true);
+			f.song->addOutput(synth);
+			ParamManager* backed = f.song->live.param_backup.getPreferablyWithClip(*synth, nullptr);
+			seed_params(*backed, 1 << 28);
+			return std::pair{synth, backed};
+		};
+		const auto [legacy_synth, legacy_params] = row("ROWL");
+		const auto [port_synth, port_params] = row("ROWP");
+		const std::vector<int32_t> legacy_before = param_snapshot(*legacy_params);
+		const std::vector<int32_t> port_before = param_snapshot(*port_params);
+
+		view.setActiveModControllableWithoutTimelineCounter(legacy_synth, legacy_params);
+		view.setModRegion();
+		view.modEncoderAction(0, 5);
+
+		KnobRig rig;
+		rig.set_song(f.song);
+		rig.set_target_without_timeline(port_synth, port_params);
+		rig.knobs.set_mod_region();
+		DirectCtx c{1000};
+		(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 5), c.ctx);
+
+		const std::vector<int32_t> legacy_after = param_snapshot(*legacy_params);
+		const std::vector<int32_t> port_after = param_snapshot(*port_params);
+		expect(differences(legacy_before, legacy_after)).to_equal(int32_t(1));
+		expect(differences(port_before, port_after)).to_equal(int32_t(1));
+		expect(differences(legacy_after, port_after)).to_equal(int32_t(0));
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("marks the instrument edited where legacy's turn and push do, and only there", _ {
+		StubDisplay stub;
+		display = &stub;
+		AudioEngine::audioSampleTimer = 0;
+		spec::SongFixture f = spec::make_synth_song();
+		InstrumentClip* port_clip = add_synth_clip(f.song, "MARK");
+		currentSong = f.song;
+		auto* legacy_synth = static_cast<SoundInstrument*>(f.instrument);
+		auto* port_synth = static_cast<SoundInstrument*>(port_clip->output);
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		KnobRig rig;
+		rig.set_song(f.song);
+		rig.set_target_with_timeline(port_clip, false);
+		DirectCtx c{1000};
+		const auto push = [](int32_t knob, bool on) {
+			UiEvent e{};
+			e.kind = UiEvent::Kind::EncoderButton;
+			e.button = knob == 0 ? ButtonId::ModEnc0 : ButtonId::ModEnc1;
+			e.on = on;
+			return e;
+		};
+		// (mode, knob): the filter knob's cycle, the filter mode, the delay's ping-pong, the reverb preset.
+		for (const auto [mode, knob] : {std::pair{1, 1}, std::pair{1, 0}, std::pair{3, 1}, std::pair{4, 0}}) {
+			view.modButtonAction(static_cast<uint8_t>(mode), true);
+			view.modButtonAction(static_cast<uint8_t>(mode), false);
+			rig.knobs.mod_button_action(mode, true);
+			rig.knobs.mod_button_action(mode, false);
+			legacy_synth->editedByUser = false;
+			port_synth->editedByUser = false;
+			view.modEncoderButtonAction(static_cast<uint8_t>(knob), true);
+			view.modEncoderButtonAction(static_cast<uint8_t>(knob), false);
+			(void)rig.knobs.handle(push(knob, true), c.ctx);
+			(void)rig.knobs.handle(push(knob, false), c.ctx);
+			expect(port_synth->editedByUser).to_equal(legacy_synth->editedByUser);
+		}
+		// A turn marks it, whatever it moved.
+		legacy_synth->editedByUser = false;
+		port_synth->editedByUser = false;
+		view.modEncoderAction(0, 3);
+		(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 3), c.ctx);
+		expect(legacy_synth->editedByUser).to_be_true();
+		expect(port_synth->editedByUser).to_be_true();
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("leaves a MIDI knob's CC choice unentered outside a clip minder, so the next mod button is taken", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_midi_song();
+		currentSong = f.song;
+		KnobRig rig;
+		rig.set_song(f.song);
+		rig.set_target_with_timeline(f.clip, false);
+		DirectCtx c{1000};
+		UiEvent push{};
+		push.kind = UiEvent::Kind::EncoderButton;
+		push.button = ButtonId::ModEnc0;
+		push.on = true;
+		(void)rig.knobs.handle(push, c.ctx); // legacy's CC choice needs a clip minder on screen, which a spec has not
+		rig.knobs.mod_button_action(3, true);
+		rig.knobs.mod_button_action(3, false);
+		expect(rig.knobs.mode()).to_equal(3);
 		display = nullptr;
 		currentSong = nullptr;
 	});
@@ -1173,7 +1355,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.set_target_with_timeline(f.clip, false);
 		rig.knobs.set_mod_region();
 
-		const menu::MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(*f.song, f.clip), 0, false, false, false, false);
+		const menu::MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		(void)menu::assign_node_ids(mod_knobs_spec_nodes::kRoots);
 		menu_scene().open(mod_knobs_spec_nodes::res_page, ctx);
 		expect(rig.stack.push(SceneId{SceneKind::FirstApp, menu::node_id(mod_knobs_spec_nodes::res_page)}))
@@ -1286,7 +1468,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		overlay::PopupContext popup_context; // not `context`: CppSpec's own DSL owns that name here
 		deluge::effects::EffectStates effects;
 		effects.filter.lpf_mode = FilterMode::TRANSISTOR_24DB;
-		popup_context.effects = &effects;
+		popup_context.filter = effects.filter;
 		overlay::param_popup_scene().show(Kind::PATCHED, kMorph, 0, PatchSource::NONE, PatchSource::NONE, 60000,
 		                                  popup_context);
 		const std::string port_named{overlay::param_popup_scene().shown_name()};
@@ -1469,19 +1651,29 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		DirectCtx plain{0};
 		(void)rig.knobs.handle(push, plain.ctx);
 		const deluge::project::DocOutput* record = f.song->project.output_structure.find(*f.instrument->id());
+		// The knob cycles to the high-pass frequency, and its partner to the high-pass resonance.
 		const deluge::project::ModKnobControl upper{.button = 1, .knob = 1};
-		bool cycled = false;
+		const deluge::project::ModKnobControl lower{.button = 1, .knob = 0};
+		std::optional<deluge::engine::ParamId> upper_target;
+		std::optional<deluge::engine::ParamId> lower_target;
 		for (const deluge::project::ControllerMapping& mapping : record->controls) {
-			cycled |= mapping.control == upper && mapping.target == deluge::instrument::param::kHpfFrequency;
+			if (mapping.control == upper) {
+				upper_target = mapping.target;
+			}
+			if (mapping.control == lower) {
+				lower_target = mapping.target;
+			}
 		}
-		expect(cycled).to_be_true();
+		expect(upper_target == std::optional{deluge::instrument::param::kHpfFrequency}).to_be_true();
+		expect(lower_target == std::optional{deluge::instrument::param::kHpfResonance}).to_be_true();
 
 		rig.set_target_without_timeline(&f.song->live.global_effectable, &f.song->paramManager);
 		const uint8_t before = f.song->project.master_effects.filter_type;
 		rig.knobs.mod_button_action(1, true);
 		rig.knobs.mod_button_action(1, false);
 		(void)rig.knobs.handle(push, plain.ctx);
-		expect(f.song->project.master_effects.filter_type != before).to_be_true();
+		expect(before).to_equal(uint8_t{0});                                  // low-pass
+		expect(f.song->project.master_effects.filter_type).to_equal(uint8_t{1}); // high-pass
 		display = nullptr;
 		currentSong = nullptr;
 	});
@@ -1769,6 +1961,149 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		}
 		// The loop really ran: 8 modes x 3 offsets x 2 knobs.
 		expect(compared).to_equal(48);
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("levels a kit row's, a kit's chain's and an audio track's indicators as legacy does", _ {
+		StubDisplay stub;
+		display = &stub;
+		std::vector<std::string> found;
+		{
+			spec::SongFixture legacy_kit = spec::make_kit_song();
+			spec::SongFixture port_kit = spec::make_kit_song();
+			const auto row_on = [](spec::SongFixture& f) {
+				currentSong = f.song;
+				SoundDrum* drum = spec::add_drum<SoundDrum>(f);
+				static_cast<Kit*>(f.instrument)->selectedDrum = drum;
+				f.clip->affectEntire = false;
+			};
+			row_on(legacy_kit);
+			row_on(port_kit);
+			currentSong = legacy_kit.song;
+			view.setActiveModControllableTimelineCounter(legacy_kit.clip, false);
+			KnobRig rig;
+			expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+			currentSong = port_kit.song;
+			rig.set_song(port_kit.song);
+			rig.set_target_with_timeline(port_kit.clip, false);
+			auto more = indicator_disagreements(rig, legacy_kit.song, port_kit.song, "kit row");
+			found.insert(found.end(), more.begin(), more.end());
+		}
+		{
+			spec::SongFixture legacy_kit = spec::make_kit_song();
+			spec::SongFixture port_kit = spec::make_kit_song();
+			legacy_kit.clip->affectEntire = true;
+			port_kit.clip->affectEntire = true;
+			currentSong = legacy_kit.song;
+			view.setActiveModControllableTimelineCounter(legacy_kit.clip, false);
+			KnobRig rig;
+			expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+			currentSong = port_kit.song;
+			rig.set_song(port_kit.song);
+			rig.set_target_with_timeline(port_kit.clip, false);
+			auto more = indicator_disagreements(rig, legacy_kit.song, port_kit.song, "kit chain");
+			found.insert(found.end(), more.begin(), more.end());
+		}
+		{
+			spec::AudioSongFixture legacy_audio = spec::make_audio_clip_song();
+			spec::AudioSongFixture port_audio = spec::make_audio_clip_song();
+			currentSong = legacy_audio.song;
+			view.setActiveModControllableTimelineCounter(legacy_audio.clip, false);
+			KnobRig rig;
+			expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+			currentSong = port_audio.song;
+			rig.set_song(port_audio.song);
+			rig.set_target_with_timeline(port_audio.clip, false);
+			auto more = indicator_disagreements(rig, legacy_audio.song, port_audio.song, "audio");
+			found.insert(found.end(), more.begin(), more.end());
+		}
+		report_indicators(found);
+		expect(found.empty()).to_be_true();
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("levels the song's indicators as legacy does, its compressor view pushed in", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture legacy_song = spec::make_synth_song();
+		spec::SongFixture port_song = spec::make_synth_song();
+		legacy_song.song->persistentView.affectEntire = true;
+		port_song.song->persistentView.affectEntire = true;
+		currentSong = legacy_song.song;
+		view.setActiveModControllableTimelineCounter(legacy_song.song, false);
+		KnobRig rig;
+		expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+		currentSong = port_song.song;
+		rig.set_song(port_song.song);
+		rig.set_target_with_timeline(port_song.song, false);
+		const auto found = indicator_disagreements(rig, legacy_song.song, port_song.song, "song", [&](DirectCtx& c) {
+			// The compressor button, its upper knob pushed in to edit the compressor, the lower pushed to its attack.
+			currentSong = legacy_song.song;
+			view.modButtonAction(4, true);
+			view.modButtonAction(4, false);
+			view.modEncoderButtonAction(1, true);
+			view.modEncoderButtonAction(1, false);
+			view.modEncoderButtonAction(0, true);
+			view.modEncoderButtonAction(0, false);
+			currentSong = port_song.song;
+			rig.knobs.mod_button_action(4, true);
+			rig.knobs.mod_button_action(4, false);
+			UiEvent push{};
+			push.kind = UiEvent::Kind::EncoderButton;
+			push.on = true;
+			push.button = ButtonId::ModEnc1;
+			(void)rig.knobs.handle(push, c.ctx);
+			push.button = ButtonId::ModEnc0;
+			(void)rig.knobs.handle(push, c.ctx);
+		});
+		legacy_song.song->live.global_effectable.editingComp = false;
+		legacy_song.song->live.global_effectable.currentCompParam = CompParam::RATIO;
+		report_indicators(found);
+		expect(found.empty()).to_be_true();
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("levels a MIDI track's indicators as legacy does, its CCs unassigned and assigned", _ {
+		StubDisplay stub;
+		display = &stub;
+		std::vector<std::string> found;
+		for (const bool assigned : {false, true}) {
+			spec::SongFixture legacy_midi = spec::make_midi_song();
+			spec::SongFixture port_midi = spec::make_midi_song();
+			for (spec::SongFixture* f : {&legacy_midi, &port_midi}) {
+				// Mode 2's knobs send nothing: legacy shows them at their bipolar midpoint, which lights nothing.
+				currentSong = f->song;
+				const deluge::project::TrackAddress track{*f->instrument->id()};
+				(void)deluge::edits::modKnobCCFor(track, 4, {.kind = deluge::project::ModKnobCc::Kind::NONE});
+				(void)deluge::edits::modKnobCCFor(track, 5, {.kind = deluge::project::ModKnobCc::Kind::NONE});
+			}
+			if (assigned) {
+				for (spec::SongFixture* f : {&legacy_midi, &port_midi}) {
+					currentSong = f->song;
+					const deluge::project::TrackAddress track{*f->instrument->id()};
+					using Cc = deluge::project::ModKnobCc;
+					(void)deluge::edits::modKnobCCFor(track, 0, {.kind = Cc::Kind::NUMBER, .number = 74});
+					(void)deluge::edits::modKnobCCFor(track, 1, {.kind = Cc::Kind::BEND});
+					(void)deluge::edits::modKnobCCFor(track, 2, {.kind = Cc::Kind::AFTERTOUCH});
+					(void)deluge::edits::modKnobCCFor(track, 3, {.kind = Cc::Kind::NUMBER, .number = Cc::kYAxisNumber});
+				}
+			}
+			currentSong = legacy_midi.song;
+			view.setActiveModControllableTimelineCounter(legacy_midi.clip, false);
+			KnobRig rig;
+			expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+			currentSong = port_midi.song;
+			rig.set_song(port_midi.song);
+			rig.set_target_with_timeline(port_midi.clip, false);
+			auto more = indicator_disagreements(rig, legacy_midi.song, port_midi.song,
+			                                    assigned ? "midi assigned" : "midi unassigned");
+			found.insert(found.end(), more.begin(), more.end());
+		}
+		report_indicators(found);
+		expect(found.empty()).to_be_true();
 		display = nullptr;
 		currentSong = nullptr;
 	});
