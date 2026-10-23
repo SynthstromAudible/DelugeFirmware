@@ -2038,6 +2038,23 @@ void View::releaseKnobsIfOn(const Clip& clip) {
 	}
 }
 
+int32_t View::knobMode() const {
+	if (std::holds_alternative<std::monostate>(knobFocus_.owner) || currentSong == nullptr
+	    || knobSong_ != currentSong) {
+		return -1;
+	}
+	return deluge::project::knob_mode(currentSong->project, knobFocus_);
+}
+
+void View::endKnobsStutter() {
+	if (currentSong == nullptr || knobSong_ != currentSong) {
+		return;
+	}
+	if (const std::optional<deluge::project::ParamAddress> owner = deluge::project::knob_owner(knobFocus_)) {
+		(void)deluge::bridge::stutterAt(*currentSong, *owner, false);
+	}
+}
+
 void View::releaseKnobsIfOnSong(const Song& song) {
 	if (knobSong_ == &song) {
 		releaseActiveModControllable();

@@ -7,6 +7,7 @@ namespace deluge::scenes::bind {
 
 using project::ChainFocus;
 using project::CompView;
+using project::knob_mode;
 using project::knob_owner;
 using project::KnobFocus;
 using project::MidiFocus;

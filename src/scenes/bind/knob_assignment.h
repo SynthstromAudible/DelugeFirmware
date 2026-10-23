@@ -25,10 +25,6 @@ struct KnobAssignment {
 	engine::ParamKind kind{engine::ParamKind::NONE};
 };
 
-/// @brief The mod button the gold knobs of @p focus follow: the song's, an output's, a kit row's kit's. Past the last
-///        button, the last.
-[[nodiscard]] uint8_t knob_mode(const project::Song& song, const KnobFocus& focus);
-
 /// @brief What knob @p knob (0 the lower, 1 the upper) of @p focus moves, from the song's records: the mode, a sound's
 ///        controls, a chain's view, a MIDI track's CCs, and the focus's compressor view.
 [[nodiscard]] KnobAssignment knob_assignment(const project::Song& song, const KnobFocus& focus, int32_t knob);

@@ -93,6 +93,21 @@ using namespace gui;
 
 PLACE_SDRAM_BSS ArrangerView arrangerView{};
 
+namespace {
+
+/// Point the gold knobs at a held row's output: its active clip, or, with none, its backed-up params.
+void pointKnobsAtRow(Output& output) {
+	if (output.getActiveClip()) {
+		view.setActiveModControllableTimelineCounter(output.getActiveClip());
+	}
+	else {
+		view.setActiveModControllableWithoutTimelineCounter(output.toModControllable(),
+		                                                    output.getParamManager(currentSong));
+	}
+}
+
+} // namespace
+
 ArrangerView::ArrangerView() {
 	doingAutoScrollNow = false;
 
@@ -908,13 +923,7 @@ void ArrangerView::completeNewInstrument(int32_t yPressed, int32_t yPressedRaw, 
 
 	beginAudition(output);
 
-	if (output->getActiveClip()) {
-		view.setActiveModControllableTimelineCounter(output->getActiveClip());
-	}
-	else {
-		view.setActiveModControllableWithoutTimelineCounter(output->toModControllable(),
-		                                                    output->getParamManager(currentSong));
-	}
+	pointKnobsAtRow(*output);
 
 	uiNeedsRendering(ui, 0, 1 << yPressed);
 }
@@ -965,13 +974,7 @@ doNewPress:
 
 			beginAudition(output);
 
-			if (output->getActiveClip()) {
-				view.setActiveModControllableTimelineCounter(output->getActiveClip());
-			}
-			else {
-				view.setActiveModControllableWithoutTimelineCounter(output->toModControllable(),
-				                                                    output->getParamManager(currentSong));
-			}
+			pointKnobsAtRow(*output);
 
 			uiNeedsRendering(ui, 0, 1 << yPressedEffective);
 		}
@@ -1007,7 +1010,7 @@ void ArrangerView::auditionEnded() {
 ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
 	// don't interact with sidebar if VU Meter is displayed
 	// and you're in the volume/pan mod knob mode (0)
-	if (x >= kDisplayWidth && view.knobFocus().vu_meter && (view.getModKnobMode() == 0)) {
+	if (x >= kDisplayWidth && view.knobFocus().vu_meter && (view.knobMode() == 0)) {
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -1338,8 +1341,7 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 
 				// If also stuttering, stop that
 				if (isUIModeActive(UI_MODE_STUTTERING)) {
-					((ModControllableAudio*)View::KnobStack{view}.owner())
-					    ->endStutter((ParamManagerForTimeline*)View::KnobStack{view}.params());
+					view.endKnobsStutter();
 				}
 
 				if (x == xPressed && y == yPressedEffective) {
@@ -1793,8 +1795,7 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 
 	// First, stop any stuttering. This may then put us back in one of the subModes dealt with below
 	if (isUIModeActive(UI_MODE_STUTTERING)) {
-		((ModControllableAudio*)View::KnobStack{view}.owner())
-		    ->endStutter((ParamManagerForTimeline*)View::KnobStack{view}.params());
+		view.endKnobsStutter();
 	}
 
 	// --------------
@@ -3316,7 +3317,7 @@ void ArrangerView::refresh_held_row_mod_target() {
 	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && yPressedEffective >= 0
 	    && yPressedEffective < kDisplayHeight) {
 		if (Output* output = outputsOnScreen[yPressedEffective]) {
-			view.setActiveModControllableTimelineCounter(output->getActiveClip());
+			pointKnobsAtRow(*output);
 		}
 	}
 }

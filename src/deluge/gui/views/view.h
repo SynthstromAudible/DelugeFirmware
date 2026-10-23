@@ -141,6 +141,12 @@ public:
 	[[nodiscard]] uint32_t modLength() const { return knobFocus_.region.length; }
 	/// @brief [interaction] The held note's row id.
 	[[nodiscard]] int32_t modNoteRowId() const { return knobFocus_.region.note_row_id; }
+	/// @brief [interaction] The mod button the knobs follow, from the records: the song's, a track's, a kit row's
+	///        kit's.
+	/// @return The mode, or -1 for no focus (a CV track's included, which has no modes).
+	[[nodiscard]] int32_t knobMode() const;
+	/// @brief [interaction] End the stutter of the owner the knobs are on.
+	void endKnobsStutter();
 	/// @brief [interaction] Let go of the knobs if they are on @p clip, which is about to go.
 	void releaseKnobsIfOn(const Clip& clip);
 	/// @brief [interaction] Let go of the knobs if they are on @p song or anything it owns, which is about to go.

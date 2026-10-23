@@ -3,7 +3,10 @@
 // backup with no clip), and a setter leaves the focus's own view state (the region, the compressor view, the VU meter)
 // as it was.
 
+#include "gui/ui/ui.h"
+#include "gui/views/arranger_view.h"
 #include "gui/views/knob_focus_from_stack.h"
+#include "gui/views/session_view.h"
 #include "gui/views/view.h"
 
 #include "deluge-project/knob_focus.h"
@@ -420,6 +423,75 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		const std::optional<int32_t> session_before = panOn(f, f.clip->id());
 		view.modEncoderAction(0, 3);
 		expect(panOn(f, f.clip->id()) != session_before).to_be_true();
+		view.releaseActiveModControllable();
+		currentSong = nullptr;
+	});
+
+	it("reads the knobs' mode from the records: the song's, a track's, a kit row's kit's, none for a CV track", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		currentSong = f.song;
+		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
+		static_cast<Kit*>(f.instrument)->selectedDrum = drum;
+		f.clip->affectEntire = false;
+		f.song->project.mod_knob_mode = 3;
+		f.song->project.output_structure.find(*f.instrument->id())->mod_knob_mode = 5;
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		expect(view.knobMode()).to_equal(5);
+		f.song->persistentView.affectEntire = true;
+		view.setActiveModControllableTimelineCounter(f.song, false);
+		expect(view.knobMode()).to_equal(3);
+		view.releaseActiveModControllable();
+		expect(view.knobMode()).to_equal(-1);
+
+		spec::SongFixture cv = spec::make_cv_song();
+		currentSong = cv.song;
+		view.setActiveModControllableTimelineCounter(cv.clip, false);
+		expect(view.knobMode()).to_equal(-1);
+		view.releaseActiveModControllable();
+		currentSong = nullptr;
+	});
+
+	it("ends the knobs' stutter when a clip press ends on the session, and when the arranger leaves a sub-mode", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		const project::ParamAddress owner = *project::knob_owner(view.knobFocus());
+
+		enterUIMode(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW);
+		(void)deluge::bridge::stutterAt(*f.song, owner, true);
+		expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_true();
+		(void)sessionView.padAction(kDisplayWidth - 1, kDisplayHeight - 1, 0);
+		expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_false();
+		exitUIMode(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW);
+
+		enterUIMode(UI_MODE_HOLDING_ARRANGEMENT_ROW);
+		(void)deluge::bridge::stutterAt(*f.song, owner, true);
+		expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_true();
+		arrangerView.exitSubModeWithoutAction();
+		expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_false();
+		currentUIMode = UI_MODE_NONE;
+		view.releaseActiveModControllable();
+		currentSong = nullptr;
+	});
+
+	it("follows a held arranger row with no clip to its backed-up params", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		ParamManagerForTimeline params;
+		auto* row = static_cast<SoundInstrument*>(StorageManager::createNewInstrument(OutputType::SYNTH, &params));
+		row->setupAsDefaultSynth(&params);
+		f.song->live.param_backup.backUp(*row, nullptr, &params, true);
+		f.song->addOutput(row);
+		currentUIMode = UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION;
+		arrangerView.yPressedEffective = 2;
+		Output* const saved = arrangerView.outputsOnScreen[2];
+		arrangerView.outputsOnScreen[2] = row;
+		arrangerView.refresh_held_row_mod_target();
+		const project::KnobFocus want{.owner = project::SoundFocus{.slot = {project::SlotAddress::Kind::OUTPUT, *row->id()}}};
+		expect(view.knobFocus().owner == want.owner).to_be_true();
+		expect(View::KnobStack{view}.owner() == row->toModControllable()).to_be_true();
+		arrangerView.outputsOnScreen[2] = saved;
+		currentUIMode = UI_MODE_NONE;
 		view.releaseActiveModControllable();
 		currentSong = nullptr;
 	});

@@ -15,8 +15,6 @@ using project::ParamAddress;
 using project::ParamSpace;
 namespace ge = global_effectable::param;
 
-/// The highest mod button: a mode past it is the last.
-constexpr uint8_t kLastModButton = 7;
 /// The compressor settings the lower knob edits in the song's compressor view, in its order.
 constexpr std::string_view kCompPaths[] = {"audioCompressor/ratio", "audioCompressor/attack", "audioCompressor/release",
                                            "audioCompressor/compHPF", "audioCompressor/compBlend"};
@@ -24,27 +22,6 @@ constexpr std::string_view kCompPaths[] = {"audioCompressor/ratio", "audioCompre
 enum class FilterView : uint8_t { LPF, HPF, EQ };
 /// The mod-FX views: depth, feedback, offset.
 enum class ModFxView : uint8_t { DEPTH, FEEDBACK, OFFSET };
-
-uint8_t capped(uint8_t mode) {
-	return std::min(mode, kLastModButton);
-}
-
-/// The output whose mode the focus's knobs follow, or none for the song's or no focus.
-std::optional<uint32_t> mode_output(const KnobFocus& focus) {
-	if (const auto* sound = std::get_if<SoundFocus>(&focus.owner)) {
-		if (sound->kit) {
-			return sound->kit;
-		}
-		return sound->slot.kind == project::SlotAddress::Kind::OUTPUT ? std::optional{sound->slot.id} : std::nullopt;
-	}
-	if (const auto* chain = std::get_if<ChainFocus>(&focus.owner)) {
-		return chain->chain.kind == project::ChainAddress::Kind::OUTPUT ? std::optional{chain->chain.id} : std::nullopt;
-	}
-	if (const auto* midi = std::get_if<MidiFocus>(&focus.owner)) {
-		return midi->track.output_id;
-	}
-	return std::nullopt;
-}
 
 std::optional<uint32_t> clip_id(const std::optional<project::ClipAddress>& clip) {
 	return clip ? std::optional{clip->clip_id} : std::nullopt;
@@ -173,17 +150,6 @@ KnobAssignment midi_knob(const project::Song& song, const MidiFocus& focus, uint
 }
 
 } // namespace
-
-uint8_t knob_mode(const project::Song& song, const KnobFocus& focus) {
-	if (std::holds_alternative<SongFocus>(focus.owner)) {
-		return capped(song.mod_knob_mode);
-	}
-	if (const std::optional<uint32_t> id = mode_output(focus)) {
-		const project::DocOutput* output = song.output_structure.find(*id);
-		return output != nullptr ? capped(output->mod_knob_mode) : 0;
-	}
-	return 0;
-}
 
 KnobAssignment knob_assignment(const project::Song& song, const KnobFocus& focus, int32_t knob) {
 	if (knob < 0 || knob > 1) {

@@ -739,7 +739,7 @@ void SessionView::beginEditingSectionRepeatsNum() {
 ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
 	// don't interact with sidebar if VU Meter is displayed
 	// and you're in the volume/pan mod knob mode (0)
-	if (xDisplay >= kDisplayWidth && view.knobFocus().vu_meter && (view.getModKnobMode() == 0)) {
+	if (xDisplay >= kDisplayWidth && view.knobFocus().vu_meter && (view.knobMode() == 0)) {
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -975,8 +975,7 @@ midiLearnMelodicInstrumentAction:
 
 				// Stop stuttering if we are
 				if (isUIModeActive(UI_MODE_STUTTERING)) {
-					((ModControllableAudio*)View::KnobStack{view}.owner())
-					    ->endStutter((ParamManagerForTimeline*)View::KnobStack{view}.params());
+					view.endKnobsStutter();
 				}
 
 				// A song load releases held pads before it takes the UIs down; the tap must not enter a clip then.
@@ -1108,8 +1107,7 @@ justEndClipPress:
 void SessionView::clipPressEnded() {
 	// End stuttering since this can also end selection
 	if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) && isUIModeActive(UI_MODE_STUTTERING)) {
-		((ModControllableAudio*)View::KnobStack{view}.owner())
-		    ->endStutter((ParamManagerForTimeline*)View::KnobStack{view}.params());
+		view.endKnobsStutter();
 	}
 
 	if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {

@@ -33,6 +33,8 @@
 
 namespace deluge::project {
 
+class Song;
+
 /// @brief Which kind of output holds a chain: the model's ChainAddress cannot tell a kit from an audio track.
 enum class ChainOwner : uint8_t { KIT, AUDIO_TRACK, SONG };
 
@@ -115,5 +117,11 @@ struct KnobFocus {
 	}
 	return std::nullopt;
 }
+
+/// @brief The mod button the gold knobs of @p focus follow, from @p song's records: the song's, an output's, a kit
+/// row's
+///        kit's. Past the last button, the last.
+/// @return The mode; 0 for no focus.
+[[nodiscard]] uint8_t knob_mode(const Song& song, const KnobFocus& focus);
 
 } // namespace deluge::project
