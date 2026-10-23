@@ -17,9 +17,7 @@
 #include "hid/buttons.h"
 #include "model/settings/runtime_feature_settings.h"
 
-#if DELUGE_UI_SHELL
 #include "gui/ui/shell_host_ui.h"
-#endif
 
 namespace deluge::gui::menu_item::runtime_feature {
 
@@ -29,7 +27,6 @@ void ShiftIsSticky::writeCurrentValue() {
 	const bool on =
 	    runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky) == RuntimeFeatureStateToggle::On;
 
-#if DELUGE_UI_SHELL
 	// The shell guest keeps its own shift state machine and its own copy of this setting, because
 	// nothing lets it read legacy's (`ShellHostUI`'s `@par Shift`). `ShellHostUI::opened()` seeds it
 	// on the way in; this is the live half, for the setting being changed while a guest is already
@@ -38,7 +35,6 @@ void ShiftIsSticky::writeCurrentValue() {
 	// `Buttons::clearShiftSticky()` below -- so the two machines are released together rather than
 	// one of them keeping a latch nothing will clear.
 	shellHostUI.shell().lowering().set_shift_is_sticky(on);
-#endif
 
 	if (!on) {
 		Buttons::clearShiftSticky();

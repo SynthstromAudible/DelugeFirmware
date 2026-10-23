@@ -24,9 +24,7 @@
 #include "processing/stem_export/stem_export.h"
 #include "storage/flash_storage.h"
 
-#if DELUGE_UI_SHELL
 #include "gui/ui/shell_host_ui.h"
-#endif
 
 namespace deluge::hid::display {
 
@@ -108,7 +106,6 @@ void Screensaver::timerEvent() {
 		return;
 	}
 
-#if DELUGE_UI_SHELL
 	// **Two screensavers, and this is where it is settled (F1 task 9).**
 	//
 	// F1 task 8 gave `shell::Screensaver` a real timeout (see `settingsChanged()` below), so the
@@ -141,7 +138,6 @@ void Screensaver::timerEvent() {
 		arm();
 		return;
 	}
-#endif
 
 	// Covers the drawPermanentPopupLookingText() popup class (stem export, session view,
 	// automation view) plus the working animation and stem export itself. Re-checked every tick,
@@ -203,7 +199,6 @@ void Screensaver::timerEvent() {
 }
 
 void Screensaver::settingsChanged() {
-#if DELUGE_UI_SHELL
 	// **Re-supply the ported screensaver's copy of the same two settings.**
 	// `deluge::ui::shell::Screensaver` is the policy half of this class, ported as a `Service`
 	// (`shell/screensaver.h`), and `src/shell` may not read `storage/` -- so it holds one number
@@ -232,7 +227,6 @@ void Screensaver::settingsChanged() {
 	                                                ? 0u
 	                                                : static_cast<uint32_t>(FlashStorage::screensaverTimeoutMinutes)
 	                                                      * kMillisecondsPerMinute);
-#endif
 
 	if (active_) {
 		active_ = false;

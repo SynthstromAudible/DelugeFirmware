@@ -168,8 +168,6 @@ enum class NoteMode : uint8_t {
 	NoteRowEditor,
 };
 
-#if DELUGE_UI_SHELL
-
 /// @brief Is the ported menu the one the fourteen entry points should open?
 ///
 /// `RuntimeFeatureSettingType::ShellMenu`, default Off
@@ -206,23 +204,5 @@ bool shellMenuEnabled();
 bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool sessionOrArrangerRoot,
                    bool sessionViewRoot, bool kitGlobalFx, ShellMenuNode node = ShellMenuNode::ContextRoot,
                    NoteMode noteMode = NoteMode::None);
-
-#else
-
-/// @brief The device image builds without the UI shell, so every entry point opens `SoundEditor`.
-constexpr bool shellMenuEnabled() {
-	return false;
-}
-
-/// @brief Never opens anything without the UI shell; see `shellMenuEnabled`.
-/// @return Always false, so a caller takes its legacy path.
-constexpr bool openShellMenu(Clip* /*clip*/, int32_t /*sourceIndex*/, bool /*performanceView*/,
-                             bool /*sessionOrArrangerRoot*/, bool /*sessionViewRoot*/, bool /*kitGlobalFx*/,
-                             ShellMenuNode /*node*/ = ShellMenuNode::ContextRoot,
-                             NoteMode /*noteMode*/ = NoteMode::None) {
-	return false;
-}
-
-#endif
 
 } // namespace deluge::gui::ui

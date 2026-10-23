@@ -56,9 +56,7 @@
 #include "util/comparison.h"
 #include <iterator>
 
-#if DELUGE_UI_SHELL
 #include "scenes/menu/shortcuts.h"
-#endif
 
 using namespace deluge;
 using namespace deluge::gui;
@@ -324,7 +322,6 @@ void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 
 	shortcutsVersion = newVersion;
 
-#if DELUGE_UI_SHELL
 	// Keep the ported menu's copy of this setting in step. `deluge::scenes::menu` selects between two `constexpr`
 	// shortcut layers and keeps its own `ShortcutsVersion` beside them; it may not name `SoundEditor`. This is the sole
 	// writer of `shortcutsVersion` -- boot, factory reset (legacy and ported reset menus) and both settings items all
@@ -333,7 +330,6 @@ void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 	deluge::scenes::menu::set_shortcuts_version(newVersion == SHORTCUTS_VERSION_1
 	                                                ? deluge::scenes::menu::ShortcutsVersion::V1
 	                                                : deluge::scenes::menu::ShortcutsVersion::V3);
-#endif
 
 	switch (newVersion) {
 

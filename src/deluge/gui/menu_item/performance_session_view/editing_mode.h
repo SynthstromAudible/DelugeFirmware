@@ -24,9 +24,7 @@
 #include "model/model_stack.h"
 #include "model/song/song.h"
 
-#if DELUGE_UI_SHELL
 #include "scenes/menu/action.h" // set_performance_editing_mode -- the mirror, see selectButtonPress
-#endif
 
 namespace deluge::gui::menu_item::performance_session_view {
 class EditingMode final : public Selection {
@@ -84,9 +82,7 @@ public:
 		// nothing reads with the toggle off, reads nothing, and cannot fail. Not reached at all on
 		// the DISABLED arm, which returns at `:52` without writing either bool -- and the port's own
 		// item leaves the mirror alone on DISABLED too, which is asserted.
-#if DELUGE_UI_SHELL
 		deluge::scenes::menu::set_performance_editing_mode(currentMode);
-#endif
 
 		if (!performanceView.editingParam) {
 			// reset performance view when you switch modes

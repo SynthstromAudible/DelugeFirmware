@@ -63,9 +63,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	ShowBatteryLevel,
 	RoundedCorners,
 	ShortcutOverlay,
-#if DELUGE_UI_SHELL
 	ShellMenu, ///< Whether the entry points open the ported menu; exists only where the UI shell is built
-#endif
 	MaxElement // Keep as boundary
 };
 

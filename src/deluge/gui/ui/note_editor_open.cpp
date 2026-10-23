@@ -17,7 +17,7 @@
 
 #include "util/note_editor_open.h"
 
-#include "gui/ui/shell_note_mode.h" // activeNoteMode(): `None` without the UI shell
+#include "gui/ui/shell_note_mode.h" // activeNoteMode()
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 

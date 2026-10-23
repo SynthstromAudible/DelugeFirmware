@@ -92,12 +92,10 @@
 #include <libdeluge/scheduler.h>
 #include <stdlib.h>
 
-#if DELUGE_UI_SHELL
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_note_bridge.h"
 #include "gui/ui/shell_notification_sink.h"
 #include "scenes/registry.h"
-#endif
 
 namespace encoders = deluge::hid::encoders;
 
@@ -665,7 +663,6 @@ static void deluge_boot(const DelugeBoard* board) {
 
 	uiTimerManager.setTimer(TimerName::GRAPHICS_ROUTINE, 50);
 
-#if DELUGE_UI_SHELL
 	// ---- Boot wiring for the ported UI (`src/scenes/registry.h`'s boot-wiring note) -------------
 	//
 	// Three settings the ported tree and the guest's `Shell` cannot read for themselves, and none of
@@ -705,7 +702,6 @@ static void deluge_boot(const DelugeBoard* board) {
 	// active mod controllable, neither of which exists earlier. `ShellHostUI::opened()` calls it
 	// again on every open, to re-read both.
 	deluge::gui::ui::wireShellGuestServices();
-#endif
 
 	// The UI is up: start the idle countdown. This also supplies the ported screensaver service's
 	// timeout for the first time (see `settingsChanged` itself).

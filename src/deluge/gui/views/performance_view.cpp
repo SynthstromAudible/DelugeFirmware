@@ -54,9 +54,7 @@
 #include "util/functions.h"
 #include "util/shell_menu_entry.h"
 
-#if DELUGE_UI_SHELL
 #include "scenes/menu/action.h" // set_performance_editing_mode -- see syncEditingModeMirror below
-#endif
 
 extern "C" {}
 
@@ -94,16 +92,13 @@ namespace {
 /// only readers are `performance_editing_mode()` and, through it, `PerformEditorItem` -- a node in
 /// the ported menu, which nothing opens while the toggle is off (`openShellMenu`,
 /// `gui/ui/shell_menu_entry.cpp`). It reads nothing, calls nothing else, touches no legacy state and
-/// cannot fail. With the toggle off it is a store to a byte no one loads. Built without the UI shell
-/// (`DELUGE_UI_SHELL`, the device image) there is no mirror, and this does nothing.
+/// cannot fail. With the toggle off it is a store to a byte no one loads.
 void syncEditingModeMirror([[maybe_unused]] const PerformanceView& v) {
-#if DELUGE_UI_SHELL
 	PerformanceEditingMode mode = PerformanceEditingMode::DISABLED;
 	if (v.defaultEditingMode) {
 		mode = v.editingParam ? PerformanceEditingMode::PARAM : PerformanceEditingMode::VALUE;
 	}
 	deluge::scenes::menu::set_performance_editing_mode(mode);
-#endif
 }
 
 /// Are the gold knobs on the song, which the performance view's columns act on?

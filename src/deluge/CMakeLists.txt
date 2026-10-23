@@ -53,12 +53,6 @@ if(DELUGE_DSP_BENCH AND NOT DELUGE_HOST)
     PROPERTIES COMPILE_OPTIONS "-fno-lto;-finline-functions;-marm")
 endif()
 
-# The UI shell's tenant in the app (gui/ui/shell_*: the ported menu's guest, its entry points and
-# dispatchers) is in the app only on the host, which also builds deluge_ui_shell and deluge_scenes.
-# The device image runs the legacy SoundEditor and links neither; DELUGE_UI_SHELL tells the legacy
-# call sites which of the two they are built against.
-set(_ui_shell_on TRUE)
-
 # ---------------------------------------------------------------------------
 # deluge_app: the PORTABLE application. It links only the portable libraries and
 # the <libdeluge/...> boundary headers — no HAL and no BSP. The boundary's
@@ -120,13 +114,9 @@ target_link_libraries(deluge_app PUBLIC
     deluge_ui_core # the immediate-mode UI toolkit
     deluge_ui_oled
     deluge_ui_grid
+    deluge_ui_shell # surfaces, scene stack, input lowering, services, tick, flush
     deluge_notify # the model->UI notification channel
 )
-
-if(_ui_shell_on)
-    target_link_libraries(deluge_app PUBLIC deluge_ui_shell) # surfaces, scene stack, input lowering, services, tick, flush
-    target_compile_definitions(deluge_app PUBLIC DELUGE_UI_SHELL=1)
-endif()
 
 target_compile_definitions(deluge_app PUBLIC
     $<$<CONFIG:DEBUG,RELWITHDEBINFO>:IN_HARDWARE_DEBUG=1>
