@@ -73,8 +73,10 @@ public:
 	void commitSectionMidiLearn();
 	/// @brief Make the held thing's command @p learned: a song binding (a section's, a clip's or a kit row's mute, a
 	/// track's or a kit row's input) through the song's mapping table, a global command in place.
-	/// @param learned The command, or a cleared one to unlearn it.
-	void commitLearnedThing(const LearnedMIDI& learned);
+	/// @param learned       The command, or a cleared one to unlearn it.
+	/// @param inputFromNote A track's or kit row's input learned from a note (or a CC played as one): it takes the
+	///                      cable's bend ranges and velocity-to-level default.
+	void commitLearnedThing(const LearnedMIDI& learned, bool inputFromNote = false);
 	void midiLearnFlash();
 	void setModLedStates();
 	int32_t getModKnobMode();

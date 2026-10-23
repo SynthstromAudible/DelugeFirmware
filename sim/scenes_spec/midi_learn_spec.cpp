@@ -1778,6 +1778,91 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		currentSong = saved;
 	});
 
+	it("legacy View's drum-input learn records the row's bend range and velocity cable, and no undo step", _ {
+		static spec::SongFixture fixture = spec::make_kit_song();
+		static SoundDrum* drum = spec::add_drum<SoundDrum>(fixture);
+		auto* const kit = static_cast<Kit*>(fixture.instrument);
+		give_active_clip(fixture);
+		Song* const saved = currentSong;
+		currentSong = fixture.song;
+		fixture.song->setCurrentClip(fixture.clip);
+		const CableDefaults defaults{cables().b, 2, 0x10000000, 5};
+		actionLogger.deleteAllLogs();
+
+		expect(reset_legacy_learn()).to_be_true();
+		view.startMIDILearn();
+		view.drumMidiLearnPadPressed(true, drum, kit);
+		view.noteOnReceivedForMidiLearn(cables().b, 2, 36, 127);
+		view.drumMidiLearnPadPressed(false, drum, kit);
+		expect(reset_legacy_learn()).to_be_true();
+
+		expect(recorded_velocity_cable(*fixture.song, deluge::project::OwnerId::drum(*drum->id()), fixture.clip->id()))
+		    .to_equal(std::optional<int32_t>{0x10000000});
+		expect(recorded_row(*fixture.song, deluge::project::SettingGroupId::NOTE_ROW,
+		                    deluge::project::NoteRowAddress{fixture.clip->id(), true, static_cast<int32_t>(*drum->id())},
+		                    "bendRange"))
+		    .to_equal(std::string{"5"});
+		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
+		fixture.song->setCurrentClip(nullptr);
+		currentSong = saved;
+	});
+
+	it("legacy View's instrument-input learn on an MPE zone records the zone's bend ranges", _ {
+		static spec::SongFixture fixture = spec::make_synth_song();
+		give_active_clip(fixture);
+		Song* const saved = currentSong;
+		currentSong = fixture.song;
+		const uint8_t main_before = cables().a.mpeZoneBendRanges[0][BEND_RANGE_MAIN];
+		const uint8_t finger_before = cables().a.mpeZoneBendRanges[0][BEND_RANGE_FINGER_LEVEL];
+		cables().a.mpeZoneBendRanges[0][BEND_RANGE_MAIN] = 3;
+		cables().a.mpeZoneBendRanges[0][BEND_RANGE_FINGER_LEVEL] = 24;
+		actionLogger.deleteAllLogs();
+
+		expect(reset_legacy_learn()).to_be_true();
+		view.startMIDILearn();
+		view.instrumentMidiLearnPadPressed(true, fixture.instrument);
+		view.noteOnReceivedForMidiLearn(cables().a, MIDI_CHANNEL_MPE_LOWER_ZONE, 60, 127);
+		view.instrumentMidiLearnPadPressed(false, fixture.instrument);
+		expect(reset_legacy_learn()).to_be_true();
+
+		expect(recorded_row(*fixture.song, deluge::project::SettingGroupId::CLIP_VALUES,
+		                    deluge::project::ClipAddress{fixture.clip->id()}, "bendRange"))
+		    .to_equal(std::string{"3"});
+		expect(recorded_row(*fixture.song, deluge::project::SettingGroupId::CLIP_VALUES,
+		                    deluge::project::ClipAddress{fixture.clip->id()}, "bendRangeMPE"))
+		    .to_equal(std::string{"24"});
+		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
+		cables().a.mpeZoneBendRanges[0][BEND_RANGE_MAIN] = main_before;
+		cables().a.mpeZoneBendRanges[0][BEND_RANGE_FINGER_LEVEL] = finger_before;
+		currentSong = saved;
+	});
+
+	it("legacy View's drum-input learn from a CC brings no bend range", _ {
+		static spec::SongFixture fixture = spec::make_kit_song();
+		static SoundDrum* drum = spec::add_drum<SoundDrum>(fixture);
+		auto* const kit = static_cast<Kit*>(fixture.instrument);
+		give_active_clip(fixture);
+		Song* const saved = currentSong;
+		currentSong = fixture.song;
+		fixture.song->setCurrentClip(fixture.clip);
+		const CableDefaults defaults{cables().b, 3, 0, 9};
+		const deluge::project::NoteRowAddress row{fixture.clip->id(), true, static_cast<int32_t>(*drum->id())};
+		const std::string before = recorded_row(*fixture.song, deluge::project::SettingGroupId::NOTE_ROW, row, "bendRange");
+
+		expect(reset_legacy_learn()).to_be_true();
+		view.startMIDILearn();
+		view.drumMidiLearnPadPressed(true, drum, kit);
+		view.ccReceivedForMIDILearn(cables().b, 3, 74, 100);
+		view.drumMidiLearnPadPressed(false, drum, kit);
+		expect(reset_legacy_learn()).to_be_true();
+
+		expect(drum->midiInput.channelOrZone == 3 + IS_A_CC).to_be_true();
+		expect(recorded_row(*fixture.song, deluge::project::SettingGroupId::NOTE_ROW, row, "bendRange"))
+		    .to_equal(before);
+		fixture.song->setCurrentClip(nullptr);
+		currentSong = saved;
+	});
+
 	it("an input learn makes a synth's expression set with a synth's bend defaults", _ {
 		// A drum's set starts its finger range at the main range; a track's at its own default.
 		static spec::SongFixture fixture = spec::make_synth_song();

@@ -242,19 +242,22 @@ Error UnlearnMapping::apply(Context& ctx) {
 	return result;
 }
 
-Error learnedMappingIn(::Song& song, deluge::project::MappingTarget target, const ::LearnedMIDI& learned) {
+Error learnedMappingIn(::Song& song, deluge::project::MappingTarget target, const ::LearnedMIDI& learned,
+                       std::optional<InputLearn> input) {
 	Context ctx{song, song.project};
 	if (learned.containsSomething()) {
 		LearnMapping edit{
-		    deluge::project::Mapping{.source = deluge::bridge::command_of(learned), .target = std::move(target)}};
+		    deluge::project::Mapping{.source = deluge::bridge::command_of(learned), .target = std::move(target)},
+		    std::nullopt, input};
 		return deluge::edits::apply(ctx, edit);
 	}
 	UnlearnMapping edit{std::move(target)};
 	return deluge::edits::apply(ctx, edit);
 }
 
-void learnedMappingFor(deluge::project::MappingTarget target, const ::LearnedMIDI& learned) {
-	if (currentSong != nullptr && learnedMappingIn(*currentSong, target, learned) != Error::NONE) {
+void learnedMappingFor(deluge::project::MappingTarget target, const ::LearnedMIDI& learned,
+                       std::optional<InputLearn> input) {
+	if (currentSong != nullptr && learnedMappingIn(*currentSong, target, learned, input) != Error::NONE) {
 		D_PRINTLN("mapping refused: its owner is not in the song");
 	}
 }

@@ -531,7 +531,7 @@ void View::commitSectionMidiLearn() {
 	                                 sectionLearnScratch);
 }
 
-void View::commitLearnedThing(const LearnedMIDI& learned) {
+void View::commitLearnedThing(const LearnedMIDI& learned, bool inputFromNote) {
 	std::optional<deluge::project::MappingTarget> target;
 	switch (thingPressedForMidiLearn) {
 	case MidiLearn::SECTION:
@@ -560,7 +560,11 @@ void View::commitLearnedThing(const LearnedMIDI& learned) {
 		break;
 	}
 	if (target) {
-		deluge::edits::learnedMappingFor(*target, learned);
+		std::optional<deluge::edits::InputLearn> input;
+		if (inputFromNote && learned.cable != nullptr) {
+			input = deluge::edits::InputLearn{.cable = learned.cable, .channel_or_zone = learned.channelOrZone};
+		}
+		deluge::edits::learnedMappingFor(*target, learned, input);
 	}
 	else {
 		*learnedThing = learned;
@@ -667,38 +671,13 @@ void View::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, i
 		switch (thingPressedForMidiLearn) {
 
 		case MidiLearn::DRUM_INPUT: {
-			// For a Drum, we can assume that the user must be viewing a Clip, as the currentClip.
-			getCurrentInstrument()->beenEdited(false);
-
-			// Copy bend ranges if appropriate. This logic is duplicated in NoteRow::setDrum().
-			int32_t newBendRange;
-			int32_t zone = channelOrZone - MIDI_CHANNEL_MPE_LOWER_ZONE;
-			if (zone >= 0) { // MPE input
-				newBendRange = cable.mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
-			}
-			else { // Regular MIDI input
-				newBendRange = cable.inputChannels[channelOrZone].bendRange;
-			}
-
-			if (newBendRange) {
-				NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowForDrum(drumPressedForMIDILearn);
-				if (noteRow) {
-					ExpressionParamSet* expressionParams = noteRow->paramManager.getOrCreateExpressionParamSet(true);
-					if (expressionParams) {
-						if (!expressionParams->params[0].isAutomated(*expressionParams->docForParam(0))) {
-							deluge::edits::bendRangeFor(getCurrentInstrumentClip(), noteRow->paramManager,
-							                            BEND_RANGE_FINGER_LEVEL, newBendRange);
-						}
-					}
-				}
-			}
-
-			if (drumPressedForMIDILearn->type == DrumType::SOUND) {
-				currentSong->grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersForDrum(
-				    cable, (SoundDrum*)drumPressedForMIDILearn, kitPressedForMIDILearn);
-			}
-
-			goto recordDetailsOfLearnedThing;
+			// The row's bend range and velocity cable come with the learn (LearnMapping's input).
+			LearnedMIDI learned;
+			learned.cable = &cable;
+			learned.channelOrZone = channelOrZone;
+			learned.noteOrCC = note;
+			commitLearnedThing(learned, /*inputFromNote=*/true);
+			break;
 		}
 
 		case MidiLearn::PLAY_BUTTON:
@@ -707,85 +686,28 @@ void View::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, i
 			shouldSaveSettingsAfterMidiLearn = true;
 			// No break
 
-		default:
-recordDetailsOfLearnedThing: {
-	LearnedMIDI learned;
-	learned.cable = &cable;
-	learned.channelOrZone = channelOrZone;
-	learned.noteOrCC = note;
-	commitLearnedThing(learned);
-	break;
-}
+		default: {
+			LearnedMIDI learned;
+			learned.cable = &cable;
+			learned.channelOrZone = channelOrZone;
+			learned.noteOrCC = note;
+			commitLearnedThing(learned);
+			break;
+		}
 
-		case MidiLearn::INSTRUMENT_INPUT:
-
-			uint8_t newBendRanges[2];
-
-			ParamManager* paramManager = instrumentPressedForMIDILearn->getParamManager(
-			    currentSong); // Could be NULL, e.g. for CVInstruments with no Clips
-
-			// If we already know this incoming MIDI is on an MPE zone...
-			if (channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE || channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-isMPEZone:
-				// Now that we've just learned a MIDI input, update bend ranges from the input device, if they were set,
-				// and no automation in activeClip. Same logic can be found in InstrumentClip::changeInstrument().
-				int32_t zone = channelOrZone - MIDI_CHANNEL_MPE_LOWER_ZONE;
-
-				newBendRanges[BEND_RANGE_MAIN] = cable.mpeZoneBendRanges[zone][BEND_RANGE_MAIN];
-				newBendRanges[BEND_RANGE_FINGER_LEVEL] = cable.mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
-
-				if (newBendRanges[BEND_RANGE_FINGER_LEVEL]) {
-					InstrumentClip* clip = (InstrumentClip*)instrumentPressedForMIDILearn->getActiveClip();
-					if (!clip || !clip->hasAnyPitchExpressionAutomationOnNoteRows()) {
-						if (paramManager) { // Could be NULL, e.g. for CVInstruments with no Clips
-							ExpressionParamSet* expressionParams = paramManager->getOrCreateExpressionParamSet();
-							if (expressionParams) {
-								deluge::edits::bendRangeFor(clip, *paramManager, BEND_RANGE_FINGER_LEVEL,
-								                            newBendRanges[BEND_RANGE_FINGER_LEVEL]);
-							}
-						}
-					}
-				}
-			}
-
-			// Or if we don't already know this is an MPE zone...
-			else {
-				// If still here, it's not MPE. Now that we know that, see if we want to apply a stored bend range for
-				// the input MIDI channel of the device
-				newBendRanges[BEND_RANGE_MAIN] = cable.inputChannels[channelOrZone].bendRange;
-			}
-
-			if (newBendRanges[BEND_RANGE_MAIN]) {
-				if (paramManager) { // Could be NULL, e.g. for CVInstruments with no Clips
-					ExpressionParamSet* expressionParams = paramManager->getOrCreateExpressionParamSet();
-					if (expressionParams
-					    && !expressionParams->params[0].isAutomated(*expressionParams->docForParam(0))) {
-						deluge::edits::bendRangeFor(
-						    static_cast<InstrumentClip*>(instrumentPressedForMIDILearn->getActiveClip()), *paramManager,
-						    BEND_RANGE_MAIN, newBendRanges[BEND_RANGE_MAIN]);
-					}
-				}
-			}
-			// In a perfect world, we'd also update CVInstrument::cachedBendRanges[]. But that'd only make a difference
-			// if it had no Clips.
-
+		case MidiLearn::INSTRUMENT_INPUT: {
 			// We need to reset the expression params, in case they've gotten stuck. This was mostly prone to happening
 			// when doing the "learn MPE input" multi-finger trick.
 			clearMelodicInstrumentMonoExpressionIfPossible();
 
+			// The bend ranges and the velocity cable come with the learn (LearnMapping's input).
 			LearnedMIDI learned;
 			learned.channelOrZone = channelOrZone;
 			learned.cable = &cable;
 			learned.noteOrCC = note; // used for low note in kits
-			commitLearnedThing(learned);
-			instrumentPressedForMIDILearn->beenEdited(false); // Why again?
-
-			if (instrumentPressedForMIDILearn->type == OutputType::SYNTH) {
-				currentSong->grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersForInstrument(
-				    cable, (SoundInstrument*)instrumentPressedForMIDILearn);
-			}
-
+			commitLearnedThing(learned, /*inputFromNote=*/true);
 			break;
+		}
 		}
 	}
 }

@@ -87,13 +87,17 @@ private:
 /// @param song    The song.
 /// @param target  What the command controls.
 /// @param learned The command, as the gesture learned it.
+/// @param input   For a track's or kit row's input learned from a note: the cable and channel or zone it came on.
 /// @return The Edit's result.
-Error learnedMappingIn(::Song& song, deluge::project::MappingTarget target, const ::LearnedMIDI& learned);
+Error learnedMappingIn(::Song& song, deluge::project::MappingTarget target, const ::LearnedMIDI& learned,
+                       std::optional<InputLearn> input = std::nullopt);
 
 /// @brief learnedMappingIn on the current song (no-op without a song).
 /// @param target  What the command controls.
 /// @param learned The command, as the gesture learned it.
-void learnedMappingFor(deluge::project::MappingTarget target, const ::LearnedMIDI& learned);
+/// @param input   For a track's or kit row's input learned from a note: the cable and channel or zone it came on.
+void learnedMappingFor(deluge::project::MappingTarget target, const ::LearnedMIDI& learned,
+                       std::optional<InputLearn> input = std::nullopt);
 
 /// @brief A menu's learn of a MIDI knob: @p cable's @p noteOrCC on @p channel turns @p param of @p owner. Through
 /// LearnMapping when @p owner holds controls of the current song; on @p owner's knob list alone otherwise. A knob on
