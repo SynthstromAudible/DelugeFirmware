@@ -147,6 +147,9 @@ public:
 	///        clip the focus names: one the owner holds, or a cable a turn would make.
 	/// @return The address, or none for a knob with no param or no focus.
 	[[nodiscard]] std::optional<deluge::project::ParamAddress> knobAddress(int32_t whichModEncoder) const;
+	/// @brief [interaction] Does the UI mode now let a mod button change the knobs' mode? None does, and those a
+	///        held pad or row or a song load holds.
+	[[nodiscard]] bool modButtonUIModeInRange() const;
 	/// @brief [interaction] The mod button the knobs follow, from the records: the song's, a track's, a kit row's
 	///        kit's.
 	/// @return The mode, or -1 for no focus (a CV track's included, which has no modes).

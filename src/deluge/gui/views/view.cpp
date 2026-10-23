@@ -1473,6 +1473,10 @@ static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
                                             UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED,
                                             0};
 
+bool View::modButtonUIModeInRange() const {
+	return isUIModeWithinRange(modButtonUIModes);
+}
+
 void View::modButtonAction(uint8_t whichButton, bool on) {
 	RootUI* rootUI = getRootUI();
 
@@ -1492,7 +1496,7 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 		ModControllable* owner = stack->modControllable;
 		auto* params = (ParamManagerForTimeline*)stack->paramManager;
 		if (on) {
-			if (isUIModeWithinRange(modButtonUIModes) || (rootUI == &performanceView)) {
+			if (modButtonUIModeInRange() || (rootUI == &performanceView)) {
 				// only displaying VU meter in session view, arranger view, performance view and arranger automation
 				// view
 				if (!rootUIIsClipMinderScreen()) {

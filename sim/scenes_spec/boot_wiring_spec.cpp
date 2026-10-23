@@ -267,6 +267,27 @@ describe boot_services("the three services, installed into the guest's own Shell
 		currentSong = saved_song;
 		deluge::gui::ui::wireShellGuestServices();
 	});
+	it("tells the guest's knobs whether the UI mode lets a mod button act, as View answers it", _ {
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		Song* const saved_song = currentSong;
+		currentSong = f.song;
+		auto* knobs = static_cast<services::ModKnobs*>(shellHostUI.shell().services().mod_knobs);
+		const uint32_t saved_mode = currentUIMode;
+
+		currentUIMode = UI_MODE_HORIZONTAL_SCROLL; // a mode outside View's list
+		deluge::gui::ui::wireShellGuestServices();
+		expect(view.modButtonUIModeInRange()).to_be_false();
+		expect(knobs->view_state().mod_button_ui_mode_in_range).to_be_false();
+
+		currentUIMode = UI_MODE_NONE;
+		deluge::gui::ui::wireShellGuestServices();
+		expect(knobs->view_state().mod_button_ui_mode_in_range).to_be_true();
+
+		currentUIMode = saved_mode;
+		currentSong = saved_song;
+		deluge::gui::ui::wireShellGuestServices();
+	});
+
 	it("the guest's knobs are View's: a mod button pressed in the guest moves View's mode and VU flag", _ {
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		Song* const saved_song = currentSong;

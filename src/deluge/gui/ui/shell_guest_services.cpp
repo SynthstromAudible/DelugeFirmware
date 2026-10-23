@@ -98,14 +98,7 @@ void wireShellGuestServices() {
 	knobView.automation_on_arranger = automationView.onArrangerView;
 	knobView.root_is_performance = getRootUI() == &performanceView;
 	knobView.root_is_clip_minder = rootUIIsClipMinderScreen();
-	// `mod_button_ui_mode_in_range` is left at its default **true**, and that is a gap rather than
-	// an answer: legacy's `isUIModeWithinRange(modButtonUIModes)` (`gui/views/view.cpp:1529`) reads
-	// a table that is `static` inside `view.cpp` (`:1487-1495`) and so cannot be evaluated here.
-	// True is legacy's answer whenever `currentUIMode` is `UI_MODE_NONE`, which is what it is while
-	// a menu is open; what it cannot reproduce is a mode outside the list. Inert for this plan --
-	// mod buttons never reach the shell at all under the guest, because `Buttons::buttonAction`
-	// intercepts them before the UI hook (`hid/buttons.cpp:99-107`) -- and stated rather than
-	// silently defaulted.
+	knobView.mod_button_ui_mode_in_range = view.modButtonUIModeInRange();
 	services.knobs.set_view_state(knobView);
 
 	deluge::scenes::services::GlobalControls::ViewState controlView;
