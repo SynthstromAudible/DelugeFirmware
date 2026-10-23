@@ -1481,6 +1481,24 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(port_unnamed == port_named).to_be_false();
 	});
 
+	it("moves View's own view of the focus when it writes the store they share", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		view.releaseActiveModControllable();
+		KnobRig rig;
+		rig.set_song(f.song);
+		rig.knobs.use_focus(view.knobFocus(), [] { view.knobFocusChanged(); });
+		rig.set_target_with_timeline(f.clip, false);
+		expect(View::KnobStack{view}.owner() == static_cast<ModControllable*>(static_cast<SoundInstrument*>(f.instrument)))
+		    .to_be_true();
+		expect(view.knobsOnClipContext()).to_be_true();
+		rig.knobs.set_mod_region(96, 48, 3);
+		expect(view.modNoteRowId()).to_equal(3);
+		rig.knobs.set_mod_region();
+		view.releaseActiveModControllable();
+		currentSong = nullptr;
+	});
+
 	it("agrees with View::knobsOnClipContext on every reachable target shape", _ {
 		// Legacy's clip context needs a resolved mod controllable as well as a clip counter: a target
 		// with a clip counter and none is not a clip context, or `target_changed` would send a MIDI CC

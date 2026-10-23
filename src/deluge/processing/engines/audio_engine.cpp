@@ -180,12 +180,12 @@ void letGoOfSound(Sound& sound) {
 
 /// [render] Drop every reference the render keeps from block to block to a retired clip. The caller already unlinked
 /// it from its song's arrays, clip instances and output (Clip::prepareForDestruction()), and AudioEngine::retire(Clip*)
-/// already cleared the ones the interaction tier writes (currentClip, syncScalingClip, the view's active stack). This
+/// already cleared the ones the interaction tier writes (currentClip, syncScalingClip) and released the gold knobs if
+/// they named the clip. This
 /// is the catch for what the render itself may have written between the retire and this let-go: another clip's
 /// beingRecordedFromClip and syncScalingClip (the recording ticks), and currentClip (session.cpp's new-recording
 /// hand-over). Only the current song is looked at: the render reaches clips through currentSong alone, and a song that
-/// is no longer current takes its references with it. The view's active stack needs no catch: only the interaction
-/// tier writes it, and retire() applied the render's requests for it before clearing it.
+/// is no longer current takes its references with it.
 void letGoOfClip(Clip* clip) {
 	if (currentSong != nullptr) {
 		if (currentSong->getCurrentClip() == clip) {
@@ -1092,8 +1092,8 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 	// own section) and a render block never overlap.
 	AudioExcludedSection renderBlock;
 #if defined(DELUGE_HOST)
-	// For the harness: whether this block changed the view's active model stack, or other state only the interaction
-	// tier may write.
+	// For the harness: whether this block changed the gold knobs' render-visible words, or other state only the
+	// interaction tier may write.
 	View::RenderBlockStackWatch stackWatch;
 	deluge::playback::RenderBlockInteractionWatch interactionWatch;
 #endif
@@ -2479,10 +2479,9 @@ void retire(Song* song) {
 	}
 	// First, so a stream of retires frees what earlier ones handed over.
 	reclaimRetired();
-	// As retire(Clip*): the view's active model stack is the one reference the interaction tier's own handlers read
-	// that may still name the old song or something it owns (an armed swap on the render only asks for it to be
-	// dropped). Apply what the render asked for, then drop it, so no handler reaches the old song through it and no
-	// request is left naming the song once it is freed.
+	// As retire(Clip*): the gold knobs' focus may still be on the old song (an armed swap on the render only asks for
+	// it to be dropped). Apply what the render asked for, then let go of them, so no handler resolves the knobs into
+	// the old song and no request is left naming it once it is freed.
 	deluge::playback::applyRenderRequests();
 	view.releaseKnobsIfOnSong(*song);
 	handOver(RetireRequest{.song = song}, song, [](void* p) {

@@ -805,7 +805,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 		// Read, never made: the write makes what it turns (a cable), in the take while the arrangement records.
 		ModelStackWithAutoParam* modelStackWithParam =
-		    stack->modControllable->getParamFromModEncoder(whichModEncoder, stack, false, knobFocus_.comp);
+		    stack->modControllable->getParamFromModEncoder(whichModEncoder, stack, false, knobComp());
 
 		if (isParamOfKnob(modelStackWithParam)) {
 			modEncoderAction_existentParam(whichModEncoder, offset, modelStackWithParam, noteTailsAllowedBefore);
@@ -822,7 +822,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 void View::modEncoderAction_nonExistentParam(ModControllable& owner, int32_t whichModEncoder, int32_t offset,
                                              ModelStackWithAutoParam* modelStackWithParam) {
 	ActionResult result =
-	    owner.modEncoderActionForNonExistentParam(offset, whichModEncoder, modelStackWithParam, knobFocus_.comp);
+	    owner.modEncoderActionForNonExistentParam(offset, whichModEncoder, modelStackWithParam, knobComp());
 
 	if (result == ActionResult::ACTIONED_AND_CAUSED_CHANGE) {
 		setKnobIndicatorLevel(whichModEncoder);
@@ -905,7 +905,7 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 		copyModelStack(paramMemory, after, sizeof(ModelStackWithThreeMainThings));
 		sendMidiFollowFeedback(
 		    after->modControllable->getParamFromModEncoder(
-		        whichModEncoder, reinterpret_cast<ModelStackWithThreeMainThings*>(paramMemory), false, knobFocus_.comp),
+		        whichModEncoder, reinterpret_cast<ModelStackWithThreeMainThings*>(paramMemory), false, knobComp()),
 		    newKnobPos);
 
 		if (after->timelineCounterIsSet()) {
@@ -975,7 +975,7 @@ void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* paramet
 	}
 	// Named as it stands: a name read makes no take.
 	ModelStackWithAutoParam* modelStackWithParam =
-	    stack->modControllable->getParamFromModEncoder(whichModEncoder, stack, false, knobFocus_.comp);
+	    stack->modControllable->getParamFromModEncoder(whichModEncoder, stack, false, knobComp());
 	if (isParamOfKnob(modelStackWithParam)) {
 		params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
@@ -1321,7 +1321,7 @@ void View::modEncoderButtonAction_deleteAutomation(uint8_t whichModEncoder, Mode
 	// Only a param the owner holds has automation to delete; the delete lands in the take while the arrangement
 	// records.
 	ModelStackWithAutoParam* modelStackWithParam =
-	    stack->modControllable->getParamFromModEncoder(whichModEncoder, stack, false, knobFocus_.comp);
+	    stack->modControllable->getParamFromModEncoder(whichModEncoder, stack, false, knobComp());
 	if (modelStackWithParam == nullptr || modelStackWithParam->autoParam == nullptr) {
 		return;
 	}
@@ -1336,7 +1336,7 @@ void View::modEncoderButtonAction_deleteAutomation(uint8_t whichModEncoder, Mode
 void View::modEncoderButtonAction_changeModControllable(uint8_t whichModEncoder, bool on,
                                                         ModelStackWithThreeMainThings* stack) {
 	ModControllable* owner = stack->modControllable;
-	bool anyEditingDone = owner->modEncoderButtonAction(whichModEncoder, on, stack, &knobFocus_.comp);
+	bool anyEditingDone = owner->modEncoderButtonAction(whichModEncoder, on, stack, knobCompToMove());
 	// A press may cycle a knob to its next param (LPF, HPF, EQ): its owner's mappings are the record's.
 	deluge::gui::menu_item::recordControlsOf(*owner);
 	if (anyEditingDone) {
@@ -1384,7 +1384,7 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		return;
 	}
 	ModelStackWithAutoParam* modelStackWithParam =
-	    stack->modControllable->getParamFromModEncoder(whichModEncoder, stack, false, knobFocus_.comp);
+	    stack->modControllable->getParamFromModEncoder(whichModEncoder, stack, false, knobComp());
 
 	int32_t knobPos;
 	bool isBipolar = false;
@@ -1432,7 +1432,7 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 	else {
 		if (modelStackWithParam->paramId == 255) {
 			knobPos = modelStackWithParam->modControllable->getKnobPosForNonExistentParam(
-			    whichModEncoder, modelStackWithParam, knobFocus_.comp);
+			    whichModEncoder, modelStackWithParam, knobComp());
 			knobPos += kKnobPosOffset;
 		}
 		// is it not just a param? then its a patch cable
@@ -1520,14 +1520,14 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 				// is.
 				(void)deluge::edits::modKnobModeForSlot(owner->getModKnobMode(), whichButton);
 
-				owner->modButtonAction(whichButton, true, params, knobFocus_.comp);
+				owner->modButtonAction(whichButton, true, params, knobComp());
 
 				setKnobIndicatorLevels();
 				setModLedStates();
 			}
 		}
 		else {
-			owner->modButtonAction(whichButton, false, params, knobFocus_.comp);
+			owner->modButtonAction(whichButton, false, params, knobComp());
 		}
 	}
 }
@@ -1925,6 +1925,22 @@ void View::setKnobFocusFrom(const ModelStackWithThreeMainThings* stack) {
 	refreshKnobParamManager();
 }
 
+const deluge::project::CompView& View::knobComp() const {
+	static constexpr deluge::project::CompView kNone{};
+	return std::holds_alternative<deluge::project::SongFocus>(knobFocus_.owner) ? knobFocus_.comp : kNone;
+}
+
+deluge::project::CompView* View::knobCompToMove() {
+	return std::holds_alternative<deluge::project::SongFocus>(knobFocus_.owner) ? &knobFocus_.comp : nullptr;
+}
+
+void View::knobFocusChanged() {
+	knobSong_ = currentSong;
+	compSong_ = currentSong;
+	knobsOnClipContext_ = knobsClipId().has_value();
+	refreshKnobParamManager();
+}
+
 void View::refreshKnobParamManager() {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* stack = knobOwnerStack(memory);
@@ -1957,12 +1973,19 @@ bool View::stepEditRegionHolds(const TimelineCounter& counter, std::optional<int
 	if (knobFocus_.region.length == 0 || currentSong == nullptr || &counter == currentSong) {
 		return false;
 	}
-	return knobsOnClip(*currentSong, static_cast<const Clip&>(counter))
-	       && (!noteRowId || *noteRowId == knobFocus_.region.note_row_id);
+	const auto& clip = static_cast<const Clip&>(counter);
+	bool onClip = knobsOnClip(*currentSong, clip);
+	// A take the arrangement records holds the session clip's region: matched by identity, never dereferenced.
+	if (!onClip && clip.beingRecordedFromClip != nullptr && knobSong_ == currentSong) {
+		if (const std::optional<uint32_t> session = knobsClipId()) {
+			onClip = clip.beingRecordedFromClip == currentSong->clipForId(*session);
+		}
+	}
+	return onClip && (!noteRowId || *noteRowId == knobFocus_.region.note_row_id);
 }
 
 void View::releaseKnobsIfOn(const Clip& clip) {
-	if (knobsClipId() == clip.id()) {
+	if (currentSong != nullptr && knobsOnClip(*currentSong, clip)) {
 		releaseActiveModControllable();
 	}
 }
@@ -1974,7 +1997,7 @@ std::optional<deluge::project::ParamAddress> View::knobAddress(int32_t whichModE
 		return std::nullopt;
 	}
 	ModelStackWithAutoParam* param =
-	    stack->modControllable->getParamFromModEncoder(whichModEncoder, stack, false, knobFocus_.comp);
+	    stack->modControllable->getParamFromModEncoder(whichModEncoder, stack, false, knobComp());
 	return isParamOfKnob(param) ? knobParamAddress(*param) : std::nullopt;
 }
 

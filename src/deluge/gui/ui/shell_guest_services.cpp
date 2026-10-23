@@ -56,7 +56,7 @@ struct GuestServices {
 	    : learn(shell.stack()), knobs(deluge::scenes::overlay::param_popup_scene(), shell.stack(), shell.lowering()),
 	      controls(shell.stack(), shell.lowering(), learn) {
 		// One focus for the gold knobs: the legacy views set it, and the guest's knobs read and move it.
-		knobs.use_focus(view.knobFocus());
+		knobs.use_focus(view.knobFocus(), [] { view.knobFocusChanged(); });
 	}
 };
 

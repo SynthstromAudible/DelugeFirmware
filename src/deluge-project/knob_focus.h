@@ -93,34 +93,10 @@ struct KnobFocus {
 
 /// @brief The owner @p focus's knobs move params of, as an address with no param: its owner id and clip id.
 /// @return None for no focus, or a MIDI track with no clip.
-[[nodiscard]] inline std::optional<ParamAddress> knob_owner(const KnobFocus& focus) {
-	const auto clip_id = [](const std::optional<ClipAddress>& clip) {
-		return clip ? std::optional{clip->clip_id} : std::nullopt;
-	};
-	if (std::holds_alternative<SongFocus>(focus.owner)) {
-		return ParamAddress{.owner = OwnerId::song()};
-	}
-	if (const auto* sound = std::get_if<SoundFocus>(&focus.owner)) {
-		return ParamAddress{.owner = sound->slot.kind == SlotAddress::Kind::DRUM ? OwnerId::drum(sound->slot.id)
-		                                                                         : OwnerId::instrument(sound->slot.id),
-		                    .clip_id = clip_id(sound->clip)};
-	}
-	if (const auto* chain = std::get_if<ChainFocus>(&focus.owner)) {
-		if (chain->owner == ChainOwner::AUDIO_TRACK) {
-			return ParamAddress{.owner = chain->clip ? OwnerId::clip(chain->clip->clip_id)
-			                                         : OwnerId::instrument(chain->chain.id)};
-		}
-		return ParamAddress{.owner = OwnerId::instrument(chain->chain.id), .clip_id = clip_id(chain->clip)};
-	}
-	if (const auto* midi = std::get_if<MidiFocus>(&focus.owner); midi != nullptr && midi->clip) {
-		return ParamAddress{.owner = OwnerId::clip(midi->clip->clip_id)};
-	}
-	return std::nullopt;
-}
+[[nodiscard]] std::optional<ParamAddress> knob_owner(const KnobFocus& focus);
 
 /// @brief The mod button the gold knobs of @p focus follow, from @p song's records: the song's, an output's, a kit
-/// row's
-///        kit's. Past the last button, the last.
+///        row's kit's. Past the last button, the last.
 /// @return The mode; 0 for no focus.
 [[nodiscard]] uint8_t knob_mode(const Song& song, const KnobFocus& focus);
 

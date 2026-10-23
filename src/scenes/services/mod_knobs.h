@@ -3,7 +3,7 @@
 /// @file
 /// @brief `ModKnobs` -- the gold-knob half of `View`, as a `shell::Service`.
 ///
-/// The port of `View::modEncoderAction` (`gui/views/view.cpp:835-859`) and what it reaches: the turn, the push
+/// The port of `View::modEncoderAction` and what it reaches: the turn, the push
 /// (`modEncoderButtonAction`), the mod buttons (`modButtonAction`), the indicators and mod LEDs
 /// (`setKnobIndicatorLevels`, `setModLedStates`), the centre detent (`potentiallyMakeItHarderToTurnKnob`), the mod
 /// region (`setModRegion`), the automation notification and the MIDI-follow feedback.
@@ -53,6 +53,7 @@
 #include "shell/service.h"
 
 #include <cstdint>
+#include <functional>
 #include <optional>
 
 class Song;
@@ -90,18 +91,19 @@ public:
 	void set_song(Song* song) { song_ = song; }
 
 	/// @brief Point the knobs at @p focus -- `View::setActiveModControllableTimelineCounter` and
-	///        `setActiveModControllableWithoutTimelineCounter` (`view.cpp:1884-1939`). The mod region is kept.
+	///        `setActiveModControllableWithoutTimelineCounter`. The mod region is kept.
 	/// @param focus              What the knobs point at.
 	/// @param send_midi_feedback Re-send the learned params' CCs, whose values may have changed.
 	void set_focus(const bind::KnobFocus& focus, bool send_midi_feedback = true);
 
-	/// @brief Set the region automation is read and written at -- `View::setModRegion` (`view.cpp:1940-1967`). A held
+	/// @brief Set the region automation is read and written at -- `View::setModRegion`. A held
 	///        region on a stopped clip grabs its params' values from @p pos.
-	/// @param pos    The region's start; `0xFFFFFFFF` (legacy's default) is "at the playhead".
-	/// @param length The region's length; 0 for none.
-	void set_mod_region(uint32_t pos = 0xFFFFFFFF, uint32_t length = 0);
+	/// @param pos         The region's start; `0xFFFFFFFF` (legacy's default) is "at the playhead".
+	/// @param length      The region's length; 0 for none.
+	/// @param note_row_id The held note's row id.
+	void set_mod_region(uint32_t pos = 0xFFFFFFFF, uint32_t length = 0, int32_t note_row_id = 0);
 
-	/// @brief The mod button the knobs follow -- `View::getModKnobMode` (`view.cpp:1697-1706`).
+	/// @brief The mod button the knobs follow -- `View::getModKnobMode`.
 	/// @return The mode, or -1 with no focus (or a CV track's, which has no modes).
 	int32_t mode() const;
 
@@ -109,8 +111,12 @@ public:
 	const bind::KnobFocus& focus() const { return *focus_; }
 
 	/// @brief Keep the focus in @p store, which the legacy views keep too, rather than in this service's own.
-	/// @param store The one focus store; it outlives this service.
-	void use_focus(bind::KnobFocus& store) { focus_ = &store; }
+	/// @param store   The one focus store; it outlives this service.
+	/// @param changed Called after this service writes the store's owner or region, so its other keeper follows.
+	void use_focus(bind::KnobFocus& store, std::function<void()> changed = {}) {
+		focus_ = &store;
+		focus_changed_ = std::move(changed);
+	}
 
 	/// @}
 
@@ -120,18 +126,18 @@ public:
 	/// @brief The root-UI questions `View::modButtonAction`, `setKnobIndicatorLevels` and `setModLedStates` ask,
 	///        told by whoever knows: `src/scenes` may not include `gui/`. The defaults are a plain root view's.
 	struct ViewState {
-		/// The automation editor is up (`view.cpp:1518`, `:1402`, `:1687`): mod buttons are ignored, the indicators
-		/// are left as they are, and every mod LED is off.
+		/// The automation editor is up (`View::modButtonAction`, `setKnobIndicatorLevels`, `setModLedStates`): mod
+		/// buttons are ignored, the indicators are left as they are, and every mod LED is off.
 		bool in_automation_editor = false;
-		/// The automation editor is on the arranger (`view.cpp:1520`): mod button 0 still toggles the VU meter.
+		/// The automation editor is on the arranger (`View::modButtonAction`): mod button 0 still toggles the VU meter.
 		bool automation_on_arranger = false;
-		/// The root is performance view (`view.cpp:1529`): a mod button is taken whatever UI mode is active, and it
-		/// leaves a stutter playing.
+		/// The root is performance view (`View::modButtonAction`): a mod button is taken whatever UI mode is active,
+		/// and it leaves a stutter playing.
 		bool root_is_performance = false;
 		/// The root is a clip minder (`gui/ui/ui.cpp:157-160`): the VU meter is not offered. Not the same question as
 		/// `is_clip_context`: in session view with a clip pressed the knobs are on the clip and the root is not one.
 		bool root_is_clip_minder = false;
-		/// `isUIModeWithinRange(modButtonUIModes)` (`view.cpp:1504-1512`): true with no UI mode active.
+		/// `View::modButtonUIModeInRange`: true with no UI mode active.
 		bool mod_button_ui_mode_in_range = true;
 	};
 
@@ -145,7 +151,7 @@ public:
 	/// @name Gestures and their state
 	/// @{
 
-	/// @brief One mod button pressed or released -- `View::modButtonAction` (`view.cpp:1514-1563`): the knobs' mode,
+	/// @brief One mod button pressed or released -- `View::modButtonAction`: the knobs' mode,
 	///        the VU-meter toggle, the end of a stutter, and the button's popup.
 	/// @param which_button 0..7.
 	/// @param on           Press or release.
@@ -158,7 +164,7 @@ public:
 	/// @brief Backdate both knobs' "last turned" clocks -- `View::pretendModKnobsUntouchedForAWhile`.
 	void pretend_knobs_untouched();
 
-	/// @brief A param was automated -- `View::notifyParamAutomationOccurred` (`view.cpp:1708-1729`): arms the
+	/// @brief A param was automated -- `View::notifyParamAutomationOccurred`: arms the
 	///        automation display and the MIDI-follow feedback deadlines when it is the knobs' owner's.
 	/// @param owner             The automated param's owner and clip, as an address.
 	/// @param update_mod_levels Legacy's `updateModLevels`.
@@ -208,7 +214,8 @@ private:
 	/// @brief Hand @p turn to the popup and push it if it is not stacked yet.
 	/// @return True when the popup redrew, so the caller owes a `Repaint`.
 	bool show_popup(const ModTurn& turn, uint32_t now_ms);
-	/// @brief Is the menu on top focused on this very param (`view.cpp:876-882`)? The performance-view and
+	/// @brief Is the menu on top focused on this very param (`View::modEncoderAction_existentParam`)? The
+	/// performance-view and
 	///        song-browser suppressions have no scene to ask yet.
 	bool popup_suppressed(const ModTurn& turn) const;
 	/// @brief `View::potentiallyMakeItHarderToTurnKnob`: blink a centred knob and make it harder to turn away.
@@ -223,7 +230,7 @@ private:
 	void declare_indicators(deluge::ui::LedFrame& frame);
 	/// @brief Is knob @p which_encoder inside its blink's flash? Each knob keeps its own phase.
 	bool indicator_blinking(int32_t which_encoder) const;
-	/// @brief `View::sendMidiFollowFeedback` (`view.cpp:1730-1748`).
+	/// @brief `View::sendMidiFollowFeedback`.
 	void send_midi_follow_feedback(deluge::modulation::params::Kind kind, int32_t param_id, int32_t knob_pos,
 	                               bool have_param, bool is_automation);
 	/// @brief Whether the app's facts and sink act on the song the knobs read.
@@ -241,6 +248,8 @@ private:
 	bind::KnobFocus own_focus_{};
 	/// Where the focus is kept: @ref own_focus_, or the store @ref use_focus names.
 	bind::KnobFocus* focus_ = &own_focus_;
+	/// What @ref use_focus asked to be told of a write to the store.
+	std::function<void()> focus_changed_;
 	/// A MIDI track's knob (@ref selecting_knob_) is choosing its CC, which the next mod button ends.
 	bool selecting_cc_ = false;
 	int32_t selecting_knob_ = 0;

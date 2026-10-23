@@ -733,7 +733,8 @@ int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder, const de
 	}
 
 	else if (modKnobMode == 4) {
-		if (whichModEncoder == 0 && !comp.editing) {
+		// The compressor view is the song's alone: a clip's chain keeps its reverb send.
+		if (whichModEncoder == 0 && !(comp.editing && isSong())) {
 			return params::UNPATCHED_REVERB_SEND_AMOUNT;
 		}
 	}

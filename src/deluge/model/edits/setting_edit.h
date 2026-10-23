@@ -202,8 +202,33 @@ inline void songSettingFor(std::string_view path, deluge::serialization::Value v
 	applySettingEdit({deluge::project::SettingGroupId::SONG, deluge::project::SongAddress{}}, path, std::move(value));
 }
 
-/// @brief A menu's change of the current song's setting at @p path, in the menu's units: the row's user scale
-///        (`engine::to_stored`) gives the value the record holds.
+/// @brief A change of @p song's own setting at @p path, in the song menu's units: the row's user scale
+///        (`engine::to_stored`) gives the value the record holds. Logs a refusal.
+/// @param song The song.
+/// @param path The setting's path in the song group.
+/// @param user The menu's value.
+inline void songSettingFromMenuIn(::Song& song, std::string_view path, int32_t user) {
+	for (const deluge::engine::SettingInfo& row : deluge::project::table_of(deluge::project::SettingGroupId::SONG)) {
+		if (row.path == path) {
+			if (const std::optional<int32_t> stored = deluge::engine::to_stored(row, user)) {
+				const deluge::serialization::Value value = deluge::serialization::Value::makeNumber(*stored);
+				deluge::edits::Context ctx{song, song.project};
+				deluge::edits::SetSetting edit{
+				    {deluge::project::SettingGroupId::SONG, deluge::project::SongAddress{}}, std::string(path), value};
+				if (deluge::edits::apply(ctx, edit) != Error::NONE) {
+					D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(),
+					          value.str().c_str());
+				}
+				return;
+			}
+			break;
+		}
+	}
+	D_PRINTLN("setting refused: %.*s = %d", static_cast<int>(path.size()), path.data(), static_cast<int>(user));
+}
+
+/// @brief A menu's change of the current song's setting at @p path, in the menu's units: songSettingFromMenuIn on the
+///        current song.
 /// @param path The setting's path in the song group.
 /// @param user The menu's value.
 inline void songSettingFromMenu(std::string_view path, int32_t user) {
@@ -211,16 +236,7 @@ inline void songSettingFromMenu(std::string_view path, int32_t user) {
 		D_PRINTLN("setting refused, no song: %.*s", static_cast<int>(path.size()), path.data());
 		return;
 	}
-	for (const deluge::engine::SettingInfo& row : deluge::project::table_of(deluge::project::SettingGroupId::SONG)) {
-		if (row.path == path) {
-			if (const std::optional<int32_t> stored = deluge::engine::to_stored(row, user)) {
-				songSettingFor(path, deluge::serialization::Value::makeNumber(*stored));
-				return;
-			}
-			break;
-		}
-	}
-	D_PRINTLN("setting refused: %.*s = %d", static_cast<int>(path.size()), path.data(), static_cast<int>(user));
+	songSettingFromMenuIn(*currentSong, path, user);
 }
 
 /// @brief A gesture's change of @p output's setting at @p path (its name, or its MIDI or CV instrument's fields): an

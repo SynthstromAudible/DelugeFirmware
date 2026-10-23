@@ -410,14 +410,14 @@ void retire(SoundDrum* drum);
 void retire(Output* output);
 /// @brief [interaction] As above, for a clip the caller has already prepared for destruction
 ///        (Clip::prepareForDestruction()) and taken out of its song's arrays and clip instances. The references the
-///        interaction tier itself reads -- the current song's currentClip and syncScalingClip, and the view's active
-///        ModControllable model stack -- are cleared here, synchronously, before the handover. At the top of a
+///        interaction tier itself reads -- the current song's currentClip and syncScalingClip -- are cleared here,
+///        synchronously, before the handover, and the gold knobs are let go of if they name the clip. At the top of a
 ///        following block the render then nulls whatever it wrote itself in between (currentClip, syncScalingClip,
-///        any of the current song's clips' beingRecordedFromClip, the view's stack), and the clip is destroyed as
+///        any of the current song's clips' beingRecordedFromClip), and the clip is destroyed as
 ///        above. An AudioClip must no longer be recording (i001 on alpha/beta builds).
 void retire(Clip* clip);
 /// @brief [interaction] As above, for a whole song the caller has already replaced as currentSong (E458 if it is still
-///        current). The view's active model stack is dropped at once if it names the song or anything it owns. At the
+///        current). The gold knobs are let go of at once if they are on the song. At the
 ///        top of a following block the render lets go of every Sound of every output the song owns (voices ended,
 ///        Sounds deregistered), and the song is then destroyed as above: ~Song() destroys its clips and outputs
 ///        directly, since nothing can reach them any more.

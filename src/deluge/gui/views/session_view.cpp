@@ -2304,11 +2304,8 @@ void SessionView::potentiallyUpdateCompressorLEDs() {
 	static int counter = 0;
 	if (currentUIMode == UI_MODE_NONE) {
 		const int32_t modKnobMode = view.knobMode();
-		// The compressor view is a chain's: the song's, or a kit's or audio track's.
-		const auto& knobs = view.knobFocus();
-		const bool editingComp = knobs.comp.editing
-		                         && (std::holds_alternative<deluge::project::SongFocus>(knobs.owner)
-		                             || std::holds_alternative<deluge::project::ChainFocus>(knobs.owner));
+		// The compressor view is the song's: the meter is the master compressor's.
+		const bool editingComp = view.knobComp().editing;
 		if (modKnobMode == 4 && editingComp) { // upper
 			counter = (counter + 1) % 5;
 			if (counter == 0) {

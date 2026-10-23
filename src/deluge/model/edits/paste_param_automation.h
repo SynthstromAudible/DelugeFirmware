@@ -49,7 +49,8 @@ private:
 	int32_t endPos_;
 	float scaleFactor_;
 	CopiedParamAutomation* copied_;        ///< Clipboard borrow.
-	bool isPatchCable_;                    ///< Whether the destination is a patch cable; the address form's own.
+	bool isPatchCable_;                    ///< Whether the destination is a patch cable; the stack form's (the address
+	                                       ///< form reads it off the param it resolves).
 	ModelStackWithAutoParam* engineStack_; ///< Engine borrow; null for the address form.
 	bool follow_take_{false};              ///< The address form resolves as a knob's write does.
 };

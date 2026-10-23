@@ -52,14 +52,14 @@ struct RenderRequest {
 	Song* song = nullptr;
 };
 
-/// [render] -> [interaction] The render's requests, in order. A song swap posts one, an armed launch one per repeat
-/// counted, and a recording into the arranger one per clip whose loop ends in a block. A job can span many blocks (an
+/// [render] -> [interaction] The render's requests, in order. A song swap posts one, and an armed launch one per repeat
+/// counted. A job can span many blocks (an
 /// AudioEngine::awaitRetired() wait, a card wait), so the ring can fill; see g_requestsOverflowed for what a dropped
 /// request becomes.
 deluge::util::SpscRing<RenderRequest, 16> g_requests;
 /// [render] -> [interaction] Set when a request found the queue full and was dropped. The interaction tier can no
-/// longer tell what it named, so it does the conservative part of every request: it releases the view's active model
-/// stack and forgets every MIDI follow stored clip not of the current song. A song swap is never lost this way: see
+/// longer tell what it named, so it does the conservative part of every request: it releases the gold knobs' focus
+/// and forgets every MIDI follow stored clip not of the current song. A song swap is never lost this way: see
 /// g_pendingSwap.
 std::atomic<bool> g_requestsOverflowed{false};
 

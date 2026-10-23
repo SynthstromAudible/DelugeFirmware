@@ -95,6 +95,12 @@ public:
 	/// reach the view whichever UI is on top. Writes only the focus; the knob indicators and mod LEDs are left to the
 	/// caller.
 	void releaseActiveModControllable();
+	/// @brief [interaction] The compressor view the knobs' owner follows: the focus's for the song, which alone has
+	///        one; none for any other owner.
+	[[nodiscard]] const deluge::project::CompView& knobComp() const;
+	/// @brief [interaction] Follow a write another keeper of the focus made (the guest's knobs): the song the focus is
+	///        in, whether it is a clip's, and the param manager the render compares automation against.
+	void knobFocusChanged();
 	/// @brief [interaction] The engine stack of the owner the knobs move, resolved now from the focus (following the
 	///        take the arrangement records, without making one). Valid until the song's structure next changes.
 	/// @param memory MODEL_STACK_MAX_SIZE bytes, aligned as ModelStackWithAutoParam, which the stack lives in.
@@ -134,7 +140,8 @@ public:
 	///        song's or nothing?
 	[[nodiscard]] bool knobsOnClipContext() const { return knobsOnClipContext_; }
 	/// @brief [interaction] Does a held pad's step-edit region hold on @p counter (and, given one, on the row @p
-	///        noteRowId)? Only a clip of the current song the knobs are on holds one.
+	///        noteRowId)? Only a clip of the current song the knobs are on, or the take the arrangement records it
+	///        into, holds one.
 	[[nodiscard]] bool stepEditRegionHolds(const TimelineCounter& counter,
 	                                       std::optional<int32_t> noteRowId = std::nullopt) const;
 	/// @brief [interaction] The held region's start, or 0xFFFFFFFF for none (an AutoParam's "current value" pos).
@@ -308,6 +315,9 @@ private:
 	/// @brief Set the focus's owner from @p stack, a view's stack for its target, keeping its region, compressor view
 	///        and VU meter.
 	void setKnobFocusFrom(const ModelStackWithThreeMainThings* stack);
+	/// @brief The compressor view a push may move: the focus's for the song; none (the push moves a view nothing
+	///        keeps) for any other owner.
+	[[nodiscard]] deluge::project::CompView* knobCompToMove();
 	/// @brief Take the knobs' param manager, which the render compares automation against, from the focus now.
 	void refreshKnobParamManager();
 	/// @brief The address of @p param, a param of the knobs' owner, with the clip the focus names.

@@ -897,7 +897,7 @@ void report() {
 	printf("SU-STACK renderWrites=%d\n", renderWrites);
 	if (renderWrites != 0) {
 		fail("SU-STACK",
-		     "a render block changed the view's active model stack, which only the interaction tier writes");
+		     "a render block changed the gold knobs' render-visible words, which only the interaction tier writes");
 	}
 	using deluge::playback::InteractionOwned;
 	using deluge::playback::renderInteractionWrites;

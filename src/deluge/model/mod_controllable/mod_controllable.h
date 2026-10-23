@@ -43,8 +43,8 @@ public:
 	ModControllable() = default;
 	virtual ~ModControllable() = default;
 	/// @name The gold knobs
-	/// The compressor view (`comp`) is the knobs' own view state, which a chain's knobs follow and others ignore; a
-	/// push into or around it moves the view it is given, and none given moves a view nothing keeps.
+	/// The compressor view (`comp`) is the knobs' own view state, which the song's knobs follow and every other owner
+	/// ignores; a push into or around it moves the view it is given, and none given moves a view nothing keeps.
 	/// @{
 	virtual bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack,
 	                                    deluge::project::CompView* comp = nullptr) {

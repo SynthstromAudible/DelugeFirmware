@@ -12,6 +12,7 @@
 
 #include "deluge-project/knob_focus.h"
 #include "engines/deluge/params.h"
+#include "engines/global_effectable/params.h"
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
 #include "io/midi/midi_device_manager.h"
@@ -23,15 +24,19 @@
 #include "model/edits/set_param_value.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
+#include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
+#include "model/note/note_row.h"
 #include "model/project_bridge/param_stack.h"
 #include "model/song/reverb_presets.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
+#include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "scenes/bind/knob_assignment.h"
 #include "storage/storage_manager.h"
 
 #include "support/song_fixture.h"
@@ -597,6 +602,143 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		}
 		expect(std::string{deluge::model::reverbPresetName(0)}).to_equal(std::string{deluge::l10n::get(deluge::l10n::String::STRING_FOR_SMALL_ROOM_REVERB)});
 		expect(std::string{deluge::model::reverbPresetName(2)}).to_equal(std::string{deluge::l10n::get(deluge::l10n::String::STRING_FOR_LARGE_ROOM_REVERB)});
+		currentSong = nullptr;
+	});
+
+	it("keeps the compressor view the song's: a kit's knobs in mode 4 edit its reverb send, as the port's do", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		currentSong = f.song;
+		auto* kit = static_cast<Kit*>(f.instrument);
+		f.song->persistentView.affectEntire = true;
+		view.setActiveModControllableTimelineCounter(f.song, false);
+		view.knobFocus().comp = project::CompView{.editing = true, .param = 1};
+		*kit->getModKnobMode() = 4;
+		f.song->project.output_structure.find(*kit->id())->mod_knob_mode = 4;
+		f.clip->affectEntire = true;
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		expect(view.knobFocus().comp.editing).to_be_true(); // the song's view, kept for the song
+		const std::optional<project::ParamAddress> lower = view.knobAddress(0);
+		expect(lower.has_value() && lower->id == deluge::global_effectable::param::kReverbAmount).to_be_true();
+		const deluge::scenes::bind::KnobAssignment port =
+		    deluge::scenes::bind::knob_assignment(f.song->project, view.knobFocus(), 0);
+		const auto* address = std::get_if<project::ParamAddress>(&port.target);
+		expect(address != nullptr && address->id == deluge::global_effectable::param::kReverbAmount).to_be_true();
+		view.knobFocus().comp = {};
+		view.releaseActiveModControllable();
+		currentSong = nullptr;
+	});
+
+	it("lets go of the knobs for a retired clip only while their song is the current one", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		spec::SongFixture elsewhere = spec::make_synth_song();
+		currentSong = f.song;
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		expect(elsewhere.clip->id() == f.clip->id()).to_be_true();
+		currentSong = elsewhere.song; // a clip of another song retires, with the same id
+		view.releaseKnobsIfOn(*elsewhere.clip);
+		currentSong = f.song;
+		expect(std::holds_alternative<project::SoundFocus>(focus().owner)).to_be_true();
+		view.releaseActiveModControllable();
+		currentSong = nullptr;
+	});
+
+	it("holds a step-edit region on the take the arrangement records the knobs' clip into", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		InstrumentClip* take = spec::detail::make_session_clip(f.song);
+		take->beingRecordedFromClip = f.clip;
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		view.setModRegion(96, 48, 0);
+		expect(view.stepEditRegionHolds(*take)).to_be_true();
+		take->beingRecordedFromClip = nullptr;
+		expect(view.stepEditRegionHolds(*take)).to_be_false();
+		view.setModRegion();
+		view.releaseActiveModControllable();
+		currentSong = nullptr;
+	});
+
+	it("writes a learned kit-row knob's region on the held clip", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		currentSong = f.song;
+		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
+		static_cast<Kit*>(f.instrument)->selectedDrum = drum;
+		f.clip->affectEntire = false;
+		ParamDescriptor volume;
+		volume.setToHaveParamOnly(params::LOCAL_VOLUME);
+		(void)deluge::edits::learnKnobFor(*drum, volume, &MIDIDeviceManager::dinMIDIPorts, 75, 1);
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		view.setModRegion(96, 48, static_cast<int32_t>(*drum->id()));
+		int32_t row_index = 0;
+		(void)f.clip->getNoteRowForDrum(drum, &row_index);
+		char memory[MODEL_STACK_MAX_SIZE];
+		drum->offerReceivedCCToLearnedParamsForClip({project::ControlsAddress::Kind::DRUM, *drum->id()},
+		                                            MIDIDeviceManager::dinMIDIPorts, 1, 75, 100,
+		                                            setupModelStackWithTimelineCounter(memory, f.song, f.clip), row_index);
+		const deluge::project::DocAutoParam* param = f.song->project.resolveParam(
+		    {.owner = project::OwnerId::drum(*drum->id()), .space = project::ParamSpace::ENGINE,
+		     .id = deluge::instrument::param::kVolume, .clip_id = f.clip->id()});
+		expect(param != nullptr && !param->nodes.empty()).to_be_true();
+		view.setModRegion();
+		view.releaseActiveModControllable();
+		currentSong = nullptr;
+	});
+
+	it("writes a MIDI track's input-channel CC as a region only while the knobs hold one on its clip", _ {
+		spec::SongFixture f = spec::make_midi_song();
+		currentSong = f.song;
+		auto* midi = static_cast<MIDIInstrument*>(f.instrument);
+		const auto cc_automated = [&](int32_t cc) {
+			const deluge::project::DocAutoParam* param = f.song->project.resolveParam(
+			    {.owner = project::OwnerId::clip(f.clip->id()), .space = project::ParamSpace::MIDI_CC,
+			     .id = deluge::engine::ParamId{static_cast<uint32_t>(cc)}});
+			return param != nullptr && !param->nodes.empty();
+		};
+		char memory[MODEL_STACK_MAX_SIZE];
+		midi->setActiveClip(setupModelStackWithTimelineCounter(memory, f.song, f.clip), PgmChangeSend::NEVER);
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		view.setModRegion(96, 48, 0);
+		midi->ccReceivedFromInputMIDIChannel(20, 100, setupModelStackWithTimelineCounter(memory, f.song, f.clip));
+		expect(cc_automated(20)).to_be_true();
+		view.setModRegion();
+		midi->ccReceivedFromInputMIDIChannel(21, 100, setupModelStackWithTimelineCounter(memory, f.song, f.clip));
+		expect(cc_automated(21)).to_be_false();
+		view.releaseActiveModControllable();
+		currentSong = nullptr;
+	});
+
+	it("takes an MPE value as the held note's edit on its row only", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		int32_t held_index = 0;
+		NoteRow* held = f.clip->noteRows.insertNoteRowAtY(60, &held_index);
+		int32_t other_index = 0;
+		NoteRow* other = f.clip->noteRows.insertNoteRowAtY(61, &other_index);
+		expect(held != nullptr && other != nullptr).to_be_true();
+		if (held != nullptr && other != nullptr) {
+			view.setActiveModControllableTimelineCounter(f.clip, false);
+			char memory[MODEL_STACK_MAX_SIZE];
+			{
+				// The note editor holds the region with the row's id as its stack names it.
+				int32_t at = 0;
+				NoteRow* row = f.clip->getNoteRowForYNote(60, &at);
+				view.setModRegion(96, 48,
+				                  setupModelStackWithTimelineCounter(memory, f.song, f.clip)->addNoteRow(at, row)->noteRowId);
+			}
+			// Pressure (dimension 2) is what the note editor keeps of a held note's MPE.
+			instrumentClipView.mpeMostRecentPressure = 0;
+			int32_t index = 0;
+			NoteRow* row = f.clip->getNoteRowForYNote(61, &index);
+			(void)row->recordPolyphonicExpressionEvent(
+			    setupModelStackWithTimelineCounter(memory, f.song, f.clip)->addNoteRow(index, row), 1 << 28, 2, false);
+			expect(instrumentClipView.mpeMostRecentPressure).to_equal(int16_t{0});
+			row = f.clip->getNoteRowForYNote(60, &index);
+			(void)row->recordPolyphonicExpressionEvent(
+			    setupModelStackWithTimelineCounter(memory, f.song, f.clip)->addNoteRow(index, row), 1 << 28, 2, false);
+			expect(instrumentClipView.mpeMostRecentPressure).to_equal(int16_t{(1 << 28) >> 16});
+			instrumentClipView.mpeMostRecentPressure = 0;
+			view.setModRegion();
+			view.releaseActiveModControllable();
+		}
 		currentSong = nullptr;
 	});
 });

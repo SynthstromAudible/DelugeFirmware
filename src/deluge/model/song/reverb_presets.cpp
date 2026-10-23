@@ -23,9 +23,6 @@
 #include "model/song/song.h"
 
 #include <cstdlib>
-#include <optional>
-#include <string>
-#include <string_view>
 
 namespace deluge::model {
 
@@ -35,22 +32,6 @@ namespace {
 constexpr std::array<l10n::String, kNumReverbPresets> kReverbPresetNames{l10n::String::STRING_FOR_SMALL_ROOM_REVERB,
                                                                          l10n::String::STRING_FOR_MEDIUM_ROOM_REVERB,
                                                                          l10n::String::STRING_FOR_LARGE_ROOM_REVERB};
-
-/// Set @p song's own setting at @p path to @p user, in the song menu's units, as the menu's Edit does.
-void songSettingFromMenuIn(::Song& song, std::string_view path, int32_t user) {
-	for (const engine::SettingInfo& row : project::table_of(project::SettingGroupId::SONG)) {
-		if (row.path == path) {
-			if (const std::optional<int32_t> stored = engine::to_stored(row, user)) {
-				edits::Context ctx{song, song.project};
-				edits::SetSetting edit{{project::SettingGroupId::SONG, project::SongAddress{}},
-				                       std::string(path),
-				                       serialization::Value::makeNumber(*stored)};
-				(void)edits::apply(ctx, edit);
-			}
-			return;
-		}
-	}
-}
 
 } // namespace
 
@@ -76,8 +57,8 @@ const char* reverbPresetName(size_t preset) {
 
 void cycleReverbPreset(::Song& song) {
 	const size_t next = (reverbPresetOf(song.project) + 1) % kNumReverbPresets;
-	songSettingFromMenuIn(song, "reverb/roomSize", kReverbPresetRoomSize[next]);
-	songSettingFromMenuIn(song, "reverb/dampening", kReverbPresetDamping[next]);
+	edits::songSettingFromMenuIn(song, "reverb/roomSize", kReverbPresetRoomSize[next]);
+	edits::songSettingFromMenuIn(song, "reverb/dampening", kReverbPresetDamping[next]);
 }
 
 } // namespace deluge::model

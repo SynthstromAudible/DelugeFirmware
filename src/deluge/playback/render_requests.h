@@ -23,8 +23,8 @@ class Song;
 
 /// The render's hand-over of interaction-owned work.
 ///
-/// Playback runs on the render, and some of what it does changes state only the interaction tier owns: the view's
-/// active model stack, MIDI follow's stored clips, the UI mode, the display. The render never writes that state. It
+/// Playback runs on the render, and some of what it does changes state only the interaction tier owns: the gold
+/// knobs' focus, MIDI follow's stored clips, the UI mode, the display. The render never writes that state. It
 /// posts a request, and the interaction tier does the work before its next job. Called on the interaction tier, the
 /// same entry points do the work at once, so an immediate and an armed song swap run one code path.
 namespace deluge::playback {
@@ -32,12 +32,12 @@ namespace deluge::playback {
 /// @brief [render] or [interaction] A song swap has taken @p outgoing out of play and made its successor current: do
 ///        the interaction tier's side of the swap.
 ///
-/// That side is: stop the outgoing song's auditioning, let go of the view's active model stack, forget MIDI follow's
-/// stored clips from the outgoing song, tell the instrument load a song was made current, and show the load's LOADING
-/// mode and animation. On the interaction tier it is done at once. On the render it is posted, and done before the
-/// interaction tier's next job: until then an interaction handler the render preempted sees everything still naming @p
-/// outgoing, which stays alive until the interaction tier hands it to AudioEngine::retire(Song*) -- which applies the
-/// requests first.
+/// That side is: stop the outgoing song's auditioning, let go of the gold knobs if they are on the outgoing song,
+/// forget MIDI follow's stored clips from the outgoing song, tell the instrument load a song was made current, and show
+/// the load's LOADING mode and animation. On the interaction tier it is done at once. On the render it is posted, and
+/// done before the interaction tier's next job: until then an interaction handler the render preempted sees everything
+/// still naming @p outgoing, which stays alive until the interaction tier hands it to AudioEngine::retire(Song*) --
+/// which applies the requests first.
 /// @param outgoing the song swapped out, or nullptr when there was none (it was already retired)
 void songSwappedOut(Song* outgoing);
 
