@@ -177,6 +177,9 @@ public:
 	                    std::vector<deluge::project::ControllerMapping> controls) override;
 	bool stutter(const deluge::scenes::bind::KnobFocus& focus, bool begin) override;
 	bool grab_region(const deluge::scenes::bind::KnobFocus& focus, uint32_t pos) override;
+	bool write_effect(const deluge::scenes::bind::EffectOwner& owner, std::string_view path,
+	                  const deluge::serialization::Value& value) override;
+	bool midi_cc_select(const deluge::scenes::bind::KnobFocus& focus, int32_t knob, bool on) override;
 	[[nodiscard]] uint32_t refusals() const { return refusals_; }
 
 private:
@@ -840,6 +843,25 @@ bool ShellEditSink::stutter(const deluge::scenes::bind::KnobFocus& focus, bool b
 bool ShellEditSink::grab_region(const deluge::scenes::bind::KnobFocus& focus, uint32_t pos) {
 	const std::optional<deluge::project::ParamAddress> owner = deluge::scenes::bind::knob_owner(focus);
 	return currentSong != nullptr && owner && deluge::bridge::grabRegionAt(*currentSong, *owner, pos);
+}
+
+bool ShellEditSink::write_effect(const deluge::scenes::bind::EffectOwner& owner, std::string_view path,
+                                 const deluge::serialization::Value& value) {
+	if (currentSong == nullptr) {
+		return false;
+	}
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	if (const auto* slot = std::get_if<deluge::project::SlotAddress>(&owner)) {
+		deluge::edits::SetEngineSetting edit{*slot, std::string{path}, value};
+		return deluge::edits::apply(ctx, edit) == Error::NONE;
+	}
+	deluge::edits::SetEffectSetting edit{std::get<deluge::project::ChainAddress>(owner), std::string{path}, value};
+	return deluge::edits::apply(ctx, edit) == Error::NONE;
+}
+
+bool ShellEditSink::midi_cc_select(const deluge::scenes::bind::KnobFocus& focus, int32_t knob, bool on) {
+	const std::optional<deluge::project::ParamAddress> owner = deluge::scenes::bind::knob_owner(focus);
+	return currentSong != nullptr && owner && deluge::bridge::midiCcSelectAt(*currentSong, *owner, knob, on);
 }
 
 std::optional<int32_t> ShellRuntimeFacts::param_value(const deluge::project::ParamAddress& address) const {

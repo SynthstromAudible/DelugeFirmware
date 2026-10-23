@@ -83,6 +83,15 @@ bool stutterAt(::Song& song, const project::ParamAddress& owner, bool begin);
 /// @return Whether the owner resolved.
 bool grabRegionAt(::Song& song, const project::ParamAddress& owner, uint32_t pos);
 
+/// @brief Press (or release) gold knob @p knob on @p owner's MIDI clip: the instrument's own CC-select gesture, which
+/// sets the clip minder's state.
+/// @param song  The song holding the clip.
+/// @param owner The MIDI clip, as an address with no param.
+/// @param knob  0 the lower, 1 the upper.
+/// @param on    Press (true) or release.
+/// @return Whether the owner resolved to a MIDI clip.
+bool midiCcSelectAt(::Song& song, const project::ParamAddress& owner, int32_t knob, bool on);
+
 /// @brief The engine stack naming the cable at @p address (a synth's or a sound drum's depth), made with @p polarity
 /// where the sound does not hold it yet. The record takes the new cable, polarity and all, when the sound's cable set
 /// is bound to it (it is, once relocated; the Edit that writes the cable relocates it).

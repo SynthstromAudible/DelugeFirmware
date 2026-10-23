@@ -2,6 +2,7 @@
 /// @brief `ParamPopupScene`. See `param_popup_scene.h`.
 
 #include "scenes/overlay/param_popup_scene.h"
+#include "scenes/services/source_names.h"
 
 #include "ui/oled/popup.h"
 
@@ -59,46 +60,9 @@ struct FixedAppend {
 	}
 };
 
-/// @brief `sourceToStringShort` (`util/functions.cpp:381-431`), transcribed: `src/scenes` may not
-///        include `util/functions.h` (`scenes/menu/nodes/output_items.cpp` documents the same
-///        boundary for the same file).
-/// @param source The patch source.
-/// @return Its four-character short name, or `"----"` for anything not in the switch.
+/// @brief @p source's short name, as a C string for the fixed appender.
 const char* source_short_name(PatchSource source) {
-	switch (source) {
-	case PatchSource::LFO_GLOBAL_1:
-		return "lfo1";
-	case PatchSource::LFO_GLOBAL_2:
-		return "lfo3";
-	case PatchSource::LFO_LOCAL_1:
-		return "lfo2";
-	case PatchSource::LFO_LOCAL_2:
-		return "lfo4";
-	case PatchSource::ENVELOPE_0:
-		return "env1";
-	case PatchSource::ENVELOPE_1:
-		return "env2";
-	case PatchSource::ENVELOPE_2:
-		return "env3";
-	case PatchSource::ENVELOPE_3:
-		return "env4";
-	case PatchSource::VELOCITY:
-		return "velo";
-	case PatchSource::NOTE:
-		return "note";
-	case PatchSource::SIDECHAIN:
-		return "side";
-	case PatchSource::RANDOM:
-		return "rand";
-	case PatchSource::AFTERTOUCH:
-		return "pres";
-	case PatchSource::X:
-		return "mpeX";
-	case PatchSource::Y:
-		return "mpeY";
-	default:
-		return "----";
-	}
+	return services::source_short_name(source).data();
 }
 
 /// @brief `View::calculateKnobPosForDisplay` (`view.cpp:1319-1342`), transcribed. The unused

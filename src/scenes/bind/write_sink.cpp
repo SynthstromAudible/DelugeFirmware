@@ -119,6 +119,19 @@ bool RecordingSink::stutter(const KnobFocus& focus, bool begin) {
 	return true;
 }
 
+bool RecordingSink::write_effect(const EffectOwner& owner, std::string_view path, const serialization::Value& value) {
+	gestures.push_back({.kind = GestureRequest::Kind::EFFECT_WORD,
+	                    .text = value.isScalar() ? value.str() : std::string{},
+	                    .key = std::string{path},
+	                    .effect_owner = owner});
+	return true;
+}
+
+bool RecordingSink::midi_cc_select(const KnobFocus& focus, int32_t knob, bool on) {
+	gestures.push_back({.kind = GestureRequest::Kind::MIDI_CC_SELECT, .value = knob, .focus = focus, .begin = on});
+	return true;
+}
+
 bool RecordingSink::grab_region(const KnobFocus& focus, uint32_t pos) {
 	gestures.push_back({.kind = GestureRequest::Kind::GRAB_REGION, .value = pos, .focus = focus});
 	return true;

@@ -106,6 +106,10 @@ add_library(deluge_scenes STATIC
     # E4 task 2: the gold-knob half of legacy's `View`, as a `shell::Service` that lives here
     # (not in `src/shell`) because it is entirely about the model. See `services/mod_knobs.h`.
     services/mod_knobs.cpp
+    # What a gold knob's push and a mod button's press do, over the song's records. See `services/knob_push.h`.
+    services/knob_push.cpp
+    # A patch source's short and full names, which the popup, the mod matrix and the push all show.
+    services/source_names.cpp
     # E4 task 4: the transport-and-global half of legacy's `View`, plus the tail of
     # `Buttons::buttonAction`. Here for the same reason `mod_knobs.cpp` is. See
     # `services/global_controls.h`.

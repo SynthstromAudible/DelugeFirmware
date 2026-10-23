@@ -357,32 +357,29 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 }
 
 char const* getParamDisplayName(Kind kind, int32_t p, ModControllableAudio* modControllable) {
-	using enum l10n::String;
-
-	if (modControllable != nullptr) {
-		bool isLPFMorph = (kind == Kind::PATCHED && p == LOCAL_LPF_MORPH)
-		                  || (kind == Kind::UNPATCHED_GLOBAL && p == UnpatchedGlobal::UNPATCHED_LPF_MORPH);
-		bool isHPFMorph = (kind == Kind::PATCHED && p == LOCAL_HPF_MORPH)
-		                  || (kind == Kind::UNPATCHED_GLOBAL && p == UnpatchedGlobal::UNPATCHED_HPF_MORPH);
-
-		// The ladder filters repurpose morph, so they name it after what it actually does. The SVF modes really do
-		// morph, and a filter which is off has no morph param at all, so both keep the default name.
-		if (isLPFMorph) {
-			if (model::filter::SpecificFilter(modControllable->modControllableSnapshot().effects.filter.lpf_mode)
-			        .getFamily()
-			    == model::filter::FilterFamily::LP_LADDER) {
-				return l10n::get(STRING_FOR_LPF_DRIVE);
-			}
-		}
-		else if (isHPFMorph) {
-			if (model::filter::SpecificFilter(modControllable->modControllableSnapshot().effects.filter.hpf_mode)
-			        .getFamily()
-			    == model::filter::FilterFamily::HP_LADDER) {
-				return l10n::get(STRING_FOR_HPF_FM);
-			}
-		}
+	if (modControllable == nullptr) {
+		return getParamDisplayName(kind, p);
 	}
+	const auto& filter = modControllable->modControllableSnapshot().effects.filter;
+	return getParamDisplayName(kind, p, filter.lpf_mode, filter.hpf_mode);
+}
 
+char const* getParamDisplayName(Kind kind, int32_t p, deluge::effects::FilterMode lpf,
+                                deluge::effects::FilterMode hpf) {
+	using enum l10n::String;
+	const bool isLPFMorph = (kind == Kind::PATCHED && p == LOCAL_LPF_MORPH)
+	                        || (kind == Kind::UNPATCHED_GLOBAL && p == UnpatchedGlobal::UNPATCHED_LPF_MORPH);
+	const bool isHPFMorph = (kind == Kind::PATCHED && p == LOCAL_HPF_MORPH)
+	                        || (kind == Kind::UNPATCHED_GLOBAL && p == UnpatchedGlobal::UNPATCHED_HPF_MORPH);
+
+	// The ladder filters repurpose morph, so they name it after what it actually does. The SVF modes really do
+	// morph, and a filter which is off has no morph param at all, so both keep the default name.
+	if (isLPFMorph && model::filter::SpecificFilter(lpf).getFamily() == model::filter::FilterFamily::LP_LADDER) {
+		return l10n::get(STRING_FOR_LPF_DRIVE);
+	}
+	if (isHPFMorph && model::filter::SpecificFilter(hpf).getFamily() == model::filter::FilterFamily::HP_LADDER) {
+		return l10n::get(STRING_FOR_HPF_FM);
+	}
 	return getParamDisplayName(kind, p);
 }
 

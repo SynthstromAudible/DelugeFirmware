@@ -20,6 +20,7 @@
 ///        `patch_cables.h` for the map from legacy globals and for what did not come across.
 
 #include "scenes/menu/nodes/patch_cables.h"
+#include "scenes/services/source_names.h"
 
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/runtime_facts.h"
@@ -55,94 +56,13 @@ using deluge::l10n::String;
 namespace {
 
 // ---------------------------------------------------------------------------------------------
-// Text helpers. `util/` is outside this layer's include allowance (`scripts/check_layer_rules.py`'s
-// `scenes-includes-outside`), so the two `util/functions.cpp` name tables these pages need are
-// transcribed here, as `sound_compressor.cpp` and `sound_sidechain.cpp` transcribe theirs.
+// Text helpers. The two `util/functions.cpp` source-name tables are `services/source_names.h`'s.
 
-/// @brief `sourceToStringShort` (`util/functions.cpp:381-431`) -- "all should be four chars, to fit
-///        a fixed column layout", which is what the mod-matrix list's columns assume.
-///
-/// @note Three of the sixteen arms shipped wrong from E2 task 9 and were corrected by E4 task 3:
-///       `PatchSource::X` said "modx" for legacy's "mpeX", `PatchSource::Y` said "mody" for
-///       "mpeY", and the default said "none" for "----". All three are displayed text, so all
-///       three were user-visible divergences. `menu_patch_cables_64.pbm` records the `Y` row and
-///       moved with the fix. The sibling transcription in
-///       `scenes/overlay/param_popup_scene.cpp` always had all sixteen right; the two are checked
-///       against each other as well as against legacy.
-std::string_view source_short_name(PatchSource source) {
-	switch (source) {
-	case PatchSource::LFO_GLOBAL_1:
-		return "lfo1";
-	case PatchSource::LFO_GLOBAL_2:
-		return "lfo3";
-	case PatchSource::LFO_LOCAL_1:
-		return "lfo2";
-	case PatchSource::LFO_LOCAL_2:
-		return "lfo4";
-	case PatchSource::ENVELOPE_0:
-		return "env1";
-	case PatchSource::ENVELOPE_1:
-		return "env2";
-	case PatchSource::ENVELOPE_2:
-		return "env3";
-	case PatchSource::ENVELOPE_3:
-		return "env4";
-	case PatchSource::VELOCITY:
-		return "velo";
-	case PatchSource::NOTE:
-		return "note";
-	case PatchSource::SIDECHAIN:
-		return "side";
-	case PatchSource::RANDOM:
-		return "rand";
-	case PatchSource::AFTERTOUCH:
-		return "pres";
-	case PatchSource::X:
-		return "mpeX";
-	case PatchSource::Y:
-		return "mpeY";
-	default:
-		return "----";
-	}
-}
+using services::source_short_name;
 
-/// @brief `getSourceDisplayName` (`util/functions.cpp:315-368`), as the l10n *ids* it returns
-///        strings for -- resolved through the profile, this layer's one sanctioned text path.
+/// @brief `getSourceDisplayName`'s string for @p source, as the id the profile resolves.
 uint16_t source_display_string(PatchSource source) {
-	switch (source) {
-	case PatchSource::LFO_GLOBAL_1:
-		return sid(String::STRING_FOR_PATCH_SOURCE_LFO_GLOBAL_1);
-	case PatchSource::LFO_GLOBAL_2:
-		return sid(String::STRING_FOR_PATCH_SOURCE_LFO_GLOBAL_2);
-	case PatchSource::LFO_LOCAL_1:
-		return sid(String::STRING_FOR_PATCH_SOURCE_LFO_LOCAL_1);
-	case PatchSource::LFO_LOCAL_2:
-		return sid(String::STRING_FOR_PATCH_SOURCE_LFO_LOCAL_2);
-	case PatchSource::ENVELOPE_0:
-		return sid(String::STRING_FOR_PATCH_SOURCE_ENVELOPE_0);
-	case PatchSource::ENVELOPE_1:
-		return sid(String::STRING_FOR_PATCH_SOURCE_ENVELOPE_1);
-	case PatchSource::ENVELOPE_2:
-		return sid(String::STRING_FOR_PATCH_SOURCE_ENVELOPE_2);
-	case PatchSource::ENVELOPE_3:
-		return sid(String::STRING_FOR_PATCH_SOURCE_ENVELOPE_3);
-	case PatchSource::VELOCITY:
-		return sid(String::STRING_FOR_PATCH_SOURCE_VELOCITY);
-	case PatchSource::NOTE:
-		return sid(String::STRING_FOR_PATCH_SOURCE_NOTE);
-	case PatchSource::SIDECHAIN:
-		return sid(String::STRING_FOR_PATCH_SOURCE_SIDECHAIN);
-	case PatchSource::RANDOM:
-		return sid(String::STRING_FOR_PATCH_SOURCE_RANDOM);
-	case PatchSource::AFTERTOUCH:
-		return sid(String::STRING_FOR_PATCH_SOURCE_AFTERTOUCH);
-	case PatchSource::X:
-		return sid(String::STRING_FOR_PATCH_SOURCE_X);
-	case PatchSource::Y:
-		return sid(String::STRING_FOR_PATCH_SOURCE_Y);
-	default:
-		return sid(String::STRING_FOR_PATCH_SOURCE_UNKNOWN);
-	}
+	return sid(services::source_display_string(source));
 }
 
 /// @brief Append @p s to @p out, up to @p cap.

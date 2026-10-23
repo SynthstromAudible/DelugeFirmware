@@ -272,6 +272,8 @@ char const* getParamDisplayName(Kind kind, int32_t p);
 /// As above, but resolves the LPF/HPF morph params to the name the current filter mode gives them (the ladder filters
 /// call it drive and FM respectively). Falls back to the mode-agnostic name if modControllable is null.
 char const* getParamDisplayName(Kind kind, int32_t p, ModControllableAudio* modControllable);
+/// As above, with the owner's filter modes given rather than read off it.
+char const* getParamDisplayName(Kind kind, int32_t p, deluge::effects::FilterMode lpf, deluge::effects::FilterMode hpf);
 
 bool paramNeedsLPF(ParamType p, bool fromAutomation);
 

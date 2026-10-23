@@ -12,6 +12,7 @@
 #include "engines/deluge/sound_state.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/bind/target.h"
+#include "serialization/value.h"
 
 #include <cstdint>
 #include <optional>
@@ -19,6 +20,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 class MIDICable;
@@ -68,6 +70,9 @@ enum class ResizeKind : uint8_t {
 	NO_STRETCH,       ///< the clip's length changed with the sample's end marker, keeping its speed
 	TO_SAMPLE_LENGTH, ///< the clip's length set to the sample's
 };
+
+/// @brief Whose effect settings a write names: a sound's slot, or a chain.
+using EffectOwner = std::variant<project::SlotAddress, project::ChainAddress>;
 
 /// @brief Takes a menu's writes. The app's sink applies each as the target's Edit; a spec's records them.
 class WriteSink {
@@ -152,6 +157,14 @@ public:
 	/// runtime command, nothing saved.
 	/// @return Whether it was taken: false where @p focus names no owner.
 	virtual bool grab_region(const KnobFocus& focus, uint32_t pos) = 0;
+	/// @brief Write effect setting @p path of @p owner as the word @p value: a gesture's exact value, which a menu
+	/// value may not name.
+	/// @return Whether it was taken: false for an owner, path or value the effects refuse.
+	virtual bool write_effect(const EffectOwner& owner, std::string_view path, const serialization::Value& value) = 0;
+	/// @brief Enter (or leave, @p on false) choosing knob @p knob's CC on @p focus's MIDI track with the select
+	/// encoder: a runtime command on the clip minder's state.
+	/// @return Whether it was taken.
+	virtual bool midi_cc_select(const KnobFocus& focus, int32_t knob, bool on) = 0;
 };
 
 /// @brief A gesture request, as a RecordingSink keeps it.
@@ -172,6 +185,8 @@ struct GestureRequest {
 		CONTROLS,
 		STUTTER,
 		GRAB_REGION,
+		EFFECT_WORD,
+		MIDI_CC_SELECT,
 	};
 	Kind kind{Kind::TEXT};
 	Target target{};
@@ -197,7 +212,8 @@ struct GestureRequest {
 	std::optional<project::ControlsAddress> controls_address; ///< a CONTROLS' owner
 	std::vector<project::ControllerMapping> controls;
 	KnobFocus focus{}; ///< a STUTTER's or GRAB_REGION's focus; a GRAB_REGION's position is @ref value
-	bool begin{false}; ///< a STUTTER's begin (true) or end
+	bool begin{false}; ///< a STUTTER's begin (true) or end; a MIDI_CC_SELECT's on
+	std::optional<EffectOwner> effect_owner; ///< an EFFECT_WORD's owner; its path in @ref key, its word in @ref text
 };
 
 /// @brief A param write by address, as a RecordingSink keeps it.
@@ -233,6 +249,8 @@ public:
 	bool write_controls(project::ControlsAddress owner, std::vector<project::ControllerMapping> controls) override;
 	bool stutter(const KnobFocus& focus, bool begin) override;
 	bool grab_region(const KnobFocus& focus, uint32_t pos) override;
+	bool write_effect(const EffectOwner& owner, std::string_view path, const serialization::Value& value) override;
+	bool midi_cc_select(const KnobFocus& focus, int32_t knob, bool on) override;
 	std::vector<WriteRequest> requests;
 	std::vector<GestureRequest> gestures;
 	std::vector<ParamWrite> param_writes;

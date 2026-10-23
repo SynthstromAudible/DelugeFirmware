@@ -330,6 +330,16 @@ bool grabRegionAt(::Song& song, const project::ParamAddress& owner, uint32_t pos
 	return true;
 }
 
+bool midiCcSelectAt(::Song& song, const project::ParamAddress& owner, int32_t knob, bool on) {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	const OwnerStack found = ownerStackAt(song, owner, memory);
+	if (found.stack == nullptr || found.holder != Holder::MIDI_CLIP) {
+		return false;
+	}
+	(void)found.stack->modControllable->modEncoderButtonAction(static_cast<uint8_t>(knob), on, found.stack);
+	return true;
+}
+
 ModelStackWithAutoParam* paramStackFollowingTake(::Song& song, const project::ParamAddress& address, void* memory) {
 	if (::Clip* clip = clipOf(song, address)) {
 		const project::ParamAddress followed = inClip(address, *takeOf(song, *clip, false, memory));
