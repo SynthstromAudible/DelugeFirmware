@@ -2194,6 +2194,12 @@ bool Session::wantsToDoTempolessRecord(int32_t newPos) {
 			if (!clip->wantsToBeginLinearRecording(currentSong)) {
 				return false;
 			}
+
+			// A looper clip that already has audio overdubs in place, so it should keep its loop length rather than
+			// have a new tempo derived from the overdub
+			if (((AudioClip*)clip)->sampleHolder.audioFile) {
+				return false;
+			}
 		}
 	}
 
