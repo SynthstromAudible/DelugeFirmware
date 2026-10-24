@@ -3,7 +3,6 @@ led Back on
 led Clip on
 led Kit on
 led Mod1 on
-led Scale on
 pad 16 0 0 255 6
 pad 16 1 0 255 6
 pad 16 2 0 255 6

@@ -1018,6 +1018,17 @@ void Shell::flush(uint32_t now_ms) {
 	// `SurfaceSet::set_led` takes.
 	LedSurface& leds = surfaces_.leds();
 	for (size_t i = 0; i < LedFrame::kMaxEntries; i++) {
+		if (leds.sent_once[i] && !leds.desired_declared[i]) {
+			// Sent before and declared by nothing now: the LED goes back to its owner, once. Clearing
+			// `sent_once` makes a later declaration send even a state equal to `last_on`, since the
+			// owner may have moved the LED in between.
+			leds.sent_once[i] = false;
+			if (i < profile_.led_by_button.size() && profile_.led_by_button[i] >= 0) {
+				surfaces_.release_led(static_cast<uint8_t>(profile_.led_by_button[i]));
+				any_sent = true;
+			}
+			continue;
+		}
 		if (!led_send_needed(leds, i)) {
 			continue;
 		}

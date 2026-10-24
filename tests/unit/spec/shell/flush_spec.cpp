@@ -96,6 +96,12 @@ public:
 	}
 
 	void leds(deluge::ui::LedFrame& frame) override {
+		if (!declare_play) {
+			if (declare_indicator) {
+				(void)frame.indicator(deluge::ui::IndicatorId::Upper, indicator);
+			}
+			return;
+		}
 		(void)frame.set(kPlayLed,
 		                play_override.value_or(deluge::ui::LedState{
 		                    play_on ? deluge::ui::LedState::Kind::On : deluge::ui::LedState::Kind::Off, 0, 0}));
@@ -114,6 +120,8 @@ public:
 	std::vector<RGB> row_colours;
 	deluge::ui::grid::GreyoutMask mask{};
 	bool play_on = true;
+	/// When false, `leds()` leaves `kPlayLed` undeclared.
+	bool declare_play = true;
 	/// When set, `leds()` declares `kPlayLed` with this state instead of the plain on/off pair --
 	/// the blink-wake example below is the only user.
 	std::optional<deluge::ui::LedState> play_override;
@@ -323,6 +331,35 @@ describe shell_flush("shell::Shell::flush", $ {
 		expect(r.fake.led_writes[1].first).to_equal(kPlayBoardLed);
 		expect(r.fake.led_writes[1].second).to_be_false();
 		expect(r.fake.indicator_writes.size()).to_equal(size_t(1)); // unchanged
+	});
+
+	it("hands an LED back once when nothing declares it any more, and re-sends it when re-declared", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+
+		r.shell.tick(0);
+		expect(r.fake.led_writes.size()).to_equal(size_t(1));
+		expect(r.fake.led_releases.empty()).to_be_true();
+
+		r.base.declare_play = false;
+		r.shell.tick(10);
+		expect(r.fake.led_releases.size()).to_equal(size_t(1));
+		expect(r.fake.led_releases[0]).to_equal(kPlayBoardLed);
+		expect(r.fake.led_writes.size()).to_equal(size_t(1));
+		expect(r.fake.flushes).to_equal(2);
+
+		// Released once, not on every tick it stays undeclared.
+		r.shell.tick(20);
+		expect(r.fake.led_releases.size()).to_equal(size_t(1));
+
+		// Its owner may have moved it meanwhile, so a re-declaration is sent even though it repeats
+		// the last state the shell sent.
+		r.base.declare_play = true;
+		r.shell.tick(30);
+		expect(r.fake.led_writes.size()).to_equal(size_t(2));
+		expect(r.fake.led_writes[1].first).to_equal(kPlayBoardLed);
+		expect(r.fake.led_writes[1].second).to_be_true();
 	});
 
 	it("mirror sees the main surface after a blit, throttled, and never drops a deferred frame", _ {

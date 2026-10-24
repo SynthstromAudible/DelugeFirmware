@@ -16,6 +16,7 @@ std::vector<std::pair<uint8_t, std::vector<RGB>>> raw_pad_column_writes;
 int control_flushes = 0;
 int oled_frames_marked = 0;
 uint32_t pad_output_space = 1u << 20;
+bool led_blinking[64]{};
 
 } // namespace fakelegacy
 
@@ -77,12 +78,20 @@ void sortLedsForCol(int32_t x) {
 // ---------------------------------------------------------------------------
 namespace indicator_leds {
 
-// Stands in for `setLedState` (`hid/led/indicator_leds.cpp:42-52`). The real one also stops any
-// blinker on the LED and updates `ledStates[]`; neither is observable through the header, so the
-// fake records the call and its two arguments, which is the mapping under test.
+bool ledStates[NUM_LED_COLS * NUM_LED_ROWS];
+
+// Stands in for `setLedState` (`hid/led/indicator_leds.cpp:42-52`): records the call and keeps
+// `ledStates[]` as the real one does. The real one also stops any blinker on the LED.
 void setLedState(LED led, bool newState, bool allowContinuedBlinking) {
 	(void)allowContinuedBlinking;
 	fakelegacy::led_writes.push_back(fakelegacy::LedWrite{static_cast<uint8_t>(led), newState});
+	ledStates[static_cast<uint8_t>(led)] = newState;
+	fakelegacy::led_blinking[static_cast<uint8_t>(led)] = false;
+}
+
+// Stands in for `getLedBlinkerIndex` (`hid/led/indicator_leds.cpp`): 255 means no blinker.
+uint8_t getLedBlinkerIndex(LED led) {
+	return fakelegacy::led_blinking[static_cast<uint8_t>(led)] ? 0 : 255;
 }
 
 } // namespace indicator_leds
@@ -115,6 +124,8 @@ namespace fakelegacy {
 void reset() {
 	column_sends.clear();
 	led_writes.clear();
+	std::memset(led_blinking, 0, sizeof(led_blinking));
+	std::memset(indicator_leds::ledStates, 0, sizeof(indicator_leds::ledStates));
 	indicator_writes.clear();
 	raw_pad_column_writes.clear();
 	control_flushes = 0;

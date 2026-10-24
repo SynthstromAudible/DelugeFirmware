@@ -657,33 +657,17 @@ void GlobalControls::leds(deluge::ui::LedFrame& frame) {
 	// `indicator_leds::indicateAlertOnLed(IndicatorLED::CLIP_VIEW)` (`view.cpp:375`) =
 	// `blinkLed(led, 3, 1)` (`hid/led/indicator_leds.cpp:160-162`): FIVE half-periods of
 	// `kFastFlashTime` -- see `kAlertMs`, and the spec pins it against legacy's own countdown --
-	// then `setLedState(led, returnToState)` (`:128`). `returnToState` is the
-	// LED's state when the alert began, and this arm only fires when the current UI is NOT a clip
-	// minder -- where CLIP_VIEW is off -- so Off is the fold-back, declared explicitly rather than
-	// through `LedState::until_ms` (whose fold-back is *On*, `shell/leds.h`). A root scene that
-	// declares CLIP_VIEW for itself outranks this: `LedCompose::compose` runs services first and
-	// the last writer wins.
-	//
-	// **That justification is false under a guest, and F1 task 11's A/B measured it.** When
-	// `ShellHostUI` is what is open over `InstrumentClipView`, the root UI underneath IS a clip
-	// minder and legacy has CLIP_VIEW lit -- `SoundEditor::setLedStates` (`gui/ui/sound_editor.cpp:
-	// 340-354`) clears SAVE, SYNTH, KIT, MIDI, CV, CROSS_SCREEN and SCALE and never touches
-	// CLIP_VIEW, so opening the legacy menu leaves it on. `MenuScene::leds` ports exactly that list
-	// (`scenes/menu/menu_scene.cpp:1316-1371`) and so declares no CLIP_VIEW to outrank this line --
-	// and this line then puts the LED out. Measured on `tests/ui-scripts/app/menu.txt`: every
-	// toggle-off menu frame has `led Clip on` and every toggle-on one does not, while `boot` and
-	// `menu-exit` agree.
-	//
-	// Recorded rather than fixed here, and the fix is named: declare nothing when not alerting,
-	// which is what "restore the state it was in" (`returnToState`) actually means and what the
-	// guest's own rule -- "an LED no scene declares is legacy's" (`gui/ui/shell_host_ui.h`'s
-	// `@par The LEDs`) -- expects. It is not this task's to make: it moves `global_controls_spec.cpp`
-	// and every level-2 golden recorded with the real services, which is E4's fixture.
+	// then `setLedState(led, returnToState)` (`:128`), the state the LED had when the alert began.
+	// Declared only while alerting: once nothing declares it the shell hands the LED back
+	// (`SurfaceSet::release_led`), which under the guest restores legacy's state from before the
+	// alert -- lit over a clip view, as `SoundEditor::setLedStates` (`gui/ui/sound_editor.cpp:531-552`)
+	// never touches it.
 	const bool alerting =
 	    clip_view_alert_until_ms_.has_value() && static_cast<int32_t>(now_ms_ - *clip_view_alert_until_ms_) < 0;
-	(void)frame.set(led(ButtonId::Clip), alerting ? deluge::ui::LedState{deluge::ui::LedState::Kind::Blink,
-	                                                                     static_cast<uint16_t>(kClipArmFlashMs), 0}
-	                                              : kOff);
+	if (alerting) {
+		(void)frame.set(led(ButtonId::Clip), deluge::ui::LedState{deluge::ui::LedState::Kind::Blink,
+		                                                          static_cast<uint16_t>(kClipArmFlashMs), 0});
+	}
 }
 
 // -- Time ------------------------------------------------------------------------------------------

@@ -2201,6 +2201,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		r.base.led_declared = true;
 		r.base.led_id = static_cast<deluge::ui::LedId>(ButtonId::Back);
 		r.base.led_state = deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, 128, 0};
+		indicator_leds::ledStates[back] = true; // legacy's state for BACK before the guest takes it
 		expect(r.open()).to_be_true();
 
 		uint32_t now = 0;
@@ -2216,7 +2217,8 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		}
 		expect(led_history(static_cast<uint8_t>(IndicatorLED::PLAY)).empty()).to_be_true();
 
-		// **And the other direction: an LED the scene stops declaring goes back to legacy.** Only the
+		// **And the other direction: an LED the scene stops declaring goes back to legacy**, in the
+		// state legacy had it in when the guest took it (`GuestSurfaceSet::release_led`). Only the
 		// declaration is varied -- same scene, same clock, same blink. The arm the fifth tick left
 		// standing is the blink's own next boundary (640 = 512 + 128), so the next tick lands exactly
 		// where a guest that still thought it owned the LED would write the flip. Nothing is re-armed
@@ -2232,7 +2234,10 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// is all this assertion needs: it is the tick on which the flip would have been written.
 		expect(after.size()).to_equal(size_t(1));
 		expect(nth_or(after, 0, uint32_t(0))).to_equal(uint32_t(640)); // 512 + 128, a phase boundary
-		expect(fakelegacy::led_writes.size()).to_equal(before);
+		// One write, the hand-back: legacy's own `true`, not the blink's next phase.
+		expect(fakelegacy::led_writes.size()).to_equal(before + 1);
+		expect(fakelegacy::led_writes.back().led).to_equal(back);
+		expect(fakelegacy::led_writes.back().on).to_be_true();
 	});
 
 	it("writes a knob indicator only when something declares one -- which nothing does in phase 4", _ {

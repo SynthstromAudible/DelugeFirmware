@@ -58,6 +58,7 @@ public:
 	std::vector<BlitRecord> blits;
 	std::vector<std::pair<uint8_t, ColumnPair>> columns_sent;
 	std::vector<std::pair<uint8_t, bool>> led_writes;
+	std::vector<uint8_t> led_releases;
 	std::vector<std::pair<uint8_t, deluge::ui::KnobIndicator>> indicator_writes;
 	int flushes = 0;
 	/// @}
@@ -80,6 +81,8 @@ public:
 			led_shadow_[board_led] = on;
 		}
 	}
+
+	void release_led(uint8_t board_led) override { led_releases.push_back(board_led); }
 
 	void set_indicator(uint8_t which, const deluge::ui::KnobIndicator& indicator) override {
 		indicator_writes.emplace_back(which, indicator);

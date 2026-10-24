@@ -373,6 +373,40 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		    .to_equal(uint8_t(indicator_leds::LED::PLAY));
 	});
 
+	it("hands a released LED back to the state legacy had it in when the guest took it", _ {
+		Rig r;
+		indicator_leds::ledStates[kPlayBoardLed] = true;
+		r.set.set_led(kPlayBoardLed, false);
+		r.set.set_led(kPlayBoardLed, true);
+		r.set.set_led(kPlayBoardLed, false);
+		r.set.release_led(kPlayBoardLed);
+		expect(fakelegacy::led_writes.size()).to_equal(size_t(4));
+		expect(fakelegacy::led_writes[3].led).to_equal(kPlayBoardLed);
+		expect(fakelegacy::led_writes[3].on).to_be_true();
+
+		// Released already: a second release writes nothing.
+		r.set.release_led(kPlayBoardLed);
+		expect(fakelegacy::led_writes.size()).to_equal(size_t(4));
+	});
+
+	it("leaves a released LED alone when legacy has started blinking it", _ {
+		Rig r;
+		indicator_leds::ledStates[kPlayBoardLed] = true;
+		r.set.set_led(kPlayBoardLed, false);
+		fakelegacy::led_blinking[kPlayBoardLed] = true;
+		r.set.release_led(kPlayBoardLed);
+		expect(fakelegacy::led_writes.size()).to_equal(size_t(1));
+	});
+
+	it("forgets the LEDs it held when a new session begins", _ {
+		Rig r;
+		indicator_leds::ledStates[kPlayBoardLed] = true;
+		r.set.set_led(kPlayBoardLed, false);
+		r.set.begin_session();
+		r.set.release_led(kPlayBoardLed);
+		expect(fakelegacy::led_writes.size()).to_equal(size_t(1));
+	});
+
 	it("sends all four knob-indicator segments, in order, for the named knob", _ {
 		Rig r;
 		r.set.set_indicator(1, deluge::ui::KnobIndicator{{9, 8, 7, 6}});

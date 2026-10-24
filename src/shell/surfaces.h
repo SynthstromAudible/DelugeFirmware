@@ -133,9 +133,9 @@ struct LedSurface {
 	/// Whether board LED `i` should be lit right now: `led_is_on()` evaluated against this tick's
 	/// clock, so the blink phase is resolved before the diff rather than inside it.
 	std::array<bool, LedFrame::kMaxEntries> desired_on{};
-	/// Whether anything declared board LED `i` at all this tick. An undeclared LED is left alone
-	/// rather than driven off -- a board LED nothing in the stack mentions is not the shell's to
-	/// turn off.
+	/// Whether anything declared board LED `i` at all this tick. An undeclared LED is not driven
+	/// off -- a board LED nothing in the stack mentions is not the shell's to turn off; one the shell
+	/// sent is handed back once through `SurfaceSet::release_led`.
 	std::array<bool, LedFrame::kMaxEntries> desired_declared{};
 	std::array<bool, LedFrame::kMaxEntries> last_on{};
 	std::array<bool, LedFrame::kMaxEntries> sent_once{};
@@ -192,6 +192,13 @@ public:
 	/// @param board_led Board-defined LED index.
 	/// @param on Whether it should be lit.
 	virtual void set_led(uint8_t board_led, bool on) = 0;
+	/// @brief Hand one indicator LED back to its owner: the shell sent it and nothing declares it
+	///        any more.
+	///
+	/// The default does nothing, which leaves the LED as the shell last set it. A backend sharing
+	/// the LEDs with another owner restores that owner's state here.
+	/// @param board_led Board-defined LED index.
+	virtual void release_led(uint8_t board_led) { (void)board_led; }
 	/// @brief Set one knob indicator's per-segment levels.
 	/// @param which 0 for the lower knob, 1 for the upper (matching `IndicatorId`, whose values are
 	///        this index -- see the ordering note on that enum).

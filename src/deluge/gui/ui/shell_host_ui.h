@@ -179,9 +179,11 @@ namespace deluge::gui::ui {
 ///    `allowContinuedBlinking = false`, whose first act is `stopLedBlinking(led)`
 ///    (`hid/led/indicator_leds.cpp:42-52`, `:141-149`) -- so legacy's `LED_BLINK` timeout stops
 ///    writing it (`updateBlinkingLedStates`, `:116-139`, which only touches `active` blinkers).
-///  - **An LED no scene declares is legacy's, and the guest never touches it.** Not a policy this
-///    class implements but one it must not break: an undeclared id fails `led_send_needed`'s
-///    `desired_declared` test above, so no tick can write it however many times it runs.
+///  - **An LED no scene declares is legacy's.** An undeclared id fails `led_send_needed`'s
+///    `desired_declared` test above, so no tick writes it. One the guest wrote and nothing declares
+///    any more is handed back once (`SurfaceSet::release_led`): `GuestSurfaceSet::release_led`
+///    restores the state legacy had it in when the guest took it. `opened()` starts each session
+///    with no LED held (`GuestSurfaceSet::begin_session`).
 ///  - **The handover back is coherent for LEDs and stale for indicators.** `setLedState` writes
 ///    legacy's `ledStates[]` shadow (`hid/led/indicator_leds.cpp:49`), so a legacy write after the
 ///    guest closes is a write onto a true shadow. `GuestSurfaceSet::set_indicator` cannot do the

@@ -183,7 +183,28 @@ void GuestSurfaceSet::set_led(uint8_t board_led, bool on) {
 	// `board_led` passes straight through: the board profile's `led_by_button` values ARE
 	// `indicator_leds::LED`'s underlying values, `x + y * NUM_LED_COLS`
 	// (`shell/profiles/deluge.cpp:24-60`, each entry citing its own line of `indicator_leds.h`).
+	if (board_led < kLegacyLeds && !held_[board_led]) {
+		held_[board_led] = true;
+		legacyState_[board_led] = indicator_leds::ledStates[board_led];
+	}
 	indicator_leds::setLedState(static_cast<indicator_leds::LED>(board_led), on);
+}
+
+void GuestSurfaceSet::release_led(uint8_t board_led) {
+	if (board_led >= kLegacyLeds || !held_[board_led]) {
+		return;
+	}
+	held_[board_led] = false;
+	const auto led = static_cast<indicator_leds::LED>(board_led);
+	if (indicator_leds::getLedBlinkerIndex(led) != 255) {
+		return;
+	}
+	indicator_leds::setLedState(led, legacyState_[board_led]);
+}
+
+void GuestSurfaceSet::begin_session() {
+	held_.fill(false);
+	leds().sent_once.fill(false);
 }
 
 void GuestSurfaceSet::set_indicator(uint8_t which, const KnobIndicator& indicator) {

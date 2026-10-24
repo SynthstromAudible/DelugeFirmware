@@ -94,6 +94,8 @@ bool ShellHostUI::opened() {
 	// `SoundEditor::opened` calling `beginScreen()` (`gui/ui/sound_editor.cpp:297-311`), which
 	// begins a menu session rather than resuming one.
 	shell_.stack().reset();
+	// Legacy has owned the LEDs since the last session closed.
+	surfaces_.begin_session();
 
 	// **Seed the sticky-shift setting from flash, every time the guest opens.**
 	//

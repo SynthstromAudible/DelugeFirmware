@@ -1035,7 +1035,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		playbackHandler.recording = RecordingMode::OFF;
 	});
 
-	it("LEDs: declares exactly Play, Record, TapTempo, SyncScaling, Save, Load and Clip, by identity", _ {
+	it("LEDs: declares exactly Play, Record, TapTempo, SyncScaling, Save and Load, by identity", _ {
 		static spec::SongFixture fixture = spec::make_synth_song();
 		currentSong = fixture.song;
 		release_all_legacy_buttons();
@@ -1054,7 +1054,6 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		    {static_cast<uint8_t>(ButtonId::SyncScaling), false}, // `view.cpp:527`
 		    {static_cast<uint8_t>(ButtonId::Save), false},        // `view.cpp:266`
 		    {static_cast<uint8_t>(ButtonId::Load), false},        // `view.cpp:324`
-		    {static_cast<uint8_t>(ButtonId::Clip), false},        // `view.cpp:375`, not alerting
 		};
 		expect(got == want).to_be_true();
 	});
@@ -1110,7 +1109,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		fixture.song->setInputTickScaleClip(nullptr);
 	});
 
-	it("LEDs: blinks the CLIP_VIEW LED for the sync-scaling alert, then folds back to off", _ {
+	it("LEDs: blinks the CLIP_VIEW LED for the sync-scaling alert, then hands it back", _ {
 		// `view.cpp:374-377`'s `indicateAlertOnLed`, which is `blinkLed(led, 3, 1)`
 		// (`hid/led/indicator_leds.cpp:160-162`).
 		//
@@ -1133,8 +1132,8 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(GlobalControls::kAlertMs
 		       == static_cast<uint32_t>(legacy_timeouts) * GlobalControls::kClipArmFlashMs)
 		    .to_be_true();
-		// And it really did fold back to the state it was armed from (`:128`), which is what makes
-		// the port's explicit `Off` declaration the right fold-back rather than `until_ms`'s `On`.
+		// And it really did fold back to the state it was armed from (`:128`), which is the state the
+		// shell's hand-back restores once nothing declares the LED (`SurfaceSet::release_led`).
 		expect(indicator_leds::ledStates[static_cast<uint8_t>(IndicatorLED::CLIP_VIEW)]).to_be_false();
 
 		static spec::SongFixture fixture = spec::make_synth_song();
@@ -1156,7 +1155,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.tick(27'000 + GlobalControls::kAlertMs, GlobalControls::kAlertMs);
 		deluge::ui::LedFrame f2;
 		rig.gc.leds(f2);
-		expect(led_is(f2, ButtonId::Clip, deluge::ui::LedState::Kind::Off)).to_be_true();
+		expect(led_state(f2, ButtonId::Clip).has_value()).to_be_false();
 		rig.press(ButtonId::SyncScaling, false, 27'500);
 	});
 

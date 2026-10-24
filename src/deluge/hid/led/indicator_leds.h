@@ -77,6 +77,8 @@ struct LedBlinker {
 };
 
 extern bool ledBlinkState[];
+/// @brief Each LED's last state set through `setLedState`, by `LED` value.
+extern bool ledStates[];
 
 void setLedState(LED led, bool newState, bool allowContinuedBlinking = false);
 void blinkLed(LED led, uint8_t numBlinks = 255, uint8_t blinkingType = 0, bool initialState = true);

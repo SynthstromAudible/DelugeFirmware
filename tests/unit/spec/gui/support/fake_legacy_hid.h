@@ -48,6 +48,10 @@ extern int control_flushes;
 extern int oled_frames_marked;
 /// @}
 
+/// @brief Which LEDs the fake `indicator_leds::getLedBlinkerIndex` reports a legacy blinker on,
+///        by `indicator_leds::LED` value.
+extern bool led_blinking[64];
+
 /// @brief What `deluge_control_pad_output_space()` reports. Large by default: no back-pressure.
 extern uint32_t pad_output_space;
 

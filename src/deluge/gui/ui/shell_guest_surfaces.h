@@ -21,6 +21,8 @@
 #include "gfx/grid/rgb.h"
 #include "shell/surfaces.h"
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <span>
 
@@ -116,6 +118,14 @@ public:
 	uint32_t pad_output_space() override;
 	void send_columns(uint8_t pair_index, const deluge::ui::shell::ColumnPair& pair) override;
 	void set_led(uint8_t board_led, bool on) override;
+	/// @brief Restore legacy's state for an LED the shell has stopped declaring.
+	///
+	/// The state is legacy's `ledStates[]` shadow from the moment the guest first took the LED, the
+	/// same `returnToState` rule legacy's own blinker folds back by
+	/// (`hid/led/indicator_leds.cpp:74`, `:128`). An LED legacy has started blinking since is left
+	/// to that blinker.
+	/// @param board_led An `indicator_leds::LED` value.
+	void release_led(uint8_t board_led) override;
 	void set_indicator(uint8_t which, const deluge::ui::KnobIndicator& indicator) override;
 	void flush() override;
 
@@ -135,7 +145,21 @@ public:
 	/// @return True if `blit()` will actually reach the panel.
 	bool canReachMainPanel() const { return mainIndex_ >= 0; }
 
+	/// @brief Start a guest session: legacy owns every LED again, so none is held and the shell's
+	///        LED shadow is marked unsent.
+	///
+	/// Called when the guest opens. Legacy redraws its LEDs while the guest is shut, so a state the
+	/// shell sent in an earlier session says nothing about the board now: every LED the session
+	/// declares is sent on its first tick, and a release restores only a state saved in this session.
+	void begin_session();
+
 private:
+	/// Number of `indicator_leds::LED` values: `NUM_LED_COLS * NUM_LED_ROWS`.
+	static constexpr size_t kLegacyLeds = NUM_LED_COLS * NUM_LED_ROWS;
+	/// Whether the guest has written each LED since it last handed it back.
+	std::array<bool, kLegacyLeds> held_{};
+	/// Legacy's `ledStates[]` value for each held LED, read when the guest took it.
+	std::array<bool, kLegacyLeds> legacyState_{};
 	/// libdeluge display index of the `SurfaceRole::Main` surface, or -1 if this board has none
 	/// that legacy's single `OLED::main` can hold. Resolved once in the constructor.
 	int8_t mainIndex_ = -1;
