@@ -158,6 +158,9 @@ bool isRelevant(ModControllableAudio* forThing, MenuItem* menuitem, int32_t thin
 void SoundEditor::renderMainShortcutsOnly(ModControllableAudio* forThing, RGB image[][kDisplayWidth + kSideBarWidth],
                                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool doKitAffectEntire)
 {
+	// Apply grey-out before sending the overlay, cancelling any previous fade in either direction.
+	PadLEDs::doGreyoutInstantly();
+	PadLEDs::sendOutSidebarColoursSoon();
 
 	// Draw the static shortcut colour map first, so that the shortcut blink (handled separately via
 	// PadLEDs::flashMainPad on the PIC) gets overlaid on top of it, instead of replacing the whole display.
@@ -183,7 +186,8 @@ void SoundEditor::renderMainShortcutsOnly(ModControllableAudio* forThing, RGB im
 bool SoundEditor::should_render_shortcut_overlay()
 {
 	// don't render overlay if feature is turned off
-	if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShortcutOverlay)) {
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShortcutOverlay)
+	    == static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::Off)) {
 		return false;
 	}
 	
@@ -223,6 +227,10 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 		D_PRINTLN("no image");
 
 		return should_render_shortcut_overlay();
+	}
+	// Restore the underlying UI grey-out when the overlay disappears.
+	if (haveRenderedPads && !should_render_shortcut_overlay()) {
+		PadLEDs::reassessGreyout();
 	}
 	if (!should_render_shortcut_overlay())
 	{
@@ -439,6 +447,12 @@ void SoundEditor::setCurrentSource(int32_t sourceIndex) {
 }
 
 bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
+	if (should_render_shortcut_overlay()) {
+		*cols = 0xFFFFFFFF;
+		*rows = 0;
+		return true;
+	}
+
 	bool doGreyout = true;
 
 	RootUI* rootUI = getRootUI();
@@ -521,6 +535,7 @@ void SoundEditor::focusRegained() {
 		beginScreen();
 	}
 
+	uiNeedsRendering(this);
 	setLedStates();
 }
 
