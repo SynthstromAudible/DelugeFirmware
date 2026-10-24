@@ -1,0 +1,29 @@
+# The eight mod buttons in the boot clip view.
+100   snapshot boot
+300   button Mod0 down
+320   button Mod0 up
+900   snapshot mod0
+1100  button Mod1 down
+1120  button Mod1 up
+1700  snapshot mod1
+1900  button Mod2 down
+1920  button Mod2 up
+2500  snapshot mod2
+2700  button Mod3 down
+2720  button Mod3 up
+3300  snapshot mod3
+3500  button Mod4 down
+3520  button Mod4 up
+4100  snapshot mod4
+4300  button Mod5 down
+4320  button Mod5 up
+4900  snapshot mod5
+5100  button Mod6 down
+5120  button Mod6 up
+5700  snapshot mod6
+5900  button Mod7 down
+5920  button Mod7 up
+6500  snapshot mod7
+6700  button AffectEntire down
+6720  button AffectEntire up
+7300  snapshot affect-entire

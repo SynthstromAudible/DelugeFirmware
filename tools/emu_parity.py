@@ -3,17 +3,19 @@
 
 A user must not be able to tell two builds apart by looking at the Deluge. This boots a reference image and a
 test image in the delugemu emulator (~/GitHub/delugemu) on the same SD card and the same starting settings flash,
-drives both through the same level-3 UI scripts (tests/ui-scripts/app/*.txt, format in tests/harness/README.md),
-and at every `snapshot` step compares what each shows: the OLED bitmap, every pad's colour, the button LEDs and
-the gold-knob rings. Any difference is reported with both panels' screenshots, and the run exits non-zero.
+drives both through the same level-3 UI scripts (format in tests/harness/README.md), and at every `snapshot` step
+compares what each shows: the OLED bitmap, every pad's colour, the button LEDs and the gold-knob rings.
 
-Script times are milliseconds after boot settles (the panel stops changing), not the level-3 frame clock: the two
-images boot at different speeds, and a snapshot is taken once both panels have settled after the step's time.
+Runs are deterministic. Each emulator runs paused under an instruction-counted clock (-icount sleep=off), and the
+harness advances it to exact virtual times: boot is the first virtual instant the panel is lit and then unchanged
+for BOOT_QUIET_MS, script times are virtual milliseconds after it, and every input lands on its millisecond. A
+snapshot samples the panel every SAMPLE_MS from its time until the next step (at most WINDOW_MS) and compares the
+set of states each image showed, so a blinking LED compares by what it shows, not by its phase at one instant.
 
     tools/emu_parity.py --ref main.elf --test build/RelWithDebInfo/deluge.elf \\
-        --card tests/fixtures/card tests/ui-scripts/app/boot.txt tests/ui-scripts/app/menu.txt
+        --card tests/fixtures/card -j 4 tests/ui-scripts/parity/*.txt
 
-Exit codes: 0 every snapshot matched; 1 a snapshot differed; 2 usage or emulator error.
+Exit codes: 0 every snapshot matched; 1 a snapshot differed or a run failed.
 """
 
 import argparse
@@ -25,7 +27,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -34,12 +35,17 @@ BUTTON_TABLE = REPO / "tests/harness/level3/host_script_tables.c"
 # Firmware encoder index by script role: tests/harness/level3/host_script_tables.c's k_encoder_roles.
 ENCODER_ROLES = ["Vertical", "Horizontal", "Tempo", "Select", "GoldUpper", "GoldLower"]
 
-SETTLE_POLL_S = 0.2
-SETTLE_QUIET_S = 0.6
-SETTLE_TIMEOUT_S = 15.0
-# Boot lights the pads about 0.9 s before the OLED's first frame, and takes several seconds to get there.
-BOOT_QUIET_S = 1.5
-BOOT_TIMEOUT_S = 60.0
+MS = 1_000_000
+# 2^2 ns of virtual time per instruction: 250 MIPS, near the Deluge's 400 MHz Cortex-A9.
+ICOUNT_SHIFT = 2
+# One encoder phase step every 3 ms (a detent in 12 ms): a brisk hand turn. delugemu's default, 50 us, is a turn no
+# hand makes, faster than the Rust BSP's decoder samples the B pin (every 1 ms).
+ENCODER_PHASE_NS = 3_000_000
+BOOT_STEP_MS = 100
+BOOT_QUIET_MS = 1500
+BOOT_TIMEOUT_MS = 60_000
+SAMPLE_MS = 25
+WINDOW_MS = 1000
 
 
 def button_table() -> dict[str, tuple[int, int]]:
@@ -78,63 +84,60 @@ def lit(p: dict) -> bool:
     )
 
 
-def settle(dz, quiet_s: float = SETTLE_QUIET_S, need_lit: bool = False) -> dict:
-    """The panel once it has stopped changing for `quiet_s` (and, with `need_lit`, once something is lit), or after
-    SETTLE_TIMEOUT_S marked unsettled."""
-    start = time.time()
-    last = panel(dz)
-    quiet_since = time.time()
-    while time.time() - start < SETTLE_TIMEOUT_S:
-        time.sleep(SETTLE_POLL_S)
+def key(p: dict) -> str:
+    return json.dumps(p, sort_keys=True)
+
+
+def boot(dz) -> int:
+    """The virtual time (ns) at which the panel is lit and has been unchanged for BOOT_QUIET_MS."""
+    t = 0
+    last, since = None, 0
+    while t < BOOT_TIMEOUT_MS * MS:
+        t += BOOT_STEP_MS * MS
+        dz.run_until(t)
         now = panel(dz)
-        if now != last:
-            last, quiet_since = now, time.time()
-        elif time.time() - quiet_since >= quiet_s and (lit(now) or not need_lit):
-            return last
-    last["unsettled"] = True
-    return last
-
-
-def settle_boot(dz) -> dict:
-    start = time.time()
-    while time.time() - start < BOOT_TIMEOUT_S:
-        p = settle(dz, BOOT_QUIET_S, need_lit=True)
-        if not p.get("unsettled"):
-            return p
-    return {"unsettled": True}
+        if key(now) != last:
+            last, since = key(now), t
+        elif lit(now) and t - since >= BOOT_QUIET_MS * MS:
+            return t
+    raise RuntimeError("the panel never settled after boot")
 
 
 def run_image(
     elf: Path, sd: Path, flash: Path | None, script: Path, out: Path, buttons
-) -> dict[str, dict]:
-    """Boot `elf`, play `script`, and return {snapshot name: panel}; screenshots go to `out`."""
+) -> dict[str, list[dict]]:
+    """Boot `elf`, play `script`, and return {snapshot name: the distinct panels it showed, first-seen order}."""
     from delugemu import DelugeSession
 
     out.mkdir(parents=True, exist_ok=True)
-    extra = []
+    extra = [
+        "-icount",
+        f"shift={ICOUNT_SHIFT},sleep=off",
+        "-S",
+        "-global",
+        f"rza1l-gpio.edge-spacing-ns={ENCODER_PHASE_NS}",
+    ]
     if flash is not None:
         run_flash = out / "flash.bin"
         shutil.copyfile(flash, run_flash)
-        extra = ["-global", f"rza1l-spibsc.flash-file={run_flash}"]
+        extra += ["-global", f"rza1l-spibsc.flash-file={run_flash}"]
+    # One QMP socket per emulator: they all run in this process, and the default name is per process.
+    sock = f"/tmp/dz_parity_{os.getpid()}_{out.parent.name}_{out.name}.sock"
+    steps = parse_script(script)
     snaps = {}
-    # One QMP socket per emulator: both run in this process, and the default name is per process.
-    sock = f"/tmp/dz_parity_{os.getpid()}_{out.name}.sock"
     with DelugeSession.launch(
         firmware=str(elf),
         sd=str(sd),
-        icount="auto",
         boot_wait=0.0,
         sock=sock,
         extra_qemu=tuple(extra),
         artifacts_dir=str(out),
         int_log=str(out / "int.log"),
     ) as dz:
-        boot = settle_boot(dz)
-        if boot.get("unsettled"):
-            raise RuntimeError(f"{elf.name} did not finish booting")
-        t0 = time.time()
-        for at_ms, cmd, args in parse_script(script):
-            time.sleep(max(0.0, t0 + at_ms / 1000.0 - time.time()))
+        t0 = boot(dz)
+        for i, (at_ms, cmd, args) in enumerate(steps):
+            at = t0 + at_ms * MS
+            dz.run_until(at)
             if cmd == "button":
                 x, y = buttons[args[0]]
                 dz.button(x, y, args[1] == "down")
@@ -143,11 +146,27 @@ def run_image(
             elif cmd == "encoder":
                 dz.encoder(ENCODER_ROLES.index(args[0]), int(args[1]))
             elif cmd == "snapshot":
-                snaps[args[0]] = settle(dz)
+                end = (
+                    t0 + steps[i + 1][0] * MS
+                    if i + 1 < len(steps)
+                    else at + WINDOW_MS * MS
+                )
+                end = min(end, at + WINDOW_MS * MS)
+                seen = {}
+                t = at
+                while True:
+                    p = panel(dz)
+                    seen.setdefault(key(p), p)
+                    t += SAMPLE_MS * MS
+                    if t >= end:
+                        break
+                    dz.run_until(t)
+                snaps[args[0]] = list(seen.values())
                 dz.screenshot(str(out / f"{args[0]}.png"))
             elif cmd == "quit":
                 break
             # `board`, `released`, `model`, `notice`: not panel input on a real Deluge.
+        (out / "snapshots.json").write_text(json.dumps(snaps))
         try:
             dz.assert_no_aborts()
         except AssertionError:  # delugemu's AbortDetected
@@ -157,10 +176,9 @@ def run_image(
     return snaps
 
 
-def differences(ref: dict, test: dict) -> list[str]:
+def describe(ref: dict, test: dict) -> list[str]:
+    """How two single panels differ."""
     out = []
-    if ref.get("unsettled") or test.get("unsettled"):
-        out.append("a panel never settled")
     if ref["oled"] != test["oled"]:
         n = sum(
             a != b for ra, rb in zip(ref["oled"], test["oled"]) for a, b in zip(ra, rb)
@@ -180,6 +198,16 @@ def differences(ref: dict, test: dict) -> list[str]:
     if ref["gold"] != test["gold"]:
         out.append(f"gold knob rings: {ref['gold']} vs {test['gold']}")
     return out
+
+
+def differences(ref: list[dict], test: list[dict]) -> list[str]:
+    """How two snapshots' sets of panels differ; empty when each image showed the same panels."""
+    if {key(p) for p in ref} == {key(p) for p in test}:
+        return []
+    out = describe(ref[0], test[0])
+    if len(ref) != len(test):
+        out.append(f"{len(ref)} panel state(s) vs {len(test)} over the window")
+    return out or ["the same first panel, different panels later in the window"]
 
 
 def main() -> int:
@@ -203,9 +231,14 @@ def main() -> int:
     )
     ap.add_argument("--delugemu", type=Path, default=Path.home() / "GitHub/delugemu")
     ap.add_argument(
-        "--out",
-        type=Path,
-        help="artifact directory (default: a temporary one, kept on failure)",
+        "--out", type=Path, help="artifact directory (default: a temporary one)"
+    )
+    ap.add_argument(
+        "-j",
+        "--jobs",
+        type=int,
+        default=1,
+        help="scripts to run at once (each runs two emulators)",
     )
     ap.add_argument("scripts", nargs="+", type=Path)
     args = ap.parse_args()
@@ -222,9 +255,7 @@ def main() -> int:
         )
     buttons = button_table()
 
-    report = {}
-    failed = False
-    for script in args.scripts:
+    def compare(script: Path) -> dict[str, list[str]]:
         with concurrent.futures.ThreadPoolExecutor(2) as pool:
             jobs = {
                 side: pool.submit(
@@ -238,19 +269,35 @@ def main() -> int:
                 )
                 for side, elf in (("ref", args.ref), ("test", args.test))
             }
-            try:
-                got = {side: job.result() for side, job in jobs.items()}
-            except (
-                AssertionError,
-                RuntimeError,
-                OSError,
-                KeyError,
-                ValueError,
-            ) as e:  # a fault, the emulator, the script
-                print(f"emu_parity: {script.name}: {e}", file=sys.stderr)
-                return 2
-        for name in got["ref"]:
-            diff = differences(got["ref"][name], got["test"][name])
+            got = {}
+            for side, job in jobs.items():
+                try:
+                    got[side] = job.result()
+                except (
+                    AssertionError,
+                    RuntimeError,
+                    OSError,
+                    KeyError,
+                    ValueError,
+                    TypeError,
+                ) as e:
+                    got[side] = e  # a fault, the emulator, the script
+        errors = [
+            f"{side}: {r}" for side, r in got.items() if isinstance(r, BaseException)
+        ]
+        if errors:
+            return {"run": errors}
+        return {
+            name: differences(got["ref"][name], got["test"][name])
+            for name in got["ref"]
+        }
+
+    report = {}
+    failed = False
+    with concurrent.futures.ThreadPoolExecutor(args.jobs) as pool:
+        results = dict(zip(args.scripts, pool.map(compare, args.scripts)))
+    for script, snaps in results.items():
+        for name, diff in snaps.items():
             report[f"{script.stem}/{name}"] = diff
             status = "MATCH" if not diff else "DIFF"
             print(

@@ -1,0 +1,14 @@
+# The instrument-type buttons in the boot clip view.
+100   snapshot boot
+300   button Synth down
+320   button Synth up
+1300  snapshot synth
+1600  button Kit down
+1620  button Kit up
+2600  snapshot kit
+2900  button Midi down
+2920  button Midi up
+3900  snapshot midi
+4200  button Cv down
+4220  button Cv up
+5200  snapshot cv

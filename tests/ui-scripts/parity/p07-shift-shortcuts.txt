@@ -1,0 +1,20 @@
+# Shift+pad shortcuts into the sound menu, and back out.
+100   snapshot boot
+300   button Shift down
+400   pad 0 0 down
+450   pad 0 0 up
+500   button Shift up
+1200  snapshot shortcut-0-0
+1500  encoder Select +1
+2000  snapshot shortcut-edit
+2300  button Back down
+2320  button Back up
+3000  snapshot shortcut-back
+3300  button Shift down
+3400  pad 9 6 down
+3450  pad 9 6 up
+3500  button Shift up
+4200  snapshot shortcut-9-6
+4500  button Back down
+4520  button Back up
+5200  snapshot shortcut-9-6-back

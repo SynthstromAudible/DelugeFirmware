@@ -1,0 +1,21 @@
+# Scale, triplets, cross-screen, learn and sync-scaling in the boot clip view.
+100   snapshot boot
+300   button Scale down
+320   button Scale up
+1000  snapshot scale
+1300  button Scale down
+1320  button Scale up
+2000  snapshot scale-back
+2300  button Triplets down
+2320  button Triplets up
+3000  snapshot triplets
+3300  button CrossScreen down
+3320  button CrossScreen up
+4000  snapshot cross-screen
+4300  button Learn down
+5000  snapshot learn-held
+5300  button Learn up
+6000  snapshot learn-released
+6300  button SyncScaling down
+6320  button SyncScaling up
+7000  snapshot sync-scaling

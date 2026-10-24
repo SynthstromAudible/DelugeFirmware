@@ -1,0 +1,18 @@
+# Notes, audition and mute pads in the boot clip view.
+100   snapshot boot
+300   pad 2 4 down
+350   pad 2 4 up
+1000  snapshot note-placed
+1300  pad 5 3 down
+1350  pad 5 3 up
+2000  snapshot note-two
+2300  pad 2 4 down
+2350  pad 2 4 up
+3000  snapshot note-removed
+3300  pad 17 2 down
+4000  snapshot audition-held
+4300  pad 17 2 up
+5000  snapshot audition-released
+5300  pad 16 3 down
+5350  pad 16 3 up
+6000  snapshot mute-pad

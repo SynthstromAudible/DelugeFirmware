@@ -1,0 +1,19 @@
+# Each encoder in the boot clip view, both directions where it matters.
+100   snapshot boot
+300   encoder Tempo +1
+1000  snapshot tempo-up
+1300  encoder Tempo -2
+2000  snapshot tempo-down
+2300  encoder Horizontal +1
+3000  snapshot scroll-x
+3300  encoder Vertical +1
+4000  snapshot scroll-y
+4300  encoder Select +1
+5000  snapshot select-turn
+5300  encoder GoldUpper +3
+5500  snapshot gold-upper
+6000  encoder GoldLower -3
+6200  snapshot gold-lower
+6800  button TempoEnc down
+6820  button TempoEnc up
+7500  snapshot tempo-push

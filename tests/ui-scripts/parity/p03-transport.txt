@@ -1,0 +1,23 @@
+# Play, record and tap tempo.
+100   snapshot boot
+300   button Play down
+320   button Play up
+1500  snapshot playing
+1800  button Play down
+1820  button Play up
+2500  snapshot stopped
+2800  button Record down
+2820  button Record up
+3500  snapshot record-armed
+3800  button Record down
+3820  button Record up
+4500  snapshot record-off
+4800  button TapTempo down
+4820  button TapTempo up
+5300  button TapTempo down
+5320  button TapTempo up
+5800  button TapTempo down
+5820  button TapTempo up
+6300  button TapTempo down
+6320  button TapTempo up
+7000  snapshot tapped

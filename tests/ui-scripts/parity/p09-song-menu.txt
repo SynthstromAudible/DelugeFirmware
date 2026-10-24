@@ -1,0 +1,19 @@
+# The song menu from the song view.
+100   snapshot boot
+300   button Session down
+320   button Session up
+1000  snapshot song
+1300  button SelectEnc down
+1320  button SelectEnc up
+2000  snapshot song-menu
+2300  encoder Select +1
+2800  snapshot song-menu-1
+3100  button SelectEnc down
+3120  button SelectEnc up
+3800  snapshot song-menu-enter
+4100  button Back down
+4120  button Back up
+4800  snapshot song-menu-up
+5100  button Back down
+5120  button Back up
+5800  snapshot song-menu-closed

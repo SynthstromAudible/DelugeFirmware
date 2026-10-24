@@ -1,0 +1,22 @@
+# The view buttons from the boot clip view.
+100   snapshot boot
+300   button Session down
+320   button Session up
+1000  snapshot song
+1300  button Session down
+1320  button Session up
+2000  snapshot song-again
+2300  button Clip down
+2320  button Clip up
+3000  snapshot clip
+3300  button Keyboard down
+3320  button Keyboard up
+4000  snapshot keyboard
+4300  button Keyboard down
+4320  button Keyboard up
+5000  snapshot keyboard-off
+5300  button Shift down
+5400  button Session down
+5420  button Session up
+5500  button Shift up
+6200  snapshot shift-session

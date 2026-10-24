@@ -1,0 +1,16 @@
+# The song load and save browsers from the boot clip view.
+100   snapshot boot
+300   button Load down
+320   button Load up
+1500  snapshot load
+1800  encoder Select +1
+2500  snapshot load-next
+2800  button Back down
+2820  button Back up
+3500  snapshot load-closed
+3800  button Save down
+3820  button Save up
+5000  snapshot save
+5300  button Back down
+5320  button Back up
+6000  snapshot save-closed

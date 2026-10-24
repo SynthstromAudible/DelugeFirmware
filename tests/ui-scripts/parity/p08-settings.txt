@@ -1,0 +1,23 @@
+# The settings menu from the song view.
+100   snapshot boot
+300   button Session down
+320   button Session up
+1000  snapshot song
+1300  button Shift down
+1400  button SelectEnc down
+1420  button SelectEnc up
+1500  button Shift up
+2200  snapshot settings
+2500  encoder Select +1
+3000  snapshot settings-1
+3300  encoder Select +3
+3800  snapshot settings-4
+4100  button SelectEnc down
+4120  button SelectEnc up
+4800  snapshot settings-enter
+5100  button Back down
+5120  button Back up
+5800  snapshot settings-up
+6100  button Back down
+6120  button Back up
+6800  snapshot settings-closed

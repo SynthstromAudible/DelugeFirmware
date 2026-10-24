@@ -1,0 +1,26 @@
+# The sound menu from the boot clip view: open, scroll, enter, edit, leave.
+100   snapshot boot
+300   button SelectEnc down
+320   button SelectEnc up
+1000  snapshot menu
+1300  encoder Select +2
+1800  snapshot menu-2
+2100  button SelectEnc down
+2120  button SelectEnc up
+2800  snapshot submenu
+3100  encoder Select +1
+3600  snapshot submenu-1
+3900  button SelectEnc down
+3920  button SelectEnc up
+4600  snapshot item
+4900  encoder Select +3
+5400  snapshot item-edited
+5700  button Back down
+5720  button Back up
+6400  snapshot item-back
+6700  button Back down
+6720  button Back up
+7400  snapshot submenu-back
+7700  button Back down
+7720  button Back up
+8400  snapshot menu-closed
