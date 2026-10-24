@@ -41,6 +41,9 @@ enum RuntimeFeatureStateSyncScalingAction : uint32_t { SyncScaling = 0, Fill = 1
 
 enum RuntimeFeatureStateEmulatedDisplay : uint32_t { Hardware = 0, Toggle = 1, OnBoot = 2 };
 
+// Keep the former On value as MenuOnly to preserve existing settings.
+enum class RuntimeFeatureStateShortcutOverlay : uint32_t { Off = 0, MenuOnly = 1, MenuAndClip = 2 };
+
 /// Every setting needs to be declared in here
 enum RuntimeFeatureSettingType : uint32_t {
 	DrumRandomizer,
