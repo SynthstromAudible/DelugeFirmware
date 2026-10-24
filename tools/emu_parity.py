@@ -180,6 +180,21 @@ def run_image(
         env=env,
         audio="none",  # nothing through the host's speakers
     ) as dz:
+        run_until = dz.run_until
+
+        def run_until_or_record(ns, timeout=120.0):
+            # A VM that never reaches its stop time leaves where it was and how far its clock got, in stall.txt.
+            try:
+                return run_until(ns, timeout)
+            except TimeoutError:
+                dz.q.execute("stop")
+                (out / "stall.txt").write_text(
+                    f"stop at {ns} ns, virtual clock {dz.vclock_ns()} ns\n"
+                    + dz.q.hmp("info registers")
+                )
+                raise
+
+        dz.run_until = run_until_or_record
         t0 = boot(dz)
         for i, (at_ms, cmd, args) in enumerate(steps):
             at = t0 + at_ms * MS
