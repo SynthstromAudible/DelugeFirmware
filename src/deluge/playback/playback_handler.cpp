@@ -1495,6 +1495,7 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 	AudioEngine::killAllVoices(true);
 	midiFollow.clearStoredClips(); // need to clear clip pointers stored for previous song
 	currentSong = preLoadedSong;
+	performanceView.finishSettingsForSongLoad();
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	preLoadedSong = nullptr;
 	loadSongUI.deletedPartsOfOldSong = false;

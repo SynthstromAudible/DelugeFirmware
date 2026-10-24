@@ -55,6 +55,15 @@ struct ParamsForPerformance {
 	RGB rowTailColour = deluge::gui::colours::black;
 };
 
+// Settings read from a song or template, without any UI state or backup copies.
+struct PerformanceViewSettings {
+	ParamsForPerformance layout[kDisplayWidth];
+	int32_t values[kDisplayWidth][kDisplayHeight];
+	FXColumnPress presses[kDisplayWidth];
+	bool hasLayout;
+	bool initialized; // song layout saved by firmware that never saves an uninitialized layout
+};
+
 class PerformanceView final : public ClipNavigationTimelineView {
 public:
 	PerformanceView();
@@ -112,7 +121,9 @@ public:
 	void updateLayoutChangeStatus();
 	void resetPerformanceView(ModelStackWithThreeMainThings* modelStack);
 	void writeSettingsToFile(Serializer& writer);
-	void readSettingsFromFile(Deserializer& reader);
+	void readSettingsForSongLoad(Deserializer& reader);
+	void resetSettingsForSongLoad();
+	void finishSettingsForSongLoad();
 	bool defaultEditingMode;
 	bool editingParam; // if you're not editing a param, you're editing a value
 
@@ -131,6 +142,10 @@ public:
 
 private:
 	// initialize
+	void initialize();
+	void initializeSettings(PerformanceViewSettings& settings);
+	void applySettings(const PerformanceViewSettings& settings, bool initializeHeldEffects);
+	void updateQuantizedStutterValues();
 	void initPadPress(PadPress& padPress);
 	void initFXPress(FXColumnPress& columnPress);
 	void initLayout(ParamsForPerformance& layout);
@@ -160,19 +175,23 @@ private:
 	void releaseStutter(ModelStackWithThreeMainThings* modelStack);
 
 	/// write/load default values
-	void writeDefaultsToFile();
+	bool writeDefaultsToFile();
 	void writeDefaultFXValuesToFile(Serializer& writer);
 	void writeDefaultFXParamToFile(Serializer& writer, int32_t xDisplay);
 	void writeDefaultFXRowValuesToFile(Serializer& writer, int32_t xDisplay);
 	void writeDefaultFXHoldStatusToFile(Serializer& writer, int32_t xDisplay);
-	void loadDefaultLayout();
+	void loadDefaultLayout(PerformanceViewSettings& settings);
+	void loadDefaultSettings();
+	void backupSavedLayout();
 	void readDefaultsFromBackedUpFile();
-	void readDefaultsFromFile();
-	void readDefaultFXValuesFromFile(Deserializer& reader, bool initializeHeldEffects = true);
-	void readDefaultFXParamAndRowValuesFromFile(Deserializer& reader, int32_t xDisplay, bool initializeHeldEffects);
-	void readDefaultFXParamFromFile(Deserializer& reader, int32_t xDisplay);
-	void readDefaultFXRowNumberValuesFromFile(Deserializer& reader, int32_t xDisplay);
-	void readDefaultFXHoldStatusFromFile(Deserializer& reader, int32_t xDisplay, bool initializeHeldEffects);
+	void readDefaultsFromFile(bool applyHeldPads);
+	void readDefaultFXValuesFromFile(Deserializer& reader, PerformanceViewSettings& settings);
+	void readDefaultFXParamAndRowValuesFromFile(Deserializer& reader, int32_t xDisplay,
+	                                            PerformanceViewSettings& settings);
+	void readDefaultFXParamFromFile(Deserializer& reader, int32_t xDisplay, PerformanceViewSettings& settings);
+	void readDefaultFXRowNumberValuesFromFile(Deserializer& reader, int32_t xDisplay,
+	                                          PerformanceViewSettings& settings);
+	void readDefaultFXHoldStatusFromFile(Deserializer& reader, int32_t xDisplay, PerformanceViewSettings& settings);
 	void initializeHeldFX(int32_t xDisplay);
 	bool successfullyReadDefaultsFromFile;
 	bool anyChangesToSave;
