@@ -58,6 +58,7 @@ public:
 
 	FIL readFIL;
 	char* fileClusterBuffer;
+	void* fileClusterBufferAllocation = nullptr; // original alloc; fileClusterBuffer may be cache-aligned interior
 	UINT currentReadBufferEndPos;
 	int32_t fileReadBufferCurrentPos;
 
@@ -111,6 +112,7 @@ protected:
 	bool callRoutines = true;
 	uint8_t indentAmount;
 	char* writeClusterBuffer;
+	void* writeClusterBufferAllocation = nullptr; // original alloc; writeClusterBuffer may be cache-aligned interior
 	uint32_t bufferSize;
 	int32_t fileWriteBufferCurrentPos;
 	int32_t fileTotalBytesWritten;
