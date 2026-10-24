@@ -23,6 +23,7 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/led/pad_leds.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
@@ -42,6 +43,10 @@ uint32_t ClipView::getMaxLength() {
 
 void ClipView::focusRegained() {
 	ClipNavigationTimelineView::focusRegained();
+	// Returning from a shortcut menu starts a fresh overview if Shift is still active (including sticky Shift).
+	exitedShortcutOverview = false;
+	// Browsers can draw directly onto the pad image, even without a waveform preview.
+	uiNeedsRendering(this);
 }
 
 ActionResult ClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
@@ -392,12 +397,19 @@ int32_t ClipView::getTickSquare() {
 }
 
 void ClipView::maybeStartShortcutOverview(deluge::hid::Button b, bool on) {
-	// ignore whether it was on to handle sticky shift (shift off doesn't mean sticky shift is off)
-	if (b == hid::button::SHIFT && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShortcutOverlay)) {
+	// Instrument changes keep the Shift overview active and refresh it for the new instrument.
+	const bool changingInstrument =
+	    Buttons::isShiftButtonPressed()
+	    && (b == hid::button::SYNTH || b == hid::button::KIT || b == hid::button::MIDI || b == hid::button::CV);
+	// Handle both Shift edges because releasing physical Shift can leave sticky Shift active.
+	if ((b == hid::button::SHIFT || changingInstrument)
+	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShortcutOverlay)
+	           == static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuAndClip)) {
 		exitedShortcutOverview = false;
 		uiNeedsRendering(this);
 	}
-	else {
+	else if (on) {
+		// A release may belong to the button that closed a menu; keep the restored overview visible.
 		stopShortcutOverview();
 	}
 }
@@ -410,17 +422,30 @@ void ClipView::stopShortcutOverview() {
 	}
 }
 
+bool ClipView::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
+	if (getCurrentUI() == this && (getUIType() == UIType::INSTRUMENT_CLIP || getUIType() == UIType::AUDIO_CLIP)
+	    && shouldRenderShortcutsOverview()) {
+		*cols = 0xFFFFFFFF;
+		*rows = 0;
+		return true;
+	}
+	return false;
+}
+
 bool ClipView::shouldRenderShortcutsOverview() const {
-	return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShortcutOverlay) && Buttons::isShiftButtonPressed()
-	       and not exitedShortcutOverview;
+	return getCurrentUI() == this
+	       && runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShortcutOverlay)
+	              == static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuAndClip)
+	       && Buttons::isShiftButtonPressed() && !exitedShortcutOverview;
 }
 
 bool ClipView::maybeRenderShortcutsOverview(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                             uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
                                             bool drawUndefinedArea) {
-	// Sean: disabling rendering while in clip view for now
-	return false;
-
+	// Restore the underlying UI grey-out when the overlay disappears.
+	if (renderedShortcutOverview && !shouldRenderShortcutsOverview()) {
+		PadLEDs::reassessGreyout();
+	}
 	if (shouldRenderShortcutsOverview()) {
 		renderedShortcutOverview = true;
 		D_PRINTLN("rendering shortcuts for %x", getModControllableAudioOrNone());
