@@ -57,7 +57,10 @@ SampleRecorder::~SampleRecorder() {
 	if (sample != nullptr) {
 		detachSample();
 	}
-	outputRecordingFrom->removeRecorder();
+	// Only set when recording from a specific track
+	if (outputRecordingFrom != nullptr) {
+		outputRecordingFrom->removeRecorder();
+	}
 }
 
 // This can be called when this SampleRecorder is destructed routinely - or earlier if we've aborted and the sample file
