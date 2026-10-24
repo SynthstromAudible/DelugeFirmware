@@ -63,6 +63,9 @@ void deluge_system_reset(void) {
 void deluge_system_quiesce(void) {
 }
 
+void deluge_system_flush_range(uintptr_t start, uintptr_t end) {
+}
+
 void deluge_log(const char* text) {
 	fputs(text, stderr);
 }
@@ -145,6 +148,10 @@ uint64_t deluge_clock_monotonic(void) {
 	struct timespec ts;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	return (uint64_t)ts.tv_sec * DELUGE_TICK_HZ + (uint64_t)ts.tv_nsec * DELUGE_TICK_HZ / 1000000000ull;
+}
+
+uint32_t deluge_clock_system_ticks(void) {
+	return (uint32_t)deluge_clock_monotonic();
 }
 
 void deluge_clock_delay_us(uint32_t us) {
@@ -270,7 +277,9 @@ void deluge_board_init_audio(void) {
 }
 void deluge_board_init_storage(void) {
 }
-void deluge_board_unlock_data_cache(void) {
+void deluge_board_unlock_data_cache(uintptr_t dma_stream_start, uintptr_t dma_stream_end) {
+	(void)dma_stream_start;
+	(void)dma_stream_end;
 }
 
 // audio_io.h is implemented in host_audio.c (the render-driver + WAV capture).
@@ -460,6 +469,8 @@ void deluge_trigger_clock_set_handler(DelugeTriggerClockHandler handler) {
 void deluge_encoder_io_init(int8_t wake_task) {
 	(void)wake_task;
 }
+void deluge_encoder_poll_pins(void) {
+}
 int8_t deluge_encoder_take_edges(uint8_t encoder) {
 	(void)encoder;
 	return 0;
@@ -505,6 +516,11 @@ bool deluge_midi_gate_timer_pending(void) {
 }
 void deluge_midi_gate_timer_arm(uint32_t samples_from_now) {
 	(void)samples_from_now;
+}
+void deluge_midi_gate_timer_arm_ticks(uint32_t system_ticks_from_now) {
+	(void)system_ticks_from_now;
+}
+void deluge_midi_gate_timer_stop(void) {
 }
 
 // ===========================================================================

@@ -1,10 +1,11 @@
 #! /usr/bin/env python3
 import argparse
 import importlib
-import subprocess
-from typing import Sequence
-import util
 import os
+import subprocess
+from collections.abc import Sequence
+
+import util
 
 # Map of build configuration names to the name CMake uses for them
 BUILD_CONFIGS = {
@@ -56,7 +57,7 @@ def argparser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Sequence[str] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     (args, unknown_args) = argparser().parse_known_args(argv)
 
     os.chdir(util.get_git_root())
@@ -82,9 +83,7 @@ def main(argv: Sequence[str] = None) -> int:
     build_args += ["--target", "deluge"]
 
     if args.config and args.config != "all":
-        config = (
-            BUILD_CONFIGS[args.config] if args.config in BUILD_CONFIGS else args.config
-        )
+        config = BUILD_CONFIGS.get(args.config, args.config)
         build_args += ["--config", config]
 
     if args.verbose:
@@ -101,7 +100,7 @@ def main(argv: Sequence[str] = None) -> int:
     if args.no_status:
         build_args += ["--", "--quiet"]  # pass quiet directly to ninja
 
-    result = subprocess.run(["cmake"] + build_args, env=os.environ)
+    result = subprocess.run(["cmake"] + build_args, env=os.environ, check=False)
     return result.returncode
 
 

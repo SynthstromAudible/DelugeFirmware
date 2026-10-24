@@ -105,10 +105,14 @@ public:
 
 	Output* getOutputRecordingFrom() override { return outputRecordingFrom; }
 	void clearRecordingFrom() override { setOutputRecordingFrom(nullptr); }
+	// Specific-track recording only makes sense from another audio-capable output.
+	bool canRecordFrom(Output const* source) const {
+		return source && source != this && source->type != OutputType::MIDI_OUT && source->type != OutputType::CV;
+	}
 	void setOutputRecordingFrom(Output* toRecordfrom) {
-		if (toRecordfrom == this) {
-			// can happen from bad save files
-			return;
+		if (toRecordfrom && !canRecordFrom(toRecordfrom)) {
+			// Can happen from bad save files or stale UI state.
+			toRecordfrom = nullptr;
 		}
 		releaseMonitoringClaim();
 		outputRecordingFrom = toRecordfrom;

@@ -25,6 +25,16 @@ hold(SHIFT) + press(BACK)
 
 Note: If a preset is changed or you enter sound editor, then the redo history is cleared.
 
+# Toggle Sticky Shift
+
+#COMMUNITY
+
+```shortcut
+press(SHIFT)
+```
+
+With the Sticky Shift (STIC) Community Feature setting enabled, short press shift to toggle sticky shift. Long press shift for momentary shift.
+
 # Qwerty keyboard
 
 #OFFICIAL
@@ -58,7 +68,7 @@ To edit decimal values in the currently selected vertical menu, use the horizont
 #COMMUNITY #MENU #SYNTH #KIT #MIDI #CV
 
 ```shortcut
-press(SELECT) + turn(SELECT), hold(SHIFT) + turn(SELECT)
+hold(SELECT) + turn(SELECT), hold(SHIFT) + turn(SELECT)
 ```
 
 Press and turn select or hold shift and turn select to edit fine edit decimal values in the currently selected horizontal menu.

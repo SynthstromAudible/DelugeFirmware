@@ -45,4 +45,8 @@ extern void setTimeUSBInitializationEnds(int32_t timeFromNow);
 
 #ifdef __cplusplus
 }
+
+namespace Deluge {
+void factoryReset();
+}
 #endif

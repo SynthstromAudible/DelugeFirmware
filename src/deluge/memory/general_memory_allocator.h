@@ -19,6 +19,8 @@
 
 #include "definitions_cxx.hpp"
 #include "memory/memory_region.h"
+#include "memory/stealable.h"
+#include <concepts>
 
 #define MEMORY_REGION_STEALABLE 0
 #define MEMORY_REGION_INTERNAL 1
@@ -26,7 +28,7 @@
 #define MEMORY_REGION_EXTERNAL_SMALL 3
 #define MEMORY_REGION_INTERNAL_SMALL 4
 #define NUM_MEMORY_REGIONS 5
-constexpr uint32_t RESERVED_EXTERNAL_ALLOCATOR = 0x00200000;       // 2 MiB
+constexpr uint32_t RESERVED_EXTERNAL_ALLOCATOR = 0x00200000;       // 2 MiB - at least. See GeneralMemoryAllocator()
 constexpr uint32_t RESERVED_EXTERNAL_SMALL_ALLOCATOR = 0x00020000; // 200k
 constexpr uint32_t RESERVED_INTERNAL_SMALL = 0x00010000;           // 200k
 class Stealable;
@@ -72,7 +74,12 @@ public:
 		return alloc(requiredSize, false, false, thingNotToStealFrom);
 	}
 
-	[[gnu::always_inline]] void* allocStealable(uint32_t requiredSize, void* thingNotToStealFrom = nullptr) {
+	/// Stealable memory is marked SPACE_HEADER_STEALABLE, and the allocator calls Stealable's virtuals on whatever it
+	/// finds there when grabbing neighbouring memory - so only a Stealable may be constructed in it. requiredSize
+	/// covers any payload stored after the object.
+	template <std::derived_from<Stealable> T>
+	[[gnu::always_inline]] void* allocStealable(uint32_t requiredSize = sizeof(T),
+	                                            void* thingNotToStealFrom = nullptr) {
 		return alloc(requiredSize, false, true, thingNotToStealFrom);
 	}
 
@@ -103,6 +110,10 @@ public:
 #endif
 
 	MemoryRegion regions[NUM_MEMORY_REGIONS];
+	/// The stealable region's bounds, which unlike regions[MEMORY_REGION_STEALABLE].start / end don't leave room for
+	/// its headers - so they're on 1MB MMU section boundaries. See GeneralMemoryAllocator().
+	uint32_t stealableSectionsStart = 0;
+	uint32_t stealableSectionsEnd = 0;
 	// only used for managing stealables (audio files that we could deallocate and re load from sd later if needed)
 	CacheManager cacheManager;
 	bool lock;

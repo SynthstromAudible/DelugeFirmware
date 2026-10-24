@@ -445,8 +445,8 @@ gotErrorAfterCreatingSong:
 		preLoadedSong->loadAllSamples(true);
 	}
 
-	// Ensure all AudioFile Clusters needed for new song are loaded
-	yieldWithTimeout([]() { return !(audioFileManager.loadingQueueHasAnyLowestPriorityElements()); }, 5);
+	// Ensure the first Clusters of the new song's Samples are loaded, so they can start instantly
+	yieldWithTimeout([]() { return !(audioFileManager.loadingQueueHasAnySampleStarts()); }, 5);
 
 	preLoadedSong->name.set(&enteredText);
 

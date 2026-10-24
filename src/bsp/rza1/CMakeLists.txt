@@ -15,7 +15,7 @@ add_library(bsp_rza1 STATIC
     memory.c
     block_device.c
     cv_gate.c
-    encoder_io.c
+    encoder_io.cpp
     # RZ/A1L interrupt + system-timer registration and the HW fault reporter,
     # relocated here from OSLikeStuff (they were never foundation — they are HAL).
     timers_interrupts.c
@@ -45,6 +45,16 @@ target_include_directories(bsp_rza1 PRIVATE
 add_dependencies(bsp_rza1 deluge_version)
 
 target_link_libraries(bsp_rza1 PUBLIC RZA1)
+
+# Same language levels as the application: the BSP's C++ port impls share its headers (scheduler_api.h, the
+# quadrature decoder), and fault_handler.c uses C23.
+set_target_properties(bsp_rza1 PROPERTIES
+    C_STANDARD ${DELUGE_C_STANDARD}
+    C_STANDARD_REQUIRED ON
+    CXX_STANDARD ${DELUGE_CXX_STANDARD}
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS ON
+)
 
 # Link the BSP into the firmware. PUBLIC so the libdeluge include dir propagates
 # to the deluge target's own translation units.

@@ -27,6 +27,7 @@
 /// addressed inside the 4-byte event packets that flow over the port).
 
 #include "libdeluge/midi_io.h"
+#include "libdeluge/system.h" // ENTER/EXIT_CRITICAL_SECTION
 
 #include "RZA1/cpu_specific.h"       // UART_ITEM_MIDI
 #include "RZA1/uart/sio_char.h"      // uartGetTxBufferSpace, uartFlushIfNotSending
@@ -127,7 +128,10 @@ uint32_t deluge_midi_write(DelugeMidiPort port, const uint8_t* src, uint32_t len
 		// Caller is expected to have checked deluge_midi_write_space() first, as
 		// the original bufferMIDIUart() loop did.
 		for (uint32_t i = 0; i < len; i++) {
+			// The MIDI/gate output timer ISR writes to this buffer too
+			ENTER_CRITICAL_SECTION();
 			bufferMIDIUart(src[i]);
+			EXIT_CRITICAL_SECTION();
 		}
 		return len;
 	}

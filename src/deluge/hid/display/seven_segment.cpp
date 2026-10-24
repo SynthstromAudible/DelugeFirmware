@@ -692,7 +692,7 @@ void SevenSegment::setTextVeryBasicA1(char const* text) {
 	deluge_display_write_seven_segment(segments.data(), segments.size());
 }
 
-// Highest error code used, main branch: E453
+// Highest error code used, main branch: E455
 // Highest error code used, fix branch: i041
 
 void SevenSegment::freezeWithError(char const* text) {

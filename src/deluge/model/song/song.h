@@ -283,7 +283,7 @@ public:
 	Clip* syncScalingClip;
 	void setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction = false);
 	bool hasAnySwing();
-	void resyncLFOs();
+	void resyncLFOs(bool reset_state = false);
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Sound* sound);
 	bool areAllClipsInSectionPlaying(int32_t section);
 	void removeYNoteFromMode(int32_t yNoteWithinOctave);
@@ -430,7 +430,7 @@ public:
 	bool hasBeenTransposed = 0;
 	int16_t transposeOffset = 0;
 
-	int32_t countAudioClips() const;
+	int32_t countAudioVoices() const;
 
 	// Chord memory
 	uint8_t chordMemNoteCount[kDisplayHeight] = {0};

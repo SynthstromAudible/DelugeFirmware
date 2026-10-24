@@ -32,7 +32,7 @@
 
 #include "libdeluge/board.h"
 
-#include "RZA1/cache/cache.h"                // L2CacheUnlockData
+#include "RZA1/cache/cache.h"                // L2CacheUnlockData, L2CacheMapRangeInnerOnly
 #include "RZA1/cpu_specific.h"               // SPI_CHANNEL_CV, OLED_SPI_DMA_CHANNEL, DMACn
 #include "RZA1/gpio/gpio.h"                  // setPinMux/setPinAsInput/setPinAsOutput/setOutputState
 #include "RZA1/oled/oled_low_level.h"        // setupSPIInterrupts
@@ -72,9 +72,10 @@ void deluge_board_init_early(bool have_oled) {
 	setPinAsInput(6, 3); // Line out detect L
 	setPinAsInput(6, 4); // Line out detect R
 
-	// SPI for CV. Higher than 10 MHz would probably work, but when the OLED shares
-	// this channel we stick to the OLED datasheet's 100 ns (10 MHz) spec.
-	R_RSPI_Create(SPI_CHANNEL_CV, have_oled ? 10000000 : 30000000, 0, 32);
+	// SPI for CV / OLED. We used to use 10MHz with an OLED on this channel, which is what the OEL9M0087-W-E OLED
+	// datasheet specified (well, 100ns). But as of the 2026 batch of OLEDs, despite them being the same model, 8.5MHz
+	// and higher causes glitching. 4MHz appears safe.
+	R_RSPI_Create(SPI_CHANNEL_CV, have_oled ? 4000000 : 30000000, 0, 32);
 	R_RSPI_Start(SPI_CHANNEL_CV);
 	setPinMux(6, 0, 3); // SPI_CLK
 	setPinMux(6, 2, 3); // SPI_MOSI
@@ -109,6 +110,11 @@ void deluge_board_init_storage(void) {
 	initSPIBSC(); // This will run the audio routine!
 }
 
-void deluge_board_unlock_data_cache(void) {
+void deluge_board_unlock_data_cache(uintptr_t dma_stream_start, uintptr_t dma_stream_end) {
+	// Long after resetprg.c has used the BSC to set up SDRAM, which shares this mapping
+	L2CacheMapRegistersAsDevice();
+	// Stealables are mostly streamed sample data, which L2 gains little from, and DMA writes Clusters there, which
+	// would otherwise need slow L2 maintenance. Before unlocking, so L2 isn't holding any of it.
+	L2CacheMapRangeInnerOnly(dma_stream_start, dma_stream_end);
 	L2CacheUnlockData();
 }

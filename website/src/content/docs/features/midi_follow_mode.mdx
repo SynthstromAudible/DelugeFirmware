@@ -75,7 +75,12 @@ To use MIDI follow mode, you will need to configure the various MIDI Follow Mode
 - In the `MIDI-Follow > Kit Root Note` submenu, set the root note for kits between 1 and 127 in order to map MIDI Notes received to Kit rows. The root note corresponds to the bottom row in a Kit.
 - In the `MIDI-Follow > Display Param` submenu, enable or disable param pop-ups
 - In the `MIDI-Follow > Feedback > Channel` submenu, Enable or Disable MIDI follow feedback by setting a MIDI Follow Feedback Channel.
-  - You can choose MIDI Follow Channel A/B/C or NONE. Thus, when you update MIDI Follow Channel A/B/C it will automatically update the channel used for MIDI Feedback.
+  - You can choose MIDI Follow Channel A/B/C, Track, Track + A/B/C, or NONE.
+    Thus, when you update MIDI Follow Channel A/B/C or a configured Track
+    channel it will automatically update the channel used for MIDI Feedback.
+  - Track + A/B/C feedback modes send Track feedback first when the
+    selected clip belongs to a configured track, then send the selected A/B/C
+    feedback channel if it is configured and is not the same MIDI channel.
     - Note: if no Channel has been set, MIDI Feedback will be Disabled
 - In the `MIDI-Follow > Feedback > Automation Feedback` submenu, Enable or Disable MIDI follow feedback for automated parameters and set the rate at which feedback for automated parameters is sent
   - With Automation Feedback enabled, the Deluge will also send feedback while you are holding a note (e.g. step editing automation). This will override the sending of automation feedback until you release the note.
@@ -135,6 +140,10 @@ In <Badge text="c1.3" variant="tip" /> the above functionality has been expanded
   - Track 1 corresponds to bottom track in `ARRANGER VIEW` or left track in `GRID VIEW`.
   - You can also now configure the Channel `TRACK` for MIDI Follow Feedback. If a specific track is selected and has been configured
     for MIDI Follow control, the Deluge will send feedback of the CC values for that specific track.
+  - You can choose `TRACK + A`, `TRACK + B`, or `TRACK + C` to send feedback
+    to both the selected clip's configured Track channel and the configured
+    A/B/C channel. If both resolve to the same MIDI channel, feedback is only
+    sent once.
 
 #### Default MIDI CC Mappings
 
@@ -215,7 +224,8 @@ Note: if the MIDI CC being received is for a Parameter that cannot be controlled
 - Set up to sixteen MIDI Follow Channels and Devices for controlling up to 16 Specific Tracks <Badge text="c1.3" variant="tip" />
 - Set the MIDI Follow Root Note for Kits
 - Enable or Disable MIDI Follow Param Pop-up's
-- Enable or Disable MIDI Follow Feedback by setting/unsetting the MIDI Follow Feedback Channel
+- Enable or Disable MIDI Follow Feedback by setting/unsetting the MIDI Follow
+  Feedback Channel, including paired Track + A/B/C feedback modes
 - Enable or Disable MIDI Follow Feedback for Automated Parameters and set the MIDI Feedback Update Rate
 - Enable or Disable MIDI Follow Feedback Filtering of MIDI CC responses received within 1 second of sending feedback
 

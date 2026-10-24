@@ -20,13 +20,11 @@
 #include "EngineMkI.h"
 #include "definitions_cxx.hpp"
 #include "dx7note.h"
-
-// seems to cause crashes... maybe YAGNI
-// #define DX_PREALLOC
+#include <gsl/gsl>
 
 class DxEngine {
 public:
-	DxEngine();
+	DxEngine() = default;
 #define EXP2_LG_N_SAMPLES 10
 #define EXP2_N_SAMPLES (1 << EXP2_LG_N_SAMPLES)
 	int32_t exp2tab[EXP2_N_SAMPLES << 1];
@@ -50,16 +48,11 @@ public:
 #define FREQ_N_SAMPLES (1 << FREQ_LG_N_SAMPLES)
 	int32_t freq_lut[FREQ_N_SAMPLES + 1];
 
-#ifdef DX_PREALLOC
-	DxVoice dxVoices[kNumVoiceSamplesStatic];
-	DxVoice* firstUnassignedDxVoice;
-#endif
-
 	EngineMkI engineMkI;
 	FmCore engineModern;
 
-	DxVoice* solicitDxVoice();
-	void dxVoiceUnassigned(DxVoice* dxVoice);
+	static gsl::owner<DxVoice*> solicitDxVoice();
+	static void dxVoiceUnassigned(gsl::owner<DxVoice*> dxVoice);
 	DxPatch* newPatch();
 };
 

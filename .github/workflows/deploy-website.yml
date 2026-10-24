@@ -33,23 +33,33 @@ jobs:
         working-directory: website
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The recent-changes panel needs enough main-branch history to pair
+          # revert commits with the changes they undo.
+          fetch-depth: 0
       - uses: pnpm/action-setup@v6
         with:
           version: 10.24.0
           run_install: false
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 20
           cache: pnpm
           cache-dependency-path: website/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Rebuild Sharp native module
+        run: pnpm rebuild sharp
+
       # Playwright is needed for rendering mermaid diagrams at build time
       # See: https://github.com/remcohaszing/rehype-mermaid?tab=readme-ov-file#installation
       - name: Install Chromium for Playwright
         run: pnpm exec playwright install --with-deps chromium chromium-headless-shell
+
+      - name: Configure Chromium sandbox for PDF generation
+        run: bash ./scripts/setup-pdf-sandbox.sh
 
       # This gets us the site base URL
       - name: Setup Pages
@@ -59,8 +69,16 @@ jobs:
       - name: Build website
         run: pnpm run build
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           SITE_URL: ${{ steps.setup_pages.outputs.base_url }}
           SITE_BASE_PATH: ${{ steps.setup_pages.outputs.base_path }}
+
+      - name: Create PDF
+        env:
+          SITE_URL: ${{ steps.setup_pages.outputs.base_url }}
+          SITE_BASE_PATH: ${{ steps.setup_pages.outputs.base_path }}
+        timeout-minutes: 10
+        run: pnpm run generate:pdf
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7

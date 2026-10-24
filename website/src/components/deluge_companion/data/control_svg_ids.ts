@@ -44,6 +44,8 @@ export const controlSvgIds: Partial<Record<Control, string[]>> = {
   [Control.PERFORMANCE]: ["Keyboard"],
   [Control.KEY]: ["Keyboard"],
   [Control.SCALE]: ["Scale"],
+  [Control.POWER_SWITCH]: ["Power-Switch"],
+  [Control.TRIPLETSVIEW]: ["Triplets-View"],
   [Control.SONG]: ["Song"],
   [Control.X]: ["Horizontal-Encoder"],
   [Control.Y]: ["Vertical-Encoder"],

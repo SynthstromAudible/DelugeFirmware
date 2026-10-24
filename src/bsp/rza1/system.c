@@ -24,6 +24,7 @@
 #include "libdeluge/system.h"
 #include "RZA1/cpu_specific.h"
 
+#include "RZA1/cache/cache.h"
 #include "RZA1/intc/devdrv_intc.h" // intc_func_active (the active interrupt id, 0 outside an ISR)
 #include "RZA1/mtu/mtu.h"
 #include "definitions.h"
@@ -41,6 +42,10 @@ void deluge_system_quiesce(void) {
 	disableTimer(TIMER_SYSTEM_SLOW);
 	disableTimer(TIMER_SYSTEM_FAST);
 	disableTimer(TIMER_SYSTEM_SUPERFAST);
+}
+
+void deluge_system_flush_range(uintptr_t start, uintptr_t end) {
+	invalidate_range_all_caches(start, end);
 }
 
 // Critical sections: a CPU primitive (IRQ masking) the BSP owns. Relocated
@@ -80,16 +85,18 @@ void EXIT_CRITICAL_SECTION() {
 		__asm volatile("ISB");
 		__asm volatile("CPSIE i" ::: "memory");
 	}
-	// if that fails we're still in a critical section so just decrement the count
+	// A failed exchange leaves the current depth in expected. If we're not in a critical section at all, this is an
+	// unbalanced exit: don't decrement, or every later ENTER would go -1 -> 0 without disabling interrupts and critical
+	// sections would silently stop working.
+	else if (expected <= 0) {
+#if ALPHA_OR_BETA_VERSION
+		FREEZE_WITH_ERROR("CS01");
+#endif
+	}
+	// otherwise we're still in a critical section so just decrement the count
 	else {
 		atomic_fetch_sub_explicit(&critical_section_depth, 1, memory_order_relaxed);
 	}
-
-#if ALPHA_OR_BETA_VERSTION
-	if (atomic_load_explicit(&critical_section_depth, memory_order_relaxed) < 0) {
-		FREEZE_WITH_ERROR("OH NO");
-	}
-#endif
 }
 
 void deluge_log(const char* text) {

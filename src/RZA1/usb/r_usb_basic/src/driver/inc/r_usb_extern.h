@@ -585,6 +585,7 @@ extern void usb_hmsc_drive_complete(usb_utr_t* ptr, uint16_t addr, uint16_t data
 #endif /* defined(USB_CFG_HMSC_USE) */
 
 extern uint16_t g_usb_pstd_eptbl[];
+extern uint16_t g_usb_pstd_eptbl_midi_only[];
 
 #if defined(USB_CFG_PMSC_USE)
 extern void usb_pmsc_receive_cbw(void);

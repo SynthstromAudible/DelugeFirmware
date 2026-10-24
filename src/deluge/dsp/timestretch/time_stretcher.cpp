@@ -245,14 +245,15 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 
 	AudioEngine::logAction("hopEnd");
 
-#if ALPHA_OR_BETA_VERSION
 	// Trying to track down Steven's E133 - percCacheClusterNearby pointing to things with no reasons left
 	for (int32_t l = 0; l < 2; l++) {
 		if (percCacheClustersNearby[l] && !percCacheClustersNearby[l]->numReasonsToBeLoaded) {
 			FREEZE_WITH_ERROR("i036");
+			// We hold no reason on it, so it may get stolen - forget it rather than later removing a reason we don't
+			// have
+			percCacheClustersNearby[l] = nullptr;
 		}
 	}
-#endif
 
 	/*
 	if (numTimesMissedHop) {
@@ -1126,7 +1127,8 @@ void TimeStretcher::rememberPercCacheCluster(Cluster* cluster) {
 // This is just responsible for adding reasons to the upcoming Clusters of sample audio data that the perc lookahead is
 // going to need in the next little while, to reserve it and hopefully make sure it's loaded and in memory when we need
 // it.
-void TimeStretcher::updateClustersForPercLookahead(Sample* sample, uint32_t sourceBytePos, int32_t playDirection) {
+void TimeStretcher::updateClustersForPercLookahead(Sample* sample, uint32_t sourceBytePos, int32_t playDirection,
+                                                   int32_t priorityRating) {
 	int32_t clusterIndex = sourceBytePos >> Cluster::size_magnitude;
 
 	if (!clustersForPercLookahead[0] || clustersForPercLookahead[0]->clusterIndex != clusterIndex) {
@@ -1138,8 +1140,8 @@ void TimeStretcher::updateClustersForPercLookahead(Sample* sample, uint32_t sour
 			    || nextClusterIndex >= sample->getFirstClusterIndexWithNoAudioData()) {
 				break; // If no more Clusters
 			}
-			clustersForPercLookahead[l] =
-			    sample->clusters.getElement(nextClusterIndex)->getCluster(sample, nextClusterIndex, CLUSTER_ENQUEUE);
+			clustersForPercLookahead[l] = sample->clusters.getElement(nextClusterIndex)
+			                                  ->getCluster(sample, nextClusterIndex, CLUSTER_ENQUEUE, priorityRating);
 			if (!clustersForPercLookahead[l]) {
 				break;
 			}
@@ -1210,8 +1212,14 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 		numSamplesThisCacheRead = samplesTilThisWindowEnd; // Only do this after we're sure we're not cancelling caching
 	}
 
-	if (ALPHA_OR_BETA_VERSION && numSamplesThisCacheRead <= 0) {
-		FREEZE_WITH_ERROR("E179");
+	if (numSamplesThisCacheRead <= 0) {
+		if (ALPHA_OR_BETA_VERSION) {
+			FREEZE_WITH_ERROR("E179");
+		}
+		// Nothing to crossfade from, and would divide by zero below
+		delugeDealloc(buffer);
+		buffer = nullptr;
+		return;
 	}
 
 	for (int32_t i = 0; i < numSamplesThisCacheRead; i++) {

@@ -5,6 +5,14 @@ sub-capability-order: 2
 sub-sub-capability: System (MIDI)
 sub-sub-capability-order: 3
 
+# Enter MIDI learn mode
+
+#OFFICIAL
+
+```shortcut
+hold(LEARN)
+```
+
 # External controller to play synth or kit
 
 #OFFICIAL #SYNTH #KIT #MIDI #CV
@@ -112,7 +120,7 @@ Learns an external MIDI note to mute individual kit instruments / rows.
 #COMMUNITY #MIDI
 
 ```shortcut
-hold(SHIFT) + hold(LEARN)
+hold(SHIFT) + press(LEARN)
 ```
 
 Unlearns a MIDI Follow channel or device from the current MIDI Follow submenu.

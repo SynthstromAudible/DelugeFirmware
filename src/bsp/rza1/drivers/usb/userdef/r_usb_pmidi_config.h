@@ -17,6 +17,7 @@
 
 #pragma once
 
-// Let's just keep these two pipes as not the same as the send-pipe for USB MIDI hosting (PIPE1)
-#define USB_CFG_PMIDI_BULK_IN (USB_PIPE2)
+// Let's just keep these two pipes as not the same as the send-pipe for USB MIDI hosting (PIPE1). PIPE1 and PIPE2 are
+// the only ones that can do isochronous transfers, so they're kept for USB audio (r_usb_paudio_config.h)
+#define USB_CFG_PMIDI_BULK_IN (USB_PIPE4)
 #define USB_CFG_PMIDI_BULK_OUT (USB_PIPE3)

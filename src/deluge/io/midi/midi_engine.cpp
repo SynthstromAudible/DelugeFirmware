@@ -26,6 +26,7 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
+#include "io/midi/midi_queue.h"
 #include "io/midi/sysex.h"
 #include "libdeluge/midi_io.h"
 #include "libdeluge/system.h"
@@ -36,6 +37,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/smsysex.h"
 #include "version.h"
+#include <algorithm>
 
 extern "C" {
 
@@ -59,7 +61,7 @@ MidiEngine::MidiEngine() {
 	}
 	midiFollowKitRootNote = 36;
 	midiFollowDisplayParam = false;
-	midiFollowFeedbackChannelType = MIDIFollowChannelType::NONE;
+	midiFollowFeedbackChannelType = MIDIFollowFeedbackChannelType::NONE;
 	midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
 	midiFollowFeedbackFilter = false;
 	midiTakeover = MIDITakeoverMode::JUMP;
@@ -108,10 +110,7 @@ void MidiEngine::sendAllNotesOff(MIDISource source, int32_t channel, int32_t fil
 }
 
 void MidiEngine::sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter) {
-	if (value > 127) {
-		value = 127;
-	}
-	sendMidi(source, MIDIMessage::cc(channel, cc, value), filter);
+	sendMidi(source, MIDIMessage::cc(channel, cc, toDataByte(value)), filter);
 }
 
 void MidiEngine::sendClock(MIDISource source, bool sendUSB, int32_t howMany) {
@@ -154,13 +153,13 @@ void MidiEngine::sendPitchBend(MIDISource source, int32_t channel, uint16_t bend
 	sendMidi(source, MIDIMessage::pitchBend(channel, bend), filter);
 }
 
-void MidiEngine::sendChannelAftertouch(MIDISource source, int32_t channel, uint8_t value, int32_t filter) {
-	sendMidi(source, MIDIMessage::channelAftertouch(channel, value), filter);
+void MidiEngine::sendChannelAftertouch(MIDISource source, int32_t channel, int32_t value, int32_t filter) {
+	sendMidi(source, MIDIMessage::channelAftertouch(channel, toDataByte(value)), filter);
 }
 
-void MidiEngine::sendPolyphonicAftertouch(MIDISource source, int32_t channel, uint8_t value, uint8_t noteCode,
+void MidiEngine::sendPolyphonicAftertouch(MIDISource source, int32_t channel, int32_t value, uint8_t noteCode,
                                           int32_t filter) {
-	sendMidi(source, MIDIMessage::polyphonicAftertouch(channel, noteCode, value), filter);
+	sendMidi(source, MIDIMessage::polyphonicAftertouch(channel, noteCode, toDataByte(value)), filter);
 }
 
 void MidiEngine::sendMidi(MIDISource source, MIDIMessage message, int32_t filter, bool sendUSB) {
@@ -180,35 +179,70 @@ void MidiEngine::sendMidi(MIDISource source, MIDIMessage message, int32_t filter
 	*eventStackTop_ = source;
 	++eventStackTop_;
 
-	// Send USB MIDI
-	if (sendUSB) {
-		sendUsbMidi(message, filter);
-	}
-
-	// Send serial MIDI
-	if (MIDIDeviceManager::dinMIDIPorts.wantsToOutputMIDIOnChannel(message, filter)) {
-		sendSerialMidi(message);
+	bool sendDIN = MIDIDeviceManager::dinMIDIPorts.wantsToOutputMIDIOnChannel(message, filter);
+	if (sendUSB || sendDIN) {
+		queueMIDI(message, filter, sendUSB, sendDIN, midiDue_);
 	}
 
 	--eventStackTop_;
 }
 
-uint32_t setupUSBMessage(MIDIMessage message) {
-	// format message per USB midi spec on virtual cable 0
-	uint8_t cin;
-	uint8_t firstByte = (message.channel & 15) | (message.statusType << 4);
+namespace {
+// Shared with the MIDI/gate output timer ISR
+PLACE_SDRAM_BSS MIDIQueue midiQueue;
+} // namespace
 
-	switch (firstByte) {
-	case 0xF2: // Position pointer
-		cin = 0x03;
-		break;
-
-	default:
-		cin = message.statusType; // Good for voice commands
-		break;
+void MidiEngine::queueMIDI(MIDIMessage message, int32_t filter, bool sendUSB, bool sendDIN, uint32_t due) {
+	if (midiQueue.push(message, filter, sendUSB, sendDIN, due, getSystemTicks())) [[likely]] {
+		return;
 	}
+	// Full - send the oldest early to make room.
+	// queue is consumed by ISR so lock that out to be safe
+	CriticalSectionGuard guard;
+	sendOldestQueuedMIDI(guard);
+	midiQueue.push(message, filter, sendUSB, sendDIN, due, getSystemTicks());
+}
 
-	return ((uint32_t)message.data2 << 24) | ((uint32_t)message.data1 << 16) | ((uint32_t)firstByte << 8) | cin;
+bool MidiEngine::nextMIDIDue(uint32_t& due) {
+	return midiQueue.nextDue(due);
+}
+
+bool MidiEngine::flushQueuedMIDI(bool all, uint32_t now) {
+	QueuedMIDI queued;
+	while (midiQueue.popDue(queued, now, all)) {
+		sendQueuedMIDI(queued);
+	}
+	if (anythingInOutputBuffer()) {
+		flushMIDI();
+	}
+	// Covers both USB and UART (including bytes UART is still sending)
+	return anythingInOutputBuffer();
+}
+
+bool MidiEngine::sendOldestQueuedMIDI(const InterruptsDisabled&) {
+	QueuedMIDI queued;
+	if (!midiQueue.popOldest(queued)) {
+		return false;
+	}
+	sendQueuedMIDI(queued);
+	return true;
+}
+
+void MidiEngine::sendQueuedMIDI(const QueuedMIDI& queued) {
+	if (queued.usb) {
+		sendUsbMidi(queued.message, queued.filter);
+	}
+	if (queued.din) {
+		sendSerialMidi(queued.message);
+	}
+}
+
+bool MidiEngine::flushDueMIDI(uint32_t now, const InterruptsDisabled&) {
+	return flushQueuedMIDI(false, now);
+}
+
+void MidiEngine::flushAllQueuedMIDI(const InterruptsDisabled&) {
+	flushQueuedMIDI(true, 0);
 }
 
 void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
@@ -502,11 +536,7 @@ void MidiEngine::check_incoming_usb() {
 
 void MidiEngine::checkIncomingUsbMidi() {
 
-	if (!usbCurrentlyInitialized
-	    || currentlyAccessingCard != 0) { // hack to avoid SysEx handlers clashing with other sd-card activity.
-		if (currentlyAccessingCard != 0) {
-			// D_PRINTLN("checkIncomingUsbMidi seeing currentlyAccessingCard non-zero");
-		}
+	if (!usbCurrentlyInitialized) {
 		return;
 	}
 	check_incoming_usb();
@@ -526,11 +556,12 @@ void MidiEngine::checkIncomingUsbMidi() {
 			}
 
 			// Drain whole 4-byte event packets from the device's port into a local
-			// buffer (one bulk transfer holds at most 64 bytes). The BSP (re)arms
+			// buffer (a peripheral-mode receive can drain up to three 64-byte
+			// packets from the double-buffered pipe in one go). The BSP (re)arms
 			// its own receive transfers as part of the read; one timestamp covers
 			// the batch — the same value (and read point) as the old
 			// &timeLastBRDY[ip], so MIDI-clock-in timing is unchanged.
-			uint8_t received[64];
+			uint8_t received[192];
 			uint32_t rxTicks = 0;
 			uint32_t bytesReceivedHere =
 			    deluge_midi_read_timed(connectedUSBMIDIDevices[ip][d].port, received, sizeof received, &rxTicks);
@@ -581,7 +612,7 @@ bool lastWasNoteOn = false;
 void MidiEngine::midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8_t channel, uint8_t data1,
                                      uint8_t data2, uint32_t* timer) {
 
-	bool shouldDoMidiThruNow = midiThru;
+	bool shouldDoMidiThruNow = cable.midi_thru;
 
 	// Make copies of these, cos we might modify the variables, and we need the originals to do MIDI thru at the end.
 	uint8_t originalStatusType = statusType;

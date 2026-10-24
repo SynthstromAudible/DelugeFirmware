@@ -33,6 +33,7 @@ public:
 	bool tryLoad(std::string_view path);
 	void drawPixelsForOled() override;
 	void readValueAgain() final;
+	void loadPatch();
 	void selectEncoderAction(int32_t offset) final;
 	MenuItem* selectButtonPress() final;
 	void drawValue();

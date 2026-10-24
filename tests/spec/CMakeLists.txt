@@ -4,6 +4,21 @@ FetchContent_Declare(CppSpec
 )
 FetchContent_MakeAvailable(CppSpec)
 
+# The DSP headers are written against Argon. Keep this tag in sync with lib/CMakeLists.txt.
+FetchContent_Declare(argon
+  GIT_REPOSITORY https://github.com/stellar-aria/argon
+  GIT_TAG 4b8efc4f4f21595d454e415fb619dd91223c0400
+)
+FetchContent_MakeAvailable(argon)
+
+# Argon falls back to SIMDe's <arm/neon.h> shim when the host isn't ARM, which is
+# what lets the reverb DSP be specced on a normal x86 dev machine.
+FetchContent_Declare(simde
+  GIT_REPOSITORY https://github.com/simd-everywhere/simde
+  GIT_TAG v0.8.2
+)
+FetchContent_MakeAvailable(simde)
+
 add_subdirectory(../../src/lib printf)
 add_subdirectory(../../src/midi deluge_midi)
 
@@ -14,12 +29,19 @@ add_library(deluge_spec STATIC
 # foundation library; cfunctions.c now only holds the clock-coupled delays.
 ../../src/foundation/string_format.c
 ../../src/deluge/util/lookuptables/lookuptables.cpp
+../../src/deluge/hid/display/starfield.cpp
+../../src/deluge/hid/display/rainfall.cpp
+../../src/deluge/dsp/reverb/freeverb/freeverb.cpp
 ../32bit_unit_tests/mocks/mock_display.cpp
 ../32bit_unit_tests/mocks/mock_print.cpp
 )
-target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi)
+target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi argon)
 
-target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_test/mocks/)
+target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_test/mocks/ ${simde_SOURCE_DIR}/simde)
+
+# Turns every DelayLine read outside its own reserved region into a hard failure.
+# Compiled out of the firmware; see dsp/reverb/fx_engine.hpp.
+target_compile_definitions(deluge_spec PUBLIC DELUGE_DSP_BOUNDS_CHECK=1)
 
 set_target_properties(deluge_spec PROPERTIES
   CXX_STANDARD 23
@@ -50,3 +72,21 @@ endfunction()
 create_specs_driver(all_specs ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(all_specs PUBLIC deluge_spec deluge_midi)
 deluge_apply_test_sanitizers(all_specs)
+
+# Visual harness for the OLED starfield. Renders frames as ASCII so the ported
+# animation can be checked by eye without hardware. Deliberately has no add_test:
+# it asserts nothing, and its filename avoids the *_spec.cpp glob.
+add_executable(StarfieldPreview starfield_preview.cpp)
+target_link_libraries(StarfieldPreview PRIVATE deluge_spec)
+set_target_properties(StarfieldPreview PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+)
+
+# Visual harness for the OLED rain screensaver, on the same terms as StarfieldPreview above.
+add_executable(RainfallPreview rainfall_preview.cpp)
+target_link_libraries(RainfallPreview PRIVATE deluge_spec)
+set_target_properties(RainfallPreview PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+)

@@ -128,8 +128,12 @@ void AudioRecorder::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas
 bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels,
                                          AudioRecordingFolder folderID, bool writeLoopPoints, bool shouldNormalize) {
 
-	if (ALPHA_OR_BETA_VERSION && recordingSource > AudioInputChannel::NONE) {
+	// Already recording - don't orphan the running recorder by overwriting it
+	if (recordingSource > AudioInputChannel::NONE) {
+#if ALPHA_OR_BETA_VERSION
 		FREEZE_WITH_ERROR("E242");
+#endif
+		return false;
 	}
 
 	recorder = AudioEngine::getNewRecorder(newNumChannels, folderID, newMode, false, writeLoopPoints,
@@ -210,6 +214,10 @@ void AudioRecorder::process() {
 
 		readButtonsAndPads();
 
+		// openUI() only marks the OLED for rendering, and nothing else flushes that while we block here - without
+		// this, "Waiting" only appeared if an SD wait happened to yield to the scheduler's pending-UI task (#5054)
+		doAnyPendingUIRendering();
+
 		AudioEngine::slowRoutine();
 
 		// If recording has finished...
@@ -240,17 +248,14 @@ void AudioRecorder::process() {
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIPPING_OCCURRED));
 				}
 			}
-			else if (!updatedRecordingStatus && recorder->numSamplesCaptured) {
+			else if (!updatedRecordingStatus && (recorder->numSamplesCaptured > recorder->minThresholdMargin)) {
+				updatedRecordingStatus = true;
 				if (display->have7SEG()) {
 					display->setText("REC", false, 255, true);
 				}
 				else {
-					deluge::hid::display::OLED::clearMainImage();
-					deluge::hid::display::OLED::main.drawStringCentred("Recording", 19, kTextBigSpacingX,
-					                                                   kTextBigSizeY);
-					deluge::hid::display::OLED::sendMainImage();
+					renderUIsForOled();
 				}
-				updatedRecordingStatus = true;
 			}
 		}
 	}

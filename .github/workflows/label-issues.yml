@@ -1,0 +1,46 @@
+name: Label issues
+
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    paths:
+      - .github/ISSUE_TEMPLATE/**
+      - .github/issue-form-labels.yml
+      - .github/labels.yml
+      - .github/scripts/label_issue.py
+      - .github/scripts/test_label_issue.py
+      - .github/workflows/label-issues.yml
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test issue form labeling
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - run: python .github/scripts/test_label_issue.py
+
+  label:
+    name: Label new issue from form answers
+    if: github.event_name == 'issues'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - run: python .github/scripts/label_issue.py
+        env:
+          GH_TOKEN: ${{ github.token }}

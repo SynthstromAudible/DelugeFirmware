@@ -20,6 +20,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
 #include "gui/views/session_view.h"
+#include "hid/display/oled.h"
 #include "model/song/song.h"
 #include "processing/audio_output.h"
 
@@ -33,13 +34,42 @@ enum class AudioInputSelector::Value {
 	RIGHT,
 	STEREO,
 	BALANCED,
+	USB,
 	MASTER,
 	OUTPUT,
 	TRACK,
 };
-constexpr size_t kNumValues = 8;
+constexpr size_t kNumValues = 9;
 
 AudioInputSelector audioInputSelector{};
+
+namespace {
+// A saved source pointer can become stale if its instrument leaves the active song list, e.g. by being hibernated.
+Output* getRecordableOutputInSong(AudioOutput* audioOutput, Output* selectedOutput) {
+	if (!audioOutput->canRecordFrom(selectedOutput)) {
+		return nullptr;
+	}
+
+	for (Output* output = currentSong->firstOutput; output; output = output->next) {
+		if (output == selectedOutput) {
+			return selectedOutput;
+		}
+	}
+
+	return nullptr;
+}
+
+// Used when entering Track mode without a valid previous source.
+Output* getFirstRecordableOutput(AudioOutput* audioOutput) {
+	for (Output* output = currentSong->firstOutput; output; output = output->next) {
+		if (audioOutput->canRecordFrom(output)) {
+			return output;
+		}
+	}
+
+	return nullptr;
+}
+} // namespace
 
 char const* AudioInputSelector::getTitle() {
 	using enum l10n::String;
@@ -50,8 +80,8 @@ std::span<const char*> AudioInputSelector::getOptions() {
 	using enum l10n::String;
 	static const char* options[] = {
 	    l10n::get(STRING_FOR_DISABLED),     l10n::get(STRING_FOR_LEFT_INPUT),     l10n::get(STRING_FOR_RIGHT_INPUT),
-	    l10n::get(STRING_FOR_STEREO_INPUT), l10n::get(STRING_FOR_BALANCED_INPUT), l10n::get(STRING_FOR_MIX_PRE_FX),
-	    l10n::get(STRING_FOR_MIX_POST_FX),  l10n::get(STRING_FOR_TRACK),
+	    l10n::get(STRING_FOR_STEREO_INPUT), l10n::get(STRING_FOR_BALANCED_INPUT), l10n::get(STRING_FOR_USB_INPUT),
+	    l10n::get(STRING_FOR_MIX_PRE_FX),   l10n::get(STRING_FOR_MIX_POST_FX),    l10n::get(STRING_FOR_TRACK),
 	};
 	return {options, kNumValues};
 }
@@ -74,6 +104,10 @@ bool AudioInputSelector::setupAndCheckAvailability() {
 
 	case AudioInputChannel::BALANCED:
 		valueOption = Value::BALANCED;
+		break;
+
+	case AudioInputChannel::USB:
+		valueOption = Value::USB;
 		break;
 
 	case AudioInputChannel::MIX:
@@ -111,6 +145,10 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 	ContextMenu::selectEncoderAction(offset);
 
 	auto valueOption = static_cast<Value>(currentOption);
+	if (display->haveOLED() && valueOption == Value::TRACK) {
+		// Keep Track on the first visible row so the selected track name has room below it.
+		scrollPos = currentOption;
+	}
 
 	// When switching away from SPECIFIC_OUTPUT, clear the recording-from state
 	// so the previously-selected track is no longer silently muted
@@ -136,6 +174,10 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 		audioOutput->inputChannel = AudioInputChannel::BALANCED;
 		break;
 
+	case Value::USB:
+		audioOutput->inputChannel = AudioInputChannel::USB;
+		break;
+
 	case Value::MASTER:
 		audioOutput->inputChannel = AudioInputChannel::MIX;
 		break;
@@ -145,16 +187,10 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 		break;
 	case Value::TRACK: {
 		audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
-		// Default to the first recordable output. Skip MIDI/CV (and ourselves), matching padAction, which rejects
-		// them - recording audio from a non-audio output is meaningless and drives that output's renderOutput.
-		Output* recordFrom = nullptr;
-		for (int32_t i = 0; i < currentSong->getNumOutputs(); i++) {
-			Output* candidate = currentSong->getOutputFromIndex(i);
-			if (candidate != audioOutput && candidate->type != OutputType::MIDI_OUT
-			    && candidate->type != OutputType::CV) {
-				recordFrom = candidate;
-				break;
-			}
+		// Preserve the chosen source if possible; only choose a default when the previous source is gone.
+		Output* recordFrom = getRecordableOutputInSong(audioOutput, audioOutput->getOutputRecordingFrom());
+		if (!recordFrom) {
+			recordFrom = getFirstRecordableOutput(audioOutput);
 		}
 		audioOutput->setOutputRecordingFrom(recordFrom);
 		break;
@@ -165,20 +201,30 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 	}
 
 	defaultAudioOutputInputChannel = audioOutput->inputChannel;
+
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
 }
 
 // if they're in session view and press a clip's pad, record from that output
 ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
 	if (on && getUIUpOneLevel() == &sessionView) {
 		auto track = (&sessionView)->getOutputFromPad(x, y);
-		if (track && track->type != OutputType::MIDI_OUT && track->type != OutputType::CV) {
+		if (audioOutput->canRecordFrom(track)) {
 			audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
 			audioOutput->setOutputRecordingFrom(track);
-			display->popupTextTemporary(track->name.get());
+			if (display->have7SEG()) {
+				// OLED shows this persistently in renderOLED(); 7SEG still needs popup feedback.
+				display->popupTextTemporary(track->name.get());
+			}
 			// sets scroll to the position of specific output
 			scrollPos = static_cast<int32_t>(Value::TRACK);
 			currentOption = scrollPos;
 			renderUIsForOled();
+		}
+		else if (track && track == audioOutput) {
+			display->popupTextTemporary("Can't record self!");
 		}
 		else if (track) {
 			display->popupTextTemporary("Can't record MIDI or CV!");
@@ -187,6 +233,35 @@ ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
 		return ActionResult::DEALT_WITH;
 	}
 	return ContextMenu::padAction(x, y, on);
+}
+
+void AudioInputSelector::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	ContextMenu::renderOLED(canvas);
+
+	// if specific track is not selected, then rendering track name is not applicable
+	if (audioOutput->inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
+		return;
+	}
+
+	// Show the selected target in the context menu footer.
+	Output* recordFrom = getRecordableOutputInSong(audioOutput, audioOutput->getOutputRecordingFrom());
+	char const* trackName = recordFrom ? recordFrom->name.get() : "No track";
+
+	int32_t windowHeight = 40;
+	int32_t windowMinY = (OLED_MAIN_HEIGHT_PIXELS - windowHeight) >> 1;
+	int32_t textPixelY = windowMinY + 20 + kTextSpacingY;
+	// draw a little L arrow from the specific track menu item selection to the name of the track selected
+	canvas.drawVerticalLine(25, textPixelY - 2, textPixelY + 4);
+	canvas.drawHorizontalLine(textPixelY + 4, 25, 31);
+	canvas.drawPixel(29, textPixelY + 2);
+	canvas.drawPixel(30, textPixelY + 3);
+	canvas.drawPixel(30, textPixelY + 5);
+	canvas.drawPixel(29, textPixelY + 6);
+	// indent the track name over a bit so the arrow can point to it
+	canvas.drawString(trackName, 35, textPixelY, kTextSpacingX, kTextSpacingY, 0, OLED_MAIN_WIDTH_PIXELS - 27);
+	// setup scrolling for long track names
+	deluge::hid::display::OLED::setupSideScroller(1, trackName, 35, OLED_MAIN_WIDTH_PIXELS - 27, textPixelY,
+	                                              textPixelY + 8, kTextSpacingX, kTextSpacingY, false);
 }
 
 } // namespace deluge::gui::context_menu

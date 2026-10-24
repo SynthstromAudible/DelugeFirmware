@@ -20,10 +20,12 @@
 #include "extern.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
+#include "gui/waveform/waveform_renderer.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device_manager.h"
 #include "libdeluge/block_device.h"
+#include "libdeluge/system.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/reason_check.h"
 #include "model/sample/sample.h"
@@ -38,6 +40,7 @@
 #include "storage/wave_table/wave_table_reader.h"
 #include "util/try.h"
 
+#include <algorithm>
 #include <new>
 #include <string.h>
 
@@ -55,6 +58,7 @@ LBA_t clst2sect(           /* !=0:Sector number, 0:Failed (invalid cluster#) */
 );
 
 DRESULT disk_read_without_streaming_first(BYTE pdrv, BYTE* buff, DWORD sector, UINT count);
+DRESULT disk_read_letting_clusters_load_first(BYTE pdrv, BYTE* buff, LBA_t sector, UINT count);
 DRESULT disk_write_without_streaming_first(BYTE pdrv, const BYTE* buff, DWORD sector, UINT count);
 
 extern uint8_t currentlyAccessingCard;
@@ -68,7 +72,8 @@ extern int currentlySearchingForCluster;
 DRESULT disk_read(BYTE pdrv, BYTE* buff, LBA_t sector, UINT count) {
 	audioFileManager.loadAnyEnqueuedClusters(); // always ensure SD streaming is fulfilled first
 
-	DRESULT result = disk_read_without_streaming_first(pdrv, buff, sector, count);
+	// Interrupt-driven Cluster reads already queued go before this one
+	DRESULT result = disk_read_letting_clusters_load_first(pdrv, buff, sector, count);
 
 	if (currentlySearchingForCluster) {
 		pendingGlobalMIDICommandNumClustersWritten++;
@@ -84,6 +89,18 @@ DRESULT disk_write(BYTE pdrv, const BYTE* buff, LBA_t sector, UINT count) {
 }
 
 AudioFileManager audioFileManager{};
+
+// sd_async only calls these from the SD interrupt, or from sd_async_kick() and sd_async_check_timeout() with interrupts
+// disabled. Being C, it can't hand us proof of that, so this is where it comes from.
+bool sdAsyncNextRead(SdAsyncRead* read) {
+	ISRCriticalSectionGuard guard;
+	return audioFileManager.nextClusterRead(*read, guard);
+}
+
+void sdAsyncReadDone(void* /*user*/, int error) {
+	ISRCriticalSectionGuard guard;
+	audioFileManager.clusterReadDone(error, guard);
+}
 
 AudioFileManager::AudioFileManager() {
 	highestUsedAudioRecordingNumber.fill(-1);
@@ -102,6 +119,7 @@ void AudioFileManager::firstCardRead() {
 void AudioFileManager::init() {
 
 	clusterBeingLoaded = nullptr;
+	sd_async_init(sdAsyncNextRead, sdAsyncReadDone);
 
 	Error error = StorageManager::initSD();
 	if (error == Error::NONE) {
@@ -230,6 +248,10 @@ clusterSizeChangedButItsOk:
 // memory listed with their would-be real permanent filenames. Also, we won't be needing to play them back again. You
 // must not call this during the card or audio routines.
 void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
+
+	// The waveform renderer may hold reasons on Samples we're about to delete regardless of their reasons
+	waveformRenderer.releaseAllLoads();
+	releaseAllPrefetches();
 
 	// Also though, in case any of these Samples were still being recorded before the Song-delete, we need to make sure
 	// SampleRecorder::cardRoutine() gets called first to "detach" the Sample from the recorder. So, do this:
@@ -569,7 +591,7 @@ notLoadableAsWaveTable:
 				}
 			}
 
-			void* waveTableMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(WaveTable));
+			void* waveTableMemory = GeneralMemoryAllocator::get().allocStealable<WaveTable>();
 			if (!waveTableMemory) {
 				*error = Error::INSUFFICIENT_RAM;
 				return NULL;
@@ -806,7 +828,7 @@ cantLoadFile:
 
 	int32_t memorySizeNeeded = (type == AudioFileType::SAMPLE) ? sizeof(Sample) : sizeof(WaveTable);
 
-	void* audioFileMemory = GeneralMemoryAllocator::get().allocStealable(memorySizeNeeded);
+	void* audioFileMemory = GeneralMemoryAllocator::get().allocStealable<AudioFile>(memorySizeNeeded);
 	if (!audioFileMemory) {
 ramError:
 		*error = Error::INSUFFICIENT_RAM;
@@ -930,6 +952,27 @@ audioFileError:
 
 #define REPORT_LOAD_TIME 0
 
+// Returns 0 if there's nothing to read
+static int32_t numSectorsToRead(Cluster const& cluster) {
+	Sample const* sample = cluster.sample;
+	int32_t numSectors = Cluster::size >> 9;
+
+	// If this is the last Cluster, and we do know what the audio data length is...
+	if (sample->audioDataLengthBytes && sample->audioDataLengthBytes != 0x8FFFFFFFFFFFFFFF) {
+		uint32_t audioDataEndPosBytes = sample->audioDataLengthBytes + sample->audioDataStartPosBytes;
+		uint32_t startByteThisCluster = cluster.clusterIndex << Cluster::size_magnitude;
+		int32_t bytesToRead = audioDataEndPosBytes - startByteThisCluster;
+		if (bytesToRead <= 0) {
+			return 0; // Shouldn't really still happen
+		}
+		if (bytesToRead < Cluster::size) {
+			numSectors = ((bytesToRead - 1) >> 9) + 1;
+		}
+		// Otherwise, just leave it at the normal number of sectors
+	}
+	return numSectors;
+}
+
 bool AudioFileManager::loadCluster(Cluster& cluster, int32_t minNumReasonsAfter) {
 
 	if (currentlyAccessingCard) {
@@ -961,10 +1004,12 @@ bool AudioFileManager::loadCluster(Cluster& cluster, int32_t minNumReasonsAfter)
 		FREEZE_WITH_ERROR("E204");
 	}
 	// it'd only be in the loading queue if it had a "reason".
+#endif
 	if (!sample) {
 		FREEZE_WITH_ERROR("E206");
+		clusterBeingLoaded = nullptr;
+		return false; // sample is dereferenced below
 	}
-#endif
 
 	// So that it can't accidentally hit 0 reasons while we're loading it,
 	// cos then it might get deallocated.
@@ -977,23 +1022,9 @@ getOutEarly:
 		return false;
 	}
 
-	int32_t clusterIndex = cluster.clusterIndex;
-
-	int32_t numSectors = Cluster::size >> 9;
-
-	// If this is the last Cluster, and we do know what the audio data length is...
-	if (sample->audioDataLengthBytes && sample->audioDataLengthBytes != 0x8FFFFFFFFFFFFFFF) {
-		uint32_t audioDataEndPosBytes = sample->audioDataLengthBytes + sample->audioDataStartPosBytes;
-		uint32_t startByteThisCluster = clusterIndex << Cluster::size_magnitude;
-		int32_t bytesToRead = audioDataEndPosBytes - startByteThisCluster;
-		if (bytesToRead <= 0) {
-			D_PRINTLN("fail thing"); // Shouldn't really still happen
-			goto getOutEarly;
-		}
-		if (bytesToRead < Cluster::size) {
-			numSectors = ((bytesToRead - 1) >> 9) + 1;
-		}
-		// Otherwise, just leave it at the normal number of sectors
+	int32_t numSectors = numSectorsToRead(cluster);
+	if (numSectors == 0) {
+		goto getOutEarly;
 	}
 
 #if ALPHA_OR_BETA_VERSION
@@ -1008,11 +1039,13 @@ getOutEarly:
 	uint16_t startTime = MTU2.TCNT_0;
 #endif
 
-#if ALPHA_OR_BETA_VERSION
+	// The Cluster has been repurposed, so don't read sample data into its memory
 	if (cluster.type != Cluster::Type::SAMPLE) {
 		FREEZE_WITH_ERROR("i023"); // Happened to me while thrash testing with reduced RAM
+		goto getOutEarly;
 	}
 
+#if ALPHA_OR_BETA_VERSION
 	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter + 1) {
 		FREEZE_WITH_ERROR("i039"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
@@ -1031,14 +1064,18 @@ getOutEarly:
 	}
 #endif
 
-#if ALPHA_OR_BETA_VERSION
+	// The Cluster got repurposed during the read. Don't go on to convert its data, copy into its neighbours, or
+	// mark it as loaded
 	if (cluster.type != Cluster::Type::SAMPLE) {
 		FREEZE_WITH_ERROR("E207");
+		goto getOutEarly;
 	}
 	if (cluster.sample == nullptr) {
 		FREEZE_WITH_ERROR("E208");
+		goto getOutEarly;
 	}
 
+#if ALPHA_OR_BETA_VERSION
 	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter + 1) {
 		FREEZE_WITH_ERROR("i038"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
@@ -1049,13 +1086,34 @@ getOutEarly:
 		goto getOutEarly;
 	}
 
-	cluster.convertDataIfNecessary();
+	finishLoadingCluster(cluster);
 
 #if ALPHA_OR_BETA_VERSION
 	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter + 1) {
 		FREEZE_WITH_ERROR("i040"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
 #endif
+
+	clusterBeingLoaded = NULL;
+	removeReasonFromCluster(cluster, "E034");
+
+#if ALPHA_OR_BETA_VERSION
+	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter) {
+		FREEZE_WITH_ERROR("i037");
+	}
+	if (cluster.sample->clusters.getElement(cluster.clusterIndex)->cluster != &cluster) {
+		FREEZE_WITH_ERROR("E438");
+	}
+#endif
+
+	return true;
+}
+
+void AudioFileManager::finishLoadingCluster(Cluster& cluster) {
+	Sample* sample = cluster.sample;
+	int32_t clusterIndex = cluster.clusterIndex;
+
+	cluster.convertDataIfNecessary();
 
 	int32_t misalignment = sample->audioDataStartPosBytes & 0b11;
 
@@ -1239,20 +1297,6 @@ copy7ToMe:
 	}
 
 	cluster.loaded = true;
-
-	clusterBeingLoaded = NULL;
-	removeReasonFromCluster(cluster, "E034");
-
-#if ALPHA_OR_BETA_VERSION
-	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter) {
-		FREEZE_WITH_ERROR("i037");
-	}
-	if (cluster.sample->clusters.getElement(cluster.clusterIndex)->cluster != &cluster) {
-		FREEZE_WITH_ERROR("E438");
-	}
-#endif
-
-	return true;
 }
 
 // Only needs calling a couple times per second. Must be called outside of the audio / SD-reading routine
@@ -1280,117 +1324,216 @@ void AudioFileManager::slowRoutine() {
 	// see
 	// https://github.com/SynthstromAudible/DelugeFirmware/blob/866a71d0394e259a5b3db9d4fde605511bd1c67d/src/deluge/storage/audio/audio_file_manager.cpp#L1238
 	// for a copy if ever needed
+
+	// Even if no waveform is being rendered any more, don't sit on Clusters it enqueued once they've loaded
+	waveformRenderer.releaseFinishedLoads();
+	releaseUnloadablePrefetches();
 }
 
-#define REPORT_AWAY_TIME 0
-
-#if REPORT_AWAY_TIME
-uint16_t timeLastFinish;
-#endif
-
-void AudioFileManager::loadAnyEnqueuedClusters(int32_t maxNum, bool mayProcessUserActionsBetween) {
-
-	if (currentlyAccessingCard) {
-		return;
-	}
-	if (clusterBeingLoaded) {
-		return; // One might be having stuff done to it, like having its data converted, but not actually reading
-		        // the card right now
-	}
+void AudioFileManager::loadAnyEnqueuedClusters(bool mayProcessUserActionsBetween) {
+	// Finishing Clusters off swaps bytes with their neighbours, which the audio routine may be reading
 	if (AudioEngine::audioRoutineLocked) {
-		return; // Not sure if this should be neccesary?
+		return;
 	}
-
-	// Cannot call any functions in here which will read the SD card, other than loadCluster(), otherwise that'll
-	// re-call this function!
-
-	if (cardEjected || cardDisabled) {
-
-performActionsAndGetOut:
-		if (mayProcessUserActionsBetween) {
-			playbackHandler.slowRoutine();
-		}
+	if (isSDRoutineActive()) {
+		// We're inside routineForSD() or similar, where audio only gets rendered between our calls. Finishing off lots
+		// of Clusters in there starves it, so leave it to the loading task.
 		return;
 	}
 
+	finishClusterReads();
+
+	// We now have an opportunity, since we're not reading the card, to process any pending user actions like undo /
+	// redo.
+	if (mayProcessUserActionsBetween) {
+		playbackHandler.slowRoutine();
+	}
+
+	// If something else is using the card, it's paused the SD interrupt's reading anyway
+	if (currentlyAccessingCard || cardEjected || cardDisabled) {
+		return;
+	}
 	if (!StorageManager::checkSDInitialized()) {
-		goto performActionsAndGetOut; // In case the card somehow died
+		return; // In case the card somehow died
 	}
 
-	int32_t count = 0;
+	sd_async_check_timeout();
+	sd_async_recover(); // If the last read failed
+	sd_async_kick();
+}
 
-#if REPORT_AWAY_TIME
-	uint16_t startTime = MTU2.TCNT_0;
-	uint16_t awayTime = startTime - timeLastFinish;
-	int32_t uSecAway = timerCountToUS(awayTime);
-	if (uSecAway > 1000) {
-		D_PRINTLN("away  %d", uSecAway);
+bool AudioFileManager::nextClusterRead(SdAsyncRead& read, const InterruptsDisabled& guard) {
+	// Don't get further ahead of finishClusterReads() than it has room for
+	while (numClusterReads() < kMaxClusterReads) {
+		std::optional<qcluster> next = loadingQueue.popForLoading(guard);
+		if (!next.has_value()) {
+			return false;
+		}
+		auto [priority, cluster] = *next;
+		clusterBeingRead_ = cluster;
+		priorityBeingRead_ = priority;
+
+		int32_t numSectors = numSectorsToRead(*cluster);
+		if (numSectors == 0) {
+			clusterReadDone(SD_ASYNC_ERR, guard);
+			continue;
+		}
+
+		read = {
+		    .buff = reinterpret_cast<unsigned char*>(cluster->data),
+		    .sector = cluster->sample->clusters.getElement(cluster->clusterIndex)->sdAddress,
+		    .count = numSectors,
+		    .user = nullptr,
+		};
+		return true;
 	}
-#endif
+	return false;
+}
 
+void AudioFileManager::clusterReadDone(int error, const InterruptsDisabled&) {
+	clusterReads_[clusterReadsEnd_ % kMaxClusterReads] = {
+	    .cluster = clusterBeingRead_,
+	    .priority = priorityBeingRead_,
+	    .error = error,
+	};
+	clusterReadsEnd_ = clusterReadsEnd_ + 1;
+	clusterBeingRead_ = nullptr;
+}
+
+bool AudioFileManager::isClusterBeingRead(Cluster const* cluster, const InterruptsDisabled&) const {
+	if (clusterBeingRead_ == cluster) {
+		return true;
+	}
+	for (size_t i = clusterReadsStart_; i != clusterReadsEnd_; i++) {
+		if (clusterReads_[i % kMaxClusterReads].cluster == cluster) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void AudioFileManager::forgetClusterRead(Cluster const* cluster) {
 	while (true) {
-
-		// We now have an opportunity, since we're not reading the card, to process any pending user actions like
-		// undo / redo.
-		if (mayProcessUserActionsBetween) {
-			playbackHandler.slowRoutine();
-		}
-
-		// pop clusters until we get one that has reasonsToBeLoaded
-		// this prevents loading clusters that have been quickly culled after they were enqueued
-		Cluster* cluster = loadingQueue.getNext();
-
-		// no more clusters to load, so exit
-		if (cluster == nullptr) {
-			return;
-		}
-
-		// cluster has at least 1 "reason". If it didn't, it would have been removed from the load-queue
-
-		// Do the actual loading
-		if (cluster->type != Cluster::Type::SAMPLE) {
-			FREEZE_WITH_ERROR("E235"); // Cos Chris F got an E205
-		}
-
-		allowSomeUserActionsEvenWhenInCardRoutine = true; // Sorry!!
-		bool success = loadCluster(*cluster);
-		allowSomeUserActionsEvenWhenInCardRoutine = false;
-
-		// If that didn't work, presumably because the SD card got ejected...
-		if (!success) {
-			D_PRINTLN("load Cluster fail");
-
-			// If the Cluster is now down to 0 reasons (i.e. it lost a reason while being loaded), then it's already
-			// been made "available" and we don't have a problem
-			if (!cluster->numReasonsToBeLoaded) {}
-
-			// Otherwise, there are still "reasons" waiting for this Cluster to become loaded, so we need to put it
-			// back in the loading queue. Presumably it won't actually get loaded for a while - only when the user
-			// re-inserts the card
-			else {
-
-				if (cluster->type != Cluster::Type::SAMPLE) {
-					FREEZE_WITH_ERROR("E237"); // Cos Chris F got an E205
+		{
+			CriticalSectionGuard guard;
+			for (size_t i = clusterReadsStart_; i != clusterReadsEnd_; i++) {
+				ClusterRead& read = clusterReads_[i % kMaxClusterReads];
+				if (read.cluster == cluster) {
+					read.cluster = nullptr;
 				}
-
-				// TODO: If that fails, it'll just get awkwardly forgotten about
-				loadingQueue.enqueueCluster(*cluster, 0xFFFFFFFF); // lowest priority
-
-				// Also, return now. Normally we stay here til there's nothing left in the load-queue, but now that
-				// would leave us in an infinite loop!
-				break;
+			}
+			if (clusterBeingRead_ != cluster) {
+				return;
 			}
 		}
+		// DMA's writing into it right now. That won't take long, then it'll be in clusterReads_ next time round.
+		sd_async_check_timeout();
+	}
+}
 
-		count++;
-		if (count >= maxNum) {
-			break; // Keep things sane?
+void AudioFileManager::finishClusterReads() {
+	while (true) {
+		ClusterRead read{};
+		{
+			CriticalSectionGuard guard;
+			if (numClusterReads() == 0) {
+				return;
+			}
+			read = clusterReads_[clusterReadsStart_ % kMaxClusterReads];
+			clusterReadsStart_ = clusterReadsStart_ + 1;
+		}
+		if (read.cluster != nullptr) {
+			finishClusterRead(*read.cluster, read.error);
 		}
 	}
+}
 
-#if REPORT_AWAY_TIME
-	timeLastFinish = MTU2.TCNT_0;
-#endif
+void AudioFileManager::finishClusterRead(Cluster& cluster, int32_t error) {
+	bool unloadable = cluster.unloadable || cluster.sample->unloadable;
+
+	// Its last reason was removed while it was being read, and removeReasonFromCluster() left it to us
+	if (cluster.numReasonsToBeLoaded <= 0) {
+		if (error == SD_ASYNC_OK && !unloadable) {
+			finishLoadingCluster(cluster);
+		}
+		recycleUnwantedCluster(cluster);
+		return;
+	}
+
+	// Leave it unloaded, as Sample::markAsUnloadable() does for ones still in the queue
+	if (unloadable) {
+		return;
+	}
+
+	if (error != SD_ASYNC_OK) {
+		D_PRINTLN("load Cluster fail  %d", error);
+
+		// There are still "reasons" waiting for this Cluster to become loaded, so we need to put it back in the
+		// loading queue. Presumably the card got ejected, so it won't actually get loaded til it's re-inserted.
+		CriticalSectionGuard guard;
+		// TODO: If that fails, it'll just get awkwardly forgotten about
+		loadingQueue.enqueueCluster(cluster, ClusterPriority::kRetryAfterCardError, guard);
+		return;
+	}
+
+	finishLoadingCluster(cluster);
+}
+
+void AudioFileManager::recycleUnwantedCluster(Cluster& cluster) {
+	if (cluster.loaded) {
+		// It contains data we may want at some future point, so file it away
+		GeneralMemoryAllocator::get().putStealableInAppropriateQueue(&cluster);
+	}
+	else {
+		// It contains nothing, so completely recycle it
+		cluster.sample->clusters.getElement(cluster.clusterIndex)->cluster = nullptr;
+		delete &cluster;
+	}
+}
+
+bool AudioFileManager::loadEnqueuedClusterNow(Cluster& cluster) {
+	if (currentlyAccessingCard || clusterBeingLoaded != nullptr || AudioEngine::audioRoutineLocked) {
+		return false;
+	}
+
+	std::optional<Priority> priority;
+	bool beingRead = false;
+	{
+		CriticalSectionGuard guard;
+		priority = loadingQueue.take(&cluster, guard);
+		beingRead = !priority.has_value() && isClusterBeingRead(&cluster, guard);
+	}
+
+	// If the SD interrupt has already got to it, it won't be long
+	if (beingRead) {
+		while (true) {
+			{
+				CriticalSectionGuard guard;
+				if (clusterBeingRead_ != &cluster) {
+					break;
+				}
+			}
+			sd_async_check_timeout();
+		}
+		finishClusterReads();
+		return cluster.loaded;
+	}
+
+	// If it's not in the queue, it's not for us to load - e.g. a SampleRecorder may be writing into it
+	if (!priority.has_value()) {
+		return false;
+	}
+
+	allowSomeUserActionsEvenWhenInCardRoutine = true; // Sorry!!
+	bool success = loadCluster(cluster, 1);
+	allowSomeUserActionsEvenWhenInCardRoutine = false;
+
+	// The caller's reason means it can't have been let go of meanwhile, so it's safe to put back
+	if (!success) {
+		CriticalSectionGuard guard;
+		loadingQueue.enqueueCluster(cluster, *priority, guard);
+	}
+	return success;
 }
 
 void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* errorCode, bool deletingSong) {
@@ -1412,16 +1555,26 @@ void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* err
 			FREEZE_WITH_ERROR("E364");
 		}
 
-		// If it's still in the load queue, remove it from there. (We know that it isn't in the process of being
-		// loaded right now because that would have added a "reason", so we wouldn't be here.) also do this on song
-		// swap
-		if (loadingQueue.erase(&cluster) || deletingSong) {
+		// If it's still in the load queue, remove it from there. (We know that loadCluster() isn't loading it right
+		// now because that would have added a "reason", so we wouldn't be here. But the SD interrupt might be reading
+		// it.) also do this on song swap
+		bool erased = false;
+		bool beingRead = false;
+		{
+			CriticalSectionGuard guard;
+			erased = loadingQueue.erase(&cluster, guard);
+			beingRead = !erased && isClusterBeingRead(&cluster, guard);
+		}
 
+		if (erased || deletingSong) {
 			// Tell its Cluster to forget it exists
 			cluster.sample->clusters.getElement(cluster.clusterIndex)->cluster = NULL;
 
 			delete &cluster; // It contains nothing, so completely recycle it
 		}
+
+		// DMA may still be writing into it, so it can't be stolen yet. finishClusterRead() will file it away.
+		else if (beingRead) {}
 
 		else {
 			// It contains data we may want at some future point, so file it away
@@ -1438,14 +1591,110 @@ void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* err
 		}
 		FREEZE_WITH_ERROR(errorCode);
 #else
-		display->displayPopup(errorCode);  // For non testers, just display the error code without freezing
-		cluster->numReasonsToBeLoaded = 0; // Save it from crashing or anything
+		display->displayPopup(errorCode); // For non testers, just display the error code without freezing
+		cluster.numReasonsToBeLoaded = 0; // Save it from crashing or anything
 #endif
 	}
 }
 
-bool AudioFileManager::loadingQueueHasAnyLowestPriorityElements() {
-	return loadingQueue.hasAnyLowestPriority();
+void AudioFileManager::prefetchCluster(Sample* sample, int32_t clusterIndex) {
+	if (sample->unloadable) {
+		return;
+	}
+
+	SampleCluster* sampleCluster = sample->clusters.getElement(clusterIndex);
+	Cluster const* existing = sampleCluster->cluster;
+	if (existing != nullptr
+	    && std::ranges::any_of(prefetches_.begin(), prefetches_.begin() + numPrefetches_,
+	                           [existing](const Prefetch& prefetch) { return prefetch.cluster == existing; })) {
+		return;
+	}
+
+	// If we're full, make room by letting go of the oldest one that's loaded. It just goes back to being cached, so
+	// if it's wanted again before it's stolen, it won't need reloading. But don't let go of unloaded ones - they'd be
+	// taken out of the loading queue and deleted, and with lots of AudioClips we'd keep doing that and never load
+	// anything.
+	if (numPrefetches_ == kMaxPrefetches) {
+		auto oldestLoaded =
+		    std::ranges::find_if(prefetches_, [](const Prefetch& prefetch) { return prefetch.cluster->loaded; });
+		if (oldestLoaded == prefetches_.end()) {
+			return;
+		}
+		releasePrefetch(oldestLoaded - prefetches_.begin());
+	}
+
+	// If it already exists, this just adds a reason, so it can no longer be stolen. Otherwise it enqueues it behind
+	// anything that's actually needed.
+	Error error;
+	Cluster* cluster =
+	    sampleCluster->getCluster(sample, clusterIndex, CLUSTER_ENQUEUE, ClusterPriority::kSpeculative, &error);
+	// Nothing's waiting on it yet, so if we can't get it now, playback will just ask again when it gets there
+	if (error != Error::NONE || cluster == nullptr) {
+		D_PRINTLN("prefetch failed for index:  %d  error:  %d", clusterIndex, util::to_underlying(error));
+		return;
+	}
+
+	sample->addReason();
+	prefetches_[numPrefetches_++] = {cluster, sample};
+}
+
+void AudioFileManager::releasePrefetch(size_t i) {
+	Prefetch prefetch = prefetches_[i];
+	std::move(prefetches_.begin() + i + 1, prefetches_.begin() + numPrefetches_, prefetches_.begin() + i);
+	numPrefetches_--;
+
+	removeReasonFromCluster(*prefetch.cluster, "4461");
+	prefetch.sample->removeReason("4461");
+}
+
+void AudioFileManager::releasePrefetchesIf(auto shouldRelease) {
+	for (size_t i = 0; i < numPrefetches_;) {
+		if (shouldRelease(prefetches_[i])) {
+			releasePrefetch(i);
+		}
+		else {
+			i++;
+		}
+	}
+}
+
+void AudioFileManager::claimPrefetch(Cluster const* cluster) {
+	releasePrefetchesIf([cluster](const Prefetch& prefetch) { return prefetch.cluster == cluster; });
+}
+
+void AudioFileManager::releasePrefetchesForSample(Sample const* sample) {
+	releasePrefetchesIf([sample](const Prefetch& prefetch) { return prefetch.sample == sample; });
+}
+
+void AudioFileManager::releaseUnloadablePrefetches() {
+	// They've been taken out of the loading queue, so would otherwise be held until everything's cleared
+	releasePrefetchesIf([this](const Prefetch& prefetch) {
+		return prefetch.cluster != clusterBeingLoaded && (prefetch.cluster->unloadable || prefetch.sample->unloadable);
+	});
+}
+
+void AudioFileManager::releaseAllPrefetches() {
+	while (numPrefetches_ > 0) {
+		releasePrefetch(numPrefetches_ - 1);
+	}
+}
+
+bool AudioFileManager::loadingQueueHasAnySampleStarts() {
+	CriticalSectionGuard guard;
+	if (clusterBeingRead_ != nullptr && priorityBeingRead_ == ClusterPriority::kSampleStart) {
+		return true;
+	}
+	for (size_t i = clusterReadsStart_; i != clusterReadsEnd_; i++) {
+		const ClusterRead& read = clusterReads_[i % kMaxClusterReads];
+		if (read.cluster != nullptr && read.priority == ClusterPriority::kSampleStart) {
+			return true;
+		}
+	}
+	return loadingQueue.hasAnyWithPriority(ClusterPriority::kSampleStart, guard);
+}
+
+bool AudioFileManager::hasClusterLoadsPending() {
+	return !loadingQueue.empty() || clusterBeingRead_ != nullptr || numClusterReads() > 0;
 }
 
 // Caller must also set alternateAudioFileLoadPath.

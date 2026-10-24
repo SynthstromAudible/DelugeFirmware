@@ -43,11 +43,21 @@ extern "C" {
 /// Terminal panic: report `errmsg` and halt. Does not return in practice.
 extern void freezeWithError(char const* errmsg);
 
-/// Dump fault context (system/user link + stack pointers) to the board's status
-/// LEDs. Called from FREEZE_WITH_ERROR and from the CPU fault vector.
-void fault_handler_print_freeze_pointers(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR,
-                                         uint32_t addrUSRSP);
-void handle_cpu_fault(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR, uint32_t addrUSRSP);
+typedef enum : uint32_t {
+	// ARM fault types
+	UNDEFINED = 0,
+	PREFETCH = 1,
+	ABORT = 2,
+	RESERVED = 3,
+	// others
+	SOFT_FAULT = 0xE, // freeze_with_error
+	SVC = 0xF,        // theoretically this is only possible by deliberately making a syscall
+} cpu_fault_type;
+
+/// Dump fault context (link + stack pointers) to the board's status LEDs. Called
+/// from FREEZE_WITH_ERROR; handle_cpu_fault() is the CPU fault vector's entry.
+void fault_handler_print_freeze_pointers(uint32_t addrUSRLR, uint32_t addrUSRSP);
+void handle_cpu_fault(uint32_t exception_lr, cpu_fault_type exception_type, uint32_t sys_lr, uint32_t sys_sp);
 
 #ifdef __cplusplus
 }
@@ -60,7 +70,7 @@ void handle_cpu_fault(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR
 		uint32_t regSP = 0;                                                                                            \
 		asm volatile("MOV %0, LR\n" : "=r"(regLR));                                                                    \
 		asm volatile("MOV %0, SP\n" : "=r"(regSP));                                                                    \
-		fault_handler_print_freeze_pointers(0, 0, regLR, regSP);                                                       \
+		fault_handler_print_freeze_pointers(regLR, regSP);                                                             \
 		freezeWithError(error);                                                                                        \
 	})
 #else

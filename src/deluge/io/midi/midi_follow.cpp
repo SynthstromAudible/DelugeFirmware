@@ -40,6 +40,7 @@
 #include "modulation/params/param_set.h"
 #include "playback/mode/session.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
 #include <cstdlib>
@@ -73,8 +74,6 @@ EnumStringMap<MIDIFollowChannelType, kNumMIDIFollowChannelTypesIncludingTracks> 
     {{{MIDIFollowChannelType::A, "a"},
       {MIDIFollowChannelType::B, "b"},
       {MIDIFollowChannelType::C, "c"},
-      {MIDIFollowChannelType::NONE, "none"},
-      {MIDIFollowChannelType::Track, "track"},
       {MIDIFollowChannelType::Track1, "track_1"},
       {MIDIFollowChannelType::Track2, "track_2"},
       {MIDIFollowChannelType::Track3, "track_3"},
@@ -92,6 +91,16 @@ EnumStringMap<MIDIFollowChannelType, kNumMIDIFollowChannelTypesIncludingTracks> 
       {MIDIFollowChannelType::Track15, "track_15"},
       {MIDIFollowChannelType::Track16, "track_16"}}}};
 
+EnumStringMap<MIDIFollowFeedbackChannelType, kNumMIDIFollowFeedbackChannelTypes> feedbackChannelTypeMap = {
+    {{{MIDIFollowFeedbackChannelType::NONE, "none"},
+      {MIDIFollowFeedbackChannelType::A, "a"},
+      {MIDIFollowFeedbackChannelType::B, "b"},
+      {MIDIFollowFeedbackChannelType::C, "c"},
+      {MIDIFollowFeedbackChannelType::Track, "track"},
+      {MIDIFollowFeedbackChannelType::TrackAndA, "track_a"},
+      {MIDIFollowFeedbackChannelType::TrackAndB, "track_b"},
+      {MIDIFollowFeedbackChannelType::TrackAndC, "track_c"}}}};
+
 EnumStringMap<MIDIFollowFeedbackAutomationMode, kNumMIDIFollowFeedbackAutomationModes> feedbackAutomationModeMap = {
     {{{MIDIFollowFeedbackAutomationMode::DISABLED, "disabled"},
       {MIDIFollowFeedbackAutomationMode::LOW, "low"},
@@ -108,6 +117,25 @@ MidiFollow::MidiFollow() {
 void MidiFollow::init() {
 	initState();
 	initDefaultMappings();
+}
+
+void MidiFollow::factoryReset(bool showPopup) {
+	if (showPopup) {
+		display->displayPopup(display->haveOLED() ? l10n::get(l10n::String::STRING_FOR_RESET_MIDI_FOLLOW)
+		                                          : l10n::get(l10n::String::STRING_FOR_FACTORY_RESET));
+	}
+
+	f_unlink(MIDI_FOLLOW_XML);
+	for (auto& midiChannelType : midiEngine.midiFollowChannelType) {
+		midiChannelType.clear();
+	}
+	midiEngine.midiFollowKitRootNote = 36;
+	midiEngine.midiFollowDisplayParam = false;
+	midiEngine.midiFollowFeedbackChannelType = MIDIFollowFeedbackChannelType::NONE;
+	midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
+	midiEngine.midiFollowFeedbackFilter = false;
+	successfullyReadDefaultsFromFile = false;
+	readDefaultsFromFile();
 }
 
 void MidiFollow::initState() {
@@ -1111,46 +1139,133 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 	}
 }
 
-MIDIFollowChannelType MidiFollow::getChannelTypeForFeedback() {
-	MIDIFollowChannelType feedbackChannelType = midiEngine.midiFollowFeedbackChannelType;
+MIDIFollowChannelType MidiFollow::getChannelTypeForTrackFeedback() {
+	// obtain clip for active context
+	Clip* clip = getSelectedOrActiveClip();
 
-	if (feedbackChannelType == MIDIFollowChannelType::Track) {
-		feedbackChannelType = MIDIFollowChannelType::NONE;
+	// check if clip is valid
+	if (clip) {
+		// get track
+		Output* selected_track = clip->output;
 
-		// obtain clip for active context
-		Clip* clip = getSelectedOrActiveClip();
+		// get number of tracks
+		auto track_count = getTrackCount();
 
-		// check if clip is valid
-		if (clip) {
-			// get track
-			Output* selected_track = clip->output;
-
-			// get number of tracks
-			auto track_count = getTrackCount();
-
-			if (track_count != 0) {
-				// iterate through all the instruments
-				for (int32_t track_index = 0; track_index < track_count; ++track_index) {
-					// ignore track outputs > maximum number of midi follow track channels we have
-					if (track_index >= kNumMIDIFollowChannelTrackTypes) {
-						break;
-					}
-					Output* track = getTrackFromIndex(track_index, track_count);
-					// if track is not null and track is the selected track
-					if (track != nullptr && track == selected_track) {
-						auto i = kNumMIDIFollowChannelTypes + track_index;
-						if (i < kNumMIDIFollowChannelTypesIncludingTracks) {
-							feedbackChannelType = static_cast<MIDIFollowChannelType>(i);
-							int32_t channel = midiEngine.midiFollowChannelType[util::to_underlying(feedbackChannelType)]
-							                      .channelOrZone;
-							break;
-						}
+		if (track_count != 0) {
+			// iterate through all the instruments
+			for (int32_t track_index = 0; track_index < track_count; ++track_index) {
+				// ignore track outputs > maximum number of midi follow track channels we have
+				if (track_index >= kNumMIDIFollowChannelTrackTypes) {
+					break;
+				}
+				Output* track = getTrackFromIndex(track_index, track_count);
+				// if track is not null and track is the selected track
+				if (track != nullptr && track == selected_track) {
+					auto i = kNumMIDIFollowChannelTypes + track_index;
+					if (i < kNumMIDIFollowChannelTypesIncludingTracks) {
+						return static_cast<MIDIFollowChannelType>(i);
 					}
 				}
 			}
 		}
 	}
-	return feedbackChannelType;
+	return MIDIFollowChannelType::NONE;
+}
+
+/// Add a configured MIDI Follow channel type to the feedback target list.
+/// Returns false when the type is not a real feedback target, has not been learned, is a duplicate MIDI channel,
+/// or would exceed the fixed feedback target list.
+bool MidiFollow::addChannelTypeForFeedback(FeedbackChannelTypes& feedbackChannelTypes, size_t& numChannelTypes,
+                                           MIDIFollowChannelType feedbackChannelType) {
+	// Track feedback returns NONE when the selected clip does not belong to a configured track channel.
+	if (feedbackChannelType == MIDIFollowChannelType::NONE) {
+		return false;
+	}
+
+	auto channelTypeIndex = util::to_underlying(feedbackChannelType);
+	// Only A/B/C and Track1-16 have LearnedMIDI slots.
+	if (channelTypeIndex >= kNumMIDIFollowChannelTypesIncludingTracks) {
+		return false;
+	}
+
+	LearnedMIDI& midiInput = midiEngine.midiFollowChannelType[channelTypeIndex];
+	// A channel type with no learned MIDI channel cannot receive feedback.
+	if (midiInput.channelOrZone == MIDI_CHANNEL_NONE) {
+		return false;
+	}
+
+	// Combined feedback modes can resolve to the same MIDI channel through Track and A/B/C; send once.
+	for (size_t i = 0; i < numChannelTypes; i++) {
+		LearnedMIDI& existingMidiInput = midiEngine.midiFollowChannelType[util::to_underlying(feedbackChannelTypes[i])];
+		if (existingMidiInput.channelOrZone == midiInput.channelOrZone) {
+			return false;
+		}
+	}
+
+	// Keep writes inside the fixed-size feedback target buffer.
+	if (numChannelTypes >= feedbackChannelTypes.size()) {
+		return false;
+	}
+
+	feedbackChannelTypes[numChannelTypes] = feedbackChannelType;
+	numChannelTypes++;
+	return true;
+}
+
+/// Resolve the configured MIDI Follow feedback mode into one or more learned channel types.
+/// Combined Track + A/B/C modes add Track first, then the regular channel, so duplicate gating happens in order.
+size_t MidiFollow::getChannelTypesForFeedback(FeedbackChannelTypes& feedbackChannelTypes) {
+	feedbackChannelTypes.fill(MIDIFollowChannelType::NONE);
+
+	size_t numChannelTypes = 0;
+	MIDIFollowFeedbackChannelType feedbackChannelType = midiEngine.midiFollowFeedbackChannelType;
+
+	switch (feedbackChannelType) {
+	case MIDIFollowFeedbackChannelType::A:
+		// Feedback is sent only to regular follow channel A when it is configured.
+		addChannelTypeForFeedback(feedbackChannelTypes, numChannelTypes, MIDIFollowChannelType::A);
+		break;
+
+	case MIDIFollowFeedbackChannelType::B:
+		// Feedback is sent only to regular follow channel B when it is configured.
+		addChannelTypeForFeedback(feedbackChannelTypes, numChannelTypes, MIDIFollowChannelType::B);
+		break;
+
+	case MIDIFollowFeedbackChannelType::C:
+		// Feedback is sent only to regular follow channel C when it is configured.
+		addChannelTypeForFeedback(feedbackChannelTypes, numChannelTypes, MIDIFollowChannelType::C);
+		break;
+
+	case MIDIFollowFeedbackChannelType::Track:
+		// Feedback follows the configured track channel for the selected clip.
+		addChannelTypeForFeedback(feedbackChannelTypes, numChannelTypes, getChannelTypeForTrackFeedback());
+		break;
+
+	case MIDIFollowFeedbackChannelType::TrackAndA:
+		// Track feedback has priority; channel A is added only if configured and not the same MIDI channel.
+		addChannelTypeForFeedback(feedbackChannelTypes, numChannelTypes, getChannelTypeForTrackFeedback());
+		addChannelTypeForFeedback(feedbackChannelTypes, numChannelTypes, MIDIFollowChannelType::A);
+		break;
+
+	case MIDIFollowFeedbackChannelType::TrackAndB:
+		// Track feedback has priority; channel B is added only if configured and not the same MIDI channel.
+		addChannelTypeForFeedback(feedbackChannelTypes, numChannelTypes, getChannelTypeForTrackFeedback());
+		addChannelTypeForFeedback(feedbackChannelTypes, numChannelTypes, MIDIFollowChannelType::B);
+		break;
+
+	case MIDIFollowFeedbackChannelType::TrackAndC:
+		// Track feedback has priority; channel C is added only if configured and not the same MIDI channel.
+		addChannelTypeForFeedback(feedbackChannelTypes, numChannelTypes, getChannelTypeForTrackFeedback());
+		addChannelTypeForFeedback(feedbackChannelTypes, numChannelTypes, MIDIFollowChannelType::C);
+		break;
+
+	case MIDIFollowFeedbackChannelType::NONE:
+	case MIDIFollowFeedbackChannelType::INVALID:
+		// Feedback is disabled, or the saved setting was not recognized.
+		break;
+	}
+
+	return numChannelTypes;
 }
 
 /// called when updating the context,
@@ -1160,7 +1275,13 @@ MIDIFollowChannelType MidiFollow::getChannelTypeForFeedback() {
 /// 2) sets up the model stack for that context
 /// 3) checks what parameters have been learned and obtains the model stack for those params
 /// 4) sends midi feedback of the current parameter value to the cc numbers learned to those parameters
-void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, bool isAutomation) {
+void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation) {
+	FeedbackChannelTypes feedbackChannelTypes;
+	size_t numChannelTypes = getChannelTypesForFeedback(feedbackChannelTypes);
+	if (numChannelTypes == 0) {
+		return;
+	}
+
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
@@ -1225,29 +1346,48 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, b
 
 					// send midi feedback to the ccNumber learned to the param with the current knob
 					// position
-					sendCCForMidiFollowFeedback(channel, ccNumber, knobPos);
+					sendCCForMidiFollowFeedback(feedbackChannelTypes, numChannelTypes, ccNumber, knobPos);
 				}
 			}
 		}
 	}
 }
 
-/// called when updating parameter values using mod (gold) encoders or the select encoder in the soundEditor menu
-void MidiFollow::sendCCForMidiFollowFeedback(int32_t channel, int32_t ccNumber, int32_t knobPos) {
-	MIDIFollowChannelType feedbackChannelType = midiFollow.getChannelTypeForFeedback();
-	if (feedbackChannelType != MIDIFollowChannelType::NONE) {
-		LearnedMIDI& midiInput = midiEngine.midiFollowChannelType[util::to_underlying(feedbackChannelType)];
+/// Resolve the current MIDI Follow feedback configuration, then send this learned CC value to each target.
+/// Called when updating parameter values using mod (gold) encoders or the select encoder in the soundEditor menu.
+/// Also called when updating the context, e.g. switching from song to clip, changing instruments presets, peeking a
+/// clip in song view.
+void MidiFollow::sendCCForMidiFollowFeedback(int32_t ccNumber, int32_t knobPos) {
+	FeedbackChannelTypes feedbackChannelTypes;
+	size_t numChannelTypes = getChannelTypesForFeedback(feedbackChannelTypes);
+	sendCCForMidiFollowFeedback(feedbackChannelTypes, numChannelTypes, ccNumber, knobPos);
+}
 
-		if (midiInput.isForMPEZone()) {
-			channel = midiInput.getMasterChannel();
-		}
-
-		int32_t midiOutputFilter = midiInput.channelOrZone;
-
-		midiEngine.sendCC(this, channel, ccNumber, knobPos + kKnobPosOffset, midiOutputFilter);
-
-		timeLastCCSent[ccNumber] = AudioEngine::audioSampleTimer;
+/// Send this learned CC value to each resolved feedback target.
+/// The target list is expected to have already been filtered for configured channels and duplicate MIDI channels.
+void MidiFollow::sendCCForMidiFollowFeedback(FeedbackChannelTypes const& feedbackChannelTypes, size_t numChannelTypes,
+                                             int32_t ccNumber, int32_t knobPos) {
+	for (size_t i = 0; i < numChannelTypes; i++) {
+		sendCCForMidiFollowFeedback(feedbackChannelTypes[i], ccNumber, knobPos);
 	}
+}
+
+/// Send this learned CC value to a single MIDI Follow feedback target.
+/// MPE zones send on their master channel while keeping the original channel/zone as the output filter.
+void MidiFollow::sendCCForMidiFollowFeedback(MIDIFollowChannelType feedbackChannelType, int32_t ccNumber,
+                                             int32_t knobPos) {
+	LearnedMIDI& midiInput = midiEngine.midiFollowChannelType[util::to_underlying(feedbackChannelType)];
+
+	int32_t channel = midiInput.channelOrZone;
+	if (midiInput.isForMPEZone()) {
+		channel = midiInput.getMasterChannel();
+	}
+
+	int32_t midiOutputFilter = midiInput.channelOrZone;
+
+	midiEngine.sendCC(this, channel, ccNumber, knobPos + kKnobPosOffset, midiOutputFilter);
+
+	timeLastCCSent[ccNumber] = AudioEngine::audioSampleTimer;
 }
 
 /// called from playback handler
@@ -1479,23 +1619,17 @@ MIDIMatchType MidiFollow::checkMidiFollowMatchForSpecificTrack(MIDICable& cable,
 }
 
 bool MidiFollow::isFeedbackEnabled() {
-	MIDIFollowChannelType feedbackChannelType = midiFollow.getChannelTypeForFeedback();
-	if (feedbackChannelType != MIDIFollowChannelType::NONE) {
-		uint8_t channel = midiEngine.midiFollowChannelType[util::to_underlying(feedbackChannelType)].channelOrZone;
-		if (channel != MIDI_CHANNEL_NONE) {
-			return true;
-		}
-	}
-	return false;
+	FeedbackChannelTypes feedbackChannelTypes;
+	return getChannelTypesForFeedback(feedbackChannelTypes) != 0;
 }
 
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
-void MidiFollow::writeDefaultsToFile() {
+bool MidiFollow::writeDefaultsToFile() {
 	// MidiFollow.xml
 	Error error = StorageManager::createXMLFile(MIDI_FOLLOW_XML, smSerializer, true);
 	if (error != Error::NONE) {
-		return;
+		return false;
 	}
 	Serializer& writer = GetSerializer();
 
@@ -1517,7 +1651,7 @@ void MidiFollow::writeDefaultsToFile() {
 
 	writer.writeClosingTag(MIDI_DEFAULTS_TAG);
 
-	writer.closeFileAfterWriting();
+	return writer.closeFileAfterWriting() == Error::NONE;
 }
 
 /// convert paramID to a paramName to write to XML
@@ -1648,7 +1782,7 @@ void MidiFollow::writeKitRootNoteSettingToFile(Serializer& writer) {
 /// Write Feedback settings to XML
 void MidiFollow::writeFeedbackSettingsToFile(Serializer& writer) {
 	writer.writeTag(MIDI_DEFAULTS_SETTINGS_CHANNEL_TAG,
-	                getNameFromChannelType(midiEngine.midiFollowFeedbackChannelType));
+	                getNameFromFeedbackChannelType(midiEngine.midiFollowFeedbackChannelType));
 	writer.writeTag(MIDI_DEFAULTS_SETTINGS_FEEDBACK_AUTOMATION_TAG,
 	                getNameFromFeedbackAutomationMode(midiEngine.midiFollowFeedbackAutomation));
 	writer.writeTag(MIDI_DEFAULTS_SETTINGS_FEEDBACK_FILTER_TAG, getNameFromBool(midiEngine.midiFollowFeedbackFilter));
@@ -1657,6 +1791,21 @@ void MidiFollow::writeFeedbackSettingsToFile(Serializer& writer) {
 /// Write Display Param setting to XML
 void MidiFollow::writeDisplayParamSettingToFile(Serializer& writer) {
 	writer.writeTag(MIDI_DEFAULTS_SETTINGS_DISPLAYPARAM_POPUP_TAG, getNameFromBool(midiEngine.midiFollowDisplayParam));
+}
+
+/// Close out the pre-c1.3 flash migration started by FlashStorage::readSettings().
+///
+/// Stamping this firmware's version into flash is what stops readSettings() migrating again on the next boot - it is
+/// not otherwise written until the user happens to exit the settings menu, so without this the migration would repeat
+/// on every boot and keep overwriting the <settings> block of MIDIFollow.XML. That same write zeroes the legacy bytes
+/// 126-145, so it must not happen until the recovered values are safely on the card: if the XML write failed (no card,
+/// card full, write-protected) we leave both the flash bytes and the pending flag alone and retry next boot.
+void MidiFollow::completeLegacyFlashMigration(bool defaultsWereWritten) {
+	if (!FlashStorage::areLegacyMidiFollowSettingsPending() || !defaultsWereWritten) {
+		return;
+	}
+	FlashStorage::clearLegacyMidiFollowSettingsPending();
+	FlashStorage::writeSettings();
 }
 
 /// read defaults from XML
@@ -1676,7 +1825,8 @@ void MidiFollow::readDefaultsFromFile() {
 		FRESULT result = f_mkdir(SETTINGS_FOLDER);
 		if (result == FR_OK || result == FR_EXIST) {
 			// folder eixsts now, write defaults
-			writeDefaultsToFile();
+			// (this also persists any settings migrated out of flash by FlashStorage::readSettings())
+			completeLegacyFlashMigration(writeDefaultsToFile());
 			successfullyReadDefaultsFromFile = true;
 			return;
 		}
@@ -1685,7 +1835,7 @@ void MidiFollow::readDefaultsFromFile() {
 	//<defaults>
 	Error error = StorageManager::openXMLFile(&fp, smDeserializer, MIDI_DEFAULTS_TAG);
 	if (error != Error::NONE) {
-		writeDefaultsToFile();
+		completeLegacyFlashMigration(writeDefaultsToFile());
 		successfullyReadDefaultsFromFile = true;
 		return;
 	}
@@ -1701,13 +1851,22 @@ void MidiFollow::readDefaultsFromFile() {
 			readDefaultMappingsFromFile(reader);
 		}
 		// step into the <settings> tag
+		// (skipped while migrating a pre-c1.3 save - back then these settings lived in flash, so whatever this file
+		// says about them is either absent or a default we wrote over the top of the real values)
 		else if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_TAG)) {
-			readDefaultSettingsFromFile(reader);
+			if (!FlashStorage::areLegacyMidiFollowSettingsPending()) {
+				readDefaultSettingsFromFile(reader);
+			}
 		}
 		reader.exitTag();
 	}
 	activeDeserializer->closeWriter();
 	successfullyReadDefaultsFromFile = true;
+
+	// Write the migrated settings back out over the <settings> block we just skipped
+	if (FlashStorage::areLegacyMidiFollowSettingsPending()) {
+		completeLegacyFlashMigration(writeDefaultsToFile());
+	}
 }
 
 /// compares param name tag to the list of params available are midi controllable
@@ -1804,7 +1963,8 @@ void MidiFollow::readSpecificChannelSettingsFromFile(Deserializer& reader, MIDIF
 		}
 		// step into <device> tag
 		else if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_DEVICE_TAG)) {
-			MIDICable* cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
+			midiEngine.midiFollowChannelType[util::to_underlying(type)].cable =
+			    MIDIDeviceManager::readDeviceReferenceFromFile(reader);
 		}
 		// exit so we can step into next tag
 		reader.exitTag();
@@ -1834,8 +1994,8 @@ void MidiFollow::readFeedbackSettingsFromFile(Deserializer& reader) {
 		// step into <channel> tag
 		if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_CHANNEL_TAG)) {
 			char const* value = reader.readTagOrAttributeValue();
-			MIDIFollowChannelType type = getChannelTypeFromName(value);
-			if (type != MIDIFollowChannelType::INVALID) {
+			MIDIFollowFeedbackChannelType type = getFeedbackChannelTypeFromName(value);
+			if (type != MIDIFollowFeedbackChannelType::INVALID) {
 				midiEngine.midiFollowFeedbackChannelType = type;
 			}
 		}
@@ -1878,7 +2038,15 @@ char const* MidiFollow::getNameFromChannelType(MIDIFollowChannelType type) {
 }
 
 MIDIFollowChannelType MidiFollow::getChannelTypeFromName(char const* name) {
-	return channelTypeMap(name);
+	return channelTypeMap(name, MIDIFollowChannelType::INVALID);
+}
+
+char const* MidiFollow::getNameFromFeedbackChannelType(MIDIFollowFeedbackChannelType type) {
+	return feedbackChannelTypeMap(type);
+}
+
+MIDIFollowFeedbackChannelType MidiFollow::getFeedbackChannelTypeFromName(char const* name) {
+	return feedbackChannelTypeMap(name, MIDIFollowFeedbackChannelType::INVALID);
 }
 
 char const* MidiFollow::getNameFromFeedbackAutomationMode(MIDIFollowFeedbackAutomationMode mode) {

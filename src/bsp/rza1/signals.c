@@ -99,3 +99,26 @@ void deluge_midi_gate_timer_arm(uint32_t samples_from_now) {
 	*TGRA[TIMER_MIDI_GATE_OUTPUT] = (uint16_t)((samples_from_now * 766245) >> 16);
 	enableTimer(TIMER_MIDI_GATE_OUTPUT);
 }
+
+// The MIDI/gate output timer runs with a prescaler of 64 (see main.c)
+#define MIDI_GATE_TIMER_PRESCALE_MAGNITUDE 6
+
+void deluge_midi_gate_timer_arm_ticks(uint32_t system_ticks_from_now) {
+	disableTimer(TIMER_MIDI_GATE_OUTPUT);
+	uint32_t count = system_ticks_from_now >> MIDI_GATE_TIMER_PRESCALE_MAGNITUDE;
+	if (count < 1) {
+		count = 1;
+	}
+	else if (count > UINT16_MAX) {
+		count = UINT16_MAX;
+	}
+	*TCNT[TIMER_MIDI_GATE_OUTPUT] = 0;
+	*TGRA[TIMER_MIDI_GATE_OUTPUT] = (uint16_t)count;
+	timerClearCompareMatchTGRA(TIMER_MIDI_GATE_OUTPUT);
+	R_INTC_Enable(INTC_ID_TGIA[TIMER_MIDI_GATE_OUTPUT]);
+	enableTimer(TIMER_MIDI_GATE_OUTPUT);
+}
+
+void deluge_midi_gate_timer_stop(void) {
+	disableTimer(TIMER_MIDI_GATE_OUTPUT);
+}

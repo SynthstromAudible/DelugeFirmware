@@ -97,8 +97,10 @@ void deluge_board_init_audio(void);
 void deluge_board_init_storage(void);
 
 /// Unlock the L2 cache data region locked during boot, just before entering the
-/// main loop. [task]
-void deluge_board_unlock_data_cache(void);
+/// main loop. [dma_stream_start, dma_stream_end) is memory that's mostly
+/// streamed DMA data (the allocator's stealable region, made of whole 1MB
+/// sections) which the board may stop L2-caching. [task]
+void deluge_board_unlock_data_cache(uintptr_t dma_stream_start, uintptr_t dma_stream_end);
 
 #ifdef __cplusplus
 }

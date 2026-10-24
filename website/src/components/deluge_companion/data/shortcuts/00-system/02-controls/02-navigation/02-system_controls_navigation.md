@@ -117,7 +117,7 @@ press(BACK)
 
 Go back up one level from within the menu / browser / file system.
 
-# Return to Session or Arranger from Menu
+# Exit Menu to Session View or Arranger View
 
 #COMMUNITY #MENU
 

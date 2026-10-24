@@ -61,6 +61,12 @@ else()
     set(EXECUTABLE_VERSION_SUFFIX "")
 endif(ENABLE_VERSIONED_OUTPUT)
 
+# Beta/alpha builds compile in extra error-checking (see ALPHA_OR_BETA_VERSION in
+# src/definitions.h). Release candidates and final releases turn it off.
+if(RELEASE_TYPE STREQUAL "rc" OR RELEASE_TYPE STREQUAL "release")
+    add_compile_definitions(ALPHA_OR_BETA_VERSION=0)
+endif()
+
 # RTT option
 option(ENABLE_RTT "Enable RTT output" ON)
 
@@ -154,7 +160,7 @@ endif(DOXYGEN_FOUND)
 
 # Global compilation options
 add_compile_options(
-
+    -ffast-math
     # Feature flags
     -fdiagnostics-parseable-fixits
     -fsigned-char
@@ -166,15 +172,22 @@ add_compile_options(
     # Optimization level
     $<$<CONFIG:DEBUG>:-Og>
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-O2>
+        $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fsplit-loops>
+        $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-funswitch-loops>
 
-    # does not block inlining, just blocks considering all functions for inlining
+        # does not block inlining, just blocks considering all functions for inlining
     # https://developer.arm.com/documentation/100067/0600/Compiler-Command-line-Options/-finline-functions---fno-inline-functions?lang=en
     -fno-inline-functions
 
     # Link time optimizations
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-flto=auto>
-    $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fuse-linker-plugin>
-    $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fdevirtualize-at-ltrans>
+#        $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-save-temps=obj>
+
+        $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fuse-linker-plugin>
+    # this makes the optimization better at the cost of linking being REALLY slow
+        $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-flto-partition=none>
+
+        $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fdevirtualize-at-ltrans>
     -ffunction-sections
     -fdata-sections
     -DUSE_TASK_MANAGER
@@ -320,9 +333,14 @@ target_link_options(deluge PUBLIC
     # Link-Time Optimization
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-flto=auto>
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fuse-linker-plugin>
+        # this makes the optimization better at the cost of linking being REALLY slow
+        $<$<CONFIG:RELEASE>:-flto-partition=none>
 
     # Coloring
     $<$<CXX_COMPILER_ID:GNU>:-fdiagnostics-color=always>
+#        -save-temps=obj
+#        LINKER:-plugin-opt=-save-temps
+
 )
 
 # generate .bin firmware file

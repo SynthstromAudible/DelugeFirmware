@@ -24,6 +24,8 @@
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include <span>
 
+enum class PatchingSourceShortcutTarget { PARAMETER, RANGE, PARENT };
+
 enum class MenuPermission {
 	NO,
 	YES,
@@ -153,6 +155,11 @@ public:
 	///
 	/// @return Blink time period (higher means more delay between flashes), or 255 if we shouldn't blink.
 	virtual uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) { return 255; }
+	/// Describe shortcut routing without changing the selected source or destination.
+	[[nodiscard]] virtual PatchingSourceShortcutTarget
+	getPatchingSourceShortcutTarget(bool previous_press_still_active) const {
+		return PatchingSourceShortcutTarget::PARAMETER;
+	}
 
 	/// @brief Action to take when a source shortcut is pressed.
 	///
@@ -261,7 +268,7 @@ public:
 	/// @param sound Sound we would edit if we were to be entered.
 	/// @param whichThing Source index within the sound. Usually ignored, but matters for e.g. oscillator and FM
 	/// modulator parameters.
-	virtual bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) { return true; }
+	virtual bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const { return true; }
 
 	/// Internal helper which can draw the standard deluge::gui::menu_item::Submenu layout.
 	static void drawItemsForOled(std::span<std::string_view> options, int32_t selectedOption, int32_t offset = 0);

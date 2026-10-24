@@ -3,6 +3,22 @@ capability-order: 2
 sub-capability: Song (Settings)
 sub-capability-order: 2
 
+# Change tempo (tap tempo)
+
+#OFFICIAL #COMMUNITY
+
+```shortcut
+press(tap)
+```
+
+```community
+Official: Press tap tempo twice to start setting tempo using tap tempo button presses.
+
+Community (default): Added toggle (`Settings > Community Features > Alternative Tap Tempo Behaviour (TAPT)`) to adjust number of tap tempo button presses to engage `TAP TEMPO` to `FOUR (4)` to avoid mistakingly changing tempo.
+
+Note: You can change the default behaviour in the community firmware.
+```
+
 # Change tempo (coarse)
 
 #OFFICIAL #COMMUNITY
@@ -63,10 +79,10 @@ hold(X) + turn(TEMPO)
 
 # Sync scaling for unusual time signitures
 
-#OFFICIAL #SYNTH #KIT #MIDI #CV
+#OFFICIAL #COMMUNITY #SYNTH #KIT #MIDI #CV
 
 ```shortcut
-press(SYNC)
+press(SYNC), hold(SHIFT) + press(SYNC)
 ```
 
 Sync-scaling is tied to the length of one clip in a song, and tells the Deluge that that clip’s length should be squeezed into 1 bar of incoming MIDI beat clock (or 2 bars, or 4 or 8 bars, depending on how long the clip is; the Deluge will use whatever magnitude of sync-scaling causes the smallest change in tempo).
@@ -75,7 +91,27 @@ To enable sync-scaling, enter clip view for the clip that you wish to tie sync-s
 
 Even while the Deluge is playing synced as a slave, sync-scaling may be switched on or off, and the sync-scaling clip may have its length changed. Despite any such changes, the Deluge will keep the sync-scaling clip playing in time to the syncing master. It will also attempt to keep all other clips in time; this works best if the other clips are of the same time signature as the sync-scaling clip (that is, their lengths are the same, or half our double, or 4 times shorter or longer, etc.)
 
-# Swing
+```community
+Official: In the official firmware, the sync-scaling scaling shortcut just requires pressing the sync-scaling button.
+
+Community: In the community firmware, a community feature setting was added to move the sync-scaling toggle to SHIFT + SYNC-SCALING so that SYNC-SCALING can be used to trigger fill mode.
+
+Note: You can change the default behaviour in the community firmware.
+```
+
+# Toggle fill mode
+
+#COMMUNITY
+
+```shortcut
+press(SYNC)
+```
+
+```community
+In the community firmware, a community feature setting was added to move the sync-scaling toggle to SHIFT + SYNC-SCALING so that SYNC-SCALING can be used to trigger fill mode.
+```
+
+# Edit Swing Amount
 
 #OFFICIAL
 
@@ -84,3 +120,27 @@ hold(SHIFT) + turn(TEMPO)
 ```
 
 Swing interval is 1/16th notes by default, but can be adjusted in the settings menu.
+
+# Show Swing Interval
+
+#OFFICIAL
+
+```shortcut
+hold(TAP) + press(TEMPO)
+```
+
+# Edit Swing Interval
+
+#OFFICIAL
+
+```shortcut
+hold(TAP) + turn(TEMPO)
+```
+
+# Toggle triplets view
+
+#OFFICIAL
+
+```shortcut
+press(TRIPLETSVIEW)
+```

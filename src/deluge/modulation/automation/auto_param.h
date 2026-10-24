@@ -35,7 +35,7 @@ class ModelStackWithAutoParam;
 // For backing up a snapshot
 class AutoParamState {
 public:
-	ParamNodeVector nodes;
+	LazyParamNodeVector nodes;
 	int32_t value;
 };
 
@@ -57,9 +57,9 @@ public:
 	                               int32_t length, bool mayDeleteNodesInLinearRun = true);
 	int32_t getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed = false);
 	/// tick the interolator by a number of samples - used for internal synths
-	bool tickSamples(int32_t numSamples);
+	bool tickSamples(int32_t numSamples, bool use_float_interpolation);
 	/// tick the interpolator by a number of ticks - used for midi
-	bool tickTicks(int32_t numTicks);
+	bool tickTicks(int32_t numTicks, bool use_float_interpolation);
 	void setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed);
 	bool grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* modelStack);
 	void generateRepeats(uint32_t oldLength, uint32_t newLength, bool shouldPingpong);
@@ -114,7 +114,7 @@ public:
 
 	inline int32_t getCurrentValue() { return currentValue; }
 	int32_t getValuePossiblyAtPos(int32_t pos, ModelStackWithAutoParam* modelStack);
-	void notifyPingpongOccurred();
+	void notifyPingpongOccurred(bool use_float_interpolation);
 
 	inline void setCurrentValueBasicForSetup(int32_t value) { currentValue = value; }
 
@@ -125,16 +125,20 @@ public:
 	}
 
 	/// The nodes that make up this parameter. If empty, \ref currentValue should be used.
-	ParamNodeVector nodes;
+	LazyParamNodeVector nodes;
 
 	/// Current value of the AutoParam. Updated by several functions.
 	int32_t currentValue;
 
 	// interpolation to calculate current value
-	bool hasInterpolationIncrement();
+	bool hasInterpolationIncrement(bool use_float_interpolation);
 	void resetInterpolationIncrement();
-	int32_t valueIncrementPerHalfTick;
-	float value_increment_per_half_tick_float;
+	// Which of these is in use depends on ParamCollection::shouldInterpolateWithFloat(), so anything reading the
+	// increment has to be told which by the ParamCollection that owns this AutoParam.
+	union {
+		int32_t valueIncrementPerHalfTick;
+		float value_increment_per_half_tick_float;
+	};
 	float interpolation_increment_remainder_float;
 
 	uint32_t renewedOverridingAtTime; // If 0, it's off. If 1, it's latched until we hit some nodes / automation
@@ -156,7 +160,7 @@ private:
 	void calculateInterpolationIncrement(int32_t half_distance, int32_t ticks_til_next_node,
 	                                     bool use_float_interpolation);
 	void potentiallyOverrideInterpolationIncrement(int32_t limit, bool use_float_interpolation);
-	void reverseInterpolationIncrement();
+	void reverseInterpolationIncrement(bool use_float_interpolation);
 	int32_t consumeFloatInterpolationIncrement(float value_increment);
 	bool applyValueIncrement(int32_t value_increment);
 };

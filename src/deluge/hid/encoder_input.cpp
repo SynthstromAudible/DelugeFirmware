@@ -22,6 +22,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/buttons.h"
+#include "hid/display/screensaver.h"
 #include "hid/encoders.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -45,20 +46,20 @@ static int32_t nextSDTestDirection = 1;
 static uint32_t encodersWaitingForCardRoutineEnd;
 
 void interpretEncodersTask() {
+	poll_encoder_pins();
 	interpretEncoders(false);
-	blockTask(EncoderTaskID);
 }
 
 bool interpretEncoders(bool skipActioning) {
 	// The board's ISR has accumulated signed quadrature edges since we last ran; fold them into each
 	// encoder's position here in task context (detent reduction and the non-detent gold-knob handling
-	// live in applyEdges). Ordinals match the board's encoder pin map (see the BSP's encoder_io).
-	scrollY.applyEdges(deluge_encoder_take_edges(0));
-	scrollX.applyEdges(deluge_encoder_take_edges(1));
-	tempo.applyEdges(deluge_encoder_take_edges(2));
-	select.applyEdges(deluge_encoder_take_edges(3));
-	mod1.applyEdges(deluge_encoder_take_edges(4));
-	mod0.applyEdges(deluge_encoder_take_edges(5));
+	// live in apply_edges). Ordinals match the board's encoder pin map (see the BSP's encoder_io).
+	scrollY.apply_edges(deluge_encoder_take_edges(0));
+	scrollX.apply_edges(deluge_encoder_take_edges(1));
+	tempo.apply_edges(deluge_encoder_take_edges(2));
+	select.apply_edges(deluge_encoder_take_edges(3));
+	mod1.apply_edges(deluge_encoder_take_edges(4));
+	mod0.apply_edges(deluge_encoder_take_edges(5));
 
 	// do not interpret encoders when stem export is underway
 	if (stemExport.processStarted) {
@@ -200,6 +201,10 @@ checkResult:
 				}
 			}
 		}
+	}
+
+	if (anything) {
+		deluge::hid::display::Screensaver::noteActivity();
 	}
 
 	return anything;

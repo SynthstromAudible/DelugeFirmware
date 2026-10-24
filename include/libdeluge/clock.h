@@ -50,6 +50,11 @@ uint64_t deluge_clock_now(void);
 /// reads frequent enough never to miss a wrap. [task]
 uint64_t deluge_clock_monotonic(void);
 
+/// The low 32 bits of the monotonic clock's hardware counter: deluge_clock_monotonic_hz()
+/// ticks/second, wrapping (every ~129 s on the Deluge). Unlike deluge_clock_monotonic() it
+/// keeps no state, so it can be read from any context - use it for due times and timeouts
+/// that are compared by (int32_t) difference. [task] [audio] [isr]
+uint32_t deluge_clock_system_ticks(void);
 /// Rate of deluge_clock_monotonic() in ticks/second. [task]
 uint64_t deluge_clock_monotonic_hz(void);
 

@@ -42,10 +42,15 @@ extern "C" {
 /// than poll. Call once at init, after the encoder task is registered. [task]
 void deluge_encoder_io_init(int8_t wake_task);
 
-/// Atomically read and clear the accumulated signed A-pin edge count for
-/// `encoder` (0..DELUGE_NUM_ENCODERS-1). Two edges make one detent step on the
-/// Deluge encoders; detent reduction (and the non-detent gold-knob mode) is the
-/// application's concern. [task] [isr]
+/// Sample every encoder's pins to catch transitions the A-edge interrupts can't
+/// see (slow B-only movement). Call regularly from the encoder task. [task]
+void deluge_encoder_poll_pins(void);
+
+/// Atomically read and clear the accumulated signed quadrature-edge count for
+/// `encoder` (0..DELUGE_NUM_ENCODERS-1) - four per full quadrature cycle, each
+/// confirmed by the board's decoder (deluge/hid/encoder_quadrature.h). Detent
+/// reduction (and the non-detent gold-knob mode) is the application's concern.
+/// [task] [isr]
 int8_t deluge_encoder_take_edges(uint8_t encoder);
 
 #ifdef __cplusplus

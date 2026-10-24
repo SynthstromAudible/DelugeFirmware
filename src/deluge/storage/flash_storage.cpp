@@ -17,12 +17,16 @@
 
 #include "storage/flash_storage.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
+#include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
 #include "libdeluge/flash.h"
+#include "libdeluge/usb_audio.h"
 #include "model/scale/preset_scales.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
@@ -46,6 +50,27 @@ namespace FlashStorage {
 
 // Static declarations
 static bool areAutomationSettingsValid(std::span<uint8_t> buffer);
+static bool areLegacyMidiFollowSettingsValid(std::span<uint8_t> buffer);
+
+/// NONE in the legacy {A, B, C, NONE} numbering of the feedback channel type stored at byte 131.
+constexpr uint8_t kLegacyMidiFollowChannelTypeNone = 3;
+
+/// First community release to store MIDI-follow settings at bytes 126-145. c1.0.x put unrelated settings there
+/// (see PR #843, which shuffled the block), so migrating from anything older reads garbage.
+constexpr FirmwareVersion kFirstVersionWithLegacyMidiFollowBlock = FirmwareVersion::community({1, 1, 0});
+
+/// First community release to keep MIDI-follow settings in SETTINGS/MIDIFollow.XML instead of flash (PR #4526).
+constexpr FirmwareVersion kFirstVersionWithMidiFollowXML = FirmwareVersion::community({1, 3, 0});
+
+static bool legacyMidiFollowSettingsPending = false;
+
+bool areLegacyMidiFollowSettingsPending() {
+	return legacyMidiFollowSettingsPending;
+}
+
+void clearLegacyMidiFollowSettingsPending() {
+	legacyMidiFollowSettingsPending = false;
+}
 
 enum Entries {
 	FIRMWARE_TYPE = 0,
@@ -139,7 +164,11 @@ enum Entries {
 124: defaultKeyboardLayout
 125: gridEmptyPadsUnarm
 
-126-145: free (previously reserved for midi follow)
+126-145: free as of c1.3, which moved midi follow settings into SETTINGS/MIDIFollow.XML. Held midi follow only
+         between c1.1 and c1.2 - c1.0 had an unrelated layout here (see PR #843). Still read (never written) by
+         the one-time c1.1/c1.2 migration in readSettings(), so don't reuse these until that goes away:
+         126-128 follow channel A/B/C, 129 kit root note, 130 display param, 131 feedback channel type,
+         132 feedback automation mode, 133 feedback filter, 134-145 follow device A/B/C references
 
 146: gridEmptyPadsCreateRec
 147: midi select kit row on learned note message received
@@ -177,12 +206,17 @@ enum Entries {
 180: GlobalMIDICommand::NEXT_SONG noteCode + 1
 181-184: GlobalMIDICommand::NEXT_SONG product / vendor ids
 185: defaultFavouritesLayout
-186: defaultLoopRecordingCommand
+186: unused (formerly defaultLoopRecordingCommand)
 188: defaultUseSharps
 189: default patch cable polarity
 190: GlobalMIDICommand::SHIFT channel + 1
 191: GlobalMIDICommand::SHIFT noteCode + 1
 192-195: GlobalMIDICommand::SHIFT product / vendor ids
+196: screensaver mode
+197: screensaver timeout minutes
+198: USB audio disabled - stored inverted, so a unit that has never saved it (all zeros) has USB audio on
+199: USB input not mixed to outputs (usb_audio::directMonitoring) - stored inverted, so it defaults to on
+200: USB audio output source (usb_audio::OutputSource)
 */
 
 uint8_t defaultScale;
@@ -227,6 +261,8 @@ StartupSongMode defaultStartupSongMode;
 bool highCPUUsageIndicator;
 
 uint8_t defaultHoldTime;
+ScreensaverMode screensaverMode;
+uint8_t screensaverTimeoutMinutes;
 int32_t holdTime;
 
 uint8_t defaultSwingInterval;
@@ -248,9 +284,9 @@ ThresholdRecordingMode defaultThresholdRecordingMode = ThresholdRecordingMode::O
 
 Polarity defaultPatchCablePolarity = Polarity::BIPOLAR;
 
-GlobalMIDICommand defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING;
-
 bool defaultUseSharps = true;
+
+bool usbAudioEnabled = true;
 
 void resetSettings() {
 
@@ -343,6 +379,9 @@ void resetSettings() {
 	defaultHoldTime = 2;
 	holdTime = (defaultHoldTime * kSampleRate) / 20;
 
+	screensaverMode = kDefaultScreensaverMode;
+	screensaverTimeoutMinutes = kDefaultScreensaverTimeoutMinutes;
+
 	defaultSwingInterval = 8 - defaultMagnitude; // 16th notes
 
 	defaultDisabledPresetScales = {0};
@@ -355,9 +394,20 @@ void resetSettings() {
 
 	defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
 
-	defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING;
-
 	defaultUseSharps = true;
+
+	usbAudioEnabled = true;
+	usb_audio::directMonitoring = true;
+	usb_audio::outputSource = usb_audio::OutputSource::MAIN_MIX;
+}
+
+void factoryReset(bool showPopup) {
+	if (showPopup) {
+		display->displayPopup(display->haveOLED() ? deluge::l10n::get(deluge::l10n::String::STRING_FOR_RESET_FLASH)
+		                                          : deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
+	}
+	resetSettings();
+	writeSettings();
 }
 
 void resetAutomationSettings() {
@@ -608,6 +658,47 @@ void readSettings() {
 
 	gridEmptyPadsUnarm = buffer[125];
 
+	// Between c1.1 and c1.2, MIDI-follow settings lived in flash bytes 126-145. c1.3 moved them into
+	// SETTINGS/MIDIFollow.XML, which left everyone upgrading from 1.2 with MIDI follow silently switched off - the new
+	// file has no record of the old settings, so every follow channel came back as MIDI_CHANNEL_NONE and nothing
+	// reached the instruments. Pull them out of flash one last time; midiFollow.readDefaultsFromFile() runs shortly
+	// after us, persists them to the XML, and only then stamps this firmware's version into flash so we stop.
+	//
+	// This only works while the old bytes survive. writeSettings() zero-fills the whole buffer and no longer writes
+	// 126-145, so the first settings write on c1.3 destroys them - which is also why this can't be driven off the
+	// values themselves (a zeroed byte 126 is indistinguishable from a genuine "channel 1").
+	if (savedVersion.type() == FirmwareVersion::Type::COMMUNITY
+	    && savedVersion >= kFirstVersionWithLegacyMidiFollowBlock && savedVersion < kFirstVersionWithMidiFollowXML
+	    && areLegacyMidiFollowSettingsValid(buffer)) {
+		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::A)].channelOrZone = buffer[126];
+		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::B)].channelOrZone = buffer[127];
+		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::C)].channelOrZone = buffer[128];
+		MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::A, &buffer[134]);
+		/* buffer[135]  \
+		   buffer[136]   device reference above occupies 4 bytes
+		   buffer[137] */
+		MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::B, &buffer[138]);
+		/* buffer[139]  \
+		   buffer[140]   device reference above occupies 4 bytes
+		   buffer[141] */
+		MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::C, &buffer[142]);
+		/* buffer[143]  \
+		   buffer[144]   device reference above occupies 4 bytes
+		   buffer[145] */
+		midiEngine.midiFollowKitRootNote = buffer[129];
+		midiEngine.midiFollowDisplayParam = !!buffer[130];
+		// The feedback channel was stored as a MIDIFollowChannelType numbered {A, B, C, NONE}. It is now a
+		// MIDIFollowFeedbackChannelType numbered {NONE, A, B, C, ...}, so the stored 3 becomes NONE and A/B/C shift
+		// up by one.
+		midiEngine.midiFollowFeedbackChannelType = (buffer[131] == kLegacyMidiFollowChannelTypeNone)
+		                                               ? MIDIFollowFeedbackChannelType::NONE
+		                                               : static_cast<MIDIFollowFeedbackChannelType>(buffer[131] + 1);
+		midiEngine.midiFollowFeedbackAutomation = static_cast<MIDIFollowFeedbackAutomationMode>(buffer[132]);
+		midiEngine.midiFollowFeedbackFilter = !!buffer[133];
+
+		legacyMidiFollowSettingsPending = true;
+	}
+
 	gridEmptyPadsCreateRec = buffer[146];
 
 	midiEngine.midiSelectKitRow = buffer[147];
@@ -747,14 +838,6 @@ void readSettings() {
 		defaultFavouritesLayout = static_cast<FavouritesDefaultLayout>(buffer[185]);
 	}
 
-	if (buffer[186] != util::to_underlying(GlobalMIDICommand::LOOP)
-	    && buffer[186] != util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)) {
-		defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING;
-	}
-	else {
-		defaultLoopRecordingCommand = static_cast<GlobalMIDICommand>(buffer[186]);
-	}
-
 	if (buffer[188] != 0 && buffer[188] != 1) {
 		defaultUseSharps = true;
 	}
@@ -769,6 +852,68 @@ void readSettings() {
 	else {
 		defaultPatchCablePolarity = static_cast<Polarity>(buffer[189]);
 	}
+
+	// Bytes 196-197 hold the screensaver settings, and take the shipped defaults on any unit that
+	// has never saved them -- which is how an upgrading unit picks the screensaver up.
+	//
+	// Byte 196 can't detect that case by itself: such a unit has both bytes zeroed, because
+	// writeSettings() clears the whole buffer first, and a zeroed mode byte is indistinguishable
+	// from a deliberate OFF. Two signals cover it between them. The version says whether the last
+	// firmware to save predates the setting, which catches anything released, official firmware
+	// included. It can't catch a 1.3.0 nightly from before the setting landed, though, since every
+	// build off this tree stamps the same 1.3.0 -- so the timeout covers that: zero is outside the
+	// range this firmware ever writes, so it too only occurs on a unit that has never saved here.
+	if (savedVersion < FirmwareVersion::community({1, 3, 0}) || buffer[197] < kMinScreensaverTimeoutMinutes
+	    || buffer[197] > kMaxScreensaverTimeoutMinutes) {
+		screensaverMode = kDefaultScreensaverMode;
+		screensaverTimeoutMinutes = kDefaultScreensaverTimeoutMinutes;
+	}
+	else {
+		screensaverTimeoutMinutes = buffer[197];
+		// The block has been written, so an OFF here is the user's choice and is honoured. Only a
+		// corrupt out-of-range mode falls back.
+		screensaverMode =
+		    (buffer[196] < kNumScreensaverModes) ? static_cast<ScreensaverMode>(buffer[196]) : kDefaultScreensaverMode;
+	}
+
+	usbAudioEnabled = (buffer[198] != 1);
+	usb_audio::directMonitoring = (buffer[199] != 1);
+	usb_audio::outputSource = (buffer[200] < usb_audio::kNumOutputSources)
+	                              ? static_cast<usb_audio::OutputSource>(buffer[200])
+	                              : usb_audio::OutputSource::MAIN_MIX;
+}
+
+/// Sanity-check the pre-c1.3 MIDI-follow block (bytes 126-145) before migrating it. Same checks the deleted
+/// areMidiFollowSettingsValid() used, against the enum values as they were numbered back then.
+static bool areLegacyMidiFollowSettingsValid(std::span<uint8_t> buffer) {
+	// follow channel A/B/C
+	for (int32_t i = 126; i <= 128; i++) {
+		if (buffer[i] >= NUM_CHANNELS && buffer[i] != MIDI_CHANNEL_NONE) {
+			return false;
+		}
+	}
+	// midiFollowKitRootNote
+	if (buffer[129] > kMaxMIDIValue) {
+		return false;
+	}
+	// midiFollowDisplayParam
+	if (buffer[130] != 0 && buffer[130] != 1) {
+		return false;
+	}
+	// midiFollowFeedbackChannelType
+	if (buffer[131] > kLegacyMidiFollowChannelTypeNone) {
+		return false;
+	}
+	// midiFollowFeedbackAutomation
+	if (buffer[132] > util::to_underlying(kLastValidMIDIFollowFeedbackAutomationMode)) {
+		return false;
+	}
+	// midiFollowFeedbackFilter
+	if (buffer[133] != 0 && buffer[133] != 1) {
+		return false;
+	}
+
+	return true;
 }
 
 static bool areAutomationSettingsValid(std::span<uint8_t> buffer) {
@@ -997,11 +1142,16 @@ void writeSettings() {
 
 	buffer[185] = util::to_underlying(defaultFavouritesLayout);
 
-	buffer[186] = util::to_underlying(defaultLoopRecordingCommand);
-
 	buffer[188] = defaultUseSharps;
 
 	buffer[189] = util::to_underlying(defaultPatchCablePolarity);
+
+	buffer[196] = util::to_underlying(screensaverMode);
+	buffer[197] = screensaverTimeoutMinutes;
+
+	buffer[198] = usbAudioEnabled ? 0 : 1;
+	buffer[199] = usb_audio::directMonitoring ? 0 : 1;
+	buffer[200] = util::to_underlying(usb_audio::outputSource);
 
 	deluge_flash_erase(0);
 	deluge_flash_program(0, buffer.data(), 256);

@@ -81,11 +81,9 @@ void putchar_(char c) {
 // not taken and the symbols are not referenced.
 // ===========================================================================
 #if defined(__arm__)
-void fault_handler_print_freeze_pointers(uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
+void fault_handler_print_freeze_pointers(uint32_t a, uint32_t b) {
 	(void)a;
 	(void)b;
-	(void)c;
-	(void)d;
 }
 void neon_fm_kernel(const int32_t* in, const int32_t* busin, int32_t* out, int count, int32_t phase0, int32_t freq,
                     int32_t gain1, int32_t dgain) {

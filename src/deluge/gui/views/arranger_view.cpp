@@ -1837,6 +1837,12 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 	if (clip->onAutomationClipView && !onKeyboardScreen) {
 		PadLEDs::explodeAnimationYOriginBig = yPressedEffective << 16;
 
+		// Transition pre-render can happen before AutomationView::opened(). Force clip context so we don't
+		// accidentally render stale arranger automation state into the animation store.
+		automationView.onArrangerView = false;
+		automationView.navSysId = automationView.getNavSysId();
+		automationView.setAutomationParamType();
+
 		if (clip->type == ClipType::INSTRUMENT) {
 			instrumentClipView.recalculateColours();
 			// Automation view reuses instrument clip offscreen rows during explode animations.
@@ -2648,6 +2654,7 @@ cant:
 	}
 
 	InstrumentClip* instrumentClip = (InstrumentClip*)currentSong->getClipWithOutput(oldOutput);
+	int32_t clipIndex = -1;
 
 	if (instrumentClip) {
 		if (instrumentClip->containsAnyNotes()) {
@@ -2655,6 +2662,16 @@ cant:
 		}
 		if (currentSong->getClipWithOutput(oldOutput, false, instrumentClip)) {
 			goto cant; // Make sure not more than 1 Clip
+		}
+
+		// replaceInstrumentClipWithAudioClip() swaps it in place in sessionClips, so it has to be in there. An
+		// arrangement-only Clip isn't, and would otherwise be written to index -1.
+		clipIndex = currentSong->sessionClips.getIndexForClip(instrumentClip);
+		if (clipIndex == -1) {
+			if (ALPHA_OR_BETA_VERSION) {
+				FREEZE_WITH_ERROR("E266");
+			}
+			goto cant;
 		}
 
 		// We'll do some other specific stuff below
@@ -2670,10 +2687,6 @@ cant:
 
 	// If the old Output had a Clip that we're going to replace too...
 	if (instrumentClip) {
-		int32_t clipIndex = currentSong->sessionClips.getIndexForClip(instrumentClip);
-		if (ALPHA_OR_BETA_VERSION && clipIndex == -1) {
-			FREEZE_WITH_ERROR("E266");
-		}
 		newClip = currentSong->replaceInstrumentClipWithAudioClip(instrumentClip, clipIndex);
 
 		if (!newClip) {

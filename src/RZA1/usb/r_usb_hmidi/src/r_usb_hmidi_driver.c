@@ -724,7 +724,7 @@ uint16_t usb_hmidi_get_string_desc(usb_utr_t* ptr, uint16_t addr, uint16_t strin
         usb_shmidi_class_request_setup[ptr->ip][2] = (uint16_t)(g_usb_hmidi_str_desc_data[ptr->ip][2]);
         usb_shmidi_class_request_setup[ptr->ip][2] |=
             (uint16_t)((uint16_t)(g_usb_hmidi_str_desc_data[ptr->ip][3]) << 8);
-        usb_shmidi_class_request_setup[ptr->ip][3] = (uint16_t)USB_HMIDI_CLSDATASIZE;
+        usb_shmidi_class_request_setup[ptr->ip][3] = (uint16_t)USB_HMIDI_STRDESC_MAX_REQ;
     }
     usb_shmidi_class_request_setup[ptr->ip][0] = (USB_GET_DESCRIPTOR | USB_DEV_TO_HOST | USB_STANDARD | USB_DEVICE);
     usb_shmidi_class_request_setup[ptr->ip][1] = (uint16_t)(USB_STRING_DESCRIPTOR + string);
@@ -832,6 +832,14 @@ void hmidi_detach(usb_utr_t* ptr, uint16_t devadr, uint16_t data2)
         int devAddrHere = g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][3] >> USB_DEVADDRBIT;
         if (devAddrHere == devadr)
             break;
+    }
+
+    // Not found - there's no table entry to clear, and indexing with d would write out of bounds. Still report it, so
+    // hostedDeviceDetached() can flag it (E367) in beta builds - it ignores out-of-range device numbers.
+    if (d == MAX_NUM_USB_MIDI_DEVICES)
+    {
+        hostedDeviceDetached(USB_CFG_USE_USBIP, d);
+        return;
     }
 
     // Clear endpoint table

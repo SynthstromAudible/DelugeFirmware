@@ -33,6 +33,7 @@
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
+#include "libdeluge/usb_audio.h"
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_dmac.h"
@@ -94,6 +95,8 @@ usb_setup_t g_usb_pstd_req_reg; /* Device Request - Request structure */
                  : uint16_t     status       : BRDYSTS register & BRDYENB register.
  Return value    : none
  ***********************************************************************************************************************/
+
+/// For reasons that are a mystery this isn't actually done in an interrupt. Maybe should be
 static void usb_pstd_interrupt(uint16_t type, uint16_t status)
 {
     uint16_t stginfo;
@@ -1268,12 +1271,13 @@ void usb_peri_registration(usb_ctrl_t* ctrl, usb_cfg_t* cfg)
     usb_pcdreg_t pdriver;
 
     /* pdriver registration */
-    pdriver.p_pipetbl   = (uint16_t*)&g_usb_pstd_eptbl; /* Pipe Define Table address */
-    pdriver.p_devicetbl = cfg->p_usb_reg->p_device;     /* Device descriptor Table address */
-    pdriver.p_qualitbl  = cfg->p_usb_reg->p_qualifier;  /* Qualifier descriptor Table address */
-    pdriver.p_configtbl = cfg->p_usb_reg->p_config_f;   /* Configuration descriptor Table address */
-    pdriver.p_othertbl  = cfg->p_usb_reg->p_config_h;   /* Other configuration descriptor Table address */
-    pdriver.p_stringtbl = cfg->p_usb_reg->p_string;     /* String descriptor Table address */
+    /* Pipe Define Table address - matching whichever configuration descriptor openUSBPeripheral() chose */
+    pdriver.p_pipetbl   = usbAudioActive() ? g_usb_pstd_eptbl : g_usb_pstd_eptbl_midi_only;
+    pdriver.p_devicetbl = cfg->p_usb_reg->p_device;    /* Device descriptor Table address */
+    pdriver.p_qualitbl  = cfg->p_usb_reg->p_qualifier; /* Qualifier descriptor Table address */
+    pdriver.p_configtbl = cfg->p_usb_reg->p_config_f;  /* Configuration descriptor Table address */
+    pdriver.p_othertbl  = cfg->p_usb_reg->p_config_h;  /* Other configuration descriptor Table address */
+    pdriver.p_stringtbl = cfg->p_usb_reg->p_string;    /* String descriptor Table address */
 
     pdriver.devdefault = &usb_peri_devdefault;                  /* Device default */
     pdriver.devconfig  = &usb_peri_configured;                  /* Device configuered */

@@ -41,6 +41,11 @@ void deluge_system_reset(void) __attribute__((noreturn));
 /// (e.g. chainloading new firmware). Call with interrupts already disabled. [task]
 void deluge_system_quiesce(void);
 
+/// Write back and invalidate every cache level over [start, end), so code or data
+/// there is coherent with memory once caches/MMU are switched off (e.g. before
+/// jumping to a chainloaded image). No-op on boards without caches. [task]
+void deluge_system_flush_range(uintptr_t start, uintptr_t end);
+
 /// Emit debug/log text to the board's debug channel (RTT/UART), with no implicit
 /// newline — the caller owns formatting. Best-effort, may be dropped. [task] [isr]
 void deluge_log(const char* text);
@@ -67,12 +72,25 @@ void EXIT_CRITICAL_SECTION();
 #ifdef __cplusplus
 }
 
+/// Proof that interrupts are disabled. Functions which must only be called with interrupts disabled should take one of
+/// these by reference, so callers have to hold a CriticalSectionGuard (or be in an ISR) to call them
+struct InterruptsDisabled {
+	InterruptsDisabled(const InterruptsDisabled&) = delete;
+	InterruptsDisabled& operator=(const InterruptsDisabled&) = delete;
+
+protected:
+	InterruptsDisabled() = default;
+};
+
 /// RAII wrapper for ENTER/EXIT_CRITICAL_SECTION — enters on construction, exits
 /// on scope end, so the pairing can't be forgotten.
-struct CriticalSectionGuard {
+struct CriticalSectionGuard : InterruptsDisabled {
 	CriticalSectionGuard() { ENTER_CRITICAL_SECTION(); }
 	~CriticalSectionGuard() { EXIT_CRITICAL_SECTION(); }
 };
+
+/// Does nothing - for use from within an ISR, where interrupts are already disabled
+struct ISRCriticalSectionGuard : InterruptsDisabled {};
 #endif
 
 #endif // LIBDELUGE_SYSTEM_H

@@ -73,8 +73,11 @@ void LivePitchShifter::render(int32_t* __restrict__ outputBuffer, int32_t numSam
                               int32_t interpolationBufferSize) {
 
 	LiveInputBuffer* liveInputBuffer = AudioEngine::getOrCreateLiveInputBuffer(inputType, false);
-	if (ALPHA_OR_BETA_VERSION && !liveInputBuffer) {
-		FREEZE_WITH_ERROR("E165");
+	if (!liveInputBuffer) {
+		if (ALPHA_OR_BETA_VERSION) {
+			FREEZE_WITH_ERROR("E165");
+		}
+		return; // Render nothing rather than dereference null
 	}
 
 	liveInputBuffer->giveInput(numSamplesThisFunctionCall, AudioEngine::audioSampleTimer, inputType);
@@ -516,7 +519,7 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 					}
 					int32_t percHere =
 					    liveInputBuffer
-					        ->percBuffer[(uint32_t)(percPos - howFarBackSearched) & (kPercBufferReductionSize - 1)];
+					        ->percBuffer[(uint32_t)(percPos - howFarBackSearched) & (kInputPercBufferSize - 1)];
 					totalPerc += percHere;
 				}
 
@@ -667,6 +670,10 @@ startSearch:
 
 		{
 			int32_t searchSizeHere = std::min(searchSize, searchSizeBoundary);
+			// guard against potential infinite do/while loop below
+			if (searchSizeHere <= 0) {
+				goto searchNextDirection;
+			}
 			endOffset = searchSizeHere * searchDirection;
 		}
 

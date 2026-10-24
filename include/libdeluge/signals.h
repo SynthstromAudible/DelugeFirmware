@@ -86,6 +86,15 @@ bool deluge_midi_gate_timer_pending(void);
 /// [task]
 void deluge_midi_gate_timer_arm(uint32_t samples_from_now);
 
+/// Arm the output timer to fire midiAndGateTimerGoneOff() `system_ticks_from_now`
+/// free-running system-timer ticks (DELUGE_CLOCKS_PER per second) in the future,
+/// restarting it if it's already armed. Delays beyond the timer's range fire
+/// early (the app re-arms from the ISR); 0 fires as soon as possible. [task] [isr]
+void deluge_midi_gate_timer_arm_ticks(uint32_t system_ticks_from_now);
+
+/// Stop the output timer without firing. [task] [isr]
+void deluge_midi_gate_timer_stop(void);
+
 // ---------------------------------------------------------------------------
 // Runtime-provided callbacks (inverse direction: the app implements, the
 // BSP/HAL call up). Declared here so the timer HAL depends only on

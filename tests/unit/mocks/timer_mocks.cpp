@@ -77,6 +77,10 @@ uint64_t deluge_clock_monotonic(void) {
 	return getTimerValue(0);
 }
 
+uint32_t deluge_clock_system_ticks(void) {
+	return (uint32_t)getTimerValue(0);
+}
+
 uint64_t deluge_clock_monotonic_hz(void) {
 	return DELUGE_CLOCKS_PER;
 }

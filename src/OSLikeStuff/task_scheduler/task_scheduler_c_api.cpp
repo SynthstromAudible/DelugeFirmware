@@ -17,6 +17,7 @@
 
 #include "OSLikeStuff/scheduler_api.h"
 #include "OSLikeStuff/task_scheduler/task_scheduler.h"
+#include "libdeluge/clock.h"
 #include "libdeluge/storage_wait.h"
 #include "libdeluge/system.h" // deluge_in_interrupt — the ISR guard, via the boundary
 #include "resource_checker.h"
@@ -32,6 +33,12 @@ bool sdRoutineActive = false;
 extern "C" bool isSDRoutineActive() {
 	return sdRoutineActive;
 }
+#if IN_UNIT_TESTS
+/// Lets the scheduler tests hold the flag as a storage wait would
+void setSDRoutineActiveForTesting(bool active) {
+	sdRoutineActive = active;
+}
+#endif
 
 extern "C" {
 void startTaskManager() {
@@ -150,5 +157,9 @@ void unblockTask(TaskID id) {
 
 double getSystemTime() {
 	return taskManager.getSecondsFromStart();
+}
+
+uint32_t getSystemTicks() {
+	return deluge_clock_system_ticks();
 }
 }

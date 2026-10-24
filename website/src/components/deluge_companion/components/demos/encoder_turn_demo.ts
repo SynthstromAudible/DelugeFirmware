@@ -11,7 +11,7 @@ export function shouldBlinkTurnControl(
   actions: Set<Action> | undefined,
 ): boolean {
   if (!actions) return false
-  return actions.has(Action.PRESS) || actions.has(Action.HOLD)
+  return actions.has(Action.PRESS)
 }
 
 export function clearTurnIndicators(

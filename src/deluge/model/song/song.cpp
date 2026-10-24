@@ -111,7 +111,11 @@ Kit* getCurrentKit() {
 
 /// Do not call in static/global constructors, song won't exist yet
 Instrument* getCurrentInstrument() {
-	auto output = currentSong->getCurrentClip()->output;
+	auto currentClip = currentSong->getCurrentClip();
+	if (currentClip == nullptr) {
+		return nullptr;
+	}
+	auto output = currentClip->output;
 	if (output == nullptr) {
 		return nullptr;
 	}
@@ -1274,6 +1278,8 @@ weAreInArrangementEditorOrInClipInstance:
 	GlobalEffectableForClip::writeParamTagsToFile(writer, &paramManager, true, valuesForOverride);
 	writer.writeClosingTag("songParams");
 
+	performanceView.writeSettingsToFile(writer);
+
 	writer.writeArrayStart("instruments");
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		thisOutput->writeToFile(nullptr, this);
@@ -2067,6 +2073,10 @@ loadOutput:
 				reader.exitTag("songParams", true);
 			}
 
+			else if (!strcmp(tagName, "performanceView")) {
+				performanceView.readSettingsFromFile(reader);
+			}
+
 			else if (!strcmp(tagName, "tracks") || !strcmp(tagName, "sessionClips")) {
 				Error error = readClipsFromFile(reader, &sessionClips);
 				if (error != Error::NONE) {
@@ -2438,6 +2448,8 @@ void Song::deleteSoundsWhichWontSound() {
 
 		AudioEngine::routineWithClusterLoading();
 		if (!clip->isActiveOnOutput() && clip != view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+			// Arranger ClipInstances may still reference this Clip - remove them so they don't dangle (E455)
+			clip->output->deleteAnyInstancesOfClip(clip);
 			it.deleteClip(InstrumentRemoval::NONE);
 		}
 		else {
@@ -2454,6 +2466,7 @@ void Song::deleteSoundsWhichWontSound() {
 
 		AudioEngine::routineWithClusterLoading();
 		if (clip->deleteSoundsWhichWontSound(this)) {
+			clip->output->deleteAnyInstancesOfClip(clip);
 			it.deleteClip(InstrumentRemoval::DELETE);
 		}
 		else {
@@ -2601,11 +2614,11 @@ bool Song::hasAnySwing() {
 	return (swingAmount != 0);
 }
 
-void Song::resyncLFOs() {
+void Song::resyncLFOs(bool reset_state) {
 
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		if (thisOutput->getActiveClip()) {
-			thisOutput->resyncLFOs();
+		if (reset_state || thisOutput->getActiveClip()) {
+			thisOutput->resyncLFOs(reset_state);
 		}
 		// Yes, do it even for Clips that aren't actually "playing" / active in the Song
 	}
@@ -3106,8 +3119,24 @@ void Song::setBPM(float tempoBPM, bool shouldLogAction) {
 	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
 	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
 	auto intTempo = (int32_t)(tempoBPM * 100);
-	int32_t pos = -1; // means use the live position
-	tempoParam->autoParam->setCurrentValueInResponseToUserInput(intTempo, tempoParam, shouldLogAction, pos);
+	int32_t pos = -1;   // means use the live position
+	int32_t length = 0; // means record at live position
+
+	// if you're holding a pad in arranger view and external clock is not active
+	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW && !playbackHandler.isExternalClockActive()) [[unlikely]] {
+		// Edit the tempo BPM for a specific point on the timeline (e.g. by holding on
+		// a grid timeline pad while moving tempo encoder in arranger view).
+		//
+		// This fills in the tempo automation on the timeline with "tempoBPM" from
+		// "pos" until the next automation event.
+		uint32_t x_scroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+		int32_t x_zoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+		pos = arrangerView.getPosFromSquare(arrangerView.xPressed, x_scroll, x_zoom);
+		length = std::min<int32_t>(tempoParam->autoParam->getDistanceToNextNode(tempoParam, pos, false),
+		                           arrangerView.getMaxLength());
+	}
+
+	tempoParam->autoParam->setValuePossiblyForRegion(intTempo, tempoParam, pos, length);
 	setBPMInner(tempoBPM, shouldLogAction);
 }
 
@@ -3116,7 +3145,6 @@ void Song::clearTempoAutomation() {
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
-	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
 	int32_t pos = -1; // means use the live position
 	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::ALLOWED);
 	tempoParam->autoParam->deleteAutomation(action, tempoParam);
@@ -3150,6 +3178,13 @@ void Song::setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldL
 void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRemoval instrumentRemovalInstruction) {
 
 	if (!songBeingDestroyedToo) {
+		// Callers must remove any ClipInstances referencing this Clip first, or the arrangement is left pointing at
+		// freed memory - and pickAnActiveClipIfPossible() would pick this Clip back up mid-destruction (E411/E412).
+		if (clip->output && clip->output->clipHasInstance(clip)) {
+			FREEZE_WITH_ERROR("E455");
+			// If resumed, remove them ourselves rather than leave them dangling
+			clip->output->deleteAnyInstancesOfClip(clip);
+		}
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, this, clip);
@@ -3578,6 +3613,9 @@ void Song::deleteOutput(Output* output) {
 
 void Song::moveInstrumentToHibernationList(Instrument* instrument) {
 
+	// Hibernated instruments stay allocated but leave the active output list, so audio tracks must stop targeting them.
+	clearRecordingFromReferencesTo(instrument);
+
 	removeOutputFromMainList(instrument);
 
 	if (instrument->type == OutputType::MIDI_OUT) {
@@ -3921,10 +3959,11 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 			else {
 
 				ParamManagerForTimeline paramManager;
-				paramManager.stealParamCollectionsFrom(&backedUp->paramManager);
+				paramManager.stealParamCollectionsFrom(&backedUp->paramManager, false);
 				ModControllableAudio* modControllable = backedUp->modControllable;
 
-				// We have to delete that element...
+				// Destruct backed up param manager in case it also had expression params
+				backedUp->~BackedUpParamManager();
 				backedUpParamManagers.deleteAtIndex(i);
 
 				// ...and then go find the first one that had this ModControllable
@@ -5054,15 +5093,10 @@ gotAnInstrument: {}
 		display->removeWorkingAnimation();
 	}
 
-#if ALPHA_OR_BETA_VERSION
-	display->setText("A002");
-#endif
 	replaceInstrument(oldInstrument, newInstrument);
-#if ALPHA_OR_BETA_VERSION
 	if (display->have7SEG()) {
 		view.displayOutputName(newInstrument);
 	}
-#endif
 
 	instrumentSwapped(newInstrument);
 
@@ -5563,11 +5597,15 @@ bool Song::hasAnyPendingNextOverdubs() {
 	return false;
 }
 
-int32_t Song::countAudioClips() const {
+int32_t Song::countAudioVoices() const {
 	int32_t i = 0;
 	for (Output* output = firstOutput; output; output = output->next) {
 		if (output->type == OutputType::AUDIO) {
-			if (output->getActiveClip()) {
+			// this checks whether the audio output is skipping rendering
+			// to be rendering, the audio output must have:
+			// a) an active clip; and
+			// b) is monitoring and/or has a voice sample assigned
+			if (!(AudioOutput*)output->isSkippingRendering()) {
 				AudioClip* clip = (AudioClip*)output->getActiveClip();
 				// this seems to be the only way to find whether the voice is sounding
 				if (isClipActive(clip)) {
@@ -5583,20 +5621,26 @@ void Song::cullAudioClipVoice() {
 	AudioClip* bestClip = nullptr;
 	uint64_t lowestImmunity = 0xFFFFFFFFFFFFFFFF;
 
+	// find the audio clip with the lowest cull immunity
 	for (Output* output = firstOutput; output; output = output->next) {
 		if (output->type == OutputType::AUDIO) {
 			if (output->getActiveClip()) {
 				AudioClip* clip = (AudioClip*)output->getActiveClip();
 				if (clip->voiceSample && clip->voiceSample->oscPos > 0) {
 					uint64_t immunity = clip->getCullImmunity();
-					lowestImmunity = immunity;
-					bestClip = clip;
+					// is this the audio clip with the lowest cull immunity so far?
+					if (immunity < lowestImmunity) {
+						lowestImmunity = immunity;
+						bestClip = clip;
+					}
 				}
 			}
 		}
 	}
 
+	// did we find an audio clip voice to cull?
 	if (bestClip) {
+		// cull the audio clip voice with the lowest immunity
 		bestClip->unassignVoiceSample(false);
 		D_PRINTLN("audio clip voice culled!");
 	}

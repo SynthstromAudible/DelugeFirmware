@@ -20,6 +20,8 @@
 #include "model/drum/gate_drum.h"
 #include <cstdint>
 
+struct InterruptsDisabled;
+
 #define WHICH_GATE_OUTPUT_IS_RUN 2
 #define WHICH_GATE_OUTPUT_IS_CLOCK 3
 
@@ -51,6 +53,15 @@ public:
 	uint32_t timeLastSwitchedOff;
 };
 
+/// A snapshot of gate output changes, so they can be physically output at a later time (e.g. from the MIDI/gate
+/// output ISR) without being affected by changes made in the meantime
+struct GateOutputs {
+	uint8_t mask{0};             ///< bitmask of gate channels to physically switch
+	uint8_t levels{0};           ///< pin level for each channel in mask
+	uint8_t cvWaitMask{0};       ///< channels in mask which can't switch until any pending CV has been sent
+	bool needsMinOffTime{false}; ///< contains a note-on which must respect minGateOffTime
+};
+
 class CVEngine {
 public:
 	CVEngine();
@@ -62,6 +73,11 @@ public:
 	void setCVPitchBend(uint8_t channel, int32_t value, bool outputToo = true);
 	int32_t calculateVoltage(int32_t note, uint8_t channel);
 	void physicallySwitchGate(int32_t channel);
+	// release any gates which were held while CV is pending now that it's done
+	void cvOutUpdated(const InterruptsDisabled&);
+	/// release held gates if the pending CV write has gone out (see cvSentSnapshot)
+	void pollCVSent(const InterruptsDisabled&);
+	void pollCVSent();
 
 	void analogOutTick();
 	void playbackBegun();
@@ -70,14 +86,16 @@ public:
 	void updateClockOutput();
 	void updateRunOutput();
 	bool isTriggerClockOutputEnabled();
-	/// physically send all gate outs if any output pending
+	/// physically send all pending gate outs right now
 	void updateGateOutputs();
+	/// take all gate changes made since the last call, so they can be scheduled to go out at a specific time.
+	/// asap (run) gates are only included if includeAsap is set, since they need to respect minGateOffTime
+	GateOutputs takePendingGateOutputs(bool includeAsap);
+	/// physically output a snapshot of gates
+	void outputGates(const GateOutputs& outputs, const InterruptsDisabled&);
 
-	bool isGatePending() const { return gateOutputPending; }
-	bool isRunPending() const { return asapGateOutputPending; }
-	bool isClockPending() const { return clockOutputPending; }
-	bool isAnythingButRunPending() const { return isGatePending() || isClockPending(); }
-	bool isAnythingPending() const { return isGatePending() || isClockPending() || isRunPending(); }
+	bool isAnythingButRunPending() const { return (pendingGates & ~pendingAsapGates) != 0; }
+	bool isAnythingPending() const { return pendingGates != 0; }
 	GateChannel gateChannels[NUM_GATE_CHANNELS];
 
 	CVChannel cvChannels[NUM_PHYSICAL_CV_CHANNELS];
@@ -101,17 +119,26 @@ private:
 	void recalculateCVChannelVoltage(uint8_t channel);
 	void switchGateOff(int32_t channel);
 	void switchGateOn(int32_t channel, int32_t doInstantlyIfPossible = false);
+	/// physically switch a gate right now, superseding any pending or scheduled output for it
+	void switchGateNow(int32_t channel);
+	uint8_t gateLevel(int32_t channel) const {
+		// setOutputState is inverted - sending true turns the gate off
+		return gateChannels[channel].on == (gateChannels[channel].mode == GateType::S_TRIG);
+	}
 	/// signifies there's a gate that can't go until the cv is output
 	bool cvOutPending{false};
 	/// deluge_cv_sent_count() at the moment the pending CV was queued (shared-SPI
-	/// boards); cvOutPending clears once the count moves past it. See updateGateOutputs().
+	/// boards); the CV counts as sent once the count moves past it. See pollCVSent().
 	uint32_t cvSentSnapshot{0};
-	/// gate 1-4 as synths or drums
-	bool gateOutputPending{false};
-	/// gate 3 as a run signal
-	bool asapGateOutputPending;
-	/// gate 4 as a clock signal
-	bool clockOutputPending;
+	/// bitmask of gate channels which have changed but haven't been taken for output yet
+	uint8_t pendingGates{0};
+	/// subset of pendingGates which should go asap (run signal), respecting minGateOffTime
+	uint8_t pendingAsapGates{0};
+	/// subset of pendingGates which are deferred note-ons (must wait for CV and respect minGateOffTime)
+	uint8_t pendingNoteOnGates{0};
+	/// gates whose scheduled time has passed but are being held until their cv is output
+	uint8_t gatesAwaitingCV{0};
+	uint8_t levelsAwaitingCV{0};
 };
 
 extern CVEngine cvEngine;

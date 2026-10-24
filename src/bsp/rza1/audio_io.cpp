@@ -34,6 +34,7 @@
 /// behaviour where a doubled render window could exceed the currently-free
 /// ring space and trickle out over subsequent routine calls.
 
+#include "audio_io_internal.h"
 #include "audio_pacing.h"
 #include "board_config.h"
 #include <cstring>
@@ -220,6 +221,10 @@ uint32_t deluge_audio_frames_until_block_offset(uint32_t offset_frames, uint32_t
 		*elapsed_frames_out = playNowFrame - blockStartPlayFrame;
 	}
 	return (blockStartWriteFrame + offset_frames - playNowFrame) & kTxMask;
+}
+
+uint32_t bsp_audio_tx_frame_at_block_offset(uint32_t offset_frames) {
+	return (blockStartWriteFrame - ((uint32_t)getTxBufferStart() >> kOutShift) + offset_frames) & kTxMask;
 }
 
 uint32_t deluge_audio_stamp_to_render_offset(uint32_t stamp) {

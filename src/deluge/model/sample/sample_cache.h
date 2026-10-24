@@ -33,9 +33,7 @@ public:
 	void setWriteBytePos(int32_t newWriteBytePos);
 
 	int32_t writeBytePos;
-#if ALPHA_OR_BETA_VERSION
 	int32_t numClusters;
-#endif
 	int32_t waveformLengthBytes;
 	Sample* sample;
 	int32_t phaseIncrement;

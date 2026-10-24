@@ -1254,7 +1254,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 		}
 
 		// Only update notification if parameter info has changed AND we can take display ownership AND enough time has
-		// elapsed
+		// elapsed.
 		if (has_param_info_changed && can_take_display_ownership && has_min_time_elapsed) {
 			display->displayNotification(parameter_name.c_str(), parameter_value.c_str());
 
@@ -1276,6 +1276,22 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 			}
 			last_display_update_time = current_time;
 			last_actual_display_time = current_time; // Track when we actually updated the display
+			hasPendingModEncoderValuePopup = false;
+			uiTimerManager.unsetTimer(TimerName::MOD_ENCODER_POPUP_FLUSH);
+		}
+		else if (has_param_info_changed && can_take_display_ownership && !has_min_time_elapsed) {
+			// We have a newer value but we're still inside the rate-limit window.
+			// Queue this exact popup payload so the timer callback can display it as soon as throttling allows.
+			hasPendingModEncoderValuePopup = true;
+			pendingPopupKind = kind;
+			pendingPopupParamID = paramID;
+			pendingPopupKnobPos = newKnobPos;
+			pendingPopupSource1 = source1;
+			pendingPopupSource2 = source2;
+
+			uint32_t time_since_last_actual_display = current_time - last_actual_display_time;
+			uint32_t samples_until_flush = MIN_UPDATE_INTERVAL - time_since_last_actual_display;
+			uiTimerManager.setTimerSamples(TimerName::MOD_ENCODER_POPUP_FLUSH, samples_until_flush);
 		}
 		// Even if no display update needed, refresh timer if same parameter is being adjusted
 		else if (current_param_owns_display && display->hasPopupOfType(PopupType::NOTIFICATION)) {
@@ -1286,6 +1302,17 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 	else {
 		display->displayPopup(parameter_value.c_str());
 	}
+}
+
+void View::flushPendingModEncoderValuePopup() {
+	// Timer callback for deferred popup delivery: if the latest value was throttled,
+	// replay it once the minimum update interval has elapsed.
+	if (!hasPendingModEncoderValuePopup || !display->haveOLED()) {
+		return;
+	}
+
+	displayModEncoderValuePopup(pendingPopupKind, pendingPopupParamID, pendingPopupKnobPos, pendingPopupSource1,
+	                            pendingPopupSource2);
 }
 
 // convert deluge internal knobPos range to same range as used by menu's.
@@ -1706,22 +1733,18 @@ void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool update
 }
 
 void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos, bool isAutomation) {
-	MIDIFollowChannelType feedbackChannelType = midiFollow.getChannelTypeForFeedback();
-	if (feedbackChannelType != MIDIFollowChannelType::NONE) {
-		int32_t channel = midiEngine.midiFollowChannelType[util::to_underlying(feedbackChannelType)].channelOrZone;
-		if (channel != MIDI_CHANNEL_NONE) {
-			// check if we're dealing with a clip context param (don't send feedback for song params)
-			if (isClipContext()) {
-				if (modelStackWithParam && modelStackWithParam->autoParam) {
-					params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-					int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
-					if (ccNumber != MIDI_CC_NONE) {
-						midiFollow.sendCCForMidiFollowFeedback(channel, ccNumber, knobPos);
-					}
+	if (midiFollow.isFeedbackEnabled()) {
+		// check if we're dealing with a clip context param (don't send feedback for song params)
+		if (isClipContext()) {
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+				int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
+				if (ccNumber != MIDI_CC_NONE) {
+					midiFollow.sendCCForMidiFollowFeedback(ccNumber, knobPos);
 				}
-				else {
-					midiFollow.sendCCWithoutModelStackForMidiFollowFeedback(channel, isAutomation);
-				}
+			}
+			else {
+				midiFollow.sendCCWithoutModelStackForMidiFollowFeedback(isAutomation);
 			}
 		}
 	}
@@ -2316,8 +2339,15 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 		// CV
 		if (outputType == OutputType::CV) {
 			while (true) {
+				auto oldChannel = newChannel;
 				newChannel = CVInstrument::navigateChannels(newChannel, offset);
-
+				int channelToSearch = newChannel;
+				if (newChannel == CVInstrumentMode::both) {
+					// in this case we just need to make sure the one were not about to give up is free
+					// there probably should be a gatekeeper managing the cv/gate resources but that's a lot to
+					// change and this doesn't matter much
+					channelToSearch = oldNonAudioInstrument->getChannel() == 0 ? 1 : 0;
+				}
 				if (newChannel == oldNonAudioInstrument->getChannel()) {
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS));
 					return;
@@ -2326,21 +2356,21 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				if (availabilityRequirement == Availability::ANY) {
 					break;
 				}
+				// check if we can move this clip to another instrument that has a vacant spot in this section
 				else if (availabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
-					int channelToSearch = newChannel;
-					if (newChannel == CVInstrumentMode::both) {
-						// in this case we just need to make sure the one were not about to give up is free
-						// there probably should be a gatekeeper managing the cv/gate resources but that's a lot to
-						// change and this doesn't matter much
-						channelToSearch = oldNonAudioInstrument->getChannel() == 0 ? 1 : 0;
-					}
 					if (!modelStack->song->doesNonAudioSlotHaveActiveClipInSession(outputType, channelToSearch)) {
 						break;
 					}
 				}
+				// or if we want to move the whole instrument over
 				else if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
-					if (!modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, -1, nullptr, nullptr,
-					                                                   false)) {
+					if (oldChannel == both && oldInstrumentCanBeReplaced) {
+						// both blocks 1 and 2 but we're about to give one up, so that means it's available
+						break;
+					}
+					// in this case we're replacing the whole instrument so same logic applies as above,
+					if (!modelStack->song->getInstrumentFromPresetSlot(outputType, channelToSearch, -1, nullptr,
+					                                                   nullptr, false)) {
 						break;
 					}
 				}
@@ -2780,9 +2810,8 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		}
 		break;
 
-	// No break
 	case UI_MODE_CLIP_PRESSED_IN_SONG_VIEW:
-	[[fallthrough]] // fall through into UI_MODE_STUTTERING so you can toggle clip status while holding a clip
+	// fall through into UI_MODE_STUTTERING so you can toggle clip status while holding a clip
 	case UI_MODE_STUTTERING:
 		// this code is needed to allow users to launch clips while stuttering
 		// without it the deluge becomes unresponsive if you try to launch a clip while stuttering

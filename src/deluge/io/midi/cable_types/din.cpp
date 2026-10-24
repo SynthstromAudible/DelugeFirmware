@@ -19,6 +19,7 @@
 #include "gui/l10n/l10n.h"
 #include "io/midi/midi_engine.h"
 #include "libdeluge/midi_io.h"
+#include "libdeluge/system.h" // CriticalSectionGuard
 #include "storage/storage_manager.h"
 
 void MIDICableDINPorts::writeReferenceAttributesToFile(Serializer& writer) {
@@ -35,6 +36,8 @@ char const* MIDICableDINPorts::getDisplayName() {
 }
 
 void MIDICableDINPorts::sendMessage(MIDIMessage message) {
+	// The MIDI/gate output timer ISR writes to this buffer too
+	CriticalSectionGuard guard;
 	midiEngine.sendSerialMidi(message);
 }
 

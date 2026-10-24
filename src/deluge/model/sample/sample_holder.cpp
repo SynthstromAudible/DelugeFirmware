@@ -141,11 +141,9 @@ void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manual
 
 		sampleBeenSet(reversed, manuallySelected);
 
-#if 1 || ALPHA_OR_BETA_VERSION
 		if (!audioFile) {
 			FREEZE_WITH_ERROR("i031"); // Trying to narrow down E368 that Kevin F got
 		}
-#endif
 
 		claimClusterReasons(reversed, clusterLoadInstruction);
 	}
@@ -157,8 +155,9 @@ constexpr int32_t kMarkerSamplesBeforeToClaim = 150;
 // Ensure there is a sample before you call this.
 void SampleHolder::claimClusterReasons(bool reversed, int32_t clusterLoadInstruction) {
 
-	if (ALPHA_OR_BETA_VERSION && !audioFile) {
+	if (!audioFile) {
 		FREEZE_WITH_ERROR("E368");
+		return; // audioFile is dereferenced below
 	}
 
 	// unassignAllReasons(); // This now happens as part of reassessPosForMarker(), called below
@@ -167,7 +166,6 @@ void SampleHolder::claimClusterReasons(bool reversed, int32_t clusterLoadInstruc
 	int32_t bytesPerSample = audioFile->numChannels * ((Sample*)audioFile)->byteDepth;
 
 	// This code basically copied from VoiceSource::setupPlaybackBounds()
-	int32_t startPlaybackAtSample;
 
 	if (!reversed) {
 		startPlaybackAtSample = (int64_t)startPos - kMarkerSamplesBeforeToClaim;
@@ -182,26 +180,28 @@ void SampleHolder::claimClusterReasons(bool reversed, int32_t clusterLoadInstruc
 		}
 	}
 
-	int32_t startPlaybackAtByte = ((Sample*)audioFile)->audioDataStartPosBytes + startPlaybackAtSample * bytesPerSample;
+	startPlaybackAtByte = ((Sample*)audioFile)->audioDataStartPosBytes + startPlaybackAtSample * bytesPerSample;
 
-	claimClusterReasonsForMarker(clustersForStart, startPlaybackAtByte, playDirection, clusterLoadInstruction);
+	claimClusterReasonsForMarker(clustersForStart, startPlaybackAtByte, playDirection, clusterLoadInstruction,
+	                             kNumClustersLoadedAhead);
 }
 
 void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t startPlaybackAtByte, int32_t playDirection,
-                                                int32_t clusterLoadInstruction) {
+                                                int32_t clusterLoadInstruction, int32_t numClustersToClaim) {
 
+	numClustersToClaim = 2;
 	int32_t clusterIndex = startPlaybackAtByte >> Cluster::size_magnitude;
 
 	uint32_t posWithinCluster = startPlaybackAtByte & (Cluster::size - 1);
 
 	// Set up new temp list
-	Cluster* newClusters[kNumClustersLoadedAhead];
-	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
+	Cluster* newClusters[numClustersToClaim];
+	for (int32_t l = 0; l < numClustersToClaim; l++) {
 		newClusters[l] = nullptr;
 	}
-
+	auto max_clusters = ((Sample*)audioFile)->clusters.getNumElements();
 	// Populate new list
-	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
+	for (int32_t l = 0; l < numClustersToClaim; l++) {
 
 		/*
 		// If final one, only load it if posWithinCluster is at least a quarter of the way in
@@ -214,27 +214,28 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t sta
 		    }
 		}
 		*/
-
-		SampleCluster* sampleCluster = ((Sample*)audioFile)->clusters.getElement(clusterIndex);
-
-		newClusters[l] = sampleCluster->getCluster(((Sample*)audioFile), clusterIndex, clusterLoadInstruction);
-
-		if (!newClusters[l]) {
-			D_PRINTLN("NULL!!");
-		}
-		else if (clusterLoadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE && !newClusters[l]->loaded) {
-			D_PRINTLN("not loaded!!");
-		}
-
-		clusterIndex += playDirection;
 		if (clusterIndex < ((Sample*)audioFile)->getFirstClusterIndexWithAudioData()
 		    || clusterIndex >= ((Sample*)audioFile)->getFirstClusterIndexWithNoAudioData()) {
 			break;
 		}
+		SampleCluster* sampleCluster = ((Sample*)audioFile)->clusters.getElement(clusterIndex);
+
+		newClusters[l] = sampleCluster->getCluster(((Sample*)audioFile), clusterIndex, clusterLoadInstruction,
+		                                           ClusterPriority::kSampleStart);
+
+		if (!newClusters[l]) {
+			// D_PRINTLN("NULL!!");
+			break;
+		}
+		if (clusterLoadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE && !newClusters[l]->loaded) {
+			// D_PRINTLN("not loaded!!");
+		}
+
+		clusterIndex += playDirection;
 	}
 
 	// Replace old list
-	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
+	for (int32_t l = 0; l < numClustersToClaim; l++) {
 		if (clusters[l] != nullptr) {
 			audioFileManager.removeReasonFromCluster(*clusters[l], "E146");
 		}

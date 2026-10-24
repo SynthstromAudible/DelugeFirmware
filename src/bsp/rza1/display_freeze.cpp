@@ -24,6 +24,7 @@
 /// Uses the PIC class (which pulls application types), so like control_surface.cpp
 /// this compiles into the `deluge` target rather than the bsp_rza1 library.
 
+#include "libdeluge/control_surface.h" // deluge_control_poll_resume
 #include "libdeluge/display.h"
 
 #include "definitions.h"     // OLED_MAIN_WIDTH/HEIGHT_PIXELS
@@ -94,17 +95,13 @@ void deluge_display_freeze(const uint8_t* pixels) {
 	DMACn(OLED_SPI_DMA_CHANNEL).CHCTRL_n |=
 	    DMAC_CHCTRL_0S_CLRTC | DMAC_CHCTRL_0S_SETEN; // ---- Enable DMA Transfer and clear TC bit ----
 
+	// Until the select encoder's pressed (ignoring the release of a press that triggered the freeze)
 	while (1) {
 		PIC::flush();
 		uartFlushIfNotSending(UART_ITEM_MIDI);
 
-		uint8_t value;
-		bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
-		if (anything) {
-			if (value == 175) {
-				break;
-			}
-			else if (value == 249) {}
+		if (deluge_control_poll_resume()) {
+			break;
 		}
 	}
 	oledWaitingForMessage = 256;

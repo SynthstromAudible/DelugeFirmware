@@ -6,16 +6,17 @@ Please see also, the [Code of Conduct](CODE_OF_CONDUCT.md) document.
 
 ## LLM usage
 
-This is ultimately a human project. Having an LLM code a fun feature for your own use is fun but does not mean we will include it in our supported firmware.
+This is ultimately a human project. Having an LLM code a fun feature for your own use is great but that 
+does not mean we will include it in our supported firmware. 
 While we welcome the use of LLM assistance (and we all use it) you must put in the effort to ensure your code is explainable and maintainable. 
-A good measure before submitting is ensuring you can read and understand your code clearly enough to hand write a PR description explaining what it does and why.
-If we feel like we are talking to an LLM we will just close PRs and issues.
+A good measure before submitting is ensuring you can read and understand your code clearly enough to hand write a PR description explaining what it does and why. 
+If we feel like we are talking to an LLM we will just close PRs.
 
 As a bare minimum:
-
-* do not use an LLM to open PRs or comment on them
-* do not open PRs with LLM descriptions 
+* do not use an agent to open PRs or comment on them
+* do not use an LLM to write PR descriptions 
 * do not open PRs with test plans you have not followed
+
 
 ## Bug reports
 
@@ -65,6 +66,51 @@ appreciated.
   the [Code of Conduct](CODE_OF_CONDUCT.md).
 * Final decisions about merging of Pull requests is up to the code owners, see [Governance](GOVERNANCE.md).
 * If you have a contribution to make then review the [Guidelines for Repository Contributions](/docs/dev/guidelines.md). 
+
+## Labels
+
+Labels are grouped by prefix:
+
+* `type:` (pull requests only): `fix`, `feature`, `refactor`, `deps`, `chore`. Issues use GitHub's
+  native **Issue Type** (Bug, Feature, Task) instead.
+* `area:` which part of the firmware or project is affected, e.g. `area: audio`, `area: midi`,
+  `area: toolchain`.
+* `status:` where an issue or PR stands, e.g. `status: needs-info`, `status: needs-testing`.
+* `impact:` how a bug shows up, e.g. `impact: crash`, `impact: ux-inconsistent`.
+
+`release-blocker` and `beta-blocker` mark items that must be fixed before a release advances.
+Maintainers also set the **Priority** and **Effort** issue fields when triaging.
+
+The full list lives in [`.github/labels.yml`](../.github/labels.yml). To add or change a label, edit that
+file in a pull request; it is synced to GitHub automatically when merged.
+
+Pull requests are labeled automatically: `area:` labels come from the files you change, and the `type:` label
+comes from the box you tick under **Type of change** in the PR template. A bot comment will point out anything
+missing from the description; it never blocks a merge.
+
+## Adding a Runtime Feature Setting (Community Feature)
+
+When introducing a new feature or behavior modification that should be toggleable by users, add a runtime feature setting by following these steps:
+
+1. **Declare the Setting Enum**:
+   - In `src/deluge/model/settings/runtime_feature_settings.h`, add your setting identifier to `enum RuntimeFeatureSettingType` before `MaxElement` (e.g. `ShortcutOverlay`).
+   - If your setting has more states than simple On/Off, define a corresponding enum (e.g., `RuntimeFeatureState...`).
+
+2. **Add Localization (l10n) Strings**:
+   - `src/deluge/gui/l10n/strings.h`: Add a `STRING_FOR_COMMUNITY_FEATURE_...` identifier to `enum class String`.
+   - `src/deluge/gui/l10n/english.json`: Add the key and the OLED display name string.
+   - `src/deluge/gui/l10n/seven_segment.json`: If supported on 7-segment displays, add the 4-character abbreviation.
+   - Run `./dbt build` (or `python3 src/deluge/gui/l10n/generate.py ...`) to regenerate `g_english.cpp` and `g_seven_segment.cpp`.
+
+3. **Initialize the Setting**:
+   - In `src/deluge/model/settings/runtime_feature_settings.cpp`, inside `RuntimeFeatureSettings::init()`, configure the setting using `SetupOnOffSetting(...)` (or custom setup function), providing the setting slot, the l10n string identifier, the XML attribute name for `CommunityFeatures.XML`, and the default state.
+
+4. **Create the Associated Menu Item**:
+   - In `src/deluge/gui/menu_item/runtime_feature/settings.cpp`, instantiate a `SettingToggle` (or `OledOnlySettingToggle` if OLED-only) instance for your setting type.
+   - Add a pointer to this menu instance into the `subMenuEntries` array.
+
+5. **Guard the Feature in Code**:
+   - Include `model/settings/runtime_feature_settings.h` where needed and check `runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::YourSetting)` or `runtimeFeatureSettings.get(RuntimeFeatureSettingType::YourSetting)`.
 
 ## Additional Developer Resources
 

@@ -51,7 +51,8 @@ public:
 	            LoopType loopingType, int32_t priorityRating);
 
 	void rememberPercCacheCluster(Cluster* cluster);
-	void updateClustersForPercLookahead(Sample* sample, uint32_t sourceBytePos, int32_t playDirection);
+	void updateClustersForPercLookahead(Sample* sample, uint32_t sourceBytePos, int32_t playDirection,
+	                                    int32_t priorityRating);
 
 	int32_t getSamplePos(int32_t playDirection);
 	bool allocateBuffer(int32_t numChannels);

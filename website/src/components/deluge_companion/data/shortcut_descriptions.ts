@@ -34,6 +34,7 @@ export const shortcutActionDescriptions: Record<
 
 export const shortcutControlDescriptions: Record<Control, string> = {
   [Control.NONE]: "control",
+  [Control.MENU]: "Menu",
   [Control.RECORD]: "Record button",
   [Control.PLAY]: "Play button",
   [Control.LOAD]: "Load (New) button",
@@ -62,6 +63,8 @@ export const shortcutControlDescriptions: Record<Control, string> = {
   [Control.PERFORMANCE]: "Performance button (keyboard icon)",
   [Control.KEY]: "Key button (keyboard icon)",
   [Control.SCALE]: "Scale button",
+  [Control.POWER_SWITCH]: "Power switch",
+  [Control.TRIPLETSVIEW]: "Triplets View button",
   [Control.SONG]: "Song button",
   [Control.X]: "Horizontal (Left/Right) encoder",
   [Control.Y]: "Vertical (Up/Down) encoder",
@@ -85,6 +88,8 @@ export const shortcutControlDescriptions: Record<Control, string> = {
   [Control.RANDOM_PATCH_SOURCE]: "'Random' patch source pad",
   [Control.VELOCITY_PATCH_SOURCE]: "'Velocity' patch source pad",
   [Control.NAME]: "'Name' grid pad",
+  [Control.OSC_TYPE]: "'Oscillator Type' grid pads",
+  [Control.VOICE_POLYPHONY]: "'Voice Polyphony' grid pad",
   [Control.QWERTY]: "QWERTY keyboard overlay",
 }
 

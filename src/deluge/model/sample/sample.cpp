@@ -21,6 +21,7 @@
 #include "dsp/fft/fft_config_manager.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "io/debug/log.h"
+#include "libdeluge/system.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample_cache.h"
 #include "model/sample/sample_perc_cache_zone.h"
@@ -125,7 +126,7 @@ void Sample::deletePercCache(bool beingDestructed) {
 				if (percCacheClusters[reversed][c]) {
 
 					// If any of them still has a "reason", well, it shouldn't
-					if (ALPHA_OR_BETA_VERSION && percCacheClusters[reversed][c]->numReasonsToBeLoaded) {
+					if (percCacheClusters[reversed][c]->numReasonsToBeLoaded) {
 						FREEZE_WITH_ERROR("E137");
 					}
 
@@ -159,7 +160,8 @@ void Sample::markAsUnloadable() {
 		Cluster* cluster = clusters.getElement(c)->cluster;
 		if (cluster != nullptr) {
 			cluster->unloadable = true;
-			audioFileManager.loadingQueue.erase(cluster);
+			CriticalSectionGuard guard;
+			audioFileManager.loadingQueue.erase(cluster, guard);
 		}
 	}
 }
@@ -263,7 +265,7 @@ void Sample::deleteCache(SampleCache* cache) {
 
 // Returns error
 Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples, int32_t endPosSamples,
-                            int32_t playDirection, int32_t maxNumSamplesToProcess) {
+                            int32_t playDirection, int32_t maxNumSamplesToProcess, int32_t priorityRating) {
 
 #if MEASURE_PERC_CACHE_PERFORMANCE
 	uint16_t startTime = MTU2.TCNT_0;
@@ -380,8 +382,9 @@ doReturnNoError:
 			if (percCacheDoneWithClusters) {
 				percClusterIndexStart =
 				    (uint32_t)startPosSamples >> (Cluster::size_magnitude + kPercBufferReductionMagnitude);
-				if (ALPHA_OR_BETA_VERSION && percClusterIndexStart >= numPercCacheClusters) {
+				if (percClusterIndexStart >= numPercCacheClusters) {
 					FREEZE_WITH_ERROR("E138");
+					goto doReturnNoError; // Indexing percCacheClusters would be out of bounds
 				}
 				Cluster* clusterHere = percCacheClusters[reversed][percClusterIndexStart];
 #if ALPHA_OR_BETA_VERSION
@@ -415,16 +418,18 @@ doReturnNoError:
 					int32_t percClusterIndexEnd = (uint32_t)(endPosSamples - playDirection)
 					                              >> (Cluster::size_magnitude + kPercBufferReductionMagnitude);
 					if (percClusterIndexEnd != percClusterIndexStart) {
-#if ALPHA_OR_BETA_VERSION
 						if (percClusterIndexEnd >= numPercCacheClusters) {
 							FREEZE_WITH_ERROR("E140");
 						}
-						if (!percCacheClusters[reversed][percClusterIndexEnd]) {
+						else if (!percCacheClusters[reversed][percClusterIndexEnd]) {
 							// If Cluster has been stolen, the zones should have been updated, so we shouldn't be here
+#if ALPHA_OR_BETA_VERSION
 							FREEZE_WITH_ERROR("E141");
-						}
 #endif
-						timeStretcher->rememberPercCacheCluster(percCacheClusters[reversed][percClusterIndexEnd]);
+						}
+						else {
+							timeStretcher->rememberPercCacheCluster(percCacheClusters[reversed][percClusterIndexEnd]);
+						}
 					}
 				}
 
@@ -527,8 +532,9 @@ doLoading:
 		uint8_t* percCacheNow;
 		if (percCacheDoneWithClusters) {
 			int32_t percClusterIndex = startPosSamples >> (Cluster::size_magnitude + kPercBufferReductionMagnitude);
-			if (ALPHA_OR_BETA_VERSION && percClusterIndex >= numPercCacheClusters) {
+			if (percClusterIndex >= numPercCacheClusters) {
 				FREEZE_WITH_ERROR("E136");
+				goto getOut; // Writing to percCacheClusters would be out of bounds
 			}
 			if (!percCacheClusters[reversed][percClusterIndex]) {
 				// D_PRINTLN("allocating perc cache Cluster!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
@@ -712,7 +718,7 @@ getOut:
 	LOCK_EXIT
 
 	// If current source Cluster has changed, update TimeStretcher's queue
-	timeStretcher->updateClustersForPercLookahead(this, sourceBytePos, playDirection);
+	timeStretcher->updateClustersForPercLookahead(this, sourceBytePos, playDirection, priorityRating);
 
 	AudioEngine::logAction("/fillPercCache");
 	return error; // Usually it'll be Error::NONE.
@@ -766,24 +772,35 @@ bool Sample::getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int3
 		int32_t numSamplesLeftThisAverage = lengthToAverageEach;
 		totals[i] = 0;
 
-		if (ALPHA_OR_BETA_VERSION
-		    && (readByte < audioDataStartPosBytes - 1 || readByte >= audioDataStartPosBytes + audioDataLengthBytes)) {
+		// Signed 64-bit comparison, so a negative readByte or an audioDataStartPosBytes of 0 can't wrap
+		auto readByteOutOfRange = [&]() {
+			return (int64_t)readByte < (int64_t)audioDataStartPosBytes - 1
+			       || (int64_t)readByte >= (int64_t)audioDataStartPosBytes + (int64_t)audioDataLengthBytes;
+		};
+
+		if (readByteOutOfRange()) {
+#if ALPHA_OR_BETA_VERSION
 			FREEZE_WITH_ERROR("FFFF");
+#endif
+			return false;
 		}
 
 		do {
 
-			if (ALPHA_OR_BETA_VERSION
-			    && (readByte < audioDataStartPosBytes - 1
-			        || readByte >= audioDataStartPosBytes + audioDataLengthBytes)) {
+			if (readByteOutOfRange()) {
+#if ALPHA_OR_BETA_VERSION
 				FREEZE_WITH_ERROR("E432"); // Was "GGGG". Sven may have gotten.
+#endif
+				return false;
 			}
 
 			int32_t whichCluster = readByte >> Cluster::size_magnitude;
-			if (ALPHA_OR_BETA_VERSION
-			    && (whichCluster < getFirstClusterIndexWithAudioData()
-			        || whichCluster >= getFirstClusterIndexWithNoAudioData())) {
+			if (whichCluster < getFirstClusterIndexWithAudioData()
+			    || whichCluster >= getFirstClusterIndexWithNoAudioData()) {
+#if ALPHA_OR_BETA_VERSION
 				FREEZE_WITH_ERROR("EEEE");
+#endif
+				return false; // Would index clusters out of bounds
 			}
 
 			Cluster* cluster = clusters.getElement(whichCluster)->cluster;
@@ -855,8 +872,11 @@ uint8_t* Sample::prepareToReadPercCache(int32_t pixellatedPos, int32_t playDirec
 	// Or if Cluster-based perc cache...
 	else {
 		int32_t ourCluster = pixellatedPos >> Cluster::size_magnitude;
-		if (ALPHA_OR_BETA_VERSION && !percCacheClusters[reversed][ourCluster]) {
+		if (!percCacheClusters[reversed][ourCluster]) {
+#if ALPHA_OR_BETA_VERSION
 			FREEZE_WITH_ERROR("E142");
+#endif
+			return nullptr; // Caller treats this as "no perc cache here"
 		}
 
 		int32_t earliestCluster = *earliestPixellatedPos >> Cluster::size_magnitude;
@@ -896,19 +916,27 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 	if (cluster->type != Cluster::Type::PERC_CACHE_FORWARDS && cluster->type != Cluster::Type::PERC_CACHE_REVERSED) {
 		FREEZE_WITH_ERROR("E149");
 	}
+#endif
+	// No slot can point to this Cluster in either of these cases, so there's nothing for us to forget
 	if (!percCacheClusters[reversed]) {
 		FREEZE_WITH_ERROR("E134");
+		LOCK_EXIT
+		return;
 	}
 	if (cluster->clusterIndex >= numPercCacheClusters) {
 		FREEZE_WITH_ERROR("E135");
+		LOCK_EXIT
+		return;
 	}
-	if (!percCacheClusters[reversed][cluster->clusterIndex]) {
+	Cluster* clusterInSlot = percCacheClusters[reversed][cluster->clusterIndex];
+#if ALPHA_OR_BETA_VERSION
+	if (!clusterInSlot) {
 		FREEZE_WITH_ERROR("i034"); // Trying to track down Steven G's E133 (Feb 2021).
 	}
-	if (percCacheClusters[reversed][cluster->clusterIndex]->numReasonsToBeLoaded) {
+#endif
+	if (clusterInSlot && clusterInSlot->numReasonsToBeLoaded) {
 		FREEZE_WITH_ERROR("i035"); // Trying to track down Steven G's E133 (Feb 2021).
 	}
-#endif
 
 	percCacheClusters[reversed][cluster->clusterIndex] = nullptr;
 

@@ -104,7 +104,7 @@ void AudioOutput::resetEnvelope() {
 		AudioClip* activeAudioClip = (AudioClip*)activeClip;
 
 		bool directlyToDecay = (activeAudioClip->attack == -2147483648);
-		envelope.noteOn(directlyToDecay);
+		envelope.noteOn(directlyToDecay, 2147483647);
 	}
 	amplitudeLastTime = 0;
 	overrideAmplitudeEnvelopeReleaseRate = 0;
@@ -204,20 +204,35 @@ renderEnvelope:
 	                                     ? std::span{reinterpret_cast<StereoSample*>(bufferToTransferTo), render.size()}
 	                                     : render;
 
-	// add in the monitored audio if in sampler or looper mode
-	if (modeAllowsMonitoring() && modelStack->song->isOutputActiveInArrangement(this)
+	// add in the monitored audio if in sampler or looper mode. Suppress until the codec ADC has settled after
+	// power-on, then fade it in (issue #4517) - otherwise its power-on transient gets passed straight through to the
+	// output.
+	q31_t const monitoring_gain_end = AudioEngine::getInputMonitoringGain(render.size());
+	if (monitoring_gain_end != 0 && modeAllowsMonitoring() && modelStack->song->isOutputActiveInArrangement(this)
 	    && inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
 		rendered = true;
-		int32_t const* __restrict__ input_ptr = (int32_t const*)AudioEngine::inputRingPos;
+		int32_t const* __restrict__ input_ptr = AudioEngine::getInputReadPos(inputChannel);
+		int32_t const* const input_end = AudioEngine::getInputBufferEnd(inputChannel);
 
 		AudioInputChannel input_channel = this->inputChannel;
+		if (input_channel == AudioInputChannel::USB) {
+			input_channel = AudioInputChannel::STEREO; // Just a stereo input, from a different buffer
+			AudioEngine::usbInputMonitoredByTrack = true;
+		}
 		if (input_channel == AudioInputChannel::STEREO && !AudioEngine::renderInStereo) {
 			input_channel = AudioInputChannel::NONE; // 0 means combine channels
 		}
 
-		auto amplitude_increment = static_cast<int32_t>((static_cast<double>(amplitudeAtEnd - amplitudeAtStart) //
+		int32_t amplitude_start = amplitudeAtStart;
+		int32_t amplitude_end = amplitudeAtEnd;
+		if (!AudioEngine::inputMonitoringWarmedUp) {
+			amplitude_start = multiply_32x32_rshift32(amplitude_start, AudioEngine::getInputMonitoringGain(0)) << 1;
+			amplitude_end = multiply_32x32_rshift32(amplitude_end, monitoring_gain_end) << 1;
+		}
+
+		auto amplitude_increment = static_cast<int32_t>((static_cast<double>(amplitude_end - amplitude_start) //
 		                                                 / static_cast<double>(render.size())));
-		int32_t amplitude = amplitudeAtStart;
+		int32_t amplitude = amplitude_start;
 
 		for (StereoSample& output_sample : output) {
 			amplitude += amplitude_increment;
@@ -252,7 +267,7 @@ renderEnvelope:
 			}
 
 			input_ptr += NUM_MONO_INPUT_CHANNELS;
-			if (input_ptr >= AudioEngine::inputRingEnd()) {
+			if (input_ptr >= input_end) {
 				input_ptr -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 			}
 		}
@@ -382,13 +397,20 @@ Clip* AudioOutput::createNewClipForArrangementRecording(ModelStack* modelStack) 
 	}
 
 	AudioClip* newClip = new (clipMemory) AudioClip();
-	newClip->setOutput(modelStack->addTimelineCounter(newClip), this);
+	Error error = newClip->setOutput(modelStack->addTimelineCounter(newClip), this);
 
-#if ALPHA_OR_BETA_VERSION
-	if (!newClip->paramManager.summaries[0].paramCollection) {
-		FREEZE_WITH_ERROR("E422"); // Trying to diversify Leo's E410
+	// A Clip without param collections would crash as soon as its params are accessed. Bail in all builds - the
+	// caller handles NULL as insufficient RAM.
+	if (error != Error::NONE || !newClip->paramManager.summaries[0].paramCollection) {
+		if constexpr (ALPHA_OR_BETA_VERSION) {
+			if (error == Error::NONE) {
+				FREEZE_WITH_ERROR("E422"); // Trying to diversify Leo's E410
+			}
+		}
+		newClip->~AudioClip();
+		delugeDealloc(clipMemory);
+		return nullptr;
 	}
-#endif
 
 	return newClip;
 }

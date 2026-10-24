@@ -62,6 +62,7 @@ public:
 	Error beenCloned(int32_t reverseDirectionWithLength = 0); // Will clone Collections
 	void forgetParamCollections();
 	void destructAndForgetParamCollections();
+	void destructAndForgetMainParamCollections(); // Retains expression params, like forgetParamCollections()
 	bool ensureExpressionParamSetExists(bool forDrum = false);
 
 	inline int32_t getExpressionParamSetOffset() { return expressionParamSetOffset; }
@@ -77,74 +78,58 @@ public:
 	}
 
 	inline MIDIParamCollection* getMIDIParamCollection() {
-#if ALPHA_OR_BETA_VERSION
 		if (!summaries[0].paramCollection) {
 			FREEZE_WITH_ERROR("E409");
 		}
-#endif
 		return (MIDIParamCollection*)summaries[0].paramCollection;
 	}
 
 	inline ParamCollectionSummary* getMIDIParamCollectionSummary() {
-#if ALPHA_OR_BETA_VERSION
 		if (!summaries[0].paramCollection) {
 			FREEZE_WITH_ERROR("E409");
 		}
-#endif
 		return &summaries[0];
 	}
 
 	inline UnpatchedParamSet* getUnpatchedParamSet() {
-#if ALPHA_OR_BETA_VERSION
 		if (!summaries[0].paramCollection) {
 			FREEZE_WITH_ERROR("E410");
 		}
-#endif
 		return (UnpatchedParamSet*)summaries[0].paramCollection;
 	}
 
 	inline ParamCollectionSummary* getUnpatchedParamSetSummary() {
-#if ALPHA_OR_BETA_VERSION
 		if (!summaries[0].paramCollection) {
 			FREEZE_WITH_ERROR("E410");
 		}
-#endif
 		return &summaries[0];
 	}
 
 	inline PatchedParamSet* getPatchedParamSet() {
-#if ALPHA_OR_BETA_VERSION
 		if (!summaries[1].paramCollection) {
 			FREEZE_WITH_ERROR("E411");
 		}
-#endif
 		return (PatchedParamSet*)summaries[1].paramCollection;
 	}
 
 	inline ParamCollectionSummary* getPatchedParamSetSummary() {
-#if ALPHA_OR_BETA_VERSION
 		if (!summaries[1].paramCollection) {
 			FREEZE_WITH_ERROR("E411");
 		}
-#endif
 		return &summaries[1];
 	}
 
 	inline ParamCollectionSummary* getPatchCableSetSummary() {
-#if ALPHA_OR_BETA_VERSION
 		if (!summaries[2].paramCollection) {
 			FREEZE_WITH_ERROR("E412");
 		}
-#endif
 		return &summaries[2];
 	}
 
 	inline PatchCableSet* getPatchCableSet() {
-#if ALPHA_OR_BETA_VERSION
 		if (!summaries[2].paramCollection) {
 			FREEZE_WITH_ERROR("E412");
 		}
-#endif
 		return (PatchCableSet*)summaries[2].paramCollection;
 	}
 
@@ -157,11 +142,7 @@ public:
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t currentValueChanged,
 	                                  bool automationChanged, bool paramAutomatedNow);
 
-#if ALPHA_OR_BETA_VERSION
 	virtual ParamManagerForTimeline* toForTimeline();
-#else
-	inline ParamManagerForTimeline* toForTimeline() { return (ParamManagerForTimeline*)this; }
-#endif
 
 	bool resonanceBackwardsCompatibilityProcessed;
 	uint8_t expressionParamSetOffset;
@@ -196,12 +177,10 @@ public:
 	                                      bool nudgeMPE, int32_t moveMPEDataWithinRegionLength = 0);
 	void deleteAllAutomation(Action* action, ModelStackWithThreeMainThings* modelStack);
 	void notifyPingpongOccurred(ModelStackWithThreeMainThings* modelStack);
-	void ensureSomeParamCollections(); // For debugging only
+	void ensureSomeParamCollections(); // Freezes if empty - the DEFINITELY_SOME loops require at least one
 	bool mightContainAutomation();
 
-#if ALPHA_OR_BETA_VERSION
 	ParamManagerForTimeline* toForTimeline() override;
-#endif
 
 	int32_t ticksTilNextEvent;
 	int32_t ticksSkipped;

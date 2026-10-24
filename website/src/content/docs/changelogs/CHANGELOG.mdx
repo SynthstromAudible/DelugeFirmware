@@ -3,6 +3,7 @@ title: Deluge Community Firmware Change Log
 ---
 
 import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
+import RecentMainChanges from "../../../components/RecentMainChanges.astro"
 
 [//]: # "TODO: Split this into one page per version"
 
@@ -25,6 +26,10 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
   Companion](/reference/deluge_companion)!
 </Aside>
 
+## Recent Changes
+
+<RecentMainChanges />
+
 ## c1.3.0 Derbyshire <Badge text="Upcoming" variant="tip" />
 
 ### Major Workflow / UI Changes from Official or Previous Community Releases
@@ -34,6 +39,14 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 - Added audio output modes, and changed audio clip monitoring to be seperate from source selection. Monitoring is now on
   when the output is a SAMPLER or a LOOPER, chosen by turning the select knob in an audio clip.
 - Added the ability to trim from the start of an audio clip without reversing it (enable in Community Features menu).
+- Added `Edit Name` menu to Actions > menu which allows you to rename the Audio Clips Track Name and Clip Name. :key[Shift] + `NAME` :key[pad] will now open the `Actions > Edit Name` menu.
+
+#### <ins>Arranger View</ins>
+
+- You can now record tempo automation in arranger view.
+  - With playback and record enabled, :key[turn tempo] or :key[press turn tempo] to record tempo in the arrangement.
+  - You can also record / edit tempo at specific positions in the arrangement by holding a specific arrangement pad + :key[turn tempo] or :key[press turn tempo]
+    - Note: when you hold a specific position in the arrangement and turn the tempo encoder for the first time, it will display a popup with the current tempo at that position.
 
 #### <ins>Session View</ins>
 
@@ -50,6 +63,11 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 - If you are updating to <Badge text="c1.3" variant="tip" /> from an earlier firmware, please delete all existing MIDIFollow.XML files from your SD card so that the file can be re-generated with the new file format.
 
 #### <ins>Instrument Clips / Instrument Clip View</ins>
+
+##### General
+
+- Added `Edit Name` menu to Actions > menu which allows you to rename the Track Name and Clip Name. :key[Shift] + `NAME` :key[pad] will now open the `Actions > Edit Name` menu.
+  - Note for Kits, the `Edit Name` menu is in the `Kit FX > Actions` menu which you access by enabling :key[AffectEntire] and then pressing :key[select].
 
 ##### Notes
 
@@ -75,6 +93,10 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 
 ### Sound Engine
 
+#### <ins>General</ins>
+
+- Master transpose menu has been updated to support decimal editing of the transpose "cents" for finer tuning. UI is the same as with Oscillator and Modulate transpose menus.
+
 #### <ins>Mod FX</ins>
 
 - Added a Warbler fx to synths/kits/kit rows/song/audio clips
@@ -84,6 +106,7 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 #### <ins>Reverb</ins>
 
 - Added LPF to Mutable Instruments Reverb
+- Added new Digital Reverb model
 
 #### <ins>LFO's</ins>
 
@@ -110,6 +133,15 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 - Quantized stutter is enabled by default.
 
 ### User Interface
+
+#### <ins>General</ins>
+
+- Added a new settings reset workflow under `SETTINGS > ACTIONS > RESET SETTINGS`, with confirmation prompts for:
+  - `Reset Flash`
+  - `Reset Community Features`
+  - `Reset MIDI Follow`
+  - `Reset MIDI Devices`
+  - `Factory Reset`
 
 #### <ins>New Shortcuts</ins>
 
@@ -202,11 +234,6 @@ Added main grid pad shortcuts for the following parameters:
   - Note: `THRESHOLD RECORDING` only applies to audio recorded to kit rows and to the first “tempoless” audio clip
     - For the first "tempoless" audio clip, the tempo will be set from the time the recorded audio first exceeds the threshold to the time the recording is ended.
 
-##### Loop Recording
-
-- Easier loop recording in `Session View` (similar to Kit Row sampling working). Added ability to trigger a loop recording for a specific clip in `Session View` by holding a `CLIP` and pressing `RECORD`. By default this will trigger the Global MIDI Command `LAYERING LOOP`, however this can be changed in the `SETTINGS > RECORDING > LOOP COMMAND (LOOP)` submenu.
-  - Note: to end a recording, you will send to send the Global MIDI Command again, which can be done by holding a clip and pressing record again.
-
 #### <ins>Audio Export</ins>
 
 - Added `EXPORT MIXDOWN` configuration option which provides the ability to export all unmuted tracks in Arranger View as a single stereo file. This is disabled by default but can be enabled in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\EXPORT MIXDOWN`
@@ -249,6 +276,11 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 - The selected clip in `Session Grid View` (which is the last clip you interacted with), now shows a `pulsing / breathing` animation whereby the clip pad will fade in and out between the clip's normal colour and a blurred colour.
 - This will help you keep track of what clip midi follow is currently controlling and what clip is selected for loop recording.
+
+#### <ins>Performance View</ins>
+
+- Performance view layouts are now persisted to and loaded from your song file.
+- Each song can now have a different performance view layout with different held pad settings.
 
 #### <ins>Instrument Clip View</ins>
 
@@ -381,9 +413,12 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 #### <ins>Devices</ins>
 
-- Added new `Use Relative CC` toggle within the configuration of each MIDI device in the `Settings > Defaults > MIDI > Devices` menu.
+- Added new `Use Relative CC` toggle within the configuration of each MIDI device in the `Settings > MIDI > Devices` menu.
   - When enabled, regular (e.g. non expression) midi CCs received from a device are processed as relative CCs, overriding the current MIDI takeover setting.
   - Note: the controller must be actually sending relative value changes (127 for down and 1 for up) in order for this to work.
+- Added new `MIDI Thru` toggle within the configuration of each MIDI device in the `Settings > MIDI > Devices` menu.
+  - If Devices have not already been set up, or if you Reset Device Settings, then this will inherit by default the Global MIDI Thru setting.
+  - After the per Device MIDI Thru setting has been setup, the Global MIDI Thru setting will no longer be used to determine whether MIDI from a specific Device should be sent through.
 
 #### <ins>Learn</ins>
 
@@ -399,6 +434,7 @@ A `Favourites` feature has been added to the browser for most file types. The `F
   - `SHIFT` to toggle the deluge's :key[shift] button. It can also be used to toggle sticky shift.
     - Shift down: Note On or CC Value > 0
     - Shift up: Note Off or CC Value = 0
+- Fixed command for toggling Clip launch status so that it respects the Deluge's `SHIFT` status. If `SHIFT` is active, either by physically pressing it on the Deluge or by sending the `SHIFT` global midi command, then sending the Clip launch status command will toggle the Clip status immediately instead of arming it. Matching the behaviour on the Deluge and with MIDI Follow.
 
 #### <ins>Follow</ins>
 
@@ -408,6 +444,9 @@ A `Favourites` feature has been added to the browser for most file types. The `F
   - Track 1 corresponds to bottom track in `ARRANGER VIEW` or left track in `GRID VIEW`.
   - You can also now configure the Channel `TRACK` for MIDI Follow Feedback. If a specific track is selected and has been configured
     for MIDI Follow control, the Deluge will send feedback of the CC values for that specific track.
+  - MIDI Follow Feedback can now be sent to both the selected track channel and a regular follow channel by selecting `TRACK + A`, `TRACK + B`, or `TRACK + C`.
+    - Combined feedback modes send to the configured track channel first, then to the configured regular channel.
+    - If both targets resolve to the same MIDI channel, feedback is sent only once.
 - Added new default CC 89 to toggle the mute of the active clip in a specific track.
   - Toggle mute: CC Value > 0 (Send a CC value greater than 0 to toggle mute for the active clip in a specific track)
     - If used together with `SHIFT`, it will trigger instant mute.

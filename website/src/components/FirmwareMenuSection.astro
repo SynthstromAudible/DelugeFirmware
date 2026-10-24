@@ -1,0 +1,128 @@
+---
+import data from "../data/generated/menu-hierarchies.json"
+
+type MenuNode = {
+  varName: string
+  token: string
+  oled: string
+  code: string
+  tag?: string
+  children: MenuNode[]
+}
+
+type Props = {
+  treeKey: string
+  showRoot?: boolean
+}
+
+const { treeKey, showRoot = false } = Astro.props
+const trees = (data.trees ?? {}) as Record<string, MenuNode>
+const root = trees[treeKey]
+const rootTag = root?.tag ?? ""
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;")
+}
+
+function renderTagBadges(node: MenuNode): string {
+  if (!node.tag) {
+    return ""
+  }
+
+  const normalizedTagClass = node.tag
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+
+  return `<span class="menu-hierarchy-node-tag menu-hierarchy-node-tag--${normalizedTagClass}" data-tag="${escapeHtml(node.tag)}" aria-label="Menu tag ${escapeHtml(node.tag)}">${escapeHtml(node.tag)}</span>`
+}
+
+function renderNodeLabel(node: MenuNode, labelOverride?: string): string {
+  return labelOverride ?? `${node.oled} (${node.code})`
+}
+
+function renderRowContent(label: string, tags: string): string {
+  return `<span class="menu-hierarchy-row-content"><span class="menu-hierarchy-row-label">${escapeHtml(label)}</span>${tags}</span>`
+}
+
+function renderBranch(label: string, tags: string, children: string): string {
+  return `<details class="menu-hierarchy-tree-item"><summary>${renderRowContent(label, tags)}</summary><ul>${children}</ul></details>`
+}
+
+function renderNestedBranch(node: MenuNode, labelOverride?: string): string {
+  const label = renderNodeLabel(node, labelOverride)
+  const tags = renderTagBadges(node)
+  const children = node.children
+    .map((child) => renderNestedList(child))
+    .join("")
+
+  return `<li class="menu-hierarchy-tree-node">${renderBranch(label, tags, children)}</li>`
+}
+
+function renderNestedList(node: MenuNode, labelOverride?: string): string {
+  const label = renderNodeLabel(node, labelOverride)
+  const tags = renderTagBadges(node)
+
+  if (node.varName === "delayAnalogMenu" && node.children.length === 3) {
+    const [digitalMenu, analogShortMenu, analogFullMenu] = node.children
+
+    const digital = renderNestedList(digitalMenu)
+    const analog = renderNestedList(
+      analogFullMenu,
+      `${analogFullMenu.oled} (${analogShortMenu.code})`,
+    )
+
+    return `<li class="menu-hierarchy-tree-node">${renderBranch(label, tags, `${digital}${analog}`)}</li>`
+  }
+
+  if (!node.children.length) {
+    return `<li class="menu-hierarchy-tree-leaf">${renderRowContent(label, tags)}</li>`
+  }
+
+  return renderNestedBranch(node, labelOverride)
+}
+
+function renderTopLevelSection(node: MenuNode): string {
+  const label = renderNodeLabel(node)
+  const tags = renderTagBadges(node)
+  const children = node.children
+    .map((child) => renderNestedList(child))
+    .join("")
+  return renderBranch(label, tags, children)
+}
+
+function renderTree(node: MenuNode | undefined, includeRoot: boolean): string {
+  if (!node) {
+    return "<p><em>Menu tree unavailable in generated data.</em></p>"
+  }
+
+  if (includeRoot) {
+    const rootTags = renderTagBadges(node)
+    if (!node.children.length) {
+      return `<ul class="menu-hierarchy-tree"><li class="menu-hierarchy-tree-leaf">${renderRowContent(renderNodeLabel(node), rootTags)}</li></ul>`
+    }
+
+    const children = node.children
+      .map((child) => renderNestedList(child))
+      .join("")
+    return `<details class="menu-hierarchy-tree-item"><summary>${renderRowContent(renderNodeLabel(node), rootTags)}</summary><ul class="menu-hierarchy-tree">${children}</ul></details>`
+  }
+
+  const children = node.children
+    .map((child) => renderTopLevelSection(child))
+    .join("")
+  return `<div class="menu-hierarchy-tree">${children}</div>`
+}
+---
+
+<div
+  class="menu-hierarchy-tree-root"
+  data-tree-key={treeKey}
+  data-tree-tag={rootTag}
+  set:html={renderTree(root, showRoot)}
+/>

@@ -17,29 +17,63 @@
 
 #include "model/iterance/iterance.h"
 #include "definitions_cxx.hpp"
+#include "lib/printf.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
+
+namespace {
+
+char const* get_first_label(Iterance::DisplayLabelType label_type) {
+	return label_type == Iterance::DisplayLabelType::LONG ? "FIRST" : display->haveOLED() ? "1ST" : "1 ST";
+}
+
+int32_t get_active_step_display_number(Iterance const& iterance) {
+	if (iterance.divisor == 0) {
+		return iterance.iteranceStep[0] ? 1 : 0;
+	}
+
+	for (int32_t i = iterance.divisor - 1; i >= 0; i--) {
+		if (iterance.iteranceStep[i]) {
+			return i + 1;
+		}
+	}
+
+	return 0;
+}
+
+void copy_with_prefix(char* buffer, size_t buffer_size, char const* prefix, char const* value) {
+	if (buffer_size == 0) {
+		return;
+	}
+	strcpy(buffer, prefix);
+	strcat(buffer, value);
+}
+
+} // namespace
 
 // To/from int
 
-uint16_t Iterance::toInt() {
+uint16_t Iterance::toInt() const {
 	return (uint16_t)(divisor << 8) | (uint16_t)(iteranceStep.to_ulong() & 0xFF);
 }
 
 Iterance Iterance::fromInt(int32_t value) {
-	Iterance iterance = Iterance{(uint8_t)(value >> 8), (uint8_t)(value & 0xFF)};
-	if (iterance.divisor < 1 || iterance.divisor > 8) {
-		// If divisor out of bounds, fall back to default value
-		iterance = kDefaultIteranceValue;
+	auto divisor = (uint8_t)(value >> 8);
+	auto step = (uint8_t)(value & 0xFF);
+	// guard against garbage
+	if ((divisor == 0 and step != 1 and step != 2) or divisor > 8) {
+		return kDefaultIteranceValue;
 	}
-	return iterance;
+	return Iterance{.divisor = divisor, .iteranceStep = step};
 }
 
 // To/from preset index
 
 // This methods takes the iterance value and searches the table of iterance presets for a match
 // If no match is found it will return kCustomIterancePreset (which is equal to '1of1')
-int32_t Iterance::toPresetIndex() {
+int32_t Iterance::toPresetIndex() const {
 	if (iteranceStep.none() && divisor == 0) {
 		// A value of 0 means OFF
 		return 0;
@@ -68,5 +102,34 @@ Iterance Iterance::fromPresetIndex(int32_t presetIndex) {
 	else {
 		// Default: Off
 		return kDefaultIteranceValue;
+	}
+}
+
+void Iterance::format_display_value(char* buffer, size_t buffer_size, DisplayOptions options) const {
+	format_preset_display_value(toPresetIndex(), buffer, buffer_size, options);
+}
+
+void Iterance::format_preset_display_value(int32_t preset_index, char* buffer, size_t buffer_size,
+                                           DisplayOptions options) {
+	if (preset_index == kDefaultIterancePreset) {
+		copy_with_prefix(buffer, buffer_size, options.prefix, "OFF");
+	}
+	else if (preset_index == kCustomIterancePreset) {
+		copy_with_prefix(buffer, buffer_size, options.prefix, "CUSTOM");
+	}
+	else if (options.label_type != DisplayLabelType::NUMERIC && preset_index == kFirstIterancePreset) {
+		copy_with_prefix(buffer, buffer_size, options.prefix, get_first_label(options.label_type));
+	}
+	else if (options.label_type != DisplayLabelType::NUMERIC && preset_index == kLastIterancePreset) {
+		copy_with_prefix(buffer, buffer_size, options.prefix, "LAST");
+	}
+	else if (preset_index > 0 && preset_index <= kNumIterancePresets) {
+		Iterance iterance = iterancePresets[preset_index - 1];
+		char value_buffer[20];
+		sprintf(value_buffer, options.step_format, get_active_step_display_number(iterance), iterance.divisor);
+		copy_with_prefix(buffer, buffer_size, options.prefix, value_buffer);
+	}
+	else {
+		copy_with_prefix(buffer, buffer_size, options.prefix, "OFF");
 	}
 }

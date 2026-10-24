@@ -70,7 +70,7 @@ Saves renamed MIDI CC labels into the current song.
 #COMMUNITY #MIDI
 
 ```shortcut
-press(SAVE) + press(MIDI)
+hold(SAVE) + press(MIDI)
 ```
 
 Saves renamed MIDI CC labels into the current MIDI preset.

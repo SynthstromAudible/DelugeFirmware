@@ -9,6 +9,7 @@
 #include "gui/menu_item/note/iterance_preset.h"
 #include "gui/menu_item/note/iterance_step_toggle.h"
 #include "gui/menu_item/note/probability.h"
+#include "gui/menu_item/note/velocity.h"
 #include "gui/menu_item/note_row/fill.h"
 #include "gui/menu_item/note_row/iterance_divisor.h"
 #include "gui/menu_item/note_row/iterance_preset.h"
@@ -50,6 +51,8 @@ extern gui::menu_item::osc::AudioRecorder sample1RecorderMenu;
 extern gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuStart;
 extern gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuEnd;
 extern gui::menu_item::EditName nameEditMenu;
+extern gui::menu_item::EditName drumNameEditMenu;
+extern gui::menu_item::Submenu editNameMenu;
 extern gui::menu_item::Submenu dxMenu;
 extern gui::menu_item::Submenu stemExportMenu;
 extern gui::menu_item::stem_export::Start startStemExportMenu;
@@ -63,6 +66,7 @@ extern gui::menu_item::Submenu soundEditorRootMenuAudioClip;
 extern gui::menu_item::Submenu soundEditorRootMenuPerformanceView;
 extern gui::menu_item::Submenu soundEditorRootMenuSongView;
 extern gui::menu_item::Submenu soundEditorRootMenuKitGlobalFX;
+extern gui::menu_item::Submenu soundEditorRootMenuDrum;
 extern gui::menu_item::Submenu soundEditorRootMenu;
 extern gui::menu_item::Submenu settingsRootMenu;
 extern gui::menu_item::submenu::ModFxHorizontalMenu globalModFXMenu;
@@ -74,6 +78,7 @@ extern gui::menu_item::randomizer::midi_cv::NoteProbability randomizerNoteProbab
 
 // note editor menu's
 extern gui::menu_item::HorizontalMenu noteEditorRootMenu;
+extern gui::menu_item::note::Velocity noteVelocityMenu;
 extern gui::menu_item::note::Probability noteProbabilityMenu;
 extern gui::menu_item::note::IterancePreset noteIteranceMenu;
 extern gui::menu_item::note::IteranceDivisor noteCustomIteranceDivisor;

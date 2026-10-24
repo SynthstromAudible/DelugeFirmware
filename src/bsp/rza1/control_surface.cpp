@@ -220,7 +220,21 @@ void deluge_control_enable_oled(void) {
 }
 
 bool deluge_control_poll_resume(void) {
-	return PIC::read() == PIC::Response::RESET_SETTINGS;
+	// The PIC reports press and release with the same button code (the select encoder's is RESET_SETTINGS),
+	// prefixing releases with NEXT_PAD_OFF. Ignoring those means a freeze triggered from a select press isn't
+	// dismissed by that same press's release.
+	static bool nextIsRelease = false;
+	PIC::Response response = PIC::read();
+	if (response == PIC::Response::NONE) {
+		return false;
+	}
+	if (response == PIC::Response::NEXT_PAD_OFF) {
+		nextIsRelease = true;
+		return false;
+	}
+	bool resume = (response == PIC::Response::RESET_SETTINGS && !nextIsRelease);
+	nextIsRelease = false;
+	return resume;
 }
 
 // The Deluge's 7-segment display is driven over the PIC, so its blit lives with

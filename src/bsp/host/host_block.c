@@ -38,6 +38,7 @@
 
 #include "fatfs/diskio.h" // FatFS DSTATUS/DRESULT/STA_*/RES_*
 #include "libdeluge/block_device.h"
+#include "libdeluge/sd_async.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -212,4 +213,58 @@ DRESULT disk_read_without_streaming_first(BYTE pdrv, BYTE* buff, DWORD sector, U
 DRESULT disk_write_without_streaming_first(BYTE pdrv, const BYTE* buff, DWORD sector, UINT count) {
 	(void)pdrv;
 	return (card_io(NULL, buff, sector, count) == DELUGE_OK) ? RES_OK : RES_ERROR;
+}
+
+// Cluster reads finish inside sd_async_kick() (below), so none are ever still queued here
+DRESULT disk_read_letting_clusters_load_first(BYTE pdrv, BYTE* buff, LBA_t sector, UINT count) {
+	return disk_read_without_streaming_first(pdrv, buff, (DWORD)sector, count);
+}
+
+// ===========================================================================
+// libdeluge/sd_async.h - the "interrupt-driven" Cluster reads. There's no SD
+// interrupt on the host, so sd_async_kick() does every queued read straight
+// away, calling the app's callbacks just as the RZ/A1L SDHI interrupt would.
+// ===========================================================================
+
+static SdAsyncNextFn async_next;
+static SdAsyncDoneFn async_done;
+static int async_pause_count;
+static bool async_busy;
+
+void sd_async_init(SdAsyncNextFn next, SdAsyncDoneFn done) {
+	async_next = next;
+	async_done = done;
+}
+
+void sd_async_kick(void) {
+	if (async_next == NULL || async_busy) {
+		return;
+	}
+	async_busy = true;
+	SdAsyncRead read;
+	while (async_pause_count == 0 && async_next(&read)) {
+		DelugeStatus status = card_io(read.buff, NULL, (uint32_t)read.sector, (uint32_t)read.count);
+		async_done(read.user, status == DELUGE_OK ? SD_ASYNC_OK : SD_ASYNC_ERR);
+	}
+	async_busy = false;
+}
+
+bool sd_async_busy(void) {
+	return async_busy;
+}
+
+void sd_async_pause(void) {
+	async_pause_count++;
+}
+
+void sd_async_resume(void) {
+	if (async_pause_count > 0) {
+		async_pause_count--;
+	}
+}
+
+void sd_async_check_timeout(void) {
+}
+
+void sd_async_recover(void) {
 }

@@ -167,34 +167,19 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 
 				strength1 = 65536 - strength2;
 
-				if (currentReverse) {
-					StereoSample* prevPos = &buffer.current() - 1;
-					if (prevPos < buffer.begin()) {
-						prevPos = buffer.end() - 1; // Wrap around to the end of the buffer
-					}
-					StereoSample& fromDelay1 = buffer.current();
-					StereoSample& fromDelay2 = *prevPos;
-					sample.l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
-					            + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
-					           << 2;
-					sample.r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
-					            + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
-					           << 2;
+				// Both cursor directions return a fraction toward the next sample.
+				StereoSample* nextPos = &buffer.current() + 1;
+				if (nextPos == buffer.end()) {
+					nextPos = buffer.begin();
 				}
-				else {
-					StereoSample* nextPos = &buffer.current() + 1;
-					if (nextPos == buffer.end()) {
-						nextPos = buffer.begin();
-					}
-					StereoSample& fromDelay1 = buffer.current();
-					StereoSample& fromDelay2 = *nextPos;
-					sample.l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
-					            + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
-					           << 2;
-					sample.r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
-					            + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
-					           << 2;
-				}
+				StereoSample& fromDelay1 = buffer.current();
+				StereoSample& fromDelay2 = *nextPos;
+				sample.l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
+				            + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
+				           << 2;
+				sample.r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
+				            + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
+				           << 2;
 			}
 
 			// If ping-pong is active and we're at the start or end of the buffer, reverse the direction

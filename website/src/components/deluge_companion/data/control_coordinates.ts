@@ -358,6 +358,15 @@ export const controlCoordinates: Partial<Record<Control, Coordinate[]>> = {
     { x: 3, y: 7 },
   ],
 
+  // ========== Oscillator Shortcuts ==========
+  [Control.OSC_TYPE]: [
+    { x: 2, y: 2 },
+    { x: 3, y: 2 },
+  ],
+
+  // ========== Voice Shortcuts ==========
+  [Control.VOICE_POLYPHONY]: [{ x: 7, y: 1 }],
+
   // ========== Patch Source Pads (X=15, right edge) ==========
   [Control.NOTE_PATCH_SOURCE]: [{ x: 15, y: 3 }],
   [Control.RANDOM_PATCH_SOURCE]: [{ x: 15, y: 2 }],
@@ -366,6 +375,7 @@ export const controlCoordinates: Partial<Record<Control, Coordinate[]>> = {
 
   // ========== External/Fallback ==========
   [Control.EXTERNAL]: [],
+  [Control.MENU]: [],
   [Control.NONE]: [],
 }
 

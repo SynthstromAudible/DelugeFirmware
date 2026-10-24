@@ -62,9 +62,10 @@ void MIDIParamCollection::tickTicks(int32_t numTicks, ModelStackWithParamCollect
 		MIDIParam* midiParam = params.getElement(i);
 		AutoParam* param = &midiParam->param;
 
-		if (param->hasInterpolationIncrement()) {
+		bool use_float_interpolation = shouldInterpolateWithFloat(modelStack->addParamId(midiParam->cc));
+		if (param->hasInterpolationIncrement(use_float_interpolation)) {
 			int32_t oldValue = param->getCurrentValue();
-			bool shouldNotify = param->tickTicks(numTicks);
+			bool shouldNotify = param->tickTicks(numTicks, use_float_interpolation);
 			if (shouldNotify) { // Should always actually be true...
 				ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam->cc, param);
 				notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
@@ -161,10 +162,11 @@ void MIDIParamCollection::processCurrentPos(ModelStackWithParamCollection* model
 			AutoParam* param = &midiParam->param;
 			ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam->cc, param);
 
-			int32_t ticksTilNextEventThisParam = param->processCurrentPos(modelStackWithAutoParam, reversed,
-			                                                              didPingpong, false, true); // No interpolating
+			// Interpolation is set up here but applied by tickTicks(), since MIDI can't interpolate per sample
+			int32_t ticksTilNextEventThisParam =
+			    param->processCurrentPos(modelStackWithAutoParam, reversed, didPingpong, true, true);
 			ticksTilNextEvent = std::min(ticksTilNextEvent, ticksTilNextEventThisParam);
-			if (param->hasInterpolationIncrement()) {
+			if (param->hasInterpolationIncrement(shouldInterpolateWithFloat(modelStackWithAutoParam))) {
 				interpolating = true;
 			}
 		}
@@ -301,7 +303,7 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 }
 
 bool MIDIParamCollection::mayParamInterpolate(int32_t paramId) {
-	return false;
+	return true;
 }
 
 int32_t MIDIParamCollection::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
@@ -313,7 +315,7 @@ void MIDIParamCollection::notifyPingpongOccurred(ModelStackWithParamCollection* 
 
 	for (int32_t i = 0; i < params.getNumElements(); i++) {
 		MIDIParam* midiParam = params.getElement(i);
-		midiParam->param.notifyPingpongOccurred();
+		midiParam->param.notifyPingpongOccurred(shouldInterpolateWithFloat(modelStack->addParamId(midiParam->cc)));
 	}
 }
 

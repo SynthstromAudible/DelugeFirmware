@@ -419,11 +419,11 @@ void AutomationView::initializeView() {
 	// let the view know if we're dealing with an automation parameter or a note parameter
 	setAutomationParamType();
 
-	InstrumentClip* clip = getCurrentInstrumentClip();
-	Output* output = clip->output;
-	OutputType outputType = output->type;
-
 	if (!onArrangerView) {
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		Output* output = clip->output;
+		OutputType outputType = output->type;
+
 		// only applies to instrument clips (not audio)
 		if (clip) {
 			// check if we for some reason, left the automation view, then switched clip types, then came back in
@@ -453,13 +453,13 @@ void AutomationView::initializeView() {
 				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, inNoteEditor());
 			}
 		}
-	}
 
-	// if we're in the note editor and we're in a kit,
-	// check that the lastAuditionedYDisplay is in sync with the selected drum
-	if (inNoteEditor()) {
-		if (outputType == OutputType::KIT) {
-			potentiallyVerticalScrollToSelectedDrum(clip, output);
+		// if we're in the note editor and we're in a kit,
+		// check that the lastAuditionedYDisplay is in sync with the selected drum
+		if (inNoteEditor()) {
+			if (outputType == OutputType::KIT) {
+				potentiallyVerticalScrollToSelectedDrum(clip, output);
+			}
 		}
 	}
 }
@@ -472,6 +472,12 @@ void AutomationView::focusRegained() {
 		currentSong->affectEntire = true;
 		view.focusRegained();
 		view.setActiveModControllableTimelineCounter(currentSong);
+
+		// On 7SEG, automation display text is not updated by LED/grid rendering.
+		// Refresh it whenever automation regains focus (e.g. exiting a menu).
+		if (display->have7SEG()) {
+			renderDisplay();
+		}
 	}
 	else {
 		ClipView::focusRegained();
@@ -2874,19 +2880,7 @@ void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
 	if (onAutomationOverview()) {
 		clip->lastSelectedParamID = CC_NUMBER_NONE;
 	}
-	auto newCC = clip->lastSelectedParamID;
-	newCC += offset;
-	if (newCC < 0) {
-		newCC = CC_NUMBER_Y_AXIS;
-	}
-	else if (newCC >= kNumCCExpression) {
-		newCC = 0;
-	}
-	if (newCC == CC_EXTERNAL_MOD_WHEEL) {
-		// mod wheel is actually CC_NUMBER_Y_AXIS (122) internally
-		newCC += offset;
-	}
-	clip->lastSelectedParamID = newCC;
+	clip->lastSelectedParamID = ((MIDIInstrument*)clip->output)->getNextSelectableCC(clip->lastSelectedParamID, offset);
 	automationParamType = AutomationParamType::PER_SOUND;
 }
 
@@ -3201,7 +3195,7 @@ bool AutomationView::inAutomationEditor() {
 
 void AutomationView::setAutomationParamType() {
 	automationParamType = AutomationParamType::PER_SOUND;
-	if (!inAutomationEditor()) {
+	if (!onArrangerView && !inAutomationEditor()) {
 		Clip* clip = getCurrentClip();
 		if (isNoteVelocityEditorShortcut(clip->lastSelectedParamShortcutX, clip->lastSelectedParamShortcutY)) {
 			automationParamType = AutomationParamType::NOTE_VELOCITY;

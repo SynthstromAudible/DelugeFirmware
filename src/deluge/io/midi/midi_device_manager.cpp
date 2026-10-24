@@ -35,6 +35,7 @@
 #include "storage/storage_manager.h"
 #include "util/container/vector/named_thing_vector.h"
 #include "util/misc.h"
+#include <new>
 
 #pragma GCC diagnostic push
 // This is supported by GCC and other compilers should error (not warn), so turn off for this file
@@ -303,11 +304,14 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 
 extern "C" void hostedDeviceDetached(int32_t ip, int32_t midiDeviceNum) {
 
+	// Not one of ours (e.g. hmidi_detach() didn't find it) - indexing connectedUSBMIDIDevices with it would write out
+	// of bounds
+	if (midiDeviceNum < 0 || midiDeviceNum >= MAX_NUM_USB_MIDI_DEVICES) {
 #if ALPHA_OR_BETA_VERSION
-	if (midiDeviceNum == MAX_NUM_USB_MIDI_DEVICES) {
 		FREEZE_WITH_ERROR("E367");
-	}
 #endif
+		return;
+	}
 
 	D_PRINTLN("detached MIDI device: %d", midiDeviceNum);
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
@@ -442,6 +446,13 @@ void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory
 	}
 }
 
+// Read-only counterpart of the MIDI-follow device references that lived in flash before c1.3 moved those settings
+// into MIDIFollow.XML. Only used by the one-time migration in FlashStorage::readSettings() - we never write these
+// bytes again.
+void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uint8_t const* memory) {
+	midiEngine.midiFollowChannelType[util::to_underlying(whichType)].cable = readCableFromFlash(memory);
+}
+
 void writeDevicesToFile() {
 	if (!anyChangesToSave) {
 		return;
@@ -502,6 +513,26 @@ void writeDevicesToFile() {
 }
 
 bool successfullyReadDevicesFromFile = false; // We'll only do this one time
+
+void factoryReset(bool showPopup) {
+	if (showPopup) {
+		display->displayPopup(display->haveOLED()
+		                          ? deluge::l10n::get(deluge::l10n::String::STRING_FOR_RESET_MIDI_DEVICES)
+		                          : deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
+	}
+
+	f_unlink(MIDI_DEVICES_XML);
+
+	new (&upstreamUSBMIDICable1) MIDICableUSBUpstream{0, false, true};
+	new (&upstreamUSBMIDICable2) MIDICableUSBUpstream{1, true, false};
+	new (&upstreamUSBMIDICable3) MIDICableUSBUpstream{2, false, false};
+	new (&dinMIDIPorts) MIDICableDINPorts{};
+
+	recountSmallestMPEZones();
+	anyChangesToSave = false;
+	successfullyReadDevicesFromFile = false;
+	readDevicesFromFile();
+}
 
 void readDevicesFromFile() {
 	if (successfullyReadDevicesFromFile) {
@@ -567,8 +598,8 @@ void readAHostedDeviceFromFile(Deserializer& reader) {
 	MIDICableUSBHosted* device = nullptr;
 
 	String name;
-	uint16_t vendorId;
-	uint16_t productId;
+	uint16_t vendorId = 0;
+	uint16_t productId = 0;
 
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -654,6 +685,19 @@ checkDevice:
 
 			if (device) {
 				device->is_relative = reader.readTagOrAttributeValueInt();
+			}
+		}
+		else if (strcmp(tagName, "midi_thru") == 0) {
+			// this is actually not much duplicated code, just checks for nulls and then an attempt to create a device
+			if (device == nullptr) {
+				if (!name.isEmpty() || vendorId != 0) {
+					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
+					                                                productId); // Will return NULL if error.
+				}
+			}
+
+			if (device != nullptr) {
+				device->midi_thru = reader.readTagOrAttributeValueInt() != 0;
 			}
 		}
 

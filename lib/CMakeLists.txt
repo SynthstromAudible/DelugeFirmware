@@ -18,7 +18,8 @@ FetchContent_Declare(argon
         # i386 MMX register and get corrupted — that mangled `ArgonHalf<float> = 16.0f` to
         # [NaN, 16], which NaN'd the Mutable reverb's cosine LFO and railed the host-sim
         # output. Host-sim only (native NEON was always fine). Covered by lane_spec.cpp.
-        GIT_TAG cae5738c8e4119448ea80df691c297c4c8bc2d5e
+        # (4b8efc4, main's pin, descends from cae5738 and keeps both fixes.)
+        GIT_TAG 4b8efc4f4f21595d454e415fb619dd91223c0400
 )
 FetchContent_MakeAvailable(argon)
 

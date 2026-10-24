@@ -25,6 +25,14 @@
 #include "memory/general_memory_allocator.h"
 #endif
 
+/// Record each task's name in the audio log (see AudioEngine::logAction()) as it starts, so a dump shows what ran in
+/// any gap between audio renders. Costs a strcpy() per task run, so switch off when not debugging.
+#define LOG_TASKS_TO_AUDIO_LOG 0
+
+#if LOG_TASKS_TO_AUDIO_LOG && !IN_UNIT_TESTS
+extern "C" void logAudioAction(char const* string);
+#endif
+
 TaskManager taskManager;
 
 void TaskManager::createSortedList() {
@@ -205,7 +213,7 @@ void TaskManager::setNextRunTimeforCurrentTask(Time seconds) {
 }
 
 void TaskManager::unblockTask(TaskID id) {
-	if (id > 0 && id < kMaxTasks) [[likely]] {
+	if (id >= 0 && id < kMaxTasks) [[likely]] {
 		auto* current_task = &list[id];
 		if (current_task->state == State::BLOCKED) {
 			current_task->state = State::READY;
@@ -214,7 +222,7 @@ void TaskManager::unblockTask(TaskID id) {
 }
 
 void TaskManager::blockTask(TaskID id) {
-	if (id > 0 && id < kMaxTasks) [[likely]] {
+	if (id >= 0 && id < kMaxTasks) [[likely]] {
 		auto* current_task = &list[id];
 		if (current_task->state == State::READY) {
 			current_task->state = State::BLOCKED;
@@ -223,9 +231,19 @@ void TaskManager::blockTask(TaskID id) {
 }
 
 void TaskManager::runTask(TaskID id) {
+	// runTask() can be entered while another task is mid-run (e.g. the audio task during an SD wait),
+	// so restore the caller's currentID on exit - otherwise yield() acts on the wrong task and a
+	// run-once task can be re-entered.
+	TaskID callerID = currentID;
 	countThisTask = true;
 	currentID = id;
 	auto* current_task = &list[currentID];
+
+#if LOG_TASKS_TO_AUDIO_LOG && !IN_UNIT_TESTS
+	if (current_task->name != nullptr) {
+		logAudioAction(current_task->name);
+	}
+#endif
 
 	{
 		Time timeNow = getSecondsFromStart();
@@ -259,6 +277,7 @@ void TaskManager::runTask(TaskID id) {
 		}
 		lastFinishTime = timeNow;
 	}
+	currentID = callerID;
 }
 
 void TaskManager::runHighestPriTask() {

@@ -1,0 +1,70 @@
+name: Backport
+
+# Fixes land on main first. Labelling a PR `backport: release/X.Y` (before or
+# after it merges) opens a cherry-pick PR against that release branch.
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [closed, labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  backport:
+    name: Backport to release branch
+    # Only merged PRs; for `labeled`, only backport labels.
+    if: >-
+      github.event.pull_request.merged == true &&
+      (github.event.action == 'closed' ||
+       startsWith(github.event.label.name, 'backport: release/'))
+    runs-on: ubuntu-latest
+    steps:
+      # The action cherry-picks in this working tree. pull_request_target checks out
+      # the base branch, so no PR code runs here; the action fetches the PR commits itself.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: korthout/backport-action@v4
+        id: backport
+        with:
+          # `backport: release/1.3` -> target branch `release/1.3`
+          label_pattern: '^backport: (release/\d+\.\d+)$'
+          branch_name: backport-${pull_number}-to-${target_branch}
+          pull_title: '[${target_branch}] ${pull_title}'
+          pull_description: |
+            Backport of #${pull_number} to `${target_branch}`.
+
+            Cherry-picked from ${{ github.event.pull_request.merge_commit_sha }}.
+            Hardware-test before merging if the original touched the audio path or
+            song-file loading.
+          add_labels: 'backport: pr'
+          copy_labels_pattern: '^(type|area|impact): '
+          copy_assignees: true
+          copy_requested_reviewers: true
+          experimental: >
+            {
+              "conflict_resolution": "draft_commit_conflicts"
+            }
+      # draft_commit_conflicts opens conflicted backports as drafts and the job still
+      # succeeds, so mark those PRs here.
+      - name: Flag conflicted backport PRs
+        if: steps.backport.outputs.created_pull_numbers != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CREATED: ${{ steps.backport.outputs.created_pull_numbers }}
+        run: |
+          for number in $CREATED; do
+            if [ "$(gh pr view "$number" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = true ]; then
+              gh pr edit "$number" --repo "$GITHUB_REPOSITORY" --add-label "backport: conflict"
+            fi
+          done
+      - name: Flag failed backports
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} \
+            --repo "$GITHUB_REPOSITORY" --add-label "backport: conflict"

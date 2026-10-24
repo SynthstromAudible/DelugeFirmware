@@ -117,6 +117,82 @@ TEST(LFOTest, renderSampleAndHold) {
 	CHECK_EQUAL(199, lfo.phase);
 }
 
+TEST(LFOTest, globalSampleAndHoldSurvivesClockResync) {
+	LFO lfo;
+	LFOConfig conf(LFOType::SAMPLE_AND_HOLD);
+	lfo.setGlobalInitialPhase(conf);
+	const int32_t held = lfo.render(1, conf, 100);
+	CHECK(held != 0);
+
+	// Sound::resyncGlobalLFOs resets the initial phase and then adds the
+	// current clock offset. Model successive resyncs within one period.
+	for (uint32_t offset = 0x20000000; offset < 0xE0000000; offset += 0x20000000) {
+		lfo.setGlobalInitialPhase(conf);
+		lfo.phase += offset;
+		const int32_t value = lfo.render(1, conf, 100);
+		CHECK_EQUAL(held, value);
+	}
+
+	lfo.phase = UINT32_MAX;
+	const int32_t next = lfo.render(1, conf, 100);
+	CHECK(next != held);
+	const int32_t retained = lfo.render(1, conf, 100);
+	CHECK_EQUAL(next, retained);
+}
+
+TEST(LFOTest, globalResyncPreservesRandomWaveformState) {
+	for (LFOType type : {LFOType::SAMPLE_AND_HOLD, LFOType::RANDOM_WALK, LFOType::WARBLER}) {
+		LFO lfo;
+		LFOConfig conf(type);
+		lfo.holdValue = 123456;
+		lfo.target = 654321;
+		lfo.speed = 42;
+		lfo.phase = 123;
+		lfo.setGlobalInitialPhase(conf);
+		CHECK_EQUAL(0, lfo.phase);
+		CHECK_EQUAL(123456, lfo.holdValue);
+		CHECK_EQUAL(654321, lfo.target);
+		CHECK_EQUAL(42, lfo.speed);
+
+		// Per-voice note-on must still start with fresh waveform state.
+		lfo.setLocalInitialPhase(conf);
+		CHECK_EQUAL(0, lfo.holdValue);
+		CHECK_EQUAL(0, lfo.target);
+		CHECK_EQUAL(0, lfo.speed);
+	}
+}
+
+TEST(LFOTest, playbackStartResetsGlobalRandomWaveforms) {
+	for (LFOType type : {LFOType::SAMPLE_AND_HOLD, LFOType::RANDOM_WALK, LFOType::WARBLER}) {
+		LFO lfo;
+		LFOConfig conf(type);
+		lfo.holdValue = 123456;
+		lfo.target = 654321;
+		lfo.speed = 42;
+		lfo.phase = 123;
+		lfo.setGlobalInitialPhase(conf, true);
+		CHECK_EQUAL(0, lfo.phase);
+		CHECK_EQUAL(0, lfo.holdValue);
+		CHECK_EQUAL(0, lfo.target);
+		CHECK_EQUAL(0, lfo.speed);
+	}
+}
+
+TEST(LFOTest, sampleAndHoldRendersAfterPlaybackRestart) {
+	LFO lfo;
+	LFOConfig conf(LFOType::SAMPLE_AND_HOLD);
+	for (int restart = 0; restart < 2; ++restart) {
+		lfo.setGlobalInitialPhase(conf, true);
+		CHECK_EQUAL(0, lfo.holdValue);
+		const int32_t held = lfo.render(1, conf, 100);
+		CHECK(held != 0);
+		lfo.setGlobalInitialPhase(conf);
+		lfo.phase += 0x20000000;
+		const int32_t retained = lfo.render(1, conf, 100);
+		CHECK_EQUAL(held, retained);
+	}
+}
+
 TEST(LFOTest, renderRandomWalk) {
 	LFO lfo;
 	LFOConfig conf(LFOType::RANDOM_WALK);

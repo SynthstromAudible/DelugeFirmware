@@ -1,8 +1,9 @@
 #! /usr/bin/env python3
 import argparse
-import util
 import os
 from pathlib import Path
+
+import util
 
 
 def generate_cmake_recursive(target_dir, verbose=False):
@@ -39,7 +40,7 @@ def generate_cmake_recursive(target_dir, verbose=False):
         for source in sources:
             if verbose:
                 print(f"Found: {os.path.join(dirpath, source)}")
-            contents += f"    {str(source)}\n"
+            contents += f"    {source!s}\n"
         contents += ")\n"
 
         # Create or update the CMakeLists.txt file

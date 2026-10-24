@@ -36,6 +36,11 @@
 extern "C" {
 #endif
 
+/// Size of a device's bulk-IN receive buffer. Receive transfers are armed for one 64-byte packet at a time, but the
+/// peripheral-mode bulk pipe is double-buffered, so its BRDY handler can have to drain up to two packets (plus margin)
+/// in one go rather than dropping what the hardware already ACKed - see usb_pstd_brdy_pipe_process_rohan_midi().
+#define USB_MIDI_RECEIVE_BUFFER_BYTES 192
+
 typedef enum UsbMidiCompletionKind {
     USB_MIDI_COMPLETION_RECEIVE = 0,    ///< bulk-IN done: deviceNum + bytesReceived are set
     USB_MIDI_COMPLETION_SEND_HOST,      ///< bulk-OUT done as host

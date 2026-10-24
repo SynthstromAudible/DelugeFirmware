@@ -1023,11 +1023,11 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 
 	if (noteRowIndex != -1) {
 		InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
-#if ALPHA_OR_BETA_VERSION
 		if (noteRowIndex >= clip->noteRows.getNumElements()) {
 			FREEZE_WITH_ERROR("E406");
+			// If resumed, fall back to the Clip-level paramManager rather than reading past the end of noteRows
+			return modelStack->addNoteRow(0, nullptr)->addOtherTwoThings(this, &clip->paramManager);
 		}
-#endif
 		noteRow = clip->noteRows.getElement(noteRowIndex);
 		noteRowId = clip->getNoteRowId(noteRow, noteRowIndex);
 		paramManager = &noteRow->paramManager;
@@ -1742,7 +1742,7 @@ void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, b
 bool ModControllableAudio::enableGrain() {
 
 	if (grainFX == nullptr) {
-		void* grainMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(GranularProcessor));
+		void* grainMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(GranularProcessor));
 		if (grainMemory) {
 			grainFX = new (grainMemory) GranularProcessor;
 			return true;

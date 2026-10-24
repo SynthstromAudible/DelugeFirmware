@@ -15,7 +15,8 @@
 
 uint8_t currentlyAccessingCard = false;
 uint32_t usbLock = false;
-bool sdRoutineLock = false;
+// The scheduler owns the storage-wait flag its ResourceChecker reads (see isSDRoutineActive())
+void setSDRoutineActiveForTesting(bool active);
 namespace {
 
 struct SelfRemoving {
@@ -65,14 +66,14 @@ void yield_2ms_with_lock() {
 TEST_GROUP(Scheduler){
 
     void setup(){taskManager = TaskManager();
-sdRoutineLock = false;
+setSDRoutineActiveForTesting(false);
 currentlyAccessingCard = false;
 } // namespace
 
 // These are globals the ResourceChecker reads. Reset them here as well as in setup(), so that a test which fails
 // part-way through while holding one can't leave it locked and silently starve every later resource-gated task.
 void teardown() {
-	sdRoutineLock = false;
+	setSDRoutineActiveForTesting(false);
 	currentlyAccessingCard = false;
 }
 }
@@ -138,7 +139,7 @@ TEST(Scheduler, scheduleConditionalDoesntRun) {
 TEST(Scheduler, sdRoutineLockBlocksSdRoutineTask) {
 	mock().clear();
 	mock().expectNCalls(0, "sleep_50ns");
-	sdRoutineLock = true;
+	setSDRoutineActiveForTesting(true);
 	addRepeatingTask(sleep_50ns, 0, 0.001, 0.001, 0.001, "sd routine task", RESOURCE_SD_ROUTINE);
 	taskManager.start(0.0095);
 	mock().checkExpectations();

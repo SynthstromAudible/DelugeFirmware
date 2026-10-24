@@ -136,7 +136,10 @@ void PlaybackHandler::midiRoutine() {
 
 // This function will be called repeatedly, at all times, to see if it's time to do a tick, and such
 void PlaybackHandler::routine() {
-
+	if ((stemExport.processStarted && stemExport.renderOffline)) [[unlikely]] {
+		//  todo - should add the ability to block the task in the task manager instead but whatever
+		return;
+	}
 	// Check analog clock input
 	if (triggerClockRisingEdgesProcessed != triggerClockRisingEdgesReceived) {
 		uint32_t time =
@@ -515,6 +518,7 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	stopOutputRecordingAtLoopEnd = false;
 
 	lastSwungTickActioned = 0;
+	firstSwungTickPending = true;
 	lastTriggerClockOutTickDone = -1;
 	lastMIDIClockOutTickDone = -1;
 	timeLastMIDIClockOutTickSent = 0;
@@ -556,6 +560,9 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	bool oldState = AudioEngine::audioRoutineLocked;
 	AudioEngine::audioRoutineLocked = true;
 	currentlyActioningSwungTickOrResettingPlayPos = true;
+	// Start synced global LFOs with fresh state, including sounds without an active clip.
+	// Periodic timer ticks only realign their phase.
+	currentSong->resyncLFOs(true);
 	// Have to do this after calling AudioEngine::routine()
 	currentPlaybackMode->resetPlayPos(playFromPos, !ticksLeftInCountIn, buttonPressLatencyForTempolessRecord);
 	currentlyActioningSwungTickOrResettingPlayPos = false;
@@ -593,6 +600,9 @@ void PlaybackHandler::endPlayback() {
 	// Do this after calling currentPlaybackMode->endPlayback(), cos for arrangement that has to get the current
 	// tick, which needs to refer to which clock is active, which is stored in playbackState.
 	playbackState = 0;
+
+	// Nothing's going to play on into the Clusters we'd prefetched. Before any song swap, so it can delete Samples.
+	audioFileManager.releaseAllPrefetches();
 
 	cvEngine.playbackEnded(); // Call this *after* playbackState is set
 	PadLEDs::clearTickSquares();
@@ -731,49 +741,48 @@ void PlaybackHandler::actionTimerTickPart2() {
 
 	// If not in count-in...
 	if (!ticksLeftInCountIn) {
-
 		currentSong->resyncLFOs();
-		if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
-			// Trigger clock output ticks
-			if (cvEngine.isTriggerClockOutputEnabled()) {
-				// Do any trigger clock output ticks up to and including now
-				uint32_t internalTicksPer;
-				uint32_t analogOutTicksPer;
-				getAnalogOutTicksToInternalTicksRatio(&internalTicksPer, &analogOutTicksPer);
-				uint64_t fractionLastTimerTick = lastTimerTickActioned * analogOutTicksPer;
-				uint64_t fractionNextAnalogOutTick = (lastTriggerClockOutTickDone + 1) * internalTicksPer;
+	}
 
-				// if we've fallen behind the timer ticks somehow then scheduling won't work properly so output
-				// immediately otherwise set it to be done by the audio engine
-				if (fractionNextAnalogOutTick < fractionLastTimerTick) {
-					doTriggerClockOutTick();
-					fractionNextAnalogOutTick += internalTicksPer;
-				}
-				// Schedule another trigger clock output tick
-				scheduleTriggerClockOutTickParamsKnown(analogOutTicksPer, fractionLastTimerTick,
-				                                       fractionNextAnalogOutTick);
+	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
+		// Trigger clock output ticks
+		if (cvEngine.isTriggerClockOutputEnabled()) {
+			// Do any trigger clock output ticks up to and including now
+			uint32_t internalTicksPer;
+			uint32_t analogOutTicksPer;
+			getAnalogOutTicksToInternalTicksRatio(&internalTicksPer, &analogOutTicksPer);
+			uint64_t fractionLastTimerTick = lastTimerTickActioned * analogOutTicksPer;
+			uint64_t fractionNextAnalogOutTick = (lastTriggerClockOutTickDone + 1) * internalTicksPer;
+
+			// if we've fallen behind the timer ticks somehow then scheduling won't work properly so output
+			// immediately otherwise set it to be done by the audio engine
+			if (fractionNextAnalogOutTick < fractionLastTimerTick) {
+				doTriggerClockOutTick();
+				fractionNextAnalogOutTick += internalTicksPer;
+			}
+			// Schedule another trigger clock output tick
+			scheduleTriggerClockOutTickParamsKnown(analogOutTicksPer, fractionLastTimerTick, fractionNextAnalogOutTick);
+		}
+
+		// MIDI clock output ticks
+		if (currentlySendingMIDIOutputClocks()) {
+			// Do any MIDI clock output ticks up to and including now
+			uint32_t internalTicksPer;
+			uint32_t midiClockOutTicksPer;
+			getMIDIClockOutTicksToInternalTicksRatio(&internalTicksPer, &midiClockOutTicksPer);
+			uint64_t fractionLastTimerTick = lastTimerTickActioned * midiClockOutTicksPer;
+
+			uint64_t fractionNextMIDIClockOutTick = (lastMIDIClockOutTickDone + 1) * internalTicksPer;
+			// if we've fallen behind the timer ticks somehow then scheduling won't work properly so output
+			// immediately otherwise set it to be done by the audio engine
+			if (fractionNextMIDIClockOutTick < fractionLastTimerTick) {
+				doMIDIClockOutTick();
+				fractionNextMIDIClockOutTick += midiClockOutTicksPer;
 			}
 
-			// MIDI clock output ticks
-			if (currentlySendingMIDIOutputClocks()) {
-				// Do any MIDI clock output ticks up to and including now
-				uint32_t internalTicksPer;
-				uint32_t midiClockOutTicksPer;
-				getMIDIClockOutTicksToInternalTicksRatio(&internalTicksPer, &midiClockOutTicksPer);
-				uint64_t fractionLastTimerTick = lastTimerTickActioned * midiClockOutTicksPer;
-
-				uint64_t fractionNextMIDIClockOutTick = (lastMIDIClockOutTickDone + 1) * internalTicksPer;
-				// if we've fallen behind the timer ticks somehow then scheduling won't work properly so output
-				// immediately otherwise set it to be done by the audio engine
-				if (fractionNextMIDIClockOutTick < fractionLastTimerTick) {
-					doMIDIClockOutTick();
-					fractionNextMIDIClockOutTick += midiClockOutTicksPer;
-				}
-
-				// Schedule another MIDI clock output tick
-				scheduleMIDIClockOutTickParamsKnown(midiClockOutTicksPer, fractionLastTimerTick,
-				                                    fractionNextMIDIClockOutTick);
-			}
+			// Schedule another MIDI clock output tick
+			scheduleMIDIClockOutTickParamsKnown(midiClockOutTicksPer, fractionLastTimerTick,
+			                                    fractionNextMIDIClockOutTick);
 		}
 	}
 }
@@ -946,15 +955,6 @@ void PlaybackHandler::scheduleMIDIClockOutTickFromExternalClock() {
 }
 
 void PlaybackHandler::doMIDIClockOutTick() {
-	CriticalSectionGuard guard;
-	// if there's a scheduled output already then don't mess with it. Will catch at next output
-	if (deluge_midi_gate_timer_pending()) {
-		return;
-	}
-	// otherwise if there's midi in here already then get it dumped
-	if (midiEngine.anythingInOutputBuffer()) {
-		midiEngine.flushMIDI();
-	}
 	midiClockOutTickScheduled = false;
 	lastMIDIClockOutTickDone++;
 	timeLastMIDIClockOutTickSent = AudioEngine::audioSampleTimer;
@@ -971,6 +971,7 @@ void PlaybackHandler::actionSwungTick() {
 	currentlyActioningSwungTickOrResettingPlayPos = true;
 
 	swungTickScheduled = false;
+	firstSwungTickPending = false;
 
 	lastSwungTickActioned += swungTicksTilNextEvent;
 
@@ -991,6 +992,9 @@ void PlaybackHandler::actionSwungTick() {
 			lastTimerTickActioned = 0;
 			lastSwungTickActioned = 0;
 			swungTicksTilNextEvent = 0;
+
+			lastTriggerClockOutTickDone = -1;
+			lastMIDIClockOutTickDone = -1;
 
 			// May not call audio routine during this, cos that'd try doing ticks before everything's set up
 			currentPlaybackMode->resetPlayPos(
@@ -1088,6 +1092,10 @@ void PlaybackHandler::scheduleSwungTick() {
 // This may be called when there already is one scheduled, to reschedule it, if the tempo has changed
 void PlaybackHandler::scheduleSwungTickFromInternalClock() {
 
+	// Tick-based MIDI/CV interpolation can produce a zero next-event interval via
+	// ParamManagerForTimeline::processCurrentPos. That value can propagate into swungTicksTilNextEvent
+	// during playback scheduling (see Clip::processCurrentPos). Clamp here so we always advance at least one swung
+	// tick instead of re-actioning the current tick forever.
 	if (swungTicksTilNextEvent < 1) {
 		swungTicksTilNextEvent = 1; // Shouldn't ultimately be necessary, but...
 	}
@@ -1520,6 +1528,10 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 			swungTicksTilNextEvent = 0;
 		}
 
+		// A live song swap bypasses setupPlayback(). Reset the incoming song's
+		// synced LFO state after establishing its clock position, before starting clips.
+		currentSong->resyncLFOs(true);
+
 		// And now, if switching to arranger (in which case, remember, we definitely didn't preserve play position),
 		// do that
 		if (currentSong->lastClipInstanceEnteredStartPos != -1) {
@@ -1745,6 +1757,15 @@ void PlaybackHandler::clockMessageReceived(uint32_t time) {
 }
 
 void PlaybackHandler::scheduleSwungTickFromExternalClock() {
+	// Tick-based MIDI/CV interpolation can produce a zero next-event interval via
+	// ParamManagerForTimeline::processCurrentPos. That value can propagate into swungTicksTilNextEvent
+	// during playback scheduling (see Clip::processCurrentPos). Clamp here so we always advance at least one swung
+	// tick instead of re-actioning the current tick forever. But at the start of playback, tick 0 hasn't been actioned
+	// yet and a 0 here is what schedules it - clamping then would skip everything on the first tick.
+	if (swungTicksTilNextEvent < 1 && !firstSwungTickPending) {
+		swungTicksTilNextEvent = 1;
+	}
+
 	uint64_t nextSwungTick = lastSwungTickActioned + swungTicksTilNextEvent;
 	uint64_t internalTickPositionForNextSwungTickTimes50;
 	if (!currentSong->hasAnySwing()) {
@@ -2218,7 +2239,14 @@ void PlaybackHandler::commandEditTempoCoarse(int8_t offset) {
 	// Get current tempo
 	int32_t magnitude;
 	int8_t whichValue;
-	getCurrentTempoParams(&magnitude, &whichValue);
+	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW) [[unlikely]] {
+		int32_t pos = arrangerView.getPosFromSquare(arrangerView.xPressed, currentSong->xScroll[NAVIGATION_ARRANGEMENT],
+		                                            currentSong->xZoom[NAVIGATION_ARRANGEMENT]);
+		getTempoParamsAtArrangementPos(pos, &magnitude, &whichValue);
+	}
+	else {
+		getCurrentTempoParams(&magnitude, &whichValue);
+	}
 
 	whichValue += offset;
 
@@ -2237,7 +2265,7 @@ void PlaybackHandler::commandEditTempoCoarse(int8_t offset) {
 }
 
 void PlaybackHandler::commandEditTempoFine(int8_t offset) {
-	int32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5f;
+	int32_t tempoBPM = calculateBPMForDisplay() + 0.5f;
 	tempoBPM += offset;
 	if (tempoBPM > 0) {
 		currentSong->setBPM(tempoBPM, true);
@@ -2281,9 +2309,18 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 
 	// Otherwise, change tempo
 	else {
+		// if external clock is not active
 		if (!isExternalClockActive()) {
+			// allow tempo editing if the following conditions are met:
+			// a) the tempo popup is displayed
+			// b) we have an OLED display and are in session view
+			// c) we have an OLED display, are in arranger view and are not holding a pad
+			//   - if you are holding a pad in arranger view, tempo is edited with a popup
 			UI* currentUI = getCurrentUI();
-			bool isOLEDSessionView = display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
+			bool isOLEDSessionView =
+			    display->haveOLED()
+			    && (currentUI == &sessionView
+			        || (currentUI == &arrangerView && currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW));
 			if (display->hasPopupOfType(PopupType::TEMPO) || isOLEDSessionView) {
 				// Truth table for how we decide between adjusting coarse and fine tempo:
 				//
@@ -2292,7 +2329,7 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 				//  On     | Off    | Fine
 				//  On     | On     | Coarse
 				//  Off    | Off    | Coarse
-				//  Off    |  On    | Fine
+				//  Off    | On     | Fine
 				//
 				bool feature = runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
 				               == RuntimeFeatureStateToggle::On;
@@ -2397,8 +2434,11 @@ void PlaybackHandler::setMidiInClockEnabled(bool newValue) {
 }
 
 void PlaybackHandler::getCurrentTempoParams(int32_t* magnitude, int8_t* whichValue) {
+	getTempoParamsFromTimePer(currentSong->timePerTimerTickBig, magnitude, whichValue);
+}
+
+void PlaybackHandler::getTempoParamsFromTimePer(uint64_t timePer, int32_t* magnitude, int8_t* whichValue) {
 	*magnitude = 0;
-	uint64_t timePer = currentSong->timePerTimerTickBig;
 	while (timePer > ((uint64_t)metronomeValueBoundaries[15] << (1 + 32))) {
 		timePer >>= 1;
 		(*magnitude)++;
@@ -2419,6 +2459,25 @@ void PlaybackHandler::getCurrentTempoParams(int32_t* magnitude, int8_t* whichVal
 	}
 }
 
+float PlaybackHandler::getTempoBPMAtArrangementPos(int32_t pos) {
+	char model_stack_memory[MODEL_STACK_MAX_SIZE];
+	auto* model_stack = currentSong->setupModelStackWithSongAsTimelineCounter(model_stack_memory);
+	auto* tempo_param = currentSong->getModelStackWithParam(model_stack, params::UnpatchedGlobal::UNPATCHED_TEMPO);
+
+	if (tempo_param && tempo_param->autoParam) {
+		return tempo_param->autoParam->getValuePossiblyAtPos(pos, tempo_param) / 100.0f;
+	}
+
+	return calculateBPM(currentSong->getTimePerTimerTickFloat());
+}
+
+void PlaybackHandler::getTempoParamsAtArrangementPos(int32_t pos, int32_t* magnitude, int8_t* whichValue) {
+	float bpm = getTempoBPMAtArrangementPos(pos);
+	double scaledBPM = ldexp(static_cast<double>(bpm), currentSong->getInputTickMagnitude());
+	uint64_t timePer = static_cast<uint64_t>((110250.0 / scaledBPM) * 4294967296.0 + 0.5);
+	getTempoParamsFromTimePer(timePer, magnitude, whichValue);
+}
+
 void PlaybackHandler::displayTempoFromParams(int32_t magnitude, int8_t whichValue) {
 	float tempoBPM = metronomeValuesBPM[whichValue];
 	magnitude += currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM;
@@ -2437,6 +2496,12 @@ void PlaybackHandler::commandDisplayTempo() {
 }
 // takes into account incoming clock sync
 float PlaybackHandler::calculateBPMForDisplay() {
+	// if we're in arranger view and holding pad, display BPM at that position
+	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW) [[unlikely]] {
+		int32_t pos = arrangerView.getPosFromSquare(arrangerView.xPressed, currentSong->xScroll[NAVIGATION_ARRANGEMENT],
+		                                            currentSong->xZoom[NAVIGATION_ARRANGEMENT]);
+		return getTempoBPMAtArrangementPos(pos);
+	}
 	return calculateBPM(getTimePerInternalTickFloat());
 }
 
@@ -2460,7 +2525,9 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 	if (display->haveOLED()) {
 		UI* currentUI = getCurrentUI();
 		// if we're currently in song or arranger view, we'll render tempo on the display instead of a popup
-		if ((currentUI == &sessionView || currentUI == &arrangerView)
+		// except: if you're in arranger view and hodling a pad, show popup for tempo at the pad's position
+		if ((currentUI == &sessionView
+		     || (currentUI == &arrangerView && currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW))
 		    && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
 			sessionView.lastDisplayedTempo = tempoBPM;
 			getTempoStringForOLED(tempoBPM, text);
@@ -2983,7 +3050,7 @@ bool PlaybackHandler::offerNoteToLearnedThings(MIDICable& cable, bool on, int32_
 				}
 
 				// Beware - calling this might insert or delete a Clip!
-				session.toggleClipStatus(clip, &c, false, kMIDIKeyInputLatency);
+				session.toggleClipStatus(clip, &c, Buttons::isShiftButtonPressed(), kMIDIKeyInputLatency);
 
 				// use root UI in case this is called from performance view
 				sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);

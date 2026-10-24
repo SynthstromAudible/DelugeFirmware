@@ -131,4 +131,8 @@ private:
 	void removeClipFromSection(AudioClip* clip);
 	void detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOutput, bool shouldTakeParamManagerWith = false);
 	LoopType getLoopingType(ModelStackWithTimelineCounter const* modelStack);
+	void prefetchClustersAhead(Sample* sample);
+	void clearSample(Action* action);
+	/// Priority for loading our Clusters - see ClusterPriority::forAudioClip()
+	[[nodiscard]] int32_t getClusterPriority() const;
 };

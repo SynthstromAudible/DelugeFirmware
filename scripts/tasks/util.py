@@ -1,18 +1,56 @@
-from functools import partial
+import fileinput
 import multiprocessing
 import os
+import shutil
+import site
 import subprocess
 import sys
-import shutil
 import sysconfig
-from pathlib import Path
 import time
-import fileinput
+from functools import partial
+from pathlib import Path
 
 
 def install_rtmidi():
+    for base in site.getsitepackages():
+        stale = Path(base) / "rtmidi"
+        if stale.exists():
+            if stale.is_dir():
+                shutil.rmtree(stale, ignore_errors=True)
+            else:
+                stale.unlink(missing_ok=True)
+
+    env = os.environ.copy()
+    cert = None
+    try:
+        import certifi
+
+        cert = certifi.where()
+    except (ImportError, AttributeError):
+        for candidate in (
+            "/etc/ssl/cert.pem",
+            "/etc/ssl/certs/ca-certificates.crt",
+            "/etc/pki/tls/certs/ca-bundle.crt",
+            "/private/etc/ssl/cert.pem",
+        ):
+            if os.path.exists(candidate):
+                cert = candidate
+                break
+    if cert:
+        env["SSL_CERT_FILE"] = cert
+        env["REQUESTS_CA_BUNDLE"] = cert
+
     subprocess.check_call(
-        [sys.executable, "-m", "pip", "install", "python-rtmidi==1.5.8"]
+        [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "--no-cache-dir",
+            "--force-reinstall",
+            "python-rtmidi==1.5.8",
+        ],
+        env=env,
     )
 
 
@@ -28,16 +66,21 @@ def run(args, redirect_input: bool = True, redirect_output: bool = True):
         stdin=(sys.stdin if redirect_input else None),
         stderr=(sys.stderr if redirect_output else None),
         env=os.environ,
+        check=False,
     )
 
     return process.returncode
 
 
 def run_get_output(args):
-    return subprocess.run(args, stdout=subprocess.PIPE).stdout.decode().strip()
+    return (
+        subprocess.run(args, stdout=subprocess.PIPE, check=False)
+        .stdout.decode()
+        .strip()
+    )
 
 
-def find_cmd_with_fallback(cmd: str, fallback: str = None):
+def find_cmd_with_fallback(cmd: str, fallback: str | None = None):
     if not fallback:
         fallback = cmd
     which_result = shutil.which(cmd)
@@ -64,12 +107,13 @@ def get_header_and_source_files(path: Path, recursive: bool):
 
 
 def prepend_file(text: str, path: Path) -> None:
-    for linenum, line in enumerate(fileinput.FileInput(path.absolute(), inplace=1)):
-        if linenum == 0:
-            print(text)
-            print(line.rstrip())
-        else:
-            print(line.rstrip())
+    with fileinput.FileInput(path.absolute(), inplace=1) as file:
+        for linenum, line in enumerate(file):
+            if linenum == 0:
+                print(text)
+                print(line.rstrip())
+            else:
+                print(line.rstrip())
 
 
 def convert_path_if_mingw(path: str) -> str:
@@ -101,7 +145,7 @@ def progressbar(it, prefix: str, size: int = 60, out=sys.stdout):
     for i, item in enumerate(it):
         yield item
         show(i + 1)
-    print("", flush=True, file=out)
+    print(flush=True, file=out)
 
 
 def do_parallel(func, it):
@@ -115,7 +159,7 @@ def do_parallel(func, it):
     return result.get()
 
 
-class Counter(object):
+class Counter:
     def __init__(self, initval=0):
         self.val = multiprocessing.RawValue("i", initval)
         self.lock = multiprocessing.Lock()
@@ -168,7 +212,7 @@ def do_parallel_progressbar(func, it, prefix: str, size: int = 60, out=sys.stdou
     show(counter.value)
     pool.close()
     pool.join()
-    print("", flush=True, file=out)
+    print(flush=True, file=out)
     return result.get()
 
 
@@ -194,7 +238,7 @@ def get_environment_from_batch_command(env_cmd, initial=None):
     cmd = f"cmd.exe /c {env_cmd} && set"
 
     # launch the process
-    proc = subprocess.run(cmd, capture_output=True, env=initial, text=True)
+    proc = subprocess.run(cmd, capture_output=True, env=initial, text=True, check=False)
 
     result = {}
 
@@ -224,7 +268,7 @@ def ensure_midi_port(type, midi, port, default_port_index=-1):
         note(
             f"Could not identify {type.strip()} port for Deluge. Aborting.",
         )
-        exit(1)
+        sys.exit(1)
     else:
         # Report ports to stderr so the logs remain separate.
         note(f"# MIDI {type} {port}: {midi.get_port_name(port)}")

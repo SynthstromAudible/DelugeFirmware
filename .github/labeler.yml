@@ -1,0 +1,104 @@
+# Path -> area: label rules for actions/labeler (see .github/workflows/label-prs.yml).
+# Add-only: labels are never removed. Labels may overlap (e.g. a browser change is also ui).
+# Every label here must exist in .github/labels.yml (checked by .github/scripts/test_label_pr.py).
+
+"area: audio":
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/deluge/dsp/**
+          - src/deluge/processing/**
+          - src/deluge/model/voice/**
+          - src/deluge/model/sample/**
+          - src/deluge/storage/audio/**
+
+"area: sequencer":
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/deluge/model/clip/**
+          - src/deluge/model/note/**
+          - src/deluge/model/iterance/**
+          - src/deluge/model/song/**
+          - src/deluge/playback/**
+
+"area: automation":
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/deluge/modulation/automation/**
+          - src/deluge/gui/views/automation/**
+          - src/deluge/gui/views/automation_view.*
+
+"area: midi":
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/deluge/io/midi/**
+          - src/deluge/model/midi/**
+          - src/deluge/modulation/midi/**
+
+"area: cv-gate":
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/deluge/processing/engines/cv_engine*
+          - src/deluge/gui/menu_item/cv/**
+          - src/deluge/gui/menu_item/gate/**
+          - src/deluge/model/drum/gate_drum.*
+          - src/deluge/model/instrument/cv_instrument.*
+
+"area: browser":
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/deluge/gui/ui/browser/**
+
+"area: files":
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/deluge/storage/**
+
+"area: menus":
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/deluge/gui/menu_item/**
+          - src/deluge/gui/context_menu/**
+          - src/deluge/gui/ui/menus.*
+
+"area: ui":
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/deluge/gui/ui/**
+          - src/deluge/gui/views/**
+          - src/deluge/gui/colour/**
+          - src/deluge/hid/**
+
+"area: system":
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/deluge/memory/**
+          - src/deluge/drivers/**
+          - src/OSLikeStuff/**
+          - src/RZA1/**
+
+"area: toolchain":
+  - changed-files:
+      - any-glob-to-any-file:
+          - dbt*
+          - toolchain/**
+          - scripts/**
+          - IDE_Configs/**
+          - CMakeLists.txt
+          - "**/CMakeLists.txt"
+          - Makefile
+
+"area: ci":
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/**
+
+"area: website":
+  - changed-files:
+      - any-glob-to-any-file:
+          - website/**
+
+"area: docs":
+  - changed-files:
+      - any-glob-to-any-file:
+          - docs/**
+          - "*.md"

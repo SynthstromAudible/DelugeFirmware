@@ -1,8 +1,11 @@
 #include "display.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
+#include "hid/button.h"
 #include "hid/display/oled.h"
 #include "hid/display/seven_segment.h"
+#include "libdeluge/control_surface.h"
+#include "libdeluge/midi_io.h"
 
 deluge::hid::Display* display = nullptr;
 namespace deluge::hid::display {
@@ -86,6 +89,18 @@ std::string_view getErrorMessage(Error error) {
 
 bool have_oled_screen = false;
 
+void wait_for_select_encoder_press() {
+	// The BSP ignores the release of a select press that triggered whatever we're waiting in
+	while (true) {
+		deluge_control_flush();
+		deluge_midi_flush(DELUGE_MIDI_DIN);
+
+		if (deluge_control_poll_resume()) {
+			return;
+		}
+	}
+}
+
 void swapDisplayType() {
 	using ::display; // this is c++
 	bool was_oled = display->haveOLED();
@@ -100,7 +115,18 @@ void swapDisplayType() {
 	UI* ui = getCurrentUI();
 	if (ui) {
 		ui->displayOrLanguageChanged();
+
+		// Most UIs implement their 7SEG redraw in focusRegained(), not
+		// displayOrLanguageChanged(). When swapping from OLED to 7SEG, invoke
+		// focusRegained() so the numeric display is populated immediately.
+		if (!display->haveOLED()) {
+			ui->focusRegained();
+		}
 	}
+
+	// Apply any redraw request from displayOrLanguageChanged() immediately, so
+	// emulated display toggles are visible consistently regardless of active UI.
+	doAnyPendingUIRendering();
 }
 
 } // namespace deluge::hid::display

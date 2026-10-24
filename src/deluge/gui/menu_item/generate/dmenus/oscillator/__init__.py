@@ -1,5 +1,6 @@
 from dmui.dsl import Submenu
-from . import recorder, modulator, source
+
+from . import modulator, recorder, source
 
 menus = [
     Submenu(

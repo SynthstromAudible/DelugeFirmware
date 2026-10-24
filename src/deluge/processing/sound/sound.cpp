@@ -138,7 +138,7 @@ void Sound::initParams(ParamManager* paramManager) {
 	patchedParams->params[params::LOCAL_OSC_A_VOLUME].setCurrentValueBasicForSetup(2147483647);
 	patchedParams->params[params::LOCAL_OSC_B_VOLUME].setCurrentValueBasicForSetup(2147483647);
 	patchedParams->params[params::GLOBAL_VOLUME_POST_FX].setCurrentValueBasicForSetup(
-	    getParamFromUserValue(params::GLOBAL_VOLUME_POST_FX, 40));
+	    getParamFromUserValue(params::GLOBAL_VOLUME_POST_FX, kDefaultSoundVolumeUserValue));
 	patchedParams->params[params::GLOBAL_VOLUME_POST_REVERB_SEND].setCurrentValueBasicForSetup(0);
 	patchedParams->params[params::LOCAL_FOLD].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[params::LOCAL_HPF_RESONANCE].setCurrentValueBasicForSetup(-2147483648);
@@ -208,8 +208,9 @@ void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 	modKnobs[6][0].paramDescriptor.setToHaveParamOnly(params::LOCAL_PITCH_ADJUST);
 
 	paramManager->getPatchCableSet()->numPatchCables = 1;
-	paramManager->getPatchCableSet()->patchCables[0].setup(PatchSource::VELOCITY, params::LOCAL_VOLUME,
-	                                                       getParamFromUserValue(params::PATCH_CABLE, 50));
+	paramManager->getPatchCableSet()->patchCables[0].setup(
+	    PatchSource::VELOCITY, params::LOCAL_VOLUME,
+	    getParamFromUserValue(params::PATCH_CABLE, kSampleDrumVelocityCableUserValue));
 
 	setupDefaultExpressionPatching(paramManager);
 
@@ -574,6 +575,10 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 	else if (!strcmp(tagName, "transpose")) {
 		transpose = reader.readTagOrAttributeValueInt();
 		reader.exitTag("transpose");
+	}
+	else if (!strcmp(tagName, "cents")) {
+		cents = reader.readTagOrAttributeValueInt();
+		reader.exitTag("cents");
 	}
 
 	else if (!strcmp(tagName, "noiseVolume")) {
@@ -2346,11 +2351,18 @@ void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundFlags, ArpeggiatorSettings* arpSettings,
                                   ArpReturnInstruction instruction) {
 	if (instruction.arpNoteOn) {
-		instruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PENDING;
-
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			// do we have a note to start? if no, exit early
 			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 				break;
+			}
+			// has the note already started? if yes, skip it
+			if (instruction.arpNoteOn->noteStatus[n] != ArpNoteStatus::PENDING) {
+				continue;
+			}
+			// note is pending, are we allowing to start it? if no, exit early
+			if (!AudioEngine::allowedToStartVoice()) {
+				break; // Leave the remaining notes pending for the next render.
 			}
 			invertReversed = instruction.invertReversed;
 
@@ -2729,7 +2741,7 @@ uint32_t Sound::getSyncedLFOPhaseIncrement(const LFOConfig& config) {
 	return phaseIncrement;
 }
 
-void Sound::resyncGlobalLFOs() {
+void Sound::resyncGlobalLFOs(bool reset_state) {
 	if (!playbackHandler.isEitherClockActive()) {
 		return; // no clock, no sync
 	}
@@ -2740,7 +2752,7 @@ void Sound::resyncGlobalLFOs() {
 		    AudioEngine::audioSampleTimer; // Resets the thing where the number of samples skipped is later converted
 		                                   // into LFO phase increment
 
-		globalLFO1.setGlobalInitialPhase(lfoConfig[LFO1_ID]);
+		globalLFO1.setGlobalInitialPhase(lfoConfig[LFO1_ID], reset_state);
 
 		uint32_t timeSinceLastTick;
 
@@ -2777,7 +2789,7 @@ void Sound::resyncGlobalLFOs() {
 		    AudioEngine::audioSampleTimer; // Resets the thing where the number of samples skipped is later converted
 		                                   // into LFO phase increment
 
-		globalLFO3.setGlobalInitialPhase(lfoConfig[LFO3_ID]);
+		globalLFO3.setGlobalInitialPhase(lfoConfig[LFO3_ID], reset_state);
 
 		uint32_t timeSinceLastTick;
 
@@ -2957,6 +2969,7 @@ void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManag
 
 void Sound::doneReadingFromFile() {
 	calculateEffectiveVolume();
+	recalculateFineTuner();
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		sources[s].doneReadingFromFile(this);
@@ -2968,6 +2981,17 @@ void Sound::doneReadingFromFile() {
 	for (int32_t m = 0; m < kNumModulators; m++) {
 		recalculateModulatorTransposer(m, nullptr);
 	}
+}
+
+// Set cents for master transpose
+void Sound::set_cents(int8_t new_cents) {
+	cents = new_cents;
+	recalculateFineTuner();
+}
+
+// Setup master transpose
+void Sound::recalculateFineTuner() {
+	fineTuner.setup((int32_t)cents * 42949672);
 }
 
 // Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
@@ -4149,6 +4173,9 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	if (transpose != 0) {
 		writer.writeAttribute("transpose", transpose);
 	}
+	if (cents != 0) {
+		writer.writeAttribute("cents", cents);
+	}
 
 	ModControllableAudio::writeAttributesToFile(writer);
 
@@ -4869,7 +4896,9 @@ ModelStackWithAutoParam* Sound::getParamFromMIDIKnob(MIDIKnob& knob, ModelStackW
 }
 
 const Sound::ActiveVoice& Sound::acquireVoice() noexcept(false) {
-	if (voices_.size() >= maxVoiceCount) {
+	auto count_toward_voice_limit = [](const ActiveVoice& voice) { return !voice->isCullFading(); };
+
+	if (std::ranges::count_if(voices_, count_toward_voice_limit) >= maxVoiceCount) {
 		this->terminateOneActiveVoice();
 	}
 
@@ -4943,9 +4972,7 @@ void Sound::terminateOneActiveVoice() {
 	// maxVoiceCount and the limiter sometimes chopped held notes instead (issue #4721).
 	ActiveVoice* best = nullptr;
 	for (ActiveVoice& voice : voices_) {
-		// skip voices which are already releasing faster than we're going to release them
-		if (voice->envelopes[0].state >= EnvelopeStage::FAST_RELEASE
-		    && voice->envelopes[0].fastReleaseIncrement >= SOFT_CULL_INCREMENT) {
+		if (voice->isCullFading()) {
 			continue;
 		}
 		if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
@@ -4958,10 +4985,10 @@ void Sound::terminateOneActiveVoice() {
 	}
 
 	const ActiveVoice& voice = *best;
-	// 2x SOFT_CULL_INCREMENT = a 64-sample (~1.5 ms) fade. Deliberately faster than 1.2's voice-limit steal (1x,
-	// which was felt to reclaim voices too slowly) but not the 4x (32-sample, sub-millisecond) rate that read as a
-	// pop on sustained material when a low maxVoices makes every note-on steal (issue #4721).
-	bool still_rendering = voice->doFastRelease(2 * SOFT_CULL_INCREMENT);
+	// SOFT_CULL_INCREMENT = a 128-sample (~2.9 ms) fade, matching release 1.2's voice-limit steal. Faster rates
+	// (the 4x, 32-sample sub-millisecond one) read as a pop on sustained material when a low maxVoices makes every
+	// note-on steal (issue #4721).
+	bool still_rendering = voice->doFastRelease(SOFT_CULL_INCREMENT);
 
 	if (!still_rendering) {
 		this->freeActiveVoice(voice);
@@ -4975,11 +5002,12 @@ void Sound::forceReleaseOneActiveVoice() {
 
 	// As in terminateOneActiveVoice: the filter must cover the first voice too, or an already-fast-releasing
 	// front voice (highest rating) soaks up every call in the window.
+	// Note isCullFading() only protects voices already fading at >= SOFT_CULL_INCREMENT; a voice fast-releasing
+	// more slowly (increment in [4096, SOFT_CULL_INCREMENT)) is still eligible, so speedUpRelease() below doubles
+	// it up to the cull-fade rate. This is intentional: a slow fade shouldn't be allowed to linger under load.
 	ActiveVoice* best = nullptr;
 	for (ActiveVoice& voice : voices_) {
-		// skip voices releasing faster than this - we'd rather release another voice
-		if (voice->envelopes[0].state >= EnvelopeStage::FAST_RELEASE
-		    && voice->envelopes[0].fastReleaseIncrement >= 4096) {
+		if (voice->isCullFading()) {
 			continue;
 		}
 		if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {

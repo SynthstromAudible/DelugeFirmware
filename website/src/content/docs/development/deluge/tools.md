@@ -91,6 +91,20 @@ This is a sample of the output:
 @matrix_driver.cpp:71: UI=instrument_clip_view,PAD_X=17,PAD_Y=2,VEL=0
 ```
 
+### Comparing binary sizes between builds (elfsize)
+
+To help track memory usage regressions, you can compare the internal RAM and external SDRAM footprint of two ELF
+files (e.g. before and after your change) using:
+
+`./dbt elfsize <old.elf> <new.elf>`
+
+This uses `arm-none-eabi-readelf -WS` under the hood to break down the `text`, `rodata`, `data`, and `bss` sections
+separately for internal RAM (addresses starting with `0x20`) and external SDRAM (addresses starting with `0x0C`),
+and prints old/new/diff tables for each. It also explicitly reports the internal heap size (the free space between
+the end of statically allocated internal RAM and the start of the program stack) and the external heap size (the
+free space between the end of the statically allocated SDRAM and the end of external memory), so you can see at a
+glance how much headroom your change leaves.
+
 ### Deluge Crash Reader Discord Bot
 
 If deluge crashes, there is a colorful pixelated image that gets displayed across the main pads and sidebar. In case

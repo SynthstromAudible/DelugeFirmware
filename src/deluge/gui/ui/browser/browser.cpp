@@ -553,13 +553,112 @@ tryReadingItems:
 }
 
 namespace {
-/// Adapts Browser::fileItems to the FileListView seam used by nextDefaultName().
+/// Whether `fileName` belongs to the "<prefix><digits>" family. The digits must run all the way to the extension:
+/// without that, a neighbour like "JAM 2024-01-05.XML" joins the "JAM " family, reads as number 2024, and sends the
+/// next save to "JAM 2025". Date-suffixed names are common on real cards.
+bool isNumberedFamilyMember(char const* fileName, char const* prefix, int32_t prefixLength) {
+	if (memcasecmp(fileName, prefix, prefixLength)) {
+		return false;
+	}
+	char const* pos = &fileName[prefixLength];
+	if (*pos < '0' || *pos > '9') {
+		return false;
+	}
+	while (*pos >= '0' && *pos <= '9') {
+		pos++;
+	}
+	return *pos == '.' || *pos == 0;
+}
+
+/// If `fileName` is "<stem><letter>" plus an extension, returns 0-25 for that letter; -1 otherwise. Case does not
+/// matter, so "SONG185a.XML" and "SONG185A.Json" are the same variation.
+int32_t letterVariationOf(char const* fileName, char const* stem, int32_t stemLength) {
+	if (memcasecmp(fileName, stem, stemLength)) {
+		return -1;
+	}
+	char letter = fileName[stemLength];
+	if (letter >= 'a' && letter <= 'z') {
+		letter -= 32;
+	}
+	if (letter < 'A' || letter > 'Z') {
+		return -1;
+	}
+	char after = fileName[stemLength + 1];
+	return (after == '.' || after == 0) ? letter - 'A' : -1;
+}
+
+/// Whether `fileName` carries one of the extensions the browser lists, and so names a file a save could collide with.
+bool isAllowedFileExtension(char const* fileName, char const** allowedExtensions) {
+	char const* dotPos = strrchr(fileName, '.');
+	if (!dotPos) {
+		return false;
+	}
+	for (char const** thisExtension = allowedExtensions; *thisExtension; thisExtension++) {
+		if (!strcasecmp(dotPos + 1, *thisExtension)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/// Adapts the browser to the FileListView seam used by nextDefaultName().
+///
+/// Each query combines two sources. The card is surveyed directly, because fileItems may be a window; and fileItems
+/// is then folded in, because it carries Instruments held in memory that are not on the card yet (see
+/// Song::addInstrumentsToFileItems - "in case the next one in line isn't saved"), whose names are equally taken.
+/// Folding in a window is safe here: it can only ever add variations, never hide one.
 class BrowserFileListView final : public deluge::gui::browser::FileListView {
 public:
-	bool contains(char const* nameWithExtension) const override {
-		bool foundExact = false;
-		Browser::fileItems.search(nameWithExtension, &foundExact);
-		return foundExact;
+	std::string highestNumberedName(char const* prefix) const override {
+		String highest;
+		surveyCard(prefix, &highest, nullptr);
+
+		int32_t prefixLength = strlen(prefix);
+		forEachFileItem([&](char const* name) {
+			if (!isNumberedFamilyMember(name, prefix, prefixLength)) {
+				return;
+			}
+			if (highest.isEmpty() || strcmpspecial(name, highest.get()) > 0) {
+				highest.set(name); // On failure we keep the previous maximum, which is still a valid floor.
+			}
+		});
+
+		return highest.isEmpty() ? std::string{} : std::string{highest.get()};
+	}
+
+	uint32_t takenLetterSuffixes(char const* stem) const override {
+		uint32_t taken = 0;
+		surveyCard(stem, nullptr, &taken);
+
+		int32_t stemLength = strlen(stem);
+		forEachFileItem([&](char const* name) {
+			int32_t letter = letterVariationOf(name, stem, stemLength);
+			if (letter >= 0) {
+				taken |= 1U << letter;
+			}
+		});
+
+		return taken;
+	}
+
+private:
+	static void surveyCard(char const* stem, String* highestNumbered, uint32_t* takenLetters) {
+		if (Browser::fileItemsAreComplete()) {
+			return; // The folder is already in memory in full - no reason to go back to the card for it.
+		}
+		// A survey that errors part-way still reports what it had found, and neither summary can overstate the
+		// truth, so it is worth more than nothing.
+		(void)Browser::surveyNameVariations(stem, highestNumbered, takenLetters);
+	}
+
+	template <typename Fn>
+	static void forEachFileItem(Fn&& consider) {
+		for (int32_t i = 0; i < Browser::fileItems.getNumElements(); i++) {
+			FileItem* item = (FileItem*)Browser::fileItems.getElementAddress(i);
+			if (!item->isFolder) {
+				consider(item->displayName);
+			}
+		}
 	}
 };
 } // namespace
@@ -616,15 +715,8 @@ setEnteredTextAndUseFoundFile:
 				}
 useFoundFile:
 				scrollPosVertical = fileIndexSelected;
-				if (display->getNumBrowserAndMenuLines() > 1) {
-					int32_t lastAllowed = fileItems.getNumElements() - display->getNumBrowserAndMenuLines();
-					if (scrollPosVertical > lastAllowed) {
-						scrollPosVertical = lastAllowed;
-						if (scrollPosVertical < 0) {
-							scrollPosVertical = 0;
-						}
-					}
-				}
+				// Starting in the middle or end of a short folder should still fill as many display rows as possible.
+				clampFileSelectionAndScroll();
 
 				goto everythingFinalized;
 			}
@@ -717,9 +809,13 @@ Error Browser::getUnusedSlot(OutputType outputType, String* newName, char const*
 
 	Error error;
 	// Names always carry the prefix now, on both displays, so there is one search key.
-	char filenameToStartAt[6]; // thingName is max 4 chars.
-	strcpy(filenameToStartAt, thingName);
-	strcat(filenameToStartAt, ":"); // Colon is the first character after the digits.
+	// Sean: thingName is usually max 4 chars (e.g. SONG, SYNT, KIT), but can be longer
+	// - e.g. "PATTERN" with pattern browser or "MIDIDEVICE" with midi device definition browser.
+	// it's used for proposing the file name and on 7SEG if you type a # it will prefix it
+	uint8_t buffer_size = 20;
+	char filenameToStartAt[buffer_size];
+	strncpy(filenameToStartAt, thingName, buffer_size - 2); // Leave 2 chars for "colon + null terminator"
+	strcat(filenameToStartAt, ":");                         // Colon is the first character after the digits.
 	error = readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType), filenameToStartAt, NULL,
 	                                         false, Availability::ANY, CATALOG_SEARCH_LEFT);
 
@@ -762,6 +858,65 @@ doReturn:
 emptyFileItemsAndReturn:
 	emptyFileItems();
 	goto doReturn;
+}
+
+Error Browser::surveyNameVariations(char const* stem, String* highestNumbered, uint32_t* takenLetters) {
+	if (highestNumbered) {
+		highestNumbered->clear();
+	}
+	if (takenLetters) {
+		*takenLetters = 0;
+	}
+
+	Error error = StorageManager::initSD();
+	if (error != Error::NONE) {
+		return error;
+	}
+
+	staticDIR =
+	    D_TRY_CATCH(FatFS::Directory::open(currentDir.get()), fatError, { return fatfsErrorToDelugeError(fatError); });
+
+	int32_t stemLength = strlen(stem);
+
+	while (true) {
+		audioFileManager.loadAnyEnqueuedClusters();
+
+		staticFNO = D_TRY_CATCH(staticDIR.read(), fatError, {
+			error = fatfsErrorToDelugeError(fatError);
+			break;
+		});
+
+		if (staticFNO.fname[0] == 0) {
+			break; /* End of dir */
+		}
+		if (staticFNO.fname[0] == '.' || (staticFNO.fattrib & AM_DIR)) {
+			continue; // Dot entry, or a folder - only files carry these names.
+		}
+		if (!isAllowedFileExtension(staticFNO.fname, allowedFileExtensions)) {
+			continue;
+		}
+
+		if (highestNumbered && isNumberedFamilyMember(staticFNO.fname, stem, stemLength)) {
+			// strcmpspecial compares digit runs numerically, so this finds the highest *number*, not the longest
+			// name: "MYTRACK 11.XML" beats "MYTRACK 9.XML".
+			if (highestNumbered->isEmpty() || strcmpspecial(staticFNO.fname, highestNumbered->get()) > 0) {
+				error = highestNumbered->set(staticFNO.fname);
+				if (error != Error::NONE) {
+					break;
+				}
+			}
+		}
+
+		if (takenLetters) {
+			int32_t letter = letterVariationOf(staticFNO.fname, stem, stemLength);
+			if (letter >= 0) {
+				*takenLetters |= 1U << letter;
+			}
+		}
+	}
+
+	staticDIR.close();
+	return error;
 }
 
 void Browser::selectEncoderAction(int8_t offset) {
@@ -927,12 +1082,11 @@ searchFromOneEnd:
 	}
 
 	fileIndexSelected = newFileIndex;
-
-	if (scrollPosVertical > fileIndexSelected) {
-		scrollPosVertical = fileIndexSelected;
-	}
-	else if (scrollPosVertical < fileIndexSelected - NUM_FILES_ON_SCREEN + 1) {
-		scrollPosVertical = fileIndexSelected - NUM_FILES_ON_SCREEN + 1;
+	// A fast turn may be delivered as a multi-file offset; after a folder-window re-read, that offset can still
+	// overshoot.
+	clampFileSelectionAndScroll(false);
+	if (fileIndexSelected == -1) {
+		return;
 	}
 
 	enteredTextEditPos = 0;
@@ -1093,10 +1247,8 @@ notFound:
 
 	fileIndexSelected = i;
 
-	// Move scroll only if found item is completely offscreen.
-	if (display->have7SEG() || scrollPosVertical > i || scrollPosVertical < i - (OLED_HEIGHT_CHARS - 1) + 1) {
-		scrollPosVertical = i;
-	}
+	// Typing/prediction can land on a cached item without needing to move the viewport unless it is offscreen.
+	clampFileSelectionAndScroll();
 
 	error = setEnteredTextFromCurrentFilename();
 	if (error != Error::NONE) {
@@ -1133,6 +1285,8 @@ void Browser::currentFileDeleted() {
 	else {
 		setEnteredTextFromCurrentFilename();
 	}
+	// Deleting the last visible item can leave the top row past the new end of the list.
+	clampFileSelectionAndScroll();
 	currentFileChanged(0);
 }
 
@@ -1155,16 +1309,21 @@ void Browser::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	bool isSelectedIndex = true;
 	char const* displayName;
 	int32_t o;
+	// Use the display contract for browser/menu rows instead of assuming the OLED character-grid height.
+	int32_t visibleRows = display->getNumBrowserAndMenuLines();
+	if (visibleRows < 1) {
+		visibleRows = 1;
+	}
 
 	// If we're currently typing a filename which doesn't (yet?) have a file...
 	if (fileIndexSelected == -1) {
 		displayName = enteredText.get();
-		o = OLED_HEIGHT_CHARS; // Make sure below loop doesn't keep looping.
+		o = visibleRows; // Make sure below loop doesn't keep looping.
 		goto drawAFile;
 	}
 
 	else {
-		for (o = 0; o < OLED_HEIGHT_CHARS - 1; o++) {
+		for (o = 0; o < visibleRows; o++) {
 			{
 				int32_t i = o + scrollPosVertical;
 
@@ -1212,6 +1371,62 @@ searchForChar:
 
 			yPixel += kTextSpacingY;
 		}
+	}
+}
+
+void Browser::clampFileSelectionAndScroll(bool allowNoFileSelection) {
+	int32_t numFileItems = fileItems.getNumElements();
+	if (numFileItems <= 0) {
+		// No cached files means there is no real selection, and the viewport must reset to the top.
+		fileIndexSelected = -1;
+		scrollPosVertical = 0;
+		return;
+	}
+
+	if (fileIndexSelected >= numFileItems) {
+		// A large encoder offset can overshoot the freshly cached window; land on the last cached item instead.
+		fileIndexSelected = numFileItems - 1;
+	}
+	else if (fileIndexSelected < 0) {
+		// -1 is valid only while typing a new name; encoder browsing must stay on a real cached file.
+		fileIndexSelected = allowNoFileSelection ? -1 : 0;
+	}
+
+	// Fast encoder turns can arrive as multi-file jumps after the cached folder window has been re-read.
+	// Keep both the selection and the visible window inside the files we actually have.
+	int32_t visibleRows = display->getNumBrowserAndMenuLines();
+	if (visibleRows < 1) {
+		// Defensive fallback for mock or future displays; the scroll math needs at least one visible row.
+		visibleRows = 1;
+	}
+	int32_t lastAllowedScroll = numFileItems - visibleRows;
+	if (lastAllowedScroll < 0) {
+		// Short folders cannot fill every row, so their top visible row is always the first item.
+		lastAllowedScroll = 0;
+	}
+
+	if (fileIndexSelected == -1) {
+		// While typing a new name, the rendered row is enteredText rather than an item from fileItems.
+		scrollPosVertical = 0;
+		return;
+	}
+
+	if (scrollPosVertical > fileIndexSelected) {
+		// The selected item is above the current viewport; move it to the first visible row.
+		scrollPosVertical = fileIndexSelected;
+	}
+	else if (scrollPosVertical < fileIndexSelected - visibleRows + 1) {
+		// The selected item is below the current viewport; move it to the last visible row.
+		scrollPosVertical = fileIndexSelected - visibleRows + 1;
+	}
+
+	if (scrollPosVertical > lastAllowedScroll) {
+		// Keep the viewport from starting so low that the bottom browser rows would be blank.
+		scrollPosVertical = lastAllowedScroll;
+	}
+	if (scrollPosVertical < 0) {
+		// Short-folder and typing cases can make the intermediate top row negative; clamp back to the start.
+		scrollPosVertical = 0;
 	}
 }
 
@@ -1303,7 +1518,6 @@ void Browser::displayText(bool blinkImmediately) {
 				display->setText("----");
 			}
 			else {
-
 				// A name is always the full on-card name ("SONG185"). On 7SEG we render the numeric part alone
 				// ("185") so it fits the four-character display.
 				char const* numberPart = nameAfterPrefix(enteredText.get());
@@ -1326,8 +1540,10 @@ void Browser::displayText(bool blinkImmediately) {
 					// provide some context in case the post-fix is long
 					scrollStart = enteredTextEditPos - 2;
 				}
-
-				scrollingText = display->setScrollingText(enteredText.get(), scrollStart);
+				FileItem* currentFileItem = getCurrentFileItem();
+				bool currentItemIsFolder = currentFileItem && currentFileItem->isFolder;
+				auto dotPos = currentItemIsFolder ? 3 : 255;
+				scrollingText = display->setScrollingText(enteredText.get(), scrollStart, 600, -1, dotPos);
 			}
 		}
 	}
@@ -1382,47 +1598,52 @@ ActionResult Browser::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 }
 
 ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
+	bool inFavouriteOrBanksColumn = (x >= 0 && x < static_cast<int32_t>(kNumFavourites));
 
-	if (isFavouritesVisible() && y == favouriteRow && on) {
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-		if (Buttons::isShiftButtonPressed()) {
-			String filePath;
-			Error error = getCurrentFilePath(&filePath);
-			if (error != Error::NONE) {
-				display->displayPopup(l10n::get(l10n::String::STRING_FOR_ERROR_FILE_NOT_FOUND));
+	if (isFavouritesVisible() && inFavouriteOrBanksColumn && y == favouriteRow) {
+		if (on) {
+			if (isSDRoutineActive()) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			if (favouritesManager.isEmpty(x)) {
-				if (!getCurrentFileItem()->isFolder) {
-					favouritesManager.setFavourite(x, FavouritesManager::favouriteDefaultColor, filePath.get());
+			if (Buttons::isShiftButtonPressed()) {
+				String filePath;
+				Error error = getCurrentFilePath(&filePath);
+				if (error != Error::NONE) {
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_ERROR_FILE_NOT_FOUND));
+				}
+				if (favouritesManager.isEmpty(x)) {
+					if (!getCurrentFileItem()->isFolder) {
+						favouritesManager.setFavourite(x, FavouritesManager::favouriteDefaultColor, filePath.get());
+						favouritesChanged();
+					}
+				}
+				else {
+					favouritesManager.unsetFavourite(x);
 					favouritesChanged();
 				}
 			}
 			else {
-				favouritesManager.unsetFavourite(x);
+				const std::string favouritePath = favouritesManager.getFavouriteFilename(x);
 				favouritesChanged();
-			}
-		}
-		else {
-			const std::string favouritePath = favouritesManager.getFavouriteFilename(x);
-			favouritesChanged();
-			if (!favouritePath.empty()) {
-				setFileByFullPath(outputTypeToLoad, favouritePath.c_str());
-			}
-			else {
-				display->displayPopup(l10n::get(l10n::String::STRING_FOR_FAVOURITES_EMPTY));
+				if (!favouritePath.empty()) {
+					setFileByFullPath(outputTypeToLoad, favouritePath.c_str());
+				}
+				else {
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_FAVOURITES_EMPTY));
+				}
 			}
 		}
 		return ActionResult::DEALT_WITH;
 	}
-	else if (isBanksVisible() && y == favouriteBankRow && on) {
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	else if (isBanksVisible() && inFavouriteOrBanksColumn && y == favouriteBankRow) {
+		if (on) {
+			if (isSDRoutineActive()) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			favouritesManager.selectFavouritesBank(x);
+			favouritesChanged();
+			return ActionResult::DEALT_WITH;
 		}
-		favouritesManager.selectFavouritesBank(x);
-		favouritesChanged();
-		return ActionResult::DEALT_WITH;
 	}
 	else {
 		return QwertyUI::padAction(x, y, on);

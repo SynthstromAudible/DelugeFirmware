@@ -42,6 +42,8 @@
 #include "diskio.h"
 #include "ff.h"
 #include "libdeluge/block_device.h"
+#include "libdeluge/sd_async.h"
+#include "libdeluge/storage_wait.h" // yieldingRoutineWithTimeoutForSD
 #include "libdeluge/system.h"
 
 uint8_t currentlyAccessingCard = 0;
@@ -68,10 +70,61 @@ uint16_t ioRegGet2(volatile uint16_t* reg, uint8_t p, uint8_t q)
     return RZA_IO_RegRead_16((volatile uint16_t*)((uint32_t)reg + (p - 1) * 4), q, (uint16_t)1 << q);
 }
 
+DRESULT disk_read_without_streaming_first(BYTE pdrv, BYTE* buff, LBA_t sector, UINT count);
+static DRESULT readSectors(BYTE* buff, LBA_t sector, UINT count, bool letClustersLoadFirst);
+
+static bool asyncReadsIdle(void)
+{
+    sd_async_check_timeout(); // So a card that's stopped answering can't keep us waiting forever
+    return !sd_async_busy();
+}
+
+/// Takes the card back from the interrupt-driven Cluster reads (see sd_async.h), so we can use it ourselves. Must be
+/// paired with releaseCardFromAsyncReads().
+/// If letClustersLoadFirst, they get to read everything that's queued before we do - otherwise they just finish the
+/// one they're on.
+static void takeCardFromAsyncReads(bool letClustersLoadFirst)
+{
+    if (!letClustersLoadFirst)
+        sd_async_pause();
+
+    if (sd_async_busy())
+    {
+#ifdef USE_TASK_MANAGER
+        yieldingRoutineWithTimeoutForSD(asyncReadsIdle, 3.0);
+#endif
+        // If that couldn't wait, e.g. because we're in an interrupt
+        while (!asyncReadsIdle())
+        {
+#ifndef USE_TASK_MANAGER
+            routineForSD();
+#endif
+        }
+    }
+
+    if (letClustersLoadFirst)
+        sd_async_pause();
+
+    sd_async_recover(); // In case the last one failed
+}
+
+static void releaseCardFromAsyncReads(void)
+{
+    sd_async_resume();
+}
+
 // disk_read / disk_write (the FatFs porting symbols) live in the application
 // (audio_file_manager.cpp): they service the audio cluster-streaming queue before
 // each FatFs sector access, which is an app concern. They call *down* into the plain
 // sector I/O below, so the HAL no longer calls up into the app for streaming.
+
+/// For the application's disk_read(): like disk_read_without_streaming_first(), but any interrupt-driven Cluster reads
+/// already queued get to finish before ours (as the old HAL disk_read() did).
+DRESULT disk_read_letting_clusters_load_first(BYTE pdrv, BYTE* buff, LBA_t sector, UINT count)
+{
+    (void)pdrv;
+    return readSectors(buff, sector, count, true);
+}
 
 BYTE diskStatus = STA_NOINIT;
 
@@ -141,7 +194,9 @@ DSTATUS disk_initialize(BYTE pdrv /* Physical drive nmuber to identify the drive
 
     // Try initializing, configuring and mounting card; return on error
     currentlyAccessingCard = 1;
-    int error              = sd_init(SD_PORT, SDCFG_IP1_BASE, &initializationWorkArea[0], SD_CD_SOCKET);
+    takeCardFromAsyncReads(false);
+    int error = sd_init(SD_PORT, SDCFG_IP1_BASE, &initializationWorkArea[0], SD_CD_SOCKET);
+    releaseCardFromAsyncReads();
     currentlyAccessingCard = 0;
     if (error)
     {
@@ -163,7 +218,9 @@ processError:
         goto processError;
 
     currentlyAccessingCard = 1;
-    error                  = sd_mount(SD_PORT, SDCFG_DRIVER_MODE, SD_VOLT_3_3);
+    takeCardFromAsyncReads(false);
+    error = sd_mount(SD_PORT, SDCFG_DRIVER_MODE, SD_VOLT_3_3);
+    releaseCardFromAsyncReads();
     currentlyAccessingCard = 0;
     if (error)
         goto processError;
@@ -190,24 +247,29 @@ DRESULT disk_read_without_streaming_first(BYTE pdrv, /* Physical drive nmuber to
     UINT count                                       /* Number of sectors to read */
 )
 {
+    return readSectors(buff, sector, count, false);
+}
 
+static DRESULT readSectors(BYTE* buff, LBA_t sector, UINT count, bool letClustersLoadFirst)
+{
     BYTE err;
 
     if (currentlyAccessingCard)
     {
-        if (ALPHA_OR_BETA_VERSION)
-        {
-            // Operatricks got! But I think I fixed.
-            FREEZE_WITH_ERROR("E259");
-        }
+        // Operatricks got! But I think I fixed.
+        FREEZE_WITH_ERROR("E259");
+        // A nested transfer would clobber the one in progress - fail this read instead
+        return RES_ERROR;
     }
 
     // uint16_t startTime = MTU2.TCNT_0;
 
     currentlyAccessingCard = 1;
+    takeCardFromAsyncReads(letClustersLoadFirst);
 
     err = sd_read_sect(SD_PORT, buff, sector, count);
 
+    releaseCardFromAsyncReads();
     currentlyAccessingCard = 0;
 
     /*
@@ -243,16 +305,17 @@ DRESULT disk_write_without_streaming_first(BYTE pdrv, /* Physical drive nmuber t
 
     if (currentlyAccessingCard)
     {
-        if (ALPHA_OR_BETA_VERSION)
-        {
-            FREEZE_WITH_ERROR("E258");
-        }
+        FREEZE_WITH_ERROR("E258");
+        // A nested transfer would clobber the one in progress - fail this write instead
+        return RES_ERROR;
     }
 
     currentlyAccessingCard = 1;
+    takeCardFromAsyncReads(true);
 
     err = sd_write_sect(SD_PORT, buff, sector, count, 0x0001u);
 
+    releaseCardFromAsyncReads();
     currentlyAccessingCard = 0;
 
     if (err == 0)

@@ -36,6 +36,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/display/screensaver.h"
 #include "hid/display/seven_segment.h"
 #include "hid/encoder_input.h"
 #include "hid/encoders.h"
@@ -87,8 +88,8 @@ Song* preLoadedSong = nullptr;
 bool allowSomeUserActionsEvenWhenInCardRoutine = false;
 
 extern "C" void midiAndGateTimerGoneOff(void) {
-	cvEngine.updateGateOutputs();
-	midiEngine.flushMIDI();
+	// only sends what's due now, and re-arms the timer for anything still to come
+	AudioEngine::midiGateOutputTimerFired();
 }
 
 uint32_t timeNextGraphicsTick = 0;
@@ -226,6 +227,16 @@ extern "C" void closeUSBPeripheral(void);
 uint32_t picFirmwareVersion = 0;
 bool picSaysOLEDPresent = false;
 
+namespace Deluge {
+void factoryReset() {
+	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
+	FlashStorage::factoryReset(false);
+	runtimeFeatureSettings.factoryReset(false);
+	midiFollow.factoryReset(false);
+	MIDIDeviceManager::factoryReset(false);
+}
+} // namespace Deluge
+
 bool isShortPress(uint32_t pressTime) {
 	return ((int32_t)(AudioEngine::audioSampleTimer - pressTime) < FlashStorage::holdTime);
 }
@@ -306,6 +317,10 @@ bool readButtonsAndPads() {
 	DelugeInputEvent ev;
 	bool anything = deluge_control_poll_event(&ev);
 	if (anything) {
+		if (ev.kind == DELUGE_EVENT_PAD || ev.kind == DELUGE_EVENT_BUTTON) {
+			// Any pad or button edge counts as activity, press or release alike.
+			deluge::hid::display::Screensaver::noteActivity();
+		}
 		if (!dispatchInputEvent(ev)) {
 			return false;
 		}
@@ -466,7 +481,6 @@ void setupStartupSong() {
 			}
 		}
 		// Load song, if we got this far!
-		void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
 		currentSong->setSongFullPath(filename);
 		if (openUI(&loadSongUI)) {
 			loadSongUI.performLoad();
@@ -520,14 +534,14 @@ void registerTasks() {
 	                                                128 / 44100., "audio  routine", RESOURCE_NONE);
 	addRepeatingTask(MidiEngine::check_incoming_usb, p++, 0.0005, 0.0005, 0.001, "check usb midi", RESOURCE_USB);
 
-	// this will block itself unless an encoder is actually moved so can have a fast rate
+	// Polling both phases catches slow B-only transitions; A-edge IRQs still capture fast movement promptly.
 	encoders::EncoderTaskID = addRepeatingTask(&(encoders::interpretEncodersTask), p++, 0.001, 0.001, 0.002,
 	                                           "interpret encoders fast", RESOURCE_NONE);
 	// formerly part of audio routine, updates midi and clock
 	addRepeatingTask([]() { playbackHandler.routine(); }, p++, 0.0005, 0.001, 0.002, "playback routine", RESOURCE_NONE);
 	midiEngine.routine_task_id = addRepeatingTask([]() { playbackHandler.midiRoutine(); }, p++, 0.0005, 0.001, 0.002,
 	                                              "midi routine", RESOURCE_SD | RESOURCE_USB);
-	addRepeatingTask([]() { audioFileManager.loadAnyEnqueuedClusters(128, false); }, p++, 0.0001, 0.0001, 0.0002,
+	addRepeatingTask([]() { audioFileManager.loadAnyEnqueuedClusters(false); }, p++, 0.0001, 0.0001, 0.0002,
 	                 "load clusters", RESOURCE_NONE);
 	// handles sd card recorders
 	// named "slow" but isn't actually, it handles audio recording setup
@@ -684,9 +698,7 @@ extern "C" int32_t deluge_main(void) {
 	D_PRINTLN("PIC firmware version reported: %d", picFirmwareVersion);
 
 	if (bootInfo.factory_reset_requested) {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
-		FlashStorage::resetSettings();
-		FlashStorage::writeSettings();
+		Deluge::factoryReset();
 	}
 
 	FlashStorage::readSettings();
@@ -719,6 +731,8 @@ extern "C" int32_t deluge_main(void) {
 
 	// Hopefully we can read these files now
 	runtimeFeatureSettings.readSettingsFromFile();
+	deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled =
+	    runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundedCorners);
 	MIDIDeviceManager::readDevicesFromFile();
 	midiFollow.readDefaultsFromFile();
 	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
@@ -792,8 +806,14 @@ extern "C" int32_t deluge_main(void) {
 	uiTimerManager.setTimer(TimerName::GRAPHICS_ROUTINE, 50);
 
 	D_PRINTLN("going into main loop");
-	deluge_board_unlock_data_cache();
+	deluge_board_unlock_data_cache(GeneralMemoryAllocator::get().stealableSectionsStart,
+	                               GeneralMemoryAllocator::get().stealableSectionsEnd);
 	// (The SD-routine reentrancy flag is scheduler-owned and starts clear; no reset needed here.)
+
+	// Settings have been read and the UI is up: start the idle countdown.
+	if (hid::display::have_oled_screen) {
+		deluge::hid::display::Screensaver::settingsChanged();
+	}
 
 #ifdef USE_TASK_MANAGER
 	registerTasks();

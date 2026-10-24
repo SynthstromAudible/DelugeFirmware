@@ -28,11 +28,12 @@ bool WaveTableBandData::mayBeStolen(void* thingNotToStealFrom) {
 }
 
 void WaveTableBandData::steal(char const* errorCode) {
-#if ALPHA_OR_BETA_VERSION
 	if (!waveTable || waveTable->numReasonsToBeLoaded) {
 		FREEZE_WITH_ERROR("E387");
+		if (!waveTable) {
+			return; // No WaveTable to notify or delete
+		}
 	}
-#endif
 
 	// Tell the WaveTable that we're the BandData being stolen, so it won't deallocate us - our caller will do that.
 	waveTable->bandDataBeingStolen(this);

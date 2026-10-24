@@ -50,8 +50,6 @@ struct Slot {
 	int8_t subSlot;
 };
 
-#define NUM_FILES_ON_SCREEN 3
-
 #define CATALOG_SEARCH_LEFT 0
 #define CATALOG_SEARCH_RIGHT 1
 #define CATALOG_SEARCH_BOTH 2
@@ -86,6 +84,27 @@ public:
 	static void deleteSomeFileItems(int32_t startAt, int32_t stopAt);
 	static void deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement = Availability::ANY);
 	Error getUnusedSlot(OutputType outputType, String* newName, char const* thingName);
+	/// @brief Surveys currentDir in one pass for the existing variations of a name.
+	///
+	/// Reads the folder directly rather than fileItems, keeping only the two summaries. fileItems is a window around
+	/// whichever file the browser is sitting on (FILE_ITEMS_MAX_NUM_ELEMENTS), and a member of a name family can be
+	/// any distance from that in sort order, so it cannot answer this.
+	///
+	/// @pre currentDir names the folder to survey.
+	/// @param stem            The name the variations extend.
+	/// @param highestNumbered If non-null, receives the greatest name of the form "<stem><digits>", or is left empty
+	///                        when the folder holds none.
+	/// @param takenLetters    If non-null, receives a bit per existing "<stem><letter>", bit 0 meaning 'A'.
+	/// @return Error::NONE, or the card error that cut the pass short - in which case both outputs still hold what
+	///         had been found so far, neither of which can overstate the truth.
+	/// @see fileItemsAreComplete(), which says when this pass can be skipped entirely.
+	static Error surveyNameVariations(char const* stem, String* highestNumbered, uint32_t* takenLetters);
+
+	/// @brief Whether fileItems holds every file the folder listed, rather than a culled window of them.
+	///
+	/// @return True when questions about the whole folder can be answered from fileItems alone, without going back
+	///         to the card.
+	static bool fileItemsAreComplete() { return !numFileItemsDeletedAtStart && !numFileItemsDeletedAtEnd; }
 	bool opened() override;
 	void cullSomeFileItems();
 	bool checkFP();
@@ -127,6 +146,8 @@ protected:
 	virtual void folderContentsReady(int32_t entryDirection) {}
 	virtual void currentFileChanged(int32_t movementDirection) {}
 	void displayText(bool blinkImmediately = false) override;
+	// Keeps the selected file index and top visible browser row inside Browser::fileItems.
+	void clampFileSelectionAndScroll(bool allowNoFileSelection = true);
 	static Slot getSlot(char const* displayName);
 	/// Returns the character just past filePrefix within `name`, or nullptr if `name` does not start with filePrefix.
 	/// Names always carry the prefix; only *rendering* strips it.

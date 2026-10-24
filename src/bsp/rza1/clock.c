@@ -57,6 +57,10 @@ uint64_t deluge_clock_monotonic_hz(void) {
 	return MONOTONIC_TICKS_PER_SECOND;
 }
 
+uint32_t deluge_clock_system_ticks(void) {
+	return ostmGetTimerValue(MONOTONIC_TIMER);
+}
+
 uint64_t deluge_clock_monotonic(void) {
 	// 32-bit OSTM extended to 64-bit by accumulating rollover. Single-context
 	// (scheduler) reads only, so the rollover state needs no locking; the relocated

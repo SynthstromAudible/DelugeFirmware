@@ -501,6 +501,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 		else {
 			phaseIncrement = source->fineTuner.detune(phaseIncrement);
 		}
+		phaseIncrement = sound.fineTuner.detune(phaseIncrement); // master transpose
 
 		// If only one unison
 		if (sound.numUnison == 1) {
@@ -545,6 +546,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 
 			// Cents
 			phaseIncrement = sound.modulatorTransposers[m].detune(phaseIncrement);
+			phaseIncrement = sound.fineTuner.detune(phaseIncrement); // master transpose
 
 			// If only one unison
 			if (sound.numUnison == 1) {
@@ -1704,7 +1706,7 @@ bool Voice::areAllUnisonPartsInactive(ModelStackWithSoundFlags& modelStack) cons
 bool Voice::adjustPitch(uint32_t& phaseIncrement, int32_t adjustment) {
 	if (adjustment != kMaxSampleValue) {
 		int32_t output = multiply_32x32_rshift32_rounded(phaseIncrement, adjustment);
-		if (output >= (1 << 24)) {
+		if (output >= (1 << 23)) {
 			return false;
 		}
 		phaseIncrement = output << 8;
@@ -2095,8 +2097,8 @@ pitchTooHigh:
 					    >> 24;
 				}
 
-				LateStartAttemptStatus result =
-				    voiceSample->attemptLateSampleStart(&guides[s], sample, rawSamplesLate, numSamples);
+				LateStartAttemptStatus result = voiceSample->attemptLateSampleStart(&guides[s], sample, rawSamplesLate,
+				                                                                    getPriorityRating(), numSamples);
 
 				if (result == LateStartAttemptStatus::FAILURE) {
 					goto instantUnassign;
@@ -2507,41 +2509,29 @@ bool Voice::doFastRelease(uint32_t releaseIncrement) {
 	}
 }
 
-bool Voice::forceNormalRelease() {
-	if (doneFirstRender) {
-		// If no release-stage, we'll stop as soon as we can
-		if (!hasReleaseStage()) {
-			envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, SOFT_CULL_INCREMENT);
-		}
-		// otherwise we'll just let it get there on its own
-		else {
-			envelopes[0].unconditionalRelease();
-		}
-		return true;
-	}
-
-	// Or if first render not done yet, we actually don't want to hear anything at all, so just unassign it
-	else {
+bool Voice::speedUpRelease(uint32_t minFastReleaseIncrement) {
+	if (!doneFirstRender) {
 		return false;
 	}
-}
 
-bool Voice::speedUpRelease() {
 	auto stage = envelopes[0].state;
 	if (stage == EnvelopeStage::RELEASE) {
 		auto currentRelease = paramFinalValues[params::LOCAL_ENV_0_RELEASE];
-		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, currentRelease * 2);
+		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE,
+		                                  std::max<uint32_t>(currentRelease * 2, minFastReleaseIncrement));
 		return true;
 	}
 	else if (stage == EnvelopeStage::FAST_RELEASE) {
 		auto currentRelease = envelopes[0].fastReleaseIncrement;
-		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, currentRelease * 2);
+		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE,
+		                                  std::max<uint32_t>(currentRelease * 2, minFastReleaseIncrement));
 		return true;
 	}
 
-	// Or if we're not releasing just start the release
+	// Cull-driven release must not inherit a patch's long musical release, or culled voices can stack up.
 	else {
-		return forceNormalRelease();
+		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, minFastReleaseIncrement);
+		return true;
 	}
 }
 

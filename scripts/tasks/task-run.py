@@ -158,11 +158,11 @@ def upload(serial_mod, port_path, frame):
 def main():
     try:
         import serial
-        import serial.tools.list_ports as list_ports
+        from serial.tools import list_ports
     except ImportError:
         util.install_pyserial()
         import serial
-        import serial.tools.list_ports as list_ports
+        from serial.tools import list_ports
 
     args = argparser().parse_args()
 

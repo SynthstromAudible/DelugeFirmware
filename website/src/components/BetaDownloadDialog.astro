@@ -3,6 +3,11 @@ import { getEntry, render } from "astro:content"
 
 const {
   downloadUrl = "https://github.com/SynthstromAudible/DelugeFirmware/releases/download/beta/beta.zip",
+  label = "Download today's beta build",
+  title = "Today's beta changelog",
+  description = "Review the current beta changes, then continue to the build when you're ready.",
+  continueLabel = "Continue to beta download",
+  bugReportUrl,
 } = Astro.props
 
 const changelog = await getEntry("docs", "changelogs/changelog")
@@ -21,7 +26,7 @@ const { Content } = await render(changelog)
   rel="noopener noreferrer"
   data-beta-changelog-trigger
 >
-  Download today's beta build
+  {label}
 </a>
 
 <dialog
@@ -29,16 +34,25 @@ const { Content } = await render(changelog)
   aria-labelledby="beta-changelog-title"
   aria-describedby="beta-changelog-description"
   data-beta-changelog-dialog
+  data-pagefind-ignore
 >
   <div class="beta-download-dialog__panel">
     <header class="beta-download-dialog__header">
       <div>
         <p class="beta-download-dialog__eyebrow">Read before downloading</p>
-        <h2 id="beta-changelog-title">Today's beta changelog</h2>
-        <p id="beta-changelog-description">
-          Review the current beta changes, then continue to the build when
-          you're ready.
-        </p>
+        <h2 id="beta-changelog-title">{title}</h2>
+        <p id="beta-changelog-description">{description}</p>
+        {
+          bugReportUrl && (
+            <p>
+              Found a bug? Please{" "}
+              <a href={bugReportUrl} target="_blank" rel="noopener noreferrer">
+                report it on GitHub
+              </a>{" "}
+              with detailed steps to reproduce it.
+            </p>
+          )
+        }
       </div>
       <button
         class="beta-download-dialog__close"
@@ -64,7 +78,7 @@ const { Content } = await render(changelog)
         target="_blank"
         rel="noopener noreferrer"
       >
-        Continue to beta download
+        {continueLabel}
       </a>
       <button
         class="beta-download-dialog__secondary"
@@ -259,6 +273,11 @@ const { Content } = await render(changelog)
 
   .beta-download-dialog__content :global(> :first-child) {
     margin-top: 0;
+  }
+
+  /* The dialog header already establishes that this is a changelog preview. */
+  .beta-download-dialog__content :global(#recent-changes) {
+    display: none;
   }
 
   .beta-download-dialog__download {
