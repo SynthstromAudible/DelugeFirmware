@@ -154,8 +154,9 @@ def run_image(
 ) -> dict[str, list[dict]]:
     """Boot `elf`, play `script`, and return {snapshot name: the distinct panels it showed, first-seen order}.
 
-    With `audio_wav`, the codec output goes to out/audio.wav, and out/times.json holds each snapshot's window as
-    virtual ns from the start of the run (the WAV's first sample)."""
+    With `audio_wav`, the codec output goes to out/audio.wav (through delugemu's drift resampler) and, bit-exact as
+    the firmware wrote its TX ring, to out/raw.s32 (S32LE stereo); out/times.json holds each snapshot's window in
+    virtual ns."""
     from delugemu import DelugeSession
 
     out.mkdir(parents=True, exist_ok=True)
@@ -179,6 +180,8 @@ def run_image(
     times = {}
     # QEMU keeps its -snapshot overlay in TMPDIR: on disk beside the artifacts, not in a RAM-backed /tmp.
     env = dict(os.environ, TMPDIR=str(out))
+    if audio_wav:
+        env["DELUGEMU_SSIF_DUMP"] = str(out / "raw.s32")
     with DelugeSession.launch(
         firmware=str(elf),
         sd=str(sd),
@@ -282,14 +285,62 @@ def describe(ref: dict, test: dict) -> list[str]:
     return out
 
 
+def parts(panels: list[dict]) -> dict[str, set[str]]:
+    """The values each part of the panel showed over a window: the OLED, the pads, the knob rings, and every LED
+    on its own. Compared part by part, a blink's phase against another LED's, or a sample landing between two LED
+    writes, is not a difference; every value either image showed still has to appear on both."""
+    out: dict[str, set[str]] = {}
+    for p in panels:
+        for name in ("oled", "pads", "gold"):
+            out.setdefault(name, set()).add(json.dumps(p[name]))
+        for led, value in p["leds"].items():
+            out.setdefault(f"LED {led}", set()).add(json.dumps(value))
+    return out
+
+
 def differences(ref: list[dict], test: list[dict]) -> list[str]:
-    """How two snapshots' sets of panels differ; empty when each image showed the same panels."""
-    if {key(p) for p in ref} == {key(p) for p in test}:
+    """How two snapshots' windows differ, part by part; empty when every part showed the same values on both."""
+    a, b = parts(ref), parts(test)
+    differing = sorted(
+        name for name in a.keys() | b.keys() if a.get(name) != b.get(name)
+    )
+    if not differing:
         return []
-    out = describe(ref[0], test[0])
-    if len(ref) != len(test):
-        out.append(f"{len(ref)} panel state(s) vs {len(test)} over the window")
-    return out or ["the same first panel, different panels later in the window"]
+    # Describe by the first panel of each window that shows a value the other image never showed.
+    only_ref = next(
+        (
+            p
+            for p in ref
+            if any(
+                json.dumps(p[n]) not in b.get(n, set())
+                for n in ("oled", "pads", "gold")
+            )
+        ),
+        ref[0],
+    )
+    only_test = next(
+        (
+            p
+            for p in test
+            if any(
+                json.dumps(p[n]) not in a.get(n, set())
+                for n in ("oled", "pads", "gold")
+            )
+        ),
+        test[0],
+    )
+    out = [d for d in describe(only_ref, only_test) if not d.startswith("LEDs differ")]
+    leds = [n for n in differing if n.startswith("LED ")]
+    for name in leds:
+        out.append(
+            f"{name}: {sorted(a.get(name, set()))} vs {sorted(b.get(name, set()))}"
+        )
+    for name in ("oled", "pads", "gold"):
+        if name in differing and len(a.get(name, ())) != len(b.get(name, ())):
+            out.append(
+                f"{name}: {len(a.get(name, ()))} value(s) vs {len(b.get(name, ()))} over the window"
+            )
+    return out or ["the same values on both, in different panels"]
 
 
 def main() -> int:
@@ -328,7 +379,7 @@ def main() -> int:
     ap.add_argument(
         "--audio-wav",
         action="store_true",
-        help="write each image's audio output to audio.wav (virtual-clock paced) beside its snapshots",
+        help="write each image's audio to raw.s32 (bit-exact, as its TX ring held it) and audio.wav beside its snapshots",
     )
     ap.add_argument("scripts", nargs="+", type=Path)
     args = ap.parse_args()
