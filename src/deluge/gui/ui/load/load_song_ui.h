@@ -257,11 +257,14 @@ private:
 
 	/// @brief Everything that has to happen once a render has actually filled the destination image.
 	///
-	/// Starts the scroll-in owed to @ref pendingScrollDirection_ and asks for a repaint. Runs even
-	/// when nothing was drawn (a blank song, a folder, or the QWERTY overlay suppressing the render):
-	/// the scroll direction is owed by the cursor move, not by the artwork, and leaving it parked
-	/// wedges the browser mid-scroll.
-	void finishPreviewRender();
+	/// Starts the scroll-in owed to @ref pendingScrollDirection_; otherwise shows the preview, unless a
+	/// scroll in progress brings it in. Sends only this UI's pads and sidebar, as the synchronous
+	/// render did: a whole-UI repaint would draw the view underneath's sidebar over the browser. Runs
+	/// even when nothing was drawn (a blank song, a folder, or the QWERTY overlay suppressing the
+	/// render): the scroll direction is owed by the cursor move, not by the artwork, and leaving it
+	/// parked wedges the browser mid-scroll.
+	/// @param toStore Whether the render went to PadLEDs::imageStore (for a scroll) rather than PadLEDs::image.
+	void finishPreviewRender(bool toStore);
 
 	void displayArmedPopup();
 
