@@ -443,7 +443,8 @@ ShortcutPos shortcut_pos(MenuContext::Root root, const Node& node) {
 	// Second layer first, the order `updatePadLightsFor` scans in (`sound_editor.cpp:905` before
 	// `:872`) -- an item that is in both layers blinks at the pad it is reached from second.
 	if (l.second != l.first) {
-		if (const ShortcutPos pos = find_in(*l.second, node); pos.valid) {
+		if (ShortcutPos pos = find_in(*l.second, node); pos.valid) {
+			pos.second_layer = true;
 			return pos;
 		}
 	}

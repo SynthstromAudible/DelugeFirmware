@@ -19,6 +19,7 @@
 #include "board_config.h"
 #include "board_layout.hpp"
 #include "gfx/grid/rgb.h"
+#include "shell/scene_stack.h"
 #include "shell/surfaces.h"
 
 #include <array>
@@ -153,7 +154,29 @@ public:
 	/// declares is sent on its first tick, and a release restores only a state saved in this session.
 	void begin_session();
 
+	/// @brief Watch @p stack for whether any scene owns the pads.
+	/// @param stack The shell's stack, which outlives this object's use of it.
+	void observe(const deluge::ui::shell::SceneStack& stack) { stack_ = &stack; }
+
+	/// @brief Does a scene on the watched stack own the pads (`Scene::draws_pads`)?
+	///
+	/// While none does, the pads are the UI underneath's: `send_columns` writes nothing to
+	/// `PadLEDs::image` and turns each pad the overlays light into a `PadLEDs::flashMainPad`.
+	/// @return True when one does, or when no stack is watched.
+	bool grid_owned() const;
+
+	/// @brief Write the whole shell grid into `PadLEDs::image` and send every column pair: the pads
+	///        become the guest's after the UI underneath has drawn them.
+	void take_grid();
+
 private:
+	/// @brief Flash pad (@p x, @p y) if @p colour lights it and it was dark.
+	void flash_if_lit(uint8_t x, uint8_t y, RGB colour);
+
+	/// The stack `grid_owned` reads, or null for "always owned".
+	const deluge::ui::shell::SceneStack* stack_ = nullptr;
+	/// Which pads the overlays lit at the last send while no scene owned the grid.
+	std::array<std::array<bool, kDisplayWidth + kSideBarWidth>, kDisplayHeight> lit_{};
 	/// Number of `indicator_leds::LED` values: `NUM_LED_COLS * NUM_LED_ROWS`.
 	static constexpr size_t kLegacyLeds = NUM_LED_COLS * NUM_LED_ROWS;
 	/// Whether the guest has written each LED since it last handed it back.

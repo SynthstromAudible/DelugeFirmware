@@ -40,6 +40,9 @@ struct ShortcutPos {
 	uint8_t y = 0;
 	/// False when the node has no shortcut pad in @p root's table at all.
 	bool valid = false;
+	/// True when the pad is the node's in the second layer, which legacy blinks yellow
+	/// (`sound_editor.cpp:1119`).
+	bool second_layer = false;
 };
 
 /// @brief One root's shortcut layer: `kShortcutCols * kShortcutRows` cells, addressed

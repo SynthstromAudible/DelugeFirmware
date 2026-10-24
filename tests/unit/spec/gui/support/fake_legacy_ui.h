@@ -46,6 +46,14 @@ extern int mod_encoder_actions;
 extern int mod_button_actions;
 extern int mod_encoder_button_actions;
 extern int graphics_routines;
+/// @brief One recorded `uiNeedsRendering` call.
+struct RenderRequest {
+	UI* ui;
+	uint32_t main_rows;
+	uint32_t side_rows;
+};
+/// Every `uiNeedsRendering(ui, main, side)` call, in order.
+extern std::vector<RenderRequest> render_requests;
 /// @}
 
 /// @brief One recorded `UITimerManager::setTimer` call.

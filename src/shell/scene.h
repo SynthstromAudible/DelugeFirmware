@@ -424,6 +424,14 @@ public:
 	/// @return True (the default, for any grid overlay) to dim what is beneath; false to leave it
 	///         exactly as the base painted it.
 	virtual bool dims_grid() const { return is_grid_overlay(); }
+	/// @brief Does this scene draw pads of its own, rather than leaving every pad to what is beneath?
+	///
+	/// A host that shares the pads with another owner (`gui/ui/shell_host_ui.h`'s guest) hands them
+	/// to that owner while no scene on its stack draws any. An overlay that paints pads over what is
+	/// beneath -- a keyboard, a waveform -- answers true; one whose only grid pixels are a shortcut
+	/// blink, or none at all, keeps the default.
+	/// @return `!is_grid_overlay()` by default.
+	virtual bool draws_pads() const { return !is_grid_overlay(); }
 	/// @brief Should the scene beneath still draw \p role, with this scene drawn over it?
 	/// @param role The surface in question.
 	virtual bool oled_transparent(SurfaceRole role) const { return false; }

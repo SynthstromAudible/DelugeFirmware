@@ -165,11 +165,65 @@ void GuestSurfaceSet::send_columns(uint8_t pair_index, const ColumnPair& pair) {
 	// fewer rows silently reading the second column from the wrong offset.
 	const uint8_t rows =
 	    std::min<uint8_t>(std::min<uint8_t>(grid().grid().dims().rows, kColumnPairLeds / 2), kDisplayHeight);
+	if (!grid_owned()) {
+		// The pads are the UI underneath's, as under `SoundEditor`, which draws none
+		// (`renderMainPads` answers "show root UI", `sound_editor.cpp:217-247`). What an overlay
+		// paints is its shortcut blink, which legacy flashes on the PIC instead
+		// (`SoundEditor::blinkShortcut`, `:1227-1262`): one flash as each pad lights.
+		for (uint8_t y = 0; y < rows; y++) {
+			flash_if_lit(x0, y, pair.colours[y]);
+			flash_if_lit(x1, y, pair.colours[rows + y]);
+		}
+		return;
+	}
 	for (uint8_t y = 0; y < rows; y++) {
 		PadLEDs::image[y][x0] = pair.colours[y];
 		PadLEDs::image[y][x1] = pair.colours[rows + y];
 	}
 	PadLEDs::sortLedsForCol(x0);
+}
+
+void GuestSurfaceSet::flash_if_lit(uint8_t x, uint8_t y, RGB colour) {
+	const bool now = colour.r != 0 || colour.g != 0 || colour.b != 0;
+	bool& was = lit_[y][x];
+	if (now && !was) {
+		// `blinkShortcut`'s two colours: the default flash for a first-layer item and yellow,
+		// `0b00000011`, for a second-layer one (`sound_editor.cpp:1119`, `:1144`). The overlay paints
+		// yellow with almost no blue, which the shell's greyout leaves below half the green.
+		const bool yellow = colour.b * 2 < colour.g;
+		PadLEDs::flashMainPad(x, y, yellow ? 0b00000011 : 0);
+	}
+	was = now;
+}
+
+bool GuestSurfaceSet::grid_owned() const {
+	if (stack_ == nullptr) {
+		return true;
+	}
+	for (const deluge::ui::shell::Scene* scene : stack_->scenes()) {
+		if (scene->draws_pads()) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void GuestSurfaceSet::take_grid() {
+	const deluge::gfx::grid::PadGrid& g = grid().grid();
+	const int32_t rows = std::min<int32_t>(g.dims().rows, kDisplayHeight);
+	const int32_t cols = std::min<int32_t>(g.dims().cols(), kDisplayWidth + kSideBarWidth);
+	for (int32_t y = 0; y < rows; y++) {
+		for (int32_t x = 0; x < cols; x++) {
+			PadLEDs::image[y][x] = g.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
+		}
+	}
+	for (int32_t x = 0; x + 1 < cols; x += 2) {
+		PadLEDs::sortLedsForCol(x);
+	}
+	deluge_control_flush();
+	for (auto& row : lit_) {
+		row.fill(false);
+	}
 }
 
 void GuestSurfaceSet::set_led(uint8_t board_led, bool on) {
@@ -205,6 +259,11 @@ void GuestSurfaceSet::release_led(uint8_t board_led) {
 void GuestSurfaceSet::begin_session() {
 	held_.fill(false);
 	leds().sent_once.fill(false);
+	// Legacy has drawn the pads since too: the session's first flush sends every column pair.
+	std::fill(std::begin(grid().sent_once), std::end(grid().sent_once), false);
+	for (auto& row : lit_) {
+		row.fill(false);
+	}
 }
 
 void GuestSurfaceSet::set_indicator(uint8_t which, const KnobIndicator& indicator) {

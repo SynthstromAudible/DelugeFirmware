@@ -434,19 +434,21 @@ private:
 	/// @param image     Legacy's pad image, or null for the opacity-query form.
 	/// @param x0        First grid/image column to copy.
 	/// @param x1        One past the last.
-	/// @return The top scene's opacity -- see `opaque()`.
+	/// @return `opaque()`. While it is false nothing is written: the pads are the UI underneath's.
 	bool serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth], int32_t x0, int32_t x1);
 
-	/// @brief Is the shell's top scene opaque over the pads, in legacy's sense?
+	/// @brief Does the guest own the pads, in legacy's sense of opaque?
 	///
 	/// Legacy's `renderMainPads`/`renderSidebar` return "did I use these rows up": false means
 	/// *transparent*, "obey the UI under me" (`gui/ui/ui.h:140-142`). Spec F §2.2 states the dual
 	/// of this mapping for the phase-5 adapter -- `is_grid_overlay()` is `!renderMainPads()` -- so
-	/// this is that same equivalence read in the guest direction.
+	/// this is that same equivalence read in the guest direction, over the whole stack: the guest
+	/// owns the pads while any stacked scene draws some (`Scene::draws_pads`,
+	/// `GuestSurfaceSet::grid_owned`).
 	///
-	/// `MenuScene::is_grid_overlay()` is true (`scenes/menu/menu_scene.h:505-506`), so the first
-	/// tenant answers **false** here, which is exactly what `SoundEditor` answers: it does not
-	/// override either hook, so it takes `UI`'s `return false`.
+	/// `MenuScene::is_grid_overlay()` is true (`scenes/menu/menu_scene.h:505-506`), so a menu alone
+	/// answers **false** here, which is exactly what `SoundEditor` answers: it does not override
+	/// `renderSidebar`, and its `renderMainPads` answers false (`gui/ui/sound_editor.cpp:217-247`).
 	bool opaque();
 
 	/// @brief The shell's clock, in milliseconds, for every hook that has to stamp one.
@@ -547,6 +549,18 @@ private:
 	/// have forwarded.
 	bool claimsGridPad(int32_t x, int32_t y, int32_t velocity);
 
+	/// @brief Hand the pads between legacy and the guest when the stack changes who owns them, and
+	///        re-read the greyout when the stack changes it.
+	///
+	/// A scene coming to own the pads takes all of them (`GuestSurfaceSet::take_grid`); the last one
+	/// going asks legacy to draw the UI underneath again. Legacy re-reads the greyout only when a UI
+	/// opens or closes (`PadLEDs::reassessGreyout`), so the guest asks again when its own stack moves.
+	void syncPads();
+
+	/// @brief The greyout the guest reports: every stacked scene's mask, ORed, while it draws no
+	///        pads; none while it draws some, which the shell greys itself.
+	deluge::ui::grid::GreyoutMask greyoutMask();
+
 	/// The scene `opened()` pushes; `SceneKind::Null` until a caller sets one.
 	deluge::ui::shell::SceneId initial_{};
 	/// The hook `closeGuest()` runs; see `CloseHook`.
@@ -561,6 +575,9 @@ private:
 	deluge::ui::shell::ShellConfig config_{};
 	GuestSurfaceSet surfaces_;
 	deluge::ui::shell::Shell shell_;
+	/// `opaque()` and the top scene's greyout mask when `syncPads` last ran.
+	bool padsOwned_ = true;
+	deluge::ui::grid::GreyoutMask padsGreyout_{};
 };
 
 } // namespace deluge::gui::ui

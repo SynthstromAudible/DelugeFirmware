@@ -2,16 +2,16 @@ led AffectEntire on
 led Clip on
 led Kit on
 led Mod1 on
-pad 16 0 0 255 6
-pad 16 1 0 255 6
-pad 16 2 0 255 6
-pad 16 3 0 255 6
-pad 16 4 0 255 6
-pad 16 5 0 255 6
-pad 16 6 0 255 6
-pad 16 7 0 255 6
-pad 17 0 51 0 204
-pad 17 7 0 25 230
+pad 16 0 6 65 8
+pad 16 1 6 65 8
+pad 16 2 6 65 8
+pad 16 3 6 65 8
+pad 16 4 6 65 8
+pad 16 5 6 65 8
+pad 16 6 6 65 8
+pad 16 7 6 65 8
+pad 17 0 18 6 53
+pad 17 7 6 12 59
 pad 2 4 71 71 111
 indicator lower 72 0 0 0
 indicator upper 255 255 64 0

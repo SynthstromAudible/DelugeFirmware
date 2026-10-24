@@ -67,6 +67,12 @@ public:
 	}
 
 	void render_grid(deluge::ui::grid::GridFrame& frame) override {
+		if (sparse) {
+			for (const auto& [x, y] : lit) {
+				(void)frame.pad(x, y, lit_colour);
+			}
+			return;
+		}
 		const deluge::gfx::grid::Rect b = frame.bounds();
 		for (int32_t y = 0; y < b.h; y++) {
 			for (int32_t x = 0; x < b.w; x++) {
@@ -148,6 +154,11 @@ public:
 		           static_cast<uint8_t>(1 + x + y * 3)};
 	}
 
+	/// When set, `render_grid` paints only the pads in `lit`, in `lit_colour` -- a menu's blink
+	/// rather than a full frame.
+	bool sparse = false;
+	std::vector<std::pair<int32_t, int32_t>> lit;
+	RGB lit_colour{130, 120, 130};
 	bool overlay = false;
 	bool occludes = false;
 	bool passive = false;
@@ -731,11 +742,132 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(static_cast<::UI&>(r.guest).renderMainPads()).to_be_true();
 		expect(static_cast<::UI&>(r.guest).renderSidebar()).to_be_true();
 
-		// And it is the TOP scene that answers, not the root: push an overlay over a base that is
-		// not one, and the answer flips.
+		// An overlay over a scene that owns the pads leaves them owned: the shell composes the
+		// overlay onto that scene's frame (`Shell::render_grid` from `grid_base()`).
 		r.over.overlay = true;
 		expect(r.guest.shell().stack().push(SceneId{kOver, 0})).to_be_true();
+		expect(static_cast<::UI&>(r.guest).renderMainPads()).to_be_true();
+
+		// Only when no scene owns them is the guest transparent.
+		r.base.overlay = true;
 		expect(static_cast<::UI&>(r.guest).renderMainPads()).to_be_false();
+	});
+
+	// ---- pads under an overlay-only stack: the root view's, as under `SoundEditor` ----------------
+
+	it("leaves legacy's pad image to the UI underneath while no scene owns the grid", _ {
+		Rig r;
+		r.base.overlay = true;
+		expect(r.open()).to_be_true();
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
+				PadLEDs::image[y][x] = RGB{9, 8, 7}; // the root view's pads
+			}
+		}
+		r.guest.surfaces().grid().gate.request_repaint();
+		r.guest.shell().tick(0);
+		// `SoundEditor::renderMainPads` answers false ("show root UI") and writes nothing; it has no
+		// `renderSidebar` (`UI`'s default false).
+		expect(static_cast<::UI&>(r.guest).renderMainPads(0xFFFFFFFF, PadLEDs::image, PadLEDs::occupancyMask))
+		    .to_be_false();
+		expect(static_cast<::UI&>(r.guest).renderSidebar(0xFFFFFFFF, PadLEDs::image, PadLEDs::occupancyMask))
+		    .to_be_false();
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
+				expect(PadLEDs::image[y][x] == RGB{9, 8, 7}).to_be_true();
+			}
+		}
+		expect(fakelegacy::column_sends.empty()).to_be_true();
+	});
+
+	it("flashes a pad once as it lights while no scene owns the grid, yellow for a yellow pad", _ {
+		Rig r;
+		r.base.overlay = true;
+		r.base.sparse = true;
+		expect(r.open()).to_be_true();
+		const auto tick = [&](uint32_t now) {
+			r.guest.surfaces().grid().gate.request_repaint();
+			r.guest.shell().tick(now);
+		};
+		tick(0);
+		expect(fakelegacy::pad_flashes.empty()).to_be_true();
+
+		// `SoundEditor::blinkShortcut` flashes the pad through `PadLEDs::flashMainPad`, index
+		// `y + x * kDisplayHeight`, colour 0 for a first-layer item (`sound_editor.cpp:1227-1262`).
+		r.base.lit = {{3, 2}};
+		tick(10);
+		expect(fakelegacy::pad_flashes.size()).to_equal(size_t(1));
+		const fakelegacy::PadFlash none{255, -1};
+		expect(nth_or(fakelegacy::pad_flashes, 0, none).idx).to_equal(uint8_t(2 + 3 * kDisplayHeight));
+		expect(nth_or(fakelegacy::pad_flashes, 0, none).colour).to_equal(int32_t(0));
+
+		tick(20); // still lit: no second flash
+		expect(fakelegacy::pad_flashes.size()).to_equal(size_t(1));
+		r.base.lit = {};
+		tick(30);
+		expect(fakelegacy::pad_flashes.size()).to_equal(size_t(1));
+
+		// A second-layer item flashes yellow, `0b00000011` (`sound_editor.cpp:1119`).
+		r.base.lit = {{3, 2}};
+		r.base.lit_colour = RGB{130, 120, 0};
+		tick(40);
+		expect(fakelegacy::pad_flashes.size()).to_equal(size_t(2));
+		expect(nth_or(fakelegacy::pad_flashes, 1, none).colour).to_equal(int32_t(0b00000011));
+		expect(fakelegacy::column_sends.empty()).to_be_true();
+	});
+
+	it("on opening over an overlay-only stack, asks legacy to draw the root's pads and re-reads the greyout", _ {
+		// `SoundEditor::opened` calls `uiNeedsRendering(this, 0xFFFFFFFF, 0)` (`sound_editor.cpp:498`),
+		// and `openUI` re-reads the greyout before `opened()` -- when the guest's stack is still empty --
+		// so the guest re-reads it once its scene is on.
+		Rig r;
+		r.base.overlay = true;
+		r.base.greyout = deluge::ui::grid::GreyoutMask{0xFFFFFFFE, 0};
+		expect(r.open()).to_be_true();
+		const fakelegacyui::RenderRequest none{nullptr, 0, 0xDEAD};
+		expect(fakelegacyui::render_requests.size()).to_equal(size_t(1));
+		expect(nth_or(fakelegacyui::render_requests, 0, none).ui == &r.guest).to_be_true();
+		expect(nth_or(fakelegacyui::render_requests, 0, none).main_rows).to_equal(uint32_t(0xFFFFFFFF));
+		expect(nth_or(fakelegacyui::render_requests, 0, none).side_rows).to_equal(uint32_t(0));
+		expect(fakelegacy::greyout_reassessments).to_equal(1);
+	});
+
+	it("takes every pad when a scene comes to own the grid, and hands them back when it goes", _ {
+		Rig r;
+		r.base.overlay = true;
+		r.base.sparse = true;
+		expect(r.open()).to_be_true();
+		r.guest.shell().tick(0);
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
+				PadLEDs::image[y][x] = RGB{9, 8, 7}; // the root view's pads
+			}
+		}
+		const int reassessed = fakelegacy::greyout_reassessments;
+
+		// A scene that owns the pads but paints them all black: no pair of the shell's grid changes,
+		// and still every pad must leave the root view's colours.
+		r.over.sparse = true;
+		expect(r.guest.shell().stack().push(SceneId{kOver, 0})).to_be_true();
+		set_clock_ms(10);
+		(void)r.guest.timerCallback();
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
+				expect(PadLEDs::image[y][x] == RGB{0, 0, 0}).to_be_true();
+			}
+		}
+		expect(fakelegacy::greyout_reassessments).to_equal(reassessed + 1);
+
+		// And back: the UI underneath is asked to draw every pad again.
+		r.guest.shell().stack().pop(kOver);
+		const size_t requests = fakelegacyui::render_requests.size();
+		set_clock_ms(20);
+		(void)r.guest.timerCallback();
+		const fakelegacyui::RenderRequest none{nullptr, 0, 0};
+		expect(fakelegacyui::render_requests.size()).to_equal(requests + 1);
+		expect(nth_or(fakelegacyui::render_requests, requests, none).main_rows).to_equal(uint32_t(0xFFFFFFFF));
+		expect(nth_or(fakelegacyui::render_requests, requests, none).side_rows).to_equal(uint32_t(0xFFFFFFFF));
+		expect(fakelegacy::greyout_reassessments).to_equal(reassessed + 2);
 	});
 
 	// ---- canSeeViewUnderneath, which is NOT the OLED question --------------------------------
@@ -762,8 +894,9 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 	// ---- greyout ------------------------------------------------------------------------------
 
-	it("forwards the top scene's greyout mask, and obeys the UI underneath for an empty one", _ {
+	it("forwards the stacked scenes' greyout mask, and obeys the UI underneath for an empty one", _ {
 		Rig r;
+		r.base.overlay = true; // a menu: it draws no pads, so legacy greys the root's
 		expect(r.open()).to_be_true();
 
 		// `MenuScene::greyout_mask` spells legacy's `doGreyout == false` as an all-zero mask
@@ -795,14 +928,24 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(cols).to_equal(uint32_t(0));
 		expect(rows).to_equal(uint32_t(0x00000080));
 
-		// And it is the top scene that is asked: an overlay's own mask replaces the base's.
+		// And every stacked scene's mask counts, ORed, as the shell greys its own grid: a popup over
+		// the menu leaves the menu's greyout standing.
+		r.over.overlay = true;
 		r.over.greyout = {0x0000000Fu, 0u};
 		expect(r.guest.shell().stack().push(SceneId{kOver, 0})).to_be_true();
 		cols = 0;
 		rows = 0;
 		expect(r.guest.getGreyoutColsAndRows(&cols, &rows)).to_be_true();
 		expect(cols).to_equal(uint32_t(0x0000000F));
-		expect(rows).to_equal(uint32_t(0));
+		expect(rows).to_equal(uint32_t(0x00000080));
+
+		// A scene that draws pads is greyed by the shell itself, so the guest reports none and the
+		// pads are not greyed twice.
+		r.over.overlay = false;
+		cols = 0xDEADBEEF;
+		rows = 0xFEEDFACE;
+		expect(r.guest.getGreyoutColsAndRows(&cols, &rows)).to_be_false();
+		expect(cols).to_equal(uint32_t(0xDEADBEEF));
 	});
 
 	// ---- exitUI, both directions --------------------------------------------------------------

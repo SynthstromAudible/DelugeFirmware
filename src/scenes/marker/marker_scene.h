@@ -165,6 +165,8 @@ public:
 	/// returns false unless the root UI is the keyboard screen, in which case it delegates -- a root
 	/// UI read this layer may not make, so the sidebar is simply left to whatever is beneath.
 	bool is_grid_overlay() const override { return true; }
+	/// @brief True: the waveform is drawn on the main pads.
+	bool draws_pads() const override { return true; }
 	/// @brief False: the sidebar underneath still needs to paint.
 	bool occludes_grid() const override { return false; }
 	/// @brief False: legacy greys through `getGreyoutColsAndRows`, it never halves every pad.

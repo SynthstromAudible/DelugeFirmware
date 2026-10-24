@@ -26,6 +26,7 @@
 #include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/led/indicator_leds.h"
+#include "hid/led/pad_leds.h"
 #include "libdeluge/scheduler.h" // getSystemTime()
 #include "model/settings/runtime_feature_settings.h"
 #include "scenes/registry.h"
@@ -49,6 +50,7 @@ using deluge::ui::shell::SurfaceRole;
 ShellHostUI::ShellHostUI(const SceneRegistry& registry, const DelugeBoard& board,
                          const deluge::ui::shell::BoardProfile& profile)
     : surfaces_(board, profile), shell_(surfaces_, profile, registry, Services{}, config_) {
+	surfaces_.observe(shell_.stack());
 	// `Services{}` and a default `ShellConfig` on purpose, and both stay that way.
 	//
 	// The three real services each take this shell's own `SceneStack&`, so they cannot exist before
@@ -161,6 +163,16 @@ bool ShellHostUI::opened() {
 	// to check where the boundary is.
 	wireShellGuestServices();
 
+	// `SoundEditor::opened` asks for the root's pads (`gui/ui/sound_editor.cpp:498`): while the guest
+	// owns none they are the UI underneath's, greyed by the mask `openUI` read before the scene was
+	// on the stack -- so the greyout is read again now.
+	padsOwned_ = opaque();
+	padsGreyout_ = greyoutMask();
+	if (!padsOwned_) {
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	}
+	PadLEDs::reassessGreyout();
+
 	// **The first tick, and the only reason anything inside the guest ever runs.** Nothing above
 	// armed a deadline: `Shell::init` is a bare `push` and `Shell::boot` calls `request_repaint()`,
 	// which fires a gate without giving it a deadline (`shell/shell.cpp:233-242`), so
@@ -265,28 +277,12 @@ bool ShellHostUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	// "non-zero mask" and "doGreyout" are the same predicate on the shipped tree, and this is the
 	// one place that equivalence is turned back into legacy's two-out-parameters-plus-bool shape.
 	//
-	// @warning **KNOWN DEFECT, in this hook: under the guest the greyout is applied TWICE.** Legacy
-	//          greys exactly once, in the *send* path -- `prepareColour`
-	//          (`hid/led/pad_leds.cpp:283-298`, the tint at `:293-296`) reads the module-level
-	//          `greyoutCols`/`greyoutRows` that `reassessGreyout` fills from this very function
-	//          (`hid/led/pad_leds.cpp:734-735`, via `getUIGreyoutColsAndRows`), and never mutates
-	//          `PadLEDs::image`. The shell has no send stage to hook, so it greys its own grid in
-	//          place instead: `Shell::render_grid` runs `ui::grid::greyout` over `greyout_`
-	//          (`shell/shell.cpp:792-798`), the OR of every stacked scene's mask (`:349-355`). Those
-	//          already-greyed colours then reach the pads through `GuestSurfaceSet::send_columns`,
-	//          which writes `PadLEDs::image` and calls `sortLedsForCol` -- i.e. straight back through
-	//          `prepareColour`, which greys them a second time for whatever this function reported.
-	//          A pad the menu greys is therefore darker under the guest than under `SoundEditor`.
-	//
-	//          Not fixed here, and the alternative was considered rather than skipped: answering
-	//          `false` unconditionally would stop the double tint but would hand the greyout decision
-	//          to the UI *underneath* (`gui/ui/ui.cpp:73-83` takes the first UI that says true),
-	//          which is a different wrong answer -- the clip view would grey by its own rules while
-	//          the menu is up. The real fixes are a `Shell` seam that separates "compose" from
-	//          "tint", or the guest reporting an empty mask while the shell owns the tint end to
-	//          end; both are shell changes and belong with the tick (F1 task 7) or the acceptance
-	//          round, not with this hook. It is a brightness difference, not a wrong pad.
-	const deluge::ui::grid::GreyoutMask mask = shell_.stack().top().greyout_mask();
+	// Legacy greys once, in the *send* path: `prepareColour` (`hid/led/pad_leds.cpp:283-298`) reads
+	// the `greyoutCols`/`greyoutRows` that `reassessGreyout` fills from this function. While the
+	// guest draws no pads that is the root view's greyout, as under `SoundEditor`. While it draws
+	// some, the shell has already greyed its own grid (`Shell::render_grid`), so the guest reports
+	// none -- `greyoutMask()` -- and the pads are greyed once either way.
+	const deluge::ui::grid::GreyoutMask mask = greyoutMask();
 	if (mask.cols == 0 && mask.rows == 0) {
 		return false;
 	}
@@ -298,8 +294,43 @@ bool ShellHostUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	return true;
 }
 
+deluge::ui::grid::GreyoutMask ShellHostUI::greyoutMask() {
+	if (opaque()) {
+		return {};
+	}
+	// Every stacked scene's mask, ORed: the mask the shell greys its own grid by
+	// (`Shell::tick`), so a popup over the menu leaves the menu's greyout standing.
+	deluge::ui::grid::GreyoutMask mask{};
+	for (const deluge::ui::shell::Scene* scene : shell_.stack().scenes()) {
+		const deluge::ui::grid::GreyoutMask m = scene->greyout_mask();
+		mask.cols |= m.cols;
+		mask.rows |= m.rows;
+	}
+	return mask;
+}
+
 bool ShellHostUI::opaque() {
-	return !shell_.stack().top().is_grid_overlay();
+	return surfaces_.grid_owned();
+}
+
+void ShellHostUI::syncPads() {
+	const bool owned = opaque();
+	const deluge::ui::grid::GreyoutMask mask = greyoutMask();
+	const bool ownerChanged = owned != padsOwned_;
+	const bool greyoutChanged = mask.cols != padsGreyout_.cols || mask.rows != padsGreyout_.rows;
+	padsOwned_ = owned;
+	padsGreyout_ = mask;
+	if (ownerChanged) {
+		if (owned) {
+			surfaces_.take_grid();
+		}
+		else {
+			uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+		}
+	}
+	if (ownerChanged || greyoutChanged) {
+		PadLEDs::reassessGreyout();
+	}
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -351,7 +382,7 @@ bool ShellHostUI::serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 	// way in two places -- `uiNeedsRendering`'s walk down the stack (`gui/ui/ui.cpp:284-302`, the
 	// calls at `:292` and `:295`) and `closeUI`'s "does anything need redrawing after this close"
 	// pass (`gui/ui/ui.cpp:177-192`, at `:186-187`).
-	if (image == nullptr) {
+	if (image == nullptr || !isOpaque) {
 		return isOpaque;
 	}
 
@@ -379,50 +410,11 @@ bool ShellHostUI::serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 			image[y][x] = grid.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
 		}
 	}
-	// **Two things about this buffer that are true and are not defects here, recorded because the
-	// next reader of this function is the one who needs them** (F1 task 5 review round).
-	//
-	//  1. **Two paths now write `PadLEDs::image`.** `GuestSurfaceSet::send_columns` writes it and
-	//     calls `sortLedsForCol` on the shell's own flush; this writes it again when legacy pulls.
-	//     They agree -- same grid, same rows -- but when the guest answers transparent, legacy keeps
-	//     walking down and the UI underneath overwrites these rows
-	//     (`doAnyPendingGridRendering`, `gui/ui/ui.cpp:305-349`, the `usedUp` test at `:329-337`).
-	//     This used to end "For the first tenant that is exactly right: `SoundEditor` renders no
-	//     pads at all", and **F1 task 11's A/B falsified the conclusion, not the premise.**
-	//     `SoundEditor` does render no pads -- it overrides neither hook -- but it does not BLANK
-	//     them either: it overrides `getGreyoutColsAndRows` (`gui/ui/sound_editor.cpp:252-294`)
-	//     and legacy keeps painting the view underneath, dimmed. Measured on `menu.txt`: with the
-	//     toggle off the clip view's sidebar column is still lit under the open menu, greyed
-	//     (`pad 16 0 3 160 7` against boot's `0 255 6`); with it on there is no `pad` line at all.
-	//     **Under the guest the sidebar is wrong for TWO independent reasons, and fixing either
-	//     alone still leaves it wrong.** Opacity is not one of them: `MenuScene::is_grid_overlay()`
-	//     is true (`scenes/menu/menu_scene.h:506`), so `opaque()` is false and this function
-	//     answers transparent exactly as the paragraph above describes.
-	//       (a) **The shell's own flush paints black.** `GuestSurfaceSet::send_columns`
-	//           (`gui/ui/shell_guest_surfaces.cpp:137-173`, the writes at `:169-170`) writes
-	//           `PadLEDs::image` and calls
-	//           `sortLedsForCol` itself, so the menu's all-black grid reaches the hardware without
-	//           passing through legacy's walk at all.
-	//       (b) **Legacy's walk never runs while the guest is open.** Nothing in this class calls
-	//           `uiNeedsRendering` (`grep` it: this file names it only in a comment), so
-	//           `doAnyPendingGridRendering` has nothing pending and the UI underneath is never
-	//           asked to repaint; `PadLEDs::reassessGreyout` likewise runs only from `openUI` /
-	//           `closeUI` (`gui/ui/ui.cpp:93`, `:99`, `:115`, `:126`, `:198`, `:234`, `:239`),
-	//           i.e. at transitions, not during. Measured by the F1 task 11 reviewer, by disabling
-	//           (a)'s write and re-running the ON leg: the sidebar came back at boot's **ungreyed**
-	//           `0 255 6`, not the OFF leg's greyed `3 160 7`. So (a) alone is a stale undimmed
-	//           sidebar -- still divergent, differently.
-	//     Recorded as a divergence in F1 task 11's report rather than fixed here: (a) is in the
-	//     flush path (F1 task 4/5) and (b) is a repaint-request the guest never makes; neither is
-	//     this hook's, and fixing one without the other is not an improvement.
-	//  2. **Legacy's menu blink is a hardware flash; the port's is a framebuffer write.**
-	//     `SoundEditor`'s shortcut blink calls `PadLEDs::flashMainPad`
-	//     (`gui/ui/sound_editor.cpp:997-1040`, the calls at `:1021` and `:1032`), which goes straight
-	//     to `deluge_control_flash_pad` (`hid/led/pad_leds.h:128-135`) and never touches `image`, so
-	//     a root-view repaint cannot wipe it. `MenuScene` paints its blinks into the shell's grid,
-	//     which reaches the pads through `image` -- so a root-view repaint *can* erase one until the
-	//     shell's next flush re-sends it. Whether that is visible is a question about the tick's
-	//     cadence, i.e. F1 task 7's.
+	// **Two paths write `PadLEDs::image` while the guest owns the pads**: `GuestSurfaceSet::send_columns`
+	// on the shell's own flush, and this when legacy pulls. They agree -- same grid, same rows. While
+	// it owns none, neither writes: the UI underneath draws the pads and legacy greys them once, by the
+	// mask `getGreyoutColsAndRows` reports, as under `SoundEditor` (`gui/ui/sound_editor.cpp:217-247`,
+	// `:441-484`); an overlay's shortcut blink reaches the PIC as a flash (`send_columns`).
 	//
 	// `occupancyMask` is deliberately untouched, and this is the same gap F1 task 4 recorded for
 	// `GuestSurfaceSet::send_columns`: nothing in the shell populates an occupancy map, and
@@ -549,6 +541,8 @@ ActionResult ShellHostUI::timerCallback() {
 		closeGuest();
 		return ActionResult::DEALT_WITH;
 	}
+
+	syncPads();
 
 	// Unconditional here, but **not unconditional inside**: `rearmTimer` refuses when this guest is
 	// no longer the current UI, which is exactly what the drain above leaves behind when an arm ends

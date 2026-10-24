@@ -298,14 +298,9 @@ to "if any overlay above the base `dims_grid()`", so an overlay that composites 
 > 2026-09-06 audit's four, two of which turned out to ship no UX. `shell.cpp`'s own `@warning`
 > carries the arithmetic.) It is no longer only a design question: since F1 the
 > compositor runs inside the shipping firmware, so `dim_grid` is live code in the path the level-3
-> A/B exercises. **And the A/B found the adjacent question empirically.** With the ported menu open,
-> legacy leaves the clip view showing with the sidebar **greyed**
-> (`SoundEditor::getGreyoutColsAndRows`, `gui/ui/sound_editor.cpp:252-294`) and the guest **blacks
-> the grid**. That has two causes and fixing either alone leaves it wrong: (a) `GuestSurfaceSet`'s
-> `send_columns` writes the menu's all-black grid, and (b) legacy's greyout walk never runs at all,
-> because `ShellHostUI` never re-requests grid rendering, so `reassessGreyout` and `prepareColour`
-> are never reached. Proved by probe: disabling (a) alone brought the sidebar back **ungreyed**.
-> Whoever settles `dim_grid` should settle this at the same time; they are plausibly one question.
+> A/B exercises. Under the guest (`gui/ui/shell_host_ui.h`) a stack whose scenes draw no pads
+> (`Scene::draws_pads`) leaves the pads to legacy: the clip view stays showing, greyed by the
+> menu's mask through legacy's own `prepareColour`, as under `SoundEditor`.
 
 The three notice scenes are grid overlays that paint nothing and dim nothing (`is_grid_overlay()`
 true, `dims_grid()` false, `occludes_grid()` false, no `render_grid`). Both flags are load-bearing
@@ -490,9 +485,9 @@ performed through `dispatchShellActions` (F2), and a sample file chosen in the *
 over a real card and claimed through `dispatchShellChoices` (F3). A shell change that moves a pixel
 in the composed frame turns that red. Seven ctest rows —
 `ui_app_scripts_{boot,boot_diff,menu,menu_diff,menu_shell,menu_shell_diff,menu_ab}`. **The `.state`
-half is not identical and is not meant to be**: 9 of the 16 differ, each explained by a recorded
-finding — F1 task 11's antiphase BACK blink, the sidebar divergence of migration §10.2 item 2, and
-the ported browser drawing its text keyboard where legacy draws the sample's waveform. What the A/B
+half is not identical and is not meant to be**: 12 of the 27 differ, each explained by a recorded
+finding — the BACK LED's blink sampled in the other phase, and the ported browser drawing its text
+keyboard where legacy draws the sample's waveform. What the A/B
 covers and what it does not is migration §10.8 for F1, §10.9 for F2 and §10.10 for F3.
 
 ## Archive size

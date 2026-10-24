@@ -328,6 +328,8 @@ public:
 	///        it does not own keep showing the view underneath -- what `QwertyUI::drawKeys`'s
 	///        `clearMainPadsWithoutSending` (main pads only) leaves.
 	bool is_grid_overlay() const override { return true; }
+	/// @brief True: the keyboard is drawn on the main pads.
+	bool draws_pads() const override { return true; }
 	/// @brief False: the base view still paints its sidebar, and that is what shows through.
 	bool occludes_grid() const override { return false; }
 	/// @brief False: legacy greys through `getGreyoutColsAndRows`, it never halves every pad.

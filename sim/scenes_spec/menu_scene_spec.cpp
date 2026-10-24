@@ -1654,6 +1654,40 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		expect(grid.ctx.claims.any()).to_be_false();
 	});
 
+	it("blinks a second-layer item's pad yellow, as legacy flashes it", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.button(kShiftX, kShiftY, true, 0);
+		r.pad(kEnv1RelX, kEnv1RelY, 64, 10);
+		r.shell.tick(20);
+		r.pad(kEnv1RelX, kEnv1RelY, 64, 30);
+		r.shell.tick(40);
+		expect(menu_scene().focused() == &nodes::env3_release).to_be_true();
+
+		const auto colour_at = [&]() {
+			deluge::ui::test::GridRig grid;
+			grid.begin_tick(menu_scene().state().blink_anchor_ms + menu::kSourceBlinkMs);
+			menu_scene().render_grid(grid.frame);
+			return grid.grid.at(kEnv1RelX, kEnv1RelY);
+		};
+		// `setupShortcutBlink(x, y, 0, 0b00000011 /* yellow */)` (`sound_editor.cpp:1119`): lit, with
+		// next to no blue.
+		const RGB yellow = colour_at();
+		expect(yellow.g != 0).to_be_true();
+		expect(yellow.b * 2 < yellow.g).to_be_true();
+
+		// The first-layer item on the same pad flashes the default colour.
+		r.pad(kLpfFreqX, kLpfFreqY, 64, 50);
+		r.shell.tick(60);
+		r.pad(kEnv1RelX, kEnv1RelY, 64, 70);
+		r.shell.tick(80);
+		expect(menu_scene().focused() == &nodes::env1_release).to_be_true();
+		const RGB white = colour_at();
+		expect(white.b * 2 < white.g).to_be_false();
+	});
+
 	it("blinks no pad for the name editors and the sample-marker editors", _ {
 		// `SoundEditor::updatePadLightsFor` (`sound_editor.cpp:1048-1052`) sets no shortcut blink
 		// for these items although the tables hold them; the EDIT NAME page's (11, 5) stays dark.

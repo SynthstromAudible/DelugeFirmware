@@ -77,6 +77,11 @@ namespace {
 /// the default flash, `flashColours[0]` (`hid/led/pad_leds.cpp:277-280`).
 constexpr RGB kFlashColour{130, 120, 130};
 
+/// @brief The colour a second-layer shortcut pad flashes: legacy's yellow, colour `0b00000011`
+///        (`sound_editor.cpp:1119`). The guest turns a pad with this little blue into that flash
+///        (`GuestSurfaceSet::send_columns`).
+constexpr RGB kSecondLayerFlashColour{130, 120, 0};
+
 /// @brief The back LED's blink period: legacy's `kFlashTime`, the period
 ///        `indicator_leds::blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:352`) runs at
 ///        (`hid/led/indicator_leds.cpp:108`, `definitions_cxx.hpp:159`).
@@ -1312,7 +1317,7 @@ void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	const ShortcutPos pos = shortcut_pos(ctx_.root, *node);
 	if (pos.valid) {
 		if (!source_phase) {
-			(void)f.pad(pos.x, pos.y, kFlashColour);
+			(void)f.pad(pos.x, pos.y, pos.second_layer ? kSecondLayerFlashColour : kFlashColour);
 		}
 		// Arming the gate is what makes the blink land *on its own phase edges*. Since E3 task 10
 		// the shell arms this gate too, from `next_timer()` (`Shell::tick` step 8b), so the blink is

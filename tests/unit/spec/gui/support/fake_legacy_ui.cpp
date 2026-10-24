@@ -18,6 +18,7 @@ int mod_encoder_actions = 0;
 int mod_button_actions = 0;
 int mod_encoder_button_actions = 0;
 int graphics_routines = 0;
+std::vector<RenderRequest> render_requests;
 double system_time_s = 0.0;
 bool sd_routine_active = false;
 bool shift_button_pressed = false;
@@ -69,6 +70,7 @@ void reset() {
 	mod_button_actions = 0;
 	mod_encoder_button_actions = 0;
 	graphics_routines = 0;
+	render_requests.clear();
 	system_time_s = 0.0;
 	sd_routine_active = false;
 	shift_button_pressed = false;
@@ -234,6 +236,10 @@ UI* getCurrentUI() {
 
 void renderUIsForOled() {
 	fakelegacyui::oled_redraws++;
+}
+
+void uiNeedsRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
+	fakelegacyui::render_requests.push_back(fakelegacyui::RenderRequest{ui, whichMainRows, whichSideRows});
 }
 
 // ---------------------------------------------------------------------------

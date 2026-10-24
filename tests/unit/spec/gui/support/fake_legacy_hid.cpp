@@ -14,6 +14,8 @@ std::vector<LedWrite> led_writes;
 std::vector<IndicatorWrite> indicator_writes;
 std::vector<std::pair<uint8_t, std::vector<RGB>>> raw_pad_column_writes;
 int control_flushes = 0;
+std::vector<PadFlash> pad_flashes;
+int greyout_reassessments = 0;
 int oled_frames_marked = 0;
 uint32_t pad_output_space = 1u << 20;
 bool led_blinking[64]{};
@@ -71,6 +73,13 @@ void sortLedsForCol(int32_t x) {
 	fakelegacy::raw_pad_column_writes.emplace_back(static_cast<uint8_t>(x >> 1), std::move(colours));
 }
 
+// Stands in for `reassessGreyout` (`hid/led/pad_leds.cpp`): counted, since the greyout it would
+// re-read is legacy's own query of the open UIs.
+void reassessGreyout(bool doInstantly) {
+	(void)doInstantly;
+	fakelegacy::greyout_reassessments++;
+}
+
 } // namespace PadLEDs
 
 // ---------------------------------------------------------------------------
@@ -113,6 +122,14 @@ void deluge_control_set_indicator(uint8_t which, const uint8_t* levels, uint8_t 
 	fakelegacy::indicator_writes.push_back(w);
 }
 
+void deluge_control_flash_pad(uint8_t idx) DELUGE_NOEXCEPT {
+	fakelegacy::pad_flashes.push_back(fakelegacy::PadFlash{idx, 0});
+}
+
+void deluge_control_flash_pad_colour(uint8_t idx, int32_t colour_idx) DELUGE_NOEXCEPT {
+	fakelegacy::pad_flashes.push_back(fakelegacy::PadFlash{idx, colour_idx});
+}
+
 void deluge_control_flush(void) DELUGE_NOEXCEPT {
 	fakelegacy::control_flushes++;
 }
@@ -124,6 +141,8 @@ namespace fakelegacy {
 void reset() {
 	column_sends.clear();
 	led_writes.clear();
+	pad_flashes.clear();
+	greyout_reassessments = 0;
 	std::memset(led_blinking, 0, sizeof(led_blinking));
 	std::memset(indicator_leds::ledStates, 0, sizeof(indicator_leds::ledStates));
 	indicator_writes.clear();

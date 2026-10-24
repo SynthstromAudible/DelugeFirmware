@@ -403,6 +403,8 @@ public:
 	bool is_root() const override { return false; }
 	/// @brief True: the waveform covers the main pads, and the sidebar beneath keeps showing.
 	bool is_grid_overlay() const override { return true; }
+	/// @brief True: the waveform is drawn on the main pads.
+	bool draws_pads() const override { return true; }
 	/// @brief False: `Slicer` overrides `renderMainPads` but not `renderSidebar`, so the sidebar
 	///        underneath still needs to paint (and, through `Shell::tick_stack`, still needs its
 	///        clock advanced).

@@ -30,6 +30,12 @@ struct LedWrite {
 	bool on;
 };
 
+/// @brief One recorded `deluge_control_flash_pad` / `deluge_control_flash_pad_colour` call.
+struct PadFlash {
+	uint8_t idx;    ///< `y + x * kDisplayHeight`, `PadLEDs::flashMainPad`'s index.
+	int32_t colour; ///< 0 for `deluge_control_flash_pad`, else the colour index passed.
+};
+
 /// @brief One recorded `deluge_control_set_indicator` call.
 struct IndicatorWrite {
 	uint8_t which;
@@ -44,6 +50,10 @@ extern std::vector<LedWrite> led_writes;
 extern std::vector<IndicatorWrite> indicator_writes;
 extern std::vector<std::pair<uint8_t, std::vector<RGB>>> raw_pad_column_writes;
 extern int control_flushes;
+/// Every pad flash, in order.
+extern std::vector<PadFlash> pad_flashes;
+/// How many times `PadLEDs::reassessGreyout()` was called.
+extern int greyout_reassessments;
 /// How many times a fake `OLED::sendMainImage()` found legacy's dirty flag raised.
 extern int oled_frames_marked;
 /// @}
