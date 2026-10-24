@@ -1031,17 +1031,22 @@ Error FileWriter::closeAfterWriting(char const* path, char const* beginningStrin
 		return Error::WRITE_FAIL;
 	}
 
+	bool openedForVerify = false;
 	if (path) {
 		// Check file exists
 		result = f_open(&writeFIL, path, FA_READ);
 		if (result) {
 			return Error::WRITE_FAIL;
 		}
+		openedForVerify = true;
 	}
+
+	Error verifyError = Error::NONE;
 
 	// Check size
 	if (f_size(&writeFIL) != fileTotalBytesWritten) {
-		return Error::WRITE_FAIL;
+		verifyError = Error::WRITE_FAIL;
+		goto closeVerifyFile;
 	}
 
 	// Check beginning
@@ -1050,10 +1055,12 @@ Error FileWriter::closeAfterWriting(char const* path, char const* beginningStrin
 		int32_t length = strlen(beginningString);
 		result = f_read(&writeFIL, miscStringBuffer, length, &dontCare);
 		if (result) {
-			return Error::WRITE_FAIL;
+			verifyError = Error::WRITE_FAIL;
+			goto closeVerifyFile;
 		}
 		if (memcmp(miscStringBuffer, beginningString, length)) {
-			return Error::WRITE_FAIL;
+			verifyError = Error::WRITE_FAIL;
+			goto closeVerifyFile;
 		}
 	}
 
@@ -1064,22 +1071,28 @@ Error FileWriter::closeAfterWriting(char const* path, char const* beginningStrin
 
 		result = f_lseek(&writeFIL, fileTotalBytesWritten - length);
 		if (result) {
-			return Error::WRITE_FAIL;
+			verifyError = Error::WRITE_FAIL;
+			goto closeVerifyFile;
 		}
 
 		result = f_read(&writeFIL, miscStringBuffer, length, &dontCare);
 		if (result) {
-			return Error::WRITE_FAIL;
+			verifyError = Error::WRITE_FAIL;
+			goto closeVerifyFile;
 		}
 		if (memcmp(miscStringBuffer, endString, length)) {
-			return Error::WRITE_FAIL;
+			verifyError = Error::WRITE_FAIL;
+			goto closeVerifyFile;
 		}
 	}
 
-	result = closeWriter();
-	if (result) {
-		return Error::WRITE_FAIL;
+closeVerifyFile:
+	if (openedForVerify) {
+		result = closeWriter();
+		if (result && verifyError == Error::NONE) {
+			verifyError = Error::WRITE_FAIL;
+		}
 	}
 
-	return Error::NONE;
+	return verifyError;
 }
