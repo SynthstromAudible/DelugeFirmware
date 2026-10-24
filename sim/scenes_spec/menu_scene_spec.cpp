@@ -1595,6 +1595,31 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		expect(grid.ctx.claims.any()).to_be_false();
 	});
 
+	it("blinks no pad for the name editors and the sample-marker editors", _ {
+		// `SoundEditor::updatePadLightsFor` (`sound_editor.cpp:1048-1052`) sets no shortcut blink
+		// for these items although the tables hold them; the EDIT NAME page's (11, 5) stays dark.
+		for (const Node* node : {&nodes::edit_name, &nodes::sample0_start, &nodes::sample1_start}) {
+			select_language();
+			deluge::notify::dirty().drain();
+			Rig r;
+			(void)r.open(*node);
+			expect(menu_scene().focused() == node).to_be_true();
+			expect(menu::shortcut_pos(MenuContext::Root::Sound, *node).valid).to_be_true();
+
+			for (const uint32_t offset : {uint32_t{0}, uint32_t{menu::kSourceBlinkMs}, uint32_t{100}}) {
+				deluge::ui::test::GridRig grid;
+				grid.begin_tick(menu_scene().state().blink_anchor_ms + offset);
+				menu_scene().render_grid(grid.frame);
+				for (int32_t y = 0; y < grid.grid.dims().rows; y++) {
+					for (int32_t x = 0; x < grid.grid.dims().cols(); x++) {
+						const RGB& c = grid.grid.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
+						expect(c.r == 0 && c.g == 0 && c.b == 0).to_be_true();
+					}
+				}
+			}
+		}
+	});
+
 	it("runs legacy's two-phase 200 ms cycle, not a symmetric 180 ms one", _ {
 		select_language();
 		deluge::notify::dirty().drain();

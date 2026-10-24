@@ -327,6 +327,19 @@ const Node* horizontal_page_listing(const Node& node, const Node& item) {
 	return nullptr;
 }
 
+/// @brief Whether @p node's shortcut pad blinks while it is focused.
+///
+/// `SoundEditor::updatePadLightsFor` (`sound_editor.cpp:1048-1052`) sets up no blink for the name
+/// editors and the sample-marker editors, although the shortcut tables hold them.
+/// @param node The focused node.
+/// @return False for those nodes, true for every other.
+bool blinks_shortcut(const Node& node) {
+	constexpr const Node* kNoBlink[] = {&nodes::edit_name,          &nodes::drum_name_edit, &nodes::sample0_start,
+	                                    &nodes::sample0_end,        &nodes::sample1_start,  &nodes::sample1_end,
+	                                    &nodes::audio_clip_waveform};
+	return std::ranges::find(kNoBlink, &node) == std::ranges::end(kNoBlink);
+}
+
 } // namespace
 
 // ---------------------------------------------------------------------------------------------
@@ -1247,7 +1260,7 @@ void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	// pass per tick" (`shell/README.md`) true for a scene drawn on two surfaces: the OLED pass owns
 	// turn/select/back/edit, and this pass owns nothing.
 	const Node* node = focused();
-	if (node == nullptr) {
+	if (node == nullptr || !blinks_shortcut(*node)) {
 		return;
 	}
 	const uint32_t now = f.now_ms();
