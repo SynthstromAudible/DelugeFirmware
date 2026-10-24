@@ -557,9 +557,15 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		const bool knobsOnDefault = knobs != nullptr && defaultSynth
 		                            && knobs->slot.kind == deluge::project::SlotAddress::Kind::OUTPUT
 		                            && knobs->slot.id == *defaultSynth;
-		if (currentSong->completeBlankPreset(acquired) && knobsOnDefault) {
+		if (!currentSong->completeBlankPreset(acquired)) {
+			break;
+		}
+		if (knobsOnDefault) {
 			view.setActiveModControllableTimelineCounter(acquired.instrument->getActiveClip());
 		}
+		// The screen drew the default synth's name before the preset arrived: show the preset's, as a song that
+		// starts on it does.
+		renderUIsForOled();
 		break;
 	}
 	case PresetConsumer::ArrangerNewInstrument:
