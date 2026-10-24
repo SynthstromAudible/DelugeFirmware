@@ -273,7 +273,7 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay(
 	// display automation status
 	yPos = yPos + 12;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	if (getOnArrangerView()) {

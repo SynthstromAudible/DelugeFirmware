@@ -744,7 +744,7 @@ void PerformanceView::setCentralLEDStates() {
 ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
 	// if we press keyboard button while in performance view, reset time keyboard shortcut was pressed
@@ -1028,7 +1028,7 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on) {
 }
 
 ActionResult PerformanceView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
 	// if pad was pressed in main deluge grid (not sidebar)
@@ -1549,7 +1549,7 @@ int32_t PerformanceView::getKnobPosForSinglePadPress(int32_t xDisplay, int32_t y
 /// Used to edit a pad's value in editing mode
 void PerformanceView::selectEncoderAction(int8_t offset) {
 	if (lastPadPress.isActive && defaultEditingMode && !editingParam) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
@@ -1630,7 +1630,7 @@ void PerformanceView::modEncoderAction(int32_t whichModEncoder, int32_t offset) 
 
 		if (!defaultEditingMode) {
 			if (lastPadPress.isActive) {
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithThreeMainThings* modelStack =
 				    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
@@ -1648,7 +1648,7 @@ void PerformanceView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	// release stutter if it's already active before beginning stutter again
 	// Stutter section: the upper knob of mod button 6
 	if (on && view.getModKnobMode() == 6 && whichModEncoder == 1) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
@@ -1878,7 +1878,7 @@ void PerformanceView::writeDefaultFXHoldStatusToFile(Serializer& writer, int32_t
 
 /// backup current layout, load saved layout, log layout change, update change status
 void PerformanceView::loadPerformanceViewLayout() {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
 	resetPerformanceView(modelStack);
@@ -2205,7 +2205,7 @@ void PerformanceView::initializeHeldFX(int32_t xDisplay) {
 		// set the value associated with the held pad
 		if ((fxPress[xDisplay].currentKnobPosition != kNoSelection)
 		    && (fxPress[xDisplay].previousKnobPosition != kNoSelection)) {
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithThreeMainThings* modelStack =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 

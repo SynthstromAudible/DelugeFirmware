@@ -84,7 +84,7 @@ struct ValuePeek : deluge::gui::menu_item::Value<T> {
 
 /// @brief Make @p f's clip the one its instrument plays.
 void activate(spec::SongFixture& f) {
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	f.instrument->setActiveClip(setupModelStackWithTimelineCounter(memory, f.song, f.clip));
 }
 
@@ -233,7 +233,7 @@ describe song_settings_edit("SetSetting", $ {
 
 	it("sets a note row's direction in its record and on the row", _ {
 		spec::SongFixture f = spec::make_synth_song();
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* stack = f.song->setupModelStackWithCurrentClip(memory);
 		NoteRow* row = instrumentClipView.createNoteRowForYDisplay(stack, 0)->getNoteRowAllowNull();
 		expect(row != nullptr).to_be_true();
@@ -265,7 +265,7 @@ describe song_settings_edit("SetSetting", $ {
 	});
 	it("turns a row obeying its clip to reverse from the mirror of the clip's position, as the row's setter does", _ {
 		spec::SongFixture f = spec::make_synth_song();
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* stack = f.song->setupModelStackWithCurrentClip(memory);
 		NoteRow* row = instrumentClipView.createNoteRowForYDisplay(stack, 0)->getNoteRowAllowNull();
 		expect(deluge::bridge::noteRowAddressOf(*row, *f.clip, *f.song).has_value()).to_be_true();
@@ -334,7 +334,7 @@ describe song_settings_edit("SetSetting", $ {
 	});
 	it("sends a program change for the active MIDI clip as its program changes", _ {
 		spec::SongFixture f = spec::make_midi_song();
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		f.instrument->setActiveClip(setupModelStackWithTimelineCounter(memory, f.song, f.clip));
 		expect(f.clip->isActiveOnOutput()).to_be_true();
 		uint32_t due = 0;
@@ -359,7 +359,7 @@ describe song_settings_edit("SetSetting", $ {
 	});
 	it("changes an active MIDI clip's bend range so its outgoing bends use it at once", _ {
 		spec::SongFixture f = spec::make_midi_song();
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		f.instrument->setActiveClip(setupModelStackWithTimelineCounter(memory, f.song, f.clip));
 		const SettingAddress values{SettingGroupId::CLIP_VALUES, *deluge::bridge::clipAddressOf(*f.clip, *f.song)};
 		deluge::edits::clipValueSettingFor(*f.clip, "bendRange", Value::makeNumber(12));

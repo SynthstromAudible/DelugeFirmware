@@ -103,7 +103,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 	// `editing_mode.h:86-93`, guard and reason included: reset the view when the mode changes, but
 	// not in param-editing mode, "cause that would reset param assignments to FX columns" (`:88`).
 	if (!performanceView.editingParam) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 		performanceView.resetPerformanceView(modelStack);

@@ -747,7 +747,7 @@ void prepareLeg() {
 			const bool written = writeMidiDefinition(kMidiDefinition);
 			// The clip becomes a MIDI one, which is what the definition browser opens on. MIDI reads no card, so this
 			// arm is synchronous.
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(
 			    modelStackMemory, currentSong, static_cast<InstrumentClip*>(g_synthClip));
 			Instrument* midi =

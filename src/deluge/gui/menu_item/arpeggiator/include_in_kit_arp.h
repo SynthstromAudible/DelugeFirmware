@@ -52,7 +52,7 @@ public:
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 
-					char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
+					alignas(ModelStackWithAutoParam) char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
 					ModelStackWithSoundFlags* modelStackForSoundDrum =
 					    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
 					allowsNoteTails = soundDrum->allowNoteTails(modelStackForSoundDrum, true);

@@ -367,7 +367,7 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 		    && playbackHandler.recording == RecordingMode::OFF
 		    && (!playbackHandler.isEitherClockActive() || !playbackHandler.ticksLeftInCountIn)) {
 
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 			if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW) {
@@ -446,7 +446,7 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 		if (on) {
 			currentUIMode = UI_MODE_NONE;
 
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 			// Make a new NoteRow
@@ -481,7 +481,7 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 					noteRow->drum->drumWontBeRenderedForAWhile();
 				}
 
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithNoteRow* modelStack =
 				    currentSong->setupModelStackWithCurrentClip(modelStackMemory)->addNoteRow(noteRowIndex, noteRow);
 
@@ -612,7 +612,7 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 						}
 					}
 
-					char modelStackMemory[MODEL_STACK_MAX_SIZE];
+					alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 					ModelStackWithTimelineCounter* modelStack =
 					    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 					clip->deleteNoteRow(modelStack, noteRowIndex);
@@ -667,7 +667,7 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 				    deluge::l10n::get(deluge::l10n::String::STRING_FOR_AT_LEAST_ONE_ROW_NEEDS_TO_HAVE_NOTES));
 			}
 			else {
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithTimelineCounter* modelStack =
 				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
@@ -793,7 +793,7 @@ doCancelPopup:
 					}
 				}
 
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithTimelineCounter* modelStack =
 				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 				ModelStackWithNoteRow* modelStackWithNoteRow =
@@ -948,7 +948,7 @@ void InstrumentClipView::createDrumForAuditionedNoteRow(DrumType drumType) {
 	NoteRow* noteRow;
 	int32_t noteRowIndex;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	actionLogger.deleteAllLogs();
@@ -1119,7 +1119,7 @@ void InstrumentClipView::copyNotes(Serializer* writer, bool selectedDrumOnly) {
 	}
 
 	CopiedNoteRow** prevPointer = &firstCopiedNoteRow;
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	uint8_t isFilteredCopy = getNumNoteRowsAuditioning() > 0; // any note rows pesseed
 
@@ -1329,7 +1329,7 @@ void InstrumentClipView::patternClear() {
 	// Clear the Clip bevore starting
 	Action* action = actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	getCurrentInstrumentClip()->clear(action, modelStack, false, false);
 }
@@ -1389,7 +1389,7 @@ ramError:
 		action = actionLogger.getNewAction(ActionType::NOTES_PASTE, ActionAddition::NOT_ALLOWED);
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	if (overwriteExisting && !selectedDrumOnly) {
@@ -1513,7 +1513,7 @@ ramError:
 	deleteCopiedNoteRows();
 
 	CopiedNoteRow** prevPointer = &firstCopiedNoteRow;
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	int32_t readAutomationUpToPos = kMaxSequenceLength;
@@ -1664,7 +1664,7 @@ void InstrumentClipView::doubleClipLengthAction() {
 
 	// MultiplyClip opens the Action, records the ConsequenceInstrumentClipMultiply before the mutation, and
 	// doubles the clip. action() gives us the Action back to stamp its AFTER zoom/scroll (Action view-state).
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, getCurrentClip());
 	deluge::edits::Context clipCtx{*currentSong, currentSong->project};
@@ -1700,7 +1700,7 @@ bool InstrumentClipView::completeNewInstrument(InstrumentClip* clip, OutputType 
 		uiNeedsRendering(getRootUI());
 
 		if (newOutputType == OutputType::KIT) {
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack =
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
@@ -2154,7 +2154,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	// If button down
@@ -2665,7 +2665,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange, bool display_val
 		}
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	for (int32_t i = 0; i < edit_targets.size(); i++) {
@@ -2907,7 +2907,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 
 	bool prevBase = false; // only used by probability parameter for latching states
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	bool inNoteEditor = deluge::gui::ui::noteEditorOpen() || deluge::gui::ui::noteRowEditorOpen();
@@ -3596,7 +3596,7 @@ void InstrumentClipView::exitNoteEditor() {
 }
 
 void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int32_t on) {
-	char model_stack_memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char model_stack_memory[MODEL_STACK_MAX_SIZE];
 	auto* model_stack = currentSong->setupModelStackWithCurrentClip(model_stack_memory);
 	auto* row_stack = getCurrentInstrumentClip()->getNoteRowOnScreen(y, model_stack);
 	NoteRow* row = row_stack->getNoteRowAllowNull();
@@ -3739,7 +3739,7 @@ bool InstrumentClipView::enterNoteRowEditor() {
 	if (getNumNoteRowsAuditioning() == 1) {
 		InstrumentClip* clip = getCurrentInstrumentClip();
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 		    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow =
@@ -3891,7 +3891,7 @@ void InstrumentClipView::handleNoteRowEditorAuditionPadAction(int32_t y) {
 	if (!isUIModeActive(UI_MODE_AUDITIONING) || y != lastAuditionedYDisplay) {
 		InstrumentClip* clip = getCurrentInstrumentClip();
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 		    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow =
@@ -4060,7 +4060,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 	else if (withOffset > 0) {
 		withOffset = 1;
 	}
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	ModelStackWithNoteRow* modelStackWithNoteRow = getOrCreateNoteRowForYDisplay(modelStack, lastAuditionedYDisplay);
@@ -4235,7 +4235,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 
 void InstrumentClipView::mutePadPress(uint8_t yDisplay) {
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
@@ -4821,7 +4821,7 @@ void InstrumentClipView::reassessAuditionStatus(uint8_t yDisplay) {
 void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength) {
 	Instrument* instrument = getCurrentInstrument();
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	if (instrument->type == OutputType::KIT) {
@@ -4887,7 +4887,7 @@ uint8_t InstrumentClipView::getVelocityForAudition(uint8_t yDisplay, uint32_t* s
 	}
 	if (!playbackHandler.playbackState && numEditPadPressesPerNoteRowOnScreen[yDisplay] > 0) {
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 		if (makeCurrentClipActiveOnInstrumentIfPossible(modelStack)) { // Should always be true, cos playback is stopped
@@ -4942,7 +4942,7 @@ void InstrumentClipView::offsetNoteCodeAction(int32_t newOffset) {
 		}
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	ModelStackWithNoteRow* modelStackWithNoteRow = getOrCreateNoteRowForYDisplay(modelStack, lastAuditionedYDisplay);
@@ -5166,7 +5166,7 @@ ActionResult InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDi
 		actionLogger.closeAction(ActionType::NOTE_NUDGE);
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	bool clipIsActiveOnInstrument = makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
@@ -5706,7 +5706,7 @@ void InstrumentClipView::deleteDrum(SoundDrum* drum) {
 
 	// RemoveKitRow removes the drum, reassigns/prunes the row, retires automation and deallocs.
 	// Not undoable (the caller's deleteAllLogs clears the undo history); no Consequence is recorded.
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	deluge::edits::Context kitCtx{*currentSong, currentSong->project};
 	deluge::edits::RemoveKitRow removeEdit{deluge::edits::kitRowAddressFor(*getCurrentKit(), *drum), drum, modelStack};
@@ -5835,7 +5835,7 @@ doneLookingForRootNoteOnScreen:
 
 void InstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
@@ -5949,7 +5949,7 @@ void InstrumentClipView::exitScaleMode() {
 
 	int32_t scrollAdjust = setupForExitingScaleMode();
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
@@ -6257,7 +6257,7 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset) {
 
 	bool inNoteRowEditor = deluge::gui::ui::noteRowEditorOpen();
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	// If horizontal encoder button pressed, rotate notes within octave
@@ -6308,7 +6308,7 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset) {
 }
 
 ActionResult InstrumentClipView::commandTransposeKey(int32_t offset) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	InstrumentClip* clip = getCurrentInstrumentClip();
@@ -6327,7 +6327,7 @@ ActionResult InstrumentClipView::commandTransposeKey(int32_t offset) {
 }
 
 void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	InstrumentClip* clip = getCurrentInstrumentClip();
 
@@ -6522,7 +6522,7 @@ void InstrumentClipView::commandShiftColour(int32_t offset) {
 				goto shiftAllColour;
 			}
 
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
@@ -6608,7 +6608,7 @@ ActionResult InstrumentClipView::horizontalEncoderAction(int32_t offset) {
 void InstrumentClipView::editNoteRowLength(int32_t offset) {
 	if (!shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress) {
 wantToEditNoteRowLength:
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow =
 		    getOrCreateNoteRowForYDisplay(modelStack, lastAuditionedYDisplay);
@@ -6628,7 +6628,7 @@ wantToEditNoteRowLength:
 }
 
 void InstrumentClipView::rotateNoteRowHorizontally(int32_t offset) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	ModelStackWithNoteRow* modelStackWithNoteRow =
 	    ((InstrumentClip*)modelStack->getTimelineCounter())
@@ -6739,7 +6739,7 @@ void InstrumentClipView::commandQuantizeNotes(int8_t offset, NudgeMode nudgeMode
 	text.append("%");
 	display->popupText(text.c_str(), PopupType::QUANTIZE);
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	InstrumentClip* currentClip = getCurrentInstrumentClip();
 
@@ -6852,7 +6852,7 @@ void InstrumentClipView::editNoteRepeat(int32_t offset) {
 		}
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	InstrumentClip* currentClip = (InstrumentClip*)modelStack->getTimelineCounter();
@@ -6935,7 +6935,7 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 
 	bool didAnySuccessfulNudging = false;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 	// safe since we can't be in instrument clip view if it's not an instrument clip
 	auto currentClip = (InstrumentClip*)modelStack->song->getCurrentClip();
@@ -7179,7 +7179,7 @@ void InstrumentClipView::graphicsRoutine() {
 	// Before any of the early returns below: a randomize walks on this routine, whatever the view is drawing.
 	deluge::gui::randomizeDrums.routine();
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
@@ -7267,7 +7267,7 @@ void InstrumentClipView::fillOffScreenImageStores() {
 		    getCurrentInstrumentClip()->getYNoteFromYDisplay(kDisplayHeight, currentSong));
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	// Render as the clip editor, not as whatever root UI is currently up: this is also called from Session and
@@ -7396,7 +7396,7 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
                                              bool drawUndefinedArea) {
 	InstrumentClip* clip = getCurrentInstrumentClip();
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
@@ -7475,7 +7475,7 @@ void InstrumentClipView::modEncoderAction(int32_t whichModEncoder, int32_t offse
 
 	InstrumentClip* clip = getCurrentInstrumentClip();
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	Output* output = clip->output;
@@ -7535,7 +7535,7 @@ void InstrumentClipView::commandEuclidean(int32_t offset) {
 	    }
 	}*/
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	ModelStackWithNoteRow* modelStackWithNoteRow = getOrCreateNoteRowForYDisplay(modelStack, lastAuditionedYDisplay);
 

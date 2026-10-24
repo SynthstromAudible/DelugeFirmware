@@ -217,7 +217,7 @@ struct LegacyViewGuard {
 
 	/// @brief The note row at @p y, created if the clip has none there.
 	NoteRow* row_at(int32_t y) {
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* stack = currentSong->setupModelStackWithCurrentClip(memory);
 		ModelStackWithNoteRow* with_row = getCurrentInstrumentClip()->getNoteRowOnScreen(y, stack);
 		if (with_row->getNoteRowAllowNull() == nullptr) {
@@ -228,7 +228,7 @@ struct LegacyViewGuard {
 
 	/// @brief One note at tick @p pos on row @p y, @p length ticks long.
 	void add_note(int32_t y, int32_t pos, int32_t length, int32_t probability) {
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* stack = currentSong->setupModelStackWithCurrentClip(memory);
 		NoteRow* row = row_at(y);
 		int32_t row_index = 0;
@@ -601,7 +601,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		menu_scene().enter_submenu(nodes::sequence_direction);
 		const int32_t before = menu_scene().state().enum_index;
 
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* stack = currentSong->setupModelStackWithCurrentClip(memory);
 		int32_t row_index = 0;
 		(void)fx.clip->getNoteRowOnScreen(0, currentSong, &row_index);

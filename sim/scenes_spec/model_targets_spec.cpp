@@ -223,7 +223,7 @@ describe model_targets("a model target's write reaches the record its menu names
 		spec::SongFixture kit = spec::make_kit_song();
 		auto* drum = spec::add_drum<SoundDrum>(kit);
 		const MenuContext row = clip_root(*kit.song, kit.clip);
-		char drum_memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char drum_memory[MODEL_STACK_MAX_SIZE];
 		expect(facts.allows_note_tails(*row.addresses.slot))
 		    .to_equal(drum->allowNoteTails(getModelStackFromSoundDrum(drum_memory, drum)->addSoundFlags(),
 		                                   /*disregardSampleLoop=*/true));

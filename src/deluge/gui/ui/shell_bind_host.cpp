@@ -128,7 +128,7 @@ void kit_arp_note_off(Kit* kit) {
 	}
 	int32_t note_row_index = 0;
 	NoteRow* note_row = static_cast<InstrumentClip*>(clip)->getNoteRowForDrum(kit->selectedDrum, &note_row_index);
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	auto* stack = reinterpret_cast<ModelStack*>(memory);
 	ModControllable* mod = kit->selectedDrum->toModControllable();
 	ParamManager* params = note_row != nullptr ? &note_row->paramManager : nullptr;

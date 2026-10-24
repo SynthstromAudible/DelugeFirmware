@@ -1642,7 +1642,7 @@ void Sound::notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, ModelStack
 		if (paramLPF.p != PARAM_LPF_OFF) {
 			// If it was a different param, tell it to stop so that we can have it
 			if (paramLPF.p != p) {
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				copyModelStack(modelStackMemory, modelStack, sizeof(ModelStackWithThreeMainThings));
 				ModelStackWithThreeMainThings* modelStackCopy = (ModelStackWithThreeMainThings*)modelStackMemory;
 
@@ -1664,7 +1664,7 @@ changeWhereParamLPFGoing:
 	// Or if not doing param LPF
 	else {
 dontDoLPF:
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		copyModelStack(modelStackMemory, modelStack, sizeof(ModelStackWithThreeMainThings));
 		ModelStackWithThreeMainThings* modelStackCopy = (ModelStackWithThreeMainThings*)modelStackMemory;
 
@@ -2277,7 +2277,7 @@ void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {
 		    // A clip only an undo step holds is not in the song: its parked params take the clip-less form.
 		    Clip* clip = clipId ? song->clipForId(*clipId) : nullptr;
 		    if (clip) {
-			    char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			    alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			    ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			        setupModelStackWithThreeMainThingsButNoNoteRow(modelStackMemory, song, this, clip, &params);
 			    ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(modelStackWithThreeMainThings);

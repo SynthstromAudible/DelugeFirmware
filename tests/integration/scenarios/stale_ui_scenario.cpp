@@ -261,7 +261,7 @@ bool auditionFromExternalMidi(Output* output) {
 		return false;
 	}
 	auto* instrument = static_cast<MelodicInstrument*>(output);
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 	instrument->beginAuditioningForNote(modelStack, kExternalNote, 100, zeroMPEValues, kExternalChannel);
 	return instrument->isNoteAuditioning(kExternalNote);

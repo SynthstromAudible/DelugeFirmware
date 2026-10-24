@@ -97,6 +97,14 @@ repos:
         language: system
         pass_filenames: false
         files: ^(src/deluge-project/|scripts/check_model_words\.py)
+      - id: aligned-model-stacks
+        name: model-stack buffers are aligned
+        description: >-
+          a model stack is built in place in a byte buffer and stores pointers with strd, which faults on an
+          ARMv7 address that is not word-aligned; declare the buffer alignas(ModelStackWithAutoParam)
+        entry: '^(?!.*alignas).*\b(char|std::byte|uint8_t)\s+\w+\s*\[MODEL_STACK_MAX_SIZE'
+        language: pygrep
+        files: ^(src|sim|tests)/.*\.(h|hpp|cpp|c)$
       - id: setting-menus
         name: no gesture sets a sound's instrument state or a song setting without its Edit
         description: no gesture under src/deluge/gui or src/scenes calls a setter, a record reseed or writes a field a setting Edit owns

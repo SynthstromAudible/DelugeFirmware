@@ -607,7 +607,7 @@ void checkLiveZoneMove() {
 		if (!address || synth->sources[0].oscType != OscType::SAMPLE || synth->sources[0].ranges.empty()) {
 			continue;
 		}
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* ms =
 		    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, clip, &clip->paramManager);
 		synth->Sound::noteOn(ms, &synth->arpeggiator, 60, zeroMPEValues);
@@ -817,7 +817,7 @@ void snapshotCrucial() {
 /// SLTSONG2, built from the loaded SLTSONG1 through the firmware's own gestures. Every holder is loaded, so the
 /// collect-media save copies every file.
 bool buildCrucialSong() {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
 	// A second kit, from kCrucialKitPath: drum A's row gets a note, drum B's gets a note and is muted, drum C's stays
 	// empty. Playing.

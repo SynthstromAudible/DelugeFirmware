@@ -329,7 +329,7 @@ Error applyNoteRowSetting(::NoteRow& row, ::InstrumentClip& clip, ::Song& song, 
 		index++;
 	}
 	// The row's setter recomputes its play position from the clip's, which it reads off the model stack.
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithNoteRow* stack =
 	    setupModelStackWithTimelineCounter(memory, &song, &clip)->addNoteRow(clip.getNoteRowId(&row, index), &row);
 	if (previous != nullptr) {
@@ -351,7 +351,7 @@ void withVoiceReseated(::AudioClip& clip, ::Song& song, const std::function<void
 	}
 	clip.sampleHolder.claimClusterReasons(clip.sampleControls.isCurrentlyReversed(), CLUSTER_ENQUEUE);
 	if (active) {
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		clip.resumePlayback(setupModelStackWithTimelineCounter(memory, &song, &clip), true);
 	}
 }
@@ -403,7 +403,7 @@ Error applyClipSetting(::Clip& clip, ::Song& song, std::string_view path, const 
 		return Error::UNSPECIFIED;
 	}
 	// The setter mirrors the play position when the direction turns, and resumes a playing clip.
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	clip.setSequenceDirectionMode(setupModelStackWithTimelineCounter(memory, &song, &clip), *direction);
 	return Error::NONE;
 }
@@ -541,7 +541,7 @@ void silenceArp(const ArpOwner& owner, ::Song& song) {
 	if (clip == nullptr || clip->output == nullptr || !clip->isActiveOnOutput()) {
 		return;
 	}
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, &song, clip);
 	switch (clip->output->type) {
 	case OutputType::KIT:

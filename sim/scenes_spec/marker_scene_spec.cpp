@@ -641,7 +641,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		const uint8_t saved_playback_state = playbackHandler.playbackState;
 		playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
 		r.f.clip->activeIfNoSolo = true;
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		r.f.clip->resumePlayback(setupModelStackWithTimelineCounter(memory, r.f.song, r.f.clip), true);
 		expect(r.f.clip->voiceSample != nullptr).to_be_true(); // playing before the turn
 
@@ -827,7 +827,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		const uint8_t saved_playback_state = playbackHandler.playbackState;
 		playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
 		r.f.clip->activeIfNoSolo = true;
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		r.f.clip->resumePlayback(setupModelStackWithTimelineCounter(memory, r.f.song, r.f.clip), true);
 		VoiceSample* const voice = r.f.clip->voiceSample;
 		expect(voice != nullptr).to_be_true();

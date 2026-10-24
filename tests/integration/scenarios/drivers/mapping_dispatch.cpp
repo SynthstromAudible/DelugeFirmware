@@ -1659,7 +1659,7 @@ std::string sessionChangesMidLoopLeg(Stage& s) {
 	c->x->activeIfNoSolo = false;
 	c->y->activeIfNoSolo = false;
 	const uint32_t pendingId = pending->id();
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	(void)c->s->beginLinearRecording(setupModelStackWithTimelineCounter(modelStackMemory, &s.song, c->s), 0);
 	c->s->armState = ArmState::ON_NORMAL;
 	std::string what;

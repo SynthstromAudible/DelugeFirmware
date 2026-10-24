@@ -988,7 +988,7 @@ Error Clip::solicitParamManager(Song* song, ParamManager* newParamManager, Clip*
 			// just have. If so, great, we're done.
 			if (song->live.param_backup.getForExactClip(*output, this, &paramManager)) {
 trimFoundParamManager:
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 				    setupModelStackWithThreeMainThingsButNoNoteRow(modelStackMemory, song, modControllable, this,
 				                                                   &paramManager);

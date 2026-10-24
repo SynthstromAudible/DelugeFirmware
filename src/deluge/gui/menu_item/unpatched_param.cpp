@@ -49,7 +49,7 @@ ModelStackWithAutoParam* UnpatchedParam::getModelStack(void* memory) {
 }
 
 void UnpatchedParam::writeCurrentValue() {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStackWithParam = getModelStack(modelStackMemory);
 	int32_t value = getFinalValue();
 
@@ -62,7 +62,7 @@ void UnpatchedParam::writeCurrentValue() {
 			if (thisDrum->type == DrumType::SOUND) {
 				auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 
-				char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
 				ModelStackWithAutoParam* modelStackForSoundDrum =
 				    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)
 				        ->getUnpatchedAutoParamFromId(getP());
@@ -108,7 +108,7 @@ ParamSet* UnpatchedParam::getParamSet() {
 }
 
 deluge::modulation::params::Kind UnpatchedParam::getParamKind() {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	return getModelStack(modelStackMemory)->paramCollection->getParamKind();
 }
 

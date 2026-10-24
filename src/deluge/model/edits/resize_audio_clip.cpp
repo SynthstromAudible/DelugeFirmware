@@ -175,7 +175,7 @@ private:
 		}
 		else if (undoing && playbackHandler.isEitherClockActive()) {
 			// The revert produced the length without the re-sync it would have done.
-			char memory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			currentPlaybackMode->reSyncClip(setupModelStackWithTimelineCounter(memory, &ctx_.song, &clip_));
 		}
 		return action;

@@ -507,7 +507,7 @@ void turnParam(ModelStackWithThreeMainThings* ms, int32_t id, int32_t value) {
 /// @brief turnParam on @p owner with no note row: a synth's sound or a chain, its params in @p paramManager.
 void turnParam(ModControllableAudio& owner, TimelineCounter* clip, ParamManager& paramManager, int32_t id,
                int32_t value) {
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	turnParam(setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, &owner, clip, &paramManager), id,
 	          value);
 }
@@ -533,7 +533,7 @@ void setDelayType(ModControllableAudio& owner, deluge::effects::DelayType type) 
 /// @brief Plays @p note on @p clip's synth from the interaction tier, as a pad audition does (@p on), or ends it.
 void auditionOn(InstrumentClip* clip, int32_t note, bool on) {
 	auto* synth = static_cast<SoundInstrument*>(clip->output);
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* ms =
 	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, clip, &clip->paramManager);
 	if (on) {
@@ -577,7 +577,7 @@ int32_t ownersWithDelayOn() {
 
 /// The note row for @p note on g_clip, made if it is not there, with its index.
 NoteRow* rowFor(int32_t note, int32_t* index) {
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(memory, currentSong, g_clip);
 	ModelStackWithNoteRow* row = g_clip->getOrCreateNoteRowForYNote(note, ms, nullptr);
 	if (row == nullptr || row->getNoteRowAllowNull() == nullptr) {
@@ -593,7 +593,7 @@ NoteRow* rowFor(int32_t note, int32_t* index) {
 /// Audition @p note on g_clip's synth from the interaction tier, the shape a pad audition takes (no note row).
 void auditionSynth(int32_t note) {
 	auto* synth = static_cast<SoundInstrument*>(g_clip->output);
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* ms =
 	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, g_clip, &g_clip->paramManager);
 	synth->Sound::noteOn(ms, &synth->arpeggiator, note, zeroMPEValues);
@@ -601,7 +601,7 @@ void auditionSynth(int32_t note) {
 
 /// Add a note to g_row through the note-add entry point the pad press uses.
 void addNote(int32_t pos, Action* action) {
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(memory, currentSong, g_clip);
 	ModelStackWithNoteRow* rowStack = ms->addNoteRow(g_rowIndex, g_row);
 	(void)g_row->attemptNoteAdd(pos, kNoteLength, kVelocity, g_row->getDefaultProbability(),
@@ -610,7 +610,7 @@ void addNote(int32_t pos, Action* action) {
 
 /// Delete g_row's note at @p pos through the entry point the pad press uses.
 void deleteNote(int32_t pos, Action* action) {
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(memory, currentSong, g_clip);
 	ModelStackWithNoteRow* rowStack = ms->addNoteRow(g_rowIndex, g_row);
 	g_row->deleteNoteByPos(rowStack, pos, action);
@@ -681,7 +681,7 @@ bool setupLeg() {
 		}
 		// Four short notes spread over the loop: the drum falls silent between them, so each one re-enters the set.
 		for (int32_t n = 0; n < 4; n++) {
-			char memory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(memory, currentSong, g_clip);
 			ModelStackWithNoteRow* rowStack = ms->addNoteRow(g_rowIndex, g_row);
 			(void)g_row->attemptNoteAdd(n * (g_clip->loopLength() / 4), 1, kVelocity, g_row->getDefaultProbability(),
@@ -767,7 +767,7 @@ bool setupLeg() {
 
 /// The leg's one structural edit, through the model's own entry point.
 void editLeg() {
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	switch (g_leg) {
 	case Leg::NoteAdd:
 		g_step = "attemptNoteAdd";
@@ -837,7 +837,7 @@ void editLeg() {
 		// grows or shrinks the cable storage and re-runs setupPatching(), which reorders the cables the render walks.
 		g_step = "addPatchCable";
 		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* three =
 		    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, g_clip, &g_clip->paramManager);
 		ModelStackWithParamCollection* ms =
@@ -922,7 +922,7 @@ void editLeg() {
 		break;
 	case Leg::Quantize: {
 		g_step = "quantize";
-		char rowMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char rowMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(rowMemory, currentSong, g_clip);
 		ModelStackWithNoteRow* rowStack = ms->addNoteRow(g_rowIndex, g_row);
 		(void)g_row->quantize(rowStack, kNoteLength, 10);
@@ -938,7 +938,7 @@ void editLeg() {
 			fail("the kit clip has no drum with a note row");
 			break;
 		}
-		char drumMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char drumMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* ms =
 		    setupModelStackWithThreeMainThingsButNoNoteRow(drumMemory, currentSong, drum, g_clip, &row->paramManager);
 		drum->Sound::noteOn(ms, &drum->arpeggiator, kRowNote, zeroMPEValues);
@@ -956,7 +956,7 @@ void editLeg() {
 		}
 		for (int32_t n = 0; n < 40; n++) {
 			SoundDrum* drum = (n % 2 == 0) ? first : g_drum;
-			char drumMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char drumMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithThreeMainThings* ms = setupModelStackWithThreeMainThingsButNoNoteRow(
 			    drumMemory, currentSong, drum, g_clip, &row->paramManager);
 			drum->noteOn(ms, kVelocity, zeroMPEValues);
@@ -1014,7 +1014,7 @@ void editLeg() {
 		constexpr int32_t kRate = static_cast<int32_t>(deluge::modulation::params::GLOBAL_DELAY_RATE);
 		auto* drum = static_cast<SoundDrum*>(g_kit->firstDrum);
 		const auto turnDrum = [&](int32_t id, int32_t value) {
-			char memory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			turnParam(setupModelStackWithTimelineCounter(memory, currentSong, g_clip)
 			              ->addNoteRow(g_rowIndex, g_row)
 			              ->addOtherTwoThings(drum, &g_row->paramManager),

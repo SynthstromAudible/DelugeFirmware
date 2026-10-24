@@ -263,7 +263,7 @@ public:
 		// Forcing it to NONE here reproduces the precondition a real gesture would already have,
 		// rather than either skipping the check or leaving this probe at the mercy of stage order.
 		currentUIMode = UI_MODE_NONE;
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 		view.navigateThroughPresetsForInstrumentClip(offset, modelStack, true);
@@ -271,7 +271,7 @@ public:
 	/// Drives View's REAL output-type gesture on `clip`. See navigateThroughPresetsForInstrumentClip()
 	/// above for why this goes through View rather than InstrumentClip::changeOutputType directly.
 	static bool changeOutputType(InstrumentClip* clip, OutputType newOutputType) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 		return view.changeOutputType(newOutputType, modelStack, true);

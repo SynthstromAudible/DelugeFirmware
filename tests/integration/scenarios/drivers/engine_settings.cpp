@@ -716,7 +716,7 @@ int liveUnisonLeg(Song& song) {
 		if (!address) {
 			continue;
 		}
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* ms =
 		    setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, synth, clip, &clip->paramManager);
 		synth->Sound::noteOn(ms, &synth->arpeggiator, 60, zeroMPEValues);
@@ -765,7 +765,7 @@ int liveRangeLeg(Song& song) {
 		if (!address || s == kNumSources) {
 			continue;
 		}
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* ms =
 		    setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, synth, clip, &clip->paramManager);
 		synth->Sound::noteOn(ms, &synth->arpeggiator, 60, zeroMPEValues);

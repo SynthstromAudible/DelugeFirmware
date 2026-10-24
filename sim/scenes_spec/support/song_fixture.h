@@ -225,7 +225,7 @@ inline T* add_drum(SongFixture& f) {
 
 	// One note row per drum, as the kit's own reader does; `setDrum` copies the backed-up param
 	// manager onto the row (which is what `setup()`'s SoundDrum branch then reads).
-	char stack_memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char stack_memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(stack_memory, f.song, f.clip);
 	int32_t row_index = 0;
 	NoteRow* row = f.clip->createNewNoteRowForKit(stack, /*atStart=*/false, &row_index);
@@ -243,7 +243,7 @@ inline bool drum_allows_note_tails(Drum* drum) {
 		return true;
 	}
 	auto* sound_drum = static_cast<SoundDrum*>(drum);
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	return sound_drum->allowNoteTails(getModelStackFromSoundDrum(memory, sound_drum)->addSoundFlags(),
 	                                  /*disregardSampleLoop=*/true);
 }

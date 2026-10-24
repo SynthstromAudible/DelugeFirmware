@@ -115,7 +115,7 @@ inline bool sound_allows_note_tails(const deluge::scenes::menu::MenuContext& ctx
 		note_row =
 		    static_cast<InstrumentClip*>(e.clip)->getNoteRowForDrum(static_cast<SoundDrum*>(e.sound), &note_row_index);
 	}
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* stack = setupModelStackWithThreeMainThingsIncludingNoteRow(
 	    memory, ctx.song, e.clip, note_row_index, note_row, e.mod, e.params);
 	return e.sound->allowNoteTails(stack->addSoundFlags(), /*disregardSampleLoop=*/true);

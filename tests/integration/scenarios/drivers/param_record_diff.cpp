@@ -130,7 +130,7 @@ static void dumpAfterSaveReload(Song* song) {
 		free(buf);
 		return;
 	}
-	char msMem[MODEL_STACK_MAX_SIZE]{};
+	alignas(ModelStackWithAutoParam) char msMem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithThreeMainThings* ms3 = reloaded->setupModelStackWithSongAsTimelineCounter(msMem);
 	ModelStackWithAutoParam* msap = ms3->getUnpatchedAutoParamFromId(params::UNPATCHED_VOLUME);
 	if (!msap || !msap->autoParam) {
@@ -183,7 +183,7 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 	AudioEngine::audioSampleTimer = 0;
 
 	// Build the song-global unpatched-param ModelStackWithAutoParam via the engine's own helper.
-	char msMem[MODEL_STACK_MAX_SIZE]{};
+	alignas(ModelStackWithAutoParam) char msMem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithThreeMainThings* ms3 = song->setupModelStackWithSongAsTimelineCounter(msMem);
 	ModelStackWithAutoParam* msap = ms3->getUnpatchedAutoParamFromId(params::UNPATCHED_VOLUME);
 	if (!msap || !msap->autoParam) {

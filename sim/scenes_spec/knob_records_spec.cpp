@@ -346,7 +346,7 @@ describe knob_records("the knob records, by Edit", ${
 		    .to_be_true();
 		// The first clip automates CC 74; the second has none of it, and holds a plain value on CC 75.
 		{
-			char memory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithAutoParam* param = midi->getParamToControlFromInputMIDIChannel(
 			    74, setupModelStackWithThreeMainThingsButNoNoteRow(memory, f.song, midi, f.clip, &f.clip->paramManager));
 			param->autoParam->setValuePossiblyForRegion(1 << 28, param, 0, f.clip->loopLength() / 2);
@@ -398,12 +398,12 @@ describe knob_records("the knob records, by Edit", ${
 			return setupModelStackWithThreeMainThingsButNoNoteRow(memory, f.song, midi, clip, &clip->paramManager);
 		};
 		const auto automated = [&](InstrumentClip* clip, int32_t cc) {
-			char memory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithAutoParam* param = midi->getParamToControlFromInputMIDIChannel(cc, stackOf(clip, memory));
 			return param != nullptr && param->autoParam != nullptr && param->autoParam->isAutomated(*param->doc());
 		};
 		for (InstrumentClip* clip : {f.clip, second, arranged}) {
-			char memory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithAutoParam* param = midi->getParamToControlFromInputMIDIChannel(74, stackOf(clip, memory));
 			expect(param != nullptr && param->autoParam != nullptr).to_be_true();
 			if (param != nullptr && param->autoParam != nullptr) {

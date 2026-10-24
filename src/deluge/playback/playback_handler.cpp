@@ -2484,7 +2484,7 @@ void PlaybackHandler::getTempoParamsFromTimePer(uint64_t timePer, int32_t* magni
 }
 
 float PlaybackHandler::getTempoBPMAtArrangementPos(int32_t pos) {
-	char model_stack_memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char model_stack_memory[MODEL_STACK_MAX_SIZE];
 	auto* model_stack = currentSong->setupModelStackWithSongAsTimelineCounter(model_stack_memory);
 	auto* tempo_param = currentSong->getModelStackWithParam(model_stack, params::UnpatchedGlobal::UNPATCHED_TEMPO);
 
@@ -2686,7 +2686,7 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 
 	Action* action = nullptr;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	for (int32_t c = 0; c < std::ssize(currentSong->live.clips.session_clips); c++) {
@@ -3057,7 +3057,7 @@ void PlaybackHandler::noteMessageReceived(MIDICable& cable, bool on, int32_t cha
 
 	bool shouldRecordNotesNowNow = shouldRecordNotesNow();
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	// See if note message received should be processed by midi follow mode
@@ -3125,7 +3125,7 @@ void PlaybackHandler::switchToSession() {
 	}
 	currentPlaybackMode = &session;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
 	currentSong->paramManager.expectNoFurtherTicks(modelStack);
@@ -3172,7 +3172,7 @@ void PlaybackHandler::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8
 		}
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	dealingWithReceivedMIDIPitchBendRightNow = true;
@@ -3253,7 +3253,7 @@ void PlaybackHandler::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t 
 		}
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	// See if midi cc received should be processed by midi follow mode
@@ -3304,7 +3304,7 @@ void PlaybackHandler::aftertouchReceived(MIDICable& cable, int32_t channel, int3
 		cable.inputChannels[channel].defaultInputMPEValues[2] = value << 8;
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	// See if aftertouch received should be processed by midi follow mode

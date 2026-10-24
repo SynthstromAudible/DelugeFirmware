@@ -12,7 +12,7 @@ Error ClearClip::apply(Context& ctx) {
 	if (clip == nullptr) {
 		return Error::UNSPECIFIED;
 	}
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, &ctx.song, clip);
 	Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::NOT_ALLOWED);
 	clip->clear(action, stack, clearAutomation_, clearSequenceAndMPE_);

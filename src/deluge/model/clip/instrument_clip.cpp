@@ -717,7 +717,7 @@ void InstrumentClip::posReachedEnd(ModelStackWithTimelineCounter* thisModelStack
 
 	if (playbackHandler.recording == RecordingMode::ARRANGEMENT && isArrangementOnlyClip()) {
 
-		char otherModelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char otherModelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* otherModelStack =
 		    setupModelStackWithSong(otherModelStackMemory, thisModelStack->song)
 		        ->addTimelineCounter(beingRecordedFromClip);
@@ -1222,7 +1222,7 @@ void InstrumentClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) 
 		return;
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithTimelineCounter(modelStackMemory, song, this); // TODO: make caller supply this
 
@@ -1427,7 +1427,7 @@ void InstrumentClip::transpose(int32_t semitones, ModelStackWithTimelineCounter*
 
 	// Must also do auditioned notes, since transpose can now be sequenced and change
 	// noterows while we hold an audition pad.
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStackWithSong = setupModelStackWithSong(modelStackMemory, currentSong);
 	output->stopAnyAuditioning(modelStackWithSong);
 
@@ -1732,7 +1732,7 @@ Error InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* son
 	}
 
 	if (newInstrument->type == OutputType::MIDI_OUT) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithModControllable* modelStack =
 		    setupModelStackWithModControllable(modelStackMemory, song, this, newInstrument->toModControllable());
 		restoreBackedUpParamManagerMIDI(modelStack);
@@ -2351,7 +2351,7 @@ void InstrumentClip::restoreBackedUpParamManagerMIDI(ModelStackWithModControllab
 
 	paramManager.stealParamCollectionsFrom(&backedUpParamManagerMIDI);
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addParamManager(&paramManager);
 
 	paramManager.trimToLength(loopLength(), modelStackWithThreeMainThings, nullptr,
@@ -2457,7 +2457,7 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 	docClip_->values.arp = deluge::bridge::arpRecordOf(arpSettings, false);
 
 	if (shouldSetupPatching) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, song, this);
 		((Instrument*)output)->setupPatching(modelStack);
 	}
@@ -3086,7 +3086,7 @@ doReadBendRange:
 				ModControllable* modControllable = output->toModControllable();
 				bool success = song->live.param_backup.getPreferablyWithClip(*output, this, &paramManager);
 				if (success) {
-					char modelStackMemory[MODEL_STACK_MAX_SIZE];
+					alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 					    setupModelStackWithThreeMainThingsButNoNoteRow(modelStackMemory, song, modControllable, this,
 					                                                   &paramManager);
@@ -4358,7 +4358,7 @@ ramError:
 	    newOverdubNature); // Hopefully fine - I've moved this to after setInstrument in March 2021, so we can override
 	                       // the new affectEntire default value set there.
 
-	char modelStackMemoryNewClip[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemoryNewClip[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStackNewClip =
 	    setupModelStackWithTimelineCounter(modelStackMemoryNewClip, modelStack->song, newInstrumentClip);
 
@@ -4550,7 +4550,7 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 							}
 
 							else {
-								char otherModelStackMemory[MODEL_STACK_MAX_SIZE];
+								alignas(ModelStackWithAutoParam) char otherModelStackMemory[MODEL_STACK_MAX_SIZE];
 								ModelStackWithNoteRow* otherModelStackWithNoteRow =
 								    duplicateModelStackForClipBeingRecordedFrom(modelStack, otherModelStackMemory);
 
@@ -4570,12 +4570,12 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 
 						// Otherwise, just extend the whole Clip.
 						else {
-							char thisModelStackMemory[MODEL_STACK_MAX_SIZE];
+							alignas(ModelStackWithAutoParam) char thisModelStackMemory[MODEL_STACK_MAX_SIZE];
 							copyModelStack(thisModelStackMemory, modelStack, sizeof(ModelStackWithTimelineCounter));
 							ModelStackWithTimelineCounter* thisModelStack =
 							    (ModelStackWithTimelineCounter*)thisModelStackMemory;
 
-							char otherModelStackMemory[MODEL_STACK_MAX_SIZE];
+							alignas(ModelStackWithAutoParam) char otherModelStackMemory[MODEL_STACK_MAX_SIZE];
 							ModelStackWithTimelineCounter* otherModelStack =
 							    setupModelStackWithSong(otherModelStackMemory, modelStack->song)
 							        ->addTimelineCounter(beingRecordedFromClip);

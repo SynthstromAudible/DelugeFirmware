@@ -1086,7 +1086,7 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 				// Clone the ModelStack, since we only need the smaller amount of data that makes up a
 				// ModelStackWithParamCollection, and our call we make below could overwrite further-down fields of the
 				// ModelStack. Although I think in this case it actually doesn't - but best to be safe.
-				char localModelStackMemory[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char localModelStackMemory[MODEL_STACK_MAX_SIZE];
 				copyModelStack(localModelStackMemory, modelStack, sizeof(ModelStackWithParamCollection));
 
 				deletePatchCable((ModelStackWithParamCollection*)localModelStackMemory, c);

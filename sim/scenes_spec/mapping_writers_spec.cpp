@@ -118,7 +118,7 @@ Kit* makeLooseKit(::Song& song) {
 /// @brief Make @p f's clip its instrument's active clip, as a song's own load does: a preset change reads the
 ///        replaced instrument's params through it.
 void activate(spec::SongFixture& f) {
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	f.instrument->setActiveClip(setupModelStackWithTimelineCounter(memory, f.song, f.clip));
 }
 
@@ -344,7 +344,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		deluge::edits::learnMappingFor(note(1, 51), LaneInputTarget{id});
 		auto* kit = static_cast<Kit*>(f.instrument);
 		NoteRow* row = f.clip->getNoteRowForDrum(drum);
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, f.song, f.clip);
 		row->setDrum(nullptr, kit, stack->addNoteRow(f.clip->getNoteRowId(row, 0), row));
 		kit->removeDrum(drum);
@@ -447,7 +447,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		scrollToFirstRow(f);
 		Kit* other = makeKitWithRows(f, 1);
 		f.song->addOutput(other);
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		const Error error = f.clip->changeInstrument(setupModelStackWithTimelineCounter(memory, f.song, f.clip), other,
 		                                             nullptr, InstrumentRemoval::NONE);
 		expect(static_cast<int>(error)).to_equal(static_cast<int>(Error::NONE));
@@ -467,7 +467,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		expect(sound.midi_knobs.size() == 1 && sound.midi_knobs[0].midiInput.cable == &cable).to_be_true();
 
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		sound.offerReceivedCCToLearnedParamsForClip(knob.owner, cable, 2, 9, 64,
 		                                            setupModelStackWithTimelineCounter(memory, f.song, f.clip), -1);
 		expect(sound.midi_knobs[0].relative).to_be_false();
@@ -752,7 +752,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		deluge::edits::learnMappingFor(source, knob);
 		expect(f.song->project.mappings.find(knob)->relative).to_be_true();
 
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* stack = f.song->setupModelStackWithSongAsTimelineCounter(memory);
 		f.song->live.global_effectable.offerReceivedCCToLearnedParamsForSong(MIDIDeviceManager::dinMIDIPorts, 0, 7,
 		                                                                     64, stack);
@@ -784,7 +784,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		MIDIKnob knob;
 		knob.midiInput.noteOrCC = 128;
 		knob.paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_VOLUME);
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, f.song, nullptr);
 		expect(owner->handleLearnedPitchBend(knob, 0, 64, stack, -1)).to_be_false();
 	});

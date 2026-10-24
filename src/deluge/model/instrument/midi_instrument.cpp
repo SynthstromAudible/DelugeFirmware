@@ -962,7 +962,7 @@ int32_t MIDIInstrument::moveKnobCCAutomation(int32_t knob, int32_t offset, Song&
 		if (!holds(clip, cc)) {
 			return false;
 		}
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithAutoParam* param = getParamToControlFromInputMIDIChannel(cc, stackOf(clip, memory));
 		return param->autoParam != nullptr && param->autoParam->isAutomated(*param->doc());
 	};
@@ -979,7 +979,7 @@ int32_t MIDIInstrument::moveKnobCCAutomation(int32_t knob, int32_t offset, Song&
 	// Each clip that holds the old CC carries it to the new one; a clip without it has nothing to carry.
 	for (InstrumentClip* clip : clips) {
 		if (holds(clip, oldCC)) {
-			char memory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			moveAutomationToDifferentCC(oldCC, newCC, stackOf(clip, memory));
 		}
 	}

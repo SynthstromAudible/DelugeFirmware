@@ -25,7 +25,7 @@ namespace params = deluge::modulation::params;
 struct PerformanceViewKnobsProbe {
 	static void loadDefaultLayout() { performanceView.loadDefaultLayout(); }
 	static void releaseViewOnExit() {
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		performanceView.releaseViewOnExit(currentSong->setupModelStackWithSongAsTimelineCounter(memory));
 	}
 };

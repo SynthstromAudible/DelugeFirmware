@@ -158,7 +158,7 @@ describe arp_targets("the arp menus edit the arp their root names", ${
 	it("keeps a kit row that cannot hold note tails out of its kit's arp, and shows it off", _ {
 		spec::SongFixture f = spec::make_kit_song();
 		auto* drum = spec::add_drum<SoundDrum>(f);
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		PatchedParamSet* patched = getModelStackFromSoundDrum(memory, drum)->paramManager->getPatchedParamSet();
 		patched->params[deluge::modulation::params::LOCAL_ENV_0_SUSTAIN].setCurrentValueBasicForSetup(
 		    *patched->docForParam(deluge::modulation::params::LOCAL_ENV_0_SUSTAIN), std::numeric_limits<int32_t>::min());

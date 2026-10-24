@@ -145,7 +145,7 @@ describe knob_math("the gold knob's position, from the param's descriptor", ${
 		currentSong = f.song;
 		auto* midi = static_cast<MIDIInstrument*>(f.instrument);
 		{
-			char memory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			(void)midi->getParamToControlFromInputMIDIChannel(
 			    74, setupModelStackWithThreeMainThingsButNoNoteRow(memory, f.song, midi, f.clip, &f.clip->paramManager));
 		}

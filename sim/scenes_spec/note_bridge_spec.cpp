@@ -122,7 +122,7 @@ struct RealNoteSelectionGuard {
 	/// @brief Add one note to a fresh note row at `yDisplay` 0 on a non-kit clip, and select it the
 	///        way `InstrumentClipView::editPadAction` does on a regular create-or-select press.
 	void select_note(int32_t velocity) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 		ModelStackWithNoteRow* modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(modelStack, 0);
@@ -299,7 +299,7 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 		// touched y 1.
 		instrumentClipView.lastAuditionedYDisplay = 1;
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* before = f.clip->getNoteRowOnScreen(1, modelStack);
 		expect(before->getNoteRowAllowNull() == nullptr).to_be_true();
@@ -310,7 +310,7 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 		// default value it carries.
 		(void)bridge->row_probability();
 
-		char modelStackMemory2[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory2[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack2 = currentSong->setupModelStackWithCurrentClip(modelStackMemory2);
 		ModelStackWithNoteRow* after = f.clip->getNoteRowOnScreen(1, modelStack2);
 		expect(after->getNoteRowAllowNull() != nullptr).to_be_true();
@@ -334,7 +334,7 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 		(void)drum;
 		instrumentClipView.lastAuditionedYDisplay = 0;
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* existing = f.clip->getNoteRowOnScreen(0, modelStack);
 		expect(existing->getNoteRowAllowNull() != nullptr).to_be_true();

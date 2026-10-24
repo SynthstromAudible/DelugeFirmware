@@ -517,7 +517,7 @@ Cables& cables() {
 /// @brief Make @p fixture's session clip its instrument's active clip, as a played clip is in a song. The fixture's
 /// instrument has neither that nor a backed-up param manager, so reading its params would find none (E170).
 void give_active_clip(spec::SongFixture& fixture) {
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, fixture.song, fixture.clip);
 	fixture.instrument->setActiveClip(stack, PgmChangeSend::NEVER);
 }

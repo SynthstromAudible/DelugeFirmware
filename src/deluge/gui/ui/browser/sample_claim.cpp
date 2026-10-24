@@ -340,7 +340,7 @@ bool SampleClaim::stepDecideSample() {
 
 		audioClip->setLoopLength(newLength);
 		audioClip->originalLength = newLength;
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		audioClip->lengthChanged(modelStack, oldLength);
 

@@ -2084,7 +2084,7 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 		           == (playingReversedNow ? 0 : effectiveLength) // If reached end (or start) of row length.
 		    && clip->isArrangementOnlyClip()) {
 
-			char otherModelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char otherModelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithNoteRow* otherModelStackWithNoteRow =
 			    clip->duplicateModelStackForClipBeingRecordedFrom(modelStack, otherModelStackMemory);
 

@@ -78,7 +78,7 @@ void learnAndSendVolume(const spec::SongFixture& f, uint8_t value) {
 	if (sound.midi_knobs.empty()) {
 		(void)deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1);
 	}
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	sound.offerReceivedCCToLearnedParamsForClip({project::ControlsAddress::Kind::OUTPUT, *f.instrument->id()},
 	                                            MIDIDeviceManager::dinMIDIPorts, 1, 74, value,
 	                                            setupModelStackWithTimelineCounter(memory, f.song, f.clip), -1);
@@ -670,7 +670,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		view.setModRegion(96, 48, static_cast<int32_t>(*drum->id()));
 		int32_t row_index = 0;
 		(void)f.clip->getNoteRowForDrum(drum, &row_index);
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		drum->offerReceivedCCToLearnedParamsForClip({project::ControlsAddress::Kind::DRUM, *drum->id()},
 		                                            MIDIDeviceManager::dinMIDIPorts, 1, 75, 100,
 		                                            setupModelStackWithTimelineCounter(memory, f.song, f.clip), row_index);
@@ -693,7 +693,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 			     .id = deluge::engine::ParamId{static_cast<uint32_t>(cc)}});
 			return param != nullptr && !param->nodes.empty();
 		};
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		midi->setActiveClip(setupModelStackWithTimelineCounter(memory, f.song, f.clip), PgmChangeSend::NEVER);
 		view.setActiveModControllableTimelineCounter(f.clip, false);
 		view.setModRegion(96, 48, 0);
@@ -716,7 +716,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		expect(held != nullptr && other != nullptr).to_be_true();
 		if (held != nullptr && other != nullptr) {
 			view.setActiveModControllableTimelineCounter(f.clip, false);
-			char memory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			{
 				// The note editor holds the region with the row's id as its stack names it.
 				int32_t at = 0;

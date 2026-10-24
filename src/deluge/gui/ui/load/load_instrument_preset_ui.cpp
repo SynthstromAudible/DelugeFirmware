@@ -457,7 +457,7 @@ bool LoadInstrumentPresetUI::beginAcquisition(const deluge::storage::PresetReque
 	case PresetConsumer::ViewChangeTypeMinder:
 	case PresetConsumer::SessionRowsChangeType:
 	case PresetConsumer::KeyboardChangeType: {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, request.clip);
 		return request.clip->beginChangeOutputType(modelStack, request.outputType, walk);
@@ -766,7 +766,7 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 		// Or, in SessionView or a ClipMinder
 		else {
 
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack =
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
 
@@ -980,7 +980,7 @@ void LoadInstrumentPresetUI::swapRevert(const deluge::gui::RevertTarget& target,
 
 		// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in there)
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, target.clip);
 
@@ -1183,7 +1183,7 @@ Error LoadInstrumentPresetUI::swapInstrument(const deluge::gui::InstrumentLoadRe
 		currentSong->removeInstrumentFromHibernationList(newInstrument);
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
 
@@ -1277,7 +1277,7 @@ Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadReques
 	deluge::edits::laneSettingFor(*newDrum, "name",
 	                              deluge::serialization::Value::makeScalar(std::string{request.target.name}));
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
@@ -1297,7 +1297,7 @@ Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadReques
 				if (thisNoteRow->drum != oldDrum) {
 					continue;
 				}
-				char otherModelStackMemory[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char otherModelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithNoteRow* otherModelStackWithNoteRow =
 				    setupModelStackWithTimelineCounter(otherModelStackMemory, currentSong, clip)
 				        ->addNoteRow(clip->getNoteRowId(thisNoteRow, i), thisNoteRow);

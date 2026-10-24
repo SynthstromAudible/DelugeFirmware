@@ -184,7 +184,7 @@ ModelStackWithNoteRow* individualNoteRow(ModelStackWithTimelineCounter* modelSta
 /// @brief `Probability::readCurrentValue`'s read, `noteRow->probabilityValue`
 ///        (`gui/menu_item/note_row/probability.h:43-53`); no row answers 0.
 int32_t row_probability() {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	ModelStackWithNoteRow* modelStackWithNoteRow = individualNoteRow(modelStack);
 	if (NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull()) {
@@ -203,7 +203,7 @@ void adjust_row_probability(int32_t offset) {
 ///        rather than a preset index (`gui/menu_item/note_row/iterance_preset.h:48-60`, whose
 ///        `toPresetIndex()` conversion Task 5's leaf performs itself); no row answers 0.
 int32_t row_iterance() {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	ModelStackWithNoteRow* modelStackWithNoteRow = individualNoteRow(modelStack);
 	if (NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull()) {
@@ -231,7 +231,7 @@ void set_row_iterance(int32_t iterance) {
 /// @brief `Fill::readCurrentValue`'s read, `noteRow->fillValue`
 ///        (`gui/menu_item/note_row/fill.h:44-54`); no row answers 0.
 int32_t row_fill() {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	ModelStackWithNoteRow* modelStackWithNoteRow = individualNoteRow(modelStack);
 	if (NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull()) {
@@ -282,7 +282,7 @@ ModelStackWithNoteRow* noteRowForSequenceDirection(ModelStackWithTimelineCounter
 /// @brief `Direction::readCurrentValue`'s row arm, `noteRow->sequenceDirectionMode`
 ///        (`gui/menu_item/sequence/direction.h:65-76`); false when there is still no row.
 bool row_sequence_direction(int32_t* out) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	ModelStackWithNoteRow* modelStackWithNoteRow = noteRowForSequenceDirection(modelStack);
 	NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
@@ -296,7 +296,7 @@ bool row_sequence_direction(int32_t* out) {
 /// @brief `Direction::writeCurrentValue`'s row arm, `NoteRow::setSequenceDirectionMode`
 ///        (`gui/menu_item/sequence/direction.h:78-90`).
 void set_row_sequence_direction(int32_t value) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	ModelStackWithNoteRow* modelStackWithNoteRow = noteRowForSequenceDirection(modelStack);
 	if (NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull()) {

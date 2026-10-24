@@ -92,7 +92,7 @@ describe set_kit_lane_setting("an arp setting written across a kit's lanes", ${
 	it("includes in the kit arp a sound lane only where it can hold note tails, as legacy's loop does", _ {
 		Lanes l;
 		// The second row's envelope never sustains (no sustain, and a release no shorter than its decay): it holds no tails.
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		PatchedParamSet* patched = getModelStackFromSoundDrum(memory, l.second)->paramManager->getPatchedParamSet();
 		patched->params[deluge::modulation::params::LOCAL_ENV_0_SUSTAIN].setCurrentValueBasicForSetup(
 		    *patched->docForParam(deluge::modulation::params::LOCAL_ENV_0_SUSTAIN), std::numeric_limits<int32_t>::min());

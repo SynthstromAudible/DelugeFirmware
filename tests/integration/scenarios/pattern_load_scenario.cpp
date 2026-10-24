@@ -121,7 +121,7 @@ bool addFixtureNotes() {
 		return fail("the clip view shows no time: a square is zero ticks wide");
 	}
 	for (int32_t yDisplay : kRows) {
-		char memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* ms = currentSong->setupModelStackWithCurrentClip(memory);
 		const int32_t yNote = g_clip->getYNoteFromYDisplay(yDisplay, currentSong);
 		ModelStackWithNoteRow* rowStack = g_clip->getOrCreateNoteRowForYNote(yNote, ms, nullptr);
@@ -155,7 +155,7 @@ bool writePatternFile() {
 /// Remove every note from the clip, as the clip's CLEAR gesture does. `patternClear()` is not used: it clears the
 /// clip with `clearSequenceAndMPE` false, which leaves the notes where they are.
 void clearNotes() {
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* ms = currentSong->setupModelStackWithCurrentClip(memory);
 	g_clip->clear(nullptr, ms, /*clearAutomation=*/false, /*clearSequenceAndMPE=*/true);
 }
