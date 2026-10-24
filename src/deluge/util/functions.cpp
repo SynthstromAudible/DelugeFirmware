@@ -1335,7 +1335,8 @@ bool isAudioFilename(char const* filename) {
 		return false;
 	}
 	auto* dotPos = strrchr(filename, '.');
-	return (!strcasecmp(dotPos, ".WAV") || !strcasecmp(dotPos, ".AIF") || !strcasecmp(dotPos, ".AIFF"));
+	return (dotPos != NULL
+	        && (!strcasecmp(dotPos, ".WAV") || !strcasecmp(dotPos, ".AIF") || !strcasecmp(dotPos, ".AIFF")));
 }
 
 bool isAiffFilename(char const* filename) {
