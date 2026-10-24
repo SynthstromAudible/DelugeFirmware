@@ -553,10 +553,15 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		const ModControllable* defaultSynth = currentSong->blankPresetInstrument != nullptr
 		                                          ? currentSong->blankPresetInstrument->toModControllable()
 		                                          : nullptr;
-		if (currentSong->completeBlankPreset(acquired)
-		    && view.activeModControllableModelStack.modControllable == defaultSynth) {
+		if (!currentSong->completeBlankPreset(acquired)) {
+			break;
+		}
+		if (view.activeModControllableModelStack.modControllable == defaultSynth) {
 			view.setActiveModControllableTimelineCounter(acquired.instrument->getActiveClip());
 		}
+		// The screen drew the default synth's name before the preset arrived: show the preset's, as a song that
+		// starts on it does.
+		renderUIsForOled();
 		break;
 	}
 	case PresetConsumer::ArrangerNewInstrument:
