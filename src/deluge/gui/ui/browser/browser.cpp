@@ -1017,8 +1017,10 @@ tryReadingItems:
 			// Use the actual sort key (including the extension), and own it before the old cache is freed.
 			// A balanced window can lose every neighbour on one side during duplicate/boundary cleanup,
 			// causing repeated turns to rebuild the same window and clamp back to the same song.
-			error = filenameBeforeReload.set(fileIndexSelected >= 0 ? getCurrentFileItem()->displayName
-			                                                        : enteredText.get());
+			// A failed reload may have emptied the cache while leaving the previous selection index intact.
+			error = filenameBeforeReload.set(fileIndexSelected >= 0 && fileIndexSelected < fileItems.getNumElements()
+			                                     ? getCurrentFileItem()->displayName
+			                                     : enteredText.get());
 			if (error != Error::NONE) {
 				goto gotErrorAfterAllocating;
 			}
