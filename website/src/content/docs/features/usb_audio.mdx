@@ -48,7 +48,8 @@ USB audio's settings are in `SETTINGS > USB AUDIO` (`USBA` on 7SEG):
 | --------- | ----- | ----------------------------------------------------------- |
 | `ENABLED` | `ON`  | On (default), off                                           |
 | `INPUT`   | `IN`  | On (default), off - see below                               |
-| `OUTPUT`  | `OUT` | `MAIN MIX` (default, `MIX`), `LINE IN` (`LINE`) - see below |
+| `OUTPUT`  | `OUT` | `MAIN MIX` (default, `MIX`), `LINE IN` (`LINE`), `TRACKS` (`TRKS`) - see below |
+| `COMPENSATION` | `CMP` | 0 (default) to 300 ms - see below |
 
 ## Turning USB audio off
 
@@ -88,6 +89,72 @@ when a sampler clip has finished recording.
 - **`LINE IN`** is the Deluge's line input (or mic) as it arrives, before any of the Deluge's processing. This turns
   the Deluge into a simple audio interface for whatever's plugged into it. The internal mic only has one channel, so
   it's sent to both sides.
+- **`TRACKS`** is only the tracks you've chosen to send to the computer - see below. Neither the main mix nor the
+  line input is sent.
+
+## Sending tracks to your computer
+
+Each synth, kit and audio track has an `OUTPUT` item (`OUT` on 7SEG) at the end of its menu - for a kit, in the menu
+for the whole kit (with affect entire on). It only takes effect while `SETTINGS > USB AUDIO > OUTPUT` is set to
+`TRACKS`. It's set per track, so all of a track's clips share it, and it's saved with the song:
+
+- **`MAIN MIX`** (the default, `MIX`): the track plays through the Deluge as usual, and isn't sent to the computer.
+- **`USB`**: the track is sent to the computer only, and taken out of the Deluge's main mix.
+- **`BOTH`**: the track plays through the Deluge and is sent to the computer.
+
+Every track sent to the computer is mixed into the one stereo stream it receives, with each track's own volume, pan
+and effects, but before the song's effects and volume. To bring the tracks back with the computer's effects on them,
+play the computer's audio through the Deluge with `INPUT`, or record it in an audio clip whose source is
+`USB INPUT` (see below).
+
+A few things to know:
+
+- A track's reverb send goes to the Deluge's reverb, which is part of the main mix. So a track set to `USB` has no
+  Deluge reverb, and the computer gets every track without it - add reverb on the computer instead.
+- A track set to `USB` is silent unless the computer is collecting the Deluge's audio, for example with your DAW open
+  and the Deluge chosen as its input.
+- Audio that goes out to the computer and comes back is delayed by the round trip, as it would be through any audio
+  interface. `COMPENSATION` lines it up - see below.
+- A track set to `USB` isn't in resampling or recordings of the Deluge's mix or output.
+- With `OUTPUT` set to anything other than `TRACKS`, every track is in the main mix, whatever its own setting.
+- Stem export includes every track, wherever it's set to go.
+
+## Lining up audio that comes back from your computer
+
+Audio sent to your computer and played back to the Deluge arrives late by the computer's round trip - its buffers,
+plus any latency its effects add. `SETTINGS > USB AUDIO > COMPENSATION` holds the Deluge's own audio back by the same
+amount, so the two meet. Set it to the round trip your DAW reports, or adjust it by ear until they line up. It's off
+at 0, and stem export never uses it.
+
+What it holds back depends on what the computer receives (`OUTPUT`):
+
+### With `OUTPUT` set to `TRACKS` or `LINE IN`
+
+The Deluge's tracks are held back, along with their reverb sends, before the song's effects. What isn't held back:
+
+- what's sent to the computer - the chosen tracks, or the line input - so it leaves on time and comes back in line
+- audio coming back from the computer: audio tracks whose source is `USB INPUT` (including clips recorded from it,
+  which were late by the same amount), and the computer's audio mixed straight in with `INPUT`
+- the metronome
+
+A returning audio track goes through the song's effects along with everything else. Any line input monitored through
+an audio track is held back with the rest of the tracks. Resampling and recordings of the Deluge's mix or output get
+it all as you hear it.
+
+### With `OUTPUT` set to `MAIN MIX`
+
+The main mix goes to the computer as soon as it's ready, and it's the Deluge's outputs that are held back instead -
+everything you'd normally hear, after the song's effects and volume. The computer's audio, mixed straight in with
+`INPUT`, joins after that, so it lines up with the mix it was made from.
+
+For example, to put 100% wet reverb from your computer over the whole Deluge mix: set `OUTPUT` to `MAIN MIX`, leave
+`INPUT` on, have the DAW play its reverb return back to the Deluge, and set `COMPENSATION` to the DAW's round trip.
+The dry mix and the reverb then arrive together.
+
+In this mode, bring the computer's audio back with `INPUT`, not an audio track whose source is `USB INPUT` - that track
+would be part of the mix sent to the computer, making a feedback loop, and would be held back too. Recording the
+Deluge's output gets what you hear; recording its mix (before the song's effects) gets it on time, without the
+computer's audio.
 
 ## Recording audio from your computer in an audio clip
 

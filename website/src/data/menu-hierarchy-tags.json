@@ -139,6 +139,13 @@
   "__subsection_01_08_voiceUsageMenu": "Subsection: Voice Usage",
   "voiceUsageMenu": "c1.3",
 
+  "__subsection_01_09_usbAudioMenu": "Subsection: USB Audio",
+  "usbAudioMenu": "c1.4",
+  "usbAudioEnabledMenu": "c1.4",
+  "usbAudioInputMenu": "c1.4",
+  "usbAudioOutputMenu": "c1.4",
+  "usbAudioCompensationMenu": "c1.4",
+
   "__section_02_songMenu": "Hierarchy: Song",
   "__subsection_02_00_root": "Subsection: Song (root)",
   "soundEditorRootMenuSongView": "c1.1",
@@ -315,6 +322,9 @@
   "outputMidiSubmenu": "c1.3",
   "outputMidiChannelMenu": "c1.3",
   "outputMidiNoteForDrumMenu": "c1.3",
+
+  "__subsection_05_15_trackDestinationMenu": "Subsection: Output (also in Audio clip and Kit FX)",
+  "trackDestinationMenu": "c1.4",
 
   "__section_06_kitFxMenu": "Hierarchy: Kit FX",
   "__subsection_06_00_root": "Subsection: Kit FX (root)",

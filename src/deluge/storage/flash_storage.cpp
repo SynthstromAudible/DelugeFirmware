@@ -222,6 +222,7 @@ enum Entries {
 198: USB audio disabled - stored inverted, so a unit that has never saved it (all zeros) has USB audio on
 199: USB input not mixed to outputs (usb_audio::directMonitoring) - stored inverted, so it defaults to on
 200: USB audio output source (usb_audio::OutputSource)
+201-202: USB audio compensation in ms (usb_audio::compensationMs), little-endian
 */
 
 uint8_t defaultScale;
@@ -404,6 +405,7 @@ void resetSettings() {
 	usbAudioEnabled = true;
 	usb_audio::directMonitoring = true;
 	usb_audio::outputSource = usb_audio::OutputSource::MAIN_MIX;
+	usb_audio::compensationMs = 0;
 }
 
 void factoryReset(bool showPopup) {
@@ -887,6 +889,8 @@ void readSettings() {
 	usb_audio::outputSource = (buffer[200] < usb_audio::kNumOutputSources)
 	                              ? static_cast<usb_audio::OutputSource>(buffer[200])
 	                              : usb_audio::OutputSource::MAIN_MIX;
+	uint16_t const compensationMs = buffer[201] | (buffer[202] << 8);
+	usb_audio::compensationMs = (compensationMs <= usb_audio::kMaxCompensationMs) ? compensationMs : 0;
 }
 
 /// Sanity-check the pre-c1.3 MIDI-follow block (bytes 126-145) before migrating it. Same checks the deleted
@@ -1158,6 +1162,8 @@ void writeSettings() {
 	buffer[198] = usbAudioEnabled ? 0 : 1;
 	buffer[199] = usb_audio::directMonitoring ? 0 : 1;
 	buffer[200] = util::to_underlying(usb_audio::outputSource);
+	buffer[201] = usb_audio::compensationMs & 0xFF;
+	buffer[202] = usb_audio::compensationMs >> 8;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

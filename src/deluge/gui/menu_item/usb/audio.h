@@ -16,9 +16,12 @@
  */
 #pragma once
 #include "drivers/usb/usb_audio.h"
+#include "gui/menu_item/integer.h"
 #include "gui/menu_item/selection.h"
 #include "gui/menu_item/toggle.h"
 #include "hid/display/display.h"
+#include "model/output.h"
+#include "model/song/song.h"
 #include "storage/flash_storage.h"
 
 namespace deluge::gui::menu_item::usb {
@@ -45,7 +48,7 @@ public:
 	void writeCurrentValue() override { usb_audio::directMonitoring = this->getValue(); }
 };
 
-/// What the host receives from the Deluge: its main mix, or its line input
+/// What the host receives from the Deluge: its main mix, its line input, or the tracks set to go there
 class OutputSource final : public Selection {
 public:
 	using Selection::Selection;
@@ -54,7 +57,35 @@ public:
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;
 		using enum l10n::String;
-		return {l10n::getView(STRING_FOR_MAIN_MIX), l10n::getView(STRING_FOR_LINE_IN)};
+		return {l10n::getView(STRING_FOR_MAIN_MIX), l10n::getView(STRING_FOR_LINE_IN),
+		        l10n::getView(STRING_FOR_TRACKS)};
+	}
+};
+
+/// How long the Deluge holds back its own audio, so audio coming back from the host lines up with it. Set it to the
+/// host's round trip
+class Compensation final : public Integer {
+public:
+	using Integer::Integer;
+	[[nodiscard]] int32_t getMaxValue() const override { return usb_audio::kMaxCompensationMs; }
+	void readCurrentValue() override { this->setValue(usb_audio::compensationMs); }
+	void writeCurrentValue() override { usb_audio::compensationMs = this->getValue(); }
+
+protected:
+	const char* getUnit() override { return "MS"; }
+};
+
+/// Where the current track's audio goes: the main mix, USB, or both. Per track, so shared by all its clips. Only takes
+/// effect while the host is getting tracks
+class Destination final : public Selection {
+public:
+	using Selection::Selection;
+	void readCurrentValue() override { this->setValue(getCurrentOutput()->destination); }
+	void writeCurrentValue() override { getCurrentOutput()->destination = this->getValue<TrackDestination>(); }
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
+		using enum l10n::String;
+		return {l10n::getView(STRING_FOR_MAIN_MIX), l10n::getView(STRING_FOR_USB), l10n::getView(STRING_FOR_BOTH)};
 	}
 };
 

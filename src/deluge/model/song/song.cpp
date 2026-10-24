@@ -17,6 +17,7 @@
 
 #include "model/song/song.h"
 #include "definitions_cxx.hpp"
+#include "drivers/usb/usb_audio.h"
 #include "dsp/reverb/reverb.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
@@ -2479,6 +2480,99 @@ void Song::deleteSoundsWhichWontSound() {
 	deleteAllBackedUpParamManagersWithClips();
 }
 
+namespace {
+// A track headed for both the main mix and USB is rendered once, into here, then added to each
+alignas(CACHE_LINE_SIZE) std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> trackForBothMemory;
+// A track headed for USB only sends its reverb here instead - the Deluge's reverb is part of the main mix. Never read
+// (passing a zero send amount instead would also change the track's mod FX, which take it too)
+alignas(CACHE_LINE_SIZE) std::array<int32_t, SSI_TX_BUFFER_NUM_SAMPLES> discardedReverbMemory;
+
+// While compensating, audio returning from the USB host, kept out of the compensation delay
+alignas(CACHE_LINE_SIZE) std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> undelayedMemory;
+alignas(CACHE_LINE_SIZE) std::array<int32_t, SSI_TX_BUFFER_NUM_SAMPLES> undelayedReverbMemory;
+
+// The compensation delay line, for the main mix and the reverb sends that go with it. Big enough for
+// usb_audio::kMaxCompensationMs plus a render window, and a power of two so positions just wrap
+constexpr uint32_t kCompensationFrames = 16384;
+static_assert(usb_audio::kMaxCompensationMs * kSampleRate / 1000 + SSI_TX_BUFFER_NUM_SAMPLES <= kCompensationFrames);
+PLACE_SDRAM_BSS StereoSample compensationLine[kCompensationFrames];
+PLACE_SDRAM_BSS int32_t compensationReverbLine[kCompensationFrames];
+uint32_t compensationWritePos = 0;
+bool compensationLineLive = false; // Whether the line's been written every render since it was last cleared
+
+/// Copies between a buffer and a ring of kCompensationFrames, starting at ringPos - in at most two blocks, for the wrap
+template <typename T>
+void copyToRing(T* ring, uint32_t ringPos, T const* from, size_t num) {
+	size_t const firstPart = std::min<size_t>(num, kCompensationFrames - ringPos);
+	memcpy(&ring[ringPos], from, firstPart * sizeof(T));
+	memcpy(ring, &from[firstPart], (num - firstPart) * sizeof(T));
+}
+template <typename T>
+void copyFromRing(T* to, T const* ring, uint32_t ringPos, size_t num) {
+	size_t const firstPart = std::min<size_t>(num, kCompensationFrames - ringPos);
+	memcpy(to, &ring[ringPos], firstPart * sizeof(T));
+	memcpy(&to[firstPart], ring, (num - firstPart) * sizeof(T));
+}
+
+/// Holds the main mix and its reverb sends back by usb_audio::compensationMs
+void compensateForUSB(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer) {
+	// Coming back on, what's in the line is from before it went off - so start it off silent. While it stays on it's
+	// kept full, so changing the delay just reads from a different point
+	if (!compensationLineLive) {
+		memset(compensationLine, 0, sizeof(compensationLine));
+		memset(compensationReverbLine, 0, sizeof(compensationReverbLine));
+		compensationLineLive = true;
+	}
+
+	size_t const numSamples = outputBuffer.size();
+	uint32_t const delay = usb_audio::compensationMs * kSampleRate / 1000;
+	uint32_t const writePos = compensationWritePos;
+	uint32_t const readPos = (writePos - delay) & (kCompensationFrames - 1);
+
+	// Write the whole window in first, then read the delayed one out. Where the delay is shorter than the window, the
+	// end of what's read is the start of what was just written - and the line is long enough that writing never
+	// overwrites anything still to be read
+	copyToRing(compensationLine, writePos, outputBuffer.data(), numSamples);
+	copyToRing(compensationReverbLine, writePos, reverbBuffer, numSamples);
+	copyFromRing(outputBuffer.data(), compensationLine, readPos, numSamples);
+	copyFromRing(reverbBuffer, compensationReverbLine, readPos, numSamples);
+
+	compensationWritePos = (writePos + numSamples) & (kCompensationFrames - 1);
+}
+
+/// Whether a track carries audio coming back from the USB host, which is already late by the host's round trip - so
+/// it's what the rest gets held back to meet. Covers its clips too, since anything recorded from the host was late
+/// by the same amount
+bool isReturningFromUSB(Output* output) {
+	return (output->type == OutputType::AUDIO)
+	       && (static_cast<AudioOutput*>(output)->inputChannel == AudioInputChannel::USB);
+}
+
+/// Renders a track whose destination is USB or both. One going to USB only renders straight into the USB tracks
+/// buffer, like any track into the main mix, and its reverb send is dropped - so the host always gets tracks dry of the
+/// Deluge's reverb. One going to both renders once, and is added to each
+void renderOutputForUSB(Output* output, TrackDestination destination, ModelStack* modelStack,
+                        std::span<StereoSample> mix, int32_t* mixReverb, int32_t reverbAmountAdjust,
+                        int32_t sideChainHitPending, bool isClipActiveNow) {
+	std::span<StereoSample> toUSB{AudioEngine::getUSBTracksBuffer(), mix.size()};
+
+	if (destination == TrackDestination::USB) {
+		// Cleared so the sends never pile up past overflowing
+		memset(discardedReverbMemory.data(), 0, mix.size() * sizeof(int32_t));
+		output->renderOutput(modelStack, toUSB, discardedReverbMemory.data(), reverbAmountAdjust, sideChainHitPending,
+		                     !isClipActiveNow, isClipActiveNow);
+		return;
+	}
+
+	std::span<StereoSample> track{trackForBothMemory.data(), mix.size()};
+	memset(track.data(), 0, track.size_bytes());
+	output->renderOutput(modelStack, track, mixReverb, reverbAmountAdjust, sideChainHitPending, !isClipActiveNow,
+	                     isClipActiveNow);
+	std::ranges::transform(toUSB, track, toUSB.begin(), std::plus{});
+	std::ranges::transform(mix, track, mix.begin(), std::plus{});
+}
+} // namespace
+
 void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer, int32_t sideChainHitPending) {
 
 	// int32_t volumePostFX = getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
@@ -2494,6 +2588,12 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
+	// While compensating, tracks returning from USB go into their own buffers, added in after the rest is held back.
+	// Those are only cleared and mixed in if such a track is actually rendered
+	bool const compensating = AudioEngine::compensatingForUSB;
+	std::span<StereoSample> undelayed{undelayedMemory.data(), outputBuffer.size()};
+	bool anyUndelayed = false;
+
 	AudioEngine::logAction("Start output render");
 	for (Output* output = firstOutput; output; output = output->next) {
 		if (!output->inValidState) {
@@ -2504,8 +2604,25 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 		    (output->getActiveClip() && isClipActive(output->getActiveClip()->getClipBeingRecordedFrom()));
 		ENTER_CRITICAL_SECTION();
 		if (output->shouldRenderInSong()) {
-			output->renderOutput(modelStack, outputBuffer, reverbBuffer, volumePostFX >> 1, sideChainHitPending,
-			                     !isClipActiveNow, isClipActiveNow);
+			bool const skipsDelay = compensating && isReturningFromUSB(output);
+			if (skipsDelay && !anyUndelayed) {
+				memset(undelayed.data(), 0, undelayed.size_bytes());
+				memset(undelayedReverbMemory.data(), 0, undelayed.size() * sizeof(int32_t));
+				anyUndelayed = true;
+			}
+			std::span<StereoSample> mix = skipsDelay ? undelayed : outputBuffer;
+			int32_t* mixReverb = skipsDelay ? undelayedReverbMemory.data() : reverbBuffer;
+
+			TrackDestination const destination =
+			    AudioEngine::routingTracksToUSB ? output->destination : TrackDestination::MAIN_MIX;
+			if (destination == TrackDestination::MAIN_MIX) {
+				output->renderOutput(modelStack, mix, mixReverb, volumePostFX >> 1, sideChainHitPending,
+				                     !isClipActiveNow, isClipActiveNow);
+			}
+			else {
+				renderOutputForUSB(output, destination, modelStack, mix, mixReverb, volumePostFX >> 1,
+				                   sideChainHitPending, isClipActiveNow);
+			}
 		}
 		EXIT_CRITICAL_SECTION();
 #if DO_AUDIO_LOG
@@ -2513,6 +2630,21 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 		snprintf(buf, sizeof(buf), "complete: %s", output->name.get());
 		AudioEngine::logAction(buf);
 #endif
+	}
+
+	// Hold the Deluge's own tracks back, then bring in what's returning from USB, so they meet. Before the song's FX,
+	// so those treat them all as one mix
+	if (compensating) {
+		compensateForUSB(outputBuffer, reverbBuffer);
+		if (anyUndelayed) {
+			std::ranges::transform(outputBuffer, undelayed, outputBuffer.begin(), std::plus{});
+			std::ranges::transform(std::span{reverbBuffer, outputBuffer.size()},
+			                       std::span{undelayedReverbMemory.data(), outputBuffer.size()}, reverbBuffer,
+			                       std::plus{});
+		}
+	}
+	else {
+		compensationLineLive = false;
 	}
 	AudioEngine::logAction("done rendering outputs");
 	// If recording the "MIX", this is the place where we want to grab it - before any master FX or volume applied

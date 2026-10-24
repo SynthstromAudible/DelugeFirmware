@@ -269,6 +269,10 @@ bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, 
 		}
 		writer.writeAttribute("isArmedForRecording", armedForRecording);
 		writer.writeAttribute("activeModFunction", modKnobMode);
+		// Only when set, so a song that doesn't use it saves exactly as before
+		if (destination != TrackDestination::MAIN_MIX) {
+			writer.writeAttribute("outputDestination", (destination == TrackDestination::USB) ? "usb" : "both");
+		}
 
 		if (clipInstances.getNumElements()) {
 			writer.insertCommaIfNeeded();
@@ -347,6 +351,13 @@ bool Output::readTagFromFile(Deserializer& reader, char const* tagName) {
 
 	else if (!strcmp(tagName, "colour")) {
 		colour = reader.readTagOrAttributeValueInt();
+	}
+
+	else if (!strcmp(tagName, "outputDestination")) {
+		char const* value = reader.readTagOrAttributeValue();
+		destination = !strcmp(value, "usb")    ? TrackDestination::USB
+		              : !strcmp(value, "both") ? TrackDestination::BOTH
+		                                       : TrackDestination::MAIN_MIX;
 	}
 
 	else if (!strcmp(tagName, "trackInstances") || !strcmp(tagName, "clipInstances")) {
