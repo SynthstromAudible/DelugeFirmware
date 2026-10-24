@@ -1765,7 +1765,12 @@ Clip* SessionView::createNewInstrumentClip(OutputType outputType, int32_t yDispl
 bool SessionView::insertAndResyncNewClip(Clip* newClip, int32_t yDisplay) {
 	// insert clip at index
 	int32_t index = yDisplay + currentSong->songViewYScroll;
-	if (index <= 0) {
+	if (currentSong->sessionClips.getNumElements() == 0) {
+		// Shouldn't happen (removeClip keeps one), but there's no neighbouring Clip to take a section from
+		index = 0;
+		newClip->section = 0;
+	}
+	else if (index <= 0) {
 		index = 0;
 		newClip->section = currentSong->sessionClips.getClipAtIndex(0)->section;
 		currentSong->songViewYScroll++;
@@ -1841,8 +1846,17 @@ void SessionView::removeClip(Clip* clip) {
 
 	int32_t clipIndex = currentSong->sessionClips.getIndexForClip(clip);
 
-	// If last session Clip left, just don't allow. Easiest
-	if (currentSong->sessionClips.getNumElements() == 1) {
+	// If last session Clip left, just don't allow. Easiest. Pending overdubs don't count towards what's left: they're
+	// deleted when playback stops, which would leave the song with no session Clips at all.
+	bool anotherRealClipRemains = false;
+	for (int32_t c = 0; c < currentSong->sessionClips.getNumElements(); c++) {
+		Clip* other = currentSong->sessionClips.getClipAtIndex(c);
+		if (other != clip && !other->isPendingOverdub) {
+			anotherRealClipRemains = true;
+			break;
+		}
+	}
+	if (currentSong->sessionClips.getNumElements() == 1 || (!clip->isPendingOverdub && !anotherRealClipRemains)) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_REMOVE_FINAL_CLIP));
 		return;
 	}
