@@ -26,7 +26,6 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -45,7 +44,12 @@ BOOT_STEP_MS = 100
 BOOT_QUIET_MS = 1500
 BOOT_TIMEOUT_MS = 60_000
 SAMPLE_MS = 25
-WINDOW_MS = 1000
+# Long enough for a scrolling name's whole cycle; a script leaves that long before its next step where text scrolls.
+WINDOW_MS = 8000
+# `load NAME`: Load, the browser's listing, one key per character, then Select.
+LOAD_OPEN_MS = 1500
+LOAD_KEY_MS = 150
+LOAD_SETTLE_MS = 800
 
 
 def button_table() -> dict[str, tuple[int, int]]:
@@ -89,18 +93,54 @@ def key(p: dict) -> str:
 
 
 def boot(dz) -> int:
-    """The virtual time (ns) at which the panel is lit and has been unchanged for BOOT_QUIET_MS."""
+    """The virtual time (ns) at which the OLED is lit and the pads, LEDs and knob rings have been unchanged for
+    BOOT_QUIET_MS. The OLED itself may never settle: a long preset name scrolls for as long as it shows."""
     t = 0
     last, since = None, 0
     while t < BOOT_TIMEOUT_MS * MS:
         t += BOOT_STEP_MS * MS
         dz.run_until(t)
         now = panel(dz)
-        if key(now) != last:
-            last, since = key(now), t
-        elif lit(now) and t - since >= BOOT_QUIET_MS * MS:
+        still = key({k: v for k, v in now.items() if k != "oled"})
+        if still != last:
+            last, since = still, t
+        elif (
+            any(any(row) for row in now["oled"])
+            and lit(now)
+            and t - since >= BOOT_QUIET_MS * MS
+        ):
             return t
     raise RuntimeError("the panel never settled after boot")
+
+
+def load(dz, at: int, name: str, buttons) -> int:
+    """Open the browser with Load, type `name` on the pad keyboard (a prefix jumps to the entry), and press Select.
+    Returns the virtual time the gesture ends."""
+    from delugemu import qwerty
+
+    x, y = buttons["Load"]
+    dz.button(x, y, True)
+    dz.run_until(at + 20 * MS)
+    dz.button(x, y, False)
+    t = at + LOAD_OPEN_MS * MS
+    for ch in name:
+        (px, py), shifted = qwerty.key_for(ch)
+        if shifted:
+            raise ValueError(
+                f"`load`: {ch!r} needs shift, which the harness does not type"
+            )
+        dz.run_until(t)
+        dz.pad_event(px, py, True)
+        dz.run_until(t + 40 * MS)
+        dz.pad_event(px, py, False)
+        t += LOAD_KEY_MS * MS
+    t += LOAD_SETTLE_MS * MS
+    dz.run_until(t)
+    x, y = buttons["SelectEnc"]
+    dz.button(x, y, True)
+    dz.run_until(t + 20 * MS)
+    dz.button(x, y, False)
+    return t + 20 * MS
 
 
 def run_image(
@@ -110,10 +150,12 @@ def run_image(
     from delugemu import DelugeSession
 
     out.mkdir(parents=True, exist_ok=True)
+    # -snapshot: both images run on one card image; their writes go to a temporary overlay, not the image.
     extra = [
         "-icount",
         f"shift={ICOUNT_SHIFT},sleep=off",
         "-S",
+        "-snapshot",
         "-global",
         f"rza1l-gpio.edge-spacing-ns={ENCODER_PHASE_NS}",
     ]
@@ -125,6 +167,8 @@ def run_image(
     sock = f"/tmp/dz_parity_{os.getpid()}_{out.parent.name}_{out.name}.sock"
     steps = parse_script(script)
     snaps = {}
+    # QEMU keeps its -snapshot overlay in TMPDIR: on disk beside the artifacts, not in a RAM-backed /tmp.
+    env = dict(os.environ, TMPDIR=str(out))
     with DelugeSession.launch(
         firmware=str(elf),
         sd=str(sd),
@@ -133,6 +177,7 @@ def run_image(
         extra_qemu=tuple(extra),
         artifacts_dir=str(out),
         int_log=str(out / "int.log"),
+        env=env,
     ) as dz:
         t0 = boot(dz)
         for i, (at_ms, cmd, args) in enumerate(steps):
@@ -145,6 +190,12 @@ def run_image(
                 dz.pad_event(int(args[0]), int(args[1]), args[2] == "down")
             elif cmd == "encoder":
                 dz.encoder(ENCODER_ROLES.index(args[0]), int(args[1]))
+            elif cmd == "load":
+                end = load(dz, at, " ".join(args), buttons)
+                if i + 1 < len(steps) and t0 + steps[i + 1][0] * MS < end:
+                    raise ValueError(
+                        f"{script.name}: `load` needs until {(end - t0) // MS} ms, before the next step"
+                    )
             elif cmd == "snapshot":
                 end = (
                     t0 + steps[i + 1][0] * MS
@@ -169,6 +220,8 @@ def run_image(
         (out / "snapshots.json").write_text(json.dumps(snaps))
         try:
             dz.assert_no_aborts()
+            # The interrupt log grows by every interrupt taken; only a faulting run's is worth keeping.
+            (out / "int.log").unlink(missing_ok=True)
         except AssertionError:  # delugemu's AbortDetected
             # The firmware's fault report and log: the RTT up-buffer the device build places at 0x202EB000.
             dz.q.hmp(f'pmemsave 0x202eb000 16384 "{out / "rtt.bin"}"')
@@ -231,7 +284,10 @@ def main() -> int:
     )
     ap.add_argument("--delugemu", type=Path, default=Path.home() / "GitHub/delugemu")
     ap.add_argument(
-        "--out", type=Path, help="artifact directory (default: a temporary one)"
+        "--out",
+        type=Path,
+        default=REPO / ".superpowers/emu-runs/latest",
+        help="artifact directory, on disk: runs keep card overlays and logs there (default: %(default)s)",
     )
     ap.add_argument(
         "-j",
@@ -242,9 +298,14 @@ def main() -> int:
     )
     ap.add_argument("scripts", nargs="+", type=Path)
     args = ap.parse_args()
+    # delugemu's run.sh runs from its own directory, so every path it is given is absolute.
+    for name in ("ref", "test", "card", "sd", "flash", "out"):
+        if getattr(args, name) is not None:
+            setattr(args, name, getattr(args, name).resolve())
 
     sys.path.insert(0, str(args.delugemu / "pylib"))
-    out = args.out or Path(tempfile.mkdtemp(prefix="emu-parity-"))
+    out = args.out
+    out.mkdir(parents=True, exist_ok=True)
     sd = args.sd
     if sd is None:
         sd = out / "card.img"

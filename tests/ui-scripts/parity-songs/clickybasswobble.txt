@@ -1,0 +1,16 @@
+# CLickybasswobble (c1.1.0): load it from the song view, then look at it stopped, playing and in its clip.
+# Snapshots leave up to 8 s before the next step: a long name scrolls on the OLED, and the window takes its whole cycle.
+100   snapshot boot
+8200  button Session down
+8220  button Session up
+9000  load clicky
+14000 snapshot loaded
+22000 button Play down
+22020 button Play up
+23000 snapshot playing
+31000 button Play down
+31020 button Play up
+32000 snapshot stopped
+40000 button Clip down
+40020 button Clip up
+41000 snapshot clip
