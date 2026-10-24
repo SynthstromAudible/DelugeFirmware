@@ -178,6 +178,7 @@ def run_image(
         artifacts_dir=str(out),
         int_log=str(out / "int.log"),
         env=env,
+        audio="none",  # nothing through the host's speakers
     ) as dz:
         t0 = boot(dz)
         for i, (at_ms, cmd, args) in enumerate(steps):
