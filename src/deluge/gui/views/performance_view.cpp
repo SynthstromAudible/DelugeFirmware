@@ -1740,16 +1740,6 @@ void PerformanceView::writeDefaultsToFile() {
 /// creates "FX1 - FX16 tags"
 /// limiting # of FX to the # of columns on the grid (16 = kDisplayWidth)
 /// could expand # of FX in the future if we allow user to selected from a larger bank of FX / build their own FX
-void PerformanceView::writeSettingsToFile(Serializer& writer) {
-	writer.writeOpeningTagBeginning("performanceView");
-	writer.writeOpeningTagEnd();
-	writer.writeOpeningTagBeginning(PERFORM_DEFAULTS_FXVALUES_TAG);
-	writer.writeOpeningTagEnd();
-	writeDefaultFXValuesToFile(writer);
-	writer.writeClosingTag(PERFORM_DEFAULTS_FXVALUES_TAG);
-	writer.writeClosingTag("performanceView");
-}
-
 void PerformanceView::writeDefaultFXValuesToFile(Serializer& writer) {
 	char tagName[10];
 	tagName[0] = 'F';
@@ -1905,7 +1895,7 @@ void PerformanceView::readDefaultsFromFile() {
 	// step into the <defaultFXValues> tag
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, PERFORM_DEFAULTS_FXVALUES_TAG)) {
-			readDefaultFXValuesFromFile(reader);
+			readDefaultFXValuesFromFile();
 		}
 		reader.exitTag();
 	}
@@ -1932,29 +1922,13 @@ void PerformanceView::loadDefaultLayout() {
 	successfullyReadDefaultsFromFile = true;
 }
 
-void PerformanceView::readSettingsFromFile(Deserializer& reader) {
-	char const* tagName;
-	reader.match('{');
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, PERFORM_DEFAULTS_FXVALUES_TAG)) {
-			// don't need to initialize held effects when readings settings from song file
-			// because held values are already persisted to the songParams section of the song file
-			// you also don't want to override the current song's parameter values if the loaded song
-			// has not been loaded yet (e.g. is not currentSong)
-			readDefaultFXValuesFromFile(reader, false);
-		}
-		reader.exitTag();
-	}
-	reader.exitTag("performanceView", true);
-	successfullyReadDefaultsFromFile = true;
-}
-
-void PerformanceView::readDefaultFXValuesFromFile(Deserializer& reader, bool initializeHeldEffects) {
+void PerformanceView::readDefaultFXValuesFromFile() {
 	char const* tagName;
 	char tagNameFX[5];
 	tagNameFX[0] = 'F';
 	tagNameFX[1] = 'X';
 
+	Deserializer& reader = smDeserializer;
 	// loop through all FX number tags
 	//<FX#>
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -1963,7 +1937,7 @@ void PerformanceView::readDefaultFXValuesFromFile(Deserializer& reader, bool ini
 			intToString(xDisplay + 1, &tagNameFX[2]);
 
 			if (!strcmp(tagName, tagNameFX)) {
-				readDefaultFXParamAndRowValuesFromFile(reader, xDisplay, initializeHeldEffects);
+				readDefaultFXParamAndRowValuesFromFile(xDisplay);
 				break;
 			}
 		}
@@ -1971,21 +1945,21 @@ void PerformanceView::readDefaultFXValuesFromFile(Deserializer& reader, bool ini
 	}
 }
 
-void PerformanceView::readDefaultFXParamAndRowValuesFromFile(Deserializer& reader, int32_t xDisplay,
-                                                             bool initializeHeldEffects) {
+void PerformanceView::readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay) {
 	char const* tagName;
+	Deserializer& reader = smDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		//<param>
 		if (!strcmp(tagName, PERFORM_DEFAULTS_PARAM_TAG)) {
-			readDefaultFXParamFromFile(reader, xDisplay);
+			readDefaultFXParamFromFile(xDisplay);
 		}
 		//<row>
 		else if (!strcmp(tagName, PERFORM_DEFAULTS_ROW_TAG)) {
-			readDefaultFXRowNumberValuesFromFile(reader, xDisplay);
+			readDefaultFXRowNumberValuesFromFile(xDisplay);
 		}
 		//<hold>
 		else if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_TAG)) {
-			readDefaultFXHoldStatusFromFile(reader, xDisplay, initializeHeldEffects);
+			readDefaultFXHoldStatusFromFile(xDisplay);
 		}
 		reader.exitTag();
 	}
@@ -1994,8 +1968,9 @@ void PerformanceView::readDefaultFXParamAndRowValuesFromFile(Deserializer& reade
 /// compares param name from <param> tag to the list of params available for use in performance view
 /// if param is found, it loads the layout info for that param into the view (paramKind, paramID, xDisplay, yDisplay,
 /// rowColour, rowTailColour)
-void PerformanceView::readDefaultFXParamFromFile(Deserializer& reader, int32_t xDisplay) {
+void PerformanceView::readDefaultFXParamFromFile(int32_t xDisplay) {
 	char const* paramName;
+	Deserializer& reader = smDeserializer;
 	char const* tagName = reader.readTagOrAttributeValue();
 
 	for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
@@ -2011,9 +1986,10 @@ void PerformanceView::readDefaultFXParamFromFile(Deserializer& reader, int32_t x
 	}
 }
 
-void PerformanceView::readDefaultFXRowNumberValuesFromFile(Deserializer& reader, int32_t xDisplay) {
+void PerformanceView::readDefaultFXRowNumberValuesFromFile(int32_t xDisplay) {
 	char const* tagName;
 	char rowNumber[5];
+	Deserializer& reader = smDeserializer;
 	// loop through all row <#> number tags
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// find the row number that the tag corresponds to
@@ -2043,10 +2019,10 @@ void PerformanceView::readDefaultFXRowNumberValuesFromFile(Deserializer& reader,
 	}
 }
 
-void PerformanceView::readDefaultFXHoldStatusFromFile(Deserializer& reader, int32_t xDisplay,
-                                                      bool initializeHeldEffects) {
+void PerformanceView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 	char const* tagName;
 	// loop through the hold tags
+	Deserializer& reader = smDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		//<status>
 		if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_STATUS_TAG)) {
@@ -2084,9 +2060,7 @@ void PerformanceView::readDefaultFXHoldStatusFromFile(Deserializer& reader, int3
 		}
 		reader.exitTag();
 	}
-	if (initializeHeldEffects) {
-		initializeHeldFX(xDisplay);
-	}
+	initializeHeldFX(xDisplay);
 }
 
 void PerformanceView::initializeHeldFX(int32_t xDisplay) {
