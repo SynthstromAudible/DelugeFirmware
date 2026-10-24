@@ -413,19 +413,25 @@ inline constexpr Node settings_actions = submenu(sid(String::STRING_FOR_ACTIONS)
 /// `cv::Volts::getMinValue`/`getMaxValue`/`getNumDecimalPlaces` (`cv/volts.h:32-34`). Legacy draws
 /// "Hz/V" instead of a number at zero and refuses the horizontal encoder there (`:42-56`) -- a
 /// bespoke render this generation's `Decimal` interpreter has no field for, recorded not dropped.
-inline constexpr Node cv_volts = with_title(
-    decimal_item(sid(String::STRING_FOR_VOLTS_PER_OCTAVE), get_cv_volts, set_cv_volts, IntRange{0, 200, 1}, 2),
-    sid(String::STRING_FOR_CV_V_PER_OCTAVE_MENU_TITLE));
+inline constexpr Node cv_volts =
+    with_title_arg(with_title(decimal_item(sid(String::STRING_FOR_VOLTS_PER_OCTAVE), get_cv_volts, set_cv_volts,
+                                           IntRange{0, 200, 1}, 2),
+                              sid(String::STRING_FOR_CV_V_PER_OCTAVE_MENU_TITLE)),
+                   kTitleArgSourceIndex);
 /// `cv::Transpose` (`cv/transpose.h:31-33`) -- the same `{-9600, 9600}` two-place packing the
 /// oscillator transposes use (`sound_osc.h`'s `kTransposeRange`).
-inline constexpr Node cv_transpose = with_title(
-    decimal_item(sid(String::STRING_FOR_TRANSPOSE), get_cv_transpose, set_cv_transpose, IntRange{-9600, 9600, 1}, 2),
-    sid(String::STRING_FOR_CV_TRANSPOSE_MENU_TITLE));
+inline constexpr Node cv_transpose =
+    with_title_arg(with_title(decimal_item(sid(String::STRING_FOR_TRANSPOSE), get_cv_transpose, set_cv_transpose,
+                                           IntRange{-9600, 9600, 1}, 2),
+                              sid(String::STRING_FOR_CV_TRANSPOSE_MENU_TITLE)),
+                   kTitleArgSourceIndex);
 inline constexpr const Node* kCvSubmenuChildren[] = {&cv_volts, &cv_transpose};
 /// `cvSubmenu{STRING_FOR_CV_OUTPUT_N, {&cvVoltsMenu, &cvTransposeMenu}}` (`menus.cpp:1232`). Its
-/// title is a `FormattedTitle` legacy re-formats per output (`setCvNumberForTitle`, `:2316-2318`);
-/// a `Node::title` is one static string id, so the port carries the unformatted "CV OUTPUT N".
-inline constexpr Node cv_submenu = submenu(sid(String::STRING_FOR_CV_OUTPUT_N), kCvSubmenuChildren);
+/// title is a `FormattedTitle` legacy re-formats per output (`setCvNumberForTitle`, `:2316-2318`),
+/// as are `cv_volts`' and `cv_transpose`'s: `kTitleArgSourceIndex` numbers all three by the output
+/// the selector chose.
+inline constexpr Node cv_submenu =
+    with_title_arg(submenu(sid(String::STRING_FOR_CV_OUTPUT_N), kCvSubmenuChildren), kTitleArgSourceIndex);
 
 /// `gate::Mode` (`gate/mode.h:29-73`): V-TRIG and S-TRIG always, plus CLOCK or RUN SIGNAL on the
 /// two outputs that carry them -- legacy's `updateOptions(value)`, which `gate::Selection` calls
@@ -436,9 +442,11 @@ inline constexpr Node cv_submenu = submenu(sid(String::STRING_FOR_CV_OUTPUT_N), 
 /// -- only a `FormattedTitle` (`gate/mode.h:36`). A `Node::name` of 0 would trip
 /// `validate_tree`'s `MissingTitle` (the builders default `title` to `name`), so the port uses the
 /// title for both, as it does for `gate_off_time` just below.
-inline constexpr Node gate_mode = with_title(
-    dynamic_enumeration(sid(String::STRING_FOR_GATE_MODE_TITLE), gate_mode_names, get_gate_mode, set_gate_mode),
-    sid(String::STRING_FOR_GATE_MODE_TITLE));
+inline constexpr Node gate_mode =
+    with_title_arg(with_title(dynamic_enumeration(sid(String::STRING_FOR_GATE_MODE_TITLE), gate_mode_names,
+                                                  get_gate_mode, set_gate_mode),
+                              sid(String::STRING_FOR_GATE_MODE_TITLE)),
+                   kTitleArgSourceIndex);
 /// `gate::OffTime` (`gate/off_time.h:22-30`), over `cvEngine.minGateOffTime` -- the one page here
 /// with no per-output state at all. Legacy names it `EMPTY_STRING` with the title
 /// `STRING_FOR_MINIMUM_OFF_TIME` (`menus.cpp:1224`); a `Node` with `name == 0` would trip
@@ -520,8 +528,9 @@ inline constexpr IntRange kFollowChannelRange{0, NUM_CHANNELS, 1};
 /// One follow-channel node. `n` is the `MIDIFollowChannelType` enumerator's value
 /// (`definitions_cxx.hpp:609-631`: A = 0, B = 1, C = 2, Track1 = 3 .. Track16 = 18).
 #define DELUGE_FOLLOW_CHANNEL(node_name, n, name_id)                                                                   \
-	inline constexpr Node node_name =                                                                                  \
-	    int_item(sid(String::name_id), get_follow_channel<(n)>, set_follow_channel<(n)>, kFollowChannelRange)
+	inline constexpr Node node_name = with_title_arg(                                                                  \
+	    int_item(sid(String::name_id), get_follow_channel<(n)>, set_follow_channel<(n)>, kFollowChannelRange),         \
+	    (n) >= 3 ? (n) - 2 : 0)
 
 DELUGE_FOLLOW_CHANNEL(midi_follow_channel_a, 0, STRING_FOR_FOLLOW_CHANNEL_A);
 DELUGE_FOLLOW_CHANNEL(midi_follow_channel_b, 1, STRING_FOR_FOLLOW_CHANNEL_B);

@@ -22,14 +22,14 @@
 /// | `env<n>` | `env<n>Menu` | -- (`envelope::EnvelopeMenu`, `envelope/envelope_menu.h:26`) |
 // clang-format on
 ///
-/// @note **Two known gaps, both `envelope::EnvelopeMenu`'s.** It overrides `renderMenuItems`
+/// @note **A known gap, `envelope::EnvelopeMenu`'s.** It overrides `renderMenuItems`
 ///       (`envelope_menu.h:37-97`) to draw one ADSR curve across the whole page instead of four
 ///       column meters -- a page-level renderer `Node` has no field for, so the four columns fall
 ///       back to their own hints (`Number`'s default knob: `Segment` overrides no
-///       `getRenderingStyle`). And its name and title are a `FormattedTitle`
-///       (`envelope_menu.h:31-34`) that substitutes the envelope number into
-///       `STRING_FOR_ENVELOPE_MENU_TITLE`; a `Node::title` is one static string id, so all four
-///       submenus carry the unsubstituted id. Both belong with E2's dynamic-label work.
+///       `getRenderingStyle`). Its name and title are a `FormattedTitle`
+///       (`envelope_menu.h:31-34`) substituting the envelope number into
+///       `STRING_FOR_ENVELOPE_MENU_TITLE`, as each `Segment`'s title is (`envelope/segment.h:27`);
+///       every node here carries that number as its `title_arg`.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
@@ -54,22 +54,31 @@ constexpr Node envelope_segment(uint16_t name, uint16_t title, int32_t first_par
 ///        distinct objects with static storage for their addresses to go in a `children` array --
 ///        a `constexpr` factory returning an aggregate cannot hand back pointers into itself.
 #define DELUGE_ENVELOPE(n, index)                                                                                      \
-	inline constexpr Node env##n##_attack = envelope_segment(                                                          \
-	    sid(deluge::l10n::String::STRING_FOR_ATTACK), sid(deluge::l10n::String::STRING_FOR_ENV_ATTACK_MENU_TITLE),     \
-	    deluge::modulation::params::LOCAL_ENV_0_ATTACK, (index));                                                      \
-	inline constexpr Node env##n##_decay = envelope_segment(                                                           \
-	    sid(deluge::l10n::String::STRING_FOR_DECAY), sid(deluge::l10n::String::STRING_FOR_ENV_DECAY_MENU_TITLE),       \
-	    deluge::modulation::params::LOCAL_ENV_0_DECAY, (index));                                                       \
-	inline constexpr Node env##n##_sustain = envelope_segment(                                                         \
-	    sid(deluge::l10n::String::STRING_FOR_SUSTAIN), sid(deluge::l10n::String::STRING_FOR_ENV_SUSTAIN_MENU_TITLE),   \
-	    deluge::modulation::params::LOCAL_ENV_0_SUSTAIN, (index));                                                     \
-	inline constexpr Node env##n##_release = envelope_segment(                                                         \
-	    sid(deluge::l10n::String::STRING_FOR_RELEASE), sid(deluge::l10n::String::STRING_FOR_ENV_RELEASE_MENU_TITLE),   \
-	    deluge::modulation::params::LOCAL_ENV_0_RELEASE, (index));                                                     \
+	inline constexpr Node env##n##_attack =                                                                            \
+	    with_title_arg(envelope_segment(sid(deluge::l10n::String::STRING_FOR_ATTACK),                                  \
+	                                    sid(deluge::l10n::String::STRING_FOR_ENV_ATTACK_MENU_TITLE),                   \
+	                                    deluge::modulation::params::LOCAL_ENV_0_ATTACK, (index)),                      \
+	                   (n));                                                                                           \
+	inline constexpr Node env##n##_decay =                                                                             \
+	    with_title_arg(envelope_segment(sid(deluge::l10n::String::STRING_FOR_DECAY),                                   \
+	                                    sid(deluge::l10n::String::STRING_FOR_ENV_DECAY_MENU_TITLE),                    \
+	                                    deluge::modulation::params::LOCAL_ENV_0_DECAY, (index)),                       \
+	                   (n));                                                                                           \
+	inline constexpr Node env##n##_sustain =                                                                           \
+	    with_title_arg(envelope_segment(sid(deluge::l10n::String::STRING_FOR_SUSTAIN),                                 \
+	                                    sid(deluge::l10n::String::STRING_FOR_ENV_SUSTAIN_MENU_TITLE),                  \
+	                                    deluge::modulation::params::LOCAL_ENV_0_SUSTAIN, (index)),                     \
+	                   (n));                                                                                           \
+	inline constexpr Node env##n##_release =                                                                           \
+	    with_title_arg(envelope_segment(sid(deluge::l10n::String::STRING_FOR_RELEASE),                                 \
+	                                    sid(deluge::l10n::String::STRING_FOR_ENV_RELEASE_MENU_TITLE),                  \
+	                                    deluge::modulation::params::LOCAL_ENV_0_RELEASE, (index)),                     \
+	                   (n));                                                                                           \
 	inline constexpr const Node* kEnv##n##Children[] = {&env##n##_attack, &env##n##_decay, &env##n##_sustain,          \
 	                                                    &env##n##_release};                                            \
-	inline constexpr Node env##n =                                                                                     \
-	    submenu(sid(deluge::l10n::String::STRING_FOR_ENVELOPE_MENU_TITLE), kEnv##n##Children, Layout::Horizontal)
+	inline constexpr Node env##n = with_title_arg(                                                                     \
+	    submenu(sid(deluge::l10n::String::STRING_FOR_ENVELOPE_MENU_TITLE), kEnv##n##Children, Layout::Horizontal),     \
+	    (n))
 
 DELUGE_ENVELOPE(1, 0);
 DELUGE_ENVELOPE(2, 1);

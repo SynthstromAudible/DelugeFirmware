@@ -347,6 +347,12 @@ std::string text_of(uint16_t id) {
 	return std::string{deluge_profile().text_or_digits(id, scratch)};
 }
 
+/// @brief @p id as @p node shows it: its placeholder filled (`menu::node_text`).
+std::string shown(uint16_t id, const Node& node, const MenuContext& ctx) {
+	menu::NodeText scratch;
+	return std::string{menu::node_text(id, node, ctx, scratch)};
+}
+
 /// @brief One `(node, legacy item)` pair, and which root it was reached from.
 struct Pair {
 	const Node* node;
@@ -467,46 +473,19 @@ bool legacy_write(::MenuItem* item, int32_t v) {
 /// @brief Legacy items whose `getName()`/`getTitle()` is built at render time rather than being the
 ///        l10n id the constructor was given -- so one static `Node::name` cannot match it.
 ///
-/// Keyed on the node (review round 1, M7's rule), and every entry names its mechanism:
+/// Keyed on the node (review round 1, M7's rule), and every entry names its mechanism. A
+/// `FormattedTitle` is not one of them: it is compared as shown, its `title_arg` filled in.
 ///
-///   * the sixteen `midiFollowChannelTrack*Menu` are `FormattedTitle`s with the track index
-///     substituted (`midi/follow/follow_channel.h:142-149`);
 ///   * the community-feature items take their name from the runtime settings table
 ///     (`runtime_feature/setting.cpp:40-46`), which is a `l10n::String` -- so those DO match and are
 ///     not listed; only the ones legacy formats are.
 bool has_dynamic_name(const Node& node) {
 	static const std::set<const Node*> kDynamic = {
-	    &nodes::midi_follow_track1,
-	    &nodes::midi_follow_track2,
-	    &nodes::midi_follow_track3,
-	    &nodes::midi_follow_track4,
-	    &nodes::midi_follow_track5,
-	    &nodes::midi_follow_track6,
-	    &nodes::midi_follow_track7,
-	    &nodes::midi_follow_track8,
-	    &nodes::midi_follow_track9,
-	    &nodes::midi_follow_track10,
-	    &nodes::midi_follow_track11,
-	    &nodes::midi_follow_track12,
-	    &nodes::midi_follow_track13,
-	    &nodes::midi_follow_track14,
-	    &nodes::midi_follow_track15,
-	    &nodes::midi_follow_track16,
 	    // batch 1's and batch 2's, reachable again from these roots
 	    &nodes::lpf_morph,
 	    &nodes::hpf_morph,
 	    &nodes::source0,
 	    &nodes::source1,
-	    &nodes::env1,
-	    &nodes::env2,
-	    &nodes::env3,
-	    &nodes::env4,
-	    &nodes::source0_volume,
-	    &nodes::source1_volume,
-	    &nodes::modulator0_volume,
-	    &nodes::modulator1_volume,
-	    &nodes::sample0_recorder,
-	    &nodes::sample1_recorder,
 	    &nodes::mod_fx_depth,
 	    &nodes::mod_fx_feedback,
 	    &nodes::mod_fx_offset,
@@ -1143,7 +1122,7 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 				continue;
 			}
 			install(p.root->ctx, p.root->song);
-			expect(text_of(p.node->name) == std::string{p.item->getName()}).to_be_true();
+			expect(shown(p.node->name, *p.node, p.root->ctx)).to_equal(std::string{p.item->getName()});
 		}
 	});
 
@@ -1154,13 +1133,14 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 				continue;
 			}
 			install(p.root->ctx, p.root->song);
-			const std::string title = text_of(p.node->title);
-			// A `*` in the resolved string is a `FormattedTitle` placeholder legacy substitutes an
-			// index into at render time (`formatted_title.h`) -- batch 1's gap, recorded there.
+			const std::string title = shown(p.node->title, *p.node, p.root->ctx);
+			// A placeholder left unfilled is `sample::Repeat`'s, a `FormattedTitle` legacy gives no
+			// argument (`sample/repeat.h:35`), so its title is empty until something formats it.
 			if (title.find('*') != std::string::npos) {
+				expect(p.node->title_arg).to_equal(uint8_t{0});
 				continue;
 			}
-			expect(title == std::string{p.item->getTitle()}).to_be_true();
+			expect(title).to_equal(std::string{p.item->getTitle()});
 			compared++;
 		}
 		expect(compared > size_t(800)).to_be_true(); // 934 today, across the ten roots
@@ -1513,7 +1493,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 });
 
 describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
-	it("validates every root but settings clean apart from the nine legacy name collisions", _ {
+	it("validates every root but settings clean", _ {
 		std::vector<MenuContext> contexts;
 		std::vector<const Node*> without_settings;
 		for (const Root& root : roots()) {
@@ -1537,80 +1517,22 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 		for (const menu::Issue& i : issues) {
 			(i.kind == menu::Issue::Kind::DuplicateName ? duplicates : others)++;
 		}
-		// Sixteen: `tables_2_spec`'s nine, plus seven the kit-drum root repeats. The rule is per
-		// *parent*, and `soundEditorRootMenuDrum` (`menus.cpp:1807`) is a second parent over the same
-		// children -- so `env1Menu`..`env4Menu` collide pairwise there too (six) and
-		// `soundEditorRootDrumActionsMenu` holds the same two `FormattedTitle` sample recorders
-		// (one). The shared `source0Menu` / `modulator0Menu` pages are one node visited once, so
-		// their own two collisions are not repeated.
-		//
-		// Batch 3's own repeated names are never *siblings*: `STRING_FOR_ACTIONS` names five
-		// different roots' actions pages and `STRING_FOR_MASTER` three, but each is an only child of
-		// its own parent. Every one of the sixteen is a legacy `FormattedTitle` -- a name legacy
-		// builds by substituting an index, which one `uint16_t Node::name` cannot express, and which
-		// E2's formatted-name field removes.
-		expect(duplicates).to_equal(size_t(16));
+		// The `FormattedTitle` siblings, here and under the kit-drum root's second parent over the
+		// same children, are told apart by their `title_arg`.
+		expect(duplicates).to_equal(size_t(0));
 		expect(others).to_equal(size_t(0));
 	});
 
-	it("validates the settings root clean everywhere but its follow-channel page", _ {
-		// The follow-channel page is sixteen siblings that legacy names identically and formats an
-		// index into (`midi/follow/follow_channel.h:142-149`); the `DuplicateName` rule is
-		// quantified over *pairs*, so those sixteen alone are 120 reports -- past `validate_tree`'s
-		// own 64-issue cap, which would then hide anything else. So the settings tree is validated
-		// here with that one page held out, and the page itself in the next example.
+	it("validates the settings root clean, its sixteen follow-channel tracks included", _ {
+		// Legacy names the sixteen tracks identically and formats the track number in
+		// (`midi/follow/follow_channel.h:176-185`); their `title_arg` tells them apart.
 		const Root& settings = roots().back();
 		install(settings.ctx, settings.song);
-		std::vector<const Node*> without_follow_channel;
-		const auto add_children_except = [&](const Node& parent, const Node* skip) {
-			for (const Node* kid : parent.children) {
-				if (kid != skip) {
-					without_follow_channel.push_back(kid);
-				}
-			}
-		};
-		add_children_except(nodes::root_settings, &nodes::midi_settings);
-		add_children_except(nodes::midi_settings, &nodes::midi_follow);
-		add_children_except(nodes::midi_follow, &nodes::midi_follow_channel);
-
-		const MenuContext contexts[] = {settings.ctx};
-		const auto issues = menu::validate_tree(
-		    without_follow_channel, contexts, {}, {},
-		    menu::ValidateOptions{.skip_shortcut_sweep = true});
-		expect(issues.size()).to_equal(size_t(0));
-
-		// Fix round 1, minor 6: passing those three nodes' *children* as roots leaves the three
-		// parents themselves unvalidated -- their own titles, their own emptiness, and sibling-level
-		// `DuplicateName` at their level. `validate_tree` cannot be pointed at them without dragging
-		// the follow-channel page back in, so the same three rules are asserted directly here.
-		for (const Node* parent : {&nodes::root_settings, &nodes::midi_settings, &nodes::midi_follow}) {
-			expect(parent->title != uint16_t(0)).to_be_true();     // MissingTitle
-			expect(parent->children.empty()).to_be_false();        // EmptySubmenu
-			expect(parent->kind == menu::Kind::Submenu).to_be_true();
-			for (size_t a = 0; a < parent->children.size(); a++) { // DuplicateName
-				for (size_t b = a + 1; b < parent->children.size(); b++) {
-					expect(parent->children[a]->name == parent->children[b]->name).to_be_false();
-				}
-			}
-		}
-	});
-
-	it("reports the follow-channel page's sixteen identically named siblings", _ {
-		const Root& settings = roots().back();
-		install(settings.ctx, settings.song);
-		const Node* page[] = {&nodes::midi_follow_channel};
+		const Node* root[] = {&nodes::root_settings};
 		const MenuContext contexts[] = {settings.ctx};
 		const auto issues =
-		    menu::validate_tree(page, contexts, {}, {},
-		                        menu::ValidateOptions{.skip_shortcut_sweep = true});
-		// Every issue is the one collision, on the one name id -- the count itself is the 64 cap
-		// (`validate.h`: "a tree with more than 64 problems does not need an exhaustive list"), not a
-		// number worth asserting. E2's formatted-name field on `Node` is what removes these.
-		expect(issues.empty()).to_be_false();
-		for (const menu::Issue& i : issues) {
-			expect(i.kind == menu::Issue::Kind::DuplicateName).to_be_true();
-			expect(i.detail == uint16_t(String::STRING_FOR_FOLLOW_CHANNEL_TRACK)).to_be_true();
-		}
+		    menu::validate_tree(root, contexts, {}, {}, menu::ValidateOptions{.skip_shortcut_sweep = true});
+		expect(issues.size()).to_equal(size_t(0));
 	});
 
 	it("assigns an id to every node in every root's tree", _ {

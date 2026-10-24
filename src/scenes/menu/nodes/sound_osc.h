@@ -83,10 +83,11 @@
 /// @note **Legacy behaviours with no `Node` spelling, recorded rather than dropped silently.**
 ///       `submenu::ActualSource::getTitle()` swaps to `STRING_FOR_OSC_SAMPLE_MENU_TITLE` once the
 ///       source is a sample and the page number is past the first (`submenu/actual_source.h:29-40`);
-///       `osc::source::Volume`, `ModulatorLevel` and `osc::AudioRecorder` all render a
-///       `FormattedTitle` with the index substituted in; and
-///       `osc::Type`/`osc::AudioRecorder` return false from `showColumnLabel()`/`showNotification()`
+///       and `osc::Type`/`osc::AudioRecorder` return false from `showColumnLabel()`/`showNotification()`
 ///       (`osc/type.h:127`, `audio_recorder.h:78-79`), which `Node` cannot express.
+///       `sample::Repeat` is a `FormattedTitle` given no argument (`sample/repeat.h:35`), so
+///       `sample<i>_repeat` carries no `title_arg`; every other `FormattedTitle` here carries its
+///       source number.
 ///       `sample::PitchSpeed::isToggle()` is true (`sample/pitch_speed.h:80`), and DOES have a
 ///       `Node` spelling as of fix round 2 -- `Node::selection_is_toggle`
 ///       (`sample##i##_pitch_speed`'s own definition sets it) -- so legacy toggling it in place
@@ -156,66 +157,79 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 #define DELUGE_OSC_SOURCE(i, name_id, osc_path)                                                                        \
 	int32_t get_source##i##_transpose(const MenuContext& ctx);                                                         \
 	void set_source##i##_transpose(const MenuContext& ctx, int32_t v);                                                 \
-	inline constexpr Node osc##i##_type = with_title(                                                                  \
-	    setting_item(                                                                                                  \
-	        sid(deluge::l10n::String::STRING_FOR_TYPE), Kind::Enum,                                                    \
-	        {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = osc_path "/type", .whole_kit = false}),        \
-	    sid(deluge::l10n::String::STRING_FOR_OSC_TYPE_MENU_TITLE));                                                    \
+	inline constexpr Node osc##i##_type =                                                                              \
+	    with_title_arg(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_TYPE), Kind::Enum,                 \
+	                                           {.kind = deluge::scenes::bind::Target::Kind::SOUND,                     \
+	                                            .path = osc_path "/type",                                              \
+	                                            .whole_kit = false}),                                                  \
+	                              sid(deluge::l10n::String::STRING_FOR_OSC_TYPE_MENU_TITLE)),                          \
+	                   (i) + 1);                                                                                       \
 	inline constexpr Node file##i##_selector = with_allow_session_from_horizontal(with_range_dependent(custom(         \
 	    sid(deluge::l10n::String::STRING_FOR_FILE_BROWSER), &kFile##i##Selector, relevance::osc##i##_file_selector))); \
-	inline constexpr Node source##i##_transpose = with_patch_chain(with_range_dependent(with_learn_param(              \
-	    with_title(decimal_item(sid(deluge::l10n::String::STRING_FOR_TRANSPOSE), get_source##i##_transpose,            \
-	                            set_source##i##_transpose, kTransposeRange, 2, relevance::osc##i##_transpose),         \
-	               sid(deluge::l10n::String::STRING_FOR_OSC_TRANSPOSE_MENU_TITLE)),                                    \
-	    {deluge::modulation::params::Kind::PATCHED,                                                                    \
-	     static_cast<uint8_t>(deluge::modulation::params::LOCAL_OSC_A_PITCH_ADJUST + (i))})));                         \
-	inline constexpr Node source##i##_wave_index = with_patch_chain(param(                                             \
-	    sid(deluge::l10n::String::STRING_FOR_WAVE_INDEX),                                                              \
-	    {deluge::modulation::params::Kind::PATCHED,                                                                    \
-	     static_cast<uint8_t>(deluge::modulation::params::LOCAL_OSC_A_WAVE_INDEX + (i))},                              \
-	    Hint::Slider, param_shows::kOscWaveIndex[i], sid(deluge::l10n::String::STRING_FOR_OSC_WAVE_IND_MENU_TITLE)));  \
-	inline constexpr Node osc##i##_pulse_width =                                                                       \
+	inline constexpr Node source##i##_transpose = with_title_arg(                                                      \
+	    with_patch_chain(with_range_dependent(with_learn_param(                                                        \
+	        with_title(decimal_item(sid(deluge::l10n::String::STRING_FOR_TRANSPOSE), get_source##i##_transpose,        \
+	                                set_source##i##_transpose, kTransposeRange, 2, relevance::osc##i##_transpose),     \
+	                   sid(deluge::l10n::String::STRING_FOR_OSC_TRANSPOSE_MENU_TITLE)),                                \
+	        {deluge::modulation::params::Kind::PATCHED,                                                                \
+	         static_cast<uint8_t>(deluge::modulation::params::LOCAL_OSC_A_PITCH_ADJUST + (i))}))),                     \
+	    (i) + 1);                                                                                                      \
+	inline constexpr Node source##i##_wave_index = with_title_arg(                                                     \
+	    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_WAVE_INDEX),                                       \
+	                           {deluge::modulation::params::Kind::PATCHED,                                             \
+	                            static_cast<uint8_t>(deluge::modulation::params::LOCAL_OSC_A_WAVE_INDEX + (i))},       \
+	                           Hint::Slider, param_shows::kOscWaveIndex[i],                                            \
+	                           sid(deluge::l10n::String::STRING_FOR_OSC_WAVE_IND_MENU_TITLE))),                        \
+	    (i) + 1);                                                                                                      \
+	inline constexpr Node osc##i##_pulse_width = with_title_arg(                                                       \
 	    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_PULSE_WIDTH),                                      \
 	                           {deluge::modulation::params::Kind::PATCHED,                                             \
 	                            static_cast<uint8_t>(deluge::modulation::params::LOCAL_OSC_A_PHASE_WIDTH + (i))},      \
 	                           Hint::None, param_shows::kOscPulseWidth[i],                                             \
-	                           sid(deluge::l10n::String::STRING_FOR_OSC_P_WIDTH_MENU_TITLE), Scaling::HalfPrecision)); \
-	inline constexpr Node source##i##_feedback =                                                                       \
+	                           sid(deluge::l10n::String::STRING_FOR_OSC_P_WIDTH_MENU_TITLE), Scaling::HalfPrecision)), \
+	    (i) + 1);                                                                                                      \
+	inline constexpr Node source##i##_feedback = with_title_arg(                                                       \
 	    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_FEEDBACK),                                         \
 	                           {deluge::modulation::params::Kind::PATCHED,                                             \
 	                            static_cast<uint8_t>(deluge::modulation::params::LOCAL_CARRIER_0_FEEDBACK + (i))},     \
 	                           Hint::Bar, param_shows::kOscCarrierFeedback[i],                                         \
-	                           sid(deluge::l10n::String::STRING_FOR_CARRIER_FEED_MENU_TITLE)));                        \
-	inline constexpr Node osc##i##_phase =                                                                             \
+	                           sid(deluge::l10n::String::STRING_FOR_CARRIER_FEED_MENU_TITLE))),                        \
+	    (i) + 1);                                                                                                      \
+	inline constexpr Node osc##i##_phase = with_title_arg(                                                             \
 	    with_hint(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RETRIGGER_PHASE), Kind::Decimal,        \
 	                                      {.kind = deluge::scenes::bind::Target::Kind::SOUND,                          \
 	                                       .path = osc_path "/retrigPhase",                                            \
 	                                       .whole_kit = false}),                                                       \
 	                         sid(deluge::l10n::String::STRING_FOR_OSC_R_PHASE_MENU_TITLE)),                            \
-	              Hint::Slider);                                                                                       \
-	inline constexpr Node sample##i##_reverse =                                                                        \
+	              Hint::Slider),                                                                                       \
+	    (i) + 1);                                                                                                      \
+	inline constexpr Node sample##i##_reverse = with_title_arg(                                                        \
 	    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_REVERSE), Kind::Toggle,                           \
 	                            {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = osc_path "/reversed"}),    \
-	               sid(deluge::l10n::String::STRING_FOR_SAMP_REVERSE_MENU_TITLE));                                     \
+	               sid(deluge::l10n::String::STRING_FOR_SAMP_REVERSE_MENU_TITLE)),                                     \
+	    (i) + 1);                                                                                                      \
 	inline constexpr Node sample##i##_repeat =                                                                         \
 	    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_REPEAT_MODE), Kind::Enum,                         \
 	                            {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = osc_path "/loopMode"}),    \
 	               sid(deluge::l10n::String::STRING_FOR_SAMP_REPEAT_MENU_TITLE));                                      \
-	inline constexpr Node sample##i##_time_stretch = with_title(                                                       \
-	    setting_item(sid(deluge::l10n::String::STRING_FOR_SPEED), Kind::Int,                                           \
-	                 {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = osc_path "/timeStretchAmount"}),      \
-	    sid(deluge::l10n::String::STRING_FOR_SAMP_SPEED_MENU_TITLE));                                                  \
+	inline constexpr Node sample##i##_time_stretch =                                                                   \
+	    with_title_arg(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SPEED), Kind::Int,                 \
+	                                           {.kind = deluge::scenes::bind::Target::Kind::SOUND,                     \
+	                                            .path = osc_path "/timeStretchAmount"}),                               \
+	                              sid(deluge::l10n::String::STRING_FOR_SAMP_SPEED_MENU_TITLE)),                        \
+	                   (i) + 1);                                                                                       \
 	inline constexpr Node sample##i##_pitch_speed =                                                                    \
 	    with_selection_is_toggle(setting_item(sid(deluge::l10n::String::STRING_FOR_PITCH_SPEED), Kind::Enum,           \
 	                                          {.kind = deluge::scenes::bind::Target::Kind::SOUND,                      \
 	                                           .path = osc_path "/timeStretchEnable",                                  \
 	                                           .audio_clip_path = "pitchSpeedIndependent"}));                          \
 	inline constexpr Node sample##i##_interpolation =                                                                  \
-	    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_INTERPOLATION), Kind::Enum,                       \
-	                            {.kind = deluge::scenes::bind::Target::Kind::SOUND,                                    \
-	                             .path = osc_path "/linearInterpolation",                                              \
-	                             .audio_clip_path = "linearInterpolation"}),                                           \
-	               sid(deluge::l10n::String::STRING_FOR_SAMP_INTERP_MENU_TITLE));                                      \
+	    with_title_arg(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_INTERPOLATION), Kind::Enum,        \
+	                                           {.kind = deluge::scenes::bind::Target::Kind::SOUND,                     \
+	                                            .path = osc_path "/linearInterpolation",                               \
+	                                            .audio_clip_path = "linearInterpolation"}),                            \
+	                              sid(deluge::l10n::String::STRING_FOR_SAMP_INTERP_MENU_TITLE)),                       \
+	                   (i) + 1);                                                                                       \
 	inline constexpr Node sample##i##_start = with_allow_session_from_horizontal(with_range_dependent(custom(          \
 	    sid(deluge::l10n::String::STRING_FOR_START_POINT), &kSample##i##Start, relevance::osc##i##_is_sample)));       \
 	inline constexpr Node sample##i##_end = with_allow_session_from_horizontal(with_range_dependent(                   \
@@ -230,27 +244,33 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 
 /// @brief One FM modulator page's three shared leaves. Bodies in the `.cpp`.
 #define DELUGE_OSC_MODULATOR(i, modulator_path)                                                                        \
-	inline constexpr Node modulator##i##_transpose = with_patch_chain(with_learn_param(                                \
-	    with_title(with_decimal_places(setting_item(sid(deluge::l10n::String::STRING_FOR_TRANSPOSE), Kind::Decimal,    \
-	                                                {.kind = deluge::scenes::bind::Target::Kind::SOUND,                \
-	                                                 .path = modulator_path "/transpose",                              \
-	                                                 .fan_out_when = fan_out::kFm}),                                   \
-	                                   2),                                                                             \
-	               sid(deluge::l10n::String::STRING_FOR_FM_MOD_TRAN_MENU_TITLE)),                                      \
-	    {deluge::modulation::params::Kind::PATCHED,                                                                    \
-	     static_cast<uint8_t>(deluge::modulation::params::LOCAL_MODULATOR_0_PITCH_ADJUST + (i))}));                    \
-	inline constexpr Node modulator##i##_feedback = with_patch_chain(                                                  \
-	    param(sid(deluge::l10n::String::STRING_FOR_FEEDBACK),                                                          \
-	          {deluge::modulation::params::Kind::PATCHED,                                                              \
-	           static_cast<uint8_t>(deluge::modulation::params::LOCAL_MODULATOR_0_FEEDBACK + (i))},                    \
-	          Hint::Bar, param_shows::kOnFm, sid(deluge::l10n::String::STRING_FOR_FM_MOD_FBACK_MENU_TITLE)));          \
-	inline constexpr Node modulator##i##_phase_node =                                                                  \
+	inline constexpr Node modulator##i##_transpose =                                                                   \
+	    with_title_arg(with_patch_chain(with_learn_param(                                                              \
+	                       with_title(with_decimal_places(                                                             \
+	                                      setting_item(sid(deluge::l10n::String::STRING_FOR_TRANSPOSE), Kind::Decimal, \
+	                                                   {.kind = deluge::scenes::bind::Target::Kind::SOUND,             \
+	                                                    .path = modulator_path "/transpose",                           \
+	                                                    .fan_out_when = fan_out::kFm}),                                \
+	                                      2),                                                                          \
+	                                  sid(deluge::l10n::String::STRING_FOR_FM_MOD_TRAN_MENU_TITLE)),                   \
+	                       {deluge::modulation::params::Kind::PATCHED,                                                 \
+	                        static_cast<uint8_t>(deluge::modulation::params::LOCAL_MODULATOR_0_PITCH_ADJUST + (i))})), \
+	                   (i) + 1);                                                                                       \
+	inline constexpr Node modulator##i##_feedback = with_title_arg(                                                    \
+	    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_FEEDBACK),                                         \
+	                           {deluge::modulation::params::Kind::PATCHED,                                             \
+	                            static_cast<uint8_t>(deluge::modulation::params::LOCAL_MODULATOR_0_FEEDBACK + (i))},   \
+	                           Hint::Bar, param_shows::kOnFm,                                                          \
+	                           sid(deluge::l10n::String::STRING_FOR_FM_MOD_FBACK_MENU_TITLE))),                        \
+	    (i) + 1);                                                                                                      \
+	inline constexpr Node modulator##i##_phase_node = with_title_arg(                                                  \
 	    with_hint(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RETRIGGER_PHASE), Kind::Decimal,        \
 	                                      {.kind = deluge::scenes::bind::Target::Kind::SOUND,                          \
 	                                       .path = modulator_path "/retrigPhase",                                      \
 	                                       .whole_kit = false}),                                                       \
 	                         sid(deluge::l10n::String::STRING_FOR_FM_MOD_RETRIG_MENU_TITLE)),                          \
-	              Hint::Slider)
+	              Hint::Slider),                                                                                       \
+	    (i) + 1)
 
 DELUGE_OSC_SOURCE(0, STRING_FOR_OSCILLATOR_1, "osc1");
 DELUGE_OSC_SOURCE(1, STRING_FOR_OSCILLATOR_2, "osc2");
@@ -278,35 +298,45 @@ inline constexpr Node modulator1 = submenu(sid(deluge::l10n::String::STRING_FOR_
 
 // The recorder page (`g_menus.inc:55-61`). Two slots wide each --
 // `AudioRecorder::getOccupiedSlots()` (`osc/audio_recorder.h:77`).
-inline constexpr Node sample0_recorder = with_slots(
-    with_allow_session_from_horizontal(with_range_dependent(
-        custom(sid(deluge::l10n::String::STRING_FOR_RECORD_TO_SAMPLE), &kSample0Recorder, relevance::is_subtractive))),
-    2);
-inline constexpr Node sample1_recorder = with_slots(
-    with_allow_session_from_horizontal(with_range_dependent(
-        custom(sid(deluge::l10n::String::STRING_FOR_RECORD_TO_SAMPLE), &kSample1Recorder, relevance::is_subtractive))),
-    2);
+inline constexpr Node sample0_recorder =
+    with_title_arg(with_slots(with_allow_session_from_horizontal(
+                                  with_range_dependent(custom(sid(deluge::l10n::String::STRING_FOR_RECORD_TO_SAMPLE),
+                                                              &kSample0Recorder, relevance::is_subtractive))),
+                              2),
+                   1);
+inline constexpr Node sample1_recorder =
+    with_title_arg(with_slots(with_allow_session_from_horizontal(
+                                  with_range_dependent(custom(sid(deluge::l10n::String::STRING_FOR_RECORD_TO_SAMPLE),
+                                                              &kSample1Recorder, relevance::is_subtractive))),
+                              2),
+                   2);
 inline constexpr const Node* kRecorderChildren[] = {&sample0_recorder, &sample1_recorder};
 inline constexpr Node recorder =
     submenu(sid(deluge::l10n::String::STRING_FOR_SAMPLE_RECORDER), kRecorderChildren, Layout::Horizontal);
 
 // The mixer page (`g_menus.inc:144-158`).
-inline constexpr Node source0_volume =
+inline constexpr Node source0_volume = with_title_arg(
     with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_OSC_LEVEL_MENU_TITLE),
                            {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_OSC_A_VOLUME},
-                           Hint::Bar, param_shows::kOffRingMod));
-inline constexpr Node source1_volume =
+                           Hint::Bar, param_shows::kOffRingMod)),
+    1);
+inline constexpr Node source1_volume = with_title_arg(
     with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_OSC_LEVEL_MENU_TITLE),
                            {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_OSC_B_VOLUME},
-                           Hint::Bar, param_shows::kOffRingMod));
-inline constexpr Node modulator0_volume = with_patch_chain(
-    param(sid(deluge::l10n::String::STRING_FOR_FM_MOD_LEVEL_MENU_TITLE),
-          {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_MODULATOR_0_VOLUME}, Hint::Bar,
-          param_shows::kOnFm));
-inline constexpr Node modulator1_volume = with_patch_chain(
-    param(sid(deluge::l10n::String::STRING_FOR_FM_MOD_LEVEL_MENU_TITLE),
-          {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_MODULATOR_1_VOLUME}, Hint::Bar,
-          param_shows::kOnFm));
+                           Hint::Bar, param_shows::kOffRingMod)),
+    2);
+inline constexpr Node modulator0_volume =
+    with_title_arg(with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_FM_MOD_LEVEL_MENU_TITLE),
+                                          {deluge::modulation::params::Kind::PATCHED,
+                                           deluge::modulation::params::LOCAL_MODULATOR_0_VOLUME},
+                                          Hint::Bar, param_shows::kOnFm)),
+                   1);
+inline constexpr Node modulator1_volume =
+    with_title_arg(with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_FM_MOD_LEVEL_MENU_TITLE),
+                                          {deluge::modulation::params::Kind::PATCHED,
+                                           deluge::modulation::params::LOCAL_MODULATOR_1_VOLUME},
+                                          Hint::Bar, param_shows::kOnFm)),
+                   2);
 inline constexpr Node noise =
     with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_NOISE_LEVEL),
                            {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_NOISE_VOLUME},

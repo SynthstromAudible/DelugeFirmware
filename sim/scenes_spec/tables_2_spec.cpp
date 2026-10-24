@@ -282,6 +282,12 @@ std::string text_of(uint16_t id) {
 	return std::string{deluge_profile().text_or_digits(id, scratch)};
 }
 
+/// @brief @p id as @p node shows it: its placeholder filled (`menu::node_text`).
+std::string shown(uint16_t id, const Node& node, const MenuContext& ctx) {
+	menu::NodeText scratch;
+	return std::string{menu::node_text(id, node, ctx, scratch)};
+}
+
 /// @brief Legacy items whose `getName()` is not the l10n string the constructor was given.
 ///
 /// Keyed on the **node**, not on its name id (review round 1, M7): `STRING_FOR_FEEDBACK` also names
@@ -291,9 +297,7 @@ std::string text_of(uint16_t id) {
 /// `Node::name` (one static string id) cannot express:
 ///
 ///   * batch 1's, reachable again from the root: `filter::FilterParam`'s morph name
-///     (`filter/param.h:38`), `submenu::ActualSource` (`submenu/actual_source.h:26-38`),
-///     `envelope::EnvelopeMenu`, `osc::source::Volume`, `ModulatorLevel`, `osc::AudioRecorder`
-///     (all `FormattedTitle`);
+///     (`filter/param.h:38`) and `submenu::ActualSource` (`submenu/actual_source.h:26-38`);
 ///   * `mod_fx::Depth_Patched` / `Feedback` / `Offset`, whose names come from
 ///     `modfx::getParamName(type, ...)` and so change with the selected mod-FX type
 ///     (`mod_fx/depth_patched.h:29-31`, `feedback.h:26-28`, `offset.h:27-29`);
@@ -301,25 +305,9 @@ std::string text_of(uint16_t id) {
 ///     reverb models (`reverb/room_size.h:29-38`, `width.h:28-37`).
 bool has_dynamic_name(const Node& node) {
 	static const std::set<const Node*> kDynamic = {
-	    &nodes::lpf_morph,
-	    &nodes::hpf_morph,
-	    &nodes::source0,
-	    &nodes::source1,
-	    &nodes::env1,
-	    &nodes::env2,
-	    &nodes::env3,
-	    &nodes::env4,
-	    &nodes::source0_volume,
-	    &nodes::source1_volume,
-	    &nodes::modulator0_volume,
-	    &nodes::modulator1_volume,
-	    &nodes::sample0_recorder,
-	    &nodes::sample1_recorder,
-	    &nodes::mod_fx_depth,
-	    &nodes::mod_fx_feedback,
-	    &nodes::mod_fx_offset,
-	    &nodes::reverb_room_size,
-	    &nodes::reverb_width,
+	    &nodes::lpf_morph,     &nodes::hpf_morph,        &nodes::source0,
+	    &nodes::source1,       &nodes::mod_fx_depth,     &nodes::mod_fx_feedback,
+	    &nodes::mod_fx_offset, &nodes::reverb_room_size, &nodes::reverb_width,
 	};
 	return kDynamic.contains(&node);
 }
@@ -748,11 +736,13 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 	});
 
 	it("gives every node the legacy item's own name", _ {
+		Rigged& f = fixture();
+		install(f.ctx, f.song.song);
 		for (const Pair& p : tree().pairs) {
 			if (has_dynamic_name(*p.node)) {
 				continue; // see has_dynamic_name's own note
 			}
-			expect(text_of(p.node->name) == std::string{p.item->getName()}).to_be_true();
+			expect(shown(p.node->name, *p.node, f.ctx)).to_equal(std::string{p.item->getName()});
 		}
 	});
 
@@ -951,16 +941,14 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 			if (has_dynamic_name(*p.node)) {
 				continue; // the same five classes build their *title* from the name, at render time
 			}
-			const std::string title = text_of(p.node->title);
-			// A title carrying the `*` placeholder is a `FormattedTitle`: legacy substitutes the
-			// oscillator / envelope / LFO index into it at render time (`formatted_title.h`, via
-			// `asterixToInt`), which one static `Node::title` cannot do. All 49 such items are
-			// batch 1's -- the gap task 6 recorded -- and the marker is in the l10n string itself,
-			// so this exemption names the mechanism rather than a list.
+			const std::string title = shown(p.node->title, *p.node, f.ctx);
+			// A placeholder left unfilled is `sample::Repeat`'s, a `FormattedTitle` legacy gives no
+			// argument (`sample/repeat.h:35`), so its title is empty until something formats it.
 			if (title.find('*') != std::string::npos) {
+				expect(p.node->title_arg).to_equal(uint8_t{0});
 				continue;
 			}
-			expect(title == std::string{p.item->getTitle()}).to_be_true();
+			expect(title).to_equal(std::string{p.item->getTitle()});
 			compared++;
 		}
 		expect(compared > size_t(120)).to_be_true();
@@ -986,7 +974,7 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 });
 
 describe tables_2_validation("scenes::menu batch-2 tables: validation", $ {
-	it("validates the sound root clean apart from the nine legacy name collisions", _ {
+	it("validates the sound root clean", _ {
 		Rigged& f = fixture();
 		const MenuContext contexts[] = {f.ctx};
 		const auto issues = menu::validate_tree(
@@ -1002,26 +990,12 @@ describe tables_2_validation("scenes::menu batch-2 tables: validation", $ {
 				others++;
 			}
 		}
-		// Nine sibling collisions, every one a legacy `FormattedTitle` -- a name legacy builds at
-		// render time by substituting an index, which one `uint16_t Node::name` cannot express:
-		//
-		//   * the three pairs `tables_1_spec` blesses -- `sample0/1RecorderMenu`
-		//     (`STRING_FOR_RECORD_TO_SAMPLE`, `osc/audio_recorder.h:30-31`), `source0/1VolumeMenu`
-		//     (`STRING_FOR_OSC_LEVEL_MENU_TITLE`, `osc/source/volume.h:26-27`) and
-		//     `modulator0/1Volume` (`STRING_FOR_FM_MOD_LEVEL_MENU_TITLE`, `modulator_level.h:27-28`);
-		//   * six more that only appear once the root itself is declared: `env1Menu` .. `env4Menu`
-		//     are four *siblings* of `soundEditorRootMenu`, all named
-		//     `STRING_FOR_ENVELOPE_MENU_TITLE` (`envelope/envelope_menu.h:31`) -- four items
-		//     colliding pairwise is six reports. Task 6 could not see them: it declared the
-		//     envelopes as four separate roots, with no parent to be siblings under.
-		//
-		// Everything else legacy names twice under one parent is filtered by `validate.cpp`'s
-		// `co_visible` -- the randomizer's eleven sound/MIDI pairs, the arpeggiator's rhythm,
-		// sequence-length and note-mode twins, and `bendMenu` beside `drumBendRangeMenu` -- because
-		// no context shows both. The rule still fires on a real collision, which is what these nine
-		// are: E2's formatted-name field on `Node` is what removes them, and Task 12 records the
-		// tolerance as a spec E §4.4 amendment.
-		expect(duplicates).to_equal(size_t(9));
+		// Everything legacy names twice under one parent is told apart: the `FormattedTitle` siblings
+		// (the sample recorders, oscillator and FM modulator levels, `env1Menu`..`env4Menu`) by their
+		// `title_arg`, and the rest by `validate.cpp`'s `co_visible` -- the randomizer's eleven
+		// sound/MIDI pairs, the arpeggiator's rhythm, sequence-length and note-mode twins, and
+		// `bendMenu` beside `drumBendRangeMenu` -- because no context shows both.
+		expect(duplicates).to_equal(size_t(0));
 		expect(others).to_equal(size_t(0));
 	});
 

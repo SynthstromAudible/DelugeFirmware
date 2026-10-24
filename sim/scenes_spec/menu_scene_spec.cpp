@@ -13,6 +13,7 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/bind/write_sink.h"
+#include "scenes/l10n_bridge.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
@@ -1557,6 +1558,64 @@ describe menu_scene_claims("scenes::menu::MenuScene input claims", $ {
 		r.shell.tick(170);
 		expect(depth_of()).to_equal(0);
 		expect(r.double_claimed()).to_be_false();
+	});
+});
+
+describe menu_scene_node_text("scenes::menu::node_text", $ {
+	// `FormattedTitle` (`gui/menu_item/formatted_title.h`) with `asterixToInt` (`util/functions.h`):
+	// one `*` becomes the single digit, `**` the number in two digits with the text ending there.
+	const auto expected = [](String id, std::string_view digits, bool ends) {
+		std::string text{deluge::scenes::text_lookup(sid(id))};
+		const size_t star = text.find('*');
+		if (star == std::string::npos) {
+			return text;
+		}
+		return text.substr(0, star) + std::string{digits} + (ends ? std::string{} : text.substr(star + 1));
+	};
+
+	it("fills the placeholder with the node's own number, in its name and its title", _ {
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(settings_root);
+		menu::NodeText scratch;
+		expect(std::string{menu::node_text(nodes::sample1_recorder.name, nodes::sample1_recorder, ctx, scratch)})
+		    .to_equal(expected(String::STRING_FOR_RECORD_TO_SAMPLE, "2", false));
+		expect(std::string{menu::node_text(nodes::sample0_recorder.title, nodes::sample0_recorder, ctx, scratch)})
+		    .to_equal(expected(String::STRING_FOR_RECORD_TO_SAMPLE, "1", false));
+		expect(std::string{menu::node_text(nodes::lfo3_type.title, nodes::lfo3_type, ctx, scratch)})
+		    .to_equal(expected(String::STRING_FOR_LFO_TYPE, "3", false));
+		expect(std::string{menu::node_text(nodes::env4.name, nodes::env4, ctx, scratch)})
+		    .to_equal(expected(String::STRING_FOR_ENVELOPE_MENU_TITLE, "4", false));
+		expect(std::string{menu::node_text(nodes::modulator1_volume.name, nodes::modulator1_volume, ctx, scratch)})
+		    .to_equal(expected(String::STRING_FOR_FM_MOD_LEVEL_MENU_TITLE, "2", false));
+		// A name with no placeholder is the plain lookup.
+		expect(std::string{menu::node_text(nodes::lfo3_type.name, nodes::lfo3_type, ctx, scratch)})
+		    .to_equal(std::string{deluge::scenes::text_lookup(nodes::lfo3_type.name)});
+	});
+
+	it("writes a double placeholder as two digits and ends the text there", _ {
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(settings_root);
+		menu::NodeText scratch;
+		expect(std::string{menu::node_text(nodes::midi_follow_track1.name, nodes::midi_follow_track1, ctx, scratch)})
+		    .to_equal(expected(String::STRING_FOR_FOLLOW_CHANNEL_TRACK, "01", true));
+		expect(std::string{menu::node_text(nodes::midi_follow_track16.name, nodes::midi_follow_track16, ctx, scratch)})
+		    .to_equal(expected(String::STRING_FOR_FOLLOW_CHANNEL_TRACK, "16", true));
+	});
+
+	it("numbers the CV and gate pages by the output the selector chose", _ {
+		select_language();
+		Rig r;
+		MenuContext ctx = r.open(settings_root);
+		ctx.source_index = 1;
+		menu::NodeText scratch;
+		expect(std::string{menu::node_text(nodes::cv_submenu.title, nodes::cv_submenu, ctx, scratch)})
+		    .to_equal(expected(String::STRING_FOR_CV_OUTPUT_N, "2", false));
+		expect(std::string{menu::node_text(nodes::gate_mode.title, nodes::gate_mode, ctx, scratch)})
+		    .to_equal(expected(String::STRING_FOR_GATE_MODE_TITLE, "2", false));
+		expect(std::string{menu::node_text(nodes::cv_transpose.title, nodes::cv_transpose, ctx, scratch)})
+		    .to_equal(expected(String::STRING_FOR_CV_TRANSPOSE_MENU_TITLE, "2", false));
 	});
 });
 

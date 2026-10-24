@@ -34,8 +34,7 @@
 ///
 /// @note **`lfo::Type`'s title is a `FormattedTitle`** substituting the LFO number into
 ///       `STRING_FOR_LFO_TYPE` (`lfo/type.h:30,33`), as `lfo::Sync`'s is for `STRING_FOR_LFO_SYNC`
-///       (`lfo/sync.h:29,32`). A `Node::title` is one static id, so all four carry the
-///       unsubstituted one -- the same gap the envelope submenus have.
+///       (`lfo/sync.h:29,32`); both nodes carry that number as their `title_arg`.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
@@ -59,14 +58,16 @@ inline constexpr IntRange kSyncLevelRange{0, NUM_SYNC_VALUES - 1, 1};
 ///        `get`/`set` hooks are plain function pointers, so each LFO needs its own pair. The bodies
 ///        are in the `.cpp` (`DELUGE_LFO_HOOKS`); this declares them and builds the nodes.
 #define DELUGE_LFO(n, rate_param, rate_title)                                                                          \
-	inline constexpr Node lfo##n##_type =                                                                              \
+	inline constexpr Node lfo##n##_type = with_title_arg(                                                              \
 	    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SHAPE), Kind::Enum,                               \
 	                            {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "lfo" #n "/type"}),        \
-	               sid(deluge::l10n::String::STRING_FOR_LFO_TYPE));                                                    \
-	inline constexpr Node lfo##n##_sync =                                                                              \
+	               sid(deluge::l10n::String::STRING_FOR_LFO_TYPE)),                                                    \
+	    (n));                                                                                                          \
+	inline constexpr Node lfo##n##_sync = with_title_arg(                                                              \
 	    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SYNC), Kind::SyncLevel,                           \
 	                            {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "lfo" #n "/syncLevel"}),   \
-	               sid(deluge::l10n::String::STRING_FOR_LFO_SYNC));                                                    \
+	               sid(deluge::l10n::String::STRING_FOR_LFO_SYNC)),                                                    \
+	    (n));                                                                                                          \
 	inline constexpr Node lfo##n##_rate =                                                                              \
 	    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_RATE),                                             \
 	                           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::rate_param},    \

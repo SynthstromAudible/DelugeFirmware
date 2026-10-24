@@ -98,6 +98,15 @@ inline constexpr uint16_t kSourceBlinkMs = 20;
 inline constexpr uint32_t kBlinkCycleMs = uint32_t{kSourceBlinkMs} + kShortcutBlinkMs;
 /// @}
 
+/// @brief Storage for one node's name or title with its placeholder filled; keep it alive as long
+///        as the view `node_text` returns.
+struct NodeText {
+	/// The filled text. Longer than any title the OLED can show; a longer one is cut short.
+	char chars[40];
+	/// The digits fallback for an id with no text (`BoardProfile::text_or_digits`).
+	deluge::ui::shell::TextScratch digits;
+};
+
 /// @brief Live interpreter state: the path, the widgets' own POD state, and what this tick's
 ///        render observed for `after_render()` to act on.
 ///
@@ -809,7 +818,7 @@ private:
 	/// @param label_scratch Backing storage for each column's label text; must outlive @p cols.
 	/// @return How many children were written (`visible_children`'s own count).
 	size_t build_column_list(const Node& node, std::span<const Node*> kids, std::span<deluge::ui::oled::Column> cols,
-	                         std::span<deluge::ui::shell::TextScratch> label_scratch) const;
+	                         std::span<NodeText> label_scratch) const;
 	/// @brief Emit the horizontal-page notification for @p column -- the pair
 	///        `HorizontalMenu::displayNotification` prints (`horizontal_menu.cpp:335-343`), name
 	///        and formatted value on one line. Shared by `after_render`'s value-edit arm and
@@ -976,5 +985,15 @@ bool is_automation_item(const Node& item);
 ///        nullopt where it edits none.
 std::optional<deluge::project::ParamAddress> automation_address(const Node& item, const MenuContext& ctx,
                                                                 const MenuState& state);
+
+/// @brief @p string_id's text, with `node.title_arg` written into its first `*` the way legacy's
+///        `FormattedTitle` writes its argument (`asterixToInt`, `util/functions.h`): a single `*`
+///        becomes one digit, `**` becomes the number in at least two digits and ends the text.
+/// @param string_id One of @p node's l10n ids, its `name` or its `title`.
+/// @param node      The node the text is for; its `title_arg` is the number.
+/// @param ctx       The menu context, for a `kTitleArgSourceIndex` argument.
+/// @param scratch   Storage the returned view may point into.
+/// @return The text, unchanged when @p node has no argument or the text no `*`.
+std::string_view node_text(uint16_t string_id, const Node& node, const MenuContext& ctx, NodeText& scratch);
 
 } // namespace deluge::scenes::menu

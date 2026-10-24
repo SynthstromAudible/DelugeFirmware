@@ -161,6 +161,12 @@ std::string text_of(uint16_t id) {
 	return std::string{deluge_profile().text_or_digits(id, scratch)};
 }
 
+/// @brief @p id as @p node shows it: its placeholder filled (`menu::node_text`).
+std::string shown(uint16_t id, const Node& node, const MenuContext& ctx) {
+	menu::NodeText scratch;
+	return std::string{menu::node_text(id, node, ctx, scratch)};
+}
+
 /// @brief Legacy items whose `getName()` is not the l10n string the constructor was given.
 ///
 /// Five classes override it to build a name at render time -- something a `Node::name` (one static
@@ -169,21 +175,15 @@ std::string text_of(uint16_t id) {
 ///
 ///   * `filter::FilterParam` on a MORPH item -> the filter mode's own morph name
 ///     (`gui/menu_item/filter/param.h:38`, `filter/info.h:62-69`);
-///   * `submenu::ActualSource` -> "OSC1"/"OSC2" via `asterixToInt` (`submenu/actual_source.h:26-38`);
-///   * `envelope::EnvelopeMenu`, `osc::source::Volume`, `source::patched_param::ModulatorLevel`,
-///     `osc::AudioRecorder` -> a `FormattedTitle` with the index substituted in
-///     (`envelope/envelope_menu.h:31`, `osc/source/volume.h:27`, `modulator_level.h:27-28`,
-///     `osc/audio_recorder.h:28`).
+///   * `submenu::ActualSource` -> "OSC1"/"OSC2" via `asterixToInt` (`submenu/actual_source.h:26-38`).
+///
+/// A `FormattedTitle` name is compared as shown, its `title_arg` filled in.
 bool has_dynamic_name(const Node& node) {
 	switch (node.name) {
 	case static_cast<uint16_t>(String::STRING_FOR_LPF_MORPH):
 	case static_cast<uint16_t>(String::STRING_FOR_HPF_MORPH):
 	case static_cast<uint16_t>(String::STRING_FOR_OSCILLATOR_1):
 	case static_cast<uint16_t>(String::STRING_FOR_OSCILLATOR_2):
-	case static_cast<uint16_t>(String::STRING_FOR_ENVELOPE_MENU_TITLE):
-	case static_cast<uint16_t>(String::STRING_FOR_OSC_LEVEL_MENU_TITLE):
-	case static_cast<uint16_t>(String::STRING_FOR_FM_MOD_LEVEL_MENU_TITLE):
-	case static_cast<uint16_t>(String::STRING_FOR_RECORD_TO_SAMPLE):
 		return true;
 	default:
 		return false;
@@ -555,12 +555,12 @@ describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 	});
 
 	it("gives every node the legacy item's own name", _ {
-		(void)fixture();
+		const Fixture& f = fixture();
 		for (const Pair& p : all_pairs()) {
 			if (has_dynamic_name(*p.node)) {
 				continue; // see has_dynamic_name's own note
 			}
-			expect(text_of(p.node->name) == std::string{p.item->getName()}).to_be_true();
+			expect(shown(p.node->name, *p.node, f.ctx)).to_equal(std::string{p.item->getName()});
 		}
 	});
 
@@ -731,7 +731,7 @@ describe tables_1_values("scenes::menu batch-1 tables: values", $ {
 });
 
 describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
-	it("validates clean apart from the three FormattedTitle name collisions legacy has", _ {
+	it("validates clean, its FormattedTitle siblings told apart by their title_arg", _ {
 		Fixture& f = fixture();
 		const MenuContext contexts[] = {f.ctx};
 		// Only the shortcut sweep is stood down, and only because this is a *subtree*: the rule is
@@ -753,23 +753,9 @@ describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
 				others++;
 			}
 		}
-		// Three sibling pairs share an l10n id because legacy disambiguates them only at render
-		// time, through `FormattedTitle`, which one `uint16_t Node::name` cannot express:
-		//
-		//   * `sample0RecorderMenu` / `sample1RecorderMenu`, both `STRING_FOR_RECORD_TO_SAMPLE`
-		//     (`g_menus.inc:55-56` at `ce4a79de0`; `osc/audio_recorder.h:34`);
-		//   * `source0VolumeMenu` / `source1VolumeMenu`, both `STRING_FOR_OSC_LEVEL_MENU_TITLE`
-		//     (`:144-145`; `osc/source/volume.h:29`);
-		//   * `modulator0Volume` / `modulator1Volume`, both `STRING_FOR_FM_MOD_LEVEL_MENU_TITLE`
-		//     (`:146-147`; `source/patched_param/modulator_level.h:29`).
-		//
-		// Spec E §4.4's rule ("no duplicate `(name, parent)`") is sibling-scoped and name-only, and
-		// `validate.cpp` implements it exactly; the tables are a faithful transcription. So the
-		// three reports are correct on both sides, and the controller blessed asserting the exact
-		// count rather than weakening the rule (fix round 1, I2) -- a fourth collision still fails
-		// loudly, which is what the rule is for. Task 12 records the tolerance as a spec E §4.4
-		// amendment, and E2's formatted-name field on `Node` is what removes it.
-		expect(duplicates).to_equal(size_t(3));
+		// The sample recorders, oscillator levels and FM modulator levels share an l10n id in pairs;
+		// legacy tells each pair apart with a `FormattedTitle` argument, which is their `title_arg`.
+		expect(duplicates).to_equal(size_t(0));
 		expect(others).to_equal(size_t(0));
 	});
 

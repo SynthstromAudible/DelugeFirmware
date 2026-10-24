@@ -62,8 +62,8 @@
 ///     draws) and notes it moves no JSON. The details of this half:
 ///     `setCvNumberForTitle` / `gateModeMenu.format(value + 1)`
 ///     (`cv/selection.h:43`, `gate/selection.h:50`) put the output number into the *destination*
-///     page's title; a `Node::title` is one static string id, so the port carries the unformatted
-///     "CV OUTPUT N" (`settings.h`'s own note on `cv_submenu`).
+///     page's title; the port numbers those pages by `MenuContext::source_index` through
+///     `kTitleArgSourceIndex` (`settings.h`'s own note on `cv_submenu`).
 ///   * **`Devices::current_scroll_`.** Legacy keeps its own top-of-viewport index and its own
 ///     `computeScrollForSelected` (`devices.cpp:59-76`). `ui::oled::list` owns the window and the
 ///     scroll, so this builds every row and lets the widget pick the slice -- the same

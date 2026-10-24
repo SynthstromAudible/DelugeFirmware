@@ -759,7 +759,25 @@ struct Node {
 	/// (a select press) and `handle()`'s already-focused button press, both alongside `column->kind
 	/// == Kind::Toggle` rather than replacing it -- a `Kind::Toggle` node does not also set this.
 	bool selection_is_toggle = false;
+
+	/// @brief The number that fills the `*` placeholder in this node's name and title: legacy's
+	///        `FormattedTitle` argument (`gui/menu_item/formatted_title.h`).
+	///
+	/// 0 for none, which leaves the text as looked up; `kTitleArgSourceIndex` for the menu
+	/// context's `source_index` plus one, the output a CV or gate selector chose. See `node_text`
+	/// (`menu_scene.h`) for the substitution.
+	uint8_t title_arg = 0;
 };
+
+/// @brief `Node::title_arg`'s value for "the context's `source_index` plus one".
+inline constexpr uint8_t kTitleArgSourceIndex = 0xFF;
+
+/// @brief `n` with `title_arg` set to @p arg -- a post-hoc modifier, like `with_range_dependent`,
+///        for the nodes whose legacy item is a `FormattedTitle`.
+constexpr Node with_title_arg(Node n, uint8_t arg) {
+	n.title_arg = arg;
+	return n;
+}
 
 /// @brief `n` with `range_dependent` set -- a `constexpr` post-hoc modifier rather than a trailing
 ///        argument on all nine builders.

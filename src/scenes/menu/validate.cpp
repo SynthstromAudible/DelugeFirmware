@@ -40,7 +40,8 @@
 ///   * *shortcut cells* -> `ShortcutToNothing`, over every `MenuContext::Root` and both shift
 ///     layers.
 ///   * *no duplicate `(name, parent)`* -> `DuplicateName`, among siblings that can be on screen
-///     together (see `co_visible` for why that qualifier is there).
+///     together (see `co_visible` for why that qualifier is there). Siblings with different
+///     `title_arg`s show different text and do not collide.
 ///   * *`Custom` <= 10* -> `TooManyCustom`, counting **nodes that point at a custom item**
 ///     (`validate.h`'s `kMaxCustomNodes`), and no longer at 10 -- see that constant for the
 ///     deviation and the real number.
@@ -196,10 +197,7 @@ size_t visible_count(const Node& node, const MenuContext& ctx) {
 /// Two tests, either of which means "these really do collide":
 ///
 ///   * **Identical visibility.** The two carry the same `relevant` hook -- including both carrying
-///     none -- and neither is on a target, so nothing can ever separate them. This is the static half, and it is what
-///     still catches legacy's three genuine `FormattedTitle` collisions (both sample recorders under `is_subtractive`,
-///     both oscillator volumes under `not_ringmod`, both FM modulator levels under `is_fm`), which are ambiguous in the
-///     data because a `Node::name` is one static id.
+///     none -- and neither is on a target, so nothing can ever separate them. This is the static half.
 ///   * **Actually both on screen.** Some supplied context admits both (a target node where its row applies and
 ///     resolves there). This is the dynamic half,
 ///     and it is what stops a pair with two *different* predicates that happen to agree from
@@ -380,6 +378,7 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 				}
 				for (size_t b = a + 1; b < n.children.size(); b++) {
 					if (n.children[b] != nullptr && n.children[b]->name == n.children[a]->name
+					    && n.children[b]->title_arg == n.children[a]->title_arg
 					    && co_visible(*n.children[a], *n.children[b], contexts)) {
 						add(out, Issue::Kind::DuplicateName, n.children[b], n.children[b]->name);
 					}
