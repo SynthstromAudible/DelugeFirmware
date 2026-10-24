@@ -1,0 +1,18 @@
+# The song browser from the boot session view: open, step, load a song, reopen, close.
+100   snapshot boot
+5000  button Load down
+5020  button Load up
+6500  snapshot browser
+7000  encoder Select +1
+8000  snapshot browser-next
+8500  encoder Select +3
+9500  snapshot browser-fourth
+10000 button SelectEnc down
+10020 button SelectEnc up
+12000 snapshot preset-loaded
+12500 button Load down
+12520 button Load up
+14000 snapshot browser-again
+14500 button Back down
+14520 button Back up
+16000 snapshot closed

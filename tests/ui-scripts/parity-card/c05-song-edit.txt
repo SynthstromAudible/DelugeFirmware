@@ -1,0 +1,28 @@
+# Editing inside a loaded song: enter its clip, place a note, undo and redo, zoom, change the clip length, scroll.
+100   snapshot boot
+8200  button Session down
+8220  button Session up
+9000  load kitchen
+14000 snapshot loaded
+15000 button Clip down
+15020 button Clip up
+16500 snapshot clip
+17000 pad 3 3 down
+17050 pad 3 3 up
+18000 snapshot note-placed
+18500 button Back down
+18520 button Back up
+19500 snapshot undone
+20000 button Shift down
+20100 button Back down
+20120 button Back up
+20200 button Shift up
+21000 snapshot redone
+21500 encoder Horizontal +1
+22500 snapshot zoomed
+23000 button Shift down
+23100 encoder Horizontal +1
+23300 button Shift up
+24500 snapshot length-changed
+25000 encoder Vertical +2
+26000 snapshot scrolled

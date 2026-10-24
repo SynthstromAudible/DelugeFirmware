@@ -1,0 +1,25 @@
+# Saving and deleting: save the boot song under its offered name, then delete it from the load browser.
+100   snapshot boot
+5000  button Session down
+5020  button Session up
+6000  snapshot session
+6500  button Save down
+6520  button Save up
+8000  snapshot save-browser
+8500  button SelectEnc down
+8520  button SelectEnc up
+11000 snapshot saved
+11500 button Load down
+11520 button Load up
+13000 snapshot load-browser
+13500 button Shift down
+13600 button Save down
+13620 button Save up
+13700 button Shift up
+15000 snapshot delete-prompt
+15500 button SelectEnc down
+15520 button SelectEnc up
+17500 snapshot deleted
+18000 button Back down
+18020 button Back up
+19500 snapshot closed

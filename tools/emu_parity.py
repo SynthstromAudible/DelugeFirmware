@@ -144,9 +144,18 @@ def load(dz, at: int, name: str, buttons) -> int:
 
 
 def run_image(
-    elf: Path, sd: Path, flash: Path | None, script: Path, out: Path, buttons
+    elf: Path,
+    sd: Path,
+    flash: Path | None,
+    script: Path,
+    out: Path,
+    buttons,
+    audio_wav: bool = False,
 ) -> dict[str, list[dict]]:
-    """Boot `elf`, play `script`, and return {snapshot name: the distinct panels it showed, first-seen order}."""
+    """Boot `elf`, play `script`, and return {snapshot name: the distinct panels it showed, first-seen order}.
+
+    With `audio_wav`, the codec output goes to out/audio.wav, and out/times.json holds each snapshot's window as
+    virtual ns from the start of the run (the WAV's first sample)."""
     from delugemu import DelugeSession
 
     out.mkdir(parents=True, exist_ok=True)
@@ -167,6 +176,7 @@ def run_image(
     sock = f"/tmp/dz_parity_{os.getpid()}_{out.parent.name}_{out.name}.sock"
     steps = parse_script(script)
     snaps = {}
+    times = {}
     # QEMU keeps its -snapshot overlay in TMPDIR: on disk beside the artifacts, not in a RAM-backed /tmp.
     env = dict(os.environ, TMPDIR=str(out))
     with DelugeSession.launch(
@@ -178,7 +188,8 @@ def run_image(
         artifacts_dir=str(out),
         int_log=str(out / "int.log"),
         env=env,
-        audio="none",  # nothing through the host's speakers
+        # Nothing through the host's speakers: silence, or a WAV written on the virtual clock.
+        audio=f"wav,path={out / 'audio.wav'}" if audio_wav else "none",
     ) as dz:
         run_until = dz.run_until
 
@@ -229,11 +240,13 @@ def run_image(
                         break
                     dz.run_until(t)
                 snaps[args[0]] = list(seen.values())
+                times[args[0]] = [at, end]
                 dz.screenshot(str(out / f"{args[0]}.png"))
             elif cmd == "quit":
                 break
             # `board`, `released`, `model`, `notice`: not panel input on a real Deluge.
         (out / "snapshots.json").write_text(json.dumps(snaps))
+        (out / "times.json").write_text(json.dumps(times))
         try:
             dz.assert_no_aborts()
             # The interrupt log grows by every interrupt taken; only a faulting run's is worth keeping.
@@ -312,6 +325,11 @@ def main() -> int:
         default=1,
         help="scripts to run at once (each runs two emulators)",
     )
+    ap.add_argument(
+        "--audio-wav",
+        action="store_true",
+        help="write each image's audio output to audio.wav (virtual-clock paced) beside its snapshots",
+    )
     ap.add_argument("scripts", nargs="+", type=Path)
     args = ap.parse_args()
     # delugemu's run.sh runs from its own directory, so every path it is given is absolute.
@@ -343,6 +361,7 @@ def main() -> int:
                     script,
                     out / script.stem / side,
                     buttons,
+                    args.audio_wav,
                 )
                 for side, elf in (("ref", args.ref), ("test", args.test))
             }

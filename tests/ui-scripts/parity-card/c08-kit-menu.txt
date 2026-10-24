@@ -1,0 +1,36 @@
+# A kit's drum menu: turn the boot clip into a kit, enter its clip, select a drum, open its menu and walk it.
+100   snapshot boot
+5000  button Clip down
+5020  button Clip up
+6000  button Kit down
+6020  button Kit up
+9000  snapshot kit
+9500  pad 17 0 down
+9550  pad 17 0 up
+10500 snapshot drum-selected
+11000 button SelectEnc down
+11020 button SelectEnc up
+12500 snapshot drum-menu
+13000 encoder Select +1
+14000 snapshot drum-menu-next
+14500 encoder Select +2
+15500 snapshot drum-menu-third
+16000 button SelectEnc down
+16020 button SelectEnc up
+17500 snapshot drum-menu-entered
+18000 encoder Select +1
+19000 snapshot drum-menu-value
+19500 button Back down
+19520 button Back up
+20500 button Back down
+20520 button Back up
+22000 snapshot closed
+22500 button AffectEntire down
+22520 button AffectEntire up
+23500 snapshot affect-entire
+24000 button SelectEnc down
+24020 button SelectEnc up
+25500 snapshot kit-menu
+26000 button Back down
+26020 button Back up
+27500 snapshot kit-menu-closed

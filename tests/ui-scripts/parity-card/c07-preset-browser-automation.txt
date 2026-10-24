@@ -1,0 +1,30 @@
+# The synth preset browser and the automation view, from the boot clip's own view.
+100   snapshot boot
+5000  button Clip down
+5020  button Clip up
+6000  snapshot clip
+6500  button Load down
+6520  button Load up
+8000  snapshot preset-browser
+8500  encoder Select +1
+9500  snapshot preset-next
+10000 encoder Select +2
+11000 snapshot preset-third
+11500 button SelectEnc down
+11520 button SelectEnc up
+13500 snapshot preset-loaded
+14000 button Clip down
+14020 button Clip up
+15500 snapshot automation
+16000 pad 3 4 down
+16050 pad 3 4 up
+17000 snapshot automation-param
+17500 pad 2 3 down
+17550 pad 2 3 up
+18500 snapshot automation-step
+19000 button Back down
+19020 button Back up
+20500 snapshot automation-back
+21000 button Clip down
+21020 button Clip up
+22500 snapshot clip-again

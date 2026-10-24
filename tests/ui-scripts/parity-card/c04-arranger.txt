@@ -1,0 +1,21 @@
+# The arranger: load a song, switch the song view to the arranger, scroll, play and stop there.
+# Snapshots leave up to 8 s before the next step: a long name scrolls on the OLED, and the window takes its whole cycle.
+100   snapshot boot
+8200  button Session down
+8220  button Session up
+9000  load kitchen
+14000 snapshot loaded
+22000 button Session down
+22020 button Session up
+23000 snapshot arranger
+26000 encoder Horizontal +2
+27000 snapshot arranger-scrolled
+30000 button Play down
+30020 button Play up
+31000 snapshot arranger-playing
+36000 button Play down
+36020 button Play up
+37000 snapshot arranger-stopped
+42000 button Session down
+42020 button Session up
+43000 snapshot session-again

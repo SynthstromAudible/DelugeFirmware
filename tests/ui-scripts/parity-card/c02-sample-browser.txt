@@ -1,0 +1,20 @@
+# The sample browser from oscillator 1's BROWSE shortcut (Shift + pad), stepping, previewing and closing.
+100   snapshot boot
+5000  button Shift down
+5100  pad 0 5 down
+5150  pad 0 5 up
+5200  button Shift up
+7000  snapshot browser
+7500  encoder Select +1
+8500  snapshot browser-next
+9000  encoder Vertical +1
+10000 snapshot browser-scrolled
+10500 button SelectEnc down
+10520 button SelectEnc up
+12500 snapshot entered
+13000 button Back down
+13020 button Back up
+14500 snapshot back-one
+15000 button Back down
+15020 button Back up
+16500 snapshot closed

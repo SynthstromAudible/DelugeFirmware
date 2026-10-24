@@ -1,0 +1,22 @@
+# A kit: turn the boot clip into a kit, play its rows, audition, open the kit browser and close it.
+100   snapshot boot
+5000  button Kit down
+5020  button Kit up
+8000  snapshot kit
+8500  pad 0 0 down
+8550  pad 0 0 up
+9500  snapshot kit-note
+10000 pad 17 1 down
+10800 snapshot kit-audition-held
+11000 pad 17 1 up
+12000 snapshot kit-audition-released
+12500 encoder Vertical +2
+13500 snapshot kit-scrolled
+14000 button Load down
+14020 button Load up
+15500 snapshot kit-browser
+16000 encoder Select +1
+17000 snapshot kit-browser-next
+17500 button Back down
+17520 button Back up
+19000 snapshot kit-closed
