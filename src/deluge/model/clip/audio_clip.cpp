@@ -186,6 +186,7 @@ Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	}
 	recorder->autoDeleteWhenDone = true;
 	recorder->allowNormalization = shouldNormalize;
+	recorder->recordingOwnClip = (outputRecordingFrom == output);
 	return Clip::beginLinearRecording(modelStack, buttonPressLatency);
 }
 
