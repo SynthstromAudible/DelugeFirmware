@@ -139,24 +139,8 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	processStutter(global_effectable_audio, paramManagerForClip);
 	// record before pan/compression/volume to keep volumes consistent
 	if (recorder != nullptr && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
-		if (recorder->recordingOwnClip) {
-			// A looper overdubbing its own clip records the clip's playback back into it, every pass. An audio clip
-			// plays its sample at 1/8 (renderGlobalEffectableForClip()'s amplitude, then VoiceSample::render()'s <<3),
-			// so put that back exactly - otherwise the old audio loses the difference on each pass. Round to the
-			// nearest 24-bit step, because the playback amplitude is a hair under 1/8 and the recorder truncates
-			alignas(CACHE_LINE_SIZE) StereoSample recordMemory[SSI_TX_BUFFER_NUM_SAMPLES];
-			std::span<StereoSample> toRecord{recordMemory, global_effectable_audio.size()};
-			std::ranges::transform(global_effectable_audio, toRecord.begin(), [](StereoSample sample) {
-				return StereoSample{.l = add_saturate(lshiftAndSaturate<3>(sample.l), 128),
-				                    .r = add_saturate(lshiftAndSaturate<3>(sample.r), 128)};
-			});
-			recorder->feedAudio(toRecord);
-		}
-		else {
-			// we need to double it because for reasons I don't understand audio clips max volume is half the sample
-			// volume
-			recorder->feedAudio(global_effectable_audio, true, 2);
-		}
+		// Self-overdubs compensate for sample playback's 1/8 scaling. Standalone sampling retains its existing gain.
+		recorder->feedAudio(global_effectable_audio, true, recorder->recordingOwnClip ? 3 : 2);
 	}
 
 	processReverbSendAndVolume(global_effectable_audio, reverbBuffer, volumePostFX, postReverbVolume, reverbSendAmount,
