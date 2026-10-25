@@ -180,6 +180,7 @@ private:
 	int32_t lastDisplayedKnobPosRight = kNoSelection;
 	uint32_t automationImageGeneration = 0;
 	bool automationImageValid = false;
+	bool lastDisplayedAutomationStatus = false;
 
 	// button action functions
 	void handleSessionButtonAction(Clip* clip, bool on);

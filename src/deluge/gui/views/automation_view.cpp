@@ -997,13 +997,32 @@ void AutomationView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bo
 	// OLED Display
 	if (display->haveOLED()) {
 		using deluge::hid::display::OLED;
+		// The frame also includes Automation ON/OFF. Recording the first node
+		// can change that label without changing the rounded parameter value.
+		bool isAutomated = false;
+		if (inAutomationEditor()) {
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithAutoParam* modelStackWithParam;
+			if (onArrangerView) {
+				auto* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+				modelStackWithParam = currentSong->getModelStackWithParam(modelStack, currentSong->lastSelectedParamID);
+			}
+			else {
+				auto* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+				modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
+			}
+			isAutomated =
+			    modelStackWithParam && modelStackWithParam->autoParam && modelStackWithParam->autoParam->isAutomated();
+		}
 		if (onlyIfChanged && automationImageValid && automationImageGeneration == OLED::getMainImageGeneration()
-		    && knobPosLeft == lastDisplayedKnobPosLeft && knobPosRight == lastDisplayedKnobPosRight) {
+		    && knobPosLeft == lastDisplayedKnobPosLeft && knobPosRight == lastDisplayedKnobPosRight
+		    && isAutomated == lastDisplayedAutomationStatus) {
 			return;
 		}
 		renderDisplayOLED(clip, output, outputType, knobPosLeft, knobPosRight);
 		lastDisplayedKnobPosLeft = knobPosLeft;
 		lastDisplayedKnobPosRight = knobPosRight;
+		lastDisplayedAutomationStatus = isAutomated;
 		automationImageGeneration = OLED::getMainImageGeneration();
 		automationImageValid = true;
 	}
