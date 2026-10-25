@@ -383,7 +383,9 @@ void OLED::sendMainImage() {
 	// Leave needsSending set while the shared bus is occupied. The normal UI
 	// loop retries, coalescing intervening edits into the latest frame. Do this
 	// before consuming the screensaver dirty flag or overwriting the DMA buffer.
-	if (spiBusCurrentlySending || oledFrameQueueWritePos != oledFrameQueueReadPos) {
+	// OLED emulation on physical 7SEG hardware must still compose and mirror
+	// frames: that hardware cannot acknowledge an OLED transfer.
+	if (have_oled_screen && (spiBusCurrentlySending || oledFrameQueueWritePos != oledFrameQueueReadPos)) {
 		return;
 	}
 
@@ -430,7 +432,8 @@ void OLED::sendMainImage() {
 	uartPrint("oled render time: ");
 	uartPrintNumber((uint16_t)(renderStopTime - renderStartTime));
 #endif
-	if (!lastSentImageValid || memcmp(lastSentImage, oledCurrentImage, sizeof(lastSentImage)) != 0) {
+	if (have_oled_screen
+	    && (!lastSentImageValid || memcmp(lastSentImage, oledCurrentImage, sizeof(lastSentImage)) != 0)) {
 		memcpy(lastSentImage, oledCurrentImage, sizeof(lastSentImage));
 		lastSentImageValid = true;
 		enqueueOLEDFrame(lastSentImage[0]);
