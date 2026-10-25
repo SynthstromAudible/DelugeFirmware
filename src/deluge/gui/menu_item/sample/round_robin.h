@@ -36,11 +36,15 @@
 #include "storage/audio/audio_file.h"
 #include "storage/multi_range/multisample_range.h"
 #include "util/functions.h"
+#include <array>
 
 namespace deluge::gui::menu_item::sample {
 
 /// Width in pixels reserved for the right-aligned variant file name in submenu rows.
 inline constexpr int32_t kVariantFileNameRenderLength = 60;
+
+/// A zone's slots: its own sample and its alternates.
+inline constexpr uint8_t kNumVariantSlots = kMaxRoundRobinAlternates + 1;
 
 /// Returns the MultisampleRange currently targeted by the variants menus for the given source,
 /// or nullptr when it doesn't apply (audio clip, non-sample source, no ranges). On a multi-zone
@@ -106,6 +110,23 @@ inline void drawVariantFileName(MultisampleRange& range, uint8_t slotIndex, int3
 	}
 }
 
+/// The right-hand side of one slot's row in a list of slots: the slot's file name when it has a sample,
+/// "Load" on the next empty slot, and nothing on the others. Shared by the Variants screen and the
+/// shortcut slot picker, so the two lists read the same.
+inline void drawVariantSlotRowType(uint8_t sourceId, uint8_t slotIndex, int32_t startX, int32_t yPixel) {
+	MultisampleRange* range = getRoundRobinRange(sourceId);
+	if (range == nullptr) {
+		return;
+	}
+	if (slotIndex == 0 || range->hasAlternateLoaded(slotIndex - 1)) {
+		drawVariantFileName(*range, slotIndex, startX, yPixel);
+	}
+	else if (range->getNextAlternateSlotToPopulate() == slotIndex - 1) {
+		deluge::hid::display::OLED::main.drawString(l10n::get(l10n::String::STRING_FOR_LOAD), startX, yPixel,
+		                                            kTextSpacingX, kTextSpacingY);
+	}
+}
+
 /// True when the given slot's holder exists and has a file loaded - the availability condition for
 /// all per-slot editor items (start/end markers, transpose, cents).
 inline bool variantHolderIsLoaded(uint8_t sourceId, uint8_t slotIndex) {
@@ -117,7 +138,7 @@ inline bool variantHolderIsLoaded(uint8_t sourceId, uint8_t slotIndex) {
 /// Shared permission gate for items that edit one alternate slot's holder: the range must resolve
 /// and the slot must already have a file loaded.
 inline MenuPermission checkVariantHolderPermission(ModControllableAudio* modControllable, uint8_t sourceId,
-                                                   uint8_t slotIndex, MultiRange** currentRange) {
+                                                   uint8_t slotIndex, ::MultiRange** currentRange) {
 	if (!isSampleModeSample(modControllable, sourceId)) {
 		return MenuPermission::NO;
 	}
@@ -133,14 +154,16 @@ inline MenuPermission checkVariantHolderPermission(ModControllableAudio* modCont
 	return perm;
 }
 
-/// Opens the sample browser targeting the given variant slot (0 = primary, 1-3 = alternates).
-inline void openSampleBrowserForSlot(uint8_t sourceId, uint8_t slotIndex) {
+/// Opens the sample browser targeting the given variant slot (0 = primary, 1-3 = alternates). When the
+/// browser closes, the menu goes up one level, unless goUpOneLevelAfter is false, in which case it comes
+/// back to the screen that opened it.
+inline void openSampleBrowserForSlot(uint8_t sourceId, uint8_t slotIndex, bool goUpOneLevelAfter = true) {
 	if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) {
 		keyboardScreen.exitAuditionMode();
 	}
 	soundEditor.setCurrentSource(sourceId);
 	sampleBrowser.targetRoundRobinSlot = slotIndex;
-	soundEditor.shouldGoUpOneLevelOnBegin = true;
+	soundEditor.shouldGoUpOneLevelOnBegin = goUpOneLevelAfter;
 	openUI(&sampleBrowser);
 }
 
@@ -259,7 +282,7 @@ public:
 	}
 
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
-	                                             MultiRange** currentRange) override {
+	                                             ::MultiRange** currentRange) override {
 		if (!isRelevant(modControllable, whichThing)) {
 			return MenuPermission::NO;
 		}
@@ -348,7 +371,7 @@ public:
 	}
 
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
-	                                             MultiRange** currentRange) override {
+	                                             ::MultiRange** currentRange) override {
 		return checkVariantHolderPermission(modControllable, sourceId_, slotIndex_, currentRange);
 	}
 
@@ -410,7 +433,7 @@ public:
 	}
 
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
-	                                             MultiRange** currentRange) override {
+	                                             ::MultiRange** currentRange) override {
 		return checkVariantHolderPermission(modControllable, sourceId_, slotIndex_, currentRange);
 	}
 
@@ -466,7 +489,7 @@ public:
 	}
 
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
-	                                             MultiRange** currentRange) override {
+	                                             ::MultiRange** currentRange) override {
 		return checkVariantHolderPermission(modControllable, sourceId_, slotIndex_, currentRange);
 	}
 
@@ -535,7 +558,7 @@ public:
 	}
 
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
-	                                             MultiRange** currentRange) override {
+	                                             ::MultiRange** currentRange) override {
 		auto* sound = static_cast<Sound*>(modControllable);
 		MenuPermission perm =
 		    soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, sourceId_, currentRange);
@@ -585,18 +608,7 @@ public:
 	}
 
 	void renderSubmenuItemTypeForOled(int32_t yPixel) override {
-		MultisampleRange* range = getRoundRobinRange(sourceId_);
-		if (range == nullptr) {
-			return;
-		}
-		int32_t startX = getSubmenuItemTypeRenderIconStart();
-		if (slotIndex_ == 0 || range->hasAlternateLoaded(slotIndex_ - 1)) {
-			drawVariantFileName(*range, slotIndex_, startX, yPixel);
-		}
-		else if (range->getNextAlternateSlotToPopulate() == slotIndex_ - 1) {
-			deluge::hid::display::OLED::main.drawString(l10n::get(l10n::String::STRING_FOR_LOAD), startX, yPixel,
-			                                            kTextSpacingX, kTextSpacingY);
-		}
+		drawVariantSlotRowType(sourceId_, slotIndex_, getSubmenuItemTypeRenderIconStart(), yPixel);
 	}
 
 private:
@@ -653,6 +665,220 @@ public:
 
 private:
 	uint8_t sourceId_;
+};
+
+/// What an oscillator shortcut pad opens once the slot picker has a slot.
+enum class SlotPickerTarget : uint8_t { FILE, START, END, TRANSPOSE };
+
+/// The slot step of the oscillator FILE, START, END and TRANSPOSE shortcut pads, on an oscillator that uses
+/// variants. On main those pads open their item, through the note-range picker on a multi-zone sound. Once
+/// any zone has variants those items step aside (see sourceUsesVariants()), so the pads come here instead:
+/// pick a slot, and the pad's own item for that slot opens - the browser, the marker editor, or the slot's
+/// page with TRANSPOSE highlighted. Each row is drawn like the Variants screen's.
+class SlotPicker final : public menu_item::Submenu {
+public:
+	using SlotItems = std::array<MenuItem*, kNumVariantSlots>;
+
+	SlotPicker(l10n::String newName, std::span<MenuItem*> rows, uint8_t sourceId, SlotItems files, SlotItems starts,
+	           SlotItems ends, std::array<RoundRobinSlot*, kNumVariantSlots> pages, SlotItems transposes)
+	    : menu_item::Submenu(newName, rows), sourceId_(sourceId), files_(files), starts_(starts), ends_(ends),
+	      pages_(pages), transposes_(transposes) {}
+
+	void setTarget(SlotPickerTarget target) { target_ = target; }
+	[[nodiscard]] uint8_t getSourceId() const { return sourceId_; }
+
+	/// FILE lists every slot with a sample plus the next empty one, so a variant can be added, or a sample
+	/// in a full zone replaced. The other pads list only slots with a sample.
+	[[nodiscard]] bool offersSlot(uint8_t slotIndex) const {
+		if (target_ != SlotPickerTarget::FILE) {
+			return variantHolderIsLoaded(sourceId_, slotIndex);
+		}
+		MultisampleRange* range = getRoundRobinRange(sourceId_);
+		if (range == nullptr) {
+			return false;
+		}
+		return slotIndex == 0 || range->hasAlternateLoaded(slotIndex - 1)
+		       || range->getNextAlternateSlotToPopulate() == slotIndex - 1;
+	}
+
+	void openSlot(uint8_t slotIndex) {
+		if (target_ == SlotPickerTarget::FILE) {
+			// Come back here afterwards, with this slot still highlighted, so the next one can be filled
+			// straight away.
+			returningFromBrowser_ = true;
+			openSampleBrowserForSlot(sourceId_, slotIndex, false);
+			return;
+		}
+		MenuItem* destination = destinationFor(slotIndex);
+		if (destination->checkPermissionToBeginSession(soundEditor.currentModControllable,
+		                                               soundEditor.currentSourceIndex, &soundEditor.currentMultiRange)
+		    == MenuPermission::YES) {
+			soundEditor.enterSubmenu(destination);
+		}
+	}
+
+	// With only one slot to offer there's nothing to pick, so START, END and TRANSPOSE go straight to it -
+	// on a zone without alternates, exactly where main's pads would go. FILE always asks, because adding a
+	// variant is a real choice even then.
+	MenuItem* destinationOnceRangeIsKnown() override {
+		if (target_ == SlotPickerTarget::FILE) {
+			return this;
+		}
+		int32_t onlySlot = -1;
+		for (uint8_t s = 0; s < kNumVariantSlots; s++) {
+			if (offersSlot(s)) {
+				if (onlySlot >= 0) {
+					return this;
+				}
+				onlySlot = s;
+			}
+		}
+		return onlySlot >= 0 ? destinationFor(onlySlot) : this;
+	}
+
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
+		return isSampleModeSample(modControllable, sourceId_)
+		       && sourceUsesVariants(static_cast<Sound*>(modControllable)->sources[sourceId_]);
+	}
+
+	// The same rule main's pads follow: a multi-zone sound asks for the zone first, unless one is held.
+	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
+	                                             ::MultiRange** currentRange) override {
+		if (!isRelevant(modControllable, whichThing)) {
+			return MenuPermission::NO;
+		}
+		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(static_cast<Sound*>(modControllable),
+		                                                                      sourceId_, currentRange);
+	}
+
+	bool isRangeDependent() override { return true; }
+	[[nodiscard]] int32_t getSourceIndexForRangeSelection() const override { return sourceId_; }
+
+	// "Slot C3-F#4", in the style of the Variants screen's "Var C3-F#4".
+	[[nodiscard]] std::string_view getTitle() const override {
+		std::string zone;
+		soundEditor.appendCurrentZoneDescription(zone, sourceId_);
+		if (zone.empty()) {
+			return l10n::getView(name);
+		}
+		title_buf_ = l10n::get(name);
+		title_buf_ += zone;
+		return title_buf_;
+	}
+
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
+		soundEditor.setCurrentSource(sourceId_);
+
+		// Coming back from a slot's item, highlight that slot. Coming back from the browser, keep the row
+		// that opened it. A fresh visit starts on the first slot listed.
+		int32_t slot = slotOf(navigatedBackwardFrom);
+		bool keepRow = returningFromBrowser_;
+		returningFromBrowser_ = false;
+		if (slot < 0 && !keepRow) {
+			current_item_ = items.end();
+		}
+
+		// Submenu::beginSession() clears the zone; carry it across, as RoundRobinSubmenu does.
+		::MultiRange* selectedRange = soundEditor.currentMultiRange;
+		int16_t selectedRangeIndex = soundEditor.currentMultiRangeIndex;
+		Submenu::beginSession(slot >= 0 ? items[slot] : nullptr);
+		soundEditor.currentMultiRange = selectedRange;
+		soundEditor.currentMultiRangeIndex = selectedRangeIndex;
+
+		pinAuditionToHighlightedSlot();
+	}
+
+	// Auditioning plays the highlighted slot, so you can hear which one you're on.
+	void selectEncoderAction(int32_t offset) override {
+		Submenu::selectEncoderAction(offset);
+		pinAuditionToHighlightedSlot();
+	}
+
+	// However the picker is left, auditioning goes back to the normal cycle.
+	void endSession() override {
+		Submenu::endSession();
+		MultisampleRange::clearAuditionSlot();
+	}
+
+private:
+	MenuItem* destinationFor(uint8_t slotIndex) {
+		switch (target_) {
+		case SlotPickerTarget::FILE:
+			return files_[slotIndex];
+		case SlotPickerTarget::START:
+			return starts_[slotIndex];
+		case SlotPickerTarget::END:
+			return ends_[slotIndex];
+		case SlotPickerTarget::TRANSPOSE:
+			// Land on the slot's page with TRANSPOSE highlighted, the way main lands TRANSPOSE on the
+			// oscillator page.
+			pages_[slotIndex]->focusChild(transposes_[slotIndex]);
+			return pages_[slotIndex];
+		}
+		return this;
+	}
+
+	[[nodiscard]] int32_t slotOf(const MenuItem* item) const {
+		if (item == nullptr) {
+			return -1;
+		}
+		for (uint8_t s = 0; s < kNumVariantSlots; s++) {
+			if (item == items[s] || item == files_[s] || item == starts_[s] || item == ends_[s] || item == pages_[s]
+			    || item == transposes_[s]) {
+				return s;
+			}
+		}
+		return -1;
+	}
+
+	void pinAuditionToHighlightedSlot() {
+		if (current_item_ == items.end()) {
+			MultisampleRange::clearAuditionSlot();
+			return;
+		}
+		MultisampleRange::setAuditionSlot(getRoundRobinRange(sourceId_),
+		                                  static_cast<uint8_t>(std::distance(items.begin(), current_item_)));
+	}
+
+	uint8_t sourceId_;
+	SlotPickerTarget target_ = SlotPickerTarget::FILE;
+	bool returningFromBrowser_ = false;
+	SlotItems files_;
+	SlotItems starts_;
+	SlotItems ends_;
+	std::array<RoundRobinSlot*, kNumVariantSlots> pages_;
+	SlotItems transposes_;
+	mutable std::string title_buf_;
+};
+
+/// One row of a SlotPicker: "Slot 2" with the slot's file name, or "Load" on the next empty slot.
+class SlotPickerRow final : public MenuItem {
+public:
+	SlotPickerRow(l10n::String newName, SlotPicker& picker, uint8_t slotIndex)
+	    : MenuItem(newName), picker_(picker), slotIndex_(slotIndex) {}
+
+	// Choosing a row opens the pad's item for that slot rather than entering the row itself.
+	bool shouldEnterSubmenu() override { return false; }
+	MenuItem* selectButtonPress() override {
+		picker_.openSlot(slotIndex_);
+		return NO_NAVIGATION;
+	}
+
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
+		return picker_.offersSlot(slotIndex_);
+	}
+
+	int32_t getSubmenuItemTypeRenderLength() override { return kVariantFileNameRenderLength; }
+	int32_t getSubmenuItemTypeRenderIconStart() override {
+		return OLED_MAIN_WIDTH_PIXELS - kVariantFileNameRenderLength;
+	}
+	void renderSubmenuItemTypeForOled(int32_t yPixel) override {
+		drawVariantSlotRowType(picker_.getSourceId(), slotIndex_, getSubmenuItemTypeRenderIconStart(), yPixel);
+	}
+
+private:
+	SlotPicker& picker_;
+	uint8_t slotIndex_;
 };
 
 } // namespace deluge::gui::menu_item::sample
