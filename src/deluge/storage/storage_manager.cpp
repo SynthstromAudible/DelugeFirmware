@@ -240,6 +240,44 @@ bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
 	return true;
 }
 
+// Recency: seed the synthetic save-clock (diskio.c) from the newest date already in SONGS, so files saved this
+// session sort AFTER everything already on the card. One bounded, read-only directory scan per fresh mount.
+static void seedRecencyClockFromCard() {
+	auto dres = FatFS::Directory::open("SONGS");
+	if (!dres) {
+		return; // no SONGS folder yet, get_fattime falls back to a sane base date
+	}
+	FatFS::Directory& dir = *dres;
+	DWORD maxPacked = 0;
+	for (int32_t guard = 0; guard < 100000; guard++) {
+		auto rr = dir.read();
+		if (!rr) {
+			break;
+		}
+		FatFS::FileInfo info = *rr;
+		if (info.fname[0] == 0) {
+			break; // end of directory
+		}
+		if ((info.fattrib & AM_DIR) != 0) {
+			continue;
+		}
+		// Skip implausible far-future dates. A corrupt entry up near the FAT year ceiling would otherwise
+		// look like the "newest" file and pin the clock at ~2106 for good (a computer shows that as 1970).
+		// Only seed from sane years.
+		uint32_t yearOffset = (uint32_t)((info.fdate >> 9) & 0x7Fu); // 0 = 1980
+		if (yearOffset >= 120u) {                                    // 2100 and up
+			continue;
+		}
+		DWORD packed = ((DWORD)info.fdate << 16) | (DWORD)info.ftime;
+		if (packed > maxPacked) {
+			maxPacked = packed;
+		}
+	}
+	if (maxPacked != 0) {
+		fatClockSeedFromPacked(maxPacked);
+	}
+}
+
 // Gets ready to access SD card.
 // You should call this before you're gonna do any accessing - otherwise any errors won't reflect if there's in fact
 // just no card inserted.
@@ -263,6 +301,7 @@ Error StorageManager::initSD() {
 	});
 	if (success) {
 		audioFileManager.firstCardRead(); // tell the audio file manager that we have a new card
+		seedRecencyClockFromCard();       // recency: keep new saves dated after existing ones
 		return Error::NONE;
 	}
 	return Error::SD_CARD;
