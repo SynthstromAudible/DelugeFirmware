@@ -769,7 +769,7 @@ void Shell::render_grid(uint32_t now_ms) {
 	Scene* const focus = &stack_.input_top();
 	{
 		const InputMask mask = scenes[base] == focus ? InputMask::all() : InputMask::none();
-		ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), mask);
+		ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), mask, &g.flashes);
 		scenes[base]->render_grid(frame);
 		append_rendered(scenes[base]);
 	}
@@ -780,7 +780,7 @@ void Shell::render_grid(uint32_t now_ms) {
 		}
 		for (size_t k = base + 1; k < scenes.size(); k++) {
 			const InputMask mask = scenes[k] == focus ? InputMask::all() : InputMask::none();
-			ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), mask);
+			ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), mask, &g.flashes);
 			scenes[k]->render_grid(frame);
 			append_rendered(scenes[k]);
 		}
@@ -1012,6 +1012,14 @@ void Shell::flush(uint32_t now_ms) {
 			g.gate.request_repaint_after(kBackpressureRetryMs, now_ms);
 		}
 	}
+	// Pad flashes go out after the column pairs, so a flash plays over the colours this tick sent.
+	// Each is an event of this tick: sent once and dropped. No budget, as legacy's `flashMainPad`
+	// checks none.
+	for (const ui::grid::PadFlash& flash : g.flashes.flashes()) {
+		surfaces_.flash_pad(flash.x, flash.y, flash.colour);
+		any_sent = true;
+	}
+	g.flashes.clear();
 
 	// LEDs: diff this tick's desired on/off (`Shell::derive_leds`) against what was last sent.
 	// `i` is `LedId`'s own underlying value -- the shadow-array index `derive_leds` and

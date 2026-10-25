@@ -628,7 +628,7 @@ public:
 	/// not four mistakes.
 	///
 	/// A scene may still arm a gate from its own `render_*`, and several do: an arm computed from
-	/// the phase actually being drawn (`MenuScene::render_grid`'s `ms_to_phase_change`) is tighter
+	/// the phase actually being drawn (`MenuScene::render_grid`'s `ms_to_next_step`) is tighter
 	/// than this hook's single per-scene answer, and a *widget* has no other way to ask. Those arms
 	/// are refinements on top of step 8b, not a substitute for it.
 	///

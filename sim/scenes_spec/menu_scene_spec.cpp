@@ -1646,7 +1646,9 @@ describe menu_scene_node_text("scenes::menu::node_text", $ {
 });
 
 describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
-	it("paints the focused shortcut pad and nothing else", _ {
+	it("flashes the focused shortcut pad once per cycle on entering the param phase, and paints nothing", _ {
+		using deluge::ui::grid::FlashColour;
+		using deluge::ui::grid::PadFlash;
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -1659,28 +1661,38 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
 
 		// The cycle is anchored at the first render of the newly focused node (legacy's
-		// `shortcutBlinkCounter = 0`), so phases are measured from there, not from t = 0.
+		// `shortcutBlinkCounter = 0`), so steps are counted from there, not from t = 0.
 		const uint32_t anchor = menu_scene().state().blink_anchor_ms;
-		deluge::ui::test::GridRig grid;
-		grid.begin_tick(anchor + menu::kSourceBlinkMs); // the param phase of the cycle: lit
-		menu_scene().render_grid(grid.frame);
-
-		int painted = 0;
-		for (int32_t y = 0; y < grid.grid.dims().rows; y++) {
-			for (int32_t x = 0; x < grid.grid.dims().cols(); x++) {
-				const RGB& c = grid.grid.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
-				if (c.r != 0 || c.g != 0 || c.b != 0) {
-					painted++;
-					expect(x).to_equal(int32_t{kLpfFreqX});
-					expect(y).to_equal(int32_t{kLpfFreqY});
+		const auto render_at = [&](uint32_t offset_ms) {
+			deluge::ui::test::GridRig grid;
+			grid.begin_tick(anchor + offset_ms);
+			menu_scene().render_grid(grid.frame);
+			for (int32_t y = 0; y < grid.grid.dims().rows; y++) {
+				for (int32_t x = 0; x < grid.grid.dims().cols(); x++) {
+					const RGB& c = grid.grid.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
+					expect(c.r == 0 && c.g == 0 && c.b == 0).to_be_true();
 				}
 			}
-		}
-		expect(painted).to_equal(1);
-		expect(grid.ctx.claims.any()).to_be_false();
+			expect(grid.ctx.claims.any()).to_be_false();
+			return std::vector<PadFlash>(grid.flashes.flashes().begin(), grid.flashes.flashes().end());
+		};
+
+		// Step 1, the param phase: `blinkShortcut` flashes the pad once as it enters it.
+		const std::vector<PadFlash> first = render_at(menu::kSourceBlinkMs);
+		expect(first.size()).to_equal(size_t(1));
+		expect(!first.empty() && first[0] == PadFlash{kLpfFreqX, kLpfFreqY, FlashColour::Default}).to_be_true();
+		// Still step 1: no second flash.
+		expect(render_at(30).empty()).to_be_true();
+		// Step 2, the next source phase, has no sources to flash; step 3 flashes the pad again.
+		expect(render_at(menu::kBlinkCycleMs).empty()).to_be_true();
+		const std::vector<PadFlash> next = render_at(menu::kBlinkCycleMs + menu::kSourceBlinkMs);
+		expect(next.size()).to_equal(size_t(1));
+		expect(!next.empty() && next[0] == PadFlash{kLpfFreqX, kLpfFreqY, FlashColour::Default}).to_be_true();
 	});
 
-	it("blinks a second-layer item's pad yellow, as legacy flashes it", _ {
+	it("flashes a second-layer item's pad yellow", _ {
+		using deluge::ui::grid::FlashColour;
+		using deluge::ui::grid::PadFlash;
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -1692,17 +1704,15 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		r.shell.tick(40);
 		expect(menu_scene().focused() == &nodes::env3_release).to_be_true();
 
-		const auto colour_at = [&]() {
+		const auto flash_at_param_phase = [&]() {
 			deluge::ui::test::GridRig grid;
 			grid.begin_tick(menu_scene().state().blink_anchor_ms + menu::kSourceBlinkMs);
 			menu_scene().render_grid(grid.frame);
-			return grid.grid.at(kEnv1RelX, kEnv1RelY);
+			const std::span<const PadFlash> got = grid.flashes.flashes();
+			return got.size() == 1 ? got[0] : PadFlash{255, 255, FlashColour::Default};
 		};
-		// `setupShortcutBlink(x, y, 0, 0b00000011 /* yellow */)` (`sound_editor.cpp:1119`): lit, with
-		// next to no blue.
-		const RGB yellow = colour_at();
-		expect(yellow.g != 0).to_be_true();
-		expect(yellow.b * 2 < yellow.g).to_be_true();
+		// `setupShortcutBlink(x, y, 0, 0b00000011 /* yellow */)` (`sound_editor.cpp:1119`).
+		expect(flash_at_param_phase() == PadFlash{kEnv1RelX, kEnv1RelY, FlashColour::Yellow}).to_be_true();
 
 		// The first-layer item on the same pad flashes the default colour.
 		r.pad(kLpfFreqX, kLpfFreqY, 64, 50);
@@ -1710,13 +1720,12 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		r.pad(kEnv1RelX, kEnv1RelY, 64, 70);
 		r.shell.tick(80);
 		expect(menu_scene().focused() == &nodes::env1_release).to_be_true();
-		const RGB white = colour_at();
-		expect(white.b * 2 < white.g).to_be_false();
+		expect(flash_at_param_phase() == PadFlash{kEnv1RelX, kEnv1RelY, FlashColour::Default}).to_be_true();
 	});
 
-	it("blinks no pad for the name editors and the sample-marker editors", _ {
+	it("flashes no pad for the name editors and the sample-marker editors", _ {
 		// `SoundEditor::updatePadLightsFor` (`sound_editor.cpp:1048-1052`) sets no shortcut blink
-		// for these items although the tables hold them; the EDIT NAME page's (11, 5) stays dark.
+		// for these items although the tables hold them; the EDIT NAME page's (11, 5) never flashes.
 		for (const Node* node : {&nodes::edit_name, &nodes::sample0_start, &nodes::sample1_start}) {
 			select_language();
 			deluge::notify::dirty().drain();
@@ -1724,11 +1733,14 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 			(void)r.open(*node);
 			expect(menu_scene().focused() == node).to_be_true();
 			expect(menu::shortcut_pos(MenuContext::Root::Sound, *node).valid).to_be_true();
+			expect(menu_scene().next_timer().has_value()).to_be_false();
 
-			for (const uint32_t offset : {uint32_t{0}, uint32_t{menu::kSourceBlinkMs}, uint32_t{100}}) {
+			for (const uint32_t offset : {uint32_t{0}, uint32_t{menu::kSourceBlinkMs}, uint32_t{100},
+			                              uint32_t{menu::kBlinkCycleMs + menu::kSourceBlinkMs}}) {
 				deluge::ui::test::GridRig grid;
 				grid.begin_tick(menu_scene().state().blink_anchor_ms + offset);
 				menu_scene().render_grid(grid.frame);
+				expect(grid.flashes.flashes().empty()).to_be_true();
 				for (int32_t y = 0; y < grid.grid.dims().rows; y++) {
 					for (int32_t x = 0; x < grid.grid.dims().cols(); x++) {
 						const RGB& c = grid.grid.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
@@ -1739,45 +1751,9 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		}
 	});
 
-	it("runs legacy's two-phase 200 ms cycle, not a symmetric 180 ms one", _ {
-		select_language();
-		deluge::notify::dirty().drain();
-		Rig r;
-		(void)r.open(settings_root);
-		r.button(kShiftX, kShiftY, true, 0);
-		r.pad(kLpfFreqX, kLpfFreqY, 64, 1);
-		r.shell.tick(2);
-		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
-
-		// `SoundEditor::blinkShortcut` (`sound_editor.cpp:1012-1038`) alternates on one counter: the
-		// source phase re-arms at 20 ms and the param phase at 180 ms, so the cycle is 200 ms and
-		// the source slice is the short leading one. Rendered directly, at the phase boundaries, so
-		// this asserts the *timings* rather than "it blinks".
-		//
-		// Measured from the cycle's anchor, which `setupShortcutBlink` zeroes on every focus change
-		// (`sound_editor.cpp:1002`) and `render_grid` re-sets whenever the focused node changes.
-		const uint32_t anchor = menu_scene().state().blink_anchor_ms;
-		const auto lit_at = [&](uint32_t offset_ms) {
-			deluge::ui::test::GridRig grid;
-			grid.begin_tick(anchor + offset_ms);
-			menu_scene().render_grid(grid.frame);
-			const RGB& c = grid.grid.at(kLpfFreqX, kLpfFreqY);
-			return c.r != 0 || c.g != 0 || c.b != 0;
-		};
-		expect(uint32_t{menu::kBlinkCycleMs}).to_equal(uint32_t{200});
-		expect(lit_at(0)).to_be_false();   // source phase [0, 20)
-		expect(lit_at(19)).to_be_false();
-		expect(lit_at(20)).to_be_true();   // param phase [20, 200)
-		expect(lit_at(100)).to_be_true();
-		expect(lit_at(199)).to_be_true();
-		expect(lit_at(200)).to_be_false(); // next cycle's source phase
-		expect(lit_at(219)).to_be_false();
-		expect(lit_at(220)).to_be_true();
-		// Not a symmetric 180 ms square wave: that would have been dark here and lit at 200.
-		expect(lit_at(180)).to_be_true();
-	});
-
-	it("restarts the blink cycle when the focused node changes", _ {
+	it("re-anchors the cycle when the focused node changes", _ {
+		using deluge::ui::grid::FlashColour;
+		using deluge::ui::grid::PadFlash;
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -1794,23 +1770,32 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		expect(menu_scene().state().blink_anchor_ms).to_equal(first);
 
 		// ... but jumping to another pad re-anchors, exactly as `setupShortcutBlink`'s
-		// `shortcutBlinkCounter = 0` does (`sound_editor.cpp:1002`). Without that the port would
-		// free-run and a freshly focused pad could light mid-cycle.
+		// `shortcutBlinkCounter = 0` does (`sound_editor.cpp:1195`). Without that the port would
+		// free-run and a freshly focused pad could flash mid-cycle.
 		r.pad(kHpfFreqX, kHpfFreqY, 64, 600);
 		r.shell.tick(601);
 		expect(menu_scene().focused() == &nodes::hpf_freq).to_be_true();
 		const uint32_t second = menu_scene().state().blink_anchor_ms;
 		expect(second != first).to_be_true();
 
-		// And the new cycle starts in the source phase, i.e. dark, at its own anchor.
+		// The new cycle starts on its source step: no flash at its own anchor ...
 		deluge::ui::test::GridRig fresh;
 		fresh.begin_tick(second);
 		menu_scene().render_grid(fresh.frame);
-		const RGB& dark = fresh.grid.at(kHpfFreqX, kHpfFreqY);
-		expect(dark.r == 0 && dark.g == 0 && dark.b == 0).to_be_true();
+		expect(fresh.flashes.flashes().empty()).to_be_true();
+		// ... and the new pad flashes as the param step begins, 20 ms on.
+		deluge::ui::test::GridRig param;
+		param.begin_tick(second + menu::kSourceBlinkMs);
+		menu_scene().render_grid(param.frame);
+		expect(param.flashes.flashes().size()).to_equal(size_t(1));
+		expect(!param.flashes.flashes().empty()
+		       && param.flashes.flashes()[0] == PadFlash{kHpfFreqX, kHpfFreqY, FlashColour::Default})
+		    .to_be_true();
 	});
 
-	it("arms the grid gate so the blink flips at the next phase boundary", _ {
+	it("arms the grid gate for the next step edge", _ {
+		using deluge::ui::grid::FlashColour;
+		using deluge::ui::grid::PadFlash;
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -1821,32 +1806,33 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		r.shell.tick(2);
 		r.button(kShiftX, kShiftY, false, 3);
 		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
-
-		// Phases run from the cycle's anchor (the first render of the newly focused node).
 		const uint32_t anchor = menu_scene().state().blink_anchor_ms;
+		const PadFlash pad{kLpfFreqX, kLpfFreqY, FlashColour::Default};
 
-		// Inside the param phase: lit.
-		r.shell.tick(anchor + 30);
-		const RGB lit = r.pad_colour(kLpfFreqX, kLpfFreqY);
-		expect(lit.r != 0 || lit.g != 0 || lit.b != 0).to_be_true();
+		// Short of the param step: nothing yet.
+		r.shell.tick(anchor + menu::kSourceBlinkMs - 1);
+		expect(r.fake.flashes_sent.empty()).to_be_true();
 
-		// The scene armed the grid gate for the boundary, so this tick renders with no input at all
-		// -- which is the whole point: `next_timer()` alone would wake the shell without making
-		// `RepaintGate::needs_frame` say yes. One whole cycle on is the next source phase.
+		// The scene armed the grid gate for the step edge, so this tick renders with no input and
+		// the flash goes out exactly on it -- `next_timer()`'s fixed 180 ms alone would land late.
+		r.shell.tick(anchor + menu::kSourceBlinkMs);
+		expect(r.fake.flashes_sent.size()).to_equal(size_t(1));
+		expect(!r.fake.flashes_sent.empty() && r.fake.flashes_sent[0] == pad).to_be_true();
+
+		// The rest of the cycle flashes nothing; the next cycle's param step flashes again.
 		r.shell.tick(anchor + menu::kBlinkCycleMs);
-		const RGB dark = r.pad_colour(kLpfFreqX, kLpfFreqY);
-		expect(dark.r == 0 && dark.g == 0 && dark.b == 0).to_be_true();
-
-		// And back again 20 ms later, when the param phase resumes -- not 180.
+		expect(r.fake.flashes_sent.size()).to_equal(size_t(1));
 		r.shell.tick(anchor + menu::kBlinkCycleMs + menu::kSourceBlinkMs);
-		const RGB relit = r.pad_colour(kLpfFreqX, kLpfFreqY);
-		expect(relit.r == lit.r && relit.g == lit.g && relit.b == lit.b).to_be_true();
+		expect(r.fake.flashes_sent.size()).to_equal(size_t(2));
+		expect(r.fake.flashes_sent.size() == 2 && r.fake.flashes_sent[1] == pad).to_be_true();
+		// No pad of the shell's grid was ever lit for it.
+		expect(r.pad_colour(kLpfFreqX, kLpfFreqY) == RGB{0, 0, 0}).to_be_true();
 	});
 
 	it("the source-pad blink cadence never blits the OLED panels (E3 task 10 fix round 1)", _ {
-		// The regression the fold's first cut introduced: `MenuScene::next_timer()` returns
-		// `kSourceBlinkMs` whenever the focused node has source shortcut pads -- `lpf_freq` does,
-		// which is exactly the previous test's fixture -- and that timer is purely a GRID concern
+		// The regression the fold's first cut introduced: `MenuScene::next_timer()` returns a blink
+		// interval while the focused node's shortcut pad blinks -- `lpf_freq`'s does, which is
+		// exactly the previous test's fixture -- and that timer is purely a GRID concern
 		// (the submenu's OLED content never depends on it). Before `timer_repaints()` could name a
 		// surface, step 8b armed BOTH kinds of surface from every scene timer; the grid's own
 		// `flush` diffs against `last_sent` and blits nothing when a repaint changed no pixel, but
@@ -1861,7 +1847,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		//     (`kFlashTime` = 110 ms half-period, `ui/oled/values.cpp`), armed once from the tick
 		//     that first draws it and not again until that half-period elapses -- settled below,
 		//     before the measured window opens.
-		//   * `MenuScene::render_grid`'s OWN tighter blink arm (`ms_to_phase_change`, the previous
+		//   * `MenuScene::render_grid`'s OWN tighter blink arm (`ms_to_next_step`, the previous
 		//     test's own subject) shares `FrameInput::gate()` with the OLED widgets -- `OledFrame`
 		//     and `GridFrame` both resolve `gate()` to the same `FrameContext::gate`
 		//     (`ui/core/frame_context.h`) -- so it also fires an OLED render at every PHASE
@@ -1890,7 +1876,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 
 		// Eight cycles of the (fixed) source-pad cadence, no input at all, entirely inside the
 		// shortcut phase (`kSourceBlinkMs` = 20 to `kBlinkCycleMs` = 200, relative to `anchor`) --
-		// no phase boundary crossed, so `ms_to_phase_change`'s own arm stays quiet throughout and
+		// no phase boundary crossed, so `ms_to_next_step`'s own arm stays quiet throughout and
 		// the only remaining candidate is the bug this fix removes. (Not asserting the grid kept
 		// moving here: the pad it paints is genuinely static for the length of one phase, same as
 		// the OLED content -- that half of the mechanism is what the shell-level `tick_spec.cpp`

@@ -8,6 +8,7 @@
 #include "ui/core/led_frame.h"
 #include "ui/core/repaint_gate.h"
 #include "ui/core/style.h"
+#include "ui/grid/frame.h"
 
 #include <array>
 #include <cstddef>
@@ -111,6 +112,9 @@ struct GridSurface {
 	/// changed colour" -- that question is answered by diffing `last_sent`, which is the only
 	/// thing that can tell a re-render that painted the same pixels from one that did not.
 	bool dirty = false;
+	/// The pad flashes this tick's scene renders asked for. `Shell::render_grid` hands it to each
+	/// scene's root frame and `Shell::flush` sends and clears it.
+	ui::grid::PadFlashList flashes;
 
 	/// @brief The pad framebuffer.
 	/// @pre `SurfaceSet::build()` has run.
@@ -188,6 +192,11 @@ public:
 	/// @param pair_index Column-pair index, `< GridSurface::pairs`.
 	/// @param pair The 16 colours to send.
 	virtual void send_columns(uint8_t pair_index, const ColumnPair& pair) = 0;
+	/// @brief Flash one pad once, on the control surface's own timer, without changing its colour.
+	/// @param x Pad column, sidebar included.
+	/// @param y Pad row.
+	/// @param colour The flash's colour code.
+	virtual void flash_pad(uint8_t x, uint8_t y, ui::grid::FlashColour colour) = 0;
 	/// @brief Set one indicator LED.
 	/// @param board_led Board-defined LED index.
 	/// @param on Whether it should be lit.

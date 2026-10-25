@@ -120,8 +120,11 @@ struct GridRig {
 	deluge::ui::InputSnapshot input = null_input();
 	/// The tick's context, built over the two members above and read by every frame in the rig.
 	deluge::ui::FrameContext ctx{input, gate};
+	/// The pad flashes the root frame and its regions record, in absolute coordinates.
+	deluge::ui::grid::PadFlashList flashes;
 	/// The root frame under test; focused by default (see the rig's class note).
-	deluge::ui::grid::GridFrame frame = deluge::ui::grid::root_grid_frame(grid, ctx);
+	deluge::ui::grid::GridFrame frame =
+	    deluge::ui::grid::root_grid_frame(grid, ctx, deluge::ui::InputMask::all(), &flashes);
 
 	/// @brief Begin a new simulated tick. As `OledRig::begin_tick`.
 	/// @param now_ms The simulated wall-clock time for the new tick.

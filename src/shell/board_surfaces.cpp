@@ -40,6 +40,17 @@ void BoardSurfaceSet::send_columns(uint8_t pair_index, const ColumnPair& pair) {
 	deluge_control_set_pad_columns(pair_index, reinterpret_cast<const DelugeColour*>(pair.colours), kColumnPairLeds);
 }
 
+void BoardSurfaceSet::flash_pad(uint8_t x, uint8_t y, ui::grid::FlashColour colour) {
+	// The pad index `PadLEDs::flashMainPad` sends: column-major, `y + x * rows`
+	// (`hid/led/pad_leds.h:128-135`).
+	const auto idx = static_cast<uint8_t>(y + x * grid().grid().dims().rows);
+	if (colour == ui::grid::FlashColour::Default) {
+		deluge_control_flash_pad(idx);
+		return;
+	}
+	deluge_control_flash_pad_colour(idx, static_cast<int32_t>(colour));
+}
+
 void BoardSurfaceSet::set_led(uint8_t board_led, bool on) {
 	deluge_control_set_led(board_led, on);
 }

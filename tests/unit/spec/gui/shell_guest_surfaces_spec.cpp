@@ -4,6 +4,7 @@
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "shell/board_surfaces.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
@@ -125,6 +126,13 @@ void fill_legacy_pads(RGB c) {
 			PadLEDs::image[y][x] = c;
 		}
 	}
+}
+
+/// @brief `v[i]`, or @p fallback when the sequence is shorter than that, so a missing record fails
+///        an expectation instead of reading past the end.
+template <typename T>
+T nth_or(const std::vector<T>& v, size_t i, T fallback) {
+	return i < v.size() ? v[i] : fallback;
 }
 
 /// @brief A column pair of one colour.
@@ -447,6 +455,69 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		r.base.regions = PadRegions::Main;
 		r.upper.regions = PadRegions::Sidebar;
 		expect(r.set.owned_regions() == PadRegions::All).to_be_true();
+	});
+
+	// ---- pad flashes ---------------------------------------------------------------------------
+
+	it("turns a flash into PadLEDs::flashMainPad with legacy's colour code", _ {
+		using deluge::ui::grid::FlashColour;
+		Rig r;
+		r.set.flash_pad(3, 2, FlashColour::Default);
+		r.set.flash_pad(14, 5, FlashColour::Palette6);
+		r.set.flash_pad(0, 5, FlashColour::Yellow);
+		// `flashMainPad` indexes `y + x * kDisplayHeight` and sends colour 0 as the plain flash
+		// (`hid/led/pad_leds.h:128-135`).
+		const fakelegacy::PadFlash none{255, -1};
+		expect(fakelegacy::pad_flashes.size()).to_equal(size_t(3));
+		expect(nth_or(fakelegacy::pad_flashes, 0, none).idx).to_equal(uint8_t(2 + 3 * 8));
+		expect(nth_or(fakelegacy::pad_flashes, 0, none).colour).to_equal(int32_t(0));
+		expect(nth_or(fakelegacy::pad_flashes, 1, none).idx).to_equal(uint8_t(5 + 14 * 8));
+		expect(nth_or(fakelegacy::pad_flashes, 1, none).colour).to_equal(int32_t(0b110));
+		expect(nth_or(fakelegacy::pad_flashes, 2, none).idx).to_equal(uint8_t(5));
+		expect(nth_or(fakelegacy::pad_flashes, 2, none).colour).to_equal(int32_t(0b11));
+	});
+
+	it("drops a flash on a sidebar column", _ {
+		Rig r;
+		r.set.flash_pad(16, 3, deluge::ui::grid::FlashColour::Default);
+		r.set.flash_pad(17, 0, deluge::ui::grid::FlashColour::Yellow);
+		expect(fakelegacy::pad_flashes.empty()).to_be_true();
+	});
+
+	it("never writes a pair the guest does not own, and flashes nothing for its pixels", _ {
+		ShellRig r;
+		r.base.regions = PadRegions::None;
+		r.set.observe(r.shell.stack());
+		expect(r.shell.stack().push({kBase, 0})).to_be_true();
+		fill_legacy_pads(RGB{9, 8, 7});
+
+		for (uint8_t pair = 0; pair < 9; pair++) {
+			r.set.send_columns(pair, flat_pair(RGB{130, 120, 0}));
+		}
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
+				expect(PadLEDs::image[y][x] == RGB{9, 8, 7}).to_be_true();
+			}
+		}
+		expect(fakelegacy::column_sends.empty()).to_be_true();
+		expect(fakelegacy::pad_flashes.empty()).to_be_true();
+	});
+
+	it("BoardSurfaceSet sends deluge_control_flash_pad for Default and deluge_control_flash_pad_colour with the code otherwise", _ {
+		using deluge::ui::grid::FlashColour;
+		fakelegacy::reset();
+		BoardSurfaceSet board{kDelugeBoard, deluge_profile()};
+		board.flash_pad(3, 2, FlashColour::Default);
+		board.flash_pad(14, 5, FlashColour::Palette6);
+		board.flash_pad(0, 5, FlashColour::Yellow);
+		const fakelegacy::PadFlash none{255, -1};
+		expect(fakelegacy::pad_flashes.size()).to_equal(size_t(3));
+		expect(nth_or(fakelegacy::pad_flashes, 0, none).idx).to_equal(uint8_t(2 + 3 * 8));
+		expect(nth_or(fakelegacy::pad_flashes, 0, none).colour).to_equal(int32_t(0));
+		expect(nth_or(fakelegacy::pad_flashes, 1, none).idx).to_equal(uint8_t(5 + 14 * 8));
+		expect(nth_or(fakelegacy::pad_flashes, 1, none).colour).to_equal(int32_t(0b110));
+		expect(nth_or(fakelegacy::pad_flashes, 2, none).idx).to_equal(uint8_t(5));
+		expect(nth_or(fakelegacy::pad_flashes, 2, none).colour).to_equal(int32_t(0b11));
 	});
 
 	// ---- back-pressure, forwarded rather than invented -----------------------------------------

@@ -118,6 +118,14 @@ public:
 	void blit(uint8_t index, std::span<const uint8_t> bytes, uint16_t w, uint16_t h) override;
 	uint32_t pad_output_space() override;
 	void send_columns(uint8_t pair_index, const deluge::ui::shell::ColumnPair& pair) override;
+	/// @brief Flash main pad (@p x, @p y) through `PadLEDs::flashMainPad`, legacy's own shortcut
+	///        flash, with @p colour's code.
+	///
+	/// A sidebar pad is dropped: `flashMainPad` addresses the main grid only.
+	/// @param x Pad column.
+	/// @param y Pad row.
+	/// @param colour The flash's colour code.
+	void flash_pad(uint8_t x, uint8_t y, deluge::ui::grid::FlashColour colour) override;
 	void set_led(uint8_t board_led, bool on) override;
 	/// @brief Restore legacy's state for an LED the shell has stopped declaring.
 	///
@@ -161,7 +169,7 @@ public:
 	/// @brief Which pad regions the scenes on the watched stack draw (`Scene::pad_regions`).
 	///
 	/// A region none draws is the UI underneath's: `send_columns` writes none of its columns to
-	/// `PadLEDs::image` and turns each pad the overlays light there into a `PadLEDs::flashMainPad`.
+	/// `PadLEDs::image`.
 	/// @return The union of the stacked scenes' regions, or `All` when no stack is watched.
 	deluge::ui::shell::PadRegions owned_regions() const;
 
@@ -170,9 +178,6 @@ public:
 	void take_grid();
 
 private:
-	/// @brief Flash pad (@p x, @p y) if @p colour lights it and it was dark.
-	void flash_if_lit(uint8_t x, uint8_t y, RGB colour);
-
 	/// @brief Is column pair @p pair_index in a region @p owned holds?
 	/// @param owned The regions the guest draws.
 	/// @param pair_index The pair, counted from column 0.
@@ -181,8 +186,6 @@ private:
 
 	/// The stack `owned_regions` reads, or null for "everything owned".
 	const deluge::ui::shell::SceneStack* stack_ = nullptr;
-	/// Which pads the overlays lit at the last send while no scene owned the grid.
-	std::array<std::array<bool, kDisplayWidth + kSideBarWidth>, kDisplayHeight> lit_{};
 	/// Number of `indicator_leds::LED` values: `NUM_LED_COLS * NUM_LED_ROWS`.
 	static constexpr size_t kLegacyLeds = NUM_LED_COLS * NUM_LED_ROWS;
 	/// Whether the guest has written each LED since it last handed it back.

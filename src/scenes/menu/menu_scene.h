@@ -34,6 +34,7 @@
 #include "scenes/menu/action.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/node.h"
+#include "scenes/menu/shortcut_blink.h"
 #include "shell/scene.h"
 #include "ui/core/response.h"
 #include "ui/core/state.h"
@@ -78,25 +79,6 @@ inline constexpr size_t kMaxMenuColumns = 16;
 ///        (`MenuState::nav_press_ms`), matching legacy's `time - last > threshold` (`:81-82`)
 ///        rather than `>=`.
 inline constexpr uint32_t kNavButtonDebounceMs = 140;
-
-/// @brief The two phases of `render_grid`'s shortcut-blink cycle, in milliseconds.
-///
-/// **Not two independent blinks, and not one symmetric period.** Legacy runs *one* alternating
-/// cycle off `shortcutBlinkCounter` (`sound_editor.cpp:1012-1038`): `counter & 1` selects the phase,
-/// the param phase flashes the focused item's pad and re-arms `TimerName::SHORTCUT_BLINK` at
-/// **180 ms** (`:981-986`), and the source phase flashes the patching-source pads and re-arms at
-/// **20 ms** (`:989-999`). So the cycle is `kSourceBlinkMs + kShortcutBlinkMs` = 200 ms, of which
-/// the source phase is the short leading slice and the param phase is the rest. The two pads are
-/// deliberately never lit at the same instant -- legacy's own comment at `:971` says why ("blinking
-/// two pads on the same row at same time doesn't work").
-///
-/// One cycle needs one anchor, not two `Blink`s: `MenuState::blink_anchor_ms` is it, and
-/// `blink_phase` / `ms_to_phase_change` (`menu_scene.cpp`) are what read it.
-/// @{
-inline constexpr uint16_t kShortcutBlinkMs = 180;
-inline constexpr uint16_t kSourceBlinkMs = 20;
-inline constexpr uint32_t kBlinkCycleMs = uint32_t{kSourceBlinkMs} + kShortcutBlinkMs;
-/// @}
 
 /// @brief Storage for one node's name or title with its placeholder filled; keep it alive as long
 ///        as the view `node_text` returns.
@@ -207,19 +189,20 @@ struct MenuState {
 	/// `decimal_value`'s OLED cursor blink ONLY (`ui/core/state.h:38`; `until_ms` is a phase
 	/// anchor, not a deadline).
 	deluge::ui::Blink cursor_blink{};
-	/// `render_grid`: when the current shortcut-blink cycle started.
+	/// `render_grid`: when the current shortcut-blink cycle started, legacy's
+	/// `shortcutBlinkCounter = 0` (`setupShortcutBlink`, `sound_editor.cpp:1190-1196`).
 	///
-	/// One anchor for both phases, because legacy has one counter for both
-	/// (`sound_editor.cpp:1012-1038`). Not a `Blink`: a `Blink` carries a single symmetric period,
-	/// which is precisely the shape this cycle is not.
-	///
-	/// Re-anchored whenever `blink_node` changes, which is legacy's `shortcutBlinkCounter = 0` in
-	/// `setupShortcutBlink` (`sound_editor.cpp:997-1004`) -- reached from `updatePadLightsFor` on every
-	/// screen change (`:806`, via `beginScreen` `:1015`). Without it the port would free-run from
-	/// t = 0 and a newly focused pad could light mid-cycle.
+	/// Re-anchored whenever `blink_node` or `blink_plan` changes: legacy sets the blink up again,
+	/// zeroing the counter, on every screen change and every re-plan, so a newly focused pad starts
+	/// its cycle then rather than wherever a free-running clock happens to be.
 	uint32_t blink_anchor_ms = 0;
 	/// Which node `blink_anchor_ms` was set for; `render_grid` is the only writer of both.
 	const Node* blink_node = nullptr;
+	/// What blinks for `blink_node`, as `render_grid` last planned it.
+	BlinkPlan blink_plan{};
+	/// The counter step `render_grid` last flashed, so each step flashes once however many frames
+	/// fall inside it; `UINT32_MAX` for none since the anchor.
+	uint32_t blink_fired_step = UINT32_MAX;
 
 	/// Legacy's `secondLayerShortcutsToggled` (`sound_editor.cpp:1364-1371`): pressing the focused
 	/// item's own shortcut pad a second time takes the second shortcut layer, and pressing any

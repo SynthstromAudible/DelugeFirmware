@@ -93,6 +93,9 @@ public:
 				(void)frame.pad(x, y, c);
 			}
 		}
+		for (const deluge::ui::grid::PadFlash& f : flashes) {
+			frame.flash(f.x, f.y, f.colour);
+		}
 	}
 
 	void leds(deluge::ui::LedFrame& frame) override {
@@ -128,6 +131,8 @@ public:
 	bool declare_indicator = true;
 	deluge::ui::KnobIndicator indicator{{1, 2, 3, 4}};
 	int oled_renders = 0;
+	/// The pads `render_grid` flashes each time it runs.
+	std::vector<deluge::ui::grid::PadFlash> flashes;
 };
 
 std::array<Scene*, 18> table_for(Scene& base) {
@@ -306,6 +311,46 @@ describe shell_flush("shell::Shell::flush", $ {
 			expect(pair6.colours[i] == RGB{7, 7, 7}).to_be_true();
 			expect(pair6.colours[i + 8] == r.base.colour).to_be_true();
 		}
+	});
+
+	it("sends this tick's pad flashes through flash_pad after the columns, then clears them", _ {
+		using deluge::ui::grid::FlashColour;
+		using deluge::ui::grid::PadFlash;
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.base.flashes = {{3, 2, FlashColour::Default}, {15, 6, FlashColour::Palette6}};
+		r.shell.tick(0);
+		const std::vector<PadFlash> expected{{3, 2, FlashColour::Default}, {15, 6, FlashColour::Palette6}};
+		expect(r.fake.flashes_sent == expected).to_be_true();
+		expect(r.fake.columns_sent.size()).to_equal(size_t(9));
+		expect(r.fake.columns_before_flash == std::vector<size_t>{9, 9}).to_be_true();
+		expect(r.fake.grid().flashes.flashes().empty()).to_be_true();
+
+		// The next render flashes nothing: nothing more is sent.
+		r.base.flashes.clear();
+		deluge::notify::dirty().raise(Dirty::GridMain);
+		r.shell.tick(10);
+		expect(r.fake.flashes_sent == expected).to_be_true();
+	});
+
+	it("a tick whose only output is a flash still flushes once", _ {
+		using deluge::ui::grid::FlashColour;
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		const int flushes = r.fake.flushes;
+		const size_t columns = r.fake.columns_sent.size();
+		const size_t blits = r.fake.blits.size();
+
+		r.base.flashes = {{3, 2, FlashColour::Default}};
+		deluge::notify::dirty().raise(Dirty::GridMain);
+		r.shell.tick(10);
+		expect(r.fake.columns_sent.size()).to_equal(columns);
+		expect(r.fake.blits.size()).to_equal(blits);
+		expect(r.fake.flashes_sent.size()).to_equal(size_t(1));
+		expect(r.fake.flushes).to_equal(flushes + 1);
 	});
 
 	it("LED diff emits only changes; indicators only on change", _ {

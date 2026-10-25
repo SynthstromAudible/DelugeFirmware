@@ -459,10 +459,4 @@ void set_shortcuts_version(ShortcutsVersion version) {
 	g_version = version;
 }
 
-std::span<const ShortcutPos> source_shortcut_pads(MenuContext::Root /*root*/, const Node& /*node*/) {
-	// Empty in E1 -- see the header's note: which sources blink comes from the live patch matrix,
-	// not from a table, and every patch-cable item is a placeholder until E2.
-	return {};
-}
-
 } // namespace deluge::scenes::menu

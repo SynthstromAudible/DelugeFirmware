@@ -1,5 +1,4 @@
 scene app16/224
 led Back blink 110
-pad 7 4 36 34 6
 indicator lower 0 0 0 0
 indicator upper 0 0 0 0

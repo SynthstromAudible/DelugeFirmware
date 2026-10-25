@@ -6,7 +6,7 @@ namespace deluge::ui::grid {
 
 using gfx::grid::Rect;
 
-GridFrame root_grid_frame(gfx::grid::PadGrid& grid, FrameContext& ctx, InputMask mask) {
+GridFrame root_grid_frame(gfx::grid::PadGrid& grid, FrameContext& ctx, InputMask mask, PadFlashList* flashes) {
 	// The whole surface, sidebar included: GridDimensions::cols() is main_cols + sidebar_cols and
 	// PadGrid addresses that as one range, so the root frame is one 18-wide coordinate space on a
 	// Deluge rather than a main area with a sidebar bolted on beside it.
@@ -14,7 +14,7 @@ GridFrame root_grid_frame(gfx::grid::PadGrid& grid, FrameContext& ctx, InputMask
 	const Rect all{0, 0, d.cols(), d.rows};
 	// Requested == visible at the root: nothing clips the whole surface. `mask` is the caller's
 	// lever; regions below it only ever narrow further.
-	return GridFrame{{ctx, mask}, grid, all, all};
+	return GridFrame{{ctx, mask}, grid, all, all, flashes};
 }
 
 Response GridFrame::pad(int32_t x, int32_t y, RGB colour) {
@@ -52,6 +52,19 @@ Response GridFrame::pad(int32_t x, int32_t y, RGB colour) {
 	}
 	r.held = held_pads().test(px, py);
 	return r;
+}
+
+void GridFrame::flash(int32_t x, int32_t y, FlashColour colour) {
+	const int32_t abs_x = rect.x + x;
+	const int32_t abs_y = rect.y + y;
+	// The same crop and narrowing guard as pad().
+	if (flashes == nullptr || !clip.contains(abs_x, abs_y)) {
+		return;
+	}
+	if (abs_x < 0 || abs_y < 0 || abs_x > 0xFF || abs_y > 0xFF) {
+		return;
+	}
+	(void)flashes->push(PadFlash{static_cast<uint8_t>(abs_x), static_cast<uint8_t>(abs_y), colour});
 }
 
 RGB GridFrame::peek(int32_t x, int32_t y) const {

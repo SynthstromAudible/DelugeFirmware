@@ -7,6 +7,7 @@
 #include "ui/core/repaint_gate.h"
 #include "ui/core/response.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -24,6 +25,50 @@ namespace deluge::ui::grid {
 ///       zero-initialises it for each nested child. That is the price of keeping `GridFrame` an
 ///       aggregate with no heap and no caller-supplied scratch.
 constexpr uint8_t kMaxLocalEvents = 32;
+
+/// @brief The colour a pad flash takes: legacy's `PadLEDs::flashMainPad` colour codes, which the
+///        control surface's PIC plays from its own palette.
+enum class FlashColour : uint8_t {
+	Default = 0,      ///< The PIC's plain white flash (`flashMainPad`'s colour 0).
+	Yellow = 0b11,    ///< A second-layer shortcut (`sound_editor.cpp:1099`).
+	Palette6 = 0b110, ///< A cable's range source (`patch_cables.cpp:155`, `patch_cable_strength/regular.cpp:78`).
+};
+
+/// @brief One pad flash, in absolute pad coordinates.
+struct PadFlash {
+	uint8_t x = 0; ///< Column, sidebar included.
+	uint8_t y = 0; ///< Row.
+	FlashColour colour = FlashColour::Default;
+	bool operator==(const PadFlash&) const = default;
+};
+
+/// @brief The most pad flashes one tick collects. Legacy's busiest blink flashes the two source
+///        columns, sixteen pads.
+inline constexpr uint8_t kMaxPadFlashes = 32;
+
+/// @brief The pad flashes a tick's renders asked for, in the order they asked.
+///
+/// A flash is an event, not a pixel: the control surface lights the pad briefly by itself and the
+/// grid is never painted for it. The shell sends the list after the column pairs and clears it.
+struct PadFlashList {
+	std::array<PadFlash, kMaxPadFlashes> items{};
+	uint8_t count = 0;
+
+	/// @brief Append @p flash.
+	/// @param flash The flash to record.
+	/// @return False, and the flash dropped, when the list is full.
+	bool push(PadFlash flash) {
+		if (count >= kMaxPadFlashes) {
+			return false;
+		}
+		items[count++] = flash;
+		return true;
+	}
+	/// @return The recorded flashes, oldest first.
+	std::span<const PadFlash> flashes() const { return {items.data(), count}; }
+	/// @brief Forget every recorded flash.
+	void clear() { count = 0; }
+};
 
 /// @brief The pad surface a component sees for one tick.
 ///
@@ -76,6 +121,9 @@ struct GridFrame : FrameInput {
 	/// `visible()` reports it in local coordinates. `pad()` and `peek()` test against this, so an
 	/// overhanging region paints the part that is inside its parent and drops the rest.
 	gfx::grid::Rect clip;
+	/// Where `flash()` records, shared with every region below this frame; null for a frame whose
+	/// flashes go nowhere (an effect pass, a rig that does not watch them).
+	PadFlashList* flashes = nullptr;
 
 	/// @name Accessors
 	/// @{
@@ -142,6 +190,16 @@ struct GridFrame : FrameInput {
 	/// @return The pad's current colour, or black outside `visible()` -- matching `pad()`'s
 	///         "paints nothing, reports nothing" for the same coordinates.
 	RGB peek(int32_t x, int32_t y) const;
+
+	/// @brief Ask the control surface to flash one pad once, without painting it.
+	///
+	/// Legacy's shortcut blinks are flashes the PIC plays by itself (`PadLEDs::flashMainPad`), so
+	/// they show over whatever the pad holds, whoever drew it. Outside `visible()`, or with no
+	/// `flashes` list, this does nothing.
+	/// @param x local column
+	/// @param y local row
+	/// @param colour the flash's colour code
+	void flash(int32_t x, int32_t y, FlashColour colour);
 
 	/// @}
 	/// @name Events
@@ -234,7 +292,7 @@ struct GridFrame : FrameInput {
 	template <class F>
 	void region(gfx::grid::Rect local, InputMask granted, F&& body) {
 		const gfx::grid::Rect translated{rect.x + local.x, rect.y + local.y, local.w, local.h};
-		GridFrame child{{ctx, child_mask(granted)}, grid, translated, clip.intersect(translated)};
+		GridFrame child{{ctx, child_mask(granted)}, grid, translated, clip.intersect(translated), flashes};
 		std::forward<F>(body)(child);
 	}
 
@@ -255,12 +313,12 @@ struct GridFrame : FrameInput {
 
 	// Scratch for local_events(), refilled from `ctx.input.pads` on every call -- not a cache; see
 	// the note on local_events() above. Mutable because local_events() is const and filling the
-	// buffer is not an observable change -- the frame's identity is the four members above.
+	// buffer is not an observable change -- the frame's identity is the members above.
 	//
 	// These must stay LAST and keep their initialisers: `region` above builds its child by
-	// aggregate initialisation of `{ctx, mask}, grid, rect, clip` in that order -- the
-	// FrameInput base subobject first, then these three members -- so GridFrame must remain an
-	// aggregate and nothing may be inserted between `clip` and here.
+	// aggregate initialisation of `{ctx, mask}, grid, rect, clip, flashes` in that order -- the
+	// FrameInput base subobject first, then those four members -- so GridFrame must remain an
+	// aggregate and nothing may be inserted between `flashes` and here.
 	mutable PadEvent local_[kMaxLocalEvents] = {};
 	mutable uint8_t local_count_ = 0;
 };
@@ -284,7 +342,9 @@ struct GridFrame : FrameInput {
 /// @param grid the pad surface to draw and read input from
 /// @param ctx the tick's frame context
 /// @param mask input mask granted to the root frame; pads are unaffected regardless
+/// @param flashes where the frame and its regions record `flash()`es; null drops them
 /// @return The root `GridFrame` for this tick.
-GridFrame root_grid_frame(gfx::grid::PadGrid& grid, FrameContext& ctx, InputMask mask = InputMask::all());
+GridFrame root_grid_frame(gfx::grid::PadGrid& grid, FrameContext& ctx, InputMask mask = InputMask::all(),
+                          PadFlashList* flashes = nullptr);
 
 } // namespace deluge::ui::grid

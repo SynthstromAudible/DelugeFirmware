@@ -60,6 +60,9 @@ public:
 	std::vector<std::pair<uint8_t, bool>> led_writes;
 	std::vector<uint8_t> led_releases;
 	std::vector<std::pair<uint8_t, deluge::ui::KnobIndicator>> indicator_writes;
+	std::vector<deluge::ui::grid::PadFlash> flashes_sent;
+	/// `columns_sent.size()` at each `flash_pad`, so a spec can tell what a flash was sent after.
+	std::vector<size_t> columns_before_flash;
 	int flushes = 0;
 	/// @}
 
@@ -73,6 +76,11 @@ public:
 
 	void send_columns(uint8_t pair_index, const ColumnPair& pair) override {
 		columns_sent.emplace_back(pair_index, pair);
+	}
+
+	void flash_pad(uint8_t x, uint8_t y, deluge::ui::grid::FlashColour colour) override {
+		flashes_sent.push_back(deluge::ui::grid::PadFlash{x, y, colour});
+		columns_before_flash.push_back(columns_sent.size());
 	}
 
 	void set_led(uint8_t board_led, bool on) override {

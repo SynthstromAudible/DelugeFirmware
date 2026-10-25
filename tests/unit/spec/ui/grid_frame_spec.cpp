@@ -291,5 +291,44 @@ describe grid_frame("ui::grid::GridFrame", $ {
 		});
 		expect(hits).to_equal(1);
 	});
+
+	// ---- pad flashes -------------------------------------------------------------------------
+
+	it("flash records an absolute-coordinate flash in the frame's list", _ {
+		uitest::GridRig r;
+		r.frame.flash(3, 2, FlashColour::Default);
+		r.frame.flash(15, 6, FlashColour::Palette6);
+		expect(int(r.flashes.count)).to_equal(2);
+		expect(r.flashes.flashes()[0] == PadFlash{3, 2, FlashColour::Default}).to_be_true();
+		expect(r.flashes.flashes()[1] == PadFlash{15, 6, FlashColour::Palette6}).to_be_true();
+		// A flash paints nothing.
+		expect(r.grid.at(3, 2)).to_equal(RGB{0, 0, 0});
+	});
+	it("a region's flash is translated, and one outside the region's visible part is dropped", _ {
+		uitest::GridRig r;
+		r.frame.region(Rect{4, 2, 4, 4}, [&](GridFrame& inner) {
+			inner.flash(1, 1, FlashColour::Yellow);
+			inner.flash(9, 1, FlashColour::Yellow);
+		});
+		expect(int(r.flashes.count)).to_equal(1);
+		expect(r.flashes.flashes()[0] == PadFlash{5, 3, FlashColour::Yellow}).to_be_true();
+	});
+	it("flash without a list does nothing", _ {
+		uitest::GridRig r;
+		GridFrame bare = root_grid_frame(r.grid, r.ctx);
+		expect(bare.flashes == nullptr).to_be_true();
+		bare.flash(3, 2, FlashColour::Default);
+		expect(int(r.flashes.count)).to_equal(0);
+	});
+	it("a full list drops further flashes", _ {
+		uitest::GridRig r;
+		for (int32_t i = 0; i < kMaxPadFlashes + 1; i++) {
+			r.frame.flash(i % 16, i / 16, FlashColour::Default);
+		}
+		expect(int(r.flashes.count)).to_equal(int(kMaxPadFlashes));
+		expect(r.flashes.push(PadFlash{0, 0, FlashColour::Default})).to_be_false();
+		r.flashes.clear();
+		expect(r.flashes.flashes().empty()).to_be_true();
+	});
 });
 DELUGE_SPEC(ui_grid_frame_spec, grid_frame)

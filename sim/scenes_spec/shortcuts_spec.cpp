@@ -30,6 +30,7 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
+#include "scenes/menu/shortcut_blink.h"
 #include "scenes/menu/shortcuts.h"
 #include "scenes/menu/validate.h"
 #include "scenes/profile.h"
@@ -52,6 +53,7 @@
 #include "support/song_fixture.h"
 
 #include "spec/shell/support/fake_surfaces.h"
+#include "spec/ui/support/frames.h"
 
 #include "cppspec.hpp"
 
@@ -630,12 +632,6 @@ describe shortcuts_shape("scenes::menu shortcut tables: shape", $ {
 			expect(menu::shortcut_pos(root, nodes::root_settings).valid).to_be_false();
 		}
 	});
-
-	it("has no patching-source pads yet", _ {
-		// E1: `sourceShortcutBlinkFrequencies` comes from the live patch matrix, not a table, and
-		// every patch-cable item is still a placeholder -- see `shortcuts.h`.
-		expect(menu::source_shortcut_pads(Root::Sound, nodes::lpf_freq).empty()).to_be_true();
-	});
 });
 
 describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
@@ -972,7 +968,98 @@ describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSIO
 		expect(pos.y).to_equal(uint8_t(6));
 	});
 });
+
+describe shortcut_blink_cadence("scenes::menu shortcut blink: legacy's counter", $ {
+	using deluge::ui::grid::FlashColour;
+	using deluge::ui::grid::PadFlash;
+
+	// `SoundEditor::blinkShortcut` (`sound_editor.cpp:1205-1245`): the counter's even steps are the
+	// 20 ms source phase, the odd steps the 180 ms param phase; `counter >> 1` is the cycle the
+	// frequency masks are tested against.
+
+	/// Every flash `fire_blink_step` makes for @p plan at each of @p steps, tagged with its step.
+	const auto fire = [](const menu::BlinkPlan& plan, uint32_t first, uint32_t last) {
+		std::vector<std::pair<uint32_t, PadFlash>> out;
+		for (uint32_t step = first; step <= last; step++) {
+			deluge::ui::test::GridRig rig;
+			menu::fire_blink_step(rig.frame, plan, step);
+			for (const PadFlash& f : rig.flashes.flashes()) {
+				out.emplace_back(step, f);
+			}
+		}
+		return out;
+	};
+
+	it("steps legacy's counter: 20 ms source phase, 180 ms param phase", _ {
+		const uint32_t anchor = 1000;
+		const std::pair<uint32_t, uint32_t> steps[] = {{0, 0}, {19, 0}, {20, 1}, {199, 1}, {200, 2}, {219, 2}, {220, 3}};
+		for (const auto& [offset, step] : steps) {
+			expect(menu::blink_step(anchor, anchor + offset)).to_equal(step);
+		}
+		expect(menu::ms_to_next_step(anchor, anchor)).to_equal(uint32_t{20});
+		expect(menu::ms_to_next_step(anchor, anchor + 20)).to_equal(uint32_t{180});
+		expect(menu::ms_to_next_step(anchor, anchor + 190)).to_equal(uint32_t{10});
+		expect(uint32_t{menu::kBlinkCycleMs}).to_equal(uint32_t{200});
+	});
+
+	it("flashes a frequency-3 param pad on every fourth cycle only", _ {
+		menu::BlinkPlan plan;
+		plan.param = menu::ParamBlink{.x = 6, .y = 0, .valid = true, .freq_mask = 3};
+		const auto got = fire(plan, 1, 17);
+		expect(got.size()).to_equal(size_t(3));
+		const uint32_t want_steps[] = {1, 9, 17};
+		for (size_t i = 0; i < got.size() && i < 3; i++) {
+			expect(got[i].first).to_equal(want_steps[i]);
+			expect(got[i].second == PadFlash{6, 0, FlashColour::Default}).to_be_true();
+		}
+	});
+
+	it("flashes a frequency-0 param pad on every cycle, a frequency-1 one on every other", _ {
+		menu::BlinkPlan every;
+		every.param = menu::ParamBlink{.x = 8, .y = 7, .valid = true, .freq_mask = 0};
+		const auto a = fire(every, 0, 7);
+		expect(a.size()).to_equal(size_t(4)); // steps 1, 3, 5, 7
+		for (size_t i = 0; i < a.size(); i++) {
+			expect(a[i].first).to_equal(uint32_t(2 * i + 1));
+		}
+
+		menu::BlinkPlan other;
+		other.param = menu::ParamBlink{.x = 8, .y = 7, .valid = true, .freq_mask = 1};
+		const auto b = fire(other, 0, 7);
+		expect(b.size()).to_equal(size_t(2)); // steps 1, 5: cycles 0 and 2
+		const uint32_t want_steps[] = {1, 5};
+		for (size_t i = 0; i < b.size() && i < 2; i++) {
+			expect(b[i].first).to_equal(want_steps[i]);
+		}
+	});
+
+	it("flashes sources on the even steps at pad 14 + sx, and alternates to yellow on odd cycles when asked", _ {
+		menu::BlinkPlan plan;
+		plan.sources[1][1] = menu::SourceBlink{.freq_mask = 0, .colour = FlashColour::Default, .alternates = true};
+		const auto got = fire(plan, 0, 5);
+		expect(got.size()).to_equal(size_t(3)); // steps 0, 2, 4; nothing on the odd steps
+		const std::pair<uint32_t, PadFlash> want[] = {{0, {15, 1, FlashColour::Default}},
+		                                              {2, {15, 1, FlashColour::Yellow}},
+		                                              {4, {15, 1, FlashColour::Default}}};
+		for (size_t i = 0; i < got.size() && i < 3; i++) {
+			expect(got[i].first).to_equal(want[i].first);
+			expect(got[i].second == want[i].second).to_be_true();
+		}
+
+		menu::BlinkPlan slow;
+		slow.sources[0][4] = menu::SourceBlink{.freq_mask = 3, .colour = FlashColour::Palette6, .alternates = true};
+		const auto s = fire(slow, 0, 17);
+		expect(s.size()).to_equal(size_t(3)); // cycles 0, 4, 8
+		const std::pair<uint32_t, PadFlash> want_slow[] = {{0, {14, 4, FlashColour::Palette6}},
+		                                                   {8, {14, 4, FlashColour::Yellow}},
+		                                                   {16, {14, 4, FlashColour::Palette6}}};
+		for (size_t i = 0; i < s.size() && i < 3; i++) {
+			expect(s[i].first).to_equal(want_slow[i].first);
+			expect(s[i].second == want_slow[i].second).to_be_true();
+		}
+	});
+});
 // clang-format on
 
 DELUGE_SPEC(shortcuts_spec, shortcuts_transcription, shortcuts_shape, shortcuts_validation, shortcuts_profile,
-            shortcuts_version_1)
+            shortcuts_version_1, shortcut_blink_cadence)

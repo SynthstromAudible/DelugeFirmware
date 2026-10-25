@@ -43,10 +43,6 @@ ShortcutPos shortcut_pos(MenuContext::Root /*root*/, const Node& node) {
 	return ShortcutPos{};
 }
 
-std::span<const ShortcutPos> source_shortcut_pads(MenuContext::Root /*root*/, const Node& /*node*/) {
-	return {};
-}
-
 void set_shortcut_table_for_test(std::span<const Node* const> table, uint8_t cols, uint8_t rows) {
 	g_table = table;
 	g_cols = cols;

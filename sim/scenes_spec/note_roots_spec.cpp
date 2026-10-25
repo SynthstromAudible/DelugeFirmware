@@ -94,25 +94,18 @@ describe note_roots_table("scenes::menu MenuContext::Root::NoteEditor / NoteRowE
 		}
 		menu::set_shortcuts_version(saved);
 
-		// Fix round 1, IMPORTANT 3: `render_grid` only ever paints `shortcut_pos(ctx_.root,
-		// *focused())` and that node's source pads (`menu_scene.cpp:1252-1294`). `note_editor_root`
-		// itself is in NO root's table, so opening the scene on it (the original shape of this
-		// example) could never observe a leak -- it would pass even if `kByRootV3`/`kByRootV1`'s
-		// note-root slots pointed at a real table by mistake. `nodes::lpf_freq` is a real cell under
-		// `Root::Sound` (`shortcuts_spec.cpp` pins it at (8, 7)), so focusing on IT under each note
-		// root is what actually exercises the table lookup this claim is about.
+		// `render_grid` only ever flashes `shortcut_pos(ctx_.root, *focused())`. `note_editor_root`
+		// itself is in NO root's table, so opening the scene on it could never observe a leak.
+		// `nodes::lpf_freq` is a real cell under `Root::Sound` (`shortcuts_spec.cpp` pins it at
+		// (8, 7)), so focusing on IT under each note root is what exercises the table lookup.
 		spec::SongFixture fx = spec::make_synth_song();
 		MenuContext ctx = menu::context_for(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, false, false, false, false);
 		auto& scene = menu_scene();
 
-		// A render at tick 0 falls in the cycle's SOURCE phase (`phase < kSourceBlinkMs`), which
-		// suppresses the focused-param pad regardless of the table (`render_grid`'s `!source_phase`
-		// guard) -- so it could never light anything and would pass vacuously. But the cycle's own
-		// anchor is (re-)zeroed at `now` the first time a newly-focused node renders at all
-		// (`render_grid`'s `st_.blink_node != node` arm), so the FIRST render after `open()` is
-		// always phase 0 no matter which tick it is asked for. A second render, `kSourceBlinkMs + 1`
-		// after that same anchor, is what actually reaches the param-flash phase.
-		auto any_pad_lit = [&](const menu::Node& node, MenuContext::Root root) {
+		// The first render after `open()` anchors the cycle and is its source step, which flashes no
+		// param pad whatever the table says. A second render `kSourceBlinkMs` after that anchor is
+		// the param step, where a table hit would flash.
+		auto any_pad_flashed = [&](const menu::Node& node, MenuContext::Root root) {
 			ctx.root = root;
 			scene.open(node, ctx);
 			deluge::ui::test::GridRig warmup;
@@ -121,26 +114,18 @@ describe note_roots_table("scenes::menu MenuContext::Root::NoteEditor / NoteRowE
 			const uint32_t anchor = scene.state().blink_anchor_ms;
 
 			deluge::ui::test::GridRig grid;
-			grid.begin_tick(anchor + menu::kSourceBlinkMs + 1);
+			grid.begin_tick(anchor + menu::kSourceBlinkMs);
 			scene.render_grid(grid.frame);
-			for (int32_t y = 0; y < grid.grid.dims().rows; y++) {
-				for (int32_t x = 0; x < grid.grid.dims().cols(); x++) {
-					const RGB& c = grid.grid.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
-					if (c.r != 0 || c.g != 0 || c.b != 0) {
-						return true;
-					}
-				}
-			}
-			return false;
+			return !warmup.flashes.flashes().empty() || !grid.flashes.flashes().empty();
 		};
 
 		// Positive control: the identical node and tick, under the root it REALLY belongs to --
-		// proves the harness lights a pad when the table says to, so the two `false`s below are not
+		// proves the harness flashes a pad when the table says to, so the two `false`s below are not
 		// vacuous (a broken `GridRig`/timing setup would fail this one too).
-		expect(any_pad_lit(nodes::lpf_freq, MenuContext::Root::Sound)).to_be_true();
+		expect(any_pad_flashed(nodes::lpf_freq, MenuContext::Root::Sound)).to_be_true();
 
-		expect(any_pad_lit(nodes::lpf_freq, MenuContext::Root::NoteEditor)).to_be_false();
-		expect(any_pad_lit(nodes::lpf_freq, MenuContext::Root::NoteRowEditor)).to_be_false();
+		expect(any_pad_flashed(nodes::lpf_freq, MenuContext::Root::NoteEditor)).to_be_false();
+		expect(any_pad_flashed(nodes::lpf_freq, MenuContext::Root::NoteRowEditor)).to_be_false();
 	});
 
 	it("greyout_mask is {0x03, 0} on the note editor and empty on the note-row editor", _ {

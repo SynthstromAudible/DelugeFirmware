@@ -39,6 +39,7 @@ add_library(deluge_scenes STATIC
     menu/node_id.cpp
     menu/note_bridge.cpp
     menu/relevance.cpp
+    menu/shortcut_blink.cpp
     menu/shortcuts.cpp
     menu/validate.cpp
     # The menu tables: batch 1 (task 6) is the six subtrees the retired Python generator produced;

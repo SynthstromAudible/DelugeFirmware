@@ -18,6 +18,12 @@ public:
 	void blit(uint8_t index, std::span<const uint8_t> bytes, uint16_t w, uint16_t h) override;
 	uint32_t pad_output_space() override;
 	void send_columns(uint8_t pair_index, const ColumnPair& pair) override;
+	/// @brief Flash pad (@p x, @p y) through `deluge_control_flash_pad`, or
+	///        `deluge_control_flash_pad_colour` for a colour other than the default.
+	/// @param x Pad column.
+	/// @param y Pad row.
+	/// @param colour The flash's colour code.
+	void flash_pad(uint8_t x, uint8_t y, ui::grid::FlashColour colour) override;
 	void set_led(uint8_t board_led, bool on) override;
 	void set_indicator(uint8_t which, const KnobIndicator& indicator) override;
 	void flush() override;

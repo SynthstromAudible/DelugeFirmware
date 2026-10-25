@@ -1,7 +1,7 @@
 #pragma once
 
 /// @brief The grid shortcut lookup: which `Node` the pad at (x, y) opens, and where a `Node`'s own
-///        shortcut pad sits so `MenuScene::render_grid` can blink it.
+///        shortcut pad sits so `plan_blinks` (`shortcut_blink.h`) can blink it.
 ///
 /// The seven legacy tables -- `paramShortcutsForSounds`, `…SecondLayer`, `…ForAudioClips`,
 /// `…ForSongView`, `…ForKitGlobalFX` (`gui/ui/menus.cpp:2174-2275`), `midiOrCVParamShortcuts` and
@@ -130,25 +130,6 @@ const Node* shortcut_node(MenuContext::Root root, bool second_layer, uint8_t x, 
 /// @return Its pad, or a `ShortcutPos` with `valid == false`.
 ShortcutPos shortcut_pos(MenuContext::Root root, const Node& node);
 
-/// @brief The patching-source pads that blink alongside @p node, on the short phase of
-///        `render_grid`'s cadence (`SoundEditor::blinkShortcut`'s even-counter arm,
-///        `sound_editor.cpp:1025-1037`, which flashes `x + 14` for every armed
-///        `sourceShortcutBlinkFrequencies[x][y]`).
-///
-/// @note **Still empty after Task 9, and deliberately so.** Which source pads blink is not table
-///       data: legacy fills `sourceShortcutBlinkFrequencies` from
-///       `MenuItem::shouldBlinkPatchingSourceShortcut` (`sound_editor.cpp:797-819`), which every
-///       patch-cable and patched-param item answers out of the live patch matrix. In E1 every
-///       patch-cable item is a `Kind::Custom` placeholder (`nodes::kPending`), so there is no
-///       patching state in this layer to answer from; E2's patch-cable items bring both. The
-///       cadence and its phase are already wired in `MenuScene::render_grid`, so filling this in
-///       needs no change to the scene.
-///
-/// @param root Which menu root is open.
-/// @param node The node whose sources are being shown.
-/// @return The pads, viewing storage owned by this translation unit; empty in E1.
-std::span<const ShortcutPos> source_shortcut_pads(MenuContext::Root root, const Node& node);
-
 /// @brief Which of legacy's two shortcut layouts every lookup above resolves.
 ///
 /// The enumerator values are legacy's own (`SHORTCUTS_VERSION_1` 0, `SHORTCUTS_VERSION_3` 1,
@@ -181,7 +162,7 @@ ShortcutsVersion shortcuts_version();
 ///       V3 only in that `(0..1, 6)` also resolves to it. The two that genuinely move are
 ///       `paramShortcutsForSounds[0][6]` / `[1][6]`, interpolation in V3 and the sample end point in
 ///       V1. `modSourceShortcuts` (`:134-135`) is not in this layer at all -- it is the patching
-///       source column, which `source_shortcut_pads` above explains is not table data here.
+///       source column, which is not table data here (`shortcut_blink.h`).
 void set_shortcuts_version(ShortcutsVersion version);
 
 } // namespace deluge::scenes::menu

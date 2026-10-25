@@ -169,13 +169,7 @@ void GuestSurfaceSet::send_columns(uint8_t pair_index, const ColumnPair& pair) {
 	if (!pair_owned(owned_regions(), pair_index)) {
 		// These pads are the UI underneath's, as under `SoundEditor`, which draws none
 		// (`renderMainPads` answers "show root UI", `sound_editor.cpp:217-247`), and as the sidebar
-		// is under a keyboard. What an overlay paints there is its shortcut blink, which legacy
-		// flashes on the PIC instead (`SoundEditor::blinkShortcut`, `:1227-1262`): one flash as
-		// each pad lights.
-		for (uint8_t y = 0; y < rows; y++) {
-			flash_if_lit(x0, y, pair.colours[y]);
-			flash_if_lit(x1, y, pair.colours[rows + y]);
-		}
+		// is under a keyboard. A scene's blink over them comes through `flash_pad`, not as pixels.
 		return;
 	}
 	for (uint8_t y = 0; y < rows; y++) {
@@ -185,17 +179,13 @@ void GuestSurfaceSet::send_columns(uint8_t pair_index, const ColumnPair& pair) {
 	PadLEDs::sortLedsForCol(x0);
 }
 
-void GuestSurfaceSet::flash_if_lit(uint8_t x, uint8_t y, RGB colour) {
-	const bool now = colour.r != 0 || colour.g != 0 || colour.b != 0;
-	bool& was = lit_[y][x];
-	if (now && !was) {
-		// `blinkShortcut`'s two colours: the default flash for a first-layer item and yellow,
-		// `0b00000011`, for a second-layer one (`sound_editor.cpp:1119`, `:1144`). The overlay paints
-		// yellow with almost no blue, which the shell's greyout leaves below half the green.
-		const bool yellow = colour.b * 2 < colour.g;
-		PadLEDs::flashMainPad(x, y, yellow ? 0b00000011 : 0);
+void GuestSurfaceSet::flash_pad(uint8_t x, uint8_t y, deluge::ui::grid::FlashColour colour) {
+	// `SoundEditor::blinkShortcut`'s own call (`sound_editor.cpp:1205-1245`): the PIC plays the
+	// flash over whatever the pad holds, so it shows whether the guest or the UI underneath drew it.
+	if (x >= kDisplayWidth || y >= kDisplayHeight) {
+		return;
 	}
-	was = now;
+	PadLEDs::flashMainPad(x, y, static_cast<int32_t>(colour));
 }
 
 PadRegions GuestSurfaceSet::owned_regions() const {
@@ -228,12 +218,6 @@ void GuestSurfaceSet::take_grid() {
 			PadLEDs::image[y][x + 1] = g.at(static_cast<uint8_t>(x + 1), static_cast<uint8_t>(y));
 		}
 		PadLEDs::sortLedsForCol(x);
-		// The flash bookkeeping is for pads the guest does not own; a region it hands back later
-		// starts dark.
-		for (auto& row : lit_) {
-			row[x] = false;
-			row[x + 1] = false;
-		}
 	}
 	deluge_control_flush();
 }
@@ -273,9 +257,6 @@ void GuestSurfaceSet::begin_session() {
 	leds().sent_once.fill(false);
 	// Legacy has drawn the pads since too: the session's first flush sends every column pair.
 	std::fill(std::begin(grid().sent_once), std::end(grid().sent_once), false);
-	for (auto& row : lit_) {
-		row.fill(false);
-	}
 }
 
 void GuestSurfaceSet::set_indicator(uint8_t which, const KnobIndicator& indicator) {

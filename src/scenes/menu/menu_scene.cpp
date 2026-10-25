@@ -70,45 +70,10 @@ using deluge::ui::shell::UiEvent;
 
 namespace {
 
-/// @brief The colour a flashed shortcut pad takes.
-///
-/// `SoundEditor::setupShortcutBlink` passes `colour == 0` for every ordinary param
-/// (`sound_editor.cpp:997`), which `PadLEDs::flashMainPad` (`hid/led/pad_leds.h:128`) turns into
-/// the default flash, `flashColours[0]` (`hid/led/pad_leds.cpp:277-280`).
-constexpr RGB kFlashColour{130, 120, 130};
-
-/// @brief The colour a second-layer shortcut pad flashes: legacy's yellow, colour `0b00000011`
-///        (`sound_editor.cpp:1119`). The guest turns a pad with this little blue into that flash
-///        (`GuestSurfaceSet::send_columns`).
-constexpr RGB kSecondLayerFlashColour{130, 120, 0};
-
 /// @brief The back LED's blink period: legacy's `kFlashTime`, the period
 ///        `indicator_leds::blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:352`) runs at
 ///        (`hid/led/indicator_leds.cpp:108`, `definitions_cxx.hpp:159`).
 constexpr uint16_t kBackBlinkMs = 110;
-
-/// @brief Where @p now_ms falls in the shortcut blink's 200 ms cycle, in milliseconds from its
-///        start.
-///
-/// The cycle is legacy's `shortcutBlinkCounter` pair, not a square wave: `[0, kSourceBlinkMs)` is
-/// the source-pad phase (legacy's even counter, 20 ms arm) and `[kSourceBlinkMs, kBlinkCycleMs)` is
-/// the focused-param phase (the odd counter, 180 ms arm). Written as a difference against the
-/// anchor so it survives the ~49.7-day `uint32_t` wrap, exactly as `RepaintGate::needs_frame` does.
-///
-/// @param anchor_ms When the current cycle started (`st_.blink_anchor_ms`).
-/// @param now_ms    The tick's clock.
-/// @return Milliseconds into the cycle, in `[0, kBlinkCycleMs)`.
-uint32_t blink_phase(uint32_t anchor_ms, uint32_t now_ms) {
-	return (now_ms - anchor_ms) % kBlinkCycleMs;
-}
-
-/// @brief Milliseconds from @p phase to the cycle's next phase boundary.
-///
-/// One of the two arms legacy sets on `TimerName::SHORTCUT_BLINK`: from inside the source phase
-/// that is the 20 ms arm's remainder, from inside the param phase the 180 ms arm's.
-uint32_t ms_to_phase_change(uint32_t phase) {
-	return phase < kSourceBlinkMs ? (kSourceBlinkMs - phase) : (kBlinkCycleMs - phase);
-}
 
 /// @brief Resolve a `Node`'s l10n id to text through the one sanctioned path
 ///        (`shell/profile.h:147`, which already implements the digits fallback).
@@ -330,19 +295,6 @@ const Node* horizontal_page_listing(const Node& node, const Node& item) {
 		}
 	}
 	return nullptr;
-}
-
-/// @brief Whether @p node's shortcut pad blinks while it is focused.
-///
-/// `SoundEditor::updatePadLightsFor` (`sound_editor.cpp:1048-1052`) sets up no blink for the name
-/// editors and the sample-marker editors, although the shortcut tables hold them.
-/// @param node The focused node.
-/// @return False for those nodes, true for every other.
-bool blinks_shortcut(const Node& node) {
-	constexpr const Node* kNoBlink[] = {&nodes::edit_name,          &nodes::drum_name_edit, &nodes::sample0_start,
-	                                    &nodes::sample0_end,        &nodes::sample1_start,  &nodes::sample1_end,
-	                                    &nodes::audio_clip_waveform};
-	return std::ranges::find(kNoBlink, &node) == std::ranges::end(kNoBlink);
 }
 
 } // namespace
@@ -1292,52 +1244,33 @@ void MenuScene::render_leaf_sync_level(deluge::ui::oled::OledFrame& f, const Nod
 void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	// Reads no input at all. That is what keeps "a scene reads any one input in at most one render
 	// pass per tick" (`shell/README.md`) true for a scene drawn on two surfaces: the OLED pass owns
-	// turn/select/back/edit, and this pass owns nothing.
+	// turn/select/back/edit, and this pass owns nothing. It paints no pixel either: the shortcut
+	// blinks are pad flashes, as legacy's `blinkShortcut` plays them (`sound_editor.cpp:1205-1245`).
 	const Node* node = focused();
-	if (node == nullptr || !blinks_shortcut(*node)) {
+	if (node == nullptr) {
 		return;
 	}
 	const uint32_t now = f.now_ms();
-
-	// ONE 200 ms cycle with two unequal phases, not two independent blinks: legacy alternates the
-	// param flash and the source flash off `shortcutBlinkCounter & 1` (`sound_editor.cpp:1012-1038`)
-	// with a 20 ms arm on the source phase and a 180 ms arm on the param phase, precisely so the
-	// two are never lit at the same instant (`:970-971`). `phase` is where in that cycle this tick
-	// falls; the source pads own `[0, kSourceBlinkMs)` and the focused param's pad owns the rest.
-	// Legacy zeroes `shortcutBlinkCounter` every time the focused item changes
-	// (`setupShortcutBlink`, `sound_editor.cpp:1002`), so a pad that has just been jumped to starts
-	// its cycle now rather than wherever a free-running clock happens to be.
-	if (st_.blink_node != node) {
+	const BlinkPlan plan = plan_blinks(ctx_, st_, *node);
+	if (st_.blink_node != node || st_.blink_plan != plan) {
 		st_.blink_node = node;
+		st_.blink_plan = plan;
 		st_.blink_anchor_ms = now;
+		st_.blink_fired_step = UINT32_MAX;
 	}
-	const uint32_t phase = blink_phase(st_.blink_anchor_ms, now);
-	const bool source_phase = phase < kSourceBlinkMs;
-
-	const ShortcutPos pos = shortcut_pos(ctx_.root, *node);
-	if (pos.valid) {
-		if (!source_phase) {
-			(void)f.pad(pos.x, pos.y, pos.second_layer ? kSecondLayerFlashColour : kFlashColour);
-		}
-		// Arming the gate is what makes the blink land *on its own phase edges*. Since E3 task 10
-		// the shell arms this gate too, from `next_timer()` (`Shell::tick` step 8b), so the blink is
-		// no longer dead without this line -- but `next_timer()` answers one fixed interval for the
-		// whole scene (20 or 180 ms, `MenuScene::next_timer`) while `ms_to_phase_change` names the
-		// milliseconds to the *next* edge of an unequal 20/180 cycle. A frame drawn at phase 190
-		// wants 10 ms, not 180. The shell's arm is the safety net; this one is the timing.
-		// Same shape every animated widget uses -- `decimal_value` (`ui/oled/values.cpp:178`),
-		// `popup`, `scroll_text`, `grid::gesture`.
-		f.gate().request_repaint_after(ms_to_phase_change(phase), now);
+	if (!plan.param.valid && !plan.any_source()) {
+		return;
 	}
-	const std::span<const ShortcutPos> sources = source_shortcut_pads(ctx_.root, *node);
-	if (!sources.empty()) {
-		if (source_phase) {
-			for (const ShortcutPos& source : sources) {
-				(void)f.pad(source.x, source.y, kFlashColour);
-			}
-		}
-		f.gate().request_repaint_after(ms_to_phase_change(phase), now);
+	// Legacy steps its counter on a timer and flashes once per step; a frame lands anywhere inside
+	// a step, so the step is derived from the clock and flashed the first time a frame sees it.
+	const uint32_t step = blink_step(st_.blink_anchor_ms, now);
+	if (step != st_.blink_fired_step) {
+		fire_blink_step(f, plan, step);
+		st_.blink_fired_step = step;
 	}
+	// `next_timer()` answers one fixed interval for the whole scene, but the steps are unequal
+	// (20 ms, then 180 ms), so this arms the gate for the next step's edge itself.
+	f.gate().request_repaint_after(ms_to_next_step(st_.blink_anchor_ms, now), now);
 }
 
 void MenuScene::leds(deluge::ui::LedFrame& f) {
@@ -2280,17 +2213,17 @@ void MenuScene::restore_state(const SceneState& state) {
 }
 
 std::optional<uint32_t> MenuScene::next_timer() const {
-	// The blinks are the only thing here that moves without input, so the timer is the nearer of
-	// the two *armed* cadences. A `Blink` with nothing to paint is not armed: waking the shell
-	// every 20 ms to draw no source pads would be a battery cost with no pixels behind it.
+	// The blinks are the only thing here that moves without input, so the timer is the shorter of
+	// the counter's two steps that the plan uses. Nothing blinking arms nothing.
 	const Node* node = focused();
 	if (node == nullptr) {
 		return std::nullopt;
 	}
-	if (!source_shortcut_pads(ctx_.root, *node).empty()) {
+	const BlinkPlan plan = plan_blinks(ctx_, st_, *node);
+	if (plan.any_source()) {
 		return kSourceBlinkMs;
 	}
-	if (shortcut_pos(ctx_.root, *node).valid) {
+	if (plan.param.valid) {
 		return kShortcutBlinkMs;
 	}
 	return std::nullopt;

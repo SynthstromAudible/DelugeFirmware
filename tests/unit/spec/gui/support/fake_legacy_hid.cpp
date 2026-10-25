@@ -4,6 +4,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "libdeluge/control_surface.h"
+#include "libdeluge/display.h"
 
 #include <cstring>
 
@@ -132,6 +133,24 @@ void deluge_control_flash_pad_colour(uint8_t idx, int32_t colour_idx) DELUGE_NOE
 
 void deluge_control_flush(void) DELUGE_NOEXCEPT {
 	fakelegacy::control_flushes++;
+}
+
+// The rest of `shell::BoardSurfaceSet`'s boundary, so its flash sink can be driven here. Nothing
+// in this suite asserts on these.
+void deluge_control_set_pad_columns(uint8_t /*idx*/, const DelugeColour* /*colours*/,
+                                    uint8_t /*count*/) DELUGE_NOEXCEPT {
+}
+
+void deluge_control_set_led(uint8_t /*led*/, bool /*on*/) DELUGE_NOEXCEPT {
+}
+
+DelugeStatus deluge_display_blit_oled_n(uint8_t /*index*/, const uint8_t* /*pixels*/, uint16_t /*width*/,
+                                        uint16_t /*height*/) DELUGE_NOEXCEPT {
+	return DELUGE_OK;
+}
+
+bool deluge_display_busy_n(uint8_t /*index*/) DELUGE_NOEXCEPT {
+	return false;
 }
 
 } // extern "C"

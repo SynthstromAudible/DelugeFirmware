@@ -68,6 +68,9 @@ public:
 	}
 
 	void render_grid(deluge::ui::grid::GridFrame& frame) override {
+		for (const deluge::ui::grid::PadFlash& f : flashes) {
+			frame.flash(f.x, f.y, f.colour);
+		}
 		if (sparse) {
 			for (const auto& [x, y] : lit) {
 				(void)frame.pad(x, y, lit_colour);
@@ -161,6 +164,8 @@ public:
 	bool sparse = false;
 	std::vector<std::pair<int32_t, int32_t>> lit;
 	RGB lit_colour{130, 120, 130};
+	/// The pads `render_grid` flashes each time it runs.
+	std::vector<deluge::ui::grid::PadFlash> flashes;
 	bool overlay = false;
 	/// What `pad_regions()` answers: which regions the guest takes from legacy for this scene.
 	PadRegions regions = PadRegions::All;
@@ -830,7 +835,8 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacy::column_sends.empty()).to_be_true();
 	});
 
-	it("flashes a pad once as it lights while no scene owns the grid, yellow for a yellow pad", _ {
+	it("carries a scene's flash to PadLEDs::flashMainPad while it owns no pads", _ {
+		using deluge::ui::grid::FlashColour;
 		Rig r;
 		r.base.overlay = true;
 		r.base.regions = PadRegions::None;
@@ -843,27 +849,22 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		tick(0);
 		expect(fakelegacy::pad_flashes.empty()).to_be_true();
 
-		// `SoundEditor::blinkShortcut` flashes the pad through `PadLEDs::flashMainPad`, index
-		// `y + x * kDisplayHeight`, colour 0 for a first-layer item (`sound_editor.cpp:1227-1262`).
-		r.base.lit = {{3, 2}};
+		// `SoundEditor::blinkShortcut` flashes through `PadLEDs::flashMainPad`, index
+		// `y + x * kDisplayHeight`, with the colour code it was set up with
+		// (`sound_editor.cpp:1205-1245`).
+		r.base.flashes = {{3, 2, FlashColour::Default}, {14, 5, FlashColour::Yellow}};
 		tick(10);
-		expect(fakelegacy::pad_flashes.size()).to_equal(size_t(1));
 		const fakelegacy::PadFlash none{255, -1};
+		expect(fakelegacy::pad_flashes.size()).to_equal(size_t(2));
 		expect(nth_or(fakelegacy::pad_flashes, 0, none).idx).to_equal(uint8_t(2 + 3 * kDisplayHeight));
 		expect(nth_or(fakelegacy::pad_flashes, 0, none).colour).to_equal(int32_t(0));
+		expect(nth_or(fakelegacy::pad_flashes, 1, none).idx).to_equal(uint8_t(5 + 14 * kDisplayHeight));
+		expect(nth_or(fakelegacy::pad_flashes, 1, none).colour).to_equal(int32_t(0b11));
 
-		tick(20); // still lit: no second flash
-		expect(fakelegacy::pad_flashes.size()).to_equal(size_t(1));
-		r.base.lit = {};
-		tick(30);
-		expect(fakelegacy::pad_flashes.size()).to_equal(size_t(1));
-
-		// A second-layer item flashes yellow, `0b00000011` (`sound_editor.cpp:1119`).
-		r.base.lit = {{3, 2}};
-		r.base.lit_colour = RGB{130, 120, 0};
-		tick(40);
+		// A flash is an event, not a level: a render that flashes nothing sends nothing.
+		r.base.flashes.clear();
+		tick(20);
 		expect(fakelegacy::pad_flashes.size()).to_equal(size_t(2));
-		expect(nth_or(fakelegacy::pad_flashes, 1, none).colour).to_equal(int32_t(0b00000011));
 		expect(fakelegacy::column_sends.empty()).to_be_true();
 	});
 

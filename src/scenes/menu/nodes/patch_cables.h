@@ -66,7 +66,7 @@
 ///     (`patch_cables.cpp:113-151`) and the three `shouldBlinkPatchingSourceShortcut` overrides:
 ///     grid-pad blinking driven by `uiTimerManager` and `soundEditor.setupShortcutBlink`.
 ///     `MenuScene::render_grid` owns the port's one blink cycle and keys it off the focused *node*
-///     (`menu_scene.h`'s `kShortcutBlinkMs`); making it key off a focused item's own answer is the
+///     (`shortcut_blink.h`'s `kShortcutBlinkMs`); making it key off a focused item's own answer is the
 ///     wiring plan's, not this task's.
 ///   * `PatchCableStrength::horizontalEncoderAction`'s `delayHorizontalScrollUntil` escape into
 ///     `automationView` / `keyboardScreen` (`:338-365`) -- both are `gui/views/`.

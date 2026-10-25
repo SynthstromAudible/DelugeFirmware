@@ -1531,7 +1531,7 @@ calls `thing_pressed`, which is E5's and E6's. See migration §10.2 item 8.
 
 E1 ships the menu tree, its interpreter (`MenuScene`), and the ten root tables — the rest of spec E
 (§2's scene inventory: `SessionScene`, `NoteClipScene`, `BrowserScene`, the overlays, …) is later
-work. Within the menu tree itself, carried to E2: `source_shortcut_pads` (needs patch cables); a
+work. Within the menu tree itself, carried to E2: the patching-source blinks (needs patch cables); a
 `Kind::Action` re-introduction with its first real consumer; per-pad blink frequency masks;
 two context-dependent blink suppressions;
 settings-root shortcut jumps (blocked on `MenuContext` gaining an additive `background_root` field
@@ -1590,7 +1590,7 @@ pad blinking**. `PatchCables::blinkShortcuts` / `blinkShortcutsSoon` / `timerCal
 `soundEditor.setupShortcutBlink` and its one or two source pads through
 `updateSourceBlinks` + `shouldBlinkPatchingSourceShortcut`, throttled by a 500 ms
 `TimerName::UI_SPECIFIC`. `MenuScene::render_grid` owns this port's single blink cycle and keys it
-off the focused *node* (`menu_scene.h`'s `kShortcutBlinkMs`); making it consult the focused
+off the focused *node* (`shortcut_blink.h`'s `kShortcutBlinkMs`); making it consult the focused
 `CustomItem` instead needs a hook on `CustomItem` and a second blink source, which is the same shape
 of change as routing MIDI to `MenuScene::learn_*`. The three
 `shouldBlinkPatchingSourceShortcut` overrides (`patch_cables.cpp:153-162`,
