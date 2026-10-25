@@ -334,9 +334,9 @@ public:
 
 		// On a multi-zone source, go through the note-range picker every time in, rather than reusing
 		// whichever zone the editor happens to be holding. Once any zone has variants the OSC-level
-		// zone-scoped items are hidden, so this is the only remaining way to switch zones - reusing a
-		// zone here locks you to it for the rest of the session. The picker starts on the last zone
-		// used, so confirming it is a single press.
+		// zone-scoped items are hidden, and the shortcut pads keep a zone the editor already holds, so
+		// inside the menu this is the only way to switch zones - reusing a zone here would lock you to
+		// it for the rest of the session.
 		//
 		// The picker calls straight back here once it has a zone, and that call arrives while the
 		// picker is still the current screen - which is how the two are told apart. Kits are left
