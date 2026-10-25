@@ -2,3 +2,4 @@ scene app22
 led Mod1 on
 indicator lower 72 0 0 0
 indicator upper 255 255 36 0
+flash 6 7 0

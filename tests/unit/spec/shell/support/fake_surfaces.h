@@ -63,6 +63,9 @@ public:
 	std::vector<deluge::ui::grid::PadFlash> flashes_sent;
 	/// `columns_sent.size()` at each `flash_pad`, so a spec can tell what a flash was sent after.
 	std::vector<size_t> columns_before_flash;
+	/// How many of `flashes_sent` a level-2 snapshot has already reported; the next snapshot
+	/// reports the ones after it.
+	size_t flashes_reported = 0;
 	int flushes = 0;
 	/// @}
 

@@ -520,6 +520,17 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		expect(nth_or(fakelegacy::pad_flashes, 2, none).colour).to_equal(int32_t(0b11));
 	});
 
+	it("BoardSurfaceSet sends nothing for a flash on a sidebar column", _ {
+		// The PIC's SET_PAD_FLASHING covers the 16 main columns only (`24 + y + 8 * x`, bytes
+		// 24..151); a sidebar index would land on the commands after it and switch an LED off.
+		using deluge::ui::grid::FlashColour;
+		fakelegacy::reset();
+		BoardSurfaceSet board{kDelugeBoard, deluge_profile()};
+		board.flash_pad(16, 3, FlashColour::Default);
+		board.flash_pad(17, 0, FlashColour::Yellow);
+		expect(fakelegacy::pad_flashes.empty()).to_be_true();
+	});
+
 	// ---- back-pressure, forwarded rather than invented -----------------------------------------
 
 	it("reports pad_output_space straight from the boundary legacy consults", _ {

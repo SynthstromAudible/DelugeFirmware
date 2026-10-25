@@ -20,6 +20,8 @@ public:
 	void send_columns(uint8_t pair_index, const ColumnPair& pair) override;
 	/// @brief Flash pad (@p x, @p y) through `deluge_control_flash_pad`, or
 	///        `deluge_control_flash_pad_colour` for a colour other than the default.
+	///
+	/// A sidebar pad is dropped: the control surface flashes main pads only.
 	/// @param x Pad column.
 	/// @param y Pad row.
 	/// @param colour The flash's colour code.

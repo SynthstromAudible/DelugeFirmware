@@ -2,3 +2,4 @@ scene app16/77
 led Back blink 110
 indicator lower 0 0 0 0
 indicator upper 0 0 0 0
+flash 8 5 0

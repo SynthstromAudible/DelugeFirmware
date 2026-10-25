@@ -1274,8 +1274,8 @@ void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
 }
 
 void MenuScene::leds(deluge::ui::LedFrame& f) {
-	// Button LEDs only: `LedFrame` has no pad concept whatever, so the pad blink above is grid
-	// pixels rather than an LED declaration. The set is `SoundEditor::setLedStates`
+	// Button LEDs only: `LedFrame` has no pad concept whatever, so the pad blink above is a pad
+	// flash rather than an LED declaration. The set is `SoundEditor::setLedStates`
 	// (`sound_editor.cpp:339-352`), minus the parts that belong to services (`playbackHandler`,
 	// `view.setKnobIndicatorLevels`).
 	// Nothing to declare while the path is empty: `on_model_changed(SongSwapped)` drops it and the

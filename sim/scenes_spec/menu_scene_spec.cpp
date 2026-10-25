@@ -1724,7 +1724,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 	});
 
 	it("flashes no pad for the name editors and the sample-marker editors", _ {
-		// `SoundEditor::updatePadLightsFor` (`sound_editor.cpp:1048-1052`) sets no shortcut blink
+		// `SoundEditor::updatePadLightsFor` (`sound_editor.cpp:1036-1040`) sets no shortcut blink
 		// for these items although the tables hold them; the EDIT NAME page's (11, 5) never flashes.
 		for (const Node* node : {&nodes::edit_name, &nodes::sample0_start, &nodes::sample1_start}) {
 			select_language();
@@ -1850,12 +1850,11 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		//   * `MenuScene::render_grid`'s OWN tighter blink arm (`ms_to_next_step`, the previous
 		//     test's own subject) shares `FrameInput::gate()` with the OLED widgets -- `OledFrame`
 		//     and `GridFrame` both resolve `gate()` to the same `FrameContext::gate`
-		//     (`ui/core/frame_context.h`) -- so it also fires an OLED render at every PHASE
-		//     boundary (`kSourceBlinkMs`/`kBlinkCycleMs` apart), independent of `timer_repaints()`
+		//     (`ui/core/frame_context.h`) -- so it also fires an OLED render at every blink-counter
+		//     STEP edge (`kSourceBlinkMs`/`kBlinkCycleMs` apart), independent of `timer_repaints()`
 		//     entirely: that hook governs `Shell::tick` step 8b alone, not a scene's own `render_*`
-		//     arms. This is real, pre-existing, and outside this fix's scope -- but it fires only
-		//     AT a boundary, not on every tick inside a phase, so the window below stays strictly
-		//     inside one phase (the long 180 ms "shortcut" phase) to avoid crossing it.
+		//     arms. It fires only AT a step edge, not on every tick inside a step, so the window
+		//     below stays strictly inside one step (the long 180 ms param step) to avoid crossing it.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -1867,21 +1866,17 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
 
 		// Settle past both confounds: the "entered leaf draws next tick" one-shot repaint, the
-		// decimal cursor's own first arm, AND the source -> shortcut phase boundary at
-		// `kSourceBlinkMs` -- all landing inside the shortcut phase before the measured window
-		// opens.
+		// decimal cursor's own first arm, AND the source -> param step edge at `kSourceBlinkMs` --
+		// all landing inside the param step before the measured window opens.
 		const uint32_t anchor = menu_scene().state().blink_anchor_ms;
 		r.shell.tick(anchor + menu::kSourceBlinkMs + 5);
 		const size_t blits_before = r.fake.blits.size();
 
-		// Eight cycles of the (fixed) source-pad cadence, no input at all, entirely inside the
-		// shortcut phase (`kSourceBlinkMs` = 20 to `kBlinkCycleMs` = 200, relative to `anchor`) --
-		// no phase boundary crossed, so `ms_to_next_step`'s own arm stays quiet throughout and
-		// the only remaining candidate is the bug this fix removes. (Not asserting the grid kept
-		// moving here: the pad it paints is genuinely static for the length of one phase, same as
-		// the OLED content -- that half of the mechanism is what the shell-level `tick_spec.cpp`
-		// example proves instead, with a synthetic scene whose grid content really does change on
-		// the same cadence.)
+		// Eight 20 ms ticks, no input at all, entirely inside the param step (`kSourceBlinkMs` = 20
+		// to `kBlinkCycleMs` = 200, relative to `anchor`) -- no step edge crossed, so
+		// `ms_to_next_step`'s own arm stays quiet throughout and the only remaining candidate is the
+		// bug this example guards. (The blink sends one flash as the step begins and nothing inside
+		// it, so the grid has nothing to show here either.)
 		for (int i = 1; i <= 8; i++) {
 			r.shell.tick(anchor + menu::kSourceBlinkMs + 5 + static_cast<uint32_t>(i) * menu::kSourceBlinkMs);
 		}

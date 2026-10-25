@@ -41,9 +41,16 @@ void BoardSurfaceSet::send_columns(uint8_t pair_index, const ColumnPair& pair) {
 }
 
 void BoardSurfaceSet::flash_pad(uint8_t x, uint8_t y, ui::grid::FlashColour colour) {
-	// The pad index `PadLEDs::flashMainPad` sends: column-major, `y + x * rows`
-	// (`hid/led/pad_leds.h:128-135`).
-	const auto idx = static_cast<uint8_t>(y + x * grid().grid().dims().rows);
+	// The PIC flashes main pads only: its SET_PAD_FLASHING command is `24 + y + 8 * x`, bytes 24..151
+	// for the 16x8 main grid, and a sidebar index would run into the commands after it and switch
+	// an indicator LED off. Legacy's `PadLEDs::flashMainPad` addresses the main grid alone too.
+	const gfx::grid::GridDimensions d = grid().grid().dims();
+	if (x >= d.main_cols || y >= d.rows) {
+		return;
+	}
+	// Column-major, `y + x * rows` (`hid/led/pad_leds.h:128-135`). Within the main grid this is at
+	// most 127 on the Deluge's 16x8, so it fits the boundary's `uint8_t` index.
+	const auto idx = static_cast<uint8_t>(y + x * d.rows);
 	if (colour == ui::grid::FlashColour::Default) {
 		deluge_control_flash_pad(idx);
 		return;

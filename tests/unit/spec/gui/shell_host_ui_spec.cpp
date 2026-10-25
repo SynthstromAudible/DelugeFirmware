@@ -159,8 +159,8 @@ public:
 		           static_cast<uint8_t>(1 + x + y * 3)};
 	}
 
-	/// When set, `render_grid` paints only the pads in `lit`, in `lit_colour` -- a menu's blink
-	/// rather than a full frame.
+	/// When set, `render_grid` paints only the pads in `lit`, in `lit_colour`, rather than a full
+	/// frame: a scene that draws a few pads, or none.
 	bool sparse = false;
 	std::vector<std::pair<int32_t, int32_t>> lit;
 	RGB lit_colour{130, 120, 130};

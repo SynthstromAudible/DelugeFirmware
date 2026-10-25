@@ -18,6 +18,7 @@
 #include <fstream>
 #include <functional>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -315,10 +316,11 @@ inline std::string led_name(deluge::ui::LedId id) {
 }
 
 /// @brief The `.state` text for the current moment: the shell's own lines plus the fake's pads,
-///        LEDs and knob indicators, all through the harness's builders so spec G §3's category
-///        ordering applies to the whole file rather than to each half separately.
+///        LEDs, knob indicators and the pad flashes sent since the previous snapshot, all through the harness's
+///        builders so spec G §3's category ordering applies to the whole file rather than to each half separately.
 /// @param shell The shell to ask for scene/lock/notice lines.
-/// @param fake  The surfaces to read pads, LEDs and indicators from.
+/// @param fake  The surfaces to read pads, LEDs, indicators and flashes from; its
+///              `flashes_reported` advances past the flashes reported here.
 /// @param overflowed Set to true when more than 256 lines were produced (a line was dropped
 /// entirely, not merely truncated) -- see `StateLines::overflowed`. Left false otherwise.
 /// @return The sorted `.state` text.
@@ -373,6 +375,18 @@ inline std::string state_text(const Shell& shell, FakeSurfaceSet& fake, bool& ov
 		if (const deluge::ui::KnobIndicator* k = fake.indicator(i); k != nullptr) {
 			deluge::harness::add_indicator_line(lines, i == 1, k->levels);
 		}
+	}
+	// A pad flash is an event, not a pixel, so a snapshot reports the set flashed since the previous
+	// one -- the level-2 twin of `tools/emu_parity.py` comparing the flashes over a window.
+	std::set<std::string> flashes;
+	for (size_t i = fake.flashes_reported; i < fake.flashes_sent.size(); i++) {
+		const deluge::ui::grid::PadFlash& f = fake.flashes_sent[i];
+		flashes.insert("flash " + std::to_string(f.x) + " " + std::to_string(f.y) + " "
+		               + std::to_string(static_cast<unsigned>(f.colour)));
+	}
+	fake.flashes_reported = fake.flashes_sent.size();
+	for (const std::string& line : flashes) {
+		lines.add(line);
 	}
 	overflowed = lines.overflowed;
 	return lines.sorted_text();
