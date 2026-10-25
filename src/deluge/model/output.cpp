@@ -28,6 +28,7 @@
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
+#include <string_view>
 
 Output::Output(OutputType newType) : type(newType) {
 	mutedInArrangementMode = false;
@@ -270,8 +271,8 @@ bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, 
 		writer.writeAttribute("isArmedForRecording", armedForRecording);
 		writer.writeAttribute("activeModFunction", modKnobMode);
 		// Only when set, so a song that doesn't use it saves exactly as before
-		if (destination != TrackDestination::MAIN_MIX) {
-			writer.writeAttribute("outputDestination", (destination == TrackDestination::USB) ? "usb" : "both");
+		if (destination_ != TrackDestination::MAIN_MIX) {
+			writer.writeAttribute("outputDestination", (destination_ == TrackDestination::USB) ? "usb" : "both");
 		}
 
 		if (clipInstances.getNumElements()) {
@@ -353,11 +354,17 @@ bool Output::readTagFromFile(Deserializer& reader, char const* tagName) {
 		colour = reader.readTagOrAttributeValueInt();
 	}
 
-	else if (!strcmp(tagName, "outputDestination")) {
-		char const* value = reader.readTagOrAttributeValue();
-		destination = !strcmp(value, "usb")    ? TrackDestination::USB
-		              : !strcmp(value, "both") ? TrackDestination::BOTH
-		                                       : TrackDestination::MAIN_MIX;
+	else if (strcmp(tagName, "outputDestination") == 0) {
+		std::string_view const value = reader.readTagOrAttributeValue();
+		if (value == "usb") {
+			destination_ = TrackDestination::USB;
+		}
+		else if (value == "both") {
+			destination_ = TrackDestination::BOTH;
+		}
+		else {
+			destination_ = TrackDestination::MAIN_MIX;
+		}
 	}
 
 	else if (!strcmp(tagName, "trackInstances") || !strcmp(tagName, "clipInstances")) {

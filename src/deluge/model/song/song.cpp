@@ -2481,10 +2481,10 @@ void Song::deleteSoundsWhichWontSound() {
 
 namespace {
 // A track headed for both the main mix and USB is rendered once, into here, then added to each
-alignas(CACHE_LINE_SIZE) std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> trackForBothMemory;
+alignas(CACHE_LINE_SIZE) std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> track_for_both_memory;
 // A track headed for USB only sends its reverb here instead - the Deluge's reverb is part of the main mix. Never read
 // (passing a zero send amount instead would also change the track's mod FX, which take it too)
-alignas(CACHE_LINE_SIZE) std::array<int32_t, SSI_TX_BUFFER_NUM_SAMPLES> discardedReverbMemory;
+alignas(CACHE_LINE_SIZE) std::array<int32_t, SSI_TX_BUFFER_NUM_SAMPLES> discarded_reverb_memory;
 
 /// Renders a track whose destination is USB or both. One going to USB only renders straight into the USB tracks
 /// buffer, like any track into the main mix, and its reverb send is dropped - so the host always gets tracks dry of the
@@ -2496,17 +2496,17 @@ void renderOutputForUSB(Output* output, TrackDestination destination, ModelStack
 
 	if (destination == TrackDestination::USB) {
 		// Cleared so the sends never pile up past overflowing
-		memset(discardedReverbMemory.data(), 0, mix.size() * sizeof(int32_t));
+		memset(discarded_reverb_memory.data(), 0, mix.size() * sizeof(int32_t));
 		// The grain FX send to the reverb their own way, so drop theirs too
-		int32_t* const songGrainReverbBuffer = AudioEngine::grainReverbBuffer;
-		AudioEngine::grainReverbBuffer = discardedReverbMemory.data();
-		output->renderOutput(modelStack, toUSB, discardedReverbMemory.data(), reverbAmountAdjust, sideChainHitPending,
+		int32_t* const song_grain_reverb_buffer = AudioEngine::grainReverbBuffer;
+		AudioEngine::grainReverbBuffer = discarded_reverb_memory.data();
+		output->renderOutput(modelStack, toUSB, discarded_reverb_memory.data(), reverbAmountAdjust, sideChainHitPending,
 		                     !isClipActiveNow, isClipActiveNow);
-		AudioEngine::grainReverbBuffer = songGrainReverbBuffer;
+		AudioEngine::grainReverbBuffer = song_grain_reverb_buffer;
 		return;
 	}
 
-	std::span<StereoSample> track{trackForBothMemory.data(), mix.size()};
+	std::span<StereoSample> track{track_for_both_memory.data(), mix.size()};
 	memset(track.data(), 0, track.size_bytes());
 	output->renderOutput(modelStack, track, mixReverb, reverbAmountAdjust, sideChainHitPending, !isClipActiveNow,
 	                     isClipActiveNow);
@@ -2541,7 +2541,7 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 		ENTER_CRITICAL_SECTION();
 		if (output->shouldRenderInSong()) {
 			TrackDestination const destination =
-			    AudioEngine::routingTracksToUSB ? output->destination : TrackDestination::MAIN_MIX;
+			    AudioEngine::routingTracksToUSB ? output->getDestination() : TrackDestination::MAIN_MIX;
 			if (destination == TrackDestination::MAIN_MIX) {
 				output->renderOutput(modelStack, outputBuffer, reverbBuffer, volumePostFX >> 1, sideChainHitPending,
 				                     !isClipActiveNow, isClipActiveNow);
@@ -3579,8 +3579,8 @@ traverseClips:
 	newOutput->armedForRecording = oldOutput->armedForRecording;
 	oldOutput->armedForRecording = false;
 
-	newOutput->destination = oldOutput->destination;
-	oldOutput->destination = TrackDestination::MAIN_MIX;
+	newOutput->setDestination(oldOutput->getDestination());
+	oldOutput->setDestination(TrackDestination::MAIN_MIX);
 
 	// Properly do away with the oldInstrument
 	deleteOrAddToHibernationListOutput(oldOutput);
@@ -5324,8 +5324,8 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 	newOutput->armedForRecording = oldOutput->armedForRecording;
 	oldOutput->armedForRecording = false;
 
-	newOutput->destination = oldOutput->destination;
-	oldOutput->destination = TrackDestination::MAIN_MIX;
+	newOutput->setDestination(oldOutput->getDestination());
+	oldOutput->setDestination(TrackDestination::MAIN_MIX);
 
 	// Properly do away with the oldInstrument
 	deleteOrAddToHibernationListOutput(oldOutput);

@@ -66,8 +66,8 @@ public:
 class Destination final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(getCurrentOutput()->destination); }
-	void writeCurrentValue() override { getCurrentOutput()->destination = this->getValue<TrackDestination>(); }
+	void readCurrentValue() override { this->setValue(getCurrentOutput()->getDestination()); }
+	void writeCurrentValue() override { getCurrentOutput()->setDestination(this->getValue<TrackDestination>()); }
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;
 		using enum l10n::String;

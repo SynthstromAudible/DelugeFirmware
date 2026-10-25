@@ -97,8 +97,9 @@ public:
 
 	ClipInstanceVector clipInstances;
 	[[nodiscard]] Clip* getActiveClip() const;
-	/// Shared by all of this track's clips, and saved with the song
-	TrackDestination destination = TrackDestination::MAIN_MIX;
+	/// Where this track's audio goes. Shared by all of its clips, and saved with the song
+	[[nodiscard]] TrackDestination getDestination() const { return destination_; }
+	void setDestination(TrackDestination destination) { destination_ = destination; }
 	String name; // Contains the display name as the user sees it.
 	             // E.g. on numeric Deluge, SYNT000 will be just "0". Definitely no leading zeros, so not "000".
 	             // On OLED Deluge I thiiink SYNT000 would be "SYNT000"?
@@ -247,4 +248,7 @@ protected:
 	Output* outputRecordingThisOutput{nullptr};
 	Clip* activeClip{nullptr};
 	SampleRecorder* recorder{nullptr};
+
+private:
+	TrackDestination destination_ = TrackDestination::MAIN_MIX;
 };
