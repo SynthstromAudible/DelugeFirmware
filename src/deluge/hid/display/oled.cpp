@@ -59,6 +59,7 @@ oled_canvas::Canvas OLED::popup;
 oled_canvas::Canvas OLED::console;
 
 bool OLED::needsSending;
+uint32_t OLED::mainImageGeneration;
 
 static int32_t working_animation_count;
 static bool started_animation;
@@ -80,6 +81,7 @@ void OLED::clearMainImage() {
 	stopBlink();
 	stopScrollingAnimation();
 	main.clear();
+	++mainImageGeneration;
 	markChanged();
 	drawnPermanentPopup = false;
 }

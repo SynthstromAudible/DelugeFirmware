@@ -2389,8 +2389,9 @@ void SessionView::displayPotentialTempoChange(UI* ui) {
 		return;
 	}
 
-	// check UI in case graphics routine is called while we're in another UI (e.g. menu)
-	if (getCurrentUI() == ui) {
+	// Do not paint tempo over the launch countdown. Also check the current UI
+	// in case the graphics routine is called while we are in a menu.
+	if (getCurrentUI() == ui && !session.launchEventAtSwungTickCount) {
 		float tempo = playbackHandler.calculateBPMForDisplay();
 		float diff = std::abs(tempo - lastDisplayedTempo);
 		// always catch manual adjustments, limit rate of others
@@ -2410,6 +2411,16 @@ int32_t SessionView::displayLoopsRemainingPopup(bool ephemeral) {
 	// only show pop-up if you're not in any other UI mode
 	if (currentUIMode == UI_MODE_NONE) {
 		if (sixteenthNotesRemaining > 0) {
+			// Cache the displayed unit and value, rather than sixteenth notes: most
+			// graphics updates do not change the countdown. A cleared main image
+			// invalidates the cache when another view or full render replaces it.
+			using deluge::hid::display::OLED;
+			int32_t countdown = sixteenthNotesRemaining > 16 ? ((sixteenthNotesRemaining - 1) / 16) + 1
+			                                                 : -(((sixteenthNotesRemaining - 1) / 4) + 1);
+			if (display->haveOLED() && !ephemeral && countdown == lastLaunchCountdown
+			    && launchCountdownImageGeneration == OLED::getMainImageGeneration()) {
+				return sixteenthNotesRemaining;
+			}
 			DEF_STACK_STRING_BUF(popupMsg, 40);
 			if (sixteenthNotesRemaining > 16) {
 				int32_t barsRemaining = ((sixteenthNotesRemaining - 1) / 16) + 1;
@@ -2428,7 +2439,9 @@ int32_t SessionView::displayLoopsRemainingPopup(bool ephemeral) {
 			if (display->haveOLED() && !ephemeral) {
 				deluge::hid::display::OLED::clearMainImage();
 				deluge::hid::display::OLED::drawPermanentPopupLookingText(popupMsg.c_str());
-				deluge::hid::display::OLED::sendMainImage();
+				lastLaunchCountdown = countdown;
+				launchCountdownImageGeneration = OLED::getMainImageGeneration();
+				// clearMainImage marks the frame dirty; the UI loop sends it.
 			}
 			else {
 				display->displayPopup(popupMsg.c_str(), 1, true);
