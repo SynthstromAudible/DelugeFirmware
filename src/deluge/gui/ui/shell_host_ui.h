@@ -544,10 +544,23 @@ private:
 	///        and re-read the greyout when the stack changes it.
 	///
 	/// A region the stack comes to draw is taken (`GuestSurfaceSet::take_grid`); a region it stops
-	/// drawing is handed back by asking legacy to redraw just that half. Legacy re-reads the greyout
+	/// drawing is handed back by asking legacy to redraw just that half, and so is the sidebar when
+	/// the marker editor starts or stops answering for it (`answeredRegions`). Legacy re-reads the greyout
 	/// only when a UI opens or closes (`PadLEDs::reassessGreyout`), so the guest asks again when its
 	/// own stack moves.
 	void syncPads();
+
+	/// @brief The pad regions the guest answers `renderMainPads`/`renderSidebar` for itself.
+	///
+	/// The regions its stack draws, plus the sidebar while the marker editor is the input top and
+	/// the sidebar is not drawn: `renderSidebar` then answers through
+	/// `renderClipViewSidebarUnderMarker` rather than leaving it to the UI underneath.
+	/// @return The owned regions, with `Sidebar` added in the marker's case.
+	deluge::ui::shell::PadRegions answeredRegions();
+
+	/// @brief Ask legacy to redraw every row of @p regions, starting from this guest.
+	/// @param regions The regions whose answer changed; `None` asks nothing.
+	void handBack(deluge::ui::shell::PadRegions regions);
 
 	/// @brief The greyout the guest reports: the topmost non-empty mask on its stack
 	///        (`SceneStack::topmost_greyout`), whichever regions it draws. Legacy applies it once,
@@ -570,8 +583,10 @@ private:
 	deluge::ui::shell::ShellConfig config_{.greys_in_send_path = true};
 	GuestSurfaceSet surfaces_;
 	deluge::ui::shell::Shell shell_;
-	/// The regions the guest owned and the greyout it reported when `syncPads` last ran.
+	/// The regions the guest owned, the regions it answered for (`answeredRegions`) and the greyout
+	/// it reported when `syncPads` last ran.
 	deluge::ui::shell::PadRegions padsOwned_ = deluge::ui::shell::PadRegions::All;
+	deluge::ui::shell::PadRegions padsAnswered_ = deluge::ui::shell::PadRegions::All;
 	deluge::ui::grid::GreyoutMask padsGreyout_{};
 };
 

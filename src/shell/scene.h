@@ -346,11 +346,19 @@ constexpr PadRegions& operator|=(PadRegions& a, PadRegions b) {
 	return a;
 }
 
+/// @brief The regions of \p a that are not in \p b.
+/// @param a The set to take from.
+/// @param b The regions to take away.
+/// @return \p a less every region of \p b.
+constexpr PadRegions without(PadRegions a, PadRegions b) {
+	return static_cast<PadRegions>(static_cast<uint8_t>(a) & ~static_cast<uint8_t>(b));
+}
+
 /// @brief Does \p set hold every region of \p region?
 /// @param set The set asked about.
 /// @param region The region, or regions, looked for.
 /// @return True when \p region is not `None` and each of its bits is in \p set.
-constexpr bool has(PadRegions set, PadRegions region) {
+constexpr bool holds(PadRegions set, PadRegions region) {
 	return region != PadRegions::None && (set & region) == region;
 }
 

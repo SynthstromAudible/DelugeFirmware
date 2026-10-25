@@ -19,6 +19,7 @@ int mod_button_actions = 0;
 int mod_encoder_button_actions = 0;
 int graphics_routines = 0;
 std::vector<RenderRequest> render_requests;
+std::vector<UiCall> ui_calls;
 double system_time_s = 0.0;
 bool sd_routine_active = false;
 bool shift_button_pressed = false;
@@ -73,6 +74,7 @@ void reset() {
 	mod_encoder_button_actions = 0;
 	graphics_routines = 0;
 	render_requests.clear();
+	ui_calls.clear();
 	system_time_s = 0.0;
 	sd_routine_active = false;
 	shift_button_pressed = false;
@@ -228,6 +230,7 @@ void UI::close() {
 
 void closeUI(UI* uiToClose) {
 	fakelegacyui::closed.push_back(uiToClose);
+	fakelegacyui::ui_calls.push_back(fakelegacyui::UiCall::Close);
 }
 
 // `getCurrentUI` (`gui/ui/ui.cpp:136-140`) reads `uiNavigationHierarchy`, which this suite does
@@ -244,6 +247,7 @@ void renderUIsForOled() {
 
 void uiNeedsRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 	fakelegacyui::render_requests.push_back(fakelegacyui::RenderRequest{ui, whichMainRows, whichSideRows});
+	fakelegacyui::ui_calls.push_back(fakelegacyui::UiCall::Render);
 }
 
 // ---------------------------------------------------------------------------

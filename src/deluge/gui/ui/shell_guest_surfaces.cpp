@@ -211,7 +211,7 @@ PadRegions GuestSurfaceSet::owned_regions() const {
 
 bool GuestSurfaceSet::pair_owned(PadRegions owned, uint8_t pair_index) {
 	const bool main = pair_index * 2 + 1 < kDisplayWidth;
-	return has(owned, main ? PadRegions::Main : PadRegions::Sidebar);
+	return deluge::ui::shell::holds(owned, main ? PadRegions::Main : PadRegions::Sidebar);
 }
 
 void GuestSurfaceSet::take_grid() {

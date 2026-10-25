@@ -817,6 +817,19 @@ describe browser_open("scenes::browser::BrowserScene opening", $ {
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"DEVICE1"});
 	});
 
+	it("greys every column for the MIDI browser, as LoadMidiDeviceDefinitionUI does", _ {
+		// `LoadMidiDeviceDefinitionUI::getGreyoutColsAndRows` sets `*cols = 0xFFFFFFFF`
+		// (`load_midi_device_definition_ui.cpp:41-44`), keyboard and sidebar alike.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_midi_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::MidiDeviceDefinition);
+
+		expect(static_cast<uint64_t>(browser_scene().greyout_mask().cols)).to_equal(uint64_t{0xFFFFFFFFu});
+		expect(static_cast<uint64_t>(browser_scene().greyout_mask().rows)).to_equal(uint64_t{0});
+	});
+
 	it("refuses to open when the descriptor cannot resolve its model", _ {
 		CleanBrowser clean;
 		{

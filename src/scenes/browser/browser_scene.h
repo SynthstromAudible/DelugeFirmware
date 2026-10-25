@@ -340,10 +340,19 @@ public:
 	///        overlay -- unlike `RenameScene` and `ContextMenuScene`, neither of whose legacy
 	///        classes sets `oledShowsUIUnderneath`.
 	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return false; }
-	/// @brief `*cols = 0b10`: the mute column only, which is `SampleBrowser::getGreyoutColsAndRows`'s
-	///        answer while its keyboard shows (`gui/ui/browser/sample_browser.cpp:535-545`). This
-	///        scene always shows its keyboard, so that arm is the one that applies.
-	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0b10, 0}; }
+	/// @brief Each legacy browser's own mask.
+	///
+	/// The sample browser greys the mute column only, `SampleBrowser::getGreyoutColsAndRows`'s
+	/// answer while its keyboard shows (`gui/ui/browser/sample_browser.cpp:535-545`); this scene
+	/// always shows its keyboard, so that arm is the one that applies. The MIDI device definition
+	/// browser greys every column, keyboard included, as `LoadMidiDeviceDefinitionUI` does
+	/// (`gui/ui/load/load_midi_device_definition_ui.cpp:41-44`).
+	/// @return `{0b10, 0}` for `BrowserId::Sample`, `{0xFFFFFFFF, 0}` for
+	///         `BrowserId::MidiDeviceDefinition`.
+	deluge::ui::grid::GreyoutMask greyout_mask() const override {
+		return id_ == BrowserId::MidiDeviceDefinition ? deluge::ui::grid::GreyoutMask{0xFFFFFFFFu, 0}
+		                                              : deluge::ui::grid::GreyoutMask{0b10u, 0};
+	}
 
 	/// @name Observable state, for specs and for whoever wires this up.
 	/// @{

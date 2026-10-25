@@ -983,6 +983,64 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 			mainAsked = mainAsked || (q.ui == &r.guest && q.main_rows == 0xFFFFFFFF && q.side_rows == 0);
 		}
 		expect(mainAsked).to_be_true();
+		// Before `closeUI`: legacy's `uiNeedsRendering` files rows only for a UI it still finds on
+		// its stack (`gui/ui/ui.cpp:306-330`), so a request after the close would be dropped.
+		expect(fakelegacyui::ui_calls.size()).to_equal(size_t(2));
+		expect(nth_or(fakelegacyui::ui_calls, 0, fakelegacyui::UiCall::Close) == fakelegacyui::UiCall::Render)
+		    .to_be_true();
+		expect(nth_or(fakelegacyui::ui_calls, 1, fakelegacyui::UiCall::Render) == fakelegacyui::UiCall::Close)
+		    .to_be_true();
+	});
+
+	it("asks for the sidebar when a marker comes to answer for it, and again when it goes", _ {
+		// `SampleMarkerEditor::opened` asks for the sidebar over any root but the clip view
+		// (`gui/ui/sample_marker_editor.cpp:133-135`): its `renderSidebar` answers for the root
+		// (`:875-881`), so the sidebar must be drawn again through it.
+		Rig r;
+		r.base.overlay = true;
+		r.base.regions = PadRegions::None;
+		expect(r.open()).to_be_true();
+		r.guest.shell().tick(0);
+		const fakelegacyui::RenderRequest none{nullptr, 0xDEAD, 0xDEAD};
+
+		r.marker.overlay = true;
+		r.marker.regions = PadRegions::Main;
+		expect(r.guest.shell().stack().push(SceneId{deluge::scenes::marker::kMarkerSceneKind, 0})).to_be_true();
+		size_t requests = fakelegacyui::render_requests.size();
+		set_clock_ms(10);
+		(void)r.guest.timerCallback();
+		expect(fakelegacyui::render_requests.size()).to_equal(requests + 1);
+		expect(nth_or(fakelegacyui::render_requests, requests, none).ui == &r.guest).to_be_true();
+		expect(nth_or(fakelegacyui::render_requests, requests, none).main_rows).to_equal(uint32_t(0));
+		expect(nth_or(fakelegacyui::render_requests, requests, none).side_rows).to_equal(uint32_t(0xFFFFFFFF));
+
+		// Gone: its main pads and the sidebar it answered for are both the root's again.
+		r.guest.shell().stack().pop(deluge::scenes::marker::kMarkerSceneKind);
+		requests = fakelegacyui::render_requests.size();
+		set_clock_ms(20);
+		(void)r.guest.timerCallback();
+		expect(fakelegacyui::render_requests.size()).to_equal(requests + 1);
+		expect(nth_or(fakelegacyui::render_requests, requests, none).main_rows).to_equal(uint32_t(0xFFFFFFFF));
+		expect(nth_or(fakelegacyui::render_requests, requests, none).side_rows).to_equal(uint32_t(0xFFFFFFFF));
+	});
+
+	it("hands the marker's sidebar back when the guest closes under it", _ {
+		Rig r;
+		r.marker.overlay = true;
+		r.marker.regions = PadRegions::Main;
+		r.marker.remove_self_on_event = true;
+		expect(r.open(deluge::scenes::marker::kMarkerSceneKind)).to_be_true();
+		r.guest.shell().tick(0);
+		fakelegacyui::reset();
+
+		(void)r.guest.buttonAction(deluge::hid::button::BACK, true);
+		(void)r.guest.timerCallback();
+
+		const fakelegacyui::RenderRequest none{nullptr, 0xDEAD, 0xDEAD};
+		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
+		expect(fakelegacyui::render_requests.size()).to_equal(size_t(1));
+		expect(nth_or(fakelegacyui::render_requests, 0, none).main_rows).to_equal(uint32_t(0xFFFFFFFF));
+		expect(nth_or(fakelegacyui::render_requests, 0, none).side_rows).to_equal(uint32_t(0xFFFFFFFF));
 	});
 
 	// ---- canSeeViewUnderneath, which is NOT the OLED question --------------------------------

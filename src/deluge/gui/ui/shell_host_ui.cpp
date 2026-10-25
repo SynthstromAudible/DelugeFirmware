@@ -168,11 +168,12 @@ bool ShellHostUI::opened() {
 	// `SoundEditor::opened` asks for the root's pads (`gui/ui/sound_editor.cpp:498`): while the guest
 	// owns none they are the UI underneath's, greyed by the mask `openUI` read before the scene was
 	// on the stack -- so the greyout is read again now.
+	using deluge::ui::shell::PadRegions;
+	using deluge::ui::shell::without;
 	padsOwned_ = surfaces_.owned_regions();
+	padsAnswered_ = answeredRegions();
 	padsGreyout_ = greyoutMask();
-	if (!has(padsOwned_, deluge::ui::shell::PadRegions::Main)) {
-		uiNeedsRendering(this, 0xFFFFFFFF, 0);
-	}
+	handBack(without(PadRegions::Main, padsOwned_) | without(padsAnswered_, padsOwned_));
 	PadLEDs::reassessGreyout();
 
 	// **The first tick, and the only reason anything inside the guest ever runs.** Nothing above
@@ -301,27 +302,46 @@ deluge::ui::grid::GreyoutMask ShellHostUI::greyoutMask() {
 	return shell_.stack().topmost_greyout();
 }
 
-void ShellHostUI::syncPads() {
+deluge::ui::shell::PadRegions ShellHostUI::answeredRegions() {
 	using deluge::ui::shell::PadRegions;
 	const PadRegions owned = surfaces_.owned_regions();
+	if (!deluge::ui::shell::holds(owned, PadRegions::Sidebar)
+	    && shell_.stack().input_top().kind() == deluge::scenes::marker::kMarkerSceneKind) {
+		return owned | PadRegions::Sidebar;
+	}
+	return owned;
+}
+
+void ShellHostUI::handBack(deluge::ui::shell::PadRegions regions) {
+	using deluge::ui::shell::holds;
+	using deluge::ui::shell::PadRegions;
+	if (regions == PadRegions::None) {
+		return;
+	}
+	uiNeedsRendering(this, holds(regions, PadRegions::Main) ? 0xFFFFFFFF : 0,
+	                 holds(regions, PadRegions::Sidebar) ? 0xFFFFFFFF : 0);
+}
+
+void ShellHostUI::syncPads() {
+	using deluge::ui::shell::PadRegions;
+	using deluge::ui::shell::without;
+	const PadRegions owned = surfaces_.owned_regions();
+	const PadRegions answered = answeredRegions();
 	const deluge::ui::grid::GreyoutMask mask = greyoutMask();
-	const auto without = [](PadRegions a, PadRegions b) {
-		return static_cast<PadRegions>(static_cast<uint8_t>(a) & ~static_cast<uint8_t>(b));
-	};
-	const PadRegions gained = without(owned, padsOwned_);
-	const PadRegions lost = without(padsOwned_, owned);
 	const bool ownerChanged = owned != padsOwned_;
 	const bool greyoutChanged = mask.cols != padsGreyout_.cols || mask.rows != padsGreyout_.rows;
+	const PadRegions gained = without(owned, padsOwned_);
+	// Every region whose answer changed hands, less those the guest now draws itself: a region
+	// handed back, and the sidebar a marker starts or stops answering for, as
+	// `SampleMarkerEditor::opened` re-asks for it (`gui/ui/sample_marker_editor.cpp:133-135`).
+	const PadRegions moved = without(answered | padsAnswered_, answered & padsAnswered_);
 	padsOwned_ = owned;
+	padsAnswered_ = answered;
 	padsGreyout_ = mask;
 	if (gained != PadRegions::None) {
 		surfaces_.take_grid();
 	}
-	if (lost != PadRegions::None) {
-		// Only the half handed back: the UI underneath redraws it, and the guest keeps the other.
-		uiNeedsRendering(this, has(lost, PadRegions::Main) ? 0xFFFFFFFF : 0,
-		                 has(lost, PadRegions::Sidebar) ? 0xFFFFFFFF : 0);
-	}
+	handBack(without(moved, owned));
 	if (ownerChanged || greyoutChanged) {
 		PadLEDs::reassessGreyout();
 	}
@@ -371,7 +391,7 @@ void ShellHostUI::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 
 bool ShellHostUI::serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth], int32_t x0, int32_t x1,
                             deluge::ui::shell::PadRegions region) {
-	const bool isOpaque = has(surfaces_.owned_regions(), region);
+	const bool isOpaque = deluge::ui::shell::holds(surfaces_.owned_regions(), region);
 	// The query form. `UI`'s own contract: "These *must* check whether image has been supplied - if
 	// not, just return, saying whether opaque or not" (`gui/ui/ui.h:140-142`). Legacy asks it that
 	// way in two places -- `uiNeedsRendering`'s walk down the stack (`gui/ui/ui.cpp:284-302`, the
@@ -429,7 +449,7 @@ bool ShellHostUI::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 
 bool ShellHostUI::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
-	if (has(surfaces_.owned_regions(), deluge::ui::shell::PadRegions::Sidebar)) {
+	if (deluge::ui::shell::holds(surfaces_.owned_regions(), deluge::ui::shell::PadRegions::Sidebar)) {
 		return serveGrid(whichRows, image, kDisplayWidth, kDisplayWidth + kSideBarWidth,
 		                 deluge::ui::shell::PadRegions::Sidebar);
 	}
@@ -1101,17 +1121,14 @@ void ShellHostUI::closeGuest() {
 		closeHook_(nowMs());
 	}
 	// `closeUI` asks the closing UI whether it drew the pads (`gui/ui/ui.cpp:203-212`), and the
-	// guest's emptied stack answers no, so the regions it held are handed back here, while it is
-	// still on legacy's stack for `uiNeedsRendering` to find. They are the regions `syncPads` last
-	// handed over, not the stack's: on the short-Back path the tick has already emptied it.
-	using deluge::ui::shell::PadRegions;
-	const PadRegions owned = padsOwned_;
+	// guest's emptied stack answers no, so the regions it answered for are handed back here, while
+	// it is still on legacy's stack for `uiNeedsRendering` to find. They are the regions `syncPads`
+	// last recorded, not the stack's: on the short-Back path the tick has already emptied it.
+	const deluge::ui::shell::PadRegions answered = padsAnswered_;
 	shell_.stack().reset();
-	padsOwned_ = PadRegions::None;
-	if (owned != PadRegions::None) {
-		uiNeedsRendering(this, has(owned, PadRegions::Main) ? 0xFFFFFFFF : 0,
-		                 has(owned, PadRegions::Sidebar) ? 0xFFFFFFFF : 0);
-	}
+	padsOwned_ = deluge::ui::shell::PadRegions::None;
+	padsAnswered_ = deluge::ui::shell::PadRegions::None;
+	handBack(answered);
 
 	// No arm on the close path: `close()` is `closeUI(this)` (`gui/ui/ui.cpp:57-59`), which unsets
 	// `TimerName::UI_SPECIFIC` itself (`gui/ui/ui.cpp:197`) before handing focus to the UI beneath

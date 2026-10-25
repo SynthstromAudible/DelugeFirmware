@@ -54,6 +54,13 @@ struct RenderRequest {
 };
 /// Every `uiNeedsRendering(ui, main, side)` call, in order.
 extern std::vector<RenderRequest> render_requests;
+/// @brief Which of the two hand-off calls a `ui_calls` entry records.
+enum class UiCall : uint8_t {
+	Render, ///< A `uiNeedsRendering` call.
+	Close,  ///< A `closeUI` call.
+};
+/// Every `uiNeedsRendering` and `closeUI` call, in one sequence, so a spec can pin their order.
+extern std::vector<UiCall> ui_calls;
 /// @}
 
 /// @brief One recorded `UITimerManager::setTimer` call.
