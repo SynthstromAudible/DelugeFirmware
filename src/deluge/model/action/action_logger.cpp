@@ -83,11 +83,20 @@ void ActionLogger::deleteLastAction() {
 	delugeDealloc(toDelete);
 }
 
+// Autosave/recovery dirty flag (defined in storage_manager.cpp). Declared here to avoid pulling
+// the whole storage header into the action logger.
+extern bool songNeedsRecoverySave;
+
 Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addToExistingIfPossible) {
 
 	if (!currentSong) {
 		return nullptr;
 	}
+
+	// Any undoable edit (notes, params, groove, structure...) flows through here, so mark the song
+	// for recovery autosave. Cheap bool; the card-safe task does the actual save when stopped.
+	songNeedsRecoverySave = true;
+
 	deleteLog(AFTER);
 
 	// If not on a View, not allowed!
