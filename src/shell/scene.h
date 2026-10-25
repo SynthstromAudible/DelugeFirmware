@@ -350,7 +350,7 @@ constexpr PadRegions& operator|=(PadRegions& a, PadRegions b) {
 /// @param a The set to take from.
 /// @param b The regions to take away.
 /// @return \p a less every region of \p b.
-constexpr PadRegions without(PadRegions a, PadRegions b) {
+constexpr PadRegions regions_without(PadRegions a, PadRegions b) {
 	return static_cast<PadRegions>(static_cast<uint8_t>(a) & ~static_cast<uint8_t>(b));
 }
 

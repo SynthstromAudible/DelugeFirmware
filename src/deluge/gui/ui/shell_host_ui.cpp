@@ -169,11 +169,11 @@ bool ShellHostUI::opened() {
 	// owns none they are the UI underneath's, greyed by the mask `openUI` read before the scene was
 	// on the stack -- so the greyout is read again now.
 	using deluge::ui::shell::PadRegions;
-	using deluge::ui::shell::without;
+	using deluge::ui::shell::regions_without;
 	padsOwned_ = surfaces_.owned_regions();
 	padsAnswered_ = answeredRegions();
 	padsGreyout_ = greyoutMask();
-	handBack(without(PadRegions::Main, padsOwned_) | without(padsAnswered_, padsOwned_));
+	handBack(regions_without(PadRegions::Main, padsOwned_) | regions_without(padsAnswered_, padsOwned_));
 	PadLEDs::reassessGreyout();
 
 	// **The first tick, and the only reason anything inside the guest ever runs.** Nothing above
@@ -324,24 +324,24 @@ void ShellHostUI::handBack(deluge::ui::shell::PadRegions regions) {
 
 void ShellHostUI::syncPads() {
 	using deluge::ui::shell::PadRegions;
-	using deluge::ui::shell::without;
+	using deluge::ui::shell::regions_without;
 	const PadRegions owned = surfaces_.owned_regions();
 	const PadRegions answered = answeredRegions();
 	const deluge::ui::grid::GreyoutMask mask = greyoutMask();
 	const bool ownerChanged = owned != padsOwned_;
 	const bool greyoutChanged = mask.cols != padsGreyout_.cols || mask.rows != padsGreyout_.rows;
-	const PadRegions gained = without(owned, padsOwned_);
+	const PadRegions gained = regions_without(owned, padsOwned_);
 	// Every region whose answer changed hands, less those the guest now draws itself: a region
 	// handed back, and the sidebar a marker starts or stops answering for, as
 	// `SampleMarkerEditor::opened` re-asks for it (`gui/ui/sample_marker_editor.cpp:133-135`).
-	const PadRegions moved = without(answered | padsAnswered_, answered & padsAnswered_);
+	const PadRegions moved = regions_without(answered | padsAnswered_, answered & padsAnswered_);
 	padsOwned_ = owned;
 	padsAnswered_ = answered;
 	padsGreyout_ = mask;
 	if (gained != PadRegions::None) {
 		surfaces_.take_grid();
 	}
-	handBack(without(moved, owned));
+	handBack(regions_without(moved, owned));
 	if (ownerChanged || greyoutChanged) {
 		PadLEDs::reassessGreyout();
 	}
