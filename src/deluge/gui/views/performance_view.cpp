@@ -1307,7 +1307,9 @@ bool PerformanceView::shouldRestorePreviousHoldPress(int32_t xDisplay) {
 void PerformanceView::logPerformanceViewPress(int32_t xDisplay, bool closeAction) {
 	if (anyChangesToLog()) {
 		Action* action = actionLogger.recordPerformanceViewPress(backupFXPress, fxPress, xDisplay);
-		if (closeAction && action) {
+		// Pad releases are part of the ongoing recording transaction. Closing it
+		// here would snapshot the same automation again on the next recorded edit.
+		if (closeAction && action && action->type == ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE) {
 			actionLogger.closeAction(action->type);
 		}
 	}
