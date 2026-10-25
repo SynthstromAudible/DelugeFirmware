@@ -31,8 +31,11 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/oled.h"
+#include "model/instrument/kit.h"
+#include "model/model_stack.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 #include "storage/audio/audio_file.h"
 #include "storage/multi_range/multisample_range.h"
 #include "util/functions.h"
@@ -185,6 +188,47 @@ inline void clearAlternateSlotFromMenu(uint8_t sourceId, uint8_t slotIndex) {
 	getCurrentInstrument()->beenEdited();
 	soundEditor.getCurrentMenuItem()->readValueAgain();
 	display->displayPopup(l10n::get(l10n::String::STRING_FOR_SAMPLE_CLEARED));
+}
+
+/// AFFECT ENTIRE for TRANSPOSE in a kit: as on main, every sound drum gets the same transpose and cents, but
+/// on every slot it has loaded rather than only its own sample, and the notes already playing retune. A drum
+/// whose oscillator isn't a sample gets it on the oscillator itself, as on main. Kit drums only ever use
+/// their first zone, so that's the one written. With the variants feature off its alternates are left
+/// alone, like everything else about them.
+inline void applyTransposeToWholeKit(uint8_t sourceId, int32_t transpose, int32_t cents) {
+	const bool variantsOn = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants);
+	Kit* kit = getCurrentKit();
+
+	for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+		if (thisDrum->type != DrumType::SOUND) {
+			continue;
+		}
+		auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+		Source& source = soundDrum->sources[sourceId];
+
+		if (source.ranges.getNumElements() && soundDrum->getSynthMode() != SynthMode::FM
+		    && source.oscType == OscType::SAMPLE) {
+			auto* range = static_cast<MultisampleRange*>(source.ranges.getElement(0));
+			for (uint8_t slot = 0; slot < kNumVariantSlots; slot++) {
+				if (slot > 0 && (!variantsOn || !range->hasAlternateLoaded(slot - 1))) {
+					continue;
+				}
+				if (SampleHolderForVoice* holder = range->getVariantHolder(slot); holder != nullptr) {
+					holder->transpose = transpose;
+					holder->setCents(cents);
+				}
+			}
+		}
+		else {
+			source.transpose = transpose;
+			source.setCents(cents);
+		}
+
+		char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
+		ModelStackWithSoundFlags* modelStackForSoundDrum =
+		    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
+		soundDrum->recalculateAllVoicePhaseIncrements(modelStackForSoundDrum);
+	}
 }
 
 class RoundRobinSubmenu final : public menu_item::Submenu {
@@ -441,6 +485,10 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return 9600; }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 2; }
 
+	// In a kit, AFFECT ENTIRE works as it does on the oscillator's own TRANSPOSE: every slot of every
+	// sound drum gets this value.
+	bool usesAffectEntire() override { return true; }
+
 	void readCurrentValue() override {
 		SampleHolderForVoice* holder = getHolder();
 		if (holder != nullptr) {
@@ -449,6 +497,14 @@ public:
 	}
 
 	void writeCurrentValue() override {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
+			int32_t transpose, cents;
+			computeFinalValuesForTranspose(this->getValue(), &transpose, &cents);
+			applyTransposeToWholeKit(sourceId_, transpose, cents);
+			getCurrentInstrument()->beenEdited();
+			return;
+		}
+
 		SampleHolderForVoice* holder = getHolder();
 		if (holder != nullptr) {
 			int32_t transpose, cents;

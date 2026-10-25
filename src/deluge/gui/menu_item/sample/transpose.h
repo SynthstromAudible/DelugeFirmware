@@ -64,34 +64,9 @@ public:
 		int32_t transpose, cents;
 		computeFinalValuesForTranspose(this->getValue(), &transpose, &cents);
 
-		// If affect-entire button held, do whole kit
+		// If affect-entire button held, do whole kit - every slot of every drum, see applyTransposeToWholeKit()
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
-
-			Kit* kit = getCurrentKit();
-
-			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
-				if (thisDrum->type == DrumType::SOUND) {
-					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					Source& source = soundDrum->sources[source_id_];
-
-					if (source.ranges.getNumElements() && soundDrum->getSynthMode() != SynthMode::FM
-					    && source.oscType == OscType::SAMPLE) {
-						auto* multi_sample_range = static_cast<MultisampleRange*>(source.ranges.getElement(0));
-						multi_sample_range->sampleHolder.transpose = transpose;
-						multi_sample_range->sampleHolder.setCents(cents);
-					}
-					else {
-						source.transpose = transpose;
-						source.setCents(cents);
-					}
-
-					char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
-					ModelStackWithSoundFlags* modelStackForSoundDrum =
-					    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
-
-					soundDrum->recalculateAllVoicePhaseIncrements(modelStackForSoundDrum);
-				}
-			}
+			applyTransposeToWholeKit(source_id_, transpose, cents);
 		}
 		// Or, the normal case of just one sound
 		else {
