@@ -212,8 +212,8 @@ void LoadSongUI::onBrowserOpened() {
 
 void LoadSongUI::folderContentsReady(int32_t entryDirection) {
 
-	// Return deliberately ignored: nothing here scrolls out of imageStore, so a preview that has not
-	// landed yet is harmless -- finishPreviewRender() shows it once it does.
+	// Return deliberately ignored: the opening scroll-in holds until the preview lands (timerCallback()), and outside
+	// a scroll finishPreviewRender() shows it once it does.
 	(void)drawSongPreview(currentUIMode == UI_MODE_VERTICAL_SCROLL);
 
 	PadLEDs::sendOutMainPadColours();
@@ -1001,6 +1001,14 @@ void LoadSongUI::tickFinish() {
 ActionResult LoadSongUI::timerCallback() {
 	// Progress vertical scrolling
 	if (currentUIMode == UI_MODE_VERTICAL_SCROLL) {
+		// The scroll-in that opens the browser brings imageStore in a row per step, and the preview that fills it is
+		// read asynchronously, after the listing has started the scroll. Until it lands, hold: a row taken now would be
+		// shown blank for good, since nothing redraws a row the scroll has passed.
+		if (scrollingIntoSlot && PadLEDs::vertical::scrollDirection > 0 && !PadLEDs::vertical::scrollingToNothing
+		    && previewLoad_.pending()) {
+			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, UI_MS_PER_REFRESH_SCROLLING * 4);
+			return ActionResult::DEALT_WITH;
+		}
 		PadLEDs::vertical::renderScroll();
 
 		// If we've finished scrolling...
