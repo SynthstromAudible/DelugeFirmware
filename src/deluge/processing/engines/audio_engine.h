@@ -217,10 +217,6 @@ extern bool usbInputMonitoredByTrack;
 // Set for a render when tracks' destinations apply (SETTINGS > USB AUDIO > OUTPUT is TRACKS) - tracks set to USB or
 // both are then rendered into the USB tracks buffer instead of, or as well as, the main mix
 extern bool routingTracksToUSB;
-// Set for a render when the Deluge's own tracks are held back by usb_audio::compensationMs, so audio returning from
-// the host lines up with them - while the host gets tracks or the line input, which leave before the hold. With the
-// main mix going to the host, it's the outputs that are held back instead (doSomeOutputting()). Never for stems
-extern bool compensatingForUSB;
 /// Tracks headed for USB, mixed at the same level as the song's own mix, for the window being rendered
 StereoSample* getUSBTracksBuffer();
 extern bool mustUpdateReverbParamsBeforeNextRender;

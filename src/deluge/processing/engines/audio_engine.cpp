@@ -199,16 +199,6 @@ alignas(CACHE_LINE_SIZE) std::array<int32_t, 2 * SSI_TX_BUFFER_NUM_SAMPLES> reve
 // Lines up with renderingMemory, so the same offset into either is the same moment
 alignas(CACHE_LINE_SIZE) std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> usbTracksMemory;
 bool routingTracksToUSB = false;
-bool compensatingForUSB = false;
-
-// With the main mix going to the USB host, compensation holds back what goes to the outputs instead, after the mix has
-// been sent - the song can't, as the mix it sends would be held back too. Big enough for usb_audio::kMaxCompensationMs,
-// and a power of two so positions just wrap
-bool compensatingOutputsForUSB = false;
-constexpr uint32_t kOutputCompensationFrames = 16384;
-static_assert(usb_audio::kMaxCompensationMs * kSampleRate / 1000 < kOutputCompensationFrames);
-PLACE_SDRAM_BSS StereoSample outputCompensationLine[kOutputCompensationFrames];
-uint32_t outputCompensationWritePos = 0;
 
 StereoSample* getUSBTracksBuffer() {
 	return usbTracksMemory.data();
@@ -880,20 +870,10 @@ void renderAudio(size_t numSamples) {
 	numHopsEndedThisRoutineCall = 0;
 	usbInputMonitoredByTrack = false;
 
-	bool const usbAudioOn = usbAudioActive();
-	routingTracksToUSB = usbAudioOn && (usb_audio::outputSource == usb_audio::OutputSource::TRACKS);
+	routingTracksToUSB = usbAudioActive() && (usb_audio::outputSource == usb_audio::OutputSource::TRACKS);
 	if (routingTracksToUSB) {
 		memset(&usbTracksMemory, 0, numSamples * sizeof(StereoSample));
 	}
-	bool const compensating = usbAudioOn && (usb_audio::compensationMs != 0);
-	bool const sendingMainMix = (usb_audio::outputSource == usb_audio::OutputSource::MAIN_MIX);
-	compensatingForUSB = compensating && !sendingMainMix;
-	bool const compensatingOutputs = compensating && sendingMainMix;
-	// The outputs' line isn't written while that's off, so it's stale when it comes on
-	if (compensatingOutputs && !compensatingOutputsForUSB) {
-		memset(outputCompensationLine, 0, sizeof(outputCompensationLine));
-	}
-	compensatingOutputsForUSB = compensatingOutputs;
 
 	// Render audio for song
 	if (currentSong != nullptr) {
@@ -931,14 +911,11 @@ void renderAudioForStemExport(size_t numSamples) {
 	numHopsEndedThisRoutineCall = 0;
 	usbInputMonitoredByTrack = false;
 
-	// Every track goes into the stems, wherever it's set to go, and on time. The host gets silence meanwhile, if it
-	// wanted tracks
+	// Every track goes into the stems, wherever it's set to go. The host gets silence meanwhile, if it wanted tracks
 	routingTracksToUSB = false;
 	if (usb_audio::outputSource == usb_audio::OutputSource::TRACKS) {
 		memset(&usbTracksMemory, 0, numSamples * sizeof(StereoSample));
 	}
-	compensatingForUSB = false;
-	compensatingOutputsForUSB = false;
 
 	// Render audio for song
 	if (currentSong != nullptr) {
@@ -1404,12 +1381,6 @@ bool doSomeOutputting() {
 	int32_t const* __restrict__ lineInReadPos = getInputReadPos(AudioInputChannel::STEREO);
 	int32_t const* const lineInEnd = getRxBufferEnd();
 
-	// The main mix going to the host leaves now, and what we hear is held back to meet it on its way back, which joins
-	// below with the USB input
-	bool const compensateOutputs = compensatingOutputsForUSB;
-	uint32_t const outputCompensationDelay = usb_audio::compensationMs * kSampleRate / 1000;
-	uint32_t outputCompensationWritePosNow = outputCompensationWritePos;
-
 	while (renderingBufferOutputPosNow != renderingBufferOutputEnd) {
 
 		// If we've reached the end of the known space in the output buffer...
@@ -1485,15 +1456,6 @@ bool doSomeOutputting() {
 			}
 		}
 
-		if (compensateOutputs) {
-			StereoSample const held = outputCompensationLine[(outputCompensationWritePosNow - outputCompensationDelay)
-			                                                 & (kOutputCompensationFrames - 1)];
-			outputCompensationLine[outputCompensationWritePosNow] = {.l = lAdjusted, .r = rAdjusted};
-			outputCompensationWritePosNow = (outputCompensationWritePosNow + 1) & (kOutputCompensationFrames - 1);
-			lAdjusted = held.l;
-			rAdjusted = held.r;
-		}
-
 		if (doUSBDirectMonitoring) {
 			lAdjusted = add_saturate(lAdjusted, usbReadPos[0] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
 			rAdjusted = add_saturate(rAdjusted, usbReadPos[1] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
@@ -1526,7 +1488,6 @@ bool doSomeOutputting() {
 
 	renderingBufferOutputPos = renderingBufferOutputPosNow; // Write back from __restrict__ pointer to permanent pointer
 	i2sTXBufferPos = (uint32_t)i2sTXBufferPosNow;
-	outputCompensationWritePos = outputCompensationWritePosNow;
 
 	if (numSamplesOutputted) {
 

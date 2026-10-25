@@ -89,12 +89,6 @@ void sendToHost(std::span<const StereoSample> frames, int32_t const* txPosition)
 /// nothing else (an audio track, or the sampler) is monitoring it
 extern bool directMonitoring;
 
-/// The "compensation" setting: how long the Deluge holds back its own audio, so audio that went out to the host and
-/// came back - which arrives late by the host's round trip - lines up with it. That's its tracks, while the host gets
-/// tracks or the line input, or its outputs, while the host gets the main mix (which then has to leave first)
-extern uint8_t compensationMs; // 0 to 255, so it fits a byte of flash
-constexpr uint8_t kMaxCompensationMs = 255;
-
 /// What we send to the host
 enum class OutputSource : uint8_t {
 	MAIN_MIX, // The Deluge's final output

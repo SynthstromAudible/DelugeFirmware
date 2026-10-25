@@ -168,8 +168,6 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_LINE_IN, "Line in"},
         {STRING_FOR_TRACKS, "Tracks"},
         {STRING_FOR_USB, "USB"},
-        {STRING_FOR_COMPENSATION, "Compensation"},
-        {STRING_FOR_USB_COMPENSATION, "USB compensation"},
         {STRING_FOR_MIX_PRE_FX, "Deluge mix (no fx)"},
         {STRING_FOR_MIX_POST_FX, "Deluge output (fx)"},
         {STRING_FOR_TRACK, "Specific Track"},
