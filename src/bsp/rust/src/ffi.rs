@@ -44,21 +44,6 @@ pub extern "C" fn deluge_control_poll_resume() -> bool {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_flash_pad(idx: u8) {
-    stub_log!("deluge_control_flash_pad");
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_flash_pad_colour(idx: u8, colour_idx: i32) {
-    stub_log!("deluge_control_flash_pad_colour");
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_set_dimmer_interval(interval: u8) {
-    stub_log!("deluge_control_set_dimmer_interval");
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn deluge_display_write_seven_segment(digits: *const u8, count: u8) -> DelugeStatus {
     stub_log!("deluge_display_write_seven_segment");
     0
@@ -66,11 +51,8 @@ pub extern "C" fn deluge_display_write_seven_segment(digits: *const u8, count: u
 
 abi_pin!(
     deluge_control_enable_oled,
-    deluge_control_flash_pad,
-    deluge_control_flash_pad_colour,
     deluge_control_init,
     deluge_control_poll_resume,
-    deluge_control_set_dimmer_interval,
     deluge_control_setup_for_pads,
     deluge_control_wait_for_flush,
     deluge_display_write_seven_segment,
