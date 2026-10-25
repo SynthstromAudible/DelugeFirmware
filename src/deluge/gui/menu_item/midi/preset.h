@@ -38,7 +38,8 @@ public:
 			text = l10n::get(l10n::String::STRING_FOR_NONE);
 		}
 		else {
-			intToString(this->getValue(), buffer, 1);
+			// Show 1-based to match the synth/DAW convention: wire byte 0 is "Patch 1" everywhere.
+			intToString(this->getValue() + 1, buffer, 1);
 			text = buffer;
 		}
 		canvas.drawStringCentred(text, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth, textHeight);
@@ -49,7 +50,8 @@ public:
 			display->setText(l10n::get(l10n::String::STRING_FOR_NONE));
 		}
 		else {
-			display->setTextAsNumber(this->getValue());
+			// Show 1-based; storage and the wire stay 0-127 per the MIDI spec.
+			display->setTextAsNumber(this->getValue() + 1);
 		}
 	}
 
@@ -79,7 +81,7 @@ public:
 			size_y = kTextSpacingY;
 		}
 		else {
-			paramValue.appendInt(getValue());
+			paramValue.appendInt(getValue() + 1); // show 1-based
 			size_x = kTextTitleSpacingX;
 			size_y = kTextTitleSizeY;
 		}
