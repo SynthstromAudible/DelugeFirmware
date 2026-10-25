@@ -44,7 +44,7 @@ namespace deluge::usb_audio {
 // Defaults make the Deluge work as an audio interface out of the box
 bool directMonitoring = true;
 OutputSource outputSource = OutputSource::MAIN_MIX;
-uint16_t compensationMs = 0;
+uint8_t compensationMs = 0;
 } // namespace deluge::usb_audio
 
 namespace {
