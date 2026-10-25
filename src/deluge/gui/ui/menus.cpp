@@ -3,6 +3,7 @@
 #include "gui/menu_item/active_scales.h"
 #include "gui/menu_item/arpeggiator/arp_unpatched_param.h"
 #include "gui/menu_item/arpeggiator/chord_type.h"
+#include "gui/menu_item/arpeggiator/freeze.h"
 #include "gui/menu_item/arpeggiator/include_in_kit_arp.h"
 #include "gui/menu_item/arpeggiator/midi_cv/gate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/rate.h"
@@ -373,6 +374,9 @@ PLACE_SDRAM_BSS HorizontalMenu randomizerMenu{STRING_FOR_RANDOMIZER,
                                                // Reverse
                                                &reverseProbabilityMenu}};
 
+// Arp: Freeze
+PLACE_SDRAM_BSS arpeggiator::Freeze arp_freeze_menu{STRING_FOR_FREEZE};
+
 // Arp: Basic
 PLACE_SDRAM_BSS HorizontalMenu arpBasicMenu{
     STRING_FOR_BASIC, STRING_FOR_ARP_BASIC_MENU_TITLE, {&arpPresetModeMenu, &arpGateMenu, &arpSyncMenu, &arpRateMenu}};
@@ -392,7 +396,9 @@ PLACE_SDRAM_BSS HorizontalMenu arpPatternMenu{STRING_FOR_PATTERN,
                                                &arpNoteModeMenu, &arpNoteModeMenuForDrums, &arpChordSimulatorMenuKit,
                                                // Note and rhythm settings
                                                &arpRhythmMenu, &arpRhythmMenuMIDIOrCV, &arpSequenceLengthMenu,
-                                               &arpSequenceLengthMenuMIDIOrCV}};
+                                               &arpSequenceLengthMenuMIDIOrCV,
+                                               // Freeze
+                                               &arp_freeze_menu}};
 
 PLACE_SDRAM_BSS HorizontalMenuGroup arpMenuGroup{{&arpBasicMenu, &arpPatternMenu}};
 PLACE_SDRAM_BSS HorizontalMenuGroup arpMenuGroupKit{{&arpBasicMenuKit, &arpPatternMenu}};
