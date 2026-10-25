@@ -1,0 +1,15 @@
+# Pad brightness: SHIFT + LEARN held while the vertical encoder turns sets the PIC's pad dimmer interval (and with
+# it the pad refresh time), from the boot clip view.
+100   snapshot boot
+300   button Shift down
+350   button Learn down
+500   encoder Vertical +5
+800   button Learn up
+850   button Shift up
+1500  snapshot dimmer-up
+1800  button Shift down
+1850  button Learn down
+2000  encoder Vertical -3
+2300  button Learn up
+2350  button Shift up
+3000  snapshot dimmer-down

@@ -1,0 +1,19 @@
+# Shortcut blinks from the boot clip view: SHIFT + a parameter's shortcut pad opens the sound menu on it, and the
+# firmware blinks that pad, and the pads of the sources patched to it, with the PIC's own pad flash; editing keeps
+# the blink, another shortcut moves it, and leaving the menu stops it.
+100   snapshot boot
+300   button Shift down
+400   pad 6 0 down
+440   pad 6 0 up
+500   button Shift up
+1200  snapshot volume
+1500  encoder Select -2
+2200  snapshot volume-edited
+2500  button Shift down
+2600  pad 8 7 down
+2640  pad 8 7 up
+2700  button Shift up
+3400  snapshot lpf-freq
+3700  button Back down
+3720  button Back up
+4400  snapshot closed

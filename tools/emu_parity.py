@@ -4,13 +4,18 @@
 A user must not be able to tell two builds apart by looking at the Deluge. This boots a reference image and a
 test image in the delugemu emulator (~/GitHub/delugemu) on the same SD card and the same starting settings flash,
 drives both through the same level-3 UI scripts (format in tests/harness/README.md), and at every `snapshot` step
-compares what each shows: the OLED bitmap, every pad's colour, the button LEDs and the gold-knob rings.
+compares what each shows: the OLED bitmap, every pad's colour, the button LEDs, the gold-knob rings, the pads the
+PIC flashed, and the pad refresh time and dimmer interval (the pad-brightness setting) the firmware gave the PIC.
 
 Runs are deterministic. Each emulator runs paused under an instruction-counted clock (-icount sleep=off), and the
 harness advances it to exact virtual times: boot is the first virtual instant the panel is lit and then unchanged
 for BOOT_QUIET_MS, script times are virtual milliseconds after it, and every input lands on its millisecond. A
 snapshot samples the panel every SAMPLE_MS from its time until the next step (at most WINDOW_MS) and compares the
-set of states each image showed, so a blinking LED compares by what it shows, not by its phase at one instant.
+set of states each image showed, so a blinking LED compares by what it shows, not by its phase at one instant. A
+PIC pad flash lasts 6 ms, too short for the samples to see reliably, so delugemu also logs every flash and the
+harness compares the set of (x, y, colour) each image flashed over the whole window, and the pads part is the
+firmware's pad image without the flashes on top. Against a delugemu without these readouts, flashes and PIC
+settings read as empty on both images and the pads are sampled as shown.
 
     tools/emu_parity.py --ref main.elf --test build/RelWithDebInfo/deluge.elf \\
         --card tests/fixtures/card -j 4 tests/ui-scripts/parity/*.txt
@@ -73,12 +78,48 @@ def parse_script(path: Path) -> list[tuple[int, str, list[str]]]:
     return steps
 
 
+def take_flashes(dz) -> list[list[int]]:
+    """The [x, y, colour] pad flashes since the last call (delugemu clears its log on each read); none from a
+    delugemu without the readout."""
+    from delugemu.qmp import QmpError
+
+    try:
+        return [list(f) for f in dz.read_pad_flashes()]
+    except (AttributeError, QmpError):
+        return []
+
+
+def pic_settings(dz) -> dict:
+    """The refresh time and dimmer interval the firmware last gave the PIC; empty from a delugemu without them."""
+    from delugemu.qmp import QmpError
+
+    try:
+        got = dz.read_pic_settings()
+    except (AttributeError, QmpError):
+        return {}
+    return {k: got[k] for k in ("refresh_time", "dimmer_interval")}
+
+
+def pads(dz) -> list:
+    """The pads without the PIC's flashes on top, which `take_flashes` reports instead; as shown, flashes and all,
+    from a delugemu without that readout."""
+    from delugemu.qmp import QmpError
+
+    try:
+        return dz.read_pads(flashes=False)
+    except (TypeError, QmpError):
+        return dz.read_pads()
+
+
 def panel(dz) -> dict:
+    """What the panel shows now, plus the pad flashes since the previous sample."""
     return {
         "oled": dz.read_oled(),
-        "pads": dz.read_pads(),
+        "pads": pads(dz),
         "leds": dz.read_leds(),
         "gold": dz.read_gold_knob(),
+        "flashes": take_flashes(dz),
+        "pic": pic_settings(dz),
     }
 
 
@@ -101,7 +142,7 @@ def boot(dz) -> int:
         t += BOOT_STEP_MS * MS
         dz.run_until(t)
         now = panel(dz)
-        still = key({k: v for k, v in now.items() if k != "oled"})
+        still = key({k: v for k, v in now.items() if k not in ("oled", "flashes")})
         if still != last:
             last, since = still, t
         elif (
@@ -195,8 +236,14 @@ def run_image(
         audio=f"wav,path={out / 'audio.wav'}" if audio_wav else "none",
     ) as dz:
         run_until = dz.run_until
+        reached = 0
 
         def run_until_or_record(ns, timeout=120.0):
+            nonlocal reached
+            # The VM is already there: a stop time in the past would only run it on to the next timer.
+            if ns <= reached:
+                return None
+            reached = ns
             # A VM that never reaches its stop time leaves where it was and how far its clock got, in stall.txt.
             try:
                 return run_until(ns, timeout)
@@ -234,13 +281,18 @@ def run_image(
                 )
                 end = min(end, at + WINDOW_MS * MS)
                 seen = {}
+                take_flashes(dz)  # flashed before the window
                 t = at
                 while True:
                     p = panel(dz)
-                    seen.setdefault(key(p), p)
                     t += SAMPLE_MS * MS
                     if t >= end:
+                        # The flashes between the last sample and the window's end belong to the window too.
+                        dz.run_until(end)
+                        p["flashes"] += take_flashes(dz)
+                        seen.setdefault(key(p), p)
                         break
+                    seen.setdefault(key(p), p)
                     dz.run_until(t)
                 snaps[args[0]] = list(seen.values())
                 times[args[0]] = [at, end]
@@ -286,15 +338,21 @@ def describe(ref: dict, test: dict) -> list[str]:
 
 
 def parts(panels: list[dict]) -> dict[str, set[str]]:
-    """The values each part of the panel showed over a window: the OLED, the pads, the knob rings, and every LED
-    on its own. Compared part by part, a blink's phase against another LED's, or a sample landing between two LED
-    writes, is not a difference; every value either image showed still has to appear on both."""
+    """The values each part of the panel showed over a window: the OLED, the pads, the knob rings, every LED on
+    its own, the set of (x, y, colour) pad flashes, and each PIC setting on its own. Compared part by part, a
+    blink's phase against another LED's, or a sample landing between two LED writes, is not a difference; every
+    value either image showed still has to appear on both. Snapshots from an older run, without flashes or PIC
+    settings, compare as having none."""
     out: dict[str, set[str]] = {}
     for p in panels:
         for name in ("oled", "pads", "gold"):
             out.setdefault(name, set()).add(json.dumps(p[name]))
         for led, value in p["leds"].items():
             out.setdefault(f"LED {led}", set()).add(json.dumps(value))
+        for flash in p.get("flashes", ()):
+            out.setdefault("flashes", set()).add(json.dumps(flash))
+        for setting, value in p.get("pic", {}).items():
+            out.setdefault(f"PIC {setting}", set()).add(json.dumps(value))
     return out
 
 
@@ -332,6 +390,16 @@ def differences(ref: list[dict], test: list[dict]) -> list[str]:
     out = [d for d in describe(only_ref, only_test) if not d.startswith("LEDs differ")]
     leds = [n for n in differing if n.startswith("LED ")]
     for name in leds:
+        out.append(
+            f"{name}: {sorted(a.get(name, set()))} vs {sorted(b.get(name, set()))}"
+        )
+    if "flashes" in differing:
+        fa, fb = a.get("flashes", set()), b.get("flashes", set())
+        out.append(
+            "pad flashes (x, y, colour): "
+            f"only ref {sorted(json.loads(f) for f in fa - fb)}, only test {sorted(json.loads(f) for f in fb - fa)}"
+        )
+    for name in (n for n in differing if n.startswith("PIC ")):
         out.append(
             f"{name}: {sorted(a.get(name, set()))} vs {sorted(b.get(name, set()))}"
         )
