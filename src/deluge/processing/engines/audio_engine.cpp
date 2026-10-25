@@ -196,6 +196,13 @@ uint16_t lastRoutineTime;
 
 alignas(CACHE_LINE_SIZE) std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> renderingMemory;
 alignas(CACHE_LINE_SIZE) std::array<int32_t, 2 * SSI_TX_BUFFER_NUM_SAMPLES> reverbMemory;
+// Lines up with renderingMemory, so the same offset into either is the same moment
+alignas(CACHE_LINE_SIZE) std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> usbTracksMemory;
+bool routingTracksToUSB = false;
+
+StereoSample* getUSBTracksBuffer() {
+	return usbTracksMemory.data();
+}
 
 StereoSample* renderingBufferOutputPos = renderingMemory.begin();
 StereoSample* renderingBufferOutputEnd = renderingMemory.begin();
@@ -863,6 +870,14 @@ void renderAudio(size_t numSamples) {
 	numHopsEndedThisRoutineCall = 0;
 	usbInputMonitoredByTrack = false;
 
+	// Not while exporting stems in real time (offline rendering off), which puts every track in the stems wherever it's
+	// set to go, like renderAudioForStemExport() - the host gets silence meanwhile, if it wanted tracks
+	bool const sendingTracks = usbAudioActive() && (usb_audio::outputSource == usb_audio::OutputSource::TRACKS);
+	routingTracksToUSB = sendingTracks && !stemExport.processStarted;
+	if (sendingTracks) {
+		memset(&usbTracksMemory, 0, numSamples * sizeof(StereoSample));
+	}
+
 	// Render audio for song
 	if (currentSong != nullptr) {
 		currentSong->renderAudio(renderingBuffer, reverbBuffer.data(), sideChainHitPending);
@@ -898,6 +913,12 @@ void renderAudioForStemExport(size_t numSamples) {
 
 	numHopsEndedThisRoutineCall = 0;
 	usbInputMonitoredByTrack = false;
+
+	// Every track goes into the stems, wherever it's set to go. The host gets silence meanwhile, if it wanted tracks
+	routingTracksToUSB = false;
+	if (usb_audio::outputSource == usb_audio::OutputSource::TRACKS) {
+		memset(&usbTracksMemory, 0, numSamples * sizeof(StereoSample));
+	}
 
 	// Render audio for song
 	if (currentSong != nullptr) {
@@ -1030,8 +1051,10 @@ startAgain:
 	}
 }
 
+int32_t* grainReverbBuffer = reverbMemory.data();
+
 void feedReverbBackdoorForGrain(int index, q31_t value) {
-	reverbMemory[index] += value;
+	grainReverbBuffer[index] += value;
 }
 void renderReverb(size_t numSamples) {
 	std::span renderingBuffer{renderingMemory.data(), numSamples};
@@ -1355,6 +1378,10 @@ bool doSomeOutputting() {
 
 	// Or the host might want the line input instead of our output. The internal mic only has a left channel
 	bool const sendLineInToUSB = (usb_audio::outputSource == usb_audio::OutputSource::LINE_IN);
+	// Or just the tracks set to go there, from the same moment in the render as this sample of the main mix
+	bool const sendTracksToUSB = (usb_audio::outputSource == usb_audio::OutputSource::TRACKS);
+	StereoSample const* __restrict__ usbTracksReadPos =
+	    usbTracksMemory.data() + (renderingBufferOutputPosNow - renderingMemory.data());
 	bool const lineInIsMono = !lineInPluggedIn && !micPluggedIn;
 	int32_t const* __restrict__ lineInReadPos = getInputReadPos(AudioInputChannel::STEREO);
 	int32_t const* const lineInEnd = getRxBufferEnd();
@@ -1420,6 +1447,13 @@ bool doSomeOutputting() {
 				if (lineInReadPos >= lineInEnd) {
 					lineInReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 				}
+			}
+			else if (sendTracksToUSB) {
+				// The tracks are at the song's mix level, before song volume - so the same gain as recording the
+				// song's mix (SampleRecorder::feedAudio()'s default)
+				toUSB[numSamplesOutputted].l = lshiftAndSaturate<5>(usbTracksReadPos->l);
+				toUSB[numSamplesOutputted].r = lshiftAndSaturate<5>(usbTracksReadPos->r);
+				++usbTracksReadPos;
 			}
 			else {
 				toUSB[numSamplesOutputted].l = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);

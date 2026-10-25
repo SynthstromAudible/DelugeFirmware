@@ -1048,6 +1048,8 @@ PLACE_SDRAM_BSS flash::Status flashStatusMenu{STRING_FOR_PLAY_CURSOR};
 PLACE_SDRAM_BSS usb::Audio usbAudioEnabledMenu{STRING_FOR_ENABLED, STRING_FOR_USB_AUDIO};
 PLACE_SDRAM_BSS usb::DirectMonitoring usbAudioInputMenu{STRING_FOR_INPUT, STRING_FOR_USB_INPUT};
 PLACE_SDRAM_BSS usb::OutputSource usbAudioOutputMenu{STRING_FOR_OUTPUT, STRING_FOR_USB_OUTPUT};
+// Per track, in the synth, kit and audio clip menus
+PLACE_SDRAM_BSS usb::Destination track_destination_menu{STRING_FOR_OUTPUT};
 PLACE_SDRAM_BSS Submenu usbAudioMenu{
     STRING_FOR_USB_AUDIO,
     {
@@ -1557,6 +1559,7 @@ PLACE_SDRAM_BSS Submenu soundEditorRootMenu{
         &patchCablesMenu,
         &sequenceDirectionMenu,
         &outputMidiSubmenu,
+        &track_destination_menu,
     },
 };
 
@@ -1754,6 +1757,7 @@ PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuAudioClip{
         &audioClipSampleMenu,
         &audioClipAttackMenu,
         &priorityMenu,
+        &track_destination_menu,
     },
 };
 
@@ -1901,6 +1905,7 @@ PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuKitGlobalFX{
         &globalFiltersMenu,
         &globalFXMenu,
         &globalSidechainMenu,
+        &track_destination_menu,
     },
 };
 

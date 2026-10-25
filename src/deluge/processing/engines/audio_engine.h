@@ -214,6 +214,11 @@ extern bool inputMonitoringWarmedUp;
 // Set during a render if any audio track is monitoring the USB input. USB direct monitoring stands aside for that
 // window, or the host's audio would be heard twice. Cleared at the start of each render
 extern bool usbInputMonitoredByTrack;
+// Set for a render when tracks' destinations apply (SETTINGS > USB AUDIO > OUTPUT is TRACKS) - tracks set to USB are
+// then rendered into the USB tracks buffer instead of the main mix
+extern bool routingTracksToUSB;
+/// Tracks headed for USB, mixed at the same level as the song's own mix, for the window being rendered
+StereoSample* getUSBTracksBuffer();
 extern bool mustUpdateReverbParamsBeforeNextRender;
 extern bool bypassCulling;
 extern uint32_t i2sTXBufferPos;
@@ -241,6 +246,9 @@ extern StereoFloatSample approxRMSLevel;
 extern AbsValueFollower envelopeFollower;
 extern TaskID routine_task_id;
 void feedReverbBackdoorForGrain(int index, q31_t value);
+/// Where feedReverbBackdoorForGrain() sends to: the reverb buffer of the track being rendered. The song's own reverb
+/// buffer, unless a track's send is being dropped (one routed to USB only)
+extern int32_t* grainReverbBuffer;
 /// Gain to apply to monitored codec input, `offset` samples into the buffer currently being rendered. 0 until the
 /// codec has settled after power-on, then ramps up to full scale.
 q31_t getInputMonitoringGain(uint32_t offset);

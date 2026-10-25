@@ -78,6 +78,15 @@ inline OutputType buttonToOutputType(deluge::hid::Button b) {
 		return OutputType::NONE;
 	}
 }
+
+/// Where a track's audio goes. Only takes effect while SETTINGS > USB AUDIO > OUTPUT is TRACKS - otherwise every track
+/// is in the main mix
+enum class TrackDestination : uint8_t {
+	MAIN_MIX, // The Deluge's own outputs - the default
+	USB,      // Sent to the host instead
+};
+constexpr uint8_t kNumTrackDestinations = 2;
+
 class Output {
 public:
 	Output(OutputType newType);
@@ -87,6 +96,9 @@ public:
 
 	ClipInstanceVector clipInstances;
 	[[nodiscard]] Clip* getActiveClip() const;
+	/// Where this track's audio goes. Shared by all of its clips, and saved with the song
+	[[nodiscard]] TrackDestination getDestination() const { return destination_; }
+	void setDestination(TrackDestination destination) { destination_ = destination; }
 	String name; // Contains the display name as the user sees it.
 	             // E.g. on numeric Deluge, SYNT000 will be just "0". Definitely no leading zeros, so not "000".
 	             // On OLED Deluge I thiiink SYNT000 would be "SYNT000"?
@@ -235,4 +247,7 @@ protected:
 	Output* outputRecordingThisOutput{nullptr};
 	Clip* activeClip{nullptr};
 	SampleRecorder* recorder{nullptr};
+
+private:
+	TrackDestination destination_ = TrackDestination::MAIN_MIX;
 };

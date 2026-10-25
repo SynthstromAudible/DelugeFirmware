@@ -19,6 +19,8 @@
 #include "gui/menu_item/selection.h"
 #include "gui/menu_item/toggle.h"
 #include "hid/display/display.h"
+#include "model/output.h"
+#include "model/song/song.h"
 #include "storage/flash_storage.h"
 
 namespace deluge::gui::menu_item::usb {
@@ -45,7 +47,7 @@ public:
 	void writeCurrentValue() override { usb_audio::directMonitoring = this->getValue(); }
 };
 
-/// What the host receives from the Deluge: its main mix, or its line input
+/// What the host receives from the Deluge: its main mix, its line input, or the tracks set to go there
 class OutputSource final : public Selection {
 public:
 	using Selection::Selection;
@@ -54,7 +56,22 @@ public:
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;
 		using enum l10n::String;
-		return {l10n::getView(STRING_FOR_MAIN_MIX), l10n::getView(STRING_FOR_LINE_IN)};
+		return {l10n::getView(STRING_FOR_MAIN_MIX), l10n::getView(STRING_FOR_LINE_IN),
+		        l10n::getView(STRING_FOR_TRACKS)};
+	}
+};
+
+/// Where the current track's audio goes: the main mix, or USB instead. Per track, so shared by all its clips. Only
+/// takes effect while the host is getting tracks
+class Destination final : public Selection {
+public:
+	using Selection::Selection;
+	void readCurrentValue() override { this->setValue(getCurrentOutput()->getDestination()); }
+	void writeCurrentValue() override { getCurrentOutput()->setDestination(this->getValue<TrackDestination>()); }
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
+		using enum l10n::String;
+		return {l10n::getView(STRING_FOR_MAIN_MIX), l10n::getView(STRING_FOR_USB)};
 	}
 };
 
