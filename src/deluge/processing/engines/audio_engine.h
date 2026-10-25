@@ -246,6 +246,9 @@ extern StereoFloatSample approxRMSLevel;
 extern AbsValueFollower envelopeFollower;
 extern TaskID routine_task_id;
 void feedReverbBackdoorForGrain(int index, q31_t value);
+/// Where feedReverbBackdoorForGrain() sends to: the reverb buffer of the track being rendered. The song's own reverb
+/// buffer, unless a track's send is being dropped (one routed to USB only)
+extern int32_t* grainReverbBuffer;
 /// Gain to apply to monitored codec input, `offset` samples into the buffer currently being rendered. 0 until the
 /// codec has settled after power-on, then ramps up to full scale.
 q31_t getInputMonitoringGain(uint32_t offset);

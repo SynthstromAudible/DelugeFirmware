@@ -870,8 +870,11 @@ void renderAudio(size_t numSamples) {
 	numHopsEndedThisRoutineCall = 0;
 	usbInputMonitoredByTrack = false;
 
-	routingTracksToUSB = usbAudioActive() && (usb_audio::outputSource == usb_audio::OutputSource::TRACKS);
-	if (routingTracksToUSB) {
+	// Not while exporting stems in real time (offline rendering off), which puts every track in the stems wherever it's
+	// set to go, like renderAudioForStemExport() - the host gets silence meanwhile, if it wanted tracks
+	bool const sendingTracks = usbAudioActive() && (usb_audio::outputSource == usb_audio::OutputSource::TRACKS);
+	routingTracksToUSB = sendingTracks && !stemExport.processStarted;
+	if (sendingTracks) {
 		memset(&usbTracksMemory, 0, numSamples * sizeof(StereoSample));
 	}
 
@@ -1048,8 +1051,10 @@ startAgain:
 	}
 }
 
+int32_t* grainReverbBuffer = reverbMemory.data();
+
 void feedReverbBackdoorForGrain(int index, q31_t value) {
-	reverbMemory[index] += value;
+	grainReverbBuffer[index] += value;
 }
 void renderReverb(size_t numSamples) {
 	std::span renderingBuffer{renderingMemory.data(), numSamples};

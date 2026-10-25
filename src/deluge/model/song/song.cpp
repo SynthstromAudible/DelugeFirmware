@@ -2497,8 +2497,12 @@ void renderOutputForUSB(Output* output, TrackDestination destination, ModelStack
 	if (destination == TrackDestination::USB) {
 		// Cleared so the sends never pile up past overflowing
 		memset(discardedReverbMemory.data(), 0, mix.size() * sizeof(int32_t));
+		// The grain FX send to the reverb their own way, so drop theirs too
+		int32_t* const songGrainReverbBuffer = AudioEngine::grainReverbBuffer;
+		AudioEngine::grainReverbBuffer = discardedReverbMemory.data();
 		output->renderOutput(modelStack, toUSB, discardedReverbMemory.data(), reverbAmountAdjust, sideChainHitPending,
 		                     !isClipActiveNow, isClipActiveNow);
+		AudioEngine::grainReverbBuffer = songGrainReverbBuffer;
 		return;
 	}
 
@@ -3574,6 +3578,9 @@ traverseClips:
 
 	newOutput->armedForRecording = oldOutput->armedForRecording;
 	oldOutput->armedForRecording = false;
+
+	newOutput->destination = oldOutput->destination;
+	oldOutput->destination = TrackDestination::MAIN_MIX;
 
 	// Properly do away with the oldInstrument
 	deleteOrAddToHibernationListOutput(oldOutput);
@@ -5316,6 +5323,9 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 
 	newOutput->armedForRecording = oldOutput->armedForRecording;
 	oldOutput->armedForRecording = false;
+
+	newOutput->destination = oldOutput->destination;
+	oldOutput->destination = TrackDestination::MAIN_MIX;
 
 	// Properly do away with the oldInstrument
 	deleteOrAddToHibernationListOutput(oldOutput);
