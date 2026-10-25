@@ -218,6 +218,11 @@ enum PicOut {
     Indicator { knob: u8, levels: [u8; 4] },
     /// Surface refresh interval (board units).
     RefreshTime(u8),
+    /// Flash pad `idx` (`y + x * 8`), in the PIC's colour index `colour` (1–3), or its current
+    /// flash colour when 0.
+    Flash { idx: u8, colour: u8 },
+    /// The PIC's pad-dimming interval.
+    DimmerInterval(u8),
     /// "Done sending rows" → trigger the PIC's display refresh.
     Refresh,
     /// Begin a horizontal scroll animation; `flags` is the app's direction/full-width encoding.
@@ -286,6 +291,22 @@ async fn wait_out_oled_frame() {
 #[cfg(not(target_os = "none"))]
 static REFRESH_COUNT: AtomicU32 = AtomicU32::new(0);
 
+/// Pad flashes and dimmer intervals [`send`] has handed to the PIC, so a host test can check they
+/// reach it (the host stand-in for the PIC UART only logs).
+#[cfg(not(target_os = "none"))]
+static FLASHES_SENT: AtomicU32 = AtomicU32::new(0);
+#[cfg(not(target_os = "none"))]
+static DIMMERS_SENT: AtomicU32 = AtomicU32::new(0);
+
+/// Host only: (pad flashes, dimmer intervals) sent to the PIC so far.
+#[cfg(not(target_os = "none"))]
+pub fn flash_and_dimmer_sent_for_test() -> (u32, u32) {
+    (
+        FLASHES_SENT.load(Ordering::Relaxed),
+        DIMMERS_SENT.load(Ordering::Relaxed),
+    )
+}
+
 /// Current value of [`REFRESH_COUNT`]. Host test seam.
 #[cfg(not(target_os = "none"))]
 #[doc(hidden)]
@@ -338,6 +359,20 @@ async fn send(cmd: PicOut) {
         }
         PicOut::Indicator { knob, levels } => pic::set_gold_knob_indicators(knob, levels).await,
         PicOut::RefreshTime(ms) => pic::set_refresh_time(ms).await,
+        PicOut::Flash { idx, colour } => {
+            if colour > 0 {
+                pic::flash_pad_colour(idx, colour).await
+            } else {
+                pic::flash_pad(idx).await
+            }
+            #[cfg(not(target_os = "none"))]
+            FLASHES_SENT.fetch_add(1, Ordering::Relaxed);
+        }
+        PicOut::DimmerInterval(interval) => {
+            pic::set_dimmer_interval(interval).await;
+            #[cfg(not(target_os = "none"))]
+            DIMMERS_SENT.fetch_add(1, Ordering::Relaxed);
+        }
         PicOut::Refresh => refresh().await,
         PicOut::ScrollSetup(flags) => pic::setup_horizontal_scroll(flags).await,
         PicOut::ScrollRow { row, colour } => pic::send_scroll_row(row, colour).await,
@@ -454,6 +489,26 @@ pub extern "C" fn deluge_control_set_refresh_time(ms: u8) {
     let _ = OUT.try_send(PicOut::RefreshTime(ms));
 }
 
+/// Flashes pad `idx` (`y + x * 8`) in the PIC's current flash colour. The PIC times the flash and
+/// restores the pad itself, so no refresh follows.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_control_flash_pad(idx: u8) {
+    let _ = OUT.try_send(PicOut::Flash { idx, colour: 0 });
+}
+
+/// Flashes pad `idx` (`y + x * 8`) in the PIC's colour index `colour_idx` (1–3).
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_control_flash_pad_colour(idx: u8, colour_idx: i32) {
+    let colour = u8::try_from(colour_idx).unwrap_or(0);
+    let _ = OUT.try_send(PicOut::Flash { idx, colour });
+}
+
+/// Sets the PIC's pad-dimming interval.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_control_set_dimmer_interval(interval: u8) {
+    let _ = OUT.try_send(PicOut::DimmerInterval(interval));
+}
+
 /// Returns the free space for queued pad output, in bytes: free queue slots × `BYTES_PER_CMD`, or
 /// none while an OLED frame holds the PIC UART (see [`OLED_FRAME`]).
 ///
@@ -472,6 +527,8 @@ pub extern "C" fn deluge_control_pad_output_space() -> u32 {
 pub extern "C" fn deluge_control_flush() {}
 
 abi_pin!(
+    deluge_control_flash_pad,
+    deluge_control_flash_pad_colour,
     deluge_control_flush,
     deluge_control_pad_output_space,
     deluge_control_poll_event,
@@ -482,6 +539,7 @@ abi_pin!(
     deluge_control_scroll_vertical,
     deluge_control_set_indicator,
     deluge_control_set_led,
+    deluge_control_set_dimmer_interval,
     deluge_control_set_pad_columns,
     deluge_control_set_refresh_time,
     deluge_encoder_take_quadrature_edges,
