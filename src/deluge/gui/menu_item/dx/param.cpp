@@ -94,8 +94,9 @@ void DxParam::readValueAgain() {
 		else if (idx >= 16) {
 			x = (idx - 16) + 8;
 		}
-		else if (idx == 16) {
-			x = 13;
+		else if (idx >= 13) {
+			// Velocity, amp mod, and rate scale occupy the last three columns.
+			x = 28 - idx;
 		}
 		flash_row = 7 - op;
 	}
@@ -211,7 +212,7 @@ void DxParam::horizontalEncoderAction(int32_t offset) {
 
 bool DxParam::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 	int found_param = -2;
-	if (y > 1 && x <= 13) {
+	if (y > 1 && x < kDisplayWidth) {
 		int op = 8 - y - 1; // op 0-5
 		int idx;
 		if (x < 8) {
@@ -220,8 +221,9 @@ bool DxParam::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 		else if (x < 13) {
 			idx = (x - 8) + 16;
 		}
-		else if (x == 13) {
-			idx = 15;
+		else {
+			// Columns 14–16: velocity sensitivity, amp mod sensitivity, rate scaling.
+			idx = 28 - x;
 		}
 		found_param = 21 * op + idx;
 	}

@@ -154,6 +154,7 @@ static bool isDxShortcutLayoutActive() {
 }
 
 // Each column lists rows from bottom to top: LFO, pitch envelope/global, then operators 1–6.
+// The last three columns select velocity sensitivity, amplitude modulation sensitivity, and rate scaling.
 // clang-format off
 PLACE_SDRAM_RODATA constexpr RGB dx_shortcut_colours[][kDisplayHeight] = {
 	{colours::pastel::blue , colours::pastel::green, colours::cyan         , colours::cyan         , colours::cyan         , colours::cyan         , colours::cyan         , colours::cyan},
@@ -170,8 +171,8 @@ PLACE_SDRAM_RODATA constexpr RGB dx_shortcut_colours[][kDisplayHeight] = {
 	{none_colour           , none_colour           , colours::yellow       , colours::yellow       , colours::yellow       , colours::yellow       , colours::yellow       , colours::yellow},
 	{none_colour           , none_colour           , colours::yellow       , colours::yellow       , colours::yellow       , colours::yellow       , colours::yellow       , colours::yellow},
 	{none_colour           , none_colour           , colours::purple       , colours::purple       , colours::purple       , colours::purple       , colours::purple       , colours::purple},
-	{none_colour           , none_colour           , none_colour           , none_colour           , none_colour           , none_colour           , none_colour           , none_colour},
-	{none_colour           , none_colour           , none_colour           , none_colour           , none_colour           , none_colour           , none_colour           , none_colour},
+	{none_colour           , none_colour           , colours::purple       , colours::purple       , colours::purple       , colours::purple       , colours::purple       , colours::purple},
+	{none_colour           , none_colour           , colours::purple       , colours::purple       , colours::purple       , colours::purple       , colours::purple       , colours::purple},
 };
 // clang-format on
 
