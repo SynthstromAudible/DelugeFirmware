@@ -2389,9 +2389,10 @@ void SessionView::displayPotentialTempoChange(UI* ui) {
 		return;
 	}
 
-	// Do not paint tempo over the launch countdown. Also check the current UI
-	// in case the graphics routine is called while we are in a menu.
-	if (getCurrentUI() == ui && !session.launchEventAtSwungTickCount) {
+	// Do not paint tempo over a visible countdown. A pending launch alone must
+	// not suppress tempo updates in Arranger View, where no countdown is shown.
+	// Also check the current UI in case the graphics routine runs while in a menu.
+	if (getCurrentUI() == ui && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
 		float tempo = playbackHandler.calculateBPMForDisplay();
 		float diff = std::abs(tempo - lastDisplayedTempo);
 		// always catch manual adjustments, limit rate of others
