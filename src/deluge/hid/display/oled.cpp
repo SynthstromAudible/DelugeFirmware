@@ -1042,6 +1042,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 	}
 
 	bool doScroll = !playbackHandler.isEitherClockActive(); // only scroll when playback is off
+	bool rendered = false;
 	bool finished = true;
 
 	for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
@@ -1074,6 +1075,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 			}
 
 			if (doRender) {
+				rendered = true;
 				int32_t endX = scroller->endX;
 				bool doInversion = FlashStorage::accessibilityMenuHighlighting != MenuHighlighting::NO_INVERSION;
 				if (!doInversion) {
@@ -1093,11 +1095,13 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 		}
 	}
 
-	markChanged();
-	// Workaround for glitches during scrolling. Not entirely obvious _why_
-	// it glitches, though. Some sort of timing issue between doAnyPendingUIRendering,
-	// uiTimerManager.routine() ?
-	sendMainImage();
+	if (rendered) {
+		markChanged();
+		// Workaround for glitches during scrolling. Not entirely obvious _why_
+		// it glitches, though. Some sort of timing issue between doAnyPendingUIRendering,
+		// uiTimerManager.routine() ?
+		sendMainImage();
+	}
 
 	int32_t timeInterval;
 	if (!finished) {
