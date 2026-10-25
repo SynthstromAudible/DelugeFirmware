@@ -971,7 +971,10 @@ void Song::loadNextSong() {
 
 // If action is NULL, that means this is being called as part of an undo, so don't do any extra stuff.
 // Currently mayReSyncClip is only set to false in a call that happens when we've just finished recording that Clip.
-void Song::setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip) {
+// With mayResumeClip false, the caller resumes playback of the Clip itself. With mayChangeClipInstances false, the
+// Clip's instances in the arrangement keep their lengths.
+void Song::setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip, bool mayResumeClip,
+                         bool mayChangeClipInstances) {
 	uint32_t oldLength = clip->loopLength;
 
 	if (clip == syncScalingClip) {
@@ -996,7 +999,9 @@ void Song::setClipLength(Clip* clip, uint32_t newLength, Action* action, bool ma
 		clip->lengthChanged(modelStack, oldLength, action);
 	}
 
-	clip->output->clipLengthChanged(clip, oldLength);
+	if (mayChangeClipInstances) {
+		clip->output->clipLengthChanged(clip, static_cast<int32_t>(oldLength));
+	}
 
 	if (playbackHandler.isEitherClockActive() && isClipActive(clip)) {
 
@@ -1010,7 +1015,9 @@ void Song::setClipLength(Clip* clip, uint32_t newLength, Action* action, bool ma
 			playbackHandler.expectEvent(); // Is this maybe redundant now that Arranger has a reSyncClip()?
 		}
 
-		clip->resumePlayback(modelStack);
+		if (mayResumeClip) {
+			clip->resumePlayback(modelStack);
+		}
 	}
 }
 
