@@ -158,9 +158,8 @@ public:
 	bool isUntransposedNoteWithinRange(int32_t noteCode);
 	void setCurrentMultiRange(int32_t i);
 	void possibleChangeToCurrentRangeDisplay();
-	/// The keyboard zone the menus are currently working on for the given source, or -1 if there
-	/// isn't one. Prefers the zone picked for this editing session; falls back to the source's own
-	/// defaultRangeI, which survives the menu navigation that clears currentMultiRange.
+	/// The keyboard zone the menus are currently working on for the given source: the zone the editor
+	/// holds, or the only zone of a single-zone source. -1 if there isn't one.
 	int32_t getCurrentZoneIndex(int32_t sourceId);
 	/// Appends the current keyboard zone to `out` as " C3-F#4" (or " -C4" / " C#4-" for the bottom
 	/// and top zones), so a menu title can say which zone its edits apply to. Does nothing unless the
