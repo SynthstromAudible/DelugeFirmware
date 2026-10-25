@@ -632,7 +632,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 								if (result == MenuPermission::MUST_SELECT_RANGE) {
 									// The note-range picker operates on currentSource. Reached through
 									// menu navigation alone (the shortcut-pad path pins the source in
-									// beginSessionForItem() instead), currentSource may still point at
+									// setup() instead), currentSource may still point at
 									// the other oscillator - pin it to the item's own source first.
 									int32_t rangeSourceIndex = newItem->getSourceIndexForRangeSelection();
 									if (rangeSourceIndex >= 0 && currentSound != nullptr) {
