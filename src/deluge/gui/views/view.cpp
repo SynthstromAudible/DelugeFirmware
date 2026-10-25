@@ -1765,7 +1765,7 @@ void View::displayAutomation() {
 		setKnobIndicatorLevels();
 	}
 	if (getCurrentUI() == &soundEditor) {
-		soundEditor.getCurrentMenuItem()->readValueAgain();
+		soundEditor.getCurrentMenuItem()->readValueAgainIfChanged();
 	}
 }
 

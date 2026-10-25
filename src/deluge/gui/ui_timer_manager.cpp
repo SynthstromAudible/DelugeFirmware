@@ -171,10 +171,10 @@ void UITimerManager::routine() {
 					if (((getCurrentUI() == &automationView) || (getRootUI() == &automationView))
 					    && automationView.inAutomationEditor()) {
 
-						automationView.displayAutomation();
+						automationView.displayAutomation(false, true, true);
 
 						if (getCurrentUI() == &soundEditor) {
-							soundEditor.getCurrentMenuItem()->readValueAgain();
+							soundEditor.getCurrentMenuItem()->readValueAgainIfChanged();
 						}
 					}
 

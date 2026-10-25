@@ -32,6 +32,18 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void selectEncoderAction(int32_t offset) override;
 	void readValueAgain() override;
+	void readValueAgainIfChanged() override {
+		T previous = value_;
+		readCurrentValue();
+		if (display->haveOLED()) {
+			if (previous != value_) {
+				renderUIsForOled();
+			}
+		}
+		else {
+			drawValue();
+		}
+	}
 	bool selectEncoderActionEditsInstrument() final { return true; }
 
 	void setValue(T value) { value_ = value; }
@@ -55,7 +67,7 @@ protected:
 	virtual void drawValue() = 0;
 
 private:
-	T value_;
+	T value_{};
 };
 
 template <typename T>

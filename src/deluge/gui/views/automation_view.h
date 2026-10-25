@@ -86,8 +86,8 @@ public:
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
 	void clipNeedsReRendering(Clip* clip) override;
 	void renderDisplay(int32_t knobPosLeft = kNoSelection, int32_t knobPosRight = kNoSelection,
-	                   bool modEncoderAction = false);
-	void displayAutomation(bool padSelected = false, bool updateDisplay = true);
+	                   bool modEncoderAction = false, bool onlyIfChanged = false);
+	void displayAutomation(bool padSelected = false, bool updateDisplay = true, bool onlyIfChanged = false);
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override {
 		InstrumentClipMinder::renderOLED(canvas);
@@ -176,6 +176,11 @@ public:
 	bool isNoteVelocityEditorShortcut(int32_t x, int32_t y);
 
 private:
+	int32_t lastDisplayedKnobPosLeft = kNoSelection;
+	int32_t lastDisplayedKnobPosRight = kNoSelection;
+	uint32_t automationImageGeneration = 0;
+	bool automationImageValid = false;
+
 	// button action functions
 	void handleSessionButtonAction(Clip* clip, bool on);
 	void handleKeyboardButtonAction(bool on);

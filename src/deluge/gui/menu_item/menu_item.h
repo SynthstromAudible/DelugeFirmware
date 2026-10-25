@@ -129,6 +129,8 @@ public:
 
 	/// Re-read the value from the system and redraw the display to match.
 	virtual void readValueAgain() {}
+	/// Refresh a timer-driven value without redrawing unchanged numeric values.
+	virtual void readValueAgainIfChanged() { readValueAgain(); }
 	/// Like readValueAgain, but does not redraw.
 	virtual void readCurrentValue() {}
 

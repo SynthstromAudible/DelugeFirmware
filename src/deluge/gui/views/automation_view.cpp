@@ -962,7 +962,8 @@ This function replaces the two functions that were previously called:
 DisplayParameterValue
 DisplayParameterName */
 
-void AutomationView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bool modEncoderAction) {
+void AutomationView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bool modEncoderAction,
+                                   bool onlyIfChanged) {
 	// don't refresh display if we're not current in the automation view UI
 	// (e.g. if you're editing automation while in the menu)
 	if (getCurrentUI() != &automationView) {
@@ -995,7 +996,16 @@ void AutomationView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bo
 
 	// OLED Display
 	if (display->haveOLED()) {
+		using deluge::hid::display::OLED;
+		if (onlyIfChanged && automationImageValid && automationImageGeneration == OLED::getMainImageGeneration()
+		    && knobPosLeft == lastDisplayedKnobPosLeft && knobPosRight == lastDisplayedKnobPosRight) {
+			return;
+		}
 		renderDisplayOLED(clip, output, outputType, knobPosLeft, knobPosRight);
+		lastDisplayedKnobPosLeft = knobPosLeft;
+		lastDisplayedKnobPosRight = knobPosRight;
+		automationImageGeneration = OLED::getMainImageGeneration();
+		automationImageValid = true;
 	}
 	// 7SEG Display
 	else {
@@ -1080,7 +1090,7 @@ void AutomationView::renderAutomationOverviewDisplay7SEG(Output* output, OutputT
 Also used internally in the automation instrument clip view for updating the display and led
 indicators.*/
 
-void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
+void AutomationView::displayAutomation(bool padSelected, bool updateDisplay, bool onlyIfChanged) {
 	if ((!padSelectionOn && !isUIModeActive(UI_MODE_NOTES_PRESSED)) || padSelected) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
@@ -1117,7 +1127,7 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 				// don't update value displayed if there's no automation unless instructed to update display
 				// don't update value displayed when playback is stopped
 				if (displayValue) {
-					renderDisplay(knobPos);
+					renderDisplay(knobPos, kNoSelection, false, onlyIfChanged);
 				}
 				// on 7SEG re-render parameter name under certain circumstances
 				// e.g. when entering pad selection mode, when stopping playback
