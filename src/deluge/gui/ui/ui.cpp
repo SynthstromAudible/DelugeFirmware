@@ -316,15 +316,19 @@ void doAnyPendingGridRendering() {
 		return;
 	}
 
-	if (currentUIMode == UI_MODE_HORIZONTAL_SCROLL || currentUIMode == UI_MODE_HORIZONTAL_ZOOM) {
+	bool horizontalScroll = currentUIMode == UI_MODE_HORIZONTAL_SCROLL;
+	if (currentUIMode == UI_MODE_HORIZONTAL_ZOOM || (horizontalScroll && PadLEDs::horizontal::isSidebarScrolling())) {
 		return;
 	}
 	// Make a local copy of our instructions
-	uint32_t mainRowsNow = whichMainRowsNeedRendering;
+	// A timeline scroll animates only the main pads; the stationary sidebar must
+	// still render clip-launch flashes. Leave main-pad redraws pending until it ends.
+	uint32_t mainRowsNow = horizontalScroll ? 0 : whichMainRowsNeedRendering;
 	uint32_t sideRowsNow = whichSideRowsNeedRendering;
 
-	// Clear the overall instructions - so it may now be written to again during this function call
-	clearPendingUIRendering();
+	// Clear only the requests being handled, so renders can enqueue more work.
+	whichMainRowsNeedRendering &= ~mainRowsNow;
+	whichSideRowsNeedRendering = 0;
 
 	for (int32_t u = numUIsOpen - 1; u >= 0; u--) {
 
