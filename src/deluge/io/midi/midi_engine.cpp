@@ -621,6 +621,14 @@ void MidiEngine::sendSerialMidi(MIDIMessage message) {
 
 	uint8_t statusByte = message.channel | (message.statusType << 4);
 	int32_t messageLength = bytesPerStatusMessage(statusByte);
+
+	// The buffer doesn't check for overflow, so drop the whole message if it won't fit - otherwise it'd overwrite bytes
+	// still waiting to go out, leaving receivers parsing half-messages (#5107). Leave a byte free so a full buffer
+	// doesn't look empty
+	if (uartGetTxBufferSpace(UART_ITEM_MIDI) <= messageLength) {
+		return;
+	}
+
 	bufferMIDIUart(statusByte);
 
 	if (messageLength >= 2) {
