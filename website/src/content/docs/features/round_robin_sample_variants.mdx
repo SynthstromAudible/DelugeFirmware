@@ -55,18 +55,34 @@ the same shape wherever you are, and is the same rule a Kit drum has always foll
     editable from the same screen: pressing near any marker switches focus to it, so these two entries cover
     everything you'd otherwise need separate loop-point items for.
   - `TRANSPOSE` - a per-slot pitch offset in semitones and cents, independent of the zone's other pitch settings.
-    It is one combined value, mirroring how the oscillator's own pitch is one entry rather than two.
+    It is one combined value, mirroring how the oscillator's own pitch is one entry rather than two. In a kit,
+    holding `AFFECT ENTIRE` while turning it sets the same value on every slot of every sound drum, and the
+    oscillator's own `TRANSPOSE` does the same.
   - `VOL` - a per-slot level trim on the familiar 0-50 scale, where 50 is unity and 0 is silence. Takes recorded
     at different levels rarely match, and this pulls the loud ones into line without touching the oscillator's
     own volume. It only attenuates - there is no boost - so it can never push a variant into clipping.
 - Pressing `SHIFT` + `SAVE/DELETE` while an alternate slot (2-4) is selected clears that variant, shifting any
   later slots down to fill the gap.
 
+## Shortcuts
+
+On an oscillator with variants, the oscillator's `FILE`, `START`, `END` and `TRANSPOSE` shortcut pads still work.
+As before, a multi-zone sound first asks which zone, unless one is already chosen. A slot picker then lists that
+zone's slots, drawn like the Variants screen, and the pad's own item opens for the slot you pick:
+
+- `FILE` lists every slot with a sample plus the next empty one, so you can add a variant, or replace any sample
+  in a full zone. After loading you're back on the picker, ready to fill the next slot.
+- `START` and `END` open that slot's marker editor (`END` has a pad on the older shortcut layout).
+- `TRANSPOSE` opens that slot's page with `TRANSPOSE` highlighted.
+
+`START`, `END` and `TRANSPOSE` skip the picker when only slot 1 has a sample, so zones without alternates behave as
+they always have. On oscillators without variants, and with the feature off, the pads are unchanged.
+
 ## Auditioning a specific variant
 
-While a slot's submenu (or its marker editor) is open, auditioning the drum or note plays that exact slot
-without advancing the round-robin cycle - so you can always hear exactly what you're editing, regardless of
-which mode is selected or where the cycle currently is.
+While a slot's submenu (or its marker editor) is open, or a slot is highlighted in the shortcut slot picker,
+auditioning the drum or note plays that exact slot without advancing the round-robin cycle - so you can always
+hear exactly what you're editing, regardless of which mode is selected or where the cycle currently is.
 
 ## Save format
 
