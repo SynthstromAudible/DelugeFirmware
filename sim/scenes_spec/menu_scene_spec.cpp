@@ -473,6 +473,22 @@ describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 		expect(static_cast<uint64_t>(menu_scene().greyout_mask().rows)).to_equal(uint64_t{0});
 	});
 
+	it("takes the root UI's own greyout arms: none over the keyboard, the sidebar spared over automation", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		MenuContext ctx = r.open(settings_root);
+		// `SoundEditor::getGreyoutColsAndRows`' KEYBOARD_SCREEN and AUTOMATION arms
+		// (`sound_editor.cpp:450-458`).
+		ctx.root_greyout = MenuContext::RootGreyout::SpareSidebar;
+		menu_scene().open(settings_root, ctx);
+		expect(static_cast<uint64_t>(menu_scene().greyout_mask().cols)).to_equal(uint64_t{0xFFFFFFFCu});
+		ctx.root_greyout = MenuContext::RootGreyout::Nothing;
+		menu_scene().open(settings_root, ctx);
+		expect(static_cast<uint64_t>(menu_scene().greyout_mask().cols)).to_equal(uint64_t{0});
+		expect(static_cast<uint64_t>(menu_scene().greyout_mask().rows)).to_equal(uint64_t{0});
+	});
+
 	it("resolves on_enter through the node-id registry and refuses an unknown id", _ {
 		select_language();
 		deluge::notify::dirty().drain();

@@ -1,0 +1,23 @@
+# The sound menu over a loaded song's clip, whose pads are lit: the clip stays showing under the menu, greyed.
+100   snapshot boot
+8200  button Session down
+8220  button Session up
+9000  load kitchen
+14000 snapshot loaded
+15000 button Clip down
+15020 button Clip up
+16500 snapshot clip
+17000 button SelectEnc down
+17020 button SelectEnc up
+18000 snapshot menu
+18500 encoder Select +2
+19500 snapshot menu-2
+20000 button SelectEnc down
+20020 button SelectEnc up
+21000 snapshot submenu
+21500 button Back down
+21520 button Back up
+22500 snapshot submenu-back
+23000 button Back down
+23020 button Back up
+24000 snapshot menu-closed

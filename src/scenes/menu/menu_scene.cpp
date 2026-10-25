@@ -2145,14 +2145,20 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 // Composition, saved state and timers
 
 deluge::ui::grid::GreyoutMask MenuScene::greyout_mask() const {
-	// `SoundEditor::getGreyoutColsAndRows` (`sound_editor.cpp:252-294`), with the arms this layer
-	// can decide. The KEYBOARD_SCREEN and AUTOMATION arms branch on the root UI's type, which
-	// `src/scenes` may not read; they stay with the scene that owns those views. `doGreyout ==
-	// false` is spelled as an all-zero mask, which `greyout()` already reads as "grey nothing".
+	// `SoundEditor::getGreyoutColsAndRows` (`sound_editor.cpp:441-484`). The two arms that branch on
+	// the root UI's type arrive as `MenuContext::root_greyout`. `doGreyout == false` is spelled as an
+	// all-zero mask, which `greyout()` already reads as "grey nothing".
 	// Same reason as `leds()`: with no path there is no menu on screen, so greying the grid under
 	// it would leave the base view dimmed with nothing over it.
 	if (focused() == nullptr) {
 		return {};
+	}
+	// `:450-458`: the KEYBOARD_SCREEN and AUTOMATION arms, which branch on the root UI's type.
+	if (ctx_.root_greyout == MenuContext::RootGreyout::Nothing) {
+		return {};
+	}
+	if (ctx_.root_greyout == MenuContext::RootGreyout::SpareSidebar) {
+		return {0xFFFFFFFCu, 0};
 	}
 	if (ctx_.is_performance) {
 		return {}; // `:248` PERFORMANCE
@@ -2170,17 +2176,7 @@ deluge::ui::grid::GreyoutMask MenuScene::greyout_mask() const {
 	}
 	// `:252` default -- which is where an AUDIO_CLIP root UI lands too: legacy's switch has no
 	// `UIType::AUDIO_CLIP` case, so an audio clip greys everything including the sidebar. Testing
-	// `!is_audio_clip` above is what keeps it out of the INSTRUMENT_CLIP arm (task-6 fix round 1,
-	// Minor 4); inert for batch 1, whose roots are all `Root::Sound`, but load-bearing once Tasks
-	// 7-8 hang `audioCompMenu` off the audio-clip root.
-	//
-	// **Task 7 (batch 2) audit: no new arm.** Everything batch 2 declares hangs off
-	// `soundEditorRootMenu`, opened from `Root::Sound` or `Root::Drum` -- both the INSTRUMENT_CLIP
-	// arm above. Two arms are still missing, and they are the ones this layer cannot decide:
-	// KEYBOARD_SCREEN (`:224`) and AUTOMATION (`:229`) branch on the root UI's type, which
-	// `src/scenes` may not read. INSTRUMENT_CLIP's two note-editor sub-arms (`:274-281`), the third
-	// candidate this note used to name, are done above (spec E-note-family task 6): they no longer
-	// depend on `currentUIMode` at all, because `MenuContext::Root` now names both roots directly.
+	// `!is_audio_clip` above is what keeps it out of the INSTRUMENT_CLIP arm.
 	return {0xFFFFFFFFu, 0};
 }
 

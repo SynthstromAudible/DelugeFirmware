@@ -20,6 +20,7 @@
 
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/view.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
@@ -128,6 +129,16 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 	// open.
 	if (!ctx.resolved) {
 		return false;
+	}
+	// `SoundEditor::getGreyoutColsAndRows`' root-type arms (`gui/ui/sound_editor.cpp:441-460`).
+	if (RootUI* root = getRootUI(); root != nullptr) {
+		if (root->getUIType() == UIType::KEYBOARD_SCREEN) {
+			ctx.root_greyout = menu::MenuContext::RootGreyout::Nothing;
+		}
+		else if (root->getUIType() == UIType::AUTOMATION) {
+			ctx.root_greyout = automationView.inAutomationEditor() ? menu::MenuContext::RootGreyout::Nothing
+			                                                       : menu::MenuContext::RootGreyout::SpareSidebar;
+		}
 	}
 
 	// Task 6: `enterNoteEditor`/`enterNoteRowEditor` pass an explicit item to `soundEditor.setup`

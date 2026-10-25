@@ -132,6 +132,15 @@ struct MenuContext {
 	bool is_performance = false;
 	bool is_kit_global_fx = false;
 
+	/// @brief The greyout `SoundEditor::getGreyoutColsAndRows` decides by the root UI's type alone
+	///        (`sound_editor.cpp:441-460`), which this layer may not read: the menu's opener sets it.
+	enum class RootGreyout : uint8_t {
+		Menu,         ///< Any other root: the menu's own arms decide.
+		Nothing,      ///< The keyboard screen, or the automation view's editor: grey nothing.
+		SpareSidebar, ///< The automation view outside its editor: grey all but the sidebar.
+	};
+	RootGreyout root_greyout = RootGreyout::Menu;
+
 	/// @brief False where `setup()` would have returned `false` outright: a kit whose selected
 	///        `SoundDrum` has no note row (`sound_editor.cpp:1719-1721`), and a kit with neither
 	///        affect-entire nor a selected drum (`:1677-1684`).
