@@ -312,7 +312,13 @@ bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputO
 	writer.writeAttribute("mode", aoModeToString(mode));
 
 	writer.writeAttribute("inputChannel", inputChannelToString(inputChannel));
-	writer.writeAttribute("outputRecordingIndex", currentSong->getOutputIndex(outputRecordingFrom));
+	// getOutputIndex() returns 0 for an output that isn't in the song, which would reload as recording from the first
+	// track - possibly one that records from us. Save -1 (no source) instead.
+	int32_t outputRecordingIndex = currentSong->getOutputIndex(outputRecordingFrom);
+	if (!outputRecordingFrom || currentSong->getOutputFromIndex(outputRecordingIndex) != outputRecordingFrom) {
+		outputRecordingIndex = -1;
+	}
+	writer.writeAttribute("outputRecordingIndex", outputRecordingIndex);
 	Output::writeDataToFile(writer, clipForSavingOutputOnly, song);
 
 	GlobalEffectableForClip::writeAttributesToFile(writer, clipForSavingOutputOnly == nullptr);
