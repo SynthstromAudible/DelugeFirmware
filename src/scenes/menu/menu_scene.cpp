@@ -41,6 +41,7 @@
 
 #include "gfx/oled/icons.h"
 #include "gui/l10n/strings.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h" // Song::getInputTickMagnitude() -- Kind::SyncLevel's value text
 #include "modulation/sync.h" // syncValueToString -- Kind::SyncLevel's value text
 #include "notify/notice_queue.h"
@@ -525,17 +526,9 @@ bool MenuScene::on_enter(const SceneId& id) {
 
 uint16_t MenuScene::arm_shortcut_landing(const Node& target) {
 	landing_column_ = nullptr;
-	// `maybeGetParentMenu`'s two early answers: the start markers and the audio clip's waveform go
-	// straight to the marker editor, the file selectors straight to the browser.
-	constexpr const Node* kOpensItself[] = {&nodes::sample0_start, &nodes::sample1_start, &nodes::audio_clip_waveform,
-	                                        &nodes::file0_selector, &nodes::file1_selector};
-	const std::span<const Node* const> r = roots();
-	const size_t i = static_cast<size_t>(ctx_.root);
-	if (std::ranges::find(kOpensItself, &target) == std::ranges::end(kOpensItself) && i < r.size() && r[i] != nullptr) {
-		if (const Node* page = horizontal_page_listing(*r[i], target); page != nullptr && node_id(*page) != 0) {
-			landing_column_ = &target;
-			return node_id(*page);
-		}
+	if (const Node* page = shortcut_landing_page(ctx_.root, target); page != nullptr && node_id(*page) != 0) {
+		landing_column_ = &target;
+		return node_id(*page);
 	}
 	return node_id(target);
 }
@@ -545,6 +538,8 @@ void MenuScene::on_resume() {
 	// deeper nested UI", step up one level. The flag is set where the push was requested (see
 	// `after_render`), and it is what stops the item that opened the pushed scene from opening it
 	// again the instant the user gets back.
+	// A landing armed by a jump whose `Replace` never reached `on_enter` is stale.
+	landing_column_ = nullptr;
 	if (st_.go_up_on_resume) {
 		st_.go_up_on_resume = false;
 		ascend();
@@ -1317,8 +1312,9 @@ void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		st_.blink_fired_step = step;
 	}
 	// `next_timer()` answers one fixed interval for the whole scene, but the steps are unequal
-	// (20 ms, then 180 ms), so this arms the gate for the next step's edge itself.
-	f.gate().request_repaint_after(ms_to_next_step(st_.blink_anchor_ms, now), now);
+	// (20 ms, then 180 ms), so this arms the grid's gate for the next step's edge itself -- the
+	// grid's alone, since a blink changes no OLED pixel.
+	f.grid_gate().request_repaint_after(ms_to_next_step(st_.blink_anchor_ms, now), now);
 }
 
 void MenuScene::leds(deluge::ui::LedFrame& f) {
@@ -1560,6 +1556,14 @@ void MenuScene::enter_child(const Node& child) {
 	if (&child == st_.pending_after_range) {
 		st_.range_picker_pending = false;
 		st_.pending_after_range = nullptr;
+		// `SoundEditor`'s select arm on the picker's answer (`sound_editor.cpp`, the
+		// `maybeGetParentMenu` / `focusChild` pair before `enterSubmenu`): the item is entered on the
+		// horizontal page that lists it, focused on it, unless that page is the one already shown.
+		if (const Node* page = shortcut_landing_page(ctx_.root, child); page != nullptr && page != focused()) {
+			descend_to(*page);
+			focus_column(child);
+			return;
+		}
 	}
 	descend_to(child);
 }
@@ -1744,11 +1748,10 @@ Result MenuScene::after_render() {
 			// own hook answers, because the answer is value-dependent for two of the seven ported
 			// overrides -- see `node.h`'s `SelectChainFn`.
 			//
-			// Not ported from that arm: legacy's `maybeGetParentMenu`/`focusChild` reparenting,
-			// which enters a horizontal *parent* with the named child focused rather than the child
-			// itself. `enter_child` has never done that for any descent (a submenu row press does
-			// not either), so this is a pre-existing difference the chaining work inherits rather
-			// than one it introduces.
+			// Legacy's `maybeGetParentMenu`/`focusChild` reparenting, which enters a horizontal
+			// *parent* with the named child focused rather than the child itself, is ported for the
+			// range picker's answer only (`enter_child`'s `pending_after_range` arm); other chains
+			// still enter the child itself.
 			enter_child(*chained);
 		}
 		else {
@@ -2064,8 +2067,12 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 			const Node* current = pad_subject();
 			const ShortcutPos here = current != nullptr ? shortcut_pos(ctx_.root, *current) : ShortcutPos{};
 			const bool same_pad = here.valid && here.x == event.x && here.y == event.y;
+			// `getCurrentMenuItem()->getParamKind()`: on a horizontal page that is the focused
+			// column's own when it is not a submenu (`Submenu::getParamKind`, `shouldForwardButtons`),
+			// which is `focused_value()`.
+			const Node* value = focused_value();
 			const bool is_patch_cable =
-			    current != nullptr && current->bind.param.kind == deluge::modulation::params::Kind::PATCH_CABLE;
+			    value != nullptr && value->bind.param.kind == deluge::modulation::params::Kind::PATCH_CABLE;
 			st_.second_layer = (same_pad && !is_patch_cable) ? !st_.second_layer : false;
 		}
 
@@ -2300,6 +2307,101 @@ bool MenuScene::go_up_one_level() {
 
 void MenuScene::enter_submenu(const Node& node) {
 	descend_to(node); // `sound_editor.cpp:364-368`
+}
+
+namespace {
+
+// `SoundEditor::getCurrentHorizontalMenusChain`'s five chains (`gui/ui/menus.cpp`,
+// `horizontalMenusChainFor*`), each `HorizontalMenuGroup` spelled as its member pages in order.
+constexpr const Node* kSoundChain[] = {
+    &nodes::recorder,   &nodes::sound_master, &nodes::source0,     &nodes::source1,
+    &nodes::modulator0, &nodes::modulator1,   &nodes::osc_mixer,   &nodes::unison,
+    &nodes::voice,      &nodes::env1,         &nodes::env2,        &nodes::env3,
+    &nodes::env4,       &nodes::lfo1,         &nodes::lfo2,        &nodes::lfo3,
+    &nodes::lfo4,       &nodes::lpf,          &nodes::hpf,         &nodes::filter_routing,
+    &nodes::eq,         &nodes::mod_fx,       &nodes::reverb,      &nodes::reverb_sidechain,
+    &nodes::delay,      &nodes::distortion,   &nodes::sidechain,   &nodes::audio_comp,
+    &nodes::stutter,    &nodes::arp_basic,    &nodes::arp_pattern, &nodes::randomizer};
+constexpr const Node* kKitChain[] = {&nodes::kit_clip_master,
+                                     &nodes::global_lpf,
+                                     &nodes::global_hpf,
+                                     &nodes::filter_routing,
+                                     &nodes::eq,
+                                     &nodes::global_mod_fx,
+                                     &nodes::global_reverb,
+                                     &nodes::reverb_sidechain,
+                                     &nodes::global_delay,
+                                     &nodes::global_distortion,
+                                     &nodes::global_sidechain,
+                                     &nodes::audio_comp,
+                                     &nodes::stutter,
+                                     &nodes::arp_basic_kit,
+                                     &nodes::arp_pattern,
+                                     &nodes::randomizer};
+constexpr const Node* kSongChain[] = {
+    &nodes::song_master,  &nodes::global_lpf,        &nodes::global_hpf,    &nodes::filter_routing,
+    &nodes::eq,           &nodes::global_mod_fx,     &nodes::global_reverb, &nodes::reverb_sidechain,
+    &nodes::global_delay, &nodes::global_distortion, &nodes::audio_comp,    &nodes::stutter};
+constexpr const Node* kAudioClipChain[] = {&nodes::song_master,
+                                           &nodes::audio_clip_sample,
+                                           &nodes::global_lpf,
+                                           &nodes::global_hpf,
+                                           &nodes::filter_routing,
+                                           &nodes::eq,
+                                           &nodes::global_mod_fx,
+                                           &nodes::global_reverb,
+                                           &nodes::reverb_sidechain,
+                                           &nodes::global_delay,
+                                           &nodes::audio_clip_distortion,
+                                           &nodes::global_sidechain,
+                                           &nodes::audio_comp,
+                                           &nodes::stutter};
+constexpr const Node* kMidiOrCvChain[] = {&nodes::arp_basic_midi, &nodes::arp_pattern, &nodes::randomizer};
+
+/// @brief The chain legacy searches under @p root: a kit row and its MIDI/gate drums take the
+///        sound chain, the two session roots the song chain; the settings and note roots none.
+std::span<const Node* const> chain_for(MenuContext::Root root) {
+	switch (root) {
+	case MenuContext::Root::Sound:
+	case MenuContext::Root::Drum:
+	case MenuContext::Root::MidiDrum:
+	case MenuContext::Root::GateDrum:
+		return kSoundChain;
+	case MenuContext::Root::KitGlobalFx:
+		return kKitChain;
+	case MenuContext::Root::Song:
+	case MenuContext::Root::Performance:
+		return kSongChain;
+	case MenuContext::Root::AudioClip:
+		return kAudioClipChain;
+	case MenuContext::Root::MidiOrCv:
+		return kMidiOrCvChain;
+	default:
+		return {};
+	}
+}
+
+} // namespace
+
+const Node* shortcut_landing_page(MenuContext::Root root, const Node& target) {
+	// `getCurrentHorizontalMenusChain` answers nothing with the feature off, so the item opens alone.
+	if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus)) {
+		return nullptr;
+	}
+	// `maybeGetParentMenu`'s two early answers: the start markers and the audio clip's waveform go
+	// straight to the marker editor, the file selectors straight to the browser.
+	constexpr const Node* kOpensItself[] = {&nodes::sample0_start, &nodes::sample1_start, &nodes::audio_clip_waveform,
+	                                        &nodes::file0_selector, &nodes::file1_selector};
+	if (std::ranges::find(kOpensItself, &target) != std::ranges::end(kOpensItself)) {
+		return nullptr;
+	}
+	// `maybeGetParentMenu`'s search: the first chain page that lists the item.
+	for (const Node* page : chain_for(root)) {
+		if (page->kind == Kind::Submenu && std::ranges::contains(page->children, &target)) {
+			return page;
+		}
+	}
+	return nullptr;
 }
 
 bool shortcut_applies(const Node& target, const MenuContext& ctx) {

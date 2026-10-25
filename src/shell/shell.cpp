@@ -769,7 +769,7 @@ void Shell::render_grid(uint32_t now_ms) {
 	Scene* const focus = &stack_.input_top();
 	{
 		const InputMask mask = scenes[base] == focus ? InputMask::all() : InputMask::none();
-		ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), mask, &g.flashes);
+		ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), mask, &g.flashes, &g.gate);
 		scenes[base]->render_grid(frame);
 		append_rendered(scenes[base]);
 	}
@@ -780,7 +780,7 @@ void Shell::render_grid(uint32_t now_ms) {
 		}
 		for (size_t k = base + 1; k < scenes.size(); k++) {
 			const InputMask mask = scenes[k] == focus ? InputMask::all() : InputMask::none();
-			ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), mask, &g.flashes);
+			ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), mask, &g.flashes, &g.gate);
 			scenes[k]->render_grid(frame);
 			append_rendered(scenes[k]);
 		}

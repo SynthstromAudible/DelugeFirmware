@@ -6,7 +6,8 @@ namespace deluge::ui::grid {
 
 using gfx::grid::Rect;
 
-GridFrame root_grid_frame(gfx::grid::PadGrid& grid, FrameContext& ctx, InputMask mask, PadFlashList* flashes) {
+GridFrame root_grid_frame(gfx::grid::PadGrid& grid, FrameContext& ctx, InputMask mask, PadFlashList* flashes,
+                          RepaintGate* surface_gate) {
 	// The whole surface, sidebar included: GridDimensions::cols() is main_cols + sidebar_cols and
 	// PadGrid addresses that as one range, so the root frame is one 18-wide coordinate space on a
 	// Deluge rather than a main area with a sidebar bolted on beside it.
@@ -14,7 +15,7 @@ GridFrame root_grid_frame(gfx::grid::PadGrid& grid, FrameContext& ctx, InputMask
 	const Rect all{0, 0, d.cols(), d.rows};
 	// Requested == visible at the root: nothing clips the whole surface. `mask` is the caller's
 	// lever; regions below it only ever narrow further.
-	return GridFrame{{ctx, mask}, grid, all, all, flashes};
+	return GridFrame{{ctx, mask}, grid, all, all, flashes, surface_gate};
 }
 
 Response GridFrame::pad(int32_t x, int32_t y, RGB colour) {

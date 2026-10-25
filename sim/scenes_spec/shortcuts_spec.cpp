@@ -41,11 +41,15 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
+#include "gui/menu_item/file_selector.h"
+#include "gui/menu_item/horizontal_menu.h"
+#include "gui/menu_item/horizontal_menu_group.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/menus.h"
 #include "gui/ui/sound_editor.h"
 
 #include "model/clip/instrument_clip.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_instrument.h"
 
@@ -72,6 +76,14 @@ using namespace deluge::scenes;
 using deluge::scenes::menu::MenuContext;
 using deluge::scenes::menu::Node;
 using deluge::scenes::menu::ShortcutPos;
+
+// The per-root horizontal-menu chains `SoundEditor::getCurrentHorizontalMenusChain` picks from,
+// file-scope globals of `gui/ui/menus.cpp` named in no header.
+extern deluge::vector<deluge::gui::menu_item::HorizontalMenu*> horizontalMenusChainForSound;
+extern deluge::vector<deluge::gui::menu_item::HorizontalMenu*> horizontalMenusChainForKit;
+extern deluge::vector<deluge::gui::menu_item::HorizontalMenu*> horizontalMenusChainForSong;
+extern deluge::vector<deluge::gui::menu_item::HorizontalMenu*> horizontalMenusChainForAudioClip;
+extern deluge::vector<deluge::gui::menu_item::HorizontalMenu*> horizontalMenusChainForMidiOrCv;
 
 // `modSourceShortcuts` is a file-scope global in `sound_editor.cpp:66` and named in no header;
 // `LegacyVersion1` below has to restore the two cells the V1 arm writes.
@@ -323,6 +335,48 @@ struct LegacyVersion1 {
 		menu::set_shortcuts_version(port_version);
 	}
 };
+
+/// @brief `SoundEditor::maybeGetParentMenu`'s answer for @p item against @p chain: null for the
+///        start markers, the audio clip's end marker and the file selectors, else the first chain
+///        menu that lists it.
+deluge::gui::menu_item::HorizontalMenu* legacy_parent(std::span<deluge::gui::menu_item::HorizontalMenu* const> chain,
+                                                      ::MenuItem* item) {
+	if (item == &sample0StartMenu || item == &sample1StartMenu || item == &audioClipSampleMarkerEditorMenuEnd) {
+		return nullptr;
+	}
+	const auto listing =
+	    std::ranges::find_if(chain, [&](deluge::gui::menu_item::HorizontalMenu* m) { return m->hasItem(item); });
+	if (listing == chain.end()) {
+		return nullptr;
+	}
+	if (item == &deluge::gui::menu_item::file0SelectorMenu || item == &deluge::gui::menu_item::file1SelectorMenu) {
+		return nullptr;
+	}
+	return *listing;
+}
+
+/// @brief A port root, the legacy root it was transcribed from, and the chain legacy searches for it.
+struct LandingRoot {
+	Root root;
+	deluge::gui::menu_item::Submenu* legacy;
+	deluge::vector<deluge::gui::menu_item::HorizontalMenu*>* chain;
+};
+
+/// @brief Every root with shortcut cells, paired as `getCurrentHorizontalMenusChain` pairs them: a
+///        kit row and its MIDI/gate drums take the sound chain, the session roots the song chain.
+std::vector<LandingRoot> landing_roots() {
+	return {
+	    {Root::Sound, &soundEditorRootMenu, &horizontalMenusChainForSound},
+	    {Root::Drum, &soundEditorRootMenuDrum, &horizontalMenusChainForSound},
+	    {Root::MidiDrum, &soundEditorRootMenuMidiDrum, &horizontalMenusChainForSound},
+	    {Root::GateDrum, &soundEditorRootMenuGateDrum, &horizontalMenusChainForSound},
+	    {Root::KitGlobalFx, &soundEditorRootMenuKitGlobalFX, &horizontalMenusChainForKit},
+	    {Root::Song, &soundEditorRootMenuSongView, &horizontalMenusChainForSong},
+	    {Root::Performance, &soundEditorRootMenuPerformanceView, &horizontalMenusChainForSong},
+	    {Root::AudioClip, &soundEditorRootMenuAudioClip, &horizontalMenusChainForAudioClip},
+	    {Root::MidiOrCv, &soundEditorRootMenuMIDIOrCV, &horizontalMenusChainForMidiOrCv},
+	};
+}
 
 /// @brief Every root, so a shape rule can be stated once over all of them.
 const std::vector<Root>& all_roots() {
@@ -1059,7 +1113,88 @@ describe shortcut_blink_cadence("scenes::menu shortcut blink: legacy's counter",
 		}
 	});
 });
+describe shortcut_landing("scenes::menu shortcut landing against SoundEditor::maybeGetParentMenu", $ {
+	it("lands every shortcut cell of every root on the page legacy's chain search finds", _ {
+		const bool was_on = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);
+		std::string bad;
+		size_t compared = 0;
+		size_t on_a_page = 0;
+		// Every root's legacy-to-port identity together: a chain may name a page the root's own tree
+		// does not hold (a MIDI drum's chain is the sound chain).
+		std::map<const ::MenuItem*, const Node*> all_identity;
+		for (const LandingRoot& lr : landing_roots()) {
+			map_tree(*lr.legacy, *menu::MenuScene::roots()[static_cast<size_t>(lr.root)], all_identity);
+		}
+		for (const LandingRoot& lr : landing_roots()) {
+			const Node* port_root = menu::MenuScene::roots()[static_cast<size_t>(lr.root)];
+			std::map<const ::MenuItem*, const Node*> identity;
+			map_tree(*lr.legacy, *port_root, identity);
+			std::map<const Node*, ::MenuItem*> legacy_of;
+			for (const auto& [item, node] : identity) {
+				legacy_of.emplace(node, const_cast<::MenuItem*>(item));
+			}
+			std::set<const Node*> seen;
+			for (bool second : {false, true}) {
+				for (uint8_t x = 0; x < menu::kShortcutCols; x++) {
+					for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
+						const Node* node = menu::shortcut_node(lr.root, second, x, y);
+						if (node == nullptr || !seen.insert(node).second) {
+							continue;
+						}
+						const auto found = legacy_of.find(node);
+						if (found == legacy_of.end()) {
+							continue;
+						}
+						compared++;
+						auto* legacy_page = legacy_parent(*lr.chain, found->second);
+						const Node* port_page = menu::shortcut_landing_page(lr.root, *node);
+						const std::string where = "root " + std::to_string(static_cast<int>(lr.root)) + " ("
+						                          + std::to_string(x) + ", " + std::to_string(y) + ") "
+						                          + text_of(node->name) + ": ";
+						if (legacy_page == nullptr) {
+							if (port_page != nullptr) {
+								bad += where + "legacy opens it alone, the port on " + text_of(port_page->name) + "\n";
+							}
+							continue;
+						}
+						on_a_page++;
+						if (port_page == nullptr) {
+							bad += where + "legacy opens it on a page, the port alone\n";
+							continue;
+						}
+						// A group answers for the member menu that lists the item; any legacy
+						// horizontal menu listing it that maps to the port page agrees.
+						bool agrees = false;
+						for (const auto& [item, mapped] : all_identity) {
+							auto* menu = dynamic_cast<deluge::gui::menu_item::HorizontalMenu*>(const_cast<::MenuItem*>(item));
+							if (menu != nullptr && mapped == port_page && menu->hasItem(found->second)
+							    && (menu == legacy_page || legacy_page->hasItem(found->second))) {
+								agrees = true;
+							}
+						}
+						// A chain page outside the root's tree (the recorder page): by name.
+						if (!agrees
+						    && dynamic_cast<deluge::gui::menu_item::HorizontalMenuGroup*>(legacy_page) == nullptr
+						    && std::string{legacy_page->getName()} == text_of(port_page->name)
+						    && std::ranges::contains(port_page->children, node)) {
+							agrees = true;
+						}
+						if (!agrees) {
+							bad += where + "the port lands on " + text_of(port_page->name) + "\n";
+						}
+					}
+				}
+			}
+		}
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus,
+		                           was_on ? RuntimeFeatureStateToggle::On : RuntimeFeatureStateToggle::Off);
+		expect(bad).to_equal(std::string{});
+		expect(compared > size_t(150)).to_be_true();
+		expect(on_a_page > size_t(80)).to_be_true();
+	});
+});
 // clang-format on
 
 DELUGE_SPEC(shortcuts_spec, shortcuts_transcription, shortcuts_shape, shortcuts_validation, shortcuts_profile,
-            shortcuts_version_1, shortcut_blink_cadence)
+            shortcuts_version_1, shortcut_blink_cadence, shortcut_landing)

@@ -777,11 +777,8 @@ public:
 	/// @brief Prepare the next `on_enter` to open a shortcut pad's @p target where
 	///        `SoundEditor::setup(clip, item, sourceIndex)` lands it, and name the node to open.
 	///
-	/// Legacy opens a named item on the horizontal page that lists it, focused on it
-	/// (`SoundEditor::maybeGetParentMenu` and `parent->focusChild`), except for the two sample start
-	/// markers, the audio clip's waveform and the two file selectors, which open themselves. The
-	/// page is the one `reroot_to_scene_opener_page()` finds, under the context installed now, so
-	/// `open()` must already have run.
+	/// The page is `shortcut_landing_page(menu_context().root, target)`, so `open()` must already
+	/// have run. Only the column to focus is recorded; the path moves in `on_enter`.
 	///
 	/// @param target The node the pad names.
 	/// @return The `SceneId::arg` to open: the page's id when the target lands on a page, else the
@@ -927,7 +924,9 @@ private:
 	MenuActionRequest taken_action_{};
 
 	/// @brief The column the next `on_enter` focuses on the page it opens, set by
-	///        `arm_shortcut_landing`. Not part of `MenuState`: the shell restores that between the
+	///        `arm_shortcut_landing` (from `handle()`'s jump, alongside the `Replace` it returns, or
+	///        from the application before it opens the guest). Consumed by `on_enter`, cleared by
+	///        `open()` and `on_resume()`. Not part of `MenuState`: the shell restores that between the
 	///        `Replace` and `on_enter`.
 	const Node* landing_column_ = nullptr;
 
@@ -990,6 +989,19 @@ public:
 ///        as a param (the transposes), or a custom item that says so (the cable strength pages) -- legacy's
 ///        `Automation` items.
 bool is_automation_item(const Node& item);
+
+/// @brief The horizontal page a named @p target opens on under @p root, or `nullptr` when it opens
+///        alone -- `SoundEditor::maybeGetParentMenu`.
+///
+/// Null with the `HorizontalMenus` feature off (`getCurrentHorizontalMenusChain` answers nothing)
+/// and for the two sample start markers, the audio clip's waveform and the two file selectors,
+/// which open their own scenes. Otherwise the first page of @p root's horizontal-menu chain that
+/// lists it, the chain transcribed from `SoundEditor::getCurrentHorizontalMenusChain`'s (each group
+/// as its member pages; pinned against legacy's search by `shortcuts_spec`).
+/// @param root   The menu root.
+/// @param target The named node.
+/// @return The page, or `nullptr`.
+const Node* shortcut_landing_page(MenuContext::Root root, const Node& target);
 
 /// @brief Whether a shortcut pad's @p target may open in @p ctx, the question `SoundEditor::setup`
 ///        asks of a named item before it opens anything (`checkPermissionToBeginSession`; on `NO`

@@ -186,6 +186,19 @@ struct HeldShift {
 	HeldShift& operator=(const HeldShift&) = delete;
 };
 
+/// @brief Restore the root UI an example changes with `setRootUILowLevel`.
+struct RootUIGuard {
+	RootUI* saved = getRootUI();
+	RootUIGuard() = default;
+	~RootUIGuard() {
+		if (saved != nullptr) {
+			setRootUILowLevel(saved);
+		}
+	}
+	RootUIGuard(const RootUIGuard&) = delete;
+	RootUIGuard& operator=(const RootUIGuard&) = delete;
+};
+
 /// @brief Whether @p node is a horizontal page.
 bool is_horizontal_page(const menu::Node* node) {
 	return node != nullptr && node->kind == menu::Kind::Submenu && node->layout == menu::Layout::Horizontal;
@@ -454,6 +467,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 
 	it("marks a keyboard-screen root", _ {
 		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 
 		setRootUILowLevel(&instrumentClipView);
@@ -478,7 +492,9 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		deluge::hid::display::OLED oled_display;
 		deluge::hid::Display* const saved_display = display;
 		display = &oled_display;
+		const int32_t saved_mode = currentUIMode;
 		currentUIMode = UI_MODE_NONE;
+		RootUIGuard root_guard;
 		HeldShift shift;
 
 		{
@@ -486,6 +502,8 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 			setRootUILowLevel(&instrumentClipView);
 			(void)soundEditor.potentialShortcutPadAction(8, 7, true);
 			expect(getCurrentUI() == &soundEditor).to_be_true();
+			// Legacy's own close, which ends the item's session and clears the navigation record.
+			soundEditor.exitCompletely();
 			nullifyUIs();
 		}
 		{
@@ -498,6 +516,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		}
 		deluge::hid::display::OLED::removePopup();
 		display = saved_display;
+		currentUIMode = saved_mode;
 	});
 });
 

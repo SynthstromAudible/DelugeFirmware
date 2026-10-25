@@ -67,7 +67,7 @@
 ///
 /// | # | site | what it wants | why it is not mapped |
 /// |---|---|---|---|
-/// | 10 | `gui/ui/browser/sample_browser.cpp:1111-1123` `SampleBrowser::claimCurrentFile` | `parentMenuHeadingTo` focused on `menuItemHeadingTo` -- two arbitrary `MenuItem*`s the browser was handed on the way in | same reason, and this is the *legacy* browser: the ported one parks its choice in `BrowserScene::take_choice()` (`scenes/browser/browser_scene.h:382`, `browser_scene.cpp:417`). **That outbox is drained and the re-rooting is done** -- `deluge::gui::ui::dispatchShellChoices` (`gui/ui/shell_choice_dispatch.cpp`) takes it every guest tick and performs the claim (F3 tasks 1-2), and `shellSampleClaimDone`'s success arm then calls `MenuScene::reroot_to_scene_opener_page()` (F3 task 3). **This pair is still never written under the toggle, and that is deliberate**: it is written in exactly one place, `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp:2073 maybeGetParentMenu`, the two writes at `:2092-2093`), which the ported path never enters -- and `shellSampleClaimDone` claims with `loadWithoutExiting = true`, which skips the block that would have read it. Reviving that block would have let a stale pair from a pre-toggle legacy session re-root the *legacy* editor; the port re-roots `MenuState::path`/`depth` instead (migration §10.2 item 4). **So this row's stated reason for not being gated is spent.** "Two arbitrary `MenuItem*`s with no port" was true until F3 task 3, and `MenuScene::reroot_to_scene_opener_page()` plus `MenuState::scene_opener` ARE that pair's port. What is left is a decision rather than a lookup -- this is the *legacy* browser, reached with the toggle on only from the four unmapped sites -- and F3 did not make it, which is why this row is still in the not-gated table |
+/// | 10 | `gui/ui/browser/sample_browser.cpp:1111-1123` `SampleBrowser::claimCurrentFile` | `parentMenuHeadingTo` focused on `menuItemHeadingTo` -- two arbitrary `MenuItem*`s the browser was handed on the way in | same reason, and this is the *legacy* browser: the ported one parks its choice in `BrowserScene::take_choice()` (`scenes/browser/browser_scene.h:382`, `browser_scene.cpp:417`). **That outbox is drained and the re-rooting is done** -- `deluge::gui::ui::dispatchShellChoices` (`gui/ui/shell_choice_dispatch.cpp`) takes it every guest tick and performs the claim (F3 tasks 1-2), and `shellSampleClaimDone`'s success arm then calls `MenuScene::reroot_to_scene_opener_page()` (F3 task 3). **This pair is still never written under the toggle, and that is deliberate**: it is written in exactly one place, `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp:2073 maybeGetParentMenu`, the two writes at `:2092-2093`), which the ported path never enters -- and `shellSampleClaimDone` claims with `loadWithoutExiting = true`, which skips the block that would have read it. Reviving that block would have let a stale pair from a pre-toggle legacy session re-root the *legacy* editor; the port re-roots `MenuState::path`/`depth` instead (migration §10.2 item 4). **So this row's stated reason for not being gated is spent.** "Two arbitrary `MenuItem*`s with no port" was true until F3 task 3, and `MenuScene::reroot_to_scene_opener_page()` plus `MenuState::scene_opener` ARE that pair's port. What is left is a decision rather than a lookup -- this is the *legacy* browser, reached with the toggle on only from the three unmapped sites and site 9's legacy fallback -- and F3 did not make it, which is why this row is still in the not-gated table |
 /// | 11 | `model/clip/instrument_clip_minder.cpp:251-252` `InstrumentClipMinder::createNewInstrument` | `&dxMenu` (`gui/ui/menus.cpp:1722`) | **`dxMenu` has no port.** `src/scenes/README.md:1575-1576` records it as owed: three bespoke DX items that are E2's browser work |
 /// | 14 | `gui/views/instrument_clip_view.cpp:5686-5693` `InstrumentClipView::enterDrumCreator` | **the same node site 8 wants**: its own body ran `soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)` a few lines earlier (`gui/views/instrument_clip_view.cpp:5669`). | **not gated because it is a fallback, not an entry.** It runs only when `openUI(&audioRecorder)` or `openUI(&sampleBrowser)` has just *refused*, and what legacy then shows is the file-selector item standing in for the browser it could not open. Routing it to the guest would enter `nodes::file0_selector`, whose own hook asks the shell to push the **ported** browser -- answering a failed browser open by opening a browser. That is a behaviour decision for task 11's A/B run, not a node lookup, so the node being known is not enough to map it. |
 // clang-format on
@@ -124,6 +124,33 @@ menu::MenuContext resolveContext(Clip* clip, int32_t sourceIndex, bool performan
 	return ctx;
 }
 
+/// @brief The node `MenuScene::roots()` holds for @p ctx's root, or `nullptr` when there is none.
+///
+/// A refusal, not decoration, though unreachable: `context_for` only ever assigns a real
+/// enumerator, never `Root::Count`.
+const menu::Node* rootNodeFor(const menu::MenuContext& ctx) {
+	const std::span<const menu::Node* const> roots = menu::MenuScene::roots();
+	const size_t rootIndex = static_cast<size_t>(ctx.root);
+	return rootIndex < roots.size() ? roots[rootIndex] : nullptr;
+}
+
+/// @brief Install @p ctx on `MenuScene` and open the guest on @p arg, or on where @p shortcut lands
+///        when it is given.
+///
+/// The root passed to `open` is not what decides where the menu lands -- `MenuScene::on_enter`
+/// re-roots from `SceneId::arg`, or from `ctx_.root` for `arg == 0` (the `@warning` on
+/// `MenuScene::open`). It is spelled with the resolved root because `open(root, ctx)` is the only
+/// entry point that installs a `MenuContext`.
+/// @return Whether the guest is now open.
+bool openGuest(const menu::Node& root, const menu::MenuContext& ctx, uint16_t arg, const menu::Node* shortcut) {
+	deluge::scenes::menu_scene().open(root, ctx);
+	if (shortcut != nullptr) {
+		arg = deluge::scenes::menu_scene().arm_shortcut_landing(*shortcut);
+	}
+	shellHostUI.setInitialScene(deluge::ui::shell::SceneId{.kind = deluge::ui::shell::SceneKind::FirstApp, .arg = arg});
+	return openUI(&shellHostUI);
+}
+
 } // namespace
 
 bool shellMenuEnabled() {
@@ -162,9 +189,8 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 		                                            : menu::MenuContext::Root::NoteRowEditor;
 	}
 
-	const std::span<const menu::Node* const> roots = menu::MenuScene::roots();
-	const size_t rootIndex = static_cast<size_t>(ctx.root);
-	if (rootIndex >= roots.size() || roots[rootIndex] == nullptr) {
+	const menu::Node* root = rootNodeFor(ctx);
+	if (root == nullptr) {
 		return false;
 	}
 
@@ -217,18 +243,7 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 		view.setActiveModControllableTimelineCounter(clip);
 	}
 
-	// The root passed here is **not** what decides where the menu lands -- `MenuScene::on_enter`
-	// re-roots from `SceneId::arg`, or from `ctx_.root` for `arg == 0`, one call later. That is a
-	// `MenuScene` API property rather than anything this call site can fix, and it is recorded as a
-	// `@warning` on `MenuScene::open` together with the mutation that measured it. The call is
-	// spelled with the resolved root anyway, because `open(root, ctx)` is the only entry point that
-	// installs a `MenuContext` and `roots[0]` here would be actively misleading to a reader.
-	//
-	// The `rootIndex` bounds test above IS a refusal and not decoration, but it is unreachable
-	// today: `context_for` only ever assigns a real enumerator, never `Root::Count`.
-	deluge::scenes::menu_scene().open(*roots[rootIndex], ctx);
-	shellHostUI.setInitialScene(deluge::ui::shell::SceneId{.kind = deluge::ui::shell::SceneKind::FirstApp, .arg = arg});
-	return openUI(&shellHostUI);
+	return openGuest(*root, ctx, arg, nullptr);
 }
 
 bool openShellMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceView, bool sessionOrArrangerRoot,
@@ -248,16 +263,12 @@ bool openShellMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceV
 	if (node == nullptr || menu::node_id(*node) == 0 || !menu::shortcut_applies(*node, ctx)) {
 		return false;
 	}
-	const std::span<const menu::Node* const> roots = menu::MenuScene::roots();
-	const size_t rootIndex = static_cast<size_t>(ctx.root);
-	if (rootIndex >= roots.size() || roots[rootIndex] == nullptr) {
+	const menu::Node* root = rootNodeFor(ctx);
+	if (root == nullptr) {
 		return false;
 	}
 	// No undo-log wipe: `setup()` wipes only when it is given no item.
-	deluge::scenes::menu_scene().open(*roots[rootIndex], ctx);
-	const uint16_t arg = deluge::scenes::menu_scene().arm_shortcut_landing(*node);
-	shellHostUI.setInitialScene(deluge::ui::shell::SceneId{.kind = deluge::ui::shell::SceneKind::FirstApp, .arg = arg});
-	return openUI(&shellHostUI);
+	return openGuest(*root, ctx, 0, node);
 }
 
 } // namespace deluge::gui::ui

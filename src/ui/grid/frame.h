@@ -124,6 +124,14 @@ struct GridFrame : FrameInput {
 	/// Where `flash()` records, shared with every region below this frame; null for a frame whose
 	/// flashes go nowhere (an effect pass, a rig that does not watch them).
 	PadFlashList* flashes = nullptr;
+	/// The grid surface's own repaint gate, shared with every region below this frame; null where
+	/// the frame has none, and `grid_gate()` then answers the context's gate.
+	RepaintGate* surface_gate = nullptr;
+
+	/// @brief The gate that repaints the grid alone: the surface's own where the shell gave one,
+	///        else the context's (which may repaint every surface).
+	/// @return The gate.
+	RepaintGate& grid_gate() const { return surface_gate != nullptr ? *surface_gate : ctx.gate; }
 
 	/// @name Accessors
 	/// @{
@@ -292,7 +300,8 @@ struct GridFrame : FrameInput {
 	template <class F>
 	void region(gfx::grid::Rect local, InputMask granted, F&& body) {
 		const gfx::grid::Rect translated{rect.x + local.x, rect.y + local.y, local.w, local.h};
-		GridFrame child{{ctx, child_mask(granted)}, grid, translated, clip.intersect(translated), flashes};
+		GridFrame child{{ctx, child_mask(granted)}, grid,    translated,
+		                clip.intersect(translated), flashes, surface_gate};
 		std::forward<F>(body)(child);
 	}
 
@@ -316,9 +325,9 @@ struct GridFrame : FrameInput {
 	// buffer is not an observable change -- the frame's identity is the members above.
 	//
 	// These must stay LAST and keep their initialisers: `region` above builds its child by
-	// aggregate initialisation of `{ctx, mask}, grid, rect, clip, flashes` in that order -- the
-	// FrameInput base subobject first, then those four members -- so GridFrame must remain an
-	// aggregate and nothing may be inserted between `flashes` and here.
+	// aggregate initialisation of `{ctx, mask}, grid, rect, clip, flashes, surface_gate` in that
+	// order -- the FrameInput base subobject first, then those five members -- so GridFrame must
+	// remain an aggregate and nothing may be inserted between `surface_gate` and here.
 	mutable PadEvent local_[kMaxLocalEvents] = {};
 	mutable uint8_t local_count_ = 0;
 };
@@ -343,8 +352,9 @@ struct GridFrame : FrameInput {
 /// @param ctx the tick's frame context
 /// @param mask input mask granted to the root frame; pads are unaffected regardless
 /// @param flashes where the frame and its regions record `flash()`es; null drops them
+/// @param surface_gate the grid surface's own repaint gate (`grid_gate()`); null for none
 /// @return The root `GridFrame` for this tick.
 GridFrame root_grid_frame(gfx::grid::PadGrid& grid, FrameContext& ctx, InputMask mask = InputMask::all(),
-                          PadFlashList* flashes = nullptr);
+                          PadFlashList* flashes = nullptr, RepaintGate* surface_gate = nullptr);
 
 } // namespace deluge::ui::grid

@@ -39,6 +39,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/edits/setting_edit.h"
 #include "model/project_bridge/param_ids.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "modulation/sync.h" // NUM_SYNC_VALUES
@@ -988,6 +989,87 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().focused() == &settings_root).to_be_true();
 		expect(r.shell.notices().last_popup_text())
 		    .to_equal(std::string{deluge::l10n::get(String::STRING_FOR_PARAMETER_NOT_APPLICABLE)});
+	});
+
+	it("a range-dependent jump on a multisampled source lands, after the range pick, on the page", _ {
+		// `setup()` puts the picker first (MUST_SELECT_RANGE); the picker's select answers the item, and
+		// `SoundEditor`'s select arm enters it on its horizontal page, focused on it
+		// (`maybeGetParentMenu`, `focusChild`, then `enterSubmenu`).
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		sound->sources[0].ranges.insertMultiRange(0);
+		sound->sources[0].ranges.insertMultiRange(1);
+		deluge::edits::recordRanges(*sound, 0);
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		const Node* target = menu::shortcut_node(menu_scene().menu_context().root, false, 2, 1);
+		expect(target == &nodes::source0_transpose).to_be_true();
+
+		r.button(kShiftX, kShiftY, true, 10);
+		r.pad(2, 1, 64, 20);
+		r.shell.tick(30);
+		r.button(kShiftX, kShiftY, false, 40);
+		r.shell.tick(50);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(menu_scene().state().pending_after_range == &nodes::source0_transpose).to_be_true();
+
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 60);
+		r.shell.tick(70);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 80);
+		r.shell.tick(90);
+		expect(depth_of()).to_equal(1);
+		const Node* page = menu_scene().focused();
+		expect(page != nullptr && page->kind == menu::Kind::Submenu && page->layout == menu::Layout::Horizontal)
+		    .to_be_true();
+		expect(menu_scene().focused_value() == &nodes::source0_transpose).to_be_true();
+	});
+
+	it("lands on the leaf itself with the HorizontalMenus feature off", _ {
+		// `getCurrentHorizontalMenusChain` answers nothing with the feature off, so `setup()` opens
+		// the item alone.
+		select_language();
+		deluge::notify::dirty().drain();
+		const bool was_on = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus);
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::Off);
+		expect(menu_scene().arm_shortcut_landing(nodes::lpf_freq)).to_equal(menu::node_id(nodes::lpf_freq));
+		r.button(kShiftX, kShiftY, true, 10);
+		r.pad(kLpfFreqX, kLpfFreqY, 64, 20);
+		r.shell.tick(30);
+		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
+
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);
+		expect(menu_scene().arm_shortcut_landing(nodes::lpf_freq)).to_equal(menu::node_id(nodes::lpf));
+		r.pad(kHpfFreqX, kHpfFreqY, 64, 40);
+		r.shell.tick(50);
+		expect(menu_scene().focused_value() == &nodes::hpf_freq).to_be_true();
+		expect(menu_scene().focused() != &nodes::hpf_freq).to_be_true();
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus,
+		                           was_on ? RuntimeFeatureStateToggle::On : RuntimeFeatureStateToggle::Off);
+	});
+
+	it("re-sends no OLED frame when only the page's pad blink steps", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.button(kShiftX, kShiftY, true, 0);
+		r.pad(kLpfFreqX, kLpfFreqY, 64, 1);
+		r.shell.tick(2);
+		r.button(kShiftX, kShiftY, false, 3);
+		r.shell.tick(10);
+		r.shell.tick(100);
+		const size_t blits = r.fake.blits.size();
+		const size_t flashes = r.fake.flashes_sent.size();
+		for (uint32_t t = 120; t < 1000; t += 10) {
+			r.shell.tick(t);
+		}
+		expect(r.fake.flashes_sent.size() > flashes).to_be_true();
+		expect(r.fake.blits.size()).to_equal(blits);
 	});
 
 	it("lands the start markers, the waveform and the file selectors on themselves, not on their page", _ {

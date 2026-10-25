@@ -23,13 +23,13 @@
 /// Spec F §2.1's *first tenant*: every place legacy enters `soundEditor` today becomes
 /// `openUI(&shellHostUI)` plus a `Menu{node}` push, **behind
 /// `RuntimeFeatureSettingType::ShellMenu`**. There are fourteen such places
-/// (`grep -rn "openUI(&soundEditor)" src/deluge`); ten of them route here and four stay on the
-/// legacy path because the node they want has no port. The table is in
+/// (`grep -rn "openUI(&soundEditor)" src/deluge`); eleven of them route here and three stay on
+/// the legacy path because the node they want has no port. The table is in
 /// `gui/ui/shell_menu_entry.cpp`.
 ///
 /// @par Why this is its own translation unit
 ///
-/// The same reason `gui/ui/shell_guest_services.h` gives, one layer out: the ten call sites are
+/// The same reason `gui/ui/shell_guest_services.h` gives, one layer out: the gated call sites are
 /// ordinary legacy views, and making each of them name `deluge::scenes::menu::context_for`,
 /// `MenuScene::roots()` and `SceneId` would put `src/scenes` includes into eight `gui/views/` and
 /// `model/clip/` translation units for four lines of work apiece. `ShellMenuNode` below exists for
@@ -38,7 +38,7 @@
 ///
 /// @par Why the header is in `util/` and the implementation in `gui/ui/`
 ///
-/// **One of the ten call sites is `model/clip/instrument_clip_minder.cpp`**, and that file is
+/// **One of the gated call sites is `model/clip/instrument_clip_minder.cpp`**, and that file is
 /// inside `check_layer_rules.py`'s `NON_UI` glob -- so a `gui/ui/` header there would raise the
 /// `model-includes-ui` ratchet, which plan F1's global constraint 8 says may only shrink. Keeping
 /// the count level by *displacing* another `gui/` include (the first version of this file did that,
