@@ -82,12 +82,18 @@ public:
 	}
 
 	ActionResult timerCallback() override {
+		const int32_t previousLive = live_voice_count_;
+		const int32_t previousAverage = averageVoiceCount();
+		const int32_t previousMaximum = maximum_voice_count_;
 		sample();
 		if (renderingStyle() == RenderingStyle::HORIZONTAL) {
-			renderUIsForOled();
+			if (previousLive != live_voice_count_ || previousAverage != averageVoiceCount()
+			    || previousMaximum != maximum_voice_count_) {
+				renderUIsForOled();
+			}
 		}
 		else {
-			getCurrentItem()->readValueAgain();
+			getCurrentItem()->readValueAgainIfChanged();
 		}
 		startTimer();
 		return ActionResult::DEALT_WITH;
