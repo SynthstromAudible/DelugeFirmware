@@ -10,6 +10,7 @@
 #include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "gui/menu_item/multi_range.h"
+#include "gui/menu_item/sample/round_robin.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -177,6 +178,11 @@ PLACE_SDRAM_RODATA constexpr RGB dx_shortcut_colours[][kDisplayHeight] = {
 // clang-format on
 
 bool isRelevant(ModControllableAudio* forThing, MenuItem* menuitem, int32_t thing) {
+	// On an oscillator that uses variants, its sample pads lead to its slot picker, so they're live there
+	// even though the items main opens have stepped aside.
+	if (getSlotPickerForShortcut(menuitem, forThing, nullptr) != nullptr) {
+		return true;
+	}
 	// we have a menuitem, and we either have nothing to check or we checked and it's relevant
 	return ((menuitem != nullptr) and (menuitem != comingSoonMenu))
 	       and ((forThing == nullptr) or menuitem->isRelevant(forThing, thing));
@@ -2055,6 +2061,16 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 
 	if (item) {
 		newItem = (MenuItem*)item;
+
+		// On an oscillator that uses variants, its FILE, START, END and TRANSPOSE pads go through its slot
+		// picker instead of the items main opens, which step aside there.
+		menu_item::sample::SlotPickerTarget slotPickerTarget;
+		if (newSound != nullptr) {
+			if (auto* slotPicker = getSlotPickerForShortcut(newItem, newSound, &slotPickerTarget)) {
+				slotPicker->setTarget(slotPickerTarget);
+				newItem = slotPicker;
+			}
+		}
 	}
 	else {
 		if (clip) {
@@ -2188,6 +2204,12 @@ doMIDIOrCV:
 		AudioClip* audioClip = (AudioClip*)clip;
 		currentSampleControls = &audioClip->sampleControls;
 		currentPriority = &audioClip->voicePriority;
+	}
+
+	// With the range settled, an item that only asks a further question can lead straight on when there's
+	// one answer - see MenuItem::destinationOnceRangeIsKnown().
+	if (result == MenuPermission::YES) {
+		newItem = newItem->destinationOnceRangeIsKnown();
 	}
 
 	// end current menu item session before beginning new menu item session

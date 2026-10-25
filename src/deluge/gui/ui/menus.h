@@ -35,7 +35,12 @@ namespace deluge::gui::menu_item {
 class HorizontalMenu;
 class HorizontalMenuGroup;
 class HorizontalMenuContainer;
+namespace sample {
+class SlotPicker;
+enum class SlotPickerTarget : uint8_t;
+} // namespace sample
 } // namespace deluge::gui::menu_item
+class ModControllableAudio;
 
 extern gui::menu_item::patched_param::IntegerNonFM noiseMenu;
 extern gui::menu_item::osc::Sync oscSyncMenu;
@@ -127,3 +132,9 @@ extern deluge::vector<gui::menu_item::HorizontalMenuContainer*> horizontalMenuCo
 
 extern gui::menu_item::HorizontalMenuGroup sourceMenuGroup;
 extern gui::menu_item::HorizontalMenu audioClipSampleMenu;
+
+/// The slot picker an oscillator FILE, START, END or TRANSPOSE shortcut pad leads to on this sound, when that
+/// oscillator uses variants, or nullptr when the pad opens its own item as on main. Fills in which of the four
+/// pads it is when target isn't null.
+gui::menu_item::sample::SlotPicker* getSlotPickerForShortcut(MenuItem* item, ModControllableAudio* modControllable,
+                                                             gui::menu_item::sample::SlotPickerTarget* target);

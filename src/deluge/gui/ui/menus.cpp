@@ -248,6 +248,77 @@ namespace params = deluge::modulation::params;
 #include "gui/menu_item/generate/g_menus.inc"
 #include "gui/menu_item/midi/y_axis_to_cc1.h"
 
+// Variant slot pickers: the slot step of the oscillator FILE, START, END and TRANSPOSE shortcut pads, on an
+// oscillator that uses variants. See sample::SlotPicker.
+extern sample::SlotPicker sample0SlotPickerMenu;
+extern sample::SlotPicker sample1SlotPickerMenu;
+PLACE_SDRAM_BSS sample::SlotPickerRow sample0SlotPickerRow1{STRING_FOR_VARIANT_SLOT_1, sample0SlotPickerMenu, 0};
+PLACE_SDRAM_BSS sample::SlotPickerRow sample0SlotPickerRow2{STRING_FOR_VARIANT_SLOT_2, sample0SlotPickerMenu, 1};
+PLACE_SDRAM_BSS sample::SlotPickerRow sample0SlotPickerRow3{STRING_FOR_VARIANT_SLOT_3, sample0SlotPickerMenu, 2};
+PLACE_SDRAM_BSS sample::SlotPickerRow sample0SlotPickerRow4{STRING_FOR_VARIANT_SLOT_4, sample0SlotPickerMenu, 3};
+PLACE_SDRAM_DATA std::array<MenuItem*, sample::kNumVariantSlots> sample0SlotPickerRows = {
+    &sample0SlotPickerRow1, &sample0SlotPickerRow2, &sample0SlotPickerRow3, &sample0SlotPickerRow4};
+PLACE_SDRAM_BSS sample::SlotPicker sample0SlotPickerMenu{
+    STRING_FOR_VARIANT_SLOT_PICKER,
+    sample0SlotPickerRows,
+    0,
+    {&sample0RRFile1, &sample0RRFile2, &sample0RRFile3, &sample0RRFile4},
+    {&sample0RRStart1, &sample0RRStart2, &sample0RRStart3, &sample0RRStart4},
+    {&sample0RREnd1, &sample0RREnd2, &sample0RREnd3, &sample0RREnd4},
+    {&sample0RoundRobinSlot1Menu, &sample0RoundRobinSlot2Menu, &sample0RoundRobinSlot3Menu,
+     &sample0RoundRobinSlot4Menu},
+    {&sample0RRTranspose1, &sample0RRTranspose2, &sample0RRTranspose3, &sample0RRTranspose4},
+};
+PLACE_SDRAM_BSS sample::SlotPickerRow sample1SlotPickerRow1{STRING_FOR_VARIANT_SLOT_1, sample1SlotPickerMenu, 0};
+PLACE_SDRAM_BSS sample::SlotPickerRow sample1SlotPickerRow2{STRING_FOR_VARIANT_SLOT_2, sample1SlotPickerMenu, 1};
+PLACE_SDRAM_BSS sample::SlotPickerRow sample1SlotPickerRow3{STRING_FOR_VARIANT_SLOT_3, sample1SlotPickerMenu, 2};
+PLACE_SDRAM_BSS sample::SlotPickerRow sample1SlotPickerRow4{STRING_FOR_VARIANT_SLOT_4, sample1SlotPickerMenu, 3};
+PLACE_SDRAM_DATA std::array<MenuItem*, sample::kNumVariantSlots> sample1SlotPickerRows = {
+    &sample1SlotPickerRow1, &sample1SlotPickerRow2, &sample1SlotPickerRow3, &sample1SlotPickerRow4};
+PLACE_SDRAM_BSS sample::SlotPicker sample1SlotPickerMenu{
+    STRING_FOR_VARIANT_SLOT_PICKER,
+    sample1SlotPickerRows,
+    1,
+    {&sample1RRFile1, &sample1RRFile2, &sample1RRFile3, &sample1RRFile4},
+    {&sample1RRStart1, &sample1RRStart2, &sample1RRStart3, &sample1RRStart4},
+    {&sample1RREnd1, &sample1RREnd2, &sample1RREnd3, &sample1RREnd4},
+    {&sample1RoundRobinSlot1Menu, &sample1RoundRobinSlot2Menu, &sample1RoundRobinSlot3Menu,
+     &sample1RoundRobinSlot4Menu},
+    {&sample1RRTranspose1, &sample1RRTranspose2, &sample1RRTranspose3, &sample1RRTranspose4},
+};
+
+sample::SlotPicker* getSlotPickerForShortcut(MenuItem* item, ModControllableAudio* modControllable,
+                                             sample::SlotPickerTarget* target) {
+	struct Route {
+		MenuItem* pad;
+		sample::SlotPicker* picker;
+		sample::SlotPickerTarget target;
+	};
+	using enum sample::SlotPickerTarget;
+	const Route routes[] = {
+	    {&file0SelectorMenu, &sample0SlotPickerMenu, FILE}, {&sample0StartMenu, &sample0SlotPickerMenu, START},
+	    {&sample0EndMenu, &sample0SlotPickerMenu, END},     {&source0TransposeMenu, &sample0SlotPickerMenu, TRANSPOSE},
+	    {&file1SelectorMenu, &sample1SlotPickerMenu, FILE}, {&sample1StartMenu, &sample1SlotPickerMenu, START},
+	    {&sample1EndMenu, &sample1SlotPickerMenu, END},     {&source1TransposeMenu, &sample1SlotPickerMenu, TRANSPOSE},
+	};
+	if (item == nullptr || modControllable == nullptr) {
+		return nullptr;
+	}
+	for (const Route& route : routes) {
+		if (route.pad != item) {
+			continue;
+		}
+		if (!route.picker->isRelevant(modControllable, route.picker->getSourceId())) {
+			return nullptr;
+		}
+		if (target != nullptr) {
+			*target = route.target;
+		}
+		return route.picker;
+	}
+	return nullptr;
+}
+
 // Arp --------------------------------------------------------------------------------------
 PLACE_SDRAM_BSS arpeggiator::PresetMode arpPresetModeMenu{STRING_FOR_PRESET, STRING_FOR_ARP_PRESET_MENU_TITLE};
 // Rate
