@@ -5,8 +5,8 @@ TEST_GROUP(TickInterpolation){};
 
 TEST(TickInterpolation, EveryTickAtNormalTempos) {
 	// 120 BPM at the default magnitude is ~230 samples per tick
-	CHECK_EQUAL(1, ticksTilNextTickInterpolation(230));
-	CHECK_EQUAL(1, ticksTilNextTickInterpolation(kMinSamplesBetweenTickInterpolations));
+	CHECK_EQUAL(0, ticksTilNextTickInterpolation(230));
+	CHECK_EQUAL(0, ticksTilNextTickInterpolation(kMinSamplesBetweenTickInterpolations));
 }
 
 TEST(TickInterpolation, SpacesOutUpdatesAtFastTempos) {

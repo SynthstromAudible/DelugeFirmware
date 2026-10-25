@@ -23,12 +23,12 @@
 /// (~1ms)
 constexpr int32_t kMinSamplesBetweenTickInterpolations = 44;
 
-/// Ticks to wait between per-tick interpolation updates. Every tick at normal tempos, but at very fast ones a tick is
-/// only a few samples long - and each update makes the audio routine stop rendering there, so updating every tick
-/// would render audio a few samples at a time and the CPU couldn't keep up (#5106)
+/// Ticks til the next per-tick interpolation update. 0 (come back next tick) at normal tempos, but at very fast ones a
+/// tick is only a few samples long - and each update makes the audio routine stop rendering there, so updating every
+/// tick would render audio a few samples at a time and the CPU couldn't keep up (#5106)
 constexpr int32_t ticksTilNextTickInterpolation(uint32_t samplesPerTick) {
 	if (samplesPerTick >= kMinSamplesBetweenTickInterpolations) {
-		return 1;
+		return 0;
 	}
 	if (samplesPerTick == 0) {
 		samplesPerTick = 1;
