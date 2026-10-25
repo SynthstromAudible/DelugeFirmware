@@ -184,7 +184,7 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 			playedFirstArpeggiatedNoteYet = false;
 			gateCurrentlyActive = false;
 
-			if (!(playbackHandler.isEitherClockActive()) || !settings->syncLevel) {
+			if (!isClockActive() || !settings->syncLevel) {
 				switchNoteOn(settings, instruction, false);
 			}
 		}
@@ -347,7 +347,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 			playedFirstArpeggiatedNoteYet = false;
 			gateCurrentlyActive = false;
 
-			if (!(playbackHandler.isEitherClockActive()) || !settings->syncLevel) {
+			if (!isClockActive() || !settings->syncLevel) {
 				switchNoteOn(settings, instruction, false);
 			}
 		}
@@ -470,7 +470,7 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 				}
 			}
 
-			if (isRatcheting && (ratchetNotesIndex >= ratchetNotesCount || !playbackHandler.isEitherClockActive())) {
+			if (isRatcheting && (ratchetNotesIndex >= ratchetNotesCount || !isClockActive())) {
 				// If it was ratcheting but it reached the last note in the ratchet or play was stopped
 				// then we can reset the ratchet temp values in advance
 				resetRatchet();
@@ -532,6 +532,10 @@ bool Arpeggiator::hasPendingNotes(ArpeggiatorSettings* settings) {
 	}
 
 	return false;
+}
+
+bool ArpeggiatorBase::isClockActive() const {
+	return simulate_clock_ || playbackHandler.isEitherClockActive();
 }
 
 void ArpeggiatorBase::switchAnyNoteOff(ArpReturnInstruction* instruction) {
@@ -1525,7 +1529,7 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, ArpReturnInstruction
 	}
 	uint32_t maxGateForRatchet = maxGate >> ratchetNotesMultiplier;
 
-	bool syncedNow = (settings->syncLevel && (playbackHandler.isEitherClockActive()));
+	bool syncedNow = (settings->syncLevel && isClockActive());
 
 	// If gatePos is far enough along that we at least want to switch off any note...
 	if (gatePos >= ratchetNotesIndex * maxGateForRatchet + gateThresholdSmall) {
@@ -1566,14 +1570,7 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 	if (settings->mode == ArpMode::OFF || (settings->syncLevel == 0u)) {
 		return 2147483647;
 	}
-	uint32_t ticksPerPeriod = 3 << (9 - settings->syncLevel);
-	if (settings->syncType == SYNC_TYPE_EVEN) {} // Do nothing
-	else if (settings->syncType == SYNC_TYPE_TRIPLET) {
-		ticksPerPeriod = ticksPerPeriod * 2 / 3;
-	}
-	else if (settings->syncType == SYNC_TYPE_DOTTED) {
-		ticksPerPeriod = ticksPerPeriod * 3 / 2;
-	}
+	uint32_t ticksPerPeriod = settings->getTicksPerPeriod();
 
 	int32_t howFarIntoPeriod = clipCurrentPos % ticksPerPeriod;
 
@@ -1592,6 +1589,17 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 	}
 	return howFarIntoPeriod; // Normally we will have modified this variable above, and it no longer represents
 	                         // what its name says.
+}
+
+uint32_t ArpeggiatorSettings::getTicksPerPeriod() const {
+	uint32_t ticksPerPeriod = 3 << (9 - syncLevel);
+	if (syncType == SYNC_TYPE_TRIPLET) {
+		ticksPerPeriod = ticksPerPeriod * 2 / 3;
+	}
+	else if (syncType == SYNC_TYPE_DOTTED) {
+		ticksPerPeriod = ticksPerPeriod * 3 / 2;
+	}
+	return ticksPerPeriod;
 }
 
 uint32_t ArpeggiatorSettings::getPhaseIncrement(int32_t arpRate) {
