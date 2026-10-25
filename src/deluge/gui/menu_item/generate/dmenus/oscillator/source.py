@@ -41,6 +41,7 @@ for i in range(2):
             "oscillator/file_browser.md",
             name="STRING_FOR_FILE_BROWSER",
         ),
+        round_robin.build(i),
         Menu(
             "sample::Transpose",
             f"source{i}TransposeMenu",
@@ -94,9 +95,6 @@ for i in range(2):
             title="STRING_FOR_SAMP_REVERSE_MENU_TITLE",
             available_when=_available_txt,
         ),
-        # Kept after REVERSE rather than next to FILE: VARIANTS takes two columns, so any earlier it would push
-        # TRANSPOSE onto the next page, where a page switch highlights it without opening the note-range picker.
-        round_robin.build(i),
         Menu(
             "sample::Repeat",
             f"sample{i}RepeatMenu",
