@@ -53,6 +53,9 @@ struct Slot {
 #define CATALOG_SEARCH_LEFT 0
 #define CATALOG_SEARCH_RIGHT 1
 #define CATALOG_SEARCH_BOTH 2
+// Navigation keeps the selected entry while filling the cache in the direction of travel.
+#define CATALOG_SEARCH_LEFT_INCLUSIVE 3
+#define CATALOG_SEARCH_RIGHT_INCLUSIVE 4
 
 #define FILE_ITEMS_MAX_NUM_ELEMENTS 20
 #define FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION 20 // It "should" be able to be way less than this.
