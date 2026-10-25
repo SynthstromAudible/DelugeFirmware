@@ -129,6 +129,14 @@ public:
 	/// pad to learn the source from - this accessor closes that gap so the picker always lists the
 	/// zones of the oscillator the item actually belongs to.
 	[[nodiscard]] virtual int32_t getSourceIndexForRangeSelection() const { return -1; }
+
+	/// @brief The item to actually open once the note range for this one is known.
+	///
+	/// Asked right after the note-range picker confirms a range for this item, and when the editor is set
+	/// up straight onto it with a range already settled. Almost every item is its own destination. An item
+	/// that only exists to ask a further question - which slot, say - can answer it here when there's
+	/// only one possible answer, so that the question is skipped.
+	virtual MenuItem* destinationOnceRangeIsKnown() { return this; }
 	/// @brief Begin an editing session with this menu item.
 	///
 	/// Should make sure the menu's internal state matches the system and redraw the display.

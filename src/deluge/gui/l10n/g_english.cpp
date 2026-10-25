@@ -1050,6 +1050,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_LOAD, "Load"},
         {STRING_FOR_VARIANT_VOLUME, "Volume"},
         {STRING_FOR_VOLUME_SHORT, "VOL"},
+        {STRING_FOR_VARIANT_SLOT_PICKER, "Slot"},
     },
 };
 } // namespace deluge::l10n::built_in

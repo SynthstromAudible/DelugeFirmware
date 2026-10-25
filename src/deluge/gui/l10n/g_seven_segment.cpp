@@ -585,6 +585,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_CYCLE, "CYCL"},
         {STRING_FOR_NO_REPEAT, "NREP"},
         {STRING_FOR_VARIANT_VOLUME, "VOL"},
+        {STRING_FOR_VARIANT_SLOT_PICKER, "SLOT"},
     },
     &built_in::english,
 };
