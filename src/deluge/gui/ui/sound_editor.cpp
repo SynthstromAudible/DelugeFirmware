@@ -2293,8 +2293,12 @@ void SoundEditor::toggleNoteEditorParamMenu(int32_t on) {
 }
 
 bool SoundEditor::isUntransposedNoteWithinRange(int32_t noteCode) {
-	return (soundEditor.currentSource->ranges.getNumElements() > 1
-	        && soundEditor.currentSource->getRange(noteCode + soundEditor.currentSound->transpose)
+	// getRangeIndex(), not getRange(): this runs for every visible pad on each redraw, and getRange() also moves
+	// the source's defaultRangeI, which the note-range picker opens on. It would end up on the zone of the
+	// highest note shown rather than the one last picked or played.
+	Source& source = *soundEditor.currentSource;
+	return (source.ranges.getNumElements() > 1
+	        && source.ranges.getElement(source.getRangeIndex(noteCode + soundEditor.currentSound->transpose))
 	               == soundEditor.currentMultiRange);
 }
 
