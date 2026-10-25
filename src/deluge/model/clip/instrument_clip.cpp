@@ -865,15 +865,17 @@ doNewProbability:
 				}
 			}
 
-			// if probably setting has resulted in a note on
+			PendingNoteOn* pendingNoteOn = &pendingNoteOnList.pendingNoteOns[i];
+
+			// if probability setting has resulted in a note on
 			if (conditionPassed) [[likely]] {
 				// now we check if we should skip note based on iteration condition
-				Iterance iterance = pendingNoteOnList.pendingNoteOns[i].iterance;
+				Iterance iterance = pendingNoteOn->iterance;
 
 				// If it's an iteration dependence...
 				if (iterance != kDefaultIteranceValue) [[unlikely]] {
-					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(
-					    pendingNoteOnList.pendingNoteOns[i].noteRowId, pendingNoteOnList.pendingNoteOns[i].noteRow);
+					ModelStackWithNoteRow* modelStackWithNoteRow =
+					    modelStack->addNoteRow(pendingNoteOn->noteRowId, pendingNoteOn->noteRow);
 
 					conditionPassed = iterance.passesCheck(modelStackWithNoteRow->getRepeatCount(), ending);
 				}
@@ -882,27 +884,51 @@ doNewProbability:
 				// we'll check if that note should be sounded based on fill state
 				if (conditionPassed) {
 					// check if it's a FILL note and SYNC_SCALING is *not* pressed
-					if (pendingNoteOnList.pendingNoteOns[i].fill == FillMode::FILL
-					    && !currentSong->isFillModeActive()) {
+					if (pendingNoteOn->fill == FillMode::FILL && !currentSong->isFillModeActive()) {
 						conditionPassed = false;
 					}
 					// check if it's a NOT FILL note and SYNC_SCALING is pressed
-					else if (pendingNoteOnList.pendingNoteOns[i].fill == FillMode::NOT_FILL
-					         && currentSong->isFillModeActive()) {
+					else if (pendingNoteOn->fill == FillMode::NOT_FILL && currentSong->isFillModeActive()) {
 						conditionPassed = false;
 					}
 				}
 
 				// probability, iterance and fill conditions have passed
 				if (conditionPassed) {
-					sendPendingNoteOn(modelStack, &pendingNoteOnList.pendingNoteOns[i]);
+					if (pendingNoteOn->is_sounding_drone) [[unlikely]] {
+						// drone note is already sounding, keep it active in sequencer
+						pendingNoteOnList.pendingNoteOns[i].noteRow->sequenced = true;
+					}
+					else {
+						sendPendingNoteOn(modelStack, pendingNoteOn);
+					}
 				}
 				else {
-					pendingNoteOnList.pendingNoteOns[i].noteRow->sequenced = false;
+					if (pendingNoteOn->is_sounding_drone) [[unlikely]] {
+						// currently sounding drone note is no longer passing conditions, stop it
+						ModelStackWithNoteRow* modelStackWithNoteRow =
+						    modelStack->addNoteRow(pendingNoteOn->noteRowId, pendingNoteOn->noteRow);
+						// mark note row as active in the sequencer so it can be stopped
+						pendingNoteOn->noteRow->sequenced = true;
+						pendingNoteOn->noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
+					}
+					else {
+						pendingNoteOn->noteRow->sequenced = false;
+					}
 				}
 			}
 			else {
-				pendingNoteOnList.pendingNoteOns[i].noteRow->sequenced = false;
+				if (pendingNoteOn->is_sounding_drone) [[unlikely]] {
+					// currently sounding drone note is no longer passing conditions, stop it
+					ModelStackWithNoteRow* modelStackWithNoteRow =
+					    modelStack->addNoteRow(pendingNoteOn->noteRowId, pendingNoteOn->noteRow);
+					// mark note row as active in the sequencer so it can be stopped
+					pendingNoteOn->noteRow->sequenced = true;
+					pendingNoteOn->noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
+				}
+				else {
+					pendingNoteOn->noteRow->sequenced = false;
+				}
 			}
 		}
 	}
