@@ -1020,6 +1020,14 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_DEFAULT_HORIZONTAL_MENU, "Horizontal Menu"},
         {STRING_FOR_CHORD_KEYBOARD_MODE_ROW, "Chord Row Mode"},
         {STRING_FOR_CHORD_KEYBOARD_MODE_COLUMN, "Chord Column Mode"},
+        {STRING_FOR_COMMUNITY_FEATURE_ARP_FREEZE, "Arp Freeze"},
+        {STRING_FOR_FREEZE, "Freeze"},
+        {STRING_FOR_APPLY, "Apply"},
+        {STRING_FOR_FREEZE_ARP_QMARK, "Freeze arp?"},
+        {STRING_FOR_ARP_IS_OFF, "Arp is off"},
+        {STRING_FOR_ARP_FROZEN, "Arp frozen"},
+        {STRING_FOR_CANT_FREEZE_ARP_TOO_LONG, "Can't freeze: row lengths only line up after too long"},
+        {STRING_FOR_CANT_FREEZE_ARP_TOO_MANY_NOTES, "Can't freeze: too many notes"},
     },
 };
 } // namespace deluge::l10n::built_in

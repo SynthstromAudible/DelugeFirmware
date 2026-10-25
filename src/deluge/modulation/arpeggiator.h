@@ -69,6 +69,9 @@ public:
 
 	uint32_t getPhaseIncrement(int32_t arpRate);
 
+	/// Length in ticks of one arp step when the arp is synced
+	[[nodiscard]] uint32_t getTicksPerPeriod() const;
+
 	// Main settings
 	ArpPreset preset{ArpPreset::OFF};
 	ArpMode mode{ArpMode::OFF};
@@ -256,6 +259,10 @@ public:
 	uint32_t gatePos = 0;
 	uint8_t lastVelocity = 0;
 
+	/// Set when the arp is run outside of playback (to freeze its notes into a clip), so that it behaves as if the
+	/// clock was running
+	void setSimulateClock(bool simulate) { simulate_clock_ = simulate; }
+
 protected:
 	void calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes);
 	void setInitialNoteAndOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes);
@@ -281,6 +288,7 @@ protected:
 	bool getRandomProbabilityResult(uint32_t value);
 	int8_t getRandomBipolarProbabilityAmount(uint32_t value);
 	int8_t getRandomWeighted2BitsAmount(uint32_t value);
+	[[nodiscard]] bool isClockActive() const;
 
 	bool gateCurrentlyActive = false;
 
@@ -342,6 +350,9 @@ protected:
 	int32_t spreadGateForCurrentStep = 0;
 	int32_t spreadOctaveForCurrentStep = 0;
 	bool resetLockedRandomizerValuesNextTime = false;
+
+private:
+	bool simulate_clock_ = false;
 };
 
 class ArpeggiatorForDrum : public ArpeggiatorBase {

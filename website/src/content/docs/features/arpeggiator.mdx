@@ -243,6 +243,43 @@ This submenu contains parameters that are useful if you have an MPE controller c
   - `Aftertouch (AFTE)`: The pressure applied to the key sets the velocity of the note.
   - `MPE Y (Y)`: The Y position on the MPE controller sets the velocity of the note.
 
+## Freezing the Arpeggiator <Badge text="c1.4 Feature" variant="tip" />
+
+Freezing replaces the notes of a clip with the notes its arpeggiator plays, as it plays when the clip starts from its
+beginning, and switches the arpeggiator off. You can then edit the arpeggiated notes like any other notes. Freezing is
+instant, it works while playing too, and :key[Undo] brings back the original notes, layout and arpeggiator.
+
+To freeze, go to the last page of the arpeggiator's `PATTERN` menu (for kits, the `PATTERN` menu of the
+`KIT ARPEGGIATOR`, with :key[AffectEntire]), select `FREEZE` (it shows `Apply` while the arpeggiator is on and a dash
+while it's off) and confirm with `OK`. The Deluge goes back to the clip, which shows the frozen notes.
+
+What gets frozen:
+
+- Everything which decides which notes play and when: mode, octaves, rhythm, sequence length, step repeat, ratchets,
+  chords, bass, swap and note probabilities, velocity and octave spread and the gate. Random results are frozen as they
+  come out, so freezing again after an undo can give a different result.
+- Glides become notes which overlap the next note by one tick, which plays a glide on a synth set to glide on legato.
+- An arpeggiator which isn't synced is frozen at the current tempo.
+- The current values of the arpeggiator parameters are used. Automation of the arpeggiator parameters isn't frozen.
+- All notes going to the arpeggiator are used, whatever their probability or iterance. Muted rows don't go to the
+  arpeggiator and are kept as they are.
+
+How the clip is written out:
+
+- A reversed clip is frozen as it sounds, and then plays forwards.
+- A ping-pong clip is frozen forwards then backwards, so the frozen clip is twice as long and plays forwards.
+- Rows with their own length or play direction are frozen until they all start again together: a clip with rows of 3
+  and 4 bars becomes 12 bars long. The frozen notes then follow the clip.
+- Rows which don't go to the arpeggiator keep sounding as before: they get the length and direction they had.
+
+For kits, the `KIT ARPEGGIATOR` is frozen into the kit rows. The arpeggiators of the kit rows themselves aren't frozen,
+as they can play the drum at other pitches, which kit rows can't hold. They stay on and keep arpeggiating the frozen
+notes, so the kit sounds the same. Rows set not to be included in the kit arpeggiator are kept as they are. Notes the
+kit arpeggiator plays on rows outside the kit arpeggiator (for example through its octaves) aren't frozen.
+
+Freezing isn't possible while the clip is being recorded, when rows only start again together after a very long time,
+or when the result would have more than 16384 notes.
+
 ## Kit Arpeggiator <Badge text="c1.3 Feature" variant="tip" />
 
 The `Kit Arpeggiator` is a new layer on top of the kit rows, which will control which rows receive note ON's and note OFF's.
