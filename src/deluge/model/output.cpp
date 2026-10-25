@@ -271,8 +271,8 @@ bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, 
 		writer.writeAttribute("isArmedForRecording", armedForRecording);
 		writer.writeAttribute("activeModFunction", modKnobMode);
 		// Only when set, so a song that doesn't use it saves exactly as before
-		if (destination_ != TrackDestination::MAIN_MIX) {
-			writer.writeAttribute("outputDestination", (destination_ == TrackDestination::USB) ? "usb" : "both");
+		if (destination_ == TrackDestination::USB) {
+			writer.writeAttribute("outputDestination", "usb");
 		}
 
 		if (clipInstances.getNumElements()) {
@@ -356,15 +356,7 @@ bool Output::readTagFromFile(Deserializer& reader, char const* tagName) {
 
 	else if (strcmp(tagName, "outputDestination") == 0) {
 		std::string_view const value = reader.readTagOrAttributeValue();
-		if (value == "usb") {
-			destination_ = TrackDestination::USB;
-		}
-		else if (value == "both") {
-			destination_ = TrackDestination::BOTH;
-		}
-		else {
-			destination_ = TrackDestination::MAIN_MIX;
-		}
+		destination_ = (value == "usb") ? TrackDestination::USB : TrackDestination::MAIN_MIX;
 	}
 
 	else if (!strcmp(tagName, "trackInstances") || !strcmp(tagName, "clipInstances")) {

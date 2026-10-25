@@ -83,10 +83,9 @@ inline OutputType buttonToOutputType(deluge::hid::Button b) {
 /// is in the main mix
 enum class TrackDestination : uint8_t {
 	MAIN_MIX, // The Deluge's own outputs - the default
-	USB,      // Sent to the host only
-	BOTH,
+	USB,      // Sent to the host instead
 };
-constexpr uint8_t kNumTrackDestinations = 3;
+constexpr uint8_t kNumTrackDestinations = 2;
 
 class Output {
 public:

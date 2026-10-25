@@ -61,8 +61,8 @@ public:
 	}
 };
 
-/// Where the current track's audio goes: the main mix, USB, or both. Per track, so shared by all its clips. Only takes
-/// effect while the host is getting tracks
+/// Where the current track's audio goes: the main mix, or USB instead. Per track, so shared by all its clips. Only
+/// takes effect while the host is getting tracks
 class Destination final : public Selection {
 public:
 	using Selection::Selection;
@@ -71,7 +71,7 @@ public:
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;
 		using enum l10n::String;
-		return {l10n::getView(STRING_FOR_MAIN_MIX), l10n::getView(STRING_FOR_USB), l10n::getView(STRING_FOR_BOTH)};
+		return {l10n::getView(STRING_FOR_MAIN_MIX), l10n::getView(STRING_FOR_USB)};
 	}
 };
 

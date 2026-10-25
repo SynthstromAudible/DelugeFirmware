@@ -2480,38 +2480,24 @@ void Song::deleteSoundsWhichWontSound() {
 }
 
 namespace {
-// A track headed for both the main mix and USB is rendered once, into here, then added to each
-alignas(CACHE_LINE_SIZE) std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> track_for_both_memory;
-// A track headed for USB only sends its reverb here instead - the Deluge's reverb is part of the main mix. Never read
+// A track headed for USB sends its reverb here instead - the Deluge's reverb is part of the main mix. Never read
 // (passing a zero send amount instead would also change the track's mod FX, which take it too)
 alignas(CACHE_LINE_SIZE) std::array<int32_t, SSI_TX_BUFFER_NUM_SAMPLES> discarded_reverb_memory;
 
-/// Renders a track whose destination is USB or both. One going to USB only renders straight into the USB tracks
-/// buffer, like any track into the main mix, and its reverb send is dropped - so the host always gets tracks dry of the
-/// Deluge's reverb. One going to both renders once, and is added to each
-void renderOutputForUSB(Output* output, TrackDestination destination, ModelStack* modelStack,
-                        std::span<StereoSample> mix, int32_t* mixReverb, int32_t reverbAmountAdjust,
+/// Renders a track whose destination is USB straight into the USB tracks buffer, like any track into the main mix.
+/// Its reverb send is dropped, so the host always gets tracks dry of the Deluge's reverb
+void renderOutputForUSB(Output* output, ModelStack* modelStack, size_t numSamples, int32_t reverbAmountAdjust,
                         int32_t sideChainHitPending, bool isClipActiveNow) {
-	std::span<StereoSample> toUSB{AudioEngine::getUSBTracksBuffer(), mix.size()};
+	std::span<StereoSample> to_usb{AudioEngine::getUSBTracksBuffer(), numSamples};
 
-	if (destination == TrackDestination::USB) {
-		// Cleared so the sends never pile up past overflowing
-		memset(discarded_reverb_memory.data(), 0, mix.size() * sizeof(int32_t));
-		// The grain FX send to the reverb their own way, so drop theirs too
-		int32_t* const song_grain_reverb_buffer = AudioEngine::grainReverbBuffer;
-		AudioEngine::grainReverbBuffer = discarded_reverb_memory.data();
-		output->renderOutput(modelStack, toUSB, discarded_reverb_memory.data(), reverbAmountAdjust, sideChainHitPending,
-		                     !isClipActiveNow, isClipActiveNow);
-		AudioEngine::grainReverbBuffer = song_grain_reverb_buffer;
-		return;
-	}
-
-	std::span<StereoSample> track{track_for_both_memory.data(), mix.size()};
-	memset(track.data(), 0, track.size_bytes());
-	output->renderOutput(modelStack, track, mixReverb, reverbAmountAdjust, sideChainHitPending, !isClipActiveNow,
-	                     isClipActiveNow);
-	std::ranges::transform(toUSB, track, toUSB.begin(), std::plus{});
-	std::ranges::transform(mix, track, mix.begin(), std::plus{});
+	// Cleared so the sends never pile up past overflowing
+	memset(discarded_reverb_memory.data(), 0, numSamples * sizeof(int32_t));
+	// The grain FX send to the reverb their own way, so drop theirs too
+	int32_t* const song_grain_reverb_buffer = AudioEngine::grainReverbBuffer;
+	AudioEngine::grainReverbBuffer = discarded_reverb_memory.data();
+	output->renderOutput(modelStack, to_usb, discarded_reverb_memory.data(), reverbAmountAdjust, sideChainHitPending,
+	                     !isClipActiveNow, isClipActiveNow);
+	AudioEngine::grainReverbBuffer = song_grain_reverb_buffer;
 }
 } // namespace
 
@@ -2540,15 +2526,13 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 		    (output->getActiveClip() && isClipActive(output->getActiveClip()->getClipBeingRecordedFrom()));
 		ENTER_CRITICAL_SECTION();
 		if (output->shouldRenderInSong()) {
-			TrackDestination const destination =
-			    AudioEngine::routingTracksToUSB ? output->getDestination() : TrackDestination::MAIN_MIX;
-			if (destination == TrackDestination::MAIN_MIX) {
-				output->renderOutput(modelStack, outputBuffer, reverbBuffer, volumePostFX >> 1, sideChainHitPending,
-				                     !isClipActiveNow, isClipActiveNow);
+			if (AudioEngine::routingTracksToUSB && output->getDestination() == TrackDestination::USB) {
+				renderOutputForUSB(output, modelStack, outputBuffer.size(), volumePostFX >> 1, sideChainHitPending,
+				                   isClipActiveNow);
 			}
 			else {
-				renderOutputForUSB(output, destination, modelStack, outputBuffer, reverbBuffer, volumePostFX >> 1,
-				                   sideChainHitPending, isClipActiveNow);
+				output->renderOutput(modelStack, outputBuffer, reverbBuffer, volumePostFX >> 1, sideChainHitPending,
+				                     !isClipActiveNow, isClipActiveNow);
 			}
 		}
 		EXIT_CRITICAL_SECTION();

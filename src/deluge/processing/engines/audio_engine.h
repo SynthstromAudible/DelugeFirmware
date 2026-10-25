@@ -214,8 +214,8 @@ extern bool inputMonitoringWarmedUp;
 // Set during a render if any audio track is monitoring the USB input. USB direct monitoring stands aside for that
 // window, or the host's audio would be heard twice. Cleared at the start of each render
 extern bool usbInputMonitoredByTrack;
-// Set for a render when tracks' destinations apply (SETTINGS > USB AUDIO > OUTPUT is TRACKS) - tracks set to USB or
-// both are then rendered into the USB tracks buffer instead of, or as well as, the main mix
+// Set for a render when tracks' destinations apply (SETTINGS > USB AUDIO > OUTPUT is TRACKS) - tracks set to USB are
+// then rendered into the USB tracks buffer instead of the main mix
 extern bool routingTracksToUSB;
 /// Tracks headed for USB, mixed at the same level as the song's own mix, for the window being rendered
 StereoSample* getUSBTracksBuffer();
