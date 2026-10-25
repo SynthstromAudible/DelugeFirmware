@@ -61,6 +61,12 @@ PLACE_SDRAM_DATA std::array<MenuItem*, 2> child5 = {
 PLACE_SDRAM_BSS HorizontalMenu recorderMenu{STRING_FOR_SAMPLE_RECORDER, child5};
 PLACE_SDRAM_BSS osc::Type osc0TypeMenu{STRING_FOR_TYPE, STRING_FOR_OSC_TYPE_MENU_TITLE, 0};
 PLACE_SDRAM_BSS FileSelector deluge::gui::menu_item::file0SelectorMenu{STRING_FOR_FILE_BROWSER, 0};
+PLACE_SDRAM_BSS sample::Transpose source0TransposeMenu{STRING_FOR_TRANSPOSE, STRING_FOR_OSC_TRANSPOSE_MENU_TITLE, params::LOCAL_OSC_A_PITCH_ADJUST, 0};
+PLACE_SDRAM_BSS osc::source::WaveIndex source0WaveIndexMenu{STRING_FOR_WAVE_INDEX, STRING_FOR_OSC_WAVE_IND_MENU_TITLE, params::LOCAL_OSC_A_WAVE_INDEX, 0};
+PLACE_SDRAM_BSS osc::PulseWidth osc0PulseWidthMenu{STRING_FOR_PULSE_WIDTH, STRING_FOR_OSC_P_WIDTH_MENU_TITLE, params::LOCAL_OSC_A_PHASE_WIDTH, 0};
+PLACE_SDRAM_BSS osc::source::Feedback source0FeedbackMenu{STRING_FOR_FEEDBACK, STRING_FOR_CARRIER_FEED_MENU_TITLE, params::LOCAL_CARRIER_0_FEEDBACK, 0};
+PLACE_SDRAM_BSS osc::RetriggerPhase osc0PhaseMenu{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_OSC_R_PHASE_MENU_TITLE, 0, false};
+PLACE_SDRAM_BSS sample::Reverse sample0ReverseMenu{STRING_FOR_REVERSE, STRING_FOR_SAMP_REVERSE_MENU_TITLE, 0};
 PLACE_SDRAM_BSS sample::RoundRobinMode sample0RoundRobinModeMenu{STRING_FOR_MODE, 0};
 PLACE_SDRAM_BSS sample::RoundRobinFileItem sample0RRFile1{STRING_FOR_FILE, 0, 0};
 PLACE_SDRAM_BSS sample::VariantStart sample0RRStart1{STRING_FOR_START_POINT, 0, 0};
@@ -122,12 +128,6 @@ PLACE_SDRAM_DATA std::array<MenuItem*, 5> child10 = {
     &sample0RoundRobinSlot4Menu,
 };
 PLACE_SDRAM_BSS sample::RoundRobinSubmenu sample0RoundRobinMenu{STRING_FOR_VARIANTS, child10, 0};
-PLACE_SDRAM_BSS sample::Transpose source0TransposeMenu{STRING_FOR_TRANSPOSE, STRING_FOR_OSC_TRANSPOSE_MENU_TITLE, params::LOCAL_OSC_A_PITCH_ADJUST, 0};
-PLACE_SDRAM_BSS osc::source::WaveIndex source0WaveIndexMenu{STRING_FOR_WAVE_INDEX, STRING_FOR_OSC_WAVE_IND_MENU_TITLE, params::LOCAL_OSC_A_WAVE_INDEX, 0};
-PLACE_SDRAM_BSS osc::PulseWidth osc0PulseWidthMenu{STRING_FOR_PULSE_WIDTH, STRING_FOR_OSC_P_WIDTH_MENU_TITLE, params::LOCAL_OSC_A_PHASE_WIDTH, 0};
-PLACE_SDRAM_BSS osc::source::Feedback source0FeedbackMenu{STRING_FOR_FEEDBACK, STRING_FOR_CARRIER_FEED_MENU_TITLE, params::LOCAL_CARRIER_0_FEEDBACK, 0};
-PLACE_SDRAM_BSS osc::RetriggerPhase osc0PhaseMenu{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_OSC_R_PHASE_MENU_TITLE, 0, false};
-PLACE_SDRAM_BSS sample::Reverse sample0ReverseMenu{STRING_FOR_REVERSE, STRING_FOR_SAMP_REVERSE_MENU_TITLE, 0};
 PLACE_SDRAM_BSS sample::Repeat sample0RepeatMenu{STRING_FOR_REPEAT_MODE, STRING_FOR_SAMP_REPEAT_MENU_TITLE, 0};
 PLACE_SDRAM_BSS sample::TimeStretch sample0TimeStretchMenu{STRING_FOR_SPEED, STRING_FOR_SAMP_SPEED_MENU_TITLE, 0};
 PLACE_SDRAM_BSS sample::PitchSpeed sample0PitchSpeedMenu{STRING_FOR_PITCH_SPEED, 0};
@@ -137,13 +137,13 @@ PLACE_SDRAM_BSS sample::End sample0EndMenu{STRING_FOR_END_POINT, 0};
 PLACE_SDRAM_DATA std::array<MenuItem*, 15> child11 = {
     &osc0TypeMenu,
     &deluge::gui::menu_item::file0SelectorMenu,
-    &sample0RoundRobinMenu,
     &source0TransposeMenu,
     &source0WaveIndexMenu,
     &osc0PulseWidthMenu,
     &source0FeedbackMenu,
     &osc0PhaseMenu,
     &sample0ReverseMenu,
+    &sample0RoundRobinMenu,
     &sample0RepeatMenu,
     &sample0TimeStretchMenu,
     &sample0PitchSpeedMenu,
@@ -154,6 +154,12 @@ PLACE_SDRAM_DATA std::array<MenuItem*, 15> child11 = {
 PLACE_SDRAM_BSS submenu::ActualSource source0Menu{STRING_FOR_OSCILLATOR_1, child11, 0};
 PLACE_SDRAM_BSS osc::Type osc1TypeMenu{STRING_FOR_TYPE, STRING_FOR_OSC_TYPE_MENU_TITLE, 1};
 PLACE_SDRAM_BSS FileSelector deluge::gui::menu_item::file1SelectorMenu{STRING_FOR_FILE_BROWSER, 1};
+PLACE_SDRAM_BSS sample::Transpose source1TransposeMenu{STRING_FOR_TRANSPOSE, STRING_FOR_OSC_TRANSPOSE_MENU_TITLE, params::LOCAL_OSC_A_PITCH_ADJUST, 1};
+PLACE_SDRAM_BSS osc::source::WaveIndex source1WaveIndexMenu{STRING_FOR_WAVE_INDEX, STRING_FOR_OSC_WAVE_IND_MENU_TITLE, params::LOCAL_OSC_A_WAVE_INDEX, 1};
+PLACE_SDRAM_BSS osc::PulseWidth osc1PulseWidthMenu{STRING_FOR_PULSE_WIDTH, STRING_FOR_OSC_P_WIDTH_MENU_TITLE, params::LOCAL_OSC_A_PHASE_WIDTH, 1};
+PLACE_SDRAM_BSS osc::source::Feedback source1FeedbackMenu{STRING_FOR_FEEDBACK, STRING_FOR_CARRIER_FEED_MENU_TITLE, params::LOCAL_CARRIER_0_FEEDBACK, 1};
+PLACE_SDRAM_BSS osc::RetriggerPhase osc1PhaseMenu{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_OSC_R_PHASE_MENU_TITLE, 1, false};
+PLACE_SDRAM_BSS sample::Reverse sample1ReverseMenu{STRING_FOR_REVERSE, STRING_FOR_SAMP_REVERSE_MENU_TITLE, 1};
 PLACE_SDRAM_BSS sample::RoundRobinMode sample1RoundRobinModeMenu{STRING_FOR_MODE, 1};
 PLACE_SDRAM_BSS sample::RoundRobinFileItem sample1RRFile1{STRING_FOR_FILE, 1, 0};
 PLACE_SDRAM_BSS sample::VariantStart sample1RRStart1{STRING_FOR_START_POINT, 1, 0};
@@ -215,12 +221,6 @@ PLACE_SDRAM_DATA std::array<MenuItem*, 5> child16 = {
     &sample1RoundRobinSlot4Menu,
 };
 PLACE_SDRAM_BSS sample::RoundRobinSubmenu sample1RoundRobinMenu{STRING_FOR_VARIANTS, child16, 1};
-PLACE_SDRAM_BSS sample::Transpose source1TransposeMenu{STRING_FOR_TRANSPOSE, STRING_FOR_OSC_TRANSPOSE_MENU_TITLE, params::LOCAL_OSC_A_PITCH_ADJUST, 1};
-PLACE_SDRAM_BSS osc::source::WaveIndex source1WaveIndexMenu{STRING_FOR_WAVE_INDEX, STRING_FOR_OSC_WAVE_IND_MENU_TITLE, params::LOCAL_OSC_A_WAVE_INDEX, 1};
-PLACE_SDRAM_BSS osc::PulseWidth osc1PulseWidthMenu{STRING_FOR_PULSE_WIDTH, STRING_FOR_OSC_P_WIDTH_MENU_TITLE, params::LOCAL_OSC_A_PHASE_WIDTH, 1};
-PLACE_SDRAM_BSS osc::source::Feedback source1FeedbackMenu{STRING_FOR_FEEDBACK, STRING_FOR_CARRIER_FEED_MENU_TITLE, params::LOCAL_CARRIER_0_FEEDBACK, 1};
-PLACE_SDRAM_BSS osc::RetriggerPhase osc1PhaseMenu{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_OSC_R_PHASE_MENU_TITLE, 1, false};
-PLACE_SDRAM_BSS sample::Reverse sample1ReverseMenu{STRING_FOR_REVERSE, STRING_FOR_SAMP_REVERSE_MENU_TITLE, 1};
 PLACE_SDRAM_BSS sample::Repeat sample1RepeatMenu{STRING_FOR_REPEAT_MODE, STRING_FOR_SAMP_REPEAT_MENU_TITLE, 1};
 PLACE_SDRAM_BSS sample::TimeStretch sample1TimeStretchMenu{STRING_FOR_SPEED, STRING_FOR_SAMP_SPEED_MENU_TITLE, 1};
 PLACE_SDRAM_BSS sample::PitchSpeed sample1PitchSpeedMenu{STRING_FOR_PITCH_SPEED, 1};
@@ -230,13 +230,13 @@ PLACE_SDRAM_BSS sample::End sample1EndMenu{STRING_FOR_END_POINT, 1};
 PLACE_SDRAM_DATA std::array<MenuItem*, 15> child17 = {
     &osc1TypeMenu,
     &deluge::gui::menu_item::file1SelectorMenu,
-    &sample1RoundRobinMenu,
     &source1TransposeMenu,
     &source1WaveIndexMenu,
     &osc1PulseWidthMenu,
     &source1FeedbackMenu,
     &osc1PhaseMenu,
     &sample1ReverseMenu,
+    &sample1RoundRobinMenu,
     &sample1RepeatMenu,
     &sample1TimeStretchMenu,
     &sample1PitchSpeedMenu,
