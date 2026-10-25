@@ -244,6 +244,15 @@ void ActionLogger::recordUnautomatedParamChange(ModelStackWithAutoParam const* m
 		return;
 	}
 
+	// Live parameter edits belong to the recording transaction, even when the
+	// parameter itself has no automation. Otherwise these edits (e.g. MIDI
+	// expression) split RECORD actions, repeatedly snapshotting the same note
+	// and automation data until undo history consumes all available memory.
+	if (actionType == ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE && playbackHandler.recording == RecordingMode::NORMAL
+	    && playbackHandler.isEitherClockActive()) {
+		actionType = ActionType::RECORD;
+	}
+
 	Action* action = getNewAction(actionType, ActionAddition::ALLOWED);
 	if (!action) {
 		return;
