@@ -337,6 +337,15 @@ describe rename_composition("scenes::rename::RenameScene composition", $ {
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0b11});
 		expect(static_cast<uint64_t>(s.greyout_mask().rows)).to_equal(uint64_t{0});
 	});
+
+	it("draws the main pads only, leaving the sidebar to the view beneath", _ {
+		// `QwertyUI::drawKeys` clears and draws the main pads only (`gui/ui/qwerty_ui.cpp:76-125`);
+		// `RenameUI::getGreyoutColsAndRows` greys the two sidebar columns (`rename/rename_ui.cpp:63-66`).
+		const deluge::ui::shell::Scene& s = rename_scene();
+		expect(s.pad_regions() == deluge::ui::shell::PadRegions::Main).to_be_true();
+		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0b11});
+		expect(static_cast<uint64_t>(s.greyout_mask().rows)).to_equal(uint64_t{0});
+	});
 });
 
 describe rename_open("scenes::rename::RenameScene opening", $ {

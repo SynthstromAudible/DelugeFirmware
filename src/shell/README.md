@@ -218,7 +218,9 @@ defaults moved from `true` to `false`, so a designated initializer arms only the
    post-render delivery is shown one tick later — `Router::popup_string_` is only cleared on
    consumption, so it is late, never lost.
 4. `tick_stack` — scenes top-down, stopping below the first `occludes_grid()`, then the services.
-   A stack that changed re-queries the union of `greyout_mask()` and invalidates every gate.
+   A stack that changed re-queries the greyout -- the topmost non-empty `greyout_mask()`
+   (`SceneStack::topmost_greyout`, legacy's top-down `getUIGreyoutColsAndRows`) -- and invalidates
+   every gate.
 5. OLED, per surface: `gate.needs_frame(...) || widgets_gate || router_.repaint_requested(role)`.
 6. Grid: `gate.needs_frame(...) || widgets_gate`.
 
@@ -287,7 +289,8 @@ and draws from there up -- the port of `OLED::sendMainImage`'s two-layer if-chai
 (`oled.cpp:364-376`) as a property each scene declares. `render_grid` draws the topmost
 non-overlay scene, dims it by `RGB::dim(1)` (`>> 1` per channel) if anything overlays it, draws the
 overlays, then applies the stack's greyout at legacy's full strength (`setGreyoutAmount(1)` →
-`greyProportion = 6500000`, `pad_leds.cpp:753,786-788`). The dim is **spec D design, not a port**:
+`greyProportion = 6500000`, `pad_leds.cpp:753,786-788`), unless the host greys in its own send
+path (`ShellConfig::greys_in_send_path`). The dim is **spec D design, not a port**:
 legacy has only the greyout. Spec D §7 says "dim if any overlay is above"; the shell narrows that
 to "if any overlay above the base `dims_grid()`", so an overlay that composites nothing can opt out.
 
@@ -298,9 +301,11 @@ to "if any overlay above the base `dims_grid()`", so an overlay that composites 
 > 2026-09-06 audit's four, two of which turned out to ship no UX. `shell.cpp`'s own `@warning`
 > carries the arithmetic.) It is no longer only a design question: since F1 the
 > compositor runs inside the shipping firmware, so `dim_grid` is live code in the path the level-3
-> A/B exercises. Under the guest (`gui/ui/shell_host_ui.h`) a stack whose scenes draw no pads
-> (`Scene::draws_pads`) leaves the pads to legacy: the clip view stays showing, greyed by the
-> menu's mask through legacy's own `prepareColour`, as under `SoundEditor`.
+> A/B exercises. Under the guest (`gui/ui/shell_host_ui.h`) each pad region no stacked scene
+> draws (`Scene::pad_regions`) is left to legacy: under a menu the clip view stays showing, and
+> under a keyboard its sidebar does. The guest's shell greys nothing itself
+> (`greys_in_send_path`); legacy greys every pad once, through its own `prepareColour`, by the mask
+> the guest reports, as under `SoundEditor`.
 
 The three notice scenes are grid overlays that paint nothing and dim nothing (`is_grid_overlay()`
 true, `dims_grid()` false, `occludes_grid()` false, no `render_grid`). Both flags are load-bearing

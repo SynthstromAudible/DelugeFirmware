@@ -236,6 +236,16 @@ bool SceneStack::has_input_scene() const {
 	return false;
 }
 
+grid::GreyoutMask SceneStack::topmost_greyout() const {
+	for (size_t i = n_; i > 0; i--) {
+		const grid::GreyoutMask m = stack_[i - 1]->greyout_mask();
+		if (m.cols != 0 || m.rows != 0) {
+			return m;
+		}
+	}
+	return {};
+}
+
 Scene* SceneStack::root() {
 	return n_ > 0 ? stack_[0] : nullptr;
 }

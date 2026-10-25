@@ -167,6 +167,14 @@ public:
 	/// @param i Index from the root (0) to the top (`depth() - 1`).
 	/// @return The id, or a default-constructed `SceneId` when \p i is out of range.
 	SceneId id_at(size_t i) const { return i < n_ ? ids_[i] : SceneId{}; }
+	/// @brief The greyout of the topmost scene that asks for one.
+	///
+	/// Legacy's `getUIGreyoutColsAndRows` (`gui/ui/ui.cpp:73-83`): the open UIs are asked top down
+	/// and the first that answers true decides. A scene spells legacy's "obey the UI under me" as an
+	/// all-zero mask, so an empty mask is skipped and the scene beneath is asked instead.
+	/// @return The `greyout_mask()` of the topmost scene whose mask has a column or a row set, or an
+	///         all-zero mask when none has.
+	grid::GreyoutMask topmost_greyout() const;
 	/// @}
 
 	/// @brief Has the stack changed since this was last called, and clear the flag.

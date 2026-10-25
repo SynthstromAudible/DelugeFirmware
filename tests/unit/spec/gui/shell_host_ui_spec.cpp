@@ -8,6 +8,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "scenes/marker/marker_scene.h"
 #include "shell/profiles/deluge.h"
 #include "storage/flash_storage.h"
 #include "ui/core/style.h"
@@ -134,6 +135,7 @@ public:
 	std::optional<uint32_t> next_timer() const override { return timer; }
 
 	bool is_grid_overlay() const override { return overlay; }
+	PadRegions pad_regions() const override { return regions; }
 	bool occludes_grid() const override { return occludes; }
 	bool dims_grid() const override { return false; }
 	bool input_transparent() const override { return passive; }
@@ -160,6 +162,8 @@ public:
 	std::vector<std::pair<int32_t, int32_t>> lit;
 	RGB lit_colour{130, 120, 130};
 	bool overlay = false;
+	/// What `pad_regions()` answers: which regions the guest takes from legacy for this scene.
+	PadRegions regions = PadRegions::All;
 	bool occludes = false;
 	bool passive = false;
 	/// What `grid_pad_claim()` answers. `GridPadClaim::All` -- `Scene`'s own default -- unless an
@@ -222,7 +226,9 @@ MIDICable& fake_cable() {
 struct Rig {
 	PatternScene base{kBase};
 	PatternScene over{kOver};
-	std::array<Scene*, 18> table{};
+	/// Registered under the marker editor's kind, which the guest's sidebar answer keys on.
+	PatternScene marker{deluge::scenes::marker::kMarkerSceneKind};
+	std::array<Scene*, kMaxSceneKinds> table{};
 	SceneRegistry reg{std::span<Scene* const>{table}};
 	ShellHostUI guest;
 
@@ -247,6 +253,7 @@ struct Rig {
 	const SceneRegistry& fill() {
 		table[static_cast<size_t>(kBase)] = &base;
 		table[static_cast<size_t>(kOver)] = &over;
+		table[static_cast<size_t>(deluge::scenes::marker::kMarkerSceneKind)] = &marker;
 		return reg;
 	}
 
@@ -726,31 +733,73 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		}
 	});
 
-	it("returns the top scene's opacity, in both directions", _ {
+	it("returns the stack's opacity per region, in both directions", _ {
 		Rig r;
 		expect(r.open()).to_be_true();
 
-		// An overlay scene is transparent over the pads, which is what `SoundEditor` is: it does
-		// not override either hook, so it takes `UI`'s `return false`, and `MenuScene` is
-		// `is_grid_overlay()` (`scenes/menu/menu_scene.h:506`).
-		r.base.overlay = true;
+		// A scene that draws no pads is transparent over them, which is what `SoundEditor` is: it
+		// does not override either hook, so it takes `UI`'s `return false`, and `MenuScene` keeps
+		// `Scene::pad_regions`'s `None` for a grid overlay.
+		r.base.regions = PadRegions::None;
 		expect(static_cast<::UI&>(r.guest).renderMainPads()).to_be_false();
 		expect(static_cast<::UI&>(r.guest).renderSidebar()).to_be_false();
 
-		// A scene that is not an overlay owns the pads.
-		r.base.overlay = false;
+		// A scene that draws every pad owns both regions.
+		r.base.regions = PadRegions::All;
 		expect(static_cast<::UI&>(r.guest).renderMainPads()).to_be_true();
 		expect(static_cast<::UI&>(r.guest).renderSidebar()).to_be_true();
 
-		// An overlay over a scene that owns the pads leaves them owned: the shell composes the
-		// overlay onto that scene's frame (`Shell::render_grid` from `grid_base()`).
+		// A scene that draws nothing over one that draws everything leaves them owned: the shell
+		// composes the overlay onto that scene's frame (`Shell::render_grid` from `grid_base()`).
 		r.over.overlay = true;
+		r.over.regions = PadRegions::None;
 		expect(r.guest.shell().stack().push(SceneId{kOver, 0})).to_be_true();
 		expect(static_cast<::UI&>(r.guest).renderMainPads()).to_be_true();
 
-		// Only when no scene owns them is the guest transparent.
-		r.base.overlay = true;
+		// Only when no scene draws a region is the guest transparent over it.
+		r.base.regions = PadRegions::None;
 		expect(static_cast<::UI&>(r.guest).renderMainPads()).to_be_false();
+	});
+
+	it("serves the main pads and leaves the sidebar to the UI underneath under a Main-only scene", _ {
+		Rig r;
+		r.base.overlay = true;
+		r.base.regions = PadRegions::Main; // a keyboard: `QwertyUI::drawKeys` draws main pads only
+		expect(r.open()).to_be_true();
+		r.guest.shell().tick(0);
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
+				PadLEDs::image[y][x] = RGB{9, 8, 7}; // the root view's pads
+			}
+		}
+
+		expect(r.guest.renderMainPads(0xFFFFFFFF, PadLEDs::image, PadLEDs::occupancyMask, true)).to_be_true();
+		expect(r.guest.renderSidebar(0xFFFFFFFF, PadLEDs::image, PadLEDs::occupancyMask)).to_be_false();
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			for (int32_t x = 0; x < kDisplayWidth; x++) {
+				expect(PadLEDs::image[y][x] == PatternScene::pad_for(x, y)).to_be_true();
+			}
+			expect(PadLEDs::image[y][kDisplayWidth] == RGB{9, 8, 7}).to_be_true();
+			expect(PadLEDs::image[y][kDisplayWidth + 1] == RGB{9, 8, 7}).to_be_true();
+		}
+		expect(fakelegacyui::marker_sidebar_requests).to_equal(0);
+	});
+
+	it("draws the clip view's sidebar under a marker over the keyboard screen", _ {
+		// `SampleMarkerEditor::renderSidebar` (`gui/ui/sample_marker_editor.cpp:875-881`): over the
+		// keyboard screen, `instrumentClipView`'s sidebar; over any other root, the UI underneath's.
+		Rig r;
+		r.marker.overlay = true;
+		r.marker.regions = PadRegions::Main;
+		expect(r.open(deluge::scenes::marker::kMarkerSceneKind)).to_be_true();
+
+		fakelegacyui::marker_sidebar_answer = true;
+		expect(r.guest.renderSidebar(0xFFFFFFFF, PadLEDs::image, PadLEDs::occupancyMask)).to_be_true();
+		expect(fakelegacyui::marker_sidebar_requests).to_equal(1);
+
+		fakelegacyui::marker_sidebar_answer = false;
+		expect(r.guest.renderSidebar(0xFFFFFFFF, PadLEDs::image, PadLEDs::occupancyMask)).to_be_false();
+		expect(fakelegacyui::marker_sidebar_requests).to_equal(2);
 	});
 
 	// ---- pads under an overlay-only stack: the root view's, as under `SoundEditor` ----------------
@@ -758,6 +807,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	it("leaves legacy's pad image to the UI underneath while no scene owns the grid", _ {
 		Rig r;
 		r.base.overlay = true;
+		r.base.regions = PadRegions::None;
 		expect(r.open()).to_be_true();
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
@@ -783,6 +833,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	it("flashes a pad once as it lights while no scene owns the grid, yellow for a yellow pad", _ {
 		Rig r;
 		r.base.overlay = true;
+		r.base.regions = PadRegions::None;
 		r.base.sparse = true;
 		expect(r.open()).to_be_true();
 		const auto tick = [&](uint32_t now) {
@@ -822,6 +873,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// so the guest re-reads it once its scene is on.
 		Rig r;
 		r.base.overlay = true;
+		r.base.regions = PadRegions::None;
 		r.base.greyout = deluge::ui::grid::GreyoutMask{0xFFFFFFFE, 0};
 		expect(r.open()).to_be_true();
 		const fakelegacyui::RenderRequest none{nullptr, 0, 0xDEAD};
@@ -835,6 +887,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	it("takes every pad when a scene comes to own the grid, and hands them back when it goes", _ {
 		Rig r;
 		r.base.overlay = true;
+		r.base.regions = PadRegions::None;
 		r.base.sparse = true;
 		expect(r.open()).to_be_true();
 		r.guest.shell().tick(0);
@@ -870,6 +923,68 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacy::greyout_reassessments).to_equal(reassessed + 2);
 	});
 
+	it("takes the main pads, then asks the UI underneath for just the half it released", _ {
+		Rig r;
+		r.base.overlay = true;
+		r.base.regions = PadRegions::None;
+		r.base.sparse = true;
+		expect(r.open()).to_be_true();
+		r.guest.shell().tick(0);
+		const fakelegacyui::RenderRequest none{nullptr, 0xDEAD, 0xDEAD};
+
+		// A keyboard: the main pads only. Released, only they are asked for again.
+		r.over.overlay = true;
+		r.over.regions = PadRegions::Main;
+		expect(r.guest.shell().stack().push(SceneId{kOver, 0})).to_be_true();
+		set_clock_ms(10);
+		(void)r.guest.timerCallback();
+		r.guest.shell().stack().pop(kOver);
+		size_t requests = fakelegacyui::render_requests.size();
+		set_clock_ms(20);
+		(void)r.guest.timerCallback();
+		expect(fakelegacyui::render_requests.size()).to_equal(requests + 1);
+		expect(nth_or(fakelegacyui::render_requests, requests, none).ui == &r.guest).to_be_true();
+		expect(nth_or(fakelegacyui::render_requests, requests, none).main_rows).to_equal(uint32_t(0xFFFFFFFF));
+		expect(nth_or(fakelegacyui::render_requests, requests, none).side_rows).to_equal(uint32_t(0));
+
+		// The sidebar alone, released alone.
+		r.over.regions = PadRegions::Sidebar;
+		expect(r.guest.shell().stack().push(SceneId{kOver, 0})).to_be_true();
+		set_clock_ms(30);
+		(void)r.guest.timerCallback();
+		r.guest.shell().stack().pop(kOver);
+		requests = fakelegacyui::render_requests.size();
+		set_clock_ms(40);
+		(void)r.guest.timerCallback();
+		expect(fakelegacyui::render_requests.size()).to_equal(requests + 1);
+		expect(nth_or(fakelegacyui::render_requests, requests, none).ui == &r.guest).to_be_true();
+		expect(nth_or(fakelegacyui::render_requests, requests, none).main_rows).to_equal(uint32_t(0));
+		expect(nth_or(fakelegacyui::render_requests, requests, none).side_rows).to_equal(uint32_t(0xFFFFFFFF));
+	});
+
+	it("hands the main pads back when the guest closes while it owns them", _ {
+		// `closeUI` asks the closing guest whether it drew the pads (`gui/ui/ui.cpp:203-212`), and by
+		// then its stack is empty and answers no -- so the guest itself must ask for the root view's
+		// main pads, or the keyboard's last frame stays on them.
+		Rig r;
+		r.base.overlay = true;
+		r.base.regions = PadRegions::Main;
+		r.base.remove_self_on_event = true;
+		expect(r.open()).to_be_true();
+		r.guest.shell().tick(0);
+		fakelegacyui::reset();
+
+		(void)r.guest.buttonAction(deluge::hid::button::BACK, true);
+		(void)r.guest.timerCallback();
+
+		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
+		bool mainAsked = false;
+		for (const fakelegacyui::RenderRequest& q : fakelegacyui::render_requests) {
+			mainAsked = mainAsked || (q.ui == &r.guest && q.main_rows == 0xFFFFFFFF && q.side_rows == 0);
+		}
+		expect(mainAsked).to_be_true();
+	});
+
 	// ---- canSeeViewUnderneath, which is NOT the OLED question --------------------------------
 
 	it("reports the view underneath as visible unless the top scene occludes the grid", _ {
@@ -897,6 +1012,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	it("forwards the stacked scenes' greyout mask, and obeys the UI underneath for an empty one", _ {
 		Rig r;
 		r.base.overlay = true; // a menu: it draws no pads, so legacy greys the root's
+		r.base.regions = PadRegions::None;
 		expect(r.open()).to_be_true();
 
 		// `MenuScene::greyout_mask` spells legacy's `doGreyout == false` as an all-zero mask
@@ -928,24 +1044,88 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(cols).to_equal(uint32_t(0));
 		expect(rows).to_equal(uint32_t(0x00000080));
 
-		// And every stacked scene's mask counts, ORed, as the shell greys its own grid: a popup over
-		// the menu leaves the menu's greyout standing.
+		// A scene above with an empty mask obeys the one beneath, as legacy's top-down walk does
+		// (`gui/ui/ui.cpp:73-83`): a popup over the menu leaves the menu's greyout standing.
 		r.over.overlay = true;
-		r.over.greyout = {0x0000000Fu, 0u};
+		r.over.regions = PadRegions::None;
+		r.over.greyout = {};
 		expect(r.guest.shell().stack().push(SceneId{kOver, 0})).to_be_true();
 		cols = 0;
 		rows = 0;
 		expect(r.guest.getGreyoutColsAndRows(&cols, &rows)).to_be_true();
-		expect(cols).to_equal(uint32_t(0x0000000F));
+		expect(cols).to_equal(uint32_t(0));
 		expect(rows).to_equal(uint32_t(0x00000080));
 
-		// A scene that draws pads is greyed by the shell itself, so the guest reports none and the
-		// pads are not greyed twice.
-		r.over.overlay = false;
-		cols = 0xDEADBEEF;
-		rows = 0xFEEDFACE;
-		expect(r.guest.getGreyoutColsAndRows(&cols, &rows)).to_be_false();
-		expect(cols).to_equal(uint32_t(0xDEADBEEF));
+		// One with a mask of its own replaces the menu's whole, rows included -- not an OR.
+		r.over.greyout = {0x0000000Fu, 0u};
+		cols = 0;
+		rows = 0;
+		expect(r.guest.getGreyoutColsAndRows(&cols, &rows)).to_be_true();
+		expect(cols).to_equal(uint32_t(0x0000000F));
+		expect(rows).to_equal(uint32_t(0));
+	});
+
+	it("answers the topmost non-empty greyout, not the OR: 0b11 over a menu's 0xFFFFFFFE", _ {
+		// `RenameUI::getGreyoutColsAndRows` (`gui/ui/rename/rename_ui.cpp:63-66`) over
+		// `SoundEditor`'s clip-minder arm.
+		Rig r;
+		r.base.overlay = true;
+		r.base.regions = PadRegions::None;
+		r.base.greyout = {0xFFFFFFFEu, 0};
+		expect(r.open()).to_be_true();
+		r.over.overlay = true;
+		r.over.regions = PadRegions::Main;
+		r.over.greyout = {0b11u, 0};
+		expect(r.guest.shell().stack().push(SceneId{kOver, 0})).to_be_true();
+
+		uint32_t cols = 0;
+		uint32_t rows = 0;
+		expect(r.guest.getGreyoutColsAndRows(&cols, &rows)).to_be_true();
+		expect(cols).to_equal(uint32_t(0b11));
+		expect(rows).to_equal(uint32_t(0));
+	});
+
+	it("a menu alone keeps its own mask", _ {
+		Rig r;
+		r.base.overlay = true;
+		r.base.regions = PadRegions::None;
+		r.base.greyout = {0xFFFFFFFEu, 0};
+		expect(r.open()).to_be_true();
+
+		uint32_t cols = 0;
+		uint32_t rows = 0;
+		expect(r.guest.getGreyoutColsAndRows(&cols, &rows)).to_be_true();
+		expect(cols).to_equal(uint32_t(0xFFFFFFFE));
+	});
+
+	it("reports the greyout while it owns the pads, so legacy greys the guest's pixels once", _ {
+		// Legacy greys whatever `PadLEDs::image` holds in its send path (`prepareColour`,
+		// `hid/led/pad_leds.cpp:284-298`), the guest's pixels included.
+		Rig r;
+		r.base.overlay = true;
+		r.base.regions = PadRegions::Main;
+		r.base.greyout = {0b10u, 0};
+		expect(r.open()).to_be_true();
+
+		uint32_t cols = 0;
+		uint32_t rows = 0;
+		expect(r.guest.getGreyoutColsAndRows(&cols, &rows)).to_be_true();
+		expect(cols).to_equal(uint32_t(0b10));
+	});
+
+	it("builds its shell with greys_in_send_path on", _ {
+		// The guest's pads reach `PadLEDs::image` as the scene painted them, ungreyed, however the
+		// stack asks to grey them: legacy's send path does that.
+		Rig r;
+		r.base.occludes = true;
+		r.base.greyout = {0xFFFFFFFFu, 0xFFu};
+		expect(r.open()).to_be_true();
+		r.guest.shell().tick(0);
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
+				expect(PadLEDs::image[y][x] == PatternScene::pad_for(x, y)).to_be_true();
+			}
+		}
 	});
 
 	// ---- exitUI, both directions --------------------------------------------------------------

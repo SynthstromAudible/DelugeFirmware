@@ -403,8 +403,9 @@ public:
 	bool is_root() const override { return false; }
 	/// @brief True: the waveform covers the main pads, and the sidebar beneath keeps showing.
 	bool is_grid_overlay() const override { return true; }
-	/// @brief True: the waveform is drawn on the main pads.
-	bool draws_pads() const override { return true; }
+	/// @brief `Main`: the waveform is drawn on the main pads, and the sidebar is the view
+	///        beneath's (`Slicer` overrides `renderMainPads` but not `renderSidebar`).
+	deluge::ui::shell::PadRegions pad_regions() const override { return deluge::ui::shell::PadRegions::Main; }
 	/// @brief False: `Slicer` overrides `renderMainPads` but not `renderSidebar`, so the sidebar
 	///        underneath still needs to paint (and, through `Shell::tick_stack`, still needs its
 	///        clock advanced).

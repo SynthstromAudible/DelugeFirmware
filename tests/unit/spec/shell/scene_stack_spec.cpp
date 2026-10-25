@@ -53,6 +53,7 @@ public:
 		}
 	}
 	void on_resume() override { resumes++; }
+	deluge::ui::grid::GreyoutMask greyout_mask() const override { return greyout; }
 	void save_state(SceneState& s) const override {
 		std::memcpy(s.bytes, &arg, sizeof(arg));
 		saves++;
@@ -66,6 +67,7 @@ public:
 	int exit_at = -1;   ///< When this scene last exited, from `seq`.
 	uint16_t arg = 0;
 	uint16_t restored = 0;
+	deluge::ui::grid::GreyoutMask greyout{}; ///< What `greyout_mask()` answers.
 	int enters = 0, exits = 0, resumes = 0, restores = 0;
 	mutable int saves = 0;
 };
@@ -86,7 +88,9 @@ public:
 	void on_resume() override { resumes++; }
 	void save_state(SceneState&) const override { saves++; }
 	void restore_state(const SceneState&) override { restores++; }
+	deluge::ui::grid::GreyoutMask greyout_mask() const override { return greyout; }
 
+	deluge::ui::grid::GreyoutMask greyout{}; ///< What `greyout_mask()` answers.
 	int* seq = nullptr;
 	int exit_at = -1;
 	int exits = 0, resumes = 0, restores = 0;
@@ -101,7 +105,9 @@ public:
 
 	void on_exit() override { exits++; }
 	void on_resume() override { resumes++; }
+	deluge::ui::grid::GreyoutMask greyout_mask() const override { return greyout; }
 
+	deluge::ui::grid::GreyoutMask greyout{}; ///< What `greyout_mask()` answers.
 	int exits = 0, resumes = 0;
 };
 
@@ -180,6 +186,33 @@ describe shell_scene_stack("shell::SceneStack", $ {
 		expect(r.b.exits).to_equal(1);
 		expect(r.a.resumes).to_equal(1);
 		expect(r.st.top().kind() == kA).to_be_true();
+	});
+
+	it("topmost_greyout answers the topmost non-empty mask and skips empty ones", _ {
+		// Legacy's `getUIGreyoutColsAndRows` (`gui/ui/ui.cpp:73-83`): the first UI from the top
+		// that answers true decides, and an all-zero mask is the port's "false".
+		Rig r;
+		r.a.greyout = {0xFFFFFFFEu, 0};
+		r.b.greyout = {0b11u, 0};
+		r.c.greyout = {};
+		expect(r.st.push({kA})).to_be_true();
+		expect(r.st.push({kB})).to_be_true();
+		expect(r.st.push({kC})).to_be_true();
+		expect(r.st.topmost_greyout().cols).to_equal(uint32_t(0b11));
+		expect(r.st.topmost_greyout().rows).to_equal(uint32_t(0));
+
+		r.st.pop();
+		expect(r.st.topmost_greyout().cols).to_equal(uint32_t(0b11));
+		expect(r.st.topmost_greyout().rows).to_equal(uint32_t(0));
+
+		r.st.reset();
+		r.a.greyout = {};
+		r.b.greyout = {};
+		expect(r.st.push({kA})).to_be_true();
+		expect(r.st.push({kB})).to_be_true();
+		expect(r.st.push({kC})).to_be_true();
+		expect(r.st.topmost_greyout().cols).to_equal(uint32_t(0));
+		expect(r.st.topmost_greyout().rows).to_equal(uint32_t(0));
 	});
 
 	it("pop(kind) pops down to and including that kind", _ {

@@ -310,6 +310,50 @@ enum class GridPadClaim : uint8_t {
 	None,
 };
 
+/// @brief The parts of the pad grid a scene draws itself -- `Scene::pad_regions()`'s return type.
+///
+/// Legacy asks every UI two separate questions, `renderMainPads` and `renderSidebar`
+/// (`gui/ui/ui.h:143-151`), and an overlay routinely answers them differently: `QwertyUI::drawKeys`
+/// draws the main pads only (`gui/ui/qwerty_ui.cpp:76-125`), leaving the sidebar to the view
+/// beneath. A host that shares the pads with another owner hands each region over on its own.
+enum class PadRegions : uint8_t {
+	None = 0,    ///< Every pad is left to what is beneath.
+	Main = 1,    ///< The main grid, columns `0 .. kDisplayWidth - 1`.
+	Sidebar = 2, ///< The sidebar columns to the right of the main grid.
+	All = 3,     ///< Both.
+};
+
+/// @brief The union of two region sets.
+/// @param a,b The sets.
+/// @return Every region in either.
+constexpr PadRegions operator|(PadRegions a, PadRegions b) {
+	return static_cast<PadRegions>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
+}
+
+/// @brief The intersection of two region sets.
+/// @param a,b The sets.
+/// @return The regions in both.
+constexpr PadRegions operator&(PadRegions a, PadRegions b) {
+	return static_cast<PadRegions>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b));
+}
+
+/// @brief Add \p b's regions to \p a.
+/// @param a The set to grow.
+/// @param b The regions to add.
+/// @return \p a.
+constexpr PadRegions& operator|=(PadRegions& a, PadRegions b) {
+	a = a | b;
+	return a;
+}
+
+/// @brief Does \p set hold every region of \p region?
+/// @param set The set asked about.
+/// @param region The region, or regions, looked for.
+/// @return True when \p region is not `None` and each of its bits is in \p set.
+constexpr bool has(PadRegions set, PadRegions region) {
+	return region != PadRegions::None && (set & region) == region;
+}
+
 /// @brief One screen's worth of behaviour: what it draws, what it does with input, and what it
 ///        remembers.
 ///
@@ -424,14 +468,19 @@ public:
 	/// @return True (the default, for any grid overlay) to dim what is beneath; false to leave it
 	///         exactly as the base painted it.
 	virtual bool dims_grid() const { return is_grid_overlay(); }
-	/// @brief Does this scene draw pads of its own, rather than leaving every pad to what is beneath?
+	/// @brief Which parts of the pad grid this scene draws itself, rather than leaving to what is
+	///        beneath?
 	///
-	/// A host that shares the pads with another owner (`gui/ui/shell_host_ui.h`'s guest) hands them
-	/// to that owner while no scene on its stack draws any. An overlay that paints pads over what is
-	/// beneath -- a keyboard, a waveform -- answers true; one whose only grid pixels are a shortcut
-	/// blink, or none at all, keeps the default.
-	/// @return `!is_grid_overlay()` by default.
-	virtual bool draws_pads() const { return !is_grid_overlay(); }
+	/// A host that shares the pads with another owner (`gui/ui/shell_host_ui.h`'s guest) hands each
+	/// region to that owner while no scene on its stack draws it. An overlay that paints the main
+	/// pads over what is beneath -- a keyboard, a waveform -- answers `Main` and leaves the sidebar
+	/// to the view beneath, as legacy's overlays do by not overriding `renderSidebar`. One whose only
+	/// grid pixels are a shortcut blink, or none at all, keeps the default.
+	/// @return `None` for a grid overlay, `All` otherwise, by default.
+	virtual PadRegions pad_regions() const { return is_grid_overlay() ? PadRegions::None : PadRegions::All; }
+	/// @brief Does this scene draw any pads of its own?
+	/// @return `pad_regions() != PadRegions::None`.
+	bool draws_pads() const { return pad_regions() != PadRegions::None; }
 	/// @brief Should the scene beneath still draw \p role, with this scene drawn over it?
 	/// @param role The surface in question.
 	virtual bool oled_transparent(SurfaceRole role) const { return false; }

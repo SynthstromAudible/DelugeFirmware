@@ -44,6 +44,15 @@ struct ShellConfig {
 	/// The seed the screensaver's animation is started from; passed through to the pushed
 	/// scene's `SceneId::arg` (see `Screensaver`).
 	uint32_t seed = 0;
+	/// @brief Is the greyout applied further down the send path, so the shell must not grey its
+	///        own grid?
+	///
+	/// A host that greys pads as it sends them -- the guest inside legacy, whose `prepareColour`
+	/// (`hid/led/pad_leds.cpp:284-298`) greys whatever `PadLEDs::image` holds by the mask
+	/// `getGreyoutColsAndRows` reports -- sets this, so the pads are greyed once, with legacy's own
+	/// proportion and fade. A shell that drives the pads itself leaves it false and greys in
+	/// `render_grid`, statically and through the `GreyOut` tween.
+	bool greys_in_send_path = false;
 };
 
 /// @brief What the shell calls to find the application's root scene for a song, on the two paths
@@ -396,8 +405,8 @@ public:
 	///        objects are wired in without owning them itself.
 	const Services& services() const { return services_; }
 	const SurfaceSet& surfaces() const { return surfaces_; }
-	/// @brief The union of every stacked scene's `greyout_mask()`, as re-queried on the last tick
-	///        the stack changed.
+	/// @brief The topmost non-empty `greyout_mask()` on the stack (`SceneStack::topmost_greyout`),
+	///        as re-queried on the last tick the stack changed.
 	grid::GreyoutMask greyout() const { return greyout_; }
 	/// @brief How many LED declarations were dropped for naming a board LED past
 	///        `LedFrame::kMaxEntries`.
@@ -575,7 +584,7 @@ private:
 	/// song root through; unset (`root_for_song == nullptr`) until `set_song_hooks` is called.
 	SongHooks song_hooks_;
 
-	/// The union of the stack's `greyout_mask()`s, re-queried whenever the stack changes.
+	/// The stack's topmost non-empty `greyout_mask()`, re-queried whenever the stack changes.
 	grid::GreyoutMask greyout_{};
 	/// The sysex/MIDI display mirror `flush` drives after a real blit of the `Main` surface.
 	Mirror mirror_;

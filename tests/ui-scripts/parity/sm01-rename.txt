@@ -1,0 +1,21 @@
+# The rename keyboard from the sound menu: Select opens the menu, then Actions > Edit name > Track name. Written for
+# the ShellMenu card, where Select opens the ported menu; with ShellMenu off it walks the same legacy path.
+100   snapshot boot
+300   button SelectEnc down
+320   button SelectEnc up
+1000  snapshot root
+1300  button SelectEnc down
+1320  button SelectEnc up
+2000  snapshot actions
+2300  button SelectEnc down
+2320  button SelectEnc up
+3000  snapshot edit-name
+3300  button SelectEnc down
+3320  button SelectEnc up
+4200  snapshot rename
+4500  button Back down
+4520  button Back up
+5200  snapshot rename-back
+5500  button Back down
+5520  button Back up
+6200  snapshot root-again

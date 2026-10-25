@@ -771,8 +771,15 @@ describe browser_composition("scenes::browser::BrowserScene composition", $ {
 		expect(s.occludes_grid()).to_be_false();
 		expect(s.dims_grid()).to_be_false();
 		expect(s.input_transparent()).to_be_false();
-		// Both subclasses' `getGreyoutColsAndRows` set `*cols = 0xFFFFFFFF`.
-		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0xFFFFFFFFu});
+	});
+
+	it("draws the main pads only, leaving the sidebar to the view beneath", _ {
+		// The keyboard is `QwertyUI::drawKeys`'s, main pads only (`gui/ui/qwerty_ui.cpp:76-125`), and
+		// `SampleBrowser::getGreyoutColsAndRows` greys the mute column while it shows
+		// (`gui/ui/browser/sample_browser.cpp:535-545`).
+		const deluge::ui::shell::Scene& s = browser_scene();
+		expect(s.pad_regions() == deluge::ui::shell::PadRegions::Main).to_be_true();
+		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0b10});
 		expect(static_cast<uint64_t>(s.greyout_mask().rows)).to_equal(uint64_t{0});
 	});
 });

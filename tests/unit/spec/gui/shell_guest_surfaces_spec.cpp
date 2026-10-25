@@ -72,10 +72,14 @@ std::vector<RGB> legacy_column(int32_t x) {
 /// @brief The end-to-end scene: a flat grid colour with one column overridable, a mark on the
 ///        OLED, one LED and one knob indicator -- everything the guest's six hooks carry.
 constexpr SceneKind kBase = SceneKind::FirstApp;
+/// A second kind, for a stack of two scenes.
+constexpr SceneKind kUpper = static_cast<SceneKind>(static_cast<uint8_t>(SceneKind::FirstApp) + 1);
 
 class GuestScene final : public Scene {
 public:
-	SceneKind kind() const override { return kBase; }
+	explicit GuestScene(SceneKind k = kBase) : kind_(k) {}
+	SceneKind kind() const override { return kind_; }
+	PadRegions pad_regions() const override { return regions; }
 
 	void render_oled(SurfaceRole, deluge::ui::oled::OledFrame& frame) override { frame.hline(5, 0, 20); }
 
@@ -100,19 +104,44 @@ public:
 	int32_t override_x = -1;
 	RGB override_colour{200, 100, 50};
 	deluge::ui::KnobIndicator indicator{{1, 2, 3, 4}};
+	/// What `pad_regions()` answers.
+	PadRegions regions = PadRegions::All;
+
+private:
+	SceneKind kind_;
 };
 
-std::array<Scene*, 18> table_for(Scene& base) {
+std::array<Scene*, 18> table_for(Scene& base, Scene& upper) {
 	std::array<Scene*, 18> t{};
 	t[static_cast<size_t>(kBase)] = &base;
+	t[static_cast<size_t>(kUpper)] = &upper;
 	return t;
+}
+
+/// @brief Paint every pad of legacy's image @p c, standing in for the UI underneath.
+void fill_legacy_pads(RGB c) {
+	for (int32_t y = 0; y < kDisplayHeight; y++) {
+		for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
+			PadLEDs::image[y][x] = c;
+		}
+	}
+}
+
+/// @brief A column pair of one colour.
+ColumnPair flat_pair(RGB c) {
+	ColumnPair p{};
+	for (RGB& colour : p.colours) {
+		colour = c;
+	}
+	return p;
 }
 
 /// @brief A real `Shell` rendering through a real `GuestSurfaceSet` into the legacy buffers.
 struct ShellRig {
 	const BoardProfile& profile = deluge_profile();
 	GuestScene base;
-	std::array<Scene*, 18> table = table_for(base);
+	GuestScene upper{kUpper};
+	std::array<Scene*, 18> table = table_for(base, upper);
 	SceneRegistry reg{std::span<Scene* const>{table}};
 	GuestSurfaceSet set{kDelugeBoard, deluge_profile()};
 	Shell shell{set, profile, reg, Services{}, ShellConfig{}};
@@ -328,6 +357,96 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 
 		r.set.send_columns(9, p); // columns 18/19: past the end of legacy's image
 		expect(fakelegacy::column_sends.size()).to_equal(size_t(1));
+	});
+
+	// ---- ownership by region: main pads and sidebar ---------------------------------------------
+
+	it("writes a Main-only stack's pairs 0-7 and leaves pair 8 of PadLEDs::image as legacy left it", _ {
+		// `QwertyUI::drawKeys` draws the main pads only (`gui/ui/qwerty_ui.cpp:76-125`); the sidebar
+		// is the root view's, drawn by legacy.
+		ShellRig r;
+		r.base.regions = PadRegions::Main;
+		r.set.observe(r.shell.stack());
+		expect(r.shell.stack().push({kBase, 0})).to_be_true();
+		fill_legacy_pads(RGB{9, 8, 7});
+
+		for (uint8_t pair = 0; pair < 9; pair++) {
+			r.set.send_columns(pair, flat_pair(RGB{1, 2, 3}));
+		}
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			for (int32_t x = 0; x < kDisplayWidth; x++) {
+				expect(PadLEDs::image[y][x] == RGB{1, 2, 3}).to_be_true();
+			}
+			expect(PadLEDs::image[y][16] == RGB{9, 8, 7}).to_be_true();
+			expect(PadLEDs::image[y][17] == RGB{9, 8, 7}).to_be_true();
+		}
+		expect(fakelegacy::column_sends.size()).to_equal(size_t(8));
+		for (size_t i = 0; i < fakelegacy::column_sends.size(); i++) {
+			expect(fakelegacy::column_sends[i].x).to_equal(static_cast<int32_t>(i * 2));
+		}
+	});
+
+	it("takes only the owned columns: a Main-only take_grid leaves columns 16-17 alone", _ {
+		deluge::notify::dirty().drain();
+		ShellRig r;
+		r.base.regions = PadRegions::Main;
+		r.set.observe(r.shell.stack());
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		fill_legacy_pads(RGB{9, 8, 7});
+		fakelegacy::column_sends.clear();
+
+		r.set.take_grid();
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			for (int32_t x = 0; x < kDisplayWidth; x++) {
+				expect(PadLEDs::image[y][x] == r.base.colour).to_be_true();
+			}
+			expect(PadLEDs::image[y][16] == RGB{9, 8, 7}).to_be_true();
+			expect(PadLEDs::image[y][17] == RGB{9, 8, 7}).to_be_true();
+		}
+		expect(fakelegacy::column_sends.size()).to_equal(size_t(8));
+		for (size_t i = 0; i < fakelegacy::column_sends.size(); i++) {
+			expect(fakelegacy::column_sends[i].x).to_equal(static_cast<int32_t>(i * 2));
+		}
+	});
+
+	it("writes all nine pairs for a Main|Sidebar stack", _ {
+		ShellRig r;
+		r.base.regions = PadRegions::Main | PadRegions::Sidebar;
+		r.set.observe(r.shell.stack());
+		expect(r.shell.stack().push({kBase, 0})).to_be_true();
+		fill_legacy_pads(RGB{9, 8, 7});
+
+		for (uint8_t pair = 0; pair < 9; pair++) {
+			r.set.send_columns(pair, flat_pair(RGB{1, 2, 3}));
+		}
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
+				expect(PadLEDs::image[y][x] == RGB{1, 2, 3}).to_be_true();
+			}
+		}
+		expect(fakelegacy::column_sends.size()).to_equal(size_t(9));
+		for (size_t i = 0; i < fakelegacy::column_sends.size(); i++) {
+			expect(fakelegacy::column_sends[i].x).to_equal(static_cast<int32_t>(i * 2));
+		}
+	});
+
+	it("reports All with no stack watched, and the OR of the stack's pad_regions", _ {
+		Rig unwatched;
+		expect(unwatched.set.owned_regions() == PadRegions::All).to_be_true();
+
+		ShellRig r;
+		r.set.observe(r.shell.stack());
+		expect(r.set.owned_regions() == PadRegions::None).to_be_true(); // an empty stack
+		r.base.regions = PadRegions::None;
+		r.upper.regions = PadRegions::Main;
+		expect(r.shell.stack().push({kBase, 0})).to_be_true();
+		expect(r.shell.stack().push({kUpper, 0})).to_be_true();
+		expect(r.set.owned_regions() == PadRegions::Main).to_be_true();
+
+		r.base.regions = PadRegions::Main;
+		r.upper.regions = PadRegions::Sidebar;
+		expect(r.set.owned_regions() == PadRegions::All).to_be_true();
 	});
 
 	// ---- back-pressure, forwarded rather than invented -----------------------------------------

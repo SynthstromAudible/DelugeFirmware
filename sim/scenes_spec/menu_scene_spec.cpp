@@ -455,6 +455,16 @@ describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 		expect(static_cast<int>(s.kind())).to_equal(static_cast<int>(SceneKind::FirstApp));
 	});
 
+	it("draws no pads of its own", _ {
+		// `SoundEditor` overrides neither `renderMainPads` nor `renderSidebar` to draw anything
+		// (`gui/ui/sound_editor.cpp:217-247`): every pad is the root view's.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		expect(menu_scene().pad_regions() == deluge::ui::shell::PadRegions::None).to_be_true();
+	});
+
 	it("registers itself as the one application scene, at SceneKind::FirstApp", _ {
 		const deluge::ui::shell::SceneRegistry reg = scene_registry();
 		expect(reg.find(SceneKind::FirstApp) == &menu_scene()).to_be_true();

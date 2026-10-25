@@ -23,6 +23,8 @@ namespace {
 /// overlay.
 constexpr SceneKind kBase = SceneKind::FirstApp;
 constexpr SceneKind kOverlay = static_cast<SceneKind>(static_cast<uint8_t>(SceneKind::FirstApp) + 1);
+/// A second overlay kind, for the cases that stack two overlays.
+constexpr SceneKind kUpper = static_cast<SceneKind>(static_cast<uint8_t>(SceneKind::FirstApp) + 2);
 
 /// The colour the base scene paints every pad; picked so `>> 1` per channel is exact and so no
 /// channel is symmetric with another.
@@ -96,7 +98,7 @@ public:
 		const deluge::gfx::grid::Rect b = frame.bounds();
 		for (int32_t y = 0; y < b.h; y++) {
 			for (int32_t x = 0; x < b.w; x++) {
-				(void)frame.pad(x, y, kBaseColour);
+				(void)frame.pad(x, y, colour);
 			}
 		}
 	}
@@ -143,6 +145,8 @@ public:
 	/// The local corner `render_oled` draws its Aux box at.
 	static constexpr int32_t kAuxRectX = 4, kAuxRectY = 4;
 
+	/// The colour `render_grid` paints every pad.
+	RGB colour = kBaseColour;
 	int oled_renders = 0, grid_renders = 0, events = 0, ticks = 0, model_changed = 0;
 	int after_renders = 0, events_at_after_render = -1, turns_seen = 0;
 	uint32_t frame_ms = 0;
@@ -168,7 +172,8 @@ public:
 ///        settable so one class covers dim, greyout, occlusion and OLED transparency.
 class OverlayScene final : public Scene {
 public:
-	SceneKind kind() const override { return kOverlay; }
+	explicit OverlayScene(SceneKind k = kOverlay) : kind_(k) {}
+	SceneKind kind() const override { return kind_; }
 
 	void render_oled(SurfaceRole, deluge::ui::oled::OledFrame& frame) override {
 		oled_renders++;
@@ -176,7 +181,9 @@ public:
 	}
 	void render_grid(deluge::ui::grid::GridFrame& frame) override {
 		grid_renders++;
-		(void)frame.pad(0, 0, kOverlayColour);
+		if (paints) {
+			(void)frame.pad(0, 0, kOverlayColour);
+		}
 	}
 	void leds(deluge::ui::LedFrame& frame) override {
 		(void)frame.set(kPlayLed, deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, 200, 0});
@@ -189,6 +196,7 @@ public:
 
 	bool is_grid_overlay() const override { return overlay; }
 	bool occludes_grid() const override { return occludes; }
+	bool dims_grid() const override { return overlay && dims; }
 	bool oled_transparent(SurfaceRole) const override { return transparent; }
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return mask; }
 
@@ -196,16 +204,22 @@ public:
 	static constexpr int32_t kBoxX = 60, kBoxY = 20;
 
 	bool overlay = true, occludes = false, transparent = false;
+	/// Whether `render_grid` paints its one pad, and whether it dims what is beneath.
+	bool paints = true, dims = true;
 	deluge::ui::grid::GreyoutMask mask{};
 	int oled_renders = 0, grid_renders = 0, events = 0, ticks = 0;
+
+private:
+	SceneKind kind_;
 };
 
 /// @brief Build the registry table before it is handed to the `SceneRegistry` member, so the
 ///        `Shell` constructor -- which copies the table -- sees the scenes already in it.
-std::array<Scene*, 18> table_for(Scene& base, Scene& overlay) {
-	std::array<Scene*, 18> t{};
+std::array<Scene*, 19> table_for(Scene& base, Scene& overlay, Scene& upper) {
+	std::array<Scene*, 19> t{};
 	t[static_cast<size_t>(kBase)] = &base;
 	t[static_cast<size_t>(kOverlay)] = &overlay;
+	t[static_cast<size_t>(kUpper)] = &upper;
 	return t;
 }
 
@@ -218,14 +232,15 @@ struct Rig {
 	BoardProfile profile = tick_profile();
 	BaseScene base;
 	OverlayScene overlay;
-	std::array<Scene*, 18> table = table_for(base, overlay);
+	OverlayScene upper{kUpper};
+	std::array<Scene*, 19> table = table_for(base, overlay, upper);
 	SceneRegistry reg{std::span<Scene* const>{table}};
 	uitest::FakeSurfaceSet fake{uitest::kBoard2, profile};
-	Shell shell{fake, profile, reg, Services{}, ShellConfig{}};
+	Shell shell;
 
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
-	Rig() = default;
+	explicit Rig(ShellConfig config = ShellConfig{}) : shell{fake, profile, reg, Services{}, config} {}
 
 	/// @brief What `Shell::flush` (Task 8) will do at the end of every tick: lower the pending
 	///        flags, so the next tick's are visible.
@@ -364,6 +379,72 @@ describe shell_tick("shell::Shell::tick", $ {
 		// Greyout runs last, so even the overlay's own pad is tinted.
 		RGB overlay_colour = kOverlayColour;
 		expect(g.at(0, 0) == overlay_colour.greyOut(kGreyoutAmountFull)).to_be_true();
+	});
+
+	it("greys the grid by the topmost non-empty mask, not the union", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.base.colour = RGB{100, 100, 100};
+		// Two overlays that paint and dim nothing, so the greyout is the only thing on the grid:
+		// a menu's mask under a keyboard's, which legacy's top-down `getUIGreyoutColsAndRows`
+		// (`gui/ui/ui.cpp:73-83`) resolves to the keyboard's alone.
+		r.overlay.paints = false;
+		r.overlay.dims = false;
+		r.overlay.mask = deluge::ui::grid::GreyoutMask{0xFFFFFFFEu, 0};
+		r.upper.paints = false;
+		r.upper.dims = false;
+		r.upper.mask = deluge::ui::grid::GreyoutMask{0b10u, 0};
+		r.shell.init({kBase, 0});
+		expect(r.shell.stack().push({kOverlay, 0})).to_be_true();
+		expect(r.shell.stack().push({kUpper, 0})).to_be_true();
+		r.shell.tick(0);
+
+		expect(r.shell.greyout().cols).to_equal(uint32_t(0b10));
+		const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+		// `cols` bit 1 is column `17 - 1` = 16.
+		for (uint8_t y = 0; y < g.dims().rows; y++) {
+			for (uint8_t x = 0; x < g.dims().cols(); x++) {
+				expect(g.at(x, y) != RGB{100, 100, 100}).to_equal(x == 16);
+			}
+		}
+	});
+
+	it("greys_in_send_path leaves the composed grid ungreyed", _ {
+		deluge::notify::dirty().drain();
+		Rig r{ShellConfig{.greys_in_send_path = true}};
+		r.base.colour = RGB{100, 100, 100};
+		r.overlay.paints = false;
+		r.overlay.dims = false;
+		r.overlay.mask = deluge::ui::grid::GreyoutMask{0xFFFFFFFEu, 0};
+		r.upper.paints = false;
+		r.upper.dims = false;
+		r.upper.mask = deluge::ui::grid::GreyoutMask{0b10u, 0};
+		r.shell.init({kBase, 0});
+		expect(r.shell.stack().push({kOverlay, 0})).to_be_true();
+		expect(r.shell.stack().push({kUpper, 0})).to_be_true();
+		r.shell.tick(0);
+
+		// The host still reads the mask; it is only the shell's own pass that is skipped.
+		expect(r.shell.greyout().cols).to_equal(uint32_t(0b10));
+		const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+		const auto ungreyed = [&g] {
+			for (uint8_t y = 0; y < g.dims().rows; y++) {
+				for (uint8_t x = 0; x < g.dims().cols(); x++) {
+					if (g.at(x, y) != RGB{100, 100, 100}) {
+						return false;
+					}
+				}
+			}
+			return true;
+		};
+		expect(ungreyed()).to_be_true();
+
+		// Nor does the greyout ramp grey it, midway or settled.
+		r.shell.start_tween(ActiveTween{ActiveTween::Kind::GreyOut, 0, 200, kGreyoutAmountFull});
+		r.shell.tick(100);
+		expect(ungreyed()).to_be_true();
+		r.shell.tick(250);
+		expect(ungreyed()).to_be_true();
 	});
 
 	it("occludes_grid stops ticking scenes beneath", _ {

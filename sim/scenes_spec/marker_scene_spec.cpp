@@ -515,6 +515,17 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		}
 	});
 
+	// --- composition --------------------------------------------------------------------------
+
+	it("draws the main pads only, leaving the sidebar to the view beneath", _ {
+		// `SampleMarkerEditor::renderMainPads` fills the main pads and `renderSidebar` defers to the
+		// root (`gui/ui/sample_marker_editor.cpp:875-881`); `getGreyoutColsAndRows` is `0b10` (`:104-107`).
+		const deluge::ui::shell::Scene& s = marker_scene();
+		expect(s.pad_regions() == deluge::ui::shell::PadRegions::Main).to_be_true();
+		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0b10});
+		expect(static_cast<uint64_t>(s.greyout_mask().rows)).to_equal(uint64_t{0});
+	});
+
 	// --- opening ------------------------------------------------------------------------------
 
 	it("opens zoomed all the way out, on the marker SceneId::arg names", _ {

@@ -357,12 +357,7 @@ void Shell::tick(uint32_t now_ms) {
 	// A stack that moved may have changed what is greyed and what is drawn over what, and
 	// `changed_since_last_query` is deliberately conservative, so re-query and invalidate together.
 	if (stack_.changed_since_last_query()) {
-		greyout_ = grid::GreyoutMask{};
-		for (Scene* scene : stack_.scenes()) {
-			const grid::GreyoutMask m = scene->greyout_mask();
-			greyout_.cols |= m.cols;
-			greyout_.rows |= m.rows;
-		}
+		greyout_ = stack_.topmost_greyout();
 		for (OledSurface& s : surfaces_.oled()) {
 			s.gate.request_repaint();
 		}
@@ -798,8 +793,12 @@ void Shell::render_grid(uint32_t now_ms) {
 	// this static full-strength pass rather than stacking underneath it; running both would grey
 	// the frame twice; the tween block below applies the masked `ui::grid::greyout` itself, at the
 	// ramped or (on completion) full proportion.
+	//
+	// A host that greys in its send path (`ShellConfig::greys_in_send_path`) gets an ungreyed grid
+	// from every one of the three passes: greying here as well would grey its pads twice.
 	const bool greyout_tween_active = g.tween.has_value() && g.tween->kind == ActiveTween::Kind::GreyOut;
-	if (!greyout_tween_active && (greyout_.cols != 0 || greyout_.rows != 0)) {
+	const bool greys_here = !config_.greys_in_send_path && (greyout_.cols != 0 || greyout_.rows != 0);
+	if (!greyout_tween_active && greys_here) {
 		// Last, and once: `ui::grid::greyout` mutates the grid rather than tinting on the way out,
 		// so anything painted after it would escape the tint (`ui/grid/effects.h`'s warning).
 		// `InputMask::none()`: an effect pass paints, it does not consume input.
@@ -814,7 +813,7 @@ void Shell::render_grid(uint32_t now_ms) {
 		const ActiveTween& tw = *g.tween;
 		const uint32_t elapsed = now_ms - tw.start_ms;
 		if (elapsed >= tw.duration_ms) {
-			if (greyout_tween_active && (greyout_.cols != 0 || greyout_.rows != 0)) {
+			if (greyout_tween_active && greys_here) {
 				// The ramp has reached its target; settle at full strength once, matching legacy's
 				// `amountDone > 1` snap to `setGreyoutAmount(1)` (`pad_leds.cpp:986-988`) -- the
 				// static pass above was skipped this tick precisely because this tween was still
@@ -852,9 +851,11 @@ void Shell::render_grid(uint32_t now_ms) {
 			case ActiveTween::Kind::GreyOut: {
 				// Masked, not `gfx::grid::grey_out`'s unconditional "every main column": see the
 				// class comment above on why this replaces the static pass rather than adding to it.
-				const int32_t proportion = static_cast<int32_t>((static_cast<int64_t>(tw.param) * t) / 65536);
-				ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), InputMask::none());
-				ui::grid::greyout(frame, greyout_, proportion);
+				if (!config_.greys_in_send_path) {
+					const int32_t proportion = static_cast<int32_t>((static_cast<int64_t>(tw.param) * t) / 65536);
+					ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), InputMask::none());
+					ui::grid::greyout(frame, greyout_, proportion);
+				}
 				break;
 			}
 			}

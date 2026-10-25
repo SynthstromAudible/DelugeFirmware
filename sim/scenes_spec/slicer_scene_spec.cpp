@@ -582,6 +582,16 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		}
 	});
 
+	// --- composition --------------------------------------------------------------------------
+
+	it("draws the main pads only, leaving the sidebar to the view beneath", _ {
+		// `Slicer` overrides `renderMainPads` but not `renderSidebar`, nor `getGreyoutColsAndRows`.
+		const deluge::ui::shell::Scene& s = slicer_scene();
+		expect(s.pad_regions() == deluge::ui::shell::PadRegions::Main).to_be_true();
+		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0});
+		expect(static_cast<uint64_t>(s.greyout_mask().rows)).to_equal(uint64_t{0});
+	});
+
 	// --- opening ------------------------------------------------------------------------------
 
 	it("opens exactly where focusRegained leaves legacy", _ {

@@ -34,6 +34,8 @@ std::function<void()> on_action_dispatch{};
 int choice_dispatches = 0;
 int pad_forwards = 0;
 PadCall last_pad_forward{};
+int marker_sidebar_requests = 0;
+bool marker_sidebar_answer = false;
 int note_button_forwards = 0;
 NoteButtonCall last_note_button{};
 std::optional<ActionResult> note_button_answer{};
@@ -86,6 +88,8 @@ void reset() {
 	choice_dispatches = 0;
 	pad_forwards = 0;
 	last_pad_forward = PadCall{};
+	marker_sidebar_requests = 0;
+	marker_sidebar_answer = false;
 	note_button_forwards = 0;
 	last_note_button = NoteButtonCall{};
 	note_button_answer = std::nullopt;
@@ -377,6 +381,14 @@ PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity) {
 	fakelegacyui::pad_forwards++;
 	fakelegacyui::last_pad_forward = fakelegacyui::PadCall{x, y, velocity};
 	return PadForwardTarget::None;
+}
+
+// The same file's root-UI question for the marker's sidebar: the real one reads `getRootUI()` and
+// draws through `instrumentClipView`, neither of which this suite builds.
+bool renderClipViewSidebarUnderMarker(uint32_t, RGB[][kDisplayWidth + kSideBarWidth],
+                                      uint8_t[][kDisplayWidth + kSideBarWidth]) {
+	fakelegacyui::marker_sidebar_requests++;
+	return fakelegacyui::marker_sidebar_answer;
 }
 
 // `gui/ui/shell_note_mode.cpp`'s share, on the same terms as `forwardGridPad` above except for the

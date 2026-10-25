@@ -132,8 +132,9 @@ public:
 	///        columns the keyboard does not own keep showing the view underneath -- exactly what
 	///        `QwertyUI::drawKeys`'s `clearMainPadsWithoutSending` (main pads only) leaves.
 	bool is_grid_overlay() const override { return true; }
-	/// @brief True: the keyboard is drawn on the main pads.
-	bool draws_pads() const override { return true; }
+	/// @brief `Main`: the keyboard is drawn on the main pads, and the sidebar is the view
+	///        beneath's (`QwertyUI::drawKeys`, `gui/ui/qwerty_ui.cpp:76-125`).
+	deluge::ui::shell::PadRegions pad_regions() const override { return deluge::ui::shell::PadRegions::Main; }
 	/// @brief False: the base view still paints, and the sidebar it paints is what shows through.
 	bool occludes_grid() const override { return false; }
 	/// @brief False: legacy greys through `getGreyoutColsAndRows` (`greyout_mask()` below), it

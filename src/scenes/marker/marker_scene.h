@@ -163,10 +163,12 @@ public:
 	///
 	/// `SampleMarkerEditor::renderMainPads` fills every main column; `renderSidebar` (`:891`)
 	/// returns false unless the root UI is the keyboard screen, in which case it delegates -- a root
-	/// UI read this layer may not make, so the sidebar is simply left to whatever is beneath.
+	/// UI read this layer may not make, so the sidebar is left to the host (`pad_regions()`).
 	bool is_grid_overlay() const override { return true; }
-	/// @brief True: the waveform is drawn on the main pads.
-	bool draws_pads() const override { return true; }
+	/// @brief `Main`: the waveform is drawn on the main pads. The sidebar is the view beneath's;
+	///        over the keyboard screen, where legacy draws `instrumentClipView`'s sidebar instead,
+	///        the host draws it (`renderClipViewSidebarUnderMarker`, `gui/ui/shell_pad_forward.h`).
+	deluge::ui::shell::PadRegions pad_regions() const override { return deluge::ui::shell::PadRegions::Main; }
 	/// @brief False: the sidebar underneath still needs to paint.
 	bool occludes_grid() const override { return false; }
 	/// @brief False: legacy greys through `getGreyoutColsAndRows`, it never halves every pad.

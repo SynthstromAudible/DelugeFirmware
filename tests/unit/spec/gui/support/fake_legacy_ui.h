@@ -188,6 +188,12 @@ struct PadCall {
 	bool operator==(const PadCall&) const = default;
 };
 extern PadCall last_pad_forward;
+
+/// How many times `deluge::gui::ui::renderClipViewSidebarUnderMarker()` was called. The real one
+/// reads `getRootUI()` and draws `instrumentClipView`'s sidebar, neither of which this suite builds.
+extern int marker_sidebar_requests;
+/// What `renderClipViewSidebarUnderMarker()` answers: whether the root is the keyboard screen.
+extern bool marker_sidebar_answer;
 /// @}
 
 /// @name `gui/ui/shell_note_mode.h`'s four guest-facing functions

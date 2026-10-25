@@ -33,6 +33,7 @@ using deluge::hid::display::OLED;
 using deluge::ui::KnobIndicator;
 using deluge::ui::shell::ColumnPair;
 using deluge::ui::shell::kColumnPairLeds;
+using deluge::ui::shell::PadRegions;
 using deluge::ui::shell::SurfaceRole;
 
 // The two framebuffer formats really are byte-identical, which is the half of spec F §3 that
@@ -165,11 +166,12 @@ void GuestSurfaceSet::send_columns(uint8_t pair_index, const ColumnPair& pair) {
 	// fewer rows silently reading the second column from the wrong offset.
 	const uint8_t rows =
 	    std::min<uint8_t>(std::min<uint8_t>(grid().grid().dims().rows, kColumnPairLeds / 2), kDisplayHeight);
-	if (!grid_owned()) {
-		// The pads are the UI underneath's, as under `SoundEditor`, which draws none
-		// (`renderMainPads` answers "show root UI", `sound_editor.cpp:217-247`). What an overlay
-		// paints is its shortcut blink, which legacy flashes on the PIC instead
-		// (`SoundEditor::blinkShortcut`, `:1227-1262`): one flash as each pad lights.
+	if (!pair_owned(owned_regions(), pair_index)) {
+		// These pads are the UI underneath's, as under `SoundEditor`, which draws none
+		// (`renderMainPads` answers "show root UI", `sound_editor.cpp:217-247`), and as the sidebar
+		// is under a keyboard. What an overlay paints there is its shortcut blink, which legacy
+		// flashes on the PIC instead (`SoundEditor::blinkShortcut`, `:1227-1262`): one flash as
+		// each pad lights.
 		for (uint8_t y = 0; y < rows; y++) {
 			flash_if_lit(x0, y, pair.colours[y]);
 			flash_if_lit(x1, y, pair.colours[rows + y]);
@@ -196,34 +198,44 @@ void GuestSurfaceSet::flash_if_lit(uint8_t x, uint8_t y, RGB colour) {
 	was = now;
 }
 
-bool GuestSurfaceSet::grid_owned() const {
+PadRegions GuestSurfaceSet::owned_regions() const {
 	if (stack_ == nullptr) {
-		return true;
+		return PadRegions::All;
 	}
+	PadRegions owned = PadRegions::None;
 	for (const deluge::ui::shell::Scene* scene : stack_->scenes()) {
-		if (scene->draws_pads()) {
-			return true;
-		}
+		owned |= scene->pad_regions();
 	}
-	return false;
+	return owned;
+}
+
+bool GuestSurfaceSet::pair_owned(PadRegions owned, uint8_t pair_index) {
+	const bool main = pair_index * 2 + 1 < kDisplayWidth;
+	return has(owned, main ? PadRegions::Main : PadRegions::Sidebar);
 }
 
 void GuestSurfaceSet::take_grid() {
 	const deluge::gfx::grid::PadGrid& g = grid().grid();
+	const PadRegions owned = owned_regions();
 	const int32_t rows = std::min<int32_t>(g.dims().rows, kDisplayHeight);
 	const int32_t cols = std::min<int32_t>(g.dims().cols(), kDisplayWidth + kSideBarWidth);
-	for (int32_t y = 0; y < rows; y++) {
-		for (int32_t x = 0; x < cols; x++) {
+	for (int32_t x = 0; x + 1 < cols; x += 2) {
+		if (!pair_owned(owned, static_cast<uint8_t>(x / 2))) {
+			continue;
+		}
+		for (int32_t y = 0; y < rows; y++) {
 			PadLEDs::image[y][x] = g.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
+			PadLEDs::image[y][x + 1] = g.at(static_cast<uint8_t>(x + 1), static_cast<uint8_t>(y));
+		}
+		PadLEDs::sortLedsForCol(x);
+		// The flash bookkeeping is for pads the guest does not own; a region it hands back later
+		// starts dark.
+		for (auto& row : lit_) {
+			row[x] = false;
+			row[x + 1] = false;
 		}
 	}
-	for (int32_t x = 0; x + 1 < cols; x += 2) {
-		PadLEDs::sortLedsForCol(x);
-	}
 	deluge_control_flush();
-	for (auto& row : lit_) {
-		row.fill(false);
-	}
 }
 
 void GuestSurfaceSet::set_led(uint8_t board_led, bool on) {

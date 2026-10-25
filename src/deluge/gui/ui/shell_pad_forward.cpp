@@ -194,4 +194,12 @@ void setPadForwardPerform(PadForwardPerform p) {
 	perform = (p != nullptr) ? p : &performForward;
 }
 
+bool renderClipViewSidebarUnderMarker(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+                                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+	if (getRootUI() != &keyboardScreen) {
+		return false;
+	}
+	return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
+}
+
 } // namespace deluge::gui::ui

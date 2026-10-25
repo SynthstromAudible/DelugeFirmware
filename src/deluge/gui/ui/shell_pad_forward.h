@@ -56,6 +56,9 @@
 /// include (`scenes-includes-outside`, `scripts/check_layer_rules.py`). **Its own translation unit**
 /// for the same `deluge_scenes` closure reason `shell_action_dispatch.h` gives.
 
+#include "definitions_cxx.hpp" // kDisplayWidth, kSideBarWidth
+#include "gfx/grid/rgb.h"
+
 #include <cstdint>
 
 namespace deluge::gui::ui {
@@ -108,5 +111,18 @@ PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity);
 /// to build. `deluge_scenes_spec` links `deluge_app`, so those symbols resolve -- this is about what
 /// running them costs, not about what links.
 void setPadForwardPerform(PadForwardPerform perform);
+
+/// @brief Draw the sidebar the sample marker editor shows over its own waveform.
+///
+/// `SampleMarkerEditor::renderSidebar` (`gui/ui/sample_marker_editor.cpp:875-881`), whole: over
+/// the keyboard screen it draws `instrumentClipView`'s sidebar, and over any other root it leaves
+/// the sidebar to the UI underneath. The ported marker scene may not read the root UI, so the guest
+/// asks here on its behalf. Same arguments and answer as `UI::renderSidebar`, query form included.
+/// @param whichRows Bit `y` selects row `y`.
+/// @param image Legacy's pad image, or null to ask without drawing.
+/// @param occupancyMask Legacy's occupancy map, passed through.
+/// @return True when the clip view's sidebar was drawn (or would be), false to obey the UI underneath.
+bool renderClipViewSidebarUnderMarker(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+                                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 
 } // namespace deluge::gui::ui

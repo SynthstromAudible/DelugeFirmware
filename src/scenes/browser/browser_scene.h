@@ -328,8 +328,9 @@ public:
 	///        it does not own keep showing the view underneath -- what `QwertyUI::drawKeys`'s
 	///        `clearMainPadsWithoutSending` (main pads only) leaves.
 	bool is_grid_overlay() const override { return true; }
-	/// @brief True: the keyboard is drawn on the main pads.
-	bool draws_pads() const override { return true; }
+	/// @brief `Main`: the keyboard is drawn on the main pads, and the sidebar is the view
+	///        beneath's (`QwertyUI::drawKeys`, `gui/ui/qwerty_ui.cpp:76-125`).
+	deluge::ui::shell::PadRegions pad_regions() const override { return deluge::ui::shell::PadRegions::Main; }
 	/// @brief False: the base view still paints its sidebar, and that is what shows through.
 	bool occludes_grid() const override { return false; }
 	/// @brief False: legacy greys through `getGreyoutColsAndRows`, it never halves every pad.
@@ -339,11 +340,10 @@ public:
 	///        overlay -- unlike `RenameScene` and `ContextMenuScene`, neither of whose legacy
 	///        classes sets `oledShowsUIUnderneath`.
 	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return false; }
-	/// @brief `*cols = 0xFFFFFFFF` on both: `SampleBrowser::getGreyoutColsAndRows`
-	///        (`sample_browser.cpp:552 getGreyoutColsAndRows`) and
-	///        `LoadMidiDeviceDefinitionUI::getGreyoutColsAndRows`
-	///        (`load_midi_device_definition_ui.cpp:40 getGreyoutColsAndRows`).
-	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0xFFFFFFFFu, 0}; }
+	/// @brief `*cols = 0b10`: the mute column only, which is `SampleBrowser::getGreyoutColsAndRows`'s
+	///        answer while its keyboard shows (`gui/ui/browser/sample_browser.cpp:535-545`). This
+	///        scene always shows its keyboard, so that arm is the one that applies.
+	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0b10, 0}; }
 
 	/// @name Observable state, for specs and for whoever wires this up.
 	/// @{

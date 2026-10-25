@@ -424,7 +424,7 @@ public:
 
 private:
 	/// @brief Copy the shell's grid into legacy's pad image, for the columns \p x0 to \p x1 and the
-	///        rows \p whichRows selects, and report the top scene's opacity.
+	///        rows \p whichRows selects, and report whether the guest owns \p region.
 	///
 	/// The one body behind `renderMainPads` and `renderSidebar`, which differ only in their column
 	/// span and in which of legacy's two send paths picks the result up.
@@ -434,22 +434,13 @@ private:
 	/// @param image     Legacy's pad image, or null for the opacity-query form.
 	/// @param x0        First grid/image column to copy.
 	/// @param x1        One past the last.
-	/// @return `opaque()`. While it is false nothing is written: the pads are the UI underneath's.
-	bool serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth], int32_t x0, int32_t x1);
-
-	/// @brief Does the guest own the pads, in legacy's sense of opaque?
-	///
-	/// Legacy's `renderMainPads`/`renderSidebar` return "did I use these rows up": false means
-	/// *transparent*, "obey the UI under me" (`gui/ui/ui.h:140-142`). Spec F §2.2 states the dual
-	/// of this mapping for the phase-5 adapter -- `is_grid_overlay()` is `!renderMainPads()` -- so
-	/// this is that same equivalence read in the guest direction, over the whole stack: the guest
-	/// owns the pads while any stacked scene draws some (`Scene::draws_pads`,
-	/// `GuestSurfaceSet::grid_owned`).
-	///
-	/// `MenuScene::is_grid_overlay()` is true (`scenes/menu/menu_scene.h:505-506`), so a menu alone
-	/// answers **false** here, which is exactly what `SoundEditor` answers: it does not override
-	/// `renderSidebar`, and its `renderMainPads` answers false (`gui/ui/sound_editor.cpp:217-247`).
-	bool opaque();
+	/// @param region    The region those columns are.
+	/// @return Whether a stacked scene draws \p region (`GuestSurfaceSet::owned_regions`), which is
+	///         legacy's "did I use these rows up" (`gui/ui/ui.h:140-142`). While it is false nothing
+	///         is written: those pads are the UI underneath's. `MenuScene` draws no region, so a
+	///         menu alone answers false for both, as `SoundEditor` does (`gui/ui/sound_editor.cpp:217-247`).
+	bool serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth], int32_t x0, int32_t x1,
+	               deluge::ui::shell::PadRegions region);
 
 	/// @brief The shell's clock, in milliseconds, for every hook that has to stamp one.
 	///
@@ -549,16 +540,18 @@ private:
 	/// have forwarded.
 	bool claimsGridPad(int32_t x, int32_t y, int32_t velocity);
 
-	/// @brief Hand the pads between legacy and the guest when the stack changes who owns them, and
-	///        re-read the greyout when the stack changes it.
+	/// @brief Hand each pad region between legacy and the guest when the stack changes who owns it,
+	///        and re-read the greyout when the stack changes it.
 	///
-	/// A scene coming to own the pads takes all of them (`GuestSurfaceSet::take_grid`); the last one
-	/// going asks legacy to draw the UI underneath again. Legacy re-reads the greyout only when a UI
-	/// opens or closes (`PadLEDs::reassessGreyout`), so the guest asks again when its own stack moves.
+	/// A region the stack comes to draw is taken (`GuestSurfaceSet::take_grid`); a region it stops
+	/// drawing is handed back by asking legacy to redraw just that half. Legacy re-reads the greyout
+	/// only when a UI opens or closes (`PadLEDs::reassessGreyout`), so the guest asks again when its
+	/// own stack moves.
 	void syncPads();
 
-	/// @brief The greyout the guest reports: every stacked scene's mask, ORed, while it draws no
-	///        pads; none while it draws some, which the shell greys itself.
+	/// @brief The greyout the guest reports: the topmost non-empty mask on its stack
+	///        (`SceneStack::topmost_greyout`), whichever regions it draws. Legacy applies it once,
+	///        in its send path.
 	deluge::ui::grid::GreyoutMask greyoutMask();
 
 	/// The scene `opened()` pushes; `SceneKind::Null` until a caller sets one.
@@ -572,11 +565,13 @@ private:
 	/// (`:223`) but not the edge ratio, and a literal `2` here would silently go stale the day
 	/// F1 task 8 seats a real config. Declared before `shell_` so it is alive when the constructor
 	/// hands it over.
-	deluge::ui::shell::ShellConfig config_{};
+	///
+	/// `greys_in_send_path` is set because legacy's `prepareColour` greys every pad the guest sends.
+	deluge::ui::shell::ShellConfig config_{.greys_in_send_path = true};
 	GuestSurfaceSet surfaces_;
 	deluge::ui::shell::Shell shell_;
-	/// `opaque()` and the top scene's greyout mask when `syncPads` last ran.
-	bool padsOwned_ = true;
+	/// The regions the guest owned and the greyout it reported when `syncPads` last ran.
+	deluge::ui::shell::PadRegions padsOwned_ = deluge::ui::shell::PadRegions::All;
 	deluge::ui::grid::GreyoutMask padsGreyout_{};
 };
 

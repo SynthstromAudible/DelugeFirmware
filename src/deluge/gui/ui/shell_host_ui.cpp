@@ -29,6 +29,7 @@
 #include "hid/led/pad_leds.h"
 #include "libdeluge/scheduler.h" // getSystemTime()
 #include "model/settings/runtime_feature_settings.h"
+#include "scenes/marker/marker_scene.h"
 #include "scenes/registry.h"
 #include "shell/profiles/deluge.h"
 #include "storage/flash_storage.h"
@@ -51,7 +52,8 @@ ShellHostUI::ShellHostUI(const SceneRegistry& registry, const DelugeBoard& board
                          const deluge::ui::shell::BoardProfile& profile)
     : surfaces_(board, profile), shell_(surfaces_, profile, registry, Services{}, config_) {
 	surfaces_.observe(shell_.stack());
-	// `Services{}` and a default `ShellConfig` on purpose, and both stay that way.
+	// `Services{}` and a `ShellConfig` whose only set field is `greys_in_send_path` on purpose, and
+	// both stay that way.
 	//
 	// The three real services each take this shell's own `SceneStack&`, so they cannot exist before
 	// it. F1 task 8 builds them over `shell()` and installs them through `Shell::set_services`
@@ -60,7 +62,7 @@ ShellHostUI::ShellHostUI(const SceneRegistry& registry, const DelugeBoard& board
 	// static-init global, so the constructor is not a place a real service (or a real setting) can
 	// be reached from at all.
 	//
-	// **The default `ShellConfig` is a placeholder, and the two fields that are settings are seated
+	// **That `ShellConfig` is otherwise a placeholder, and the two fields that are settings are seated
 	// afterwards**: `screensaver_idle_ms` through `Shell::set_screensaver_idle_ms`, pushed from
 	// `Screensaver::settingsChanged()`, and `lowering.hold_time_ms` through
 	// `InputLowering::set_hold_time_ms`, re-read on every event in `feed()`. Neither could be read
@@ -166,9 +168,9 @@ bool ShellHostUI::opened() {
 	// `SoundEditor::opened` asks for the root's pads (`gui/ui/sound_editor.cpp:498`): while the guest
 	// owns none they are the UI underneath's, greyed by the mask `openUI` read before the scene was
 	// on the stack -- so the greyout is read again now.
-	padsOwned_ = opaque();
+	padsOwned_ = surfaces_.owned_regions();
 	padsGreyout_ = greyoutMask();
-	if (!padsOwned_) {
+	if (!has(padsOwned_, deluge::ui::shell::PadRegions::Main)) {
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 	PadLEDs::reassessGreyout();
@@ -278,10 +280,9 @@ bool ShellHostUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	// one place that equivalence is turned back into legacy's two-out-parameters-plus-bool shape.
 	//
 	// Legacy greys once, in the *send* path: `prepareColour` (`hid/led/pad_leds.cpp:283-298`) reads
-	// the `greyoutCols`/`greyoutRows` that `reassessGreyout` fills from this function. While the
-	// guest draws no pads that is the root view's greyout, as under `SoundEditor`. While it draws
-	// some, the shell has already greyed its own grid (`Shell::render_grid`), so the guest reports
-	// none -- `greyoutMask()` -- and the pads are greyed once either way.
+	// the `greyoutCols`/`greyoutRows` that `reassessGreyout` fills from this function, and greys
+	// whatever `PadLEDs::image` holds -- the root view's pixels and the guest's alike. The guest's
+	// shell greys nothing itself (`ShellConfig::greys_in_send_path`), so every pad is greyed once.
 	const deluge::ui::grid::GreyoutMask mask = greyoutMask();
 	if (mask.cols == 0 && mask.rows == 0) {
 		return false;
@@ -295,38 +296,31 @@ bool ShellHostUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 }
 
 deluge::ui::grid::GreyoutMask ShellHostUI::greyoutMask() {
-	if (opaque()) {
-		return {};
-	}
-	// Every stacked scene's mask, ORed: the mask the shell greys its own grid by
-	// (`Shell::tick`), so a popup over the menu leaves the menu's greyout standing.
-	deluge::ui::grid::GreyoutMask mask{};
-	for (const deluge::ui::shell::Scene* scene : shell_.stack().scenes()) {
-		const deluge::ui::grid::GreyoutMask m = scene->greyout_mask();
-		mask.cols |= m.cols;
-		mask.rows |= m.rows;
-	}
-	return mask;
-}
-
-bool ShellHostUI::opaque() {
-	return surfaces_.grid_owned();
+	// The stack's own top-down walk, the guest's half of `getUIGreyoutColsAndRows`: a popup over
+	// the menu leaves the menu's greyout standing, and a keyboard over it replaces it.
+	return shell_.stack().topmost_greyout();
 }
 
 void ShellHostUI::syncPads() {
-	const bool owned = opaque();
+	using deluge::ui::shell::PadRegions;
+	const PadRegions owned = surfaces_.owned_regions();
 	const deluge::ui::grid::GreyoutMask mask = greyoutMask();
+	const auto without = [](PadRegions a, PadRegions b) {
+		return static_cast<PadRegions>(static_cast<uint8_t>(a) & ~static_cast<uint8_t>(b));
+	};
+	const PadRegions gained = without(owned, padsOwned_);
+	const PadRegions lost = without(padsOwned_, owned);
 	const bool ownerChanged = owned != padsOwned_;
 	const bool greyoutChanged = mask.cols != padsGreyout_.cols || mask.rows != padsGreyout_.rows;
 	padsOwned_ = owned;
 	padsGreyout_ = mask;
-	if (ownerChanged) {
-		if (owned) {
-			surfaces_.take_grid();
-		}
-		else {
-			uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
-		}
+	if (gained != PadRegions::None) {
+		surfaces_.take_grid();
+	}
+	if (lost != PadRegions::None) {
+		// Only the half handed back: the UI underneath redraws it, and the guest keeps the other.
+		uiNeedsRendering(this, has(lost, PadRegions::Main) ? 0xFFFFFFFF : 0,
+		                 has(lost, PadRegions::Sidebar) ? 0xFFFFFFFF : 0);
 	}
 	if (ownerChanged || greyoutChanged) {
 		PadLEDs::reassessGreyout();
@@ -375,8 +369,9 @@ void ShellHostUI::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 	std::copy(src.begin(), src.end(), dest.begin());
 }
 
-bool ShellHostUI::serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth], int32_t x0, int32_t x1) {
-	const bool isOpaque = opaque();
+bool ShellHostUI::serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth], int32_t x0, int32_t x1,
+                            deluge::ui::shell::PadRegions region) {
+	const bool isOpaque = has(surfaces_.owned_regions(), region);
 	// The query form. `UI`'s own contract: "These *must* check whether image has been supplied - if
 	// not, just return, saying whether opaque or not" (`gui/ui/ui.h:140-142`). Legacy asks it that
 	// way in two places -- `uiNeedsRendering`'s walk down the stack (`gui/ui/ui.cpp:284-302`, the
@@ -410,11 +405,12 @@ bool ShellHostUI::serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 			image[y][x] = grid.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
 		}
 	}
-	// **Two paths write `PadLEDs::image` while the guest owns the pads**: `GuestSurfaceSet::send_columns`
-	// on the shell's own flush, and this when legacy pulls. They agree -- same grid, same rows. While
-	// it owns none, neither writes: the UI underneath draws the pads and legacy greys them once, by the
-	// mask `getGreyoutColsAndRows` reports, as under `SoundEditor` (`gui/ui/sound_editor.cpp:217-247`,
-	// `:441-484`); an overlay's shortcut blink reaches the PIC as a flash (`send_columns`).
+	// **Two paths write `PadLEDs::image` while the guest owns a region**: `GuestSurfaceSet::send_columns`
+	// on the shell's own flush, and this when legacy pulls. They agree -- same grid, same rows. For a
+	// region it does not own, neither writes: the UI underneath draws those pads, as under
+	// `SoundEditor` (`gui/ui/sound_editor.cpp:217-247`); an overlay's shortcut blink reaches the PIC as
+	// a flash (`send_columns`). Legacy greys every pad once, owned or not, by the mask
+	// `getGreyoutColsAndRows` reports (`:441-484`).
 	//
 	// `occupancyMask` is deliberately untouched, and this is the same gap F1 task 4 recorded for
 	// `GuestSurfaceSet::send_columns`: nothing in the shell populates an occupancy map, and
@@ -428,13 +424,22 @@ bool ShellHostUI::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 	// `drawUndefinedArea` is a timeline concept -- how far past a clip's end to paint -- and the
 	// shell has no notion of one. `SoundEditor` ignores it by not overriding this hook at all.
 	(void)drawUndefinedArea;
-	return serveGrid(whichRows, image, 0, kDisplayWidth);
+	return serveGrid(whichRows, image, 0, kDisplayWidth, deluge::ui::shell::PadRegions::Main);
 }
 
 bool ShellHostUI::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
-	(void)occupancyMask;
-	return serveGrid(whichRows, image, kDisplayWidth, kDisplayWidth + kSideBarWidth);
+	if (has(surfaces_.owned_regions(), deluge::ui::shell::PadRegions::Sidebar)) {
+		return serveGrid(whichRows, image, kDisplayWidth, kDisplayWidth + kSideBarWidth,
+		                 deluge::ui::shell::PadRegions::Sidebar);
+	}
+	// `SampleMarkerEditor::renderSidebar` answers for the sidebar it does not draw only over the
+	// keyboard screen (`gui/ui/sample_marker_editor.cpp:875-881`); the marker scene cannot read the
+	// root UI, so the guest asks on its behalf.
+	if (shell_.stack().input_top().kind() == deluge::scenes::marker::kMarkerSceneKind) {
+		return renderClipViewSidebarUnderMarker(whichRows, image, occupancyMask);
+	}
+	return false;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1095,7 +1100,18 @@ void ShellHostUI::closeGuest() {
 	if (closeHook_ != nullptr) {
 		closeHook_(nowMs());
 	}
+	// `closeUI` asks the closing UI whether it drew the pads (`gui/ui/ui.cpp:203-212`), and the
+	// guest's emptied stack answers no, so the regions it held are handed back here, while it is
+	// still on legacy's stack for `uiNeedsRendering` to find. They are the regions `syncPads` last
+	// handed over, not the stack's: on the short-Back path the tick has already emptied it.
+	using deluge::ui::shell::PadRegions;
+	const PadRegions owned = padsOwned_;
 	shell_.stack().reset();
+	padsOwned_ = PadRegions::None;
+	if (owned != PadRegions::None) {
+		uiNeedsRendering(this, has(owned, PadRegions::Main) ? 0xFFFFFFFF : 0,
+		                 has(owned, PadRegions::Sidebar) ? 0xFFFFFFFF : 0);
+	}
 
 	// No arm on the close path: `close()` is `closeUI(this)` (`gui/ui/ui.cpp:57-59`), which unsets
 	// `TimerName::UI_SPECIFIC` itself (`gui/ui/ui.cpp:197`) before handing focus to the UI beneath

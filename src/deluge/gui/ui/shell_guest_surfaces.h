@@ -154,26 +154,32 @@ public:
 	/// declares is sent on its first tick, and a release restores only a state saved in this session.
 	void begin_session();
 
-	/// @brief Watch @p stack for whether any scene owns the pads.
+	/// @brief Watch @p stack for which pad regions its scenes own.
 	/// @param stack The shell's stack, which outlives this object's use of it.
 	void observe(const deluge::ui::shell::SceneStack& stack) { stack_ = &stack; }
 
-	/// @brief Does a scene on the watched stack own the pads (`Scene::draws_pads`)?
+	/// @brief Which pad regions the scenes on the watched stack draw (`Scene::pad_regions`).
 	///
-	/// While none does, the pads are the UI underneath's: `send_columns` writes nothing to
-	/// `PadLEDs::image` and turns each pad the overlays light into a `PadLEDs::flashMainPad`.
-	/// @return True when one does, or when no stack is watched.
-	bool grid_owned() const;
+	/// A region none draws is the UI underneath's: `send_columns` writes none of its columns to
+	/// `PadLEDs::image` and turns each pad the overlays light there into a `PadLEDs::flashMainPad`.
+	/// @return The union of the stacked scenes' regions, or `All` when no stack is watched.
+	deluge::ui::shell::PadRegions owned_regions() const;
 
-	/// @brief Write the whole shell grid into `PadLEDs::image` and send every column pair: the pads
-	///        become the guest's after the UI underneath has drawn them.
+	/// @brief Write the owned columns of the shell grid into `PadLEDs::image` and send their column
+	///        pairs: those pads become the guest's after the UI underneath has drawn them.
 	void take_grid();
 
 private:
 	/// @brief Flash pad (@p x, @p y) if @p colour lights it and it was dark.
 	void flash_if_lit(uint8_t x, uint8_t y, RGB colour);
 
-	/// The stack `grid_owned` reads, or null for "always owned".
+	/// @brief Is column pair @p pair_index in a region @p owned holds?
+	/// @param owned The regions the guest draws.
+	/// @param pair_index The pair, counted from column 0.
+	/// @return True for a main-grid pair under `Main`, or the sidebar pair under `Sidebar`.
+	static bool pair_owned(deluge::ui::shell::PadRegions owned, uint8_t pair_index);
+
+	/// The stack `owned_regions` reads, or null for "everything owned".
 	const deluge::ui::shell::SceneStack* stack_ = nullptr;
 	/// Which pads the overlays lit at the last send while no scene owned the grid.
 	std::array<std::array<bool, kDisplayWidth + kSideBarWidth>, kDisplayHeight> lit_{};
