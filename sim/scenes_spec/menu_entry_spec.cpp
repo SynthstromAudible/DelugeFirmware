@@ -26,6 +26,7 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
+#include "scenes/menu/shortcuts.h"
 #include "scenes/registry.h"
 
 #include "shell/scene.h"
@@ -37,8 +38,12 @@
 #include "util/shell_menu_entry.h"
 
 #include "gui/l10n/l10n.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
+#include "hid/display/oled.h"
 #include "hid/display/screensaver.h"
 #include "io/midi/learned_midi.h"
 #include "io/midi/midi_device.h"
@@ -57,6 +62,15 @@
 #include <cstdint>
 
 #include "spec/support/spec_main.h"
+
+/// @name Legacy's shift state, reached by bare `extern`: `Buttons::isShiftButtonPressed` reads
+///       these (`hid/buttons.cpp`) and the header does not export them.
+/// @{
+namespace Buttons {
+extern bool shiftCurrentlyPressed;
+extern bool shiftCurrentlyStuck;
+} // namespace Buttons
+/// @}
 
 namespace menu = deluge::scenes::menu;
 namespace nodes = deluge::scenes::menu::nodes;
@@ -159,6 +173,22 @@ constexpr uint8_t kPoisonChannel = 0xEE;
 spec::QuietAudio& quiet_audio() {
 	static spec::QuietAudio instance;
 	return instance;
+}
+
+/// @brief Hold SHIFT for an example's lifetime.
+struct HeldShift {
+	HeldShift() {
+		::Buttons::shiftCurrentlyPressed = true;
+		::Buttons::shiftCurrentlyStuck = false;
+	}
+	~HeldShift() { ::Buttons::shiftCurrentlyPressed = false; }
+	HeldShift(const HeldShift&) = delete;
+	HeldShift& operator=(const HeldShift&) = delete;
+};
+
+/// @brief Whether @p node is a horizontal page.
+bool is_horizontal_page(const menu::Node* node) {
+	return node != nullptr && node->kind == menu::Kind::Submenu && node->layout == menu::Layout::Horizontal;
 }
 
 bool openGuestOnPlayCommand(Song& song) {
@@ -339,6 +369,135 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 		expect(opened_on() == shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = 0}).to_be_true();
 		expect(deluge::scenes::menu_scene().focused() == &nodes::sound_root).to_be_true();
 		closeGuest();
+	});
+});
+
+describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the ported menu on that pad's node", $ {
+	it("Shift + (8,7) on a synth clip opens the LPF page focused on nodes::lpf_freq through SceneId::arg", _ {
+		// `SoundEditor::setup(clip, item, …)` lands a named item on the horizontal page that lists it,
+		// focused on it (`maybeGetParentMenu` and `parent->focusChild`, `gui/ui/sound_editor.cpp`).
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 8, 7) == &nodes::lpf_freq).to_be_true();
+
+		expect(entry::openShellMenuAtShortcut(f.clip, 8, 7, false, false, false, false)).to_be_true();
+		expect(getCurrentUI() == &shellHostUI).to_be_true();
+		expect(opened_on() == shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = menu::node_id(nodes::lpf)})
+		    .to_be_true();
+		expect(deluge::scenes::menu_scene().focused() == &nodes::lpf).to_be_true();
+		expect(deluge::scenes::menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().source_index).to_equal(int8_t{0});
+		closeGuest();
+	});
+
+	it("an odd column addresses source 1", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		const menu::Node* node = menu::shortcut_node(menu::MenuContext::Root::Sound, false, 3, 2);
+		expect(node != nullptr).to_be_true();
+
+		expect(entry::openShellMenuAtShortcut(f.clip, 3, 2, false, false, false, false)).to_be_true();
+		expect(is_horizontal_page(deluge::scenes::menu_scene().focused())).to_be_true();
+		expect(deluge::scenes::menu_scene().focused_value() == node).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().source_index).to_equal(int8_t{1});
+		closeGuest();
+	});
+
+	it("a cell with no shortcut opens nothing", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 15, 0) == nullptr).to_be_true();
+
+		expect(entry::openShellMenuAtShortcut(f.clip, 15, 0, false, false, false, false)).to_be_false();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+	});
+
+	it("a node that does not apply opens nothing, so legacy's setup() refuses it", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		// The first even-column pad whose node does not apply to this synth.
+		const menu::MenuContext ctx =
+		    menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		int32_t px = -1;
+		int32_t py = -1;
+		for (int32_t x = 0; x < 14 && px < 0; x += 2) {
+			for (int32_t y = 0; y < 8 && px < 0; y++) {
+				const menu::Node* n = menu::shortcut_node(menu::MenuContext::Root::Sound, false, static_cast<uint8_t>(x),
+				                                          static_cast<uint8_t>(y));
+				if (n != nullptr && menu::node_id(*n) != 0 && !menu::shortcut_applies(*n, ctx)) {
+					px = x;
+					py = y;
+				}
+			}
+		}
+		expect(px >= 0).to_be_true();
+
+		expect(entry::openShellMenuAtShortcut(f.clip, px, py, false, false, false, false)).to_be_false();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+	});
+
+	it("does not wipe the undo log", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+
+		// Seeded with the guest open, because `getNewAction` refuses otherwise.
+		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
+		actionLogger.deleteAllLogs();
+		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
+		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		closeGuest();
+
+		expect(entry::openShellMenuAtShortcut(f.clip, 8, 7, false, false, false, false)).to_be_true();
+		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		closeGuest();
+	});
+
+	it("marks a keyboard-screen root", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+
+		setRootUILowLevel(&instrumentClipView);
+		expect(entry::openShellMenuAtShortcut(f.clip, 8, 7, false, false, false, false)).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root_is_keyboard).to_be_false();
+		closeGuest();
+
+		setRootUILowLevel(&keyboardScreen);
+		expect(entry::openShellMenuAtShortcut(f.clip, 8, 7, false, false, false, false)).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root_is_keyboard).to_be_true();
+		closeGuest();
+
+		setRootUILowLevel(&keyboardScreen);
+		expect(entry::openShellMenu(f.clip, 0, false, false, false, false)).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root_is_keyboard).to_be_true();
+		closeGuest();
+	});
+
+	it("with the toggle off, the pad opens the legacy SoundEditor", _ {
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		(void)f;
+		deluge::hid::display::OLED oled_display;
+		deluge::hid::Display* const saved_display = display;
+		display = &oled_display;
+		currentUIMode = UI_MODE_NONE;
+		HeldShift shift;
+
+		{
+			ToggleGuard off{RuntimeFeatureStateToggle::Off};
+			setRootUILowLevel(&instrumentClipView);
+			(void)soundEditor.potentialShortcutPadAction(8, 7, true);
+			expect(getCurrentUI() == &soundEditor).to_be_true();
+			nullifyUIs();
+		}
+		{
+			ToggleGuard on{RuntimeFeatureStateToggle::On};
+			setRootUILowLevel(&instrumentClipView);
+			(void)soundEditor.potentialShortcutPadAction(8, 7, true);
+			expect(getCurrentUI() == &shellHostUI).to_be_true();
+			expect(deluge::scenes::menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+			nullifyUIs();
+		}
+		deluge::hid::display::OLED::removePopup();
+		display = saved_display;
 	});
 });
 
@@ -668,5 +827,6 @@ describe menu_entry_midi_learn("the guest's two MIDI-learn hooks reach the porte
 });
 // clang-format on
 
-DELUGE_SPEC(menu_entry_spec, menu_entry_toggle, menu_entry_roots, menu_entry_node_arg, menu_entry_refusal,
-            menu_entry_undo_log, menu_entry_screensaver, menu_entry_tick_rate, menu_entry_midi_learn)
+DELUGE_SPEC(menu_entry_spec, menu_entry_toggle, menu_entry_roots, menu_entry_node_arg, menu_entry_shortcut,
+            menu_entry_refusal, menu_entry_undo_log, menu_entry_screensaver, menu_entry_tick_rate,
+            menu_entry_midi_learn)

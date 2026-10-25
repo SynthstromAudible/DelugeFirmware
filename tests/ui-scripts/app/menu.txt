@@ -405,4 +405,17 @@
 24820  button Back up
 25100  pad 17 4 up
 25400  snapshot note-row-editor-closed
-26400  quit
+
+# 8. Shift + pad (6, 5) from the clip view: `SoundEditor::potentialShortcutPadAction` resolves
+# `srrMenu` from `paramShortcutsForSounds` and `setup()` opens it on the DISTORTION page, focused on
+# it (`maybeGetParentMenu`, `parent->focusChild`). Under the toggle the ported menu opens on the
+# same page. A short BACK closes it.
+25800  button Shift down
+25850  pad 6 5 down
+25870  pad 6 5 up
+25900  button Shift up
+26200  snapshot shortcut-distortion
+26600  button Back down
+26620  button Back up
+26900  snapshot shortcut-closed
+27900  quit

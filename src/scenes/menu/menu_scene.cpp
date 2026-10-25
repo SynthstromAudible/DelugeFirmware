@@ -54,6 +54,8 @@
 
 #include <algorithm>
 #include <cstring>
+#include <span>
+#include <utility>
 
 namespace deluge::scenes::menu {
 
@@ -335,6 +337,7 @@ std::string_view node_text(uint16_t string_id, const Node& node, const MenuConte
 void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	ctx_ = ctx;
 	st_ = MenuState{};
+	landing_column_ = nullptr;
 	retarget(root);
 }
 
@@ -426,8 +429,16 @@ bool MenuScene::on_enter(const SceneId& id) {
 	// so a re-entry restores the kind's last saved state and *then* lands here: this must
 	// overwrite `path`/`depth` from `arg` rather than trust what `restore_state` put there.
 	const Node* target = nullptr;
+	const Node* page = nullptr;
+	const Node* const column = std::exchange(landing_column_, nullptr);
 	if (id.arg != 0) {
 		target = node_by_id(id.arg);
+		// A shortcut landing names the page; the permission and range gate below are the column's,
+		// as `setup()` asks them of the item before it looks at the page.
+		if (target != nullptr && column != nullptr && std::ranges::contains(target->children, column)) {
+			page = target;
+			target = column;
+		}
 		// **The allocation legacy's permission check performs before it opens a named item.**
 		// `SoundEditor::setup(clip, item, sourceIndex)` runs
 		// `item->checkPermissionToBeginSession(...)` on the item it was asked for
@@ -503,8 +514,30 @@ bool MenuScene::on_enter(const SceneId& id) {
 	if (target == nullptr) {
 		return false;
 	}
+	if (page != nullptr) {
+		retarget(*page);
+		focus_column(*target);
+		return true;
+	}
 	retarget(*target);
 	return true;
+}
+
+uint16_t MenuScene::arm_shortcut_landing(const Node& target) {
+	landing_column_ = nullptr;
+	// `maybeGetParentMenu`'s two early answers: the start markers and the audio clip's waveform go
+	// straight to the marker editor, the file selectors straight to the browser.
+	constexpr const Node* kOpensItself[] = {&nodes::sample0_start, &nodes::sample1_start, &nodes::audio_clip_waveform,
+	                                        &nodes::file0_selector, &nodes::file1_selector};
+	const std::span<const Node* const> r = roots();
+	const size_t i = static_cast<size_t>(ctx_.root);
+	if (std::ranges::find(kOpensItself, &target) == std::ranges::end(kOpensItself) && i < r.size() && r[i] != nullptr) {
+		if (const Node* page = horizontal_page_listing(*r[i], target); page != nullptr && node_id(*page) != 0) {
+			landing_column_ = &target;
+			return node_id(*page);
+		}
+	}
+	return node_id(target);
 }
 
 void MenuScene::on_resume() {
@@ -561,15 +594,23 @@ bool MenuScene::reroot_to_scene_opener_page() {
 	// Legacy discards `focusChild`'s bool at this site (it is only consulted at
 	// `gui/ui/sound_editor.cpp:1860`), so an item its page no longer shows simply leaves the page
 	// focused on its first column, which is what falling out of this loop does.
+	focus_column(*item);
+	return true;
+}
+
+void MenuScene::focus_column(const Node& column) {
+	const Node* page = focused();
+	if (page == nullptr) {
+		return;
+	}
 	const Node* kids[kMaxMenuChildren];
 	const size_t n = visible_children(*page, kids);
 	for (size_t k = 0; k < n; k++) {
-		if (kids[k] == item) {
-			st_.columns[0].focused = static_cast<int8_t>(k);
-			break;
+		if (kids[k] == &column) {
+			st_.columns[st_.depth].focused = static_cast<int8_t>(k);
+			return;
 		}
 	}
-	return true;
 }
 
 void MenuScene::on_model_changed(const deluge::notify::DirtySet& dirty) {
@@ -695,6 +736,13 @@ const Node* MenuScene::focused_value() const {
 	}
 	const Node* column = selected_child(*node);
 	return (column != nullptr && column->kind != Kind::Submenu) ? column : nullptr;
+}
+
+const Node* MenuScene::pad_subject() const {
+	if (on_horizontal_page()) {
+		return selected_child(*focused());
+	}
+	return focused();
 }
 
 bool MenuScene::on_horizontal_page() const {
@@ -1246,7 +1294,7 @@ void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	// pass per tick" (`shell/README.md`) true for a scene drawn on two surfaces: the OLED pass owns
 	// turn/select/back/edit, and this pass owns nothing. It paints no pixel either: the shortcut
 	// blinks are pad flashes, as legacy's `blinkShortcut` plays them (`sound_editor.cpp:1205-1245`).
-	const Node* node = focused();
+	const Node* node = pad_subject();
 	if (node == nullptr) {
 		return;
 	}
@@ -2013,7 +2061,7 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 		// being cleared by a press legacy never looked at.
 		const bool sound_arm = ctx_.root == MenuContext::Root::Sound || ctx_.root == MenuContext::Root::Drum;
 		if (sound_arm) {
-			const Node* current = focused();
+			const Node* current = pad_subject();
 			const ShortcutPos here = current != nullptr ? shortcut_pos(ctx_.root, *current) : ShortcutPos{};
 			const bool same_pad = here.valid && here.x == event.x && here.y == event.y;
 			const bool is_patch_cable =
@@ -2022,9 +2070,16 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 		}
 
 		const Node* target = shortcut_node(ctx_.root, sound_arm && st_.second_layer, event.x, event.y);
+		if (target != nullptr && !shortcut_applies(*target, ctx_)) {
+			deluge::notify::notice_string(
+			    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+			Result r;
+			r.handled = true;
+			return r;
+		}
 		// A node the registry never numbered cannot be named in a `SceneId`, and `on_enter` would
 		// refuse the id and roll the move back -- so the jump is simply not offered.
-		const uint16_t id = target != nullptr ? node_id(*target) : 0;
+		const uint16_t id = target != nullptr ? arm_shortcut_landing(*target) : 0;
 		if (id != 0) {
 			// `Replace`, not an in-place re-target: `SceneId::arg` is how the shell spells which
 			// node is open (`Shell::state_lines()` -> `app16/<id>`), and a path the scene moved
@@ -2215,7 +2270,7 @@ void MenuScene::restore_state(const SceneState& state) {
 std::optional<uint32_t> MenuScene::next_timer() const {
 	// The blinks are the only thing here that moves without input, so the timer is the shorter of
 	// the counter's two steps that the plan uses. Nothing blinking arms nothing.
-	const Node* node = focused();
+	const Node* node = pad_subject();
 	if (node == nullptr) {
 		return std::nullopt;
 	}
@@ -2245,6 +2300,13 @@ bool MenuScene::go_up_one_level() {
 
 void MenuScene::enter_submenu(const Node& node) {
 	descend_to(node); // `sound_editor.cpp:364-368`
+}
+
+bool shortcut_applies(const Node& target, const MenuContext& ctx) {
+	if (&target == &nodes::file0_selector || &target == &nodes::file1_selector) {
+		return true;
+	}
+	return bindings::relevant(target, ctx);
 }
 
 bool is_automation_item(const Node& item) {

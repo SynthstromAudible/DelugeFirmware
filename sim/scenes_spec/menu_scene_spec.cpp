@@ -889,16 +889,19 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(r.shell.state_lines().find("app16/" + std::to_string(menu::node_id(settings_root))) != std::string::npos)
 		    .to_be_true();
 
-		// Shift held, then the pad: `handle()` answers with Replace{FirstApp, node_id(target)}, the
+		// Shift held, then the pad: `handle()` answers with a Replace naming the node to open, the
 		// router applies it, and `on_enter` re-targets on the way back in -- so `SceneId::arg`, and
-		// therefore `state_lines()`, stay truthful about which node is open.
+		// therefore `state_lines()`, stay truthful about which node is open. That node is the LPF
+		// page, focused on the frequency column: `SoundEditor::setup(clip, item, …)` opens a named
+		// item on the horizontal page that lists it (`maybeGetParentMenu`, `parent->focusChild`).
 		r.button(kShiftX, kShiftY, true, 10);
 		r.pad(kLpfFreqX, kLpfFreqY, 64, 20);
 		r.shell.tick(30);
-		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused() == &nodes::lpf).to_be_true();
+		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
 		expect(depth_of()).to_equal(0);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
-		expect(r.shell.state_lines().find("app16/" + std::to_string(menu::node_id(nodes::lpf_freq)))
+		expect(r.shell.state_lines().find("app16/" + std::to_string(menu::node_id(nodes::lpf)))
 		       != std::string::npos)
 		    .to_be_true();
 
@@ -907,7 +910,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kShiftX, kShiftY, false, 40);
 		r.pad(kHpfFreqX, kHpfFreqY, 64, 50);
 		r.shell.tick(60);
-		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
 	});
 
 	it("takes the second shortcut layer only on a second press of the focused item's own pad", _ {
@@ -921,23 +924,23 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kShiftX, kShiftY, true, 0);
 		r.pad(kEnv1RelX, kEnv1RelY, 64, 10);
 		r.shell.tick(20);
-		expect(menu_scene().focused() == &nodes::env1_release).to_be_true();
+		expect(menu_scene().focused_value() == &nodes::env1_release).to_be_true();
 
 		// Same pad again: the second layer's `&env3ReleaseMenu`.
 		r.pad(kEnv1RelX, kEnv1RelY, 64, 30);
 		r.shell.tick(40);
-		expect(menu_scene().focused() == &nodes::env3_release).to_be_true();
+		expect(menu_scene().focused_value() == &nodes::env3_release).to_be_true();
 
 		// A different pad clears the toggle, so the pad after it is first-layer again.
 		r.pad(kLpfFreqX, kLpfFreqY, 64, 50);
 		r.shell.tick(60);
-		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
 		r.pad(kEnv1RelX, kEnv1RelY, 64, 70);
 		r.shell.tick(80);
-		expect(menu_scene().focused() == &nodes::env1_release).to_be_true();
+		expect(menu_scene().focused_value() == &nodes::env1_release).to_be_true();
 	});
 
-	it("returns one Replace action naming the target's node id", _ {
+	it("returns one Replace action naming the page that lists the target", _ {
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -951,9 +954,55 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(res.actions.size()).to_equal(size_t(1));
 		expect(static_cast<int>(res.actions[0].kind)).to_equal(static_cast<int>(deluge::ui::shell::Action::Kind::Replace));
 		expect(static_cast<int>(res.actions[0].id.kind)).to_equal(static_cast<int>(SceneKind::FirstApp));
-		expect(static_cast<int>(res.actions[0].id.arg)).to_equal(static_cast<int>(menu::node_id(nodes::lpf_freq)));
+		expect(static_cast<int>(res.actions[0].id.arg)).to_equal(static_cast<int>(menu::node_id(nodes::lpf)));
 		// `handle()` itself moves nothing: the router's Replace does, through `on_enter`.
 		expect(menu_scene().focused() == &settings_root).to_be_true();
+	});
+
+	it("a pad whose node does not apply stays put and says PARAMETER NOT APPLICABLE", _ {
+		// `SoundEditor::setup`: `checkPermissionToBeginSession` answers NO, it shows the popup and
+		// opens nothing.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		// The first pad whose node does not apply to this synth.
+		uint8_t px = 255;
+		uint8_t py = 255;
+		for (uint8_t x = 0; x < 14 && px == 255; x++) {
+			for (uint8_t y = 0; y < 8 && px == 255; y++) {
+				const Node* n = menu::shortcut_node(menu_scene().menu_context().root, false, x, y);
+				if (n != nullptr && !menu::shortcut_applies(*n, menu_scene().menu_context())) {
+					px = x;
+					py = y;
+				}
+			}
+		}
+		expect(px != 255).to_be_true();
+
+		r.button(kShiftX, kShiftY, true, 10);
+		r.pad(px, py, 64, 20);
+		r.shell.tick(30);
+		r.shell.tick(40);
+		expect(menu_scene().focused() == &settings_root).to_be_true();
+		expect(r.shell.notices().last_popup_text())
+		    .to_equal(std::string{deluge::l10n::get(String::STRING_FOR_PARAMETER_NOT_APPLICABLE)});
+	});
+
+	it("lands the start markers, the waveform and the file selectors on themselves, not on their page", _ {
+		// `SoundEditor::maybeGetParentMenu`'s two early answers: these go straight to the marker
+		// editor or the browser, so `setup()` opens the item rather than a page.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		for (const Node* node : {&nodes::sample0_start, &nodes::sample1_start, &nodes::file0_selector,
+		                         &nodes::file1_selector}) {
+			expect(menu_scene().arm_shortcut_landing(*node)).to_equal(menu::node_id(*node));
+		}
+		// The control: a column of a horizontal page lands on that page.
+		expect(menu_scene().arm_shortcut_landing(nodes::lpf_freq)).to_equal(menu::node_id(nodes::lpf));
 	});
 
 	it("a MustSelectRange node opens the range picker, which then heads to the node it stood in for", _ {
@@ -1658,7 +1707,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		r.button(kShiftX, kShiftY, true, 0);
 		r.pad(kLpfFreqX, kLpfFreqY, 64, 1);
 		r.shell.tick(2);
-		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
 
 		// The cycle is anchored at the first render of the newly focused node (legacy's
 		// `shortcutBlinkCounter = 0`), so steps are counted from there, not from t = 0.
@@ -1702,7 +1751,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		r.shell.tick(20);
 		r.pad(kEnv1RelX, kEnv1RelY, 64, 30);
 		r.shell.tick(40);
-		expect(menu_scene().focused() == &nodes::env3_release).to_be_true();
+		expect(menu_scene().focused_value() == &nodes::env3_release).to_be_true();
 
 		const auto flash_at_param_phase = [&]() {
 			deluge::ui::test::GridRig grid;
@@ -1719,7 +1768,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		r.shell.tick(60);
 		r.pad(kEnv1RelX, kEnv1RelY, 64, 70);
 		r.shell.tick(80);
-		expect(menu_scene().focused() == &nodes::env1_release).to_be_true();
+		expect(menu_scene().focused_value() == &nodes::env1_release).to_be_true();
 		expect(flash_at_param_phase() == PadFlash{kEnv1RelX, kEnv1RelY, FlashColour::Default}).to_be_true();
 	});
 
@@ -1774,7 +1823,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		// free-run and a freshly focused pad could flash mid-cycle.
 		r.pad(kHpfFreqX, kHpfFreqY, 64, 600);
 		r.shell.tick(601);
-		expect(menu_scene().focused() == &nodes::hpf_freq).to_be_true();
+		expect(menu_scene().focused_value() == &nodes::hpf_freq).to_be_true();
 		const uint32_t second = menu_scene().state().blink_anchor_ms;
 		expect(second != first).to_be_true();
 
@@ -1805,7 +1854,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		r.pad(kLpfFreqX, kLpfFreqY, 64, 1);
 		r.shell.tick(2);
 		r.button(kShiftX, kShiftY, false, 3);
-		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
 		const uint32_t anchor = menu_scene().state().blink_anchor_ms;
 		const PadFlash pad{kLpfFreqX, kLpfFreqY, FlashColour::Default};
 
@@ -1863,7 +1912,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		r.pad(kLpfFreqX, kLpfFreqY, 64, 1);
 		r.shell.tick(2);
 		r.button(kShiftX, kShiftY, false, 3);
-		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
 
 		// Settle past both confounds: the "entered leaf draws next tick" one-shot repaint, the
 		// decimal cursor's own first arm, AND the source -> param step edge at `kSourceBlinkMs` --

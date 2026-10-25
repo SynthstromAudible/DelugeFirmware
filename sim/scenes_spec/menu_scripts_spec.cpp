@@ -809,7 +809,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(bindings::read(nodes::lpf_freq, ctx)).to_equal(before_freq);
 	});
 
-	it("Shortcut: a real shift+pad jump lands on nodes::lpf_freq, then the real Shell edits it", _ {
+	it("Shortcut: a real shift+pad jump lands on the LPF page focused on nodes::lpf_freq, then the real Shell edits it", _ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
 		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
@@ -840,9 +840,12 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(result.snapshots).to_equal(uint32_t{5});
 
 		// The real pad (8, 7) of `paramShortcutsForSounds` -- `&lpfFreqMenu` -- proven in
-		// `menu_scene_spec.cpp`'s own shortcut tests.
-		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
-		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_FREQUENCY)));
+		// `menu_scene_spec.cpp`'s own shortcut tests. `setup()` opens it on the LPF page, focused on
+		// it (`SoundEditor::maybeGetParentMenu`, `parent->focusChild`).
+		expect(menu_scene().focused() == &nodes::lpf).to_be_true();
+		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(static_cast<uint32_t>(menu_scene().focused_value()->name))
+		    .to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_FREQUENCY)));
 		// `int_value` now edits on the select encoder (`ui/oled/values.cpp`'s `select_delta`), so the
 		// script's `200 encoder Select +1` step -- once claimed-and-ignored here too -- is what moves
 		// the value first, by 1 select detent * the node's own step (1). The `GoldUpper` turn that

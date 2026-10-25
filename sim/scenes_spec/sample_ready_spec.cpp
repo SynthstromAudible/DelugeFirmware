@@ -73,7 +73,9 @@ describe sample_ready_redraws("a source's file finishing loading, or being taken
 		deluge::edits::settingFor(*spec::menu_engine(ctx).sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
 		PageRig r;
 		r.open(menu::nodes::source0, ctx);
-		r.shell.tick(20);
+		// Past the focused column's first blink step edge (anchored at the open's tick 5, 20 ms on),
+		// which re-renders both surfaces; the ticks below stay inside the next step.
+		r.shell.tick(30);
 		const size_t settled = r.fake.blits.size();
 		r.shell.tick(40);
 		expect(r.fake.blits.size()).to_equal(settled); // nothing changed: no repaint

@@ -118,7 +118,7 @@
 ///     (§10.2 item 5.3) is unwired in both directions and reaches no menu item, so it is not a
 ///     thing a user can do wrong from behind this toggle. It is recorded at §10.2 and in
 ///     `src/scenes/README.md`'s boot-wiring section, where it belongs.
-///  5. **Four of the fourteen entry points still open the legacy `SoundEditor`** -- see
+///  5. **Three of the fourteen entry points still open the legacy `SoundEditor`** -- see
 ///     `shell_menu_entry.cpp`'s table for which, and why each one's node has no port. So with the
 ///     toggle on the firmware has *both* menus, reachable by different gestures.
 ///
@@ -204,5 +204,27 @@ bool shellMenuEnabled();
 bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool sessionOrArrangerRoot,
                    bool sessionViewRoot, bool kitGlobalFx, ShellMenuNode node = ShellMenuNode::ContextRoot,
                    NoteMode noteMode = NoteMode::None);
+
+/// @brief Open the ported menu on the node a shortcut pad names, from a clip view.
+///
+/// The port of `SoundEditor::potentialShortcutPadAction`'s `setup(currentClip, item, x & 1)` and
+/// the `openUI` after it: the context is resolved as `openShellMenu` resolves it, with
+/// `sourceIndex = x & 1`; the node is `menu::shortcut_node(ctx.root, false, x, y)`; and the menu
+/// lands where `setup()` lands a named item (`MenuScene::arm_shortcut_landing`). The undo log is
+/// kept, as `setup()` keeps it when given an item.
+///
+/// @param clip                   The current clip.
+/// @param x                      Absolute pad column.
+/// @param y                      Absolute pad row.
+/// @param performanceView        As `openShellMenu`'s.
+/// @param sessionOrArrangerRoot  As `openShellMenu`'s.
+/// @param sessionViewRoot        As `openShellMenu`'s.
+/// @param kitGlobalFx            `SoundEditor::setupKitGlobalFXMenu`.
+/// @return Whether the guest is now open. False, with nothing opened, when the context does not
+///         resolve, the pad names no numbered node, or the node does not apply
+///         (`menu::shortcut_applies`): the caller then runs legacy's statements, whose `setup()`
+///         makes the same refusal with its popup.
+bool openShellMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceView, bool sessionOrArrangerRoot,
+                             bool sessionViewRoot, bool kitGlobalFx);
 
 } // namespace deluge::gui::ui

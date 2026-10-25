@@ -18,6 +18,7 @@
 #include "util/shell_menu_entry.h"
 #include "gui/ui/menu_view_of.h"
 
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
@@ -30,6 +31,7 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
+#include "scenes/menu/shortcuts.h"
 #include "scenes/registry.h"
 #include "shell/scene.h"
 
@@ -43,7 +45,7 @@
 /// reader deciding whether to add a fifteenth needs to know which shape it is. The line numbers are
 /// the ones this commit leaves behind.
 ///
-/// **Gated (ten; rows 12 and 13 since note-family task 8).** Each one's `else` is byte-for-byte what it ran before.
+/// **Gated (eleven).** Each one's `else` is byte-for-byte what it ran before.
 ///
 // clang-format off
 /// | # | site | what node it wants, and how it says so today | mapped to |
@@ -57,14 +59,14 @@
 /// | 7 | `gui/views/automation_view.cpp:1623-1631` `AutomationView::handleSelectEncoderButtonAction` | the same, except the clip is `nullptr` on the arranger (so: the song root) **and** the arm also runs under `UI_MODE_NOTES_PRESSED` | the same six, or `Root::Song` when `onArrangerView`. **Only under `UI_MODE_NONE`**: see the note below |
 /// | 8 | `gui/views/instrument_clip_view.cpp:515-519` `InstrumentClipView::buttonAction` | `soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)` -- a named *leaf*, not a root | `Root::Sound` plus `SceneId::arg = node_id(nodes::file0_selector)`, the ported `file0SelectorMenu` (`scenes/menu/nodes/sound_osc.h:17`). The one site that exercises a non-zero `arg` |
 /// | 12 | `gui/views/instrument_clip_view.cpp:3607-3615` `InstrumentClipView::enterNoteEditor` | `soundEditor.setup(clip, &noteEditorRootMenu)` -- an explicitly named root, the one `setup()` would itself pick under `UI_MODE_NOTES_PRESSED` (`sound_editor.cpp:1774-1776`) | `Root::NoteEditor`, since note-family task 8. `context_for` never assigns it, because `src/scenes` may not read `currentUIMode`; the gate passes `NoteMode::NoteEditor` instead, and `openShellMenu` overrides the resolved root with it (`:136-139`) |
-/// | 13 | `gui/views/instrument_clip_view.cpp:3811-3819` `InstrumentClipView::enterNoteRowEditor` | `soundEditor.setup(clip, &noteRowEditorRootMenu)` -- the same, under `UI_MODE_AUDITIONING` (`gui/ui/sound_editor.cpp:1777-1779`) | `Root::NoteRowEditor` through `NoteMode::NoteRowEditor`, since note-family task 8. **Only when `getCurrentUI() != &soundEditor`**: `sound_editor.cpp:1403-1409` also calls this from inside a legacy sound editor (audition + the sequence-direction shortcut, in an editor SHIFT+pad opened through ungated site 9), and there the guest would stack on `soundEditor` and diverge after the first BACK, so that case keeps opening the legacy editor |
+/// | 13 | `gui/views/instrument_clip_view.cpp:3811-3819` `InstrumentClipView::enterNoteRowEditor` | `soundEditor.setup(clip, &noteRowEditorRootMenu)` -- the same, under `UI_MODE_AUDITIONING` (`gui/ui/sound_editor.cpp:1777-1779`) | `Root::NoteRowEditor` through `NoteMode::NoteRowEditor`, since note-family task 8. **Only when `getCurrentUI() != &soundEditor`**: `sound_editor.cpp:1403-1409` also calls this from inside a legacy sound editor (audition + the sequence-direction shortcut, in an editor site 9's legacy fallback opened), and there the guest would stack on `soundEditor` and diverge after the first BACK, so that case keeps opening the legacy editor |
+/// | 9 | `gui/ui/sound_editor.cpp` `SoundEditor::potentialShortcutPadAction`, from a clip view (the current UI is neither `soundEditor` nor `sampleMarkerEditor`) | `setup(currentClip, item, x & 1)` on the item legacy's shortcut tables name for the pad | `openShellMenuAtShortcut`, the node `menu::shortcut_node` names, landed where `setup()` lands it (`MenuScene::arm_shortcut_landing`: the horizontal page listing it, focused on it). The DX7 `modulator0Volume -> dxParam` fallback and a press from the sample-marker editor stay legacy, as does any pad the port resolves no node for |
 ///
-/// **Not gated (four), because the node has no port.** Step 4 of the task: a wrong node is worse
+/// **Not gated (three), because the node has no port.** Step 4 of the task: a wrong node is worse
 /// than a legacy menu, so these keep opening `soundEditor` whatever the toggle says.
 ///
 /// | # | site | what it wants | why it is not mapped |
 /// |---|---|---|---|
-/// | 9 | `gui/ui/sound_editor.cpp:1442` `SoundEditor::enterOrUpdateSoundEditor` | whatever `potentialShortcutPadAction` (`:1425`) or `dx::param` (`gui/menu_item/dx/param.cpp:544`) just `setup()` an item for -- a legacy `MenuItem*` computed from legacy's own seven shortcut tables | there is no legacy-`MenuItem*`-to-`Node` map in this repository, and re-deriving the pad through `menu::shortcut_node` would be a second implementation of the lookup rather than a translation of the caller's intent. It is also the one site with three outcomes rather than one (`changeUIAtLevel` onto `sampleMarkerEditor`, `openUI`, or `beginScreen` on an already-open editor), only one of which is an open. **Under the toggle, shift+pad from a clip view still opens the legacy menu.** |
 /// | 10 | `gui/ui/browser/sample_browser.cpp:1111-1123` `SampleBrowser::claimCurrentFile` | `parentMenuHeadingTo` focused on `menuItemHeadingTo` -- two arbitrary `MenuItem*`s the browser was handed on the way in | same reason, and this is the *legacy* browser: the ported one parks its choice in `BrowserScene::take_choice()` (`scenes/browser/browser_scene.h:382`, `browser_scene.cpp:417`). **That outbox is drained and the re-rooting is done** -- `deluge::gui::ui::dispatchShellChoices` (`gui/ui/shell_choice_dispatch.cpp`) takes it every guest tick and performs the claim (F3 tasks 1-2), and `shellSampleClaimDone`'s success arm then calls `MenuScene::reroot_to_scene_opener_page()` (F3 task 3). **This pair is still never written under the toggle, and that is deliberate**: it is written in exactly one place, `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp:2073 maybeGetParentMenu`, the two writes at `:2092-2093`), which the ported path never enters -- and `shellSampleClaimDone` claims with `loadWithoutExiting = true`, which skips the block that would have read it. Reviving that block would have let a stale pair from a pre-toggle legacy session re-root the *legacy* editor; the port re-roots `MenuState::path`/`depth` instead (migration §10.2 item 4). **So this row's stated reason for not being gated is spent.** "Two arbitrary `MenuItem*`s with no port" was true until F3 task 3, and `MenuScene::reroot_to_scene_opener_page()` plus `MenuState::scene_opener` ARE that pair's port. What is left is a decision rather than a lookup -- this is the *legacy* browser, reached with the toggle on only from the four unmapped sites -- and F3 did not make it, which is why this row is still in the not-gated table |
 /// | 11 | `model/clip/instrument_clip_minder.cpp:251-252` `InstrumentClipMinder::createNewInstrument` | `&dxMenu` (`gui/ui/menus.cpp:1722`) | **`dxMenu` has no port.** `src/scenes/README.md:1575-1576` records it as owed: three bespoke DX items that are E2's browser work |
 /// | 14 | `gui/views/instrument_clip_view.cpp:5686-5693` `InstrumentClipView::enterDrumCreator` | **the same node site 8 wants**: its own body ran `soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)` a few lines earlier (`gui/views/instrument_clip_view.cpp:5669`). | **not gated because it is a fallback, not an entry.** It runs only when `openUI(&audioRecorder)` or `openUI(&sampleBrowser)` has just *refused*, and what legacy then shows is the file-selector item standing in for the browser it could not open. Routing it to the guest would enter `nodes::file0_selector`, whose own hook asks the shell to push the **ported** browser -- answering a failed browser open by opening a browser. That is a behaviour decision for task 11's A/B run, not a node lookup, so the node being known is not enough to map it. |
@@ -102,6 +104,26 @@ bool resolveNodeId(ShellMenuNode node, uint16_t& out) {
 	return false;
 }
 
+/// @brief `menu::context_for` plus the two facts about the root UI that `src/scenes` may not read.
+menu::MenuContext resolveContext(Clip* clip, int32_t sourceIndex, bool performanceView, bool sessionOrArrangerRoot,
+                                 bool sessionViewRoot, bool kitGlobalFx) {
+	menu::MenuContext ctx =
+	    menu::context_for(*currentSong, deluge::gui::menuViewOf(clip), static_cast<int8_t>(sourceIndex),
+	                      performanceView, sessionOrArrangerRoot, sessionViewRoot, kitGlobalFx);
+	// `SoundEditor::getGreyoutColsAndRows`' root-type arms (`gui/ui/sound_editor.cpp:441-460`).
+	if (RootUI* root = getRootUI(); root != nullptr) {
+		if (root->getUIType() == UIType::KEYBOARD_SCREEN) {
+			ctx.root_greyout = menu::MenuContext::RootGreyout::Nothing;
+		}
+		else if (root->getUIType() == UIType::AUTOMATION) {
+			ctx.root_greyout = automationView.inAutomationEditor() ? menu::MenuContext::RootGreyout::Nothing
+			                                                       : menu::MenuContext::RootGreyout::SpareSidebar;
+		}
+	}
+	ctx.root_is_keyboard = getRootUI() == &keyboardScreen;
+	return ctx;
+}
+
 } // namespace
 
 bool shellMenuEnabled() {
@@ -120,8 +142,7 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 	}
 
 	menu::MenuContext ctx =
-	    menu::context_for(*currentSong, deluge::gui::menuViewOf(clip), static_cast<int8_t>(sourceIndex),
-	                      performanceView, sessionOrArrangerRoot, sessionViewRoot, kitGlobalFx);
+	    resolveContext(clip, sourceIndex, performanceView, sessionOrArrangerRoot, sessionViewRoot, kitGlobalFx);
 	// `MenuContext::resolved` is where `setup()`'s two outright refusals live -- a kit whose selected
 	// `SoundDrum` has no note row (`gui/ui/sound_editor.cpp:1719-1721`) and a kit with neither
 	// affect-entire nor a selected drum (`:1733-1739`). Both are `return false` in legacy, and both
@@ -129,16 +150,6 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 	// open.
 	if (!ctx.resolved) {
 		return false;
-	}
-	// `SoundEditor::getGreyoutColsAndRows`' root-type arms (`gui/ui/sound_editor.cpp:441-460`).
-	if (RootUI* root = getRootUI(); root != nullptr) {
-		if (root->getUIType() == UIType::KEYBOARD_SCREEN) {
-			ctx.root_greyout = menu::MenuContext::RootGreyout::Nothing;
-		}
-		else if (root->getUIType() == UIType::AUTOMATION) {
-			ctx.root_greyout = automationView.inAutomationEditor() ? menu::MenuContext::RootGreyout::Nothing
-			                                                       : menu::MenuContext::RootGreyout::SpareSidebar;
-		}
 	}
 
 	// Task 6: `enterNoteEditor`/`enterNoteRowEditor` pass an explicit item to `soundEditor.setup`
@@ -216,6 +227,35 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 	// The `rootIndex` bounds test above IS a refusal and not decoration, but it is unreachable
 	// today: `context_for` only ever assigns a real enumerator, never `Root::Count`.
 	deluge::scenes::menu_scene().open(*roots[rootIndex], ctx);
+	shellHostUI.setInitialScene(deluge::ui::shell::SceneId{.kind = deluge::ui::shell::SceneKind::FirstApp, .arg = arg});
+	return openUI(&shellHostUI);
+}
+
+bool openShellMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceView, bool sessionOrArrangerRoot,
+                             bool sessionViewRoot, bool kitGlobalFx) {
+	if (currentSong == nullptr) {
+		return false;
+	}
+	// `potentialShortcutPadAction`'s `thingIndex = x & 1`: an odd column addresses source 1.
+	const menu::MenuContext ctx =
+	    resolveContext(clip, x & 1, performanceView, sessionOrArrangerRoot, sessionViewRoot, kitGlobalFx);
+	if (!ctx.resolved) {
+		return false;
+	}
+	// A node that does not apply is refused here so that legacy's own `setup()` refuses it, with its
+	// "PARAMETER NOT APPLICABLE" popup.
+	const menu::Node* node = menu::shortcut_node(ctx.root, false, static_cast<uint8_t>(x), static_cast<uint8_t>(y));
+	if (node == nullptr || menu::node_id(*node) == 0 || !menu::shortcut_applies(*node, ctx)) {
+		return false;
+	}
+	const std::span<const menu::Node* const> roots = menu::MenuScene::roots();
+	const size_t rootIndex = static_cast<size_t>(ctx.root);
+	if (rootIndex >= roots.size() || roots[rootIndex] == nullptr) {
+		return false;
+	}
+	// No undo-log wipe: `setup()` wipes only when it is given no item.
+	deluge::scenes::menu_scene().open(*roots[rootIndex], ctx);
+	const uint16_t arg = deluge::scenes::menu_scene().arm_shortcut_landing(*node);
 	shellHostUI.setInitialScene(deluge::ui::shell::SceneId{.kind = deluge::ui::shell::SceneKind::FirstApp, .arg = arg});
 	return openUI(&shellHostUI);
 }

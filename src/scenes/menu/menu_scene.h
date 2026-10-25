@@ -774,6 +774,20 @@ public:
 	///         no horizontal page in this root lists.
 	bool reroot_to_scene_opener_page();
 
+	/// @brief Prepare the next `on_enter` to open a shortcut pad's @p target where
+	///        `SoundEditor::setup(clip, item, sourceIndex)` lands it, and name the node to open.
+	///
+	/// Legacy opens a named item on the horizontal page that lists it, focused on it
+	/// (`SoundEditor::maybeGetParentMenu` and `parent->focusChild`), except for the two sample start
+	/// markers, the audio clip's waveform and the two file selectors, which open themselves. The
+	/// page is the one `reroot_to_scene_opener_page()` finds, under the context installed now, so
+	/// `open()` must already have run.
+	///
+	/// @param target The node the pad names.
+	/// @return The `SceneId::arg` to open: the page's id when the target lands on a page, else the
+	///         target's own; 0 when that node has no id.
+	uint16_t arm_shortcut_landing(const Node& target);
+
 private:
 	/// @brief Fill @p out with @p node's children that `relevant` admits, resolving
 	///        `dynamic_children` first.
@@ -912,6 +926,19 @@ private:
 	///        delivered even if the path moves in the same tick.
 	MenuActionRequest taken_action_{};
 
+	/// @brief The column the next `on_enter` focuses on the page it opens, set by
+	///        `arm_shortcut_landing`. Not part of `MenuState`: the shell restores that between the
+	///        `Replace` and `on_enter`.
+	const Node* landing_column_ = nullptr;
+
+	/// @brief The node whose shortcut pad blinks and toggles the second layer: a horizontal page's
+	///        focused column (`Submenu::updatePadLights`), else `focused()`.
+	const Node* pad_subject() const;
+
+	/// @brief Focus @p column on the page `focused()` shows, when the page lists it visibly;
+	///        otherwise leave the focus where it is (`Submenu::focusChild`).
+	void focus_column(const Node& column);
+
 public:
 	/// @name The two navigation steps a caller outside the scene takes (note-family Task 7a)
 	///
@@ -963,6 +990,18 @@ public:
 ///        as a param (the transposes), or a custom item that says so (the cable strength pages) -- legacy's
 ///        `Automation` items.
 bool is_automation_item(const Node& item);
+
+/// @brief Whether a shortcut pad's @p target may open in @p ctx, the question `SoundEditor::setup`
+///        asks of a named item before it opens anything (`checkPermissionToBeginSession`; on `NO`
+///        it shows "PARAMETER NOT APPLICABLE" and opens nothing).
+///
+/// The base rule is relevance. The file selectors answer for themselves and open on any
+/// subtractive sound whatever their relevance (`FileSelector::checkPermissionToBeginSession`), so
+/// they are let through here and the browser's own check decides.
+/// @param target The node the pad names.
+/// @param ctx    What the menu would edit.
+/// @return False where legacy refuses.
+bool shortcut_applies(const Node& target, const MenuContext& ctx);
 
 /// @brief The address of the param whose automation shift + select on @p item deletes, on the owner @p ctx edits;
 ///        nullopt where it edits none.

@@ -4,3 +4,4 @@ led Back blink 110
 led Kit on
 indicator lower 0 0 0 0
 indicator upper 0 0 0 0
+flash 8 7 0

@@ -54,6 +54,7 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "util/comparison.h"
+#include "util/shell_menu_entry.h"
 #include <iterator>
 
 #include "scenes/menu/shortcuts.h"
@@ -1627,6 +1628,15 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 				noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu);
 				instrumentClipView.enterNoteRowEditor();
+				return ActionResult::DEALT_WITH;
+			}
+
+			// From a clip view the ported menu opens instead, where it has a node for the pad.
+			if (getCurrentUI() != &soundEditor && getCurrentUI() != &sampleMarkerEditor
+			    && deluge::gui::ui::shellMenuEnabled()
+			    && deluge::gui::ui::openShellMenuAtShortcut(currentClip, x, y, getRootUI() == &performanceView,
+			                                                !rootUIIsClipMinderScreen(), getRootUI() == &sessionView,
+			                                                setupKitGlobalFXMenu)) {
 				return ActionResult::DEALT_WITH;
 			}
 
