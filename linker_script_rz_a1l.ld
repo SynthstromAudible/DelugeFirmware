@@ -177,6 +177,182 @@ SECTIONS
 
     } > RAM012L
 
+	/* Select UI methods before the internal .text wildcard, including LTO clones.
+	 * Match symbols rather than object filenames: LTO combines translation units.
+	 * The boot image stores these bytes at .heap; resetprg copies them to SDRAM
+	 * and synchronizes caches before running any global constructors.
+	 */
+	.sdram_text : AT(__sdram_text_load)
+	{
+		. = ALIGN(4);
+		PROVIDE(__sdram_text_start = .);
+		*(.sdram_text .sdram_text*)
+		/* Namespaced UI, keyboard, menu-item and context-menu methods. */
+		*(.text._ZN6deluge3gui* .text._ZNK6deluge3gui*)
+		*(.text.*._ZN6deluge3gui* .text.*._ZNK6deluge3gui*)
+		*(.text._ZZN6deluge3gui* .text._ZZNK6deluge3gui*)
+		*(.text.*._ZZN6deluge3gui* .text.*._ZZNK6deluge3gui*)
+		/* Legacy UI classes in the global namespace. */
+		*(.text._ZN12ArrangerView* .text._ZNK12ArrangerView*)
+		*(.text.*._ZN12ArrangerView* .text.*._ZNK12ArrangerView*)
+		*(.text._ZZN12ArrangerView* .text._ZZNK12ArrangerView*)
+		*(.text.*._ZZN12ArrangerView* .text.*._ZZNK12ArrangerView*)
+		*(.text._ZN13AudioClipView* .text._ZNK13AudioClipView*)
+		*(.text.*._ZN13AudioClipView* .text.*._ZNK13AudioClipView*)
+		*(.text._ZZN13AudioClipView* .text._ZZNK13AudioClipView*)
+		*(.text.*._ZZN13AudioClipView* .text.*._ZZNK13AudioClipView*)
+		*(.text._ZN13AudioRecorder* .text._ZNK13AudioRecorder*)
+		*(.text.*._ZN13AudioRecorder* .text.*._ZNK13AudioRecorder*)
+		*(.text._ZZN13AudioRecorder* .text._ZZNK13AudioRecorder*)
+		*(.text.*._ZZN13AudioRecorder* .text.*._ZZNK13AudioRecorder*)
+		*(.text._ZN14AutomationView* .text._ZNK14AutomationView*)
+		*(.text.*._ZN14AutomationView* .text.*._ZNK14AutomationView*)
+		*(.text._ZZN14AutomationView* .text._ZZNK14AutomationView*)
+		*(.text.*._ZZN14AutomationView* .text.*._ZZNK14AutomationView*)
+		*(.text._ZN7Browser* .text._ZNK7Browser*)
+		*(.text.*._ZN7Browser* .text.*._ZNK7Browser*)
+		*(.text._ZZN7Browser* .text._ZZNK7Browser*)
+		*(.text.*._ZZN7Browser* .text.*._ZZNK7Browser*)
+		*(.text._ZN10ClipMinder* .text._ZNK10ClipMinder*)
+		*(.text.*._ZN10ClipMinder* .text.*._ZNK10ClipMinder*)
+		*(.text._ZZN10ClipMinder* .text._ZZNK10ClipMinder*)
+		*(.text.*._ZZN10ClipMinder* .text.*._ZZNK10ClipMinder*)
+		*(.text._ZN26ClipNavigationTimelineView* .text._ZNK26ClipNavigationTimelineView*)
+		*(.text.*._ZN26ClipNavigationTimelineView* .text.*._ZNK26ClipNavigationTimelineView*)
+		*(.text._ZZN26ClipNavigationTimelineView* .text._ZZNK26ClipNavigationTimelineView*)
+		*(.text.*._ZZN26ClipNavigationTimelineView* .text.*._ZZNK26ClipNavigationTimelineView*)
+		*(.text._ZN8ClipView* .text._ZNK8ClipView*)
+		*(.text.*._ZN8ClipView* .text.*._ZNK8ClipView*)
+		*(.text._ZZN8ClipView* .text._ZZNK8ClipView*)
+		*(.text.*._ZZN8ClipView* .text.*._ZZNK8ClipView*)
+		*(.text._ZN12DxSyxBrowser* .text._ZNK12DxSyxBrowser*)
+		*(.text.*._ZN12DxSyxBrowser* .text.*._ZNK12DxSyxBrowser*)
+		*(.text._ZZN12DxSyxBrowser* .text._ZZNK12DxSyxBrowser*)
+		*(.text.*._ZZN12DxSyxBrowser* .text.*._ZZNK12DxSyxBrowser*)
+		*(.text._ZN20InstrumentClipMinder* .text._ZNK20InstrumentClipMinder*)
+		*(.text.*._ZN20InstrumentClipMinder* .text.*._ZNK20InstrumentClipMinder*)
+		*(.text._ZZN20InstrumentClipMinder* .text._ZZNK20InstrumentClipMinder*)
+		*(.text.*._ZZN20InstrumentClipMinder* .text.*._ZZNK20InstrumentClipMinder*)
+		*(.text._ZN18InstrumentClipView* .text._ZNK18InstrumentClipView*)
+		*(.text.*._ZN18InstrumentClipView* .text.*._ZNK18InstrumentClipView*)
+		*(.text._ZZN18InstrumentClipView* .text._ZZNK18InstrumentClipView*)
+		*(.text.*._ZZN18InstrumentClipView* .text.*._ZZNK18InstrumentClipView*)
+		*(.text._ZN22LoadInstrumentPresetUI* .text._ZNK22LoadInstrumentPresetUI*)
+		*(.text.*._ZN22LoadInstrumentPresetUI* .text.*._ZNK22LoadInstrumentPresetUI*)
+		*(.text._ZZN22LoadInstrumentPresetUI* .text._ZZNK22LoadInstrumentPresetUI*)
+		*(.text.*._ZZN22LoadInstrumentPresetUI* .text.*._ZZNK22LoadInstrumentPresetUI*)
+		*(.text._ZN26LoadMidiDeviceDefinitionUI* .text._ZNK26LoadMidiDeviceDefinitionUI*)
+		*(.text.*._ZN26LoadMidiDeviceDefinitionUI* .text.*._ZNK26LoadMidiDeviceDefinitionUI*)
+		*(.text._ZZN26LoadMidiDeviceDefinitionUI* .text._ZZNK26LoadMidiDeviceDefinitionUI*)
+		*(.text.*._ZZN26LoadMidiDeviceDefinitionUI* .text.*._ZZNK26LoadMidiDeviceDefinitionUI*)
+		*(.text._ZN13LoadPatternUI* .text._ZNK13LoadPatternUI*)
+		*(.text.*._ZN13LoadPatternUI* .text.*._ZNK13LoadPatternUI*)
+		*(.text._ZZN13LoadPatternUI* .text._ZZNK13LoadPatternUI*)
+		*(.text.*._ZZN13LoadPatternUI* .text.*._ZZNK13LoadPatternUI*)
+		*(.text._ZN10LoadSongUI* .text._ZNK10LoadSongUI*)
+		*(.text.*._ZN10LoadSongUI* .text.*._ZNK10LoadSongUI*)
+		*(.text._ZZN10LoadSongUI* .text._ZZNK10LoadSongUI*)
+		*(.text.*._ZZN10LoadSongUI* .text.*._ZZNK10LoadSongUI*)
+		*(.text._ZN6LoadUI* .text._ZNK6LoadUI*)
+		*(.text.*._ZN6LoadUI* .text.*._ZNK6LoadUI*)
+		*(.text._ZZN6LoadUI* .text._ZZNK6LoadUI*)
+		*(.text.*._ZZN6LoadUI* .text.*._ZZNK6LoadUI*)
+		*(.text._ZN15PerformanceView* .text._ZNK15PerformanceView*)
+		*(.text.*._ZN15PerformanceView* .text.*._ZNK15PerformanceView*)
+		*(.text._ZZN15PerformanceView* .text._ZZNK15PerformanceView*)
+		*(.text.*._ZZN15PerformanceView* .text.*._ZZNK15PerformanceView*)
+		*(.text._ZN8QwertyUI* .text._ZNK8QwertyUI*)
+		*(.text.*._ZN8QwertyUI* .text.*._ZNK8QwertyUI*)
+		*(.text._ZZN8QwertyUI* .text._ZZNK8QwertyUI*)
+		*(.text.*._ZZN8QwertyUI* .text.*._ZZNK8QwertyUI*)
+		*(.text._ZN12RenameClipUI* .text._ZNK12RenameClipUI*)
+		*(.text.*._ZN12RenameClipUI* .text.*._ZNK12RenameClipUI*)
+		*(.text._ZZN12RenameClipUI* .text._ZZNK12RenameClipUI*)
+		*(.text.*._ZZN12RenameClipUI* .text.*._ZZNK12RenameClipUI*)
+		*(.text._ZN12RenameDrumUI* .text._ZNK12RenameDrumUI*)
+		*(.text.*._ZN12RenameDrumUI* .text.*._ZNK12RenameDrumUI*)
+		*(.text._ZZN12RenameDrumUI* .text._ZZNK12RenameDrumUI*)
+		*(.text.*._ZZN12RenameDrumUI* .text.*._ZZNK12RenameDrumUI*)
+		*(.text._ZN14RenameMidiCCUI* .text._ZNK14RenameMidiCCUI*)
+		*(.text.*._ZN14RenameMidiCCUI* .text.*._ZNK14RenameMidiCCUI*)
+		*(.text._ZZN14RenameMidiCCUI* .text._ZZNK14RenameMidiCCUI*)
+		*(.text.*._ZZN14RenameMidiCCUI* .text.*._ZZNK14RenameMidiCCUI*)
+		*(.text._ZN14RenameOutputUI* .text._ZNK14RenameOutputUI*)
+		*(.text.*._ZN14RenameOutputUI* .text.*._ZNK14RenameOutputUI*)
+		*(.text._ZZN14RenameOutputUI* .text._ZZNK14RenameOutputUI*)
+		*(.text.*._ZZN14RenameOutputUI* .text.*._ZZNK14RenameOutputUI*)
+		*(.text._ZN8RenameUI* .text._ZNK8RenameUI*)
+		*(.text.*._ZN8RenameUI* .text.*._ZNK8RenameUI*)
+		*(.text._ZZN8RenameUI* .text._ZZNK8RenameUI*)
+		*(.text.*._ZZN8RenameUI* .text.*._ZZNK8RenameUI*)
+		*(.text._ZN6RootUI* .text._ZNK6RootUI*)
+		*(.text.*._ZN6RootUI* .text.*._ZNK6RootUI*)
+		*(.text._ZZN6RootUI* .text._ZZNK6RootUI*)
+		*(.text.*._ZZN6RootUI* .text.*._ZZNK6RootUI*)
+		*(.text._ZN13SampleBrowser* .text._ZNK13SampleBrowser*)
+		*(.text.*._ZN13SampleBrowser* .text.*._ZNK13SampleBrowser*)
+		*(.text._ZZN13SampleBrowser* .text._ZZNK13SampleBrowser*)
+		*(.text.*._ZZN13SampleBrowser* .text.*._ZZNK13SampleBrowser*)
+		*(.text._ZN18SampleMarkerEditor* .text._ZNK18SampleMarkerEditor*)
+		*(.text.*._ZN18SampleMarkerEditor* .text.*._ZNK18SampleMarkerEditor*)
+		*(.text._ZZN18SampleMarkerEditor* .text._ZZNK18SampleMarkerEditor*)
+		*(.text.*._ZZN18SampleMarkerEditor* .text.*._ZZNK18SampleMarkerEditor*)
+		*(.text._ZN22SaveInstrumentPresetUI* .text._ZNK22SaveInstrumentPresetUI*)
+		*(.text.*._ZN22SaveInstrumentPresetUI* .text.*._ZNK22SaveInstrumentPresetUI*)
+		*(.text._ZZN22SaveInstrumentPresetUI* .text._ZZNK22SaveInstrumentPresetUI*)
+		*(.text.*._ZZN22SaveInstrumentPresetUI* .text.*._ZZNK22SaveInstrumentPresetUI*)
+		*(.text._ZN12SaveKitRowUI* .text._ZNK12SaveKitRowUI*)
+		*(.text.*._ZN12SaveKitRowUI* .text.*._ZNK12SaveKitRowUI*)
+		*(.text._ZZN12SaveKitRowUI* .text._ZZNK12SaveKitRowUI*)
+		*(.text.*._ZZN12SaveKitRowUI* .text.*._ZZNK12SaveKitRowUI*)
+		*(.text._ZN26SaveMidiDeviceDefinitionUI* .text._ZNK26SaveMidiDeviceDefinitionUI*)
+		*(.text.*._ZN26SaveMidiDeviceDefinitionUI* .text.*._ZNK26SaveMidiDeviceDefinitionUI*)
+		*(.text._ZZN26SaveMidiDeviceDefinitionUI* .text._ZZNK26SaveMidiDeviceDefinitionUI*)
+		*(.text.*._ZZN26SaveMidiDeviceDefinitionUI* .text.*._ZZNK26SaveMidiDeviceDefinitionUI*)
+		*(.text._ZN13SavePatternUI* .text._ZNK13SavePatternUI*)
+		*(.text.*._ZN13SavePatternUI* .text.*._ZNK13SavePatternUI*)
+		*(.text._ZZN13SavePatternUI* .text._ZZNK13SavePatternUI*)
+		*(.text.*._ZZN13SavePatternUI* .text.*._ZZNK13SavePatternUI*)
+		*(.text._ZN10SaveSongUI* .text._ZNK10SaveSongUI*)
+		*(.text.*._ZN10SaveSongUI* .text.*._ZNK10SaveSongUI*)
+		*(.text._ZZN10SaveSongUI* .text._ZZNK10SaveSongUI*)
+		*(.text.*._ZZN10SaveSongUI* .text.*._ZZNK10SaveSongUI*)
+		*(.text._ZN6SaveUI* .text._ZNK6SaveUI*)
+		*(.text.*._ZN6SaveUI* .text.*._ZNK6SaveUI*)
+		*(.text._ZZN6SaveUI* .text._ZZNK6SaveUI*)
+		*(.text.*._ZZN6SaveUI* .text.*._ZZNK6SaveUI*)
+		*(.text._ZN11SessionView* .text._ZNK11SessionView*)
+		*(.text.*._ZN11SessionView* .text.*._ZNK11SessionView*)
+		*(.text._ZZN11SessionView* .text._ZZNK11SessionView*)
+		*(.text.*._ZZN11SessionView* .text.*._ZZNK11SessionView*)
+		*(.text._ZN6Slicer* .text._ZNK6Slicer*)
+		*(.text.*._ZN6Slicer* .text.*._ZNK6Slicer*)
+		*(.text._ZZN6Slicer* .text._ZZNK6Slicer*)
+		*(.text.*._ZZN6Slicer* .text.*._ZZNK6Slicer*)
+		*(.text._ZN11SlotBrowser* .text._ZNK11SlotBrowser*)
+		*(.text.*._ZN11SlotBrowser* .text.*._ZNK11SlotBrowser*)
+		*(.text._ZZN11SlotBrowser* .text._ZZNK11SlotBrowser*)
+		*(.text.*._ZZN11SlotBrowser* .text.*._ZZNK11SlotBrowser*)
+		*(.text._ZN11SoundEditor* .text._ZNK11SoundEditor*)
+		*(.text.*._ZN11SoundEditor* .text.*._ZNK11SoundEditor*)
+		*(.text._ZZN11SoundEditor* .text._ZZNK11SoundEditor*)
+		*(.text.*._ZZN11SoundEditor* .text.*._ZZNK11SoundEditor*)
+		*(.text._ZN12TimelineView* .text._ZNK12TimelineView*)
+		*(.text.*._ZN12TimelineView* .text.*._ZNK12TimelineView*)
+		*(.text._ZZN12TimelineView* .text._ZZNK12TimelineView*)
+		*(.text.*._ZZN12TimelineView* .text.*._ZZNK12TimelineView*)
+		*(.text._ZN2UI* .text._ZNK2UI*)
+		*(.text.*._ZN2UI* .text.*._ZNK2UI*)
+		*(.text._ZZN2UI* .text._ZZNK2UI*)
+		*(.text.*._ZZN2UI* .text.*._ZZNK2UI*)
+		*(.text._ZN4View* .text._ZNK4View*)
+		*(.text.*._ZN4View* .text.*._ZNK4View*)
+		*(.text._ZZN4View* .text._ZZNK4View*)
+		*(.text.*._ZZN4View* .text.*._ZZNK4View*)
+		. = ALIGN(4);
+		PROVIDE(__sdram_text_end = .);
+	} > SDRAM
+
     .text : ALIGN(0x4) {
 		_stext = .;
 		
@@ -273,16 +449,8 @@ SECTIONS
 		PROVIDE(_nl_heap_end = .);
 	} > RAM012L
 
-	/* This worked in isolated testing, for example with init_crc_table but I had problems with bigger stuff, maybe timing? */
-	.sdram_text : AT(ADDR(.heap))
-	{
-        . = ALIGN(4);
-        PROVIDE(__sdram_text_start = .);
-        *(.sdram_text .sdram_text*)
-        . = ALIGN(4);
-		KEEP(*(.sdram_text))
-        PROVIDE(__sdram_text_end = .);
-	} > SDRAM
+	/* Resolve the forward load address after internal sections are laid out. */
+	__sdram_text_load = ADDR(.heap);
 
 	.sdram_data : AT(ADDR(.heap) + SIZEOF(.sdram_text))
 	{
@@ -315,6 +483,10 @@ SECTIONS
         PROVIDE_HIDDEN(__exidx_end = .);
         PROVIDE(__reloc_sections_end__ = .);
     } > SDRAM
+
+	__sdram_data_load = LOADADDR(.sdram_data);
+	__sdram_rodata_load = LOADADDR(.sdram_rodata);
+	__reloc_sections_load = LOADADDR(.exceptions);
 
 	/* Reset location counter to RAM012L. Warning: Changing relocation sections before that will require change here */
 	. = ADDR(.heap) + SIZEOF(.sdram_text) + SIZEOF(.sdram_data) + SIZEOF(.sdram_rodata) + SIZEOF(.exceptions);
@@ -359,21 +531,3 @@ SECTIONS
   }
 
 }
-
-
-/*
-	// In order to attempt to move init functions in the SDRAM you need to move sdram_text before the .text sections
-	// so _Z41__static_initialization_and_destruction_0ii is not yet consumed by the wildcard, that works with the following block
-	// Problem was that seemingly the functions were copied to SDRAM but not executed as part of the init routine
-	.sdram_text : AT(__heap_start)
-	{
-        . = ALIGN(4);
-        PROVIDE(__sdram_text_start = .);
-		*(.text._Z41__static_initialization_and_destruction_0ii)
-        *(.sdram_text .sdram_text*)
-        . = ALIGN(4);
-        PROVIDE(__sdram_text_end = .);
-	} > SDRAM
-
-*/
-
