@@ -2,6 +2,7 @@
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
+#include "src/deluge/drivers/uart/uart.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -36,6 +37,8 @@ struct {
 } spi;
 struct {
 	uint32_t N0TB_n, N0SA_n, CHCTRL_n;
+	uint32_t N1TB_n, CHCFG_n, N0DA_n, N1SA_n, N1DA_n, CHITVL_n, CHEXT_n;
+	uintptr_t CRDA_n;
 } dma;
 #define RSPI(channel) spi
 #define DMACn(channel) dma
@@ -53,8 +56,7 @@ static void EXIT_CRITICAL_SECTION(void) {
 	assert(criticalDepth > 0);
 	--criticalDepth;
 }
-static void setupAndEnableInterrupt(void (*handler)(uint32_t), int irq, int priority) {
-}
+#define setupAndEnableInterrupt(handler, irq, priority) ((void)0)
 static void invalidate_range_all_caches(uint32_t start, uint32_t end) {
 }
 static unsigned msToSlowTimerCount(unsigned ms) {
@@ -67,18 +69,15 @@ static void setOutputState(int port, int pin, bool value) {
 // These tests observe SPI/handshake behavior, not the gate callback signature.
 #define cvSent(...) ((void)0)
 static unsigned picMessage;
-static int32_t picTxFullness;
-static int32_t uartGetTxBufferFullnessByItem(int item) {
-	assert(item == UART_ITEM_PIC);
-	return picTxFullness;
-}
-#define bufferPICUart(message) (picMessage = (message))
+#include "mock_uart.h"
+#define bufferPICUart(message)                                                                                         \
+	do {                                                                                                               \
+		picMessage = (message);                                                                                        \
+		queuePicBytes(1);                                                                                              \
+	} while (0)
 void cvSPITransferComplete(uint32_t);
 void oledTransferComplete(uint32_t);
 
 // This suite drives completed handshakes explicitly, even when the independent
 // acknowledgement-scanning fix is included in the build.
 #define OLED_MESSAGE_ACK_CONSUMED 255
-static bool uartReplacePendingByte(int item, uint8_t value, uint8_t replacement) {
-	return false;
-}

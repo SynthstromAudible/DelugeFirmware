@@ -30,6 +30,15 @@
 #include "deluge/processing/engines/cv_engine_c_interface.h"
 #include "deluge/util/cfunctions.h"
 
+// Keep the drain reservation through CV preemption: otherwise pad producers could
+// refill the UART each time CV temporarily cancels SELECT.
+static volatile bool oledWaitingForPicTxDrain = false;
+
+bool oledIsWaitingForPicTxDrain()
+{
+    return oledWaitingForPicTxDrain;
+}
+
 static bool cancelUnsentOledSelect();
 
 void setupSPIInterrupts()
@@ -96,6 +105,7 @@ sendMessageToPIC:
         last_message_sent      = oledWaitingForMessage;
         oledMessageTimeoutTime = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(50);
         bufferPICUart(oledWaitingForMessage);
+        oledWaitingForPicTxDrain = false;
     }
 
     else if (oledWaitingForMessage != OLED_MESSAGE_NONE)
@@ -219,6 +229,7 @@ void initiateSelectingOled()
     }
 #endif
     oledPendingMessageToSend = OLED_MESSAGE_SELECT;
+    oledWaitingForPicTxDrain = true;
 
     // Actual queue position gets moved along in oledSelectingComplete() when that gets called.
 }
