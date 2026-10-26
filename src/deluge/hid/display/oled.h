@@ -55,6 +55,9 @@ public:
 	/// Marks the OLED as dirty, so you don't need to do that later yourself.
 	static void clearMainImage();
 
+	/// Changes whenever the main image is cleared, invalidating cached view content.
+	static uint32_t getMainImageGeneration() { return mainImageGeneration; }
+
 	static void setupBlink(int32_t minX, int32_t width, int32_t minY, int32_t maxY, bool shouldBlinkImmediately);
 	static void stopBlink();
 
@@ -190,6 +193,7 @@ public:
 	void displayNotification(std::string_view param_title, std::optional<std::string_view> param_value) override;
 
 private:
+	static uint32_t mainImageGeneration;
 	static bool needsSending;
 };
 
