@@ -12,13 +12,14 @@ jobs:
   test-build-x86:
     name: Run tests (x86)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
       - name: Install GCC multilib
         run: |
           sudo apt-get update
-          sudo apt-get install gcc-14 gcc-14-multilib g++-14-multilib
+          sudo apt-get install -y -o Acquire::Retries=3 -o Acquire::http::Timeout=30 gcc-14 gcc-14-multilib g++-14-multilib
           echo "CC=gcc-14" >> $GITHUB_ENV
           echo "CXX=g++-14" >> $GITHUB_ENV
 
@@ -60,6 +61,7 @@ jobs:
   test-build-qemu:
     name: Run tests for ARMv7 via QEMU
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -70,9 +72,9 @@ jobs:
       - name: Install cross-compilation toolchain and QEMU
         run: |
           sudo debconf-communicate <<< "set man-db/auto-update false"
-          sudo dpkg-reconfigure man-db        
+          sudo dpkg-reconfigure man-db
           sudo apt-get update
-          sudo apt-get install -y gcc-14-arm-linux-gnueabihf g++-14-arm-linux-gnueabihf qemu-user binfmt-support qemu-user-static qemu-system-arm
+          sudo apt-get install -y -o Acquire::Retries=3 -o Acquire::http::Timeout=30 gcc-14-arm-linux-gnueabihf g++-14-arm-linux-gnueabihf binfmt-support qemu-user-static
           echo "CC=arm-linux-gnueabihf-gcc-14" >> $GITHUB_ENV
           echo "CXX=arm-linux-gnueabihf-g++-14" >> $GITHUB_ENV
           echo "LD_LIBRARY_PATH=/usr/arm-linux-gnueabihf/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
