@@ -797,15 +797,27 @@ public:
 	bool isRangeDependent() override { return true; }
 	[[nodiscard]] int32_t getSourceIndexForRangeSelection() const override { return sourceId_; }
 
-	// "Slot C3-F#4", in the style of the Variants screen's "Var C3-F#4".
+	// Whose slots these are: the zone's notes, "C3-F#4", or on a kit the pad's name. A single-zone synth
+	// has neither, so it says "Slot".
 	[[nodiscard]] std::string_view getTitle() const override {
-		std::string zone;
-		soundEditor.appendCurrentZoneDescription(zone, sourceId_);
-		if (zone.empty()) {
+		if (soundEditor.editingKitRow()) {
+			Kit* kit = getCurrentKit();
+			if (kit != nullptr && kit->selectedDrum != nullptr) {
+				title_buf_ = kit->selectedDrum->getDrumName();
+				if (!title_buf_.empty()) {
+					return title_buf_;
+				}
+			}
 			return l10n::getView(name);
 		}
-		title_buf_ = l10n::get(name);
-		title_buf_ += zone;
+		std::string zone;
+		soundEditor.appendCurrentZoneDescription(zone, sourceId_);
+		// It comes with a leading space, for appending to a title.
+		const size_t start = zone.find_first_not_of(' ');
+		if (start == std::string::npos) {
+			return l10n::getView(name);
+		}
+		title_buf_ = zone.substr(start);
 		return title_buf_;
 	}
 
