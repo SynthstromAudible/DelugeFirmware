@@ -184,45 +184,20 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 // per buffer. Stores through the q31_t* sample buffer could otherwise alias the q31_t members and the global seed, so
 // GCC reloaded all of them and stored the state back on every sample.
 //
-// Static loop body sizes in instructions (of which loads/stores), arm-none-eabi-gcc 14.2, release build:
-//                         before    __restrict__ only    this
-//   24dB, resonance 0     84 (30)   53 (11)              30 (4)
-//   24dB, resonance on    84 (30)   53 (11)              47 (12)
-//   24dB, saturating      84 (30)   -                    69 (22)
-//   12dB, resonance 0     74 (26)   46 (10)              26 (2)
-// "before" is one loop per mode with the saturation code behind a branch, so fewer of its instructions run when not
-// saturating. The mono and stereo loops together grow from 6.9 KB to 13.9 KB of code.
-//
-// Measured in delugemu (dzcache plugin, timed by modelled Cortex-A9 cycles) on "Ms Noise Bug 5", one synth with an
-// 83-zone piano multisample through the 24dB ladder at resonance 0, 200 x 100M instructions after PLAY:
-//                                     doFilter ins/voice-sample   render load   culls per 5 s   voices
-//   before                            64.3                        82%           39.3            24.7
-//   __restrict__ only                 49.1                        79%           1.8             26.8
-//   locals + kFeedback                31.9                        65%           0               27.6
-//   this (+ BasicFilterComponent)     29.4                        64%           0               27.6
-// With the cache model, load went from 85% to 71% and culls from 32.8 to 0. Without overload the firmware stops
-// forcing linear interpolation, so total render instructions per frame (5179 -> 4089) understate the filter gain.
-//
-// Tested bit-exact: a host harness builds the old and new lpladder.cpp side by side and compares every output sample
-// and the final jcong. It covers all three ladder modes, oversampling on/off, mono at stride 1 and 2, stereo, random
-// frequency/resonance (including exactly 0, around the 510000000 saturation threshold, and full)/morph (negative, 0,
-// positive)/gain, cpuDireness 0 and 20, and noise, sine, square, full-scale noise and impulse inputs, over several
-// buffers per case so state carries over. 6 seeds x ~13.5M samples: 0 mismatches. The host build needs -fwrapv to
-// match ARM's wrapping adds; the old code relied on signed overflow wrapping.
-//
 // Alternatives considered:
-//  - __restrict__ on the buffer pointers alone (measured above). GCC then keeps most state in registers and unswitches
+//  - __restrict__ on the buffer pointers alone. GCC then keeps most state in registers and unswitches
 //    the saturation branch by itself, but it still does the feedback multiplies at resonance 0, and the result
-//    depends on GCC honouring restrict. Explicit locals don't.
+//    depends on GCC honouring restrict (I also assume this worked when rohan wrote it and is no longer true)
 //  - A runtime branch inside the loop instead of templates. That's what the old code did for kSaturate. It keeps code
-//    small, but the compiler can't drop the feedback path.
+//    small, but the compiler can't drop the feedback path. Branch prediction makes the cost small but the cache is
+//    still penalized
 //  - Folding the 3 template variants down to 2 by letting <true, true> use the <false, true> loop with a runtime
-//    saturation branch, to save code size. Not done: only one variant is hot per voice, and the cache model showed no
-//    I-cache cost from the extra size on this song.
+//    saturation branch, to save code size. Not done: only one variant is hot per voice, keeping the whole thing
+//    in cache is worth a lot
 //  - NEON for stereo, running left and right in one 2-lane vector. vqrdmulh is not bit-exact against smmulr;
-//    vmull.s32 followed by vrshrn.i64 #32 is. Not done: the measured song is mono, and stereo ladder use is rare.
+//    vmull.s32 followed by vrshrn.i64 #32 is. Not done: dunno how much it'll actually help and can't test automatically
 //  - Interleaving two voices per loop to hide the latency of the 4-stage smmulr chain, which flat-CPI emulation can't
-//    see but hardware will. Needs a FilterSet-level change; not done.
+//    see but hardware will. Way bigger change, leave to next
 //  - A stride-1 specialisation to free a register for the resonant 24dB loop, which still spills. Not done.
 //  - Caching setConfig() (two double divides) when frequency and resonance haven't changed. It's about 2% of render
 //    instructions after this change; left for a separate change.
