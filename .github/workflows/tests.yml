@@ -21,24 +21,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Get cache month
-        id: month
-        run: echo "month=$(date +%Y-%m)" >> $GITHUB_OUTPUT
-
-      - name: Cache apt packages
-        uses: actions/cache@v6
-        with:
-          path: ~/apt-cache
-          key: apt-x86-${{ env.ImageOS }}-${{ hashFiles('.github/workflows/tests.yml') }}-${{ steps.month.outputs.month }}
-          restore-keys: apt-x86-${{ env.ImageOS }}-
-
       - name: Install GCC multilib
+        uses: ./.github/actions/apt-install
+        with:
+          cache-name: x86
+          packages: gcc-14 gcc-14-multilib g++-14-multilib
+
+      - name: Use GCC 14
         run: |
-          mkdir -p ~/apt-cache
-          sudo cp ~/apt-cache/*.deb /var/cache/apt/archives/ 2>/dev/null || true
-          sudo apt-get update
-          sudo apt-get install -y -o APT::Keep-Downloaded-Packages=true -o Acquire::Retries=3 -o Acquire::http::Timeout=30 gcc-14 gcc-14-multilib g++-14-multilib
-          cp /var/cache/apt/archives/*.deb ~/apt-cache/
           echo "CC=gcc-14" >> $GITHUB_ENV
           echo "CXX=g++-14" >> $GITHUB_ENV
 
@@ -88,26 +78,14 @@ jobs:
       - name: Install CMake
         uses: lukka/get-cmake@latest
 
-      - name: Get cache month
-        id: month
-        run: echo "month=$(date +%Y-%m)" >> $GITHUB_OUTPUT
-
-      - name: Cache apt packages
-        uses: actions/cache@v6
-        with:
-          path: ~/apt-cache
-          key: apt-qemu-${{ env.ImageOS }}-${{ hashFiles('.github/workflows/tests.yml') }}-${{ steps.month.outputs.month }}
-          restore-keys: apt-qemu-${{ env.ImageOS }}-
-
       - name: Install cross-compilation toolchain and QEMU
+        uses: ./.github/actions/apt-install
+        with:
+          cache-name: qemu
+          packages: gcc-14-arm-linux-gnueabihf g++-14-arm-linux-gnueabihf binfmt-support qemu-user-static
+
+      - name: Use ARM cross toolchain
         run: |
-          sudo debconf-communicate <<< "set man-db/auto-update false"
-          sudo dpkg-reconfigure man-db
-          mkdir -p ~/apt-cache
-          sudo cp ~/apt-cache/*.deb /var/cache/apt/archives/ 2>/dev/null || true
-          sudo apt-get update
-          sudo apt-get install -y -o APT::Keep-Downloaded-Packages=true -o Acquire::Retries=3 -o Acquire::http::Timeout=30 gcc-14-arm-linux-gnueabihf g++-14-arm-linux-gnueabihf binfmt-support qemu-user-static
-          cp /var/cache/apt/archives/*.deb ~/apt-cache/
           echo "CC=arm-linux-gnueabihf-gcc-14" >> $GITHUB_ENV
           echo "CXX=arm-linux-gnueabihf-g++-14" >> $GITHUB_ENV
           echo "LD_LIBRARY_PATH=/usr/arm-linux-gnueabihf/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV

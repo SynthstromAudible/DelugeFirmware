@@ -1,26 +1,51 @@
 name: Clang Tidy
 on:
   pull_request: # Required to post comments on PR from forks
+  # Runs on main only populate the apt cache; PR caches aren't visible to other PRs.
+  push:
+    branches:
+      - "main"
 jobs:
+  warm-apt-cache:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install clang-tidy
+        uses: ./.github/actions/apt-install
+        with:
+          cache-name: clang-tidy
+          packages: clang-19 clang-tidy-19
+
   clang-tidy-review:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     if: startsWith(github.event_name, 'pull_request') # Posting a review only makes sense on PRs
     steps:
+      # The merge ref has the apt-install action even when the PR head predates it.
+      - name: Checkout CI actions
+        uses: actions/checkout@v7
+
+      - name: Remove preinstalled clang-tidy
+        run: sudo apt-get remove -y ^clang-tidy
+
+      - name: Install clang-tidy
+        uses: ./.github/actions/apt-install
+        with:
+          cache-name: clang-tidy
+          packages: clang-19 clang-tidy-19
+
+      - name: Select clang-tidy 19
+        run: |
+          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-19 100
+
       # Repo config for pull_request_target
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           submodules: recursive
-
-      - name: Install clang-tidy
-        run: |
-          sudo debconf-communicate <<< "set man-db/auto-update false"
-          sudo dpkg-reconfigure man-db        
-          sudo apt-get update
-          sudo apt-get remove -y ^clang-tidy
-          sudo apt-get install -y clang-19 clang-tidy-19
-          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-19 100
 
       - name: Generate compilation database
         run: |
