@@ -140,9 +140,9 @@ SECTIONS
 	{
 		 _bss = .;
 		 PROVIDE(__bss_start__ = .);
-		 *(.bss)
-		 *(.bss.**)
-		 *(COMMON)
+		 *(EXCLUDE_FILE (*src/deluge/gui/*.obj) .bss)
+		 *(EXCLUDE_FILE (*src/deluge/gui/*.obj) .bss.**)
+		 *(EXCLUDE_FILE (*src/deluge/gui/*.obj) COMMON)
 		 . = ALIGN(0x4);
 		 PROVIDE(__bss_end__ = .);
 		 _ebss = .;
@@ -209,11 +209,10 @@ SECTIONS
     {
         . = ALIGN(0x4);
         PROVIDE(__sdram_rodata_start = .);
-        /* GUI vtables must be selected before internal .rodata/.data.
-         * Match compilation-unit paths, including header-defined menu classes
-         * instantiated by menus.cpp, so new classes need no placement entries.
+        /* GUI constants, fonts, option tables and vtables are selected before
+         * internal .rodata/.data. Match paths so new GUI sources follow suit.
          */
-        *src/deluge/gui/*.obj(.rodata._ZTV* .data.rel.ro._ZTV* .data.rel.ro.local._ZTV*)
+        *src/deluge/gui/*.obj(.rodata .rodata.* .data.rel.ro .data.rel.ro.* .gnu.linkonce.r.*)
         INPUT_SECTION_FLAGS(SHF_STRINGS) *(.rodata*) /* there's a bunch of different patterns for string constant sections */
         *(.sdram_rodata)
         *(.sdram_rodata*)
@@ -242,8 +241,8 @@ SECTIONS
 		address_start_data_ROM = .;
 		_data = .;
 		_sdata = .;
-		*(.data)
-		*(.data*)
+		*(EXCLUDE_FILE (*src/deluge/gui/*.obj) .data)
+		*(EXCLUDE_FILE (*src/deluge/gui/*.obj) .data*)
 		*(.igot.plt)
 		*(.got.plt) 
 		*(.got)
@@ -313,6 +312,8 @@ SECTIONS
         . = ALIGN(4);
         PROVIDE(__sdram_data_start = .);
         *(.sdram_data .sdram_data*)
+        /* Initialized GUI objects and pointer arrays must be copied, not zeroed. */
+        *src/deluge/gui/*.obj(.data .data.* .gnu.linkonce.d.*)
         . = ALIGN(4);
 		KEEP(*(.sdram_data))
         PROVIDE(__sdram_data_end = .);
@@ -355,6 +356,8 @@ SECTIONS
         . = ALIGN(4);
         PROVIDE(__sdram_bss_start = .);
         *(.sdram_bss .sdram_bss*)
+        /* GUI storage excluded from internal BSS above; cleared before constructors. */
+        *src/deluge/gui/*.obj(.bss .bss.* .gnu.linkonce.b.* COMMON)
         . = ALIGN(4);
 		KEEP(*(.sdram_bss))
         PROVIDE(__sdram_bss_end = .);
