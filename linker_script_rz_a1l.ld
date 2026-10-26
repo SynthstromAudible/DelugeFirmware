@@ -205,6 +205,22 @@ SECTIONS
 
 	} > RAM012L
 
+    .sdram_rodata : AT(__sdram_rodata_load)
+    {
+        . = ALIGN(0x4);
+        PROVIDE(__sdram_rodata_start = .);
+        /* GUI vtables must be selected before internal .rodata/.data.
+         * Match compilation-unit paths, including header-defined menu classes
+         * instantiated by menus.cpp, so new classes need no placement entries.
+         */
+        *src/deluge/gui/*.obj(.rodata._ZTV* .data.rel.ro._ZTV* .data.rel.ro.local._ZTV*)
+        INPUT_SECTION_FLAGS(SHF_STRINGS) *(.rodata*) /* there's a bunch of different patterns for string constant sections */
+        *(.sdram_rodata)
+        *(.sdram_rodata*)
+        . = ALIGN(0x4);
+        PROVIDE(__sdram_rodata_end = .);
+    } > SDRAM
+
 	.rodata :
 	{
 		. = ALIGN(0x4);
@@ -302,17 +318,6 @@ SECTIONS
         PROVIDE(__sdram_data_end = .);
 	} > SDRAM
 
-    .sdram_rodata :AT(ADDR(.heap) + SIZEOF(.sdram_text) + SIZEOF(.sdram_data))
-    {
-        . = ALIGN(0x4);
-        PROVIDE(__sdram_rodata_start = .);
-        INPUT_SECTION_FLAGS(SHF_STRINGS) *(.rodata*) /* there's a bunch of different patterns for string constant sections */
-        *(.sdram_rodata)
-        *(.sdram_rodata*)
-        PROVIDE(__sdram_rodata_end = .);
-        . = ALIGN(0x4);
-    } > SDRAM
-
     .exceptions : AT(ADDR(.heap) + SIZEOF(.sdram_text) + SIZEOF(.sdram_data) + SIZEOF(.sdram_rodata)) {
         PROVIDE(__reloc_sections_start__ = .);
         *(.ARM.extab)
@@ -325,7 +330,11 @@ SECTIONS
     } > SDRAM
 
 	__sdram_data_load = LOADADDR(.sdram_data);
-	__sdram_rodata_load = LOADADDR(.sdram_rodata);
+	/* Keep the boot image packed in text/data/rodata order even though
+	 * rodata is selected earlier and has a different SDRAM placement order.
+	 * resetprg uses each section's load address rather than a shared offset.
+	 */
+	__sdram_rodata_load = ADDR(.heap) + SIZEOF(.sdram_text) + SIZEOF(.sdram_data);
 	__reloc_sections_load = LOADADDR(.exceptions);
 
 	/* Reset location counter to RAM012L. Warning: Changing relocation sections before that will require change here */
