@@ -2677,6 +2677,7 @@ bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 	}
 
 	uint32_t whichRowsCouldntBeRendered = 0;
+	uint32_t whichRowsNeedRefinement = 0;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -2687,7 +2688,14 @@ bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 		if (whichRows & (1 << yDisplay)) {
 			bool success = renderRow(modelStack, yDisplay, image[yDisplay], occupancyMask[yDisplay], drawUndefinedArea);
 			if (!success) {
-				whichRowsCouldntBeRendered |= (1 << yDisplay);
+				Clip* clip = getClipOnScreen(yDisplay);
+				if (clip && clip->type == ClipType::AUDIO) {
+					// Audio rows draw available peaks/placeholders even when sample data is still loading.
+					whichRowsNeedRefinement |= (1 << yDisplay);
+				}
+				else {
+					whichRowsCouldntBeRendered |= (1 << yDisplay);
+				}
 			}
 		}
 	}
@@ -2695,6 +2703,9 @@ bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 
 	if (whichRowsCouldntBeRendered && image == PadLEDs::image) {
 		requestRendering(this, whichRowsCouldntBeRendered, 0);
+	}
+	if (whichRowsNeedRefinement && image == PadLEDs::image) {
+		retryMainPadRendering(whichRowsNeedRefinement);
 	}
 
 	return true;
