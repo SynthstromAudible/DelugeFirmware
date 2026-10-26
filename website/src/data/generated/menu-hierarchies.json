@@ -1118,6 +1118,84 @@
           ]
         },
         {
+          "varName": "usbAudioMenu",
+          "token": "STRING_FOR_USB_AUDIO",
+          "oled": "USB audio",
+          "code": "USBA",
+          "children": [
+            {
+              "varName": "usbAudioEnabledMenu",
+              "token": "STRING_FOR_ENABLED",
+              "oled": "Enabled",
+              "code": "ON",
+              "children": [
+                {
+                  "varName": "virtualToggle_usbAudioEnabledMenu_0",
+                  "token": "STRING_FOR_DISABLED",
+                  "oled": "Disabled",
+                  "code": "OFF",
+                  "children": []
+                },
+                {
+                  "varName": "virtualToggle_usbAudioEnabledMenu_1",
+                  "token": "STRING_FOR_ENABLED",
+                  "oled": "Enabled",
+                  "code": "ON",
+                  "children": []
+                }
+              ],
+              "tag": "c1.4"
+            },
+            {
+              "varName": "usbAudioInputMenu",
+              "token": "STRING_FOR_INPUT",
+              "oled": "Input",
+              "code": "IN",
+              "children": [
+                {
+                  "varName": "virtualToggle_usbAudioInputMenu_0",
+                  "token": "STRING_FOR_DISABLED",
+                  "oled": "Disabled",
+                  "code": "OFF",
+                  "children": []
+                },
+                {
+                  "varName": "virtualToggle_usbAudioInputMenu_1",
+                  "token": "STRING_FOR_ENABLED",
+                  "oled": "Enabled",
+                  "code": "ON",
+                  "children": []
+                }
+              ],
+              "tag": "c1.4"
+            },
+            {
+              "varName": "usbAudioOutputMenu",
+              "token": "STRING_FOR_OUTPUT",
+              "oled": "Output",
+              "code": "OUT",
+              "children": [
+                {
+                  "varName": "virtualSelector_usbAudioOutputMenu_0",
+                  "token": "STRING_FOR_MAIN_MIX",
+                  "oled": "Main mix",
+                  "code": "MIX",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_usbAudioOutputMenu_1",
+                  "token": "STRING_FOR_LINE_IN",
+                  "oled": "Line in",
+                  "code": "LINE",
+                  "children": []
+                }
+              ],
+              "tag": "c1.4"
+            }
+          ],
+          "tag": "c1.4"
+        },
+        {
           "varName": "defaultsSubmenu",
           "token": "STRING_FOR_DEFAULTS",
           "oled": "Defaults",
@@ -3147,29 +3225,6 @@
                 }
               ],
               "tag": "c1.3"
-            },
-            {
-              "varName": "defaultLoopCommandMenu",
-              "token": "STRING_FOR_LOOP_COMMAND",
-              "oled": "Loop Command",
-              "code": "LOOP",
-              "children": [
-                {
-                  "varName": "virtualSelector_defaultLoopCommandMenu_0",
-                  "token": "STRING_FOR_LOOP",
-                  "oled": "Loop",
-                  "code": "Loop",
-                  "children": []
-                },
-                {
-                  "varName": "virtualSelector_defaultLoopCommandMenu_1",
-                  "token": "STRING_FOR_LAYERING_LOOP",
-                  "oled": "Layering Loop",
-                  "code": "Layering Loop",
-                  "children": []
-                }
-              ],
-              "tag": "c1.3"
             }
           ]
         },
@@ -3184,7 +3239,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER",
               "oled": "Drum Randomizer",
               "code": "DRUM",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuDrumRandomizer_0",
+                  "token": "LITERAL_virtualSelector_menuDrumRandomizer_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuDrumRandomizer_1",
+                  "token": "LITERAL_virtualSelector_menuDrumRandomizer_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.0"
             },
             {
@@ -3192,7 +3262,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB",
               "oled": "Fine Tempo Knob",
               "code": "TEMP",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuFineTempo_0",
+                  "token": "LITERAL_virtualSelector_menuFineTempo_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuFineTempo_1",
+                  "token": "LITERAL_virtualSelector_menuFineTempo_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.0"
             },
             {
@@ -3200,7 +3285,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_QUANTIZE",
               "oled": "Quantize",
               "code": "QUAN",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuQuantize_0",
+                  "token": "LITERAL_virtualSelector_menuQuantize_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuQuantize_1",
+                  "token": "LITERAL_virtualSelector_menuQuantize_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.0"
             },
             {
@@ -3208,7 +3308,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES",
               "oled": "Catch Notes",
               "code": "CATC",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuCatchNotes_0",
+                  "token": "LITERAL_virtualSelector_menuCatchNotes_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuCatchNotes_1",
+                  "token": "LITERAL_virtualSelector_menuCatchNotes_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.0"
             },
             {
@@ -3216,7 +3331,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_DELETE_UNUSED_KIT_ROWS",
               "oled": "Delete Unused Kit Rows",
               "code": "UNUS",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuDeleteUnusedKitRows_0",
+                  "token": "LITERAL_virtualSelector_menuDeleteUnusedKitRows_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuDeleteUnusedKitRows_1",
+                  "token": "LITERAL_virtualSelector_menuDeleteUnusedKitRows_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.0"
             },
             {
@@ -3224,7 +3354,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS",
               "oled": "Alternative Golden Knob Delay Params",
               "code": "DELA",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuAltGoldenKnobDelayParams_0",
+                  "token": "LITERAL_virtualSelector_menuAltGoldenKnobDelayParams_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuAltGoldenKnobDelayParams_1",
+                  "token": "LITERAL_virtualSelector_menuAltGoldenKnobDelayParams_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.0"
             },
             {
@@ -3232,7 +3377,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX",
               "oled": "Allow Insecure Develop Sysex Messages",
               "code": "SYSX",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuDevSysexAllowed_0",
+                  "token": "LITERAL_virtualSelector_menuDevSysexAllowed_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuDevSysexAllowed_1",
+                  "token": "LITERAL_virtualSelector_menuDevSysexAllowed_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.0"
             },
             {
@@ -3240,7 +3400,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION",
               "oled": "Sync Scaling Action",
               "code": "SCAL",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuSyncScalingAction_0",
+                  "token": "LITERAL_virtualSelector_menuSyncScalingAction_0",
+                  "oled": "Sync Scaling",
+                  "code": "SCAL",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuSyncScalingAction_1",
+                  "token": "LITERAL_virtualSelector_menuSyncScalingAction_1",
+                  "oled": "Fill mode",
+                  "code": "FILL",
+                  "children": []
+                }
+              ],
               "tag": "c1.0"
             },
             {
@@ -3248,7 +3423,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES",
               "oled": "Highlight Incoming Notes",
               "code": "HIGH",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuHighlightIncomingNotes_0",
+                  "token": "LITERAL_virtualSelector_menuHighlightIncomingNotes_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuHighlightIncomingNotes_1",
+                  "token": "LITERAL_virtualSelector_menuHighlightIncomingNotes_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.0"
             },
             {
@@ -3256,7 +3446,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT",
               "oled": "Display Norns Layout",
               "code": "NORN",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuDisplayNornsLayout_0",
+                  "token": "LITERAL_virtualSelector_menuDisplayNornsLayout_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuDisplayNornsLayout_1",
+                  "token": "LITERAL_virtualSelector_menuDisplayNornsLayout_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.0"
             },
             {
@@ -3264,7 +3469,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_STICKY_SHIFT",
               "oled": "Sticky Shift",
               "code": "STSH",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuShiftIsSticky_0",
+                  "token": "LITERAL_virtualSelector_menuShiftIsSticky_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuShiftIsSticky_1",
+                  "token": "LITERAL_virtualSelector_menuShiftIsSticky_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.0"
             },
             {
@@ -3272,7 +3492,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT",
               "oled": "Light Shift",
               "code": "LGSH",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuLightShiftLed_0",
+                  "token": "LITERAL_virtualSelector_menuLightShiftLed_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuLightShiftLed_1",
+                  "token": "LITERAL_virtualSelector_menuLightShiftLed_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.0"
             },
             {
@@ -3280,7 +3515,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_DX7_ENGINE",
               "oled": "DX7 Engine",
               "code": "DX7",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuEnableDX7Engine_0",
+                  "token": "LITERAL_virtualSelector_menuEnableDX7Engine_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuEnableDX7Engine_1",
+                  "token": "LITERAL_virtualSelector_menuEnableDX7Engine_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.2"
             },
             {
@@ -3288,7 +3538,29 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_EMULATED_DISPLAY",
               "oled": "Emulated Display",
               "code": "EMUL",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuEmulatedDisplay_0",
+                  "token": "LITERAL_virtualSelector_menuEmulatedDisplay_0",
+                  "oled": "OLED",
+                  "code": "7SEG",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuEmulatedDisplay_1",
+                  "token": "LITERAL_virtualSelector_menuEmulatedDisplay_1",
+                  "oled": "Toggle",
+                  "code": "TOGL",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuEmulatedDisplay_2",
+                  "token": "LITERAL_virtualSelector_menuEmulatedDisplay_2",
+                  "oled": "7SEG",
+                  "code": "OLED",
+                  "children": []
+                }
+              ],
               "tag": "c1.0"
             },
             {
@@ -3296,7 +3568,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT",
               "oled": "KB View Sidebar Menu Exit",
               "code": "EXIT",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuEnableKeyboardViewSidebarMenuExit_0",
+                  "token": "LITERAL_virtualSelector_menuEnableKeyboardViewSidebarMenuExit_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuEnableKeyboardViewSidebarMenuExit_1",
+                  "token": "LITERAL_virtualSelector_menuEnableKeyboardViewSidebarMenuExit_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.1"
             },
             {
@@ -3304,7 +3591,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_LAUNCH_EVENT_PLAYHEAD",
               "oled": "Launch Event Playhead",
               "code": "PLAY",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuEnableLaunchEventPlayhead_0",
+                  "token": "LITERAL_virtualSelector_menuEnableLaunchEventPlayhead_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuEnableLaunchEventPlayhead_1",
+                  "token": "LITERAL_virtualSelector_menuEnableLaunchEventPlayhead_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.2"
             },
             {
@@ -3312,7 +3614,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_CHORD_KEYBOARD",
               "oled": "Chord Keyboards",
               "code": "CHRD",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuDisplayChordLayout_0",
+                  "token": "LITERAL_virtualSelector_menuDisplayChordLayout_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuDisplayChordLayout_1",
+                  "token": "LITERAL_virtualSelector_menuDisplayChordLayout_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.2"
             },
             {
@@ -3320,7 +3637,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_PLAYBACK_START_BEHAVIOUR",
               "oled": "Alternative Playback Start Behaviour",
               "code": "STAR",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuAlternativePlaybackStartBehaviour_0",
+                  "token": "LITERAL_virtualSelector_menuAlternativePlaybackStartBehaviour_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuAlternativePlaybackStartBehaviour_1",
+                  "token": "LITERAL_virtualSelector_menuAlternativePlaybackStartBehaviour_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.2"
             },
             {
@@ -3328,7 +3660,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_GRID_VIEW_LOOP_PADS",
               "oled": "Grid View Loop Layer Pads",
               "code": "LOOP",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuEnableGridViewLoopPads_0",
+                  "token": "LITERAL_virtualSelector_menuEnableGridViewLoopPads_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuEnableGridViewLoopPads_1",
+                  "token": "LITERAL_virtualSelector_menuEnableGridViewLoopPads_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.2"
             },
             {
@@ -3336,7 +3683,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_TAP_TEMPO_BEHAVIOUR",
               "oled": "Alternative Tap Tempo Behaviour",
               "code": "TAPT",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuAlternativeTapTempoBehaviour_0",
+                  "token": "LITERAL_virtualSelector_menuAlternativeTapTempoBehaviour_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuAlternativeTapTempoBehaviour_1",
+                  "token": "LITERAL_virtualSelector_menuAlternativeTapTempoBehaviour_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.3"
             },
             {
@@ -3344,7 +3706,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS",
               "oled": "Horizontal Menus",
               "code": "Horizontal Menus",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuHorizontalMenus_0",
+                  "token": "LITERAL_virtualSelector_menuHorizontalMenus_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuHorizontalMenus_1",
+                  "token": "LITERAL_virtualSelector_menuHorizontalMenus_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.3"
             },
             {
@@ -3352,7 +3729,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS",
               "oled": "Rounded Corners",
               "code": "Rounded Corners",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuRoundedCorners_0",
+                  "token": "LITERAL_virtualSelector_menuRoundedCorners_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuRoundedCorners_1",
+                  "token": "LITERAL_virtualSelector_menuRoundedCorners_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.3"
             },
             {
@@ -3360,7 +3752,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP",
               "oled": "Trim From Start Of Audio Clips",
               "code": "TRIM",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuTrimFromStartOfAudioClip_0",
+                  "token": "LITERAL_virtualSelector_menuTrimFromStartOfAudioClip_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuTrimFromStartOfAudioClip_1",
+                  "token": "LITERAL_virtualSelector_menuTrimFromStartOfAudioClip_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.3"
             },
             {
@@ -3368,7 +3775,22 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL",
               "oled": "Show Battery Level",
               "code": "BATT",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuShowBatteryLevel_0",
+                  "token": "LITERAL_virtualSelector_menuShowBatteryLevel_0",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuShowBatteryLevel_1",
+                  "token": "LITERAL_virtualSelector_menuShowBatteryLevel_1",
+                  "oled": "On",
+                  "code": "On",
+                  "children": []
+                }
+              ],
               "tag": "c1.3"
             },
             {
@@ -3376,7 +3798,29 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY",
               "oled": "Shortcut Overlay",
               "code": "OVER",
-              "children": [],
+              "children": [
+                {
+                  "varName": "virtualSelector_menuShortcutOverlay_0",
+                  "token": "STRING_FOR_OFF",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuShortcutOverlay_1",
+                  "token": "STRING_FOR_SHORTCUT_OVERLAY_MENU_ONLY",
+                  "oled": "On - Menu only",
+                  "code": "MENU",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSelector_menuShortcutOverlay_2",
+                  "token": "STRING_FOR_SHORTCUT_OVERLAY_MENU_AND_CLIP",
+                  "oled": "On - Menu + Clip",
+                  "code": "FULL",
+                  "children": []
+                }
+              ],
               "tag": "c1.3"
             }
           ],
@@ -6002,20 +6446,28 @@
             },
             {
               "varName": "virtualSelector_audioInputSelector_5",
+              "token": "STRING_FOR_USB_INPUT",
+              "oled": "USB input",
+              "code": "USB",
+              "children": [],
+              "tag": "c1.4"
+            },
+            {
+              "varName": "virtualSelector_audioInputSelector_6",
               "token": "STRING_FOR_MIX_PRE_FX",
               "oled": "Deluge mix (no fx)",
               "code": "MIX",
               "children": []
             },
             {
-              "varName": "virtualSelector_audioInputSelector_6",
+              "varName": "virtualSelector_audioInputSelector_7",
               "token": "STRING_FOR_MIX_POST_FX",
               "oled": "Deluge output (fx)",
               "code": "OUTP",
               "children": []
             },
             {
-              "varName": "virtualSelector_audioInputSelector_7",
+              "varName": "virtualSelector_audioInputSelector_8",
               "token": "STRING_FOR_TRACK",
               "oled": "Specific Track",
               "code": "TRAK",
@@ -30345,5 +30797,5 @@
     "noteRowEditorMenu": "noteRowEditorRootMenu",
     "songClipSettingsMenu": "songClipSettingsMenu"
   },
-  "generatedAt": "2026-10-14T02:09:40.071Z"
+  "generatedAt": "2026-10-26T18:53:22.857Z"
 }
