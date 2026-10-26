@@ -204,6 +204,10 @@ void uiNeedsRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whic
 void renderingNeededRegardlessOfUI(uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
 void clearPendingUIRendering();
 
+// During rendering to PadLEDs::image, retry these rows without invalidating the frame just drawn.
+// Only use when the current row is safe to display (e.g. a waveform awaiting more sample data).
+void retryMainPadRendering(uint32_t whichRows);
+
 void doAnyPendingUIRendering();
 
 void renderUIsForOled();
