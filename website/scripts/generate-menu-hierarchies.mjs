@@ -1365,6 +1365,56 @@ function extractRuntimeFeatureSettingTypeToToken(sourceText) {
     mapping.set(match[1], match[2])
   }
 
+  // Custom settings can assign their display name through a local reference
+  // instead of using one of the Setup*Setting helpers.
+  for (const match of sourceText.matchAll(
+    /auto\s*&\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*settings\[RuntimeFeatureSettingType::([A-Za-z0-9_]+)\]\s*;\s*\1\.displayName\s*=\s*(STRING_FOR_[A-Z0-9_]+)/g,
+  )) {
+    mapping.set(match[2], match[3])
+  }
+
+  return mapping
+}
+
+function extractRuntimeFeatureSettingOptions(sourceText) {
+  const mapping = new Map()
+  const helperOptions = new Map()
+
+  // Read the helper definitions so labels and choice order follow the firmware.
+  for (const match of sourceText.matchAll(
+    /\bvoid\s+(Setup[A-Za-z0-9_]*Setting)\s*\([^)]*\)\s*\{/g,
+  )) {
+    const open = match.index + match[0].lastIndexOf("{")
+    const close = findMatchingBrace(sourceText, open)
+    const body = sourceText.slice(open + 1, close)
+    const options = []
+    for (const label of body.matchAll(
+      /\.displayName\s*=\s*(?:(?:display->haveOLED\(\)|have_oled)\s*\?\s*"([^"]*)"\s*:\s*"([^"]*)"|"([^"]*)")/g,
+    )) {
+      options.push({
+        oled: label[1] ?? label[3],
+        code: label[2] ?? label[3],
+      })
+    }
+    helperOptions.set(match[1], options)
+  }
+
+  for (const match of sourceText.matchAll(
+    /(Setup[A-Za-z0-9_]*Setting)\(\s*settings\[RuntimeFeatureSettingType::([A-Za-z0-9_]+)\]/g,
+  )) {
+    mapping.set(match[2], helperOptions.get(match[1]) ?? [])
+  }
+
+  // Custom runtime settings declare their choices on a local reference.
+  for (const match of sourceText.matchAll(
+    /auto\s*&\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*settings\[RuntimeFeatureSettingType::([A-Za-z0-9_]+)\]\s*;[^{}]*?\b\1\.options\s*=\s*\{([\s\S]*?)\};/g,
+  )) {
+    const tokens = [
+      ...match[3].matchAll(/l10n::getView\(\s*(STRING_FOR_[A-Z0-9_]+)\s*\)/g),
+    ].map((option) => ({ token: option[1] }))
+    mapping.set(match[2], tokens)
+  }
+
   return mapping
 }
 
@@ -1471,6 +1521,8 @@ function build() {
     syncOffLabel,
     runtimeFeatureMenuVarToSettingType,
     runtimeFeatureSettingTypeToToken,
+    runtimeFeatureSettingOptions:
+      extractRuntimeFeatureSettingOptions(sourceCorpus),
   }
   sourceStructure.runtimeFeatureMenuVarToToken =
     buildRuntimeFeatureMenuVarToToken(sourceStructure)
@@ -3204,7 +3256,28 @@ function buildConstructorSubmenuChildren(
       const runtimeToken =
         sourceStructure.runtimeFeatureMenuVarToToken?.get(childVar)
       if (runtimeToken) {
-        return makeVirtualNode(english, sevenSeg, runtimeToken, childVar, [])
+        const settingType =
+          sourceStructure.runtimeFeatureMenuVarToSettingType.get(childVar)
+        const options =
+          sourceStructure.runtimeFeatureSettingOptions.get(settingType) ?? []
+        return makeVirtualNode(
+          english,
+          sevenSeg,
+          runtimeToken,
+          childVar,
+          options.map((option, index) => {
+            const optionVar = `virtualSelector_${childVar}_${index}`
+            return option.token
+              ? makeVirtualNode(english, sevenSeg, option.token, optionVar, [])
+              : {
+                  varName: optionVar,
+                  token: `LITERAL_${optionVar}`,
+                  oled: option.oled,
+                  code: option.code,
+                  children: [],
+                }
+          }),
+        )
       }
 
       return buildNode(
