@@ -1,0 +1,18 @@
+# Compile the production driver on the host, substituting hardware declarations.
+get_filename_component(OLED_DRIVER "${CMAKE_CURRENT_SOURCE_DIR}/../../src/RZA1/oled/oled_low_level.c" ABSOLUTE)
+set(OLED_STUBS "${CMAKE_CURRENT_BINARY_DIR}/cv_gate_stubs")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${OLED_DRIVER}")
+file(STRINGS "${OLED_DRIVER}" OLED_INCLUDES REGEX "^#include \"")
+foreach(INCLUDE_LINE IN LISTS OLED_INCLUDES)
+    string(REGEX REPLACE "^#include \"([^\"]+)\".*" "\\1" HEADER "${INCLUDE_LINE}")
+    get_filename_component(HEADER_DIR "${OLED_STUBS}/${HEADER}" DIRECTORY)
+    file(MAKE_DIRECTORY "${HEADER_DIR}")
+    file(WRITE "${OLED_STUBS}/${HEADER}" "/* Hardware declarations are supplied by mock_hardware.h. */\n")
+endforeach()
+
+add_executable(cv_gate_driver_tests driver_tests.c)
+target_include_directories(cv_gate_driver_tests PRIVATE "${OLED_STUBS}" "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(cv_gate_driver_tests PRIVATE -Wno-pointer-to-int-cast)
+endif()
+add_test(NAME CVGateDriverTests COMMAND cv_gate_driver_tests)
