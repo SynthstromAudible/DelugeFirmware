@@ -103,7 +103,26 @@ jobs:
             # Release was created in the UI: keep its title and notes, just attach the firmware
             gh release upload "$TAG" "./$TAG.zip" --repo "$GITHUB_REPOSITORY" --clobber
           else
-            flags=(--draft --generate-notes --title "Deluge $TAG" --target "$GITHUB_SHA")
+            # Without a start tag GitHub diffs against an old stable tag (it skips drafts), and the
+            # generated notes blow past the 125000 character limit. Diff against the previous rc
+            # instead, or the latest stable release for the first rc / a final release.
+            prev=""
+            if [ "$TYPE" = rc ]; then
+              prev=$(gh api --paginate "repos/$GITHUB_REPOSITORY/tags" --jq '.[].name' \
+                | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]*$' | { cat; echo "$TAG"; } | sort -V -u \
+                | awk -v t="$TAG" '$0 == t { print p; exit } { p = $0 }')
+            fi
+            [ -n "$prev" ] || prev=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
+
+            gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
+              -f tag_name="$TAG" -f target_commitish="$GITHUB_SHA" -f previous_tag_name="$prev" \
+              --jq .body > notes.md
+            if [ "$(wc -m < notes.md)" -gt 120000 ]; then
+              echo "Generated notes too long for a release body, linking the changelog instead"
+              echo "Full changelog: https://github.com/$GITHUB_REPOSITORY/compare/$prev...$GITHUB_SHA" > notes.md
+            fi
+
+            flags=(--draft --notes-file notes.md --title "Deluge $TAG" --target "$GITHUB_SHA")
             [ "$TYPE" = rc ] && flags+=(--prerelease)
             gh release create "$TAG" "./$TAG.zip" --repo "$GITHUB_REPOSITORY" "${flags[@]}"
           fi

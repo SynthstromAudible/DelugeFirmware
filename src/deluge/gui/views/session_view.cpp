@@ -1800,7 +1800,12 @@ Clip* SessionView::createNewInstrumentClip(OutputType outputType, int32_t yDispl
 bool SessionView::insertAndResyncNewClip(Clip* newClip, int32_t yDisplay) {
 	// insert clip at index
 	int32_t index = yDisplay + currentSong->persistentView.songViewYScroll;
-	if (index <= 0) {
+	if (std::ssize(currentSong->live.clips.session_clips) == 0) {
+		// Shouldn't happen (removeClip keeps one), but there's no neighbouring Clip to take a section from
+		index = 0;
+		newClip->setSection(0);
+	}
+	else if (index <= 0) {
 		index = 0;
 		newClip->setSection(currentSong->live.clips.session_clips[0]->section());
 		currentSong->persistentView.songViewYScroll++;
@@ -1877,8 +1882,17 @@ void SessionView::removeClip(Clip* clip) {
 
 	int32_t clipIndex = currentSong->live.clips.session_clips.getIndexForClip(clip);
 
-	// If last session Clip left, just don't allow. Easiest
-	if (std::ssize(currentSong->live.clips.session_clips) == 1) {
+	// If last session Clip left, just don't allow. Easiest. Pending overdubs don't count towards what's left: they're
+	// deleted when playback stops, which would leave the song with no session Clips at all.
+	bool anotherRealClipRemains = false;
+	for (Clip* other : currentSong->live.clips.session_clips) {
+		if (other != clip && !other->isPendingOverdub) {
+			anotherRealClipRemains = true;
+			break;
+		}
+	}
+	if (std::ssize(currentSong->live.clips.session_clips) == 1
+	    || (!clip->isPendingOverdub && !anotherRealClipRemains)) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_REMOVE_FINAL_CLIP));
 		return;
 	}
@@ -2311,8 +2325,10 @@ void SessionView::displayPotentialTempoChange(UI* ui) {
 		return;
 	}
 
-	// check UI in case graphics routine is called while we're in another UI (e.g. menu)
-	if (getCurrentUI() == ui) {
+	// Do not paint tempo over a visible permanent popup. A pending launch alone
+	// should not suppress tempo updates when no popup is displayed.
+	// Also check the current UI in case the graphics routine runs while in a menu.
+	if (getCurrentUI() == ui && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
 		float tempo = playbackHandler.calculateBPMForDisplay();
 		float diff = std::abs(tempo - lastDisplayedTempo);
 		// always catch manual adjustments, limit rate of others
@@ -2332,6 +2348,16 @@ int32_t SessionView::displayLoopsRemainingPopup(bool ephemeral) {
 	// only show pop-up if you're not in any other UI mode
 	if (currentUIMode == UI_MODE_NONE) {
 		if (sixteenthNotesRemaining > 0) {
+			// Cache the displayed unit and value, rather than sixteenth notes: most
+			// graphics updates do not change the countdown. A cleared main image
+			// invalidates the cache when another view or full render replaces it.
+			using deluge::hid::display::OLED;
+			int32_t countdown = sixteenthNotesRemaining > 16 ? ((sixteenthNotesRemaining - 1) / 16) + 1
+			                                                 : -(((sixteenthNotesRemaining - 1) / 4) + 1);
+			if (!ephemeral && countdown == lastLaunchCountdown
+			    && launchCountdownImageGeneration == OLED::getMainImageGeneration()) {
+				return sixteenthNotesRemaining;
+			}
 			etl::string<40> popupMsg;
 			if (sixteenthNotesRemaining > 16) {
 				int32_t barsRemaining = ((sixteenthNotesRemaining - 1) / 16) + 1;
@@ -2346,7 +2372,9 @@ int32_t SessionView::displayLoopsRemainingPopup(bool ephemeral) {
 			if (!ephemeral) {
 				deluge::hid::display::OLED::clearMainImage();
 				deluge::hid::display::OLED::drawPermanentPopupLookingText(popupMsg.c_str());
-				deluge::hid::display::OLED::sendMainImage();
+				lastLaunchCountdown = countdown;
+				launchCountdownImageGeneration = OLED::getMainImageGeneration();
+				// clearMainImage marks the frame dirty; the UI loop sends it.
 			}
 			else {
 				display->displayPopup(popupMsg.c_str(), 1, true);
@@ -2593,6 +2621,7 @@ bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 	}
 
 	uint32_t whichRowsCouldntBeRendered = 0;
+	uint32_t whichRowsNeedRefinement = 0;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -2603,7 +2632,14 @@ bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 		if (whichRows & (1 << yDisplay)) {
 			bool success = renderRow(modelStack, yDisplay, image[yDisplay], occupancyMask[yDisplay], drawUndefinedArea);
 			if (!success) {
-				whichRowsCouldntBeRendered |= (1 << yDisplay);
+				Clip* clip = getClipOnScreen(yDisplay);
+				if (clip && clip->type == ClipType::AUDIO) {
+					// Audio rows draw available peaks/placeholders even when sample data is still loading.
+					whichRowsNeedRefinement |= (1 << yDisplay);
+				}
+				else {
+					whichRowsCouldntBeRendered |= (1 << yDisplay);
+				}
 			}
 		}
 	}
@@ -2611,6 +2647,9 @@ bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 
 	if (whichRowsCouldntBeRendered && image == PadLEDs::image) {
 		requestRendering(this, whichRowsCouldntBeRendered, 0);
+	}
+	if (whichRowsNeedRefinement && image == PadLEDs::image) {
+		retryMainPadRendering(whichRowsNeedRefinement);
 	}
 
 	return true;

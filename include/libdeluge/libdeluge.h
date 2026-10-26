@@ -59,6 +59,7 @@
 #include "system.h"
 #include "tier.h"
 #include "types.h"
+#include "usb_audio.h"
 
 /* Including the umbrella is always correct. Including one header is a
  * build-time economy, not a boundary. */

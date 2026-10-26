@@ -102,9 +102,9 @@ GlobalEffectableForClip::~GlobalEffectableForClip() {
 	// The recorder takes the block after the stutter, before pan, volume and compression, so its level is the clip's.
 	auto record = [&](std::span<const StereoSample> /*block*/) {
 		if (recorder != nullptr && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
-			// we need to double it because for reasons I don't understand audio clips max volume is half the sample
-			// volume
-			recorder->feedAudio(global_effectable_audio, true, 2);
+			// Self-overdubs compensate for sample playback's 1/8 scaling. Standalone sampling retains its existing
+			// gain.
+			recorder->feedAudio(global_effectable_audio, true, recorder->recordingOwnClip ? 3 : 2);
 		}
 	};
 	if (chain_.process(global_effectable_audio, in, levels, renderedLastTime, {reverbBuffer, output.size()}, record)) {

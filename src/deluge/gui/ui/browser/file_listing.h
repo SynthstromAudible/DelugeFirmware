@@ -42,12 +42,15 @@ struct SearchHit {
 
 /// @brief Which way a read searches from its search name, and so which side of it is kept.
 ///
-/// Left and Right keep one side of the search name; Both keeps a window around it, and is the only
-/// mode that consults the search name during a cull.
+/// Left and Right keep one side of the search name; LeftInclusive and RightInclusive also keep every
+/// entry equal to it. Both keeps a window around it, and is the only mode that consults the search name
+/// during a cull.
 enum class CatalogSearch : uint8_t {
-	Left,  ///< keep what sorts before the search name
-	Right, ///< keep what sorts after it
-	Both,  ///< keep a window around it, tending towards equal counts either side
+	Left,           ///< keep what sorts before the search name
+	Right,          ///< keep what sorts after it
+	Both,           ///< keep a window around it, tending towards equal counts either side
+	LeftInclusive,  ///< keep the search name and what sorts before it: a scroll left keeps the selection
+	RightInclusive, ///< keep the search name and what sorts after it: a scroll right keeps the selection
 };
 
 /// @brief How names are collated when a listing is sorted and searched.

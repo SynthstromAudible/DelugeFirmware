@@ -25,6 +25,7 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
+#include "io/usb/usb_audio.h"
 #include "libdeluge/flash.h"
 #include "model/scale/preset_scales.h"
 #include "processing/engines/audio_engine.h"
@@ -211,6 +212,11 @@ enum Entries {
 190: GlobalMIDICommand::SHIFT channel + 1
 191: GlobalMIDICommand::SHIFT noteCode + 1
 192-195: GlobalMIDICommand::SHIFT product / vendor ids
+196: screensaver mode
+197: screensaver timeout minutes
+198: USB audio disabled - stored inverted, so a unit that has never saved it (all zeros) has USB audio on
+199: USB input not mixed to outputs (usb_audio::directMonitoring) - stored inverted, so it defaults to on
+200: USB audio output source (usb_audio::OutputSource)
 */
 
 uint8_t defaultScale;
@@ -279,6 +285,8 @@ ThresholdRecordingMode defaultThresholdRecordingMode = ThresholdRecordingMode::O
 Polarity defaultPatchCablePolarity = Polarity::BIPOLAR;
 
 bool defaultUseSharps = true;
+
+bool usbAudioEnabled = true;
 
 void resetSettings() {
 
@@ -387,6 +395,10 @@ void resetSettings() {
 	defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
 
 	defaultUseSharps = true;
+
+	usbAudioEnabled = true;
+	usb_audio::directMonitoring = true;
+	usb_audio::outputSource = usb_audio::OutputSource::MAIN_MIX;
 }
 
 void factoryReset(bool showPopup) {
@@ -862,6 +874,12 @@ void readSettings() {
 		screensaverMode =
 		    (buffer[196] < kNumScreensaverModes) ? static_cast<ScreensaverMode>(buffer[196]) : kDefaultScreensaverMode;
 	}
+
+	usbAudioEnabled = (buffer[198] != 1);
+	usb_audio::directMonitoring = (buffer[199] != 1);
+	usb_audio::outputSource = (buffer[200] < usb_audio::kNumOutputSources)
+	                              ? static_cast<usb_audio::OutputSource>(buffer[200])
+	                              : usb_audio::OutputSource::MAIN_MIX;
 }
 
 /// Sanity-check the pre-c1.3 MIDI-follow block (bytes 126-145) before migrating it. Same checks the deleted
@@ -1129,6 +1147,10 @@ void writeSettings() {
 
 	buffer[196] = util::to_underlying(screensaverMode);
 	buffer[197] = screensaverTimeoutMinutes;
+
+	buffer[198] = usbAudioEnabled ? 0 : 1;
+	buffer[199] = usb_audio::directMonitoring ? 0 : 1;
+	buffer[200] = util::to_underlying(usb_audio::outputSource);
 
 	deluge_flash_erase(0);
 	deluge_flash_program(0, buffer.data(), 256);

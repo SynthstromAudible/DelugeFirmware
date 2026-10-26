@@ -27,6 +27,7 @@ class ClipView : public ClipNavigationTimelineView {
 public:
 	ClipView() = default;
 
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	uint32_t getMaxZoom() override;
 	uint32_t getMaxLength() override;
 	ActionResult horizontalEncoderAction(int32_t offset) override;

@@ -125,7 +125,29 @@ void FileListing::sort() {
 	// A read that searches one way from a name keeps only that side of it.
 	if (!searchName_.empty()) {
 		char const* searchName = searchName_.c_str();
-		if (direction_ == CatalogSearch::Left) {
+		// Every entry equal to the search name is kept: duplicates of it (a folder and a file, or a song's
+		// instrument and its preset) are only resolved later by dropFoldersAndDuplicates().
+		if (direction_ == CatalogSearch::LeftInclusive) {
+			int32_t end = search(searchName).index;
+			while (end < size() && !strcmpspecial(items_[end].displayName().c_str(), searchName)) {
+				end++;
+			}
+			if (end < size()) {
+				numDeletedAtEnd_ += size() - end;
+				eraseRange(end, size());
+			}
+		}
+		else if (direction_ == CatalogSearch::RightInclusive) {
+			int32_t start = search(searchName).index;
+			while (start > 0 && !strcmpspecial(items_[start - 1].displayName().c_str(), searchName)) {
+				start--;
+			}
+			if (start > 0) {
+				numDeletedAtStart_ += start;
+				eraseRange(0, start);
+			}
+		}
+		else if (direction_ == CatalogSearch::Left) {
 			const SearchHit hit = search(searchName);
 			int32_t searchIndex = hit.index;
 			// Check for duplicates.
@@ -193,10 +215,10 @@ void FileListing::cull() {
 	enum class Trim : uint8_t { Start, End };
 	Trim trim{};
 
-	if (direction_ == CatalogSearch::Left) {
+	if (direction_ == CatalogSearch::Left || direction_ == CatalogSearch::LeftInclusive) {
 		trim = Trim::Start;
 	}
-	else if (direction_ == CatalogSearch::Right) {
+	else if (direction_ == CatalogSearch::Right || direction_ == CatalogSearch::RightInclusive) {
 		trim = Trim::End;
 	}
 	else {

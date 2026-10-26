@@ -38,8 +38,9 @@ deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev
     "flash",
     "app-fault-reporter",
 ] }
-# The USB-MIDI device class (moved out of deluge-bsp into the board-agnostic `usb-classes`).
+# The USB-MIDI and USB Audio Class 2.0 device classes.
 usb-classes = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "e95f5eda1d01cf5581fa2c662914b1b9d6f224c4", features = [
+    "device-audio",
     "device-midi",
 ] }
 rza1l-hal = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "e95f5eda1d01cf5581fa2c662914b1b9d6f224c4" }

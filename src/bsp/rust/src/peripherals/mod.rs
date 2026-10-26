@@ -16,3 +16,7 @@ pub(crate) mod midi;
 pub(crate) mod signals;
 #[cfg(target_os = "none")]
 pub(crate) mod usb;
+#[cfg(target_os = "none")]
+pub(crate) mod usb_audio;
+// Also on host: the PCM, ring and pacing logic is pure, for the host tests.
+pub(crate) mod usb_audio_stream;

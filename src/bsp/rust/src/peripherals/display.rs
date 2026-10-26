@@ -49,7 +49,8 @@ pub async fn oled_render() {
 }
 
 /// Stores a 1-bpp framebuffer of `width * height / 8` bytes (page-major) and signals the render
-/// task; returns without waiting for the transfer.
+/// task; returns without waiting for the transfer. A frame identical to the stored one is dropped:
+/// the panel already shows it, and every transfer occupies the RSPI0 bus that CV output shares.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_display_blit_oled(
     pixels: *const u8,
@@ -62,6 +63,9 @@ pub extern "C" fn deluge_display_blit_oled(
     unsafe {
         let src = core::slice::from_raw_parts(pixels, n);
         let dst = &mut *core::ptr::addr_of_mut!(FRAME);
+        if FRAME_VALID.load(Ordering::Acquire) && dst[..n] == *src {
+            return DELUGE_OK;
+        }
         dst[..n].copy_from_slice(src);
     }
     FRAME_VALID.store(true, Ordering::Release);

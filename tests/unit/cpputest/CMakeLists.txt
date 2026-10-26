@@ -60,6 +60,8 @@ file(GLOB_RECURSE deluge_SOURCES
         # For waveform peak math tests
         ../../../src/deluge/gui/waveform/waveform_peak_math.cpp
         ../../../src/deluge/io/midi/midi_queue.cpp
+        # For FFT magnitude tests
+        ../../../src/deluge/util/fast_pythag.cpp
         # For the song-preview decode differential: the REAL deserializer stack, not a stand-in.
         # storage/file_reader.cpp exists so this is possible at all -- storage_manager.cpp, where the
         # reader used to live, reaches the whole instrument model to build what it loads.
@@ -131,6 +133,8 @@ add_executable(UnitTests
         dx_cartridge_window_tests.cpp
         trigger_clock_input_tests.cpp
         c_path_tests.cpp
+        fast_pythag_tests.cpp
+        tick_interpolation_tests.cpp
 )
 # WORKING_DIRECTORY: song_preview_window_tests.cpp reads a checked-in fixture by a path relative to
 # the repo root (tests/support/data/songs/...) and DELUGE_SONG_CORPUS points at a real directory on disk, so

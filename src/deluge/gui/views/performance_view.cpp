@@ -1246,9 +1246,11 @@ bool PerformanceView::shouldRestorePreviousHoldPress(int32_t xDisplay) {
 /// while in Performance View so that you can undo/redo them afters
 void PerformanceView::logPerformanceViewPress(int32_t xDisplay, bool closeAction) {
 	if (anyChangesToLog()) {
-		actionLogger.recordPerformanceViewPress(backupFXPress, fxPress, xDisplay);
-		if (closeAction) {
-			actionLogger.closeAction(ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE);
+		Action* action = actionLogger.recordPerformanceViewPress(backupFXPress, fxPress, xDisplay);
+		// Pad releases are part of the ongoing recording transaction. Closing it
+		// here would snapshot the same automation again on the next recorded edit.
+		if (closeAction && action && action->type == ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE) {
+			actionLogger.closeAction(action->type);
 		}
 	}
 }
@@ -1710,16 +1712,6 @@ void PerformanceView::serialiseDefaults(Serializer& writer) {
 /// creates "FX1 - FX16 tags"
 /// limiting # of FX to the # of columns on the grid (16 = kDisplayWidth)
 /// could expand # of FX in the future if we allow user to selected from a larger bank of FX / build their own FX
-void PerformanceView::writeSettingsToFile(Serializer& writer) {
-	writer.writeOpeningTagBeginning("performanceView");
-	writer.writeOpeningTagEnd();
-	writer.writeOpeningTagBeginning(PERFORM_DEFAULTS_FXVALUES_TAG);
-	writer.writeOpeningTagEnd();
-	writeDefaultFXValuesToFile(writer);
-	writer.writeClosingTag(PERFORM_DEFAULTS_FXVALUES_TAG);
-	writer.writeClosingTag("performanceView");
-}
-
 void PerformanceView::writeDefaultFXValuesToFile(Serializer& writer) {
 	char tagName[10];
 	tagName[0] = 'F';
@@ -1970,24 +1962,7 @@ void PerformanceView::loadDefaultLayout() {
 	successfullyReadDefaultsFromFile = true;
 }
 
-void PerformanceView::readSettingsFromFile(Deserializer& reader) {
-	char const* tagName;
-	reader.match('{');
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, PERFORM_DEFAULTS_FXVALUES_TAG)) {
-			// don't need to initialize held effects when readings settings from song file
-			// because held values are already persisted to the songParams section of the song file
-			// you also don't want to override the current song's parameter values if the loaded song
-			// has not been loaded yet (e.g. is not currentSong)
-			readDefaultFXValuesFromFile(reader, false);
-		}
-		reader.exitTag();
-	}
-	reader.exitTag("performanceView", true);
-	successfullyReadDefaultsFromFile = true;
-}
-
-void PerformanceView::readDefaultFXValuesFromFile(Deserializer& reader, bool initializeHeldEffects) {
+void PerformanceView::readDefaultFXValuesFromFile(Deserializer& reader) {
 	char const* tagName;
 	char tagNameFX[5];
 	tagNameFX[0] = 'F';
@@ -2001,7 +1976,7 @@ void PerformanceView::readDefaultFXValuesFromFile(Deserializer& reader, bool ini
 			intToString(xDisplay + 1, &tagNameFX[2]);
 
 			if (!strcmp(tagName, tagNameFX)) {
-				readDefaultFXParamAndRowValuesFromFile(reader, xDisplay, initializeHeldEffects);
+				readDefaultFXParamAndRowValuesFromFile(reader, xDisplay);
 				break;
 			}
 		}
@@ -2009,8 +1984,7 @@ void PerformanceView::readDefaultFXValuesFromFile(Deserializer& reader, bool ini
 	}
 }
 
-void PerformanceView::readDefaultFXParamAndRowValuesFromFile(Deserializer& reader, int32_t xDisplay,
-                                                             bool initializeHeldEffects) {
+void PerformanceView::readDefaultFXParamAndRowValuesFromFile(Deserializer& reader, int32_t xDisplay) {
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		//<param>
@@ -2023,7 +1997,7 @@ void PerformanceView::readDefaultFXParamAndRowValuesFromFile(Deserializer& reade
 		}
 		//<hold>
 		else if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_TAG)) {
-			readDefaultFXHoldStatusFromFile(reader, xDisplay, initializeHeldEffects);
+			readDefaultFXHoldStatusFromFile(reader, xDisplay);
 		}
 		reader.exitTag();
 	}
@@ -2081,8 +2055,7 @@ void PerformanceView::readDefaultFXRowNumberValuesFromFile(Deserializer& reader,
 	}
 }
 
-void PerformanceView::readDefaultFXHoldStatusFromFile(Deserializer& reader, int32_t xDisplay,
-                                                      bool initializeHeldEffects) {
+void PerformanceView::readDefaultFXHoldStatusFromFile(Deserializer& reader, int32_t xDisplay) {
 	char const* tagName;
 	// loop through the hold tags
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -2122,9 +2095,7 @@ void PerformanceView::readDefaultFXHoldStatusFromFile(Deserializer& reader, int3
 		}
 		reader.exitTag();
 	}
-	if (initializeHeldEffects) {
-		initializeHeldFX(xDisplay);
-	}
+	initializeHeldFX(xDisplay);
 }
 
 void PerformanceView::initializeHeldFX(int32_t xDisplay) {

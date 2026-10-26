@@ -1,5 +1,5 @@
 //! The host app's stand-ins for the peripheral C ABI (`audio_io.h`, `midi_io.h`, `cv_gate.h`,
-//! `signals.h`), which the device-only peripheral modules provide on the target.
+//! `signals.h`, `usb_audio.h`), which the device-only peripheral modules provide on the target.
 //!
 //! The host has no peripherals, so most are inert, with return values chosen so the app idles
 //! rather than wedges. The exceptions: DIN input reads the note script a scenario arms
@@ -9,7 +9,8 @@
 #![allow(unused_variables, non_snake_case)]
 use crate::sys::{
     DelugeMidiPort, DelugeSignal, DelugeStatus, DelugeStatus_DELUGE_OK as DELUGE_OK,
-    DelugeUsbHostEvent, DelugeUsbHostEvent_DELUGE_USB_HOST_NONE as USB_HOST_NONE,
+    DelugeStereoSample, DelugeUsbHostEvent,
+    DelugeUsbHostEvent_DELUGE_USB_HOST_NONE as USB_HOST_NONE,
 };
 
 /// `midi_io.h`'s `DELUGE_MIDI_DIN`: the port the app writes DIN MIDI to.
@@ -263,6 +264,42 @@ pub extern "C" fn deluge_battery_start_conversion() {
     stub_log!("deluge_battery_start_conversion");
 }
 
+// ── usb_audio.h ────────────────────────────────────────────────────────────
+// No USB device: starting it does nothing, and the audio function is absent.
+
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_usb_device_start(with_audio: bool) {
+    stub_log!("deluge_usb_device_start");
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_usb_audio_present() -> bool {
+    false
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_usb_audio_receiving() -> bool {
+    false
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_usb_audio_sending() -> bool {
+    false
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_usb_audio_read(dst: *mut DelugeStereoSample, frames: u32) -> u32 {
+    if !dst.is_null() {
+        // SAFETY: the app passes `frames` writable samples.
+        unsafe { core::slice::from_raw_parts_mut(dst, frames as usize) }
+            .fill(DelugeStereoSample { l: 0, r: 0 });
+    }
+    0
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_usb_audio_write(src: *const DelugeStereoSample, frames: u32) {}
+
 abi_pin!(
     deluge_audio_input_resync,
     deluge_audio_stamp_to_render_offset,
@@ -293,4 +330,10 @@ abi_pin!(
     deluge_signal_write,
     deluge_trigger_clock_host_edge,
     deluge_trigger_clock_set_handler,
+    deluge_usb_audio_present,
+    deluge_usb_audio_read,
+    deluge_usb_audio_receiving,
+    deluge_usb_audio_sending,
+    deluge_usb_audio_write,
+    deluge_usb_device_start,
 );

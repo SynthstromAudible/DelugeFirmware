@@ -340,6 +340,10 @@ void MidiEngine::sendSerialMidi(MIDIMessage message) {
 	}
 	// The MIDI/gate output timer's interrupt writes to DIN too: keep this message's bytes together
 	CriticalSectionGuard guard;
+	// Drop the whole message if it won't fit: a partial write leaves receivers parsing half-messages (#5107)
+	if (deluge_midi_write_space(DELUGE_MIDI_DIN) < static_cast<uint32_t>(messageLength)) {
+		return;
+	}
 	deluge_midi_write(DELUGE_MIDI_DIN, bytes, messageLength);
 }
 

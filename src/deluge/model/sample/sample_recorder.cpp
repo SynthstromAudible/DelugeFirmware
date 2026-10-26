@@ -218,7 +218,7 @@ gotError:
 	// External sources
 	if (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
 
-		sourcePos = (int32_t*)AudioEngine::inputRingPos;
+		sourcePos = AudioEngine::getInputReadPos(mode);
 
 		numSamplesToRunBeforeBeginningCapturing -=
 		    buttonPressLatency; // Compensate for button press latency. We only do this for external sources
@@ -235,7 +235,7 @@ gotError:
 			sourcePos += (SSI_TX_BUFFER_NUM_SAMPLES
 			              << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 1)); // I think the +1 was just because it needs to
 			                                                           // move two tx buffers' length for some reason...
-			if (sourcePos >= AudioEngine::inputRingEnd()) {
+			if (sourcePos >= AudioEngine::getInputBufferEnd(mode)) {
 				sourcePos -= SSI_RX_BUFFER_NUM_SAMPLES << NUM_MONO_INPUT_CHANNELS_MAGNITUDE;
 			}
 		}
@@ -249,7 +249,7 @@ gotError:
 
 				sourcePos +=
 				    numSamplesToRunBeforeBeginningCapturing * NUM_MONO_INPUT_CHANNELS; // This might be negative!
-				if (sourcePos < AudioEngine::inputRingStart()) {
+				if (sourcePos < AudioEngine::getInputBufferStart(mode)) {
 					sourcePos += SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 				}
 
@@ -639,8 +639,7 @@ void SampleRecorder::finalizeDecide() {
 			}
 
 			// Or, if R is the differential signal of L, do that
-			else if (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && AudioEngine::lineInPluggedIn
-			         && inputLooksDifferential()) {
+			else if (AudioEngine::isCodecInput(mode) && AudioEngine::lineInPluggedIn && inputLooksDifferential()) {
 				D_PRINTLN("subtracting right channel");
 				action = MonitoringAction::SUBTRACT_RIGHT_CHANNEL;
 			}
@@ -1051,7 +1050,7 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 			}
 			else {
 				const char* name;
-				if (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && !AudioEngine::lineInPluggedIn) {
+				if (AudioEngine::isCodecInput(mode) && !AudioEngine::lineInPluggedIn) {
 					if (AudioEngine::micPluggedIn) {
 						name = "ExtMic";
 					}

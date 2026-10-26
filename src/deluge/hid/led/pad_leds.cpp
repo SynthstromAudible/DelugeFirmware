@@ -1391,6 +1391,10 @@ void renderZoomedSquare(int32_t outputSquareStartOnSourceImage, int32_t outputSq
 	}
 }
 
+bool horizontal::isSidebarScrolling() {
+	return areaToScroll > kDisplayWidth;
+}
+
 void horizontal::renderScroll() {
 
 	squaresScrolled++;

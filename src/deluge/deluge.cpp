@@ -53,6 +53,7 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
+#include "io/usb/usb_audio.h"
 #include "lib/printf.h" // IWYU pragma: keep this over rides printf with a non allocating version
 #include "libdeluge/app.h"
 #if DELUGE_STREAM_BENCH
@@ -625,6 +626,10 @@ static void deluge_boot(const DelugeBoard* board) {
 	// Assign each ConnectedUSBMIDIDevice its boundary MIDI port and initialise the
 	// MIDI transport before the USB stack can drive any MIDI transfers.
 	MIDIDeviceManager::init();
+
+	// Only now does the device go on the bus: whether it offers USB audio is a setting, and the host reads the
+	// configuration once, when it enumerates us.
+	deluge::usb_audio::startDevice();
 
 	// The three settings files are NOT read here. They are read by the settings prelude
 	// (storage/startup_song.h) behind the same card-ready trigger as the startup song, through the
