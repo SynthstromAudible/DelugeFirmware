@@ -153,6 +153,8 @@ void clearTickSquares(bool shouldSend) {
 			for (int32_t x = 0; x < 8; x++) {
 				if (colsToSend & (1 << x)) {
 					if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInColUpdateMessage) {
+						// Cursor state has already changed; retry any unsent columns later.
+						sendOutMainPadColoursSoon();
 						break;
 					}
 
@@ -221,6 +223,8 @@ void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 			for (int32_t x = 0; x < 8; x++) {
 				if (colsToSend & (1 << x)) {
 					if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInColUpdateMessage) {
+						// Cursor state has already changed; retry any unsent columns later.
+						sendOutMainPadColoursSoon();
 						break;
 					}
 					sortLedsForCol(x << 1);

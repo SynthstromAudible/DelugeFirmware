@@ -29,6 +29,11 @@ jobs:
           sed -i 's/-mthumb-interwork//g' build/compile_commands.json
           sed -i 's/-fdevirtualize-at-ltrans//g' build/compile_commands.json
           sed -i 's/-fuse-linker-plugin//g' build/compile_commands.json
+          # The firmware database has no host tests. Without their own entries,
+          # clang-tidy guesses C++/firmware flags for the C hardware test harness.
+          cmake -S tests/hardware -B build/tidy-hardware -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          jq -s 'add' build/compile_commands.json build/tidy-hardware/compile_commands.json > build/compile_commands.merged.json
+          mv build/compile_commands.merged.json build/compile_commands.json
 
       - name: Extract system includes from GCC
         id: extract_system_includes

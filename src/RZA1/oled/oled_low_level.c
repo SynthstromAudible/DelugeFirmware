@@ -30,6 +30,17 @@
 #include "deluge/processing/engines/cv_engine_c_interface.h"
 #include "deluge/util/cfunctions.h"
 
+// Keep the drain reservation through CV preemption: otherwise pad producers could
+// refill the UART each time CV temporarily cancels SELECT.
+static volatile bool oled_waiting_for_pic_tx_drain = false;
+
+bool oledIsWaitingForPicTxDrain()
+{
+    return oled_waiting_for_pic_tx_drain;
+}
+
+static bool cancelUnsentOledSelect();
+
 void setupSPIInterrupts()
 {
     setupAndEnableInterrupt(cvSPITransferComplete, INTC_ID_SPRI0 + SPI_CHANNEL_CV * 3, 5);
@@ -52,7 +63,7 @@ void enqueueCVMessage(int channel, uint32_t message)
     cvPriorityPending = true;
     // If the bus is idle, kick it off now; otherwise it gets drained at the next inter-transfer
     // boundary, ahead of any queued OLED frames.
-    if (!spiBusCurrentlySending)
+    if (cancelUnsentOledSelect() || !spiBusCurrentlySending)
     {
         spiBusCurrentlySending = true;
         sendPriorityCVIfPending();
@@ -82,12 +93,19 @@ void oledRoutine()
 {
     if (oledPendingMessageToSend)
     {
+        // Keep SELECT cancellable while pad bytes drain. DESELECT must not be
+        // postponed: CV is already blocked until that handshake completes.
+        if (oledPendingMessageToSend == OLED_MESSAGE_SELECT && uartGetTxBufferFullnessByItem(UART_ITEM_PIC))
+        {
+            return;
+        }
         oledWaitingForMessage    = oledPendingMessageToSend; // We'll wait to hear back from the PIC.
         oledPendingMessageToSend = 0;
 sendMessageToPIC:
         last_message_sent      = oledWaitingForMessage;
         oledMessageTimeoutTime = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(50);
         bufferPICUart(oledWaitingForMessage);
+        oled_waiting_for_pic_tx_drain = false;
     }
 
     else if (oledWaitingForMessage != OLED_MESSAGE_NONE)
@@ -210,7 +228,8 @@ void initiateSelectingOled()
         FREEZE_WITH_ERROR("OLED message already pending");
     }
 #endif
-    oledPendingMessageToSend = OLED_MESSAGE_SELECT;
+    oledPendingMessageToSend      = OLED_MESSAGE_SELECT;
+    oled_waiting_for_pic_tx_drain = true;
 
     // Actual queue position gets moved along in oledSelectingComplete() when that gets called.
 }
@@ -234,6 +253,19 @@ void sendSPITransferFromQueue()
     // The queue only ever holds OLED frames now.
     oled_sending = true;
     initiateSelectingOled();
+}
+
+// Called under the CV enqueue critical section. Cancelling SELECT keeps its
+// frame queued, so it resumes after CV without touching the CV queue format.
+static bool cancelUnsentOledSelect()
+{
+    if (oledPendingMessageToSend != OLED_MESSAGE_SELECT || oledWaitingForMessage != OLED_MESSAGE_NONE || cv_sending)
+    {
+        return false;
+    }
+    oledPendingMessageToSend = 0;
+    oled_sending             = false;
+    return true;
 }
 
 void oledTransferComplete(uint32_t int_sense)
