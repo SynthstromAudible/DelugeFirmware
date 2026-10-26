@@ -37,7 +37,7 @@ const config = defineConfig({
       social: {
         github: "https://github.com/SynthstromAudible/DelugeFirmware",
         discord: "https://discord.gg/s2MnkFqZgj",
-        patreon: "https://www.patreon.com/Synthstrom",
+        patreon: "https://patreon.com/Synthstrom",
       },
       editLink: {
         baseUrl:
@@ -155,6 +155,7 @@ const config = defineConfig({
       customCss: ["./src/styles/global.css"],
       credits: true,
       components: {
+        SocialIcons: "./src/components/SocialIcons.astro",
         Head: "./src/components/Head.astro",
         Search: "./src/components/Search.astro",
       },
