@@ -1939,9 +1939,17 @@ void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 		// Session playback
 		if (currentPlaybackMode == &session) {
 			if (session.launchEventAtSwungTickCount) {
-				intToString(session.numRepeatsTilLaunch, &loopsRemainingText[17]);
-				deluge::hid::display::OLED::clearMainImage();
-				deluge::hid::display::OLED::drawPermanentPopupLookingText(loopsRemainingText);
+				if (isNoUIModeActive()) {
+					// Use the same countdown as graphicsRoutine from the first frame. Rendering
+					// "Loops remaining" here first causes a second OLED transfer as soon as the
+					// graphics routine replaces it with bars/beats, blocking CV on the shared bus.
+					displayLoopsRemainingPopup();
+				}
+				else {
+					intToString(session.numRepeatsTilLaunch, &loopsRemainingText[17]);
+					deluge::hid::display::OLED::clearMainImage();
+					deluge::hid::display::OLED::drawPermanentPopupLookingText(loopsRemainingText);
+				}
 			}
 		}
 
