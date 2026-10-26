@@ -65,8 +65,8 @@ static bool dacSelected;
 static void setOutputState(int port, int pin, bool value) {
 	dacSelected = !value;
 }
-static void cvSent(void) {
-}
+// These tests observe SPI/handshake behavior, not the gate callback signature.
+#define cvSent(...) ((void)0)
 static unsigned picMessage;
 #define bufferPICUart(message) (picMessage = (message))
 #define OLED_MESSAGE_ACK_CONSUMED 255
@@ -77,3 +77,8 @@ static bool uartReplacePendingByte(int item, uint8_t value, uint8_t replacement)
 }
 void cvSPITransferComplete(uint32_t);
 void oledTransferComplete(uint32_t);
+
+// The independent PIC-backlog fix may also be present; this suite has no backlog.
+static int32_t uartGetTxBufferFullnessByItem(int item) {
+	return 0;
+}

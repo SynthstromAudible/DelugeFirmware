@@ -1,5 +1,5 @@
 # Compile the production driver on the host, substituting hardware declarations.
-set(OLED_DRIVER "${CMAKE_CURRENT_SOURCE_DIR}/../../src/RZA1/oled/oled_low_level.c")
+get_filename_component(OLED_DRIVER "${CMAKE_CURRENT_SOURCE_DIR}/../../src/RZA1/oled/oled_low_level.c" ABSOLUTE)
 set(OLED_STUBS "${CMAKE_CURRENT_BINARY_DIR}/oled_handshake_stubs")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${OLED_DRIVER}")
 file(STRINGS "${OLED_DRIVER}" OLED_INCLUDES REGEX "^#include \"")
