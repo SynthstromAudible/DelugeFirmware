@@ -105,6 +105,10 @@ static int32_t uartGetTxBufferFullnessByItem(int item) {
 	(void)item;
 	return 0;
 }
+static uint32_t uartGetRxBufferSpace(int item) {
+	(void)item;
+	return 63;
+}
 
 // NOLINTEND(readability-identifier-naming)
 #endif // CV_GATE_TEST_MOCK_HARDWARE_H
