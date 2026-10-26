@@ -37,10 +37,10 @@ void setupSPIInterrupts()
 
 // Coalesce updates only within the same DAC channel. Both channels must survive
 // an OLED transfer, and round-robin service prevents a busy channel starving the other.
-static volatile uint8_t cvPendingChannels = 0;
-static volatile uint32_t cvPendingData[NUM_PHYSICAL_CV_CHANNELS];
-static uint8_t cvNextChannel    = 0;
-static uint8_t cvSendingChannel = 0;
+static volatile uint8_t cv_pending_channels = 0;
+static volatile uint32_t cv_pending_data[NUM_PHYSICAL_CV_CHANNELS];
+static uint8_t cv_next_channel    = 0;
+static uint8_t cv_sending_channel = 0;
 
 void sendCVWord(uint32_t message);
 bool sendPriorityCVIfPending();
@@ -48,8 +48,8 @@ bool sendPriorityCVIfPending();
 void enqueueCVMessage(int channel, uint32_t message)
 {
     ENTER_CRITICAL_SECTION();
-    cvPendingData[channel] = message;
-    cvPendingChannels |= 1u << channel;
+    cv_pending_data[channel] = message;
+    cv_pending_channels |= 1u << channel;
     // If the bus is idle, kick it off now; otherwise it gets drained at the next inter-transfer
     // boundary, ahead of any queued OLED frames.
     if (!spiBusCurrentlySending)
@@ -189,20 +189,20 @@ void sendCVWord(uint32_t message)
 // (nothing currently on the bus). Gates are released by the completion ISR, after the DAC is deselected.
 bool sendPriorityCVIfPending()
 {
-    if (!cvPendingChannels)
+    if (!cv_pending_channels)
     {
         return false;
     }
-    uint8_t channel = cvNextChannel;
-    while (!(cvPendingChannels & (1u << channel)))
+    uint8_t channel = cv_next_channel;
+    while (!(cv_pending_channels & (1u << channel)))
     {
         channel = (channel + 1) % NUM_PHYSICAL_CV_CHANNELS;
     }
-    cvNextChannel = (channel + 1) % NUM_PHYSICAL_CV_CHANNELS;
-    cvPendingChannels &= ~(1u << channel);
-    cv_sending       = true;
-    cvSendingChannel = channel;
-    sendCVWord(cvPendingData[channel]);
+    cv_next_channel = (channel + 1) % NUM_PHYSICAL_CV_CHANNELS;
+    cv_pending_channels &= ~(1u << channel);
+    cv_sending         = true;
+    cv_sending_channel = channel;
+    sendCVWord(cv_pending_data[channel]);
     return true;
 }
 
@@ -247,7 +247,7 @@ void oledTransferComplete(uint32_t int_sense)
 
     // If there's another frame queued, just go ahead - unless a CV word is waiting, in which case we
     // deselect so the CV can slip in ahead of the next frame.
-    if (!cvPendingChannels && oledFrameQueueWritePos != oledFrameQueueReadPos
+    if (!cv_pending_channels && oledFrameQueueWritePos != oledFrameQueueReadPos
         && last_message_sent == OLED_MESSAGE_SELECT)
     {
         oledSelectingComplete();
@@ -276,9 +276,9 @@ void cvSPITransferComplete(uint32_t sense)
 
     // A newer voltage for this channel supersedes the word that just finished.
     // Keep its gate held until the latest word has actually reached the DAC.
-    if (!(cvPendingChannels & (1u << cvSendingChannel)))
+    if (!(cv_pending_channels & (1u << cv_sending_channel)))
     {
-        cvSent(cvSendingChannel);
+        cvSent(cv_sending_channel);
     }
 
     // Drain pending CV before returning to OLED frames.
@@ -307,7 +307,7 @@ void oledDeselectionComplete()
     spiBusCurrentlySending = false;
     oled_sending           = false;
     // A waiting CV word goes out before any more OLED frames.
-    if (cvPendingChannels)
+    if (cv_pending_channels)
     {
         spiBusCurrentlySending = true;
         sendPriorityCVIfPending();

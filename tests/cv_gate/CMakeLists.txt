@@ -1,3 +1,9 @@
+cmake_minimum_required(VERSION 3.24)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    project(DelugeCVGateTests C)
+    enable_testing()
+endif()
+
 # Compile the production driver on the host, substituting hardware declarations.
 get_filename_component(OLED_DRIVER "${CMAKE_CURRENT_SOURCE_DIR}/../../src/RZA1/oled/oled_low_level.c" ABSOLUTE)
 set(OLED_STUBS "${CMAKE_CURRENT_BINARY_DIR}/cv_gate_stubs")
@@ -11,8 +17,14 @@ foreach(INCLUDE_LINE IN LISTS OLED_INCLUDES)
 endforeach()
 
 add_executable(cv_gate_driver_tests driver_tests.c)
-target_include_directories(cv_gate_driver_tests PRIVATE "${OLED_STUBS}" "${CMAKE_CURRENT_SOURCE_DIR}/../..")
-if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-    target_compile_options(cv_gate_driver_tests PRIVATE -Wno-pointer-to-int-cast)
-endif()
+# Verify that the mocks are self-contained and supply an explicit C command
+# when the PR annotation action checks the header independently.
+add_library(cv_gate_mock_header_check OBJECT mock_hardware.h)
+set_source_files_properties(mock_hardware.h PROPERTIES LANGUAGE C)
+foreach(TARGET cv_gate_driver_tests cv_gate_mock_header_check)
+    target_include_directories(${TARGET} PRIVATE "${OLED_STUBS}" "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(${TARGET} PRIVATE -Wno-pointer-to-int-cast)
+    endif()
+endforeach()
 add_test(NAME CVGateDriverTests COMMAND cv_gate_driver_tests)

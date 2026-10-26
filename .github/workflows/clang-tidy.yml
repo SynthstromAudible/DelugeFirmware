@@ -47,6 +47,12 @@ jobs:
       - name: Check clang-tidy version
         run: clang-tidy --version
 
+      - name: Add native CV gate compilation commands
+        run: |
+          cmake -S tests/cv_gate -B build/tidy-cv-gate -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          jq -s 'add' build/compile_commands.json build/tidy-cv-gate/compile_commands.json > build/compile_commands.merged.json
+          mv build/compile_commands.merged.json build/compile_commands.json
+
       - uses: ZehMatt/clang-tidy-annotations@v1.1.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

@@ -126,7 +126,7 @@ GateOutputs CVEngine::takePendingGateOutputs(bool includeAsap) {
 // situation where the cv is delayed for an oled refresh and the gate gets sent first, causing an audible pitch
 // correction
 void CVEngine::outputGates(const GateOutputs& outputs, const InterruptsDisabled&) {
-	uint8_t hold = cvOutPending & outputs.cvWaitMask;
+	uint8_t hold = cv_out_pending_ & outputs.cvWaitMask;
 	for (int32_t g = 0; g < NUM_GATE_CHANNELS; g++) {
 		uint8_t bit = 1 << g;
 		if (!(outputs.mask & bit)) {
@@ -241,7 +241,7 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 
 void CVEngine::sendVoltageOut(uint8_t channel, uint16_t voltage) {
 	CriticalSectionGuard guard;
-	cvOutPending |= 1u << channel;
+	cv_out_pending_ |= 1u << channel;
 	uint32_t output = (uint32_t)(0b00110000 | (1 << channel)) << 24;
 	output |= (uint32_t)voltage << 8;
 	// if we have a physical oled then we need to send via the pic
@@ -403,11 +403,11 @@ bool CVEngine::isTriggerClockOutputEnabled() {
 	return (gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode == GateType::SPECIAL);
 }
 void CVEngine::cvOutUpdated(uint8_t channel, const InterruptsDisabled& guard) {
-	cvOutPending &= ~(1u << channel);
+	cv_out_pending_ &= ~(1u << channel);
 	// Only release gates whose scheduled time has already passed. Releasing every pending gate here would send them
 	// up to a whole audio buffer early whenever the CV word finished before the MIDI/gate timer fired (e.g. when an
 	// OLED refresh delayed the CV), and would also flush pending clock pulses early.
-	if (gatesAwaitingCV & (1u << channel)) {
+	if ((gatesAwaitingCV & (1u << channel)) != 0) {
 		GateOutputs held;
 		held.mask = gatesAwaitingCV & (1u << channel);
 		held.levels = levelsAwaitingCV;

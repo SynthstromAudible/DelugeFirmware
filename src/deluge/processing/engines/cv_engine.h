@@ -124,7 +124,7 @@ private:
 		return gateChannels[channel].on == (gateChannels[channel].mode == GateType::S_TRIG);
 	}
 	/// physical CV channels with a voltage update still pending
-	uint8_t cvOutPending{0};
+	uint8_t cv_out_pending_{0};
 	/// bitmask of gate channels which have changed but haven't been taken for output yet
 	uint8_t pendingGates{0};
 	/// subset of pendingGates which should go asap (run signal), respecting minGateOffTime
