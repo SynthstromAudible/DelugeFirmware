@@ -25,9 +25,11 @@ public:
 	BasicFilterComponent() { reset(); }
 	// moveability is tan(f)/(1+tan(f))
 	[[gnu::always_inline]] inline q31_t doFilter(q31_t input, q31_t moveability) {
-		q31_t a = multiply_32x32_rshift32_rounded(input - memory, moveability) << 1;
-		q31_t b = a + memory;
-		memory = b + a;
+		// b = memory + 2t, memory' = b + 2t = memory + 4t. Written so both adds can use a shifted operand and don't
+		// depend on each other. Identical result (two's complement wraparound).
+		q31_t t = multiply_32x32_rshift32_rounded(input - memory, moveability);
+		q31_t b = (q31_t)((uint32_t)memory + ((uint32_t)t << 1));
+		memory = (q31_t)((uint32_t)memory + ((uint32_t)t << 2));
 		return b;
 	}
 	[[gnu::always_inline]] inline int32_t doAPF(q31_t input, int32_t moveability) {

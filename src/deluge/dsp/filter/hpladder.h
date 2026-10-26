@@ -47,7 +47,30 @@ private:
 			hpfHPF3.reset();
 		}
 	};
-	[[gnu::always_inline]] inline q31_t doHPF(q31_t input, HPLadderState& state);
+	// Per-buffer copy of the coefficients. The loops work on locals so stores to the q31_t sample buffer can't force
+	// the compiler to reload the q31_t members and store the state back every sample.
+	struct Coeffs {
+		q31_t fc;
+		q31_t morph;
+		q31_t hpfHPF3Feedback;
+		q31_t hpfLPF1Feedback;
+		q31_t divideByTotalMoveability;
+		q31_t hpfDivideByProcessedResonance;
+	};
+	[[gnu::always_inline]] Coeffs getCoeffs() const {
+		return Coeffs{
+		    fc, morph_, hpfHPF3Feedback, hpfLPF1Feedback, divideByTotalMoveability, hpfDivideByProcessedResonance};
+	}
+	// kSaturation: 0 none, 1 tanh, 2 antialiased tanh (from hpfProcessedResonance, loop invariant)
+	// kMorph: false when morph_ == 0, where the cutoff modulation term is exactly 0
+	template <int kSaturation, bool kMorph>
+	[[gnu::always_inline]] static inline q31_t doHPF(q31_t input, HPLadderState& state, const Coeffs& c);
+	template <int kSaturation, bool kMorph>
+	void doFilterT(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement);
+	template <int kSaturation, bool kMorph>
+	void doFilterStereoT(q31_t* startSample, q31_t* endSample);
+	template <typename F>
+	[[gnu::always_inline]] inline void dispatch(F&& f);
 
 	bool hpfDoingAntialiasingNow;
 	int32_t hpfDivideByTotalMoveabilityLastTime;

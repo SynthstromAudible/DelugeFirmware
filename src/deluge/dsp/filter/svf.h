@@ -39,7 +39,23 @@ private:
 		q31_t low;
 		q31_t band;
 	};
-	[[gnu::always_inline]] inline q31_t doSVF(q31_t input, SVFState& state);
+	// Per-buffer copy of the coefficients. The loops work on locals so stores to the q31_t sample buffer can't force
+	// the compiler to reload the q31_t members and store the state back every sample.
+	struct Coeffs {
+		q31_t fc;
+		q31_t q;
+		q31_t in;
+		q31_t c_low;
+		q31_t c_band;
+		q31_t c_high;
+	};
+	[[gnu::always_inline]] Coeffs getCoeffs() const { return Coeffs{fc, q, in, c_low, c_band, c_high}; }
+	template <bool kBand>
+	[[gnu::always_inline]] static inline q31_t doSVF(q31_t input, SVFState& state, const Coeffs& c);
+	template <bool kBand>
+	void doFilterT(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement);
+	template <bool kBand>
+	void doFilterStereoT(q31_t* startSample, q31_t* endSample);
 	SVFState l;
 	SVFState r;
 
