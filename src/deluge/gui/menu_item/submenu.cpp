@@ -9,7 +9,11 @@
 
 namespace deluge::gui::menu_item {
 void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
-	soundEditor.currentMultiRange = nullptr;
+	// A submenu that edits one zone keeps the zone it was entered with: its items need it to tell whether they
+	// apply, and the highlight is chosen from them below.
+	if (!isRangeDependent()) {
+		soundEditor.currentMultiRange = nullptr;
+	}
 
 	if (navigatedBackwardFrom == nullptr && initial_index_ > 0) {
 		navigatedBackwardFrom = items[initial_index_];

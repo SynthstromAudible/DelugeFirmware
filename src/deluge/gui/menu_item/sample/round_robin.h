@@ -282,15 +282,8 @@ public:
 		// checkPermissionToBeginSession below), and setCurrentSource() preserves a non-null range.
 		soundEditor.setCurrentSource(sourceId_);
 
-		// Submenu::beginSession() clears currentMultiRange before it filters the children, which
-		// would throw away the zone the picker just selected: Mode would then see no zone and filter
-		// itself out, and entering a slot would send you back through the picker. Carry it across the
-		// call, exactly as HorizontalMenu::beginSession() already does for its own children.
-		::MultiRange* selectedRange = soundEditor.currentMultiRange;
-		int16_t selectedRangeIndex = soundEditor.currentMultiRangeIndex;
+		// Keeps that zone, as this screen reports isRangeDependent() - see Submenu::beginSession().
 		Submenu::beginSession(navigatedBackwardFrom);
-		soundEditor.currentMultiRange = selectedRange;
-		soundEditor.currentMultiRangeIndex = selectedRangeIndex;
 
 		// At the Variants list level no specific slot is being edited, so auditioning follows the
 		// normal round-robin again.
@@ -629,16 +622,10 @@ public:
 	}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
-		// HorizontalMenu::beginSession() keeps the editor's zone only while a range-dependent item is under
-		// the cursor, and the first time a page opens there is no item under the cursor yet - so the zone
-		// this page is entered with would be dropped, and setCurrentSource() would fall back to the first
-		// zone. Carry it across the call, as RoundRobinSubmenu::beginSession() does.
-		::MultiRange* selectedRange = soundEditor.currentMultiRange;
-		int16_t selectedRangeIndex = soundEditor.currentMultiRangeIndex;
-		HorizontalMenu::beginSession(navigatedBackwardFrom);
-		soundEditor.currentMultiRange = selectedRange;
-		soundEditor.currentMultiRangeIndex = selectedRangeIndex;
+		// Pinned first so the items can find this zone while the highlight is chosen. The zone itself is kept,
+		// as this page reports isRangeDependent() - see Submenu::beginSession().
 		soundEditor.setCurrentSource(sourceId_);
+		HorizontalMenu::beginSession(navigatedBackwardFrom);
 		// While this slot's menu is open, auditioning plays this exact slot (without advancing the cycle).
 		MultisampleRange::setAuditionSlot(getRoundRobinRange(sourceId_), slotIndex_);
 	}
@@ -834,12 +821,7 @@ public:
 			current_item_ = items.end();
 		}
 
-		// Submenu::beginSession() clears the zone; carry it across, as RoundRobinSubmenu does.
-		::MultiRange* selectedRange = soundEditor.currentMultiRange;
-		int16_t selectedRangeIndex = soundEditor.currentMultiRangeIndex;
 		Submenu::beginSession(slot >= 0 ? items[slot] : nullptr);
-		soundEditor.currentMultiRange = selectedRange;
-		soundEditor.currentMultiRangeIndex = selectedRangeIndex;
 
 		pinAuditionToHighlightedSlot();
 	}
