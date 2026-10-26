@@ -162,6 +162,9 @@ public:
 	void gridPulseSelectedClip();
 
 private:
+	int32_t lastLaunchCountdown = 0;
+	uint32_t launchCountdownImageGeneration = 0;
+
 	// These and other (future) commandXXX methods perform actions triggered by HID, but contain
 	// no dispatch logic.
 	//

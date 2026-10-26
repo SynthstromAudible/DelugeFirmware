@@ -274,9 +274,15 @@ void renderUIsForOled() {
 
 uint32_t whichMainRowsNeedRendering = 0;
 uint32_t whichSideRowsNeedRendering = 0;
+static uint32_t whichMainRowsNeedRefinement = 0;
 
 void clearPendingUIRendering() {
 	whichMainRowsNeedRendering = whichSideRowsNeedRendering = 0;
+	whichMainRowsNeedRefinement = 0;
+}
+
+void retryMainPadRendering(uint32_t whichRows) {
+	whichMainRowsNeedRefinement |= whichRows;
 }
 
 void renderingNeededRegardlessOfUI(uint32_t whichMainRows, uint32_t whichSideRows) {
@@ -312,19 +318,24 @@ void uiNeedsRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 
 void doAnyPendingGridRendering() {
 
-	if (!whichMainRowsNeedRendering && !whichSideRowsNeedRendering) {
+	if (!whichMainRowsNeedRendering && !whichSideRowsNeedRendering && !whichMainRowsNeedRefinement) {
 		return;
 	}
 
-	if (currentUIMode == UI_MODE_HORIZONTAL_SCROLL || currentUIMode == UI_MODE_HORIZONTAL_ZOOM) {
+	bool horizontalScroll = currentUIMode == UI_MODE_HORIZONTAL_SCROLL;
+	if (currentUIMode == UI_MODE_HORIZONTAL_ZOOM || (horizontalScroll && PadLEDs::horizontal::isSidebarScrolling())) {
 		return;
 	}
 	// Make a local copy of our instructions
-	uint32_t mainRowsNow = whichMainRowsNeedRendering;
+	// A timeline scroll animates only the main pads; the stationary sidebar must
+	// still render clip-launch flashes. Leave main-pad redraws pending until it ends.
+	uint32_t mainRowsNow = horizontalScroll ? 0 : (whichMainRowsNeedRendering | whichMainRowsNeedRefinement);
 	uint32_t sideRowsNow = whichSideRowsNeedRendering;
 
-	// Clear the overall instructions - so it may now be written to again during this function call
-	clearPendingUIRendering();
+	// Clear only the requests being handled, so renders can enqueue more work.
+	whichMainRowsNeedRendering &= ~mainRowsNow;
+	whichMainRowsNeedRefinement &= ~mainRowsNow;
+	whichSideRowsNeedRendering = 0;
 
 	for (int32_t u = numUIsOpen - 1; u >= 0; u--) {
 
@@ -337,6 +348,7 @@ void doAnyPendingGridRendering() {
 		if (mainRowsNow) {
 			bool usedUp = thisUI->renderMainPads(mainRowsNow, PadLEDs::image, PadLEDs::occupancyMask);
 			if (usedUp) {
+				// Refinement requests leave a usable frame. Ordinary redraw requests still invalidate it.
 				if (!whichMainRowsNeedRendering) {
 					PadLEDs::sendOutMainPadColours();
 				}
