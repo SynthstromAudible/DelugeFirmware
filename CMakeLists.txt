@@ -189,8 +189,6 @@ add_compile_options(
 
         $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fdevirtualize-at-ltrans>
     -ffunction-sections
-    # Preserve UI method identities before LTO as well as during the final link.
-    -fno-ipa-icf
     -fdata-sections
     -DUSE_TASK_MANAGER
 
@@ -286,11 +284,6 @@ target_link_options(deluge PUBLIC
     LINKER:--stats
 
     # $<$<CXX_COMPILER_ID:GNU>:LINKER:--print-memory-usage>
-
-    # Keep UI methods independently placeable during LTO. Identical-code folding
-    # could otherwise alias a UI method to a function placed in internal RAM.
-    -ffunction-sections
-    -fno-ipa-icf
 
     # Link-Time Optimization
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-flto=auto>
