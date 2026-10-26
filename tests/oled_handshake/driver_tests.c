@@ -83,6 +83,39 @@ static void queueFrame(void) {
 	sendSPITransferFromQueue();
 }
 
+static void testRecoveryDuringSettling(void) {
+	queueFrame();
+	oledRoutine();
+	receivePIC(OLED_MESSAGE_SELECT);
+	oledRoutine();
+	assert(oled_settling);
+
+	// freezeWithError handles its own transfer and resets these public fields
+	// on resume, without completing the interrupted settling interval.
+	oledWaitingForMessage = OLED_MESSAGE_NONE;
+	spiBusCurrentlySending = false;
+	timer = (uint16_t)(oled_settle_time + 1);
+	unsigned frame_read = oledFrameQueueReadPos;
+	queueFrame();
+	oledRoutine(); // Commit a fresh SELECT after recovery.
+	oledRoutine(); // The expired old deadline must not start this frame's DMA.
+	assert(oledWaitingForMessage == OLED_MESSAGE_SELECT);
+	assert(oledFrameQueueReadPos == frame_read);
+
+	receivePIC(OLED_MESSAGE_SELECT);
+	oledRoutine();
+	timer += msToSlowTimerCount(3) - 1;
+	oledRoutine();
+	assert(oledFrameQueueReadPos == frame_read);
+	++timer;
+	oledRoutine();
+	assert(oledFrameQueueReadPos == ((frame_read + 1) & (OLED_FRAME_QUEUE_SIZE - 1)));
+	oledTransferComplete(0);
+	oledRoutine();
+	receivePIC(OLED_MESSAGE_DESELECT);
+	settleOLED();
+}
+
 static void testRepeatedHandshakes(void) {
 	receivePIC(252);
 	receivePIC(42);
@@ -234,5 +267,6 @@ int main(void) {
 	testStagingBackpressure();
 	testInputReplay();
 	testFullStaging();
+	testRecoveryDuringSettling();
 	puts("OLED handshake driver tests passed");
 }

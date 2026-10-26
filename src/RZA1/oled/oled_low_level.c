@@ -151,6 +151,9 @@ void oledRoutine()
         {
             return;
         }
+        // Error recovery may abandon a settling wait. A fresh request needs
+        // its own acknowledgement and a new settling deadline.
+        oled_settling            = false;
         oledWaitingForMessage    = oledPendingMessageToSend; // We'll wait to hear back from the PIC.
         oledPendingMessageToSend = 0;
         last_message_sent        = oledWaitingForMessage;
