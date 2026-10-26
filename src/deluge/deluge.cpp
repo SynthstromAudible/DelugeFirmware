@@ -559,9 +559,6 @@ void registerTasks() {
 	addRepeatingTask([]() { playbackHandler.routine(); }, p++, 0.0005, 0.001, 0.002, "playback routine", RESOURCE_NONE);
 	midiEngine.routine_task_id = addRepeatingTask([]() { playbackHandler.midiRoutine(); }, p++, 0.0005, 0.001, 0.002,
 	                                              "midi routine", RESOURCE_SD | RESOURCE_USB);
-<<<<<<< HEAD
-	addRepeatingTask([]() { audioFileManager.loadAnyEnqueuedClusters(128, false); }, p++, 0.0001, 0.0001, 0.0002,
-=======
 	if (hid::display::have_oled_screen) {
 		// This releases the shared SPI bus for CV, so service requests, acknowledgements
 		// and settling deadlines ahead of UI work. UART writes stay in task context.
@@ -572,8 +569,7 @@ void registerTasks() {
 		    },
 		    p++, 0.0005, 0.0005, 0.001, "OLED/CV handshake", RESOURCE_NONE);
 	}
-	addRepeatingTask([]() { audioFileManager.loadAnyEnqueuedClusters(false); }, p++, 0.0001, 0.0001, 0.0002,
->>>>>>> 4d38a676 (Fix/ Service OLED handshakes independently of UI input (#5151))
+	addRepeatingTask([]() { audioFileManager.loadAnyEnqueuedClusters(128, false); }, p++, 0.0001, 0.0001, 0.0002,
 	                 "load clusters", RESOURCE_NONE);
 	// handles sd card recorders
 	// named "slow" but isn't actually, it handles audio recording setup
