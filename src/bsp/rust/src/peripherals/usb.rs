@@ -4,8 +4,8 @@
 //! USB host mode (MIDI devices plugged into the Deluge) is not implemented, so the libdeluge USB
 //! role is fixed to peripheral. Boot brings the port up ([`init`]) but leaves it off the bus;
 //! [`usb_task`] waits for the app's start, builds the configuration it asked for, and runs the
-//! device and the MIDI pumps. The app reaches the MIDI byte stream through [`midi`](super::midi),
-//! port 1, and the audio streams through [`usb_audio`](super::usb_audio).
+//! device and the MIDI pumps. The app reaches the USB-MIDI event-packet stream through
+//! [`midi`](super::midi), port 1, and the audio streams through [`usb_audio`](super::usb_audio).
 
 use core::mem::MaybeUninit;
 use core::ptr::addr_of_mut;
@@ -117,6 +117,9 @@ pub async fn usb_task(driver: Rusb1Driver<'static>) {
         builder.handler(handler_ref);
     }
 
+    // The app speaks whole USB-MIDI event packets (SysEx included), so the class passes them
+    // through instead of decoding them; selected before the endpoint pumps run.
+    midi::use_packets();
     let (handler, eps) = midi::build(&mut builder);
     // SAFETY: as above.
     let handler_ref = unsafe { (*addr_of_mut!(MIDI_HANDLER)).write(handler) };
@@ -129,9 +132,9 @@ pub async fn usb_task(driver: Rusb1Driver<'static>) {
     );
     embassy_futures::join::join3(
         device.run(),
-        // MIDI 1.0 OUT endpoint (computer → Deluge) into the class RX queue.
+        // MIDI 1.0 OUT endpoint (computer → Deluge) into the class RX packet queue.
         midi::run_rx_midi1::<Rusb1Driver<'static>>(eps.ep_out_midi1),
-        // The class TX byte queue out the MIDI 1.0 IN endpoint (Deluge → computer).
+        // The class TX packet queue out the MIDI 1.0 IN endpoint (Deluge → computer).
         midi::run_tx_midi1::<Rusb1Driver<'static>>(eps.ep_in_midi1),
     )
     .await;
