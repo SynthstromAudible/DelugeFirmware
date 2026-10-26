@@ -83,8 +83,8 @@ bool oledDmaWatchdogArmed = false;
 bool oled_sending = false;
 bool cv_sending   = false;
 
-static bool oledSettling = false;
-static uint16_t oledSettleTime;
+static bool oled_settling = false;
+static uint16_t oled_settle_time;
 
 static void armOledDmaWatchdog()
 {
@@ -96,16 +96,15 @@ static void armOledDmaWatchdog()
 // rather than waiting for the low-priority UI timer task (and its audio render clock).
 void oledAcknowledgementReceived(uint8_t message)
 {
-    if (message != oledWaitingForMessage || oledSettling)
+    if (message != oledWaitingForMessage || oled_settling)
     {
         return;
     }
-    oledSettling   = true;
-    oledSettleTime = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(3);
+    oled_settling    = true;
+    oled_settle_time = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(3);
 }
 
-// Call this before you routinely call uartFlushIfNotSending().
-void oledRoutine()
+static void serviceOledAcknowledgement()
 {
     if (oledWaitingForMessage != OLED_MESSAGE_NONE)
     {
@@ -115,11 +114,17 @@ void oledRoutine()
         {
             oledAcknowledgementReceived(oledWaitingForMessage);
         }
-        if (oledSettling && (int16_t)(*TCNT[TIMER_SYSTEM_SLOW] - oledSettleTime) >= 0)
+        if (oled_settling && (int16_t)(*TCNT[TIMER_SYSTEM_SLOW] - oled_settle_time) >= 0)
         {
             finishOledSettling();
         }
     }
+}
+
+// Call this before you routinely call uartFlushIfNotSending().
+void oledRoutine()
+{
+    serviceOledAcknowledgement();
 
     if (oledPendingMessageToSend)
     {
@@ -143,7 +148,7 @@ void oledRoutine()
     else if (oledWaitingForMessage != OLED_MESSAGE_NONE)
     {
         int16_t howLate = *TCNT[TIMER_SYSTEM_SLOW] - oledMessageTimeoutTime;
-        if (!oledSettling && howLate >= 0)
+        if (!oled_settling && howLate >= 0)
         {
             oledMessageTimeoutTime = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(50);
             last_message_sent      = oledWaitingForMessage;
@@ -373,9 +378,13 @@ void oledDeselectionComplete()
 
 static void finishOledSettling()
 {
-    oledSettling = false;
+    oled_settling = false;
     if (oledWaitingForMessage == OLED_MESSAGE_SELECT)
+    {
         oledSelectingComplete();
+    }
     else if (oledWaitingForMessage == OLED_MESSAGE_DESELECT)
+    {
         oledDeselectionComplete();
+    }
 }

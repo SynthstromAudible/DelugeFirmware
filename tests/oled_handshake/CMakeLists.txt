@@ -1,3 +1,9 @@
+cmake_minimum_required(VERSION 3.24)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    project(DelugeHandshakeTests C)
+    enable_testing()
+endif()
+
 # Compile the production driver on the host, substituting hardware declarations.
 get_filename_component(OLED_DRIVER "${CMAKE_CURRENT_SOURCE_DIR}/../../src/RZA1/oled/oled_low_level.c" ABSOLUTE)
 set(OLED_STUBS "${CMAKE_CURRENT_BINARY_DIR}/oled_handshake_stubs")
@@ -11,8 +17,15 @@ foreach(INCLUDE_LINE IN LISTS OLED_INCLUDES)
 endforeach()
 
 add_executable(oled_handshake_driver_tests driver_tests.c)
-target_include_directories(oled_handshake_driver_tests PRIVATE "${OLED_STUBS}" "${CMAKE_CURRENT_SOURCE_DIR}/../..")
-if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-    target_compile_options(oled_handshake_driver_tests PRIVATE -Wno-pointer-to-int-cast)
-endif()
+# Compile the headers independently so clang-tidy also gets explicit C commands
+# for them, and verify that they do not depend on preceding test includes.
+set(HANDSHAKE_HEADERS mock_hardware.h ../../src/deluge/drivers/uart/rx_buffer.h)
+add_library(oled_handshake_header_check OBJECT ${HANDSHAKE_HEADERS})
+set_source_files_properties(${HANDSHAKE_HEADERS} PROPERTIES LANGUAGE C)
+foreach(TARGET oled_handshake_driver_tests oled_handshake_header_check)
+    target_include_directories(${TARGET} PRIVATE "${OLED_STUBS}" "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(${TARGET} PRIVATE -Wno-pointer-to-int-cast)
+    endif()
+endforeach()
 add_test(NAME OledHandshakeDriverTests COMMAND oled_handshake_driver_tests)

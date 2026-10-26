@@ -229,10 +229,12 @@ void uartInsertFakeChar(int32_t item, char data) {
 
 bool uartReplacePendingByte(int32_t item, uint8_t value, uint8_t replacement) {
 	uintptr_t base = (uintptr_t)rxBuffers[item];
-	uint32_t readPos = (uintptr_t)rxBufferReadAddr[item] - base;
-	uint32_t writePos = DMACn(rxDmaChannels[item]).CRDA_n - base;
-	return uartReplaceByteInRing((volatile uint8_t*)(base + UNCACHED_MIRROR_OFFSET), rxBufferSizes[item], readPos,
-	                             writePos, value, replacement);
+	uint32_t read_pos = (uintptr_t)rxBufferReadAddr[item] - base;
+	// DMACn maps a physical register address; its integer-to-pointer cast is intentional.
+	// NOLINTNEXTLINE(performance-no-int-to-ptr,readability-math-missing-parentheses)
+	uint32_t write_pos = DMACn(rxDmaChannels[item]).CRDA_n - base;
+	return uartReplaceByteInRing((volatile uint8_t*)rxBuffers[item] + UNCACHED_MIRROR_OFFSET, rxBufferSizes[item],
+	                             read_pos, write_pos, value, replacement);
 }
 
 uint8_t uartGetChar(int32_t item, char* readData) {

@@ -1,5 +1,6 @@
 #include "mock_hardware.h"
-#include "src/RZA1/oled/oled_low_level.c"
+// Include the production implementation to exercise internal state with mock registers.
+#include "src/RZA1/oled/oled_low_level.c" // NOLINT(bugprone-suspicious-include)
 
 int main(void) {
 	// A committed OLED transaction holds CV until deselection completes.
@@ -9,22 +10,22 @@ int main(void) {
 	oledFrameQueue[0] = frame;
 	oledFrameQueueWritePos = 1;
 	sendSPITransferFromQueue();
-	picRx[0] = OLED_MESSAGE_SELECT; // A stale ack cannot satisfy a request not yet sent.
-	picWrite = 1;
+	pic_rx[0] = OLED_MESSAGE_SELECT; // A stale ack cannot satisfy a request not yet sent.
+	pic_write = 1;
 	oledRoutine();
-	assert(picMessage == OLED_MESSAGE_SELECT);
-	assert(picRx[0] == OLED_MESSAGE_ACK_CONSUMED && !oledSettling);
+	assert(pic_message == OLED_MESSAGE_SELECT);
+	assert(pic_rx[0] == OLED_MESSAGE_ACK_CONSUMED && !oled_settling);
 	enqueueCVMessage(1, 0x32567800);
 	assert(spi.SPDR.LONG == 0x31123400); // Cannot interrupt a SELECT already sent.
 
 	// Ack processing bypasses deferred UI input without disturbing release ordering.
-	picRx[0] = 252; // NEXT_PAD_OFF
-	picRx[1] = 42;  // Its corresponding pad event
-	picRx[2] = OLED_MESSAGE_SELECT;
-	picWrite = 3;
+	pic_rx[0] = 252; // NEXT_PAD_OFF
+	pic_rx[1] = 42;  // Its corresponding pad event
+	pic_rx[2] = OLED_MESSAGE_SELECT;
+	pic_write = 3;
 	oledRoutine();
-	assert(picRead == 0 && picRx[0] == 252 && picRx[1] == 42);
-	assert(picRx[2] == OLED_MESSAGE_ACK_CONSUMED);
+	assert(pic_read == 0 && pic_rx[0] == 252 && pic_rx[1] == 42);
+	assert(pic_rx[2] == OLED_MESSAGE_ACK_CONSUMED);
 	timer = msToSlowTimerCount(3) - 1;
 	oledRoutine();
 	assert(oledFrameQueueReadPos == 0);
@@ -33,16 +34,16 @@ int main(void) {
 	assert(oledFrameQueueReadPos == 1 && dma.N0TB_n == sizeof(frame));
 	oledTransferComplete(0);
 	oledRoutine();
-	assert(picMessage == OLED_MESSAGE_DESELECT); // No separate 10 ms dispatch wait.
+	assert(pic_message == OLED_MESSAGE_DESELECT); // No separate 10 ms dispatch wait.
 
 	// Keep the settling requirement across timer wrap; duplicate acks must not extend it.
 	timer = 65500;
-	picRx[3] = OLED_MESSAGE_DESELECT;
-	picWrite = 4;
+	pic_rx[3] = OLED_MESSAGE_DESELECT;
+	pic_write = 4;
 	oledRoutine();
 	timer = (uint16_t)(65500 + msToSlowTimerCount(3) - 1);
-	picRx[4] = OLED_MESSAGE_DESELECT;
-	picWrite = 5;
+	pic_rx[4] = OLED_MESSAGE_DESELECT;
+	pic_write = 5;
 	oledRoutine();
 	assert(spi.SPDR.LONG == 0x31123400);
 	timer++;
