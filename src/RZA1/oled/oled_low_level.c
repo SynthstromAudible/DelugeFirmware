@@ -106,13 +106,14 @@ void oledAcknowledgementReceived(uint8_t message)
 
 static void serviceOledAcknowledgement()
 {
+    // Reclaim DMA space even while idle, retaining panel input in its own queue.
+    uint8_t message = oledWaitingForMessage == OLED_MESSAGE_NONE ? OLED_MESSAGE_ACK_CONSUMED : oledWaitingForMessage;
+    bool received   = uartReplacePendingByte(UART_ITEM_PIC, message, OLED_MESSAGE_ACK_CONSUMED);
     if (oledWaitingForMessage != OLED_MESSAGE_NONE)
     {
-        // Do not let a deferred pad event or SD lock hold a CV-critical PIC ack
-        // hostage. Replace only ack bytes; all other input stays in order.
-        if (uartReplacePendingByte(UART_ITEM_PIC, oledWaitingForMessage, OLED_MESSAGE_ACK_CONSUMED))
+        if (received)
         {
-            oledAcknowledgementReceived(oledWaitingForMessage);
+            oledAcknowledgementReceived(message);
         }
         if (oled_settling && (int16_t)(*TCNT[TIMER_SYSTEM_SLOW] - oled_settle_time) >= 0)
         {
@@ -126,11 +127,9 @@ void oledRoutine()
 {
     serviceOledAcknowledgement();
 
-    // A deferred panel event pins the DMA consumer even after we mark an
-    // acknowledgement consumed. Stop adding handshake traffic before the
-    // ring wraps. SELECT reserves extra room for its eventual DESELECT.
-    uint32_t pending_space = oledPendingMessageToSend == OLED_MESSAGE_SELECT ? 8 : 2;
-    if (oledPendingMessageToSend && uartGetRxBufferSpace(UART_ITEM_PIC) < pending_space)
+    // Staging backpressure only applies before SELECT is committed. DESELECT
+    // and retries must proceed so deferred panel input cannot hold CV hostage.
+    if (oledPendingMessageToSend == OLED_MESSAGE_SELECT && uartGetRxBufferSpace(UART_ITEM_PIC) < 8)
     {
         // An unsent SELECT does not own the physical bus. Keep CV moving
         // while panel input is deferred; CV completion will retry the frame.
@@ -165,9 +164,8 @@ void oledRoutine()
 
     else if (oledWaitingForMessage != OLED_MESSAGE_NONE)
     {
-        int16_t howLate         = *TCNT[TIMER_SYSTEM_SLOW] - oledMessageTimeoutTime;
-        uint32_t required_space = oledWaitingForMessage == OLED_MESSAGE_SELECT ? 8 : 2;
-        if (!oled_settling && howLate >= 0 && uartGetRxBufferSpace(UART_ITEM_PIC) >= required_space)
+        int16_t how_late = (int16_t)(*TCNT[TIMER_SYSTEM_SLOW] - oledMessageTimeoutTime);
+        if (!oled_settling && how_late >= 0)
         {
             oledMessageTimeoutTime = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(50);
             last_message_sent      = oledWaitingForMessage;

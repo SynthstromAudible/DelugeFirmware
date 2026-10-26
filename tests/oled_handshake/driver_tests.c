@@ -1,6 +1,30 @@
 #include "mock_hardware.h"
 // Include the production implementation to exercise internal state with mock registers.
 #include "src/RZA1/oled/oled_low_level.c" // NOLINT(bugprone-suspicious-include)
+#include "src/deluge/drivers/uart/uart.c" // NOLINT(bugprone-suspicious-include)
+
+static unsigned picReadPosition(void) {
+	return (unsigned)(rxBufferReadAddr[UART_ITEM_PIC] - pic_rx);
+}
+
+static void receivePIC(uint8_t value) {
+	assert(uartRingSpace(sizeof(pic_rx), picReadPosition(), pic_write) > 0);
+	pic_rx[pic_write] = (char)value;
+	pic_write = (pic_write + 1) % sizeof(pic_rx);
+	dma.CRDA_n = (uintptr_t)(pic_rx + pic_write);
+}
+
+static void settleOLED(void) {
+	oledRoutine();
+	timer += msToSlowTimerCount(3);
+	oledRoutine();
+}
+
+static void expectInput(uint8_t expected) {
+	char value = 0;
+	assert(uartGetChar(UART_ITEM_PIC, &value));
+	assert((uint8_t)value == expected);
+}
 
 static void testHandshakeTiming(void) {
 	// A committed OLED transaction holds CV until deselection completes.
@@ -10,22 +34,19 @@ static void testHandshakeTiming(void) {
 	oledFrameQueue[0] = frame;
 	oledFrameQueueWritePos = 1;
 	sendSPITransferFromQueue();
-	pic_rx[0] = OLED_MESSAGE_SELECT; // A stale ack cannot satisfy a request not yet sent.
-	pic_write = 1;
+	receivePIC(OLED_MESSAGE_SELECT); // A stale ack cannot satisfy a request not yet sent.
 	oledRoutine();
 	assert(pic_message == OLED_MESSAGE_SELECT);
-	assert(pic_rx[0] == OLED_MESSAGE_ACK_CONSUMED && !oled_settling);
+	assert(picReadPosition() == pic_write && pic_rx_queue.count == 0 && !oled_settling);
 	enqueueCVMessage(1, 0x32567800);
 	assert(spi.SPDR.LONG == 0x31123400); // Cannot interrupt a SELECT already sent.
 
 	// Ack processing bypasses deferred UI input without disturbing release ordering.
-	pic_rx[0] = 252; // NEXT_PAD_OFF
-	pic_rx[1] = 42;  // Its corresponding pad event
-	pic_rx[2] = OLED_MESSAGE_SELECT;
-	pic_write = 3;
+	receivePIC(252); // NEXT_PAD_OFF
+	receivePIC(42);
+	receivePIC(OLED_MESSAGE_SELECT);
 	oledRoutine();
-	assert(pic_read == 0 && pic_rx[0] == 252 && pic_rx[1] == 42);
-	assert(pic_rx[2] == OLED_MESSAGE_ACK_CONSUMED);
+	assert(picReadPosition() == pic_write && pic_rx_queue.count == 2);
 	timer = msToSlowTimerCount(3) - 1;
 	oledRoutine();
 	assert(oledFrameQueueReadPos == 0);
@@ -38,12 +59,10 @@ static void testHandshakeTiming(void) {
 
 	// Keep the settling requirement across timer wrap; duplicate acks must not extend it.
 	timer = 65500;
-	pic_rx[3] = OLED_MESSAGE_DESELECT;
-	pic_write = 4;
+	receivePIC(OLED_MESSAGE_DESELECT);
 	oledRoutine();
 	timer = (uint16_t)(65500 + msToSlowTimerCount(3) - 1);
-	pic_rx[4] = OLED_MESSAGE_DESELECT;
-	pic_write = 5;
+	receivePIC(OLED_MESSAGE_DESELECT);
 	oledRoutine();
 	assert(spi.SPDR.LONG == 0x31123400);
 	timer++;
@@ -52,99 +71,168 @@ static void testHandshakeTiming(void) {
 	cvSPITransferComplete(0);
 	assert(!spiBusCurrentlySending);
 
-	// A wrapped receive window must leave already-consumed bytes alone.
-	uint8_t ring[] = {248, 42, 248, 7, 8, 9, 252, 248};
-	assert(uartReplaceByteInRing(ring, 8, 6, 2, 248, 255));
-	assert(ring[7] == 255 && ring[0] == 255 && ring[2] == 248);
-	assert(ring[6] == 252 && ring[1] == 42);
-	assert(!uartReplaceByteInRing(ring, 8, 2, 2, 248, 255));
+	expectInput(252);
+	expectInput(42);
+	assert(pic_rx_queue.count == 0);
 }
 
-static void testDeferredInputBackpressure(void) {
-	// Keep the panel consumer deferred over far more handshakes than fit in
-	// the actual 64-byte PIC ring. Backpressure must retain the release pair.
+static void queueFrame(void) {
 	static uint8_t frame[768];
-	pic_rx[0] = 252;
-	pic_rx[1] = 42;
-	pic_read = 0;
-	pic_write = 2;
-	unsigned completed = 0;
+	oledFrameQueue[oledFrameQueueReadPos] = frame;
+	oledFrameQueueWritePos = (oledFrameQueueReadPos + 1) & (OLED_FRAME_QUEUE_SIZE - 1);
+	sendSPITransferFromQueue();
+}
+
+static void testRepeatedHandshakes(void) {
+	receivePIC(252);
+	receivePIC(42);
+	// More acknowledgements than the DMA ring can hold, with no panel reads.
 	for (unsigned attempt = 0; attempt < 200; ++attempt) {
-		oledPendingMessageToSend = OLED_MESSAGE_SELECT;
-		pic_message = 0;
+		queueFrame();
 		oledRoutine();
-		if (pic_message == 0) {
-			assert(uartGetRxBufferSpace(UART_ITEM_PIC) < 8);
-			continue;
-		}
 		assert(pic_message == OLED_MESSAGE_SELECT);
-		oledFrameQueue[oledFrameQueueReadPos] = frame;
-		oledFrameQueueWritePos = (oledFrameQueueReadPos + 1) & (OLED_FRAME_QUEUE_SIZE - 1);
-		pic_rx[pic_write++] = OLED_MESSAGE_SELECT;
-		oledRoutine();
-		timer += msToSlowTimerCount(3);
-		oledRoutine();
+		receivePIC(OLED_MESSAGE_SELECT);
+		settleOLED();
 		oledTransferComplete(0);
 		oledRoutine();
 		assert(pic_message == OLED_MESSAGE_DESELECT);
-		pic_rx[pic_write++] = OLED_MESSAGE_DESELECT;
-		oledRoutine();
-		timer += msToSlowTimerCount(3);
-		oledRoutine();
-		++completed;
-		assert(pic_write < sizeof(pic_rx));
-		assert(pic_read == 0 && pic_rx[0] == 252 && pic_rx[1] == 42);
+		receivePIC(OLED_MESSAGE_DESELECT);
+		settleOLED();
+		assert(picReadPosition() == pic_write && pic_rx_queue.count == 2);
 	}
-	assert(completed > 0 && completed < 32);
-	// Receive backpressure must not make an unsent SELECT block CV output.
-	oledFrameQueue[oledFrameQueueReadPos] = frame;
-	oledFrameQueueWritePos = (oledFrameQueueReadPos + 1) & (OLED_FRAME_QUEUE_SIZE - 1);
-	spiBusCurrentlySending = true;
-	enqueueCVMessage(0, 0x319abc00);
-	oledRoutine();
-	assert(spi.SPDR.LONG == 0x319abc00);
-	assert(oledPendingMessageToSend == 0 && !oled_sending);
-	cvSPITransferComplete(0);
-	assert(oledPendingMessageToSend == OLED_MESSAGE_SELECT);
-	oledFrameQueueWritePos = oledFrameQueueReadPos;
+	expectInput(252);
+	expectInput(42);
 }
 
-static void testRetryBackpressure(void) {
-	// Retrying a lost ack also respects backpressure, but ack processing and
-	// settling continue even when no more requests can safely be sent.
-	oledPendingMessageToSend = 0;
-	oledWaitingForMessage = OLED_MESSAGE_SELECT;
-	pic_write = sizeof(pic_rx) - 7;
-	pic_message = 0;
-	timer += msToSlowTimerCount(50);
-	oledRoutine();
-	assert(pic_message == 0); // SELECT retries retain the DESELECT reserve too.
-	oledWaitingForMessage = OLED_MESSAGE_DESELECT;
-	pic_write = sizeof(pic_rx) - 2;
-	pic_message = 0;
-	timer += msToSlowTimerCount(50);
-	oledRoutine();
-	assert(pic_message == 0);
-	pic_rx[pic_write++] = OLED_MESSAGE_DESELECT;
-	oledRoutine();
-	timer += msToSlowTimerCount(3);
-	oledRoutine();
-	assert(oledWaitingForMessage == OLED_MESSAGE_NONE);
-	assert(pic_rx[0] == 252 && pic_rx[1] == 42);
-
-	// Once the input consumer catches up, OLED requests resume, including
-	// when the DMA producer has wrapped around the end of the ring.
-	pic_read = pic_write;
-	assert(uartRingSpace(64, 62, 1) == 60);
-	oledPendingMessageToSend = OLED_MESSAGE_SELECT;
-	// No acknowledgement is needed to verify that the pending request resumes.
+static void testCommittedHandshake(bool lose_ack) {
+	// The reported boundary: 55 deferred bytes leave eight free DMA slots;
+	// SELECT's ack plus six more input bytes would leave only one free slot.
+	for (unsigned index = 0; index < 55; ++index) {
+		receivePIC(index);
+	}
+	queueFrame();
 	oledRoutine();
 	assert(pic_message == OLED_MESSAGE_SELECT);
+	enqueueCVMessage(0, 0x319abc00);
+	receivePIC(OLED_MESSAGE_SELECT);
+	for (unsigned index = 55; index < 61; ++index) {
+		receivePIC(index);
+	}
+	settleOLED();
+	if (lose_ack) {
+		// More input arrives after SELECT, exhausting the admission reserve.
+		for (unsigned index = 0; index < 144; ++index) {
+			receivePIC(70);
+			oledRoutine();
+		}
+		assert(uartGetRxBufferSpace(UART_ITEM_PIC) == 0);
+	}
+	oledTransferComplete(0);
+	pic_message = 0;
+	oledRoutine();
+	assert(pic_message == OLED_MESSAGE_DESELECT);
+	if (lose_ack) {
+		pic_message = 0;
+		timer += msToSlowTimerCount(50);
+		oledRoutine();
+		assert(pic_message == OLED_MESSAGE_DESELECT);
+	}
+	receivePIC(OLED_MESSAGE_DESELECT);
+	settleOLED();
+	assert(spi.SPDR.LONG == 0x319abc00 && dac_selected);
+	cvSPITransferComplete(0);
+	assert(!spiBusCurrentlySending);
+	for (unsigned index = 0; index < 61; ++index) {
+		expectInput(index);
+	}
+	if (lose_ack) {
+		for (unsigned index = 0; index < 144; ++index) {
+			expectInput(70);
+		}
+	}
+	assert(pic_rx_queue.count == 0 && picReadPosition() == pic_write);
+}
+
+static void testStagingBackpressure(void) {
+	// Preserve a full DMA ring of staging headroom before committing SELECT.
+	for (unsigned batch = 0; batch < 4; ++batch) {
+		for (unsigned index = 0; index < 48; ++index) {
+			receivePIC(42);
+		}
+		oledRoutine();
+	}
+	queueFrame();
+	pic_message = 0;
+	oledRoutine();
+	assert(pic_message == 0 && oledPendingMessageToSend == OLED_MESSAGE_SELECT);
+	enqueueCVMessage(0, 0x31123400);
+	oledRoutine();
+	assert(spi.SPDR.LONG == 0x31123400 && dac_selected);
+	cvSPITransferComplete(0);
+	while (pic_rx_queue.count) {
+		expectInput(42);
+	}
+	oledRoutine();
+	assert(pic_message == OLED_MESSAGE_SELECT);
+	receivePIC(OLED_MESSAGE_SELECT);
+	settleOLED();
+	oledTransferComplete(0);
+	oledRoutine();
+	receivePIC(OLED_MESSAGE_DESELECT);
+	settleOLED();
+}
+
+static void testInputReplay(void) {
+	receivePIC(7);
+	expectInput(7); // Direct DMA read before any OLED service.
+	uartPutCharBack(UART_ITEM_PIC);
+	receivePIC(42);
+	receivePIC(OLED_MESSAGE_SELECT);
+	assert(uartReplacePendingByte(UART_ITEM_PIC, OLED_MESSAGE_SELECT, OLED_MESSAGE_ACK_CONSUMED));
+	expectInput(7);
+	uartPutCharBack(UART_ITEM_PIC); // Replay a staged event after UI deferral.
+	receivePIC(43);
+	oledRoutine();
+	expectInput(7);
+	expectInput(42);
+	expectInput(43);
+}
+
+static void testFullStaging(void) {
+	for (unsigned batch = 0; batch < 5; ++batch) {
+		for (unsigned index = 0; index < 51; ++index) {
+			receivePIC(42);
+		}
+		oledRoutine();
+	}
+	assert(pic_rx_queue.count == 255);
+	// Keep one reserved slot for insertion, including read/put-back replay.
+	uartInsertFakeChar(UART_ITEM_PIC, 99);
+	expectInput(99);
+	uartPutCharBack(UART_ITEM_PIC);
+	expectInput(99);
+	receivePIC(252);
+	receivePIC(43);
+	receivePIC(OLED_MESSAGE_DESELECT);
+	assert(uartReplacePendingByte(UART_ITEM_PIC, OLED_MESSAGE_DESELECT, OLED_MESSAGE_ACK_CONSUMED));
+	assert(pic_rx_queue.count == 255); // No overwrite when staging is full.
+	for (unsigned index = 0; index < 255; ++index) {
+		expectInput(42);
+	}
+	oledRoutine();
+	expectInput(252);
+	expectInput(43);
+	assert(picReadPosition() == pic_write && pic_rx_queue.count == 0);
 }
 
 int main(void) {
+	dma.CRDA_n = (uintptr_t)pic_rx;
 	testHandshakeTiming();
-	testDeferredInputBackpressure();
-	testRetryBackpressure();
+	testRepeatedHandshakes();
+	testCommittedHandshake(false);
+	testCommittedHandshake(true);
+	testStagingBackpressure();
+	testInputReplay();
+	testFullStaging();
 	puts("OLED handshake driver tests passed");
 }

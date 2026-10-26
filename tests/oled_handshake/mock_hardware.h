@@ -4,6 +4,7 @@
 #undef NDEBUG
 #endif
 #include "src/deluge/drivers/uart/rx_buffer.h"
+#include "src/deluge/drivers/uart/uart.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -12,7 +13,7 @@
 #include <string.h>
 // Match the production register macros, callbacks, and extern symbols exactly.
 // NOLINTBEGIN(readability-identifier-naming)
-// The production driver uses this value in #if, so it must remain a macro.
+// This must remain a macro: the included production driver tests it with #if.
 #define ALPHA_OR_BETA_VERSION 1 // NOLINT(cppcoreguidelines-macro-to-enum,modernize-macro-to-enum)
 
 enum {
@@ -46,6 +47,8 @@ struct {
 } spi;
 struct {
 	uint32_t N0TB_n, N0SA_n, CHCTRL_n;
+	uint32_t N1TB_n, CHCFG_n, N0DA_n, N1SA_n, N1DA_n, CHITVL_n, CHEXT_n;
+	uintptr_t CRDA_n;
 } dma;
 #define RSPI(channel) spi
 #define DMACn(channel) dma
@@ -63,11 +66,7 @@ static void EXIT_CRITICAL_SECTION(void) {
 	assert(critical_depth > 0);
 	--critical_depth;
 }
-static void setupAndEnableInterrupt(void (*handler)(uint32_t), int irq, int priority) {
-	(void)handler;
-	(void)irq;
-	(void)priority;
-}
+#define setupAndEnableInterrupt(handler, irq, priority) ((void)0)
 static void invalidate_range_all_caches(uint32_t start, uint32_t end) {
 	(void)start;
 	(void)end;
@@ -84,28 +83,78 @@ static void setOutputState(int port, int pin, bool value) {
 // These tests observe SPI/handshake behavior, not the gate callback signature.
 #define cvSent(...) ((void)0)
 static unsigned pic_message;
-#define bufferPICUart(message) (pic_message = (message))
+
+// Register and buffer storage for compiling the real UART driver on the host.
 enum {
-	OLED_MESSAGE_ACK_CONSUMED = 255,
+	UART_ITEM_MIDI = 1,
+	NUM_UART_ITEMS = 2,
+	NUM_TIMING_CAPTURE_ITEMS = 1,
+	CACHE_LINE_SIZE = 32,
+	UNCACHED_MIRROR_OFFSET = 0,
+	DMA_AM_FOR_SCIF = 0,
+	DMAC_CHCFG_0S_REN = 1,
+	DMAC_CHCFG_0S_RSW = 2,
+	DMAC_CHCFG_0S_DEM = 4,
+	DMAC_CHCTRL_0S_CLREND = 8,
+	DMAC_CHCTRL_0S_SWRST = 16,
+	DMA_INTERRUPT_0 = 0,
+	DMARS_FOR_SCIF0_TX = 0,
+	DMARS_FOR_SCIF0_RX = 0,
 };
-static uint8_t pic_rx[64];
-static unsigned pic_read, pic_write;
-static uint32_t uartGetRxBufferSpace(int item) {
-	(void)item;
-	return uartRingSpace(sizeof(pic_rx), pic_read, pic_write);
+#define DMACnNonVolatile(channel) dma
+static uint32_t dma_control;
+#define DCTRLn(channel) dma_control
+static struct {
+	struct {
+		uint8_t BYTE;
+	} FTDR;
+	uint16_t SCSCR;
+} scif;
+#define SCIFA(channel) scif
+static void setDMARS(int channel, uint32_t value) {
+	(void)channel;
+	(void)value;
 }
-static bool uartReplacePendingByte(int item, uint8_t value, uint8_t replacement) {
-	(void)item;
-	return uartReplaceByteInRing(pic_rx, sizeof(pic_rx), pic_read, pic_write, value, replacement);
+static void initDMAWithLinkDescriptor(int channel, const uint32_t* descriptor, uint32_t resource) {
+	(void)channel;
+	(void)descriptor;
+	(void)resource;
 }
+static void dmaChannelStart(int channel) {
+	(void)channel;
+}
+
+static char pic_buffer[1024], midi_buffer[1024];
+const uint16_t txBufferSizes[] = {1024, 1024};
+char* const txBuffers[] = {pic_buffer, midi_buffer};
+const uint8_t uartChannels[] = {0, 1};
+const uint8_t txDmaChannels[] = {0, 1};
+const uint8_t rxDmaChannels[] = {2, 3};
+static char pic_rx[64], midi_rx[64];
+static unsigned pic_write;
+const uint16_t rxBufferSizes[] = {64, 64};
+char* const rxBuffers[] = {pic_rx, midi_rx};
+char* rxBufferReadAddr[] = {pic_rx, midi_rx};
+const char timingCaptureItems[] = {UART_ITEM_MIDI};
+const uint16_t timingCaptureBufferSizes[] = {1};
+static uint32_t captured_time;
+uint32_t* const timingCaptureBuffers[] = {&captured_time};
+// Match the legacy UART declaration, including its qualified void return.
+const void (*txInterruptFunctions[])(uint32_t) = {0, 0}; // NOLINT(clang-diagnostic-ignored-qualifiers)
+const uint8_t txInterruptPriorities[] = {0, 0};
+const uint32_t* const uartRxLinkDescriptors[] = {0, 0};
+const uint8_t timingCaptureDMAChannels[] = {0};
+const uint32_t* const timingCaptureLinkDescriptors[] = {0};
+
+#define bufferPICUart(message) (pic_message = (message))
 void cvSPITransferComplete(uint32_t sense);
 void oledTransferComplete(uint32_t sense);
 
-// The independent PIC-backlog fix may also be present; this suite has no backlog.
-static int32_t uartGetTxBufferFullnessByItem(int item) {
-	(void)item;
-	return 0;
-}
+// Reserved marker used only by the acknowledgement scanner.
+enum {
+	OLED_MESSAGE_ACK_CONSUMED = 255,
+};
 
 // NOLINTEND(readability-identifier-naming)
+
 #endif // OLED_HANDSHAKE_TEST_MOCK_HARDWARE_H
