@@ -274,9 +274,15 @@ void renderUIsForOled() {
 
 uint32_t whichMainRowsNeedRendering = 0;
 uint32_t whichSideRowsNeedRendering = 0;
+static uint32_t whichMainRowsNeedRefinement = 0;
 
 void clearPendingUIRendering() {
 	whichMainRowsNeedRendering = whichSideRowsNeedRendering = 0;
+	whichMainRowsNeedRefinement = 0;
+}
+
+void retryMainPadRendering(uint32_t whichRows) {
+	whichMainRowsNeedRefinement |= whichRows;
 }
 
 void renderingNeededRegardlessOfUI(uint32_t whichMainRows, uint32_t whichSideRows) {
@@ -312,7 +318,7 @@ void uiNeedsRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 
 void doAnyPendingGridRendering() {
 
-	if (!whichMainRowsNeedRendering && !whichSideRowsNeedRendering) {
+	if (!whichMainRowsNeedRendering && !whichSideRowsNeedRendering && !whichMainRowsNeedRefinement) {
 		return;
 	}
 
@@ -323,11 +329,12 @@ void doAnyPendingGridRendering() {
 	// Make a local copy of our instructions
 	// A timeline scroll animates only the main pads; the stationary sidebar must
 	// still render clip-launch flashes. Leave main-pad redraws pending until it ends.
-	uint32_t mainRowsNow = horizontalScroll ? 0 : whichMainRowsNeedRendering;
+	uint32_t mainRowsNow = horizontalScroll ? 0 : (whichMainRowsNeedRendering | whichMainRowsNeedRefinement);
 	uint32_t sideRowsNow = whichSideRowsNeedRendering;
 
 	// Clear only the requests being handled, so renders can enqueue more work.
 	whichMainRowsNeedRendering &= ~mainRowsNow;
+	whichMainRowsNeedRefinement &= ~mainRowsNow;
 	whichSideRowsNeedRendering = 0;
 
 	for (int32_t u = numUIsOpen - 1; u >= 0; u--) {
@@ -341,6 +348,7 @@ void doAnyPendingGridRendering() {
 		if (mainRowsNow) {
 			bool usedUp = thisUI->renderMainPads(mainRowsNow, PadLEDs::image, PadLEDs::occupancyMask);
 			if (usedUp) {
+				// Refinement requests leave a usable frame. Ordinary redraw requests still invalidate it.
 				if (!whichMainRowsNeedRendering) {
 					PadLEDs::sendOutMainPadColours();
 				}
