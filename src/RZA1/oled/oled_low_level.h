@@ -20,6 +20,9 @@
 
 #include "RZA1/system/r_typedefs.h"
 
+// Pad producers must let the PIC UART drain until SELECT has been queued.
+bool oledIsWaitingForPicTxDrain();
+
 void oledSelectingComplete();
 void oledTransferComplete(uint32_t int_sense);
 void oledDeselectionComplete();

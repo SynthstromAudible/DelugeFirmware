@@ -16,6 +16,7 @@
  */
 
 #include "drivers/uart/uart.h"
+#include "RZA1/oled/oled_low_level.h"
 #include "RZA1/system/iodefines/dmac_iodefine.h"
 #include "definitions.h"
 #include "drivers/dmac/dmac.h"
@@ -193,6 +194,14 @@ int32_t uartGetTxBufferFullnessByItem(int32_t item) {
 }
 
 int32_t uartGetTxBufferSpace(int32_t item) {
+	// Pad producers already defer and retry when there is no space. Reserve a
+	// drain opportunity for OLED SELECT, including while CV preempts it. This
+	// does not stop DMA or the direct writes used by SELECT/DESELECT themselves.
+	if (item == UART_ITEM_PIC) {
+		if (oledIsWaitingForPicTxDrain()) {
+			return 0;
+		}
+	}
 	return txBufferSizes[item] - uartGetTxBufferFullnessByItem(item);
 }
 
