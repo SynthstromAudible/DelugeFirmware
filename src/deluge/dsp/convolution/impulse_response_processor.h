@@ -20,14 +20,11 @@
 #include "dsp/stereo_sample.h"
 #include "util/fixedpoint.h"
 #include <algorithm>
+#include <argon.hpp>
 #include <array>
 #include <cstdint>
 #include <span>
 #include <utility>
-
-#if defined(__arm__)
-#include <argon.hpp>
-#endif
 
 class [[gnu::hot]] ImpulseResponseProcessor {
 	constexpr static size_t IR_SIZE = 26;
@@ -68,14 +65,8 @@ private:
 
 	/// x points at the first new input, with HISTORY_SIZE older inputs before it
 	static void convolve(const StereoSample* x, std::span<StereoSample> output) {
-#if defined(__arm__)
 		convolveScalar(x, output, convolveNeon(x, output));
-#else
-		convolveScalar(x, output);
-#endif
 	}
-
-#if defined(__arm__)
 	// Every coefficient is even, so vqrdmulh by half of one - round(2 * x * (h / 2) / 2^32) - is exactly smmulr by
 	// it: round(x * h / 2^32). It can't saturate, as no half coefficient is INT32_MIN
 	constexpr static size_t NUM_COEFFICIENT_VECTORS = (IR_SIZE + 3) / 4;
@@ -123,7 +114,6 @@ private:
 		}
 		return n;
 	}
-#endif
 
 	/// One output at a time, from output n on: the leftovers after convolveNeon, or everything off ARM
 	static void convolveScalar(const StereoSample* x, std::span<StereoSample> output, size_t n = 0) {
