@@ -329,9 +329,7 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 
 	if (analog) {
 
-		for (StereoSample& sample : working_buffer) {
-			ir_processor.process(sample, sample);
-		}
+		ir_processor.process(working_buffer);
 
 		for (StereoSample& sample : working_buffer) {
 			// impulseResponseProcessor.process(sample, sample);
