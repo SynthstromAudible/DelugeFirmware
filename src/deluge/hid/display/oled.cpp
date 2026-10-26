@@ -370,8 +370,22 @@ void copyBackgroundAroundForeground(ImageStore backgroundImage, ImageStore foreg
 	}
 }
 
+// DMA must read an immutable frame. Keep the last submitted pixels for both
+// transfer ownership and duplicate detection (including popup/console composition).
+[[gnu::aligned(CACHE_LINE_SIZE)]] static ImageStore lastSentImage;
+static bool lastSentImageValid = false;
+
 void OLED::sendMainImage() {
 	if (!needsSending) {
+		return;
+	}
+
+	// Leave needsSending set while the shared bus is occupied. The normal UI
+	// loop retries, coalescing intervening edits into the latest frame. Do this
+	// before consuming the screensaver dirty flag or overwriting the DMA buffer.
+	// OLED emulation on physical 7SEG hardware must still compose and mirror
+	// frames: that hardware cannot acknowledge an OLED transfer.
+	if (have_oled_screen && (spiBusCurrentlySending || oledFrameQueueWritePos != oledFrameQueueReadPos)) {
 		return;
 	}
 
@@ -418,7 +432,12 @@ void OLED::sendMainImage() {
 	uartPrint("oled render time: ");
 	uartPrintNumber((uint16_t)(renderStopTime - renderStartTime));
 #endif
-	enqueueOLEDFrame(oledCurrentImage[0]);
+	if (have_oled_screen
+	    && (!lastSentImageValid || memcmp(lastSentImage, oledCurrentImage, sizeof(lastSentImage)) != 0)) {
+		memcpy(lastSentImage, oledCurrentImage, sizeof(lastSentImage));
+		lastSentImageValid = true;
+		enqueueOLEDFrame(lastSentImage[0]);
+	}
 	HIDSysex::sendDisplayIfChanged();
 	needsSending = false;
 }
@@ -1042,6 +1061,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 	}
 
 	bool doScroll = !playbackHandler.isEitherClockActive(); // only scroll when playback is off
+	bool rendered = false;
 	bool finished = true;
 
 	for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
@@ -1074,6 +1094,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 			}
 
 			if (doRender) {
+				rendered = true;
 				int32_t endX = scroller->endX;
 				bool doInversion = FlashStorage::accessibilityMenuHighlighting != MenuHighlighting::NO_INVERSION;
 				if (!doInversion) {
@@ -1093,11 +1114,13 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 		}
 	}
 
-	markChanged();
-	// Workaround for glitches during scrolling. Not entirely obvious _why_
-	// it glitches, though. Some sort of timing issue between doAnyPendingUIRendering,
-	// uiTimerManager.routine() ?
-	sendMainImage();
+	if (rendered) {
+		markChanged();
+		// Workaround for glitches during scrolling. Not entirely obvious _why_
+		// it glitches, though. Some sort of timing issue between doAnyPendingUIRendering,
+		// uiTimerManager.routine() ?
+		sendMainImage();
+	}
 
 	int32_t timeInterval;
 	if (!finished) {
