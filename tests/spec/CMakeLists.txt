@@ -4,21 +4,6 @@ FetchContent_Declare(CppSpec
 )
 FetchContent_MakeAvailable(CppSpec)
 
-# The DSP headers are written against Argon. Keep this tag in sync with lib/CMakeLists.txt.
-FetchContent_Declare(argon
-  GIT_REPOSITORY https://github.com/stellar-aria/argon
-  GIT_TAG 4b8efc4f4f21595d454e415fb619dd91223c0400
-)
-FetchContent_MakeAvailable(argon)
-
-# Argon falls back to SIMDe's <arm/neon.h> shim when the host isn't ARM, which is
-# what lets the reverb DSP be specced on a normal x86 dev machine.
-FetchContent_Declare(simde
-  GIT_REPOSITORY https://github.com/simd-everywhere/simde
-  GIT_TAG v0.8.2
-)
-FetchContent_MakeAvailable(simde)
-
 add_subdirectory(../../src/lib printf)
 
 add_library(deluge_spec STATIC
