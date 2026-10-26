@@ -71,6 +71,19 @@ public:
 
 	[[nodiscard]] virtual bool shouldObeyMarkers() const { return false; }
 
+	/// Start fetching the next numBytes of sample data from the play position, so the SDRAM misses overlap with
+	/// whatever runs before the read rather than stalling it
+	[[gnu::always_inline]] void prefetchPlayData(int32_t numBytes, int32_t playDirection) const {
+		if (clusters[0] == nullptr) {
+			return;
+		}
+		char const* pos = currentPlayPos;
+		for (int32_t done = 0; done < numBytes; done += 32) {
+			__builtin_prefetch(pos);
+			pos += 32 * playDirection;
+		}
+	}
+
 	void readSamplesNative(int32_t** __restrict__ oscBufferPos, int32_t numSamplesTotal, Sample* sample,
 	                       int32_t jumpAmount, int32_t numChannels, int32_t numChannelsAfterCondensing,
 	                       int32_t* amplitude, int32_t amplitudeIncrement, TimeStretcher* timeStretcher = nullptr,
