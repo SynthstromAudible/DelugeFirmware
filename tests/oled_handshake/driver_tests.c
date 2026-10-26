@@ -2,7 +2,7 @@
 // Include the production implementation to exercise internal state with mock registers.
 #include "src/RZA1/oled/oled_low_level.c" // NOLINT(bugprone-suspicious-include)
 
-int main(void) {
+static void testHandshakeTiming(void) {
 	// A committed OLED transaction holds CV until deselection completes.
 	enqueueCVMessage(0, 0x31123400);
 	cvSPITransferComplete(0);
@@ -58,5 +58,93 @@ int main(void) {
 	assert(ring[7] == 255 && ring[0] == 255 && ring[2] == 248);
 	assert(ring[6] == 252 && ring[1] == 42);
 	assert(!uartReplaceByteInRing(ring, 8, 2, 2, 248, 255));
+}
+
+static void testDeferredInputBackpressure(void) {
+	// Keep the panel consumer deferred over far more handshakes than fit in
+	// the actual 64-byte PIC ring. Backpressure must retain the release pair.
+	static uint8_t frame[768];
+	pic_rx[0] = 252;
+	pic_rx[1] = 42;
+	pic_read = 0;
+	pic_write = 2;
+	unsigned completed = 0;
+	for (unsigned attempt = 0; attempt < 200; ++attempt) {
+		oledPendingMessageToSend = OLED_MESSAGE_SELECT;
+		pic_message = 0;
+		oledRoutine();
+		if (pic_message == 0) {
+			assert(uartGetRxBufferSpace(UART_ITEM_PIC) < 8);
+			continue;
+		}
+		assert(pic_message == OLED_MESSAGE_SELECT);
+		oledFrameQueue[oledFrameQueueReadPos] = frame;
+		oledFrameQueueWritePos = (oledFrameQueueReadPos + 1) & (OLED_FRAME_QUEUE_SIZE - 1);
+		pic_rx[pic_write++] = OLED_MESSAGE_SELECT;
+		oledRoutine();
+		timer += msToSlowTimerCount(3);
+		oledRoutine();
+		oledTransferComplete(0);
+		oledRoutine();
+		assert(pic_message == OLED_MESSAGE_DESELECT);
+		pic_rx[pic_write++] = OLED_MESSAGE_DESELECT;
+		oledRoutine();
+		timer += msToSlowTimerCount(3);
+		oledRoutine();
+		++completed;
+		assert(pic_write < sizeof(pic_rx));
+		assert(pic_read == 0 && pic_rx[0] == 252 && pic_rx[1] == 42);
+	}
+	assert(completed > 0 && completed < 32);
+	// Receive backpressure must not make an unsent SELECT block CV output.
+	oledFrameQueue[oledFrameQueueReadPos] = frame;
+	oledFrameQueueWritePos = (oledFrameQueueReadPos + 1) & (OLED_FRAME_QUEUE_SIZE - 1);
+	spiBusCurrentlySending = true;
+	enqueueCVMessage(0, 0x319abc00);
+	oledRoutine();
+	assert(spi.SPDR.LONG == 0x319abc00);
+	assert(oledPendingMessageToSend == 0 && !oled_sending);
+	cvSPITransferComplete(0);
+	assert(oledPendingMessageToSend == OLED_MESSAGE_SELECT);
+	oledFrameQueueWritePos = oledFrameQueueReadPos;
+}
+
+static void testRetryBackpressure(void) {
+	// Retrying a lost ack also respects backpressure, but ack processing and
+	// settling continue even when no more requests can safely be sent.
+	oledPendingMessageToSend = 0;
+	oledWaitingForMessage = OLED_MESSAGE_SELECT;
+	pic_write = sizeof(pic_rx) - 7;
+	pic_message = 0;
+	timer += msToSlowTimerCount(50);
+	oledRoutine();
+	assert(pic_message == 0); // SELECT retries retain the DESELECT reserve too.
+	oledWaitingForMessage = OLED_MESSAGE_DESELECT;
+	pic_write = sizeof(pic_rx) - 2;
+	pic_message = 0;
+	timer += msToSlowTimerCount(50);
+	oledRoutine();
+	assert(pic_message == 0);
+	pic_rx[pic_write++] = OLED_MESSAGE_DESELECT;
+	oledRoutine();
+	timer += msToSlowTimerCount(3);
+	oledRoutine();
+	assert(oledWaitingForMessage == OLED_MESSAGE_NONE);
+	assert(pic_rx[0] == 252 && pic_rx[1] == 42);
+
+	// Once the input consumer catches up, OLED requests resume, including
+	// when the DMA producer has wrapped around the end of the ring.
+	pic_read = pic_write;
+	assert(uartRingSpace(64, 62, 1) == 60);
+	oledPendingMessageToSend = OLED_MESSAGE_SELECT;
+	// No acknowledgement is needed to verify that the pending request resumes.
+	oledRoutine();
+	assert(pic_message == OLED_MESSAGE_SELECT);
+}
+
+int main(void) {
+	testHandshakeTiming();
+	testDeferredInputBackpressure();
+	testRetryBackpressure();
 	puts("OLED handshake driver tests passed");
 }

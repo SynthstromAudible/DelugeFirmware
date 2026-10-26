@@ -227,6 +227,14 @@ void uartInsertFakeChar(int32_t item, char data) {
 	*(rxBufferReadAddr[item] + UNCACHED_MIRROR_OFFSET) = data;
 }
 
+uint32_t uartGetRxBufferSpace(int32_t item) {
+	uintptr_t base = (uintptr_t)rxBuffers[item];
+	uint32_t read_pos = (uintptr_t)rxBufferReadAddr[item] - base;
+	// NOLINTNEXTLINE(performance-no-int-to-ptr,readability-math-missing-parentheses)
+	uint32_t write_pos = DMACn(rxDmaChannels[item]).CRDA_n - base;
+	return uartRingSpace(rxBufferSizes[item], read_pos, write_pos);
+}
+
 bool uartReplacePendingByte(int32_t item, uint8_t value, uint8_t replacement) {
 	uintptr_t base = (uintptr_t)rxBuffers[item];
 	uint32_t read_pos = (uintptr_t)rxBufferReadAddr[item] - base;

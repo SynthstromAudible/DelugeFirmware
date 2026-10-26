@@ -88,8 +88,12 @@ static unsigned pic_message;
 enum {
 	OLED_MESSAGE_ACK_CONSUMED = 255,
 };
-static uint8_t pic_rx[8];
+static uint8_t pic_rx[64];
 static unsigned pic_read, pic_write;
+static uint32_t uartGetRxBufferSpace(int item) {
+	(void)item;
+	return uartRingSpace(sizeof(pic_rx), pic_read, pic_write);
+}
 static bool uartReplacePendingByte(int item, uint8_t value, uint8_t replacement) {
 	(void)item;
 	return uartReplaceByteInRing(pic_rx, sizeof(pic_rx), pic_read, pic_write, value, replacement);

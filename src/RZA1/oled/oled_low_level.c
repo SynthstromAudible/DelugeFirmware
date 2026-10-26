@@ -126,6 +126,24 @@ void oledRoutine()
 {
     serviceOledAcknowledgement();
 
+    // A deferred panel event pins the DMA consumer even after we mark an
+    // acknowledgement consumed. Stop adding handshake traffic before the
+    // ring wraps. SELECT reserves extra room for its eventual DESELECT.
+    uint32_t pending_space = oledPendingMessageToSend == OLED_MESSAGE_SELECT ? 8 : 2;
+    if (oledPendingMessageToSend && uartGetRxBufferSpace(UART_ITEM_PIC) < pending_space)
+    {
+        // An unsent SELECT does not own the physical bus. Keep CV moving
+        // while panel input is deferred; CV completion will retry the frame.
+        ENTER_CRITICAL_SECTION();
+        if (oledPendingMessageToSend == OLED_MESSAGE_SELECT && sendPriorityCVIfPending())
+        {
+            oledPendingMessageToSend = 0;
+            oled_sending             = false;
+        }
+        EXIT_CRITICAL_SECTION();
+        return;
+    }
+
     if (oledPendingMessageToSend)
     {
         // Keep SELECT cancellable while pad bytes drain. DESELECT must not be
@@ -147,8 +165,9 @@ void oledRoutine()
 
     else if (oledWaitingForMessage != OLED_MESSAGE_NONE)
     {
-        int16_t howLate = *TCNT[TIMER_SYSTEM_SLOW] - oledMessageTimeoutTime;
-        if (!oled_settling && howLate >= 0)
+        int16_t howLate         = *TCNT[TIMER_SYSTEM_SLOW] - oledMessageTimeoutTime;
+        uint32_t required_space = oledWaitingForMessage == OLED_MESSAGE_SELECT ? 8 : 2;
+        if (!oled_settling && howLate >= 0 && uartGetRxBufferSpace(UART_ITEM_PIC) >= required_space)
         {
             oledMessageTimeoutTime = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(50);
             last_message_sent      = oledWaitingForMessage;

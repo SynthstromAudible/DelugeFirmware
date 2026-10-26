@@ -4,6 +4,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+// Leave one slot empty so the DMA producer cannot catch the consumer and make
+// a full ring indistinguishable from an empty one.
+static inline uint32_t uartRingSpace(uint32_t size, uint32_t read_pos, uint32_t write_pos) {
+	return (read_pos - write_pos - 1) & (size - 1);
+}
+
 // Inspect a snapshot of the unread part of a power-of-two DMA ring without
 // advancing its consumer. Replacing all matches also consumes duplicate acks.
 // Call only from the same task context as the normal consumer, not an ISR.
