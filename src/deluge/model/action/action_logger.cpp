@@ -237,11 +237,26 @@ void ActionLogger::updateAction(Action* newAction) {
 	newAction->modeNotes[AFTER] = currentSong->key.modeNotes;
 }
 
+ActionType ActionLogger::getParameterChangeActionType() const {
+	// Live parameter edits belong to the recording transaction, even when the
+	// parameter itself has no automation. Otherwise these edits (e.g. MIDI
+	// expression) split RECORD actions, repeatedly snapshotting the same note
+	// and automation data until undo history consumes all available memory.
+	if (playbackHandler.recording == RecordingMode::NORMAL && playbackHandler.isEitherClockActive()) {
+		return ActionType::RECORD;
+	}
+	return ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE;
+}
+
 void ActionLogger::recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack, ActionType actionType) {
 
 	// If this is a param where you should not record automated param changes (e.g. tempo) then exit
 	if (!modelStack->paramCollection->shouldRecordUnautomatedParamChange(modelStack)) {
 		return;
+	}
+
+	if (actionType == ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE) {
+		actionType = getParameterChangeActionType();
 	}
 
 	Action* action = getNewAction(actionType, ActionAddition::ALLOWED);
@@ -299,13 +314,14 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 }
 
 /// Record Performance View Hold Press
-void ActionLogger::recordPerformanceViewPress(FXColumnPress fxPressBefore[kDisplayWidth],
-                                              FXColumnPress fxPressAfter[kDisplayWidth], int32_t xDisplay) {
+Action* ActionLogger::recordPerformanceViewPress(FXColumnPress fxPressBefore[kDisplayWidth],
+                                                 FXColumnPress fxPressAfter[kDisplayWidth], int32_t xDisplay) {
 
-	Action* action = getNewAction(ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE, ActionAddition::ALLOWED);
+	// The held-pad state must undo together with the parameter value changed by the pad.
+	Action* action = getNewAction(getParameterChangeActionType(), ActionAddition::ALLOWED);
 
 	if (!action) {
-		return;
+		return nullptr;
 	}
 
 	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequencePerformanceViewPress));
@@ -315,6 +331,7 @@ void ActionLogger::recordPerformanceViewPress(FXColumnPress fxPressBefore[kDispl
 		    new (consMemory) ConsequencePerformanceViewPress(fxPressBefore, fxPressAfter, xDisplay);
 		action->addConsequence(newConsequence);
 	}
+	return action;
 }
 
 // Returns whether anything was reverted.
