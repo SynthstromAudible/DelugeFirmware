@@ -2389,8 +2389,8 @@ void SessionView::displayPotentialTempoChange(UI* ui) {
 		return;
 	}
 
-	// Do not paint tempo over a visible countdown. A pending launch alone must
-	// not suppress tempo updates in Arranger View, where no countdown is shown.
+	// Do not paint tempo over a visible permanent popup. A pending launch alone
+	// should not suppress tempo updates when no popup is displayed.
 	// Also check the current UI in case the graphics routine runs while in a menu.
 	if (getCurrentUI() == ui && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
 		float tempo = playbackHandler.calculateBPMForDisplay();
