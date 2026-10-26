@@ -32,11 +32,11 @@
 
 // Keep the drain reservation through CV preemption: otherwise pad producers could
 // refill the UART each time CV temporarily cancels SELECT.
-static volatile bool oledWaitingForPicTxDrain = false;
+static volatile bool oled_waiting_for_pic_tx_drain = false;
 
 bool oledIsWaitingForPicTxDrain()
 {
-    return oledWaitingForPicTxDrain;
+    return oled_waiting_for_pic_tx_drain;
 }
 
 static bool cancelUnsentOledSelect();
@@ -105,7 +105,7 @@ sendMessageToPIC:
         last_message_sent      = oledWaitingForMessage;
         oledMessageTimeoutTime = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(50);
         bufferPICUart(oledWaitingForMessage);
-        oledWaitingForPicTxDrain = false;
+        oled_waiting_for_pic_tx_drain = false;
     }
 
     else if (oledWaitingForMessage != OLED_MESSAGE_NONE)
@@ -228,8 +228,8 @@ void initiateSelectingOled()
         FREEZE_WITH_ERROR("OLED message already pending");
     }
 #endif
-    oledPendingMessageToSend = OLED_MESSAGE_SELECT;
-    oledWaitingForPicTxDrain = true;
+    oledPendingMessageToSend      = OLED_MESSAGE_SELECT;
+    oled_waiting_for_pic_tx_drain = true;
 
     // Actual queue position gets moved along in oledSelectingComplete() when that gets called.
 }

@@ -197,8 +197,10 @@ int32_t uartGetTxBufferSpace(int32_t item) {
 	// Pad producers already defer and retry when there is no space. Reserve a
 	// drain opportunity for OLED SELECT, including while CV preempts it. This
 	// does not stop DMA or the direct writes used by SELECT/DESELECT themselves.
-	if (item == UART_ITEM_PIC && oledIsWaitingForPicTxDrain()) {
-		return 0;
+	if (item == UART_ITEM_PIC) {
+		if (oledIsWaitingForPicTxDrain()) {
+			return 0;
+		}
 	}
 	return txBufferSizes[item] - uartGetTxBufferFullnessByItem(item);
 }
