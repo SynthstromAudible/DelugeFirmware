@@ -26,7 +26,7 @@
 
 namespace deluge::gui::context_menu {
 
-ResetSettings resetSettings{};
+PLACE_SDRAM_BSS ResetSettings resetSettings{};
 
 char const* ResetSettings::getTitle() {
 	using enum l10n::String;
