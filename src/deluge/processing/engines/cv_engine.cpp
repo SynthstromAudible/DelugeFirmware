@@ -35,6 +35,7 @@ extern "C" {
 #include "RZA1/intc/devdrv_intc.h"
 #include "RZA1/oled/oled_low_level.h"
 #include "RZA1/rspi/rspi.h"
+#include "drivers/rspi/rspi.h"
 }
 
 CVEngine cvEngine{};
@@ -249,7 +250,8 @@ void CVEngine::sendVoltageOut(uint8_t channel, uint16_t voltage) {
 	}
 	else {
 		R_RSPI_SendBasic32(SPI_CHANNEL_CV, output);
-		cvOutPending &= ~(1u << channel);
+		R_RSPI_WaitEnd(SPI_CHANNEL_CV);
+		cvOutUpdated(channel, guard);
 	}
 }
 
@@ -414,7 +416,7 @@ void CVEngine::cvOutUpdated(uint8_t channel, const InterruptsDisabled& guard) {
 }
 
 extern "C" {
-// Called both from the CV SPI ISR and from the main loop
+// Called after the shared-bus DAC transaction has completed.
 void cvSent(uint8_t channel) {
 	if (intc_func_active != 0) {
 		ISRCriticalSectionGuard guard;

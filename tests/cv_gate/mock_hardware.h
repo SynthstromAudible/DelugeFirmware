@@ -65,6 +65,7 @@ static void setOutputState(int port, int pin, bool value) {
 }
 static unsigned notified[32], notificationCount;
 static void cvSent(uint8_t channel) {
+	assert(!dacSelected); // Pitch must be latched before a waiting gate can be released.
 	notified[notificationCount++] = channel;
 }
 static unsigned picMessage;

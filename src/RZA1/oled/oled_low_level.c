@@ -39,7 +39,8 @@ void setupSPIInterrupts()
 // an OLED transfer, and round-robin service prevents a busy channel starving the other.
 static volatile uint8_t cvPendingChannels = 0;
 static volatile uint32_t cvPendingData[NUM_PHYSICAL_CV_CHANNELS];
-static uint8_t cvNextChannel = 0;
+static uint8_t cvNextChannel    = 0;
+static uint8_t cvSendingChannel = 0;
 
 void sendCVWord(uint32_t message);
 bool sendPriorityCVIfPending();
@@ -185,8 +186,7 @@ void sendCVWord(uint32_t message)
 }
 
 // Drains the priority CV slot if one is waiting. Must only be called at an inter-transfer boundary
-// (nothing currently on the bus). Returns true if a CV word was sent. Sends the word then calls
-// cvSent() so any gate waiting on this CV is released on schedule.
+// (nothing currently on the bus). Gates are released by the completion ISR, after the DAC is deselected.
 bool sendPriorityCVIfPending()
 {
     if (!cvPendingChannels)
@@ -200,9 +200,9 @@ bool sendPriorityCVIfPending()
     }
     cvNextChannel = (channel + 1) % NUM_PHYSICAL_CV_CHANNELS;
     cvPendingChannels &= ~(1u << channel);
-    cv_sending = true;
+    cv_sending       = true;
+    cvSendingChannel = channel;
     sendCVWord(cvPendingData[channel]);
-    cvSent(channel);
     return true;
 }
 
@@ -274,8 +274,14 @@ void cvSPITransferComplete(uint32_t sense)
     RSPI(SPI_CHANNEL_OLED_MAIN).SPBFCR.BYTE |=
         1 << 6; // Reset RX buffer. Slightly weird that we have to do it here, after the transfer? Or not weird?
 
-    // Another CV word turned up while this one was sending? Send it before returning to OLED frames
-    //.
+    // A newer voltage for this channel supersedes the word that just finished.
+    // Keep its gate held until the latest word has actually reached the DAC.
+    if (!(cvPendingChannels & (1u << cvSendingChannel)))
+    {
+        cvSent(cvSendingChannel);
+    }
+
+    // Drain pending CV before returning to OLED frames.
     if (sendPriorityCVIfPending())
     {
         return;

@@ -24,11 +24,12 @@ int main(void) {
 	assert(notificationCount == 0);
 	oledDeselectionComplete();
 	assert(spi.SPDR.LONG == 0x31333300);
-	assert(notificationCount == 1 && notified[0] == 0);
+	assert(notificationCount == 0);
 	cvSPITransferComplete(0);
 	assert(spi.SPDR.LONG == 0x32222200);
-	assert(notificationCount == 2 && notified[1] == 1);
+	assert(notificationCount == 1 && notified[0] == 0);
 	cvSPITransferComplete(0);
+	assert(notificationCount == 2 && notified[1] == 1);
 	assert(!spiBusCurrentlySending);
 
 	// A new update on the channel in flight must not starve the other channel.
@@ -38,9 +39,12 @@ int main(void) {
 	enqueueCVMessage(1, 0x32333300);
 	cvSPITransferComplete(0);
 	assert(spi.SPDR.LONG == 0x32333300);
+	assert(notificationCount == 0); // CV1's first word is obsolete; do not release its gate.
 	cvSPITransferComplete(0);
 	assert(spi.SPDR.LONG == 0x31222200);
+	assert(notificationCount == 1 && notified[0] == 1);
 	cvSPITransferComplete(0);
+	assert(notificationCount == 2 && notified[1] == 0);
 	assert(!spiBusCurrentlySending && criticalDepth == 0);
 	puts("OLED/CV driver tests passed");
 }
