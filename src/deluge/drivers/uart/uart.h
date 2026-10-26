@@ -16,6 +16,7 @@
  */
 
 #pragma once
+#include <stdbool.h>
 #include <stdint.h>
 
 /*
@@ -47,6 +48,8 @@ extern struct UartItem uartItems[];
 
 extern void initUartDMA();
 uint8_t uartGetChar(int32_t item, char* readData);
+// Main-loop only. Preserve the normal consumer and all nonmatching input bytes.
+bool uartReplacePendingByte(int32_t item, uint8_t value, uint8_t replacement);
 uint32_t* uartGetCharWithTiming(int32_t timingCaptureItem, char* readData);
 void uartPutCharBack(int32_t item);
 void uartInsertFakeChar(int32_t item, char data);
