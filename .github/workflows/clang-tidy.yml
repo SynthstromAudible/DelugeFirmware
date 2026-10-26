@@ -26,6 +26,10 @@ jobs:
         run: |
           cd ${{ github.workspace }}
           ./dbt configure
+          # Supply native C commands for the handshake tests and their headers.
+          cmake -S tests/oled_handshake -B build/tidy-handshake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          jq -s 'add' build/compile_commands.json build/tidy-handshake/compile_commands.json > build/compile_commands.merged.json
+          mv build/compile_commands.merged.json build/compile_commands.json
           sed -i 's/-mthumb-interwork//g' build/compile_commands.json
           sed -i 's/-fdevirtualize-at-ltrans//g' build/compile_commands.json
           sed -i 's/-fuse-linker-plugin//g' build/compile_commands.json
