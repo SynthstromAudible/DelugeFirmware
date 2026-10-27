@@ -2,7 +2,7 @@
 title: "Built Together: Community and the Deluge Firmware"
 date: 2026-10-26
 authors:
-  - m-m-adams
+  - Mark Adams
 # Drafts show up in `pnpm dev` but are left out of production builds.
 # Remove this line when the post is ready to publish.
 draft: true
@@ -15,10 +15,9 @@ I want to talk about a couple things: how we’ve been using AI while working on
 
 ## We love contributions
 
-I've seen a handful of comments around that we're letting our ego's drive the deluge development and refusing to use AI
+I've seen a handful of comments around that we're letting our egos drive the deluge development and refusing to use AI
 or accept AI PRs. I want to reassure everyone that couldn't be further from the truth - we are all embracing AI as much as it can
-help the firmware.
-My day job is _in_ ai research. We're not luddites or trying to stick our head in the sand and pretend it'll go away.
+help the firmware. My day job is _in_ AI research. We're not luddites or trying to stick our head in the sand and pretend it'll go away (as much as I wish it could).
 
 Nor are we refusing PRs on principle - 80+ people have directly contributed to the deluge code. Many of them have used LLMs and have
 little to no development experience. Our guiding principle is that you should be able to articulate why a change is a good
@@ -69,16 +68,19 @@ code.
 
 #### AI is not human
 
-An assistant can tell me that a rewrite of the delay is bit-exact against the old one.
-It can’t tell me whether the delay feels right when you’re chasing a groove.
-It doesn’t know why you reach for that particular filter on that particular bassline.
+An LLM can tell me that a rewrite of the delay is bit-exact against the old one.
+
+It can’t tell me whether the delay feels right when you’re chasing a groove.\
+It doesn’t know why you reach for that particular filter on that particular bassline.\
 It doesn't know what you’d do if the instrument suddenly behaved differently.
-Those judgments belong to all of you who make music on the Deluge.
-You know which behaviors are quirks worth preserving and which are bugs.
-You know what a performance feels like when the timing slips by a hair.
+
+All of you who make music on the Deluge can.
+
+You know which behaviors are quirks worth preserving and which are bugs.\
+You know what a performance feels like when the timing slips by a hair.\
 The LLM does not.
 
-A language model has no stake in whether your set goes well.
+A language model has no stake in whether your set goes well
 
 I gig the deluge at least once a month and go to jams with it almost every week. I am very invested in keeping it rock solid so I'm never worried about it crashing.
 I've been gigging 1.3 for a year and I have never had it crash, but as we all know
@@ -96,14 +98,16 @@ Bug reports with steps to reproduce are one of the most valuable things anyone c
 
 ## How we work together
 
-If you’d like to be part of this, here’s how it works in practice.
+If you’d like to be part of this, here’s how you can help
 
-Try the builds. Nightly and release-candidate builds exist so that real use can find the problems before everyone gets them. [Link to downloads]
-Report what you find. Say what you did, what you expected, and what happened. If you can, include your firmware version and whether it repeats. [Link to issue tracker]
-Tell us what feels wrong, even if you can’t say why. “The filter feels different” is a perfectly good bug report. I’d rather investigate a feeling than miss a regression.
-Suggest and discuss. Ideas are welcome, and the best ones usually get better in the conversation. [Link to forum/Discord]
-Contribute code, docs, or testing, whichever you’re good at. AI-assisted or not, every change gets reviewed by humans, and that review is what keeps the codebase honest.
-On being open about AI
+Try the builds. Nightly, beta, and release-candidate builds exist so that real use can find the problems before everyone gets them.
+Report what you find. Say what you did, what you expected, and what happened. If you can, include your firmware version and whether it repeats.
+Tell us what feels wrong even if you can’t say why. “The filter feels different” is a perfectly good bug report. I’d rather investigate a feeling than miss a regression.
+Suggest and discuss. Ideas are welcome, and the best ones usually get better in conversation. The best way to reach us is [discord](https://discord.gg/s2MnkFqZgj)
+
+Contribute code, docs (video manual?), or testing, whichever you’re good at. AI-assisted or not every change gets reviewed by humans.
+
+#### On being open about AI
 
 We want PRs from humans, we just don't want to be spammed by people's AI agents.
 That's why the contributing policy asks you to write the descriptions yourself. It's our filter to ensure that a real
