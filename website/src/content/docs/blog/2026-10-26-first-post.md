@@ -5,7 +5,6 @@ authors:
   - Mark Adams
 # Drafts show up in `pnpm dev` but are left out of production builds.
 # Remove this line when the post is ready to publish.
-draft: true
 ---
 
 The Deluge is a strange and wonderful instrument. It’s a sequencer, a sampler, a synth, a groovebox, or a looper, or a drum machine, or a sequencer, or whatever you want it to be, and it fits in a bag.
