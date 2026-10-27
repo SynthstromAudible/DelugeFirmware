@@ -6,6 +6,11 @@ on:
     branches:
       - "main"
 jobs:
+  changes:
+    uses: ./.github/workflows/changes.yml
+    permissions:
+      pull-requests: read
+
   warm-apt-cache:
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
@@ -21,7 +26,9 @@ jobs:
   clang-tidy-review:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: startsWith(github.event_name, 'pull_request') # Posting a review only makes sense on PRs
+    needs: changes
+    # Posting a review only makes sense on PRs
+    if: startsWith(github.event_name, 'pull_request') && needs.changes.outputs.firmware == 'true'
     steps:
       # The merge ref has the apt-install action even when the PR head predates it.
       - name: Checkout CI actions
@@ -49,7 +56,7 @@ jobs:
 
       - name: Generate compilation database
         run: |
-          cd ${{ github.workspace }}
+          cd "$GITHUB_WORKSPACE" || exit 1
           ./dbt configure
           # Supply native C commands for the handshake tests and their headers.
           cmake -S tests/oled_handshake -B build/tidy-handshake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
@@ -67,14 +74,14 @@ jobs:
       - name: Extract system includes from GCC
         id: extract_system_includes
         run: |
-          ${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-g++ -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -E -x c++ - -v < /dev/null 2>&1           \
+          "$GITHUB_WORKSPACE"/toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-g++ -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -E -x c++ - -v < /dev/null 2>&1           \
             | sed -n '/^#include <...> search starts here:$/,/^End of search list.$/p' \
             | tail -n +2 \
             | head -n -1 \
             | sed 's/^\s*//g' \
             | sed 's/^\(.*\)$/--extra-arg-before=-isystem\1/g' \
             | tr '\n' ' ' > system_includes.txt
-          echo "system_includes=$(cat system_includes.txt)" >> $GITHUB_OUTPUT
+          echo "system_includes=$(cat system_includes.txt)" >> "$GITHUB_OUTPUT"
           echo "Extracted system includes:"
           cat system_includes.txt
 

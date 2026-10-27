@@ -22,11 +22,15 @@ runs:
       shell: bash
       env:
         PACKAGES: ${{ inputs.packages }}
+        CACHE_NAME: ${{ inputs.cache-name }}
       run: |
-        prefix="apt-${{ inputs.cache-name }}-${ImageOS}-"
+        # ImageOS is set by the runner, e.g. ubuntu24
+        prefix="apt-$CACHE_NAME-${ImageOS:?}-"
         hash=$(echo "$PACKAGES" | sha256sum | cut -c1-16)
-        echo "prefix=$prefix" >> $GITHUB_OUTPUT
-        echo "key=$prefix$hash-$(date +%Y-%m)" >> $GITHUB_OUTPUT
+        {
+          echo "prefix=$prefix"
+          echo "key=$prefix$hash-$(date +%Y-%m)"
+        } >> "$GITHUB_OUTPUT"
 
     - name: Cache apt packages
       uses: actions/cache@v6
@@ -44,10 +48,11 @@ runs:
         sudo dpkg-reconfigure man-db
         mkdir -p ~/apt-cache
         sudo cp ~/apt-cache/*.deb /var/cache/apt/archives/ 2>/dev/null || true
+        read -ra package_list <<< "$PACKAGES"
         sudo apt-get update
         sudo apt-get install -y \
           -o APT::Keep-Downloaded-Packages=true \
           -o Acquire::Retries=3 \
           -o Acquire::http::Timeout=30 \
-          $PACKAGES
+          "${package_list[@]}"
         cp /var/cache/apt/archives/*.deb ~/apt-cache/

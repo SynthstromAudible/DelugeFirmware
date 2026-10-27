@@ -76,12 +76,23 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Download PR build
+        id: new
         env:
           RUN_ID: ${{ steps.pr.outputs.run_id }}
-        run: gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" -n "$ARTIFACT" -D new
+        run: |
+          # Website-only PRs skip the build
+          if ! gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts?per_page=100" \
+              --jq '.artifacts[].name' | grep -qx "$ARTIFACT"; then
+            echo "No firmware build in run $RUN_ID, nothing to compare"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" -n "$ARTIFACT" -D new
+          echo "found=true" >> "$GITHUB_OUTPUT"
 
       - name: Download baseline build
         id: baseline
+        if: steps.new.outputs.found == 'true'
         env:
           BASE_REF: ${{ steps.pr.outputs.base_ref }}
         run: |
