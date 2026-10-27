@@ -268,7 +268,7 @@ dependencies = [
 [[package]]
 name = "deluge-bsp"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=e95f5eda1d01cf5581fa2c662914b1b9d6f224c4#e95f5eda1d01cf5581fa2c662914b1b9d6f224c4"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=730e6383e6bd7c1e2fe982b766828d0f912b9437#730e6383e6bd7c1e2fe982b766828d0f912b9437"
 dependencies = [
  "cortex-ar",
  "critical-section",
@@ -760,7 +760,7 @@ dependencies = [
 [[package]]
 name = "max5136"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=e95f5eda1d01cf5581fa2c662914b1b9d6f224c4#e95f5eda1d01cf5581fa2c662914b1b9d6f224c4"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=730e6383e6bd7c1e2fe982b766828d0f912b9437#730e6383e6bd7c1e2fe982b766828d0f912b9437"
 dependencies = [
  "embedded-hal 1.0.0",
 ]
@@ -943,7 +943,7 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 [[package]]
 name = "rza1-alloc"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=e95f5eda1d01cf5581fa2c662914b1b9d6f224c4#e95f5eda1d01cf5581fa2c662914b1b9d6f224c4"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=730e6383e6bd7c1e2fe982b766828d0f912b9437#730e6383e6bd7c1e2fe982b766828d0f912b9437"
 dependencies = [
  "critical-section",
  "rlsf",
@@ -952,17 +952,17 @@ dependencies = [
 [[package]]
 name = "rza1-pac"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=e95f5eda1d01cf5581fa2c662914b1b9d6f224c4#e95f5eda1d01cf5581fa2c662914b1b9d6f224c4"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=730e6383e6bd7c1e2fe982b766828d0f912b9437#730e6383e6bd7c1e2fe982b766828d0f912b9437"
 
 [[package]]
 name = "rza1-rt"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=e95f5eda1d01cf5581fa2c662914b1b9d6f224c4#e95f5eda1d01cf5581fa2c662914b1b9d6f224c4"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=730e6383e6bd7c1e2fe982b766828d0f912b9437#730e6383e6bd7c1e2fe982b766828d0f912b9437"
 
 [[package]]
 name = "rza1l-hal"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=e95f5eda1d01cf5581fa2c662914b1b9d6f224c4#e95f5eda1d01cf5581fa2c662914b1b9d6f224c4"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=730e6383e6bd7c1e2fe982b766828d0f912b9437#730e6383e6bd7c1e2fe982b766828d0f912b9437"
 dependencies = [
  "cortex-ar",
  "critical-section",
@@ -1185,7 +1185,7 @@ checksum = "d245f478577f809a851594d02313b640fb437e0bb33866753cff937863096954"
 [[package]]
 name = "usb-classes"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=e95f5eda1d01cf5581fa2c662914b1b9d6f224c4#e95f5eda1d01cf5581fa2c662914b1b9d6f224c4"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=730e6383e6bd7c1e2fe982b766828d0f912b9437#730e6383e6bd7c1e2fe982b766828d0f912b9437"
 dependencies = [
  "critical-section",
  "embassy-futures",
