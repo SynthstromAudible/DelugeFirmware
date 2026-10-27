@@ -707,13 +707,18 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 /// if you haven't labeled anything and you hide unlabeled CC's, then this function will restrict you to select "NONE"
 /// or the "EXPRESSION" CC's.
 int32_t MIDIInstrument::getNextSelectableCC(int32_t cc, int32_t offset, bool includeNoCC) {
+	if (offset == 0) {
+		return cc;
+	}
+
 	int32_t newCC = cc;
 	int32_t direction = (offset < 0) ? -1 : 1;
 	int32_t steps = (offset < 0) ? -offset : offset;
 	int32_t numSelectableCCs = includeNoCC ? kNumCCNumbersIncludingFake : kNumCCExpression;
 
-	// loop until we have found a CC
-	while (true) {
+	// Cap search to one full pass of the CC domain so a zero-progress or
+	// always-hidden stop sentinel cannot spin forever.
+	for (int32_t attempts = 0; attempts < numSelectableCCs; attempts++) {
 		// get the next CC in the direction specified by the offset
 		for (int32_t i = 0; i < steps; i++) {
 			newCC += direction;
@@ -726,6 +731,12 @@ int32_t MIDIInstrument::getNextSelectableCC(int32_t cc, int32_t offset, bool inc
 			if (newCC == CC_EXTERNAL_MOD_WHEEL) {
 				// Mod wheel is represented by CC_NUMBER_Y_AXIS internally.
 				newCC += direction;
+				if (newCC < 0) {
+					newCC += numSelectableCCs;
+				}
+				else if (newCC >= numSelectableCCs) {
+					newCC -= numSelectableCCs;
+				}
 			}
 		}
 		// do we want to hide CC's without labels?
@@ -733,25 +744,24 @@ int32_t MIDIInstrument::getNextSelectableCC(int32_t cc, int32_t offset, bool inc
 			// these CC's do not have a label, so they are always selectable
 			if (newCC == CC_NUMBER_NONE || newCC == CC_NUMBER_Y_AXIS || newCC == CC_NUMBER_PITCH_BEND
 			    || newCC == CC_NUMBER_AFTERTOUCH) {
-				break;
+				return newCC;
 			}
 			// if this cc doesn't have a label, continue searching in the same direction
 			else if (getNameFromCC(newCC).empty()) {
-				// If the new CC is unlabeled, continue searching in the same direction
 				continue;
 			}
 			// If the new CC is labeled, then it is selectable
 			else {
-				break;
+				return newCC;
 			}
 		}
 		// if we don't want to hide unlabeled CC's, then the new CC is selectable
 		else {
-			break;
+			return newCC;
 		}
 	}
 
-	return newCC;
+	return cc;
 }
 
 int32_t MIDIInstrument::changeControlNumberForModKnob(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode) {
@@ -768,9 +778,17 @@ int32_t MIDIInstrument::changeControlNumberForModKnob(int32_t offset, int32_t wh
 int32_t MIDIInstrument::getFirstUnusedCC(ModelStackWithThreeMainThings* modelStack, int32_t direction, int32_t startAt,
                                          int32_t stopAt) {
 
+	if (direction == 0) {
+		ModelStackWithAutoParam* modelStackWithAutoParam = getParamToControlFromInputMIDIChannel(startAt, modelStack);
+		if (!modelStackWithAutoParam->autoParam || !modelStackWithAutoParam->autoParam->isAutomated()) {
+			return startAt;
+		}
+		return -1;
+	}
+
 	int32_t proposedCC = startAt;
 
-	while (true) {
+	for (int32_t attempts = 0; attempts < kNumCCNumbersIncludingFake; attempts++) {
 		ModelStackWithAutoParam* modelStackWithAutoParam =
 		    getParamToControlFromInputMIDIChannel(proposedCC, modelStack);
 		if (!modelStackWithAutoParam->autoParam || !modelStackWithAutoParam->autoParam->isAutomated()) {
@@ -784,7 +802,7 @@ int32_t MIDIInstrument::getFirstUnusedCC(ModelStackWithThreeMainThings* modelSta
 		}
 	}
 
-	// It does always return something, above
+	return -1;
 }
 
 Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
