@@ -50,8 +50,8 @@ and it needs to be told what to do, but it can _write code_ as well as any of us
   something we wanted for a long time. Opus has made that possible without needing to find a real expert. Giving it my debug deluge and having it spend nights getting the emulator to match it as closely
   as possible has been invaluable.
 - Profiling and performance work. Much of the recent speed-up work would have been extremely tedious. Optimizing code for cache usage
-is a painful process of trial and error and benchmarking. The LLM can do that for 12 hours straight until it hits something good, 
-I get bored way before that. 
+  is a painful process of trial and error and benchmarking. The LLM can do that for 12 hours straight until it hits something good,
+  I get bored way before that.
 - Trying different implementations. Getting USB audio to work without a performance penalty was a journey. The LLM was
   willing to rewrite it a dozen different ways with different tradeoffs until I got something worthwhile. If I was a
   project manager getting a human engineer to do that I'd have been shot.
@@ -66,7 +66,7 @@ code.
 
 #### AI is not human
 
-A language model has no stake in whether your set goes well. It doesn't know the consequences of an update changing 
+A language model has no stake in whether your set goes well. It doesn't know the consequences of an update changing
 your sounds right before a gig. It doesn't know how bad it feels to have a 15 minute set and spend the first 5 troubleshooting.
 
 I gig the deluge at least once a month and go to jams with it almost every week. I am very invested in keeping it rock solid so I'm never worried about it crashing.
@@ -93,8 +93,8 @@ Something not happening the way you'd expect can be a bug! We want things to be 
 Even if you can't say why something feels wrong let us know, “The filter feels different” is a perfectly good bug report.
 Suggestions and ideas are welcome - the best way to reach us is the dev channels on [discord](https://discord.gg/s2MnkFqZgj)
 
-We need more help than just code! Helping with documentation is wonderful, the web manual is an evolving work and 
-it'd be great to get videos and demos to go along with it. 
+We need more help than just code! Helping with documentation is wonderful, the web manual is an evolving work and
+it'd be great to get videos and demos to go along with it.
 
 #### On being open about AI
 
@@ -112,7 +112,7 @@ feel right on the deluge. This is really a "we" - it's the feedback from the arm
 users that let us get things right.
 
 If you have concerns or opinions about AI in this project please share those too. I miss the pre AI days as much as I'm
-sure many of you do. 
+sure many of you do.
 
 ### The best firmware is a shared project
 
