@@ -34,6 +34,7 @@
 
 #include "RZA1/compiler/asm/inc/asm.h"
 #include "RZA1/rspi/rspi.h"
+#include "RZA1/sdhi/inc/sd_async.h"
 #include "RZA1/sdhi/inc/sdif.h"
 #include "RZA1/system/rza_io_regrw.h"
 #include "deluge/deluge.h"
@@ -66,6 +67,47 @@ uint16_t ioRegGet2(volatile uint16_t* reg, uint8_t p, uint8_t q)
 }
 
 DRESULT disk_read_without_streaming_first(BYTE pdrv, BYTE* buff, LBA_t sector, UINT count);
+static DRESULT readSectors(BYTE* buff, LBA_t sector, UINT count, bool letClustersLoadFirst);
+
+static bool asyncReadsIdle(void)
+{
+    sd_async_check_timeout(); // So a card that's stopped answering can't keep us waiting forever
+    return !sd_async_busy();
+}
+
+/// Takes the card back from the interrupt-driven Cluster reads (see sd_async.h), so we can use it ourselves. Must be
+/// paired with releaseCardFromAsyncReads().
+/// If letClustersLoadFirst, they get to read everything that's queued before we do - otherwise they just finish the
+/// one they're on.
+static void takeCardFromAsyncReads(bool letClustersLoadFirst)
+{
+    if (!letClustersLoadFirst)
+        sd_async_pause();
+
+    if (sd_async_busy())
+    {
+#ifdef USE_TASK_MANAGER
+        yieldingRoutineWithTimeoutForSD(asyncReadsIdle, 3.0);
+#endif
+        // If that couldn't wait, e.g. because we're in an interrupt
+        while (!asyncReadsIdle())
+        {
+#ifndef USE_TASK_MANAGER
+            routineForSD();
+#endif
+        }
+    }
+
+    if (letClustersLoadFirst)
+        sd_async_pause();
+
+    sd_async_recover(); // In case the last one failed
+}
+
+static void releaseCardFromAsyncReads(void)
+{
+    sd_async_resume();
+}
 
 extern int pendingGlobalMIDICommandNumClustersWritten;
 extern int currentlySearchingForCluster;
@@ -80,7 +122,7 @@ DRESULT disk_read(BYTE pdrv, /* Physical drive nmuber (0) */
 
     loadAnyEnqueuedClustersRoutine(); // Always ensure SD streaming is fulfilled before anything else
 
-    DRESULT result = disk_read_without_streaming_first(pdrv, buff, sector, count);
+    DRESULT result = readSectors(buff, sector, count, true);
 
     if (currentlySearchingForCluster)
         pendingGlobalMIDICommandNumClustersWritten++;
@@ -139,7 +181,9 @@ DSTATUS disk_initialize(BYTE pdrv /* Physical drive nmuber to identify the drive
 
     // Try initializing, configuring and mounting card; return on error
     currentlyAccessingCard = 1;
-    int error              = sd_init(SD_PORT, SDCFG_IP1_BASE, &initializationWorkArea[0], SD_CD_SOCKET);
+    takeCardFromAsyncReads(false);
+    int error = sd_init(SD_PORT, SDCFG_IP1_BASE, &initializationWorkArea[0], SD_CD_SOCKET);
+    releaseCardFromAsyncReads();
     currentlyAccessingCard = 0;
     if (error)
     {
@@ -161,7 +205,9 @@ processError:
         goto processError;
 
     currentlyAccessingCard = 1;
-    error                  = sd_mount(SD_PORT, SDCFG_DRIVER_MODE, SD_VOLT_3_3);
+    takeCardFromAsyncReads(false);
+    error = sd_mount(SD_PORT, SDCFG_DRIVER_MODE, SD_VOLT_3_3);
+    releaseCardFromAsyncReads();
     currentlyAccessingCard = 0;
     if (error)
         goto processError;
@@ -188,26 +234,31 @@ DRESULT disk_read_without_streaming_first(BYTE pdrv, /* Physical drive nmuber to
     UINT count                                       /* Number of sectors to read */
 )
 {
-
     logAudioAction("disk_read_without_streaming_first");
 
+    return readSectors(buff, sector, count, false);
+}
+
+static DRESULT readSectors(BYTE* buff, LBA_t sector, UINT count, bool letClustersLoadFirst)
+{
     BYTE err;
 
     if (currentlyAccessingCard)
     {
-        if (ALPHA_OR_BETA_VERSION)
-        {
-            // Operatricks got! But I think I fixed.
-            FREEZE_WITH_ERROR("E259");
-        }
+        // Operatricks got! But I think I fixed.
+        FREEZE_WITH_ERROR("E259");
+        // A nested transfer would clobber the one in progress - fail this read instead
+        return RES_ERROR;
     }
 
     // uint16_t startTime = MTU2.TCNT_0;
 
     currentlyAccessingCard = 1;
+    takeCardFromAsyncReads(letClustersLoadFirst);
 
     err = sd_read_sect(SD_PORT, buff, sector, count);
 
+    releaseCardFromAsyncReads();
     currentlyAccessingCard = 0;
 
     /*
@@ -245,16 +296,17 @@ DRESULT disk_write(BYTE pdrv, /* Physical drive nmuber to identify the drive */
 
     if (currentlyAccessingCard)
     {
-        if (ALPHA_OR_BETA_VERSION)
-        {
-            FREEZE_WITH_ERROR("E258");
-        }
+        FREEZE_WITH_ERROR("E258");
+        // A nested transfer would clobber the one in progress - fail this write instead
+        return RES_ERROR;
     }
 
     currentlyAccessingCard = 1;
+    takeCardFromAsyncReads(true);
 
     err = sd_write_sect(SD_PORT, buff, sector, count, 0x0001u);
 
+    releaseCardFromAsyncReads();
     currentlyAccessingCard = 0;
 
     if (err == 0)

@@ -145,11 +145,9 @@ public:
 	inline bool timelineCounterIsSet() const { return timelineCounter; }
 
 	inline TimelineCounter* getTimelineCounter() const {
-#if ALPHA_OR_BETA_VERSION
 		if (!timelineCounter) {
 			FREEZE_WITH_ERROR("E369");
 		}
-#endif
 		return timelineCounter;
 	}
 
@@ -194,11 +192,9 @@ public:
 	}
 
 	inline NoteRow* getNoteRow() const {
-#if ALPHA_OR_BETA_VERSION
 		if (!noteRow) {
 			FREEZE_WITH_ERROR("E379");
 		}
-#endif
 		return noteRow;
 	}
 
@@ -244,7 +240,6 @@ public:
 	ModelStackWithAutoParam* getPatchCableAutoParamFromId(int32_t newParamId);
 
 	inline ModelStackWithSoundFlags* addSoundFlags() const;
-	inline ModelStackWithSoundFlags* addDummySoundFlags() const;
 	ModelStackWithAutoParam* getExpressionAutoParamFromID(int32_t newParamId);
 };
 
@@ -464,16 +459,6 @@ inline ModelStackWithSoundFlags* ModelStackWithThreeMainThings::addSoundFlags() 
 	for (int32_t i = 0; i < NUM_SOUND_FLAGS; i++) {
 		toReturn->soundFlags[i] = FLAG_TBD;
 	}
-	return toReturn;
-}
-
-inline ModelStackWithSoundFlags* ModelStackWithThreeMainThings::addDummySoundFlags() const {
-	ModelStackWithSoundFlags* toReturn = (ModelStackWithSoundFlags*)this;
-#if ALPHA_OR_BETA_VERSION
-	for (int32_t i = i; i < NUM_SOUND_FLAGS; i++) {
-		toReturn->soundFlags[i] = FLAG_SHOULDNT_BE_NEEDED;
-	}
-#endif
 	return toReturn;
 }
 

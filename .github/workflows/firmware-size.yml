@@ -1,0 +1,181 @@
+name: Firmware Size
+
+# Compares the PR's Release build against the latest successful Release build
+# on the target branch with `dbt elfsize` and posts the result on the PR.
+# Runs from workflow_run so it can comment on PRs from forks. Can also be run
+# manually on a PR whose latest commit has a successful build.
+
+on:
+  workflow_run:
+    workflows: [Pull Request Build]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: PR number
+        required: true
+        type: number
+
+permissions: {}
+
+jobs:
+  firmware-size:
+    name: Report firmware size
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.event == 'pull_request' &&
+       github.event.workflow_run.conclusion == 'success')
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ARTIFACT: dev_Release_build_bundle
+    steps:
+      # workflow_run checks out the default branch. Never check out the PR here:
+      # this job can write to PRs. The PR build is only read as an ELF file.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Find PR build
+        id: pr
+        env:
+          TRIGGER_RUN_ID: ${{ github.event.workflow_run.id }}
+          TRIGGER_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          INPUT_PR: ${{ inputs.pr }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            number=$INPUT_PR
+            read -r base_ref head_sha <<< "$(gh pr view "$number" --repo "$GITHUB_REPOSITORY" \
+              --json baseRefName,headRefOid --jq '"\(.baseRefName) \(.headRefOid)"')"
+            run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow pr-build.yml \
+              --commit "$head_sha" --event pull_request --status success --limit 1 \
+              --json databaseId --jq '.[].databaseId')
+            if [ -z "$run_id" ]; then
+              echo "::error::No successful PR build found for PR #$number at ${head_sha:0:7}"
+              exit 1
+            fi
+          else
+            # workflow_run doesn't identify fork PRs, so pr-build.yml records them
+            gh run download "$TRIGGER_RUN_ID" --repo "$GITHUB_REPOSITORY" -n pr-metadata -D pr
+            number=$(cat pr/number)
+            base_ref=$(cat pr/base_ref)
+            run_id=$TRIGGER_RUN_ID
+            head_sha=$TRIGGER_HEAD_SHA
+          fi
+          [[ "$number" =~ ^[0-9]+$ ]] || { echo "::error::Invalid PR number"; exit 1; }
+          [[ "$base_ref" =~ ^[A-Za-z0-9._/-]+$ ]] || { echo "::error::Invalid base ref"; exit 1; }
+          {
+            echo "number=$number"
+            echo "base_ref=$base_ref"
+            echo "run_id=$run_id"
+            echo "head_sha=$head_sha"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Download PR build
+        id: new
+        env:
+          RUN_ID: ${{ steps.pr.outputs.run_id }}
+        run: |
+          # Website-only PRs skip the build
+          if ! gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts?per_page=100" \
+              --jq '.artifacts[].name' | grep -qx "$ARTIFACT"; then
+            echo "No firmware build in run $RUN_ID, nothing to compare"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" -n "$ARTIFACT" -D new
+          echo "found=true" >> "$GITHUB_OUTPUT"
+
+      - name: Download baseline build
+        id: baseline
+        if: steps.new.outputs.found == 'true'
+        env:
+          BASE_REF: ${{ steps.pr.outputs.base_ref }}
+        run: |
+          # Newest builds first: pushes to the branch, and merge queue builds for it
+          # (gh-readonly-queue/<branch>/pr-...). A queue build's commit only lands if
+          # the queue entry merged, so skip any that aren't on the branch.
+          candidates=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow pr-build.yml \
+              --status success --limit 200 --json databaseId,headSha,headBranch,event \
+            | jq -r --arg base "$BASE_REF" '.[]
+                | select((.event == "push" and .headBranch == $base) or
+                         (.event == "merge_group" and (.headBranch | startswith("gh-readonly-queue/" + $base + "/"))))
+                | "\(.databaseId) \(.headSha)"' \
+            | head -n 10)
+          while read -r run_id sha; do
+            [ -n "$run_id" ] || continue
+            status=$(gh api "repos/$GITHUB_REPOSITORY/compare/$sha...$BASE_REF" --jq .status) || continue
+            [[ "$status" == identical || "$status" == ahead ]] || continue
+            gh run download "$run_id" --repo "$GITHUB_REPOSITORY" -n "$ARTIFACT" -D baseline || continue
+            echo "Using baseline from run $run_id at $sha"
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "sha=$sha" >> "$GITHUB_OUTPUT"
+            exit 0
+          done <<< "$candidates"
+          echo "::warning::No available Release build found on $BASE_REF"
+          echo "found=false" >> "$GITHUB_OUTPUT"
+
+      - name: Compare sizes
+        if: steps.baseline.outputs.found == 'true'
+        run: |
+          set -o pipefail
+          image="ghcr.io/synthstromaudible/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION)"
+          docker pull -q "$image"
+          docker run --rm \
+            --user="$(id --user):$(id --group)" \
+            -e DBT_NO_PYTHON_UPGRADE=1 \
+            -v "$(pwd)":/src \
+            "$image" \
+            elfsize \
+            --baseline baseline/*.elf \
+            new/*.elf | tee elfsize.txt
+
+      - name: Write report
+        if: steps.baseline.outputs.found == 'true'
+        env:
+          BASE_REF: ${{ steps.pr.outputs.base_ref }}
+          BASE_SHA: ${{ steps.baseline.outputs.sha }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          # PR builds are of GitHub's merge of the PR into the target branch. The ELF
+          # name ends in that merge commit's hash; its first parent is the target
+          # branch commit the PR was built on.
+          elfs=(new/*.elf)
+          build_sha=${elfs[0]%.elf}
+          build_sha=${build_sha##*-}
+          built_on=""
+          if [[ "$build_sha" =~ ^[0-9a-f]{7,40}$ ]]; then
+            built_on=$(gh api "repos/$GITHUB_REPOSITORY/commits/$build_sha" --jq '.parents[0].sha') || built_on=""
+          fi
+          {
+            echo "## Firmware size"
+            echo
+            if [ -n "$built_on" ]; then
+              echo "PR #$PR_NUMBER at ${HEAD_SHA:0:7}, merged into \`$BASE_REF\` (build ${build_sha:0:7}), compared with \`$BASE_REF\` at ${BASE_SHA:0:7}."
+              if [ "$built_on" != "$BASE_SHA" ]; then
+                echo
+                echo "> [!NOTE]"
+                echo "> This PR was built on \`$BASE_REF\` at ${built_on:0:7}, so the difference may include changes to \`$BASE_REF\` between ${built_on:0:7} and ${BASE_SHA:0:7}."
+              fi
+            else
+              echo "PR #$PR_NUMBER at ${HEAD_SHA:0:7} compared with \`$BASE_REF\` at ${BASE_SHA:0:7}."
+            fi
+            echo
+            echo '```'
+            cat elfsize.txt
+            echo '```'
+          } > report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment on PR
+        if: steps.baseline.outputs.found == 'true'
+        uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          header: firmware-size
+          number: ${{ steps.pr.outputs.number }}
+          path: report.md

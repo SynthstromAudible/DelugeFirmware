@@ -58,11 +58,9 @@ bool FileSelector::isRelevant(ModControllableAudio* modControllable, int32_t whi
 	const auto sound = static_cast<Sound*>(modControllable);
 	const Source& source = sound->sources[sourceId_];
 
-	if (source.oscType == OscType::WAVETABLE) {
-		return sound->getSynthMode() != SynthMode::FM;
-	}
-
-	return sound->getSynthMode() == SynthMode::SUBTRACTIVE && source.oscType == OscType::SAMPLE;
+	// Browsing can load a sample even when the oscillator currently uses a synth waveform.
+	return sound->getSynthMode() == SynthMode::SUBTRACTIVE
+	       || (sound->getSynthMode() == SynthMode::RINGMOD && source.oscType == OscType::WAVETABLE);
 }
 MenuPermission FileSelector::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
                                                            ::MultiRange** currentRange) {
@@ -73,11 +71,7 @@ MenuPermission FileSelector::checkPermissionToBeginSession(ModControllableAudio*
 
 	Sound* sound = static_cast<Sound*>(modControllable);
 
-	bool can =
-	    (sound->getSynthMode() == SynthMode::SUBTRACTIVE
-	     || (sound->getSynthMode() == SynthMode::RINGMOD && sound->sources[sourceId_].oscType == OscType::WAVETABLE));
-
-	if (!can) {
+	if (!isRelevant(modControllable, whichThing)) {
 		return MenuPermission::NO;
 	}
 

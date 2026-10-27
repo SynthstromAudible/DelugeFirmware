@@ -23,6 +23,8 @@
 #include "gui/colour/colour.h" // IWYU pragma: export todo: this probably shouldn't be exported from here
 #include "util/cfunctions.h"   // IWYU pragma: export - minimal set of functions which need c linkage
 #include "util/d_string.h"
+#include "util/db_shift.h"
+#include "util/fast_pythag.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/name_compare.h" // IWYU pragma: export - strcmpspecial and friends used to live here
@@ -233,7 +235,6 @@ char const* sourceToString(PatchSource source);
 PatchSource stringToSource(char const* string);
 char const* sourceToStringShort(PatchSource source);
 
-int32_t shiftVolumeByDB(int32_t oldValue, float offset);
 int32_t quickLog(uint32_t input);
 
 int32_t interpolateTable(uint32_t input, int32_t numBitsInInput, const uint16_t* table, int32_t numBitsInTableSize = 8);
@@ -332,7 +333,6 @@ int32_t random(int32_t upperLimit);
 bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR);
 
 uint32_t getOscInitialPhaseForZero(OscType waveType);
-int32_t fastPythag(int32_t x, int32_t y);
 int32_t doLanczos(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t memoryNumElements);
 int32_t doLanczosCircular(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t memoryNumElements);
 

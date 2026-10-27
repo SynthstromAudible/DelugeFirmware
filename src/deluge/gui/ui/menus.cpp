@@ -33,6 +33,7 @@
 #include "gui/menu_item/bend_range/main.h"
 #include "gui/menu_item/bend_range/per_finger.h"
 #include "gui/menu_item/colour.h"
+#include "gui/menu_item/cpu/voice_usage.h"
 #include "gui/menu_item/cv/cv2Mapping.h"
 #include "gui/menu_item/cv/selection.h"
 #include "gui/menu_item/cv/submenu.h"
@@ -166,7 +167,6 @@
 #include "gui/menu_item/randomizer/randomizer_lock.h"
 #include "gui/menu_item/randomizer/randomizer_unpatched_param.h"
 #include "gui/menu_item/record/countin.h"
-#include "gui/menu_item/record/loop_command.h"
 #include "gui/menu_item/record/quantize.h"
 #include "gui/menu_item/record/threshold_mode.h"
 #include "gui/menu_item/reset_settings/reset.h"
@@ -224,6 +224,7 @@
 #include "gui/menu_item/unison/stereoSpread.h"
 #include "gui/menu_item/unpatched_param.h"
 #include "gui/menu_item/unpatched_param/pan.h"
+#include "gui/menu_item/usb/audio.h"
 #include "gui/menu_item/voice/polyphony.h"
 #include "gui/menu_item/voice/portamento.h"
 #include "gui/menu_item/voice/priority.h"
@@ -246,7 +247,7 @@ namespace params = deluge::modulation::params;
 #include "gui/menu_item/midi/y_axis_to_cc1.h"
 
 // Arp --------------------------------------------------------------------------------------
-arpeggiator::PresetMode arpPresetModeMenu{STRING_FOR_PRESET, STRING_FOR_ARP_PRESET_MENU_TITLE};
+PLACE_SDRAM_BSS arpeggiator::PresetMode arpPresetModeMenu{STRING_FOR_PRESET, STRING_FOR_ARP_PRESET_MENU_TITLE};
 // Rate
 PLACE_SDRAM_BSS arpeggiator::Mode arpModeMenu{STRING_FOR_ENABLED, STRING_FOR_ARP_MODE_MENU_TITLE};
 PLACE_SDRAM_BSS arpeggiator::Sync arpSyncMenu{STRING_FOR_SYNC, STRING_FOR_ARP_SYNC_MENU_TITLE};
@@ -1030,8 +1031,6 @@ PLACE_SDRAM_BSS Submenu defaultThresholdRecordingSubmenu{
     },
 };
 
-PLACE_SDRAM_BSS record::LoopCommand defaultLoopCommandMenu{STRING_FOR_LOOP_COMMAND, STRING_FOR_LOOP_COMMAND};
-
 PLACE_SDRAM_BSS Submenu recordSubmenu{
     STRING_FOR_RECORDING,
     {
@@ -1040,17 +1039,28 @@ PLACE_SDRAM_BSS Submenu recordSubmenu{
         &recordMarginsMenu,
         &monitorModeMenu,
         &defaultThresholdRecordingSubmenu,
-        &defaultLoopCommandMenu,
     },
 };
 
 PLACE_SDRAM_BSS sample::browser_preview::Mode sampleBrowserPreviewModeMenu{STRING_FOR_SAMPLE_PREVIEW};
 
 PLACE_SDRAM_BSS flash::Status flashStatusMenu{STRING_FOR_PLAY_CURSOR};
+PLACE_SDRAM_BSS usb::Audio usbAudioEnabledMenu{STRING_FOR_ENABLED, STRING_FOR_USB_AUDIO};
+PLACE_SDRAM_BSS usb::DirectMonitoring usbAudioInputMenu{STRING_FOR_INPUT, STRING_FOR_USB_INPUT};
+PLACE_SDRAM_BSS usb::OutputSource usbAudioOutputMenu{STRING_FOR_OUTPUT, STRING_FOR_USB_OUTPUT};
+PLACE_SDRAM_BSS Submenu usbAudioMenu{
+    STRING_FOR_USB_AUDIO,
+    {
+        &usbAudioEnabledMenu,
+        &usbAudioInputMenu,
+        &usbAudioOutputMenu,
+    },
+};
 
 PLACE_SDRAM_BSS firmware::Version firmwareVersionMenu{STRING_FOR_FIRMWARE_VERSION, STRING_FOR_FIRMWARE_VER_MENU_TITLE};
 
 PLACE_SDRAM_BSS battery::Level batteryLevelMenu{STRING_FOR_BATTERY_LEVEL, STRING_FOR_BATTERY_LEVEL_MENU_TITLE};
+PLACE_SDRAM_BSS cpu::VoiceUsage voiceUsageMenu{STRING_FOR_VOICE_USAGE, STRING_FOR_VOICE_USAGE};
 
 PLACE_SDRAM_BSS runtime_feature::Settings runtimeFeatureSettingsMenu{STRING_FOR_COMMUNITY_FTS,
                                                                      STRING_FOR_COMMUNITY_FTS_MENU_TITLE};
@@ -1903,6 +1913,7 @@ PLACE_SDRAM_BSS Submenu settingsRootMenu{
         &gateSelectionMenu,
         &triggerClockMenu,
         &midiMenu,
+        &usbAudioMenu,
         &defaultsSubmenu,
         &padsSubmenu,
         &sampleBrowserPreviewModeMenu,
@@ -1910,6 +1921,7 @@ PLACE_SDRAM_BSS Submenu settingsRootMenu{
         &recordSubmenu,
         &runtimeFeatureSettingsMenu,
         &batteryLevelMenu,
+        &voiceUsageMenu,
         &firmwareVersionMenu,
     },
 };

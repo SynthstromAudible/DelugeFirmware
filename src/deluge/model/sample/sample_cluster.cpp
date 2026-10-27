@@ -17,6 +17,7 @@
 
 #include "model/sample/sample_cluster.h"
 #include "definitions_cxx.hpp"
+#include "extern.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
@@ -27,12 +28,11 @@
 SampleCluster::~SampleCluster() {
 	if (cluster) {
 
-#if ALPHA_OR_BETA_VERSION
 		int32_t numReasonsToBeLoaded = cluster->numReasonsToBeLoaded;
 		if (cluster == audioFileManager.clusterBeingLoaded) {
 			numReasonsToBeLoaded--;
 		}
-
+#if ALPHA_OR_BETA_VERSION
 		if (numReasonsToBeLoaded) {
 			D_PRINTLN("uh oh, some reasons left...  %d", numReasonsToBeLoaded);
 
@@ -93,14 +93,12 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 			return nullptr;
 		}
 
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
 		if (cluster->numReasonsToBeLoaded != 1) {
 			FREEZE_WITH_ERROR("i005"); // Diversifying Qui's E341. It should actually be exactly 1
 		}
 		if (cluster->type != Cluster::Type::SAMPLE) {
 			FREEZE_WITH_ERROR("E256"); // Cos I got E236
 		}
-#endif
 
 		cluster->sample = sample;
 		cluster->clusterIndex = clusterIndex;
@@ -120,13 +118,18 @@ justEnqueue:
 			}
 
 			// TODO: If that fails, it'll just get awkwardly forgotten about
-			audioFileManager.loadingQueue.enqueueCluster(*cluster, priorityRating);
+			CriticalSectionGuard guard;
+			audioFileManager.loadingQueue.enqueueCluster(*cluster, priorityRating, guard);
 
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
 			if (cluster && cluster->numReasonsToBeLoaded <= 0) {
 				FREEZE_WITH_ERROR("i027"); // Diversifying Ron R's i004, which was diversifying Qui's E341
 			}
-#endif
+		}
+
+		// Inside routineForSD() or similar, waiting for the card busy-waits rather than letting the audio routine run,
+		// so if enqueuing is fine, don't load it here
+		else if (loadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE && sdRoutineLock) {
+			goto justEnqueue;
 		}
 
 		// Or if want to try to load now...
@@ -160,55 +163,59 @@ justEnqueue:
 				}
 				cluster = nullptr;
 			}
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
 			if (cluster && cluster->numReasonsToBeLoaded <= 0) {
 				FREEZE_WITH_ERROR("i026"); // Michael B got - insane.
 			}
-#endif
 		}
 	}
 
 	// Or if it had previously been created...
 	else {
 
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on V4.1.3 have been getting E341.
 		if (GeneralMemoryAllocator::get().getRegion(cluster) != MEMORY_REGION_STEALABLE) {
 			FREEZE_WITH_ERROR("invalid");
 		}
 		if (cluster && cluster->numReasonsToBeLoaded < 0) {
 			FREEZE_WITH_ERROR("i028"); // bnhrsch got this!!
 		}
-#endif
 
-		// If they'd prefer it loaded immediately and it's not loaded, try speeding loading along
-		if ((loadInstruction == CLUSTER_LOAD_IMMEDIATELY || loadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE)
-		    && !cluster->loaded) {
-			audioFileManager.loadAnyEnqueuedClusters();
+		// If it's still waiting to load, it may have been enqueued at a lower priority than we need now - e.g. if it
+		// was prefetched, or enqueued for drawing a waveform
+		if (!cluster->loaded) {
+			CriticalSectionGuard guard;
+			audioFileManager.loadingQueue.raisePriority(cluster, priorityRating, guard);
+		}
 
-			// If it's still not loaded and it was a must-load-now...
-			if (loadInstruction == CLUSTER_LOAD_IMMEDIATELY && !cluster->loaded) {
+		// Our reason has to be held before loading it below, so it can't be let go of meanwhile
+		cluster->addReason();
+
+		// If they'd prefer it loaded immediately and it's not loaded, load just it - not everything ahead of it in the
+		// queue. Unless enqueuing is fine and we're inside routineForSD() or similar, where waiting for the card
+		// busy-waits rather than letting the audio routine run.
+		bool wantItNow = loadInstruction == CLUSTER_LOAD_IMMEDIATELY
+		                 || (loadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE && !sdRoutineLock);
+		if (wantItNow && !cluster->loaded) {
+			bool loaded = audioFileManager.loadEnqueuedClusterNow(*cluster);
+
+			// If it was a must-load-now...
+			if (!loaded && loadInstruction == CLUSTER_LOAD_IMMEDIATELY) {
 				D_PRINTLN("hurrying loading along failed for index:  %d", clusterIndex);
 				if (error != nullptr) {
 					*error = Error::UNSPECIFIED; // TODO: get actual error
 				}
+				audioFileManager.removeReasonFromCluster(*cluster, "4462"); // May delete it
 				return nullptr;
 			}
 		}
 
-		cluster->addReason();
-
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on V4.0.x have been getting E341.
 		if (cluster && cluster->numReasonsToBeLoaded <= 0) {
 			FREEZE_WITH_ERROR("i025"); // Diversifying Ron R's i004, which was diversifying Qui's E341
 		}
-#endif
 	}
 
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on V4.0.x have been getting E341.
 	if (cluster && cluster->numReasonsToBeLoaded <= 0) {
 		FREEZE_WITH_ERROR("i004"); // Ron R got this! Diversifying Qui's E341
 	}
-#endif
 
 	return cluster;
 }

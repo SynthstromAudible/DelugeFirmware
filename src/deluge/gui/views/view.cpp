@@ -2850,7 +2850,10 @@ void View::flashPlayRoutine() {
 }
 
 void View::flashPlayEnable() {
-	uiTimerManager.setTimer(TimerName::PLAY_ENABLE_FLASH, kFastFlashTime);
+	// Scrolling and redrawing must not postpone a flash that is already scheduled.
+	if (!uiTimerManager.isTimerSet(TimerName::PLAY_ENABLE_FLASH)) {
+		uiTimerManager.setTimer(TimerName::PLAY_ENABLE_FLASH, kFastFlashTime);
+	}
 }
 
 void View::flashPlayDisable() {

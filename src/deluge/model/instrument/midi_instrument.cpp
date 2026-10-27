@@ -809,15 +809,19 @@ Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
 	}
 
 	// Expression param
-	else {
-#if ALPHA_OR_BETA_VERSION
-		if (modelStackWithAutoParam->paramCollection != modelStack->paramManager->getExpressionParamSet()) {
+	// Only reset it if it really is an expression param - otherwise this would write to the wrong object or past the
+	// end of params[]. Skipping the reset is harmless; the old state still moves to the new CC below.
+	else if (modelStackWithAutoParam->paramCollection != modelStack->paramManager->getExpressionParamSet()) {
+		if constexpr (ALPHA_OR_BETA_VERSION) {
 			FREEZE_WITH_ERROR("E415");
 		}
-		if (modelStackWithAutoParam->paramId >= kNumExpressionDimensions) {
+	}
+	else if (modelStackWithAutoParam->paramId >= kNumExpressionDimensions) {
+		if constexpr (ALPHA_OR_BETA_VERSION) {
 			FREEZE_WITH_ERROR("E416");
 		}
-#endif
+	}
+	else {
 		((ExpressionParamSet*)modelStackWithAutoParam->paramCollection)
 		    ->params[modelStackWithAutoParam->paramId]
 		    .setCurrentValueBasicForSetup(0);

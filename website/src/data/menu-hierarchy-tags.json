@@ -93,7 +93,7 @@
   "defaultSliceMode": "c1.1",
   "defaultHighCPUUsageIndicatorMode": "c1.1",
   "defaultHoldTimeMenu": "c1.1",
-  "screensaverSubmenu": "c1.0",
+  "screensaverSubmenu": "c1.3",
 
   "__subsection_01_04_padsSubmenu": "Subsection: Pads",
   "fillColourMenu": "c1.0",
@@ -131,9 +131,19 @@
   "menuRoundedCorners": "c1.3",
   "menuTrimFromStartOfAudioClip": "c1.3",
   "menuShowBatteryLevel": "c1.3",
+  "menuShortcutOverlay": "c1.3",
 
   "__subsection_01_07_batteryLevelMenu": "Subsection: Battery level",
   "batteryLevelMenu": "c1.3",
+
+  "__subsection_01_08_voiceUsageMenu": "Subsection: Voice Usage",
+  "voiceUsageMenu": "c1.3",
+
+  "__subsection_01_09_usbAudioMenu": "Subsection: USB Audio",
+  "usbAudioMenu": "c1.4",
+  "usbAudioEnabledMenu": "c1.4",
+  "usbAudioInputMenu": "c1.4",
+  "usbAudioOutputMenu": "c1.4",
 
   "__section_02_songMenu": "Hierarchy: Song",
   "__subsection_02_00_root": "Subsection: Song (root)",
@@ -209,11 +219,16 @@
 
   "__subsection_04_02_specificOutputSelectorMenu": "Subsection: Specific Track",
   "specificOutputSelectorMenu": "c1.2",
-  "virtualSelector_audioInputSelector_7": "c1.2",
+  "virtualSelector_audioInputSelector_8": "c1.2",
+
+  "__subsection_04_03_audioInputSelector": "Subsection: Audio Source",
+  "virtualSelector_audioInputSelector_5": "c1.4",
 
   "__section_05_soundMenu": "Hierarchy: Sound",
   "__subsection_05_01_soundEditorRootActionsMenu": "Subsection: Actions",
   "soundEditorRootActionsMenu": "c1.3",
+  "soundEditorRootDrumActionsMenu": "c1.3",
+  "drumNameEditMenu": "c1.3",
 
   "__subsection_05_02_arpMenu": "Subsection: Arpeggiator",
   "arpBasicMenu": "c1.3",

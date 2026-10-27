@@ -24,6 +24,10 @@ public:
 	ParamDescriptor getDestinationDescriptor() override;
 	MenuItem* selectButtonPress() override;
 	MenuItem* patchingSourceShortcutPress(PatchSource newS, bool previousPressStillActive) override;
+	[[nodiscard]] PatchingSourceShortcutTarget
+	getPatchingSourceShortcutTarget(bool previous_press_still_active) const override {
+		return PatchingSourceShortcutTarget::PARENT;
+	}
 	std::string_view getTitle() const override { return l10n::getView(l10n::String::STRING_FOR_MODULATE_DEPTH); };
 };
 extern Range rangeMenu;

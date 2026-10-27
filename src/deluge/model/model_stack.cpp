@@ -32,11 +32,9 @@ using namespace deluge::modulation::params;
 ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtraStuff(int32_t noteRowIndex,
                                                                                       NoteRow* newNoteRow) const {
 
-#if ALPHA_OR_BETA_VERSION
 	if (!newNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
 		FREEZE_WITH_ERROR("E389");
 	}
-#endif
 
 	ModelStackWithThreeMainThings* toReturn = (ModelStackWithThreeMainThings*)this;
 

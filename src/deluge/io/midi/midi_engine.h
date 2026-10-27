@@ -24,6 +24,8 @@
 #include "io/midi/learned_midi.h"
 #include "playback/playback_handler.h"
 
+struct InterruptsDisabled;
+struct QueuedMIDI;
 class MIDICable;
 class MIDIDrum;
 class MIDIInstrument;
@@ -97,6 +99,21 @@ public:
 	/// @param value Pressure amount. Saturated into 0-127
 	void sendPolyphonicAftertouch(MIDISource source, int32_t channel, int32_t value, uint8_t noteCode, int32_t filter);
 	bool anythingInOutputBuffer();
+
+	/// MIDI sent with sendMidi() doesn't go straight into the USB / DIN output buffers - it's queued along with the
+	/// time it's due so the MIDI/gate output timer can actually queue it then. This
+	/// sets the due time given to everything sent from now on.
+	void setMIDIDue(uint32_t due) { midiDue_ = due; }
+	/// Move all queued MIDI due by now into the output buffers, in the order it was queued, then flush them. Returns
+	/// whether anything's still left in the output buffers (USB busy/locked, or UART still sending)
+	/// InterruptsDisabled struct is free in ISR so no overhead, and allows this to be called from offline rendering
+	bool flushDueMIDI(uint32_t now, const InterruptsDisabled&);
+	/// Move everything queued into the output buffers, then flush them
+	/// InterruptsDisabled struct is free in ISR so no overhead
+	void flushAllQueuedMIDI(const InterruptsDisabled&);
+	/// Get the due time of the oldest queued MIDI. Returns false if nothing's queued
+	bool nextMIDIDue(uint32_t& due);
+
 	void setupUSBHostReceiveTransfer(int32_t ip, int32_t midiDeviceNum);
 	void flushUSBMIDIOutput();
 
@@ -151,9 +168,17 @@ private:
 	EventStackStorage::iterator eventStackTop_;
 
 	int32_t getPotentialNumConnectedUSBMIDIDevices(int32_t ip);
-};
 
-uint32_t setupUSBMessage(MIDIMessage message);
+	void queueMIDI(MIDIMessage message, int32_t filter, bool sendUSB, bool sendDIN, uint32_t due);
+	/// Interrupts must be disabled - see flushDueMIDI()
+	bool flushQueuedMIDI(bool all, uint32_t now);
+	/// Pop the oldest queued MIDI and put it in the output buffers, whether it's due yet or not. Returns false if
+	/// nothing was queued
+	bool sendOldestQueuedMIDI(const InterruptsDisabled&);
+	void sendQueuedMIDI(const QueuedMIDI& queued);
+
+	uint32_t midiDue_{0}; ///< Due time given to MIDI as it's queued, see setMIDIDue()
+};
 
 extern MidiEngine midiEngine;
 extern bool anythingInUSBOutputBuffer;

@@ -40,15 +40,29 @@ extern uint32_t program_stack_start;
 extern uint32_t program_stack_end;
 // NOLINTEND
 GeneralMemoryAllocator::GeneralMemoryAllocator() : lock(false) {
-	uint32_t external_small_end = EXTERNAL_MEMORY_END;
-	uint32_t external_small_start = external_small_end - RESERVED_EXTERNAL_SMALL_ALLOCATOR;
-	uint32_t external_end = external_small_start;
-	uint32_t external_start = external_small_start - RESERVED_EXTERNAL_ALLOCATOR;
-	uint32_t stealable_end = external_start;
+	// The stealable region is made of whole 1MB MMU sections, so the MMU can stop L2 caching all of it (see
+	// L2CacheMapRangeInnerOnly()), which keeps DMA into Clusters fast. So it takes the top of SDRAM, which ends on a
+	// section boundary, and the external regions go below it, after the SDRAM sections - with the external region
+	// getting whatever's left over from rounding up to the section boundary.
+	constexpr uint32_t kSectionSize = 1 << 20;
+	static_assert((EXTERNAL_MEMORY_END & (kSectionSize - 1)) == 0);
+
 	// NOLINTBEGIN
 	// clang tidy hates both reinterpret and c style casts but linker output is only meaningful when taking address
-	auto stealable_start = (uint32_t)&__sdram_bss_end;
+	auto sdram_free_start = (uint32_t)&__sdram_bss_end;
+	// NOLINTEND
+	uint32_t stealable_start =
+	    (sdram_free_start + RESERVED_EXTERNAL_ALLOCATOR + RESERVED_EXTERNAL_SMALL_ALLOCATOR + kSectionSize - 1)
+	    & ~(kSectionSize - 1);
+	uint32_t stealable_end = EXTERNAL_MEMORY_END;
+	uint32_t external_small_end = stealable_start;
+	uint32_t external_small_start = external_small_end - RESERVED_EXTERNAL_SMALL_ALLOCATOR;
+	uint32_t external_end = external_small_start;
+	uint32_t external_start = sdram_free_start;
+	stealableSectionsStart = stealable_start;
+	stealableSectionsEnd = stealable_end;
 
+	// NOLINTBEGIN
 	auto internal_small_start = (uint32_t)&__frunk_bss_end;
 	auto internal_small_end = (uint32_t)&__frunk_slack_end;
 	auto internal_start = (uint32_t)&__heap_start;
@@ -81,20 +95,23 @@ constexpr size_t kExternalSwitchSize = 128;
 int32_t closestDistance = 2147483647;
 
 void GeneralMemoryAllocator::checkStack(char const* caller) {
-#if ALPHA_OR_BETA_VERSION
-
 	char a;
 
 	int32_t distance = (int32_t)&a - (uint32_t)&program_stack_start;
+
+	// A stack collision silently corrupts whatever lives below the stack, so this freezes in every build. Kept to a
+	// single compare since it's called from the audio render path.
+	if (distance < 200) {
+		D_PRINTLN("COLLISION at %s", caller);
+		FREEZE_WITH_ERROR("E338");
+	}
+
+#if ALPHA_OR_BETA_VERSION
 	if (distance < closestDistance) {
 		closestDistance = distance;
 
 		D_PRINTLN("%d bytes in stack %d free bytes in stack at %s", (uint32_t)&program_stack_end - (int32_t)&a,
 		          distance, caller);
-		if (distance < 200) {
-			FREEZE_WITH_ERROR("E338");
-			D_PRINTLN("COLLISION");
-		}
 	}
 #endif
 }

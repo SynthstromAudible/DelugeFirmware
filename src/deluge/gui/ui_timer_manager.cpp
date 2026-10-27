@@ -144,6 +144,10 @@ void UITimerManager::routine() {
 					sessionView.gridPulseSelectedClip();
 					break;
 
+				case TimerName::SELECTED_NOTE_PULSE:
+					instrumentClipView.pulseSelectedNote();
+					break;
+
 				case TimerName::MATRIX_DRIVER:
 					PadLEDs::timerRoutine();
 					break;
@@ -224,12 +228,6 @@ void UITimerManager::routine() {
 						getCurrentUI()->graphicsRoutine();
 					}
 					setTimer(TimerName::GRAPHICS_ROUTINE, 15);
-					break;
-
-				case TimerName::OLED_LOW_LEVEL:
-					if (deluge::hid::display::have_oled_screen) {
-						oledLowLevelTimerCallback();
-					}
 					break;
 
 				case TimerName::OLED_CONSOLE:

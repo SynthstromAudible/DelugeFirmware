@@ -290,12 +290,15 @@ extern void fault_handler_print_freeze_pointers(uint32_t addrUSRLR, uint32_t add
 // sys_lr/sp: the LR/SP of the interrupted SYS-mode
 // code - i.e. the call site that made the faulty branch
 extern void handle_cpu_fault(uint32_t exception_lr, cpu_fault_type exception_type, uint32_t sys_lr, uint32_t sys_sp) {
-	wait_for_flush();
-	__disable_irq();
-	printPointers(exception_lr, exception_type, sys_lr, sys_sp);
-	clearTxBuffer();
-	__enable_irq();
-
+	static bool crashed = false;
+	if (!crashed) {
+		crashed = true;
+		wait_for_flush();
+		__disable_irq();
+		printPointers(exception_lr, exception_type, sys_lr, sys_sp);
+		clearTxBuffer();
+		__enable_irq();
+	}
 	while (1) {
 		__asm__("nop");
 	}

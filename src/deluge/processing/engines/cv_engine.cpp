@@ -16,6 +16,7 @@
  */
 
 #include "processing/engines/cv_engine.h"
+#include "RZA1/intc/devdrv_intc.h"
 #include "definitions_cxx.hpp"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
@@ -26,6 +27,7 @@
 #include <string.h>
 // #include <algorithm>
 #include "playback/playback_handler.h"
+#include "timers_interrupts/timers_interrupts.h"
 
 extern "C" {
 #include "RZA1/gpio/gpio.h"
@@ -38,9 +40,6 @@ extern "C" {
 CVEngine cvEngine{};
 
 CVEngine::CVEngine() {
-	gateOutputPending = false;
-	asapGateOutputPending = false;
-	clockOutputPending = false;
 	minGateOffTime = 10;
 	clockState = false;
 	mostRecentSwitchOffTimeOfPendingNoteOn = 0;
@@ -92,29 +91,72 @@ void CVEngine::init() {
 
 // Gets called even for run and clock
 void CVEngine::updateGateOutputs() {
-	// clock or run signal
-	if (clockOutputPending || asapGateOutputPending) {
-		for (int32_t g = NUM_PHYSICAL_CV_CHANNELS; g < NUM_GATE_CHANNELS; g++) {
-			physicallySwitchGate(g);
-		}
-		clockOutputPending = false;
-		asapGateOutputPending = false;
+	GateOutputs outputs = takePendingGateOutputs(true);
+	if (outputs.mask == 0) {
+		return;
 	}
-	// note or gate on the cv channel - if there's a cv out pending we send the gate after it finishes. This avoids a
-	// situation where the cv is delayed for an oled refresh and the gate gets sent first, causing an audible pitch
-	// correction
-	if (!cvOutPending && gateOutputPending) {
-		for (int32_t g = 0; g < NUM_GATE_CHANNELS; g++) {
-			physicallySwitchGate(g);
-		}
-		gateOutputPending = false;
+	CriticalSectionGuard guard;
+	// These are newer than anything already scheduled for these channels
+	AudioEngine::cancelScheduledGates(outputs.mask, guard);
+	outputGates(outputs, guard);
+}
+
+GateOutputs CVEngine::takePendingGateOutputs(bool includeAsap) {
+	GateOutputs outputs;
+	outputs.mask = includeAsap ? pendingGates : (pendingGates & ~pendingAsapGates);
+	if (outputs.mask == 0) {
+		return outputs;
 	}
+	for (int32_t g = 0; g < NUM_GATE_CHANNELS; g++) {
+		if (outputs.mask & (1 << g)) {
+			outputs.levels |= gateLevel(g) << g;
+		}
+	}
+	outputs.cvWaitMask = pendingNoteOnGates & outputs.mask;
+	outputs.needsMinOffTime = ((pendingNoteOnGates | pendingAsapGates) & outputs.mask) != 0;
+
+	pendingGates &= ~outputs.mask;
+	pendingAsapGates &= ~outputs.mask;
+	pendingNoteOnGates &= ~outputs.mask;
+	return outputs;
+}
+
+// note or gate on the cv channel - if there's a cv out pending we send the gate after it finishes. This avoids a
+// situation where the cv is delayed for an oled refresh and the gate gets sent first, causing an audible pitch
+// correction
+void CVEngine::outputGates(const GateOutputs& outputs, const InterruptsDisabled&) {
+	uint8_t hold = cvOutPending ? outputs.cvWaitMask : 0;
+	for (int32_t g = 0; g < NUM_GATE_CHANNELS; g++) {
+		uint8_t bit = 1 << g;
+		if (!(outputs.mask & bit)) {
+			continue;
+		}
+		if (hold & bit) {
+			gatesAwaitingCV |= bit;
+			levelsAwaitingCV = (levelsAwaitingCV & ~bit) | (outputs.levels & bit);
+		}
+		else {
+			gatesAwaitingCV &= ~bit;
+			setOutputState(gatePort[g], gatePin[g], (outputs.levels & bit) != 0);
+		}
+	}
+}
+
+void CVEngine::switchGateNow(int32_t channel) {
+	uint8_t bit = 1 << channel;
+	CriticalSectionGuard guard;
+	AudioEngine::cancelScheduledGates(bit, guard);
+	pendingGates &= ~bit;
+	pendingAsapGates &= ~bit;
+	pendingNoteOnGates &= ~bit;
+	gatesAwaitingCV &= ~bit;
+	physicallySwitchGate(channel);
 }
 
 // These next two functions get called for run but not clock
 void CVEngine::switchGateOff(int32_t channel) {
 	gateChannels[channel].on = false;
-	physicallySwitchGate(channel);
+	switchGateNow(channel);
 	gateChannels[channel].timeLastSwitchedOff = AudioEngine::audioSampleTimer;
 }
 
@@ -126,16 +168,20 @@ void CVEngine::switchGateOn(int32_t channel, int32_t doInstantlyIfPossible) {
 	if (doInstantlyIfPossible) {
 		uint32_t timeSinceLastSwitchedOff = AudioEngine::audioSampleTimer - gateChannels[channel].timeLastSwitchedOff;
 		if (timeSinceLastSwitchedOff >= minGateOffTime * 441) {
-			physicallySwitchGate(channel);
+			switchGateNow(channel);
 			return;
 		}
 	}
 
+	uint8_t bit = 1 << channel;
+	pendingGates |= bit;
 	if (doInstantlyIfPossible) {
-		asapGateOutputPending = true;
+		pendingAsapGates |= bit;
+		pendingNoteOnGates &= ~bit;
 	}
 	else {
-		gateOutputPending = true;
+		pendingNoteOnGates |= bit;
+		pendingAsapGates &= ~bit;
 	}
 
 	// If this gate was switched off more recently than any previous gate switch-off of a pending note-on, update the
@@ -172,8 +218,8 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 
 		int32_t voltage;
 
-		// If it's not a gate-only note-on...
-		if (note != ALL_NOTES_OFF) {
+		// If it's not a gate-only note-on (and there's a physical CV output for this channel)...
+		if (note != ALL_NOTES_OFF && channel < NUM_PHYSICAL_CV_CHANNELS) {
 
 			// Calculate the voltage
 			voltage = calculateVoltage(note, channel);
@@ -187,7 +233,7 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 			switchGateOn(channel);
 		}
 
-		if (channel < NUM_PHYSICAL_CV_CHANNELS) {
+		if (note != ALL_NOTES_OFF && channel < NUM_PHYSICAL_CV_CHANNELS) {
 			cvChannels[channel].noteCurrentlyPlaying = note;
 		}
 	}
@@ -207,9 +253,7 @@ void CVEngine::sendVoltageOut(uint8_t channel, uint16_t voltage) {
 }
 
 void CVEngine::physicallySwitchGate(int32_t channel) {
-	// setOutputState is inverted - sending true turns the gate off
-	int32_t on = gateChannels[channel].on == (gateChannels[channel].mode == GateType::S_TRIG);
-	setOutputState(gatePort[channel], gatePin[channel], on);
+	setOutputState(gatePort[channel], gatePin[channel], gateLevel(channel));
 }
 
 void CVEngine::setCVVoltsPerOctave(uint8_t channel, uint8_t value) {
@@ -264,9 +308,11 @@ int32_t CVEngine::calculateVoltage(int32_t note, uint8_t channel) {
 }
 
 void CVEngine::analogOutTick() {
-	// we need to do this in case there's a clock pending, otherwise both will be sent at once.
-	// gate update function checks and sends the update if there is
-	updateGateOutputs();
+	// If the previous clock edge was never taken for scheduled output then send it now, otherwise both would be merged
+	// into one. Edges done during the audio window are taken (with their own time) as they happen, so this is rare.
+	if (pendingGates & (1 << WHICH_GATE_OUTPUT_IS_CLOCK)) {
+		switchGateNow(WHICH_GATE_OUTPUT_IS_CLOCK);
+	}
 	clockState = !clockState;
 	updateClockOutput();
 }
@@ -307,7 +353,7 @@ void CVEngine::setGateType(uint8_t channel, GateType value) {
 	}
 
 	else {
-		physicallySwitchGate(channel);
+		switchGateNow(channel);
 
 		if (oldValue == GateType::SPECIAL) {
 			// If we just stopped clock output...
@@ -319,7 +365,8 @@ void CVEngine::setGateType(uint8_t channel, GateType value) {
 }
 
 void CVEngine::updateClockOutput() {
-	if (clockOutputPending) {
+	constexpr uint8_t clockBit = 1 << WHICH_GATE_OUTPUT_IS_CLOCK;
+	if (pendingGates & clockBit) {
 		D_PRINTLN("update clock while clock pending");
 	}
 	if (gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode != GateType::SPECIAL) {
@@ -327,7 +374,9 @@ void CVEngine::updateClockOutput() {
 	}
 
 	gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].on = clockState;
-	clockOutputPending = true;
+	pendingGates |= clockBit;
+	pendingAsapGates &= ~clockBit;
+	pendingNoteOnGates &= ~clockBit;
 }
 
 void CVEngine::updateRunOutput() {
@@ -350,13 +399,29 @@ void CVEngine::updateRunOutput() {
 bool CVEngine::isTriggerClockOutputEnabled() {
 	return (gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode == GateType::SPECIAL);
 }
-void CVEngine::cvOutUpdated() {
+void CVEngine::cvOutUpdated(const InterruptsDisabled& guard) {
 	cvOutPending = false;
-	updateGateOutputs();
+	// Only release gates whose scheduled time has already passed. Releasing every pending gate here would send them
+	// up to a whole audio buffer early whenever the CV word finished before the MIDI/gate timer fired (e.g. when an
+	// OLED refresh delayed the CV), and would also flush pending clock pulses early.
+	if (gatesAwaitingCV) {
+		GateOutputs held;
+		held.mask = gatesAwaitingCV;
+		held.levels = levelsAwaitingCV;
+		outputGates(held, guard);
+	}
 }
 
 extern "C" {
+// Called both from the CV SPI ISR and from the main loop
 void cvSent() {
-	cvEngine.cvOutUpdated();
+	if (intc_func_active != 0) {
+		ISRCriticalSectionGuard guard;
+		cvEngine.cvOutUpdated(guard);
+	}
+	else {
+		CriticalSectionGuard guard;
+		cvEngine.cvOutUpdated(guard);
+	}
 }
 }

@@ -283,7 +283,7 @@ public:
 	Clip* syncScalingClip;
 	void setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction = false);
 	bool hasAnySwing();
-	void resyncLFOs();
+	void resyncLFOs(bool reset_state = false);
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Sound* sound);
 	bool areAllClipsInSectionPlaying(int32_t section);
 	void removeYNoteFromMode(int32_t yNoteWithinOctave);
@@ -365,6 +365,7 @@ public:
 	Output* getNextAudioOutput(int32_t offset, Output* oldOutput, Availability availabilityRequirement);
 	void deleteOutput(Output* output);
 	void clearRecordingFromReferencesTo(Output* output);
+	void retargetRecordingFromReferences(Output* oldOutput, Output* newOutput);
 	void cullAudioClipVoice();
 	int32_t getYScrollSongViewWithoutPendingOverdubs();
 	int32_t removeOutputFromMainList(Output* output, bool stopAnyAuditioningFirst = true);

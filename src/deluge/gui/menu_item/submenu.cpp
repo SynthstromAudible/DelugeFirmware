@@ -280,6 +280,13 @@ bool Submenu::usesAffectEntire() {
 	return false;
 }
 
+PatchingSourceShortcutTarget Submenu::getPatchingSourceShortcutTarget(bool previous_press_still_active) const {
+	if (renderingStyle() == RenderingStyle::HORIZONTAL && current_item_ != items.end()) {
+		return (*current_item_)->getPatchingSourceShortcutTarget(previous_press_still_active);
+	}
+	return MenuItem::getPatchingSourceShortcutTarget(previous_press_still_active);
+}
+
 MenuItem* Submenu::patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) {
 	if (renderingStyle() == RenderingStyle::HORIZONTAL && current_item_ != items.end()) {
 		return (*current_item_)->patchingSourceShortcutPress(s, previousPressStillActive);

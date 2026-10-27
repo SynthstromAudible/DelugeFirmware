@@ -1278,8 +1278,6 @@ weAreInArrangementEditorOrInClipInstance:
 	GlobalEffectableForClip::writeParamTagsToFile(writer, &paramManager, true, valuesForOverride);
 	writer.writeClosingTag("songParams");
 
-	performanceView.writeSettingsToFile(writer);
-
 	writer.writeArrayStart("instruments");
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		thisOutput->writeToFile(nullptr, this);
@@ -2073,10 +2071,6 @@ loadOutput:
 				reader.exitTag("songParams", true);
 			}
 
-			else if (!strcmp(tagName, "performanceView")) {
-				performanceView.readSettingsFromFile(reader);
-			}
-
 			else if (!strcmp(tagName, "tracks") || !strcmp(tagName, "sessionClips")) {
 				Error error = readClipsFromFile(reader, &sessionClips);
 				if (error != Error::NONE) {
@@ -2259,7 +2253,10 @@ skipInstance:
 		if (thisOutput->type == OutputType::AUDIO) {
 			auto ao = (AudioOutput*)thisOutput;
 			if (ao->inputChannel == AudioInputChannel::SPECIFIC_OUTPUT) {
-				ao->setOutputRecordingFrom(getOutputFromIndex(ao->outputRecordingFromIndex));
+				// getOutputFromIndex() falls back to the first output, so don't let a missing or bad index land there
+				int32_t index = ao->outputRecordingFromIndex;
+				ao->setOutputRecordingFrom((index >= 0 && index < getNumOutputs()) ? getOutputFromIndex(index)
+				                                                                   : nullptr);
 			}
 		}
 		// If saved before V2.1, set sample-based synth instruments to linear interpolation, cos that's how it was
@@ -2614,11 +2611,11 @@ bool Song::hasAnySwing() {
 	return (swingAmount != 0);
 }
 
-void Song::resyncLFOs() {
+void Song::resyncLFOs(bool reset_state) {
 
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		if (thisOutput->getActiveClip()) {
-			thisOutput->resyncLFOs();
+		if (reset_state || thisOutput->getActiveClip()) {
+			thisOutput->resyncLFOs(reset_state);
 		}
 		// Yes, do it even for Clips that aren't actually "playing" / active in the Song
 	}
@@ -3119,8 +3116,24 @@ void Song::setBPM(float tempoBPM, bool shouldLogAction) {
 	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
 	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
 	auto intTempo = (int32_t)(tempoBPM * 100);
-	int32_t pos = -1; // means use the live position
-	tempoParam->autoParam->setCurrentValueInResponseToUserInput(intTempo, tempoParam, shouldLogAction, pos);
+	int32_t pos = -1;   // means use the live position
+	int32_t length = 0; // means record at live position
+
+	// if you're holding a pad in arranger view and external clock is not active
+	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW && !playbackHandler.isExternalClockActive()) [[unlikely]] {
+		// Edit the tempo BPM for a specific point on the timeline (e.g. by holding on
+		// a grid timeline pad while moving tempo encoder in arranger view).
+		//
+		// This fills in the tempo automation on the timeline with "tempoBPM" from
+		// "pos" until the next automation event.
+		uint32_t x_scroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+		int32_t x_zoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+		pos = arrangerView.getPosFromSquare(arrangerView.xPressed, x_scroll, x_zoom);
+		length = std::min<int32_t>(tempoParam->autoParam->getDistanceToNextNode(tempoParam, pos, false),
+		                           arrangerView.getMaxLength());
+	}
+
+	tempoParam->autoParam->setValuePossiblyForRegion(intTempo, tempoParam, pos, length);
 	setBPMInner(tempoBPM, shouldLogAction);
 }
 
@@ -3129,7 +3142,6 @@ void Song::clearTempoAutomation() {
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
-	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
 	int32_t pos = -1; // means use the live position
 	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::ALLOWED);
 	tempoParam->autoParam->deleteAutomation(action, tempoParam);
@@ -3163,13 +3175,13 @@ void Song::setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldL
 void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRemoval instrumentRemovalInstruction) {
 
 	if (!songBeingDestroyedToo) {
-#if ALPHA_OR_BETA_VERSION
 		// Callers must remove any ClipInstances referencing this Clip first, or the arrangement is left pointing at
 		// freed memory - and pickAnActiveClipIfPossible() would pick this Clip back up mid-destruction (E411/E412).
 		if (clip->output && clip->output->clipHasInstance(clip)) {
 			FREEZE_WITH_ERROR("E455");
+			// If resumed, remove them ourselves rather than leave them dangling
+			clip->output->deleteAnyInstancesOfClip(clip);
 		}
-#endif
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, this, clip);
@@ -3453,8 +3465,6 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 		}
 	}
 
-	Output* outputRecordingOldOutput = oldOutput->getOutputRecordingThis();
-
 	outputClipInstanceListIsCurrentlyInvalid = true;
 
 	// Tell all the Clips to change their Instrument.
@@ -3526,14 +3536,13 @@ traverseClips:
 	newOutput->armedForRecording = oldOutput->armedForRecording;
 	oldOutput->armedForRecording = false;
 
+	retargetRecordingFromReferences(oldOutput, newOutput);
+
 	// Properly do away with the oldInstrument
 	deleteOrAddToHibernationListOutput(oldOutput);
 
 	// Put the newInstrument into the master list
 	*prevPointer = newOutput;
-	if (outputRecordingOldOutput) {
-		((AudioOutput*)outputRecordingOldOutput)->setOutputRecordingFrom(newOutput);
-	}
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
@@ -3547,6 +3556,9 @@ void Song::deleteOrAddToHibernationListOutput(Output* output) {
 
 	// Otherwise, hibernate it
 	else {
+		// Hibernated instruments stay allocated but leave the active output list, so audio tracks must stop targeting
+		// them (they'd be saved as the wrong track).
+		clearRecordingFromReferencesTo(output);
 		addInstrumentToHibernationList((Instrument*)output);
 	}
 }
@@ -3577,6 +3589,16 @@ void Song::clearRecordingFromReferencesTo(Output* output) {
 	for (Output* other = firstOutput; other; other = other->next) {
 		if (other != output && other->getOutputRecordingFrom() == output) {
 			other->clearRecordingFrom();
+		}
+	}
+}
+
+// When an output is replaced (preset change, output type change), every track recording from it follows to the new one,
+// not just the one monitoring it. Otherwise the rest are left on an output that's about to be deleted or hibernated.
+void Song::retargetRecordingFromReferences(Output* oldOutput, Output* newOutput) {
+	for (Output* other = firstOutput; other; other = other->next) {
+		if (other != oldOutput && other->type == OutputType::AUDIO && other->getOutputRecordingFrom() == oldOutput) {
+			static_cast<AudioOutput*>(other)->setOutputRecordingFrom(newOutput);
 		}
 	}
 }
@@ -5078,15 +5100,10 @@ gotAnInstrument: {}
 		display->removeWorkingAnimation();
 	}
 
-#if ALPHA_OR_BETA_VERSION
-	display->setText("A002");
-#endif
 	replaceInstrument(oldInstrument, newInstrument);
-#if ALPHA_OR_BETA_VERSION
 	if (display->have7SEG()) {
 		view.displayOutputName(newInstrument);
 	}
-#endif
 
 	instrumentSwapped(newInstrument);
 
@@ -5272,6 +5289,8 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 
 	newOutput->armedForRecording = oldOutput->armedForRecording;
 	oldOutput->armedForRecording = false;
+
+	retargetRecordingFromReferences(oldOutput, newOutput);
 
 	// Properly do away with the oldInstrument
 	deleteOrAddToHibernationListOutput(oldOutput);
@@ -5546,8 +5565,8 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 	if (anyClipsSoloing) {
 		return nullptr;
 	}
-	// if we're in rows or the clip can't support in place overdub then use the traditional deluge cloning looper
-	if (sessionLayout == SessionLayoutType::SessionLayoutTypeRows || clip->shouldCloneForOverdubs()) {
+	// Use the traditional cloning looper only for clips that don't support overdubbing in place.
+	if (clip->shouldCloneForOverdubs()) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
@@ -5611,20 +5630,26 @@ void Song::cullAudioClipVoice() {
 	AudioClip* bestClip = nullptr;
 	uint64_t lowestImmunity = 0xFFFFFFFFFFFFFFFF;
 
+	// find the audio clip with the lowest cull immunity
 	for (Output* output = firstOutput; output; output = output->next) {
 		if (output->type == OutputType::AUDIO) {
 			if (output->getActiveClip()) {
 				AudioClip* clip = (AudioClip*)output->getActiveClip();
 				if (clip->voiceSample && clip->voiceSample->oscPos > 0) {
 					uint64_t immunity = clip->getCullImmunity();
-					lowestImmunity = immunity;
-					bestClip = clip;
+					// is this the audio clip with the lowest cull immunity so far?
+					if (immunity < lowestImmunity) {
+						lowestImmunity = immunity;
+						bestClip = clip;
+					}
 				}
 			}
 		}
 	}
 
+	// did we find an audio clip voice to cull?
 	if (bestClip) {
+		// cull the audio clip voice with the lowest immunity
 		bestClip->unassignVoiceSample(false);
 		D_PRINTLN("audio clip voice culled!");
 	}

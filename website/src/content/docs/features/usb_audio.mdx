@@ -1,0 +1,120 @@
+---
+title: USB Audio
+---
+
+import { Aside, Badge } from "@astrojs/starlight/components"
+
+<Badge text="c1.4 Feature" variant="tip" />
+
+The Deluge can act as a USB audio interface. When it's connected to a computer over its USB type-B port, it shows up
+as a class-compliant audio device alongside its existing USB MIDI ports, so no driver is needed. You can:
+
+- play audio from your computer through the Deluge's outputs
+- record the Deluge's output into your computer
+- record and monitor audio from your computer in an audio clip, just like the line input
+
+## Format
+
+|             | From computer to Deluge | From Deluge to computer |
+| ----------- | ----------------------- | ----------------------- |
+| Channels    | 2 (stereo)              | 2 (stereo)              |
+| Sample rate | 44.1 kHz                | 44.1 kHz                |
+| Bit depth   | 24-bit                  | 24-bit                  |
+
+The Deluge's own sample clock sets the rate for audio going to the computer. For audio coming from the computer, the
+Deluge offers two modes, and the computer picks whichever it supports:
+
+- **Following the Deluge's clock.** Computers that support this (such as macOS) send audio at exactly the Deluge's
+  rate, so it's passed straight through.
+- **Following the computer's clock.** Computers that can't follow the Deluge's clock, such as Windows, send at their
+  own rate instead. The Deluge occasionally drops or repeats a single sample to stay in step, which isn't normally
+  audible.
+
+<Aside type="caution">Windows support hasn't been confirmed yet.</Aside>
+
+## Setting up
+
+1. Connect the Deluge to your computer with a USB cable.
+2. Choose the Deluge as an audio input and/or output device in your computer's sound settings or your DAW. On macOS
+   it's listed in Audio MIDI Setup.
+
+The Deluge's USB MIDI ports keep working as before.
+
+## Settings
+
+USB audio's settings are in `SETTINGS > USB AUDIO` (`USBA` on 7SEG):
+
+| Setting   | 7SEG  | Options                                                     |
+| --------- | ----- | ----------------------------------------------------------- |
+| `ENABLED` | `ON`  | On (default), off                                           |
+| `INPUT`   | `IN`  | On (default), off - see below                               |
+| `OUTPUT`  | `OUT` | `MAIN MIX` (default, `MIX`), `LINE IN` (`LINE`) - see below |
+
+## Turning USB audio off
+
+USB audio is on by default. To turn it off, set `SETTINGS > USB AUDIO > ENABLED` to off. The Deluge then connects to
+your computer as a USB MIDI device only, exactly as it did before USB audio was added.
+
+The setting takes effect the next time the Deluge is turned on, since your computer only finds out what kind of
+device the Deluge is when it first connects.
+
+<Aside>
+  If you've used the Deluge over USB MIDI before, your computer may treat it as
+  a new device the first time you connect it with this firmware, since it now
+  describes itself differently. Unplugging and reconnecting it should sort out
+  any problems with it not appearing.
+</Aside>
+
+## Playing audio from your computer
+
+Audio from the computer is mixed straight into the Deluge's main outputs and headphones, after the song's master
+volume and effects. This is on by default, and can be turned off with `SETTINGS > USB AUDIO > INPUT`. When it's off,
+you'll only hear the computer's audio through an audio clip that's monitoring it, or while sampling it.
+
+This audio is **not** sent back to the computer as part of the Deluge's output, so you won't get an echo. To put the
+computer's audio through the Deluge's effects, monitor it with an audio clip instead (see below).
+
+When an audio clip is monitoring the USB input (see below), the computer's audio is heard through that track instead,
+with its volume and effects. The Deluge stops mixing it straight to the outputs while that's happening, so you never
+hear it twice. Mixing straight to the outputs comes back by itself once nothing's monitoring the USB input, for example
+when a sampler clip has finished recording.
+
+## Recording the Deluge into your computer
+
+`SETTINGS > USB AUDIO > OUTPUT` sets what the computer receives:
+
+- **`MAIN MIX`** (the default) is the Deluge's final stereo output: the same audio that goes to the main outputs,
+  including any monitored inputs, but not the computer's own audio when it's mixed straight to the outputs.
+- **`LINE IN`** is the Deluge's line input (or mic) as it arrives, before any of the Deluge's processing. This turns
+  the Deluge into a simple audio interface for whatever's plugged into it. The internal mic only has one channel, so
+  it's sent to both sides.
+
+## Recording audio from your computer in an audio clip
+
+USB can be chosen as the source for an audio clip, like the line input or another track:
+
+1. In an audio clip, open the Audio Clip Sound Menu (:key[Shift + Select]).
+2. Go to `AUDIO SOURCE` and select `USB INPUT` (`USB` on 7SEG).
+
+USB is always a stereo source. Unlike the line input, it isn't normalized after recording, since the computer's audio
+already arrives at the level it was meant to be.
+
+Monitoring follows the audio output mode, as for any other source (see
+[Select Audio Clip Source and Monitoring](/features/community_features#317---select-audio-clip-source-and-monitoring)):
+`SAMPLER` and `LOOPER` monitor the USB input, while `PLAYER` doesn't.
+
+<Aside type="caution">
+  If an audio clip is monitoring the USB input, the computer's audio becomes
+  part of the Deluge's output, which is sent back to the computer when `OUTPUT`
+  is `MAIN MIX`. If your DAW is also playing its Deluge input back out to the
+  Deluge, that makes a feedback loop. Turn off input monitoring in the DAW, or
+  use the `PLAYER` mode on the clip.
+</Aside>
+
+Recording a sample from a synth or kit's sample menu still uses the line input only.
+
+## Latency
+
+Audio from the computer is buffered by about 6 ms (256 samples) on the Deluge before it's played or recorded, which
+keeps it smooth when the Deluge is busy. Audio going to the computer is buffered by about 2 ms. Your computer adds its
+own buffering on top of both, which you can usually set in your DAW.

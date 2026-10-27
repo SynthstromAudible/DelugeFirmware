@@ -57,16 +57,18 @@ void EXIT_CRITICAL_SECTION() {
 		__asm volatile("ISB");
 		__asm volatile("CPSIE i" ::: "memory");
 	}
-	// if that fails we're still in a critical section so just decrement the count
+	// A failed exchange leaves the current depth in expected. If we're not in a critical section at all, this is an
+	// unbalanced exit: don't decrement, or every later ENTER would go -1 -> 0 without disabling interrupts and critical
+	// sections would silently stop working.
+	else if (expected <= 0) {
+#if ALPHA_OR_BETA_VERSION
+		FREEZE_WITH_ERROR("CS01");
+#endif
+	}
+	// otherwise we're still in a critical section so just decrement the count
 	else {
 		atomic_fetch_sub_explicit(&critical_section_depth, 1, memory_order_relaxed);
 	}
-
-#if ALPHA_OR_BETA_VERSTION
-	if (atomic_load_explicit(&critical_section_depth, memory_order_relaxed) < 0) {
-		FREEZE_WITH_ERROR("OH NO");
-	}
-#endif
 }
 
 void clearIRQInterrupt(int irqNumber) {

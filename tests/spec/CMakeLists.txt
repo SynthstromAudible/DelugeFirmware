@@ -13,12 +13,17 @@ add_library(deluge_spec STATIC
 ../../src/deluge/util/lookuptables/lookuptables.cpp
 ../../src/deluge/hid/display/starfield.cpp
 ../../src/deluge/hid/display/rainfall.cpp
+../../src/deluge/dsp/reverb/freeverb/freeverb.cpp
 ../32bit_unit_tests/mocks/mock_display.cpp
 ../32bit_unit_tests/mocks/mock_print.cpp
 )
-target_link_libraries(deluge_spec PUBLIC eyalroz_printf)
+target_link_libraries(deluge_spec PUBLIC eyalroz_printf argon)
 
-target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_test/mocks/)
+target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_test/mocks/ ${simde_SOURCE_DIR}/simde)
+
+# Turns every DelayLine read outside its own reserved region into a hard failure.
+# Compiled out of the firmware; see dsp/reverb/fx_engine.hpp.
+target_compile_definitions(deluge_spec PUBLIC DELUGE_DSP_BOUNDS_CHECK=1)
 
 set_target_properties(deluge_spec PROPERTIES
   CXX_STANDARD 23

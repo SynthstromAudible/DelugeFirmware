@@ -83,7 +83,9 @@ int doActualReadRohan(int sd_port, SDHNDL *hndl, unsigned char *buff, long cnt, 
 		// for this memory which hasn't been written/flushed back out yet, and that happens during the DMA transfer, overwriting the audio data in actual RAM.
 		// https://support.xilinx.com/s/article/64839?language=en_US - seems to concur with this, and actually suggests that it is normal and necessary to
 		// invalidate both before and after transfer.
-		invalidate_range_all_caches((intptr_t)buff, (intptr_t)(buff + cnt * 512));
+		// DMA overwrites the whole range, so its old contents needn't be written back first - see
+		// invalidate_range_before_dma_read(). Lines only partly in it still get written back, as before.
+		invalidate_range_before_dma_read((uintptr_t)buff, (uintptr_t)(buff + cnt * 512));
 
 		/* ---- initialize DMAC ---- */
 		unsigned long reg_base_here = hndl->reg_base;
@@ -312,7 +314,7 @@ int sd_read_sect(int sd_port, unsigned char *buff,unsigned long psn,long cnt)
 
 		if (mode != SD_MODE_SW) {
 			// Invalidate ram
-			invalidate_range_all_caches((uintptr_t)buff, (uintptr_t)(buff + cnt * 512));
+			invalidate_range_after_dma_read((uintptr_t)buff, (uintptr_t)(buff + cnt * 512));
 		}
 
 		/* clear All end bit */
@@ -389,13 +391,28 @@ int sd_read_sect(int sd_port, unsigned char *buff,unsigned long psn,long cnt)
 
 ErrExit_DMA:
 ErrExit:
+	return _sd_read_abort(hndl, mode);
+}
+
+/*****************************************************************************
+ * Summary      : put the host and card back in a usable state after a multiple
+ *              : block read failed partway
+ * Argument     : SDHNDL *hndl : SD handle
+ *              : int mode : data transfer mode the read was using
+ * Return       : hndl->error as it was on entry
+ * Remark       : waits for the card, so can't be called from an interrupt
+ *****************************************************************************/
+int _sd_read_abort(SDHNDL *hndl, int mode)
+{
+	int error;
+
 	if(mode == SD_MODE_DMA){
-		sddev_disable_dma(sd_port);	/* disable DMA */
+		sddev_disable_dma(hndl->sd_port);	/* disable DMA */
 	}
 	sd_outp(hndl,CC_EXT_MODE,(unsigned short)(sd_inp(hndl,CC_EXT_MODE) 
 			& ~CC_EXT_MODE_DMASDRW));	/* disable DMA */
 
-	mode = hndl->error;
+	error = hndl->error;
 
 	/* ---- clear error bits ---- */
 	_sd_clear_info(hndl,SD_INFO1_MASK_TRNS_RESP,0x837f);
@@ -412,11 +429,11 @@ ErrExit:
 		/* ---- wait All end ---- */
 		logAudioAction("0b");
 
-		sddev_int_wait(sd_port, SD_TIMEOUT_RESP);
+		sddev_int_wait(hndl->sd_port, SD_TIMEOUT_RESP);
 		_sd_clear_info(hndl,SD_INFO1_MASK_TRNS_RESP,0x837f);
 		_sd_clear_int_mask(hndl,SD_INFO1_MASK_DATA_TRNS,0);
 
-		sddev_loc_cpu(sd_port);
+		sddev_loc_cpu(hndl->sd_port);
 		sd_option = sd_inp(hndl,SD_OPTION);
 		sd_clk_ctrl = sd_inp(hndl,SD_CLK_CTRL);
 		#if		(TARGET_RZ_A1 == 1)
@@ -429,7 +446,7 @@ ErrExit:
 		sd_outp(hndl,SD_STOP,0x0000);
 		sd_outp(hndl,SD_OPTION,sd_option);
 		sd_outp(hndl,SD_CLK_CTRL,sd_clk_ctrl);
-		sddev_unl_cpu(sd_port);
+		sddev_unl_cpu(hndl->sd_port);
 
 	}
 
@@ -446,7 +463,7 @@ ErrExit:
 		}
 	}
 
-	hndl->error = mode;
+	hndl->error = error;
 	
 	_sd_clear_int_mask(hndl,SD_INFO1_MASK_TRNS_RESP,0x837f);
 
@@ -537,7 +554,7 @@ static int _sd_single_read(SDHNDL *hndl,unsigned char *buff,unsigned long psn,
 
 	if (mode != SD_MODE_SW) {
 		// Invalidate ram
-		invalidate_range_all_caches((uintptr_t)buff, (uintptr_t)(buff + 512));
+		invalidate_range_after_dma_read((uintptr_t)buff, (uintptr_t)(buff + 512));
 	}
 
 	/* clear All end bit */

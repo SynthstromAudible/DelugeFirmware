@@ -16,6 +16,29 @@
  */
 
 #include "message.h"
+#include <algorithm>
+
+uint8_t toDataByte(int32_t value) {
+	return static_cast<uint8_t>(std::clamp<int32_t>(value, 0, 127));
+}
+
+uint32_t setupUSBMessage(MIDIMessage message) {
+	// format message per USB midi spec on virtual cable 0
+	uint8_t cin;
+	uint8_t firstByte = (message.channel & 15) | (message.statusType << 4);
+
+	switch (firstByte) {
+	case 0xF2: // Position pointer
+		cin = 0x03;
+		break;
+
+	default:
+		cin = message.statusType; // Good for voice commands
+		break;
+	}
+
+	return ((uint32_t)message.data2 << 24) | ((uint32_t)message.data1 << 16) | ((uint32_t)firstByte << 8) | cin;
+}
 
 size_t bytesPerStatusMessage(uint8_t statusByte) {
 	if (statusByte == 0xF0    // System exclusive - dynamic length

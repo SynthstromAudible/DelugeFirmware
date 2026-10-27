@@ -69,11 +69,12 @@ void SampleHolderForVoice::unassignAllClusterReasons(bool beingDestructed) {
 // Ensure there is a sample before you call this.
 void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoadInstruction) {
 
-#if ALPHA_OR_BETA_VERSION
 	if (!audioFile) {
-		FREEZE_WITH_ERROR("i030"); // Trying to narrow down E368 that Kevin F got
+		if (ALPHA_OR_BETA_VERSION) {
+			FREEZE_WITH_ERROR("i030"); // Trying to narrow down E368 that Kevin F got
+		}
+		return; // No Sample, so no Clusters to claim
 	}
-#endif
 
 	SampleHolder::claimClusterReasons(reversed, clusterLoadInstruction);
 
@@ -141,7 +142,7 @@ uint32_t SampleHolderForVoice::getMSecLimit(Source* source) {
 }
 
 void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctaves, bool doingSingleCycle,
-                                                              bool rangeCoversJustOneNote, bool thatOneNote) {
+                                                              bool rangeCoversJustOneNote, int32_t that_one_note) {
 	((Sample*)audioFile)->workOutMIDINote(doingSingleCycle);
 	float midiNote = ((Sample*)audioFile)->midiNote;
 	if (midiNote != -1000) {
@@ -160,7 +161,7 @@ void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctav
 		}
 
 		else if (rangeCoversJustOneNote) {
-			if (semitonesInt == 60 - thatOneNote) {
+			if (semitonesInt == 60 - that_one_note) {
 				if (cents >= -4 && cents <= 4) {
 					cents = 0;
 					// Uart::println("discarded cents");

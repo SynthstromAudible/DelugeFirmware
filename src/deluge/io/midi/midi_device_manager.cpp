@@ -272,11 +272,14 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 
 extern "C" void hostedDeviceDetached(int32_t ip, int32_t midiDeviceNum) {
 
+	// Not one of ours (e.g. hmidi_detach() didn't find it) - indexing connectedUSBMIDIDevices with it would write out
+	// of bounds
+	if (midiDeviceNum < 0 || midiDeviceNum >= MAX_NUM_USB_MIDI_DEVICES) {
 #if ALPHA_OR_BETA_VERSION
-	if (midiDeviceNum == MAX_NUM_USB_MIDI_DEVICES) {
 		FREEZE_WITH_ERROR("E367");
-	}
 #endif
+		return;
+	}
 
 	uartPrint("detached MIDI device: ");
 	uartPrintNumber(midiDeviceNum);
@@ -414,6 +417,13 @@ void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory
 	if (midiEngine.globalMIDICommands[util::to_underlying(whichCommand)].cable) {
 		midiEngine.globalMIDICommands[util::to_underlying(whichCommand)].cable->writeToFlash(memory);
 	}
+}
+
+// Read-only counterpart of the MIDI-follow device references that lived in flash before c1.3 moved those settings
+// into MIDIFollow.XML. Only used by the one-time migration in FlashStorage::readSettings() - we never write these
+// bytes again.
+void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uint8_t const* memory) {
+	midiEngine.midiFollowChannelType[util::to_underlying(whichType)].cable = readCableFromFlash(memory);
 }
 
 void writeDevicesToFile() {
@@ -681,7 +691,7 @@ void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
 		}
 		queued = ringBufWriteIdx - ringBufReadIdx;
 	}
-	if (queued > MIDI_SEND_BUFFER_LEN_RING) {
+	if (queued >= MIDI_SEND_BUFFER_LEN_RING) {
 		// TODO: show some error message
 		return;
 	}

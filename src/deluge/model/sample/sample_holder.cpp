@@ -141,11 +141,9 @@ void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manual
 
 		sampleBeenSet(reversed, manuallySelected);
 
-#if 1 || ALPHA_OR_BETA_VERSION
 		if (!audioFile) {
 			FREEZE_WITH_ERROR("i031"); // Trying to narrow down E368 that Kevin F got
 		}
-#endif
 
 		claimClusterReasons(reversed, clusterLoadInstruction);
 	}
@@ -157,8 +155,9 @@ constexpr int32_t kMarkerSamplesBeforeToClaim = 150;
 // Ensure there is a sample before you call this.
 void SampleHolder::claimClusterReasons(bool reversed, int32_t clusterLoadInstruction) {
 
-	if (ALPHA_OR_BETA_VERSION && !audioFile) {
+	if (!audioFile) {
 		FREEZE_WITH_ERROR("E368");
+		return; // audioFile is dereferenced below
 	}
 
 	// unassignAllReasons(); // This now happens as part of reassessPosForMarker(), called below
@@ -221,7 +220,8 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t sta
 		}
 		SampleCluster* sampleCluster = ((Sample*)audioFile)->clusters.getElement(clusterIndex);
 
-		newClusters[l] = sampleCluster->getCluster(((Sample*)audioFile), clusterIndex, clusterLoadInstruction);
+		newClusters[l] = sampleCluster->getCluster(((Sample*)audioFile), clusterIndex, clusterLoadInstruction,
+		                                           ClusterPriority::kSampleStart);
 
 		if (!newClusters[l]) {
 			// D_PRINTLN("NULL!!");

@@ -29,6 +29,7 @@
 #include "model/drum/drum_name.h"
 #include "model/drum/gate_drum.h"
 #include "model/instrument/kit.h"
+#include "model/iterance/iterance_migration.h"
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -1311,11 +1312,9 @@ Error NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWid
 	if (numToDelete > 0) {
 		newNotes.deleteAtIndex(nextIndexToCopyTo, numToDelete);
 	}
-#if ALPHA_OR_BETA_VERSION
 	else if (numToDelete < 0) { // If we overshot somehow
 		FREEZE_WITH_ERROR("E329");
 	}
-#endif
 
 	// Record change, stealing the old note data
 	if (action) {
@@ -3414,7 +3413,7 @@ doReadNoteData:
 				}
 				else if (noteHexLength == 26) { // if nightly firmware 1.3 with no custom iterances
 					fill = hexToIntFixedLength(&hexChars[24], 2);
-					iterance = Iterance::fromPresetIndex(hexToIntFixedLength(&hexChars[22], 2));
+					iterance = iteranceFromLegacyPresetIndex(hexToIntFixedLength(&hexChars[22], 2));
 					probability = hexToIntFixedLength(&hexChars[20], 2);
 					lift = hexToIntFixedLength(&hexChars[18], 2);
 					if (lift == 0 || lift > 127) {
@@ -3437,7 +3436,7 @@ doReadNoteData:
 					else if (probability > kNumProbabilityValues
 					         && probability <= kNumProbabilityValues + kNumIterancePresets) {
 						fill = FillMode::OFF;
-						iterance = iterancePresets[probability - kNumProbabilityValues - 1];
+						iterance = iteranceFromLegacyProbabilityByte(probability);
 						probability = kNumProbabilityValues; // 100% probability
 					}
 					else {
@@ -3465,7 +3464,7 @@ doReadNoteData:
 					else if (probability > kNumProbabilityValues
 					         && probability <= kNumProbabilityValues + kNumIterancePresets) {
 						fill = FillMode::OFF;
-						iterance = iterancePresets[probability - kNumProbabilityValues - 1];
+						iterance = iteranceFromLegacyProbabilityByte(probability);
 						probability = kNumProbabilityValues; // 100% probability
 					}
 					else {
@@ -3525,14 +3524,12 @@ getOut: {}
 			noteHexLength = 22;
 			goto doReadNoteData;
 		}
-#if ALPHA_OR_BETA_VERSION
 		// Notes stored as hex data in nightly firmware 1.3 previous to the addition of custom iterances
 		else if (song_firmware_version < FirmwareVersion::community({1, 3, 0})
 		         && !strcmp(tagName, "noteDataWithIteranceAndFill")) {
 			noteHexLength = 26;
 			goto doReadNoteData;
 		}
-#endif
 		// Notes stored as hex data including custom iterance and fill (community firmware 1.3 onwards)
 		else if (!strcmp(tagName, "noteDataWithSplitProb")) {
 			noteHexLength = 28;
@@ -3620,63 +3617,6 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			writer.write(buffer);
 		}
 		writer.write("\"");
-
-#if ALPHA_OR_BETA_VERSION
-		// TODO: once we go out of beta, this piece of code can be deleted
-		{
-			writer.insertCommaIfNeeded();
-			writer.write("\n");
-			writer.printIndents();
-			writer.write("noteDataWithLift=\"0x");
-			for (int32_t n = 0; n < notes.getNumElements(); n++) {
-				Note* thisNote = notes.getElement(n);
-
-				char buffer[9];
-
-				intToHex(thisNote->pos, buffer);
-				writer.write(buffer);
-
-				intToHex(thisNote->getLength(), buffer);
-				writer.write(buffer);
-
-				intToHex(thisNote->getVelocity(), buffer, 2);
-				writer.write(buffer);
-
-				intToHex(thisNote->getLift(), buffer, 2);
-				writer.write(buffer);
-
-				// Do here an attempt to keep the most significant information, in order of priority
-				// 1st - Iterance preset
-				// 2nd - Fill/NotFill
-				// 3rd - Probability
-				// 4th - Custom iterance (since this does not exist in 1.2 it will be always discarded)
-				int32_t oldProbability = kNumProbabilityValues; // Defaults to 100% probability
-				int32_t iterancePresetIndex = thisNote->getIterance().toPresetIndex();
-				int32_t fill = thisNote->getFill();
-				int32_t probability = thisNote->getProbability();
-				if (iterancePresetIndex > 0 && iterancePresetIndex != kCustomIterancePreset) {
-					// We found the note has an iterance preset compatible with 1.2 and backwards, use it
-					oldProbability = kNumProbabilityValues + iterancePresetIndex;
-				}
-				else if (fill != FillMode::OFF) {
-					// We found the note has a fill mode, use it
-					if (fill == FillMode::FILL) {
-						oldProbability = 0; // 0 means FILL
-					}
-					else {
-						oldProbability = 128; // 128 means NOT_FILL
-					}
-				}
-				else if (probability != kNumProbabilityValues) {
-					// we found the note has a probability different than 100%, use it
-					oldProbability = probability;
-				}
-				intToHex(oldProbability, buffer, 2);
-				writer.write(buffer);
-			}
-			writer.write("\"");
-		}
-#endif
 	}
 
 	ExpressionParamSet* expressionParams = paramManager.getExpressionParamSet();
@@ -3818,9 +3758,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 						Sound::initParams(&paramManager);
 
 						// This is at least not ideal, so we'd better tell the user
-						if (ALPHA_OR_BETA_VERSION) {
-							display->displayPopup("E073");
-						}
+						display->displayPopup("E073");
 					}
 				}
 			}

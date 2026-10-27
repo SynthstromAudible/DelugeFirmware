@@ -104,16 +104,17 @@ void Delay::setupWorkingState(Delay::State& workingState, uint32_t timePerIntern
 			workingState.userDelayRate =
 			    multiply_32x32_rshift32_rounded(workingState.userDelayRate, timePerInternalTickInverse);
 
-			// Limit to the biggest number we can store...
-			int32_t limit = 2147483647 >> (syncLevel + 5);
-			workingState.userDelayRate = std::min(workingState.userDelayRate, limit);
+			int64_t adjustedRate = workingState.userDelayRate;
 			if (syncType == SYNC_TYPE_EVEN) {} // Do nothing
 			else if (syncType == SYNC_TYPE_TRIPLET) {
-				workingState.userDelayRate = workingState.userDelayRate * 3 / 2;
+				adjustedRate = adjustedRate * 3 / 2;
 			}
 			else if (syncType == SYNC_TYPE_DOTTED) {
-				workingState.userDelayRate = workingState.userDelayRate * 2 / 3;
+				adjustedRate = adjustedRate * 2 / 3;
 			}
+			// Clamp after the sync-type adjustment so the final shift cannot overflow.
+			int32_t limit = 2147483647 >> (syncLevel + 5);
+			workingState.userDelayRate = static_cast<int32_t>(std::min<int64_t>(adjustedRate, limit));
 			workingState.userDelayRate <<= (syncLevel + 5);
 		}
 	}
@@ -328,20 +329,26 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 
 	if (analog) {
 
-		for (StereoSample& sample : working_buffer) {
-			ir_processor.process(sample, sample);
-		}
+		ir_processor.process(working_buffer);
 
-		for (StereoSample& sample : working_buffer) {
-			// impulseResponseProcessor.process(sample, sample);
-
-			// Reduce headroom, since this sounds ok with analog sim
-			sample.l = getTanHUnknown(multiply_32x32_rshift32(sample.l, delayWorkingState.delayFeedbackAmount),
-			                          delayWorkingState.analog_saturation)
-			           << 2;
-			sample.r = getTanHUnknown(multiply_32x32_rshift32(sample.r, delayWorkingState.delayFeedbackAmount),
-			                          delayWorkingState.analog_saturation)
-			           << 2;
+		// Reduce headroom, since this sounds ok with analog sim. The saturation amount is fixed for the whole
+		// buffer, so pick the tanh once rather than switching on it for every sample
+		auto saturate = [&]<typename TanH>(TanH tanH) {
+			for (StereoSample& sample : working_buffer) {
+				sample.l = tanH(multiply_32x32_rshift32(sample.l, delayWorkingState.delayFeedbackAmount)) << 2;
+				sample.r = tanH(multiply_32x32_rshift32(sample.r, delayWorkingState.delayFeedbackAmount)) << 2;
+			}
+		};
+		switch (delayWorkingState.analog_saturation) {
+		case 8:
+			saturate([](int32_t input) { return getTanH<8>(input); });
+			break;
+		case 5:
+			saturate([](int32_t input) { return getTanH<5>(input); });
+			break;
+		default:
+			saturate([&](int32_t input) { return getTanHUnknown(input, delayWorkingState.analog_saturation); });
+			break;
 		}
 	}
 

@@ -24,6 +24,7 @@ extern "C" {
 #include "gui/l10n/l10n.h"
 #include "io/midi/midi_engine.h"
 #include "storage/storage_manager.h"
+#include "timers_interrupts/timers_interrupts.h"
 
 void MIDICableDINPorts::writeReferenceAttributesToFile(Serializer& writer) {
 	// Same line. Usually the user wouldn't have default velocity sensitivity set
@@ -39,6 +40,8 @@ char const* MIDICableDINPorts::getDisplayName() {
 }
 
 void MIDICableDINPorts::sendMessage(MIDIMessage message) {
+	// The MIDI/gate output timer ISR writes to this buffer too
+	CriticalSectionGuard guard;
 	midiEngine.sendSerialMidi(message);
 }
 
@@ -53,6 +56,8 @@ void MIDICableDINPorts::sendSysex(const uint8_t* data, int32_t len) {
 
 	// NB: beware of MIDI_TX_BUFFER_SIZE
 	for (int32_t i = 0; i < len; i++) {
+		// The MIDI/gate output timer ISR writes to this buffer too
+		CriticalSectionGuard guard;
 		bufferMIDIUart(data[i]);
 	}
 }

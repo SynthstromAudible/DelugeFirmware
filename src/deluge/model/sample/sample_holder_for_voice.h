@@ -31,7 +31,7 @@ public:
 	void recalculateFineTuner();
 	void claimClusterReasons(bool reversed, int32_t clusterLoadInstruction = CLUSTER_ENQUEUE) override;
 	void setTransposeAccordingToSamplePitch(bool minimizeOctaves = false, bool doingSingleCycle = false,
-	                                        bool rangeCoversJustOneNote = false, bool thatOneNote = 0);
+	                                        bool rangeCoversJustOneNote = false, int32_t that_one_note = 0);
 	uint32_t getMSecLimit(Source* source);
 
 	/// In samples. 0 means not set.

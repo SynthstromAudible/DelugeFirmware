@@ -34,12 +34,14 @@ Includes   <System Includes> , "Project Includes"
 #include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
 
 #include "deluge/drivers/uart/uart.h"
+#include "deluge/drivers/usb/usb_audio.h"
 
 #define WHICH_USB_MODULE USB_IP0
 
 extern uint8_t g_midi_device[];
 extern uint8_t g_midi_configuration[];
 extern uint8_t* g_midi_string_table[];
+uint8_t* usbPeripheralConfigurationDescriptor(bool withAudio);
 
 static usb_descriptor_t usb_descriptor = {
     (uint8_t*)g_midi_device,        /* Pointer to the device descriptor */
@@ -91,12 +93,15 @@ void openUSBPeripheral(void)
     usb_ctrl_t ctrl;
     usb_cfg_t cfg;
 
-    ctrl.module        = WHICH_USB_MODULE;
-    ctrl.type          = USB_PMSC;
-    cfg.usb_speed      = USB_FS;
-    cfg.usb_mode       = USB_PERI;
-    cfg.p_usb_reg      = &usb_descriptor;
-    usb_err_t ret_code = R_USB_Open(&ctrl, &cfg); /* Initializes the USB module */
+    ctrl.module   = WHICH_USB_MODULE;
+    ctrl.type     = USB_PMSC;
+    cfg.usb_speed = USB_FS;
+    cfg.usb_mode  = USB_PERI;
+    cfg.p_usb_reg = &usb_descriptor;
+
+    // With or without USB audio, as the user's set - fixed until the next time we open as a peripheral
+    usb_descriptor.p_config_f = usbPeripheralConfigurationDescriptor(usbAudioStartPeripheral());
+    usb_err_t ret_code        = R_USB_Open(&ctrl, &cfg); /* Initializes the USB module */
 
     usbCurrentlyInitialized = true;
 }

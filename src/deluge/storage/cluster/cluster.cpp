@@ -56,6 +56,12 @@ Cluster* Cluster::create(Cluster::Type type, bool shouldAddReasons, void* dontSt
 	return cluster;
 }
 
+Cluster::~Cluster() {
+	if (type == Type::SAMPLE) {
+		audioFileManager.forgetClusterRead(this); // DMA mustn't carry on writing into it
+	}
+}
+
 void Cluster::destroy() {
 	this->~Cluster(); // Removes reasons, and / or from stealable list
 	delugeDealloc(this);
@@ -194,15 +200,17 @@ void Cluster::steal(char const* errorCode) {
 	switch (type) {
 
 	case Type::SAMPLE:
-		if (ALPHA_OR_BETA_VERSION && sample == nullptr) {
+		if (sample == nullptr) {
 			FREEZE_WITH_ERROR("E181");
+			break; // No owner to notify
 		}
 		sample->clusters.getElement(clusterIndex)->cluster = nullptr;
 		break;
 
 	case Type::SAMPLE_CACHE:
-		if (ALPHA_OR_BETA_VERSION && sampleCache == nullptr) {
+		if (sampleCache == nullptr) {
 			FREEZE_WITH_ERROR("E183");
+			break; // No owner to notify
 		}
 		sampleCache->clusterStolen(clusterIndex);
 
@@ -216,8 +224,9 @@ void Cluster::steal(char const* errorCode) {
 
 	case Type::PERC_CACHE_FORWARDS:
 	case Type::PERC_CACHE_REVERSED:
-		if (ALPHA_OR_BETA_VERSION && sample == nullptr) {
+		if (sample == nullptr) {
 			FREEZE_WITH_ERROR("E184");
+			break; // No owner to notify
 		}
 		sample->percCacheClusterStolen(this);
 		break;

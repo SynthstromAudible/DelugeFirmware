@@ -57,7 +57,10 @@ SampleRecorder::~SampleRecorder() {
 	if (sample != nullptr) {
 		detachSample();
 	}
-	outputRecordingFrom->removeRecorder();
+	// Only set when recording from a specific track
+	if (outputRecordingFrom != nullptr) {
+		outputRecordingFrom->removeRecorder();
+	}
 }
 
 // This can be called when this SampleRecorder is destructed routinely - or earlier if we've aborted and the sample file
@@ -176,7 +179,7 @@ gotError:
 	// External sources
 	if (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
 
-		sourcePos = (int32_t*)AudioEngine::i2sRXBufferPos;
+		sourcePos = AudioEngine::getInputReadPos(mode);
 
 		numSamplesToRunBeforeBeginningCapturing -=
 		    buttonPressLatency; // Compensate for button press latency. We only do this for external sources
@@ -193,7 +196,7 @@ gotError:
 			sourcePos += (SSI_TX_BUFFER_NUM_SAMPLES
 			              << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 1)); // I think the +1 was just because it needs to
 			                                                           // move two tx buffers' length for some reason...
-			if (sourcePos >= getRxBufferEnd()) {
+			if (sourcePos >= AudioEngine::getInputBufferEnd(mode)) {
 				sourcePos -= SSI_RX_BUFFER_NUM_SAMPLES << NUM_MONO_INPUT_CHANNELS_MAGNITUDE;
 			}
 		}
@@ -207,7 +210,7 @@ gotError:
 
 				sourcePos +=
 				    numSamplesToRunBeforeBeginningCapturing * NUM_MONO_INPUT_CHANNELS; // This might be negative!
-				if (sourcePos < getRxBufferStart()) {
+				if (sourcePos < AudioEngine::getInputBufferStart(mode)) {
 					sourcePos += SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 				}
 
@@ -363,16 +366,19 @@ aborted:
 
 			detachSample(); // Does not set sample to NULL - we do that below
 
-#if ALPHA_OR_BETA_VERSION
 			// It should be impossible that anyone else still holds a "reason" to this Sample, as we can only be
 			// "aborted" before AudioClip::finishLinearRecording() is called, and it's only then at the AudioClip
 			// becomes a "reason".
-			if (sample->numReasonsToBeLoaded) {
+			bool sampleStillInUse = (sample->numReasonsToBeLoaded != 0);
+#if ALPHA_OR_BETA_VERSION
+			if (sampleStillInUse) {
 				FREEZE_WITH_ERROR("E282");
 			}
 #endif
 
-			if (haveAddedSampleToArray) { // We only add it to the array when the file is created.
+			// If something does still hold a reason, don't delete the Sample out from under it - it'll get freed
+			// through the normal stealable path once its last reason is removed.
+			if (haveAddedSampleToArray && !sampleStillInUse) { // We only add it to the array when the file is created.
 				audioFileManager.deleteUnusedAudioFileFromMemoryIndexUnknown(*sample);
 			}
 
@@ -439,7 +445,7 @@ aborted:
 			}
 			else {
 				const char* name;
-				if (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && !AudioEngine::lineInPluggedIn) {
+				if (AudioEngine::isCodecInput(mode) && !AudioEngine::lineInPluggedIn) {
 					if (AudioEngine::micPluggedIn) {
 						name = "ExtMic";
 					}
@@ -680,8 +686,7 @@ Error SampleRecorder::finalizeRecordedFile() {
 			}
 
 			// Or, if R is the differential signal of L, do that
-			else if (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && AudioEngine::lineInPluggedIn
-			         && inputLooksDifferential()) {
+			else if (AudioEngine::isCodecInput(mode) && AudioEngine::lineInPluggedIn && inputLooksDifferential()) {
 				D_PRINTLN("subtracting right channel");
 				action = MonitoringAction::SUBTRACT_RIGHT_CHANNEL;
 			}
@@ -937,8 +942,9 @@ doFinishCapturing:
 
 				numSamplesThisCycle = std::min(numSamplesThisCycle, samplesLeft);
 			}
-			if (ALPHA_OR_BETA_VERSION && numSamplesThisCycle <= 0) {
+			if (numSamplesThisCycle <= 0) {
 				FREEZE_WITH_ERROR("bbbb");
+				return; // Otherwise numSamples never decreases and we loop forever
 			}
 
 			int32_t bytesPerSample = recordingNumChannels * 3;
@@ -968,8 +974,9 @@ doFinishCapturing:
 				numSamplesThisCycle = std::min(numSamplesThisCycle, samplesTilClusterEnd);
 			}
 
-			if (ALPHA_OR_BETA_VERSION && numSamplesThisCycle <= 0) {
+			if (numSamplesThisCycle <= 0) {
 				FREEZE_WITH_ERROR("aaaa");
+				return; // Otherwise numSamples never decreases and we loop forever
 			}
 
 			std::byte* __restrict__ writePosNow = reinterpret_cast<std::byte*>(writePos);
@@ -1089,23 +1096,27 @@ doFinishCapturing:
 }
 
 void SampleRecorder::endSyncedRecording(int32_t buttonLatencyForTempolessRecording) {
+	// Already ending / ended (and once aborted, sample is null), so there's nothing for us to do
+	if (status != RecorderStatus::CAPTURING_DATA) {
 #if ALPHA_OR_BETA_VERSION
-	if (status == RecorderStatus::CAPTURING_DATA_WAITING_TO_STOP) {
-		FREEZE_WITH_ERROR("E272");
-	}
-	else if (status == RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
-		FREEZE_WITH_ERROR("E288");
-	}
-	else if (status == RecorderStatus::COMPLETE) {
-		FREEZE_WITH_ERROR("E289");
-	}
-	else if (status == RecorderStatus::ABORTED) {
-		FREEZE_WITH_ERROR("E290");
-	}
-	else if (status == RecorderStatus::AWAITING_DELETION) {
-		FREEZE_WITH_ERROR("E291");
-	}
+		if (status == RecorderStatus::CAPTURING_DATA_WAITING_TO_STOP) {
+			FREEZE_WITH_ERROR("E272");
+		}
+		else if (status == RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
+			FREEZE_WITH_ERROR("E288");
+		}
+		else if (status == RecorderStatus::COMPLETE) {
+			FREEZE_WITH_ERROR("E289");
+		}
+		else if (status == RecorderStatus::ABORTED) {
+			FREEZE_WITH_ERROR("E290");
+		}
+		else if (status == RecorderStatus::AWAITING_DELETION) {
+			FREEZE_WITH_ERROR("E291");
+		}
 #endif
+		return;
+	}
 
 	if (numSamplesCaptured) {
 		int32_t numMoreSamplesTilEndLoopPoint =
@@ -1157,8 +1168,9 @@ void SampleRecorder::totalSampleLengthNowKnown(uint32_t totalLengthSamples, uint
 		SampleCluster* firstSampleCluster = sample->clusters.getElement(0);
 		Cluster* cluster =
 		    firstSampleCluster->cluster; // It should still be there, cos it hasn't been written to card yet
-		if (ALPHA_OR_BETA_VERSION && !cluster) {
+		if (!cluster) {
 			FREEZE_WITH_ERROR("E274");
+			return; // updateDataLengthInFirstCluster() would dereference it
 		}
 
 		audioDataLengthBytesAsWrittenToFile = sample->audioDataLengthBytes;
@@ -1207,8 +1219,14 @@ Error SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount, u
 	currentReadCluster->numReasonsHeldBySampleRecorder++;
 
 	int32_t numClustersBeforeAction = ((idealFileSizeBeforeAction - 1) >> Cluster::size_magnitude) + 1; // Rounds up
-	if (ALPHA_OR_BETA_VERSION && numClustersBeforeAction > sample->clusters.getNumElements()) {
+	if (numClustersBeforeAction > sample->clusters.getNumElements()) {
+#if ALPHA_OR_BETA_VERSION
 		FREEZE_WITH_ERROR("E286");
+#endif
+		// We'd walk off the end of sample->clusters below, so give back the reason we just took and bail
+		currentReadCluster->numReasonsHeldBySampleRecorder--;
+		audioFileManager.removeReasonFromCluster(*currentReadCluster, "E017");
+		return Error::BUG;
 	}
 
 	Cluster* nextReadCluster = nullptr;

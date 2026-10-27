@@ -61,6 +61,12 @@ else()
     set(EXECUTABLE_VERSION_SUFFIX "")
 endif(ENABLE_VERSIONED_OUTPUT)
 
+# Beta/alpha builds compile in extra error-checking (see ALPHA_OR_BETA_VERSION in
+# src/definitions.h). Release candidates and final releases turn it off.
+if(RELEASE_TYPE STREQUAL "rc" OR RELEASE_TYPE STREQUAL "release")
+    add_compile_definitions(ALPHA_OR_BETA_VERSION=0)
+endif()
+
 # RTT option
 option(ENABLE_RTT "Enable RTT output" ON)
 
