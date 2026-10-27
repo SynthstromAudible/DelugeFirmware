@@ -92,6 +92,13 @@ struct FeedbackShaper {
 		return {.feedback = s.feedback, .drive = s.drive, .mode = s.analog ? Mode::ANALOG : Mode::DIGITAL};
 	}
 
+	/// @brief The analog shaping of the impulse response's output @p response: tanh(response × f, d) << 2, Q31.
+	/// @details What ANALOG's step returns after stepping the response; for an owner stepping two channels' responses
+	/// together (@ref AnalogImpulseResponse::step_pair).
+	[[nodiscard]] [[gnu::always_inline]] static q31 analog(const Coefficients& c, q31 response) {
+		return tanh(multiply_32x32_rshift32(response, c.feedback), c.drive) << kOutputShift;
+	}
+
 	/// @brief One sample of feedback, shaped.
 	/// @tparam M The block's mode.
 	/// @param c The amount and the drive.
@@ -102,8 +109,7 @@ struct FeedbackShaper {
 	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& /*b*/, State& s,
 	                                                     q31 x) {
 		if constexpr (M == Mode::ANALOG) {
-			const q31 response = AnalogImpulseResponse::step({}, {}, s.response, x);
-			return tanh(multiply_32x32_rshift32(response, c.feedback), c.drive) << kOutputShift;
+			return analog(c, AnalogImpulseResponse::step({}, {}, s.response, x));
 		}
 		else {
 			return signed_saturate<kDigitalBits>(multiply_32x32_rshift32(x, c.feedback)) << kOutputShift;

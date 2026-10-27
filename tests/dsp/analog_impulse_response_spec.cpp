@@ -365,6 +365,32 @@ describe analog_impulse_response("AnalogImpulseResponse", ${
 		const std::vector<q31> got = kernel_of(in, 32);
 		expect(std::vector<q31>{got.end() - 64, got.end()}).to_equal(tail);
 	});
+
+	it("steps two channels as one step each would, the histories at different positions, full scale included", _ {
+		std::vector<StereoSample> in = noise(kLongRun, 0x7a1c0de5, 0);
+		for (const q31 x : {std::numeric_limits<q31>::min(), std::numeric_limits<q31>::max()}) {
+			in.insert(in.end(), 40, StereoSample{.l = x, .r = x});
+			in.insert(in.end(), 40, StereoSample{.l = x, .r = -1 - x});
+		}
+		for (const std::size_t offset : {std::size_t{0}, std::size_t{1}, std::size_t{13}, std::size_t{24}}) {
+			AnalogImpulseResponse::State left{};
+			AnalogImpulseResponse::State right{};
+			AnalogImpulseResponse::State one_left{};
+			AnalogImpulseResponse::State one_right{};
+			// The right history starts `offset` samples on from the left's, the same inputs fed to both forms.
+			for (std::size_t i = 0; i < offset; ++i) {
+				std::ignore = AnalogImpulseResponse::step({}, {}, right, q31(i * 977));
+				std::ignore = AnalogImpulseResponse::step({}, {}, one_right, q31(i * 977));
+			}
+			for (const StereoSample& x : in) {
+				const StereoSample paired = AnalogImpulseResponse::step_pair(left, right, x.l, x.r);
+				expect(paired.l).to_equal(AnalogImpulseResponse::step({}, {}, one_left, x.l));
+				expect(paired.r).to_equal(AnalogImpulseResponse::step({}, {}, one_right, x.r));
+			}
+			expect(left.oldest).to_equal(one_left.oldest);
+			expect(right.oldest).to_equal(one_right.oldest);
+		}
+	});
 });
 // clang-format on
 
