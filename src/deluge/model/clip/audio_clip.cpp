@@ -615,6 +615,12 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<q31_
 
 	Sample* sample = ((Sample*)sampleHolder.audioFile);
 
+	// The Sample is in SDRAM and always cold by the next render, so start fetching the parts of it that rendering uses
+	// before the setup below
+	__builtin_prefetch(sample);
+	__builtin_prefetch((char*)sample + 32);
+	__builtin_prefetch((char*)sample + 64);
+
 	// First, if we're still attempting to do a "late start", see if we can do that (perhaps not if relevant audio data
 	// hasn't loaded yet)
 	if (doingLateStart && static_cast<AudioOutput*>(this->output)->envelope.stage() < Envelope::Stage::FAST_RELEASE) {

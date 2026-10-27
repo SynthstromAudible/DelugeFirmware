@@ -1,0 +1,61 @@
+---
+import { getBlogPosts } from "../logic/blog"
+import { withBase } from "../utils"
+
+type Props = {
+  /** Show only the newest `limit` posts. */
+  limit?: number
+}
+
+const dateFormat = new Intl.DateTimeFormat("en", { dateStyle: "long" })
+
+const posts = (await getBlogPosts()).slice(0, Astro.props.limit)
+---
+
+{
+  posts.length === 0 ? (
+    <p>No posts yet.</p>
+  ) : (
+    <ul class="blog-post-list">
+      {posts.map((post) => (
+        <li>
+          <a href={withBase(`/${post.id}`)}>{post.data.title}</a>
+          <p class="blog-post-list__meta">
+            {post.data.date && (
+              <time datetime={post.data.date.toISOString()}>
+                {dateFormat.format(post.data.date)}
+              </time>
+            )}
+            {post.data.authors && ` · ${post.data.authors.join(", ")}`}
+          </p>
+          {post.data.description && <p>{post.data.description}</p>}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+<style>
+  .blog-post-list {
+    list-style: none;
+    padding-left: 0;
+  }
+
+  .blog-post-list li + li {
+    margin-top: 1.5rem;
+  }
+
+  .blog-post-list a {
+    font-size: var(--sl-text-h4);
+    font-weight: 600;
+  }
+
+  .blog-post-list p {
+    margin-top: 0.25rem;
+  }
+
+  .blog-post-list__meta {
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-sm);
+  }
+</style>
