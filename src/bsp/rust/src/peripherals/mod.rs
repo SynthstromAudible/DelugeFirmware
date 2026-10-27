@@ -6,6 +6,8 @@ pub mod board;
 pub mod control;
 #[cfg(target_os = "none")]
 pub(crate) mod cv_gate;
+// Also on host: the latest-value store is pure, for its tests.
+pub(crate) mod cv_latest;
 pub mod display;
 #[cfg(target_os = "none")]
 pub(crate) mod fault;
