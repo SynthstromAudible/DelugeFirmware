@@ -358,27 +358,24 @@ private:
 
 	/// @brief The input less the scaled feedback, normalised, Q31; saturated with the morph's share of the input
 	/// added when the morph is up or the resonance high.
-	/// @tparam I The block's input form; UNRESONANT reads neither @p feedback_sum nor the resonance.
-	/// @param feedback_sum Computes the sections' feedback (Q31), called unless UNRESONANT.
-	template <Input I, class FeedbackSum>
-	[[nodiscard]] [[gnu::always_inline]] static q31 scale_input(const Coefficients& c, q31 x,
-	                                                            FeedbackSum&& feedback_sum) {
-		if constexpr (I == Input::UNRESONANT) {
-			// The general form with R = 0 and D = 1 (Q30): nothing fed back, and x × 2^30 rounded off its low 32 bits
-			// is (x + 2) >> 2, which the << 2 makes (x + 2) with its low two bits cleared, modulo 2^32.
-			return static_cast<q31>((static_cast<uint32_t>(x) + 2u) & ~3u);
+	/// @param feedbacks_sum The sections' feedback, Q31.
+	[[nodiscard]] [[gnu::always_inline]] static q31 scale_input(const Coefficients& c, q31 x, q31 feedbacks_sum) {
+		const q31 fed_back = multiply_32x32_rshift32_rounded(feedbacks_sum, c.processed_resonance) << 3;
+		const q31 scaled = multiply_32x32_rshift32_rounded(wrapping_sub(x, fed_back),
+		                                                   c.divide_by_total_moveability_and_processed_resonance)
+		                   << 2;
+		if (c.morph > 0 || c.processed_resonance > kSaturateAbove) {
+			const q31 extra = multiply_32x32_rshift32(x, c.morph);
+			return tanh<kInputDrive>(wrapping_add(scaled, wrapping_add(extra, extra)));
 		}
-		else {
-			const q31 fed_back = multiply_32x32_rshift32_rounded(feedback_sum(), c.processed_resonance) << 3;
-			const q31 scaled = multiply_32x32_rshift32_rounded(wrapping_sub(x, fed_back),
-			                                                   c.divide_by_total_moveability_and_processed_resonance)
-			                   << 2;
-			if (c.morph > 0 || c.processed_resonance > kSaturateAbove) {
-				const q31 extra = multiply_32x32_rshift32(x, c.morph);
-				return tanh<kInputDrive>(wrapping_add(scaled, wrapping_add(extra, extra)));
-			}
-			return scaled;
-		}
+		return scaled;
+	}
+
+	/// @brief The input normalised with nothing fed back, Q31: scale_input with the resonance and morph at zero.
+	/// @details R = 0 and D = 1 (Q30), so nothing is fed back, and x × 2^30 rounded off its low 32 bits is (x + 2) >>
+	/// 2, which the << 2 makes (x + 2) with its low two bits cleared, modulo 2^32.
+	[[nodiscard]] [[gnu::always_inline]] static q31 unresonant_input(q31 x) {
+		return static_cast<q31>((static_cast<uint32_t>(x) + 2u) & ~3u);
 	}
 
 	/// @brief One step of @p section at moveability @p m in mode @p M.
@@ -403,11 +400,16 @@ private:
 	template <Input I>
 	[[nodiscard]] [[gnu::always_inline]] static q31 half_ladder(const Coefficients& c, State& s, q31 input) {
 		const q31 m = noisy_moveability(c, s);
-		const q31 x = scale_input<I>(c, input, [&] [[gnu::always_inline]] {
-			return wrapping_add(wrapping_add(OnePole::feedback(s.sections[0], c.feedbacks[0]),
-			                                 OnePole::feedback(s.sections[1], c.feedbacks[1])),
-			                    OnePole::feedback(s.sections[2], c.divide_by_one_plus_tanned));
-		});
+		q31 x = 0;
+		if constexpr (I == Input::UNRESONANT) {
+			x = unresonant_input(input);
+		}
+		else {
+			const q31 feedbacks_sum = wrapping_add(wrapping_add(OnePole::feedback(s.sections[0], c.feedbacks[0]),
+			                                                    OnePole::feedback(s.sections[1], c.feedbacks[1])),
+			                                       OnePole::feedback(s.sections[2], c.divide_by_one_plus_tanned));
+			x = scale_input(c, input, feedbacks_sum);
+		}
 		const q31 a = section_step<OnePole::Mode::LOW_PASS>(s.sections[0], m, x);
 		const q31 b = section_step<OnePole::Mode::LOW_PASS>(s.sections[1], m, a);
 		return section_step<OnePole::Mode::ALL_PASS>(s.sections[2], m, b) << 1;
@@ -417,7 +419,7 @@ private:
 	template <Input I>
 	[[nodiscard]] [[gnu::always_inline]] static q31 full_ladder(const Coefficients& c, State& s, q31 input) {
 		const q31 m = noisy_moveability(c, s);
-		const q31 x = scale_input<I>(c, input, [&] [[gnu::always_inline]] { return full_feedback(c, s); });
+		const q31 x = I == Input::UNRESONANT ? unresonant_input(input) : scale_input(c, input, full_feedback(c, s));
 		return four_sections(s, m, x) << 1;
 	}
 
@@ -426,8 +428,8 @@ private:
 	template <Input I>
 	[[nodiscard]] [[gnu::always_inline]] static q31 drive_ladder(const Coefficients& c, State& s, q31 input) {
 		const q31 m = noisy_moveability(c, s);
-		const q31 x =
-		    scale_input<I>(c, input, [&] [[gnu::always_inline]] { return tanh<kFeedbackDrive>(full_feedback(c, s)); });
+		const q31 x = I == Input::UNRESONANT ? unresonant_input(input)
+		                                     : scale_input(c, input, tanh<kFeedbackDrive>(full_feedback(c, s)));
 		return four_sections(s, m, x) << 1;
 	}
 
