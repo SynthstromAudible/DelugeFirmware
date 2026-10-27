@@ -15,6 +15,10 @@ on:
       branch:
         required: false
         type: string
+      skip:
+        # Skips the job instead of not calling it, so the required check still passes
+        default: false
+        type: boolean
   workflow_dispatch:
     inputs:
       firmware-retention-days:
@@ -46,6 +50,7 @@ permissions:
 jobs:
   build:
     name: Build
+    if: ${{ !inputs.skip }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout branch
@@ -57,22 +62,27 @@ jobs:
         if: inputs.branch == null
         uses: actions/checkout@v7
       - name: Validate Build Type
-        run: buildtype=${{inputs.build-type }} node .github/scripts/validate_build_string.js
+        env:
+          buildtype: ${{ inputs.build-type }}
+        run: node .github/scripts/validate_build_string.js
       - name: Fetch container image
         run: |
-          docker pull ghcr.io/synthstromaudible/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION)
+          docker pull "ghcr.io/synthstromaudible/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION)"
       - name: Run build
+        env:
+          BUILD_TAG: ${{ inputs.build-tag }}
+          BUILD_TYPE: ${{ inputs.build-type }}
         run: |
           docker run --rm \
-            --user=$(id --user):$(id --group) \
+            --user="$(id --user):$(id --group)" \
             -e DBT_NO_PYTHON_UPGRADE=1 \
-            -v $(pwd):/src \
-            ghcr.io/synthstromaudible/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION) \
+            -v "$(pwd)":/src \
+            "ghcr.io/synthstromaudible/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION)" \
             build \
             --verbose \
             --tag-metadata \
-            --type ${{ inputs.build-tag }} \
-            ${{ inputs.build-type }}
+            --type "$BUILD_TAG" \
+            "$BUILD_TYPE"
 
       - name: Genfile check
         run: |

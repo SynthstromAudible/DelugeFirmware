@@ -1,31 +1,22 @@
 {
   "branch": "main",
-  "generatedAt": "2026-09-13T13:52:23-04:00",
-  "head": "9e3132dc17070695b40f69bada5565a33ce428b4",
+  "generatedAt": "2026-10-26T17:17:41+00:00",
+  "head": "4d38a676b8514df7da5613da6eb4a93fdda71bfa",
   "scannedCommitCount": 120,
-  "detectedRevertCount": 5,
-  "summary": "The latest activity includes 2 features, 9 fixes, 5 documentation updates, and 2 maintenance updates.",
+  "detectedRevertCount": 1,
+  "summary": "The latest activity includes 1 feature, 16 fixes, and 1 other change.",
   "categories": [
     {
       "name": "Features",
       "commits": [
         {
-          "hash": "ff4d7f7eeef170acd56ff7d9e23785b06e931b39",
-          "shortHash": "ff4d7f7e",
-          "date": "2026-09-11T13:23:04+00:00",
-          "title": "Sound editor colours",
+          "hash": "9c33b60b176e74bf729b5ad72c69e922cdf92369",
+          "shortHash": "9c33b60b",
+          "date": "2026-10-26T02:53:06+00:00",
+          "title": "Add dx7 param editor shortcut overlay",
           "category": "Features",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4881",
-          "pullRequest": 4881
-        },
-        {
-          "hash": "83013cb4eb839a04bfc8affa36853d6cec80759b",
-          "shortHash": "83013cb4",
-          "date": "2026-08-31T01:48:50+00:00",
-          "title": "Add per device midi thru toggle",
-          "category": "Features",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4855",
-          "pullRequest": 4855
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/5124",
+          "pullRequest": 5124
         }
       ]
     },
@@ -33,158 +24,162 @@
       "name": "Fixes",
       "commits": [
         {
-          "hash": "9ed7483de8ca59e97669705a00eff4ad8bf697d4",
-          "shortHash": "9ed7483d",
-          "date": "2026-09-13T15:00:51+00:00",
-          "title": "Fix param manager error on instrument clip conversion to audio",
+          "hash": "4d38a676b8514df7da5613da6eb4a93fdda71bfa",
+          "shortHash": "4d38a676",
+          "date": "2026-10-26T17:17:41+00:00",
+          "title": "Service OLED handshakes independently of UI input",
           "category": "Fixes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4903",
-          "pullRequest": 4903
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/5151",
+          "pullRequest": 5151
         },
         {
-          "hash": "52ee3623d2ce67303a0b7c0e7d7ee39eeb3e7d48",
-          "shortHash": "52ee3623",
-          "date": "2026-09-10T12:29:21+00:00",
-          "title": "Fix patch cable polarity not saving properly",
+          "hash": "e372b0385a42fe4766f767d756f83a54ac330d7a",
+          "shortHash": "e372b038",
+          "date": "2026-10-26T16:33:45+00:00",
+          "title": "Let CV bypass OLED selection while pad redraws drain",
           "category": "Fixes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4909",
-          "pullRequest": 4909
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/5150",
+          "pullRequest": 5150
         },
         {
-          "hash": "a23d06ee158231221450e398fe28972681595b2f",
-          "shortHash": "a23d06ee",
-          "date": "2026-09-10T12:28:46+00:00",
-          "title": "Fix expression automation getting lost between non-kit to kit to different non-kit changes",
+          "hash": "d35056c7cb549b27f123b95a31f6c3d03c6b518a",
+          "shortHash": "d35056c7",
+          "date": "2026-10-26T16:32:24+00:00",
+          "title": "Fix redundant OLED countdown frame on section launch",
           "category": "Fixes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4905",
-          "pullRequest": 4905
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/5149",
+          "pullRequest": 5149
         },
         {
-          "hash": "5a0ba489671977e33bf9fd2f114fe9ce3b3f6d80",
-          "shortHash": "5a0ba489",
-          "date": "2026-09-10T12:28:05+00:00",
-          "title": "Fix some serializer/deserializer stuff",
+          "hash": "0d8abeb24e162e1d13f6652eee839ccd4240fb1a",
+          "shortHash": "0d8abeb2",
+          "date": "2026-10-26T02:36:33+00:00",
+          "title": "Perf/analog delay",
           "category": "Fixes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4908",
-          "pullRequest": 4908
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/5143",
+          "pullRequest": 5143
         },
         {
-          "hash": "9f42f7954eb2c0d933c492d7ed29d6e3a560362e",
-          "shortHash": "9f42f795",
-          "date": "2026-09-02T16:17:23+00:00",
-          "title": "Update audio output voice count",
+          "hash": "76ce31accb6dfc8a566287eebac4886836cd2f29",
+          "shortHash": "76ce31ac",
+          "date": "2026-10-26T01:56:25+00:00",
+          "title": "Bugfix/usb detach",
           "category": "Fixes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4883",
-          "pullRequest": 4883
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/5138",
+          "pullRequest": 5138
         },
         {
-          "hash": "7064d10b910e58bd8ee64d3ab5c21f08859ffb9c",
-          "shortHash": "7064d10b",
-          "date": "2026-08-31T22:15:15+00:00",
-          "title": "Fix Live Input Pitch Shifter Infinite Loop Freeze",
+          "hash": "2b5965d033f216ba7e785205109b2461b16d7f0e",
+          "shortHash": "2b5965d0",
+          "date": "2026-10-26T01:15:41+00:00",
+          "title": "Fix OLED launch countdown update frequency",
           "category": "Fixes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4885",
-          "pullRequest": 4885
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/5127",
+          "pullRequest": 5127
         },
         {
-          "hash": "4606fb0be3ebd7034034af78f359078afe44784e",
-          "shortHash": "4606fb0b",
-          "date": "2026-08-26T13:59:41+00:00",
-          "title": "Refactor note iterance preset display logic",
+          "hash": "a4512d370cc1ead9ba4bfb325182c16b505a397c",
+          "shortHash": "a4512d37",
+          "date": "2026-10-26T01:13:30+00:00",
+          "title": "Fix session row view audio clip waveform rendering",
           "category": "Fixes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4869",
-          "pullRequest": 4869
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/5132",
+          "pullRequest": 5132
         },
         {
-          "hash": "8355e15afcb5fa9b03f1a3264f054bd213f700d4",
-          "shortHash": "8355e15a",
-          "date": "2026-08-26T02:11:08+00:00",
-          "title": "Fix issue with DX7 browser 'back' navigation",
+          "hash": "1fd7b616ced308e4b886d266d5f06aceab3be357",
+          "shortHash": "1fd7b616",
+          "date": "2026-10-26T01:13:02+00:00",
+          "title": "This is only needed as a host",
           "category": "Fixes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4866",
-          "pullRequest": 4866
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/5137",
+          "pullRequest": 5137
         },
         {
-          "hash": "2506643fa849ed362722b9aa1e797e726543a7dd",
-          "shortHash": "2506643f",
-          "date": "2026-08-26T02:10:43+00:00",
-          "title": "Persist audio clip names to file",
+          "hash": "f5503c811d92ac46887ae51e619e9e6c191d6c1a",
+          "shortHash": "f5503c81",
+          "date": "2026-10-26T00:03:52+00:00",
+          "title": "Fix automation undo action memory consumption",
           "category": "Fixes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4867",
-          "pullRequest": 4867
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/5123",
+          "pullRequest": 5123
+        },
+        {
+          "hash": "0e0e682399fb258c8c264a334a5801cb9b120fca",
+          "shortHash": "0e0e6823",
+          "date": "2026-10-25T23:44:56+00:00",
+          "title": "Fix session view clip flashing pausing",
+          "category": "Fixes",
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/5126",
+          "pullRequest": 5126
+        },
+        {
+          "hash": "d76411b7d4d9c8e7d1738f6e625b0a5d2dce9e85",
+          "shortHash": "d76411b7",
+          "date": "2026-10-25T23:44:03+00:00",
+          "title": "Avoid unchanged OLED transfers while text scrolling is paused",
+          "category": "Fixes",
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/5128",
+          "pullRequest": 5128
+        },
+        {
+          "hash": "91a1e1f4dcb4a85216db14f3fc14754de8d6d37c",
+          "shortHash": "91a1e1f4",
+          "date": "2026-10-25T23:42:51+00:00",
+          "title": "Deduplicate composed OLED frames with stable DMA storage",
+          "category": "Fixes",
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/5131",
+          "pullRequest": 5131
+        },
+        {
+          "hash": "53ee89f47a67c52036ed32b4db81de157f2c935f",
+          "shortHash": "53ee89f4",
+          "date": "2026-10-25T15:42:17+00:00",
+          "title": "Midi cc interp fast tempo",
+          "category": "Fixes",
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/5120",
+          "pullRequest": 5120
+        },
+        {
+          "hash": "13c7aee92a505e9bd84a07d528faae8cee3e225b",
+          "shortHash": "13c7aee9",
+          "date": "2026-10-25T04:40:25+00:00",
+          "title": "Fix String refcount underflow when concatenate runs out of memory",
+          "category": "Fixes",
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/5095",
+          "pullRequest": 5095
+        },
+        {
+          "hash": "52104d730ff04ecc615d85c46d1fb8170046ebba",
+          "shortHash": "52104d73",
+          "date": "2026-10-25T03:22:23+00:00",
+          "title": "Fix audio tracks recording from a stale or cyclic source",
+          "category": "Fixes",
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/5096",
+          "pullRequest": 5096
+        },
+        {
+          "hash": "1b7e9f9820260b4f44e3367f7e8f17eaba2af3d4",
+          "shortHash": "1b7e9f98",
+          "date": "2026-10-25T03:19:21+00:00",
+          "title": "Don't let deleting clips leave a song with no session clips",
+          "category": "Fixes",
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/5097",
+          "pullRequest": 5097
         }
       ]
     },
     {
-      "name": "Documentation",
+      "name": "Other changes",
       "commits": [
         {
-          "hash": "fb601559d25ecd0bea804a55b9107bc05bab6eea",
-          "shortHash": "fb601559",
-          "date": "2026-09-07T13:50:20+00:00",
-          "title": "Fix menu hierarchy generator for the revised iterance menu shape",
-          "category": "Documentation",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4895",
-          "pullRequest": 4895
-        },
-        {
-          "hash": "a0e0b830d4e7ea29734727affbfb166b45f8e9e7",
-          "shortHash": "a0e0b830",
-          "date": "2026-09-04T17:33:53+00:00",
-          "title": "Fixes / Shortcut updates for deluge companion website",
-          "category": "Documentation",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4894",
-          "pullRequest": 4894
-        },
-        {
-          "hash": "6e5f2b21ee4644417802179c500d125a780a032a",
-          "shortHash": "6e5f2b21",
-          "date": "2026-09-03T15:16:26+00:00",
-          "title": "Fixed wrong key combination in Pattern doc page",
-          "category": "Documentation",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4893",
-          "pullRequest": 4893
-        },
-        {
-          "hash": "b6062d7215462795483c07d38764d590075755c2",
-          "shortHash": "b6062d72",
-          "date": "2026-08-31T01:49:39+00:00",
-          "title": "Clarify song-view channel-change pad and fix a typo on the CV / Gate Engine page",
-          "category": "Documentation",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4857",
-          "pullRequest": 4857
-        },
-        {
-          "hash": "3f898e953e329bc0529ab0c535fe38bab6a73536",
-          "shortHash": "3f898e95",
-          "date": "2026-08-29T00:00:58+00:00",
-          "title": "Sample edit on community page.",
-          "category": "Documentation",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4882",
-          "pullRequest": 4882
-        }
-      ]
-    },
-    {
-      "name": "Maintenance",
-      "commits": [
-        {
-          "hash": "e14e8ef208c7587e17363ced3575973945e2de02",
-          "shortHash": "e14e8ef2",
-          "date": "2026-09-07T14:23:33+00:00",
-          "title": "Bump dawidd6/action-download-artifact from 23 to 24 in the all-actions group across 1 directory",
-          "category": "Maintenance",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4879",
-          "pullRequest": 4879
-        },
-        {
-          "hash": "8481f0be9f59eb5012b3fc7b07c5484baadaeda3",
-          "shortHash": "8481f0be",
-          "date": "2026-09-04T17:27:18+00:00",
-          "title": "Cleanup dx7 memory allocation",
-          "category": "Maintenance",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4896",
-          "pullRequest": 4896
+          "hash": "2be4338436eb13f872a5d71b86eb2936d32784a4",
+          "shortHash": "2be43384",
+          "date": "2026-10-25T03:19:56+00:00",
+          "title": "Clear reg cache after loading",
+          "category": "Other changes",
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/5114",
+          "pullRequest": 5114
         }
       ]
     }

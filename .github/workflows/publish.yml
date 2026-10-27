@@ -83,8 +83,10 @@ jobs:
               the shift key once the update has begun.
           END
       - name: Create nightlies archive
+        env:
+          TAG: ${{ inputs.tag }}
         run: |
-          zip -j ./${{ inputs.tag }}.zip README.txt *.bin *.elf
+          zip -j "./$TAG.zip" README.txt ./*.bin ./*.elf
       - name: Update Nightly Release
         uses: andelf/nightly-release@main #https://github.com/marketplace/actions/nightly-release
         env:

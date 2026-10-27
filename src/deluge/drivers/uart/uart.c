@@ -16,9 +16,11 @@
  */
 
 #include "drivers/uart/uart.h"
+#include "RZA1/oled/oled_low_level.h"
 #include "RZA1/system/iodefines/dmac_iodefine.h"
 #include "definitions.h"
 #include "drivers/dmac/dmac.h"
+#include "drivers/uart/rx_buffer.h"
 #include <string.h>
 
 #include "RZA1/intc/devdrv_intc.h"
@@ -193,6 +195,14 @@ int32_t uartGetTxBufferFullnessByItem(int32_t item) {
 }
 
 int32_t uartGetTxBufferSpace(int32_t item) {
+	// Pad producers already defer and retry when there is no space. Reserve a
+	// drain opportunity for OLED SELECT, including while CV preempts it. This
+	// does not stop DMA or the direct writes used by SELECT/DESELECT themselves.
+	if (item == UART_ITEM_PIC) {
+		if (oledIsWaitingForPicTxDrain()) {
+			return 0;
+		}
+	}
 	return txBufferSizes[item] - uartGetTxBufferFullnessByItem(item);
 }
 
@@ -204,20 +214,70 @@ void uartDrain(uint32_t item) {
 	}
 }
 
+static struct UartRxQueue pic_rx_queue;
+static bool pic_read_from_queue;
+static uint8_t pic_last_read;
+
 void uartPutCharBack(int32_t item) {
+	if (item == UART_ITEM_PIC) {
+		if (pic_read_from_queue) {
+			uartPrependStagedByte(&pic_rx_queue, pic_last_read);
+			return;
+		}
+	}
 	int32_t readPos = (uint32_t)rxBufferReadAddr[item] - ((uint32_t)rxBuffers[item]);
 	readPos = (readPos - 1) & (rxBufferSizes[item] - 1);
 	rxBufferReadAddr[item] = rxBuffers[item] + readPos;
 }
 
 void uartInsertFakeChar(int32_t item, char data) {
+	if (item == UART_ITEM_PIC && pic_rx_queue.count) {
+		uartPrependStagedByte(&pic_rx_queue, (uint8_t)data);
+		return;
+	}
 	int32_t readPos = (uint32_t)rxBufferReadAddr[item] - ((uint32_t)rxBuffers[item]);
 	readPos = (readPos - 1) & (rxBufferSizes[item] - 1);
 	rxBufferReadAddr[item] = rxBuffers[item] + readPos;
 	*(rxBufferReadAddr[item] + UNCACHED_MIRROR_OFFSET) = data;
 }
 
+uint32_t uartGetRxBufferSpace(int32_t item) {
+	// Stop starting OLED transactions before staging fills. Keep a complete
+	// DMA ring of headroom for panel input during a committed handshake.
+	if (item == UART_ITEM_PIC && pic_rx_queue.count + rxBufferSizes[item] >= sizeof(pic_rx_queue.bytes)) {
+		return 0;
+	}
+	uintptr_t base = (uintptr_t)rxBuffers[item];
+	uint32_t read_pos = (uintptr_t)rxBufferReadAddr[item] - base;
+	// NOLINTNEXTLINE(performance-no-int-to-ptr,readability-math-missing-parentheses)
+	uint32_t write_pos = DMACn(rxDmaChannels[item]).CRDA_n - base;
+	return uartRingSpace(rxBufferSizes[item], read_pos, write_pos);
+}
+
+bool uartReplacePendingByte(int32_t item, uint8_t value, uint8_t replacement) {
+	uintptr_t base = (uintptr_t)rxBuffers[item];
+	uint32_t read_pos = (uintptr_t)rxBufferReadAddr[item] - base;
+	// DMACn maps a physical register address; its integer-to-pointer cast is intentional.
+	// NOLINTNEXTLINE(performance-no-int-to-ptr,readability-math-missing-parentheses)
+	uint32_t write_pos = DMACn(rxDmaChannels[item]).CRDA_n - base;
+	if (item == UART_ITEM_PIC) {
+		bool found = uartStagePendingBytes(&pic_rx_queue, (volatile uint8_t*)rxBuffers[item] + UNCACHED_MIRROR_OFFSET,
+		                                   rxBufferSizes[item], &read_pos, write_pos, value, replacement);
+		rxBufferReadAddr[item] = rxBuffers[item] + read_pos;
+		return found;
+	}
+	return uartReplaceByteInRing((volatile uint8_t*)rxBuffers[item] + UNCACHED_MIRROR_OFFSET, rxBufferSizes[item],
+	                             read_pos, write_pos, value, replacement);
+}
+
 uint8_t uartGetChar(int32_t item, char* readData) {
+	if (item == UART_ITEM_PIC) {
+		pic_read_from_queue = uartReadStagedByte(&pic_rx_queue, &pic_last_read);
+		if (pic_read_from_queue) {
+			*readData = (char)pic_last_read;
+			return 1;
+		}
+	}
 
 	char const* currentWritePos = (char*)DMACnNonVolatile(rxDmaChannels[item])
 	                                  .CRDA_n; // We deliberately don't go (volatile uint32_t*) here, for speed

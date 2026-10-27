@@ -17,17 +17,25 @@ on:
   workflow_dispatch:
 
 jobs:
+  changes:
+    uses: ./.github/workflows/changes.yml
+    permissions:
+      pull-requests: read
   release-build:
     name: Build check - Release
+    needs: changes
     uses: ./.github/workflows/build.yml
     with:
+      skip: ${{ needs.changes.outputs.firmware != 'true' }}
       # Keep baseline builds around longer so PRs can be compared against them
       firmware-retention-days: ${{ github.event_name == 'push' && 30 || 5 }}
       build-type: 'Release'
   debug-build:
     name: Build check - Debug
+    needs: changes
     uses: ./.github/workflows/build.yml
     with:
+      skip: ${{ needs.changes.outputs.firmware != 'true' }}
       firmware-retention-days: 5
       build-type: 'Debug'
   # firmware-size.yml runs from workflow_run, which doesn't get the PR for forks,

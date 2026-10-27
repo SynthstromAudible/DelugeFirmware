@@ -114,6 +114,11 @@ public:
 	bool doingLateStart;
 	bool maySetupCache;
 
+	/// What prefetchClustersAhead() last prefetched beyond, and the prefetch list it left, so it can skip its walk
+	/// through the Sample (in SDRAM) until one of them changes
+	Cluster const* prefetchedAheadOf = nullptr;
+	uint32_t prefetchGenerationSeen = 0;
+
 	bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) override {
 		return audioClipView.renderSidebar(whichRows, image, occupancyMask);
