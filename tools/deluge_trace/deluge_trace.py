@@ -2,7 +2,7 @@
 """PTM instruction trace of one function on the Deluge, end to end.
 
     tools/deluge_trace/deluge_trace.py run --elf build/RelWithDebInfo/deluge.elf \\
-        --function 'deluge::bench::MonoVecGainCase::block' [--host pi-top | --local]
+        --function 'deluge::bench::MonoVecGainCase::block' [--host HOST | --local]
 
   1. resolve each --function to its address range from the ELF's symbols (here, where the toolchain is);
   2. capture (capture.py) and decode (decode.py) where the J-Trace is plugged in: on --host over ssh,
@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import os
 import re
 import shlex
 import shutil
@@ -285,7 +286,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     where = run.add_mutually_exclusive_group()
     where.add_argument(
-        "--host", default="pi-top", help="ssh host with the J-Trace (default pi-top)"
+        "--host",
+        default=os.environ.get("DELUGE_PROBE_HOST"),
+        help="ssh host with the J-Trace (default $DELUGE_PROBE_HOST)",
     )
     where.add_argument(
         "--local", action="store_true", help="the J-Trace is on this machine"
@@ -344,6 +347,8 @@ def main(argv: list[str] | None = None) -> int:
     prof.add_argument("--top", type=int, default=40)
     prof.set_defaults(func=cmd_profile)
     args = ap.parse_args(argv)
+    if getattr(args, "local", True) is False and not args.host:
+        ap.error("run needs --host, $DELUGE_PROBE_HOST or --local")
     return args.func(args)
 
 

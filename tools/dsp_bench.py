@@ -344,7 +344,7 @@ def main(argv: list[str] | None = None) -> int:
         "--select",
         default=None,
         metavar="SEL",
-        help="passed to the probe script's --select, e.g. IP=pi-top for a remote J-Link",
+        help="passed to the probe script's --select, e.g. IP=HOST for a remote J-Link",
     )
     args = ap.parse_args(argv)
 

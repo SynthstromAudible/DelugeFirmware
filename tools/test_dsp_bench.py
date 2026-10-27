@@ -434,9 +434,9 @@ class RunPathTests(unittest.TestCase):
         with mock.patch.object(
             dsp_bench.subprocess, "run", return_value=self.completed(rtt)
         ) as run:
-            code, _, _ = run_main("--select", "IP=pi-top", "--out", str(self.out))
+            code, _, _ = run_main("--select", "IP=probe-host", "--out", str(self.out))
         self.assertEqual(code, 0)
-        self.assertEqual(run.call_args.args[0][-2:], ["--select", "IP=pi-top"])
+        self.assertEqual(run.call_args.args[0][-2:], ["--select", "IP=probe-host"])
 
     def test_jlink_arguments_are_exact(self):
         rtt = COMPLETE.read_text().splitlines()

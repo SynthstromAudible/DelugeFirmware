@@ -103,8 +103,8 @@ class SummariseTests(unittest.TestCase):
 
 class RigTests(unittest.TestCase):
     def test_the_probe_is_selected_by_the_host_without_its_user(self) -> None:
-        self.assertEqual(rig.probe_address("pi@pi-top"), "pi-top")
-        self.assertEqual(rig.probe_address("pi-top"), "pi-top")
+        self.assertEqual(rig.probe_address("pi@probe-host"), "probe-host")
+        self.assertEqual(rig.probe_address("probe-host"), "probe-host")
 
 
 class BenchImageTests(unittest.TestCase):

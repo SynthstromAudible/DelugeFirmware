@@ -229,7 +229,7 @@ def main() -> int:
         "--select",
         default=None,
         metavar="SEL",
-        help="the GDB server's -select, e.g. IP=pi-top for a probe behind JLinkRemoteServer",
+        help="the GDB server's -select, e.g. IP=HOST for a probe behind JLinkRemoteServer",
     )
     ap.add_argument(
         "--rtt-address", default=None, help="override the _SEGGER_RTT address"

@@ -10,7 +10,7 @@ references are in the ARM manuals: the Cortex-A9 TRM (DDI 0388I) and the Cortex-
   case and block size. It reports cycles per sample, plus L1 refills, renamed instructions, data-cache stalls,
   issue-empty cycles and NEON instructions. See the "Measuring" section of
   [dsp_next_component_architecture.md](dsp_next_component_architecture.md).
-- **The PTM trace** (`tools/deluge_trace/deluge_trace.py run --function NAME --host pi-top`): it gives cycle-accurate
+- **The PTM trace** (`tools/deluge_trace/deluge_trace.py run --function NAME --host <host>`): it gives cycle-accurate
   instruction trace of one function through a J-Trace PRO, decoded with OpenCSD into cycles per loop block. The PTM
   times branch to branch, so it gives a block's cycles, not how they divide between the instructions inside it.
 - **Throwaway experiments** are hand-written bench cases, usually inline asm loops. They separate a loop into its

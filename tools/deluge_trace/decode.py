@@ -21,7 +21,7 @@ of instructions is one element, e.g.
 
 and with cycle-accurate trace each carries the cycles since the previous waypoint ([CC=n]).
 
-trc_pkt_lister is OpenCSD's own test program. On pi-top it is /usr/local/bin/trc_pkt_lister, built
+trc_pkt_lister is OpenCSD's own test program. On the probe's Pi it is /usr/local/bin/trc_pkt_lister, built
 against the libopencsd 1.8.3 in /usr/local/lib, while the dynamic loader finds an older system copy
 first; the library directory given by --opencsd-lib (default /usr/local/lib, when it exists) goes on
 LD_LIBRARY_PATH to pick the matching one. Without OpenCSD here, build it:
@@ -29,7 +29,7 @@ LD_LIBRARY_PATH to pick the matching one. Without OpenCSD here, build it:
     git clone https://github.com/Linaro/OpenCSD && cd OpenCSD/decoder/build/linux
     make -j8 && sudo make install          # trc_pkt_lister and libopencsd into /usr/local
 
-or decode on the Pi (deluge_trace.py run --host pi-top does).
+or decode on the Pi (deluge_trace.py run --host HOST does).
 """
 
 from __future__ import annotations

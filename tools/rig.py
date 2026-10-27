@@ -2,11 +2,11 @@
 """Look after the J-Trace rig: restart its remote server, park the panel dark, stop the server.
 
 Usage:
-    tools/rig.py restart [--host pi-top]
-    tools/rig.py park    [--host pi-top] [--elf .superpowers/bench-park.elf]
-    tools/rig.py stop    [--host pi-top]
+    tools/rig.py restart [--host HOST]
+    tools/rig.py park    [--host HOST] [--elf .superpowers/bench-park.elf]
+    tools/rig.py stop    [--host HOST]
 
-The probe hangs off a Raspberry Pi (`--host`, an ssh destination, `pi@pi-top` by default) that runs
+The probe hangs off a Raspberry Pi (`--host`, an ssh destination, `$DELUGE_PROBE_HOST` by default) that runs
 JLinkRemoteServerCLExe; tools/deluge_jlink.py and tools/stream_bench.py reach the probe through it
 (`--select IP=<address>`, the host without its user: see `probe_address`).
 
@@ -22,6 +22,7 @@ Exit codes: 0 done; 1 the host could not be reached or the step failed after its
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 import tempfile
@@ -29,7 +30,7 @@ import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-DEFAULT_HOST = "pi@pi-top"
+DEFAULT_HOST = os.environ.get("DELUGE_PROBE_HOST")
 DEFAULT_PARK = REPO / ".superpowers" / "bench-park.elf"
 SERVER = "JLinkRemoteServerCLExe"
 DEVICE = "R7S721020"
@@ -112,7 +113,12 @@ def park(host: str, elf: Path, tries: int = 3) -> bool:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Look after the J-Trace rig.")
     ap.add_argument("action", choices=("restart", "park", "stop"))
-    ap.add_argument("--host", default=DEFAULT_HOST)
+    ap.add_argument(
+        "--host",
+        default=DEFAULT_HOST,
+        required=DEFAULT_HOST is None,
+        help="ssh destination of the probe's Pi (default $DELUGE_PROBE_HOST)",
+    )
     ap.add_argument("--elf", type=Path, default=DEFAULT_PARK, help="the park image")
     args = ap.parse_args(argv)
     if args.action == "restart":

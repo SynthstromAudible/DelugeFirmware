@@ -3,7 +3,7 @@
 
 Usage:
     tools/stream_bench_matrix.py run --image LABEL=ELF [--image LABEL=ELF ...] [--rounds 3]
-                                     [--name NAME] [--out DIR] [--host pi-top] [--timeout 320]
+                                     [--name NAME] [--out DIR] [--host HOST] [--timeout 320]
                                      [--no-park]
     tools/stream_bench_matrix.py summarise DIR [--compare A B] [--match REGEX]
 
@@ -232,7 +232,12 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--rounds", type=int, default=3)
     r.add_argument("--name", default="run")
     r.add_argument("--out", type=Path)
-    r.add_argument("--host", default=rig.DEFAULT_HOST)
+    r.add_argument(
+        "--host",
+        default=rig.DEFAULT_HOST,
+        required=rig.DEFAULT_HOST is None,
+        help="ssh destination of the probe's Pi (default $DELUGE_PROBE_HOST)",
+    )
     r.add_argument("--timeout", type=int, default=320)
     r.add_argument("--no-park", action="store_true")
     s = sub.add_parser("summarise")

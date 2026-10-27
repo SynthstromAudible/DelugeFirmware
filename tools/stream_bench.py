@@ -4,7 +4,7 @@
 Usage:
     tools/stream_bench.py [--elf build/RelWithDebInfo/deluge.elf] [--timeout 180]
                           [--out .superpowers/estate/bench] [--from-capture FILE]
-                          [--select IP=pi-top]
+                          [--select IP=HOST]
 
 The ELF is built with `./dbt configure -DDELUGE_STREAM_BENCH=ON` (and the songs it plays with
 -DDELUGE_STREAM_BENCH_SONG_A=... / _B=..., paths as on the card). The image boots the app, loads the
@@ -423,7 +423,7 @@ def main(argv: list[str] | None = None) -> int:
         "--select",
         default=None,
         metavar="SEL",
-        help="passed to deluge_jlink.py, e.g. IP=pi-top",
+        help="passed to deluge_jlink.py, e.g. IP=HOST",
     )
     args = ap.parse_args(argv)
 
