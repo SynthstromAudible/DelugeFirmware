@@ -98,9 +98,8 @@ it'd be great to get videos and demos to go along with it.
 
 #### On being open about AI
 
-We want PRs from humans, we just don't want to be spammed by people's AI agents.
-That's why we ask you to write the descriptions yourself. It's our filter to ensure that a real
-person (ideally a musician) has sat down and thought about whether this change makes the project better. It's fine to have
+We ask you to write the PR descriptions yourself because we want PRs from humans, we don't want to be spammed by people's AI agents. 
+It's our filter to ensure that a real person (ideally a musician) has sat down and thought about whether this change makes the project better. It's fine to have
 AI write the code, but we need that human judgement to make sure it's the right code.
 
 Everything that lands is reviewed by a person who understands it and is accountable for it. If you have a great idea but the code's not quite there
