@@ -250,6 +250,9 @@ static_assert(Benchable<CheaperThanCalibration>);
 
 /// The lines the app prints over RTT before the run's own: a plain marker and the debug authentication line.
 constexpr std::size_t kAppPreambleLines = 2;
+/// The lines a bench run may print, preamble included: the filters list's 113 come back whole over the J-Link probe
+/// (the rig's capture of 2026-10-27).
+constexpr std::size_t kMaxCaptureLines = 120;
 
 std::string expected_line(std::string_view name, std::size_t n, std::size_t k, const Sample& delta) {
 	std::array<char, kLineCapacity> buffer{};
@@ -332,6 +335,20 @@ const std::vector<std::string_view> kFilterCaseNames{
     "filter_lpdrive_os_stereo",
     "filter_hp_mono",
     "filter_hp_stereo",
+    "filter_lp12_resonant_mono",
+    "filter_lp12_resonant_stereo",
+    "filter_lp24_resonant_mono",
+    "filter_lp24_resonant_stereo",
+    "filter_lpdrive_resonant_mono",
+    "filter_lpdrive_resonant_stereo",
+    "filter_lp12_unresonant_mono",
+    "filter_lp12_unresonant_stereo",
+    "filter_lp24_unresonant_mono",
+    "filter_lp24_unresonant_stereo",
+    "filter_lpdrive_unresonant_mono",
+    "filter_lpdrive_unresonant_stereo",
+    "filter_hp_morph_mono",
+    "filter_hp_morph_stereo",
     "filter_svf_band_mono",
     "filter_svf_band_stereo",
     "filter_svf_notch_mono",
@@ -410,8 +427,20 @@ const std::vector<std::string_view> kGranularCaseNames{
 /// calibration loop: the low-pass ladder draws once per channel-sample, twice when the drive ladder oversamples, and
 /// the high-pass ladder and the SVF never.
 const std::vector<std::pair<FilterCaseConfig, uint32_t>> kFilterCaseConfigs{
-    {kFilterLow12, 1}, {kFilterLow24, 1},   {kFilterLowDrive, 1}, {kFilterLowDriveOs, 2},
-    {kFilterHigh, 0},  {kFilterSvfBand, 0}, {kFilterSvfNotch, 0},
+    {kFilterLow12, 1},
+    {kFilterLow24, 1},
+    {kFilterLowDrive, 1},
+    {kFilterLowDriveOs, 2},
+    {kFilterHigh, 0},
+    {kFilterLow12Resonant, 1},
+    {kFilterLow24Resonant, 1},
+    {kFilterLowDriveResonant, 1},
+    {kFilterLow12Unresonant, 1},
+    {kFilterLow24Unresonant, 1},
+    {kFilterLowDriveUnresonant, 1},
+    {kFilterHighMorph, 0},
+    {kFilterSvfBand, 0},
+    {kFilterSvfNotch, 0},
 };
 
 /// Each filter set case's route, in order after the single filters.
@@ -1005,7 +1034,7 @@ describe bench_runner("The DSP benchmark runner", ${
 			}
 		});
 
-		it("runs every case at every device block size, the calibration's line included, in fewer than 70 lines", _ {
+		it("runs every case at every device block size, the calibration's line included, in fewer than 120 lines", _ {
 			for (const auto& [list, names] : {std::pair{CaseList::KERNELS, kKernelCaseNames},
 			                                  std::pair{CaseList::LANES, kLaneCaseNames},
 			                                  std::pair{CaseList::CHAIN, kChainCaseNames},
@@ -1024,7 +1053,7 @@ describe bench_runner("The DSP benchmark runner", ${
 				const std::size_t per_size = cases(list).size() + 1;
 				expect(count).to_equal(kBlockSizes.size() * per_size);
 				expect(lines.size()).to_equal(kBlockSizes.size() * per_size + 1);
-				expect(kAppPreambleLines + lines.size()).to_be_less_than(std::size_t{70});
+				expect(kAppPreambleLines + lines.size()).to_be_less_than(kMaxCaptureLines);
 				expect(lines.back()).to_equal("BENCH-DONE cases=" + std::to_string(kBlockSizes.size() * per_size));
 				for (std::size_t size = 0; size < kBlockSizes.size(); ++size) {
 					const std::string n = std::to_string(kBlockSizes[size]);
