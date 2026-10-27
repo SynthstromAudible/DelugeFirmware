@@ -135,6 +135,18 @@ const config = defineConfig({
             ],
           },
           {
+            label: "Blog",
+            icon: "pen",
+            link: "/blog",
+            items: [
+              { label: "All Posts", link: "/blog" },
+              {
+                label: "Posts",
+                autogenerate: { directory: "blog" },
+              },
+            ],
+          },
+          {
             label: "Development",
             icon: "seti:json",
             link: "/development/deluge/additional_info",
