@@ -76,8 +76,13 @@ inline constexpr std::array<int16_t, 65> kResonanceLimits = {
 /// low-passes and an all-pass; the 24dB ladder four low-passes. The drive ladder saturates its feedback sum (drive 7)
 /// and its output (drive 4); oversampled, it steps twice over the held input and drops the first output.
 ///
-/// **Modes.** T12, T24, DRIVE and DRIVE_OVERSAMPLED share one State, so a mode change between blocks, oversampling
-/// switched on or off included, carries every section's memory and the follower.
+/// **Modes.** A mode is a ladder (@ref Ladder: T12, T24, DRIVE, DRIVE_OVERSAMPLED) and how its input is formed
+/// (@ref Input), both fixed for the block, so the loop branches on neither; the oversampled drive ladder only ever
+/// saturates its input, so it has that one form. Every mode shares one State, so a mode
+/// change between blocks, oversampling switched on or off included, carries every section's memory and the follower.
+/// The input forms are exact specialisations: with the resonance at zero the feedback term is R × Σ = 0 and D is
+/// exactly 1 (Q30), so UNRESONANT skips the feedback sum and scales by D alone, giving every bit the general form
+/// gives.
 ///
 /// **Noise.** Each step draws one value from @p Noise (`Noise::render()`), two when oversampled. Under `Stereo` the
 /// left channel steps first in every frame, so with a shared stream (@ref CongNoise) the left channel draws first.
@@ -94,13 +99,49 @@ struct LowPassLadder {
 	using step_type = q31;  ///< A sample, Q31: one step per sample.
 
 	/// @brief Which ladder runs.
-	enum class Mode : uint8_t {
+	enum class Ladder : uint8_t {
 		T12,               ///< The half ladder: two low-passes and an all-pass.
 		T24,               ///< The full ladder: four low-passes.
 		DRIVE,             ///< The full ladder with its feedback and output saturated.
 		DRIVE_OVERSAMPLED, ///< DRIVE stepped twice per sample over the held input, the first output dropped.
 	};
-	using Modes = ModeList<Mode::T12, Mode::T24, Mode::DRIVE, Mode::DRIVE_OVERSAMPLED>; ///< All share one State.
+
+	/// @brief How the input going into the sections is formed.
+	enum class Input : uint8_t {
+		SATURATING, ///< Less its feedback and normalised, then saturated with the morph's share added: morph up or
+		            ///< resonance high.
+		RESONANT,   ///< Less its feedback and normalised.
+		UNRESONANT, ///< Normalised: the resonance is zero, so nothing is fed back and the normaliser is exactly one.
+	};
+
+	/// @brief A ladder and its input form: the block's mode.
+	enum class Mode : uint8_t {
+		T12_SATURATING,
+		T12,
+		T12_UNRESONANT,
+		T24_SATURATING,
+		T24,
+		T24_UNRESONANT,
+		DRIVE_SATURATING,
+		DRIVE,
+		DRIVE_UNRESONANT,
+		/// The oversampled drive ladder, SATURATING: it oversamples only at a resonance past the input's saturation
+		/// threshold, so it has no other input form.
+		DRIVE_OVERSAMPLED_SATURATING,
+	};
+	/// All share one State.
+	using Modes = ModeList<Mode::T12_SATURATING, Mode::T12, Mode::T12_UNRESONANT, Mode::T24_SATURATING, Mode::T24,
+	                       Mode::T24_UNRESONANT, Mode::DRIVE_SATURATING, Mode::DRIVE, Mode::DRIVE_UNRESONANT,
+	                       Mode::DRIVE_OVERSAMPLED_SATURATING>;
+
+	/// @brief The mode running @p ladder with input form @p input; DRIVE_OVERSAMPLED takes SATURATING only.
+	[[nodiscard]] static constexpr Mode mode_of(Ladder ladder, Input input) {
+		return static_cast<Mode>(static_cast<uint8_t>(ladder) * 3 + static_cast<uint8_t>(input));
+	}
+	/// @brief The ladder mode @p m runs.
+	[[nodiscard]] static constexpr Ladder ladder_of(Mode m) { return static_cast<Ladder>(static_cast<uint8_t>(m) / 3); }
+	/// @brief The input form mode @p m runs.
+	[[nodiscard]] static constexpr Input input_of(Mode m) { return static_cast<Input>(static_cast<uint8_t>(m) % 3); }
 
 	/// @brief What the owner sets each block.
 	struct Settings {
@@ -123,7 +164,7 @@ struct LowPassLadder {
 		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays): indexing is no call
 		q31 feedbacks[3]{};
 		q31 gain_compensation = 0; ///< The gain going in, compensated for the resonance and mode, Q31.
-		Mode mode = Mode::T12;     ///< Which ladder runs, dispatched on once per block.
+		Mode mode = Mode::T12;     ///< The ladder and its input form, dispatched on once per block.
 	};
 
 	/// @brief The noise follower: a one-pole at shift 7 over a quarter of each draw.
@@ -155,6 +196,7 @@ struct LowPassLadder {
 		c.morph = lshiftAndSaturate<2>(s.config.morph);
 		q31 frequency = s.config.frequency;
 		bool oversample = false;
+		Ladder ladder = Ladder::T12;
 
 		if (s.mode == LowPassLadderMode::TRANSISTOR_24DB_DRIVE) {
 			const int32_t resonance = ONE_Q31 - (s.config.resonance << 2);
@@ -181,7 +223,7 @@ struct LowPassLadder {
 				    linear_table_interpolator.interpolateSigned(static_cast<uint32_t>(log_frequency), 30, kLimits, 6);
 				c.processed_resonance = std::min(c.processed_resonance, limit);
 			}
-			c.mode = oversample ? Mode::DRIVE_OVERSAMPLED : Mode::DRIVE;
+			ladder = oversample ? Ladder::DRIVE_OVERSAMPLED : Ladder::DRIVE;
 		}
 		else {
 			constexpr int32_t kHowMuchToKeep = ONE_Q31 - 33;
@@ -190,14 +232,14 @@ struct LowPassLadder {
 			resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
 			c.processed_resonance = ONE_Q31 - resonance;
 			c.processed_resonance = multiply_32x32_rshift32_rounded(c.processed_resonance, kHowMuchToKeep) << 1;
-			c.mode = s.mode == LowPassLadderMode::TRANSISTOR_12DB ? Mode::T12 : Mode::T24;
+			ladder = s.mode == LowPassLadderMode::TRANSISTOR_12DB ? Ladder::T12 : Ladder::T24;
 		}
 
 		const CurvedFrequency curved = curve_frequency(frequency);
 		c.divide_by_one_plus_tanned = curved.divide_by_one_plus_tanned;
 		c.moveability = std::max(curved.fc, q31{4317840});
 
-		if (c.mode == Mode::T12) {
+		if (ladder == Ladder::T12) {
 			// Between -2 and 0, Q30.
 			const int32_t moveability_negative = c.moveability - 1073741824;
 			c.feedbacks[1] = multiply_32x32_rshift32_rounded(moveability_negative, c.divide_by_one_plus_tanned) << 1;
@@ -250,6 +292,17 @@ struct LowPassLadder {
 			gain = static_cast<q31>(gain * 0.8);
 		}
 		c.gain_compensation = gain;
+
+		Input input = Input::RESONANT;
+		// An oversampling drive ladder's resonance is past its threshold, so this holds for it (see
+		// kLowestOversamplingResonance).
+		if (c.morph > 0 || c.processed_resonance > kSaturateAbove) {
+			input = Input::SATURATING;
+		}
+		else if (c.processed_resonance == 0 && c.divide_by_total_moveability_and_processed_resonance == kUnity) {
+			input = Input::UNRESONANT;
+		}
+		c.mode = mode_of(ladder, input);
 		return c;
 	}
 
@@ -267,25 +320,35 @@ struct LowPassLadder {
 	template <Mode M>
 	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& /*b*/, State& s,
 	                                                     q31 x) {
-		if constexpr (M == Mode::T12) {
-			return half_ladder(c, s, x);
+		constexpr Ladder kLadder = ladder_of(M);
+		constexpr Input kInput = input_of(M);
+		if constexpr (kLadder == Ladder::T12) {
+			return half_ladder<kInput>(c, s, x);
 		}
-		else if constexpr (M == Mode::T24) {
-			return full_ladder(c, s, x);
+		else if constexpr (kLadder == Ladder::T24) {
+			return full_ladder<kInput>(c, s, x);
 		}
 		else {
-			if constexpr (M == Mode::DRIVE_OVERSAMPLED) {
+			if constexpr (kLadder == Ladder::DRIVE_OVERSAMPLED) {
 				// The input held for both halves of the sample works better than interpolating it; the first output
 				// is dropped (the ladder itself filters what that crude downsampling would alias).
-				std::ignore = drive_ladder(c, s, x);
+				std::ignore = drive_ladder<kInput>(c, s, x);
 			}
-			return tanh<kOutputDrive>(drive_ladder(c, s, x));
+			return tanh<kOutputDrive>(drive_ladder<kInput>(c, s, x));
 		}
 	}
 
 private:
 	/// @brief The resonance (Q30) above which the input is saturated even with the morph at zero.
 	static constexpr q31 kSaturateAbove = 510000000;
+	/// @brief One in Q30: the loop-gain normaliser with nothing fed back.
+	static constexpr q31 kUnity = q31{1} << 30;
+	/// @brief The lowest resonance (Q30) the drive ladder oversamples above: its threshold table's least entry, which
+	/// the table holds at 2^-16 of the threshold, and any blend of two entries is at least that.
+	static constexpr q31 kLowestOversamplingResonance =
+	    q31{*std::ranges::min_element(low_pass_ladder_detail::kResonanceThresholdsForOversampling)} << 16;
+	static_assert(kLowestOversamplingResonance > kSaturateAbove,
+	              "an oversampling drive ladder must always saturate its input: DRIVE_OVERSAMPLED has no other mode");
 	/// @brief The input saturation's drive, as a power of two.
 	static constexpr uint32_t kInputDrive = 2;
 	/// @brief The drive ladder's feedback saturation drive, as a power of two.
@@ -301,18 +364,30 @@ private:
 	}
 
 	/// @brief The input less the scaled feedback, normalised, Q31; saturated with the morph's share of the input
-	/// added when the morph is up or the resonance high.
-	/// @param feedbacks_sum The sections' feedback, Q31.
-	[[nodiscard]] [[gnu::always_inline]] static q31 scale_input(const Coefficients& c, q31 x, q31 feedbacks_sum) {
-		const q31 fed_back = multiply_32x32_rshift32_rounded(feedbacks_sum, c.processed_resonance) << 3;
-		const q31 scaled = multiply_32x32_rshift32_rounded(wrapping_sub(x, fed_back),
-		                                                   c.divide_by_total_moveability_and_processed_resonance)
-		                   << 2;
-		if (c.morph > 0 || c.processed_resonance > kSaturateAbove) {
-			const q31 extra = multiply_32x32_rshift32(x, c.morph);
-			return tanh<kInputDrive>(wrapping_add(scaled, wrapping_add(extra, extra)));
+	/// added in SATURATING.
+	/// @tparam I The block's input form; UNRESONANT reads neither @p feedback_sum nor the resonance.
+	/// @param feedback_sum Computes the sections' feedback (Q31), called unless UNRESONANT.
+	template <Input I, class FeedbackSum>
+	[[nodiscard]] [[gnu::always_inline]] static q31 scale_input(const Coefficients& c, q31 x,
+	                                                            FeedbackSum&& feedback_sum) {
+		if constexpr (I == Input::UNRESONANT) {
+			// The general form with R = 0 and D = 1 (Q30): nothing fed back, and x × 2^30 rounded off its low 32 bits
+			// is (x + 2) >> 2, which the << 2 makes (x + 2) with its low two bits cleared, modulo 2^32.
+			return static_cast<q31>((static_cast<uint32_t>(x) + 2u) & ~3u);
 		}
-		return scaled;
+		else {
+			const q31 fed_back = multiply_32x32_rshift32_rounded(feedback_sum(), c.processed_resonance) << 3;
+			const q31 scaled = multiply_32x32_rshift32_rounded(wrapping_sub(x, fed_back),
+			                                                   c.divide_by_total_moveability_and_processed_resonance)
+			                   << 2;
+			if constexpr (I == Input::SATURATING) {
+				const q31 extra = multiply_32x32_rshift32(x, c.morph);
+				return tanh<kInputDrive>(wrapping_add(scaled, wrapping_add(extra, extra)));
+			}
+			else {
+				return scaled;
+			}
+		}
 	}
 
 	/// @brief One step of @p section at moveability @p m in mode @p M.
@@ -333,30 +408,35 @@ private:
 		return sum << 2;
 	}
 
-	/// @brief One sample (Q31) through the half ladder.
+	/// @brief One sample (Q31) through the half ladder, its input formed as @p I.
+	template <Input I>
 	[[nodiscard]] [[gnu::always_inline]] static q31 half_ladder(const Coefficients& c, State& s, q31 input) {
 		const q31 m = noisy_moveability(c, s);
-		const q31 feedbacks_sum = wrapping_add(wrapping_add(OnePole::feedback(s.sections[0], c.feedbacks[0]),
-		                                                    OnePole::feedback(s.sections[1], c.feedbacks[1])),
-		                                       OnePole::feedback(s.sections[2], c.divide_by_one_plus_tanned));
-		const q31 x = scale_input(c, input, feedbacks_sum);
+		const q31 x = scale_input<I>(c, input, [&] [[gnu::always_inline]] {
+			return wrapping_add(wrapping_add(OnePole::feedback(s.sections[0], c.feedbacks[0]),
+			                                 OnePole::feedback(s.sections[1], c.feedbacks[1])),
+			                    OnePole::feedback(s.sections[2], c.divide_by_one_plus_tanned));
+		});
 		const q31 a = section_step<OnePole::Mode::LOW_PASS>(s.sections[0], m, x);
 		const q31 b = section_step<OnePole::Mode::LOW_PASS>(s.sections[1], m, a);
 		return section_step<OnePole::Mode::ALL_PASS>(s.sections[2], m, b) << 1;
 	}
 
-	/// @brief One sample (Q31) through the full ladder.
+	/// @brief One sample (Q31) through the full ladder, its input formed as @p I.
+	template <Input I>
 	[[nodiscard]] [[gnu::always_inline]] static q31 full_ladder(const Coefficients& c, State& s, q31 input) {
 		const q31 m = noisy_moveability(c, s);
-		const q31 x = scale_input(c, input, full_feedback(c, s));
+		const q31 x = scale_input<I>(c, input, [&] [[gnu::always_inline]] { return full_feedback(c, s); });
 		return four_sections(s, m, x) << 1;
 	}
 
 	/// @brief One step (Q31) of the drive ladder, its feedback saturated (the input is not, as that is where it would
-	/// alias most); the output is not yet saturated.
+	/// alias most); the output is not yet saturated. The input is formed as @p I.
+	template <Input I>
 	[[nodiscard]] [[gnu::always_inline]] static q31 drive_ladder(const Coefficients& c, State& s, q31 input) {
 		const q31 m = noisy_moveability(c, s);
-		const q31 x = scale_input(c, input, tanh<kFeedbackDrive>(full_feedback(c, s)));
+		const q31 x =
+		    scale_input<I>(c, input, [&] [[gnu::always_inline]] { return tanh<kFeedbackDrive>(full_feedback(c, s)); });
 		return four_sections(s, m, x) << 1;
 	}
 

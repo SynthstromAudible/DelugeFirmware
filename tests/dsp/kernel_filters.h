@@ -113,7 +113,7 @@ struct LadderHeld {
 			feedback = c.feedbacks[2];
 		}
 		if (m == deluge::dsp::fixed::LowPassLadderMode::TRANSISTOR_24DB_DRIVE) {
-			oversample = c.mode == AppLowPassLadder::Mode::DRIVE_OVERSAMPLED;
+			oversample = AppLowPassLadder::ladder_of(c.mode) == AppLowPassLadder::Ladder::DRIVE_OVERSAMPLED;
 		}
 	}
 };
