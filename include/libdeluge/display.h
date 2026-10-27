@@ -52,16 +52,6 @@ DelugeStatus deluge_display_write_seven_segment(const uint8_t* digits, uint8_t c
 /// (`deluge_board_probe_oled()`); no-op / not called on 7-segment boards. [task]
 void deluge_display_init(void) DELUGE_NOEXCEPT;
 
-/// Service the display's pending output, pushing any queued transfer toward the
-/// panel. The application calls this to keep the display updating during long
-/// blocking operations (e.g. card access). No-op where there is no async
-/// display queue. [task]
-void deluge_display_service(void) DELUGE_NOEXCEPT;
-
-/// Advance the display's low-level transfer state machine — called when the
-/// display's scheduled service timer fires. [task]
-void deluge_display_timer_event(void) DELUGE_NOEXCEPT;
-
 /// Synchronously blit a 1-bpp OLED framebuffer to the panel and block until the
 /// user requests resume. Used by the fault handler to show an error screen from
 /// a frozen context, bypassing the normal async transfer queue. `pixels` is the

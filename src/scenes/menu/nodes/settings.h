@@ -3,10 +3,10 @@
 /// @brief The settings root as data (task 8, batch 3) -- `gui/ui/menus.cpp`'s `settingsRootMenu`
 ///        literal (`:2152-2168`) and everything under it.
 ///
-/// Thirteen children, in the literal's own order: the actions page, the CV and gate output
-/// selectors, the trigger-clock page, the MIDI page, the defaults page, the pads page, the sample
-/// browser preview mode, the play cursor, the recording page, the community features, the battery
-/// readout and the firmware version.
+/// Fourteen children, in the literal's own order: the actions page, the CV and gate output
+/// selectors, the trigger-clock page, the MIDI page, the USB audio page, the defaults page, the pads
+/// page, the sample browser preview mode, the play cursor, the recording page, the community
+/// features, the battery readout and the firmware version.
 ///
 /// Unlike the sound tree, almost nothing here is a `ParamRef`: a setting lives in `FlashStorage`
 /// (`storage/flash_storage.h`), on `midiEngine` (`io/midi/midi_engine.h`), on `playbackHandler`
@@ -287,8 +287,8 @@ size_t pads_keyboard_layout_names(const MenuContext& ctx, std::span<std::string_
 /// @brief `runtime_feature::Setting`'s read and write (`runtime_feature/setting.cpp:22-38`), with
 ///        the `RuntimeFeatureSettingType` as a template argument rather than a member.
 ///
-/// Every one of the 23 settings' option lists is `{value 0, value 1}` in index order
-/// (`runtime_feature_settings.cpp:41-77`), so legacy's option-scan collapses to the value itself.
+/// Every setting's option list holds its values in index order from 0 (`runtime_feature_settings.cpp`), so
+/// legacy's option-scan collapses to the value itself.
 /// @{
 int32_t runtime_feature_get(int32_t type);
 void runtime_feature_set(int32_t type, int32_t value);
@@ -306,6 +306,19 @@ void set_runtime_feature(const MenuContext&, int32_t value) {
 ///        its `Buttons::clearShiftSticky()` arm (`hid/`, see the file note).
 void set_shift_is_sticky(const MenuContext& ctx, int32_t value);
 size_t sync_scaling_action_names(const MenuContext& ctx, std::span<std::string_view> out);
+
+/// @brief `usb::Audio`, `usb::DirectMonitoring` and `usb::OutputSource`'s reads and writes (`menu_item/usb/audio.h`).
+///
+/// The enable takes effect at the next USB start, so its write raises legacy's "restart to apply" notice when the
+/// setting no longer matches what this session presents.
+/// @{
+int32_t get_usb_audio_enabled(const MenuContext& ctx);
+void set_usb_audio_enabled(const MenuContext& ctx, int32_t value);
+int32_t get_usb_direct_monitoring(const MenuContext& ctx);
+void set_usb_direct_monitoring(const MenuContext& ctx, int32_t value);
+int32_t get_usb_output_source(const MenuContext& ctx);
+void set_usb_output_source(const MenuContext& ctx, int32_t value);
+/// @}
 
 /// @brief `flash::Status`'s read and write (`flash/status.h:26-32`) over `PadLEDs::flashCursor`.
 ///
@@ -650,6 +663,29 @@ inline constexpr const Node* kMidiChildren[] = {
     &midi_clock,    &midi_follow,   &midi_select_kit_row,        &midi_thru,   &midi_transpose_method,
     &midi_takeover, &midi_commands, &midi_input_differentiation, &midi_devices};
 inline constexpr Node midi_settings = submenu(sid(String::STRING_FOR_MIDI), kMidiChildren);
+
+// ---------------------------------------------------------------------------------------------
+// 5b. USB audio
+//
+// `usbAudioMenu` (`menus.cpp`): whether USB audio is offered, the host's audio mixed straight into the outputs, and
+// what the host receives.
+
+inline constexpr Node usb_audio_enabled =
+    with_title(toggle_item(sid(String::STRING_FOR_ENABLED), get_usb_audio_enabled, set_usb_audio_enabled),
+               sid(String::STRING_FOR_USB_AUDIO));
+inline constexpr Node usb_audio_input =
+    with_title(toggle_item(sid(String::STRING_FOR_INPUT), get_usb_direct_monitoring, set_usb_direct_monitoring),
+               sid(String::STRING_FOR_USB_INPUT));
+/// `usb::OutputSource::getOptions`, in `usb_audio::OutputSource` value order.
+inline constexpr uint16_t kUsbOutputSourceNames[] = {
+    sid(String::STRING_FOR_MAIN_MIX),
+    sid(String::STRING_FOR_LINE_IN),
+};
+inline constexpr Node usb_audio_output = with_title(
+    enumeration(sid(String::STRING_FOR_OUTPUT), kUsbOutputSourceNames, get_usb_output_source, set_usb_output_source),
+    sid(String::STRING_FOR_USB_OUTPUT));
+inline constexpr const Node* kUsbAudioChildren[] = {&usb_audio_enabled, &usb_audio_input, &usb_audio_output};
+inline constexpr Node usb_audio_settings = submenu(sid(String::STRING_FOR_USB_AUDIO), kUsbAudioChildren);
 
 // ---------------------------------------------------------------------------------------------
 // 6. Defaults
@@ -1073,7 +1109,8 @@ inline constexpr Node record_settings = submenu(sid(String::STRING_FOR_RECORDING
 // `runtime_feature::Settings` is a `Submenu` over `subMenuEntries`
 // (`runtime_feature/settings.cpp`), 24 items in that array's order. All but one are
 // `SettingToggle`s -- `Selection`s flagged `isToggle()` (`runtime_feature/setting.h`) -- which is
-// `Kind::Toggle` here; `SyncScalingAction` is a plain two-option `Setting`.
+// `Kind::Toggle` here; `SyncScalingAction` is a plain two-option `Setting` and `ShortcutOverlay` a
+// three-option one.
 
 /// One community-feature toggle. `n` is the `RuntimeFeatureSettingType` enumerator's value
 /// (`model/settings/runtime_feature_settings.h:41-67`).
@@ -1102,10 +1139,19 @@ DELUGE_RUNTIME_TOGGLE(feature_horizontal_menus, 18, STRING_FOR_COMMUNITY_FEATURE
 DELUGE_RUNTIME_TOGGLE(feature_trim_from_start, 19, STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP);
 DELUGE_RUNTIME_TOGGLE(feature_show_battery_level, 20, STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL);
 DELUGE_RUNTIME_TOGGLE(feature_rounded_corners, 21, STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS);
-DELUGE_RUNTIME_TOGGLE(feature_shortcut_overlay, 22, STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY);
 DELUGE_RUNTIME_TOGGLE(feature_shell_menu, 23, STRING_FOR_COMMUNITY_FEATURE_SHELL_MENU);
 
 #undef DELUGE_RUNTIME_TOGGLE
+
+/// `ShortcutOverlay` (index 22) is a three-option `Setting`, in `RuntimeFeatureStateShortcutOverlay` value order.
+inline constexpr uint16_t kShortcutOverlayNames[] = {
+    sid(String::STRING_FOR_OFF),
+    sid(String::STRING_FOR_SHORTCUT_OVERLAY_MENU_ONLY),
+    sid(String::STRING_FOR_SHORTCUT_OVERLAY_MENU_AND_CLIP),
+};
+inline constexpr Node feature_shortcut_overlay =
+    enumeration(sid(String::STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY), kShortcutOverlayNames,
+                get_runtime_feature<22>, set_runtime_feature<22>);
 
 /// `ShiftIsSticky` (index 9) is the one toggle with a write of its own
 /// (`runtime_feature/shift_is_sticky.cpp`).
@@ -1200,9 +1246,9 @@ inline constexpr Node firmware_version =
 // ---------------------------------------------------------------------------------------------
 
 inline constexpr const Node* kSettingsRootChildren[] = {
-    &settings_actions,  &cv_selection,  &gate_selection,         &trigger_clock, &midi_settings,
-    &defaults_settings, &pads_settings, &sample_browser_preview, &flash_status,  &record_settings,
-    &runtime_features,  &battery_level, &firmware_version};
+    &settings_actions,   &cv_selection,      &gate_selection, &trigger_clock,          &midi_settings,
+    &usb_audio_settings, &defaults_settings, &pads_settings,  &sample_browser_preview, &flash_status,
+    &record_settings,    &runtime_features,  &battery_level,  &firmware_version};
 inline constexpr Node root_settings = submenu(sid(String::STRING_FOR_SETTINGS), kSettingsRootChildren);
 
 /// @brief The settings root as a one-element span, matching `kSoundRootRoots`' shape.

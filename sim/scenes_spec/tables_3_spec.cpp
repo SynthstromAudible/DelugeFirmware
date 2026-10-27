@@ -1027,11 +1027,11 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 	});
 
 	it("declares the settings root with the legacy child count, less the items not ported yet", _ {
-		// `menus.cpp`'s `settingsRootMenu` literal -- fourteen children, asserted against the live
+		// `menus.cpp`'s `settingsRootMenu` literal -- fifteen children, asserted against the live
 		// object rather than a second copy of the list -- of which Voice Usage is not ported yet.
 		const auto& kids = SubmenuPeek::items_of(settingsRootMenu);
-		expect(kids.size()).to_equal(size_t(14));
-		expect(nodes::root_settings.children.size()).to_equal(size_t(13));
+		expect(kids.size()).to_equal(size_t(15));
+		expect(nodes::root_settings.children.size()).to_equal(size_t(14));
 	});
 
 	it("parks the reverb width and room size titles: legacy renames them under MUTABLE, the port does not yet", _ {

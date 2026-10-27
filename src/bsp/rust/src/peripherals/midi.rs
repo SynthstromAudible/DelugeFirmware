@@ -4,6 +4,10 @@
 //! ports 2 and up (USB-host device slots) always report disconnected, since USB host mode is not
 //! implemented.
 //!
+//! The USB port carries whole 4-byte USB-MIDI 1.0 event packets, SysEx and cable number included:
+//! the USB class runs in packet mode (selected in [`usb::usb_task`](super::usb::usb_task)) and packets
+//! pass between its queues and the app unchanged, via [`midi_packets`](super::midi_packets).
+//!
 //! Arrival stamps (DIN and USB) are taken when the app reads the byte, not at hardware capture:
 //! fine for note input, not sample-accurate for MIDI clock in.
 #![allow(non_upper_case_globals)]
@@ -11,6 +15,7 @@
 use deluge_bsp::uart;
 use usb_classes::midi as usb_midi;
 
+use super::midi_packets::{PACKET_BYTES, read_packets, write_packets};
 use crate::sys::{
     DelugeMidiPort, DelugeUsbHostEvent, DelugeUsbHostEvent_DELUGE_USB_HOST_NONE as USB_HOST_NONE,
 };
@@ -22,23 +27,6 @@ const MAX_USB_MIDI_DEVICES: u8 = 6;
 const PORT_COUNT: u8 = USB_PORT_BASE + MAX_USB_MIDI_DEVICES;
 /// The USB-MIDI peripheral port: the single connection to a computer.
 const USB_PERIPHERAL_PORT: u8 = USB_PORT_BASE;
-
-/// Returns the length of a MIDI 1.0 message from its status byte.
-///
-/// USB-MIDI packets always carry the status byte, so this recovers the real length from the
-/// class's zero-padded `[u8; 3]` messages.
-fn midi1_msg_len(status: u8) -> usize {
-    match status & 0xF0 {
-        0x80 | 0x90 | 0xA0 | 0xB0 | 0xE0 => 3, // note off/on, poly AT, CC, pitch bend
-        0xC0 | 0xD0 => 2,                      // program change, channel pressure
-        0xF0 => match status {
-            0xF2 => 3,        // song position pointer
-            0xF1 | 0xF3 => 2, // MTC quarter-frame, song select
-            _ => 1,           // tune request, realtime (F6, F8..FF)
-        },
-        _ => 1, // defensive: a non-status leading byte — forward one byte
-    }
-}
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_init() {
@@ -64,25 +52,12 @@ pub extern "C" fn deluge_midi_read_timed(
 ) -> u32 {
     // DIN is read per byte via deluge_midi_din_read_timed(); only the USB peripheral port
     // delivers batches here.
-    if port != USB_PERIPHERAL_PORT || !usb_midi::connected() {
+    if port != USB_PERIPHERAL_PORT || !usb_midi::connected() || dst.is_null() {
         return 0;
     }
-    let max = max as usize;
-    let mut written = 0usize;
-    // Pop only while a 3-byte message is sure to fit, so a popped message is never truncated.
-    while max - written >= 3 {
-        let Some(msg) = usb_midi::try_recv_from_host() else {
-            break;
-        };
-        let n = midi1_msg_len(msg[0]);
-        // SAFETY: the app provides `max` writable bytes at `dst`; written+n <= max.
-        unsafe {
-            for k in 0..n {
-                *dst.add(written + k) = msg[k];
-            }
-        }
-        written += n;
-    }
+    // SAFETY: the app provides `max` writable bytes at `dst`.
+    let dst = unsafe { core::slice::from_raw_parts_mut(dst, max as usize) };
+    let written = read_packets(dst, usb_midi::try_recv_packet_from_host);
     if written > 0 && !arrival_ticks.is_null() {
         // SAFETY: caller passes a valid out-pointer when non-null.
         unsafe {
@@ -95,20 +70,17 @@ pub extern "C" fn deluge_midi_read_timed(
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_write(port: DelugeMidiPort, src: *const u8, len: u32) -> u32 {
-    // SAFETY: the app passes `len` valid bytes.
+    if src.is_null() {
+        return 0;
+    }
+    // SAFETY: `src` is non-null and the app passes `len` valid bytes there.
     let data = unsafe { core::slice::from_raw_parts(src, len as usize) };
     if port == DIN_PORT {
         return uart::try_write_midi(data) as u32;
     }
     if port == USB_PERIPHERAL_PORT && usb_midi::connected() {
-        let mut sent = 0u32;
-        for &b in data {
-            if !usb_midi::try_send_to_host_byte(b) {
-                break; // TX queue full — report the accepted count
-            }
-            sent += 1;
-        }
-        return sent;
+        // Whole packets only; a full queue reports the bytes accepted so far.
+        return write_packets(data, usb_midi::try_send_packet_to_host) as u32;
     }
     0
 }
@@ -117,7 +89,7 @@ pub extern "C" fn deluge_midi_write(port: DelugeMidiPort, src: *const u8, len: u
 pub extern "C" fn deluge_midi_write_space(port: DelugeMidiPort) -> u32 {
     match port {
         DIN_PORT => uart::midi_write_space() as u32,
-        USB_PERIPHERAL_PORT => usb_midi::tx_free() as u32,
+        USB_PERIPHERAL_PORT => (usb_midi::tx_packet_free() * PACKET_BYTES) as u32,
         _ => 0,
     }
 }
@@ -126,7 +98,7 @@ pub extern "C" fn deluge_midi_write_space(port: DelugeMidiPort) -> u32 {
 pub extern "C" fn deluge_midi_write_pending(port: DelugeMidiPort) -> u32 {
     match port {
         // The DIN FIFO drains on its own (TXI-driven).
-        USB_PERIPHERAL_PORT => usb_midi::tx_pending() as u32,
+        USB_PERIPHERAL_PORT => (usb_midi::tx_packet_pending() * PACKET_BYTES) as u32,
         _ => 0,
     }
 }

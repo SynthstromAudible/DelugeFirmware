@@ -127,6 +127,12 @@ class AnnotateTextTests(unittest.TestCase):
         self.assertEqual(new_text, source)
         self.assertEqual(count, 0)
 
+    def test_declaration_after_preprocessor_lines(self):
+        self.assertAnnotated(
+            '#include "a.h"\n#include "b.h"\n\n// Arp\nPresetMode arpPresetModeMenu{A, B};\n',
+            '#include "a.h"\n#include "b.h"\n\n// Arp\nPLACE_SDRAM_BSS PresetMode arpPresetModeMenu{A, B};\n',
+        )
+
     def test_class_declaration_untouched(self):
         source = "class Foo {\n  int x;\n};\n"
         new_text, count = annotate_sdram.annotate_text(source)

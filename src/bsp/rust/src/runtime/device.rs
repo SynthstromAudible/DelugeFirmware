@@ -232,9 +232,9 @@ pub fn start() -> ! {
     // Trigger clock in: P1_14 → IRQ6 on the falling edge (an on-board transistor inverts the
     // input). The app's handler runs from the cooperative `trigger_clock_task`, between app ticks.
     unsafe { deluge_bsp::trigger_clock::irq_init() };
-    // USB-MIDI device (USB0): builds the device and binds its GIC handler; the driver enables
-    // the line when `device.run()` starts.
-    let usb_midi = unsafe { usb::build(board.usb0) };
+    // The USB device (USB0): binds its GIC handler and ungates its clock, but stays off the bus
+    // until the app calls `deluge_usb_device_start`.
+    let usb_driver = unsafe { usb::init(board.usb0) };
     // SSI0 waits for the C++ init sequence's `deluge_board_init_audio`.
     board::stash_audio(board.audio_ssi, board.dma.ssi_tx, board.dma.ssi_rx);
 
@@ -280,10 +280,9 @@ pub fn start() -> ! {
         spawner.spawn(cv_gate::cv_writer().unwrap());
         // Calls the app's clock-in handler once per captured edge.
         spawner.spawn(cv_gate::trigger_clock_task().unwrap());
-        // The USB device state machine and the two MIDI endpoint pumps (MIDI port 1).
-        spawner.spawn(usb::device_task(usb_midi.device).unwrap());
-        spawner.spawn(usb::midi_rx_task(usb_midi.ep_out).unwrap());
-        spawner.spawn(usb::midi_tx_task(usb_midi.ep_in).unwrap());
+        // The USB device, once the app starts it: its state machine and the MIDI endpoint pumps
+        // (MIDI port 1).
+        spawner.spawn(usb::usb_task(usb_driver).unwrap());
         if bench_ran {
             // A bench image never starts the app: this task blanks the panel and the pads, then
             // parks. It owns the panel, so `oled_render` is not spawned.

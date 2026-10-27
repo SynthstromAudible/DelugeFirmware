@@ -433,8 +433,6 @@ private:
 
 	uint8_t flashScaleModeLedErrorCount{};
 
-	Drum* selectedDrum{};
-
 	Drum* drumForNewNoteRow{};
 	uint8_t yDisplayOfNewNoteRow{};
 

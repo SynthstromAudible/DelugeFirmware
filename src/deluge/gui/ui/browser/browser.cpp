@@ -929,7 +929,7 @@ Error Browser::stepListing() {
 				newFileIndex = (tail.searchDirection == CatalogSearch::Left) ? (listing.size() - 1) : 0;
 			}
 			else {
-				newFileIndex = listing.search(enteredText.c_str()).index + offset;
+				newFileIndex = listing.search(tail.anchor.c_str()).index + offset;
 			}
 			listing_.phase = ListingPhase::Done;
 			listing_.active = false;
@@ -1192,6 +1192,13 @@ nonNumeric:
 		}
 	}
 
+	// A reload around the selection re-reads from its sort key -- or the entered text, if a failed re-read left no
+	// current item.
+	auto reloadFromSelection = [&] {
+		FileItem const* current = getCurrentFileItem();
+		return ReloadTail{.anchor = current != nullptr ? std::string{current->displayName()} : enteredText};
+	};
+
 	// From here on a reload of the folder may be required (the listing.numDeletedAtStart()/End
 	// wraparound cases below). If so it begins a listing, and the machine runs the read and then
 	// finishSelectEncoderAction() on later ticks (ListingPhase::ReloadSelect). If not, the tail runs
@@ -1201,7 +1208,7 @@ nonNumeric:
 		if (listing.numDeletedAtStart()) {
 			scrollPosVertical = 9999;
 			D_PRINTLN("reloading");
-			beginListing({.action = ListingAction::Reload, .direction = offset, .reload = ReloadTail{}});
+			beginListing({.action = ListingAction::Reload, .direction = offset, .reload = reloadFromSelection()});
 			return;
 		}
 
@@ -1226,7 +1233,7 @@ nonNumeric:
 		if (listing.numDeletedAtEnd()) {
 			scrollPosVertical = 0;
 			D_PRINTLN("reloading");
-			beginListing({.action = ListingAction::Reload, .direction = offset, .reload = ReloadTail{}});
+			beginListing({.action = ListingAction::Reload, .direction = offset, .reload = reloadFromSelection()});
 			return;
 		}
 
@@ -1304,8 +1311,8 @@ Error Browser::reloadImpl(int32_t direction) {
 		read.catalogSearchDirection = tail.searchDirection;
 	}
 	else {
-		read.filenameToStartAt = enteredText;
-		read.catalogSearchDirection = CatalogSearch::Both;
+		read.filenameToStartAt = tail.anchor;
+		read.catalogSearchDirection = direction > 0 ? CatalogSearch::RightInclusive : CatalogSearch::LeftInclusive;
 	}
 	listing_ = ListingState{
 	    .active = true,

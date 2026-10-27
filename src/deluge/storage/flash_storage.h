@@ -154,6 +154,10 @@ struct DefaultRange {
 /// same move, for the same reason, that `padColours` above is.
 extern DefaultRange defaultRanges[NUM_DEFAULT_RANGE_SLOTS];
 
+/// Whether the Deluge offers USB audio to a computer, alongside USB MIDI. Read when USB starts up as a peripheral, at
+/// power-on - changing it takes effect after a restart
+extern bool usbAudioEnabled;
+
 void readSettings();
 void writeSettings();
 void resetSettings();

@@ -831,6 +831,10 @@ void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
 	};
 	// The MIDI/gate output timer's interrupt writes to this port too: keep this packet's bytes together
 	CriticalSectionGuard guard;
+	// Drop the whole packet if it won't fit, rather than send part of it
+	if (deluge_midi_write_space(port) < sizeof(bytes)) {
+		return;
+	}
 	deluge_midi_write(port, bytes, sizeof(bytes));
 }
 

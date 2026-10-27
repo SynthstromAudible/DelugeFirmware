@@ -1,12 +1,18 @@
 ---
 import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro"
 import Background from "../components/Background.astro"
+import BlogPostList from "../components/BlogPostList.astro"
+import { getBlogPosts } from "../logic/blog"
 import { withBase } from "../utils"
 import light from "../assets/deluge_community_firmware_logo_inverted.png"
 import dark from "../assets/banner.png"
 
 // This file could also be in .mdx, but we can only use `withBase` in
 //    frontmatter if we create the StarlightPage component like this
+
+const blogPosts = await getBlogPosts()
+const hasBlogPosts = blogPosts.length > 0
+const blogLink = withBase(hasBlogPosts ? `/${blogPosts[0].id}` : "/blog")
 ---
 
 <StarlightPage
@@ -34,9 +40,24 @@ import dark from "../assets/banner.png"
           text: "Companion",
           link: withBase("/reference/deluge_companion"),
         },
+        {
+          text: "Blog",
+          link: blogLink,
+        },
       ],
     },
   }}
 >
   <Background />
+  {
+    hasBlogPosts && (
+      <section aria-labelledby="latest-blog-posts">
+        <h2 id="latest-blog-posts">From the blog</h2>
+        <BlogPostList limit={3} />
+        <p>
+          <a href={withBase("/blog")}>All posts →</a>
+        </p>
+      </section>
+    )
+  }
 </StarlightPage>

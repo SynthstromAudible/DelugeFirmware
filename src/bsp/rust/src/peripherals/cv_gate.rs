@@ -13,29 +13,39 @@ use core::task::Poll;
 
 use deluge_bsp::{cv_gate, trigger_clock};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-use embassy_sync::channel::Channel;
+use embassy_sync::signal::Signal;
 
+use super::cv_latest::CvLatest;
 use crate::sys::DelugeTriggerClockHandler;
 
 // CV output
 
-#[derive(Clone, Copy)]
-struct CvWrite {
-    ch: u8,
-    value: u16,
-}
-
-static CV_OUT: Channel<CriticalSectionRawMutex, CvWrite, 16> = Channel::new();
+/// Each channel's latest value from [`deluge_cv_set`] until [`cv_writer`] takes it.
+static CV_LATEST: CvLatest<{ cv_gate::NUM_CV_CHANNELS }> = CvLatest::new();
+/// Wakes [`cv_writer`] after a [`deluge_cv_set`].
+static CV_WAKE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 static CV_SENT: AtomicU32 = AtomicU32::new(0);
 
-/// Background task: the sole CV transmitter. Drains queued writes to the DAC over the shared
-/// RSPI0 bus, waiting out any OLED frame in progress.
+/// Background task: the sole CV transmitter. Writes each channel's latest pending value to the DAC
+/// over the shared RSPI0 bus, waiting out any OLED frame in progress.
 #[embassy_executor::task]
 pub async fn cv_writer() {
     loop {
-        let w = CV_OUT.receive().await;
-        cv_gate::cv_set(w.ch, w.value).await;
-        CV_SENT.fetch_add(1, Ordering::Relaxed);
+        CV_WAKE.wait().await;
+        // A set during a write leaves its channel pending, so sweep until a pass finds none.
+        loop {
+            let mut wrote = false;
+            for ch in 0..cv_gate::NUM_CV_CHANNELS {
+                if let Some(value) = CV_LATEST.take(ch) {
+                    cv_gate::cv_set(ch as u8, value).await;
+                    CV_SENT.fetch_add(1, Ordering::Relaxed);
+                    wrote = true;
+                }
+            }
+            if !wrote {
+                break;
+            }
+        }
     }
 }
 
@@ -46,8 +56,11 @@ pub extern "C" fn deluge_cv_init(_display_shares_spi: bool) {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_cv_set(channel: u8, value: u16) {
-    // Non-blocking producer; the writer task performs the bus-arbitrated send.
-    let _ = CV_OUT.try_send(CvWrite { ch: channel, value });
+    // Non-blocking producer; the writer task performs the bus-arbitrated send. A channel the
+    // Deluge doesn't wire is ignored, as cv_gate::cv_set would.
+    if CV_LATEST.set(channel, value) {
+        CV_WAKE.signal(());
+    }
 }
 
 #[unsafe(no_mangle)]

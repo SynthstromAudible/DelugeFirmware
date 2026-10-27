@@ -75,6 +75,10 @@ void AudioOutput::setMode(AudioOutputMode newMode) {
 	updateMonitoringClaim();
 }
 
+static_assert(deluge::project::kInputChannelWords[deluge::project::kInputChannelSpecificTrack] == "specificTrack"
+              && deluge::project::kInputChannelSpecificTrack == util::to_underlying(AudioInputChannel::SPECIFIC_OUTPUT)
+              && deluge::project::kInputChannelWords[util::to_underlying(AudioInputChannel::USB)] == "usb");
+
 namespace {
 /// @brief The record's word index for @p channel: UNSET saves as "none"; a channel with no word of its own is not
 ///        one a track keeps.
@@ -83,6 +87,14 @@ std::optional<int8_t> recordedChannel(AudioInputChannel channel) {
 	return value < static_cast<int32_t>(std::size(deluge::project::kInputChannelWords))
 	           ? std::optional<int8_t>{static_cast<int8_t>(value)}
 	           : std::nullopt;
+}
+
+/// @brief The `outputRecordingIndex` saved for @p source: -1 when there is none or it isn't in @p song, since
+///        getOutputIndex() returns 0 for such an output, which would reload as recording from the first track -
+///        possibly one that records from us.
+int32_t outputRecordingIndexForSave(Song* song, Output* source) {
+	const int32_t index = song->getOutputIndex(source);
+	return source != nullptr && song->getOutputFromIndex(index) == source ? index : -1;
 }
 } // namespace
 
@@ -272,9 +284,14 @@ renderEnvelope:
 	if (monitoring_gain_end != 0 && modeAllowsMonitoring() && modelStack->song->isOutputActiveInArrangement(this)
 	    && inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
 		rendered = true;
-		int32_t const* __restrict__ input_ptr = (int32_t const*)AudioEngine::inputRingPos;
+		int32_t const* __restrict__ input_ptr = AudioEngine::getInputReadPos(inputChannel);
+		int32_t const* const input_end = AudioEngine::getInputBufferEnd(inputChannel);
 
 		AudioInputChannel input_channel = this->inputChannel;
+		if (input_channel == AudioInputChannel::USB) {
+			input_channel = AudioInputChannel::STEREO; // Just a stereo input, from a different buffer
+			AudioEngine::usbInputMonitoredByTrack = true;
+		}
 		if (input_channel == AudioInputChannel::STEREO && !AudioEngine::renderInStereo) {
 			input_channel = AudioInputChannel::NONE; // 0 means combine channels
 		}
@@ -323,7 +340,7 @@ renderEnvelope:
 			}
 
 			input_ptr += NUM_MONO_INPUT_CHANNELS;
-			if (input_ptr >= AudioEngine::inputRingEnd()) {
+			if (input_ptr >= input_end) {
 				input_ptr -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 			}
 		}
@@ -374,12 +391,12 @@ bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputO
 		writer.writeAttribute("inputChannel", deluge::project::kInputChannelWords[docOutput_->input_channel].data());
 		Output* source =
 		    docOutput_->recording_from_output_id ? song->outputForId(*docOutput_->recording_from_output_id) : nullptr;
-		writer.writeAttribute("outputRecordingIndex", song->getOutputIndex(source));
+		writer.writeAttribute("outputRecordingIndex", outputRecordingIndexForSave(song, source));
 	}
 	else {
 		writer.writeAttribute("mode", aoModeToString(mode));
 		writer.writeAttribute("inputChannel", inputChannelToString(inputChannel));
-		writer.writeAttribute("outputRecordingIndex", song->getOutputIndex(outputRecordingFrom));
+		writer.writeAttribute("outputRecordingIndex", outputRecordingIndexForSave(song, outputRecordingFrom));
 	}
 	Output::writeDataToFile(writer, clipForSavingOutputOnly, song);
 

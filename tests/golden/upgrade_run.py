@@ -75,8 +75,10 @@ def round_trip(binary, path, kind, timeout):
 
 
 def build_tool() -> Path:
+    """Build the upgrader and return the binary that build wrote: under CARGO_TARGET_DIR when the runner sets it."""
     subprocess.run(["cargo", "build", "--release", "--quiet"], cwd=TOOL, check=True)
-    return TOOL / "target" / "release" / "deluge-upgrade"
+    target = Path(os.environ.get("CARGO_TARGET_DIR", TOOL / "target"))
+    return target / "release" / "deluge-upgrade"
 
 
 def upgrade(tool: Path, source: Path, out: Path, card: Path | None, report: Path):

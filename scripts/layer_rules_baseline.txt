@@ -85,7 +85,7 @@ src/deluge/modulation/patch/patch_cable_set.cpp	model-includes-ui	1
 src/deluge/modulation/sync.cpp	model-includes-ui	1
 src/deluge/playback/mode/arrangement.cpp	model-calls-ui	4
 src/deluge/playback/mode/arrangement.cpp	model-includes-ui	6
-src/deluge/playback/mode/session.cpp	model-calls-ui	19
+src/deluge/playback/mode/session.cpp	model-calls-ui	25
 src/deluge/playback/mode/session.cpp	model-includes-ui	8
 src/deluge/playback/mode/session.h	model-includes-ui	1
 src/deluge/playback/playback_handler.cpp	model-calls-display	6

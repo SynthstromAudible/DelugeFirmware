@@ -31,13 +31,15 @@ static FRAME_VALID: AtomicBool = AtomicBool::new(false);
 pub async fn oled_render() {
     // oled::init() issues PIC commands, so the baud handshake must finish first.
     pic::wait_ready().await;
+    super::control::begin_oled_frame().await;
     oled::init().await;
+    super::control::end_oled_frame();
     log::info!("deluge-rust: OLED initialised");
 
     let mut fb = oled::FrameBuffer::new();
     // Show a blank panel at once rather than power-up garbage.
     fb.fill(0x00);
-    oled::send_frame(&fb).await;
+    send_frame(&fb).await;
 
     loop {
         oled::wait_redraw().await;
@@ -47,12 +49,21 @@ pub async fn oled_render() {
                 .as_flattened_mut()
                 .copy_from_slice(unsafe { &*core::ptr::addr_of!(FRAME) });
         }
-        oled::send_frame(&fb).await;
+        send_frame(&fb).await;
     }
 }
 
+/// Sends `fb` with the PIC UART held for the frame's chip-select handshake (see
+/// `control::OLED_FRAME`).
+async fn send_frame(fb: &oled::FrameBuffer) {
+    super::control::begin_oled_frame().await;
+    oled::send_frame(fb).await;
+    super::control::end_oled_frame();
+}
+
 /// Stores a 1-bpp framebuffer of `width * height / 8` bytes (page-major) and signals the render
-/// task; returns without waiting for the transfer.
+/// task; returns without waiting for the transfer. A frame identical to the stored one is dropped:
+/// the panel already shows it, and every transfer occupies the RSPI0 bus that CV output shares.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_display_blit_oled(
     pixels: *const u8,
@@ -63,10 +74,15 @@ pub extern "C" fn deluge_display_blit_oled(
     // SAFETY: the app passes `n` valid framebuffer bytes; FRAME is only touched
     // here and in oled_render, which cannot run concurrently with this copy.
     let src = unsafe { core::slice::from_raw_parts(pixels, n) };
-    // SAFETY: as above, nothing else touches FRAME during this copy.
-    unsafe { (&mut *core::ptr::addr_of_mut!(FRAME))[..n].copy_from_slice(src) };
+    // The harness shadow takes every blit, duplicates included: a test may reset it between frames.
     #[cfg(not(target_os = "none"))]
     crate::peripherals::ui_harness::record_oled(src, width, height);
+    // SAFETY: as above, nothing else touches FRAME during this copy.
+    let dst = unsafe { &mut (&mut *core::ptr::addr_of_mut!(FRAME))[..n] };
+    if FRAME_VALID.load(Ordering::Acquire) && *dst == *src {
+        return DELUGE_OK;
+    }
+    dst.copy_from_slice(src);
     FRAME_VALID.store(true, Ordering::Release);
     oled::notify_redraw();
     DELUGE_OK
@@ -100,14 +116,6 @@ pub extern "C" fn deluge_display_busy_n(_index: u8) -> bool {
 pub extern "C" fn deluge_display_init() {
     log::info!("deluge-rust: deluge_display_init (OLED init runs in oled_render task)");
 }
-
-/// Services pending display output: nothing to do, since [`oled_render`] transfers on its own.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_display_service() {}
-
-/// Display service-timer tick: nothing to advance.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_display_timer_event() {}
 
 /// Draws a framebuffer synchronously, bypassing the render task, then blocks until the user
 /// presses the select knob. On host, aborts the process instead.
@@ -180,6 +188,4 @@ abi_pin!(
     deluge_display_busy_n,
     deluge_display_freeze,
     deluge_display_init,
-    deluge_display_service,
-    deluge_display_timer_event,
 );

@@ -12,6 +12,7 @@ on:
 
 jobs:
   nightly-detect:
+    if: github.repository == 'SynthstromAudible/DelugeFirmware'
     runs-on: ubuntu-latest
     outputs:
       new-commits: ${{ steps.count-commits.outputs.count }}
@@ -27,10 +28,10 @@ jobs:
             git checkout next
             count=$(git log --oneline --since '24 hours ago' | wc -l)
             echo "Saw $count commits"
-            echo "count=$count" >> $GITHUB_OUTPUT
+            echo "count=$count" >> "$GITHUB_OUTPUT"
           else
             echo "Branch next does not exist, skipping"
-            echo "count=0" >> $GITHUB_OUTPUT
+            echo "count=0" >> "$GITHUB_OUTPUT"
           fi
   nightly-build:
     uses: ./.github/workflows/build.yml

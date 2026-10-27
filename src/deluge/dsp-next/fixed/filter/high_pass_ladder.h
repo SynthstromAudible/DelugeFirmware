@@ -49,9 +49,11 @@ namespace deluge::dsp::fixed {
 /// low-pass, whose memories feed back on the next sample; the output is a normalised by the processed resonance. The
 /// morph moves each sample's cutoff with the input itself.
 ///
-/// **Modes.** The saturation, chosen per block by the processed resonance: BYPASS (at most 750000000), TANH (@ref tanh
-/// at drive 2, past 750000000) and ANTIALIASED (@ref AntialiasedTanh at drive 1, past 900000000). All three share one
-/// State, so a resonance change between blocks carries every memory and the saturator's position.
+/// **Modes.** A mode is the saturation (@ref Saturation), chosen per block by the processed resonance: BYPASS (at most
+/// 750000000), TANH (@ref tanh at drive 2, past 750000000) and ANTIALIASED (@ref AntialiasedTanh at drive 1, past
+/// 900000000); and the cutoff (@ref Cutoff): FIXED with the morph at zero, when m' is m clamped for the whole block
+/// (x·2^4 × 0 rounds to 0 exactly), else MORPHING. All share one State, so a resonance or morph change between blocks
+/// carries every memory and the saturator's position.
 ///
 /// **The saturator's position.** BYPASS and TANH keep it tracking the signal with @ref AntialiasedTanh::place, so that
 /// switching ANTIALIASED in interpolates from the last sample rather than from a stale position.
@@ -65,12 +67,41 @@ struct HighPassLadder {
 	using step_type = q31;  ///< A sample, Q31: one step per sample.
 
 	/// @brief The saturation the loop runs, chosen per block by the processed resonance.
-	enum class Mode : uint8_t {
+	enum class Saturation : uint8_t {
 		BYPASS,      ///< No saturation; the saturator's position tracks the signal.
 		TANH,        ///< @ref tanh at drive 2; the saturator's position tracks the signal.
 		ANTIALIASED, ///< @ref AntialiasedTanh at drive 1.
 	};
-	using Modes = ModeList<Mode::BYPASS, Mode::TANH, Mode::ANTIALIASED>; ///< All share one State.
+
+	/// @brief How each sample's cutoff is found.
+	enum class Cutoff : uint8_t {
+		FIXED,    ///< The morph is zero: the block's moveability, clamped, for every sample.
+		MORPHING, ///< The block's moveability nudged by each sample's input times the morph, then clamped.
+	};
+
+	/// @brief A saturation and a cutoff: the block's mode.
+	enum class Mode : uint8_t {
+		BYPASS,
+		BYPASS_MORPHING,
+		TANH,
+		TANH_MORPHING,
+		ANTIALIASED,
+		ANTIALIASED_MORPHING,
+	};
+	/// All share one State.
+	using Modes = ModeList<Mode::BYPASS, Mode::BYPASS_MORPHING, Mode::TANH, Mode::TANH_MORPHING, Mode::ANTIALIASED,
+	                       Mode::ANTIALIASED_MORPHING>;
+
+	/// @brief The mode running @p saturation with @p cutoff.
+	[[nodiscard]] static constexpr Mode mode_of(Saturation saturation, Cutoff cutoff) {
+		return static_cast<Mode>(static_cast<uint8_t>(saturation) * 2 + static_cast<uint8_t>(cutoff));
+	}
+	/// @brief The saturation mode @p m runs.
+	[[nodiscard]] static constexpr Saturation saturation_of(Mode m) {
+		return static_cast<Saturation>(static_cast<uint8_t>(m) / 2);
+	}
+	/// @brief The cutoff mode @p m runs.
+	[[nodiscard]] static constexpr Cutoff cutoff_of(Mode m) { return static_cast<Cutoff>(static_cast<uint8_t>(m) % 2); }
 
 	/// @brief What the owner sets each block.
 	struct Settings {
@@ -91,7 +122,7 @@ struct HighPassLadder {
 		q31 high_pass_3_feedback = 0;        ///< The third section's feedback, Q30.
 		q31 divide_by_total_moveability = 0; ///< 1 / (1 − the loop gain), Q28 (1 is 268435456).
 		q31 gain_compensation = 0;           ///< The gain going in, cut as the resonance rises, Q31.
-		Mode mode = Mode::BYPASS;            ///< The saturation, dispatched on once per block.
+		Mode mode = Mode::BYPASS;            ///< The saturation and cutoff, dispatched on once per block.
 	};
 
 	/// @brief One channel's ladder.
@@ -148,12 +179,14 @@ struct HighPassLadder {
 		c.divide_by_total_moveability = static_cast<int32_t>(static_cast<double>(c.processed_resonance) * 67108864.0
 		                                                     / static_cast<double>(to_divide_by));
 
+		Saturation saturation = Saturation::BYPASS;
 		if (c.processed_resonance > kAntialiasAbove) {
-			c.mode = Mode::ANTIALIASED;
+			saturation = Saturation::ANTIALIASED;
 		}
 		else if (c.processed_resonance > kTanhAbove) {
-			c.mode = Mode::TANH;
+			saturation = Saturation::TANH;
 		}
+		c.mode = mode_of(saturation, c.morph == 0 ? Cutoff::FIXED : Cutoff::MORPHING);
 
 		// The volume falls as the resonance rises.
 		const q31 raw_resonance = std::min(s.config.resonance, q31{ONE_Q31 >> 2}) << 2;
@@ -169,7 +202,7 @@ struct HighPassLadder {
 	}
 
 	/// @brief One sample through the ladder.
-	/// @tparam M The block's saturation.
+	/// @tparam M The block's saturation and cutoff.
 	/// @param c The block's coefficients.
 	/// @param s The channel's sections and saturator position, updated.
 	/// @param x The input, Q31.
@@ -177,9 +210,13 @@ struct HighPassLadder {
 	template <Mode M>
 	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& /*b*/, State& s,
 	                                                     q31 x) {
+		constexpr Saturation kSaturation = saturation_of(M);
 		// The inputs are small (about 16 bits), so this nudge is too; the floor is about as low as the cutoff goes
 		// without sounding broken. A ternary, as `std::max` is an out-of-line call where the app instantiates this.
-		const q31 nudged = multiply_accumulate_32x32_rshift32_rounded(c.moveability, x << 4, c.morph);
+		// FIXED: the nudge by a zero morph is exactly zero, so the clamp of the block's moveability is the same.
+		const q31 nudged = cutoff_of(M) == Cutoff::FIXED
+		                       ? c.moveability
+		                       : multiply_accumulate_32x32_rshift32_rounded(c.moveability, x << 4, c.morph);
 		const q31 m = nudged < kLowerLimit ? kLowerLimit : nudged;
 
 		const q31 first_output = section_step<OnePole::Mode::HIGH_PASS>(s.high_pass_1, m, x);
@@ -188,7 +225,7 @@ struct HighPassLadder {
 		q31 a = multiply_32x32_rshift32_rounded(c.divide_by_total_moveability, wrapping_add(first_output, feedbacks))
 		        << kLoopShift;
 
-		if constexpr (M == Mode::ANTIALIASED) {
+		if constexpr (kSaturation == Saturation::ANTIALIASED) {
 			a = AntialiasedTanh::step(kSaturator, EmptyBlock{}, s.saturator, a);
 		}
 		else {
@@ -196,7 +233,7 @@ struct HighPassLadder {
 			// part of the output contract, so switching ANTIALIASED in interpolates its first sample from a position
 			// twice as far from the centre (short of saturation).
 			AntialiasedTanh::place(s.saturator, static_cast<uint32_t>(lshiftAndSaturate<kPlaceShift>(a)) + kTanhCentre);
-			if constexpr (M == Mode::TANH) {
+			if constexpr (kSaturation == Saturation::TANH) {
 				a = tanh<kTanhDrive>(a);
 			}
 		}

@@ -142,6 +142,8 @@ public:
 	static_assert(std::atomic<RecorderStatus>::is_always_lock_free);
 	AudioInputChannel mode;
 	Output* outputRecordingFrom{}; // for when recording from a specific output
+	// A looper overdub - outputRecordingFrom's own clip is recording it, so the clip's audio comes round every pass
+	bool recordingOwnClip = false;
 
 	// Need to keep track of this, so we know whether to remove it. Well I guess we could just look and see if it's
 	// there... but this is nice.

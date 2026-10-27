@@ -26,7 +26,7 @@ const TX_FRAMES: usize = ssi::TX_FRAMES; // 1024
 /// RX ring length in stereo frames.
 const RX_FRAMES: usize = ssi::RX_FRAMES; // 2048
 pub(crate) const TX_MASK: usize = TX_FRAMES - 1;
-const RX_MASK: usize = RX_FRAMES - 1;
+pub(crate) const RX_MASK: usize = RX_FRAMES - 1;
 
 /// The codec rate, in frames per second.
 pub(crate) const SAMPLE_RATE_HZ: u32 = 44_100;
@@ -82,11 +82,22 @@ pub(crate) fn tx_play_frame() -> usize {
 }
 
 /// Returns the DMA RX write head as a frame index into the ring.
+///
+/// The RX DMA runs on the codec clock from board audio init, so this is also the clock USB audio
+/// paces its packets by.
 #[inline]
-fn rx_write_frame() -> usize {
+pub(crate) fn rx_write_frame() -> usize {
     // SAFETY: both pointers are into the same RX ring (uncached alias).
     let slots = unsafe { ssi::rx_current_ptr().offset_from(ssi::rx_buf_start()) } as usize;
     (slots / 2) & RX_MASK
+}
+
+/// How many frames the codec plays before it reaches the block being rendered. Audio tier, inside
+/// the render.
+pub(crate) fn block_lead_frames() -> usize {
+    // SAFETY: `BLOCK_START_WRITE` is the render's, and this runs inside it.
+    let write = unsafe { BLOCK_START_WRITE };
+    write.wrapping_sub(BLOCK_START_PLAY.load(Ordering::Relaxed)) & TX_MASK
 }
 
 /// Flushes pending rendered frames into the TX ring; returns true once all are flushed, false if

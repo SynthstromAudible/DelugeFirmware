@@ -68,24 +68,31 @@ DelugeMidiPort deluge_midi_usb_port(uint8_t controller, uint8_t device) DELUGE_N
 /// stamp of the drained batch's arrival (see `deluge_audio_stamp_to_render_offset`), as
 /// deluge_midi_din_read_timed() does per byte. Every message in the batch shares that one stamp.
 /// Non-blocking; returns the number of bytes copied (0 if none available). USB-MIDI ports deliver
-/// whole 4-byte event packets (decode with the deluge_midi protocol library) and the BSP arms its own
-/// receive transfers — there is nothing to re-arm or poll at this boundary. [task]
+/// whole 4-byte USB-MIDI 1.0 event packets exactly as received — every Code Index Number, SysEx
+/// included, cable number in the header's high nibble — so the count is a multiple of 4 and a packet
+/// is never split (with `max` < 4 nothing is read). Decode them with the deluge_midi protocol
+/// library. The BSP arms its own receive transfers — there is nothing to re-arm or poll at this
+/// boundary. [task]
 uint32_t deluge_midi_read_timed(DelugeMidiPort port, uint8_t* dst, uint32_t max,
                                 uint32_t* arrival_ticks) DELUGE_NOEXCEPT;
 
 /// Queue `len` bytes for transmission on `port`. Returns the number of bytes
-/// accepted (may be < len if the TX buffer is full). Non-blocking. Not reentrant
-/// per port: a caller that can be preempted by another writer to the same port
-/// (the MIDI/gate output timer's interrupt writes too) holds a critical section,
-/// so the two messages' bytes cannot interleave. [task] [audio] [isr]
+/// accepted (may be < len if the TX buffer is full). Non-blocking. On USB-MIDI
+/// ports `src` holds whole 4-byte USB-MIDI 1.0 event packets, sent unchanged:
+/// the count accepted is a multiple of 4, and a trailing partial packet is never
+/// sent. Not reentrant per port: a caller that can be preempted by another writer
+/// to the same port (the MIDI/gate output timer's interrupt writes too) holds a
+/// critical section, so the two messages' bytes cannot interleave. [task] [audio] [isr]
 uint32_t deluge_midi_write(DelugeMidiPort port, const uint8_t* src, uint32_t len) DELUGE_NOEXCEPT;
 
 /// Free space (in bytes) in the port's TX buffer: a write of at most this many
-/// bytes is taken whole. [task] [audio] [isr]
+/// bytes is taken whole. On USB-MIDI ports, 4 bytes per event packet that fits.
+/// [task] [audio] [isr]
 uint32_t deluge_midi_write_space(DelugeMidiPort port) DELUGE_NOEXCEPT;
 
-/// Bytes currently buffered for transmission on `port` but not yet on the wire.
-/// The app uses this to tell whether output is still pending. [task] [audio]
+/// Bytes currently buffered for transmission on `port` but not yet on the wire
+/// (on USB-MIDI ports, 4 per queued event packet). The app uses this to tell
+/// whether output is still pending. [task] [audio]
 uint32_t deluge_midi_write_pending(DelugeMidiPort port) DELUGE_NOEXCEPT;
 
 /// Read the next received DIN/serial MIDI byte together with its capture stamp.

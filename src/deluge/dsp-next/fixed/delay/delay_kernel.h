@@ -22,6 +22,7 @@
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
+#include "dsp-next/fixed/delay/analog_impulse_response.h"
 #include "dsp-next/fixed/delay/delay_tape.h"
 #include "dsp-next/fixed/delay/feedback_shaper.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
@@ -277,12 +278,24 @@ struct Delay {
 			}
 		}
 
-		constexpr FeedbackChain::Mode kFeedback = feedback_mode(M.shaper);
-		constexpr kernel_block_t<FeedbackChain> kNoBlock{};
-		const StereoSample feedback{
-		    .l = kernel_ops::step_at<FeedbackChain, kFeedback>(c.feedback, kNoBlock, s.left, delayed.l),
-		    .r = kernel_ops::step_at<FeedbackChain, kFeedback>(c.feedback, kNoBlock, s.right, delayed.r),
-		};
+		StereoSample feedback;
+		if constexpr (M.shaper == Shaper::ANALOG) {
+			// Both channels' impulse responses at once, sharing each tap's load; then each channel's shaping and
+			// high-pass, as the chain steps them.
+			const StereoSample response = AnalogImpulseResponse::step_pair(
+			    get<0>(s.left).response, get<0>(s.right).response, delayed.l, delayed.r);
+			const auto& shaper = get<0>(c.feedback);
+			feedback.l = high_pass(c, s.left, FeedbackShaper::analog(shaper, response.l));
+			feedback.r = high_pass(c, s.right, FeedbackShaper::analog(shaper, response.r));
+		}
+		else {
+			constexpr FeedbackChain::Mode kFeedback = feedback_mode(M.shaper);
+			constexpr kernel_block_t<FeedbackChain> kNoBlock{};
+			feedback = {
+			    .l = kernel_ops::step_at<FeedbackChain, kFeedback>(c.feedback, kNoBlock, s.left, delayed.l),
+			    .r = kernel_ops::step_at<FeedbackChain, kFeedback>(c.feedback, kNoBlock, s.right, delayed.r),
+			};
+		}
 
 		StereoSample to_tape = feedback;
 		if constexpr (M.mix == Mix::CROSS) {
@@ -322,6 +335,13 @@ struct Delay {
 		StereoSample out = dry;
 		out += feedback;
 		return out;
+	}
+
+	/// @brief The feedback chain's second part, its high-pass, on @p x for one channel's chain State @p s.
+	[[nodiscard]] [[gnu::always_inline]] static q31 high_pass(const Coefficients& c, FeedbackChain::State& s, q31 x) {
+		using HighPass = FeedbackChain::part_t<1>;
+		return kernel_ops::step_at<HighPass, kernel_ops::NoMode::NONE>(get<1>(c.feedback), kernel_block_t<HighPass>{},
+		                                                               kernel_ops::loop_state<HighPass>(get<1>(s)), x);
 	}
 
 	/// @brief The high-pass's memory to 0 in both channels, as a new delay's is. The impulse response's history is

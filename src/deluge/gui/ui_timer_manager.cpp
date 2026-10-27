@@ -216,10 +216,6 @@ void UITimerManager::routine() {
 					setTimer(TimerName::GRAPHICS_ROUTINE, 15);
 					break;
 
-				case TimerName::OLED_LOW_LEVEL:
-					deluge_display_timer_event();
-					break;
-
 				case TimerName::OLED_CONSOLE: {
 					auto* oled = static_cast<deluge::hid::display::OLED*>(display);
 					oled->consoleTimerEvent();

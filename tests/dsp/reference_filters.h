@@ -489,7 +489,8 @@ private:
 		return moveability_ + multiply_32x32_rshift32(moveability_, channel.noise_last);
 	}
 
-	[[nodiscard, gnu::always_inline]] q31 scaleInput(q31 input, q31 feedbacks_sum) const {
+	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31 scaleInput(q31 input,
+	                                                                                    q31 feedbacks_sum) const {
 		const q31 scaled = multiply_32x32_rshift32_rounded(
 		                       (input - (multiply_32x32_rshift32_rounded(feedbacks_sum, processed_resonance_) << 3)),
 		                       divide_by_total_moveability_and_processed_resonance_)
@@ -501,7 +502,8 @@ private:
 		return scaled;
 	}
 
-	[[nodiscard, gnu::always_inline]] q31 render12dB(q31 input, Channel& channel) const {
+	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31 render12dB(q31 input,
+	                                                                                    Channel& channel) const {
 		const q31 noisy_m = noisyMoveability(channel);
 		auto& [first, second, third, fourth] = channel.sections;
 		const q31 feedbacks_sum = first.feedbackOutput(feedbacks_[0]) + second.feedbackOutput(feedbacks_[1])
@@ -510,7 +512,8 @@ private:
 		return third.allPass(second.lowPass(first.lowPass(x, noisy_m), noisy_m), noisy_m) << 1;
 	}
 
-	[[nodiscard, gnu::always_inline]] q31 render24dB(q31 input, Channel& channel) const {
+	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31 render24dB(q31 input,
+	                                                                                    Channel& channel) const {
 		const q31 noisy_m = noisyMoveability(channel);
 		auto& [first, second, third, fourth] = channel.sections;
 		// The last section's feedback "should" be halved onto Q30, but the ladder sounds better (and reaches full
@@ -524,7 +527,8 @@ private:
 		return fourth.lowPass(third.lowPass(second.lowPass(first.lowPass(x, noisy_m), noisy_m), noisy_m), noisy_m) << 1;
 	}
 
-	[[nodiscard, gnu::always_inline]] q31 renderDrive(q31 input, Channel& channel) const {
+	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31 renderDrive(q31 input,
+	                                                                                     Channel& channel) const {
 		const q31 noisy_m = noisyMoveability(channel);
 		auto& [first, second, third, fourth] = channel.sections;
 		const q31 feedbacks_sum =

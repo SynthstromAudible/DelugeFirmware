@@ -18,6 +18,7 @@
 #pragma once
 
 #include "dsp-next/core/kernel.h"
+#include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
 #include "util/fixedpoint.h"
@@ -146,11 +147,46 @@ struct AnalogImpulseResponse {
 		odd = multiply_accumulate_32x32_rshift32_rounded(odd, h1, t1);
 		even = multiply_accumulate_32x32_rshift32_rounded(even, h[kHistory - 1], t[kHistory - 1]);
 
+		push(s, x);
+		return wrapping_add(even, odd);
+	}
+
+	/// @brief One sample of two channels at once, each through its own history: what @ref step gives each, the
+	/// taps loaded once for both.
+	/// @details The left and right sums are the two accumulators, so neither waits on the other's multiply result, as
+	/// @ref step's even and odd sums do not. Exact by **Exactness**: each channel's products are summed in tap order
+	/// rather than evens and odds apart.
+	/// @param left The left channel's history, moved on by one sample.
+	/// @param right The right channel's history, moved on by one sample.
+	/// @param x_left The left input, Q31.
+	/// @param x_right The right input, Q31.
+	/// @return Each channel's response, Q31.
+	[[nodiscard]] [[gnu::always_inline]] static StereoSample step_pair(State& left, State& right, q31 x_left,
+	                                                                   q31 x_right) {
+		const q31* const h_left = left.history + left.oldest;
+		const q31* const h_right = right.history + right.oldest;
+		const int32_t* const t = kHistoryTaps.taps;
+		q31 sum_left = multiply_32x32_rshift32_rounded(x_left, kResponse[0]);
+		q31 sum_right = multiply_32x32_rshift32_rounded(x_right, kResponse[0]);
+		// Unrolled by 5 (of 25): measured on the rig against the plain loop and a full unroll, which spills.
+#pragma GCC unroll 5
+		for (std::size_t j = 0; j < kHistory; ++j) {
+			const int32_t tap = t[j];
+			sum_left = multiply_accumulate_32x32_rshift32_rounded(sum_left, h_left[j], tap);
+			sum_right = multiply_accumulate_32x32_rshift32_rounded(sum_right, h_right[j], tap);
+		}
+		push(left, x_left);
+		push(right, x_right);
+		return {.l = sum_left, .r = sum_right};
+	}
+
+private:
+	/// @brief @p x into @p s's history over the oldest input, both copies.
+	[[gnu::always_inline]] static void push(State& s, q31 x) {
 		const uint32_t at = s.oldest;
 		s.history[at] = x;
 		s.history[at + kHistory] = x;
 		s.oldest = at + 1 == kHistory ? 0 : at + 1;
-		return wrapping_add(even, odd);
 	}
 };
 

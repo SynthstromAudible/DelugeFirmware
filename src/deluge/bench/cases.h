@@ -1171,6 +1171,30 @@ inline constexpr FilterCaseConfig kFilterLowDrive = filter_low_case(
 inline constexpr FilterCaseConfig kFilterLowDriveOs = filter_low_case(
     {.kind = dsp::fixed::LowPassSlot::Kind::LADDER, .ladder = dsp::fixed::LowPassLadderMode::TRANSISTOR_24DB_DRIVE},
     kFilterBrightSettings);
+/// @brief The low-pass settings of the `*_resonant_*` cases: kFilterLowSettings at a resonance (2^25, Q29) that
+/// keeps every ladder's processed resonance below its input's saturation threshold.
+inline constexpr dsp::fixed::FilterConfig kFilterLowResonantSettings{
+    .frequency = 1 << 23, .resonance = 1 << 25, .morph = 0, .allow_oversampling = true};
+/// @brief The low-pass settings of the `*_unresonant_*` cases: kFilterLowSettings at no resonance, so nothing is fed
+/// back.
+inline constexpr dsp::fixed::FilterConfig kFilterLowUnresonantSettings{
+    .frequency = 1 << 23, .resonance = 0, .morph = 0, .allow_oversampling = true};
+/// @brief `filter_lp12_resonant_*`: the 12 dB ladder fed back, its input not saturated.
+inline constexpr FilterCaseConfig kFilterLow12Resonant = filter_low_case(kFilterLow12.low, kFilterLowResonantSettings);
+/// @brief `filter_lp24_resonant_*`: the 24 dB ladder fed back, its input not saturated.
+inline constexpr FilterCaseConfig kFilterLow24Resonant = filter_low_case(kFilterLow24.low, kFilterLowResonantSettings);
+/// @brief `filter_lpdrive_resonant_*`: the drive ladder fed back, its input not saturated.
+inline constexpr FilterCaseConfig kFilterLowDriveResonant =
+    filter_low_case(kFilterLowDrive.low, kFilterLowResonantSettings);
+/// @brief `filter_lp12_unresonant_*`: the 12 dB ladder with nothing fed back.
+inline constexpr FilterCaseConfig kFilterLow12Unresonant =
+    filter_low_case(kFilterLow12.low, kFilterLowUnresonantSettings);
+/// @brief `filter_lp24_unresonant_*`: the 24 dB ladder with nothing fed back.
+inline constexpr FilterCaseConfig kFilterLow24Unresonant =
+    filter_low_case(kFilterLow24.low, kFilterLowUnresonantSettings);
+/// @brief `filter_lpdrive_unresonant_*`: the drive ladder with nothing fed back.
+inline constexpr FilterCaseConfig kFilterLowDriveUnresonant =
+    filter_low_case(kFilterLowDrive.low, kFilterLowUnresonantSettings);
 /// @brief `filter_svf_band_*`: the SVF in band mode, in the low-pass slot.
 inline constexpr FilterCaseConfig kFilterSvfBand =
     filter_low_case({.kind = dsp::fixed::LowPassSlot::Kind::SVF, .svf = dsp::fixed::SvfMode::BAND});
@@ -1183,6 +1207,15 @@ inline constexpr FilterCaseConfig kFilterHigh{.low = {},
                                               .route = dsp::fixed::FilterRoute::HIGH_TO_LOW,
                                               .low_config = kFilterLowSettings,
                                               .high_config = kFilterHighSettings};
+
+/// @brief `filter_hp_morph_*`: the high-pass ladder with its morph up (2^26, Q29), each sample's cutoff nudged by its
+/// input.
+inline constexpr FilterCaseConfig kFilterHighMorph{
+    .low = {},
+    .high = {.kind = dsp::fixed::HighPassSlot::Kind::LADDER},
+    .route = dsp::fixed::FilterRoute::HIGH_TO_LOW,
+    .low_config = kFilterLowSettings,
+    .high_config = {.frequency = 1 << 23, .resonance = 1 << 27, .morph = 1 << 26, .allow_oversampling = true}};
 
 /// @brief The configuration of `filterset_<hl|lh|par>_stereo`: the 24 dB ladder and the high-pass ladder (a sound's
 /// default modes) on @p route.
@@ -1626,21 +1659,36 @@ struct CaseSet {
 	DelayWholeCase delay_whole_res_hi_cross_digital{delay_whole_mode(DelayTapeForm::RES_HI, true, false)};
 	/// `delay_whole_res_hi_cross_analog`
 	DelayWholeCase delay_whole_res_hi_cross_analog{delay_whole_mode(DelayTapeForm::RES_HI, true, true)};
-	DelayWholeCase delay_whole_growing{kDelayWholeGrowing};       ///< `delay_whole_growing`
-	FilterMonoCase filter_lp12_mono{kFilterLow12};                ///< `filter_lp12_mono`
-	FilterStereoCase filter_lp12_stereo{kFilterLow12};            ///< `filter_lp12_stereo`
-	FilterMonoCase filter_lp24_mono{kFilterLow24};                ///< `filter_lp24_mono`
-	FilterStereoCase filter_lp24_stereo{kFilterLow24};            ///< `filter_lp24_stereo`
-	FilterMonoCase filter_lpdrive_mono{kFilterLowDrive};          ///< `filter_lpdrive_mono`
-	FilterStereoCase filter_lpdrive_stereo{kFilterLowDrive};      ///< `filter_lpdrive_stereo`
-	FilterMonoCase filter_lpdrive_os_mono{kFilterLowDriveOs};     ///< `filter_lpdrive_os_mono`
-	FilterStereoCase filter_lpdrive_os_stereo{kFilterLowDriveOs}; ///< `filter_lpdrive_os_stereo`
-	FilterMonoCase filter_hp_mono{kFilterHigh};                   ///< `filter_hp_mono`
-	FilterStereoCase filter_hp_stereo{kFilterHigh};               ///< `filter_hp_stereo`
-	FilterMonoCase filter_svf_band_mono{kFilterSvfBand};          ///< `filter_svf_band_mono`
-	FilterStereoCase filter_svf_band_stereo{kFilterSvfBand};      ///< `filter_svf_band_stereo`
-	FilterMonoCase filter_svf_notch_mono{kFilterSvfNotch};        ///< `filter_svf_notch_mono`
-	FilterStereoCase filter_svf_notch_stereo{kFilterSvfNotch};    ///< `filter_svf_notch_stereo`
+	DelayWholeCase delay_whole_growing{kDelayWholeGrowing};                   ///< `delay_whole_growing`
+	FilterMonoCase filter_lp12_mono{kFilterLow12};                            ///< `filter_lp12_mono`
+	FilterStereoCase filter_lp12_stereo{kFilterLow12};                        ///< `filter_lp12_stereo`
+	FilterMonoCase filter_lp24_mono{kFilterLow24};                            ///< `filter_lp24_mono`
+	FilterStereoCase filter_lp24_stereo{kFilterLow24};                        ///< `filter_lp24_stereo`
+	FilterMonoCase filter_lpdrive_mono{kFilterLowDrive};                      ///< `filter_lpdrive_mono`
+	FilterStereoCase filter_lpdrive_stereo{kFilterLowDrive};                  ///< `filter_lpdrive_stereo`
+	FilterMonoCase filter_lpdrive_os_mono{kFilterLowDriveOs};                 ///< `filter_lpdrive_os_mono`
+	FilterStereoCase filter_lpdrive_os_stereo{kFilterLowDriveOs};             ///< `filter_lpdrive_os_stereo`
+	FilterMonoCase filter_hp_mono{kFilterHigh};                               ///< `filter_hp_mono`
+	FilterStereoCase filter_hp_stereo{kFilterHigh};                           ///< `filter_hp_stereo`
+	FilterMonoCase filter_lp12_resonant_mono{kFilterLow12Resonant};           ///< `filter_lp12_resonant_mono`
+	FilterStereoCase filter_lp12_resonant_stereo{kFilterLow12Resonant};       ///< `filter_lp12_resonant_stereo`
+	FilterMonoCase filter_lp24_resonant_mono{kFilterLow24Resonant};           ///< `filter_lp24_resonant_mono`
+	FilterStereoCase filter_lp24_resonant_stereo{kFilterLow24Resonant};       ///< `filter_lp24_resonant_stereo`
+	FilterMonoCase filter_lpdrive_resonant_mono{kFilterLowDriveResonant};     ///< `filter_lpdrive_resonant_mono`
+	FilterStereoCase filter_lpdrive_resonant_stereo{kFilterLowDriveResonant}; ///< `filter_lpdrive_resonant_stereo`
+	FilterMonoCase filter_lp12_unresonant_mono{kFilterLow12Unresonant};       ///< `filter_lp12_unresonant_mono`
+	FilterStereoCase filter_lp12_unresonant_stereo{kFilterLow12Unresonant};   ///< `filter_lp12_unresonant_stereo`
+	FilterMonoCase filter_lp24_unresonant_mono{kFilterLow24Unresonant};       ///< `filter_lp24_unresonant_mono`
+	FilterStereoCase filter_lp24_unresonant_stereo{kFilterLow24Unresonant};   ///< `filter_lp24_unresonant_stereo`
+	FilterMonoCase filter_lpdrive_unresonant_mono{kFilterLowDriveUnresonant}; ///< `filter_lpdrive_unresonant_mono`
+	FilterStereoCase filter_lpdrive_unresonant_stereo{
+	    kFilterLowDriveUnresonant};                            ///< `filter_lpdrive_unresonant_stereo`
+	FilterMonoCase filter_hp_morph_mono{kFilterHighMorph};     ///< `filter_hp_morph_mono`
+	FilterStereoCase filter_hp_morph_stereo{kFilterHighMorph}; ///< `filter_hp_morph_stereo`
+	FilterMonoCase filter_svf_band_mono{kFilterSvfBand};       ///< `filter_svf_band_mono`
+	FilterStereoCase filter_svf_band_stereo{kFilterSvfBand};   ///< `filter_svf_band_stereo`
+	FilterMonoCase filter_svf_notch_mono{kFilterSvfNotch};     ///< `filter_svf_notch_mono`
+	FilterStereoCase filter_svf_notch_stereo{kFilterSvfNotch}; ///< `filter_svf_notch_stereo`
 	/// `filterset_hl_stereo`
 	FilterStereoCase filterset_hl_stereo{filter_set_case(dsp::fixed::FilterRoute::HIGH_TO_LOW)};
 	/// `filterset_lh_stereo`

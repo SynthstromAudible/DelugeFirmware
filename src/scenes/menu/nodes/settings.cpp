@@ -38,11 +38,13 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
+#include "io/usb/usb_audio.h"
 #include "model/scale/preset_scales.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/patch/patch_cable.h" // polarityToString
 #include "modulation/sync.h"
+#include "notify/notice_queue.h" // the USB enable's "restart to apply"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"   // cvEngine -- the CV/gate output pages
@@ -735,6 +737,28 @@ size_t sync_scaling_action_names(const MenuContext&, std::span<std::string_view>
 
 // ---------------------------------------------------------------------------------------------
 // 8-9. Sample preview and play cursor
+
+int32_t get_usb_audio_enabled(const MenuContext&) {
+	return from_bool(FlashStorage::usbAudioEnabled);
+}
+void set_usb_audio_enabled(const MenuContext&, int32_t value) {
+	FlashStorage::usbAudioEnabled = value != 0;
+	if (FlashStorage::usbAudioEnabled != usb_audio::present()) {
+		deluge::notify::notice_string(sid(String::STRING_FOR_RESTART_TO_APPLY));
+	}
+}
+int32_t get_usb_direct_monitoring(const MenuContext&) {
+	return from_bool(usb_audio::directMonitoring);
+}
+void set_usb_direct_monitoring(const MenuContext&, int32_t value) {
+	usb_audio::directMonitoring = value != 0;
+}
+int32_t get_usb_output_source(const MenuContext&) {
+	return static_cast<int32_t>(usb_audio::outputSource);
+}
+void set_usb_output_source(const MenuContext&, int32_t value) {
+	usb_audio::outputSource = static_cast<usb_audio::OutputSource>(value);
+}
 
 int32_t get_flash_status(const MenuContext&) {
 	return PadLEDs::flashCursor; // `flash/status.h:26`

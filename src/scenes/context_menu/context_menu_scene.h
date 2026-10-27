@@ -176,10 +176,10 @@ const Descriptor& descriptor(DescriptorId id);
 
 /// @brief The most options one descriptor may carry.
 ///
-/// Eight, which is `AudioInputSelector`'s option count -- the widest legacy context menu there is
+/// Nine, which is `AudioInputSelector`'s option count -- the widest legacy context menu there is
 /// -- so the fixed arrays `render_oled` resolves the l10n ids into never truncate a descriptor a
 /// later task adds. Nothing here allocates, so the ceiling has to be a number.
-inline constexpr size_t kMaxOptions = 8;
+inline constexpr size_t kMaxOptions = 9;
 
 /// @brief `ContextMenu::selectEncoderAction` (`context_menu.cpp`), as a pure function.
 ///

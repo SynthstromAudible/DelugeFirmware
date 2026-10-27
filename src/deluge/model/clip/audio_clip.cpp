@@ -185,12 +185,12 @@ Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack,
 
 		inputChannel = ((AudioOutput*)output)->inputChannel;
 		outputRecordingFrom = ((AudioOutput*)output)->getOutputRecordingFrom();
-		numChannels =
-		    (inputChannel >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION || inputChannel == AudioInputChannel::STEREO)
-		        ? 2
-		        : 1;
-		shouldNormalize =
-		    (inputChannel < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION); // if reading from input we need this
+		numChannels = (inputChannel >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION
+		               || inputChannel == AudioInputChannel::STEREO || inputChannel == AudioInputChannel::USB)
+		                  ? 2
+		                  : 1;
+		// if reading from the codec input we need this. USB audio arrives at whatever level the host meant it to be
+		shouldNormalize = AudioEngine::isCodecInput(inputChannel);
 	}
 	// if we already have an input then we're going to record an overdub instead. This won't be called if the clip is
 	// doing the classic deluge clip cloning loops (will be called on the clone instead)
@@ -214,6 +214,7 @@ Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	}
 	recorder->autoDeleteWhenDone = true;
 	recorder->allowNormalization = shouldNormalize;
+	recorder->recordingOwnClip = (outputRecordingFrom == output);
 	return Clip::beginLinearRecording(modelStack, buttonPressLatency);
 }
 
@@ -252,7 +253,10 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	notify_content_changed();
 
 	if (!isEmpty()) {
-		clear(nullptr, modelStack, true, true);
+		// Not our own clear(), which aborts the recorder we're about to take the sample from if no clock is running
+		Clip::clear(nullptr, modelStack, true, true);
+		clearSample(nullptr);
+		renderData.xScroll = -1;
 	}
 	auto ao = (AudioOutput*)output;
 	// if we're a sampler then turn off monitoring
@@ -612,6 +616,12 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<q31_
 	}
 
 	Sample* sample = ((Sample*)sampleHolder.audioFile);
+
+	// The Sample is in SDRAM and always cold by the next render, so start fetching the parts of it that rendering uses
+	// before the setup below
+	__builtin_prefetch(sample);
+	__builtin_prefetch((char*)sample + 32);
+	__builtin_prefetch((char*)sample + 64);
 
 	// First, if we're still attempting to do a "late start", see if we can do that (perhaps not if relevant audio data
 	// hasn't loaded yet)
@@ -1499,31 +1509,37 @@ void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack,
 			}
 		}
 		// with overdubs these could both be true
-		if (sampleHolder.audioFile) {
-			// we're not actually deleting the song, but we don't want to keep this sample cached since we can't get it
-			// back anyway
-			unassignVoiceSample(true);
-
-			if (action) {
-				// Must happen first
-				action->recordAudioClipSampleChange(this);
-			}
-
-			setSampleFilePath("");
-			sampleHolder.setAudioFile(nullptr);
-			setName("");
-
-			// Now that the clip is empty, deactivate it so a looper doesn't sit active-but-empty (which never re-arms
-			// to record, since Song::getClipWithOutputAboutToBeginLinearRecording requires the clip to be inactive). A
-			// fresh empty clip is inactive, so this matches "should be the same as an empty clip". Mirrors the
-			// undo-revert behaviour in ConsequenceAudioClipSetSample::revert. Guarded on `action` to skip the internal
-			// clear() from finishLinearRecording, which is about to set a new sample.
-			if (action && playbackHandler.playbackState && playbackHandler.recording == RecordingMode::NORMAL) {
-				activeIfNoSolo = false;
-			}
-		}
+		clearSample(action);
 
 		renderData.xScroll = -1;
+	}
+}
+
+void AudioClip::clearSample(Action* action) {
+	if (!sampleHolder.audioFile) {
+		return;
+	}
+
+	// we're not actually deleting the song, but we don't want to keep this sample cached since we can't get it
+	// back anyway
+	unassignVoiceSample(true);
+
+	if (action) {
+		// Must happen first
+		action->recordAudioClipSampleChange(this);
+	}
+
+	setSampleFilePath("");
+	sampleHolder.setAudioFile(nullptr);
+	setName("");
+
+	// Now that the clip is empty, deactivate it so a looper doesn't sit active-but-empty (which never re-arms
+	// to record, since Song::getClipWithOutputAboutToBeginLinearRecording requires the clip to be inactive). A
+	// fresh empty clip is inactive, so this matches "should be the same as an empty clip". Mirrors the
+	// undo-revert behaviour in ConsequenceAudioClipSetSample::revert. Guarded on `action` to skip the call from
+	// finishLinearRecording, which is about to set a new sample.
+	if (action && playbackHandler.playbackState && playbackHandler.recording == RecordingMode::NORMAL) {
+		activeIfNoSolo = false;
 	}
 }
 

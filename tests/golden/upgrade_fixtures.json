@@ -33,27 +33,27 @@
   },
   "upgrade/songs/learned_knobs_1_1_0.song.XML": {
     "kind": "song",
-    "sha256": "427251fef4f99a44ef9a7443d8725b0f76932ac3c9260853d28b29d64f50eef9"
+    "sha256": "9e6647552b0ce3679c19d5df64a419509b4f04b425d02bc0516b8d55f537bcac"
   },
   "upgrade/songs/learned_knobs_1_4_0.song.XML": {
     "kind": "song",
-    "sha256": "b4ee3d62f04c55b5e7c67ddc734f5cfb3387639df8faf40227a67dcc891e0f66"
+    "sha256": "5ea0cb4e875db90342655044419adeb57d5a49b97de0f71b97089d80f4ca7d42"
   },
   "upgrade/songs/stutter_own_1_1_0.song.XML": {
     "kind": "song",
-    "sha256": "35478c5d8e58e866c9d76913d0c27229da52a9ce158935faf7e3cb3c9d881b35"
+    "sha256": "58d12567c31d7651fb277efd785733fdd7d9a17fad3a6f4ca4597a91e31e2f37"
   },
   "upgrade/songs/stutter_own_1_4_0.song.XML": {
     "kind": "song",
-    "sha256": "d0336601d786ea99be028131e196dc5adc697756d750d78e5f6eaa08a3ed5d19"
+    "sha256": "0e98cd955b736809e67bcf7eb65e0b3409ca4d676bc066a0b8caf52ec40878f8"
   },
   "upgrade/songs/syncscale_1_1_0.song.XML": {
     "kind": "song",
-    "sha256": "4caf785f3f3d8dd4bd346a6c5595d329b8efdbd283fec65f050dc224788d0fc4"
+    "sha256": "cbb947e64fec73e9b102bfcd7ee243da07765bc794aa50a9f37a484bd63d5c9f"
   },
   "upgrade/songs/syncscale_1_4_0.song.XML": {
     "kind": "song",
-    "sha256": "7cb8125561ca7829d6cd9cfd7351ee45ac7aa65066a63d7059b188b68f11776e"
+    "sha256": "01f604b6d154df1c7df32b0b642370fe95b45efd359187a8bcd31819c98a462e"
   },
   "upgrade/sound/delay_feedback_then_rate.synth.XML": {
     "kind": "SYNTH",

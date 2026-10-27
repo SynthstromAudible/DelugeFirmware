@@ -11606,23 +11606,49 @@
       {
         "children": [
           {
+            "id": 406,
+            "name": "Enabled",
+            "title": "USB audio",
+            "type": "basic"
+          },
+          {
+            "id": 407,
+            "name": "Input",
+            "title": "USB input",
+            "type": "basic"
+          },
+          {
+            "id": 408,
+            "name": "Output",
+            "title": "USB output",
+            "type": "basic"
+          }
+        ],
+        "id": 405,
+        "name": "USB audio",
+        "title": "USB audio",
+        "type": "submenu"
+      },
+      {
+        "children": [
+          {
             "children": [
               {
                 "children": [
                   {
-                    "id": 408,
+                    "id": 412,
                     "name": "Shortcuts",
                     "title": "Shortcuts",
                     "type": "basic"
                   },
                   {
-                    "id": 409,
+                    "id": 413,
                     "name": "Menu Highlighting",
                     "title": "Menu Highlighting",
                     "type": "basic"
                   }
                 ],
-                "id": 407,
+                "id": 411,
                 "name": "Accessibility",
                 "title": "Accessibility",
                 "type": "submenu"
@@ -11630,7 +11656,7 @@
               {
                 "children": [
                   {
-                    "id": 411,
+                    "id": 415,
                     "name": "Layout",
                     "title": "Layout",
                     "type": "basic"
@@ -11638,13 +11664,13 @@
                   {
                     "children": [
                       {
-                        "id": 413,
+                        "id": 417,
                         "name": "Default active mode",
                         "title": "Default active mode",
                         "type": "basic"
                       },
                       {
-                        "id": 414,
+                        "id": 418,
                         "name": "Select in green mode",
                         "title": "Select in green mode",
                         "type": "basic"
@@ -11652,31 +11678,31 @@
                       {
                         "children": [
                           {
-                            "id": 416,
+                            "id": 420,
                             "name": "Unarm",
                             "title": "Unarm",
                             "type": "basic"
                           },
                           {
-                            "id": 417,
+                            "id": 421,
                             "name": "Create + Record",
                             "title": "Create + Record",
                             "type": "basic"
                           }
                         ],
-                        "id": 415,
+                        "id": 419,
                         "name": "Empty pads",
                         "title": "Empty pads",
                         "type": "submenu"
                       }
                     ],
-                    "id": 412,
+                    "id": 416,
                     "name": "Grid",
                     "title": "Grid",
                     "type": "submenu"
                   }
                 ],
-                "id": 410,
+                "id": 414,
                 "name": "Song",
                 "title": "Song",
                 "type": "submenu"
@@ -11684,7 +11710,7 @@
               {
                 "children": [
                   {
-                    "id": 419,
+                    "id": 423,
                     "name": "Layout",
                     "title": "Layout",
                     "type": "basic"
@@ -11692,31 +11718,31 @@
                   {
                     "children": [
                       {
-                        "id": 421,
+                        "id": 425,
                         "name": "Momentary Velocity",
                         "title": "Momentary Velocity",
                         "type": "basic"
                       },
                       {
-                        "id": 422,
+                        "id": 426,
                         "name": "Momentary Modwheel",
                         "title": "Momentary Modwheel",
                         "type": "basic"
                       }
                     ],
-                    "id": 420,
+                    "id": 424,
                     "name": "Sidebar Controls",
                     "title": "Sidebar Controls",
                     "type": "submenu"
                   },
                   {
-                    "id": 423,
+                    "id": 427,
                     "name": "Favourites",
                     "title": "Favourites",
                     "type": "basic"
                   }
                 ],
-                "id": 418,
+                "id": 422,
                 "name": "Keyboard",
                 "title": "Keyboard",
                 "type": "submenu"
@@ -11724,31 +11750,31 @@
               {
                 "children": [
                   {
-                    "id": 425,
+                    "id": 429,
                     "name": "New Clip Type",
                     "title": "New Clip Type",
                     "type": "basic"
                   },
                   {
-                    "id": 426,
+                    "id": 430,
                     "name": "Use Last Clip Type",
                     "title": "Use Last Clip Type",
                     "type": "basic"
                   }
                 ],
-                "id": 424,
+                "id": 428,
                 "name": "Clip Type",
                 "title": "Clip Type",
                 "type": "submenu"
               },
               {
-                "id": 427,
+                "id": 431,
                 "name": "Use Sharps (#)",
                 "title": "Use Sharps (#)",
                 "type": "basic"
               }
             ],
-            "id": 406,
+            "id": 410,
             "name": "UI",
             "title": "UI",
             "type": "submenu"
@@ -11756,61 +11782,61 @@
           {
             "children": [
               {
-                "id": 429,
+                "id": 433,
                 "name": "Interpolation",
                 "title": "Interpolation",
                 "type": "basic"
               },
               {
-                "id": 430,
+                "id": 434,
                 "name": "Clear",
                 "title": "Clear",
                 "type": "basic"
               },
               {
-                "id": 431,
+                "id": 435,
                 "name": "Shift",
                 "title": "Shift",
                 "type": "basic"
               },
               {
-                "id": 432,
+                "id": 436,
                 "name": "Nudge Note",
                 "title": "Nudge Note",
                 "type": "basic"
               },
               {
-                "id": 433,
+                "id": 437,
                 "name": "Disable Audition Pad Shortcuts",
                 "title": "Disable Audition Pad Shortcuts",
                 "type": "basic"
               }
             ],
-            "id": 428,
+            "id": 432,
             "name": "Automation",
             "title": "Automation",
             "type": "submenu"
           },
           {
-            "id": 434,
+            "id": 438,
             "name": "Tempo",
             "title": "Default tempo",
             "type": "basic"
           },
           {
-            "id": 435,
+            "id": 439,
             "name": "Swing Amount",
             "title": "Default swing",
             "type": "basic"
           },
           {
-            "id": 436,
+            "id": 440,
             "name": "Swing Interval",
             "title": "Default swing",
             "type": "basic"
           },
           {
-            "id": 437,
+            "id": 441,
             "name": "Key",
             "title": "Default key",
             "type": "basic"
@@ -11818,79 +11844,79 @@
           {
             "children": [
               {
-                "id": 439,
+                "id": 443,
                 "name": "Init Scale",
                 "title": "Init Scale",
                 "type": "basic"
               },
               {
-                "id": 440,
+                "id": 444,
                 "name": "Active Scales",
                 "title": "Active Scales",
                 "type": "basic"
               }
             ],
-            "id": 438,
+            "id": 442,
             "name": "Scale",
             "title": "Scale",
             "type": "submenu"
           },
           {
-            "id": 441,
+            "id": 445,
             "name": "Velocity",
             "title": "Default veloc",
             "type": "basic"
           },
           {
-            "id": 442,
+            "id": 446,
             "name": "Resolution",
             "title": "Default resol",
             "type": "basic"
           },
           {
-            "id": 443,
+            "id": 447,
             "name": "Bend range",
             "title": "Default bend r",
             "type": "basic"
           },
           {
-            "id": 444,
+            "id": 448,
             "name": "Metronome",
             "title": "Default metro",
             "type": "basic"
           },
           {
-            "id": 445,
+            "id": 449,
             "name": "Patch cable polarity",
             "title": "Patch cable polarity",
             "type": "basic"
           },
           {
-            "id": 446,
+            "id": 450,
             "name": "Startup Song",
             "title": "Startup Song",
             "type": "basic"
           },
           {
-            "id": 447,
+            "id": 451,
             "name": "Pad Brightness",
             "title": "Pad brightness",
             "type": "basic"
           },
           {
-            "id": 448,
+            "id": 452,
             "name": "Sample Slice Mode",
             "title": "Sample Slice Mode",
             "type": "basic"
           },
           {
-            "id": 449,
+            "id": 453,
             "name": "High CPU Indicator",
             "title": "High CPU Indicator",
             "type": "basic"
           },
           {
-            "id": 450,
+            "id": 454,
             "name": "Hold Press Time",
             "title": "Hold Press Time",
             "type": "basic"
@@ -11898,25 +11924,25 @@
           {
             "children": [
               {
-                "id": 452,
+                "id": 456,
                 "name": "Mode",
                 "title": "Mode",
                 "type": "basic"
               },
               {
-                "id": 453,
+                "id": 457,
                 "name": "Timeout",
                 "title": "Timeout",
                 "type": "basic"
               }
             ],
-            "id": 451,
+            "id": 455,
             "name": "Screensaver",
             "title": "Screensaver",
             "type": "submenu"
           }
         ],
-        "id": 405,
+        "id": 409,
         "name": "Defaults",
         "title": "Defaults",
         "type": "submenu"
@@ -11924,13 +11950,13 @@
       {
         "children": [
           {
-            "id": 455,
+            "id": 459,
             "name": "Shortcut Version",
             "title": "Shortcuts vers",
             "type": "basic"
           },
           {
-            "id": 456,
+            "id": 460,
             "name": "Keyboard for Text",
             "title": "Key layout",
             "type": "basic"
@@ -11938,61 +11964,61 @@
           {
             "children": [
               {
-                "id": 458,
+                "id": 462,
                 "name": "Active",
                 "title": "Active",
                 "type": "basic"
               },
               {
-                "id": 459,
+                "id": 463,
                 "name": "Stopped",
                 "title": "Stopped",
                 "type": "basic"
               },
               {
-                "id": 460,
+                "id": 464,
                 "name": "Muted",
                 "title": "Muted",
                 "type": "basic"
               },
               {
-                "id": 461,
+                "id": 465,
                 "name": "Soloed",
                 "title": "Soloed",
                 "type": "basic"
               },
               {
-                "id": 462,
+                "id": 466,
                 "name": "Fill",
                 "title": "Fill",
                 "type": "basic"
               },
               {
-                "id": 463,
+                "id": 467,
                 "name": "Once",
                 "title": "Once",
                 "type": "basic"
               }
             ],
-            "id": 457,
+            "id": 461,
             "name": "Colours",
             "title": "Colours",
             "type": "submenu"
           }
         ],
-        "id": 454,
+        "id": 458,
         "name": "Pads",
         "title": "Pads",
         "type": "submenu"
       },
       {
-        "id": 464,
+        "id": 468,
         "name": "Sample Preview",
         "title": "Sample Preview",
         "type": "basic"
       },
       {
-        "id": 465,
+        "id": 469,
         "name": "Play-Cursor",
         "title": "Play-Cursor",
         "type": "basic"
@@ -12000,25 +12026,25 @@
       {
         "children": [
           {
-            "id": 467,
+            "id": 471,
             "name": "Count-in bars",
             "title": "Rec count-in bars",
             "type": "basic"
           },
           {
-            "id": 468,
+            "id": 472,
             "name": "Quantization",
             "title": "Quantization",
             "type": "basic"
           },
           {
-            "id": 469,
+            "id": 473,
             "name": "Loop margins",
             "title": "Loop margins",
             "type": "basic"
           },
           {
-            "id": 470,
+            "id": 474,
             "name": "Sampling monitoring",
             "title": "Monitoring",
             "type": "basic"
@@ -12026,19 +12052,19 @@
           {
             "children": [
               {
-                "id": 472,
+                "id": 476,
                 "name": "Mode",
                 "title": "Mode",
                 "type": "basic"
               }
             ],
-            "id": 471,
+            "id": 475,
             "name": "Threshold Recording",
             "title": "Threshold Recording",
             "type": "submenu"
           }
         ],
-        "id": 466,
+        "id": 470,
         "name": "Recording",
         "title": "Recording",
         "type": "submenu"
@@ -12046,164 +12072,164 @@
       {
         "children": [
           {
-            "id": 474,
+            "id": 478,
             "name": "Drum Randomizer",
             "title": "Drum Randomizer",
             "type": "basic"
           },
           {
-            "id": 475,
+            "id": 479,
             "name": "Fine Tempo Knob",
             "title": "Fine Tempo Knob",
             "type": "basic"
           },
           {
-            "id": 476,
+            "id": 480,
             "name": "Quantize",
             "title": "Quantize",
             "type": "basic"
           },
           {
-            "id": 477,
+            "id": 481,
             "name": "Catch Notes",
             "title": "Catch Notes",
             "type": "basic"
           },
           {
-            "id": 478,
+            "id": 482,
             "name": "Delete Unused Kit Rows",
             "title": "Delete Unused Kit Rows",
             "type": "basic"
           },
           {
-            "id": 479,
+            "id": 483,
             "name": "Alternative Golden Knob Delay Params",
             "title": "Alternative Golden Knob Delay Params",
             "type": "basic"
           },
           {
-            "id": 480,
+            "id": 484,
             "name": "Sync Scaling Action",
             "title": "Sync Scaling Action",
             "type": "basic"
           },
           {
-            "id": 481,
+            "id": 485,
             "name": "Highlight Incoming Notes",
             "title": "Highlight Incoming Notes",
             "type": "basic"
           },
           {
-            "id": 482,
+            "id": 486,
             "name": "Display Norns Layout",
             "title": "Display Norns Layout",
             "type": "basic"
           },
           {
-            "id": 483,
+            "id": 487,
             "name": "Sticky Shift",
             "title": "Sticky Shift",
             "type": "basic"
           },
           {
-            "id": 484,
+            "id": 488,
             "name": "Light Shift",
             "title": "Light Shift",
             "type": "basic"
           },
           {
-            "id": 485,
+            "id": 489,
             "name": "DX7 Engine",
             "title": "DX7 Engine",
             "type": "basic"
           },
           {
-            "id": 486,
+            "id": 490,
             "name": "KB View Sidebar Menu Exit",
             "title": "KB View Sidebar Menu Exit",
             "type": "basic"
           },
           {
-            "id": 487,
+            "id": 491,
             "name": "Launch Event Playhead",
             "title": "Launch Event Playhead",
             "type": "basic"
           },
           {
-            "id": 488,
+            "id": 492,
             "name": "Chord Keyboards",
             "title": "Chord Keyboards",
             "type": "basic"
           },
           {
-            "id": 489,
+            "id": 493,
             "name": "Alternative Playback Start Behaviour",
             "title": "Alternative Playback Start Behaviour",
             "type": "basic"
           },
           {
-            "id": 490,
+            "id": 494,
             "name": "Grid View Loop Layer Pads",
             "title": "Grid View Loop Layer Pads",
             "type": "basic"
           },
           {
-            "id": 491,
+            "id": 495,
             "name": "Alternative Tap Tempo Behaviour",
             "title": "Alternative Tap Tempo Behaviour",
             "type": "basic"
           },
           {
-            "id": 492,
+            "id": 496,
             "name": "Horizontal Menus",
             "title": "Horizontal Menus",
             "type": "basic"
           },
           {
-            "id": 493,
+            "id": 497,
             "name": "Rounded Corners",
             "title": "Rounded Corners",
             "type": "basic"
           },
           {
-            "id": 494,
+            "id": 498,
             "name": "Trim From Start Of Audio Clips",
             "title": "Trim From Start Of Audio Clips",
             "type": "basic"
           },
           {
-            "id": 495,
+            "id": 499,
             "name": "Show Battery Level",
             "title": "Show Battery Level",
             "type": "basic"
           },
           {
-            "id": 496,
+            "id": 500,
             "name": "Shortcut Overlay",
             "title": "Shortcut Overlay",
             "type": "basic"
           },
           {
-            "id": 497,
+            "id": 501,
             "name": "Shell Menu",
             "title": "Shell Menu",
             "type": "basic"
           }
         ],
-        "id": 473,
+        "id": 477,
         "name": "Community Features",
         "title": "Community feat",
         "type": "submenu"
       },
       {
         "available_when": "battery_shown",
-        "id": 498,
+        "id": 502,
         "name": "Battery level",
         "title": "Battery level",
         "type": "basic"
       },
       {
-        "id": 499,
+        "id": 503,
         "name": "Firmware Version",
         "title": "Firmware vers",
         "type": "basic"
@@ -12670,13 +12696,13 @@
         "type": "basic"
       }
     ],
-    "id": 500,
+    "id": 504,
     "name": "CV instrument",
     "title": "CV instrument",
     "type": "submenu"
   },
   {
-    "id": 501,
+    "id": 505,
     "name": "Note range",
     "select_chain": [
       {
@@ -12838,87 +12864,87 @@
   {
     "children": [
       {
-        "id": 503,
+        "id": 507,
         "name": "Velocity",
         "title": "Velocity",
         "type": "basic"
       },
       {
-        "id": 504,
+        "id": 508,
         "name": "Probability",
         "title": "Probability",
         "type": "basic"
       },
       {
-        "id": 505,
+        "id": 509,
         "name": "Iterance",
         "select_chain": [
           {
             "children": [
               {
-                "id": 507,
+                "id": 511,
                 "name": "Divisor",
                 "title": "Divisor",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_1",
-                "id": 508,
+                "id": 512,
                 "name": "Iteration 1",
                 "title": "Iteration 1",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_2",
-                "id": 509,
+                "id": 513,
                 "name": "Iteration 2",
                 "title": "Iteration 2",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_3",
-                "id": 510,
+                "id": 514,
                 "name": "Iteration 3",
                 "title": "Iteration 3",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_4",
-                "id": 511,
+                "id": 515,
                 "name": "Iteration 4",
                 "title": "Iteration 4",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_5",
-                "id": 512,
+                "id": 516,
                 "name": "Iteration 5",
                 "title": "Iteration 5",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_6",
-                "id": 513,
+                "id": 517,
                 "name": "Iteration 6",
                 "title": "Iteration 6",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_7",
-                "id": 514,
+                "id": 518,
                 "name": "Iteration 7",
                 "title": "Iteration 7",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_8",
-                "id": 515,
+                "id": 519,
                 "name": "Iteration 8",
                 "title": "Iteration 8",
                 "type": "basic"
               }
             ],
-            "id": 506,
+            "id": 510,
             "name": "Custom",
             "title": "Custom",
             "type": "submenu"
@@ -12928,13 +12954,13 @@
         "type": "basic"
       },
       {
-        "id": 516,
+        "id": 520,
         "name": "Fill",
         "title": "Fill",
         "type": "basic"
       }
     ],
-    "id": 502,
+    "id": 506,
     "name": "Note Editor",
     "title": "Note Editor",
     "type": "submenu"
@@ -12948,81 +12974,81 @@
         "type": "basic"
       },
       {
-        "id": 518,
+        "id": 522,
         "name": "Probability",
         "title": "Probability",
         "type": "basic"
       },
       {
-        "id": 519,
+        "id": 523,
         "name": "Iterance",
         "select_chain": [
           {
             "children": [
               {
-                "id": 521,
+                "id": 525,
                 "name": "Divisor",
                 "title": "Divisor",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_1",
-                "id": 522,
+                "id": 526,
                 "name": "Iteration 1",
                 "title": "Iteration 1",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_2",
-                "id": 523,
+                "id": 527,
                 "name": "Iteration 2",
                 "title": "Iteration 2",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_3",
-                "id": 524,
+                "id": 528,
                 "name": "Iteration 3",
                 "title": "Iteration 3",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_4",
-                "id": 525,
+                "id": 529,
                 "name": "Iteration 4",
                 "title": "Iteration 4",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_5",
-                "id": 526,
+                "id": 530,
                 "name": "Iteration 5",
                 "title": "Iteration 5",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_6",
-                "id": 527,
+                "id": 531,
                 "name": "Iteration 6",
                 "title": "Iteration 6",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_7",
-                "id": 528,
+                "id": 532,
                 "name": "Iteration 7",
                 "title": "Iteration 7",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_8",
-                "id": 529,
+                "id": 533,
                 "name": "Iteration 8",
                 "title": "Iteration 8",
                 "type": "basic"
               }
             ],
-            "id": 520,
+            "id": 524,
             "name": "Custom",
             "title": "Custom",
             "type": "submenu"
@@ -13032,13 +13058,13 @@
         "type": "basic"
       },
       {
-        "id": 530,
+        "id": 534,
         "name": "Fill",
         "title": "Fill",
         "type": "basic"
       }
     ],
-    "id": 517,
+    "id": 521,
     "name": "Row Editor",
     "title": "Row Editor",
     "type": "submenu"

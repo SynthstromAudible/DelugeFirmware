@@ -8,13 +8,12 @@ runs:
   using: composite
   steps:
     - name: Install system packages
-      shell: bash
-      run: |
-        sudo debconf-communicate <<< "set man-db/auto-update false" > /dev/null
-        sudo dpkg-reconfigure man-db
-        sudo apt-get update
-        sudo apt-get install -y gcc-14 g++-14 gcc-14-multilib g++-14-multilib \
-          gcc-14-arm-linux-gnueabihf g++-14-arm-linux-gnueabihf qemu-user \
+      uses: ./.github/actions/apt-install
+      with:
+        cache-name: test-prerequisites
+        packages: >-
+          gcc-14 g++-14 gcc-14-multilib g++-14-multilib
+          gcc-14-arm-linux-gnueabihf g++-14-arm-linux-gnueabihf qemu-user
           ninja-build mtools clang jq
 
     - name: Install CMake

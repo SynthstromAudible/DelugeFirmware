@@ -215,8 +215,12 @@ protected:
 	/// @brief What a reload does once its read lands. Carried on the request and the machine; empty for every other
 	///        action. The turn itself is the request's `direction`, and is not repeated here.
 	struct ReloadTail {
-		bool searchFromEnd{}; ///< read from the far end rather than around the entered name
+		bool searchFromEnd{};                               ///< read from the far end rather than from the selection
 		CatalogSearch searchDirection{CatalogSearch::Both}; ///< which end, when searchFromEnd
+		/// The selection's sort key (its display name, extension included), when not searchFromEnd. An owned copy:
+		/// the re-read frees the items it came from. The read keeps it and fills the window in the direction of
+		/// travel, so the turn always has a neighbour to land on.
+		std::string anchor;
 	};
 
 	struct ListingRequest {

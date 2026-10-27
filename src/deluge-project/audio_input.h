@@ -17,11 +17,11 @@ namespace deluge::project {
 inline constexpr std::string_view kAudioModeWords[] = {"Player", "Sampler", "Looper/FX"};
 
 /// An audio track's input channel, as `inputChannelToString` writes it; the index is the channel's enum value.
-inline constexpr std::string_view kInputChannelWords[] = {"none",     "left", "right",  "stereo",
-                                                          "balanced", "mix",  "output", "specificTrack"};
+inline constexpr std::string_view kInputChannelWords[] = {"none", "left", "right",  "stereo",       "balanced",
+                                                          "usb",  "mix",  "output", "specificTrack"};
 
 /// The input channel recording from another track by its id.
-inline constexpr int8_t kInputChannelSpecificTrack = 7;
+inline constexpr int8_t kInputChannelSpecificTrack = 8;
 
 /// @brief The index of @p word in @p words.
 /// @return The index, or nullopt for a word the list does not hold.

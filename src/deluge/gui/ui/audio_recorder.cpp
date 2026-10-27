@@ -323,10 +323,8 @@ void AudioRecorder::tick() {
 			}
 		}
 		else if (!updatedRecordingStatus && (recorder->numSamplesCaptured > recorder->minThresholdMargin)) {
-			deluge::hid::display::OLED::clearMainImage();
-			deluge::hid::display::OLED::main.drawStringCentred("Recording", 19, kTextBigSpacingX, kTextBigSizeY);
-			deluge::hid::display::OLED::sendMainImage();
 			updatedRecordingStatus = true;
+			renderUIsForOled();
 		}
 	}
 

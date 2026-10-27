@@ -95,7 +95,7 @@ constexpr const Node* kRoots[] = {&nodes::root_audio_clip};
 
 /// `AudioInputSelector::Value`'s order (`gui/context_menu/audio_input_selector.cpp:30-40`),
 /// transcribed here so the spec names rows by meaning rather than by number.
-enum : uint8_t { kOff = 0, kLeft, kRight, kStereo, kBalanced, kMaster, kOutput, kTrack, kOptionCount };
+enum : uint8_t { kOff = 0, kLeft, kRight, kStereo, kBalanced, kUsb, kMaster, kOutput, kTrack, kOptionCount };
 
 /// @brief A 128x64 single-panel board (`menu_scene_spec.cpp:293-314`).
 constexpr DelugeDisplayDesc kDisplays64[] = {{128, 64, 0}};
@@ -237,10 +237,11 @@ std::string below_bezel(const std::string& pbm) {
 	return out;
 }
 
-/// @brief The eight channels `initial_option` maps, plus the two it folds into OFF.
-const std::array<AudioInputChannel, 9> kAllChannels{
-    AudioInputChannel::NONE,     AudioInputChannel::LEFT, AudioInputChannel::RIGHT,  AudioInputChannel::STEREO,
-    AudioInputChannel::BALANCED, AudioInputChannel::MIX,  AudioInputChannel::OUTPUT, AudioInputChannel::SPECIFIC_OUTPUT,
+/// @brief The nine channels `initial_option` maps, plus the two it folds into OFF.
+const std::array<AudioInputChannel, 10> kAllChannels{
+    AudioInputChannel::NONE,   AudioInputChannel::LEFT,     AudioInputChannel::RIGHT,
+    AudioInputChannel::STEREO, AudioInputChannel::BALANCED, AudioInputChannel::USB,
+    AudioInputChannel::MIX,    AudioInputChannel::OUTPUT,   AudioInputChannel::SPECIFIC_OUTPUT,
     AudioInputChannel::UNSET,
 };
 
@@ -352,9 +353,10 @@ describe audio_source_seed("scenes::context_menu the audio-source descriptor: op
 			const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 			seen.push_back(static_cast<int>(d.initial_option(ctx)));
 		}
-		// NONE and UNSET both fold into OFF (legacy's `default:` arm), so eight distinct answers over
-		// nine channels.
-		const std::vector<int> expected{kOff, kLeft, kRight, kStereo, kBalanced, kMaster, kOutput, kTrack, kOff};
+		// NONE and UNSET both fold into OFF (legacy's `default:` arm), so nine distinct answers over
+		// ten channels.
+		const std::vector<int> expected{kOff,  kLeft,   kRight,  kStereo, kBalanced,
+		                                kUsb, kMaster, kOutput, kTrack,  kOff};
 		expect(seen).to_equal(expected);
 	});
 });

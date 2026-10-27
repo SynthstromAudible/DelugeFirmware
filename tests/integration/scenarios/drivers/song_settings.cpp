@@ -121,9 +121,12 @@ std::vector<Value> valuesOf(Song& song, const SettingAddress& address, const Set
 		}
 		if (row.path == "outputRecordingFrom") {
 			values.push_back(Value::makeNumber(-1));
+			// A track the owner can record from: not one that already records from it, which would close a cycle.
 			const auto owner = std::get<deluge::project::TrackAddress>(address.owner).output_id;
+			const auto* recorder = static_cast<const ::AudioOutput*>(song.outputForId(owner));
 			for (::Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
-				if (output->type == OutputType::AUDIO && output->id() && *output->id() != owner) {
+				if (output->type == OutputType::AUDIO && output->id() && *output->id() != owner
+				    && recorder->canRecordFrom(output)) {
 					values.push_back(Value::makeNumber(*output->id()));
 					break;
 				}
@@ -192,7 +195,7 @@ int32_t saveLegs(Song& song, deluge::scenarios::driver::Io io) {
 			if (recorder == nullptr) {
 				recorder = static_cast<::AudioOutput*>(output);
 			}
-			else if (source == nullptr) {
+			else if (source == nullptr && recorder->canRecordFrom(output)) {
 				source = output;
 			}
 		}

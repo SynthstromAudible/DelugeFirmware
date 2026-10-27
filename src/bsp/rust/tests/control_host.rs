@@ -107,3 +107,29 @@ fn pad_flashes_and_the_dimmer_interval_reach_the_pic() {
         },
     );
 }
+
+#[test]
+fn an_oled_frame_holds_pad_output_until_it_ends() {
+    let _s = serial();
+    embassy_futures::block_on(control::begin_oled_frame());
+    assert_eq!(
+        control::deluge_control_pad_output_space(),
+        0,
+        "the app must see no room while an OLED frame holds the PIC UART"
+    );
+    TRIGGER.signal(());
+    std::thread::sleep(Duration::from_millis(50));
+    assert_eq!(
+        control::refresh_count_for_test(),
+        0,
+        "pad output went out during an OLED frame"
+    );
+
+    control::end_oled_frame();
+    wait_until(
+        Duration::from_millis(500),
+        "the held batch to drain and refresh",
+        || control::refresh_count_for_test() >= 1,
+    );
+    assert!(control::deluge_control_pad_output_space() > 0);
+}

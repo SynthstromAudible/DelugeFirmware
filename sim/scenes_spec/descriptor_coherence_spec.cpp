@@ -604,6 +604,9 @@ constexpr DeviceNode kDeviceSettings[] = {
     {"Settings > Defaults > UI > Song > Layout", 1},
     {"Settings > Defaults > UI > Accessibility > Menu Highlighting", 1},
     {"Settings > Defaults > UI > Accessibility > Shortcuts", 1},
+    {"Settings > USB audio > Output", 1},
+    {"Settings > USB audio > Input", 1},
+    {"Settings > USB audio > Enabled", 1},
     {"Settings > MIDI > Devices >> MIDI devices > MIDI-Thru", 1},
     {"Settings > MIDI > Devices >> MIDI devices > Use Relative CC", 1},
     {"Settings > MIDI > Devices >> MIDI devices > Clock In", 1},
@@ -636,7 +639,8 @@ constexpr DeviceNode kDeviceSettings[] = {
 };
 
 constexpr std::string_view kDeviceReason =
-    "a device setting (FlashStorage, a runtime feature, a MIDI device, a CV or gate output, a pad colour): the "
+    "a device setting (FlashStorage, a runtime feature, a MIDI device, a CV or gate output, a pad colour, USB audio): "
+    "the "
     "device's, not a song's or a sound's, so no engine or model row holds it";
 
 /// @brief A subtree whose value nodes have no row, and why.

@@ -174,8 +174,17 @@ void RuntimeFeatureSettings::init() {
 	                  "roundedCorners", RuntimeFeatureStateToggle::On);
 
 	// Shortcut Overlay
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShortcutOverlay],
-	                  STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY, "shortcutOverlay", RuntimeFeatureStateToggle::On);
+	auto& overlay = settings[RuntimeFeatureSettingType::ShortcutOverlay];
+	overlay.displayName = STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY;
+	overlay.xmlName = "shortcutOverlay";
+	overlay.value = static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuOnly);
+	overlay.options = {
+	    {l10n::getView(STRING_FOR_OFF), static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::Off)},
+	    {l10n::getView(STRING_FOR_SHORTCUT_OVERLAY_MENU_ONLY),
+	     static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuOnly)},
+	    {l10n::getView(STRING_FOR_SHORTCUT_OVERLAY_MENU_AND_CLIP),
+	     static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuAndClip)},
+	};
 
 	// Shell Menu: gates whether `ShellHostUI` (the ported menu tree's guest) is reachable at all.
 	// Default Off, so the guest changes nothing a user sees until they opt in.

@@ -13,6 +13,7 @@ use core::sync::atomic::{AtomicBool, AtomicU16, Ordering};
 use deluge_bsp::{encoder, pic};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
+use embassy_sync::signal::Signal;
 
 use crate::sys::{
     DelugeBootInfo, DelugeColour, DelugeInputEvent,
@@ -268,6 +269,39 @@ static OUT: Channel<CriticalSectionRawMutex, PicOut, 64> = Channel::new();
 /// idle batch sends nothing extra.
 static OUTPUT_DIRTY: AtomicBool = AtomicBool::new(false);
 
+/// Set while the OLED task runs a frame: its PIC select, the transfer, and its PIC deselect.
+///
+/// The OLED holds RSPI0, which CV output shares, from before its select until the PIC echoes the
+/// deselect. Both commands go out on the PIC UART, which takes no turns, so a pad redraw in
+/// progress could hold them back for as long as the app keeps queueing pad output, and CV with
+/// them. While this is set [`pad_render`] sends nothing and [`deluge_control_pad_output_space`]
+/// reports none, so the app holds its redraws and retries them.
+static OLED_FRAME: AtomicBool = AtomicBool::new(false);
+/// Wakes [`pad_render`] when an OLED frame ends.
+static OLED_FRAME_DONE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
+
+/// Gives the PIC UART to an OLED frame until [`end_oled_frame`].
+///
+/// Yields once first, so pad output woken by the last frame's end sends a command before this
+/// frame takes the UART: back-to-back frames still let pad output through.
+pub async fn begin_oled_frame() {
+    embassy_futures::yield_now().await;
+    OLED_FRAME.store(true, Ordering::Release);
+}
+
+/// Hands the PIC UART back to pad output after [`begin_oled_frame`].
+pub fn end_oled_frame() {
+    OLED_FRAME.store(false, Ordering::Release);
+    OLED_FRAME_DONE.signal(());
+}
+
+/// Suspends while an OLED frame holds the PIC UART.
+async fn wait_out_oled_frame() {
+    while OLED_FRAME.load(Ordering::Acquire) {
+        OLED_FRAME_DONE.wait().await;
+    }
+}
+
 /// Counts [`refresh`] calls, so a host test can check pad_render sent exactly one PIC refresh
 /// after a batch drained. The host stand-in for the PIC UART (`pic::tx`) only logs, so this is the
 /// one place that call is otherwise observable off-target.
@@ -328,8 +362,9 @@ pub async fn pad_render() {
     }
 }
 
-/// Sends one queued control-surface output operation to the PIC.
+/// Sends one queued control-surface output operation to the PIC, once no OLED frame holds it.
 async fn send(cmd: PicOut) {
+    wait_out_oled_frame().await;
     match cmd {
         PicOut::Columns { idx, colours } => pic::set_column_pair_rgb(idx, &colours).await,
         PicOut::Led { id, on } => {
@@ -367,6 +402,7 @@ async fn send(cmd: PicOut) {
 /// Sends the PIC's "done sending rows" command, which triggers its display refresh. The sole
 /// place that happens, so [`REFRESH_COUNT`] on host counts every one.
 async fn refresh() {
+    wait_out_oled_frame().await;
     pic::done_sending_rows().await;
     #[cfg(not(target_os = "none"))]
     REFRESH_COUNT.fetch_add(1, Ordering::Relaxed);
@@ -496,11 +532,15 @@ pub extern "C" fn deluge_control_set_dimmer_interval(interval: u8) {
     let _ = OUT.try_send(PicOut::DimmerInterval(interval));
 }
 
-/// Returns the free space for queued pad output, in bytes: free queue slots × `BYTES_PER_CMD`.
+/// Returns the free space for queued pad output, in bytes: free queue slots × `BYTES_PER_CMD`, or
+/// none while an OLED frame holds the PIC UART (see [`OLED_FRAME`]).
 ///
 /// The app gates redraws on this against byte counts, so it must not be a slot count.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_pad_output_space() -> u32 {
+    if OLED_FRAME.load(Ordering::Acquire) {
+        return 0;
+    }
     OUT.free_capacity() as u32 * BYTES_PER_CMD
 }
 
