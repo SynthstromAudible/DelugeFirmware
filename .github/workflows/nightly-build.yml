@@ -20,7 +20,7 @@ jobs:
       - name: Get new commits if branch exists
         id: count-commits
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             echo "Manual dispatch, forcing build"
             echo "count=1" >> "$GITHUB_OUTPUT"
           else

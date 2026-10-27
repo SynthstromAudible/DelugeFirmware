@@ -13,8 +13,15 @@ on:
       - "main"
 
 jobs:
+  changes:
+    uses: ./.github/workflows/changes.yml
+    permissions:
+      pull-requests: read
+
   test-build-x86:
     name: Run tests (x86)
+    needs: changes
+    if: needs.changes.outputs.firmware == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -29,8 +36,8 @@ jobs:
 
       - name: Use GCC 14
         run: |
-          echo "CC=gcc-14" >> $GITHUB_ENV
-          echo "CXX=g++-14" >> $GITHUB_ENV
+          echo "CC=gcc-14" >> "$GITHUB_ENV"
+          echo "CXX=g++-14" >> "$GITHUB_ENV"
 
       - name: Install CMake
         uses: lukka/get-cmake@latest
@@ -48,13 +55,13 @@ jobs:
         run: mkdir -p build/results
 
       - name: Run 32 bit CppUTest
+        working-directory: build/results
         run: |
-          cd build/results
           ../32bit_unit_tests/SmallPointerTests -ojunit
           ../32bit_unit_tests/MemoryManagerTests -ojunit
       - name: Run main CppUTest
+        working-directory: build/results
         run: |
-          cd build/results
           ../unit/UnitTests -ojunit
 
       - name: Upload Test Results
@@ -69,6 +76,8 @@ jobs:
 
   test-build-qemu:
     name: Run tests for ARMv7 via QEMU
+    needs: changes
+    if: needs.changes.outputs.firmware == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -86,9 +95,11 @@ jobs:
 
       - name: Use ARM cross toolchain
         run: |
-          echo "CC=arm-linux-gnueabihf-gcc-14" >> $GITHUB_ENV
-          echo "CXX=arm-linux-gnueabihf-g++-14" >> $GITHUB_ENV
-          echo "LD_LIBRARY_PATH=/usr/arm-linux-gnueabihf/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          {
+            echo "CC=arm-linux-gnueabihf-gcc-14"
+            echo "CXX=arm-linux-gnueabihf-g++-14"
+            echo "LD_LIBRARY_PATH=/usr/arm-linux-gnueabihf/lib:$LD_LIBRARY_PATH"
+          } >> "$GITHUB_ENV"
 
       - name: Symlink ld-linux
         run: sudo ln -s /usr/arm-linux-gnueabihf/lib/ld-linux-armhf.so.3 /lib/ld-linux-armhf.so.3
@@ -111,6 +122,8 @@ jobs:
 
   event_file:
     name: "Event File"
+    needs: changes
+    if: needs.changes.outputs.firmware == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Upload
