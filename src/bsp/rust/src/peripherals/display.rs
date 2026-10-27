@@ -28,13 +28,15 @@ static FRAME_VALID: AtomicBool = AtomicBool::new(false);
 pub async fn oled_render() {
     // oled::init() issues PIC commands, so the baud handshake must finish first.
     pic::wait_ready().await;
+    super::control::begin_oled_frame().await;
     oled::init().await;
+    super::control::end_oled_frame();
     log::info!("deluge-rust: OLED initialised");
 
     let mut fb = oled::FrameBuffer::new();
     // Show a blank panel at once rather than power-up garbage.
     fb.fill(0x00);
-    oled::send_frame(&fb).await;
+    send_frame(&fb).await;
 
     loop {
         oled::wait_redraw().await;
@@ -44,8 +46,16 @@ pub async fn oled_render() {
                 .as_flattened_mut()
                 .copy_from_slice(unsafe { &*core::ptr::addr_of!(FRAME) });
         }
-        oled::send_frame(&fb).await;
+        send_frame(&fb).await;
     }
+}
+
+/// Sends `fb` with the PIC UART held for the frame's chip-select handshake (see
+/// `control::OLED_FRAME`).
+async fn send_frame(fb: &oled::FrameBuffer) {
+    super::control::begin_oled_frame().await;
+    oled::send_frame(fb).await;
+    super::control::end_oled_frame();
 }
 
 /// Stores a 1-bpp framebuffer of `width * height / 8` bytes (page-major) and signals the render
@@ -79,14 +89,6 @@ pub extern "C" fn deluge_display_blit_oled(
 pub extern "C" fn deluge_display_init() {
     log::info!("deluge-rust: deluge_display_init (OLED init runs in oled_render task)");
 }
-
-/// Services pending display output: nothing to do, since [`oled_render`] transfers on its own.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_display_service() {}
-
-/// Display service-timer tick: nothing to advance.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_display_timer_event() {}
 
 /// Draws a framebuffer synchronously, bypassing the render task, then blocks until the user
 /// presses the select knob. On host, aborts the process instead.
@@ -157,6 +159,4 @@ abi_pin!(
     deluge_display_blit_oled,
     deluge_display_freeze,
     deluge_display_init,
-    deluge_display_service,
-    deluge_display_timer_event,
 );
