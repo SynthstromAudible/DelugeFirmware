@@ -77,12 +77,15 @@ inline constexpr std::array<int16_t, 65> kResonanceLimits = {
 /// and its output (drive 4); oversampled, it steps twice over the held input and drops the first output.
 ///
 /// **Modes.** A mode is a ladder (@ref Ladder: T12, T24, DRIVE, DRIVE_OVERSAMPLED) and how its input is formed
-/// (@ref Input), both fixed for the block, so the loop branches on neither; the oversampled drive ladder only ever
-/// saturates its input, so it has that one form. Every mode shares one State, so a mode
-/// change between blocks, oversampling switched on or off included, carries every section's memory and the follower.
-/// The input forms are exact specialisations: with the resonance at zero the feedback term is R × Σ = 0 and D is
-/// exactly 1 (Q30), so UNRESONANT skips the feedback sum and scales by D alone, giving every bit the general form
-/// gives.
+/// (@ref Input), both fixed for the block. Every mode shares one State, so a mode change between blocks, oversampling
+/// switched on or off included, carries every section's memory and the follower. UNRESONANT is an exact
+/// specialisation: with the resonance at zero the feedback term is R × Σ = 0 and D is exactly 1 (Q30), so it skips
+/// the feedback sum and scales by D alone, giving every bit FED_BACK gives. The oversampled drive ladder runs only
+/// past a resonance threshold, so it is only ever FED_BACK.
+///
+/// **The saturation test.** FED_BACK tests the morph and the resonance every sample rather than taking them as modes
+/// too: on the Cortex-A9, splitting the saturating form from the plain one measured 5–13% slower, as the ladder's
+/// multiply chains lost the test that filled their latency and spilled more.
 ///
 /// **Noise.** Each step draws one value from @p Noise (`Noise::render()`), two when oversampled. Under `Stereo` the
 /// left channel steps first in every frame, so with a shared stream (@ref CongNoise) the left channel draws first.
@@ -108,40 +111,35 @@ struct LowPassLadder {
 
 	/// @brief How the input going into the sections is formed.
 	enum class Input : uint8_t {
-		SATURATING, ///< Less its feedback and normalised, then saturated with the morph's share added: morph up or
-		            ///< resonance high.
-		RESONANT,   ///< Less its feedback and normalised.
-		UNRESONANT, ///< Normalised: the resonance is zero, so nothing is fed back and the normaliser is exactly one.
+		FED_BACK,   ///< Less its feedback and normalised; saturated, the morph's share added, when the morph is up
+		            ///< or the resonance high (tested each sample).
+		UNRESONANT, ///< Normalised: the resonance and morph are zero, so nothing is fed back, the normaliser is
+		            ///< exactly one and nothing saturates.
 	};
 
 	/// @brief A ladder and its input form: the block's mode.
 	enum class Mode : uint8_t {
-		T12_SATURATING,
 		T12,
 		T12_UNRESONANT,
-		T24_SATURATING,
 		T24,
 		T24_UNRESONANT,
-		DRIVE_SATURATING,
 		DRIVE,
 		DRIVE_UNRESONANT,
-		/// The oversampled drive ladder, SATURATING: it oversamples only at a resonance past the input's saturation
-		/// threshold, so it has no other input form.
-		DRIVE_OVERSAMPLED_SATURATING,
+		/// The oversampled drive ladder, FED_BACK: it oversamples only past a resonance threshold.
+		DRIVE_OVERSAMPLED,
 	};
 	/// All share one State.
-	using Modes = ModeList<Mode::T12_SATURATING, Mode::T12, Mode::T12_UNRESONANT, Mode::T24_SATURATING, Mode::T24,
-	                       Mode::T24_UNRESONANT, Mode::DRIVE_SATURATING, Mode::DRIVE, Mode::DRIVE_UNRESONANT,
-	                       Mode::DRIVE_OVERSAMPLED_SATURATING>;
+	using Modes = ModeList<Mode::T12, Mode::T12_UNRESONANT, Mode::T24, Mode::T24_UNRESONANT, Mode::DRIVE,
+	                       Mode::DRIVE_UNRESONANT, Mode::DRIVE_OVERSAMPLED>;
 
-	/// @brief The mode running @p ladder with input form @p input; DRIVE_OVERSAMPLED takes SATURATING only.
+	/// @brief The mode running @p ladder with input form @p input; DRIVE_OVERSAMPLED takes FED_BACK only.
 	[[nodiscard]] static constexpr Mode mode_of(Ladder ladder, Input input) {
-		return static_cast<Mode>(static_cast<uint8_t>(ladder) * 3 + static_cast<uint8_t>(input));
+		return static_cast<Mode>(static_cast<uint8_t>(ladder) * 2 + static_cast<uint8_t>(input));
 	}
 	/// @brief The ladder mode @p m runs.
-	[[nodiscard]] static constexpr Ladder ladder_of(Mode m) { return static_cast<Ladder>(static_cast<uint8_t>(m) / 3); }
+	[[nodiscard]] static constexpr Ladder ladder_of(Mode m) { return static_cast<Ladder>(static_cast<uint8_t>(m) / 2); }
 	/// @brief The input form mode @p m runs.
-	[[nodiscard]] static constexpr Input input_of(Mode m) { return static_cast<Input>(static_cast<uint8_t>(m) % 3); }
+	[[nodiscard]] static constexpr Input input_of(Mode m) { return static_cast<Input>(static_cast<uint8_t>(m) % 2); }
 
 	/// @brief What the owner sets each block.
 	struct Settings {
@@ -293,16 +291,11 @@ struct LowPassLadder {
 		}
 		c.gain_compensation = gain;
 
-		Input input = Input::RESONANT;
-		// An oversampling drive ladder's resonance is past its threshold, so this holds for it (see
+		// An oversampling drive ladder's resonance is past its threshold, so it is never unresonant (see
 		// kLowestOversamplingResonance).
-		if (c.morph > 0 || c.processed_resonance > kSaturateAbove) {
-			input = Input::SATURATING;
-		}
-		else if (c.processed_resonance == 0 && c.divide_by_total_moveability_and_processed_resonance == kUnity) {
-			input = Input::UNRESONANT;
-		}
-		c.mode = mode_of(ladder, input);
+		const bool unresonant = c.morph <= 0 && c.processed_resonance == 0
+		                        && c.divide_by_total_moveability_and_processed_resonance == kUnity;
+		c.mode = mode_of(ladder, unresonant ? Input::UNRESONANT : Input::FED_BACK);
 		return c;
 	}
 
@@ -347,8 +340,8 @@ private:
 	/// the table holds at 2^-16 of the threshold, and any blend of two entries is at least that.
 	static constexpr q31 kLowestOversamplingResonance =
 	    q31{*std::ranges::min_element(low_pass_ladder_detail::kResonanceThresholdsForOversampling)} << 16;
-	static_assert(kLowestOversamplingResonance > kSaturateAbove,
-	              "an oversampling drive ladder must always saturate its input: DRIVE_OVERSAMPLED has no other mode");
+	static_assert(kLowestOversamplingResonance > 0,
+	              "an oversampling drive ladder must always feed back: DRIVE_OVERSAMPLED has no other mode");
 	/// @brief The input saturation's drive, as a power of two.
 	static constexpr uint32_t kInputDrive = 2;
 	/// @brief The drive ladder's feedback saturation drive, as a power of two.
@@ -364,7 +357,7 @@ private:
 	}
 
 	/// @brief The input less the scaled feedback, normalised, Q31; saturated with the morph's share of the input
-	/// added in SATURATING.
+	/// added when the morph is up or the resonance high.
 	/// @tparam I The block's input form; UNRESONANT reads neither @p feedback_sum nor the resonance.
 	/// @param feedback_sum Computes the sections' feedback (Q31), called unless UNRESONANT.
 	template <Input I, class FeedbackSum>
@@ -380,13 +373,11 @@ private:
 			const q31 scaled = multiply_32x32_rshift32_rounded(wrapping_sub(x, fed_back),
 			                                                   c.divide_by_total_moveability_and_processed_resonance)
 			                   << 2;
-			if constexpr (I == Input::SATURATING) {
+			if (c.morph > 0 || c.processed_resonance > kSaturateAbove) {
 				const q31 extra = multiply_32x32_rshift32(x, c.morph);
 				return tanh<kInputDrive>(wrapping_add(scaled, wrapping_add(extra, extra)));
 			}
-			else {
-				return scaled;
-			}
+			return scaled;
 		}
 	}
 

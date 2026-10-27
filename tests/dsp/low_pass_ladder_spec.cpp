@@ -353,7 +353,7 @@ describe low_pass_ladder("LowPassLadder", ${
 
 	it("takes the input form its config calls for, every ladder in every form rendering as the reference does, full "
 	   "scale included", _ {
-		std::array<bool, 10> reached{};
+		std::array<bool, 7> reached{};
 		// Full-scale samples either side of the wrap, where the unresonant form's rounding is checked hardest.
 		std::vector<q31> full_scale;
 		for (const q31 x : {INT32_MIN, INT32_MIN + 1, INT32_MIN + 2, -3, -2, -1, 0, 1, 2, 3, INT32_MAX - 2,
@@ -369,14 +369,9 @@ describe low_pass_ladder("LowPassLadder", ${
 				const Ladder::Coefficients c = Ladder::coefficients(settings);
 				reached[static_cast<std::size_t>(c.mode)] = true;
 
-				Ladder::Input expected = Ladder::Input::RESONANT;
-				if (c.morph > 0 || c.processed_resonance > 510000000) {
-					expected = Ladder::Input::SATURATING;
-				}
-				else if (c.processed_resonance == 0
-				         && c.divide_by_total_moveability_and_processed_resonance == (q31{1} << 30)) {
-					expected = Ladder::Input::UNRESONANT;
-				}
+				const bool unresonant = c.morph <= 0 && c.processed_resonance == 0
+				                        && c.divide_by_total_moveability_and_processed_resonance == (q31{1} << 30);
+				const Ladder::Input expected = unresonant ? Ladder::Input::UNRESONANT : Ladder::Input::FED_BACK;
 				expect(Ladder::input_of(c.mode)).to_equal(expected);
 
 				for (const auto& [input, stereo] : {std::pair{&kInput, false}, std::pair{&kInput, true},
