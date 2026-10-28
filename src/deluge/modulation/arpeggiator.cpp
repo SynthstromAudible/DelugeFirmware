@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/value_scaling.h"
 #include "model/model_stack.h"
+#include "model/note/note_locks.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator_rhythms.h"
 #include "modulation/params/param_set.h"
@@ -165,6 +166,7 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 	active_note.inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
 	active_note.baseVelocity = originalVelocity;
 	active_note.velocity = originalVelocity; // Means note is on.
+	active_note.lockSet = deluge::note_locks::pendingIndex;
 
 	// MIDIInstrument might set this later, but it needs to be MIDI_CHANNEL_NONE until then so it doesn't get included
 	// in the survey that will happen of existing output member channels.
@@ -338,6 +340,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 	// editing. Kind of a hacky solution, but it works for now.
 	arp_note->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
 	arp_note->sampleSyncLength = instruction->sampleSyncLengthOn;
+	arp_note->lockSet = deluge::note_locks::pendingIndex;
 
 	// If we're an arpeggiator...
 	if (!arpIsOff(settings)) {

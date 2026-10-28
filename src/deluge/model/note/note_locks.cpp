@@ -28,6 +28,7 @@ static_assert(params::LOCAL_LAST <= 64, "VoiceLocks::mask needs a bit per local 
 static_assert(params::LOCAL_LAST <= 256, "Lock::param is a byte");
 
 LockSetView pending;
+uint16_t pendingIndex = 0;
 
 namespace {
 constexpr uint32_t kMaxSets = 65536; // uint16_t indices, including the 0 sentinel

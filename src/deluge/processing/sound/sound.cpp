@@ -1589,6 +1589,9 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 			if (AudioEngine::allowedToStartVoice()) {
 
 				invertReversed = instruction.invertReversed;
+				// With the arp on, the note it starts may be another held one: use that note's locks
+				deluge::note_locks::PendingScope locks(modelStackWithSoundFlags->song->noteLocks,
+				                                       instruction.arpNoteOn->lockSet);
 				noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp,
 				                      instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
 				                      mpeValues, instruction.sampleSyncLengthOn, ticksLate, samplesLate,
@@ -2401,6 +2404,9 @@ void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundF
 			}
 			invertReversed = instruction.invertReversed;
 
+			// The arp's note remembers the parameter locks of the sequenced note that's holding it
+			deluge::note_locks::PendingScope locks(modelStackWithSoundFlags->song->noteLocks,
+			                                       instruction.arpNoteOn->lockSet);
 			noteOnPostArpeggiator(
 			    modelStackWithSoundFlags,
 			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],

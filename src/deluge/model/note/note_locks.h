@@ -138,17 +138,24 @@ struct VoiceLocks {
 /// a note-on, and Voice::noteOn copies it, which saves threading a parameter through every instrument / drum /
 /// arpeggiator note-on signature. Count 0 the rest of the time. Single-threaded: only touched from the audio routine.
 extern LockSetView pending;
+/// pending's index in its pool, for the arpeggiators: they remember it with each held note (ArpNote::lockSet) and set
+/// it again around the note-ons they generate later.
+extern uint16_t pendingIndex;
 
 class PendingScope {
 public:
-	PendingScope(const Pool& pool, uint16_t index) : active_(index != 0) {
+	PendingScope(const Pool& pool, uint16_t index) : active_(index != 0 || pendingIndex != 0) {
 		if (active_) [[unlikely]] {
+			outer_ = pending;
+			outerIndex_ = pendingIndex;
 			pending = pool.get(index);
+			pendingIndex = index;
 		}
 	}
 	~PendingScope() {
 		if (active_) [[unlikely]] {
-			pending = LockSetView{};
+			pending = outer_;
+			pendingIndex = outerIndex_;
 		}
 	}
 	PendingScope(const PendingScope&) = delete;
@@ -156,6 +163,8 @@ public:
 
 private:
 	bool active_;
+	uint16_t outerIndex_{0};
+	LockSetView outer_;
 };
 
 } // namespace deluge::note_locks

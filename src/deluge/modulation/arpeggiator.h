@@ -178,6 +178,9 @@ struct ArpNote {
 	uint8_t baseVelocity{0};
 	// Keep the stretch length with the note when its voice start is deferred to a later render.
 	uint32_t sampleSyncLength{0};
+	// Parameter locks of the sequenced note that put this note in the arp (note_locks::pendingIndex at its note-on),
+	// so the notes the arp generates from it later carry them too. Index into the Song's note_locks::Pool.
+	uint16_t lockSet{0};
 
 	// For note-ons
 	std::array<ArpNoteStatus, ARP_MAX_INSTRUCTION_NOTES> noteStatus{};
