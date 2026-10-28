@@ -719,6 +719,13 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				if (getCurrentMenuItem() == &menu_item::multiRangeMenu) {
 					menu_item::multiRangeMenu.deletePress();
 				}
+				// Note editor: delete a parameter lock
+				else if (getCurrentMenuItem() == &noteParamLocksMenu) {
+					noteParamLocksMenu.deletePress();
+				}
+				else if (getCurrentMenuItem() == &noteParamLockValueMenu) {
+					noteParamLockValueMenu.deletePress();
+				}
 			}
 			else {
 				openUI(&saveInstrumentPresetUI);
@@ -980,6 +987,10 @@ ActionResult SoundEditor::exitCompletely() {
 		display->removeWorkingAnimation();
 	}
 	else if (inNoteEditor()) {
+		// A lock value being edited is written when its item ends, which needs the notes still targeted
+		if (getCurrentMenuItem() == &noteParamLockValueMenu) {
+			noteParamLockValueMenu.commit();
+		}
 		instrumentClipView.exitNoteEditor();
 		// refresh grid to potentially unhighlight edited notes
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);

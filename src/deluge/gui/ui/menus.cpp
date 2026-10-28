@@ -134,6 +134,7 @@
 #include "gui/menu_item/note/iterance_divisor.h"
 #include "gui/menu_item/note/iterance_preset.h"
 #include "gui/menu_item/note/iterance_step_toggle.h"
+#include "gui/menu_item/note/param_locks.h"
 #include "gui/menu_item/note/probability.h"
 #include "gui/menu_item/note/velocity.h"
 #include "gui/menu_item/note_row/fill.h"
@@ -1632,6 +1633,8 @@ PLACE_SDRAM_BSS menu_item::note::Velocity noteVelocityMenu{STRING_FOR_NOTE_EDITO
 PLACE_SDRAM_BSS menu_item::note::Probability noteProbabilityMenu{STRING_FOR_NOTE_EDITOR_PROBABILITY};
 PLACE_SDRAM_BSS menu_item::note::IterancePreset noteIteranceMenu{STRING_FOR_NOTE_EDITOR_ITERANCE};
 PLACE_SDRAM_BSS menu_item::note::Fill noteFillMenu{STRING_FOR_NOTE_EDITOR_FILL};
+PLACE_SDRAM_BSS menu_item::note::ParamLocks noteParamLocksMenu{STRING_FOR_NOTE_EDITOR_PARAM_LOCKS};
+PLACE_SDRAM_BSS menu_item::note::ParamLockValue noteParamLockValueMenu{STRING_FOR_NOTE_EDITOR_PARAM_LOCKS};
 
 // Root menu for Note Editor
 PLACE_SDRAM_BSS HorizontalMenu noteEditorRootMenu{STRING_FOR_NOTE_EDITOR,
@@ -1640,6 +1643,7 @@ PLACE_SDRAM_BSS HorizontalMenu noteEditorRootMenu{STRING_FOR_NOTE_EDITOR,
                                                       &noteProbabilityMenu,
                                                       &noteIteranceMenu,
                                                       &noteFillMenu,
+                                                      &noteParamLocksMenu,
                                                   }};
 
 PLACE_SDRAM_BSS menu_item::note_row::IteranceDivisor noteRowCustomIteranceDivisor{STRING_FOR_ITERANCE_DIVISOR};

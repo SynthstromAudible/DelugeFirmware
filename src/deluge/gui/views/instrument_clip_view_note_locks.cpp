@@ -290,3 +290,72 @@ bool InstrumentClipView::setHeldNoteLock(ModelStackWithAutoParam* modelStack, in
 	}
 	return true;
 }
+
+// Note editor ("Param locks" menu). These act on every note the note editor is targeting (held or remembered pads),
+// like the editor's other note parameters, and show the left-most note's locks.
+
+void InstrumentClipView::getNoteEditorLocks(note_locks::VoiceLocks& locks) {
+	locks.clear();
+	Note* note = getLeftMostNotePressed();
+	if (note == nullptr) {
+		return;
+	}
+	locks.set(currentSong->noteLocks.get(note->lockSet));
+	// Plus anything pending on a held pad covering that note
+	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+		const note_locks::LiveEdit& live = note_locks::liveEdits[i];
+		if (!editPadPresses[i].isActive || !live.armed() || live.count == 0) {
+			continue;
+		}
+		NoteRow* row;
+		if (getSoundForEditPadPress(i, &row, nullptr, nullptr) == nullptr) {
+			continue;
+		}
+		bool covers = false;
+		forEachNoteOfPress(row, editPadPresses[i], [&](Note* n) { covers = covers || n == note; });
+		if (covers) {
+			for (int32_t l = 0; l < live.count; l++) {
+				locks.setValue(live.params[l], live.values[l]);
+			}
+		}
+	}
+}
+
+template <typename F>
+bool InstrumentClipView::changeNoteEditorLockSets(F change) {
+	// Anything still pending on a held pad goes in first, so it isn't lost or applied on top of this later
+	commitAllLiveNoteLocks();
+	rearmAllLiveNoteLocks();
+	// Each change made from the menu is its own undo step (the note editor otherwise keeps one NOTE_EDIT action
+	// open for as long as notes are selected)
+	actionLogger.closeAction(ActionType::NOTE_EDIT);
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	bool changed = false;
+	for (const EditPadPress& target : get_note_edit_targets()) {
+		if (!target.isActive) {
+			continue;
+		}
+		ModelStackWithNoteRow* rowStack = get_note_edit_row(modelStack, target);
+		changed |= changeNoteLockSets(clip, rowStack->noteRowId, rowStack->getNoteRowAllowNull(), target, change);
+	}
+	actionLogger.closeAction(ActionType::NOTE_EDIT);
+	if (changed) {
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	}
+	return changed;
+}
+
+bool InstrumentClipView::setNoteEditorLock(int32_t param, int32_t value) {
+	return changeNoteEditorLockSets([&](uint16_t base) { return currentSong->noteLocks.withLock(base, param, value); });
+}
+
+bool InstrumentClipView::removeNoteEditorLock(int32_t param) {
+	return changeNoteEditorLockSets([&](uint16_t base) { return currentSong->noteLocks.withoutLock(base, param); });
+}
+
+bool InstrumentClipView::clearNoteEditorLocks() {
+	return changeNoteEditorLockSets([](uint16_t) -> uint16_t { return 0; });
+}

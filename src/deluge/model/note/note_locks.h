@@ -31,7 +31,7 @@
 /// Because entries are never mutated or freed while the Song lives, every way a Note gets duplicated - NoteVector
 /// clones, undo snapshots, clip cloning, note splitting, struct copies - just copies the index and stays valid.
 /// Editing a lock interns a new set and repoints the note - once per edit gesture: knob edits on a held pad stay in a
-/// LiveEdit until the pad is released. Entries nothing points at any
+/// LiveEdit until the pad is released, and note editor edits until you leave the item. Entries nothing points at any
 /// more are only reclaimed when the Song is deleted; the song file only stores sets that notes reference, so a
 /// save/load compacts the pool.
 ///

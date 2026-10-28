@@ -307,6 +307,12 @@ public:
 	void rearmAllLiveNoteLocks();
 	/// The live-edit slot (and its note's committed lock set) for the audition of a held note in this row
 	const deluge::note_locks::LiveEdit* getAuditionLiveEdit(int32_t yDisplay, uint16_t* committedLockSet);
+	// Note editor: the left-most targeted note's locks (with any pending edits), and edits applied to every targeted
+	// note
+	void getNoteEditorLocks(deluge::note_locks::VoiceLocks& locks);
+	bool setNoteEditorLock(int32_t param, int32_t value);
+	bool removeNoteEditorLock(int32_t param);
+	bool clearNoteEditorLocks();
 
 	// adjust note parameters
 	void adjustVelocity(int32_t velocityChange, bool display_value = true);
@@ -409,7 +415,8 @@ private:
 	                               ParamManagerForTimeline** getParamManager);
 	uint16_t getCommittedLockSetForPress(int32_t i);
 	int32_t findHeldNoteLockPresses(ModelStackWithAutoParam const* modelStack, bool* matches);
-
+	template <typename F>
+	bool changeNoteEditorLockSets(F change);
 	EditPadPress remembered_notes[kEditPadPressBufferSize]{};
 	int32_t remembered_note_row_ids[kEditPadPressBufferSize]{};
 	int32_t remembered_note_count = 0;
