@@ -306,22 +306,6 @@ pub fn start() -> ! {
 /// Once `deluge_app_init` returns, the render task and the app loop drive the app.
 #[embassy_executor::task]
 async fn app_task() {
-    use embassy_time::Timer;
-    use rza1l_hal::gpio;
-
-    // Sign of life: blink the SYNC LED (P6.7), which exercises the executor, time driver and GPIO.
-    const SYNC_LED_PORT: u8 = 6;
-    const SYNC_LED_BIT: u8 = 7;
-    // SAFETY: we own this pin; GPIO clocks are up after Board::new.
-    unsafe { gpio::set_as_output(SYNC_LED_PORT, SYNC_LED_BIT) };
-    for i in 0..6 {
-        unsafe { gpio::write(SYNC_LED_PORT, SYNC_LED_BIT, true) };
-        Timer::after_millis(120).await;
-        unsafe { gpio::write(SYNC_LED_PORT, SYNC_LED_BIT, false) };
-        Timer::after_millis(120).await;
-        log::info!("deluge-rust: alive ({})", i);
-    }
-
     // SD comes up before `deluge_app_init`, so the boot settings read finds the card. First wait
     // for the PIC's baud-rate handshake: `sd::init()` racing it garbles the pads. Async, because
     // `sd::init`'s timers cannot run under `block_on`.
