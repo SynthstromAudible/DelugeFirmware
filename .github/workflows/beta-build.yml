@@ -8,6 +8,7 @@ on:
 
 jobs:
   beta-detect:
+    if: github.repository == 'SynthstromAudible/DelugeFirmware'
     runs-on: ubuntu-latest
     outputs:
       new-commits: ${{ steps.count-commits.outputs.count }}
@@ -19,13 +20,13 @@ jobs:
       - name: Get new commits
         id: count-commits
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             echo "Manual dispatch, forcing build"
-            echo "count=1" >> $GITHUB_OUTPUT
+            echo "count=1" >> "$GITHUB_OUTPUT"
           else
             count=$(git log --oneline --since '24 hours ago' | wc -l)
             echo "Saw $count commits"
-            echo "count=$count" >> $GITHUB_OUTPUT
+            echo "count=$count" >> "$GITHUB_OUTPUT"
           fi
   beta-build:
     uses: ./.github/workflows/build.yml

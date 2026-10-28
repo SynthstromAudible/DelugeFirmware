@@ -16,6 +16,7 @@
  */
 
 #pragma once
+#include <stdbool.h>
 #include <stdint.h>
 
 /*
@@ -47,6 +48,10 @@ extern struct UartItem uartItems[];
 
 extern void initUartDMA();
 uint8_t uartGetChar(int32_t item, char* readData);
+// Main-loop only. PIC input is staged in order while acknowledgements are removed.
+bool uartReplacePendingByte(int32_t item, uint8_t value, uint8_t replacement);
+// PIC admission also reserves staging space for one complete DMA ring.
+uint32_t uartGetRxBufferSpace(int32_t item);
 uint32_t* uartGetCharWithTiming(int32_t timingCaptureItem, char* readData);
 void uartPutCharBack(int32_t item);
 void uartInsertFakeChar(int32_t item, char data);

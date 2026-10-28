@@ -161,15 +161,17 @@ int32_t Patcher::cableToLinearParam(int32_t running_total, const PatchCable& pat
 	return lshiftAndSaturate<3>(pre_limits);
 }
 
+// Exp param cable combinations saturate rather than wrap: wrapping would flip a param at one extreme of its range
+// straight to the other (e.g. cutoff fully closed to fully open) mid-note.
 int32_t Patcher::cableToExpParamWithoutRangeAdjustment(int32_t running_total, int32_t source_value,
                                                        int32_t cable_strength) {
-	return running_total + multiply_32x32_rshift32(source_value, cable_strength);
+	return add_saturate(running_total, multiply_32x32_rshift32(source_value, cable_strength));
 }
 
 int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_cable, int32_t source_value,
                                  int32_t cable_strength) {
 	int32_t scaled_source = multiply_32x32_rshift32(source_value, cable_strength);
-	return running_total + patch_cable.applyRangeAdjustment(scaled_source);
+	return add_saturate(running_total, patch_cable.applyRangeAdjustment(scaled_source));
 }
 
 [[gnu::always_inline]] inline int32_t Patcher::combineCablesLinearForRangeParam(const Destination* destination,
@@ -259,7 +261,7 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 		// "hybrid" ones, and probably in a perfect world I would have made the other ones behave the same way. But I
 		// can't break users' songs.
 		if (param == params::LOCAL_OSC_A_WAVE_INDEX || param == params::LOCAL_OSC_B_WAVE_INDEX) {
-			running_total <<= 1;
+			running_total = lshiftAndSaturate<1>(running_total);
 		}
 	}
 

@@ -139,8 +139,8 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	processStutter(global_effectable_audio, paramManagerForClip);
 	// record before pan/compression/volume to keep volumes consistent
 	if (recorder != nullptr && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
-		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
-		recorder->feedAudio(global_effectable_audio, true, 2);
+		// Self-overdubs compensate for sample playback's 1/8 scaling. Standalone sampling retains its existing gain.
+		recorder->feedAudio(global_effectable_audio, true, recorder->recordingOwnClip ? 3 : 2);
 	}
 
 	processReverbSendAndVolume(global_effectable_audio, reverbBuffer, volumePostFX, postReverbVolume, reverbSendAmount,

@@ -186,6 +186,7 @@ Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	}
 	recorder->autoDeleteWhenDone = true;
 	recorder->allowNormalization = shouldNormalize;
+	recorder->recordingOwnClip = (outputRecordingFrom == output);
 	return Clip::beginLinearRecording(modelStack, buttonPressLatency);
 }
 
@@ -226,7 +227,10 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	}
 
 	if (!isEmpty()) {
-		clear(nullptr, modelStack, true, true);
+		// Not our own clear(), which aborts the recorder we're about to take the sample from if no clock is running
+		Clip::clear(nullptr, modelStack, true, true);
+		clearSample(nullptr);
+		renderData.xScroll = -1;
 	}
 	auto ao = (AudioOutput*)output;
 	// if we're a sampler then turn off monitoring
@@ -565,6 +569,12 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<q31_
 
 	Sample* sample = ((Sample*)sampleHolder.audioFile);
 
+	// The Sample is in SDRAM and always cold by the next render, so start fetching the parts of it that rendering uses
+	// before the setup below
+	__builtin_prefetch(sample);
+	__builtin_prefetch((char*)sample + 32);
+	__builtin_prefetch((char*)sample + 64);
+
 	// First, if we're still attempting to do a "late start", see if we can do that (perhaps not if relevant audio data
 	// hasn't loaded yet)
 	if (doingLateStart && static_cast<AudioOutput*>(this->output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
@@ -800,12 +810,21 @@ void AudioClip::prefetchClustersAhead(Sample* sample) {
 	Cluster* furthestCluster = nullptr;
 	for (Cluster* cluster : voiceSample->clusters) {
 		if (cluster != nullptr) {
-			audioFileManager.claimPrefetch(cluster);
 			furthestCluster = cluster;
 		}
 	}
 	if (furthestCluster == nullptr) {
 		return;
+	}
+	if (furthestCluster == prefetchedAheadOf && audioFileManager.getPrefetchGeneration() == prefetchGenerationSeen) {
+		return;
+	}
+	prefetchedAheadOf = nullptr;
+
+	for (Cluster* cluster : voiceSample->clusters) {
+		if (cluster != nullptr) {
+			audioFileManager.claimPrefetch(cluster);
+		}
 	}
 
 	// While recording, Clusters past what's been written aren't on the card yet
@@ -822,8 +841,12 @@ void AudioClip::prefetchClustersAhead(Sample* sample) {
 		    || clusterIndex >= sample->clusters.getNumElements()) {
 			break;
 		}
-		audioFileManager.prefetchCluster(sample, clusterIndex);
+		if (!audioFileManager.prefetchCluster(sample, clusterIndex)) {
+			return; // Try again next time
+		}
 	}
+	prefetchedAheadOf = furthestCluster;
+	prefetchGenerationSeen = audioFileManager.getPrefetchGeneration();
 }
 
 int32_t AudioClip::getClusterPriority() const {
@@ -1354,31 +1377,37 @@ void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack,
 			}
 		}
 		// with overdubs these could both be true
-		if (sampleHolder.audioFile) {
-			// we're not actually deleting the song, but we don't want to keep this sample cached since we can't get it
-			// back anyway
-			unassignVoiceSample(true);
-
-			if (action) {
-				// Must happen first
-				action->recordAudioClipSampleChange(this);
-			}
-
-			sampleHolder.filePath.clear();
-			sampleHolder.setAudioFile(nullptr);
-			name.set("");
-
-			// Now that the clip is empty, deactivate it so a looper doesn't sit active-but-empty (which never re-arms
-			// to record, since Song::getClipWithOutputAboutToBeginLinearRecording requires the clip to be inactive). A
-			// fresh empty clip is inactive, so this matches "should be the same as an empty clip". Mirrors the
-			// undo-revert behaviour in ConsequenceAudioClipSetSample::revert. Guarded on `action` to skip the internal
-			// clear() from finishLinearRecording, which is about to set a new sample.
-			if (action && playbackHandler.playbackState && playbackHandler.recording == RecordingMode::NORMAL) {
-				activeIfNoSolo = false;
-			}
-		}
+		clearSample(action);
 
 		renderData.xScroll = -1;
+	}
+}
+
+void AudioClip::clearSample(Action* action) {
+	if (!sampleHolder.audioFile) {
+		return;
+	}
+
+	// we're not actually deleting the song, but we don't want to keep this sample cached since we can't get it
+	// back anyway
+	unassignVoiceSample(true);
+
+	if (action) {
+		// Must happen first
+		action->recordAudioClipSampleChange(this);
+	}
+
+	sampleHolder.filePath.clear();
+	sampleHolder.setAudioFile(nullptr);
+	name.set("");
+
+	// Now that the clip is empty, deactivate it so a looper doesn't sit active-but-empty (which never re-arms
+	// to record, since Song::getClipWithOutputAboutToBeginLinearRecording requires the clip to be inactive). A
+	// fresh empty clip is inactive, so this matches "should be the same as an empty clip". Mirrors the
+	// undo-revert behaviour in ConsequenceAudioClipSetSample::revert. Guarded on `action` to skip the call from
+	// finishLinearRecording, which is about to set a new sample.
+	if (action && playbackHandler.playbackState && playbackHandler.recording == RecordingMode::NORMAL) {
+		activeIfNoSolo = false;
 	}
 }
 

@@ -37,7 +37,7 @@ const config = defineConfig({
       social: {
         github: "https://github.com/SynthstromAudible/DelugeFirmware",
         discord: "https://discord.gg/s2MnkFqZgj",
-        patreon: "https://www.patreon.com/Synthstrom",
+        patreon: "https://patreon.com/Synthstrom",
       },
       editLink: {
         baseUrl:
@@ -135,6 +135,18 @@ const config = defineConfig({
             ],
           },
           {
+            label: "Blog",
+            icon: "pen",
+            link: "/blog",
+            items: [
+              { label: "All Posts", link: "/blog" },
+              {
+                label: "Posts",
+                autogenerate: { directory: "blog" },
+              },
+            ],
+          },
+          {
             label: "Development",
             icon: "seti:json",
             link: "/development/deluge/additional_info",
@@ -155,6 +167,7 @@ const config = defineConfig({
       customCss: ["./src/styles/global.css"],
       credits: true,
       components: {
+        SocialIcons: "./src/components/SocialIcons.astro",
         Head: "./src/components/Head.astro",
         Search: "./src/components/Search.astro",
       },

@@ -5744,9 +5744,10 @@ ModControllableAudio* InstrumentClipView::getModControllableAudioOrNone() {
 		if (getAffectEntire()) {
 			return static_cast<ModControllableAudio*>(output->toModControllable());
 		}
-		if (selectedDrum != nullptr) {
-			if (selectedDrum->type == DrumType::SOUND)
-				return static_cast<SoundDrum*>(selectedDrum);
+		// Use the same selected drum as the sound editor when checking shortcut relevance.
+		Drum* drum = static_cast<Kit*>(output)->selectedDrum;
+		if (drum != nullptr && drum->type == DrumType::SOUND) {
+			return static_cast<SoundDrum*>(drum);
 		}
 		break;
 	}

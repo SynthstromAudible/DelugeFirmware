@@ -807,8 +807,10 @@ void Session::launchSchedulingMightNeedCancelling() {
 			if (loadSongUI.isLoadingSong()) {
 				loadSongUI.displayLoopsRemainingPopup(); // Wait, could this happen?
 			}
-			else if ((rootUI == &sessionView || rootUI == &performanceView)
-			         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
+			else if ((rootUI == &sessionView || rootUI == &performanceView || rootUI == &arrangerView)
+			         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
+			         && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)
+			         && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 				renderUIsForOled();
 			}
 		}
@@ -1318,6 +1320,13 @@ probablyDoFlashPlayEnable:
 	else {
 		// TODO: only if sidebar visible!
 		uiNeedsRendering(getCurrentUI(), 0x00000000, 0xFFFFFFFF);
+		// Arranger View also renders the session launch countdown. Refresh it
+		// when arming changes so a completed launch restores the normal display.
+		if (rootUI == &arrangerView && display->haveOLED() && getCurrentUI()->canSeeViewUnderneath()
+		    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)
+		    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+			renderUIsForOled();
+		}
 	}
 }
 
@@ -2194,6 +2203,12 @@ bool Session::wantsToDoTempolessRecord(int32_t newPos) {
 			if (!clip->wantsToBeginLinearRecording(currentSong)) {
 				return false;
 			}
+
+			// A looper clip that already has audio overdubs in place, so it should keep its loop length rather than
+			// have a new tempo derived from the overdub
+			if (((AudioClip*)clip)->sampleHolder.audioFile) {
+				return false;
+			}
 		}
 	}
 
@@ -2399,8 +2414,10 @@ traverseClips:
 				if (loadSongUI.isLoadingSong()) {
 					loadSongUI.displayLoopsRemainingPopup();
 				}
-				else if ((rootUI == &sessionView || rootUI == &performanceView)
-				         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
+				else if ((rootUI == &sessionView || rootUI == &performanceView || rootUI == &arrangerView)
+				         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
+				         && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)
+				         && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 					renderUIsForOled();
 				}
 			}
