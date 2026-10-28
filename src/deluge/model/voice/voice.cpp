@@ -83,7 +83,7 @@ int32_t Voice::combineExpressionValues(const Sound& sound, int32_t expressionDim
 	return lshiftAndSaturate<1>(combinedValue);
 }
 
-Voice::Voice(Sound& sound) : patcher(kPatcherConfigForVoice, sourceValues, paramFinalValues), sound{sound} {
+Voice::Voice(Sound& sound) : patcher(kPatcherConfigForVoice, sourceValues, paramFinalValues, &noteLocks), sound{sound} {
 }
 
 // Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
@@ -134,13 +134,27 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
 
+	// The sequencer leaves the note's parameter locks in note_locks::pending around the note-on. Count 0 otherwise -
+	// including a legato / mono retrigger by an unlocked note, which must drop the previous note's locks.
+	if (deluge::note_locks::pending.count != 0) [[unlikely]] {
+		noteLocks.set(deluge::note_locks::pending);
+		sound.voicesMayHaveNoteLocks = true;
+	}
+	else {
+		noteLocks.clear();
+	}
+
 	// Setup "half-baked" envelope output values. These need to exist before we do the initial patching below - and it's
 	// only after that that we can render the "actual" envelope output values, taking their own input patching into
 	// account.
 	for (int32_t e = 0; e < kNumEnvelopes; e++) {
+		int32_t attack = paramManager->getPatchedParamSet()->getValue(params::LOCAL_ENV_0_ATTACK + e);
+		if ((noteLocks.mask >> (params::LOCAL_ENV_0_ATTACK + e)) & 1) [[unlikely]] {
+			attack = noteLocks.valueFor(params::LOCAL_ENV_0_ATTACK + e);
+		}
 
 		// If no attack-stage...
-		if (paramManager->getPatchedParamSet()->getValue(params::LOCAL_ENV_0_ATTACK + e) == -2147483648u) {
+		if (attack == -2147483648) {
 			envelopes[e].lastValue = 1.f;
 		}
 

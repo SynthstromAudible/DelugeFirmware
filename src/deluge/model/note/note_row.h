@@ -78,6 +78,7 @@ struct PendingNoteOn {
 	uint8_t velocity;
 	Iterance iterance;
 	uint8_t fill;
+	uint16_t lockSet; // Note::lockSet
 };
 
 struct PendingNoteOnList {

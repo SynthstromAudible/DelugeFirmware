@@ -95,6 +95,10 @@ public:
 
 	uint32_t sourcesChanged{}; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
 
+	/// Set when a voice starts with parameter locks; render() clears it once no voice has any. Lets render() skip
+	/// looking at voices' locks entirely in the usual case.
+	bool voicesMayHaveNoteLocks{false};
+
 	LFO globalLFO1;
 	LFO globalLFO3;
 	LFOConfig lfoConfig[LFO_COUNT];

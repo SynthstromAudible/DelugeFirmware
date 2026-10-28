@@ -1685,7 +1685,14 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 	}
 
 	if (polyphonic == PolyphonyMode::LEGATO && voiceForLegato) [[unlikely]] {
-		(*voiceForLegato)->changeNoteCode(modelStack, noteCodePreArp, noteCodePostArp, fromMIDIChannel, mpeValues);
+		Voice& legatoVoice = **voiceForLegato;
+		// The new note's parameter locks (or lack of them) take over the gliding voice
+		if (deluge::note_locks::pending.count != 0 || legatoVoice.noteLocks.mask != 0) [[unlikely]] {
+			legatoVoice.noteLocks.set(deluge::note_locks::pending);
+			voicesMayHaveNoteLocks = voicesMayHaveNoteLocks || legatoVoice.noteLocks.mask != 0;
+			legatoVoice.patcher.performInitialPatching(*this, *modelStack->paramManager);
+		}
+		legatoVoice.changeNoteCode(modelStack, noteCodePreArp, noteCodePostArp, fromMIDIChannel, mpeValues);
 	}
 	else {
 		try {
@@ -2530,8 +2537,20 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	delay.setupWorkingState(delayWorkingState, timePerTickInverse, !voices_.empty());
 	delayWorkingState.analog_saturation = 8;
 
+	// Union of the params locked by this Sound's voices' notes. Some per-voice params are also gated at Sound level
+	// on the knob value (is the filter on, is pan applied per voice) - a lock has to open those gates for its voice.
+	uint64_t lockedParams = 0;
+	if (voicesMayHaveNoteLocks) [[unlikely]] {
+		for (ActiveVoice& voice : voices_) {
+			lockedParams |= voice->noteLocks.mask;
+		}
+		voicesMayHaveNoteLocks = (lockedParams != 0);
+	}
+	constexpr uint64_t kPanLock = (uint64_t)1 << params::LOCAL_PAN;
+
 	// Render each voice into a local buffer here
-	bool voice_rendered_in_stereo = renderingVoicesInStereo(modelStackWithSoundFlags);
+	bool voice_rendered_in_stereo =
+	    renderingVoicesInStereo(modelStackWithSoundFlags) || ((lockedParams & kPanLock) && AudioEngine::renderInStereo);
 
 	// FIXME(@stellar-aria): if we have simulataneous sounds rendering, they'll overwrite
 	// each other in this buffer. It probably should be object or thread-local
@@ -2546,7 +2565,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// Very often, we'll just apply panning here at the Sound level rather than the Voice level
 		bool applyingPanAtVoiceLevel =
 		    (AudioEngine::renderInStereo
-		     && paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_PAN));
+		     && ((lockedParams & kPanLock)
+		         || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_PAN)));
 
 		// Setup filters
 		bool thisHasFilters = hasFilters();
@@ -2565,9 +2585,22 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			ActiveVoice& voice = *it;
 
+			bool voiceLPF = doLPF;
+			bool voiceHPF = doHPF;
+			if (lockedParams) [[unlikely]] {
+				// A voice whose note locks a filter param runs that filter even if the knob value has it off
+				// (the same params the Sound-level decision above looks at)
+				constexpr uint64_t kLPFLocks =
+				    ((uint64_t)1 << params::LOCAL_LPF_FREQ) | ((uint64_t)1 << params::LOCAL_LPF_MORPH);
+				constexpr uint64_t kHPFLocks =
+				    ((uint64_t)1 << params::LOCAL_HPF_FREQ) | ((uint64_t)1 << params::LOCAL_HPF_MORPH);
+				voiceLPF = voiceLPF || (thisHasFilters && (voice->noteLocks.mask & kLPFLocks));
+				voiceHPF = voiceHPF || (thisHasFilters && (voice->noteLocks.mask & kHPFLocks));
+			}
+
 			bool stillGoing =
 			    voice->render(modelStackWithSoundFlags, sound_mono.data(), sound_mono.size(), voice_rendered_in_stereo,
-			                  applyingPanAtVoiceLevel, sourcesChanged, doLPF, doHPF, pitchAdjust);
+			                  applyingPanAtVoiceLevel, sourcesChanged, voiceLPF, voiceHPF, pitchAdjust);
 			if (!stillGoing) {
 				this->checkVoiceExists(voice, "E201");
 				this->freeActiveVoice(voice, modelStackWithSoundFlags, false);

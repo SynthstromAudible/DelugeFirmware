@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "model/note/note_locks.h"
 #include <cstdint>
 #include <span>
 
@@ -46,16 +47,33 @@ public:
 		uint8_t globality;
 	};
 
-	Patcher(const Config& config, std::span<int32_t> source_values, std::span<int32_t> param_final_values)
-	    : config(config), source_values_(source_values), param_final_values_(param_final_values) {};
+	/// `locks`: a Voice's patcher passes its note's parameter locks, which replace the preset (knob / automation) value
+	/// of each locked param before cables are applied. nullptr for a Sound's (global) patcher.
+	Patcher(const Config& config, std::span<int32_t> source_values, std::span<int32_t> param_final_values,
+	        const deluge::note_locks::VoiceLocks* locks = nullptr)
+	    : config(config), source_values_(source_values), param_final_values_(param_final_values), locks_(locks) {};
 	void performInitialPatching(Sound& sound, ParamManager& param_manager);
 	void performPatching(uint32_t sources_changed, Sound& sound, ParamManagerForTimeline& param_manager);
 	void recalculateFinalValueForParamWithNoCables(int32_t param, Sound& sound, ParamManagerForTimeline& param_manager);
 
 private:
+	// Each entry point checks for locks once and runs a <false> instantiation (the unchanged code) when there are none
+	[[nodiscard]] bool hasLocks() const { return locks_ != nullptr && locks_->mask != 0; }
+	template <bool kLocks>
+	void performInitialPatchingImpl(Sound& sound, ParamManager& param_manager);
+	template <bool kLocks>
+	void performPatchingImpl(uint32_t sources_changed, Sound& sound, ParamManagerForTimeline& param_manager);
+	template <bool kLocks>
+	void recalculateFinalValueForParamWithNoCablesImpl(int32_t param, Sound& sound,
+	                                                   ParamManagerForTimeline& param_manager);
+	template <bool kLocks>
+	int32_t presetValue(uint32_t param, Sound& sound, ParamManager& param_manager) const;
+
 	int32_t combineCablesLinearForRangeParam(Destination const* destination, ParamManager& param_manager);
+	template <bool kLocks>
 	int32_t combineCablesLinear(Destination const* destination, uint32_t param, Sound& sound,
 	                            ParamManager& param_manager);
+	template <bool kLocks>
 	int32_t combineCablesExp(Destination const* destination, uint32_t param, Sound& sound, ParamManager& param_manager);
 	static int32_t cableToLinearParamWithoutRangeAdjustment(int32_t running_total, int32_t source_value,
 	                                                        int32_t cable_strength);
@@ -69,4 +87,5 @@ private:
 	const Config& config;
 	std::span<int32_t> source_values_;
 	std::span<int32_t> param_final_values_;
+	const deluge::note_locks::VoiceLocks* locks_;
 };

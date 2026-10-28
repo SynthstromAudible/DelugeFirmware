@@ -90,6 +90,9 @@ public:
 
 	bool justCreated{false};
 
+	/// Parameter locks of the note this voice is playing (copied at noteOn). Read by `patcher`.
+	deluge::note_locks::VoiceLocks noteLocks;
+
 	uint32_t getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Local param);
 	void setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingSong = false);
 	bool render(ModelStackWithSoundFlags* modelStack, int32_t* soundBuffer, int32_t numSamples,
