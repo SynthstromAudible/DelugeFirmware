@@ -1813,17 +1813,17 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 }
 
 Error NoteRow::forNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, void (*fn)(Note*, void*),
-                                        void* context, bool fromFirstScreen) {
+                                        void* context) {
 
 	// If no Notes, nothing to do.
 	if (!notes.getNumElements()) {
 		return Error::NONE;
 	}
 
+	// Start from the first screen, so copies before editPos's screen get it too (without wrap editing, the level is
+	// longer than any row, so this is editPos itself and there's one "screen")
 	uint32_t wrapEditLevel = ((InstrumentClip*)modelStack->getTimelineCounter())->getWrapEditLevel();
-	if (fromFirstScreen) {
-		editPos = (uint32_t)editPos % wrapEditLevel;
-	}
+	editPos = (uint32_t)editPos % wrapEditLevel;
 
 	int32_t numScreens = (uint32_t)(modelStack->getLoopLength() - 1) / wrapEditLevel + 1;
 

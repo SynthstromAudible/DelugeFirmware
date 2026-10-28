@@ -71,7 +71,7 @@ void forEachNoteOfPress(NoteRow* row, const EditPadPress& press, F f) {
 
 /// Applies `change` (uint16_t(uint16_t oldLockSet)) to every note the target covers - and, when the clip is wrap
 /// (cross-screen) editing, to all their copies on the other screens (NoteRow::forNotesAcrossAllScreens, the
-/// note editor's other parameters' path; unlike those, from the first screen, so earlier copies get it too). Part of
+/// note editor's other parameters' path). Part of
 /// the open NOTE_EDIT action, with the row snapshotted once before the first change. `change` runs once per distinct
 /// old set, so copies that shared a set share the result (one intern). Returns whether any note changed.
 template <typename F>
@@ -124,8 +124,8 @@ bool changeNoteLockSets(ModelStackWithNoteRow* rowStack, const EditPadPress& tar
 	auto trampoline = [](Note* note, void* context) { (*static_cast<decltype(apply)*>(context))(note); };
 
 	// Visiting the copies only changes lockSet, never moves notes, so the walk over the square stays valid
-	forEachNoteOfPress(
-	    row, target, [&](Note* note) { row->forNotesAcrossAllScreens(note->pos, rowStack, trampoline, &apply, true); });
+	forEachNoteOfPress(row, target,
+	                   [&](Note* note) { row->forNotesAcrossAllScreens(note->pos, rowStack, trampoline, &apply); });
 	return changed;
 }
 
