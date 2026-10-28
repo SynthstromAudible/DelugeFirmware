@@ -92,6 +92,8 @@ public:
 
 	/// Parameter locks of the note this voice is playing (copied at noteOn). Read by `patcher`.
 	deluge::note_locks::VoiceLocks noteLocks;
+	/// note_locks::LiveEdit::tag of the held pad whose uncommitted lock edits this voice was started with, else 0
+	uint16_t liveEditTag{0};
 
 	uint32_t getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Local param);
 	void setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingSong = false);

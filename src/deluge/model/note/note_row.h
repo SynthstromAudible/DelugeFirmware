@@ -55,6 +55,9 @@ class TimelineView;
 class ModelStackWithTimelineCounter;
 class ModelStackWithNoteRow;
 class ParamManagerForTimeline;
+namespace deluge::note_locks {
+struct LiveEdit;
+}
 
 struct SquareInfo {
 	Note* firstNote;
@@ -79,6 +82,8 @@ struct PendingNoteOn {
 	Iterance iterance;
 	uint8_t fill;
 	uint16_t lockSet; // Note::lockSet
+	// A held pad's uncommitted lock edits for this note (note_locks::findLiveEdit), usually nullptr
+	const deluge::note_locks::LiveEdit* liveEdit;
 };
 
 struct PendingNoteOnList {
@@ -173,7 +178,7 @@ public:
 	Iterance getDefaultIterance();
 	int32_t getDefaultFill(ModelStackWithNoteRow* modelStack);
 	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, Iterance iterance,
-	                       int32_t fill, ModelStackWithNoteRow* modelStack, Action* action);
+	                       int32_t fill, ModelStackWithNoteRow* modelStack, Action* action, uint16_t lockSet = 0);
 	int32_t attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t velocity,
 	                               bool allowingNoteTails);
 	Error addCorrespondingNotes(int32_t pos, int32_t length, uint8_t velocity, ModelStackWithNoteRow* modelStack,

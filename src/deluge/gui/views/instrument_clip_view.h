@@ -45,6 +45,11 @@ class CopiedNoteRow;
 class ParamNode;
 class ModelStackWithTimelineCounter;
 class ModelStackWithNoteRow;
+class ModelStackWithAutoParam;
+namespace deluge::note_locks {
+struct LiveEdit;
+struct VoiceLocks;
+} // namespace deluge::note_locks
 
 struct EditPadPress {
 	bool isActive;
@@ -59,8 +64,9 @@ struct EditPadPress {
 	bool isBlurredSquare;
 	bool mpeCachedYet;
 	StolenParamNodes stolenMPE[kNumExpressionDimensions];
-	uint32_t intendedPos;    // For "blurred squares", means start of square
-	uint32_t intendedLength; // For "blurred squares", means length of square
+	uint32_t intendedPos;     // For "blurred squares", means start of square
+	uint32_t intendedLength;  // For "blurred squares", means length of square
+	uint16_t intendedLockSet; // The note's parameter locks while it's lifted out of its row by a vertical drag
 };
 
 #define MPE_RECORD_LENGTH_FOR_NOTE_EDITING 3
@@ -284,6 +290,24 @@ public:
 
 	SquareInfo gridSquareInfo[kDisplayHeight][kDisplayWidth]{};
 
+	// Per-note parameter locks (instrument_clip_view_note_locks.cpp)
+	/// If holding note pads would make edits of this param parameter locks (a lockable param of the held notes'
+	/// Sound), returns true and gives the value to show: the held note's pending or committed lock, else the param's
+	/// value at the note.
+	bool getHeldNoteLockValue(ModelStackWithAutoParam* modelStack, int32_t* value);
+	/// Sets this param's lock, uncommitted, on every held note playing its Sound, and makes it heard. False if holding
+	/// pads doesn't lock this param (the caller should edit it normally).
+	bool setHeldNoteLock(ModelStackWithAutoParam* modelStack, int32_t value);
+	/// Commits a held pad's pending lock edits to its notes as one undoable change (no-op if none) and disarms its
+	/// slot. Called whenever a press ends.
+	void commitLiveNoteLocks(int32_t i);
+	void commitAllLiveNoteLocks();
+	/// (Re)arms press i's live-edit slot for the notes it covers now
+	void armLiveNoteLocks(int32_t i);
+	void rearmAllLiveNoteLocks();
+	/// The live-edit slot (and its note's committed lock set) for the audition of a held note in this row
+	const deluge::note_locks::LiveEdit* getAuditionLiveEdit(int32_t yDisplay, uint16_t* committedLockSet);
+
 	// adjust note parameters
 	void adjustVelocity(int32_t velocityChange, bool display_value = true);
 	void updateVelocityValue(int32_t& velocityValue, int32_t newVelocity);
@@ -381,6 +405,11 @@ private:
 	// note editor selected / remembered note targets
 	Note* get_remembered_note(int32_t selection_index = -1);
 	ModelStackWithNoteRow* get_note_edit_row(ModelStackWithTimelineCounter* model_stack, const EditPadPress& target);
+	Sound* getSoundForEditPadPress(int32_t i, NoteRow** getNoteRow, int32_t* getNoteRowId,
+	                               ParamManagerForTimeline** getParamManager);
+	uint16_t getCommittedLockSetForPress(int32_t i);
+	int32_t findHeldNoteLockPresses(ModelStackWithAutoParam const* modelStack, bool* matches);
+
 	EditPadPress remembered_notes[kEditPadPressBufferSize]{};
 	int32_t remembered_note_row_ids[kEditPadPressBufferSize]{};
 	int32_t remembered_note_count = 0;

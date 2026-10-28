@@ -24,6 +24,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -1163,8 +1164,13 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 				int32_t newKnobPos;
 				int32_t currentValue;
 
+				// Holding note pads in the clip view locks a local param on those notes instead of step-automating it
+				bool noteLock =
+				    isStepEditing && instrumentClipView.getHeldNoteLockValue(modelStackWithParam, &currentValue);
+
 				// get current value
-				if (isStepEditing) {
+				if (noteLock) {}
+				else if (isStepEditing) {
 					currentValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 				}
 				else {
@@ -1189,8 +1195,13 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 				    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
 				// Set the new Parameter Value for the MIDI Learned Parameter
-				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
-				                                                          modLength);
+				if (noteLock) {
+					instrumentClipView.setHeldNoteLock(modelStackWithParam, newValue);
+				}
+				else {
+					modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
+					                                                          modLength);
+				}
 
 				// if you're in automation view and editing the same parameter that was just updated
 				// by a learned midi knob, then re-render the pads on the automation editor grid
@@ -1253,8 +1264,13 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 				int32_t newKnobPos;
 				int32_t currentValue;
 
+				// Holding note pads in the clip view locks a local param on those notes instead of step-automating it
+				bool noteLock =
+				    isStepEditing && instrumentClipView.getHeldNoteLockValue(modelStackWithParam, &currentValue);
+
 				// get current value
-				if (isStepEditing) {
+				if (noteLock) {}
+				else if (isStepEditing) {
 					currentValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 				}
 				else {
@@ -1279,8 +1295,13 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 				    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
 				// Set the new Parameter Value for the MIDI Learned Parameter
-				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
-				                                                          modLength);
+				if (noteLock) {
+					instrumentClipView.setHeldNoteLock(modelStackWithParam, newValue);
+				}
+				else {
+					modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
+					                                                          modLength);
+				}
 
 				// check if you're currently editing the same learned param in automation view or
 				// performance view if so, you will need to refresh the automation editor grid or the

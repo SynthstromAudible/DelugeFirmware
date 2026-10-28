@@ -1002,6 +1002,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_NOTE_EDITOR_PROBABILITY, "Probability"},
         {STRING_FOR_NOTE_EDITOR_ITERANCE, "Iterance"},
         {STRING_FOR_NOTE_EDITOR_FILL, "Fill"},
+        {STRING_FOR_NOTE_LOCKS_FULL, "Max locks on note"},
+        {STRING_FOR_NOTE_LOCK_POPUP, "Lock"},
         {STRING_FOR_NOTE_ROW_EDITOR, "Row Editor"},
         {STRING_FOR_NOTE_ROW_EDITOR_PROBABILITY, "Probability"},
         {STRING_FOR_NOTE_ROW_EDITOR_ITERANCE, "Iterance"},

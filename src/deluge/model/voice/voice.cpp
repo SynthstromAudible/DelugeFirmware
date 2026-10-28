@@ -136,6 +136,7 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 
 	// The sequencer leaves the note's parameter locks in note_locks::pending around the note-on. Count 0 otherwise -
 	// including a legato / mono retrigger by an unlocked note, which must drop the previous note's locks.
+	liveEditTag = deluge::note_locks::pendingLiveTag;
 	if (deluge::note_locks::pending.count != 0) [[unlikely]] {
 		noteLocks.set(deluge::note_locks::pending);
 		sound.voicesMayHaveNoteLocks = true;

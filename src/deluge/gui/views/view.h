@@ -135,8 +135,10 @@ public:
 	uint32_t modLength;
 
 	int32_t calculateKnobPosForDisplay(deluge::modulation::params::Kind kind, int32_t paramID, int32_t knobPos);
+	/// `noteLock`: the value is being locked on held notes rather than set on the param (shown as such)
 	void displayModEncoderValuePopup(deluge::modulation::params::Kind kind, int32_t paramID, int32_t newKnobPos,
-	                                 PatchSource source1 = PatchSource::NONE, PatchSource source2 = PatchSource::NONE);
+	                                 PatchSource source1 = PatchSource::NONE, PatchSource source2 = PatchSource::NONE,
+	                                 bool noteLock = false);
 	void flushPendingModEncoderValuePopup();
 	void potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStackWithAutoParam* modelStackWithParam,
 	                                       int32_t newKnobPos);
@@ -187,6 +189,7 @@ private:
 	int32_t pendingPopupKnobPos = 0;
 	PatchSource pendingPopupSource1 = PatchSource::NONE;
 	PatchSource pendingPopupSource2 = PatchSource::NONE;
+	bool pendingPopupNoteLock = false;
 };
 
 extern View view;

@@ -19,6 +19,7 @@
 #include "memory/general_memory_allocator.h"
 #include "modulation/params/param.h"
 #include <cstring>
+#include <utility>
 
 namespace params = deluge::modulation::params;
 
@@ -29,6 +30,10 @@ static_assert(params::LOCAL_LAST <= 256, "Lock::param is a byte");
 
 LockSetView pending;
 uint16_t pendingIndex = 0;
+uint16_t pendingLiveTag = 0;
+
+LiveEdit liveEdits[kMaxLiveEdits];
+int32_t numArmedLiveEdits = 0;
 
 namespace {
 constexpr uint32_t kMaxSets = 65536; // uint16_t indices, including the 0 sentinel
@@ -167,6 +172,10 @@ uint16_t Pool::intern(const Lock* locks, int32_t count) {
 	uint8_t params[kMaxLocksPerNote];
 	int32_t values[kMaxLocksPerNote];
 	count = normalise(locks, count, params, values);
+	return internNormalised(params, values, count);
+}
+
+uint16_t Pool::internNormalised(const uint8_t* params, const int32_t* values, int32_t count) {
 	if (count == 0) {
 		return 0;
 	}
@@ -238,6 +247,19 @@ uint16_t Pool::withoutLock(uint16_t base, int32_t param) {
 	return intern(locks, n);
 }
 
+uint16_t Pool::withLocks(uint16_t base, const Lock* edits, int32_t count) {
+	Lock locks[2 * kMaxLocksPerNote];
+	LockSetView v = get(base);
+	int32_t n = 0;
+	for (int32_t i = 0; i < v.count; i++) {
+		locks[n++] = {v.params[i], v.values[i]};
+	}
+	for (int32_t i = 0; i < count && n < 2 * kMaxLocksPerNote; i++) {
+		locks[n++] = edits[i]; // normalise() lets these later duplicates win
+	}
+	return intern(locks, n);
+}
+
 uint16_t Pool::importFrom(const Pool& other, uint16_t index) {
 	Lock locks[kMaxLocksPerNote];
 	LockSetView v = other.get(index);
@@ -245,6 +267,92 @@ uint16_t Pool::importFrom(const Pool& other, uint16_t index) {
 		locks[i] = {v.params[i], v.values[i]};
 	}
 	return intern(locks, v.count);
+}
+
+bool VoiceLocks::setValue(int32_t param, int32_t value) {
+	for (int32_t i = 0; i < count; i++) {
+		if (params[i] == param) {
+			values[i] = value;
+			return true;
+		}
+	}
+	if (count == kMaxLocksPerNote) {
+		return false;
+	}
+	params[count] = param;
+	values[count] = value;
+	count++;
+	mask |= (uint64_t)1 << param;
+	return true;
+}
+
+bool LiveEdit::set(int32_t param, int32_t value) {
+	for (int32_t i = 0; i < count; i++) {
+		if (params[i] == param) {
+			values[i] = value;
+			return true;
+		}
+	}
+	if (count == kMaxLocksPerNote) {
+		return false;
+	}
+	params[count] = param;
+	values[count] = value;
+	count++;
+	return true;
+}
+
+LockSetView LiveEdit::mergedWith(const LockSetView& committed, VoiceLocks& scratch) const {
+	scratch.set(committed);
+	for (int32_t i = 0; i < count; i++) {
+		scratch.setValue(params[i], values[i]);
+	}
+	return {scratch.count, scratch.params, scratch.values};
+}
+
+void armLiveEdit(int32_t slot, const void* song, const void* clip, int32_t noteRowId, uint32_t pos, uint32_t length) {
+	static uint16_t nextTag = 0;
+	LiveEdit& e = liveEdits[slot];
+	if (!e.armed()) {
+		numArmedLiveEdits++;
+	}
+	if (++nextTag == 0) {
+		nextTag = 1;
+	}
+	e.song = song;
+	e.clip = clip;
+	e.noteRowId = noteRowId;
+	e.pos = pos;
+	e.length = length ? length : 1;
+	e.tag = nextTag;
+	e.count = 0;
+}
+
+void disarmLiveEdit(int32_t slot) {
+	LiveEdit& e = liveEdits[slot];
+	if (e.armed()) {
+		numArmedLiveEdits--;
+	}
+	e.song = nullptr;
+	e.clip = nullptr;
+	e.count = 0;
+}
+
+void disarmLiveEditsFor(const void* owner) {
+	for (int32_t i = 0; i < kMaxLiveEdits; i++) {
+		if (liveEdits[i].armed() && (liveEdits[i].song == owner || liveEdits[i].clip == owner)) {
+			disarmLiveEdit(i);
+		}
+	}
+}
+
+const LiveEdit* findLiveEdit(const void* clip, int32_t noteRowId, uint32_t pos) {
+	for (const LiveEdit& e : liveEdits) {
+		if (e.armed() && e.matches(clip, noteRowId, pos)) {
+			return &e;
+		}
+	}
+	return nullptr;
 }
 
 void VoiceLocks::set(const LockSetView& view) {

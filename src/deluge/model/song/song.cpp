@@ -208,6 +208,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 }
 
 Song::~Song() {
+	deluge::note_locks::disarmLiveEditsFor(this); // A held pad's uncommitted lock edits can't outlive their Song
 
 	// Delete existing Clips, if any
 	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {

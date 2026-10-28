@@ -726,7 +726,7 @@ int32_t NoteRow::getDefaultFill(ModelStackWithNoteRow* modelStack) {
 // If you supply an Action, it'll add an individual ConsequenceNoteExistenceChange. Or, you can supply NULL and do
 // something else yourself. Returns distanceToNextNote, or 0 on fail.
 int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, Iterance iterance,
-                                int32_t fill, ModelStackWithNoteRow* modelStack, Action* action) {
+                                int32_t fill, ModelStackWithNoteRow* modelStack, Action* action, uint16_t lockSet) {
 
 	int32_t loopLength = modelStack->getLoopLength();
 
@@ -784,6 +784,7 @@ int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, i
 	newNote->setProbability(probability);
 	newNote->setIterance(iterance);
 	newNote->setFill(fill);
+	newNote->setLockSet(lockSet);
 
 	// Record consequence
 	if (action) {
@@ -2524,6 +2525,14 @@ bool NoteRow::check_for_note_still_sounding(ModelStackWithNoteRow* modelStack, S
 	               ->addSoundFlags());
 }
 // Note may be NULL if it's a note-off, in which case you don't get lift-velocity
+// A held pad's uncommitted parameter-lock edits for this note, if any. Only looks while a pad is held.
+static const deluge::note_locks::LiveEdit* liveEditFor(ModelStackWithNoteRow* modelStack, Note* note) {
+	if (deluge::note_locks::numArmedLiveEdits == 0) [[likely]] {
+		return nullptr;
+	}
+	return deluge::note_locks::findLiveEdit(modelStack->getTimelineCounter(), modelStack->noteRowId, note->pos);
+}
+
 void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNote, int32_t ticksLate,
                        uint32_t samplesLate, bool noteMightBeConstant, PendingNoteOnList* pendingNoteOnList) {
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
@@ -2566,6 +2575,8 @@ storePendingNoteOn:
 					    thisNote->getLength();
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].ticksLate = ticksLate;
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].lockSet = thisNote->lockSet;
+					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].liveEdit =
+					    liveEditFor(modelStack, thisNote);
 					pendingNoteOnList->count++;
 				}
 				// FIXME: this is almost certainly a bad idea, we can't handle more than 8-10 note ons per
@@ -2577,7 +2588,8 @@ storePendingNoteOn:
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThings(
 					    ((Clip*)modelStack->getTimelineCounter())->output->toModControllable(),
 					    &modelStack->getTimelineCounter()->paramManager);
-					deluge::note_locks::PendingScope locks(modelStack->song->noteLocks, thisNote->lockSet);
+					deluge::note_locks::PendingScope locks(modelStack->song->noteLocks, thisNote->lockSet,
+					                                       liveEditFor(modelStack, thisNote));
 					((MelodicInstrument*)output)
 					    ->sendNote(modelStackWithThreeMainThings, true, getNoteCode(), mpeValues, MIDI_CHANNEL_NONE,
 					               thisNote->velocity, thisNote->length, ticksLate, samplesLate);
@@ -2625,7 +2637,8 @@ storePendingNoteOn:
 
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 					    modelStack->addOtherTwoThings(drum->toModControllable(), &paramManager);
-					deluge::note_locks::PendingScope locks(modelStack->song->noteLocks, thisNote->lockSet);
+					deluge::note_locks::PendingScope locks(modelStack->song->noteLocks, thisNote->lockSet,
+					                                       liveEditFor(modelStack, thisNote));
 					drum->kit->noteOnPreKitArp(modelStackWithThreeMainThings, drum, thisNote->velocity, mpeValues,
 					                           MIDI_CHANNEL_NONE, thisNote->length, ticksLate, samplesLate);
 				}

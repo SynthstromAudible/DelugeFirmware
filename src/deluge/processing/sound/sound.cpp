@@ -1642,6 +1642,18 @@ void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* 
 	reassessRenderSkippingStatus(modelStackWithSoundFlags);
 }
 
+void Sound::updateLiveNoteLocks(uint16_t tag, int32_t param, int32_t value, ParamManager& paramManager) {
+	if (tag == 0) {
+		return;
+	}
+	for (const ActiveVoice& voice : voices_) {
+		if (voice->liveEditTag == tag && voice->noteLocks.setValue(param, value)) {
+			voicesMayHaveNoteLocks = true;
+			voice->patcher.performInitialPatching(*this, paramManager);
+		}
+	}
+}
+
 void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp, int32_t noteCodePostArp,
                                   int32_t velocity, int16_t const* mpeValues, uint32_t sampleSyncLength,
                                   int32_t ticksLate, uint32_t samplesLate, int32_t fromMIDIChannel) {
@@ -1690,6 +1702,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 	if (polyphonic == PolyphonyMode::LEGATO && voiceForLegato) [[unlikely]] {
 		Voice& legatoVoice = **voiceForLegato;
 		// The new note's parameter locks (or lack of them) take over the gliding voice
+		legatoVoice.liveEditTag = deluge::note_locks::pendingLiveTag;
 		if (deluge::note_locks::pending.count != 0 || legatoVoice.noteLocks.mask != 0) [[unlikely]] {
 			legatoVoice.noteLocks.set(deluge::note_locks::pending);
 			voicesMayHaveNoteLocks = voicesMayHaveNoteLocks || legatoVoice.noteLocks.mask != 0;
