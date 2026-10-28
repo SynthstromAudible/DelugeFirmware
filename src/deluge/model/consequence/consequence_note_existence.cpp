@@ -34,6 +34,7 @@ ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newClip, int3
 	lift = note->getLift();
 	iterance = note->getIterance();
 	fill = note->getFill();
+	lockSet = note->getLockSet();
 
 	type = newType;
 }
@@ -66,6 +67,7 @@ Error ConsequenceNoteExistence::revert(TimeType time, ModelStack* modelStack) {
 		note->setLift(lift);
 		note->setIterance(iterance);
 		note->setFill(fill);
+		note->setLockSet(lockSet);
 	}
 
 	return Error::NONE;

@@ -1244,6 +1244,7 @@ ramError:
 					newNote->lift = noteToCopy->lift;
 					newNote->iterance = noteToCopy->iterance;
 					newNote->fill = noteToCopy->fill;
+					newNote->lockSet = newCopiedNoteRow->locks.importFrom(currentSong->noteLocks, noteToCopy->lockSet);
 
 					if (copyToFile) {
 
@@ -1692,6 +1693,7 @@ ramError:
 								newNote->lift = lift;
 								newNote->iterance = iterance;
 								newNote->fill = fill;
+								newNote->lockSet = 0; // Locks aren't in the clipboard file format
 
 								currentNote++;
 							}

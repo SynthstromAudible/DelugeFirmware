@@ -32,6 +32,7 @@
 #include "model/iterance/iterance_migration.h"
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
+#include "model/note/note_locks.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
@@ -49,6 +50,8 @@
 extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
+
+namespace params = deluge::modulation::params;
 
 NoteRow::NoteRow(int16_t newY) {
 	y = newY;
@@ -139,6 +142,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 						newNote->setLift(oldNote->getLift());
 						newNote->setIterance(oldNote->getIterance());
 						newNote->setFill(oldNote->getFill());
+						newNote->setLockSet(oldNote->getLockSet());
 					}
 				}
 
@@ -156,6 +160,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 					newNote->setLift(oldNote->getLift());
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
+					newNote->setLockSet(oldNote->getLockSet());
 				}
 			}
 
@@ -184,6 +189,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 					newNote->setLift(oldNote->getLift());
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
+					newNote->setLockSet(oldNote->getLockSet());
 				}
 			}
 		}
@@ -1085,6 +1091,7 @@ modifyNote:
 			Iterance iterance = note->getIterance();
 			int32_t fill = note->getFill();
 			int32_t noteOnVelocity = note->getVelocity();
+			uint16_t lockSet = note->getLockSet();
 			notes.deleteAtIndex(0, 1, false);
 			i = notes.getNumElements();
 			notes.insertAtIndex(i); // Shouldn't be able to fail.
@@ -1093,6 +1100,7 @@ modifyNote:
 			note->setVelocity(noteOnVelocity);
 			note->setIterance(iterance);
 			note->setFill(fill);
+			note->setLockSet(lockSet);
 		}
 
 		note->pos = newNoteLeftPos; // This will stay the same if we're pingponging
@@ -2903,6 +2911,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					newNote->setLift(oldNote->getLift());
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
+					newNote->setLockSet(oldNote->getLockSet());
 
 					highestNoteIndex = iNew;
 				}
@@ -2953,6 +2962,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					newNote->setLift(oldNote->getLift());
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
+					newNote->setLockSet(oldNote->getLockSet());
 
 					highestNoteIndex = iNew;
 				}
@@ -3211,6 +3221,10 @@ Error NoteRow::readFromFile(Deserializer& reader, int32_t* minY, InstrumentClip*
 
 	int32_t newBendRange = -1; // Temp variable for this because we can't actually create the expressionParams
 	                           // before we know what kind of Drum (if any) we have.
+
+	// Parameter-lock columns: lockParams names the params, and noteLocks refers to them by column number
+	int32_t lockColumnParams[params::FIRST_GLOBAL];
+	int32_t numLockColumns = -1; // -1: no lockParams seen yet
 
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -3536,6 +3550,35 @@ getOut: {}
 			goto doReadNoteData;
 		}
 
+		else if (!strcmp(tagName, "lockParams")) {
+			String names;
+			numLockColumns = 0;
+			if (reader.readTagOrAttributeValueString(&names) == Error::NONE) {
+				char const* name = names.get();
+				while (*name && numLockColumns < params::FIRST_GLOBAL) {
+					char const* end = strchr(name, ',');
+					size_t length = end ? (size_t)(end - name) : strlen(name);
+					char buffer[48];
+					length = std::min(length, sizeof(buffer) - 1);
+					memcpy(buffer, name, length);
+					buffer[length] = 0;
+					// An unknown name (from some future firmware) still takes its column, so later columns line up
+					lockColumnParams[numLockColumns++] = params::fileStringToParam(params::Kind::PATCHED, buffer, true);
+					if (!end) {
+						break;
+					}
+					name = end + 1;
+				}
+			}
+		}
+
+		else if (!strcmp(tagName, "noteLocks")) {
+			// Written after the note data, so the notes it refers to exist by now
+			if (numLockColumns > 0) {
+				readNoteLocksFromFile(reader, song, lockColumnParams, numLockColumns);
+			}
+		}
+
 		else if (!strcmp(tagName, "expressionData")) {
 			paramManager.ensureExpressionParamSetExists();
 			ParamCollectionSummary* summary = paramManager.getExpressionParamSetSummary();
@@ -3561,7 +3604,7 @@ getOut: {}
 	return Error::NONE;
 }
 
-void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip) {
+void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip, Song* song) {
 	writer.writeOpeningTagBeginning("noteRow", true);
 
 	bool forKit = (clip->output->type == OutputType::KIT);
@@ -3617,6 +3660,8 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			writer.write(buffer);
 		}
 		writer.write("\"");
+
+		writeNoteLocksToFile(writer, song);
 	}
 
 	ExpressionParamSet* expressionParams = paramManager.getExpressionParamSet();
@@ -3650,6 +3695,110 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 
 	else {
 		writer.closeTag(true);
+	}
+}
+
+// Parameter locks, as two noteRow attributes written after the note data:
+//   lockParams="lpfFrequency,volume"  - the locked params' file names, in "column" order
+//   noteLocks="0x..."                 - per locked note: pos (8 hex), number of locks (2 hex), then per lock: column
+//                                       (2 hex) and value (8 hex, the param's preset value)
+// Firmware that doesn't know these attributes skips them and plays the notes unlocked.
+void NoteRow::writeNoteLocksToFile(Serializer& writer, Song* song) {
+	int32_t columnParams[params::FIRST_GLOBAL];
+	int32_t numColumns = 0;
+	int8_t columnOfParam[params::FIRST_GLOBAL];
+	memset(columnOfParam, -1, sizeof(columnOfParam));
+
+	for (int32_t n = 0; n < notes.getNumElements(); n++) {
+		deluge::note_locks::LockSetView locks = song->noteLocks.get(notes.getElement(n)->lockSet);
+		for (int32_t l = 0; l < locks.count; l++) {
+			int32_t p = locks.params[l];
+			if (columnOfParam[p] < 0) {
+				columnOfParam[p] = numColumns;
+				columnParams[numColumns++] = p;
+			}
+		}
+	}
+	if (!numColumns) {
+		return;
+	}
+
+	writer.insertCommaIfNeeded();
+	writer.write("\n");
+	writer.printIndents();
+	writer.writeTagNameAndSeperator("lockParams");
+	writer.write("\"");
+	for (int32_t c = 0; c < numColumns; c++) {
+		if (c) {
+			writer.write(",");
+		}
+		writer.write(params::paramNameForFile(params::Kind::PATCHED, columnParams[c]));
+	}
+	writer.write("\"");
+
+	writer.insertCommaIfNeeded();
+	writer.write("\n");
+	writer.printIndents();
+	writer.writeTagNameAndSeperator("noteLocks");
+	writer.write("\"0x");
+	for (int32_t n = 0; n < notes.getNumElements(); n++) {
+		Note* note = notes.getElement(n);
+		deluge::note_locks::LockSetView locks = song->noteLocks.get(note->lockSet);
+		if (!locks.count) {
+			continue;
+		}
+		char buffer[9];
+		intToHex(note->pos, buffer);
+		writer.write(buffer);
+		intToHex(locks.count, buffer, 2);
+		writer.write(buffer);
+		for (int32_t l = 0; l < locks.count; l++) {
+			intToHex(columnOfParam[locks.params[l]], buffer, 2);
+			writer.write(buffer);
+			intToHex(locks.values[l], buffer);
+			writer.write(buffer);
+		}
+	}
+	writer.write("\"");
+}
+
+void NoteRow::readNoteLocksFromFile(Deserializer& reader, Song* song, int32_t const* columnParams, int32_t numColumns) {
+	if (!reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+		return;
+	}
+	char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
+	if (!firstChars || *(uint16_t*)firstChars != charsToIntegerConstant('0', 'x')) {
+		return;
+	}
+
+	while (true) {
+		char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(10);
+		if (!hexChars) {
+			return;
+		}
+		int32_t pos = hexToIntFixedLength(hexChars, 8);
+		int32_t count = hexToIntFixedLength(&hexChars[8], 2);
+
+		deluge::note_locks::Lock locks[deluge::note_locks::kMaxLocksPerNote];
+		int32_t numLocks = 0;
+		for (int32_t l = 0; l < count; l++) {
+			hexChars = reader.readNextCharsOfTagOrAttributeValue(10);
+			if (!hexChars) {
+				return;
+			}
+			int32_t column = hexToIntFixedLength(hexChars, 2);
+			int32_t value = hexToIntFixedLength(&hexChars[2], 8);
+			if (column < numColumns && deluge::note_locks::isLockableParam(columnParams[column])
+			    && numLocks < deluge::note_locks::kMaxLocksPerNote) {
+				locks[numLocks++] = {(uint8_t)columnParams[column], value};
+			}
+		}
+
+		int32_t i = notes.search(pos, GREATER_OR_EQUAL);
+		Note* note = notes.getElement(i);
+		if (note && note->pos == pos) {
+			note->lockSet = song->noteLocks.intern(locks, numLocks);
+		}
 	}
 }
 
@@ -4065,8 +4214,15 @@ bool NoteRow::paste(ModelStackWithNoteRow* modelStack, CopiedNoteRow* copiedNote
 		newLength = std::min(newLength, maxPos - newPos);
 
 		// Prevents pasting of overlapping notes, which leads to sequentialTest Error "E319"
-		attemptNoteAdd(newPos, newLength, noteSource->velocity, noteSource->probability, noteSource->iterance,
-		               noteSource->fill, modelStack, nullptr);
+		int32_t added = attemptNoteAdd(newPos, newLength, noteSource->velocity, noteSource->probability,
+		                               noteSource->iterance, noteSource->fill, modelStack, nullptr);
+		if (added && noteSource->lockSet) {
+			int32_t i = notes.search(newPos, GREATER_OR_EQUAL);
+			Note* pasted = notes.getElement(i);
+			if (pasted && pasted->pos == newPos) {
+				pasted->lockSet = modelStack->song->noteLocks.importFrom(copiedNoteRow->locks, noteSource->lockSet);
+			}
+		}
 
 		minPos = newPos + newLength;
 	}
@@ -4218,6 +4374,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 				newNote->setLift(oldNote->getLift());
 				newNote->setIterance(oldNote->getIterance());
 				newNote->setFill(oldNote->getFill());
+				newNote->setLockSet(oldNote->getLockSet());
 			}
 		}
 
@@ -4248,6 +4405,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 				newNote->setLift(oldNote->getLift());
 				newNote->setIterance(oldNote->getIterance());
 				newNote->setFill(oldNote->getFill());
+				newNote->setLockSet(oldNote->getLockSet());
 			}
 		}
 	}
@@ -4265,6 +4423,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 			newNote->probability = oldNote->probability;
 			newNote->iterance = oldNote->iterance;
 			newNote->fill = oldNote->fill;
+			newNote->lockSet = oldNote->lockSet;
 		}
 	}
 
