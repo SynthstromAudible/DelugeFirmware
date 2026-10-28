@@ -1928,6 +1928,12 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 	int32_t squareEndPos[kMaxImageStoreWidth];
 	int32_t searchTerms[kMaxImageStoreWidth];
 
+	// Notes with parameter locks are drawn yellow instead of the row colour - head, tail and blur alike, dimmed the
+	// same way the row colour is (a blur colour equal to the main colour means the caller doesn't want blurring)
+	constexpr RGB lockColour = deluge::gui::colours::yellow;
+	constexpr RGB lockTailColour = lockColour.forTail();
+	const RGB lockBlurColour = (rowBlurColour == rowColour) ? lockColour : lockColour.forBlur();
+
 	int32_t whichRepeat = 0;
 
 	int32_t xEndNow;
@@ -1978,6 +1984,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 			}
 			int32_t i = searchTerms[xDisplay - xStartNow];
 			bool drewNote = false;
+			bool drewHead = false;
 			Note* note = notes.getElement(i - 1); // Subtracting 1 to do "LESS"
 
 			RGB& pixel = image[xDisplay];
@@ -1985,7 +1992,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 			// If Note starts somewhere within square, draw the blur colour
 			if (note && note->pos > squareStartPos) {
 				drewNote = true;
-				pixel = rowBlurColour;
+				pixel = note->lockSet ? lockBlurColour : rowBlurColour;
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;
 				}
@@ -1994,9 +2001,11 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 			// Or if Note starts exactly on square...
 			else if (note && note->pos == squareStartPos) {
 				drewNote = true;
+				drewHead = true;
 				// this is just colour * (0.25 + 0.75 * velocity) but in fixed point, i.e. it'll go linearly from 0.25
 				// to max brightness with velocity
-				pixel = rowColour.adjustFractional((65 + note->velocity + (note->velocity / 2)) << 8, 255 << 8);
+				pixel = (note->lockSet ? lockColour : rowColour)
+				            .adjustFractional((65 + note->velocity + (note->velocity / 2)) << 8, 255 << 8);
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;
 				}
@@ -2015,16 +2024,16 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 				}
 				if (noteEnd > squareStartPos && allowNoteTails) {
 					drewNote = true;
-					pixel = rowTailColour;
+					pixel = note->lockSet ? lockTailColour : rowTailColour;
 					if (occupancyMask) {
 						occupancyMask[xDisplay] = 64;
 					}
 				}
 			}
-			// if we're not dealing with a blurred note or a note tail
-			if (pixel != rowBlurColour && pixel != rowTailColour) {
+			// if we're dealing with a note head (not a blurred note or a note tail)
+			if (drewHead) {
 				// if fill mode is active, identify the notes that are fill or not-fill
-				if (drewNote && currentSong->isFillModeActive()) {
+				if (currentSong->isFillModeActive()) {
 					if (note->fill == FillMode::FILL) {
 						pixel = deluge::gui::colours::blue;
 					}
@@ -2033,7 +2042,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 					}
 				}
 				// if you're in the note editor, identify the notes that have non-default parameters
-				else if (drewNote && getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()) {
+				else if (getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()) {
 					// if note has non-default settings for probability, iterance or fill
 					if (note->getProbability() != kNumProbabilityValues || note->getIterance() != kDefaultIteranceValue
 					    || note->getFill() != FillMode::OFF) {
