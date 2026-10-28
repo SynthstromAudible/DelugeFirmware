@@ -1331,8 +1331,12 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 		}
 	}
 	else {
-		// 7SEG: a lock shows its value with the last dot lit
-		display->displayPopup(parameter_value.c_str(), 3, false, noteLock ? 3 : 255);
+		// 7SEG: a lock shows its value with the dot after its last digit lit
+		uint8_t dot = 255;
+		if (noteLock) {
+			dot = std::clamp<int32_t>(static_cast<int32_t>(parameter_value.size()), 1, kNumericDisplayLength) - 1;
+		}
+		display->displayPopup(parameter_value.c_str(), 3, false, dot);
 	}
 }
 
