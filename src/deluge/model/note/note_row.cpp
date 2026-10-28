@@ -1771,7 +1771,59 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 		return Error::NONE;
 	}
 
+	if (action) {
+		action->recordNoteArrayChangeIfNotAlreadySnapshotted((InstrumentClip*)modelStack->getTimelineCounter(),
+		                                                     modelStack->noteRowId, &notes,
+		                                                     false); // Snapshot for undoability. Don't steal data.
+	}
+
+	struct Change {
+		int32_t type;
+		int32_t value;
+	} change{changeType, changeValue};
+
+	return forNotesAcrossAllScreens(
+	    editPos, modelStack,
+	    [](Note* thisNote, void* context) {
+		    Change& c = *static_cast<Change*>(context);
+		    switch (c.type) {
+		    case CORRESPONDING_NOTES_ADJUST_VELOCITY: {
+			    int32_t newVelocity = std::clamp<int32_t>(thisNote->getVelocity() + c.value, 1, 127);
+			    thisNote->setVelocity(newVelocity);
+		    } break;
+
+		    case CORRESPONDING_NOTES_SET_VELOCITY: {
+			    thisNote->setVelocity(c.value);
+		    } break;
+
+		    case CORRESPONDING_NOTES_SET_PROBABILITY: {
+			    thisNote->setProbability(c.value);
+		    } break;
+
+		    case CORRESPONDING_NOTES_SET_ITERANCE: {
+			    thisNote->setIterance(Iterance::fromInt(c.value));
+		    } break;
+
+		    case CORRESPONDING_NOTES_SET_FILL: {
+			    thisNote->setFill(c.value);
+		    } break;
+		    }
+	    },
+	    &change);
+}
+
+Error NoteRow::forNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, void (*fn)(Note*, void*),
+                                        void* context, bool fromFirstScreen) {
+
+	// If no Notes, nothing to do.
+	if (!notes.getNumElements()) {
+		return Error::NONE;
+	}
+
 	uint32_t wrapEditLevel = ((InstrumentClip*)modelStack->getTimelineCounter())->getWrapEditLevel();
+	if (fromFirstScreen) {
+		editPos = (uint32_t)editPos % wrapEditLevel;
+	}
 
 	int32_t numScreens = (uint32_t)(modelStack->getLoopLength() - 1) / wrapEditLevel + 1;
 
@@ -1781,12 +1833,6 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreens * sizeof(int32_t));
 	if (!searchTerms) {
 		return Error::INSUFFICIENT_RAM;
-	}
-
-	if (action) {
-		action->recordNoteArrayChangeIfNotAlreadySnapshotted((InstrumentClip*)modelStack->getTimelineCounter(),
-		                                                     modelStack->noteRowId, &notes,
-		                                                     false); // Snapshot for undoability. Don't steal data.
 	}
 
 	// Populate big list of all the positions we want to search
@@ -1808,30 +1854,7 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 
 		Note* __restrict__ thisNote = notes.getElement(indexThisScreen);
 		if (thisNote != nullptr && thisNote->pos == posThisScreen) {
-			// Do the action
-
-			switch (changeType) {
-			case CORRESPONDING_NOTES_ADJUST_VELOCITY: {
-				int32_t newVelocity = std::clamp<int32_t>(thisNote->getVelocity() + changeValue, 1, 127);
-				thisNote->setVelocity(newVelocity);
-			} break;
-
-			case CORRESPONDING_NOTES_SET_VELOCITY: {
-				thisNote->setVelocity(changeValue);
-			} break;
-
-			case CORRESPONDING_NOTES_SET_PROBABILITY: {
-				thisNote->setProbability(changeValue);
-			} break;
-
-			case CORRESPONDING_NOTES_SET_ITERANCE: {
-				thisNote->setIterance(Iterance::fromInt(changeValue));
-			} break;
-
-			case CORRESPONDING_NOTES_SET_FILL: {
-				thisNote->setFill(changeValue);
-			} break;
-			}
+			fn(thisNote, context);
 		}
 	}
 

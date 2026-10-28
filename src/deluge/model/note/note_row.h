@@ -222,6 +222,11 @@ public:
 	void complexSetNoteLength(Note* thisNote, uint32_t newLength, ModelStackWithNoteRow* modelStack, Action* action);
 	Error changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
 	                                  int32_t changeType, int32_t changeValue);
+	/// Calls fn(note, context) on the note at editPos and, if the clip is wrap (cross-screen) editing, on its copies
+	/// at editPos + n * wrapEditLevel - the notes changeNotesAcrossAllScreens edits. With `fromFirstScreen`, the copies
+	/// on the screens before editPos's too (every copy, as addCorrespondingNotes creates them). Doesn't snapshot.
+	Error forNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, void (*fn)(Note*, void*),
+	                               void* context, bool fromFirstScreen = false);
 	/// Nudge the note at editPos by either +1 (if nudgeOffset > 0) or -1 (if nudgeOffset < 0)
 	///
 	/// The caller must call Clip::expectEvent on the clip containing this `NoteRow` after this.

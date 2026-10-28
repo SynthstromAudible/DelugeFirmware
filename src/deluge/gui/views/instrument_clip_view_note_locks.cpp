@@ -69,32 +69,63 @@ void forEachNoteOfPress(NoteRow* row, const EditPadPress& press, F f) {
 	}
 }
 
-/// Applies `change` (uint16_t(uint16_t oldLockSet)) to every note the target covers, as part of the open NOTE_EDIT
-/// action. Returns whether any note changed.
+/// Applies `change` (uint16_t(uint16_t oldLockSet)) to every note the target covers - and, when the clip is wrap
+/// (cross-screen) editing, to all their copies on the other screens (NoteRow::forNotesAcrossAllScreens, the
+/// note editor's other parameters' path; unlike those, from the first screen, so earlier copies get it too). Part of
+/// the open NOTE_EDIT action, with the row snapshotted once before the first change. `change` runs once per distinct
+/// old set, so copies that shared a set share the result (one intern). Returns whether any note changed.
 template <typename F>
-bool changeNoteLockSets(InstrumentClip* clip, int32_t noteRowId, NoteRow* row, const EditPadPress& target, F change) {
+bool changeNoteLockSets(ModelStackWithNoteRow* rowStack, const EditPadPress& target, F change) {
+	NoteRow* row = rowStack->getNoteRowAllowNull();
 	if (row == nullptr) {
 		return false;
 	}
+	constexpr int32_t kCacheSize = 8;
+	uint16_t cacheFrom[kCacheSize];
+	uint16_t cacheTo[kCacheSize];
+	int32_t cached = 0;
 	bool snapshotted = false;
 	bool changed = false;
-	forEachNoteOfPress(row, target, [&](Note* note) {
-		uint16_t newLockSet = change(note->lockSet);
-		if (newLockSet == note->lockSet) {
+
+	auto apply = [&](Note* note) {
+		uint16_t base = note->lockSet;
+		uint16_t newLockSet;
+		int32_t c = 0;
+		while (c < cached && cacheFrom[c] != base) {
+			c++;
+		}
+		if (c < cached) {
+			newLockSet = cacheTo[c];
+		}
+		else {
+			newLockSet = change(base);
+			if (cached < kCacheSize) {
+				cacheFrom[cached] = base;
+				cacheTo[cached] = newLockSet;
+				cached++;
+			}
+		}
+		if (newLockSet == base) {
 			return;
 		}
 		if (!snapshotted) {
-			// Snapshot the row's notes (lock set indices included) once, before the first change. Undo / redo swap
-			// the snapshot back, and old pool entries stay valid while anything in the undo log can refer to them.
+			// Undo / redo swap the snapshot back; old pool entries stay valid while the undo log can refer to them
 			Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 			if (action != nullptr) {
-				action->recordNoteArrayChangeIfNotAlreadySnapshotted(clip, noteRowId, &row->notes, false);
+				action->recordNoteArrayChangeIfNotAlreadySnapshotted(
+				    static_cast<InstrumentClip*>(rowStack->getTimelineCounter()), rowStack->noteRowId, &row->notes,
+				    false);
 			}
 			snapshotted = true;
 		}
 		note->lockSet = newLockSet;
 		changed = true;
-	});
+	};
+	auto trampoline = [](Note* note, void* context) { (*static_cast<decltype(apply)*>(context))(note); };
+
+	// Visiting the copies only changes lockSet, never moves notes, so the walk over the square stays valid
+	forEachNoteOfPress(
+	    row, target, [&](Note* note) { row->forNotesAcrossAllScreens(note->pos, rowStack, trampoline, &apply, true); });
 	return changed;
 }
 
@@ -131,7 +162,7 @@ void InstrumentClipView::armLiveNoteLocks(int32_t i) {
 	}
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	note_locks::armLiveEdit(i, currentSong, static_cast<TimelineCounter*>(clip), noteRowId,
-	                        editPadPresses[i].intendedPos, pressLength(editPadPresses[i]));
+	                        editPadPresses[i].intendedPos, pressLength(editPadPresses[i]), clip->getWrapEditLevel());
 }
 
 void InstrumentClipView::commitLiveNoteLocks(int32_t i) {
@@ -151,7 +182,10 @@ void InstrumentClipView::commitLiveNoteLocks(int32_t i) {
 				edits[l] = {live.params[l], live.values[l]};
 			}
 			int32_t count = live.count;
-			bool changed = changeNoteLockSets(clip, noteRowId, row, editPadPresses[i], [&](uint16_t base) {
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithNoteRow* rowStack =
+			    currentSong->setupModelStackWithCurrentClip(modelStackMemory)->addNoteRow(noteRowId, row);
+			bool changed = changeNoteLockSets(rowStack, editPadPresses[i], [&](uint16_t base) {
 				return currentSong->noteLocks.withLocks(base, edits, count);
 			});
 			if (changed) {
@@ -332,14 +366,12 @@ bool InstrumentClipView::changeNoteEditorLockSets(F change) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-	InstrumentClip* clip = getCurrentInstrumentClip();
 	bool changed = false;
 	for (const EditPadPress& target : get_note_edit_targets()) {
 		if (!target.isActive) {
 			continue;
 		}
-		ModelStackWithNoteRow* rowStack = get_note_edit_row(modelStack, target);
-		changed |= changeNoteLockSets(clip, rowStack->noteRowId, rowStack->getNoteRowAllowNull(), target, change);
+		changed |= changeNoteLockSets(get_note_edit_row(modelStack, target), target, change);
 	}
 	actionLogger.closeAction(ActionType::NOTE_EDIT);
 	if (changed) {

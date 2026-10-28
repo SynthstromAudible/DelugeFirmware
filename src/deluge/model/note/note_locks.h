@@ -170,10 +170,17 @@ struct LiveEdit {
 	int32_t count{0};
 	uint8_t params[kMaxLocksPerNote];
 	int32_t values[kMaxLocksPerNote];
+	uint32_t wrapLevel{1u << 31}; // InstrumentClip::getWrapEditLevel(): huge when not wrap editing
 
 	[[nodiscard]] bool armed() const { return song != nullptr; }
 	[[nodiscard]] bool matches(const void* clip_, int32_t noteRowId_, uint32_t pos_) const {
-		return clip == clip_ && noteRowId == noteRowId_ && pos_ - pos < length;
+		if (clip != clip_ || noteRowId != noteRowId_) {
+			return false;
+		}
+		// With wrap (cross-screen) editing, every copy (pos +- n * wrapLevel) gets the edits too, as it will on commit
+		uint32_t base = pos % wrapLevel;
+		uint32_t offset = pos_ % wrapLevel;
+		return (offset >= base ? offset - base : offset + wrapLevel - base) < length;
 	}
 	[[nodiscard]] const int32_t* find(int32_t param) const {
 		for (int32_t i = 0; i < count; i++) {
@@ -199,7 +206,8 @@ extern LiveEdit liveEdits[kMaxLiveEdits];
 /// Number of armed slots. The sequencer only looks for a matching slot when this is nonzero.
 extern int32_t numArmedLiveEdits;
 
-void armLiveEdit(int32_t slot, const void* song, const void* clip, int32_t noteRowId, uint32_t pos, uint32_t length);
+void armLiveEdit(int32_t slot, const void* song, const void* clip, int32_t noteRowId, uint32_t pos, uint32_t length,
+                 uint32_t wrapLevel);
 void disarmLiveEdit(int32_t slot);
 /// Disarms every slot whose song or clip is `owner` (called as a Song / InstrumentClip is destroyed).
 void disarmLiveEditsFor(const void* owner);

@@ -363,7 +363,8 @@ LockSetView LiveEdit::mergedWith(const LockSetView& committed, VoiceLocks& scrat
 	return {scratch.count, scratch.params, scratch.values};
 }
 
-void armLiveEdit(int32_t slot, const void* song, const void* clip, int32_t noteRowId, uint32_t pos, uint32_t length) {
+void armLiveEdit(int32_t slot, const void* song, const void* clip, int32_t noteRowId, uint32_t pos, uint32_t length,
+                 uint32_t wrapLevel) {
 	static uint16_t nextTag = 0;
 	LiveEdit& e = liveEdits[slot];
 	if (!e.armed()) {
@@ -377,6 +378,7 @@ void armLiveEdit(int32_t slot, const void* song, const void* clip, int32_t noteR
 	e.noteRowId = noteRowId;
 	e.pos = pos;
 	e.length = length ? length : 1;
+	e.wrapLevel = wrapLevel ? wrapLevel : 1u << 31;
 	e.tag = nextTag;
 	e.count = 0;
 }
