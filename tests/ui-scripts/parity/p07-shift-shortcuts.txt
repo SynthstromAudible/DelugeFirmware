@@ -4,7 +4,7 @@
 400   pad 0 0 down
 450   pad 0 0 up
 500   button Shift up
-1200  snapshot shortcut-0-0
+1300  snapshot shortcut-0-0
 1500  encoder Select +1
 2000  snapshot shortcut-edit
 2300  button Back down
