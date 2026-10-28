@@ -828,7 +828,9 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// exit menu to arranger view or session view
 	else if (b == SESSION_VIEW) {
-		if (on && currentUIMode == UI_MODE_NONE) {
+		// the note row editor keeps the selected row auditioning silently, so allow exiting from that mode too
+		bool can_exit = currentUIMode == UI_MODE_NONE || (inNoteRowEditor() && currentUIMode == UI_MODE_AUDITIONING);
+		if (on && can_exit) {
 			exitCompletely();
 			if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 				changeRootUI(&arrangerView);
