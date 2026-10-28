@@ -1759,7 +1759,7 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 
 	// If no Notes, nothing to do.
 	if (!notes.getNumElements()) {
-		Error::NONE;
+		return Error::NONE;
 	}
 
 	uint32_t wrapEditLevel = ((InstrumentClip*)modelStack->getTimelineCounter())->getWrapEditLevel();
@@ -1798,7 +1798,7 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 		int32_t posThisScreen = screenIndex * wrapEditLevel + editPos;
 
 		Note* __restrict__ thisNote = notes.getElement(indexThisScreen);
-		if (thisNote->pos == posThisScreen) {
+		if (thisNote != nullptr && thisNote->pos == posThisScreen) {
 			// Do the action
 
 			switch (changeType) {
