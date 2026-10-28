@@ -1928,9 +1928,10 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 	int32_t squareEndPos[kMaxImageStoreWidth];
 	int32_t searchTerms[kMaxImageStoreWidth];
 
-	// Notes with parameter locks are drawn yellow instead of the row colour - head, tail and blur alike, dimmed the
-	// same way the row colour is (a blur colour equal to the main colour means the caller doesn't want blurring)
-	constexpr RGB lockColour = deluge::gui::colours::yellow;
+	// Notes with parameter locks are drawn white instead of the row colour - head, tail and blur alike, dimmed the
+	// same way the row colour is (a blur colour equal to the main colour means the caller doesn't want blurring).
+	// Row colours are all fully saturated hues, so white can't be mistaken for one, and no other note state uses it.
+	constexpr RGB lockColour = deluge::gui::colours::white_full;
 	constexpr RGB lockTailColour = lockColour.forTail();
 	const RGB lockBlurColour = (rowBlurColour == rowColour) ? lockColour : lockColour.forBlur();
 
@@ -2043,10 +2044,12 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 				}
 				// if you're in the note editor, identify the notes that have non-default parameters
 				else if (getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()) {
-					// if note has non-default settings for probability, iterance or fill
+					// if note has non-default settings for probability, iterance or fill: yellow, or pale yellow
+					// (yellow and the lock colour averaged) if it has parameter locks too
 					if (note->getProbability() != kNumProbabilityValues || note->getIterance() != kDefaultIteranceValue
 					    || note->getFill() != FillMode::OFF) {
-						pixel = deluge::gui::colours::yellow;
+						pixel = note->lockSet ? RGB::average(deluge::gui::colours::yellow, lockColour)
+						                      : deluge::gui::colours::yellow;
 					}
 				}
 			}
