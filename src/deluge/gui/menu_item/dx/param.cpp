@@ -489,7 +489,7 @@ static void renderLFO(uint8_t* params, int param) {
 }
 
 static void renderAlgorithm(uint8_t* params) {
-	int algorithm = std::min<int>(params[134], std::size(dx::kAlgorithmBitmaps) - 1);
+	int algorithm = std::min<int>(params[134], dx::kNumAlgorithms - 1);
 
 	// Inverted "#NN" badge at the right of the title bar
 	char buffer[12] = "#";
