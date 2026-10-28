@@ -71,30 +71,38 @@ void DxParam::readValueAgain() {
 	int x = -1, y = -1;
 
 	upper_limit = 99;
+	// Six operators, each with 21 parameters; global parameters follow at index 126.
 	int op = param / 21;
 	int idx = param % 21;
 	if (0 <= param && param < 6 * 21) {
+		// Keyboard level scaling: left curve (11) and right curve (12).
 		if (idx == 11 || idx == 12) {
 			upper_limit = 3;
 		}
 		else if (idx == 13 || idx == 15) {
+			// Envelope rate scaling (13) and key velocity sensitivity (15).
 			upper_limit = 7;
 		}
 		else if (idx == 14) {
+			// Amplitude modulation sensitivity.
 			upper_limit = 3;
 		}
 		else if (idx == 17) {
+			// Oscillator mode: ratio (0) or fixed frequency (1).
 			upper_limit = 1;
 		}
 		else if (idx == 20) {
+			// Oscillator detune: stored as 0–14, displayed as -7 to +7.
 			upper_limit = 14;
 		}
 
 		y = 7 - op;
 		if (idx < 8) {
+			// Operator envelope rates 1–4 (0–3) and levels 1–4 (4–7).
 			x = idx;
 		}
 		else if (idx >= 16) {
+			// Output level (16), mode (17), coarse (18), fine (19), and detune (20).
 			x = (idx - 16) + 8;
 		}
 		else if (idx >= 13) {
@@ -104,26 +112,32 @@ void DxParam::readValueAgain() {
 		flash_row = 7 - op;
 	}
 	else if (param == 6 * 21 + 8) {
+		// Algorithm: stored as 0–31.
 		upper_limit = 31;
 	}
 	else if (param == 6 * 21 + 9) {
+		// Feedback amount.
 		upper_limit = 7;
 	}
 	else if (param == 6 * 21 + 10) {
+		// Oscillator key sync: off (0) or on (1).
 		upper_limit = 1;
 	}
 
 	blink_next = false;
 
 	if (param >= 6 * 21 && param < 6 * 21 + 11) {
+		// Pitch envelope rates/levels (0–7), algorithm (8), feedback (9), and oscillator sync (10).
 		y = 1;
 		x = param - 6 * 21;
 	}
 	else if (param >= 6 * 21 + 11 && param < 6 * 21 + 11 + 7) {
+		// LFO rate, delay, pitch depth, amp depth, sync, waveform (11–16), and pitch sensitivity (17).
 		y = 0;
 		x = param - 6 * 21 - 11;
 	}
 	else if (param == -1) {
+		// Random detune, stored separately from the DX7 parameter array.
 		y = 0;
 		x = 7;
 	}
