@@ -83,6 +83,9 @@ void DxParam::readValueAgain() {
 		else if (idx == 14) {
 			upper_limit = 3;
 		}
+		else if (idx == 17) {
+			upper_limit = 1;
+		}
 		else if (idx == 20) {
 			upper_limit = 14;
 		}
