@@ -43,6 +43,9 @@ struct TaskManager {
 	void unblockTask(TaskID id);
 	void blockTask(TaskID task);
 
+	/// How many yield() calls are on the stack: 0 when the running task was started by the main loop itself
+	[[nodiscard]] uint32_t getYieldDepth() const { return yieldDepth; }
+
 	[[nodiscard]] Time getAverageRunTimeForCurrentTask() const;
 	[[nodiscard]] Time getAverageRunTimeForTask(TaskID id) const;
 
@@ -62,6 +65,7 @@ private:
 	Time lastPrintedStats{0};
 
 	volatile TaskID currentID{0};
+	uint32_t yieldDepth{0};
 	// for time tracking with rollover
 	Time lastTime{0};
 	Time runningTime{0};

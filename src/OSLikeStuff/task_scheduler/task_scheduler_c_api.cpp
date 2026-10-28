@@ -73,6 +73,10 @@ bool yieldToIdle(RunCondition until) {
 	return taskManager.yield(until, 0, true);
 }
 
+uint32_t getYieldDepth() {
+	return taskManager.getYieldDepth();
+}
+
 void removeTask(TaskID id) {
 	taskManager.removeTask(id);
 }

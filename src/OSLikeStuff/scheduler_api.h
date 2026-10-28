@@ -84,6 +84,9 @@ bool yieldWithTimeout(RunCondition until, double timeout);
 /// yield until the condition is met, but return immediately if the scheduler is idle
 /// use if you're yielding in a loop such as the sd routine
 bool yieldToIdle(RunCondition until);
+/// How many yield() calls are on the stack. 0 means the running task was started by the scheduler's main loop, so no
+/// other task is suspended part-way through something.
+uint32_t getYieldDepth();
 /// start the task scheduler
 void startTaskManager();
 #ifdef __cplusplus

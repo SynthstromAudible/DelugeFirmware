@@ -1474,6 +1474,13 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	}
 }
 
+void Arpeggiator::forEachLockSet(void (*fn)(uint16_t& lockSet, void* context), void* context) {
+	ArpeggiatorBase::forEachLockSet(fn, context);
+	for (int32_t n = 0; n < notes.getNumElements(); n++) {
+		fn(((ArpNote*)notes.getElementAddress(n))->lockSet, context);
+	}
+}
+
 bool Arpeggiator::hasAnyInputNotesActive() {
 	return notes.getNumElements();
 }

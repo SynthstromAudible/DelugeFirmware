@@ -252,6 +252,10 @@ public:
 	static bool arpIsOff(ArpeggiatorSettings* settings) {
 		return (settings == nullptr) || settings->mode == ArpMode::OFF;
 	}
+	/// Calls fn on every note-lock pool index this arp holds (ArpNote::lockSet), so the pool can be compacted
+	virtual void forEachLockSet(void (*fn)(uint16_t& lockSet, void* context), void* context) {
+		fn(active_note.lockSet, context);
+	}
 	ArpNote active_note; // For the currently active note.
 
 	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> glideNoteCodeCurrentlyOnPostArp;
@@ -379,6 +383,7 @@ public:
 	bool handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) override;
 	bool hasPendingNotes(ArpeggiatorSettings* settings) override;
 	bool hasAnyInputNotesActive() override;
+	void forEachLockSet(void (*fn)(uint16_t& lockSet, void* context), void* context) override;
 	// This array tracks the notes ordered by noteCode
 	OrderedResizeableArray notes;
 	// This array tracks the notes as they were played by the user

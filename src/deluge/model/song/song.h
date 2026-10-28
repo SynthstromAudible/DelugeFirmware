@@ -108,6 +108,9 @@ public:
 
 	/// Parameter-lock sets for every Note in this Song's clips (Note::lockSet indexes into this). See note_locks.h.
 	deluge::note_locks::Pool noteLocks;
+	/// Drops the lock sets nothing refers to any more (song_note_locks.cpp). Only safe while the undo history is empty
+	/// and from the main loop - see note_locks::compactionTask. Returns the number of sets freed, or -1 if it couldn't.
+	int32_t compactNoteLocks();
 
 	bool mayDoubleTempo();
 	bool ensureAtLeastOneSessionClip();

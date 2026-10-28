@@ -32,8 +32,8 @@
 /// clones, undo snapshots, clip cloning, note splitting, struct copies - just copies the index and stays valid.
 /// Editing a lock interns a new set and repoints the note - once per edit gesture: knob edits on a held pad stay in a
 /// LiveEdit until the pad is released, and note editor edits until you leave the item. Entries nothing points at any
-/// more are only reclaimed when the Song is deleted; the song file only stores sets that notes reference, so a
-/// save/load compacts the pool.
+/// more are reclaimed when the undo history is cleared (Song::compactNoteLocks, which renumbers every holder), when
+/// the Song is deleted, and by a save/load (the song file only stores sets that notes reference).
 ///
 /// Indices are only meaningful within the Song (or clipboard) pool they came from. Anything that carries notes
 /// between pools (the note clipboard) must re-intern with NoteLockPool::importFrom().
@@ -93,6 +93,14 @@ public:
 	uint16_t withLocks(uint16_t base, const Lock* edits, int32_t count);
 	/// Re-interns set `index` of `other` into this pool.
 	uint16_t importFrom(const Pool& other, uint16_t index);
+
+	/// Compaction. `remap` has indexLimit() entries; on entry, nonzero marks an index something still refers to. Builds
+	/// `fresh` (which must be empty) from just those sets, in index order, and rewrites `remap` to map each old index
+	/// to its new one (0 for unreferenced). Leaves this pool untouched. False (and `fresh` empty) if memory ran out.
+	bool buildCompacted(Pool& fresh, uint16_t* remap) const;
+	/// One more than the highest index in use, i.e. the size a remap table needs.
+	[[nodiscard]] uint32_t indexLimit() const { return numSets_ ? numSets_ : 1; }
+	void swap(Pool& other);
 
 	void clear();
 	[[nodiscard]] int32_t numSets() const { return numSets_ ? numSets_ - 1 : 0; }
@@ -197,6 +205,12 @@ void disarmLiveEdit(int32_t slot);
 void disarmLiveEditsFor(const void* owner);
 /// The armed slot covering this note, or nullptr.
 const LiveEdit* findLiveEdit(const void* clip, int32_t noteRowId, uint32_t pos);
+
+/// Pool compaction (song_note_locks.cpp). Clearing the undo history (ActionLogger::deleteAllLogs) sets the request;
+/// compactionTask, a scheduler task, carries it out for the current Song at a point where nothing else holds pool
+/// indices it can't renumber: no task suspended in yield(), and the undo history still empty.
+extern bool compactionRequested;
+void compactionTask();
 
 /// The locks of the note currently being sent to an instrument. The sequencer sets this (through PendingScope) around
 /// a note-on, and Voice::noteOn copies it, which saves threading a parameter through every instrument / drum /

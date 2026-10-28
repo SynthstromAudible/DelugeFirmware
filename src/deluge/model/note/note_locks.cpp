@@ -269,6 +269,59 @@ uint16_t Pool::importFrom(const Pool& other, uint16_t index) {
 	return intern(locks, v.count);
 }
 
+bool Pool::buildCompacted(Pool& fresh, uint16_t* remap) const {
+	// Size everything up front, so the copy below never reallocates and running out of memory can only happen here
+	uint32_t keptSets = 0;
+	uint32_t keptWords = 0;
+	for (uint32_t i = 1; i < numSets_; i++) {
+		if (remap[i] != 0) {
+			keptSets++;
+			LockSetView v = get(i);
+			keptWords += headerWords(v.count) + v.count;
+		}
+	}
+	remap[0] = 0;
+	if (keptSets == 0) {
+		for (uint32_t i = 1; i < numSets_; i++) {
+			remap[i] = 0;
+		}
+		return true; // `fresh` stays empty
+	}
+	uint32_t hashCap = 64;
+	while ((keptSets + 2) * 2 > hashCap) {
+		hashCap *= 2;
+	}
+	if (!grow(fresh.words_, fresh.capWords_, 0, keptWords, keptWords)
+	    || !grow(fresh.offsets_, fresh.capSets_, 0, keptSets + 1, keptSets + 1) || !fresh.rehash(hashCap)) {
+		fresh.clear();
+		return false;
+	}
+	for (uint32_t i = 1; i < numSets_; i++) {
+		if (remap[i] == 0) {
+			continue;
+		}
+		LockSetView v = get(i);
+		uint16_t newIndex = fresh.internNormalised(v.params, v.values, v.count);
+		if (newIndex == 0) { // Can't happen with the reservations above, but never hand out a half-built pool
+			fresh.clear();
+			return false;
+		}
+		remap[i] = newIndex;
+	}
+	return true;
+}
+
+void Pool::swap(Pool& other) {
+	std::swap(words_, other.words_);
+	std::swap(numWords_, other.numWords_);
+	std::swap(capWords_, other.capWords_);
+	std::swap(offsets_, other.offsets_);
+	std::swap(numSets_, other.numSets_);
+	std::swap(capSets_, other.capSets_);
+	std::swap(hash_, other.hash_);
+	std::swap(hashCap_, other.hashCap_);
+}
+
 bool VoiceLocks::setValue(int32_t param, int32_t value) {
 	for (int32_t i = 0; i < count; i++) {
 		if (params[i] == param) {
