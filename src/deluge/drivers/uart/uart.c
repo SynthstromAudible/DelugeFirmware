@@ -167,6 +167,8 @@ int32_t uartFlush(int32_t item) {
 
 // Warning - this will sometimes (not always) be called in a timer ISR
 void uartFlushIfNotSending(int32_t item) {
+	// Mask IRQs so tx_interrupt cannot race txSending / consecutive-transfer state
+	ENTER_CRITICAL_SECTION();
 
 	if (!uartItems[item].txSending) {
 		// There should be no way the DMA TX-complete interrupt could occur in this bit, cos we could only be here if
@@ -183,11 +185,10 @@ void uartFlushIfNotSending(int32_t item) {
 	// Applies to MIDI only - if sending was already happening, take note that we want to send additional stuff as soon
 	// as that's done. For PIC, this always happens anyway
 	else {
-		// WARNING - it'd be a problem if the DMA TX-finished interrupt occurred right here...
-		// And when not using volatiles, we also could end up here if that interrupt occurred shortly before the if
-		// statement above at the start
 		uartItems[item].shouldDoConsecutiveTransferAfter = 1;
 	}
+
+	EXIT_CRITICAL_SECTION();
 }
 
 int32_t uartGetTxBufferFullnessByItem(int32_t item) {
