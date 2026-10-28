@@ -310,9 +310,6 @@ const char* shapes_short[]{"tri", "sawd", "sawu", "sqre", "sin", "shld"};
 	else if (param < 6 * 21 + 8) {
 		return "dx7 pitch env";
 	}
-	else if (param >= 137 && param < 144) {
-		return "dx7 LFO";
-	}
 	else if (param < 6 * 21 + 18) {
 		return desc_global_long[param - 6 * 21];
 	}
