@@ -1798,7 +1798,7 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 		int32_t posThisScreen = screenIndex * wrapEditLevel + editPos;
 
 		Note* __restrict__ thisNote = notes.getElement(indexThisScreen);
-		if (thisNote && thisNote->pos == posThisScreen) {
+		if (thisNote != nullptr && thisNote->pos == posThisScreen) {
 			// Do the action
 
 			switch (changeType) {
