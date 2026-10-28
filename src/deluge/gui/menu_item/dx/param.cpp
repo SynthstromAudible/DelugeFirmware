@@ -16,6 +16,7 @@
  */
 
 #include "param.h"
+#include "algorithm_bitmaps.h"
 #include "dsp/dx/dx7note.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
@@ -280,7 +281,7 @@ const char* desc_op_short[] = {"rat1",   "rat2",      "rat3",     "rat4",     "l
                                "ampmod", "velo sens", "levl",     "mode",     "coar",     "fine",     "detune"};
 
 const char* desc_global_long[]{"DX7 pitch R1", "DX7 pitch R2",     "DX7 pitch R3",  "DX7 pitch R4",  "DX7 pitch l1",
-                               "DX7 pitch l2", "DX7 pitch l3",     "DX7 pitch l4",  "DX7 algorithm", "DX7 feedback",
+                               "DX7 pitch l2", "DX7 pitch l3",     "DX7 pitch l4",  "algorithm",     "DX7 feedback",
                                "DX7 osc Sync", "DX7 LFO rate",     "DX7 LFO delay", "DX7 LFO pitch", "DX7 LFO amp",
                                "DX7 LFO sync", "DX7 LFO waveform", "DX7 pitch sens"};
 
@@ -326,9 +327,6 @@ const char* shapes_short[]{"tri", "sawd", "sawu", "sqre", "sin", "shld"};
 	}
 	else if (param < 6 * 21 + 8) {
 		return "dx7 pitch env";
-	}
-	else if (param >= 137 && param < 144) {
-		return "dx7 LFO";
 	}
 	else if (param < 6 * 21 + 18) {
 		return desc_global_long[param - 6 * 21];
@@ -505,31 +503,21 @@ static void renderLFO(uint8_t* params, int param) {
 }
 
 static void renderAlgorithm(uint8_t* params) {
+	int algorithm = std::min<int>(params[134], dx::kNumAlgorithms - 1);
 
-	char buffer[12];
-	intToString(params[134] + 1, buffer, 2);
-	OLED::main.drawString(buffer, 116, 7, kTextSpacingX, kTextSizeYUpdated);
+	// Inverted "#NN" badge at the right of the title bar
+	char buffer[12] = "#";
+	intToString(algorithm + 1, buffer + 1, 2);
+	constexpr int32_t kBadgePadding = 2;
+	int32_t textWidth = OLED::main.getStringWidthInPixels(buffer, kTextTitleSizeY);
+	int32_t badgeX = OLED_MAIN_WIDTH_PIXELS - textWidth - 2 * kBadgePadding;
+	OLED::main.drawString(buffer, badgeX + kBadgePadding, OLED_MAIN_TOPMOST_PIXEL + 1, kTextTitleSpacingX,
+	                      kTextTitleSizeY);
+	OLED::main.invertArea(badgeX, OLED_MAIN_WIDTH_PIXELS - badgeX, OLED_MAIN_TOPMOST_PIXEL, kScreenTitleSeparatorY - 2);
 
-	FmAlgorithm a = FmCore::algorithms[params[134]];
-	for (int i = 0; i < 6; i++) {
-		int f = a.ops[5 - i]; // compensate for inverted op order
-		char buffer[12];
-		int inbus = (f >> 4) & 3;
-		int outbus = f & 3;
-		const char ib[] = {'.', 'x', 'y', 'z'};
-		const char ob[] = {'c', 'x', 'y', 'q'};
-		buffer[0] = '1' + i;
-		buffer[1] = ':';
-		buffer[2] = ib[inbus];
-		buffer[3] = (f & OUT_BUS_ADD) ? '+' : '>';
-		buffer[4] = ob[outbus];
-		buffer[5] = (f & (FB_IN | FB_OUT)) ? 'f' : ' ';
-		buffer[6] = ' ';
-		buffer[7] = 0;
-
-		int r = i / 3, c = i % 3;
-		show(buffer, r, c * 7);
-	}
+	const dx::AlgorithmBitmap& bitmap = dx::kAlgorithmBitmaps[algorithm];
+	OLED::main.drawGraphicMultiLine(&dx::kAlgorithmBitmapData[bitmap.offset], bitmap.x, bitmap.y, bitmap.width,
+	                                bitmap.height, bitmap.numBytesTall);
 }
 
 void DxParam::drawPixelsForOled() {
