@@ -43,6 +43,7 @@
 #include "model/scale/scale_change.h"
 #include "model/scale/utils.h"
 #include "model/song/song.h"
+#include "model/song/track_link.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
@@ -4372,8 +4373,12 @@ void InstrumentClip::abortRecording() {
 // ----- PlayPositionCounter implementation -------
 
 void InstrumentClip::getActiveModControllable(ModelStackWithTimelineCounter* modelStack) {
-	if (output->type == OutputType::KIT && !affectEntire && getRootUI() != &sessionView
-	    && getRootUI() != &arrangerView) {
+	// Song view has no way to pick a drum, so track edit mode carries its own whole-kit / drum-row choice there.
+	bool useDrumRow = deluge::model::track_link::isSelected(output)
+	                      ? deluge::model::track_link::targetsDrumRow(output)
+	                      : (!affectEntire && getRootUI() != &sessionView && getRootUI() != &arrangerView);
+
+	if (output->type == OutputType::KIT && useDrumRow) {
 		Kit* kit = (Kit*)output;
 
 		if (!kit->selectedDrum || kit->selectedDrum->type != DrumType::SOUND) {
