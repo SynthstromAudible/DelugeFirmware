@@ -6,11 +6,14 @@ Run directly with:
 """
 
 import dataclasses
+import importlib.util
 import io
 import os
 import sys
 import tempfile
+import types
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
@@ -267,6 +270,15 @@ group = "render"
         self.assertIn("nope.py", str(cm.exception))
 
 
+def _load_task_test():
+    spec = importlib.util.spec_from_file_location(
+        "task_test", Path(__file__).parent / "task-test.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class BuildsTest(unittest.TestCase):
     def _root_with(self, text):
         root = Path(tempfile.mkdtemp())
@@ -290,6 +302,36 @@ class BuildsTest(unittest.TestCase):
         with self.assertRaises(ValueError) as cm:
             hr.load_registry(self._root_with(text))
         self.assertIn("a-pony", str(cm.exception))
+
+    def test_golden_vt_render_outputs_the_release_binary(self):
+        root = Path("/repo")
+        self.assertEqual(
+            tb.products(root)["golden-vt-render"].outputs(root),
+            [root / "build/cargo-harness/release/golden_vt_render"],
+        )
+
+    def test_prebuilt_outputs_rejects_unprebuildable(self):
+        root = Path("/repo")
+        with self.assertRaisesRegex(ValueError, "has no prebuilt outputs"):
+            tb.prebuilt_outputs(["host-app"], tb.products(root), root)
+
+    def test_prebuilt_missing_output_fails(self):
+        task_test = _load_task_test()
+        root = Path(tempfile.mkdtemp())
+        h = dataclasses.replace(entry("r"), group="render", builds=["golden-vt-render"])
+        args = types.SimpleNamespace(
+            junit=None,
+            skip_checks=True,
+            build_only=False,
+            jobs=1,
+            strict=False,
+            prebuilt=True,
+        )
+        with mock.patch("subprocess.run") as run, redirect_stdout(io.StringIO()) as out:
+            status = task_test.cmd_run(root, [h], args, [], named=False)
+        run.assert_not_called()
+        self.assertEqual(status, 1)
+        self.assertIn("is not built", out.getvalue())
 
     def test_order_puts_dependencies_first_and_each_once(self):
         known = tb.products(Path("/repo"))

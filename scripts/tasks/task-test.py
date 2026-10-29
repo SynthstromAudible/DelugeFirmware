@@ -92,11 +92,23 @@ def argparser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run tests even when a prerequisite probe fails",
     )
-    parser.add_argument(
+    # --prebuilt and --build-only contradict each other.
+    built = parser.add_mutually_exclusive_group()
+    built.add_argument(
         "-n",
         "--build-only",
         action="store_true",
         help="Build the selection without running it",
+    )
+    built.add_argument(
+        "--prebuilt",
+        action="store_true",
+        help="Run against build products already built (CI's host-build job); a missing one fails its tests",
+    )
+    parser.add_argument(
+        "--list-outputs",
+        action="store_true",
+        help="Print the files the selection's prebuilt groups need (--prebuilt), relative to the repository root",
     )
     parser.add_argument(
         "--junit", metavar="DIR", help="Collect each test's JUnit XML into DIR"
@@ -170,15 +182,32 @@ def _missing(root: Path, h: hr.Harness, products: dict[str, tb.Product]) -> list
 class Builds:
     """The build products a selection needs, each built once, dependencies first."""
 
-    def __init__(self, root: Path, selection: list[hr.Harness], log=None):
+    def __init__(
+        self, root: Path, selection: list[hr.Harness], log=None, prebuilt: bool = False
+    ):
         self.root = root
         self.known = tb.products(root)
         self.log = log
         # Product name -> why it is unusable. Absent: built.
         self.broken: dict[str, str] = {}
         wanted = [name for h in selection for name in h.builds]
+        if prebuilt:
+            # Only what the tests name: a product's dependencies are inside its outputs.
+            for name in dict.fromkeys(wanted):
+                self._check_prebuilt(name)
+            return
         for name in tb.order(wanted, self.known):
             self._build(name)
+
+    def _check_prebuilt(self, name: str) -> None:
+        try:
+            outputs = tb.prebuilt_outputs([name], self.known, self.root)
+        except ValueError as exc:
+            self.broken[name] = f"cannot run prebuilt: {exc}"
+            return
+        absent = [str(p.relative_to(self.root)) for p in outputs if not p.is_file()]
+        if absent:
+            self.broken[name] = f"is not built (--prebuilt): {', '.join(absent)}"
 
     def _build(self, name: str) -> None:
         product = self.known[name]
@@ -327,7 +356,7 @@ def cmd_run(
     if junit_dir is not None:
         junit_dir.mkdir(parents=True, exist_ok=True)
 
-    builds = Builds(root, selection)
+    builds = Builds(root, selection, prebuilt=args.prebuilt)
     outcomes: dict[str, Outcome] = {}
     runnable: list[hr.Harness] = []
     for h in selection:
@@ -540,6 +569,16 @@ def main(argv: list[str] | None = None) -> int:
         print(f"test: {exc}", file=sys.stderr)
         return 1
 
+    if args.list_outputs:
+        names = [name for h in selection if hr.GROUPS[h.group] for name in h.builds]
+        try:
+            outputs = tb.prebuilt_outputs(names, tb.products(root), root)
+        except ValueError as exc:
+            print(f"test: {exc}", file=sys.stderr)
+            return 1
+        for path in outputs:
+            print(path.relative_to(root))
+        return 0
     if args.ci_matrix:
         print(json.dumps(hr.ci_matrix(selection)))
         return 0
