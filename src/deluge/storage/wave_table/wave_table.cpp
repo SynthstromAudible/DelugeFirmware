@@ -38,12 +38,13 @@
 
 extern int32_t oscSyncRenderingBuffer[];
 
+using deluge::dsp::fixed::kWavetableDuplicateSamplesAtCycleEnd;
+
 namespace {
 // RAII cleanup for WaveTable::setup's working allocations. At scope exit it frees whichever of the two temp
 // FFT buffers are still non-null, and — unless the build `succeeded` — calls deleteAllBandsAndData() on the
-// partially-built bands (replacing setup's old gotError/gotError2/gotError4/gotError5 cleanup ladder). On the
-// success path setup frees the temp buffers early (its deliberate internal-RAM release before the band-trim
-// tail), nulls the pointers and sets `succeeded`, so this guard is then a no-op.
+// partially-built bands. On the success path setup frees the temp buffers early (its deliberate internal-RAM release
+// before the band-trim tail), nulls the pointers and sets `succeeded`, so this guard is then a no-op.
 struct SetupAllocGuard {
 	WaveTable& waveTable;
 	int32_t*& currentCycleInt32;
@@ -75,7 +76,7 @@ struct SetupAllocGuard {
 } // namespace
 
 WaveTableBand::~WaveTableBand() {
-	if (data) { // It might be NULL if that BandData was just "stolen".
+	if (data) { // Null once moved from.
 		data->~WaveTableBandData();
 		delugeDealloc(data);
 	}
@@ -104,21 +105,12 @@ deluge::dsp::fixed::WaveTableData WaveTable::view() {
 	};
 }
 
-void WaveTable::bandDataBeingStolen(WaveTableBandData* bandData) {
-	auto it = std::ranges::find(bands, bandData, &WaveTableBand::data);
-	if (it != bands.end()) {
-		it->data = nullptr;
-	}
-}
-
 #define numBitsInInput 16
 #define numBitsInTableSize 8
 #define lshiftAmount (16 + numBitsInTableSize - numBitsInInput)
 
 // This "should" handle inputs up to size 65536. Actually probably a bit bigger. Maybe even 131071?
 void dft_r2c(ne10_fft_cpx_int32_t* __restrict__ out, int32_t const* __restrict__ in, uint32_t N) {
-
-	// uint16_t startTime = *TCNT[TIMER_SYSTEM_SLOW];
 
 	// For each input value...
 	for (uint32_t i = 0; i <= (N >> 1); i++) {
@@ -164,21 +156,9 @@ void dft_r2c(ne10_fft_cpx_int32_t* __restrict__ out, int32_t const* __restrict__
 		out[i].r = sReal << 1; // Here we make up for the order of magnitude that was lost above.
 		out[i].i = sIm << 1;
 	}
-
-	/*
-	uint16_t endTime = *TCNT[TIMER_SYSTEM_SLOW];
-	uint16_t duration = endTime - startTime;
-	D_PRINTLN("dft duration:  %d", duration);
-	*/
 }
 
 #define NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS 1
-#define MAX_POSSIBLE_NUM_BANDS ((FFT_CONFIG_MAX_MAGNITUDE - 1) >> (NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS - 1))
-
-#define WAVETABLE_ALLOW_INTERNAL_MEMORY 0
-
-#define WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE 7 // That's in samples - it'll be twice as many bytes.
-#define SHOULD_DISCARD_WAVETABLE_DATA_WITH_INSUFFICIENT_HF_CONTENT 0
 
 Error WaveTable::setupFromSample(Sample& sample) {
 	// In-memory conversion: setup() takes cycle size / channels / byte depth / data offset from the Sample,
@@ -259,7 +239,6 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 		}
 	}
 
-tryGettingFFTConfig:
 	AudioEngine::logAction("Getting fft config");
 	ne10_fft_r2c_cfg_int32_t fftCFGForInitialBand = FFTConfigManager::getConfig(initialBandCycleMagnitude);
 	AudioEngine::logAction("Got fft config");
@@ -273,12 +252,6 @@ tryGettingFFTConfig:
 		// render it out to that bigger size. Cos if we allow a smaller initial band, we don't have enough space in it
 		// for the dummy writing we do during load, which could be avoided, but yeah this is so rare.
 		return Error::INSUFFICIENT_RAM;
-
-		/*
-		// So, see if there's a smaller FFT config we can still get.
-		if (initialBandCycleMagnitude <= 3) return Error::INSUFFICIENT_RAM; // But, can't go smaller than size 8 (2^3) -
-		see comment on min size below. initialBandCycleMagnitude--; goto tryGettingFFTConfig;
-		*/
 	}
 
 	int32_t initialBandCycleSizeNoDuplicates =
@@ -287,8 +260,8 @@ tryGettingFFTConfig:
 
 	Error error = Error::NONE; // Only the `bands.resize` catch below sets it; a successful resize must leave it NONE.
 
-	// numBands is set such that the "smallest" band will have 8 samples per cycle. Not 4 - because NE10 can't do FFTs
-	// that small unless we enable its additional C code, which would take up program size for little advantage.
+	// numBands is set such that the "smallest" band will have 8 samples per cycle: the smallest inverse transform the
+	// bands use is 8 points.
 	{
 		int32_t numBands =
 		    fftCFGForInitialBand ? ((initialBandCycleMagnitude - 2) >> (NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS - 1)) : 1;
@@ -304,16 +277,13 @@ tryGettingFFTConfig:
 		return error; // bands.resize failed: nothing else is allocated yet, so nothing to clean up.
 	}
 
-	// From here on, working allocations are released by allocGuard on any early return (it replaces the old
-	// gotError2/gotError4/gotError5 ladder). The temp buffers are declared null up front so the guard can free
-	// whichever exist; on success setup frees them early and sets allocGuard.succeeded (see below).
-	// (No __restrict__: the guard binds references to these, and the qualifier is only an optimisation hint on
-	// these one-shot load-time buffers — it never affects the decoded output.)
+	// From here on, working allocations are released by allocGuard on any early return. The temp buffers are declared
+	// null up front so the guard can free whichever exist; on success setup frees them early and sets
+	// allocGuard.succeeded (see below). (No __restrict__: the guard binds references to these, and the qualifier is
+	// only an optimisation hint on these one-shot load-time buffers — it never affects the decoded output.)
 	int32_t* currentCycleInt32 = nullptr;
 	ne10_fft_cpx_int32_t* frequencyDomainData = nullptr;
 	SetupAllocGuard allocGuard{*this, currentCycleInt32, frequencyDomainData};
-
-	numCyclesMagnitude = getMagnitude(numCycles);
 
 	AudioEngine::logAction("just started wavetable");
 	AudioEngine::routineWithClusterLoading(); // TODO: the routine calls in this function might be more than needed - I
@@ -324,11 +294,10 @@ tryGettingFFTConfig:
 		int32_t cycleSizeNoDuplicates = initialBandCycleSizeNoDuplicates >> (b * NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS);
 
 		int32_t bandSizeSamplesWithDuplicates =
-		    numCycles * (cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE);
+		    numCycles * (cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd);
 		int32_t bandSizeBytesWithDuplicates = bandSizeSamplesWithDuplicates << 1; // All bands contain just 16-bit data.
 		// Ironically we'll even do that if the source file was just 8-bit, but that's really uncommon.
-		// Plain SDRAM, not allocStealable: bands are no longer independent stealables — they're
-		// owned by the WaveTable and freed by ~WaveTable when the (adopt-mode) object is evicted.
+		// Plain SDRAM: the WaveTable owns its bands, and ~WaveTable frees them when the manager evicts the table.
 		void* bandDataMemory =
 		    deluge::memory::alloc_external(bandSizeBytesWithDuplicates + sizeof(WaveTableBandData), 16);
 		if (!bandDataMemory) {
@@ -426,8 +395,6 @@ tryGettingFFTConfig:
 	}
 
 	int32_t clusterIndexCurrentlyLoaded = -1; // Initially, none is loaded yet.
-
-	uint32_t startedBandsYet = 0;
 
 	bool swappingEndianness =
 	    (rawDataFormat == RawDataFormat::ENDIANNESS_WRONG_32 || rawDataFormat == RawDataFormat::ENDIANNESS_WRONG_24
@@ -652,9 +619,10 @@ tryGettingFFTConfig:
 			// the pointer along so we don't overwrite anything we shouldn't. Adctually, because non-power-of-two raw
 			// files are only allowed to be single-cycle, this isn't strictly necessary, but let's do it for
 			// completeness and in case I ever change that rule.
-			initialBandWritePos = &initialBand->dataAccessAddress[(initialBandCycleSizeNoDuplicates
-			                                                       + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE)
-			                                                      * (cycleIndex + 1)];
+			initialBandWritePos =
+			    &initialBand
+			         ->dataAccessAddress[(initialBandCycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd)
+			                             * (cycleIndex + 1)];
 		}
 
 		// Or if it *was* a power-of-two size, we can just do an easier FFT. (And also further down, we won't have to
@@ -663,7 +631,7 @@ tryGettingFFTConfig:
 
 			// Write the duplicate values for this initial band - do this now, since we already have the final, useable
 			// time-domain data for it.
-			for (int32_t i = 0; i < WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE; i++) {
+			for (int32_t i = 0; i < kWavetableDuplicateSamplesAtCycleEnd; i++) {
 				*(initialBandWritePos++) = *(nativeBandCycleStartPos++);
 			}
 
@@ -679,48 +647,11 @@ tryGettingFFTConfig:
 
 		AudioEngine::logAction("got freq domain data");
 		AudioEngine::routineWithClusterLoading();
-		AudioEngine::logAction("scanning freq data");
-
-		int32_t biggestValue = 0;
-		int32_t biggestValueIndex;
-		int32_t highestSignificantHarmonicIndex = 0;
-
-		// Scan the frequency domain of this native cycle, as loaded from the raw file (so not necessary power-of-two
-		// size), looking at harmonics
-		for (int32_t i = 1; i <= (rawFileCycleSize >> 1); i++) {
-			int32_t thisValue = (fastPythag(frequencyDomainData[i].r, frequencyDomainData[i].i) >> 6)
-			                    * i; // Slope the high frequencies up, 6dB per octave, for fair comparison.
-			if (thisValue > biggestValue) {
-				biggestValue = thisValue;
-				biggestValueIndex = i;
-			}
-
-			// If this harmonic's magnitude is still not too much quieter than the biggest one, we'd better take note
-			// that it exists.
-			if (thisValue >= (biggestValue >> 5)) {
-				highestSignificantHarmonicIndex = i;
-			}
-		}
+		AudioEngine::logAction("building bands");
 
 		WaveTableBand* band = initialBand;
 		int32_t b = 0;
-
-		// If there's no harmonic content high-enough frequency to warrant this band existing...
-		if (SHOULD_DISCARD_WAVETABLE_DATA_WITH_INSUFFICIENT_HF_CONTENT
-		    && highestSignificantHarmonicIndex <= (rawFileCycleSize >> (1 + NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS))) {
-
-			// If haven't "started" this band yet, update record to show it starts from this cycle - which it might
-			// because the next cycle might be needed, and we have a rule that we start one cycle early.
-			if (!(startedBandsYet & 1)) {
-				band->fromCycleNumber = cycleIndex;
-			}
-		}
-
-		// Or if there *is* enough high-freq content, take note that it's all still happening.
-		else {
-			startedBandsYet |= 1;
-			band->toCycleNumber = std::min(cycleIndex + 2, numCycles);
-		}
+		band->toCycleNumber = std::min(cycleIndex + 2, numCycles);
 
 		// If raw file wasn't power-of-two cycle size, then even this initial band needs the same treatment as the
 		// higher ones - we have to render its time-domain data by doing an FFT from the freq-domain.
@@ -737,41 +668,7 @@ tryGettingFFTConfig:
 			{
 				band = &bands[b];
 
-				// If we've already chopped off the previous highest significant harmonic, search for a new one.
-				if (highestSignificantHarmonicIndex > (band->cycleSizeNoDuplicates >> 1)) {
-					highestSignificantHarmonicIndex = 0;
-
-					for (int32_t i = (band->cycleSizeNoDuplicates >> 1); i >= 1; i--) {
-						int32_t pythagValue = fastPythag(frequencyDomainData[i].r, frequencyDomainData[i].i);
-						int32_t thisValue = (pythagValue >> 6)
-						                    * i; // Slope the high frequencies up, 6dB per octave, for fair comparison.
-
-						// If this harmonic's magnitude is still not too much quieter than the biggest one, we'd better
-						// take note that it exists.
-						if (thisValue >= (biggestValue >> 5)) {
-							highestSignificantHarmonicIndex = i;
-							break;
-						}
-					}
-				}
-
-				// If there's no harmonic content high-enough frequency to warrant this band existing...
-				if (SHOULD_DISCARD_WAVETABLE_DATA_WITH_INSUFFICIENT_HF_CONTENT
-				    && highestSignificantHarmonicIndex
-				           <= (band->cycleSizeNoDuplicates >> (1 + NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS))) {
-
-					// If haven't "started" this band yet, update record to show it starts from this cycle - which it
-					// might because the next cycle might be needed, and we have a rule that we start one cycle early.
-					if (!(startedBandsYet & (1 << b))) {
-						band->fromCycleNumber = cycleIndex;
-					}
-				}
-
-				// Or if there *is* enough high-freq content...
-				else {
-					startedBandsYet |= (1 << b);
-					band->toCycleNumber = std::min(cycleIndex + 2, numCycles);
-				}
+				band->toCycleNumber = std::min(cycleIndex + 2, numCycles);
 
 				// The highest frequency we can represent (the Nyquist freq) is about to lose all trace of its imaginary
 				// component (fun fact - that's just what happens)
@@ -791,11 +688,6 @@ transformBandToTimeDomain:
 
 			// If couldn't get FFT config, gotta delete this band
 			if (!fftCFGThisBand) {
-#if ALPHA_OR_BETA_VERSION
-				if (!b) {
-					FREEZE_WITH_ERROR("E390");
-				}
-#endif
 				bands.erase(bands.begin() + b);
 				b--;
 				continue;
@@ -809,7 +701,7 @@ transformBandToTimeDomain:
 			ne10_fft_c2r_1d_int32_neon(currentCycleInt32, frequencyDomainData, fftCFGThisBand, false);
 
 			int16_t* __restrict__ destination =
-			    &band->dataAccessAddress[(band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE)
+			    &band->dataAccessAddress[(band->cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd)
 			                             * cycleIndex];
 
 			// Copy 32-bit time domain data to final 16-bit destination
@@ -821,7 +713,7 @@ transformBandToTimeDomain:
 			}
 
 			// And copy the duplicate values again
-			for (int32_t i = 0; i < WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE; i++) {
+			for (int32_t i = 0; i < kWavetableDuplicateSamplesAtCycleEnd; i++) {
 				destination[i + band->cycleSizeNoDuplicates] = destination[i];
 			}
 		}
@@ -840,7 +732,6 @@ transformBandToTimeDomain:
 		int32_t numCycleTransitions = numCycles - 1;
 
 		numCycleTransitionsNextPowerOf2Magnitude = getMagnitudeOld(numCycleTransitions);
-		numCycleTransitionsNextPowerOf2 = 1 << numCycleTransitionsNextPowerOf2Magnitude;
 
 		waveIndexMultiplier = numCycleTransitions << (31 - numCycleTransitionsNextPowerOf2Magnitude);
 	}
@@ -855,14 +746,14 @@ transformBandToTimeDomain:
 
 	// Printout stats
 	D_PRINTLN("initial band size if all populated: %d",
-	          numCycles * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2);
+	          numCycles * (initialBand->cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd) * 2);
 	D_PRINTLN("initial band size after trimming: %d",
 	          (initialBand->toCycleNumber - initialBand->fromCycleNumber)
-	              * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2);
+	              * (initialBand->cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd) * 2);
 	int32_t total = 0;
 	for (WaveTableBand const& band : bands | std::views::drop(1)) {
 		total += (band.toCycleNumber - band.fromCycleNumber)
-		         * (band.cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2;
+		         * (band.cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd) * 2;
 	}
 	D_PRINTLN("other bands total size after trimming:  %d", total);
 
@@ -877,52 +768,21 @@ transformBandToTimeDomain:
 			D_PRINTLN("deleted whole band -  %d", b);
 		}
 
-		// Otherwise, can we shorten the memory?
+		// Otherwise, shorten its memory to the cycles it holds.
 		else {
-
-			// Right-hand side
 			if (band->toCycleNumber < numCycles) {
 				if (!b) {
 					D_PRINTLN("(band 0) ");
 				}
 				D_PRINTLN("deleting num cycles from right-hand side:  %d", numCycles - band->toCycleNumber);
 				int32_t newSize = band->toCycleNumber
-				                      * (band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE)
+				                      * (band->cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd)
 				                      * sizeof(int16_t)
 				                  + sizeof(WaveTableBandData);
 				deluge::memory::shrink(band->data, newSize);
-			}
-
-			// Left-hand side
-			if (band->fromCycleNumber) {
-				uint32_t idealAmountToShorten =
-				    band->fromCycleNumber
-				    * (band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * sizeof(int16_t);
-				uint32_t amountShortened = deluge::memory::shrink_left(
-				    band->data, idealAmountToShorten,
-				    sizeof(WaveTableBandData)); // Tell it to move the WaveTableBandData "header" forward
-				band->data = (WaveTableBandData*)((char*)band->data + amountShortened);
 			}
 		}
 	}
 
 	return Error::NONE;
 }
-
-void WaveTable::numReasonsIncreasedFromZero() {
-	// Bands are no longer independent stealables — the WaveTable *object* is the manager-evictable
-	// unit (adopt), and its dtor frees the bands. So there is no per-band queue to manage here.
-}
-
-void WaveTable::numReasonsDecreasedToZero(char const* errorCode) {
-	// Bands are no longer independent stealables. When this WaveTable's reasons hit 0 the *object*
-	// becomes unleased ⇒ evictable by the manager (adopt), which on eviction destructs it and frees
-	// the bands. So there is nothing to enqueue here.
-}
-
-/*
-    for (int32_t b = static_cast<int32_t>(bands.size()) - 1; b >= 0; b--) {
-        WaveTableBand* band = &bands[b];
-
-    }
- */

@@ -18,7 +18,6 @@
 #pragma once
 
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
-#include "dsp-next/fixed/wavetable/wavetable_cycle_chunker.h" // kWavetableDuplicateSamplesAtCycleEnd
 
 #include <cstddef>
 #include <cstdint>

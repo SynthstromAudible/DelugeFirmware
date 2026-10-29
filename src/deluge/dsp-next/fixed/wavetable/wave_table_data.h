@@ -21,6 +21,10 @@
 
 namespace deluge::dsp::fixed {
 
+/// Duplicate samples appended to the end of each stored cycle, so the interpolation window's
+/// rightmost loads can read past the wrap without a second masked load.
+inline constexpr int32_t kWavetableDuplicateSamplesAtCycleEnd = 7;
+
 /// @brief One band of a loaded wavetable: the anti-aliased samples for a pitch range, plus the
 /// cycle geometry the renderer needs.
 ///

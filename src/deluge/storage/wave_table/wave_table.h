@@ -30,7 +30,7 @@ class FileByteSource;
 
 // The render fields (maxPhaseIncrement, cycle geometry, dataAccessAddress) live in the dsp-next
 // base @ref deluge::dsp::fixed::WaveTableBand — the prefix the renderer sees via WaveTableData;
-// this class adds only the load/steal lifecycle. The base is at offset 0, so the bands array's
+// this class adds ownership of the band's samples. The base is at offset 0, so the bands array's
 // 32-bit key (maxPhaseIncrement) and the view's strided access both read it correctly.
 class WaveTableBand : public deluge::dsp::fixed::WaveTableBand {
 public:
@@ -52,7 +52,7 @@ public:
 		return *this;
 	}
 
-	WaveTableBandData* data = nullptr; // Might be different than dataAccessAddress if memory has been shortened
+	WaveTableBandData* data = nullptr; // The allocation dataAccessAddress points into, just past this header.
 };
 
 class WaveTable final : public AudioFile {
@@ -79,23 +79,15 @@ public:
 	Error setupFromFile(FileByteSource& source, int32_t cycleSize, uint32_t audioDataStartPosBytes,
 	                    uint32_t audioDataLengthBytes, int32_t byteDepth, RawDataFormat rawDataFormat);
 	void deleteAllBandsAndData();
-	void bandDataBeingStolen(WaveTableBandData* bandData);
 
 	/// A read-only, storage-independent view of this wavetable for the dsp-next renderer (the bands
 	/// addressed by base + stride, so storage's container stays its own concern).
 	[[nodiscard]] deluge::dsp::fixed::WaveTableData view();
 
 	int32_t numCycles{};
-	int32_t numCyclesMagnitude{};
-
-	int32_t numCycleTransitionsNextPowerOf2{};
 	int32_t numCycleTransitionsNextPowerOf2Magnitude{};
 	int32_t waveIndexMultiplier{};
 	deluge::fast_vector<WaveTableBand> bands{}; // Sorted ascending by maxPhaseIncrement
-
-protected:
-	void numReasonsIncreasedFromZero() override;
-	void numReasonsDecreasedToZero(char const* errorCode) override;
 
 private:
 	/// @brief Shared implementation behind setupFromSample() and setupFromFile().
