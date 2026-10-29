@@ -429,9 +429,11 @@ template <Direction D>
 
 /// @brief A later stage of radix 4, four butterflies per pass, rotating inputs 1–3 by the twiddle rows at @p tw
 ///        (forward) or by their conjugates (inverse) first. @p out may be @p in: each pass reads before it writes.
+///        Out of line: the stage loop calls it once per group, and inlined into the transform its loop runs short of
+///        registers and spills.
 template <Direction D>
-[[gnu::always_inline]] inline void radix4x4_twiddled(Complex* out, const Complex* in, const Complex* tw,
-                                                     int32_t src_stride, int32_t dst_stride, int32_t mstride) {
+[[gnu::noinline]] inline void radix4x4_twiddled(Complex* out, const Complex* in, const Complex* tw, int32_t src_stride,
+                                                int32_t dst_stride, int32_t mstride) {
 	const auto* src = words(in);
 	int32_t* dst = words(out);
 	const auto* twp = words(tw);
