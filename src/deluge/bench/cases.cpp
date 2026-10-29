@@ -727,6 +727,20 @@ std::span<const Case> reverb_list(CaseSet& s) {
 	return reverb;
 }
 
+/// @brief The DX7 list.
+std::span<const Case> dx7_list(CaseSet& s) {
+	static const std::array dx7{
+	    make_case("calibration_loop", s.calibration_loop),
+	    make_case("dx7_modern_alg1", s.dx7_modern_alg1),
+	    make_case("dx7_modern_alg32", s.dx7_modern_alg32),
+	    make_case("dx7_mki_alg1_fb", s.dx7_mki_alg1_fb),
+	    make_case("dx7_mki_alg4_fb3", s.dx7_mki_alg4_fb3),
+	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
+	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),
+	};
+	return dx7;
+}
+
 /// @brief The effect chain list.
 std::span<const Case> fx_chains_list(CaseSet& s) {
 	static const std::array fx_chains{
@@ -754,6 +768,9 @@ std::span<const Case> list_cases(CaseSet& s) {
 	}
 	else if constexpr (L == CaseList::REVERB) {
 		return reverb_list(s);
+	}
+	else if constexpr (L == CaseList::DX7) {
+		return dx7_list(s);
 	}
 	else if constexpr (L == CaseList::GRANULAR) {
 		return granular_list(s);
@@ -809,6 +826,8 @@ std::span<const Case> cases(CaseList list) {
 		return list_cases<CaseList::STUTTER>(s);
 	case CaseList::REVERB:
 		return list_cases<CaseList::REVERB>(s);
+	case CaseList::DX7:
+		return list_cases<CaseList::DX7>(s);
 	case CaseList::FX_CHAINS:
 		return list_cases<CaseList::FX_CHAINS>(s);
 	case CaseList::KERNELS:

@@ -414,6 +414,17 @@ const std::vector<std::string_view> kReverbCaseNames{
     "delay_feedback_chain_digital",
 };
 
+/// The DX7 list's names, in order.
+const std::vector<std::string_view> kDx7CaseNames{
+    "calibration_loop",
+    "dx7_modern_alg1",
+    "dx7_modern_alg32",
+    "dx7_mki_alg1_fb",
+    "dx7_mki_alg4_fb3",
+    "delay_feedback_chain_analog",
+    "delay_feedback_chain_digital",
+};
+
 /// The effect chain list's names, in order.
 const std::vector<std::string_view> kFxChainCaseNames{
     "calibration_loop",
@@ -996,6 +1007,7 @@ describe bench_runner("The DSP benchmark runner", ${
 			                                     std::pair{CaseList::GRANULAR, kGranularCaseNames},
 		                                     std::pair{CaseList::STUTTER, kStutterCaseNames},
 		                                     std::pair{CaseList::REVERB, kReverbCaseNames},
+		                                     std::pair{CaseList::DX7, kDx7CaseNames},
 		                                     std::pair{CaseList::FX_CHAINS, kFxChainCaseNames}}) {
 				std::vector<std::string_view> names;
 				for (const Case& c : cases(list)) {
@@ -1040,6 +1052,9 @@ describe bench_runner("The DSP benchmark runner", ${
 			for (const Case& c : cases(CaseList::REVERB)) {
 				expect(c.lanes).to_equal(c.name == "calibration_loop" ? std::size_t{1} : std::size_t{2});
 			}
+			for (const Case& c : cases(CaseList::DX7)) {
+				expect(c.lanes).to_equal(std::size_t{1} + (c.name.starts_with("delay_feedback_chain") ? 1 : 0));
+			}
 			for (const Case& c : cases(CaseList::FX_CHAINS)) {
 				expect(c.lanes).to_equal(c.name == "calibration_loop" ? std::size_t{1} : std::size_t{2});
 			}
@@ -1059,6 +1074,7 @@ describe bench_runner("The DSP benchmark runner", ${
 			                                  std::pair{CaseList::GRANULAR, kGranularCaseNames},
 		                                     std::pair{CaseList::STUTTER, kStutterCaseNames},
 		                                     std::pair{CaseList::REVERB, kReverbCaseNames},
+		                                     std::pair{CaseList::DX7, kDx7CaseNames},
 		                                     std::pair{CaseList::FX_CHAINS, kFxChainCaseNames}}) {
 				lines.clear();
 				counters.reset();
