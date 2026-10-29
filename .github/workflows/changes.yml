@@ -40,7 +40,7 @@ jobs:
           fi
           files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files" --jq '.[].filename')
           echo "$files"
-          website='^(website/|\.github/workflows/(pr-build-website|deploy-website|format-website)\.yml$)'
+          website='^(website/|\.github/workflows/(deploy-website|format-website)\.yml$)'
           if grep -qvE "$website" <<< "$files"; then
             echo "firmware=true" >> "$GITHUB_OUTPUT"
           else

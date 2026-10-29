@@ -283,7 +283,10 @@ def probe(requirement: str, root: Path) -> bool:
 
 
 def ci_matrix(selection: list[Harness]) -> dict:
-    """The CI matrix for `selection`: one entry per group that has a selected test, in GROUPS order."""
+    """The CI matrix for `selection`: one entry per group that has a selected test, in GROUPS order.
+
+    `test` lists every selected test as well, for the workflows that run one job per test (main's nightly reads it).
+    """
     return {
         "include": [
             {
@@ -293,7 +296,8 @@ def ci_matrix(selection: list[Harness]) -> dict:
             }
             for group, prebuilt in GROUPS.items()
             if any(h.group == group for h in selection)
-        ]
+        ],
+        "test": [h.name for h in selection],
     }
 
 
