@@ -2456,6 +2456,18 @@ tier = "pr"
 runtime = "~2s"
 
 [[harness]]
+name = "device-parity"
+path = "tools"
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "emu_parity's script runner drives whatever session it is given (delugemu or the rig) through the same steps and timings, and device_parity builds delugemu's starting flash from the rig's settings sector, refusing a short or all-zero read"
+run = ["python3", "-m", "unittest", "test_emu_parity_session", "test_device_parity"]
+tier = "pr"
+runtime = "~1s"
+
+[[harness]]
 name = "bench-tooling"
 path = "tools"
 level = "unit"

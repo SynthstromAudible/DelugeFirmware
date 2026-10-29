@@ -78,24 +78,30 @@ def parse_script(path: Path) -> list[tuple[int, str, list[str]]]:
     return steps
 
 
+def monitor_errors() -> tuple[type[BaseException], ...]:
+    """What a session raises for a readout it lacks: delugemu's QMP error, when delugemu is on the path (a rig
+    session has no monitor)."""
+    try:
+        from delugemu.qmp import QmpError
+    except ImportError:
+        return ()
+    return (QmpError,)
+
+
 def take_flashes(dz) -> list[list[int]]:
     """The [x, y, colour] pad flashes since the last call (delugemu clears its log on each read); none from a
     delugemu without the readout."""
-    from delugemu.qmp import QmpError
-
     try:
         return [list(f) for f in dz.read_pad_flashes()]
-    except (AttributeError, QmpError):
+    except (AttributeError, *monitor_errors()):
         return []
 
 
 def pic_settings(dz) -> dict:
     """The refresh time and dimmer interval the firmware last gave the PIC; empty from a delugemu without them."""
-    from delugemu.qmp import QmpError
-
     try:
         got = dz.read_pic_settings()
-    except (AttributeError, QmpError):
+    except (AttributeError, *monitor_errors()):
         return {}
     return {k: got[k] for k in ("refresh_time", "dimmer_interval")}
 
@@ -103,11 +109,9 @@ def pic_settings(dz) -> dict:
 def pads(dz) -> list:
     """The pads without the PIC's flashes on top, which `take_flashes` reports instead; as shown, flashes and all,
     from a delugemu without that readout."""
-    from delugemu.qmp import QmpError
-
     try:
         return dz.read_pads(flashes=False)
-    except (TypeError, QmpError):
+    except (TypeError, *monitor_errors()):
         return dz.read_pads()
 
 
@@ -192,14 +196,15 @@ def run_image(
     out: Path,
     buttons,
     audio_wav: bool = False,
+    session=None,
 ) -> dict[str, list[dict]]:
     """Boot `elf`, play `script`, and return {snapshot name: the distinct panels it showed, first-seen order}.
 
     With `audio_wav`, the codec output goes to out/audio.wav (through delugemu's drift resampler) and, bit-exact as
     the firmware wrote its TX ring, to out/raw.s32 (S32LE stereo); out/times.json holds each snapshot's window in
-    virtual ns."""
-    from delugemu import DelugeSession
-
+    virtual ns.
+    `session(out)`, when given, opens the context the script runs in instead of delugemu (tools/rig_session.py's
+    rig device); `elf`, `sd`, `flash` and `audio_wav` then go unused."""
     out.mkdir(parents=True, exist_ok=True)
     # -snapshot: both images run on one card image; their writes go to a temporary overlay, not the image.
     extra = [
@@ -223,18 +228,24 @@ def run_image(
     env = dict(os.environ, TMPDIR=str(out))
     if audio_wav:
         env["DELUGEMU_SSIF_DUMP"] = str(out / "raw.s32")
-    with DelugeSession.launch(
-        firmware=str(elf),
-        sd=str(sd),
-        boot_wait=0.0,
-        sock=sock,
-        extra_qemu=tuple(extra),
-        artifacts_dir=str(out),
-        int_log=str(out / "int.log"),
-        env=env,
-        # Nothing through the host's speakers: silence, or a WAV written on the virtual clock.
-        audio=f"wav,path={out / 'audio.wav'}" if audio_wav else "none",
-    ) as dz:
+
+    def emulator(out: Path):
+        from delugemu import DelugeSession
+
+        return DelugeSession.launch(
+            firmware=str(elf),
+            sd=str(sd),
+            boot_wait=0.0,
+            sock=sock,
+            extra_qemu=tuple(extra),
+            artifacts_dir=str(out),
+            int_log=str(out / "int.log"),
+            env=env,
+            # Nothing through the host's speakers: silence, or a WAV written on the virtual clock.
+            audio=f"wav,path={out / 'audio.wav'}" if audio_wav else "none",
+        )
+
+    with (session or emulator)(out) as dz:
         run_until = dz.run_until
         reached = 0
 

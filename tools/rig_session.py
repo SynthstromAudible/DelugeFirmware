@@ -86,6 +86,8 @@ class DeviceSession:
         self._flashes: list[tuple[int, int, int]] = []
         self._pic = {"refresh_time": -1, "dimmer_interval": -1}
         self._target = None
+        # Leaving the session parks the panel dark; a run of several scripts parks only after the last.
+        self.park_on_close = True
         self._awaiting_ready = False
         deadline = time.monotonic() + attach_timeout
         if ready_log is not None:
@@ -302,7 +304,9 @@ class DeviceSession:
     def __exit__(self, *_exc) -> None:
         self.close()
 
-    def close(self) -> None:
+    def close(self, park: bool | None = None) -> None:
+        """Stops the probe link, leaving the firmware running; then, with `park` (default: park_on_close),
+        parks the panel dark and stops the server."""
         if self._target is None:
             return
         import rig
@@ -310,8 +314,15 @@ class DeviceSession:
         Path(self._out / "device.log").write_text("\n".join(self.log) + "\n")
         self._target.close()
         self._target = None
-        rig.park(self._host, rig.DEFAULT_PARK)
-        rig.stop(self._host)
+        if self.park_on_close if park is None else park:
+            rig.park(self._host, rig.DEFAULT_PARK)
+            rig.stop(self._host)
+
+    def assert_no_aborts(self) -> None:
+        """Raises AssertionError if the firmware logged a panic or a freeze, as delugemu's check does."""
+        for line in self.log:
+            if "panicked at" in line or "FREEZE" in line:
+                raise AssertionError(f"rig harness: the firmware failed: {line}")
 
 
 if __name__ == "__main__":
