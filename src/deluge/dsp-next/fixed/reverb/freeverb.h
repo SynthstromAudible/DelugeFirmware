@@ -70,7 +70,8 @@ struct Freeverb {
 		uint32_t words;
 	};
 	/// @brief The lines end to end: the combs left then right, then the allpasses left then right, at Jezar's tunings
-	/// for 44.1 kHz (tuning.h), each right line kStereoSpread longer.
+	/// for 44.1 kHz (reverb_ref::ReferenceFreeverb in tests/dsp/reference_reverb.h), each right line kStereoSpread
+	/// longer.
 	static constexpr Layout kLayout = [] consteval {
 		constexpr uint32_t kCombLengths[kCombs]{1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617}; // NOLINT
 		constexpr uint32_t kAllpassLengths[kAllpasses]{556, 441, 341, 225};                      // NOLINT

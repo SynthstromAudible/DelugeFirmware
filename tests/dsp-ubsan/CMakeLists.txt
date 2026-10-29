@@ -23,9 +23,6 @@ include(${CMAKE_CURRENT_LIST_DIR}/../support/cmake/specs.cmake)
 set(_ubsan -fsanitize=signed-integer-overflow,shift -fno-sanitize-recover=all)
 add_compile_options(${_ubsan})
 add_link_options(${_ubsan})
-# Tells a spec it is built here, so a leg that runs unmarked legacy sums (the reverb reference's comparison against the
-# app reverb) is built only outside this tree.
-add_compile_definitions(DELUGE_DSP_UBSAN=1)
 
 enable_testing()
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../dsp dsp)

@@ -70,17 +70,6 @@ set(envelope_spec_DEPS
 set(windowed_sinc_kernel_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp)
 # The chunker caches each chunk's sinc kernel via windowed_sinc_kernel.select().
 set(wavetable_cycle_chunker_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp)
-# The reverb models (Freeverb's out-of-line half; Digital and Mutable are header-only). The spec also needs
-# DELUGE_DSP_BOUNDS_CHECK, which turns every DelayLine read outside its own reserved region into a hard failure.
-set(legacy_reverb_spec_DEPS ${_repo_root}/src/deluge/dsp/reverb/freeverb/freeverb.cpp)
-set(legacy_reverb_spec_DEFS DELUGE_DSP_BOUNDS_CHECK=1)
-# The reverbs reach util/functions.h, which reaches the libdeluge headers.
-set(legacy_reverb_spec_INCLUDES ${_repo_root}/include)
-# The reverb reference (reference_reverb.h, reverb_workloads.h, header-only) against today's app reverb: Freeverb's
-# out-of-line half, and the libdeluge headers the app reverb reaches through util/functions.h. The reference itself
-# needs neither.
-set(reverb_reference_spec_DEPS ${_repo_root}/src/deluge/dsp/reverb/freeverb/freeverb.cpp)
-set(reverb_reference_spec_INCLUDES ${_repo_root}/include)
 
 # The shift tracker needs no sources: the kernel is header-only, and its noise inputs come from SeededNoise.
 set(shift_tracker_spec_DEPS)
