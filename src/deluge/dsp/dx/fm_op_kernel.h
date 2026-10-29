@@ -16,7 +16,16 @@
 
 #pragma once
 
-#include "stdint.h"
+#include <cstdint>
+
+// The hand-written NEON FM kernel (neon_fm_kernel.s) is ARM-only; off-target the operator renders through
+// dx7::Operator instead. __ARM_NEON is also defined when the *host* CPU is ARM (e.g. an Apple-Silicon sim build), so
+// exclude DELUGE_HOST — the kernel only exists in firmware. DELUGE_DX_SCALAR forces the operator path too: the asm
+// kernel computes sine by polynomial approximation while the operator uses the LUT, so they are NOT bit-identical,
+// and the golden-master references must take the same path on every host.
+#if defined(__ARM_NEON) && !defined(DELUGE_HOST) && !defined(DELUGE_DX_SCALAR)
+#define HAVE_NEON
+#endif
 
 struct FmOpParams {
 	int32_t level_in; // value to be computed (from level to gain[0])
@@ -27,18 +36,14 @@ struct FmOpParams {
 
 class FmOpKernel {
 public:
-	// gain1 and gain2 represent linear step: gain for sample i is
-	// gain1 + (1 + i) / 64 * (gain2 - gain1)
+#ifdef HAVE_NEON
+	static constexpr bool kHaveNeon = true;
+#else
+	static constexpr bool kHaveNeon = false;
+#endif
 
-	// This is the basic FM operator. No feedback.
-	static void compute(int32_t* output, int n, const int32_t* input, int32_t phase0, int32_t freq, int32_t gain1,
-	                    int32_t gain2, int32_t dgain, bool add, bool neon);
-
-	// This is a sine generator, no feedback.
-	static void compute_pure(int32_t* output, int n, int32_t phase0, int32_t freq, int32_t gain1, int32_t gain2,
-	                         int32_t dgain, bool add, bool neon);
-
-	// One op with feedback, no add.
-	static void compute_fb(int32_t* output, int n, int32_t phase0, int32_t freq, int32_t gain1, int32_t gain2,
-	                       int32_t dgain, int32_t* fb_buf, int fb_gain, bool add);
+	// A modern operator through the NEON kernel, for n a multiple of 4 and not 12k + 8. The gain for sample i is
+	// gain1 + (1 + i) * dgain. input is the modulation bus, or nullptr for a plain sine. Only called when kHaveNeon.
+	static void compute_neon(int32_t* output, int n, const int32_t* input, int32_t phase0, int32_t freq, int32_t gain1,
+	                         int32_t dgain, bool add);
 };

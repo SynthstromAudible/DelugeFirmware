@@ -16,6 +16,7 @@
  */
 
 #include "dx.h"
+#include "dsp-next/fixed/dx7/algorithms.h"
 #include "dsp/dx/dx7note.h"
 #include "gui/menu_item/dx/param.h"
 #include "gui/menu_item/setting_edit.h"
@@ -46,7 +47,7 @@ void DXColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t 
 		return;
 	}
 	int algid = patch->params[134];
-	FmAlgorithm a = FmCore::algorithms[algid];
+	const auto& ops = deluge::dsp::fixed::dx7::kAlgorithms[algid];
 
 	bool is_editing = (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &dxParam);
 
@@ -56,7 +57,7 @@ void DXColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t 
 			if (!patch->opSwitch(op)) {
 				image[y][column] = {255, 0, 0};
 			}
-			else if (a.ops[op] & (OUT_BUS_ONE | OUT_BUS_TWO)) {
+			else if (ops[op] & (deluge::dsp::fixed::dx7::OUT_BUS_ONE | deluge::dsp::fixed::dx7::OUT_BUS_TWO)) {
 				image[y][column] = {0, 128, 255};
 			}
 			else {

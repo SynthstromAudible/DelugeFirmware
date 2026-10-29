@@ -25,71 +25,24 @@
 #include <cmath>
 #include <cstdlib>
 
+#include "dsp-next/core/mono.h"
+#include "dsp-next/fixed/dx7/operator.h"
 #include "engine.h"
 #include "math_lut.h"
 #include <algorithm>
+#include <array>
+#include <cstddef>
 
 using std::max;
 using std::min;
 
-/// Silence to add to, for an operator that does not add into its output; its own name, as the DSP library builds as
-/// one unity file where fm_op_kernel.cpp has another.
-const int32_t __attribute__((aligned(16))) kMkIZeros[DX_MAX_N] = {0};
+namespace dx7 = deluge::dsp::fixed::dx7;
 
 static const uint16_t ENV_BITDEPTH = 14;
 const uint16_t ENV_MAX = 1 << ENV_BITDEPTH;
 
 inline int32_t mkiSin(int32_t phase, uint16_t env) {
 	return deluge::dsp::fixed::dx7::mki_sin(dxEngine->tables, phase, env);
-}
-
-void EngineMkI::compute(int32_t* output, int n, const int32_t* input, int32_t phase0, int32_t freq, int32_t gain1,
-                        int32_t gain2, int32_t dgain, bool add) {
-	int32_t gain = gain1;
-	int32_t phase = phase0;
-	const int32_t* adder = add ? output : kMkIZeros;
-
-	for (int i = 0; i < n; i++) {
-		gain += dgain;
-		int32_t y = mkiSin((phase + input[i]), gain);
-		output[i] = y + adder[i];
-		phase += freq;
-	}
-}
-
-void EngineMkI::compute_pure(int32_t* output, int n, int32_t phase0, int32_t freq, int32_t gain1, int32_t gain2,
-                             int32_t dgain, bool add) {
-	int32_t gain = gain1;
-	int32_t phase = phase0;
-	const int32_t* adder = add ? output : kMkIZeros;
-
-	for (int i = 0; i < n; i++) {
-		gain += dgain;
-		int32_t y = mkiSin(phase, gain);
-		output[i] = y + adder[i];
-		phase += freq;
-	}
-}
-
-void EngineMkI::compute_fb(int32_t* output, int n, int32_t phase0, int32_t freq, int32_t gain1, int32_t gain2,
-                           int32_t dgain, int32_t* fb_buf, int fb_shift, bool add) {
-	int32_t gain = gain1;
-	int32_t phase = phase0;
-	const int32_t* adder = add ? output : kMkIZeros;
-	int32_t y0 = fb_buf[0];
-	int32_t y = fb_buf[1];
-
-	for (int i = 0; i < n; i++) {
-		gain += dgain;
-		int32_t scaled_fb = (y0 + y) >> (fb_shift + 1);
-		y0 = y;
-		y = mkiSin((phase + scaled_fb), gain);
-		output[i] = y + adder[i];
-		phase += freq;
-	}
-
-	fb_buf[0] = y0;
-	fb_buf[1] = y;
 }
 
 // exclusively used for ALGO 6 with feedback
@@ -183,81 +136,84 @@ void EngineMkI::compute_fb3(int32_t* output, int n, FmOpParams* parms, int32_t g
 
 void EngineMkI::render(int32_t* output, int n, FmOpParams* params, int algorithm, int32_t* fb_buf,
                        int32_t feedback_shift) {
-	const int kLevelThresh = ENV_MAX - 100;
-	FmAlgorithm alg = algorithms[algorithm];
+	auto alg = std::to_array(dx7::kAlgorithms[algorithm]);
 	bool has_contents[3] = {true, false, false};
 	bool fb_on = feedback_shift < 16;
-	const int inv_n = (1 << 30) / n;
+	const auto len = static_cast<std::size_t>(n);
 
 	switch (algorithm) {
 	case 3:
 	case 5:
 		if (fb_on)
-			alg.ops[0] = 0xc4;
+			alg[0] = dx7::kMkIFusedFeedback;
 	}
 
 	for (int op = 0; op < 6; op++) {
-		int flags = alg.ops[op];
-		bool add = (flags & OUT_BUS_ADD) != 0;
+		const int flags = alg[op];
+		const bool add_flag = (flags & dx7::OUT_BUS_ADD) != 0;
 		FmOpParams& param = params[op];
-		int inbus = (flags >> 4) & 3;
-		int outbus = flags & 3;
+		const int inbus = (flags >> 4) & 3;
+		const int outbus = flags & 3;
 		int32_t* outptr = (outbus == 0) ? output : buf_[outbus - 1].get();
-		int32_t gain1 = param.gain_out == 0 ? (ENV_MAX - 1) : param.gain_out;
-		int32_t gain2 = ENV_MAX - (param.level_in >> (28 - ENV_BITDEPTH));
-		param.gain_out = gain2;
-		int32_t dgain = div_n(gain2 - gain1 + (n >> 1), inv_n);
+		const bool add = add_flag && has_contents[outbus];
+		// PG: this is my 'dirty' implementation of FB for 2 and 3 operators...
+		const bool feedback = (flags & 0xc0) == 0xc0 && fb_on;
+		const bool fused = feedback && (algorithm == 3 || algorithm == 5);
+		dx7::Input input = dx7::Input::BUS;
+		if (inbus == 0 || !has_contents[inbus]) {
+			input = feedback ? dx7::Input::FEEDBACK : dx7::Input::NONE;
+		}
+		// one operator feedback, process exception for ALGO 32
+		const int32_t op_shift = algorithm == 31 ? min((feedback_shift + 2), (int32_t)16) : feedback_shift;
 
-		if (gain1 <= kLevelThresh || gain2 <= kLevelThresh) {
+		deluge::dsp::Mono<dx7::Operator> unit{{.engine = dx7::Engine::MKI,
+		                                       .input = input,
+		                                       .output = add ? dx7::Output::ADD : dx7::Output::SET,
+		                                       .level_in = param.level_in,
+		                                       .freq = param.freq,
+		                                       .feedback_shift = op_shift,
+		                                       .tables = &dxEngine->tables}};
+		unit.on<&dx7::Operator::resume>(dx7::OperatorState{.phase = param.phase, .gain_out = param.gain_out},
+		                                dx7::FeedbackHistory{.y0 = fb_buf[0], .y1 = fb_buf[1]});
 
-			if (!has_contents[outbus]) {
-				add = false;
-			}
-
-			if (inbus == 0 || !has_contents[inbus]) {
-				// PG: this is my 'dirty' implementation of FB for 2 and 3 operators...
-				if ((flags & 0xc0) == 0xc0 && fb_on) {
-					switch (algorithm) {
+		if (dx7::Operator::audible(unit.coefficients(), unit.state().op, len)) {
+			if (input == dx7::Input::FEEDBACK && fused) {
+				const dx7::Gains g = dx7::Operator::gains(unit.coefficients(), unit.state().op, len);
+				param.gain_out = g.gain2;
+				if (algorithm == 3) {
 					// three operator feedback, process exception for ALGO 4
-					case 3:
-						compute_fb3(outptr, n, params, gain1, gain2, dgain, fb_buf,
-						            min((feedback_shift + 2), (int32_t)16));
-						params[1].phase += params[1].freq * n; // hack, we already processed op-5 - op-4
-						params[2].phase += params[2].freq * n; // yuk yuk
-						op += 2;                               // ignore the 2 other operators
-						break;
-					// two operator feedback, process exception for ALGO 6
-					case 5:
-						compute_fb2(outptr, n, params, gain1, gain2, dgain, fb_buf,
-						            min((feedback_shift + 2), (int32_t)16));
-						params[1].phase += params[1].freq * n; // yuk, hack, we already processed op-5
-						op++;                                  // ignore next operator;
-						break;
-					case 31:
-						// one operator feedback, process exception for ALGO 32
-						compute_fb(outptr, n, param.phase, param.freq, gain1, gain2, dgain, fb_buf,
-						           min((feedback_shift + 2), (int32_t)16), add);
-						break;
-					default:
-						// one operator feedback, normal process
-						compute_fb(outptr, n, param.phase, param.freq, gain1, gain2, dgain, fb_buf, feedback_shift,
-						           add);
-						break;
-					}
+					compute_fb3(outptr, n, params, g.gain1, g.gain2, g.dgain, fb_buf,
+					            min((feedback_shift + 2), (int32_t)16));
+					params[1].phase += params[1].freq * n; // hack, we already processed op-5 - op-4
+					params[2].phase += params[2].freq * n; // yuk yuk
 				}
 				else {
-					compute_pure(outptr, n, param.phase, param.freq, gain1, gain2, dgain, add);
+					// two operator feedback, process exception for ALGO 6
+					compute_fb2(outptr, n, params, g.gain1, g.gain2, g.dgain, fb_buf,
+					            min((feedback_shift + 2), (int32_t)16));
+					params[1].phase += params[1].freq * n; // yuk, hack, we already processed op-5
 				}
+				unit.on<&dx7::Operator::skip>(len);
+				param.phase = unit.state().op.phase;
+				op += algorithm == 3 ? 2 : 1; // ignore the other operators of the stack
+				has_contents[outbus] = true;
+				continue;
 			}
-			else {
-				compute(outptr, n, buf_[inbus - 1].get(), param.phase, param.freq, gain1, gain2, dgain, add);
+			const int32_t* modulation = input == dx7::Input::BUS ? buf_[inbus - 1].get() : outptr;
+			unit.renderBlock({modulation, len}, {outptr, len}, {outptr, len});
+			if (input == dx7::Input::FEEDBACK) {
+				fb_buf[0] = unit.state().loop.feedback.y0;
+				fb_buf[1] = unit.state().loop.feedback.y1;
 			}
-
 			has_contents[outbus] = true;
 		}
-		else if (!add) {
-			has_contents[outbus] = false;
+		else {
+			unit.on<&dx7::Operator::skip>(len);
+			if (!add_flag) {
+				has_contents[outbus] = false;
+			}
 		}
-		param.phase += param.freq * n;
+		param.phase = unit.state().op.phase;
+		param.gain_out = unit.state().op.gain_out;
 	}
 }

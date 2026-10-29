@@ -28,15 +28,6 @@ public:
 	void render(int32_t* output, int n, FmOpParams* params, int algorithm, int32_t* fb_buf,
 	            int32_t feedback_shift) override;
 
-	void compute(int32_t* output, int n, const int32_t* input, int32_t phase0, int32_t freq, int32_t gain1,
-	             int32_t gain2, int32_t dgain, bool add);
-
-	void compute_pure(int32_t* output, int n, int32_t phase0, int32_t freq, int32_t gain1, int32_t gain2, int32_t dgain,
-	                  bool add);
-
-	void compute_fb(int32_t* output, int n, int32_t phase0, int32_t freq, int32_t gain1, int32_t gain2, int32_t dgain,
-	                int32_t* fb_buf, int fb_gain, bool add);
-
 	void compute_fb2(int32_t* output, int n, FmOpParams* params, int32_t gain01, int32_t gain02, int32_t dgain0,
 	                 int32_t* fb_buf, int fb_shift);
 

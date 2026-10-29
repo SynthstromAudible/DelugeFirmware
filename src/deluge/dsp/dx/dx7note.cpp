@@ -324,7 +324,7 @@ bool DxVoice::compute(int32_t* buf, int n, int base_pitch, const DxPatch* ctrls,
 	for (int op = 0; op < 6; op++) {
 		phase[op] = params[op].phase;
 		gain_out[op] = params[op].gain_out;
-		if (params[op].gain_out >= kGainLevelThresh) {
+		if (params[op].gain_out >= deluge::dsp::fixed::dx7::kGainLevelThresh) {
 			any_active_op = true;
 		}
 	}

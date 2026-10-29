@@ -15,56 +15,16 @@
  */
 
 #include "fm_core.h"
+#include "dsp-next/core/mono.h"
+#include "dsp-next/fixed/dx7/operator.h"
+#include "engine.h"
 #include "fm_op_kernel.h"
-#include "math_lut.h"
 
-const FmAlgorithm FmCore::algorithms[32] = {
-    {{0xc1, 0x11, 0x11, 0x14, 0x01, 0x14}}, // 1
-    {{0x01, 0x11, 0x11, 0x14, 0xc1, 0x14}}, // 2
-    {{0xc1, 0x11, 0x14, 0x01, 0x11, 0x14}}, // 3
-    {{0xc1, 0x11, 0x94, 0x01, 0x11, 0x14}}, // 4
-    {{0xc1, 0x14, 0x01, 0x14, 0x01, 0x14}}, // 5
-    {{0xc1, 0x94, 0x01, 0x14, 0x01, 0x14}}, // 6
-    {{0xc1, 0x11, 0x05, 0x14, 0x01, 0x14}}, // 7
-    {{0x01, 0x11, 0xc5, 0x14, 0x01, 0x14}}, // 8
-    {{0x01, 0x11, 0x05, 0x14, 0xc1, 0x14}}, // 9
-    {{0x01, 0x05, 0x14, 0xc1, 0x11, 0x14}}, // 10
-    {{0xc1, 0x05, 0x14, 0x01, 0x11, 0x14}}, // 11
-    {{0x01, 0x05, 0x05, 0x14, 0xc1, 0x14}}, // 12
-    {{0xc1, 0x05, 0x05, 0x14, 0x01, 0x14}}, // 13
-    {{0xc1, 0x05, 0x11, 0x14, 0x01, 0x14}}, // 14
-    {{0x01, 0x05, 0x11, 0x14, 0xc1, 0x14}}, // 15
-    {{0xc1, 0x11, 0x02, 0x25, 0x05, 0x14}}, // 16
-    {{0x01, 0x11, 0x02, 0x25, 0xc5, 0x14}}, // 17
-    {{0x01, 0x11, 0x11, 0xc5, 0x05, 0x14}}, // 18
-    {{0xc1, 0x14, 0x14, 0x01, 0x11, 0x14}}, // 19
-    {{0x01, 0x05, 0x14, 0xc1, 0x14, 0x14}}, // 20
-    {{0x01, 0x14, 0x14, 0xc1, 0x14, 0x14}}, // 21
-    {{0xc1, 0x14, 0x14, 0x14, 0x01, 0x14}}, // 22
-    {{0xc1, 0x14, 0x14, 0x01, 0x14, 0x04}}, // 23
-    {{0xc1, 0x14, 0x14, 0x14, 0x04, 0x04}}, // 24
-    {{0xc1, 0x14, 0x14, 0x04, 0x04, 0x04}}, // 25
-    {{0xc1, 0x05, 0x14, 0x01, 0x14, 0x04}}, // 26
-    {{0x01, 0x05, 0x14, 0xc1, 0x14, 0x04}}, // 27
-    {{0x04, 0xc1, 0x11, 0x14, 0x01, 0x14}}, // 28
-    {{0xc1, 0x14, 0x01, 0x14, 0x04, 0x04}}, // 29
-    {{0x04, 0xc1, 0x11, 0x14, 0x04, 0x04}}, // 30
-    {{0xc1, 0x14, 0x04, 0x04, 0x04, 0x04}}, // 31
-    {{0xc4, 0x04, 0x04, 0x04, 0x04, 0x04}}, // 32
-};
-
-int n_out(const FmAlgorithm& alg) {
-	int count = 0;
-	for (int i = 0; i < 6; i++) {
-		if ((alg.ops[i] & 7) == OUT_BUS_ADD)
-			count++;
-	}
-	return count;
-}
+namespace dx7 = deluge::dsp::fixed::dx7;
 
 void FmCore::render(int32_t* output, int n, FmOpParams* params, int algorithm, int32_t* fb_buf,
                     int32_t feedback_shift) {
-	const FmAlgorithm alg = algorithms[algorithm];
+	const auto& alg = dx7::kAlgorithms[algorithm];
 
 	int simd_n = n;
 	if (neon) {
@@ -74,46 +34,57 @@ void FmCore::render(int32_t* output, int n, FmOpParams* params, int algorithm, i
 		simd_n = nmod == 8 ? n + 4 : (n + 3) & ~3;
 	}
 
-	const int inv_n = (1 << 30) / n;
+	const auto len = static_cast<std::size_t>(n);
 	bool has_contents[3] = {true, false, false};
 	for (int op = 0; op < 6; op++) {
-		int flags = alg.ops[op];
-		bool add = (flags & OUT_BUS_ADD) != 0;
+		const int flags = alg[op];
+		const bool add_flag = (flags & dx7::OUT_BUS_ADD) != 0;
 		FmOpParams& param = params[op];
-		int inbus = (flags >> 4) & 3;
-		int outbus = flags & 3;
+		const int inbus = (flags >> 4) & 3;
+		const int outbus = flags & 3;
 		int32_t* outptr = (outbus == 0) ? output : buf_[outbus - 1].get();
-		int32_t gain1 = param.gain_out;
-		int32_t gain2 = Exp2::lookup(param.level_in - (14 * (1 << 24)));
-		param.gain_out = gain2;
-		int32_t dgain = div_n(gain2 - gain1 + (n >> 1), inv_n);
+		const bool add = add_flag && has_contents[outbus];
+		dx7::Input input = dx7::Input::BUS;
+		if (inbus == 0 || !has_contents[inbus]) {
+			// todo: more than one op in a feedback loop
+			const bool feedback = (flags & 0xc0) == 0xc0 && feedback_shift < 16;
+			input = feedback ? dx7::Input::FEEDBACK : dx7::Input::NONE;
+		}
 
-		if (gain1 >= kGainLevelThresh || gain2 >= kGainLevelThresh) {
-			if (!has_contents[outbus]) {
-				add = false;
-			}
-			if (inbus == 0 || !has_contents[inbus]) {
-				// todo: more than one op in a feedback loop
-				if ((flags & 0xc0) == 0xc0 && feedback_shift < 16) {
-					// cout << op << " fb " << inbus << outbus << add << endl;
-					FmOpKernel::compute_fb(outptr, n, param.phase, param.freq, gain1, gain2, dgain, fb_buf,
-					                       feedback_shift, add);
-				}
-				else {
-					// cout << op << " pure " << inbus << outbus << add << endl;
-					FmOpKernel::compute_pure(outptr, simd_n, param.phase, param.freq, gain1, gain2, dgain, add, neon);
-				}
+		deluge::dsp::Mono<dx7::Operator> unit{{.engine = dx7::Engine::MODERN,
+		                                       .input = input,
+		                                       .output = add ? dx7::Output::ADD : dx7::Output::SET,
+		                                       .level_in = param.level_in,
+		                                       .freq = param.freq,
+		                                       .feedback_shift = feedback_shift,
+		                                       .tables = &dxEngine->tables}};
+		unit.on<&dx7::Operator::resume>(dx7::OperatorState{.phase = param.phase, .gain_out = param.gain_out},
+		                                dx7::FeedbackHistory{.y0 = fb_buf[0], .y1 = fb_buf[1]});
+
+		if (dx7::Operator::audible(unit.coefficients(), unit.state().op, len)) {
+			if (neon && FmOpKernel::kHaveNeon && input != dx7::Input::FEEDBACK) {
+				const dx7::Gains g = dx7::Operator::gains(unit.coefficients(), unit.state().op, len);
+				FmOpKernel::compute_neon(outptr, simd_n, input == dx7::Input::BUS ? buf_[inbus - 1].get() : nullptr,
+				                         param.phase, param.freq, g.gain1, g.dgain, add);
+				unit.on<&dx7::Operator::skip>(len);
 			}
 			else {
-				// cout << op << " normal " << inbus << outbus << " " << param.freq << add << endl;
-				FmOpKernel::compute(outptr, simd_n, buf_[inbus - 1].get(), param.phase, param.freq, gain1, gain2, dgain,
-				                    add, neon);
+				const int32_t* modulation = input == dx7::Input::BUS ? buf_[inbus - 1].get() : outptr;
+				unit.renderBlock({modulation, len}, {outptr, len}, {outptr, len});
+				if (input == dx7::Input::FEEDBACK) {
+					fb_buf[0] = unit.state().loop.feedback.y0;
+					fb_buf[1] = unit.state().loop.feedback.y1;
+				}
 			}
 			has_contents[outbus] = true;
 		}
-		else if (!add) {
-			has_contents[outbus] = false;
+		else {
+			unit.on<&dx7::Operator::skip>(len);
+			if (!add_flag) {
+				has_contents[outbus] = false;
+			}
 		}
-		param.phase += param.freq * n;
+		param.phase = unit.state().op.phase;
+		param.gain_out = unit.state().op.gain_out;
 	}
 }
