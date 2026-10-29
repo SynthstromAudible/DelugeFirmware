@@ -803,10 +803,8 @@ FileReader::FileReader(char* memBuffer, uint32_t bufLen) {
 }
 
 FileReader::~FileReader() {
-	if (!memoryBased && fileClusterBufferAllocation) {
+	if (!memoryBased) {
 		GeneralMemoryAllocator::get().dealloc(fileClusterBufferAllocation);
-		fileClusterBufferAllocation = nullptr;
-		fileClusterBuffer = nullptr;
 	}
 }
 
@@ -950,11 +948,7 @@ FileWriter::FileWriter(bool inMem) : FileWriter() {
 }
 
 FileWriter::~FileWriter() {
-	if (writeClusterBufferAllocation) {
-		GeneralMemoryAllocator::get().dealloc(writeClusterBufferAllocation);
-		writeClusterBufferAllocation = nullptr;
-		writeClusterBuffer = nullptr;
-	}
+	GeneralMemoryAllocator::get().dealloc(writeClusterBufferAllocation);
 }
 
 int32_t FileWriter::bytesWritten() {
