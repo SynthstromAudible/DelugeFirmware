@@ -667,9 +667,9 @@ tryGettingFFTConfig:
 				*(initialBandWritePos++) = *(nativeBandCycleStartPos++);
 			}
 
-			// In fact, if there are no further bands (usually won't happen unless out of RAM), we can get out as
-			// there's nothing more to do.
+			// With one band there is nothing to transform: band 0 holds the cycle as read.
 			if (static_cast<int32_t>(bands.size()) <= 1) {
+				initialBand->toCycleNumber = std::min(cycleIndex + 2, numCycles);
 				continue;
 			}
 

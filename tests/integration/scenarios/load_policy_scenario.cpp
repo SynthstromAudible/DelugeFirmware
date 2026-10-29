@@ -586,11 +586,7 @@ bool runPitchPinStep() {
 	return g_pitchIndex >= records.size();
 }
 
-/// An 8-sample cycle builds one band. Until the loader keeps that band's cycle range, the load ends with no bands and a
-/// renderer would select band -1; this leg reports that without failing the run, and fails it if the case starts
-/// passing while still marked expected-red.
-constexpr bool kZeroBandExpectedRed = true;
-
+/// An 8-sample cycle builds one band; the load must keep that band's cycle range, or a renderer selects band -1.
 void runZeroBand() {
 	std::string path = "SAMPLES/WTP/WTP_S8.WAV";
 	Error error = Error::NONE;
@@ -605,9 +601,9 @@ void runZeroBand() {
 	for (int32_t b = 0; ok && b < view.num_bands(); ++b) {
 		ok = view.band(b).fromCycleNumber < view.band(b).toCycleNumber;
 	}
-	printf("LP-WT-ZEROBAND error=%d bands=%d ok=%d%s\n", static_cast<int>(error), static_cast<int>(view.num_bands()),
-	       ok ? 1 : 0, kZeroBandExpectedRed ? " expected-red=1" : "");
-	if (ok == kZeroBandExpectedRed) {
+	printf("LP-WT-ZEROBAND error=%d bands=%d ok=%d\n", static_cast<int>(error), static_cast<int>(view.num_bands()),
+	       ok ? 1 : 0);
+	if (!ok) {
 		g_failures++;
 	}
 	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
