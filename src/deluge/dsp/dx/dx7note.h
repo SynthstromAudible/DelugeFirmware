@@ -24,9 +24,10 @@
 // It will continue to evolve a bit, as note-stealing logic, scaling,
 // and real-time control of parameters live here.
 
+#include "dsp-next/core/control.h"
+#include "dsp-next/fixed/dx7/pitch_envelope.h"
 #include "env.h"
 #include "fm_core.h"
-#include "pitchenv.h"
 #include <memory>
 
 struct VoiceStatus {
@@ -101,7 +102,8 @@ public:
 
 private:
 	Env env_[6];
-	PitchEnv pitchenv_;
+	/// Configured from the patch before each block and each event, as the patch is edited live.
+	deluge::dsp::Control<deluge::dsp::fixed::dx7::PitchEnvelope> pitchenv_;
 	int32_t phase[6];
 	int32_t gain_out[6];
 	int32_t basepitch_[6];
@@ -119,7 +121,10 @@ private:
 	uint8_t lastVelocity;
 
 	EnvParams& env_p(int op) { return *(EnvParams*)&patch[op * 21]; }
-	EnvParams& pitchenv_p() { return *(EnvParams*)&patch[126]; }
+	/// @brief The patch's pitch envelope bytes (126 to 133).
+	[[nodiscard]] deluge::dsp::fixed::dx7::EnvelopeParams pitch_params() const {
+		return {{patch[126], patch[127], patch[128], patch[129]}, {patch[130], patch[131], patch[132], patch[133]}};
+	}
 
 public:
 	DxVoice* nextUnassigned;

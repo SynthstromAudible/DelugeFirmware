@@ -253,7 +253,8 @@ void DxVoice::init(DxPatch& newp, int midinote, int velocity) {
 		int32_t freq = osc_freq(logFreq, mode, coarse, fine, detune, detune_per_voice[op]);
 		basepitch_[op] = freq;
 	}
-	pitchenv_.set(pitchenv_p());
+	pitchenv_.configure({pitch_params()});
+	pitchenv_.on<&deluge::dsp::fixed::dx7::PitchEnvelope::start>();
 
 	// TODO: in LFO sync mode it would be best with LFO per voice
 	if (patch[141]) {
@@ -315,7 +316,8 @@ bool DxVoice::compute(int32_t* buf, int n, int base_pitch, const DxPatch* ctrls,
 	// pmod_2 = abs(pmod_2);
 	int32_t pmod_2 = 0;
 	int32_t pitch_mod = max(pmod_1, pmod_2);
-	pitch_mod = pitchenv_.getsample(pitchenv_p(), n) + (pitch_mod * (senslfo < 0 ? -1 : 1));
+	pitchenv_.configure({pitch_params()});
+	pitch_mod = pitchenv_.advance(static_cast<std::size_t>(n)) + (pitch_mod * (senslfo < 0 ? -1 : 1));
 
 	pitch_mod += base_pitch;
 
@@ -383,14 +385,15 @@ bool DxVoice::compute(int32_t* buf, int n, int base_pitch, const DxPatch* ctrls,
 	}
 
 	// if key is down, operators might become active soon
-	return pitchenv_.isDown() || any_active_op;
+	return pitchenv_.state().down || any_active_op;
 }
 
 void DxVoice::keyup() {
 	for (int op = 0; op < 6; op++) {
 		env_[op].keydown(env_p(op), false);
 	}
-	pitchenv_.keydown(pitchenv_p(), false);
+	pitchenv_.configure({pitch_params()});
+	pitchenv_.on<&deluge::dsp::fixed::dx7::PitchEnvelope::release>();
 }
 
 void DxVoice::updateBasePitches(int logFreq_for_detune) {

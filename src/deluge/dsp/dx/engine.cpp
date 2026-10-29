@@ -40,7 +40,6 @@ static void init_engine(void) {
 
 	deluge::dsp::fixed::dx7::generate(dxEngine->tables);
 
-	PitchEnv::init(44100);
 	Env::init_sr(44100);
 }
 
