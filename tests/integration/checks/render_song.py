@@ -23,7 +23,8 @@ adds what depends on the song, and why each check is here:
                       whose clears reach no grain must reach both of clearMemory's paths, a ring zeroed and, with none
                       held, the phaser's memories; one that clears a grain must clear only grains.
     RS-REVERB-SWITCH  a gate that switches the reverb (RENDER_REVERB_SWITCH) only: every switch asked for
-                      applied, the model after each being the one asked for, or unchanged by a knob.
+                      applied, the model after each being the one asked for, or unchanged by a knob: before any model
+                      switch, the one the song's file saves. A malformed list fails rather than passing unread.
     RS-SONGPARAMS     a gate whose song automates the master's params (RENDER_SONG_AUTOMATED=1) only: the loaded song has
                       automation to play on its own params.
     RS-DELAY-OFF      no block in which a delay that is OFF had feedback enough to sound with sound coming in: a song
@@ -55,6 +56,7 @@ import importlib.util
 import json
 import math
 import os
+import re
 import struct
 import subprocess
 import sys
@@ -220,31 +222,66 @@ def _check_mod_fx_hooks(gate, result) -> None:
 
 
 REVERB_SETTINGS = ("model", "room", "damping", "width", "hpf", "lpf")
+REVERB_MODELS = (0, 1, 2)
 
 
-def _check_reverb_switch(gate, result) -> None:
-    """The reverb switches the gate asked for were applied, each leaving the model asked for (see RS-REVERB-SWITCH)."""
+def song_reverb_model(song_xml: str) -> int | None:
+    """The reverb model @p song_xml's `<reverb>` element saves, or None when it saves none."""
+    found = re.search(r'<reverb\b[^>]*\bmodel="(\d+)"', song_xml)
+    return int(found.group(1)) if found else None
+
+
+def _parse_reverb_switches(switches: str) -> list[tuple[str, float]] | str:
+    """RENDER_REVERB_SWITCH's items as (setting, value), or what is wrong with @p switches."""
+    items = []
+    for item in switches.split(","):
+        block, colon, change = item.partition(":")
+        setting, equals, value = change.partition("=")
+        try:
+            int(block)
+            number = float(value)
+        except ValueError:
+            return f"item {item!r} is not <block>:<setting>=<value>"
+        if not colon or not equals:
+            return f"item {item!r} is not <block>:<setting>=<value>"
+        if setting not in REVERB_SETTINGS:
+            return f"unknown setting {setting}"
+        if setting == "model" and number not in REVERB_MODELS:
+            return f"item {item!r} names no model (0 Freeverb, 1 Mutable, 2 Digital)"
+        items.append((setting, number))
+    return items
+
+
+def _check_reverb_switch(gate, result, song_model: int | None) -> None:
+    """The reverb switches the gate asked for were applied, each leaving the model asked for (see RS-REVERB-SWITCH).
+    @p song_model is the model the song's file saves, which a knob turned before any model switch must leave."""
     switches = gate.env.get("RENDER_REVERB_SWITCH")
     if not switches:
         return
-    items = [item.split(":", 1)[1].split("=") for item in switches.split(",")]
+    items = _parse_reverb_switches(switches)
+    if isinstance(items, str):
+        gate.fail(f"RS-REVERB-SWITCH — RENDER_REVERB_SWITCH={switches}: {items}")
+        return
     line = result.last("RS-REVERB-SWITCH applied=")
     if line is None:
         gate.fail("RS-REVERB-SWITCH — no summary line: the switch hook did not run")
         return
+    if items[0][0] != "model" and song_model is None:
+        gate.fail(
+            "RS-REVERB-SWITCH — the first switch turns a knob, and the song saves no model for it to leave"
+        )
+        return
     held = [int_field(o, "model") for o in result.starting("RS-REVERB-SWITCH block=")]
     wanted = []
-    model = held[0] if held and items[0][0] != "model" else None
+    model = song_model
     for setting, value in items:
-        if setting not in REVERB_SETTINGS:
-            gate.fail(f"RS-REVERB-SWITCH — unknown setting {setting}")
-            return
         if setting == "model":
             model = int(value)
         wanted.append(model)
     if int_field(line, "applied") != len(items) or held != wanted:
         gate.fail(
-            f"RS-REVERB-SWITCH — asked for {switches}, the models after each were {held}, summary: {line}"
+            f"RS-REVERB-SWITCH — asked for {switches} on a song saving model {song_model}, the models after each "
+            f"were {held}, summary: {line}"
         )
 
 
@@ -322,6 +359,15 @@ def _differs_unswitched(gate, song: str | None, generated: str, pcm: bytes) -> b
     return True
 
 
+def _played_reverb_model(env: dict[str, str]) -> int | None:
+    """The reverb model saved by the generated song @p env plays, or None for a corpus song."""
+    if "RENDER_TREE" not in env:
+        return None
+    path = os.path.join(env["RENDER_TREE"], env["RENDER_SONG"])
+    with open(path, encoding="utf-8", errors="replace") as song_file:
+        return song_reverb_model(song_file.read())
+
+
 def run(gate):
     pcm_path = gate.tmp / "out.pcm"
     song = gate.env.get("RENDER_SONG")
@@ -338,7 +384,7 @@ def run(gate):
     gate.show(result)
     _check_width(gate, result, record_name)
     _check_mod_fx_hooks(gate, result)
-    _check_reverb_switch(gate, result)
+    _check_reverb_switch(gate, result, _played_reverb_model(env))
     _check_delay_off(gate, result)
     _check_song_automation(gate, result)
     _check_delay_arena(gate, result)

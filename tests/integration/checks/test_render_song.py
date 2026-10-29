@@ -20,6 +20,7 @@ from render_song import (
     _check_reverb_switch,
     dry_twin,
     generated_song,
+    song_reverb_model,
 )
 from scenario_gate import Run
 
@@ -176,10 +177,26 @@ class ModFxHooksTest(unittest.TestCase):
 REVERB_SWITCH = {"RENDER_REVERB_SWITCH": "600:model=2,800:hpf=0.2,1000:model=0"}
 
 
-def _reverb_failures(env: dict[str, str], *lines: str) -> list[str]:
+def _reverb_failures(
+    env: dict[str, str], *lines: str, song_model: int | None = 1
+) -> list[str]:
     gate = _Gate(env)
-    _check_reverb_switch(gate, Run(0, "\n".join(lines), ""))
+    _check_reverb_switch(gate, Run(0, "\n".join(lines), ""), song_model)
     return gate.failures
+
+
+def _reverb_lines(*switches: tuple[int, str, int]) -> list[str]:
+    """The hook's per-switch markers for @p switches (block, setting=value, model after), then its summary."""
+    markers = [f"RS-REVERB-SWITCH block={b} set={s} model={m}" for b, s, m in switches]
+    models = ",".join(str(m) for _, _, m in switches)
+    count = len(switches)
+    return [
+        *markers,
+        f"RS-REVERB-SWITCH applied={count} asked={count} models={models}",
+    ]
+
+
+KNOB_FIRST = {"RENDER_REVERB_SWITCH": "600:room=0.3,800:model=2"}
 
 
 class ReverbSwitchTest(unittest.TestCase):
@@ -201,6 +218,62 @@ class ReverbSwitchTest(unittest.TestCase):
         failures = _reverb_failures(REVERB_SWITCH, *lines)
         self.assertEqual(len(failures), 1)
         self.assertTrue(failures[0].startswith("RS-REVERB-SWITCH —"))
+
+    def test_a_switch_leaving_another_model_fails(self):
+        lines = _reverb_lines(
+            (600, "model=2", 2), (800, "hpf=0.2", 2), (1000, "model=0", 1)
+        )
+        failures = _reverb_failures(REVERB_SWITCH, *lines)
+        self.assertEqual(len(failures), 1)
+        self.assertTrue(failures[0].startswith("RS-REVERB-SWITCH —"))
+
+    def test_a_knob_that_changed_the_model_fails(self):
+        lines = _reverb_lines(
+            (600, "model=2", 2), (800, "hpf=0.2", 0), (1000, "model=0", 0)
+        )
+        self.assertEqual(len(_reverb_failures(REVERB_SWITCH, *lines)), 1)
+
+    def test_an_unknown_setting_fails(self):
+        env = {"RENDER_REVERB_SWITCH": "600:model=2,800:size=0.2"}
+        lines = _reverb_lines((600, "model=2", 2))
+        failures = _reverb_failures(env, *lines)
+        self.assertEqual(len(failures), 1)
+        self.assertIn("unknown setting size", failures[0])
+
+    def test_a_list_starting_with_a_knob_leaves_the_song_s_model(self):
+        lines = _reverb_lines((600, "room=0.3", 1), (800, "model=2", 2))
+        self.assertEqual(_reverb_failures(KNOB_FIRST, *lines, song_model=1), [])
+
+    def test_a_first_knob_leaving_another_model_than_the_song_s_fails(self):
+        lines = _reverb_lines((600, "room=0.3", 0), (800, "model=2", 2))
+        self.assertEqual(len(_reverb_failures(KNOB_FIRST, *lines, song_model=1)), 1)
+
+    def test_a_first_knob_on_a_song_saving_no_model_fails(self):
+        lines = _reverb_lines((600, "room=0.3", 0), (800, "model=2", 2))
+        self.assertEqual(len(_reverb_failures(KNOB_FIRST, *lines, song_model=None)), 1)
+
+    def test_a_malformed_item_fails_instead_of_raising(self):
+        for switches in (
+            "600",
+            "600:model",
+            "x:model=2",
+            "600:room=wide",
+            "600:model=3",
+        ):
+            with self.subTest(switches=switches):
+                env = {"RENDER_REVERB_SWITCH": switches}
+                failures = _reverb_failures(env, *_reverb_lines((600, "model=2", 2)))
+                self.assertEqual(len(failures), 1)
+                self.assertTrue(failures[0].startswith("RS-REVERB-SWITCH —"))
+
+
+class SongReverbModelTest(unittest.TestCase):
+    def test_the_model_the_song_saves(self):
+        xml = '<song>\n\t<reverb model="2" roomSize="0">\n\t</reverb>\n</song>'
+        self.assertEqual(song_reverb_model(xml), 2)
+
+    def test_a_song_saving_no_model(self):
+        self.assertIsNone(song_reverb_model('<song>\n\t<reverb roomSize="0">\n</song>'))
 
 
 if __name__ == "__main__":
