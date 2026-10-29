@@ -1,6 +1,6 @@
 // dx7::Envelope through Control, against the reference Env over every block length: start, a retune with a new
 // output level at block 40, release at block 70 and a rate edit at block 100, for each parameter set at three rate
-// scalings and two extra rates; then the retune quirk and the mono hand-over.
+// scalings and two extra rates; then the retune quirk.
 
 #include "dsp-next/core/control.h"
 #include "dsp-next/fixed/dx7/envelope.h"
@@ -118,25 +118,6 @@ describe dx7_envelope_spec("dx7::Envelope", ${
 		expect(envelope.state().stage).to_equal(2);
 		expect(envelope.state().target).to_equal((stage_2 + kLevel - dx7::Envelope::kLevelOffset) << 16);
 		expect(envelope.state().target).not_().to_equal(16 << 16); // the level-less target, floored
-	});
-
-	it("takes over another envelope's state whole", _ {
-		const dx7::EnvelopeParams params{{30, 40, 50, 60}, {99, 50, 70, 0}};
-		Control<dx7::Envelope> from;
-		from.configure({params, kOutputLevel, 10, 0});
-		from.on<&dx7::Envelope::start>();
-		std::ignore = from.advance(100);
-		Control<dx7::Envelope> to;
-		to.on<&dx7::Envelope::transfer>(from.state());
-		const dx7::Envelope::State& a = to.state();
-		const dx7::Envelope::State& b = from.state();
-		expect(a.level).to_equal(b.level);
-		expect(a.target).to_equal(b.target);
-		expect(a.stage).to_equal(b.stage);
-		expect(a.increment).to_equal(b.increment);
-		expect(a.hold).to_equal(b.hold);
-		expect(a.down).to_equal(b.down);
-		expect(a.rising).to_equal(b.rising);
 	});
 });
 // clang-format on

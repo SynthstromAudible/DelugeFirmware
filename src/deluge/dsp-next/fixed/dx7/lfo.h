@@ -77,8 +77,8 @@ struct Lfo {
 		const Tables* tables = nullptr; ///< The engine's tables, for the sine.
 	};
 
-	/// @brief The LFO between blocks. State{} starts the phase at 0, as a patch's zeroed memory always did in the
-	/// goldens; on the device a new patch's phase used to start wherever its heap block left it.
+	/// @brief The LFO between blocks. State{} starts the phase at 0: a new patch's LFO starts at the top of its
+	/// cycle.
 	struct State {
 		uint32_t phase = 0; ///< The phase, Q32 cycles.
 	};

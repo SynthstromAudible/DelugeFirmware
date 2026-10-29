@@ -40,7 +40,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <math.h> // NOLINT(*-deprecated-headers): the unqualified libm calls resolve as the engine's always did
+#include <math.h> // NOLINT(*-deprecated-headers): the unqualified libm calls are the overloads the records pin
 
 /// @file
 /// @brief A DX7 voice's note-on scaling: pitch from the note and the op's frequency bytes, output level from the
@@ -119,19 +119,23 @@ inline constexpr std::array<uint8_t, 33> kExpScale{0,  1,   2,   3,   4,   5,   
 /// @param log_freq_for_detune The note's pitch, Q24 octaves, which scales the ratio's detune.
 /// @param random_detune The voice's draw for this op, the noise's top 16 bits.
 /// @param random_detune_scale The patch's random-detune amount.
+/// @param mode 0 ratio, 1 fixed frequency.
+/// @param coarse The ratio (0 is 0.5, else 1 to 31) or, fixed, the decade (low two bits: 1, 10, 100, 1000 Hz).
+/// @param fine 0 to 99: the ratio times 1 + fine/100, or the fixed frequency times 10^(fine/100).
+/// @param detune 0 to 14, 7 none.
 [[nodiscard]] inline int32_t osc_freq(int32_t log_freq_for_detune, int32_t mode, int32_t coarse, int32_t fine,
                                       int32_t detune, int32_t random_detune, int32_t random_detune_scale) {
 	int32_t logfreq = 0;
 	if (mode == 0) {
 		// measured on a DX7
-		double detune_ratio = 0.0209 * exp(-0.396 * (((float)log_freq_for_detune) / (1 << 24))) / 7;
+		double detune_ratio = 0.0209 * exp(-0.396 * (static_cast<float>(log_freq_for_detune) / (1 << 24))) / 7;
 		int32_t random_scaled = (random_detune * random_detune_scale) >> 17;
-		logfreq += detune_ratio * log_freq_for_detune * (detune - 7 + random_scaled);
+		logfreq = static_cast<int32_t>(logfreq + (detune_ratio * log_freq_for_detune * (detune - 7 + random_scaled)));
 
 		logfreq += kCoarseMul[coarse & 31];
 		if (fine) {
 			// (1 << 24) / log(2)
-			logfreq += (int32_t)floor(24204406.323123 * log(1 + 0.01 * fine) + 0.5);
+			logfreq += static_cast<int32_t>(floor((24204406.323123 * log(1 + (0.01 * fine))) + 0.5));
 		}
 	}
 	else {

@@ -72,10 +72,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <type_traits>
 
 /// @file
 /// @brief A DX7 voice's operators walked through its algorithm once per block, in either engine.
 namespace deluge::dsp::fixed::dx7 {
+
+/// @brief The longest block a voice renders, in samples, and the length of each bus: the voice adapter's block buffer.
+inline constexpr std::size_t kMaxBlock = 132;
 
 /// @brief The two intermediate buses operators render into. One instance, owned by the app and lent to every voice's
 /// graph per block: voices render one at a time, so no two hold the buses at once.
@@ -87,7 +91,9 @@ struct Buses {
 /// @details A component, not a kernel: it holds the six operators' states and the voice's feedback history, and runs
 /// each operator through its kernel per block. Its verbs are @ref renderBlock, @ref restart, @ref view, @ref resume and
 /// @ref gain_out. It keeps no settings between blocks: each block's levels and pitches arrive with the block, so a
-/// voice holds nothing here but what it held before (six phases and gains, and the history).
+/// voice holds only its six phases and gains and the history. @ref view is read-only inspection, as `FilterSet`'s is;
+/// @ref resume is its counterpart, for an owner that holds the operators' state elsewhere (the reference specs drive
+/// the graph from the verbatim engine's state through the two).
 ///
 /// **The DX7 engine's rules**, each applied where @ref renderBlock walks the ops:
 /// - *The gate.* An operator inaudible at both ends of the block (@ref Operator::audible) is skipped: its phase and
@@ -185,5 +191,7 @@ private:
 	std::array<OperatorState, 6> ops_{}; ///< Each op's held phase and gain.
 	FeedbackHistory feedback_{};         ///< The feedback history; carries across a restart.
 };
+
+static_assert(!std::is_polymorphic_v<Graph>);
 
 } // namespace deluge::dsp::fixed::dx7

@@ -23,9 +23,6 @@
 
 DxPatch::DxPatch() {
 	memcpy(params, deluge::instrument::kDx7InitVoice.data(), sizeof params);
-	eg_mod = 127;
-	random_detune = 0;
-
 	setEngineMode(0);
 }
 

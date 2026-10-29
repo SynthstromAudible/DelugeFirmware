@@ -35,9 +35,9 @@ namespace deluge::dsp {
 
 /// @brief The firmware adapter behind @ref deluge::synth::DxVoicePort: a pooled `dx7::Voice` for one voice-source.
 /// Holds the source's voice + cached `DxPatch`, soliciting/releasing from the global `getDxEngine()` pool, and per
-/// block takes a snapshot of the patch, derives the log pitch and controls, and renders the voice. This is the
-/// app-coupled half the library-resident `DX7Source` no longer carries (the FM math is self-contained — no
-/// AudioEngine/storage — but the pool + the MSFA types stay app-side). Ownership of the pooled voice is
+/// block takes a snapshot of the patch, derives the log pitch and controls, and renders the voice. It is the
+/// app-coupled half of `DX7Source`: the voice is dsp-next's, and the app keeps the pool, the patch and this adapter.
+/// Ownership of the pooled voice is
 /// **explicit** (freed only in @ref unassign, never in a destructor) — the per-source objects are pooled and
 /// reused in place, so an owning dtor would risk a double-free.
 class DxVoiceAdapter final : public synth::DxVoicePort {

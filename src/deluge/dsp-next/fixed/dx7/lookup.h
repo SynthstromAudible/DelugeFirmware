@@ -97,7 +97,8 @@ namespace deluge::dsp::fixed::dx7 {
 
 /// @brief The phase increment of a pitch, by linear interpolation of the frequency table.
 /// @param tables The engine's tables.
-/// @param logfreq The pitch in Q24 octaves above 1 Hz, in [0, 20.0), the range the voice feeds.
+/// @param logfreq The pitch in Q24 octaves above 1 Hz, in [-11.0, 21.0), where the final shift stays inside the word.
+/// The voice feeds from about -4 (the pitch envelope's floor below the lowest note) upward.
 /// @return The phase increment in Q24 cycles per sample at 44.1 kHz.
 [[gnu::always_inline]] inline int32_t freq_lookup(const Tables& tables, int32_t logfreq) {
 	constexpr int kMaxLogFreqInt = 20;
@@ -139,7 +140,7 @@ inline constexpr uint16_t kMkINegative = 0x8000;
 /// @param tables The engine's tables.
 /// @param phase The phase in Q24 cycles; any 32-bit value.
 /// @param env The attenuation in 1/1024 octaves. It is added to the log value in 16 bits, so a sum past 65535 wraps
-/// (and can flip the sign bit), as the engine's arithmetic always has.
+/// (and can flip the sign bit): the recorded references pin that wrap.
 /// @return The sample in Q24.
 [[gnu::always_inline]] inline int32_t mki_sin(const Tables& tables, int32_t phase, uint16_t env) {
 	constexpr int kPhaseShift = 22 - kMkILgSamples;

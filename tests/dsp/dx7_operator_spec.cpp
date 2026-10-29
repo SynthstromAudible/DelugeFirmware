@@ -4,6 +4,7 @@
 // match; then the audibility gate and the skipped block's bookkeeping.
 
 #include "dsp-next/core/mono.h"
+#include "dsp-next/fixed/dx7/graph.h"
 #include "dsp-next/fixed/dx7/operator.h"
 #include "dsp-next/fixed/dx7/tables.h"
 #include "dx7_asm_pin_workloads.h"

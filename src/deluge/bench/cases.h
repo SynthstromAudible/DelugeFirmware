@@ -1622,7 +1622,7 @@ public:
 	/// @param config The case's configuration.
 	constexpr explicit Dx7Case(const Dx7Config& config) : config_{config} {}
 
-	/// @brief A fresh patch and note, and the block for @p n samples.
+	/// @brief Rebuilds the rig's patch for this case and starts a fresh note, for blocks of @p n samples.
 	/// @param n Block size to set up for, in samples.
 	void setup(std::size_t n);
 	/// @brief Renders one block of the size it was set up for.

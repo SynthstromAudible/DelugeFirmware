@@ -59,8 +59,8 @@
 
 #include "dsp-next/fixed/dx7/tables.h"
 
-// Both spellings, as the engine's sources always included them: the unqualified libm calls below resolve to the same
-// overloads (log2 of a float is the float overload), so the tables come out word for word.
+// Both spellings: the unqualified libm calls below then resolve to the overloads the recorded tables pin (log2 of a
+// float is the float overload), so the tables come out word for word.
 #include <cmath>
 #include <math.h> // NOLINT(*-deprecated-headers)
 
@@ -77,7 +77,7 @@ void generate_exp2(int32_t* exp2tab) {
 	double inc = exp2(1.0 / kExp2Samples);
 	double y = 1 << 30;
 	for (int i = 0; i < kExp2Samples; i++) {
-		exp2tab[(i << 1) + 1] = (int32_t)floor(y + 0.5);
+		exp2tab[(i << 1) + 1] = static_cast<int32_t>(floor(y + 0.5));
 		y *= inc;
 	}
 	for (int i = 0; i < kExp2Samples - 1; i++) {
@@ -89,15 +89,15 @@ void generate_exp2(int32_t* exp2tab) {
 /// @brief One sine cycle by rotating a Q30 vector through 1/1024 of a turn per point.
 void generate_sine(int32_t* sintab) {
 	double dphase = 2 * M_PI / kSinSamples;
-	int32_t c = (int32_t)floor(cos(dphase) * (1 << 30) + 0.5);
-	int32_t s = (int32_t)floor(sin(dphase) * (1 << 30) + 0.5);
+	int32_t c = static_cast<int32_t>(floor(cos(dphase) * (1 << 30) + 0.5));
+	int32_t s = static_cast<int32_t>(floor(sin(dphase) * (1 << 30) + 0.5));
 	int32_t u = 1 << 30;
 	int32_t v = 0;
 	for (int i = 0; i < kSinSamples / 2; i++) {
 		sintab[(i << 1) + 1] = (v + 32) >> 6;
 		sintab[((i + kSinSamples / 2) << 1) + 1] = -((v + 32) >> 6);
-		int32_t t = ((int64_t)u * (int64_t)s + (int64_t)v * (int64_t)c + kSinRound) >> 30;
-		u = ((int64_t)u * (int64_t)c - (int64_t)v * (int64_t)s + kSinRound) >> 30;
+		int32_t t = ((static_cast<int64_t>(u) * s) + (static_cast<int64_t>(v) * c) + kSinRound) >> 30;
+		u = ((static_cast<int64_t>(u) * c) - (static_cast<int64_t>(v) * s) + kSinRound) >> 30;
 		v = t;
 	}
 	for (int i = 0; i < kSinSamples - 1; i++) {
@@ -110,7 +110,7 @@ void generate_frequency(int32_t* freq_lut, double sample_rate) {
 	double y = (1LL << (24 + kMaxLogFreqInt)) / sample_rate;
 	double inc = pow(2, 1.0 / kFreqSamples);
 	for (int i = 0; i < kFreqSamples + 1; i++) {
-		freq_lut[i] = (int32_t)floor(y + 0.5);
+		freq_lut[i] = static_cast<int32_t>(floor(y + 0.5));
 		y *= inc;
 	}
 }
@@ -119,11 +119,11 @@ void generate_mki(uint16_t* sin_log, uint16_t* sin_exp) {
 	float bitReso = kMkISamples;
 	for (int i = 0; i < kMkISamples; i++) {
 		float x1 = sin(((0.5 + i) / bitReso) * M_PI / 2.0);
-		sin_log[i] = round(-1024 * log2(x1));
+		sin_log[i] = static_cast<uint16_t>(round(-1024 * log2(x1)));
 	}
 	for (int i = 0; i < kMkISamples; i++) {
 		float x1 = (pow(2, float(i) / bitReso) - 1) * 4096;
-		sin_exp[i] = round(x1);
+		sin_exp[i] = static_cast<uint16_t>(round(x1));
 	}
 }
 

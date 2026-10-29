@@ -83,8 +83,8 @@ std::span<const int32_t> DxVoiceAdapter::render(int32_t numSamples, uint32_t pha
 	memset(uniBuf, 0, sizeof uniBuf);
 
 	// TODO: 1. use existing int log function?
-	//       2. going from phase to logs (and then let MSFA turn those logs into phase again) is sus af
-	//         rework MSFA to use our phase incerements directly?
+	//       2. going from phase to logs (and then the voice's frequency table turning those logs into phase again) is
+	//         a round trip: take our phase increments directly?
 	int logpitch = (int)(log2f(phaseIncrement) * (1 << 24));
 	int adjpitch = logpitch - 278023814;
 

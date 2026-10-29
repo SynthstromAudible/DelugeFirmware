@@ -56,8 +56,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
-#include <math.h> // NOLINT(*-deprecated-headers): the amplitude curve's exp resolves as the engine's always did
+#include <math.h> // NOLINT(*-deprecated-headers): the unqualified exp is libm's double overload, which the records pin
 #include <tuple>
+#include <type_traits>
 
 /// @file
 /// @brief A DX7 voice: one note of a patch, its envelopes, pitches and LFO delay around the six-operator graph.
@@ -79,7 +80,7 @@ public:
 		PatchBytes patch{};             ///< A snapshot of the patch's bytes, within sanitise's ranges.
 		int32_t midinote = 60;          ///< The note.
 		int32_t velocity = 100;         ///< The note-on velocity, 0 to 127.
-		int32_t random_detune = 0;      ///< The patch's random-detune amount.
+		int32_t random_detune = 0;      ///< The patch's random-detune amount: scales each op's noise draw (>> 17).
 		Engine engine = Engine::MODERN; ///< The engine the patch renders in.
 		const Tables* tables = nullptr; ///< The engine's tables.
 	};
@@ -89,9 +90,9 @@ public:
 		int32_t base_pitch = 0; ///< The note's pitch, Q24 octaves, relative to the oscillators' base.
 		int32_t lfo_value = 0;  ///< The patch's LFO, Q24.
 		int32_t eg_mod = 127;   ///< The envelope's amplitude-modulation floor, 0 to 127.
-		int32_t amp_mod = 0;    ///< Added to each modulated op's level, scaled by its sensitivity.
-		int32_t vel_mod = 0;    ///< Added to each op's level, scaled by its velocity sensitivity.
-		int32_t rate_mod = 0;   ///< Added to each envelope's stage rates.
+		int32_t amp_mod = 0;    ///< Q24 doublings added to each op's level per unit of its AMS depth >> 16 (0 to 256).
+		int32_t vel_mod = 0;  ///< Q24 doublings added to each op's level per step of its velocity sensitivity (0 to 7).
+		int32_t rate_mod = 0; ///< qRate units added to each envelope stage's rate as a block enters it.
 	};
 
 	/// @brief Note-on: the envelopes start, the base pitches are drawn (six detune draws, op order), the pitch
@@ -153,8 +154,8 @@ public:
 	/// @brief One block into @p out, using @p buses (lent by the owner, shared by every voice) for the graph's two
 	/// intermediate buses. Carriers add into @p out, so the caller zeroes it first.
 	/// @return Whether the voice sounds on: the key is down, or an op's gain is at or above kGainLevelThresh. That
-	/// threshold is the modern engine's; a MkI op's gain is an attenuation, so a MkI voice's ops always pass it, as the
-	/// engine has always counted them.
+	/// threshold is the modern engine's. A MkI op's gain is an attenuation, so a silent MkI op (attenuation near
+	/// kEnvMax) passes it, and a released MkI voice never ends: a known quirk the recorded references pin.
 	[[nodiscard]] bool renderBlock(const Settings& s, Buffer out, const BlockInputs& in, Buses& buses) {
 		const PatchBytes& p = s.patch;
 		const std::size_t n = out.size();
@@ -196,7 +197,7 @@ public:
 			const auto ams = static_cast<int32_t>(kAmpModSens[p[off + 14] & 3]);
 			if (ams != 0) {
 				const auto sensamp = static_cast<uint32_t>((static_cast<uint64_t>(amd_mod) * ams) >> 24);
-				const auto pt = static_cast<uint32_t>(exp(((float)sensamp) / 262144 * 0.07 + 12.2));
+				const auto pt = static_cast<uint32_t>(exp((static_cast<float>(sensamp) / 262144) * 0.07 + 12.2));
 				const auto ldiff =
 				    static_cast<uint32_t>((static_cast<uint64_t>(level) * (static_cast<uint64_t>(pt) << 4)) >> 28);
 				level = wrapping_sub(level, static_cast<int32_t>(ldiff));
@@ -270,5 +271,6 @@ private:
 /// The app's voice, on the synth's shared noise stream, is instantiated once, in voice.cpp: there it builds with the
 /// DSP library's flags (ARM, -finline-functions), not with those of whichever app file names it.
 extern template class Voice<CongNoise>;
+static_assert(!std::is_polymorphic_v<Voice<CongNoise>>);
 
 } // namespace deluge::dsp::fixed::dx7

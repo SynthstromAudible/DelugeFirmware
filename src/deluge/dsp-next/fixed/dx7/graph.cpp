@@ -61,6 +61,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 
@@ -122,12 +123,13 @@ void Graph::render_op(const Operator::Settings& settings, std::size_t op, Signal
 
 void Graph::renderBlock(const Settings& s, Buffer out, Buses& lent) {
 	const std::size_t n = out.size();
+	assert(n > 0 && n <= kMaxBlock);
 	const bool mki = s.engine == Engine::MKI;
 	constexpr int32_t kFeedbackBits = 8;
 	const int32_t shift = s.feedback != 0 ? kFeedbackBits - s.feedback : 16;
 	const bool feedback_on = shift < 16;
 
-	std::array<uint8_t, 6> ops = std::to_array(kAlgorithms[s.algorithm]);
+	std::array<uint8_t, 6> ops = kAlgorithms[s.algorithm];
 	if (mki && feedback_on && (s.algorithm == 3 || s.algorithm == 5)) {
 		ops[0] = kMkIFusedFeedback; // MkI fuses op 6's stack in algorithms 4 and 6
 	}
@@ -136,7 +138,7 @@ void Graph::renderBlock(const Settings& s, Buffer out, Buses& lent) {
 	const std::array<q31*, 3> buses{out.data(), lent.bus[0].data(), lent.bus[1].data()};
 	for (std::size_t op = 0; op < 6; ++op) {
 		const uint8_t flags = ops[op];
-		bool add = (flags & OUT_BUS_ADD) != 0;
+		bool add = has(flags, Flag::OUT_BUS_ADD);
 		const int inbus = (flags >> 4) & 3;
 		const int outbus = flags & 3;
 		const Operator::Settings probe{.engine = s.engine,
@@ -158,7 +160,7 @@ void Graph::renderBlock(const Settings& s, Buffer out, Buses& lent) {
 		settings.output = add ? Output::ADD : Output::SET;
 		const Buffer target{buses[outbus], n};
 		if (inbus == 0 || !has_contents[inbus]) { // an empty input is no input
-			if ((flags & (FB_IN | FB_OUT)) == (FB_IN | FB_OUT) && feedback_on) {
+			if (has(flags, Flag::FB_IN) && has(flags, Flag::FB_OUT) && feedback_on) {
 				if (mki && s.algorithm == 3) {
 					render_stack<3>(s, op, shift, target);
 					op += 2;

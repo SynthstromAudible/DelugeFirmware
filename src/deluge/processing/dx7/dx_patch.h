@@ -26,20 +26,19 @@ class DxPatch {
 public:
 	DxPatch();
 
-	uint8_t params[156];
+	/// The patch's bytes: six ops of 21 (op 6 first), the globals, then one op-switch bit per op in byte 155.
+	uint8_t params[156]{}; // NOLINT(*-avoid-c-arrays): the UI, the cartridge unpack and the codec take it as bytes
 	/// The engine the voices render in, chosen by setEngineMode.
-	deluge::dsp::fixed::dx7::Engine engine;
-	bool opSwitch(int op) const { return (params[155] >> op) & 1; }
-	void setOpSwitch(int op, bool on) { params[155] = (params[155] & ~(1 << op)) | (on ? 1 : 0) * (1 << op); }
-	uint8_t engineMode;
+	deluge::dsp::fixed::dx7::Engine engine = deluge::dsp::fixed::dx7::Engine::MODERN;
+	/// Whether op @p op is switched on (bit @p op of byte 155).
+	[[nodiscard]] bool opSwitch(int op) const { return (params[155] >> op) & 1; }
+	/// The engine mode as the patch stores it: 0 auto, 1 modern, 2 MkI.
+	uint8_t engineMode = 0;
 
-	// extra parameters
-	int32_t random_detune;
-
-	// TODO: these should be per voice with MPE
-	// int amp_mod;
-	int pitch_mod;
-	int eg_mod;
+	/// The patch's random-detune amount.
+	int32_t random_detune = 0;
+	/// The envelope's amplitude-modulation floor, 0 to 127.
+	int eg_mod = 127;
 
 	/// The patch's LFO, shared by its voices; configured from the patch before each block.
 	deluge::dsp::Control<deluge::dsp::fixed::dx7::Lfo> lfo;

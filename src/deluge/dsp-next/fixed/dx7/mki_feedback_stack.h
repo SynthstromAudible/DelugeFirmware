@@ -65,7 +65,7 @@ namespace deluge::dsp::fixed::dx7 {
 /// the next sample's feedback.
 /// @details The DX7 loops the feedback from the bottom of the stack in these two algorithms, which an op-by-op render
 /// cannot, so MkI renders the stack sample by sample here. The output always replaces what is in the bus. The
-/// feedback is shifted down two steps more than elsewhere, to no less than 1 >> 17.
+/// feedback is shifted down two steps more than elsewhere, by at most 17.
 /// @tparam N The ops in the stack: 2 or 3. Op 0 is the patch's op 6.
 template <std::size_t N>
 requires(N == 2 || N == 3)
@@ -92,7 +92,7 @@ struct MkIFeedbackStack {
 	/// @brief What the sample loop steps: each op's phase and attenuation, and the feedback history.
 	struct Loop {
 		std::array<q31, N> phase{}; ///< Each op's phase at the next sample.
-		std::array<q31, N> gain{};  ///< Each op's attenuation at the last sample.
+		std::array<q31, N> gain{};  ///< Each op's attenuation at the last sample, 1/1024 octave (16 bits used).
 		FeedbackHistory feedback{}; ///< The voice's feedback history.
 	};
 
@@ -169,6 +169,7 @@ struct MkIFeedbackStack {
 
 static_assert(generator_kernel<MkIFeedbackStack<2>>);
 static_assert(generator_kernel<MkIFeedbackStack<3>>);
+static_assert(!std::is_polymorphic_v<MkIFeedbackStack<2>>);
 static_assert(!std::is_polymorphic_v<MkIFeedbackStack<3>>);
 
 } // namespace deluge::dsp::fixed::dx7

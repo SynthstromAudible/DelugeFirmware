@@ -68,8 +68,10 @@ struct Envelope {
 
 	/// @brief The operator's envelope bytes and the voice's scaling of them.
 	struct Settings {
-		EnvelopeParams params{};  ///< The op's rates and levels, read live.
-		int32_t output_level = 0; ///< The voice's scaled output level, in microsteps (about 0.023 dB); 99 × 32 is full.
+		EnvelopeParams params{}; ///< The op's rates and levels, read live.
+		/// The voice's scaled output level, in microsteps (1/32 of a step on the 0 to 127 output scale, about
+		/// 0.023 dB): 127 × 32 at full level, plus the velocity's up to 224.
+		int32_t output_level = 0;
 		int32_t rate_scaling = 0; ///< Added to every stage's rate, in qRate units, 0 to 63.
 		int32_t extra_rate = 0;   ///< Added to a stage's rate when a block enters it; 0 for the events.
 	};
@@ -81,7 +83,7 @@ struct Envelope {
 		int32_t level = 0;     ///< The level, Q24 doublings: 2^24 is one doubling.
 		int32_t target = 0;    ///< The stage's target level, Q24 doublings.
 		int32_t stage = 0;     ///< The stage, 0 to 3; 4 once release has finished.
-		int32_t increment = 0; ///< The stage's step per sample.
+		int32_t increment = 0; ///< The stage's step per sample, 2^-16 of a Q24 doubling (rising: times the slope).
 		int32_t hold = 0;      ///< Samples left before a held stage enters the next; 0 when not held.
 		bool down = false;     ///< The key is held.
 		bool rising = false;   ///< The stage moves up to its target.
@@ -138,9 +140,6 @@ struct Envelope {
 			enter_stage(c, s, 2, 0);
 		}
 	}
-
-	/// @brief Takes over @p from's envelope as it stands, as a mono voice taking another's note does.
-	[[gnu::always_inline]] static void transfer(State& s, const State& from) { s = from; }
 
 	/// @brief An output level byte (0 to 99) on the DX7's 0 to 127 scale.
 	[[nodiscard]] [[gnu::always_inline]] static constexpr int32_t scale_output_level(int32_t level) {

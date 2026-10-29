@@ -57,7 +57,8 @@ void DXColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t 
 			if (!patch->opSwitch(op)) {
 				image[y][column] = {255, 0, 0};
 			}
-			else if (ops[op] & (deluge::dsp::fixed::dx7::OUT_BUS_ONE | deluge::dsp::fixed::dx7::OUT_BUS_TWO)) {
+			else if (deluge::dsp::fixed::dx7::has(ops[op], deluge::dsp::fixed::dx7::Flag::OUT_BUS_ONE)
+			         || deluge::dsp::fixed::dx7::has(ops[op], deluge::dsp::fixed::dx7::Flag::OUT_BUS_TWO)) {
 				image[y][column] = {0, 128, 255};
 			}
 			else {
@@ -103,7 +104,7 @@ void DXColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCo
 		auto* sound = static_cast<SoundInstrument*>(getCurrentInstrument());
 		if (std::optional<deluge::instrument::DxPatchState> changed = deluge::bridge::dxPatchOf(sound->sources[0])) {
 			changed->params[155] ^=
-			    static_cast<uint8_t>(1 << op); // the op switches, as DxPatch::setOpSwitch packs them
+			    static_cast<uint8_t>(1 << op); // the op switches: one bit per op, as DxPatch::opSwitch reads them
 			deluge::gui::menu_item::dxPatchFor(*sound, 0, *changed);
 		}
 	}

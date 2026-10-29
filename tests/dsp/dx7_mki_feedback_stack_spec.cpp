@@ -3,6 +3,7 @@
 // eight feedback shifts, over consecutive blocks of every length. Then the held and falling attenuation quirk.
 
 #include "dsp-next/core/mono.h"
+#include "dsp-next/fixed/dx7/graph.h"
 #include "dsp-next/fixed/dx7/mki_feedback_stack.h"
 #include "dsp-next/fixed/dx7/tables.h"
 #include "dx7_asm_pin_workloads.h"

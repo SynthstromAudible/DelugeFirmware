@@ -144,7 +144,7 @@ struct AsmCore {
 		bool has_contents[3] = {true, false, false}; // NOLINT(*-avoid-c-arrays): as Core
 		for (int op = 0; op < 6; op++) {
 			int flags = alg[op];
-			bool add = (flags & dx7::OUT_BUS_ADD) != 0;
+			bool add = dx7::has(static_cast<uint8_t>(flags), dx7::Flag::OUT_BUS_ADD);
 			dx7_reference::FmOpParams& param = params[op];
 			int inbus = (flags >> 4) & 3;
 			int outbus = flags & 3;

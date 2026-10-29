@@ -124,7 +124,8 @@ struct FeedbackHistory {
 	q31 y1 = 0; ///< The last output.
 };
 
-/// @brief A block's gain ramp.
+/// @brief A block's gain ramp: a linear gain in Q24 (modern), or an attenuation in 1/1024 octave, 0 loudest and
+/// kEnvMax silent (MkI).
 struct Gains {
 	int32_t gain1; ///< The gain the block starts from: the last block's end.
 	int32_t gain2; ///< The gain the block ends at, from the level.
