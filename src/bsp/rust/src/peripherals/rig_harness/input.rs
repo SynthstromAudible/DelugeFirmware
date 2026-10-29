@@ -86,3 +86,30 @@ pub fn parse(line: &str) -> Result<Command, ParseError> {
         Some(_) => Err(ParseError),
     }
 }
+
+/// Spends script encoder turns one quadrature edge per tick, as a turned knob delivers them: the
+/// app's acceleration reads how far apart the edges come, so a whole turn applied at once would not
+/// be the gesture the script describes.
+#[derive(Default)]
+pub struct EdgePacer {
+    pending: [i32; ENCODERS as usize],
+}
+
+impl EdgePacer {
+    /// Queues `edges` (signed) on encoder `idx`; edges the other way cancel pending ones first.
+    pub fn add(&mut self, idx: u8, edges: i32) {
+        if let Some(p) = self.pending.get_mut(idx as usize) {
+            *p = p.saturating_add(edges);
+        }
+    }
+
+    /// The edges to apply this tick: at most one per encoder, in its pending direction.
+    pub fn tick(&mut self) -> [i32; ENCODERS as usize] {
+        let mut out = [0; ENCODERS as usize];
+        for (o, p) in out.iter_mut().zip(&mut self.pending) {
+            *o = p.signum();
+            *p -= *o;
+        }
+        out
+    }
+}

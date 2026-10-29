@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Tests for rig_session.py's DeviceSession over a fake RTT link: `python3 -m unittest test_rig_session`."""
 
+import base64
 import time
 import unittest
 
@@ -49,7 +50,9 @@ class Decoding(unittest.TestCase):
     def test_state_follows_changes(self):
         link = FakeLink()
         s = attached(link)
-        cols = "00" * 3 * 8 + "0a0b0c" + "00" * 3 * 7
+        cols = base64.b64encode(
+            bytes(3 * 8) + bytes([10, 11, 12]) + bytes(3 * 7)
+        ).decode()
         link.feed(f"@C 2 1000100 1 {cols}\n@G 3 1000100 1 1 2 3 4\n")
         link.feed("@F 4 1000100 13 3\n@M 5 1000100 5 20\n@T 6 1000200\n")
         s.run_until(200_000)
@@ -71,7 +74,9 @@ class Decoding(unittest.TestCase):
         frame = bytearray(768)
         frame[0] = 0b0000_0001  # page 0, column 0, row 0
         frame[128 + 5] = 0b1000_0000  # page 1, column 5, row 15
-        link.feed(f"@O 2 1000100 128 48 {frame.hex()}\n@T 3 1000200\n")
+        link.feed(
+            f"@O 2 1000100 128 48 {base64.b64encode(frame).decode()}\n@T 3 1000200\n"
+        )
         s.run_until(200_000)
         rows = s.read_oled()
         self.assertEqual((len(rows), len(rows[0])), (48, 128))

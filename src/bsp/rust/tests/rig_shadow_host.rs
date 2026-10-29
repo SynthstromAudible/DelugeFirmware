@@ -4,7 +4,7 @@
 use deluge_bsp_rust::peripherals::rig_harness::shadow::{Change, Shadow};
 
 fn drain(s: &mut Shadow) -> Vec<Change> {
-    s.take_changes().collect()
+    s.take_changes(true).collect()
 }
 
 #[test]
@@ -67,4 +67,19 @@ fn scrolls_and_overflowing_flashes_are_reported() {
     assert_eq!(got.len(), 1 + Shadow::FLASH_QUEUE);
     assert_eq!(s.take_dropped(), 40 - Shadow::FLASH_QUEUE as u32);
     assert_eq!(s.take_dropped(), 0);
+}
+
+#[test]
+fn an_oled_change_waits_until_it_is_due() {
+    let mut s = Shadow::new();
+    s.record_oled(&[1; 768], 128, 48);
+    s.record_led(3, true);
+    assert_eq!(
+        s.take_changes(false).collect::<Vec<_>>(),
+        vec![Change::Led(3)]
+    );
+    // The frame is still pending, and the latest one goes out once due.
+    s.record_oled(&[2; 768], 128, 48);
+    assert_eq!(s.take_changes(true).collect::<Vec<_>>(), vec![Change::Oled]);
+    assert_eq!(s.oled().0[0], 2);
 }

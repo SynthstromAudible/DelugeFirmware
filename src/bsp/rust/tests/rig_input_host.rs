@@ -81,3 +81,21 @@ fn rejects_bad_lines() {
 fn encoder_edges_keep_sign() {
     assert_eq!(parse("E 2 -8"), Ok(Command::Encoder { idx: 2, edges: -8 }));
 }
+
+#[test]
+fn queued_edges_go_out_one_per_tick() {
+    use deluge_bsp_rust::peripherals::rig_harness::input::EdgePacer;
+    let mut p = EdgePacer::default();
+    p.add(3, 3);
+    p.add(4, -2);
+    // One edge per encoder per tick, in its own direction, until each is spent.
+    assert_eq!(p.tick(), [0, 0, 0, 1, -1, 0]);
+    assert_eq!(p.tick(), [0, 0, 0, 1, -1, 0]);
+    assert_eq!(p.tick(), [0, 0, 0, 1, 0, 0]);
+    assert_eq!(p.tick(), [0; 6]);
+    // A turn back while edges are pending cancels them first.
+    p.add(1, 2);
+    p.add(1, -3);
+    assert_eq!(p.tick(), [0, -1, 0, 0, 0, 0]);
+    assert_eq!(p.tick(), [0; 6]);
+}

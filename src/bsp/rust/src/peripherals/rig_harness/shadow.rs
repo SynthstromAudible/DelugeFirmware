@@ -172,14 +172,15 @@ impl Shadow {
     }
 
     /// Drains the pending changes: scroll first, then OLED, columns, LEDs, rings, flashes in the
-    /// order they came, and PIC settings last.
-    pub fn take_changes(&mut self) -> impl Iterator<Item = Change> + '_ {
+    /// order they came, and PIC settings last. Without `oled_due` a new frame stays pending, so the
+    /// caller can pace the panel's largest line.
+    pub fn take_changes(&mut self, oled_due: bool) -> impl Iterator<Item = Change> + '_ {
         let mut out: heapless::Vec<Change, { Self::MAX_CHANGES }> = heapless::Vec::new();
         // Capacity is MAX_CHANGES, so no push can fail.
         if core::mem::take(&mut self.scrolled) {
             let _ = out.push(Change::Scroll);
         }
-        if core::mem::take(&mut self.oled_dirty) {
+        if oled_due && core::mem::take(&mut self.oled_dirty) {
             let _ = out.push(Change::Oled);
         }
         for (i, d) in self.columns_dirty.iter_mut().enumerate() {

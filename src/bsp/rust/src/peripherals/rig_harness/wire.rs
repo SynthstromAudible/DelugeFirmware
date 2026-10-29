@@ -4,8 +4,8 @@
 //!
 //! | Kind | Fields after `seq us` |
 //! |---|---|
-//! | `O` | width, height, the frame as hex (SSD1309 page layout) |
-//! | `C` | column pair index, 16 pads × RGB as hex |
+//! | `O` | width, height, the frame in base64 (SSD1309 page layout) |
+//! | `C` | column pair index, 16 pads × RGB in base64 |
 //! | `L` | LED index, 0 or 1 |
 //! | `G` | knob, four levels |
 //! | `F` | pad index (`y + x * 8`), PIC colour index (0 = current) |
@@ -20,12 +20,26 @@ use core::fmt::{self, Write};
 
 use super::shadow::{COLUMN_PAIRS, Change, LED_COUNT, Shadow};
 
-/// The longest line: an OLED frame's hex plus its header.
-pub const MAX_LINE: usize = 1664;
+/// The longest line: an OLED frame's base64 plus its header.
+pub const MAX_LINE: usize = 1088;
 
-fn hex(bytes: &[u8], out: &mut impl Write) -> fmt::Result {
-    for b in bytes {
-        write!(out, "{b:02x}")?;
+/// Standard base64 with padding: a third smaller than hex on a link that is the harness's bottleneck.
+fn base64(bytes: &[u8], out: &mut impl Write) -> fmt::Result {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    for chunk in bytes.chunks(3) {
+        let b = [
+            chunk[0],
+            *chunk.get(1).unwrap_or(&0),
+            *chunk.get(2).unwrap_or(&0),
+        ];
+        let n = (b[0] as u32) << 16 | (b[1] as u32) << 8 | b[2] as u32;
+        for i in 0..4 {
+            if i <= chunk.len() {
+                out.write_char(ALPHABET[(n >> (18 - 6 * i)) as usize & 63] as char)?;
+            } else {
+                out.write_char('=')?;
+            }
+        }
     }
     Ok(())
 }
@@ -37,11 +51,11 @@ pub fn encode(change: &Change, s: &Shadow, seq: u32, us: u64, out: &mut impl Wri
             let (frame, (w, h)) = s.oled();
             let n = (w as usize * h as usize / 8).min(frame.len());
             write!(out, "@O {seq} {us} {w} {h} ")?;
-            hex(&frame[..n], out)?;
+            base64(&frame[..n], out)?;
         }
         Change::Columns(idx) => {
             write!(out, "@C {seq} {us} {idx} ")?;
-            hex(s.columns(idx), out)?;
+            base64(s.columns(idx), out)?;
         }
         Change::Led(id) => write!(out, "@L {seq} {us} {id} {}", s.led(id) as u8)?,
         Change::Ring(knob) => {

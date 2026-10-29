@@ -23,12 +23,13 @@ fn encodes_each_line_kind() {
     s.record_pic(Some(5), Some(20));
 
     let oled = line(Change::Oled, &s);
-    assert!(oled.starts_with("@O 17 1500 128 48 abab"));
-    assert_eq!(oled.len(), "@O 17 1500 128 48 ".len() + 768 * 2 + 1);
+    // Payloads are base64: 0xab 0xab 0xab is "q6ur", and 768 bytes are 1024 characters.
+    assert!(oled.starts_with("@O 17 1500 128 48 q6ur"));
+    assert_eq!(oled.len(), "@O 17 1500 128 48 ".len() + 1024 + 1);
     let cols = line(Change::Columns(2), &s);
-    assert!(cols.starts_with("@C 17 1500 2 0f0000"));
-    assert!(cols.ends_with("f0\n"));
-    assert_eq!(cols.len(), "@C 17 1500 2 ".len() + 96 + 1);
+    assert!(cols.starts_with("@C 17 1500 2 DwAA"));
+    assert!(cols.ends_with("AADw\n"));
+    assert_eq!(cols.len(), "@C 17 1500 2 ".len() + 64 + 1);
     assert_eq!(line(Change::Led(7), &s), "@L 17 1500 7 1\n");
     assert_eq!(line(Change::Led(8), &s), "@L 17 1500 8 0\n");
     assert_eq!(line(Change::Ring(1), &s), "@G 17 1500 1 1 2 3 4\n");

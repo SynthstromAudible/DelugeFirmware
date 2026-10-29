@@ -93,13 +93,23 @@ mod device {
         }
     }
 
-    /// Streams the panel: a heartbeat every 10 ms, then each change since the last one.
+    /// The shortest gap between two OLED lines: the rate tools/emu_parity.py samples the panel at.
+    /// Frames at the app's full rate would outrun what the probe reads off the RTT buffer.
+    const OLED_INTERVAL_US: u64 = 25_000;
+
+    /// Streams the panel: a heartbeat every 10 ms, then each change since the last one, the OLED
+    /// at most every OLED_INTERVAL_US (its latest frame).
     #[embassy_executor::task]
     pub async fn stream_task() {
         let mut ticker = Ticker::every(Duration::from_millis(10));
+        let mut last_oled_us = 0u64;
         loop {
             ticker.next().await;
             let us = now_us();
+            let oled_due = us.saturating_sub(last_oled_us) >= OLED_INTERVAL_US;
+            if oled_due {
+                last_oled_us = us;
+            }
             line(|l| wire::heartbeat(next_seq(), us, l));
             with(|s| {
                 let dropped = s.take_dropped();
@@ -107,7 +117,7 @@ mod device {
                     line(|l| wire::dropped(next_seq(), us, dropped, l));
                 }
                 let changes: heapless::Vec<Change, { Shadow::MAX_CHANGES }> =
-                    s.take_changes().collect();
+                    s.take_changes(oled_due).collect();
                 for change in &changes {
                     line(|l| wire::encode(change, s, next_seq(), us, l));
                 }
@@ -131,7 +141,7 @@ mod device {
     }
 
     /// Applies one command; false when the app's input queue had no room for it.
-    fn apply(cmd: Command) -> bool {
+    fn apply(cmd: Command, pacer: &mut input::EdgePacer) -> bool {
         let event = |kind, x, y, value| DelugeInputEvent { kind, x, y, value };
         match cmd {
             Command::Button { x, y, down } => control::try_queue_event(event(
@@ -148,7 +158,7 @@ mod device {
                 control::try_queue_event(event(KIND_PAD, x, y, if down { vel as i16 } else { 0 }))
             }
             Command::Encoder { idx, edges } => {
-                control::add_encoder_edges_for_harness(idx, edges);
+                pacer.add(idx, edges);
                 true
             }
             Command::NoPresses => control::try_queue_event(event(KIND_NO_PRESSES, 0, 0, 0)),
@@ -172,8 +182,14 @@ mod device {
         let mut ticker = Ticker::every(Duration::from_millis(2));
         let mut text: heapless::String<{ input::MAX_LINE }> = heapless::String::new();
         let mut too_long = false;
+        let mut pacer = input::EdgePacer::default();
         loop {
             ticker.next().await;
+            for (idx, edge) in pacer.tick().into_iter().enumerate() {
+                if edge != 0 {
+                    control::add_encoder_edges_for_harness(idx as u8, edge);
+                }
+            }
             let mut buf = [0u8; 64];
             let n = critical_section::with(|cs| {
                 DOWN.borrow_ref_mut(cs)
@@ -184,7 +200,7 @@ mod device {
                 if b == b'\n' {
                     if too_long {
                         refuse("(line too long)");
-                    } else if !input::parse(&text).is_ok_and(apply) {
+                    } else if !input::parse(&text).is_ok_and(|cmd| apply(cmd, &mut pacer)) {
                         refuse(&text);
                     }
                     text.clear();

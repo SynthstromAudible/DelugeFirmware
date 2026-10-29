@@ -14,6 +14,8 @@ from the moment the session attached, as delugemu counts them from power-on.
 
 from __future__ import annotations
 
+import base64
+import binascii
 import os
 import re
 import struct
@@ -139,7 +141,7 @@ class DeviceSession:
             if line.startswith("@"):
                 try:
                     self._apply(line.split())
-                except (ValueError, IndexError) as exc:
+                except (ValueError, IndexError, binascii.Error) as exc:
                     raise RuntimeError(
                         f"rig harness: malformed panel line ({exc}): {line[:120]}...{line[-200:]}"
                     ) from exc
@@ -157,11 +159,11 @@ class DeviceSession:
         if kind == "@O":
             w, h = int(f[3]), int(f[4])
             self._oled, self._oled_size = (
-                bytes.fromhex(f[5]) if len(f) > 5 else b"",
+                base64.b64decode(f[5], validate=True) if len(f) > 5 else b"",
                 (w, h),
             )
         elif kind == "@C":
-            idx, rgb = int(f[3]), bytes.fromhex(f[4])
+            idx, rgb = int(f[3]), base64.b64decode(f[4], validate=True)
             for i in range(16):
                 col = idx * 2 + i // 8
                 if col < PAD_COLS:
