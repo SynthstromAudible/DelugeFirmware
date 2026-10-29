@@ -228,17 +228,6 @@ Error WaveTable::setup(WaveTableCycleReader& reader, int32_t sourceCycleSize, ui
 		waveIndexMultiplier = numCycleTransitions << (31 - numCycleTransitionsNextPowerOf2Magnitude);
 	}
 
-	// Give the working buffers' fast RAM back before trimming the bands.
-	cycle->reset();
-	spectrum->reset();
-
-	// Each band keeps only the cycles it holds.
-	for (WaveTableBand& band : bands) {
-		if (band.toCycleNumber < numCycles) {
-			band.samples.shrink_to(band.toCycleNumber
-			                       * (band.cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd));
-		}
-	}
 	clearBands.built = true;
 	return Error::NONE;
 }

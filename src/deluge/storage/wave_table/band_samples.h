@@ -21,7 +21,7 @@
 #include <cstdint>
 #include <utility>
 
-/// @brief Owns one band's 16-bit samples: a block of external SDRAM, freed on destruction, shrunk only in place.
+/// @brief Owns one band's 16-bit samples: a block of external SDRAM, freed on destruction.
 class BandSamples {
 public:
 	BandSamples() = default;
@@ -38,9 +38,6 @@ public:
 	/// @brief The first sample: cycle 0's, the band's dataAccessAddress.
 	[[nodiscard]] int16_t* data() const { return samples_; }
 	[[nodiscard]] explicit operator bool() const { return samples_ != nullptr; }
-	/// @brief Keeps the first @p num_samples and gives the rest back to the heap; the block does not move, so
-	///        dataAccessAddress stays valid.
-	void shrink_to(std::size_t num_samples);
 
 private:
 	explicit BandSamples(int16_t* samples) : samples_{samples} {}

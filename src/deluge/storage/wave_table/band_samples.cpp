@@ -27,7 +27,3 @@ BandSamples::~BandSamples() {
 		deluge::memory::dealloc(samples_);
 	}
 }
-
-void BandSamples::shrink_to(std::size_t num_samples) {
-	deluge::memory::shrink(samples_, num_samples * sizeof(int16_t));
-}
