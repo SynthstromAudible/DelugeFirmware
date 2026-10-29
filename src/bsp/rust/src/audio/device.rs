@@ -1,8 +1,9 @@
 //! `libdeluge/audio_io.h` — duplex block audio over the free-running SSI0 DMA rings.
 //!
-//! Board audio bring-up starts both DMA rings; this module owns only the read/write cursors and
-//! the pacing. The app renders i32 stereo via `deluge_app_render`, written directly into the
-//! uncached TX ring.
+//! Board audio bring-up starts both DMA rings, which `deluge_bsp::audio` holds; this module owns
+//! only the read/write cursors and the pacing, and fills and reads the rings by offset (the
+//! rings' positional window). The app renders i32 stereo via `deluge_app_render`, written directly
+//! into the uncached TX ring.
 //!
 //! No ISR touches this state. The `static mut` cursors belong to the render (the preemptive audio
 //! tier) alone, apart from `deluge_audio_start`, which anchors them before the render starts. The
@@ -14,17 +15,18 @@
 // The unsafe ops inside the unsafe fns are justified per site.
 #![allow(unsafe_op_in_unsafe_fn)]
 
-use core::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, AtomicUsize, Ordering};
 
-use rza1l_hal::ssi;
+use deluge_bsp::audio;
 
 use crate::audio::pacing::pace_window;
+use crate::audio::ring::{frame_at, read_frame, write_frame};
 use crate::sys::{DelugeStatus, DelugeStatus_DELUGE_OK as DELUGE_OK, DelugeStereoSample};
 
 /// TX ring length in stereo frames (a power of two, for the masks).
-const TX_FRAMES: usize = ssi::TX_FRAMES; // 1024
+const TX_FRAMES: usize = audio::SSI_TX_WORDS / 2; // 1024
 /// RX ring length in stereo frames.
-const RX_FRAMES: usize = ssi::RX_FRAMES; // 2048
+const RX_FRAMES: usize = audio::SSI_RX_WORDS / 2; // 2048
 pub(crate) const TX_MASK: usize = TX_FRAMES - 1;
 pub(crate) const RX_MASK: usize = RX_FRAMES - 1;
 
@@ -73,23 +75,46 @@ static RENDER_BLOCKS: AtomicU32 = AtomicU32::new(0);
 /// render cannot hang its caller. Several blocks' worth (one is ~2.9 ms at 128 frames).
 const AWAIT_BLOCK_BOUND_MS: u64 = 20;
 
-/// Returns the DMA TX play head as a frame index into the ring.
-#[inline]
-pub(crate) fn tx_play_frame() -> usize {
-    // SAFETY: both pointers are into the same TX ring (uncached alias).
-    let slots = unsafe { ssi::tx_current_ptr().offset_from(ssi::tx_buf_start()) } as usize;
-    (slots / 2) & TX_MASK
+/// The TX and RX rings' first words (uncached alias), cached the first time each is asked for once
+/// board audio init has lent them; null before. The rings never move or go away after init.
+static RING_TX: AtomicPtr<u32> = AtomicPtr::new(core::ptr::null_mut());
+static RING_RX: AtomicPtr<u32> = AtomicPtr::new(core::ptr::null_mut());
+
+/// The TX ring's first word, or null before board audio init.
+fn tx_ring() -> *mut u32 {
+    let p = RING_TX.load(Ordering::Acquire);
+    if !p.is_null() {
+        return p;
+    }
+    let p = audio::with_tx(|t| t.ring_mut().as_mut_ptr()).unwrap_or(core::ptr::null_mut());
+    RING_TX.store(p, Ordering::Release);
+    p
 }
 
-/// Returns the DMA RX write head as a frame index into the ring.
+/// The RX ring's first word, or null before board audio init.
+fn rx_ring() -> *const u32 {
+    let p = RING_RX.load(Ordering::Acquire);
+    if !p.is_null() {
+        return p;
+    }
+    let p = audio::with_rx(|r| r.ring().as_ptr() as *mut u32).unwrap_or(core::ptr::null_mut());
+    RING_RX.store(p, Ordering::Release);
+    p
+}
+
+/// Returns the DMA TX play head as a frame index into the ring; 0 before board audio init.
+#[inline]
+pub(crate) fn tx_play_frame() -> usize {
+    frame_at(audio::with_tx(|t| t.position()), TX_MASK)
+}
+
+/// Returns the DMA RX write head as a frame index into the ring; 0 before board audio init.
 ///
 /// The RX DMA runs on the codec clock from board audio init, so this is also the clock USB audio
 /// paces its packets by.
 #[inline]
 pub(crate) fn rx_write_frame() -> usize {
-    // SAFETY: both pointers are into the same RX ring (uncached alias).
-    let slots = unsafe { ssi::rx_current_ptr().offset_from(ssi::rx_buf_start()) } as usize;
-    (slots / 2) & RX_MASK
+    frame_at(audio::with_rx(|r| r.position()), RX_MASK)
 }
 
 /// How many frames the codec plays before it reaches the block being rendered. Audio tier, inside
@@ -103,7 +128,7 @@ pub(crate) fn block_lead_frames() -> usize {
 /// Flushes pending rendered frames into the TX ring; returns true once all are flushed, false if
 /// the write cursor would lap the play head. Re-polls the play head once when the ring looks full.
 unsafe fn flush_pending() -> bool {
-    let base = ssi::tx_buf_start();
+    let base = tx_ring();
     let rb = core::ptr::addr_of!(RENDER_BLOCK) as *const DelugeStereoSample;
     while PENDING_POS != PENDING_END {
         // A zero lead means the write cursor is a full ring ahead of the play head.
@@ -114,10 +139,8 @@ unsafe fn flush_pending() -> bool {
             }
         }
         let s = *rb.add(PENDING_POS);
-        // SAFETY: TX_WRITE is masked into [0, TX_FRAMES); 2 slots per frame.
-        let p = base.add(TX_WRITE * 2);
-        p.write_volatile(s.l);
-        p.add(1).write_volatile(s.r);
+        // SAFETY: TX_WRITE is masked into [0, TX_FRAMES), within the ring's TX_FRAMES frames.
+        write_frame(base, TX_WRITE, s.l, s.r);
         TX_WRITE = (TX_WRITE + 1) & TX_MASK;
         PENDING_POS += 1;
     }
@@ -127,16 +150,13 @@ unsafe fn flush_pending() -> bool {
 /// Copies the next `frames` received frames from the RX ring into `INPUT_BLOCK` and advances the
 /// read cursor.
 unsafe fn prepare_input_block(frames: usize) {
-    let base = ssi::rx_buf_start();
+    let base = rx_ring();
     let ib = core::ptr::addr_of_mut!(INPUT_BLOCK) as *mut DelugeStereoSample;
     for i in 0..frames {
         let fp = (RX_READ + i) & RX_MASK;
-        // SAFETY: fp masked into [0, RX_FRAMES); 2 slots per frame; uncached alias.
-        let p = base.add(fp * 2);
-        *ib.add(i) = DelugeStereoSample {
-            l: p.read_volatile(),
-            r: p.add(1).read_volatile(),
-        };
+        // SAFETY: fp masked into [0, RX_FRAMES), within the ring's RX_FRAMES frames.
+        let (l, r) = read_frame(base, fp);
+        *ib.add(i) = DelugeStereoSample { l, r };
     }
     RX_READ = (RX_READ + frames) & RX_MASK;
 }
