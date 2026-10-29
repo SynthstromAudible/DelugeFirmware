@@ -34,8 +34,9 @@ namespace fft = deluge::dsp::fixed::fft;
 /// tables and scratch it lends them, so the cache itself is one pointer per size.
 std::array<const fft::RealFft*, fft::kMaxMagnitude + 1> transforms{};
 
-/// Where a block's tables start: past the transform object, at the tables' alignment.
-constexpr std::size_t kTablesOffset = (sizeof(fft::RealFft) + alignof(fft::Complex) - 1) & ~(alignof(fft::Complex) - 1);
+/// Where a block's tables start: past the transform object, on a 16-byte boundary, so every table and scratch row the
+/// transforms load and store in pairs is 8-aligned.
+constexpr std::size_t kTablesOffset = (sizeof(fft::RealFft) + 15) & ~std::size_t{15};
 
 } // namespace
 

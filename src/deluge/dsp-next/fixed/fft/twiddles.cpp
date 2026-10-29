@@ -91,7 +91,7 @@ constexpr int32_t kAlgorithmDefault = 0; // the factor list's closing flag: a po
 Layout lay_out(std::span<std::byte> storage, int32_t magnitude) {
 	assert(magnitude >= kMinMagnitude && magnitude <= kMaxMagnitude);
 	assert(storage.size() >= storage_bytes(magnitude));
-	assert(reinterpret_cast<std::uintptr_t>(storage.data()) % alignof(Complex) == 0);
+	assert(reinterpret_cast<std::uintptr_t>(storage.data()) % 8 == 0);
 	const std::size_t half = std::size_t{1} << (magnitude - 1);
 	auto* factors = reinterpret_cast<int32_t*>(storage.data());
 	auto* stage = reinterpret_cast<Complex*>(factors + (kMaxFactors * 2));
