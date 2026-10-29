@@ -74,9 +74,14 @@ pub fn error(seq: u32, us: u64, line: &str, out: &mut impl Write) -> fmt::Result
     writeln!(out, "@E {seq} {us} {line}")
 }
 
-/// Emits the whole panel, one line per OLED, column pair, LED, ring and the PIC settings, numbering
-/// them from `*seq` on.
-pub fn full_state(s: &Shadow, seq: &mut u32, us: u64, mut emit: impl FnMut(&str)) -> fmt::Result {
+/// Emits the whole panel, one line per OLED, column pair, LED, ring and the PIC settings, each
+/// numbered by `next_seq`.
+pub fn full_state(
+    s: &Shadow,
+    us: u64,
+    mut next_seq: impl FnMut() -> u32,
+    mut emit: impl FnMut(&str),
+) -> fmt::Result {
     let changes = core::iter::once(Change::Oled)
         .chain((0..COLUMN_PAIRS as u8).map(Change::Columns))
         .chain((0..LED_COUNT as u8).map(Change::Led))
@@ -84,9 +89,8 @@ pub fn full_state(s: &Shadow, seq: &mut u32, us: u64, mut emit: impl FnMut(&str)
         .chain(core::iter::once(Change::Pic));
     for change in changes {
         let mut line: heapless::String<MAX_LINE> = heapless::String::new();
-        encode(&change, s, *seq, us, &mut line)?;
+        encode(&change, s, next_seq(), us, &mut line)?;
         emit(&line);
-        *seq = seq.wrapping_add(1);
     }
     Ok(())
 }

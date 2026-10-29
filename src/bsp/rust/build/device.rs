@@ -42,6 +42,14 @@ fn setup_linker_script(manifest_dir: &Path, out_dir: &Path) {
     // fragment's patterns that move statics to SDRAM must win over `link.x`'s `*(.bss.*)`.
     println!("cargo:rustc-link-arg=-Wl,-T,sdram_sections.x");
     println!("cargo:rustc-link-arg=-Wl,-T,link.x");
+    // The rig harness's code lives in SRAM; its images are never shipped, so they may take a few
+    // KB more of the heap than a shipping image may.
+    if env::var("CARGO_FEATURE_RIG_HARNESS").is_ok() {
+        println!(
+            "cargo:rustc-link-arg=-Wl,--defsym=__sram_heap_floor_test={}",
+            96 * 1024
+        );
+    }
     println!("cargo:rerun-if-changed=linker/memory.x");
     println!("cargo:rerun-if-changed=linker/memory_rtt.x");
     println!("cargo:rerun-if-changed=linker/sdram_sections.x");

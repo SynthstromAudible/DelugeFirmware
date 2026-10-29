@@ -112,9 +112,16 @@ pub async fn pic_pump() {
 ///
 /// The wake is the only way the driver hears of input: it has no level check on [`EVENTS`].
 pub fn queue_event(ev: DelugeInputEvent) {
-    if EVENTS.try_send(ev).is_ok() {
+    try_queue_event(ev);
+}
+
+/// [`queue_event`], returning false when [`EVENTS`] was full and `ev` was dropped.
+pub fn try_queue_event(ev: DelugeInputEvent) -> bool {
+    let queued = EVENTS.try_send(ev).is_ok();
+    if queued {
         crate::app_loop::wake(crate::app_loop::WAKE_INPUT);
     }
+    queued
 }
 
 /// Queues `ev` without waking the app's loop; returns false when [`EVENTS`] is full. A host test
@@ -202,7 +209,6 @@ pub extern "C" fn deluge_encoder_take_quadrature_edges(encoder: u8) -> i8 {
 
 /// Adds `edges` to the app's encoder `index` (its ordinal, as `deluge_encoder_take_quadrature_edges` takes
 /// it), saturating at the accumulator's range, and wakes the app's encoder wait.
-#[cfg(not(target_os = "none"))]
 pub fn add_encoder_edges_for_harness(index: u8, edges: i32) {
     let i = index as usize;
     if i >= encoder::NUM_ENCODERS {

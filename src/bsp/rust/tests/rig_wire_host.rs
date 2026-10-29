@@ -48,7 +48,16 @@ fn full_state_lists_every_pad_column_and_led() {
     let s = Shadow::new();
     let mut lines = Vec::new();
     let mut seq = 100;
-    wire::full_state(&s, &mut seq, 2000, |l| lines.push(l.to_owned())).unwrap();
+    wire::full_state(
+        &s,
+        2000,
+        || {
+            seq += 1;
+            seq - 1
+        },
+        |l| lines.push(l.to_owned()),
+    )
+    .unwrap();
     let count = |p: &str| lines.iter().filter(|l| l.starts_with(p)).count();
     assert_eq!(count("@O "), 1);
     assert_eq!(count("@C "), 9);

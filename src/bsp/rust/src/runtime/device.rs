@@ -158,13 +158,24 @@ pub fn start() -> ! {
     // The RTT channel first, so the fault reporter can write to the probe from the first
     // instruction. The ring buffer + control block live in uncached SRAM (.rtt_buffer /
     // rza1-rt's link_rtt.x).
-    #[cfg(feature = "rtt")]
+    #[cfg(all(feature = "rtt", not(feature = "rig-harness")))]
     {
         let channels = rtt_target::rtt_init! {
             up: { 0: { size: 16384, name: "Terminal", section: ".rtt_buffer" } }
             section_cb: ".rtt_buffer"
         };
         rtt_target::set_print_channel(channels.up.0);
+    }
+    // The rig harness also takes the host's script gestures, on down channel 0.
+    #[cfg(feature = "rig-harness")]
+    {
+        let channels = rtt_target::rtt_init! {
+            up: { 0: { size: 16384, name: "Terminal", section: ".rtt_buffer" } }
+            down: { 0: { size: 1024, name: "Terminal", section: ".rtt_buffer" } }
+            section_cb: ".rtt_buffer"
+        };
+        rtt_target::set_print_channel(channels.up.0);
+        crate::peripherals::rig_harness::set_input_channel(channels.down.0);
     }
 
     // No Rust SRAM heap: any static pool would come out of the C++ app's fast on-chip heap, which
@@ -279,6 +290,9 @@ pub fn start() -> ! {
         // Streams the panel to the probe for scripted runs on the rig.
         #[cfg(feature = "rig-harness")]
         spawner.spawn(crate::peripherals::rig_harness::stream_task().unwrap());
+        // Applies the host's script gestures on the rig.
+        #[cfg(feature = "rig-harness")]
+        spawner.spawn(crate::peripherals::rig_harness::input_task().unwrap());
         // CV DAC writer (shares RSPI0 with the OLED).
         spawner.spawn(cv_gate::cv_writer().unwrap());
         // Calls the app's clock-in handler once per captured edge.

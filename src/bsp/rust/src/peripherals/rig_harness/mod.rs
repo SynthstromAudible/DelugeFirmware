@@ -5,6 +5,7 @@
 //! The app's panel writes are recorded at the libdeluge API, where `ui_harness` records them on
 //! host builds, so both harnesses see the same thing.
 
+pub mod input;
 pub mod shadow;
 pub mod wire;
 
@@ -17,8 +18,15 @@ mod device {
     use critical_section::Mutex;
     use embassy_time::{Duration, Instant, Ticker};
 
+    use super::input::{self, Command};
     use super::shadow::{COLUMN_BYTES, Change, Shadow};
     use super::wire;
+    use crate::peripherals::control;
+    use crate::sys::{
+        DelugeInputEvent, DelugeInputEventKind_DELUGE_EVENT_BUTTON as KIND_BUTTON,
+        DelugeInputEventKind_DELUGE_EVENT_NO_PRESSES as KIND_NO_PRESSES,
+        DelugeInputEventKind_DELUGE_EVENT_PAD as KIND_PAD,
+    };
 
     // In SDRAM: the SRAM heap has little headroom over its floor. `.sdram_bss` is zeroed at boot,
     // which is `Shadow::new()`.
@@ -104,6 +112,87 @@ mod device {
                     line(|l| wire::encode(change, s, next_seq(), us, l));
                 }
             });
+        }
+    }
+
+    /// The host's command channel, handed over by the runtime once RTT is set up.
+    static DOWN: Mutex<RefCell<Option<rtt_target::DownChannel>>> = Mutex::new(RefCell::new(None));
+
+    pub(crate) fn set_input_channel(channel: rtt_target::DownChannel) {
+        critical_section::with(|cs| *DOWN.borrow_ref_mut(cs) = Some(channel));
+    }
+
+    fn resend() {
+        let us = now_us();
+        with(|s| {
+            let _ = wire::full_state(s, us, next_seq, emit);
+        });
+        line(|l| wire::ready(next_seq(), now_us(), l));
+    }
+
+    /// Applies one command; false when the app's input queue had no room for it.
+    fn apply(cmd: Command) -> bool {
+        let event = |kind, x, y, value| DelugeInputEvent { kind, x, y, value };
+        match cmd {
+            Command::Button { x, y, down } => control::try_queue_event(event(
+                KIND_BUTTON,
+                x,
+                y,
+                if down {
+                    input::DEFAULT_VELOCITY as i16
+                } else {
+                    0
+                },
+            )),
+            Command::Pad { x, y, down, vel } => {
+                control::try_queue_event(event(KIND_PAD, x, y, if down { vel as i16 } else { 0 }))
+            }
+            Command::Encoder { idx, edges } => {
+                control::add_encoder_edges_for_harness(idx, edges);
+                true
+            }
+            Command::NoPresses => control::try_queue_event(event(KIND_NO_PRESSES, 0, 0, 0)),
+            Command::Resend => {
+                resend();
+                true
+            }
+        }
+    }
+
+    fn refuse(text: &str) {
+        line(|l| wire::error(next_seq(), now_us(), text, l));
+    }
+
+    /// Reads the host's command lines and applies each; a line that does not parse or does not
+    /// fit the input queue comes back as `@E`. Starts with a full panel and `@R`.
+    #[embassy_executor::task]
+    pub async fn input_task() {
+        resend();
+        // RTT has no interrupt for host writes, so the channel is polled.
+        let mut ticker = Ticker::every(Duration::from_millis(2));
+        let mut text: heapless::String<{ input::MAX_LINE }> = heapless::String::new();
+        let mut too_long = false;
+        loop {
+            ticker.next().await;
+            let mut buf = [0u8; 64];
+            let n = critical_section::with(|cs| {
+                DOWN.borrow_ref_mut(cs)
+                    .as_mut()
+                    .map_or(0, |d| d.read(&mut buf))
+            });
+            for &b in &buf[..n] {
+                if b == b'\n' {
+                    if too_long {
+                        refuse("(line too long)");
+                    } else if !input::parse(&text).is_ok_and(apply) {
+                        refuse(&text);
+                    }
+                    text.clear();
+                    too_long = false;
+                } else if !b.is_ascii() || text.push(b as char).is_err() {
+                    too_long = true;
+                }
+            }
         }
     }
 }

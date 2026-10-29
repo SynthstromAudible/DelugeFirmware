@@ -152,8 +152,9 @@ SECTIONS {
     /* The SRAM heap's floor: the on-chip memory left between the image and the RTT reserve. rza1-rt's
      * link.x refuses an image that leaves none; this refuses one that leaves less than the floor. The
      * heap is filled at boot whatever its size (alloc_fast falls back to SDRAM), so a smaller one
-     * costs speed rather than memory, but each SRAM-resident addition comes out of it. */
-    __sram_heap_floor = 100 * 1024;
+     * costs speed rather than memory, but each SRAM-resident addition comes out of it. A test image
+     * that carries extra code (the rig harness) passes a lower floor as __sram_heap_floor_test. */
+    __sram_heap_floor = DEFINED(__sram_heap_floor_test) ? __sram_heap_floor_test : 100 * 1024;
     ASSERT(__sram_heap_base <= __sram_heap_end && __sram_heap_end - __sram_heap_base >= __sram_heap_floor,
            "sdram_sections.x: the SRAM heap is below its floor (__sram_heap_floor): the image grew into it")
 } INSERT AFTER .ARM.exidx;
