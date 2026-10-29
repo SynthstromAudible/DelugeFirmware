@@ -548,15 +548,6 @@ pub extern "C" fn deluge_block_poll_card_event(unit: u8) -> DelugeCardEvent {
         return CARD_EJECTED;
     }
 
-    // Level backstop for a lost removal edge: `sd::init()` consumes pending edges as it starts, so
-    // a card pulled during an init can leave `is_ready()` true with nothing latched.
-    if sd::is_ready() && !sd::is_inserted() {
-        sd::invalidate();
-        LAST_INIT_OK.store(false, Ordering::Release);
-        log::info!("sd: card absent (level check)");
-        return CARD_EJECTED;
-    }
-
     // Report an insertion only if the card is still in the slot; the pending flag can outlive a
     // card pulled straight back out.
     if sd::is_inserted() && INSERTION_PENDING.swap(false, Ordering::Relaxed) {
