@@ -757,10 +757,53 @@ std::span<const Case> fx_chains_list(CaseSet& s) {
 	return fx_chains;
 }
 
+/// @brief The FFT forward list.
+std::span<const Case> fft_forward_list(CaseSet& s) {
+	static const std::array fft_forward{
+	    make_case("calibration_loop", s.calibration_loop),
+	    make_case("fft_fwd_32", s.fft_fwd_32),
+	    make_case("fft_fwd_64", s.fft_fwd_64),
+	    make_case("fft_fwd_128", s.fft_fwd_128),
+	    make_case("fft_fwd_256", s.fft_fwd_256),
+	    make_case("fft_fwd_512", s.fft_fwd_512),
+	    make_case("fft_fwd_1024", s.fft_fwd_1024),
+	    make_case("fft_fwd_2048", s.fft_fwd_2048),
+	    make_case("fft_fwd_4096", s.fft_fwd_4096),
+	    make_case("fft_fwd_8192", s.fft_fwd_8192),
+	    make_case("fft_fwd_16", s.fft_fwd_16),
+	};
+	return fft_forward;
+}
+
+/// @brief The FFT inverse list.
+std::span<const Case> fft_inverse_list(CaseSet& s) {
+	static const std::array fft_inverse{
+	    make_case("calibration_loop", s.calibration_loop),
+	    make_case("fft_inv_8", s.fft_inv_8),
+	    make_case("fft_inv_16", s.fft_inv_16),
+	    make_case("fft_inv_32", s.fft_inv_32),
+	    make_case("fft_inv_64", s.fft_inv_64),
+	    make_case("fft_inv_128", s.fft_inv_128),
+	    make_case("fft_inv_256", s.fft_inv_256),
+	    make_case("fft_inv_512", s.fft_inv_512),
+	    make_case("fft_inv_1024", s.fft_inv_1024),
+	    make_case("fft_inv_2048", s.fft_inv_2048),
+	    make_case("fft_inv_4096", s.fft_inv_4096),
+	    make_case("fft_inv_8192", s.fft_inv_8192),
+	};
+	return fft_inverse;
+}
+
 /// @brief The cases of @p L.
 template <CaseList L>
 std::span<const Case> list_cases(CaseSet& s) {
-	if constexpr (L == CaseList::FX_CHAINS) {
+	if constexpr (L == CaseList::FFT_FORWARD) {
+		return fft_forward_list(s);
+	}
+	else if constexpr (L == CaseList::FFT_INVERSE) {
+		return fft_inverse_list(s);
+	}
+	else if constexpr (L == CaseList::FX_CHAINS) {
 		return fx_chains_list(s);
 	}
 	else if constexpr (L == CaseList::STUTTER) {
@@ -830,6 +873,10 @@ std::span<const Case> cases(CaseList list) {
 		return list_cases<CaseList::DX7>(s);
 	case CaseList::FX_CHAINS:
 		return list_cases<CaseList::FX_CHAINS>(s);
+	case CaseList::FFT_FORWARD:
+		return list_cases<CaseList::FFT_FORWARD>(s);
+	case CaseList::FFT_INVERSE:
+		return list_cases<CaseList::FFT_INVERSE>(s);
 	case CaseList::KERNELS:
 		break;
 	}

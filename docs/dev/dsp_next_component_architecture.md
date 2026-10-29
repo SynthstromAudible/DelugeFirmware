@@ -1683,6 +1683,10 @@ it drops some:
 - `dx7`: a DX7 voice's block through the voice adapter, in the modern engine
   (algorithms 1 and 32) and the MkI engine (algorithm 1 with feedback, and
   algorithm 4's fused stack); it ends with the same two feedback chain controls.
+- `fft_forward` and `fft_inverse`: the int32 real FFT at every size the firmware
+  transforms (forward 16 to 8192 points, inverse 8 to 8192), one transform per
+  block whatever the block size, so their figure is cycles per block; the
+  16-point forward runs last.
 
 Every other case builds with the app's flags. A bench image builds only its own
 list's cases, since the image fills on-chip SRAM up to 0x202E0000 (past it the
