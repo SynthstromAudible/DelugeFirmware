@@ -25,6 +25,7 @@
 #include "synth/source/dx7_source.h"
 #include "synth/source/input_source.h"
 #include "synth/source/sample_source.h"
+#include "synth/source/supersaw_source.h"
 #include "synth/source/virtual_analog_source.h"
 #include "synth/source/wavetable_source.h"
 #include <optional>
@@ -52,6 +53,8 @@ public:
 	// keep oscPos.
 	std::optional<deluge::synth::VirtualAnalogSource> vaSource;
 	std::optional<deluge::synth::WavetableSource> wavetableSource;
+	// supersawSource: OscType::SUPERSAW. Holds all seven saw phases; its phase is the centre saw's.
+	std::optional<deluge::synth::SupersawSource> supersawSource;
 
 	/// The source's current oscillator phase — from whichever engine owns it, else oscPos. (Read by osc-sync to
 	/// seed the slave from the master at block start.)
@@ -62,6 +65,9 @@ public:
 		if (wavetableSource.has_value()) {
 			return wavetableSource->phase();
 		}
+		if (supersawSource.has_value()) {
+			return supersawSource->phase();
+		}
 		return oscPos;
 	}
 	/// Advance the source's oscillator phase by @p delta (a skipped osc-sync master still progresses).
@@ -71,6 +77,9 @@ public:
 		}
 		else if (wavetableSource.has_value()) {
 			wavetableSource->seek(wavetableSource->phase() + delta);
+		}
+		else if (supersawSource.has_value()) {
+			supersawSource->seek(supersawSource->phase() + delta);
 		}
 		else {
 			oscPos += delta;
