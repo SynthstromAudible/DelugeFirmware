@@ -276,6 +276,9 @@ pub fn start() -> ! {
         spawner.spawn(control::pic_pump().unwrap());
         // The sole PIC transmitter: drains the LED/pad output queue.
         spawner.spawn(control::pad_render().unwrap());
+        // Streams the panel to the probe for scripted runs on the rig.
+        #[cfg(feature = "rig-harness")]
+        spawner.spawn(crate::peripherals::rig_harness::stream_task().unwrap());
         // CV DAC writer (shares RSPI0 with the OLED).
         spawner.spawn(cv_gate::cv_writer().unwrap());
         // Calls the app's clock-in handler once per captured edge.

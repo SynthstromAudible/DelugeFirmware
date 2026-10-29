@@ -59,6 +59,9 @@ impl Default for Shadow {
 impl Shadow {
     /// Flashes held between two [`Self::take_changes`]; more are counted by [`Self::take_dropped`].
     pub const FLASH_QUEUE: usize = 32;
+    /// The most changes one [`Self::take_changes`] can report: every flag and the whole flash
+    /// queue.
+    pub const MAX_CHANGES: usize = 3 + COLUMN_PAIRS + LED_COUNT + 2 + Self::FLASH_QUEUE;
 
     pub const fn new() -> Self {
         Self {
@@ -171,11 +174,8 @@ impl Shadow {
     /// Drains the pending changes: scroll first, then OLED, columns, LEDs, rings, flashes in the
     /// order they came, and PIC settings last.
     pub fn take_changes(&mut self) -> impl Iterator<Item = Change> + '_ {
-        let mut out: heapless::Vec<
-            Change,
-            { 3 + COLUMN_PAIRS + LED_COUNT + 2 + Self::FLASH_QUEUE },
-        > = heapless::Vec::new();
-        // Capacity covers every flag and the whole flash queue, so no push can fail.
+        let mut out: heapless::Vec<Change, { Self::MAX_CHANGES }> = heapless::Vec::new();
+        // Capacity is MAX_CHANGES, so no push can fail.
         if core::mem::take(&mut self.scrolled) {
             let _ = out.push(Change::Scroll);
         }
