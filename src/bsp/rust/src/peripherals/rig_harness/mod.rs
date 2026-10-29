@@ -16,7 +16,7 @@ mod device {
     use core::sync::atomic::{AtomicU32, Ordering};
 
     use critical_section::Mutex;
-    use embassy_time::{Duration, Instant, Ticker};
+    use embassy_time::{Duration, Instant, Timer};
 
     use super::input::{self, Command};
     use super::shadow::{COLUMN_BYTES, Change, Shadow};
@@ -98,30 +98,36 @@ mod device {
     const OLED_INTERVAL_US: u64 = 25_000;
 
     /// Streams the panel: a heartbeat every 10 ms, then each change since the last one, the OLED
-    /// at most every OLED_INTERVAL_US (its latest frame).
+    /// at most every OLED_INTERVAL_US (its latest frame). The lock is held only to take the changes
+    /// and copy the shadow: formatting a line with interrupts masked would delay the audio tier.
+    /// A sleep, not a ticker: after the app holds the executor, missed ticks are not made up in a
+    /// burst of heartbeats that would overrun the RTT buffer.
     #[embassy_executor::task]
     pub async fn stream_task() {
-        let mut ticker = Ticker::every(Duration::from_millis(10));
         let mut last_oled_us = 0u64;
         loop {
-            ticker.next().await;
+            Timer::after(Duration::from_millis(10)).await;
             let us = now_us();
             let oled_due = us.saturating_sub(last_oled_us) >= OLED_INTERVAL_US;
             if oled_due {
                 last_oled_us = us;
             }
             line(|l| wire::heartbeat(next_seq(), us, l));
-            with(|s| {
+            let (dropped, changes, snapshot) = with(|s| {
                 let dropped = s.take_dropped();
-                if dropped > 0 {
-                    line(|l| wire::dropped(next_seq(), us, dropped, l));
-                }
                 let changes: heapless::Vec<Change, { Shadow::MAX_CHANGES }> =
                     s.take_changes(oled_due).collect();
-                for change in &changes {
-                    line(|l| wire::encode(change, s, next_seq(), us, l));
-                }
+                let snapshot = (!changes.is_empty()).then(|| s.clone());
+                (dropped, changes, snapshot)
             });
+            if dropped > 0 {
+                line(|l| wire::dropped(next_seq(), us, dropped, l));
+            }
+            if let Some(s) = snapshot {
+                for change in &changes {
+                    line(|l| wire::encode(change, &s, next_seq(), us, l));
+                }
+            }
         }
     }
 
@@ -134,9 +140,8 @@ mod device {
 
     fn resend() {
         let us = now_us();
-        with(|s| {
-            let _ = wire::full_state(s, us, next_seq, emit);
-        });
+        let snapshot = with(|s| s.clone());
+        let _ = wire::full_state(&snapshot, us, next_seq, emit);
         line(|l| wire::ready(next_seq(), now_us(), l));
     }
 
@@ -178,13 +183,13 @@ mod device {
     #[embassy_executor::task]
     pub async fn input_task() {
         resend();
-        // RTT has no interrupt for host writes, so the channel is polled.
-        let mut ticker = Ticker::every(Duration::from_millis(2));
+        // RTT has no interrupt for host writes, so the channel is polled; a sleep, not a ticker, so
+        // queued encoder edges are not spent in a burst after the app held the executor.
         let mut text: heapless::String<{ input::MAX_LINE }> = heapless::String::new();
         let mut too_long = false;
         let mut pacer = input::EdgePacer::default();
         loop {
-            ticker.next().await;
+            Timer::after(Duration::from_millis(2)).await;
             for (idx, edge) in pacer.tick().into_iter().enumerate() {
                 if edge != 0 {
                     control::add_encoder_edges_for_harness(idx as u8, edge);

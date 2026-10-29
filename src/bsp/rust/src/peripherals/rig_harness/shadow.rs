@@ -30,6 +30,7 @@ pub enum Change {
 }
 
 /// The panel as last sent.
+#[derive(Clone)]
 pub struct Shadow {
     oled: [u8; OLED_BYTES],
     oled_size: (u16, u16),

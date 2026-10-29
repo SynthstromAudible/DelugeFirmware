@@ -415,10 +415,12 @@ async fn refresh() {
 }
 
 #[inline]
-fn enqueue(cmd: PicOut) {
+/// Queues `cmd` for the PIC; false when the queue was full and it was dropped.
+fn enqueue(cmd: PicOut) -> bool {
     // Drop on overflow rather than block the app; a dropped frame self-heals on the next redraw.
-    let _ = OUT.try_send(cmd);
+    let queued = OUT.try_send(cmd).is_ok();
     OUTPUT_DIRTY.store(true, Ordering::Relaxed);
+    queued
 }
 
 /// Sets the colours of a main-grid column pair from `count` entries of `colours` (the app sends
@@ -434,9 +436,10 @@ pub extern "C" fn deluge_control_set_pad_columns(idx: u8, colours: *const Deluge
     }
     #[cfg(not(target_os = "none"))]
     crate::peripherals::ui_harness::record_pad_columns(idx, src);
-    #[cfg(all(feature = "rig-harness", target_os = "none"))]
-    crate::peripherals::rig_harness::record_columns(idx, &buf);
-    enqueue(PicOut::Columns { idx, colours: buf });
+    if enqueue(PicOut::Columns { idx, colours: buf }) {
+        #[cfg(all(feature = "rig-harness", target_os = "none"))]
+        crate::peripherals::rig_harness::record_columns(idx, &buf);
+    }
 }
 
 /// Begins a horizontal scroll animation on the surface.
@@ -498,9 +501,10 @@ pub extern "C" fn deluge_control_scroll_vertical(
 pub extern "C" fn deluge_control_set_led(led: u8, on: bool) {
     #[cfg(not(target_os = "none"))]
     crate::peripherals::ui_harness::record_led(led, on);
-    #[cfg(all(feature = "rig-harness", target_os = "none"))]
-    crate::peripherals::rig_harness::record_led(led, on);
-    enqueue(PicOut::Led { id: led, on });
+    if enqueue(PicOut::Led { id: led, on }) {
+        #[cfg(all(feature = "rig-harness", target_os = "none"))]
+        crate::peripherals::rig_harness::record_led(led, on);
+    }
 }
 
 /// Sets a gold-knob indicator ring: `which` selects the knob (0 or non-zero); `levels` holds
@@ -514,12 +518,13 @@ pub extern "C" fn deluge_control_set_indicator(which: u8, levels: *const u8, cou
     ring[..n].copy_from_slice(&src[..n]);
     #[cfg(not(target_os = "none"))]
     crate::peripherals::ui_harness::record_ring(which, &ring[..n]);
-    #[cfg(all(feature = "rig-harness", target_os = "none"))]
-    crate::peripherals::rig_harness::record_ring(which, ring);
-    enqueue(PicOut::Indicator {
+    if enqueue(PicOut::Indicator {
         knob: (which != 0) as u8,
         levels: ring,
-    });
+    }) {
+        #[cfg(all(feature = "rig-harness", target_os = "none"))]
+        crate::peripherals::rig_harness::record_ring(which, ring);
+    }
 }
 
 /// Sets the surface refresh interval (board units).
