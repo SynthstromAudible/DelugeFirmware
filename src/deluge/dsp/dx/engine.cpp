@@ -28,7 +28,7 @@
 
 DxEngine* dxEngine = nullptr;
 
-using DxVoicePool = deluge::memory::ObjectPool<DxVoice, deluge::memory::fast_allocator>;
+using DxVoicePool = deluge::memory::ObjectPool<DxPoolVoice, deluge::memory::fast_allocator>;
 
 static void init_engine(void) {
 	// get ourselves an aligned pointer to use placement new with
@@ -40,7 +40,7 @@ static void init_engine(void) {
 	deluge::dsp::fixed::dx7::generate(dxEngine->tables);
 }
 
-gsl::owner<DxVoice*> DxEngine::solicitDxVoice() {
+gsl::owner<DxPoolVoice*> DxEngine::solicitDxVoice() {
 	try {
 		return DxVoicePool::get().acquire().release();
 	} catch (deluge::exception e) {
@@ -48,7 +48,7 @@ gsl::owner<DxVoice*> DxEngine::solicitDxVoice() {
 	}
 }
 
-void DxEngine::dxVoiceUnassigned(gsl::owner<DxVoice*> dxVoice) {
+void DxEngine::dxVoiceUnassigned(gsl::owner<DxPoolVoice*> dxVoice) {
 	DxVoicePool::recycle(dxVoice);
 }
 

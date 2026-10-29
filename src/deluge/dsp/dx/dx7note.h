@@ -18,20 +18,10 @@
 #ifndef SYNTH_DX7NOTE_H_
 #define SYNTH_DX7NOTE_H_
 
-// This is the logic to put together a note from the MIDI description
-// and run the low-level modules.
-
-// It will continue to evolve a bit, as note-stealing logic, scaling,
-// and real-time control of parameters live here.
-
 #include "dsp-next/core/control.h"
-#include "dsp-next/fixed/dx7/envelope.h"
-#include "dsp-next/fixed/dx7/graph.h"
 #include "dsp-next/fixed/dx7/lfo.h"
-#include "dsp-next/fixed/dx7/lfo_delay.h"
 #include "dsp-next/fixed/dx7/operator.h"
-#include "dsp-next/fixed/dx7/pitch_envelope.h"
-#include <memory>
+#include <cstdint>
 
 class DxPatch {
 public:
@@ -61,76 +51,6 @@ public:
 
 	void setEngineMode(int mode);
 	void updateEngineMode();
-};
-
-struct DxVoiceCtrl {
-	int32_t ampmod{};
-	int32_t velmod{}; // offset to the start velocity
-	int32_t ratemod{};
-
-	DxVoiceCtrl() = default;
-};
-
-class DxVoice {
-public:
-	DxVoice();
-	void init(DxPatch& p, int midinote, int velocity);
-	// Note: this _adds_ to the buffer. Interesting question whether it's
-	// worth it...
-	bool compute(int32_t* buf, int n, int pitch, const DxPatch* ctrls_patch, const DxVoiceCtrl* ctrls_voice);
-
-	void keyup();
-
-	// TODO: some way of indicating end-of-note. Maybe should be a return
-	// value from the compute method? (Having a count return from keyup
-	// is also tempting, but if there's a dynamic parameter change after
-	// keyup, that won't work.
-
-	// PG:add the update
-	void update(DxPatch& p, int midinote);
-	void oscSync();
-	void oscUnSync();
-
-	int32_t osc_freq(int log_freq, int mode, int coarse, int fine, int detune, int random_detune);
-
-private:
-	/// Each op's envelope, configured from the patch before each block and each event.
-	deluge::dsp::Control<deluge::dsp::fixed::dx7::Envelope> env_[6];
-	/// Each op's scaled output level in microsteps, set at note-on and retune.
-	int32_t outlevel_[6];
-	/// Each op's rate scaling in qRate units, set at note-on and retune.
-	int32_t rate_scaling_[6];
-	/// Configured from the patch before each block and each event, as the patch is edited live.
-	deluge::dsp::Control<deluge::dsp::fixed::dx7::PitchEnvelope> pitchenv_;
-	/// The six operators' phases and gains and the feedback history; the per-block settings arrive with each block.
-	deluge::dsp::fixed::dx7::Graph graph_;
-	int32_t basepitch_[6];
-
-	/// Configured at note-on only: the voice reads the patch's LFO delay once per note.
-	deluge::dsp::Control<deluge::dsp::fixed::dx7::LfoDelay> lfo_delay_;
-
-	int16_t detune_per_voice[6];
-
-	uint8_t* patch; // raw patch, same as p->currentPatch
-	int random_detune_scale;
-	uint8_t lastVelocity;
-
-	/// @brief Op @p op's envelope settings: its patch bytes, its output level and rate scaling, and @p extra_rate.
-	[[nodiscard]] deluge::dsp::fixed::dx7::Envelope::Settings env_settings(int op, int32_t extra_rate) const {
-		const uint8_t* p = &patch[op * 21];
-		return {.params = {{p[0], p[1], p[2], p[3]}, {p[4], p[5], p[6], p[7]}},
-		        .output_level = outlevel_[op],
-		        .rate_scaling = rate_scaling_[op],
-		        .extra_rate = extra_rate};
-	}
-	/// @brief The patch's pitch envelope bytes (126 to 133).
-	[[nodiscard]] deluge::dsp::fixed::dx7::EnvelopeParams pitch_params() const {
-		return {{patch[126], patch[127], patch[128], patch[129]}, {patch[130], patch[131], patch[132], patch[133]}};
-	}
-
-public:
-	DxVoice* nextUnassigned;
-	bool preallocated;
 };
 
 #endif // SYNTH_DX7NOTE_H_

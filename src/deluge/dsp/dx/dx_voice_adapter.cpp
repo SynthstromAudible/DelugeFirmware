@@ -19,10 +19,29 @@
 #include "dsp-next/fixed/dx7/algorithms.h"
 #include "dsp/dx/dx7note.h"
 #include "dsp/dx/engine.h"
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstring> // memset
 
 namespace deluge::dsp {
+
+namespace {
+
+using PoolVoice = fixed::dx7::Voice<fixed::CongNoise>;
+
+/// @brief The voice's settings: a snapshot of @p patch, the note and the engine's tables.
+PoolVoice::Settings settings_of(const DxPatch& patch, int midinote, int velocity) {
+	PoolVoice::Settings s{.midinote = midinote,
+	                      .velocity = velocity,
+	                      .random_detune = patch.random_detune,
+	                      .engine = patch.engine,
+	                      .tables = &getDxEngine()->tables};
+	std::ranges::copy(patch.params, s.patch.begin());
+	return s;
+}
+
+} // namespace
 
 bool DxVoiceAdapter::noteOn(void* patch, int midinote, int velocity) {
 	if (voice_ == nullptr) { // We might actually already have one, and just be restarting this voice
@@ -32,7 +51,13 @@ bool DxVoiceAdapter::noteOn(void* patch, int midinote, int velocity) {
 		}
 	}
 	patch_ = static_cast<DxPatch*>(patch);
-	voice_->init(*patch_, midinote, velocity);
+	midinote_ = midinote;
+	velocity_ = velocity;
+	const PoolVoice::Settings s = settings_of(*patch_, midinote_, velocity_);
+	voice_->start(s);
+	if (PoolVoice::key_sync_lfo(s)) {
+		patch_->lfo.on<&fixed::dx7::Lfo::key_sync>();
+	}
 	return true;
 }
 
@@ -46,13 +71,13 @@ void DxVoiceAdapter::unassign() {
 
 void DxVoiceAdapter::keyup() {
 	if (voice_ != nullptr) {
-		voice_->keyup();
+		voice_->release(settings_of(*patch_, midinote_, velocity_));
 	}
 }
 
 std::span<const int32_t> DxVoiceAdapter::render(int32_t numSamples, uint32_t phaseIncrement, int32_t ampModParam,
                                                 bool patchChanged, int midinote) {
-	static int32_t uniBuf[deluge::dsp::fixed::dx7::kMaxBlock] __attribute__((aligned(CACHE_LINE_SIZE)));
+	static int32_t uniBuf[fixed::dx7::kMaxBlock] __attribute__((aligned(CACHE_LINE_SIZE)));
 	memset(uniBuf, 0, sizeof uniBuf);
 
 	// TODO: 1. use existing int log function?
@@ -61,16 +86,18 @@ std::span<const int32_t> DxVoiceAdapter::render(int32_t numSamples, uint32_t pha
 	int logpitch = (int)(log2f(phaseIncrement) * (1 << 24));
 	int adjpitch = logpitch - 278023814;
 
-	DxVoiceCtrl ctrl{};
-	ctrl.ampmod = ampModParam >> 13;
-	// ctrl.ratemod = params.paramFinalValues[params::LOCAL_CARRIER_0_FEEDBACK + s] >> 16;
+	midinote_ = midinote;
+	const PoolVoice::Settings s = settings_of(*patch_, midinote_, velocity_);
+	const PoolVoice::BlockInputs in{
+	    .base_pitch = adjpitch, .lfo_value = patch_->lfo_value, .eg_mod = patch_->eg_mod, .amp_mod = ampModParam >> 13};
 	if (patchChanged) {
-		voice_->update(*patch_, midinote);
+		voice_->retune(s);
 	}
-	if (!voice_->compute(uniBuf, numSamples, adjpitch, patch_, &ctrl)) {
+	const auto n = static_cast<std::size_t>(numSamples);
+	if (!voice_->renderBlock(s, {uniBuf, n}, in, getDxEngine()->buses())) {
 		return {}; // voice has ended
 	}
-	return std::span<const int32_t>{uniBuf, static_cast<size_t>(numSamples)};
+	return std::span<const int32_t>{uniBuf, n};
 }
 
 } // namespace deluge::dsp
