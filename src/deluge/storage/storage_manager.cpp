@@ -803,9 +803,7 @@ FileReader::FileReader(char* memBuffer, uint32_t bufLen) {
 }
 
 FileReader::~FileReader() {
-	if (!memoryBased) {
-		GeneralMemoryAllocator::get().dealloc(fileClusterBufferAllocation);
-	}
+	GeneralMemoryAllocator::get().dealloc(fileClusterBufferAllocation);
 }
 
 void FileReader::resetReader() {
@@ -823,6 +821,11 @@ void FileReader::resetReader() {
 // Returns whether successful loading took place
 // return true "if still going".
 bool FileReader::readFileClusterIfNecessary() {
+	if (!fileClusterBuffer) {
+		reachedBufferEnd = true;
+		return false;
+	}
+
 	if (memoryBased) {
 		if (fileReadBufferCurrentPos >= currentReadBufferEndPos) {
 			reachedBufferEnd = true;
@@ -853,9 +856,6 @@ bool FileReader::readFileCluster() {
 	if (memoryBased) {
 		return true;
 	}
-	if (!fileClusterBuffer) {
-		return false;
-	}
 
 	FRESULT result = f_read(&readFIL, (UINT*)fileClusterBuffer, Cluster::size, &currentReadBufferEndPos);
 	if (result) {
@@ -876,11 +876,6 @@ bool FileReader::readFileCluster() {
 // If you later want that to happen, you can call readChar then.
 bool FileReader::peekChar(char* thisChar) {
 
-	if (!fileClusterBuffer) {
-		reachedBufferEnd = true;
-		return false;
-	}
-
 	bool stillGoing = readFileClusterIfNecessary();
 	if (reachedBufferEnd) {
 		return false;
@@ -892,11 +887,6 @@ bool FileReader::peekChar(char* thisChar) {
 }
 
 bool FileReader::readChar(char* thisChar) {
-
-	if (!fileClusterBuffer) {
-		reachedBufferEnd = true;
-		return false;
-	}
 
 	bool stillGoing = readFileClusterIfNecessary();
 	if (reachedBufferEnd) {
@@ -984,6 +974,11 @@ extern "C" void routineForSD(void);
 
 void FileWriter::writeByte(int8_t b) {
 
+	if (!writeClusterBuffer) {
+		fileAccessFailedDuringWrite = true;
+		return;
+	}
+
 	if (fileWriteBufferCurrentPos == bufferSize) {
 		if (!memoryBased && !fileAccessFailedDuringWrite) {
 			Error error = writeBufferToFile();
@@ -997,11 +992,6 @@ void FileWriter::writeByte(int8_t b) {
 			return;
 		}
 		fileWriteBufferCurrentPos = 0;
-	}
-
-	if (!writeClusterBuffer) {
-		fileAccessFailedDuringWrite = true;
-		return;
 	}
 
 	writeClusterBuffer[fileWriteBufferCurrentPos] = b;
