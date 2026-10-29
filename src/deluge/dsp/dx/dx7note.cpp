@@ -268,41 +268,14 @@ void DxVoice::init(DxPatch& newp, int midinote, int velocity) {
 		oscUnSync();
 	}
 
-	int a = 99 - patch[138]; // LFO delay
-	if (a == 99) {
-		delayinc_ = ~0u;
-		delayinc2_ = ~0u;
-	}
-	else {
-		a = (16 + (a & 15)) << (1 + (a >> 4));
-		delayinc_ = lfo_unit * a;
-		a &= 0xff80;
-		a = max(0x80, a);
-		delayinc2_ = lfo_unit * a;
-	}
-
-	delaystate_ = 0;
-}
-
-int32_t DxVoice::getdelay(int n) {
-	uint32_t delta = delaystate_ < (1U << 31) ? delayinc_ : delayinc2_;
-	uint64_t d = ((uint64_t)delaystate_) + delta * n;
-	if (d > ~0u) {
-		return 1 << 24;
-	}
-	delaystate_ = d;
-	if (d < (1U << 31)) {
-		return 0;
-	}
-	else {
-		return (d >> 7) & ((1 << 24) - 1);
-	}
+	lfo_delay_.configure({patch[138]});
+	lfo_delay_.reset();
 }
 
 bool DxVoice::compute(int32_t* buf, int n, int base_pitch, const DxPatch* ctrls, const DxVoiceCtrl* voice_ctrls) {
 	// assert(n <= DX_MAX_N);
 	// LFO delay
-	int32_t lfo_delay = getdelay(n);
+	int32_t lfo_delay = lfo_delay_.advance(static_cast<std::size_t>(n));
 	int32_t lfo_val = ctrls->lfo_value;
 
 	// ==== PITCH ====

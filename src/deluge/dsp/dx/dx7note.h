@@ -25,6 +25,7 @@
 // and real-time control of parameters live here.
 
 #include "dsp-next/core/control.h"
+#include "dsp-next/fixed/dx7/lfo_delay.h"
 #include "dsp-next/fixed/dx7/pitch_envelope.h"
 #include "env.h"
 #include "fm_core.h"
@@ -81,7 +82,6 @@ public:
 	// Note: this _adds_ to the buffer. Interesting question whether it's
 	// worth it...
 	bool compute(int32_t* buf, int n, int pitch, const DxPatch* ctrls_patch, const DxVoiceCtrl* ctrls_voice);
-	int32_t getdelay(int n);
 
 	void keyup();
 
@@ -109,10 +109,8 @@ private:
 	int32_t basepitch_[6];
 	int32_t fb_buf_[2];
 
-	// for LFO
-	uint32_t delaystate_;
-	uint32_t delayinc_;
-	uint32_t delayinc2_;
+	/// Configured at note-on only: the voice reads the patch's LFO delay once per note.
+	deluge::dsp::Control<deluge::dsp::fixed::dx7::LfoDelay> lfo_delay_;
 
 	int16_t detune_per_voice[6];
 
