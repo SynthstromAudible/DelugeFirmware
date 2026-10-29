@@ -1895,9 +1895,7 @@ enum class CaseList : uint8_t {
 	/// The calibration loop, each home's effect chain runtime beside its sequence written out over the same
 	/// components, then the feedback chain's two cases from the chain list, as in the delay list.
 	FX_CHAINS,
-	/// The calibration loop, then the int32 real FFT forward at every size the firmware transforms, 32 to 8192 points,
-	/// then 16 points last: the 16-point transform the image ships with writes past its configuration, so it runs once
-	/// every other case has allocated.
+	/// The calibration loop, then the int32 real FFT forward at every size the firmware transforms, 16 to 8192 points.
 	FFT_FORWARD,
 	/// The calibration loop, then the int32 real FFT inverse at every size the firmware transforms, 8 to 8192 points.
 	FFT_INVERSE,

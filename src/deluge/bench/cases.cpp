@@ -761,6 +761,7 @@ std::span<const Case> fx_chains_list(CaseSet& s) {
 std::span<const Case> fft_forward_list(CaseSet& s) {
 	static const std::array fft_forward{
 	    make_case("calibration_loop", s.calibration_loop),
+	    make_case("fft_fwd_16", s.fft_fwd_16),
 	    make_case("fft_fwd_32", s.fft_fwd_32),
 	    make_case("fft_fwd_64", s.fft_fwd_64),
 	    make_case("fft_fwd_128", s.fft_fwd_128),
@@ -770,7 +771,6 @@ std::span<const Case> fft_forward_list(CaseSet& s) {
 	    make_case("fft_fwd_2048", s.fft_fwd_2048),
 	    make_case("fft_fwd_4096", s.fft_fwd_4096),
 	    make_case("fft_fwd_8192", s.fft_fwd_8192),
-	    make_case("fft_fwd_16", s.fft_fwd_16),
 	};
 	return fft_forward;
 }

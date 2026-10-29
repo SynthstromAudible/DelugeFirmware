@@ -427,8 +427,8 @@ const std::vector<std::string_view> kDx7CaseNames{
 
 /// The FFT forward list's names, in order.
 const std::vector<std::string_view> kFftForwardCaseNames{
-    "calibration_loop", "fft_fwd_32",   "fft_fwd_64",   "fft_fwd_128",  "fft_fwd_256", "fft_fwd_512",
-    "fft_fwd_1024",     "fft_fwd_2048", "fft_fwd_4096", "fft_fwd_8192", "fft_fwd_16",
+    "calibration_loop", "fft_fwd_16",   "fft_fwd_32",   "fft_fwd_64",   "fft_fwd_128",  "fft_fwd_256",
+    "fft_fwd_512",      "fft_fwd_1024", "fft_fwd_2048", "fft_fwd_4096", "fft_fwd_8192",
 };
 
 /// The FFT inverse list's names, in order.
