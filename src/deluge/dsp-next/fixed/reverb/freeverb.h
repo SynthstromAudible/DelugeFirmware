@@ -33,6 +33,7 @@
 #include <cstdint>
 #include <limits>
 #include <type_traits>
+#include <utility>
 
 /// @file
 /// @brief Freeverb: eight combs and four allpasses per channel, as one processor kernel of stereo frames.
@@ -128,8 +129,6 @@ struct Freeverb {
 		Channel left{};
 		Channel right{};
 	};
-	/// @brief The State is two channels' arrays the loop indexes; it is stepped in place.
-	static constexpr bool kStateInPlace = true;
 
 	/// @return The coefficients for @p s: the legacy setters' float arithmetic, each product converted to Q31 by
 	/// the implicit float-to-int conversion they made.
@@ -156,16 +155,8 @@ struct Freeverb {
 		++s.send;
 		q31 out_l = 0;
 		q31 out_r = 0;
-		for (std::size_t i = 0; i < kCombs; ++i) {
-			out_l = wrapping_add(
-			    out_l, comb(c, s.memory, kLayout.comb[0][i], s.left.comb_index[i], s.left.comb_store[i], input));
-			out_r = wrapping_add(
-			    out_r, comb(c, s.memory, kLayout.comb[1][i], s.right.comb_index[i], s.right.comb_store[i], input));
-		}
-		for (std::size_t i = 0; i < kAllpasses; ++i) {
-			out_l = allpass(s.memory, kLayout.allpass[0][i], s.left.allpass_index[i], out_l);
-			out_r = allpass(s.memory, kLayout.allpass[1][i], s.right.allpass_index[i], out_r);
-		}
+		combs(c, s, input, out_l, out_r, std::make_index_sequence<kCombs>{});
+		allpasses(s, out_l, out_r, std::make_index_sequence<kAllpasses>{});
 		// Named quirk: out_r takes in the out_l this frame has just made, not the allpasses' left output.
 		out_l = wrapping_add(out_l, multiply_32x32_rshift32_rounded(out_r, c.wet2)) << 1;
 		out_r = wrapping_add(out_r, multiply_32x32_rshift32_rounded(out_l, c.wet2)) << 1;
@@ -183,6 +174,25 @@ struct Freeverb {
 	}
 
 private:
+	/// @brief Every comb of both channels, left then right for each, summed into @p out_l and @p out_r. Unrolled at
+	/// compile time, so each line's base and length are immediates and each comb's index and store a fixed offset.
+	template <std::size_t... I>
+	[[gnu::always_inline]] static void combs(const Coefficients& c, State& s, q31 input, q31& out_l, q31& out_r,
+	                                         std::index_sequence<I...> /*combs*/) {
+		((out_l = wrapping_add(
+		      out_l, comb(c, s.memory, kLayout.comb[0][I], s.left.comb_index[I], s.left.comb_store[I], input)),
+		  out_r = wrapping_add(
+		      out_r, comb(c, s.memory, kLayout.comb[1][I], s.right.comb_index[I], s.right.comb_store[I], input))),
+		 ...);
+	}
+	/// @brief Every allpass of both channels in series, left then right for each, unrolled as @ref combs.
+	template <std::size_t... I>
+	[[gnu::always_inline]] static void allpasses(State& s, q31& out_l, q31& out_r,
+	                                             std::index_sequence<I...> /*allpasses*/) {
+		((out_l = allpass(s.memory, kLayout.allpass[0][I], s.left.allpass_index[I], out_l),
+		  out_r = allpass(s.memory, kLayout.allpass[1][I], s.right.allpass_index[I], out_r)),
+		 ...);
+	}
 	/// @brief One comb: the line's tail out; its low-passed tail fed back with the input at its head.
 	[[nodiscard]] [[gnu::always_inline]] static q31 comb(const Coefficients& c, q31* memory, Line line, int32_t& index,
 	                                                     q31& store, q31 input) {
