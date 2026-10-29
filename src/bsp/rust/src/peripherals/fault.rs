@@ -106,7 +106,7 @@ pub extern "C" fn deluge_fault_pad_flush() {
         // SAFETY: interrupts are masked, so nothing else drives the PIC's TX DMA channel or the
         // SCIF FIFO until this returns.
         unsafe {
-            let mut tx_dma = rza1l_hal::dmac::Dma::steal::<deluge_bsp::board::PicTxDma>();
+            let mut tx_dma = rza1_hal::dmac::Dma::steal::<deluge_bsp::board::PicTxDma>();
             let mut spins = 0u32;
             while tx_dma.transfer_in_flight() {
                 spins += 1;

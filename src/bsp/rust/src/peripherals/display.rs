@@ -129,7 +129,8 @@ pub extern "C" fn deluge_display_freeze(pixels: *const u8) {
         let mut pic_rx = unsafe { deluge_bsp::uart::steal_pic_rx() };
         let mut next_is_release = false;
         loop {
-            if let Some(byte) = pic_rx.as_mut().and_then(|rx| rx.try_read()) {
+            // A receive error (overrun, framing) is just a lost byte here: keep waiting.
+            if let Some(byte) = pic_rx.as_mut().and_then(|rx| rx.try_read().ok().flatten()) {
                 if byte == PIC_NEXT_PAD_OFF {
                     next_is_release = true;
                     continue;
@@ -144,9 +145,8 @@ pub extern "C" fn deluge_display_freeze(pixels: *const u8) {
     }
 
     // Host builds have no PIC and no user; blocking would hang a batch render. The abort is what
-    // makes a freeze observable: `deluge-bsp`/`rza1l-hal` enable `log`'s `release_max_level_off`,
-    // so in a `--release` host build this log line compiles away, and the harnesses detect the
-    // freeze by the nonzero exit.
+    // makes a freeze observable: the harnesses detect it by the nonzero exit, whether or not this
+    // log line is compiled in (deluge-bsp's `log` keeps `release_max_level_info`, so it is).
     #[cfg(not(target_os = "none"))]
     {
         let _ = PIC_SELECT_KNOB_PRESS;
