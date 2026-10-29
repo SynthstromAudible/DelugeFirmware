@@ -35,8 +35,7 @@
 /// equal the current zoom, and performed when it equals the current scroll (where legacy plainly
 /// meant to skip it). `tick_square` reproduces it, because a port whose job is to agree with legacy
 /// cannot quietly disagree with it. It is the sixth entry in `src/scenes/README.md`'s "Defects this
-/// port found in shipping firmware" and in
-/// `docs/superpowers/specs/2026-08-26-ui-migration-design.md` §10.5, and carries a `@warning` on
+/// port found in shipping firmware", and carries a `@warning` on
 /// `TimelineState::tick_square` in `timeline.h`. Fixing it means one change against both sides and
 /// both spec expectations at once.
 

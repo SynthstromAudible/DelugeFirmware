@@ -1,7 +1,6 @@
 # deluge_ui_core / deluge_ui_oled / deluge_ui_grid
 
-The immediate-mode toolkit for the Deluge UI stack (spec: `docs/superpowers/specs/2026-08-26-ui-toolkit-design.md`,
-spec B of the UI stack redesign, §2).
+The immediate-mode toolkit for the Deluge UI stack (spec B of the UI stack redesign, §2).
 
 Rules (CMake deps + the layer checker from the gfx plan, extended):
 1. `ui-oled` and `ui-grid` never include each other.

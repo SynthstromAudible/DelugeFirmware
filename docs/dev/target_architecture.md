@@ -479,8 +479,7 @@ registry bakes English into the engine layer.
 
 ## 6. UI architecture
 
-> **Superseded where it differs** by
-> [`../superpowers/specs/2026-08-26-ui-stack-redesign-design.md`](../superpowers/specs/2026-08-26-ui-stack-redesign-design.md)
+> **Superseded where it differs** by the UI stack redesign
 > (2026-08-26): 7-seg presenter sets and the semantic screen-state vocabulary
 > (§6.3) are dropped; the toolkit is immediate-mode; the shell composes
 > *scenes* over a surface set built from the board descriptor. §6.1's toolkit

@@ -159,19 +159,15 @@ REPO = cc.REPO
 # including both `.md` sites of F1 task 7's five (`ui-migration-design.md`).
 #
 # **The gate caught up in F2 task 9: `cc.SCAN_SUFFIXES` now contains `.md`**, measured at 4 flags
-# over `cc.SCAN_ROOTS` (3 of them real, all fixed in the same commit) and refused for
-# `docs/superpowers/specs`, which would have been 31. So the `| {".md"}` below is now a no-op for
-# the suffix and the `docs/superpowers/specs` root is the only widening this line still makes.
-# **It is kept rather than removed**, because the two tools' scopes are a deliberate decision each
-# and this expression is where the difference is written down: the gate judges the two layer
-# READMEs and not the specs; this tool judges both.
+# over `cc.SCAN_ROOTS` (3 of them real, all fixed in the same commit). So the `| {".md"}` below is
+# a no-op, kept so this line still states the tool's scope rather than inheriting the gate's.
 #
 # Worth stating because it was assumed the other way while planning this task: **the F2 task 8
 # stale README citation escaped this tool for its OWN documented reason, not for the suffix.** It
 # was in a file this tool has always read; it was missed because it never moved, which is
 # limitation 1 below. Widening `SCAN_SUFFIXES` does not close that, and nothing does except
 # reading the sentence.
-CITING_ROOTS = (*cc.SCAN_ROOTS, "docs/superpowers/specs")
+CITING_ROOTS = cc.SCAN_ROOTS
 CITING_SUFFIXES = cc.SCAN_SUFFIXES | {".md"}
 
 _BLOB_CACHE: dict[tuple[str, str], list[str] | None] = {}

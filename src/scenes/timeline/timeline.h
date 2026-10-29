@@ -383,8 +383,7 @@ struct TimelineState {
 	///          plainly meant to skip it. Ported faithfully and asserted on both sides in
 	///          `sim/scenes_spec/timeline_spec.cpp`, because a port whose job is to agree with
 	///          legacy may not quietly disagree with it. Recorded in `src/scenes/README.md`'s
-	///          "Defects this port found in shipping firmware" and in
-	///          `docs/superpowers/specs/2026-08-26-ui-migration-design.md` §10.5; fixing it means
+	///          "Defects this port found in shipping firmware"; fixing it means
 	///          one change against both sides and both spec expectations at once.
 	/// @param live_pos `getCurrentClip()->getLivePos()` (`:356`).
 	/// @param gates    What the scene had to answer.

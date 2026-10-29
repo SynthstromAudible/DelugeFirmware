@@ -1,7 +1,6 @@
 # Roadmap
 
-Last updated 2026-10-29. Status marks come from the specs and ledgers under `docs/superpowers/` and
-`.superpowers/estate/` as last recorded, not from a fresh code audit. The same material, with diagrams, is in
+Last updated 2026-10-29. Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
 the Claude Doc "Deluge Firmware Roadmap".
 
 Items marked **(proposed)** are placements that no recorded plan or ruling fixes yet.

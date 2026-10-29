@@ -1,7 +1,7 @@
 # deluge_notify
 
 The model→UI notification channel: `DirtySet` (facts, pointer-free) and `NoticeQueue`
-(presentation requests, copied payloads). Spec: docs/superpowers/specs/2026-08-26-ui-notifications-design.md.
+(presentation requests, copied payloads).
 
 Rules: include nothing but `notify/**` and the standard library; `raise*`/`push` are [any]
 (atomic, allocation-free, no UI symbols); `drain`/`pop` are [task]. `deluge_notify` stores
@@ -92,8 +92,7 @@ marked `// NOTIFY-DEFERRED: <reason>` and is counted by `scripts/check_layer_rul
 separate, unmarked exception: it's the accepted model/UI mixin (spec §1/§5), so its
 `display->displayPopup` sites are left as-is rather than tagged. The working-animation pairs that
 bracket a synchronous load, and errors on a path that never returns to the tick, stay as direct
-`display->` calls until the shell can tick during `sd_busy` (spec D;
-`docs/superpowers/specs/2026-08-26-ui-notifications-design.md`).
+`display->` calls until the shell can tick during `sd_busy` (spec D).
 
 The ratchet (`scripts/check_layer_rules.py`, baseline `scripts/layer_rules_baseline.txt`; wired
 into the `check-layer-rules` pre-commit hook and the `layer_rules` ctest) tracks

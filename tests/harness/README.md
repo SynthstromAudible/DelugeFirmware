@@ -1,6 +1,6 @@
 # UI test harness
 
-Level 0 of the UI test harness (spec G, `docs/superpowers/specs/2026-08-26-ui-test-harness-design.md`):
+Level 0 of the UI test harness (spec G):
 one script format, one snapshot format, dependency-free so they can be shared by levels 1-3
 and compiled directly into the host BSP. **This directory must not include anything from
 `src/shell`** -- it is compiled into the host BSP, which the shell is not.

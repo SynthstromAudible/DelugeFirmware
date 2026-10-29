@@ -45,8 +45,7 @@ jobs:
         run: |
           DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test "${{ matrix.test }}" --strict --junit build/results
 
-      # Level 3 of the UI test harness (docs/superpowers/specs/2026-08-26-ui-test-harness-design.md
-      # §7): run the whole headless app from tests/ui-scripts/app/*.txt on the deterministic frame
+      # Level 3 of the UI test harness: run the whole headless app from tests/ui-scripts/app/*.txt on the deterministic frame
       # clock and diff its snapshots against tests/golden/ui/app/. -DDELUGE_SIM_X64=ON because the
       # sim's default here is the -m32 build, whose Rust archive is i686.
       #

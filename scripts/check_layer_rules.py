@@ -1299,7 +1299,7 @@ def main() -> int:
                 s for name, frm, *_, s in RULES if name == r and rule_covers(f, frm)
             )
             print(
-                f"{f}: rule '{r}' count {n} > baseline {base.get(key, 0)} (see docs/superpowers/specs/{spec})"
+                f"{f}: rule '{r}' count {n} > baseline {base.get(key, 0)} (spec {spec})"
             )
             bad += 1
     if bad:

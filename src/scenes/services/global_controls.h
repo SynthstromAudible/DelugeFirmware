@@ -62,10 +62,8 @@
 ///          do not remove it on the grounds that "the action logger refuses anyway".
 ///
 /// @note The chain ran the other way round (`mod_knobs` before the scene) from plan D until E4
-///       task 3 corrected it; the defect, the evidence and the fix are recorded as amendments
-///       §15.4 and §15.5 of `docs/superpowers/specs/2026-08-26-ui-shell-design.md`. Nothing here
-///       needed changing for it, but the correction is *why* this service can be written as
-///       legacy's tail rather than as a pre-filter.
+///       task 3 corrected it. Nothing here needed changing for it, but the correction is *why* this service can
+///       be written as legacy's tail rather than as a pre-filter.
 ///
 /// @par The two halves of `handle()`, in legacy's order
 ///

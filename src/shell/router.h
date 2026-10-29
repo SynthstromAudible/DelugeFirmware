@@ -93,8 +93,7 @@ public:
 	/// **This was inverted from plan D until E4 task 3.** It was invisible for three plans because
 	/// the slot held a `NullService`; the concrete cost was that `SoundEditor::modEncoderAction`'s
 	/// MIDI-learn arm (`gui/ui/sound_editor.cpp:1638-1662`), whose port is `MenuScene`, could never
-	/// have fired -- the service would have claimed the turn first. Recorded as amendment §15.4 of
-	/// `docs/superpowers/specs/2026-08-26-ui-shell-design.md`.
+	/// have fired -- the service would have claimed the turn first.
 	///
 	/// A gold knob's own push (`ButtonId::ModEnc0`/`ButtonId::ModEnc1`) is a `mod_knobs` event too,
 	/// reached from the same dispatcher one step lower: `Buttons::buttonAction` handles

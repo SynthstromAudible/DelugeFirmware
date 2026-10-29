@@ -317,14 +317,14 @@ EXCEPTIONS = REPO / "scripts" / "citation_exceptions.txt"
 #     the opposite result from the `.py` measurement below, where all 11 new flags were false by
 #     construction -- there the number was recorded and the widening refused; here the number is
 #     the argument FOR it.
-#   * `.md` PLUS `docs/superpowers/specs` in `SCAN_ROOTS`: **31 flags**, i.e. 27 more from the specs
+#   * `.md` PLUS the design specs in `SCAN_ROOTS`: **31 flags**, i.e. 27 more from the specs
 #     tree. **REFUSED.** Most belong to plans this stack never ran (the waveform prescan, the storage
 #     execution model, the voices race) and are stale against code nobody here is editing; fixing
 #     them is a different task with a different owner, and freezing them behind an exception list
 #     would be a mechanism rather than a configuration change. So the two READMEs are gated and the
 #     specs are not, which is worth knowing before trusting a green run: **every citation in
-#     `docs/superpowers/specs/**` is still hand-checked only.** `docs/superpowers/plans/**` is
-#     deliberately stale by policy (a plan records the tree as it stood) and must stay outside.
+#     the specs is still hand-checked only.** The plans are deliberately stale by policy (a plan
+#     records the tree as it stood) and must stay outside.
 #
 # Prose citations in `.md` really do differ in kind -- a range across two functions, a file with no
 # line at all -- which was the original reason for caution. The measurement is what settles it: the

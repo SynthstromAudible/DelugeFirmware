@@ -1,6 +1,6 @@
 # deluge_gfx_oled / deluge_gfx_grid
 
-Pure drawing primitives for the Deluge UI stack (spec: docs/superpowers/specs/2026-08-26-ui-stack-redesign-design.md §6).
+Pure drawing primitives for the Deluge UI stack.
 
 Rules (enforced by `scripts/check_gfx_layer.py`):
 - May include only `gfx/**` and the C/C++ standard library.

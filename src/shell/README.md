@@ -1,7 +1,6 @@
 # deluge_ui_shell
 
-Surfaces, scene stack, input lowering, services, tick, flush (spec: `docs/superpowers/specs/2026-08-26-ui-shell-design.md`,
-spec D of the UI stack redesign, amended by B.1 Task 9: `render_oled`/`render_grid`/`after_render`,
+Surfaces, scene stack, input lowering, services, tick, flush (spec D of the UI stack redesign, amended by B.1 Task 9: `render_oled`/`render_grid`/`after_render`,
 per-surface `Style`, input claims, `begin_tick`).
 
 Rules:

@@ -151,8 +151,7 @@ enum class Flag : uint16_t {
 /// So the cap is pinned just above that count rather than at 10: it is a ratchet against the escape
 /// hatch growing unnoticed, not a claim that ten was ever achievable.
 /// `sim/scenes_spec/shortcuts_spec.cpp` asserts the exact 55 separately, so a table that adds a custom node has to say
-/// so in two places. Recorded in `docs/superpowers/specs/2026-08-26-ui-scenes-menus-design.md`'s amendments and in
-/// `src/scenes/README.md`.
+/// so in two places. Recorded in `src/scenes/README.md`.
 ///
 /// **E2 task 12 ratcheted it from 56 to 53**, and E3 task 8 moved it back to 56 -- still exactly
 /// one above the count, which is the standing rule. The cap was once sized against E2 task 9's
