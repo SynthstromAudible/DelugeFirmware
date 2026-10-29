@@ -64,6 +64,29 @@ void DxParam::setValue(int val) {
 	soundEditor.currentSound->sources[0].dxPatchChanged = true;
 }
 
+// inclusive limits, per operator
+static int upper_limit_op_param[21] = {
+    99, 99, 99, 99, 99, 99, 99, 99, // 0-7: envelope
+    99, 99, 99, 3,  3,              // 8 - 12: curve
+    7,  3,  7,                      // 13-15: scaling and sensivitity
+    99,                             // 16: level
+    1,                              // 17: mode: ratio/fixed
+    31, 99, 14                      // 18-20: tuning
+};
+
+static const int kNumGlobalParams = 18;
+static int upper_limit_global_param[kNumGlobalParams] = {
+    // starts at 6*21 = 126
+    99, 99, 99, 99, 99, 99, 99, 99, // 126-133: pitch envelope
+    31,                             // 134: algorithm
+    7,                              // 135: feedback
+    1,                              // 136: sync
+    99, 99, 99, 99,                 // 137-140: LFO speed, delay, pmd, amd
+    1,                              // 141: lfo sync,
+    4,                              // 142: lfo waveform,
+    7,                              // lfo mod sense pitch
+};
+
 void DxParam::readValueAgain() {
 	patch = soundEditor.currentSound->sources[0].ensureDxPatch();
 	displayValue = getValue();
@@ -76,26 +99,7 @@ void DxParam::readValueAgain() {
 	int op = param / 21;
 	int idx = param % 21;
 	if (0 <= param && param < 6 * 21) {
-		// Keyboard level scaling: left curve (11) and right curve (12).
-		if (idx == 11 || idx == 12) {
-			upper_limit = 3;
-		}
-		else if (idx == 13 || idx == 15) {
-			// Envelope rate scaling (13) and key velocity sensitivity (15).
-			upper_limit = 7;
-		}
-		else if (idx == 14) {
-			// Amplitude modulation sensitivity.
-			upper_limit = 3;
-		}
-		else if (idx == 17) {
-			// Oscillator mode: ratio (0) or fixed frequency (1).
-			upper_limit = 1;
-		}
-		else if (idx == 20) {
-			// Oscillator detune: stored as 0–14, displayed as -7 to +7.
-			upper_limit = 14;
-		}
+		upper_limit = upper_limit_op_param[idx];
 
 		y = 7 - op;
 		if (idx < 8) {
@@ -112,17 +116,9 @@ void DxParam::readValueAgain() {
 		}
 		flash_row = 7 - op;
 	}
-	else if (param == 6 * 21 + 8) {
-		// Algorithm: stored as 0–31.
-		upper_limit = 31;
-	}
-	else if (param == 6 * 21 + 9) {
-		// Feedback amount.
-		upper_limit = 7;
-	}
-	else if (param == 6 * 21 + 10) {
-		// Oscillator key sync: off (0) or on (1).
-		upper_limit = 1;
+	else if (param >= 6 * 21 && idx < kNumGlobalParams) {
+		// global param
+		upper_limit = upper_limit_global_param[idx];
 	}
 
 	blink_next = false;
@@ -216,7 +212,7 @@ void DxParam::horizontalEncoderAction(int32_t offset) {
 		if (param < -1) {
 			param = 143;
 		}
-		else if (param >= 143) {
+		else if (param > 143) {
 			param = -1;
 		}
 	}
