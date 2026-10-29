@@ -46,7 +46,7 @@ run = ["python3", "tests/golden/upgrade_run.py"]
 builds = ["golden-vt-render"]
 requires = ["cargo"]
 tier = "nightly"
-group = "model"
+group = "storage"
 runtime = "~10m"
 
 [[harness]]
@@ -294,7 +294,7 @@ run = ["scripts/embassy_layout_invariance.sh", "cordae"]
 builds = ["golden-vt-render"]
 requires = ["song-corpus"]
 tier = "nightly"
-group = "render"
+group = "unit"
 runtime = "~45s"
 
 # unavailable: cargo cannot build or run this package at all (nested-workspace

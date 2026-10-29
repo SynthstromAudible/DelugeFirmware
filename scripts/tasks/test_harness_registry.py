@@ -13,6 +13,7 @@ import sys
 import tempfile
 import types
 import unittest
+import xml.etree.ElementTree as ET
 from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
@@ -158,6 +159,15 @@ class LoadRegistryTest(unittest.TestCase):
         with self.assertRaises(ValueError) as cm:
             hr.load_registry(self._root_with(text))
         self.assertIn("builds only golden-vt-render", str(cm.exception))
+
+    def test_prebuilt_group_holds_only_scenario_gates(self):
+        text = MINIMAL.replace('group = "storage"', 'group = "model"').replace(
+            'requires = ["cargo"]',
+            'builds = ["golden-vt-render"]\nrequires = ["cargo"]',
+        )
+        with self.assertRaises(ValueError) as cm:
+            hr.load_registry(self._root_with(text))
+        self.assertIn("holds only scenario gates", str(cm.exception))
 
     def test_missing_gates_is_rejected(self):
         text = MINIMAL.replace('gates = "alpha must equal beta"\n', "")
@@ -332,6 +342,48 @@ class BuildsTest(unittest.TestCase):
         run.assert_not_called()
         self.assertEqual(status, 1)
         self.assertIn("is not built", out.getvalue())
+
+    def _run(self, selection, junit=None, prebuilt=False):
+        task_test = _load_task_test()
+        args = types.SimpleNamespace(
+            junit=junit,
+            skip_checks=False,
+            build_only=False,
+            jobs=1,
+            strict=False,
+            prebuilt=prebuilt,
+        )
+        with redirect_stdout(io.StringIO()):
+            return task_test.cmd_run(
+                Path(tempfile.mkdtemp()), selection, args, [], named=False
+            )
+
+    def test_prebuilt_checks_products_before_probes(self):
+        h = dataclasses.replace(
+            entry("r"),
+            group="render",
+            builds=["golden-vt-render"],
+            requires=["cargo-fuzz"],
+        )
+        with mock.patch.object(hr, "probe", return_value=False):
+            self.assertEqual(self._run([h], prebuilt=True), 1)
+
+    def test_junit_written_for_every_test_without_its_own(self):
+        junit = Path(tempfile.mkdtemp())
+        passing = entry("passes")
+        failing = dataclasses.replace(entry("fails"), run=["false"])
+        blocked = dataclasses.replace(
+            entry("blocked"), group="render", builds=["golden-vt-render"]
+        )
+        self._run([passing, failing, blocked], junit=str(junit), prebuilt=True)
+        cases = {
+            p.stem: ET.parse(p).getroot().find(".//testcase")
+            for p in junit.glob("*.xml")
+        }
+        self.assertEqual(sorted(cases), ["blocked", "fails", "passes"])
+        self.assertIsNone(cases["passes"].find("failure"))
+        self.assertIsNotNone(cases["fails"].find("failure"))
+        self.assertIn("is not built", cases["blocked"].find("failure").get("message"))
 
     def test_order_puts_dependencies_first_and_each_once(self):
         known = tb.products(Path("/repo"))

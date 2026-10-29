@@ -34,6 +34,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.firmware == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -86,6 +87,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.firmware == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -152,7 +154,10 @@ jobs:
   clang-tidy:
     name: clang-tidy (advisory)
     needs: changes
-    if: github.event_name == 'pull_request' && needs.changes.outputs.firmware == 'true'
+    # Its annotations need a token a fork PR does not get.
+    if: >-
+      github.event_name == 'pull_request' && needs.changes.outputs.firmware == 'true' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 30
     continue-on-error: true
@@ -222,14 +227,18 @@ jobs:
     needs: changes
     if: needs.changes.outputs.firmware == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
 
       - uses: ./.github/actions/test-prerequisites
 
-      # Building any test of a prebuilt group builds golden-vt-render and its host-app dependency, nothing else.
-      - name: Build golden_vt_render
-        run: DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test -n --strict golden-synth
+      # Each product is built once however many tests name it; the prebuilt groups name only golden-vt-render.
+      - name: Build the prebuilt groups' products
+        run: |
+          read -ra tests <<< "$(DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test --ci-matrix --tier pr \
+            | jq -r '[.include[] | select(.prebuilt != "") | .tests] | join(" ")')"
+          DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test -n --strict "${tests[@]}"
 
       # A tarball keeps the executable bit, which an artifact upload drops.
       - name: Pack the prebuilt groups' products
@@ -253,13 +262,18 @@ jobs:
       include: ${{ steps.emit.outputs.include }}
     steps:
       - uses: actions/checkout@v7
+      # A registry error, or a selection with nothing in it, fails here rather than in every job after.
       - id: emit
-        run: echo "include=$(DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test --ci-matrix --tier pr | jq -c .include)" >> "$GITHUB_OUTPUT"
+        run: |
+          matrix=$(DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test --ci-matrix --tier pr)
+          include=$(jq -ce '.include | select(length > 0)' <<< "$matrix")
+          echo "include=$include" >> "$GITHUB_OUTPUT"
 
   tests:
     name: tests / ${{ matrix.group }}
     needs: [matrix, host-build]
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -302,6 +316,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.website == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     # The site deploys to the root of this domain; the check builds it the same way.
     env:
       SITE_URL: https://delugecommunity.com
@@ -442,8 +457,9 @@ jobs:
       - name: Download baseline build
         id: baseline
         run: |
+          # Any completed push run whose firmware job uploaded the image, whatever its tests did.
           candidates=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch "$BASE_REF" --event push \
-              --status success --limit 20 --json databaseId,headSha --jq '.[] | "\(.databaseId) \(.headSha)"')
+              --status completed --limit 20 --json databaseId,headSha --jq '.[] | "\(.databaseId) \(.headSha)"')
           while read -r run_id sha; do
             [ -n "$run_id" ] || continue
             status=$(gh api "repos/$GITHUB_REPOSITORY/compare/$sha...$BASE_REF" --jq .status) || continue
@@ -487,8 +503,11 @@ jobs:
           } > report.md
           cat report.md >> "$GITHUB_STEP_SUMMARY"
 
+      # A fork PR's token cannot comment; the job summary has the report.
       - name: Comment on PR
-        if: steps.baseline.outputs.found == 'true'
+        if: >-
+          steps.baseline.outputs.found == 'true' &&
+          github.event.pull_request.head.repo.full_name == github.repository
         uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: firmware-size

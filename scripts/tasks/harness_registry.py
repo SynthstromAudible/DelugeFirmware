@@ -156,6 +156,11 @@ def load_registry(root: Path) -> list[Harness]:
             raise ValueError(
                 f"{where}: group '{item['group']}' runs prebuilt, so a test in it builds only {prebuilt}"
             )
+        # A script or build step could build at run time, which a prebuilt group must not.
+        if prebuilt and (item["runner"] != "scenario" or "scenario" not in item):
+            raise ValueError(
+                f"{where}: group '{item['group']}' runs prebuilt, so it holds only scenario gates"
+            )
 
         known_products = test_builds.products(root)
         for product in item.get("builds", []):

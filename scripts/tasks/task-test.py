@@ -22,6 +22,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -362,12 +363,14 @@ def cmd_run(
     for h in selection:
         if h.status == "unavailable":
             print(f"warning: '{h.name}' is marked unavailable -- {h.gates}\n")
-        missing = _missing(root, h, builds.known)
+        # Prebuilt, a missing product is a failure whatever this machine lacks: it was to have been handed in.
+        blocker = builds.blocker(h) if args.prebuilt else None
+        missing = [] if blocker else _missing(root, h, builds.known)
         if missing and not args.skip_checks:
             outcomes[h.name] = Outcome(h.name, "SKIP", f"needs {', '.join(missing)}")
             print(f"--- {h.name}: skipped, needs {', '.join(missing)}", flush=True)
             continue
-        blocker = builds.blocker(h)
+        blocker = blocker or builds.blocker(h)
         if blocker is not None:
             outcomes[h.name] = Outcome(h.name, "FAIL", blocker)
             print(f"--- {h.name}: not run, {blocker}", flush=True)
@@ -399,9 +402,31 @@ def cmd_run(
                 print(text, end="", flush=True)
                 outcomes[h.name] = Outcome(h.name, "PASS" if ok else "FAIL")
 
+    if junit_dir is not None and not args.build_only:
+        for h in selection:
+            _write_junit(junit_dir / f"{h.name}.xml", outcomes[h.name])
     return _summarise(
         [outcomes[h.name] for h in selection], strict=args.strict or named
     )
+
+
+def _write_junit(path: Path, outcome: Outcome) -> None:
+    """A one-case JUnit file for a test that wrote none of its own, so every test is reported by name."""
+    if path.exists():
+        return
+    suite = ET.Element(
+        "testsuite",
+        name=outcome.name,
+        tests="1",
+        failures=str(int(outcome.result == "FAIL")),
+        skipped=str(int(outcome.result == "SKIP")),
+    )
+    case = ET.SubElement(suite, "testcase", classname="dbt test", name=outcome.name)
+    if outcome.result == "FAIL":
+        ET.SubElement(case, "failure", message=outcome.note or "failed")
+    elif outcome.result == "SKIP":
+        ET.SubElement(case, "skipped", message=outcome.note)
+    ET.ElementTree(suite).write(path, encoding="utf-8", xml_declaration=True)
 
 
 def _summarise(outcomes: list[Outcome], strict: bool) -> int:
