@@ -29,6 +29,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/source.h"
 #include "storage/multi_range/multisample_range.h"
+#include "util/functions.h" // getNoise
 
 VoiceUnisonPartSource::~VoiceUnisonPartSource() {
 	unassign(false);
@@ -67,6 +68,7 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 		const uint32_t seedPhase = getOscInitialPhaseForZero(oscType) + oscRetriggerPhase;
 		if (engineMode && deluge::dsp::isVirtualAnalog(oscType)) {
 			wavetableSource.reset();
+			supersawSource.reset();
 			const deluge::synth::va_shape::Wave wave = deluge::dsp::vaWaveFor(oscType);
 			if (oscRetriggerPhase != 0xFFFFFFFF) {
 				vaSource.emplace(wave, deluge::dsp::Phasor{seedPhase, 0});
@@ -78,6 +80,7 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 		}
 		else if (engineMode && oscType == OscType::WAVETABLE) {
 			vaSource.reset();
+			supersawSource.reset();
 			if (oscRetriggerPhase != 0xFFFFFFFF) {
 				wavetableSource.emplace(deluge::dsp::Phasor{seedPhase, 0});
 			}
@@ -86,9 +89,29 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 			}
 			// else (free-run, reused voice): keep wavetableSource's phase.
 		}
+		else if (engineMode && oscType == OscType::SUPERSAW) {
+			vaSource.reset();
+			wavetableSource.reset();
+			using deluge::dsp::fixed::Supersaw;
+			if (oscRetriggerPhase != 0xFFFFFFFF) {
+				// The side saws start at fixed offsets from the centre one, so every note starts the same way
+				supersawSource.emplace(seedPhase, Supersaw::sidePhasesFrom(seedPhase));
+			}
+			else if (resetEverything || !supersawSource.has_value()) {
+				// Free-running on a new voice: random side saws like the centre one, otherwise every note's side saws
+				// would start from the same place and sweep the same way
+				Supersaw::SidePhases sidePhases;
+				for (uint32_t& phase : sidePhases) {
+					phase = getNoise();
+				}
+				supersawSource.emplace(oscPos, sidePhases);
+			}
+			// else (free-run, reused voice): keep supersawSource's phases.
+		}
 		else {
 			vaSource.reset(); // non-engine (noise/FM/…) keeps oscPos; drop any engine left from a prior note.
 			wavetableSource.reset();
+			supersawSource.reset();
 			if (oscRetriggerPhase != 0xFFFFFFFF) {
 				oscPos = seedPhase;
 			}
