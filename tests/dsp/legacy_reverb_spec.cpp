@@ -10,7 +10,7 @@
 #include <vector>
 
 #ifndef DELUGE_DSP_BOUNDS_CHECK
-#error "reverb_spec needs DELUGE_DSP_BOUNDS_CHECK; see tests/dsp/CMakeLists.txt"
+#error "legacy_reverb_spec needs DELUGE_DSP_BOUNDS_CHECK; see tests/dsp/CMakeLists.txt"
 #endif
 
 using deluge::dsp::Reverb;
