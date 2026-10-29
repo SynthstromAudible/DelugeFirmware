@@ -177,7 +177,7 @@ def wait_for_port(port: int, deadline: float) -> bool:
     return False
 
 
-def main() -> int:
+def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         description="Load, run and capture RTT from the Deluge via J-Link."
     )
@@ -242,37 +242,67 @@ def main() -> int:
         help="a gdb command run after the load and before the core starts, e.g. a `restore` that paints"
         " memory (repeatable; ignored with --no-load)",
     )
-    args = ap.parse_args()
+    return ap
 
-    res = Result(elf=args.elf, chip=args.device)
-    started = time.time()
 
-    def finish(code: int, exit_kind: str, error: str | None = None) -> int:
-        res.exit = exit_kind
-        res.error = error
-        res.elapsed = round(time.time() - started, 3)
-        if args.json:
-            print(json.dumps(asdict(res), indent=2))
-        elif error:
-            print(f"deluge_jlink: {exit_kind} -- {error}", file=sys.stderr)
-        else:
-            print(
-                f"deluge_jlink: {exit_kind} in {res.elapsed}s, {len(res.rtt)} RTT line(s)",
-                file=sys.stderr,
-            )
-        return code
+class TargetError(Exception):
+    """The target could not be started: an exit code, its kind and why."""
 
+    def __init__(self, code: int, kind: str, message: str):
+        super().__init__(message)
+        self.code, self.kind = code, kind
+
+
+@dataclass
+class Target:
+    """A loaded, running target: the GDB server, gdb and its script, until `close`."""
+
+    srv: subprocess.Popen
+    gdb: subprocess.Popen
+    gdb_script: str
+    deadline: float
+
+    def connect_rtt(self, deadline: float) -> socket.socket:
+        """Connects to the RTT telnet port, retrying until `deadline`: the server drops a connection until
+        the control block is discoverable."""
+        while True:
+            try:
+                return socket.create_connection(("127.0.0.1", RTT_PORT), timeout=1.0)
+            except OSError:
+                if time.time() >= deadline:
+                    raise
+                time.sleep(0.5)
+
+    def close(self) -> None:
+        """Stops gdb and the server, SIGINT first so gdb detaches the core cleanly and leaves the firmware
+        running."""
+        for proc in (self.gdb, self.srv):
+            try:
+                proc.send_signal(signal.SIGINT)
+            except OSError:
+                pass
+        time.sleep(0.5)
+        for proc in (self.gdb, self.srv):
+            if proc.poll() is None:
+                proc.kill()
+        if os.path.exists(self.gdb_script):
+            os.unlink(self.gdb_script)
+
+
+def start_target(args: argparse.Namespace, res: Result, started: float) -> Target:
+    """Starts the GDB server, loads and runs the ELF (no breakpoints; RAM only), and waits for the RTT
+    port; raises TargetError when any step fails."""
     if not os.path.exists(args.elf):
-        return finish(4, "usage", f"no such ELF: {args.elf}")
+        raise TargetError(4, "usage", f"no such ELF: {args.elf}")
     server = find_server(args.server)
     if not server:
-        return finish(4, "usage", "JLinkGDBServerCLExe not found on PATH")
+        raise TargetError(4, "usage", "JLinkGDBServerCLExe not found on PATH")
     if not os.path.exists(args.gdb):
-        return finish(4, "usage", f"gdb not found: {args.gdb}")
+        raise TargetError(4, "usage", f"gdb not found: {args.gdb}")
 
     addr = args.rtt_address or rtt_address(args.elf, DEFAULT_NM)
     if not addr:
-        return finish(
+        raise TargetError(
             4, "usage", "could not read _SEGGER_RTT from the ELF; pass --rtt-address"
         )
     res.rtt_address = addr
@@ -319,12 +349,12 @@ def main() -> int:
     # connection..." has no newline, so it never reaches a line reader.
     if not wait_for_server_line("Connected to target", res.probe_log, srv, deadline):
         srv.kill()
-        return finish(
+        raise TargetError(
             3, "probe-error", "J-Link GDB server never connected to the target"
         )
     if not wait_for_port_listening(GDB_PORT, deadline):
         srv.kill()
-        return finish(3, "probe-error", "J-Link GDB server never opened its port")
+        raise TargetError(3, "probe-error", "J-Link GDB server never opened its port")
 
     entry = entry_point(args.elf, DEFAULT_NM.replace("-nm", "-readelf"))
     script = [
@@ -377,13 +407,42 @@ def main() -> int:
         if not res.flashed:
             gdb.kill()
             srv.kill()
-            return finish(
+            raise TargetError(
                 3, "probe-error", "load never completed (no transfer rate reported)"
             )
     if not wait_for_port(RTT_PORT, min(deadline, time.time() + 30)):
         gdb.kill()
         srv.kill()
-        return finish(3, "probe-error", "J-Link RTT telnet port never opened")
+        raise TargetError(3, "probe-error", "J-Link RTT telnet port never opened")
+    return Target(srv, gdb, gdb_script, deadline)
+
+
+def main() -> int:
+    args = build_parser().parse_args()
+
+    res = Result(elf=args.elf, chip=args.device)
+    started = time.time()
+
+    def finish(code: int, exit_kind: str, error: str | None = None) -> int:
+        res.exit = exit_kind
+        res.error = error
+        res.elapsed = round(time.time() - started, 3)
+        if args.json:
+            print(json.dumps(asdict(res), indent=2))
+        elif error:
+            print(f"deluge_jlink: {exit_kind} -- {error}", file=sys.stderr)
+        else:
+            print(
+                f"deluge_jlink: {exit_kind} in {res.elapsed}s, {len(res.rtt)} RTT line(s)",
+                file=sys.stderr,
+            )
+        return code
+
+    try:
+        target = start_target(args, res, started)
+    except TargetError as exc:
+        return finish(exc.code, exc.kind, str(exc))
+    deadline = target.deadline
 
     untils = [re.compile(p) for p in args.until]
     fails = [re.compile(p) for p in args.fail_on]
@@ -441,17 +500,7 @@ def main() -> int:
         outcome = (3, "probe-error")
         res.error = str(exc)
 
-    # SIGINT first so gdb detaches the core cleanly, leaving the firmware running.
-    for proc in (gdb, srv):
-        try:
-            proc.send_signal(signal.SIGINT)
-        except OSError:
-            pass
-    time.sleep(0.5)
-    for proc in (gdb, srv):
-        if proc.poll() is None:
-            proc.kill()
-    os.unlink(gdb_script)
+    target.close()
 
     if outcome:
         return finish(outcome[0], outcome[1], res.error)
