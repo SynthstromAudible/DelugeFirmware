@@ -58,6 +58,17 @@ def settings_flash_image(sector: bytes) -> bytes:
     return b"\xff" * SETTINGS_OFFSET + sector
 
 
+def retried(run, *args, tries: int = 2, **kwargs):
+    """`run(*args, **kwargs)`, again when it fails on the link (the probe server not restarting, the device going silent):
+    those come and go with the network to the probe host. Any other failure is the device's answer."""
+    for attempt in range(tries):
+        try:
+            return run(*args, **kwargs)
+        except (ConnectionError, TimeoutError):
+            if attempt == tries - 1:
+                raise
+
+
 def read_device_settings(host: str, elf: Path, out: Path) -> bytes:
     """Boots `elf` so the firmware puts the flash window back in memory-mapped mode, then copies the settings
     sector through JLinkExe on the probe host with the core halted, and lets it run on."""
@@ -159,7 +170,7 @@ def main(argv: list[str] | None = None) -> int:
         failed = False
         for i, script in enumerate(args.scripts):
             try:
-                snaps = device(script, park=i == len(args.scripts) - 1)
+                snaps = retried(device, script, park=i == len(args.scripts) - 1)
             except (RuntimeError, TimeoutError, ConnectionError, AssertionError) as exc:
                 print(f"FAILED {script.stem}: {exc}", flush=True)
                 failed = True
@@ -204,7 +215,7 @@ def main(argv: list[str] | None = None) -> int:
         for i, script in enumerate(args.scripts):
             got = {}
             try:
-                got["test"] = device(script, park=i == len(args.scripts) - 1)
+                got["test"] = retried(device, script, park=i == len(args.scripts) - 1)
             except (RuntimeError, TimeoutError, ConnectionError, AssertionError) as exc:
                 got["test"] = exc
             try:

@@ -43,6 +43,8 @@ deluge-sdk's headless format, one step per line: `<at_ms> <command> <args…>`; 
   (`tools/device_parity.py`, through `amidi` on the probe host). Only the rig runs it: scripts with
   it live under `tests/ui-scripts/device/` and run with `--record-only`; `ui_script.cpp` does not
   parse it.
+- Level-3 scripts also run on the real Deluge on the probe rig, through a `rig-harness` image and
+  `tools/device_parity.py`, compared with delugemu (`docs/dev/device_benchmarking.md`).
 
 ## Snapshot format
 

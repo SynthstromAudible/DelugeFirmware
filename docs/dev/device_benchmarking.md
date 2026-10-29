@@ -18,6 +18,28 @@ and memory. It paints the program stack before the core starts; the image's memo
 and logs `MEM` lines with each heap's free bytes, their low-water mark, and the stack's high-water mark. It
 parks the panel and stops the server afterwards unless `--no-park`.
 
+## Driving the panel from a script: the rig harness
+
+A `rig-harness` image takes level-3 UI scripts' gestures and reports what its panel shows, over RTT, so a
+script runs on the real Deluge with nobody at it:
+
+1. Build it: `tools/bench_image.py --out harness.elf --no-bench --features rig-harness`. The feature is never in
+   a shipping image; its images link with a 96 KiB SRAM heap floor instead of 100 KiB.
+2. Check it boots: `tools/device_check.py harness.elf --expect-harness`.
+3. Compare it with delugemu: `tools/device_parity.py --emu-ref <elf> --device harness.elf --sd <the rig's card>
+   scripts…`. It reads the rig's settings sector for delugemu's starting flash (read only), runs delugemu in
+   parallel and the device one script at a time, and prints emu_parity's MATCH/DIFF lines. With
+   `--record-only` there is no delugemu side; scripts with `midi` steps (sent with `amidi` on the probe host,
+   `--midi-port`) need it.
+
+The protocol: the device prints numbered `@` lines between its log lines on RTT channel 0 (the OLED, pad
+columns, LEDs, gold rings, flashes and PIC settings as the app sent them; `peripherals/rig_harness/wire.rs`)
+and reads command lines from down channel 0 (`input.rs`). `tools/rig_session.py`'s `DeviceSession` turns that
+into the session `tools/emu_parity.py` drives, with its clock counted from when it attached. A gap in the
+numbering, a refused command or a silent device stops the run. What it cannot show as delugemu does: pads the
+PIC moves itself during a scroll animation. A run of the 18 `parity/` scripts takes about 12 minutes; a script whose run fails on the link (the probe
+server not restarting, the device going silent) is retried once.
+
 ## 1. Build the images
 
 ```sh

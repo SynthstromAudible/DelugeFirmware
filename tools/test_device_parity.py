@@ -27,5 +27,34 @@ class SettingsImage(unittest.TestCase):
             device_parity.settings_flash_image(b"\xff" * 100)
 
 
+class Retry(unittest.TestCase):
+    def test_a_link_failure_is_retried_once(self):
+        calls = []
+
+        def run():
+            calls.append(1)
+            if len(calls) == 1:
+                raise ConnectionError("probe server did not restart")
+            return "ok"
+
+        self.assertEqual(device_parity.retried(run, tries=2), "ok")
+        self.assertEqual(len(calls), 2)
+
+    def test_a_second_failure_and_other_errors_propagate(self):
+        def dead():
+            raise TimeoutError("device clock stuck")
+
+        with self.assertRaises(TimeoutError):
+            device_parity.retried(dead, tries=2)
+
+        def refused():
+            raise RuntimeError("the device refused 'P 3'")
+
+        calls = []
+        with self.assertRaises(RuntimeError):
+            device_parity.retried(lambda: calls.append(1) or refused(), tries=2)
+        self.assertEqual(len(calls), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
