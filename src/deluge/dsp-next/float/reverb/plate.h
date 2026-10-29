@@ -268,17 +268,17 @@ struct Plate {
 
 private:
 	enum class Filter : uint8_t { LOW_PASS, HIGH_PASS };
-	/// @return A knob position's one-pole coefficient: a cutoff from 20 to 170 Hz (high-pass) or 0 to about 17.7 kHz
-	/// (low-pass) on an exponential curve, as the bilinear one-pole's wc = fc / (1 + fc).
+	/// @return A knob position's one-pole coefficient: a cutoff from 20 to about 540 Hz (high-pass) or 0 to about 17.7
+	/// kHz (low-pass) on an exponential curve, as the bilinear one-pole's wc = fc / (1 + fc).
 	template <Filter F>
 	[[nodiscard]] static float filter_cutoff(float f) {
-		float min_freq = kLowPassMinHz;
-		float max_freq = kLowPassSpanHz;
+		float min_hz = kLowPassMinHz;
+		float span_hz = kLowPassSpanHz;
 		if constexpr (F == Filter::HIGH_PASS) {
-			min_freq = kHighPassMinHz;
-			max_freq = kHighPassSpanHz;
+			min_hz = kHighPassMinHz;
+			span_hz = kHighPassSpanHz;
 		}
-		const float fc_hz = min_freq + (std::exp(kFilterCurve * f) - 1) * max_freq;
+		const float fc_hz = min_hz + (std::exp(kFilterCurve * f) - 1) * span_hz;
 		const float fc = fc_hz / float(kSampleRate);
 		return fc / (1 + fc);
 	}
