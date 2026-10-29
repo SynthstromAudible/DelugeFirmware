@@ -276,6 +276,13 @@ def run_image(
                 dz.button(x, y, args[1] == "down")
             elif cmd == "pad":
                 dz.pad_event(int(args[0]), int(args[1]), args[2] == "down")
+            elif cmd == "midi":
+                # USB-MIDI into the Deluge: only the rig device (tools/rig_session.py) takes it.
+                if not hasattr(dz, "midi"):
+                    raise NotImplementedError(
+                        f"{script.name}: `midi` runs on the device only"
+                    )
+                dz.midi(" ".join(args))
             elif cmd == "encoder":
                 dz.encoder(ENCODER_ROLES.index(args[0]), int(args[1]))
             elif cmd == "load":

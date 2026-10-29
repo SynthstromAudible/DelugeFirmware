@@ -163,6 +163,35 @@ class Failures(unittest.TestCase):
             s.run_until(200_000)
 
 
+class Midi(unittest.TestCase):
+    def test_midi_runs_amidi_on_the_probe_host(self):
+        s = attached(FakeLink())
+        calls = []
+
+        class Done:
+            returncode = 0
+            stderr = ""
+
+        s.midi_port = "hw:1,0,0"
+        s._host = "pi@probe"
+        s._ssh = lambda host, script, timeout=60: calls.append((host, script)) or Done()
+        s.midi("90 3c 64")
+        self.assertEqual(calls, [("pi@probe", "amidi -p hw:1,0,0 -S '90 3c 64'")])
+
+    def test_midi_takes_only_hex_bytes(self):
+        s = attached(FakeLink())
+        s.midi_port = "hw:1,0,0"
+        s._ssh = lambda *a, **k: self.fail("ran a command")
+        for bad in ("90 3c; reboot", "90 3cz", "", "9"):
+            with self.assertRaises(ValueError):
+                s.midi(bad)
+
+    def test_midi_without_a_port_is_an_error(self):
+        s = attached(FakeLink())
+        with self.assertRaisesRegex(RuntimeError, "port"):
+            s.midi("90 3c 64")
+
+
 class Gestures(unittest.TestCase):
     def test_gestures_become_command_lines(self):
         link = FakeLink()

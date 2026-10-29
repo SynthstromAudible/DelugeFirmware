@@ -39,6 +39,10 @@ deluge-sdk's headless format, one step per line: `<at_ms> <command> <args…>`; 
   (`parse_script(string_view) -> FixedVector<Step, 256>`; `Step{at_ms, kind, args}`),
   shared by levels 1-2 and compiled into the host BSP for level 3.
 - Unknown commands are errors, not warnings.
+- `midi <hex bytes>` (e.g. `2000 midi 90 3c 64`) sends USB-MIDI to the Deluge on the probe rig
+  (`tools/device_parity.py`, through `amidi` on the probe host). Only the rig runs it: scripts with
+  it live under `tests/ui-scripts/device/` and run with `--record-only`; `ui_script.cpp` does not
+  parse it.
 
 ## Snapshot format
 

@@ -16,7 +16,10 @@ halted for the copy, and QSPI is never written) and delugemu starts from it, so 
 does not show as a UI difference. Panel state the device cannot report the same way as delugemu: the pads
 during a PIC scroll animation (the PIC moves them itself; tools/rig_session.py records when it scrolled).
 
-Exit codes: 0 every snapshot matched; 1 a snapshot differed or a run failed; 3 the rig failed; 4 usage.
+`midi <hex bytes>` script steps go to the Deluge's USB-MIDI through `amidi` on the probe host (--midi-port);
+delugemu has no USB-MIDI input, so scripts with them run with --record-only.
+
+Exit codes: 0 every snapshot matched (or, with --record-only, every script ran); 1 a snapshot differed or a run failed; 3 the rig failed; 4 usage.
 """
 
 from __future__ import annotations
@@ -77,12 +80,12 @@ def read_device_settings(host: str, elf: Path, out: Path) -> bytes:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument(
-        "--emu-ref", required=True, type=Path, help="the image delugemu runs"
+        "--emu-ref", type=Path, help="the image delugemu runs (not with --record-only)"
     )
     ap.add_argument(
         "--device", required=True, type=Path, help="the rig-harness image the rig runs"
     )
-    card = ap.add_mutually_exclusive_group(required=True)
+    card = ap.add_mutually_exclusive_group()
     card.add_argument(
         "--card", type=Path, help="SD content directory matching the rig's card"
     )
@@ -102,11 +105,29 @@ def main(argv: list[str] | None = None) -> int:
         "--out", type=Path, default=REPO / ".superpowers/emu-runs/device-latest"
     )
     ap.add_argument("-j", "--jobs", type=int, default=4, help="delugemu runs at once")
+    ap.add_argument(
+        "--midi-port",
+        default=os.environ.get("DELUGE_MIDI_PORT"),
+        help="the probe host's ALSA port for the Deluge (amidi -l), for scripts' `midi` steps",
+    )
+    ap.add_argument(
+        "--record-only",
+        action="store_true",
+        help="run the scripts on the device and keep its snapshots, with no delugemu side (device-only scripts)",
+    )
     ap.add_argument("scripts", nargs="+", type=Path)
     args = ap.parse_args(argv)
     if not args.host:
         print(
             "device_parity: no --host and $DELUGE_PROBE_HOST is unset", file=sys.stderr
+        )
+        return 4
+    if not args.record_only and (
+        args.emu_ref is None or (args.card or args.sd) is None
+    ):
+        print(
+            "device_parity: --emu-ref and --card or --sd, or --record-only",
+            file=sys.stderr,
         )
         return 4
     for name in ("emu_ref", "device", "card", "sd", "flash", "out"):
@@ -115,6 +136,41 @@ def main(argv: list[str] | None = None) -> int:
     sys.path.insert(0, str(args.delugemu / "pylib"))
     out = args.out
     out.mkdir(parents=True, exist_ok=True)
+    buttons = emu_parity.button_table()
+
+    def device(script: Path, park: bool):
+        def session(o: Path):
+            dz = DeviceSession.launch(args.device, args.host, o)
+            dz.park_on_close = park
+            dz.midi_port = args.midi_port
+            return dz
+
+        return emu_parity.run_image(
+            None,
+            None,
+            None,
+            script,
+            out / script.stem / "test",
+            buttons,
+            session=session,
+        )
+
+    if args.record_only:
+        failed = False
+        for i, script in enumerate(args.scripts):
+            try:
+                snaps = device(script, park=i == len(args.scripts) - 1)
+            except (RuntimeError, TimeoutError, ConnectionError, AssertionError) as exc:
+                print(f"FAILED {script.stem}: {exc}", flush=True)
+                failed = True
+                continue
+            for name, panels in snaps.items():
+                print(
+                    f"RECORDED {script.stem}/{name} ({len(panels)} panel(s))",
+                    flush=True,
+                )
+        print(f"device_parity: snapshots in {out}")
+        return 1 if failed else 0
 
     flash = args.flash
     if flash is None:
@@ -136,27 +192,10 @@ def main(argv: list[str] | None = None) -> int:
             check=True,
             stdout=subprocess.DEVNULL,
         )
-    buttons = emu_parity.button_table()
 
     def reference(script: Path):
         return emu_parity.run_image(
             args.emu_ref, sd, flash, script, out / script.stem / "ref", buttons
-        )
-
-    def device(script: Path, park: bool):
-        def session(o: Path):
-            dz = DeviceSession.launch(args.device, args.host, o)
-            dz.park_on_close = park
-            return dz
-
-        return emu_parity.run_image(
-            None,
-            None,
-            None,
-            script,
-            out / script.stem / "test",
-            buttons,
-            session=session,
         )
 
     report, failed = {}, False

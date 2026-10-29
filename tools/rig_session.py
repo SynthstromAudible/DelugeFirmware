@@ -15,6 +15,7 @@ from the moment the session attached, as delugemu counts them from power-on.
 from __future__ import annotations
 
 import os
+import re
 import struct
 import sys
 import time
@@ -88,6 +89,10 @@ class DeviceSession:
         self._target = None
         # Leaving the session parks the panel dark; a run of several scripts parks only after the last.
         self.park_on_close = True
+        # The probe host's ALSA port for the Deluge's USB-MIDI (`amidi -l`), for `midi`.
+        self.midi_port: str | None = os.environ.get("DELUGE_MIDI_PORT")
+        self._host: str | None = None
+        self._ssh = None
         self._awaiting_ready = False
         deadline = time.monotonic() + attach_timeout
         if ready_log is not None:
@@ -198,6 +203,26 @@ class DeviceSession:
 
     def encoder(self, index: int, detents: int) -> None:
         self._send(f"E {index} {detents * EDGES_PER_DETENT}")
+
+    def midi(self, hex_bytes: str) -> None:
+        """Sends MIDI bytes (hex, e.g. "90 3c 64") to the Deluge's USB-MIDI from the probe host, with amidi."""
+        if not re.fullmatch(r"[0-9a-fA-F]{2}( [0-9a-fA-F]{2})*", hex_bytes):
+            raise ValueError(f"rig harness: not MIDI hex bytes: {hex_bytes!r}")
+        if not self.midi_port:
+            raise RuntimeError(
+                "rig harness: no MIDI port (--midi-port or $DELUGE_MIDI_PORT)"
+            )
+        if self._ssh is None:
+            import rig
+
+            self._ssh = rig.ssh
+        done = self._ssh(
+            self._host, f"amidi -p {self.midi_port} -S '{hex_bytes}'", timeout=20
+        )
+        if done.returncode != 0:
+            raise RuntimeError(
+                f"rig harness: amidi failed: {done.stderr.strip()[-200:]}"
+            )
 
     def read_oled(self) -> list[list[bool]]:
         """Rows of pixels, decoded from the SSD1309 page layout as delugemu decodes its framebuffer."""
