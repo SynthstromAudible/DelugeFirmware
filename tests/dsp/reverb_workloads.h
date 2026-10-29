@@ -59,6 +59,10 @@ inline constexpr Knobs kTurned{0.9f, 0.2f, 0.5f, 0.6f, 0.4f};
 /// low-pass 0. Width 0 itself is left out: Freeverb's wet2 there is 2^31, out of int32's range, which the targets
 /// convert differently; the kernel's coefficient spec covers it on each target.
 inline constexpr Knobs kExtremes{1.f, 1.f, 1.f / 50, 1.f, 0.f};
+/// @brief Full-scale input through a plate that passes it: room at 1, no damping, both filters open (high-pass 0,
+/// low-pass 1). At kExtremes the plates' low-pass closes and they return nothing, so these knobs are what drive a
+/// plate's output to full scale.
+inline constexpr Knobs kPlateOpen{1.f, 0.f, 1.f, 0.f, 1.f};
 /// @brief Two knob sets between those, for the knob steps: every knob at half, and one away from it each way.
 inline constexpr Knobs kMidpointA{0.5f, 0.5f, 0.5f, 0.5f, 0.5f};
 inline constexpr Knobs kMidpointB{0.3f, 0.7f, 0.8f, 0.1f, 0.9f};
@@ -104,6 +108,8 @@ enum class WorkloadId : uint8_t {
 	DIGITAL_LONG,
 	DIGITAL_KNOB_STEPS,
 	MODEL_CHANGES,
+	MUTABLE_FULL_SCALE_OPEN,
+	DIGITAL_FULL_SCALE_OPEN,
 	kCount,
 };
 inline constexpr std::size_t kWorkloadCount = static_cast<std::size_t>(WorkloadId::kCount);
@@ -313,6 +319,10 @@ struct Workload {
 			             }
 			             return s;
 		             }});
+		w.push_back({WorkloadId::MUTABLE_FULL_SCALE_OPEN, "MUTABLE_FULL_SCALE_OPEN", Model::MUTABLE, 80,
+		             steady(Model::MUTABLE, kPlateOpen, Send::FULL_SCALE)});
+		w.push_back({WorkloadId::DIGITAL_FULL_SCALE_OPEN, "DIGITAL_FULL_SCALE_OPEN", Model::DIGITAL, 80,
+		             steady(Model::DIGITAL, kPlateOpen, Send::FULL_SCALE)});
 		return w;
 	}();
 	return all;

@@ -68,6 +68,10 @@ inline const std::array<WorkloadRecord, kWorkloadCount> kRecordedReference{{
     {.outputs = 0x487e14b4867e1bc5ULL, .state = 0x56c4ef71e0a3cccdULL, .send = 0xf461061928a225ceULL},
     // MODEL_CHANGES
     {.outputs = 0xc278cfae898d2f31ULL, .state = 0x56ccba4b54b7e90fULL, .send = 0x3d400bbb6f28bbfeULL},
+    // MUTABLE_FULL_SCALE_OPEN
+    {.outputs = 0x438baccd17f0f580ULL, .state = 0xa32effb049366afbULL, .send = 0x167e0cbcd4c0af25ULL},
+    // DIGITAL_FULL_SCALE_OPEN
+    {.outputs = 0x42ad306788d7612bULL, .state = 0x62847f4b87281956ULL, .send = 0x167e0cbcd4c0af25ULL},
 }};
 
 } // namespace reverb_workloads
