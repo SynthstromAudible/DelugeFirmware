@@ -28,9 +28,9 @@ inline constexpr int32_t kWavetableDuplicateSamplesAtCycleEnd = 7;
 /// @brief One band of a loaded wavetable: the anti-aliased samples for a pitch range, plus the
 /// cycle geometry the renderer needs.
 ///
-/// These fields keep their names while the wavetable render loop lives in storage and reads them by
-/// name. Storage's `WaveTableBand` derives from this, adding the ownership of the band's samples, so
-/// this is the prefix the renderer sees through @ref WaveTableData.
+/// The fields keep the camelCase names storage's loader, the wavetable oscillator and its cycle chunker
+/// read them by. Storage's `WaveTableBand` derives from this, adding the ownership of the band's
+/// samples, so this is the prefix the renderer sees through @ref WaveTableData.
 struct WaveTableBand {
 	uint32_t maxPhaseIncrement; ///< highest phase increment (pitch) this band covers; also the ascending sort key.
 	int32_t fromCycleNumber;    ///< first wavetable cycle this band holds data for.

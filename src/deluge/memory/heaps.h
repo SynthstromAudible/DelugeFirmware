@@ -84,8 +84,7 @@ bool inRenderBlock();
 
 #ifdef DELUGE_HOST
 /// @brief Host-only test seam: make the next allocation of exactly @p size bytes fail, once.
-/// GeneralMemoryAllocator::alloc
-///        (delugeAlloc), alloc_fast and alloc_external honour it.
+///        GeneralMemoryAllocator::alloc (delugeAlloc), alloc_fast and alloc_external honour it.
 /// @param size Allocation size (bytes) to fail on its next occurrence.
 void failNextAllocationOfSize(std::size_t size);
 

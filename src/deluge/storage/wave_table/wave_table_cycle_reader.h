@@ -28,8 +28,7 @@ class FileByteSource;
 class Sample;
 
 /// @brief Reads a wavetable's cycles one at a time, each as the cycle buffer the band builder takes: from a file
-/// through
-///        its byte source's cluster reads, or from a resident Sample's clusters (the in-memory conversion).
+///        through its byte source's cluster reads, or from a resident Sample's clusters (the in-memory conversion).
 class WaveTableCycleReader {
 public:
 	struct Format {

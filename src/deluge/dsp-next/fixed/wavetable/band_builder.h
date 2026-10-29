@@ -76,10 +76,9 @@ struct BandTarget {
 };
 
 /// @brief Builds a wavetable's bands from its source cycles, one cycle at a time: band 0 straight from the cycle when
-/// the
-///        cycle is a power of two, every other band (and band 0 otherwise) from the cycle's spectrum through an inverse
-///        transform, saturated to 16 bits, each cycle followed by its duplicates. Writes into storage it is lent;
-///        allocates nothing; the caller yields between calls.
+///        the cycle is a power of two, every other band (and band 0 otherwise) from the cycle's spectrum through an
+///        inverse transform, saturated to 16 bits, each cycle followed by its duplicates. Writes into storage it is
+///        lent; allocates nothing; the caller yields between calls.
 class BandBuilder {
 public:
 	struct Settings {
@@ -104,7 +103,9 @@ public:
 	///        the band is smaller than band 0, @p inverse, saturated to 16 bits after shifting down by
 	///        16 − kCycleHeadroomBits + band0_magnitude, then its duplicates.
 	void render_band(BandTarget band, int32_t cycle_index, const fft::RealFft& inverse);
-	/// @brief The end of a band's cycle range once @p cycle_index is built: the range always starts at 0.
+	/// @brief One past the last cycle a band's range covers once @p cycle_index is built: that cycle and the next,
+	/// which a
+	///        morph from it reads, within the table. The range always starts at 0.
 	[[nodiscard]] int32_t to_cycle_after(int32_t cycle_index) const;
 
 private:
