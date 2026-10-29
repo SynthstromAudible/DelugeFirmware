@@ -25,7 +25,61 @@
 #include <cstddef>
 #include <cstdint>
 
+#ifdef DELUGE_DX7_NEON_KERNEL
+/// The device's NEON modern operator (neon_fm_kernel.s, or a test-local copy under another name).
+extern "C" void DELUGE_DX7_NEON_KERNEL(const int32_t* in, const int32_t* busin, int32_t* out, int count, int32_t phase0,
+                                       int32_t freq, int32_t gain1, int32_t dgain);
+#endif
+
 namespace deluge::dsp::fixed::dx7 {
+
+namespace {
+
+#ifdef DELUGE_DX7_NEON_KERNEL
+/// @brief Silence: the kernel's modulation for an op with no input, and its mix for an op that sets its output.
+alignas(16) constexpr std::array<q31, kMaxBlock> kZeros{};
+
+/// @brief The kernel's count for a block of @p n: a multiple of 4, and never 12k + 8, which it cannot take.
+constexpr int kernel_count(std::size_t n) {
+	const auto len = static_cast<int>(n);
+	const int nmod = 1 + ((len + 11) % 12);
+	return nmod == 8 ? len + 4 : (len + 3) & ~3;
+}
+#endif
+
+} // namespace
+
+void Graph::render_op(const Operator::Settings& settings, std::size_t op, Signal modulation, Buffer target) {
+	const std::size_t n = target.size();
+	if (settings.engine == Engine::MODERN && settings.input != Input::FEEDBACK) {
+#ifdef DELUGE_DX7_NEON_KERNEL
+		// The kernel computes what ModernVectorOperator computes (tests/dsp/dx7_graph_spec.cpp holds them equal), with
+		// its loads issued a block ahead, which the compiler cannot schedule for the vector step without spilling.
+		const Gains g = Operator::gains(Operator::coefficients(settings), ops_[op], n);
+		DELUGE_DX7_NEON_KERNEL(settings.input == Input::NONE ? kZeros.data() : modulation.data(),
+		                       settings.output == Output::ADD ? target.data() : kZeros.data(), target.data(),
+		                       kernel_count(n), ops_[op].phase, settings.freq, g.gain1, g.dgain);
+		skip_op(settings, op, n);
+#else
+		Mono<ModernVectorOperator> vector{{.input = settings.input,
+		                                   .output = settings.output,
+		                                   .level_in = settings.level_in,
+		                                   .freq = settings.freq,
+		                                   .tables = settings.tables}};
+		vector.on<&ModernVectorOperator::resume>(ops_[op]);
+		vector.renderBlock(modulation, target, target);
+		ops_[op] = vector.state().op;
+#endif
+		return;
+	}
+	Mono<Operator> unit{settings};
+	unit.on<&Operator::resume>(ops_[op], feedback_);
+	unit.renderBlock(modulation, target, target);
+	ops_[op] = unit.state().op;
+	if (settings.input == Input::FEEDBACK) {
+		feedback_ = unit.state().loop.feedback;
+	}
+}
 
 void Graph::renderBlock(const Settings& s, Buffer out, Buses& lent) {
 	const std::size_t n = out.size();

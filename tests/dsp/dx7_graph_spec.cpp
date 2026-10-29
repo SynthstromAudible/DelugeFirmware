@@ -1,9 +1,9 @@
 // dx7::Graph against the reference's cores with the modern no-input and bus-input ops rendered as the device renders
 // them (VectorCore): every workload's every block rendered by both side by side from the same operator inputs (the
 // samples, the six ops' states and the feedback history must match), then every workload's whole voice through the
-// graph, which also equals the recorded reference wherever the voice stays under MkI. On ARM, the graph against the
-// reference core taking the device's NEON kernel itself (the test-local copy of the asm), block by block and voice
-// by voice.
+// graph, which also equals the recorded reference wherever the voice stays under MkI. On ARM the graph is built as the
+// firmware builds it, its modern ops through the device's NEON kernel (the test-local copy of the asm), and is held to
+// the same references and to the reference core taking that kernel, block by block and voice by voice.
 
 #include "dsp-next/fixed/dx7/graph.h"
 #include "dsp-next/fixed/dx7/tables.h"

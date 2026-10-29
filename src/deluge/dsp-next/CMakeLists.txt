@@ -47,6 +47,12 @@ function(deluge_add_dsp_backend target dir output)
 endfunction()
 
 deluge_add_dsp_backend(deluge_dsp_fixed fixed deluge-dsp-fixed)
+# The firmware renders the DX7's modern no-input and bus-input ops through its NEON kernel (fixed/dx7/neon_fm_kernel.s,
+# assembled only where the ASM language is enabled: the device build); every other build steps the Argon operator the
+# kernel is pinned to.
+if(NOT DELUGE_HOST)
+    target_compile_definitions(deluge_dsp_fixed PRIVATE DELUGE_DX7_NEON_KERNEL=neon_fm_kernel)
+endif()
 deluge_add_dsp_backend(deluge_dsp_float float deluge-dsp-float)
 
 # Umbrella: link deluge_dsp_next to pull in the core interface plus both backends.

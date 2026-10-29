@@ -12,7 +12,7 @@
 @ See the License for the specific language governing permissions and
 @ limitations under the License.
 @
-@ Test-local copy of src/deluge/dsp/dx/neon_fm_kernel.s, verbatim but for one edit: the exported symbol is
+@ Test-local copy of src/deluge/dsp-next/fixed/dx7/neon_fm_kernel.s, verbatim but for one edit: the exported symbol is
 @ reference_neon_fm_kernel (.global, .type, its label, .size), so a spec links it beside the app's kernel.
 
 @ NEON assembly implementation of FM operator kernel

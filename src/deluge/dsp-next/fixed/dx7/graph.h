@@ -59,8 +59,10 @@ struct Buses {
 ///   6) at once, with the feedback taken from the stack's bottom (@ref MkIFeedbackStack).
 /// - *MkI shifts algorithm 32's feedback two steps further*, to at most 16.
 ///
-/// A modern op with no input or a bus input renders four samples a step through @ref ModernVectorOperator, the
-/// device's arithmetic on every target; a modern feedback op and every MkI op render through @ref Operator.
+/// A modern op with no input or a bus input renders through @ref ModernVectorOperator, four samples a step, three
+/// steps interleaved; a build given the device's NEON kernel (the firmware: `DELUGE_DX7_NEON_KERNEL` names its
+/// symbol) renders those ops through the kernel instead, bit for bit the same. A modern feedback op and every MkI op
+/// render through @ref Operator.
 class Graph {
 public:
 	/// @brief One block's settings: the patch's routing and the six operators' levels and pitches.
@@ -81,7 +83,8 @@ public:
 
 	/// @brief Renders one block over the six operators.
 	/// @param settings This block's routing, levels and pitches.
-	/// @param out The block, 1 to kMaxBlock samples.
+	/// @param out The block, 1 to kMaxBlock samples. In a build given the device's NEON kernel, kMaxBlock samples must
+	/// be writable from its start, 16-byte aligned: the kernel pads the block and writes past it.
 	/// @param buses The intermediate buses, lent by the owner.
 	void renderBlock(const Settings& settings, Buffer out, Buses& buses);
 
@@ -114,29 +117,12 @@ private:
 		ops_[op] = held.state().op;
 	}
 
-	/// @brief Op @p op's block into @p target: a modern op without feedback through the vector operator, any other
-	/// through the scalar operator. With no input @p modulation is not read; with SET, neither is @p target's content.
+	/// @brief Op @p op's block into @p target: a modern op without feedback through the vector operator (or, in a
+	/// build given the device's NEON kernel, through it), any other through the scalar operator. With no input
+	/// @p modulation is not read; with SET, neither is @p target's content. Defined in graph.cpp, the one place the
+	/// kernel's build switch is read, and inlined into renderBlock there, where each call's routing is known.
 	[[gnu::always_inline]] void render_op(const Operator::Settings& settings, std::size_t op, Signal modulation,
-	                                      Buffer target) {
-		if (settings.engine == Engine::MODERN && settings.input != Input::FEEDBACK) {
-			Mono<ModernVectorOperator> vector{{.input = settings.input,
-			                                   .output = settings.output,
-			                                   .level_in = settings.level_in,
-			                                   .freq = settings.freq,
-			                                   .tables = settings.tables}};
-			vector.on<&ModernVectorOperator::resume>(ops_[op]);
-			vector.renderBlock(modulation, target, target);
-			ops_[op] = vector.state().op;
-			return;
-		}
-		Mono<Operator> unit{settings};
-		unit.on<&Operator::resume>(ops_[op], feedback_);
-		unit.renderBlock(modulation, target, target);
-		ops_[op] = unit.state().op;
-		if (settings.input == Input::FEEDBACK) {
-			feedback_ = unit.state().loop.feedback;
-		}
-	}
+	                                      Buffer target);
 
 	/// @brief MkI's fused stack of @p N ops from op @p op into @p target.
 	template <std::size_t N>

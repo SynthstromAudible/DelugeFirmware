@@ -180,13 +180,14 @@ set(dx7_voice_spec_DEPS ${_dx7_DEPS} ${dx7_graph_spec_DEPS} ${dx7_envelope_spec_
 # only; its records are what dx7_modern_vector_operator_spec must equal on both architectures.
 set(_arm_only_specs dx7_asm_pin_spec)
 set(dx7_asm_pin_spec_DEPS ${CMAKE_CURRENT_LIST_DIR}/reference_neon_fm_kernel.s)
-# On ARM the vector operator's specs run the asm beside it, sample by sample, and the graph spec runs the graph
-# against the reference taking the asm.
+# On ARM the vector operator's specs run the asm beside it, sample by sample, and the graph spec builds the graph as the
+# firmware does, its modern ops through the asm (under the test-local name), against the reference taking the asm.
 if(DSP_SPEC_ARM)
   foreach(_asm_spec dx7_modern_vector_operator_spec dx7_modern_vector_operator_unsafe_math_spec dx7_graph_spec)
     list(APPEND ${_asm_spec}_DEPS ${CMAKE_CURRENT_LIST_DIR}/reference_neon_fm_kernel.s)
     set(${_asm_spec}_DEFS DELUGE_DX7_ASM_PIN=1)
   endforeach()
+  list(APPEND dx7_graph_spec_DEFS DELUGE_DX7_NEON_KERNEL=reference_neon_fm_kernel)
 endif()
 
 # ETL for the synth headers that reach util/etl_string.h (modulation/sync.h, through the LFO). The x86 unit tree links it
