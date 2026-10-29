@@ -33,7 +33,6 @@
 #include "util/fixedpoint.h"
 #include <algorithm>
 #include <cstring>
-#include <new>
 #include <ranges>
 
 extern int32_t oscSyncRenderingBuffer[];
@@ -74,13 +73,6 @@ struct SetupAllocGuard {
 	}
 };
 } // namespace
-
-WaveTableBand::~WaveTableBand() {
-	if (data) { // Null once moved from.
-		data->~WaveTableBandData();
-		delugeDealloc(data);
-	}
-}
 
 WaveTable::WaveTable() : AudioFile(AudioFileType::WAVETABLE) {
 }
@@ -295,12 +287,9 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 
 		int32_t bandSizeSamplesWithDuplicates =
 		    numCycles * (cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd);
-		int32_t bandSizeBytesWithDuplicates = bandSizeSamplesWithDuplicates << 1; // All bands contain just 16-bit data.
-		// Ironically we'll even do that if the source file was just 8-bit, but that's really uncommon.
-		// Plain SDRAM: the WaveTable owns its bands, and ~WaveTable frees them when the manager evicts the table.
-		void* bandDataMemory =
-		    deluge::memory::alloc_external(bandSizeBytesWithDuplicates + sizeof(WaveTableBandData), 16);
-		if (!bandDataMemory) {
+		// All bands hold 16-bit samples, even when the source file is 8-bit.
+		bands[b].samples = BandSamples::allocate(bandSizeSamplesWithDuplicates);
+		if (!bands[b].samples) {
 			// All bands from this one onwards still have no data, so get rid of them before anything else
 			// tries to do anything with them; allocGuard frees the ones already built.
 			bands.erase(bands.begin() + b, bands.end());
@@ -308,9 +297,7 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 		}
 
 		WaveTableBand* band = &bands[b];
-		band->data = new (bandDataMemory) WaveTableBandData(this);
-
-		band->dataAccessAddress = (int16_t*)(band->data + 1);
+		band->dataAccessAddress = band->samples.data();
 
 		band->fromCycleNumber = 0;
 		band->toCycleNumber = 0;
@@ -775,11 +762,8 @@ transformBandToTimeDomain:
 					D_PRINTLN("(band 0) ");
 				}
 				D_PRINTLN("deleting num cycles from right-hand side:  %d", numCycles - band->toCycleNumber);
-				int32_t newSize = band->toCycleNumber
-				                      * (band->cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd)
-				                      * sizeof(int16_t)
-				                  + sizeof(WaveTableBandData);
-				deluge::memory::shrink(band->data, newSize);
+				band->samples.shrink_to(band->toCycleNumber
+				                        * (band->cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd));
 			}
 		}
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2021-2023 Synthstrom Audible Limited
+ * Copyright © 2026 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -15,8 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "storage/wave_table/wave_table_band_data.h"
+#include "storage/wave_table/band_samples.h"
+#include "memory/heaps.h"
 
-// WaveTableBandData is no longer a Stealable — the WaveTable object is the resource-manager-evictable
-// unit (adopt mode), and ~WaveTable frees its bands. The former mayBeStolen/steal/getAppropriateQueue
-// (steal deleted the whole WaveTable) are gone; that teardown now happens via the object's on_evict.
+BandSamples BandSamples::allocate(std::size_t num_samples) {
+	return BandSamples{static_cast<int16_t*>(deluge::memory::alloc_external(num_samples * sizeof(int16_t), 16))};
+}
+
+BandSamples::~BandSamples() {
+	if (samples_ != nullptr) {
+		deluge::memory::dealloc(samples_);
+	}
+}
+
+void BandSamples::shrink_to(std::size_t num_samples) {
+	deluge::memory::shrink(samples_, num_samples * sizeof(int16_t));
+}

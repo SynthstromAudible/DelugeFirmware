@@ -21,9 +21,8 @@
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file.h"
-#include "storage/wave_table/wave_table_band_data.h"
+#include "storage/wave_table/band_samples.h"
 #include "util/containers.h"
-#include <utility>
 
 class Sample;
 class FileByteSource;
@@ -34,26 +33,12 @@ class FileByteSource;
 // 32-bit key (maxPhaseIncrement) and the view's strided access both read it correctly.
 class WaveTableBand : public deluge::dsp::fixed::WaveTableBand {
 public:
-	// Value-initialize the dsp-next render-field base (the fast_vector grows by default-constructing
-	// slots, and the firmware historically zeroed these via default member initializers).
+	// Value-initialize the dsp-next render-field base: the fast_vector grows by default-constructing slots.
 	WaveTableBand() : deluge::dsp::fixed::WaveTableBand{} {}
-	~WaveTableBand();
 
-	// The destructor releases `data`, so ownership must transfer on move and copying is forbidden.
-	WaveTableBand(const WaveTableBand&) = delete;
-	WaveTableBand& operator=(const WaveTableBand&) = delete;
-	WaveTableBand(WaveTableBand&& other) noexcept
-	    : deluge::dsp::fixed::WaveTableBand(other), // POD render-field prefix (incl. dataAccessAddress)
-	      data(std::exchange(other.data, nullptr)) {}
-	WaveTableBand& operator=(WaveTableBand&& other) noexcept {
-		std::swap(static_cast<deluge::dsp::fixed::WaveTableBand&>(*this),
-		          static_cast<deluge::dsp::fixed::WaveTableBand&>(other));
-		std::swap(data, other.data);
-		return *this;
-	}
-
-	WaveTableBandData* data = nullptr; // The allocation dataAccessAddress points into, just past this header.
+	BandSamples samples; ///< Owns the memory dataAccessAddress points at.
 };
+static_assert(sizeof(WaveTableBand) == sizeof(deluge::dsp::fixed::WaveTableBand) + sizeof(void*));
 
 class WaveTable final : public AudioFile {
 public:
