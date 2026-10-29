@@ -86,7 +86,7 @@ fn tx_ring() -> *mut u32 {
     if !p.is_null() {
         return p;
     }
-    let p = audio::with_tx(|t| t.ring_mut().as_mut_ptr()).unwrap_or(core::ptr::null_mut());
+    let p = audio::with_tx(|t| t.as_mut_ptr()).unwrap_or(core::ptr::null_mut());
     RING_TX.store(p, Ordering::Release);
     p
 }
@@ -97,7 +97,7 @@ fn rx_ring() -> *const u32 {
     if !p.is_null() {
         return p;
     }
-    let p = audio::with_rx(|r| r.ring().as_ptr() as *mut u32).unwrap_or(core::ptr::null_mut());
+    let p = audio::with_rx(|r| r.as_ptr() as *mut u32).unwrap_or(core::ptr::null_mut());
     RING_RX.store(p, Ordering::Release);
     p
 }
