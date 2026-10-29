@@ -17,7 +17,7 @@
 #             "HOST_INTERNAL" mean heap memory in the allocator's arena, not those symbols.
 #
 # Scope: the one scenario Lens 2 runs (Cordae playback while recording). Not the whole firmware.
-# Rows come from triage.sh over the run logs; see the spec docs/superpowers/specs/2026-09-26-race-catalogue-design.md.
+# Rows come from triage.sh over the run logs.
 
 intrinsic	DEEP	src/lib/printf\.c	-	printf's buffer, written by more than one tier; the SUMMARY site is a bare intercept
 intrinsic	DEEP	core::ffi::c_str::strlen::runtime	-	strlen intercept inside CStr; the SUMMARY site is a bare intercept

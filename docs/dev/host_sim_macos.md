@@ -2,8 +2,7 @@
 
 The host build of the C++ app (`sim/`, which `./dbt sim` and the Embassy host harnesses link) can build natively on
 macOS as 64-bit (Apple Silicon → arm64 with native NEON; Intel Mac → x86-64 with SIMDe). The CMake **auto-detects**
-macOS — no flags or toolchain file needed. The 64-bit core was proven on x86-64 Linux first (see
-`docs/superpowers/specs/2026-07-04-host-sim-64bit-apple-silicon-design.md`).
+macOS — no flags or toolchain file needed. The 64-bit core was proven on x86-64 Linux first.
 
 > Status: the CMake is in place, but the macOS build has **not been compiled on a Mac yet**. This guide is for that
 > first on-Mac run. Please report which step fails and the exact error.

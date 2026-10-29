@@ -29,7 +29,7 @@ the `deluge_bsp::host_panel` hook the BSP's peripherals call on the host), so an
 can use them. This repository keeps its glue: the `sim` feature of `src/bsp/rust` (`sim_panel.rs`, the panel behind
 `deluge_bsp::host_panel`, adapted from deluge-sdk's own; `main.rs`'s `insert_sim_card` and `start_threaded_host`, `audio_host.rs`'s
 `drive_simulator`, `host_link_stubs.rs`'s DIN MIDI) and the card loader, `src/bsp/rust/src/memory_card.rs`, which
-golden_vt_render uses too. The design is `docs/superpowers/specs/2026-09-29-embassy-emulator-design.md`.
+golden_vt_render uses too.
 
 ## Building
 

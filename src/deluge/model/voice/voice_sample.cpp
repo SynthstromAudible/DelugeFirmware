@@ -208,10 +208,9 @@ LateStartAttemptStatus VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* 
 	// same way.
 	ensureSource(sample);
 
-	// Residency DECISION through the region port. Full mapping + the golden-unreachable divergences:
-	// docs/superpowers/specs/2026-07-24-task5-latestart-tristate-mapping.md. acquire_ex fetches the
-	// start cluster, RETAINS its lease as `pending` while LOADING (so the fill survives the defer/retry),
-	// and on READY pins it as `current` and prefetches the neighbour.
+	// Residency DECISION through the region port. acquire_ex fetches the start cluster, RETAINS its lease
+	// as `pending` while LOADING (so the fill survives the defer/retry), and on READY pins it as `current`
+	// and prefetches the neighbour.
 	//
 	// Priority 0 == MOST urgent (the loader queue serves the lowest value first). This voice is
 	// already waiting to start -- the note-on deferred rather than dropped because its first cluster
