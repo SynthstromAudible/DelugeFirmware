@@ -32,18 +32,22 @@ deluge_sample_fill = { path = "../../../crates/deluge_sample_fill", features = [
 # deluge-sdk, pinned by revision. `dbt build` and `dbt sim` pass `src/bsp/rust/local-sdk.toml`
 # (gitignored) via `cargo --config` when it exists, to build against a sibling checkout instead.
 # The `flash` feature enables `deluge_bsp::flash`, which the settings sector reads need.
-# `app-fault-reporter`: every CPU fault vector calls the app's `rza1_cpu_fault_report` (rza1-rt).
-# Default features off: the image links its own memory layout (linker/memory*.x), not the BSP's.
-deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "730e6383e6bd7c1e2fe982b766828d0f912b9437", default-features = false, features = [
+# Default features off: the image links its own memory layout (linker/memory*.x), not the BSP's,
+# and its own C `rza1_cpu_fault_report` (every CPU fault vector calls it), not the BSP's
+# `fault-blink` handler.
+deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "c5db1c4ebce2991553ff9427803e21872ab71a12", default-features = false, features = [
     "flash",
-    "app-fault-reporter",
 ] }
 # The USB-MIDI and USB Audio Class 2.0 device classes.
-usb-classes = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "730e6383e6bd7c1e2fe982b766828d0f912b9437", features = [
+usb-classes = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "c5db1c4ebce2991553ff9427803e21872ab71a12", features = [
     "device-audio",
     "device-midi",
 ] }
-rza1l-hal = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "730e6383e6bd7c1e2fe982b766828d0f912b9437" }
+# The chip HAL. `unstable-driver-steal`: the fault path stops the PIC TX DMA through `Dma::steal`.
+rza1-hal = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "c5db1c4ebce2991553ff9427803e21872ab71a12", features = [
+    "rza1l",
+    "unstable-driver-steal",
+] }
 
 # The filesystem `storage::efatfs::portable` drives on every build. The 0.7 `embedded-io-async` is
 # the one whose `Read`/`Seek`/`Write` `embedded_fatfs::File` implements (the block-device crates
@@ -54,7 +58,7 @@ embedded-io-async = "0.7.0"
 # Device (armv7a-none-eabihf). `platform-cortex-ar` here and `platform-std` on host are mutually
 # exclusive in embassy-executor, so the two executors live in disjoint `[target]` sections.
 [target.'cfg(target_os = "none")'.dependencies]
-rza1-alloc = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "730e6383e6bd7c1e2fe982b766828d0f912b9437" }
+rza1-alloc = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "c5db1c4ebce2991553ff9427803e21872ab71a12" }
 
 # The device storage stack under the filesystem: `BlockDevice` over the SD driver, `BufStream`.
 block-device-driver = { path = "../../../crates/block-device-driver" }
@@ -102,9 +106,9 @@ block-device-driver = { path = "../../../crates/block-device-driver", optional =
 block-device-adapters = { path = "../../../crates/block-device-adapters", optional = true }
 aligned = { version = "0.4", optional = true }
 # The desktop simulator window for `sim`.
-deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "730e6383e6bd7c1e2fe982b766828d0f912b9437", optional = true }
+deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "c5db1c4ebce2991553ff9427803e21872ab71a12", optional = true }
 # The simulator's panel/audio link, which `sim_panel` plugs into deluge-bsp's host-panel hook.
-deluge-sim-link = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "730e6383e6bd7c1e2fe982b766828d0f912b9437", optional = true }
+deluge-sim-link = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "c5db1c4ebce2991553ff9427803e21872ab71a12", optional = true }
 
 [features]
 default = ["host-runtime"]
@@ -182,7 +186,7 @@ opt-level = "s"
 opt-level = "s"
 [profile.release.package.rza1-alloc]
 opt-level = "s"
-[profile.release.package.rza1l-hal]
+[profile.release.package.rza1-hal]
 opt-level = "s"
 [profile.release.package.embassy-executor]
 opt-level = "s"
