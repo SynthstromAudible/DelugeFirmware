@@ -30,6 +30,7 @@
 #include "dsp-next/fixed/dx7/pitch_envelope.h"
 #include "dsp-next/fixed/dx7/tables.h"
 #include "dsp-next/fixed/dx7/voice_scaling.h"
+#include "dsp-next/fixed/noise/cong_noise.h"
 
 #include <algorithm>
 #include <array>
@@ -250,5 +251,9 @@ private:
 	std::array<int32_t, 6> rate_scaling_{};  ///< Each op's rate scaling for the note, in qRate units.
 	uint8_t velocity_ = 0;                   ///< The note-on velocity.
 };
+
+/// The app's voice, on the synth's shared noise stream, is instantiated once, in voice.cpp: there it builds with the
+/// DSP library's flags (ARM, -finline-functions), not with those of whichever app file names it.
+extern template class Voice<CongNoise>;
 
 } // namespace deluge::dsp::fixed::dx7
