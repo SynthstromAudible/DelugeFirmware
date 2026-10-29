@@ -168,7 +168,8 @@ set(stutter_kernel_spec_DEPS ${reference_stutter_spec_DEPS})
 # everywhere; the ARM tree does not, so the specs link it themselves.
 FetchContent_MakeAvailable(etl)
 
-file(GLOB _specs ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)
+# CONFIGURE_DEPENDS: a spec file added to an already-configured tree is built (and run) on the next build.
+file(GLOB _specs CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)
 foreach(_spec_path IN LISTS _specs)
   cmake_path(GET _spec_path STEM _name)
 
@@ -179,6 +180,10 @@ foreach(_spec_path IN LISTS _specs)
   endif()
   if(DEFINED ${_name}_INCLUDES)
     target_include_directories(${_name} PRIVATE ${${_name}_INCLUDES})
+  endif()
+  # Per-spec compile options, e.g. the device's float flags for a spec that pins float arithmetic.
+  if(DEFINED ${_name}_OPTIONS)
+    target_compile_options(${_name} PRIVATE ${${_name}_OPTIONS})
   endif()
   deluge_test_neon(${_name})
   target_include_directories(${_name} PRIVATE ${_repo_root}/src/deluge ${_repo_root}/src)
