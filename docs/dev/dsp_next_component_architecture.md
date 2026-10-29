@@ -594,8 +594,8 @@ The song reverb is two processor kernels of stereo frames, `fixed::Freeverb` (`f
 `fp::Plate` (`float/reverb/plate.h`, float, modes MUTABLE and DIGITAL), each rendered in place over the master block as
 `Mono<K>::renderBlock(block, block)` by one component, `effects::Reverb` (`engines/effects/reverb.{h,cpp}`).
 
-- **Two kernels, one interface.** Both take a q31 send by cursor (`set_send`, with the two return levels; the Granular
-  cursor read the other way: a mono send in, mixed into stereo frames) and q31 frames in and out. The plate's loop is
+- **Two kernels, one interface.** Both take a q31 send by cursor (`set_send`, with the two return levels: a cursor as
+  `Granular`'s is, here a mono send read and mixed into stereo frames) and q31 frames in and out. The plate's loop is
   float, as the models were written and balanced, so it lives in `float/`; its input is the send over `(float)INT32_MAX`
   and its output stage is `toQ31` saturating then the rounded multiply-accumulate, both named in the kernel.
 - **Memory handed in.** `set_memory` points each kernel at the component's buffer: Freeverb's 25,450 words laid out
@@ -608,8 +608,8 @@ The song reverb is two processor kernels of stereo frames, `fixed::Freeverb` (`f
   chain steps. The blocked sample is not written back into the send: nothing reads the send after the reverb, and a
   poison fill there leaves every golden and render gate unchanged.
 - **Unrolled combs.** The eight combs and four allpasses per channel are a fold over `std::index_sequence`, so each
-  line's base and length are immediates; as loops over the layout table they ran 21% slower than the old fully
-  unrolled class.
+  line's base and length are immediates; as loops over the layout table they run 21% slower, the State
+  indexed rather than at fixed offsets.
 - **Constexpr topologies.** Each mode's line table (`kMutable`, `kDigital`) is a constexpr aggregate read by member, in
   the order the old `ConstructTopology` laid them, each line `length + 1` slots. Named quirks: Digital's lengths are
   `float × kRatio` truncated to whole frames, its output taps `int × kRatio` truncated to `int32_t` (`tap`, consteval),
@@ -623,12 +623,15 @@ The song reverb is two processor kernels of stereo frames, `fixed::Freeverb` (`f
 - **Float under `-funsafe-math-optimizations`.** The plate's step and both kernels' `coefficients` compile in the
   translation units that instantiate them (the component's, in `deluge_effects`), and match the old reverb bit for
   bit there; every step that moved float code ran `golden-synth`, `golden-synth-arm` and the `render-reverb-*` gates.
-- **The component.** One union buffer, in SRAM `.bss` as the old reverb was; the model chosen per block by a `switch`,
+- **The component.** One union buffer, in SRAM `.bss`; the model chosen per block by a `switch`,
   with no variant and no virtual call. A model change, the same model included, is three steps around two
   audio-excluded sections: `begin_change` (inside the first) stops the render adding reverb, `prepare` (between them)
   zeroes the buffer and resets the model's State configured from the held settings, and `commit` (inside the second)
-  hands it to the render. The knobs arrive by `publish`, inside an excluded section, and the render configures from
-  them at its next block. The sidechain duck, the pan and the 12 s/RMS gate stay in `AudioEngine`, which folds them
+  hands it to the render. A song swap at a launch rebuilds on the audio tier, inside the render, where the sections
+  are empty; one that interrupts an interaction-tier rebuild only records its model, which that rebuild applies before
+  it commits (`AudioEngine::setReverbModel`). The knobs arrive by `publish`, inside an excluded section, and the
+  render configures from them at its next block (and again after every `prepare`, so no publish is lost to a
+  rebuild). The sidechain duck, the pan and the 12 s/RMS gate stay in `AudioEngine`, which folds them
   into the two return levels.
 - **Evidence.** `tests/dsp/reference_reverb.h` is the three old models verbatim, pinned over every workload of
   `reverb_workloads.h` (`kRecordedReference`: output, whole state and send), host and ARM alike; the kernels
