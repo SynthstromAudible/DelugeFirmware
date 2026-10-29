@@ -12,13 +12,13 @@
 L-vi unified all five sources behind `synth::Source::renderSource(ctx)` — the `OscType` megaswitch is gone and the
 kernel no longer names concrete source types. **Three of five sources** now physically live in `synth/`
 (library-resident): `VirtualAnalogSource` (pure DSP), `WavetableSource` (port #1 — band-data view), and `DX7Source`
-(port #2 — dx7::Voice-pool port). The remaining two still live App-side and reach upward:
+(port #2 — DxVoice-pool port). The remaining two still live App-side and reach upward:
 
 | Source | Home today | App-coupling |
 |---|---|---|
 | `VirtualAnalogSource` | `synth/source/` | none — pure DSP |
 | `WavetableSource` | `synth/source/` | none — depends on the `fixed::WaveTableData` band-data view (port #1 ✅) |
-| `DX7Source` | `synth/source/` | none — depends on `synth::DxVoicePort`; the `getDxEngine()` pool + `dx7::Voice`/`DxPatch` live behind `dsp::DxVoiceAdapter` (port #2 ✅) |
+| `DX7Source` | `synth/source/` | none — depends on `synth::DxVoicePort`; the `getDxEngine()` pool (of `dsp-next`'s `dx7::Voice`) + `DxPatch` live behind `dsp::DxVoiceAdapter` in `processing/dx7/` (port #2 ✅) |
 | `InputSource` | `processing/live/` | `AudioEngine` mic/line + SSI input ring + `getOrCreateLiveInputBuffer` + `LivePitchShifter` alloc |
 | `SampleSource` | `model/voice/` | `AudioEngine` voice-sample pool + the whole `VoiceSample` reader + storage/cache/clusters + `playbackHandler` |
 
@@ -37,7 +37,7 @@ ported:  SampleSource ──depends on──▶ SamplePlaybackPort ◀──impl
 ```
 
 **Scoping rule that keeps this tractable — ports are THIN; the heavy machinery stays App-side as the adapter.** We
-do **not** relocate `VoiceSample` / `LivePitchShifter` / the DX `dx7::Voice` pool / the SD cluster-cache into the
+do **not** relocate `VoiceSample` / `LivePitchShifter` / the DX `DxVoice` pool / the SD cluster-cache into the
 library. We wrap each behind a narrow interface. What moves into the library is the **per-voice source object**
 (its DSP, its dispatch, its lifecycle shape); what stays App-side is the **adapter** doing the actual
 hardware/storage/streaming. This is ports-and-adapters exactly: the source is the hexagon's inside, the firmware is
@@ -49,7 +49,7 @@ the outside.
 |---|---|---|---|
 | `VirtualAnalogSource` | — (already library-resident) | — | **done** |
 | `WavetableSource` | `fixed::WaveTableData` band-data view — a read-only span over the wavetable's bands | the `WaveTable` storage object (`view()`) | **done** (port #1) |
-| `DX7Source` | `synth::DxVoicePort` — solicit/release + the `dx7::Voice` ops, injected instead of the `getDxEngine()` global (the patch is an opaque `void*`) | `dsp::DxVoiceAdapter` wrapping the `dx7::Voice` pool | **done** (port #2) |
+| `DX7Source` | `synth::DxVoicePort` — solicit/release + the `DxVoice` ops, injected instead of the `getDxEngine()` global (the patch is an opaque `void*`) | `dsp::DxVoiceAdapter` wrapping the MSFA `DxVoice` pool | **done** (port #2) |
 | `InputSource` | **live-input** — channel state (mic/line) + ring read + a "buffered/pitch-shifted block" op | `LivePitchShifter` + `LiveInputBuffer` + the SSI ring | **heavy** |
 | `SampleSource` | **sample-playback** — solicit/release a voice-sample + setup / late-start / cache-decision / render / zone / loop-end ops | `VoiceSample` + clusters + cache + timestretch + the pool + `playbackHandler` | **very heavy** — the widest coupling in the synth; do last |
 
@@ -111,7 +111,7 @@ this design as follows — and the headline is: **Engines need no ports of their
    resident (VA + wavetable).** (Validates the port pattern end-to-end.)
 2. **DX7 pool port — ✅ DONE (2026-06-18, commits `1f3aa383`/`55beb042`).** `DX7Source` now depends on
    `synth::DxVoicePort` (the patch passed as an opaque `void*`, never dereferenced in the library); the
-   `getDxEngine()` pool + the `dx7::Voice`/`DxPatch` ops + the per-block log-pitch/ctrl/`compute` live behind
+   `getDxEngine()` pool + the `DxVoice`/`DxPatch` ops + the per-block log-pitch/ctrl/`compute` live behind
    `dsp::DxVoiceAdapter` (App-side, per-source). `DX7Source` kept only its bespoke per-unison amplitude/stereo sum
    and relocated into `synth/source/` (boundary-clean — the amplitude sum's include was narrowed from the fat
    `util/functions.h` to `util/fixedpoint.h`). **3 of 5 sources now library-resident (VA + wavetable + DX7).**

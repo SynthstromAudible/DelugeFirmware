@@ -61,8 +61,8 @@ earlier, by `RP-LOADED`: the default synth left in its place would play the note
   forced MkI on algorithm 1 with feedback (and its auto twin), MkI algorithm 32 with feedback, forced modern on
   algorithms 4 and 6 with feedback, forced MkI's fused feedback stacks on algorithms 4 and 6, every LFO waveform with
   pitch and amplitude modulation, the LFO delay with key sync, amplitude-modulation depths, free-running oscillators and
-  fixed frequency. Mid-note engine and patch changes cannot be played by a preset; `tests/dsp/dx7_reference_spec.cpp`
-  covers them.
+  fixed frequency. Mid-note engine and patch changes cannot be played by a preset; the DX7 workloads cover them, and
+  `tests/dsp/dx7_graph_spec.cpp` and `dx7_voice_spec.cpp` hold the components to them.
 - `wavetable/` and `wavetable_basic`: wavetable oscillators.
 
 A case may carry, beside its preset:

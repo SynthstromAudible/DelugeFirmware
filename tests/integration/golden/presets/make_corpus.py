@@ -371,7 +371,7 @@ ALL_SOUNDING = {
 # Each covers a path no community preset reaches.
 dx7_case(
     "mki_forced_alg1_fb", 2, dx7_patch(ALL_SOUNDING, algorithm=0, feedback=7)
-)  # MkI's default compute_fb
+)  # MkI's plain feedback op
 dx7_case(
     "auto_alg1_fb", 0, dx7_patch(ALL_SOUNDING, algorithm=0, feedback=7)
 )  # its auto twin: resolves modern
@@ -426,8 +426,8 @@ dx7_case(
     0,
     dx7_patch({**ALL_SOUNDING, 0: {**ALL_SOUNDING[0], "mode": 1}}, algorithm=0),
 )
-# Mid-note engine and patch changes cannot be played by a preset and a note script: tests/dsp/dx7_reference_spec.cpp
-# covers them.
+# Mid-note engine and patch changes cannot be played by a preset and a note script: the DX7 workloads cover them, and
+# tests/dsp/dx7_graph_spec.cpp and dx7_voice_spec.cpp hold the components to them.
 
 # --- envelopes / filters / modulation ----------------------------------------
 case(

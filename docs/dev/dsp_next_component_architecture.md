@@ -675,7 +675,7 @@ the codec and the UI.
   walks the `constexpr` algorithm table (`algorithms.h`) once per block, a `Mono` per op: the gate, adding to an empty
   bus sets it, an empty input is no input, MkI fuses algorithms 4 and 6, and MkI shifts algorithm 32's feedback two
   steps further, each named where it is applied. It keeps no settings: each block's levels and pitches arrive with the
-  block (`renderBlock(settings, out, buses)`), so a voice holds no more than it did before. Its verbs are documented at
+  block (`renderBlock(settings, out, buses)`), so a voice holds only its operators' phases and gains and the history. Its verbs are documented at
   the class.
 - **One arithmetic, two implementations.** The modern operator's sine is the device's polynomial, not the table. The
   device renders the modern ops with no input or a bus input through its NEON kernel (`neon_fm_kernel.s`, beside the
@@ -698,10 +698,10 @@ the codec and the UI.
   owner per block, so the voice keeps only what the note carries. `Noise::render()` gives one draw: a note-on draws six
   detunes in op order, then six phases unless the oscillators are key-synced; a block draws none. The app's voices are
   `Voice<CongNoise>`, on the synth's shared stream.
-- **Named quirks.** A new patch's LFO phase and a new voice's feedback history start at `State{}` (0), where the
-  engine left them uninitialised; the feedback history carries across a retrigger; a voice lives while an op's gain is
-  at or above the modern engine's threshold, which a MkI attenuation always is; an envelope's retune sets a level-less
-  target that the stage entry overwrites; the LFO's triangle plays the sine.
+- **Named quirks.** A new patch's LFO phase and a new voice's feedback history start at `State{}` (0); the feedback
+  history carries across a retrigger; a voice lives while an op's gain is at or above the modern engine's threshold,
+  which a silent MkI op's attenuation (near `kEnvMax`) passes, so a released MkI voice never ends; an envelope's retune
+  sets a level-less target that the stage entry overwrites; the LFO's triangle plays the sine.
 - **Evidence.** `tests/dsp/reference_dx7.h` is the engine verbatim, with named edits for its seams, pinned over every
   workload of `dx7_workloads.h` (`kRecordedReference`: output, state, liveness) on host and ARM; each kernel and
   component spec equals it (`dx7_tables_spec` to `dx7_voice_spec`), with the modern no-input and bus-input ops taken as
