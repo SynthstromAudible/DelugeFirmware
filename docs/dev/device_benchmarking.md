@@ -10,6 +10,14 @@ through it (`--select IP=<host>`, and `--host`, which defaults to `$DELUGE_PROBE
 the server; `tools/rig.py park` leaves the panel dark when you are done; `tools/rig.py stop` frees the
 probe. A dropped connection is usually the network to the Pi, not the rig: retry.
 
+## Does it boot? `tools/device_check.py`
+
+`tools/device_check.py [ELF]` boots an image once and reports, as JSON with exit code 0/1: the times of
+"going into main loop" and the first OLED frame, boot errors, the `.sdram_init` inflate, the settings reads,
+and memory. It paints the program stack before the core starts; the image's memory-report job sees the paint
+and logs `MEM` lines with each heap's free bytes, their low-water mark, and the stack's high-water mark. It
+parks the panel and stops the server afterwards unless `--no-park`.
+
 ## 1. Build the images
 
 ```sh

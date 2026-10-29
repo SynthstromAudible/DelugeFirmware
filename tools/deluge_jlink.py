@@ -234,6 +234,14 @@ def main() -> int:
     ap.add_argument(
         "--rtt-address", default=None, help="override the _SEGGER_RTT address"
     )
+    ap.add_argument(
+        "--before-run",
+        action="append",
+        default=[],
+        metavar="GDB",
+        help="a gdb command run after the load and before the core starts, e.g. a `restore` that paints"
+        " memory (repeatable; ignored with --no-load)",
+    )
     args = ap.parse_args()
 
     res = Result(elf=args.elf, chip=args.device)
@@ -334,6 +342,7 @@ def main() -> int:
         ]
         if entry:
             script.append(f"set $pc = {entry}")
+        script += args.before_run
     script += [f"monitor exec SetRTTAddr {addr}", "continue"]
 
     with tempfile.NamedTemporaryFile("w", suffix=".gdb", delete=False) as handle:

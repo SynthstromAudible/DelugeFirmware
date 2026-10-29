@@ -13,7 +13,8 @@ JLinkRemoteServerCLExe; tools/deluge_jlink.py and tools/stream_bench.py reach th
 restart  stops any running server, connects once with JLinkExe (which recovers a probe a previous
          session left wedged), and starts a fresh server detached from the ssh session.
 park     restarts, then boots the park image through tools/dsp_bench.py, which leaves the pads and
-         display dark; it retries a dropped connection a few times.
+         display dark; done only once the run records the device's parked line, and it retries a few
+         times until then.
 stop     stops the server, so the probe is free for a local session and the rig idles.
 
 Exit codes: 0 done; 1 the host could not be reached or the step failed after its retries.
@@ -22,6 +23,7 @@ Exit codes: 0 done; 1 the host could not be reached or the step failed after its
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -79,8 +81,20 @@ def stop(host: str) -> bool:
     return "stopped" in done.stdout
 
 
+def parked_in(out: str) -> bool:
+    """Whether the dsp_bench result written to `out` records the device's `bench: parked` line."""
+    for result in Path(out).glob("*.json"):
+        try:
+            if json.loads(result.read_text())["meta"]["parked"]:
+                return True
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+    return False
+
+
 def park(host: str, elf: Path, tries: int = 3) -> bool:
-    """Boots the park image, which leaves the panel dark; retries a dropped connection."""
+    """Boots the park image, which leaves the panel dark; retries a dropped connection or a run that
+    ended without the device's parked line."""
     for attempt in range(tries):
         if not restart(host):
             time.sleep(10)
@@ -103,7 +117,8 @@ def park(host: str, elf: Path, tries: int = 3) -> bool:
                 text=True,
                 check=False,
             )
-        if proc.returncode == 0:
+            done = proc.returncode == 0 and parked_in(out)
+        if done:
             return True
         if attempt + 1 < tries:
             time.sleep(10)
