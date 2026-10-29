@@ -97,6 +97,12 @@ def argparser() -> argparse.ArgumentParser:
     return parser
 
 
+def toolchain_dir(root: Path) -> Path:
+    """The toolchain's `current` directory: DBT_TOOLCHAIN_PATH's when set (a worktree shares its clone's toolchain,
+    as ./dbt does), else the tree's own."""
+    return Path(os.environ.get("DBT_TOOLCHAIN_PATH") or root) / "toolchain/current"
+
+
 def device_cxx_env(root: Path, config: str) -> dict[str, str]:
     """Env for the pieces of the build that shell out to a C++ compiler themselves.
 
@@ -104,7 +110,7 @@ def device_cxx_env(root: Path, config: str) -> dict[str, str]:
     cmake, so it needs the same compiler and flags — a GCC-built shim would not
     link against a clang-built app (see the int32_t mangling note above).
     """
-    gcc = root / "toolchain/current/arm-none-eabi-gcc"
+    gcc = toolchain_dir(root) / "arm-none-eabi-gcc"
     sysroot = gcc / "arm-none-eabi"
     # The GCC version dir moves with toolchain bumps; discover it.
     cxx_inc = sorted((sysroot / "include/c++").glob("*"))
@@ -204,7 +210,7 @@ def stage_artifacts(root: Path, config: str) -> int:
     elf = out_dir / "deluge.elf"
     shutil.copy2(src_elf, elf)
 
-    gcc_bin = root / "toolchain/current/arm-none-eabi-gcc/bin"
+    gcc_bin = toolchain_dir(root) / "arm-none-eabi-gcc/bin"
     objcopy = gcc_bin / "arm-none-eabi-objcopy"
     nm = gcc_bin / "arm-none-eabi-nm"
 
