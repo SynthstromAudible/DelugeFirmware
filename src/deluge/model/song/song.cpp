@@ -1471,7 +1471,11 @@ Error Song::readFromFile(Deserializer& reader, uint64_t timePerTimerTick) {
 				reader.match('{');
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "model")) {
-						model = static_cast<deluge::effects::ReverbModel>(reader.readTagOrAttributeValueInt());
+						const int32_t read = reader.readTagOrAttributeValueInt();
+						// A model this firmware does not know falls back to Freeverb, as a file with none does.
+						model = read >= 0 && read <= util::to_underlying(deluge::effects::ReverbModel::DIGITAL)
+						            ? static_cast<deluge::effects::ReverbModel>(read)
+						            : deluge::effects::ReverbModel::FREEVERB;
 						reader.exitTag("model");
 					}
 					else {
