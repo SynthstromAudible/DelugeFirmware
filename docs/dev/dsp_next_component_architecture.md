@@ -675,8 +675,8 @@ the codec and the UI.
   walks the `constexpr` algorithm table (`algorithms.h`) once per block, a `Mono` per op: the gate, adding to an empty
   bus sets it, an empty input is no input, MkI fuses algorithms 4 and 6, and MkI shifts algorithm 32's feedback two
   steps further, each named where it is applied. It keeps no settings: each block's levels and pitches arrive with the
-  block (`renderBlock(settings, out, buses)`), so a voice holds only its operators' phases and gains and the history. Its verbs are documented at
-  the class.
+  block (`renderBlock(settings, out, buses)`), so a voice holds only its operators' phases and gains and the history.
+  Its verbs are documented at the class.
 - **One arithmetic, two implementations.** The modern operator's sine is the device's polynomial, not the table. The
   device renders the modern ops with no input or a bus input through its NEON kernel (`neon_fm_kernel.s`, beside the
   graph: `graph.cpp` takes it when the build names its symbol in `DELUGE_DX7_NEON_KERNEL`, as the firmware's does);
