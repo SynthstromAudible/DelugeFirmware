@@ -380,6 +380,12 @@ void OLED::sendMainImage() {
 	uint16_t renderStopTime = deluge_clock_now();
 	D_PRINTLN("oled render time: %d", (uint16_t)(renderStopTime - renderStartTime));
 #endif
+	// Boot timing (tools/device_check.py): when the app first hands the panel a frame.
+	static bool firstFrameSent = false;
+	if (!firstFrameSent) {
+		firstFrameSent = true;
+		D_PRINTLN("first OLED frame sent");
+	}
 	deluge_display_blit_oled(oledCurrentImage[0], OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS);
 	HIDSysex::sendDisplayIfChanged();
 	needsSending = false;

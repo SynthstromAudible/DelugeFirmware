@@ -23,6 +23,7 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"
 #include "hid/display/oled_canvas/canvas.h"
+#include "io/debug/log.h"
 #include "io/file.hpp"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
@@ -106,7 +107,9 @@ static_assert(int64_t{DELUGE_FILE_BYTES_PROTECTED_ANSWER_SPAN_MS} * 1000 * 3 <= 
 /// read stalled is worse than one that boots with defaults.
 bool g_settingsGaveUp = false;
 
-void settingsReadDone(void* /*ctx*/, deluge::storage::bytes::SettingsOutcome /*outcome*/) {
+void settingsReadDone(void* /*ctx*/, deluge::storage::bytes::SettingsOutcome outcome) {
+	// 0 parsed, 1 absent, 2 unreadable (byte_channel.h's SettingsOutcome).
+	D_PRINTLN("card settings: read outcome=%d", static_cast<int>(outcome));
 	g_settingsDone++;
 	deluge::runtime::appLoop.request(startupSongJob);
 }

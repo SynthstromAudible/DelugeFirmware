@@ -66,6 +66,7 @@
 #include "libdeluge/file_io.h"
 #include "libdeluge/signals.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/memory_report.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/favourite/favourite_manager.h"
@@ -447,6 +448,9 @@ void registerJobs() {
 	// Runs only when the BSP has queued pad or button events, and drains them all.
 	appLoop.add("buttons and pads", &readButtonsAndPadsOnce, kNever, DELUGE_WAKE_INPUT);
 	appLoop.add("pending UI", &doAnyPendingUIRendering, us(0.02), 0);
+	// Logs heap and stack occupancy on a run whose debugger painted the stack (tools/device_check.py); a plain run
+	// pays one compare.
+	appLoop.add("memory report", &deluge::memory::reportMemoryIfPainted, us(2.0), 0);
 
 	// Advances a song load past a wait it has finished. Cheap when no load is in flight. It runs one phase of the
 	// load and returns; the load's card I/O goes through the channels. It runs when a load begins, when a storage

@@ -23,6 +23,7 @@
 #include "hid/display/display.h"
 #include "hid/display/oled_canvas/canvas.h"
 #include "hid/led/pad_leds.h"
+#include "io/debug/log.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
@@ -435,9 +436,12 @@ void readSettings() {
 
 	// If no settings were previously saved, get out
 	if (firmwareType == FirmwareVersion::Type::UNKNOWN) {
+		D_PRINTLN("flash settings: none saved, defaults");
 		resetSettings();
 		return;
 	}
+	D_PRINTLN("flash settings: read, firmware type %d version %d.%d.%d", static_cast<int>(firmwareType),
+	          buffer[VERSION_MAJOR], buffer[VERSION_MINOR], buffer[VERSION_PATCH]);
 
 	FirmwareVersion savedVersion = (firmwareType != FirmwareVersion::Type::COMMUNITY)
 	                                   ? FirmwareVersion(firmwareType, {0, 0, 0})
