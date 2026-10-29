@@ -200,6 +200,44 @@ endif()
 FetchContent_MakeAvailable(etl)
 
 # CONFIGURE_DEPENDS: a spec file added to an already-configured tree is built (and run) on the next build.
+# NE10's int32 real FFT, the pin's oracle: the three sources its forward and inverse transforms and configuration reach.
+# Its scalar paths keep NE10's plain signed sums and shifts, so the UBSan tree's checks are off for these sources.
+set(_ne10_root ${_repo_root}/src/NE10)
+set(_ne10_SOURCES
+  ${_ne10_root}/modules/dsp/NE10_fft.c
+  ${_ne10_root}/modules/dsp/NE10_fft_int32.c
+  ${_ne10_root}/modules/dsp/NE10_fft_int32.neonintrinsic.c
+  ${_ne10_root}/modules/dsp/NE10_fft_generic_int32.cpp)
+set_source_files_properties(${_ne10_SOURCES} PROPERTIES COMPILE_OPTIONS
+  "-fno-sanitize=signed-integer-overflow;-fno-sanitize=shift")
+set(_ne10_INCLUDES ${_ne10_root}/inc ${_ne10_root}/common ${_ne10_root}/modules)
+set(real_fft_pin_spec_DEPS ${_ne10_SOURCES})
+set(real_fft_pin_spec_INCLUDES ${_ne10_INCLUDES})
+set(real_fft_pin_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
+# The same pin built as the firmware builds float code, so the twiddle tables are pinned under its flags too.
+set(real_fft_pin_shipping_spec_DEPS ${_ne10_SOURCES})
+set(real_fft_pin_shipping_spec_INCLUDES ${_ne10_INCLUDES})
+set(real_fft_pin_shipping_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}" REAL_FFT_PIN_SHIPPING=1)
+set(real_fft_pin_shipping_spec_OPTIONS -O2 -funsafe-math-optimizations)
+# fixed::fft: the twiddle tables, plain and under the firmware's float flags, and the transform.
+set(_fft_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/fft/twiddles.cpp)
+set(twiddles_spec_DEPS ${_fft_DEPS})
+set(twiddles_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
+set(twiddles_shipping_spec_DEPS ${_fft_DEPS})
+set(twiddles_shipping_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
+set(twiddles_shipping_spec_OPTIONS -O2 -funsafe-math-optimizations)
+set(real_fft_spec_DEPS ${_fft_DEPS} ${_repo_root}/src/deluge/dsp-next/fixed/fft/real_fft.cpp)
+set(real_fft_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
+# The band builder: the transform, the DFT (which reads sineWaveSmall) and fastPythag.
+set(band_builder_spec_DEPS
+  ${real_fft_spec_DEPS}
+  ${_repo_root}/src/deluge/dsp-next/fixed/fft/real_dft.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/wavetable/band_builder.cpp
+  ${_repo_root}/src/deluge/util/fast_pythag.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+set(band_builder_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
+set(band_builder_spec_INCLUDES ${_repo_root}/include)
+
 file(GLOB _specs CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)
 foreach(_spec_path IN LISTS _specs)
   cmake_path(GET _spec_path STEM _name)
