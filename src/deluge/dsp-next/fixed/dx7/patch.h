@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -36,23 +35,31 @@ using PatchBytes = std::array<uint8_t, 156>;
 /// defined arithmetic in the engine.
 /// @details A patch can arrive with any byte value: a cartridge unpack, a single-voice sysex file or a song's hex.
 /// The voice's owner applies this to the snapshot it takes per block.
-constexpr void sanitise(PatchBytes& patch) {
+[[gnu::always_inline]] constexpr void sanitise(PatchBytes& patch) {
 	constexpr std::size_t kPitchEnv = 126;
 	constexpr std::size_t kAlgorithm = 134;
 	constexpr std::size_t kFeedback = 135;
 	constexpr std::size_t kLfoDelay = 138;
 	constexpr std::size_t kOpBytes = 21;
 	constexpr std::size_t kFine = 19;
+	// The owner calls this per block, from an app file built without -finline-functions: the bytes are reached through
+	// a pointer and clamped inline, so nothing here becomes a call.
+	uint8_t* const bytes = patch.data();
+	const auto clamp = [](uint8_t& byte, uint8_t max) __attribute__((always_inline)) {
+		if (byte > max) {
+			byte = max;
+		}
+	};
 	// fixed frequency scales (coarse & 3) × 100 + fine by 4458616: past 99 that passes INT32_MAX
 	for (std::size_t op = 0; op < 6; ++op) {
-		patch[(op * kOpBytes) + kFine] = std::min<uint8_t>(patch[(op * kOpBytes) + kFine], 99);
+		clamp(bytes[(op * kOpBytes) + kFine], 99);
 	}
 	for (std::size_t i = kPitchEnv; i < kPitchEnv + 8; ++i) {
-		patch[i] = std::min<uint8_t>(patch[i], 99);
+		clamp(bytes[i], 99);
 	}
-	patch[kAlgorithm] = std::min<uint8_t>(patch[kAlgorithm], 31);
-	patch[kFeedback] = std::min<uint8_t>(patch[kFeedback], 7);
-	patch[kLfoDelay] = std::min<uint8_t>(patch[kLfoDelay], 99);
+	clamp(bytes[kAlgorithm], 31);
+	clamp(bytes[kFeedback], 7);
+	clamp(bytes[kLfoDelay], 99);
 }
 
 } // namespace deluge::dsp::fixed::dx7

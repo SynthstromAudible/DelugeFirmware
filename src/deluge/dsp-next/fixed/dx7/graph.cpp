@@ -89,17 +89,17 @@ constexpr int kernel_count(std::size_t n) {
 
 } // namespace
 
-void Graph::render_op(const Operator::Settings& settings, std::size_t op, Signal modulation, Buffer target) {
+void Graph::render_op(const Operator::Settings& settings, [[maybe_unused]] const Gains& gains, std::size_t op,
+                      Signal modulation, Buffer target) {
 	const std::size_t n = target.size();
 	if (settings.engine == Engine::MODERN && settings.input != Input::FEEDBACK) {
 #ifdef DELUGE_DX7_NEON_KERNEL
 		// The kernel computes what ModernVectorOperator computes (tests/dsp/dx7_graph_spec.cpp holds them equal), with
 		// its loads issued a block ahead, which the compiler cannot schedule for the vector step without spilling.
-		const Gains g = Operator::gains(Operator::coefficients(settings), ops_[op], n);
 		DELUGE_DX7_NEON_KERNEL(settings.input == Input::NONE ? kZeros.data() : modulation.data(),
 		                       settings.output == Output::ADD ? target.data() : kZeros.data(), target.data(),
-		                       kernel_count(n), ops_[op].phase, settings.freq, g.gain1, g.dgain);
-		skip_op(settings, op, n);
+		                       kernel_count(n), ops_[op].phase, settings.freq, gains.gain1, gains.dgain);
+		hold_op(op, gains, settings.freq, n);
 #else
 		Mono<ModernVectorOperator> vector{{.input = settings.input,
 		                                   .output = settings.output,
@@ -146,8 +146,10 @@ void Graph::renderBlock(const Settings& s, Buffer out, Buses& lent) {
 		                               .freq = s.freq[op],
 		                               .feedback_shift = shift,
 		                               .tables = s.tables};
-		if (!Operator::audible(Operator::coefficients(probe), ops_[op], n)) {
-			skip_op(probe, op, n); // the gate
+		const Operator::Coefficients coefficients = Operator::coefficients(probe);
+		const Gains gains = Operator::gains(coefficients, ops_[op], n);
+		if (!Operator::audible(coefficients, gains)) {
+			hold_op(op, gains, probe.freq, n); // the gate
 			if (!add) {
 				has_contents[outbus] = false;
 			}
@@ -174,16 +176,16 @@ void Graph::renderBlock(const Settings& s, Buffer out, Buses& lent) {
 					if (mki && s.algorithm == 31) {
 						settings.feedback_shift = std::min(shift + 2, int32_t{16}); // MkI's algorithm 32
 					}
-					render_op(settings, op, target, target);
+					render_op(settings, gains, op, target, target);
 				}
 			}
 			else {
-				render_op(settings, op, target, target);
+				render_op(settings, gains, op, target, target);
 			}
 		}
 		else {
 			settings.input = Input::BUS;
-			render_op(settings, op, Signal{buses[inbus], n}, target);
+			render_op(settings, gains, op, Signal{buses[inbus], n}, target);
 		}
 		has_contents[outbus] = true;
 	}

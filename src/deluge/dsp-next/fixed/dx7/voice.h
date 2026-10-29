@@ -56,6 +56,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <math.h> // NOLINT(*-deprecated-headers): the unqualified exp is libm's double overload, which the records pin
 #include <tuple>
 #include <type_traits>
@@ -139,6 +140,14 @@ private:
 
 	/// @brief Op @p op's envelope settings: its patch bytes, its output level and rate scaling, and @p extra_rate.
 	[[nodiscard]] Envelope::Settings env_settings(const Settings& s, std::size_t op, int32_t extra_rate) const;
+
+	/// @brief The eight envelope bytes at @p offset (four rates, then four levels), copied as they lie: EnvelopeParams
+	/// has the patch's layout.
+	[[nodiscard]] static EnvelopeParams params_at(const PatchBytes& patch, std::size_t offset) {
+		EnvelopeParams params;
+		std::memcpy(&params, &patch[offset], sizeof params);
+		return params;
+	}
 
 	/// @brief The pitch envelope's bytes.
 	[[nodiscard]] static EnvelopeParams pitch_params(const Settings& s);
@@ -279,8 +288,7 @@ void Voice<Noise>::scale_op(const Settings& s, std::size_t op, int32_t velocity)
 
 template <class Noise>
 Envelope::Settings Voice<Noise>::env_settings(const Settings& s, std::size_t op, int32_t extra_rate) const {
-	const uint8_t* e = &s.patch[op * kOpBytes];
-	return {.params = {{e[0], e[1], e[2], e[3]}, {e[4], e[5], e[6], e[7]}},
+	return {.params = params_at(s.patch, op * kOpBytes),
 	        .output_level = output_level_[op],
 	        .rate_scaling = rate_scaling_[op],
 	        .extra_rate = extra_rate};
@@ -288,8 +296,7 @@ Envelope::Settings Voice<Noise>::env_settings(const Settings& s, std::size_t op,
 
 template <class Noise>
 EnvelopeParams Voice<Noise>::pitch_params(const Settings& s) {
-	const uint8_t* e = &s.patch[kPitchEnv];
-	return {{e[0], e[1], e[2], e[3]}, {e[4], e[5], e[6], e[7]}};
+	return params_at(s.patch, kPitchEnv);
 }
 
 /// The app's voice, on the synth's shared noise stream, is instantiated once, in voice.cpp: there it builds with the

@@ -153,20 +153,20 @@ public:
 	[[nodiscard]] int32_t gain_out(std::size_t op) const { return ops_[op].gain_out; }
 
 private:
-	/// @brief Op @p op's skipped block: its phase and gain move on as its kernel's skip moves them.
-	[[gnu::always_inline]] void skip_op(const Operator::Settings& settings, std::size_t op, std::size_t n) {
-		Mono<Operator> held{settings};
-		held.on<&Operator::resume>(ops_[op], feedback_);
-		held.on<&Operator::skip>(n);
-		ops_[op] = held.state().op;
+	/// @brief Op @p op's held state after a block it did not step itself (gated, or rendered by the device's kernel):
+	/// its phase moves on by the block and its gain to the block's end, as Operator::skip moves them.
+	/// @param gains The block's gains, taken once for the gate.
+	[[gnu::always_inline]] void hold_op(std::size_t op, const Gains& gains, int32_t freq, std::size_t n) {
+		ops_[op] = {.phase = Operator::advance_phase(ops_[op].phase, freq, n), .gain_out = gains.gain2};
 	}
 
 	/// @brief Op @p op's block into @p target: a modern op without feedback through the vector operator (or, in a
 	/// build given the device's NEON kernel, through it), any other through the scalar operator. With no input
-	/// @p modulation is not read; with SET, neither is @p target's content. Defined in graph.cpp, the one place the
-	/// kernel's build switch is read, and inlined into renderBlock there, where each call's routing is known.
-	[[gnu::always_inline]] inline void render_op(const Operator::Settings& settings, std::size_t op, Signal modulation,
-	                                             Buffer target);
+	/// @p modulation is not read; with SET, neither is @p target's content. @p gains are the block's, taken for the
+	/// gate; the kernel ramps by them. Defined in graph.cpp, the one place the kernel's build switch is read, and
+	/// inlined into renderBlock there, where each call's routing is known.
+	[[gnu::always_inline]] inline void render_op(const Operator::Settings& settings, const Gains& gains, std::size_t op,
+	                                             Signal modulation, Buffer target);
 
 	/// @brief MkI's fused stack of @p N ops from op @p op into @p target.
 	template <std::size_t N>
