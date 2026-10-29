@@ -449,6 +449,11 @@ def main() -> int:
         action="store_true",
         help="write each image's audio to raw.s32 (bit-exact, as its TX ring held it) and audio.wav beside its snapshots",
     )
+    ap.add_argument(
+        "--keep-card",
+        action="store_true",
+        help="keep the SD image built from --card in the artifact directory (4 GB; deleted after the run by default)",
+    )
     ap.add_argument("scripts", nargs="+", type=Path)
     args = ap.parse_args()
     # delugemu's run.sh runs from its own directory, so every path it is given is absolute.
@@ -511,6 +516,8 @@ def main() -> int:
     failed = False
     with concurrent.futures.ThreadPoolExecutor(args.jobs) as pool:
         results = dict(zip(args.scripts, pool.map(compare, args.scripts)))
+    if args.sd is None and not args.keep_card:
+        sd.unlink()
     for script, snaps in results.items():
         for name, diff in snaps.items():
             report[f"{script.stem}/{name}"] = diff
