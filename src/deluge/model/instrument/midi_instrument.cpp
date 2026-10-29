@@ -778,17 +778,11 @@ int32_t MIDIInstrument::changeControlNumberForModKnob(int32_t offset, int32_t wh
 int32_t MIDIInstrument::getFirstUnusedCC(ModelStackWithThreeMainThings* modelStack, int32_t direction, int32_t startAt,
                                          int32_t stopAt) {
 
-	if (direction == 0) {
-		ModelStackWithAutoParam* modelStackWithAutoParam = getParamToControlFromInputMIDIChannel(startAt, modelStack);
-		if (!modelStackWithAutoParam->autoParam || !modelStackWithAutoParam->autoParam->isAutomated()) {
-			return startAt;
-		}
-		return -1;
-	}
-
 	int32_t proposedCC = startAt;
 
-	for (int32_t attempts = 0; attempts < kNumCCNumbersIncludingFake; attempts++) {
+	// stopAt may never be reached (e.g. it's an unlabeled CC while unlabeled CCs are hidden), so also stop once
+	// the search wraps back around to where it started.
+	do {
 		ModelStackWithAutoParam* modelStackWithAutoParam =
 		    getParamToControlFromInputMIDIChannel(proposedCC, modelStack);
 		if (!modelStackWithAutoParam->autoParam || !modelStackWithAutoParam->autoParam->isAutomated()) {
@@ -796,11 +790,7 @@ int32_t MIDIInstrument::getFirstUnusedCC(ModelStackWithThreeMainThings* modelSta
 		}
 
 		proposedCC = getNextSelectableCC(proposedCC, direction);
-
-		if (proposedCC == stopAt) {
-			return -1;
-		}
-	}
+	} while (proposedCC != stopAt && proposedCC != startAt);
 
 	return -1;
 }
