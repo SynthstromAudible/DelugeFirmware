@@ -1264,6 +1264,10 @@ int32_t Sample::investigateFundamentalPitch(int32_t fundamentalIndexProvided, in
 				break;
 			}
 			int32_t searchMin = searchCentre - uncertaintyMarginHere;
+			// A bogus estimate can put the window off the bottom of the table - stop rather than read before it
+			if (searchMin < 0) {
+				break;
+			}
 
 			int32_t highestFoundHere = 0;
 
@@ -1286,13 +1290,15 @@ examineHarmonic:
 		float newEstimatedFundamentalIndex = floatIndexTable[currentIndex >> 1] / h;
 
 		int32_t nextMidIndex = currentIndex + ((fundamentalIndexProvided + 1) >> 1); // Round up
+		// The running sum only covers the height table, so harmonics near the top can't look past its end
+		nextMidIndex = std::min(nextMidIndex, tableSize - 1);
 		uint64_t nextSumTableValue = sumTable[nextMidIndex];
 		uint64_t surroundingSum = nextSumTableValue - lastSumTableValue;
 
 		lastSumTableValue = nextSumTableValue;
 
 		int32_t heightRightHere = heightTable[currentIndex];
-		int32_t heightRelativeToSurroundings = ((uint64_t)heightRightHere << 18) / surroundingSum;
+		int32_t heightRelativeToSurroundings = surroundingSum ? ((uint64_t)heightRightHere << 18) / surroundingSum : 0;
 
 		int32_t strengthThisHarmonic = ((uint64_t)heightRelativeToSurroundings * (uint64_t)heightRightHere) >> 20;
 		total += strengthThisHarmonic;
@@ -1414,6 +1420,8 @@ Sample::PitchVerdict Sample::analysePitchWindow(int32_t* buffer, int32_t lengthD
 	ne10_fft_cpx_int32_t* fftOutput = (ne10_fft_cpx_int32_t*)((char*)fftInput + fftInputSize);
 	int32_t* fftHeights = fftInput; // We'll overwrite the original input with this data
 	float* floatIndexTable = (float*)((char*)fftInput + fftInputSize + fftOutputSize);
+	// Only written at peaks, so clear out whatever the allocator left here
+	memset(floatIndexTable, 0, (kPitchDetectWindowSize >> 2) * sizeof(float));
 
 	AudioEngine::routineWithClusterLoading();
 
@@ -1506,6 +1514,10 @@ Sample::PitchVerdict Sample::analysePitchWindow(int32_t* buffer, int32_t lengthD
 		lastValue2 = lastValue1;
 		lastValue1 = thisValue;
 	}
+
+	// The loop above only ever zeroes the previous bin, so the last one keeps its raw height. It can't be a peak, and
+	// would otherwise be picked up as one with no floatIndexTable entry behind it
+	fftHeights[(kPitchDetectWindowSize >> 1) - 1] = 0;
 
 #if PITCH_DETECT_DEBUG_LEVEL
 	D_PRINTLN("");

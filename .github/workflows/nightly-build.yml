@@ -23,7 +23,10 @@ jobs:
       - name: Get new commits if branch exists
         id: count-commits
         run: |
-          if git show-ref --verify --quiet refs/remotes/origin/next; then
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "Manual dispatch, forcing build"
+            echo "count=1" >> "$GITHUB_OUTPUT"
+          elif git show-ref --verify --quiet refs/remotes/origin/next; then
             echo "Branch next exists, checking for commits"
             git checkout next
             count=$(git log --oneline --since '24 hours ago' | wc -l)

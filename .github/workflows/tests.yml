@@ -16,8 +16,15 @@ on:
       - "main"
 
 jobs:
+  changes:
+    uses: ./.github/workflows/changes.yml
+    permissions:
+      pull-requests: read
+
   matrix:
     name: test matrix (pr)
+    needs: changes
+    if: needs.changes.outputs.firmware == 'true'
     runs-on: ubuntu-latest
     outputs:
       test: ${{ steps.emit.outputs.test }}
@@ -55,6 +62,8 @@ jobs:
 
   event_file:
     name: "Event File"
+    needs: changes
+    if: needs.changes.outputs.firmware == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Upload

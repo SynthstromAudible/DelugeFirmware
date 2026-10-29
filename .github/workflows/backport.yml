@@ -90,6 +90,7 @@ jobs:
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          gh pr edit ${{ github.event.pull_request.number }} \
+          gh pr edit "$PR_NUMBER" \
             --repo "$GITHUB_REPOSITORY" --add-label "backport: conflict"

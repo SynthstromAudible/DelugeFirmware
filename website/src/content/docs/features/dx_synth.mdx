@@ -96,12 +96,125 @@ to browse between parameters.
 1. Some parameters have a shortcut in a layer which is only active when editing any DX7 parameter (otherwise the regular synth shortcuts apply). This shortcut layer is outlined as follows:
 
 - The first 6 rows correspond to the operators.
-- The seventh and eight row contain some of the global parameters
+- The seventh and eighth rows contain some of the global parameters.
 
-![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/7e0d160f-8b1d-4b2c-9534-2a3b0ec31cb8)
+**DX7 Editor Grid Shortcuts**
+
+<div className="dx7-shortcuts" role="region" aria-label="DX7 editor grid shortcuts" tabIndex={0}>
+
+| Row / Col      | 1      | 2      | 3      | 4      | 5       | 6        | 7          | 8             | 9         | 10       | 11       | 12   | 13     | 14            | 15           | 16         |
+| -------------- | ------ | ------ | ------ | ------ | ------- | -------- | ---------- | ------------- | --------- | -------- | -------- | ---- | ------ | ------------- | ------------ | ---------- |
+| OPERATOR 6     | rate 1 | rate 2 | rate 3 | rate 4 | level 1 | level 2  | level 3    | level 4       | level     | mode     | coarse   | fine | detune | velocity sens | amp mod sens | rate scale |
+| OPERATOR 5     | rate 1 | rate 2 | rate 3 | rate 4 | level 1 | level 2  | level 3    | level 4       | level     | mode     | coarse   | fine | detune | velocity sens | amp mod sens | rate scale |
+| OPERATOR 4     | rate 1 | rate 2 | rate 3 | rate 4 | level 1 | level 2  | level 3    | level 4       | level     | mode     | coarse   | fine | detune | velocity sens | amp mod sens | rate scale |
+| OPERATOR 3     | rate 1 | rate 2 | rate 3 | rate 4 | level 1 | level 2  | level 3    | level 4       | level     | mode     | coarse   | fine | detune | velocity sens | amp mod sens | rate scale |
+| OPERATOR 2     | rate 1 | rate 2 | rate 3 | rate 4 | level 1 | level 2  | level 3    | level 4       | level     | mode     | coarse   | fine | detune | velocity sens | amp mod sens | rate scale |
+| OPERATOR 1     | rate 1 | rate 2 | rate 3 | rate 4 | level 1 | level 2  | level 3    | level 4       | level     | mode     | coarse   | fine | detune | velocity sens | amp mod sens | rate scale |
+| PITCH ENVELOPE | rate 1 | rate 2 | rate 3 | rate 4 | level 1 | level 2  | level 3    | level 4       | algorithm | feedback | osc sync |      |        |               |              |            |
+| LFO            | rate   | delay  | pitch  | amp    | sync    | waveform | pitch sens | random detune |           |          |          |      |        |               |              |            |
+
+</div>
+
+Columns are numbered left to right; rows run from operator 6 at the top to LFO at the bottom. “sens” means sensitivity. Blank cells have no DX7 shortcut.
+
+**Legend**
+
+<div className="dx7-legend">
+  <span title="Light blue" style={{ backgroundColor: "#bdd7ee" }}>
+    LFO
+  </span>
+  <span title="Pale yellow" style={{ backgroundColor: "#fff2cc" }}>
+    Random detune
+  </span>
+  <span title="Light green" style={{ backgroundColor: "#c6e0b4" }}>
+    Pitch envelope
+  </span>
+  <span title="Peach" style={{ backgroundColor: "#f8cbad" }}>
+    Algorithm
+  </span>
+  <span title="Grey" style={{ backgroundColor: "#d9d9d9" }}>
+    Feedback
+  </span>
+  <span title="Pink" style={{ backgroundColor: "#ff99ff" }}>
+    OSC SYNC
+  </span>
+  <span title="Cyan" style={{ backgroundColor: "#00ffff" }}>
+    Operator envelope
+  </span>
+  <span title="Yellow" style={{ backgroundColor: "#ffff66" }}>
+    Operator tune / level
+  </span>
+  <span title="Lavender" style={{ backgroundColor: "#ccccff" }}>
+    Operator params
+  </span>
+</div>
+
+<style>{`
+  .dx7-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
+  .dx7-legend > span {
+    margin: 0;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.2rem;
+    color: #000;
+  }
+  .dx7-legend + .dx7-legend-note {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+  }
+  .dx7-shortcuts {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .dx7-shortcuts table {
+    display: table;
+    width: 100%;
+    min-width: 60rem;
+    table-layout: fixed;
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    white-space: normal;
+  }
+  .dx7-shortcuts th,
+  .dx7-shortcuts td {
+    padding: 0.4rem 0.2rem;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+  .dx7-shortcuts th:first-child,
+  .dx7-shortcuts td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    width: 6rem;
+    min-width: 6rem;
+    text-align: left;
+  }
+  .dx7-shortcuts th:first-child {
+    background: var(--sl-color-bg);
+  }
+  .dx7-shortcuts td { background: #fff; color: #000; }
+  .dx7-shortcuts tbody tr:nth-child(8) td:nth-child(-n+8) { background: #bdd7ee; }
+  .dx7-shortcuts tbody tr:nth-child(8) td:nth-child(9) { background: #fff2cc; }
+  .dx7-shortcuts tbody tr:nth-child(7) td:nth-child(-n+9) { background: #c6e0b4; }
+  .dx7-shortcuts tbody tr:nth-child(7) td:nth-child(10) { background: #f8cbad; }
+  .dx7-shortcuts tbody tr:nth-child(7) td:nth-child(11) { background: #d9d9d9; }
+  .dx7-shortcuts tbody tr:nth-child(7) td:nth-child(12) { background: #ff99ff; }
+  .dx7-shortcuts tbody tr:nth-child(-n+6) td:nth-child(n+2):nth-child(-n+9) { background: #00ffff; }
+  .dx7-shortcuts tbody tr:nth-child(-n+6) td:nth-child(n+10):nth-child(-n+14) { background: #ffff66; }
+  .dx7-shortcuts tbody tr:nth-child(-n+6) td:nth-child(n+15):nth-child(-n+17) { background: #ccccff; }
+`}</style>
 
 2. If OLED screen is available a group of related parameters is displayed at a time, like all the envelope levels and rates
-   for a specific envelope. With 7SEG the parameter name will be shown briefly before the value
+   for a specific envelope. With 7SEG the parameter name will be shown briefly before the value.
+   When editing the algorithm on OLED, a diagram of the selected algorithm is shown: carriers are drawn as filled boxes,
+   modulators as outlined boxes, and the operator with feedback has a loop drawn around it.
 
 3. Press :key[Back] to exit the Editor View, and access the standard synth shortcuts again.
 
