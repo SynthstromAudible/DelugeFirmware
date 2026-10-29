@@ -1586,9 +1586,10 @@ them on x86, ARM and under UBSan.
   A9's VFPv3 has no fused multiply-add).
 - **`RealFft`** (`real_fft.h`): forward from 2^m samples to 2^(m−1)+1 bins and inverse back, over lent tables and
   scratch, no state between calls. NE10's radix-8 and radix-4 stages and real splits are in `radix.h`: every sum and
-  difference wraps, every product is the saturating doubling high half (`MultiplyFixedQMax`, `vqdmulh`) except the
-  16-point inverse's, which rounds (`MultiplyRoundFixedQMax`, `vqrdmulh`), and only the forward split's outputs halve
-  (`AddHalve`/`SubtractHalve`). NE10's 16-point forward ran its radix-8 stage four butterflies wide over an 8-point
+  difference wraps, every vector product is the saturating doubling high half (`MultiplyFixedQMax`, `vqdmulh`) except
+  the 16-point inverse's, which rounds (`MultiplyRoundFixedQMax`, `vqrdmulh`), and only the forward split's outputs
+  halve (`AddHalve`/`SubtractHalve`). The scalar 8-point paths differ: the 8-point inverse multiplies by √½ as a 64-bit
+  product shifted down by 31, and its real split sums two 64-bit products' high words and then doubles the sum. NE10's 16-point forward ran its radix-8 stage four butterflies wide over an 8-point
   input and wrote 128 bytes past its configuration; `RealFft` runs that stage on zero-padded locals and keeps lane 0,
   which is NE10's output.
 - **`FFTConfigManager`** (app, `dsp/fft/`) builds each size's transform on first use, yields to the cluster loader
@@ -1610,28 +1611,30 @@ iteration in both. The twiddled stage is out of line, as NE10's was: inlined twi
 registers (75 instructions, a store and reload of a pointer). `forward` and `inverse` are 840 and 842 ARM instructions,
 plus 91 for each direction's twiddled stage; NE10's functions were about 6.2 KB of Thumb.
 
-**On the rig** (J-Trace, `fft_forward` and `fft_inverse` at n = 128, cycles per transform):
+**On the rig** (J-Trace, `fft_forward` and `fft_inverse` at n = 128, cycles per transform; tables and scratch
+16-byte aligned):
 
 | Points | Forward NE10 | Forward `RealFft` | ratio | Inverse NE10 | Inverse `RealFft` | ratio |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 8 | | | | 150 | 182 | 1.22 |
-| 16 | 840 | 796 | 0.95 | 238 | 267 | 1.12 |
-| 32 | 552 | 575 | 1.04 | 488 | 495 | 1.02 |
-| 64 | 1,421 | 1,401 | 0.99 | 1,393 | 1,389 | 1.00 |
-| 128 | 2,627 | 2,676 | 1.02 | 2,632 | 2,660 | 1.01 |
-| 256 | 6,574 | 6,617 | 1.01 | 6,467 | 6,509 | 1.01 |
-| 512 | 12,696 | 12,915 | 1.02 | 12,847 | 12,688 | 0.99 |
-| 1024 | 30,801 | 31,186 | 1.01 | 30,423 | 30,526 | 1.00 |
-| 2048 | 73,238 | 73,782 | 1.01 | 79,763 | 79,963 | 1.00 |
-| 4096 | 208,643 | 214,470 | 1.03 | 222,278 | 223,424 | 1.01 |
-| 8192 | 462,320 | 505,576 | 1.09 | 564,925 | 575,359 | 1.02 |
+| 8 | | | | 150 | 180 | 1.20 |
+| 16 | 840 | 794 | 0.95 | 238 | 263 | 1.11 |
+| 32 | 552 | 552 | 1.00 | 488 | 485 | 0.99 |
+| 64 | 1,421 | 1,355 | 0.95 | 1,393 | 1,365 | 0.98 |
+| 128 | 2,627 | 2,560 | 0.97 | 2,632 | 2,578 | 0.98 |
+| 256 | 6,574 | 6,360 | 0.97 | 6,467 | 6,339 | 0.98 |
+| 512 | 12,696 | 12,275 | 0.97 | 12,847 | 12,314 | 0.96 |
+| 1024 | 30,801 | 29,836 | 0.97 | 30,423 | 29,777 | 0.98 |
+| 2048 | 73,238 | 80,428 | 1.10 | 79,763 | 80,999 | 1.02 |
+| 4096 | 208,643 | 215,195 | 1.03 | 222,278 | 234,698 | 1.06 |
+| 8192 | 462,320 | 479,056 | 1.04 | 564,925 | 543,057 | 0.96 |
 
 The inverse at 8 and 16 points pays the frame of the one `inverse` body (nine core and eight double registers saved,
 a 476-byte frame) on every call, about 20 instructions per transform (173 to 197, 237 to 256) that NE10's separate
-4-, 8- and 16-point functions did not; the band builder runs them once per cycle for the two smallest bands. The
-8192-point forward executes fewer instructions than NE10's (132,498 to 128,242 per transform) with the same L1
-refills; its extra cycles are data-cache stalls (206,950 to 242,620), which is where its 115 KB block landed, not its
-code.
+4-, 8- and 16-point functions did not; the band builder runs them once per cycle for the two smallest bands. From 2048
+points up the working set outgrows the L1 data cache and data-cache stalls are a third to a half of the cycles; there
+the figures move by up to 10% between images whose transform code is the same (the 2048-point forward measured 73,782
+cycles in an image whose tables were 4 bytes off 8-byte alignment and 80,428 here, at 28,138 and 28,145 instructions,
+its data-cache stalls 12,290 and 24,883), so those ratios measure where the data landed, not the code.
 
 ## Bit-exactness: how the synth's math maps in
 
@@ -1662,12 +1665,6 @@ code.
   `AsBlock`.
 - **Vector-aware `sample_*` concepts**, so SIMD components satisfy the composite
   concepts.
-- **A storage-independent wavetable renderer.** The band math is in `dsp-next`
-  (`BandBuilder`) and so is the FFT (`RealFft`); `WaveTable::render` is pure DSP
-  over in-memory bands. What remains is the renderer behind a band-data port (the
-  band tables, magnitudes and kernels) that the app's `WaveTable` provides, with
-  SD loading and band management staying in the app. It is gated on the wavetable
-  golden fixtures and the band pins (`LP-WT-PIN`, `band_builder_spec`).
 - **Audible steps** (separate, ear-validated, re-baselined): VCA-arithmetic
   unification, analytic-wave options, band-limiting and sync improvements,
   `FixedPoint<31>` types, full phase relocation into the engine, per-voice
@@ -1759,7 +1756,7 @@ it drops some:
 - `fft_forward` and `fft_inverse`: the int32 real FFT at every size the firmware
   transforms (forward 16 to 8192 points, inverse 8 to 8192), one transform per
   block whatever the block size, so their figure is cycles per transform
-  (`cycles / k`), not cps; the 16-point forward runs last.
+  (`cycles / k`), not cps.
 
 Every other case builds with the app's flags. A bench image builds only its own
 list's cases, since the image fills on-chip SRAM up to 0x202E0000 (past it the
