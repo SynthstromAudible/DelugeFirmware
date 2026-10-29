@@ -83,6 +83,9 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 	else {
 		if (oscRetriggerPhase != 0xFFFFFFFF) {
 			oscPos = getOscInitialPhaseForZero(source->oscType) + oscRetriggerPhase;
+			if (source->oscType == OscType::SUPERSAW) {
+				supersawPhases = deluge::dsp::Supersaw::sidePhasesFrom(oscPos);
+			}
 		}
 	}
 

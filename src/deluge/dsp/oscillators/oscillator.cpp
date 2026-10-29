@@ -29,7 +29,23 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
                       uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
                       int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
                       uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement,
-                      int sourceWaveIndexLastTime, WaveTable* waveTable) {
+                      int sourceWaveIndexLastTime, WaveTable* waveTable, Supersaw::SidePhases* supersawPhases) {
+
+	// The supersaw does its own thing. Pulse width sets the number of saws, and there's no osc sync
+	if (type == OscType::SUPERSAW) {
+		// Same CPU-dire fallback as the plain saw: skip the band limiting for lower notes
+		bool bandLimit = dsp::getTableNumber(phaseIncrement).first >= AudioEngine::cpuDireness + 6;
+		int32_t spread = sourceWaveIndexLastTime + waveIndexIncrement * numSamples;
+		int32_t* renderBuffer = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
+		Supersaw::render(renderBuffer, numSamples, phaseIncrement, spread, Supersaw::numSawsFromPulseWidth(pulseWidth),
+		                 *startPhase, *supersawPhases, bandLimit);
+		if (applyAmplitude) {
+			// Supersaw comes out at a quarter of a saw's level
+			applyAmplitudeVectorToBuffer(amplitude << 2, numSamples, amplitudeIncrement << 2, bufferStart,
+			                             oscSyncRenderingBuffer);
+		}
+		return;
+	}
 
 	// We save a decent bit of processing power by grabbing a local copy of the phase to work with, and just
 	// incrementing the startPhase once

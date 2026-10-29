@@ -688,6 +688,9 @@ char const* oscTypeToString(OscType oscType) {
 	case OscType::ANALOG_SAW_2:
 		return "analogSaw";
 
+	case OscType::SUPERSAW:
+		return "supersaw";
+
 	case OscType::ANALOG_SQUARE:
 		return "analogSquare";
 
@@ -733,6 +736,9 @@ OscType stringToOscType(char const* string) {
 	}
 	else if (!strcmp(string, "saw")) {
 		return OscType::SAW;
+	}
+	else if (!strcmp(string, "supersaw")) {
+		return OscType::SUPERSAW;
 	}
 	else if (!strcmp(string, "sine")) {
 		return OscType::SINE;
