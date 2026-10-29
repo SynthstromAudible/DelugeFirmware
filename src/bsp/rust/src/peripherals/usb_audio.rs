@@ -18,7 +18,7 @@
 //!   frame now and then as its clock drifts from ours.
 //!
 //! Both packet paths run in the USB0 interrupt (GIC priority 10, above the audio tier's 20), as
-//! the RUSB1 driver's ISO hooks: a packet left in the double-buffered FIFO for two microframes is
+//! the RUSB1 driver's isochronous streams ([`SpeakerSink`], [`CaptureSource`]): a packet left in the double-buffered FIFO for two microframes is
 //! lost, so they cannot wait for an executor. Each ring has one producer and one consumer, one of
 //! them that interrupt and the other the render; they share only atomics and slots the positions
 //! hand over, with no lock and no allocation. The packets move through the FIFO by CPU copies, and
@@ -40,7 +40,8 @@ use embassy_usb::Builder;
 use embassy_usb::Handler;
 use embassy_usb::control::{InResponse, OutResponse, Recipient, Request, RequestType};
 use embassy_usb::types::InterfaceNumber;
-use rza1l_hal::usb::Rusb1Driver;
+use rza1_hal::usb::Rusb1Driver;
+use rza1_hal::usb::iso::{IsoInProducer, IsoInStream, IsoOutConsumer, IsoOutStream};
 use usb_classes::audio::{
     AudioClass, USB_BITS_PER_SAMPLE, USB_CAPTURE_BITS_PER_SAMPLE, USB_SAMPLE_RATE,
 };
@@ -90,23 +91,24 @@ static LAST_PACKET_US: AtomicU32 = AtomicU32::new(0);
 
 // The rings, 8 KiB each, live in SDRAM (`.sdram_bss`, zeroed at boot, which is their empty state)
 // to spare internal SRAM.
-/// Host → render. Producer: [`iso_out_hook`]. Consumer: [`deluge_usb_audio_read`].
+/// Host → render. Producer: [`SpeakerSink`]. Consumer: [`deluge_usb_audio_read`].
 #[unsafe(link_section = ".sdram_bss")]
 static FROM_HOST: FrameRing = FrameRing::new();
-/// Render → host. Producer: [`deluge_usb_audio_write`]. Consumer: [`iso_in_hook`].
+/// Render → host. Producer: [`deluge_usb_audio_write`]. Consumer: [`CaptureSource`].
 #[unsafe(link_section = ".sdram_bss")]
 static TO_HOST: FrameRing = FrameRing::new();
 
 /// The from-host reader: the audio tier's alone (`deluge_usb_audio_read` is `[audio]`).
 static mut READER: FromHostReader = FromHostReader::new();
-/// The to-host packet filler: the ISO IN hook's alone. The hook runs in the USB0 interrupt, and
-/// once per activation from the device task with that pipe's interrupt masked, never both at once.
+/// The to-host packet filler: [`CaptureSource`]'s alone. That runs in the USB0 interrupt, and
+/// twice in a critical section when the pipe is enabled, never both at once.
 static mut PACER: ToHostPacer = ToHostPacer::new();
 
-/// The USB0 port's registers, for the pipe re-enable in [`AudioHandler::set_alternate_setting`].
-const USB_PORT: u8 = 0;
+/// The speaker stream's consumer and the capture stream's producer, lent to the driver for good.
+static mut SPEAKER_SINK: SpeakerSink = SpeakerSink;
+static mut CAPTURE_SOURCE: CaptureSource = CaptureSource;
 
-/// Adds the USB audio function to `builder` and installs its ISO packet hooks. Returns the class
+/// Adds the USB audio function to `builder` and binds its isochronous streams. Returns the class
 /// handler, to register with the builder.
 ///
 /// Call it before any other function is added: the interface numbers above assume the audio
@@ -114,63 +116,64 @@ const USB_PORT: u8 = 0;
 pub(crate) fn build(builder: &mut Builder<'static, Rusb1Driver<'static>>) -> AudioHandler {
     USB_SAMPLE_RATE.store(SAMPLE_RATE_HZ, Ordering::Release);
     let (class, ep_out, ep_in) = AudioClass::<CAPTURE_CHANNELS>::new(builder, SPEAKER_MAX_PACKET);
-    let in_mps = ep_in.info.max_packet_size as usize;
-    // SAFETY: the pipes are not enabled until the host selects a streaming setting, which needs the
-    // device built and running; the hooks are registered first, from task context.
-    unsafe {
-        rza1l_hal::usb::pipe::register_iso_out_hook(ep_out.pipe as usize, iso_out_hook);
-        rza1l_hal::usb::pipe::register_iso_in_hook(ep_in.pipe as usize, in_mps, iso_in_hook);
-    }
+    // SAFETY: `build` runs once, so these are the statics' only references; the driver keeps them
+    // for good. The pipes are not enabled until the host selects a streaming setting.
+    let (sink, source) = unsafe {
+        (
+            &mut *addr_of_mut!(SPEAKER_SINK),
+            &mut *addr_of_mut!(CAPTURE_SOURCE),
+        )
+    };
+    let speaker = ep_out.into_iso_stream(sink);
+    let capture = ep_in.into_iso_stream(source);
     PRESENT.store(true, Ordering::Release);
     AudioHandler {
         class,
-        out_pipe: ep_out.pipe as usize,
-        in_pipe: ep_in.pipe as usize,
+        _speaker: speaker,
+        _capture: capture,
     }
 }
 
-/// The ISO OUT hook: one speaker packet of interleaved 16- or 24-bit stereo, into [`FROM_HOST`].
-///
-/// # Safety
-///
-/// Called by the RUSB1 driver from the USB0 interrupt with `len` valid bytes at `pkt`.
-unsafe fn iso_out_hook(pkt: *const u8, len: usize) {
-    // SAFETY: the driver passes its drained packet.
-    let packet = unsafe { core::slice::from_raw_parts(pkt, len) };
-    let bps = bytes_per_sample(USB_BITS_PER_SAMPLE.load(Ordering::Relaxed));
-    // SAFETY: this hook is FROM_HOST's one producer, and the interrupt does not reenter.
-    unsafe { FROM_HOST.push(unpack(packet, bps)) };
-    LAST_PACKET_US.store(
-        embassy_time::Instant::now().as_micros() as u32,
-        Ordering::Relaxed,
-    );
-    PACKET_SEEN.store(true, Ordering::Release);
+/// The speaker stream's consumer: one packet of interleaved 16- or 24-bit stereo at a time, into
+/// [`FROM_HOST`]. Runs in the USB0 interrupt.
+struct SpeakerSink;
+
+impl IsoOutConsumer for SpeakerSink {
+    fn on_packet(&mut self, packet: &[u8]) {
+        let bps = bytes_per_sample(USB_BITS_PER_SAMPLE.load(Ordering::Relaxed));
+        // SAFETY: this is FROM_HOST's one producer, and the interrupt does not reenter.
+        unsafe { FROM_HOST.push(unpack(packet, bps)) };
+        LAST_PACKET_US.store(
+            embassy_time::Instant::now().as_micros() as u32,
+            Ordering::Relaxed,
+        );
+        PACKET_SEEN.store(true, Ordering::Release);
+    }
 }
 
-/// The ISO IN hook: fills the next capture packet (`max` bytes of room at `buf`) and returns its
-/// length.
-///
-/// # Safety
-///
-/// Called by the RUSB1 driver with `max` writable bytes at `buf`, from the USB0 interrupt or from
-/// the pipe's activation with its interrupt masked.
-unsafe fn iso_in_hook(buf: *mut u8, max: usize) -> usize {
-    // SAFETY: the driver passes its scratch buffer.
-    let out = unsafe { core::slice::from_raw_parts_mut(buf, max) };
-    let bps = bytes_per_sample(USB_CAPTURE_BITS_PER_SAMPLE.load(Ordering::Relaxed));
-    let epoch = CAPTURE_EPOCH.load(Ordering::Acquire);
-    // SAFETY: PACER is this hook's alone, and the hook never runs twice at once; it is TO_HOST's
-    // one consumer.
-    unsafe {
-        (*addr_of_mut!(PACER)).fill_packet(&TO_HOST, epoch, rx_write_frame(), RX_MASK, bps, out)
+/// The capture stream's producer: fills the next packet from [`TO_HOST`], as many frames as the
+/// codec captured since the last one. Runs in the USB0 interrupt, or in a critical section when
+/// the pipe is enabled.
+struct CaptureSource;
+
+impl IsoInProducer for CaptureSource {
+    fn fill_packet(&mut self, out: &mut [u8]) -> usize {
+        let bps = bytes_per_sample(USB_CAPTURE_BITS_PER_SAMPLE.load(Ordering::Relaxed));
+        let epoch = CAPTURE_EPOCH.load(Ordering::Acquire);
+        // SAFETY: PACER is this producer's alone, and it never runs twice at once; it is TO_HOST's
+        // one consumer.
+        unsafe {
+            (*addr_of_mut!(PACER)).fill_packet(&TO_HOST, epoch, rx_write_frame(), RX_MASK, bps, out)
+        }
     }
 }
 
 /// The audio function's control handler: [`AudioClass`], plus the stream state the ABI reports.
+/// It owns the two streams, which stay bound while it lives (in the USB device's `'static` slot).
 pub(crate) struct AudioHandler {
     class: AudioClass<CAPTURE_CHANNELS>,
-    out_pipe: usize,
-    in_pipe: usize,
+    _speaker: IsoOutStream,
+    _capture: IsoInStream,
 }
 
 impl AudioHandler {
@@ -218,38 +221,17 @@ impl Handler for AudioHandler {
 
     fn set_alternate_setting(&mut self, iface: InterfaceNumber, alternate_setting: u8) {
         self.class.set_alternate_setting(iface, alternate_setting);
-        // embassy-usb enables each alternate setting's endpoint in descriptor order, and both
-        // streaming settings of a stream name the same endpoint, so selecting the first leaves its
-        // endpoint disabled by the second. Below, the endpoint is enabled again as the driver does.
-        let endpoint_left_disabled = alternate_setting == 1;
+        // Both streaming settings of a stream name the same endpoint; the driver keeps the one the
+        // host selected enabled (a disable of a pipe the same request enabled is skipped).
         match u8::from(iface) {
             SPEAKER_INTERFACE => {
                 SPEAKER_ALT.store(alternate_setting, Ordering::Release);
                 SPEAKER_GENERATION.fetch_add(1, Ordering::Release);
                 PACKET_SEEN.store(false, Ordering::Release);
-                if endpoint_left_disabled {
-                    // SAFETY: device-task context, as the driver's own enable; the pipe is ours.
-                    unsafe {
-                        let u = rza1l_hal::usb::regs::usb(USB_PORT);
-                        rza1l_hal::usb::pipe::pipe_reset(u, self.out_pipe);
-                        rza1l_hal::usb::pipe::pipe_enable(u, self.out_pipe);
-                        rza1l_hal::usb::pipe::pipe_brdy_enable(u, self.out_pipe);
-                    }
-                }
             }
             CAPTURE_INTERFACE => {
                 CAPTURE_ALT.store(alternate_setting, Ordering::Release);
                 CAPTURE_EPOCH.fetch_add(1, Ordering::Release);
-                if endpoint_left_disabled {
-                    // The driver runs the capture endpoint continuously, from its hook.
-                    // SAFETY: device-task context, as the driver's own enable; the pipe is ours.
-                    unsafe {
-                        rza1l_hal::usb::pipe::pipe_iso_in_activate(
-                            rza1l_hal::usb::regs::usb(USB_PORT),
-                            self.in_pipe,
-                        );
-                    }
-                }
             }
             _ => {}
         }
