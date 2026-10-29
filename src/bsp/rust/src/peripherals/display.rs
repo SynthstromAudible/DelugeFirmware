@@ -77,6 +77,8 @@ pub extern "C" fn deluge_display_blit_oled(
     // The harness shadow takes every blit, duplicates included: a test may reset it between frames.
     #[cfg(not(target_os = "none"))]
     crate::peripherals::ui_harness::record_oled(src, width, height);
+    #[cfg(all(feature = "rig-harness", target_os = "none"))]
+    crate::peripherals::rig_harness::record_oled(src, width, height);
     // SAFETY: as above, nothing else touches FRAME during this copy.
     let dst = unsafe { &mut (&mut *core::ptr::addr_of_mut!(FRAME))[..n] };
     if FRAME_VALID.load(Ordering::Acquire) && *dst == *src {

@@ -124,6 +124,10 @@ host-runtime = [
 ## RTT logging over a debug probe: selects the RTT linker script and layout and registers the logger.
 rtt = ["dep:rtt-target", "deluge-bsp/rtt"]
 
+## The rig harness (`peripherals::rig_harness`): panel state out and script gestures in over RTT,
+## for driving a device on the probe rig. Never in a shipping image.
+rig-harness = ["rtt"]
+
 ## Link the host-built C++ app into the host binary: bindgen the libdeluge headers for the host
 ## ABI and export the C-ABI crates' symbols it calls.
 host_app = [

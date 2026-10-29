@@ -428,6 +428,8 @@ pub extern "C" fn deluge_control_set_pad_columns(idx: u8, colours: *const Deluge
     }
     #[cfg(not(target_os = "none"))]
     crate::peripherals::ui_harness::record_pad_columns(idx, src);
+    #[cfg(all(feature = "rig-harness", target_os = "none"))]
+    crate::peripherals::rig_harness::record_columns(idx, &buf);
     enqueue(PicOut::Columns { idx, colours: buf });
 }
 
@@ -441,6 +443,8 @@ pub extern "C" fn deluge_control_set_pad_columns(idx: u8, colours: *const Deluge
 /// 16). Forwarded as-is.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_scroll_horizontal(flags: u8) {
+    #[cfg(all(feature = "rig-harness", target_os = "none"))]
+    crate::peripherals::rig_harness::record_scroll();
     enqueue(PicOut::ScrollSetup(flags));
 }
 
@@ -467,6 +471,8 @@ pub extern "C" fn deluge_control_scroll_vertical(
     colours: *const DelugeColour,
     count: u8,
 ) {
+    #[cfg(all(feature = "rig-harness", target_os = "none"))]
+    crate::peripherals::rig_harness::record_scroll();
     let mut buf = [[0u8; 3]; 18];
     let n = (count as usize).min(18);
     // SAFETY: the app passes `count` valid DelugeColour entries.
@@ -486,6 +492,8 @@ pub extern "C" fn deluge_control_scroll_vertical(
 pub extern "C" fn deluge_control_set_led(led: u8, on: bool) {
     #[cfg(not(target_os = "none"))]
     crate::peripherals::ui_harness::record_led(led, on);
+    #[cfg(all(feature = "rig-harness", target_os = "none"))]
+    crate::peripherals::rig_harness::record_led(led, on);
     enqueue(PicOut::Led { id: led, on });
 }
 
@@ -500,6 +508,8 @@ pub extern "C" fn deluge_control_set_indicator(which: u8, levels: *const u8, cou
     ring[..n].copy_from_slice(&src[..n]);
     #[cfg(not(target_os = "none"))]
     crate::peripherals::ui_harness::record_ring(which, &ring[..n]);
+    #[cfg(all(feature = "rig-harness", target_os = "none"))]
+    crate::peripherals::rig_harness::record_ring(which, ring);
     enqueue(PicOut::Indicator {
         knob: (which != 0) as u8,
         levels: ring,
@@ -509,27 +519,39 @@ pub extern "C" fn deluge_control_set_indicator(which: u8, levels: *const u8, cou
 /// Sets the surface refresh interval (board units).
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_set_refresh_time(ms: u8) {
-    let _ = OUT.try_send(PicOut::RefreshTime(ms));
+    if OUT.try_send(PicOut::RefreshTime(ms)).is_ok() {
+        #[cfg(all(feature = "rig-harness", target_os = "none"))]
+        crate::peripherals::rig_harness::record_pic(None, Some(ms));
+    }
 }
 
 /// Flashes pad `idx` (`y + x * 8`) in the PIC's current flash colour. The PIC times the flash and
 /// restores the pad itself, so no refresh follows.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_flash_pad(idx: u8) {
-    let _ = OUT.try_send(PicOut::Flash { idx, colour: 0 });
+    if OUT.try_send(PicOut::Flash { idx, colour: 0 }).is_ok() {
+        #[cfg(all(feature = "rig-harness", target_os = "none"))]
+        crate::peripherals::rig_harness::record_flash(idx, 0);
+    }
 }
 
 /// Flashes pad `idx` (`y + x * 8`) in the PIC's colour index `colour_idx` (1–3).
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_flash_pad_colour(idx: u8, colour_idx: i32) {
     let colour = u8::try_from(colour_idx).unwrap_or(0);
-    let _ = OUT.try_send(PicOut::Flash { idx, colour });
+    if OUT.try_send(PicOut::Flash { idx, colour }).is_ok() {
+        #[cfg(all(feature = "rig-harness", target_os = "none"))]
+        crate::peripherals::rig_harness::record_flash(idx, colour);
+    }
 }
 
 /// Sets the PIC's pad-dimming interval.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_set_dimmer_interval(interval: u8) {
-    let _ = OUT.try_send(PicOut::DimmerInterval(interval));
+    if OUT.try_send(PicOut::DimmerInterval(interval)).is_ok() {
+        #[cfg(all(feature = "rig-harness", target_os = "none"))]
+        crate::peripherals::rig_harness::record_pic(Some(interval), None);
+    }
 }
 
 /// Returns the free space for queued pad output, in bytes: free queue slots × `BYTES_PER_CMD`, or
