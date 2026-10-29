@@ -92,7 +92,7 @@ public:
 	Error readFromFile(Deserializer& reader, Song* song) override;
 	void writeDataToFile(Serializer& writer, Song* song) override;
 	char const* getXMLTag() override { return "audioClip"; }
-	int32_t nextSampleRestartPos;
+	int32_t nextSampleRestartPos = 0;
 	SampleControls sampleControls;
 
 	SampleHolderForClip sampleHolder;
