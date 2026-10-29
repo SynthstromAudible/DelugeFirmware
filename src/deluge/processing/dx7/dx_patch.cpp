@@ -18,11 +18,11 @@
 #include "processing/dx7/dx_patch.h"
 #include "engines/deluge/dx7_init_voice.h"
 #include "processing/dx7/dx_engine.h"
+#include <algorithm>
 #include <cstddef>
-#include <cstring>
 
 DxPatch::DxPatch() {
-	memcpy(params, deluge::instrument::kDx7InitVoice.data(), sizeof params);
+	std::ranges::copy(deluge::instrument::kDx7InitVoice, params.begin());
 	setEngineMode(0);
 }
 

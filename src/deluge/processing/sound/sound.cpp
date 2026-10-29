@@ -2883,7 +2883,7 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 		source.sampleControls.reversed = from.reversed;
 		if (from.dx_patch) {
 			DxPatch* patch = source.ensureDxPatch();
-			std::ranges::copy(from.dx_patch->params, patch->params);
+			std::ranges::copy(from.dx_patch->params, patch->params.begin());
 			// A file names an engine only when it is not "auto" (0), and only then is the engine chosen again: an auto
 			// patch keeps the engine its new patch was given.
 			if (from.dx_patch->engine_mode != 0) {

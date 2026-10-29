@@ -43,7 +43,7 @@ Dx7Rig rig{};
 
 /// @brief Writes @p config's patch into @p p: the init voice with every op sounding, and the case's globals.
 void build_patch(const Dx7Config& config, DxPatch& p) {
-	std::copy(instrument::kDx7InitVoice.begin(), instrument::kDx7InitVoice.end(), p.params);
+	std::ranges::copy(instrument::kDx7InitVoice, p.params.begin());
 	for (std::size_t op = 0; op < 6; ++op) {
 		uint8_t* o = &p.params[op * kOpBytes];
 		o[0] = 99;

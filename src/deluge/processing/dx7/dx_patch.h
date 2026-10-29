@@ -20,6 +20,7 @@
 #include "dsp-next/core/control.h"
 #include "dsp-next/fixed/dx7/lfo.h"
 #include "dsp-next/fixed/dx7/operator.h"
+#include "dsp-next/fixed/dx7/patch.h"
 #include <cstdint>
 
 class DxPatch {
@@ -27,7 +28,7 @@ public:
 	DxPatch();
 
 	/// The patch's bytes: six ops of 21 (op 6 first), the globals, then one op-switch bit per op in byte 155.
-	uint8_t params[156]{}; // NOLINT(*-avoid-c-arrays): the UI, the cartridge unpack and the codec take it as bytes
+	deluge::dsp::fixed::dx7::PatchBytes params{};
 	/// The engine the voices render in, chosen by setEngineMode.
 	deluge::dsp::fixed::dx7::Engine engine = deluge::dsp::fixed::dx7::Engine::MODERN;
 	/// Whether op @p op is switched on (bit @p op of byte 155).

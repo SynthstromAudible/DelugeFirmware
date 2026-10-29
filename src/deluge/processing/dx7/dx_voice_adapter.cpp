@@ -33,12 +33,12 @@ using PoolVoice = fixed::dx7::Voice<fixed::CongNoise>;
 /// @brief The voice's settings: a snapshot of @p patch, its bytes clamped to the engine's ranges, the note and the
 /// engine's tables.
 PoolVoice::Settings settings_of(const DxPatch& patch, int midinote, int velocity) {
-	PoolVoice::Settings s{.midinote = midinote,
+	PoolVoice::Settings s{.patch = patch.params,
+	                      .midinote = midinote,
 	                      .velocity = velocity,
 	                      .random_detune = patch.random_detune,
 	                      .engine = patch.engine,
 	                      .tables = &getDxEngine()->tables};
-	std::ranges::copy(patch.params, s.patch.begin());
 	fixed::dx7::sanitise(s.patch);
 	return s;
 }
