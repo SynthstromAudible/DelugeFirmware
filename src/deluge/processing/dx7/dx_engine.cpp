@@ -18,12 +18,11 @@
 #include "definitions_cxx.hpp"
 #include "stdint.h"
 
-#include "dx7note.h"
-#include "engine.h"
-#include "math_lut.h"
 #include "memory/fast_allocator.h"
 #include "memory/memory_allocator_interface.h"
 #include "memory/object_pool.h"
+#include "processing/dx7/dx_engine.h"
+#include "processing/dx7/dx_patch.h"
 #include <new>
 
 DxEngine* dxEngine = nullptr;

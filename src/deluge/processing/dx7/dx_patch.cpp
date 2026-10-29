@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-#include "dx7note.h"
-#include "engine.h"
+#include "processing/dx7/dx_patch.h"
 #include "engines/deluge/dx7_init_voice.h"
+#include "processing/dx7/dx_engine.h"
 #include <cstddef>
 #include <cstring>
 

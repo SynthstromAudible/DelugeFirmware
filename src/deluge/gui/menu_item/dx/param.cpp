@@ -17,7 +17,6 @@
 
 #include "param.h"
 #include "algorithm_bitmaps.h"
-#include "dsp/dx/dx7note.h"
 #include "gui/menu_item/setting_edit.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
@@ -26,6 +25,7 @@
 #include "hid/display/oled.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
+#include "processing/dx7/dx_patch.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 #include <algorithm>

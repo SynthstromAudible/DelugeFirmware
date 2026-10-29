@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 
-#ifndef SYNTH_DX7NOTE_H_
-#define SYNTH_DX7NOTE_H_
+#pragma once
 
 #include "dsp-next/core/control.h"
 #include "dsp-next/fixed/dx7/lfo.h"
@@ -52,5 +51,3 @@ public:
 	void setEngineMode(int mode);
 	void updateEngineMode();
 };
-
-#endif // SYNTH_DX7NOTE_H_

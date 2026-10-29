@@ -26,7 +26,7 @@ heterogeneous per-source objects on `VoiceUnisonPartSource`:
 std::optional<synth::VirtualAnalogEngine> vaEngine;   // pure DSP (L0) — phase owned here
 std::optional<dsp::WavetableEngine>       wavetableEngine; // pure DSP (L0)
 SampleEngine                              sampleEngine; // app-coupled: model/sample, storage/cache, AudioEngine, playbackHandler, getPriorityRating
-dsp::DX7Engine                            dx7Engine;    // dsp/dx (L0) — pooled DxVoice + injected patch (slice 14)
+dsp::DX7Engine                            dx7Engine;    // processing/dx7 + dsp-next/fixed/dx7 (L0) — pooled dx7::Voice + injected patch (slice 14)
 InputEngine                               inputEngine;  // app-coupled: AudioEngine live-input ring + mic/line + LivePitchShifter
 ```
 
@@ -66,7 +66,7 @@ directly:
 - **live-input port** — the `AudioEngine` input ring + mic/line state + the `LivePitchShifter` lifecycle/alloc.
 
 Pure components (`VirtualAnalogEngine`, `WavetableEngine`) need **no port** (L0 already). `DX7Engine` stays
-`dsp/dx` (its pooled `DxVoice` via `getDxEngine()` is L0-internal — *allowed* below the `synth/` boundary); it
+in `processing/dx7` over `dsp-next/fixed/dx7` (its pooled `dx7::Voice` via `getDxEngine()` is L0-internal — *allowed* below the `synth/` boundary); it
 adopts the base but needs no port.
 
 ## How a source holds its component

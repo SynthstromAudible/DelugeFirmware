@@ -14,11 +14,11 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-#include "dsp/dx/dx_voice_adapter.h"
+#include "processing/dx7/dx_voice_adapter.h"
 #include "board_config.h" // CACHE_LINE_SIZE
 #include "dsp-next/fixed/dx7/algorithms.h"
-#include "dsp/dx/dx7note.h"
-#include "dsp/dx/engine.h"
+#include "processing/dx7/dx_engine.h"
+#include "processing/dx7/dx_patch.h"
 #include <algorithm>
 #include <cmath>
 #include <cstddef>

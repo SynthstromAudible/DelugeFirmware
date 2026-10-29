@@ -18,9 +18,9 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/dx/dx_voice_adapter.h"
 #include "model/sample/sample.h"
 #include "model/voice/sample_playback_adapter.h"
+#include "processing/dx7/dx_voice_adapter.h"
 #include "processing/live/audio_input_adapter.h"
 #include "synth/source/dx7_source.h"
 #include "synth/source/input_source.h"

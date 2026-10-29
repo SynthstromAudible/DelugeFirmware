@@ -22,7 +22,7 @@
 namespace deluge::synth {
 
 /// @brief The port through which a DX7 source drives one pooled DX/MSFA FM voice — the dependency-inversion seam
-/// that lets `DX7Source` live in the library without naming the firmware's `DxVoice`/`DxPatch`/`getDxEngine()`.
+/// that lets `DX7Source` live in the library without naming the firmware's `dx7::Voice`/`DxPatch`/`getDxEngine()`.
 ///
 /// The firmware supplies the adapter (`deluge::dsp::DxVoiceAdapter`, wrapping the MSFA pool + voice); a host/test
 /// could supply a fake. The preset patch is an **opaque handle** (`void*`) the library never dereferences — it

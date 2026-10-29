@@ -17,12 +17,12 @@
 
 #include "dx.h"
 #include "dsp-next/fixed/dx7/algorithms.h"
-#include "dsp/dx/dx7note.h"
 #include "gui/menu_item/dx/param.h"
 #include "gui/menu_item/setting_edit.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/buttons.h"
+#include "processing/dx7/dx_patch.h"
 #include "processing/sound/sound_instrument.h"
 
 using namespace deluge::gui::ui::keyboard::layout;

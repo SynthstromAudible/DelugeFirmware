@@ -21,7 +21,7 @@
 namespace deluge::synth {
 
 SourceRenderResult DX7Source::renderSource(const SourceRenderContext& ctx) {
-	// The port renders the FM block (pooled DxVoice + log-pitch/control derivation); the bespoke per-unison
+	// The port renders the FM block (a pooled dx7::Voice + log-pitch/control derivation); the bespoke per-unison
 	// amplitude+sum below is Voice's buffer layout. An empty span means the voice has ended.
 	std::span<const int32_t> fm =
 	    dx_->render(ctx.numSamples, ctx.phaseIncrement, ctx.ampModParam, ctx.patchChanged, ctx.midinote);

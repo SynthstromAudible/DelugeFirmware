@@ -4,10 +4,10 @@
 
 #include "bench/cases.h"
 
-#include "dsp/dx/dx7note.h"
-#include "dsp/dx/dx_voice_adapter.h"
-#include "dsp/dx/engine.h"
 #include "engines/deluge/dx7_init_voice.h"
+#include "processing/dx7/dx_engine.h"
+#include "processing/dx7/dx_patch.h"
+#include "processing/dx7/dx_voice_adapter.h"
 
 #include <algorithm>
 #include <cstddef>
