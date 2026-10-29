@@ -384,6 +384,12 @@ dx7_case(
 dx7_case(
     "modern_forced_alg6_fb", 1, dx7_patch(ALL_SOUNDING, algorithm=5, feedback=6)
 )  # modern on 6 with feedback
+dx7_case(
+    "mki_alg4_fb", 2, dx7_patch(ALL_SOUNDING, algorithm=3, feedback=7)
+)  # MkI's fused three-op feedback stack
+dx7_case(
+    "mki_alg6_fb", 2, dx7_patch(ALL_SOUNDING, algorithm=5, feedback=6)
+)  # MkI's fused two-op feedback stack
 for wave in range(
     6
 ):  # every LFO wave, with pitch and amplitude modulation and amplitude sensitivity

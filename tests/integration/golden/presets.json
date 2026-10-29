@@ -851,6 +851,18 @@
   "rms_db": -36.27,
   "sha256": "da5e7b602cac11965921f8cbd77164205294be2f4450d971fe9ab0a5c8803b03"
  },
+ "dx7/mki_alg4_fb": {
+  "frames": 88200,
+  "peak": 173355776,
+  "rms_db": -37.71,
+  "sha256": "7d92d94b4aab290cacf6d8b83afe9460b09c72393a2ac36ea365178d8e1b3a4e"
+ },
+ "dx7/mki_alg6_fb": {
+  "frames": 88200,
+  "peak": 173375744,
+  "rms_db": -35.7,
+  "sha256": "20a3d8aa7c956f8b9116c0432a81e4baaff30e4e8bca2cf49b43354ec1f56da9"
+ },
  "dx7/mki_forced_alg1_fb": {
   "frames": 88200,
   "peak": 173346048,

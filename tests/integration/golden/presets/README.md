@@ -59,9 +59,10 @@ earlier, by `RP-LOADED`: the default synth left in its place would play the note
   `make_sample.py`; each case's `<case>.wav` is a symlink to one of them.
 - `dx7/`: DX7 patches built by `make_corpus.py` from the init voice, each reaching a path no community preset does:
   forced MkI on algorithm 1 with feedback (and its auto twin), MkI algorithm 32 with feedback, forced modern on
-  algorithms 4 and 6 with feedback, every LFO waveform with pitch and amplitude modulation, the LFO delay with key
-  sync, amplitude-modulation depths, free-running oscillators and fixed frequency. Mid-note engine and patch changes
-  cannot be played by a preset; `tests/dsp/dx7_reference_spec.cpp` covers them.
+  algorithms 4 and 6 with feedback, forced MkI's fused feedback stacks on algorithms 4 and 6, every LFO waveform with
+  pitch and amplitude modulation, the LFO delay with key sync, amplitude-modulation depths, free-running oscillators and
+  fixed frequency. Mid-note engine and patch changes cannot be played by a preset; `tests/dsp/dx7_reference_spec.cpp`
+  covers them.
 - `wavetable/` and `wavetable_basic`: wavetable oscillators.
 
 A case may carry, beside its preset:
