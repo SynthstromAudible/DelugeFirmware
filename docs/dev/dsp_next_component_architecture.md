@@ -640,6 +640,73 @@ The song reverb is two processor kernels of stereo frames, `fixed::Freeverb` (`f
   from its defaults and switch models and knobs mid-song as the menus do, recorded on the old code. The `reverb` bench
   list times each model as the engine renders it.
 
+### A family of its own: the DX7 (`fixed/dx7/`)
+
+The DX7 engine (the Dexed port: the modern engine and the MkI engine) is its own family, kept apart from the legacy FM
+synth: `dx7::` kernels for its tables' lookups, its envelopes, its LFO and its operators, and two components,
+`dx7::Graph` and `dx7::Voice`, that walk them. The app keeps the patch (`DxPatch`), the pool, the voice adapter, sysex,
+the codec and the UI.
+
+- **Tables lent by pointer.** `dx7::Tables` (`tables.h`: the exp2 and sine tables as delta/value pairs, the frequency
+  table, the MkI log-sine and exp tables) is built once at 44.1 kHz by `generate`, with the same libm calls in the same
+  order the engine always made, and owned by `DxEngine` in its heap block, allocated on first DX use. Every lookup
+  (`lookup.h`) and kernel that reads them takes a `const Tables*` in its Coefficients, as the delay is lent its tape:
+  no table is rodata, because the build's `-funsafe-math-optimizations` and two libms must not move a word, and
+  `generate` is pinned against the verbatim reference word for word.
+- **The buses lent the same way.** The two intermediate buses operators render into are one `dx7::Buses`, owned by
+  `DxEngine` and passed to `Graph::renderBlock` and `Voice::renderBlock` per block: voices render one at a time, and a
+  pair per voice would cost about 1 KB of SRAM each across the pool.
+- **Control kernels, configured from the live patch.** The pitch envelope (`PitchEnvelope`), each op's envelope
+  (`Envelope`, out of line: one `advance` per op per block), the LFO delay (`LfoDelay`) and the patch's LFO (`Lfo`,
+  owned by the patch, key sync its event) are `Control` kernels. The patch is edited live, so the envelopes and the
+  LFO are configured from its bytes before every block and every event; the LFO delay is configured at note-on only,
+  because the voice reads the delay once per note. The envelopes' States carry the engine's own state fields.
+- **The operator: twelve modes, and a vector step of its own.** `Operator` (`operator.h`) is a moded mixer kernel
+  (modulation and accumulator in, one sample out): engine (modern or MkI) × input (none, a bus, the feedback history)
+  × output (set or add). `prepare` ramps the gain over the block and moves the held phase on; `audible` is the
+  engine's gate, `skip` the gated op's bookkeeping, `resume` loads the voice's state. The modern op with no feedback is
+  `ModernVectorOperator` (`modern_vector_operator.h`), a kernel of its own because a kernel has one `step_type`
+  (`Argon<q31>`, four samples a step); both share `OperatorState` (phase and gain), so an op switches between them
+  block by block with nothing to copy.
+- **The MkI stacks.** With feedback, MkI renders op 6's whole stack in algorithms 4 (three ops) and 6 (two) sample by
+  sample, the feedback taken from the stack's bottom: `MkIFeedbackStack<N>`, a generator kernel. An op after op 6
+  holds its new attenuation for the block, or falls from silence when that attenuation is 0, a named quirk.
+- **The graph, a component.** `Graph` (`graph.{h,cpp}`) holds the six `OperatorState`s and the feedback history and
+  walks the `constexpr` algorithm table (`algorithms.h`) once per block, a `Mono` per op: the gate, adding to an empty
+  bus sets it, an empty input is no input, MkI fuses algorithms 4 and 6, and MkI shifts algorithm 32's feedback two
+  steps further, each named where it is applied. It keeps no settings: each block's levels and pitches arrive with the
+  block (`renderBlock(settings, out, buses)`), so a voice holds no more than it did before. Its verbs are documented at
+  the class.
+- **The Argon step, on every target.** The modern operator's sine is the device's polynomial, not the table, and runs
+  as one Argon step on the host, the sim and the device: integer wrapping phase, `phase0 + i·freq` for sample i; a
+  float gain ramp converted with 24 fraction bits, sample 0 at `gain1` (a sample behind the scalar operator's
+  pre-increment) and one float add per step; the position `((phase + modulation) & 0x7fffff) − 0x400000` converted with
+  22 bits, bit 23 the sign; three non-fused multiply-adds in x², each rounding (the A9's NEON has none fused); the
+  product with the gain converted with 24 bits, truncating and saturating, NaN to 0; the sign applied as a bitwise
+  NOT (−y − 1); the accumulator added with wrapping. No denormal arises. `Mono` runs it three vectors at a time
+  (`kInterleave`, see [`Mono<K>`](#monok-coremonoh)), each stage written for the three in turn as the hand kernel
+  did, with the gain ramp's order held by a register barrier; so stepped, it is as fast as the hand kernel it
+  replaces (`a9_dsp_performance.md`, "DX7").
+- **The voice, a component; noise a policy.** `Voice<Noise>` (`voice.h`, its note-on scaling in `voice_scaling.h`)
+  runs the envelopes, base pitches, LFO delay and graph for one note. Its verbs (`start`, `release`, `retune`,
+  `renderBlock`) each take the patch as it stands: a snapshot of its bytes, the note and the velocity, taken by the
+  owner per block, so the voice keeps only what the note carries. `Noise::render()` gives one draw: a note-on draws six
+  detunes in op order, then six phases unless the oscillators are key-synced; a block draws none. The app's voices are
+  `Voice<CongNoise>`, on the synth's shared stream.
+- **Named quirks.** A new patch's LFO phase and a new voice's feedback history start at `State{}` (0), where the
+  engine left them uninitialised; the feedback history carries across a retrigger; a voice lives while an op's gain is
+  at or above the modern engine's threshold, which a MkI attenuation always is; an envelope's retune sets a level-less
+  target that the stage entry overwrites; the LFO's triangle plays the sine.
+- **Evidence.** `tests/dsp/reference_dx7.h` is the engine verbatim, with named edits for its seams, pinned over every
+  workload of `dx7_workloads.h` (`kRecordedReference`: output, state, liveness) on host and ARM; each kernel and
+  component spec equals it (`dx7_tables_spec` to `dx7_voice_spec`), with the modern no-input and bus-input ops taken as
+  the device renders them (`VectorCore`). `reference_neon_fm_kernel.s` is the device's NEON kernel, pinned under qemu
+  over 1,200 cases (`dx7_asm_pin_records.h`); the vector step equals it on x86 and ARM, with and without the device's
+  float flags, and on ARM the graph equals the reference taking the asm on every block and voice. The `dx7/` golden
+  cases reach what no community preset does, each recorded on the engine before it moved; the one re-baseline, when
+  the modern operator took the Argon step everywhere, moved only the cases that render modern. The `dx7` bench list
+  times a voice's block in each engine.
+
 ### The control form
 
 A **control kernel** is a block-rate signal: an envelope or a duck that the
@@ -927,6 +994,19 @@ per-sample loop, so a `Mono` of one would be inert.
   small, scalar State keeps the default. With `kLoopState` too, the loop steps
   the named member in place: the two traits combine, one choosing which part
   the loop steps and the other whether it is copied.
+- **`kInterleave`.** A vector kernel whose step is one long dependency chain
+  declares `static constexpr std::size_t kInterleave = N` and
+  `step_interleaved` (a template on the mode when moded), taking each input as
+  `std::array<step_type, N>` of consecutive vectors and returning N outputs.
+  `Mono` runs every whole group of N vectors through it, then the rest of the
+  block, the partial vector included, through `step`. It must compute exactly
+  what N `step`s in a row compute, state included; it exists to write the N
+  chains' instructions interleaved, stage by stage, which the A9 needs to
+  overlap them and which an unrolled loop of `step` does not give. Hold the
+  order of any float accumulation across the N with a register barrier: under
+  `-funsafe-math-optimizations` the compiler otherwise reassociates sums it can
+  now see together. `dx7::ModernVectorOperator` declares N = 3
+  ([a9_dsp_performance.md](a9_dsp_performance.md#dx7)).
 - `render(...)` is a one-sample block: one `prepare` and one dispatch per call.
   A vector kernel renders it as the partial step of a block of one. It builds
   one-sample spans and runs a whole block's glue, several out-of-line
@@ -1271,8 +1351,9 @@ state fully into the engine is later work.
   arithmetic (`multiply_accumulate`, rounded) differs. Unifying the two is an
   audible, re-baselined step.
 - Mixing into the voice's buffer (unison and oscillator summing) is a mixer.
-- Filters, dynamics, delay and effects are kernels wrapped by `Mono`, `Stereo`
-  or `Control`, under the settings convention and the slotting-ready rules.
+- Filters, dynamics, delay, effects and the DX7 are kernels wrapped by `Mono`,
+  `Stereo` or `Control`, under the settings convention and the slotting-ready
+  rules; the DX7's `Graph` and `Voice` are components over them.
 
 ## Effect chains (`engines/effects/`)
 
@@ -1588,6 +1669,9 @@ it drops some:
   `effects::Reverb`, at the boot song's knobs, centred and unducked, rebuilt at
   each setup as a song load does; it ends with the same two feedback chain
   controls.
+- `dx7`: a DX7 voice's block through the voice adapter, in the modern engine
+  (algorithms 1 and 32) and the MkI engine (algorithm 1 with feedback, and
+  algorithm 4's fused stack); it ends with the same two feedback chain controls.
 
 Every other case builds with the app's flags. A bench image builds only its own
 list's cases, since the image fills on-chip SRAM up to 0x202E0000 (past it the
