@@ -682,8 +682,7 @@ void noticeCardMount();
 ///         (Status::NOT_FOUND). Otherwise an error if existence could not be determined, e.g.
 ///         Status::BUSY (the filesystem refused to answer) or Status::NO_FILESYSTEM
 ///         (card unusable).
-/// @warning Callers must never treat an error as absence — see
-///          docs/superpowers/specs/2026-08-08-existence-check-conflation-design.md.
+/// @warning Callers must never treat an error as absence.
 std::expected<bool, deluge::io::Status> fileExists(char const* pathName);
 /// takes a full path/to/file.text and makes sure the directories exist
 bool buildPathToFile(const char* fileName);

@@ -9,8 +9,6 @@
 # a prebuilt NEON hard-float multilib (thumb/v7-a+simd/hard) matching this
 # firmware's flags exactly, so clang-built objects link against the very same
 # libraries GCC-built ones do.
-#
-# See dbt-toolchain docs/superpowers/specs/2026-08-11-bare-metal-llvm-clang-design.md
 
 set(CMAKE_SYSTEM_NAME               Generic)
 set(CMAKE_SYSTEM_PROCESSOR          arm)

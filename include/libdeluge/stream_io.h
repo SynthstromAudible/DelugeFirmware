@@ -20,8 +20,7 @@
 ///
 /// Scoped specifically to `Sample` cluster streaming (`SampleStream`'s read
 /// source for playback, `SampleRecorder` for the write side) -- not a general
-/// file API. `WaveTable`/presets/songs stay on `file_io.h`. See
-/// docs/superpowers/specs/2026-07-15-deluge-stream-boundary-design.md.
+/// file API. `WaveTable`/presets/songs stay on `file_io.h`.
 ///
 /// The whole boundary is the `deluge_efatfs_stream_*` C-ABI below, backing
 /// `deluge::io::Stream` (stream.hpp/.cpp): a persistent write handle held

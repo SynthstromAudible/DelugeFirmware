@@ -150,8 +150,8 @@ The 412 menu objects themselves are already `PLACE_SDRAM_BSS`.
 
 The cost is the shape, not the logic: one class per menu item, many tiny overrides, and a 250-byte vtable for each
 class. ICF and cold `-Oz` reduce the code but not the vtables. With all five levers applied, the menu system is still
-about 214 KB. The immediate-mode design (`docs/superpowers/specs/2026-07-02-immediate-mode-ui-design.md` on branch
-`feat/immediate-mode`, OLED scope) replaces it with plain build functions over a small widget engine. Phase 3 of that
+about 214 KB. The immediate-mode design (branch `feat/immediate-mode`,
+OLED scope) replaces it with plain build functions over a small widget engine. Phase 3 of that
 plan deletes `menus.cpp`, the ~285 menu classes and `SoundEditor`. At roughly 60 B of build code per item plus an
 engine of 10–15 KB, the replacement would be 30–50 KB, saving about 160–180 KB on top of the levers (*estimate*).
 
