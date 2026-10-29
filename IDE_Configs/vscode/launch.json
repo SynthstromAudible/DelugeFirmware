@@ -4,7 +4,7 @@
     {
       // Rust/Embassy BSP firmware: the C++ Deluge app running on the Rust
       // HAL/BSP (src/bsp/rust). It is RAM-linked at 0x20020000 and owns its own
-      // startup (deluge-sdk's rza1l-hal), so it needs the SDK's J-Link recipe —
+      // startup (deluge-sdk's rza1-rt), so it needs the SDK's J-Link recipe —
       // JLinkScript + cp15 (MMU/cache off via SCTLR=0x00C50078, VBAR=0x20000000)
       // + SVC/IRQ-FIQ-masked CPSR=0x1DF — NOT the C++ image's plain reset/load.
       // Build is the preLaunchTask ("Build RelWithDebInfo": `dbt build relwithdebinfo`, which builds
