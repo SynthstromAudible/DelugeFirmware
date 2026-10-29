@@ -97,7 +97,6 @@ target_include_directories(deluge_app PUBLIC
 )
 
 target_link_libraries(deluge_app PUBLIC
-    NE10
     eyalroz_printf
     deluge_dsp
     deluge_dsp_next # the clean L0 library primitives migrate into (synth untangling Phase 1)

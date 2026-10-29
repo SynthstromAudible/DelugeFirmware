@@ -706,11 +706,6 @@ extern "C" void setNumeric(char* text) {
 extern "C" void setNumericNumber(int32_t number) {
 }
 
-extern "C" void routineWithClusterLoading() {
-	// Sean: don't use YieldToAudio here to be safe
-	AudioEngine::routineWithClusterLoading();
-}
-
 void deleteOldSongBeforeLoadingNew() {
 
 	currentSong->stopAllAuditioning();
