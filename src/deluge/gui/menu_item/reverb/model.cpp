@@ -20,16 +20,15 @@
 
 namespace deluge::gui::menu_item::reverb {
 
-// project.* (here the controller-held Song::model) is authoritative; AudioEngine::reverb is the
-// projected DSP cache kept in sync. Out-of-line because reading currentSong needs song.h, which
-// includes this header.
+// project.* (here the controller-held Song::model) is authoritative; the menu rebuilds the reverb at it. Out-of-line
+// because reading currentSong needs song.h, which includes this header.
 void Model::readCurrentValue() {
 	this->setValue(util::to_underlying(currentSong->model));
 }
 
 void Model::writeCurrentValue() {
-	currentSong->model = static_cast<dsp::Reverb::Model>(this->getValue());
-	AudioEngine::reverb.setModel(currentSong->model);
+	currentSong->model = static_cast<deluge::effects::ReverbModel>(this->getValue());
+	AudioEngine::setReverbModel(currentSong->model);
 }
 
 } // namespace deluge::gui::menu_item::reverb

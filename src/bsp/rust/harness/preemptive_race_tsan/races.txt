@@ -31,7 +31,6 @@ open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::routine\(\)$	a
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::terminateOneVoice\(unsigned long\)$	audio×interaction	state: global '__frunk_bss_end' — AudioEngine::sounds / Sound::voices_ walked by audio while mutated; SEGV in 2/10 triage runs — C2
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::updateReverbParams\(\)$	audio×interaction	state: global 'AudioEngine::reverbSidechainVolume'
 open	src/deluge/processing/engines/audio_engine.cpp	^deluge_app_render$	audio×interaction	state: global 'AudioEngine::audioSampleTimer'
-open	src/deluge/dsp/reverb/freeverb/comb.hpp	^freeverb::Comb::process\(int\)$	audio×interaction	state: global 'AudioEngine::reverb'
 open	src/deluge/gui/waveform/waveform_renderer.cpp	^WaveformRenderer::advanceOverviewScan\(Sample\*, int\)$	audio×interaction	state: global 'AudioEngine::audioRoutineLocked'
 open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::setupPlayback\(int, int, bool, bool, int\)$	audio×interaction	state: global 'playbackHandler'
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::getNewRecorder\(int, AudioRecordingFolder, AudioInputChannel, bool, bool, int, bool, Output\*, RecorderConfig\)$	audio×interaction	state: global 'AudioEngine::firstRecorder'
@@ -40,7 +39,6 @@ open	src/deluge/gui/ui/ui.cpp	^setRootUILowLevel\(UI\*\)$	audio×interaction	sta
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderReverb\(unsigned long\)$	audio×interaction	state: global 'AudioEngine::mustUpdateReverbParamsBeforeNextRender'
 open	src/deluge/processing/engines/audio_engine.cpp	^_ZZN11AudioEngine12getNumVoicesEvENK3\$_0clIP5SoundEEDaT_$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' — AudioEngine::sounds / Sound::voices_ walked by audio while mutated; SEGV in 2/10 triage runs — C2
 open	src/deluge/deluge.cpp	^deleteOldSongBeforeLoadingNew\(\)$	audio×interaction	state: global 'currentSong'
-open	src/deluge/dsp/reverb/freeverb/freeverb.hpp	^deluge::dsp::reverb::Freeverb::ProcessOne\(int, (deluge::dsp::)?StereoSample&\)$	audio×interaction	state: global 'AudioEngine::reverb'
 open	src/deluge/gui/ui/audio_recorder.cpp	^AudioRecorder::beginOutputRecording\(AudioRecordingFolder, AudioInputChannel, bool, bool\)$	audio×interaction	state: global 'AudioEngine::bypassCulling'
 open	src/deluge/gui/ui/ui.cpp	^nullifyUIs\(\)$	audio×interaction	state: global 'numUIsOpen'
 open	src/deluge/io/debug/resource_clock.cpp	^deluge_debug_now_frames$	audio×storage	state: global 'AudioEngine::audioSampleTimer'
@@ -114,8 +112,9 @@ open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderAppBlock
 #     getNumSamplesLeftToOutputFromPreviousRender, UITimerManager::workOutNextEventTime, deluge_debug_now_frames, PadLEDs::reassessGreyout,
 #     Sound::renderingVoicesInStereo, ModControllableAudio::processFX, inputRoutine, AudioRecorder::beginOutputRecording, PlaybackHandler::doSongSwap,
 #     WaveformRenderer::advanceOverviewScan
-#   Reverb (AudioEngine::reverb, reverbSidechainVolume, mustUpdateReverbParamsBeforeNextRender):
-#     updateReverbParams, getReverbParamsFromSong, renderReverb, freeverb Comb::process, Freeverb::ProcessOne
+#   Reverb (reverbSidechainVolume, mustUpdateReverbParamsBeforeNextRender): updateReverbParams, getReverbParamsFromSong, renderReverb
+#     (AudioEngine::reverb's knobs and model reach the render through effects::Reverb::publish and
+#     begin_change/commit, inside AudioExcludedSections.)
 #   The current song (currentSong, loadSongUI): renderAudio, deleteOldSongBeforeLoadingNew, LoadSongUI::isLoadingSong; playbackHandler: setupPlayback, setupPlaybackUsingInternalClock;
 #     Output::setActiveClip
 #   The UI navigation stack (uiNavigationHierarchy, numUIsOpen): getCurrentUI, uiStackEmpty, openUI, setRootUILowLevel, nullifyUIs,

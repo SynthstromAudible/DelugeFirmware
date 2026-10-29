@@ -23,8 +23,8 @@
 #include "definitions_cxx.hpp"
 #include "deluge_resource.h"                      // deluge_resource_stats (loader instrumentation)
 #include "dsp-next/fixed/dynamics/hit_strength.h" // combine_hit_strengths
-#include "dsp/reverb/reverb.hpp"
 #include "dsp/timestretch/time_stretcher.h"
+#include "engines/effects/reverb.h"
 #include "engines/effects/sidechain.h"
 #include "extern.h"
 #include "gui/context_menu/sample_browser/kit.h"
@@ -393,7 +393,7 @@ constexpr int32_t direnessThreshold = numSamplesLimit - 30;
 // to the limit
 constexpr int MIN_VOICES = 7;
 
-dsp::Reverb reverb{};
+deluge::effects::Reverb reverb{};
 PLACE_INTERNAL_FRUNK deluge::effects::Sidechain reverbSidechain{};
 deluge::effects::SidechainState reverbSidechainSettings = deluge::modulation::default_sidechain_state();
 int32_t reverbSidechainVolume;
@@ -1561,8 +1561,7 @@ void renderReverb(size_t numSamples) {
 		}
 
 		// Mix reverb into main render
-		reverb.setPanLevels(reverbAmplitudeL, reverbAmplitudeR);
-		reverb.process(reverbBuffer, renderingBuffer);
+		reverb.render(renderingBuffer, reverbBuffer, reverbAmplitudeL, reverbAmplitudeR);
 		logAction("Reverb complete");
 	}
 }
@@ -2130,13 +2129,28 @@ void stopAnyPreviewing() {
 	}
 }
 
+void setReverbModel(deluge::effects::ReverbModel model) {
+	{
+		AudioExcludedSection section; // the render stops reading the buffer before it is zeroed
+		reverb.begin_change();
+	}
+	reverb.prepare(model);
+	AudioExcludedSection section; // the render takes up the rebuilt model at its next block
+	reverb.commit();
+}
+
+void publishReverbSettings(const deluge::project::ReverbSettings& knobs) {
+	AudioExcludedSection section; // the render reads the settings at its next block
+	reverb.publish({.room_size = knobs.room_size,
+	                .damping = knobs.damping,
+	                .width = knobs.width,
+	                .hpf = knobs.hpf,
+	                .lpf = knobs.lpf});
+}
+
 void getReverbParamsFromSong(Song* song) {
-	reverb.setModel(song->model);
-	reverb.setRoomSize(song->project.reverb.room_size);
-	reverb.setHPF(song->project.reverb.hpf);
-	reverb.setLPF(song->project.reverb.lpf);
-	reverb.setDamping(song->project.reverb.damping);
-	reverb.setWidth(song->project.reverb.width);
+	setReverbModel(song->model);
+	publishReverbSettings(song->project.reverb);
 	reverbPan = song->project.reverb.pan;
 	reverbSidechainVolume = song->project.reverb.sidechain_volume;
 	reverbSidechainShape = song->project.reverb.sidechain_shape;

@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/song.h"
 #include "engines/effects/master_chain.h"
+#include "engines/effects/words.h"
 #include "gui/menu_item/reverb/model.h"
 #include "gui/ui/browser/file_listing.h"
 #include "io/midi/learned_midi.h"
@@ -466,7 +467,7 @@ public:
 	TimelineCounter* getTimelineCounterToRecordTo() override;
 
 	// Reverb params to be stored here between loading and song being made the active one
-	dsp::Reverb::Model model;
+	deluge::effects::ReverbModel model;
 
 	// START ~ new Automation Arranger View Variables
 	int32_t lastSelectedParamID; // last selected Parameter to be edited in Automation Arranger View

@@ -1568,12 +1568,13 @@ enum class ReverbKind : uint8_t {
 	DIGITAL,  ///< The Digital (Dattorro) plate
 };
 
-/// @brief The song's reverb block as the engine renders it (renderReverb): the model at the boot song's knobs,
-/// centred and unducked (both return levels 2^29), over the lanes output in place, fed from its own send block.
-/// @details Setup builds the model afresh, as a song load does (zeroed memory), sets the boot song's knobs, copies the
-/// lanes input's first n frames (fill_compressor_input()) into the lanes output and fills the send with a tone. Each
-/// block renders over the block before's output; Freeverb's DC blocker rewrites the send in place each block. The
-/// timing does not depend on the data.
+/// @brief The song's reverb block as the engine renders it (renderReverb, through effects::Reverb): the model at the
+/// boot song's knobs, centred and unducked (both return levels 2^29), over the lanes output in place, fed from its own
+/// send block.
+/// @details Setup rebuilds the component at the model, as a song load does (zeroed memory), publishes the boot song's
+/// knobs, copies the lanes input's first n frames (fill_compressor_input()) into the lanes output and fills the send
+/// with a tone. Each block renders over the block before's output, from the same send, which the reverb reads and
+/// leaves as it is. The timing does not depend on the data.
 class ReverbCase {
 public:
 	static constexpr std::size_t kLanes = 2; ///< Left and right.

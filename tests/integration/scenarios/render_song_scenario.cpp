@@ -18,7 +18,7 @@
 #include "scenarios/render_song_scenario.h"
 
 #include "definitions_cxx.hpp"
-#include "dsp/reverb/reverb.hpp"
+#include "engines/effects/reverb.h"
 #include "engines/effects/words.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_song_ui.h"
@@ -374,7 +374,8 @@ void switchModFx(uint64_t block, const ModFxSwitch& switched) {
 /// RENDER_REVERB_SWITCH: `<block>:<setting>=<value>,...`, ascending; empty by default. At each block, counted from
 /// playback's start, the song's reverb setting is changed as its menu changes it: `model` (0 Freeverb, 1 Mutable,
 /// 2 Digital) as the reverb model menu does, which rebuilds the reverb at that model; `room`, `damping`, `width`,
-/// `hpf` or `lpf` (a fraction, 0 to 1) as that knob's menu does, which writes the song's value and the engine's.
+/// `hpf` or `lpf` (a fraction, 0 to 1) as that knob's menu does, which writes the song's value and publishes the song's
+/// knobs, which the render takes up at its next block.
 struct ReverbSwitch {
 	uint64_t block;
 	std::string setting;
@@ -413,28 +414,28 @@ void switchReverb(uint64_t block, const ReverbSwitch& switched) {
 	const std::string& s = switched.setting;
 	if (s == "model") {
 		// gui/menu_item/reverb/model.cpp: Model::writeCurrentValue
-		currentSong->model = static_cast<deluge::dsp::Reverb::Model>(static_cast<int32_t>(switched.value));
-		AudioEngine::reverb.setModel(currentSong->model);
+		currentSong->model = static_cast<deluge::effects::ReverbModel>(static_cast<int32_t>(switched.value));
+		AudioEngine::setReverbModel(currentSong->model);
 	}
 	else if (s == "room") {
 		knobs.room_size = switched.value;
-		AudioEngine::reverb.setRoomSize(switched.value);
+		AudioEngine::publishReverbSettings(knobs);
 	}
 	else if (s == "damping") {
 		knobs.damping = switched.value;
-		AudioEngine::reverb.setDamping(switched.value);
+		AudioEngine::publishReverbSettings(knobs);
 	}
 	else if (s == "width") {
 		knobs.width = switched.value;
-		AudioEngine::reverb.setWidth(switched.value);
+		AudioEngine::publishReverbSettings(knobs);
 	}
 	else if (s == "hpf") {
 		knobs.hpf = switched.value;
-		AudioEngine::reverb.setHPF(switched.value);
+		AudioEngine::publishReverbSettings(knobs);
 	}
 	else if (s == "lpf") {
 		knobs.lpf = switched.value;
-		AudioEngine::reverb.setLPF(switched.value);
+		AudioEngine::publishReverbSettings(knobs);
 	}
 	else {
 		return;

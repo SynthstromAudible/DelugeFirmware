@@ -76,13 +76,13 @@ struct Freeverb {
 		constexpr uint32_t kAllpassLengths[kAllpasses]{556, 441, 341, 225};                      // NOLINT
 		Layout l{};
 		uint32_t base = 0;
-		for (std::size_t ch = 0; ch < 2; ++ch) {
+		for (uint32_t ch = 0; ch < 2; ++ch) {
 			for (std::size_t i = 0; i < kCombs; ++i) {
 				l.comb[ch][i] = {base, kCombLengths[i] + (ch * kStereoSpread)};
 				base += l.comb[ch][i].length;
 			}
 		}
-		for (std::size_t ch = 0; ch < 2; ++ch) {
+		for (uint32_t ch = 0; ch < 2; ++ch) {
 			for (std::size_t i = 0; i < kAllpasses; ++i) {
 				l.allpass[ch][i] = {base, kAllpassLengths[i] + (ch * kStereoSpread)};
 				base += l.allpass[ch][i].length;
