@@ -2432,6 +2432,18 @@ tier = "pr"
 runtime = "~1s"
 
 [[harness]]
+name = "device-check-parser"
+path = "tools"
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "device_check's reading of a rig capture: a rig-harness image passes only with its ready line and a heartbeat after the app's first frame, and harness lines are never read as log lines (a frame's hex is no error)"
+run = ["python3", "-m", "unittest", "test_device_check"]
+tier = "pr"
+runtime = "~1s"
+
+[[harness]]
 name = "bench-tooling"
 path = "tools"
 level = "unit"

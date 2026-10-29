@@ -3,10 +3,11 @@
 
 Usage:
     tools/bench_image.py --out .superpowers/stream-bench-x.elf [--sdk PATH] [--no-bench]
-                         [--define NAME=VALUE ...]
+                         [--define NAME=VALUE ...] [--features FEATURE ...]
 
 Builds `./dbt build RelWithDebInfo` with `-DDELUGE_STREAM_BENCH=ON` (or OFF with --no-bench) and any
---define, then copies build/RelWithDebInfo/deluge.elf to --out. With --sdk, the build's SDK path
+--define and with each --features cargo feature on the device BSP, then copies build/RelWithDebInfo/deluge.elf
+to --out. With --sdk, the build's SDK path
 override (src/bsp/rust/local-sdk.toml, gitignored) is pointed at PATH for this build only, e.g. a
 worktree of an SDK branch not yet pushed.
 
@@ -64,6 +65,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--sdk", type=Path, help="a deluge-sdk checkout to build against")
     ap.add_argument("--no-bench", action="store_true", help="configure the bench off")
     ap.add_argument("--define", action="append", default=[], metavar="NAME=VALUE")
+    ap.add_argument(
+        "--features",
+        action="append",
+        default=[],
+        metavar="FEATURE",
+        help="a device-BSP cargo feature to build with (e.g. rig-harness)",
+    )
     args = ap.parse_args(argv)
     if args.sdk and not LOCAL_SDK.exists():
         print(
@@ -86,7 +94,11 @@ def main(argv: list[str] | None = None) -> int:
                 configured.stdout[-2000:] + configured.stderr[-2000:], file=sys.stderr
             )
             return 1
-        built = dbt("build", "RelWithDebInfo")
+        built = dbt(
+            "build",
+            "RelWithDebInfo",
+            *(a for f in args.features for a in ("--features", f)),
+        )
         if built.returncode != 0:
             lines = (built.stdout + built.stderr).splitlines()
             errors = [l for l in lines if ERROR_RE.search(l)] or lines[-30:]

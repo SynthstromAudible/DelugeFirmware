@@ -3,7 +3,7 @@
 
 Usage:
     tools/device_check.py [ELF] [--host HOST] [--window 45] [--out DIR] [--no-park]
-                          [--min-sdram-free BYTES] [--min-stack-headroom BYTES]
+                          [--min-sdram-free BYTES] [--min-stack-headroom BYTES] [--expect-harness]
 
 ELF defaults to build/RelWithDebInfo/deluge.elf. The rig (`--host`, `$DELUGE_PROBE_HOST` by default) is
 restarted first (tools/rig.py), the image is loaded into RAM through tools/deluge_jlink.py (QSPI is never
@@ -25,6 +25,9 @@ The report, printed as JSON and written to DIR/device-check.json with the raw ca
                             heap is opportunistic (alloc_fast falls back to SDRAM), so it normally fills at
                             boot: its size (`sram`) is the number to watch, not its free bytes
     stack_guard_max_used    the deepest program stack the existing guard saw (stack_guard.cpp)
+    harness                 a rig-harness image's first `@R` and last `@T` (microseconds since boot); with
+                            --expect-harness, `harness_ready` and `harness_streaming` (a heartbeat after the
+                            first frame) are checks
     checks / passed         each check and the verdict
     parked                  whether the park image reported the panel dark (null with --no-park)
 
@@ -90,10 +93,20 @@ def analyse(rtt: list[str]) -> dict:
         "settings": {"flash": None, "card": [], "sd": []},
         "memory": None,
         "stack_guard_max_used": None,
+        "harness": {"ready_us": None, "last_heartbeat_us": None},
     }
     mems = []
     unpack_failed = False
     for line in rtt:
+        # A rig-harness line (tools/rig_session.py): panel state, never a log line.
+        if line.startswith("@"):
+            fields = line.split()
+            harness = report["harness"]
+            if fields[0] == "@R" and harness["ready_us"] is None and len(fields) > 2:
+                harness["ready_us"] = int(fields[2])
+            elif fields[0] == "@T" and len(fields) > 2:
+                harness["last_heartbeat_us"] = int(fields[2])
+            continue
         boot = report["boot"]
         for key, text in (
             ("main_loop_s", "going into main loop"),
@@ -141,7 +154,12 @@ def analyse(rtt: list[str]) -> dict:
     return report
 
 
-def verdict(report: dict, min_sdram_free: int, min_stack_headroom: int) -> dict:
+def verdict(
+    report: dict,
+    min_sdram_free: int,
+    min_stack_headroom: int,
+    expect_harness: bool = False,
+) -> dict:
     boot, mem = report["boot"], report["memory"]
     checks = {
         "reached_main_loop": boot["main_loop_s"] is not None,
@@ -150,6 +168,15 @@ def verdict(report: dict, min_sdram_free: int, min_stack_headroom: int) -> dict:
         "no_errors": not report["errors"],
         "memory_reported": mem is not None,
     }
+    if expect_harness:
+        harness = report["harness"]
+        checks["harness_ready"] = harness["ready_us"] is not None
+        # The stream still runs once the app draws: a heartbeat after the first frame.
+        checks["harness_streaming"] = (
+            boot["first_frame_s"] is not None
+            and harness["last_heartbeat_us"] is not None
+            and harness["last_heartbeat_us"] >= boot["first_frame_s"] * 1e6
+        )
     if mem is not None:
         checks["sdram_free_floor"] = mem["sdram_min_seen"] >= min_sdram_free
         checks["stack_headroom"] = (
@@ -177,6 +204,11 @@ def main(argv: list[str] | None = None) -> int:
         "--no-park",
         action="store_true",
         help="leave the image running and the server up",
+    )
+    ap.add_argument(
+        "--expect-harness",
+        action="store_true",
+        help="the image is a rig-harness build: require its ready line and its stream after the first frame",
     )
     ap.add_argument("--park-elf", type=Path, default=rig.DEFAULT_PARK)
     ap.add_argument(
@@ -239,7 +271,9 @@ def main(argv: list[str] | None = None) -> int:
         "probe_error": run.get("error"),
     }
     report.update(analyse(rtt))
-    report["checks"] = verdict(report, args.min_sdram_free, args.min_stack_headroom)
+    report["checks"] = verdict(
+        report, args.min_sdram_free, args.min_stack_headroom, args.expect_harness
+    )
     report["passed"] = run.get("exit") in ("completed", "pattern") and all(
         report["checks"].values()
     )
