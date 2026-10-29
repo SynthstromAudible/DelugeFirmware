@@ -53,48 +53,48 @@ std::vector<Run> runs() {
 
 } // namespace
 
-describe dx7_pitch_envelope_spec(
-    "dx7::PitchEnvelope", $ {
-	    dx7_reference::PitchEnv::init(44100);
+// clang-format off
+describe dx7_pitch_envelope_spec("dx7::PitchEnvelope", ${
+	dx7_reference::PitchEnv::init(44100);
 
-	    it(
-	        "has the reference's unit at 44.1 kHz",
-	        _ { expect(dx7::PitchEnvelope::kUnit).to_equal(static_cast<int32_t>(dx7_reference::PitchEnv::unit_)); });
+	it("has the reference's unit at 44.1 kHz", _ {
+		expect(dx7::PitchEnvelope::kUnit).to_equal(static_cast<int32_t>(dx7_reference::PitchEnv::unit_));
+	});
 
-	    it(
-	        "advances, releases and follows an edit as the reference over every block length", _ {
-		        for (const Run& run : runs()) {
-			        dx7_reference::EnvParams p = run.start;
-			        dx7_reference::PitchEnv reference{};
-			        Control<dx7::PitchEnvelope> envelope;
+	it("advances, releases and follows an edit as the reference over every block length", _ {
+		for (const Run& run : runs()) {
+			dx7_reference::EnvParams p = run.start;
+			dx7_reference::PitchEnv reference{};
+			Control<dx7::PitchEnvelope> envelope;
 
-			        reference.set(p);
-			        envelope.configure({params_of(p)});
-			        envelope.on<&dx7::PitchEnvelope::start>();
+			reference.set(p);
+			envelope.configure({params_of(p)});
+			envelope.on<&dx7::PitchEnvelope::start>();
 
-			        std::size_t block = 0;
-			        for (const uint16_t n : dx7_workloads::block_lengths_1_to_132()) {
-				        if (block == kReleaseBlock) {
-					        reference.keydown(p, false);
-					        envelope.configure({params_of(p)});
-					        envelope.on<&dx7::PitchEnvelope::release>();
-				        }
-				        if (block == kEditBlock) {
-					        p = run.edited;
-				        }
-				        envelope.configure({params_of(p)});
-				        expect(envelope.advance(n)).to_equal(reference.getsample(p, n));
-				        const dx7::PitchEnvelope::State& s = envelope.state();
-				        expect(s.level).to_equal(reference.level_);
-				        expect(s.target).to_equal(static_cast<int32_t>(reference.targetlevel_));
-				        expect(s.stage).to_equal(static_cast<int32_t>(reference.ix_));
-				        expect(s.increment).to_equal(static_cast<int32_t>(reference.inc_));
-				        expect(s.rising).to_equal(reference.rising_);
-				        expect(s.down).to_equal(reference.down_);
-				        ++block;
-			        }
-		        }
-	        });
-    });
+			std::size_t block = 0;
+			for (const uint16_t n : dx7_workloads::block_lengths_1_to_132()) {
+				if (block == kReleaseBlock) {
+					reference.keydown(p, false);
+					envelope.configure({params_of(p)});
+					envelope.on<&dx7::PitchEnvelope::release>();
+				}
+				if (block == kEditBlock) {
+					p = run.edited;
+				}
+				envelope.configure({params_of(p)});
+				expect(envelope.advance(n)).to_equal(reference.getsample(p, n));
+				const dx7::PitchEnvelope::State& s = envelope.state();
+				expect(s.level).to_equal(reference.level_);
+				expect(s.target).to_equal(static_cast<int32_t>(reference.targetlevel_));
+				expect(s.stage).to_equal(static_cast<int32_t>(reference.ix_));
+				expect(s.increment).to_equal(static_cast<int32_t>(reference.inc_));
+				expect(s.rising).to_equal(reference.rising_);
+				expect(s.down).to_equal(reference.down_);
+				++block;
+			}
+		}
+	});
+});
+// clang-format on
 
 CPPSPEC_MAIN(dx7_pitch_envelope_spec);
