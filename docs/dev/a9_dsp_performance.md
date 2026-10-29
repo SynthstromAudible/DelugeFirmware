@@ -656,33 +656,45 @@ image d068b23c3. Cycles per channel-sample, the minimum of four runs of each ima
 
 The `dx7` list (`DELUGE_DSP_BENCH_CASES=dx7`) times one voice's block through the voice adapter, as a sound renders it:
 the patch's LFO, then pitch, control and the six operators. Before: the engine at 63a6eefda, whose modern operator ran
-the hand NEON kernel (`neon_fm_kernel.s`) and whose MkI loops were the engine's own. After: ae298a19d, where every
+the hand NEON kernel (`neon_fm_kernel.s`) and whose MkI loops were the engine's own. After: 97bc73c0f, where every
 operator is a dsp-next kernel and the modern one is the Argon step (`dx7::ModernVectorOperator`), bit-exact with that
-kernel. Cycles per sample, one run of each image.
+kernel, run three interleaved vectors at a time. Cycles per sample, one run of each image.
 
 | case | n=32 before → after (delta) | n=64 before → after (delta) | n=128 before → after (delta) |
 |---|---:|---:|---:|
-| `control calibration_loop` | 32.11 → 32.10 (-0.0%) | 32.04 → 32.04 (+0.0%) | 32.02 → 32.02 (+0.0%) |
-| `control delay_feedback_chain_analog` | 171.46 → 171.49 (+0.0%) | 165.71 → 165.73 (+0.0%) | 162.86 → 162.87 (+0.0%) |
-| `control delay_feedback_chain_digital` | 19.87 → 20.13 (+1.3%) | 14.17 → 14.32 (+1.1%) | 11.34 → 11.39 (+0.4%) |
-| `dx7_modern_alg1` | 153.38 → 171.25 (+11.7%) | 113.71 → 139.25 (+22.5%) | 95.74 → 122.77 (+28.2%) |
-| `dx7_modern_alg32` | 162.33 → 181.94 (+12.1%) | 109.70 → 138.26 (+26.0%) | 85.61 → 117.29 (+37.0%) |
-| `dx7_mki_alg1_fb` | 244.18 → 252.71 (+3.5%) | 208.41 → 209.09 (+0.3%) | 189.44 → 186.32 (-1.6%) |
-| `dx7_mki_alg4_fb3` | 235.89 → 257.13 (+9.0%) | 204.96 → 219.71 (+7.2%) | 186.61 → 198.32 (+6.3%) |
+| `control calibration_loop` | 32.11 → 32.11 (+0.0%) | 32.04 → 32.04 (+0.0%) | 32.02 → 32.02 (+0.0%) |
+| `control delay_feedback_chain_analog` | 171.46 → 171.64 (+0.1%) | 165.71 → 165.81 (+0.1%) | 162.86 → 162.90 (+0.0%) |
+| `control delay_feedback_chain_digital` | 19.87 → 20.08 (+1.1%) | 14.17 → 14.22 (+0.4%) | 11.34 → 11.39 (+0.4%) |
+| `dx7_modern_alg1` | 153.38 → 171.39 (+11.7%) | 113.71 → 134.14 (+18.0%) | 95.74 → 117.27 (+22.5%) |
+| `dx7_modern_alg32` | 162.33 → 161.94 (-0.2%) | 109.70 → 108.74 (-0.9%) | 85.61 → 84.97 (-0.7%) |
+| `dx7_mki_alg1_fb` | 244.18 → 252.71 (+3.5%) | 208.41 → 209.57 (+0.6%) | 189.44 → 186.44 (-1.6%) |
+| `dx7_mki_alg4_fb3` | 235.89 → 251.26 (+6.5%) | 204.96 → 213.95 (+4.4%) | 186.61 → 192.27 (+3.0%) |
 
-- **The modern operator costs 5 cycles per op-sample more than the hand kernel at n=128** (alg 32: six ops, +31.7 cycles
-  per sample). NEON instructions per sample hold at about 29-33; what grows is issue-empty cycles, from 34 to 57 per
-  sample in alg 1. The hand kernel computes twelve samples per iteration as three independent four-lane chains,
-  interleaved instruction by instruction, so one chain's float latency is covered by the other two; the Argon step
-  computes one four-lane chain per step (the position, its square, three Horner steps, the gain, the convert), and each
-  step waits on the last. The step's arithmetic is the kernel's: `vmul.f32` + `vadd.f32` for the Horner chain (the A9's
-  NEON has no fused multiply-add, and the image has no `vfma`), `vcvt.f32.s32 #22` and `#24`, `vcvt.s32.f32 #24`.
-- **MkI moves by -2% to +9%.** Its operators are scalar kernels inlined into the graph (`dx7::Graph::renderBlock`, ARM,
-  no call inside a sample loop); the fused stack of algorithm 4 is the +6-9%.
-- **The per-block costs** are one `__aeabi_idiv` per block in the graph (2^30 / n), `Envelope::advance` out of line
-  once per op, `exp` once per amplitude-modulated op, `log2f` once in the adapter, and the adapter's copy of the patch's
-  156 bytes. They are why n=32 moves least.
-- **The controls move by 0.0-1.3%**, the bound on placement noise between the two images.
+- **The Argon step is as fast as the hand kernel when it is interleaved the same way.** Algorithm 32 is six modern
+  ops with no feedback, all of them the vector step, and it matches the hand kernel at every size. One four-lane chain
+  per step ran 37% slower at n=128 (117.29), with issue-empty cycles up from 34 to 57 per sample and the same NEON
+  count: each step waited on the last's float latency. The hand kernel computes twelve samples per iteration as three
+  chains interleaved instruction by instruction; the step now does the same (`kInterleave = 3`, `step_interleaved`,
+  each stage written for the three vectors in turn), which `Mono` runs for every whole group of three vectors. A plain
+  unroll does not do it (see the tanh kernels above); a version with the twelve-sample loop written in the graph ran
+  92.6 at n=128 for algorithm 32 and 110.4 for algorithm 1.
+- **The gain ramp is held in order.** Within one interleaved step the three gains are visible together, and under the
+  device's `-funsafe-math-optimizations` clang folded `(g + d) + d` into `g + 2d`, which rounds differently: the vector
+  spec built with that flag caught it. An empty `asm` with a `"+w"` operand on each intermediate gain keeps the order
+  and costs no instruction.
+- **Algorithm 1 is 12-22% over.** Its op 6 takes the feedback through the scalar `Operator`, as the engine always
+  rendered a feedback op, and its other five ops are the vector step; MkI algorithm 1, the same scalar feedback
+  structure, sits within 4% of its baseline. Where the remaining cycles go is an open question below.
+- **The step's arithmetic** is the kernel's: `vmul.f32` + `vadd.f32` for the Horner chain (the A9's NEON has no fused
+  multiply-add, and the image has no `vfma`), `vcvt.f32.s32 #22` and `#24`, `vcvt.s32.f32 #24`. The graph
+  (`dx7::Graph::renderBlock`) is ARM code with every operator and stack loop inlined; its one call is `__aeabi_idiv`
+  per block (2^30 / n).
+- **MkI moves by -2% to +7%.** Its operators are scalar kernels inlined into the graph; the fused stack of algorithm 4
+  is the +3-7%.
+- **The per-block costs** are the idiv, `Envelope::advance` out of line once per op, `exp` once per
+  amplitude-modulated op, `log2f` once in the adapter, and the adapter's copy of the patch's 156 bytes. They are why
+  n=32 moves most.
+- **The controls move by 0.0-1.1%**, the bound on placement noise between the two images.
 
 ## Open questions
 
@@ -691,6 +703,6 @@ kernel. Cycles per sample, one run of each image.
   with the first NEON kernel of that weight.
 - The `wavetable` bench case costs about 336 cycles per sample. Look at it when the oscillators move to the kernel form.
 - `Mono::renderBlock` calls `std::span::size()` and `data()` per block, and both are out of line at the shipping flags.
-- Whether the DX7 modern operator should step twelve samples as three interleaved four-lane chains, as the hand
-  kernel did: the measured cost is issue stalls, not instruction count. The six operators are also walked one `Mono` at
-  a time per block; fusing them into one step is a further bench question.
+- Where DX7 algorithm 1's 12-22% goes: its feedback op is the scalar `Operator`, as before, and its vector ops match
+  the hand kernel in algorithm 32. Trace one block of it beside the baseline. The six operators are also walked one
+  `Mono` at a time per block; fusing them into one step is a further bench question.
