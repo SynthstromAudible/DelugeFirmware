@@ -166,8 +166,8 @@ private:
 	/// build given the device's NEON kernel, through it), any other through the scalar operator. With no input
 	/// @p modulation is not read; with SET, neither is @p target's content. Defined in graph.cpp, the one place the
 	/// kernel's build switch is read, and inlined into renderBlock there, where each call's routing is known.
-	[[gnu::always_inline]] void render_op(const Operator::Settings& settings, std::size_t op, Signal modulation,
-	                                      Buffer target);
+	[[gnu::always_inline]] inline void render_op(const Operator::Settings& settings, std::size_t op, Signal modulation,
+	                                             Buffer target);
 
 	/// @brief MkI's fused stack of @p N ops from op @p op into @p target.
 	template <std::size_t N>

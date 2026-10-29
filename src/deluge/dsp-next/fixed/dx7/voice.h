@@ -65,10 +65,12 @@
 namespace deluge::dsp::fixed::dx7 {
 
 /// @brief One note of a DX7 patch.
-/// @details A component, not a kernel. Its verbs are @ref start, @ref release, @ref retune and @ref renderBlock, each
-/// given the patch as it stands (@ref Settings, a snapshot the owner takes per block); the voice keeps only what the
-/// note carries between blocks: the graph's operators, the envelopes, the base pitches, the random detunes, the output
-/// levels and rate scalings, and the note-on velocity. The patch's own LFO is the owner's: it keys it at note-on when
+/// @details A component, not a kernel; its members are defined below the class, not in it, so that the one explicit
+/// instantiation in voice.cpp is the copy every caller of `Voice<CongNoise>` runs. Its verbs are @ref start, @ref
+/// release, @ref retune and @ref renderBlock, each given the patch as it stands (@ref Settings, a snapshot the owner
+/// takes per block); the voice keeps only what the note carries between blocks: the graph's operators, the envelopes,
+/// the base pitches, the random detunes, the output levels and rate scalings, and the note-on velocity. The patch's own
+/// LFO is the owner's: it keys it at note-on when
 /// @ref key_sync_lfo says so, and passes its value in each block.
 /// @tparam Noise The noise policy: `Noise::render()` gives one draw. A note-on draws six detunes (op order), then
 /// six phases unless the oscillators are key-synced; a block draws nothing.
@@ -98,121 +100,23 @@ public:
 	/// @brief Note-on: the envelopes start, the base pitches are drawn (six detune draws, op order), the pitch
 	/// envelope starts, the operators restart at zero phase (oscillator key sync) or at six drawn phases, and the
 	/// LFO delay starts. The feedback history carries over from the voice's last note.
-	void start(const Settings& s) {
-		const PatchBytes& p = s.patch;
-		velocity_ = static_cast<uint8_t>(s.velocity);
-		const int32_t log_freq = note_to_log_freq(s.midinote);
-		for (std::size_t op = 0; op < 6; ++op) {
-			const std::size_t off = op * kOpBytes;
-			scale_op(s, op, s.velocity);
-			env_[op].configure(env_settings(s, op, 0));
-			env_[op].template on<&Envelope::start>();
-			detune_[op] = static_cast<int16_t>(Noise::render() >> 16);
-			base_pitch_[op] =
-			    osc_freq(log_freq, p[off + 17], p[off + 18], p[off + 19], p[off + 20], detune_[op], s.random_detune);
-		}
-		pitch_env_.configure({pitch_params(s)});
-		pitch_env_.template on<&PitchEnvelope::start>();
-
-		std::array<q31, 6> phases{};
-		if (p[kOscSync] == 0) {
-			for (q31& phase : phases) {
-				phase = Noise::render();
-			}
-		}
-		graph_.restart(phases);
-
-		lfo_delay_.configure({p[kLfoDelay]});
-		lfo_delay_.reset();
-	}
+	void start(const Settings& s);
 
 	/// @brief Key-up: every envelope and the pitch envelope release.
-	void release(const Settings& s) {
-		for (std::size_t op = 0; op < 6; ++op) {
-			env_[op].configure(env_settings(s, op, 0));
-			env_[op].template on<&Envelope::release>();
-		}
-		pitch_env_.configure({pitch_params(s)});
-		pitch_env_.template on<&PitchEnvelope::release>();
-	}
+	void release(const Settings& s);
 
 	/// @brief The patch changed mid-note: the base pitches (with the note's detune draws), the output levels at the
 	/// note-on velocity, and each envelope's retune. The pitch envelope is left as it is.
-	void retune(const Settings& s) {
-		const PatchBytes& p = s.patch;
-		const int32_t log_freq = note_to_log_freq(s.midinote);
-		for (std::size_t op = 0; op < 6; ++op) {
-			const std::size_t off = op * kOpBytes;
-			base_pitch_[op] =
-			    osc_freq(log_freq, p[off + 17], p[off + 18], p[off + 19], p[off + 20], detune_[op], s.random_detune);
-			scale_op(s, op, velocity_);
-			env_[op].configure(env_settings(s, op, 0));
-			env_[op].template on<&Envelope::retune>();
-		}
-	}
+	void retune(const Settings& s);
 
 	/// @brief One block into @p out, using @p buses (lent by the owner, shared by every voice) for the graph's two
-	/// intermediate buses. Carriers add into @p out, so the caller zeroes it first.
+	/// intermediate buses. Carriers add into @p out, so the caller zeroes it first. @p out is 1 to kMaxBlock samples;
+	/// in a build given the device's NEON kernel, kMaxBlock samples must be writable from its start, 16-byte aligned
+	/// (see Graph::renderBlock).
 	/// @return Whether the voice sounds on: the key is down, or an op's gain is at or above kGainLevelThresh. That
 	/// threshold is the modern engine's. A MkI op's gain is an attenuation, so a silent MkI op (attenuation near
 	/// kEnvMax) passes it, and a released MkI voice never ends: a known quirk the recorded references pin.
-	[[nodiscard]] bool renderBlock(const Settings& s, Buffer out, const BlockInputs& in, Buses& buses) {
-		const PatchBytes& p = s.patch;
-		const std::size_t n = out.size();
-		const int32_t lfo_delay = lfo_delay_.advance(n);
-		int32_t lfo_val = in.lfo_value;
-
-		// pitch: the LFO's depth after its delay, at the patch's sensitivity, plus the pitch envelope
-		const int32_t pitch_depth = (p[kPitchModDepth] * 165) >> 6;
-		const int32_t pitch_sens = kPitchModSens[p[kPitchModSensitivity] & 7];
-		const uint32_t pmd = static_cast<uint32_t>(pitch_depth) * static_cast<uint32_t>(lfo_delay); // Q32
-		const int32_t senslfo = pitch_sens * (lfo_val - (1 << 23));
-		// |pmd · senslfo| < 2^32 · 2^31, so the shifted product is under 2^24 and abs never meets INT32_MIN
-		const int32_t pmod = std::abs(static_cast<int32_t>((static_cast<int64_t>(pmd) * senslfo) >> 39));
-		pitch_env_.configure({pitch_params(s)});
-		int32_t pitch_mod = pitch_env_.advance(n) + (pmod * (senslfo < 0 ? -1 : 1));
-		pitch_mod += in.base_pitch;
-
-		// amplitude: the LFO's depth after its delay, inverted, no shallower than the envelope's floor
-		lfo_val = (1 << 24) - lfo_val;
-		const int32_t amp_depth = (p[kAmpModDepth] * 165) >> 6;
-		uint32_t amd_mod = static_cast<uint32_t>((static_cast<int64_t>(amp_depth) * lfo_delay) >> 8); // Q24
-		amd_mod = static_cast<uint32_t>((static_cast<int64_t>(amd_mod) * lfo_val) >> 24);
-		const uint32_t eg_floor = static_cast<uint32_t>(in.eg_mod + 1) << 17;
-		amd_mod = std::max((1U << 24) - eg_floor, amd_mod);
-
-		Graph::Settings graph{
-		    .engine = s.engine, .algorithm = p[kAlgorithm], .feedback = p[kFeedback], .tables = s.tables};
-		for (std::size_t op = 0; op < 6; ++op) {
-			const std::size_t off = op * kOpBytes;
-			if (((p[kOpSwitch] >> op) & 1) == 0) {
-				// a switched-off op's envelope still runs
-				env_[op].configure(env_settings(s, op, 0));
-				std::ignore = env_[op].advance(n);
-				continue;
-			}
-			graph.freq[op] = freq_lookup(*s.tables, p[off + 17] != 0 ? base_pitch_[op] : base_pitch_[op] + pitch_mod);
-			env_[op].configure(env_settings(s, op, in.rate_mod));
-			int32_t level = env_[op].advance(n);
-			const auto ams = static_cast<int32_t>(kAmpModSens[p[off + 14] & 3]);
-			if (ams != 0) {
-				const auto sensamp = static_cast<uint32_t>((static_cast<uint64_t>(amd_mod) * ams) >> 24);
-				const auto pt = static_cast<uint32_t>(exp((static_cast<float>(sensamp) / 262144) * 0.07 + 12.2));
-				const auto ldiff =
-				    static_cast<uint32_t>((static_cast<uint64_t>(level) * (static_cast<uint64_t>(pt) << 4)) >> 28);
-				level = wrapping_sub(level, static_cast<int32_t>(ldiff));
-				level = wrapping_add(level, (ams >> 16) * in.amp_mod);
-			}
-			graph.level_in[op] = wrapping_add(level, p[off + 15] * in.vel_mod);
-		}
-		graph_.renderBlock(graph, out, buses);
-
-		bool any_active_op = false;
-		for (std::size_t op = 0; op < 6; ++op) {
-			any_active_op = any_active_op || graph_.gain_out(op) >= kGainLevelThresh;
-		}
-		return pitch_env_.state().down || any_active_op;
-	}
+	[[nodiscard]] bool renderBlock(const Settings& s, Buffer out, const BlockInputs& in, Buses& buses);
 
 	/// @brief Whether the patch keys its LFO at note-on (byte 141).
 	[[nodiscard]] static bool key_sync_lfo(const Settings& s) { return s.patch[kLfoSync] != 0; }
@@ -231,31 +135,13 @@ private:
 	static constexpr std::size_t kOpSwitch = 155;            ///< One bit per op: on.
 
 	/// @brief Op @p op's output level and rate scaling for the note, at @p velocity.
-	void scale_op(const Settings& s, std::size_t op, int32_t velocity) {
-		const PatchBytes& p = s.patch;
-		const std::size_t off = op * kOpBytes;
-		int32_t level = Envelope::scale_output_level(p[off + 16]);
-		level += scale_level(s.midinote, p[off + 8], p[off + 9], p[off + 10], p[off + 11], p[off + 12]);
-		level = std::min(127, level) << 5;
-		level += scale_velocity(velocity, p[off + 15]);
-		output_level_[op] = std::max(0, level);
-		rate_scaling_[op] = scale_rate(s.midinote, p[off + 13]);
-	}
+	void scale_op(const Settings& s, std::size_t op, int32_t velocity);
 
 	/// @brief Op @p op's envelope settings: its patch bytes, its output level and rate scaling, and @p extra_rate.
-	[[nodiscard]] Envelope::Settings env_settings(const Settings& s, std::size_t op, int32_t extra_rate) const {
-		const uint8_t* e = &s.patch[op * kOpBytes];
-		return {.params = {{e[0], e[1], e[2], e[3]}, {e[4], e[5], e[6], e[7]}},
-		        .output_level = output_level_[op],
-		        .rate_scaling = rate_scaling_[op],
-		        .extra_rate = extra_rate};
-	}
+	[[nodiscard]] Envelope::Settings env_settings(const Settings& s, std::size_t op, int32_t extra_rate) const;
 
 	/// @brief The pitch envelope's bytes.
-	[[nodiscard]] static EnvelopeParams pitch_params(const Settings& s) {
-		const uint8_t* e = &s.patch[kPitchEnv];
-		return {{e[0], e[1], e[2], e[3]}, {e[4], e[5], e[6], e[7]}};
-	}
+	[[nodiscard]] static EnvelopeParams pitch_params(const Settings& s);
 
 	Graph graph_{};                          ///< The six operators and the feedback history.
 	std::array<Control<Envelope>, 6> env_{}; ///< Each op's envelope.
@@ -267,6 +153,144 @@ private:
 	std::array<int32_t, 6> rate_scaling_{};  ///< Each op's rate scaling for the note, in qRate units.
 	uint8_t velocity_ = 0;                   ///< The note-on velocity.
 };
+
+template <class Noise>
+void Voice<Noise>::start(const Settings& s) {
+	const PatchBytes& p = s.patch;
+	velocity_ = static_cast<uint8_t>(s.velocity);
+	const int32_t log_freq = note_to_log_freq(s.midinote);
+	for (std::size_t op = 0; op < 6; ++op) {
+		const std::size_t off = op * kOpBytes;
+		scale_op(s, op, s.velocity);
+		env_[op].configure(env_settings(s, op, 0));
+		env_[op].template on<&Envelope::start>();
+		detune_[op] = static_cast<int16_t>(Noise::render() >> 16);
+		base_pitch_[op] =
+		    osc_freq(log_freq, p[off + 17], p[off + 18], p[off + 19], p[off + 20], detune_[op], s.random_detune);
+	}
+	pitch_env_.configure({pitch_params(s)});
+	pitch_env_.template on<&PitchEnvelope::start>();
+
+	std::array<q31, 6> phases{};
+	if (p[kOscSync] == 0) {
+		for (q31& phase : phases) {
+			phase = Noise::render();
+		}
+	}
+	graph_.restart(phases);
+
+	lfo_delay_.configure({p[kLfoDelay]});
+	lfo_delay_.reset();
+}
+
+template <class Noise>
+void Voice<Noise>::release(const Settings& s) {
+	for (std::size_t op = 0; op < 6; ++op) {
+		env_[op].configure(env_settings(s, op, 0));
+		env_[op].template on<&Envelope::release>();
+	}
+	pitch_env_.configure({pitch_params(s)});
+	pitch_env_.template on<&PitchEnvelope::release>();
+}
+
+template <class Noise>
+void Voice<Noise>::retune(const Settings& s) {
+	const PatchBytes& p = s.patch;
+	const int32_t log_freq = note_to_log_freq(s.midinote);
+	for (std::size_t op = 0; op < 6; ++op) {
+		const std::size_t off = op * kOpBytes;
+		base_pitch_[op] =
+		    osc_freq(log_freq, p[off + 17], p[off + 18], p[off + 19], p[off + 20], detune_[op], s.random_detune);
+		scale_op(s, op, velocity_);
+		env_[op].configure(env_settings(s, op, 0));
+		env_[op].template on<&Envelope::retune>();
+	}
+}
+
+template <class Noise>
+bool Voice<Noise>::renderBlock(const Settings& s, Buffer out, const BlockInputs& in, Buses& buses) {
+	const PatchBytes& p = s.patch;
+	const std::size_t n = out.size();
+	const int32_t lfo_delay = lfo_delay_.advance(n);
+	int32_t lfo_val = in.lfo_value;
+
+	// pitch: the LFO's depth after its delay, at the patch's sensitivity, plus the pitch envelope
+	const int32_t pitch_depth = (p[kPitchModDepth] * 165) >> 6;
+	const int32_t pitch_sens = kPitchModSens[p[kPitchModSensitivity] & 7];
+	const uint32_t pmd = static_cast<uint32_t>(pitch_depth) * static_cast<uint32_t>(lfo_delay); // Q32
+	const int32_t senslfo = pitch_sens * (lfo_val - (1 << 23));
+	// |pmd · senslfo| < 2^32 · 2^31, so the shifted product is under 2^24 and abs never meets INT32_MIN
+	const int32_t pmod = std::abs(static_cast<int32_t>((static_cast<int64_t>(pmd) * senslfo) >> 39));
+	pitch_env_.configure({pitch_params(s)});
+	int32_t pitch_mod = pitch_env_.advance(n) + (pmod * (senslfo < 0 ? -1 : 1));
+	pitch_mod += in.base_pitch;
+
+	// amplitude: the LFO's depth after its delay, inverted, no shallower than the envelope's floor
+	lfo_val = (1 << 24) - lfo_val;
+	const int32_t amp_depth = (p[kAmpModDepth] * 165) >> 6;
+	uint32_t amd_mod = static_cast<uint32_t>((static_cast<int64_t>(amp_depth) * lfo_delay) >> 8); // Q24
+	amd_mod = static_cast<uint32_t>((static_cast<int64_t>(amd_mod) * lfo_val) >> 24);
+	const uint32_t eg_floor = static_cast<uint32_t>(in.eg_mod + 1) << 17;
+	amd_mod = std::max((1U << 24) - eg_floor, amd_mod);
+
+	Graph::Settings graph{.engine = s.engine, .algorithm = p[kAlgorithm], .feedback = p[kFeedback], .tables = s.tables};
+	for (std::size_t op = 0; op < 6; ++op) {
+		const std::size_t off = op * kOpBytes;
+		if (((p[kOpSwitch] >> op) & 1) == 0) {
+			// a switched-off op's envelope still runs
+			env_[op].configure(env_settings(s, op, 0));
+			std::ignore = env_[op].advance(n);
+			continue;
+		}
+		graph.freq[op] = freq_lookup(*s.tables, p[off + 17] != 0 ? base_pitch_[op] : base_pitch_[op] + pitch_mod);
+		env_[op].configure(env_settings(s, op, in.rate_mod));
+		int32_t level = env_[op].advance(n);
+		const auto ams = static_cast<int32_t>(kAmpModSens[p[off + 14] & 3]);
+		if (ams != 0) {
+			const auto sensamp = static_cast<uint32_t>((static_cast<uint64_t>(amd_mod) * ams) >> 24);
+			const auto pt = static_cast<uint32_t>(exp((static_cast<float>(sensamp) / 262144) * 0.07 + 12.2));
+			const auto ldiff =
+			    static_cast<uint32_t>((static_cast<uint64_t>(level) * (static_cast<uint64_t>(pt) << 4)) >> 28);
+			level = wrapping_sub(level, static_cast<int32_t>(ldiff));
+			level = wrapping_add(level, (ams >> 16) * in.amp_mod);
+		}
+		graph.level_in[op] = wrapping_add(level, p[off + 15] * in.vel_mod);
+	}
+	graph_.renderBlock(graph, out, buses);
+
+	bool any_active_op = false;
+	for (std::size_t op = 0; op < 6; ++op) {
+		any_active_op = any_active_op || graph_.gain_out(op) >= kGainLevelThresh;
+	}
+	return pitch_env_.state().down || any_active_op;
+}
+
+template <class Noise>
+void Voice<Noise>::scale_op(const Settings& s, std::size_t op, int32_t velocity) {
+	const PatchBytes& p = s.patch;
+	const std::size_t off = op * kOpBytes;
+	int32_t level = Envelope::scale_output_level(p[off + 16]);
+	level += scale_level(s.midinote, p[off + 8], p[off + 9], p[off + 10], p[off + 11], p[off + 12]);
+	level = std::min(127, level) << 5;
+	level += scale_velocity(velocity, p[off + 15]);
+	output_level_[op] = std::max(0, level);
+	rate_scaling_[op] = scale_rate(s.midinote, p[off + 13]);
+}
+
+template <class Noise>
+Envelope::Settings Voice<Noise>::env_settings(const Settings& s, std::size_t op, int32_t extra_rate) const {
+	const uint8_t* e = &s.patch[op * kOpBytes];
+	return {.params = {{e[0], e[1], e[2], e[3]}, {e[4], e[5], e[6], e[7]}},
+	        .output_level = output_level_[op],
+	        .rate_scaling = rate_scaling_[op],
+	        .extra_rate = extra_rate};
+}
+
+template <class Noise>
+EnvelopeParams Voice<Noise>::pitch_params(const Settings& s) {
+	const uint8_t* e = &s.patch[kPitchEnv];
+	return {{e[0], e[1], e[2], e[3]}, {e[4], e[5], e[6], e[7]}};
+}
 
 /// The app's voice, on the synth's shared noise stream, is instantiated once, in voice.cpp: there it builds with the
 /// DSP library's flags (ARM, -finline-functions), not with those of whichever app file names it.

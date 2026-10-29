@@ -293,6 +293,10 @@ private:
 		if constexpr (chains_of<K> > 1) {
 			constexpr std::ptrdiff_t kGroup = static_cast<std::ptrdiff_t>(chains_of<K>) * Argon<q31>::lanes;
 			constexpr auto kChainIndex = std::make_index_sequence<chains_of<K>>{};
+			using Group = ChainVectors<step_type, chains_of<K>>;
+			static_assert(stepsChains<M, PerInput<Src, Group>...>,
+			              "a kernel declaring kChains provides step_chains(c, block, loop state, one ChainVectors per "
+			              "input) returning ChainVectors<step_type, kChains>");
 			for (; done + kGroup <= n; done += kGroup) {
 				storeChains(kChainIndex, dst + done,
 				            chainStepAt<M>(c, block, s, loadChains(kChainIndex, src + done)...));
@@ -316,6 +320,26 @@ private:
 	                                               const ChainVectors<step_type, sizeof...(V)>& out) {
 		(out.v[V].StoreTo(base + (static_cast<std::ptrdiff_t>(V) * Argon<q31>::lanes)), ...);
 	}
+
+	/// @brief @p T once per input @p In: one group of vectors per input of the step.
+	template <typename In, typename T>
+	using PerInput = T;
+
+	/// @brief Whether K's step_chains at mode @p M takes one group per input and returns a group.
+	template <auto M, typename... G>
+	static constexpr bool stepsChains = [] {
+		using Group = ChainVectors<step_type, chains_of<K>>;
+		if constexpr (detail::has_modes<K>) {
+			return requires(const Coefficients& c, const Block& b, LoopState& s, const G&... g) {
+				{ K::template step_chains<M>(c, b, s, g...) } -> std::same_as<Group>;
+			};
+		}
+		else {
+			return requires(const Coefficients& c, const Block& b, LoopState& s, const G&... g) {
+				{ K::step_chains(c, b, s, g...) } -> std::same_as<Group>;
+			};
+		}
+	}();
 
 	/// @brief One chained step at mode @p M over one group of vectors per input.
 	template <auto M, typename... G>

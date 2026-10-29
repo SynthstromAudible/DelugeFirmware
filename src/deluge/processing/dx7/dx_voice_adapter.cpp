@@ -79,7 +79,9 @@ void DxVoiceAdapter::keyup() {
 
 std::span<const int32_t> DxVoiceAdapter::render(int32_t numSamples, uint32_t phaseIncrement, int32_t ampModParam,
                                                 bool patchChanged, int midinote) {
+	// kMaxBlock samples, 16-byte aligned at least: the device's NEON kernel writes past the block (Graph::renderBlock)
 	static int32_t uniBuf[fixed::dx7::kMaxBlock] __attribute__((aligned(CACHE_LINE_SIZE)));
+	static_assert(CACHE_LINE_SIZE % 16 == 0);
 	memset(uniBuf, 0, sizeof uniBuf);
 
 	// TODO: 1. use existing int log function?
