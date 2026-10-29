@@ -148,4 +148,12 @@ SECTIONS {
            "sdram_sections.x: the menus' vtables fell back to SRAM (no menu_item or deluge::scenes vtables in .sdram_init)")
     ASSERT(__scenes_bss_end - __scenes_bss_start > 8192,
            "sdram_sections.x: the scenes' statics fell back to SRAM (no deluge::scenes .bss in .sdram_bss)")
+
+    /* The SRAM heap's floor: the on-chip memory left between the image and the RTT reserve. rza1-rt's
+     * link.x refuses an image that leaves none; this refuses one that leaves less than the floor. The
+     * heap is filled at boot whatever its size (alloc_fast falls back to SDRAM), so a smaller one
+     * costs speed rather than memory, but each SRAM-resident addition comes out of it. */
+    __sram_heap_floor = 100 * 1024;
+    ASSERT(__sram_heap_base <= __sram_heap_end && __sram_heap_end - __sram_heap_base >= __sram_heap_floor,
+           "sdram_sections.x: the SRAM heap is below its floor (__sram_heap_floor): the image grew into it")
 } INSERT AFTER .ARM.exidx;

@@ -10,7 +10,9 @@ it leaves over becomes the internal heap. Measured on 2026-10-11 at `10e2f7133`.
 - **Section sizes:** `llvm-size -A -d build/RelWithDebInfo/deluge.elf`.
 - **Headroom:** the SRAM heap, `__sram_heap_end - __sram_heap_start` (`0x202EB000`, the RTT reserve, minus the start).
   The heap starts where the image's boot-only tail does (see [Applied](#applied)), and rza1l-hal ASSERTs at link time
-  that it is not negative. The audit below predates that layout: there, the HAL started the heap at the image end rounded
+  that it is not negative; `src/bsp/rust/linker/sdram_sections.x` ASSERTs that it is at least `__sram_heap_floor`
+  (100 KiB). The heap fills at boot whatever its size (`alloc_fast` falls back to SDRAM), so the floor guards speed,
+  not memory: 110,448 B at `6797876da`. The audit below predates that layout: there, the HAL started the heap at the image end rounded
   up to 64 KB, the image had to end at or below `0x202E0000`, and headroom was `0x202E0000 - __exidx_end`.
 - **Attribution:** `llvm-nm -S --defined-only` for every sized symbol, then `llvm-symbolizer --no-inlines` on its
   address to find the source file. C++ is bucketed by source directory and Rust by crate (from the v0 mangling). Data
