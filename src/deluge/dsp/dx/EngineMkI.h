@@ -27,10 +27,4 @@ public:
 
 	void render(int32_t* output, int n, FmOpParams* params, int algorithm, int32_t* fb_buf,
 	            int32_t feedback_shift) override;
-
-	void compute_fb2(int32_t* output, int n, FmOpParams* params, int32_t gain01, int32_t gain02, int32_t dgain0,
-	                 int32_t* fb_buf, int fb_shift);
-
-	void compute_fb3(int32_t* output, int n, FmOpParams* params, int32_t gain01, int32_t gain02, int32_t dgain0,
-	                 int32_t* fb_buf, int fb_shift);
 };

@@ -22,117 +22,42 @@
  */
 
 #include "EngineMkI.h"
-#include <cmath>
-#include <cstdlib>
-
 #include "dsp-next/core/mono.h"
+#include "dsp-next/fixed/dx7/mki_feedback_stack.h"
 #include "dsp-next/fixed/dx7/operator.h"
 #include "engine.h"
-#include "math_lut.h"
 #include <algorithm>
 #include <array>
 #include <cstddef>
 
-using std::max;
-using std::min;
-
 namespace dx7 = deluge::dsp::fixed::dx7;
 
-static const uint16_t ENV_BITDEPTH = 14;
-const uint16_t ENV_MAX = 1 << ENV_BITDEPTH;
+namespace {
 
-inline int32_t mkiSin(int32_t phase, uint16_t env) {
-	return deluge::dsp::fixed::dx7::mki_sin(dxEngine->tables, phase, env);
-}
-
-// exclusively used for ALGO 6 with feedback
-void EngineMkI::compute_fb2(int32_t* output, int n, FmOpParams* parms, int32_t gain01, int32_t gain02, int32_t dgain0,
-                            int32_t* fb_buf, int fb_shift) {
-	int32_t dgain[2];
-	int32_t gain[2];
-	int32_t phase[2];
-	int32_t y0 = fb_buf[0];
-	int32_t y = fb_buf[1];
-
-	phase[0] = parms[0].phase;
-	phase[1] = parms[1].phase;
-
-	parms[1].gain_out = (ENV_MAX - (parms[1].level_in >> (28 - ENV_BITDEPTH)));
-
-	gain[0] = gain01;
-	gain[1] = parms[1].gain_out == 0 ? (ENV_MAX - 1) : parms[1].gain_out;
-
-	dgain[0] = dgain0;
-	dgain[1] = (parms[1].gain_out - (parms[1].gain_out == 0 ? (ENV_MAX - 1) : parms[1].gain_out));
-
-	for (int i = 0; i < n; i++) {
-		int32_t scaled_fb = (y0 + y) >> (fb_shift + 1);
-
-		// op 0
-		gain[0] += dgain[0];
-		y0 = y;
-		y = mkiSin(phase[0] + scaled_fb, gain[0]);
-		phase[0] += parms[0].freq;
-
-		// op 1
-		gain[1] += dgain[1];
-		y = mkiSin(phase[1] + y, gain[1]);
-		phase[1] += parms[1].freq;
-
-		output[i] = y;
+/// @brief MkI's feedback stack of N ops from op 0, rendered into @p output, the ops' state and the feedback history
+/// written back.
+template <std::size_t N>
+void render_stack(int32_t* output, std::size_t n, FmOpParams* params, int32_t* fb_buf, int32_t feedback_shift) {
+	using Stack = dx7::MkIFeedbackStack<N>;
+	typename Stack::Settings settings{.feedback_shift = feedback_shift, .tables = &dxEngine->tables};
+	std::array<dx7::OperatorState, N> ops{};
+	for (std::size_t k = 0; k < N; ++k) {
+		settings.level_in[k] = params[k].level_in;
+		settings.freq[k] = params[k].freq;
+		ops[k] = {.phase = params[k].phase, .gain_out = params[k].gain_out};
 	}
-	fb_buf[0] = y0;
-	fb_buf[1] = y;
-}
-
-// exclusively used for ALGO 4 with feedback
-void EngineMkI::compute_fb3(int32_t* output, int n, FmOpParams* parms, int32_t gain01, int32_t gain02, int32_t dgain0,
-                            int32_t* fb_buf, int fb_shift) {
-	int32_t dgain[3];
-	int32_t gain[3];
-	int32_t phase[3];
-	int32_t y0 = fb_buf[0];
-	int32_t y = fb_buf[1];
-
-	phase[0] = parms[0].phase;
-	phase[1] = parms[1].phase;
-	phase[2] = parms[2].phase;
-
-	parms[1].gain_out = (ENV_MAX - (parms[1].level_in >> (28 - ENV_BITDEPTH)));
-	parms[2].gain_out = (ENV_MAX - (parms[2].level_in >> (28 - ENV_BITDEPTH)));
-
-	gain[0] = gain01;
-	gain[1] = parms[1].gain_out == 0 ? (ENV_MAX - 1) : parms[1].gain_out;
-	gain[2] = parms[2].gain_out == 0 ? (ENV_MAX - 1) : parms[2].gain_out;
-
-	dgain[0] = dgain0;
-	dgain[1] = (parms[1].gain_out - (parms[1].gain_out == 0 ? (ENV_MAX - 1) : parms[1].gain_out));
-	dgain[2] = (parms[2].gain_out - (parms[2].gain_out == 0 ? (ENV_MAX - 1) : parms[2].gain_out));
-
-	for (int i = 0; i < n; i++) {
-		int32_t scaled_fb = (y0 + y) >> (fb_shift + 1);
-
-		// op 0
-		gain[0] += dgain[0];
-		y0 = y;
-		y = mkiSin(phase[0] + scaled_fb, gain[0]);
-		phase[0] += parms[0].freq;
-
-		// op 1
-		gain[1] += dgain[1];
-		y = mkiSin(phase[1] + y, gain[1]);
-		phase[1] += parms[1].freq;
-
-		// op 2
-		gain[2] += dgain[2];
-		y = mkiSin(phase[2] + y, gain[2]);
-		phase[2] += parms[2].freq;
-
-		output[i] = y;
+	deluge::dsp::Mono<Stack> stack{settings};
+	stack.template on<&Stack::resume>(ops, dx7::FeedbackHistory{.y0 = fb_buf[0], .y1 = fb_buf[1]});
+	stack.renderBlock({output, n});
+	for (std::size_t k = 0; k < N; ++k) {
+		params[k].phase = stack.state().op[k].phase;
+		params[k].gain_out = stack.state().op[k].gain_out;
 	}
-	fb_buf[0] = y0;
-	fb_buf[1] = y;
+	fb_buf[0] = stack.state().loop.feedback.y0;
+	fb_buf[1] = stack.state().loop.feedback.y1;
 }
+
+} // namespace
 
 void EngineMkI::render(int32_t* output, int n, FmOpParams* params, int algorithm, int32_t* fb_buf,
                        int32_t feedback_shift) {
@@ -156,7 +81,7 @@ void EngineMkI::render(int32_t* output, int n, FmOpParams* params, int algorithm
 		const int outbus = flags & 3;
 		int32_t* outptr = (outbus == 0) ? output : buf_[outbus - 1].get();
 		const bool add = add_flag && has_contents[outbus];
-		// PG: this is my 'dirty' implementation of FB for 2 and 3 operators...
+		// algorithms 4 and 6 with feedback render op 6's whole stack at once
 		const bool feedback = (flags & 0xc0) == 0xc0 && fb_on;
 		const bool fused = feedback && (algorithm == 3 || algorithm == 5);
 		dx7::Input input = dx7::Input::BUS;
@@ -164,7 +89,7 @@ void EngineMkI::render(int32_t* output, int n, FmOpParams* params, int algorithm
 			input = feedback ? dx7::Input::FEEDBACK : dx7::Input::NONE;
 		}
 		// one operator feedback, process exception for ALGO 32
-		const int32_t op_shift = algorithm == 31 ? min((feedback_shift + 2), (int32_t)16) : feedback_shift;
+		const int32_t op_shift = algorithm == 31 ? std::min(feedback_shift + 2, int32_t{16}) : feedback_shift;
 
 		deluge::dsp::Mono<dx7::Operator> unit{{.engine = dx7::Engine::MKI,
 		                                       .input = input,
@@ -178,24 +103,15 @@ void EngineMkI::render(int32_t* output, int n, FmOpParams* params, int algorithm
 
 		if (dx7::Operator::audible(unit.coefficients(), unit.state().op, len)) {
 			if (input == dx7::Input::FEEDBACK && fused) {
-				const dx7::Gains g = dx7::Operator::gains(unit.coefficients(), unit.state().op, len);
-				param.gain_out = g.gain2;
+				// the stack renders op 6 and the ops it feeds, so the loop skips them
 				if (algorithm == 3) {
-					// three operator feedback, process exception for ALGO 4
-					compute_fb3(outptr, n, params, g.gain1, g.gain2, g.dgain, fb_buf,
-					            min((feedback_shift + 2), (int32_t)16));
-					params[1].phase += params[1].freq * n; // hack, we already processed op-5 - op-4
-					params[2].phase += params[2].freq * n; // yuk yuk
+					render_stack<3>(outptr, len, params, fb_buf, feedback_shift);
+					op += 2;
 				}
 				else {
-					// two operator feedback, process exception for ALGO 6
-					compute_fb2(outptr, n, params, g.gain1, g.gain2, g.dgain, fb_buf,
-					            min((feedback_shift + 2), (int32_t)16));
-					params[1].phase += params[1].freq * n; // yuk, hack, we already processed op-5
+					render_stack<2>(outptr, len, params, fb_buf, feedback_shift);
+					op += 1;
 				}
-				unit.on<&dx7::Operator::skip>(len);
-				param.phase = unit.state().op.phase;
-				op += algorithm == 3 ? 2 : 1; // ignore the other operators of the stack
 				has_contents[outbus] = true;
 				continue;
 			}
