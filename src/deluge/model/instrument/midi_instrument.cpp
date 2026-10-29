@@ -26,7 +26,6 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
 #include "model/action/action_logger.h"
-#include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
@@ -707,13 +706,17 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 /// if you haven't labeled anything and you hide unlabeled CC's, then this function will restrict you to select "NONE"
 /// or the "EXPRESSION" CC's.
 int32_t MIDIInstrument::getNextSelectableCC(int32_t cc, int32_t offset, bool includeNoCC) {
+	if (offset == 0) {
+		return cc;
+	}
+
 	int32_t newCC = cc;
 	int32_t direction = (offset < 0) ? -1 : 1;
 	int32_t steps = (offset < 0) ? -offset : offset;
 	int32_t numSelectableCCs = includeNoCC ? kNumCCNumbersIncludingFake : kNumCCExpression;
 
-	// loop until we have found a CC
-	while (true) {
+	// Cap the search at one full pass so a step size that never lands on a selectable CC can't loop forever.
+	for (int32_t attempts = 0; attempts < numSelectableCCs; attempts++) {
 		// get the next CC in the direction specified by the offset
 		for (int32_t i = 0; i < steps; i++) {
 			newCC += direction;
@@ -733,25 +736,24 @@ int32_t MIDIInstrument::getNextSelectableCC(int32_t cc, int32_t offset, bool inc
 			// these CC's do not have a label, so they are always selectable
 			if (newCC == CC_NUMBER_NONE || newCC == CC_NUMBER_Y_AXIS || newCC == CC_NUMBER_PITCH_BEND
 			    || newCC == CC_NUMBER_AFTERTOUCH) {
-				break;
+				return newCC;
 			}
 			// if this cc doesn't have a label, continue searching in the same direction
 			else if (getNameFromCC(newCC).empty()) {
-				// If the new CC is unlabeled, continue searching in the same direction
 				continue;
 			}
 			// If the new CC is labeled, then it is selectable
 			else {
-				break;
+				return newCC;
 			}
 		}
 		// if we don't want to hide unlabeled CC's, then the new CC is selectable
 		else {
-			break;
+			return newCC;
 		}
 	}
 
-	return newCC;
+	return cc;
 }
 
 int32_t MIDIInstrument::changeControlNumberForModKnob(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode) {
@@ -770,7 +772,9 @@ int32_t MIDIInstrument::getFirstUnusedCC(ModelStackWithThreeMainThings* modelSta
 
 	int32_t proposedCC = startAt;
 
-	while (true) {
+	// stopAt may never be reached (e.g. it's an unlabeled CC while unlabeled CCs are hidden), so also stop once
+	// the search wraps back around to where it started.
+	do {
 		ModelStackWithAutoParam* modelStackWithAutoParam =
 		    getParamToControlFromInputMIDIChannel(proposedCC, modelStack);
 		if (!modelStackWithAutoParam->autoParam || !modelStackWithAutoParam->autoParam->isAutomated()) {
@@ -778,13 +782,9 @@ int32_t MIDIInstrument::getFirstUnusedCC(ModelStackWithThreeMainThings* modelSta
 		}
 
 		proposedCC = getNextSelectableCC(proposedCC, direction);
+	} while (proposedCC != stopAt && proposedCC != startAt);
 
-		if (proposedCC == stopAt) {
-			return -1;
-		}
-	}
-
-	// It does always return something, above
+	return -1;
 }
 
 Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
@@ -847,75 +847,14 @@ int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t offset, int32_t whic
 		return *cc;
 	}
 
-	int32_t newCC = getNextSelectableCC(*cc, offset);
-
-	// Need to pick a new cc which is blank on all Clips' ParamManagers with this Instrument
-	// For each Clip in session and arranger for specific Output (that Output is "this")
-	int32_t numElements = modelStack->song->sessionClips.getNumElements();
-	bool doingArrangementClips = false;
-	// TODO: Should use AllClips, but less obvious so later.
-traverseClips:
-	for (int32_t c = 0; c < numElements; c++) {
-		Clip* clip;
-		if (!doingArrangementClips) {
-			clip = modelStack->song->sessionClips.getClipAtIndex(c);
-			if (clip->output != this) {
-				continue;
-			}
-		}
-		else {
-			ClipInstance* clipInstance = clipInstances.getElement(c);
-			if (!clipInstance->clip) {
-				continue;
-			}
-			if (!clipInstance->clip->isArrangementOnlyClip()) {
-				continue;
-			}
-			clip = clipInstance->clip;
-		}
-
-		newCC = getFirstUnusedCC(modelStack, offset, newCC, *cc);
-		if (newCC == -1) {
-			return -1;
-		}
-	}
-	if (!doingArrangementClips) {
-		doingArrangementClips = true;
-		numElements = clipInstances.getNumElements();
-		goto traverseClips;
+	// Find a CC that's not automated in this Clip and move this Clip's automation there. Other Clips using this
+	// Instrument keep their automation where it is.
+	int32_t newCC = getFirstUnusedCC(modelStack, offset, getNextSelectableCC(*cc, offset), *cc);
+	if (newCC == -1) {
+		return -1;
 	}
 
-	// And then tell all Clips' ParamManagers with this Instrument to change that CC
-	// For each Clip in session and arranger for specific Output (that Output is "this")
-	numElements = modelStack->song->sessionClips.getNumElements();
-	doingArrangementClips = false;
-traverseClips2:
-	for (int32_t c = 0; c < numElements; c++) {
-		Clip* clip;
-		if (!doingArrangementClips) {
-			clip = modelStack->song->sessionClips.getClipAtIndex(c);
-			if (clip->output != this) {
-				continue;
-			}
-		}
-		else {
-			ClipInstance* clipInstance = clipInstances.getElement(c);
-			if (!clipInstance->clip) {
-				continue;
-			}
-			if (!clipInstance->clip->isArrangementOnlyClip()) {
-				continue;
-			}
-			clip = clipInstance->clip;
-		}
-
-		moveAutomationToDifferentCC(*cc, newCC, modelStack);
-	}
-	if (!doingArrangementClips) {
-		doingArrangementClips = true;
-		numElements = clipInstances.getNumElements();
-		goto traverseClips2;
-	}
+	moveAutomationToDifferentCC(*cc, newCC, modelStack);
 
 	*cc = newCC;
 	editedByUser = true;
