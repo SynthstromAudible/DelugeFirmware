@@ -441,7 +441,7 @@ void switchReverb(uint64_t block, const ReverbSwitch& switched) {
 		return;
 	}
 	g_reverbSwitched++;
-	const int32_t model = static_cast<int32_t>(currentSong->model);
+	const int32_t model = static_cast<int32_t>(AudioEngine::reverb.model()); // the engine's, not the song's field
 	g_reverbSwitchedModels += (g_reverbSwitchedModels.empty() ? "" : ",") + std::to_string(model);
 	printf("RS-REVERB-SWITCH block=%llu set=%s=%g model=%d\n", static_cast<unsigned long long>(block), s.c_str(),
 	       static_cast<double>(switched.value), model);

@@ -21,6 +21,7 @@
 
 #include "dsp-next/core/stereo_sample.h"
 #include "reference_reverb.h"
+#include "reverb_kernel_views.h"
 #include "reverb_workload_records.h"
 #include "reverb_workloads.h"
 
@@ -63,46 +64,11 @@ struct ComponentRunner {
 	}
 	void digest_state(rw::Digest& d) const {
 		if (reverb->model() == ReverbModel::FREEVERB) {
-			const deluge::dsp::fixed::Freeverb::State& s = reverb->freeverb_state();
-			const std::span<const int32_t> memory = reverb->freeverb_memory();
-			using Freeverb = deluge::dsp::fixed::Freeverb;
-			deluge::dsp::test::FreeverbView v{};
-			const auto line = [&memory](Freeverb::Line l) { return memory.subspan(l.base, l.length); };
-			for (std::size_t i = 0; i < Freeverb::kCombs; ++i) {
-				v.lines[i] = line(Freeverb::kLayout.comb[0][i]);
-				v.lines[Freeverb::kCombs + i] = line(Freeverb::kLayout.comb[1][i]);
-				v.index[i] = s.left.comb_index[i];
-				v.index[Freeverb::kCombs + i] = s.right.comb_index[i];
-				v.store[i] = s.left.comb_store[i];
-				v.store[Freeverb::kCombs + i] = s.right.comb_store[i];
-			}
-			for (std::size_t i = 0; i < Freeverb::kAllpasses; ++i) {
-				v.lines[(2 * Freeverb::kCombs) + i] = line(Freeverb::kLayout.allpass[0][i]);
-				v.lines[(2 * Freeverb::kCombs) + Freeverb::kAllpasses + i] = line(Freeverb::kLayout.allpass[1][i]);
-				v.index[(2 * Freeverb::kCombs) + i] = s.left.allpass_index[i];
-				v.index[(2 * Freeverb::kCombs) + Freeverb::kAllpasses + i] = s.right.allpass_index[i];
-			}
-			v.dc = s.dc.y;
-			rw::digest_freeverb(d, v);
+			rw::digest_freeverb(d,
+			                    deluge::dsp::test::freeverb_view(reverb->freeverb_state(), reverb->freeverb_memory()));
 		}
 		else {
-			const deluge::dsp::fp::Plate::State& s = reverb->plate_state();
-			deluge::dsp::test::PlateView v{
-			    .ring = reverb->plate_memory(),
-			    .write = s.write,
-			    .lfo_y_0 = {},
-			    .lfo_y_1 = {},
-			    .lp_decay_1 = s.lp_decay_1,
-			    .lp_decay_2 = s.lp_decay_2,
-			    .lp_band = s.lp_band,
-			    .hp_l = s.hp_l,
-			    .hp_r = s.hp_r,
-			    .lp_l = s.lp_l,
-			    .lp_r = s.lp_r,
-			};
-			s.lfo.y_0.StoreTo(v.lfo_y_0.data());
-			s.lfo.y_1.StoreTo(v.lfo_y_1.data());
-			rw::digest_plate(d, v);
+			rw::digest_plate(d, deluge::dsp::test::plate_view(reverb->plate_state(), reverb->plate_memory()));
 		}
 	}
 };
@@ -133,33 +99,6 @@ std::vector<StereoSample> render_block(R& runner, std::size_t b) {
 
 constexpr std::array kModels{rw::Model::FREEVERB, rw::Model::MUTABLE, rw::Model::DIGITAL};
 
-/// @return Seconds for the impulse response through @p runner to fall 60 dB below its peak, or @p seconds if it never
-/// does.
-double rt60(ComponentRunner& runner, double seconds) {
-	constexpr std::size_t kBlock = 64;
-	std::vector<int32_t> input(kBlock, 0);
-	std::vector<StereoSample> output(kBlock);
-	input[0] = 1 << 28;
-	const auto blocks = static_cast<std::size_t>(seconds * 44100.0 / kBlock);
-	std::vector<double> envelope;
-	for (std::size_t block = 0; block < blocks; ++block) {
-		std::ranges::fill(output, StereoSample{.l = 0, .r = 0});
-		runner.render(input, output, 1 << 30, 1 << 30);
-		std::ranges::fill(input, 0);
-		double peak = 0.0;
-		for (const StereoSample& sample : output) {
-			peak = std::max(peak, std::abs(static_cast<double>(sample.l)));
-		}
-		envelope.push_back(peak);
-	}
-	const double decayed = *std::ranges::max_element(envelope) / 1000.0;
-	for (std::size_t block = envelope.size(); block-- > 0;) {
-		if (envelope[block] > decayed) {
-			return static_cast<double>(block + 1) * kBlock / 44100.0;
-		}
-	}
-	return seconds;
-}
 } // namespace
 
 // clang-format off
@@ -247,9 +186,9 @@ describe reverb("the reverb component", ${
 		expect(reverb->model() == ReverbModel::FREEVERB).to_be_true();
 		expect(Reverb::Settings{} == Reverb::Settings{.room_size = 0.5f, .damping = 0.5f, .width = 1.f, .hpf = 0.f, .lpf = 0.f}).to_be_true();
 
-		// Nothing published: the model takes the component's defaults, as today's reverb takes its cached ones. Both
-		// leave the low-pass at 0, so a plate's block is the dry block in each; no knob reaches a model from
-		// uninitialised memory.
+		// Nothing published: the model takes the component's default settings, as the reference takes the knobs it
+		// caches at construction. Both leave the low-pass at 0, so a plate's block is the dry block in each; no knob
+		// reaches a model from uninitialised memory.
 		reverb->begin_change();
 		reverb->prepare(ReverbModel::MUTABLE);
 		reverb->commit();
@@ -281,11 +220,28 @@ describe reverb("the reverb component", ${
 	});
 
 	it("renders through whichever model is selected", _ {
+		// Each model, opened up (room 0.7, low-pass 1), equals the reference at that model block for block, and rings.
+		constexpr rw::Knobs kOpen{.room_size = 0.7f, .damping = 0.5f, .width = 1.f, .hpf = 0.f, .lpf = 1.f};
 		for (const rw::Model m : kModels) {
 			ComponentRunner runner;
+			ReferenceRunner reference;
 			runner.set_model(m);
-			runner.set_knobs({.room_size = 0.7f, .damping = 0.5f, .width = 1.f, .hpf = 0.f, .lpf = 1.f});
-			expect(rt60(runner, 5.0)).to_be_greater_than(0.05);
+			reference.set_model(m);
+			runner.set_knobs(kOpen);
+			reference.set_knobs(kOpen);
+			std::size_t mismatches = 0;
+			for (std::size_t b = 0; b < 40; ++b) {
+				mismatches += same(render_block(runner, b), render_block(reference, b)) ? 0 : 1;
+			}
+			expect(mismatches).to_equal(std::size_t{0});
+
+			ComponentRunner ringing;
+			ringing.set_model(m);
+			ringing.set_knobs(kOpen);
+			const double seconds = deluge::dsp::test::rt60(
+			    [&ringing](std::span<int32_t> in, std::span<StereoSample> out) { ringing.render(in, out, 1 << 30, 1 << 30); },
+			    5.0);
+			expect(seconds).to_be_greater_than(0.05);
 		}
 	});
 

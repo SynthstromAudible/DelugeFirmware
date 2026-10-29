@@ -3,6 +3,7 @@
 #include "dsp-next/core/mono.h"
 #include "dsp-next/float/reverb/plate.h"
 #include "reference_reverb.h"
+#include "reverb_kernel_views.h"
 #include "reverb_workload_records.h"
 #include "reverb_workloads.h"
 #include <cppspec.hpp>
@@ -24,8 +25,8 @@ using deluge::dsp::StereoSample;
 using deluge::dsp::fp::Plate;
 using deluge::dsp::fp::PlateLfo;
 
-/// @brief Mono<Plate> over a ring it owns, as the component will hold it: a model change zeroes the ring, resets the
-/// State and starts the LFO, as a song load rebuilds today's plates; the knobs carry across a model change.
+/// @brief Mono<Plate> over a ring it owns, as effects::Reverb holds it: a model change zeroes the ring, resets the
+/// State and starts the LFO; the knobs carry across a model change.
 struct PlateRunner {
 	/// Model changes asked for that this runner cannot render, across every runner; the specs assert it stays 0.
 	static inline std::size_t foreign_models = 0;
@@ -57,25 +58,7 @@ struct PlateRunner {
 		mono.on<&Plate::set_send>(send.data(), l, r);
 		mono.renderBlock(out, out);
 	}
-	void digest_state(rw::Digest& d) const {
-		const Plate::State& s = mono.state();
-		deluge::dsp::test::PlateView v{
-		    .ring = memory,
-		    .write = s.write,
-		    .lfo_y_0 = {},
-		    .lfo_y_1 = {},
-		    .lp_decay_1 = s.lp_decay_1,
-		    .lp_decay_2 = s.lp_decay_2,
-		    .lp_band = s.lp_band,
-		    .hp_l = s.hp_l,
-		    .hp_r = s.hp_r,
-		    .lp_l = s.lp_l,
-		    .lp_r = s.lp_r,
-		};
-		s.lfo.y_0.StoreTo(v.lfo_y_0.data());
-		s.lfo.y_1.StoreTo(v.lfo_y_1.data());
-		rw::digest_plate(d, v);
-	}
+	void digest_state(rw::Digest& d) const { rw::digest_plate(d, deluge::dsp::test::plate_view(mono.state(), memory)); }
 };
 
 [[nodiscard]] bool is_mutable(const rw::Workload& w) {
@@ -85,9 +68,9 @@ struct PlateRunner {
 	return w.model == rw::Model::DIGITAL;
 }
 
-constexpr std::size_t kBlock = 64;
+constexpr std::size_t kBlock = deluge::dsp::test::kImpulseBlock;
 
-/// @brief A plate driven as the legacy reverb spec drove its models: knobs set once, both return levels at 2^30.
+/// @brief A plate with its knobs set once, both return levels at 2^30: the drive the behaviour cases measure through.
 struct PlateModel {
 	PlateRunner runner;
 	PlateModel(rw::Model model, float room_size, float damping) {
@@ -97,44 +80,15 @@ struct PlateModel {
 	void process(std::span<int32_t> input, std::span<StereoSample> output) {
 		runner.render(input, output, 1 << 30, 1 << 30);
 	}
+	/// @return A callable rendering one block through this model, for the shared impulse measurements.
+	[[nodiscard]] auto render() {
+		return [this](std::span<int32_t> input, std::span<StereoSample> output) { process(input, output); };
+	}
 };
 
 /// The ring alone is 128 KB, so the models live on the heap.
 std::unique_ptr<PlateModel> make_model(rw::Model model, float room_size, float damping) {
 	return std::make_unique<PlateModel>(model, room_size, damping);
-}
-
-/// @return The per-block peak of the left channel after one impulse of 2^28 in the send.
-std::vector<double> impulse_envelope(PlateModel& model, double seconds) {
-	std::vector<int32_t> input(kBlock, 0);
-	std::vector<StereoSample> output(kBlock);
-	input[0] = 1 << 28;
-	const auto blocks = static_cast<std::size_t>(seconds * 44100.0 / kBlock);
-	std::vector<double> envelope;
-	envelope.reserve(blocks);
-	for (std::size_t block = 0; block < blocks; ++block) {
-		std::ranges::fill(output, StereoSample{.l = 0, .r = 0});
-		model.process(input, output);
-		std::ranges::fill(input, 0);
-		double peak = 0.0;
-		for (const StereoSample& sample : output) {
-			peak = std::max(peak, std::abs(static_cast<double>(sample.l)));
-		}
-		envelope.push_back(peak);
-	}
-	return envelope;
-}
-
-/// @return Seconds for the impulse response to fall 60 dB below its peak, or @p seconds if it never does.
-double rt60(PlateModel& model, double seconds) {
-	const std::vector<double> envelope = impulse_envelope(model, seconds);
-	const double decayed = *std::ranges::max_element(envelope) / 1000.0;
-	for (std::size_t block = envelope.size(); block-- > 0;) {
-		if (envelope[block] > decayed) {
-			return static_cast<double>(block + 1) * kBlock / 44100.0;
-		}
-	}
-	return seconds;
 }
 
 /// @return The settled tail's mean sample-to-sample change over its mean level: falls as damping darkens it.
@@ -270,7 +224,7 @@ describe plate_kernel("the plate kernel", ${
 		it("does not run away at the longest room size", _ {
 			// Max size with no damping is close to a freeze by design: the tail need only be falling.
 			auto model = make_model(rw::Model::MUTABLE, 1.0f, 0.0f);
-			const std::vector<double> envelope = impulse_envelope(*model, 30.0);
+			const std::vector<double> envelope = deluge::dsp::test::impulse_envelope(model->render(), 30.0);
 			const std::size_t eighth = envelope.size() / 8;
 			const double early = *std::max_element(envelope.begin() + eighth, envelope.begin() + (2 * eighth));
 			const double late = *std::max_element(envelope.end() - eighth, envelope.end());
@@ -286,7 +240,7 @@ describe plate_kernel("the plate kernel", ${
 		it("lengthens the tail as the room grows", _ {
 			auto small = make_model(rw::Model::MUTABLE, 0.2f, 0.0f);
 			auto large = make_model(rw::Model::MUTABLE, 0.8f, 0.0f);
-			expect(rt60(*large, 20.0)).to_be_greater_than(rt60(*small, 20.0));
+			expect(deluge::dsp::test::rt60(large->render(), 20.0)).to_be_greater_than(deluge::dsp::test::rt60(small->render(), 20.0));
 		});
 
 		it("clips the tail instead of inverting it", _ {
@@ -318,15 +272,14 @@ describe plate_kernel("the plate kernel", ${
 			const Plate::Coefficients c = Plate::coefficients(
 			    {.mode = Plate::Mode::DIGITAL, .room_size = knob, .damping = knob, .width = knob, .hpf = knob, .lpf = knob});
 			expect(c.reverb_time).to_equal(reference->reverb_time());
-			// digital.hpp's kdd2, per block
-			expect(c.decay_diffusion_2).to_equal(std::clamp(reference->reverb_time() + 0.15f, 0.25f, 0.5f));
+			// decay_diffusion_2 is pinned through the Digital workloads' records, which read it every frame.
 			expect(c.lp).to_equal(reference->lp());
 			expect(c.hp_cutoff).to_equal(reference->hp_cutoff());
 			expect(c.lp_cutoff).to_equal(reference->lp_cutoff());
 		}
 	});
 
-	it("lays out every Digital line as the legacy topology truncates it", _ {
+	it("lays out every Digital line as the reference topology truncates it", _ {
 		auto reference = std::make_unique<deluge::dsp::test::reverb_ref::ReferenceDigital>();
 		const auto lines = reference->digital_topology();
 		const Plate::DigitalLines& d = Plate::kDigital;
@@ -343,18 +296,18 @@ describe plate_kernel("the plate kernel", ${
 			// The tank loses only decay^4 a round trip; a bare delay standing in for a modulated allpass would cost
 			// another ~0.49 a lap and drag the tail far short of what the room knob promises.
 			auto model = make_model(rw::Model::DIGITAL, 1.0f, 0.0f);
-			expect(rt60(*model, 20.0)).to_be_between(4.0, 9.0);
+			expect(deluge::dsp::test::rt60(model->render(), 20.0)).to_be_between(4.0, 9.0);
 		});
 
 		it("lengthens the tail as the room grows", _ {
 			auto small = make_model(rw::Model::DIGITAL, 0.2f, 0.0f);
 			auto large = make_model(rw::Model::DIGITAL, 0.8f, 0.0f);
-			expect(rt60(*large, 20.0)).to_be_greater_than(rt60(*small, 20.0));
+			expect(deluge::dsp::test::rt60(large->render(), 20.0)).to_be_greater_than(deluge::dsp::test::rt60(small->render(), 20.0));
 		});
 
 		it("settles to silence even at the longest decay", _ {
 			auto model = make_model(rw::Model::DIGITAL, 1.0f, 0.0f);
-			expect(rt60(*model, 30.0)).to_be_less_than(25.0);
+			expect(deluge::dsp::test::rt60(model->render(), 30.0)).to_be_less_than(25.0);
 		});
 
 		it("darkens the tail as damping rises", _ {
