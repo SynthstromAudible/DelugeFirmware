@@ -113,26 +113,46 @@ static CARD_INIT_REQ: embassy_sync::signal::Signal<CriticalSectionRawMutex, ()> 
 /// Holds [`SD_BUS`] across the init so identification cannot interleave with another transfer.
 /// Storage-tier transfers wait and then run on the new card; interaction-tier transfers are refused
 /// while the card is not ready (see `acquire_bus`).
+/// Set while [`card_service`] identifies a card, so the not-ready level check in
+/// `deluge_block_poll_card_event` doesn't ask for another init meanwhile.
+#[cfg(target_os = "none")]
+static INIT_IN_FLIGHT: AtomicBool = AtomicBool::new(false);
+
+/// Whether a card the SDK stopped reporting ready should be identified again. A dropped transfer
+/// makes the SDK reset the controller and report not ready until `sd::init` runs, and with the card
+/// still in the slot no insertion edge comes, so the change decides: ready at the last poll
+/// (`was_ready`), inserted and not ready now. Not while an init is already running, which also
+/// reports not ready until it finishes. A card that was never ready, or whose init failed, waits
+/// for the next insertion edge as before, so an unreadable card isn't retried in a loop.
+#[cfg(any(target_os = "none", test))]
+pub(crate) fn needs_reinit(inserted: bool, ready: bool, was_ready: bool, in_flight: bool) -> bool {
+    inserted && !ready && was_ready && !in_flight
+}
+
 #[cfg(target_os = "none")]
 #[embassy_executor::task]
 pub async fn card_service() {
     loop {
         CARD_INIT_REQ.wait().await;
+        INIT_IN_FLIGHT.store(true, Ordering::Release);
         let _guard = SD_BUS.lock().await;
         // Re-check presence under the lock: the card may have been pulled again
         // between the edge and here, in which case there is nothing to identify
         // and the next insertion edge will raise a fresh request.
         if !sd::is_inserted() {
             log::info!("sd: card gone again before re-init; waiting for the next insertion");
+            INIT_IN_FLIGHT.store(false, Ordering::Release);
             continue;
         }
         match sd::init().await {
-            Ok(()) => log::info!("sd: card re-identified after swap"),
+            Ok(()) => log::info!("sd: card re-identified"),
             // Not fatal, and not retried here: an unreadable or half-seated card
             // leaves the app in its "ejected" state, still polling, and any later
-            // reseat raises another insertion edge.
-            Err(e) => log::warn!("sd: re-init after swap failed: {:?}", e),
+            // reseat raises another insertion edge (or, still seated, the level
+            // check asks again, at most once a second).
+            Err(e) => log::warn!("sd: re-init failed: {:?}", e),
         }
+        INIT_IN_FLIGHT.store(false, Ordering::Release);
     }
 }
 
@@ -531,6 +551,22 @@ pub extern "C" fn deluge_block_poll_card_event(unit: u8) -> DelugeCardEvent {
         return CARD_INSERTED;
     }
 
+    // Still seated, ready at the last poll and not now, with no edge: the SDK reset the controller
+    // after a dropped transfer. Identify it again, quietly: it's the same card, so the app's mount
+    // stays valid.
+    static WAS_READY: AtomicBool = AtomicBool::new(false);
+    let ready = sd::is_ready();
+    let was_ready = WAS_READY.swap(ready, Ordering::Relaxed);
+    if needs_reinit(
+        sd::is_inserted(),
+        ready,
+        was_ready,
+        INIT_IN_FLIGHT.load(Ordering::Acquire),
+    ) {
+        CARD_INIT_REQ.signal(());
+        log::info!("sd: card seated but no longer ready; re-init requested");
+    }
+
     CARD_NONE
 }
 
@@ -568,3 +604,37 @@ abi_pin!(
     deluge_block_sd_unit,
     deluge_block_write
 );
+
+#[cfg(test)]
+mod reinit_tests {
+    use super::needs_reinit;
+
+    /// The SDK resets the controller after a dropped transfer and reports the card not ready until
+    /// it is identified again; with the card still in the slot no insertion edge comes, so the
+    /// level decides.
+    #[test]
+    fn card_service_reinits_an_inserted_card_that_is_not_ready() {
+        // (inserted, ready, was ready at the last poll, init in flight)
+        assert!(
+            needs_reinit(true, false, true, false),
+            "was ready, now not, card still in: re-init"
+        );
+        assert!(
+            !needs_reinit(true, true, true, false),
+            "ready: nothing to do"
+        );
+        assert!(
+            !needs_reinit(false, false, true, false),
+            "no card: nothing to identify"
+        );
+        assert!(
+            !needs_reinit(true, false, true, true),
+            "an init already running"
+        );
+        // Never ready, or a failed init: wait for the next insertion edge rather than retry forever.
+        assert!(
+            !needs_reinit(true, false, false, false),
+            "not ready before either: no retry loop"
+        );
+    }
+}
