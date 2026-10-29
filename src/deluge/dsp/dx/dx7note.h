@@ -26,11 +26,11 @@
 
 #include "dsp-next/core/control.h"
 #include "dsp-next/fixed/dx7/envelope.h"
+#include "dsp-next/fixed/dx7/graph.h"
 #include "dsp-next/fixed/dx7/lfo.h"
 #include "dsp-next/fixed/dx7/lfo_delay.h"
 #include "dsp-next/fixed/dx7/operator.h"
 #include "dsp-next/fixed/dx7/pitch_envelope.h"
-#include "modern_asm.h"
 #include <memory>
 
 class DxPatch {
@@ -103,7 +103,7 @@ private:
 	/// Configured from the patch before each block and each event, as the patch is edited live.
 	deluge::dsp::Control<deluge::dsp::fixed::dx7::PitchEnvelope> pitchenv_;
 	/// The six operators' phases and gains and the feedback history; the per-block settings arrive with each block.
-	DxGraph graph_;
+	deluge::dsp::fixed::dx7::Graph graph_;
 	int32_t basepitch_[6];
 
 	/// Configured at note-on only: the voice reads the patch's LFO delay once per note.

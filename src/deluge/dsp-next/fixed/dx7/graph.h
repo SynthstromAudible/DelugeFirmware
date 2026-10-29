@@ -24,6 +24,7 @@
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/dx7/algorithms.h"
 #include "dsp-next/fixed/dx7/mki_feedback_stack.h"
+#include "dsp-next/fixed/dx7/modern_vector_operator.h"
 #include "dsp-next/fixed/dx7/operator.h"
 #include "dsp-next/fixed/dx7/tables.h"
 
@@ -37,20 +38,11 @@
 /// @brief A DX7 voice's operators walked through its algorithm once per block, in either engine.
 namespace deluge::dsp::fixed::dx7 {
 
-/// @brief No vector modern operator: every operator renders through dx7::Operator.
-struct NoModernVector {
-	static constexpr bool kRenders = false; ///< Never used in place of the operator.
-};
-
 /// @brief The two intermediate buses operators render into. One instance, owned by the app and lent to every voice's
 /// graph per block: voices render one at a time, so no two hold the buses at once.
 struct Buses {
 	alignas(16) std::array<std::array<q31, kMaxBlock>, 2> bus{}; ///< Bus one and bus two.
 };
-
-/// @brief Silence: the modulation of an operator with no input, and the mix of one that sets its output, for a vector
-/// operator that always reads both.
-alignas(16) inline constexpr std::array<q31, kMaxBlock> kZeros{};
 
 /// @brief A DX7 voice's six operators, walked through its algorithm once per block.
 /// @details A component, not a kernel: it holds the six operators' states and the voice's feedback history, and runs
@@ -66,9 +58,9 @@ alignas(16) inline constexpr std::array<q31, kMaxBlock> kZeros{};
 /// - *MkI fuses algorithms 4 and 6.* With feedback, MkI renders op 6's whole stack (three ops in algorithm 4, two in
 ///   6) at once, with the feedback taken from the stack's bottom (@ref MkIFeedbackStack).
 /// - *MkI shifts algorithm 32's feedback two steps further*, to at most 16.
-/// @tparam ModernVector The vector modern operator for the NONE and BUS inputs, or NoModernVector. When it renders, it
-/// may write past the block, up to kMaxBlock samples, into the output and the buses.
-template <class ModernVector = NoModernVector>
+///
+/// A modern op with no input or a bus input renders four samples a step through @ref ModernVectorOperator, the
+/// device's arithmetic on every target; a modern feedback op and every MkI op render through @ref Operator.
 class Graph {
 public:
 	/// @brief One block's settings: the patch's routing and the six operators' levels and pitches.
@@ -89,8 +81,7 @@ public:
 
 	/// @brief Renders one block over the six operators.
 	/// @param settings This block's routing, levels and pitches.
-	/// @param out The block, 1 to kMaxBlock samples; with a rendering ModernVector, kMaxBlock samples must be writable
-	/// from its start.
+	/// @param out The block, 1 to kMaxBlock samples.
 	/// @param buses The intermediate buses, lent by the owner.
 	void renderBlock(const Settings& settings, Buffer out, Buses& buses);
 
@@ -123,20 +114,20 @@ private:
 		ops_[op] = held.state().op;
 	}
 
-	/// @brief Op @p op's block into @p target, through the vector modern operator when there is one and the op
-	/// takes no feedback, else through its kernel.
+	/// @brief Op @p op's block into @p target: a modern op without feedback through the vector operator, any other
+	/// through the scalar operator. With no input @p modulation is not read; with SET, neither is @p target's content.
 	[[gnu::always_inline]] void render_op(const Operator::Settings& settings, std::size_t op, Signal modulation,
 	                                      Buffer target) {
-		const std::size_t n = target.size();
-		if constexpr (ModernVector::kRenders) {
-			if (settings.engine == Engine::MODERN && settings.input != Input::FEEDBACK) {
-				const Gains g = Operator::gains(Operator::coefficients(settings), ops_[op], n);
-				ModernVector::render(settings.input == Input::NONE ? kZeros.data() : modulation.data(),
-				                     settings.output == Output::ADD ? target.data() : kZeros.data(), target.data(), n,
-				                     ops_[op].phase, settings.freq, g.gain1, g.dgain);
-				skip_op(settings, op, n);
-				return;
-			}
+		if (settings.engine == Engine::MODERN && settings.input != Input::FEEDBACK) {
+			Mono<ModernVectorOperator> vector{{.input = settings.input,
+			                                   .output = settings.output,
+			                                   .level_in = settings.level_in,
+			                                   .freq = settings.freq,
+			                                   .tables = settings.tables}};
+			vector.on<&ModernVectorOperator::resume>(ops_[op]);
+			vector.renderBlock(modulation, target, target);
+			ops_[op] = vector.state().op;
+			return;
 		}
 		Mono<Operator> unit{settings};
 		unit.on<&Operator::resume>(ops_[op], feedback_);
@@ -169,75 +160,5 @@ private:
 	std::array<OperatorState, 6> ops_{}; ///< Each op's held phase and gain.
 	FeedbackHistory feedback_{};         ///< The feedback history; carries across a restart.
 };
-
-template <class ModernVector>
-void Graph<ModernVector>::renderBlock(const Settings& s, Buffer out, Buses& lent) {
-	const std::size_t n = out.size();
-	const bool mki = s.engine == Engine::MKI;
-	constexpr int32_t kFeedbackBits = 8;
-	const int32_t shift = s.feedback != 0 ? kFeedbackBits - s.feedback : 16;
-	const bool feedback_on = shift < 16;
-
-	std::array<uint8_t, 6> ops = std::to_array(kAlgorithms[s.algorithm]);
-	if (mki && feedback_on && (s.algorithm == 3 || s.algorithm == 5)) {
-		ops[0] = kMkIFusedFeedback; // MkI fuses op 6's stack in algorithms 4 and 6
-	}
-
-	std::array<bool, 3> has_contents{true, false, false};
-	const std::array<q31*, 3> buses{out.data(), lent.bus[0].data(), lent.bus[1].data()};
-	for (std::size_t op = 0; op < 6; ++op) {
-		const uint8_t flags = ops[op];
-		bool add = (flags & OUT_BUS_ADD) != 0;
-		const int inbus = (flags >> 4) & 3;
-		const int outbus = flags & 3;
-		const Operator::Settings probe{.engine = s.engine,
-		                               .level_in = s.level_in[op],
-		                               .freq = s.freq[op],
-		                               .feedback_shift = shift,
-		                               .tables = s.tables};
-		if (!Operator::audible(Operator::coefficients(probe), ops_[op], n)) {
-			skip_op(probe, op, n); // the gate
-			if (!add) {
-				has_contents[outbus] = false;
-			}
-			continue;
-		}
-		if (!has_contents[outbus]) {
-			add = false; // adding to an empty bus sets it
-		}
-		Operator::Settings settings = probe;
-		settings.output = add ? Output::ADD : Output::SET;
-		const Buffer target{buses[outbus], n};
-		if (inbus == 0 || !has_contents[inbus]) { // an empty input is no input
-			if ((flags & (FB_IN | FB_OUT)) == (FB_IN | FB_OUT) && feedback_on) {
-				if (mki && s.algorithm == 3) {
-					render_stack<3>(s, op, shift, target);
-					op += 2;
-				}
-				else if (mki && s.algorithm == 5) {
-					render_stack<2>(s, op, shift, target);
-					op += 1;
-				}
-				else {
-					settings.input = Input::FEEDBACK;
-					if (mki && s.algorithm == 31) {
-						settings.feedback_shift = std::min(shift + 2, int32_t{16}); // MkI's algorithm 32
-					}
-					render_op(settings, op, target, target);
-				}
-			}
-			else {
-				render_op(settings, op, target, target);
-			}
-		}
-		else {
-			settings.input = Input::BUS;
-			render_op(settings, op, Signal{buses[inbus], n}, target);
-		}
-		has_contents[outbus] = true;
-	}
-}
-
-extern template class Graph<NoModernVector>;
 
 } // namespace deluge::dsp::fixed::dx7

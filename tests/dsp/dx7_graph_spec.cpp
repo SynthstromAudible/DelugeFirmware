@@ -1,11 +1,12 @@
-// dx7::Graph against the reference's FmCore and EngineMkI: every workload's every block rendered by both side by
-// side from the same operator inputs (the samples, the six ops' states and the feedback history must match), then
-// every workload's whole voice rendered through the graph against the recorded reference. On ARM, the graph with the
-// device's NEON operator (the test-local copy of the asm) against the reference core taking the same asm.
+// dx7::Graph against the reference's cores with the modern no-input and bus-input ops rendered as the device renders
+// them (VectorCore): every workload's every block rendered by both side by side from the same operator inputs (the
+// samples, the six ops' states and the feedback history must match), then every workload's whole voice through the
+// graph, which also equals the recorded reference wherever the voice stays under MkI. On ARM, the graph against the
+// reference core taking the device's NEON kernel itself (the test-local copy of the asm), block by block and voice
+// by voice.
 
 #include "dsp-next/fixed/dx7/graph.h"
 #include "dsp-next/fixed/dx7/tables.h"
-#include "dsp/dx/modern_asm.h"
 #include "dx7_asm_pin_workloads.h"
 #include "dx7_workload_records.h"
 #include "reference_dx7.h"
@@ -36,14 +37,15 @@ dx7::Buses& buses() {
 	return b;
 }
 
+using G = dx7::Graph;
+
 /// @brief The graph's settings for a reference core's call.
-template <class G>
-typename G::Settings settings_of(dx7::Engine engine, int algorithm, int32_t feedback_shift,
-                                 const dx7_reference::FmOpParams* params) {
-	typename G::Settings s{.engine = engine,
-	                       .algorithm = static_cast<uint8_t>(algorithm),
-	                       .feedback = static_cast<uint8_t>(feedback_shift < 16 ? 8 - feedback_shift : 0),
-	                       .tables = &tables()};
+G::Settings settings_of(dx7::Engine engine, int algorithm, int32_t feedback_shift,
+                        const dx7_reference::FmOpParams* params) {
+	G::Settings s{.engine = engine,
+	              .algorithm = static_cast<uint8_t>(algorithm),
+	              .feedback = static_cast<uint8_t>(feedback_shift < 16 ? 8 - feedback_shift : 0),
+	              .tables = &tables()};
 	for (std::size_t op = 0; op < 6; ++op) {
 		s.level_in[op] = params[op].level_in;
 		s.freq[op] = params[op].freq;
@@ -52,9 +54,8 @@ typename G::Settings settings_of(dx7::Engine engine, int algorithm, int32_t feed
 }
 
 /// @brief The reference core's six ops and history as the graph's view.
-template <class G>
-typename G::View view_of(const dx7_reference::FmOpParams* params, const int32_t* fb_buf) {
-	typename G::View v{.feedback = {.y0 = fb_buf[0], .y1 = fb_buf[1]}};
+G::View view_of(const dx7_reference::FmOpParams* params, const int32_t* fb_buf) {
+	G::View v{.feedback = {.y0 = fb_buf[0], .y1 = fb_buf[1]}};
 	for (std::size_t op = 0; op < 6; ++op) {
 		v.ops[op] = {.phase = params[op].phase, .gain_out = params[op].gain_out};
 	}
@@ -62,15 +63,15 @@ typename G::View view_of(const dx7_reference::FmOpParams* params, const int32_t*
 }
 
 /// @brief A core that renders one block through the graph alone, the reference core's state carried in and out.
-template <dx7::Engine E, class G = dx7::Graph<>>
+template <dx7::Engine E>
 struct GraphCore {
 	void render(const dx7_reference::Tables& /*t*/, int32_t* output, int n, dx7_reference::FmOpParams* params,
 	            int algorithm, int32_t* fb_buf, int32_t feedback_shift) {
 		G graph;
-		graph.resume(view_of<G>(params, fb_buf));
-		graph.renderBlock(settings_of<G>(E, algorithm, feedback_shift, params), {output, static_cast<std::size_t>(n)},
+		graph.resume(view_of(params, fb_buf));
+		graph.renderBlock(settings_of(E, algorithm, feedback_shift, params), {output, static_cast<std::size_t>(n)},
 		                  buses());
-		const typename G::View v = graph.view();
+		const G::View v = graph.view();
 		for (std::size_t op = 0; op < 6; ++op) {
 			params[op].phase = v.ops[op].phase;
 			params[op].gain_out = v.ops[op].gain_out;
@@ -92,8 +93,8 @@ std::size_t& mismatches() {
 }
 
 /// @brief A core that renders each block through the reference core @p Reference and, from the same inputs, through
-/// the graph @p G, counting the blocks where they disagree; the voice carries on with the reference's.
-template <class Reference, dx7::Engine E, class G = dx7::Graph<>>
+/// the graph, counting the blocks where they disagree; the voice carries on with the reference's.
+template <class Reference, dx7::Engine E>
 struct ComparingCore {
 	Reference reference{};
 
@@ -102,13 +103,13 @@ struct ComparingCore {
 		alignas(16) std::array<int32_t, dx7::kMaxBlock> graph_out{};
 		std::copy_n(output, dx7::kMaxBlock, graph_out.begin());
 		G graph;
-		graph.resume(view_of<G>(params, fb_buf));
-		graph.renderBlock(settings_of<G>(E, algorithm, feedback_shift, params),
+		graph.resume(view_of(params, fb_buf));
+		graph.renderBlock(settings_of(E, algorithm, feedback_shift, params),
 		                  {graph_out.data(), static_cast<std::size_t>(n)}, buses());
 
 		reference.render(t, output, n, params, algorithm, fb_buf, feedback_shift);
 
-		const typename G::View v = graph.view();
+		const G::View v = graph.view();
 		bool same = std::equal(output, output + n, graph_out.begin());
 		for (std::size_t op = 0; op < 6; ++op) {
 			same = same && v.ops[op].phase == params[op].phase && v.ops[op].gain_out == params[op].gain_out;
@@ -119,11 +120,14 @@ struct ComparingCore {
 };
 
 struct ComparingCores {
-	ComparingCore<dx7_reference::Core, dx7::Engine::MODERN> modern;
+	ComparingCore<dw::VectorCore, dx7::Engine::MODERN> modern;
 	ComparingCore<dx7_reference::CoreMkI, dx7::Engine::MKI> mki;
 };
 
 #if DELUGE_DX7_ASM_PIN
+
+/// @brief Silence, for the asm's no-input modulation and its set-output mix.
+alignas(16) constexpr std::array<int32_t, dx7::kMaxBlock> kZeros{};
 
 /// @brief The reference's modern core with fm_core.cpp's neon branch: NONE and BUS inputs through the asm (the
 /// test-local copy), the feedback op through the scalar kernel.
@@ -153,15 +157,15 @@ struct AsmCore {
 				if (!has_contents[outbus]) {
 					add = false;
 				}
-				const int32_t* mix = add ? outptr : dx7::kZeros.data();
+				const int32_t* mix = add ? outptr : kZeros.data();
 				if (inbus == 0 || !has_contents[inbus]) {
 					if ((flags & 0xc0) == 0xc0 && feedback_shift < 16) {
 						dx7_reference::compute_fb(t, outptr, n, param.phase, param.freq, gain1, gain2, dgain, fb_buf,
 						                          feedback_shift, add);
 					}
 					else {
-						reference_neon_fm_kernel(dx7::kZeros.data(), mix, outptr, simd_n, param.phase, param.freq,
-						                         gain1, dgain);
+						reference_neon_fm_kernel(kZeros.data(), mix, outptr, simd_n, param.phase, param.freq, gain1,
+						                         dgain);
 					}
 				}
 				else {
@@ -178,11 +182,14 @@ struct AsmCore {
 	}
 };
 
-using AsmGraph = dx7::Graph<AsmModernVectorWith<&reference_neon_fm_kernel>>;
-
 struct AsmComparingCores {
-	ComparingCore<AsmCore, dx7::Engine::MODERN, AsmGraph> modern;
-	ComparingCore<dx7_reference::CoreMkI, dx7::Engine::MKI, AsmGraph> mki;
+	ComparingCore<AsmCore, dx7::Engine::MODERN> modern;
+	ComparingCore<dx7_reference::CoreMkI, dx7::Engine::MKI> mki;
+};
+
+struct AsmCores {
+	AsmCore modern;
+	dx7_reference::CoreMkI mki;
 };
 
 #endif
@@ -195,8 +202,7 @@ describe dx7_graph_spec("dx7::Graph", ${
 		mismatches() = 0;
 		std::size_t blocks = 0;
 		for (const dw::Workload& w : dw::all_workloads()) {
-			const dw::Run run = dw::run<ComparingCores>(w);
-			expect(run.record).to_equal(dw::kRecordedReference.at(static_cast<std::size_t>(w.id)));
+			std::ignore = dw::run<ComparingCores>(w);
 			blocks += w.blocks.size();
 		}
 		expect(blocks).to_be_greater_than(std::size_t{0});
@@ -205,18 +211,39 @@ describe dx7_graph_spec("dx7::Graph", ${
 
 	for (const dw::Workload& workload : dw::all_workloads()) {
 		it(dw::name(workload.id), _ {
-			expect(dw::run<GraphCores>(workload).record)
-			    .to_equal(dw::kRecordedReference.at(static_cast<std::size_t>(workload.id)));
+			const dw::WorkloadRecord record = dw::run<GraphCores>(workload).record;
+			expect(record).to_equal(dw::run_reference_vector(workload));
+			if (dw::renders_mki_throughout(workload)) {
+				expect(record).to_equal(dw::kRecordedReference.at(static_cast<std::size_t>(workload.id)));
+			}
 		});
 	}
 
+	it("keeps every workload that stays under MkI as recorded, and moves every other", _ {
+		std::size_t mki = 0;
+		for (const dw::Workload& w : dw::all_workloads()) {
+			const bool kept = dw::run_reference_vector(w) == dw::kRecordedReference.at(static_cast<std::size_t>(w.id));
+			if (dw::renders_mki_throughout(w)) {
+				++mki;
+				expect(kept).to_be_true();
+			}
+		}
+		expect(mki).to_be_greater_than(std::size_t{0});
+	});
+
 #if DELUGE_DX7_ASM_PIN
-	it("renders with the device's NEON operator as the reference core taking the same asm", _ {
+	it("renders every block as the reference core taking the device's NEON kernel", _ {
 		mismatches() = 0;
 		for (const dw::Workload& w : dw::all_workloads()) {
 			std::ignore = dw::run<AsmComparingCores>(w);
 		}
 		expect(mismatches()).to_equal(std::size_t{0});
+	});
+
+	it("renders every voice as the reference voice taking the device's NEON kernel", _ {
+		for (const dw::Workload& w : dw::all_workloads()) {
+			expect(dw::run<GraphCores>(w).record).to_equal(dw::run<AsmCores>(w).record);
+		}
 	});
 #endif
 });

@@ -269,7 +269,7 @@ bool DxVoice::compute(int32_t* buf, int n, int base_pitch, const DxPatch* ctrls,
 	uint32_t amod_3 = (ctrls->eg_mod + 1) << 17;
 	amd_mod = max((1 << 24) - amod_3, amd_mod);
 
-	DxGraph::Settings settings{
+	deluge::dsp::fixed::dx7::Graph::Settings settings{
 	    .engine = ctrls->engine, .algorithm = patch[134], .feedback = patch[135], .tables = &dxEngine->tables};
 	// ==== OP RENDER ====
 	for (int op = 0; op < 6; op++) {

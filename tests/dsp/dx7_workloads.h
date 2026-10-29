@@ -24,9 +24,13 @@
 
 #pragma once
 
+#include "dsp-next/core/mono.h"
+#include "dsp-next/fixed/dx7/modern_vector_operator.h"
+#include "dsp-next/fixed/dx7/tables.h"
 #include "dsp-next/fixed/noise/noise.h"
 #include "reference_dx7.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -458,6 +462,103 @@ Run run(const Workload& w) {
 /// @return @p w's record through the reference.
 inline WorkloadRecord run_reference(const Workload& w) {
 	return run(w).record;
+}
+
+/// @brief The modern operator's tables as the app builds them, for VectorCore.
+inline const deluge::dsp::fixed::dx7::Tables& vector_tables() {
+	static const deluge::dsp::fixed::dx7::Tables t = [] {
+		deluge::dsp::fixed::dx7::Tables g{};
+		deluge::dsp::fixed::dx7::generate(g);
+		return g;
+	}();
+	return t;
+}
+
+/// @brief The reference's modern core with its no-input and bus-input ops rendered by the vector operator, the
+/// device's arithmetic, and everything else (the gains, the gate, the feedback op, the routing) as Core renders it.
+struct VectorCore {
+	dx7_reference::AlignedBuf<int32_t, dx7_reference::DX_MAX_N> buf_[2]{}; // NOLINT(*-avoid-c-arrays): as Core
+
+	DELUGE_REFERENCE_DX7_LEGACY_ARITHMETIC void render(const dx7_reference::Tables& t, int32_t* output, int n,
+	                                                   dx7_reference::FmOpParams* params, int algorithm,
+	                                                   int32_t* fb_buf, int32_t feedback_shift) {
+		const dx7_reference::FmAlgorithm alg = dx7_reference::algorithms[algorithm];
+		const int inv_n = (1 << 30) / n;
+		bool has_contents[3] = {true, false, false}; // NOLINT(*-avoid-c-arrays): as Core
+		for (int op = 0; op < 6; op++) {
+			int flags = alg.ops[op];
+			bool add = (flags & dx7_reference::OUT_BUS_ADD) != 0;
+			dx7_reference::FmOpParams& param = params[op];
+			int inbus = (flags >> 4) & 3;
+			int outbus = flags & 3;
+			int32_t* outptr = (outbus == 0) ? output : buf_[outbus - 1].get();
+			int32_t gain1 = param.gain_out;
+			int32_t gain2 = dx7_reference::exp2_lookup(t, param.level_in - (14 * (1 << 24)));
+			param.gain_out = gain2;
+			int32_t dgain = (int)((((int64_t)(gain2 - gain1 + (n >> 1))) * (int64_t)(inv_n)) >> 30);
+
+			if (gain1 >= dx7_reference::kGainLevelThresh || gain2 >= dx7_reference::kGainLevelThresh) {
+				if (!has_contents[outbus]) {
+					add = false;
+				}
+				if (inbus == 0 || !has_contents[inbus]) {
+					if ((flags & 0xc0) == 0xc0 && feedback_shift < 16) {
+						dx7_reference::compute_fb(t, outptr, n, param.phase, param.freq, gain1, gain2, dgain, fb_buf,
+						                          feedback_shift, add);
+					}
+					else {
+						vector(outptr, n, outptr, param, gain1, deluge::dsp::fixed::dx7::Input::NONE, add);
+					}
+				}
+				else {
+					vector(outptr, n, buf_[inbus - 1].get(), param, gain1, deluge::dsp::fixed::dx7::Input::BUS, add);
+				}
+				has_contents[outbus] = true;
+			}
+			else if (!add) {
+				has_contents[outbus] = false;
+			}
+			param.phase += param.freq * n;
+		}
+	}
+
+	/// @brief One op through the vector operator from its held phase and gain; Core moves the held state itself.
+	static void vector(int32_t* out, int n, const int32_t* modulation, const dx7_reference::FmOpParams& param,
+	                   int32_t gain1, deluge::dsp::fixed::dx7::Input input, bool add) {
+		namespace dx7 = deluge::dsp::fixed::dx7;
+		deluge::dsp::Mono<dx7::ModernVectorOperator> op{{.input = input,
+		                                                 .output = add ? dx7::Output::ADD : dx7::Output::SET,
+		                                                 .level_in = param.level_in,
+		                                                 .freq = param.freq,
+		                                                 .tables = &vector_tables()}};
+		op.on<&dx7::ModernVectorOperator::resume>(dx7::OperatorState{.phase = param.phase, .gain_out = gain1});
+		const auto len = static_cast<std::size_t>(n);
+		op.renderBlock({modulation, len}, {out, len}, {out, len});
+	}
+};
+
+/// @brief The cores a voice renders through with the device's modern arithmetic.
+struct VectorCores {
+	VectorCore modern;
+	dx7_reference::CoreMkI mki;
+};
+
+/// @return @p w's record through the reference voice rendering modern ops as the device does.
+inline WorkloadRecord run_reference_vector(const Workload& w) {
+	return run<VectorCores>(w).record;
+}
+
+/// @return Whether @p w renders under MkI from its first block to its last: no modern op ever renders, so its record
+/// is the same through either modern core.
+inline bool renders_mki_throughout(const Workload& w) {
+	const auto resolves_mki = [](uint8_t engine, const Patch& patch) {
+		return engine == 2 || (engine == 0 && patch[135] > 0 && (patch[134] == 3 || patch[134] == 5));
+	};
+	if (!resolves_mki(w.engine, w.patch)) {
+		return false;
+	}
+	return std::ranges::none_of(
+	    w.events, [](const Event& e) { return e.kind == Event::PATCH_EDIT || e.kind == Event::ENGINE_SWITCH; });
 }
 
 /// @return @p w's workload.
