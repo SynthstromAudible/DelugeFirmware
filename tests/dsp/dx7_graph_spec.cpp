@@ -67,8 +67,7 @@ template <dx7::Engine E>
 struct GraphCore {
 	void render(const dx7_reference::Tables& /*t*/, int32_t* output, int n, dx7_reference::FmOpParams* params,
 	            int algorithm, int32_t* fb_buf, int32_t feedback_shift) {
-		G graph;
-		graph.resume(view_of(params, fb_buf));
+		G graph{view_of(params, fb_buf)};
 		graph.renderBlock(settings_of(E, algorithm, feedback_shift, params), {output, static_cast<std::size_t>(n)},
 		                  buses());
 		const G::View v = graph.view();
@@ -102,8 +101,7 @@ struct ComparingCore {
 	            int algorithm, int32_t* fb_buf, int32_t feedback_shift) {
 		alignas(16) std::array<int32_t, dx7::kMaxBlock> graph_out{};
 		std::copy_n(output, dx7::kMaxBlock, graph_out.begin());
-		G graph;
-		graph.resume(view_of(params, fb_buf));
+		G graph{view_of(params, fb_buf)};
 		graph.renderBlock(settings_of(E, algorithm, feedback_shift, params),
 		                  {graph_out.data(), static_cast<std::size_t>(n)}, buses());
 
