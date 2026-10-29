@@ -56,9 +56,11 @@
 #include <utility>
 
 /// @file
-/// @brief The int32 FFT's radix kernels, stage loop and real splits. Every sum and difference wraps; every product is
-/// the saturating doubling high half, truncating except in the 16-point inverse, which rounds. Each kernel computes its
-/// values from the same operands in the same order the recorded transforms were made with, so they match bit for bit.
+/// @brief The int32 FFT's radix kernels, stage loop and real splits. Every sum and difference wraps. Every vector
+/// product is the saturating doubling high half, truncating except in the 16-point inverse, which rounds. The scalar
+/// 8-point paths differ: the 8-point inverse multiplies by √½ as a 64-bit product shifted down by 31, and its real
+/// split sums two 64-bit products' high words and then doubles the sum, both wrapping. Each kernel computes its values
+/// from the same operands in the same order the recorded transforms were made with, so they match bit for bit.
 namespace deluge::dsp::fixed::fft::detail {
 
 enum class Direction : uint8_t { Forward, Inverse };
@@ -132,8 +134,14 @@ struct Two {
 	return static_cast<int32_t>(static_cast<uint32_t>(x) << 1);
 }
 
+/// @brief Writes complex value @p k of an interleaved (r, i) output: the caller's sample words, written as words.
+[[gnu::always_inline]] inline void put(int32_t* out, int32_t k, int32_t r, int32_t i) {
+	out[2 * k] = r;
+	out[(2 * k) + 1] = i;
+}
+
 /// @brief The 4-point inverse complex transform.
-[[gnu::always_inline]] inline void fft4_inverse(Complex* out, const Complex* in) {
+[[gnu::always_inline]] inline void fft4_inverse(int32_t* out, const Complex* in) {
 	const int32_t s2_r = wrapping_sub(in[0].r, in[2].r);
 	const int32_t s2_i = wrapping_sub(in[0].i, in[2].i);
 	const int32_t tmp_r = wrapping_add(in[0].r, in[2].r);
@@ -142,14 +150,14 @@ struct Two {
 	const int32_t s0_i = wrapping_add(in[1].i, in[3].i);
 	const int32_t s1_r = wrapping_sub(in[1].r, in[3].r);
 	const int32_t s1_i = wrapping_sub(in[1].i, in[3].i);
-	out[2] = {wrapping_sub(tmp_r, s0_r), wrapping_sub(tmp_i, s0_i)};
-	out[0] = {wrapping_add(tmp_r, s0_r), wrapping_add(tmp_i, s0_i)};
-	out[1] = {wrapping_sub(s2_r, s1_i), wrapping_add(s2_i, s1_r)};
-	out[3] = {wrapping_add(s2_r, s1_i), wrapping_sub(s2_i, s1_r)};
+	put(out, 2, wrapping_sub(tmp_r, s0_r), wrapping_sub(tmp_i, s0_i));
+	put(out, 0, wrapping_add(tmp_r, s0_r), wrapping_add(tmp_i, s0_i));
+	put(out, 1, wrapping_sub(s2_r, s1_i), wrapping_add(s2_i, s1_r));
+	put(out, 3, wrapping_add(s2_r, s1_i), wrapping_sub(s2_i, s1_r));
 }
 
 /// @brief The 8-point inverse complex transform.
-[[gnu::always_inline]] inline void fft8_inverse(Complex* out, const Complex* in) {
+[[gnu::always_inline]] inline void fft8_inverse(int32_t* out, const Complex* in) {
 	const int32_t s0_r = wrapping_add(in[0].r, in[4].r);
 	const int32_t s0_i = wrapping_add(in[0].i, in[4].i);
 	const int32_t s1_r = wrapping_sub(in[0].r, in[4].r);
@@ -175,10 +183,10 @@ struct Two {
 	int32_t t2_i = wrapping_add(s2_i, s6_i);
 	int32_t t3_r = wrapping_sub(s2_r, s6_r);
 	int32_t t3_i = wrapping_sub(s2_i, s6_i);
-	out[0] = {wrapping_add(t1_r, t2_r), wrapping_add(t1_i, t2_i)};
-	out[4] = {wrapping_sub(t1_r, t2_r), wrapping_sub(t1_i, t2_i)};
-	out[2] = {wrapping_sub(t0_r, t3_i), wrapping_add(t0_i, t3_r)};
-	out[6] = {wrapping_add(t0_r, t3_i), wrapping_sub(t0_i, t3_r)};
+	put(out, 0, wrapping_add(t1_r, t2_r), wrapping_add(t1_i, t2_i));
+	put(out, 4, wrapping_sub(t1_r, t2_r), wrapping_sub(t1_i, t2_i));
+	put(out, 2, wrapping_sub(t0_r, t3_i), wrapping_add(t0_i, t3_r));
+	put(out, 6, wrapping_add(t0_r, t3_i), wrapping_sub(t0_i, t3_r));
 
 	// The odd outputs: the ±45° terms rotate by √½ (1 + i) and its conjugates.
 	const int32_t t4_r = times_sqrt_half(wrapping_sub(s3_r, s3_i));
@@ -193,10 +201,10 @@ struct Two {
 	t2_i = wrapping_sub(t4_i, t5_i);
 	t3_r = wrapping_add(t4_r, t5_r);
 	t3_i = wrapping_add(t4_i, t5_i);
-	out[1] = {wrapping_add(t1_r, t2_r), wrapping_add(t1_i, t2_i)};
-	out[5] = {wrapping_sub(t1_r, t2_r), wrapping_sub(t1_i, t2_i)};
-	out[3] = {wrapping_sub(t0_r, t3_i), wrapping_add(t0_i, t3_r)};
-	out[7] = {wrapping_add(t0_r, t3_i), wrapping_sub(t0_i, t3_r)};
+	put(out, 1, wrapping_add(t1_r, t2_r), wrapping_add(t1_i, t2_i));
+	put(out, 5, wrapping_sub(t1_r, t2_r), wrapping_sub(t1_i, t2_i));
+	put(out, 3, wrapping_sub(t0_r, t3_i), wrapping_add(t0_i, t3_r));
+	put(out, 7, wrapping_add(t0_r, t3_i), wrapping_sub(t0_i, t3_r));
 }
 
 /// @brief The 16-point inverse complex transform: a radix-4 stage without twiddles, a lane transpose, and a radix-4

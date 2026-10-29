@@ -63,6 +63,7 @@ void RealFft::forward(std::span<const int32_t> in, std::span<Complex> out) const
 	assert(twiddles_.magnitude >= kMinForwardMagnitude);
 	assert(in.size() >= static_cast<std::size_t>(2 * ncfft));
 	assert(out.size() >= static_cast<std::size_t>(ncfft + 1));
+	// The kernels read the samples as (r, i) words through int32_t pointers; the Complex view only carries the address.
 	const auto* samples = reinterpret_cast<const Complex*>(in.data());
 
 	if (ncfft == 8) {
@@ -70,7 +71,7 @@ void RealFft::forward(std::span<const int32_t> in, std::span<Complex> out) const
 		// three values past the input and writes four groups of eight. It runs on locals, padded with zeros; the
 		// first lane, outputs 0–7, is the transform.
 		std::array<Complex, 11> padded{};
-		std::copy_n(samples, 8, padded.begin());
+		std::copy_n(in.data(), 16, detail::words(padded.data()));
 		std::array<Complex, 32> wide;
 		detail::radix8x4<detail::Direction::Forward>(wide.data(), padded.data(), 1);
 		detail::split_forward(out.data(), wide.data(), twiddles_.super.data(), ncfft);
@@ -91,15 +92,16 @@ void RealFft::inverse(std::span<const Complex> in, std::span<int32_t> out) const
 	assert(out.size() >= static_cast<std::size_t>(2 * ncfft));
 	Complex* split = scratch_.data();
 	Complex* buffer = scratch_.data() + ncfft;
+	// As in forward: the larger transforms store (r, i) words through int32_t pointers.
 	auto* samples = reinterpret_cast<Complex*>(out.data());
 
 	detail::split_inverse(split, in.data(), twiddles_.super.data(), ncfft);
 	switch (ncfft) {
 	case 4:
-		detail::fft4_inverse(samples, split);
+		detail::fft4_inverse(out.data(), split);
 		break;
 	case 8:
-		detail::fft8_inverse(samples, split);
+		detail::fft8_inverse(out.data(), split);
 		break;
 	case 16:
 		detail::fft16_inverse(samples, split, twiddles_.stage.data());
