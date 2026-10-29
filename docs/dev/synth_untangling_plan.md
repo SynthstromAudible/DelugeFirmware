@@ -350,8 +350,9 @@ The harness paid for itself immediately, surfacing several pre-existing bugs
 
 The six firmware-affecting fixes were cherry-picked onto `minor-fixes`
 (builds green) for independent release ahead of the untangling itself. The DX7
-modern operator runs one Argon step (the device's polynomial sine) on every
-target, so x86 and ARM render DX7 presets identically. Hardware ear-checks on the
+modern operator computes the device's polynomial sine on every target (the NEON
+kernel on the device, an Argon step bit-exact with it elsewhere), so x86 and ARM
+render DX7 presets identically. Hardware ear-checks on the
 FM, env2-release, and DX7 changes remain pending. Sample/wavetable corpus
 cases are deferred until audio files join the card images.
 

@@ -111,8 +111,9 @@ at the end. Migration order:
 5. **Delay / reverb / compressor FX kernels** — injected scratch span and
    stereo flag; tempo-sync resolved by the caller to a plain rate (the kernel
    stops including `model/sync.h`).
-6. **DX7** (`dx/`) — ported into `fixed/dx7/`; the modern operator
-   runs one Argon step on every target (host, sim and device), so there is no host/asm split.
+6. **DX7** (`dx/`) — ported into `fixed/dx7/`; the device renders the modern
+   operator through its NEON kernel and every other build through an Argon step bit-exact with it, so host, sim and
+   device render DX7 presets identically.
 
 Each primitive: rewrite in `dsp-next` → **write a thorough behavioural spec**
 (`tests/dsp/<name>_spec.cpp`, CppSpec) that runs as a CTest test on **both** x86

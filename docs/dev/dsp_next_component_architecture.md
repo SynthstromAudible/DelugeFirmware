@@ -677,16 +677,21 @@ the codec and the UI.
   steps further, each named where it is applied. It keeps no settings: each block's levels and pitches arrive with the
   block (`renderBlock(settings, out, buses)`), so a voice holds no more than it did before. Its verbs are documented at
   the class.
-- **The Argon step, on every target.** The modern operator's sine is the device's polynomial, not the table, and runs
-  as one Argon step on the host, the sim and the device: integer wrapping phase, `phase0 + i·freq` for sample i; a
+- **One arithmetic, two implementations.** The modern operator's sine is the device's polynomial, not the table. The
+  device renders the modern ops with no input or a bus input through its NEON kernel (`neon_fm_kernel.s`, beside the
+  graph: `graph.cpp` takes it when the build names its symbol in `DELUGE_DX7_NEON_KERNEL`, as the firmware's does);
+  every other build steps `ModernVectorOperator` (Argon), which computes exactly what the kernel computes: integer
+  wrapping phase, `phase0 + i·freq` for sample i; a
   float gain ramp converted with 24 fraction bits, sample 0 at `gain1` (a sample behind the scalar operator's
   pre-increment) and one float add per step; the position `((phase + modulation) & 0x7fffff) − 0x400000` converted with
   22 bits, bit 23 the sign; three non-fused multiply-adds in x², each rounding (the A9's NEON has none fused); the
   product with the gain converted with 24 bits, truncating and saturating, NaN to 0; the sign applied as a bitwise
   NOT (−y − 1); the accumulator added with wrapping. No denormal arises. `Mono` runs it three vectors at a time
-  (`kInterleave`, see [`Mono<K>`](#monok-coremonoh)), each stage written for the three in turn as the hand kernel
-  did, with the gain ramp's order held by a register barrier; so stepped, it is as fast as the hand kernel it
-  replaces (`a9_dsp_performance.md`, "DX7").
+  (`kInterleave`, see [`Mono<K>`](#monok-coremonoh)), each stage written for the three in turn as the kernel does,
+  with the gain ramp's order held by a register barrier. So stepped it keeps pace with the kernel on ops with no
+  input, but not on ops reading a bus: the kernel issues each block's loads a block ahead, which the compiler cannot
+  do for the step without spilling (`a9_dsp_performance.md`, "DX7"), so the device keeps the kernel. The
+  graph spec on ARM builds the graph with the kernel, and holds it to the same references as the Argon build.
 - **The voice, a component; noise a policy.** `Voice<Noise>` (`voice.h`, its note-on scaling in `voice_scaling.h`)
   runs the envelopes, base pitches, LFO delay and graph for one note. Its verbs (`start`, `release`, `retune`,
   `renderBlock`) each take the patch as it stands: a snapshot of its bytes, the note and the velocity, taken by the
@@ -702,9 +707,10 @@ the codec and the UI.
   component spec equals it (`dx7_tables_spec` to `dx7_voice_spec`), with the modern no-input and bus-input ops taken as
   the device renders them (`VectorCore`). `reference_neon_fm_kernel.s` is the device's NEON kernel, pinned under qemu
   over 1,200 cases (`dx7_asm_pin_records.h`); the vector step equals it on x86 and ARM, with and without the device's
-  float flags, and on ARM the graph equals the reference taking the asm on every block and voice. The `dx7/` golden
-  cases reach what no community preset does, each recorded on the engine before it moved; the one re-baseline, when
-  the modern operator took the Argon step everywhere, moved only the cases that render modern. The `dx7` bench list
+  float flags, and on ARM the graph built with the kernel equals the reference taking it on every block and voice.
+  The `dx7/` golden cases reach what no community preset does, each recorded on the engine before it moved; the one
+  re-baseline, when the host and sim took the kernel's arithmetic (the goldens had rendered the table sine, which the
+  device never played), moved only the cases that render modern. The `dx7` bench list
   times a voice's block in each engine.
 
 ### The control form
@@ -1006,7 +1012,9 @@ per-sample loop, so a `Mono` of one would be inert.
   order of any float accumulation across the N with a register barrier: under
   `-funsafe-math-optimizations` the compiler otherwise reassociates sums it can
   now see together. `dx7::ModernVectorOperator` declares N = 3
-  ([a9_dsp_performance.md](a9_dsp_performance.md#dx7)).
+  ([a9_dsp_performance.md](a9_dsp_performance.md#dx7)). Interleaving covers float
+  latency, not load latency: a chain that starts from a fresh load still waits
+  on it.
 - `render(...)` is a one-sample block: one `prepare` and one dispatch per call.
   A vector kernel renders it as the partial step of a block of one. It builds
   one-sample spans and runs a whole block's glue, several out-of-line
