@@ -19,7 +19,9 @@
 
 #include "../../dsp/wavetable_band_crc.h"
 #include "../../dsp/wavetable_band_records.h"
+#include "dsp/fft/fft_config_manager.h"
 #include "memory/general_memory_allocator.h" // GeneralMemoryAllocator::resourceManager()
+#include "memory/heaps.h"                    // failNextAllocationOfSize, allocationFailurePending
 #include "model/sample/pitch_scan.h"
 #include "model/sample/sample.h"
 #include "scenarios/load_invariants.h"
@@ -41,6 +43,7 @@
 #include <cstring>
 #include <string>
 #include <string_view>
+#include <vector>
 
 // The app headers above can reach `src/lib/printf.h`, which aliases `printf` to an embedded printf this harness does
 // not link; the lines this file prints are the gate's output, so they go to the real stdout.
@@ -364,6 +367,7 @@ constexpr int kMaxDeferrals = 2000;
 
 enum class Stage : uint8_t {
 	Pure,
+	WaveTableFail,
 	HolderDefault,
 	HolderAsync,
 	ManagerDefault,
@@ -371,8 +375,61 @@ enum class Stage : uint8_t {
 	WaveTablePin,
 	PitchPin,
 	ZeroBand,
+	WaveTableChurn,
+	Finish,
 	Done
 };
+
+/// Each stage's name in LOAD_POLICY_ONLY.
+const char* stageName(Stage stage) {
+	switch (stage) {
+	case Stage::Pure:
+		return "pure";
+	case Stage::WaveTableFail:
+		return "wt-fail";
+	case Stage::HolderDefault:
+		return "holder-default";
+	case Stage::HolderAsync:
+		return "holder-async";
+	case Stage::ManagerDefault:
+		return "manager-default";
+	case Stage::ManagerAsync:
+		return "manager-async";
+	case Stage::WaveTablePin:
+		return "wt-pin";
+	case Stage::PitchPin:
+		return "pitch-pin";
+	case Stage::ZeroBand:
+		return "zero-band";
+	case Stage::WaveTableChurn:
+		return "wt-churn";
+	case Stage::Finish:
+	case Stage::Done:
+		break;
+	}
+	return "";
+}
+
+/// Whether @p stage runs: every gate stage when LOAD_POLICY_ONLY is unset or empty, else only the stages it names
+/// (comma-separated). The churn is no gate stage: it runs only when named.
+bool stageRuns(Stage stage) {
+	const char* only = std::getenv("LOAD_POLICY_ONLY");
+	if (only == nullptr || *only == '\0') {
+		return stage != Stage::WaveTableChurn;
+	}
+	const std::string_view name = stageName(stage);
+	std::string_view list{only};
+	while (true) {
+		const std::size_t comma = list.find(',');
+		if (list.substr(0, comma) == name) {
+			return true;
+		}
+		if (comma == std::string_view::npos) {
+			return false;
+		}
+		list.remove_prefix(comma + 1);
+	}
+}
 
 Stage g_stage = Stage::Pure;
 int32_t g_failures = 0;
@@ -609,7 +666,181 @@ void runZeroBand() {
 	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
 }
 
+/// The record of @p file.
+const wavetable_band_records::Record& recordOf(std::string_view file) {
+	for (const wavetable_band_records::Record& record : wavetable_band_records::kRecords) {
+		if (file == record.file) {
+			return record;
+		}
+	}
+	std::abort();
+}
+
+/// A wavetable load from the card, as the browser's single-cycle path makes one.
+struct WaveTableLoad {
+	Error error = Error::NONE;
+	AudioFile* file = nullptr;
+	WaveTable* table = nullptr;
+};
+
+WaveTableLoad loadWaveTable(std::string path) {
+	WaveTableLoad load;
+	load.file = audioFileManager.getAudioFileFromFilename(
+	    path, /*mayReadCard=*/true, &load.error, AudioFileType::WAVETABLE, /*makeWaveTableWorkAtAllCosts=*/true);
+	if (load.file != nullptr && load.file->type == AudioFileType::WAVETABLE) {
+		load.table = static_cast<WaveTable*>(load.file);
+	}
+	return load;
+}
+
+/// Whether @p path is resident as a wavetable: an in-memory lookup, which reads nothing from the card.
+bool residentWaveTable(std::string path) {
+	Error error = Error::NONE;
+	return audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/false, &error, AudioFileType::WAVETABLE)
+	       != nullptr;
+}
+
+/// The CRC of @p view's bands but those of @p skippedMagnitude.
+uint32_t crcWithout(const deluge::dsp::fixed::WaveTableData& view, int32_t skippedMagnitude) {
+	std::vector<deluge::dsp::fixed::WaveTableBand> kept;
+	for (int32_t b = 0; b < view.num_bands(); ++b) {
+		if (view.band(b).cycleSizeMagnitude != skippedMagnitude) {
+			kept.push_back(view.band(b));
+		}
+	}
+	return wavetable_band_crc({view.num_cycles(), view.num_cycle_transitions_magnitude(), view.wave_index_multiplier(),
+	                           kept.data(), sizeof(deluge::dsp::fixed::WaveTableBand),
+	                           static_cast<int32_t>(kept.size())});
+}
+
+/// Reloads @p recordFile without an injected failure and checks its bands against the record: a failed or degraded
+/// load left nothing behind that the next load picks up.
+bool reloadsAsRecorded(const char* recordFile) {
+	const std::string path = cardPathOf(recordFile);
+	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
+	const WaveTableLoad load = loadWaveTable(path);
+	const wavetable_band_records::Record& record = recordOf(recordFile);
+	const bool ok = load.table != nullptr && load.table->view().num_bands() == record.num_bands
+	                && wavetable_band_crc(load.table->view()) == record.crc;
+	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
+	return ok;
+}
+
+void reportFail(const char* site, Error error, int32_t bands, bool ok, const char* suffix = "") {
+	const bool injected = !deluge::memory::allocationFailurePending();
+	printf("LP-WT-FAIL site=%s injected=%d error=%d bands=%d ok=%d%s\n", site, injected ? 1 : 0,
+	       static_cast<int>(error), static_cast<int>(bands), (ok && injected) ? 1 : 0, suffix);
+	if (!(ok && injected)) {
+		g_failures++;
+	}
+}
+
+constexpr const char* kManyFile = "wavetable_pins/WTP_MANY.WAV";
+constexpr const char* kS32File = "wavetable_pins/WTP_S32.WAV";
+/// WTP_MANY's shape: 64 cycles of 256 samples, bands from 256 samples (magnitude 8) down to 8.
+constexpr int32_t kManyCycles = 64;
+constexpr int32_t kManyCycleSize = 256;
+
+/// A missing band-0 FFT table: the table keeps band 0 alone, over every cycle, and loads.
+void runBand0TwiddlesLeg() {
+	deluge::memory::failNextAllocationOfSize(FFTConfigManager::blockBytes(5));
+	const std::string path = cardPathOf(kS32File);
+	const WaveTableLoad load = loadWaveTable(path);
+	const deluge::dsp::fixed::WaveTableData view =
+	    load.table != nullptr ? load.table->view() : deluge::dsp::fixed::WaveTableData{};
+	bool ok = load.table != nullptr && load.error == Error::NONE && view.num_bands() == 1
+	          && view.band(0).fromCycleNumber == 0 && view.band(0).toCycleNumber == view.num_cycles();
+	for (uint32_t increment : {0U, 0x00100000U, 0x7FFFFFFFU, 0xFFFFFFFFU}) {
+		ok = ok && view.select_band(increment) >= 0;
+	}
+	reportFail("band0-twiddles", load.error, view.num_bands(), ok && reloadsAsRecorded(kS32File));
+}
+
+/// A missing smaller band's FFT table: that band alone is dropped, and the rest are built as they always are.
+void runBandTwiddlesLeg() {
+	constexpr int32_t kMissingMagnitude = 7;
+	deluge::memory::failNextAllocationOfSize(FFTConfigManager::blockBytes(kMissingMagnitude));
+	const std::string path = cardPathOf(kManyFile);
+	const WaveTableLoad load = loadWaveTable(path);
+	const deluge::dsp::fixed::WaveTableData view =
+	    load.table != nullptr ? load.table->view() : deluge::dsp::fixed::WaveTableData{};
+	const uint32_t degradedCrc = load.table != nullptr ? wavetable_band_crc(view) : 0;
+	bool ok = load.table != nullptr && load.error == Error::NONE;
+	for (int32_t b = 0; ok && b < view.num_bands(); ++b) {
+		ok = view.band(b).cycleSizeMagnitude != kMissingMagnitude;
+	}
+	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
+
+	const WaveTableLoad full = loadWaveTable(path);
+	ok = ok && full.table != nullptr && view.num_bands() == full.table->view().num_bands() - 1
+	     && degradedCrc == crcWithout(full.table->view(), kMissingMagnitude);
+	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
+	reportFail("band-twiddles", load.error, view.num_bands(), ok && reloadsAsRecorded(kManyFile));
+}
+
+/// An allocation whose failure fails the load: it returns INSUFFICIENT_RAM, no file, and leaves nothing resident.
+void runFailedLoadLeg(const char* site, std::size_t bytes) {
+	deluge::memory::failNextAllocationOfSize(bytes);
+	const std::string path = cardPathOf(kManyFile);
+	const WaveTableLoad load = loadWaveTable(path);
+	const bool ok = load.error == Error::INSUFFICIENT_RAM && load.file == nullptr && !residentWaveTable(path);
+	reportFail(site, load.error, load.table != nullptr ? load.table->view().num_bands() : 0,
+	           ok && reloadsAsRecorded(kManyFile));
+}
+
+/// Every allocation that fails a wavetable load outright.
+void runFailedLoadLegs() {
+	constexpr auto bandBytes = [](int32_t k) {
+		return static_cast<std::size_t>(
+		           kManyCycles * ((kManyCycleSize >> k) + deluge::dsp::fixed::kWavetableDuplicateSamplesAtCycleEnd))
+		       * sizeof(int16_t);
+	};
+	runFailedLoadLeg("band-samples-0", bandBytes(0));
+	runFailedLoadLeg("band-samples-2", bandBytes(2));
+	runFailedLoadLeg("bands-growth", 6 * sizeof(WaveTableBand));
+	runFailedLoadLeg("cycle-buffer", kManyCycleSize * sizeof(int32_t));
+	runFailedLoadLeg("spectrum", ((kManyCycleSize >> 1) + 1) * sizeof(deluge::dsp::fixed::fft::Complex));
+}
+
+/// Pitch detection does not yet check for a missing window transform, so while this is set the leg shows only that the
+/// injection makes the transform missing, without running the scan; it fails the run if that precondition fails.
+constexpr bool kPitchTwiddlesExpectedRed = true;
+
+/// A missing pitch window FFT table, made before any detection has built it.
+void runPitchTwiddlesLeg() {
+	std::string path = "SAMPLES/PIT/SINE440.WAV";
+	Error error = Error::NONE;
+	AudioFile* file = audioFileManager.getAudioFileFromFilename(path, true, &error, AudioFileType::SAMPLE);
+	deluge::memory::failNextAllocationOfSize(FFTConfigManager::blockBytes(kPitchDetectWindowSizeMagnitude));
+	if (kPitchTwiddlesExpectedRed) {
+		const bool missing = file != nullptr && FFTConfigManager::getConfig(kPitchDetectWindowSizeMagnitude) == nullptr;
+		const bool injected = !deluge::memory::allocationFailurePending();
+		printf("LP-WT-FAIL site=pitch-twiddles injected=%d error=%d bands=0 ok=0 expected-red=1\n", injected ? 1 : 0,
+		       static_cast<int>(error));
+		if (!(missing && injected)) {
+			g_failures++;
+		}
+	}
+	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
+}
+
+/// Every allocation a wavetable load makes, failed once (LP-WT-FAIL). Each FFT table's failure comes before any load
+/// has built that size's table: the tables are kept for the run.
+void runWaveTableFail() {
+	runPitchTwiddlesLeg();
+	runBand0TwiddlesLeg();
+	runBandTwiddlesLeg();
+	runFailedLoadLegs();
+}
+
+Stage nextStage(Stage stage) {
+	return static_cast<Stage>(static_cast<uint8_t>(stage) + 1);
+}
+
 void runOneCardStep() {
+	while (g_stage < Stage::Finish && !stageRuns(g_stage)) {
+		g_stage = nextStage(g_stage);
+	}
 	switch (g_stage) {
 	case Stage::Pure:
 		// The abandon churn first: it asserts no pressure-driven eviction, which holds only while nothing else has
@@ -618,6 +849,10 @@ void runOneCardStep() {
 		report("LP-CANDIDATES", checkProposeLoadCandidates());
 		report("LP-ADMISSION", checkPathAdmissionCorpus());
 		report("LP-OPEN-PATH", checkReadStreamPath());
+		g_stage = Stage::WaveTableFail;
+		break;
+	case Stage::WaveTableFail:
+		runWaveTableFail();
 		g_stage = Stage::HolderDefault;
 		break;
 	case Stage::HolderDefault:
@@ -649,6 +884,12 @@ void runOneCardStep() {
 		break;
 	case Stage::ZeroBand:
 		runZeroBand();
+		g_stage = Stage::WaveTableChurn;
+		break;
+	case Stage::WaveTableChurn:
+		g_stage = Stage::Finish;
+		break;
+	case Stage::Finish:
 		report("LP-INVARIANTS", checkLoadInvariants("load_policy"));
 		g_stage = Stage::Done;
 		printf("LP-RESULT failures=%d\n", static_cast<int>(g_failures));

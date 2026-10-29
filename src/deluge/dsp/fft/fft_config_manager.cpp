@@ -39,6 +39,10 @@ constexpr std::size_t kTablesOffset = (sizeof(fft::RealFft) + alignof(fft::Compl
 
 } // namespace
 
+std::size_t blockBytes(int32_t magnitude) {
+	return kTablesOffset + fft::storage_bytes(magnitude);
+}
+
 const fft::RealFft* getConfig(int32_t magnitude) {
 	if (magnitude < fft::kMinMagnitude || magnitude > fft::kMaxMagnitude) {
 		return nullptr;
@@ -46,7 +50,7 @@ const fft::RealFft* getConfig(int32_t magnitude) {
 	if (transforms[magnitude] == nullptr) {
 		// Allocated once and never freed: every later transform of this size reuses it.
 		const std::size_t table_bytes = fft::storage_bytes(magnitude);
-		auto* block = static_cast<std::byte*>(delugeAlloc(kTablesOffset + table_bytes, true));
+		auto* block = static_cast<std::byte*>(delugeAlloc(blockBytes(magnitude), true));
 		if (block == nullptr) {
 			return nullptr;
 		}
