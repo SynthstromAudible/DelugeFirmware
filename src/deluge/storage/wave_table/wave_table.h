@@ -26,6 +26,7 @@
 
 class Sample;
 class FileByteSource;
+class WaveTableCycleReader;
 
 // The render fields (maxPhaseIncrement, cycle geometry, dataAccessAddress) live in the dsp-next
 // base @ref deluge::dsp::fixed::WaveTableBand — the prefix the renderer sees via WaveTableData;
@@ -75,20 +76,10 @@ public:
 	deluge::fast_vector<WaveTableBand> bands{}; // Sorted ascending by maxPhaseIncrement
 
 private:
-	/// @brief Shared implementation behind setupFromSample() and setupFromFile().
-	///
-	/// Exactly one of @p sample (in-memory source) or @p byteSource (file source) is used; the
-	/// other parameters are ignored in the in-memory case (taken from the Sample). The two public
-	/// entry points keep this nullable split off the API.
-	/// @param sample                 In-memory source, or nullptr when reading from a file.
-	/// @param rawFileCycleSize       Sample count per cycle (file-source case only).
-	/// @param audioDataStartPosBytes File offset of the start of the audio data (file-source case only).
-	/// @param audioDataLengthBytes   Length of the audio data in bytes (file-source case only).
-	/// @param byteDepth              Sample byte depth (file-source case only).
-	/// @param rawDataFormat          Raw sample data format (file-source case only).
-	/// @param byteSource             Byte source, or nullptr when reading from an in-memory Sample.
-	/// @return Error::NONE on success.
-	Error setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioDataStartPosBytes,
-	            uint32_t audioDataLengthBytes, int32_t byteDepth, RawDataFormat rawDataFormat,
-	            FileByteSource* byteSource);
+	/// @brief Builds the bands from @p reader's cycles: the shared half of setupFromSample() and setupFromFile().
+	/// @param reader              The source's cycles, not yet opened.
+	/// @param sourceCycleSize     Samples per source cycle, already clamped to @p sourceLengthSamples.
+	/// @param sourceLengthSamples The source's length in samples.
+	/// @return Error::NONE on success; on any error the table keeps no bands.
+	Error setup(WaveTableCycleReader& reader, int32_t sourceCycleSize, uint32_t sourceLengthSamples);
 };
