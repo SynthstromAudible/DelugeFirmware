@@ -94,6 +94,7 @@
 #include <limits>
 #include <new>
 #include <numeric>
+#include <optional>
 #include <ranges>
 
 // Last, after every other header: these declare namespace deluge::util, which would shadow the global ::util for
@@ -2129,14 +2130,41 @@ void stopAnyPreviewing() {
 	}
 }
 
+namespace {
+/// A model the audio tier asked for while an interaction-tier change was under way: that change takes it up before it
+/// commits. Written by the audio tier, read and cleared inside an excluded section.
+std::optional<deluge::effects::ReverbModel> reverbModelRequested;
+} // namespace
+
 void setReverbModel(deluge::effects::ReverbModel model) {
+	if (deluge_in_audio_context()) {
+		// A song swap at a launch: the render itself rebuilds, so it is one tier and needs no section. If it has
+		// interrupted the interaction tier's change, that change still owns the buffer: it rebuilds at this model next.
+		if (reverb.changing()) {
+			reverbModelRequested = model;
+			return;
+		}
+		reverb.begin_change();
+		reverb.prepare(model);
+		reverb.commit();
+		return;
+	}
 	{
 		AudioExcludedSection section; // the render stops reading the buffer before it is zeroed
 		reverb.begin_change();
+		reverbModelRequested.reset();
 	}
-	reverb.prepare(model);
-	AudioExcludedSection section; // the render takes up the rebuilt model at its next block
-	reverb.commit();
+	while (true) {
+		reverb.prepare(model);
+		AudioExcludedSection section; // the render takes up the rebuilt model at its next block
+		if (reverbModelRequested) {
+			model = *reverbModelRequested; // the audio tier's, asked for during the prepare: rebuild at it
+			reverbModelRequested.reset();
+			continue;
+		}
+		reverb.commit();
+		return;
+	}
 }
 
 void publishReverbSettings(const deluge::project::ReverbSettings& knobs) {

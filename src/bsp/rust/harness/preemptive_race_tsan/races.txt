@@ -114,7 +114,8 @@ open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderAppBlock
 #     WaveformRenderer::advanceOverviewScan
 #   Reverb (reverbSidechainVolume, mustUpdateReverbParamsBeforeNextRender): updateReverbParams, getReverbParamsFromSong, renderReverb
 #     (AudioEngine::reverb's knobs and model reach the render through effects::Reverb::publish and
-#     begin_change/commit, inside AudioExcludedSections.)
+#     begin_change/commit, inside AudioExcludedSections; a song swap at a launch rebuilds it on the audio tier, and
+#     setReverbModel hands a rebuild that interrupts an interaction-tier one to that one, to apply before it commits.)
 #   The current song (currentSong, loadSongUI): renderAudio, deleteOldSongBeforeLoadingNew, LoadSongUI::isLoadingSong; playbackHandler: setupPlayback, setupPlaybackUsingInternalClock;
 #     Output::setActiveClip
 #   The UI navigation stack (uiNavigationHierarchy, numUIsOpen): getCurrentUI, uiStackEmpty, openUI, setRootUILowLevel, nullifyUIs,

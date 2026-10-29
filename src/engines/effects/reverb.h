@@ -31,10 +31,13 @@ namespace deluge::effects {
 /// @brief The song's reverb: Freeverb or the plate (Mutable or Digital) over one buffer of the larger's size, the model
 /// chosen per block.
 /// @details A model change runs in three steps around two audio-excluded sections, so the render never reads memory
-/// being zeroed: @ref begin_change (inside the first) stops the render adding any reverb; @ref prepare (between them,
-/// outside the audio tier) zeroes the buffer and resets the model's State, configured from the held settings;
-/// @ref commit (inside the second) hands the model to the render. Every change rebuilds, the same model included,
-/// as a song load does. The knobs reach the render through @ref publish, which the render takes up at its next block.
+/// being zeroed: @ref begin_change (inside the first) stops the render adding any reverb; @ref prepare (between them)
+/// zeroes the buffer and resets the model's State, configured from the held settings; @ref commit (inside the second)
+/// hands the model to the render. On the interaction tier prepare runs with the render live but adding nothing; on the
+/// audio tier (a song swap at a launch) all three run inside the render, where the sections are empty. The owner keeps
+/// an audio-tier change from running inside an interaction-tier one (@ref changing). Every change rebuilds, the same
+/// model included, as a song load does. The knobs reach the render through @ref publish, which the render takes up at
+/// its next block.
 class Reverb {
 public:
 	/// @brief The knobs as the song holds them, each 0 to 1.
@@ -54,9 +57,9 @@ public:
 
 	/// @brief Inside the owner's AudioExcludedSection: the render adds no reverb from its next block until commit.
 	void begin_change();
-	/// @brief After begin_change, outside the audio tier: zeroes the buffer and resets @p model's State, configured
-	/// from the settings last published. As ModFx's prepare, it is the step that runs outside the excluded sections;
-	/// here it runs between the two.
+	/// @brief After begin_change: zeroes the buffer and resets @p model's State, configured from the settings last
+	/// published, and leaves the settings for the render to configure from again at its first block. As ModFx's
+	/// prepare, it is the step that runs outside the excluded sections; here it runs between the two.
 	/// @param model The model the render takes up at commit.
 	void prepare(ReverbModel model);
 	/// @brief Inside the owner's AudioExcludedSection: the render renders the prepared model from its next block.
@@ -64,9 +67,11 @@ public:
 	/// @brief Inside the owner's AudioExcludedSection: @p settings, which the render configures from at its next block.
 	/// @param settings The knobs.
 	void publish(const Settings& settings);
-	/// @brief The model last prepared, for the interaction tier.
+	/// @brief The model last prepared: the menus' and the owner's.
 	/// @return The model.
 	[[nodiscard]] ReverbModel model() const { return prepared_; }
+	/// @return Whether a model change is between begin_change and commit.
+	[[nodiscard]] bool changing() const { return rebuilding_; }
 
 	/// @brief Render: adds the reverb of @p send to @p block in place at the two return levels, unless a model change
 	/// is under way.
@@ -95,12 +100,16 @@ private:
 	/// @brief Configures the prepared model from the settings last published. At render time prepared_ is model_: they
 	/// differ only between prepare and commit, while rebuilding_ holds the render off.
 	void configure();
+	/// @brief Zeroes the buffer as Freeverb's lines, making them the union's active member.
+	void zero_freeverb();
+	/// @brief Zeroes the buffer as the plate's ring, making it the union's active member.
+	void zero_plate();
 
 	Memory memory_;
 	dsp::Mono<Freeverb> freeverb_;
 	dsp::Mono<Plate> plate_;
 	ReverbModel model_ = ReverbModel::FREEVERB;    ///< The render's.
-	ReverbModel prepared_ = ReverbModel::FREEVERB; ///< The interaction tier's.
+	ReverbModel prepared_ = ReverbModel::FREEVERB; ///< The changing tier's, until commit hands it to the render.
 	/// Set by begin_change and cleared by commit, both inside an excluded section, so the render reads it with no
 	/// writer running; while set, the render reads nothing else.
 	bool rebuilding_ = false;

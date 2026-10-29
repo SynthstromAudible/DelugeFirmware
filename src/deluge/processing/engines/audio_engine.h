@@ -282,11 +282,12 @@ extern uint32_t timeThereWasLastSomeReverb;
 /// Every live Sound. Changed only by Sound's constructor and destructor, walked by the render: see AudioOwnedList.
 extern deluge::AudioOwnedList<Sound, deluge::fast_vector<Sound*>> sounds;
 extern deluge::effects::Reverb reverb;
-/// @brief Interaction tier: rebuilds the song reverb at @p model (memory zeroed), as a song load or the model menu
-/// sets it; the render adds no reverb while it rebuilds.
+/// @brief Rebuilds the song reverb at @p model (memory zeroed), as a song load or the model menu sets it; the render
+/// adds no reverb while it rebuilds. From the interaction tier, or from the render itself in a song swap at a launch;
+/// a render-tier call during an interaction-tier rebuild is taken up by that rebuild before it commits.
 void setReverbModel(deluge::effects::ReverbModel model);
-/// @brief Interaction tier: publishes the song's reverb knobs (project.reverb), which the render takes up at its next
-/// block.
+/// @brief Publishes the song's reverb knobs (project.reverb), which the render takes up at its next block. From the
+/// interaction tier, or from the render itself in a song swap at a launch.
 void publishReverbSettings(const deluge::project::ReverbSettings& knobs);
 extern uint32_t nextVoiceState;
 extern SoundDrum* sampleForPreview;
