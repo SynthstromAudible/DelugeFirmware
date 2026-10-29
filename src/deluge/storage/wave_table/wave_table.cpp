@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/fft/real_fft.h"
 #include "dsp-next/fixed/interpolation/interpolator.h"
+#include "dsp-next/fixed/wavetable/band_builder.h"
 #include "dsp/fft/fft_config_manager.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
@@ -37,6 +38,9 @@
 
 extern int32_t oscSyncRenderingBuffer[];
 
+using deluge::dsp::fixed::BandBuilder;
+using deluge::dsp::fixed::BandGeometry;
+using deluge::dsp::fixed::BandTarget;
 using deluge::dsp::fixed::kWavetableDuplicateSamplesAtCycleEnd;
 using deluge::dsp::fixed::fft::Complex;
 using deluge::dsp::fixed::fft::RealFft;
@@ -99,61 +103,6 @@ deluge::dsp::fixed::WaveTableData WaveTable::view() {
 	};
 }
 
-#define numBitsInInput 16
-#define numBitsInTableSize 8
-#define lshiftAmount (16 + numBitsInTableSize - numBitsInInput)
-
-// This "should" handle inputs up to size 65536. Actually probably a bit bigger. Maybe even 131071?
-void dft_r2c(Complex* __restrict__ out, int32_t const* __restrict__ in, uint32_t N) {
-
-	// For each input value...
-	for (uint32_t i = 0; i <= (N >> 1); i++) {
-		int32_t sReal = 0;
-		int32_t sIm = 0;
-
-		uint32_t angleIncrement = -((i << numBitsInInput) / N);
-		uint32_t angle = 0;
-
-		int32_t const* __restrict__ realReadPos = in;
-		int32_t const* const stopAt = realReadPos + N;
-
-		// We compare that input value separately to each input value again...
-		do {
-			int32_t whichValueSine = angle >> (numBitsInInput - numBitsInTableSize);
-			whichValueSine &= (1 << numBitsInTableSize) - 1;
-			int32_t sineValue1 = sineWaveSmall[whichValueSine];
-			int32_t sineValue2 = sineWaveSmall[whichValueSine + 1];
-
-			int32_t whichValueCos = whichValueSine + (1 << (numBitsInTableSize - 2));
-			whichValueCos &= (1 << numBitsInTableSize) - 1;
-			int32_t cosValue1 = sineWaveSmall[whichValueCos];
-			int32_t cosValue2 = sineWaveSmall[whichValueCos + 1];
-
-			int32_t inputValueReal = *realReadPos;
-
-			uint32_t shifted = angle << lshiftAmount;
-			int32_t strength2 = shifted & 65535;
-
-			int32_t sineDiff = sineValue2 - sineValue1;
-			int32_t cosDiff = cosValue2 - cosValue1;
-			int32_t sineValue = (sineValue1 << 16) + sineDiff * strength2;
-			int32_t cosValue = (cosValue1 << 16) + cosDiff * strength2;
-
-			sReal = multiply_accumulate_32x32_rshift32_rounded(
-			    sReal, inputValueReal, cosValue); // We lose one order of magnitude here, which is made up for below.
-			sIm = multiply_accumulate_32x32_rshift32_rounded(sIm, inputValueReal, sineValue);
-
-			angle += angleIncrement;
-			realReadPos++;
-		} while (realReadPos < stopAt);
-
-		out[i].r = sReal << 1; // Here we make up for the order of magnitude that was lost above.
-		out[i].i = sIm << 1;
-	}
-}
-
-#define NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS 1
-
 Error WaveTable::setupFromSample(Sample& sample) {
 	// In-memory conversion: setup() takes cycle size / channels / byte depth / data offset from the Sample,
 	// so the remaining parameters are unused here.
@@ -199,21 +148,16 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 		                                              // WAVETABLE_MIN_CYCLE_SIZE.
 	}
 
-	int32_t initialBandCycleMagnitude = getMagnitude(rawFileCycleSize);
-	bool rawFileCycleSizeIsAPowerOfTwo = (rawFileCycleSize == (1 << initialBandCycleMagnitude));
+	const BandGeometry geometry = BandGeometry::of(rawFileCycleSize);
 
 	// If cycle size isn't a power of two...
-	if (!rawFileCycleSizeIsAPowerOfTwo) {
+	if (!geometry.source_is_power_of_two) {
 
 		// This is allowed if we're doing just single-cycle.
 		if (originalSampleLengthInSamples < (rawFileCycleSize << 1)
 		    && originalSampleLengthInSamples >= rawFileCycleSize) {
+			// Band 0 is the next power of two above the cycle, so all of its spectrum fits.
 			numCycles = 1;
-
-			// In order to represent all frequency information in the cycle once we render it out to a power-of-two
-			// size, well we'll need to go slightly bigger rather than slightly smaller. Also, the slightly bigger size
-			// is needed so that sufficient memory is allocated to do all the calculations in.
-			initialBandCycleMagnitude++;
 		}
 
 		// Otherwise, if multiple cycles (wavetable), not allowed - it'd take too long to process, and no one has
@@ -226,7 +170,7 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 	// Or, normal case where cycle size *is* a power of two.
 	else {
 		numCycles =
-		    originalSampleLengthInSamples >> initialBandCycleMagnitude; // Will round down, which is what we want.
+		    originalSampleLengthInSamples >> geometry.band0_magnitude; // Will round down, which is what we want.
 		if (numCycles < 1) {
 			return Error::FILE_NOT_LOADABLE_AS_WAVETABLE; // Surely can't happen, becacuse of the checks / limiting
 			                                              // we've done above?
@@ -234,13 +178,13 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 	}
 
 	AudioEngine::logAction("Getting fft config");
-	const RealFft* fftCFGForInitialBand = FFTConfigManager::getConfig(initialBandCycleMagnitude);
+	const RealFft* fftCFGForInitialBand = FFTConfigManager::getConfig(geometry.band0_magnitude);
 	AudioEngine::logAction("Got fft config");
 
 	// If that returned NULL, normally we can just opt to not do FFTs and have just 1 band.
 	// But in the case where the original wasn't a power-of-two size, we're gonna have to do FFTs (as well as one
 	// DFT)...
-	if (!fftCFGForInitialBand && !rawFileCycleSizeIsAPowerOfTwo) {
+	if (!fftCFGForInitialBand && !geometry.source_is_power_of_two) {
 
 		// Actually screw it, this is so rare, it's easier just to make a rule that for non-power-of-two we *have* to
 		// render it out to that bigger size. Cos if we allow a smaller initial band, we don't have enough space in it
@@ -248,27 +192,31 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	int32_t initialBandCycleSizeNoDuplicates =
-	    1 << initialBandCycleMagnitude; // This will usually be the same as rawFileCycleSize, but not when that's not a
-	                                    // power of two.
-
 	Error error = Error::NONE; // Only the `bands.resize` catch below sets it; a successful resize must leave it NONE.
 
-	// numBands is set such that the "smallest" band will have 8 samples per cycle: the smallest inverse transform the
-	// bands use is 8 points.
-	{
-		int32_t numBands =
-		    fftCFGForInitialBand ? ((initialBandCycleMagnitude - 2) >> (NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS - 1)) : 1;
-
-		// Don't refer to numBands after this! (Why? Because we might end up using less after all?)
-		try {
-			bands.resize(numBands);
-		} catch (deluge::exception&) {
-			error = Error::INSUFFICIENT_RAM;
-		}
+	try {
+		bands.resize(geometry.num_bands(fftCFGForInitialBand != nullptr));
+	} catch (deluge::exception&) {
+		error = Error::INSUFFICIENT_RAM;
 	}
 	if (error != Error::NONE) {
 		return error; // bands.resize failed: nothing else is allocated yet, so nothing to clean up.
+	}
+	for (int32_t b = 0; b < static_cast<int32_t>(bands.size()); b++) {
+		WaveTableBand& band = bands[b];
+		band.fromCycleNumber = 0;
+		band.toCycleNumber = 0;
+		band.cycleSizeNoDuplicates = geometry.cycle_size(b);
+		band.cycleSizeMagnitude = geometry.cycle_magnitude(b);
+		band.maxPhaseIncrement = geometry.max_phase_increment(b);
+	}
+
+	// Every band but a power-of-two source's band 0 is rendered through an inverse transform. A band whose transform
+	// cannot be built is dropped before anything is allocated for it; the bands either side of it are unaffected.
+	for (int32_t b = static_cast<int32_t>(bands.size()) - 1; b >= (geometry.source_is_power_of_two ? 1 : 0); b--) {
+		if (FFTConfigManager::getConfig(bands[b].cycleSizeMagnitude) == nullptr) {
+			bands.erase(bands.begin() + b);
+		}
 	}
 
 	// From here on, working allocations are released by allocGuard on any early return. The temp buffers are declared
@@ -285,10 +233,8 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 	AudioEngine::logAction("about to set up bands");
 
 	for (int32_t b = 0; b < static_cast<int32_t>(bands.size()); b++) {
-		int32_t cycleSizeNoDuplicates = initialBandCycleSizeNoDuplicates >> (b * NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS);
-
 		int32_t bandSizeSamplesWithDuplicates =
-		    numCycles * (cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd);
+		    numCycles * (bands[b].cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd);
 		// All bands hold 16-bit samples, even when the source file is 8-bit.
 		bands[b].samples = BandSamples::allocate(bandSizeSamplesWithDuplicates);
 		if (!bands[b].samples) {
@@ -298,19 +244,7 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 			return Error::INSUFFICIENT_RAM;
 		}
 
-		WaveTableBand* band = &bands[b];
-		band->dataAccessAddress = band->samples.data();
-
-		band->fromCycleNumber = 0;
-		band->toCycleNumber = 0;
-		band->cycleSizeNoDuplicates = cycleSizeNoDuplicates;
-		band->cycleSizeMagnitude = initialBandCycleMagnitude - b * NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS;
-		band->maxPhaseIncrement = (uint32_t)(0xFFFFFFFF >> (band->cycleSizeMagnitude)) *
-#if NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS == 2
-		                          2;
-#else
-		                          1.25;
-#endif
+		bands[b].dataAccessAddress = bands[b].samples.data();
 	}
 
 	AudioEngine::logAction("bands set up");
@@ -321,7 +255,7 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 	// perform the FFT on. This will also be used for outputting the time-domain cycle data back out of the inverse FFT,
 	// so ensure it's big enough for that if our biggest band is bigger than the cycle size in the file (i.e. if that's
 	// not a power-of-two).
-	int32_t currentCycleMemorySize = std::max(rawFileCycleSize, initialBandCycleSizeNoDuplicates);
+	int32_t currentCycleMemorySize = std::max(rawFileCycleSize, geometry.cycle_size(0));
 	// Internal RAM is good, and it's only temporary
 	currentCycleInt32 = (int32_t*)deluge::memory::alloc_fast(currentCycleMemorySize * sizeof(int32_t));
 	if (!currentCycleInt32) {
@@ -340,10 +274,13 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 	AudioEngine::routineWithClusterLoading();
 	AudioEngine::logAction("finalizing vars");
 
-	WaveTableBand* initialBand = &bands[0];
-	// Even for non-power-of-two cycle size files, we'll still write the data in here even though it's not needed and
-	// will be overwritten, just since we're using the same code as for power-of-two.
-	int16_t* __restrict__ initialBandWritePos = initialBand->dataAccessAddress;
+	BandBuilder builder{
+	    {.source_cycle_size = rawFileCycleSize, .band0_magnitude = geometry.band0_magnitude, .num_cycles = numCycles},
+	    {currentCycleInt32, static_cast<size_t>(currentCycleMemorySize)},
+	    {frequencyDomainData, static_cast<size_t>((currentCycleMemorySize >> 1) + 1)}};
+	const auto bandTarget = [&](int32_t b) {
+		return BandTarget{.samples = bands[b].dataAccessAddress, .cycle_magnitude = bands[b].cycleSizeMagnitude};
+	};
 
 	int32_t clusterIndex = audioDataStartPosBytes >> Cluster::size_magnitude;
 	int32_t byteIndexWithinCluster = audioDataStartPosBytes & (Cluster::size - 1);
@@ -356,8 +293,6 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 	// For the file path the deserializer owns the cluster buffer; the in-memory path sets it per-cluster below.
 	char const* sourceBuffer = sample ? nullptr : byteSource->clusterBuffer();
 	uint32_t bytesOverlappingFromLastCluster;
-
-#define MAGNITUDE_REDUCTION_FOR_FFT 12
 
 	uint32_t bitMask = 0xFFFFFFFF << ((4 - byteDepth) * 8);
 
@@ -397,10 +332,7 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 		AudioEngine::routineWithClusterLoading();
 		AudioEngine::logAction("new cycle beginning");
 
-		int16_t* nativeBandCycleStartPos =
-		    initialBandWritePos; // Store this so we can refer to it at the end of the cycle, for duplicating values
-
-		int32_t* cycleBufferDestination = currentCycleInt32;
+		int32_t* cycleBufferDestination = builder.cycle_input().data();
 		int32_t sourceBytesLeftToCopyThisCycle = rawFileCycleSize * byteDepth;
 
 		// Read some clusters of audio data - either from existing Sample in memory, or from file.
@@ -484,10 +416,7 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 				value32 += (1 << 31);                                                                                  \
 			}                                                                                                          \
 		}                                                                                                              \
-		*(cycleBufferDestination++) =                                                                                  \
-		    value32 >> MAGNITUDE_REDUCTION_FOR_FFT; /* Store full 32-bit value in cycle buffer (reduced in magnitude   \
-		                                               for FFT). */                                                    \
-		*(initialBandWritePos++) = value32 >> 16;   /* Bands only store 16-bit data. */                                \
+		*(cycleBufferDestination++) = value32 >> deluge::dsp::fixed::kCycleHeadroomBits;                               \
 	}
 
 			// If previous Cluster had overlapping sample at end...
@@ -540,7 +469,7 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 				sourceStopAt = source + sourceBytesLeftToCopyThisCycle;
 			}
 
-			const int16_t* const bandDestinationStartedAt = initialBandWritePos;
+			const int32_t* const cycleDestinationStartedAt = cycleBufferDestination;
 
 			if (needToMisalignData) {
 				// Misalign source pointers to allow us to read values as 32-bit
@@ -555,9 +484,7 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 				source += byteDepth;
 			}
 
-			// initialBandWritePos and bandDestinationStartedAt are both int16_t*, so their
-			// native subtraction already yields a sample (element) count.
-			int32_t samplesJustCopied = initialBandWritePos - bandDestinationStartedAt;
+			int32_t samplesJustCopied = cycleBufferDestination - cycleDestinationStartedAt;
 			int32_t sourceBytesJustRead = samplesJustCopied * byteDepth;
 			sourceBytesLeftToCopyThisCycle -= sourceBytesJustRead;
 			byteIndexWithinCluster += sourceBytesJustRead;
@@ -581,131 +508,36 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 		AudioEngine::routineWithClusterLoading();
 		AudioEngine::logAction("analyzing cycle");
 
-		// Ok, we've finished reading one wave cycle (which potentially spanned multiple file clusters).
-		D_PRINTLN("\nCycle:  %d", cycleIndex);
-
-		// If it wasn't a power-of-two size, we have to do a DFT even just to get the first band's useable time-domain
-		// data.
-		if (!rawFileCycleSizeIsAPowerOfTwo) {
-			AudioEngine::logAction("dft start");
-			dft_r2c(frequencyDomainData, currentCycleInt32, rawFileCycleSize);
-			// That function does indeed take ages, as shown by the AUDIO_LOG. But somehow, I'm not hearing voices
-			// drop... how?
-			AudioEngine::logAction("dft done");
-
-			// Because the raw file cycle size was a bit smaller than the initial band cycle size that we're going to be
-			// expanding it out to, we're going to be feeding a slightly wider bit of (freq domain) data back into the
-			// FFT to get time domain data (below), so have to clear the extra memory part to zeroes now.
-			for (int32_t i = (rawFileCycleSize >> 1) + 1; i <= (initialBandCycleSizeNoDuplicates >> 1); i++) {
-				frequencyDomainData[i].r = 0;
-				frequencyDomainData[i].i = 0;
-			}
-
-			// We need to move the band write pos forward for the next cycle.
-			// Remember, for non-power-of-two raw files, this data just gets overwritten later anyway, and we only write
-			// it in the first place just because the same code does this for power-of-two. But we need to at least move
-			// the pointer along so we don't overwrite anything we shouldn't. Adctually, because non-power-of-two raw
-			// files are only allowed to be single-cycle, this isn't strictly necessary, but let's do it for
-			// completeness and in case I ever change that rule.
-			initialBandWritePos =
-			    &initialBand
-			         ->dataAccessAddress[(initialBandCycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd)
-			                             * (cycleIndex + 1)];
-		}
-
-		// Or if it *was* a power-of-two size, we can just do an easier FFT. (And also further down, we won't have to
-		// re-render time-domain data for this initial band.)
-		else {
-
-			// Write the duplicate values for this initial band - do this now, since we already have the final, useable
-			// time-domain data for it.
-			for (int32_t i = 0; i < kWavetableDuplicateSamplesAtCycleEnd; i++) {
-				*(initialBandWritePos++) = *(nativeBandCycleStartPos++);
-			}
-
-			// With one band there is nothing to transform: band 0 holds the cycle as read.
+		if (geometry.source_is_power_of_two) {
+			// Band 0 is the cycle as read.
+			builder.copy_band0(bandTarget(0), cycleIndex);
 			if (static_cast<int32_t>(bands.size()) <= 1) {
-				initialBand->toCycleNumber = std::min(cycleIndex + 2, numCycles);
+				bands[0].toCycleNumber = builder.to_cycle_after(cycleIndex);
 				continue;
 			}
-
-			// Perform the FFT, to frequency domain
-			fftCFGForInitialBand->forward({currentCycleInt32, size_t{1} << initialBandCycleMagnitude},
-			                              {frequencyDomainData, (size_t{1} << (initialBandCycleMagnitude - 1)) + 1});
+			builder.analyse(fftCFGForInitialBand);
+		}
+		else {
+			// A cycle that is not a power of two takes the DFT, and band 0 is rendered from its spectrum like the rest.
+			AudioEngine::logAction("dft start");
+			builder.analyse(nullptr);
+			AudioEngine::logAction("dft done");
 		}
 
 		AudioEngine::logAction("got freq domain data");
 		AudioEngine::routineWithClusterLoading();
 		AudioEngine::logAction("building bands");
 
-		WaveTableBand* band = initialBand;
-		int32_t b = 0;
-		band->toCycleNumber = std::min(cycleIndex + 2, numCycles);
-
-		// If raw file wasn't power-of-two cycle size, then even this initial band needs the same treatment as the
-		// higher ones - we have to render its time-domain data by doing an FFT from the freq-domain.
-		if (!rawFileCycleSizeIsAPowerOfTwo) {
-			goto transformBandToTimeDomain;
-		}
-
-		// Otherwise, if we're still here, we'll only need to render time-domain data for bands other than the initial
-		// one.
-
-		// For each band "higher" up (smaller cycle; less high harmonics), do all the stuff for it - for this cycle.
-		for (b = 1; b < static_cast<int32_t>(bands.size()); b++) {
-
-			{
-				band = &bands[b];
-
-				band->toCycleNumber = std::min(cycleIndex + 2, numCycles);
-
-				// The highest frequency we can represent (the Nyquist freq) is about to lose all trace of its imaginary
-				// component (fun fact - that's just what happens)
-				// - so cheat a little and put that into the real component.
-				Complex* nyquistFreq = &frequencyDomainData[(band->cycleSizeNoDuplicates >> 1)];
-				int32_t pythagValue = fastPythag(nyquistFreq->r, nyquistFreq->i);
-				if (nyquistFreq->r < 0) {
-					pythagValue = -pythagValue;
-				}
-				nyquistFreq->r = pythagValue;
-				nyquistFreq->i = 0;
-			}
-
-transformBandToTimeDomain:
-			const RealFft* fftCFGThisBand =
-			    FFTConfigManager::getConfig(band->cycleSizeMagnitude); // Just gets the config, doesn't do the FFT.
-
-			// If couldn't get FFT config, gotta delete this band
-			if (!fftCFGThisBand) {
-				bands.erase(bands.begin() + b);
-				b--;
-				continue;
-			}
+		bands[0].toCycleNumber = builder.to_cycle_after(cycleIndex);
+		for (int32_t b = geometry.source_is_power_of_two ? 1 : 0; b < static_cast<int32_t>(bands.size()); b++) {
+			bands[b].toCycleNumber = builder.to_cycle_after(cycleIndex);
 
 			AudioEngine::logAction("started band");
 			AudioEngine::routineWithClusterLoading();
 			AudioEngine::logAction("doing FFT to time domain");
 
-			// Do the FFT, putting the output, time-domain data back in the temp currentCycleInt32 buffer.
-			fftCFGThisBand->inverse({frequencyDomainData, (size_t{1} << (band->cycleSizeMagnitude - 1)) + 1},
-			                        {currentCycleInt32, size_t{1} << band->cycleSizeMagnitude});
-
-			int16_t* __restrict__ destination =
-			    &band->dataAccessAddress[(band->cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd)
-			                             * cycleIndex];
-
-			// Copy 32-bit time domain data to final 16-bit destination
-			for (int32_t i = 0; i < band->cycleSizeNoDuplicates; i++) {
-				destination[i] = signed_saturate<32 - 16>(
-				    currentCycleInt32[i]
-				    >> (16 - MAGNITUDE_REDUCTION_FOR_FFT
-				        + initialBandCycleMagnitude)); // This saturation is possibly a temporary solution...
-			}
-
-			// And copy the duplicate values again
-			for (int32_t i = 0; i < kWavetableDuplicateSamplesAtCycleEnd; i++) {
-				destination[i + band->cycleSizeNoDuplicates] = destination[i];
-			}
+			// Fetched before the first cycle, so it is there.
+			builder.render_band(bandTarget(b), cycleIndex, *FFTConfigManager::getConfig(bands[b].cycleSizeMagnitude));
 		}
 	}
 
@@ -736,10 +568,10 @@ transformBandToTimeDomain:
 
 	// Printout stats
 	D_PRINTLN("initial band size if all populated: %d",
-	          numCycles * (initialBand->cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd) * 2);
+	          numCycles * (bands[0].cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd) * 2);
 	D_PRINTLN("initial band size after trimming: %d",
-	          (initialBand->toCycleNumber - initialBand->fromCycleNumber)
-	              * (initialBand->cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd) * 2);
+	          (bands[0].toCycleNumber - bands[0].fromCycleNumber)
+	              * (bands[0].cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd) * 2);
 	int32_t total = 0;
 	for (WaveTableBand const& band : bands | std::views::drop(1)) {
 		total += (band.toCycleNumber - band.fromCycleNumber)
