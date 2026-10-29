@@ -125,6 +125,7 @@ public:
 
 	// Members for grid layout
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
+	ActionResult trackLinkPadAction(int32_t x, int32_t y, int32_t on);
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
