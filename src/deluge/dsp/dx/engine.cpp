@@ -38,7 +38,7 @@ static void init_engine(void) {
 	engineMem = (void*)((((intptr_t)engineMem) + alignof(DxEngine) - 1) & -alignof(DxEngine));
 	dxEngine = new (engineMem) DxEngine();
 
-	dx_init_lut_data();
+	deluge::dsp::fixed::dx7::generate(dxEngine->tables);
 
 	PitchEnv::init(44100);
 	Env::init_sr(44100);

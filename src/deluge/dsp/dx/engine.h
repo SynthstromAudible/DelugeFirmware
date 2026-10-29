@@ -19,34 +19,14 @@
 
 #include "EngineMkI.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/dx7/tables.h"
 #include "dx7note.h"
 #include <gsl/gsl>
 
 class DxEngine {
 public:
 	DxEngine() = default;
-#define EXP2_LG_N_SAMPLES 10
-#define EXP2_N_SAMPLES (1 << EXP2_LG_N_SAMPLES)
-	int32_t exp2tab[EXP2_N_SAMPLES << 1];
-
-#define TANH_LG_N_SAMPLES 10
-#define TANH_N_SAMPLES (1 << TANH_LG_N_SAMPLES)
-	int32_t tanhtab[TANH_N_SAMPLES << 1];
-
-// Use twice as much RAM for the LUT but avoid a little computation
-#define SIN_DELTA
-
-#define SIN_LG_N_SAMPLES 10
-#define SIN_N_SAMPLES (1 << SIN_LG_N_SAMPLES)
-#ifdef SIN_DELTA
-	int32_t sintab[SIN_N_SAMPLES << 1];
-#else
-	int32_t sintab[SIN_N_SAMPLES + 1];
-#endif
-
-#define FREQ_LG_N_SAMPLES 10
-#define FREQ_N_SAMPLES (1 << FREQ_LG_N_SAMPLES)
-	int32_t freq_lut[FREQ_N_SAMPLES + 1];
+	deluge::dsp::fixed::dx7::Tables tables;
 
 	EngineMkI engineMkI;
 	FmCore engineModern;

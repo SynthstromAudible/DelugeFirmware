@@ -23,7 +23,7 @@
 
 class EngineMkI : public FmCore {
 public:
-	EngineMkI();
+	EngineMkI() = default;
 
 	void render(int32_t* output, int n, FmOpParams* params, int algorithm, int32_t* fb_buf,
 	            int32_t feedback_shift) override;

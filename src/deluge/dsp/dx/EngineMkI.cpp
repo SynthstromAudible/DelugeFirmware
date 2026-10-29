@@ -25,6 +25,7 @@
 #include <cmath>
 #include <cstdlib>
 
+#include "engine.h"
 #include "math_lut.h"
 #include <algorithm>
 
@@ -35,67 +36,11 @@ using std::min;
 /// one unity file where fm_op_kernel.cpp has another.
 const int32_t __attribute__((aligned(16))) kMkIZeros[DX_MAX_N] = {0};
 
-static const uint16_t NEGATIVE_BIT = 0x8000;
 static const uint16_t ENV_BITDEPTH = 14;
-
-static const uint16_t SINLOG_BITDEPTH = 10;
-static const uint16_t SINLOG_TABLESIZE = 1 << SINLOG_BITDEPTH;
-static uint16_t sinLogTable[SINLOG_TABLESIZE];
-
-static const uint16_t SINEXP_BITDEPTH = 10;
-static const uint16_t SINEXP_TABLESIZE = 1 << SINEXP_BITDEPTH;
-static uint16_t sinExpTable[SINEXP_TABLESIZE];
-
 const uint16_t ENV_MAX = 1 << ENV_BITDEPTH;
 
-static inline uint16_t sinLog(uint16_t phi) {
-	const uint16_t SINLOG_TABLEFILTER = SINLOG_TABLESIZE - 1;
-	const uint16_t index = (phi & SINLOG_TABLEFILTER);
-
-	switch ((phi & (SINLOG_TABLESIZE * 3))) {
-	case 0:
-		return sinLogTable[index];
-	case SINLOG_TABLESIZE:
-		return sinLogTable[index ^ SINLOG_TABLEFILTER];
-	case SINLOG_TABLESIZE * 2:
-		return sinLogTable[index] | NEGATIVE_BIT;
-	default:
-		return sinLogTable[index ^ SINLOG_TABLEFILTER] | NEGATIVE_BIT;
-	}
-}
-
-EngineMkI::EngineMkI() {
-	float bitReso = SINLOG_TABLESIZE;
-
-	for (int i = 0; i < SINLOG_TABLESIZE; i++) {
-		float x1 = sin(((0.5 + i) / bitReso) * M_PI / 2.0);
-		sinLogTable[i] = round(-1024 * log2(x1));
-	}
-
-	bitReso = SINEXP_TABLESIZE;
-	for (int i = 0; i < SINEXP_TABLESIZE; i++) {
-		float x1 = (pow(2, float(i) / bitReso) - 1) * 4096;
-		sinExpTable[i] = round(x1);
-	}
-}
-
 inline int32_t mkiSin(int32_t phase, uint16_t env) {
-	uint16_t expVal = sinLog(phase >> (22 - SINLOG_BITDEPTH)) + (env);
-	// int16_t expValShow = expVal;
-
-	const bool isSigned = expVal & NEGATIVE_BIT;
-	expVal &= ~NEGATIVE_BIT;
-
-	const uint16_t SINEXP_FILTER = 0x3FF;
-	uint16_t result = 4096 + sinExpTable[(expVal & SINEXP_FILTER) ^ SINEXP_FILTER];
-
-	// uint16_t resultB4 = result;
-	result >>= (expVal >> 10); // exp
-
-	if (isSigned)
-		return (-result - 1) << 13;
-	else
-		return result << 13;
+	return deluge::dsp::fixed::dx7::mki_sin(dxEngine->tables, phase, env);
 }
 
 void EngineMkI::compute(int32_t* output, int n, const int32_t* input, int32_t phase0, int32_t freq, int32_t gain1,
