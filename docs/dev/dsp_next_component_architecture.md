@@ -611,7 +611,7 @@ The song reverb is two processor kernels of stereo frames, `fixed::Freeverb` (`f
   line's base and length are immediates; as loops over the layout table they run 21% slower, the State
   indexed rather than at fixed offsets.
 - **Constexpr topologies.** Each mode's line table (`kMutable`, `kDigital`) is a constexpr aggregate read by member, in
-  the order the old `ConstructTopology` laid them, each line `length + 1` slots. Named quirks: Digital's lengths are
+  the reference's topology order, each line `length + 1` slots. Named quirks: Digital's lengths are
   `float × kRatio` truncated to whole frames, its output taps `int × kRatio` truncated to `int32_t` (`tap`, consteval),
   its modulated reads not truncated, and its excursion `size_t(16 × kRatio) = 10`. `static_assert`s keep every read
   inside its line, at the LFO's reach (`kLfoMin`, `kLfoMax`): the lanes are nominally 0 to 1, and the recurrence's
@@ -621,7 +621,7 @@ The song reverb is two processor kernels of stereo frames, `fixed::Freeverb` (`f
   32, read every frame through `value()` (`y_0 + 0.5f`), and started by an event that reads the coefficients
   (`Plate::start`), sent after every reset.
 - **Float under `-funsafe-math-optimizations`.** The plate's step and both kernels' `coefficients` compile in the
-  translation units that instantiate them (the component's, in `deluge_effects`), and match the old reverb bit for
+  translation units that instantiate them (the component's, in `deluge_effects`), and match the reference bit for
   bit there; every step that moved float code ran `golden-synth`, `golden-synth-arm` and the `render-reverb-*` gates.
 - **The component.** One union buffer, in SRAM `.bss`; the model chosen per block by a `switch`,
   with no variant and no virtual call. A model change, the same model included, is three steps around two
