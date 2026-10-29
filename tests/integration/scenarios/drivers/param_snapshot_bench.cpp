@@ -6,7 +6,7 @@
 //                          patch replaces.
 // It prints a comparison table (total_ms / per_edit_ns / ratio) at several automation densities. This is a
 // MEASUREMENT artifact, not a pass/fail gate — main() always returns 0. The table informs the incremental-vs-rebuild
-// snapshot granularity choice (docs/dev/m4a_snapshot_measurement.md).
+// snapshot granularity choice.
 //
 // std::chrono is fine here: the Date.now/Math.random restriction is a Workflow-script rule, not a C++ one.
 

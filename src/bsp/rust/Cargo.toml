@@ -144,7 +144,7 @@ host_app = [
 ]
 
 ## The emulator (`dbt sim`): the host app runs as the brain of deluge-sdk's desktop simulator, in
-## one process. See docs/superpowers/specs/2026-09-29-embassy-emulator-design.md.
+## one process.
 sim = ["host_app", "dep:deluge-simulator", "dep:deluge-sim-link", "deluge-bsp/host-panel"]
 
 [build-dependencies]

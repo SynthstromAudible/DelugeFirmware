@@ -177,7 +177,7 @@ model; goldens + round-trip green; hardware check at the owner boundary for save
 **Status (2026-07-12).** Owners 1–3 done. Owner 4 (audio-clip) and owner 5 (sounds) are
 save-authoritative for all their **scalar / config** groups; the two remaining
 pointer/collection groups — AudioClip `sampleHolder` and Source `ranges` — were completed in
-the *write-side completion* slice (spec/plan `docs/superpowers/{specs,plans}/2026-07-12-owner4-5-write-side-completion*`):
+the *write-side completion* slice:
 the forward mutations funnel through model setters, the two entangled AudioClip undo
 Consequences (`ConsequenceClipLength` — the last raw `uint64_t*` into engine state —
 and `ConsequenceAudioClipSetSample`) now revert **through the model**, and **`syncDocAudioClip`
