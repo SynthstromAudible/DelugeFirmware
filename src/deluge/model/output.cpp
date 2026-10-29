@@ -23,11 +23,22 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_clip_existence.h"
+#include "model/drum/drum.h"
 #include "model/model_stack.h"
+#include "model/note/note_row.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
+#include "model/track_parameter_edit.h"
+#include "modulation/automation/auto_param.h"
+#include "modulation/params/param_collection.h"
+#include "modulation/params/param_manager.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
+#include "util/finally.h"
+
+bool Output::propagatingParameterEdit = false;
 
 Output::Output(OutputType newType) : type(newType) {
 	mutedInArrangementMode = false;
@@ -261,6 +272,9 @@ void Output::writeToFile(Clip* clipForSavingOutputOnly, Song* song) {
 bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {
 
 	if (!clipForSavingOutputOnly) {
+		if (trackLocked) {
+			writer.writeAttribute("trackLocked", 1);
+		}
 		if (mutedInArrangementMode) {
 			writer.writeAttribute("isMutedInArrangement", 1);
 		}
@@ -331,6 +345,10 @@ bool Output::readTagFromFile(Deserializer& reader, char const* tagName) {
 
 	if (!strcmp(tagName, "isMutedInArrangement")) {
 		mutedInArrangementMode = reader.readTagOrAttributeValueInt();
+	}
+
+	else if (strcmp(tagName, "trackLocked") == 0) {
+		trackLocked = reader.readTagOrAttributeValueInt() != 0;
 	}
 
 	else if (!strcmp(tagName, "isSoloingInArrangement")) {
@@ -617,3 +635,189 @@ Clip* Output::getActiveClip() const {
 for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
     ClipInstance* thisInstance = clipInstances.getElement(i);
 */
+
+void Output::transferTrackStateTo(Output& replacement) {
+	replacement.trackLocked = trackLocked;
+	replacement.trackEditActive = trackEditActive;
+	trackLocked = false;
+	trackEditActive = false;
+}
+
+bool Output::isTrackLocked() const {
+	return trackLocked && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEdit);
+}
+
+bool Output::trackEditsAreLinked() const {
+	return (trackLocked || trackEditActive) && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEdit);
+}
+
+namespace {
+using deluge::model::ParameterEdit;
+namespace params = deluge::modulation::params;
+
+// Identifies the same parameter in another clip. The output (or sound drum) is
+// shared, but each clip owns its parameter manager and automation.
+struct LinkedParameter {
+	params::Kind kind;
+	int32_t id;
+	Drum* drum;
+	ModControllable* modControllable;
+};
+
+ModelStackWithAutoParam* findTargetParameter(Song& song, Clip& clip, LinkedParameter const& parameter,
+                                             ParameterEdit const& edit, void* modelStackMemory) {
+	NoteRow* note_row = nullptr;
+	int32_t note_row_id = 0;
+	ParamManagerForTimeline* manager = &clip.paramManager;
+	if (parameter.drum != nullptr) {
+		if (clip.type != ClipType::INSTRUMENT) {
+			return nullptr;
+		}
+		note_row = static_cast<InstrumentClip&>(clip).getNoteRowForDrum(parameter.drum, &note_row_id);
+		if (note_row == nullptr) {
+			return nullptr; // This kit clip does not contain the edited drum.
+		}
+		manager = &note_row->paramManager;
+	}
+
+	auto* target = setupModelStackWithThreeMainThingsIncludingNoteRow(modelStackMemory, &song, &clip, note_row_id,
+	                                                                  note_row, parameter.modControllable, manager);
+	auto* existing = manager->getMainAutoParamFromId(target, parameter.kind, parameter.id, false);
+	if ((existing == nullptr) || (existing->autoParam != nullptr)) {
+		return existing;
+	}
+
+	// The target lacks this parameter. Only create it if the edit will write something: creating a patch cable takes
+	// one of the sound's limited cable slots.
+	if (edit.preserveAround || edit.deleteAutomation) {
+		return nullptr; // A missing parameter has nothing to preserve or delete.
+	}
+	if (parameter.kind == params::Kind::PATCH_CABLE && edit.value == 0) {
+		return nullptr; // A missing cable already has zero depth everywhere, live or in any region.
+	}
+	if (edit.region && edit.region->lengthWithin(target->getLoopLength()) == 0) {
+		return nullptr;
+	}
+	return manager->getMainAutoParamFromId(target, parameter.kind, parameter.id, true);
+}
+
+void applyEdit(ModelStackWithAutoParam& target, ParameterEdit const& edit, bool linkAutomation) {
+	if (edit.deleteAutomation) {
+		if (target.autoParam->isAutomated()) {
+			target.autoParam->deleteAutomation(edit.action, &target);
+		}
+		return;
+	}
+	if (edit.region) {
+		uint32_t length = edit.region->lengthWithin(target.getLoopLength());
+		if (length != 0) {
+			if (edit.preserveAround) {
+				// Keep this clip's own value and interpolation there, as the edited clip just did.
+				target.autoParam->preserveRegion(edit.region->pos, length, *edit.preserveAround, &target);
+			}
+			else {
+				target.autoParam->setValueForRegion(edit.region->pos, length, edit.value, &target,
+				                                    edit.region->actionType);
+			}
+		}
+		return;
+	}
+
+	if (!linkAutomation) {
+		// Automation stays in the clip it was made in, so this must not record into the target, e.g. a playing clip
+		// armed for recording. Targets here are never automated (writeToClip() skips those), so only the value changes;
+		// it is still recorded for undo, as the setter would.
+		if (target.autoParam->getCurrentValue() != edit.value) {
+			actionLogger.recordUnautomatedParamChange(&target);
+			target.autoParam->setCurrentValueWithNoReversionOrRecording(&target, edit.value);
+		}
+		return;
+	}
+
+	// Always use the setter, even for an unchanged value: it records into a playing clip armed for recording and
+	// overrides existing automation, exactly as an edit made in that clip would.
+	target.autoParam->setCurrentValueInResponseToUserInput(edit.value, &target, edit.shouldLogAction, -1,
+	                                                       edit.mayDeleteNodesInLinearRun, false);
+}
+
+void writeToClip(Song& song, Clip& clip, LinkedParameter const& parameter, ParameterEdit const& edit,
+                 bool linkAutomation) {
+	// The model stack and pointers built into it live until applyEdit returns.
+	alignas(ModelStackWithAutoParam) char model_stack_memory[MODEL_STACK_MAX_SIZE];
+	auto* target = findTargetParameter(song, clip, parameter, edit, model_stack_memory);
+	if ((target == nullptr) || (target->autoParam == nullptr)) {
+		return;
+	}
+	// Without Link Automation, a clip whose parameter is automated has diverged from the track for it.
+	if (!linkAutomation && target->autoParam->isAutomated()) {
+		return;
+	}
+	applyEdit(*target, edit, linkAutomation);
+
+	// The active clip's cable set removes a cable left at zero itself (PatchCableSet::notifyParamModifiedInSomeWay()).
+	// Do the same for this track's other clips, so linked edits don't fill their limited cable slots.
+	if (parameter.kind == params::Kind::PATCH_CABLE && !clip.isActiveOnOutput()) {
+		static_cast<PatchCableSet*>(target->paramCollection)->deleteCableIfUnused(target);
+	}
+}
+
+} // namespace
+
+Output* Output::propagateParameterEdit(ModelStackWithAutoParam const& source,
+                                       deluge::model::ParameterEdit const& edit) {
+	if (propagatingParameterEdit || edit.isMPE || (currentSong == nullptr) || source.song != currentSong
+	    || !source.timelineCounterIsSet()) {
+		return nullptr;
+	}
+	if ((source.autoParam == nullptr) || (source.paramCollection == nullptr)
+	    || !source.paramCollection->supportsLinking()) {
+		return nullptr;
+	}
+
+	// The edit's live model stack has either a Song or a Clip timeline counter.
+	// Check the output before searching clip ownership so unlocked edits stay
+	// constant-time, including incoming MIDI under load.
+	auto* timeline = source.getTimelineCounter();
+	if (timeline == source.song) {
+		return nullptr;
+	}
+	auto& origin = *static_cast<Clip*>(timeline);
+	Output* output = origin.output;
+	return (output != nullptr) && output->applyTrackParameterEdit(origin, source, edit) ? output : nullptr;
+}
+
+bool Output::applyTrackParameterEdit(Clip& origin, ModelStackWithAutoParam const& source,
+                                     deluge::model::ParameterEdit const& edit) {
+	if (propagatingParameterEdit || !trackEditsAreLinked()) {
+		return false;
+	}
+	// Temporary / preview clips must not propagate edits into the song.
+	if (source.song->sessionClips.getIndexForClip(&origin) < 0
+	    && source.song->arrangementOnlyClips.getIndexForClip(&origin) < 0) {
+		return false;
+	}
+
+	NoteRow* row = source.getNoteRowAllowNull();
+	if ((row != nullptr) && (row->drum == nullptr)) {
+		return false; // Melodic note rows have no corresponding drum in other clips.
+	}
+	// Without Link Automation, automation stays in the clip it was made in: automation edits (regions) and deletions
+	// don't propagate, and neither do edits to a parameter the edited clip automates (e.g. while recording it live).
+	bool link_automation = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEditLinkAutomation);
+	if (!link_automation && (edit.region || edit.deleteAutomation || edit.sourceAutomated)) {
+		return false;
+	}
+	LinkedParameter parameter{.kind = source.paramCollection->getParamKind(),
+	                          .id = source.paramId,
+	                          .drum = (row != nullptr) ? row->drum : nullptr,
+	                          .modControllable = source.modControllable};
+
+	propagatingParameterEdit = true;
+	auto finish_propagation = util::finally([] { propagatingParameterEdit = false; });
+	for (Clip* target : AllClips::everywhere(source.song)) {
+		if (target != &origin && target->output == this) {
+			writeToClip(*source.song, *target, parameter, edit, link_automation);
+		}
+	}
+	return true;
+}

@@ -21,6 +21,10 @@
 #include "modulation/params/param_collection_summary.h"
 #include <cstdint>
 
+namespace deluge::modulation::params {
+enum class Kind : int32_t;
+}
+
 class Song;
 class Sound;
 class ParamSet;
@@ -51,6 +55,12 @@ public:
 	inline bool containsAnyMainParamCollections() { return expressionParamSetOffset; }
 
 	inline bool containsAnyParamCollectionsIncludingExpression() { return summaries[0].paramCollection; }
+
+	// Resolve a main parameter by collection kind and ID in this manager only.
+	// Returns nullptr if that collection is absent; expression is intentionally excluded.
+	ModelStackWithAutoParam* getMainAutoParamFromId(ModelStackWithThreeMainThings* modelStack,
+	                                                deluge::modulation::params::Kind kind, int32_t id,
+	                                                bool allowCreation);
 
 	Error setupWithPatching();
 	Error setupUnpatched();

@@ -19,6 +19,8 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
+#include "gui/views/hold_pulse.h"
+#include "gui/views/session/track_pad_gesture.h"
 #include "gui/views/timeline_view.h"
 
 class ClipInstance;
@@ -39,6 +41,8 @@ public:
 	ArrangerView();
 	bool opened() override;
 	void focusRegained() override;
+	// Starts or stops the held-pad pulse; returns true while a press is being tracked.
+	bool updateHeldPulse();
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	ActionResult handleEditPadAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult handleStatusPadAction(int32_t y, int32_t velocity, UI* ui);
@@ -128,12 +132,17 @@ public:
 
 	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
 
+	// Audition notes are paired: endAudition() only ends the output whose audition beginAudition() actually started,
+	// so no caller (Session's track pads included) can send a note-off without a note-on.
+	void beginAudition(Output* output);
+	void endAudition(Output* output, bool evenIfPlaying = false);
+	bool isAuditioning(Output const* output) const { return (output != nullptr) && output == auditionedOutput; }
+
 private:
 	void changeOutputType(OutputType newOutputType);
 	void moveClipToSession();
 	void auditionPadAction(bool on, int32_t y, UI* ui);
-	void beginAudition(Output* output);
-	void endAudition(Output* output, bool evenIfPlaying = false);
+
 	ModelStackWithNoteRow* getNoteRowForAudition(ModelStack* modelStack, Kit* kit);
 	Drum* getDrumForAudition(Kit* kit);
 	void drawAuditionSquare(int32_t yDisplay, RGB thisImage[]);
@@ -148,6 +157,14 @@ private:
 	void rememberInteractionWithClipInstance(int32_t yDisplay, ClipInstance* clipInstance);
 	void deleteOutput();
 	void auditionEnded();
+	// Shift is captured when the audition pad is pressed: a Shift press toggles the track lock instead of auditioning.
+	TrackPadGesture auditionGesture;
+	Output* auditionedOutput = nullptr;
+	// The note a melodic audition started, so it is ended even if the song is transposed meanwhile.
+	int32_t auditionedNote = 0;
+	// The output a held audition pad, or a held clip instance on a locked track, would pulse.
+	Output* heldPulseCandidate() const;
+	HoldPulse heldPulse;
 	void goToSongView();
 	void changeOutputToAudio();
 	bool renderRowForOutput(ModelStack* modelStack, Output* output, int32_t xScroll, uint32_t xZoom, RGB* image,

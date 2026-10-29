@@ -29,8 +29,10 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "model/output.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "model/track_parameter_edit.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_node.h"
@@ -122,7 +124,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 				if (isAutomated()) {
 					Action* action =
 					    actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
-					deleteAutomation(action, modelStack);
+					deleteAutomationInResponseToUserInput(action, modelStack);
 					display->displayPopup(
 					    deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_AUTOMATION_DELETED));
 				}
@@ -301,6 +303,13 @@ getOut:
 	bool automatedNow = isAutomated();
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                                          automatedNow);
+
+	// Link explicit edits across this output's clips when held in Session or persistently locked.
+	Output::propagateParameterEdit(*modelStack, {.value = value,
+	                                             .shouldLogAction = shouldLogAction,
+	                                             .mayDeleteNodesInLinearRun = mayDeleteNodesInLinearRun,
+	                                             .isMPE = doMPEMode,
+	                                             .sourceAutomated = automatedNow});
 }
 
 bool AutoParam::deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
@@ -1095,7 +1104,8 @@ setupNode:
 }
 
 void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
-                                  ModelStackWithAutoParam const* modelStack, ActionType actionType) {
+                                  ModelStackWithAutoParam const* modelStack, ActionType actionType,
+                                  std::optional<uint32_t> preserveAround) {
 
 	int32_t oldValue = currentValue;
 	bool automatedBefore = isAutomated();
@@ -1177,8 +1187,58 @@ yesChangeCurrentValue:
 		}
 	}
 
+	bool automatedNow = isAutomated();
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
-	                                                          isAutomated());
+	                                                          automatedNow);
+	Output::propagateParameterEdit(*modelStack, {.value = value,
+	                                             .region = deluge::model::AutomationRegion{pos, length, actionType},
+	                                             .preserveAround = preserveAround,
+	                                             .sourceAutomated = automatedNow});
+}
+
+void AutoParam::deleteAutomationInResponseToUserInput(Action* action, ModelStackWithAutoParam const* modelStack) {
+	deleteAutomation(action, modelStack);
+	Output::propagateParameterEdit(*modelStack, {.deleteAutomation = true, .action = action});
+}
+
+// previously AutomationEditorLayoutModControllable::getAutomationNodeInterpolation
+bool AutoParam::isInterpolatedAround(int32_t pos, bool reversed) {
+	if (!nodes.getNumElements()) {
+		return false;
+	}
+
+	int32_t rightI = nodes.search(pos + (int32_t)!reversed, GREATER_OR_EQUAL);
+	if (rightI >= nodes.getNumElements()) {
+		rightI = 0;
+	}
+	ParamNode* rightNode = nodes.getElement(rightI);
+
+	int32_t leftI = rightI - 1;
+	if (leftI < 0) {
+		leftI += nodes.getNumElements();
+	}
+	ParamNode* leftNode = nodes.getElement(leftI);
+
+	return reversed ? leftNode->interpolated : rightNode->interpolated;
+}
+
+void AutoParam::preserveRegion(int32_t pos, int32_t length, int32_t anchorPos, ModelStackWithAutoParam* modelStack) {
+	// The automation editor takes interpolation for region writes from these flags.
+	bool saved_before = automationView.interpolationBefore;
+	bool saved_after = automationView.interpolationAfter;
+	automationView.interpolationBefore = isInterpolatedAround(anchorPos, true);
+	automationView.interpolationAfter = isInterpolatedAround(anchorPos, false);
+
+	int32_t value = getValuePossiblyAtPos(pos, modelStack);
+	if (length && modelStack->timelineCounterIsSet()) {
+		setValueForRegion(pos, length, value, modelStack, ActionType::NOTE_EDIT, anchorPos);
+	}
+	else {
+		setCurrentValueInResponseToUserInput(value, modelStack);
+	}
+
+	automationView.interpolationBefore = saved_before;
+	automationView.interpolationAfter = saved_after;
 }
 
 #define REGION_EDGE_LEFT 0

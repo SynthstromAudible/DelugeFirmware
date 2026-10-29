@@ -100,6 +100,9 @@ add_executable(UnitTests
         midi_queue_tests.cpp
         fast_pythag_tests.cpp
         fast_divide_tests.cpp
+        hold_pulse_tests.cpp
+        track_pad_gesture_tests.cpp
+        track_parameter_edit_tests.cpp
         tick_interpolation_tests.cpp
         envelope_curve_tests.cpp
 )

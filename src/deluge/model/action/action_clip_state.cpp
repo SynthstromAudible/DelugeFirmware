@@ -17,6 +17,7 @@
 
 #include "model/action/action_clip_state.h"
 #include "definitions_cxx.hpp"
+#include "gui/views/session/track_link.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 
@@ -32,7 +33,7 @@ void ActionClipState::grabFromClip(Clip* thisClip) {
 	if (thisClip->type == ClipType::INSTRUMENT) {
 		InstrumentClip* instrumentClip = (InstrumentClip*)thisClip;
 		yScrollSessionView[BEFORE] = instrumentClip->yScroll;
-		affectEntire = instrumentClip->affectEntire;
+		affectEntire = deluge::gui::track_link::clipAffectEntire(*instrumentClip);
 		wrapEditing = instrumentClip->wrapEditing;
 		wrapEditLevel = instrumentClip->wrapEditLevel;
 
