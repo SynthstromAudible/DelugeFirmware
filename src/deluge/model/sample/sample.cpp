@@ -1414,6 +1414,9 @@ Sample::PitchVerdict Sample::analysePitchWindow(int32_t* buffer, int32_t lengthD
                                                 bool doPrimeTest) {
 	// Get the FFT config we'll need
 	const deluge::dsp::fixed::fft::RealFft* fftCFG = FFTConfigManager::getConfig(kPitchDetectWindowSizeMagnitude);
+	if (fftCFG == nullptr) {
+		return PitchVerdict{PitchVerdict::Kind::Failed, 0}; // its tables could not be allocated: no pitch
+	}
 	int32_t* fftInput = buffer;
 	const int32_t fftInputSize = kPitchDetectWindowSize * sizeof(int32_t);
 	const int32_t fftOutputSize = ((kPitchDetectWindowSize >> 1) + 1) * sizeof(deluge::dsp::fixed::fft::Complex);

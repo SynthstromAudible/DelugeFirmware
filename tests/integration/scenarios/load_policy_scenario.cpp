@@ -802,32 +802,41 @@ void runFailedLoadLegs() {
 	runFailedLoadLeg("spectrum", ((kManyCycleSize >> 1) + 1) * sizeof(deluge::dsp::fixed::fft::Complex));
 }
 
-/// Pitch detection does not yet check for a missing window transform, so while this is set the leg shows only that the
-/// injection makes the transform missing, without running the scan; it fails the run if that precondition fails.
-constexpr bool kPitchTwiddlesExpectedRed = true;
+/// The pitch leg's sample, loaded on its first step; the scan over it is the pitch pins' scan, which is idle here.
+Sample* g_failPitchSample = nullptr;
+int g_failPitchSteps = 0;
 
-/// A missing pitch window FFT table, made before any detection has built it.
-void runPitchTwiddlesLeg() {
+/// A missing pitch window FFT table, made before any detection has built it: the scan ends with no pitch. One step per
+/// call, as the pitch pins tick theirs.
+/// @return Whether the leg has ended.
+bool runPitchTwiddlesStep() {
 	std::string path = "SAMPLES/PIT/SINE440.WAV";
-	Error error = Error::NONE;
-	AudioFile* file = audioFileManager.getAudioFileFromFilename(path, true, &error, AudioFileType::SAMPLE);
-	deluge::memory::failNextAllocationOfSize(FFTConfigManager::blockBytes(kPitchDetectWindowSizeMagnitude));
-	if (kPitchTwiddlesExpectedRed) {
-		const bool missing = file != nullptr && FFTConfigManager::getConfig(kPitchDetectWindowSizeMagnitude) == nullptr;
-		const bool injected = !deluge::memory::allocationFailurePending();
-		printf("LP-WT-FAIL site=pitch-twiddles injected=%d error=%d bands=0 ok=0 expected-red=1\n", injected ? 1 : 0,
-		       static_cast<int>(error));
-		if (!(missing && injected)) {
-			g_failures++;
+	if (g_failPitchSample == nullptr) {
+		Error error = Error::NONE;
+		AudioFile* file = audioFileManager.getAudioFileFromFilename(path, true, &error, AudioFileType::SAMPLE);
+		if (file == nullptr || file->type != AudioFileType::SAMPLE) {
+			reportFail("pitch-twiddles", error, 0, false);
+			return true;
 		}
+		g_failPitchSample = static_cast<Sample*>(file);
+		deluge::memory::failNextAllocationOfSize(FFTConfigManager::blockBytes(kPitchDetectWindowSizeMagnitude));
+		g_pitchScan.arm(*g_failPitchSample, deluge::sample::PitchScan::Limits{});
+		g_failPitchSteps = 0;
 	}
+	const bool done = g_pitchScan.tick() == deluge::sample::PitchScan::Progress::Done;
+	if (!done && ++g_failPitchSteps < kMaxPitchSteps) {
+		return false;
+	}
+	reportFail("pitch-twiddles", Error::NONE, 0, done && g_pitchScan.result() == 0.0F);
+	g_pitchScan.cancel();
+	g_failPitchSample = nullptr;
 	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
+	return true;
 }
 
-/// Every allocation a wavetable load makes, failed once (LP-WT-FAIL). Each FFT table's failure comes before any load
-/// has built that size's table: the tables are kept for the run.
+/// Every allocation a wavetable load makes, failed once (LP-WT-FAIL), after the pitch leg has ended. Each FFT table's
+/// failure comes before any load has built that size's table: the tables are kept for the run.
 void runWaveTableFail() {
-	runPitchTwiddlesLeg();
 	runBand0TwiddlesLeg();
 	runBandTwiddlesLeg();
 	runFailedLoadLegs();
@@ -852,8 +861,10 @@ void runOneCardStep() {
 		g_stage = Stage::WaveTableFail;
 		break;
 	case Stage::WaveTableFail:
-		runWaveTableFail();
-		g_stage = Stage::HolderDefault;
+		if (runPitchTwiddlesStep()) {
+			runWaveTableFail();
+			g_stage = Stage::HolderDefault;
+		}
 		break;
 	case Stage::HolderDefault:
 		runHolderDefault();
@@ -912,6 +923,8 @@ void deluge_scenario_load_policy_begin(void) {
 	g_pitchIndex = 0;
 	g_pitchSample = nullptr;
 	g_pitchSteps = 0;
+	g_failPitchSample = nullptr;
+	g_failPitchSteps = 0;
 	// Line-buffered: the harness ends the process without flushing stdio, and these lines are the gate's output.
 	setvbuf(stdout, nullptr, _IOLBF, 0);
 	printf("LP-BEGIN\n");
