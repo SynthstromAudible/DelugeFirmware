@@ -17,20 +17,28 @@
 
 #include "scenarios/load_policy_scenario.h"
 
+#include "../../dsp/wavetable_band_crc.h"
+#include "../../dsp/wavetable_band_records.h"
 #include "memory/general_memory_allocator.h" // GeneralMemoryAllocator::resourceManager()
+#include "model/sample/pitch_scan.h"
 #include "model/sample/sample.h"
 #include "scenarios/load_invariants.h"
+#include "scenarios/pitch_pin_records.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/audio/sample_build.h"
+#include "storage/wave_table/wave_table.h"
 
 #include "deluge_resource.h"   // DelugeResourceStats, deluge_resource_stats(_reset)
 #include "libdeluge/channel.h" // DELUGE_PATH_MAX
 
 #include <array>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <string>
 #include <string_view>
 
@@ -354,7 +362,17 @@ bool checkReadStreamPath() {
 /// Ticks an explicit async load may stay `LOAD_IN_PROGRESS` before it counts as wedged.
 constexpr int kMaxDeferrals = 2000;
 
-enum class Stage : uint8_t { Pure, HolderDefault, HolderAsync, ManagerDefault, ManagerAsync, Done };
+enum class Stage : uint8_t {
+	Pure,
+	HolderDefault,
+	HolderAsync,
+	ManagerDefault,
+	ManagerAsync,
+	WaveTablePin,
+	PitchPin,
+	ZeroBand,
+	Done
+};
 
 Stage g_stage = Stage::Pure;
 int32_t g_failures = 0;
@@ -471,6 +489,130 @@ void runManagerDefault() {
 	report("LP-DEFAULT layer=manager mode=omitted", ok);
 }
 
+bool recording() {
+	return std::getenv("LOAD_POLICY_RECORD") != nullptr;
+}
+
+/// The card path of a record's file: wavetable_pins/X under SAMPLES/WTP, presets/… under SAMPLES/WTG.
+std::string cardPathOf(const char* recordFile) {
+	const std::string_view file{recordFile};
+	const std::string_view name = file.substr(file.rfind('/') + 1);
+	return std::string{file.starts_with("wavetable_pins/") ? "SAMPLES/WTP/" : "SAMPLES/WTG/"} + std::string{name};
+}
+
+/// Builds every pinned wavetable from the card and compares the bands with its record (LP-WT-PIN). Each is loaded the
+/// way the browser's single-cycle path loads one (makeWaveTableWorkAtAllCosts), held by no reason, then deleted.
+void runWaveTablePins() {
+	for (const wavetable_band_records::Record& record : wavetable_band_records::kRecords) {
+		std::string path = cardPathOf(record.file);
+		Error error = Error::NONE;
+		AudioFile* file =
+		    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::WAVETABLE,
+		                                              /*makeWaveTableWorkAtAllCosts=*/true);
+		auto* table =
+		    (file != nullptr && file->type == AudioFileType::WAVETABLE) ? static_cast<WaveTable*>(file) : nullptr;
+		const deluge::dsp::fixed::WaveTableData view =
+		    table != nullptr ? table->view() : deluge::dsp::fixed::WaveTableData{};
+		const uint32_t crc = table != nullptr ? wavetable_band_crc(view) : 0;
+		if (recording()) {
+			printf("LP-RECORD {\"%s\", %d, 0x%08XU},\n", record.file, static_cast<int>(view.num_bands()),
+			       static_cast<unsigned>(crc));
+		}
+		const bool ok = table != nullptr && view.num_bands() == record.num_bands && crc == record.crc;
+		printf("LP-WT-PIN file=%s error=%d bands=%d crc=%08X ok=%d\n", record.file, static_cast<int>(error),
+		       static_cast<int>(view.num_bands()), static_cast<unsigned>(crc), ok ? 1 : 0);
+		if (!ok) {
+			g_failures++;
+		}
+		audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
+	}
+}
+
+/// The pitch leg's progress: the record it is on, the sample it loaded and the scan over it, ticked once per step.
+std::size_t g_pitchIndex = 0;
+Sample* g_pitchSample = nullptr;
+deluge::sample::PitchScan g_pitchScan;
+int g_pitchSteps = 0;
+constexpr int kMaxPitchSteps = 2000;
+
+/// Loads each SAMPLES/PIT sample, runs its pitch detection to Done and compares the result's bits with its record
+/// (LP-PITCH-PIN). One step per call; a scan answers Pending while its windows stream in.
+/// @return Whether every record has been checked.
+bool runPitchPinStep() {
+	const auto& records = pitch_pin_records::kRecords;
+	if (g_pitchIndex >= records.size()) {
+		return true;
+	}
+	const pitch_pin_records::Record& record = records[g_pitchIndex];
+	std::string path = std::string{"SAMPLES/PIT/"} + record.file;
+	if (g_pitchSample == nullptr) {
+		Error error = Error::NONE;
+		AudioFile* file = audioFileManager.getAudioFileFromFilename(path, true, &error, AudioFileType::SAMPLE);
+		if (file == nullptr || file->type != AudioFileType::SAMPLE) {
+			printf("LP-PITCH-PIN file=%s error=%d ok=0\n", record.file, static_cast<int>(error));
+			g_failures++;
+			g_pitchIndex++;
+			return g_pitchIndex >= records.size();
+		}
+		g_pitchSample = static_cast<Sample*>(file);
+		g_pitchScan.arm(*g_pitchSample, deluge::sample::PitchScan::Limits{});
+		g_pitchSteps = 0;
+	}
+	const bool done = g_pitchScan.tick() == deluge::sample::PitchScan::Progress::Done;
+	const bool timeout = !done && ++g_pitchSteps >= kMaxPitchSteps;
+	if (!done && !timeout) {
+		return false;
+	}
+	const float hz = g_pitchScan.result();
+	const uint32_t bits = std::bit_cast<uint32_t>(hz);
+	if (recording() && done) {
+		printf("LP-RECORD {\"%s\", 0x%08XU},\n", record.file, static_cast<unsigned>(bits));
+	}
+	const bool ok = done && bits == record.hz_bits;
+	if (timeout) {
+		printf("LP-PITCH-PIN file=%s timeout=1 ok=0\n", record.file);
+	}
+	else {
+		printf("LP-PITCH-PIN file=%s hz=%.6f bits=%08X ok=%d\n", record.file, static_cast<double>(hz),
+		       static_cast<unsigned>(bits), ok ? 1 : 0);
+	}
+	if (!ok) {
+		g_failures++;
+	}
+	g_pitchScan.cancel();
+	g_pitchSample = nullptr;
+	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
+	g_pitchIndex++;
+	return g_pitchIndex >= records.size();
+}
+
+/// An 8-sample cycle builds one band. Until the loader keeps that band's cycle range, the load ends with no bands and a
+/// renderer would select band -1; this leg reports that without failing the run, and fails it if the case starts
+/// passing while still marked expected-red.
+constexpr bool kZeroBandExpectedRed = true;
+
+void runZeroBand() {
+	std::string path = "SAMPLES/WTP/WTP_S8.WAV";
+	Error error = Error::NONE;
+	AudioFile* file = audioFileManager.getAudioFileFromFilename(path, true, &error, AudioFileType::WAVETABLE, true);
+	auto* table = (file != nullptr && file->type == AudioFileType::WAVETABLE) ? static_cast<WaveTable*>(file) : nullptr;
+	const deluge::dsp::fixed::WaveTableData view =
+	    table != nullptr ? table->view() : deluge::dsp::fixed::WaveTableData{};
+	bool ok = table != nullptr && view.num_bands() >= 1;
+	for (uint32_t increment : {0U, 0x00100000U, 0x7FFFFFFFU, 0xFFFFFFFFU}) {
+		ok = ok && view.select_band(increment) >= 0;
+	}
+	for (int32_t b = 0; ok && b < view.num_bands(); ++b) {
+		ok = view.band(b).fromCycleNumber < view.band(b).toCycleNumber;
+	}
+	printf("LP-WT-ZEROBAND error=%d bands=%d ok=%d%s\n", static_cast<int>(error), static_cast<int>(view.num_bands()),
+	       ok ? 1 : 0, kZeroBandExpectedRed ? " expected-red=1" : "");
+	if (ok == kZeroBandExpectedRed) {
+		g_failures++;
+	}
+	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
+}
+
 void runOneCardStep() {
 	switch (g_stage) {
 	case Stage::Pure:
@@ -497,11 +639,24 @@ void runOneCardStep() {
 		break;
 	case Stage::ManagerAsync:
 		if (runOneAsync(/*holderLayer=*/false)) {
-			report("LP-INVARIANTS", checkLoadInvariants("load_policy"));
-			g_stage = Stage::Done;
-			printf("LP-RESULT failures=%d\n", static_cast<int>(g_failures));
-			g_summaryPrinted = true;
+			g_stage = Stage::WaveTablePin;
 		}
+		break;
+	case Stage::WaveTablePin:
+		runWaveTablePins();
+		g_stage = Stage::PitchPin;
+		break;
+	case Stage::PitchPin:
+		if (runPitchPinStep()) {
+			g_stage = Stage::ZeroBand;
+		}
+		break;
+	case Stage::ZeroBand:
+		runZeroBand();
+		report("LP-INVARIANTS", checkLoadInvariants("load_policy"));
+		g_stage = Stage::Done;
+		printf("LP-RESULT failures=%d\n", static_cast<int>(g_failures));
+		g_summaryPrinted = true;
 		break;
 	case Stage::Done:
 		break;
@@ -517,6 +672,9 @@ void deluge_scenario_load_policy_begin(void) {
 	g_summaryPrinted = false;
 	g_asyncAttempts = 0;
 	g_asyncDeferredFirst = false;
+	g_pitchIndex = 0;
+	g_pitchSample = nullptr;
+	g_pitchSteps = 0;
 	// Line-buffered: the harness ends the process without flushing stdio, and these lines are the gate's output.
 	setvbuf(stdout, nullptr, _IOLBF, 0);
 	printf("LP-BEGIN\n");
