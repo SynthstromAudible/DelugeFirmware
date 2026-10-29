@@ -157,6 +157,25 @@ set(delay_poisoned_storage_spec_DEPS ${delay_processor_spec_DEPS})
 set(reference_stutter_spec_DEPS ${delay_processor_spec_DEPS})
 # The Stutter kernel against the reference over the same workloads: the same sources, the kernel being header-only.
 set(stutter_kernel_spec_DEPS ${reference_stutter_spec_DEPS})
+# The DX7 reference (reference_dx7.h, dx7_workloads.h, dx7_workload_records.h, header-only) draws its noise from
+# SeededNoise and takes the init voice from engines/deluge.
+set(dx7_reference_spec_DEPS)
+# The DX7 components: the tables' generator is the one out-of-line source; the kernels are header-only.
+set(_dx7_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/dx7/tables.cpp)
+set(dx7_tables_spec_DEPS ${_dx7_DEPS})
+set(dx7_pitch_envelope_spec_DEPS ${_dx7_DEPS})
+set(dx7_lfo_delay_spec_DEPS ${_dx7_DEPS})
+set(dx7_lfo_spec_DEPS ${_dx7_DEPS})
+set(dx7_envelope_spec_DEPS ${_dx7_DEPS} ${_repo_root}/src/deluge/dsp-next/fixed/dx7/envelope.cpp)
+set(dx7_operator_spec_DEPS ${_dx7_DEPS})
+set(dx7_mki_feedback_stack_spec_DEPS ${_dx7_DEPS})
+set(dx7_graph_spec_DEPS ${_dx7_DEPS} ${_repo_root}/src/deluge/dsp-next/fixed/dx7/graph.cpp)
+set(dx7_modern_vector_operator_spec_DEPS ${_dx7_DEPS})
+# The vector operator must equal the device's NEON kernel under the host's float flags and the device's. Only the
+# device builds with -funsafe-math-optimizations, so the same spec builds twice: plain, and with the device's flag.
+set(dx7_modern_vector_operator_unsafe_math_spec_DEPS ${dx7_modern_vector_operator_spec_DEPS})
+set(dx7_modern_vector_operator_unsafe_math_spec_OPTIONS -funsafe-math-optimizations)
+set(dx7_voice_spec_DEPS ${_dx7_DEPS} ${dx7_graph_spec_DEPS} ${dx7_envelope_spec_DEPS})
 
 # ETL for the synth headers that reach util/etl_string.h (modulation/sync.h, through the LFO). The x86 unit tree links it
 # everywhere; the ARM tree does not, so the specs link it themselves.
