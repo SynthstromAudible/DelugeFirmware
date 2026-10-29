@@ -35,16 +35,16 @@ deluge_sample_fill = { path = "../../../crates/deluge_sample_fill", features = [
 # Default features off: the image links its own memory layout (linker/memory*.x), not the BSP's,
 # and its own C `rza1_cpu_fault_report` (every CPU fault vector calls it), not the BSP's
 # `fault-blink` handler.
-deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0", default-features = false, features = [
+deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "2a0733cf9c01182408ce4826d2fb08168d5c2243", default-features = false, features = [
     "flash",
 ] }
 # The USB-MIDI and USB Audio Class 2.0 device classes.
-usb-classes = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0", features = [
+usb-classes = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "2a0733cf9c01182408ce4826d2fb08168d5c2243", features = [
     "device-audio",
     "device-midi",
 ] }
 # The chip HAL. `unstable-driver-steal`: the fault path stops the PIC TX DMA through `Dma::steal`.
-rza1-hal = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0", features = [
+rza1-hal = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "2a0733cf9c01182408ce4826d2fb08168d5c2243", features = [
     "rza1l",
     "unstable-driver-steal",
 ] }
@@ -58,7 +58,7 @@ embedded-io-async = "0.7.0"
 # Device (armv7a-none-eabihf). `platform-cortex-ar` here and `platform-std` on host are mutually
 # exclusive in embassy-executor, so the two executors live in disjoint `[target]` sections.
 [target.'cfg(target_os = "none")'.dependencies]
-rza1-alloc = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0" }
+rza1-alloc = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "2a0733cf9c01182408ce4826d2fb08168d5c2243" }
 
 # The device storage stack under the filesystem: `BlockDevice` over the SD driver, `BufStream`.
 block-device-driver = { path = "../../../crates/block-device-driver" }
@@ -106,9 +106,9 @@ block-device-driver = { path = "../../../crates/block-device-driver", optional =
 block-device-adapters = { path = "../../../crates/block-device-adapters", optional = true }
 aligned = { version = "0.4", optional = true }
 # The desktop simulator window for `sim`.
-deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0", optional = true }
+deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "2a0733cf9c01182408ce4826d2fb08168d5c2243", optional = true }
 # The simulator's panel/audio link, which `sim_panel` plugs into deluge-bsp's host-panel hook.
-deluge-sim-link = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0", optional = true }
+deluge-sim-link = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "2a0733cf9c01182408ce4826d2fb08168d5c2243", optional = true }
 
 [features]
 default = ["host-runtime"]
