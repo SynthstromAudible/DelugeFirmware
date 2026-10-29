@@ -30,6 +30,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/audio/sample_build.h"
 #include "storage/wave_table/wave_table.h"
+#include "storage/wave_table/wave_table_holder.h"
 
 #include "deluge_resource.h"   // DelugeResourceStats, deluge_resource_stats(_reset)
 #include "libdeluge/channel.h" // DELUGE_PATH_MAX
@@ -842,6 +843,69 @@ void runWaveTableFail() {
 	runFailedLoadLegs();
 }
 
+/// The resource manager's eviction count, over the run.
+uint64_t evictionCount() {
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+	if (mgr == nullptr) {
+		return 0;
+	}
+	DelugeResourceStats stats{};
+	deluge_resource_stats(mgr, &stats);
+	return stats.evictions;
+}
+
+constexpr int kChurnRounds = 8;
+constexpr int kChurnCopies = 16;
+int g_churnRound = 0;
+uint64_t g_churnEvictionsAtStart = 0;
+
+/// One round of the churn (LP-WT-CHURN): each SAMPLES/WTC copy of a golden wavetable loaded through a holder, checked
+/// against its record and released, then every failing allocation of LP-WT-FAIL again. With the host SDRAM clamped,
+/// the copies cannot all stay resident, so a round evicts tables and the next reloads them; a band or chunk that a
+/// failed load leaked accumulates over the rounds until a load fails.
+/// @return Whether every round has run.
+bool runWaveTableChurnStep() {
+	const wavetable_band_records::Record& record = recordOf("presets/wavetable/morph_sync.2.wav");
+	if (g_churnRound == 0) {
+		g_churnEvictionsAtStart = evictionCount();
+	}
+	const uint64_t evictionsBefore = evictionCount();
+	int loads = 0;
+	bool crcOk = true;
+	for (int copy = 0; copy < kChurnCopies; ++copy) {
+		std::array<char, 32> path{};
+		snprintf(path.data(), path.size(), "SAMPLES/WTC/WTC%02d.WAV", copy);
+		WaveTableHolder holder;
+		holder.filePath = path.data();
+		holder.audioFileType = AudioFileType::WAVETABLE;
+		const Error error =
+		    holder.loadFile(/*reversed=*/false, /*manuallySelected=*/true, /*mayActuallyReadFile=*/true);
+		if (error != Error::NONE || holder.audioFile == nullptr || holder.audioFile->type != AudioFileType::WAVETABLE) {
+			continue;
+		}
+		const deluge::dsp::fixed::WaveTableData view = static_cast<WaveTable*>(holder.audioFile)->view();
+		loads++;
+		crcOk = crcOk && view.num_bands() == record.num_bands && wavetable_band_crc(view) == record.crc;
+	}
+	runFailedLoadLegs();
+	const bool ok = loads == kChurnCopies && crcOk;
+	printf("LP-WT-CHURN round=%d loads=%d evictions=%llu crcOk=%d ok=%d\n", g_churnRound + 1, loads,
+	       static_cast<unsigned long long>(evictionCount() - evictionsBefore), crcOk ? 1 : 0, ok ? 1 : 0);
+	if (!ok) {
+		g_failures++;
+	}
+	if (++g_churnRound < kChurnRounds) {
+		return false;
+	}
+	const uint64_t evictions = evictionCount() - g_churnEvictionsAtStart;
+	printf("LP-WT-CHURN rounds=%d evictions=%llu ok=%d\n", kChurnRounds, static_cast<unsigned long long>(evictions),
+	       evictions > 0 ? 1 : 0);
+	if (evictions == 0) {
+		g_failures++;
+	}
+	return true;
+}
+
 Stage nextStage(Stage stage) {
 	return static_cast<Stage>(static_cast<uint8_t>(stage) + 1);
 }
@@ -898,7 +962,9 @@ void runOneCardStep() {
 		g_stage = Stage::WaveTableChurn;
 		break;
 	case Stage::WaveTableChurn:
-		g_stage = Stage::Finish;
+		if (runWaveTableChurnStep()) {
+			g_stage = Stage::Finish;
+		}
 		break;
 	case Stage::Finish:
 		report("LP-INVARIANTS", checkLoadInvariants("load_policy"));
@@ -925,6 +991,7 @@ void deluge_scenario_load_policy_begin(void) {
 	g_pitchSteps = 0;
 	g_failPitchSample = nullptr;
 	g_failPitchSteps = 0;
+	g_churnRound = 0;
 	// Line-buffered: the harness ends the process without flushing stdio, and these lines are the gate's output.
 	setvbuf(stdout, nullptr, _IOLBF, 0);
 	printf("LP-BEGIN\n");
