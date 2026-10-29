@@ -1,0 +1,305 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+// The reverb component (engines/effects/reverb.h) against the reverb reference: every workload, the model hand-over,
+// settings publication, and which model renders.
+#include "engines/effects/reverb.h"
+
+#include "dsp-next/core/stereo_sample.h"
+#include "reference_reverb.h"
+#include "reverb_workload_records.h"
+#include "reverb_workloads.h"
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cppspec.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <memory>
+#include <span>
+#include <vector>
+
+namespace {
+namespace rw = reverb_workloads;
+using deluge::dsp::StereoSample;
+using deluge::dsp::test::ReferenceRunner;
+using deluge::effects::Reverb;
+using deluge::effects::ReverbModel;
+
+/// @return @p k as the component's settings.
+Reverb::Settings settings_of(const rw::Knobs& k) {
+	return {.room_size = k.room_size, .damping = k.damping, .width = k.width, .hpf = k.hpf, .lpf = k.lpf};
+}
+
+/// @brief The component behind the runner shape, in the call order the engine uses: a model change is begin_change,
+/// prepare, commit; knobs are published. It lives on the heap: the buffer is 128 KB.
+struct ComponentRunner {
+	std::unique_ptr<Reverb> reverb = std::make_unique<Reverb>();
+
+	void set_model(rw::Model m) {
+		reverb->begin_change();
+		reverb->prepare(static_cast<ReverbModel>(m));
+		reverb->commit();
+	}
+	void set_knobs(const rw::Knobs& k) { reverb->publish(settings_of(k)); }
+	void render(std::span<int32_t> send, std::span<StereoSample> out, int32_t l, int32_t r) {
+		reverb->render(out, send, l, r);
+	}
+	void digest_state(rw::Digest& d) const {
+		if (reverb->model() == ReverbModel::FREEVERB) {
+			const deluge::dsp::fixed::Freeverb::State& s = reverb->freeverb_state();
+			const std::span<const int32_t> memory = reverb->freeverb_memory();
+			using Freeverb = deluge::dsp::fixed::Freeverb;
+			deluge::dsp::test::FreeverbView v{};
+			const auto line = [&memory](Freeverb::Line l) { return memory.subspan(l.base, l.length); };
+			for (std::size_t i = 0; i < Freeverb::kCombs; ++i) {
+				v.lines[i] = line(Freeverb::kLayout.comb[0][i]);
+				v.lines[Freeverb::kCombs + i] = line(Freeverb::kLayout.comb[1][i]);
+				v.index[i] = s.left.comb_index[i];
+				v.index[Freeverb::kCombs + i] = s.right.comb_index[i];
+				v.store[i] = s.left.comb_store[i];
+				v.store[Freeverb::kCombs + i] = s.right.comb_store[i];
+			}
+			for (std::size_t i = 0; i < Freeverb::kAllpasses; ++i) {
+				v.lines[(2 * Freeverb::kCombs) + i] = line(Freeverb::kLayout.allpass[0][i]);
+				v.lines[(2 * Freeverb::kCombs) + Freeverb::kAllpasses + i] = line(Freeverb::kLayout.allpass[1][i]);
+				v.index[(2 * Freeverb::kCombs) + i] = s.left.allpass_index[i];
+				v.index[(2 * Freeverb::kCombs) + Freeverb::kAllpasses + i] = s.right.allpass_index[i];
+			}
+			v.dc = s.dc.y;
+			rw::digest_freeverb(d, v);
+		}
+		else {
+			const deluge::dsp::fp::Plate::State& s = reverb->plate_state();
+			deluge::dsp::test::PlateView v{
+			    .ring = reverb->plate_memory(),
+			    .write = s.write,
+			    .lfo_y_0 = {},
+			    .lfo_y_1 = {},
+			    .lp_decay_1 = s.lp_decay_1,
+			    .lp_decay_2 = s.lp_decay_2,
+			    .lp_band = s.lp_band,
+			    .hp_l = s.hp_l,
+			    .hp_r = s.hp_r,
+			    .lp_l = s.lp_l,
+			    .lp_r = s.lp_r,
+			};
+			s.lfo.y_0.StoreTo(v.lfo_y_0.data());
+			s.lfo.y_1.StoreTo(v.lfo_y_1.data());
+			rw::digest_plate(d, v);
+		}
+	}
+};
+static_assert(rw::ReverbRunner<ComponentRunner>);
+
+/// @brief One block of 128 frames of tone, numbered from 0: its send and the dry frames it is rendered over.
+struct Block {
+	std::vector<int32_t> send;
+	std::vector<StereoSample> out;
+	explicit Block(std::size_t b)
+	    : send(rw::send(128, rw::Send::TONE, b, b * 128)), out(rw::dry(128, rw::Send::TONE, b, b * 128)) {}
+};
+
+/// @return Whether two blocks hold the same frames.
+bool same(std::span<const StereoSample> a, std::span<const StereoSample> b) {
+	return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), [](StereoSample x, StereoSample y) {
+		       return x.l == y.l && x.r == y.r;
+	       });
+}
+
+/// @return Block @p b rendered by @p runner at centred levels.
+template <class R>
+std::vector<StereoSample> render_block(R& runner, std::size_t b) {
+	Block block(b);
+	runner.render(block.send, block.out, rw::kCentred, rw::kCentred);
+	return block.out;
+}
+
+constexpr std::array kModels{rw::Model::FREEVERB, rw::Model::MUTABLE, rw::Model::DIGITAL};
+
+/// @return Seconds for the impulse response through @p runner to fall 60 dB below its peak, or @p seconds if it never
+/// does.
+double rt60(ComponentRunner& runner, double seconds) {
+	constexpr std::size_t kBlock = 64;
+	std::vector<int32_t> input(kBlock, 0);
+	std::vector<StereoSample> output(kBlock);
+	input[0] = 1 << 28;
+	const auto blocks = static_cast<std::size_t>(seconds * 44100.0 / kBlock);
+	std::vector<double> envelope;
+	for (std::size_t block = 0; block < blocks; ++block) {
+		std::ranges::fill(output, StereoSample{.l = 0, .r = 0});
+		runner.render(input, output, 1 << 30, 1 << 30);
+		std::ranges::fill(input, 0);
+		double peak = 0.0;
+		for (const StereoSample& sample : output) {
+			peak = std::max(peak, std::abs(static_cast<double>(sample.l)));
+		}
+		envelope.push_back(peak);
+	}
+	const double decayed = *std::ranges::max_element(envelope) / 1000.0;
+	for (std::size_t block = envelope.size(); block-- > 0;) {
+		if (envelope[block] > decayed) {
+			return static_cast<double>(block + 1) * kBlock / 44100.0;
+		}
+	}
+	return seconds;
+}
+} // namespace
+
+// clang-format off
+describe reverb("the reverb component", ${
+	it("renders every workload as the reference recorded", _ {
+		for (const rw::Workload& w : rw::all_workloads()) {
+			const rw::WorkloadRecord got = rw::record<ComponentRunner>(w);
+			const rw::WorkloadRecord& want = rw::kRecordedReference.at(static_cast<std::size_t>(w.id));
+			expect(got.outputs).to_equal(want.outputs);
+			expect(got.state).to_equal(want.state);
+			expect(got.send).to_equal(rw::record_send_untouched(w)); // the component never writes the send back
+		}
+	});
+
+	it("renders nothing while a model change is under way", _ {
+		for (const rw::Model m : kModels) {
+			ComponentRunner runner;
+			runner.set_model(rw::Model::FREEVERB);
+			runner.set_knobs(rw::kTurned);
+			std::ignore = render_block(runner, 0);
+
+			Block dry(1);
+			runner.reverb->begin_change();
+			std::vector<StereoSample> out = render_block(runner, 1);
+			expect(same(out, dry.out)).to_be_true();
+			runner.reverb->prepare(static_cast<ReverbModel>(m));
+			out = render_block(runner, 1);
+			expect(same(out, dry.out)).to_be_true();
+			runner.reverb->commit();
+
+			ReferenceRunner fresh;
+			fresh.set_model(m);
+			fresh.set_knobs(rw::kTurned);
+			expect(same(render_block(runner, 0), render_block(fresh, 0))).to_be_true();
+		}
+	});
+
+	it("zeroes its memory and resets the model at every change, the same model included", _ {
+		for (const rw::Model m : kModels) {
+			ComponentRunner runner;
+			runner.set_model(m);
+			runner.set_knobs(rw::kTurned);
+			for (std::size_t b = 0; b < 100; ++b) {
+				std::ignore = render_block(runner, b);
+			}
+			runner.set_model(m);
+
+			ReferenceRunner fresh;
+			fresh.set_model(m);
+			fresh.set_knobs(rw::kTurned);
+			expect(same(render_block(runner, 0), render_block(fresh, 0))).to_be_true();
+		}
+	});
+
+	it("applies published settings from the next block", _ {
+		// Past the lines' first wrap (the shortest is Freeverb's 1,116-frame comb), so the knobs reach the output.
+		constexpr std::size_t kWarm = 40;
+		for (const rw::Model m : kModels) {
+			ComponentRunner runner;
+			ReferenceRunner switched;
+			ReferenceRunner kept;
+			runner.set_model(m);
+			switched.set_model(m);
+			kept.set_model(m);
+			runner.set_knobs(rw::kTurned);
+			switched.set_knobs(rw::kTurned);
+			kept.set_knobs(rw::kTurned);
+			std::size_t mismatches = 0;
+			for (std::size_t b = 0; b < kWarm; ++b) {
+				mismatches += same(render_block(runner, b), render_block(switched, b)) ? 0 : 1;
+				std::ignore = render_block(kept, b);
+			}
+			expect(mismatches).to_equal(std::size_t{0});
+
+			runner.set_knobs(rw::kMidpointB);
+			switched.set_knobs(rw::kMidpointB);
+			const std::vector<StereoSample> got = render_block(runner, kWarm);
+			expect(same(got, render_block(switched, kWarm))).to_be_true();
+			expect(same(got, render_block(kept, kWarm))).to_be_false(); // B landed at this block, not later
+		}
+	});
+
+	it("starts at known settings", _ {
+		const auto reverb = std::make_unique<Reverb>();
+		expect(reverb->model() == ReverbModel::FREEVERB).to_be_true();
+		expect(Reverb::Settings{} == Reverb::Settings{.room_size = 0.5f, .damping = 0.5f, .width = 1.f, .hpf = 0.f, .lpf = 0.f}).to_be_true();
+
+		// Nothing published: the model takes the component's defaults, as today's reverb takes its cached ones. Both
+		// leave the low-pass at 0, so a plate's block is the dry block in each; no knob reaches a model from
+		// uninitialised memory.
+		reverb->begin_change();
+		reverb->prepare(ReverbModel::MUTABLE);
+		reverb->commit();
+		Block mine(0);
+		reverb->render(mine.out, mine.send, rw::kCentred, rw::kCentred);
+
+		auto reference = std::make_unique<deluge::dsp::test::reverb_ref::ReferenceReverb>();
+		reference->setModel(deluge::dsp::test::reverb_ref::ReferenceReverb::Model::MUTABLE);
+		reference->setPanLevels(rw::kCentred, rw::kCentred);
+		Block theirs(0);
+		reference->process(theirs.send, theirs.out);
+		expect(same(mine.out, theirs.out)).to_be_true();
+	});
+
+	it("keeps the published settings across a model change", _ {
+		ComponentRunner runner;
+		ReferenceRunner reference;
+		runner.set_model(rw::Model::MUTABLE);
+		reference.set_model(rw::Model::MUTABLE);
+		runner.set_knobs(rw::kTurned);
+		reference.set_knobs(rw::kTurned);
+		runner.set_model(rw::Model::DIGITAL);
+		reference.set_model(rw::Model::DIGITAL);
+		std::size_t mismatches = 0;
+		for (std::size_t b = 0; b < 40; ++b) {
+			mismatches += same(render_block(runner, b), render_block(reference, b)) ? 0 : 1;
+		}
+		expect(mismatches).to_equal(std::size_t{0});
+	});
+
+	it("renders through whichever model is selected", _ {
+		for (const rw::Model m : kModels) {
+			ComponentRunner runner;
+			runner.set_model(m);
+			runner.set_knobs({.room_size = 0.7f, .damping = 0.5f, .width = 1.f, .hpf = 0.f, .lpf = 1.f});
+			expect(rt60(runner, 5.0)).to_be_greater_than(0.05);
+		}
+	});
+
+	it("reports the model last prepared", _ {
+		const auto reverb = std::make_unique<Reverb>();
+		for (const ReverbModel m : {ReverbModel::DIGITAL, ReverbModel::MUTABLE, ReverbModel::FREEVERB}) {
+			reverb->begin_change();
+			reverb->prepare(m);
+			expect(reverb->model() == m).to_be_true();
+			reverb->commit();
+			expect(reverb->model() == m).to_be_true();
+		}
+	});
+});
+// clang-format on
+
+CPPSPEC_SPEC(reverb);
