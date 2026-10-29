@@ -42,7 +42,7 @@
 #include "dsp-next/fixed/dx7/tables.h"
 
 #include <argon.hpp>
-#include <array>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
@@ -66,9 +66,9 @@ namespace deluge::dsp::fixed::dx7 {
 /// 6. **Sign.** Where bit 23 was set, the result is inverted bitwise: −y − 1, not −y, so zero becomes −1.
 /// 7. **Mix.** The accumulator is added (ADD) with wrapping, or not (SET). With no input the modulation is zero.
 ///
-/// The step is one dependency chain, so `Mono` runs it three vectors at a time through @ref step_interleaved, each
-/// stage written for the three in turn (the A9 overlaps independent chains only when interleaved), and the rest of
-/// the block one vector at a time.
+/// The step is one dependency chain, so `Mono` runs it three chains at a time through @ref step_chains, each stage
+/// written for the three in turn (the A9 overlaps independent chains only when interleaved), and the rest of the
+/// block one vector at a time.
 ///
 /// It is not the scalar operator: the sine is a polynomial, not the table, so samples differ in their low bits.
 /// No denormal arises, so flushing them (NEON) or not (SSE) changes nothing: x is 0 or at least 2^-22, u at least
@@ -83,7 +83,7 @@ struct ModernVectorOperator {
 
 	/// @brief The op's routing and its block's level and pitch.
 	struct Settings {
-		Input input = Input::NONE;      ///< NONE or BUS; feedback renders through Operator.
+		Input input = Input::NONE;      ///< NONE or BUS; a feedback op renders through Operator.
 		Output output = Output::SET;    ///< Set or add.
 		int32_t level_in = 0;           ///< The level, Q24 doublings.
 		int32_t freq = 0;               ///< The phase increment, 2^24 per cycle.
@@ -117,16 +117,18 @@ struct ModernVectorOperator {
 		Argon<float> gain_step{};    ///< float(dgain) · 2^-22: four samples' gain.
 	};
 
-	/// @brief Three vectors per interleaved step: twelve samples, as the device's NEON kernel computes them.
-	static constexpr std::size_t kInterleave = 3;
+	/// @brief Three chains per chained step: twelve samples, as the device's NEON kernel computes them.
+	static constexpr std::size_t kChains = 3;
+	using Vectors = ChainVectors<Argon<q31>, kChains>; ///< One vector per chain.
 
 	static constexpr float kPoly0 = -0.01880853017455781F; ///< The sine polynomial's u^3 coefficient (0xbc9a1459).
 	static constexpr float kPoly1 = 0.25215252666796095F;  ///< Its u^2 coefficient (0x3e811a23).
 	static constexpr float kPoly2 = -1.2333439964934032F;  ///< Its u coefficient (0xbf9dde37).
 	static constexpr float kPoly3 = 1.0F;                  ///< Its constant (0x3f800000).
 
-	/// @brief The routing as a mode, the rest as it is.
+	/// @brief The routing as a mode, the rest as it is. A feedback op is the scalar Operator's, never this kernel's.
 	[[nodiscard]] [[gnu::always_inline]] static constexpr Coefficients coefficients(const Settings& s) {
+		assert(s.input != Input::FEEDBACK);
 		const bool add = s.output == Output::ADD;
 		const Mode mode =
 		    s.input == Input::BUS ? (add ? Mode::BUS_ADD : Mode::BUS_SET) : (add ? Mode::NONE_ADD : Mode::NONE_SET);
@@ -136,12 +138,12 @@ struct ModernVectorOperator {
 	/// @brief Starts the lanes at the held phase and gain, holds the block's end gain, and moves the held phase on by
 	/// the block, as Operator's prepare does.
 	[[nodiscard]] [[gnu::always_inline]] static Block prepare(const Coefficients& c, State& s, std::size_t n) {
-		static constexpr std::array<int32_t, 4> kLanes{0, 1, 2, 3};
+		alignas(16) static constexpr int32_t kLanes[4]{0, 1, 2, 3}; // NOLINT(*-avoid-c-arrays): loaded without a call
 		const OperatorState held = s.op;
 		const Gains g = Operator::gains(
 		    {.mode = Operator::Mode::MODERN_NONE_SET, .level_in = c.level_in, .freq = c.freq, .tables = c.tables}, held,
 		    n);
-		const Argon<int32_t> lanes = Argon<int32_t>::Load(kLanes.data());
+		const Argon<int32_t> lanes = Argon<int32_t>::Load(kLanes);
 		s.loop.phase = Argon<int32_t>{held.phase}.MultiplyAdd(lanes, Argon<int32_t>{c.freq});
 		s.loop.gain = Argon<int32_t>{g.gain1}.MultiplyAdd(lanes, Argon<int32_t>{g.dgain}).ConvertTo<float, 24>();
 		s.op.gain_out = g.gain2;
@@ -169,7 +171,7 @@ struct ModernVectorOperator {
 		p = Argon<float>{kPoly3}.MultiplyAdd(u, p);
 		const Argon<int32_t> y = (p * l.gain).template ConvertTo<int32_t, 24>() ^ sign;
 		l.phase = l.phase + b.phase_step;
-		l.gain = l.gain + b.gain_step;
+		l.gain = in_order(l.gain + b.gain_step);
 		if constexpr (M == Mode::NONE_ADD || M == Mode::BUS_ADD) {
 			return y + accumulator;
 		}
@@ -181,10 +183,9 @@ struct ModernVectorOperator {
 	/// the three vectors in turn, as the device's NEON kernel does twelve samples at a time: the A9 overlaps
 	/// independent chains only when their instructions are interleaved.
 	template <Mode M>
-	[[nodiscard]] [[gnu::always_inline]] static std::array<Argon<q31>, kInterleave>
-	step_interleaved(const Coefficients& /*c*/, const Block& b, Loop& l,
-	                 const std::array<Argon<q31>, kInterleave>& modulation,
-	                 const std::array<Argon<q31>, kInterleave>& accumulator) {
+	[[nodiscard]] [[gnu::always_inline]] static Vectors step_chains(const Coefficients& /*c*/, const Block& b, Loop& l,
+	                                                                const Vectors& modulation,
+	                                                                const Vectors& accumulator) {
 		const Argon<int32_t> mask{0x7fffff};
 		const Argon<int32_t> half{0x400000};
 		const Argon<int32_t> sign_bit{0x800000};
@@ -195,9 +196,9 @@ struct ModernVectorOperator {
 		Argon<int32_t> a1 = p1;
 		Argon<int32_t> a2 = p2;
 		if constexpr (M == Mode::BUS_SET || M == Mode::BUS_ADD) {
-			a0 = a0 + modulation[0];
-			a1 = a1 + modulation[1];
-			a2 = a2 + modulation[2];
+			a0 = a0 + modulation.v[0];
+			a1 = a1 + modulation.v[1];
+			a2 = a2 + modulation.v[2];
 		}
 		const Argon<int32_t> s0 = a0.CompareTestNonzero(sign_bit).ToMask().template As<int32_t>();
 		const Argon<int32_t> s1 = a1.CompareTestNonzero(sign_bit).ToMask().template As<int32_t>();
@@ -220,16 +221,15 @@ struct ModernVectorOperator {
 		const Argon<float> g0 = l.gain;
 		const Argon<float> g1 = in_order(g0 + b.gain_step);
 		const Argon<float> g2 = in_order(g1 + b.gain_step);
-		std::array<Argon<q31>, kInterleave> y{(q0 * g0).template ConvertTo<int32_t, 24>() ^ s0,
-		                                      (q1 * g1).template ConvertTo<int32_t, 24>() ^ s1,
-		                                      (q2 * g2).template ConvertTo<int32_t, 24>() ^ s2};
+		Vectors y{{(q0 * g0).template ConvertTo<int32_t, 24>() ^ s0, (q1 * g1).template ConvertTo<int32_t, 24>() ^ s1,
+		           (q2 * g2).template ConvertTo<int32_t, 24>() ^ s2}};
 		if constexpr (M == Mode::NONE_ADD || M == Mode::BUS_ADD) {
-			y[0] = y[0] + accumulator[0];
-			y[1] = y[1] + accumulator[1];
-			y[2] = y[2] + accumulator[2];
+			y.v[0] = y.v[0] + accumulator.v[0];
+			y.v[1] = y.v[1] + accumulator.v[1];
+			y.v[2] = y.v[2] + accumulator.v[2];
 		}
 		l.phase = p2 + b.phase_step;
-		l.gain = g2 + b.gain_step;
+		l.gain = in_order(g2 + b.gain_step);
 		return y;
 	}
 
@@ -238,8 +238,9 @@ struct ModernVectorOperator {
 
 private:
 	/// @brief @p v as it is, hidden from the optimiser, so a sum of it is not reassociated with what made it.
-	/// @details The gain ramp adds the step once per vector, each sum rounding. Within one interleaved step the three
-	/// sums are visible together, and under -funsafe-math-optimizations (the device's flag) the compiler may fold
+	/// @details The gain ramp adds the step once per vector, each sum rounding, and every update goes through this.
+	/// Within one chained step the three sums are visible together, and an unrolled or rotated loop can show two
+	/// steps' sums together; under -funsafe-math-optimizations (the device's flag) the compiler may then fold
 	/// (g + d) + d into g + 2d, which rounds differently. The barrier costs nothing on ARM, where the value stays in
 	/// its register.
 	[[nodiscard]] [[gnu::always_inline]] static Argon<float> in_order(Argon<float> v) {
@@ -254,6 +255,7 @@ private:
 };
 
 static_assert(mixer_kernel<ModernVectorOperator>);
+static_assert(chains_of<ModernVectorOperator> == 3);
 static_assert(moded_kernel<ModernVectorOperator>);
 static_assert(!std::is_polymorphic_v<ModernVectorOperator>);
 

@@ -424,20 +424,33 @@ template <typename K>
 requires std::same_as<std::remove_cv_t<decltype(K::kPartialStepAdvancesByCount)>, bool>
 inline constexpr bool partial_step_advances_by_count<K> = K::kPartialStepAdvancesByCount;
 
-/// @brief How many vectors K's interleaved step takes at once: K::kInterleave, or 1 when K declares none.
-/// @details A vector kernel whose step is one long dependency chain declares `static constexpr std::size_t
-/// kInterleave = N` (N > 1) and `step_interleaved` (a template on the mode for a moded kernel), taking each input as
-/// `std::array<step_type, N>` of consecutive vectors and returning the N output vectors. It must compute exactly what
-/// N calls of `step` in a row compute, state included; it exists to write the N chains' instructions interleaved, which
-/// the A9 needs to overlap them and which an unrolled loop of `step` does not give. `Mono` runs every whole group of N
-/// vectors through it, then the rest of the block through `step`.
-template <typename K>
-inline constexpr std::size_t interleave_of = 1;
+/// @brief N consecutive vectors, one per chain of a chained step (see @ref chains_of): a built-in array, so reading
+/// one is an index, not a call, at any inlining flags.
+template <typename T, std::size_t N>
+struct ChainVectors {
+	T v[N]; // NOLINT(*-avoid-c-arrays): read per step, where std::array's accessors are calls under
+	        // -fno-inline-functions
+};
 
-/// @brief K's interleave, when it declares one.
+/// @brief How many chains K's chained step runs at once: K::kChains, or 1 when K declares none.
+/// @details A q31 vector kernel whose step is one long dependency chain declares `static constexpr std::size_t
+/// kChains = N` (N > 1) and `step_chains` (a template on the mode for a moded kernel), taking each input as
+/// `ChainVectors<step_type, N>` of consecutive vectors and returning the N outputs the same way. It must compute
+/// exactly what N calls of `step` in a row compute, state included; it exists to write the N chains' instructions
+/// interleaved, stage by stage, which the A9 needs to overlap them and which an unrolled loop of `step` does not give.
+/// `Mono` runs every whole group of N vectors through it, then the rest of the block, the partial vector included,
+/// through `step`. Only `Mono`'s q31 vector loop runs chains: a scalar or stereo kernel declaring kChains is rejected.
 template <typename K>
-requires std::same_as<std::remove_cv_t<decltype(K::kInterleave)>, std::size_t>
-inline constexpr std::size_t interleave_of<K> = K::kInterleave;
+inline constexpr std::size_t chains_of = 1;
+
+/// @brief K's chain count, when it declares one: a `std::size_t`, or the build fails here rather than ignoring it.
+template <typename K>
+requires requires { K::kChains; }
+inline constexpr std::size_t chains_of<K> = [] {
+	static_assert(std::same_as<std::remove_cv_t<decltype(K::kChains)>, std::size_t>, "kChains must be a std::size_t");
+	static_assert(K::kChains > 1, "kChains must be more than one chain");
+	return K::kChains;
+}();
 
 /// @brief The shape every kernel has: value/step types, Settings → Coefficients (pure), State, optional prepare.
 /// @details Requires:

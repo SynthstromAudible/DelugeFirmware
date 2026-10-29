@@ -449,31 +449,72 @@ struct VecOffsetWhole {
 	}
 };
 
-/// VecOffsetWhole with an interleaved step of two vectors, which counts its calls: Mono must run every whole group of
-/// two vectors through it and the rest through step, with the same result as step alone.
-struct VecOffsetInterleaved {
+/// VecOffsetWhole with a chained step of two chains, which counts its calls: Mono must run every whole group of two
+/// vectors through it and the rest through step, with the same result as step alone.
+struct VecOffsetChained {
 	using value_type = q31;
 	using step_type = Argon<q31>;
-	static constexpr std::size_t kInterleave = 2;
+	static constexpr std::size_t kChains = 2;
 	struct Settings {};
 	struct Coefficients {};
 	struct State {
 		Argon<q31> value; ///< The index of the next step's first sample, in every lane.
-		int groups;       ///< The interleaved steps taken.
+		int groups;       ///< The chained steps taken.
 	};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
-	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& c, const EmptyBlock& b, State& s, Argon<q31> x) {
+	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& /*c*/, const EmptyBlock& b, State& s,
+	                                              Argon<q31> x) {
 		VecOffsetWhole::State w{.value = s.value};
 		const Argon<q31> out = VecOffsetWhole::step({}, b, w, x);
 		s.value = w.value;
-		(void)c;
 		return out;
 	}
-	[[gnu::always_inline]] static std::array<Argon<q31>, 2>
-	step_interleaved(const Coefficients& c, const EmptyBlock& b, State& s, const std::array<Argon<q31>, 2>& x) {
+	[[gnu::always_inline]] static ChainVectors<Argon<q31>, 2>
+	step_chains(const Coefficients& c, const EmptyBlock& b, State& s, const ChainVectors<Argon<q31>, 2>& x) {
 		++s.groups;
-		const Argon<q31> first = step(c, b, s, x[0]);
-		return {first, step(c, b, s, x[1])};
+		const Argon<q31> first = step(c, b, s, x.v[0]);
+		return {{first, step(c, b, s, x.v[1])}};
+	}
+};
+
+/// A moded vector mixer: a + b2 (ADD) or a − b2 (SUBTRACT), plus a running offset per vector.
+struct VecMixOffset {
+	using value_type = q31;
+	using step_type = Argon<q31>;
+	enum class Mode : uint8_t { ADD, SUBTRACT };
+	using Modes = ModeList<Mode::ADD, Mode::SUBTRACT>;
+	struct Settings {
+		Mode mode;
+	};
+	struct Coefficients {
+		Mode mode;
+	};
+	struct State {
+		Argon<q31> value; ///< The index of the next step's first sample, in every lane.
+		int groups;       ///< The chained steps taken; the plain kernel takes none.
+	};
+	static Coefficients coefficients(const Settings& s) { return {.mode = s.mode}; }
+	template <Mode M>
+	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s,
+	                                              Argon<q31> a, Argon<q31> b2) {
+		const Argon<q31> mixed = M == Mode::ADD ? a + b2 : a - b2;
+		const Argon<q31> out = mixed + s.value + Argon<q31>::Iota(0);
+		s.value = s.value + Argon<q31>{static_cast<q31>(Argon<q31>::lanes)};
+		return out;
+	}
+};
+
+/// VecMixOffset with a chained step of three chains.
+struct VecMixOffsetChained : VecMixOffset {
+	static constexpr std::size_t kChains = 3;
+	using Vectors = ChainVectors<Argon<q31>, 3>;
+	template <Mode M>
+	[[gnu::always_inline]] static Vectors step_chains(const Coefficients& c, const EmptyBlock& b, State& s,
+	                                                  const Vectors& a, const Vectors& b2) {
+		++s.groups;
+		const Argon<q31> first = step<M>(c, b, s, a.v[0], b2.v[0]);
+		const Argon<q31> second = step<M>(c, b, s, a.v[1], b2.v[1]);
+		return {{first, second, step<M>(c, b, s, a.v[2], b2.v[2])}};
 	}
 };
 
@@ -1180,19 +1221,38 @@ describe mono("Mono", ${
 		}
 	});
 
-	it("steps whole groups of a kernel's interleave through step_interleaved and the rest through step", _ {
+	it("steps whole groups of a kernel's chains through step_chains and the rest through step", _ {
 		constexpr auto lanes = static_cast<std::size_t>(Argon<q31>::lanes);
 		for (const std::size_t n : kLengths) {
-			Mono<VecOffsetInterleaved> interleaved;
+			Mono<VecOffsetChained> chained;
 			Mono<VecOffsetWhole> plain;
 			const std::vector<q31> in = input(n, 0x00024680);
 			std::vector<q31> got(n);
 			std::vector<q31> want(n);
-			interleaved.renderBlock(in, got);
+			chained.renderBlock(in, got);
 			plain.renderBlock(in, want);
 			expect(got == want).to_be_true();
-			expect(interleaved.state().groups).to_equal(static_cast<int>(n / (2 * lanes)));
-			expect(lanes_of(interleaved.state().value)).to_equal(lanes_of(plain.state().value));
+			expect(chained.state().groups).to_equal(static_cast<int>(n / (2 * lanes)));
+			expect(lanes_of(chained.state().value)).to_equal(lanes_of(plain.state().value));
+		}
+	});
+
+	it("steps a moded mixer's chains in its mode, in place, as its plain step does", _ {
+		constexpr auto lanes = static_cast<std::size_t>(Argon<q31>::lanes);
+		for (const std::size_t n : {std::size_t{1}, std::size_t{11}, std::size_t{12}, std::size_t{13},
+		                            std::size_t{25}, std::size_t{36}, std::size_t{50}}) {
+			for (const VecMixOffset::Mode mode : {VecMixOffset::Mode::ADD, VecMixOffset::Mode::SUBTRACT}) {
+				Mono<VecMixOffsetChained> chained{{.mode = mode}};
+				Mono<VecMixOffset> plain{{.mode = mode}};
+				const std::vector<q31> a = input(n, 0x00013579);
+				std::vector<q31> got = input(n, 0x0002468a); // the output is the second input: in place
+				std::vector<q31> want = got;
+				chained.renderBlock(a, got, got);
+				plain.renderBlock(a, want, want);
+				expect(got == want).to_be_true();
+				expect(chained.state().groups).to_equal(static_cast<int>(n / (3 * lanes)));
+				expect(lanes_of(chained.state().value)).to_equal(lanes_of(plain.state().value));
+			}
 		}
 	});
 

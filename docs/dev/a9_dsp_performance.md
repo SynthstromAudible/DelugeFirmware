@@ -676,8 +676,8 @@ step bit-exact with it (`dx7::ModernVectorOperator`). Cycles per sample, one run
   ramp's 2^30 / n with a table read moved nothing: the A9's software divide is not where it goes.
 - **The Argon step against the hand kernel.** Stepped one four-lane chain at a time, the Argon step ran 28-37% slower
   than the kernel at n=128: issue-empty cycles rose from 34 to 57 per sample at the same NEON count, each step waiting
-  on the last's float latency. Three chains interleaved instruction by instruction (`kInterleave = 3`,
-  `step_interleaved`), as the kernel computes twelve samples, brought the ops with no input level with it (algorithm
+  on the last's float latency. Three chains interleaved instruction by instruction (`kChains = 3`,
+  `step_chains`), as the kernel computes twelve samples, brought the ops with no input level with it (algorithm
   32 without feedback +7%, inside the images' placement spread). The ops with a bus input stayed 29-36% slower
   (algorithm 1 without feedback: 76.4 against 104.1 at n=128): each group's first instruction adds the bus's fresh
   load, and the kernel issues those loads a block ahead. Loading the next group early in `Mono` made every case 25-30%

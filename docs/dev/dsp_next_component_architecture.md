@@ -687,7 +687,7 @@ the codec and the UI.
   22 bits, bit 23 the sign; three non-fused multiply-adds in x², each rounding (the A9's NEON has none fused); the
   product with the gain converted with 24 bits, truncating and saturating, NaN to 0; the sign applied as a bitwise
   NOT (−y − 1); the accumulator added with wrapping. No denormal arises. `Mono` runs it three vectors at a time
-  (`kInterleave`, see [`Mono<K>`](#monok-coremonoh)), each stage written for the three in turn as the kernel does,
+  (`kChains`, see [`Mono<K>`](#monok-coremonoh)), each stage written for the three in turn as the kernel does,
   with the gain ramp's order held by a register barrier. So stepped it keeps pace with the kernel on ops with no
   input, but not on ops reading a bus: the kernel issues each block's loads a block ahead, which the compiler cannot
   do for the step without spilling (`a9_dsp_performance.md`, "DX7"), so the device keeps the kernel. The
@@ -1000,19 +1000,22 @@ per-sample loop, so a `Mono` of one would be inert.
   small, scalar State keeps the default. With `kLoopState` too, the loop steps
   the named member in place: the two traits combine, one choosing which part
   the loop steps and the other whether it is copied.
-- **`kInterleave`.** A vector kernel whose step is one long dependency chain
-  declares `static constexpr std::size_t kInterleave = N` and
-  `step_interleaved` (a template on the mode when moded), taking each input as
-  `std::array<step_type, N>` of consecutive vectors and returning N outputs.
-  `Mono` runs every whole group of N vectors through it, then the rest of the
-  block, the partial vector included, through `step`. It must compute exactly
-  what N `step`s in a row compute, state included; it exists to write the N
-  chains' instructions interleaved, stage by stage, which the A9 needs to
-  overlap them and which an unrolled loop of `step` does not give. Hold the
-  order of any float accumulation across the N with a register barrier: under
+- **`kChains`.** A q31 vector kernel whose step is one long dependency chain
+  declares `static constexpr std::size_t kChains = N` and `step_chains` (a
+  template on the mode when moded), taking each input as
+  `ChainVectors<step_type, N>` of consecutive vectors (a built-in array, so
+  reading one is no call) and returning N outputs the same way. `Mono` runs
+  every whole group of N vectors through it, then the rest of the block, the
+  partial vector included, through `step`. It must compute exactly what N
+  `step`s in a row compute, state included; it exists to write the N chains'
+  instructions interleaved, stage by stage, which the A9 needs to overlap them
+  and which an unrolled loop of `step` does not give. Hold the order of any
+  float accumulation with a register barrier on every update: under
   `-funsafe-math-optimizations` the compiler otherwise reassociates sums it can
-  now see together. `dx7::ModernVectorOperator` declares N = 3
-  ([a9_dsp_performance.md](a9_dsp_performance.md#dx7)). Interleaving covers float
+  see together. Only the q31 vector loop runs chains; a scalar or stereo kernel
+  declaring `kChains` fails to build, as does a `kChains` that is not a
+  `std::size_t` above 1. `dx7::ModernVectorOperator` declares N = 3
+  ([a9_dsp_performance.md](a9_dsp_performance.md#dx7)). Chains cover float
   latency, not load latency: a chain that starts from a fresh load still waits
   on it.
 - `render(...)` is a one-sample block: one `prepare` and one dispatch per call.

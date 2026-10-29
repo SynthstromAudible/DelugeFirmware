@@ -260,6 +260,8 @@ private:
 	template <auto M, typename... In>
 	[[gnu::always_inline]] static void loop(const Coefficients& c, const Block& block, LoopState& s,
 	                                        Buffer<value_type> out, In... in) {
+		static_assert(chains_of<K> == 1 || detail::vector_step_kernel<K>,
+		              "kChains is for q31 vector kernels: Mono runs chains only in its q31 vector loop");
 		const auto n = static_cast<std::ptrdiff_t>(out.size());
 		if constexpr (detail::scalar_step_kernel<K>) {
 			scalarLoop<M>(c, block, s, out.data(), n, in.data()...);
@@ -282,20 +284,18 @@ private:
 	}
 
 	/// @brief One `step` per vector of q31 samples: @p n samples of @p src into @p dst, the partial last vector
-	/// included. A kernel declaring an interleave (@ref interleave_of) steps every whole group of that many vectors
-	/// through its `step_interleaved` first.
+	/// included. A kernel declaring chains (@ref chains_of) steps every whole group of that many vectors through its
+	/// `step_chains` first.
 	template <auto M, typename... Src>
 	[[gnu::always_inline]] static void vectorLoop(const Coefficients& c, const Block& block, LoopState& s, q31* dst,
 	                                              std::ptrdiff_t n, const Src*... src) {
 		std::ptrdiff_t done = 0;
-		if constexpr (interleave_of<K> > 1) {
-			constexpr std::ptrdiff_t kGroup = static_cast<std::ptrdiff_t>(interleave_of<K>) * Argon<q31>::lanes;
+		if constexpr (chains_of<K> > 1) {
+			constexpr std::ptrdiff_t kGroup = static_cast<std::ptrdiff_t>(chains_of<K>) * Argon<q31>::lanes;
+			constexpr auto kChainIndex = std::make_index_sequence<chains_of<K>>{};
 			for (; done + kGroup <= n; done += kGroup) {
-				const auto out =
-				    interleavedStepAt<M>(c, block, s, std::make_index_sequence<interleave_of<K>>{}, (src + done)...);
-				for (std::size_t v = 0; v < out.size(); ++v) {
-					out[v].StoreTo(dst + done + (static_cast<std::ptrdiff_t>(v) * Argon<q31>::lanes));
-				}
+				storeChains(kChainIndex, dst + done,
+				            chainStepAt<M>(c, block, s, loadChains(kChainIndex, src + done)...));
 			}
 		}
 		argon::vectorize::for_each<q31>(n - done, [&] [[gnu::always_inline]] (auto step) {
@@ -303,19 +303,29 @@ private:
 		});
 	}
 
-	/// @brief One interleaved step at mode @p M over the group of vectors at each of @p src.
-	template <auto M, std::size_t... V, typename... Src>
-	[[gnu::always_inline]] static auto interleavedStepAt(const Coefficients& c, const Block& block, LoopState& s,
-	                                                     std::index_sequence<V...> /*vectors*/, const Src*... src) {
-		const auto group = [](const auto* base) {
-			return std::array<step_type, sizeof...(V)>{
-			    step_type::Load(base + (static_cast<std::ptrdiff_t>(V) * Argon<q31>::lanes))...};
-		};
+	/// @brief The chains_of<K> consecutive vectors at @p base.
+	template <std::size_t... V>
+	[[gnu::always_inline]] static ChainVectors<step_type, sizeof...(V)> loadChains(std::index_sequence<V...> /*chains*/,
+	                                                                               const q31* base) {
+		return {{step_type::Load(base + (static_cast<std::ptrdiff_t>(V) * Argon<q31>::lanes))...}};
+	}
+
+	/// @brief Stores @p out's vectors at @p base, one after another.
+	template <std::size_t... V>
+	[[gnu::always_inline]] static void storeChains(std::index_sequence<V...> /*chains*/, q31* base,
+	                                               const ChainVectors<step_type, sizeof...(V)>& out) {
+		(out.v[V].StoreTo(base + (static_cast<std::ptrdiff_t>(V) * Argon<q31>::lanes)), ...);
+	}
+
+	/// @brief One chained step at mode @p M over one group of vectors per input.
+	template <auto M, typename... G>
+	[[gnu::always_inline]] static ChainVectors<step_type, chains_of<K>>
+	chainStepAt(const Coefficients& c, const Block& block, LoopState& s, const G&... group) {
 		if constexpr (detail::has_modes<K>) {
-			return K::template step_interleaved<M>(c, block, s, group(src)...);
+			return K::template step_chains<M>(c, block, s, group...);
 		}
 		else {
-			return K::step_interleaved(c, block, s, group(src)...);
+			return K::step_chains(c, block, s, group...);
 		}
 	}
 
