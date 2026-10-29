@@ -2,10 +2,12 @@
 """Tests for rig_session.py's DeviceSession over a fake RTT link: `python3 -m unittest test_rig_session`."""
 
 import base64
+import tempfile
 import time
 import unittest
+from pathlib import Path
 
-from rig_session import DeviceSession
+from rig_session import FULL_STATE, DeviceSession
 
 LEDS = {0: "PLAY", 9 + 6: "LOAD"}
 
@@ -205,6 +207,68 @@ class Gestures(unittest.TestCase):
         s.pad_event(3, 5, False)
         s.encoder(4, -2)
         self.assertEqual(link.sent, b"S\nB 6 1 1\nP 3 5 0\nE 4 -8\n")
+
+
+class ReviewFindings(unittest.TestCase):
+    def test_lines_lost_before_the_resend_do_not_fail_the_attach(self):
+        # Boot-time output the probe never read is not panel state the session relies on.
+        resend = "".join(f"@L {8 + i} 1000000 {i} 0\n" for i in range(FULL_STATE))
+        link = FakeLink(
+            [
+                b"@T 0 40000\n@T 7 50000\n",
+                (resend + f"@R {8 + FULL_STATE} 1000000\n").encode(),
+            ]
+        )
+        s = DeviceSession(link, led_names=LEDS)
+        self.assertEqual(s.vclock_ns(), 0)
+
+    def test_lines_lost_inside_the_resend_fail_the_attach(self):
+        resend = "".join(
+            f"@L {8 + i} 1000000 {i} 0\n" for i in range(FULL_STATE) if i != 30
+        )
+        link = FakeLink(
+            [b"@T 0 40000\n", (resend + f"@R {8 + FULL_STATE} 1000000\n").encode()]
+        )
+        with self.assertRaisesRegex(RuntimeError, "resend"):
+            DeviceSession(link, led_names=LEDS)
+
+    def test_a_device_reset_is_reported_as_such(self):
+        link = FakeLink()
+        s = attached(link)
+        link.feed("@T 0 30000\n")
+        with self.assertRaisesRegex(RuntimeError, "restarted"):
+            s.run_until(100_000_000)
+
+    def test_settle_reads_a_refusal_of_the_last_command(self):
+        link = FakeLink()
+        s = attached(link)
+        s.pad_event(3, 5, True)
+        link.feed("@E 2 1000100 P 3 5 1\n@T 3 1100000\n")
+        with self.assertRaisesRegex(RuntimeError, "refused"):
+            s.settle()
+
+    def test_the_midi_port_is_quoted_for_the_remote_shell(self):
+        s = attached(FakeLink())
+        calls = []
+
+        class Done:
+            returncode = 0
+            stderr = ""
+
+        s.midi_port = "Deluge MIDI 1"
+        s._ssh = lambda host, script, timeout=60: calls.append(script) or Done()
+        s.midi("f8")
+        self.assertEqual(calls, ["amidi -p 'Deluge MIDI 1' -S 'f8'"])
+
+    def test_a_screenshot_before_any_frame_is_blank(self):
+        link = FakeLink()
+        s = attached(link)
+        link.feed("@O 2 1000100 0 0\n@T 3 1000200\n")
+        s.run_until(200_000)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "shot.png"
+            s.screenshot(str(path))
+            self.assertTrue(path.read_bytes().startswith(b"\x89PNG"))
 
 
 if __name__ == "__main__":

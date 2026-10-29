@@ -18,6 +18,7 @@ import base64
 import binascii
 import os
 import re
+import shlex
 import struct
 import sys
 import time
@@ -33,11 +34,15 @@ EDGES_PER_DETENT = 4
 # the executor the stream runs on; this long without a line means the link is dead.
 SILENCE_S = 10.0
 PAD_COLS, PAD_ROWS = 18, 8
+# The lines of a whole-panel resend, which come straight before its ready line: the OLED, 9 pad column pairs,
+# 64 LEDs, 2 gold rings and the PIC settings (rig_harness/wire.rs, `full_state`).
+FULL_STATE = 1 + 9 + 64 + 2 + 1
 
 
 def default_led_names() -> dict[int, str]:
     """delugemu's LED names by the firmware's LED index (`col + 9 * row`), from its control table."""
-    sys.path.insert(0, str(Path.home() / "GitHub/delugemu/pylib"))
+    # Last on the path, so a delugemu the caller put there first (emu_parity --delugemu) wins.
+    sys.path.append(str(Path.home() / "GitHub/delugemu/pylib"))
     from delugemu import geometry
 
     return {
@@ -96,6 +101,7 @@ class DeviceSession:
         self._host: str | None = None
         self._ssh = None
         self._awaiting_ready = False
+        self._last_gap: int | None = None
         deadline = time.monotonic() + attach_timeout
         if ready_log is not None:
             while not any(ready_log in line for line in self.log):
@@ -150,10 +156,17 @@ class DeviceSession:
 
     def _apply(self, f: list[str]) -> None:
         kind, seq, us = f[0], int(f[1]), int(f[2])
-        if self._seq is not None and seq != self._seq + 1:
+        if self._seq is not None and seq <= self._seq:
             raise RuntimeError(
-                f"rig harness: lost {seq - self._seq - 1} panel line(s) before line {seq}"
+                f"rig harness: the device restarted (line {seq} after line {self._seq})"
             )
+        if self._seq is not None and seq != self._seq + 1:
+            if self._origin_us is not None:
+                raise RuntimeError(
+                    f"rig harness: lost {seq - self._seq - 1} panel line(s) before line {seq}"
+                )
+            # Before the session attached: only a loss inside the resend matters, checked at its ready line.
+            self._last_gap = seq
         self._seq = seq
         self._now_us = max(self._now_us, us)
         if kind == "@O":
@@ -185,6 +198,10 @@ class DeviceSession:
             raise RuntimeError(f"rig harness: the device refused {' '.join(f[3:])!r}")
         elif kind == "@R":
             if self._awaiting_ready and self._origin_us is None:
+                if self._last_gap is not None and self._last_gap > seq - FULL_STATE:
+                    raise RuntimeError(
+                        "rig harness: panel lines were lost in the resend"
+                    )
                 self._origin_us = us
 
     # The DelugeSession subset emu_parity uses
@@ -219,7 +236,9 @@ class DeviceSession:
 
             self._ssh = rig.ssh
         done = self._ssh(
-            self._host, f"amidi -p {self.midi_port} -S '{hex_bytes}'", timeout=20
+            self._host,
+            f"amidi -p {shlex.quote(self.midi_port)} -S '{hex_bytes}'",
+            timeout=20,
         )
         if done.returncode != 0:
             raise RuntimeError(
@@ -253,8 +272,8 @@ class DeviceSession:
         return dict(self._pic)
 
     def screenshot(self, path: str) -> str:
-        """Writes the OLED as a greyscale PNG, 4x scaled."""
-        rows = self.read_oled()
+        """Writes the OLED as a greyscale PNG, 4x scaled; blank before the app's first frame."""
+        rows = self.read_oled() or [[False] * 128 for _ in range(48)]
         scale = 4
         raw = b"".join(
             b"\0" + bytes(255 if p else 0 for p in row for _ in range(scale))
@@ -328,8 +347,16 @@ class DeviceSession:
     def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *_exc) -> None:
-        self.close()
+    def __exit__(self, exc_type, *_exc) -> None:
+        try:
+            if exc_type is None:
+                self.settle()
+        finally:
+            self.close()
+
+    def settle(self) -> None:
+        """Reads on for 50 ms of device time, so an answer to the last command (an `@E`) is not left unread."""
+        self.run_until(self.vclock_ns() + 50_000_000, timeout=5.0)
 
     def close(self, park: bool | None = None) -> None:
         """Stops the probe link, leaving the firmware running; then, with `park` (default: park_on_close),

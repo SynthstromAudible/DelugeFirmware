@@ -56,5 +56,27 @@ class Retry(unittest.TestCase):
         self.assertEqual(len(calls), 1)
 
 
+class LinkFailures(unittest.TestCase):
+    def test_a_target_that_never_came_up_is_a_link_failure(self):
+        import deluge_jlink
+
+        self.assertTrue(issubclass(deluge_jlink.TargetError, ConnectionError))
+
+    def test_the_rig_is_parked_and_stopped_whatever_happens(self):
+        calls = []
+
+        def boom():
+            raise ValueError("bad midi hex")
+
+        with self.assertRaises(ValueError):
+            device_parity.parked_after(
+                "host",
+                boom,
+                park=lambda h: calls.append(("park", h)),
+                stop=lambda h: calls.append(("stop", h)),
+            )
+        self.assertEqual(calls, [("park", "host"), ("stop", "host")])
+
+
 if __name__ == "__main__":
     unittest.main()

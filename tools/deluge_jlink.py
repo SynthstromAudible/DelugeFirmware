@@ -245,8 +245,9 @@ def build_parser() -> argparse.ArgumentParser:
     return ap
 
 
-class TargetError(Exception):
-    """The target could not be started: an exit code, its kind and why."""
+class TargetError(ConnectionError):
+    """The target could not be started: an exit code, its kind and why. A link failure: the probe, its server
+    or the network to it."""
 
     def __init__(self, code: int, kind: str, message: str):
         super().__init__(message)

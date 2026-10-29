@@ -58,6 +58,29 @@ def settings_flash_image(sector: bytes) -> bytes:
     return b"\xff" * SETTINGS_OFFSET + sector
 
 
+# How a script's run on the device can fail without the tool itself being wrong: the link (ConnectionError,
+# TimeoutError), the device's answers (RuntimeError, AssertionError), and the script (ValueError, KeyError,
+# NotImplementedError: a bad `midi` step, an unknown button, a step delugemu cannot run).
+SCRIPT_FAILURES = (
+    ConnectionError,
+    TimeoutError,
+    RuntimeError,
+    AssertionError,
+    ValueError,
+    KeyError,
+    NotImplementedError,
+)
+
+
+def parked_after(host: str, run, *args, park=None, stop=None):
+    """`run(*args)`, then the panel parked dark and the probe server stopped, whatever `run` did."""
+    try:
+        return run(*args)
+    finally:
+        (park or (lambda h: rig.park(h, rig.DEFAULT_PARK)))(host)
+        (stop or rig.stop)(host)
+
+
 def retried(run, *args, tries: int = 2, **kwargs):
     """`run(*args, **kwargs)`, again when it fails on the link (the probe server not restarting, the device going silent):
     those come and go with the network to the probe host. Any other failure is the device's answer."""
@@ -141,6 +164,11 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 4
+    return parked_after(args.host, run, args)
+
+
+def run(args: argparse.Namespace) -> int:
+    """Runs the scripts on the device (and delugemu); the caller parks the rig afterwards."""
     for name in ("emu_ref", "device", "card", "sd", "flash", "out"):
         if getattr(args, name) is not None:
             setattr(args, name, getattr(args, name).resolve())
@@ -149,10 +177,11 @@ def main(argv: list[str] | None = None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     buttons = emu_parity.button_table()
 
-    def device(script: Path, park: bool):
+    def device(script: Path):
         def session(o: Path):
             dz = DeviceSession.launch(args.device, args.host, o)
-            dz.park_on_close = park
+            # The rig is parked once, after the last script (parked_after).
+            dz.park_on_close = False
             dz.midi_port = args.midi_port
             return dz
 
@@ -170,8 +199,8 @@ def main(argv: list[str] | None = None) -> int:
         failed = False
         for i, script in enumerate(args.scripts):
             try:
-                snaps = retried(device, script, park=i == len(args.scripts) - 1)
-            except (RuntimeError, TimeoutError, ConnectionError, AssertionError) as exc:
+                snaps = retried(device, script)
+            except SCRIPT_FAILURES as exc:
                 print(f"FAILED {script.stem}: {exc}", flush=True)
                 failed = True
                 continue
@@ -189,7 +218,7 @@ def main(argv: list[str] | None = None) -> int:
             image = settings_flash_image(
                 read_device_settings(args.host, args.device, out)
             )
-        except (ConnectionError, TimeoutError, ValueError) as exc:
+        except SCRIPT_FAILURES as exc:
             print(f"device_parity: {exc}", file=sys.stderr)
             return 3
         flash = out / "flash.bin"
@@ -215,8 +244,8 @@ def main(argv: list[str] | None = None) -> int:
         for i, script in enumerate(args.scripts):
             got = {}
             try:
-                got["test"] = retried(device, script, park=i == len(args.scripts) - 1)
-            except (RuntimeError, TimeoutError, ConnectionError, AssertionError) as exc:
+                got["test"] = retried(device, script)
+            except SCRIPT_FAILURES as exc:
                 got["test"] = exc
             try:
                 got["ref"] = refs[script].result()
