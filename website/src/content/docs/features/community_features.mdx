@@ -715,6 +715,24 @@ Here is a list of features that have been added to the firmware as a list, group
     - :key[Shift] makes the launch immediate just like in Session View.
   - :key[AffectEntire] + :key[Macro Pad] can be used to jump to edit the clip.
 
+### 4.1.10 - Track Edit <Badge text="c1.4" variant="tip" />
+
+- Turn on `Track Edit (TRKE)` in the `COMMUNITY FEATURES` menu first. With it off, nothing here changes.
+- In Song View (rows or grid), :key[Shift + Affect Entire] turns Track Edit on or off. The `AFFECT ENTIRE` LED flashes
+  while it is on, and the OLED shows `PICK A TRACK`.
+- Press a pad to pick that pad's track. Its clips flash white (in grid layout, the whole column). Pad presses only pick
+  tracks while Track Edit is on, so nothing launches or arms by accident.
+- Turning a gold knob now changes that parameter in **every clip on the track** at once, so panning the hi-hat or
+  closing a filter is one move instead of one per clip.
+- On a kit, plain :key[Affect Entire] switches between the whole kit (`WHOLE KIT`) and its selected drum row
+  (`DRUM ROW`).
+- :key[Select] opens the picked track's sound menu. Anything changed there (the EQ, envelopes, filters and so on) reaches
+  every clip on the track the same way. :key[Back] returns to Track Edit with the track still picked.
+- Covers patched and unpatched sound parameters. Mod matrix depths, MIDI and CV tracks, and per-clip settings such as
+  the arpeggiator are not carried across.
+- The mode itself is never saved. The values it writes are ordinary per-clip values and save with the song exactly
+  as if they had been set one clip at a time.
+
 ## 4.2 - Clip View - General Features (Instrument and Audio Clips)
 
 ### 4.2.1 - Filters
@@ -1405,6 +1423,9 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
   - `Off` disables the coloured shortcut overlay.
   - `On - Menu only (MENU)` (default) shows it while holding Shift in a sound editing menu.
   - `On - Menu + Clip (FULL)` also shows it while holding Shift in instrument and audio clip views.
+- `Track Edit (TRKE)` <Badge text="c1.4" variant="tip" />
+  - When On, :key[Shift + Affect Entire] in Song View turns on Track Edit, where a gold-knob or menu change reaches
+    every clip on the picked track. Off by default. See [Track Edit](#4110---track-edit).
 
 ## 6. Sysex Handling
 
