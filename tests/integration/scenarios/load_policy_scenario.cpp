@@ -835,8 +835,8 @@ bool runPitchTwiddlesStep() {
 	return true;
 }
 
-/// Every allocation a wavetable load makes, failed once (LP-WT-FAIL), after the pitch leg has ended. Each FFT table's
-/// failure comes before any load has built that size's table: the tables are kept for the run.
+/// Each allocation of a wavetable load from a file, failed once (LP-WT-FAIL), after the pitch leg has ended. Each FFT
+/// table's failure comes before any load has built that size's table: the tables are kept for the run.
 void runWaveTableFail() {
 	runBand0TwiddlesLeg();
 	runBandTwiddlesLeg();

@@ -25,9 +25,10 @@
 /// @file
 /// @brief The CRC of a built wavetable as the renderer sees it.
 
-/// @brief CRC-32 (reflected, 0xEDB88320) of a built wavetable as the renderer sees it: its cycle count, then each
-/// band's maxPhaseIncrement, fromCycleNumber, toCycleNumber, cycleSizeNoDuplicates and cycleSizeMagnitude, then the
-/// samples of each cycle in its range (not the kWavetableDuplicateSamplesAtCycleEnd duplicates that follow each cycle).
+/// @brief CRC-32 (reflected, 0xEDB88320) of a built wavetable as the renderer sees it: its cycle count, the cycle
+/// transitions' magnitude and the wave index multiplier, then each band's maxPhaseIncrement, fromCycleNumber,
+/// toCycleNumber, cycleSizeNoDuplicates and cycleSizeMagnitude, then the samples of each cycle in its range (not the
+/// kWavetableDuplicateSamplesAtCycleEnd duplicates that follow each cycle).
 [[nodiscard]] inline uint32_t wavetable_band_crc(const deluge::dsp::fixed::WaveTableData& view) {
 	uint32_t crc = 0xFFFFFFFFU;
 	auto feed = [&](const void* p, std::size_t n) {
@@ -41,6 +42,10 @@
 	};
 	const int32_t num_cycles = view.num_cycles();
 	feed(&num_cycles, sizeof(num_cycles));
+	const int32_t transitions_magnitude = view.num_cycle_transitions_magnitude();
+	feed(&transitions_magnitude, sizeof(transitions_magnitude));
+	const int32_t wave_index_multiplier = view.wave_index_multiplier();
+	feed(&wave_index_multiplier, sizeof(wave_index_multiplier));
 	for (int32_t b = 0; b < view.num_bands(); b++) {
 		const deluge::dsp::fixed::WaveTableBand& band = view.band(b);
 		feed(&band.maxPhaseIncrement, sizeof(band.maxPhaseIncrement));

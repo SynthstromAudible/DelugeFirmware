@@ -26,6 +26,7 @@
 #include "wavetable_band_records.h"
 #include "wavetable_fixture.h"
 #include <algorithm>
+#include <bit>
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -123,7 +124,16 @@ struct Table {
 	}
 
 	[[nodiscard]] WaveTableData view() const {
-		return {num_cycles, 0, 0, bands.data(), sizeof(WaveTableBand), static_cast<int32_t>(bands.size())};
+		// The cycle transitions' scaling, as WaveTable::setup sets it: unset for a single cycle.
+		int32_t transitions_magnitude = 0;
+		int32_t wave_index_multiplier = 0;
+		if (num_cycles > 1) {
+			const int32_t transitions = num_cycles - 1;
+			transitions_magnitude = static_cast<int32_t>(std::bit_width(static_cast<uint32_t>(transitions)));
+			wave_index_multiplier = transitions << (31 - transitions_magnitude);
+		}
+		return {num_cycles,   transitions_magnitude, wave_index_multiplier,
+		        bands.data(), sizeof(WaveTableBand), static_cast<int32_t>(bands.size())};
 	}
 };
 
