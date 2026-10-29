@@ -106,6 +106,7 @@ public:
 protected:
 	void resetWriter();
 	Error writeBufferToFile();
+	Error verifyWrittenFile(char const* beginningString, char const* endString);
 	bool memoryBased = false;
 	bool callRoutines = true;
 	uint8_t indentAmount;

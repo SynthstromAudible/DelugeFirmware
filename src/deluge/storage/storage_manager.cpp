@@ -1012,7 +1012,7 @@ Error FileWriter::writeBufferToFile() {
 	return Error::NONE;
 }
 
-// Returns false if some error, including error while writing
+// Returns Error::WRITE_FAIL on any error, including errors while writing
 Error FileWriter::closeAfterWriting(char const* path, char const* beginningString, char const* endString) {
 
 	if (fileAccessFailedDuringWrite) {
@@ -1031,68 +1031,56 @@ Error FileWriter::closeAfterWriting(char const* path, char const* beginningStrin
 		return Error::WRITE_FAIL;
 	}
 
-	bool openedForVerify = false;
-	if (path) {
-		// Check file exists
-		result = f_open(&writeFIL, path, FA_READ);
-		if (result) {
+	// Read-back verification needs a path to reopen the file
+	if (!path) {
+		return Error::NONE;
+	}
+
+	result = f_open(&writeFIL, path, FA_READ);
+	if (result) {
+		return Error::WRITE_FAIL;
+	}
+
+	error = verifyWrittenFile(beginningString, endString);
+
+	result = closeWriter();
+	if (result && error == Error::NONE) {
+		error = Error::WRITE_FAIL;
+	}
+
+	return error;
+}
+
+// Expects writeFIL to be open for reading; leaves closing it to the caller
+Error FileWriter::verifyWrittenFile(char const* beginningString, char const* endString) {
+	if (f_size(&writeFIL) != fileTotalBytesWritten) {
+		return Error::WRITE_FAIL;
+	}
+
+	UINT dontCare;
+
+	if (beginningString) {
+		int32_t length = strlen(beginningString);
+		if (f_read(&writeFIL, miscStringBuffer, length, &dontCare)) {
 			return Error::WRITE_FAIL;
 		}
-		openedForVerify = true;
-	}
-
-	Error verifyError = Error::NONE;
-
-	// Check size
-	if (f_size(&writeFIL) != fileTotalBytesWritten) {
-		verifyError = Error::WRITE_FAIL;
-		goto closeVerifyFile;
-	}
-
-	// Check beginning
-	if (beginningString) {
-		UINT dontCare;
-		int32_t length = strlen(beginningString);
-		result = f_read(&writeFIL, miscStringBuffer, length, &dontCare);
-		if (result) {
-			verifyError = Error::WRITE_FAIL;
-			goto closeVerifyFile;
-		}
 		if (memcmp(miscStringBuffer, beginningString, length)) {
-			verifyError = Error::WRITE_FAIL;
-			goto closeVerifyFile;
+			return Error::WRITE_FAIL;
 		}
 	}
 
-	// Check end
 	if (endString) {
-		UINT dontCare;
 		int32_t length = strlen(endString);
-
-		result = f_lseek(&writeFIL, fileTotalBytesWritten - length);
-		if (result) {
-			verifyError = Error::WRITE_FAIL;
-			goto closeVerifyFile;
+		if (f_lseek(&writeFIL, fileTotalBytesWritten - length)) {
+			return Error::WRITE_FAIL;
 		}
-
-		result = f_read(&writeFIL, miscStringBuffer, length, &dontCare);
-		if (result) {
-			verifyError = Error::WRITE_FAIL;
-			goto closeVerifyFile;
+		if (f_read(&writeFIL, miscStringBuffer, length, &dontCare)) {
+			return Error::WRITE_FAIL;
 		}
 		if (memcmp(miscStringBuffer, endString, length)) {
-			verifyError = Error::WRITE_FAIL;
-			goto closeVerifyFile;
+			return Error::WRITE_FAIL;
 		}
 	}
 
-closeVerifyFile:
-	if (openedForVerify) {
-		result = closeWriter();
-		if (result && verifyError == Error::NONE) {
-			verifyError = Error::WRITE_FAIL;
-		}
-	}
-
-	return verifyError;
+	return Error::NONE;
 }
