@@ -387,3 +387,110 @@ jobs:
             echo "::error::the tests did not run"
             exit 1
           fi
+
+  # Reporting only, so neither is part of ci-ok; on a fork PR, whose token is read-only, each still writes its job
+  # summary.
+  test-results:
+    name: Test Results
+    needs: tests
+    if: always() && needs.tests.result != 'skipped'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: Test Results *
+          path: artifacts
+
+      - name: Publish Test Results
+        if: hashFiles('artifacts/**/*.xml') != ''
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          check_name: Test Results
+          files: "artifacts/**/*.xml"
+          job_summary: true
+
+  # The PR's Release image against the newest push build of its base branch that the branch still contains.
+  firmware-size:
+    name: firmware size
+    needs: [changes, firmware]
+    if: github.event_name == 'pull_request' && needs.changes.outputs.firmware == 'true'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ARTIFACT: dev_Release_build_bundle
+      BASE_REF: ${{ github.event.pull_request.base.ref }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: dev_Release_build_bundle
+          path: new
+
+      - name: Download baseline build
+        id: baseline
+        run: |
+          candidates=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch "$BASE_REF" --event push \
+              --status success --limit 20 --json databaseId,headSha --jq '.[] | "\(.databaseId) \(.headSha)"')
+          while read -r run_id sha; do
+            [ -n "$run_id" ] || continue
+            status=$(gh api "repos/$GITHUB_REPOSITORY/compare/$sha...$BASE_REF" --jq .status) || continue
+            [[ "$status" == identical || "$status" == ahead ]] || continue
+            gh run download "$run_id" --repo "$GITHUB_REPOSITORY" -n "$ARTIFACT" -D baseline || continue
+            echo "Using baseline from run $run_id at $sha"
+            { echo "found=true"; echo "sha=$sha"; } >> "$GITHUB_OUTPUT"
+            exit 0
+          done <<< "$candidates"
+          echo "No Release build of $BASE_REF to compare with" >> "$GITHUB_STEP_SUMMARY"
+          echo "found=false" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the dbt toolchain
+        if: steps.baseline.outputs.found == 'true'
+        uses: actions/cache@v6
+        with:
+          path: toolchain
+          key: dbt-toolchain-${{ runner.os }}-${{ hashFiles('toolchain/REQUIRED_VERSION', 'src/bsp/rust/rust-toolchain.toml') }}
+
+      - name: Compare sizes
+        if: steps.baseline.outputs.found == 'true'
+        env:
+          DBT_NO_PYTHON_UPGRADE: "1"
+        run: |
+          set -o pipefail
+          ./dbt elfsize --baseline baseline/deluge.elf new/deluge.elf | tee elfsize.txt
+
+      - name: Write report
+        if: steps.baseline.outputs.found == 'true'
+        env:
+          BASE_SHA: ${{ steps.baseline.outputs.sha }}
+        run: |
+          {
+            echo "## Firmware size"
+            echo
+            echo "PR #$PR_NUMBER at ${HEAD_SHA:0:7} compared with \`$BASE_REF\` at ${BASE_SHA:0:7}."
+            echo
+            echo '```'
+            cat elfsize.txt
+            echo '```'
+          } > report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment on PR
+        if: steps.baseline.outputs.found == 'true'
+        uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          header: firmware-size
+          number: ${{ github.event.pull_request.number }}
+          path: report.md
