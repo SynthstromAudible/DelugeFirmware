@@ -58,6 +58,8 @@ jobs:
       - name: Install clippy
         run: rustup component add clippy
 
+      - uses: ./.github/actions/clang
+
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: "crates"
@@ -77,6 +79,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: rustup component add clippy
+      - uses: ./.github/actions/clang
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
@@ -119,6 +122,7 @@ jobs:
       RUSTDOCFLAGS: "-D warnings"
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/clang
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |

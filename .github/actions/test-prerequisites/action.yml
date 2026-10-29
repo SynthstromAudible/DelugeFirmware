@@ -14,7 +14,9 @@ runs:
         packages: >-
           gcc-14 g++-14 gcc-14-multilib g++-14-multilib
           gcc-14-arm-linux-gnueabihf g++-14-arm-linux-gnueabihf qemu-user
-          ninja-build mtools clang jq
+          ninja-build mtools jq
+
+    - uses: ./.github/actions/clang
 
     - name: Install CMake
       uses: lukka/get-cmake@latest
