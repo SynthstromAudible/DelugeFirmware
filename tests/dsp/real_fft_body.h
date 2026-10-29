@@ -15,6 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#pragma once
+
 // fixed::fft::RealFft against the recorded transforms: forward and inverse at every size the firmware transforms, over
 // every input set, bit for bit; and the smallest forward kept inside the spans it is lent.
 
@@ -36,6 +38,13 @@ using namespace deluge::dsp::fixed::fft;
 using real_fft_workloads::Direction;
 
 static_assert(!std::is_polymorphic_v<RealFft>);
+
+#if REAL_FFT_SHIPPING
+// built as the firmware builds float code, so its twiddle tables are the device's: the device's records
+constexpr const auto& kRecords = real_fft_records::kRecordsShipping;
+#else
+using real_fft_records::kRecords;
+#endif
 
 constexpr Complex kGuard{0x5A5A5A5A, -0x5A5A5A5B};
 constexpr std::size_t kGuardEntries = 16;
@@ -85,7 +94,7 @@ uint64_t inverse_digest(int32_t m, real_fft_workloads::InputSet set) {
 // clang-format off
 describe real_fft("fixed::fft::RealFft", ${
 	it("transforms forward as recorded, from 16 to 8192 points, over every input set", _ {
-		for (const auto& r : real_fft_records::kRecords) {
+		for (const auto& r : kRecords) {
 			if (r.direction == Direction::Forward) {
 				expect(forward_digest(r.magnitude, r.set)).to_equal(r.digest);
 			}
@@ -93,7 +102,7 @@ describe real_fft("fixed::fft::RealFft", ${
 	});
 
 	it("transforms inverse as recorded, from 8 to 8192 points, over every input set", _ {
-		for (const auto& r : real_fft_records::kRecords) {
+		for (const auto& r : kRecords) {
 			if (r.direction == Direction::Inverse) {
 				expect(inverse_digest(r.magnitude, r.set)).to_equal(r.digest);
 			}
@@ -113,5 +122,3 @@ describe real_fft("fixed::fft::RealFft", ${
 	});
 });
 // clang-format on
-
-CPPSPEC_MAIN(real_fft);

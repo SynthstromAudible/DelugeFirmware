@@ -208,6 +208,9 @@ set(twiddles_shipping_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
 set(twiddles_shipping_spec_OPTIONS -O2 -funsafe-math-optimizations)
 set(real_fft_spec_DEPS ${_fft_DEPS} ${_repo_root}/src/deluge/dsp-next/fixed/fft/real_fft.cpp)
 set(real_fft_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
+set(real_fft_shipping_spec_DEPS ${real_fft_spec_DEPS})
+set(real_fft_shipping_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
+set(real_fft_shipping_spec_OPTIONS -O2 -funsafe-math-optimizations)
 # The band builder: the transform, the DFT (which reads sineWaveSmall) and fastPythag.
 set(band_builder_spec_DEPS
   ${real_fft_spec_DEPS}
