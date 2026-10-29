@@ -37,8 +37,8 @@ columns, LEDs, gold rings, flashes and PIC settings as the app sent them; `perip
 and reads command lines from down channel 0 (`input.rs`). `tools/rig_session.py`'s `DeviceSession` turns that
 into the session `tools/emu_parity.py` drives, with its clock counted from when it attached. A gap in the
 numbering, a refused command or a silent device stops the run. What it cannot show as delugemu does: pads the
-PIC moves itself during a scroll animation. A run of the 18 `parity/` scripts takes about 12 minutes; a script whose run fails on the link (the probe
-server not restarting, the device going silent) is retried once.
+PIC moves itself during a scroll animation. A run of the 18 `parity/` scripts takes about 12 minutes; a script
+whose run fails on the link (the probe server not restarting, the device going silent) is retried once.
 
 ## 1. Build the images
 
