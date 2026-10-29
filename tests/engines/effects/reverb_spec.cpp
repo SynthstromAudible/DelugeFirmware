@@ -33,6 +33,7 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -243,6 +244,41 @@ describe reverb("the reverb component", ${
 			    5.0);
 			expect(seconds).to_be_greater_than(0.05);
 		}
+	});
+
+	it("commits the model the render asked for during a change, not the one being prepared", _ {
+		// The interaction tier prepares Mutable; the render, in a song swap at a launch, asks for Digital meanwhile.
+		ComponentRunner runner;
+		runner.set_knobs(rw::kTurned);
+		Reverb& reverb = *runner.reverb;
+		reverb.begin_change();
+		reverb.prepare(ReverbModel::MUTABLE);
+		expect(reverb.changing()).to_be_true();
+		reverb.request(ReverbModel::DIGITAL);
+		const std::optional<ReverbModel> requested = reverb.take_request();
+		expect(requested.has_value() && *requested == ReverbModel::DIGITAL).to_be_true();
+		reverb.prepare(*requested);
+		expect(reverb.take_request().has_value()).to_be_false(); // taken once
+		reverb.commit();
+		expect(reverb.model() == ReverbModel::DIGITAL).to_be_true();
+
+		ReferenceRunner fresh;
+		fresh.set_model(rw::Model::DIGITAL);
+		fresh.set_knobs(rw::kTurned);
+		std::size_t mismatches = 0;
+		for (std::size_t b = 0; b < 40; ++b) {
+			mismatches += same(render_block(runner, b), render_block(fresh, b)) ? 0 : 1;
+		}
+		expect(mismatches).to_equal(std::size_t{0});
+	});
+
+	it("forgets a request left over from an earlier change", _ {
+		const auto reverb = std::make_unique<Reverb>();
+		reverb->request(ReverbModel::DIGITAL);
+		reverb->begin_change();
+		expect(reverb->take_request().has_value()).to_be_false();
+		reverb->prepare(ReverbModel::FREEVERB);
+		reverb->commit();
 	});
 
 	it("reports the model last prepared", _ {

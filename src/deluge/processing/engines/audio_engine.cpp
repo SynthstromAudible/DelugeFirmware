@@ -52,6 +52,7 @@
 #include "libdeluge/system.h"
 #include "libdeluge/tier.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/heaps.h"
 #include "memory/stack_guard.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
@@ -2130,18 +2131,12 @@ void stopAnyPreviewing() {
 	}
 }
 
-namespace {
-/// A model the audio tier asked for while an interaction-tier change was under way: that change takes it up before it
-/// commits. Written by the audio tier, read and cleared inside an excluded section.
-std::optional<deluge::effects::ReverbModel> reverbModelRequested;
-} // namespace
-
 void setReverbModel(deluge::effects::ReverbModel model) {
-	if (deluge_in_audio_context()) {
+	if (deluge_in_audio_context() || deluge::memory::inRenderBlock()) {
 		// A song swap at a launch: the render itself rebuilds, so it is one tier and needs no section. If it has
 		// interrupted the interaction tier's change, that change still owns the buffer: it rebuilds at this model next.
 		if (reverb.changing()) {
-			reverbModelRequested = model;
+			reverb.request(model);
 			return;
 		}
 		reverb.begin_change();
@@ -2152,14 +2147,12 @@ void setReverbModel(deluge::effects::ReverbModel model) {
 	{
 		AudioExcludedSection section; // the render stops reading the buffer before it is zeroed
 		reverb.begin_change();
-		reverbModelRequested.reset();
 	}
 	while (true) {
 		reverb.prepare(model);
 		AudioExcludedSection section; // the render takes up the rebuilt model at its next block
-		if (reverbModelRequested) {
-			model = *reverbModelRequested; // the audio tier's, asked for during the prepare: rebuild at it
-			reverbModelRequested.reset();
+		if (const std::optional<deluge::effects::ReverbModel> requested = reverb.take_request()) {
+			model = *requested; // the render's, asked for during the prepare: rebuild at it
 			continue;
 		}
 		reverb.commit();

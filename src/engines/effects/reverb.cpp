@@ -27,6 +27,7 @@ Reverb::Reverb() {
 
 void Reverb::begin_change() {
 	rebuilding_ = true;
+	requested_.reset();
 }
 
 void Reverb::prepare(ReverbModel model) {

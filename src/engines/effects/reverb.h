@@ -23,8 +23,10 @@
 #include "engines/effects/words.h"
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <type_traits>
+#include <utility>
 
 namespace deluge::effects {
 
@@ -72,6 +74,12 @@ public:
 	[[nodiscard]] ReverbModel model() const { return prepared_; }
 	/// @return Whether a model change is between begin_change and commit.
 	[[nodiscard]] bool changing() const { return rebuilding_; }
+	/// @brief From the render, while a change is under way on the interaction tier: @p model is the one that change
+	/// should end at. The changing tier takes it up (@ref take_request) before it commits.
+	void request(ReverbModel model) { requested_ = model; }
+	/// @brief Inside the changing tier's excluded section: the model the render asked for since the last call, if any,
+	/// cleared. The changing tier prepares again at it instead of committing.
+	[[nodiscard]] std::optional<ReverbModel> take_request() { return std::exchange(requested_, std::nullopt); }
 
 	/// @brief Render: adds the reverb of @p send to @p block in place at the two return levels, unless a model change
 	/// is under way.
@@ -81,7 +89,7 @@ public:
 	/// @param pan_r The right return level, Q31.
 	void render(std::span<dsp::StereoSample> block, std::span<const int32_t> send, int32_t pan_l, int32_t pan_r);
 
-	/// @brief The models' states and memories, for specs.
+	/// @brief The models' states and memories, for specs: only the held model's memory may be read.
 	[[nodiscard]] const dsp::fixed::Freeverb::State& freeverb_state() const { return freeverb_.state(); }
 	[[nodiscard]] const dsp::fp::Plate::State& plate_state() const { return plate_.state(); }
 	[[nodiscard]] std::span<const int32_t> freeverb_memory() const { return memory_.freeverb; }
@@ -115,6 +123,9 @@ private:
 	bool rebuilding_ = false;
 	Settings settings_{};         ///< The knobs last published.
 	bool settings_dirty_ = false; ///< Published since the render last configured.
+	/// The render's model request during an interaction-tier change: written by the render, read and cleared by the
+	/// changing tier inside an excluded section.
+	std::optional<ReverbModel> requested_{};
 };
 
 static_assert(!std::is_polymorphic_v<Reverb>);
