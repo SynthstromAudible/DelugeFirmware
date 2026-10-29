@@ -1012,7 +1012,7 @@ Error FileWriter::writeBufferToFile() {
 	return Error::NONE;
 }
 
-// Returns false if some error, including error while writing
+// Returns Error::WRITE_FAIL on any error, including errors while writing
 Error FileWriter::closeAfterWriting(char const* path, char const* beginningString, char const* endString) {
 
 	if (fileAccessFailedDuringWrite) {
@@ -1031,25 +1031,37 @@ Error FileWriter::closeAfterWriting(char const* path, char const* beginningStrin
 		return Error::WRITE_FAIL;
 	}
 
-	if (path) {
-		// Check file exists
-		result = f_open(&writeFIL, path, FA_READ);
-		if (result) {
-			return Error::WRITE_FAIL;
-		}
+	// Read-back verification needs a path to reopen the file
+	if (!path) {
+		return Error::NONE;
 	}
 
-	// Check size
+	result = f_open(&writeFIL, path, FA_READ);
+	if (result) {
+		return Error::WRITE_FAIL;
+	}
+
+	error = verifyWrittenFile(beginningString, endString);
+
+	result = closeWriter();
+	if (result && error == Error::NONE) {
+		error = Error::WRITE_FAIL;
+	}
+
+	return error;
+}
+
+// Expects writeFIL to be open for reading; leaves closing it to the caller
+Error FileWriter::verifyWrittenFile(char const* beginningString, char const* endString) {
 	if (f_size(&writeFIL) != fileTotalBytesWritten) {
 		return Error::WRITE_FAIL;
 	}
 
-	// Check beginning
+	UINT dontCare;
+
 	if (beginningString) {
-		UINT dontCare;
 		int32_t length = strlen(beginningString);
-		result = f_read(&writeFIL, miscStringBuffer, length, &dontCare);
-		if (result) {
+		if (f_read(&writeFIL, miscStringBuffer, length, &dontCare)) {
 			return Error::WRITE_FAIL;
 		}
 		if (memcmp(miscStringBuffer, beginningString, length)) {
@@ -1057,28 +1069,17 @@ Error FileWriter::closeAfterWriting(char const* path, char const* beginningStrin
 		}
 	}
 
-	// Check end
 	if (endString) {
-		UINT dontCare;
 		int32_t length = strlen(endString);
-
-		result = f_lseek(&writeFIL, fileTotalBytesWritten - length);
-		if (result) {
+		if (f_lseek(&writeFIL, fileTotalBytesWritten - length)) {
 			return Error::WRITE_FAIL;
 		}
-
-		result = f_read(&writeFIL, miscStringBuffer, length, &dontCare);
-		if (result) {
+		if (f_read(&writeFIL, miscStringBuffer, length, &dontCare)) {
 			return Error::WRITE_FAIL;
 		}
 		if (memcmp(miscStringBuffer, endString, length)) {
 			return Error::WRITE_FAIL;
 		}
-	}
-
-	result = closeWriter();
-	if (result) {
-		return Error::WRITE_FAIL;
 	}
 
 	return Error::NONE;
