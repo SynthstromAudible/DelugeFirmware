@@ -16,6 +16,7 @@
  */
 #include "dsp/dx/dx_voice_adapter.h"
 #include "board_config.h" // CACHE_LINE_SIZE
+#include "dsp-next/fixed/dx7/algorithms.h"
 #include "dsp/dx/dx7note.h"
 #include "dsp/dx/engine.h"
 #include <cmath>
@@ -51,7 +52,7 @@ void DxVoiceAdapter::keyup() {
 
 std::span<const int32_t> DxVoiceAdapter::render(int32_t numSamples, uint32_t phaseIncrement, int32_t ampModParam,
                                                 bool patchChanged, int midinote) {
-	static int32_t uniBuf[DX_MAX_N] __attribute__((aligned(CACHE_LINE_SIZE)));
+	static int32_t uniBuf[deluge::dsp::fixed::dx7::kMaxBlock] __attribute__((aligned(CACHE_LINE_SIZE)));
 	memset(uniBuf, 0, sizeof uniBuf);
 
 	// TODO: 1. use existing int log function?

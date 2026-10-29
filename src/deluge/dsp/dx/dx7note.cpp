@@ -21,6 +21,7 @@
 #include "math_lut.h"
 #include "util/functions.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <math.h>
 #include <stdlib.h>
@@ -28,8 +29,6 @@
 
 using std::max;
 using std::min;
-
-const int FEEDBACK_BITDEPTH = 8;
 
 const int32_t coarsemul[] = {-16777216, 0,        16777216, 26591258, 33554432, 38955489, 43368474, 47099600,
                              50331648,  53182516, 55732705, 58039632, 60145690, 62083076, 63876816, 65546747,
@@ -58,24 +57,22 @@ DxPatch::DxPatch() {
 }
 
 void DxPatch::updateEngineMode() {
-	core = &dxEngine->engineModern;
+	using deluge::dsp::fixed::dx7::Engine;
+	engine = Engine::MODERN;
 	if (engineMode == 2) {
-		core = &dxEngine->engineMkI;
+		engine = Engine::MKI;
 	}
 	else if (engineMode == 0) {
 		int algo = params[134];
 		int feedback = params[135];
-		// oly engineMkI implements the feedback loops of algo 4 and 6
+		// only MkI implements the feedback loops of algo 4 and 6
 		if (feedback > 0 && (algo == 3 || algo == 5)) {
-			core = &dxEngine->engineMkI;
+			engine = Engine::MKI;
 		}
 	}
 }
 
-void DxPatch::setEngineMode(int mode, bool neon) {
-	// TODO: neon should be the only option for modern in release :P
-	dxEngine->engineModern.neon = neon;
-
+void DxPatch::setEngineMode(int mode) {
 	engineMode = (uint8_t)mode;
 
 	updateEngineMode();
@@ -178,10 +175,6 @@ int ScaleLevel(int midinote, int break_pt, int left_depth, int right_depth, int 
 
 DxVoice::DxVoice() {
 	preallocated = false;
-	for (int op = 0; op < 6; op++) {
-		phase[op] = 0;
-		gain_out[op] = 0;
-	}
 }
 
 // TODO: recalculate Scale() using logfreq
@@ -242,7 +235,7 @@ void DxVoice::init(DxPatch& newp, int midinote, int velocity) {
 }
 
 bool DxVoice::compute(int32_t* buf, int n, int base_pitch, const DxPatch* ctrls, const DxVoiceCtrl* voice_ctrls) {
-	// assert(n <= DX_MAX_N);
+	// assert(n <= deluge::dsp::fixed::dx7::kMaxBlock);
 	// LFO delay
 	int32_t lfo_delay = lfo_delay_.advance(static_cast<std::size_t>(n));
 	int32_t lfo_val = ctrls->lfo_value;
@@ -276,17 +269,16 @@ bool DxVoice::compute(int32_t* buf, int n, int base_pitch, const DxPatch* ctrls,
 	uint32_t amod_3 = (ctrls->eg_mod + 1) << 17;
 	amd_mod = max((1 << 24) - amod_3, amd_mod);
 
-	FmOpParams params[6];
+	DxGraph::Settings settings{
+	    .engine = ctrls->engine, .algorithm = patch[134], .feedback = patch[135], .tables = &dxEngine->tables};
 	// ==== OP RENDER ====
 	for (int op = 0; op < 6; op++) {
-		params[op].phase = phase[op];
-		params[op].gain_out = gain_out[op];
 		if (!ctrls->opSwitch(op)) {
 			// advance the envelope even if it is not playing
 			env_[op].configure(env_settings(op, 0));
 			std::ignore = env_[op].advance(static_cast<std::size_t>(n));
-			params[op].level_in = 0;
-			params[op].freq = 0;
+			settings.level_in[op] = 0;
+			settings.freq[op] = 0;
 		}
 		else {
 			int off = op * 21;
@@ -294,9 +286,9 @@ bool DxVoice::compute(int32_t* buf, int n, int base_pitch, const DxPatch* ctrls,
 
 			int mode = patch[off + 17];
 			if (mode)
-				params[op].freq = Freqlut::lookup(basepitch_[op]);
+				settings.freq[op] = Freqlut::lookup(basepitch_[op]);
 			else
-				params[op].freq = Freqlut::lookup(basepitch_[op] + pitch_mod);
+				settings.freq[op] = Freqlut::lookup(basepitch_[op] + pitch_mod);
 
 			// TODO: set ratemod sensitivity per operator
 			env_[op].configure(env_settings(op, voice_ctrls->ratemod));
@@ -313,18 +305,13 @@ bool DxVoice::compute(int32_t* buf, int n, int base_pitch, const DxPatch* ctrls,
 				level += ((ampmodsens >> 16) * voice_ctrls->ampmod);
 			}
 			level += patch[off + 15] * voice_ctrls->velmod;
-			params[op].level_in = level;
+			settings.level_in[op] = level;
 		}
 	}
-	int algorithm = patch[134];
-	int feedback = patch[135];
-	int fb_shift = feedback != 0 ? FEEDBACK_BITDEPTH - feedback : 16;
-	ctrls->core->render(buf, n, params, algorithm, fb_buf_, fb_shift);
+	graph_.renderBlock(settings, {buf, static_cast<std::size_t>(n)}, dxEngine->buses());
 	bool any_active_op = false;
 	for (int op = 0; op < 6; op++) {
-		phase[op] = params[op].phase;
-		gain_out[op] = params[op].gain_out;
-		if (params[op].gain_out >= deluge::dsp::fixed::dx7::kGainLevelThresh) {
+		if (graph_.gain_out(op) >= deluge::dsp::fixed::dx7::kGainLevelThresh) {
 			any_active_op = true;
 		}
 	}
@@ -340,17 +327,6 @@ void DxVoice::keyup() {
 	}
 	pitchenv_.configure({pitch_params()});
 	pitchenv_.on<&deluge::dsp::fixed::dx7::PitchEnvelope::release>();
-}
-
-void DxVoice::updateBasePitches(int logFreq_for_detune) {
-	for (int op = 0; op < 6; op++) {
-		int off = op * 21;
-		int mode = patch[off + 17];
-		int coarse = patch[off + 18];
-		int fine = patch[off + 19];
-		int detune = patch[off + 20];
-		basepitch_[op] = osc_freq(logFreq_for_detune, mode, coarse, fine, detune, detune_per_voice[op]);
-	}
 }
 
 // TODO: can share yet more codes with ::init()
@@ -387,34 +363,14 @@ void DxVoice::update(DxPatch& newp, int midinote) {
 	// TODO: did we the pitchenv?
 }
 
-/**
- * Used in monophonic mode to transfer voice state from different notes
- */
-void DxVoice::transferState(DxVoice& src) {
-	for (int i = 0; i < 6; i++) {
-		env_[i].on<&deluge::dsp::fixed::dx7::Envelope::transfer>(src.env_[i].state());
-		gain_out[i] = src.gain_out[i];
-		phase[i] = src.phase[i];
-	}
-}
-
-void DxVoice::transferSignal(DxVoice& src) {
-	for (int i = 0; i < 6; i++) {
-		gain_out[i] = src.gain_out[i];
-		phase[i] = src.phase[i];
-	}
-}
-
 void DxVoice::oscSync() {
-	for (int i = 0; i < 6; i++) {
-		gain_out[i] = 0;
-		phase[i] = 0;
-	}
+	graph_.restart(std::array<deluge::dsp::q31, 6>{});
 }
 
 void DxVoice::oscUnSync() {
-	for (int i = 0; i < 6; i++) {
-		gain_out[i] = 0;
-		phase[i] = getNoise();
+	std::array<deluge::dsp::q31, 6> phases{};
+	for (auto& phase : phases) {
+		phase = getNoise();
 	}
+	graph_.restart(phases);
 }

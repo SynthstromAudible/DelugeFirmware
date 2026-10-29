@@ -28,22 +28,18 @@
 #include "dsp-next/fixed/dx7/envelope.h"
 #include "dsp-next/fixed/dx7/lfo.h"
 #include "dsp-next/fixed/dx7/lfo_delay.h"
+#include "dsp-next/fixed/dx7/operator.h"
 #include "dsp-next/fixed/dx7/pitch_envelope.h"
-#include "fm_core.h"
+#include "modern_asm.h"
 #include <memory>
-
-struct VoiceStatus {
-	uint32_t amp[6];
-	char ampStep[6];
-	char pitchStep;
-};
 
 class DxPatch {
 public:
 	DxPatch();
 
 	uint8_t params[156];
-	FmCore* core;
+	/// The engine the voices render in, chosen by setEngineMode.
+	deluge::dsp::fixed::dx7::Engine engine;
 	bool opSwitch(int op) const { return (params[155] >> op) & 1; }
 	void setOpSwitch(int op, bool on) { params[155] = (params[155] & ~(1 << op)) | (on ? 1 : 0) * (1 << op); }
 	uint8_t engineMode;
@@ -63,7 +59,7 @@ public:
 
 	void computeLfo(int n);
 
-	void setEngineMode(int mode, bool neon = true);
+	void setEngineMode(int mode);
 	void updateEngineMode();
 };
 
@@ -92,9 +88,6 @@ public:
 
 	// PG:add the update
 	void update(DxPatch& p, int midinote);
-	void updateBasePitches(int logFreq);
-	void transferState(DxVoice& src);
-	void transferSignal(DxVoice& src);
 	void oscSync();
 	void oscUnSync();
 
@@ -109,10 +102,9 @@ private:
 	int32_t rate_scaling_[6];
 	/// Configured from the patch before each block and each event, as the patch is edited live.
 	deluge::dsp::Control<deluge::dsp::fixed::dx7::PitchEnvelope> pitchenv_;
-	int32_t phase[6];
-	int32_t gain_out[6];
+	/// The six operators' phases and gains and the feedback history; the per-block settings arrive with each block.
+	DxGraph graph_;
 	int32_t basepitch_[6];
-	int32_t fb_buf_[2];
 
 	/// Configured at note-on only: the voice reads the patch's LFO delay once per note.
 	deluge::dsp::Control<deluge::dsp::fixed::dx7::LfoDelay> lfo_delay_;

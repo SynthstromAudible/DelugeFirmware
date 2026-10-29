@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "EngineMkI.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/dx7/graph.h"
 #include "dsp-next/fixed/dx7/tables.h"
 #include "dx7note.h"
 #include <gsl/gsl>
@@ -28,12 +28,15 @@ public:
 	DxEngine() = default;
 	deluge::dsp::fixed::dx7::Tables tables;
 
-	EngineMkI engineMkI;
-	FmCore engineModern;
+	/// @brief The intermediate buses, lent to each voice's graph as it renders: voices render one at a time.
+	[[nodiscard]] deluge::dsp::fixed::dx7::Buses& buses() { return buses_; }
 
 	static gsl::owner<DxVoice*> solicitDxVoice();
 	static void dxVoiceUnassigned(gsl::owner<DxVoice*> dxVoice);
 	DxPatch* newPatch();
+
+private:
+	deluge::dsp::fixed::dx7::Buses buses_;
 };
 
 extern DxEngine* dxEngine;

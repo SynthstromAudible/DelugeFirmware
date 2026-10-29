@@ -18,7 +18,6 @@
 #include "definitions_cxx.hpp"
 #include "stdint.h"
 
-#include "EngineMkI.h"
 #include "dx7note.h"
 #include "engine.h"
 #include "math_lut.h"
