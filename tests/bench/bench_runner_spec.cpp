@@ -404,6 +404,16 @@ const std::vector<std::string_view> kStutterCaseNames{
     "stutter_play_resampled", "delay_feedback_chain_analog", "delay_feedback_chain_digital",
 };
 
+/// The reverb list's names, in order.
+const std::vector<std::string_view> kReverbCaseNames{
+    "calibration_loop",
+    "reverb_freeverb",
+    "reverb_mutable",
+    "reverb_digital",
+    "delay_feedback_chain_analog",
+    "delay_feedback_chain_digital",
+};
+
 /// The effect chain list's names, in order.
 const std::vector<std::string_view> kFxChainCaseNames{
     "calibration_loop",
@@ -985,6 +995,7 @@ describe bench_runner("The DSP benchmark runner", ${
 			                                     std::pair{CaseList::MOD_FX, kModFxCaseNames},
 			                                     std::pair{CaseList::GRANULAR, kGranularCaseNames},
 		                                     std::pair{CaseList::STUTTER, kStutterCaseNames},
+		                                     std::pair{CaseList::REVERB, kReverbCaseNames},
 		                                     std::pair{CaseList::FX_CHAINS, kFxChainCaseNames}}) {
 				std::vector<std::string_view> names;
 				for (const Case& c : cases(list)) {
@@ -1026,6 +1037,9 @@ describe bench_runner("The DSP benchmark runner", ${
 			for (const Case& c : cases(CaseList::STUTTER)) {
 				expect(c.lanes).to_equal(c.name == "calibration_loop" ? std::size_t{1} : std::size_t{2});
 			}
+			for (const Case& c : cases(CaseList::REVERB)) {
+				expect(c.lanes).to_equal(c.name == "calibration_loop" ? std::size_t{1} : std::size_t{2});
+			}
 			for (const Case& c : cases(CaseList::FX_CHAINS)) {
 				expect(c.lanes).to_equal(c.name == "calibration_loop" ? std::size_t{1} : std::size_t{2});
 			}
@@ -1044,6 +1058,7 @@ describe bench_runner("The DSP benchmark runner", ${
 			                                  std::pair{CaseList::MOD_FX, kModFxCaseNames},
 			                                  std::pair{CaseList::GRANULAR, kGranularCaseNames},
 		                                     std::pair{CaseList::STUTTER, kStutterCaseNames},
+		                                     std::pair{CaseList::REVERB, kReverbCaseNames},
 		                                     std::pair{CaseList::FX_CHAINS, kFxChainCaseNames}}) {
 				lines.clear();
 				counters.reset();
