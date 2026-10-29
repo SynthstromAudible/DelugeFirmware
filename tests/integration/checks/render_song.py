@@ -22,6 +22,8 @@ adds what depends on the song, and why each check is here:
     RS-MODFX-CLEAR    a gate that clears mod FX memory (RENDER_MODFX_CLEAR) only: every clear asked for applied; a gate
                       whose clears reach no grain must reach both of clearMemory's paths, a ring zeroed and, with none
                       held, the phaser's memories; one that clears a grain must clear only grains.
+    RS-REVERB-SWITCH  a gate that switches the reverb (RENDER_REVERB_SWITCH) only: every switch asked for
+                      applied, the model after each being the one asked for, or unchanged by a knob.
     RS-SONGPARAMS     a gate whose song automates the master's params (RENDER_SONG_AUTOMATED=1) only: the loaded song has
                       automation to play on its own params.
     RS-DELAY-OFF      no block in which a delay that is OFF had feedback enough to sound with sound coming in: a song
@@ -34,9 +36,9 @@ adds what depends on the song, and why each check is here:
                       and end asked for made, and scenario ticks in which an owner stuttered. A begin the owner refused
                       would leave the song rendering unstuttered for some of its span and still compare with a record
                       made the same way.
-    RS-SWITCH         a gate that switches delays or mod FX types, clears mod FX memory, changes the tempo or stutters,
-                      mid-render (RENDER_DELAY_SWITCH, RENDER_MODFX_SWITCH, RENDER_MODFX_CLEAR, RENDER_TEMPO,
-                      RENDER_STUTTER) only: the same song rendered
+    RS-SWITCH         a gate that switches delays, mod FX types or the reverb, clears mod FX memory, changes the tempo
+                      or stutters, mid-render (RENDER_DELAY_SWITCH, RENDER_MODFX_SWITCH, RENDER_MODFX_CLEAR,
+                      RENDER_REVERB_SWITCH, RENDER_TEMPO, RENDER_STUTTER) only: the same song rendered
                       unswitched must render differently, or the switches never reached the render.
     RS-PCM            the rendered output, against its record in tests/integration/golden/songs.json: the same
                       record the synth golden masters keep (sha256, frames, peak, rms_db).
@@ -64,6 +66,7 @@ SWITCHES = (
     "RENDER_DELAY_SWITCH",
     "RENDER_MODFX_SWITCH",
     "RENDER_MODFX_CLEAR",
+    "RENDER_REVERB_SWITCH",
     "RENDER_TEMPO",
     "RENDER_STUTTER",
 )
@@ -216,6 +219,35 @@ def _check_mod_fx_hooks(gate, result) -> None:
             )
 
 
+REVERB_SETTINGS = ("model", "room", "damping", "width", "hpf", "lpf")
+
+
+def _check_reverb_switch(gate, result) -> None:
+    """The reverb switches the gate asked for were applied, each leaving the model asked for (see RS-REVERB-SWITCH)."""
+    switches = gate.env.get("RENDER_REVERB_SWITCH")
+    if not switches:
+        return
+    items = [item.split(":", 1)[1].split("=") for item in switches.split(",")]
+    line = result.last("RS-REVERB-SWITCH applied=")
+    if line is None:
+        gate.fail("RS-REVERB-SWITCH — no summary line: the switch hook did not run")
+        return
+    held = [int_field(o, "model") for o in result.starting("RS-REVERB-SWITCH block=")]
+    wanted = []
+    model = held[0] if held and items[0][0] != "model" else None
+    for setting, value in items:
+        if setting not in REVERB_SETTINGS:
+            gate.fail(f"RS-REVERB-SWITCH — unknown setting {setting}")
+            return
+        if setting == "model":
+            model = int(value)
+        wanted.append(model)
+    if int_field(line, "applied") != len(items) or held != wanted:
+        gate.fail(
+            f"RS-REVERB-SWITCH — asked for {switches}, the models after each were {held}, summary: {line}"
+        )
+
+
 def _check_delay_arena(gate, result) -> None:
     """No delay found the arena short (see RS-DELAY-ARENA)."""
     line = result.last("RS-DELAY-ARENA ")
@@ -306,6 +338,7 @@ def run(gate):
     gate.show(result)
     _check_width(gate, result, record_name)
     _check_mod_fx_hooks(gate, result)
+    _check_reverb_switch(gate, result)
     _check_delay_off(gate, result)
     _check_song_automation(gate, result)
     _check_delay_arena(gate, result)

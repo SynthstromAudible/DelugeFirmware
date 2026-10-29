@@ -15,7 +15,12 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts" / "tasks"))
 
-from render_song import _check_mod_fx_hooks, dry_twin, generated_song
+from render_song import (
+    _check_mod_fx_hooks,
+    _check_reverb_switch,
+    dry_twin,
+    generated_song,
+)
 from scenario_gate import Run
 
 
@@ -166,6 +171,36 @@ class ModFxHooksTest(unittest.TestCase):
     def test_a_grain_gate_whose_clear_reached_a_comb_type_fails(self):
         line = "RS-MODFX-CLEAR applied=2 asked=2 ring=1 noring=0 grain=1"
         self.assertEqual(len(_failures(CLEAR, line)), 1)
+
+
+REVERB_SWITCH = {"RENDER_REVERB_SWITCH": "600:model=2,800:hpf=0.2,1000:model=0"}
+
+
+def _reverb_failures(env: dict[str, str], *lines: str) -> list[str]:
+    gate = _Gate(env)
+    _check_reverb_switch(gate, Run(0, "\n".join(lines), ""))
+    return gate.failures
+
+
+class ReverbSwitchTest(unittest.TestCase):
+    def test_reverb_switch_applied(self):
+        lines = [
+            "RS-REVERB-SWITCH block=600 set=model=2 model=2",
+            "RS-REVERB-SWITCH block=800 set=hpf=0.2 model=2",
+            "RS-REVERB-SWITCH block=1000 set=model=0 model=0",
+            "RS-REVERB-SWITCH applied=3 asked=3 models=2,2,0",
+        ]
+        self.assertEqual(_reverb_failures(REVERB_SWITCH, *lines), [])
+
+    def test_reverb_switch_missing(self):
+        lines = [
+            "RS-REVERB-SWITCH block=600 set=model=2 model=2",
+            "RS-REVERB-SWITCH block=800 set=hpf=0.2 model=2",
+            "RS-REVERB-SWITCH applied=2 asked=3 models=2,2",
+        ]
+        failures = _reverb_failures(REVERB_SWITCH, *lines)
+        self.assertEqual(len(failures), 1)
+        self.assertTrue(failures[0].startswith("RS-REVERB-SWITCH —"))
 
 
 if __name__ == "__main__":
