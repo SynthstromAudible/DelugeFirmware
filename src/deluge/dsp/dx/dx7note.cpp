@@ -80,44 +80,9 @@ void DxPatch::setEngineMode(int mode, bool neon) {
 	updateEngineMode();
 }
 
-static int32_t lfoPhaseToValue(int32_t phase_, int waveform) {
-	int32_t x;
-	// TODO: triangle no worky?
-	if (waveform == 0)
-		waveform = 4;
-	switch (waveform) {
-	case 0: // triangle
-		x = phase_ >> 7;
-		x ^= -(phase_ >> 31);
-		x &= (1 << 24) - 1;
-		return x;
-	case 1: // sawtooth down
-		return (~phase_ ^ (1U << 31)) >> 8;
-	case 2: // sawtooth up
-		return (phase_ ^ (1U << 31)) >> 8;
-	case 3: // square
-		return ((~phase_) >> 7) & (1 << 24);
-	case 4: // sine
-		return (1 << 23) + (Sin::lookup(phase_ >> 8) >> 1);
-	default:
-		return 1 << 23;
-	}
-}
-
-constexpr int32_t lfo_unit = (int32_t)(25190424 / (float)44100 + 0.5);
 void DxPatch::computeLfo(int n) {
-	int rate = params[137]; // 0..99
-	int sr = rate == 0 ? 1 : (165 * rate) >> 6;
-	sr *= sr < 160 ? 11 : (11 + ((sr - 160) >> 4));
-	lfo_delta = lfo_unit * sr;
-
-	lfo_phase += n * lfo_delta;
-	int waveform_ = params[142];
-	if (waveform_ == 5) {
-		// TODO: s&h
-		// likely we will do that per voice just because™
-	}
-	lfo_value = lfoPhaseToValue(lfo_phase, waveform_);
+	lfo.configure({params[137], params[142], &dxEngine->tables});
+	lfo_value = lfo.advance(static_cast<std::size_t>(n));
 }
 
 int32_t DxVoice::osc_freq(int logFreq_for_detune, int mode, int coarse, int fine, int detune, int random_detune) {
@@ -258,7 +223,7 @@ void DxVoice::init(DxPatch& newp, int midinote, int velocity) {
 
 	// TODO: in LFO sync mode it would be best with LFO per voice
 	if (patch[141]) {
-		newp.lfo_phase = (1U << 31) - 1;
+		newp.lfo.on<&deluge::dsp::fixed::dx7::Lfo::key_sync>();
 	}
 
 	if (patch[136]) {

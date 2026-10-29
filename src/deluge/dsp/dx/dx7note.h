@@ -25,6 +25,7 @@
 // and real-time control of parameters live here.
 
 #include "dsp-next/core/control.h"
+#include "dsp-next/fixed/dx7/lfo.h"
 #include "dsp-next/fixed/dx7/lfo_delay.h"
 #include "dsp-next/fixed/dx7/pitch_envelope.h"
 #include "env.h"
@@ -55,12 +56,11 @@ public:
 	int pitch_mod;
 	int eg_mod;
 
-	uint32_t lfo_phase; // Q32
-	uint32_t lfo_delta;
-	uint32_t lfo_value;
+	/// The patch's LFO, shared by its voices; configured from the patch before each block.
+	deluge::dsp::Control<deluge::dsp::fixed::dx7::Lfo> lfo;
+	/// The LFO's value after the last block, Q24.
+	int32_t lfo_value = 0;
 
-	// only needs to be called when rate (param 137) changes
-	void updateLfo();
 	void computeLfo(int n);
 
 	void setEngineMode(int mode, bool neon = true);
