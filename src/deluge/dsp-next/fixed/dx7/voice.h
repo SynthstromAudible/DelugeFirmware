@@ -44,6 +44,7 @@
 #include "dsp-next/fixed/dx7/graph.h"
 #include "dsp-next/fixed/dx7/lfo_delay.h"
 #include "dsp-next/fixed/dx7/lookup.h"
+#include "dsp-next/fixed/dx7/patch.h"
 #include "dsp-next/fixed/dx7/pitch_envelope.h"
 #include "dsp-next/fixed/dx7/tables.h"
 #include "dsp-next/fixed/dx7/voice_scaling.h"
@@ -62,9 +63,6 @@
 /// @brief A DX7 voice: one note of a patch, its envelopes, pitches and LFO delay around the six-operator graph.
 namespace deluge::dsp::fixed::dx7 {
 
-/// @brief A DX7 patch's 156 bytes, in the patch's layout: six ops of 21 bytes (op 6 first), then the globals.
-using PatchBytes = std::array<uint8_t, 156>;
-
 /// @brief One note of a DX7 patch.
 /// @details A component, not a kernel. Its verbs are @ref start, @ref release, @ref retune and @ref renderBlock, each
 /// given the patch as it stands (@ref Settings, a snapshot the owner takes per block); the voice keeps only what the
@@ -78,7 +76,7 @@ class Voice {
 public:
 	/// @brief The patch and the note, as they stand when the owner calls.
 	struct Settings {
-		PatchBytes patch{};             ///< A snapshot of the patch's bytes.
+		PatchBytes patch{};             ///< A snapshot of the patch's bytes, within sanitise's ranges.
 		int32_t midinote = 60;          ///< The note.
 		int32_t velocity = 100;         ///< The note-on velocity, 0 to 127.
 		int32_t random_detune = 0;      ///< The patch's random-detune amount.

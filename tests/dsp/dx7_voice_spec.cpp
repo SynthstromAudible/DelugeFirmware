@@ -6,6 +6,7 @@
 #include "dsp-next/core/control.h"
 #include "dsp-next/fixed/dx7/graph.h"
 #include "dsp-next/fixed/dx7/lfo.h"
+#include "dsp-next/fixed/dx7/patch.h"
 #include "dsp-next/fixed/dx7/tables.h"
 #include "dsp-next/fixed/dx7/voice.h"
 #include "dx7_workload_records.h"
@@ -53,7 +54,9 @@ Run run_voice(const dw::Workload& w) {
 	dx7::Engine engine = engine_of(mode, patch);
 	deluge::dsp::Control<dx7::Lfo> lfo;
 	const auto settings = [&] {
-		return Voice::Settings{.patch = patch,
+		dx7::PatchBytes snapshot = patch;
+		dx7::sanitise(snapshot);
+		return Voice::Settings{.patch = snapshot,
 		                       .midinote = w.midinote,
 		                       .velocity = w.velocity,
 		                       .random_detune = w.random_detune,
@@ -142,6 +145,33 @@ describe dx7_voice_spec("dx7::Voice", ${
 			}
 		});
 	}
+
+	it("leaves every workload's patch as it is when it sanitises it", _ {
+		for (const dw::Workload& w : dw::all_workloads()) {
+			dx7::PatchBytes p = w.patch;
+			dx7::sanitise(p);
+			expect(p == w.patch).to_be_true();
+		}
+	});
+
+	it("renders a patch with every guarded byte at 255 as the same patch at the DX7's limits", _ {
+		dw::Workload wild = dw::all_workloads().front();
+		dw::Workload limits = wild;
+		for (std::size_t i = 126; i < 134; ++i) {
+			wild.patch[i] = 255;
+			limits.patch[i] = 99;
+		}
+		wild.patch[134] = 255;
+		limits.patch[134] = 31;
+		wild.patch[135] = 255;
+		limits.patch[135] = 7;
+		wild.patch[138] = 255;
+		limits.patch[138] = 99;
+		const Run a = run_voice(wild);
+		const Run b = run_voice(limits);
+		expect(a.outputs).to_equal(b.outputs);
+		expect(a.alive).to_equal(b.alive);
+	});
 
 	it("adds the amplitude-modulation parameter as the reference does, at every sensitivity", _ {
 		std::size_t modulated = 0;
