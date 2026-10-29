@@ -35,13 +35,22 @@ namespace deluge::dsp::fp {
 /// @brief The plate's two LFOs, as a control kernel: an approximate cosine pair on one ArgonHalf<float>, each lane
 /// stepped by a two-term recurrence once per kStride frames.
 /// @details The owner steps it every kStride frames and reads value() every frame. A recurrence from
-/// `start`: y_0 = c.initial_amplitude, y_1 = 0.5; each step y_1' = c × y_1 − y_0, y_0' = y_1.
+/// `start`: y_0 = c.initial_amplitude, y_1 = kMidpoint; each step y_1' = c × y_1 − y_0, y_0' = y_1.
 struct PlateLfo {
-	using value_type = ArgonHalf<float>; ///< Both LFOs' values, lane 0 then lane 1, each 0 to 1.
+	using value_type = ArgonHalf<float>; ///< Both LFOs' values, lane 0 then lane 1, each nominally 0 to 1.
 	using step_type = ArgonHalf<float>;  ///< A control kernel's block is its step.
 	/// The LFOs step once every kStride frames, so their frequencies are scaled up by it: without that, the
 	/// approximate cosine's 2 − 32f² coefficient rounds to exactly 2 and both lanes fuse into one slow oscillation.
 	static constexpr std::size_t kStride = 32;
+	/// The approximate cosine's coefficient scale, ±16 by the frequency's quarter-cycle.
+	static constexpr float kSignScale = 16.0f;
+	/// A quarter and a half of a cycle: the reflection of a frequency into the first quarter-cycle.
+	static constexpr float kQuarterCycle = 0.25f;
+	static constexpr float kHalfCycle = 0.5f;
+	/// The starting amplitude is the coefficient times this.
+	static constexpr float kInitialAmplitudeScale = 0.25f;
+	/// The output's midpoint: a lane's value is y_0 + kMidpoint, and y_1 starts there.
+	static constexpr float kMidpoint = 0.5f;
 
 	/// @brief The two frequencies in cycles per frame.
 	struct Settings {
@@ -60,29 +69,28 @@ struct PlateLfo {
 	};
 
 	/// @return The approximate cosine's coefficient for each strided frequency: the reflection into the first
-	/// quarter-cycle and the ±16 sign, then sign × f × (1 − 2f), the arithmetic of DualCosineOscillator's
-	/// approximation.
+	/// quarter-cycle and the ±16 sign, then sign × f × (1 − 2f), a parabola standing in for 2 cos(2πf).
 	[[nodiscard]] static Coefficients coefficients(const Settings& s) {
 		// The frequencies strided, then the approximate cosine's coefficient for each
 		const std::array<float, 2> strided{s.frequency_1 * static_cast<float>(kStride),
 		                                   s.frequency_2 * static_cast<float>(kStride)};
-		ArgonHalf<float> sign = 16.0f;
+		ArgonHalf<float> sign = kSignScale;
 		ArgonHalf<float> frequencies = ArgonHalf<float>::Load(strided.data());
 		frequencies = frequencies.each_lane_with_index([&](float& frequency, int i) {
-			frequency -= 0.25f;
+			frequency -= kQuarterCycle;
 			if (frequency < 0.0f) {
 				frequency = -frequency;
 			}
-			else if (frequency > 0.5f) {
-				frequency -= 0.5f;
+			else if (frequency > kHalfCycle) {
+				frequency -= kHalfCycle;
 			}
 			else {
-				sign[i] = -16.0f;
+				sign[i] = -kSignScale;
 			}
 		});
 		Coefficients c;
 		c.iir_coefficient = sign * frequencies * (1.0f - (2.0f * frequencies));
-		c.initial_amplitude = c.iir_coefficient * 0.25f;
+		c.initial_amplitude = c.iir_coefficient * kInitialAmplitudeScale;
 		return c;
 	}
 	/// @brief Steps the recurrence once per kStride frames of @p n (the owner passes kStride).
@@ -95,12 +103,13 @@ struct PlateLfo {
 		}
 		return value(s);
 	}
-	/// @return Both LFOs' current values, y_0 + 0.5 on the vector, each lane 0 to 1.
-	[[nodiscard]] [[gnu::always_inline]] static ArgonHalf<float> value(const State& s) { return s.y_0 + 0.5f; }
-	/// @brief Event: the recurrence at its start, y_0 at the starting amplitude and y_1 at 0.5.
+	/// @return Both LFOs' current values, y_0 + kMidpoint on the vector: nominally 0 to 1, and up to 6.8e-4 past
+	/// either end by the recurrence's float rounding (Plate::kLfoMin, Plate::kLfoMax).
+	[[nodiscard]] [[gnu::always_inline]] static ArgonHalf<float> value(const State& s) { return s.y_0 + kMidpoint; }
+	/// @brief Event: the recurrence at its start, y_0 at the starting amplitude and y_1 at kMidpoint.
 	static void start(const Coefficients& c, State& s) {
 		s.y_0 = c.initial_amplitude;
-		s.y_1 = 0.5f;
+		s.y_1 = kMidpoint;
 	}
 };
 

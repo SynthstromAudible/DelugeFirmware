@@ -61,7 +61,7 @@ struct Plate {
 
 	static constexpr std::size_t kMemoryFloats = 32768;  ///< The ring.
 	static constexpr uint32_t kMask = kMemoryFloats - 1; ///< Wraps a ring index.
-	/// Lifts the normalised loop signal back to q31: 15 × 2³², the gain the models were balanced around.
+	/// Lifts the normalised loop signal back to q31: 15 × 2³², the gain the plates are balanced around.
 	static constexpr float kOutputGain = 15.f * 4294967296.f;
 	/// q31 to the loop's float: the send over (float)INT32_MAX, which rounds to 2³¹.
 	static constexpr float kQ31Max = static_cast<float>(std::numeric_limits<int32_t>::max());
@@ -132,9 +132,22 @@ struct Plate {
 	static constexpr float kDecayDiffusion1 = 0.70f;
 	static constexpr float kBandwidth = 0.9995f;
 	static constexpr float kTapGain = 0.6f;
+	/// DIGITAL's second decay diffusion: reverb_time + kDecayDiffusion2Offset, within kDecayDiffusion2Min to Max.
+	static constexpr float kDecayDiffusion2Offset = 0.15f;
+	static constexpr float kDecayDiffusion2Min = 0.25f;
+	static constexpr float kDecayDiffusion2Max = 0.5f;
+	/// The damping knob's log curve: log2(damping × kDampingCurveScale + 1) / kDampingCurveDivisor, clamped to 0 to 1.
+	static constexpr float kDampingCurveScale = 50.f;
+	static constexpr float kDampingCurveDivisor = 5.7f;
+	/// The output filters' knob curves: min + (e^(kFilterCurve × knob) − 1) × span, in Hz.
+	static constexpr float kFilterCurve = 1.5f;
+	static constexpr float kLowPassMinHz = 0.f;
+	static constexpr float kLowPassSpanHz = 5083.74f;
+	static constexpr float kHighPassMinHz = 20.f;
+	static constexpr float kHighPassSpanHz = 150.f;
 
 	/// @brief DIGITAL's lines, laid out in this order. Named quirk: each length is float × kRatio truncated to whole
-	/// frames, as the topology's size_t lengths took it.
+	/// frames.
 	struct DigitalLines {
 		Line ap1, ap2, ap3, ap4, dap1a, del1a, dap1b, del1b, dap2a, del2a, dap2b, del2b;
 	};
@@ -160,7 +173,7 @@ struct Plate {
 		    .del2b = line(3163 * kRatio),
 		};
 	}();
-	/// @return An output tap's offset. Named quirk: float × kRatio truncated to int32, as the line's at() took it.
+	/// @return An output tap's offset. Named quirk: int × kRatio truncated to int32.
 	/// consteval, so each tap is a constant at its use: a constexpr function is a call per frame under
 	/// -fno-inline-functions.
 	[[nodiscard]] static consteval int32_t tap(int32_t frames) { return static_cast<int32_t>(frames * kRatio); }
@@ -186,7 +199,7 @@ struct Plate {
 		float lp = 0.f;                ///< The damping one-pole's coefficient.
 		float hp_cutoff = 0.f;         ///< The output high-pass's one-pole coefficient.
 		float lp_cutoff = 0.f;         ///< The output low-pass's one-pole coefficient.
-		float decay_diffusion_2 = 0.f; ///< DIGITAL's second decay diffusion: reverb_time + 0.15, within [0.25, 0.5].
+		float decay_diffusion_2 = 0.f; ///< DIGITAL's second decay diffusion (kDecayDiffusion2Offset and its bounds).
 		PlateLfo::Coefficients lfo{};
 		Mode mode = Mode::MUTABLE;
 	};
@@ -208,7 +221,7 @@ struct Plate {
 		float lp_r = 0.f;
 	};
 
-	/// @return The coefficients for @p s: each knob's mapping, as the models' setters computed it, in float.
+	/// @return The coefficients for @p s: each knob's mapping, in float.
 	[[nodiscard]] static Coefficients coefficients(const Settings& s) {
 		Coefficients c{};
 		c.mode = s.mode;
@@ -216,11 +229,13 @@ struct Plate {
 		                                        : util::map(s.room_size, 0.f, 1.f, kReverbTimeMin, kReverbTimeMax);
 		c.diffusion = util::map(s.width, 0.f, 1.f, kWidthMin, kWidthMax);
 		// 0 is no damping, 1 as dark as the loop filter goes, on a log curve so the change spreads over the knob.
-		const float damping = std::clamp(std::log2((s.damping * 50.f) + 1.f) / 5.7f, 0.f, 1.f);
+		const float damping =
+		    std::clamp(std::log2((s.damping * kDampingCurveScale) + 1.f) / kDampingCurveDivisor, 0.f, 1.f);
 		c.lp = util::map(1.f - damping, 0.f, 1.f, kLpMin, kLpMax);
 		c.hp_cutoff = filter_cutoff<Filter::HIGH_PASS>(s.hpf);
 		c.lp_cutoff = filter_cutoff<Filter::LOW_PASS>(s.lpf);
-		c.decay_diffusion_2 = std::clamp(c.reverb_time + 0.15f, 0.25f, 0.5f);
+		c.decay_diffusion_2 =
+		    std::clamp(c.reverb_time + kDecayDiffusion2Offset, kDecayDiffusion2Min, kDecayDiffusion2Max);
 		c.lfo = PlateLfo::coefficients({});
 		return c;
 	}
@@ -257,13 +272,13 @@ private:
 	/// (low-pass) on an exponential curve, as the bilinear one-pole's wc = fc / (1 + fc).
 	template <Filter F>
 	[[nodiscard]] static float filter_cutoff(float f) {
-		float min_freq = 0.0f;
-		float max_freq = 5083.74f;
+		float min_freq = kLowPassMinHz;
+		float max_freq = kLowPassSpanHz;
 		if constexpr (F == Filter::HIGH_PASS) {
-			min_freq = 20.0f;
-			max_freq = 150.0f;
+			min_freq = kHighPassMinHz;
+			max_freq = kHighPassSpanHz;
 		}
-		const float fc_hz = min_freq + (std::exp(1.5f * f) - 1) * max_freq;
+		const float fc_hz = min_freq + (std::exp(kFilterCurve * f) - 1) * max_freq;
 		const float fc = fc_hz / float(kSampleRate);
 		return fc / (1 + fc);
 	}
@@ -275,7 +290,7 @@ private:
 		if (s.write < 0) {
 			s.write += static_cast<int32_t>(kMemoryFloats);
 		}
-		if ((s.write & 31) == 0) {
+		if ((s.write & static_cast<int32_t>(PlateLfo::kStride - 1)) == 0) {
 			std::ignore = kernel_ops::advance_at<PlateLfo, kernel_ops::NoMode::NONE>(c.lfo, s.lfo, PlateLfo::kStride);
 		}
 	}
@@ -293,7 +308,8 @@ private:
 		return a + (b - a) * fractional;
 	}
 	/// @return A Schroeder allpass over @p line: the head plus the scaled tail written in, the scaled-back head plus
-	/// the tail out.
+	/// the tail out. Named quirk: an allpass's tail is the slot at length − 1, where a plain delay (@ref delay) and the
+	/// Digital loop's close read the slot at length.
 	[[nodiscard]] [[gnu::always_inline]] static float allpass(float* m, int32_t w, Line line, float head, float scale) {
 		const float tail = at(m, w, line, static_cast<int32_t>(line.length) - 1);
 		const float feedback = head + (tail * scale);
@@ -343,9 +359,9 @@ private:
 	/// @brief One Digital frame: the input band-limited and diffused, then the figure of eight, then the output taps.
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample digital_frame(const Coefficients& c, State& s,
 	                                                                       StereoSample x, float input) {
-		const float kdecay = c.reverb_time;
-		const float kdd2 = c.decay_diffusion_2;
-		const float kdamp = c.lp;
+		const float decay = c.reverb_time;
+		const float decay_diffusion_2 = c.decay_diffusion_2;
+		const float damp = c.lp;
 		float* const m = s.memory;
 		const int32_t w = s.write;
 		float acc = input;
@@ -358,23 +374,23 @@ private:
 
 		// The figure of eight: branch one closes the loop on del2b's tail; branch two carries on from it.
 		acc = apout;
-		acc += kdecay * at(m, w, kDigital.del2b, static_cast<int32_t>(kDigital.del2b.length));
+		acc += decay * at(m, w, kDigital.del2b, static_cast<int32_t>(kDigital.del2b.length));
 		acc = allpass_modulated(m, w, kDigital.dap1a, acc, 672.0f * kRatio, PlateLfo::value(s.lfo)[1],
 		                        static_cast<float>(kMaxExcursion), -kDecayDiffusion1);
 		acc = delay(m, w, kDigital.del1a, acc);
-		acc = one_pole(s.lp_decay_1, acc, kdamp);
-		acc *= kdecay;
-		acc = allpass(m, w, kDigital.dap1b, acc, kdd2);
+		acc = one_pole(s.lp_decay_1, acc, damp);
+		acc *= decay;
+		acc = allpass(m, w, kDigital.dap1b, acc, decay_diffusion_2);
 		acc = delay(m, w, kDigital.del1b, acc);
 
-		acc *= kdecay;
+		acc *= decay;
 		acc += apout;
 		acc = allpass_modulated(m, w, kDigital.dap2a, acc, 908.0f * kRatio, PlateLfo::value(s.lfo)[0],
 		                        static_cast<float>(kMaxExcursion), -kDecayDiffusion1);
 		acc = delay(m, w, kDigital.del2a, acc);
-		acc = one_pole(s.lp_decay_2, acc, kdamp);
-		acc *= kdecay;
-		acc = allpass(m, w, kDigital.dap2b, acc, kdd2);
+		acc = one_pole(s.lp_decay_2, acc, damp);
+		acc *= decay;
+		acc = allpass(m, w, kDigital.dap2b, acc, decay_diffusion_2);
 		acc = delay(m, w, kDigital.del2b, acc);
 
 		float left = 0;
@@ -403,16 +419,16 @@ private:
 	/// @brief One Mutable frame: four input allpasses, then the two branches, each feeding the other's delay.
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample mutable_frame(const Coefficients& c, State& s,
 	                                                                       StereoSample x, float input) {
-		const float kap = c.diffusion;
-		const float klp = c.lp;
-		const float krt = c.reverb_time;
+		const float diffusion = c.diffusion;
+		const float lp = c.lp;
+		const float reverb_time = c.reverb_time;
 		float* const m = s.memory;
 		const int32_t w = s.write;
 		float acc = input;
-		acc = allpass(m, w, kMutable.ap1, acc, kap);
-		acc = allpass(m, w, kMutable.ap2, acc, kap);
-		acc = allpass(m, w, kMutable.ap3, acc, kap);
-		acc = allpass(m, w, kMutable.ap4, acc, kap);
+		acc = allpass(m, w, kMutable.ap1, acc, diffusion);
+		acc = allpass(m, w, kMutable.ap2, acc, diffusion);
+		acc = allpass(m, w, kMutable.ap3, acc, diffusion);
+		acc = allpass(m, w, kMutable.ap4, acc, diffusion);
 		const float apout = acc;
 
 		// Branch one: del2's tail, modulated by LFO 2, damped, through dap1a and dap1b into del1 at twice the level.
@@ -420,11 +436,11 @@ private:
 		{
 			float offset = kDel2Tap;
 			offset += kDel2Excursion * PlateLfo::value(s.lfo)[1];
-			acc += interpolate(m, w, kMutable.del2, offset) * krt;
+			acc += interpolate(m, w, kMutable.del2, offset) * reverb_time;
 		}
-		acc = one_pole(s.lp_decay_1, acc, klp);
-		acc = allpass(m, w, kMutable.dap1a, acc, -kap);
-		acc = allpass(m, w, kMutable.dap1b, acc, kap);
+		acc = one_pole(s.lp_decay_1, acc, lp);
+		acc = allpass(m, w, kMutable.dap1a, acc, -diffusion);
+		acc = allpass(m, w, kMutable.dap1b, acc, diffusion);
 		at(m, w, kMutable.del1, 0) = acc;
 		acc *= kLoopGain;
 		float right = acc;
@@ -436,11 +452,11 @@ private:
 		{
 			float offset = kDel1Tap;
 			offset += kDel1Excursion * PlateLfo::value(s.lfo)[0];
-			acc += interpolate(m, w, kMutable.del1, offset) * krt;
+			acc += interpolate(m, w, kMutable.del1, offset) * reverb_time;
 		}
-		acc = one_pole(s.lp_decay_2, acc, klp);
-		acc = allpass(m, w, kMutable.dap2a, acc, -kap);
-		acc = allpass(m, w, kMutable.dap2b, acc, kap);
+		acc = one_pole(s.lp_decay_2, acc, lp);
+		acc = allpass(m, w, kMutable.dap2a, acc, -diffusion);
+		acc = allpass(m, w, kMutable.dap2b, acc, diffusion);
 		at(m, w, kMutable.del2, 0) = acc;
 		acc *= kLoopGain;
 		float left = acc;

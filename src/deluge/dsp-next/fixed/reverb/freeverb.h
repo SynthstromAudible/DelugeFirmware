@@ -130,8 +130,7 @@ struct Freeverb {
 		Channel right{};
 	};
 
-	/// @return The coefficients for @p s: the legacy setters' float arithmetic, each product converted to Q31 by
-	/// the implicit float-to-int conversion they made.
+	/// @return The coefficients for @p s, in float, each product converted to Q31 by a plain float-to-int conversion.
 	/// @note Width 0 makes wet2's product 2^31, out of int32's range: the conversion is the targets' own (x86 gives
 	/// INT32_MIN, ARM saturates to INT32_MAX), kept as it is.
 	[[nodiscard]] static Coefficients coefficients(const Settings& s) {
@@ -139,11 +138,15 @@ struct Freeverb {
 		const float roomsize = (s.room_size * kScaleRoom) + kOffsetRoom;
 		const float damp = s.damping * kScaleDamp;
 		const auto damp1 = static_cast<q31>(damp * kMax);
+		// Each channel's share of the other: half the width's shortfall over the channel's own share, which runs from a
+		// half (width 0) to all of it (width 1).
+		const float cross = (1.f - s.width) / 2;
+		const float own = (s.width / 2) + 0.5f;
 		return {
 		    .feedback = static_cast<q31>(roomsize * kMax),
 		    .damp1 = damp1,
 		    .damp2 = kMax - damp1,
-		    .wet2 = static_cast<q31>((((float)1 - s.width) / 2) / (s.width / 2 + 0.5f) * kMax),
+		    .wet2 = static_cast<q31>(cross / own * kMax),
 		    .dc = {},
 		};
 	}
