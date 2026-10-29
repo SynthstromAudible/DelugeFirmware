@@ -28,10 +28,9 @@ inline constexpr int32_t kWavetableDuplicateSamplesAtCycleEnd = 7;
 /// @brief One band of a loaded wavetable: the anti-aliased samples for a pitch range, plus the
 /// cycle geometry the renderer needs.
 ///
-/// These fields keep their legacy names while the wavetable render loop still lives in storage and
-/// reads them by name; they become snake_case when the renderer relocates into dsp-next. Storage's
-/// `WaveTableBand` derives from this (adding its load/steal lifecycle), so this is the prefix the
-/// renderer sees through @ref WaveTableData.
+/// These fields keep their names while the wavetable render loop lives in storage and reads them by
+/// name. Storage's `WaveTableBand` derives from this, adding the ownership of the band's samples, so
+/// this is the prefix the renderer sees through @ref WaveTableData.
 struct WaveTableBand {
 	uint32_t maxPhaseIncrement; ///< highest phase increment (pitch) this band covers; also the ascending sort key.
 	int32_t fromCycleNumber;    ///< first wavetable cycle this band holds data for.
@@ -45,11 +44,8 @@ struct WaveTableBand {
 ///
 /// It exposes the render scalars plus indexed band access — pick the band for a pitch with
 /// @ref select_band, walk bands for the cross-cycle morph with @ref band — without dsp-next seeing
-/// how WaveTable stores them. Bands are addressed by base pointer + stride, so the view spans the
-/// current (storage-owned) band array as-is; once WaveTable's bands migrate to a `fast_vector` of
-/// @ref WaveTableBand the stride simply becomes `sizeof(WaveTableBand)` and this view is unchanged.
-/// (That migration is a deferred, separately-tested task — the stealable-memory lifecycle it
-/// touches isn't exercised by the offline golden.)
+/// how WaveTable stores them. Bands are addressed by base pointer + stride: the view spans storage's
+/// band array as it is, a `fast_vector` of its own `WaveTableBand`, at that type's size.
 class WaveTableData {
 public:
 	/// A null/empty view (`num_bands() == 0`) — for the context slots of non-wavetable sources, which build the
