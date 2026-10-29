@@ -1,5 +1,8 @@
 name: Test Results
 
+# workflow_run runs from the default branch's copy of this file, so this serves main; next's ci.yml does this
+# itself.
+
 on:
   workflow_run:
     workflows: [Run tests]
