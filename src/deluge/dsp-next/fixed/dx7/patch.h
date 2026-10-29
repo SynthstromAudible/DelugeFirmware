@@ -30,9 +30,10 @@ namespace deluge::dsp::fixed::dx7 {
 /// op-switch bits.
 using PatchBytes = std::array<uint8_t, 156>;
 
-/// @brief Clamps the bytes the engine would index or shift by to the DX7's ranges, leaving every in-range patch as it
-/// is: the pitch envelope's rates and levels (126 to 133) to 99, the algorithm (134) to 31, the feedback (135) to 7
-/// and the LFO delay (138) to 99. Any other byte, in range or not, has defined arithmetic in the engine.
+/// @brief Clamps the bytes the engine would index, shift or overflow by to the DX7's ranges, leaving every in-range
+/// patch as it is: each op's fine (op × 21 + 19) to 99, the pitch envelope's rates and levels (126 to 133) to 99, the
+/// algorithm (134) to 31, the feedback (135) to 7 and the LFO delay (138) to 99. Any other byte, in range or not, has
+/// defined arithmetic in the engine.
 /// @details A patch can arrive with any byte value: a cartridge unpack, a single-voice sysex file or a song's hex.
 /// The voice's owner applies this to the snapshot it takes per block.
 constexpr void sanitise(PatchBytes& patch) {
@@ -40,6 +41,12 @@ constexpr void sanitise(PatchBytes& patch) {
 	constexpr std::size_t kAlgorithm = 134;
 	constexpr std::size_t kFeedback = 135;
 	constexpr std::size_t kLfoDelay = 138;
+	constexpr std::size_t kOpBytes = 21;
+	constexpr std::size_t kFine = 19;
+	// fixed frequency scales (coarse & 3) × 100 + fine by 4458616: past 99 that passes INT32_MAX
+	for (std::size_t op = 0; op < 6; ++op) {
+		patch[(op * kOpBytes) + kFine] = std::min<uint8_t>(patch[(op * kOpBytes) + kFine], 99);
+	}
 	for (std::size_t i = kPitchEnv; i < kPitchEnv + 8; ++i) {
 		patch[i] = std::min<uint8_t>(patch[i], 99);
 	}

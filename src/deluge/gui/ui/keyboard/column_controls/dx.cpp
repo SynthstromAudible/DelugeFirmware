@@ -24,6 +24,7 @@
 #include "hid/buttons.h"
 #include "processing/dx7/dx_patch.h"
 #include "processing/sound/sound_instrument.h"
+#include <algorithm>
 
 using namespace deluge::gui::ui::keyboard::layout;
 
@@ -46,7 +47,7 @@ void DXColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t 
 	if (!patch) {
 		return;
 	}
-	int algid = patch->params[134];
+	const int algid = std::min<uint8_t>(patch->params[134], 31); // a song can carry any byte
 	const auto& ops = deluge::dsp::fixed::dx7::kAlgorithms[algid];
 
 	bool is_editing = (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &dxParam);

@@ -156,7 +156,15 @@ describe dx7_voice_spec("dx7::Voice", ${
 
 	it("renders a patch with every guarded byte at 255 as the same patch at the DX7's limits", _ {
 		dw::Workload wild = dw::all_workloads().front();
+		for (std::size_t op = 0; op < 6; ++op) {
+			wild.patch[(op * 21) + 17] = 1; // fixed frequency
+			wild.patch[(op * 21) + 18] = 3; // the top decade, where an unclamped fine overflows
+		}
 		dw::Workload limits = wild;
+		for (std::size_t op = 0; op < 6; ++op) {
+			wild.patch[(op * 21) + 19] = 255;
+			limits.patch[(op * 21) + 19] = 99;
+		}
 		for (std::size_t i = 126; i < 134; ++i) {
 			wild.patch[i] = 255;
 			limits.patch[i] = 99;
