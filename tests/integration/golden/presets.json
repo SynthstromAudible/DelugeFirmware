@@ -785,6 +785,96 @@
   "rms_db": -15.08,
   "sha256": "ae27a966510b4079b63240ae2418f890970d5ff77c04d12f1a14c27386366ecb"
  },
+ "dx7/ams_depths": {
+  "frames": 88200,
+  "peak": 173382656,
+  "rms_db": -36.1,
+  "sha256": "83893e0bf2d7163948e718a87df47fcb091c5f8154b7b63e1a07302f20e98c1e"
+ },
+ "dx7/auto_alg1_fb": {
+  "frames": 88200,
+  "peak": 173382912,
+  "rms_db": -37.44,
+  "sha256": "77caeec0a2021b8996e8d8a808e1ea13a8ffe4331f3e2c779a91d4449c313f25"
+ },
+ "dx7/fixed_frequency": {
+  "frames": 88200,
+  "peak": 173359360,
+  "rms_db": -37.47,
+  "sha256": "27a9a8313f8fd59d0d5cff1b22c881d494e078b031f79f494f0f7529a2becb03"
+ },
+ "dx7/lfo_delay_key_sync": {
+  "frames": 88200,
+  "peak": 173386752,
+  "rms_db": -36.3,
+  "sha256": "cda6701fea43883328752a5b979bc04aba8bca24fabe8e4db625fc48512220ae"
+ },
+ "dx7/lfo_wave_0": {
+  "frames": 88200,
+  "peak": 173380352,
+  "rms_db": -40.81,
+  "sha256": "3456c40a26bb78d4393b8bd336d32463b4c4c9857a09d7b730d6ccc976f98143"
+ },
+ "dx7/lfo_wave_1": {
+  "frames": 88200,
+  "peak": 173300480,
+  "rms_db": -39.93,
+  "sha256": "ee98f9fc487fb9e8b32942acb7816fe357b12c2cdabcb7f27d6bae201c410926"
+ },
+ "dx7/lfo_wave_2": {
+  "frames": 88200,
+  "peak": 171783936,
+  "rms_db": -41.09,
+  "sha256": "6453a17ca2ecfd173d9ff7a6e94586f24f40d738b8d22f8aaa0bcf89d36afdbb"
+ },
+ "dx7/lfo_wave_3": {
+  "frames": 88200,
+  "peak": 173373696,
+  "rms_db": -40.32,
+  "sha256": "bbc72d19df822d22f3526b5edad7934fcee9c86333452a254f89a5c2b44634e9"
+ },
+ "dx7/lfo_wave_4": {
+  "frames": 88200,
+  "peak": 173380352,
+  "rms_db": -40.81,
+  "sha256": "3456c40a26bb78d4393b8bd336d32463b4c4c9857a09d7b730d6ccc976f98143"
+ },
+ "dx7/lfo_wave_5": {
+  "frames": 88200,
+  "peak": 173381888,
+  "rms_db": -40.73,
+  "sha256": "c1fd7826949f0e39ec0fcb498ff4274c3c46ca41da1cfcd973525dac283a086f"
+ },
+ "dx7/mki_alg32_fb": {
+  "frames": 88200,
+  "peak": 173380352,
+  "rms_db": -36.27,
+  "sha256": "da5e7b602cac11965921f8cbd77164205294be2f4450d971fe9ab0a5c8803b03"
+ },
+ "dx7/mki_forced_alg1_fb": {
+  "frames": 88200,
+  "peak": 173346048,
+  "rms_db": -37.48,
+  "sha256": "90393084f24b853a7a220fa41f739c50499cac3317b15828241526270b84c14c"
+ },
+ "dx7/modern_forced_alg4_fb": {
+  "frames": 88200,
+  "peak": 173355264,
+  "rms_db": -37.62,
+  "sha256": "c9bf41cca045436261289ef809dbcbe221462e467eca5c338f4168c708990bf7"
+ },
+ "dx7/modern_forced_alg6_fb": {
+  "frames": 88200,
+  "peak": 173380352,
+  "rms_db": -35.2,
+  "sha256": "0dc0da50494b9c319f3d0dc9fb11b107129502b585dfe3b12d6eae800645482e"
+ },
+ "dx7/osc_free_running": {
+  "frames": 88200,
+  "peak": 173326336,
+  "rms_db": -36.78,
+  "sha256": "30043ba9f1cf7a8e00c5dc00f07974e0c53409e9023a10bfa48b93d5195c62d3"
+ },
  "env_shape": {
   "frames": 132300,
   "peak": 173365504,
