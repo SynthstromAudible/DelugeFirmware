@@ -449,6 +449,34 @@ struct VecOffsetWhole {
 	}
 };
 
+/// VecOffsetWhole with an interleaved step of two vectors, which counts its calls: Mono must run every whole group of
+/// two vectors through it and the rest through step, with the same result as step alone.
+struct VecOffsetInterleaved {
+	using value_type = q31;
+	using step_type = Argon<q31>;
+	static constexpr std::size_t kInterleave = 2;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {
+		Argon<q31> value; ///< The index of the next step's first sample, in every lane.
+		int groups;       ///< The interleaved steps taken.
+	};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& c, const EmptyBlock& b, State& s, Argon<q31> x) {
+		VecOffsetWhole::State w{.value = s.value};
+		const Argon<q31> out = VecOffsetWhole::step({}, b, w, x);
+		s.value = w.value;
+		(void)c;
+		return out;
+	}
+	[[gnu::always_inline]] static std::array<Argon<q31>, 2>
+	step_interleaved(const Coefficients& c, const EmptyBlock& b, State& s, const std::array<Argon<q31>, 2>& x) {
+		++s.groups;
+		const Argon<q31> first = step(c, b, s, x[0]);
+		return {first, step(c, b, s, x[1])};
+	}
+};
+
 /// A vector mixer: the difference of its inputs.
 struct VecSubtract {
 	using value_type = q31;
@@ -1149,6 +1177,22 @@ describe mono("Mono", ${
 				expect(mono.state().blocks).to_equal(s.blocks);
 				expect(mono.state().steps).to_equal(s.steps);
 			}
+		}
+	});
+
+	it("steps whole groups of a kernel's interleave through step_interleaved and the rest through step", _ {
+		constexpr auto lanes = static_cast<std::size_t>(Argon<q31>::lanes);
+		for (const std::size_t n : kLengths) {
+			Mono<VecOffsetInterleaved> interleaved;
+			Mono<VecOffsetWhole> plain;
+			const std::vector<q31> in = input(n, 0x00024680);
+			std::vector<q31> got(n);
+			std::vector<q31> want(n);
+			interleaved.renderBlock(in, got);
+			plain.renderBlock(in, want);
+			expect(got == want).to_be_true();
+			expect(interleaved.state().groups).to_equal(static_cast<int>(n / (2 * lanes)));
+			expect(lanes_of(interleaved.state().value)).to_equal(lanes_of(plain.state().value));
 		}
 	});
 

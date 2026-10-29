@@ -50,6 +50,10 @@ namespace deluge::dsp::fixed::dx7 {
 /// 6. **Sign.** Where bit 23 was set, the result is inverted bitwise: −y − 1, not −y, so zero becomes −1.
 /// 7. **Mix.** The accumulator is added (ADD) with wrapping, or not (SET). With no input the modulation is zero.
 ///
+/// The step is one dependency chain, so `Mono` runs it three vectors at a time through @ref step_interleaved, each
+/// stage written for the three in turn (the A9 overlaps independent chains only when interleaved), and the rest of
+/// the block one vector at a time.
+///
 /// It is not the scalar operator: the sine is a polynomial, not the table, so samples differ in their low bits.
 /// No denormal arises, so flushing them (NEON) or not (SSE) changes nothing: x is 0 or at least 2^-22, u at least
 /// 2^-44, the gain a multiple of 2^-24 or 0, and every product stays above 2^-126.
@@ -96,6 +100,9 @@ struct ModernVectorOperator {
 		Argon<int32_t> phase_step{}; ///< freq << 2, wrapping.
 		Argon<float> gain_step{};    ///< float(dgain) · 2^-22: four samples' gain.
 	};
+
+	/// @brief Three vectors per interleaved step: twelve samples, as the device's NEON kernel computes them.
+	static constexpr std::size_t kInterleave = 3;
 
 	static constexpr float kPoly0 = -0.01880853017455781F; ///< The sine polynomial's u^3 coefficient (0xbc9a1459).
 	static constexpr float kPoly1 = 0.25215252666796095F;  ///< Its u^2 coefficient (0x3e811a23).
@@ -153,8 +160,81 @@ struct ModernVectorOperator {
 		return y;
 	}
 
+	/// @brief Three steps at mode @p M, their chains interleaved stage by stage: the same arithmetic as three calls
+	/// to @ref step, the phase and the gain moving on in the same order, so the same result. Each stage is written for
+	/// the three vectors in turn, as the device's NEON kernel does twelve samples at a time: the A9 overlaps
+	/// independent chains only when their instructions are interleaved.
+	template <Mode M>
+	[[nodiscard]] [[gnu::always_inline]] static std::array<Argon<q31>, kInterleave>
+	step_interleaved(const Coefficients& /*c*/, const Block& b, Loop& l,
+	                 const std::array<Argon<q31>, kInterleave>& modulation,
+	                 const std::array<Argon<q31>, kInterleave>& accumulator) {
+		const Argon<int32_t> mask{0x7fffff};
+		const Argon<int32_t> half{0x400000};
+		const Argon<int32_t> sign_bit{0x800000};
+		const Argon<int32_t> p0 = l.phase;
+		const Argon<int32_t> p1 = p0 + b.phase_step;
+		const Argon<int32_t> p2 = p1 + b.phase_step;
+		Argon<int32_t> a0 = p0;
+		Argon<int32_t> a1 = p1;
+		Argon<int32_t> a2 = p2;
+		if constexpr (M == Mode::BUS_SET || M == Mode::BUS_ADD) {
+			a0 = a0 + modulation[0];
+			a1 = a1 + modulation[1];
+			a2 = a2 + modulation[2];
+		}
+		const Argon<int32_t> s0 = a0.CompareTestNonzero(sign_bit).ToMask().template As<int32_t>();
+		const Argon<int32_t> s1 = a1.CompareTestNonzero(sign_bit).ToMask().template As<int32_t>();
+		const Argon<int32_t> s2 = a2.CompareTestNonzero(sign_bit).ToMask().template As<int32_t>();
+		const Argon<float> x0 = ((a0 & mask) - half).template ConvertTo<float, 22>();
+		const Argon<float> x1 = ((a1 & mask) - half).template ConvertTo<float, 22>();
+		const Argon<float> x2 = ((a2 & mask) - half).template ConvertTo<float, 22>();
+		const Argon<float> u0 = x0 * x0;
+		const Argon<float> u1 = x1 * x1;
+		const Argon<float> u2 = x2 * x2;
+		Argon<float> q0 = Argon<float>{kPoly1}.MultiplyAdd(u0, kPoly0);
+		Argon<float> q1 = Argon<float>{kPoly1}.MultiplyAdd(u1, kPoly0);
+		Argon<float> q2 = Argon<float>{kPoly1}.MultiplyAdd(u2, kPoly0);
+		q0 = Argon<float>{kPoly2}.MultiplyAdd(u0, q0);
+		q1 = Argon<float>{kPoly2}.MultiplyAdd(u1, q1);
+		q2 = Argon<float>{kPoly2}.MultiplyAdd(u2, q2);
+		q0 = Argon<float>{kPoly3}.MultiplyAdd(u0, q0);
+		q1 = Argon<float>{kPoly3}.MultiplyAdd(u1, q1);
+		q2 = Argon<float>{kPoly3}.MultiplyAdd(u2, q2);
+		const Argon<float> g0 = l.gain;
+		const Argon<float> g1 = in_order(g0 + b.gain_step);
+		const Argon<float> g2 = in_order(g1 + b.gain_step);
+		std::array<Argon<q31>, kInterleave> y{(q0 * g0).template ConvertTo<int32_t, 24>() ^ s0,
+		                                      (q1 * g1).template ConvertTo<int32_t, 24>() ^ s1,
+		                                      (q2 * g2).template ConvertTo<int32_t, 24>() ^ s2};
+		if constexpr (M == Mode::NONE_ADD || M == Mode::BUS_ADD) {
+			y[0] = y[0] + accumulator[0];
+			y[1] = y[1] + accumulator[1];
+			y[2] = y[2] + accumulator[2];
+		}
+		l.phase = p2 + b.phase_step;
+		l.gain = g2 + b.gain_step;
+		return y;
+	}
+
 	/// @brief Loads the op's held state before a block.
 	[[gnu::always_inline]] static void resume(State& s, OperatorState op) { s.op = op; }
+
+private:
+	/// @brief @p v as it is, hidden from the optimiser, so a sum of it is not reassociated with what made it.
+	/// @details The gain ramp adds the step once per vector, each sum rounding. Within one interleaved step the three
+	/// sums are visible together, and under -funsafe-math-optimizations (the device's flag) the compiler may fold
+	/// (g + d) + d into g + 2d, which rounds differently. The barrier costs nothing on ARM, where the value stays in
+	/// its register.
+	[[nodiscard]] [[gnu::always_inline]] static Argon<float> in_order(Argon<float> v) {
+		float32x4_t r = v;
+#if defined(__arm__) || defined(__aarch64__)
+		asm("" : "+w"(r));
+#else
+		asm("" : "+m"(r));
+#endif
+		return r;
+	}
 };
 
 static_assert(mixer_kernel<ModernVectorOperator>);

@@ -22,6 +22,7 @@
 #include "dsp-next/core/types.h"
 #include <argon.hpp>
 #include <argon/vectorize/for_each.hpp>
+#include <array>
 #include <cstddef>
 #include <utility>
 
@@ -281,13 +282,41 @@ private:
 	}
 
 	/// @brief One `step` per vector of q31 samples: @p n samples of @p src into @p dst, the partial last vector
-	/// included.
+	/// included. A kernel declaring an interleave (@ref interleave_of) steps every whole group of that many vectors
+	/// through its `step_interleaved` first.
 	template <auto M, typename... Src>
 	[[gnu::always_inline]] static void vectorLoop(const Coefficients& c, const Block& block, LoopState& s, q31* dst,
 	                                              std::ptrdiff_t n, const Src*... src) {
-		argon::vectorize::for_each<q31>(n, [&] [[gnu::always_inline]] (auto step) {
-			step.Store(dst, vectorStepAt<M>(c, block, s, step, step.Load(src)...));
+		std::ptrdiff_t done = 0;
+		if constexpr (interleave_of<K> > 1) {
+			constexpr std::ptrdiff_t kGroup = static_cast<std::ptrdiff_t>(interleave_of<K>) * Argon<q31>::lanes;
+			for (; done + kGroup <= n; done += kGroup) {
+				const auto out =
+				    interleavedStepAt<M>(c, block, s, std::make_index_sequence<interleave_of<K>>{}, (src + done)...);
+				for (std::size_t v = 0; v < out.size(); ++v) {
+					out[v].StoreTo(dst + done + (static_cast<std::ptrdiff_t>(v) * Argon<q31>::lanes));
+				}
+			}
+		}
+		argon::vectorize::for_each<q31>(n - done, [&] [[gnu::always_inline]] (auto step) {
+			step.Store(dst + done, vectorStepAt<M>(c, block, s, step, step.Load(src + done)...));
 		});
+	}
+
+	/// @brief One interleaved step at mode @p M over the group of vectors at each of @p src.
+	template <auto M, std::size_t... V, typename... Src>
+	[[gnu::always_inline]] static auto interleavedStepAt(const Coefficients& c, const Block& block, LoopState& s,
+	                                                     std::index_sequence<V...> /*vectors*/, const Src*... src) {
+		const auto group = [](const auto* base) {
+			return std::array<step_type, sizeof...(V)>{
+			    step_type::Load(base + (static_cast<std::ptrdiff_t>(V) * Argon<q31>::lanes))...};
+		};
+		if constexpr (detail::has_modes<K>) {
+			return K::template step_interleaved<M>(c, block, s, group(src)...);
+		}
+		else {
+			return K::step_interleaved(c, block, s, group(src)...);
+		}
 	}
 
 	/// @brief One `step` per vector of stereo frames: @p n frames of the interleaved @p src into the interleaved

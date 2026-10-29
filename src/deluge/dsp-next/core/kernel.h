@@ -424,6 +424,21 @@ template <typename K>
 requires std::same_as<std::remove_cv_t<decltype(K::kPartialStepAdvancesByCount)>, bool>
 inline constexpr bool partial_step_advances_by_count<K> = K::kPartialStepAdvancesByCount;
 
+/// @brief How many vectors K's interleaved step takes at once: K::kInterleave, or 1 when K declares none.
+/// @details A vector kernel whose step is one long dependency chain declares `static constexpr std::size_t
+/// kInterleave = N` (N > 1) and `step_interleaved` (a template on the mode for a moded kernel), taking each input as
+/// `std::array<step_type, N>` of consecutive vectors and returning the N output vectors. It must compute exactly what
+/// N calls of `step` in a row compute, state included; it exists to write the N chains' instructions interleaved, which
+/// the A9 needs to overlap them and which an unrolled loop of `step` does not give. `Mono` runs every whole group of N
+/// vectors through it, then the rest of the block through `step`.
+template <typename K>
+inline constexpr std::size_t interleave_of = 1;
+
+/// @brief K's interleave, when it declares one.
+template <typename K>
+requires std::same_as<std::remove_cv_t<decltype(K::kInterleave)>, std::size_t>
+inline constexpr std::size_t interleave_of<K> = K::kInterleave;
+
 /// @brief The shape every kernel has: value/step types, Settings → Coefficients (pure), State, optional prepare.
 /// @details Requires:
 /// - a non-final class declaring `value_type`, `step_type` and `Settings`, with a step type a wrapper has a loop
