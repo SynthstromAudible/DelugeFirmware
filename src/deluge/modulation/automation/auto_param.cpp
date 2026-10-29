@@ -31,6 +31,7 @@
 #include "model/model_stack.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "model/song/track_link.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_node.h"
@@ -301,6 +302,9 @@ getOut:
 	bool automatedNow = isAutomated();
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                                          automatedNow);
+
+	// Song view's track edit mode: write the same value to the same parameter in the track's other clips.
+	deluge::model::track_link::propagate(value, modelStack, shouldLogAction, mayDeleteNodesInLinearRun, doMPEMode);
 }
 
 bool AutoParam::deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
