@@ -657,8 +657,9 @@ def ducked_song(voices: list[tuple[str, str, int]], dry: bool) -> str:
 # damping, width, high-pass, low-pass and pan as q31 fractions, and its sidechain set by hand to nothing (volume 0),
 # so no sound's sidechain moves it. Each song's _DRY twin keeps the model and the sidechain and takes the boot song's
 # knobs (Song::Song: room 30/50, damping 36/50, width 1, high-pass 0, low-pass 1, pan 0): the gate fails if the two
-# render alike, which would mean the knobs never reached the render.
-REVERB_SEND = _host(params='reverbAmount="0x40000000"')
+# render alike, which would mean the knobs never reached the render. The audio track's volume is turned down so every
+# render peaks well below full scale: a clipped sample would hide a change in the reverb's output.
+REVERB_SEND = _host(params='reverbAmount="0x40000000" volume="0xC0000000"')
 REVERB_DEFAULT_KNOBS = 'roomSize="1288490189" dampening="1546188227" width="2147483647" hpf="0" lpf="2147483647" pan="0"'
 REVERB_TURNED_KNOBS = 'roomSize="1932735283" dampening="429496730" width="1073741824" hpf="1288490189" lpf="858993459"'
 

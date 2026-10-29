@@ -247,27 +247,27 @@
  },
  "RS_REVERB_DIGITAL": {
   "frames": 384000,
-  "peak": 1333591296,
-  "rms_db": -14.87,
-  "sha256": "357b264a57ffebda387f5ba8125b825216b6c07f2ff97e1037f23f6b7c2dbc8b"
+  "peak": 409601792,
+  "rms_db": -25.34,
+  "sha256": "44d7520b5f6215058d84554103b345aeceb2c7273345ceabf03ce7df38e3a781"
  },
  "RS_REVERB_FREEVERB": {
   "frames": 384000,
-  "peak": 1565411584,
-  "rms_db": -15.9,
-  "sha256": "c01e72c9b3e6eb25ce05a08ebfea9e6bde0f72223dd1dd60106e22da2ec2d748"
+  "peak": 490156032,
+  "rms_db": -26.52,
+  "sha256": "7eb1a5bb152b7686e6a9ba31cf0e3a9602e81c6e168151df9adfbfb03266291a"
  },
  "RS_REVERB_MUTABLE": {
   "frames": 384000,
-  "peak": 2147483648,
-  "rms_db": -10.77,
-  "sha256": "28f4e6c9a565e4695079daafe7cb221dfea47339967dfc865a642902d0eb821d"
+  "peak": 676869888,
+  "rms_db": -21.95,
+  "sha256": "a204b22e841fa666f6fc57916ef693cad33bc43d13fb53cf24200936b9f916c6"
  },
  "RS_REVERB_SWITCH": {
   "frames": 384000,
-  "peak": 2147483648,
-  "rms_db": -11.81,
-  "sha256": "6da49ed8cb4be20ddacafef76c94d234bc4ba3d81030ab9b6d69554995ee710f"
+  "peak": 676869888,
+  "rms_db": -23.01,
+  "sha256": "ad3888cebfc2c85997100aebc600e37925de124d03d708d0ac8e83599e387880"
  },
  "RS_STREAM": {
   "frames": 384000,
