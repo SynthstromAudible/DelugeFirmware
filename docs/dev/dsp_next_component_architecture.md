@@ -588,6 +588,55 @@ the owner's chain the stutter and its rate each block (see "Effect chains").
   `CG-STUTTERHANDOFF`, `CG-STUTTEROOM` and `CG-STUTTERSWAP` hold the
   hand-over.
 
+### A float kernel and a fixed one over one buffer, the model chosen per block: the reverb
+
+The song reverb is two processor kernels of stereo frames, `fixed::Freeverb` (`fixed/reverb/freeverb.h`, q31) and
+`fp::Plate` (`float/reverb/plate.h`, float, modes MUTABLE and DIGITAL), each rendered in place over the master block as
+`Mono<K>::renderBlock(block, block)` by one component, `effects::Reverb` (`engines/effects/reverb.{h,cpp}`).
+
+- **Two kernels, one interface.** Both take a q31 send by cursor (`set_send`, with the two return levels; the Granular
+  cursor read the other way: a mono send in, mixed into stereo frames) and q31 frames in and out. The plate's loop is
+  float, as the models were written and balanced, so it lives in `float/`; its input is the send over `(float)INT32_MAX`
+  and its output stage is `toQ31` saturating then the rounded multiply-accumulate, both named in the kernel.
+- **Memory handed in.** `set_memory` points each kernel at the component's buffer: Freeverb's 25,450 words laid out
+  end to end by `kLayout`, or the plate's 32,768-float ring. The State holds only indices, the combs' stores and the
+  filter memories. Neither declares `kStateInPlace`: copying the State into registers for the block measures faster
+  for both (Freeverb 249 against 277 cycles per channel-sample, the plate 9-19% faster), see
+  `a9_dsp_performance.md`, "Reverb".
+- **Freeverb's DC blocker is a nested part.** `Pinned<ShiftTracker<11>, REMOVE>`, stepped through
+  `kernel_ops::step_at` on each send sample. A `Chain` cannot hold it: it filters the mono send, not the frame the
+  chain steps. The blocked sample is not written back into the send: nothing reads the send after the reverb, and a
+  poison fill there leaves every golden and render gate unchanged.
+- **Unrolled combs.** The eight combs and four allpasses per channel are a fold over `std::index_sequence`, so each
+  line's base and length are immediates; as loops over the layout table they ran 21% slower than the old fully
+  unrolled class.
+- **Constexpr topologies.** Each mode's line table (`kMutable`, `kDigital`) is a constexpr aggregate read by member, in
+  the order the old `ConstructTopology` laid them, each line `length + 1` slots. Named quirks: Digital's lengths are
+  `float × kRatio` truncated to whole frames, its output taps `int × kRatio` truncated to `int32_t` (`tap`, consteval),
+  its modulated reads not truncated, and its excursion `size_t(16 × kRatio) = 10`. `static_assert`s keep every read
+  inside its line, at the LFO's reach (`kLfoMin`, `kLfoMax`): the lanes are nominally 0 to 1, and the recurrence's
+  float rounding carries them to about 6.8e-4 past either end, where they settle and stay.
+- **The LFO is a control kernel inside the plate.** `fp::PlateLfo` (`float/reverb/plate_lfo.h`) on
+  `ArgonHalf<float>` is advanced through `kernel_ops::advance_at` when the write index, stepping down, is a multiple of
+  32, read every frame through `value()` (`y_0 + 0.5f`), and started by an event that reads the coefficients
+  (`Plate::start`), sent after every reset.
+- **Float under `-funsafe-math-optimizations`.** The plate's step and both kernels' `coefficients` compile in the
+  translation units that instantiate them (the component's, in `deluge_effects`), and match the old reverb bit for
+  bit there; every step that moved float code ran `golden-synth`, `golden-synth-arm` and the `render-reverb-*` gates.
+- **The component.** One union buffer, in SRAM `.bss` as the old reverb was; the model chosen per block by a `switch`,
+  with no variant and no virtual call. A model change, the same model included, is three steps around two
+  audio-excluded sections: `begin_change` (inside the first) stops the render adding reverb, `prepare` (between them)
+  zeroes the buffer and resets the model's State configured from the held settings, and `commit` (inside the second)
+  hands it to the render. The knobs arrive by `publish`, inside an excluded section, and the render configures from
+  them at its next block. The sidechain duck, the pan and the 12 s/RMS gate stay in `AudioEngine`, which folds them
+  into the two return levels.
+- **Evidence.** `tests/dsp/reference_reverb.h` is the three old models verbatim, pinned over every workload of
+  `reverb_workloads.h` (`kRecordedReference`: output, whole state and send), host and ARM alike; the kernels
+  (`freeverb_kernel_spec`, `plate_lfo_spec`, `plate_kernel_spec`) and the component (`engines/effects/reverb_spec`)
+  equal it. The render gates `render-reverb-freeverb`, `-mutable`, `-digital` and `-switch` render each model away
+  from its defaults and switch models and knobs mid-song as the menus do, recorded on the old code. The `reverb` bench
+  list times each model as the engine renders it.
+
 ### The control form
 
 A **control kernel** is a block-rate signal: an envelope or a duck that the
@@ -1250,7 +1299,7 @@ block's inputs from its params and makes one call.
   call around the reverb:
   - The half before the reverb: mod FX or grain, EQ, delay, send and volume.
   - Then `between(sent)`: the engine notes a send (the reverb renders only
-    within 12 s of one), renders the reverb and the sample preview, and returns
+    within 12 s of one), renders the reverb (`effects::Reverb`) and the sample preview, and returns
     the half after's inputs. It returns nothing for a stem export without the
     song's effects.
   - The half after: filter, bitcrush, stutter, pan and the compressor with the
@@ -1396,7 +1445,8 @@ not against the code itself, so the code can be deleted once its users move. The
 `tests/dsp/reference_filters.h`: `OnePole`'s and `AntialiasedTanh`'s legacy forms, the fade, both ladders, the SVF and
 the filter set. The compressor's are in `tests/dsp/reference_compressor.h`, on those legacy forms: the legacy class
 verbatim, and the same class with its two level defects fixed (the 32-bit sum of squares, and `std::abs` of
-`INT32_MIN`), which is what the kernel matches.
+`INT32_MIN`), which is what the kernel matches. The reverb's are in `tests/dsp/reference_reverb.h`: Freeverb, the Mutable plate
+and the Digital plate with the engine's model selector, verbatim, which the kernels and the component match.
 
 **What is checked against them.** They are the oracle for:
 - `one_pole_spec`, `antialiased_tanh_spec`, `low_pass_ladder_spec`, `high_pass_ladder_spec`, `svf_spec` and
@@ -1483,7 +1533,7 @@ tools/dsp_bench.py --timeout 180          # flashes, captures RTT, writes the ta
 ./dbt build RelWithDebInfo
 ```
 
-The cases come in six lists, chosen by the CMake cache string
+The cases come in eleven lists, chosen by the CMake cache string
 `DELUGE_DSP_BENCH_CASES`, since the device prints about 70 lines over RTT before
 it drops some:
 
@@ -1527,6 +1577,14 @@ it drops some:
   These cases build with the library's flags
   (`src/deluge/bench/compressor_cases.cpp`), and the list ends with the same two
   feedback chain controls.
+- `mod_fx`, `granular` and `stutter`: each effect component as its owners render
+  it, and `fx_chains`: each home's chain runtime beside the same sequence written
+  out (`a9_dsp_performance.md` has each list's cases); each ends with the same two
+  feedback chain controls;
+- `reverb`: each reverb model as `renderReverb` renders it through
+  `effects::Reverb`, at the boot song's knobs, centred and unducked, rebuilt at
+  each setup as a song load does; it ends with the same two feedback chain
+  controls.
 
 Every other case builds with the app's flags. A bench image builds only its own
 list's cases, since the image fills on-chip SRAM up to 0x202E0000 (past it the
