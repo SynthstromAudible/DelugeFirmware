@@ -90,7 +90,7 @@ describe freeverb_kernel("the Freeverb kernel", ${
 			reference->setDamping(knob);
 			reference->setWidth(knob);
 			const Freeverb::Coefficients c =
-			Freeverb::coefficients({.room_size = knob, .damping = knob, .width = knob});
+			    Freeverb::coefficients({.room_size = knob, .damping = knob, .width = knob});
 			expect(c.feedback).to_equal(reference->comb_feedback());
 			expect(c.damp1).to_equal(reference->comb_damp1());
 			expect(c.damp2).to_equal(reference->comb_damp2());
@@ -156,14 +156,16 @@ describe freeverb_kernel("the Freeverb kernel", ${
 	it("lays its lines end to end in kMemoryWords at the reference's tunings", _ {
 		namespace ref = deluge::dsp::test::reverb_ref;
 		// The reference's tunings (Jezar's tuning.h), left then right for each line.
+		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays): a table read by index
 		constexpr int32_t kCombs[2][Freeverb::kCombs]{
-		{ref::combtuningL1, ref::combtuningL2, ref::combtuningL3, ref::combtuningL4, ref::combtuningL5,
-		ref::combtuningL6, ref::combtuningL7, ref::combtuningL8},
-		{ref::combtuningR1, ref::combtuningR2, ref::combtuningR3, ref::combtuningR4, ref::combtuningR5,
-		ref::combtuningR6, ref::combtuningR7, ref::combtuningR8}}; // NOLINT
+		    {ref::combtuningL1, ref::combtuningL2, ref::combtuningL3, ref::combtuningL4, ref::combtuningL5,
+		     ref::combtuningL6, ref::combtuningL7, ref::combtuningL8},
+		    {ref::combtuningR1, ref::combtuningR2, ref::combtuningR3, ref::combtuningR4, ref::combtuningR5,
+		     ref::combtuningR6, ref::combtuningR7, ref::combtuningR8}};
+		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays): as kCombs
 		constexpr int32_t kAllpasses[2][Freeverb::kAllpasses]{
-		{ref::allpasstuningL1, ref::allpasstuningL2, ref::allpasstuningL3, ref::allpasstuningL4},
-		{ref::allpasstuningR1, ref::allpasstuningR2, ref::allpasstuningR3, ref::allpasstuningR4}}; // NOLINT
+		    {ref::allpasstuningL1, ref::allpasstuningL2, ref::allpasstuningL3, ref::allpasstuningL4},
+		    {ref::allpasstuningR1, ref::allpasstuningR2, ref::allpasstuningR3, ref::allpasstuningR4}};
 		const Freeverb::Layout& l = Freeverb::kLayout;
 		uint32_t base = 0;
 		for (std::size_t ch = 0; ch < 2; ++ch) {
