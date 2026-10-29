@@ -69,12 +69,17 @@ fn resolve_build_dir(repo_root: &Path) -> (PathBuf, String, PathBuf) {
         .map(PathBuf::from)
         .unwrap_or_else(|_| repo_root.join("build"));
     let cfg = env::var("DELUGE_BUILD_CONFIG").unwrap_or_else(|_| "Debug".into());
-    // `toolchain/current` links to the active toolchain version.
+    // `toolchain/current` links to the active toolchain version; DBT_TOOLCHAIN_PATH, when set,
+    // names the clone whose toolchain a worktree shares, as `./dbt` uses it.
     println!("cargo:rerun-if-env-changed=DELUGE_DEVICE_AR");
+    println!("cargo:rerun-if-env-changed=DBT_TOOLCHAIN_PATH");
     let ar = env::var("DELUGE_DEVICE_AR")
         .map(PathBuf::from)
         .unwrap_or_else(|_| {
-            repo_root.join("toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-ar")
+            env::var_os("DBT_TOOLCHAIN_PATH")
+                .map(PathBuf::from)
+                .unwrap_or_else(|| repo_root.to_path_buf())
+                .join("toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-ar")
         });
     (build_dir, cfg, ar)
 }
