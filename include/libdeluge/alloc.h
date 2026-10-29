@@ -66,6 +66,14 @@ size_t deluge_usable_size(DelugeHeap* heap, void* ptr) DELUGE_NOEXCEPT;
 /// block headers. A NULL heap is vacuously ok. [task] [audio]
 bool deluge_heap_check(DelugeHeap* heap) DELUGE_NOEXCEPT;
 
+/// Write `heap`'s occupancy: the bytes its pool spans (block headers and the end
+/// sentinel included), the payload bytes of its free blocks now, and the least those
+/// have been after any allocation since the heap was built. O(1): the heap keeps
+/// both counts as blocks enter and leave its free lists. Returns false, writing
+/// nothing, for a NULL heap or out-pointer. [task]
+bool deluge_heap_stats(DelugeHeap* heap, size_t* pool_bytes, size_t* free_bytes,
+                       size_t* min_free_bytes) DELUGE_NOEXCEPT;
+
 // ---------------------------------------------------------------------------
 // Slab cache pool — the "stealables" pager, layered on a heap (M2).
 //

@@ -229,6 +229,35 @@ pub unsafe extern "C" fn deluge_heap_check(h: *mut DelugeHeap) -> bool {
     heap(h).check()
 }
 
+/// Writes `h`'s occupancy: the bytes its pool spans (block headers and the end sentinel included),
+/// the payload bytes of its free blocks now, and the least those have been after any allocation
+/// since the heap was built. Returns false, writing nothing, for a null `h` or a null out-pointer.
+///
+/// O(1): the heap keeps both counts as blocks enter and leave its free lists.
+///
+/// # Safety
+///
+/// `h` must be null or a live heap handle; each out-pointer must be null or writable.
+#[no_mangle]
+pub unsafe extern "C" fn deluge_heap_stats(
+    h: *mut DelugeHeap,
+    pool_bytes: *mut usize,
+    free_bytes: *mut usize,
+    min_free_bytes: *mut usize,
+) -> bool {
+    if h.is_null() || pool_bytes.is_null() || free_bytes.is_null() || min_free_bytes.is_null() {
+        return false;
+    }
+    let stats = {
+        let _s = Section::enter(STEP_HEAP);
+        heap(h).stats()
+    };
+    *pool_bytes = stats.pool_bytes;
+    *free_bytes = stats.free_bytes;
+    *min_free_bytes = stats.min_free_bytes;
+    true
+}
+
 /// A [`GlobalAlloc`](core::alloc::GlobalAlloc) backed by one [`DelugeHeap`], so the same heap can
 /// serve the C++ app (through the C ABI) and Rust `alloc`.
 ///
@@ -342,6 +371,61 @@ mod tests {
             unsafe { deluge_heap_check(h) },
             "check must still pass after alloc/free"
         );
+        drop(buf);
+    }
+
+    #[test]
+    fn stats_track_free_bytes_and_their_low_water_mark() {
+        let (buf, h) = aligned_arena(1 << 16);
+        let stats = || {
+            let mut st = tlsf::Stats::default();
+            assert!(unsafe {
+                deluge_heap_stats(
+                    h,
+                    &mut st.pool_bytes,
+                    &mut st.free_bytes,
+                    &mut st.min_free_bytes,
+                )
+            });
+            st
+        };
+        let fresh = stats();
+        assert!(fresh.pool_bytes > 0 && fresh.pool_bytes <= 1 << 16);
+        assert!(fresh.free_bytes > 0 && fresh.free_bytes < fresh.pool_bytes);
+        assert_eq!(fresh.min_free_bytes, fresh.free_bytes);
+
+        // A plain and a shrunk block each cost their payload plus a header.
+        let a = unsafe { deluge_alloc(h, 1000, 16) };
+        let c = unsafe { deluge_alloc(h, 5000, 16) };
+        assert!(!a.is_null() && !c.is_null());
+        let c = unsafe { deluge_realloc(h, c, 2000, 16) };
+        assert!(!c.is_null());
+        let held: usize = [a, c]
+            .iter()
+            .map(|&p| unsafe { deluge_usable_size(h, p) } + 16)
+            .sum();
+        assert_eq!(stats().free_bytes, fresh.free_bytes - held);
+        // An over-aligned block costs at least as much, and its leading remnant's header too.
+        let b = unsafe { deluge_alloc(h, 3000, 256) };
+        assert!(!b.is_null());
+        let busy = stats();
+        assert!(
+            busy.free_bytes <= fresh.free_bytes - held - unsafe { deluge_usable_size(h, b) } - 16
+        );
+        assert!(busy.min_free_bytes <= busy.free_bytes);
+
+        // Freeing everything coalesces back to one block; the low-water mark stays where it was.
+        for p in [b, a, c] {
+            unsafe { deluge_free(h, p) };
+        }
+        let after = stats();
+        assert_eq!(after.free_bytes, fresh.free_bytes);
+        assert_eq!(after.min_free_bytes, busy.min_free_bytes);
+        assert!(unsafe { deluge_heap_check(h) });
+
+        let (mut n1, mut n2, mut n3) = (0usize, 0usize, 0usize);
+        assert!(!unsafe { deluge_heap_stats(ptr::null_mut(), &mut n1, &mut n2, &mut n3) });
+        assert!(!unsafe { deluge_heap_stats(h, &mut n1, ptr::null_mut(), &mut n3) });
         drop(buf);
     }
 

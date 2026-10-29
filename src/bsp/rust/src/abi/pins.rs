@@ -11,7 +11,7 @@ abi_pin!(in fs_alloc::abi: deluge_heap_create, deluge_alloc, deluge_heap_registe
     deluge_realloc, deluge_usable_size, deluge_slab_acquire, deluge_slab_pin, deluge_slab_unpin, deluge_slab_touch,
     deluge_slab_release);
 #[cfg(target_os = "none")]
-abi_pin!(in fs_alloc: deluge_heap_destroy, deluge_heap_check);
+abi_pin!(in fs_alloc: deluge_heap_destroy, deluge_heap_check, deluge_heap_stats);
 #[cfg(target_os = "none")]
 abi_pin!(in fs_alloc::section: deluge_heap_set_section_hooks);
 #[cfg(target_os = "none")]

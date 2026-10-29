@@ -212,6 +212,21 @@ pub struct Tlsf {
     // The one pool's first block and end address, for `check`; null/0 until `add_pool`.
     pool_first: *mut BlockHeader,
     pool_end: usize,
+    // Payload bytes on the free lists, and the least that has been after any malloc: the heap's
+    // free space and its low-water mark, kept at the two free-list choke points.
+    free_bytes: usize,
+    min_free_bytes: usize,
+}
+
+/// A heap's occupancy, as [`Tlsf::stats`] reports it.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Stats {
+    /// Bytes the pool spans, headers and sentinel included.
+    pub pool_bytes: usize,
+    /// Payload bytes of the free blocks now.
+    pub free_bytes: usize,
+    /// The least `free_bytes` has been after any allocation since the pool was added.
+    pub min_free_bytes: usize,
 }
 
 impl Tlsf {
@@ -263,9 +278,11 @@ impl Tlsf {
         self.blocks[fl][sl] = block;
         self.fl_bitmap |= 1u32 << fl;
         self.sl_bitmap[fl] |= 1u32 << sl;
+        self.free_bytes += (*block).size();
     }
 
     unsafe fn remove_free_block(&mut self, block: *mut BlockHeader) {
+        self.free_bytes -= (*block).size();
         let (fl, sl) = mapping_insert((*block).size());
         let prev = link_prev(block);
         let next = link_next(block);
@@ -403,6 +420,7 @@ impl Tlsf {
         // Record the pool span for the integrity walk (single pool per heap).
         self.pool_first = block;
         self.pool_end = mem as usize + size;
+        self.min_free_bytes = self.free_bytes;
         // The whole pool starts free: poison it so accesses to uncarved space trap too.
         poison_free_body(block);
     }
@@ -490,6 +508,7 @@ impl Tlsf {
                 return ptr::null_mut();
             }
             self.use_block(block, adjust); // unpoisons the carved block for the caller
+            self.note_low_water();
             return payload_of(block);
         }
 
@@ -538,7 +557,25 @@ impl Tlsf {
         let next = next_phys(block);
         (*next).set_prev_used();
         debug_assert!((payload_of(block) as usize).is_multiple_of(align));
+        self.note_low_water();
         payload_of(block)
+    }
+
+    #[inline]
+    fn note_low_water(&mut self) {
+        self.min_free_bytes = self.min_free_bytes.min(self.free_bytes);
+    }
+
+    /// The pool's span, its free bytes and their low-water mark; all zero before `add_pool`.
+    pub fn stats(&self) -> Stats {
+        if self.pool_first.is_null() {
+            return Stats::default();
+        }
+        Stats {
+            pool_bytes: self.pool_end - self.pool_first as usize,
+            free_bytes: self.free_bytes,
+            min_free_bytes: self.min_free_bytes,
+        }
     }
 
     /// Frees `payload`; null is a no-op.
