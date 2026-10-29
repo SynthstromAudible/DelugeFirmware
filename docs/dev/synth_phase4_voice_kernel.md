@@ -1,6 +1,6 @@
 # Phase 4 — the L2 voice kernel
 
-> Status: **in progress — 20 bit-exact slices landed** (see Progress). `Voice::render`'s *signature* is now free of
+> Status: **in progress — 24 bit-exact slices landed** (see Progress). `Voice::render`'s *signature* is now free of
 > `Sound&` and `ModelStackWithSoundFlags*`; the remaining work is decoupling the render *body/helpers* and the lift
 > itself. Expands Phase 4 of `synth_untangling_plan.md`; builds on `synth_l1_engine_architecture.md` (the
 > engines/components the kernel composes) and the Phase-2 data plane (`ControlBlock`, `VoiceParams`). Each slice
@@ -19,7 +19,7 @@ on host with zero firmware scaffolding, and is the body that L3 (the CLAP-shaped
 render path is upward-ref-free, lifting it into `synth::Voice` is near-mechanical. Golden-gated throughout — no
 two-implementation window. (This mirrors the relocate-in-place discipline of every Phase-3 slice.)
 
-## Progress (slices 1–20, all bit-exact / golden-gated)
+## Progress (slices 1–24, all bit-exact / golden-gated)
 
 The strangler-fig is well advanced. `Voice::render` now takes
 `render(ParamManagerForTimeline* paramManager, int32_t* soundBuffer, …flags…, int32_t externalPitchAdjust, const
@@ -61,11 +61,11 @@ envelopes, `lfo2`/`lfo4`, `filterSet`, oscillator phase/feedback, and the `Voice
 **App state (must NOT be reached from render):** preset config (`Sound`), automation/patch source
 (`ParamManager`), scheduling/voice-pool policy, transport, and storage (sample/wavetable/live-input).
 
-**Already done (Phase 2 + slices 1–20):** the patcher runs off a `ControlBlock` (`synth/control_block.h`) produced
+**Already done (Phase 2 + slices 1–24):** the patcher runs off a `ControlBlock` (`synth/control_block.h`) produced
 by `Sound::patchControlBlock(paramManager)` (`processing/sound/sound.h:272`); `Voice::render` still invokes it
 inline (`patcher.performPatching(sourcesChanged, sound.patchControlBlock(*paramManager))`). The render was
 **largely data-plane-driven already** (it reads `params.paramFinalValues`); the ~40 `sound.*` config reads + the
-`modelStack` hooks listed below have now been **routed through `VoiceConfig` / explicit params** (slices 1–20), so
+`modelStack` hooks listed below have now been **routed through `VoiceConfig` / explicit params** (slices 1–24), so
 `Voice::render`'s signature no longer carries `Sound&` or `modelStack`. What's left is the render *body/helpers*
 still reaching `this->sound` + a few live `paramManager` reads, and the relocation.
 

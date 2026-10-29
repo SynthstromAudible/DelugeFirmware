@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated 2026-10-25. Status marks come from the specs and ledgers under `docs/superpowers/` and
+Last updated 2026-10-29. Status marks come from the specs and ledgers under `docs/superpowers/` and
 `.superpowers/estate/` as last recorded, not from a fresh code audit. The same material, with diagrams, is in
 the Claude Doc "Deluge Firmware Roadmap".
 
@@ -9,7 +9,7 @@ Items marked **(proposed)** are placements that no recorded plan or ruling fixes
 ## Where things stand
 
 - `deluge-project-param` (the model line, P0 to P3c) is merged into `next`.
-- `feat/ui-integration` is the only unmerged line: 948 commits ahead of `next`, none behind.
+- `feat/ui-integration` is the only unmerged line: 990 commits ahead of `next`, none behind.
 - `next` is 3,515 commits ahead of `main`. `main` is PR-only; local merges go into `next`.
 - Next action: P3d-1c step 3b, closing about 16 release blockers so the new menu can ship on device.
 
@@ -78,11 +78,11 @@ at language seams). That unlocks per-component language choice, CLAP, fault isol
 | Area | Where | Size (lines) | State |
 | --- | --- | --- | --- |
 | FM and DX7 core | `src/deluge/dsp/dx` | 2.4k | `DX7Source` wrapper exists; kernels app-side |
-| Wavetable | `src/deluge/storage/wave_table` + oscillator adapter | 1.2k | Sinc kernel in dsp-next; render and sync still behind the adapter |
+| Wavetable | `src/deluge/storage/wave_table` | 1.2k | Render and hard sync in dsp-next (`WavetableOscillator`, `WavetableSyncOscillator`, `SyncWindower`); `WavetableSource` is a persistent engine. Left app-side: loading, band generation and the band-storage container migration |
 | Reverb | `src/deluge/dsp/reverb` | 1.4k | App-side; not in P3a to c |
 | Time-stretch, sample playback | `src/deluge/dsp/timestretch`, `voice_sample` | 1.4k+ | Waits on the deferred SampleSource port; belongs with P4 |
 | Pitch detection | `model/sample/pitch_scan`, `synth/source/live/live_pitch_shifter` | ~0.3k + shifter | App-side; no plan entry names it |
-| Voice kernel | `src/deluge/model/voice`, `processing/sound` | 5.7k+ | Phase 4 approach decided (decouple in place, lift to `synth::Voice` last); not started |
+| Voice kernel | `src/deluge/model/voice`, `processing/sound` | 5.7k+ | Phase 4 in progress, 24 bit-exact slices: a and b done, c and e partial, d and f to do (`docs/dev/synth_phase4_voice_kernel.md`) |
 | Oscillator tail | VA shapes, VCA and wave-scale duality | n/a | Engines done and bit-exact; unifying is audible and needs a re-baseline plus ear-check |
 
 ## Long-term ordering
@@ -94,7 +94,7 @@ until the legacy menus are gone, because the shipping SoundEditor holds `ModCont
 | --- | --- | --- | --- | --- |
 | UI shell | 3b blockers, flash-test 3a, 3c flip | 3d delete legacy menus, freeze oracle specs | Kit lanes and mapping-table UI | P6 interface |
 | Model | ModelStack plan, inventory of readers | Delete MCA/GE, P3d-1d, stack out of param and undo paths | P5 topology + reconciler, stack out of clip and sequencer | ModelStack deleted |
-| Synth | FM/DX7 kernel, wavetable band port, reverb component (3 worktrees) | SampleSource port, pitch detection home, voice kernel a to d | Voice kernel e, f; P4 clip player; patcher replacement; audible re-baseline | L3 C ABI, CLAP and foreign engines, DX7 as engine |
+| Synth | FM/DX7 kernel, wavetable band port, reverb component (3 worktrees) | SampleSource port, pitch detection home, voice kernel c and d | Voice kernel e, f; P4 clip player; patcher replacement; audible re-baseline | L3 C ABI, CLAP and foreign engines, DX7 as engine |
 | Platform, storage | Device flash-tests, USB-MIDI fix push, live-bug triage | Tier B sync callers, tier D comments, FS-lock queue wait | Allocator redesign, libdeluge hard wall | Supervisor + MMU, warm restart |
 | Release, features | UI branch into `next`, nightly with both corpora | `next` to `main` PR, port #5049 follow-ups | Merge each phase, merge `main` into `next` often | Faster-than-real-time export |
 
@@ -119,8 +119,8 @@ until the legacy menus are gone, because the shipping SoundEditor holds `ModCont
 | ModelStack deleted | 4 | P6; the wave-1 inventory shows no readers left | (proposed) |
 | Patch cable data | Done | n/a | In instrument state, per slot and clip (P2c) |
 | Patch cable runtime (Patcher to a replacement mod matrix) | 3 | Voice kernel lifted; the audible window | Decided 2026-10-25: after the voice kernel lift |
-| `OscType` switch to persistent per-voice engines | 3 | VCA and wave-scale unification | Engines exist; the switch remains |
-| `Voice`, `Sound::render` to `synth::Voice` | 3 | Voice kernel slices a to d | Approach decided, not started |
+| `OscType` switch to persistent per-voice engines | 3 | VCA and wave-scale unification | `renderOsc` deleted; VA and wavetable engines persist per voice-source; the note-on `OscType` dispatch remains |
+| `Voice`, `Sound::render` to `synth::Voice` | 3 | Voice kernel slices a to d | a and b done, c partial, d to do |
 
 ### Worktrees
 
@@ -132,7 +132,7 @@ until the legacy menus are gone, because the shipping SoundEditor holds `ModCont
 | Platform, storage | Two: tier B sync callers; FS-lock and streaming | Storage, Rust BSP crates | Low; the device flash-test queue is the bottleneck |
 | Release | The main checkout, merges only | n/a | Local merges go into `next`, never `main` |
 
-The synth lane is cleared to start now (decided 2026-10-25). No synth work has begun.
+The synth lane is cleared to start now (decided 2026-10-25). None of the three wave-1 synth worktrees has begun.
 
 Each worktree needs `DBT_TOOLCHAIN_PATH` set, not a symlinked `toolchain/`. Verify before a merge with the
 nightly tier and both `DELUGE_SONG_CORPUS` and `DELUGE_LEGACY_CORPUS` set.
