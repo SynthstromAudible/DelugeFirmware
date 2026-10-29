@@ -25,10 +25,10 @@
 // and real-time control of parameters live here.
 
 #include "dsp-next/core/control.h"
+#include "dsp-next/fixed/dx7/envelope.h"
 #include "dsp-next/fixed/dx7/lfo.h"
 #include "dsp-next/fixed/dx7/lfo_delay.h"
 #include "dsp-next/fixed/dx7/pitch_envelope.h"
-#include "env.h"
 #include "fm_core.h"
 #include <memory>
 
@@ -101,7 +101,12 @@ public:
 	int32_t osc_freq(int log_freq, int mode, int coarse, int fine, int detune, int random_detune);
 
 private:
-	Env env_[6];
+	/// Each op's envelope, configured from the patch before each block and each event.
+	deluge::dsp::Control<deluge::dsp::fixed::dx7::Envelope> env_[6];
+	/// Each op's scaled output level in microsteps, set at note-on and retune.
+	int32_t outlevel_[6];
+	/// Each op's rate scaling in qRate units, set at note-on and retune.
+	int32_t rate_scaling_[6];
 	/// Configured from the patch before each block and each event, as the patch is edited live.
 	deluge::dsp::Control<deluge::dsp::fixed::dx7::PitchEnvelope> pitchenv_;
 	int32_t phase[6];
@@ -118,7 +123,14 @@ private:
 	int random_detune_scale;
 	uint8_t lastVelocity;
 
-	EnvParams& env_p(int op) { return *(EnvParams*)&patch[op * 21]; }
+	/// @brief Op @p op's envelope settings: its patch bytes, its output level and rate scaling, and @p extra_rate.
+	[[nodiscard]] deluge::dsp::fixed::dx7::Envelope::Settings env_settings(int op, int32_t extra_rate) const {
+		const uint8_t* p = &patch[op * 21];
+		return {.params = {{p[0], p[1], p[2], p[3]}, {p[4], p[5], p[6], p[7]}},
+		        .output_level = outlevel_[op],
+		        .rate_scaling = rate_scaling_[op],
+		        .extra_rate = extra_rate};
+	}
 	/// @brief The patch's pitch envelope bytes (126 to 133).
 	[[nodiscard]] deluge::dsp::fixed::dx7::EnvelopeParams pitch_params() const {
 		return {{patch[126], patch[127], patch[128], patch[129]}, {patch[130], patch[131], patch[132], patch[133]}};

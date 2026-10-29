@@ -39,8 +39,6 @@ static void init_engine(void) {
 	dxEngine = new (engineMem) DxEngine();
 
 	deluge::dsp::fixed::dx7::generate(dxEngine->tables);
-
-	Env::init_sr(44100);
 }
 
 gsl::owner<DxVoice*> DxEngine::solicitDxVoice() {

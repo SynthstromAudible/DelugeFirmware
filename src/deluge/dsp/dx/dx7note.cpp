@@ -24,6 +24,7 @@
 #include <cmath>
 #include <math.h>
 #include <stdlib.h>
+#include <tuple>
 
 using std::max;
 using std::min;
@@ -197,7 +198,7 @@ void DxVoice::init(DxPatch& newp, int midinote, int velocity) {
 	for (int op = 0; op < 6; op++) {
 		int off = op * 21;
 		int outlevel = patch[off + 16];
-		outlevel = Env::scaleoutlevel(outlevel);
+		outlevel = deluge::dsp::fixed::dx7::Envelope::scale_output_level(outlevel);
 		int level_scaling =
 		    ScaleLevel(midinote, patch[off + 8], patch[off + 9], patch[off + 10], patch[off + 11], patch[off + 12]);
 		outlevel += level_scaling;
@@ -206,7 +207,10 @@ void DxVoice::init(DxPatch& newp, int midinote, int velocity) {
 		outlevel += ScaleVelocity(velocity, patch[off + 15]);
 		outlevel = max(0, outlevel);
 		int rate_scaling = ScaleRate(midinote, patch[off + 13]);
-		env_[op].init(env_p(op), outlevel, rate_scaling);
+		outlevel_[op] = outlevel;
+		rate_scaling_[op] = rate_scaling;
+		env_[op].configure(env_settings(op, 0));
+		env_[op].on<&deluge::dsp::fixed::dx7::Envelope::start>();
 
 		int mode = patch[op * 21 + 17];
 		int coarse = patch[off + 18];
@@ -278,7 +282,9 @@ bool DxVoice::compute(int32_t* buf, int n, int base_pitch, const DxPatch* ctrls,
 		params[op].phase = phase[op];
 		params[op].gain_out = gain_out[op];
 		if (!ctrls->opSwitch(op)) {
-			env_[op].getsample(env_p(op), n, 0); // advance the envelop even if it is not playing
+			// advance the envelope even if it is not playing
+			env_[op].configure(env_settings(op, 0));
+			std::ignore = env_[op].advance(static_cast<std::size_t>(n));
 			params[op].level_in = 0;
 			params[op].freq = 0;
 		}
@@ -293,7 +299,8 @@ bool DxVoice::compute(int32_t* buf, int n, int base_pitch, const DxPatch* ctrls,
 				params[op].freq = Freqlut::lookup(basepitch_[op] + pitch_mod);
 
 			// TODO: set ratemod sensitivity per operator
-			int32_t level = env_[op].getsample(env_p(op), n, voice_ctrls->ratemod);
+			env_[op].configure(env_settings(op, voice_ctrls->ratemod));
+			int32_t level = env_[op].advance(static_cast<std::size_t>(n));
 			int ampmodsens = ampmodsenstab[patch[off + 14] & 3];
 			if (ampmodsens != 0) {
 				uint32_t sensamp = (uint32_t)(((uint64_t)amd_mod) * ((uint64_t)ampmodsens) >> 24);
@@ -328,7 +335,8 @@ bool DxVoice::compute(int32_t* buf, int n, int base_pitch, const DxPatch* ctrls,
 
 void DxVoice::keyup() {
 	for (int op = 0; op < 6; op++) {
-		env_[op].keydown(env_p(op), false);
+		env_[op].configure(env_settings(op, 0));
+		env_[op].on<&deluge::dsp::fixed::dx7::Envelope::release>();
 	}
 	pitchenv_.configure({pitch_params()});
 	pitchenv_.on<&deluge::dsp::fixed::dx7::PitchEnvelope::release>();
@@ -361,7 +369,7 @@ void DxVoice::update(DxPatch& newp, int midinote) {
 		basepitch_[op] = osc_freq(logFreq, mode, coarse, fine, detune, detune_per_voice[op]);
 
 		int outlevel = patch[off + 16];
-		outlevel = Env::scaleoutlevel(outlevel);
+		outlevel = deluge::dsp::fixed::dx7::Envelope::scale_output_level(outlevel);
 		int level_scaling =
 		    ScaleLevel(midinote, patch[off + 8], patch[off + 9], patch[off + 10], patch[off + 11], patch[off + 12]);
 		outlevel += level_scaling;
@@ -370,7 +378,10 @@ void DxVoice::update(DxPatch& newp, int midinote) {
 		outlevel += ScaleVelocity(velocity, patch[off + 15]);
 		outlevel = max(0, outlevel);
 		int rate_scaling = ScaleRate(midinote, patch[off + 13]);
-		env_[op].update(env_p(op), outlevel, rate_scaling);
+		outlevel_[op] = outlevel;
+		rate_scaling_[op] = rate_scaling;
+		env_[op].configure(env_settings(op, 0));
+		env_[op].on<&deluge::dsp::fixed::dx7::Envelope::retune>();
 	}
 
 	// TODO: did we the pitchenv?
@@ -381,7 +392,7 @@ void DxVoice::update(DxPatch& newp, int midinote) {
  */
 void DxVoice::transferState(DxVoice& src) {
 	for (int i = 0; i < 6; i++) {
-		env_[i].transfer(src.env_[i]);
+		env_[i].on<&deluge::dsp::fixed::dx7::Envelope::transfer>(src.env_[i].state());
 		gain_out[i] = src.gain_out[i];
 		phase[i] = src.phase[i];
 	}
