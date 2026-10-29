@@ -26,7 +26,6 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
 #include "model/action/action_logger.h"
-#include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
@@ -848,75 +847,14 @@ int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t offset, int32_t whic
 		return *cc;
 	}
 
-	int32_t newCC = getNextSelectableCC(*cc, offset);
-
-	// Need to pick a new cc which is blank on all Clips' ParamManagers with this Instrument
-	// For each Clip in session and arranger for specific Output (that Output is "this")
-	int32_t numElements = modelStack->song->sessionClips.getNumElements();
-	bool doingArrangementClips = false;
-	// TODO: Should use AllClips, but less obvious so later.
-traverseClips:
-	for (int32_t c = 0; c < numElements; c++) {
-		Clip* clip;
-		if (!doingArrangementClips) {
-			clip = modelStack->song->sessionClips.getClipAtIndex(c);
-			if (clip->output != this) {
-				continue;
-			}
-		}
-		else {
-			ClipInstance* clipInstance = clipInstances.getElement(c);
-			if (!clipInstance->clip) {
-				continue;
-			}
-			if (!clipInstance->clip->isArrangementOnlyClip()) {
-				continue;
-			}
-			clip = clipInstance->clip;
-		}
-
-		newCC = getFirstUnusedCC(modelStack, offset, newCC, *cc);
-		if (newCC == -1) {
-			return -1;
-		}
-	}
-	if (!doingArrangementClips) {
-		doingArrangementClips = true;
-		numElements = clipInstances.getNumElements();
-		goto traverseClips;
+	// Find a CC that's not automated in this Clip and move this Clip's automation there. Other Clips using this
+	// Instrument keep their automation where it is.
+	int32_t newCC = getFirstUnusedCC(modelStack, offset, getNextSelectableCC(*cc, offset), *cc);
+	if (newCC == -1) {
+		return -1;
 	}
 
-	// And then tell all Clips' ParamManagers with this Instrument to change that CC
-	// For each Clip in session and arranger for specific Output (that Output is "this")
-	numElements = modelStack->song->sessionClips.getNumElements();
-	doingArrangementClips = false;
-traverseClips2:
-	for (int32_t c = 0; c < numElements; c++) {
-		Clip* clip;
-		if (!doingArrangementClips) {
-			clip = modelStack->song->sessionClips.getClipAtIndex(c);
-			if (clip->output != this) {
-				continue;
-			}
-		}
-		else {
-			ClipInstance* clipInstance = clipInstances.getElement(c);
-			if (!clipInstance->clip) {
-				continue;
-			}
-			if (!clipInstance->clip->isArrangementOnlyClip()) {
-				continue;
-			}
-			clip = clipInstance->clip;
-		}
-
-		moveAutomationToDifferentCC(*cc, newCC, modelStack);
-	}
-	if (!doingArrangementClips) {
-		doingArrangementClips = true;
-		numElements = clipInstances.getNumElements();
-		goto traverseClips2;
-	}
+	moveAutomationToDifferentCC(*cc, newCC, modelStack);
 
 	*cc = newCC;
 	editedByUser = true;
