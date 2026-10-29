@@ -716,8 +716,7 @@ int32_t MIDIInstrument::getNextSelectableCC(int32_t cc, int32_t offset, bool inc
 	int32_t steps = (offset < 0) ? -offset : offset;
 	int32_t numSelectableCCs = includeNoCC ? kNumCCNumbersIncludingFake : kNumCCExpression;
 
-	// Cap search to one full pass of the CC domain so a zero-progress or
-	// always-hidden stop sentinel cannot spin forever.
+	// Cap the search at one full pass so a step size that never lands on a selectable CC can't loop forever.
 	for (int32_t attempts = 0; attempts < numSelectableCCs; attempts++) {
 		// get the next CC in the direction specified by the offset
 		for (int32_t i = 0; i < steps; i++) {
@@ -731,12 +730,6 @@ int32_t MIDIInstrument::getNextSelectableCC(int32_t cc, int32_t offset, bool inc
 			if (newCC == CC_EXTERNAL_MOD_WHEEL) {
 				// Mod wheel is represented by CC_NUMBER_Y_AXIS internally.
 				newCC += direction;
-				if (newCC < 0) {
-					newCC += numSelectableCCs;
-				}
-				else if (newCC >= numSelectableCCs) {
-					newCC -= numSelectableCCs;
-				}
 			}
 		}
 		// do we want to hide CC's without labels?
