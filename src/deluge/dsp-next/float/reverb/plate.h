@@ -57,7 +57,7 @@ struct Plate {
 		MUTABLE, ///< The Griesinger loop.
 		DIGITAL, ///< Dattorro's plate.
 	};
-	using Modes = ModeList<Mode::MUTABLE>;
+	using Modes = ModeList<Mode::MUTABLE, Mode::DIGITAL>;
 
 	static constexpr std::size_t kMemoryFloats = 32768;  ///< The ring.
 	static constexpr uint32_t kMask = kMemoryFloats - 1; ///< Wraps a ring index.
@@ -119,6 +119,56 @@ struct Plate {
 	static_assert(kDel1Tap + (kDel1Excursion * kLfoMin) >= 0.f && kDel2Tap + (kDel2Excursion * kLfoMin) >= 0.f);
 	static_assert(kMutable.del2.base + kMutable.del2.length < kMemoryFloats);
 
+	/// Lexicon's 29,761 Hz rate to ours: Dattorro's lengths and taps scale by it.
+	static constexpr float kRatio = 29761.f / kSampleRate;
+	/// Dattorro's ±16 frames of tank modulation at our rate. Named quirk: truncated to a whole number of frames (10).
+	static constexpr std::size_t kMaxExcursion = 16.f * kRatio;
+	/// A modulated read touches offset + 1, so a modulated line keeps one slot beyond its furthest reach.
+	static constexpr std::size_t kInterpolationGuard = 1;
+	static constexpr float kDecayMin = 0.1f; ///< DIGITAL's room knob mapping: Dattorro's decay range.
+	static constexpr float kDecayMax = 0.9f;
+	static constexpr float kInputDiffusion1 = 0.750f;
+	static constexpr float kInputDiffusion2 = 0.625f;
+	static constexpr float kDecayDiffusion1 = 0.70f;
+	static constexpr float kBandwidth = 0.9995f;
+	static constexpr float kTapGain = 0.6f;
+
+	/// @brief DIGITAL's lines, laid out in this order. Named quirk: each length is float × kRatio truncated to whole
+	/// frames, as the topology's size_t lengths took it.
+	struct DigitalLines {
+		Line ap1, ap2, ap3, ap4, dap1a, del1a, dap1b, del1b, dap2a, del2a, dap2b, del2b;
+	};
+	static constexpr DigitalLines kDigital = [] consteval {
+		uint32_t base = 0;
+		const auto line = [&base](std::size_t length) {
+			const Line l{base, static_cast<uint32_t>(length)};
+			base += static_cast<uint32_t>(length) + 1;
+			return l;
+		};
+		return DigitalLines{
+		    .ap1 = line(142 * kRatio),
+		    .ap2 = line(107 * kRatio),
+		    .ap3 = line(379 * kRatio),
+		    .ap4 = line(277 * kRatio),
+		    .dap1a = line((672 * kRatio) + kMaxExcursion + kInterpolationGuard),
+		    .del1a = line(4453 * kRatio),
+		    .dap1b = line(1800 * kRatio),
+		    .del1b = line(3720 * kRatio),
+		    .dap2a = line((908 * kRatio) + kMaxExcursion + kInterpolationGuard),
+		    .del2a = line(4217 * kRatio),
+		    .dap2b = line(2656 * kRatio),
+		    .del2b = line(3163 * kRatio),
+		};
+	}();
+	/// @return An output tap's offset. Named quirk: float × kRatio truncated to int32, as the line's at() took it.
+	/// consteval, so each tap is a constant at its use: a constexpr function is a call per frame under
+	/// -fno-inline-functions.
+	[[nodiscard]] static consteval int32_t tap(int32_t frames) { return static_cast<int32_t>(frames * kRatio); }
+	// Each modulated read at its furthest, plus the slot after, stays inside its line (the output taps: below).
+	static_assert(static_cast<std::size_t>(672.0f * kRatio) + kMaxExcursion + 1 <= kDigital.dap1a.length);
+	static_assert(static_cast<std::size_t>(908.0f * kRatio) + kMaxExcursion + 1 <= kDigital.dap2a.length);
+	static_assert(kDigital.del2b.base + kDigital.del2b.length < kMemoryFloats);
+
 	/// @brief What the owner sets: the mode and the knobs, each 0 to 1.
 	struct Settings {
 		Mode mode = Mode::MUTABLE;
@@ -162,7 +212,8 @@ struct Plate {
 	[[nodiscard]] static Coefficients coefficients(const Settings& s) {
 		Coefficients c{};
 		c.mode = s.mode;
-		c.reverb_time = util::map(s.room_size, 0.f, 1.f, kReverbTimeMin, kReverbTimeMax);
+		c.reverb_time = s.mode == Mode::DIGITAL ? util::map(s.room_size, 0.f, 1.f, kDecayMin, kDecayMax)
+		                                        : util::map(s.room_size, 0.f, 1.f, kReverbTimeMin, kReverbTimeMax);
 		c.diffusion = util::map(s.width, 0.f, 1.f, kWidthMin, kWidthMax);
 		// 0 is no damping, 1 as dark as the loop filter goes, on a log curve so the change spreads over the knob.
 		const float damping = std::clamp(std::log2((s.damping * 50.f) + 1.f) / 5.7f, 0.f, 1.f);
@@ -182,7 +233,12 @@ struct Plate {
 		step_write(c, s);
 		const float input = static_cast<float>(*s.send) / kQ31Max;
 		++s.send;
-		return mutable_frame(c, s, x, input);
+		if constexpr (M == Mode::MUTABLE) {
+			return mutable_frame(c, s, x, input);
+		}
+		else {
+			return digital_frame(c, s, x, input);
+		}
 	}
 
 	static void set_memory(State& s, float* memory) { s.memory = memory; }
@@ -266,6 +322,84 @@ private:
 		return {.l = wrapping_add(x.l, multiply_32x32_rshift32_rounded(output_left, s.pan_l)),
 		        .r = wrapping_add(x.r, multiply_32x32_rshift32_rounded(output_right, s.pan_r))};
 	}
+	/// @return The modulated allpass: the tail read at offset + amplitude × lfo, scaled into the head, written, then
+	/// the head scaled back plus the read out.
+	[[nodiscard]] [[gnu::always_inline]] static float allpass_modulated(float* m, int32_t w, Line line, float acc,
+	                                                                    float offset, float lfo, float amplitude,
+	                                                                    float scale) {
+		offset += amplitude * lfo;
+		const float read = interpolate(m, w, line, offset);
+		acc += read * scale;
+		at(m, w, line, 0) = acc;
+		acc *= -scale;
+		acc += read;
+		return acc;
+	}
+	/// @return A plain delay over @p line: the head written, the tail (length frames ago) out.
+	[[nodiscard]] [[gnu::always_inline]] static float delay(float* m, int32_t w, Line line, float acc) {
+		at(m, w, line, 0) = acc;
+		return at(m, w, line, static_cast<int32_t>(line.length));
+	}
+	/// @brief One Digital frame: the input band-limited and diffused, then the figure of eight, then the output taps.
+	[[nodiscard]] [[gnu::always_inline]] static StereoSample digital_frame(const Coefficients& c, State& s,
+	                                                                       StereoSample x, float input) {
+		const float kdecay = c.reverb_time;
+		const float kdd2 = c.decay_diffusion_2;
+		const float kdamp = c.lp;
+		float* const m = s.memory;
+		const int32_t w = s.write;
+		float acc = input;
+		acc = one_pole(s.lp_band, acc, kBandwidth);
+		acc = allpass(m, w, kDigital.ap1, acc, kInputDiffusion1);
+		acc = allpass(m, w, kDigital.ap2, acc, kInputDiffusion1);
+		acc = allpass(m, w, kDigital.ap3, acc, kInputDiffusion2);
+		acc = allpass(m, w, kDigital.ap4, acc, kInputDiffusion2);
+		const float apout = acc;
+
+		// The figure of eight: branch one closes the loop on del2b's tail; branch two carries on from it.
+		acc = apout;
+		acc += kdecay * at(m, w, kDigital.del2b, static_cast<int32_t>(kDigital.del2b.length));
+		acc = allpass_modulated(m, w, kDigital.dap1a, acc, 672.0f * kRatio, PlateLfo::value(s.lfo)[1],
+		                        static_cast<float>(kMaxExcursion), -kDecayDiffusion1);
+		acc = delay(m, w, kDigital.del1a, acc);
+		acc = one_pole(s.lp_decay_1, acc, kdamp);
+		acc *= kdecay;
+		acc = allpass(m, w, kDigital.dap1b, acc, kdd2);
+		acc = delay(m, w, kDigital.del1b, acc);
+
+		acc *= kdecay;
+		acc += apout;
+		acc = allpass_modulated(m, w, kDigital.dap2a, acc, 908.0f * kRatio, PlateLfo::value(s.lfo)[0],
+		                        static_cast<float>(kMaxExcursion), -kDecayDiffusion1);
+		acc = delay(m, w, kDigital.del2a, acc);
+		acc = one_pole(s.lp_decay_2, acc, kdamp);
+		acc *= kdecay;
+		acc = allpass(m, w, kDigital.dap2b, acc, kdd2);
+		acc = delay(m, w, kDigital.del2b, acc);
+
+		float left = 0;
+		left += kTapGain * at(m, w, kDigital.del2a, tap(266));
+		left += kTapGain * at(m, w, kDigital.del2a, tap(2974));
+		left -= kTapGain * at(m, w, kDigital.dap2b, tap(1913));
+		left += kTapGain * at(m, w, kDigital.del2b, tap(1996));
+		left -= kTapGain * at(m, w, kDigital.del1a, tap(1990));
+		left -= kTapGain * at(m, w, kDigital.dap1b, tap(187));
+		left -= kTapGain * at(m, w, kDigital.del1b, tap(1066));
+		left = left - one_pole(s.hp_l, left, c.hp_cutoff);
+		left = one_pole(s.lp_l, left, c.lp_cutoff);
+
+		float right = 0;
+		right += kTapGain * at(m, w, kDigital.del1a, tap(353));
+		right += kTapGain * at(m, w, kDigital.del1a, tap(3627));
+		right -= kTapGain * at(m, w, kDigital.dap1b, tap(1228));
+		right += kTapGain * at(m, w, kDigital.del1b, tap(2673));
+		right -= kTapGain * at(m, w, kDigital.del2a, tap(2111));
+		right -= kTapGain * at(m, w, kDigital.dap2b, tap(335));
+		right -= kTapGain * at(m, w, kDigital.del2b, tap(121));
+		right = right - one_pole(s.hp_r, right, c.hp_cutoff);
+		right = one_pole(s.lp_r, right, c.lp_cutoff);
+		return mix(s, x, left, right);
+	}
 	/// @brief One Mutable frame: four input allpasses, then the two branches, each feeding the other's delay.
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample mutable_frame(const Coefficients& c, State& s,
 	                                                                       StereoSample x, float input) {
@@ -316,6 +450,21 @@ private:
 	}
 };
 
+// Every Digital output tap reads inside its line.
+static_assert(Plate::tap(266) <= static_cast<int32_t>(Plate::kDigital.del2a.length)
+              && Plate::tap(2974) <= static_cast<int32_t>(Plate::kDigital.del2a.length));
+static_assert(Plate::tap(2111) <= static_cast<int32_t>(Plate::kDigital.del2a.length)
+              && Plate::tap(1913) <= static_cast<int32_t>(Plate::kDigital.dap2b.length));
+static_assert(Plate::tap(335) <= static_cast<int32_t>(Plate::kDigital.dap2b.length)
+              && Plate::tap(1996) <= static_cast<int32_t>(Plate::kDigital.del2b.length));
+static_assert(Plate::tap(121) <= static_cast<int32_t>(Plate::kDigital.del2b.length)
+              && Plate::tap(1990) <= static_cast<int32_t>(Plate::kDigital.del1a.length));
+static_assert(Plate::tap(353) <= static_cast<int32_t>(Plate::kDigital.del1a.length)
+              && Plate::tap(3627) <= static_cast<int32_t>(Plate::kDigital.del1a.length));
+static_assert(Plate::tap(187) <= static_cast<int32_t>(Plate::kDigital.dap1b.length)
+              && Plate::tap(1228) <= static_cast<int32_t>(Plate::kDigital.dap1b.length));
+static_assert(Plate::tap(1066) <= static_cast<int32_t>(Plate::kDigital.del1b.length)
+              && Plate::tap(2673) <= static_cast<int32_t>(Plate::kDigital.del1b.length));
 static_assert(processor_kernel<Plate>);
 static_assert(!std::is_polymorphic_v<Plate>);
 } // namespace deluge::dsp::fp
