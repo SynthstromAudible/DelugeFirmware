@@ -88,7 +88,8 @@ inline constexpr int32_t kEnvMax = 1 << 14;
 /// @brief A MkI op attenuated beyond this at both ends of a block is inaudible and skipped.
 inline constexpr int32_t kMkILevelThresh = kEnvMax - 100;
 
-/// @brief The longest block a voice renders, in samples: 128 plus the asm kernel's padding.
+/// @brief The longest block a voice renders, in samples: the voice adapter's block buffer, which a block never fills
+/// past its length.
 inline constexpr std::size_t kMaxBlock = 132;
 
 /// @brief @p base divided by n, given @p inv_n = 2^30 / n: a block's per-sample step.

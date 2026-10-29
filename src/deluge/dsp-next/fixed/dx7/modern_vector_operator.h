@@ -1,4 +1,4 @@
-// Based on Dexed's neon_fm_kernel (Copyright 2013 Google Inc., Apache License 2.0).
+// Based on Dexed's NEON FM operator kernel (Copyright 2013 Google Inc., Apache License 2.0).
 
 /*
  * Copyright © 2026 Synthstrom Audible Limited
