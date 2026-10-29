@@ -19,6 +19,16 @@ LEVELS = ("unit", "component", "integration")
 RUNNERS = ("ctest", "cargo", "scenario", "script")
 # Cumulative, in this order: selecting a tier selects every tier before it too.
 TIERS = ("pr", "nightly", "manual")
+# CI runs each group as one job. A group naming a product runs against that product built once by an earlier job
+# (`dbt test --prebuilt`), so its tests may build nothing else; a group naming None builds its own.
+GROUPS = {
+    "render": "golden-vt-render",
+    "app": "golden-vt-render",
+    "model": "golden-vt-render",
+    "storage": None,
+    "unit": None,
+    "tooling": None,
+}
 
 # Requirement key -> how to satisfy it. Every key a registry entry may name must
 # appear here; `dbt test --doctor` prints the value when the probe fails.
@@ -68,6 +78,7 @@ class Harness:
     tree: str = ""
     configure: list[str] = field(default_factory=list)
     ctest_args: list[str] = field(default_factory=list)
+    group: str = ""
     # A JUnit file the run leaves behind, relative to the repo root; `${CARGO_TARGET_DIR}` is expanded.
     junit: str = ""
     # Build products (test_builds.py) the runner makes before this test runs.
@@ -98,6 +109,7 @@ def load_registry(root: Path) -> list[Harness]:
             "status",
             "gates",
             "tier",
+            "group",
         ):
             if not item.get(required):
                 raise ValueError(f"{where}: missing required field '{required}'")
@@ -107,6 +119,7 @@ def load_registry(root: Path) -> list[Harness]:
             ("level", LEVELS),
             ("runner", RUNNERS),
             ("tier", TIERS),
+            ("group", tuple(GROUPS)),
         ):
             if item[key] not in allowed:
                 raise ValueError(
@@ -137,6 +150,12 @@ def load_registry(root: Path) -> list[Harness]:
             raise ValueError(f"{where}: missing required field 'run'")
         if item.get("check") and not (root / item["check"]).is_file():
             raise ValueError(f"{where}: check '{item['check']}' does not exist")
+
+        prebuilt = GROUPS[item["group"]]
+        if prebuilt and item.get("builds", []) != [prebuilt]:
+            raise ValueError(
+                f"{where}: group '{item['group']}' runs prebuilt, so a test in it builds only {prebuilt}"
+            )
 
         known_products = test_builds.products(root)
         for product in item.get("builds", []):
@@ -181,6 +200,7 @@ def load_registry(root: Path) -> list[Harness]:
                 markers=item.get("markers", []),
                 result=item.get("result", ""),
                 check=item.get("check", ""),
+                group=item["group"],
             )
         )
 
@@ -262,29 +282,46 @@ def probe(requirement: str, root: Path) -> bool:
             return False
 
 
+def ci_matrix(selection: list[Harness]) -> dict:
+    """The CI matrix for `selection`: one entry per group that has a selected test, in GROUPS order."""
+    return {
+        "include": [
+            {
+                "group": group,
+                "tests": " ".join(h.name for h in selection if h.group == group),
+                "prebuilt": prebuilt or "",
+            }
+            for group, prebuilt in GROUPS.items()
+            if any(h.group == group for h in selection)
+        ]
+    }
+
+
 def markdown_table(harnesses: list[Harness]) -> str:
     """The generated table for tests/README.md."""
     lines = [
-        "| Test | Level | Runner | Kind | Status | Gates | Tier | Runtime |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| Test | Level | Runner | Kind | Status | Gates | Tier | Group | Runtime |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for h in harnesses:
         # Escape pipes in fields to preserve table structure
         escaped_gates = h.gates.replace("|", "\\|")
         escaped_runtime = h.runtime.replace("|", "\\|")
         lines.append(
-            f"| {h.name} | {h.level} | {h.runner} | {h.kind} | {h.status} | {escaped_gates} | {h.tier} "
+            f"| {h.name} | {h.level} | {h.runner} | {h.kind} | {h.status} | {escaped_gates} | {h.tier} | {h.group} "
             f"| {escaped_runtime} |"
         )
     return "\n".join(lines) + "\n"
 
 
 __all__ = [
+    "GROUPS",
     "LEVELS",
     "PROBES",
     "RUNNERS",
     "TIERS",
     "Harness",
+    "ci_matrix",
     "load_registry",
     "markdown_table",
     "probe",

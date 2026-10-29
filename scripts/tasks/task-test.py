@@ -9,7 +9,7 @@
 ./dbt test --list [--markdown]               # the registry, with prerequisites resolved
 ./dbt test --doctor                          # what is missing, and how to get it
 ./dbt test --capture <label>                 # run the estate and record its marker lines
-./dbt test --ci-matrix --tier pr             # the selection as JSON, for a CI matrix
+./dbt test --ci-matrix --tier pr             # the selection by CI group, as JSON
 ./dbt test --clean                           # drop the shared cargo target dir
 """
 
@@ -80,7 +80,7 @@ def argparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--ci-matrix",
         action="store_true",
-        help="Print the selection as JSON for a CI matrix",
+        help="Print the selection as a CI matrix, one entry per registry group (JSON)",
     )
     parser.add_argument(
         "--strict",
@@ -541,7 +541,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if args.ci_matrix:
-        print(json.dumps({"test": [h.name for h in selection]}))
+        print(json.dumps(hr.ci_matrix(selection)))
         return 0
     if args.list:
         return cmd_list(root, selection, args.markdown, entries)

@@ -5,6 +5,7 @@ Run directly with:
     python3 scripts/tasks/test_harness_registry.py
 """
 
+import dataclasses
 import io
 import os
 import sys
@@ -33,6 +34,7 @@ run = ["cargo", "test"]
 requires = ["cargo"]
 tier = "pr"
 runtime = "~1m"
+group = "storage"
 """
 
 
@@ -49,6 +51,7 @@ source = "x"
 tree = "build/x"
 ctest_args = ["-C", "Debug"]
 tier = "pr"
+group = "unit"
 """
 
 
@@ -133,6 +136,26 @@ class LoadRegistryTest(unittest.TestCase):
         h = hr.load_registry(self._root_with(MINIMAL))[0]
         self.assertEqual(h.env, {})
 
+    def test_missing_group_is_rejected(self):
+        text = MINIMAL.replace('group = "storage"\n', "")
+        with self.assertRaises(ValueError) as cm:
+            hr.load_registry(self._root_with(text))
+        self.assertIn("missing required field 'group'", str(cm.exception))
+
+    def test_unknown_group_is_rejected(self):
+        text = MINIMAL.replace('group = "storage"', 'group = "misc"')
+        with self.assertRaises(ValueError) as cm:
+            hr.load_registry(self._root_with(text))
+        self.assertIn("group 'misc' must be one of", str(cm.exception))
+
+    def test_prebuilt_group_builds_only_its_product(self):
+        text = MINIMAL.replace('group = "storage"', 'group = "render"').replace(
+            'requires = ["cargo"]', 'builds = ["host-app"]\nrequires = ["cargo"]'
+        )
+        with self.assertRaises(ValueError) as cm:
+            hr.load_registry(self._root_with(text))
+        self.assertIn("builds only golden-vt-render", str(cm.exception))
+
     def test_missing_gates_is_rejected(self):
         text = MINIMAL.replace('gates = "alpha must equal beta"\n', "")
         with self.assertRaises(ValueError) as cm:
@@ -213,6 +236,7 @@ scenario = "gamma"
 markers = ["GA-ONE"]
 builds = ["golden-vt-render"]
 tier = "nightly"
+group = "render"
 """
 
     def _root_with(self, text):
@@ -389,7 +413,40 @@ class ProbeTest(unittest.TestCase):
             self.assertTrue(hr.probe("song-corpus", root))
 
 
+class CiMatrixTest(unittest.TestCase):
+    def test_ci_matrix_covers_every_test_once(self):
+        root = Path(__file__).resolve().parents[2]
+        selection = hr.select(hr.load_registry(root), [], [], "pr")
+        names = [
+            n for e in hr.ci_matrix(selection)["include"] for n in e["tests"].split()
+        ]
+        self.assertEqual(sorted(names), sorted(h.name for h in selection))
+        self.assertEqual(len(names), len(set(names)))
+
+    def test_ci_matrix_entry_shape(self):
+        selection = [
+            dataclasses.replace(entry("a"), group="unit"),
+            dataclasses.replace(entry("r"), group="render"),
+            dataclasses.replace(entry("b"), group="unit"),
+        ]
+        self.assertEqual(
+            hr.ci_matrix(selection),
+            {
+                "include": [
+                    {"group": "render", "tests": "r", "prebuilt": "golden-vt-render"},
+                    {"group": "unit", "tests": "a b", "prebuilt": ""},
+                ]
+            },
+        )
+
+
 class MarkdownTableTest(unittest.TestCase):
+    def test_table_has_a_group_column_after_tier(self):
+        table = hr.markdown_table(hr.load_registry(self._root()))
+        header = [c.strip() for c in table.split("\n")[0].strip("|").split("|")]
+        self.assertEqual(header[header.index("Tier") + 1], "Group")
+        self.assertIn("| pr | storage |", table)
+
     def test_table_has_a_row_per_harness(self):
         entries = hr.load_registry(self._root())
         table = hr.markdown_table(entries)
@@ -408,9 +465,9 @@ class MarkdownTableTest(unittest.TestCase):
         header_row = lines[0]
         data_row = lines[2]
         # One more pipe than columns: leading, one between each pair, trailing.
-        self.assertEqual(header_row.count("|"), 9)
+        self.assertEqual(header_row.count("|"), 10)
         # The escaped pipe adds one to the data row without adding a column.
-        self.assertEqual(data_row.count("|"), 10)
+        self.assertEqual(data_row.count("|"), 11)
 
     def _root(self):
         root = Path(tempfile.mkdtemp())
