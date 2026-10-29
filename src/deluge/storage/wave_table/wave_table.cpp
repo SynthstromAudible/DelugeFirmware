@@ -16,9 +16,9 @@
  */
 
 #include "storage/wave_table/wave_table.h"
-#include "NE10.h"
 #include "arm_neon_shim.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/fft/real_fft.h"
 #include "dsp-next/fixed/interpolation/interpolator.h"
 #include "dsp/fft/fft_config_manager.h"
 #include "io/debug/log.h"
@@ -38,6 +38,8 @@
 extern int32_t oscSyncRenderingBuffer[];
 
 using deluge::dsp::fixed::kWavetableDuplicateSamplesAtCycleEnd;
+using deluge::dsp::fixed::fft::Complex;
+using deluge::dsp::fixed::fft::RealFft;
 
 namespace {
 // RAII cleanup for WaveTable::setup's working allocations. At scope exit it frees whichever of the two temp
@@ -47,7 +49,7 @@ namespace {
 struct SetupAllocGuard {
 	WaveTable& waveTable;
 	int32_t*& currentCycleInt32;
-	ne10_fft_cpx_int32_t*& frequencyDomainData;
+	Complex*& frequencyDomainData;
 	// In-memory sample path only: the reusable file-cluster-aligned block buffer and the frame-reader temp,
 	// freed unconditionally on any exit (they are not needed past the cycle loop). Null on the file path.
 	void* sampleBlockAlloc = nullptr;
@@ -102,7 +104,7 @@ deluge::dsp::fixed::WaveTableData WaveTable::view() {
 #define lshiftAmount (16 + numBitsInTableSize - numBitsInInput)
 
 // This "should" handle inputs up to size 65536. Actually probably a bit bigger. Maybe even 131071?
-void dft_r2c(ne10_fft_cpx_int32_t* __restrict__ out, int32_t const* __restrict__ in, uint32_t N) {
+void dft_r2c(Complex* __restrict__ out, int32_t const* __restrict__ in, uint32_t N) {
 
 	// For each input value...
 	for (uint32_t i = 0; i <= (N >> 1); i++) {
@@ -232,7 +234,7 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 	}
 
 	AudioEngine::logAction("Getting fft config");
-	ne10_fft_r2c_cfg_int32_t fftCFGForInitialBand = FFTConfigManager::getConfig(initialBandCycleMagnitude);
+	const RealFft* fftCFGForInitialBand = FFTConfigManager::getConfig(initialBandCycleMagnitude);
 	AudioEngine::logAction("Got fft config");
 
 	// If that returned NULL, normally we can just opt to not do FFTs and have just 1 band.
@@ -274,7 +276,7 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 	// allocGuard.succeeded (see below). (No __restrict__: the guard binds references to these, and the qualifier is
 	// only an optimisation hint on these one-shot load-time buffers — it never affects the decoded output.)
 	int32_t* currentCycleInt32 = nullptr;
-	ne10_fft_cpx_int32_t* frequencyDomainData = nullptr;
+	Complex* frequencyDomainData = nullptr;
 	SetupAllocGuard allocGuard{*this, currentCycleInt32, frequencyDomainData};
 
 	AudioEngine::logAction("just started wavetable");
@@ -329,8 +331,7 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 	// And temporary FFT output (frequency domain) buffer. The same sizing considerations as above are needed, and we
 	// use that same decision here
 	// - except for frequency-domain complex numbers, we only need to store half of it, plus one.
-	frequencyDomainData = (ne10_fft_cpx_int32_t*)deluge::memory::alloc_fast(((currentCycleMemorySize >> 1) + 1)
-	                                                                        * sizeof(ne10_fft_cpx_int32_t));
+	frequencyDomainData = (Complex*)deluge::memory::alloc_fast(((currentCycleMemorySize >> 1) + 1) * sizeof(Complex));
 	if (!frequencyDomainData) {
 		return Error::INSUFFICIENT_RAM; // allocGuard frees currentCycleInt32 + the bands.
 	}
@@ -629,7 +630,8 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 			}
 
 			// Perform the FFT, to frequency domain
-			ne10_fft_r2c_1d_int32_neon(frequencyDomainData, currentCycleInt32, fftCFGForInitialBand, false);
+			fftCFGForInitialBand->forward({currentCycleInt32, size_t{1} << initialBandCycleMagnitude},
+			                              {frequencyDomainData, (size_t{1} << (initialBandCycleMagnitude - 1)) + 1});
 		}
 
 		AudioEngine::logAction("got freq domain data");
@@ -660,7 +662,7 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 				// The highest frequency we can represent (the Nyquist freq) is about to lose all trace of its imaginary
 				// component (fun fact - that's just what happens)
 				// - so cheat a little and put that into the real component.
-				ne10_fft_cpx_int32_t* nyquistFreq = &frequencyDomainData[(band->cycleSizeNoDuplicates >> 1)];
+				Complex* nyquistFreq = &frequencyDomainData[(band->cycleSizeNoDuplicates >> 1)];
 				int32_t pythagValue = fastPythag(nyquistFreq->r, nyquistFreq->i);
 				if (nyquistFreq->r < 0) {
 					pythagValue = -pythagValue;
@@ -670,7 +672,7 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 			}
 
 transformBandToTimeDomain:
-			ne10_fft_r2c_cfg_int32_t fftCFGThisBand =
+			const RealFft* fftCFGThisBand =
 			    FFTConfigManager::getConfig(band->cycleSizeMagnitude); // Just gets the config, doesn't do the FFT.
 
 			// If couldn't get FFT config, gotta delete this band
@@ -685,7 +687,8 @@ transformBandToTimeDomain:
 			AudioEngine::logAction("doing FFT to time domain");
 
 			// Do the FFT, putting the output, time-domain data back in the temp currentCycleInt32 buffer.
-			ne10_fft_c2r_1d_int32_neon(currentCycleInt32, frequencyDomainData, fftCFGThisBand, false);
+			fftCFGThisBand->inverse({frequencyDomainData, (size_t{1} << (band->cycleSizeMagnitude - 1)) + 1},
+			                        {currentCycleInt32, size_t{1} << band->cycleSizeMagnitude});
 
 			int16_t* __restrict__ destination =
 			    &band->dataAccessAddress[(band->cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd)

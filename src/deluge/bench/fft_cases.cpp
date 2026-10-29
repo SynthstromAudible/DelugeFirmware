@@ -21,7 +21,7 @@
 
 #include "bench/cases.h"
 
-#include "NE10.h"
+#include "dsp-next/fixed/fft/real_fft.h"
 #include "dsp-next/fixed/noise/noise.h"
 #include "dsp/fft/fft_config_manager.h"
 #include "memory/general_memory_allocator.h"
@@ -30,6 +30,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <span>
 
 namespace deluge::bench {
 
@@ -40,9 +41,9 @@ constexpr int32_t kMaxMagnitude = 13;
 
 /// @brief One size's transform and buffers, shared by its forward and inverse cases.
 struct FftRig {
-	ne10_fft_r2c_cfg_int32_t config = nullptr;
-	int32_t* samples = nullptr;           ///< 2^m samples: the forward's input, the inverse's output.
-	ne10_fft_cpx_int32_t* bins = nullptr; ///< 2^(m-1)+1 bins: the forward's output, the inverse's input.
+	const dsp::fixed::fft::RealFft* config = nullptr;
+	std::span<int32_t> samples;               ///< 2^m samples: the forward's input, the inverse's output.
+	std::span<dsp::fixed::fft::Complex> bins; ///< 2^(m-1)+1 bins: the forward's output, the inverse's input.
 };
 
 std::array<FftRig, kMaxMagnitude + 1> rigs{};
@@ -59,11 +60,13 @@ void FftCase::setup(std::size_t /*n*/) {
 			return;
 		}
 	}
-	if (rig.samples == nullptr) {
+	if (rig.samples.empty()) {
 		const std::size_t num_samples = std::size_t{1} << m;
 		const std::size_t num_bins = (num_samples / 2) + 1;
-		rig.samples = static_cast<int32_t*>(delugeAlloc(num_samples * sizeof(int32_t), false));
-		rig.bins = static_cast<ne10_fft_cpx_int32_t*>(delugeAlloc(num_bins * sizeof(ne10_fft_cpx_int32_t), false));
+		rig.samples = {static_cast<int32_t*>(delugeAlloc(num_samples * sizeof(int32_t), false)), num_samples};
+		rig.bins = {
+		    static_cast<dsp::fixed::fft::Complex*>(delugeAlloc(num_bins * sizeof(dsp::fixed::fft::Complex), false)),
+		    num_bins};
 		dsp::fixed::SeededNoise noise{kFftSeed};
 		if (config_.inverse) {
 			for (std::size_t k = 0; k < num_bins; ++k) {
@@ -81,11 +84,14 @@ void FftCase::setup(std::size_t /*n*/) {
 
 void FftCase::block(std::size_t /*n*/) {
 	FftRig& rig = rigs[config_.magnitude];
+	if (rig.config == nullptr) {
+		return; // setup printed BENCH-ERROR
+	}
 	if (config_.inverse) {
-		ne10_fft_c2r_1d_int32_neon(rig.samples, rig.bins, rig.config, 0);
+		rig.config->inverse(rig.bins, rig.samples);
 	}
 	else {
-		ne10_fft_r2c_1d_int32_neon(rig.bins, rig.samples, rig.config, 0);
+		rig.config->forward(rig.samples, rig.bins);
 	}
 }
 

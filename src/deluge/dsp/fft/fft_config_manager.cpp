@@ -16,23 +16,49 @@
  */
 
 #include "dsp/fft/fft_config_manager.h"
+#include "memory/general_memory_allocator.h"
+#include "processing/engines/audio_engine.h"
 
-#define FFT_CONFIG_MAX_MAGNITUDE 13
+#include <array>
+#include <cstddef>
+#include <new>
+#include <span>
 
 namespace FFTConfigManager {
 
-ne10_fft_r2c_cfg_int32_t configs[FFT_CONFIG_MAX_MAGNITUDE + 1];
+namespace {
 
-ne10_fft_r2c_cfg_int32_t getConfig(int32_t magnitude) {
-	if (magnitude > FFT_CONFIG_MAX_MAGNITUDE)
-		return NULL;
+namespace fft = deluge::dsp::fixed::fft;
 
-	if (!configs[magnitude]) {
-		// Allocates and sets up. And we'll just never deallocate.
-		configs[magnitude] = ne10_fft_alloc_r2c_int32(1 << magnitude);
+/// Each size's transform, null until first used. The transform object lives at the front of its own block, before the
+/// tables and scratch it lends them, so the cache itself is one pointer per size.
+std::array<const fft::RealFft*, fft::kMaxMagnitude + 1> transforms{};
+
+/// Where a block's tables start: past the transform object, at the tables' alignment.
+constexpr std::size_t kTablesOffset = (sizeof(fft::RealFft) + alignof(fft::Complex) - 1) & ~(alignof(fft::Complex) - 1);
+
+} // namespace
+
+const fft::RealFft* getConfig(int32_t magnitude) {
+	if (magnitude < fft::kMinMagnitude || magnitude > fft::kMaxMagnitude) {
+		return nullptr;
 	}
-
-	return configs[magnitude];
+	if (transforms[magnitude] == nullptr) {
+		// Allocated once and never freed: every later transform of this size reuses it.
+		const std::size_t table_bytes = fft::storage_bytes(magnitude);
+		auto* block = static_cast<std::byte*>(delugeAlloc(kTablesOffset + table_bytes, true));
+		if (block == nullptr) {
+			return nullptr;
+		}
+		const fft::Layout layout = fft::lay_out({block + kTablesOffset, table_bytes}, magnitude);
+		fft::Twiddles twiddles = layout.twiddles;
+		fft::factor(twiddles);
+		fft::generate_stage_twiddles(twiddles);
+		AudioEngine::routineWithClusterLoading();
+		fft::generate_super_twiddles(twiddles);
+		transforms[magnitude] = new (block) fft::RealFft{twiddles, layout.scratch};
+	}
+	return transforms[magnitude];
 }
 
 } // namespace FFTConfigManager
