@@ -85,6 +85,7 @@ static CONTROLLER_UP: AtomicBool = AtomicBool::new(false);
 #[cfg(target_os = "none")]
 pub async fn boot_init() {
     let r = sd::init().await;
+    LAST_INIT_OK.store(r.is_ok(), Ordering::Release);
     // The pin mux + SDHI bring-up has run, so card-detect is meaningful now.
     CONTROLLER_UP.store(true, Ordering::Release);
     log::info!(
@@ -104,6 +105,32 @@ pub async fn boot_init() {
 static CARD_INIT_REQ: embassy_sync::signal::Signal<CriticalSectionRawMutex, ()> =
     embassy_sync::signal::Signal::new();
 
+/// Set while [`card_service`] identifies a card, so the not-ready level check in
+/// `deluge_block_poll_card_event` doesn't ask for another init meanwhile.
+#[cfg(target_os = "none")]
+static INIT_IN_FLIGHT: AtomicBool = AtomicBool::new(false);
+
+/// Whether the last identification (`boot_init` or [`card_service`]) succeeded and no removal has
+/// been seen since: the card the app mounted is the one in the slot.
+#[cfg(target_os = "none")]
+static LAST_INIT_OK: AtomicBool = AtomicBool::new(false);
+
+/// Whether a card the SDK stopped reporting ready should be identified again. A dropped transfer
+/// makes the SDK reset the controller and report not ready until `sd::init` runs, and with the card
+/// still in the slot no insertion edge comes, so the level decides: inserted and not ready now,
+/// after an identification that succeeded (`last_init_ok`). Not while an init is already running,
+/// which also reports not ready until it finishes. A card whose last init failed waits for the next
+/// insertion edge as before, so an unreadable card isn't retried in a loop.
+#[cfg(any(target_os = "none", test))]
+pub(crate) fn needs_reinit(
+    inserted: bool,
+    ready: bool,
+    last_init_ok: bool,
+    in_flight: bool,
+) -> bool {
+    inserted && !ready && last_init_ok && !in_flight
+}
+
 /// Re-identifies the card after a swap.
 ///
 /// Runs on a task because `sd::init()` needs timers (see `boot_init`). Nothing waits on it: the
@@ -113,22 +140,6 @@ static CARD_INIT_REQ: embassy_sync::signal::Signal<CriticalSectionRawMutex, ()> 
 /// Holds [`SD_BUS`] across the init so identification cannot interleave with another transfer.
 /// Storage-tier transfers wait and then run on the new card; interaction-tier transfers are refused
 /// while the card is not ready (see `acquire_bus`).
-/// Set while [`card_service`] identifies a card, so the not-ready level check in
-/// `deluge_block_poll_card_event` doesn't ask for another init meanwhile.
-#[cfg(target_os = "none")]
-static INIT_IN_FLIGHT: AtomicBool = AtomicBool::new(false);
-
-/// Whether a card the SDK stopped reporting ready should be identified again. A dropped transfer
-/// makes the SDK reset the controller and report not ready until `sd::init` runs, and with the card
-/// still in the slot no insertion edge comes, so the change decides: ready at the last poll
-/// (`was_ready`), inserted and not ready now. Not while an init is already running, which also
-/// reports not ready until it finishes. A card that was never ready, or whose init failed, waits
-/// for the next insertion edge as before, so an unreadable card isn't retried in a loop.
-#[cfg(any(target_os = "none", test))]
-pub(crate) fn needs_reinit(inserted: bool, ready: bool, was_ready: bool, in_flight: bool) -> bool {
-    inserted && !ready && was_ready && !in_flight
-}
-
 #[cfg(target_os = "none")]
 #[embassy_executor::task]
 pub async fn card_service() {
@@ -144,7 +155,9 @@ pub async fn card_service() {
             INIT_IN_FLIGHT.store(false, Ordering::Release);
             continue;
         }
-        match sd::init().await {
+        let r = sd::init().await;
+        LAST_INIT_OK.store(r.is_ok(), Ordering::Release);
+        match r {
             Ok(()) => log::info!("sd: card re-identified"),
             // Not fatal, and not retried here: an unreadable or half-seated card
             // leaves the app in its "ejected" state, still polling, and any later
@@ -530,6 +543,7 @@ pub extern "C" fn deluge_block_poll_card_event(unit: u8) -> DelugeCardEvent {
         // Before the report, so the app never acts on the ejection while the driver would still
         // accept a transfer against the old card.
         sd::invalidate();
+        LAST_INIT_OK.store(false, Ordering::Release);
         log::info!("sd: card removed");
         return CARD_EJECTED;
     }
@@ -538,6 +552,7 @@ pub extern "C" fn deluge_block_poll_card_event(unit: u8) -> DelugeCardEvent {
     // a card pulled during an init can leave `is_ready()` true with nothing latched.
     if sd::is_ready() && !sd::is_inserted() {
         sd::invalidate();
+        LAST_INIT_OK.store(false, Ordering::Release);
         log::info!("sd: card absent (level check)");
         return CARD_EJECTED;
     }
@@ -551,16 +566,13 @@ pub extern "C" fn deluge_block_poll_card_event(unit: u8) -> DelugeCardEvent {
         return CARD_INSERTED;
     }
 
-    // Still seated, ready at the last poll and not now, with no edge: the SDK reset the controller
-    // after a dropped transfer. Identify it again, quietly: it's the same card, so the app's mount
-    // stays valid.
-    static WAS_READY: AtomicBool = AtomicBool::new(false);
-    let ready = sd::is_ready();
-    let was_ready = WAS_READY.swap(ready, Ordering::Relaxed);
+    // Still seated, identified last time and not ready now, with no edge: the SDK reset the
+    // controller after a dropped transfer. Identify it again, quietly: no removal was seen, so it's
+    // the card the app mounted.
     if needs_reinit(
         sd::is_inserted(),
-        ready,
-        was_ready,
+        sd::is_ready(),
+        LAST_INIT_OK.load(Ordering::Acquire),
         INIT_IN_FLIGHT.load(Ordering::Acquire),
     ) {
         CARD_INIT_REQ.signal(());
@@ -614,10 +626,10 @@ mod reinit_tests {
     /// level decides.
     #[test]
     fn card_service_reinits_an_inserted_card_that_is_not_ready() {
-        // (inserted, ready, was ready at the last poll, init in flight)
+        // (inserted, ready, last init succeeded, init in flight)
         assert!(
             needs_reinit(true, false, true, false),
-            "was ready, now not, card still in: re-init"
+            "identified, now not ready, card still in: re-init"
         );
         assert!(
             !needs_reinit(true, true, true, false),
@@ -631,10 +643,11 @@ mod reinit_tests {
             !needs_reinit(true, false, true, true),
             "an init already running"
         );
-        // Never ready, or a failed init: wait for the next insertion edge rather than retry forever.
+        // The last init failed (or a removal was seen): wait for the next insertion edge rather than
+        // retry forever.
         assert!(
             !needs_reinit(true, false, false, false),
-            "not ready before either: no retry loop"
+            "last init failed: no retry loop"
         );
     }
 }
