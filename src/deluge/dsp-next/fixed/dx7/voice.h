@@ -141,6 +141,15 @@ private:
 	/// @brief Op @p op's envelope settings: its patch bytes, its output level and rate scaling, and @p extra_rate.
 	[[nodiscard]] Envelope::Settings env_settings(const Settings& s, std::size_t op, int32_t extra_rate) const;
 
+	/// @brief Configures op @p op's envelope for a block entering its stages at @p extra_rate. The rest of its settings
+	/// change only with the patch or the note, and start, release and retune configure them, so the block reuses them
+	/// rather than rebuilding them from the patch's bytes.
+	void with_extra_rate(std::size_t op, int32_t extra_rate) {
+		Envelope::Settings settings = env_[op].coefficients();
+		settings.extra_rate = extra_rate;
+		env_[op].configure(settings);
+	}
+
 	/// @brief The eight envelope bytes at @p offset (four rates, then four levels), copied as they lie: EnvelopeParams
 	/// has the patch's layout.
 	[[nodiscard]] static EnvelopeParams params_at(const PatchBytes& patch, std::size_t offset) {
@@ -214,6 +223,7 @@ void Voice<Noise>::retune(const Settings& s) {
 		env_[op].configure(env_settings(s, op, 0));
 		env_[op].template on<&Envelope::retune>();
 	}
+	pitch_env_.configure({pitch_params(s)});
 }
 
 template <class Noise>
@@ -230,7 +240,6 @@ bool Voice<Noise>::renderBlock(const Settings& s, Buffer out, const BlockInputs&
 	const int32_t senslfo = pitch_sens * (lfo_val - (1 << 23));
 	// |pmd · senslfo| < 2^32 · 2^31, so the shifted product is under 2^24 and abs never meets INT32_MIN
 	const int32_t pmod = std::abs(static_cast<int32_t>((static_cast<int64_t>(pmd) * senslfo) >> 39));
-	pitch_env_.configure({pitch_params(s)});
 	int32_t pitch_mod = pitch_env_.advance(n) + (pmod * (senslfo < 0 ? -1 : 1));
 	pitch_mod += in.base_pitch;
 
@@ -247,12 +256,12 @@ bool Voice<Noise>::renderBlock(const Settings& s, Buffer out, const BlockInputs&
 		const std::size_t off = op * kOpBytes;
 		if (((p[kOpSwitch] >> op) & 1) == 0) {
 			// a switched-off op's envelope still runs
-			env_[op].configure(env_settings(s, op, 0));
+			with_extra_rate(op, 0);
 			std::ignore = env_[op].advance(n);
 			continue;
 		}
 		graph.freq[op] = freq_lookup(*s.tables, p[off + 17] != 0 ? base_pitch_[op] : base_pitch_[op] + pitch_mod);
-		env_[op].configure(env_settings(s, op, in.rate_mod));
+		with_extra_rate(op, in.rate_mod);
 		int32_t level = env_[op].advance(n);
 		const auto ams = static_cast<int32_t>(kAmpModSens[p[off + 14] & 3]);
 		if (ams != 0) {
