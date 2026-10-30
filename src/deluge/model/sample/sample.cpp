@@ -243,8 +243,8 @@ void Sample::resetOverviewScan() {
 	for (int32_t c = 0; c < static_cast<int32_t>(overviewCacheSize()); c++) {
 		OverviewCacheEntry& cacheEntry = overviewCacheEntry(c);
 		cacheEntry.investigated = false;
-		cacheEntry.min = INT16_MAX;
-		cacheEntry.max = INT16_MIN;
+		cacheEntry.min = INT32_MAX;
+		cacheEntry.max = INT32_MIN;
 	}
 	overviewScanNextCluster = getFirstClusterIndexWithAudioData();
 	audioFileManager.overviewScanAllDone = false; // This sample now has work to pre-scan again (#4460)
