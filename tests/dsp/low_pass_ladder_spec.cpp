@@ -17,7 +17,7 @@
 
 // LowPassLadder: the transistor-ladder low-pass as a processor kernel, `Mono` and `Stereo`, with its noise a policy.
 // Against the reference (reference_filters.h) over every ladder workload (filter_workloads.h): each block's
-// output, the gain, the CONG draws (count and end state per block) and the whole state, at block lengths cycling 1–9,
+// output, the gain, the noise draws (count and end state per block) and the whole state, at block lengths cycling 1–9,
 // 24, 64 and 128, and what it renders must equal the record. Every mode change between the four modes carries the
 // state, and a seeded stream shows the draws are left before right in every frame.
 
@@ -27,14 +27,14 @@
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo.h"
-#include "dsp-next/fixed/noise/cong_noise.h"
+#include "dsp-next/fixed/noise/cong.h"
 #include "dsp-next/fixed/noise/congruential_step.h"
 #include "dsp-next/fixed/noise/noise.h"
 #include "filter_workload_records.h"
 #include "filter_workloads.h"
 #include "kernel_filters.h"
 #include "reference_filters.h"
-#include "util/waves.h" // synth_noise, CONG
+#include "util/synth_noise.h"
 
 #include <algorithm>
 #include <array>
@@ -227,12 +227,12 @@ std::vector<StereoSample> input_frames() {
 
 // clang-format off
 describe low_pass_ladder("LowPassLadder", ${
-	it("renders every ladder workload as the reference does, mono and stereo: each block's output, gain and CONG "
+	it("renders every ladder workload as the reference does, mono and stereo: each block's output, gain and noise "
 	   "draws, and the whole state", _ {
 		expect(partings(kLadderWorkloads)).to_equal(std::vector<std::string>{});
 	});
 
-	it("renders every ladder workload as recorded, the CONG draws per block included", _ {
+	it("renders every ladder workload as recorded, the noise draws per block included", _ {
 		for (const WorkloadId id : kLadderWorkloads) {
 			const filter_workloads::FilterWorkload& workload = filter_workloads::filter_workload(id);
 			expect(kernel_filters::record(workload)).to_equal(filter_workloads::kRecorded.at(static_cast<size_t>(id)));
@@ -287,7 +287,7 @@ describe low_pass_ladder("LowPassLadder", ${
 		expect(thresholds).to_be_greater_than(6u);
 	});
 
-	it("draws one CONG value per channel per sample, two when the drive ladder oversamples, and renders as the "
+	it("draws one noise value per channel per sample, two when the drive ladder oversamples, and renders as the "
 	   "reference does", _ {
 		// The drive settings at the rate and oversampled, as the reference chooses them.
 		ReferenceLowPassLadder at_rate;

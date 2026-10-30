@@ -61,7 +61,7 @@ void InputSource::prepareForNoteOn(OscType inputType) {
 
 void InputSource::render(int32_t* oscBuffer, int32_t numSamples, uint32_t phaseIncrement, int32_t sourceAmplitude,
                          int32_t amplitudeIncrement, bool stereoBuffer, bool stereoUnison, int32_t amplitudeL,
-                         int32_t amplitudeR, int32_t interpolationBufferSize) {
+                         int32_t amplitudeR, int32_t interpolationBufferSize, dsp::fixed::Cong& noise) {
 	// If pitch shifting and we weren't previously...
 	if (phaseIncrement != kMaxSampleValue) {
 
@@ -107,7 +107,7 @@ void InputSource::render(int32_t* oscBuffer, int32_t numSamples, uint32_t phaseI
 			memset(renderBuffer, 0, numSamples * sizeof(int32_t));
 
 			in_->reportHops(livePitchShifter_->render(renderBuffer, numSamples, phaseIncrement, sourceAmplitude,
-			                                          amplitudeIncrement, interpolationBufferSize, *in_));
+			                                          amplitudeIncrement, interpolationBufferSize, *in_, noise));
 
 			for (int32_t i = 0; i < numSamples; i++) {
 				oscBuffer[(i << 1)] += multiply_32x32_rshift32(renderBuffer[i], amplitudeL) << 2;
@@ -116,7 +116,7 @@ void InputSource::render(int32_t* oscBuffer, int32_t numSamples, uint32_t phaseI
 		}
 		else {
 			in_->reportHops(livePitchShifter_->render(oscBuffer, numSamples, phaseIncrement, sourceAmplitude,
-			                                          amplitudeIncrement, interpolationBufferSize, *in_));
+			                                          amplitudeIncrement, interpolationBufferSize, *in_, noise));
 		}
 	}
 
@@ -216,7 +216,7 @@ void InputSource::render(int32_t* oscBuffer, int32_t numSamples, uint32_t phaseI
 SourceRenderResult InputSource::renderSource(const SourceRenderContext& ctx) {
 	// Live input never self-unassigns; channel routing follows the channel latched at note-on (see render()).
 	render(ctx.oscBuffer, ctx.numSamples, ctx.phaseIncrement, ctx.sourceAmplitude, ctx.amplitudeIncrement,
-	       ctx.stereoBuffer, ctx.stereoUnison, ctx.amplitudeL, ctx.amplitudeR, ctx.interpolationBufferSize);
+	       ctx.stereoBuffer, ctx.stereoUnison, ctx.amplitudeL, ctx.amplitudeR, ctx.interpolationBufferSize, *ctx.noise);
 	return deluge::synth::SourceRenderResult::ACTIVE;
 }
 

@@ -9,7 +9,7 @@
 #include "definitions_cxx.hpp"
 #include "engines/effects/granular.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
-#include "util/waves.h"
+#include "util/synth_noise.h"
 
 #include <algorithm>
 #include <array>

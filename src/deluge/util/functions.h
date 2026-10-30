@@ -30,7 +30,7 @@
 #include "util/lookuptables/lookuptables.h"
 #include "util/name_compare.h"    // IWYU pragma: export - strcmpspecial and friends used to live here
 #include "util/param_functions.h" // IWYU pragma: export — param scaling/patching math (split out for the synth core)
-#include "util/waves.h"
+#include "util/synth_noise.h"
 #include <bit>
 #include <cstdint>
 #include <cstring>
@@ -160,11 +160,11 @@ PatchSource stringToSource(char const* string);
 char const* sourceToStringShort(PatchSource source);
 
 [[gnu::always_inline]] inline uint8_t getRandom255() {
-	return CONG >> 24;
+	return deluge::synth_noise.next() >> 24;
 }
 
 [[gnu::always_inline]] inline int32_t getNoise() {
-	return CONG;
+	return static_cast<int32_t>(deluge::synth_noise.next());
 }
 
 /// generates a triangle distribution from -1q31 to 1q31 centered on 0 (Irwin-Hall)

@@ -76,7 +76,7 @@ LivePitchShifter::~LivePitchShifter() {
 
 int32_t LivePitchShifter::render(int32_t* __restrict__ outputBuffer, int32_t numSamplesThisFunctionCall,
                                  int32_t phaseIncrement, int32_t amplitude, int32_t amplitudeIncrement,
-                                 int32_t interpolationBufferSize, AudioInputPort& port) {
+                                 int32_t interpolationBufferSize, AudioInputPort& port, dsp::fixed::Cong& noise) {
 
 	LiveInputBuffer* liveInputBuffer = port.bufferForChannel(inputType, false);
 	if (!liveInputBuffer) {
@@ -232,7 +232,8 @@ startRenderAgain:
 #endif
 
 	if (!samplesTilHopEnd) {
-		hopEnd(phaseIncrement, liveInputBuffer, numRawSamplesProcessedAtStart, liveInputBuffer->numRawSamplesProcessed);
+		hopEnd(phaseIncrement, liveInputBuffer, numRawSamplesProcessedAtStart, liveInputBuffer->numRawSamplesProcessed,
+		       noise);
 		++hopsEnded;
 		justDidHop = true;
 		goto startRenderAgain;
@@ -367,7 +368,8 @@ const int16_t randomFine[] = {
 const int16_t randomCoarse[] = {0, 0, 0, 80, 80};
 
 void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInputBuffer,
-                              uint64_t numRawSamplesProcessedAtNowTime, uint64_t numRawSamplesProcessedLatest) {
+                              uint64_t numRawSamplesProcessedAtNowTime, uint64_t numRawSamplesProcessedLatest,
+                              dsp::fixed::Cong& noise) {
 
 #if MEASURE_HOP_END_PERFORMANCE
 	uint16_t startTime = MTU2.TCNT_0;
@@ -509,8 +511,9 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 			// tried yet.
 
 #if !MEASURE_HOP_END_PERFORMANCE
-			minSearch +=
-			    (multiply_32x32_rshift32(minSearch, multiply_32x32_rshift32(getNoise(), randomElement << 8)) << 2);
+			minSearch += (multiply_32x32_rshift32(minSearch, multiply_32x32_rshift32(static_cast<int32_t>(noise.next()),
+			                                                                         randomElement << 8))
+			              << 2);
 #endif
 
 			int32_t backEdge = minSearch >> kPercBufferReductionMagnitude; // Pixellated

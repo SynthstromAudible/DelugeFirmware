@@ -36,7 +36,7 @@
 #include "dsp-next/fixed/filter/high_pass_ladder.h"
 #include "dsp-next/fixed/filter/low_pass_ladder.h"
 #include "dsp-next/fixed/filter/svf.h"
-#include "dsp-next/fixed/noise/cong_noise.h"
+#include "dsp-next/fixed/noise/cong.h"
 #include "filter_workloads.h"
 #include "reference_filters.h"
 #include "util/synth_noise.h"

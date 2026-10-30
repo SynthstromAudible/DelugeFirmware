@@ -29,7 +29,7 @@
 
 #include "bench/reference_chains.h"
 #include "chain_workloads.h"
-#include "util/waves.h"
+#include "util/synth_noise.h"
 
 #include <algorithm>
 #include <cppspec.hpp>

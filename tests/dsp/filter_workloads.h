@@ -25,11 +25,11 @@
 /// zeroing), the gain and the set's settings. A target reads only the settings it has: a lone low-pass ladder reads
 /// `low` and `low_slot.ladder`, a lone high-pass ladder `high`, a lone SVF `low` and `low_slot.svf`.
 ///
-/// The ladders draw from the synth-wide generator (`CONG`). Every run starts it at @ref kCongSeed, the app's boot
-/// value, and keeps its own copy between blocks, so two runs played side by side each see the stream they would see
-/// alone; around each block the caller's `synth_noise` is put back. Each block's draws are counted and their values
-/// digested, so a filter that draws one value more or less in a block, or moves a draw into another block, parts on
-/// the noise pin. A filter that draws the right values for the wrong samples (R before L, say) parts on the output
+/// The ladders draw from the synth's noise stream (`deluge::synth_noise`). Every run starts it at @ref kCongSeed, the
+/// app's boot value, and keeps its own copy between blocks, so two runs played side by side each see the stream they
+/// would see alone; around each block the caller's `synth_noise` is put back. Each block's draws are counted and their
+/// values digested, so a filter that draws one value more or less in a block, or moves a draw into another block, parts
+/// on the noise pin. A filter that draws the right values for the wrong samples (R before L, say) parts on the output
 /// and state pins, not on the noise pin.
 ///
 /// A run is generic over a family of implementations (@ref ReferenceFamily, or the firmware's in a spec), each
@@ -42,7 +42,7 @@
 #include "dsp-next/fixed/filter/filter_modes.h"
 #include "dsp-next/fixed/noise/congruential_step.h"
 #include "reference_filters.h"
-#include "util/waves.h" // synth_noise
+#include "util/synth_noise.h"
 
 #include <algorithm>
 #include <array>

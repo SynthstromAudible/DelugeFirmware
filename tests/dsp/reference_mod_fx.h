@@ -36,7 +36,7 @@
 #include "dsp-next/fixed/bandlimited/waves.h" // triangle
 #include "dsp-next/fixed/osc/sine_table.h"    // sine_table
 #include "util/fixedpoint.h"
-#include "util/waves.h" // the synth's noise stream (CONG) the warbler draws
+#include "util/synth_noise.h"
 
 #include <array>
 #include <cstddef>
@@ -73,7 +73,7 @@ struct Warbler {
 	int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples) {
 		phase_increment *= 2; // the warbler sweeps at twice the configured rate
 		if (phase + phase_increment * num_samples < phase) {
-			target_ = CONG;
+			target_ = deluge::synth_noise.next();
 			speed_ = 0;
 		}
 		int32_t distance_to_target = wrapping_sub(target_, held_value_);

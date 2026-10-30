@@ -17,7 +17,7 @@
 
 // HighPassLadder: the transistor-ladder high-pass as a processor kernel, `Mono` and `Stereo`. Against the
 // reference (reference_filters.h) over every high-pass workload (filter_workloads.h): each block's output, the gain,
-// the CONG draws (none) and the whole state, the saturator's position included, at block lengths cycling 1–9, 24, 64
+// the noise draws (none) and the whole state, the saturator's position included, at block lengths cycling 1–9, 24, 64
 // and 128; and what it renders must equal the record. Every coefficient equals the reference's configure across the
 // cutoff and resonance range, the saturator switches at the reference's resonances, and every switch between bypass,
 // tanh and the antialiased tanh carries the state.
@@ -33,7 +33,7 @@
 #include "filter_workloads.h"
 #include "kernel_filters.h"
 #include "reference_filters.h"
-#include "util/waves.h" // synth_noise, CONG
+#include "util/synth_noise.h"
 
 #include <array>
 #include <cppspec.hpp>
@@ -163,7 +163,7 @@ ChannelWords words(const ReferenceHighPassLadder::Channel& c) {
 
 // clang-format off
 describe high_pass_ladder("HighPassLadder", ${
-	it("renders every high-pass workload as the reference does, mono and stereo: each block's output, gain and CONG "
+	it("renders every high-pass workload as the reference does, mono and stereo: each block's output, gain and noise "
 	   "draws, and the whole state", _ {
 		expect(partings(kHighPassWorkloads)).to_equal(std::vector<std::string>{});
 	});

@@ -1732,8 +1732,8 @@ int32_t getNumSamplesLeftToOutputFromPreviousRender() {
 }
 
 // Independent white-noise PRNG for the master output dither — deliberately separate from the synth-wide
-// getNoise()/synth_noise stream (see the dither call site below). Same LCG recurrence as CONG, so the dither's
-// statistics are unchanged; only its state is private, so dithering can't perturb synth randomness.
+// getNoise()/synth_noise stream (see the dither call site below). Same LCG recurrence as the synth's Cong, so the
+// dither's statistics are unchanged; only its state is private, so dithering can't perturb synth randomness.
 [[gnu::always_inline]] inline int32_t outputDither() {
 	static uint32_t state = 380116160;
 	state = 69069 * state + 1234567;

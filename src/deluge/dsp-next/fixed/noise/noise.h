@@ -19,33 +19,16 @@
 #include "dsp-next/core/concepts.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/noise/cong.h"
-#include "util/waves.h"
 
 #include <cstdint>
 #include <type_traits>
 
 /// @file
-/// @brief The synth's noise stream as injectable components: the shared stream and a private one.
+/// @brief SeededNoise: a private noise stream as a generator component.
 
 namespace deluge::dsp::fixed {
 
-/// @brief The synth's one shared noise stream: the only shared state dsp-next touches.
-/// @details Every consumer (the app's CONG sites and any component holding a SharedNoise) draws from the single
-/// stream (`deluge::synth_noise`) in call order, so the noise each consumer gets depends on that order: reordering or
-/// adding draws changes the output.
-class SharedNoise {
-public:
-	using value_type = q31; ///< q31 noise samples.
-
-	/// @brief Advances the shared state exactly as CONG does.
-	/// @return The new state, reinterpreted as a q31 sample.
-	[[nodiscard, gnu::always_inline]] q31 render() { return static_cast<q31>(CONG); }
-};
-
-static_assert(sample_generator<SharedNoise>);
-static_assert(!std::is_polymorphic_v<SharedNoise>);
-
-/// @brief A private noise stream with the same step as the shared one, for specs and components that want their own.
+/// @brief A private noise stream with the synth's step, as a generator: for specs and components that want their own.
 class SeededNoise {
 public:
 	using value_type = q31; ///< q31 noise samples.

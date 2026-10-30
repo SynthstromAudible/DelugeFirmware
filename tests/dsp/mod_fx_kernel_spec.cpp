@@ -25,7 +25,7 @@
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/mod_fx/mod_fx_kernel.h"
-#include "dsp-next/fixed/noise/cong_noise.h"
+#include "dsp-next/fixed/noise/cong.h"
 #include "mod_fx_workloads.h"
 #include "reference_mod_fx.h"
 #include "util/synth_noise.h"

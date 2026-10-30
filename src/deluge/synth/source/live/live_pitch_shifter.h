@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/noise/cong.h"
 #include "synth/source/live/live_pitch_shifter_play_head.h"
 
 namespace deluge::synth {
@@ -36,7 +37,7 @@ public:
 	/// per-routine hop accounting (CPU-load spreading) — the pitch-shifter itself stays free of that global.
 	[[nodiscard]] int32_t render(int32_t* outputBuffer, int32_t numSamplesThisFunctionCall, int32_t phaseIncrement,
 	                             int32_t amplitude, int32_t amplitudeIncrement, int32_t interpolationBufferSize,
-	                             AudioInputPort& port);
+	                             AudioInputPort& port, dsp::fixed::Cong& noise);
 
 	bool mayBeRemovedWithoutClick();
 
@@ -67,7 +68,7 @@ public:
 
 private:
 	void hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInputBuffer, uint64_t numRawSamplesProcessed,
-	            uint64_t numRawSamplesProcessedLatest);
+	            uint64_t numRawSamplesProcessedLatest, dsp::fixed::Cong& noise);
 	void considerRepitchedBuffer(int32_t phaseIncrement);
 	bool olderPlayHeadIsCurrentlySounding();
 };

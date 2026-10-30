@@ -62,7 +62,7 @@ private:
 	/// is panned across it with @p amplitudeL / @p amplitudeR (the stereo-unison-spread fix).
 	void render(int32_t* oscBuffer, int32_t numSamples, uint32_t phaseIncrement, int32_t sourceAmplitude,
 	            int32_t amplitudeIncrement, bool stereoBuffer, bool stereoUnison, int32_t amplitudeL,
-	            int32_t amplitudeR, int32_t interpolationBufferSize);
+	            int32_t amplitudeR, int32_t interpolationBufferSize, dsp::fixed::Cong& noise);
 };
 
 } // namespace deluge::synth

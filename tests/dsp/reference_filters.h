@@ -21,9 +21,9 @@
 /// ladder, the high-pass ladder, the state-variable filter and the filter set.
 ///
 /// Each copy keeps the legacy arithmetic line for line, plain signed `+` and `-` included, and the ladders draw from
-/// the synth-wide generator through `CONG`, so a kernel checked against them is checked against the legacy output and
-/// noise stream as recorded. Each class keeps the legacy member layout. The copies add only const accessors and
-/// `digest`, which folds every member of the state into a @ref Digest.
+/// the synth-wide generator through `deluge::synth_noise.next()`, so a kernel checked against them is checked against
+/// the legacy output and noise stream as recorded. Each class keeps the legacy member layout. The copies add only const
+/// accessors and `digest`, which folds every member of the state into a @ref Digest.
 ///
 /// The copies whose plain sums overflow at full scale, as the legacy code's do (the target's `add` and `sub` wrap), are
 /// marked @ref DELUGE_REFERENCE_LEGACY_ARITHMETIC: the UBSan tree leaves their overflow unchecked, so a spec running a
@@ -47,7 +47,7 @@
 #include "dsp-next/fixed/shaping/tanh_table.h"
 #include "util/fixedpoint.h"
 #include "util/param_functions.h" // lshiftAndSaturate, lshiftAndSaturateUnknown
-#include "util/waves.h"           // the synth-wide noise generator (synth_noise, CONG)
+#include "util/synth_noise.h"
 
 #include <algorithm>
 #include <array>
@@ -286,13 +286,14 @@ inline constexpr std::array<int16_t, 65> kResonanceLimits = {
 
 /// The next value of the synth-wide noise generator, Q31 across its full range.
 [[gnu::always_inline]] inline q31 draw_ladder_noise() {
-	return static_cast<q31>(CONG);
+	return static_cast<q31>(deluge::synth_noise.next());
 }
 
 } // namespace detail
 
 /// @brief The legacy transistor-ladder low-pass, copied: 12dB, 24dB and drive, mono or stereo, with its fade. One
-/// `CONG` draw per channel per sample, left before right; two per sample when the drive ladder oversamples.
+/// `deluge::synth_noise.next()` draw per channel per sample, left before right; two per sample when the drive ladder
+/// oversamples.
 class ReferenceLowPassLadder {
 public:
 	/// One channel's ladder: its noise follower (Q31, a quarter of the noise's range) and its four sections.

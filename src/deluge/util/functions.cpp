@@ -791,7 +791,7 @@ int32_t getLookupIndexFromValue(int32_t value, const int32_t* table, int32_t max
 }
 
 int32_t random(int32_t upperLimit) {
-	return (uint16_t)(CONG >> 16) % (upperLimit + 1);
+	return (uint16_t)(deluge::synth_noise.next() >> 16) % (upperLimit + 1);
 }
 
 uint32_t getOscInitialPhaseForZero(OscType waveType) {

@@ -19,7 +19,7 @@
 #include <cstdint>
 
 /// @file
-/// @brief The synth's noise step, defined once for the app's CONG macro and for dsp-next's noise components.
+/// @brief The synth's noise step, defined once for @ref Cong and @ref SeededNoise.
 
 namespace deluge::dsp::fixed {
 

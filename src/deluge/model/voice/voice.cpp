@@ -1510,6 +1510,7 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	    .priorityRating = static_cast<int32_t>(getPriorityRating()),                   // sample (snapshot once)
 	    .phaseIncrementStoredValue = voiceUnisonPartSource->phaseIncrementStoredValue, // sample late-start
 	    .pitchModDisallowsCache = pitchModDisallowsCache,                              // sample caching policy
+	    .noise = &deluge::synth_noise,                                                 // live-input hop search
 	};
 
 	// sample → sampleSource, DX7 → dx7Source, INPUT_* → inputSource, wavetable → wavetableSource, supersaw →

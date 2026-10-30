@@ -23,7 +23,8 @@
 /// @ref deluge::dsp::test::ReferenceGranular differs from it only where the test has no firmware around it:
 ///  - the ring is an owned array with a `held` flag, where the firmware holds a heap block; every acquisition of the
 ///    ring zeroes it, as the host allocator does, so a slot read before it is written since the acquisition reads 0;
-///  - the noise draws (`CONG`, `random`, `getRandom255`, `sampleTriangleDistribution`) go through a Noise policy that
+///  - the noise draws (`deluge::synth_noise.next()`, `random`, `getRandom255`, `sampleTriangleDistribution`) go through
+///  a Noise policy that
 ///    defaults to the global `synth_noise`;
 ///  - the reverb feed (`AudioEngine::feedReverbBackdoorForGrain`) adds into a span argument, wrapping;
 ///  - every add that can wrap is a wrapping one, so the spec's signed-overflow sanitizer sees the same two's-complement
@@ -42,7 +43,7 @@
 #include "dsp-next/fixed/vca/pan.h"
 #include "granular_ring.h"
 #include "util/fixedpoint.h"
-#include "util/waves.h" // CONG, synth_noise
+#include "util/synth_noise.h"
 
 #include <algorithm>
 #include <array>
@@ -53,10 +54,11 @@
 
 namespace deluge::dsp::test {
 
-/// @brief The synth-wide noise generator: the stream `CONG` steps, which the app's granular draws from.
+/// @brief The synth-wide noise generator: the stream `deluge::synth_noise.next()` steps, which the app's granular draws
+/// from.
 struct GlobalNoise {
 	/// @return The next word of the global stream.
-	[[nodiscard]] static uint32_t next() { return CONG; }
+	[[nodiscard]] static uint32_t next() { return deluge::synth_noise.next(); }
 };
 
 /// @brief The app's granular processor, copied line for line: what the kernel must match.

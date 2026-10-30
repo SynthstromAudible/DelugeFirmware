@@ -2,7 +2,6 @@
 #include "dsp-next/fixed/noise/cong.h"
 #include "dsp-next/fixed/noise/noise.h"
 #include "util/synth_noise.h"
-#include "util/waves.h" // the interim CONG, until every draw is injected
 
 #include <cppspec.hpp>
 #include <vector>
@@ -54,7 +53,7 @@ describe noise("the synth's noise stream", ${
 		Cong local = deluge::synth_noise;
 		std::vector<uint32_t> drawn{local.next(), local.next()};
 		deluge::synth_noise = local;
-		drawn.push_back(static_cast<uint32_t>(CONG));
+		drawn.push_back(deluge::synth_noise.next());
 		expect(drawn).to_equal(reference(777, 3));
 	});
 

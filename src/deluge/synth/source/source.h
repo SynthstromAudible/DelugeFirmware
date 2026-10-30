@@ -16,9 +16,10 @@
  */
 #pragma once
 
-#include "dsp-next/core/phasor.h"                     // deluge::dsp::Phasor
-#include "dsp-next/core/ramp.h"                       // deluge::dsp::Ramp
-#include "dsp-next/core/types.h"                      // deluge::dsp::fixed::Buffer
+#include "dsp-next/core/phasor.h" // deluge::dsp::Phasor
+#include "dsp-next/core/ramp.h"   // deluge::dsp::Ramp
+#include "dsp-next/core/types.h"  // deluge::dsp::fixed::Buffer
+#include "dsp-next/fixed/noise/cong.h"
 #include "dsp-next/fixed/wavetable/wave_table_data.h" // deluge::dsp::fixed::WaveTableData (storage-independent view)
 #include <cstdint>
 #include <optional>
@@ -101,6 +102,7 @@ struct SourceRenderContext {
 	int32_t priorityRating;             ///< sample only: voice-cull priority (caching + the VoiceSample render)
 	uint32_t phaseIncrementStoredValue; ///< sample only: pre-modulation phase increment (the late-start maths)
 	bool pitchModDisallowsCache;        ///< sample only: a changeable patch source modulates pitch ⇒ skip caching
+	deluge::dsp::fixed::Cong* noise;    ///< live-input only: the noise stream the pitch shift's hop search draws from
 };
 
 /// @brief The L1 **Source** contract: render one unison part of one source's full contribution for this block,
