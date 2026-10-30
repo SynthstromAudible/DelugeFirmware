@@ -31,6 +31,14 @@ WaveformPeak scanClusterPeak(const char* clusterData, int32_t startByte, int32_t
 	return peak;
 }
 
+int8_t toCoarsePeak(int32_t value) {
+	int8_t coarse = static_cast<int8_t>(value >> 24);
+	if (value < 0) {
+		coarse++; // round toward zero
+	}
+	return coarse;
+}
+
 int32_t lastAudioClusterEndByte(uint64_t numValidBytes, uint32_t audioDataStartPosBytes, int32_t clusterSize) {
 	uint64_t totalEnd = numValidBytes + audioDataStartPosBytes;
 	return static_cast<int32_t>(((totalEnd - 1) & static_cast<uint64_t>(clusterSize - 1)) + 1);

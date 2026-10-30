@@ -22,6 +22,17 @@ TEST(WaveformPeakMath, LastClusterEndByteMidClusterIsRemainder) {
 	CHECK_EQUAL(1000, lastAudioClusterEndByte(numValidBytes, start, kSize));
 }
 
+// toCoarsePeak: round toward zero.
+TEST(WaveformPeakMath, CoarsePeakRoundsTowardZero) {
+	CHECK_EQUAL(0, toCoarsePeak(0));
+	CHECK_EQUAL(127, toCoarsePeak(127 << 24));
+	// INT32_MIN >> 24 == -128, then +1 for negatives == -127. Matches the production formula
+	// (waveform_renderer.cpp), which unconditionally adds 1 to negatives, so -128 is never produced.
+	CHECK_EQUAL(-127, toCoarsePeak(-128 << 24));
+	CHECK_EQUAL(0, toCoarsePeak(-1));          // small negative rounds toward zero
+	CHECK_EQUAL(-1, toCoarsePeak(-(2 << 24))); // -2.something -> -1 after +1
+}
+
 // clusterStartByte: no 32-bit overflow past 2 GB.
 TEST(WaveformPeakMath, ClusterStartByteNoOverflow) {
 	// cluster 70000 * 32768 = 2293760000, which overflows int32.

@@ -19,24 +19,20 @@
 
 #include <cstdint>
 
-/// @brief One entry in the per-cluster-index waveform overview cache (issue #4460): the min/max peak
-///        found while scanning a cluster's whole length, plus whether that scan has completed.
-///
-/// The peaks are exact. A column reuses them once the background scan has been there and reads the
-/// samples itself otherwise, and the waveform is scaled to the sample's own peak, so anything coarser
-/// would draw a quiet sample differently depending on which came first.
+/// @brief One entry in the per-cluster-index waveform overview cache (issue #4460): the coarse min/max
+///        peak found while scanning a cluster's whole length, plus whether that scan has completed.
 ///
 /// `Sample`-owned (in `Sample::overviewCache_`, model/sample/sample.h), one entry per cluster.
 /// Deliberately its own header (rather than a nested `Sample` type): it has no dependency beyond
 /// `<cstdint>`, so it stays includable from lightweight contexts (e.g. host unit tests) that can't
 /// pull in `sample.h`'s full transitive closure.
 struct OverviewCacheEntry {
-	/// Running minimum peak found so far; starts at the maximum representable int32_t so any real
+	/// Running minimum peak found so far; starts at the maximum representable int8_t so any real
 	/// sample immediately lowers it.
-	int32_t min = INT32_MAX;
-	/// Running maximum peak found so far; starts at the minimum representable int32_t so any real
+	int8_t min = 127;
+	/// Running maximum peak found so far; starts at the minimum representable int8_t so any real
 	/// sample immediately raises it.
-	int32_t max = INT32_MIN;
+	int8_t max = -128;
 	/// Whether the whole-cluster scan for min/max has completed.
 	bool investigated = false;
 };
