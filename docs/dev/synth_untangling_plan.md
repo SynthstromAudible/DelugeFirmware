@@ -186,6 +186,24 @@ per-note-id polyphonic parameter modulation.
 └───────────────────────────────────────────────────────────────────┘
 ```
 
+### Where the layers live
+
+"Engine" means only an L1 per-voice timbre generator inside the Deluge instrument (subtractive, FM, ring-mod, DX7,
+sample, input, a Plaits-style foreign engine). What the host loads on a track, a kit row or a chain is a **plugin**,
+an instrument or an effect; the Deluge instrument is the first instrument plugin. Every library below the app is built
+with the library flags (`cmake/deluge_library.cmake`: unity, `-marm`, `-finline-functions`, no LTO); only the app keeps
+Thumb and `-fno-inline-functions`.
+
+| Layer | Directory | Target |
+|---|---|---|
+| L0 DSP primitives | `src/deluge/dsp-next/` | `deluge_dsp_fixed`, `deluge_dsp_float` |
+| L1 sources, modulation core (envelopes, LFOs, Patcher) | `src/synth/sources/`, `src/synth/modulation/` | `deluge_synth` |
+| L1 engines and their API | `src/synth/engines/` (created by the voice lift) | `deluge_synth` |
+| L2 voice kernel | `src/synth/voice/` (created by the voice lift) | `deluge_synth` |
+| L3 the Deluge instrument plugin: state, codec, params, mod matrix | `src/instruments/deluge/` | `deluge_instrument` |
+| Effects, for the instrument's sound chain and the host's chains | `src/effects/` | `deluge_effects` |
+| The host↔plugin contract (CLAP-shaped; see TODO.md's CLAP alignment arc) | `src/plugin-api/` | `deluge_plugin_api` |
+
 ### Layer contracts
 
 **L0 — DSP primitives.** Pure functions and POD-state value types:

@@ -118,7 +118,7 @@ d. ✅ **DONE — Pass transport-synced LFO increments in.** `Sound::render` sna
    `cfg.lfo2SyncedPhaseIncrement`/`cfg.lfo4SyncedPhaseIncrement` (`sound.cpp` ~1923–1928);
    `getLocalLFOPhaseIncrement` takes the increment and no longer reaches `sound`.
 e. ✅ **DONE — source dispatch and ports.** `renderSourceComponent` is `Sound&`-free and dispatches through the
-   polymorphic `synth::Source`. All five sources live in `synth/source/` on ports (`synth_source_ports.md`); only
+   polymorphic `synth::Source`. All five sources live in `synth/sources/` on ports (`synth_source_ports.md`); only
    the adapters (`SamplePlaybackAdapter`, `AudioInputAdapter`, `DxVoiceAdapter`) stay App-side. The
    Subtractive/FM `friend`-couplings are dissolved: **`Voice` has no `friend`s.** The engines still take `Voice&`.
 f. ☐ **TODO — Lift to `synth::Voice`** (the endgame). The render body's `ControlBlock`, expression, porta and

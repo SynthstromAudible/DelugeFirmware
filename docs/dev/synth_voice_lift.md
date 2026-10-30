@@ -61,7 +61,7 @@ the patcher input) and `ParamPlane`/`VoiceParams` (`synth/modulation/param_plane
 
 The decoupling slices above made `Voice::render`'s body input-driven. A literal `synth::Voice` still needs the
 rest of `Voice` to stop naming App types. The voice includes nothing from legacy `dsp/`: its wavefolder is dsp-next's
-`Wavefolder`, its sync scratch is `render::osc_sync_scratch()`, and its wave mappers are in `synth/source/va_shapes`.
+`Wavefolder`, its sync scratch is `render::osc_sync_scratch()`, and its wave mappers are in `synth/sources/va/va_shapes`.
 
 The real blockers:
 
