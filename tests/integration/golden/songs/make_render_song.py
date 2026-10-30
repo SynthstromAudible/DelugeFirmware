@@ -29,6 +29,14 @@ RS_AUDIO_DELAY_EXTREMES steps an audio track's delay rate from its minimum to it
 the fastest and the slowest the rate's range reaches.
 RS_LOW_CLIP covers a host chain's saturation below amount 3, which RS_KIT_FX and RS_AUDIO_FX (at 4) leave out: a
 kit at 1 and an audio track at 2.
+RS_BITCRUSH covers the bitcrush paths the FX songs leave out: a kit's bit depth alone at preset 6, an audio track's
+sample-rate reduction switched off and on again, so it restarts, and the master's bit depth and sample-rate reduction
+at preset 7. RS_METRONOME is RS_STREAM under its own name, for its gate to switch the metronome on while it plays.
+RS_REVERB_DUCK_OVERRIDE and RS_REVERB_DUCK_OVERRIDE_TRACK put the reverb's sidechain on auto, so the reverb ducks as
+the owner with the most reverb does: a synth through its sidechain cable, and an audio track through its sidechain
+volume.
+RS_EQ_BANDS covers the EQ's single bands: a kit's bass alone, and an audio track's treble alone,
+switched flat and back.
 RS_AUDIO_COMP_ONSET switches an audio track's compressor on mid-render, so it seeds from a sounding frame rather than
 from the silence every other compressor golden starts in.
 RS_AUDIO_COMP_RESET switches an audio track's compressor off mid-sound, where it resets, and on again, so it renders
@@ -653,6 +661,50 @@ def ducked_song(voices: list[tuple[str, str, int]], dry: bool) -> str:
     )
 
 
+# The reverb's sidechain on auto (its volume below zero, user value -1): the reverb ducks as the owner with more reverb
+# than the song does. In RS_REVERB_DUCK_OVERRIDE that owner is a synth holding one note, its reverb amount above the
+# audio track's and its sidechain patched to its post-reverb volume; in RS_REVERB_DUCK_OVERRIDE_TRACK it is the audio
+# track, through its sidechain volume, with no synth beside it. An owner's reverb amount counts only while it is not
+# automated, so each song holds its owner throughout. RSD1's full-strength hits fall in every bar. Each twin sets the
+# reverb's sidechain by hand to nothing (volume 0), so it differs only by the override's duck.
+OVERRIDE_REVERB = DUCKED_REVERB.replace('volume="1073741800"', 'volume="-21474836"')
+OVERRIDE_DRUMS = [
+    {**SC_DRUMS[0], "notes": [(0, 24), (384, 24), (768, 24), (1152, 24)]},
+    *SC_DRUMS[1:],
+]
+OVERRIDE_AUDIO = _host(
+    params='sidechainCompressorVolume="0x40000000" reverbAmount="0x40000000"'
+)
+OVERRIDE_AUDIO_LEADS = _host(
+    params='sidechainCompressorVolume="0x40000000" reverbAmount="0x70000000"'
+)
+
+
+def override_synth_parts() -> tuple[str, str]:
+    """A synth holding one note with more reverb than OVERRIDE_AUDIO, its sidechain patched to its post-reverb volume:
+    its instrument and its clip."""
+    sound = SOUND.format(
+        name="RSR", file="SAMPLES/RS/B.WAV", frames=RATE * SAMPLE_SECONDS
+    )
+    clip = (
+        CLIP.replace('reverbAmount="0x80000000"', 'reverbAmount="0x60000000"')
+        .replace("</patchCables>", f"\t{SIDECHAIN_CABLE}\n\t\t\t\t</patchCables>")
+        .format(name="RSR", ticks=CLIP_TICKS, note=67)
+    )
+    return sound, clip
+
+
+def reverb_override_song(
+    voices: list[tuple[str, str, int]], track_leads: bool, dry: bool
+) -> str:
+    parts = [kit_parts(DRY, OVERRIDE_DRUMS)]
+    if track_leads:
+        parts.append(audio_parts(OVERRIDE_AUDIO_LEADS))
+    else:
+        parts += [audio_parts(OVERRIDE_AUDIO), override_synth_parts()]
+    return parts_song(voices, parts, DUCKED_REVERB_DRY if dry else OVERRIDE_REVERB)
+
+
 # The song's reverb at settings of its own: the model as a file saves it (0 Freeverb, 1 Mutable, 2 Digital), room,
 # damping, width, high-pass, low-pass and pan as q31 fractions, and its sidechain set by hand to nothing (volume 0),
 # so no sound's sidechain moves it. Each song's _DRY twin keeps the model and the sidechain and takes the boot song's
@@ -844,6 +896,31 @@ KIT_LOW_CLIP = _host(
 )
 AUDIO_LOW_CLIP = _host(
     attributes=_with_attributes(DRY["attributes"], 'clippingAmount="2"')
+)
+
+# The bitcrush paths the FX songs leave out (they run preset 1 with the sample-rate reduction on): the kit's bit depth
+# alone at preset 6, its mask and a volume shift of 2; the audio track's sample-rate reduction, at a rate whose grab
+# position carries a fraction from frame to frame, stepped off at the second bar and on again at the third, so it
+# restarts from a zeroed position; the master with both at preset 7, a volume shift of 3 (a master's
+# automation plays only in the arranger, so its settings hold).
+KIT_BITCRUSH = _host(params='bitCrush="0x40000000"')
+AUDIO_SRR_TOGGLE = _host(
+    params=f'sampleRateReduction="{_steps(0xC7654321, [(0x80000000, 384), (0xC7654321, 768)])}"',
+)
+MASTER_BITCRUSH = _host(params='bitCrush="0x7FFFFFFF" sampleRateReduction="0xE0000000"')
+
+# The EQ paths the FX songs leave out (they run both bands): the kit's bass alone, and the audio track's treble alone,
+# stepped flat at the second bar and back at the third, so it switches off and on while the bass stays flat.
+KIT_EQ_BASS = _host(
+    param_tags=DRY["param_tags"].replace(
+        '<equalizer bass="0x00000000"', '<equalizer bass="0x50000000"'
+    )
+)
+AUDIO_EQ_TREBLE = _host(
+    param_tags=DRY["param_tags"].replace(
+        'treble="0x00000000" bassFrequency',
+        f'treble="{_steps(0xB0000000, [(0x00000000, 384), (0xB0000000, 768)])}" bassFrequency',
+    )
 )
 
 # An audio track's compressor switched on mid-render: its threshold, held at its minimum (the compressor off and reset
@@ -1175,6 +1252,22 @@ SONGS = {
     "RS_LOW_CLIP_DRY": lambda v: parts_song(
         v, [kit_parts(DRY, PINGPONG_DRUMS), audio_parts(DRY)]
     ),
+    "RS_BITCRUSH": lambda v: parts_song(
+        v,
+        [kit_parts(KIT_BITCRUSH, PINGPONG_DRUMS), audio_parts(AUDIO_SRR_TOGGLE)],
+        song_settings=master_settings(MASTER_BITCRUSH),
+    ),
+    "RS_BITCRUSH_DRY": lambda v: parts_song(
+        v,
+        [kit_parts(DRY, PINGPONG_DRUMS), audio_parts(DRY)],
+        song_settings=master_settings(DRY),
+    ),
+    "RS_EQ_BANDS": lambda v: parts_song(
+        v, [kit_parts(KIT_EQ_BASS, PINGPONG_DRUMS), audio_parts(AUDIO_EQ_TREBLE)]
+    ),
+    "RS_EQ_BANDS_DRY": lambda v: parts_song(
+        v, [kit_parts(DRY, PINGPONG_DRUMS), audio_parts(DRY)]
+    ),
     "RS_AUDIO_COMP_ONSET": lambda v: parts_song(v, [audio_parts(AUDIO_COMP_ONSET)]),
     "RS_AUDIO_COMP_ONSET_DRY": lambda v: parts_song(v, [audio_parts(DRY)]),
     "RS_AUDIO_COMP_RESET": lambda v: parts_song(v, [audio_parts(AUDIO_COMP_RESET)]),
@@ -1317,6 +1410,21 @@ SONGS = {
     # no dry twin: the gate's twin is the same song rendered unswitched.
     "RS_REVERB_SWITCH": lambda v: parts_song(
         v, [audio_parts(REVERB_SEND)], _reverb(1, REVERB_TURNED_KNOBS)
+    ),
+    # RS_STREAM under its own name, for its gate to switch the metronome on mid-render (RENDER_METRONOME); no dry twin:
+    # the gate's twin is the same song rendered unswitched.
+    "RS_METRONOME": song_xml,
+    "RS_REVERB_DUCK_OVERRIDE": lambda v: reverb_override_song(
+        v, track_leads=False, dry=False
+    ),
+    "RS_REVERB_DUCK_OVERRIDE_DRY": lambda v: reverb_override_song(
+        v, track_leads=False, dry=True
+    ),
+    "RS_REVERB_DUCK_OVERRIDE_TRACK": lambda v: reverb_override_song(
+        v, track_leads=True, dry=False
+    ),
+    "RS_REVERB_DUCK_OVERRIDE_TRACK_DRY": lambda v: reverb_override_song(
+        v, track_leads=True, dry=True
     ),
 }
 

@@ -224,6 +224,14 @@ set(band_builder_spec_DEPS
 set(band_builder_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
 set(band_builder_spec_INCLUDES ${_repo_root}/include)
 
+# The frozen effects reference against the live effects it was copied from. Both are the legacy arithmetic, whose
+# plain signed sums overflow at full scale as the target's add wraps, so UBSan's checks are off for this spec alone.
+set(reference_effects_spec_DEPS
+  ${_repo_root}/src/engines/effects/bitcrush.cpp
+  ${_repo_root}/src/engines/effects/equalizer.cpp
+  ${_repo_root}/src/engines/effects/send_and_volume.cpp)
+set(reference_effects_spec_OPTIONS -fno-sanitize=signed-integer-overflow,shift)
+
 # CONFIGURE_DEPENDS: a spec file added to an already-configured tree is built (and run) on the next build.
 file(GLOB _specs CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)
 foreach(_spec_path IN LISTS _specs)

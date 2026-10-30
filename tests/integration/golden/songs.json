@@ -77,6 +77,12 @@
   "rms_db": -22.75,
   "sha256": "ac1d1692d1254613f8f3b8807e74c2d23daa4d108b4bb344671aa9e7b658f599"
  },
+ "RS_BITCRUSH": {
+  "frames": 384000,
+  "peak": 313873408,
+  "rms_db": -19.54,
+  "sha256": "67bd2f4d7691855282625f528da8f46b7f800426a8005557161536c8849a064c"
+ },
  "RS_DELAY_OWNERS": {
   "frames": 384000,
   "peak": 285767168,
@@ -88,6 +94,12 @@
   "peak": 1504250368,
   "rms_db": -14.41,
   "sha256": "cd2cc121d88628032bcd05ab99fcf227023ce48eae23d99ca460f41988ded247"
+ },
+ "RS_EQ_BANDS": {
+  "frames": 384000,
+  "peak": 1146359296,
+  "rms_db": -14.71,
+  "sha256": "1eeecae6313406e456cc84a1602c24b7dc829bcf0e3eec64ad62e1c7d9300089"
  },
  "RS_GRAIN_MASTER": {
   "frames": 384000,
@@ -203,6 +215,12 @@
   "rms_db": -17.79,
   "sha256": "4e2c81abadaca1fc24b4d140a1467183645899436eb047ec8cbbcca984633fba"
  },
+ "RS_METRONOME": {
+  "frames": 384000,
+  "peak": 177762560,
+  "rms_db": -31.16,
+  "sha256": "03d894119f5a50fd0e489427ced66f9ae45e5ada31c955fef0ed78b2db42e73a"
+ },
  "RS_MODFX_CLEAR": {
   "frames": 384000,
   "peak": 1127436288,
@@ -250,6 +268,18 @@
   "peak": 409601792,
   "rms_db": -25.34,
   "sha256": "44d7520b5f6215058d84554103b345aeceb2c7273345ceabf03ce7df38e3a781"
+ },
+ "RS_REVERB_DUCK_OVERRIDE": {
+  "frames": 384000,
+  "peak": 1779755264,
+  "rms_db": -14.32,
+  "sha256": "985a3ea5a58f66267da3d4008c9fdc19b811c9c4ce8459fca5c4c06f6a20055e"
+ },
+ "RS_REVERB_DUCK_OVERRIDE_TRACK": {
+  "frames": 384000,
+  "peak": 1842103552,
+  "rms_db": -13.37,
+  "sha256": "3ffe304232a6ca41025418efb7c67198003384025099cae535689be87df544c3"
  },
  "RS_REVERB_FREEVERB": {
   "frames": 384000,

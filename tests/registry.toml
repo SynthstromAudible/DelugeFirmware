@@ -1456,6 +1456,101 @@ group = "render"
 runtime = "~20s"
 
 [[harness]]
+name = "render-bitcrush"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the bitcrush paths the FX songs leave out render as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_BITCRUSH) whose kit crushes its bit depth alone at preset 6, its mask and a post-FX volume shifted down by 2, whose audio track's sample-rate reduction is stepped off at the second bar and on again at the third, so it restarts from a zeroed grab, and whose master crushes both at preset 7, a volume shift of 3; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with every bitcrush and sample-rate reduction off must render differently (RS-FX), so the settings reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_BITCRUSH" }
+tier = "pr"
+group = "render"
+runtime = "~20s"
+
+[[harness]]
+name = "render-eq-bands"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the EQ's single bands render as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_EQ_BANDS) whose kit boosts its bass alone and whose audio track cuts its treble alone, the treble stepped flat at the second bar and back at the third, so the band switches off and on while its memory holds; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with both EQs flat must render differently (RS-FX), so the bands reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_EQ_BANDS" }
+tier = "pr"
+group = "render"
+runtime = "~20s"
+
+[[harness]]
+name = "render-reverb-duck-override"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the reverb's duck taken from a synth with the most reverb renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_REVERB_DUCK_OVERRIDE) whose reverb sidechain is on auto, so the reverb ducks through the sidechain cable to post-reverb volume of a synth with more reverb than the song and its audio track, kit hits ducking it in every bar; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its twin with the reverb's sidechain set by hand to nothing must render differently (RS-FX), so the override reaches the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_REVERB_DUCK_OVERRIDE" }
+tier = "pr"
+group = "render"
+runtime = "~20s"
+
+[[harness]]
+name = "render-reverb-duck-override-track"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the reverb's duck taken from an audio track with the most reverb renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_REVERB_DUCK_OVERRIDE_TRACK) whose reverb sidechain is on auto, so the reverb ducks through the sidechain volume, shape and rates of an audio track with more reverb than the song, kit hits ducking it in every bar; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its twin with the reverb's sidechain set by hand to nothing must render differently (RS-FX), so the override reaches the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_REVERB_DUCK_OVERRIDE_TRACK" }
+tier = "pr"
+group = "render"
+runtime = "~20s"
+
+[[harness]]
+name = "render-metronome"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the metronome's click renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_METRONOME, RS_STREAM under its own name) whose metronome is switched on at block 200 (RENDER_METRONOME, as its button does through PlaybackHandler::toggleMetronomeStatus), so each beat and bar adds its square click at the metronome's volume scaled by the song's; compared with its record in tests/integration/golden/songs.json; the scenario's RS-METRONOME summary must show the switch applied and the metronome on; the same song rendered without the switch must render differently (RS-SWITCH), so the click reaches the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-METRONOME", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_METRONOME", RENDER_METRONOME = "200" }
+tier = "pr"
+group = "render"
+runtime = "~20s"
+
+[[harness]]
 name = "render-audio-track-comp-onset"
 path = "."
 level = "integration"
