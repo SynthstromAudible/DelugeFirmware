@@ -23,7 +23,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/stereo_sample.h"
-#include "dsp/envelope_follower/absolute_value.h"
+#include "dsp-next/float/dynamics/level_detector.h"
 #include "io/stream.hpp"
 #include "memory/fast_allocator.h"
 #include "util/functions.h"
@@ -493,5 +493,5 @@ private:
 	void recycleBuffer(std::byte* buffer);
 	void releaseCaptureBuffers();
 
-	AbsValueFollower envelopeFollower{};
+	deluge::dsp::fp::LevelDetector envelopeFollower{};
 };

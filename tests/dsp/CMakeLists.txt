@@ -214,6 +214,8 @@ set(real_fft_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
 set(real_fft_shipping_spec_DEPS ${real_fft_spec_DEPS})
 set(real_fft_shipping_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
 set(real_fft_shipping_spec_OPTIONS -O2 -funsafe-math-optimizations)
+# The level detector.
+set(level_detector_spec_DEPS ${_repo_root}/src/deluge/dsp-next/float/dynamics/level_detector.cpp)
 # The FFT bin magnitude.
 set(fft_magnitude_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/fft/magnitude.cpp)
 # The band builder: the transform, the DFT and the bin magnitude.

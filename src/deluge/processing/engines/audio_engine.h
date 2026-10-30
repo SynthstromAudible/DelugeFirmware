@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/envelope_follower/absolute_value.h"
+#include "dsp-next/float/dynamics/level_detector.h"
 #include "engines/effects/state.h"
 #include "memory/fast_allocator.h"
 #include "memory/object_pool.h"
@@ -56,7 +56,6 @@ struct CriticalSectionGuard;
 class ModelStackWithSoundFlags;
 class SoundDrum;
 class Clip;
-class AbsValueFollower;
 
 namespace deluge::effects {
 class Sidechain;
@@ -297,8 +296,8 @@ extern SampleRecorder* firstRecorder;
 extern Metronome metronome;
 extern uint32_t timeLastSideChainHit;
 extern int32_t sizeLastSideChainHit;
-extern StereoFloatSample approxRMSLevel;
-extern AbsValueFollower envelopeFollower;
+extern deluge::dsp::fp::StereoLevel approxRMSLevel;
+extern deluge::dsp::fp::LevelDetector envelopeFollower;
 /// Set once the BSP's audio tier drives the render (at the end of deluge_app_init). From then on
 /// runRoutine() leaves rendering to the tier, which preempts its caller.
 extern std::atomic<bool> renderDrivenByTier;

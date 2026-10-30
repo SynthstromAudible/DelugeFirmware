@@ -412,8 +412,8 @@ uint32_t timeLastSideChainHit = 2147483648;
 int32_t sizeLastSideChainHit;
 
 Metronome metronome{};
-StereoFloatSample approxRMSLevel{0};
-AbsValueFollower envelopeFollower{};
+deluge::dsp::fp::StereoLevel approxRMSLevel{};
+deluge::dsp::fp::LevelDetector envelopeFollower{};
 int32_t timeLastPopup{0};
 
 SoundDrum* sampleForPreview;
@@ -1339,7 +1339,7 @@ void renderAudio(size_t numSamples) {
 
 	metronome.render(renderingBuffer, metronomeVolumePostFx());
 
-	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer);
+	approxRMSLevel = envelopeFollower.measure(renderingBuffer);
 
 	setMonitoringMode();
 
@@ -1396,7 +1396,7 @@ void renderAudioForStemExport(size_t numSamples) {
 		}
 	}
 
-	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer);
+	approxRMSLevel = envelopeFollower.measure(renderingBuffer);
 
 	inputMonitor.decide({});
 

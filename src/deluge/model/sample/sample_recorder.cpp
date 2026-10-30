@@ -2015,7 +2015,7 @@ doFinishCapturing:
 			// check if there's any audio in this cycle
 			if (thresholdRecording) [[unlikely]] {
 				size_t samples_to_copy = minThresholdMargin;
-				StereoFloatSample approxRMSLevel = envelopeFollower.calcApproxRMS(input);
+				const deluge::dsp::fp::StereoLevel approxRMSLevel = envelopeFollower.measure(input);
 				if (std::max(approxRMSLevel.l, approxRMSLevel.r) > startValueThreshold) {
 					thresholdRecording = false;
 					samples_to_copy += numSamplesThisCycle;
