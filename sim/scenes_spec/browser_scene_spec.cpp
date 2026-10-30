@@ -1107,6 +1107,26 @@ describe browser_navigation("scenes::browser::BrowserScene navigation", $ {
 		expect(browser_scene().file_index()).to_equal(2);
 	});
 
+	it("enters a folder on a SELECT press and release, whatever the menu does with Select", _ {
+		// `Browser::mainButtonAction` (`browser.cpp:1250-1279`) acts on the release through `handle()`; the menu's own
+		// release edge (`Scene::select_acts_on_release`) is not this scene's.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		r.turn(2, r.clock + 10);
+		r.step();
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, r.clock + 10);
+		r.step();
+		expect(browser_scene().listing_in_flight()).to_be_false();
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, r.clock + 10);
+		r.step();
+		expect(browser_scene().listing_in_flight()).to_be_true();
+		r.land();
+		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"SAMPLES/KICKS"});
+	});
+
 	it("refuses to enter SAMPLES/CLIPS/TEMP, and says why", _ {
 		CleanBrowser clean;
 		ScratchCard card;

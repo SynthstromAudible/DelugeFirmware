@@ -223,7 +223,10 @@ struct Rig {
 	void button(uint8_t x, uint8_t y, bool on, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
 	}
-	void enter(uint32_t at_ms) { button(kSelectEncButtonX, kSelectEncButtonY, true, at_ms); }
+	void enter(uint32_t at_ms) {
+		button(kSelectEncButtonX, kSelectEncButtonY, true, at_ms);
+		button(kSelectEncButtonX, kSelectEncButtonY, false, at_ms);
+	}
 };
 
 menu::MenuScene& scene() {
@@ -284,7 +287,10 @@ struct GuestRig {
 	/// The select-encoder press, through the guest's own hook rather than the shell's -- which is
 	/// the point: `buttonAction` only queues, and `Shell::pump_input` inside a tick is what routes
 	/// (`shell/shell.cpp:582-592`).
-	void press_enter() { (void)ui.buttonAction(deluge::hid::button::SELECT_ENC, true); }
+	void press_enter() {
+		(void)ui.buttonAction(deluge::hid::button::SELECT_ENC, true);
+		(void)ui.buttonAction(deluge::hid::button::SELECT_ENC, false);
+	}
 
 	/// One detent of the select encoder, through the guest's own hook. `ShellHostUI::selectEncoderAction`
 	/// (`gui/ui/shell_host_ui.cpp:1010`) is the override legacy's `interpretEncoders` calls
@@ -2246,6 +2252,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 			expect(open_global_guest(nodes::stem_export, control_song)).to_be_true();
 			shellHostUI.shell().tick(5);
 			(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, true);
+			(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, false);
 			shellHostUI.shell().tick(20);
 
 			expect(shellHostUI.shell().stack().depth()).to_equal(size_t(1));
@@ -2262,6 +2269,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		shellHostUI.shell().tick(5);
 		expect(shellHostUI.shell().stack().depth()).to_equal(size_t(1));
 		(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, true);
+		(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, false);
 		shellHostUI.shell().tick(20);
 		// Still up after the tick that filed the request: the scene does not pop itself
 		// (`scenes/menu/nodes/actions.h:47-54`), which is why this close is the dispatcher's.
@@ -2533,6 +2541,8 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		expect(scene().take_action().engaged()).to_be_false(); // ...which files nothing on its own
 
 		(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, true);
+
+		(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, false);
 		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC); // `buttonAction` armed it via `armTickSoon`
 		(void)shellHostUI.timerCallback();
 

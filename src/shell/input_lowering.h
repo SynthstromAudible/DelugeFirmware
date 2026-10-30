@@ -249,6 +249,14 @@ public:
 	/// @param b The button.
 	/// @return True if something has claimed the press.
 	bool press_used_up(ButtonId b) const { return used_up_.has(b); }
+	/// @brief Choose the Select edge this tick's snapshot carries: the press, or the release.
+	///
+	/// Legacy's sound editor acts on Select's **release**, and only when the press was not used up and no blocking UI
+	/// mode is on (`SoundEditor::buttonAction`, `sound_editor.cpp:609-614`); every other UI acts on the press. The only
+	/// blocking mode the editor itself enters is MIDI learn, which is LEARN held (`:720-745`), so a release under a
+	/// held LEARN carries no edge. The shell calls this before rendering, for the scene that takes this tick's input.
+	/// @param on True for the release edge, false for the press edge.
+	void select_on_release(bool on) { snap_.select_pressed = on ? select_release_edge_ : select_edge_; }
 	/// @brief Mark \p b's current press consumed, so its release does not act as well.
 	///
 	/// @note The bit belongs to the button whose *release* should be suppressed, which is not
@@ -482,6 +490,8 @@ private:
 	uint32_t now_ms_ = 0;
 	bool had_input_ = false;
 	bool select_edge_ = false;
+	/// Select went up this tick with its press not used up and LEARN not held (`select_on_release`).
+	bool select_release_edge_ = false;
 	bool back_edge_ = false;
 	/// @}
 

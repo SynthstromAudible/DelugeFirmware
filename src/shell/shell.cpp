@@ -376,6 +376,7 @@ void Shell::tick(uint32_t now_ms) {
 	// exactly once and the answer OR'd into every surface's own decision -- asking it per surface
 	// would give the request to whichever surface happened to be checked first.
 	const bool widgets_want_frame = lowering_.ctx().gate.needs_frame(now_ms, had_input_, false);
+	lowering_.select_on_release(stack_.input_top().select_acts_on_release());
 	// 5. OLED.
 	for (OledSurface& s : surfaces_.oled()) {
 		if (s.gate.needs_frame(now_ms, had_input_, false) || widgets_want_frame || router_.repaint_requested(s.role)) {

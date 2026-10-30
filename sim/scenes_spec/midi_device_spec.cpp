@@ -319,12 +319,12 @@ struct Rig {
 	void button(uint8_t x, uint8_t y, bool on, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
 	}
-	/// @brief One complete select press: down, tick, up.
+	/// @brief One complete select press: down and up, then the tick that acts on the release.
 	void press(uint32_t& at) {
 		button(kSelectEncButtonX, kSelectEncButtonY, true, at);
+		button(kSelectEncButtonX, kSelectEncButtonY, false, at);
 		shell.tick(at + 5);
 		at += 10;
-		button(kSelectEncButtonX, kSelectEncButtonY, false, at);
 		at += 10;
 	}
 	/// @brief Walk the cursor @p rows down through the real input path, one detent per tick.

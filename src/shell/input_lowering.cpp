@@ -63,6 +63,7 @@ void InputLowering::begin_tick(uint32_t now_ms) {
 	now_ms_ = now_ms;
 	had_input_ = false;
 	select_edge_ = false;
+	select_release_edge_ = false;
 	back_edge_ = false;
 	for (int8_t& d : tick_delta_) {
 		d = 0;
@@ -84,6 +85,7 @@ void InputLowering::end_tick(uint32_t now_ms) {
 	snap_.select_pressed = select_edge_;
 	snap_.back_pressed = back_edge_;
 	snap_.shift = shift();
+	snap_.select_held = held_.has(ButtonId::SelectEnc);
 	snap_.pads = std::span<const ui::PadEvent>(pad_events_.begin(), pad_events_.size());
 	snap_.held_pads = held_pads_;
 	snap_.now_ms = now_ms_;
@@ -292,6 +294,9 @@ void InputLowering::on_button(ButtonId b, bool on, uint32_t now_ms) {
 	}
 	if (on && b == ButtonId::SelectEnc) {
 		select_edge_ = true;
+	}
+	if (!on && b == ButtonId::SelectEnc && !used_up_.has(b) && !held_.has(ButtonId::Learn)) {
+		select_release_edge_ = true;
 	}
 	if (on && b == ButtonId::Back) {
 		back_edge_ = true;

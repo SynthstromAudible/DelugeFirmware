@@ -494,6 +494,7 @@ describe cm_input("scenes::context_menu::ContextMenuScene input", $ {
 		    .to_equal(static_cast<int>(RuntimeFeatureStateToggle::Off));
 
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		r.tick(100);
 
 		expect(static_cast<int>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::DrumRandomizer)))
@@ -610,6 +611,7 @@ describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
 		r.open(context_of(f), id);
 		r.tick(0);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		r.tick(100);
 		return std::pair<ResetWitness, size_t>{witness(), r.shell.stack().depth()};
 	};

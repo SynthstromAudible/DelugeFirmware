@@ -335,6 +335,7 @@ void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	ctx_ = ctx;
 	st_ = MenuState{};
 	close_requested_ = false;
+	use_up_select_ = true;
 	landing_column_ = nullptr;
 	retarget(root);
 }
@@ -600,6 +601,7 @@ void MenuScene::on_resume() {
 	// again the instant the user gets back.
 	// A landing armed by a jump whose `Replace` never reached `on_enter` is stale.
 	landing_column_ = nullptr;
+	use_up_select_ = true;
 	if (st_.go_up_on_resume) {
 		st_.go_up_on_resume = false;
 		// A browser that closed on a chosen file has a claim coming, and the claim lands the menu on the source page
@@ -1039,6 +1041,7 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 	if (role != SurfaceRole::Main) {
 		return;
 	}
+	select_held_ = f.select_held();
 	const Node* node = focused();
 	if (node == nullptr) {
 		return;
@@ -1780,6 +1783,9 @@ MenuActionRequest MenuScene::take_action() {
 
 Result MenuScene::after_render() {
 	Result r;
+	if (std::exchange(use_up_select_, false) || (st_.value_changed && select_held_)) {
+		(void)r.actions.push_back(Action{.kind = Action::Kind::UseUpSelect});
+	}
 	if (close_requested_) {
 		// `ascend()` went up from depth 0 since the last render (`on_resume`'s go-up): `exitCompletely()`.
 		close_requested_ = false;

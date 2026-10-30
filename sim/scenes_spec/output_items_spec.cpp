@@ -209,7 +209,10 @@ struct Rig {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(on ? 255 : 0)},
 		                     clock + 5);
 	}
-	void enter() { button(kSelectEncButtonX, kSelectEncButtonY, true); }
+	void enter() {
+		button(kSelectEncButtonX, kSelectEncButtonY, true);
+		button(kSelectEncButtonX, kSelectEncButtonY, false);
+	}
 
 	bool on_stack(SceneKind kind) {
 		for (const deluge::ui::shell::Scene* s : shell.stack().scenes()) {

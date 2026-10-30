@@ -356,6 +356,10 @@ struct FrameInput {
 	///       the gesture.
 	/// @return True while shift is held.
 	bool shift() const { return ctx.input.shift; }
+	/// @brief Is the Select button down?
+	/// @note Not masked, for the same reason as `shift`.
+	/// @return True while Select is held.
+	bool select_held() const { return ctx.input.select_held; }
 	/// @}
 
 	/// @{

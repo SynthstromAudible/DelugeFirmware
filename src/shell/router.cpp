@@ -189,6 +189,9 @@ void Router::apply(const Result& result) {
 		case Action::Kind::LockInput:
 			lowering_.set_input_lock(action.lock);
 			break;
+		case Action::Kind::UseUpSelect:
+			lowering_.mark_press_used_up(ButtonId::SelectEnc);
+			break;
 		}
 	}
 }

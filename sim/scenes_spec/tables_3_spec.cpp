@@ -980,6 +980,7 @@ void focus_command_row(Rig& r, const MenuContext& ctx, size_t row) {
 		r.shell.tick(static_cast<uint32_t>(15 + t * 10));
 	}
 	r.button(kSelectEncButtonX, kSelectEncButtonY, true, 200);
+	r.button(kSelectEncButtonX, kSelectEncButtonY, false, 200);
 	r.shell.tick(210);
 }
 /// @}
@@ -2247,6 +2248,7 @@ describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* ite
 				r.shell.tick(static_cast<uint32_t>(15 + t * 10));
 			}
 			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 			r.shell.tick(110);
 
 			// `CustomItem::on_focus` fired from `enter_leaf`, and this tick's `after_render` turned
@@ -2281,6 +2283,7 @@ describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* ite
 		   r.turn(1, 10);
 		   r.shell.tick(15);
 		   r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		   r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		   r.shell.tick(110);
 		   expect(&r.shell.stack().input_top() == &context_menu::context_menu_scene()).to_be_true();
 		   expect(static_cast<int>(context_menu::context_menu_scene().descriptor_id()))
@@ -2288,8 +2291,8 @@ describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* ite
 
 		   // The one option ("OK") is already the cursor's position; the select-encoder press is
 		   // `ContextMenu::buttonAction`'s `probablyAcceptCurrentOption` arm.
-		   r.button(kSelectEncButtonX, kSelectEncButtonY, false, 120);
 		   r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
+		   r.button(kSelectEncButtonX, kSelectEncButtonY, false, 130);
 		   r.shell.tick(140);
 		   const uint32_t ported = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky);
 
@@ -2783,13 +2786,13 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 			at += 10;
 		}
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, at);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, at);
 		r.shell.tick(at + 5);
 		at += 10;
 		expect(menu_scene().focused() == &nodes::midi_devices).to_be_true();
 		expect(int(menu_scene().state().list[1].cursor)).to_equal(0);
 
 		// Two detents down the device list, then out and back in.
-		r.button(kSelectEncButtonX, kSelectEncButtonY, false, at);
 		at += 10;
 		r.turn(2, at);
 		r.shell.tick(at + 5);
@@ -2802,10 +2805,10 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		// *stronger* round trip for what this example is about, because `MenuScene::ascend` never
 		// runs `on_focus` and only the re-descent below can put the cursor back.
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, at);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, at);
 		r.shell.tick(at + 5);
 		at += 10;
 		expect(menu_scene().focused() == &nodes::midi_device).to_be_true();
-		r.button(kSelectEncButtonX, kSelectEncButtonY, false, at);
 		at += 10;
 		r.button(kBackX, kBackY, true, at);
 		r.shell.tick(at + 5);
@@ -2821,6 +2824,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		expect(menu_scene().focused() == &nodes::midi_settings).to_be_true();
 
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, at);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, at);
 		r.shell.tick(at + 5);
 		expect(menu_scene().focused() == &nodes::midi_devices).to_be_true();
 		// `on_focus` found the cable the move published, not DIN.
@@ -2893,14 +2897,15 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 				r.shell.tick(static_cast<uint32_t>(15 + t * 10));
 			}
 			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 			r.shell.tick(110);
 			// `cv::Selection::selectButtonPress` returns `&cvSubmenu` unconditionally (`:41-45`).
 			expect(menu_scene().focused() == &nodes::cv_submenu).to_be_true();
 
 			// ... and it wrote `currentSourceIndex` on the way (`:42`). The proof is which output
 			// `cv_volts` now reads: `enter_leaf` loads `bindings::read` into `MenuState::edit_int`.
-			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 120);
 			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
+			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 130);
 			r.shell.tick(140);
 			expect(menu_scene().focused() == &nodes::cv_volts).to_be_true();
 			expect(menu_scene().state().edit_int).to_equal(which == 0 ? 11 : 77);
@@ -2938,6 +2943,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 				r.shell.tick(static_cast<uint32_t>(15 + t * 10));
 			}
 			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 			r.shell.tick(110);
 
 			const Node* want = legacy == &gateOffTimeMenu ? &nodes::gate_off_time : &nodes::gate_mode;
@@ -2984,6 +2990,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 			r.open(nodes::gate_selection, ctx);
 			r.shell.tick(0);
 			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 			r.shell.tick(110);
 			expect(menu_scene().focused() == &nodes::gate_mode).to_be_true();
 			expect(int(menu_scene().state().source_choice)).to_equal(-1); // drained, not merely read
@@ -3002,6 +3009,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 				r.shell.tick(static_cast<uint32_t>(15 + t * 10));
 			}
 			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 300);
+			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 300);
 			r.shell.tick(310);
 			expect(menu_scene().focused() == &nodes::gate_off_time).to_be_true();
 			expect(int(menu_scene().state().source_choice)).to_equal(-1);
@@ -3028,6 +3036,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 				   r.shell.tick(static_cast<uint32_t>(15 + t * 10));
 			   }
 			   r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+			   r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 			   r.shell.tick(110);
 			   expect(menu_scene().focused() == &nodes::gate_mode).to_be_true();
 

@@ -252,7 +252,20 @@ struct UiContext {
 ///       `Working`/`Popup` along with the menu it was shown over).
 struct Action {
 	/// @brief Which action this is; see the table above.
-	enum class Kind : uint8_t { Push, Replace, ReplaceRoot, Pop, Remove, Popup, Repaint, RepaintAll, LockInput };
+	enum class Kind : uint8_t {
+		Push,
+		Replace,
+		ReplaceRoot,
+		Pop,
+		Remove,
+		Popup,
+		Repaint,
+		RepaintAll,
+		LockInput,
+		/// Mark Select's current press used up, so its release does not act: legacy's
+		/// `Buttons::selectButtonPressUsedUp = true`.
+		UseUpSelect,
+	};
 
 	Kind kind;
 	SceneId id{}; ///< `Push`/`Replace`/`ReplaceRoot`: the target.
@@ -497,6 +510,12 @@ public:
 	///
 	/// @return True to pass input through to the scene beneath; false (the default) to take it.
 	virtual bool input_transparent() const { return false; }
+	/// @brief Does this scene's `f.select_pressed()` fire on Select's release rather than its press?
+	///
+	/// Legacy's sound editor acts on the release of a press nothing used up (`InputLowering::select_on_release`);
+	/// every other UI acts on the press.
+	/// @return True for the release; false (the default) for the press.
+	virtual bool select_acts_on_release() const { return false; }
 	/// @brief Which grid pads this scene consumes.
 	///
 	/// The rest are forwarded to the legacy root view by `gui/ui/shell_pad_forward.cpp`, as

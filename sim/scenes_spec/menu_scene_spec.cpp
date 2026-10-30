@@ -332,6 +332,7 @@ constexpr uint8_t kGoldUpper = 4;
 /// Matrix coordinates (`kMatrix`, `shell/profiles/deluge.cpp`).
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 constexpr uint8_t kBackX = 7, kBackY = 1;
+constexpr uint8_t kLearnX = 7, kLearnY = 0;
 constexpr uint8_t kShiftX = 8, kShiftY = 0;
 /// The four instrument-button columns, and the two page-switch buttons -- all six of
 /// `HorizontalMenu::buttonAction`'s (`horizontal_menu.cpp:70-107`).
@@ -409,7 +410,10 @@ struct Rig {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, x, y, static_cast<int16_t>(velocity)}, at_ms);
 	}
 	/// @brief Enter the submenu the cursor is on (a select-encoder press edge).
-	void enter(uint32_t at_ms) { button(kSelectEncButtonX, kSelectEncButtonY, true, at_ms); }
+	void enter(uint32_t at_ms) {
+		button(kSelectEncButtonX, kSelectEncButtonY, true, at_ms);
+		button(kSelectEncButtonX, kSelectEncButtonY, false, at_ms);
+	}
 	/// @brief What the grid holds at (\p x, \p y) after the last rendered tick.
 	RGB pad_colour(uint8_t x, uint8_t y) {
 		const auto& g = fake.grid().grid_storage;
@@ -757,13 +761,13 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		r.shell.tick(20);
 		expect(cursor_of(0)).to_equal(2);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 30);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 30);
 		r.shell.tick(40);
 		expect(depth_of()).to_equal(1);
 		expect(menu_scene().focused() == &nodes::gate_mode).to_be_true();
 
 		// Back out: no divergence yet -- row 2 is exactly what `currentSourceIndex` now holds too,
 		// so "keep the cursor" and "restore from `currentSourceIndex`" agree.
-		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 50);
 		r.button(kBackX, kBackY, true, 60);
 		r.shell.tick(70);
 		expect(depth_of()).to_equal(0);
@@ -776,12 +780,12 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		r.shell.tick(100);
 		expect(cursor_of(0)).to_equal(4);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 110);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 110);
 		r.shell.tick(120);
 		expect(depth_of()).to_equal(1);
 		expect(menu_scene().focused() == &nodes::gate_off_time).to_be_true();
 
 		// Back out: the cursor snaps to 2 -- the last REAL output -- not to 4, the row just left.
-		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 130);
 		r.button(kBackX, kBackY, true, 140);
 		r.shell.tick(150);
 		expect(depth_of()).to_equal(0);
@@ -858,6 +862,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 		// Cursor is on the LPF page (row 0); a select-encoder press enters it.
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 10);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 10);
 		r.shell.tick(20);
 		expect(depth_of()).to_equal(1);
 		expect(menu_scene().focused() == &lpf_page).to_be_true();
@@ -866,6 +871,66 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.shell.tick(40);
 		expect(depth_of()).to_equal(0);
 		expect(menu_scene().focused() == &settings_root).to_be_true();
+	});
+
+	it("select descends on release, not press", _ {
+		// `SoundEditor::buttonAction` acts on `!on` (`sound_editor.cpp:609-613`).
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 10);
+		r.shell.tick(20);
+		expect(depth_of()).to_equal(0);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 30);
+		r.shell.tick(40);
+		expect(depth_of()).to_equal(1);
+	});
+
+	it("a select press used up by a value turn does not act on its release", _ {
+		// `Value::selectEncoderAction` uses the press up while Select is held (`menu_item/value.h:64-67`).
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(int_leaf);
+		r.shell.tick(0);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 10);
+		r.shell.tick(20);
+		r.turn(1, 30);
+		r.shell.tick(40);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 50);
+		r.shell.tick(60);
+		r.shell.tick(70);
+		expect(r.shell.stack().depth()).to_equal(size_t(1));
+		expect(menu_scene().focused() == &int_leaf).to_be_true();
+	});
+
+	it("the release of the press that opened the menu does not act", _ {
+		// `SoundEditor::opened` uses the press up (`sound_editor.cpp:513-516`).
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 0);
+		(void)r.open(settings_root);
+		r.shell.tick(5);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 10);
+		r.shell.tick(20);
+		expect(depth_of()).to_equal(0);
+	});
+
+	it("select does nothing while LEARN is held", _ {
+		// The editor's own blocking mode, `UI_MODE_MIDI_LEARN` (`sound_editor.cpp:610-614`, `:720-745`).
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		r.button(kLearnX, kLearnY, true, 10);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 20);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 30);
+		r.shell.tick(40);
+		expect(depth_of()).to_equal(0);
 	});
 
 	it("back at the root removes the scene off the stack", _ {
@@ -937,12 +1002,14 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.turn(-1, 50);
 		r.shell.tick(60);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 70);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 70);
 		r.shell.tick(80);
 		expect(menu_scene().focused() == &lpf_page).to_be_true();
 		r.button(kBackX, kBackY, true, 90);
 		r.shell.tick(100);
 		const int8_t lpf_column = menu_scene().state().columns[1].focused;
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 110);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 110);
 		r.shell.tick(120);
 		expect(static_cast<int>(menu_scene().state().columns[1].focused)).to_equal(static_cast<int>(lpf_column));
 	});
@@ -958,6 +1025,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.shell.tick(0);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 10);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 10);
 		r.shell.tick(20);
 		r.shell.tick(30);
 		expect(r.shell.stack().depth()).to_equal(size_t(0));
@@ -1121,8 +1189,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().state().pending_after_range == &nodes::source0_transpose).to_be_true();
 
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 60);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 60);
 		r.shell.tick(70);
-		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 80);
 		r.shell.tick(90);
 		expect(depth_of()).to_equal(1);
 		const Node* page = menu_scene().focused();
@@ -1211,6 +1279,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(cursor_of(0)).to_equal(5);
 
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		r.shell.tick(110);
 		// E2 task 9: `enter_child` substitutes the picker for the item, which is legacy's own
 		// `multiRangeMenu.menuItemHeadingTo = newItem; newItem = &multiRangeMenu;`
@@ -1237,8 +1306,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// Landing on the leaf is itself the proof that `select_range` reached the scene's own
 		// `MenuContext`: with `ctx.range` still null the permission rule would answer `MustSelectRange`
 		// a second time and the picker would be on screen again instead.
-		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 120);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 130);
 		r.shell.tick(140);
 		expect(depth_of()).to_equal(2);
 		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
@@ -1266,6 +1335,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(cursor_of(0)).to_equal(5);
 
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		r.shell.tick(110);
 
 		// The leaf itself is on screen -- no picker in between -- and the range it needs now exists.
@@ -1384,7 +1454,6 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 120);
 		r.enter(130);
 		r.shell.tick(140);
-		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 150);
 		r.enter(160);
 		r.shell.tick(170);
 		expect(depth_of()).to_equal(3);
@@ -1422,6 +1491,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		}
 		expect(cursor_of(0)).to_equal(8);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		r.shell.tick(110);
 		expect(menu_scene().focused() == &chain_source_leaf).to_be_true();
 		expect(depth_of()).to_equal(1);
@@ -1429,24 +1499,24 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// Odd value -> the hook names `chain_target_leaf`, so the press descends rather than
 		// ascending.
 		g_int = 3;
-		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 240);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 250);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 250);
 		r.shell.tick(260);
 		expect(menu_scene().focused() == &chain_target_leaf).to_be_true();
 		expect(depth_of()).to_equal(2);
 
 		// And the chained page chains on again -- two hops, the shape `arp_preset` ->
 		// `arp_octave_mode_to_note_mode` -> `arp_note_mode_from_octave_mode` has.
-		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 270);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 280);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 280);
 		r.shell.tick(290);
 		expect(menu_scene().focused() == &chain_target_hop2).to_be_true();
 		expect(depth_of()).to_equal(3);
 
 		// `chain_target_hop2` has no chain, so its press ascends -- back to the page that chained
 		// to it, not to the root.
-		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 300);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 310);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 310);
 		r.shell.tick(320);
 		expect(menu_scene().focused() == &chain_target_leaf).to_be_true();
 		expect(depth_of()).to_equal(2);
@@ -1466,12 +1536,13 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
 		}
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		r.shell.tick(110);
 		expect(menu_scene().focused() == &chain_source_leaf).to_be_true();
 
 		g_int = 4; // even
-		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 120);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 130);
 		r.shell.tick(140);
 		expect(depth_of()).to_equal(0);
 		expect(menu_scene().focused() == &settings_root).to_be_true();
@@ -1509,6 +1580,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		r.turn(1, 10);
 		r.shell.tick(20);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 30);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 30);
 		r.shell.tick(40);
 		expect(menu_scene().focused() == &int_leaf).to_be_true();
 		expect(menu::bindings::read(int_leaf, ctx)).to_equal(3);
@@ -1535,12 +1607,13 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		}
 		expect(cursor_of(0)).to_equal(4);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		r.shell.tick(110);
 		expect(menu_scene().focused() == &toggle_leaf).to_be_true();
 
 		// `values.h:202-206`: a select press reports `entered` and leaves `changed` false.
-		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 120);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 130);
 		r.shell.tick(140);
 		expect(depth_of()).to_equal(0);
 		expect(menu::bindings::read(toggle_leaf, ctx)).to_equal(0);
@@ -1559,6 +1632,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
 		}
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		r.shell.tick(110);
 		expect(menu_scene().focused() == &enum_leaf).to_be_true();
 
@@ -1580,6 +1654,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
 		}
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		r.shell.tick(110);
 		expect(menu_scene().focused() == &decimal_leaf).to_be_true();
 
@@ -1604,6 +1679,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
 		}
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		r.shell.tick(110);
 		expect(menu_scene().focused() == &sync_leaf).to_be_true();
 		expect(menu::bindings::read(sync_leaf, ctx)).to_equal(0);
@@ -1638,6 +1714,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		const MenuContext ctx = r.open(settings_root);
 		r.shell.tick(0);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 10);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 10);
 		r.shell.tick(20);
 		expect(menu_scene().focused() == &lpf_page).to_be_true();
 
@@ -1748,6 +1825,7 @@ describe menu_scene_claims("scenes::menu::MenuScene input claims", $ {
 		(void)r.open(settings_root);
 		r.shell.tick(0);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 10);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 10);
 		r.shell.tick(20);
 		expect(depth_of()).to_equal(1);
 
@@ -1780,6 +1858,7 @@ describe menu_scene_claims("scenes::menu::MenuScene input claims", $ {
 		r.turn(1, 10);
 		r.shell.tick(20);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 30);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 30);
 		r.shell.tick(40);
 		// `InputClaims::double_claim` is the shell's own diagnostic for "one input, two frames";
 		// both render passes share `Shell::lowering().ctx()`, so this is the whole tick's answer.
@@ -1788,7 +1867,6 @@ describe menu_scene_claims("scenes::menu::MenuScene input claims", $ {
 		expect(depth_of()).to_equal(1); // row 1 is the Int leaf
 
 		// And through every other screen shape the interpreter has, one tick at a time.
-		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 50);
 		r.button(kBackX, kBackY, true, 60);
 		r.shell.tick(70);
 		expect(depth_of()).to_equal(0);
@@ -2326,6 +2404,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 				r.shell.tick(static_cast<uint32_t>(15 + i * 10));
 			}
 			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 			r.shell.tick(110);
 			expect(menu_scene().focused() == &sync_leaf).to_be_true();
 			// `after_render` moves the path only *after* the render that entered it, so the panel
@@ -2344,6 +2423,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 				r64.shell.tick(static_cast<uint32_t>(15 + i * 10));
 			}
 			r64.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+			r64.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 			r64.shell.tick(110);
 			expect(menu_scene().focused() == &sync_leaf).to_be_true();
 			r64.shell.tick(120);
@@ -2365,6 +2445,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 				r.shell.tick(static_cast<uint32_t>(15 + i * 10));
 			}
 			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 			r.shell.tick(110);
 			expect(menu_scene().focused() == &sync_leaf).to_be_true();
 			r.shell.tick(120); // same "entered leaf draws next tick" rule as the golden above
@@ -2379,6 +2460,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 				r64.shell.tick(static_cast<uint32_t>(15 + i * 10));
 			}
 			r64.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+			r64.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 			r64.shell.tick(110);
 			expect(menu_scene().focused() == &sync_leaf).to_be_true();
 			r64.shell.tick(120);

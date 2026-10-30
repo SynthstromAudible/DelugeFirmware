@@ -887,6 +887,7 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		expect(static_cast<int>(menu_scene().state().depth)).to_equal(0);
 
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 10);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 10);
 		r.tick(10);
 		expect(menu_scene().focused() == &nodes::drum_name_edit).to_be_true();
 
@@ -920,6 +921,7 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		r.open_menu(nodes::drum_actions, nodes::drum_actions, context_of(f));
 		r.tick(0);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 10);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 10);
 		r.tick(10);
 		expect(&r.shell.stack().input_top() == &rename_scene()).to_be_true();
 

@@ -551,7 +551,10 @@ struct Rig {
 	///
 	/// Added for E2 task 9's goldens: the patch-cable strength and source-selection pages are
 	/// reached only through a select press, so a golden of either has to press one.
-	void enter(uint32_t at_ms) { shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 4, 3, 255}, at_ms); }
+	void enter(uint32_t at_ms) {
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 4, 3, 255}, at_ms);
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 4, 3, 0}, at_ms);
+	}
 };
 
 /// @brief A 128x64 single-panel board, so the same scene can be recorded at the other shipped

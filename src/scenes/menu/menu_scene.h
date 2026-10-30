@@ -509,6 +509,9 @@ public:
 	                                 const deluge::ui::shell::UiContext& ctx) override;
 	bool on_enter(const deluge::ui::shell::SceneId& id) override;
 	void on_resume() override;
+	/// @brief Select acts on its release, as `SoundEditor::buttonAction` does (`sound_editor.cpp:609-614`).
+	/// @return True.
+	bool select_acts_on_release() const override { return true; }
 	void on_model_changed(const deluge::notify::DirtySet& dirty) override;
 
 	/// @brief True: the menu draws over the base view's pads rather than replacing them.
@@ -953,6 +956,13 @@ private:
 	size_t remembered_next_ = 0;
 	/// @brief `ascend()` went up from depth 0: legacy's `exitCompletely()`, drained by `after_render`.
 	bool close_requested_ = false;
+	/// @brief Use up the current Select press at the next `after_render`: legacy's `SoundEditor::opened` and
+	///        `focusRegained` (`sound_editor.cpp:513-516`, `:531-533`), so the release of a press that opened or
+	///        returned to the menu does not act.
+	bool use_up_select_ = false;
+	/// @brief Select was held during the last render: a value edited under it uses the press up
+	///        (`Value::selectEncoderAction`, `menu_item/value.h:64-67`).
+	bool select_held_ = false;
 
 	/// @brief Record the selected child of every submenu on the current path; only while `ctx_` is the one the path
 	///        was walked with, since reading which children show runs their relevance tests.

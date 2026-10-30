@@ -263,7 +263,10 @@ struct Rig {
 	void button(uint8_t x, uint8_t y, bool on, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
 	}
-	void enter(uint32_t at_ms) { button(kSelectEncButtonX, kSelectEncButtonY, true, at_ms); }
+	void enter(uint32_t at_ms) {
+		button(kSelectEncButtonX, kSelectEncButtonY, true, at_ms);
+		button(kSelectEncButtonX, kSelectEncButtonY, false, at_ms);
+	}
 	/// @brief One clean press-release of instrument button (\p x, \p y), settled by a tick.
 	void press(uint8_t x, uint8_t y, uint32_t at_ms) {
 		button(x, y, true, at_ms);
