@@ -42,6 +42,7 @@ if(DELUGE_DSP_BENCH AND NOT DELUGE_HOST)
     ${CMAKE_CURRENT_LIST_DIR}/bench/granular_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/stutter_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/reverb_cases.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/bench/dx7_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/chain_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/pmu_a9.cpp
   )
@@ -142,11 +143,13 @@ if(_dsp_bench_on)
         target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_STUTTER=1)
     elseif(DELUGE_DSP_BENCH_CASES STREQUAL "reverb")
         target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_REVERB=1)
+    elseif(DELUGE_DSP_BENCH_CASES STREQUAL "dx7")
+        target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_DX7=1)
     elseif(DELUGE_DSP_BENCH_CASES STREQUAL "fx_chains")
         target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_FX_CHAINS=1)
     elseif(NOT DELUGE_DSP_BENCH_CASES STREQUAL "kernels")
         message(FATAL_ERROR "DELUGE_DSP_BENCH_CASES is kernels, lanes, chain, delay, filters, compressor, mod_fx, granular, stutter, \
-reverb or fx_chains, \
+reverb, dx7 or fx_chains, \
 not '${DELUGE_DSP_BENCH_CASES}'")
     endif()
     message(STATUS "DSP bench case list: ${DELUGE_DSP_BENCH_CASES}")

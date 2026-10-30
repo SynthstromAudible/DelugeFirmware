@@ -32,7 +32,6 @@
 #include <cstring>
 
 #include "deluge-project/instrument_slot.h"
-#include "dsp/dx/dx7note.h"
 #include "gui/menu_item/setting_edit.h"
 #include "io/midi/cable_types/usb_hosted.h"
 #include "model/drum/drum.h"
@@ -47,6 +46,7 @@
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
 #include "processing/audio_output.h"
+#include "processing/dx7/dx_patch.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"

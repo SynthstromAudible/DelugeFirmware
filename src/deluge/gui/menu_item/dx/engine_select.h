@@ -18,8 +18,8 @@
 
 #pragma once
 
-#include "dsp/dx/dx7note.h"
 #include "gui/menu_item/menu_item.h"
+#include "processing/dx7/dx_patch.h"
 
 namespace deluge::gui::menu_item {
 

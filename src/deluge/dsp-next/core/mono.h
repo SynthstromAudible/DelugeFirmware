@@ -22,6 +22,7 @@
 #include "dsp-next/core/types.h"
 #include <argon.hpp>
 #include <argon/vectorize/for_each.hpp>
+#include <array>
 #include <cstddef>
 #include <utility>
 
@@ -259,6 +260,8 @@ private:
 	template <auto M, typename... In>
 	[[gnu::always_inline]] static void loop(const Coefficients& c, const Block& block, LoopState& s,
 	                                        Buffer<value_type> out, In... in) {
+		static_assert(chains_of<K> == 1 || detail::vector_step_kernel<K>,
+		              "kChains is for q31 vector kernels: Mono runs chains only in its q31 vector loop");
 		const auto n = static_cast<std::ptrdiff_t>(out.size());
 		if constexpr (detail::scalar_step_kernel<K>) {
 			scalarLoop<M>(c, block, s, out.data(), n, in.data()...);
@@ -281,13 +284,73 @@ private:
 	}
 
 	/// @brief One `step` per vector of q31 samples: @p n samples of @p src into @p dst, the partial last vector
-	/// included.
+	/// included. A kernel declaring chains (@ref chains_of) steps every whole group of that many vectors through its
+	/// `step_chains` first.
 	template <auto M, typename... Src>
 	[[gnu::always_inline]] static void vectorLoop(const Coefficients& c, const Block& block, LoopState& s, q31* dst,
 	                                              std::ptrdiff_t n, const Src*... src) {
-		argon::vectorize::for_each<q31>(n, [&] [[gnu::always_inline]] (auto step) {
-			step.Store(dst, vectorStepAt<M>(c, block, s, step, step.Load(src)...));
+		std::ptrdiff_t done = 0;
+		if constexpr (chains_of<K> > 1) {
+			constexpr std::ptrdiff_t kGroup = static_cast<std::ptrdiff_t>(chains_of<K>) * Argon<q31>::lanes;
+			constexpr auto kChainIndex = std::make_index_sequence<chains_of<K>>{};
+			using Group = ChainVectors<step_type, chains_of<K>>;
+			static_assert(stepsChains<M, PerInput<Src, Group>...>,
+			              "a kernel declaring kChains provides step_chains(c, block, loop state, one ChainVectors per "
+			              "input) returning ChainVectors<step_type, kChains>");
+			for (; done + kGroup <= n; done += kGroup) {
+				storeChains(kChainIndex, dst + done,
+				            chainStepAt<M>(c, block, s, loadChains(kChainIndex, src + done)...));
+			}
+		}
+		argon::vectorize::for_each<q31>(n - done, [&] [[gnu::always_inline]] (auto step) {
+			step.Store(dst + done, vectorStepAt<M>(c, block, s, step, step.Load(src + done)...));
 		});
+	}
+
+	/// @brief The chains_of<K> consecutive vectors at @p base.
+	template <std::size_t... V>
+	[[gnu::always_inline]] static ChainVectors<step_type, sizeof...(V)> loadChains(std::index_sequence<V...> /*chains*/,
+	                                                                               const q31* base) {
+		return {{step_type::Load(base + (static_cast<std::ptrdiff_t>(V) * Argon<q31>::lanes))...}};
+	}
+
+	/// @brief Stores @p out's vectors at @p base, one after another.
+	template <std::size_t... V>
+	[[gnu::always_inline]] static void storeChains(std::index_sequence<V...> /*chains*/, q31* base,
+	                                               const ChainVectors<step_type, sizeof...(V)>& out) {
+		(out.v[V].StoreTo(base + (static_cast<std::ptrdiff_t>(V) * Argon<q31>::lanes)), ...);
+	}
+
+	/// @brief @p T once per input @p In: one group of vectors per input of the step.
+	template <typename In, typename T>
+	using PerInput = T;
+
+	/// @brief Whether K's step_chains at mode @p M takes one group per input and returns a group.
+	template <auto M, typename... G>
+	static constexpr bool stepsChains = [] {
+		using Group = ChainVectors<step_type, chains_of<K>>;
+		if constexpr (detail::has_modes<K>) {
+			return requires(const Coefficients& c, const Block& b, LoopState& s, const G&... g) {
+				{ K::template step_chains<M>(c, b, s, g...) } -> std::same_as<Group>;
+			};
+		}
+		else {
+			return requires(const Coefficients& c, const Block& b, LoopState& s, const G&... g) {
+				{ K::step_chains(c, b, s, g...) } -> std::same_as<Group>;
+			};
+		}
+	}();
+
+	/// @brief One chained step at mode @p M over one group of vectors per input.
+	template <auto M, typename... G>
+	[[gnu::always_inline]] static ChainVectors<step_type, chains_of<K>>
+	chainStepAt(const Coefficients& c, const Block& block, LoopState& s, const G&... group) {
+		if constexpr (detail::has_modes<K>) {
+			return K::template step_chains<M>(c, block, s, group...);
+		}
+		else {
+			return K::step_chains(c, block, s, group...);
+		}
 	}
 
 	/// @brief One `step` per vector of stereo frames: @p n frames of the interleaved @p src into the interleaved

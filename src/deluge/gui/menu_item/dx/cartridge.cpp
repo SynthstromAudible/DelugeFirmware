@@ -16,7 +16,6 @@
  */
 
 #include "cartridge.h"
-#include "dsp/dx/engine.h"
 #include "gui/menu_item/setting_edit.h"
 #include "gui/ui/browser/dx_browser.h"
 #include "gui/ui/sound_editor.h"
@@ -26,6 +25,7 @@
 #include "memory/allocate_unique.h"
 #include "memory/sdram_allocator.h"
 #include "model/song/song.h"
+#include "processing/dx7/dx_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 #include "storage/DX7Cartridge.h"

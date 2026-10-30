@@ -17,7 +17,6 @@
 
 #include "param.h"
 #include "algorithm_bitmaps.h"
-#include "dsp/dx/dx7note.h"
 #include "gui/menu_item/setting_edit.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
@@ -26,6 +25,7 @@
 #include "hid/display/oled.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
+#include "processing/dx7/dx_patch.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 #include <algorithm>
@@ -527,22 +527,22 @@ void DxParam::drawPixelsForOled() {
 	int op = param / 21;
 	int idx = param % 21;
 	if (param < (6 * 21 + 8) && idx < 8) {
-		renderEnvelope(patch->params, op, idx); // op== 6 for pitch envelope
+		renderEnvelope(patch->params.data(), op, idx); // op== 6 for pitch envelope
 	}
 	else if (param < 6 * 21 && idx < 13) {
-		renderScaling(patch->params, op, idx);
+		renderScaling(patch->params.data(), op, idx);
 	}
 	else if (param < 6 * 21 && idx < 16) {
-		renderSensParams(patch->params, op, idx);
+		renderSensParams(patch->params.data(), op, idx);
 	}
 	else if (param < 6 * 21 && idx < 21) {
-		renderTuning(patch->params, op, idx);
+		renderTuning(patch->params.data(), op, idx);
 	}
 	else if (param == 134) {
-		renderAlgorithm(patch->params);
+		renderAlgorithm(patch->params.data());
 	}
 	else if (param >= 137 && param < 144) {
-		renderLFO(patch->params, param);
+		renderLFO(patch->params.data(), param);
 	}
 }
 

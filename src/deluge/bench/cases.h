@@ -1594,6 +1594,45 @@ private:
 	ReverbKind kind_;
 };
 
+/// @brief One DX7 case's patch and engine.
+struct Dx7Config {
+	uint8_t algorithm; ///< The algorithm index, 0 to 31.
+	uint8_t feedback;  ///< 0 to 7.
+	uint8_t engine;    ///< The patch's engine mode: 1 modern, 2 MkI.
+	bool lfo;          ///< The LFO patch: wave 4 at rate 35, pitch and amplitude modulation, AMS 3 on every op.
+};
+
+/// @brief Modern engine, algorithm 1 at full feedback.
+inline constexpr Dx7Config kDx7ModernAlg1{.algorithm = 0, .feedback = 7, .engine = 1, .lfo = false};
+/// @brief Modern engine, algorithm 32 with the LFO patch.
+inline constexpr Dx7Config kDx7ModernAlg32{.algorithm = 31, .feedback = 0, .engine = 1, .lfo = true};
+/// @brief MkI engine, algorithm 1 at full feedback.
+inline constexpr Dx7Config kDx7MkIAlg1Fb{.algorithm = 0, .feedback = 7, .engine = 2, .lfo = false};
+/// @brief MkI engine, algorithm 4 at full feedback: the three-op feedback loop.
+inline constexpr Dx7Config kDx7MkIAlg4Fb3{.algorithm = 3, .feedback = 7, .engine = 2, .lfo = false};
+
+/// @brief A DX7 voice's block as a sound renders it: the patch's LFO, then the voice adapter's render (pitch, control,
+/// compute), mono.
+/// @details Setup builds a patch from the init voice with every op sounding (output level 90, rates 99/50/40/30, levels
+/// 99/80/60/0, coarse 1 to 6), sets its algorithm, feedback and engine, and starts a note (60, velocity 100). Each
+/// block renders the next n samples of that held note.
+class Dx7Case {
+public:
+	/// @brief A case of @p config.
+	/// @param config The case's configuration.
+	constexpr explicit Dx7Case(const Dx7Config& config) : config_{config} {}
+
+	/// @brief Rebuilds the rig's patch for this case and starts a fresh note, for blocks of @p n samples.
+	/// @param n Block size to set up for, in samples.
+	void setup(std::size_t n);
+	/// @brief Renders one block of the size it was set up for.
+	/// @param n Block size, in samples; the size passed to setup().
+	void block(std::size_t n);
+
+private:
+	Dx7Config config_;
+};
+
 /// @brief Which home an effect chain case renders.
 enum class FxChainHome : uint8_t {
 	SOUND,  ///< A sound's chain after its voices.
@@ -1756,6 +1795,10 @@ struct CaseSet {
 	ReverbCase reverb_freeverb{ReverbKind::FREEVERB};                             ///< `reverb_freeverb`
 	ReverbCase reverb_mutable{ReverbKind::MUTABLE};                               ///< `reverb_mutable`
 	ReverbCase reverb_digital{ReverbKind::DIGITAL};                               ///< `reverb_digital`
+	Dx7Case dx7_modern_alg1{kDx7ModernAlg1};                                      ///< `dx7_modern_alg1`
+	Dx7Case dx7_modern_alg32{kDx7ModernAlg32};                                    ///< `dx7_modern_alg32`
+	Dx7Case dx7_mki_alg1_fb{kDx7MkIAlg1Fb};                                       ///< `dx7_mki_alg1_fb`
+	Dx7Case dx7_mki_alg4_fb3{kDx7MkIAlg4Fb3};                                     ///< `dx7_mki_alg4_fb3`
 	FxChainCase fx_chain_sound{{.home = FxChainHome::SOUND, .reference = false}}; ///< `fx_chain_sound`
 	FxChainCase fx_chain_sound_reference{
 	    {.home = FxChainHome::SOUND, .reference = true}};                                ///< `fx_chain_sound_reference`
@@ -1797,6 +1840,9 @@ enum class CaseList : uint8_t {
 	/// The calibration loop, each reverb model as the engine renders it, then the feedback chain's two cases from
 	/// the chain list, as in the delay list.
 	REVERB,
+	/// The calibration loop, a DX7 voice's block through the voice adapter in each engine, then the feedback chain's
+	/// two cases from the chain list, as in the delay list.
+	DX7,
 	/// The calibration loop, each home's effect chain runtime beside its sequence written out over the same
 	/// components, then the feedback chain's two cases from the chain list, as in the delay list.
 	FX_CHAINS,
@@ -1821,6 +1867,8 @@ inline constexpr CaseList kBenchCaseList = CaseList::GRANULAR;
 inline constexpr CaseList kBenchCaseList = CaseList::STUTTER;
 #elif defined(DELUGE_DSP_BENCH_REVERB)
 inline constexpr CaseList kBenchCaseList = CaseList::REVERB;
+#elif defined(DELUGE_DSP_BENCH_DX7)
+inline constexpr CaseList kBenchCaseList = CaseList::DX7;
 #elif defined(DELUGE_DSP_BENCH_FX_CHAINS)
 inline constexpr CaseList kBenchCaseList = CaseList::FX_CHAINS;
 #else

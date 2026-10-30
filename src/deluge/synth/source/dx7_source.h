@@ -25,7 +25,7 @@ namespace deluge::synth {
 /// @brief The DX7 (MSFA FM) source for one voice-source — a @ref synth::Source over an injected
 /// @ref DxVoicePort.
 ///
-/// App-free: it holds only the port (the firmware's pooled `DxVoice` adapter lives behind it) and contributes the
+/// App-free: it holds only the port (the firmware's pooled `dx7::Voice` adapter lives behind it) and contributes the
 /// bespoke per-unison amplitude/stereo sum in @ref renderSource; the FM compute + the pooled-voice lifecycle are
 /// the port's job. The preset patch flows through @ref noteOn as an opaque handle (never dereferenced here). See
 /// `docs/dev/synth_source_ports.md`.

@@ -7,9 +7,9 @@
  },
  "community/12 Metalliche": {
   "frames": 88200,
-  "peak": 286537216,
+  "peak": 286668032,
   "rms_db": -31.89,
-  "sha256": "b6da55e1c5b5ac3f4d8c792fa54f4f92cf2b2cf45f27d3cb29f504a2f4f963a8"
+  "sha256": "bbeb30bef21aadaa93ed28f587f0f27350f4274b859d49f134477481889d6815"
  },
  "community/1994 Su": {
   "frames": 88200,
@@ -61,9 +61,9 @@
  },
  "community/Aberration": {
   "frames": 88200,
-  "peak": 356692224,
+  "peak": 356695296,
   "rms_db": -26.49,
-  "sha256": "fd0eb4ba852c7961c4a36506f142446bf7431bd3ac98b6a007e8370551e6da9b"
+  "sha256": "7c0b39b0944a07b4c438488c203f9c0c81c04d7b96c66a589f4eb23ddeb1e2ac"
  },
  "community/Analohania": {
   "frames": 88200,
@@ -307,9 +307,9 @@
  },
  "community/Glistening": {
   "frames": 88200,
-  "peak": 320163072,
+  "peak": 320165120,
   "rms_db": -28.74,
-  "sha256": "236c892bd4c36a6cd5295b9b2f7cdaaf6f78a5b604cce77ebdeab6ffbd4026f6"
+  "sha256": "5716e2f9a4ac186798492e169e1f8a4885df6b0e33853ec7410645930b2e7299"
  },
  "community/Gong": {
   "frames": 88200,
@@ -327,7 +327,7 @@
   "frames": 88200,
   "peak": 131795200,
   "rms_db": -31.08,
-  "sha256": "0585357125f8ae2bd2d15012222df4c492dacc05cd0e77c177dccebe59b205cd"
+  "sha256": "5baf4e863a6dc3506033ffef73556681eede7770ff998ffd8bc930254b9b5ded"
  },
  "community/Heartspark": {
   "frames": 88200,
@@ -445,9 +445,9 @@
  },
  "community/Modello Uno": {
   "frames": 88200,
-  "peak": 241154048,
+  "peak": 241156096,
   "rms_db": -29.03,
-  "sha256": "ef5208c6353e5857d13547cda99346ca984d64e9884a7618f40e0e78a1a25dca"
+  "sha256": "bab3064a4cd265d65028bc3188937f3b4f28929180ce1f65a6dc106beaf95ae3"
  },
  "community/Mouse Tail": {
   "frames": 88200,
@@ -511,9 +511,9 @@
  },
  "community/Pianism I": {
   "frames": 88200,
-  "peak": 257260032,
+  "peak": 257270016,
   "rms_db": -28.36,
-  "sha256": "1919975a6b4c0b003063ea49f3535af30a524792a3373fe78598025f8669af17"
+  "sha256": "4d67e59c498ee43450053af15197fd5362df240ab48d2b218097dbb2404c9363"
  },
  "community/Pomp": {
   "frames": 88200,
@@ -565,9 +565,9 @@
  },
  "community/Rubberdemon": {
   "frames": 88200,
-  "peak": 308957184,
+  "peak": 308964352,
   "rms_db": -28.04,
-  "sha256": "f4d5397fdba22dc09d51def0cb00ac9ce6e42a54ad2bed602e3ee3cbe36a481d"
+  "sha256": "0a85b7d244fed346e102e5d8d034a8c6622159da00b26fce117858f54c916618"
  },
  "community/Runner Lead": {
   "frames": 88200,
@@ -727,9 +727,9 @@
  },
  "community/Warm DX7 Pad": {
   "frames": 88200,
-  "peak": 238707200,
+  "peak": 238718464,
   "rms_db": -34.23,
-  "sha256": "5c9584b0164b51aa10c7c73b459d6069da075e63a125ff98c317ca1c68dab352"
+  "sha256": "7c1cc6ec2ec65c31291fc15b1681c777ba59820ec2e8ff34e7b7e5dfff07de8a"
  },
  "community/Wavedash": {
   "frames": 88200,
@@ -751,9 +751,9 @@
  },
  "community/Woodeep": {
   "frames": 88200,
-  "peak": 227839232,
+  "peak": 226977536,
   "rms_db": -32.94,
-  "sha256": "9300ba5b4959367d7a445b61f0578b3a2f6e358b77544ee093e70f583ebae662"
+  "sha256": "9fdb0c18ee0528bde10ec665aecad16aec21bb9db1c831e4b8c68cf1c31504e7"
  },
  "community/Working Engine": {
   "frames": 88200,
@@ -765,7 +765,7 @@
   "frames": 88200,
   "peak": 126177792,
   "rms_db": -35.34,
-  "sha256": "0dd4782a1c0cd709002e0af312322b5f18b4f456f3444680bb60fb776fae42d1"
+  "sha256": "b2803340e9024673e8dd0cb1e24ff9ba9340ba4b9e05cf61ac3e6832aba03763"
  },
  "community/Wub Sync Bass": {
   "frames": 88200,
@@ -784,6 +784,108 @@
   "peak": 1232993280,
   "rms_db": -15.08,
   "sha256": "ae27a966510b4079b63240ae2418f890970d5ff77c04d12f1a14c27386366ecb"
+ },
+ "dx7/ams_depths": {
+  "frames": 88200,
+  "peak": 173383680,
+  "rms_db": -36.1,
+  "sha256": "a61e0a71b2ec3733a1f1d283899c251f31b1bbbeb817daf5d11805056fb3d017"
+ },
+ "dx7/auto_alg1_fb": {
+  "frames": 88200,
+  "peak": 173382912,
+  "rms_db": -37.44,
+  "sha256": "95ee9142dcca7d5b65dfeee90d6b9f9356e20ddcf19fb5a599f1330d70b3fadf"
+ },
+ "dx7/fixed_frequency": {
+  "frames": 88200,
+  "peak": 173359360,
+  "rms_db": -37.47,
+  "sha256": "45c827f7d9d054df4972894c22e272dfdfc6160ea17eabb82653e699087cd2c4"
+ },
+ "dx7/lfo_delay_key_sync": {
+  "frames": 88200,
+  "peak": 173386752,
+  "rms_db": -36.3,
+  "sha256": "b579e0077ef4b926519b5e79537815518ef8347387191bbc7f63a513ed48b29d"
+ },
+ "dx7/lfo_wave_0": {
+  "frames": 88200,
+  "peak": 173380352,
+  "rms_db": -40.81,
+  "sha256": "5d7057ca1c63bb03f034f9b1ad66a736e3d886d515ea43c9382ba3a1342d6e36"
+ },
+ "dx7/lfo_wave_1": {
+  "frames": 88200,
+  "peak": 173298432,
+  "rms_db": -39.93,
+  "sha256": "ca5667453e4e4708905a22792a92509ade3d5f1099f11e4dca51a708e8ab1941"
+ },
+ "dx7/lfo_wave_2": {
+  "frames": 88200,
+  "peak": 171783936,
+  "rms_db": -41.09,
+  "sha256": "691019676f5bc5d3b9f66c3cfc348f014230fa8e03d2f8e36223034798383fb3"
+ },
+ "dx7/lfo_wave_3": {
+  "frames": 88200,
+  "peak": 173373696,
+  "rms_db": -40.32,
+  "sha256": "749573686750893e395fa55c6f1660622adcd00ad0da27a7dde92f83b0eec3f8"
+ },
+ "dx7/lfo_wave_4": {
+  "frames": 88200,
+  "peak": 173380352,
+  "rms_db": -40.81,
+  "sha256": "5d7057ca1c63bb03f034f9b1ad66a736e3d886d515ea43c9382ba3a1342d6e36"
+ },
+ "dx7/lfo_wave_5": {
+  "frames": 88200,
+  "peak": 173381888,
+  "rms_db": -40.73,
+  "sha256": "8ba828e56b059dd6a23cb78af4c714ca8d125844697b127378896e1940bedfed"
+ },
+ "dx7/mki_alg32_fb": {
+  "frames": 88200,
+  "peak": 173380352,
+  "rms_db": -36.27,
+  "sha256": "da5e7b602cac11965921f8cbd77164205294be2f4450d971fe9ab0a5c8803b03"
+ },
+ "dx7/mki_alg4_fb": {
+  "frames": 88200,
+  "peak": 173355776,
+  "rms_db": -37.71,
+  "sha256": "7d92d94b4aab290cacf6d8b83afe9460b09c72393a2ac36ea365178d8e1b3a4e"
+ },
+ "dx7/mki_alg6_fb": {
+  "frames": 88200,
+  "peak": 173375744,
+  "rms_db": -35.7,
+  "sha256": "20a3d8aa7c956f8b9116c0432a81e4baaff30e4e8bca2cf49b43354ec1f56da9"
+ },
+ "dx7/mki_forced_alg1_fb": {
+  "frames": 88200,
+  "peak": 173346048,
+  "rms_db": -37.48,
+  "sha256": "90393084f24b853a7a220fa41f739c50499cac3317b15828241526270b84c14c"
+ },
+ "dx7/modern_forced_alg4_fb": {
+  "frames": 88200,
+  "peak": 173353216,
+  "rms_db": -37.62,
+  "sha256": "d247ebfc956a7de0b80744412aea3a62c533cba20292b061792e1878c79fb960"
+ },
+ "dx7/modern_forced_alg6_fb": {
+  "frames": 88200,
+  "peak": 173380352,
+  "rms_db": -35.2,
+  "sha256": "87143d3cc151cc43fdbb5de46bf2c2aa3ff8ec1499f850bc5b5d5687e31da099"
+ },
+ "dx7/osc_free_running": {
+  "frames": 88200,
+  "peak": 173328384,
+  "rms_db": -36.78,
+  "sha256": "bae67f3371671e4811c8ba9c42f70966127dee10e3a5e23ec4bbae222ad995ee"
  },
  "env_shape": {
   "frames": 132300,

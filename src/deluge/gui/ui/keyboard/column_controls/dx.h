@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "dsp/dx/dx7note.h"
 #include "gui/ui/keyboard/column_controls/control_column.h"
+#include "processing/dx7/dx_patch.h"
 
 namespace deluge::gui::ui::keyboard::controls {
 
