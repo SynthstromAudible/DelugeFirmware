@@ -32,9 +32,9 @@
 
 namespace deluge::synth {
 
-LivePitchShifter::LivePitchShifter(OscType newInputType, int32_t phaseIncrement) {
-	inputType = newInputType;
-	numChannels = (newInputType == OscType::INPUT_STEREO) ? 2 : 1;
+LivePitchShifter::LivePitchShifter(InputChannel newChannel, int32_t phaseIncrement) {
+	channel = newChannel;
+	numChannels = (newChannel == InputChannel::STEREO) ? 2 : 1;
 
 	if (phaseIncrement < kMaxSampleValue) {
 		nextCrossfadeLength = samplesTilHopEnd = kInterpolationMaxNumSamples * 2;
@@ -78,7 +78,7 @@ int32_t LivePitchShifter::render(int32_t* __restrict__ outputBuffer, int32_t num
                                  int32_t phaseIncrement, int32_t amplitude, int32_t amplitudeIncrement,
                                  int32_t interpolationBufferSize, AudioInputPort& port, dsp::fixed::Cong& noise) {
 
-	LiveInputBuffer* liveInputBuffer = port.bufferForChannel(inputType, false);
+	LiveInputBuffer* liveInputBuffer = port.bufferForChannel(channel, false);
 	if (!liveInputBuffer) {
 		if (ALPHA_OR_BETA_VERSION) {
 			FREEZE_WITH_ERROR("E165");
@@ -86,7 +86,7 @@ int32_t LivePitchShifter::render(int32_t* __restrict__ outputBuffer, int32_t num
 		return 0; // Render nothing rather than dereference null
 	}
 
-	liveInputBuffer->giveInput(numSamplesThisFunctionCall, port, inputType);
+	liveInputBuffer->giveInput(numSamplesThisFunctionCall, port, channel);
 
 	int32_t whichKernel = dsp::fixed::WindowedSincKernel::variantFor(phaseIncrement);
 
@@ -107,7 +107,7 @@ int32_t LivePitchShifter::render(int32_t* __restrict__ outputBuffer, int32_t num
 			// Feed this 1 input sample into interpolation buffer
 			StereoSample* inputSample = audioDriver.getInputSample(i);
 
-			interpolationBuffer[0][0] = (inputType == OscType::INPUT_R) ? inputSample->r : inputSample->l;
+			interpolationBuffer[0][0] = (channel == InputChannel::RIGHT) ? inputSample->r : inputSample->l;
 
 			if (numChannels == 2) {
 				interpolationBuffer[1][0] = inputSample->r;

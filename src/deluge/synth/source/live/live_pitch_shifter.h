@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/noise/cong.h"
+#include "synth/source/input_channel.h"
 #include "synth/source/live/live_pitch_shifter_play_head.h"
 
 namespace deluge::synth {
@@ -28,9 +29,8 @@ class AudioInputPort;
 
 class LivePitchShifter {
 public:
-	LivePitchShifter(OscType newInputType, int32_t phaseIncrement);
+	LivePitchShifter(InputChannel channel, int32_t phaseIncrement);
 	~LivePitchShifter();
-	void giveInput(int32_t numSamples, int32_t inputType, int32_t phaseIncrement);
 
 	/// Render @p numSamplesThisFunctionCall of pitch-shifted output, summed into @p outputBuffer.
 	/// @return the number of time-stretch hops performed this call. The caller folds this into the host's
@@ -51,7 +51,7 @@ public:
 #endif
 
 	int8_t numChannels;
-	OscType inputType;
+	InputChannel channel;
 
 	uint32_t crossfadeProgress; // Out of kMaxSampleValue
 	// crossfadeIncrement + percThresholdForCut are only set at the first hop (before the crossfade/perc logic that

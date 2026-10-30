@@ -33,7 +33,7 @@ LiveInputBuffer::LiveInputBuffer() {
 	memset(angleLPFMem, 0, sizeof(angleLPFMem));
 }
 
-void LiveInputBuffer::giveInput(int32_t numSamples, AudioInputPort& port, OscType inputType) {
+void LiveInputBuffer::giveInput(int32_t numSamples, AudioInputPort& port, InputChannel channel) {
 
 	uint32_t currentTime = port.sampleTime();
 
@@ -58,11 +58,11 @@ void LiveInputBuffer::giveInput(int32_t numSamples, AudioInputPort& port, OscTyp
 
 		int32_t thisSampleRead;
 
-		if (inputType == OscType::INPUT_L) {
+		if (channel == InputChannel::LEFT) {
 			thisSampleRead = inputReadPos[0] >> 2;
 			rawBuffer[numRawSamplesProcessed & (kInputRawBufferSize - 1)] = inputReadPos[0];
 		}
-		else if (inputType == OscType::INPUT_R) {
+		else if (channel == InputChannel::RIGHT) {
 			thisSampleRead = inputReadPos[1] >> 2;
 			rawBuffer[numRawSamplesProcessed & (kInputRawBufferSize - 1)] = inputReadPos[1];
 		}

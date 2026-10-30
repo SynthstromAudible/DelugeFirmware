@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "synth/source/input_channel.h"
 #include <cstdint>
 
 namespace deluge::synth {
@@ -29,7 +30,7 @@ public:
 	LiveInputBuffer();
 	~LiveInputBuffer() = default;
 	/// Ingest @p numSamples of fresh input (via @p port — the ring + frame clock) and run the angle/perc analysis.
-	void giveInput(int32_t numSamples, AudioInputPort& port, OscType inputType);
+	void giveInput(int32_t numSamples, AudioInputPort& port, InputChannel channel);
 	bool getAveragesForCrossfade(int32_t* totals, int32_t startPos, int32_t lengthToAverageEach, int32_t numChannels);
 
 	uint32_t upToTime;

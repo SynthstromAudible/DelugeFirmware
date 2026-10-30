@@ -16,10 +16,9 @@
  */
 #pragma once
 
-#include <cstdint>
+#include "synth/source/input_channel.h"
 
-#include "instruments/deluge/words.h"
-using deluge::instrument::OscType; // only INPUT_L/INPUT_R/INPUT_STEREO reach the port
+#include <cstdint>
 
 namespace deluge::synth {
 
@@ -51,10 +50,10 @@ public:
 	/// One past the last sample of the input ring (the wrap bound for @ref ringReadPos).
 	[[nodiscard]] virtual const int32_t* ringEnd() const = 0;
 
-	/// The shared, per-channel ingest+analysis buffer for @p inputType (host-pooled across voices, GC'd by
+	/// The shared, per-channel ingest+analysis buffer for @p channel (host-pooled across voices, GC'd by
 	/// staleness). @return the borrowed buffer, or nullptr if unavailable and @p mayCreate is false / the pool is
 	/// empty.
-	[[nodiscard]] virtual LiveInputBuffer* bufferForChannel(OscType inputType, bool mayCreate) = 0;
+	[[nodiscard]] virtual LiveInputBuffer* bufferForChannel(InputChannel channel, bool mayCreate) = 0;
 
 	/// Report the time-stretch hops the pitch-shifter performed this block, for the host's per-routine CPU-load
 	/// accounting (the pitch-shifter itself stays free of that global; see LivePitchShifter::render's return value).

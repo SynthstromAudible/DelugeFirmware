@@ -29,8 +29,7 @@ extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 using deluge::synth::InputChannel;
 
 namespace {
-/// The configured channel (latched at note-on) ⇆ the `OscType` the live-input port + pitch-shifter still speak.
-/// Keeps the `OscType` coupling local to this translation unit; the rest of the synth source is `InputChannel`.
+/// The input channel a live-input `OscType` names: the note-on boundary is the only place the synth reads it.
 InputChannel channelFromOscType(OscType inputType) {
 	switch (inputType) {
 	case OscType::INPUT_R:
@@ -39,16 +38,6 @@ InputChannel channelFromOscType(OscType inputType) {
 		return InputChannel::STEREO;
 	default:
 		return InputChannel::LEFT;
-	}
-}
-OscType oscTypeForChannel(InputChannel channel) {
-	switch (channel) {
-	case InputChannel::RIGHT:
-		return OscType::INPUT_R;
-	case InputChannel::STEREO:
-		return OscType::INPUT_STEREO;
-	default:
-		return OscType::INPUT_L;
 	}
 }
 } // namespace
@@ -72,16 +61,14 @@ void InputSource::render(int32_t* oscBuffer, int32_t numSamples, uint32_t phaseI
 			if (channelNow == InputChannel::STEREO && !in_->stereoInputAvailable()) {
 				channelNow = InputChannel::LEFT;
 			}
-			OscType inputTypeNow = oscTypeForChannel(channelNow);
-
-			LiveInputBuffer* liveInputBuffer = in_->bufferForChannel(inputTypeNow, true);
+			LiveInputBuffer* liveInputBuffer = in_->bufferForChannel(channelNow, true);
 
 			if (liveInputBuffer) {
 
 				void* memory = allocMaxSpeed(sizeof(LivePitchShifter));
 
 				if (memory) {
-					livePitchShifter_ = new (memory) LivePitchShifter(inputTypeNow, phaseIncrement);
+					livePitchShifter_ = new (memory) LivePitchShifter(channelNow, phaseIncrement);
 				}
 			}
 		}
