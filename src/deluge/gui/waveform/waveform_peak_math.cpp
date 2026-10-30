@@ -31,18 +31,6 @@ WaveformPeak scanClusterPeak(const char* clusterData, int32_t startByte, int32_t
 	return peak;
 }
 
-int16_t toCachedPeak(int32_t value) {
-	int16_t cached = static_cast<int16_t>(value >> 16);
-	if (value < 0) {
-		cached++; // round toward zero
-	}
-	return cached;
-}
-
-int32_t fromCachedPeak(int16_t cached) {
-	return static_cast<int32_t>(cached) * (1 << 16);
-}
-
 int32_t lastAudioClusterEndByte(uint64_t numValidBytes, uint32_t audioDataStartPosBytes, int32_t clusterSize) {
 	uint64_t totalEnd = numValidBytes + audioDataStartPosBytes;
 	return static_cast<int32_t>(((totalEnd - 1) & static_cast<uint64_t>(clusterSize - 1)) + 1);
