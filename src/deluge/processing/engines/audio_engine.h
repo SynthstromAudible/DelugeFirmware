@@ -49,7 +49,6 @@ class VoiceSample;
 class TimeStretcher;
 #include <string>
 class VoiceVector;
-class Freeverb;
 class Metronome;
 enum class Polarity : uint8_t;
 struct CriticalSectionGuard;
@@ -60,9 +59,11 @@ class AbsValueFollower;
 
 namespace deluge::effects {
 class Sidechain;
-}
-namespace deluge::dsp {
 class Reverb;
+enum class ReverbModel : uint8_t;
+} // namespace deluge::effects
+namespace deluge::project {
+struct ReverbSettings;
 }
 
 /*
@@ -294,7 +295,14 @@ extern deluge::effects::SidechainState reverbSidechainSettings;
 extern uint32_t timeThereWasLastSomeReverb;
 /// Every live Sound. Changed only by Sound's constructor and destructor, walked by the render: see AudioOwnedList.
 extern deluge::AudioOwnedList<Sound, deluge::fast_vector<Sound*>> sounds;
-extern deluge::dsp::Reverb reverb;
+extern deluge::effects::Reverb reverb;
+/// @brief Rebuilds the song reverb at @p model (memory zeroed), as a song load or the model menu sets it; the render
+/// adds no reverb while it rebuilds. From the interaction tier, or from the render itself in a song swap at a launch;
+/// an audio-tier call during an interaction-tier rebuild is taken up by that rebuild before it commits.
+void setReverbModel(deluge::effects::ReverbModel model);
+/// @brief Publishes the song's reverb knobs (project.reverb), which the render takes up at its next block. From the
+/// interaction tier, or from the render itself in a song swap at a launch.
+void publishReverbSettings(const deluge::project::ReverbSettings& knobs);
 extern uint32_t nextVoiceState;
 extern SoundDrum* sampleForPreview;
 extern int32_t reverbSidechainVolume;

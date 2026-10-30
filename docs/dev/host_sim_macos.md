@@ -52,11 +52,7 @@ The auto-detection selects, on Apple Silicon:
 
 ## Watch items (likely first failures, untested off-Mac)
 
-1. **NE10 on aarch64.** NE10's int32 FFT is compiled from its NEON-intrinsic `.c/.cpp` (the armv7 `.s` files are
-   excluded). aarch64 NEON is a superset of armv7 NEON, so it *should* compile, but watch for any intrinsic that
-   doesn't exist on aarch64. If it breaks, the fallback is to route NE10 through SIMDe on this path too (add the
-   compat shim to the NE10 target and drop `DELUGE_SIM_NEON_NATIVE` for NE10 only).
-2. **`<execution>` / parallel STL under libc++.** The `_GLIBCXX_USE_TBB_PAR_BACKEND=0` define is a libstdc++ macro
+1. **`<execution>` / parallel STL under libc++.** The `_GLIBCXX_USE_TBB_PAR_BACKEND=0` define is a libstdc++ macro
    and inert on libc++; if `std::execution` fails to resolve, we may need a libc++-specific guard where the app uses
    parallel algorithms.
 

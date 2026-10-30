@@ -20,7 +20,6 @@
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // getDecay4
 #include "dsp-next/fixed/osc/sine.h"
-#include "dsp/dx/engine.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "dsp/util.hpp"
 #include "engines/effects/filter_slots.h"
@@ -38,6 +37,7 @@
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
+#include "processing/dx7/dx_engine.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/render_scratch.h"
 #include "processing/sound/sound.h"

@@ -1560,6 +1560,107 @@ private:
 	StutterConfig config_;
 };
 
+/// @brief The reverb models the cases time. reverb_cases.cpp maps each to the engine's model, which this header
+/// leaves out so that the host specs build it without the app's headers.
+enum class ReverbKind : uint8_t {
+	FREEVERB, ///< Freeverb
+	MUTABLE,  ///< The Mutable plate
+	DIGITAL,  ///< The Digital (Dattorro) plate
+};
+
+/// @brief The song's reverb block as the engine renders it (renderReverb, through effects::Reverb): the model at the
+/// boot song's knobs, centred and unducked (both return levels 2^29), over the lanes output in place, fed from its own
+/// send block.
+/// @details Setup rebuilds the component at the model, as a song load does (zeroed memory), publishes the boot song's
+/// knobs, copies the lanes input's first n frames (fill_compressor_input()) into the lanes output and fills the send
+/// with a tone. Each block renders over the block before's output, from the same send, which the reverb reads and
+/// leaves as it is. The timing does not depend on the data.
+class ReverbCase {
+public:
+	static constexpr std::size_t kLanes = 2; ///< Left and right.
+
+	/// @brief A case of @p kind.
+	/// @param kind The model the case times.
+	constexpr explicit ReverbCase(ReverbKind kind) : kind_{kind} {}
+
+	/// @brief The model built afresh at the boot song's knobs, and the block for @p n frames.
+	/// @param n Block size to set up for, in frames.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for, in place.
+	/// @param n Block size, in frames; the size passed to setup().
+	void block(std::size_t n);
+
+private:
+	ReverbKind kind_;
+};
+
+/// @brief One DX7 case's patch and engine.
+struct Dx7Config {
+	uint8_t algorithm; ///< The algorithm index, 0 to 31.
+	uint8_t feedback;  ///< 0 to 7.
+	uint8_t engine;    ///< The patch's engine mode: 1 modern, 2 MkI.
+	bool lfo;          ///< The LFO patch: wave 4 at rate 35, pitch and amplitude modulation, AMS 3 on every op.
+};
+
+/// @brief Modern engine, algorithm 1 at full feedback.
+inline constexpr Dx7Config kDx7ModernAlg1{.algorithm = 0, .feedback = 7, .engine = 1, .lfo = false};
+/// @brief Modern engine, algorithm 32 with the LFO patch.
+inline constexpr Dx7Config kDx7ModernAlg32{.algorithm = 31, .feedback = 0, .engine = 1, .lfo = true};
+/// @brief MkI engine, algorithm 1 at full feedback.
+inline constexpr Dx7Config kDx7MkIAlg1Fb{.algorithm = 0, .feedback = 7, .engine = 2, .lfo = false};
+/// @brief MkI engine, algorithm 4 at full feedback: the three-op feedback loop.
+inline constexpr Dx7Config kDx7MkIAlg4Fb3{.algorithm = 3, .feedback = 7, .engine = 2, .lfo = false};
+
+/// @brief A DX7 voice's block as a sound renders it: the patch's LFO, then the voice adapter's render (pitch, control,
+/// compute), mono.
+/// @details Setup builds a patch from the init voice with every op sounding (output level 90, rates 99/50/40/30, levels
+/// 99/80/60/0, coarse 1 to 6), sets its algorithm, feedback and engine, and starts a note (60, velocity 100). Each
+/// block renders the next n samples of that held note.
+class Dx7Case {
+public:
+	/// @brief A case of @p config.
+	/// @param config The case's configuration.
+	constexpr explicit Dx7Case(const Dx7Config& config) : config_{config} {}
+
+	/// @brief Rebuilds the rig's patch for this case and starts a fresh note, for blocks of @p n samples.
+	/// @param n Block size to set up for, in samples.
+	void setup(std::size_t n);
+	/// @brief Renders one block of the size it was set up for.
+	/// @param n Block size, in samples; the size passed to setup().
+	void block(std::size_t n);
+
+private:
+	Dx7Config config_;
+};
+
+/// @brief One FFT case's transform.
+struct FftConfig {
+	bool inverse;      ///< Inverse (bins to samples) rather than forward.
+	int32_t magnitude; ///< log2 of the real transform's length.
+};
+
+/// @brief One int32 real transform of 2^magnitude points per block, whatever the block size: the figure to compare is
+/// cycles per block, not per sample.
+/// @details Setup takes the transform from FFTConfigManager::getConfig, built once and cached as the app does, and on
+/// first use allocates the input and output and fills the input from a fixed-seed noise stream, scaled as the FFT pin's
+/// random set (forward samples >> 12, inverse words >> 8). A transform that cannot be built prints BENCH-ERROR.
+class FftCase {
+public:
+	/// @brief A case of @p config.
+	/// @param config The case's configuration.
+	constexpr explicit FftCase(const FftConfig& config) : config_{config} {}
+
+	/// @brief Takes the transform and its buffers.
+	/// @param n Block size; the transform's length does not depend on it.
+	void setup(std::size_t n);
+	/// @brief Runs one transform.
+	/// @param n Block size; unused.
+	void block(std::size_t n);
+
+private:
+	FftConfig config_;
+};
+
 /// @brief Which home an effect chain case renders.
 enum class FxChainHome : uint8_t {
 	SOUND,  ///< A sound's chain after its voices.
@@ -1719,6 +1820,34 @@ struct CaseSet {
 	StutterCase stutter_record_resampled{{.play = false, .resampled = true}};     ///< `stutter_record_resampled`
 	StutterCase stutter_play_native{{.play = true, .resampled = false}};          ///< `stutter_play_native`
 	StutterCase stutter_play_resampled{{.play = true, .resampled = true}};        ///< `stutter_play_resampled`
+	ReverbCase reverb_freeverb{ReverbKind::FREEVERB};                             ///< `reverb_freeverb`
+	ReverbCase reverb_mutable{ReverbKind::MUTABLE};                               ///< `reverb_mutable`
+	ReverbCase reverb_digital{ReverbKind::DIGITAL};                               ///< `reverb_digital`
+	Dx7Case dx7_modern_alg1{kDx7ModernAlg1};                                      ///< `dx7_modern_alg1`
+	Dx7Case dx7_modern_alg32{kDx7ModernAlg32};                                    ///< `dx7_modern_alg32`
+	Dx7Case dx7_mki_alg1_fb{kDx7MkIAlg1Fb};                                       ///< `dx7_mki_alg1_fb`
+	Dx7Case dx7_mki_alg4_fb3{kDx7MkIAlg4Fb3};                                     ///< `dx7_mki_alg4_fb3`
+	FftCase fft_fwd_16{{.inverse = false, .magnitude = 4}};                       ///< `fft_fwd_16`
+	FftCase fft_fwd_32{{.inverse = false, .magnitude = 5}};                       ///< `fft_fwd_32`
+	FftCase fft_fwd_64{{.inverse = false, .magnitude = 6}};                       ///< `fft_fwd_64`
+	FftCase fft_fwd_128{{.inverse = false, .magnitude = 7}};                      ///< `fft_fwd_128`
+	FftCase fft_fwd_256{{.inverse = false, .magnitude = 8}};                      ///< `fft_fwd_256`
+	FftCase fft_fwd_512{{.inverse = false, .magnitude = 9}};                      ///< `fft_fwd_512`
+	FftCase fft_fwd_1024{{.inverse = false, .magnitude = 10}};                    ///< `fft_fwd_1024`
+	FftCase fft_fwd_2048{{.inverse = false, .magnitude = 11}};                    ///< `fft_fwd_2048`
+	FftCase fft_fwd_4096{{.inverse = false, .magnitude = 12}};                    ///< `fft_fwd_4096`
+	FftCase fft_fwd_8192{{.inverse = false, .magnitude = 13}};                    ///< `fft_fwd_8192`
+	FftCase fft_inv_8{{.inverse = true, .magnitude = 3}};                         ///< `fft_inv_8`
+	FftCase fft_inv_16{{.inverse = true, .magnitude = 4}};                        ///< `fft_inv_16`
+	FftCase fft_inv_32{{.inverse = true, .magnitude = 5}};                        ///< `fft_inv_32`
+	FftCase fft_inv_64{{.inverse = true, .magnitude = 6}};                        ///< `fft_inv_64`
+	FftCase fft_inv_128{{.inverse = true, .magnitude = 7}};                       ///< `fft_inv_128`
+	FftCase fft_inv_256{{.inverse = true, .magnitude = 8}};                       ///< `fft_inv_256`
+	FftCase fft_inv_512{{.inverse = true, .magnitude = 9}};                       ///< `fft_inv_512`
+	FftCase fft_inv_1024{{.inverse = true, .magnitude = 10}};                     ///< `fft_inv_1024`
+	FftCase fft_inv_2048{{.inverse = true, .magnitude = 11}};                     ///< `fft_inv_2048`
+	FftCase fft_inv_4096{{.inverse = true, .magnitude = 12}};                     ///< `fft_inv_4096`
+	FftCase fft_inv_8192{{.inverse = true, .magnitude = 13}};                     ///< `fft_inv_8192`
 	FxChainCase fx_chain_sound{{.home = FxChainHome::SOUND, .reference = false}}; ///< `fx_chain_sound`
 	FxChainCase fx_chain_sound_reference{
 	    {.home = FxChainHome::SOUND, .reference = true}};                                ///< `fx_chain_sound_reference`
@@ -1757,9 +1886,19 @@ enum class CaseList : uint8_t {
 	/// The calibration loop, the stutter as its owners render it, recording and playing over a native and a resampled
 	/// tape, then the feedback chain's two cases from the chain list, as in the delay list.
 	STUTTER,
+	/// The calibration loop, each reverb model as the engine renders it, then the feedback chain's two cases from
+	/// the chain list, as in the delay list.
+	REVERB,
+	/// The calibration loop, a DX7 voice's block through the voice adapter in each engine, then the feedback chain's
+	/// two cases from the chain list, as in the delay list.
+	DX7,
 	/// The calibration loop, each home's effect chain runtime beside its sequence written out over the same
 	/// components, then the feedback chain's two cases from the chain list, as in the delay list.
 	FX_CHAINS,
+	/// The calibration loop, then the int32 real FFT forward at every size the firmware transforms, 16 to 8192 points.
+	FFT_FORWARD,
+	/// The calibration loop, then the int32 real FFT inverse at every size the firmware transforms, 8 to 8192 points.
+	FFT_INVERSE,
 };
 
 /// @brief The case list a bench image runs: DELUGE_DSP_BENCH_CASES, as src/deluge/CMakeLists.txt defines it.
@@ -1779,8 +1918,16 @@ inline constexpr CaseList kBenchCaseList = CaseList::MOD_FX;
 inline constexpr CaseList kBenchCaseList = CaseList::GRANULAR;
 #elif defined(DELUGE_DSP_BENCH_STUTTER)
 inline constexpr CaseList kBenchCaseList = CaseList::STUTTER;
+#elif defined(DELUGE_DSP_BENCH_REVERB)
+inline constexpr CaseList kBenchCaseList = CaseList::REVERB;
+#elif defined(DELUGE_DSP_BENCH_DX7)
+inline constexpr CaseList kBenchCaseList = CaseList::DX7;
 #elif defined(DELUGE_DSP_BENCH_FX_CHAINS)
 inline constexpr CaseList kBenchCaseList = CaseList::FX_CHAINS;
+#elif defined(DELUGE_DSP_BENCH_FFT_FORWARD)
+inline constexpr CaseList kBenchCaseList = CaseList::FFT_FORWARD;
+#elif defined(DELUGE_DSP_BENCH_FFT_INVERSE)
+inline constexpr CaseList kBenchCaseList = CaseList::FFT_INVERSE;
 #else
 inline constexpr CaseList kBenchCaseList = CaseList::KERNELS;
 #endif

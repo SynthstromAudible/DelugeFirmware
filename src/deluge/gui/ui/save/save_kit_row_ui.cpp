@@ -41,7 +41,7 @@
 
 using namespace deluge;
 
-SaveKitRowUI saveKitRowUI{};
+PLACE_SDRAM_BSS SaveKitRowUI saveKitRowUI{};
 
 SaveKitRowUI::SaveKitRowUI() {
 	outputTypeToLoad = OutputType::SYNTH;

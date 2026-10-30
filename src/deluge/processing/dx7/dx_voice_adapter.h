@@ -1,0 +1,58 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+#pragma once
+
+#include "synth/source/dx_voice_port.h" // synth::DxVoicePort
+#include <cstdint>
+#include <gsl/gsl>
+#include <span>
+
+class DxPatch;
+
+namespace deluge::dsp::fixed {
+struct CongNoise;
+namespace dx7 {
+template <class Noise>
+class Voice;
+} // namespace dx7
+} // namespace deluge::dsp::fixed
+
+namespace deluge::dsp {
+
+/// @brief The firmware adapter behind @ref deluge::synth::DxVoicePort: a pooled `dx7::Voice` for one voice-source.
+/// Holds the source's voice + cached `DxPatch`, soliciting/releasing from the global `getDxEngine()` pool, and per
+/// block derives the log pitch and controls and renders the voice over the patch's clamped bytes, which it renews at
+/// note-on and when the patch changes. It is the
+/// app-coupled half of `DX7Source`: the voice is dsp-next's, and the app keeps the pool, the patch and this adapter.
+/// Ownership of the pooled voice is
+/// **explicit** (freed only in @ref unassign, never in a destructor) — the per-source objects are pooled and
+/// reused in place, so an owning dtor would risk a double-free.
+class DxVoiceAdapter final : public synth::DxVoicePort {
+	gsl::owner<fixed::dx7::Voice<fixed::CongNoise>*> voice_ = nullptr;
+	DxPatch* patch_ = nullptr;
+	int midinote_ = 60;  ///< The note, for a key-up between blocks.
+	int velocity_ = 100; ///< The note-on velocity.
+
+public:
+	bool noteOn(void* patch, int midinote, int velocity) override;
+	void keyup() override;
+	void unassign() override;
+	std::span<const int32_t> render(int32_t numSamples, uint32_t phaseIncrement, int32_t ampModParam, bool patchChanged,
+	                                int midinote) override;
+};
+
+} // namespace deluge::dsp

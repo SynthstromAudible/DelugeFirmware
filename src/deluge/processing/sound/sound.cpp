@@ -18,7 +18,6 @@
 #include "processing/sound/sound.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
-#include "dsp/dx/engine.h"
 #include "engines/deluge/codec.h"
 #include "engines/deluge/sound_state.h"
 #include "engines/effects/codec.h"
@@ -63,6 +62,7 @@
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
+#include "processing/dx7/dx_engine.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_chain_inputs.h"
 #include "processing/sound/sound_instrument.h"
@@ -2887,7 +2887,7 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 		source.sampleControls.reversed = from.reversed;
 		if (from.dx_patch) {
 			DxPatch* patch = source.ensureDxPatch();
-			std::ranges::copy(from.dx_patch->params, patch->params);
+			std::ranges::copy(from.dx_patch->params, patch->params.begin());
 			// A file names an engine only when it is not "auto" (0), and only then is the engine chosen again: an auto
 			// patch keeps the engine its new patch was given.
 			if (from.dx_patch->engine_mode != 0) {

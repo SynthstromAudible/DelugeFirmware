@@ -56,7 +56,7 @@
 #include <iterator>
 #include <string.h>
 
-AudioRecorder audioRecorder{};
+PLACE_SDRAM_BSS AudioRecorder audioRecorder{};
 
 AudioRecorder::AudioRecorder() {
 	recordingSource = AudioInputChannel::NONE;

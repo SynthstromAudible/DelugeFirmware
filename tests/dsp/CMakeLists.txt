@@ -73,12 +73,6 @@ set(envelope_spec_DEPS
 set(windowed_sinc_kernel_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp)
 # The chunker caches each chunk's sinc kernel via windowed_sinc_kernel.select().
 set(wavetable_cycle_chunker_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp)
-# The reverb models (Freeverb's out-of-line half; Digital and Mutable are header-only). The spec also needs
-# DELUGE_DSP_BOUNDS_CHECK, which turns every DelayLine read outside its own reserved region into a hard failure.
-set(reverb_spec_DEPS ${_repo_root}/src/deluge/dsp/reverb/freeverb/freeverb.cpp)
-set(reverb_spec_DEFS DELUGE_DSP_BOUNDS_CHECK=1)
-# The reverbs reach util/functions.h, which reaches the libdeluge headers.
-set(reverb_spec_INCLUDES ${_repo_root}/include)
 
 # The shift tracker needs no sources: the kernel is header-only, and its noise inputs come from SeededNoise.
 set(shift_tracker_spec_DEPS)
@@ -166,14 +160,77 @@ set(delay_poisoned_storage_spec_DEPS ${delay_processor_spec_DEPS})
 set(reference_stutter_spec_DEPS ${delay_processor_spec_DEPS})
 # The Stutter kernel against the reference over the same workloads: the same sources, the kernel being header-only.
 set(stutter_kernel_spec_DEPS ${reference_stutter_spec_DEPS})
+# The DX7 reference (reference_dx7.h, dx7_workloads.h, dx7_workload_records.h, header-only) draws its noise from
+# SeededNoise and takes the init voice from engines/deluge.
+set(dx7_reference_spec_DEPS)
+# The DX7 components: the tables' generator, the envelope's advance and the graph are out of line; the rest is in
+# headers.
+set(_dx7_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/dx7/tables.cpp)
+set(dx7_tables_spec_DEPS ${_dx7_DEPS})
+set(dx7_pitch_envelope_spec_DEPS ${_dx7_DEPS})
+set(dx7_lfo_delay_spec_DEPS ${_dx7_DEPS})
+set(dx7_lfo_spec_DEPS ${_dx7_DEPS})
+set(dx7_envelope_spec_DEPS ${_dx7_DEPS} ${_repo_root}/src/deluge/dsp-next/fixed/dx7/envelope.cpp)
+set(dx7_operator_spec_DEPS ${_dx7_DEPS})
+set(dx7_mki_feedback_stack_spec_DEPS ${_dx7_DEPS})
+set(dx7_graph_spec_DEPS ${_dx7_DEPS} ${_repo_root}/src/deluge/dsp-next/fixed/dx7/graph.cpp)
+set(dx7_graph_unsafe_math_spec_DEPS ${dx7_graph_spec_DEPS})
+set(dx7_graph_unsafe_math_spec_OPTIONS -funsafe-math-optimizations)
+set(dx7_modern_vector_operator_spec_DEPS ${_dx7_DEPS})
+# The vector operator must equal the device's NEON kernel under the host's float flags and the device's. Only the
+# device builds with -funsafe-math-optimizations, so the same spec builds twice: plain, and with the device's flag.
+set(dx7_modern_vector_operator_unsafe_math_spec_DEPS ${dx7_modern_vector_operator_spec_DEPS})
+set(dx7_modern_vector_operator_unsafe_math_spec_OPTIONS -funsafe-math-optimizations)
+set(dx7_voice_spec_DEPS ${_dx7_DEPS} ${dx7_graph_spec_DEPS} ${dx7_envelope_spec_DEPS})
+# The DX7 asm pin runs the device's NEON FM kernel (a test-local copy, reference_neon_fm_kernel.s) and exists on ARM
+# only; its records are what dx7_modern_vector_operator_spec must equal on both architectures.
+set(_arm_only_specs dx7_asm_pin_spec)
+set(dx7_asm_pin_spec_DEPS ${CMAKE_CURRENT_LIST_DIR}/reference_neon_fm_kernel.s)
+# On ARM the vector operator's specs run the asm beside it, sample by sample, and the graph spec builds the graph as the
+# firmware does, its modern ops through the asm (under the test-local name), against the reference taking the asm.
+if(DSP_SPEC_ARM)
+  foreach(_asm_spec dx7_modern_vector_operator_spec dx7_modern_vector_operator_unsafe_math_spec dx7_graph_spec
+                   dx7_graph_unsafe_math_spec)
+    list(APPEND ${_asm_spec}_DEPS ${CMAKE_CURRENT_LIST_DIR}/reference_neon_fm_kernel.s)
+    set(${_asm_spec}_DEFS DELUGE_DX7_ASM_PIN=1)
+  endforeach()
+  list(APPEND dx7_graph_spec_DEFS DELUGE_DX7_NEON_KERNEL=reference_neon_fm_kernel)
+  list(APPEND dx7_graph_unsafe_math_spec_DEFS DELUGE_DX7_NEON_KERNEL=reference_neon_fm_kernel)
+endif()
 
 # ETL for the synth headers that reach util/etl_string.h (modulation/sync.h, through the LFO). The x86 unit tree links it
 # everywhere; the ARM tree does not, so the specs link it themselves.
 FetchContent_MakeAvailable(etl)
 
-file(GLOB _specs ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)
+# fixed::fft: the twiddle tables, plain and under the firmware's float flags, and the transform.
+set(_fft_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/fft/twiddles.cpp)
+set(twiddles_spec_DEPS ${_fft_DEPS})
+set(twiddles_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
+set(twiddles_shipping_spec_DEPS ${_fft_DEPS})
+set(twiddles_shipping_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
+set(twiddles_shipping_spec_OPTIONS -O2 -funsafe-math-optimizations)
+set(real_fft_spec_DEPS ${_fft_DEPS} ${_repo_root}/src/deluge/dsp-next/fixed/fft/real_fft.cpp)
+set(real_fft_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
+set(real_fft_shipping_spec_DEPS ${real_fft_spec_DEPS})
+set(real_fft_shipping_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
+set(real_fft_shipping_spec_OPTIONS -O2 -funsafe-math-optimizations)
+# The band builder: the transform, the DFT (which reads sineWaveSmall) and fastPythag.
+set(band_builder_spec_DEPS
+  ${real_fft_spec_DEPS}
+  ${_repo_root}/src/deluge/dsp-next/fixed/fft/real_dft.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/wavetable/band_builder.cpp
+  ${_repo_root}/src/deluge/util/fast_pythag.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+set(band_builder_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
+set(band_builder_spec_INCLUDES ${_repo_root}/include)
+
+# CONFIGURE_DEPENDS: a spec file added to an already-configured tree is built (and run) on the next build.
+file(GLOB _specs CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)
 foreach(_spec_path IN LISTS _specs)
   cmake_path(GET _spec_path STEM _name)
+  if(NOT DSP_SPEC_ARM AND _name IN_LIST _arm_only_specs)
+    continue()
+  endif()
 
   add_executable(${_name} ${_spec_path} ${${_name}_DEPS})
   target_link_libraries(${_name} PRIVATE c++spec etl::etl)
@@ -182,6 +239,10 @@ foreach(_spec_path IN LISTS _specs)
   endif()
   if(DEFINED ${_name}_INCLUDES)
     target_include_directories(${_name} PRIVATE ${${_name}_INCLUDES})
+  endif()
+  # Per-spec compile options, e.g. the device's float flags for a spec that pins float arithmetic.
+  if(DEFINED ${_name}_OPTIONS)
+    target_compile_options(${_name} PRIVATE ${${_name}_OPTIONS})
   endif()
   deluge_test_neon(${_name})
   target_include_directories(${_name} PRIVATE ${_repo_root}/src/deluge ${_repo_root}/src)

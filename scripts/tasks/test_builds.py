@@ -82,7 +82,6 @@ def _needs_test_tree_configure(tree: Path, source: Path, cxx: str) -> bool:
 HOST_APP_TARGETS = [
     "deluge_app",
     "deluge_scenarios",
-    "NE10",
     "eyalroz_printf",
     "deluge_dsp",
     "deluge_dsp_fixed",

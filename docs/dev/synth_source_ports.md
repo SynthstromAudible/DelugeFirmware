@@ -12,13 +12,13 @@
 L-vi unified all five sources behind `synth::Source::renderSource(ctx)` — the `OscType` megaswitch is gone and the
 kernel no longer names concrete source types. **Three of five sources** now physically live in `synth/`
 (library-resident): `VirtualAnalogSource` (pure DSP), `WavetableSource` (port #1 — band-data view), and `DX7Source`
-(port #2 — DxVoice-pool port). The remaining two still live App-side and reach upward:
+(port #2 — the DX voice-pool port, its pool now of `dx7::Voice`). The remaining two still live App-side and reach upward:
 
 | Source | Home today | App-coupling |
 |---|---|---|
 | `VirtualAnalogSource` | `synth/source/` | none — pure DSP |
 | `WavetableSource` | `synth/source/` | none — depends on the `fixed::WaveTableData` band-data view (port #1 ✅) |
-| `DX7Source` | `synth/source/` | none — depends on `synth::DxVoicePort`; the `getDxEngine()` pool + `DxVoice`/`DxPatch` live behind `dsp::DxVoiceAdapter` (port #2 ✅) |
+| `DX7Source` | `synth/source/` | none — depends on `synth::DxVoicePort`; the `getDxEngine()` pool (of `dsp-next`'s `dx7::Voice`) + `DxPatch` live behind `dsp::DxVoiceAdapter` in `processing/dx7/` (port #2 ✅) |
 | `InputSource` | `processing/live/` | `AudioEngine` mic/line + SSI input ring + `getOrCreateLiveInputBuffer` + `LivePitchShifter` alloc |
 | `SampleSource` | `model/voice/` | `AudioEngine` voice-sample pool + the whole `VoiceSample` reader + storage/cache/clusters + `playbackHandler` |
 
@@ -37,7 +37,7 @@ ported:  SampleSource ──depends on──▶ SamplePlaybackPort ◀──impl
 ```
 
 **Scoping rule that keeps this tractable — ports are THIN; the heavy machinery stays App-side as the adapter.** We
-do **not** relocate `VoiceSample` / `LivePitchShifter` / the DX `DxVoice` pool / the SD cluster-cache into the
+do **not** relocate `VoiceSample` / `LivePitchShifter` / the DX `dx7::Voice` pool / the SD cluster-cache into the
 library. We wrap each behind a narrow interface. What moves into the library is the **per-voice source object**
 (its DSP, its dispatch, its lifecycle shape); what stays App-side is the **adapter** doing the actual
 hardware/storage/streaming. This is ports-and-adapters exactly: the source is the hexagon's inside, the firmware is

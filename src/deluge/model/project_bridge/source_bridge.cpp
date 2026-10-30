@@ -17,7 +17,7 @@
 
 #include "model/project_bridge/source_bridge.h"
 
-#include "dsp/dx/dx7note.h"
+#include "processing/dx7/dx_patch.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
@@ -108,7 +108,7 @@ Error applyDxPatch(::Sound& sound, int32_t s, const deluge::instrument::DxPatchS
 	}
 	if (dxPatchOf(source) != patch) {
 		DxPatch* runtime = source.ensureDxPatch();
-		std::ranges::copy(patch.params, runtime->params);
+		std::ranges::copy(patch.params, runtime->params.begin());
 		if (runtime->engineMode != patch.engine_mode) {
 			runtime->setEngineMode(patch.engine_mode);
 		}

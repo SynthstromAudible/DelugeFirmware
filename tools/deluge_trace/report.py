@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import itertools
 import json
+import os
 import re
 import statistics
 import subprocess
@@ -35,7 +36,10 @@ import symbols
 REPO = Path(__file__).resolve().parents[2]
 OBJDUMP_CANDIDATES = (
     "llvm-objdump",
-    str(REPO / "toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-objdump"),
+    str(
+        Path(os.environ.get("DBT_TOOLCHAIN_PATH") or REPO)
+        / "toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-objdump"
+    ),
 )
 
 RANGE_RE = re.compile(

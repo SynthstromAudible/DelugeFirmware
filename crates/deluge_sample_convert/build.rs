@@ -238,8 +238,7 @@ fn arm_compile_check(
     convert_cpp: &Path,
     files: &[&PathBuf],
 ) -> String {
-    // `toolchain/current` links to the active toolchain version, so this survives version bumps.
-    let bin = repo.join("toolchain/current/arm-none-eabi-gcc/bin");
+    let bin = gcc_bin(repo);
     let gxx = bin.join("arm-none-eabi-g++");
     let objdump = bin.join("arm-none-eabi-objdump");
     if !gxx.is_file() {
@@ -341,7 +340,7 @@ fn build_device(
     out_dir: &Path,
     shim_cpp: &Path,
 ) {
-    let bin = repo.join("toolchain/current/arm-none-eabi-gcc/bin");
+    let bin = gcc_bin(repo);
     // `DELUGE_DEVICE_CXX` must name the compiler that builds the app: GCC mangles `int32_t` as
     // `long` on arm-none-eabi and clang as `int`, so a mismatched shim's references do not resolve.
     // `DELUGE_DEVICE_CXXFLAGS` replaces `ARM_ARCH_FLAGS` rather than extending it, because clang
@@ -397,4 +396,15 @@ fn build_device(
 
     println!("cargo:rustc-link-search=native={}", out_dir.display());
     println!("cargo:rustc-link-lib=static=deluge_sample_convert_cc");
+}
+
+/// The device GCC's `bin` directory: under `DBT_TOOLCHAIN_PATH` when set (a worktree shares its
+/// clone's toolchain, as `./dbt` does), else under `repo`. `toolchain/current` links to the active
+/// toolchain version, so this survives version bumps.
+fn gcc_bin(repo: &Path) -> PathBuf {
+    println!("cargo:rerun-if-env-changed=DBT_TOOLCHAIN_PATH");
+    std::env::var_os("DBT_TOOLCHAIN_PATH")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| repo.to_path_buf())
+        .join("toolchain/current/arm-none-eabi-gcc/bin")
 }

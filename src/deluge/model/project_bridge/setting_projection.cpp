@@ -3,9 +3,9 @@
 #include "deluge-project/audio_input.h"
 #include "deluge-project/fraction.h"
 #include "deluge-project/sequence_direction.h"
-#include "dsp/reverb/reverb.hpp"
 #include "engine-api/types/arp.h"
 #include "engine-api/types/sync.h"
+#include "engines/effects/reverb.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
@@ -103,31 +103,19 @@ std::optional<int32_t> integer_of(const Value& value) {
 	return serialization::int_of(&value);
 }
 
-/// @brief Copy reverb path @p path's value @p v onto the engine's one reverb, and have the render re-read its
-///        parameters.
+/// @brief Copy reverb path @p path's value @p v onto the engine's one reverb: a knob publishes the song's knobs, which
+///        the render takes up at its next block, and the model rebuilds the reverb.
 /// @return Error::UNSPECIFIED when @p path is not a reverb path.
 Error applyReverbSetting(::Song& song, std::string_view path, int32_t v) {
-	using project::fraction_of;
-	if (path == "reverb/roomSize") {
-		AudioEngine::reverb.setRoomSize(fraction_of(v));
-	}
-	else if (path == "reverb/dampening") {
-		AudioEngine::reverb.setDamping(fraction_of(v));
-	}
-	else if (path == "reverb/width") {
-		AudioEngine::reverb.setWidth(fraction_of(v));
-	}
-	else if (path == "reverb/hpf") {
-		AudioEngine::reverb.setHPF(fraction_of(v));
-	}
-	else if (path == "reverb/lpf") {
-		AudioEngine::reverb.setLPF(fraction_of(v));
+	if (path == "reverb/roomSize" || path == "reverb/dampening" || path == "reverb/width" || path == "reverb/hpf"
+	    || path == "reverb/lpf") {
+		AudioEngine::publishReverbSettings(song.project.reverb);
 	}
 	else if (path == "reverb/pan") {
 		AudioEngine::reverbPan = v;
 	}
 	else if (path == "reverb/model") {
-		AudioEngine::reverb.setModel(static_cast<dsp::Reverb::Model>(v));
+		AudioEngine::setReverbModel(static_cast<effects::ReverbModel>(v));
 	}
 	else if (path == "reverb/compressor/attack") {
 		AudioEngine::reverbSidechainSettings.attack = v;
@@ -174,7 +162,7 @@ std::optional<Value> engineReverbValue(std::string_view path) {
 		return number(AudioEngine::reverbPan);
 	}
 	if (path == "reverb/model") {
-		return number(std::to_underlying(AudioEngine::reverb.getModel()));
+		return number(std::to_underlying(AudioEngine::reverb.model()));
 	}
 	if (path == "reverb/compressor/attack") {
 		return number(AudioEngine::reverbSidechainSettings.attack);

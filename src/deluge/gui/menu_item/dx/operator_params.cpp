@@ -16,12 +16,12 @@
  */
 
 #include "operator_params.h"
-#include "dsp/dx/engine.h"
 #include "gui/menu_item/dx/param.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "memory/general_memory_allocator.h"
+#include "processing/dx7/dx_engine.h"
 #include "processing/source.h"
 #include <etl/vector.h>
 

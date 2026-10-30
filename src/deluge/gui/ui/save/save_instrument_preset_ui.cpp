@@ -41,7 +41,7 @@
 
 using namespace deluge;
 
-SaveInstrumentPresetUI saveInstrumentPresetUI{};
+PLACE_SDRAM_BSS SaveInstrumentPresetUI saveInstrumentPresetUI{};
 
 bool SaveInstrumentPresetUI::opened() {
 

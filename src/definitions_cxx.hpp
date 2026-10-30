@@ -893,8 +893,7 @@ enum class AudioFileType {
 	WAVETABLE,
 };
 
-// Not 4 - because NE10 can't do FFTs that small unless we enable its additional C code, which would take up program
-// size for little gain.
+// The smallest band's cycle: 8 samples, the smallest inverse transform the band builder runs (fft::kMinMagnitude).
 constexpr int32_t kWavetableMinCycleSize = 8;
 constexpr int32_t kWavetableMaxCycleSize = 65536; // TODO: work out what this should actually be.
 

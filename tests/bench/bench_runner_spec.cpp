@@ -404,6 +404,39 @@ const std::vector<std::string_view> kStutterCaseNames{
     "stutter_play_resampled", "delay_feedback_chain_analog", "delay_feedback_chain_digital",
 };
 
+/// The reverb list's names, in order.
+const std::vector<std::string_view> kReverbCaseNames{
+    "calibration_loop",
+    "reverb_freeverb",
+    "reverb_mutable",
+    "reverb_digital",
+    "delay_feedback_chain_analog",
+    "delay_feedback_chain_digital",
+};
+
+/// The DX7 list's names, in order.
+const std::vector<std::string_view> kDx7CaseNames{
+    "calibration_loop",
+    "dx7_modern_alg1",
+    "dx7_modern_alg32",
+    "dx7_mki_alg1_fb",
+    "dx7_mki_alg4_fb3",
+    "delay_feedback_chain_analog",
+    "delay_feedback_chain_digital",
+};
+
+/// The FFT forward list's names, in order.
+const std::vector<std::string_view> kFftForwardCaseNames{
+    "calibration_loop", "fft_fwd_16",   "fft_fwd_32",   "fft_fwd_64",   "fft_fwd_128",  "fft_fwd_256",
+    "fft_fwd_512",      "fft_fwd_1024", "fft_fwd_2048", "fft_fwd_4096", "fft_fwd_8192",
+};
+
+/// The FFT inverse list's names, in order.
+const std::vector<std::string_view> kFftInverseCaseNames{
+    "calibration_loop", "fft_inv_8",   "fft_inv_16",   "fft_inv_32",   "fft_inv_64",   "fft_inv_128",
+    "fft_inv_256",      "fft_inv_512", "fft_inv_1024", "fft_inv_2048", "fft_inv_4096", "fft_inv_8192",
+};
+
 /// The effect chain list's names, in order.
 const std::vector<std::string_view> kFxChainCaseNames{
     "calibration_loop",
@@ -985,7 +1018,11 @@ describe bench_runner("The DSP benchmark runner", ${
 			                                     std::pair{CaseList::MOD_FX, kModFxCaseNames},
 			                                     std::pair{CaseList::GRANULAR, kGranularCaseNames},
 		                                     std::pair{CaseList::STUTTER, kStutterCaseNames},
-		                                     std::pair{CaseList::FX_CHAINS, kFxChainCaseNames}}) {
+		                                     std::pair{CaseList::REVERB, kReverbCaseNames},
+		                                     std::pair{CaseList::DX7, kDx7CaseNames},
+		                                     std::pair{CaseList::FX_CHAINS, kFxChainCaseNames},
+		                                     std::pair{CaseList::FFT_FORWARD, kFftForwardCaseNames},
+		                                     std::pair{CaseList::FFT_INVERSE, kFftInverseCaseNames}}) {
 				std::vector<std::string_view> names;
 				for (const Case& c : cases(list)) {
 					names.push_back(c.name);
@@ -1026,11 +1063,22 @@ describe bench_runner("The DSP benchmark runner", ${
 			for (const Case& c : cases(CaseList::STUTTER)) {
 				expect(c.lanes).to_equal(c.name == "calibration_loop" ? std::size_t{1} : std::size_t{2});
 			}
+			for (const Case& c : cases(CaseList::REVERB)) {
+				expect(c.lanes).to_equal(c.name == "calibration_loop" ? std::size_t{1} : std::size_t{2});
+			}
+			for (const Case& c : cases(CaseList::DX7)) {
+				expect(c.lanes).to_equal(std::size_t{1} + (c.name.starts_with("delay_feedback_chain") ? 1 : 0));
+			}
 			for (const Case& c : cases(CaseList::FX_CHAINS)) {
 				expect(c.lanes).to_equal(c.name == "calibration_loop" ? std::size_t{1} : std::size_t{2});
 			}
 			for (const Case& c : cases(CaseList::KERNELS)) {
 				expect(c.lanes).to_equal(c.name == "stereo_gain" ? std::size_t{2} : std::size_t{1});
+			}
+			for (const CaseList list : {CaseList::FFT_FORWARD, CaseList::FFT_INVERSE}) {
+				for (const Case& c : cases(list)) {
+					expect(c.lanes).to_equal(std::size_t{1});
+				}
 			}
 		});
 
@@ -1044,7 +1092,11 @@ describe bench_runner("The DSP benchmark runner", ${
 			                                  std::pair{CaseList::MOD_FX, kModFxCaseNames},
 			                                  std::pair{CaseList::GRANULAR, kGranularCaseNames},
 		                                     std::pair{CaseList::STUTTER, kStutterCaseNames},
-		                                     std::pair{CaseList::FX_CHAINS, kFxChainCaseNames}}) {
+		                                     std::pair{CaseList::REVERB, kReverbCaseNames},
+		                                     std::pair{CaseList::DX7, kDx7CaseNames},
+		                                     std::pair{CaseList::FX_CHAINS, kFxChainCaseNames},
+		                                     std::pair{CaseList::FFT_FORWARD, kFftForwardCaseNames},
+		                                     std::pair{CaseList::FFT_INVERSE, kFftInverseCaseNames}}) {
 				lines.clear();
 				counters.reset();
 				const RunConfig config{.block_sizes = kBlockSizes};

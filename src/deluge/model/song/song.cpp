@@ -22,7 +22,6 @@
 #include "deluge-project/doc_drum.h"
 #include "deluge-project/doc_output.h"
 #include "deluge-project/song_codec.h"
-#include "dsp/reverb/reverb.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"

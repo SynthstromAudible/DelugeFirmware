@@ -13,6 +13,7 @@ center/neutral, 0x4CCCCCA8 = the default synth volume.
 """
 
 import pathlib
+import re
 import subprocess
 import tempfile
 
@@ -215,6 +216,218 @@ case(
         "carrier1Feedback": "0x20000000",
     },
 )
+
+# --- DX7 ----------------------------------------------------------------------
+# The init voice (src/engines/deluge/dx7_init_voice.h); ops are stored op 6 first, 21 bytes each.
+DX7_INIT = [
+    99,
+    99,
+    99,
+    99,
+    99,
+    99,
+    99,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    7,
+] * 5 + [
+    99,
+    99,
+    99,
+    99,
+    99,
+    99,
+    99,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    99,
+    0,
+    1,
+    0,
+    7,
+    99,
+    99,
+    99,
+    99,
+    50,
+    50,
+    50,
+    50,
+    0,
+    0,
+    1,
+    35,
+    0,
+    0,
+    0,
+    1,
+    0,
+    3,
+    24,
+    73,
+    78,
+    73,
+    84,
+    32,
+    86,
+    79,
+    73,
+    67,
+    69,
+    63,
+]
+OP_FIELDS = {
+    "rates": 0,
+    "levels": 4,
+    "ams": 14,
+    "vel": 15,
+    "out": 16,
+    "mode": 17,
+    "coarse": 18,
+    "fine": 19,
+    "detune": 20,
+}
+GLOBAL_FIELDS = {
+    "algorithm": 134,
+    "feedback": 135,
+    "osc_sync": 136,
+    "lfo_rate": 137,
+    "lfo_delay": 138,
+    "pmd": 139,
+    "amd": 140,
+    "lfo_sync": 141,
+    "lfo_wave": 142,
+    "pms": 143,
+}
+
+
+def dx7_header_init_voice():
+    """The 156 bytes of kDx7InitVoice, parsed from its header so DX7_INIT cannot drift from it."""
+    header = (
+        CORPUS.resolve().parents[3] / "src" / "engines" / "deluge" / "dx7_init_voice.h"
+    ).read_text()
+    body = re.search(r"kDx7InitVoice\{([^}]*)\}", header).group(1)
+    return [int(b) for b in re.findall(r"\d+", body)]
+
+
+assert dx7_header_init_voice() == DX7_INIT, "DX7_INIT differs from kDx7InitVoice"
+
+
+def dx7_patch(ops=None, **globals_):
+    """156 bytes as hex: the init voice with each op's fields (ops[i] for op index i) and the globals replaced."""
+    patch = list(DX7_INIT)
+    assert len(patch) == 156
+    for index, fields in (ops or {}).items():
+        for key, value in fields.items():
+            at = index * 21 + OP_FIELDS[key]
+            if isinstance(value, list):
+                patch[at : at + len(value)] = value
+            else:
+                patch[at] = value
+    for key, value in globals_.items():
+        patch[GLOBAL_FIELDS[key]] = value
+    return "".join(f"{b:02X}" for b in patch)
+
+
+def dx7_case(name, engine, patch):
+    # The XML reader's key is lowercase (src/engines/deluge/codec.cpp, "dx7enginemode"); a camelCase spelling would
+    # be ignored and render every case at engine 0 (auto). case()'s XML branch writes the file without creating the
+    # directory.
+    (CORPUS / "dx7").mkdir(exist_ok=True)
+    case(
+        f"dx7/{name}",
+        osc1={"type": "dx7", "dx7patch": patch, "dx7enginemode": str(engine)},
+    )
+
+
+ALL_SOUNDING = {
+    i: {
+        "out": 90,
+        "rates": [99, 50, 40, 30],
+        "levels": [99, 80, 60, 0],
+        "coarse": i + 1,
+    }
+    for i in range(6)
+}
+
+# Each covers a path no community preset reaches.
+dx7_case(
+    "mki_forced_alg1_fb", 2, dx7_patch(ALL_SOUNDING, algorithm=0, feedback=7)
+)  # MkI's plain feedback op
+dx7_case(
+    "auto_alg1_fb", 0, dx7_patch(ALL_SOUNDING, algorithm=0, feedback=7)
+)  # its auto twin: resolves modern
+dx7_case(
+    "mki_alg32_fb", 2, dx7_patch(ALL_SOUNDING, algorithm=31, feedback=5)
+)  # MkI algorithm 32 (+2 shift)
+dx7_case(
+    "modern_forced_alg4_fb", 1, dx7_patch(ALL_SOUNDING, algorithm=3, feedback=6)
+)  # modern on 4 with feedback
+dx7_case(
+    "modern_forced_alg6_fb", 1, dx7_patch(ALL_SOUNDING, algorithm=5, feedback=6)
+)  # modern on 6 with feedback
+dx7_case(
+    "mki_alg4_fb", 2, dx7_patch(ALL_SOUNDING, algorithm=3, feedback=7)
+)  # MkI's fused three-op feedback stack
+dx7_case(
+    "mki_alg6_fb", 2, dx7_patch(ALL_SOUNDING, algorithm=5, feedback=6)
+)  # MkI's fused two-op feedback stack
+for wave in range(
+    6
+):  # every LFO wave, with pitch and amplitude modulation and amplitude sensitivity
+    dx7_case(
+        f"lfo_wave_{wave}",
+        0,
+        dx7_patch(
+            {i: {**ALL_SOUNDING[i], "ams": 3} for i in range(6)},
+            algorithm=31,
+            lfo_wave=wave,
+            lfo_rate=35,
+            pmd=50,
+            amd=99,
+            pms=7,
+        ),
+    )
+dx7_case(
+    "lfo_delay_key_sync",
+    0,
+    dx7_patch(ALL_SOUNDING, algorithm=31, lfo_delay=60, lfo_sync=1, pmd=60, pms=6),
+)
+dx7_case(
+    "ams_depths",
+    0,
+    dx7_patch(
+        {i: {**ALL_SOUNDING[i], "ams": i % 4} for i in range(6)}, algorithm=31, amd=80
+    ),
+)
+dx7_case(
+    "osc_free_running", 0, dx7_patch(ALL_SOUNDING, algorithm=4, osc_sync=0)
+)  # phases drawn from noise
+dx7_case(
+    "fixed_frequency",
+    0,
+    dx7_patch({**ALL_SOUNDING, 0: {**ALL_SOUNDING[0], "mode": 1}}, algorithm=0),
+)
+# Mid-note engine and patch changes cannot be played by a preset and a note script: the DX7 workloads cover them, and
+# tests/dsp/dx7_graph_spec.cpp and dx7_voice_spec.cpp hold the components to them.
 
 # --- envelopes / filters / modulation ----------------------------------------
 case(

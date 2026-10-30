@@ -35,7 +35,6 @@
 #include <vector>
 
 #include "deluge-project/instrument_slot.h"
-#include "dsp/dx/dx7note.h"
 #include "engines/deluge/engine.h"
 #include "engines/deluge/settings.h"
 #include "engines/effects/engine.h"
@@ -60,6 +59,7 @@
 #include "model/project_bridge/song_serialization.h"
 #include "model/project_bridge/source_bridge.h"
 #include "processing/audio_output.h"
+#include "processing/dx7/dx_patch.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"

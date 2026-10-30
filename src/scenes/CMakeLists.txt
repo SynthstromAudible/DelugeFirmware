@@ -1,6 +1,6 @@
 # deluge_scenes -- the first UI layer allowed to include the model (spec E1, ruling Q4).
 # May include scenes/**, shell/**, ui/**, gfx/**, notify/**, libdeluge/**, the standard library,
-# and -- being the first model-aware layer -- dsp/**, model/**, modulation/**, playback/**,
+# and -- being the first model-aware layer -- model/**, modulation/**, playback/**,
 # processing/**, storage/**, io/**, gui/l10n/**, and the model's words and values: engines/**,
 # engine-api/**, serialization/**, sequence/**, and the model's records: deluge-project/** (scenes/bind binds menu nodes
 # to them). Never gui/ otherwise, never hid/.
@@ -22,10 +22,7 @@
 # (io/** joined in task 8, for the settings root: `midiEngine`, `MIDIDeviceManager` and
 # `MIDITranspose` -- the state most of the MIDI settings page edits -- live there, and
 # check_layer_rules' own NON_UI glob already counts src/deluge/io/ as non-UI.)
-# (processing/** is where `Sound` and `Source` live; menu/context.cpp needs their definitions.
-# dsp/** joined in task 7, for the one type audio_engine.h only forward declares,
-# `deluge::dsp::Reverb`, which menu/relevance.cpp asks `getModel()` of -- see the note on the
-# scenes-includes-outside rule in scripts/check_layer_rules.py.)
+# (processing/** is where `Sound` and `Source` live; menu/context.cpp needs their definitions.)
 #
 # Link direction (ruling Q4): deluge_scenes links deluge_app; nothing links deluge_scenes until
 # spec F needs an entry point -- this task only builds the skeleton and its spec executable.

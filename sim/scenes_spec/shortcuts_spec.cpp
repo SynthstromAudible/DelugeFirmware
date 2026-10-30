@@ -23,6 +23,7 @@
 ///       (`scripts/check_layer_rules.py`'s `scenes-includes-outside`). Same rule the `tables_*`
 ///       specs run under.
 
+#include "engines/effects/reverb.h"
 #include "gui/ui/menu_view_of.h"
 #include "processing/engines/audio_engine.h"
 #include "scenes/menu/context.h"
@@ -95,9 +96,9 @@ namespace {
 /// items by the active model (Diffusion and Time under MUTABLE and DIGITAL, `reverb/width.h`, `reverb/room_size.h`);
 /// the port's nodes carry the model-independent names, so the transcription compares them at FREEVERB.
 struct FreeverbModel {
-	dsp::Reverb::Model saved = AudioEngine::reverb.getModel();
-	FreeverbModel() { AudioEngine::reverb.setModel(dsp::Reverb::Model::FREEVERB); }
-	~FreeverbModel() { AudioEngine::reverb.setModel(saved); }
+	deluge::effects::ReverbModel saved = AudioEngine::reverb.model();
+	FreeverbModel() { AudioEngine::setReverbModel(deluge::effects::ReverbModel::FREEVERB); }
+	~FreeverbModel() { AudioEngine::setReverbModel(saved); }
 	FreeverbModel(const FreeverbModel&) = delete;
 	FreeverbModel& operator=(const FreeverbModel&) = delete;
 };

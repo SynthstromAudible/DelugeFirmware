@@ -27,7 +27,6 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/song.h"
-#include "dsp/reverb/reverb.hpp"
 #include "engine-api/types/sync.h"
 #include "engines/deluge/sound_state.h"
 #include "engines/effects/state.h"

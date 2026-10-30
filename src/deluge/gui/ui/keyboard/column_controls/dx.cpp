@@ -16,13 +16,15 @@
  */
 
 #include "dx.h"
-#include "dsp/dx/dx7note.h"
+#include "dsp-next/fixed/dx7/algorithms.h"
 #include "gui/menu_item/dx/param.h"
 #include "gui/menu_item/setting_edit.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/buttons.h"
+#include "processing/dx7/dx_patch.h"
 #include "processing/sound/sound_instrument.h"
+#include <algorithm>
 
 using namespace deluge::gui::ui::keyboard::layout;
 
@@ -45,8 +47,8 @@ void DXColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t 
 	if (!patch) {
 		return;
 	}
-	int algid = patch->params[134];
-	FmAlgorithm a = FmCore::algorithms[algid];
+	const int algid = std::min<uint8_t>(patch->params[134], 31); // a song can carry any byte
+	const auto& ops = deluge::dsp::fixed::dx7::kAlgorithms[algid];
 
 	bool is_editing = (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &dxParam);
 
@@ -56,7 +58,8 @@ void DXColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t 
 			if (!patch->opSwitch(op)) {
 				image[y][column] = {255, 0, 0};
 			}
-			else if (a.ops[op] & (OUT_BUS_ONE | OUT_BUS_TWO)) {
+			else if (deluge::dsp::fixed::dx7::has(ops[op], deluge::dsp::fixed::dx7::Flag::OUT_BUS_ONE)
+			         || deluge::dsp::fixed::dx7::has(ops[op], deluge::dsp::fixed::dx7::Flag::OUT_BUS_TWO)) {
 				image[y][column] = {0, 128, 255};
 			}
 			else {
@@ -102,7 +105,7 @@ void DXColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCo
 		auto* sound = static_cast<SoundInstrument*>(getCurrentInstrument());
 		if (std::optional<deluge::instrument::DxPatchState> changed = deluge::bridge::dxPatchOf(sound->sources[0])) {
 			changed->params[155] ^=
-			    static_cast<uint8_t>(1 << op); // the op switches, as DxPatch::setOpSwitch packs them
+			    static_cast<uint8_t>(1 << op); // the op switches: one bit per op, as DxPatch::opSwitch reads them
 			deluge::gui::menu_item::dxPatchFor(*sound, 0, *changed);
 		}
 	}

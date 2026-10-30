@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dsp/reverb/reverb.hpp"
+#include "engines/effects/words.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
 #include "processing/engines/audio_engine.h"
@@ -10,8 +10,8 @@ namespace deluge::gui::menu_item::reverb {
 class Model final : public Selection {
 public:
 	using Selection::Selection;
-	// The reverb algorithm is held on the controller as Song::model (the DOM); AudioEngine::reverb is
-	// the projected DSP cache. Defined out-of-line in model.cpp because reading currentSong would
+	// The reverb algorithm is the song's record (project.reverb.model); SetSetting rebuilds the reverb at it.
+	// Defined out-of-line in model.cpp because reading currentSong would
 	// require song.h, which itself includes this header (an include cycle).
 	void readCurrentValue() override;
 	void writeCurrentValue() override;

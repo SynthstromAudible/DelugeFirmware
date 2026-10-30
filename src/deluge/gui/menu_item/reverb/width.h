@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "dsp/reverb/reverb.hpp"
+#include "engines/effects/reverb.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/integer.h"
 #include "model/edits/setting_edit.h"
@@ -27,16 +27,16 @@ namespace deluge::gui::menu_item::reverb {
 class Width final : public Integer {
 public:
 	using Integer::Integer;
-	// The song's reverb record is the truth; SetSetting projects it onto AudioEngine::reverb.
+	// The song's reverb record is the truth; SetSetting publishes it to the render.
 	void readCurrentValue() override { this->setValue(std::round(currentSong->project.reverb.width * kMaxMenuValue)); }
 	void writeCurrentValue() override { deluge::edits::songSettingFromMenu("reverb/width", this->getValue()); }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 
 	[[nodiscard]] std::string_view getName() const override {
 		using enum l10n::String;
-		switch (AudioEngine::reverb.getModel()) {
-		case dsp::Reverb::Model::DIGITAL:
-		case dsp::Reverb::Model::MUTABLE:
+		switch (AudioEngine::reverb.model()) {
+		case deluge::effects::ReverbModel::DIGITAL:
+		case deluge::effects::ReverbModel::MUTABLE:
 			return l10n::getView(STRING_FOR_DIFFUSION);
 		default:
 			return l10n::getView(this->name);
@@ -46,10 +46,10 @@ public:
 
 	void getColumnLabel(etl::istring& label) override {
 		using enum l10n::String;
-		switch (AudioEngine::reverb.getModel()) {
-		case dsp::Reverb::Model::DIGITAL:
+		switch (AudioEngine::reverb.model()) {
+		case deluge::effects::ReverbModel::DIGITAL:
 			[[fallthrough]];
-		case dsp::Reverb::Model::MUTABLE:
+		case deluge::effects::ReverbModel::MUTABLE:
 			label.append(deluge::l10n::get(STRING_FOR_DIFFUSION));
 			break;
 		default:

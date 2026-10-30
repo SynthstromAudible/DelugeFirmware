@@ -80,6 +80,10 @@
 ///     `RS-MODFX-CLEAR applied=<n> asked=<m> ring=<r> noring=<k> grain=<g>`: the track clears made, the clears asked
 ///     for, how many comb clears cleared a ring and how many none, and how many cleared a grain; a failure unless each
 ///     clear cleared exactly one track's.
+///   - `RS-REVERB-SWITCH block=<b> set=<setting>=<value> model=<0|1|2>`: the song's reverb setting changed at block
+///     @c b as its menu changes it, and the model after. After the run, `RS-REVERB-SWITCH applied=<n> asked=<m>
+///     models=<m,...>`: the switches made, the switches asked for, and the model after each in order; a failure
+///     unless every switch asked for was applied.
 ///   - `RS-CAPTURE frames=<n> stereo=<0|1>`: frames captured, and whether headphones were plugged in. A failure if
 ///     the app rendered in the other width at any tick while playing.
 ///   - `RS-MODEL fill_delay_ms=<n> fill_read_us=<n> burst=<start>:<blocks>:<ms>`: the storage model it ran under.

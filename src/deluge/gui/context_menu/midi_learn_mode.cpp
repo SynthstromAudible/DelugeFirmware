@@ -27,7 +27,7 @@
 
 namespace deluge::gui::context_menu {
 
-MidiLearnMode midiLearnMode{};
+PLACE_SDRAM_BSS MidiLearnMode midiLearnMode{};
 
 bool MidiLearnMode::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0x01; // Only mode (audition) column

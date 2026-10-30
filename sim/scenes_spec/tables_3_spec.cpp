@@ -91,6 +91,7 @@ using deluge::hid::display::OLED;
 
 #include "processing/engines/cv_engine.h"
 
+#include "engines/effects/reverb.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
@@ -1038,7 +1039,7 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 		// `reverb::Width` and `reverb::RoomSize` answer Diffusion and Time under the MUTABLE and DIGITAL
 		// models; the port's node names are fixed ids (`src/scenes/README.md`, "Legacy features not yet
 		// ported"). Porting the dynamic titles fails the MUTABLE half here until this example goes.
-		const dsp::Reverb::Model saved = AudioEngine::reverb.getModel();
+		const deluge::effects::ReverbModel saved = AudioEngine::reverb.model();
 		for (const Node* node : {&nodes::reverb_width, &nodes::reverb_room_size}) {
 			::MenuItem* item = nullptr;
 			for (const Pair& pair : tree().pairs) {
@@ -1051,12 +1052,12 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 				continue;
 			}
 			const std::string port = text_of(node->name);
-			AudioEngine::reverb.setModel(dsp::Reverb::Model::FREEVERB);
+			AudioEngine::setReverbModel(deluge::effects::ReverbModel::FREEVERB);
 			expect(std::string{item->getName()}).to_equal(port);
-			AudioEngine::reverb.setModel(dsp::Reverb::Model::MUTABLE);
+			AudioEngine::setReverbModel(deluge::effects::ReverbModel::MUTABLE);
 			expect(std::string{item->getName()} == port).to_be_false();
 		}
-		AudioEngine::reverb.setModel(saved);
+		AudioEngine::setReverbModel(saved);
 	});
 
 	it("parks exactly the legacy items the scenes have not ported: Voice Usage (#5005)", _ {

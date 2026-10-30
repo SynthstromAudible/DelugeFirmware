@@ -49,11 +49,18 @@ import symbols
 import trace_profile
 
 PROBE_SIDE = ("capture.py", "decode.py", "jlink.py", "coresight.py", "elf.py")
-DEFAULT_SCRIPT = Path.home() / "GitHub/deluge-sdk/rza1_debug.JLinkScript"
+# DELUGE_JLINKSCRIPT when set (e.g. the pinned SDK's cargo checkout), else a local deluge-sdk clone.
+DEFAULT_SCRIPT = Path(
+    os.environ.get("DELUGE_JLINKSCRIPT")
+    or Path.home() / "GitHub/deluge-sdk/rza1_debug.JLinkScript"
+)
 DEFAULT_OUT = REPO / ".superpowers/estate/trace"
 OBJCOPY_CANDIDATES = (
     "llvm-objcopy",
-    str(REPO / "toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-objcopy"),
+    str(
+        Path(os.environ.get("DBT_TOOLCHAIN_PATH") or REPO)
+        / "toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-objcopy"
+    ),
 )
 # What comes back from the probe's side: everything but the snapshot's copies of the image's code.
 PULL_EXCLUDE = "mem_*.bin"

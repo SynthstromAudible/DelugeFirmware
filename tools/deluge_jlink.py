@@ -54,16 +54,20 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# The toolchain ./dbt uses: DBT_TOOLCHAIN_PATH's when set (a worktree shares its clone's), else this tree's.
+TOOLCHAIN = os.path.join(
+    os.environ.get("DBT_TOOLCHAIN_PATH") or REPO, "toolchain/current"
+)
 DEFAULT_DEVICE = "R7S721020"
 DEFAULT_INTERFACE = "swd"
 DEFAULT_SPEED = "4000"
-DEFAULT_GDB = os.path.join(
-    REPO, "toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-gdb"
+DEFAULT_GDB = os.path.join(TOOLCHAIN, "arm-none-eabi-gcc/bin/arm-none-eabi-gdb")
+DEFAULT_NM = os.path.join(TOOLCHAIN, "arm-none-eabi-gcc/bin/arm-none-eabi-nm")
+# The SDK's halt-only reset script: DELUGE_JLINKSCRIPT when set (e.g. the pinned SDK's cargo checkout), else a local
+# deluge-sdk clone beside this one.
+DEFAULT_JLINKSCRIPT = os.environ.get("DELUGE_JLINKSCRIPT") or os.path.expanduser(
+    "~/GitHub/deluge-sdk/rza1_debug.JLinkScript"
 )
-DEFAULT_NM = os.path.join(
-    REPO, "toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-nm"
-)
-DEFAULT_JLINKSCRIPT = os.path.expanduser("~/GitHub/deluge-sdk/rza1_debug.JLinkScript")
 # The Linux CLI binary is JLinkGDBServerCLExe; note ./dbt debug -j looks for JLinkGDBServerCL (no Exe)
 # and falls back to a Windows path, so it does not work here.
 SERVER_CANDIDATES = ("JLinkGDBServerCLExe", "JLinkGDBServerCL")
@@ -324,7 +328,12 @@ def start_target(args: argparse.Namespace, res: Result, started: float) -> Targe
         "-rtttelnetport",
         str(RTT_PORT),
     ]
-    if args.jlinkscript and os.path.exists(args.jlinkscript):
+    if args.jlinkscript:
+        # Without it the probe's reset asserts nRESET, and the ROM bootloader runs instead of the loaded image.
+        if not os.path.exists(args.jlinkscript):
+            sys.exit(
+                f"no J-Link script at {args.jlinkscript}: set DELUGE_JLINKSCRIPT or pass --jlinkscript"
+            )
         server_cmd += ["-jlinkscriptfile", args.jlinkscript]
     if args.select:
         server_cmd += ["-select", args.select]

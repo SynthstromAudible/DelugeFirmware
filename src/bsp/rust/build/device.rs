@@ -13,8 +13,8 @@ pub fn link(repo_root: &Path, manifest_dir: &Path, out_dir: &Path) {
     emit_forced_link_roots();
     let (build_dir, cfg, ar) = resolve_build_dir(repo_root);
     emit_bench_cfg(&build_dir);
-    let app_objs_archive = archive_app_objects(repo_root, &build_dir, &cfg, &ar, out_dir);
-    link_app_closure(&build_dir, &cfg, &app_objs_archive);
+    let app_archives = archive_app_objects(repo_root, &build_dir, &cfg, &ar, out_dir);
+    link_app_closure(&build_dir, &cfg, &app_archives);
     emit_runtime_link_args();
     emit_size_link_args();
 }
@@ -77,12 +77,17 @@ fn resolve_build_dir(repo_root: &Path) -> (PathBuf, String, PathBuf) {
         .map(PathBuf::from)
         .unwrap_or_else(|_| repo_root.join("build"));
     let cfg = env::var("DELUGE_BUILD_CONFIG").unwrap_or_else(|_| "Debug".into());
-    // `toolchain/current` links to the active toolchain version.
+    // `toolchain/current` links to the active toolchain version; DBT_TOOLCHAIN_PATH, when set,
+    // names the clone whose toolchain a worktree shares, as `./dbt` uses it.
     println!("cargo:rerun-if-env-changed=DELUGE_DEVICE_AR");
+    println!("cargo:rerun-if-env-changed=DBT_TOOLCHAIN_PATH");
     let ar = env::var("DELUGE_DEVICE_AR")
         .map(PathBuf::from)
         .unwrap_or_else(|_| {
-            repo_root.join("toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-ar")
+            env::var_os("DBT_TOOLCHAIN_PATH")
+                .map(PathBuf::from)
+                .unwrap_or_else(|| repo_root.to_path_buf())
+                .join("toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-ar")
         });
     (build_dir, cfg, ar)
 }
@@ -110,8 +115,11 @@ fn cmake_true(value: &str) -> bool {
         .any(|t| value.trim().eq_ignore_ascii_case(t))
 }
 
-/// Archives `deluge_app`'s objects (an OBJECT library, so CMake makes no `.a`) into
-/// `libdeluge_app_objs.a`.
+/// Archives `deluge_app`'s objects (an OBJECT library, so CMake makes no `.a`): those of
+/// `src/deluge/gui/` into `libdeluge_app_gui.a`, the rest into `libdeluge_app_objs.a`.
+///
+/// An archive member keeps only its file name, so the GUI gets an archive of its own for
+/// `linker/sdram_sections.x` to place its code in SDRAM by.
 ///
 /// # Panics
 ///
@@ -124,12 +132,12 @@ fn archive_app_objects(
     cfg: &str,
     ar: &Path,
     out_dir: &Path,
-) -> PathBuf {
+) -> [PathBuf; 2] {
     let app_objs_dir = build_dir.join(format!("src/deluge/CMakeFiles/deluge_app.dir/{cfg}"));
     if !app_objs_dir.is_dir() {
         panic!(
             "C++ app objects not found at {}. Build them first:\n  \
-             cmake --build {} --target deluge_app NE10 eyalroz_printf \
+             cmake --build {} --target deluge_app eyalroz_printf \
              deluge_dsp deluge_dsp_fixed deluge_dsp_float deluge_foundation deluge_serialization deluge_music_theory deluge_project deluge_instrument deluge_effects deluge_midi \
              deluge_gfx_oled deluge_gfx_grid deluge_ui_core deluge_ui_oled deluge_ui_grid deluge_ui_shell \
              deluge_notify deluge_scenes deluge_scenes_bind",
@@ -152,23 +160,34 @@ fn archive_app_objects(
     }
     println!("cargo:rerun-if-changed={}", app_objs_dir.display());
 
-    let app_objs_archive = out_dir.join("libdeluge_app_objs.a");
-    let _ = fs::remove_file(&app_objs_archive);
-    let status = Command::new(ar)
-        .arg("crs")
-        .arg(&app_objs_archive)
-        .args(&objs)
-        .status()
-        .expect("run arm-none-eabi-ar");
-    assert!(status.success(), "archiving deluge_app objects failed");
-    app_objs_archive
+    let gui_dir = app_objs_dir.join("gui");
+    let (gui_objs, objs): (Vec<_>, Vec<_>) =
+        objs.into_iter().partition(|o| o.starts_with(&gui_dir));
+    [
+        ("libdeluge_app_objs.a", objs),
+        ("libdeluge_app_gui.a", gui_objs),
+    ]
+    .map(|(name, objs)| {
+        let archive = out_dir.join(name);
+        let _ = fs::remove_file(&archive);
+        let status = Command::new(ar)
+            .arg("crs")
+            .arg(&archive)
+            .args(&objs)
+            .status()
+            .expect("run arm-none-eabi-ar");
+        assert!(
+            status.success(),
+            "archiving deluge_app objects into {name} failed"
+        );
+        archive
+    })
 }
 
 /// Emits the app archive and its static libraries as one `--start-group`, because the references
 /// are mutual: the C++ app calls the `deluge_*` services, and this crate calls `deluge_app_init`.
-fn link_app_closure(build_dir: &Path, cfg: &str, app_objs_archive: &Path) {
-    let deps: [(&str, &str); 21] = [
-        ("src/NE10", "libNE10.a"),
+fn link_app_closure(build_dir: &Path, cfg: &str, app_archives: &[PathBuf]) {
+    let deps: [(&str, &str); 20] = [
         ("src/lib", "libeyalroz_printf.a"),
         ("src/deluge/dsp", "libdeluge_dsp.a"),
         ("src/deluge/dsp-next", "libdeluge-dsp-fixed.a"),
@@ -192,7 +211,9 @@ fn link_app_closure(build_dir: &Path, cfg: &str, app_objs_archive: &Path) {
     ];
 
     println!("cargo:rustc-link-arg=-Wl,--start-group");
-    println!("cargo:rustc-link-arg={}", app_objs_archive.display());
+    for archive in app_archives {
+        println!("cargo:rustc-link-arg={}", archive.display());
+    }
     for (dir, lib) in deps {
         let p = build_dir.join(dir).join(cfg).join(lib);
         assert!(p.is_file(), "missing dep archive {}", p.display());

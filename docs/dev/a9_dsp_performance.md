@@ -623,6 +623,94 @@ the minimum of four runs; the last column is the spread (max - min), runtime / r
 - **The sound chain is +0.7% at n=32** (about 115 cycles a block), beyond its spread: it copies its 100-byte
   `FxInputs` each block to put the setting's mod FX type in. At n=128 it is level.
 
+## Reverb
+
+`effects::Reverb` (`Mono<Freeverb>` and `Mono<Plate>` over one buffer, the model chosen per block) as the app renders it
+(after) against the engine's old reverb, a `std::variant` of three classes behind virtual knobs and `std::visit`
+(before). Each case is the song reverb's block as `renderReverb` makes it: the model built afresh at the boot song's
+knobs, both return levels 2^29, over the lanes output in place (`DELUGE_DSP_BENCH_CASES=reverb`), on 2026-10-29, after
+image d068b23c3. Cycles per channel-sample, the minimum of four runs of each image; the last column is the after spread
+(max - min), worst size.
+
+| case | n=32 before → after (delta) | n=64 before → after (delta) | n=128 before → after (delta) | after spread |
+|---|---:|---:|---:|---:|
+| `control calibration_loop` | 32.11 → 32.11 (+0.0%) | 32.04 → 32.03 (-0.0%) | 32.02 → 32.01 (-0.0%) | 0.02 |
+| `control delay_feedback_chain_analog` | 171.94 → 171.46 (-0.3%) | 165.96 → 165.71 (-0.2%) | 162.98 → 162.86 (-0.1%) | 0.01 |
+| `control delay_feedback_chain_digital` | 20.34 → 19.89 (-2.2%) | 14.41 → 14.18 (-1.6%) | 11.45 → 11.34 (-1.0%) | 0.01 |
+| `reverb_freeverb` | 276.94 → 252.33 (-8.9%) | 275.15 → 249.88 (-9.2%) | 274.78 → 249.02 (-9.4%) | 0.29 |
+| `reverb_mutable` | 567.58 → 175.92 (-69.0%) | 564.00 → 174.91 (-69.0%) | 562.18 → 174.52 (-69.0%) | 0.32 |
+| `reverb_digital` | 849.13 → 214.68 (-74.7%) | 843.80 → 213.74 (-74.7%) | 841.48 → 213.45 (-74.6%) | 0.19 |
+
+- **The plates gain 69-75%.** The old Mutable and Digital loops called `toQ31Saturating` and the `FxEngine` line and
+  context helpers out of line every frame under `-fno-inline-functions` (eight to nine calls per frame); the plate
+  kernel's helpers are `[[gnu::always_inline]]`, so each frame loop has no call and no `muls`, and the LFO's step is
+  `vmul`/`vsub`/`vadd.f32` on `d` registers. Mutable reads 169.4 at n=128 in an image built two commits earlier with
+  the same plate code: a placement effect of about 3%.
+- **Freeverb gains 9%, from two measured choices.** As first written, with its combs and allpasses in loops over the
+  layout table and its State stepped in place, it ran at 332 cycles (+21%): the old code was fully unrolled. Unrolling
+  them at compile time (each line's base an immediate) brought it to 277 in place, and copying the State into registers
+  for the block to 249. Stepping the plate's State in place instead costs it 9-19%, so both States are copied.
+- **The controls move by 0.1-2.2%**, the bound on placement noise between the two images.
+
+## DX7
+
+The `dx7` list (`DELUGE_DSP_BENCH_CASES=dx7`) times one voice's block through the voice adapter, as a sound renders it:
+the patch's LFO, then pitch, control and the six operators. Before: the engine at a44d9e98f. After: f3e819d1f, where
+every operator is a dsp-next kernel walked by `dx7::Graph`, and the device renders the modern ops with no input or a
+bus input through the same NEON kernel as before (`fixed/dx7/neon_fm_kernel.s`), every other build through the Argon
+step bit-exact with it (`dx7::ModernVectorOperator`). Cycles per sample, one run of each image.
+
+| case | n=32 before → after (delta) | n=64 before → after (delta) | n=128 before → after (delta) |
+|---|---:|---:|---:|
+| `control calibration_loop` | 32.11 → 32.08 (-0.1%) | 32.04 → 32.02 (-0.1%) | 32.02 → 32.02 (+0.0%) |
+| `control delay_feedback_chain_analog` | 171.46 → 171.72 (+0.1%) | 165.71 → 165.77 (+0.0%) | 162.86 → 162.93 (+0.0%) |
+| `control delay_feedback_chain_digital` | 19.87 → 20.06 (+1.0%) | 14.17 → 14.27 (+0.7%) | 11.34 → 11.39 (+0.4%) |
+| `dx7_modern_alg1` | 153.38 → 152.13 (-0.8%) | 113.71 → 112.30 (-1.2%) | 95.74 → 94.93 (-0.8%) |
+| `dx7_modern_alg32` | 162.33 → 161.63 (-0.4%) | 109.70 → 108.97 (-0.7%) | 85.61 → 84.96 (-0.8%) |
+| `dx7_mki_alg1_fb` | 244.18 → 244.64 (+0.2%) | 208.41 → 205.42 (-1.4%) | 189.44 → 185.11 (-2.3%) |
+| `dx7_mki_alg4_fb3` | 235.89 → 242.20 (+2.7%) | 204.96 → 209.27 (+2.1%) | 186.61 → 190.22 (+1.9%) |
+
+- **Per block and per sample, measured apart.** A line fitted through each case's cycles and retired instructions at
+  n = 32, 64 and 128 splits its cost into a per-block intercept and a per-sample slope; instructions are counted, so
+  they do not move with placement. Before the fixes below, every case's slope matched or beat the old engine's and its
+  intercept was 835-1003 instructions (720-1010 cycles) higher. Now the modern cases' intercepts match the old
+  engine's (+10 and +35 instructions, -33 and -5 cycles) with slopes 0.6-0.7 cycles per sample lower. MkI pays 108-196
+  cycles more per block (its ops go through `Mono<Operator>`, which takes each op's gains again in `prepare`) and
+  algorithm 1 gets it back per sample (-5.9 cycles); algorithm 4's 2% is its fused stack's per-sample cost (+2.7
+  cycles per sample), not the block's.
+- **Where the block's cost was.** PTM traces of the per-block functions (`tools/deluge_trace`, algorithm 32 alone so
+  every op renders in the kernel and nothing overflows the trace port) placed it, old engine against new:
+  - each op's gain ramp (an exp2 lookup and a divide) was taken three times per block, for the gate, for the kernel
+    call and to move the op's held state on; `Graph` now takes it once (`hold_op`);
+  - each op's envelope settings were rebuilt from the patch's bytes every block, eight unaligned bytes assembled with
+    shifts among spills; a block now keeps the configured settings and sets only the extra rate, since the rest
+    changes only at note-on, release and retune (which a patch change calls);
+  - each block copied the patch's 156 bytes and clamped them through `dx7::sanitise`, which the app's
+    `-fno-inline-functions` left as calls to `std::min` and `std::array::operator[]` (196 instructions for 17
+    clamps); the voices now read one clamped copy on `DxPatch`, renewed at note-on and when the patch changes, and
+    the clamp is inline over the raw bytes.
+- **The Argon step against the hand kernel.** Stepped one four-lane chain at a time, the Argon step ran 28-37% slower
+  than the kernel at n=128: issue-empty cycles rose from 34 to 57 per sample at the same NEON count, each step waiting
+  on the last's float latency. Three chains interleaved instruction by instruction (`kChains = 3`,
+  `step_chains`), as the kernel computes twelve samples, brought the ops with no input level with it (algorithm
+  32 without feedback +7%, inside the images' placement spread). The ops with a bus input stayed 29-36% slower
+  (algorithm 1 without feedback: 76.4 against 104.1 at n=128): each group's first instruction adds the bus's fresh
+  load, and the kernel issues those loads a block ahead. Loading the next group early in `Mono` made every case 25-30%
+  slower: holding the next group's vectors takes the registers the three chains need, and clang spills. So the device
+  keeps the kernel for those ops, and the graph spec holds the two bit for bit on ARM.
+- **Placement moves these images by up to 8%.** Adding three bench cases to an image, with no change to the DX7 code,
+  moved algorithm 32 from 85.0 to 92.4 at n=128. Compare cases within one image where the delta is small.
+- **The voice's flags matter.** `dx7::Voice<CongNoise>` is instantiated once in `fixed/dx7/voice.cpp`, built ARM with
+  `-finline-functions`. Instantiated in the voice adapter's app file instead, it built Thumb under
+  `-fno-inline-functions` with fifteen out-of-line `std::array::operator[]` calls among others, and every case ran
+  8-16% slower at n=32.
+- **The kernel's arithmetic** is `vmla.f32`/`vmul.f32` + `vadd.f32` (no fused multiply-add on the A9's NEON),
+  `vcvt.f32.s32 #22` and `#24`, `vcvt.s32.f32 #24`; the Argon step compiles to the same operations with no `vfma`.
+  Its interleaved gain ramp is held in order by an empty `asm` with a `"+w"` operand on each intermediate gain: under
+  `-funsafe-math-optimizations` clang otherwise folds `(g + d) + d` into `g + 2d`, which the vector spec built with
+  that flag caught.
+- **The controls move by 0.0-1.4%**, the bound on placement noise between the two images.
+
 ## Open questions
 
 - Whether NEON-sourced stores overlap with arithmetic in kernels that do much more work per sample than a gain. The
@@ -630,3 +718,6 @@ the minimum of four runs; the last column is the spread (max - min), runtime / r
   with the first NEON kernel of that weight.
 - The `wavetable` bench case costs about 336 cycles per sample. Look at it when the oscillators move to the kernel form.
 - `Mono::renderBlock` calls `std::span::size()` and `data()` per block, and both are out of line at the shipping flags.
+- The DX7 MkI ops take their gains twice per block, in the gate and in `Mono<Operator>`'s `prepare` (108-196 cycles
+  per block over the old engine), and the six operators are walked one `Mono` at a time; fusing them into one step is
+  a further bench question.

@@ -143,6 +143,13 @@ enum class ModFXType : uint8_t {
 	return ModFXType::NONE;
 }
 
+/// @brief The song reverb's model, numbered as a song file saves it.
+enum class ReverbModel : uint8_t {
+	FREEVERB = 0, ///< Freeverb, for songs saved before there was a choice.
+	MUTABLE = 1,  ///< The Mutable plate, a new song's.
+	DIGITAL = 2,  ///< Dattorro's plate.
+};
+
 /// @brief Whether a delay is on, and which feedback it plays. OFF holds no tapes and never renders.
 enum class DelayType : uint8_t {
 	OFF,

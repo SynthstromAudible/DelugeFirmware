@@ -18,6 +18,7 @@
 #include "scenarios/render_song_scenario.h"
 
 #include "definitions_cxx.hpp"
+#include "engines/effects/reverb.h"
 #include "engines/effects/words.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_song_ui.h"
@@ -370,6 +371,83 @@ void switchModFx(uint64_t block, const ModFxSwitch& switched) {
 	});
 }
 
+/// RENDER_REVERB_SWITCH: `<block>:<setting>=<value>,...`, ascending; empty by default. At each block, counted from
+/// playback's start, the song's reverb setting is changed as its menu changes it: `model` (0 Freeverb, 1 Mutable,
+/// 2 Digital) as the reverb model menu does, which rebuilds the reverb at that model; `room`, `damping`, `width`,
+/// `hpf` or `lpf` (a fraction, 0 to 1) as that knob's menu does, which writes the song's value and publishes the song's
+/// knobs, which the render takes up at its next block.
+struct ReverbSwitch {
+	uint64_t block;
+	std::string setting;
+	float value;
+};
+std::vector<ReverbSwitch> g_reverbSwitchAt;
+std::size_t g_reverbSwitchesDone = 0;
+int32_t g_reverbSwitched = 0;
+/// The model after each switch, as a file saves it, comma-separated in the order they were made.
+std::string g_reverbSwitchedModels;
+
+void readReverbSwitches() {
+	g_reverbSwitchAt.clear();
+	const char* list = std::getenv("RENDER_REVERB_SWITCH");
+	for (const char* at = list; at != nullptr && *at != '\0';) {
+		char* end = nullptr;
+		const uint64_t block = std::strtoull(at, &end, 10);
+		if (end == nullptr || *end != ':') {
+			break;
+		}
+		const char* item = end + 1;
+		const char* comma = std::strchr(item, ',');
+		const std::string text = comma != nullptr ? std::string(item, comma) : std::string(item);
+		const std::size_t equals = text.find('=');
+		if (equals == std::string::npos) {
+			break;
+		}
+		g_reverbSwitchAt.push_back({block, text.substr(0, equals), std::strtof(text.c_str() + equals + 1, nullptr)});
+		at = comma != nullptr ? comma + 1 : nullptr;
+	}
+}
+
+/// Apply @p switched to the current song's reverb as its menu does, at render block @p block.
+void switchReverb(uint64_t block, const ReverbSwitch& switched) {
+	deluge::project::ReverbSettings& knobs = currentSong->project.reverb;
+	const std::string& s = switched.setting;
+	if (s == "model") {
+		// gui/menu_item/reverb/model.cpp: Model::writeCurrentValue, whose SetSetting writes the record and rebuilds
+		const auto value = static_cast<uint8_t>(switched.value);
+		knobs.model = static_cast<deluge::project::ReverbModel>(value);
+		AudioEngine::setReverbModel(static_cast<deluge::effects::ReverbModel>(value));
+	}
+	else if (s == "room") {
+		knobs.room_size = switched.value;
+		AudioEngine::publishReverbSettings(knobs);
+	}
+	else if (s == "damping") {
+		knobs.damping = switched.value;
+		AudioEngine::publishReverbSettings(knobs);
+	}
+	else if (s == "width") {
+		knobs.width = switched.value;
+		AudioEngine::publishReverbSettings(knobs);
+	}
+	else if (s == "hpf") {
+		knobs.hpf = switched.value;
+		AudioEngine::publishReverbSettings(knobs);
+	}
+	else if (s == "lpf") {
+		knobs.lpf = switched.value;
+		AudioEngine::publishReverbSettings(knobs);
+	}
+	else {
+		return;
+	}
+	g_reverbSwitched++;
+	const int32_t model = static_cast<int32_t>(AudioEngine::reverb.model()); // the engine's, not the song's field
+	g_reverbSwitchedModels += (g_reverbSwitchedModels.empty() ? "" : ",") + std::to_string(model);
+	printf("RS-REVERB-SWITCH block=%llu set=%s=%g model=%d\n", static_cast<unsigned long long>(block), s.c_str(),
+	       static_cast<double>(switched.value), model);
+}
+
 /// RENDER_MODFX_CLEAR: `<block>[:<owner>],...`, ascending; empty by default. At each block, counted from playback's
 /// start, the mod FX memory of every audio track (or of the owner named, see forEachModFxOwner) is cleared by
 /// ModControllableAudio::clearModFXMemory, which a sound's cut tail calls: for a comb type the mod FX component's
@@ -591,6 +669,11 @@ void stepPlaying() {
 		clearModFx(g_blocksRendered, g_modFxClearAt[g_modFxClearsDone]);
 		g_modFxClearsDone++;
 	}
+	while (g_reverbSwitchesDone < g_reverbSwitchAt.size()
+	       && g_blocksRendered >= g_reverbSwitchAt[g_reverbSwitchesDone].block) {
+		switchReverb(g_blocksRendered, g_reverbSwitchAt[g_reverbSwitchesDone]);
+		g_reverbSwitchesDone++;
+	}
 	const bool burst = g_model.burstBlocks != 0 && g_blocksRendered >= g_model.burstStart
 	                   && g_blocksRendered < g_model.burstStart + g_model.burstBlocks;
 	if (burst != g_inBurst) {
@@ -679,6 +762,14 @@ void report() {
 			fail("RS-MODFX-CLEAR", "a clear asked for did not clear exactly one audio track's mod FX");
 		}
 	}
+	if (!g_reverbSwitchAt.empty()) {
+		printf("RS-REVERB-SWITCH applied=%d asked=%zu models=%s\n", g_reverbSwitched, g_reverbSwitchAt.size(),
+		       g_reverbSwitchedModels.empty() ? "-" : g_reverbSwitchedModels.c_str());
+		if (g_reverbSwitchesDone != g_reverbSwitchAt.size()
+		    || g_reverbSwitched != static_cast<int32_t>(g_reverbSwitchAt.size())) {
+			fail("RS-REVERB-SWITCH", "a reverb switch asked for was not applied");
+		}
+	}
 	printf("RS-DELAY-OFF silenced=%u\n", deluge::effects::delay_off_silenced_blocks());
 	printf("RS-DELAY-ARENA shortfalls=%u regions=%zu jobs=%u\n", deluge::model::delayArena().shortfalls(),
 	       deluge::model::delayArena().regions(), deluge::model::delayArenaMaintenanceRuns());
@@ -729,6 +820,10 @@ void deluge_scenario_render_song_begin(void) {
 	g_modFxSwitchedRing = 0;
 	g_modFxSwitchedNoRing = 0;
 	g_modFxSwitchedGrain = 0;
+	readReverbSwitches();
+	g_reverbSwitchesDone = 0;
+	g_reverbSwitched = 0;
+	g_reverbSwitchedModels.clear();
 	readModFxClears();
 	g_modFxClearsDone = 0;
 	g_tracksModFxCleared = 0;

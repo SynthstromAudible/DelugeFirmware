@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "dsp/reverb/reverb.hpp"
+#include "engines/effects/reverb.h"
 #include "gui/menu_item/integer.h"
 #include "model/edits/setting_edit.h"
 #include "model/song/song.h"
@@ -26,7 +26,7 @@ namespace deluge::gui::menu_item::reverb {
 class Damping final : public Integer {
 public:
 	using Integer::Integer;
-	// The song's reverb record is the truth; SetSetting projects it onto AudioEngine::reverb.
+	// The song's reverb record is the truth; SetSetting publishes it to the render.
 	void readCurrentValue() override {
 		this->setValue(std::round(currentSong->project.reverb.damping * kMaxMenuValue));
 	}

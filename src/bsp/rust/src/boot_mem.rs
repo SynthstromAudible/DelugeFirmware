@@ -38,6 +38,11 @@ pub const RUST_SDRAM_BASE: usize = SDRAM_BASE + SDRAM_SIZE - RUST_SDRAM_RESERVE;
 /// When the pack does not inflate to exactly `.sdram_init` ([`crate::sdram_pack::unpack`]): an
 /// image whose staging did not pack it, or a corrupted image.
 ///
+/// `.sdram_init` holds code (the GUI, and `PLACE_SDRAM_TEXT` functions) as well as data. The copy
+/// lands in the L1 D-cache, which instruction fetches do not see, so it is cleaned out to the L2
+/// (unified, and on the fetch path) and the I-cache and branch predictor are invalidated before
+/// anything can branch into it.
+///
 /// # Safety
 ///
 /// Call exactly once, after SDRAM is initialised and before any code reads SDRAM-resident globals.
@@ -65,6 +70,10 @@ pub unsafe fn init_sdram_memory() {
             if let Err(e) = crate::sdram_pack::unpack(pack, out) {
                 panic!("boot: the SDRAM content's load copy did not unpack: {e:?}");
             }
+            rza1_hal::cache::dma_clean_range(dst as usize, dst as usize + len);
+            // BPIALL; l1_i_invalidate_all's DSB + ISB complete it.
+            core::arch::asm!("mcr p15, 0, {0}, c7, c5, 6", in(reg) 0u32, options(nomem, nostack));
+            rza1_hal::cache::l1_i_invalidate_all();
         }
     }
 }

@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "dsp/reverb/reverb.hpp"
+#include "engines/effects/reverb.h"
 #include "gui/menu_item/integer.h"
 #include "model/edits/setting_edit.h"
 #include "model/song/song.h"
@@ -27,7 +27,7 @@ namespace deluge::gui::menu_item::reverb {
 class RoomSize final : public Integer {
 public:
 	using Integer::Integer;
-	// The song's reverb record is the truth; SetSetting projects it onto AudioEngine::reverb.
+	// The song's reverb record is the truth; SetSetting publishes it to the render.
 	void readCurrentValue() override {
 		this->setValue(std::round(currentSong->project.reverb.room_size * kMaxMenuValue));
 	}
@@ -36,9 +36,9 @@ public:
 
 	[[nodiscard]] std::string_view getName() const override {
 		using enum l10n::String;
-		switch (AudioEngine::reverb.getModel()) {
-		case dsp::Reverb::Model::DIGITAL:
-		case dsp::Reverb::Model::MUTABLE:
+		switch (AudioEngine::reverb.model()) {
+		case deluge::effects::ReverbModel::DIGITAL:
+		case deluge::effects::ReverbModel::MUTABLE:
 			return l10n::getView(STRING_FOR_TIME);
 		default:
 			return l10n::getView(this->name);

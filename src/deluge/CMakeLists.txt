@@ -40,12 +40,16 @@ if(DELUGE_DSP_BENCH AND NOT DELUGE_HOST)
     ${CMAKE_CURRENT_LIST_DIR}/bench/mod_fx_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/granular_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/stutter_cases.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/bench/reverb_cases.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/bench/dx7_cases.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/bench/fft_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/chain_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/pmu_a9.cpp
   )
   # The delay, the filters and the compressor ship from deluge_dsp_fixed, so their cases take that library's flags
   # (dsp-next/CMakeLists.txt): ARM mode, -finline-functions and no LTO, each after the app's own and so in force.
   # The mod FX cases call effects::ModFx::render, which deluge_effects builds; mod_fx_cases.cpp keeps the app's flags.
+  # The reverb cases call the engine's reverb; reverb_cases.cpp keeps the app's flags.
   set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/bench/delay_feedback_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/delay_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/filter_cases.cpp
@@ -82,6 +86,16 @@ list(FILTER _deluge_cold_sources INCLUDE REGEX
 list(FILTER _deluge_cold_sources EXCLUDE REGEX "/src/deluge/storage/(audio|cluster|multi_range)/")
 deluge_optimise_sources_for_size(${_deluge_cold_sources})
 
+# The device runs the GUI from SDRAM. The BSP archives these objects apart (libdeluge_app_gui.a) and
+# its linker fragment places their code by that archive, so they must reach the link as native
+# objects: under ThinLTO lld would see only its own anonymous backend outputs.
+if(NOT DELUGE_HOST)
+  set(_deluge_gui_sources ${deluge_SOURCES} ${deluge_strings_SOURCES})
+  list(FILTER _deluge_gui_sources INCLUDE REGEX "/src/deluge/gui/")
+  list(REMOVE_DUPLICATES _deluge_gui_sources)
+  set_property(SOURCE ${_deluge_gui_sources} APPEND PROPERTY COMPILE_OPTIONS -fno-lto)
+endif()
+
 target_include_directories(deluge_app PUBLIC
     ${deluge_version_INCLUDES}
     ${CMAKE_CURRENT_BINARY_DIR}
@@ -92,7 +106,6 @@ target_include_directories(deluge_app PUBLIC
 )
 
 target_link_libraries(deluge_app PUBLIC
-    NE10
     eyalroz_printf
     deluge_dsp
     deluge_dsp_next # the clean L0 library primitives migrate into (synth untangling Phase 1)
@@ -144,11 +157,19 @@ if(_dsp_bench_on)
         target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_GRANULAR=1)
     elseif(DELUGE_DSP_BENCH_CASES STREQUAL "stutter")
         target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_STUTTER=1)
+    elseif(DELUGE_DSP_BENCH_CASES STREQUAL "reverb")
+        target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_REVERB=1)
+    elseif(DELUGE_DSP_BENCH_CASES STREQUAL "dx7")
+        target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_DX7=1)
     elseif(DELUGE_DSP_BENCH_CASES STREQUAL "fx_chains")
         target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_FX_CHAINS=1)
+    elseif(DELUGE_DSP_BENCH_CASES STREQUAL "fft_forward")
+        target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_FFT_FORWARD=1)
+    elseif(DELUGE_DSP_BENCH_CASES STREQUAL "fft_inverse")
+        target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_FFT_INVERSE=1)
     elseif(NOT DELUGE_DSP_BENCH_CASES STREQUAL "kernels")
-        message(FATAL_ERROR "DELUGE_DSP_BENCH_CASES is kernels, lanes, chain, delay, filters, compressor, mod_fx, granular, stutter \
-or fx_chains, \
+        message(FATAL_ERROR "DELUGE_DSP_BENCH_CASES is kernels, lanes, chain, delay, filters, compressor, mod_fx, granular, stutter, \
+reverb, dx7, fx_chains, fft_forward or fft_inverse, \
 not '${DELUGE_DSP_BENCH_CASES}'")
     endif()
     message(STATUS "DSP bench case list: ${DELUGE_DSP_BENCH_CASES}")

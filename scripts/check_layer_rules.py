@@ -578,18 +578,9 @@ RULES = [
         # shell must NOT reach): scenes is deliberately the first model-aware UI layer, so the
         # header that pulls in `params::Kind` and friends is expected, not a back door.
         #
-        # `dsp/**` joined the list in task 7 (spec E1), on exactly the argument task 3 made for
-        # `processing/**` below: `check_layer_rules`'s own NON_UI glob already counts
-        # `src/deluge/dsp/` as non-UI, held to the same no-`gui/`, no-`hid/` rules as `model/`. It
-        # is needed because the reverb menu's relevance predicates ask
-        # `AudioEngine::reverb.getModel()` (`gui/menu_item/reverb/hpf.h:27`) and
-        # `processing/engines/audio_engine.h` only forward declares `deluge::dsp::Reverb` -- no
-        # `model/` or `processing/` header completes it, so `menu/relevance.cpp` cannot ask the
-        # question at all without this.
-        #
-        # `io/**` joined the list in task 8 (spec E1), on that same argument: `check_layer_rules`'s
-        # own NON_UI glob counts `src/deluge/io/` as non-UI, held to the same no-`gui/`, no-`hid/`
-        # rules as `model/`. The settings root is where it became unavoidable -- `midiEngine`
+        # `io/**` joined the list in task 8 (spec E1), on the argument made for `processing/**`
+        # below: `check_layer_rules`'s own NON_UI glob counts `src/deluge/io/` as non-UI, held to
+        # the same no-`gui/`, no-`hid/` rules as `model/`. The settings root is where it became unavoidable -- `midiEngine`
         # (`io/midi/midi_engine.h`), `MIDIDeviceManager` (`io/midi/midi_device_manager.h`) and
         # `MIDITranspose` (`io/midi/midi_transpose.h`) hold the state seven of the MIDI page's
         # items edit, and there is no `model/` spelling of any of them.
@@ -617,7 +608,7 @@ RULES = [
         "scenes-includes-outside",
         "src/scenes/**",
         "include",
-        r"^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|dsp/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|engines/|engine-api/|serialization/|sequence/|deluge-project/|definitions_cxx\.hpp)(?:.*/)",
+        r"^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|engines/|engine-api/|serialization/|sequence/|deluge-project/|definitions_cxx\.hpp)(?:.*/)",
         "2026-08-26-ui-scenes-menus-design.md",
     ),
     (

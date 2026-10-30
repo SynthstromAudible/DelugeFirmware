@@ -130,9 +130,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     endif()
 endif()
 
-# Section GC, mirroring the firmware link. Beyond size, it strips genuinely-dead code
-# whose refs would otherwise fail to resolve — e.g. the NE10 float32 FFT path (Deluge
-# only uses the int32 FFT), which references ne10_fft_alloc_c2c_float32_c (never compiled).
+# Section GC, mirroring the firmware link: the host app links what the device image links, so code
+# the firmware strips as unreferenced is stripped here too rather than left needing its references.
 add_compile_options(-ffunction-sections -fdata-sections)
 if(APPLE)
     add_link_options(LINKER:-dead_strip) # ld64 equivalent of --gc-sections
@@ -203,12 +202,6 @@ add_compile_definitions(DELUGE_HOST)
 # reason_check reports — is visible when reproducing issues on the sim.
 add_compile_definitions(ENABLE_TEXT_OUTPUT=1)
 
-# Both sim references take the scalar DX7 operator kernel: the firmware's NEON asm
-# kernel (neon_fm_kernel.s) computes sine by polynomial approximation — legitimately
-# different output from the scalar LUT path — so the arm-linux reference must not
-# use it or x86 and ARM golden renders of DX7 presets could never match.
-add_compile_definitions(DELUGE_DX_SCALAR)
-
 if(DELUGE_SIM_NEON_NATIVE)
     # Real NEON (arm-linux cross or an arm64 host): the toolchain provides <arm_neon.h>; argon's
     # <arm/neon.h> and the SIMDe compat shim are unused.
@@ -226,27 +219,6 @@ endif()
 # ===========================================================================
 # The application.
 # ===========================================================================
-
-# NE10 (int32 FFT) — native, via SIMDe. deluge_app links the target name `NE10`,
-# so build the host version under that name. Its compute is all NEON intrinsics +
-# C; the common/*.s boilerplate is omitted (see the smoke-test history).
-add_library(NE10 STATIC
-    ${REPO_ROOT}/src/NE10/common/NE10_mask_table.c
-    ${REPO_ROOT}/src/NE10/modules/NE10_init.c
-    ${REPO_ROOT}/src/NE10/modules/dsp/NE10_fft.c
-    ${REPO_ROOT}/src/NE10/modules/dsp/NE10_fft_generic_int32.cpp
-    ${REPO_ROOT}/src/NE10/modules/dsp/NE10_fft_generic_int32.neonintrinsic.cpp
-    ${REPO_ROOT}/src/NE10/modules/dsp/NE10_fft_int32.c
-    ${REPO_ROOT}/src/NE10/modules/dsp/NE10_fft_int32.neonintrinsic.c
-    ${REPO_ROOT}/src/NE10/modules/dsp/NE10_fir_init.c
-    ${REPO_ROOT}/src/NE10/modules/dsp/NE10_init_dsp.c
-)
-target_include_directories(NE10 PUBLIC
-    $<$<NOT:$<BOOL:${DELUGE_SIM_NEON_NATIVE}>>:${CMAKE_CURRENT_LIST_DIR}/compat> # SIMDe shim (x86 only)
-    ${REPO_ROOT}/src/NE10/inc ${REPO_ROOT}/src/NE10/common ${REPO_ROOT}/src/NE10
-)
-target_include_directories(NE10 PRIVATE ${REPO_ROOT}/src ${REPO_ROOT}/include)
-# NE10_fft_int32.c calls routineWithClusterLoading() (resolved at the exe link).
 
 # The portable libraries (each subdir is platform-agnostic). Out-of-tree, so give
 # each an explicit binary dir.

@@ -80,6 +80,10 @@ SECTIONS {
     .sdram_init : ALIGN(16) {
         PROVIDE(__sdram_init_start = .);
         *(.sdram_text .sdram_text*)
+        /* The GUI's code (build/device.rs archives it apart, built without LTO so its objects
+         * survive to the link). An inline or template function that the GUI shares with other
+         * code comes here too when the link keeps the GUI's copy. */
+        *libdeluge_app_gui.a:*(.text .text.*)
         *(.sdram_data .sdram_data*)
         *(.sdram_rodata .sdram_rodata*)
         /* The efatfs mount's initialised tables (open handles, the mounted volume); as above. */
@@ -106,13 +110,13 @@ SECTIONS {
         PROVIDE(__sdram_init_end = .);
     } > SDRAM
 
-    /* The deflated load copy, reserved zero-filled at an eighth of the content (the setting and
-     * menu tables deflate to about a tenth) and written after the link; the staging fails when it
-     * does not fit. */
+    /* The deflated load copy, reserved zero-filled at half the content (the GUI's code deflates to
+     * under that, the setting and menu tables to about a tenth) and written after the link; the
+     * staging fails when it does not fit. */
     .sdram_init_pack : ALIGN(16) {
         __sdram_init_pack_start = .;
         BYTE(0)
-        . = __sdram_init_pack_start + SIZEOF(.sdram_init) / 8 + 256;
+        . = __sdram_init_pack_start + SIZEOF(.sdram_init) / 2 + 256;
         __sdram_init_pack_end = .;
     } > RAM
 

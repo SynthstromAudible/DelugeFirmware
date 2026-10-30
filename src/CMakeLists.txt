@@ -20,7 +20,6 @@ add_subdirectory(deluge)     # deluge_app: the portable application (platform-ag
 # compiles against deluge_app, so it comes after deluge_app exists. Archived into the firmware by
 # the Rust BSP's build script beside deluge_app.
 add_subdirectory(scenes)
-add_subdirectory(NE10)
 add_subdirectory(lib)
 
 # ---------------------------------------------------------------------------

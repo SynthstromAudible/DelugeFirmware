@@ -16,7 +16,7 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "dsp/reverb/reverb.hpp"
+#include "engines/effects/reverb.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/integer.h"
 #include "model/edits/setting_edit.h"
@@ -28,7 +28,7 @@ namespace deluge::gui::menu_item::reverb {
 class LPF final : public Integer {
 public:
 	using Integer::Integer;
-	// The song's reverb record is the truth; SetSetting projects it onto AudioEngine::reverb.
+	// The song's reverb record is the truth; SetSetting publishes it to the render.
 	void readCurrentValue() override { this->setValue(std::round(currentSong->project.reverb.lpf * kMaxMenuValue)); }
 	void writeCurrentValue() override { deluge::edits::songSettingFromMenu("reverb/lpf", this->getValue()); }
 
@@ -36,8 +36,8 @@ public:
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return RenderingStyle::LPF; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
-		auto model = AudioEngine::reverb.getModel();
-		return (model == dsp::Reverb::Model::MUTABLE) || (model == dsp::Reverb::Model::DIGITAL);
+		auto model = AudioEngine::reverb.model();
+		return (model == deluge::effects::ReverbModel::MUTABLE) || (model == deluge::effects::ReverbModel::DIGITAL);
 	}
 };
 } // namespace deluge::gui::menu_item::reverb

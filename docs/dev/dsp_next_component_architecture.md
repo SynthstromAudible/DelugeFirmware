@@ -588,6 +588,132 @@ the owner's chain the stutter and its rate each block (see "Effect chains").
   `CG-STUTTERHANDOFF`, `CG-STUTTEROOM` and `CG-STUTTERSWAP` hold the
   hand-over.
 
+### A float kernel and a fixed one over one buffer, the model chosen per block: the reverb
+
+The song reverb is two processor kernels of stereo frames, `fixed::Freeverb` (`fixed/reverb/freeverb.h`, q31) and
+`fp::Plate` (`float/reverb/plate.h`, float, modes MUTABLE and DIGITAL), each rendered in place over the master block as
+`Mono<K>::renderBlock(block, block)` by one component, `effects::Reverb` (`engines/effects/reverb.{h,cpp}`).
+
+- **Two kernels, one interface.** Both take a q31 send by cursor (`set_send`, with the two return levels: a cursor as
+  `Granular`'s is, here a mono send read and mixed into stereo frames) and q31 frames in and out. The plate's loop is
+  float, as the models were written and balanced, so it lives in `float/`; its input is the send over `(float)INT32_MAX`
+  and its output stage is `toQ31` saturating then the rounded multiply-accumulate, both named in the kernel.
+- **Memory handed in.** `set_memory` points each kernel at the component's buffer: Freeverb's 25,450 words laid out
+  end to end by `kLayout`, or the plate's 32,768-float ring. The State holds only indices, the combs' stores and the
+  filter memories. Neither declares `kStateInPlace`: copying the State into registers for the block measures faster
+  for both (Freeverb 249 against 277 cycles per channel-sample, the plate 9-19% faster), see
+  `a9_dsp_performance.md`, "Reverb".
+- **Freeverb's DC blocker is a nested part.** `Pinned<ShiftTracker<11>, REMOVE>`, stepped through
+  `kernel_ops::step_at` on each send sample. A `Chain` cannot hold it: it filters the mono send, not the frame the
+  chain steps. The blocked sample is not written back into the send: nothing reads the send after the reverb, and a
+  poison fill there leaves every golden and render gate unchanged.
+- **Unrolled combs.** The eight combs and four allpasses per channel are a fold over `std::index_sequence`, so each
+  line's base and length are immediates; as loops over the layout table they run 21% slower, the State
+  indexed rather than at fixed offsets.
+- **Constexpr topologies.** Each mode's line table (`kMutable`, `kDigital`) is a constexpr aggregate read by member, in
+  the reference's topology order, each line `length + 1` slots. Named quirks: Digital's lengths are
+  `float × kRatio` truncated to whole frames, its output taps `int × kRatio` truncated to `int32_t` (`tap`, consteval),
+  its modulated reads not truncated, and its excursion `size_t(16 × kRatio) = 10`. `static_assert`s keep every read
+  inside its line, at the LFO's reach (`kLfoMin`, `kLfoMax`): the lanes are nominally 0 to 1, and the recurrence's
+  float rounding carries them to about 6.8e-4 past either end, where they settle and stay.
+- **The LFO is a control kernel inside the plate.** `fp::PlateLfo` (`float/reverb/plate_lfo.h`) on
+  `ArgonHalf<float>` is advanced through `kernel_ops::advance_at` when the write index, stepping down, is a multiple of
+  32, read every frame through `value()` (`y_0 + 0.5f`), and started by an event that reads the coefficients
+  (`Plate::start`), sent after every reset.
+- **Float under `-funsafe-math-optimizations`.** The plate's step and both kernels' `coefficients` compile in the
+  translation units that instantiate them (the component's, in `deluge_effects`), and match the reference bit for
+  bit there; every step that moved float code ran `golden-synth`, `golden-synth-arm` and the `render-reverb-*` gates.
+- **The component.** One union buffer, in SRAM `.bss`; the model chosen per block by a `switch`,
+  with no variant and no virtual call. A model change, the same model included, is three steps around two
+  audio-excluded sections: `begin_change` (inside the first) stops the render adding reverb, `prepare` (between them)
+  zeroes the buffer and resets the model's State configured from the held settings, and `commit` (inside the second)
+  hands it to the render. A song swap at a launch rebuilds on the audio tier, inside the render, where the sections
+  are empty; one that interrupts an interaction-tier rebuild only records its model, which that rebuild applies before
+  it commits (`AudioEngine::setReverbModel`). The knobs arrive by `publish`, inside an excluded section, and the
+  render configures from them at its next block (and again after every `prepare`, so no publish is lost to a
+  rebuild). The sidechain duck, the pan and the 12 s/RMS gate stay in `AudioEngine`, which folds them
+  into the two return levels.
+- **Evidence.** `tests/dsp/reference_reverb.h` is the three old models verbatim, pinned over every workload of
+  `reverb_workloads.h` (`kRecordedReference`: output, whole state and send), host and ARM alike; the kernels
+  (`freeverb_kernel_spec`, `plate_lfo_spec`, `plate_kernel_spec`) and the component (`engines/effects/reverb_spec`)
+  equal it. The render gates `render-reverb-freeverb`, `-mutable`, `-digital` and `-switch` render each model away
+  from its defaults and switch models and knobs mid-song as the menus do, recorded on the old code. The `reverb` bench
+  list times each model as the engine renders it.
+
+### A family of its own: the DX7 (`fixed/dx7/`)
+
+The DX7 engine (the Dexed port: the modern engine and the MkI engine) is its own family, kept apart from the legacy FM
+synth: `dx7::` kernels for its tables' lookups, its envelopes, its LFO and its operators, and two components,
+`dx7::Graph` and `dx7::Voice`, that walk them. The app keeps the patch (`DxPatch`), the pool, the voice adapter, sysex,
+the codec and the UI.
+
+- **Tables lent by pointer.** `dx7::Tables` (`tables.h`: the exp2 and sine tables as delta/value pairs, the frequency
+  table, the MkI log-sine and exp tables) is built once at 44.1 kHz by `generate`, with the same libm calls in the same
+  order the engine always made, and owned by `DxEngine` in its heap block, allocated on first DX use. Every lookup
+  (`lookup.h`) and kernel that reads them takes a `const Tables*` in its Coefficients, as the delay is lent its tape:
+  no table is rodata, because the build's `-funsafe-math-optimizations` and two libms must not move a word, and
+  `generate` is pinned against the verbatim reference word for word.
+- **The buses lent the same way.** The two intermediate buses operators render into are one `dx7::Buses`, owned by
+  `DxEngine` and passed to `Graph::renderBlock` and `Voice::renderBlock` per block: voices render one at a time, and a
+  pair per voice would cost about 1 KB of SRAM each across the pool.
+- **Control kernels, configured from the live patch.** The pitch envelope (`PitchEnvelope`), each op's envelope
+  (`Envelope`, out of line: one `advance` per op per block), the LFO delay (`LfoDelay`) and the patch's LFO (`Lfo`,
+  owned by the patch, key sync its event) are `Control` kernels. The patch is edited live, so the envelopes and the
+  LFO are configured from its bytes before every block and every event; the LFO delay is configured at note-on only,
+  because the voice reads the delay once per note. The envelopes' States carry the engine's own state fields.
+- **The operator: twelve modes, and a vector step of its own.** `Operator` (`operator.h`) is a moded mixer kernel
+  (modulation and accumulator in, one sample out): engine (modern or MkI) × input (none, a bus, the feedback history)
+  × output (set or add). `prepare` ramps the gain over the block and moves the held phase on; `audible` is the
+  engine's gate, `skip` the gated op's bookkeeping, `resume` loads the voice's state. The modern op with no feedback is
+  `ModernVectorOperator` (`modern_vector_operator.h`), a kernel of its own because a kernel has one `step_type`
+  (`Argon<q31>`, four samples a step); both share `OperatorState` (phase and gain), so an op switches between them
+  block by block with nothing to copy.
+- **The MkI stacks.** With feedback, MkI renders op 6's whole stack in algorithms 4 (three ops) and 6 (two) sample by
+  sample, the feedback taken from the stack's bottom: `MkIFeedbackStack<N>`, a generator kernel. An op after op 6
+  holds its new attenuation for the block, or falls from silence when that attenuation is 0, a named quirk.
+- **The graph, a component.** `Graph` (`graph.{h,cpp}`) holds the six `OperatorState`s and the feedback history and
+  walks the `constexpr` algorithm table (`algorithms.h`) once per block, a `Mono` per op: the gate, adding to an empty
+  bus sets it, an empty input is no input, MkI fuses algorithms 4 and 6, and MkI shifts algorithm 32's feedback two
+  steps further, each named where it is applied. It keeps no settings: each block's levels and pitches arrive with the
+  block (`renderBlock(settings, out, buses)`), so a voice holds only its operators' phases and gains and the history.
+  Its verbs are documented at the class.
+- **One arithmetic, two implementations.** The modern operator's sine is the device's polynomial, not the table. The
+  device renders the modern ops with no input or a bus input through its NEON kernel (`neon_fm_kernel.s`, beside the
+  graph: `graph.cpp` takes it when the build names its symbol in `DELUGE_DX7_NEON_KERNEL`, as the firmware's does);
+  every other build steps `ModernVectorOperator` (Argon), which computes exactly what the kernel computes: integer
+  wrapping phase, `phase0 + i·freq` for sample i; a
+  float gain ramp converted with 24 fraction bits, sample 0 at `gain1` (a sample behind the scalar operator's
+  pre-increment) and one float add per step; the position `((phase + modulation) & 0x7fffff) − 0x400000` converted with
+  22 bits, bit 23 the sign; three non-fused multiply-adds in x², each rounding (the A9's NEON has none fused); the
+  product with the gain converted with 24 bits, truncating and saturating, NaN to 0; the sign applied as a bitwise
+  NOT (−y − 1); the accumulator added with wrapping. No denormal arises. `Mono` runs it three vectors at a time
+  (`kChains`, see [`Mono<K>`](#monok-coremonoh)), each stage written for the three in turn as the kernel does,
+  with the gain ramp's order held by a register barrier. So stepped it keeps pace with the kernel on ops with no
+  input, but not on ops reading a bus: the kernel issues each block's loads a block ahead, which the compiler cannot
+  do for the step without spilling (`a9_dsp_performance.md`, "DX7"), so the device keeps the kernel. The
+  graph spec on ARM builds the graph with the kernel, and holds it to the same references as the Argon build.
+- **The voice, a component; noise a policy.** `Voice<Noise>` (`voice.h`, its note-on scaling in `voice_scaling.h`)
+  runs the envelopes, base pitches, LFO delay and graph for one note. Its verbs (`start`, `release`, `retune`,
+  `renderBlock`) each take the patch as it stands: its bytes, clamped to the engine's ranges and lent by the owner
+  (the app's `DxPatch` keeps one clamped copy, renewed at note-on and when the patch changes), the note and the
+  velocity, so the voice keeps only what the note carries. `Noise::render()` gives one draw: a note-on draws six
+  detunes in op order, then six phases unless the oscillators are key-synced; a block draws none. The app's voices are
+  `Voice<CongNoise>`, on the synth's shared stream.
+- **Named quirks.** A new patch's LFO phase and a new voice's feedback history start at `State{}` (0); the feedback
+  history carries across a retrigger; a voice lives while an op's gain is at or above the modern engine's threshold,
+  which a silent MkI op's attenuation (near `kEnvMax`) passes, so a released MkI voice never ends; an envelope's retune
+  sets a level-less target that the stage entry overwrites; the LFO's triangle plays the sine.
+- **Evidence.** `tests/dsp/reference_dx7.h` is the engine verbatim, with named edits for its seams, pinned over every
+  workload of `dx7_workloads.h` (`kRecordedReference`: output, state, liveness) on host and ARM; each kernel and
+  component spec equals it (`dx7_tables_spec` to `dx7_voice_spec`), with the modern no-input and bus-input ops taken as
+  the device renders them (`VectorCore`). `reference_neon_fm_kernel.s` is the device's NEON kernel, pinned under qemu
+  over 1,200 cases (`dx7_asm_pin_records.h`); the vector step equals it on x86 and ARM, with and without the device's
+  float flags, and on ARM the graph built with the kernel equals the reference taking it on every block and voice.
+  The `dx7/` golden cases reach what no community preset does, each recorded on the engine before it moved; the one
+  re-baseline, when the host and sim took the kernel's arithmetic (the goldens had rendered the table sine, which the
+  device never played), moved only the cases that render modern. The `dx7` bench list
+  times a voice's block in each engine.
+
 ### The control form
 
 A **control kernel** is a block-rate signal: an envelope or a duck that the
@@ -875,6 +1001,24 @@ per-sample loop, so a `Mono` of one would be inert.
   small, scalar State keeps the default. With `kLoopState` too, the loop steps
   the named member in place: the two traits combine, one choosing which part
   the loop steps and the other whether it is copied.
+- **`kChains`.** A q31 vector kernel whose step is one long dependency chain
+  declares `static constexpr std::size_t kChains = N` and `step_chains` (a
+  template on the mode when moded), taking each input as
+  `ChainVectors<step_type, N>` of consecutive vectors (a built-in array, so
+  reading one is no call) and returning N outputs the same way. `Mono` runs
+  every whole group of N vectors through it, then the rest of the block, the
+  partial vector included, through `step`. It must compute exactly what N
+  `step`s in a row compute, state included; it exists to write the N chains'
+  instructions interleaved, stage by stage, which the A9 needs to overlap them
+  and which an unrolled loop of `step` does not give. Hold the order of any
+  float accumulation with a register barrier on every update: under
+  `-funsafe-math-optimizations` the compiler otherwise reassociates sums it can
+  see together. Only the q31 vector loop runs chains; a scalar or stereo kernel
+  declaring `kChains` fails to build, as does a `kChains` that is not a
+  `std::size_t` above 1. `dx7::ModernVectorOperator` declares N = 3
+  ([a9_dsp_performance.md](a9_dsp_performance.md#dx7)). Chains cover float
+  latency, not load latency: a chain that starts from a fresh load still waits
+  on it.
 - `render(...)` is a one-sample block: one `prepare` and one dispatch per call.
   A vector kernel renders it as the partial step of a block of one. It builds
   one-sample spans and runs a whole block's glue, several out-of-line
@@ -1194,6 +1338,13 @@ Each oscillator is a **stateful generator** that owns its phase:
   `SyncedPhasor` for hard sync.
 - `WavetableOscillator`: renders a `WaveTableData` view of the bands; the app's
   `WaveTable` owns loading and band management.
+- `BandBuilder` (`fixed/wavetable/band_builder.h`): builds a wavetable's bands a
+  cycle at a time from the cycles the app's reader hands it, into storage it is
+  lent, allocating nothing: band 0 straight from a power-of-two cycle, every
+  other band (and band 0 of any other cycle) from the cycle's spectrum through
+  an inverse `RealFft`. `BandGeometry` is the band layout both `WaveTable::setup`
+  and the spec read. The app's `WaveTable` owns the bands (`BandSamples`), the
+  reader (`WaveTableCycleReader`) and the yields between cycles and bands.
 
 Cross-cutting pieces are components too, not per-type branches:
 - `SyncedOscillator<Osc>` (`fixed/sync/`): hard sync as a generator that wraps a
@@ -1219,8 +1370,9 @@ state fully into the engine is later work.
   arithmetic (`multiply_accumulate`, rounded) differs. Unifying the two is an
   audible, re-baselined step.
 - Mixing into the voice's buffer (unison and oscillator summing) is a mixer.
-- Filters, dynamics, delay and effects are kernels wrapped by `Mono`, `Stereo`
-  or `Control`, under the settings convention and the slotting-ready rules.
+- Filters, dynamics, delay, effects and the DX7 are kernels wrapped by `Mono`,
+  `Stereo` or `Control`, under the settings convention and the slotting-ready
+  rules; the DX7's `Graph` and `Voice` are components over them.
 
 ## Effect chains (`engines/effects/`)
 
@@ -1250,7 +1402,7 @@ block's inputs from its params and makes one call.
   call around the reverb:
   - The half before the reverb: mod FX or grain, EQ, delay, send and volume.
   - Then `between(sent)`: the engine notes a send (the reverb renders only
-    within 12 s of one), renders the reverb and the sample preview, and returns
+    within 12 s of one), renders the reverb (`effects::Reverb`) and the sample preview, and returns
     the half after's inputs. It returns nothing for a stem export without the
     song's effects.
   - The half after: filter, bitcrush, stutter, pan and the compressor with the
@@ -1396,7 +1548,8 @@ not against the code itself, so the code can be deleted once its users move. The
 `tests/dsp/reference_filters.h`: `OnePole`'s and `AntialiasedTanh`'s legacy forms, the fade, both ladders, the SVF and
 the filter set. The compressor's are in `tests/dsp/reference_compressor.h`, on those legacy forms: the legacy class
 verbatim, and the same class with its two level defects fixed (the 32-bit sum of squares, and `std::abs` of
-`INT32_MIN`), which is what the kernel matches.
+`INT32_MIN`), which is what the kernel matches. The reverb's are in `tests/dsp/reference_reverb.h`: Freeverb, the Mutable plate
+and the Digital plate with the engine's model selector, verbatim, which the kernels and the component match.
 
 **What is checked against them.** They are the oracle for:
 - `one_pole_spec`, `antialiased_tanh_spec`, `low_pass_ladder_spec`, `high_pass_ladder_spec`, `svf_spec` and
@@ -1414,6 +1567,75 @@ leg therefore checks the kernels and runs with no exclusion.
 
 **Specs that step the kernel by hand.** `saturation_spec` and `bench_runner_spec` do this, and are checked through
 `antialiased_tanh_spec`'s pin of the kernel.
+
+### The real FFT (`fixed/fft/`)
+
+The firmware's int32 real FFT: the wavetable band builder's forward and inverse transforms and pitch detection's
+forward transform. It is a port of NE10's unscaled int32 real FFT to Argon, bit for bit: `tests/dsp/real_fft_records.h`
+holds NE10's outputs, recorded on x86 and on ARM, at every size the firmware transforms (forward 16 to 8192 points,
+inverse 8 to 8192), over random, impulse, full-scale and real-cycle inputs, and `real_fft_spec` holds `RealFft` to
+them on x86, ARM and under UBSan.
+
+- **`Twiddles`** (`twiddles.h`): the factor list and the stage and real-split twiddles, laid out over one block the
+  caller lends (`storage_bytes`, `lay_out`), generated in three stages (`factor`, `generate_stage_twiddles`,
+  `generate_super_twiddles`) so a loader can yield between them. The phase is float arithmetic and cos/sin take it as
+  a double, in NE10's operand order, because the tables differ when that order changes: the firmware builds float code
+  with `-funsafe-math-optimizations`, under which NE10's tables differ from the plain build's from 32 points up, and
+  `twiddles_shipping_spec` holds the tables at those flags to the records made at them. In the shipping image both
+  generators compile to NE10's float sequence: the same reciprocal of the length, multiply order, conversions and
+  cos, floor, sin, floor calls (NE10's `vmla.f64` is a `vmul.f64` and a `vadd.f64` here, which round the same: the
+  A9's VFPv3 has no fused multiply-add).
+- **`RealFft`** (`real_fft.h`): forward from 2^m samples to 2^(m−1)+1 bins and inverse back, over lent tables and
+  scratch, no state between calls. NE10's radix-8 and radix-4 stages and real splits are in `radix.h`: every sum and
+  difference wraps, every vector product is the saturating doubling high half (`MultiplyFixedQMax`, `vqdmulh`) except
+  the 16-point inverse's, which rounds (`MultiplyRoundFixedQMax`, `vqrdmulh`), and only the forward split's outputs
+  halve (`AddHalve`/`SubtractHalve`). The scalar 8-point paths differ: the 8-point inverse multiplies by √½ as a 64-bit
+  product shifted down by 31, and its real split sums two 64-bit products' high words and then doubles the sum. NE10's 16-point forward ran its radix-8 stage four butterflies wide over an 8-point
+  input and wrote 128 bytes past its configuration; `RealFft` runs that stage on zero-padded locals and keeps lane 0,
+  which is NE10's output.
+- **`FFTConfigManager`** (app, `dsp/fft/`) builds each size's transform on first use, yields to the cluster loader
+  between the twiddle stages, and keeps it for the run; `real_dft` (`real_dft.h`) is the band builder's DFT for a
+  cycle that is not a power of two.
+
+**Codegen at shipping flags against NE10's** (`deluge.elf`, instructions per inner-loop iteration, four butterflies):
+
+| Loop | NE10 | `RealFft` |
+| --- | ---: | ---: |
+| radix-8 first stage, forward / inverse | 271 / 265 | 271 / 268 |
+| radix-4 first stage, forward / inverse | 51 / 51 | 51 / 51 |
+| radix-4 twiddled stage, forward / inverse | 68 / 67 | 64 / 64 |
+| real split, forward / inverse (vector) | 38 / 38 | 39 / 39 |
+| inverse real split, scalar (8 points) | 34 | 37 |
+
+No radix loop calls out or multiplies in scalar registers; the twiddled stage reloads four values from the stack per
+iteration in both. The twiddled stage is out of line, as NE10's was: inlined twice into each transform it ran short of
+registers (75 instructions, a store and reload of a pointer). `forward` and `inverse` are 840 and 842 ARM instructions,
+plus 91 for each direction's twiddled stage; NE10's functions were about 6.2 KB of Thumb.
+
+**On the rig** (J-Trace, `fft_forward` and `fft_inverse` at n = 128, cycles per transform; tables and scratch
+16-byte aligned):
+
+| Points | Forward NE10 | Forward `RealFft` | ratio | Inverse NE10 | Inverse `RealFft` | ratio |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 8 | | | | 150 | 180 | 1.20 |
+| 16 | 840 | 794 | 0.95 | 238 | 263 | 1.11 |
+| 32 | 552 | 552 | 1.00 | 488 | 485 | 0.99 |
+| 64 | 1,421 | 1,355 | 0.95 | 1,393 | 1,365 | 0.98 |
+| 128 | 2,627 | 2,560 | 0.97 | 2,632 | 2,578 | 0.98 |
+| 256 | 6,574 | 6,360 | 0.97 | 6,467 | 6,339 | 0.98 |
+| 512 | 12,696 | 12,275 | 0.97 | 12,847 | 12,314 | 0.96 |
+| 1024 | 30,801 | 29,836 | 0.97 | 30,423 | 29,777 | 0.98 |
+| 2048 | 73,238 | 80,428 | 1.10 | 79,763 | 80,999 | 1.02 |
+| 4096 | 208,643 | 215,195 | 1.03 | 222,278 | 234,698 | 1.06 |
+| 8192 | 462,320 | 479,056 | 1.04 | 564,925 | 543,057 | 0.96 |
+
+The inverse at 8 and 16 points pays the frame of the one `inverse` body (nine core and eight double registers saved,
+a 476-byte frame) on every call, about 20 instructions per transform (173 to 197, 237 to 256) that NE10's separate
+4-, 8- and 16-point functions did not; the band builder runs them once per cycle for the two smallest bands. From 2048
+points up the working set outgrows the L1 data cache and data-cache stalls are a third to a half of the cycles; there
+the figures move by up to 10% between images whose transform code is the same (the 2048-point forward measured 73,782
+cycles in an image whose tables were 4 bytes off 8-byte alignment and 80,428 here, at 28,138 and 28,145 instructions,
+its data-cache stalls 12,290 and 24,883), so those ratios measure where the data landed, not the code.
 
 ## Bit-exactness: how the synth's math maps in
 
@@ -1444,12 +1666,6 @@ leg therefore checks the kernels and runs with no exclusion.
   `AsBlock`.
 - **Vector-aware `sample_*` concepts**, so SIMD components satisfy the composite
   concepts.
-- **A storage-independent wavetable renderer.** `WaveTable::render` is pure DSP
-  over in-memory bands. The renderer moves fully into `dsp-next` behind a
-  band-data port (the band tables, magnitudes and kernels) that the app's
-  `WaveTable` provides, with SD loading, band management and stealing staying in
-  the app. It is gated on the wavetable golden fixtures (the NE10 int32 FFT is
-  bit-exact x86 against ARM).
 - **Audible steps** (separate, ear-validated, re-baselined): VCA-arithmetic
   unification, analytic-wave options, band-limiting and sync improvements,
   `FixedPoint<31>` types, full phase relocation into the engine, per-voice
@@ -1483,7 +1699,7 @@ tools/dsp_bench.py --timeout 180          # flashes, captures RTT, writes the ta
 ./dbt build RelWithDebInfo
 ```
 
-The cases come in six lists, chosen by the CMake cache string
+The cases come in eleven lists, chosen by the CMake cache string
 `DELUGE_DSP_BENCH_CASES`, since the device prints about 70 lines over RTT before
 it drops some:
 
@@ -1527,6 +1743,21 @@ it drops some:
   These cases build with the library's flags
   (`src/deluge/bench/compressor_cases.cpp`), and the list ends with the same two
   feedback chain controls.
+- `mod_fx`, `granular` and `stutter`: each effect component as its owners render
+  it, and `fx_chains`: each home's chain runtime beside the same sequence written
+  out (`a9_dsp_performance.md` has each list's cases); each ends with the same two
+  feedback chain controls;
+- `reverb`: each reverb model as `renderReverb` renders it through
+  `effects::Reverb`, at the boot song's knobs, centred and unducked, rebuilt at
+  each setup as a song load does; it ends with the same two feedback chain
+  controls.
+- `dx7`: a DX7 voice's block through the voice adapter, in the modern engine
+  (algorithms 1 and 32) and the MkI engine (algorithm 1 with feedback, and
+  algorithm 4's fused stack); it ends with the same two feedback chain controls.
+- `fft_forward` and `fft_inverse`: the int32 real FFT at every size the firmware
+  transforms (forward 16 to 8192 points, inverse 8 to 8192), one transform per
+  block whatever the block size, so their figure is cycles per transform
+  (`cycles / k`), not cps.
 
 Every other case builds with the app's flags. A bench image builds only its own
 list's cases, since the image fills on-chip SRAM up to 0x202E0000 (past it the

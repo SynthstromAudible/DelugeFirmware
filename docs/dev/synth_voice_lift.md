@@ -9,7 +9,7 @@
 >
 > The remaining step — physically `git mv`-ing `Voice` into `synth/` (L-viii) so `check_synth_boundary` enforces
 > the boundary — is **deliberately deferred**, because it is gated not on any voice coupling but on the **legacy
-> `dsp/` DSP subsystems the voice uses** (`dsp/dx`, `dsp/timestretch`, `dsp/util`, `dsp/oscillators`)
+> `dsp/` DSP subsystems the voice uses** (`dsp/timestretch`, `dsp/util`, `dsp/oscillators`)
 > migrating to `dsp-next`. Those are clean DSP; their relocation is the **dsp-next migration track**, separate from
 > and independent of the voice decoupling. Forcing the move now would mean either a large DSP rewrite or
 > parking legacy-`dsp/` deps inside the "clean" library (defeating the lint). **Decision (Kate, 2026-06-19): stop
@@ -54,7 +54,7 @@ the patcher input) and `ParamPlane`/`VoiceParams` (`synth/param_plane.h`, the pe
 | ~~friend-couplings~~ ✅ | `SubtractiveEngine`/`FMEngine` were `friend`s of `Voice` | **DONE (`c8c9f35f`, `6ca138d9`)** — FMEngine owns its operator renders (`renderSineWaveWithFeedback`/etc., moved from Voice); `adjustPitch` → public static; Subtractive's `renderBasicSource`/`areAllUnisonPartsInactive` made public. **`Voice` has no `friend`s.** (The per-source loop relocating *into* the engine layer is later.) |
 | ~~VoiceConfig enum dep~~ ✅ | `VoiceConfig` stores `FilterMode`/`FilterRoute` from `gui/l10n`-laden `filter_config.h` | **DONE (`a506e060`)** — `filter_config.h` made gui-free (forward-declared `l10n::String`, `getMorphName` body → `.cpp`). VoiceConfig's enum dependency is synth-clean |
 | #54 priority/scheduling | `getPriorityRating` (`sound.voicePriority`/`numActiveVoices`) + `nextVoiceState` stamp in render (`voice.cpp:768/977`) | **Resolve at L-viii, not in place.** `numActiveVoices()` mutates mid-loop (`freeActiveVoice` per-voice in `Sound::render`), so it can't be a loop-stable `VoiceConfig` snapshot; `nextVoiceState` is a global counter. Scheduling stays App-side; the adapter supplies the cull context at relocation |
-| **L-viii (PAUSED)** | relocate `Voice` → `synth::Voice` under `synth/` (behind `check_synth_boundary.py`) + a host unit test + the L-vii noteOff hook | **Deferred — gated on the voice's legacy-`dsp/` deps migrating to `dsp-next`** (`dsp/dx`, `dsp/timestretch`, `dsp/util`, `dsp/oscillators`). Not a voice-coupling problem; see below |
+| **L-viii (PAUSED)** | relocate `Voice` → `synth::Voice` under `synth/` (behind `check_synth_boundary.py`) + a host unit test + the L-vii noteOff hook | **Deferred — gated on the voice's legacy-`dsp/` deps migrating to `dsp-next`** (`dsp/timestretch`, `dsp/util`, `dsp/oscillators`). Not a voice-coupling problem; see below |
 
 ### Why the lift is paused here (2026-06-19)
 
@@ -62,8 +62,9 @@ The decoupling slices above delivered the lift's actual value — `Voice::render
 no upward control coupling. The only thing standing between that and a literal `synth::Voice` is the
 `check_synth_boundary` lint, which forbids the **`dsp/`** prefix. The voice's filters are dsp-next-resident
 (`dsp-next/fixed/filter/`, mapped from the effects' mode and route words in `engines/effects/filter_slots.h`), so
-`voice.{h,cpp}` now reach legacy `dsp/` only through `dsp/dx/engine.h`, `dsp/timestretch/time_stretcher.h`,
-`dsp/util.hpp` and `dsp/oscillators/oscillator.h`. None of these is a coupling to *sever* — they are clean DSP the
+`voice.{h,cpp}` now reach legacy `dsp/` only through `dsp/timestretch/time_stretcher.h`, `dsp/util.hpp` and
+`dsp/oscillators/oscillator.h`; the DX7 engine they reach is app code (`processing/dx7/dx_engine.h`) over
+`dsp-next/fixed/dx7`. None of these is a coupling to *sever* — they are clean DSP the
 voice legitimately uses. They stay under `dsp/` until each is rewritten into `dsp-next`. So forcing the relocation
 now would mean either a **large idiomatic rewrite of those DSP subsystems into `dsp-next`** (the right long-term
 move, but a big separate effort) or **allowlisting legacy `dsp/` inside the library** (which defeats the boundary's

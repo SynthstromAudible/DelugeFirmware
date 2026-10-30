@@ -5,7 +5,7 @@
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song_codec.h"
 #include "deluge-project/structure_codec.h"
-#include "dsp/reverb/reverb.hpp"
+#include "engines/effects/reverb.h"
 #include "extern.h"
 #include "gui/menu_item/arpeggiator/mode.h"
 #include "gui/ui/menu_view_of.h"
@@ -144,7 +144,7 @@ describe song_settings_edit("SetSetting", $ {
 		deluge::edits::songSettingFor("reverb/model", Value::makeNumber(2));
 		expect(static_cast<int>(f.song->project.reverb.model))
 		    .to_equal(static_cast<int>(deluge::project::ReverbModel::DIGITAL));
-		expect(static_cast<int>(AudioEngine::reverb.getModel())).to_equal(static_cast<int>(deluge::dsp::Reverb::Model::DIGITAL));
+		expect(static_cast<int>(AudioEngine::reverb.model())).to_equal(static_cast<int>(deluge::effects::ReverbModel::DIGITAL));
 		const Value saved = deluge::project::encode(f.song->project.reverb, 0);
 		expect(saved.find("model") != nullptr && saved.find("model")->str() == "2").to_be_true();
 	});

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -9,7 +10,10 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 NM_CANDIDATES = (
     "llvm-nm",
-    str(REPO / "toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-nm"),
+    str(
+        Path(os.environ.get("DBT_TOOLCHAIN_PATH") or REPO)
+        / "toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-nm"
+    ),
 )
 
 
