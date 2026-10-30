@@ -51,7 +51,7 @@ namespace deluge::dsp::fixed {
 /// @ref SyncWindower, is transcribed verbatim → bit-identical; the only change is each window is
 /// filled to its precise length instead of overshooting into a padded scratch buffer).
 template <typename Osc>
-class [[gnu::hot]] SyncedOscillator {
+class SyncedOscillator {
 	Osc oscillator_;
 	Resetter resetter_;
 	uint32_t phase_; ///< audible oscillator phase; reset to the seam fade position at each crossover

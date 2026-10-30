@@ -48,7 +48,7 @@ namespace deluge::dsp::fixed {
 
 /// @brief Crude sawtooth: the phase ramp itself is the wave.
 template <typename Phase>
-class [[gnu::hot]] CrudeSaw {
+class CrudeSaw {
 	Phase phasor_;
 
 public:
@@ -81,7 +81,7 @@ static_assert(!std::is_polymorphic_v<CrudeSaw<SyncedPhasor>>, "a crude saw fills
 /// @brief Crude square: a hard switch at the pulse-width threshold (the width also makes it a
 /// (non-band-limited) pulse wave). @p pulse_width is the threshold phase passed to square().
 template <typename Phase>
-class [[gnu::hot]] CrudeSquare {
+class CrudeSquare {
 	Phase phasor_;
 	uint32_t pulse_width_;
 
@@ -114,7 +114,7 @@ static_assert(!std::is_polymorphic_v<CrudeSquare<SyncedPhasor>>, "a crude square
 
 /// @brief Crude triangle.
 template <typename Phase>
-class [[gnu::hot]] CrudeTriangle {
+class CrudeTriangle {
 	Phase phasor_;
 
 public:
@@ -147,7 +147,7 @@ static_assert(!std::is_polymorphic_v<CrudeTriangle<SyncedPhasor>>, "a crude tria
 /// @brief Crude sine: the @ref kSineTable LUT evaluated at the running phase. The cheap, non-band-limited
 /// sine — full-scale, the same value the LFO/envelope read, but here as a free-running owned-phasor oscillator.
 template <typename Phase>
-class [[gnu::hot]] CrudeSine {
+class CrudeSine {
 	Phase phasor_;
 
 public:

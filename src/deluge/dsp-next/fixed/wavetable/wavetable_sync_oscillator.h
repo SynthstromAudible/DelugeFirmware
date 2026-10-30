@@ -36,7 +36,7 @@ namespace deluge::dsp::fixed {
 /// per-crossover callback accumulation — so the redone crossover sample reuses the same blend and
 /// the result is bit-exact. A plain @ref block_generator with no vptr: sync windows and chunks are
 /// block-level, so there is no per-sample `render()`.
-class [[gnu::hot]] WavetableSyncOscillator {
+class WavetableSyncOscillator {
 public:
 	using value_type = q31; ///< q31 wave samples.
 

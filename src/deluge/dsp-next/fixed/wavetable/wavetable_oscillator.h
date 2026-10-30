@@ -32,7 +32,7 @@ namespace deluge::dsp::fixed {
 /// Walks the @ref WaveTableData view as @ref CycleChunk "chunks" (single-cycle: one; morphing: one
 /// per cross-cycle run) and renders each straight from the running phase. A plain @ref block_generator with no vptr:
 /// chunks are block-level, so there is no per-sample `render()`.
-class [[gnu::hot]] WavetableOscillator {
+class WavetableOscillator {
 public:
 	using value_type = q31; ///< q31 wave samples.
 

@@ -29,6 +29,9 @@
 #include <cstdlib>
 
 // #define MEASURE_HOP_END_PERFORMANCE 1
+#ifndef MEASURE_HOP_END_PERFORMANCE
+#define MEASURE_HOP_END_PERFORMANCE 0 // NOLINT(cppcoreguidelines-macro-usage): #if tests it
+#endif
 
 namespace deluge::synth {
 
@@ -262,7 +265,6 @@ startRenderAgain:
 
 		int32_t newerHopAmplitudeIncrement =
 		    (int32_t)(newerHopAmplitudeAfter - newerHopAmplitudeNow) / (int32_t)numSamplesThisTimestretchedRead;
-		int32_t olderHopAmplitudeIncrement = -newerHopAmplitudeIncrement;
 
 		int32_t hopAmplitudeChange = multiply_32x32_rshift32(amplitude, newerHopAmplitudeIncrement) << 1;
 
@@ -573,7 +575,8 @@ stopPercSearch:
 		                          + (lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages);
 		howFarBack = std::max(howFarBack, minDistanceBack);
 
-		if (howFarBack > numRawSamplesProcessedAtNowTime) {
+		// NOLINTNEXTLINE(modernize-use-integer-sign-comparison): a negative howFarBack wraps, as it always has
+		if (static_cast<uint64_t>(howFarBack) > numRawSamplesProcessedAtNowTime) {
 			howFarBack = numRawSamplesProcessedAtNowTime;
 		}
 
@@ -631,7 +634,7 @@ stopPercSearch:
 		}
 
 		if (((uint32_t)(numRawSamplesProcessedLatest - averagesStartPosNewHead) & (kInputRawBufferSize - 1))
-		    < lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages) {
+		    < static_cast<uint32_t>(lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages)) {
 			goto stopSearch;
 		}
 
@@ -815,8 +818,6 @@ stopSearch:
 		playHeads[PLAY_HEAD_NEWER].oscPos = additionalOscPos;
 	}
 
-thatsDone:
-
 	playHeads[PLAY_HEAD_NEWER].percPos = 0xFFFFFFFF;
 
 	if (thisCrossfadeLength) {
@@ -858,7 +859,7 @@ thatsDone:
 #endif
 }
 
-void LivePitchShifter::considerRepitchedBuffer(int32_t phaseIncrement) {
+void LivePitchShifter::considerRepitchedBuffer(int32_t /*phaseIncrement*/) {
 #if INPUT_ENABLE_REPITCHED_BUFFER
 	// Consider whether to have the repitchedBuffer
 	if (phaseIncrement > kMaxSampleValue) {

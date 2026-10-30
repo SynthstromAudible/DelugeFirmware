@@ -128,7 +128,8 @@ inline constexpr std::array<uint8_t, 33> kExpScale{0,  1,   2,   3,   4,   5,   
 	int32_t logfreq = 0;
 	if (mode == 0) {
 		// measured on a DX7
-		double detune_ratio = 0.0209 * exp(-0.396 * (static_cast<float>(log_freq_for_detune) / (1 << 24))) / 7;
+		double detune_ratio =
+		    0.0209 * exp(-0.396 * static_cast<double>(static_cast<float>(log_freq_for_detune) / (1 << 24))) / 7;
 		int32_t random_scaled = (random_detune * random_detune_scale) >> 17;
 		logfreq = static_cast<int32_t>(logfreq + (detune_ratio * log_freq_for_detune * (detune - 7 + random_scaled)));
 

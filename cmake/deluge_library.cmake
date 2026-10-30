@@ -1,5 +1,7 @@
 include_guard(GLOBAL)
 
+include(${CMAKE_CURRENT_LIST_DIR}/library_warnings.cmake)
+
 # deluge_library_target(<target>)
 #
 # The flags every library below the app builds with: a unity build, no LTO (so -finline-functions does the inlining)
@@ -18,6 +20,7 @@ function(deluge_library_target target)
     $<$<CONFIG:DEBUG,RELWITHDEBINFO>:IN_HARDWARE_DEBUG=1>
     $<$<CONFIG:DEBUG,RELWITHDEBINFO>:ENABLE_TEXT_OUTPUT=1>
   )
+  deluge_library_warnings(${target})
   target_compile_options(${target} PRIVATE
     ${DELUGE_COMMON_COMPILE_OPTIONS}
     "-fno-lto"

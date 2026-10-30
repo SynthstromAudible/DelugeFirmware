@@ -31,7 +31,8 @@ float ratio_fraction(q31 ratio) {
 
 float compressor_attack_ms(q31 attack) {
 	// The exp runs from 1 to about 7.4, about 2.7 at half the knob.
-	return 0.5 + (std::exp(2 * static_cast<float>(attack) / kOneQ31f) - 1) * 10;
+	return static_cast<float>(0.5
+	                          + static_cast<double>((std::exp(2 * static_cast<float>(attack) / kOneQ31f) - 1) * 10));
 }
 
 float compressor_release_ms(q31 release) {
@@ -45,7 +46,9 @@ float compressor_ratio(q31 ratio) {
 
 float compressor_sidechain_hz(q31 sidechain_hpf) {
 	// The exp runs from 1 to about 4.5: about 33 Hz at half the knob, 104 Hz at the top.
-	return (std::exp(1.5 * static_cast<float>(sidechain_hpf) / kOneQ31f) - 1) * 30;
+	return static_cast<float>(
+	    (std::exp(1.5 * static_cast<double>(static_cast<float>(sidechain_hpf)) / static_cast<double>(kOneQ31f)) - 1)
+	    * 30);
 }
 
 Compressor::Coefficients Compressor::coefficients(const Settings& s) {

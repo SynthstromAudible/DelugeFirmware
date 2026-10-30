@@ -118,7 +118,7 @@ void generate_frequency(int32_t* freq_lut, double sample_rate) {
 void generate_mki(uint16_t* sin_log, uint16_t* sin_exp) {
 	float bit_reso = kMkISamples;
 	for (int i = 0; i < kMkISamples; i++) {
-		float x1 = sin(((0.5 + i) / bit_reso) * M_PI / 2.0);
+		const auto x1 = static_cast<float>(sin(((0.5 + i) / static_cast<double>(bit_reso)) * M_PI / 2.0));
 		sin_log[i] = static_cast<uint16_t>(round(-1024 * log2(x1)));
 	}
 	for (int i = 0; i < kMkISamples; i++) {

@@ -21,3 +21,5 @@ target_link_libraries(deluge_effects PUBLIC argon)
 # Link-only: dsp-next's compile definitions stay out of this library.
 target_link_libraries(deluge_effects PRIVATE $<LINK_ONLY:$<TARGET_NAME_IF_EXISTS:deluge_dsp_fixed>>)
 target_compile_options(deluge_effects PUBLIC ${DELUGE_COMMON_COMPILE_OPTIONS})
+include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/library_warnings.cmake)
+deluge_library_warnings(deluge_effects)

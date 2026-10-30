@@ -190,7 +190,7 @@ struct Delay {
 		    .feedback = FeedbackChain::coefficients(FeedbackChain::Settings{
 		        FeedbackShaper::Settings{
 		            .feedback = s.feedback, .analog = s.analog, .drive = static_cast<uint32_t>(s.analog_saturation)},
-		        ShiftTracker<11>::Settings{},
+		        {ShiftTracker<11>::Settings{}},
 		    }),
 		    .primary = s.primary,
 		    .secondary = s.secondary,

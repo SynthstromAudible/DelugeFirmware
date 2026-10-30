@@ -58,7 +58,7 @@ template <int N>
 /// The tap windows are intentionally public: the sample-playback reader fills and shifts them directly for loop
 /// crossfades and jump-forward zero-fills — sample-specific window management that isn't generic interpolation, and
 /// which a later refactor may lift behind a richer API. The feed/read methods are the common path.
-struct [[gnu::hot]] Interpolator {
+struct Interpolator {
 	using Window = std::array<int16_t, kInterpolationMaxNumSamples>;
 
 	/// @brief Sub-sample-accurate windowed-sinc interpolation of the current window.

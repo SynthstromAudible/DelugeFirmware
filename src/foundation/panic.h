@@ -77,14 +77,14 @@ void fault_handler_print_freeze_pointers(uint32_t lr, uint32_t sp);
 // when compiled for ARM.
 #if defined(__arm__) && !defined(DELUGE_HOST)
 #define FREEZE_WITH_ERROR(error)                                                                                       \
-	({                                                                                                                 \
+	do {                                                                                                               \
 		uint32_t regLR = 0;                                                                                            \
 		uint32_t regSP = 0;                                                                                            \
 		asm volatile("MOV %0, LR\n" : "=r"(regLR));                                                                    \
 		asm volatile("MOV %0, SP\n" : "=r"(regSP));                                                                    \
 		fault_handler_print_freeze_pointers(regLR, regSP);                                                             \
 		freezeWithError(error);                                                                                        \
-	})
+	} while (0)
 #else
-#define FREEZE_WITH_ERROR(error) ({ freezeWithError(error); })
+#define FREEZE_WITH_ERROR(error) freezeWithError(error)
 #endif

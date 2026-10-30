@@ -91,9 +91,9 @@ constexpr int kernel_count(std::size_t n) {
 
 void Graph::render_op(const Operator::Settings& settings, [[maybe_unused]] const Gains& gains, std::size_t op,
                       Signal modulation, Buffer target) {
-	const std::size_t n = target.size();
 	if (settings.engine == Engine::MODERN && settings.input != Input::FEEDBACK) {
 #ifdef DELUGE_DX7_NEON_KERNEL
+		const std::size_t n = target.size();
 		// The kernel computes what ModernVectorOperator computes (tests/dsp/dx7_graph_spec.cpp holds them equal), with
 		// its loads issued a block ahead, which the compiler cannot schedule for the vector step without spilling.
 		DELUGE_DX7_NEON_KERNEL(settings.input == Input::NONE ? kZeros.data() : modulation.data(),

@@ -81,7 +81,11 @@ struct LfoDelay {
 	};
 
 	/// @brief The LFO's phase units per sample per step of its rate at 44.1 kHz; the LFO reads it from here too.
-	static constexpr int32_t kLfoUnit = static_cast<int32_t>(25190424 / static_cast<float>(kSampleRate) + 0.5);
+	// Positive, so x + 0.5 truncated rounds to nearest.
+	// NOLINTBEGIN(bugprone-incorrect-roundings)
+	static constexpr int32_t kLfoUnit =
+	    static_cast<int32_t>(static_cast<double>(25190424.0f / static_cast<float>(kSampleRate)) + 0.5);
+	// NOLINTEND(bugprone-incorrect-roundings)
 
 	/// @brief The increments for @p s: the delay's from its byte, the fade's rounded down to a multiple of 0x80
 	/// steps and no fewer than 0x80.

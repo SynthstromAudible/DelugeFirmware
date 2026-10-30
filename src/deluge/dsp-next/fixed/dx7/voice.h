@@ -267,7 +267,8 @@ bool Voice<Noise>::render_block(const Settings& s, Buffer out, const BlockInputs
 		const auto ams = static_cast<int32_t>(kAmpModSens[p[off + 14] & 3]);
 		if (ams != 0) {
 			const auto sensamp = static_cast<uint32_t>((static_cast<uint64_t>(amd_mod) * ams) >> 24);
-			const auto pt = static_cast<uint32_t>(exp((static_cast<float>(sensamp) / 262144) * 0.07 + 12.2));
+			const auto pt =
+			    static_cast<uint32_t>(exp(static_cast<double>(static_cast<float>(sensamp) / 262144) * 0.07 + 12.2));
 			const auto ldiff =
 			    static_cast<uint32_t>((static_cast<uint64_t>(level) * (static_cast<uint64_t>(pt) << 4)) >> 28);
 			level = wrapping_sub(level, static_cast<int32_t>(ldiff));

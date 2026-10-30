@@ -40,8 +40,8 @@ constexpr int32_t side_shift(size_t num_saws) {
 /// Gains normalised so the summed (uncorrelated) saws have the RMS of a single saw, so spread and saw count change
 /// the sound without changing the level
 constexpr std::pair<double, double> normalised_gains(float spread, size_t num_saws) {
-	double centre = centre_mix(spread);
-	double side = side_mix(spread);
+	const auto centre = static_cast<double>(centre_mix(spread));
+	const auto side = static_cast<double>(side_mix(spread));
 	double norm = 1.0 / constexpr_sqrt(centre * centre + (num_saws - 1) * side * side);
 	return {centre * norm, side * norm};
 }

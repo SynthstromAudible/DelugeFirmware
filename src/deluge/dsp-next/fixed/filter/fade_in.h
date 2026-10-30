@@ -73,7 +73,9 @@ struct FadeIn {
 
 	/// @brief Whether a fade is under way: dry not below 0.001, the float compared as a double (a NaN counts as under
 	/// way).
-	[[nodiscard]] [[gnu::always_inline]] static bool active(const State& s) { return !(s.dry < kEnd); }
+	[[nodiscard]] [[gnu::always_inline]] static bool active(const State& s) {
+		return !(static_cast<double>(s.dry) < kEnd);
+	}
 
 	/// @brief Starts fading in from dry: dry 1, wet 0. A fade under way restarts.
 	[[gnu::always_inline]] static void begin(State& s) { s = {.dry = 1.0F, .wet = 0}; }
@@ -88,7 +90,7 @@ struct FadeIn {
 	/// @return dry_wet_blend(dry, wet, level) at the level before the step, Q31.
 	[[nodiscard]] [[gnu::always_inline]] static q31 blend_step(State& s, q31 dry, q31 wet) {
 		const q31 out = dry_wet_blend(dry, wet, s.wet);
-		s.dry = static_cast<float>(s.dry * kDecay);
+		s.dry = static_cast<float>(static_cast<double>(s.dry) * kDecay);
 		s.wet = static_cast<q31>(static_cast<float>(kOneQ31) * (1.0F - s.dry));
 		return out;
 	}

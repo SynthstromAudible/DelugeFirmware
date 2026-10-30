@@ -39,7 +39,7 @@ namespace deluge::dsp::fixed {
 /// that is the Amplitude mixer's job, applied with the same vqdmulhq arithmetic as the
 /// TableOscillator path). The seekable phase lets a @ref SyncedOscillator drive the pulse
 /// under hard sync, exactly as the legacy renderOscSync did. Bit-exact, structural only.
-class [[gnu::hot]] PulseOscillator : public Generator<PulseOscillator, q31> {
+class PulseOscillator : public Generator<PulseOscillator, q31> {
 	const int16_t* samples_;
 	int32_t magnitude_;
 	Phasor phasor_;
