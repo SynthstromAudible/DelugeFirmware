@@ -20,7 +20,6 @@
 #include "dsp-next/fixed/fft/magnitude.h"
 #include "dsp-next/fixed/fft/real_fft.h"
 #include "dsp-next/fixed/shaping/tanh.h"
-#include "dsp/fft/fft_config_manager.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "io/debug/log.h"
 #include "libdeluge/sample_reader.h"
@@ -31,6 +30,7 @@
 #include "model/sample/sample_reader_bridge.h"
 #include "model/sample/sample_recorder.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/fft/fft_config_manager.h"
 #include "storage/audio/audio_file_manager.h" // audioFileManager (overviewScanAllDone)
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"

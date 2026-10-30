@@ -23,8 +23,8 @@
 
 #include "dsp-next/fixed/fft/real_fft.h"
 #include "dsp-next/fixed/noise/noise.h"
-#include "dsp/fft/fft_config_manager.h"
 #include "memory/general_memory_allocator.h"
+#include "processing/fft/fft_config_manager.h"
 
 #include <array>
 #include <cstddef>

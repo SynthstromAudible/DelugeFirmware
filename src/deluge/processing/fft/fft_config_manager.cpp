@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "dsp/fft/fft_config_manager.h"
+#include "processing/fft/fft_config_manager.h"
 #include "memory/general_memory_allocator.h"
 #include "processing/engines/audio_engine.h"
 
