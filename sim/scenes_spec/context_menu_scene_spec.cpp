@@ -20,6 +20,7 @@
 #include "gui/ui/menu_view_of.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/context.h"
+#include "scenes/menu/menu_scene.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
@@ -89,6 +90,7 @@ using ShellAction = deluge::ui::shell::Action;
 /// is what `ContextMenu::renderOLED` reads for the label's x -- the pair
 /// `style.highlighting != Highlighting::NoInversion` stands in for on the port's side.
 void reset_globals() {
+	menu_scene().forget_rows(); // each example starts with the rows a boot has
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 	deluge::notify::Notice discard;
 	while (deluge::notify::notices().pop(discard)) {}
@@ -146,6 +148,7 @@ struct Rig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
+		menu_scene().forget_rows(); // each example starts with the rows a boot has
 	}
 
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())

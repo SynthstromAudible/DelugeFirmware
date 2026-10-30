@@ -306,6 +306,7 @@ void install_display() {
 /// @brief Reset the two process-global channels and the language, exactly as
 ///        `menu_scripts_spec.cpp`'s `reset_globals` does.
 void reset_globals() {
+	menu_scene().forget_rows(); // each example starts with the rows a boot has
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 	deluge::notify::Notice discard;
 	while (deluge::notify::notices().pop(discard)) {}

@@ -56,6 +56,7 @@ struct LeafRig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
+		menu_scene().forget_rows(); // each example starts with the rows a boot has
 	}
 
 	void open(const menu::Node& leaf, const MenuContext& ctx) {

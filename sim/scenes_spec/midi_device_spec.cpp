@@ -301,6 +301,7 @@ struct Rig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
+		menu_scene().forget_rows(); // each example starts with the rows a boot has
 	}
 
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())

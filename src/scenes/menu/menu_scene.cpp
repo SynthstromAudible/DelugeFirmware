@@ -34,6 +34,7 @@
 
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/write_sink.h"
+#include "scenes/browser/browser_scene.h" // on_resume: a chosen file's claim re-roots the menu
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/shortcuts.h"
@@ -333,6 +334,7 @@ std::string_view node_text(uint16_t string_id, const Node& node, const MenuConte
 void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	ctx_ = ctx;
 	st_ = MenuState{};
+	close_requested_ = false;
 	landing_column_ = nullptr;
 	retarget(root);
 }
@@ -417,6 +419,69 @@ void MenuScene::retarget(const Node& node) {
 		// jump IS a press -- on a grid pad, not on this node's row -- which is the distinction the
 		// value's name carries and the old `Restored` did not (final review, A6).
 		enter_leaf(node, FocusCause::NoRowPress);
+	}
+	else {
+		restore_row();
+	}
+}
+
+void MenuScene::forget_rows() {
+	for (RememberedRow& row : remembered_) {
+		row = RememberedRow{};
+	}
+	remembered_next_ = 0;
+}
+
+void MenuScene::remember_path() {
+	for (uint8_t d = 0; d <= st_.depth && d < kMenuDepth; d++) {
+		const Node* node = st_.path[d];
+		if (node == nullptr || node->kind != Kind::Submenu) {
+			continue;
+		}
+		const Node* child = node->layout == Layout::Horizontal ? child_at(*node, st_.columns[d].focused)
+		                                                       : child_at(*node, st_.list[d].cursor);
+		if (child == nullptr) {
+			continue;
+		}
+		RememberedRow* slot = nullptr;
+		for (RememberedRow& row : remembered_) {
+			if (row.submenu == node) {
+				slot = &row;
+				break;
+			}
+		}
+		if (slot == nullptr) {
+			slot = &remembered_[remembered_next_];
+			remembered_next_ = (remembered_next_ + 1) % kRememberedRows;
+		}
+		*slot = RememberedRow{.submenu = node, .child = child};
+	}
+}
+
+void MenuScene::restore_row() {
+	const Node* node = focused();
+	if (node == nullptr || node->kind != Kind::Submenu) {
+		return;
+	}
+	for (const RememberedRow& row : remembered_) {
+		if (row.submenu != node) {
+			continue;
+		}
+		// `Submenu::focusChild` (`submenu.cpp:21-36`): a child the page no longer shows leaves the first one.
+		const Node* kids[kMaxMenuChildren];
+		const size_t n = visible_children(*node, kids);
+		for (size_t k = 0; k < n; k++) {
+			if (kids[k] == row.child) {
+				if (node->layout == Layout::Horizontal) {
+					st_.columns[st_.depth].focused = static_cast<int8_t>(k);
+				}
+				else {
+					st_.list[st_.depth].cursor = static_cast<int16_t>(k);
+				}
+				return;
+			}
+		}
+		return;
 	}
 }
 
@@ -537,7 +602,12 @@ void MenuScene::on_resume() {
 	landing_column_ = nullptr;
 	if (st_.go_up_on_resume) {
 		st_.go_up_on_resume = false;
-		ascend();
+		// A browser that closed on a chosen file has a claim coming, and the claim lands the menu on the source page
+		// (`SampleClaim::stepFinish` closes the browser and reopens the editor there, `sample_claim.cpp:563-577`;
+		// here `reroot_to_scene_opener_page`). Going up from depth 0 first would close the menu under it.
+		if (!(st_.depth == 0 && browser::browser_scene().has_choice())) {
+			ascend();
+		}
 	}
 	// Otherwise the path is kept exactly as it was. Reset only the per-tick observations, which
 	// belong to a render pass that never happened.
@@ -1592,6 +1662,7 @@ void MenuScene::descend_to(const Node& child) {
 	if (on_horizontal_page()) {
 		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
 	}
+	remember_path();
 	st_.depth++;
 	st_.path[st_.depth] = &child;
 	st_.list[st_.depth] = deluge::ui::ListState{};
@@ -1599,6 +1670,9 @@ void MenuScene::descend_to(const Node& child) {
 	st_.scroll[st_.depth] = deluge::ui::ScrollText{};
 	if (is_leaf(child.kind)) {
 		enter_leaf(child, FocusCause::RowPress); // the one path with a select press behind it
+	}
+	else {
+		restore_row();
 	}
 }
 
@@ -1639,30 +1713,20 @@ void MenuScene::ascend() {
 	// `st_.list[depth]` has been holding all along, which is what legacy's `focusChild`
 	// (`submenu.cpp:21`) reconstructs from the item it navigated backward from.
 	//
-	// **One divergence, named rather than inherited (E3 task 11 fix round 1).** Legacy's depth-0 arm
-	// is `exitCompletely(); return;` (`sound_editor.cpp:715-717`) -- going up from the root closes
-	// the editor. This
-	// returns instead, so an ascend at depth 0 is a silent no-op. That is invisible for anything
-	// reached by descending, but a *re-rooted* path can put a leaf at depth 0 (the shortcut-pad jump
-	// does exactly that, `handle`'s `Replace` arm) -- and then `MenuState::go_up_on_resume`, the arm
-	// that steps back out of a scene-opening item, has nowhere to go and leaves the user on that
-	// item's bare title screen. Carried, with the shape of the fix, in `src/scenes/README.md`; not
-	// changed here because it moves goldens well outside the task that found it.
+	// Going up from depth 0 closes the editor (`:715-717`, `exitCompletely()`): a leaf a shortcut jump re-rooted
+	// onto, or a scene opener whose scene returned (`MenuState::go_up_on_resume`), leaves the menu rather than its
+	// bare title screen. `after_render` turns the request into the scene's `Remove`.
 	//
-	// **One of the nine items no longer ends there, and for an unrelated reason.** A file selector's
-	// browser now re-roots the menu onto the source page when the claim succeeds
-	// (`reroot_to_scene_opener_page()` above), so that route lands somewhere useful whatever this
-	// no-op does. That closes a *symptom*, not this divergence: the other eight items, and a failed
-	// claim, still land on the bare title screen.
-	//
-	// Same `endSession`/`HorizontalMenu::endSession` cancel `descend_to` makes above -- this is
-	// "ascending off a horizontal page". Read before the loop pops anything, while `focused()`
-	// still names the page being left.
-	if (st_.depth != 0 && on_horizontal_page()) {
+	// `endScreen()` (-> `HorizontalMenu::endSession`) runs before the depth test, so leaving a horizontal page
+	// cancels its notification whether the step lands on a parent or closes the menu. Read before the loop pops
+	// anything, while `focused()` still names the page being left.
+	remember_path();
+	if (on_horizontal_page()) {
 		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
 	}
 	do {
 		if (st_.depth == 0) {
+			close_requested_ = true;
 			return;
 		}
 		st_.path[st_.depth] = nullptr;
@@ -1716,6 +1780,13 @@ MenuActionRequest MenuScene::take_action() {
 
 Result MenuScene::after_render() {
 	Result r;
+	if (close_requested_) {
+		// `ascend()` went up from depth 0 since the last render (`on_resume`'s go-up): `exitCompletely()`.
+		close_requested_ = false;
+		r.handled = true;
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp});
+		return r;
+	}
 	const Node* node = focused();
 	if (node == nullptr) {
 		return r;
@@ -1972,6 +2043,16 @@ Result MenuScene::after_render() {
 	// return in this function skipped the commit block above -- must not let an offset survive
 	// into a later tick's accumulation (fix round 1, Important 1).
 	st_.edit_offset = 0;
+	// Every tick, while `ctx_` is known good: a re-root or a song swap may leave the path naming nodes whose
+	// relevance can no longer be read, so the rows are never recorded from those.
+	remember_path();
+	if (close_requested_) {
+		// This render's own navigation went up from depth 0: `exitCompletely()`, in place of the step it asked for.
+		close_requested_ = false;
+		r.actions.clear();
+		r.handled = true;
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp});
+	}
 	return r;
 }
 

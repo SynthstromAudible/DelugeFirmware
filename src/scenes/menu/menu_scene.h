@@ -496,6 +496,10 @@ public:
 	/// @param ctx  What the menu edits.
 	void open(const Node& root, const MenuContext& ctx);
 
+	/// @brief Forget every submenu's remembered row, as a boot does: each legacy `Submenu` keeps its
+	///        `current_item_` for the life of the firmware, and this scene is as long-lived.
+	void forget_rows();
+
 	deluge::ui::shell::SceneKind kind() const override;
 	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
 	void render_grid(deluge::ui::grid::GridFrame& frame) override;
@@ -746,7 +750,7 @@ public:
 	///   * `soundEditor.navigationDepth = 0` (`:1118`) -> `depth = 0`. This is the whole of the
 	///     "one extra BACK press" this port used to cost: without it the user is left on the file
 	///     selector at whatever depth it was opened from, one level further in than legacy leaves
-	///     them -- and, on the shortcut-pad route, on the selector's own bare title screen.
+	///     them -- and, on the shortcut-pad route, out of the menu altogether.
 	///
 	/// @par Why the page is resolved here rather than carried in
 	///
@@ -937,6 +941,24 @@ private:
 	///        `open()` and `on_resume()`. Not part of `MenuState`: the shell restores that between the
 	///        `Replace` and `on_enter`.
 	const Node* landing_column_ = nullptr;
+
+	/// @brief The child each submenu was last left on: legacy's per-`Submenu` `current_item_` (`submenu.cpp:9-18`),
+	///        which a fresh visit lands on. Oldest entries are overwritten once all are in use.
+	struct RememberedRow {
+		const Node* submenu = nullptr;
+		const Node* child = nullptr;
+	};
+	static constexpr size_t kRememberedRows = 128;
+	RememberedRow remembered_[kRememberedRows]{};
+	size_t remembered_next_ = 0;
+	/// @brief `ascend()` went up from depth 0: legacy's `exitCompletely()`, drained by `after_render`.
+	bool close_requested_ = false;
+
+	/// @brief Record the selected child of every submenu on the current path; only while `ctx_` is the one the path
+	///        was walked with, since reading which children show runs their relevance tests.
+	void remember_path();
+	/// @brief Put the submenu at the current depth on the child it was last left on, if it still shows it.
+	void restore_row();
 
 	/// @brief The node whose shortcut pad blinks and toggles the second layer: a horizontal page's
 	///        focused column (`Submenu::updatePadLights`), else `focused()`.

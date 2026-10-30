@@ -79,9 +79,9 @@
 /// Two consequences worth knowing before reading their goldens:
 ///
 ///   * the jump re-roots `MenuState::path` **onto the item itself** (`MenuScene::handle`'s
-///     `Replace`), so the item is at depth 0 and `go_up_on_resume`'s ascend out of it is a no-op.
-///     Each script's last frame is therefore the item's own bare title screen
-///     (`SampleSceneItem::render`) rather than the page it was declared on -- see the task report;
+///     `Replace`), so the item is at depth 0 and `go_up_on_resume`'s ascend out of it closes the
+///     menu, as legacy's `goUpOneLevel` does at depth 0 (`exitCompletely()`). Each script's last
+///     frame is therefore the view under the menu;
 ///   * a gold-knob turn is **swallowed** unless another gold turn happened within
 ///     `LoweringConfig::short_press_ms` (500 ms) -- `InputLowering::action_gold_turn`'s wiggle
 ///     debounce. Every script written before this task turns a gold knob before t=500 and so is
@@ -290,6 +290,7 @@ constexpr uint16_t sid(String s) {
 /// `after_render`'s repaint requests through it, and a fact an earlier `it` left behind must not
 /// leak into this one's first tick.
 void reset_globals() {
+	menu_scene().forget_rows(); // each example starts with the rows a boot has
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 	deluge::notify::Notice discard;
 	while (deluge::notify::notices().pop(discard)) {}
@@ -417,9 +418,8 @@ struct SavedRange {
 // row (`ui/oled/list.cpp:121`) -- so SOUND -> ACTIONS -> RECORD TO SAMPLE is two ordinary select
 // presses. `recorder.txt` drives that door first and the shortcut second, in one run, because the
 // two do not end the same way: the ordinary route leaves the item at depth 2 where
-// `MenuState::go_up_on_resume` can ascend, and the jump re-roots onto the item at depth 0 where
-// `ascend()` is a no-op. The dead end the other two scripts end on is manufactured by the door they
-// had to use, and this script is what shows that.
+// `MenuState::go_up_on_resume` ascends to the ACTIONS list, and the jump re-roots onto the item at
+// depth 0, where going up closes the menu.
 
 /// @brief The minimum `Display` the model reaches for.
 ///
@@ -606,14 +606,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		opts.after_construct = svc.installer();
 		const uitest::RunResult result =
 		    uitest::expect_script_goldens(self, "menu_int", scenes::scene_registry(), svc.slots(), opts);
-		// Three, not five: E3 task 10 dropped the Select-turn and Select-press snapshots. Their
-		// `.pbm` halves were byte-identical to `idle`, for two different reasons the script file's
-		// own comments name (`render_leaf_int` claims-and-ignores the turn; the press's `ascend()`
-		// is a no-op at depth 0) -- but their `.state` halves were NOT identical to `idle`'s: both
-		// had gained a `pad` line (the shortcut/source blink lighting up shortly after the screen
-		// opens), fix round 1 found on review. That line is not lost: the kept `after_gold_turn`
-		// snapshot carries the identical line, so nothing about it went untested. The two *steps*
-		// stay, because the assertions below are about them.
+		// `idle`, `after_select_edit` and `after_back`.
 		expect(result.snapshots).to_equal(uint32_t{3});
 
 		// Q7: the `.state` pins WHICH node is open; it says nothing about its label or value, so
@@ -1386,10 +1379,9 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 
 		// The script descended into KICKS, typed one character there, and came back out -- so the
 		// scene really did run all three listings, and the last BACK (`Browser::backButtonAction`'s
-		// top-of-tree arm, `browser.cpp:1283`) closed it. The menu owns the screen again, on the item
-		// the shortcut jump re-rooted the path onto; `MenuState::go_up_on_resume` (`nodes/sample.h`,
-		// legacy's `shouldGoUpOneLevelOnBegin`) ascends out of it, which at depth 0 is a no-op.
-		expect(menu_scene().focused() == &nodes::file0_selector).to_be_true();
+		// top-of-tree arm, `browser.cpp:1283`) closed it. `MenuState::go_up_on_resume` (`nodes/sample.h`,
+		// legacy's `shouldGoUpOneLevelOnBegin`) then went up from the item the jump re-rooted onto, at
+		// depth 0, which closed the menu too: `after_close.state` names no menu scene.
 		expect(browser::browser_scene().browser_id() == browser::BrowserId::Sample).to_be_true();
 		// `on_exit` -> `FileCatalogue::emptyFileItems()` really ran. `browser_scene.h`'s own note
 		// says an uncollected result holds the catalogue's claim and refuses every later listing --
@@ -1424,8 +1416,8 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// those frames into another phase and silently turn three careful goldens into three
 		// screenshots of a blink.
 		expect(static_cast<int>(marker::marker_scene().blink_phase())).to_equal(0);
-		// BACK closed the editor, so the menu owns the screen again, on the item the jump landed on.
-		expect(menu_scene().focused() == &nodes::sample0_start).to_be_true();
+		// BACK closed the editor, and going up from the item the jump landed on at depth 0 closed the menu:
+		// `after_back.state` names no menu scene.
 		// The held-marker gesture did not survive `on_exit` (`marker_scene.cpp:197-205`).
 		expect(marker::marker_scene().holding_marker()).to_be_false();
 	});
@@ -1477,11 +1469,9 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(range->sampleHolder.audioFile == nullptr).to_be_true();
 		// The scene closed itself both times. Where that leaves the menu is what the two closes
 		// differ in, and the run ends on the second: the shortcut jump re-rooted the path onto the
-		// item, so the ascend `go_up_on_resume` asks for happens at depth 0 and does nothing
-		// (`menu_scene.cpp:1570-1572`). `after_stop`, seven hundred milliseconds earlier, is the
-		// other outcome -- the ACTIONS list, cursor still on the row the descent came from.
-		expect(menu_scene().focused() == &nodes::sample0_recorder).to_be_true();
-		expect(static_cast<int>(menu_scene().state().depth)).to_equal(0);
+		// item, so the ascend `go_up_on_resume` asks for happens at depth 0 and closes the menu
+		// (`after_shortcut_stop.state` names no menu scene). `after_stop`, seven hundred milliseconds
+		// earlier, is the other outcome -- the ACTIONS list, cursor still on the row the descent came from.
 	});
 });
 // clang-format on

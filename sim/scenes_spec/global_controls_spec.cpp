@@ -302,6 +302,7 @@ struct GcRig {
 		while (stack.depth() > 0) {
 			stack.pop(SceneKind::Null);
 		}
+		menu_scene().forget_rows(); // each example starts with the rows a boot has
 	}
 
 	UiContext ctx() const {

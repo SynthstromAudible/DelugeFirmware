@@ -14,9 +14,8 @@
 # `paramShortcutsForSounds` cell). The contrast between the two closes is the point of the script:
 # the ordinary door leaves the item at **depth 2**, where `MenuState::go_up_on_resume` has a level to
 # ascend to, and the close lands back on the ACTIONS list. The shortcut jump re-roots the path onto
-# the item itself (`MenuScene::handle`'s `Replace`), so it sits at **depth 0**, `ascend()` returns
-# without doing anything (`menu_scene.cpp:1570-1572` -- the divergence from `goUpOneLevel`'s
-# `exitCompletely()` arm that `src/scenes/README.md` carries), and the close lands on a dead end.
+# the item itself (`MenuScene::handle`'s `Replace`), so it sits at **depth 0**, and going up from
+# there closes the menu, as `goUpOneLevel`'s `exitCompletely()` arm does.
 # `after_stop` and `after_shortcut_stop` are those two outcomes, side by side.
 #
 # **The recorder here is real.** `on_enter` allocates a genuine `SampleRecorder` through
@@ -62,5 +61,5 @@
 900   snapshot after_shortcut        # the same screen, reached by the other door
 1000  button Back down
 1020  button Back up
-1100  snapshot after_shortcut_stop   # the dead end: the item's own bare title at depth 0
+1100  snapshot after_shortcut_stop   # the menu closed: going up from depth 0
 1200  quit

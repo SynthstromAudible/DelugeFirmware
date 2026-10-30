@@ -333,6 +333,7 @@ struct ShellRig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
+		menu_scene().forget_rows(); // each example starts with the rows a boot has
 	}
 
 	/// @brief Open the menu at `file0_selector` and let the item push the browser over it.
@@ -408,6 +409,7 @@ struct GuestRig {
 		while (ui.shell().stack().depth() > 0) {
 			ui.shell().stack().pop(SceneKind::Null);
 		}
+		menu_scene().forget_rows(); // each example starts with the rows a boot has
 	}
 
 	/// `ShellRig::open_browser`'s two halves through the guest's own door.
@@ -467,6 +469,7 @@ struct MidiRig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
+		menu_scene().forget_rows(); // each example starts with the rows a boot has
 	}
 
 	MIDIInstrument* instrument() { return static_cast<MIDIInstrument*>(song.instrument); }

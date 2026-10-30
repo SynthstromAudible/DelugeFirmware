@@ -175,6 +175,7 @@ struct Rig {
 			shell.stack().pop(deluge::ui::shell::SceneKind::Null);
 		}
 		currentSong = saved_song;
+		menu_scene().forget_rows(); // each example starts with the rows a boot has
 	}
 
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
@@ -336,6 +337,7 @@ struct KitRig {
 			shell.stack().pop(deluge::ui::shell::SceneKind::Null);
 		}
 		currentSong = saved_song;
+		menu_scene().forget_rows(); // each example starts with the rows a boot has
 	}
 	KitRig(const KitRig&) = delete;
 	KitRig& operator=(const KitRig&) = delete;

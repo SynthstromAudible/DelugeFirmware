@@ -184,6 +184,7 @@ struct Rig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
+		menu_scene().forget_rows(); // each example starts with the rows a boot has
 	}
 
 	void open(const Node& root, const MenuContext& ctx) {
@@ -283,7 +284,10 @@ struct ClipRig {
 	ClipRig(const ClipRig&) = delete;
 	ClipRig& operator=(const ClipRig&) = delete;
 
-	~ClipRig() { currentSong = saved_song; }
+	~ClipRig() {
+		currentSong = saved_song;
+		menu_scene().forget_rows(); // each example starts with the rows a boot has
+	}
 
 	ClipRig() {
 		currentSong = song.song;
@@ -323,7 +327,10 @@ struct MidiRig {
 	MidiRig(const MidiRig&) = delete;
 	MidiRig& operator=(const MidiRig&) = delete;
 	MidiRig() { currentSong = song.song; }
-	~MidiRig() { currentSong = saved_song; }
+	~MidiRig() {
+		currentSong = saved_song;
+		menu_scene().forget_rows(); // each example starts with the rows a boot has
+	}
 
 	MIDIInstrument* instrument() { return static_cast<MIDIInstrument*>(song.instrument); }
 	MenuContext ctx() {

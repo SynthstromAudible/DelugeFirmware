@@ -27,11 +27,6 @@
 # Genuinely edits now: 0 -> 1. No snapshot here -- the next step's snapshot already carries this
 # one's effect, and "+1, then immediately +2 more, while still focused" is the generic recipe's own
 # shape, unchanged from before this fix; only what the turns DO changed.
-200   button SelectEnc down
-220   button SelectEnc up
-# A leaf's select press ascends (`MenuScene::ascend`), and this scene was opened directly at depth
-# 0 -- `ascend`'s own `if (st_.depth == 0) return;` makes the press a pure no-op, so this snapshot's
-# `.pbm` would be byte-identical to `idle`; no snapshot is kept for it, for that reason.
 300   encoder Select +2
 320   snapshot after_select_edit  # 1 + 2 = 3: both select turns landed on this leaf, in order
 400   button Back down

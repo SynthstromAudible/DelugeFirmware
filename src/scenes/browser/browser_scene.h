@@ -388,6 +388,10 @@ public:
 	/// @return The choice, or `std::nullopt` when none is waiting.
 	std::optional<BrowserChoice> take_choice();
 
+	/// @brief Whether a choice is waiting for `take_choice()`.
+	/// @return True between a file press parking its path and the consumer draining it.
+	[[nodiscard]] bool has_choice() const { return choice_.has_value(); }
+
 	/// @brief Install a dispatcher other than `storage::Owner::run` on the scene's seam.
 	///
 	/// **For specs.** On the host `Owner::run` is inline (`storage/owner.h:28-30`, and `run`'s own

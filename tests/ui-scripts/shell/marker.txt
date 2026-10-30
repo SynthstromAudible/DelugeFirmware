@@ -48,5 +48,5 @@
                                      # 6 * xZoom = 196608
 1200  button Back down
 1220  button Back up
-1300  snapshot after_back            # BACK closed the editor; the menu owns the screen again
+1300  snapshot after_back            # BACK closed the editor, and going up from depth 0 closed the menu
 1400  quit

@@ -38,6 +38,6 @@
                                      # and the folder we came out of is selected again
 1000  button Back down
 1020  button Back up
-1100  snapshot after_close           # BACK at the top of the tree closes the browser: the menu owns
-                                     # the screen again, showing the item the jump landed on
+1100  snapshot after_close           # BACK at the top of the tree closes the browser, and going up
+                                     # from the item the jump landed on at depth 0 closes the menu
 1200  quit

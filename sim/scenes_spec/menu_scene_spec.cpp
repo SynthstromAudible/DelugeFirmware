@@ -365,6 +365,7 @@ struct Rig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
+		menu_scene().forget_rows(); // each example starts with the rows a boot has
 	}
 
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
@@ -892,6 +893,73 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// post-render and the stack empties.
 		r.button(kBackX, kBackY, true, 10);
 		r.shell.tick(20);
+		expect(r.shell.stack().depth()).to_equal(size_t(0));
+	});
+
+	it("reopening a root lands on the row it was closed on", _ {
+		// Each legacy `Submenu` keeps its `current_item_` for the life of the firmware (`submenu.cpp:9-18`): closing
+		// the editor forgets nothing.
+		select_language();
+		deluge::notify::dirty().drain();
+		menu_scene().forget_rows();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		r.turn(1, 10);
+		r.shell.tick(20);
+		expect(cursor_of(0)).to_equal(1);
+		r.button(kBackX, kBackY, true, 30);
+		r.shell.tick(40);
+		expect(r.shell.stack().depth()).to_equal(size_t(0));
+
+		(void)r.open(settings_root);
+		r.shell.tick(50);
+		expect(cursor_of(0)).to_equal(1);
+	});
+
+	it("each root remembers its own row, and a submenu its own", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		menu_scene().forget_rows();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		r.turn(1, 10);
+		r.shell.tick(20);
+		(void)r.open(lpf_page);
+		r.shell.tick(30);
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(0);
+		(void)r.open(settings_root);
+		r.shell.tick(40);
+		expect(cursor_of(0)).to_equal(1);
+
+		// Into the LPF page from row 0, move its column, back out, and in again: the page keeps its column.
+		r.turn(-1, 50);
+		r.shell.tick(60);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 70);
+		r.shell.tick(80);
+		expect(menu_scene().focused() == &lpf_page).to_be_true();
+		r.button(kBackX, kBackY, true, 90);
+		r.shell.tick(100);
+		const int8_t lpf_column = menu_scene().state().columns[1].focused;
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 110);
+		r.shell.tick(120);
+		expect(static_cast<int>(menu_scene().state().columns[1].focused)).to_equal(static_cast<int>(lpf_column));
+	});
+
+	it("going up from a leaf at the root closes the menu", _ {
+		// `SoundEditor::goUpOneLevel`'s depth-0 arm is `exitCompletely()` (`sound_editor.cpp:715-717`): a leaf a
+		// shortcut jumped straight to, or a scene opener whose scene returned, closes the editor when it goes up.
+		select_language();
+		deluge::notify::dirty().drain();
+		menu_scene().forget_rows();
+		Rig r;
+		(void)r.open(int_leaf);
+		r.shell.tick(0);
+		expect(r.shell.stack().depth()).to_equal(size_t(1));
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 10);
+		r.shell.tick(20);
+		r.shell.tick(30);
 		expect(r.shell.stack().depth()).to_equal(size_t(0));
 	});
 
