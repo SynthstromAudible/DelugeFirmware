@@ -55,7 +55,7 @@ namespace bindings = deluge::scenes::menu::bindings;
 namespace {
 
 constexpr Node kMaxVoices = menu::setting_item(1, Kind::Int, Target{.kind = Target::Kind::SOUND, .path = "maxVoices"});
-constexpr Node kOsc1Type = menu::setting_item(2, Kind::Enum, Target{.kind = Target::Kind::SOUND, .path = "osc1/type"});
+constexpr Node kOsc2Type = menu::setting_item(2, Kind::Enum, Target{.kind = Target::Kind::SOUND, .path = "osc2/type"});
 
 void set_polyphony(::Sound& sound, const char* word) {
 	deluge::edits::settingFor(sound, "polyphonic", Value::makeScalar(word));
@@ -111,16 +111,16 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 	it("sends one request to the menu's sink, and none for a stored choice that no longer applies", _ {
 		spec::SongFixture f = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
-		deluge::edits::settingFor(*drum, "osc1/type", Value::makeScalar("dx7"));
+		deluge::edits::settingFor(*drum, "osc2/type", Value::makeScalar("dx7")); // only the first oscillator offers DX7
 		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		bind::RecordingSink recorded;
 		ctx.sink = &recorded;
 		bindings::write(kMaxVoices, ctx, 4);
 		expect(recorded.requests.size()).to_equal(size_t(1));
 		expect(recorded.requests[0].menu_value).to_equal(4);
-		const auto shown = bind::view(kOsc1Type.bind.target, *ctx.model, ctx.addresses, *ctx.facts);
+		const auto shown = bind::view(kOsc2Type.bind.target, *ctx.model, ctx.addresses, *ctx.facts);
 		expect(shown.has_value() && shown->stale.has_value()).to_be_true();
-		bindings::write(kOsc1Type, ctx, *shown->stale);
+		bindings::write(kOsc2Type, ctx, *shown->stale);
 		expect(recorded.requests.size()).to_equal(size_t(1));
 	});
 

@@ -50,16 +50,21 @@ inline constexpr std::array kNotRingMod{engine::setting_is_not("mode", kRingMod)
 // The oscillators' types.
 inline constexpr std::array<std::string_view, 2> kOscType{"osc1/type", "osc2/type"};
 inline constexpr std::array<int32_t, 1> kWavetable{value_of(instrument::OscType::WAVETABLE)};
+inline constexpr std::array<int32_t, 1> kSupersaw{value_of(instrument::OscType::SUPERSAW)};
 inline constexpr std::array<int32_t, 1> kDx7{value_of(instrument::OscType::DX7)};
 inline constexpr std::array<int32_t, 4> kSampleOrInput{
     value_of(instrument::OscType::SAMPLE), value_of(instrument::OscType::INPUT_L),
     value_of(instrument::OscType::INPUT_R), value_of(instrument::OscType::INPUT_STEREO)};
 
-/// A source's wave index (`osc/source/wave_index.h`): not FM, a loaded wavetable.
-inline constexpr std::array<std::array<SettingCondition, 3>, 2> kWaveIndex{{
-    {engine::setting_is_not("mode", kFm), engine::setting_is(kOscType[0], kWavetable), engine::source_loaded(0)},
-    {engine::setting_is_not("mode", kFm), engine::setting_is(kOscType[1], kWavetable), engine::source_loaded(1)},
+/// A source's wave index (`osc/source/wave_index.h`): not FM, and a supersaw (its spread) or a loaded wavetable.
+inline constexpr std::array<std::array<SettingCondition, 1>, 2> kSupersawOsc{
+    {{engine::setting_is(kOscType[0], kSupersaw)}, {engine::setting_is(kOscType[1], kSupersaw)}}};
+inline constexpr std::array<std::array<SettingCondition, 2>, 2> kLoadedWavetable{{
+    {engine::setting_is(kOscType[0], kWavetable), engine::source_loaded(0)},
+    {engine::setting_is(kOscType[1], kWavetable), engine::source_loaded(1)},
 }};
+inline constexpr std::array<std::array<Alternatives, 2>, 2> kWaveIndexAny{
+    {{kSupersawOsc[0], kLoadedWavetable[0]}, {kSupersawOsc[1], kLoadedWavetable[1]}}};
 /// An oscillator's pulse width (`osc/pulse_width.h`): not FM, not a sample or an input, and a wavetable only once
 /// loaded.
 inline constexpr std::array<std::array<SettingCondition, 2>, 2> kPulseWidth{{
@@ -122,7 +127,8 @@ inline constexpr ParamShows kHasHpf{.when = kHpfOn};
 inline constexpr ParamShows kOnFm{.when = kIsFm};
 inline constexpr ParamShows kOffFm{.when = kNotFm};
 inline constexpr ParamShows kOffRingMod{.when = kNotRingMod};
-inline constexpr std::array<ParamShows, 2> kOscWaveIndex{{{.when = kWaveIndex[0]}, {.when = kWaveIndex[1]}}};
+inline constexpr std::array<ParamShows, 2> kOscWaveIndex{
+    {{.when = kNotFm, .any = kWaveIndexAny[0]}, {.when = kNotFm, .any = kWaveIndexAny[1]}}};
 inline constexpr std::array<ParamShows, 2> kOscPulseWidth{
     {{.when = kPulseWidth[0], .any = kPulseWidthAny[0]}, {.when = kPulseWidth[1], .any = kPulseWidthAny[1]}}};
 inline constexpr std::array<ParamShows, 2> kOscCarrierFeedback{

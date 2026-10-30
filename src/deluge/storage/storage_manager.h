@@ -135,6 +135,8 @@ protected:
 	/// @brief Double the buffer, preserving what has been written. Memory-backed writers only.
 	/// @return false if a larger block could not be had, which is a FAILED save and never a short one.
 	bool growWriteBuffer();
+	/// @brief Checks the reopened file's beginning and end strings; leaves closing it to the caller.
+	Error verifyWrittenFile(char const* beginningString, char const* endString);
 
 	bool memoryBased = false;
 	uint8_t indentAmount{};

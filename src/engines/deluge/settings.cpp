@@ -56,7 +56,8 @@ constexpr std::array<std::string_view, N> names_of() {
 
 constexpr auto kPolyphony = names_of<PolyphonyMode, 5>();
 constexpr auto kSynthModes = names_of<SynthMode, 3>();
-constexpr auto kOscTypes = names_of<OscType, 12>();
+// INPUT_STEREO is the last type, so the list grows with the enum.
+constexpr auto kOscTypes = names_of<OscType, static_cast<size_t>(OscType::INPUT_STEREO) + 1>();
 constexpr auto kLfoTypes = names_of<LFOType, 7>();
 /// A synced rate's type, as its stored number (even, triplet, dotted).
 constexpr std::array<std::string_view, 3> kSyncTypes{"0", "10", "19"};
@@ -86,9 +87,6 @@ static_assert(std::to_underlying(SampleRepeatMode::STRETCH) + 1 == kLoopModes.si
 
 /// The owners a kit lane stands for.
 constexpr std::array<int32_t, 1> kKitLaneOwner{std::to_underlying(engine::SettingContext::Owner::KIT_LANE)};
-/// What plays a kit's sounds: a kit lane's sound drum, and the kit itself.
-constexpr std::array<int32_t, 2> kKitSounds{std::to_underlying(engine::SettingContext::Instrument::SOUND_DRUM),
-                                            std::to_underlying(engine::SettingContext::Instrument::KIT)};
 /// A kit lane: it alone offers choke (which shares a kit's voices among its lanes), a send to the kit's sidechain and
 /// a drum note.
 constexpr std::array kOnKitLane{engine::owner_is(kKitLaneOwner)};
@@ -102,9 +100,8 @@ constexpr std::array<int32_t, 1> kRingModeValue{std::to_underlying(SynthMode::RI
 
 /// Ring mod mixes oscillators alone, so it offers no sample or input.
 constexpr std::array kNotRingMode{engine::setting_is_not("mode", kRingModeValue)};
-/// DX7 only where the sound may hold one: not in a kit's sounds.
-constexpr std::array kDx7Conditions{engine::setting_is_not("mode", kRingModeValue),
-                                    engine::instrument_is_not(kKitSounds)};
+/// DX7 in the first oscillator of any sound, a kit's included.
+constexpr std::array kDx7Conditions{engine::setting_is_not("mode", kRingModeValue)};
 /// With no audio input plugged in, one input entry (the left input's) stands for the three.
 constexpr std::array kInputConditions{engine::setting_is_not("mode", kRingModeValue), engine::inputs_are(true)};
 /// The second oscillator's menu never offers DX7: only the first can hold one.

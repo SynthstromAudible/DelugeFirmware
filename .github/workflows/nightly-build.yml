@@ -23,7 +23,10 @@ jobs:
       - name: Get new commits if branch exists
         id: count-commits
         run: |
-          if git show-ref --verify --quiet refs/remotes/origin/next; then
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "Manual dispatch, forcing build"
+            echo "count=1" >> "$GITHUB_OUTPUT"
+          elif git show-ref --verify --quiet refs/remotes/origin/next; then
             echo "Branch next exists, checking for commits"
             git checkout next
             count=$(git log --oneline --since '24 hours ago' | wc -l)
@@ -50,7 +53,7 @@ jobs:
       branch: "next"
 
   # Everything in tests/registry.toml up to the nightly tier, against next. Cumulative, so the pr tier runs here
-  # too: next also takes local merges that no pull request's tests.yml run ever saw.
+  # too: next also takes local merges that no pull request's CI run ever saw.
   test-nightly-matrix:
     name: test matrix (nightly)
     runs-on: ubuntu-latest

@@ -206,6 +206,14 @@ describe settings("the Deluge instrument's settings schema", ${
 		expect(check_setting("unison/num", Value::makeScalar("three"))).to_be_false();
 	});
 
+	it("offers every oscillator type as an oscillator's type", _ {
+		for (auto t = 0; t <= static_cast<int>(OscType::INPUT_STEREO); ++t) {
+			const std::string name(to_string(static_cast<OscType>(t)));
+			const bool taken = check_setting("osc1/type", Value::makeScalar(name));
+			expect(name + (taken ? " taken" : " refused")).to_equal(name + " taken");
+		}
+	});
+
 	it("writes an integer the way a file does, however it was given", _ {
 		expect(canonical_setting("unison/num", Value::makeScalar("03"))->str()).to_equal(std::string("3"));
 		expect(canonical_setting("polyphonic", Value::makeScalar("mono"))->str()).to_equal(std::string("mono"));
@@ -277,12 +285,12 @@ describe settings("the Deluge instrument's settings schema", ${
 		const ModeReader ring{static_cast<int32_t>(SynthMode::RINGMOD)};
 		expect(deluge::engine::setting_choice_applies(row, track, subtractive.reader(), sample)).to_be_true();
 		expect(deluge::engine::setting_choice_applies(row, track, ring.reader(), sample)).to_be_false();
-		expect(deluge::engine::applicable_choice_count(row, track, ring.reader())).to_equal(7);
-		expect(deluge::engine::applicable_choice_count(row, track, subtractive.reader())).to_equal(10);
-		expect(deluge::engine::applicable_choice_count(row, plugged, subtractive.reader())).to_equal(12);
+		expect(deluge::engine::applicable_choice_count(row, track, ring.reader())).to_equal(8);
+		expect(deluge::engine::applicable_choice_count(row, track, subtractive.reader())).to_equal(11);
+		expect(deluge::engine::applicable_choice_count(row, plugged, subtractive.reader())).to_equal(13);
 		expect(deluge::engine::setting_choice_applies(row, track, subtractive.reader(), dx7)).to_be_true();
-		expect(deluge::engine::setting_choice_applies(row, lane, subtractive.reader(), dx7)).to_be_false();
-		expect(deluge::engine::setting_choice_applies(row, whole_kit, subtractive.reader(), dx7)).to_be_false();
+		expect(deluge::engine::setting_choice_applies(row, lane, subtractive.reader(), dx7)).to_be_true();
+		expect(deluge::engine::setting_choice_applies(row, whole_kit, subtractive.reader(), dx7)).to_be_true();
 		expect(deluge::engine::setting_choice_applies(row, track, subtractive.reader(), input_r)).to_be_false();
 		expect(deluge::engine::setting_choice_applies(row, plugged, subtractive.reader(), input_r)).to_be_true();
 		expect(deluge::engine::setting_choice_applies(row, plugged, ring.reader(), input_r)).to_be_false();
@@ -297,19 +305,19 @@ describe settings("the Deluge instrument's settings schema", ${
 		const ModeReader subtractive{static_cast<int32_t>(SynthMode::SUBTRACTIVE)};
 		const auto reader = subtractive.reader();
 		const auto input_l = static_cast<int32_t>(OscType::INPUT_L);
-		expect(input_l).to_equal(9);
-		expect(deluge::engine::choice_position(row, track, reader, input_l).value_or(-1)).to_equal(8);
-		expect(deluge::engine::choice_at_position(row, track, reader, 8).value_or(-1)).to_equal(input_l);
+		expect(input_l).to_equal(10);
+		expect(deluge::engine::choice_position(row, track, reader, input_l).value_or(-1)).to_equal(9);
+		expect(deluge::engine::choice_at_position(row, track, reader, 9).value_or(-1)).to_equal(input_l);
 		for (int32_t position = 0; position < deluge::engine::applicable_choice_count(row, track, reader); ++position) {
 			const std::optional<int32_t> stored = deluge::engine::choice_at_position(row, track, reader, position);
 			expect(stored).to_have_value();
 			expect(deluge::engine::choice_position(row, track, reader, *stored).value_or(-1)).to_equal(position);
 		}
-		// the second oscillator never offers DX7 (index 8)
+		// the second oscillator never offers DX7 (index 9)
 		expect(deluge::engine::choice_position(row, track, reader, static_cast<int32_t>(OscType::DX7)))
 		    .not_()
 		    .to_have_value();
-		expect(deluge::engine::choice_at_position(row, track, reader, 9)).not_().to_have_value();
+		expect(deluge::engine::choice_at_position(row, track, reader, 10)).not_().to_have_value();
 		expect(deluge::engine::choice_at_position(row, track, reader, -1)).not_().to_have_value();
 	});
 

@@ -15,7 +15,7 @@ use core::ffi::c_void;
 #[cfg(target_os = "none")]
 use deluge_bsp::flash;
 #[cfg(target_os = "none")]
-use rza1l_hal::spibsc;
+use rza1_hal::spibsc;
 
 /// Offset from the cached flash window (0x1800_0000) to its uncached mirror (0x5800_0000).
 ///

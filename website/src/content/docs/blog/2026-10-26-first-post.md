@@ -28,8 +28,8 @@ It's a bit like asking me to pick my favourite student. Of course I have one but
 the ones I'd like to highlight as we get closer to the 1.3 release are:
 
 - The new generative arpeggiator courtesy of Raúl Muñoz. I use this all the time, it's the background music of my life
-- The completely overhauled UI started by Nikodemus Siivola, continued by Leonid Burygin, featuring graphic design
-  and a new delugey small font design from Reza Iman
+- The completely overhauled UI started by Nikodemus Siivola, continued by Leonid Burygin, featuring a new delugey small
+  font design from Casey Tucker with input from Reza Iman
 - Tempo automation from Michael Mackus. I did the backend work on this forever ago but he finally did all the hard UI
   work to make it usable :)
 - The chord keyboard from Madeline Scyphers

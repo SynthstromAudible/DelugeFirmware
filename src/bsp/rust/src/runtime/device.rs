@@ -5,6 +5,7 @@ use core::panic::PanicInfo;
 
 use embassy_executor::{Executor, InterruptExecutor, Spawner};
 use rza1_alloc as allocator;
+use rza1_hal::interrupt::{Interrupt, Priority, typelevel};
 
 use crate::channel::{audio_loader, file_bytes, file_directory, file_prefix, file_stream};
 use crate::peripherals::{board, control, cv_gate, display, signals, usb};
@@ -70,13 +71,13 @@ const AUDIO_SGI: u8 = 8;
 /// The audio SGI's GIC priority (lower is more urgent): less urgent than the hard-RT IRQs
 /// (OSTM 14, DMAC 13, UART/MIDI 10), so they preempt the render, and below PMR (31), so it is
 /// forwarded.
-const AUDIO_SGI_PRIORITY: u8 = 20;
+const AUDIO_SGI_PRIORITY: Priority = Priority::P20;
 
 /// Drives [`AUDIO_EXEC`] from [`AUDIO_SGI`]. The HAL dispatch acks and EOIs around it, with IRQs
 /// re-enabled for nesting.
 struct AudioSgi;
 
-impl rza1l_hal::interrupt::Handler<rza1l_hal::interrupt::typelevel::SGI8> for AudioSgi {
+impl rza1_hal::interrupt::Handler<rza1_hal::interrupt::typelevel::SGI8> for AudioSgi {
     unsafe fn on_interrupt() {
         // Mark the audio context for `deluge_in_audio_context()`, which the resource manager's
         // asymmetric critical section keys off. It must wrap the whole poll, or the manager masks
@@ -98,7 +99,7 @@ static STREAM_EXEC: InterruptExecutor = InterruptExecutor::new();
 const STREAM_SGI: u8 = 9;
 /// The storage SGI's GIC priority: less urgent than [`AUDIO_SGI_PRIORITY`], so audio preempts
 /// it, and below PMR (31), so it is forwarded.
-const STREAM_SGI_PRIORITY: u8 = 24;
+const STREAM_SGI_PRIORITY: Priority = Priority::P24;
 
 /// Drives [`STREAM_EXEC`] from [`STREAM_SGI`]. The HAL dispatch acks and EOIs around it.
 ///
@@ -106,7 +107,7 @@ const STREAM_SGI_PRIORITY: u8 = 24;
 /// so its resource-manager accesses must keep masking.
 struct StreamSgi;
 
-impl rza1l_hal::interrupt::Handler<rza1l_hal::interrupt::typelevel::SGI9> for StreamSgi {
+impl rza1_hal::interrupt::Handler<rza1_hal::interrupt::typelevel::SGI9> for StreamSgi {
     unsafe fn on_interrupt() {
         // Mark the storage tier for `tier::current()` across the poll. The CPU mode cannot tell:
         // the shared IRQ entry has already switched to SYS mode, the mode thread code runs in.
@@ -116,7 +117,7 @@ impl rza1l_hal::interrupt::Handler<rza1l_hal::interrupt::typelevel::SGI9> for St
     }
 }
 
-rza1l_hal::bind_interrupts!(struct SgiIrqs {
+rza1_hal::bind_interrupts!(struct SgiIrqs {
     SGI8 => AudioSgi;
     SGI9 => StreamSgi;
 });
@@ -124,9 +125,9 @@ rza1l_hal::bind_interrupts!(struct SgiIrqs {
 // The SGI numbers the executors start on are the ones `SgiIrqs` binds.
 const _: () = assert!(
     AUDIO_SGI as u16
-        == <rza1l_hal::interrupt::typelevel::SGI8 as rza1l_hal::interrupt::Interrupt>::ID
+        == <rza1_hal::interrupt::typelevel::SGI8 as rza1_hal::interrupt::Interrupt>::ID
         && STREAM_SGI as u16
-            == <rza1l_hal::interrupt::typelevel::SGI9 as rza1l_hal::interrupt::Interrupt>::ID
+            == <rza1_hal::interrupt::typelevel::SGI9 as rza1_hal::interrupt::Interrupt>::ID
 );
 
 /// Spawns the storage tasks onto [`STREAM_EXEC`] from inside it.
@@ -182,9 +183,10 @@ pub fn start() -> ! {
     // starts at the image end. `rza1_alloc::SRAM` stays uninitialised, so an allocation from it
     // fails; give it an arena before anything needs one.
 
-    // The chip (CPG/PLL, module clocks, GIC), then the board (MMU, L1+L2 caches, SDRAM controller,
-    // the embassy-time OSTM driver). The board's peripherals come back by role.
-    let board = deluge_bsp::Board::new(rza1l_hal::init(deluge_bsp::system::BOARD_CONFIG));
+    // The chip (CPG/PLL, module clocks, GIC, the embassy-time OSTM driver), then the board (MMU,
+    // L1+L2 caches, SDRAM controller). The board's peripherals and pins come back by role.
+    let board = deluge_bsp::Board::new(rza1_hal::init(deluge_bsp::system::BOARD_CONFIG));
+    let pins = board.pins;
 
     // The logger only now, with the MMU on. Until then all memory is strongly ordered and an
     // unaligned access faults, and formatting may read unaligned: built for size, LLVM lowers
@@ -224,39 +226,54 @@ pub fn start() -> ! {
 
     // GIC source registration, before the global interrupt enable below. The PIC UART starts at
     // 31250 bps; `control::pic_pump` runs the handshake up to 200000 bps.
-    deluge_bsp::uart::init_pic(board.pic_uart, board.dma.pic_rx, board.dma.pic_tx, 31_250);
-    deluge_bsp::uart::init_midi(board.midi_uart, board.dma.midi_rx, 31_250);
+    deluge_bsp::uart::init_pic(
+        board.pic_uart,
+        pins.pic,
+        board.dma.pic_rx,
+        board.dma.pic_tx,
+        31_250,
+    );
+    deluge_bsp::uart::init_midi(board.midi_uart, pins.midi, board.dma.midi_rx, 31_250);
     // The SD slot's controller, once; `sd::init` identifies the card when it is needed.
-    deluge_bsp::sd::init_hw(board.sd_card, board.dma.sd_tx, board.dma.sd_rx);
+    deluge_bsp::sd::init_hw(board.sd_card, pins.sd, board.dma.sd_tx, board.dma.sd_rx);
     // The encoders' A-pin interrupts, and their 1 ms pin poll on MTU2 ch3.
-    unsafe { deluge_bsp::encoder::irq_init(board.encoder_poll_timer) };
+    unsafe { deluge_bsp::encoder::irq_init(board.encoder_poll_timer, pins.encoders) };
+    // The plain GPIO signals: the jack detects and the speaker enable (amplifier off), the SYNC and
+    // battery LEDs (off), and the battery-voltage sense input muxed to the ADC.
+    deluge_bsp::jacks::init(pins.jacks);
+    signals::leds_init(pins.sync_led, pins.battery_led);
+    deluge_bsp::battery::init(pins.volt_sense);
     // The sample-accurate MIDI/gate one-shot timer (MTU2 ch2), armed at render time through
     // `deluge_midi_gate_timer_arm_at`.
     signals::gate_timer_setup(board.gate_timer);
     // RSPI0, shared by the OLED and the CV DAC, then the DAC's linearity sequence on it. Both run
     // before the executor: `display::oled_render` draws as soon as the PIC is ready, and the DAC
     // bring-up must not find RSPI0 mid-frame.
-    deluge_bsp::bus::init(board.shared_spi, board.dma.oled);
-    // SAFETY: once, at startup, with interrupts masked and the time driver running (the DAC's
-    // settle delay polls OSTM0).
-    unsafe { deluge_bsp::cv_gate::init() };
+    deluge_bsp::bus::init(board.shared_spi, pins.spi, board.dma.oled);
+    // Once, at startup, with interrupts masked and the time driver running (the DAC's settle delay
+    // polls OSTM0).
+    deluge_bsp::cv_gate::init(pins.cv_gate);
     // Trigger clock in: P1_14 → IRQ6 on the falling edge (an on-board transistor inverts the
     // input). The app's handler runs from the cooperative `trigger_clock_task`, between app ticks.
-    unsafe { deluge_bsp::trigger_clock::irq_init() };
+    // SAFETY: once, at startup, with interrupts masked.
+    unsafe { deluge_bsp::trigger_clock::irq_init(pins.trigger) };
     // The USB device (USB0): binds its GIC handler and ungates its clock, but stays off the bus
     // until the app calls `deluge_usb_device_start`.
     let usb_driver = unsafe { usb::init(board.usb0) };
     // SSI0 waits for the C++ init sequence's `deluge_board_init_audio`.
-    board::stash_audio(board.audio_ssi, board.dma.ssi_tx, board.dma.ssi_rx);
+    board::stash_audio(
+        board.audio_ssi,
+        pins.audio,
+        board.dma.ssi_tx,
+        board.dma.ssi_rx,
+    );
 
     // Each SGI line is enabled only after its executor has started, below, so a handler never
     // runs before the executor it drives exists.
-    unsafe {
-        rza1l_hal::interrupt::bind::<rza1l_hal::interrupt::typelevel::SGI8, AudioSgi>(SgiIrqs);
-        rza1l_hal::gic::set_priority(AUDIO_SGI as u16, AUDIO_SGI_PRIORITY);
-        rza1l_hal::interrupt::bind::<rza1l_hal::interrupt::typelevel::SGI9, StreamSgi>(SgiIrqs);
-        rza1l_hal::gic::set_priority(STREAM_SGI as u16, STREAM_SGI_PRIORITY);
-    }
+    rza1_hal::interrupt::bind::<typelevel::SGI8, AudioSgi>(SgiIrqs);
+    typelevel::SGI8::set_priority(AUDIO_SGI_PRIORITY);
+    rza1_hal::interrupt::bind::<typelevel::SGI9, StreamSgi>(SgiIrqs);
+    typelevel::SGI9::set_priority(STREAM_SGI_PRIORITY);
 
     // Unmask IRQs so the time driver and peripheral ISRs fire.
     unsafe { cortex_ar::interrupt::enable() };
@@ -270,12 +287,14 @@ pub fn start() -> ! {
     AUDIO_EXEC
         .start(AUDIO_SGI)
         .spawn(crate::audio::render::render_task().unwrap());
-    unsafe { rza1l_hal::gic::enable(AUDIO_SGI as u16) };
+    // SAFETY: the audio executor it drives has started.
+    unsafe { typelevel::SGI8::enable() };
 
     STREAM_EXEC
         .start(STREAM_SGI)
         .spawn(stream_bootstrap().unwrap());
-    unsafe { rza1l_hal::gic::enable(STREAM_SGI as u16) };
+    // SAFETY: the stream executor it drives has started.
+    unsafe { typelevel::SGI9::enable() };
 
     let executor: &'static mut Executor = unsafe {
         let p = core::ptr::addr_of_mut!(EXECUTOR);

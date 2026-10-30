@@ -49,7 +49,3 @@ ABT_STACK_SIZE     = 0x2000;   /*  8 KB */
 
 /* Top byte address of on-chip SRAM (anchors stack sections) */
 INTERNAL_RAM_END = 0x20300000;
-
-/* The status LED rza1-rt's startup blinks to report a boot fault: P6_7 on the Deluge. */
-RZA1_STATUS_LED_PORT = 6;
-RZA1_STATUS_LED_PIN  = 7;

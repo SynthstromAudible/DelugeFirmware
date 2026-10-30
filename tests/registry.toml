@@ -16,6 +16,8 @@
 # tier:   pr | nightly | manual -- cumulative: `dbt test --tier nightly` runs pr too
 # alone:  true -- run one at a time after the parallel set: the test measures real
 #         time, or runs its own worker pool across every CPU
+# group:  render | app | model | storage | unit | tooling -- the CI job that runs it (harness_registry.GROUPS);
+#         render, app and model run a golden_vt_render built once, so their tests build only golden-vt-render
 
 [[harness]]
 name = "fs-differential"
@@ -30,6 +32,7 @@ run = ["cargo", "test"]
 env = { SP0_FAT32 = "fixtures/fat32.img", SP0_FAT16 = "fixtures/fat16.img" }
 requires = ["cargo", "mtools"]
 tier = "pr"
+group = "storage"
 runtime = "~1m"
 
 [[harness]]
@@ -46,6 +49,7 @@ builds = ["golden-vt-render"]
 requires = ["cargo"]
 tier = "nightly"
 alone = true
+group = "storage"
 runtime = "~10m"
 
 [[harness]]
@@ -59,6 +63,7 @@ gates = "the file upgrader reads a Deluge document into the tree the firmware's 
 run = ["cargo", "test"]
 requires = ["cargo"]
 tier = "pr"
+group = "storage"
 runtime = "~30s"
 
 [[harness]]
@@ -75,6 +80,7 @@ result = "LP-RESULT failures=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+group = "app"
 runtime = "~10s"
 
 [[harness]]
@@ -89,6 +95,7 @@ build = ["cargo", "build", "--tests"]
 run = ["cargo", "test"]
 requires = ["cargo", "clang"]
 tier = "pr"
+group = "storage"
 runtime = "~1m"
 
 [[harness]]
@@ -103,6 +110,7 @@ build = ["cargo", "build", "--tests"]
 run = ["cargo", "test"]
 requires = ["cargo"]
 tier = "pr"
+group = "storage"
 runtime = "~1m"
 
 [[harness]]
@@ -117,6 +125,7 @@ build = ["cargo", "build", "--tests"]
 run = ["cargo", "test"]
 requires = ["cargo"]
 tier = "pr"
+group = "storage"
 runtime = "~1m"
 
 [[harness]]
@@ -131,6 +140,7 @@ scenario = "recorder_roundtrip"
 builds = ["golden-vt-render"]
 requires = ["song-corpus"]
 tier = "nightly"
+group = "render"
 runtime = "~5m"
 
 # The ONLY rig that runs the real Rust audio loader against the real C++ collector over real
@@ -156,6 +166,7 @@ check = "tests/integration/checks/audio_load_ab.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+group = "app"
 runtime = "~5m"
 
 # The rig that runs the real Rust prefix channel against the real C++ song browser over real files.
@@ -183,6 +194,7 @@ check = "tests/integration/checks/song_preview_ab.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "render"
 runtime = "~5m"
 
 # tier = "manual": needs song-corpus, a directory of real songs on the maintainer's
@@ -201,6 +213,7 @@ run = ["./run.sh"]
 requires = ["cargo", "clang-tsan", "mtools", "song-corpus"]
 tier = "manual"
 alone = true
+group = "unit"
 runtime = "~30m"
 
 [[harness]]
@@ -215,6 +228,7 @@ build = []
 run = ["./run.sh", "10"]
 requires = ["clang-tsan"]
 tier = "pr"
+group = "unit"
 runtime = "~3m"
 
 [[harness]]
@@ -230,6 +244,7 @@ tree = "build/test-dsp-ubsan"
 configure = ["-G", "Ninja"]
 requires = ["cmake", "clang"]
 tier = "pr"
+group = "unit"
 runtime = "~1m first build, ~5s after"
 
 [[harness]]
@@ -245,6 +260,7 @@ run = ["./run.sh"]
 builds = ["host-app"]
 requires = ["clang", "arm-linux-gnueabihf-gcc", "qemu-arm"]
 tier = "nightly"
+group = "unit"
 runtime = "~5m"
 
 # unavailable on THIS branch only -- not obsolete. This branch's sim/CMakeLists.txt
@@ -265,6 +281,7 @@ build = []
 run = ["scripts/golden_mixdown.sh", "check"]
 requires = ["song-corpus"]
 tier = "manual"
+group = "tooling"
 runtime = "n/a — does not build"
 
 # tier = "nightly": needs song-corpus (the cordae project tree is reconstructed from it).
@@ -281,6 +298,7 @@ run = ["scripts/embassy_layout_invariance.sh", "cordae"]
 builds = ["golden-vt-render"]
 requires = ["song-corpus"]
 tier = "nightly"
+group = "unit"
 runtime = "~45s"
 
 # unavailable: cargo cannot build or run this package at all (nested-workspace
@@ -298,6 +316,7 @@ build = []
 run = ["cargo", "+nightly", "fuzz", "run", "ops"]
 requires = ["cargo"]
 tier = "manual"
+group = "unit"
 runtime = "unbounded"
 
 # unavailable: no libFuzzer-capable ARM clang + compiler-rt toolchain exists on
@@ -315,6 +334,7 @@ build = []
 run = ["cmake", "-S", ".", "-B", "../../../build/memmove-fuzz"]
 requires = []
 tier = "manual"
+group = "unit"
 runtime = "n/a — does not link"
 
 [[harness]]
@@ -332,6 +352,7 @@ check = "tests/integration/checks/save_roundtrip.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "model"
 runtime = "~5m"
 
 [[harness]]
@@ -348,6 +369,7 @@ check = "tests/integration/checks/document_save_channel.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~10m"
 
 [[harness]]
@@ -364,6 +386,7 @@ check = "tests/integration/checks/sample_collect_channel.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~10m"
 
 # The one rig that loads a whole song, and presets, through the model tree's sample loads and checks where every
@@ -385,6 +408,7 @@ check = "tests/integration/checks/sample_load_tree.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~5m"
 
 # The sample browser's claim, from the browser a user opens: what each claim binds, and where its load runs.
@@ -404,6 +428,7 @@ env = { GOLDEN_VIRTUAL_BUDGET_MS = "180000" }
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~3m"
 
 # The preset browser's own loads, from the browser a user opens: what each load binds, and where its card work runs.
@@ -423,6 +448,7 @@ env = { GOLDEN_VIRTUAL_BUDGET_MS = "180000" }
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~3m"
 
 [[harness]]
@@ -440,6 +466,7 @@ check = "tests/integration/checks/song_save_channel.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~12m"
 
 [[harness]]
@@ -457,6 +484,7 @@ check = "tests/integration/checks/clear_song_undo.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~1m"
 
 [[harness]]
@@ -474,6 +502,7 @@ check = "tests/integration/checks/sound_lifetime.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~1m"
 
 [[harness]]
@@ -489,6 +518,7 @@ check = "tests/integration/checks/clip_lifetime.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~1m"
 
 [[harness]]
@@ -505,6 +535,7 @@ check = "tests/integration/checks/container_guard.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~1m"
 
 [[harness]]
@@ -520,6 +551,7 @@ check = "tests/integration/checks/card_reinsert.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~6s"
 
 [[harness]]
@@ -535,6 +567,7 @@ check = "tests/integration/checks/stem_export.py"
 builds = ["golden-vt-render"]
 requires = ["song-corpus"]
 tier = "nightly"
+group = "render"
 runtime = "~12s"
 
 [[harness]]
@@ -551,6 +584,7 @@ check = "tests/integration/checks/song_load_channel.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~10m"
 
 [[harness]]
@@ -568,6 +602,7 @@ check = "tests/integration/checks/settings_channel.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~4m"
 
 
@@ -586,6 +621,7 @@ check = "tests/integration/checks/favourites_channel.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~5m"
 
 [[harness]]
@@ -603,6 +639,7 @@ check = "tests/integration/checks/startup_failsafe.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~4m"
 
 [[harness]]
@@ -620,6 +657,7 @@ check = "tests/integration/checks/path_operations.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~4m"
 
 [[harness]]
@@ -637,6 +675,7 @@ check = "tests/integration/checks/offset_io.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~4m"
 
 [[harness]]
@@ -653,6 +692,7 @@ result = "PT-RESULT failures=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~1m"
 
 [[harness]]
@@ -669,6 +709,7 @@ result = "SR-RESULT failures=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~1m"
 
 [[harness]]
@@ -685,6 +726,7 @@ result = "TC-RESULT failures=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+group = "app"
 runtime = "~1m"
 
 [[harness]]
@@ -702,6 +744,7 @@ result = "RT-RESULT failures=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+group = "app"
 runtime = "~5s"
 
 [[harness]]
@@ -718,6 +761,7 @@ result = "SU-RESULT failures=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+group = "app"
 runtime = "~5s"
 
 [[harness]]
@@ -735,6 +779,7 @@ result = "UI-SCRIPT-RESULT failures=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~60s"
 
 [[harness]]
@@ -752,6 +797,7 @@ result = "MENU-DUMP-RESULT failures=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+group = "app"
 runtime = "~2s"
 
 [[harness]]
@@ -769,6 +815,7 @@ result = "SCENES-SPEC-RESULT failures=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~10s"
 
 [[harness]]
@@ -785,6 +832,7 @@ result = "LC-RESULT failures=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+group = "app"
 runtime = "~5s"
 
 [[harness]]
@@ -801,6 +849,7 @@ result = "UT-RESULT failures=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+group = "app"
 runtime = "~1m"
 
 [[harness]]
@@ -817,6 +866,7 @@ result = "IR-RESULT failures=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+group = "app"
 runtime = "~5s"
 
 [[harness]]
@@ -834,6 +884,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -852,6 +903,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_KIT_FX" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -870,6 +922,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_KIT_FILTERS" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -888,6 +941,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_FILTERS" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -906,6 +960,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MASTER_FILTERS" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -924,6 +979,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_FX" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -942,6 +998,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MASTER_FX" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -960,6 +1017,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MASTER_PAN", RENDER_STEREO = "1" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -978,6 +1036,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MASTER_ARRANGER", RENDER_SONG_AUTOMATED = "1" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -996,6 +1055,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MASTER_GRAIN_OFF" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1014,6 +1074,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_KIT_SVF_MORPH" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1032,6 +1093,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_DRIVE" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1050,6 +1112,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_KIT_FILTER_FADE" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1068,6 +1131,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_FILTER_FADE" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1086,6 +1150,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_DUCKED" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1104,6 +1169,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_DUCK_SHAPES" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1122,6 +1188,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_KIT_COMP" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1140,6 +1207,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_KIT_DELAY" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1158,6 +1226,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_DELAY_OWNERS" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1176,6 +1245,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_STUTTER_AUDIO", RENDER_STUTTER = "100:600:audio" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1194,6 +1264,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_STUTTER_SYNTH", RENDER_STUTTER = "100:600:synth" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1212,6 +1283,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_STUTTER_KIT", RENDER_STUTTER = "150:700:kit" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1230,6 +1302,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_STUTTER_MASTER", RENDER_STUTTER = "100:900:master" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1248,6 +1321,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_STUTTER_RATE", RENDER_STUTTER = "100:900:audio", RENDER_STUTTER_RATE = "400:0x30000000" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1266,6 +1340,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_STUTTER_HANDOFF", RENDER_STUTTER = "100:400:audio,400:800:kit" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1284,6 +1359,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_TEMPO_DELAYS", RENDER_TEMPO = "300:70" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1302,6 +1378,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_DELAY" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1320,6 +1397,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_KIT_PINGPONG", RENDER_STEREO = "1" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1338,6 +1416,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_DELAY_TOGGLE" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1356,6 +1435,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_DELAY_SWITCH", RENDER_DELAY_SWITCH = "600,1000" }
 tier = "pr"
+group = "render"
 runtime = "~40s"
 
 [[harness]]
@@ -1374,6 +1454,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_PINGPONG_SWEEP", RENDER_STEREO = "1" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1392,6 +1473,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_DELAY_EXTREMES" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1410,6 +1492,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_LOW_CLIP" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1428,6 +1511,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_COMP_ONSET" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1446,6 +1530,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_COMP_RESET" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1464,6 +1549,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_COMP_BLEND" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1482,6 +1568,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MODFX_MONO" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1500,6 +1587,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MODFX_STEREO_A", RENDER_STEREO = "1" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1518,6 +1606,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MODFX_STEREO_B", RENDER_STEREO = "1" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1536,6 +1625,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MODFX_SOFT_OFF" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1554,6 +1644,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MODFX_SWITCH", RENDER_MODFX_SWITCH = "600:chorus,1000:TapeWarble" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1572,6 +1663,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MODFX_CLEAR", RENDER_MODFX_SWITCH = "1400:phaser", RENDER_MODFX_CLEAR = "1000,1800" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1590,6 +1682,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_GRAIN_MONO" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1608,6 +1701,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_GRAIN_STEREO", RENDER_STEREO = "1" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1626,6 +1720,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_GRAIN_SWITCH", RENDER_MODFX_SWITCH = "600:grainFX,1800:chorus", RENDER_MODFX_CLEAR = "1300" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1644,6 +1739,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_GRAIN_MASTER", RENDER_MODFX_SWITCH = "600:grainFX:master,1800:chorus:master" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1662,6 +1758,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_GRAIN_RESTART", RENDER_BLOCKS = "4000" }
 tier = "pr"
+group = "render"
 runtime = "~25s"
 
 [[harness]]
@@ -1680,6 +1777,7 @@ builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_GRAIN_OWNERS", RENDER_MODFX_SWITCH = "500:chorus:RSG,1200:grainFX:RSG", RENDER_MODFX_CLEAR = "1700:RSG,1800:RSK,1900:master" }
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1698,6 +1796,7 @@ env = { RENDER_SONG = "SONGS/Cordae.XML", GOLDEN_FIXTURE = "cordae" }
 builds = ["golden-vt-render"]
 requires = ["song-corpus"]
 tier = "nightly"
+group = "render"
 runtime = "~30s"
 
 [[harness]]
@@ -1715,6 +1814,7 @@ check = "tests/integration/checks/render_preset.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+group = "render"
 runtime = "~20s"
 
 [[harness]]
@@ -1732,6 +1832,7 @@ check = "tests/integration/checks/render_preset.py"
 builds = ["golden-vt-render-arm"]
 requires = []
 tier = "nightly"
+group = "unit"
 runtime = "~1m"
 
 [[harness]]
@@ -1750,6 +1851,7 @@ builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
 alone = true
+group = "render"
 runtime = "~30s"
 
 [[harness]]
@@ -1769,6 +1871,7 @@ requires = []
 env = { MARGIN_SWEEP = "0,50,100,125,150,200,300,500" }
 tier = "manual"
 alone = true
+group = "render"
 runtime = "~1m"
 
 [[harness]]
@@ -1786,6 +1889,7 @@ check = "tests/integration/checks/recorder_write.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
+group = "app"
 runtime = "~10m"
 
 [[harness]]
@@ -1802,6 +1906,7 @@ configure = ["-G", "Ninja Multi-Config"]
 ctest_args = ["-C", "Debug"]
 requires = ["cmake", "clang"]
 tier = "pr"
+group = "unit"
 runtime = "~2m first build, ~5s after"
 
 [[harness]]
@@ -1817,6 +1922,7 @@ tree = "build/test-unit-arm"
 configure = ["-G", "Ninja"]
 requires = ["cmake", "clang", "arm-linux-gnueabihf-gcc", "qemu-arm"]
 tier = "pr"
+group = "unit"
 runtime = "~1m first build, ~5s after"
 
 [[harness]]
@@ -1831,6 +1937,7 @@ run = ["cargo", "nextest", "run", "--profile", "ci"]
 junit = "${CARGO_TARGET_DIR}/nextest/ci/junit.xml"
 requires = ["cargo", "cargo-nextest"]
 tier = "pr"
+group = "unit"
 runtime = "~3m first build, ~20s after"
 
 [[harness]]
@@ -1844,6 +1951,7 @@ gates = "the Rust BSP's host tests and in-crate #[test]s: the tier meter and tie
 run = ["cargo", "test", "--locked"]
 requires = ["cargo"]
 tier = "pr"
+group = "unit"
 runtime = "~4m first build, ~30s after"
 
 [[harness]]
@@ -1857,6 +1965,7 @@ gates = "deluge_sample_convert's tests: the sample format conversions, against t
 run = ["cargo", "test"]
 requires = ["cargo", "clang"]
 tier = "pr"
+group = "storage"
 runtime = "~1m"
 
 # --lib --tests: the crate's doc example copies resources/fat16.img into a tmp/ directory that exists only in the
@@ -1872,6 +1981,7 @@ gates = "the vendored embedded-fatfs's own tests: directory, file and allocation
 run = ["cargo", "test", "--lib", "--tests"]
 requires = ["cargo"]
 tier = "pr"
+group = "storage"
 runtime = "~1m"
 
 [[harness]]
@@ -1885,6 +1995,7 @@ gates = "the block-device adapters: buffered and stream views over a block devic
 run = ["cargo", "test"]
 requires = ["cargo"]
 tier = "pr"
+group = "storage"
 runtime = "~30s"
 
 [[harness]]
@@ -1898,6 +2009,7 @@ gates = "the block-device driver trait's tests"
 run = ["cargo", "test"]
 requires = ["cargo"]
 tier = "pr"
+group = "storage"
 runtime = "~30s"
 
 # The host drivers (tests/integration/scenarios/drivers/): whole-program checks of the project model, each run as a
@@ -1917,6 +2029,7 @@ result = "DRV-EXIT code=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+group = "model"
 runtime = "~1s"
 
 [[harness]]
@@ -1933,6 +2046,7 @@ result = "DRV-EXIT code=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+group = "model"
 runtime = "~1s"
 
 [[harness]]
@@ -1949,6 +2063,7 @@ result = "DRV-EXIT code=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+group = "model"
 runtime = "~1s"
 
 [[harness]]
@@ -1965,6 +2080,7 @@ result = "DRV-EXIT code=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+group = "model"
 
 [[harness]]
 name = "preset-parse"
@@ -1980,6 +2096,7 @@ result = "DRV-EXIT code=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+group = "model"
 
 [[harness]]
 name = "effect-owners"
@@ -1995,6 +2112,7 @@ result = "DRV-EXIT code=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+group = "model"
 
 [[harness]]
 name = "edit-substrate"
@@ -2010,6 +2128,7 @@ result = "DRV-EXIT code=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+group = "model"
 runtime = "~1s"
 
 [[harness]]
@@ -2026,6 +2145,7 @@ result = "DRV-EXIT code=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+group = "app"
 runtime = "~5s"
 
 [[harness]]
@@ -2042,6 +2162,7 @@ result = "DRV-EXIT code=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
+group = "model"
 runtime = "~1s"
 
 [[harness]]
@@ -2058,6 +2179,7 @@ builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
 alone = true
+group = "model"
 runtime = "~10s"
 
 [[harness]]
@@ -2071,6 +2193,7 @@ gates = "every corpus song's model records survive a JSON round trip unchanged, 
 run = ["tests/model/equality/run_corpus.sh"]
 requires = ["song-corpus"]
 tier = "nightly"
+group = "tooling"
 runtime = "~2s"
 
 [[harness]]
@@ -2087,6 +2210,7 @@ builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
 alone = true
+group = "model"
 runtime = "~10s"
 
 [[harness]]
@@ -2103,6 +2227,7 @@ builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
 alone = true
+group = "model"
 runtime = "~10s"
 
 [[harness]]
@@ -2119,6 +2244,7 @@ builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
 alone = true
+group = "model"
 runtime = "~20s"
 
 [[harness]]
@@ -2135,6 +2261,7 @@ builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
 alone = true
+group = "model"
 runtime = "~30s"
 
 [[harness]]
@@ -2151,6 +2278,7 @@ builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
 alone = true
+group = "model"
 runtime = "~30s"
 
 [[harness]]
@@ -2166,6 +2294,7 @@ check = "tests/integration/checks/host_driver.py"
 builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
+group = "model"
 alone = true
 runtime = "~30s"
 
@@ -2183,6 +2312,7 @@ builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
 alone = true
+group = "model"
 runtime = "~20s"
 
 [[harness]]
@@ -2199,6 +2329,7 @@ builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
 alone = true
+group = "model"
 runtime = "~20s"
 
 [[harness]]
@@ -2215,6 +2346,7 @@ builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
 alone = true
+group = "model"
 runtime = "~20s"
 
 [[harness]]
@@ -2231,6 +2363,7 @@ builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
 alone = true
+group = "model"
 runtime = "~10s"
 
 [[harness]]
@@ -2247,6 +2380,7 @@ builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
 alone = true
+group = "model"
 runtime = "~10s"
 
 [[harness]]
@@ -2263,6 +2397,7 @@ builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
 alone = true
+group = "model"
 runtime = "~10s"
 
 [[harness]]
@@ -2279,6 +2414,7 @@ builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
 alone = true
+group = "model"
 runtime = "~5s"
 
 [[harness]]
@@ -2295,6 +2431,7 @@ builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
 alone = true
+group = "model"
 runtime = "~5s"
 
 [[harness]]
@@ -2311,6 +2448,7 @@ builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
 alone = true
+group = "model"
 runtime = "~10s"
 
 [[harness]]
@@ -2327,6 +2465,7 @@ builds = ["golden-vt-render"]
 requires = ["song-xml-corpus"]
 tier = "nightly"
 alone = true
+group = "model"
 runtime = "~10s"
 
 [[harness]]
@@ -2343,6 +2482,7 @@ result = "DRV-EXIT code=0"
 builds = ["golden-vt-render"]
 requires = []
 tier = "manual"
+group = "app"
 runtime = "~2s"
 
 [[harness]]
@@ -2355,6 +2495,7 @@ status = "gate"
 gates = "no gesture under src/deluge/gui or src/scenes sets a bound sound's instrument state outside its Edit: no setter a setting Edit runs (setTranspose, setOscType, setLfoSync…), no reseed of the record (seedDocRanges, seedDocDxPatch…), no direct repeatMode or oscType write; each goes through settingFor()/rangesFor()/dxPatchFor()/recordControlsOf(); a sample range's holder is allowed by name. Nor a song setting outside SetSetting: the reverb, swing interval and disabled scales, a track's name and MIDI or CV device fields, a lane's name, a note row's direction, an audio clip's descriptor (songSettingFor()/trackSettingFor()/laneSettingFor()/noteRowSettingFor()/audioClipSettingFor()); load paths are allowed by file, with their reasons"
 run = ["python3", "check_setting_menus.py"]
 tier = "pr"
+group = "tooling"
 runtime = "~1s"
 
 [[harness]]
@@ -2367,6 +2508,7 @@ status = "gate"
 gates = "each standalone library's boundary check rejects every way an undeclared header could slip in: a non-standard <header>, path traversal, an include it cannot parse (a macro or a comment), an undeclared neighbour of a declared dependency, and any C-family file suffix"
 run = ["python3", "-m", "unittest", "test_check_library_boundary"]
 tier = "pr"
+group = "tooling"
 runtime = "~1s"
 
 [[harness]]
@@ -2379,6 +2521,7 @@ status = "gate"
 gates = "this registry's loader, validation, selection and probes, the SDRAM annotation tool's tests, the SDRAM content packer's format (the pack the boot inflates, and the Rust decoder's fixture as such a pack), the setting-menus checker's planted song-state writes and scene engine calls, and the layer rules' planted scenes rows"
 run = ["python3", "-m", "unittest", "test_harness_registry", "test_annotate_sdram", "test_sdram_pack", "test_check_setting_menus", "test_check_layer_rules"]
 tier = "pr"
+group = "tooling"
 runtime = "~1s"
 
 [[harness]]
@@ -2391,6 +2534,7 @@ status = "gate"
 gates = "the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever the member stands; each render-song gate plays its own generated song, whatever the shell exports; a render-song gate that switches mod FX types or clears mod FX memory fails unless the scenario's summary shows each applied as asked and reaching its path"
 run = ["python3", "-m", "unittest", "test_render_preset", "test_render_song"]
 tier = "pr"
+group = "tooling"
 runtime = "~1s"
 
 # tier = "manual": a fuzzer has no natural end; this bounds one run to a minute, for when the parser changes.
@@ -2405,6 +2549,7 @@ gates = "the audio-format header parser must not panic, overrun or loop on arbit
 run = ["cargo", "+nightly", "fuzz", "run", "parse", "--", "-max_total_time=60"]
 requires = ["cargo-fuzz"]
 tier = "manual"
+group = "unit"
 runtime = "~2m"
 
 [[harness]]
@@ -2417,6 +2562,7 @@ status = "gate"
 gates = "the DSP bench host script's parsing of device captures: partial, mismatched and malformed runs are rejected, a run failing the calibration_loop or DBGAUTHSTATUS sanity check is written marked and exits 4, and the table text and probe arguments are exact"
 run = ["python3", "-m", "unittest", "test_dsp_bench"]
 tier = "pr"
+group = "tooling"
 runtime = "~1s"
 
 [[harness]]
@@ -2429,6 +2575,7 @@ status = "gate"
 gates = "the streaming benchmark host script's parsing of device captures: every phase's histograms, filesystem waits and slowest jobs are read; a run without STREAM-BENCH-DONE, or missing a phase, is rejected and writes no tables; a reported failure exits 4; percentiles are bucket upper edges bounded by the max"
 run = ["python3", "-m", "unittest", "test_stream_bench"]
 tier = "pr"
+group = "tooling"
 runtime = "~1s"
 
 [[harness]]
@@ -2441,6 +2588,7 @@ status = "gate"
 gates = "device_check's reading of a rig capture: a rig-harness image passes only with its ready line and a heartbeat after the app's first frame, and harness lines are never read as log lines (a frame's hex is no error)"
 run = ["python3", "-m", "unittest", "test_device_check"]
 tier = "pr"
+group = "tooling"
 runtime = "~1s"
 
 [[harness]]
@@ -2453,6 +2601,7 @@ status = "gate"
 gates = "rig_session's reading of the rig harness's RTT stream: split lines and log lines between panel lines, each panel line kind into delugemu-shaped state (OLED rows, 18x8 pads, LEDs by name, gold rings, flashes, PIC settings), the clock counted from the attach after the app runs, a link dropped before attaching reopened without its partial line, and a lost line, a dropped flash, a refused command, a closed link or a silent device raised"
 run = ["python3", "-m", "unittest", "test_rig_session"]
 tier = "pr"
+group = "tooling"
 runtime = "~2s"
 
 [[harness]]
@@ -2465,6 +2614,7 @@ status = "gate"
 gates = "emu_parity's script runner drives whatever session it is given (delugemu or the rig) through the same steps and timings, and device_parity builds delugemu's starting flash from the rig's settings sector, refusing a short or all-zero read"
 run = ["python3", "-m", "unittest", "test_emu_parity_session", "test_device_parity"]
 tier = "pr"
+group = "tooling"
 runtime = "~1s"
 
 [[harness]]
@@ -2477,6 +2627,7 @@ status = "gate"
 gates = "the bench tools' host side: stream_bench_matrix flattens a run into named metrics (histograms, underruns, tagged phase lines, the arm time, load phases, log lines), summarises each image's runs as mean, deviation and range, leaves incomplete runs out, and marks two images' ranges apart or overlapping; bench_image points the SDK override at another checkout and refuses an override with nothing to redirect"
 run = ["python3", "-m", "unittest", "test_bench_tooling"]
 tier = "pr"
+group = "tooling"
 runtime = "~1s"
 
 [[harness]]
@@ -2489,6 +2640,7 @@ status = "gate"
 gates = "the PTM trace tool's host side: function names resolve to one address range (bare or full signature, Thumb bit cleared, overloads refused), the CoreSight ROM walk finds the trace path and programming writes the PTM, funnel, ETF and TPIU as the rig needs them, the OpenCSD snapshot names a Cortex-A9 and a PFT 1.0 PTM with the registers used, the J-Trace's reversed RAWTRACE bytes are put back in port order without frame syncs, and the report times blocks, loop iterations and instructions from a canned decode; the profile's shadow call stack charges self and inclusive cycles through calls, returns, tail calls and recursion, keeps an interrupt's cycles and code found after a gap behind a barrier, re-anchors frames across a loss of sync, and says when gaps leave its call stacks unreliable"
 run = ["python3", "-m", "unittest", "discover", "-p", "test_*.py"]
 tier = "pr"
+group = "tooling"
 runtime = "~1s"
 
 [[harness]]
@@ -2506,6 +2658,7 @@ check = "tests/integration/checks/sample_load_tree.py"
 builds = ["golden-vt-render-asan"]
 requires = ["clang-asan"]
 tier = "nightly"
+group = "unit"
 runtime = "~5m"
 
 # The sample browser's claim, from the browser a user opens: what each claim binds, and where its load runs.
@@ -2527,6 +2680,7 @@ env = { GOLDEN_VIRTUAL_BUDGET_MS = "180000" }
 builds = ["golden-vt-render-asan"]
 requires = ["clang-asan"]
 tier = "nightly"
+group = "unit"
 runtime = "~5m"
 env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }
 
@@ -2545,6 +2699,7 @@ result = "RT-RESULT failures=0"
 builds = ["golden-vt-render-asan"]
 requires = ["clang-asan"]
 tier = "nightly"
+group = "unit"
 runtime = "~5m"
 env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }
 
@@ -2563,6 +2718,7 @@ result = "SCENES-SPEC-RESULT failures=0"
 builds = ["golden-vt-render-asan"]
 requires = ["clang-asan"]
 tier = "nightly"
+group = "unit"
 runtime = "~5m"
 env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }
 
@@ -2580,6 +2736,7 @@ result = "DRV-EXIT code=0"
 builds = ["golden-vt-render-asan"]
 requires = ["clang-asan"]
 tier = "nightly"
+group = "unit"
 runtime = "~20s"
 env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }
 
@@ -2597,5 +2754,6 @@ result = "DRV-EXIT code=0"
 builds = ["golden-vt-render-asan"]
 requires = ["clang-asan"]
 tier = "nightly"
+group = "unit"
 runtime = "~5m"
 env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }

@@ -126,6 +126,10 @@ class Product:
     def steps(self, root: Path) -> list[Step]:
         raise NotImplementedError
 
+    def outputs(self, root: Path) -> list[Path]:
+        """The files a test run needs from this product: what `dbt test --prebuilt` expects to find already built."""
+        return []
+
 
 class HostApp(Product):
     def steps(self, root: Path) -> list[Step]:
@@ -217,6 +221,11 @@ class HostAppArm(Product):
 class GoldenVtRenderArm(Product):
     """golden_vt_render for armv7 Linux, linked against the arm-linux host app, run under qemu."""
 
+    def outputs(self, root: Path) -> list[Path]:
+        return [
+            root / SHARED_TARGET_SUBDIR / ARM_TARGET / "release" / "golden_vt_render"
+        ]
+
     def steps(self, root: Path) -> list[Step]:
         return [
             Step(
@@ -233,6 +242,9 @@ class GoldenVtRenderArm(Product):
 
 
 class GoldenVtRender(Product):
+    def outputs(self, root: Path) -> list[Path]:
+        return [root / SHARED_TARGET_SUBDIR / "release" / "golden_vt_render"]
+
     def steps(self, root: Path) -> list[Step]:
         return [
             Step(
@@ -246,6 +258,9 @@ class GoldenVtRender(Product):
 
 class GoldenVtRenderAsan(Product):
     """golden_vt_render linked against the AddressSanitizer host app, with the allocator's heap poisoning on."""
+
+    def outputs(self, root: Path) -> list[Path]:
+        return [root / ASAN_TARGET_SUBDIR / "release" / "golden_vt_render"]
 
     def steps(self, root: Path) -> list[Step]:
         return [
@@ -261,6 +276,19 @@ class GoldenVtRenderAsan(Product):
                 },
             )
         ]
+
+
+def prebuilt_outputs(
+    names: list[str], known: dict[str, Product], root: Path
+) -> list[Path]:
+    """The outputs of the products `names` (not their dependencies), for running them prebuilt."""
+    outputs: list[Path] = []
+    for name in dict.fromkeys(names):
+        found = known[name].outputs(root)
+        if not found:
+            raise ValueError(f"build product '{name}' has no prebuilt outputs")
+        outputs += found
+    return outputs
 
 
 def products(root: Path) -> dict[str, Product]:

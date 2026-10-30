@@ -80,21 +80,21 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 	it("shows a stored choice that no longer applies as a marked entry the menu cannot write", _ {
 		ModelFixture fixture;
 		auto state = fixture.facts.states.at(kDrum.id);
-		state.sources[0].osc_type = OscType::DX7;
+		state.sources[0].osc_type = OscType::INPUT_R;
 		fixture.set_state(kDrum, state);
 		const auto shown = view(sound("osc1/type"), fixture.song, at(kDrum), fixture.facts);
 		expect(shown->stale.has_value()).to_be_true();
 		expect(shown->value).to_equal(*shown->stale);
 		const auto names = names_of(fixture, "osc1/type", kDrum);
 		const auto* table = deluge::l10n::setting_names(deluge::engine::kDelugeInstrument, "osc1/type");
-		const auto dx7 = -static_cast<int64_t>(table->choices[static_cast<size_t>(OscType::DX7)]);
-		expect(names[static_cast<size_t>(*shown->stale)]).to_equal(dx7);
+		const auto input_r = -static_cast<int64_t>(table->choices[static_cast<size_t>(OscType::INPUT_R)]);
+		expect(names[static_cast<size_t>(*shown->stale)]).to_equal(input_r);
 		expect(request_for(sound("osc1/type"), fixture.song, at(kDrum), fixture.facts, *shown->stale).has_value())
 		    .to_be_false();
 		const auto next = request_for(sound("osc1/type"), fixture.song, at(kDrum), fixture.facts, *shown->stale - 1);
 		expect(next.has_value()).to_be_true();
 		const auto stored = deluge::engine::from_menu(row_at("osc1/type"), next->menu_value);
-		expect(stored.has_value() && stored->first != static_cast<int32_t>(OscType::DX7)).to_be_true();
+		expect(stored.has_value() && stored->first != static_cast<int32_t>(OscType::INPUT_R)).to_be_true();
 	});
 
 	it("reads a stored value the menu never writes as legacy shows it", _ {

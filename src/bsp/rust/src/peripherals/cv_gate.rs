@@ -77,8 +77,10 @@ pub extern "C" fn deluge_gate_init() {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_gate_set(channel: u8, on: bool) {
-    // SAFETY: GPIO write; channel is 0..NUM_GATE_CHANNELS per the board descriptor.
-    unsafe { cv_gate::gate_set(channel, on) };
+    // `gate_set` panics past the board's gates, so a bad channel from the app is dropped here.
+    if (channel as usize) < cv_gate::NUM_GATE_CHANNELS {
+        cv_gate::gate_set(channel, on);
+    }
 }
 
 // External trigger clock (analog clock input)

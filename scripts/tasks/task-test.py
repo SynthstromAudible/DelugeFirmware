@@ -9,7 +9,7 @@
 ./dbt test --list [--markdown]               # the registry, with prerequisites resolved
 ./dbt test --doctor                          # what is missing, and how to get it
 ./dbt test --capture <label>                 # run the estate and record its marker lines
-./dbt test --ci-matrix --tier pr             # the selection as JSON, for a CI matrix
+./dbt test --ci-matrix --tier pr             # the selection by CI group, as JSON
 ./dbt test --clean                           # drop the shared cargo target dir
 """
 
@@ -22,6 +22,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -86,7 +87,7 @@ def argparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--ci-matrix",
         action="store_true",
-        help="Print the selection as JSON for a CI matrix",
+        help="Print the selection as a CI matrix, one entry per registry group (JSON)",
     )
     parser.add_argument(
         "--strict",
@@ -98,11 +99,23 @@ def argparser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run tests even when a prerequisite probe fails",
     )
-    parser.add_argument(
+    # --prebuilt and --build-only contradict each other.
+    built = parser.add_mutually_exclusive_group()
+    built.add_argument(
         "-n",
         "--build-only",
         action="store_true",
         help="Build the selection without running it",
+    )
+    built.add_argument(
+        "--prebuilt",
+        action="store_true",
+        help="Run against build products already built (CI's host-build job); a missing one fails its tests",
+    )
+    parser.add_argument(
+        "--list-outputs",
+        action="store_true",
+        help="Print the files the selection's prebuilt groups need (--prebuilt), relative to the repository root",
     )
     parser.add_argument(
         "--junit", metavar="DIR", help="Collect each test's JUnit XML into DIR"
@@ -179,15 +192,32 @@ def _missing(root: Path, h: hr.Harness, products: dict[str, tb.Product]) -> list
 class Builds:
     """The build products a selection needs, each built once, dependencies first."""
 
-    def __init__(self, root: Path, selection: list[hr.Harness], log=None):
+    def __init__(
+        self, root: Path, selection: list[hr.Harness], log=None, prebuilt: bool = False
+    ):
         self.root = root
         self.known = tb.products(root)
         self.log = log
         # Product name -> why it is unusable. Absent: built.
         self.broken: dict[str, str] = {}
         wanted = [name for h in selection for name in h.builds]
+        if prebuilt:
+            # Only what the tests name: a product's dependencies are inside its outputs.
+            for name in dict.fromkeys(wanted):
+                self._check_prebuilt(name)
+            return
         for name in tb.order(wanted, self.known):
             self._build(name)
+
+    def _check_prebuilt(self, name: str) -> None:
+        try:
+            outputs = tb.prebuilt_outputs([name], self.known, self.root)
+        except ValueError as exc:
+            self.broken[name] = f"cannot run prebuilt: {exc}"
+            return
+        absent = [str(p.relative_to(self.root)) for p in outputs if not p.is_file()]
+        if absent:
+            self.broken[name] = f"is not built (--prebuilt): {', '.join(absent)}"
 
     def _build(self, name: str) -> None:
         product = self.known[name]
@@ -340,13 +370,15 @@ def cmd_run(
     if junit_dir is not None:
         junit_dir.mkdir(parents=True, exist_ok=True)
 
-    builds = Builds(root, selection)
+    builds = Builds(root, selection, prebuilt=args.prebuilt)
     outcomes: dict[str, Outcome] = {}
     runnable: list[hr.Harness] = []
     for h in selection:
         if h.status == "unavailable":
             print(f"warning: '{h.name}' is marked unavailable -- {h.gates}\n", file=OUT)
-        missing = _missing(root, h, builds.known)
+        # Prebuilt, a missing product is a failure whatever this machine lacks: it was to have been handed in.
+        blocker = builds.blocker(h) if args.prebuilt else None
+        missing = [] if blocker else _missing(root, h, builds.known)
         if missing and not args.skip_checks:
             outcomes[h.name] = Outcome(h.name, "SKIP", f"needs {', '.join(missing)}")
             print(
@@ -355,7 +387,7 @@ def cmd_run(
                 flush=True,
             )
             continue
-        blocker = builds.blocker(h)
+        blocker = blocker or builds.blocker(h)
         if blocker is not None:
             outcomes[h.name] = Outcome(h.name, "FAIL", blocker)
             print(f"--- {h.name}: not run, {blocker}", file=OUT, flush=True)
@@ -389,6 +421,9 @@ def cmd_run(
     for h in alone:
         outcomes[h.name] = Outcome(h.name, "PASS" if one(h, OUT) else "FAIL")
 
+    if junit_dir is not None and not args.build_only:
+        for h in selection:
+            _write_junit(junit_dir / f"{h.name}.xml", outcomes[h.name])
     return _summarise(
         [outcomes[h.name] for h in selection], strict=args.strict or named, out=OUT
     )
@@ -406,6 +441,25 @@ def default_jobs(jobs: int, tier: str, capture: bool) -> int:
     if jobs:
         return jobs
     return (os.cpu_count() or 1) if capture or tier == "pr" else 1
+
+
+def _write_junit(path: Path, outcome: Outcome) -> None:
+    """A one-case JUnit file for a test that wrote none of its own, so every test is reported by name."""
+    if path.exists():
+        return
+    suite = ET.Element(
+        "testsuite",
+        name=outcome.name,
+        tests="1",
+        failures=str(int(outcome.result == "FAIL")),
+        skipped=str(int(outcome.result == "SKIP")),
+    )
+    case = ET.SubElement(suite, "testcase", classname="dbt test", name=outcome.name)
+    if outcome.result == "FAIL":
+        ET.SubElement(case, "failure", message=outcome.note or "failed")
+    elif outcome.result == "SKIP":
+        ET.SubElement(case, "skipped", message=outcome.note)
+    ET.ElementTree(suite).write(path, encoding="utf-8", xml_declaration=True)
 
 
 def _summarise(outcomes: list[Outcome], strict: bool, out) -> int:
@@ -581,8 +635,18 @@ def main(argv: list[str] | None = None) -> int:
         print(f"test: {exc}", file=sys.stderr)
         return 1
 
+    if args.list_outputs:
+        names = [name for h in selection if hr.GROUPS[h.group] for name in h.builds]
+        try:
+            outputs = tb.prebuilt_outputs(names, tb.products(root), root)
+        except ValueError as exc:
+            print(f"test: {exc}", file=sys.stderr)
+            return 1
+        for path in outputs:
+            print(path.relative_to(root))
+        return 0
     if args.ci_matrix:
-        print(json.dumps({"test": [h.name for h in selection]}))
+        print(json.dumps(hr.ci_matrix(selection)))
         return 0
     if args.list:
         return cmd_list(root, selection, args.markdown, entries)

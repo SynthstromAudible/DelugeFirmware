@@ -1,0 +1,33 @@
+name: Clang
+description: >
+  The host C/C++ compiler: clang 23 from apt.llvm.org, as `clang`/`clang++` on PATH and as CC/CXX, so dbt's CMake
+  trees and cc-rs build scripts both use it. The host build is C++26, which the runner image's clang and gcc reject.
+
+runs:
+  using: composite
+  steps:
+    - name: Add the LLVM apt repository
+      shell: bash
+      run: |
+        . /etc/os-release
+        curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc >/dev/null
+        echo "deb http://apt.llvm.org/$VERSION_CODENAME/ llvm-toolchain-$VERSION_CODENAME-23 main" \
+          | sudo tee /etc/apt/sources.list.d/llvm-23.list >/dev/null
+
+    # libclang-rt for the sanitizer builds; libstdc++-14 because the image's default libstdc++ predates C++26.
+    - name: Install clang 23
+      uses: ./.github/actions/apt-install
+      with:
+        cache-name: clang-23
+        packages: clang-23 lld-23 libclang-rt-23-dev libstdc++-14-dev
+
+    - name: Put it on PATH as clang and CC/CXX
+      shell: bash
+      run: |
+        bin="$RUNNER_TEMP/clang-bin"
+        mkdir -p "$bin"
+        ln -sf /usr/bin/clang-23 "$bin/clang"
+        ln -sf /usr/bin/clang++-23 "$bin/clang++"
+        echo "$bin" >> "$GITHUB_PATH"
+        { echo "CC=$bin/clang"; echo "CXX=$bin/clang++"; } >> "$GITHUB_ENV"
+        "$bin/clang++" --version | head -1

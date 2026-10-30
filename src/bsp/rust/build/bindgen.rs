@@ -70,7 +70,11 @@ pub fn run(
 }
 
 /// Marks each generated `extern "C"` block `unsafe`, as edition 2024 requires.
-/// bindgen 0.70 predates `unsafe extern` and emits the bare form.
+/// bindgen 0.70 predates `unsafe extern` and emits the bare form. Its output is one line when
+/// rustfmt is unavailable, so the match cannot rely on a block starting a line; any block already
+/// marked is unmarked first, so none ends up marked twice.
 fn edition_2024_externs(bindings: &str) -> String {
-    bindings.replace("\nextern \"C\" {", "\nunsafe extern \"C\" {")
+    bindings
+        .replace("unsafe extern \"C\" {", "extern \"C\" {")
+        .replace("extern \"C\" {", "unsafe extern \"C\" {")
 }

@@ -17,16 +17,10 @@ const input = {
   menuItemRoot: path.join(repoRoot, "src/deluge/gui/menu_item"),
   contextMenuRoot: path.join(repoRoot, "src/deluge/gui/context_menu"),
   english: path.join(repoRoot, "src/deluge/gui/l10n/english.json"),
-  sevenSeg: path.join(repoRoot, "src/deluge/gui/l10n/seven_segment.json"),
   menuTags: path.join(repoRoot, "website/src/data/menu-hierarchy-tags.json"),
 }
 
-const REQUIRED_INPUT_KEYS = new Set([
-  "srcRoot",
-  "english",
-  "sevenSeg",
-  "menuTags",
-])
+const REQUIRED_INPUT_KEYS = new Set(["srcRoot", "english", "menuTags"])
 
 const outputPath = path.join(
   repoRoot,
@@ -1466,7 +1460,8 @@ function build() {
     .map((filePath) => fs.readFileSync(filePath, "utf8"))
     .join("\n\n")
   const english = readJson(input.english).strings
-  const sevenSeg = readJson(input.sevenSeg).strings
+  // The firmware has no separate 7-segment string table: both displays show the English strings.
+  const sevenSeg = {}
   const menuTagsByVarName = readMenuTags(input.menuTags)
 
   const combined = `${generatedMenus}\n${menusCpp}\n${sourceCorpus}`
@@ -1588,7 +1583,6 @@ function build() {
       menuItemRoot: path.relative(repoRoot, input.menuItemRoot),
       contextMenuRoot: path.relative(repoRoot, input.contextMenuRoot),
       english: path.relative(repoRoot, input.english),
-      sevenSeg: path.relative(repoRoot, input.sevenSeg),
       menuTags: path.relative(repoRoot, input.menuTags),
     },
     trees,

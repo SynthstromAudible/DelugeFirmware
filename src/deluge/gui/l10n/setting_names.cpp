@@ -206,13 +206,14 @@ constexpr std::array<String, 2> kOsc1TimeStretchEnableChoices{{
     STRING_FOR_INDEPENDENT,
 }};
 
-constexpr std::array<String, 12> kOsc1TypeChoices{{
+constexpr std::array<String, 13> kOsc1TypeChoices{{
     STRING_FOR_SINE,
     STRING_FOR_TRIANGLE,
     STRING_FOR_SQUARE,
     STRING_FOR_ANALOG_SQUARE,
     STRING_FOR_SAW,
     STRING_FOR_ANALOG_SAW,
+    STRING_FOR_SUPERSAW,
     STRING_FOR_WAVETABLE,
     STRING_FOR_SAMPLE,
     STRING_FOR_DX7,
@@ -222,13 +223,14 @@ constexpr std::array<String, 12> kOsc1TypeChoices{{
 }};
 
 /// With no audio input plugged in, the menu lists the left input's choice alone, as "Input".
-constexpr std::array<String, 12> kOsc1TypeUnpluggedChoices{{
+constexpr std::array<String, 13> kOsc1TypeUnpluggedChoices{{
     STRING_FOR_SINE,
     STRING_FOR_TRIANGLE,
     STRING_FOR_SQUARE,
     STRING_FOR_ANALOG_SQUARE,
     STRING_FOR_SAW,
     STRING_FOR_ANALOG_SAW,
+    STRING_FOR_SUPERSAW,
     STRING_FOR_WAVETABLE,
     STRING_FOR_SAMPLE,
     STRING_FOR_DX7,

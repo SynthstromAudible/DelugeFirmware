@@ -475,18 +475,18 @@ describe descriptor_legacy_oscillators("The oscillator rows' descriptors against
 		check(self, oscillator_cases()[3]);
 		AudioEngine::micPluggedIn = false;
 	});
-	it("drops the sample and inputs under ring mod, and DX7 off a track's first oscillator", _ {
+	it("drops the sample and inputs under ring mod, and DX7 off the second oscillator", _ {
 		const SettingInfo& row = *deluge::engine::find_setting(deluge::instrument::kSettings, "osc1/type");
-		expect(list_of(applicable(row, Where::SYNTH_RINGMOD, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,"});
-		expect(list_of(applicable(row, Where::SYNTH, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,"});
+		expect(list_of(applicable(row, Where::SYNTH_RINGMOD, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,"});
+		expect(list_of(applicable(row, Where::SYNTH, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,10,"});
 		const SettingInfo& second = *deluge::engine::find_setting(deluge::instrument::kSettings, "osc2/type");
-		expect(list_of(applicable(second, Where::SYNTH, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,9,"});
-		expect(list_of(applicable(row, Where::KIT_LANE, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,9,"});
+		expect(list_of(applicable(second, Where::SYNTH, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,10,"});
+		expect(list_of(applicable(row, Where::KIT_LANE, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,10,"});
 		const MenuContext& ctx = enter(Where::SYNTH);
 		SettingContext plugged = context_of(Where::SYNTH, Family::INSTRUMENT);
 		plugged.audio_inputs_present = true;
 		expect(list_of(applicable(row, plugged, ctx, Where::SYNTH)))
-		    .to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,10,11,"});
+		    .to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,10,11,12,"});
 	});
 });
 
@@ -610,11 +610,11 @@ describe descriptor_legacy_applicability("Where each row's menu shows, against l
 			unload_files(ctx);
 		}
 	});
-	it("offers no DX7 to the whole kit's sounds", _ {
+	it("offers DX7 to the whole kit's sounds, as `osc::Type::mayUseDx` does", _ {
 		const SettingInfo& row = *deluge::engine::find_setting(deluge::instrument::kSettings, "osc1/type");
 		const MenuContext& ctx = enter(Where::SYNTH);
 		const SettingContext whole_kit{.owner = Owner::KIT, .instrument = SettingContext::Instrument::KIT};
-		expect(list_of(applicable(row, whole_kit, ctx, Where::SYNTH))).to_equal(std::string{"0,1,2,3,4,5,6,7,9,"});
+		expect(list_of(applicable(row, whole_kit, ctx, Where::SYNTH))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,10,"});
 	});
 });
 

@@ -765,7 +765,7 @@ Error FileWriter::writeBufferToFile() {
 	return Error::NONE;
 }
 
-// Returns false if some error, including error while writing
+// Returns Error::WRITE_FAIL on any error, including errors while writing
 Error FileWriter::closeAfterWriting(char const* path, char const* beginningString, char const* endString) {
 
 	if (fileAccessFailedDuringWrite) {
@@ -796,16 +796,28 @@ Error FileWriter::closeAfterWriting(char const* path, char const* beginningStrin
 		return Error::WRITE_FAIL;
 	}
 
-	if (path) {
-		// Reopen for reading, to verify the beginning/end strings.
-		auto opened = deluge::io::File::open(path, DELUGE_FILE_READ);
-		if (!opened) {
-			return Error::WRITE_FAIL;
-		}
-		file = std::move(opened.value());
+	// Read-back verification needs a path to reopen the file
+	if (!path) {
+		return Error::NONE;
 	}
 
-	// Check beginning
+	auto opened = deluge::io::File::open(path, DELUGE_FILE_READ);
+	if (!opened) {
+		return Error::WRITE_FAIL;
+	}
+	file = std::move(opened.value());
+
+	error = verifyWrittenFile(beginningString, endString);
+
+	if (!closeWriter() && error == Error::NONE) {
+		error = Error::WRITE_FAIL;
+	}
+
+	return error;
+}
+
+// Expects `file` to be open for reading; leaves closing it to the caller
+Error FileWriter::verifyWrittenFile(char const* beginningString, char const* endString) {
 	if (beginningString) {
 		int32_t length = strlen(beginningString);
 		auto read = file->read(std::span<std::byte>(reinterpret_cast<std::byte*>(miscStringBuffer), length));
@@ -817,7 +829,6 @@ Error FileWriter::closeAfterWriting(char const* path, char const* beginningStrin
 		}
 	}
 
-	// Check end
 	if (endString) {
 		int32_t length = strlen(endString);
 
@@ -831,13 +842,6 @@ Error FileWriter::closeAfterWriting(char const* path, char const* beginningStrin
 			return Error::WRITE_FAIL;
 		}
 		if (memcmp(miscStringBuffer, endString, length)) {
-			return Error::WRITE_FAIL;
-		}
-	}
-
-	if (path) {
-		result = closeWriter();
-		if (!result) {
 			return Error::WRITE_FAIL;
 		}
 	}

@@ -5,6 +5,7 @@ Run directly with:
     python3 scripts/tasks/test_harness_registry.py
 """
 
+import dataclasses
 import hashlib
 import importlib.util
 import io
@@ -14,7 +15,9 @@ import subprocess
 import sys
 import tempfile
 import threading
+import types
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest import mock
 
@@ -44,6 +47,7 @@ run = ["cargo", "test"]
 requires = ["cargo"]
 tier = "pr"
 runtime = "~1m"
+group = "storage"
 """
 
 
@@ -60,6 +64,7 @@ source = "x"
 tree = "build/x"
 ctest_args = ["-C", "Debug"]
 tier = "pr"
+group = "unit"
 """
 
 
@@ -144,6 +149,35 @@ class LoadRegistryTest(unittest.TestCase):
         h = hr.load_registry(self._root_with(MINIMAL))[0]
         self.assertEqual(h.env, {})
 
+    def test_missing_group_is_rejected(self):
+        text = MINIMAL.replace('group = "storage"\n', "")
+        with self.assertRaises(ValueError) as cm:
+            hr.load_registry(self._root_with(text))
+        self.assertIn("missing required field 'group'", str(cm.exception))
+
+    def test_unknown_group_is_rejected(self):
+        text = MINIMAL.replace('group = "storage"', 'group = "misc"')
+        with self.assertRaises(ValueError) as cm:
+            hr.load_registry(self._root_with(text))
+        self.assertIn("group 'misc' must be one of", str(cm.exception))
+
+    def test_prebuilt_group_builds_only_its_product(self):
+        text = MINIMAL.replace('group = "storage"', 'group = "render"').replace(
+            'requires = ["cargo"]', 'builds = ["host-app"]\nrequires = ["cargo"]'
+        )
+        with self.assertRaises(ValueError) as cm:
+            hr.load_registry(self._root_with(text))
+        self.assertIn("builds only golden-vt-render", str(cm.exception))
+
+    def test_prebuilt_group_holds_only_scenario_gates(self):
+        text = MINIMAL.replace('group = "storage"', 'group = "model"').replace(
+            'requires = ["cargo"]',
+            'builds = ["golden-vt-render"]\nrequires = ["cargo"]',
+        )
+        with self.assertRaises(ValueError) as cm:
+            hr.load_registry(self._root_with(text))
+        self.assertIn("holds only scenario gates", str(cm.exception))
+
     def test_missing_gates_is_rejected(self):
         text = MINIMAL.replace('gates = "alpha must equal beta"\n', "")
         with self.assertRaises(ValueError) as cm:
@@ -224,6 +258,7 @@ scenario = "gamma"
 markers = ["GA-ONE"]
 builds = ["golden-vt-render"]
 tier = "nightly"
+group = "render"
 """
 
     def _root_with(self, text):
@@ -254,6 +289,15 @@ tier = "nightly"
         self.assertIn("nope.py", str(cm.exception))
 
 
+def _load_task_test():
+    spec = importlib.util.spec_from_file_location(
+        "task_test", Path(__file__).parent / "task-test.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class BuildsTest(unittest.TestCase):
     def _root_with(self, text):
         root = Path(tempfile.mkdtemp())
@@ -277,6 +321,86 @@ class BuildsTest(unittest.TestCase):
         with self.assertRaises(ValueError) as cm:
             hr.load_registry(self._root_with(text))
         self.assertIn("a-pony", str(cm.exception))
+
+    def test_golden_vt_render_outputs_the_release_binary(self):
+        root = Path("/repo")
+        self.assertEqual(
+            tb.products(root)["golden-vt-render"].outputs(root),
+            [root / "build/cargo-harness/release/golden_vt_render"],
+        )
+
+    def test_prebuilt_outputs_rejects_unprebuildable(self):
+        root = Path("/repo")
+        with self.assertRaisesRegex(ValueError, "has no prebuilt outputs"):
+            tb.prebuilt_outputs(["host-app"], tb.products(root), root)
+
+    def test_prebuilt_missing_output_fails(self):
+        task_test = _load_task_test()
+        root = Path(tempfile.mkdtemp())
+        h = dataclasses.replace(entry("r"), group="render", builds=["golden-vt-render"])
+        args = types.SimpleNamespace(
+            junit=None,
+            skip_checks=True,
+            build_only=False,
+            jobs=1,
+            strict=False,
+            prebuilt=True,
+        )
+        out = io.StringIO()
+        with (
+            mock.patch("subprocess.run") as run,
+            mock.patch.object(task_test, "OUT", out),
+        ):
+            status = task_test.cmd_run(root, [h], args, [], named=False)
+        run.assert_not_called()
+        self.assertEqual(status, 1)
+        self.assertIn("is not built", out.getvalue())
+
+    def _run(self, selection, junit=None, prebuilt=False):
+        task_test = _load_task_test()
+        args = types.SimpleNamespace(
+            junit=junit,
+            skip_checks=False,
+            build_only=False,
+            jobs=1,
+            strict=False,
+            prebuilt=prebuilt,
+        )
+        # A real file: a test run straight through writes to the runner's output descriptor.
+        with (
+            tempfile.TemporaryFile("w+") as out,
+            mock.patch.object(task_test, "OUT", out),
+        ):
+            return task_test.cmd_run(
+                Path(tempfile.mkdtemp()), selection, args, [], named=False
+            )
+
+    def test_prebuilt_checks_products_before_probes(self):
+        h = dataclasses.replace(
+            entry("r"),
+            group="render",
+            builds=["golden-vt-render"],
+            requires=["cargo-fuzz"],
+        )
+        with mock.patch.object(hr, "probe", return_value=False):
+            self.assertEqual(self._run([h], prebuilt=True), 1)
+
+    def test_junit_written_for_every_test_without_its_own(self):
+        junit = Path(tempfile.mkdtemp())
+        passing = entry("passes")
+        failing = dataclasses.replace(entry("fails"), run=["false"])
+        blocked = dataclasses.replace(
+            entry("blocked"), group="render", builds=["golden-vt-render"]
+        )
+        self._run([passing, failing, blocked], junit=str(junit), prebuilt=True)
+        cases = {
+            p.stem: ET.parse(p).getroot().find(".//testcase")
+            for p in junit.glob("*.xml")
+        }
+        self.assertEqual(sorted(cases), ["blocked", "fails", "passes"])
+        self.assertIsNone(cases["passes"].find("failure"))
+        self.assertIsNotNone(cases["fails"].find("failure"))
+        self.assertIn("is not built", cases["blocked"].find("failure").get("message"))
 
     def test_order_puts_dependencies_first_and_each_once(self):
         known = tb.products(Path("/repo"))
@@ -434,7 +558,46 @@ class ProbeTest(unittest.TestCase):
             self.assertTrue(hr.probe("song-corpus", root))
 
 
+class CiMatrixTest(unittest.TestCase):
+    def test_ci_matrix_covers_every_test_once(self):
+        root = Path(__file__).resolve().parents[2]
+        selection = hr.select(hr.load_registry(root), [], [], "pr")
+        names = [
+            n for e in hr.ci_matrix(selection)["include"] for n in e["tests"].split()
+        ]
+        self.assertEqual(sorted(names), sorted(h.name for h in selection))
+        self.assertEqual(len(names), len(set(names)))
+
+    def test_ci_matrix_keeps_the_flat_test_list(self):
+        # main's nightly workflow checks out next and reads .test.
+        selection = [entry("a"), dataclasses.replace(entry("r"), group="render")]
+        self.assertEqual(hr.ci_matrix(selection)["test"], ["a", "r"])
+
+    def test_ci_matrix_entry_shape(self):
+        selection = [
+            dataclasses.replace(entry("a"), group="unit"),
+            dataclasses.replace(entry("r"), group="render"),
+            dataclasses.replace(entry("b"), group="unit"),
+        ]
+        self.assertEqual(
+            hr.ci_matrix(selection),
+            {
+                "include": [
+                    {"group": "render", "tests": "r", "prebuilt": "golden-vt-render"},
+                    {"group": "unit", "tests": "a b", "prebuilt": ""},
+                ],
+                "test": ["a", "r", "b"],
+            },
+        )
+
+
 class MarkdownTableTest(unittest.TestCase):
+    def test_table_has_a_group_column_after_tier(self):
+        table = hr.markdown_table(hr.load_registry(self._root()))
+        header = [c.strip() for c in table.split("\n")[0].strip("|").split("|")]
+        self.assertEqual(header[header.index("Tier") + 1], "Group")
+        self.assertIn("| pr | storage |", table)
+
     def test_table_has_a_row_per_harness(self):
         entries = hr.load_registry(self._root())
         table = hr.markdown_table(entries)
@@ -453,9 +616,9 @@ class MarkdownTableTest(unittest.TestCase):
         header_row = lines[0]
         data_row = lines[2]
         # One more pipe than columns: leading, one between each pair, trailing.
-        self.assertEqual(header_row.count("|"), 9)
+        self.assertEqual(header_row.count("|"), 10)
         # The escaped pipe adds one to the data row without adding a column.
-        self.assertEqual(data_row.count("|"), 10)
+        self.assertEqual(data_row.count("|"), 11)
 
     def _root(self):
         root = Path(tempfile.mkdtemp())

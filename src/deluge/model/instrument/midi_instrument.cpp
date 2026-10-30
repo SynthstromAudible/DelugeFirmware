@@ -770,13 +770,17 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 /// if you haven't labeled anything and you hide unlabeled CC's, then this function will restrict you to select "NONE"
 /// or the "EXPRESSION" CC's.
 int32_t MIDIInstrument::getNextSelectableCC(int32_t cc, int32_t offset, bool includeNoCC) {
+	if (offset == 0) {
+		return cc;
+	}
+
 	int32_t newCC = cc;
 	int32_t direction = (offset < 0) ? -1 : 1;
 	int32_t steps = (offset < 0) ? -offset : offset;
 	int32_t numSelectableCCs = includeNoCC ? kNumCCNumbersIncludingFake : kNumCCExpression;
 
-	// loop until we have found a CC
-	while (true) {
+	// Cap the search at one full pass so a step size that never lands on a selectable CC can't loop forever.
+	for (int32_t attempts = 0; attempts < numSelectableCCs; attempts++) {
 		// get the next CC in the direction specified by the offset
 		for (int32_t i = 0; i < steps; i++) {
 			newCC += direction;
@@ -796,25 +800,24 @@ int32_t MIDIInstrument::getNextSelectableCC(int32_t cc, int32_t offset, bool inc
 			// these CC's do not have a label, so they are always selectable
 			if (newCC == CC_NUMBER_NONE || newCC == CC_NUMBER_Y_AXIS || newCC == CC_NUMBER_PITCH_BEND
 			    || newCC == CC_NUMBER_AFTERTOUCH) {
-				break;
+				return newCC;
 			}
 			// if this cc doesn't have a label, continue searching in the same direction
 			else if (getNameFromCC(newCC).empty()) {
-				// If the new CC is unlabeled, continue searching in the same direction
 				continue;
 			}
 			// If the new CC is labeled, then it is selectable
 			else {
-				break;
+				return newCC;
 			}
 		}
 		// if we don't want to hide unlabeled CC's, then the new CC is selectable
 		else {
-			break;
+			return newCC;
 		}
 	}
 
-	return newCC;
+	return cc;
 }
 
 int32_t MIDIInstrument::changeControlNumberForModKnob(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode) {
