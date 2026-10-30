@@ -212,11 +212,11 @@ describe reference_granular("the granular reference", ${
 	});
 
 	it("draws its noise through the policy and leaves the global stream alone", _ {
-		jcong = gw::kCongSeed;
+		deluge::synth_noise.seed(gw::kCongSeed);
 		CountingNoise::draws = 0;
 		const auto fx = std::make_unique<BasicReferenceGranular<CountingNoise>>();
 		const gw::GranularWorkload& workload = workload_named("FIRST_PASS");
-		const uint32_t before = jcong;
+		const uint32_t before = deluge::synth_noise.state();
 		for (std::size_t b = 0; b < workload.blocks.size(); ++b) {
 			const gw::GranularBlock& block = workload.blocks[b];
 			std::vector<deluge::dsp::StereoSample> frames = gw::stereo_input(block.n, b);
@@ -225,7 +225,7 @@ describe reference_granular("the granular reference", ${
 			fx->processGrainFX(frames, block.rate, block.mix, block.density, block.randomness, &volume, true, gw::kSendAmount, send);
 		}
 		expect(CountingNoise::draws).to_be_greater_than(std::size_t{0});
-		expect(jcong).to_equal(before);
+		expect(deluge::synth_noise.state()).to_equal(before);
 	});
 });
 // clang-format on

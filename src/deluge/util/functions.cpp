@@ -911,7 +911,7 @@ void concatenateLines(const char* lines[], size_t numLines, char* resultString) 
 }
 
 void seedRandom() {
-	jcong = deluge_clock_now();
+	deluge::synth_noise.seed(deluge_clock_now());
 }
 
 // ConvertFromIeeeExtended moved to util/audio_format_helpers.cpp (dep-free).

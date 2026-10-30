@@ -1732,7 +1732,7 @@ int32_t getNumSamplesLeftToOutputFromPreviousRender() {
 }
 
 // Independent white-noise PRNG for the master output dither — deliberately separate from the synth-wide
-// getNoise()/jcong stream (see the dither call site below). Same LCG recurrence as CONG, so the dither's
+// getNoise()/synth_noise stream (see the dither call site below). Same LCG recurrence as CONG, so the dither's
 // statistics are unchanged; only its state is private, so dithering can't perturb synth randomness.
 [[gnu::always_inline]] inline int32_t outputDither() {
 	static uint32_t state = 380116160;
@@ -1786,10 +1786,10 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 
 		// Here we're going to do something equivalent to a multiply_32x32_rshift32(), but add dithering.
 		// Because dithering is good, and also because the annoying codec chip freaks out if it sees the same 0s for
-		// too long. The dither draws from its OWN PRNG stream (outputDither), NOT the synth-wide getNoise()/jcong:
-		// the output stage runs once per output sample — including a load-/timing-dependent number of keep-alive
-		// samples — so sharing the stream let that count perturb every synth random draw, making the offline render
-		// depend on heap layout (and coupling musical randomness to output-sample count). See
+		// too long. The dither draws from its OWN PRNG stream (outputDither), NOT the synth-wide
+		// getNoise()/synth_noise: the output stage runs once per output sample — including a load-/timing-dependent
+		// number of keep-alive samples — so sharing the stream let that count perturb every synth random draw, making
+		// the offline render depend on heap layout (and coupling musical randomness to output-sample count). See
 		// docs/dev/overread_hunt.md.
 		int64_t lAdjustedBig =
 		    (int64_t)renderingBufferOutputPosNow->l * (int64_t)masterVolumeAdjustmentL + (int64_t)outputDither();

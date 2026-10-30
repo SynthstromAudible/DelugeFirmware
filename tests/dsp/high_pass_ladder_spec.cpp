@@ -33,7 +33,7 @@
 #include "filter_workloads.h"
 #include "kernel_filters.h"
 #include "reference_filters.h"
-#include "util/waves.h" // jcong, CONG
+#include "util/waves.h" // synth_noise, CONG
 
 #include <array>
 #include <cppspec.hpp>

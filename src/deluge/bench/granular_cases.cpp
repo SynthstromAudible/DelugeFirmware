@@ -59,7 +59,7 @@ void GranularCase::setup(std::size_t n) {
 	effects::GranularBlockChange change = rig.granular->prepare(ModFXType::GRAIN);
 	rig.granular->commit(ModFXType::GRAIN, change);
 	rig.granular->finish(change);
-	jcong = kNoiseSeed;
+	deluge::synth_noise.seed(kNoiseSeed);
 	fill_compressor_input();
 	const FrameSpans<StereoSample> spans = stereo_frame_spans(n);
 	rig.work = spans.out;

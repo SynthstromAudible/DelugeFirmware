@@ -23,15 +23,15 @@
 #include "dsp-next/fixed/bandlimited/waves.h" // triangle (the LFO's triangle shape)
 #include "dsp-next/fixed/osc/sine_table.h"    // sine_table (the LFO's sine shape)
 #include "synth/lfo.h"
-#include "util/waves.h" // the jcong RNG state (for deterministic S&H / random-walk / warbler)
+#include "util/waves.h" // the synth_noise RNG state (for deterministic S&H / random-walk / warbler)
 #include <cppspec.hpp>
 #include <cstdint>
 
 namespace {
-// The retired suite reset CONG before each test for determinism; CONG == (jcong = …), so seeding jcong is
+// The retired suite reset CONG before each test for determinism; CONG == (synth_noise = …), so seeding synth_noise is
 // equivalent. Call this at the start of any case that exercises randomness.
 void seedRng() {
-	jcong = 13287131;
+	deluge::synth_noise.seed(13287131);
 }
 } // namespace
 
@@ -96,7 +96,7 @@ describe lfo_spec("LFO", ${
 		expect(lfo.render(0, conf, 0)).to_equal(INT32_MIN);
 	});
 
-	// ---- Random waveforms: deterministic under a fixed jcong seed ----
+	// ---- Random waveforms: deterministic under a fixed synth_noise seed ----
 	it("samples and holds a random value per period", _ {
 		seedRng();
 		LFO lfo;

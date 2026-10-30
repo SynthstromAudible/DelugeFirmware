@@ -127,10 +127,11 @@ std::string sound_difference() {
 				in.fx.mod_fx_type = s.mod_fx.type; // a sound's type in effect is its setting
 				Produced a;
 				Produced r;
-				const uint32_t noise = jcong; // the filters' and grain's shared stream: each side starts from it
+				const uint32_t noise =
+				    deluge::synth_noise.state(); // the filters' and grain's shared stream: each side starts from it
 				for (auto [chain, side, stutter] :
 				     {std::tuple{&run, &a, &stutter_a}, std::tuple{&ref, &r, &stutter_b}}) {
-					jcong = noise;
+					deluge::synth_noise.seed(noise);
 					SoundChainInputs mine = in;
 					mine.fx.delay = cw::delay_state(chain->core(), w, s, sound);
 					mine.stutter = w.stutter ? stutter : nullptr;
@@ -140,7 +141,7 @@ std::string sound_difference() {
 					                           : chain_reference::sound(ref.core(), mine, block, send);
 					side->output = words(block);
 					side->send = send;
-					side->noise = jcong;
+					side->noise = deluge::synth_noise.state();
 				}
 				found = first_difference(w.name, b, a, r);
 			}
@@ -197,10 +198,11 @@ std::string clip_difference() {
 				};
 				Produced a;
 				Produced r;
-				const uint32_t noise = jcong; // the filters' and grain's shared stream: each side starts from it
+				const uint32_t noise =
+				    deluge::synth_noise.state(); // the filters' and grain's shared stream: each side starts from it
 				for (auto [chain, side, stutter, scratch] :
 				     {std::tuple{&run, &a, &stutter_a, &scratch_a}, std::tuple{&ref, &r, &stutter_b, &scratch_b}}) {
-					jcong = noise;
+					deluge::synth_noise.seed(noise);
 					ClipChainInputs mine = in;
 					mine.fx.delay = cw::delay_state(chain->core(), w, s, rendered);
 					mine.stutter = w.stutter ? stutter : nullptr;
@@ -221,7 +223,7 @@ std::string clip_difference() {
 					}
 					side->output = words(block);
 					side->send = send;
-					side->noise = jcong;
+					side->noise = deluge::synth_noise.state();
 				}
 				found = first_difference(w.name, b, a, r);
 			}
@@ -265,10 +267,11 @@ std::string master_difference() {
 				};
 				Produced a;
 				Produced r;
-				const uint32_t noise = jcong; // the filters' and grain's shared stream: each side starts from it
+				const uint32_t noise =
+				    deluge::synth_noise.state(); // the filters' and grain's shared stream: each side starts from it
 				for (auto [chain, side, stutter, scratch] :
 				     {std::tuple{&run, &a, &stutter_a, &scratch_a}, std::tuple{&ref, &r, &stutter_b, &scratch_b}}) {
-					jcong = noise;
+					deluge::synth_noise.seed(noise);
 					MasterChainInputs mine = in;
 					mine.fx.delay = cw::delay_state(chain->core(), w, s, true);
 					const MasterPostInputs post{
@@ -296,7 +299,7 @@ std::string master_difference() {
 					                 : chain_reference::master(ref.core(), ref.filter(), mine, block, send, between);
 					side->output = words(block);
 					side->send = send;
-					side->noise = jcong;
+					side->noise = deluge::synth_noise.state();
 				}
 				found = first_difference(w.name, b, a, r);
 				if (found.empty() && a.calls != 1) {

@@ -22,7 +22,7 @@
 #include "engines/effects/filter.h"
 
 #include "util/fixedpoint.h"
-#include "util/waves.h" // jcong
+#include "util/synth_noise.h"
 
 #include <algorithm>
 #include <array>
@@ -216,7 +216,7 @@ struct Fresh {
 	int32_t volume;
 };
 Fresh fresh(const FilterState& state, const FilterParams& params) {
-	jcong = kSeed;
+	deluge::synth_noise.seed(kSeed);
 	Rig rig;
 	std::vector<int32_t> output = rig.run(state, params);
 	return {.output = output, .volume = rig.volume};
@@ -232,17 +232,17 @@ int32_t scaled_only(int32_t volume) {
 // clang-format off
 describe filter("a host chain's filters, switched on by their params", ${
 	it("leaves the block untouched with the low-pass fully open and the high-pass at minimum", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		expect(rig.run({}, kOpen)).to_equal(kInput);
 		expect(rig.volume).to_equal(scaled_only(kVolume));
 	});
 	it("runs the drive ladder fully open", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		expect(rig.run({.lpf_mode = FilterMode::TRANSISTOR_24DB_DRIVE}, kOpen)).to_equal(kDriveOpen);
 		expect(rig.volume).to_equal(kDriveOpenVolume);
-		expect(static_cast<int32_t>(jcong)).to_equal(kDriveOpenNoiseAfter);
+		expect(static_cast<int32_t>(deluge::synth_noise.state())).to_equal(kDriveOpenNoiseAfter);
 	});
 	it("runs the low-pass while its morph is above minimum", _ {
 		FilterParams params = kOpen;
@@ -293,7 +293,7 @@ describe filter("a host chain's filters, switched on by their params", ${
 		expect(full.volume).to_equal(kLow24dBVolume);
 	});
 	it("runs both in parallel, the high-pass switched on fading in", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		const FilterState state{.lpf_mode = FilterMode::TRANSISTOR_24DB, .route = FilterRoute::PARALLEL};
 		expect(rig.run(state, kLowOnlyParams)).to_equal(kLowOnly);
@@ -302,15 +302,15 @@ describe filter("a host chain's filters, switched on by their params", ${
 		both.hpf_frequency_param = 0;
 		expect(rig.run(state, both)).to_equal(kBoth);
 		expect(rig.volume).to_equal(kBothVolume);
-		expect(static_cast<int32_t>(jcong)).to_equal(kNoiseAfter);
+		expect(static_cast<int32_t>(deluge::synth_noise.state())).to_equal(kNoiseAfter);
 	});
 	it("resets to a fresh filter", _ {
 		const FilterState state{.lpf_mode = FilterMode::TRANSISTOR_24DB, .route = FilterRoute::PARALLEL};
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		std::ignore = rig.run(state, kLowOnlyParams);
 		rig.filter.reset();
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		expect(rig.run(state, kLowOnlyParams)).to_equal(kLowOnly);
 	});
 });

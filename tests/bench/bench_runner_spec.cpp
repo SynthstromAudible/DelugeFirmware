@@ -17,7 +17,7 @@
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "util/fixedpoint.h"
-#include "util/waves.h" // jcong
+#include "util/synth_noise.h"
 
 #include <algorithm>
 #include <array>
@@ -620,7 +620,7 @@ FilterReference filter_reference(const FilterCaseConfig& config, std::size_t n, 
 	out.last_block.assign(lanes_input().begin(), lanes_input().begin() + static_cast<std::ptrdiff_t>(samples));
 	std::vector<q31> fade(samples);
 	std::vector<q31> parallel(samples);
-	jcong = kFilterNoiseSeed;
+	deluge::synth_noise.seed(kFilterNoiseSeed);
 	dsp::fixed::FilterSet set;
 	for (std::size_t b = 0; b < blocks; ++b) {
 		if (config.fading) {
@@ -636,7 +636,7 @@ FilterReference filter_reference(const FilterCaseConfig& config, std::size_t n, 
 			set.renderMono(out.last_block, {.fade = fade, .parallel = parallel});
 		}
 	}
-	out.noise = jcong;
+	out.noise = deluge::synth_noise.state();
 	return out;
 }
 
@@ -1619,8 +1619,8 @@ describe bench_runner("The DSP benchmark runner", ${
 					    .to_equal(expected.last_block);
 					expect(std::ranges::count(expected.last_block, 0)).to_be_less_than(std::ptrdiff_t{2});
 					expect(filter_rig().gain).to_equal(expected.gain);
-					expect(jcong).to_equal(expected.noise);
-					expect(jcong).to_equal(noise_after(kFilterNoiseSeed, blocks * samples * draws));
+					expect(deluge::synth_noise.state()).to_equal(expected.noise);
+					expect(deluge::synth_noise.state()).to_equal(noise_after(kFilterNoiseSeed, blocks * samples * draws));
 					expect(filter_rig().set.isLowPassOn()).to_equal(config.low.kind != dsp::fixed::LowPassSlot::Kind::OFF);
 					expect(filter_rig().set.isHighPassOn())
 					    .to_equal(config.high.kind != dsp::fixed::HighPassSlot::Kind::OFF);

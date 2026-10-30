@@ -335,13 +335,13 @@ pub extern "C" fn deluge_host_midi_script_released() -> u32 {
 }
 
 unsafe extern "C" {
-    /// The synth's random stream (`util/waves.h`): oscillator phases, noise and random modulation
-    /// all draw from it.
-    static mut jcong: u32;
+    /// Reseeds the synth's noise stream (`util/synth_noise.h`): oscillator phases, noise and random
+    /// modulation all draw from it.
+    fn deluge_seed_noise(seed: u32);
 }
 
-/// `jcong`'s value at boot (`util/waves.cpp`).
-const JCONG_BOOT_SEED: u32 = 380_116_160;
+/// The noise stream's state at boot (`util/synth_noise.cpp`).
+const NOISE_BOOT_SEED: u32 = 380_116_160;
 
 /// Returns the seed the script's first byte restarts the random stream from: `RENDER_RANDOM_SEED`,
 /// or the boot seed. Another seed shows how much a render depends on its random draws.
@@ -351,7 +351,7 @@ fn script_random_seed() -> u32 {
         std::env::var("RENDER_RANDOM_SEED")
             .ok()
             .and_then(|s| s.parse().ok())
-            .unwrap_or(JCONG_BOOT_SEED)
+            .unwrap_or(NOISE_BOOT_SEED)
     })
 }
 
@@ -369,9 +369,8 @@ pub fn din_script_read() -> Option<u8> {
         return None;
     }
     if script.next == 0 && script.byte == 0 {
-        // SAFETY: a plain store to an app global, on the MIDI tier, before the byte that starts the
-        // first note is handed over.
-        unsafe { jcong = script_random_seed() };
+        // SAFETY: an app call on the MIDI tier, before the byte that starts the first note is handed over.
+        unsafe { deluge_seed_noise(script_random_seed()) };
     }
     let b = bytes[script.byte];
     script.byte += 1;

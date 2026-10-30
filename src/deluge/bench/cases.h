@@ -1114,8 +1114,8 @@ private:
 inline constexpr DelayWholeConfig kDelayWholeGrowing{
     .tape = DelayTapeForm::RES_HI, .cross = false, .analog = false, .growing = true};
 
-/// @brief The filter cases' seed for the synth-wide noise generator (util/waves.h's jcong), which the low-pass ladder
-/// draws from: the app's boot value.
+/// @brief The filter cases' seed for the synth-wide noise generator (`deluge::synth_noise`, util/synth_noise.h), which
+/// the low-pass ladder draws from: the app's boot value.
 inline constexpr uint32_t kFilterNoiseSeed = 380'116'160;
 /// @brief The gain going into every filter case's set, Q31: a quarter.
 inline constexpr q31 kFilterGain = 536'870'912;

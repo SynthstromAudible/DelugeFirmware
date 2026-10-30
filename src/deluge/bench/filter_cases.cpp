@@ -7,7 +7,7 @@
 /// set holds. A fading case switches the low-pass off and back on first, so its fade runs over every block.
 
 #include "bench/cases.h"
-#include "util/waves.h" // jcong, the synth-wide noise the low-pass ladder draws from
+#include "util/synth_noise.h"
 
 #include <array>
 #include <cstddef>
@@ -35,7 +35,7 @@ template <bool Stereo>
 void FilterCase<Stereo>::setup(std::size_t n) {
 	rig.set.reset();
 	rig.gain = 0;
-	jcong = kFilterNoiseSeed;
+	deluge::synth_noise.seed(kFilterNoiseSeed);
 	rig.work = in_place_filter_block(n * kLanes);
 }
 

@@ -1,11 +1,10 @@
 #pragma once
 
-#include "dsp-next/fixed/noise/congruential_step.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/synth_noise.h"
 
-#define CONG (jcong = deluge::dsp::fixed::CongruentialStep::next(jcong))
-
-extern uint32_t jcong;
+/// The synth's noise stream, drawn where a call site has not yet been given it explicitly.
+#define CONG (deluge::synth_noise.next())
 
 // The analytic waves now live in dsp-next: the square/triangle kernels (deluge::dsp::fixed::square /
 // triangle / triangle_half_scale, dsp-next/fixed/bandlimited/waves.h) and the sine LUT evaluator

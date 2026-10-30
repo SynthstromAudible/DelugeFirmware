@@ -27,7 +27,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/stereo_sample.h"
 #include "granular_ring.h"
-#include "util/waves.h" // jcong
+#include "util/synth_noise.h"
 
 #include <algorithm>
 #include <array>
@@ -291,7 +291,7 @@ struct GranularTrace {
 /// @tparam Fx A granular effect with the reference's calls.
 template <typename Fx>
 [[nodiscard]] GranularTrace play(const GranularWorkload& workload, Fx& fx) {
-	jcong = workload.cong_seed;
+	deluge::synth_noise.seed(workload.cong_seed);
 	GranularTrace trace;
 	for (std::size_t b = 0; b < workload.blocks.size(); ++b) {
 		const GranularBlock& block = workload.blocks[b];

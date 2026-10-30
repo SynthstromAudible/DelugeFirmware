@@ -22,7 +22,7 @@
 #include "dsp-next/fixed/osc/sine_table.h"    // sine_table
 #include "modulation/sync.h"
 #include "util/fixedpoint.h"
-#include "util/waves.h" // the jcong/CONG RNG (random waveforms)
+#include "util/waves.h" // CONG, the synth's noise stream (random waveforms)
 #include <cstdint>
 #include <variant>
 

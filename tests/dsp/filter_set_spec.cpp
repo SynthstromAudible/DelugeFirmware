@@ -20,7 +20,7 @@
 // with the synth-wide noise generator seeded the same.
 
 #include "dsp-next/fixed/filter/filter_set.h"
-#include "util/waves.h" // jcong
+#include "util/synth_noise.h"
 
 #include <cppspec.hpp>
 #include <cstdint>
@@ -298,84 +298,84 @@ const std::vector<int32_t> kParallelLoudStereo{
 // clang-format off
 describe filter_set("FilterSet", ${
 	it("runs the high-pass then the low-pass, in mono exactly", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		const int32_t gain = rig.configure(kLow24, kHighLadder, FilterRoute::HIGH_TO_LOW);
 		expect(rig.mono(kInput)).to_equal(kRouteH2LMono);
 		expect(gain).to_equal(536253356);
 	});
 	it("runs the high-pass then the low-pass, in stereo exactly", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		const int32_t gain = rig.configure(kLow24, kHighLadder, FilterRoute::HIGH_TO_LOW);
 		expect(rig.stereo(kInput)).to_equal(kRouteH2LStereo);
 		expect(gain).to_equal(536253356);
 	});
 	it("runs the low-pass then the high-pass, in mono exactly", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		const int32_t gain = rig.configure(kLow24, kHighLadder, FilterRoute::LOW_TO_HIGH);
 		expect(rig.mono(kInput)).to_equal(kRouteL2HMono);
 		expect(gain).to_equal(536253356);
 	});
 	it("runs the low-pass then the high-pass, in stereo exactly", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		const int32_t gain = rig.configure(kLow24, kHighLadder, FilterRoute::LOW_TO_HIGH);
 		expect(rig.stereo(kInput)).to_equal(kRouteL2HStereo);
 		expect(gain).to_equal(536253356);
 	});
 	it("sums the two filters run side by side, in mono exactly", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		const int32_t gain = rig.configure(kLow24, kHighLadder, FilterRoute::PARALLEL);
 		expect(rig.mono(kInput)).to_equal(kRouteParallelMono);
 		expect(gain).to_equal(536253356);
 	});
 	it("sums the two filters run side by side, in stereo exactly", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		const int32_t gain = rig.configure(kLow24, kHighLadder, FilterRoute::PARALLEL);
 		expect(rig.stereo(kInput)).to_equal(kRouteParallelStereo);
 		expect(gain).to_equal(536253356);
 	});
 	it("runs an SVF in each slot exactly, the gain only scaled", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		const int32_t gain = rig.configure(kLowBand, kHighNotch);
 		expect(rig.mono(kInput)).to_equal(kSvfPair);
 		expect(gain).to_equal(430000000);
 	});
 	it("runs the drive ladder alone exactly", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		const int32_t gain = rig.configure(kLowDrive, kHighOff);
 		expect(rig.mono(kInput)).to_equal(kDriveAlone);
 		expect(gain).to_equal(343999998);
 	});
 	it("runs an SVF high-pass alone exactly", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		const int32_t gain = rig.configure(kLowOff, kHighBand);
 		expect(rig.mono(kInput)).to_equal(kHighBandAlone);
 		expect(gain).to_equal(430000000);
 	});
 	it("passes the block through with both off, still scaling the gain", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		const int32_t gain = rig.configure(kLowOff, kHighOff);
 		expect(rig.mono(kInput)).to_equal(kInput);
 		expect(gain).to_equal(430000000);
 	});
 	it("runs the 12dB ladder and the high-pass ladder low to high, in stereo exactly", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		const int32_t gain = rig.configure(kLow12, kHighLadder, FilterRoute::LOW_TO_HIGH);
 		expect(rig.stereo(kInput)).to_equal(kLp12HighLadderStereo);
 		expect(gain).to_equal(536253356);
 	});
 	it("resets the low-pass without a fade when its family changes", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		std::ignore = rig.configure(kLow24, kHighOff);
 		std::ignore = rig.mono(kInput);
@@ -384,30 +384,30 @@ describe filter_set("FilterSet", ${
 		expect(gain).to_equal(430000000);
 	});
 	it("starts over with no fade after reset(), as a new set does", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		std::ignore = rig.configure(kLow24, kHighLadder);
 		std::ignore = rig.mono(kInput);
 		std::ignore = rig.mono(kInput);
 		rig.set.reset();
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		std::ignore = rig.configure(kLow24, kHighLadder);
 		expect(rig.mono(kInput)).to_equal(kRouteH2LMono);
 	});
 	it("fades both filters in when they come back on from off", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		std::ignore = rig.configure(kLow24, kHighLadder);
 		std::ignore = rig.mono(kInput);
 		std::ignore = rig.mono(kInput);
 		std::ignore = rig.configure(kLowOff, kHighOff);
 		std::ignore = rig.mono(kInput);
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		std::ignore = rig.configure(kLow24, kHighLadder);
 		expect(rig.mono(kInput)).to_equal(kAfterOff);
 	});
 	it("fades in from off after reset(), where reset() itself fades nothing", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		std::ignore = rig.configure(kLowOff, kHighOff);
 		std::ignore = rig.mono(kInput);
@@ -415,7 +415,7 @@ describe filter_set("FilterSet", ${
 		expect(rig.mono(kInput)).to_equal(kOffThenOn);
 	});
 	it("carries a fade under way across a family change in each slot", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		std::ignore = rig.configure(kLowOff, kHighOff);
 		std::ignore = rig.mono(kInput);
@@ -424,7 +424,7 @@ describe filter_set("FilterSet", ${
 		std::ignore = rig.configure(kLowBand, kHighBand);
 		const std::vector<int32_t> carried = rig.mono(kInput);
 		expect(carried).to_equal(kFadeCarried);
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig fresh;
 		std::ignore = fresh.configure(kLowBand, kHighBand);
 		const std::vector<int32_t> unfaded = fresh.mono(kInput);
@@ -432,7 +432,7 @@ describe filter_set("FilterSet", ${
 		expect(carried).not_().to_equal(unfaded);
 	});
 	it("clears the high-pass SVF on any mode change and keeps the low-pass SVF within its family", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		std::ignore = rig.configure(kLowBand, kHighBand);
 		std::ignore = rig.mono(kInput);
@@ -440,40 +440,40 @@ describe filter_set("FilterSet", ${
 		expect(rig.mono(kInput)).to_equal(kSvfModeChange);
 	});
 	it("starts over after reset() with SVFs in both slots, as a new set does", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig fresh;
 		std::ignore = fresh.configure(kLowBand, kHighBand);
 		expect(fresh.mono(kInput)).to_equal(kSvfBothFresh);
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		std::ignore = rig.configure(kLowBand, kHighBand);
 		std::ignore = rig.mono(kInput);
 		rig.set.reset();
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		std::ignore = rig.configure(kLowBand, kHighBand);
 		expect(rig.mono(kInput)).to_equal(kSvfBothFresh);
 	});
 	it("adds the dry block in parallel when the high-pass is off", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		std::ignore = rig.configure(kLow24, kHighOff, FilterRoute::PARALLEL);
 		expect(rig.mono(kInput)).to_equal(kParallelHighOff);
 	});
 	it("wraps the parallel sum near full scale rather than saturating, in mono", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		std::ignore = rig.configure(kLow12, kHighLadder, FilterRoute::PARALLEL, kOpenLow, kOpenHigh);
 		expect(rig.mono(kLoud)).to_equal(kParallelLoudMono);
 	});
 	it("wraps the parallel sum near full scale rather than saturating, in stereo", _ {
-		jcong = kSeed;
+		deluge::synth_noise.seed(kSeed);
 		Rig rig;
 		std::ignore = rig.configure(kLow12, kHighLadder, FilterRoute::PARALLEL, kOpenLow, kOpenHigh);
 		expect(rig.stereo(kLoud)).to_equal(kParallelLoudStereo);
 	});
 	it("takes no fade scratch on blocks neither filter fades, rendering as with it", _ {
 		const auto render = [&](LowPassSlot low, HighPassSlot high, FilterRoute route, bool stereo) {
-			jcong = kSeed;
+			deluge::synth_noise.seed(kSeed);
 			Rig rig;
 			rig.fade.clear();
 			std::ignore = rig.configure(low, high, route);

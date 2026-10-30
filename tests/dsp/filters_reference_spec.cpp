@@ -28,7 +28,7 @@
 #include "filter_workloads.h"
 #include "kernel_filters.h"
 #include "reference_filters.h"
-#include "util/waves.h" // jcong
+#include "util/synth_noise.h"
 
 #include <algorithm>
 #include <bit>
@@ -180,8 +180,8 @@ using filter_workloads::ReferenceFamily;
 template <typename Scratch, typename Set>
 q31 play_block(Set& set, uint32_t& cong, const filter_workloads::FilterStep& s, bool mono, std::vector<q31>& block,
                std::span<q31> fade, std::span<q31> parallel) {
-	const uint32_t outer = jcong;
-	jcong = cong;
+	const uint32_t outer = deluge::synth_noise.state();
+	deluge::synth_noise.seed(cong);
 	if (s.event == filter_workloads::Event::RESET) {
 		set.reset();
 	}
@@ -193,8 +193,8 @@ q31 play_block(Set& set, uint32_t& cong, const filter_workloads::FilterStep& s, 
 	else {
 		set.renderStereo(block, scratch);
 	}
-	cong = jcong;
-	jcong = outer;
+	cong = deluge::synth_noise.state();
+	deluge::synth_noise.seed(outer);
 	return gain;
 }
 

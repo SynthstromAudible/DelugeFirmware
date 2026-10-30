@@ -24,7 +24,7 @@
 ///  - the ring is an owned array with a `held` flag, where the firmware holds a heap block; every acquisition of the
 ///    ring zeroes it, as the host allocator does, so a slot read before it is written since the acquisition reads 0;
 ///  - the noise draws (`CONG`, `random`, `getRandom255`, `sampleTriangleDistribution`) go through a Noise policy that
-///    defaults to the global `jcong`;
+///    defaults to the global `synth_noise`;
 ///  - the reverb feed (`AudioEngine::feedReverbBackdoorForGrain`) adds into a span argument, wrapping;
 ///  - every add that can wrap is a wrapping one, so the spec's signed-overflow sanitizer sees the same two's-complement
 ///    result the target computes;
@@ -42,7 +42,7 @@
 #include "dsp-next/fixed/vca/pan.h"
 #include "granular_ring.h"
 #include "util/fixedpoint.h"
-#include "util/waves.h" // CONG, jcong
+#include "util/waves.h" // CONG, synth_noise
 
 #include <algorithm>
 #include <array>

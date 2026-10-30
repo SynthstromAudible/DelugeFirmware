@@ -28,7 +28,7 @@ file(GLOB_RECURSE deluge_SOURCES
         # Shared string helper used across several unit tests
         ../../../src/deluge/util/c_string.cpp
         ../../../src/deluge/util/lookuptables.cpp
-        ../../../src/deluge/util/waves.cpp
+        ../../../src/deluge/util/synth_noise.cpp
         # For value scaling
         ../../../src/deluge/gui/menu_item/value_scaling.cpp
         # For scale tests

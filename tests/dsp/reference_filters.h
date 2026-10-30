@@ -47,7 +47,7 @@
 #include "dsp-next/fixed/shaping/tanh_table.h"
 #include "util/fixedpoint.h"
 #include "util/param_functions.h" // lshiftAndSaturate, lshiftAndSaturateUnknown
-#include "util/waves.h"           // the synth-wide noise generator (jcong, CONG)
+#include "util/waves.h"           // the synth-wide noise generator (synth_noise, CONG)
 
 #include <algorithm>
 #include <array>

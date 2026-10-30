@@ -34,7 +34,7 @@
 #include "filter_workloads.h"
 #include "kernel_filters.h"
 #include "reference_filters.h"
-#include "util/waves.h" // jcong, CONG
+#include "util/waves.h" // synth_noise, CONG
 
 #include <algorithm>
 #include <array>
@@ -328,7 +328,7 @@ describe low_pass_ladder("LowPassLadder", ${
 				else {
 					reference.renderMono(expected, scratch);
 				}
-				const uint32_t reference_end = jcong;
+				const uint32_t reference_end = deluge::synth_noise.state();
 
 				std::vector<q31> out = kInput;
 				filter_workloads::reset_cong();
@@ -342,9 +342,9 @@ describe low_pass_ladder("LowPassLadder", ${
 					ladder.renderBlock(out, out);
 				}
 				const uint32_t limit = 4 * static_cast<uint32_t>(kInput.size());
-				expect(draws_between(filter_workloads::kCongSeed, jcong, limit))
+				expect(draws_between(filter_workloads::kCongSeed, deluge::synth_noise.state(), limit))
 				    .to_equal(per_sample * static_cast<uint32_t>(kInput.size()));
-				expect(jcong).to_equal(reference_end);
+				expect(deluge::synth_noise.state()).to_equal(reference_end);
 				expect(out).to_equal(expected);
 			}
 		}
@@ -387,7 +387,7 @@ describe low_pass_ladder("LowPassLadder", ${
 					else {
 						reference.renderMono(want, scratch);
 					}
-					const uint32_t reference_end = jcong;
+					const uint32_t reference_end = deluge::synth_noise.state();
 
 					std::vector<q31> out = *input;
 					filter_workloads::reset_cong();
@@ -400,7 +400,7 @@ describe low_pass_ladder("LowPassLadder", ${
 						Mono<Ladder> ladder{settings};
 						ladder.renderBlock(out, out);
 					}
-					expect(jcong).to_equal(reference_end);
+					expect(deluge::synth_noise.state()).to_equal(reference_end);
 					expect(out).to_equal(want);
 				}
 			}
@@ -459,10 +459,10 @@ describe low_pass_ladder("LowPassLadder", ${
 				uint32_t kernel_cong = filter_workloads::kCongSeed;
 				for (const Setting& setting : {from, to, from}) {
 					std::vector<q31> expected = kInput;
-					jcong = reference_cong;
+					deluge::synth_noise.seed(reference_cong);
 					std::ignore = reference.configure(kGain, setting.config, setting.mode);
 					reference.renderStereo(expected, scratch);
-					reference_cong = jcong;
+					reference_cong = deluge::synth_noise.state();
 
 					const Ladder::State left = ladder.left();
 					const Ladder::State right = ladder.right();
@@ -471,10 +471,10 @@ describe low_pass_ladder("LowPassLadder", ${
 					expect(words(ladder.right())).to_equal(words(right));
 
 					std::vector<q31> out = kInput;
-					jcong = kernel_cong;
+					deluge::synth_noise.seed(kernel_cong);
 					const auto frames = deluge::dsp::as_frames(out);
 					ladder.renderBlock(frames, frames);
-					kernel_cong = jcong;
+					kernel_cong = deluge::synth_noise.state();
 
 					expect(out).to_equal(expected);
 					expect(kernel_cong).to_equal(reference_cong);

@@ -25,7 +25,7 @@
 #include "dsp-next/core/stereo_sample.h"
 #include "granular_workloads.h"
 #include "reference_granular.h"
-#include "util/waves.h" // jcong
+#include "util/synth_noise.h"
 
 #include <algorithm>
 #include <array>
@@ -233,7 +233,7 @@ void push_grain(std::vector<uint32_t>& words, int32_t length, int32_t start, int
 /// comes back; every block is the same knobs, with sound.
 template <typename Fx, typename Leave, typename Enter>
 [[nodiscard]] gw::GranularTrace drive_round_trip(Fx& fx, Leave leave, Enter enter) {
-	jcong = gw::kCongSeed;
+	deluge::synth_noise.seed(gw::kCongSeed);
 	gw::GranularTrace trace;
 	const auto render = [&](std::size_t from, std::size_t count) {
 		for (std::size_t b = from; b < from + count; ++b) {
@@ -261,7 +261,7 @@ template <typename Fx, typename Leave, typename Enter>
 /// @param after_silence Called with the generator's state once the silent blocks are done.
 template <typename Fx>
 [[nodiscard]] gw::GranularTrace drive_silence_then_sound(Fx& fx, std::size_t silent, uint32_t& after_silence) {
-	jcong = gw::kCongSeed;
+	deluge::synth_noise.seed(gw::kCongSeed);
 	gw::GranularTrace trace;
 	for (std::size_t b = 0; b < silent + 300; ++b) {
 		const bool sound = b >= silent;
@@ -272,7 +272,7 @@ template <typename Fx>
 		std::vector<q31_t> send = gw::send_input(256, b, false);
 		int32_t volume = gw::kStartVolume;
 		if (b == silent) {
-			after_silence = jcong;
+			after_silence = deluge::synth_noise.state();
 		}
 		fx.processGrainFX(frames, gw::kRateMid, gw::kMixMid, gw::kDensityMid, gw::kRandomnessMid, &volume, sound,
 		                  gw::kSendAmount, send);
@@ -580,7 +580,7 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 			expect(fx.state()).not_().to_be_null();
 			expect(fx.holdsRing()).to_equal(false);
 			const std::vector<uint32_t> before = state_words(fx);
-			jcong = gw::kCongSeed;
+			deluge::synth_noise.seed(gw::kCongSeed);
 			for (std::size_t b = 0; b < 4; ++b) {
 				const std::vector<StereoSample> input = gw::stereo_input(256, b);
 				std::vector<StereoSample> frames = input;
@@ -603,7 +603,7 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 				expect(volume).to_equal(gw::kStartVolume);
 			}
 			expect(state_words(fx)).to_equal(before);
-			expect(jcong).to_equal(gw::kCongSeed);
+			expect(deluge::synth_noise.state()).to_equal(gw::kCongSeed);
 		}
 		expect(heap.releases).to_equal(heap.allocations);
 	});

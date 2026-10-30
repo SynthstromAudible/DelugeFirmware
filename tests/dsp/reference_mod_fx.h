@@ -36,7 +36,7 @@
 #include "dsp-next/fixed/bandlimited/waves.h" // triangle
 #include "dsp-next/fixed/osc/sine_table.h"    // sine_table
 #include "util/fixedpoint.h"
-#include "util/waves.h" // the jcong/CONG RNG the warbler draws
+#include "util/waves.h" // the synth's noise stream (CONG) the warbler draws
 
 #include <array>
 #include <cstddef>

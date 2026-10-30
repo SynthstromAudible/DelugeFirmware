@@ -8,7 +8,7 @@ set(_dsp_filter ${_dsp_fixed}/filter)
 deluge_specs_driver(effects_specs NEON
   SOURCES ${CMAKE_CURRENT_LIST_DIR}/../../support/mocks/mock_panic.cpp
           ${_dsp_filter}/filter_set.cpp
-          ${CMAKE_CURRENT_LIST_DIR}/../../../src/deluge/util/waves.cpp
+          ${CMAKE_CURRENT_LIST_DIR}/../../../src/deluge/util/synth_noise.cpp
           ${_dsp_fixed}/dynamics/compressor_kernel.cpp
           ${_dsp_fixed}/dynamics/rms_feedback_compressor.cpp
           ${_dsp_fixed}/dynamics/duck_envelope.cpp

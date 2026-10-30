@@ -24,7 +24,7 @@
 #include "dsp-next/core/stereo_sample.h"
 #include "mod_fx_workloads.h"
 #include "reference_mod_fx.h"
-#include "util/waves.h" // jcong
+#include "util/synth_noise.h"
 
 #include <array>
 #include <cppspec.hpp>

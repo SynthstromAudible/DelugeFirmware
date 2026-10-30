@@ -24,8 +24,8 @@
 /// @brief CongNoise: the synth's shared noise stream as a kernel's noise policy.
 namespace deluge::dsp::fixed {
 
-/// @brief A noise policy drawing from the synth-wide generator (util/waves.h's `CONG`, the single `jcong` state every
-/// voice shares).
+/// @brief A noise policy drawing from the synth-wide generator (util/waves.h's `CONG`, the one `deluge::synth_noise`
+/// stream every voice shares).
 /// @details A kernel templated on its noise calls `Noise::render()` once per draw. Every draw advances the one shared
 /// state, so the order of draws across voices and channels is part of the output: a kernel under `Stereo` draws for
 /// the left channel before the right in every frame.

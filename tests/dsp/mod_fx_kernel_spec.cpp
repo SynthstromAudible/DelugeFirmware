@@ -208,7 +208,7 @@ struct RunTrace {
 /// @return What @p workload renders through @p fx, the generator seeded to the workload's seed first.
 template <typename Fx>
 [[nodiscard]] RunTrace run(const mw::ModFxWorkload& workload, Fx& fx) {
-	jcong = workload.cong_seed;
+	deluge::synth_noise.seed(workload.cong_seed);
 	RunTrace trace;
 	for (std::size_t b = 0; b < workload.blocks.size(); ++b) {
 		const mw::ModFxBlock& block = workload.blocks[b];

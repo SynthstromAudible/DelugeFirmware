@@ -24,7 +24,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
-#include "util/waves.h"
+#include "util/synth_noise.h"
 
 #include <bitset>
 #include <cstdlib>
@@ -41,8 +41,8 @@ namespace {
 
 bool g_done = false;
 
-// The random stream's static initial value (util/waves.cpp).
-constexpr uint32_t kJcongSeed = 380116160;
+// The noise stream's static initial value (util/synth_noise.cpp).
+constexpr uint32_t kNoiseSeed = 380116160;
 
 /// The arguments DRV_ARGS names, after argv[0].
 std::vector<std::string> arguments() {
@@ -144,7 +144,7 @@ void dispatch(Main main) {
 		Pinned reader(activeReader, activeReader);
 		Pinned fileReader(activeDeserializer, activeDeserializer);
 		Pinned sampleTimer(AudioEngine::audioSampleTimer, AudioEngine::audioSampleTimer);
-		Pinned randomJ(jcong, kJcongSeed);
+		Pinned randomNoise(deluge::synth_noise, deluge::dsp::fixed::Cong{kNoiseSeed});
 		Pinned scale(FlashStorage::defaultScale, uint8_t{0});
 		Pinned margins(FlashStorage::audioClipRecordMargins, false);
 		Pinned velocity(FlashStorage::defaultVelocity, uint8_t{0});
