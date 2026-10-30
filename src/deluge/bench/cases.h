@@ -1633,6 +1633,34 @@ private:
 	Dx7Config config_;
 };
 
+/// @brief One FFT case's transform.
+struct FftConfig {
+	bool inverse;      ///< Inverse (bins to samples) rather than forward.
+	int32_t magnitude; ///< log2 of the real transform's length.
+};
+
+/// @brief One int32 real transform of 2^magnitude points per block, whatever the block size: the figure to compare is
+/// cycles per block, not per sample.
+/// @details Setup takes the transform from FFTConfigManager::getConfig, built once and cached as the app does, and on
+/// first use allocates the input and output and fills the input from a fixed-seed noise stream, scaled as the FFT pin's
+/// random set (forward samples >> 12, inverse words >> 8). A transform that cannot be built prints BENCH-ERROR.
+class FftCase {
+public:
+	/// @brief A case of @p config.
+	/// @param config The case's configuration.
+	constexpr explicit FftCase(const FftConfig& config) : config_{config} {}
+
+	/// @brief Takes the transform and its buffers.
+	/// @param n Block size; the transform's length does not depend on it.
+	void setup(std::size_t n);
+	/// @brief Runs one transform.
+	/// @param n Block size; unused.
+	void block(std::size_t n);
+
+private:
+	FftConfig config_;
+};
+
 /// @brief Which home an effect chain case renders.
 enum class FxChainHome : uint8_t {
 	SOUND,  ///< A sound's chain after its voices.
@@ -1799,6 +1827,27 @@ struct CaseSet {
 	Dx7Case dx7_modern_alg32{kDx7ModernAlg32};                                    ///< `dx7_modern_alg32`
 	Dx7Case dx7_mki_alg1_fb{kDx7MkIAlg1Fb};                                       ///< `dx7_mki_alg1_fb`
 	Dx7Case dx7_mki_alg4_fb3{kDx7MkIAlg4Fb3};                                     ///< `dx7_mki_alg4_fb3`
+	FftCase fft_fwd_16{{.inverse = false, .magnitude = 4}};                       ///< `fft_fwd_16`
+	FftCase fft_fwd_32{{.inverse = false, .magnitude = 5}};                       ///< `fft_fwd_32`
+	FftCase fft_fwd_64{{.inverse = false, .magnitude = 6}};                       ///< `fft_fwd_64`
+	FftCase fft_fwd_128{{.inverse = false, .magnitude = 7}};                      ///< `fft_fwd_128`
+	FftCase fft_fwd_256{{.inverse = false, .magnitude = 8}};                      ///< `fft_fwd_256`
+	FftCase fft_fwd_512{{.inverse = false, .magnitude = 9}};                      ///< `fft_fwd_512`
+	FftCase fft_fwd_1024{{.inverse = false, .magnitude = 10}};                    ///< `fft_fwd_1024`
+	FftCase fft_fwd_2048{{.inverse = false, .magnitude = 11}};                    ///< `fft_fwd_2048`
+	FftCase fft_fwd_4096{{.inverse = false, .magnitude = 12}};                    ///< `fft_fwd_4096`
+	FftCase fft_fwd_8192{{.inverse = false, .magnitude = 13}};                    ///< `fft_fwd_8192`
+	FftCase fft_inv_8{{.inverse = true, .magnitude = 3}};                         ///< `fft_inv_8`
+	FftCase fft_inv_16{{.inverse = true, .magnitude = 4}};                        ///< `fft_inv_16`
+	FftCase fft_inv_32{{.inverse = true, .magnitude = 5}};                        ///< `fft_inv_32`
+	FftCase fft_inv_64{{.inverse = true, .magnitude = 6}};                        ///< `fft_inv_64`
+	FftCase fft_inv_128{{.inverse = true, .magnitude = 7}};                       ///< `fft_inv_128`
+	FftCase fft_inv_256{{.inverse = true, .magnitude = 8}};                       ///< `fft_inv_256`
+	FftCase fft_inv_512{{.inverse = true, .magnitude = 9}};                       ///< `fft_inv_512`
+	FftCase fft_inv_1024{{.inverse = true, .magnitude = 10}};                     ///< `fft_inv_1024`
+	FftCase fft_inv_2048{{.inverse = true, .magnitude = 11}};                     ///< `fft_inv_2048`
+	FftCase fft_inv_4096{{.inverse = true, .magnitude = 12}};                     ///< `fft_inv_4096`
+	FftCase fft_inv_8192{{.inverse = true, .magnitude = 13}};                     ///< `fft_inv_8192`
 	FxChainCase fx_chain_sound{{.home = FxChainHome::SOUND, .reference = false}}; ///< `fx_chain_sound`
 	FxChainCase fx_chain_sound_reference{
 	    {.home = FxChainHome::SOUND, .reference = true}};                                ///< `fx_chain_sound_reference`
@@ -1846,6 +1895,10 @@ enum class CaseList : uint8_t {
 	/// The calibration loop, each home's effect chain runtime beside its sequence written out over the same
 	/// components, then the feedback chain's two cases from the chain list, as in the delay list.
 	FX_CHAINS,
+	/// The calibration loop, then the int32 real FFT forward at every size the firmware transforms, 16 to 8192 points.
+	FFT_FORWARD,
+	/// The calibration loop, then the int32 real FFT inverse at every size the firmware transforms, 8 to 8192 points.
+	FFT_INVERSE,
 };
 
 /// @brief The case list a bench image runs: DELUGE_DSP_BENCH_CASES, as src/deluge/CMakeLists.txt defines it.
@@ -1871,6 +1924,10 @@ inline constexpr CaseList kBenchCaseList = CaseList::REVERB;
 inline constexpr CaseList kBenchCaseList = CaseList::DX7;
 #elif defined(DELUGE_DSP_BENCH_FX_CHAINS)
 inline constexpr CaseList kBenchCaseList = CaseList::FX_CHAINS;
+#elif defined(DELUGE_DSP_BENCH_FFT_FORWARD)
+inline constexpr CaseList kBenchCaseList = CaseList::FFT_FORWARD;
+#elif defined(DELUGE_DSP_BENCH_FFT_INVERSE)
+inline constexpr CaseList kBenchCaseList = CaseList::FFT_INVERSE;
 #else
 inline constexpr CaseList kBenchCaseList = CaseList::KERNELS;
 #endif

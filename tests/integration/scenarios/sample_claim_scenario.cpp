@@ -71,6 +71,8 @@
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
 
+#include "../../dsp/wavetable_band_crc.h"
+
 #include <cstdio>
 #include <iterator>
 #include <string>
@@ -718,33 +720,6 @@ bool acquireAllClusters(Sample& sample) {
 		deluge_streaming_request_drain();
 	}
 	return all;
-}
-
-/// CRC-32 of a WaveTable's shape and every band's cycle data: each cycle's cycleSizeNoDuplicates samples. The 7
-/// samples after each cycle (WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE, wave_table.cpp) are copies.
-uint32_t waveTableCrc(const WaveTable& wt) {
-	uint32_t crc = 0xFFFFFFFFu;
-	auto feed = [&](const void* p, size_t n) {
-		const auto* b = static_cast<const uint8_t*>(p);
-		for (size_t i = 0; i < n; i++) {
-			crc ^= b[i];
-			for (int k = 0; k < 8; k++) {
-				crc = (crc >> 1) ^ (0xEDB88320u & (0u - (crc & 1u)));
-			}
-		}
-	};
-	feed(&wt.numCycles, sizeof(wt.numCycles));
-	for (const WaveTableBand& band : wt.bands) {
-		feed(&band.maxPhaseIncrement, sizeof(band.maxPhaseIncrement));
-		feed(&band.fromCycleNumber, sizeof(band.fromCycleNumber));
-		feed(&band.toCycleNumber, sizeof(band.toCycleNumber));
-		feed(&band.cycleSizeNoDuplicates, sizeof(band.cycleSizeNoDuplicates));
-		const int32_t stride = band.cycleSizeNoDuplicates + 7;
-		for (int32_t c = band.fromCycleNumber; c < band.toCycleNumber; c++) {
-			feed(&band.dataAccessAddress[stride * c], band.cycleSizeNoDuplicates * sizeof(int16_t));
-		}
-	}
-	return ~crc;
 }
 
 void prepareLeg() {
@@ -1549,7 +1524,7 @@ void checkLeg() {
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
 		const bool isWaveTable = bound && holder->audioFile->type == AudioFileType::WAVETABLE;
 		const ConversionMark conv = conversionsSince(g_convBefore);
-		const uint32_t crc = isWaveTable ? waveTableCrc(*static_cast<WaveTable*>(holder->audioFile)) : 0;
+		const uint32_t crc = isWaveTable ? wavetable_band_crc(static_cast<WaveTable*>(holder->audioFile)->view()) : 0;
 		// The reference: the twin, never previewed, so built from the card. Measured after the deltas above, which
 		// its own card build would otherwise count.
 		uint32_t twinCrc = 0;
@@ -1559,7 +1534,7 @@ void checkLeg() {
 			AudioFile* twinFile = audioFileManager.getAudioFileFromFilename(
 			    twin, /*mayReadCard=*/true, &error, AudioFileType::WAVETABLE, /*makeWaveTableWorkAtAllCosts=*/true);
 			if (twinFile != nullptr && twinFile->type == AudioFileType::WAVETABLE) {
-				twinCrc = waveTableCrc(*static_cast<WaveTable*>(twinFile));
+				twinCrc = wavetable_band_crc(static_cast<WaveTable*>(twinFile)->view());
 			}
 		}
 		printf("SC-WAVETABLE-CONVERTED bound=%d waveTable=%d converted=%d fromCard=%d pinned=%d crc=%08X twinCrc=%08X "

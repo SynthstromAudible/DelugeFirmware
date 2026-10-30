@@ -30,11 +30,6 @@
 
 namespace deluge::dsp::fixed {
 
-/// Duplicate samples appended to the end of each stored cycle, so the interpolation window's
-/// rightmost loads can read past the wrap without a second masked load (legacy
-/// WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE).
-inline constexpr int32_t kWavetableDuplicateSamplesAtCycleEnd = 7;
-
 namespace wavetable_detail {
 // The windowed-sinc table has 2^kSincKernelRowBits sub-sample rows; the phase fraction selects the
 // row to read (@ref sinc_kernel_row) and the Q15 blend toward the next row (@ref sinc_row_blend).

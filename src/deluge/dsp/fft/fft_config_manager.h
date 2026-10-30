@@ -17,10 +17,20 @@
 
 #pragma once
 
-#include "NE10.h"
+#include "dsp-next/fixed/fft/real_fft.h"
+
+#include <cstddef>
+#include <cstdint>
 
 namespace FFTConfigManager {
 
-ne10_fft_r2c_cfg_int32_t getConfig(int32_t magnitude);
+/// @brief The transform of 2^@p magnitude points, built on first use and kept for the rest of the run.
+/// @return nullptr outside [fft::kMinMagnitude, fft::kMaxMagnitude], or when its block cannot be allocated. Building
+///         one yields to the cluster loader between the twiddle stages.
+const deluge::dsp::fixed::fft::RealFft* getConfig(int32_t magnitude);
 
-}
+/// @brief The bytes getConfig() allocates for the transform of 2^@p magnitude points: the transform, its tables and its
+///        scratch, in one block.
+[[nodiscard]] std::size_t blockBytes(int32_t magnitude);
+
+} // namespace FFTConfigManager

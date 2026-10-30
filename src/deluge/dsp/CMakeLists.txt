@@ -29,7 +29,6 @@ set_target_properties(deluge_dsp
 )
 
 target_link_libraries(deluge_dsp PRIVATE
-    NE10
     eyalroz_printf
     argon
     etl::etl

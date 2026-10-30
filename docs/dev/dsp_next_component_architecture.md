@@ -1338,6 +1338,13 @@ Each oscillator is a **stateful generator** that owns its phase:
   `SyncedPhasor` for hard sync.
 - `WavetableOscillator`: renders a `WaveTableData` view of the bands; the app's
   `WaveTable` owns loading and band management.
+- `BandBuilder` (`fixed/wavetable/band_builder.h`): builds a wavetable's bands a
+  cycle at a time from the cycles the app's reader hands it, into storage it is
+  lent, allocating nothing: band 0 straight from a power-of-two cycle, every
+  other band (and band 0 of any other cycle) from the cycle's spectrum through
+  an inverse `RealFft`. `BandGeometry` is the band layout both `WaveTable::setup`
+  and the spec read. The app's `WaveTable` owns the bands (`BandSamples`), the
+  reader (`WaveTableCycleReader`) and the yields between cycles and bands.
 
 Cross-cutting pieces are components too, not per-type branches:
 - `SyncedOscillator<Osc>` (`fixed/sync/`): hard sync as a generator that wraps a
@@ -1561,6 +1568,75 @@ leg therefore checks the kernels and runs with no exclusion.
 **Specs that step the kernel by hand.** `saturation_spec` and `bench_runner_spec` do this, and are checked through
 `antialiased_tanh_spec`'s pin of the kernel.
 
+### The real FFT (`fixed/fft/`)
+
+The firmware's int32 real FFT: the wavetable band builder's forward and inverse transforms and pitch detection's
+forward transform. It is a port of NE10's unscaled int32 real FFT to Argon, bit for bit: `tests/dsp/real_fft_records.h`
+holds NE10's outputs, recorded on x86 and on ARM, at every size the firmware transforms (forward 16 to 8192 points,
+inverse 8 to 8192), over random, impulse, full-scale and real-cycle inputs, and `real_fft_spec` holds `RealFft` to
+them on x86, ARM and under UBSan.
+
+- **`Twiddles`** (`twiddles.h`): the factor list and the stage and real-split twiddles, laid out over one block the
+  caller lends (`storage_bytes`, `lay_out`), generated in three stages (`factor`, `generate_stage_twiddles`,
+  `generate_super_twiddles`) so a loader can yield between them. The phase is float arithmetic and cos/sin take it as
+  a double, in NE10's operand order, because the tables differ when that order changes: the firmware builds float code
+  with `-funsafe-math-optimizations`, under which NE10's tables differ from the plain build's from 32 points up, and
+  `twiddles_shipping_spec` holds the tables at those flags to the records made at them. In the shipping image both
+  generators compile to NE10's float sequence: the same reciprocal of the length, multiply order, conversions and
+  cos, floor, sin, floor calls (NE10's `vmla.f64` is a `vmul.f64` and a `vadd.f64` here, which round the same: the
+  A9's VFPv3 has no fused multiply-add).
+- **`RealFft`** (`real_fft.h`): forward from 2^m samples to 2^(m−1)+1 bins and inverse back, over lent tables and
+  scratch, no state between calls. NE10's radix-8 and radix-4 stages and real splits are in `radix.h`: every sum and
+  difference wraps, every vector product is the saturating doubling high half (`MultiplyFixedQMax`, `vqdmulh`) except
+  the 16-point inverse's, which rounds (`MultiplyRoundFixedQMax`, `vqrdmulh`), and only the forward split's outputs
+  halve (`AddHalve`/`SubtractHalve`). The scalar 8-point paths differ: the 8-point inverse multiplies by √½ as a 64-bit
+  product shifted down by 31, and its real split sums two 64-bit products' high words and then doubles the sum. NE10's 16-point forward ran its radix-8 stage four butterflies wide over an 8-point
+  input and wrote 128 bytes past its configuration; `RealFft` runs that stage on zero-padded locals and keeps lane 0,
+  which is NE10's output.
+- **`FFTConfigManager`** (app, `dsp/fft/`) builds each size's transform on first use, yields to the cluster loader
+  between the twiddle stages, and keeps it for the run; `real_dft` (`real_dft.h`) is the band builder's DFT for a
+  cycle that is not a power of two.
+
+**Codegen at shipping flags against NE10's** (`deluge.elf`, instructions per inner-loop iteration, four butterflies):
+
+| Loop | NE10 | `RealFft` |
+| --- | ---: | ---: |
+| radix-8 first stage, forward / inverse | 271 / 265 | 271 / 268 |
+| radix-4 first stage, forward / inverse | 51 / 51 | 51 / 51 |
+| radix-4 twiddled stage, forward / inverse | 68 / 67 | 64 / 64 |
+| real split, forward / inverse (vector) | 38 / 38 | 39 / 39 |
+| inverse real split, scalar (8 points) | 34 | 37 |
+
+No radix loop calls out or multiplies in scalar registers; the twiddled stage reloads four values from the stack per
+iteration in both. The twiddled stage is out of line, as NE10's was: inlined twice into each transform it ran short of
+registers (75 instructions, a store and reload of a pointer). `forward` and `inverse` are 840 and 842 ARM instructions,
+plus 91 for each direction's twiddled stage; NE10's functions were about 6.2 KB of Thumb.
+
+**On the rig** (J-Trace, `fft_forward` and `fft_inverse` at n = 128, cycles per transform; tables and scratch
+16-byte aligned):
+
+| Points | Forward NE10 | Forward `RealFft` | ratio | Inverse NE10 | Inverse `RealFft` | ratio |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 8 | | | | 150 | 180 | 1.20 |
+| 16 | 840 | 794 | 0.95 | 238 | 263 | 1.11 |
+| 32 | 552 | 552 | 1.00 | 488 | 485 | 0.99 |
+| 64 | 1,421 | 1,355 | 0.95 | 1,393 | 1,365 | 0.98 |
+| 128 | 2,627 | 2,560 | 0.97 | 2,632 | 2,578 | 0.98 |
+| 256 | 6,574 | 6,360 | 0.97 | 6,467 | 6,339 | 0.98 |
+| 512 | 12,696 | 12,275 | 0.97 | 12,847 | 12,314 | 0.96 |
+| 1024 | 30,801 | 29,836 | 0.97 | 30,423 | 29,777 | 0.98 |
+| 2048 | 73,238 | 80,428 | 1.10 | 79,763 | 80,999 | 1.02 |
+| 4096 | 208,643 | 215,195 | 1.03 | 222,278 | 234,698 | 1.06 |
+| 8192 | 462,320 | 479,056 | 1.04 | 564,925 | 543,057 | 0.96 |
+
+The inverse at 8 and 16 points pays the frame of the one `inverse` body (nine core and eight double registers saved,
+a 476-byte frame) on every call, about 20 instructions per transform (173 to 197, 237 to 256) that NE10's separate
+4-, 8- and 16-point functions did not; the band builder runs them once per cycle for the two smallest bands. From 2048
+points up the working set outgrows the L1 data cache and data-cache stalls are a third to a half of the cycles; there
+the figures move by up to 10% between images whose transform code is the same (the 2048-point forward measured 73,782
+cycles in an image whose tables were 4 bytes off 8-byte alignment and 80,428 here, at 28,138 and 28,145 instructions,
+its data-cache stalls 12,290 and 24,883), so those ratios measure where the data landed, not the code.
+
 ## Bit-exactness: how the synth's math maps in
 
 - Generator then VCA: `Oscillator.renderBlock(raw)` and then `Amplitude` over
@@ -1590,12 +1666,6 @@ leg therefore checks the kernels and runs with no exclusion.
   `AsBlock`.
 - **Vector-aware `sample_*` concepts**, so SIMD components satisfy the composite
   concepts.
-- **A storage-independent wavetable renderer.** `WaveTable::render` is pure DSP
-  over in-memory bands. The renderer moves fully into `dsp-next` behind a
-  band-data port (the band tables, magnitudes and kernels) that the app's
-  `WaveTable` provides, with SD loading, band management and stealing staying in
-  the app. It is gated on the wavetable golden fixtures (the NE10 int32 FFT is
-  bit-exact x86 against ARM).
 - **Audible steps** (separate, ear-validated, re-baselined): VCA-arithmetic
   unification, analytic-wave options, band-limiting and sync improvements,
   `FixedPoint<31>` types, full phase relocation into the engine, per-voice
@@ -1684,6 +1754,10 @@ it drops some:
 - `dx7`: a DX7 voice's block through the voice adapter, in the modern engine
   (algorithms 1 and 32) and the MkI engine (algorithm 1 with feedback, and
   algorithm 4's fused stack); it ends with the same two feedback chain controls.
+- `fft_forward` and `fft_inverse`: the int32 real FFT at every size the firmware
+  transforms (forward 16 to 8192 points, inverse 8 to 8192), one transform per
+  block whatever the block size, so their figure is cycles per transform
+  (`cycles / k`), not cps.
 
 Every other case builds with the app's flags. A bench image builds only its own
 list's cases, since the image fills on-chip SRAM up to 0x202E0000 (past it the

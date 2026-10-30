@@ -252,6 +252,11 @@ void countRenderAllocation() {
 
 void* alloc_fast(std::size_t size, std::size_t align) {
 	countIfAudioTier();
+#ifdef DELUGE_HOST
+	if (injectedAllocationFailure(size)) {
+		return nullptr; // host-only test seam (memory/heaps.h)
+	}
+#endif
 	init_heaps();
 	void* p = nullptr;
 	if (size < kInternalSwitchSize) {

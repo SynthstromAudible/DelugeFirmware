@@ -40,7 +40,7 @@ Checks: >
 WarningsAsErrors: false # should be true once we get there
 HeaderFileExtensions: ["h", "hh", "hpp", "hxx"]
 ImplementationFileExtensions: ["c", "cc", "cpp", "cxx"]
-HeaderFilterRegex: "^((?!/(lib|libdeluge|NE10)/).)*$" # don't touch external trees (path-segment anchored, so e.g. chord_library.h is still linted)
+HeaderFilterRegex: "^((?!/(lib|libdeluge)/).)*$" # don't touch external trees (path-segment anchored, so e.g. chord_library.h is still linted)
 ExtraArgs: ["-Wno-unknown-argument", "-Wno-unknown-warning-option", "-W"]
 FormatStyle: file
 CheckOptions:

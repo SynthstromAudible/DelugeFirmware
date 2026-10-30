@@ -16,8 +16,8 @@
  */
 
 #include "model/sample/sample.h"
-#include "NE10.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/fft/real_fft.h"
 #include "dsp/fft/fft_config_manager.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "io/debug/log.h"
@@ -1404,7 +1404,7 @@ examineHarmonic:
 
 size_t Sample::pitchBufferBytes() {
 	const int32_t fftInputSize = kPitchDetectWindowSize * sizeof(int32_t);
-	const int32_t fftOutputSize = ((kPitchDetectWindowSize >> 1) + 1) * sizeof(ne10_fft_cpx_int32_t);
+	const int32_t fftOutputSize = ((kPitchDetectWindowSize >> 1) + 1) * sizeof(deluge::dsp::fixed::fft::Complex);
 	const int32_t floatIndexTableSize = (kPitchDetectWindowSize >> 2) * sizeof(float);
 	return fftInputSize + fftOutputSize + floatIndexTableSize;
 }
@@ -1413,11 +1413,14 @@ Sample::PitchVerdict Sample::analysePitchWindow(int32_t* buffer, int32_t lengthD
                                                 int32_t defaultLengthDoublings, float minFreqHz, float maxFreqHz,
                                                 bool doPrimeTest) {
 	// Get the FFT config we'll need
-	ne10_fft_r2c_cfg_int32_t fftCFG = FFTConfigManager::getConfig(kPitchDetectWindowSizeMagnitude);
+	const deluge::dsp::fixed::fft::RealFft* fftCFG = FFTConfigManager::getConfig(kPitchDetectWindowSizeMagnitude);
+	if (fftCFG == nullptr) {
+		return PitchVerdict{PitchVerdict::Kind::Failed, 0}; // its tables could not be allocated: no pitch
+	}
 	int32_t* fftInput = buffer;
 	const int32_t fftInputSize = kPitchDetectWindowSize * sizeof(int32_t);
-	const int32_t fftOutputSize = ((kPitchDetectWindowSize >> 1) + 1) * sizeof(ne10_fft_cpx_int32_t);
-	ne10_fft_cpx_int32_t* fftOutput = (ne10_fft_cpx_int32_t*)((char*)fftInput + fftInputSize);
+	const int32_t fftOutputSize = ((kPitchDetectWindowSize >> 1) + 1) * sizeof(deluge::dsp::fixed::fft::Complex);
+	deluge::dsp::fixed::fft::Complex* fftOutput = (deluge::dsp::fixed::fft::Complex*)((char*)fftInput + fftInputSize);
 	int32_t* fftHeights = fftInput; // We'll overwrite the original input with this data
 	float* floatIndexTable = (float*)((char*)fftInput + fftInputSize + fftOutputSize);
 	// Only written at peaks, so clear out whatever the allocator left here
@@ -1431,7 +1434,7 @@ Sample::PitchVerdict Sample::analysePitchWindow(int32_t* buffer, int32_t lengthD
 	*/
 
 	// Perform the FFT
-	ne10_fft_r2c_1d_int32_neon(fftOutput, (ne10_int32_t*)fftInput, fftCFG, false);
+	fftCFG->forward({fftInput, kPitchDetectWindowSize}, {fftOutput, (kPitchDetectWindowSize >> 1) + 1});
 
 	// D_PRINTLN("fft done");
 

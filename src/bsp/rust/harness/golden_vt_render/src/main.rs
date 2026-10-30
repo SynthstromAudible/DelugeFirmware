@@ -1013,6 +1013,42 @@ fn fill_song_preview_ab_card(repo_root: &std::path::Path) {
 const MAX_CORPUS_CASES: usize = 16;
 const _: () = assert!(MAX_CORPUS_CASES == 16);
 
+/// Writes a 16-bit mono WAV of `frames` samples at 44.1 kHz summing `partials`, each a (frequency in Hz, amplitude)
+/// pair, the amplitudes summing to at most 1.
+///
+/// # Panics
+///
+/// Panics if the file cannot be written.
+fn write_partials_wav(path: &std::path::Path, frames: u32, partials: &[(f64, f64)]) {
+    const SAMPLE_RATE: u32 = 44_100;
+    let data_bytes = frames * 2;
+    let mut bytes: Vec<u8> = Vec::with_capacity(44 + data_bytes as usize);
+    bytes.extend_from_slice(b"RIFF");
+    bytes.extend_from_slice(&(36 + data_bytes).to_le_bytes());
+    bytes.extend_from_slice(b"WAVE");
+    bytes.extend_from_slice(b"fmt ");
+    bytes.extend_from_slice(&16u32.to_le_bytes());
+    bytes.extend_from_slice(&1u16.to_le_bytes()); // PCM
+    bytes.extend_from_slice(&1u16.to_le_bytes()); // mono
+    bytes.extend_from_slice(&SAMPLE_RATE.to_le_bytes());
+    bytes.extend_from_slice(&(SAMPLE_RATE * 2).to_le_bytes());
+    bytes.extend_from_slice(&2u16.to_le_bytes());
+    bytes.extend_from_slice(&16u16.to_le_bytes());
+    bytes.extend_from_slice(b"data");
+    bytes.extend_from_slice(&data_bytes.to_le_bytes());
+    for n in 0..frames {
+        let t = f64::from(n) / f64::from(SAMPLE_RATE);
+        let sum: f64 = partials
+            .iter()
+            .map(|&(hz, amplitude)| amplitude * (t * hz * std::f64::consts::TAU).sin())
+            .sum();
+        let value = (sum * 30_000.0) as i16;
+        bytes.extend_from_slice(&value.to_le_bytes());
+    }
+    std::fs::write(path, &bytes)
+        .unwrap_or_else(|e| panic!("writing the partials WAV {}: {e}", path.display()));
+}
+
 /// Writes a 16-bit PCM WAV of a sine at `freq_hz`, `frames` frames long, the same on every channel.
 ///
 /// Pitch detection needs a periodic signal to name a note; a constant fill names none.
@@ -1171,12 +1207,65 @@ fn fill_sample_claim_card() {
     install_staged(&root);
 }
 
-/// Stages `load_policy`'s card: the one sample its `LP-DEFAULT` loads ask for.
-fn fill_load_policy_card() {
+/// Stages `load_policy`'s card:
+/// - `SAMPLES/DEFAULT.WAV`: the one sample its `LP-DEFAULT` loads ask for;
+/// - `SAMPLES/WTP/`: the synthetic wavetables of `tests/integration/golden/wavetable_pins/` (the band pins and the
+///   zero-band leg);
+/// - `SAMPLES/WTG/`: the golden presets' wavetables (`presets/wavetable_basic.wav` and `presets/wavetable/*.wav`);
+/// - `SAMPLES/PIT/`: the pitch pin's samples, sines at 55, 440 and 1760 Hz and `PARTIALS.WAV`, four partials over 196 Hz;
+/// - `SAMPLES/WTC/`: sixteen copies of `presets/wavetable/morph_sync.2.wav`, `WTC00.WAV` to `WTC15.WAV`: distinct
+///   tables for the churn.
+fn fill_load_policy_card(repo_root: &std::path::Path) {
     let root = staging_dir("deluge-load-policy-card");
     let samples = root.join("SAMPLES");
-    std::fs::create_dir_all(&samples).expect("load_policy card: creating SAMPLES");
+    let pins = samples.join("WTP");
+    let goldens = samples.join("WTG");
+    let pitch = samples.join("PIT");
+    let churn = samples.join("WTC");
+    for dir in [&samples, &pins, &goldens, &pitch, &churn] {
+        std::fs::create_dir_all(dir)
+            .unwrap_or_else(|e| panic!("load_policy card: creating {}: {e}", dir.display()));
+    }
     write_test_wav(&samples.join("DEFAULT.WAV"), 1, 16, 2000, 0x42);
+    let copy = |from: &std::path::Path, to: &std::path::Path| {
+        std::fs::copy(from, to)
+            .unwrap_or_else(|e| panic!("load_policy card: copying {}: {e}", from.display()));
+    };
+    let golden = repo_root.join("tests/integration/golden");
+    let wav_files = |dir: &std::path::Path, extension: &str| -> Vec<std::path::PathBuf> {
+        let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(dir)
+            .unwrap_or_else(|e| panic!("load_policy card: reading {}: {e}", dir.display()))
+            .map(|entry| entry.expect("load_policy card: a directory entry").path())
+            .filter(|path| path.extension().is_some_and(|e| e == extension))
+            .collect();
+        files.sort();
+        files
+    };
+    for file in wav_files(&golden.join("wavetable_pins"), "WAV") {
+        copy(&file, &pins.join(file.file_name().expect("a pin's name")));
+    }
+    copy(
+        &golden.join("presets/wavetable_basic.wav"),
+        &goldens.join("wavetable_basic.wav"),
+    );
+    for file in wav_files(&golden.join("presets/wavetable"), "wav") {
+        copy(
+            &file,
+            &goldens.join(file.file_name().expect("a golden's name")),
+        );
+    }
+    write_sine_wav(&pitch.join("SINE55.WAV"), 1, 44_100, 55.0);
+    write_sine_wav(&pitch.join("SINE440.WAV"), 1, 44_100, 440.0);
+    write_sine_wav(&pitch.join("SINE1760.WAV"), 1, 44_100, 1760.0);
+    write_partials_wav(
+        &pitch.join("PARTIALS.WAV"),
+        44_100,
+        &[(196.0, 0.5), (392.0, 0.25), (588.0, 0.125), (1013.0, 0.1)],
+    );
+    let morph_sync = golden.join("presets/wavetable/morph_sync.2.wav");
+    for i in 0..16 {
+        copy(&morph_sync, &churn.join(format!("WTC{i:02}.WAV")));
+    }
     install_staged(&root);
 }
 
@@ -1407,7 +1496,7 @@ fn main() {
             "sample_claim" => fill_sample_claim_card(),
             "preset_load" => fill_preset_load_card(),
             "load_cancel" => fill_load_cancel_card(),
-            "load_policy" => fill_load_policy_card(),
+            "load_policy" => fill_load_policy_card(&repo_root),
             "clear_song_undo" => fill_clear_song_undo_card(),
             "song_load_channel" => fill_song_load_channel_card(),
             // The card tree to play from: RENDER_TREE, or the GOLDEN_FIXTURE corpus fixture's.

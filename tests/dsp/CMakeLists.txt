@@ -202,6 +202,28 @@ endif()
 # everywhere; the ARM tree does not, so the specs link it themselves.
 FetchContent_MakeAvailable(etl)
 
+# fixed::fft: the twiddle tables, plain and under the firmware's float flags, and the transform.
+set(_fft_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/fft/twiddles.cpp)
+set(twiddles_spec_DEPS ${_fft_DEPS})
+set(twiddles_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
+set(twiddles_shipping_spec_DEPS ${_fft_DEPS})
+set(twiddles_shipping_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
+set(twiddles_shipping_spec_OPTIONS -O2 -funsafe-math-optimizations)
+set(real_fft_spec_DEPS ${_fft_DEPS} ${_repo_root}/src/deluge/dsp-next/fixed/fft/real_fft.cpp)
+set(real_fft_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
+set(real_fft_shipping_spec_DEPS ${real_fft_spec_DEPS})
+set(real_fft_shipping_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
+set(real_fft_shipping_spec_OPTIONS -O2 -funsafe-math-optimizations)
+# The band builder: the transform, the DFT (which reads sineWaveSmall) and fastPythag.
+set(band_builder_spec_DEPS
+  ${real_fft_spec_DEPS}
+  ${_repo_root}/src/deluge/dsp-next/fixed/fft/real_dft.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/wavetable/band_builder.cpp
+  ${_repo_root}/src/deluge/util/fast_pythag.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+set(band_builder_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
+set(band_builder_spec_INCLUDES ${_repo_root}/include)
+
 # CONFIGURE_DEPENDS: a spec file added to an already-configured tree is built (and run) on the next build.
 file(GLOB _specs CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)
 foreach(_spec_path IN LISTS _specs)

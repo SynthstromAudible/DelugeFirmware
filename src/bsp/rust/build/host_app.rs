@@ -183,11 +183,10 @@ fn emit_staleness_hash(app_objs_dir: &Path, objs: &[PathBuf], out_dir: &Path) {
 }
 
 /// Links the app archive and its static libraries as one group, because the C++ and Rust sides
-/// call each other. The host tree's layout differs from the device tree's: NE10 sits at the root
-/// and the DSP libraries under `app/`.
+/// call each other. The host tree's layout differs from the device tree's: the DSP libraries sit
+/// under `app/`.
 fn link_closure(build_dir: &Path, archive: &Path) {
-    const DEPS: [(&str, &str); 12] = [
-        (".", "libNE10.a"),
+    const DEPS: [(&str, &str); 11] = [
         ("printf", "libeyalroz_printf.a"),
         ("app/dsp", "libdeluge_dsp.a"),
         ("app/dsp-next", "libdeluge-dsp-fixed.a"),

@@ -25,8 +25,6 @@ extern "C" {
 #endif
 extern int main(void);
 
-extern void routineWithClusterLoading(void);
-
 extern void logAudioAction(char const* string);
 
 extern void consoleTextIfAllBootedUp(char const* text);

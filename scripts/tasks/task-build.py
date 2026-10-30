@@ -33,7 +33,6 @@ import util
 # The C++ targets the Rust build script archives + links (mirrors its panic message).
 CPP_TARGETS = [
     "deluge_app",
-    "NE10",
     "eyalroz_printf",
     "deluge_dsp",
     "deluge_dsp_fixed",

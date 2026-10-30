@@ -12,7 +12,6 @@ add_subdirectory(midi)       # deluge_midi: pure MIDI protocol library (app + te
 add_subdirectory(deluge-project) # deluge_project: the project model (deluge::project::Song)
 add_subdirectory(OSLikeStuff)
 add_subdirectory(deluge)     # deluge_app: the portable application (platform-agnostic)
-add_subdirectory(NE10)
 add_subdirectory(lib)
 
 # ---------------------------------------------------------------------------

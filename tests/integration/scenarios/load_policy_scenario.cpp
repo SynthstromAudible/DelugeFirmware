@@ -17,22 +17,34 @@
 
 #include "scenarios/load_policy_scenario.h"
 
+#include "../../dsp/wavetable_band_crc.h"
+#include "../../dsp/wavetable_band_records.h"
+#include "dsp/fft/fft_config_manager.h"
 #include "memory/general_memory_allocator.h" // GeneralMemoryAllocator::resourceManager()
+#include "memory/heaps.h"                    // failNextAllocationOfSize, allocationFailurePending
+#include "model/sample/pitch_scan.h"
 #include "model/sample/sample.h"
 #include "scenarios/load_invariants.h"
+#include "scenarios/pitch_pin_records.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/audio/sample_build.h"
+#include "storage/wave_table/wave_table.h"
+#include "storage/wave_table/wave_table_holder.h"
 
 #include "deluge_resource.h"   // DelugeResourceStats, deluge_resource_stats(_reset)
 #include "libdeluge/channel.h" // DELUGE_PATH_MAX
 
 #include <array>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <string>
 #include <string_view>
+#include <vector>
 
 // The app headers above can reach `src/lib/printf.h`, which aliases `printf` to an embedded printf this harness does
 // not link; the lines this file prints are the gate's output, so they go to the real stdout.
@@ -354,7 +366,71 @@ bool checkReadStreamPath() {
 /// Ticks an explicit async load may stay `LOAD_IN_PROGRESS` before it counts as wedged.
 constexpr int kMaxDeferrals = 2000;
 
-enum class Stage : uint8_t { Pure, HolderDefault, HolderAsync, ManagerDefault, ManagerAsync, Done };
+enum class Stage : uint8_t {
+	Pure,
+	WaveTableFail,
+	HolderDefault,
+	HolderAsync,
+	ManagerDefault,
+	ManagerAsync,
+	WaveTablePin,
+	PitchPin,
+	ZeroBand,
+	WaveTableChurn,
+	Finish,
+	Done
+};
+
+/// Each stage's name in LOAD_POLICY_ONLY.
+const char* stageName(Stage stage) {
+	switch (stage) {
+	case Stage::Pure:
+		return "pure";
+	case Stage::WaveTableFail:
+		return "wt-fail";
+	case Stage::HolderDefault:
+		return "holder-default";
+	case Stage::HolderAsync:
+		return "holder-async";
+	case Stage::ManagerDefault:
+		return "manager-default";
+	case Stage::ManagerAsync:
+		return "manager-async";
+	case Stage::WaveTablePin:
+		return "wt-pin";
+	case Stage::PitchPin:
+		return "pitch-pin";
+	case Stage::ZeroBand:
+		return "zero-band";
+	case Stage::WaveTableChurn:
+		return "wt-churn";
+	case Stage::Finish:
+	case Stage::Done:
+		break;
+	}
+	return "";
+}
+
+/// Whether @p stage runs: every gate stage when LOAD_POLICY_ONLY is unset or empty, else only the stages it names
+/// (comma-separated). The churn is no gate stage: it runs only when named.
+bool stageRuns(Stage stage) {
+	const char* only = std::getenv("LOAD_POLICY_ONLY");
+	if (only == nullptr || *only == '\0') {
+		return stage != Stage::WaveTableChurn;
+	}
+	const std::string_view name = stageName(stage);
+	std::string_view list{only};
+	while (true) {
+		const std::size_t comma = list.find(',');
+		if (list.substr(0, comma) == name) {
+			return true;
+		}
+		if (comma == std::string_view::npos) {
+			return false;
+		}
+		list.remove_prefix(comma + 1);
+	}
+}
 
 Stage g_stage = Stage::Pure;
 int32_t g_failures = 0;
@@ -471,7 +547,373 @@ void runManagerDefault() {
 	report("LP-DEFAULT layer=manager mode=omitted", ok);
 }
 
+bool recording() {
+	return std::getenv("LOAD_POLICY_RECORD") != nullptr;
+}
+
+/// The card path of a record's file: wavetable_pins/X under SAMPLES/WTP, presets/… under SAMPLES/WTG.
+std::string cardPathOf(const char* recordFile) {
+	const std::string_view file{recordFile};
+	const std::string_view name = file.substr(file.rfind('/') + 1);
+	return std::string{file.starts_with("wavetable_pins/") ? "SAMPLES/WTP/" : "SAMPLES/WTG/"} + std::string{name};
+}
+
+/// Builds every pinned wavetable from the card and compares the bands with its record (LP-WT-PIN). Each is loaded the
+/// way the browser's single-cycle path loads one (makeWaveTableWorkAtAllCosts), held by no reason, then deleted.
+void runWaveTablePins() {
+	for (const wavetable_band_records::Record& record : wavetable_band_records::kRecords) {
+		std::string path = cardPathOf(record.file);
+		Error error = Error::NONE;
+		AudioFile* file =
+		    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::WAVETABLE,
+		                                              /*makeWaveTableWorkAtAllCosts=*/true);
+		auto* table =
+		    (file != nullptr && file->type == AudioFileType::WAVETABLE) ? static_cast<WaveTable*>(file) : nullptr;
+		const deluge::dsp::fixed::WaveTableData view =
+		    table != nullptr ? table->view() : deluge::dsp::fixed::WaveTableData{};
+		const uint32_t crc = table != nullptr ? wavetable_band_crc(view) : 0;
+		if (recording()) {
+			printf("LP-RECORD {\"%s\", %d, 0x%08XU},\n", record.file, static_cast<int>(view.num_bands()),
+			       static_cast<unsigned>(crc));
+		}
+		const bool ok = table != nullptr && view.num_bands() == record.num_bands && crc == record.crc;
+		printf("LP-WT-PIN file=%s error=%d bands=%d crc=%08X ok=%d\n", record.file, static_cast<int>(error),
+		       static_cast<int>(view.num_bands()), static_cast<unsigned>(crc), ok ? 1 : 0);
+		if (!ok) {
+			g_failures++;
+		}
+		audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
+	}
+}
+
+/// The pitch leg's progress: the record it is on, the sample it loaded and the scan over it, ticked once per step.
+std::size_t g_pitchIndex = 0;
+Sample* g_pitchSample = nullptr;
+deluge::sample::PitchScan g_pitchScan;
+int g_pitchSteps = 0;
+constexpr int kMaxPitchSteps = 2000;
+
+/// Loads each SAMPLES/PIT sample, runs its pitch detection to Done and compares the result's bits with its record
+/// (LP-PITCH-PIN). One step per call; a scan answers Pending while its windows stream in.
+/// @return Whether every record has been checked.
+bool runPitchPinStep() {
+	const auto& records = pitch_pin_records::kRecords;
+	if (g_pitchIndex >= records.size()) {
+		return true;
+	}
+	const pitch_pin_records::Record& record = records[g_pitchIndex];
+	std::string path = std::string{"SAMPLES/PIT/"} + record.file;
+	if (g_pitchSample == nullptr) {
+		Error error = Error::NONE;
+		AudioFile* file = audioFileManager.getAudioFileFromFilename(path, true, &error, AudioFileType::SAMPLE);
+		if (file == nullptr || file->type != AudioFileType::SAMPLE) {
+			printf("LP-PITCH-PIN file=%s error=%d ok=0\n", record.file, static_cast<int>(error));
+			g_failures++;
+			g_pitchIndex++;
+			return g_pitchIndex >= records.size();
+		}
+		g_pitchSample = static_cast<Sample*>(file);
+		g_pitchScan.arm(*g_pitchSample, deluge::sample::PitchScan::Limits{});
+		g_pitchSteps = 0;
+	}
+	const bool done = g_pitchScan.tick() == deluge::sample::PitchScan::Progress::Done;
+	const bool timeout = !done && ++g_pitchSteps >= kMaxPitchSteps;
+	if (!done && !timeout) {
+		return false;
+	}
+	const float hz = g_pitchScan.result();
+	const uint32_t bits = std::bit_cast<uint32_t>(hz);
+	if (recording() && done) {
+		printf("LP-RECORD {\"%s\", 0x%08XU},\n", record.file, static_cast<unsigned>(bits));
+	}
+	const bool ok = done && bits == record.hz_bits;
+	if (timeout) {
+		printf("LP-PITCH-PIN file=%s timeout=1 ok=0\n", record.file);
+	}
+	else {
+		printf("LP-PITCH-PIN file=%s hz=%.6f bits=%08X ok=%d\n", record.file, static_cast<double>(hz),
+		       static_cast<unsigned>(bits), ok ? 1 : 0);
+	}
+	if (!ok) {
+		g_failures++;
+	}
+	g_pitchScan.cancel();
+	g_pitchSample = nullptr;
+	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
+	g_pitchIndex++;
+	return g_pitchIndex >= records.size();
+}
+
+/// An 8-sample cycle builds one band; the load must keep that band's cycle range, or a renderer selects band -1.
+void runZeroBand() {
+	std::string path = "SAMPLES/WTP/WTP_S8.WAV";
+	Error error = Error::NONE;
+	AudioFile* file = audioFileManager.getAudioFileFromFilename(path, true, &error, AudioFileType::WAVETABLE, true);
+	auto* table = (file != nullptr && file->type == AudioFileType::WAVETABLE) ? static_cast<WaveTable*>(file) : nullptr;
+	const deluge::dsp::fixed::WaveTableData view =
+	    table != nullptr ? table->view() : deluge::dsp::fixed::WaveTableData{};
+	bool ok = table != nullptr && view.num_bands() >= 1;
+	for (uint32_t increment : {0U, 0x00100000U, 0x7FFFFFFFU, 0xFFFFFFFFU}) {
+		ok = ok && view.select_band(increment) >= 0;
+	}
+	for (int32_t b = 0; ok && b < view.num_bands(); ++b) {
+		ok = view.band(b).fromCycleNumber < view.band(b).toCycleNumber;
+	}
+	printf("LP-WT-ZEROBAND error=%d bands=%d ok=%d\n", static_cast<int>(error), static_cast<int>(view.num_bands()),
+	       ok ? 1 : 0);
+	if (!ok) {
+		g_failures++;
+	}
+	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
+}
+
+/// The record of @p file.
+const wavetable_band_records::Record& recordOf(std::string_view file) {
+	for (const wavetable_band_records::Record& record : wavetable_band_records::kRecords) {
+		if (file == record.file) {
+			return record;
+		}
+	}
+	std::abort();
+}
+
+/// A wavetable load from the card, as the browser's single-cycle path makes one.
+struct WaveTableLoad {
+	Error error = Error::NONE;
+	AudioFile* file = nullptr;
+	WaveTable* table = nullptr;
+};
+
+WaveTableLoad loadWaveTable(std::string path) {
+	WaveTableLoad load;
+	load.file = audioFileManager.getAudioFileFromFilename(
+	    path, /*mayReadCard=*/true, &load.error, AudioFileType::WAVETABLE, /*makeWaveTableWorkAtAllCosts=*/true);
+	if (load.file != nullptr && load.file->type == AudioFileType::WAVETABLE) {
+		load.table = static_cast<WaveTable*>(load.file);
+	}
+	return load;
+}
+
+/// Whether @p path is resident as a wavetable: an in-memory lookup, which reads nothing from the card.
+bool residentWaveTable(std::string path) {
+	Error error = Error::NONE;
+	return audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/false, &error, AudioFileType::WAVETABLE)
+	       != nullptr;
+}
+
+/// The CRC of @p view's bands but those of @p skippedMagnitude.
+uint32_t crcWithout(const deluge::dsp::fixed::WaveTableData& view, int32_t skippedMagnitude) {
+	std::vector<deluge::dsp::fixed::WaveTableBand> kept;
+	for (int32_t b = 0; b < view.num_bands(); ++b) {
+		if (view.band(b).cycleSizeMagnitude != skippedMagnitude) {
+			kept.push_back(view.band(b));
+		}
+	}
+	return wavetable_band_crc({view.num_cycles(), view.num_cycle_transitions_magnitude(), view.wave_index_multiplier(),
+	                           kept.data(), sizeof(deluge::dsp::fixed::WaveTableBand),
+	                           static_cast<int32_t>(kept.size())});
+}
+
+/// Reloads @p recordFile without an injected failure and checks its bands against the record: a failed or degraded
+/// load left nothing behind that the next load picks up.
+bool reloadsAsRecorded(const char* recordFile) {
+	const std::string path = cardPathOf(recordFile);
+	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
+	const WaveTableLoad load = loadWaveTable(path);
+	const wavetable_band_records::Record& record = recordOf(recordFile);
+	const bool ok = load.table != nullptr && load.table->view().num_bands() == record.num_bands
+	                && wavetable_band_crc(load.table->view()) == record.crc;
+	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
+	return ok;
+}
+
+void reportFail(const char* site, Error error, int32_t bands, bool ok, const char* suffix = "") {
+	const bool injected = !deluge::memory::allocationFailurePending();
+	printf("LP-WT-FAIL site=%s injected=%d error=%d bands=%d ok=%d%s\n", site, injected ? 1 : 0,
+	       static_cast<int>(error), static_cast<int>(bands), (ok && injected) ? 1 : 0, suffix);
+	if (!(ok && injected)) {
+		g_failures++;
+	}
+}
+
+constexpr const char* kManyFile = "wavetable_pins/WTP_MANY.WAV";
+constexpr const char* kS32File = "wavetable_pins/WTP_S32.WAV";
+/// WTP_MANY's shape: 64 cycles of 256 samples, bands from 256 samples (magnitude 8) down to 8.
+constexpr int32_t kManyCycles = 64;
+constexpr int32_t kManyCycleSize = 256;
+
+/// A missing band-0 FFT table: the table keeps band 0 alone, over every cycle, and loads.
+void runBand0TwiddlesLeg() {
+	deluge::memory::failNextAllocationOfSize(FFTConfigManager::blockBytes(5));
+	const std::string path = cardPathOf(kS32File);
+	const WaveTableLoad load = loadWaveTable(path);
+	const deluge::dsp::fixed::WaveTableData view =
+	    load.table != nullptr ? load.table->view() : deluge::dsp::fixed::WaveTableData{};
+	bool ok = load.table != nullptr && load.error == Error::NONE && view.num_bands() == 1
+	          && view.band(0).fromCycleNumber == 0 && view.band(0).toCycleNumber == view.num_cycles();
+	for (uint32_t increment : {0U, 0x00100000U, 0x7FFFFFFFU, 0xFFFFFFFFU}) {
+		ok = ok && view.select_band(increment) >= 0;
+	}
+	reportFail("band0-twiddles", load.error, view.num_bands(), ok && reloadsAsRecorded(kS32File));
+}
+
+/// A missing smaller band's FFT table: that band alone is dropped, and the rest are built as they always are.
+void runBandTwiddlesLeg() {
+	constexpr int32_t kMissingMagnitude = 7;
+	deluge::memory::failNextAllocationOfSize(FFTConfigManager::blockBytes(kMissingMagnitude));
+	const std::string path = cardPathOf(kManyFile);
+	const WaveTableLoad load = loadWaveTable(path);
+	const deluge::dsp::fixed::WaveTableData view =
+	    load.table != nullptr ? load.table->view() : deluge::dsp::fixed::WaveTableData{};
+	const uint32_t degradedCrc = load.table != nullptr ? wavetable_band_crc(view) : 0;
+	bool ok = load.table != nullptr && load.error == Error::NONE;
+	for (int32_t b = 0; ok && b < view.num_bands(); ++b) {
+		ok = view.band(b).cycleSizeMagnitude != kMissingMagnitude;
+	}
+	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
+
+	const WaveTableLoad full = loadWaveTable(path);
+	ok = ok && full.table != nullptr && view.num_bands() == full.table->view().num_bands() - 1
+	     && degradedCrc == crcWithout(full.table->view(), kMissingMagnitude);
+	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
+	reportFail("band-twiddles", load.error, view.num_bands(), ok && reloadsAsRecorded(kManyFile));
+}
+
+/// An allocation whose failure fails the load: it returns INSUFFICIENT_RAM, no file, and leaves nothing resident.
+void runFailedLoadLeg(const char* site, std::size_t bytes) {
+	deluge::memory::failNextAllocationOfSize(bytes);
+	const std::string path = cardPathOf(kManyFile);
+	const WaveTableLoad load = loadWaveTable(path);
+	const bool ok = load.error == Error::INSUFFICIENT_RAM && load.file == nullptr && !residentWaveTable(path);
+	reportFail(site, load.error, load.table != nullptr ? load.table->view().num_bands() : 0,
+	           ok && reloadsAsRecorded(kManyFile));
+}
+
+/// Every allocation that fails a wavetable load outright.
+void runFailedLoadLegs() {
+	constexpr auto bandBytes = [](int32_t k) {
+		return static_cast<std::size_t>(
+		           kManyCycles * ((kManyCycleSize >> k) + deluge::dsp::fixed::kWavetableDuplicateSamplesAtCycleEnd))
+		       * sizeof(int16_t);
+	};
+	runFailedLoadLeg("band-samples-0", bandBytes(0));
+	runFailedLoadLeg("band-samples-2", bandBytes(2));
+	runFailedLoadLeg("bands-growth", 6 * sizeof(WaveTableBand));
+	runFailedLoadLeg("cycle-buffer", kManyCycleSize * sizeof(int32_t));
+	runFailedLoadLeg("spectrum", ((kManyCycleSize >> 1) + 1) * sizeof(deluge::dsp::fixed::fft::Complex));
+}
+
+/// The pitch leg's sample, loaded on its first step; the scan over it is the pitch pins' scan, which is idle here.
+Sample* g_failPitchSample = nullptr;
+int g_failPitchSteps = 0;
+
+/// A missing pitch window FFT table, made before any detection has built it: the scan ends with no pitch. One step per
+/// call, as the pitch pins tick theirs.
+/// @return Whether the leg has ended.
+bool runPitchTwiddlesStep() {
+	std::string path = "SAMPLES/PIT/SINE440.WAV";
+	if (g_failPitchSample == nullptr) {
+		Error error = Error::NONE;
+		AudioFile* file = audioFileManager.getAudioFileFromFilename(path, true, &error, AudioFileType::SAMPLE);
+		if (file == nullptr || file->type != AudioFileType::SAMPLE) {
+			reportFail("pitch-twiddles", error, 0, false);
+			return true;
+		}
+		g_failPitchSample = static_cast<Sample*>(file);
+		deluge::memory::failNextAllocationOfSize(FFTConfigManager::blockBytes(kPitchDetectWindowSizeMagnitude));
+		g_pitchScan.arm(*g_failPitchSample, deluge::sample::PitchScan::Limits{});
+		g_failPitchSteps = 0;
+	}
+	const bool done = g_pitchScan.tick() == deluge::sample::PitchScan::Progress::Done;
+	if (!done && ++g_failPitchSteps < kMaxPitchSteps) {
+		return false;
+	}
+	reportFail("pitch-twiddles", Error::NONE, 0, done && g_pitchScan.result() == 0.0F);
+	g_pitchScan.cancel();
+	g_failPitchSample = nullptr;
+	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
+	return true;
+}
+
+/// Each allocation of a wavetable load from a file, failed once (LP-WT-FAIL), after the pitch leg has ended. Each FFT
+/// table's failure comes before any load has built that size's table: the tables are kept for the run.
+void runWaveTableFail() {
+	runBand0TwiddlesLeg();
+	runBandTwiddlesLeg();
+	runFailedLoadLegs();
+}
+
+/// The resource manager's eviction count, over the run.
+uint64_t evictionCount() {
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+	if (mgr == nullptr) {
+		return 0;
+	}
+	DelugeResourceStats stats{};
+	deluge_resource_stats(mgr, &stats);
+	return stats.evictions;
+}
+
+constexpr int kChurnRounds = 8;
+constexpr int kChurnCopies = 16;
+int g_churnRound = 0;
+uint64_t g_churnEvictionsAtStart = 0;
+
+/// One round of the churn (LP-WT-CHURN): each SAMPLES/WTC copy of a golden wavetable loaded through a holder, checked
+/// against its record and released, then every failing allocation of LP-WT-FAIL again. With the host SDRAM clamped,
+/// the copies cannot all stay resident, so a round evicts tables and the next reloads them; a band or chunk that a
+/// failed load leaked accumulates over the rounds until a load fails.
+/// @return Whether every round has run.
+bool runWaveTableChurnStep() {
+	const wavetable_band_records::Record& record = recordOf("presets/wavetable/morph_sync.2.wav");
+	if (g_churnRound == 0) {
+		g_churnEvictionsAtStart = evictionCount();
+	}
+	const uint64_t evictionsBefore = evictionCount();
+	int loads = 0;
+	bool crcOk = true;
+	for (int copy = 0; copy < kChurnCopies; ++copy) {
+		std::array<char, 32> path{};
+		snprintf(path.data(), path.size(), "SAMPLES/WTC/WTC%02d.WAV", copy);
+		WaveTableHolder holder;
+		holder.filePath = path.data();
+		holder.audioFileType = AudioFileType::WAVETABLE;
+		const Error error =
+		    holder.loadFile(/*reversed=*/false, /*manuallySelected=*/true, /*mayActuallyReadFile=*/true);
+		if (error != Error::NONE || holder.audioFile == nullptr || holder.audioFile->type != AudioFileType::WAVETABLE) {
+			continue;
+		}
+		const deluge::dsp::fixed::WaveTableData view = static_cast<WaveTable*>(holder.audioFile)->view();
+		loads++;
+		crcOk = crcOk && view.num_bands() == record.num_bands && wavetable_band_crc(view) == record.crc;
+	}
+	runFailedLoadLegs();
+	const bool ok = loads == kChurnCopies && crcOk;
+	printf("LP-WT-CHURN round=%d loads=%d evictions=%llu crcOk=%d ok=%d\n", g_churnRound + 1, loads,
+	       static_cast<unsigned long long>(evictionCount() - evictionsBefore), crcOk ? 1 : 0, ok ? 1 : 0);
+	if (!ok) {
+		g_failures++;
+	}
+	if (++g_churnRound < kChurnRounds) {
+		return false;
+	}
+	const uint64_t evictions = evictionCount() - g_churnEvictionsAtStart;
+	printf("LP-WT-CHURN rounds=%d evictions=%llu ok=%d\n", kChurnRounds, static_cast<unsigned long long>(evictions),
+	       evictions > 0 ? 1 : 0);
+	if (evictions == 0) {
+		g_failures++;
+	}
+	return true;
+}
+
+Stage nextStage(Stage stage) {
+	return static_cast<Stage>(static_cast<uint8_t>(stage) + 1);
+}
+
 void runOneCardStep() {
+	while (g_stage < Stage::Finish && !stageRuns(g_stage)) {
+		g_stage = nextStage(g_stage);
+	}
 	switch (g_stage) {
 	case Stage::Pure:
 		// The abandon churn first: it asserts no pressure-driven eviction, which holds only while nothing else has
@@ -480,7 +922,13 @@ void runOneCardStep() {
 		report("LP-CANDIDATES", checkProposeLoadCandidates());
 		report("LP-ADMISSION", checkPathAdmissionCorpus());
 		report("LP-OPEN-PATH", checkReadStreamPath());
-		g_stage = Stage::HolderDefault;
+		g_stage = Stage::WaveTableFail;
+		break;
+	case Stage::WaveTableFail:
+		if (runPitchTwiddlesStep()) {
+			runWaveTableFail();
+			g_stage = Stage::HolderDefault;
+		}
 		break;
 	case Stage::HolderDefault:
 		runHolderDefault();
@@ -497,11 +945,32 @@ void runOneCardStep() {
 		break;
 	case Stage::ManagerAsync:
 		if (runOneAsync(/*holderLayer=*/false)) {
-			report("LP-INVARIANTS", checkLoadInvariants("load_policy"));
-			g_stage = Stage::Done;
-			printf("LP-RESULT failures=%d\n", static_cast<int>(g_failures));
-			g_summaryPrinted = true;
+			g_stage = Stage::WaveTablePin;
 		}
+		break;
+	case Stage::WaveTablePin:
+		runWaveTablePins();
+		g_stage = Stage::PitchPin;
+		break;
+	case Stage::PitchPin:
+		if (runPitchPinStep()) {
+			g_stage = Stage::ZeroBand;
+		}
+		break;
+	case Stage::ZeroBand:
+		runZeroBand();
+		g_stage = Stage::WaveTableChurn;
+		break;
+	case Stage::WaveTableChurn:
+		if (runWaveTableChurnStep()) {
+			g_stage = Stage::Finish;
+		}
+		break;
+	case Stage::Finish:
+		report("LP-INVARIANTS", checkLoadInvariants("load_policy"));
+		g_stage = Stage::Done;
+		printf("LP-RESULT failures=%d\n", static_cast<int>(g_failures));
+		g_summaryPrinted = true;
 		break;
 	case Stage::Done:
 		break;
@@ -517,6 +986,12 @@ void deluge_scenario_load_policy_begin(void) {
 	g_summaryPrinted = false;
 	g_asyncAttempts = 0;
 	g_asyncDeferredFirst = false;
+	g_pitchIndex = 0;
+	g_pitchSample = nullptr;
+	g_pitchSteps = 0;
+	g_failPitchSample = nullptr;
+	g_failPitchSteps = 0;
+	g_churnRound = 0;
 	// Line-buffered: the harness ends the process without flushing stdio, and these lines are the gate's output.
 	setvbuf(stdout, nullptr, _IOLBF, 0);
 	printf("LP-BEGIN\n");
