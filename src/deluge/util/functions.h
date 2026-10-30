@@ -25,7 +25,6 @@
 #include "util/cfunctions.h" // IWYU pragma: export - minimal set of functions which need c linkage
 #include "util/db_shift.h"
 #include "util/etl_string.h"
-#include "util/fast_pythag.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/name_compare.h"    // IWYU pragma: export - strcmpspecial and friends used to live here

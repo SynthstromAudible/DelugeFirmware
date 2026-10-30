@@ -17,6 +17,7 @@
 
 #include "model/sample/sample.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/fft/magnitude.h"
 #include "dsp-next/fixed/fft/real_fft.h"
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "dsp/fft/fft_config_manager.h"
@@ -1456,7 +1457,7 @@ Sample::PitchVerdict Sample::analysePitchWindow(int32_t* buffer, int32_t lengthD
 			AudioEngine::routineWithClusterLoading();
 		}
 
-		int32_t thisValue = fastPythag(fftOutput[i].r, fftOutput[i].i);
+		int32_t thisValue = deluge::dsp::fixed::fft::magnitude(fftOutput[i]);
 		if (thisValue > biggestValue) {
 			biggestValue = thisValue;
 		}

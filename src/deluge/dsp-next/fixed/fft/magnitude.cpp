@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2026 Synthstrom Audible Limited
+ * Copyright © 2026 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,15 +14,20 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+#include "dsp-next/fixed/fft/magnitude.h"
 
-#include "util/fast_pythag.h"
 #include <algorithm>
+#include <array>
+#include <bit>
 #include <limits>
+#include <utility>
+
+namespace deluge::dsp::fixed::fft {
 
 namespace {
 
-/// pythagTable[i] = sqrt(1 + (i / 256)^2) * 2^30
-const int32_t pythagTable[257] = {
+/// √(1 + q²) at q = i/256, Q30: entry i is √(1 + (i/256)²)·2^30.
+constexpr std::array<int32_t, 257> kRootOnePlusSquare{
     1073741824, 1073750016, 1073774592, 1073815549, 1073872888, 1073946604, 1074036696, 1074143157, 1074265984,
     1074405171, 1074560712, 1074732599, 1074920825, 1075125381, 1075346257, 1075583445, 1075836932, 1076106708,
     1076392760, 1076695075, 1077013639, 1077348439, 1077699458, 1078066682, 1078450093, 1078849675, 1079265409,
@@ -56,25 +61,25 @@ const int32_t pythagTable[257] = {
 
 } // namespace
 
-int32_t fastPythag(int32_t x, int32_t y) {
-	// Work with unsigned magnitudes, so that negating INT32_MIN can't overflow
-	uint32_t big = (x < 0) ? -static_cast<uint32_t>(x) : static_cast<uint32_t>(x);
-	uint32_t small = (y < 0) ? -static_cast<uint32_t>(y) : static_cast<uint32_t>(y);
-	if (small > big) {
-		std::swap(big, small);
+int32_t magnitude(Complex bin) {
+	// Unsigned absolute parts, so negating INT32_MIN cannot overflow.
+	uint32_t larger = (bin.r < 0) ? -static_cast<uint32_t>(bin.r) : static_cast<uint32_t>(bin.r);
+	uint32_t smaller = (bin.i < 0) ? -static_cast<uint32_t>(bin.i) : static_cast<uint32_t>(bin.i);
+	if (smaller > larger) {
+		std::swap(larger, smaller);
 	}
-	if (big == 0) {
+	if (larger == 0) {
 		return 0;
 	}
-
-	// The table's indexed by small / big in 256ths. Drop low bits of large inputs first so the division stays
-	// 32-bit (the Deluge has no hardware divider, let alone a 64-bit one): with big under 2^23, the rounded
-	// numerator below can't overflow, and big still keeps 22+ significant bits - far more than the index needs.
-	int32_t shift = std::max(0, 9 - __builtin_clz(big));
-	uint32_t bigReduced = big >> shift;
-	uint32_t smallReduced = small >> shift;
-	uint32_t ratio = ((smallReduced << 8) + (bigReduced >> 1)) / bigReduced; // Rounded; 0 to 256 as small <= big
-
-	uint64_t magnitude = (static_cast<uint64_t>(big) * static_cast<uint32_t>(pythagTable[ratio]) + (1u << 29)) >> 30;
-	return static_cast<int32_t>(std::min<uint64_t>(magnitude, std::numeric_limits<int32_t>::max()));
+	// The larger part shifted under 2^23, so the rounded ratio's numerator fits 32 bits; it keeps 22+ significant
+	// bits, far more than the 1/256 index needs.
+	const int32_t shift = std::max(0, 9 - std::countl_zero(larger));
+	const uint32_t larger_reduced = larger >> shift;
+	const uint32_t smaller_reduced = smaller >> shift;
+	const uint32_t ratio = ((smaller_reduced << 8) + (larger_reduced >> 1)) / larger_reduced; // 0 to 256, rounded
+	const uint64_t scaled =
+	    ((static_cast<uint64_t>(larger) * static_cast<uint32_t>(kRootOnePlusSquare[ratio])) + (1u << 29)) >> 30;
+	return static_cast<int32_t>(std::min<uint64_t>(scaled, std::numeric_limits<int32_t>::max()));
 }
+
+} // namespace deluge::dsp::fixed::fft

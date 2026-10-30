@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2023 Synthstrom Audible Limited
+ * Copyright © 2026 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,12 +14,20 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
 #pragma once
+
+#include "dsp-next/fixed/fft/complex.h"
 
 #include <cstdint>
 
-/// Approximate sqrt(x^2 + y^2) - the magnitude of a complex FFT bin - using a 257-entry table of sqrt(1 + r^2)
-/// over the ratio r = min/max of the two magnitudes. Accurate to within about 0.15%, for any inputs (including
-/// INT32_MIN); saturates at INT32_MAX.
-int32_t fastPythag(int32_t x, int32_t y);
+namespace deluge::dsp::fixed::fft {
+
+/// @brief An FFT bin's magnitude, √(r² + i²), approximated within about 0.15% for any inputs (INT32_MIN included).
+/// @details Reads √(1 + q²) from a 257-entry table at q = min/max of the two absolute parts, rounded to 1/256, and
+/// scales the larger part by it. The ratio is formed in 32 bits (the A9 has no 64-bit divide): the parts are first
+/// shifted down so the larger fits in 23 bits.
+/// @param bin The bin, real and imaginary parts in the transform's units.
+/// @return The magnitude in the parts' units, saturated at INT32_MAX.
+[[nodiscard]] int32_t magnitude(Complex bin);
+
+} // namespace deluge::dsp::fixed::fft
