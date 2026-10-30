@@ -16,7 +16,8 @@
  */
 
 #include "model/voice/ringmod_engine.h"
-#include "dsp-next/core/types.h"                 // deluge::dsp::fixed::Buffer
+#include "dsp-next/core/types.h" // deluge::dsp::fixed::Buffer
+#include "dsp-next/fixed/vca/pan.h"
 #include "dsp/oscillators/oscillator.h"          // deluge::dsp::oscSyncRenderingBuffer
 #include "model/voice/source_component_render.h" // voice::makeBlockControls
 #include "model/voice/voice.h"                   // Voice (member access — pre-roll + per-source state)
@@ -25,7 +26,6 @@
 #include "storage/audio/audio_file_holder.h" // AudioFileHolder::audioFile (the wavetable lookup)
 #include "storage/wave_table/wave_table.h"   // WaveTable::view() (band-data view for the wavetable source)
 #include "util/fixedpoint.h"
-#include "util/functions.h" // shouldDoPanning
 
 using namespace deluge;
 
@@ -44,8 +44,10 @@ void RingModEngine::render(Voice& voice, int32_t* oscBuffer, int32_t numSamples,
 	// For each unison part
 	for (int32_t u = 0; u < cfg.numUnison; u++) {
 
-		int32_t unisonAmplitudeL, unisonAmplitudeR;
-		shouldDoPanning((stereoUnison ? cfg.unisonPan[u] : 0), &unisonAmplitudeL, &unisonAmplitudeR);
+		const deluge::dsp::fixed::PanAmplitudes unisonPanAmplitudes =
+		    deluge::dsp::fixed::pan_amplitudes(stereoUnison ? cfg.unisonPan[u] : 0);
+		int32_t unisonAmplitudeL = unisonPanAmplitudes.left;
+		int32_t unisonAmplitudeR = unisonPanAmplitudes.right;
 
 		// Work out the phase increments of the two sources. If these are too high, we abandon all remaining unison
 		// parts. Yes this will affect all unison parts, which seems like it's not what we want, but since we're

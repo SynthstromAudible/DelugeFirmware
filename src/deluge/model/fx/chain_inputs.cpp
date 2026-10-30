@@ -16,6 +16,7 @@
  */
 
 #include "model/fx/chain_inputs.h"
+#include "dsp-next/fixed/vca/pan.h"
 
 #include "model/fx/song_stutter.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
@@ -150,7 +151,12 @@ effects::MasterPostInputs masterPostInputs(Song& song) {
 	const int32_t pan = unpatched->getValue(params::UNPATCHED_PAN) >> 1;
 	int32_t amplitudeL = 0;
 	int32_t amplitudeR = 0;
-	const bool doPanning = pan != 0 && AudioEngine::renderInStereo && shouldDoPanning(pan, &amplitudeL, &amplitudeR);
+	const bool doPanning = pan != 0 && AudioEngine::renderInStereo;
+	if (doPanning) {
+		const deluge::dsp::fixed::PanAmplitudes amplitudes = deluge::dsp::fixed::pan_amplitudes(pan);
+		amplitudeL = amplitudes.left;
+		amplitudeR = amplitudes.right;
+	}
 
 	return {
 	    .filter = chainFilterParams(*unpatched),

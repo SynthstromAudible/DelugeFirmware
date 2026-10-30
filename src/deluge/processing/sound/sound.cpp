@@ -18,6 +18,7 @@
 #include "processing/sound/sound.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
+#include "dsp-next/fixed/vca/pan.h"
 #include "engines/deluge/codec.h"
 #include "engines/deluge/sound_state.h"
 #include "engines/effects/codec.h"
@@ -1976,7 +1977,13 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// We know that nothing's patched to pan, so can read it in this very basic way.
 		int32_t pan = paramManager->getPatchedParamSet()->getValue(params::LOCAL_PAN) >> 1;
 		int32_t amplitudeL, amplitudeR;
-		bool doPanning = AudioEngine::renderInStereo && shouldDoPanning(pan, &amplitudeL, &amplitudeR);
+		bool doPanning = false;
+		if (AudioEngine::renderInStereo) {
+			const deluge::dsp::fixed::PanAmplitudes amplitudes = deluge::dsp::fixed::pan_amplitudes(pan);
+			amplitudeL = amplitudes.left;
+			amplitudeR = amplitudes.right;
+			doPanning = pan != 0;
+		}
 
 		// If just rendered in mono, double that up to stereo now
 		if (!voice_rendered_in_stereo) {

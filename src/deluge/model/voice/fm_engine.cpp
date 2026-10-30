@@ -19,11 +19,11 @@
 #include "arm_neon_shim.h" // NEON intrinsics (SIMDe on host) for the operator renders
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/osc/sine.h" // deluge::dsp::fixed::sine / sine_fm_operator
+#include "dsp-next/fixed/vca/pan.h"
 #include "model/voice/voice.h"
 #include "modulation/params/param_set.h"
 #include "processing/sound/sound.h"
 #include "util/fixedpoint.h"
-#include "util/functions.h" // shouldDoPanning
 #include <cstring>
 
 using namespace deluge;
@@ -43,8 +43,10 @@ void FMEngine::render(Voice& voice, int32_t numSamples, int32_t overallPitchAdju
 	// For each unison part
 	for (int32_t u = 0; u < cfg.numUnison; u++) {
 
-		int32_t unisonAmplitudeL, unisonAmplitudeR;
-		shouldDoPanning((stereoUnison ? cfg.unisonPan[u] : 0), &unisonAmplitudeL, &unisonAmplitudeR);
+		const deluge::dsp::fixed::PanAmplitudes unisonPanAmplitudes =
+		    deluge::dsp::fixed::pan_amplitudes(stereoUnison ? cfg.unisonPan[u] : 0);
+		int32_t unisonAmplitudeL = unisonPanAmplitudes.left;
+		int32_t unisonAmplitudeR = unisonPanAmplitudes.right;
 
 		// Work out the phase increments of the two sources. If these are too high, sourceAmplitudes[s] is set to 0.
 		// Yes this will affect all unison parts, which seems like it's not what we want, but since we're traversing

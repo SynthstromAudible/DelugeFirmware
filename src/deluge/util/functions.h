@@ -178,7 +178,6 @@ inline q31_t sampleTriangleDistribution() {
 void seedRandom();
 
 int32_t random(int32_t upperLimit);
-bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR);
 
 uint32_t getOscInitialPhaseForZero(OscType waveType);
 

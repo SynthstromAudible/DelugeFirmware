@@ -28,7 +28,7 @@
 ///  - the reverb feed (`AudioEngine::feedReverbBackdoorForGrain`) adds into a span argument, wrapping;
 ///  - every add that can wrap is a wrapping one, so the spec's signed-overflow sanitizer sees the same two's-complement
 ///    result the target computes;
-///  - `shouldDoPanning` and `quickLog` are the dsp-next functions they delegate to;
+///  - the pan law and the quick log are dsp-next's own (`pan_amplitudes`, `quick_log`);
 ///  - the unused tempo argument and `grainLastTickCountIsZero` are dropped;
 ///  - counters and read accessors the spec asserts through, which the output does not depend on.
 

@@ -16,6 +16,7 @@
  */
 
 #include "processing/engines/audio_engine.h"
+#include "dsp-next/fixed/vca/pan.h"
 #include "model/fx/chain_inputs.h"
 
 #include "chrono"
@@ -1529,7 +1530,13 @@ void renderReverb(size_t numSamples) {
 
 	if (reverbOn) {
 		// Reverb panning
-		bool thisDoPanning = (renderInStereo && shouldDoPanning(reverbPan, &reverbAmplitudeL, &reverbAmplitudeR));
+		bool thisDoPanning = false;
+		if (renderInStereo) {
+			const deluge::dsp::fixed::PanAmplitudes amplitudes = deluge::dsp::fixed::pan_amplitudes(reverbPan);
+			reverbAmplitudeL = amplitudes.left;
+			reverbAmplitudeR = amplitudes.right;
+			thisDoPanning = reverbPan != 0;
+		}
 
 		if (thisDoPanning) {
 			reverbAmplitudeL = multiply_32x32_rshift32(reverbAmplitudeL, reverbOutputVolume) << 2;

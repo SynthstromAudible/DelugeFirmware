@@ -18,7 +18,6 @@
 #include "util/functions.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/curves/instant_tan.h"
-#include "dsp-next/fixed/vca/pan.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -793,13 +792,6 @@ int32_t getLookupIndexFromValue(int32_t value, const int32_t* table, int32_t max
 
 int32_t random(int32_t upperLimit) {
 	return (uint16_t)(CONG >> 16) % (upperLimit + 1);
-}
-
-bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR) {
-	const deluge::dsp::fixed::PanAmplitudes amplitudes = deluge::dsp::fixed::pan_amplitudes(panAmount);
-	*amplitudeL = amplitudes.left;
-	*amplitudeR = amplitudes.right;
-	return panAmount != 0;
 }
 
 uint32_t getOscInitialPhaseForZero(OscType waveType) {

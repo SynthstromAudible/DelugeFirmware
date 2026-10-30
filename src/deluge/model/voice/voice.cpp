@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // getDecay4
 #include "dsp-next/fixed/osc/sine.h"
+#include "dsp-next/fixed/vca/pan.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "dsp/util.hpp"
 #include "engines/effects/filter_slots.h"
@@ -1174,8 +1175,14 @@ skipAutoRelease: {}
 	}
 	else {
 		// Set up panning
-		doPanning = (cfg.engineRenderingInStereo
-		             && shouldDoPanning(params.paramFinalValues[params::LOCAL_PAN], &amplitudeL, &amplitudeR));
+		const int32_t pan = params.paramFinalValues[params::LOCAL_PAN];
+		doPanning = false;
+		if (cfg.engineRenderingInStereo) {
+			const deluge::dsp::fixed::PanAmplitudes amplitudes = deluge::dsp::fixed::pan_amplitudes(pan);
+			amplitudeL = amplitudes.left;
+			amplitudeR = amplitudes.right;
+			doPanning = pan != 0;
+		}
 	}
 
 	// Normal mode: subtractive / samples. The engine owns the per-source render loop + osc-sync + the stereo
@@ -1601,8 +1608,10 @@ pitchTooHigh:
 		}
 
 		bool stereoUnison = cfg.unisonStereoSpread && cfg.numUnison > 1 && stereoBuffer;
-		int32_t amplitudeL, amplitudeR;
-		shouldDoPanning((stereoUnison ? cfg.unisonPan[u] : 0), &amplitudeL, &amplitudeR);
+		const deluge::dsp::fixed::PanAmplitudes unisonPanAmplitudes =
+		    deluge::dsp::fixed::pan_amplitudes(stereoUnison ? cfg.unisonPan[u] : 0);
+		int32_t amplitudeL = unisonPanAmplitudes.left;
+		int32_t amplitudeR = unisonPanAmplitudes.right;
 		// used if mono source but stereoUnison active
 
 		auto result =
