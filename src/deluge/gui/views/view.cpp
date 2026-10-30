@@ -18,7 +18,6 @@
 #include "gui/views/view.h"
 #include "definitions_cxx.hpp"
 #include "deluge/model/settings/runtime_feature_settings.h"
-#include "dsp/reverb/reverb.hpp"
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/context_menu/clear_song.h"
@@ -1979,13 +1978,12 @@ void View::cycleThroughReverbPresets() {
 		newPreset = 0;
 	}
 
-	// project.reverb is authoritative; AudioEngine::reverb is the projected DSP cache kept in sync.
+	// project.reverb is authoritative; the render takes up the song's knobs, published here, at its next block.
 	float roomSize = (float)presetReverbRoomSize[newPreset] / 50;
 	float damping = (float)presetReverbDamping[newPreset] / 50;
 	currentSong->project.reverb.room_size = roomSize;
 	currentSong->project.reverb.damping = damping;
-	AudioEngine::reverb.setRoomSize(roomSize);
-	AudioEngine::reverb.setDamping(damping);
+	AudioEngine::publishReverbSettings(currentSong->project.reverb);
 }
 
 int32_t View::getCurrentReverbPreset() {

@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "dsp/reverb/reverb.hpp"
+#include "engines/effects/reverb.h"
 #include "gui/menu_item/integer.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -25,14 +25,14 @@ namespace deluge::gui::menu_item::reverb {
 class Damping final : public Integer {
 public:
 	using Integer::Integer;
-	// project.reverb is authoritative; AudioEngine::reverb is the projected DSP cache kept in sync.
+	// project.reverb is authoritative; the render takes up the song's knobs, published here, at its next block.
 	void readCurrentValue() override {
 		this->setValue(std::round(currentSong->project.reverb.damping * kMaxMenuValue));
 	}
 	void writeCurrentValue() override {
 		float value = (float)this->getValue() / kMaxMenuValue;
 		currentSong->project.reverb.damping = value;
-		AudioEngine::reverb.setDamping(value);
+		AudioEngine::publishReverbSettings(currentSong->project.reverb);
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 };

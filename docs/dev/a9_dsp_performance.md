@@ -623,6 +623,35 @@ the minimum of four runs; the last column is the spread (max - min), runtime / r
 - **The sound chain is +0.7% at n=32** (about 115 cycles a block), beyond its spread: it copies its 100-byte
   `FxInputs` each block to put the setting's mod FX type in. At n=128 it is level.
 
+## Reverb
+
+`effects::Reverb` (`Mono<Freeverb>` and `Mono<Plate>` over one buffer, the model chosen per block) as the app renders it
+(after) against the engine's old reverb, a `std::variant` of three classes behind virtual knobs and `std::visit`
+(before). Each case is the song reverb's block as `renderReverb` makes it: the model built afresh at the boot song's
+knobs, both return levels 2^29, over the lanes output in place (`DELUGE_DSP_BENCH_CASES=reverb`), on 2026-10-29, after
+image d068b23c3. Cycles per channel-sample, the minimum of four runs of each image; the last column is the after spread
+(max - min), worst size.
+
+| case | n=32 before → after (delta) | n=64 before → after (delta) | n=128 before → after (delta) | after spread |
+|---|---:|---:|---:|---:|
+| `control calibration_loop` | 32.11 → 32.11 (+0.0%) | 32.04 → 32.03 (-0.0%) | 32.02 → 32.01 (-0.0%) | 0.02 |
+| `control delay_feedback_chain_analog` | 171.94 → 171.46 (-0.3%) | 165.96 → 165.71 (-0.2%) | 162.98 → 162.86 (-0.1%) | 0.01 |
+| `control delay_feedback_chain_digital` | 20.34 → 19.89 (-2.2%) | 14.41 → 14.18 (-1.6%) | 11.45 → 11.34 (-1.0%) | 0.01 |
+| `reverb_freeverb` | 276.94 → 252.33 (-8.9%) | 275.15 → 249.88 (-9.2%) | 274.78 → 249.02 (-9.4%) | 0.29 |
+| `reverb_mutable` | 567.58 → 175.92 (-69.0%) | 564.00 → 174.91 (-69.0%) | 562.18 → 174.52 (-69.0%) | 0.32 |
+| `reverb_digital` | 849.13 → 214.68 (-74.7%) | 843.80 → 213.74 (-74.7%) | 841.48 → 213.45 (-74.6%) | 0.19 |
+
+- **The plates gain 69-75%.** The old Mutable and Digital loops called `toQ31Saturating` and the `FxEngine` line and
+  context helpers out of line every frame under `-fno-inline-functions` (eight to nine calls per frame); the plate
+  kernel's helpers are `[[gnu::always_inline]]`, so each frame loop has no call and no `muls`, and the LFO's step is
+  `vmul`/`vsub`/`vadd.f32` on `d` registers. Mutable reads 169.4 at n=128 in an image built two commits earlier with
+  the same plate code: a placement effect of about 3%.
+- **Freeverb gains 9%, from two measured choices.** As first written, with its combs and allpasses in loops over the
+  layout table and its State stepped in place, it ran at 332 cycles (+21%): the old code was fully unrolled. Unrolling
+  them at compile time (each line's base an immediate) brought it to 277 in place, and copying the State into registers
+  for the block to 249. Stepping the plate's State in place instead costs it 9-19%, so both States are copied.
+- **The controls move by 0.1-2.2%**, the bound on placement noise between the two images.
+
 ## Open questions
 
 - Whether NEON-sourced stores overlap with arithmetic in kernels that do much more work per sample than a gain. The

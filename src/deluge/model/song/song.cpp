@@ -22,7 +22,6 @@
 #include "deluge-project/doc_drum.h"
 #include "deluge-project/doc_output.h"
 #include "deluge-project/song_codec.h"
-#include "dsp/reverb/reverb.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -238,7 +237,7 @@ Song::Song() {
 	project.reverb.sidechain_volume = getParamFromUserValue(params::STATIC_SIDECHAIN_VOLUME, -1);
 	project.reverb.sidechain_shape = -601295438;
 	project.reverb.sidechain_sync = SYNC_LEVEL_8TH;
-	model = deluge::dsp::Reverb::Model::MUTABLE;
+	model = deluge::effects::ReverbModel::MUTABLE;
 
 	// setup base compressor gain to match 1.0
 	live.global_effectable.core().compressor().dsp().setBaseGain(0.85f);
@@ -1455,7 +1454,7 @@ Error Song::readFromFile(Deserializer& reader, uint64_t timePerTimerTick) {
 
 	// reverb mode is freeverb for songs that predate having multiple options. New songs will set it to mutable anyway
 	// so this is only used as a fallback
-	model = deluge::dsp::Reverb::Model::FREEVERB;
+	model = deluge::effects::ReverbModel::FREEVERB;
 
 	const deluge::storage::Value* element = deluge::storage::treeReaderOf(reader).currentElement();
 	if (element == nullptr || !reader.match('{')) {
@@ -1472,7 +1471,11 @@ Error Song::readFromFile(Deserializer& reader, uint64_t timePerTimerTick) {
 				reader.match('{');
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "model")) {
-						model = static_cast<deluge::dsp::Reverb::Model>(reader.readTagOrAttributeValueInt());
+						const int32_t read = reader.readTagOrAttributeValueInt();
+						// A model this firmware does not know falls back to Freeverb, as a file with none does.
+						model = read >= 0 && read <= util::to_underlying(deluge::effects::ReverbModel::DIGITAL)
+						            ? static_cast<deluge::effects::ReverbModel>(read)
+						            : deluge::effects::ReverbModel::FREEVERB;
 						reader.exitTag("model");
 					}
 					else {

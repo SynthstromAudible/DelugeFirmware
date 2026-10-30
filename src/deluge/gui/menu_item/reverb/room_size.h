@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "dsp/reverb/reverb.hpp"
+#include "engines/effects/reverb.h"
 #include "gui/menu_item/integer.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -26,22 +26,22 @@ namespace deluge::gui::menu_item::reverb {
 class RoomSize final : public Integer {
 public:
 	using Integer::Integer;
-	// project.reverb is authoritative; AudioEngine::reverb is the projected DSP cache kept in sync.
+	// project.reverb is authoritative; the render takes up the song's knobs, published here, at its next block.
 	void readCurrentValue() override {
 		this->setValue(std::round(currentSong->project.reverb.room_size * kMaxMenuValue));
 	}
 	void writeCurrentValue() override {
 		float value = (float)this->getValue() / kMaxMenuValue;
 		currentSong->project.reverb.room_size = value;
-		AudioEngine::reverb.setRoomSize(value);
+		AudioEngine::publishReverbSettings(currentSong->project.reverb);
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 
 	[[nodiscard]] std::string_view getName() const override {
 		using enum l10n::String;
-		switch (AudioEngine::reverb.getModel()) {
-		case dsp::Reverb::Model::DIGITAL:
-		case dsp::Reverb::Model::MUTABLE:
+		switch (AudioEngine::reverb.model()) {
+		case deluge::effects::ReverbModel::DIGITAL:
+		case deluge::effects::ReverbModel::MUTABLE:
 			return l10n::getView(STRING_FOR_TIME);
 		default:
 			return l10n::getView(this->name);

@@ -1560,6 +1560,40 @@ private:
 	StutterConfig config_;
 };
 
+/// @brief The reverb models the cases time. reverb_cases.cpp maps each to the engine's model, which this header
+/// leaves out so that the host specs build it without the app's headers.
+enum class ReverbKind : uint8_t {
+	FREEVERB, ///< Freeverb
+	MUTABLE,  ///< The Mutable plate
+	DIGITAL,  ///< The Digital (Dattorro) plate
+};
+
+/// @brief The song's reverb block as the engine renders it (renderReverb, through effects::Reverb): the model at the
+/// boot song's knobs, centred and unducked (both return levels 2^29), over the lanes output in place, fed from its own
+/// send block.
+/// @details Setup rebuilds the component at the model, as a song load does (zeroed memory), publishes the boot song's
+/// knobs, copies the lanes input's first n frames (fill_compressor_input()) into the lanes output and fills the send
+/// with a tone. Each block renders over the block before's output, from the same send, which the reverb reads and
+/// leaves as it is. The timing does not depend on the data.
+class ReverbCase {
+public:
+	static constexpr std::size_t kLanes = 2; ///< Left and right.
+
+	/// @brief A case of @p kind.
+	/// @param kind The model the case times.
+	constexpr explicit ReverbCase(ReverbKind kind) : kind_{kind} {}
+
+	/// @brief The model built afresh at the boot song's knobs, and the block for @p n frames.
+	/// @param n Block size to set up for, in frames.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for, in place.
+	/// @param n Block size, in frames; the size passed to setup().
+	void block(std::size_t n);
+
+private:
+	ReverbKind kind_;
+};
+
 /// @brief Which home an effect chain case renders.
 enum class FxChainHome : uint8_t {
 	SOUND,  ///< A sound's chain after its voices.
@@ -1719,6 +1753,9 @@ struct CaseSet {
 	StutterCase stutter_record_resampled{{.play = false, .resampled = true}};     ///< `stutter_record_resampled`
 	StutterCase stutter_play_native{{.play = true, .resampled = false}};          ///< `stutter_play_native`
 	StutterCase stutter_play_resampled{{.play = true, .resampled = true}};        ///< `stutter_play_resampled`
+	ReverbCase reverb_freeverb{ReverbKind::FREEVERB};                             ///< `reverb_freeverb`
+	ReverbCase reverb_mutable{ReverbKind::MUTABLE};                               ///< `reverb_mutable`
+	ReverbCase reverb_digital{ReverbKind::DIGITAL};                               ///< `reverb_digital`
 	FxChainCase fx_chain_sound{{.home = FxChainHome::SOUND, .reference = false}}; ///< `fx_chain_sound`
 	FxChainCase fx_chain_sound_reference{
 	    {.home = FxChainHome::SOUND, .reference = true}};                                ///< `fx_chain_sound_reference`
@@ -1757,6 +1794,9 @@ enum class CaseList : uint8_t {
 	/// The calibration loop, the stutter as its owners render it, recording and playing over a native and a resampled
 	/// tape, then the feedback chain's two cases from the chain list, as in the delay list.
 	STUTTER,
+	/// The calibration loop, each reverb model as the engine renders it, then the feedback chain's two cases from
+	/// the chain list, as in the delay list.
+	REVERB,
 	/// The calibration loop, each home's effect chain runtime beside its sequence written out over the same
 	/// components, then the feedback chain's two cases from the chain list, as in the delay list.
 	FX_CHAINS,
@@ -1779,6 +1819,8 @@ inline constexpr CaseList kBenchCaseList = CaseList::MOD_FX;
 inline constexpr CaseList kBenchCaseList = CaseList::GRANULAR;
 #elif defined(DELUGE_DSP_BENCH_STUTTER)
 inline constexpr CaseList kBenchCaseList = CaseList::STUTTER;
+#elif defined(DELUGE_DSP_BENCH_REVERB)
+inline constexpr CaseList kBenchCaseList = CaseList::REVERB;
 #elif defined(DELUGE_DSP_BENCH_FX_CHAINS)
 inline constexpr CaseList kBenchCaseList = CaseList::FX_CHAINS;
 #else

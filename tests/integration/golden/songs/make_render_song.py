@@ -56,6 +56,9 @@ taken; those read 0. RS_GRAIN_OWNERS runs the grain on a synth holding its note,
 switch the synth's type away from the grain and back and to clear each owner's grain mid-render; it has no dry twin.
 RS_GRAIN_MASTER holds the master's chorus playing for its gate to switch the master to the grain and back mid-render;
 it has no dry twin.
+RS_REVERB_FREEVERB, RS_REVERB_MUTABLE and RS_REVERB_DIGITAL put each reverb model at knobs away from the boot song's,
+Freeverb at half width and Digital panned in stereo. RS_REVERB_SWITCH holds Mutable playing for its gate to switch the
+model and turn its knobs mid-render.
 RS_MASTER_PAN is RS_MASTER_FX under its own name, for a gate that renders it in stereo, where the master's pan applies.
 RS_MASTER_ARRANGER plays RS_MASTER_FX's master in the arranger, its low-pass cutoff and volume ramping over two bars.
 RS_MASTER_GRAIN_OFF holds the master's grain in its soft off (its selected knob at its minimum), its other effects as
@@ -647,6 +650,27 @@ def ducked_song(voices: list[tuple[str, str, int]], dry: bool) -> str:
             ),
         ],
         DUCKED_REVERB_DRY if dry else DUCKED_REVERB,
+    )
+
+
+# The song's reverb at settings of its own: the model as a file saves it (0 Freeverb, 1 Mutable, 2 Digital), room,
+# damping, width, high-pass, low-pass and pan as q31 fractions, and its sidechain set by hand to nothing (volume 0),
+# so no sound's sidechain moves it. Each song's _DRY twin keeps the model and the sidechain and takes the boot song's
+# knobs (Song::Song: room 30/50, damping 36/50, width 1, high-pass 0, low-pass 1, pan 0): the gate fails if the two
+# render alike, which would mean the knobs never reached the render. The audio track's volume is turned down so every
+# render peaks well below full scale: a clipped sample would hide a change in the reverb's output.
+REVERB_SEND = _host(params='reverbAmount="0x40000000" volume="0xC0000000"')
+REVERB_DEFAULT_KNOBS = 'roomSize="1288490189" dampening="1546188227" width="2147483647" hpf="0" lpf="2147483647" pan="0"'
+REVERB_TURNED_KNOBS = 'roomSize="1932735283" dampening="429496730" width="1073741824" hpf="1288490189" lpf="858993459"'
+
+
+def _reverb(model: int, knobs: str, pan: int = 0) -> str:
+    """The song element closing the <song> tag and holding the reverb: @p model, @p knobs, @p pan."""
+    pan_attribute = "" if 'pan="' in knobs else f' pan="{pan}"'
+    return (
+        f'>\n\t<reverb model="{model}" {knobs}{pan_attribute}>\n'
+        '\t\t<compressor attack="327244" release="992" volume="0" shape="-601295438" syncLevel="7" />\n'
+        "\t</reverb>"
     )
 
 
@@ -1268,6 +1292,31 @@ SONGS = {
             kit_parts(_host(params=MOD_FX_SOFT_OFF_VOLUME), PINGPONG_DRUMS),
             audio_parts(_host(params=MOD_FX_SOFT_OFF_VOLUME)),
         ],
+    ),
+    # Freeverb with its width at half, the only setting where its right channel takes in the left (wet2 > 0).
+    "RS_REVERB_FREEVERB": lambda v: parts_song(
+        v, [audio_parts(REVERB_SEND)], _reverb(0, REVERB_TURNED_KNOBS)
+    ),
+    "RS_REVERB_FREEVERB_DRY": lambda v: parts_song(
+        v, [audio_parts(REVERB_SEND)], _reverb(0, REVERB_DEFAULT_KNOBS)
+    ),
+    "RS_REVERB_MUTABLE": lambda v: parts_song(
+        v, [audio_parts(REVERB_SEND)], _reverb(1, REVERB_TURNED_KNOBS)
+    ),
+    "RS_REVERB_MUTABLE_DRY": lambda v: parts_song(
+        v, [audio_parts(REVERB_SEND)], _reverb(1, REVERB_DEFAULT_KNOBS)
+    ),
+    # Digital, rendered in stereo by its gate, its pan halfway left so the two channels' levels differ.
+    "RS_REVERB_DIGITAL": lambda v: parts_song(
+        v, [audio_parts(REVERB_SEND)], _reverb(2, REVERB_TURNED_KNOBS, pan=-1073741824)
+    ),
+    "RS_REVERB_DIGITAL_DRY": lambda v: parts_song(
+        v, [audio_parts(REVERB_SEND)], _reverb(2, REVERB_DEFAULT_KNOBS)
+    ),
+    # Mutable at turned knobs, for its gate to switch the model and turn knobs mid-render (RENDER_REVERB_SWITCH);
+    # no dry twin: the gate's twin is the same song rendered unswitched.
+    "RS_REVERB_SWITCH": lambda v: parts_song(
+        v, [audio_parts(REVERB_SEND)], _reverb(1, REVERB_TURNED_KNOBS)
     ),
 }
 

@@ -318,13 +318,14 @@ option(DELUGE_DSP_BENCH "Run the DSP benchmarks at boot (device builds)" OFF)
 # fused, over real tapes), "filters" (each filter and the filter set, as a voice runs them), "compressor" (fully wet
 # and blended, as its owners call it), "mod_fx" (each mod FX type as its owners render it through effects::ModFx) or
 # "granular" (the granular kernel with sparse and dense grains, with and without pitch randomness),
-# "stutter" (the stutter recording and playing over a native and a resampled tape), or "fx_chains" (each home's effect
+# "stutter" (the stutter recording and playing over a native and a resampled tape), "reverb" (each reverb model as the
+# engine renders it), or "fx_chains" (each home's effect
 # chain runtime beside the same sequence written out over its components).
 # The device prints about 70 lines over RTT before it drops some, so the cases come in lists that fit.
 set(DELUGE_DSP_BENCH_CASES "kernels" CACHE STRING
-    "The DSP bench's case list: kernels, lanes, chain, delay, filters, compressor, mod_fx, granular, stutter or fx_chains")
+    "The DSP bench's case list: kernels, lanes, chain, delay, filters, compressor, mod_fx, granular, stutter, reverb or fx_chains")
 set_property(CACHE DELUGE_DSP_BENCH_CASES PROPERTY STRINGS kernels lanes chain delay filters compressor mod_fx granular stutter
-                                                           fx_chains)
+                                                           reverb fx_chains)
 
 # The streaming benchmark (src/deluge/bench/stream_bench.h). Off by default; enable with -DDELUGE_STREAM_BENCH=ON. A device
 # image built with it loads the first song after boot, plays it, loads the second while playing, and prints where each

@@ -1685,6 +1685,78 @@ group = "render"
 runtime = "~20s"
 
 [[harness]]
+name = "render-reverb-freeverb"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the song's Freeverb reverb renders as recorded at knobs of its own, its width at half, so each channel's output takes in the other's (wet2 above 0): a generated song (tests/integration/golden/songs/make_render_song.py --song RS_REVERB_FREEVERB) whose audio track sends to it beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin at the boot song's knobs must render differently (RS-FX)"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_REVERB_FREEVERB" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-reverb-mutable"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the song's Mutable reverb renders as recorded at knobs of its own, its room, damping, width, high-pass and low-pass away from the boot song's: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_REVERB_MUTABLE) whose audio track sends to it beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin at the boot song's knobs must render differently (RS-FX)"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_REVERB_MUTABLE" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-reverb-digital"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the song's Digital reverb renders as recorded at knobs of its own, panned halfway left and rendered in stereo, so the two channels' return levels differ: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_REVERB_DIGITAL) whose audio track sends to it beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin at the boot song's knobs must render differently (RS-FX)"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_REVERB_DIGITAL", RENDER_STEREO = "1" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-reverb-switch"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the song's reverb switched between its models and its knobs turned while it plays renders as recorded, each model change rebuilding the reverb with its memory zeroed as a song load does: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_REVERB_SWITCH) playing Mutable, switched to Digital at block 600, its high-pass turned at 800, switched to Freeverb at 1000 (the song's width at half, so wet2 above 0), its width halved again at 1200 and its room turned at 1400, back to Mutable at 1600 and its low-pass turned at 1800 (RENDER_REVERB_SWITCH, as the reverb menus do); compared with its record in tests/integration/golden/songs.json; the RS-REVERB-SWITCH summary must show every switch applied with the model asked for, and the same song rendered unswitched must render differently (RS-SWITCH)"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-REVERB-SWITCH", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_REVERB_SWITCH", RENDER_REVERB_SWITCH = "600:model=2,800:hpf=0.2,1000:model=0,1200:width=0.25,1400:room=0.3,1600:model=1,1800:lpf=0.8" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-grain-restart"
 path = "."
 level = "integration"
@@ -2421,7 +2493,7 @@ level = "unit"
 runner = "script"
 kind = "unit"
 status = "gate"
-gates = "the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever the member stands; each render-song gate plays its own generated song, whatever the shell exports; a render-song gate that switches mod FX types or clears mod FX memory fails unless the scenario's summary shows each applied as asked and reaching its path"
+gates = "the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever the member stands; each render-song gate plays its own generated song, whatever the shell exports; a render-song gate that switches mod FX types, clears mod FX memory or switches the reverb's model or knobs fails unless the scenario's summary shows each applied as asked and reaching its path"
 run = ["python3", "-m", "unittest", "test_render_preset", "test_render_song"]
 tier = "pr"
 group = "tooling"
