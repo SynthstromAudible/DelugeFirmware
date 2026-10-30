@@ -3,6 +3,7 @@
 #include "shell/fixed_vector.h"
 #include "shell/profile.h"
 #include "shell/scene.h"
+#include "ui/core/encoder_acceleration.h"
 #include "ui/core/frame_context.h"
 #include "ui/core/input.h"
 #include "ui/core/repaint_gate.h"
@@ -346,21 +347,14 @@ public:
 	void clear_all_held(uint32_t now_ms);
 	/// @}
 
-	/// @brief The gold-knob acceleration multiplier for one turn, ported from
-	///        `ContinuousEncoder::calcNextKnobSpeed` (`hid/encoders.cpp:46-77`).
+	/// @brief The gold-knob acceleration multiplier for one turn: `ContinuousEncoder::calcNextKnobSpeed`
+	///        (`hid/encoders.cpp`), through the same `ui::EncoderAcceleration` legacy uses, one per encoder role.
 	///
-	/// Speed builds while the knob keeps turning the same way and resets when it stops matching the
-	/// previous turn or pauses for longer than the threshold. Unlike the legacy version, whose
-	/// direction and timestamp were function-level `static`s shared by both gold knobs, the state
-	/// here is per encoder role.
-	///
-	/// @note The reset test compares \p delta to the previous turn for *equality*, as legacy does,
-	///       so one detent followed by two also resets the ramp -- it is not only a sign change.
-	/// @note Two calls in the same millisecond would divide by a zero interval and latch the speed
-	///       at infinity for the rest of the gesture, so a zero interval is read as one
-	///       millisecond, the smallest this clock can represent.
+	/// Speed builds while the knob keeps turning the same way and resets when the direction changes or the knob
+	/// pauses past the threshold. Only the sign of \p delta counts, and a turn in the same millisecond as the last
+	/// leaves the speed as it was.
 	/// @param role   Which encoder turned.
-	/// @param delta  The signed turn; compared against the previous turn, not scaled.
+	/// @param delta  The signed turn.
 	/// @param now_ms The wall clock.
 	/// @return A multiplier in [1.0, 3.0].
 	double calc_next_knob_speed(EncoderRole role, int8_t delta, uint32_t now_ms);
@@ -461,13 +455,11 @@ private:
 
 	/// @name Encoder state
 	/// @{
-	int32_t edge_accumulator_[kEncoderCount]{};      ///< Partial detents, carried between ticks.
-	int8_t tick_delta_[kEncoderCount]{};             ///< What each encoder contributed to this tick.
-	double knob_speed_[kEncoderCount]{};             ///< `ContinuousEncoder::currentKnobSpeed`, per role.
-	int8_t last_knob_offset_[kEncoderCount]{};       ///< `calcNextKnobSpeed`'s `last_offset`, per role.
-	uint32_t last_knob_ms_[kEncoderCount]{};         ///< `calcNextKnobSpeed`'s `last_encoder_time`, per role.
-	int8_t initial_turn_direction_[kEncoderCount]{}; ///< `modEncoderInitialTurnDirection`, per role.
-	uint32_t last_turn_ms_[kEncoderCount]{};         ///< `timeModEncoderLastTurned`, per role.
+	int32_t edge_accumulator_[kEncoderCount]{};                  ///< Partial detents, carried between ticks.
+	int8_t tick_delta_[kEncoderCount]{};                         ///< What each encoder contributed to this tick.
+	ui::EncoderAcceleration knob_acceleration_[kEncoderCount]{}; ///< `ContinuousEncoder`'s acceleration, per role.
+	int8_t initial_turn_direction_[kEncoderCount]{};             ///< `modEncoderInitialTurnDirection`, per role.
+	uint32_t last_turn_ms_[kEncoderCount]{};                     ///< `timeModEncoderLastTurned`, per role.
 	/// @}
 
 	/// @name Queues

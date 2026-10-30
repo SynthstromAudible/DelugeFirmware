@@ -413,39 +413,12 @@ bool InputLowering::was_short_press(ButtonId b, uint32_t now_ms) const {
 }
 
 double InputLowering::calc_next_knob_speed(EncoderRole role, int8_t delta, uint32_t now_ms) {
-	// `ContinuousEncoder::calcNextKnobSpeed` (`hid/encoders.cpp:57-75`), verbatim but for the
-	// per-role state and the millisecond clock. The comment there: inertia and acceleration
-	// control how fast the knob speeds up, speed_scale turns the raw speed into the offset
-	// multiplier, and min/max clamp the effective speed. Tuned to feel controllable while still
-	// covering 0..50 in one fast turn.
-	constexpr double acceleration = 0.1;
-	constexpr double inertia = 1.0 - acceleration;
-	constexpr double speed_scale = 0.15;
-	constexpr double min_speed = 1.0;
-	constexpr double max_speed = 3.0;
-	constexpr double reset_speed_time_threshold = 0.3;
-
+	// `ContinuousEncoder::calcNextKnobSpeed` (`hid/encoders.cpp`): legacy's curve, one per role, on this clock.
 	const size_t r = static_cast<size_t>(role);
 	if (r >= kEncoderCount) {
-		return min_speed;
+		return ui::kGoldEncoderAcceleration.min_multiplier;
 	}
-	const double time = static_cast<double>(now_ms) / 1000.0;
-	const double last_time = static_cast<double>(last_knob_ms_[r]) / 1000.0;
-
-	if (time - last_time >= reset_speed_time_threshold || delta != last_knob_offset_[r]) {
-		// Too much time passed, or the knob changed direction: start again.
-		knob_speed_[r] = 0.0;
-	}
-	else {
-		// Legacy's clock is a sub-millisecond `double`, so it never divides by zero here. This one
-		// can, and an infinite speed would then latch for the rest of the gesture, so a zero
-		// interval is read as the smallest this clock represents.
-		constexpr double smallest_interval = 0.001;
-		knob_speed_[r] = knob_speed_[r] * inertia + 1.0 / std::max(time - last_time, smallest_interval) * acceleration;
-	}
-	last_knob_ms_[r] = now_ms;
-	last_knob_offset_[r] = delta;
-	return std::clamp(knob_speed_[r] * speed_scale, min_speed, max_speed);
+	return knob_acceleration_[r].advance(delta, static_cast<double>(now_ms) / 1000.0, ui::kGoldEncoderAcceleration);
 }
 
 void InputLowering::pretend_knob_untouched(EncoderRole role, uint32_t now_ms) {

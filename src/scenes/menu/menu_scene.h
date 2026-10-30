@@ -36,6 +36,7 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/shortcut_blink.h"
 #include "shell/scene.h"
+#include "ui/core/encoder_acceleration.h"
 #include "ui/core/response.h"
 #include "ui/core/state.h"
 #include "ui/grid/effects.h"
@@ -913,6 +914,8 @@ private:
 	void retarget(const Node& node);
 
 	MenuState st_{};
+	/// `HorizontalMenu::acceleration()`: one select-turn acceleration for every horizontal page, as legacy's static is.
+	deluge::ui::EncoderAcceleration horizontal_acceleration_{};
 	MenuContext ctx_{};
 
 	/// @brief The one-slot outbox `take_action()` empties. Not part of `MenuState`: `retarget`

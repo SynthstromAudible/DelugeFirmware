@@ -355,6 +355,24 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(std::string(n.notification_value()).empty()).to_be_false();
 	});
 
+	it("a fast select turn accelerates the focused column's edit, as HorizontalMenu::calcNextKnobSpeed does", _ {
+		// `HorizontalMenu::selectEncoderAction` edits by `offset * calcNextKnobSpeed(offset)`
+		// (`kHorizontalMenuAcceleration`), truncated to an int: four +1 turns 10 ms apart multiply by
+		// 1.0, 1.5, 2.85 and 4.065, which move the value 1 + 1 + 2 + 4.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(horiz_page);
+		r.shell.tick(0);
+		r.press(kCvX, kCvY, 200); // focus CHAIN_COL (column 3)
+		g_chain_col = 0;
+		for (uint32_t t = 600; t <= 630; t += 10) {
+			r.turn(1, t);
+			r.shell.tick(t);
+		}
+		expect(g_chain_col).to_equal(8);
+	});
+
 	it("a select turn on a focused submenu column does nothing", _ {
 		// `horizontal_menu.cpp:315-318`: `if (child->isSubmenu()) return;` -- no action at all.
 		select_language();

@@ -947,14 +947,15 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 	// `HorizontalMenu::selectEncoderAction` (`gui/menu_item/horizontal_menu.cpp:309-326`): the select
 	// turn edits the focused column and never moves focus. A horizontal menu is itself a submenu, so
 	// `SoundEditor::selectEncoderAction` hands it the raw offset (`gui/ui/sound_editor.cpp:1122`) --
-	// no SHIFT multiplier here -- and a submenu column is left alone (`:315-318`). Menu-side
-	// acceleration (`calcNextKnobSpeed`, `:630`) is carried, not ported. The turn is read (and
-	// claimed) BEFORE `columns` draws the page, so a detent edits the column the user was looking
-	// at; `columns` itself no longer touches the turn at all (`ui/oled/columns.cpp`'s own note).
+	// no SHIFT multiplier here -- and a submenu column is left alone (`:315-318`). The edit is the
+	// offset times `calcNextKnobSpeed` (`:326`, `:630-633`, `kHorizontalMenuAcceleration`), truncated
+	// to an int as legacy's `int32_t` parameter does. The turn is read (and claimed) BEFORE `columns`
+	// draws the page, so a detent edits the column the user was looking at; `columns` itself no
+	// longer touches the turn at all (`ui/oled/columns.cpp`'s own note).
 	const int32_t focus = n == 0 ? 0 : clamp_to(st_.columns[st_.depth].focused, 0, static_cast<int32_t>(n) - 1);
-	const int8_t detents = f.turn();
+	const int8_t turned = f.turn();
 	f.claim_turn();
-	if (n != 0 && detents != 0 && kids[focus]->kind != Kind::Submenu) {
+	if (n != 0 && turned != 0 && kids[focus]->kind != Kind::Submenu) {
 		const Node& target = *kids[focus];
 		// `Binding::permitted` (spec E-note-family §5.3): legacy's
 		// `selectEncoderActionIsPermitted()` check, consulted *before* the edit and *before* the
@@ -962,6 +963,10 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 		// nothing and raises no notification here -- the hook raises its own popup, exactly as
 		// legacy's side effect does.
 		if (target.bind.permitted == nullptr || target.bind.permitted(ctx_)) {
+			const auto detents = static_cast<int32_t>(
+			    turned
+			    * horizontal_acceleration_.advance(turned, static_cast<double>(f.now_ms()) / 1000.0,
+			                                       deluge::ui::kHorizontalMenuAcceleration));
 			if (target.bind.adjust != nullptr) {
 				// `Binding::adjust` (spec §5.2): accumulate the turn's detents rather than
 				// computing `moved` -- an offset write (`instrumentClipView.adjustVelocity` and

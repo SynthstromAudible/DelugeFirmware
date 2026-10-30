@@ -196,6 +196,20 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		expect(in.calc_next_knob_speed(EncoderRole::GoldLower, 1, 1040)).to_be_within(1e-9).of(1.0);
 	});
 
+	it("keeps the speed for two turns in the same millisecond, as legacy's EncoderAcceleration does", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		expect(in.calc_next_knob_speed(EncoderRole::GoldUpper, 1, 1000)).to_be_within(1e-9).of(1.0);
+		// No time has passed: the speed is left as it was (`EncoderAcceleration::advance`).
+		expect(in.calc_next_knob_speed(EncoderRole::GoldUpper, 1, 1000)).to_be_within(1e-9).of(1.0);
+	});
+
+	it("keeps accelerating through turns of different sizes in one direction", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		expect(in.calc_next_knob_speed(EncoderRole::GoldUpper, 1, 1000)).to_be_within(1e-9).of(1.0);
+		// Only the sign of the turn counts: 10 ms later, speed = 0.1 / 0.01 = 10; 10 * 0.15 = 1.5.
+		expect(in.calc_next_knob_speed(EncoderRole::GoldUpper, 2, 1010)).to_be_within(1e-9).of(1.5);
+	});
+
 	it("defers events while sd_busy and replays them in order; drops oldest past 8", _ {
 		InputLowering in(uitest::test_profile_input(), {});
 		in.begin_tick(100);
