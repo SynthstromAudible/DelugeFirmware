@@ -16,7 +16,7 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "engines/effects/reverb.h"
+#include "effects/reverb.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/integer.h"
 #include "model/song/song.h"

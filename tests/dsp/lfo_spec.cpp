@@ -22,7 +22,7 @@
 
 #include "dsp-next/fixed/bandlimited/waves.h" // triangle (the LFO's triangle shape)
 #include "dsp-next/fixed/osc/sine_table.h"    // sine_table (the LFO's sine shape)
-#include "synth/lfo.h"
+#include "synth/modulation/lfo.h"
 #include "util/synth_noise.h" // the noise stream the S&H, random-walk and warbler draw from
 #include <cppspec.hpp>
 #include <cstdint>
@@ -103,7 +103,7 @@ describe lfo_spec("LFO", ${
 		LFOConfig conf(LFOType::SAMPLE_AND_HOLD);
 		lfo.setLocalInitialPhase(conf);
 		uint32_t local_phase = lfo.phase();
-		conf.syncLevel = SYNC_LEVEL_8TH;
+		conf.syncLevel = deluge::plugin::SyncLevel::EIGHTH;
 		lfo.setGlobalInitialPhase(conf);
 		expect(lfo.phase()).to_equal(local_phase);
 		expect(lfo.phase()).to_equal(0u);
@@ -132,7 +132,7 @@ describe lfo_spec("LFO", ${
 		LFO lfo;
 		LFOConfig conf(LFOType::RANDOM_WALK);
 		lfo.setLocalInitialPhase(conf);
-		conf.syncLevel = SYNC_LEVEL_8TH;
+		conf.syncLevel = deluge::plugin::SyncLevel::EIGHTH;
 		lfo.setGlobalInitialPhase(conf);
 		expect(lfo.phase()).to_equal(0u);
 

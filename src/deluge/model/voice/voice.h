@@ -19,7 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/filter/filter_set.h"
-#include "engines/effects/saturation.h"
+#include "effects/saturation.h"
 #include "model/voice/fm_engine.h"
 #include "model/voice/ringmod_engine.h"
 #include "model/voice/source_component_render.h" // deluge::synth::SourceRenderResult
@@ -28,10 +28,10 @@
 #include "model/voice/voice_sample_playback_guide.h"
 #include "model/voice/voice_unison_part.h"
 #include "modulation/params/param.h"
-#include "synth/envelope.h"
-#include "synth/lfo.h"
-#include "synth/param_plane.h"
-#include "synth/patcher.h"
+#include "synth/modulation/envelope.h"
+#include "synth/modulation/lfo.h"
+#include "synth/modulation/param_plane.h"
+#include "synth/modulation/patcher.h"
 #include <bitset>
 #include <compare>
 #include <memory>

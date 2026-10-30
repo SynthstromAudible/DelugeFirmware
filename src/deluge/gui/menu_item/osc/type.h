@@ -16,12 +16,12 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "engines/deluge/words.h"
 #include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/selection.h"
 #include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
+#include "instruments/deluge/words.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"

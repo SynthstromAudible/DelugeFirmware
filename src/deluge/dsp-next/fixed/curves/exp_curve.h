@@ -17,9 +17,8 @@
 
 #pragma once
 
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
-#include "util/fixedpoint.h"
-#include "util/param_functions.h" // increaseMagnitudeAndSaturate
 
 #include <array>
 #include <cstdint>

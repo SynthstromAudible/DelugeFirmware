@@ -1,6 +1,6 @@
 #include "dsp-next/fixed/tables/decay_small.h"
 #include "dsp-next/fixed/tables/sine_small.h"
-#include "synth/source/time_stretch_adjust.h"
+#include "synth/sources/sample/time_stretch_adjust.h"
 
 #include <cppspec.hpp>
 #include <cstdint>

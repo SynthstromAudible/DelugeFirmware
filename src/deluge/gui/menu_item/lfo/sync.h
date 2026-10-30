@@ -15,13 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "engine-api/types/sync.h"
 #include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
+#include "plugin-api/types/sync.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 
@@ -69,7 +69,7 @@ private:
 		settingFor(sound, prefix + "syncType",
 		           serialization::Value::makeNumber(std::to_underlying(syncValueToSyncType(option))));
 		settingFor(sound, prefix + "syncLevel",
-		           serialization::Value::makeNumber(deluge::engine::index_of(syncValueToSyncLevel(option))));
+		           serialization::Value::makeNumber(deluge::plugin::index_of(syncValueToSyncLevel(option))));
 	}
 
 	uint8_t lfoId_;

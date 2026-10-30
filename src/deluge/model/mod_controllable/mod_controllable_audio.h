@@ -19,7 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/stereo_sample.h"
-#include "engines/effects/delay.h"
+#include "effects/delay.h"
 #include "hid/button.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable.h"
@@ -27,12 +27,12 @@
 #include "modulation/knob.h"
 #include "modulation/params/param_descriptor.h"
 #include "modulation/params/param_set.h"
-#include "synth/lfo.h"
+#include "synth/modulation/lfo.h"
 #include "util/functions.h"
 
-#include "engine-api/engine.h"
-#include "engines/effects/chain_core.h"
-#include "engines/effects/state.h"
+#include "effects/chain_core.h"
+#include "effects/state.h"
+#include "plugin-api/plugin.h"
 
 class Clip;
 class Sound;
@@ -69,7 +69,7 @@ public:
 	void writeMidiKnobsToFile(Serializer& writer);
 	/// @brief The codec context a file's effect entries are written in: the current song's tick magnitude.
 	/// @return The codec context.
-	[[nodiscard]] static deluge::engine::CodecContext effectsCodecContext();
+	[[nodiscard]] static deluge::plugin::CodecContext effectsCodecContext();
 	/// @brief The compressor threshold a sound's file saves: the one the render last applied, its param's.
 	/// @return The threshold (Q31).
 	[[nodiscard]] q31_t savedCompressorThreshold() const { return core().compressor().dsp().threshold(); }

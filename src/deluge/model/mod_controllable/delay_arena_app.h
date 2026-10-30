@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "engines/effects/delay_arena.h"
+#include "effects/delay_arena.h"
 
 #include <cstdint>
 

@@ -19,13 +19,13 @@
 
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/bandlimited/waves.h"
 #include "dsp-next/fixed/noise/cong.h"
 #include "dsp-next/fixed/osc/sine_table.h"
-#include "util/fixedpoint.h"
 
 #include <cstddef>
 #include <cstdint>

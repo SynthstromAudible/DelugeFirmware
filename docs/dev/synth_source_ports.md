@@ -10,18 +10,18 @@
 ## Where we are
 
 L-vi unified all five sources behind `synth::Source::renderSource(ctx)` — the `OscType` megaswitch is gone and the
-kernel no longer names concrete source types. **All five sources** now physically live in `synth/source/`
+kernel no longer names concrete source types. **All five sources** now physically live in `synth/sources/`
 (library-resident): `VirtualAnalogSource` (pure DSP), `WavetableSource` (port #1 — band-data view), `DX7Source`
 (port #2 — the DX voice-pool port, its pool now of `dx7::Voice`), `InputSource` (port #3 — live input) and
 `SampleSource` (port #4 — sample playback). Only the port adapters stay App-side:
 
 | Source | Home today | App-coupling |
 |---|---|---|
-| `VirtualAnalogSource` | `synth/source/` | none — pure DSP |
-| `WavetableSource` | `synth/source/` | none — depends on the `fixed::WaveTableData` band-data view (port #1 ✅) |
-| `DX7Source` | `synth/source/` | none — depends on `synth::DxVoicePort`; the `getDxEngine()` pool (of `dsp-next`'s `dx7::Voice`) + `DxPatch` live behind `dsp::DxVoiceAdapter` in `processing/dx7/` (port #2 ✅) |
-| `InputSource` | `synth/source/` | none — depends on `synth::AudioInputPort`; `AudioInputAdapter` (`processing/live/`) exposes `AudioEngine`'s input ring, frame clock, plug state and the `LiveInputBuffer` pool. The live-input DSP (`LiveInputBuffer`, `LivePitchShifter`) is library-resident under `synth/source/live/` (port #3 ✅) |
-| `SampleSource` | `synth/source/` | none — depends on `synth::SamplePlaybackPort`; `SamplePlaybackAdapter` (`model/voice/`) holds the pooled `VoiceSample` reader and keeps storage, the cluster cache, time-stretch, the pool and `playbackHandler` (port #4 ✅) |
+| `VirtualAnalogSource` | `synth/sources/` | none — pure DSP |
+| `WavetableSource` | `synth/sources/` | none — depends on the `fixed::WaveTableData` band-data view (port #1 ✅) |
+| `DX7Source` | `synth/sources/` | none — depends on `synth::DxVoicePort`; the `getDxEngine()` pool (of `dsp-next`'s `dx7::Voice`) + `DxPatch` live behind `dsp::DxVoiceAdapter` in `processing/dx7/` (port #2 ✅) |
+| `InputSource` | `synth/sources/` | none — depends on `synth::AudioInputPort`; `AudioInputAdapter` (`processing/live/`) exposes `AudioEngine`'s input ring, frame clock, plug state and the `LiveInputBuffer` pool. The live-input DSP (`LiveInputBuffer`, `LivePitchShifter`) is library-resident under `synth/sources/input/live/` (port #3 ✅) |
+| `SampleSource` | `synth/sources/` | none — depends on `synth::SamplePlaybackPort`; `SamplePlaybackAdapter` (`model/voice/`) holds the pooled `VoiceSample` reader and keeps storage, the cluster cache, time-stretch, the pool and `playbackHandler` (port #4 ✅) |
 
 "Swappable behind an interface" (done) is **not** "separated from the App" (the source impl is still glued to the
 firmware). The second, harder half is the dependency inversion below.
@@ -108,20 +108,20 @@ this design as follows — and the headline is: **Engines need no ports of their
 
 1. **Wavetable band-data view — ✅ DONE (2026-06-18, commits `bc13012e`/`6a810c78`/`eb78dec5`).** `WavetableSource`
    now depends on a `fixed::WaveTableData` view (not `WaveTable*`), renders through the dsp-next view-based
-   oscillators, and lives in `synth/source/` (boundary-clean). The dead app-side `WaveTableOscillator` +
+   oscillators, and lives in `synth/sources/` (boundary-clean). The dead app-side `WaveTableOscillator` +
    `WaveTable::render` were retired; `WaveTable` keeps loading + `view()` only. **2 of 5 sources now library-
    resident (VA + wavetable).** (Validates the port pattern end-to-end.)
 2. **DX7 pool port — ✅ DONE (2026-06-18, commits `1f3aa383`/`55beb042`).** `DX7Source` now depends on
    `synth::DxVoicePort` (the patch passed as an opaque `void*`, never dereferenced in the library); the
    `getDxEngine()` pool + the `DxVoice`/`DxPatch` ops + the per-block log-pitch/ctrl/`compute` live behind
    `dsp::DxVoiceAdapter` (App-side, per-source). `DX7Source` kept only its bespoke per-unison amplitude/stereo sum
-   and relocated into `synth/source/` (boundary-clean — the amplitude sum's include was narrowed from the fat
+   and relocated into `synth/sources/` (boundary-clean — the amplitude sum's include was narrowed from the fat
    `util/functions.h` to `util/fixedpoint.h`). **3 of 5 sources now library-resident (VA + wavetable + DX7).**
 3. **Live-input port — ✅ DONE (commits `a287fd00f`/`6fb5d3f1a`/`340133b1e`; namespace moves
-   `e3548ddc6`/`eaf4df0ae`).** `InputSource` depends on `synth::AudioInputPort` and lives in `synth/source/`; `LiveInputBuffer` and the live pitch shifter moved to
-   `synth/source/live/`. `AudioInputAdapter` (`processing/live/`) is the App-side adapter.
+   `e3548ddc6`/`eaf4df0ae`).** `InputSource` depends on `synth::AudioInputPort` and lives in `synth/sources/`; `LiveInputBuffer` and the live pitch shifter moved to
+   `synth/sources/input/live/`. `AudioInputAdapter` (`processing/live/`) is the App-side adapter.
 4. **Sample-playback port — ✅ DONE (commits `637c1d121`/`e948fe3c5`; namespace move `e3548ddc6`).**
-   `SampleSource` depends on `synth::SamplePlaybackPort` and lives in `synth/source/`. `SamplePlaybackAdapter` (`model/voice/`) wraps
+   `SampleSource` depends on `synth::SamplePlaybackPort` and lives in `synth/sources/`. `SamplePlaybackAdapter` (`model/voice/`) wraps
    `VoiceSample`. **5 of 5 sources now library-resident.**
 5. **Kernel relocation** (`Voice` → `synth::Voice`) — not started. The sources no longer block it; the remaining
    blockers are the voice's own App reaches, listed in `synth_voice_lift.md`. One of them is here: the voice's

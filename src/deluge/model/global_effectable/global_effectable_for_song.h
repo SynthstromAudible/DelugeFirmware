@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "engines/effects/master_chain.h"
+#include "effects/master_chain.h"
 #include "model/global_effectable/global_effectable.h"
 
 class GlobalEffectableForSong final : public GlobalEffectable {

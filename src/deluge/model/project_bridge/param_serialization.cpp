@@ -17,8 +17,8 @@
 
 #include "model/project_bridge/param_serialization.h"
 
-#include "engines/deluge/params.h"
-#include "engines/global_effectable/params.h"
+#include "effects/global_effectable/params.h"
+#include "instruments/deluge/params.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/patch_cable_words.h"
 #include "modulation/automation/auto_param.h"
@@ -33,7 +33,7 @@
 
 namespace deluge::bridge {
 
-using deluge::engine::ParamId;
+using deluge::plugin::ParamId;
 namespace ip = deluge::instrument::param;
 namespace gp = deluge::global_effectable::param;
 

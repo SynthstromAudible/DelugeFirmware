@@ -1554,7 +1554,7 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 	if (settings->mode == ArpMode::OFF || (settings->syncLevel == SYNC_LEVEL_NONE)) {
 		return 2147483647;
 	}
-	uint32_t ticksPerPeriod = 3 << (9 - deluge::engine::index_of(settings->syncLevel));
+	uint32_t ticksPerPeriod = 3 << (9 - deluge::plugin::index_of(settings->syncLevel));
 	if (settings->syncType == SYNC_TYPE_EVEN) {} // Do nothing
 	else if (settings->syncType == SYNC_TYPE_TRIPLET) {
 		ticksPerPeriod = ticksPerPeriod * 2 / 3;
@@ -1588,7 +1588,7 @@ uint32_t ArpeggiatorSettings::getPhaseIncrement(int32_t arpRate) {
 		phaseIncrement = arpRate >> 5;
 	}
 	else {
-		int32_t rightShiftAmount = 9 - deluge::engine::index_of(syncLevel); // Will be max 0
+		int32_t rightShiftAmount = 9 - deluge::plugin::index_of(syncLevel); // Will be max 0
 		phaseIncrement =
 		    playbackHandler
 		        .getTimePerInternalTickInverse(); // multiply_32x32_rshift32(playbackHandler.getTimePerInternalTickInverse(),
@@ -1843,7 +1843,7 @@ void ArpeggiatorSettings::writeCommonParamsToFile(Serializer& writer, Song* song
 		writer.writeAbsoluteSyncLevelToFile(songToConvertSyncLevel, "syncLevel", syncLevel, true);
 	}
 	else {
-		writer.writeAttribute("syncLevel", deluge::engine::index_of(syncLevel), true);
+		writer.writeAttribute("syncLevel", deluge::plugin::index_of(syncLevel), true);
 	}
 	writer.writeAttribute("numOctaves", numOctaves);
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent

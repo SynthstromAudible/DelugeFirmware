@@ -4,11 +4,15 @@
 > plan and the "Extensibility model — two plug-in boundaries" section). This doc specifies the **L1 engine
 > boundary** in depth: what a swappable engine *is*, the two layers beneath/at it, and the migration that gets
 > us there. It refines Phase 3 / Phase 4 of that plan; where they disagree, this doc is the newer thinking.
+>
+> Where it lands: the engine API and the built-in engines live in the synth library at `src/synth/engines/`
+> (`engine.h` for the contract), beside `src/synth/sources/`. Engines are loaded by the Deluge instrument, never by the
+> host: what the host loads is a plugin (`src/plugin-api/`).
 
 ## Why this boundary exists
 
 Phase 3 *extracted* every `OscType` render body into a `*Engine` object, but it drew the boundary at the
-**single-oscillator** level: `synth::SourceEngine` (`src/deluge/synth/source/source_engine.h`) is
+**single-oscillator** level: `synth::SourceEngine` (`src/synth/sources/source_engine.h`) is
 oscillator-shaped — it exposes `phase()`, takes a `BlockControls::sync` (an `optional<Phasor>` master), and a
 `pulse_width`. The consequence is that **`voice.cpp` is still the real engine**: it conducts every cross-source
 relationship.

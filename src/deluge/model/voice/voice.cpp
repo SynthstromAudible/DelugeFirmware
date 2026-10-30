@@ -16,11 +16,12 @@
  */
 
 #include "model/voice/voice.h"
+#include "bench/render_profile.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // getDecay4
 #include "dsp-next/fixed/shaping/wavefolder.h"
 #include "dsp-next/fixed/vca/pan.h"
-#include "engines/effects/filter_slots.h"
+#include "effects/filter_slots.h"
 #include "io/debug/log.h"
 #include "memory/stack_guard.h"
 #include "model/model_stack.h"
@@ -811,7 +812,13 @@ uint32_t Voice::getLocalLFOPhaseIncrement(const LFOConfig& config, deluge::modul
 		for (int32_t s = 0; s < util::to_underlying(kFirstLocalSource); s++) {
 			params.sourceValues[s] = cfg.globalSourceValues[s];
 		}
+#if defined(DELUGE_STREAM_BENCH)
+		const uint32_t t0 = deluge::bench::render_profile::cycles();
+#endif
 		patcher.performPatching(sourcesChanged, controlBlock);
+#if defined(DELUGE_STREAM_BENCH)
+		deluge::bench::render_profile::g_totals.voice_patch += deluge::bench::render_profile::cycles() - t0;
+#endif
 	}
 
 	// Sort out pitch

@@ -48,6 +48,17 @@ function(deluge_specs_driver name)
   # until someone reconfigures, and a spec that never ran looks exactly like one that passed.
   file(GLOB_RECURSE spec_sources CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/*_spec.cpp)
+  # A subdirectory with its own CMakeLists.txt builds its own driver, so its specs are not this one's.
+  foreach(spec IN LISTS spec_sources)
+    cmake_path(GET spec PARENT_PATH dir)
+    while(dir)
+      if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${dir}/CMakeLists.txt)
+        list(REMOVE_ITEM spec_sources ${spec})
+        break()
+      endif()
+      cmake_path(GET dir PARENT_PATH dir)
+    endwhile()
+  endforeach()
   create_test_sourcelist(specs ${name}.cpp ${spec_sources})
   add_executable(${name} ${specs} ${arg_SOURCES})
   target_link_libraries(${name} PRIVATE c++spec ${arg_LIBRARIES})

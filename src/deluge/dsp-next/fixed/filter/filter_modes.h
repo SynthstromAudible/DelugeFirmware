@@ -17,10 +17,9 @@
 
 #pragma once
 
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/curves/instant_tan.h"
-#include "util/fixedpoint.h"
-#include "util/param_functions.h" // lshiftAndSaturate
 
 #include <cstdint>
 

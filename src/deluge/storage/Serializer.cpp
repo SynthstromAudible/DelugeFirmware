@@ -49,7 +49,7 @@
 ********************************************************************************/
 
 void Serializer::writeAbsoluteSyncLevelToFile(Song* song, char const* name, SyncLevel internalValue, bool onNewLine) {
-	writeAttribute(name, song->convertSyncLevelFromInternalValueToFileValue(deluge::engine::index_of(internalValue)),
+	writeAttribute(name, song->convertSyncLevelFromInternalValueToFileValue(deluge::plugin::index_of(internalValue)),
 	               onNewLine);
 }
 

@@ -22,8 +22,8 @@
 
 #include "dsp-next/fixed/filter/shelf_pair.h"
 
+#include "effects/equalizer.h"
 #include "effects_workloads.h"
-#include "engines/effects/equalizer.h"
 #include "reference_effects.h"
 
 #include <array>

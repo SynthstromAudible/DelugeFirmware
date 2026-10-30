@@ -18,12 +18,12 @@
 #pragma once
 
 #include "dsp-next/core/mono.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/dynamics/compressor_kernel.h" // CompressorKnobs and their mappings
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
-#include "util/fixedpoint.h"
 
 #include <cstdint>
 #include <span>

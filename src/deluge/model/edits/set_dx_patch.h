@@ -1,7 +1,7 @@
 #pragma once
 
 #include "deluge-project/instrument_slot.h"
-#include "engines/deluge/sound_state.h"
+#include "instruments/deluge/sound_state.h"
 #include "model/edits/edit.h"
 
 #include <cstdint>

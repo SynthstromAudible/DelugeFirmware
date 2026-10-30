@@ -17,8 +17,8 @@
 
 #pragma once
 
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/sample.h"
-#include "util/fixedpoint.h"
 
 #include <algorithm>
 #include <cstdint>

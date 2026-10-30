@@ -18,10 +18,10 @@
 #pragma once
 
 #include "dsp-next/core/kernel.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/mix/dry_wet.h"
-#include "util/fixedpoint.h"
 
 #include <type_traits>
 

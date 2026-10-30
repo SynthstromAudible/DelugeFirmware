@@ -1,15 +1,16 @@
 cmake_path(SET SHARED_INCLUDE ${CMAKE_CURRENT_LIST_DIR})
 
-add_subdirectory(engine-api/types) # deluge_engine_types: the host–engine contract's data-only types
+add_subdirectory(plugin-api/types) # deluge_plugin_types: the host–plugin contract's data-only types
 add_subdirectory(foundation) # bottom of the stack; the layers below link it
 add_subdirectory(serialization) # deluge_serialization: the document tree and its XML and JSON parsers
-add_subdirectory(engine-api) # deluge_engine_api: the host–engine contract's interface
-add_subdirectory(engines/effects) # deluge_effects: the effects' words, state and codec
-add_subdirectory(engines/deluge) # deluge_instrument: the Deluge instrument's state, words and codec
-add_subdirectory(engines/global_effectable) # deluge_global_effectable: the provisional shared-effect param table
+add_subdirectory(plugin-api) # deluge_plugin_api: the host–plugin contract's interface
+add_subdirectory(effects) # deluge_effects: the effects' words, state and codec
+add_subdirectory(instruments/deluge) # deluge_instrument: the Deluge instrument's state, words and codec
+add_subdirectory(effects/global_effectable) # deluge_global_effectable: the provisional shared-effect param table
 add_subdirectory(music-theory) # deluge_music_theory: note sets, scales, keys and scale mapping
 add_subdirectory(midi)       # deluge_midi: pure MIDI protocol library (app + tests)
 add_subdirectory(deluge-project) # deluge_project: the project model (deluge::project::Song)
+add_subdirectory(synth)      # deluge_synth: the synth library (sources, modulation core)
 add_subdirectory(OSLikeStuff)
 add_subdirectory(deluge)     # deluge_app: the portable application (platform-agnostic)
 add_subdirectory(lib)

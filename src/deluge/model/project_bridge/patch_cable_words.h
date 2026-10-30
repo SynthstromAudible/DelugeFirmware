@@ -43,7 +43,7 @@ namespace deluge::bridge {
 /// @param from        The cable's source.
 /// @param destination The cable's destination descriptor.
 /// @return The cable's depth id.
-[[nodiscard]] inline deluge::engine::ParamId cable_depth(PatchSource from, ParamDescriptor destination) {
+[[nodiscard]] inline deluge::plugin::ParamId cable_depth(PatchSource from, ParamDescriptor destination) {
 	return cableDepthIdOf(cable_word(from, destination));
 }
 

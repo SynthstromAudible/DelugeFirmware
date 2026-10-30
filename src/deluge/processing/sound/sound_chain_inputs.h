@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "engines/effects/sound_chain.h"
+#include "effects/sound_chain.h"
 
 #include <cstdint>
 

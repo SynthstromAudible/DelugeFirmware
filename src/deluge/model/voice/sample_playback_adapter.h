@@ -16,8 +16,8 @@
  */
 #pragma once
 
-#include "definitions_cxx.hpp"                 // LoopType / MarkerType
-#include "synth/source/sample_playback_port.h" // synth::SamplePlaybackPort
+#include "definitions_cxx.hpp"                         // LoopType / MarkerType
+#include "synth/sources/sample/sample_playback_port.h" // synth::SamplePlaybackPort
 #include <cstdint>
 
 class Sample;

@@ -37,7 +37,7 @@
 #include <cstring>
 #include <vector>
 
-#include "engines/global_effectable/params.h"
+#include "effects/global_effectable/params.h"
 #include "model/project_bridge/cable_bridge.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"

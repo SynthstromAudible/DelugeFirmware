@@ -28,8 +28,8 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/source.h"
 #include "storage/multi_range/multisample_range.h"
-#include "synth/source/va_shapes.h" // va_shape::is_virtual_analog / wave_for / initial_phase_for_zero
-#include "util/functions.h"         // getNoise
+#include "synth/sources/va/va_shapes.h" // va_shape::is_virtual_analog / wave_for / initial_phase_for_zero
+#include "util/functions.h"             // getNoise
 
 VoiceUnisonPartSource::~VoiceUnisonPartSource() {
 	unassign(false);

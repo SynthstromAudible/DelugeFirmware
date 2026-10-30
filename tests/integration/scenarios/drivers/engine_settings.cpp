@@ -24,10 +24,9 @@
 // file does not load; 2 usage/IO; 3 a check fails (printed).
 
 #include "deluge-project/instrument_slot.h"
-#include "engine-api/types/sync.h"
-#include "engines/deluge/codec.h"
-#include "engines/deluge/settings.h"
 #include "extern.h"
+#include "instruments/deluge/codec.h"
+#include "instruments/deluge/settings.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
@@ -44,6 +43,7 @@
 #include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
+#include "plugin-api/types/sync.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -271,8 +271,8 @@ const Value* leafAt(const Value& tree, std::string_view path) {
 
 /// The legal values of @p row worth setting, given the slot's @p current text: an integer row's ends and the value
 /// after the current one, a choice row's every name, a bool's both.
-std::vector<Value> legalValues(const deluge::engine::SettingInfo& row, const std::string* current) {
-	using Kind = deluge::engine::SettingKind;
+std::vector<Value> legalValues(const deluge::plugin::SettingInfo& row, const std::string* current) {
+	using Kind = deluge::plugin::SettingKind;
 	std::vector<Value> values;
 	switch (row.kind) {
 	case Kind::INTEGER: {
@@ -308,7 +308,7 @@ Value slotForm(std::string_view path, const Value& value, Song& song) {
 		return value;
 	}
 	const int32_t level = deluge::serialization::int_of(&value).value_or(0);
-	return Value::makeNumber(deluge::engine::sync_level_to_file(level, song.getInputTickMagnitude()));
+	return Value::makeNumber(deluge::plugin::sync_level_to_file(level, song.getInputTickMagnitude()));
 }
 
 /// The slot's @p held value as an Edit takes it: the inverse of slotForm.
@@ -317,7 +317,7 @@ Value editForm(std::string_view path, const Value& held, Song& song) {
 		return held;
 	}
 	const int32_t file = deluge::serialization::int_of(&held).value_or(0);
-	return Value::makeNumber(deluge::engine::sync_level_from_file(file, song.getInputTickMagnitude()));
+	return Value::makeNumber(deluge::plugin::sync_level_from_file(file, song.getInputTickMagnitude()));
 }
 
 /// Empty when @p sound's slot agrees with its state after setting @p path to @p value, else which check fails.
@@ -377,7 +377,7 @@ int settingLegs(Sound& sound, Song& song, const char* name) {
 	}
 	deluge::edits::Context ctx{song, song.project};
 	for (std::string_view path : kEditedPaths) {
-		const deluge::engine::SettingInfo* row = deluge::engine::find_setting(deluge::instrument::kSettings, path);
+		const deluge::plugin::SettingInfo* row = deluge::plugin::find_setting(deluge::instrument::kSettings, path);
 		if (!takes(sound, path)) {
 			deluge::edits::SetEngineSetting refused{*address, std::string(path), Value::makeNumber(row->min)};
 			if (deluge::edits::apply(ctx, refused) == Error::NONE) {
@@ -837,7 +837,7 @@ int magnitudeLeg(Song& song) {
 		std::string failed = deluge::edits::apply(ctx, edit) != Error::NONE ? "refused" : "";
 		// The delay's own sync level, set to what it is: an Edit that changes nothing.
 		deluge::edits::SetEngineSetting delay{*address, "delay/syncLevel",
-		                                      Value::makeNumber(deluge::engine::index_of(effects.delay.sync_level))};
+		                                      Value::makeNumber(deluge::plugin::index_of(effects.delay.sync_level))};
 		if (failed.empty() && deluge::edits::apply(ctx, delay) != Error::NONE) {
 			failed = "delay/syncLevel refused";
 		}

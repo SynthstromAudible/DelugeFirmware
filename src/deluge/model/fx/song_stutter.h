@@ -19,8 +19,8 @@
 
 #include "definitions_cxx.hpp" // Error
 #include "dsp-next/core/stereo_sample.h"
-#include "engines/effects/state.h"
-#include "engines/effects/stutter.h"
+#include "effects/state.h"
+#include "effects/stutter.h"
 
 #include <cstdint>
 #include <span>

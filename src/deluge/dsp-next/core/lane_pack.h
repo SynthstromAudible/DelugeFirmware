@@ -18,9 +18,9 @@
 #pragma once
 
 #include "dsp-next/core/frame.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/sample.h"
 #include "dsp-next/core/wrapping.h"
-#include "util/fixedpoint.h"
 
 #include <concepts>
 #include <cstddef>

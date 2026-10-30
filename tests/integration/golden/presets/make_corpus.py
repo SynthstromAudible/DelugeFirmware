@@ -218,7 +218,7 @@ case(
 )
 
 # --- DX7 ----------------------------------------------------------------------
-# The init voice (src/engines/deluge/dx7_init_voice.h); ops are stored op 6 first, 21 bytes each.
+# The init voice (src/instruments/deluge/dx7_init_voice.h); ops are stored op 6 first, 21 bytes each.
 DX7_INIT = [
     99,
     99,
@@ -348,7 +348,7 @@ def dx7_patch(ops=None, **globals_):
 
 
 def dx7_case(name, engine, patch):
-    # The XML reader's key is lowercase (src/engines/deluge/codec.cpp, "dx7enginemode"); a camelCase spelling would
+    # The XML reader's key is lowercase (src/instruments/deluge/codec.cpp, "dx7enginemode"); a camelCase spelling would
     # be ignored and render every case at engine 0 (auto). case()'s XML branch writes the file without creating the
     # directory.
     (CORPUS / "dx7").mkdir(exist_ok=True)

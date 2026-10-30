@@ -18,8 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "engine-api/types/param_kind.h"
 #include "modulation/params/param_descriptor.h"
+#include "plugin-api/types/param_kind.h"
 #include "util/misc.h"
 #include <algorithm>
 #include <cstdint>
@@ -41,7 +41,7 @@ class ModControllableAudio;
 
 namespace deluge::modulation::params {
 /// @brief Which parameter collection a parameter id belongs to (the host-engine contract's term).
-using Kind = deluge::engine::ParamKind;
+using Kind = deluge::plugin::ParamKind;
 
 /// Integer type used for all Param enumerations.
 ///

@@ -1,12 +1,12 @@
 #include "model/edits/set_engine_setting.h"
 
-#include "engine-api/types/sync.h"
-#include "engines/deluge/codec.h"
-#include "engines/deluge/settings.h"
-#include "engines/deluge/words.h"
+#include "instruments/deluge/codec.h"
+#include "instruments/deluge/settings.h"
+#include "instruments/deluge/words.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
+#include "plugin-api/types/sync.h"
 #include "processing/sound/sound.h"
 #include "serialization/tree.h"
 
@@ -26,7 +26,7 @@ deluge::serialization::Value elementFor(const ::Sound& sound, const deluge::proj
 		const int32_t level = deluge::serialization::int_of(&value).value_or(0);
 		return deluge::bridge::withLeaf(
 		    slot.state, path,
-		    deluge::serialization::Value::makeNumber(deluge::engine::sync_level_to_file(level, slot.tick_magnitude)));
+		    deluge::serialization::Value::makeNumber(deluge::plugin::sync_level_to_file(level, slot.tick_magnitude)));
 	}
 	return deluge::bridge::withLeaf(slot.state, path, value);
 }

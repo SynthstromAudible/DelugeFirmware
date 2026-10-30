@@ -20,11 +20,11 @@
 // runtime's (a default is what the engine's own init gives a fresh instance).
 // Exit: 0 agree; 3 a row disagrees (each printed).
 
-#include "engines/deluge/cables.h"
-#include "engines/deluge/naming.h"
-#include "engines/deluge/params.h"
-#include "engines/global_effectable/naming.h"
-#include "engines/global_effectable/params.h"
+#include "effects/global_effectable/naming.h"
+#include "effects/global_effectable/params.h"
+#include "instruments/deluge/cables.h"
+#include "instruments/deluge/naming.h"
+#include "instruments/deluge/params.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/project_bridge/param_ids.h"
 #include "modulation/params/param.h"
@@ -41,9 +41,9 @@
 namespace {
 
 namespace params = deluge::modulation::params;
-using deluge::engine::ParamId;
-using deluge::engine::ParamInfo;
-using deluge::engine::ParamScope;
+using deluge::plugin::ParamId;
+using deluge::plugin::ParamInfo;
+using deluge::plugin::ParamScope;
 using deluge::scenarios::driver::Io;
 
 struct Checker {
@@ -79,7 +79,7 @@ struct Checker {
 		if (deluge::bridge::runtimeIndexOf(kind, info.id) != index) {
 			fail(table, info, "the boundary map gives the id another runtime index");
 		}
-		const deluge::engine::ParamNaming& naming =
+		const deluge::plugin::ParamNaming& naming =
 		    kind == params::Kind::UNPATCHED_GLOBAL ? deluge::global_effectable::kNaming : deluge::instrument::kNaming;
 		if (!unnamed && naming.id_of({name}) != std::optional<ParamId>{info.id}) {
 			fail(table, info, "its naming does not give the runtime's name this id");
@@ -164,7 +164,7 @@ int param_table_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	// Every runtime param has a row.
 	auto cover = [&](const char* table, std::span<const ParamInfo> rows, params::Kind kind, int32_t count) {
 		for (int32_t i = 0; i < count; ++i) {
-			if (deluge::engine::find_param(rows, deluge::bridge::paramIdOf(kind, i)) == nullptr) {
+			if (deluge::plugin::find_param(rows, deluge::bridge::paramIdOf(kind, i)) == nullptr) {
 				std::fprintf(io.err, "%s: runtime param %d of kind %d has no row\n", table, i, static_cast<int>(kind));
 				++check.disagreements;
 			}

@@ -165,7 +165,7 @@ deluge::project::DocAutoParam* PatchCableSet::docForParam(int32_t c) {
 
 deluge::project::DocCable& PatchCableSet::findOrCreateDomCable(PatchSource from, ParamDescriptor dest,
                                                                Polarity polarity) {
-	const deluge::engine::ParamId depth = deluge::bridge::cable_depth(from, dest);
+	const deluge::plugin::ParamId depth = deluge::bridge::cable_depth(from, dest);
 	for (deluge::project::DocCable& entry : *domCablesRef_) {
 		if (entry.depth == depth) {
 			return entry;
@@ -179,7 +179,7 @@ deluge::project::DocAutoParam* PatchCableSet::findDomCableAmount(PatchSource fro
 	if (domCablesRef_ == nullptr) {
 		return nullptr;
 	}
-	const deluge::engine::ParamId depth = deluge::bridge::cable_depth(from, dest);
+	const deluge::plugin::ParamId depth = deluge::bridge::cable_depth(from, dest);
 	for (deluge::project::DocCable& entry : *domCablesRef_) {
 		if (entry.depth == depth) {
 			return &entry.amount;

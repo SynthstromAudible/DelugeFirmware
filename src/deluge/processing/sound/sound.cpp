@@ -16,12 +16,11 @@
  */
 
 #include "processing/sound/sound.h"
+#include "bench/render_profile.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
 #include "dsp-next/fixed/vca/pan.h"
-#include "engines/deluge/codec.h"
-#include "engines/deluge/sound_state.h"
-#include "engines/effects/codec.h"
+#include "effects/codec.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/sound_editor.h"
@@ -30,6 +29,8 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
+#include "instruments/deluge/codec.h"
+#include "instruments/deluge/sound_state.h"
 #include "io/midi/midi_engine.h"
 #include "libdeluge/system.h"
 #include "memory/fast_allocator.h"
@@ -70,8 +71,8 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
-#include "synth/envelope.h"
-#include "synth/patcher.h"
+#include "synth/modulation/envelope.h"
+#include "synth/modulation/patcher.h"
 #include "util/exceptions.h"
 #include "util/firmware_version.h"
 #include "util/functions.h"
@@ -1799,7 +1800,14 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 	// Perform the actual patching
 	if (sourcesChanged) {
+#if defined(DELUGE_STREAM_BENCH)
+		const uint32_t t0 = deluge::bench::render_profile::cycles();
+#endif
 		patcher.performPatching(sourcesChanged, patchControlBlock(*paramManager));
+#if defined(DELUGE_STREAM_BENCH)
+		deluge::bench::render_profile::g_totals.sound_patch += deluge::bench::render_profile::cycles() - t0;
+		++deluge::bench::render_profile::g_totals.sound_blocks;
+#endif
 	}
 
 	// Setup some reverb-related stuff
@@ -1963,10 +1971,17 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			ActiveVoice& voice = *it;
 
+#if defined(DELUGE_STREAM_BENCH)
+			const uint32_t t0 = deluge::bench::render_profile::cycles();
+#endif
 			bool stillGoing = voice->render(
 			    paramManager, controlBlock, sound_mono.data(), sound_mono.size(), voice_rendered_in_stereo,
 			    applyingPanAtVoiceLevel, sourcesChanged, doLPF, doHPF, pitchAdjust, voiceConfig,
 			    {spareRenderingBuffer[0], spareRenderingBuffer[1], spareRenderingBuffer[2], spareRenderingBuffer[3]});
+#if defined(DELUGE_STREAM_BENCH)
+			deluge::bench::render_profile::g_totals.voice_render += deluge::bench::render_profile::cycles() - t0;
+			++deluge::bench::render_profile::g_totals.voice_blocks;
+#endif
 			if (!stillGoing) {
 				this->checkVoiceExists(voice, "E201");
 				this->freeActiveVoice(voice, modelStackWithSoundFlags, false);
@@ -2141,7 +2156,7 @@ uint32_t Sound::getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::par
 uint32_t Sound::getSyncedLFOPhaseIncrement(const LFOConfig& config) {
 	uint32_t phaseIncrement =
 	    (playbackHandler.getTimePerInternalTickInverse())
-	    >> (deluge::engine::index_of(SYNC_LEVEL_256TH) - deluge::engine::index_of(config.syncLevel));
+	    >> (deluge::plugin::index_of(SYNC_LEVEL_256TH) - deluge::plugin::index_of(config.syncLevel));
 	switch (config.syncType) {
 	case SYNC_TYPE_EVEN:
 		// Nothing to do
@@ -2176,8 +2191,8 @@ void Sound::resyncGlobalLFOs(bool reset_state) {
 		// If we're right at the first tick, no need to do anything else!
 		if (lastInternalTickDone || timeSinceLastTick) {
 			uint32_t numInternalTicksPerPeriod =
-			    3 << (deluge::engine::index_of(SYNC_LEVEL_256TH)
-			          - deluge::engine::index_of(snapshot_.lfoConfig[LFO1_ID].syncLevel));
+			    3 << (deluge::plugin::index_of(SYNC_LEVEL_256TH)
+			          - deluge::plugin::index_of(snapshot_.lfoConfig[LFO1_ID].syncLevel));
 			switch (snapshot_.lfoConfig[LFO1_ID].syncType) {
 			case SYNC_TYPE_EVEN:
 				// Nothing to do
@@ -2215,8 +2230,8 @@ void Sound::resyncGlobalLFOs(bool reset_state) {
 		// If we're right at the first tick, no need to do anything else!
 		if (lastInternalTickDone || timeSinceLastTick) {
 			uint32_t numInternalTicksPerPeriod =
-			    3 << (deluge::engine::index_of(SYNC_LEVEL_256TH)
-			          - deluge::engine::index_of(snapshot_.lfoConfig[LFO3_ID].syncLevel));
+			    3 << (deluge::plugin::index_of(SYNC_LEVEL_256TH)
+			          - deluge::plugin::index_of(snapshot_.lfoConfig[LFO3_ID].syncLevel));
 			switch (snapshot_.lfoConfig[LFO3_ID].syncType) {
 			case SYNC_TYPE_EVEN:
 				// Nothing to do

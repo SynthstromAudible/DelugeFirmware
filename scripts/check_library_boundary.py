@@ -168,32 +168,31 @@ class Library:
 
 
 LIBRARIES: dict[str, Library] = {
-    "engine-types": Library(REPO / "src" / "engine-api" / "types", "engine-api/types/"),
-    "engine-api": Library(
-        REPO / "src" / "engine-api",
-        "engine-api/",
+    "plugin-types": Library(REPO / "src" / "plugin-api" / "types", "plugin-api/types/"),
+    "plugin-api": Library(
+        REPO / "src" / "plugin-api",
+        "plugin-api/",
         ("serialization/", "foundation/panic.h"),
     ),
     "effects": Library(
-        REPO / "src" / "engines" / "effects",
-        "engines/effects/",
+        REPO / "src" / "effects",
+        "effects/",
         (
-            "engine-api/",
+            "plugin-api/",
             "serialization/",
             "foundation/panic.h",
             "dsp-next/",
-            "util/fixedpoint.h",
         ),
     ),
     "instrument": Library(
-        REPO / "src" / "engines" / "deluge",
-        "engines/deluge/",
-        ("engine-api/", "engines/effects/", "serialization/", "foundation/panic.h"),
+        REPO / "src" / "instruments" / "deluge",
+        "instruments/deluge/",
+        ("plugin-api/", "effects/", "serialization/", "foundation/panic.h"),
     ),
     "global-effectable": Library(
-        REPO / "src" / "engines" / "global_effectable",
-        "engines/global_effectable/",
-        ("engine-api/types/",),
+        REPO / "src" / "effects" / "global_effectable",
+        "effects/global_effectable/",
+        ("plugin-api/types/",),
     ),
     "serialization": Library(
         REPO / "src" / "serialization", "serialization/", ("foundation/panic.h",)
@@ -204,7 +203,7 @@ LIBRARIES: dict[str, Library] = {
     "model": Library(
         REPO / "src" / "deluge-project",
         "deluge-project/",
-        ("engine-api/types/", "serialization/", "music-theory/", "foundation/panic.h"),
+        ("plugin-api/types/", "serialization/", "music-theory/", "foundation/panic.h"),
     ),
 }
 

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "engine-api/types/param.h"
+#include "plugin-api/types/param.h"
 #include <compare>
 #include <cstdint>
 #include <optional>
@@ -58,7 +58,7 @@ enum class ParamSpace : uint8_t { ENGINE, EXPRESSION, MIDI_CC };
 struct ParamAddress {
 	OwnerId owner{};
 	ParamSpace space{ParamSpace::ENGINE};
-	deluge::engine::ParamId id{};
+	deluge::plugin::ParamId id{};
 	// For INSTRUMENT/DRUM owners, which clip's override this lane belongs to (nullopt = the owner's shared
 	// default). Unused for SONG/CLIP owners.
 	std::optional<uint32_t> clip_id{};

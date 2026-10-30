@@ -9,9 +9,9 @@
 
 #include "bench/reference_chains.h"
 #include "definitions_cxx.hpp"
-#include "engines/effects/clip_chain.h"
-#include "engines/effects/master_chain.h"
-#include "engines/effects/sound_chain.h"
+#include "effects/clip_chain.h"
+#include "effects/master_chain.h"
+#include "effects/sound_chain.h"
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
 #include "processing/render_scratch.h"
@@ -55,8 +55,8 @@ effects::EffectStates chain_settings() {
 	s.mod_fx.type = ModFXType::CHORUS;
 	s.delay = {.ping_pong = true,
 	           .type = effects::DelayType::DIGITAL,
-	           .sync_type = engine::SyncType::EVEN,
-	           .sync_level = engine::SyncLevel::NONE};
+	           .sync_type = plugin::SyncType::EVEN,
+	           .sync_level = plugin::SyncLevel::NONE};
 	s.compressor = {.attack = 10 << 24,
 	                .release = 20 << 24,
 	                .threshold = 0x30000000,

@@ -18,17 +18,17 @@
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/controls_bridge.h"
 
-#include "engine-api/types/sync.h"
-#include "engines/deluge/dx7_init_voice.h"
-#include "engines/deluge/settings.h"
-#include "engines/deluge/words.h"
-#include "engines/effects/settings.h"
-#include "engines/effects/words.h"
+#include "effects/settings.h"
+#include "effects/words.h"
 #include "hid/display/display.h"
+#include "instruments/deluge/dx7_init_voice.h"
+#include "instruments/deluge/settings.h"
+#include "instruments/deluge/words.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
+#include "plugin-api/types/sync.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -286,7 +286,7 @@ bool applyEffectValue(ModControllableAudio& owner, std::string_view path, const 
 		owner.setDelaySyncType(static_cast<SyncType>(number));
 	}
 	else if (path == "delay/syncLevel") {
-		owner.setDelaySyncLevel(deluge::engine::sync_level_from_index(number));
+		owner.setDelaySyncLevel(deluge::plugin::sync_level_from_index(number));
 	}
 	else if (path == "sidechain/attack") {
 		owner.setSidechainAttack(number);
@@ -298,7 +298,7 @@ bool applyEffectValue(ModControllableAudio& owner, std::string_view path, const 
 		owner.setSidechainSyncType(static_cast<SyncType>(number));
 	}
 	else if (path == "sidechain/syncLevel") {
-		owner.setSidechainSyncLevel(deluge::engine::sync_level_from_index(number));
+		owner.setSidechainSyncLevel(deluge::plugin::sync_level_from_index(number));
 	}
 	else if (path == "audioCompressor/attack") {
 		owner.setCompressorAttack(number);

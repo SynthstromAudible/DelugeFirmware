@@ -21,13 +21,13 @@
 #include "model/project_bridge/source_bridge.h"
 
 #include "deluge-project/structure_codec.h"
-#include "engine-api/types/engine_id.h"
-#include "engines/deluge/codec.h"
-#include "engines/deluge/settings.h"
+#include "instruments/deluge/codec.h"
+#include "instruments/deluge/settings.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
 #include "model/song/song.h"
+#include "plugin-api/types/plugin_id.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
@@ -49,7 +49,7 @@ void fillSlot(::Sound& sound, deluge::project::InstrumentSlot& slot, bool isDrum
 		              : deluge::project::slot_of_output(*element, magnitude);
 	}
 	else {
-		slot = deluge::project::InstrumentSlot{.engine = std::string(deluge::engine::kDelugeInstrument.name),
+		slot = deluge::project::InstrumentSlot{.plugin = std::string(deluge::plugin::kDelugeInstrument.name),
 		                                       .tick_magnitude = magnitude};
 	}
 }
@@ -207,9 +207,9 @@ deluge::serialization::Value withLeaf(const deluge::serialization::Value& tree, 
 Error applyDifference(::Sound& sound, const deluge::instrument::SoundState& old,
                       const deluge::instrument::SoundState& next, std::span<const std::string_view> changed,
                       ::Song& song) {
-	for (const deluge::engine::SettingInfo& row : deluge::instrument::kSettings) {
+	for (const deluge::plugin::SettingInfo& row : deluge::instrument::kSettings) {
 		const std::string_view entry = row.path.substr(0, row.path.find('/'));
-		if (row.kind == deluge::engine::SettingKind::STRUCTURED || std::ranges::find(changed, entry) == changed.end()) {
+		if (row.kind == deluge::plugin::SettingKind::STRUCTURED || std::ranges::find(changed, entry) == changed.end()) {
 			continue; // an entry the change did not touch holds what the sound holds
 		}
 		const std::optional<deluge::serialization::Value> before = deluge::instrument::setting_value(old, row.path);

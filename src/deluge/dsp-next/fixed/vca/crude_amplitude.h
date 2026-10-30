@@ -17,9 +17,9 @@
 #pragma once
 
 #include "dsp-next/core/concepts.h"
+#include "dsp-next/core/q31_ops.h" // multiply_accumulate_32x32_rshift32_rounded
 #include "dsp-next/core/ramp.h"
 #include "dsp-next/core/types.h"
-#include "util/fixedpoint.h" // multiply_accumulate_32x32_rshift32_rounded
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>

@@ -5,7 +5,7 @@
 // Exit: 0 = all checks pass, 1 = a failure.
 
 #include "definitions_cxx.hpp"
-#include "engines/effects/state.h"
+#include "effects/state.h"
 #include "memory/general_memory_allocator.h"
 #include "model/edits/change_effect.h"
 #include "model/global_effectable/global_effectable.h"

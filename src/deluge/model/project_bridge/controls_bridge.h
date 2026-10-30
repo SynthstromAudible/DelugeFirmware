@@ -18,9 +18,9 @@
 #pragma once
 
 #include "deluge-project/controller_mapping.h"
-#include "engine-api/types/param.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_descriptor.h"
+#include "plugin-api/types/param.h"
 
 #include <optional>
 #include <vector>
@@ -38,7 +38,7 @@ namespace deluge::bridge {
 /// @param descriptor    The knob's runtime descriptor.
 /// @param unpatchedKind The Kind that numbers an unpatched param.
 /// @return The target param id.
-[[nodiscard]] deluge::engine::ParamId knobTargetOf(ParamDescriptor descriptor,
+[[nodiscard]] deluge::plugin::ParamId knobTargetOf(ParamDescriptor descriptor,
                                                    deluge::modulation::params::Kind unpatchedKind);
 
 /// @brief A sound's controls as the model holds them: its 16 mod knobs (button by button, knob 0 then 1), then its
@@ -62,7 +62,7 @@ void refreshControls(::Song& song);
 /// @param target        The model-side target.
 /// @param unpatchedKind The Kind that numbers an unpatched param.
 /// @return The runtime descriptor; null if @p target names no runtime param.
-[[nodiscard]] ParamDescriptor descriptorOf(deluge::engine::ParamId target,
+[[nodiscard]] ParamDescriptor descriptorOf(deluge::plugin::ParamId target,
                                            deluge::modulation::params::Kind unpatchedKind);
 
 /// @brief Whose controls @p sound's are: its synth track's or its kit row's; nullopt when it is not bound.
@@ -104,6 +104,6 @@ void recordOutputControls(::Output& output, ::Song& song);
 
 /// @brief The engines the app's model codecs name params through.
 /// @return The engines.
-[[nodiscard]] deluge::project::CodecEngines codecEngines();
+[[nodiscard]] deluge::project::CodecPlugins codecPlugins();
 
 } // namespace deluge::bridge

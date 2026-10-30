@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // Error
-#include "engines/deluge/sound_state.h"
+#include "instruments/deluge/sound_state.h"
 #include "serialization/value.h"
 
 #include <optional>

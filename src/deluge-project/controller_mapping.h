@@ -19,8 +19,8 @@
 
 #include "deluge-project/fx_chain.h"
 #include "deluge-project/midi_command.h"
-#include "engine-api/types/param.h"
-#include "engine-api/types/param_naming.h"
+#include "plugin-api/types/param.h"
+#include "plugin-api/types/param_naming.h"
 
 #include <cstdint>
 #include <span>
@@ -43,10 +43,10 @@ struct MidiInputControl {
 	[[nodiscard]] bool operator==(const MidiInputControl&) const = default;
 };
 
-/// @brief A control and the param of its owner's engine it moves.
+/// @brief A control and the param of its owner's plugin it moves.
 struct ControllerMapping {
 	std::variant<ModKnobControl, MidiInputControl> control;
-	deluge::engine::ParamId target{};
+	deluge::plugin::ParamId target{};
 	[[nodiscard]] bool operator==(const ControllerMapping&) const = default;
 };
 
@@ -59,9 +59,9 @@ struct ControlsAddress {
 	bool operator==(const ControlsAddress&) const = default;
 };
 
-/// @brief The engines whose params the codecs may meet, with how each names them.
-struct CodecEngines {
-	std::span<const deluge::engine::ParamNaming> namings;
+/// @brief The plugins whose params the codecs may meet, with how each names them.
+struct CodecPlugins {
+	std::span<const deluge::plugin::ParamNaming> namings;
 	/// How a host owner's effects are read and written; unset, the model keeps no chains.
 	ChainCodec chains;
 };

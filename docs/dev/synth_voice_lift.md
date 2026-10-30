@@ -40,8 +40,8 @@ No two-implementation window. Golden-gated throughout.
 int32_t* soundBuffer, …flags…, int32_t externalPitchAdjust, const VoiceConfig& cfg, std::array<int32_t*, 4>
 spareBuffers)`. Its **body** names no `sound`. `paramManager` survives only to feed `noteOff` and the per-source
 render (`subtractiveEngine.render` → `renderBasicSource` → `renderSourceComponent`'s cable scan). The data-plane
-vehicles already exist (Phase 2): `ControlBlock` (`synth/control_block.h`,
-the patcher input) and `ParamPlane`/`VoiceParams` (`synth/param_plane.h`, the per-voice param data).
+vehicles already exist (Phase 2): `ControlBlock` (`synth/modulation/control_block.h`,
+the patcher input) and `ParamPlane`/`VoiceParams` (`synth/modulation/param_plane.h`, the per-voice param data).
 
 ## The lift surface (remaining render-path coupling)
 
@@ -61,7 +61,7 @@ the patcher input) and `ParamPlane`/`VoiceParams` (`synth/param_plane.h`, the pe
 
 The decoupling slices above made `Voice::render`'s body input-driven. A literal `synth::Voice` still needs the
 rest of `Voice` to stop naming App types. The voice includes nothing from legacy `dsp/`: its wavefolder is dsp-next's
-`Wavefolder`, its sync scratch is `render::osc_sync_scratch()`, and its wave mappers are in `synth/source/va_shapes`.
+`Wavefolder`, its sync scratch is `render::osc_sync_scratch()`, and its wave mappers are in `synth/sources/va/va_shapes`.
 
 The real blockers:
 
@@ -79,7 +79,7 @@ The real blockers:
   `DxVoiceAdapter` and `AudioInputAdapter` as members. The kernel should hold the ports, injected.
 - **`voice_config.h` includes `model/mod_controllable/filters/filter_config.h`** for `FilterMode`/`FilterRoute`.
   The dsp-next filter enums replace it.
-- **`ControlBlock` carries `PatchedParamSet*` and `PatchCableSet*`** (`synth/control_block.h`), so `synth/`
+- **`ControlBlock` carries `PatchedParamSet*` and `PatchCableSet*`** (`synth/modulation/control_block.h`), so `synth/`
   includes `modulation/params/param_set.h`. The patcher walks `PatchCableSet` directly.
 
 When these are gone, L-viii (+ the L-vii noteOff hook + the #54 priority/scheduling re-home) is the

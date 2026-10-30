@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "engines/effects/reverb.h"
+#include "effects/reverb.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/integer.h"
 #include "model/song/song.h"

@@ -49,7 +49,7 @@ public:
 					                     util::to_underlying(syncValueToSyncType(current_value))));
 					effectSettingFor(*soundDrum, "delay/syncLevel",
 					                 deluge::serialization::Value::makeNumber(
-					                     deluge::engine::index_of(syncValueToSyncLevel(current_value))));
+					                     deluge::plugin::index_of(syncValueToSyncLevel(current_value))));
 				}
 			}
 		}
@@ -60,7 +60,7 @@ public:
 			    deluge::serialization::Value::makeNumber(util::to_underlying(syncValueToSyncType(current_value))));
 			effectSettingFor(*soundEditor.currentModControllable, "delay/syncLevel",
 			                 deluge::serialization::Value::makeNumber(
-			                     deluge::engine::index_of(syncValueToSyncLevel(current_value))));
+			                     deluge::plugin::index_of(syncValueToSyncLevel(current_value))));
 		}
 	}
 };

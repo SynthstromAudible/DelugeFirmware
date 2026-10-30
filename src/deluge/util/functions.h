@@ -49,12 +49,6 @@ void functionsInit();
 char const* getThingName(OutputType outputType);
 char const* getOutputTypeName(OutputType outputType, int32_t channel);
 
-// signed_saturate_operand_unknown / lshiftAndSaturate / lshiftAndSaturateUnknown now live in
-// util/param_functions.h (included above), split out so the synth core needn't pull this heavy header.
-
-// charsToIntegerConstant / swapEndianness* / memToUIntOrError / ConvertFromIeeeExtended now live in
-// util/audio_format_helpers.h (included above), so the parser can depend on them without this heavy header.
-
 /**
  * replace single asterix with a single digit
  * single asterix works for single digits only
@@ -184,8 +178,6 @@ int32_t random(int32_t upperLimit);
 	}
 	return number >> (-magnitude);
 }
-
-// increaseMagnitudeAndSaturate moved to util/param_functions.h (re-exported via the include above).
 
 int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from);
 void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot = nullptr,

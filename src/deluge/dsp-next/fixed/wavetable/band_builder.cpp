@@ -16,10 +16,10 @@
  */
 
 #include "dsp-next/fixed/wavetable/band_builder.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/fixed/fft/magnitude.h"
 #include "dsp-next/fixed/fft/real_dft.h"
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
-#include "util/fixedpoint.h"
 
 #include <algorithm>
 #include <cassert>

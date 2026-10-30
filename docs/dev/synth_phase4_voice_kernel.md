@@ -59,12 +59,12 @@ int32_t externalPitchAdjust, const VoiceConfig& cfg, std::array<int32_t*, 4> spa
 **Voice-rendering state (belongs in the kernel):** the per-source engines/components
 (`{ringmod,subtractive,fm,sample}_engine`, `dx7_engine`, `input_engine`, the VA/wavetable components), the
 envelopes, `lfo2`/`lfo4`, `filterSet`, oscillator phase/feedback, and the `VoiceParams` data plane
-(`params`, `= ParamPlane<…>`, `synth/param_plane.h`) the patcher fills.
+(`params`, `= ParamPlane<…>`, `synth/modulation/param_plane.h`) the patcher fills.
 
 **App state (must NOT be reached from render):** preset config (`Sound`), automation/patch source
 (`ParamManager`), scheduling/voice-pool policy, transport, and storage (sample/wavetable/live-input).
 
-**Already done (Phase 2 + slices 1–20):** the patcher runs off a `ControlBlock` (`synth/control_block.h`) produced
+**Already done (Phase 2 + slices 1–20):** the patcher runs off a `ControlBlock` (`synth/modulation/control_block.h`) produced
 by `Sound::patchControlBlock(paramManager)`, built once in `Sound::render` and passed to `Voice::render` as a
 `const ControlBlock&`. The render was
 **largely data-plane-driven already** (it reads `params.paramFinalValues`); the ~40 `sound.*` config reads + the
@@ -118,7 +118,7 @@ d. ✅ **DONE — Pass transport-synced LFO increments in.** `Sound::render` sna
    `cfg.lfo2SyncedPhaseIncrement`/`cfg.lfo4SyncedPhaseIncrement` (`sound.cpp` ~1923–1928);
    `getLocalLFOPhaseIncrement` takes the increment and no longer reaches `sound`.
 e. ✅ **DONE — source dispatch and ports.** `renderSourceComponent` is `Sound&`-free and dispatches through the
-   polymorphic `synth::Source`. All five sources live in `synth/source/` on ports (`synth_source_ports.md`); only
+   polymorphic `synth::Source`. All five sources live in `synth/sources/` on ports (`synth_source_ports.md`); only
    the adapters (`SamplePlaybackAdapter`, `AudioInputAdapter`, `DxVoiceAdapter`) stay App-side. The
    Subtractive/FM `friend`-couplings are dissolved: **`Voice` has no `friend`s.** The engines still take `Voice&`.
 f. ☐ **TODO — Lift to `synth::Voice`** (the endgame). The render body's `ControlBlock`, expression, porta and

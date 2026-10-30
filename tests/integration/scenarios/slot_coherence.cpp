@@ -21,8 +21,8 @@
 #include "model/song/song.h"
 
 #include "deluge-project/instrument_slot.h"
-#include "engines/deluge/codec.h"
-#include "engines/effects/codec.h"
+#include "effects/codec.h"
+#include "instruments/deluge/codec.h"
 #include "model/drum/drum.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
@@ -126,7 +126,7 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 			return "runtime at " + d;
 		}
 		if (const deluge::effects::EffectStates played = sound.seededState().effects; !(played == record.effects)) {
-			const deluge::engine::CodecContext context{.input_tick_magnitude = 1};
+			const deluge::plugin::CodecContext context{.input_tick_magnitude = 1};
 			return "runtime at effects "
 			       + deluge::serialization::first_difference(deluge::effects::encode(played, context),
 			                                                 deluge::effects::encode(record.effects, context));

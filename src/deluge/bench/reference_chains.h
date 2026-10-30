@@ -23,12 +23,12 @@
 
 #pragma once
 
-#include "engines/effects/chain_core.h"
-#include "engines/effects/clip_chain.h"
-#include "engines/effects/filter.h"
-#include "engines/effects/master_chain.h"
-#include "engines/effects/saturation.h"
-#include "engines/effects/sound_chain.h"
+#include "effects/chain_core.h"
+#include "effects/clip_chain.h"
+#include "effects/filter.h"
+#include "effects/master_chain.h"
+#include "effects/saturation.h"
+#include "effects/sound_chain.h"
 #include "util/fixedpoint.h"
 
 #include <optional>

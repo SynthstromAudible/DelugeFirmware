@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "util/fixedpoint.h" // q31_t, multiply_32x32_rshift32
+#include "dsp-next/core/q31_ops.h" // q31_t, multiply_32x32_rshift32
 #include <cstddef>
 #include <type_traits>
 
