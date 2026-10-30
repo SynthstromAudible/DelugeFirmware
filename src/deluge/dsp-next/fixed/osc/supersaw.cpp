@@ -17,8 +17,10 @@
 #include "dsp-next/fixed/osc/supersaw.h"
 #include <algorithm>
 #include <argon.hpp>
+#include <array>
 #include <bit>
 #include <cmath>
+#include <cstdint>
 
 namespace deluge::dsp::fixed {
 // Named rather than anonymous: dsp-next is a unity build
@@ -58,6 +60,57 @@ static_assert([] {
 	}
 	return true;
 }());
+
+#ifndef __arm__
+/// The A9's VRECPE.F32: an 8-bit reciprocal estimate (ARM ARM FPRecipEstimate and RecipEstimate, in the standard FPSCR
+/// mode NEON uses: denormals flush to zero). SIMDe returns the exact reciprocal instead, which the refinement steps do
+/// not fully converge from, so the host computes the device's estimate.
+[[nodiscard]] float a9_reciprocal_estimate(float value) {
+	constexpr uint32_t kSign = 0x80000000u;
+	constexpr uint32_t kInfinity = 0x7F800000u;
+	constexpr uint32_t kDefaultNaN = 0x7FC00000u;
+	constexpr int32_t kEstimateExponentBase = 253; // the estimate's exponent is this minus the operand's
+	const auto bits = std::bit_cast<uint32_t>(value);
+	const uint32_t sign = bits & kSign;
+	const auto exponent = static_cast<int32_t>((bits >> 23) & 0xFF);
+	const uint32_t fraction = bits & 0x7FFFFFu;
+	if (exponent == 0xFF) {
+		return std::bit_cast<float>(fraction != 0 ? kDefaultNaN : sign);
+	}
+	if (exponent == 0) {
+		return std::bit_cast<float>(sign | kInfinity); // zero, or a denormal flushed to zero
+	}
+	if (exponent >= kEstimateExponentBase) {
+		return std::bit_cast<float>(sign); // at least 2^126: the reciprocal would be denormal, flushed to zero
+	}
+	const uint32_t scaled = 256 + (fraction >> 15);                      // the significand to 8 bits, in [256, 512)
+	const uint32_t estimate = (((1u << 19) / (scaled * 2 + 1)) + 1) / 2; // 512 / significand, rounded, in [256, 512)
+	const auto estimate_exponent = static_cast<uint32_t>(kEstimateExponentBase - exponent);
+	return std::bit_cast<float>(sign | (estimate_exponent << 23) | ((estimate & 0xFF) << 15));
+}
+#endif
+
+/// The reciprocal of each lane: the estimate refined by two Newton steps, as the device computes it.
+[[nodiscard]] Argon<float> reciprocal(Argon<float> value) {
+#ifdef __arm__
+	return value.ReciprocalEstimateRefine(2);
+#else
+	// Each step is VRECPS (2 - value * estimate, rounded after the multiply and again after the subtract, never fused)
+	// and a multiply.
+	alignas(16) std::array<float, 4> lanes{};
+	value.StoreTo(lanes.data());
+	for (float& lane : lanes) {
+		float estimate = a9_reciprocal_estimate(lane);
+		for (int32_t i = 0; i < 2; i++) {
+			const float product = lane * estimate;
+			const float step = 2.f - product;
+			estimate *= step;
+		}
+		lane = estimate;
+	}
+	return Argon<float>::Load(lanes.data());
+#endif
+}
 
 /// The naive (aliasing) saws, mixed, 4 samples per vector. Templated on the number of saws so each count gets its own
 /// fully unrolled loop with every phase in a register.
@@ -204,7 +257,7 @@ void Supersaw::render(Buffer out, uint32_t phase_increment, int32_t spread, int3
 		Argon<float> ratio = Argon<float>{1.f}.MultiplyAdd(Argon<float>::Load(&kDetuneOffsets[v]), detune);
 		Argon<float> saw_increments = ratio * static_cast<float>(phase_increment);
 		saw_increments.ConvertTo<uint32_t>().StoreTo(&increments[v]);
-		saw_increments.ReciprocalEstimateRefine(2).StoreTo(&reciprocals[v]);
+		reciprocal(saw_increments).StoreTo(&reciprocals[v]);
 	}
 	// Float only has 24 bits, keep the centre saw exactly in tune with the rest of the synth
 	increments[0] = phase_increment;
