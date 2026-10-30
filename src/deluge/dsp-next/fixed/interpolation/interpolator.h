@@ -63,7 +63,7 @@ struct [[gnu::hot]] Interpolator {
 
 	/// @brief Sub-sample-accurate windowed-sinc interpolation of the current window.
 	/// @param channels 1 = mono (left window only), 2 = stereo (both).
-	/// @param whichKernel the oversampling-kernel variant (from `getWhichKernel`, by playback rate).
+	/// @param whichKernel the oversampling-kernel variant (from `WindowedSincKernel::variantFor`, by playback rate).
 	/// @param oscPos the sub-sample phase within the window.
 	/// @return the interpolated frame (right channel left untouched when @p channels == 1).
 	[[nodiscard]] StereoSample interpolate(std::size_t channels, int32_t whichKernel, uint32_t oscPos);

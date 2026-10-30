@@ -17,7 +17,7 @@
 
 // Pins the two variant picks of the shared deluge::dsp::fixed::windowed_sinc_kernel: select()
 // reproduces the legacy getKernel octave-walk (the wavetable renderer's band-limited choice), and
-// variant() indexes a variant by number (sample playback's getWhichKernel choice) into the one
+// variant() indexes a variant by number (sample playback's variantFor choice) into the one
 // contiguous [7][17][16] table. The table *values* are pinned end-to-end by the wavetable/ and
 // sample/ golden fixtures (and were byte-verified against the legacy table before the two copies
 // were unified). Run on x86 (SIMDe) and ARM/QEMU via CTest — pure index logic, dual-arch for parity.
@@ -31,6 +31,7 @@ using deluge::dsp::fixed::kSincKernelPhaseSteps;
 using deluge::dsp::fixed::kSincKernelTaps;
 using deluge::dsp::fixed::kSincKernelVariants;
 using deluge::dsp::fixed::windowed_sinc_kernel;
+using deluge::dsp::fixed::WindowedSincKernel;
 
 constexpr int32_t kTapsPerVariant = kSincKernelPhaseSteps * kSincKernelTaps;
 
@@ -48,7 +49,33 @@ int32_t reference_variant(uint32_t phase_increment, uint32_t band_max) {
 	}
 	return variant;
 }
+
+// The app's former variant pick by absolute play rate, kept as the reference variantFor reproduces.
+int32_t reference_which_kernel(int32_t phase_increment) {
+	if (phase_increment < 17268826) {
+		return 0;
+	}
+	int32_t which = 1;
+	while (phase_increment >= 32599202) {
+		phase_increment >>= 1;
+		which += 2;
+		if (which == 5) {
+			break;
+		}
+	}
+	if (phase_increment >= 23051117) {
+		which++;
+	}
+	return which;
+}
 } // namespace
+
+static_assert(WindowedSincKernel::variantFor(0) == 0);
+static_assert(WindowedSincKernel::variantFor(16777216) == 0); // unity rate
+static_assert(WindowedSincKernel::variantFor(17268826) == 1); // half a semitone up
+static_assert(WindowedSincKernel::variantFor(23051117) == 2); // 5.5 semitones up
+static_assert(WindowedSincKernel::variantFor(32599202) == 3); // 11.5 semitones up
+static_assert(WindowedSincKernel::variantFor(INT32_MAX) == 6);
 
 // clang-format off
 describe windowed_sinc_kernel_spec("deluge::dsp::fixed windowed_sinc_kernel", ${
@@ -88,6 +115,18 @@ describe windowed_sinc_kernel_spec("deluge::dsp::fixed windowed_sinc_kernel", ${
 		constexpr uint32_t kSubLimitRate = 0x10000000u;
 		expect(reference_variant(kSubLimitRate, kHighBand)).to_equal(1);
 		expect(windowed_sinc_kernel.select(kSubLimitRate, kHighBand)).to_equal(windowed_sinc_kernel.variant(1));
+	});
+
+	it("picks the variant from a phase increment as sample playback always has", _ {
+		int32_t mismatches = 0;
+		for (int64_t p = 0; p <= INT32_MAX; p += 9973) {
+			const auto x = static_cast<int32_t>(p);
+			mismatches += WindowedSincKernel::variantFor(x) != reference_which_kernel(x);
+		}
+		for (int32_t x : {17268825, 17268826, 23051116, 23051117, 32599201, 32599202, 65198404, 130396808}) {
+			mismatches += WindowedSincKernel::variantFor(x) != reference_which_kernel(x);
+		}
+		expect(mismatches).to_equal(0);
 	});
 });
 // clang-format on

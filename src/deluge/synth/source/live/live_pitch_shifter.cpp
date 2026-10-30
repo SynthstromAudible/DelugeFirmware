@@ -16,7 +16,8 @@
  */
 
 #include "synth/source/live/live_pitch_shifter.h"
-#include "definitions_cxx.hpp"                    // TimeStretch::Crossfade constants
+#include "definitions_cxx.hpp" // TimeStretch::Crossfade constants
+#include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h"
 #include "dsp-next/fixed/timestretch/crossfade.h" // totalDifferenceAbs / totalChange
 #include "foundation/panic.h"                     // FREEZE_WITH_ERROR
 #include "synth/source/audio_input_port.h"
@@ -85,7 +86,7 @@ int32_t LivePitchShifter::render(int32_t* __restrict__ outputBuffer, int32_t num
 
 	liveInputBuffer->giveInput(numSamplesThisFunctionCall, port, inputType);
 
-	int32_t whichKernel = getWhichKernel(phaseIncrement);
+	int32_t whichKernel = dsp::fixed::WindowedSincKernel::variantFor(phaseIncrement);
 
 	uint64_t numRawSamplesProcessedAtStart = liveInputBuffer->numRawSamplesProcessed - numSamplesThisFunctionCall;
 

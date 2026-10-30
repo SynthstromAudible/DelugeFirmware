@@ -939,28 +939,6 @@ int32_t divide_round_negative(int32_t dividend, int32_t divisor) {
 	}
 }
 
-int32_t getWhichKernel(int32_t phaseIncrement) {
-	if (phaseIncrement < 17268826) {
-		return 0; // That allows us to go half a semitone up
-	}
-	else {
-		int32_t whichKernel = 1;
-		while (phaseIncrement >= 32599202) { // 11.5 semitones up
-			phaseIncrement >>= 1;
-			whichKernel += 2;
-			if (whichKernel == 5) {
-				break;
-			}
-		}
-
-		if (phaseIncrement >= 23051117) { // 5.5 semitones up
-			whichKernel++;
-		}
-
-		return whichKernel;
-	}
-}
-
 int32_t getHowManyCharsAreTheSame(char const* a, char const* b) {
 	int32_t count = 0;
 	while (true) {

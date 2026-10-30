@@ -17,6 +17,7 @@
 
 #include "model/voice/voice_sample.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "harness/streaming_underrun.h"
 #include "io/debug/log.h"
@@ -690,7 +691,7 @@ timeStretchingConsidered:
 		amplitude <<= 1;
 		amplitudeIncrement <<= 1;
 
-		whichKernel = getWhichKernel(phaseIncrement);
+		whichKernel = deluge::dsp::fixed::WindowedSincKernel::variantFor(phaseIncrement);
 	}
 
 	// If time-stretching or reading a time-stretched cache

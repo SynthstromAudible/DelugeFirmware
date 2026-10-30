@@ -217,8 +217,6 @@ int32_t divide_round_negative(int32_t dividend, int32_t divisor);
 	return (input == 1 << getMagnitude(input));
 }
 
-int32_t getWhichKernel(int32_t phaseIncrement);
-
 int32_t memcasecmp(char const* first, char const* second, int32_t size);
 int32_t getHowManyCharsAreTheSame(char const* a, char const* b);
 void dimColour(uint8_t colour[3]);

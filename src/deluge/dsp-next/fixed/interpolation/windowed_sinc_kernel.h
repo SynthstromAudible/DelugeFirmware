@@ -33,7 +33,7 @@ namespace deluge::dsp::fixed {
 ///
 /// This is the single source of the table for **both** the wavetable renderer (which picks the
 /// variant from a band's oversampling ratio via @ref select) and sample playback / live pitch-shift
-/// (which pick it from the absolute phase increment, the legacy `getWhichKernel` index, via
+/// (which pick it from the absolute phase increment via @ref WindowedSincKernel::variantFor and
 /// @ref variant). The table values are pinned end-to-end by the wavetable/ and sample/ golden
 /// fixtures; @c windowed_sinc_kernel_spec pins the two variant picks.
 inline constexpr int32_t kSincKernelVariants = 7;    ///< Oversampling-ratio sharpness variants.
@@ -69,10 +69,30 @@ public:
 	/// the consumer offsets into it by sub-sample phase.
 	[[nodiscard]] const int16_t* select(uint32_t phase_increment, uint32_t band_max_phase_increment) const;
 
-	/// @brief The base of a variant by index (sample playback's `getWhichKernel`-selected variant).
+	/// @brief The variant for sample playback and live pitch-shift at an absolute play rate.
+	/// @details Unity rate (2^24) up to half a semitone above takes variant 0; above that, each octave takes two
+	/// variants, the second past 5.5 semitones within the octave, up to the sharpest (@ref kSincKernelVariants − 1).
+	/// @param phase_increment The play rate, UQ8.24: 2^24 is the sample's own rate. Non-negative.
+	/// @return The variant index, for @ref variant.
+	[[nodiscard]] static constexpr int32_t variantFor(int32_t phase_increment) {
+		constexpr int32_t kHalfSemitoneUp = 17268826;
+		constexpr int32_t kElevenAndAHalfSemitonesUp = 32599202;
+		constexpr int32_t kFiveAndAHalfSemitonesUp = 23051117;
+		if (phase_increment < kHalfSemitoneUp) {
+			return 0;
+		}
+		int32_t which = 1;
+		while (phase_increment >= kElevenAndAHalfSemitonesUp && which < 5) {
+			phase_increment >>= 1;
+			which += 2;
+		}
+		return (phase_increment >= kFiveAndAHalfSemitonesUp) ? which + 1 : which;
+	}
+
+	/// @brief The base of a variant by index (sample playback's @ref variantFor pick).
 	///
 	/// @param which the variant index in `[0, kSincKernelVariants)` — sample playback derives it
-	/// directly from the absolute phase increment (`getWhichKernel`) rather than a band ratio.
+	/// directly from the absolute phase increment (@ref variantFor) rather than a band ratio.
 	/// @returns the base of that variant's `[kSincKernelPhaseSteps][kSincKernelTaps]` block; the
 	/// consumer offsets in by `phaseStep * kSincKernelTaps` to reach the row.
 	[[nodiscard]] const int16_t* variant(int32_t which) const;
