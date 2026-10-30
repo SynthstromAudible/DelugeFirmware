@@ -87,6 +87,16 @@ list(FILTER _deluge_cold_sources INCLUDE REGEX
 list(FILTER _deluge_cold_sources EXCLUDE REGEX "/src/deluge/storage/(audio|cluster|multi_range)/")
 deluge_optimise_sources_for_size(${_deluge_cold_sources})
 
+# The device runs the GUI from SDRAM. The BSP archives these objects apart (libdeluge_app_gui.a) and
+# its linker fragment places their code by that archive, so they must reach the link as native
+# objects: under ThinLTO lld would see only its own anonymous backend outputs.
+if(NOT DELUGE_HOST)
+  set(_deluge_gui_sources ${deluge_SOURCES} ${deluge_strings_SOURCES})
+  list(FILTER _deluge_gui_sources INCLUDE REGEX "/src/deluge/gui/")
+  list(REMOVE_DUPLICATES _deluge_gui_sources)
+  set_property(SOURCE ${_deluge_gui_sources} APPEND PROPERTY COMPILE_OPTIONS -fno-lto)
+endif()
+
 target_include_directories(deluge_app PUBLIC
     ${deluge_version_INCLUDES}
     ${CMAKE_CURRENT_BINARY_DIR}
