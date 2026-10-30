@@ -52,7 +52,7 @@ template <int N>
 /// Holds the most recent @ref kInterpolationMaxNumSamples input samples per channel — the *tap window*, newest at
 /// index 0, oldest at the end. The owner feeds the window (@ref push_l / @ref push_r advance it by one sample,
 /// @ref jump_forward by several) and reads a sub-sample-accurate output frame with @ref interpolate (windowed-sinc,
-/// using the @p whichKernel-selected oversampling variant of @ref kWindowedSincKernel) or, on the cheap path,
+/// using the @p which_kernel-selected oversampling variant of @ref kWindowedSincKernel) or, on the cheap path,
 /// @ref interpolate_linear (2-tap linear).
 ///
 /// The tap windows are intentionally public: the sample-playback reader fills and shifts them directly for loop
