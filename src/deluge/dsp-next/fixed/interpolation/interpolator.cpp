@@ -35,23 +35,24 @@ namespace {
 }
 } // namespace
 
-StereoSample Interpolator::interpolate(std::size_t channels, int32_t whichKernel, uint32_t oscPos) {
+StereoSample Interpolator::interpolate(std::size_t channels, int32_t which_kernel, uint32_t osc_pos) {
 	constexpr size_t kNumBitsInTableSize = 8;
 	constexpr size_t kRshiftAmount = ((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - kNumBitsInTableSize + 1);
 
 	uint32_t rshifted;
 	if constexpr (kRshiftAmount >= 0) {
-		rshifted = oscPos >> kRshiftAmount;
+		rshifted = osc_pos >> kRshiftAmount;
 	}
 	else {
-		rshifted = oscPos << (-kRshiftAmount);
+		rshifted = osc_pos << (-kRshiftAmount);
 	}
 
 	int16_t strength2 = rshifted & std::numeric_limits<int16_t>::max();
-	int32_t progress_small = oscPos >> (24 + kInterpolationMaxNumSamplesMagnitude - kNumBitsInTableSize);
+	const auto progress_small =
+	    static_cast<int32_t>(osc_pos >> (24 + kInterpolationMaxNumSamplesMagnitude - kNumBitsInTableSize));
 
 	// Position the (shared) kernel to sub-sample accuracy once, then weight each channel's window with it.
-	const int16_t* kernel_row = kWindowedSincKernel.variant(whichKernel) + progress_small * kSincKernelTaps;
+	const int16_t* kernel_row = kWindowedSincKernel.variant(which_kernel) + progress_small * kSincKernelTaps;
 	SincWindow kernel = blend_sinc_kernel(kernel_row, strength2);
 
 	StereoSample output;

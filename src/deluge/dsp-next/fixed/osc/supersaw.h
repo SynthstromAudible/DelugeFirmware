@@ -59,18 +59,18 @@ public:
 
 	/// Side phases spread around the centre phase, so a retriggered supersaw always starts the same way and the saws
 	/// don't start out in phase with each other. Each is another golden ratio of a cycle on from the last.
-	static constexpr SidePhases side_phases_from(uint32_t centrePhase) {
+	static constexpr SidePhases side_phases_from(uint32_t centre_phase) {
 		SidePhases phases{};
 		for (size_t i = 0; i < phases.size(); i++) {
-			phases[i] = centrePhase + static_cast<uint32_t>(i + 1) * 0x9E3779B9u;
+			phases[i] = centre_phase + static_cast<uint32_t>(i + 1) * 0x9E3779B9u;
 		}
 		return phases;
 	}
 
 	/// Pulse width takes saws away: all of them at zero, down to just the centre saw at full. Negative values (from
 	/// patching) count the same as positive, as they do for the other oscillators' pulse width.
-	static constexpr int32_t num_saws_from_pulse_width(uint32_t pulseWidth) {
-		uint32_t pulse_width_absolute = (static_cast<int32_t>(pulseWidth) >= 0) ? pulseWidth : -pulseWidth;
+	static constexpr int32_t num_saws_from_pulse_width(uint32_t pulse_width) {
+		uint32_t pulse_width_absolute = (static_cast<int32_t>(pulse_width) >= 0) ? pulse_width : -pulse_width;
 		auto removed = static_cast<int32_t>((static_cast<uint64_t>(pulse_width_absolute) * kNumSaws) >> 31);
 		return kNumSaws - std::min<int32_t>(removed, kNumSaws - 1);
 	}
@@ -80,8 +80,8 @@ public:
 	/// @param spread Bipolar, +-2^30, as the wave index param
 	/// @param num_saws 1 to kNumSaws. Saws are added as the centre, then pairs from the outside in
 	/// @param bandLimit Whether to apply the polyBLEP. Without it the saws alias, but it saves CPU when that's dire
-	static void render(Buffer out, uint32_t phaseIncrement, int32_t spread, int32_t num_saws, uint32_t& centrePhase,
-	                   SidePhases& sidePhases, bool bandLimit);
+	static void render(Buffer out, uint32_t phase_increment, int32_t spread, int32_t num_saws, uint32_t& centre_phase,
+	                   SidePhases& side_phases, bool band_limit);
 };
 
 } // namespace deluge::dsp::fixed

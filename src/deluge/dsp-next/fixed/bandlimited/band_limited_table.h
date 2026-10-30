@@ -62,62 +62,62 @@ public:
 /// used by the saw/square/analog band sets. Still used app-side for the crude/quality gate
 /// (`tableNumber < cpuDireness + 6`) and the analog→saw downgrade; the band *tables* now select
 /// themselves via @ref BandlimitedTable, but the band *index* is the quality measure.
-[[nodiscard]] inline std::pair<int32_t, int32_t> get_table_number(uint32_t phaseIncrement) {
-	if (phaseIncrement <= 1247086) {
+[[nodiscard]] inline std::pair<int32_t, int32_t> get_table_number(uint32_t phase_increment) {
+	if (phase_increment <= 1247086) {
 		return {0, 13};
 	}
-	if (phaseIncrement <= 1764571) {
+	if (phase_increment <= 1764571) {
 		return {1, 12};
 	}
-	if (phaseIncrement <= 2494173) {
+	if (phase_increment <= 2494173) {
 		return {2, 12};
 	}
-	if (phaseIncrement <= 3526245) {
+	if (phase_increment <= 3526245) {
 		return {3, 11};
 	}
-	if (phaseIncrement <= 4982560) {
+	if (phase_increment <= 4982560) {
 		return {4, 11};
 	}
-	if (phaseIncrement <= 7040929) {
+	if (phase_increment <= 7040929) {
 		return {5, 11};
 	}
-	if (phaseIncrement <= 9988296) {
+	if (phase_increment <= 9988296) {
 		return {6, 11};
 	}
-	if (phaseIncrement <= 14035840) {
+	if (phase_increment <= 14035840) {
 		return {7, 11};
 	}
-	if (phaseIncrement <= 19701684) {
+	if (phase_increment <= 19701684) {
 		return {8, 11};
 	}
-	if (phaseIncrement <= 28256363) {
+	if (phase_increment <= 28256363) {
 		return {9, 11};
 	}
-	if (phaseIncrement <= 40518559) {
+	if (phase_increment <= 40518559) {
 		return {10, 11};
 	}
-	if (phaseIncrement <= 55063683) {
+	if (phase_increment <= 55063683) {
 		return {11, 11};
 	}
-	if (phaseIncrement <= 79536431) {
+	if (phase_increment <= 79536431) {
 		return {12, 11};
 	}
-	if (phaseIncrement <= 113025455) {
+	if (phase_increment <= 113025455) {
 		return {13, 11};
 	}
-	if (phaseIncrement <= 165191049) {
+	if (phase_increment <= 165191049) {
 		return {14, 10};
 	}
-	if (phaseIncrement <= 238609294) {
+	if (phase_increment <= 238609294) {
 		return {15, 10};
 	}
-	if (phaseIncrement <= 306783378) {
+	if (phase_increment <= 306783378) {
 		return {16, 10};
 	}
-	if (phaseIncrement <= 429496729) {
+	if (phase_increment <= 429496729) {
 		return {17, 10};
 	}
-	if (phaseIncrement <= 715827882) {
+	if (phase_increment <= 715827882) {
 		return {18, 9};
 	}
 	return {19, 9};

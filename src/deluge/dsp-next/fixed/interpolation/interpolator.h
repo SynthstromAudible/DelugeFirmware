@@ -66,7 +66,7 @@ struct [[gnu::hot]] Interpolator {
 	/// @param whichKernel the oversampling-kernel variant (from `WindowedSincKernel::variant_for`, by playback rate).
 	/// @param oscPos the sub-sample phase within the window.
 	/// @return the interpolated frame (right channel left untouched when @p channels == 1).
-	[[nodiscard]] StereoSample interpolate(std::size_t channels, int32_t whichKernel, uint32_t oscPos);
+	[[nodiscard]] StereoSample interpolate(std::size_t channels, int32_t which_kernel, uint32_t osc_pos);
 
 	/// @brief 2-tap linear interpolation between the two newest window samples — the cheap alternative.
 	/// @param channels 1 = mono, 2 = stereo. @param phase the sub-sample phase.
@@ -83,9 +83,9 @@ struct [[gnu::hot]] Interpolator {
 		buffer_r[0] = value;
 	}
 	/// Advance both windows by @p numSamples, vacating that many head slots for the caller to fill.
-	[[gnu::always_inline]] constexpr void jump_forward(std::size_t numSamples) {
-		shift_window(buffer_l, numSamples);
-		shift_window(buffer_r, numSamples);
+	[[gnu::always_inline]] constexpr void jump_forward(std::size_t num_samples) {
+		shift_window(buffer_l, num_samples);
+		shift_window(buffer_r, num_samples);
 	}
 
 	/// The per-channel tap windows (newest sample at index 0). Quadword-aligned for the NEON dot product, and
