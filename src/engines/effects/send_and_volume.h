@@ -17,7 +17,9 @@
 
 #pragma once
 
+#include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo_sample.h"
+#include "dsp-next/fixed/vca/send_and_volume.h"
 
 #include <cstdint>
 #include <span>
@@ -42,8 +44,9 @@ class SendAndVolume {
 public:
 	/// @brief Ramps first from @p last_post_reverb_volume; -1 is "unset", which prime() fills in.
 	/// @param last_post_reverb_volume The volume to ramp from, Q31, or -1 for unset.
-	constexpr explicit SendAndVolume(int32_t last_post_reverb_volume = 0)
-	    : last_post_reverb_volume_{last_post_reverb_volume} {}
+	explicit SendAndVolume(int32_t last_post_reverb_volume = 0) {
+		gains_.on<&dsp::fixed::SendAndVolume::start_from>(last_post_reverb_volume);
+	}
 
 	/// @brief Adds the send to @p reverb and applies the volumes to @p block in place; returns whether anything was
 	/// sent (the engine notes when reverb last ran).
@@ -56,17 +59,13 @@ public:
 
 	/// @brief Before a first block: ramp from @p post_reverb_volume, if nothing has been ramped from yet.
 	/// @param post_reverb_volume The volume to ramp from, Q31.
-	void prime(int32_t post_reverb_volume) {
-		if (last_post_reverb_volume_ == -1) {
-			last_post_reverb_volume_ = post_reverb_volume;
-		}
-	}
+	void prime(int32_t post_reverb_volume) { gains_.on<&dsp::fixed::SendAndVolume::prime>(post_reverb_volume); }
 
 	/// @brief Forget the last block's volume: the next prime() sets it.
-	void forget() { last_post_reverb_volume_ = -1; }
+	void forget() { gains_.on<&dsp::fixed::SendAndVolume::forget>(); }
 
 private:
-	int32_t last_post_reverb_volume_; ///< Q31; -1 until primed or processed
+	dsp::Mono<dsp::fixed::SendAndVolume> gains_; ///< The volumes and the ramp's start.
 };
 
 } // namespace deluge::effects

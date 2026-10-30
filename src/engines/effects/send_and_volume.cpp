@@ -17,51 +17,33 @@
 
 #include "engines/effects/send_and_volume.h"
 
-#include "dsp-next/fixed/vca/pan.h"
+#include "dsp-next/core/wrapping.h"
 #include "util/fixedpoint.h"
+
+#include <cstddef>
 
 namespace deluge::effects {
 
 bool SendAndVolume::process(std::span<dsp::StereoSample> block, std::span<int32_t> reverb,
                             const SendAndVolumeParams& params) {
-	const int32_t send_gain = multiply_32x32_rshift32(params.post_fx_volume, params.reverb_send) << 5;
-
-	int32_t gain_l = multiply_32x32_rshift32(params.post_reverb_volume, params.post_fx_volume) << 5;
-	int32_t gain_r = gain_l;
-
-	// The post-reverb volume ramps across the block from the last block's, so a sidechain's duck through it is smooth.
-	int32_t step_l = 0;
-	int32_t step_r = 0;
-	if (params.ramp) {
-		const auto volume_step =
-		    static_cast<int32_t>(static_cast<double>(params.post_reverb_volume - last_post_reverb_volume_)
-		                         / static_cast<double>(block.size()));
-		step_l = step_r = multiply_32x32_rshift32(params.post_fx_volume, volume_step) << 5;
-	}
-
-	if (params.pan != 0 && params.stereo) {
-		const dsp::fixed::PanAmplitudes pan = dsp::fixed::pan_amplitudes(params.pan);
-		gain_l = multiply_32x32_rshift32(gain_l, pan.left) << 2;
-		gain_r = multiply_32x32_rshift32(gain_r, pan.right) << 2;
-		step_l = multiply_32x32_rshift32(step_l, pan.left) << 2;
-		step_r = multiply_32x32_rshift32(step_r, pan.right) << 2;
-	}
-
-	auto reverb_out = reverb.begin();
-	for (dsp::StereoSample& sample : block) {
-		if (params.reverb_send != 0) {
-			*(reverb_out++) += multiply_32x32_rshift32(sample.l + sample.r, send_gain) << 1;
+	const bool sent = params.reverb_send != 0;
+	if (sent) {
+		// The send reads each frame before its volume, so it runs first, as its own pass.
+		const int32_t send_gain = multiply_32x32_rshift32(params.post_fx_volume, params.reverb_send)
+		                          << dsp::fixed::kVolumeShift;
+		for (std::size_t i = 0; i < block.size(); ++i) {
+			reverb[i] = dsp::wrapping_add(reverb[i], dsp::fixed::reverb_send(block[i], send_gain));
 		}
-		if (params.ramp) {
-			gain_l += step_l;
-			gain_r += step_r;
-		}
-		sample.l = multiply_32x32_rshift32(sample.l, gain_l) << 5;
-		sample.r = multiply_32x32_rshift32(sample.r, gain_r) << 5;
 	}
-
-	last_post_reverb_volume_ = params.post_reverb_volume;
-	return params.reverb_send != 0;
+	gains_.configure({
+	    .post_fx_volume = params.post_fx_volume,
+	    .post_reverb_volume = params.post_reverb_volume,
+	    .pan = params.pan,
+	    .ramp = params.ramp,
+	    .stereo = params.stereo,
+	});
+	gains_.renderBlock(block, block);
+	return sent;
 }
 
 } // namespace deluge::effects
