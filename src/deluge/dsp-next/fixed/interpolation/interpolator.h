@@ -50,7 +50,7 @@ template <int N>
 /// @brief A stereo windowed-sinc / linear sample interpolator over a sliding tap window (q31 backend).
 ///
 /// Holds the most recent @ref kInterpolationMaxNumSamples input samples per channel — the *tap window*, newest at
-/// index 0, oldest at the end. The owner feeds the window (@ref pushL / @ref pushR advance it by one sample,
+/// index 0, oldest at the end. The owner feeds the window (@ref push_l / @ref push_r advance it by one sample,
 /// @ref jump_forward by several) and reads a sub-sample-accurate output frame with @ref interpolate (windowed-sinc,
 /// using the @p whichKernel-selected oversampling variant of @ref kWindowedSincKernel) or, on the cheap path,
 /// @ref interpolate_linear (2-tap linear).
@@ -82,7 +82,7 @@ struct Interpolator {
 		shift_window(buffer_r, 1);
 		buffer_r[0] = value;
 	}
-	/// Advance both windows by @p numSamples, vacating that many head slots for the caller to fill.
+	/// Advance both windows by @p num_samples, vacating that many head slots for the caller to fill.
 	[[gnu::always_inline]] constexpr void jump_forward(std::size_t num_samples) {
 		shift_window(buffer_l, num_samples);
 		shift_window(buffer_r, num_samples);
@@ -95,8 +95,8 @@ struct Interpolator {
 
 private:
 	/// Shift @p window toward older indices by @p n samples, vacating the @p n head slots (the discarded tail falls
-	/// off the end; the vacated slots hold unspecified values until the caller fills them). Shared by @ref pushL /
-	/// @ref pushR / @ref jump_forward. Two NEON `vext`s per window instead of up to 15 halfword copies, which neither
+	/// off the end; the vacated slots hold unspecified values until the caller fills them). Shared by @ref push_l /
+	/// @ref push_r / @ref jump_forward. Two NEON `vext`s per window instead of up to 15 halfword copies, which neither
 	/// GCC nor Clang vectorises for n < 8 (the loop reads slots it has just written).
 	[[gnu::always_inline]] static constexpr void shift_window(Window& window, std::size_t n) {
 		if consteval {
