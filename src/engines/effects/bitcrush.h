@@ -17,7 +17,10 @@
 
 #pragma once
 
+#include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo_sample.h"
+#include "dsp-next/fixed/shaping/bit_depth.h"
+#include "dsp-next/fixed/shaping/sample_rate_reducer.h"
 
 #include <cstdint>
 #include <limits>
@@ -32,22 +35,25 @@ struct BitcrushParams {
 	int32_t sample_rate_reduction{std::numeric_limits<int32_t>::min()};
 };
 
-/// @brief Bit depth reduction and sample-rate reduction, with the down- and up-conversion memory the latter carries.
+/// @brief What a crushed block asks of its owner: how far to shift its post-FX volume down.
+struct BitcrushBlock {
+	int volume_shift = 0; ///< 0 to 3: a bitcrush above preset 4 lowers the volume.
+};
+
+/// @brief Bit-depth reduction and sample-rate reduction: the depth's mask alone while the rate is not reduced; the
+/// reducer, masking its grabs one bit less, while it is.
 class Bitcrush {
 public:
-	/// @brief Crushes @p block in place; a strong bitcrush lowers @p post_fx_volume.
-	/// @param block          The audio to crush.
-	/// @param params         The block's bitcrush and sample-rate-reduction values.
-	/// @param post_fx_volume The post-FX volume, Q31; lowered for a strong bitcrush.
-	void process(std::span<dsp::StereoSample> block, const BitcrushParams& params, int32_t& post_fx_volume);
+	/// @brief Crushes @p block in place.
+	/// @param block  The audio to crush.
+	/// @param params The block's bitcrush and sample-rate-reduction values.
+	/// @return The shift a strong bitcrush asks of the owner's post-FX volume.
+	[[nodiscard]] BitcrushBlock process(std::span<dsp::StereoSample> block, const BitcrushParams& params);
 
 private:
-	bool srr_on_last_time_{false};
-	uint32_t low_rate_pos_{0};  ///< 22-bit fixed point: 4194304 is one sample
-	uint32_t high_rate_pos_{0}; ///< 22-bit fixed point
-	dsp::StereoSample last_sample_{};
-	dsp::StereoSample grabbed_{};
-	dsp::StereoSample last_grabbed_{};
+	dsp::Mono<dsp::fixed::BitDepth> depth_;            ///< The mask, stateless.
+	dsp::Mono<dsp::fixed::SampleRateReducer> reducer_; ///< The down- and up-conversion's positions and frames.
+	bool reducing_{false}; ///< Whether the last block reduced the rate: switching on sends the reducer `start`.
 };
 
 } // namespace deluge::effects

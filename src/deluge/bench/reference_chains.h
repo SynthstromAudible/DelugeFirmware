@@ -118,7 +118,7 @@ inline bool sound(fx::ChainCore& c, const fx::SoundChainInputs& in, std::span<St
 
 	c.send_and_volume().prime(postReverbVolume);
 
-	c.bitcrush().process(sound_stereo, in.bitcrush, postFXVolume);
+	postFXVolume >>= c.bitcrush().process(sound_stereo, in.bitcrush).volume_shift;
 	process_fx(c, sound_stereo, settings.mod_fx.type, in.fx, &postFXVolume, in.sound, in.fx.grain_send, reverbBuffer);
 	if (in.stutter != nullptr) {
 		in.stutter->render(sound_stereo, in.stutter_rate);
@@ -186,7 +186,7 @@ bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, co
 
 	if (renderedLastTime) {
 		filter_.process(global_effectable_audio, in.filter_scratch);
-		c.bitcrush().process(global_effectable_audio, in.bitcrush, volumePostFX);
+		volumePostFX >>= c.bitcrush().process(global_effectable_audio, in.bitcrush).volume_shift;
 	}
 
 	// The soft off of a GRAIN the setting holds, then the mod FX, EQ and delay.
@@ -247,7 +247,7 @@ bool master(fx::ChainCore& c, fx::Filter& filter_, const fx::MasterChainInputs& 
 	int32_t masterVolumeAdjustmentR = post->master_volume;
 	masterVolumeAdjustmentL = filter_.configure(settings.filter, post->filter, masterVolumeAdjustmentL);
 	filter_.process(renderingBuffer, post->filter_scratch);
-	c.bitcrush().process(renderingBuffer, post->bitcrush, masterVolumeAdjustmentL);
+	masterVolumeAdjustmentL >>= c.bitcrush().process(renderingBuffer, post->bitcrush).volume_shift;
 
 	masterVolumeAdjustmentR = masterVolumeAdjustmentL;
 

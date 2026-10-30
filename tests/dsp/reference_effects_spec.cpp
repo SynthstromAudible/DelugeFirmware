@@ -62,8 +62,8 @@ describe reference_effects_spec("the frozen effects reference equals the live ef
 					int32_t vb = 1 << 27;
 					ref.process(std::span{a}.subspan(at, n), {.bitcrush = crush, .sample_rate_reduction = block_srr},
 					            va);
-					live.process(std::span{b}.subspan(at, n), {.bitcrush = crush, .sample_rate_reduction = block_srr},
-					             vb);
+					vb >>= live.process(std::span{b}.subspan(at, n), {.bitcrush = crush, .sample_rate_reduction = block_srr})
+					          .volume_shift;
 					expect(va).to_equal(vb);
 					at += n;
 				}

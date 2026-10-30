@@ -38,7 +38,7 @@ describe bitcrush("bit depth and sample-rate reduction", ${
 		Bitcrush b;
 		std::vector<StereoSample> block = wave(32);
 		int32_t volume = 1 << 27;
-		b.process(block, {.bitcrush = kOff, .sample_rate_reduction = kOff}, volume);
+		volume >>= b.process(block, {.bitcrush = kOff, .sample_rate_reduction = kOff}).volume_shift;
 		expect(same(block, wave(32))).to_be_true();
 		expect(volume).to_equal(1 << 27);
 	});
@@ -46,7 +46,7 @@ describe bitcrush("bit depth and sample-rate reduction", ${
 		Bitcrush b;
 		std::vector<StereoSample> block = wave(32);
 		int32_t volume = 1 << 27;
-		b.process(block, {.bitcrush = kPresetSix, .sample_rate_reduction = kOff}, volume);
+		volume >>= b.process(block, {.bitcrush = kPresetSix, .sample_rate_reduction = kOff}).volume_shift;
 		const std::vector<StereoSample> input = wave(32);
 		const uint32_t mask = 0xFFFFFFFFu << 25;
 		for (size_t i = 0; i < block.size(); i++) {
@@ -60,11 +60,11 @@ describe bitcrush("bit depth and sample-rate reduction", ${
 		const BitcrushParams off{.bitcrush = kOff, .sample_rate_reduction = kOff};
 		int32_t volume = 1 << 27;
 		std::vector<StereoSample> first = wave(32);
-		b.process(first, on, volume);
+		volume >>= b.process(first, on).volume_shift;
 		std::vector<StereoSample> between = wave(32);
-		b.process(between, off, volume);
+		volume >>= b.process(between, off).volume_shift;
 		std::vector<StereoSample> again = wave(32);
-		b.process(again, on, volume);
+		volume >>= b.process(again, on).volume_shift;
 		expect(same(first, again)).to_be_true();
 	});
 	it("carries sample-rate reduction across block boundaries", _ {
@@ -72,11 +72,11 @@ describe bitcrush("bit depth and sample-rate reduction", ${
 		int32_t volume = 1 << 27;
 		Bitcrush whole;
 		std::vector<StereoSample> one = wave(64);
-		whole.process(one, on, volume);
+		volume >>= whole.process(one, on).volume_shift;
 		Bitcrush halves;
 		std::vector<StereoSample> two = wave(64);
-		halves.process(std::span{two}.first(32), on, volume);
-		halves.process(std::span{two}.last(32), on, volume);
+		volume >>= halves.process(std::span{two}.first(32), on).volume_shift;
+		volume >>= halves.process(std::span{two}.last(32), on).volume_shift;
 		expect(same(one, two)).to_be_true();
 	});
 });

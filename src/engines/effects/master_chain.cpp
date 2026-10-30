@@ -49,7 +49,7 @@ void MasterChain::post_reverb(std::span<dsp::StereoSample> block, const EffectSt
                               const MasterPostInputs& post) {
 	int32_t volume_l = filter_.configure(settings.filter, post.filter, post.master_volume);
 	filter_.process(block, post.filter_scratch);
-	core_.bitcrush().process(block, post.bitcrush, volume_l);
+	volume_l >>= core_.bitcrush().process(block, post.bitcrush).volume_shift;
 	int32_t volume_r = volume_l;
 
 	if (post.stutter != nullptr) {

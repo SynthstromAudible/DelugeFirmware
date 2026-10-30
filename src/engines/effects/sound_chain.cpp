@@ -34,7 +34,7 @@ bool SoundChain::process(std::span<dsp::StereoSample> block, const SoundChainInp
 	int32_t post_fx_volume = in.post_fx_volume;
 	core_.send_and_volume().prime(in.post_reverb_volume);
 
-	core_.bitcrush().process(block, in.bitcrush, post_fx_volume);
+	post_fx_volume >>= core_.bitcrush().process(block, in.bitcrush).volume_shift;
 	// A sound's type in effect is its setting: it has no soft off.
 	FxInputs fx = in.fx;
 	fx.mod_fx_type = settings.mod_fx.type;
