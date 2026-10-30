@@ -788,8 +788,8 @@ bool StorageManager::buildPathToFile(const char* fileName) {
 }
 
 FileReader::FileReader() {
-	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(32768 + CACHE_LINE_SIZE * 2);
-	fileClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
+	fileClusterBufferAllocation = GeneralMemoryAllocator::get().allocLowSpeed(32768 + CACHE_LINE_SIZE * 2);
+	fileClusterBuffer = fileClusterBufferAllocation ? (char*)fileClusterBufferAllocation + CACHE_LINE_SIZE : nullptr;
 }
 
 // Used to read an in-memory file stream.
@@ -803,8 +803,7 @@ FileReader::FileReader(char* memBuffer, uint32_t bufLen) {
 }
 
 FileReader::~FileReader() {
-	if (!memoryBased)
-		GeneralMemoryAllocator::get().dealloc(fileClusterBuffer);
+	GeneralMemoryAllocator::get().dealloc(fileClusterBufferAllocation);
 }
 
 void FileReader::resetReader() {
@@ -822,6 +821,11 @@ void FileReader::resetReader() {
 // Returns whether successful loading took place
 // return true "if still going".
 bool FileReader::readFileClusterIfNecessary() {
+	if (!fileClusterBuffer) {
+		reachedBufferEnd = true;
+		return false;
+	}
+
 	if (memoryBased) {
 		if (fileReadBufferCurrentPos >= currentReadBufferEndPos) {
 			reachedBufferEnd = true;
@@ -925,8 +929,8 @@ FRESULT FileReader::closeWriter() {
 
 FileWriter::FileWriter() {
 	bufferSize = 32768;
-	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(bufferSize + CACHE_LINE_SIZE * 2);
-	writeClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
+	writeClusterBufferAllocation = GeneralMemoryAllocator::get().allocLowSpeed(bufferSize + CACHE_LINE_SIZE * 2);
+	writeClusterBuffer = writeClusterBufferAllocation ? (char*)writeClusterBufferAllocation + CACHE_LINE_SIZE : nullptr;
 }
 
 FileWriter::FileWriter(bool inMem) : FileWriter() {
@@ -934,7 +938,7 @@ FileWriter::FileWriter(bool inMem) : FileWriter() {
 }
 
 FileWriter::~FileWriter() {
-	GeneralMemoryAllocator::get().dealloc(writeClusterBuffer);
+	GeneralMemoryAllocator::get().dealloc(writeClusterBufferAllocation);
 }
 
 int32_t FileWriter::bytesWritten() {
@@ -949,7 +953,7 @@ void FileWriter::resetWriter() {
 
 FRESULT FileWriter::closeWriter() {
 	if (memoryBased) {
-		if (fileWriteBufferCurrentPos < bufferSize) {
+		if (writeClusterBuffer && fileWriteBufferCurrentPos < bufferSize) {
 			writeClusterBuffer[fileWriteBufferCurrentPos] = 0;
 			return FRESULT::FR_OK;
 		}
@@ -969,6 +973,11 @@ void FileWriter::writeBlock(uint8_t* block, uint32_t size) {
 extern "C" void routineForSD(void);
 
 void FileWriter::writeByte(int8_t b) {
+
+	if (!writeClusterBuffer) {
+		fileAccessFailedDuringWrite = true;
+		return;
+	}
 
 	if (fileWriteBufferCurrentPos == bufferSize) {
 		if (!memoryBased && !fileAccessFailedDuringWrite) {
@@ -1001,6 +1010,9 @@ void FileWriter::writeChars(char const* output) {
 }
 
 Error FileWriter::writeBufferToFile() {
+	if (!writeClusterBuffer) {
+		return Error::INSUFFICIENT_RAM;
+	}
 	UINT bytesWritten;
 	FRESULT result = f_write(&writeFIL, writeClusterBuffer, fileWriteBufferCurrentPos, &bytesWritten);
 	if (result != FR_OK || bytesWritten != fileWriteBufferCurrentPos) {
