@@ -17,12 +17,15 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // OscType
+#include "dsp-next/fixed/wavetable/wave_table_data.h"
 #include <cstdint>
 
 class Voice;
 class VoiceUnisonPartSource;
-class WaveTable;
 struct VoiceConfig;
+namespace deluge::synth {
+struct VoiceBlock;
+} // namespace deluge::synth
 
 /// @brief The ring-mod synth engine: the first **cross-source swap engine** (per the L1 reframe,
 /// `docs/dev/synth_l1_engine_architecture.md`). It owns the full per-voice ring-mod render: the unison loop, the
@@ -41,8 +44,9 @@ public:
 		VoiceUnisonPartSource* part; ///< holds the persistent vaSource / wavetableSource component
 		uint32_t phaseIncrement;     ///< already pitch-adjusted (UQ0.32)
 		int32_t pulseWidth;          ///< LOCAL_OSC_*_PHASE_WIDTH, pre-shifted (no-op unless square)
-		WaveTable* waveTable;        ///< the loaded table (wavetable component only), else nullptr
-		int32_t waveIndexLast;       ///< wavetable morph index + its per-block increment
+		deluge::dsp::fixed::WaveTableData
+		    waveTable;         ///< the loaded table's bands (wavetable component only), else empty
+		int32_t waveIndexLast; ///< wavetable morph index + its per-block increment
 		int32_t waveIndexIncrement;
 		OscType oscType;         ///< selects the per-wave amplitude compensation
 		uint32_t retriggerPhase; ///< oscRetriggerPhase[s]
@@ -57,13 +61,14 @@ public:
 	void render(Voice& voice, int32_t* oscBuffer, int32_t numSamples, bool doOscSync, uint32_t* oscSyncPos,
 	            int32_t overallPitchAdjust, const int32_t* sourceWaveIndexIncrements, bool stereoUnison,
 	            int32_t filterGain, bool& didStereoTempBuffer, int32_t* scratch0, int32_t* scratch1,
-	            const VoiceConfig& cfg);
+	            const VoiceConfig& cfg, const deluge::synth::VoiceBlock& block);
 
 private:
 	/// Render one unison part of the ring-mod, *adding* into @p oscBuffer. Source 0 is the hard-sync master (its
 	/// phase = @p oscSyncPos, increment = @p src0.phaseIncrement); sync is applied to source 1 only when
 	/// @p doOscSync. @p scratch0 / @p scratch1 are the caller's two spare buffers (≥ @p numSamples).
 	void renderUnisonPart(const Source& src0, const Source& src1, bool doOscSync, uint32_t oscSyncPos, bool hasFilters,
-	                      int32_t filterGain, int32_t unisonAmplitudeL, int32_t unisonAmplitudeR, bool stereoUnison,
-	                      int32_t* oscBuffer, int32_t numSamples, int32_t* scratch0, int32_t* scratch1);
+	                      int32_t cpuDireness, int32_t filterGain, int32_t unisonAmplitudeL, int32_t unisonAmplitudeR,
+	                      bool stereoUnison, int32_t* oscBuffer, int32_t numSamples, int32_t* scratch0,
+	                      int32_t* scratch1);
 };

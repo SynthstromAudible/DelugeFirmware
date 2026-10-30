@@ -598,7 +598,7 @@ void killOneVoice(size_t num_samples) {
 
 		const Sound::ActiveVoice& voice = *it;
 
-		bool still_rendering = voice->doImmediateRelease();
+		bool still_rendering = voice->doImmediateRelease(deluge::synth::VoiceClock{AudioEngine::nextVoiceState});
 		if (!still_rendering) {
 			voice->sound.freeActiveVoice(voice);
 		}
@@ -635,7 +635,8 @@ void terminateOneVoice(size_t numSamples) {
 		}
 
 		const Sound::ActiveVoice& voice = *best;
-		bool still_rendering = voice->doFastRelease(2 * SOFT_CULL_INCREMENT);
+		bool still_rendering =
+		    voice->doFastRelease(2 * SOFT_CULL_INCREMENT, deluge::synth::VoiceClock{AudioEngine::nextVoiceState});
 		if (!still_rendering) {
 			voice->sound.freeActiveVoice(voice);
 		}
@@ -683,7 +684,7 @@ void forceReleaseOneVoice(size_t num_samples) {
 			          num_samples, getNumVoices(), getNumAudio());
 		}
 
-		bool still_rendering = voice->speedUpRelease();
+		bool still_rendering = voice->speedUpRelease(deluge::synth::VoiceClock{AudioEngine::nextVoiceState});
 		if (!still_rendering) {
 			voice->sound.freeActiveVoice(voice);
 		}

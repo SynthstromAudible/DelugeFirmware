@@ -57,9 +57,6 @@ public:
 	bool zoneChanged(VoiceSamplePlaybackGuide* guide, Sample* sample, bool reversed, MarkerType markerType,
 	                 LoopType loopingType, int32_t priorityRating);
 
-	/// Low-level play position in bytes (for the auto-release length calculation).
-	int32_t getPlayByteLowLevel(Sample* sample, VoiceSamplePlaybackGuide* guide);
-
 	/// The wrapped low-level reader, or nullptr if none is held (GUI play-cursor read-out + the clone below).
 	[[nodiscard]] VoiceSample* voiceSample() const { return voiceSample_; }
 
@@ -85,6 +82,8 @@ public:
 	[[nodiscard]] int32_t interpolationBufferSize(uint32_t phaseIncrement) const override;
 	[[nodiscard]] uint32_t pendingSamplesLate() const override;
 	[[nodiscard]] bool doneFirstRenderYet() const override;
+	[[nodiscard]] int32_t bytes_left_to_end() const override;
+	[[nodiscard]] int32_t bytes_per_frame() const override;
 	LateStartOutcome attemptLateStart(int64_t rawSamplesLate, int32_t numSamples) override;
 	bool possiblySetUpCache(int32_t phaseIncrement, int32_t timeStretchRatio, int32_t priorityRating,
 	                        LoopType loopingType) override;

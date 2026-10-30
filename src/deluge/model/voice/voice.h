@@ -25,6 +25,7 @@
 #include "model/voice/source_component_render.h" // deluge::synth::SourceRenderResult
 #include "model/voice/subtractive_engine.h"
 #include "model/voice/voice_config.h"
+#include "model/voice/voice_inputs.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "model/voice/voice_unison_part.h"
 #include "modulation/params/param.h"
@@ -41,6 +42,7 @@ struct StereoSample;
 } // namespace deluge::dsp
 using StereoSample = deluge::dsp::StereoSample;
 class ModelStackWithSoundFlags;
+class ParamManagerForTimeline;
 using namespace deluge;
 class Voice final {
 public:
@@ -68,11 +70,9 @@ public:
 
 	std::array<Envelope, kNumEnvelopes> envelopes{};
 
-	// Voice-cull timestamp for the amplitude envelope (envelopes[0]). This used to live inside the
-	// Envelope (stamped from AudioEngine::nextVoiceState on every stage change), but it is a
-	// voice-scheduling concern, not envelope DSP — so the now-pure Envelope reports stage changes
-	// (takeStageChanged()) and the Voice owns the stamp. Read by getPriorityRating(). See
-	// stampEnvelope0StageEntry() / resetEnvelope0TimeEntered().
+	// Voice-cull timestamp for the amplitude envelope (envelopes[0]): the voice clock's tick when it entered its
+	// stage. A voice-scheduling concern, not envelope DSP — the Envelope reports stage changes (takeStageChanged())
+	// and the Voice stamps them. Read by priority_rating().
 	uint32_t envelope0TimeEntered{};
 	LFO lfo2;
 	LFO lfo4;
@@ -123,10 +123,9 @@ public:
 	/// note frequency is too high and the source/modulator should be dropped). Pure — used by Voice's per-source
 	/// pitch math and by FMEngine for its modulators.
 	static bool adjustPitch(uint32_t& phaseIncrement, int32_t adjustment);
-	bool render(ParamManagerForTimeline* paramManager, const ControlBlock& controlBlock, int32_t* soundBuffer,
-	            int32_t numSamples, bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged,
-	            bool doLPF, bool doHPF, int32_t externalPitchAdjust, const VoiceConfig& cfg,
-	            std::array<int32_t*, 4> spareBuffers);
+	bool render(const ControlBlock& controlBlock, int32_t* soundBuffer, int32_t numSamples, bool soundRenderingInStereo,
+	            bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, int32_t externalPitchAdjust,
+	            const VoiceConfig& cfg, const deluge::synth::VoiceBlock& block, std::array<int32_t*, 4> spareBuffers);
 
 	void calculatePhaseIncrements(ModelStackWithSoundFlags* modelStack);
 	bool sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, MarkerType markerType);
@@ -134,31 +133,38 @@ public:
 	            int32_t newNoteCodeAfterArpeggiation, uint8_t velocity, uint32_t newSampleSyncLength, int32_t ticksLate,
 	            uint32_t samplesLate, bool resetEnvelopes, int32_t fromMIDIChannel, const int16_t* mpeValues);
 	void noteOff(ParamManagerForTimeline* paramManager, bool noteTailsAllowed, bool allowReleaseStage = true);
+	/// Releases the note: each envelope from its sustain where @p envelope_has_sustain says it has one, or at once when
+	/// there is no release stage. With note tails not allowed, the note-off is only remembered.
+	void note_off(const std::array<bool, kNumEnvelopes>& envelope_has_sustain, bool noteTailsAllowed,
+	              bool allowReleaseStage, deluge::synth::VoiceClock clock);
 
 	void randomizeOscPhases(const Sound& sound);
 	void changeNoteCode(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
 	                    int32_t newNoteCodeAfterArpeggiation, int32_t newInputMIDIChannel, const int16_t* newMPEValues);
 	bool hasReleaseStage();
 	void unassignStuff(bool deletingSong);
+	/// The cull order's rating: higher is culled sooner. Ranks by @p voice_priority, then by @p num_active_voices (the
+	/// sound's voice count), then by the amplitude envelope's stage, then by when it entered it.
+	[[nodiscard]] uint32_t priority_rating(VoicePriority voice_priority, size_t num_active_voices) const;
+	/// @ref priority_rating for this voice's sound as it is now.
 	[[nodiscard]] uint32_t getPriorityRating() const;
 
-	/// Stamp @ref envelope0TimeEntered if the amplitude envelope (envelopes[0]) has just changed
-	/// stage — call after any operation that may transition it. Replaces the Envelope's old internal
-	/// AudioEngine::nextVoiceState stamping, now that the Envelope is pure.
-	void stampEnvelope0StageEntry();
-	/// Re-stamp while in sustain, to lower a drone note's cull likelihood (was Envelope::resetTimeEntered).
-	void resetEnvelope0TimeEntered();
+	/// Stamp @ref envelope0TimeEntered from @p clock if the amplitude envelope (envelopes[0]) has just changed stage —
+	/// call after any operation that may transition it.
+	void stampEnvelope0StageEntry(deluge::synth::VoiceClock clock);
+	/// Re-stamp while in sustain, to lower a drone note's cull likelihood.
+	void resetEnvelope0TimeEntered(deluge::synth::VoiceClock clock);
 
 	void expressionEventImmediate(const Sound& sound, int32_t voiceLevelValue, int32_t s);
 	void expressionEventSmooth(int32_t newValue, int32_t s);
 
 	/// Release immediately with provided release rate
 	/// Returns whether voice should still be left active
-	bool doFastRelease(uint32_t releaseIncrement);
+	bool doFastRelease(uint32_t releaseIncrement, deluge::synth::VoiceClock clock);
 
 	/// Sets envelope to off (will interpolate through this render window).
 	/// Returns whether voice should still be left active
-	bool doImmediateRelease();
+	bool doImmediateRelease(deluge::synth::VoiceClock clock);
 
 	/// Already fading at (or faster than) the soft-cull rate. Cull victim selection and the voice limit
 	/// must treat such a voice as already gone, or it soaks up culls meant for live voices (issue #4721).
@@ -167,7 +173,7 @@ public:
 		       && envelopes[0].fastReleaseRate() >= SOFT_CULL_INCREMENT;
 	}
 
-	bool speedUpRelease(uint32_t minFastReleaseIncrement = SOFT_CULL_INCREMENT);
+	bool speedUpRelease(deluge::synth::VoiceClock clock, uint32_t minFastReleaseIncrement = SOFT_CULL_INCREMENT);
 	bool shouldBeDeleted() { return delete_this_voice_; }
 
 	// This compares based on the priority of two voices
@@ -178,11 +184,12 @@ public:
 	// The per-source render driver + the unison-inactive predicate. Public (not private) so SubtractiveEngine can
 	// drive them without being a friend of Voice. Transitional — the per-source loop relocates into the engine
 	// layer at the synth::Voice lift; renderSourceComponent (the dispatch it calls) stays private.
-	void renderBasicSource(ParamManagerForTimeline* paramManager, int32_t s, int32_t* oscBuffer, int32_t numSamples,
-	                       bool stereoBuffer, int32_t sourceAmplitude, bool* unisonPartBecameInactive,
-	                       int32_t overallPitchAdjust, bool doOscSync, uint32_t* oscSyncPos,
-	                       uint32_t* oscSyncPhaseIncrements, int32_t amplitudeIncrement, uint32_t* getPhaseIncrements,
-	                       bool getOutAfterPhaseIncrements, int32_t waveIndexIncrement, const VoiceConfig& cfg);
+	void renderBasicSource(const ControlBlock& controlBlock, const deluge::synth::VoiceBlock& block, int32_t s,
+	                       int32_t* oscBuffer, int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude,
+	                       bool* unisonPartBecameInactive, int32_t overallPitchAdjust, bool doOscSync,
+	                       uint32_t* oscSyncPos, uint32_t* oscSyncPhaseIncrements, int32_t amplitudeIncrement,
+	                       uint32_t* getPhaseIncrements, bool getOutAfterPhaseIncrements, int32_t waveIndexIncrement,
+	                       const VoiceConfig& cfg);
 	[[nodiscard]] bool areAllUnisonPartsInactive(const VoiceConfig& cfg) const;
 
 private:
@@ -199,12 +206,11 @@ private:
 	// dx7 / virtual-analog / wavetable) and folding their outcomes into one uniform result. The single dispatch
 	// seam a SourceComponent interface + the engine registry will build on. Called from renderBasicSource's
 	// per-unison loop after the shared pitch/pan/sync setup.
-	deluge::synth::SourceRenderResult
-	renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* paramManager, int32_t* oscBuffer,
-	                      int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude, int32_t amplitudeIncrement,
-	                      uint32_t phaseIncrement, bool doOscSync, uint32_t* oscSyncPos,
-	                      uint32_t* oscSyncPhaseIncrements, int32_t waveIndexIncrement, bool stereoUnison,
-	                      int32_t amplitudeL, int32_t amplitudeR, const VoiceConfig& cfg);
+	deluge::synth::SourceRenderResult renderSourceComponent(
+	    int32_t u, int32_t s, const ControlBlock& controlBlock, int32_t* oscBuffer, int32_t numSamples,
+	    bool stereoBuffer, int32_t sourceAmplitude, int32_t amplitudeIncrement, uint32_t phaseIncrement, bool doOscSync,
+	    uint32_t* oscSyncPos, uint32_t* oscSyncPhaseIncrements, int32_t waveIndexIncrement, bool stereoUnison,
+	    int32_t amplitudeL, int32_t amplitudeR, const VoiceConfig& cfg, const deluge::synth::VoiceBlock& block);
 	void setupPorta(const Sound& sound);
 	int32_t combineExpressionValues(int32_t synthLevelValue, int32_t expressionDimension) const;
 };

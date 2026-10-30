@@ -486,7 +486,7 @@ bool SoundInstrument::noteIsOn(int32_t noteCode, bool resetTimeEntered) {
 		if ((voice->noteCodeAfterArpeggiation == noteCode)
 		    && voice->envelopes[0].stage() < Envelope::Stage::RELEASE) { // Ignore releasing notes. Is this right?
 			if (resetTimeEntered) {
-				voice->resetEnvelope0TimeEntered();
+				voice->resetEnvelope0TimeEntered(deluge::synth::VoiceClock{AudioEngine::nextVoiceState});
 			}
 			return true;
 		}

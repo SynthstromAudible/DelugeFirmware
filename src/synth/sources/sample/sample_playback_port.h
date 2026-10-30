@@ -91,6 +91,10 @@ public:
 	[[nodiscard]] virtual uint32_t pendingSamplesLate() const = 0;
 	/// True once the first render block has run (gates the once-per-note cache setup).
 	[[nodiscard]] virtual bool doneFirstRenderYet() const = 0;
+	/// Bytes from the play position to where playback ends, counted in the play direction (for the auto-release).
+	[[nodiscard]] virtual int32_t bytes_left_to_end() const = 0;
+	/// Bytes per sample frame: the byte depth times the channel count.
+	[[nodiscard]] virtual int32_t bytes_per_frame() const = 0;
 
 	// --- Voice-sample ops ------------------------------------------------------------------------------------
 	/// Attempt to begin playback @p rawSamplesLate samples into the sample (a mid-note unmute / late start).

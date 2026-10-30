@@ -21,7 +21,6 @@
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // get_decay4
 #include "dsp-next/fixed/shaping/wavefolder.h"
 #include "dsp-next/fixed/vca/pan.h"
-#include "effects/filter_slots.h"
 #include "io/debug/log.h"
 #include "memory/stack_guard.h"
 #include "model/model_stack.h"
@@ -29,14 +28,12 @@
 #include "model/sample/sample_holder_for_voice.h"
 #include "model/voice/source_component_render.h"
 #include "modulation/params/param_set.h"
-#include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/render_scratch.h"
 #include "processing/sound/sound.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multisample_range.h"
-#include "storage/wave_table/wave_table.h"
 #include "util/synth_noise.h"
 
 #include "dsp-next/fixed/tables/decay_small.h"
@@ -201,7 +198,7 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 		params.sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e] =
 		    envelopes[e].noteOn(directlyToDecay, sustain);
 	}
-	stampEnvelope0StageEntry();
+	stampEnvelope0StageEntry(deluge::synth::VoiceClock{AudioEngine::nextVoiceState});
 
 	if (resetEnvelopes) {
 		for (int32_t s = 0; s < kNumSources; s++) {
@@ -569,6 +566,16 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 }
 
 void Voice::noteOff(ParamManagerForTimeline* paramManager, bool noteTailsAllowed, bool allowReleaseStage) {
+	std::array<bool, kNumEnvelopes> envelopeHasSustain{};
+	for (int32_t e = 0; e < kNumEnvelopes; e++) {
+		envelopeHasSustain[e] = sound.envelopeHasSustainCurrently(e, paramManager);
+	}
+	note_off(envelopeHasSustain, noteTailsAllowed, allowReleaseStage,
+	         deluge::synth::VoiceClock{AudioEngine::nextVoiceState});
+}
+
+void Voice::note_off(const std::array<bool, kNumEnvelopes>& envelope_has_sustain, bool noteTailsAllowed,
+                     bool allowReleaseStage, deluge::synth::VoiceClock clock) {
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		guides[s].noteOffReceived = true;
@@ -586,17 +593,17 @@ void Voice::noteOff(ParamManagerForTimeline* paramManager, bool noteTailsAllowed
 
 		// Or, do the release-stage
 		else {
-			envelopes[0].noteOff(sound.envelopeHasSustainCurrently(0, paramManager));
+			envelopes[0].noteOff(envelope_has_sustain[0]);
 
 			// Only start releasing envelope 2 if release wasn't at max value. LOCAL_ENV_1_RELEASE is a
 			// *local* param, so read the voice's own params.paramFinalValues (sized LOCAL_LAST) — not
 			// sound.paramFinalValues, which holds *global* params only (indexing it here was an
 			// out-of-bounds read of adjacent Sound memory; the hardened host build's bounds check caught it).
 			if (params.paramFinalValues[params::LOCAL_ENV_1_RELEASE] >= 9) {
-				envelopes[1].noteOff(sound.envelopeHasSustainCurrently(1, paramManager));
+				envelopes[1].noteOff(envelope_has_sustain[1]);
 			}
 		}
-		stampEnvelope0StageEntry();
+		stampEnvelope0StageEntry(clock);
 	}
 
 	else {
@@ -706,14 +713,11 @@ uint32_t Voice::getLocalLFOPhaseIncrement(const LFOConfig& config, deluge::modul
 	return syncedPhaseIncrement;
 }
 
-// Before calling this, you must set the filterSetConfig's doLPF and doHPF to default values
-
 // Returns false if became inactive and needs unassigning
-[[gnu::hot]] bool Voice::render(ParamManagerForTimeline* paramManager, const ControlBlock& controlBlock,
-                                int32_t* soundBuffer, int32_t numSamples, bool soundRenderingInStereo,
-                                bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, bool doLPF, bool doHPF,
+[[gnu::hot]] bool Voice::render(const ControlBlock& controlBlock, int32_t* soundBuffer, int32_t numSamples,
+                                bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged,
                                 int32_t externalPitchAdjust, const VoiceConfig& cfg,
-                                std::array<int32_t*, 4> spareBuffers) {
+                                const deluge::synth::VoiceBlock& block, std::array<int32_t*, 4> spareBuffers) {
 	spareBuffers_ = spareBuffers; // the render helpers read these instead of the file-scope spareRenderingBuffer
 	// we spread out over a render cycle - allocating and starting the voice takes more time than rendering it so this
 	// avoids the cpu spike at note on
@@ -728,7 +732,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(const LFOConfig& config, deluge::modul
 	// If we've previously ignored a note-off, we need to check that the user hasn't changed the preset so that we're
 	// now waiting for a note-off again
 	if (previouslyIgnoredNoteOff && cfg.noteTailsAllowed) {
-		noteOff(paramManager, cfg.noteTailsAllowed);
+		note_off(cfg.envelope_has_sustain, cfg.noteTailsAllowed, true, block.clock);
 	}
 
 	// Do envelopes - if they're patched to something (always do the first one though)
@@ -748,7 +752,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(const LFOConfig& config, deluge::modul
 			sourcesChanged |= anyChange << (util::to_underlying(PatchSource::ENVELOPE_0) + e);
 		}
 	}
-	stampEnvelope0StageEntry();
+	stampEnvelope0StageEntry(block.clock);
 
 	bool unassignVoiceAfter = (envelopes[0].stage() == Envelope::Stage::OFF)
 	                          || (envelopes[0].stage() > Envelope::Stage::DECAY
@@ -880,8 +884,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(const LFOConfig& config, deluge::modul
 			if (cfg.oscType[s] != OscType::SAMPLE
 			    || cfg.repeatMode[s]
 			           != SampleRepeatMode::ONCE // Don't do it for anything else. STRETCH is too hard to calculate
-			    || !guides[s].audioFileHolder
-			    || (((SampleHolderForVoice*)guides[s].audioFileHolder)->loopEndPos && !guides[s].noteOffReceived)) {
+			    || !block.sample_can_auto_release[s]) {
 				goto skipAutoRelease;
 			}
 
@@ -910,13 +913,9 @@ uint32_t Voice::getLocalLFOPhaseIncrement(const LFOConfig& config, deluge::modul
 						continue;
 					}
 
-					Sample* sample = (Sample*)guides[s].audioFileHolder->audioFile;
-					int32_t bytePos = voiceUnisonPartSource->sampleVoiceAdapter.getPlayByteLowLevel(sample, &guides[s]);
-
-					int32_t bytesLeft =
-					    (int32_t)((uint32_t)guides[s].endPlaybackAtByte - (uint32_t)bytePos) * guides[s].playDirection;
-
-					int32_t bytesPerSample = sample->byteDepth * sample->numChannels;
+					const deluge::synth::SamplePlaybackPort& port = voiceUnisonPartSource->sampleVoiceAdapter;
+					int32_t bytesLeft = port.bytes_left_to_end();
+					int32_t bytesPerSample = port.bytes_per_frame();
 
 					int32_t releaseStageLengthBytes = releaseStageLengthSamples * bytesPerSample;
 
@@ -965,7 +964,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(const LFOConfig& config, deluge::modul
 				envelopes[0].setOutputLevel(2147483647);
 			}
 			envelopes[0].unconditionalRelease();
-			stampEnvelope0StageEntry();
+			stampEnvelope0StageEntry(block.clock);
 		}
 	}
 skipAutoRelease: {}
@@ -987,7 +986,7 @@ skipAutoRelease: {}
 	int32_t filterGain;
 
 	// Prepare the filters. Level adjustment for unison happens before the filters, so the gain going in is neutral.
-	const bool allow_oversampling = AudioEngine::cpuDireness < 14;
+	const bool allow_oversampling = cfg.cpu_direness < 14;
 	filterGain = filterSet.configure(cfg.volumeNeutralValueForUnison << 1,
 	                                 {
 	                                     .frequency = params.paramFinalValues[params::LOCAL_LPF_FREQ],
@@ -995,15 +994,14 @@ skipAutoRelease: {}
 	                                     .morph = params.paramFinalValues[params::LOCAL_LPF_MORPH],
 	                                     .allow_oversampling = allow_oversampling,
 	                                 },
-	                                 doLPF ? effects::low_pass_slot(cfg.lpfMode) : dsp::fixed::LowPassSlot{},
+	                                 cfg.low_pass,
 	                                 {
 	                                     .frequency = params.paramFinalValues[params::LOCAL_HPF_FREQ],
 	                                     .resonance = params.paramFinalValues[params::LOCAL_HPF_RESONANCE],
 	                                     .morph = params.paramFinalValues[params::LOCAL_HPF_MORPH],
 	                                     .allow_oversampling = allow_oversampling,
 	                                 },
-	                                 doHPF ? effects::high_pass_slot(cfg.hpfMode) : dsp::fixed::HighPassSlot{},
-	                                 effects::filter_route(cfg.filterRoute));
+	                                 cfg.high_pass, cfg.filter_route);
 
 	SynthMode synthMode = cfg.synthMode;
 
@@ -1186,7 +1184,7 @@ skipAutoRelease: {}
 	// buffer dance + the unison-inactive→unassign decision (it delegates each source's render back to
 	// renderBasicSource for now).
 	if (synthMode == SynthMode::SUBTRACTIVE) {
-		subtractiveEngine.render(*this, paramManager, oscBuffer, numSamples, doingOscSync, oscSyncPos,
+		subtractiveEngine.render(*this, controlBlock, block, oscBuffer, numSamples, doingOscSync, oscSyncPos,
 		                         overallPitchAdjust, sourceAmplitudesNow, sourceAmplitudeIncrements,
 		                         sourceWaveIndexIncrements, anythingInOscBuffer, didStereoTempBuffer,
 		                         unassignVoiceAfter, cfg);
@@ -1197,7 +1195,7 @@ skipAutoRelease: {}
 	else if (synthMode == SynthMode::RINGMOD) {
 		ringModEngine.render(*this, oscBuffer, numSamples, doingOscSync, oscSyncPos, overallPitchAdjust,
 		                     sourceWaveIndexIncrements, stereoUnison, filterGain, didStereoTempBuffer, spareBuffers_[2],
-		                     spareBuffers_[3], cfg);
+		                     spareBuffers_[3], cfg, block);
 	}
 
 	// FM: the engine owns the whole per-voice render (unison loop + per-source carrier pitch math + the modulator/
@@ -1437,33 +1435,37 @@ bool Voice::adjustPitch(uint32_t& phaseIncrement, int32_t adjustment) {
 // per-engine outcomes into one uniform SourceRenderResult. The single uniform dispatch seam a SourceComponent
 // interface + the engine registry will build on. (Still a Voice method using public state — this is the seam,
 // not yet the de-coupling.)
-deluge::synth::SourceRenderResult
-Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* paramManager, int32_t* oscBuffer,
-                             int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude, int32_t amplitudeIncrement,
-                             uint32_t phaseIncrement, bool doOscSync, uint32_t* oscSyncPos,
-                             uint32_t* oscSyncPhaseIncrements, int32_t waveIndexIncrement, bool stereoUnison,
-                             int32_t amplitudeL, int32_t amplitudeR, const VoiceConfig& cfg) {
+deluge::synth::SourceRenderResult Voice::renderSourceComponent(
+    int32_t u, int32_t s, const ControlBlock& controlBlock, int32_t* oscBuffer, int32_t numSamples, bool stereoBuffer,
+    int32_t sourceAmplitude, int32_t amplitudeIncrement, uint32_t phaseIncrement, bool doOscSync, uint32_t* oscSyncPos,
+    uint32_t* oscSyncPhaseIncrements, int32_t waveIndexIncrement, bool stereoUnison, int32_t amplitudeL,
+    int32_t amplitudeR, const VoiceConfig& cfg, const deluge::synth::VoiceBlock& block) {
 	using deluge::synth::SourceRenderResult;
 	VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 
-	// SAMPLE caching policy, hoisted out of SampleSource::renderSource so it needn't reach paramManager / the param
-	// planes: does any patch cable modulate pitch with a *changeable* source? Bit-exact with the legacy inline scan
-	// (`cable->from` is a single source ⇒ the OR equals the if/else-if chain; only consumed on a sample's first
-	// render). Computed only for SAMPLE — the cable scan would be wasted for the other sources.
+	// SAMPLE caching policy: a sample is not cached when a source that can change during the note modulates its pitch.
+	// The routing groups each destination's cables, so only the two pitch destinations' cables are scanned. Computed
+	// only for SAMPLE, the one source that reads it, and only on a sample's first render.
 	bool pitchModDisallowsCache = false;
 	if (cfg.oscType[s] == OscType::SAMPLE) {
-		PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
-		for (int32_t c = 0; c < patchCableSet->numUsablePatchCables; c++) {
-			PatchCable* cable = &patchCableSet->patchCables[c];
-			if (cable->destinationParamDescriptor.isSetToParamWithNoSource(params::LOCAL_PITCH_ADJUST)
-			    || cable->destinationParamDescriptor.isSetToParamWithNoSource(params::LOCAL_OSC_A_PITCH_ADJUST + s)) {
-				if (cable->from == PatchSource::ENVELOPE_0 || cable->from == PatchSource::ENVELOPE_1
-				    || cable->from == PatchSource::LFO_GLOBAL_1 || cable->from == PatchSource::LFO_LOCAL_1
-				    || cable->from == PatchSource::LFO_GLOBAL_2 || cable->from == PatchSource::LFO_LOCAL_2
-				    || cable->from == PatchSource::RANDOM
-				    || (cable->from == PatchSource::AFTERTOUCH
+		const deluge::synth::PatchRouting& routing = controlBlock.routing;
+		const deluge::synth::CableTarget overallPitch = deluge::synth::CableTarget::param(params::LOCAL_PITCH_ADJUST);
+		const deluge::synth::CableTarget sourcePitch =
+		    deluge::synth::CableTarget::param(params::LOCAL_OSC_A_PITCH_ADJUST + s);
+		for (const deluge::synth::RoutedDestination* d = routing.destinations[GLOBALITY_LOCAL];
+		     d != nullptr && d->sources != 0 && !pitchModDisallowsCache; d++) {
+			if (d->target != overallPitch && d->target != sourcePitch) {
+				continue;
+			}
+			for (int32_t c = d->first_cable; c < d->end_cable; c++) {
+				const PatchSource from = routing.cables[c].source;
+				if (from == PatchSource::ENVELOPE_0 || from == PatchSource::ENVELOPE_1
+				    || from == PatchSource::LFO_GLOBAL_1 || from == PatchSource::LFO_LOCAL_1
+				    || from == PatchSource::LFO_GLOBAL_2 || from == PatchSource::LFO_LOCAL_2
+				    || from == PatchSource::RANDOM
+				    || (from == PatchSource::AFTERTOUCH
 				        && params.sourceValues[util::to_underlying(PatchSource::AFTERTOUCH)])
-				    || (cable->from == PatchSource::SIDECHAIN
+				    || (from == PatchSource::SIDECHAIN
 				        && cfg.globalSourceValues[util::to_underlying(PatchSource::SIDECHAIN)])) {
 					pitchModDisallowsCache = true;
 					break;
@@ -1483,11 +1485,6 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	uint32_t pulseWidth =
 	    (uint32_t)lshift_and_saturate<1>(params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s]);
 
-	// The wave table is only consumed when oscType == WAVETABLE. Basic oscillators (SAW/SQUARE/SINE/...) have no
-	// audio file, so audioFileHolder is null — don't dereference it.
-	WaveTable* waveTable =
-	    guides[s].audioFileHolder != nullptr ? static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile) : nullptr;
-
 	synth::SourceRenderContext ctx{
 	    .oscBuffer = oscBuffer,
 	    .numSamples = numSamples,
@@ -1501,10 +1498,10 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	    .doOscSync = doOscSync,
 	    .oscSyncPos = oscSyncPosThisUnison,
 	    .oscSyncPhaseIncrement = oscSyncPhaseIncrementsThisUnison,
-	    .controls =
-	        makeBlockControls(sourceAmplitude, amplitudeIncrement, pulseWidth, /*applyAmplitude=*/true, doOscSync,
-	                          oscSyncPosThisUnison, oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase),
-	    .waveTableData = (waveTable != nullptr) ? waveTable->view() : deluge::dsp::fixed::WaveTableData{},
+	    .controls = makeBlockControls(sourceAmplitude, amplitudeIncrement, pulseWidth, /*applyAmplitude=*/true,
+	                                  doOscSync, oscSyncPosThisUnison, oscSyncPhaseIncrementsThisUnison,
+	                                  oscRetriggerPhase, cfg.cpu_direness),
+	    .waveTableData = block.wave_tables[s],
 	    .waveIndexLast = static_cast<int32_t>(sourceWaveIndexesLastTime[s]),
 	    .waveIndexIncrement = waveIndexIncrement,
 	    .stereoScratch = spareBuffers_[2],
@@ -1516,7 +1513,7 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	    .interpolationBufferSize =
 	        SampleControls::getInterpolationBufferSize(cfg.interpolationMode[s], phaseIncrement), // live input
 	    .portaEnvelopePos = portaEnvelopePos,                                                     // sample
-	    .priorityRating = static_cast<int32_t>(getPriorityRating()),                   // sample (snapshot once)
+	    .priorityRating = static_cast<int32_t>(priority_rating(cfg.voice_priority, block.num_active_voices)), // sample
 	    .phaseIncrementStoredValue = voiceUnisonPartSource->phaseIncrementStoredValue, // sample late-start
 	    .pitchModDisallowsCache = pitchModDisallowsCache,                              // sample caching policy
 	    .noise = &deluge::synth_noise,                                                 // live-input hop search
@@ -1548,12 +1545,13 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	return component->renderSource(ctx);
 }
 
-void Voice::renderBasicSource(ParamManagerForTimeline* paramManager, int32_t s, int32_t* __restrict__ oscBuffer,
-                              int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude,
-                              bool* __restrict__ unisonPartBecameInactive, int32_t overallPitchAdjust, bool doOscSync,
-                              uint32_t* __restrict__ oscSyncPos, uint32_t* __restrict__ oscSyncPhaseIncrements,
-                              int32_t amplitudeIncrement, uint32_t* __restrict__ getPhaseIncrements,
-                              bool getOutAfterPhaseIncrements, int32_t waveIndexIncrement, const VoiceConfig& cfg) {
+void Voice::renderBasicSource(const ControlBlock& controlBlock, const deluge::synth::VoiceBlock& block, int32_t s,
+                              int32_t* __restrict__ oscBuffer, int32_t numSamples, bool stereoBuffer,
+                              int32_t sourceAmplitude, bool* __restrict__ unisonPartBecameInactive,
+                              int32_t overallPitchAdjust, bool doOscSync, uint32_t* __restrict__ oscSyncPos,
+                              uint32_t* __restrict__ oscSyncPhaseIncrements, int32_t amplitudeIncrement,
+                              uint32_t* __restrict__ getPhaseIncrements, bool getOutAfterPhaseIncrements,
+                              int32_t waveIndexIncrement, const VoiceConfig& cfg) {
 
 	checkStack("Voice::renderBasicSource");
 
@@ -1614,9 +1612,9 @@ pitchTooHigh:
 		// used if mono source but stereoUnison active
 
 		auto result =
-		    renderSourceComponent(u, s, paramManager, oscBuffer, numSamples, stereoBuffer, sourceAmplitude,
+		    renderSourceComponent(u, s, controlBlock, oscBuffer, numSamples, stereoBuffer, sourceAmplitude,
 		                          amplitudeIncrement, phaseIncrement, doOscSync, oscSyncPos, oscSyncPhaseIncrements,
-		                          waveIndexIncrement, stereoUnison, amplitudeL, amplitudeR, cfg);
+		                          waveIndexIncrement, stereoUnison, amplitudeL, amplitudeR, cfg, block);
 		if (result == deluge::synth::SourceRenderResult::UNASSIGN) {
 			goto instantUnassign;
 		}
@@ -1626,10 +1624,10 @@ pitchTooHigh:
 	}
 }
 
-bool Voice::doFastRelease(uint32_t releaseIncrement) {
+bool Voice::doFastRelease(uint32_t releaseIncrement, deluge::synth::VoiceClock clock) {
 	if (doneFirstRender) {
 		envelopes[0].unconditionalRelease(Envelope::Stage::FAST_RELEASE, releaseIncrement);
-		stampEnvelope0StageEntry();
+		stampEnvelope0StageEntry(clock);
 		return true;
 	}
 
@@ -1639,7 +1637,7 @@ bool Voice::doFastRelease(uint32_t releaseIncrement) {
 	}
 }
 
-bool Voice::speedUpRelease(uint32_t minFastReleaseIncrement) {
+bool Voice::speedUpRelease(deluge::synth::VoiceClock clock, uint32_t minFastReleaseIncrement) {
 	if (!doneFirstRender) {
 		return false;
 	}
@@ -1659,14 +1657,14 @@ bool Voice::speedUpRelease(uint32_t minFastReleaseIncrement) {
 	else {
 		envelopes[0].unconditionalRelease(Envelope::Stage::FAST_RELEASE, minFastReleaseIncrement);
 	}
-	stampEnvelope0StageEntry();
+	stampEnvelope0StageEntry(clock);
 	return true;
 }
 
-bool Voice::doImmediateRelease() {
+bool Voice::doImmediateRelease(deluge::synth::VoiceClock clock) {
 	if (doneFirstRender) {
 		envelopes[0].unconditionalOff();
-		stampEnvelope0StageEntry();
+		stampEnvelope0StageEntry(clock);
 		return true;
 	}
 
@@ -1682,17 +1680,17 @@ bool Voice::hasReleaseStage() {
 static_assert(Envelope::kNumStages < 8, "Too many envelope stages");
 static_assert(kNumVoicePriorities < 4, "Too many priority options");
 
-// Higher numbers are lower priority. 1 is top priority. Will never return 0, because nextVoiceState starts at 1
-uint32_t Voice::getPriorityRating() const {
+// Higher numbers are lower priority. 1 is top priority. Will never return 0, because the voice clock starts at 1
+uint32_t Voice::priority_rating(VoicePriority voice_priority, size_t num_active_voices) const {
 	return
 	    // Bits 30-31 - manual priority setting
-	    ((uint32_t)(3 - util::to_underlying(sound.snapshot().voicePriority)) << 30)
+	    ((uint32_t)(3 - util::to_underlying(voice_priority)) << 30)
 
 	    // Bits 27-29 - how many voices that Sound has
 	    // - that one really does need to go above state, otherwise "once" samples can still cut out synth drones.
 	    // In a perfect world, culling for the purpose of "soliciting" a Voice would also count the new Voice being
 	    // solicited, preferring to cut out that same Sound's old, say, one Voice, than another Sound's only Voice
-	    + ((uint32_t)std::min<size_t>(sound.numActiveVoices(), 7) << 27)
+	    + ((uint32_t)std::min<size_t>(num_active_voices, 7) << 27)
 
 	    // Bits 24-26 - envelope state
 	    + ((uint32_t)envelopes[0].stage() << 24)
@@ -1701,14 +1699,18 @@ uint32_t Voice::getPriorityRating() const {
 	    + ((uint32_t)(-envelope0TimeEntered) & (0xFFFFFFFF >> 8));
 }
 
-void Voice::stampEnvelope0StageEntry() {
+uint32_t Voice::getPriorityRating() const {
+	return priority_rating(sound.snapshot().voicePriority, sound.numActiveVoices());
+}
+
+void Voice::stampEnvelope0StageEntry(deluge::synth::VoiceClock clock) {
 	if (envelopes[0].takeStageChanged()) {
-		envelope0TimeEntered = AudioEngine::nextVoiceState++;
+		envelope0TimeEntered = clock.tick();
 	}
 }
 
-void Voice::resetEnvelope0TimeEntered() {
+void Voice::resetEnvelope0TimeEntered(deluge::synth::VoiceClock clock) {
 	if (envelopes[0].stage() == Envelope::Stage::SUSTAIN) {
-		envelope0TimeEntered = AudioEngine::nextVoiceState++;
+		envelope0TimeEntered = clock.tick();
 	}
 }

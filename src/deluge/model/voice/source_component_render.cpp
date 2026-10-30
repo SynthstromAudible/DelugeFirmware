@@ -16,9 +16,8 @@
  */
 
 #include "model/voice/source_component_render.h"
-#include "dsp-next/core/phasor.h"            // deluge::dsp::Phasor
-#include "dsp-next/core/ramp.h"              // deluge::dsp::Ramp
-#include "processing/engines/audio_engine.h" // AudioEngine::cpuDireness
+#include "dsp-next/core/phasor.h" // deluge::dsp::Phasor
+#include "dsp-next/core/ramp.h"   // deluge::dsp::Ramp
 #include <optional>
 
 using namespace deluge;
@@ -27,7 +26,7 @@ namespace deluge::voice {
 
 synth::BlockControls makeBlockControls(int32_t amplitude, int32_t amplitudeIncrement, uint32_t pulseWidth,
                                        bool applyAmplitude, bool doOscSync, uint32_t resetterPhase,
-                                       uint32_t resetterPhaseIncrement, uint32_t retriggerPhase) {
+                                       uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t cpuDireness) {
 	return synth::BlockControls{
 	    .amplitude = dsp::Ramp{amplitude, amplitudeIncrement},
 	    .apply_amplitude = applyAmplitude,
@@ -35,7 +34,7 @@ synth::BlockControls makeBlockControls(int32_t amplitude, int32_t amplitudeIncre
 	    .retrigger_phase = retriggerPhase,
 	    .sync =
 	        doOscSync ? std::optional<dsp::Phasor>{dsp::Phasor{resetterPhase, resetterPhaseIncrement}} : std::nullopt,
-	    .cpu_direness = AudioEngine::cpuDireness,
+	    .cpu_direness = cpuDireness,
 	};
 }
 

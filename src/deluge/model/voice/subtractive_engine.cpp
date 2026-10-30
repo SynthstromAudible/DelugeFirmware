@@ -17,18 +17,15 @@
 
 #include "model/voice/subtractive_engine.h"
 #include "definitions_cxx.hpp"
-#include "model/model_stack.h"
-#include "model/sample/sample_holder_for_voice.h"
 #include "model/voice/voice.h"
-#include "processing/sound/sound.h"
-#include "processing/source.h"
 #include <cstring>
 
-void SubtractiveEngine::render(Voice& voice, ParamManagerForTimeline* paramManager, int32_t* oscBuffer,
-                               int32_t numSamples, bool doingOscSync, uint32_t* oscSyncPos, int32_t overallPitchAdjust,
-                               const int32_t* sourceAmplitudesNow, const int32_t* sourceAmplitudeIncrements,
-                               const int32_t* sourceWaveIndexIncrements, bool& anythingInOscBuffer,
-                               bool& didStereoTempBuffer, bool& unassignVoiceAfter, const VoiceConfig& cfg) {
+void SubtractiveEngine::render(Voice& voice, const ControlBlock& controlBlock, const deluge::synth::VoiceBlock& block,
+                               int32_t* oscBuffer, int32_t numSamples, bool doingOscSync, uint32_t* oscSyncPos,
+                               int32_t overallPitchAdjust, const int32_t* sourceAmplitudesNow,
+                               const int32_t* sourceAmplitudeIncrements, const int32_t* sourceWaveIndexIncrements,
+                               bool& anythingInOscBuffer, bool& didStereoTempBuffer, bool& unassignVoiceAfter,
+                               const VoiceConfig& cfg) {
 
 	bool unisonPartBecameInactive = false;
 
@@ -60,9 +57,8 @@ void SubtractiveEngine::render(Voice& voice, ParamManagerForTimeline* paramManag
 			}
 		}
 
-		if (!Source::renderInStereo(cfg.oscType[s], cfg.unisonStereoSpread, cfg.numUnison,
-		                            (SampleHolder*)voice.guides[s].audioFileHolder)) {
-			voice.renderBasicSource(paramManager, s, oscBuffer, numSamples, false, sourceAmplitudesNow[s],
+		if (!block.source_in_stereo[s]) {
+			voice.renderBasicSource(controlBlock, block, s, oscBuffer, numSamples, false, sourceAmplitudesNow[s],
 			                        &unisonPartBecameInactive, overallPitchAdjust, (s == 1) && doingOscSync, oscSyncPos,
 			                        oscSyncPhaseIncrement, sourceAmplitudeIncrements[s], getPhaseIncrements,
 			                        getOutAfterGettingPhaseIncrements, sourceWaveIndexIncrements[s], cfg);
@@ -90,7 +86,7 @@ void SubtractiveEngine::render(Voice& voice, ParamManagerForTimeline* paramManag
 		}
 
 		// Render each source that's stereo. Osc sync must still be applied here: with stereo unison spread, both
-		// sources get deferred into this path (see Source::renderInStereo()), so we have to capture osc A's phase
+		// sources get deferred into this path (see VoiceBlock::source_in_stereo), so we have to capture osc A's phase
 		// increments and sync osc B to them just like the mono path above does.
 		for (int32_t s = 0; s < kNumSources; s++) {
 			if (sourcesToRenderInStereo & (1 << s)) {
@@ -98,7 +94,7 @@ void SubtractiveEngine::render(Voice& voice, ParamManagerForTimeline* paramManag
 				uint32_t* getPhaseIncrements = ((s == 0) && doingOscSync) ? oscSyncPhaseIncrement : nullptr;
 				bool getOutAfterGettingPhaseIncrements = getPhaseIncrements && !cfg.sourceActiveCurrently[s];
 
-				voice.renderBasicSource(paramManager, s, oscBuffer, numSamples, true, sourceAmplitudesNow[s],
+				voice.renderBasicSource(controlBlock, block, s, oscBuffer, numSamples, true, sourceAmplitudesNow[s],
 				                        &unisonPartBecameInactive, overallPitchAdjust, (s == 1) && doingOscSync,
 				                        oscSyncPos, oscSyncPhaseIncrement, sourceAmplitudeIncrements[s],
 				                        getPhaseIncrements, getOutAfterGettingPhaseIncrements,

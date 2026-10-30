@@ -16,10 +16,10 @@
  */
 #pragma once
 
-#include "definitions_cxx.hpp"                            // SynthMode, kNumExpressionDimensions, kFirstLocalSource
-#include "model/mod_controllable/filters/filter_config.h" // FilterMode, FilterRoute
-#include "synth/modulation/lfo.h"                         // LFOConfig
-#include "util/misc.h"                                    // util::to_underlying
+#include "definitions_cxx.hpp"                  // SynthMode, kNumExpressionDimensions, kFirstLocalSource, VoicePriority
+#include "dsp-next/fixed/filter/filter_modes.h" // LowPassSlot, HighPassSlot, FilterRoute
+#include "synth/modulation/lfo.h"               // LFOConfig
+#include "util/misc.h"                          // util::to_underlying
 #include <array>
 #include <bitset>
 #include <cstdint>
@@ -33,10 +33,15 @@
 /// filter-enum fields live under `model/`, which `synth/` may not include; it relocates to `synth/` once the
 /// boundary types are numeric-agnostic.
 struct VoiceConfig {
-	FilterMode lpfMode;                  ///< Sound::lpfMode (the render still gates this with its doLPF arg)
-	FilterMode hpfMode;                  ///< Sound::hpfMode (gated with doHPF)
-	FilterRoute filterRoute;             ///< Sound::filterRoute
-	int32_t volumeNeutralValueForUnison; ///< Sound::volumeNeutralValueForUnison
+	deluge::dsp::fixed::LowPassSlot low_pass;   ///< What the low-pass slot runs: OFF when the sound needs no low-pass
+	deluge::dsp::fixed::HighPassSlot high_pass; ///< What the high-pass slot runs: OFF when the sound needs no high-pass
+	deluge::dsp::fixed::FilterRoute filter_route; ///< How the two filters join
+	int32_t volumeNeutralValueForUnison;          ///< Sound::volumeNeutralValueForUnison
+	/// How far behind the engine's render is running, 0 when on time: the render takes cheaper paths as it grows.
+	int32_t cpu_direness;
+	VoicePriority voice_priority; ///< The sound's voice priority, which the cull order ranks by first
+	/// Per envelope: whether it has a sustain at the sound's current params, so a note-off releases it from sustain.
+	std::array<bool, kNumEnvelopes> envelope_has_sustain;
 
 	SynthMode synthMode;  ///< Sound::getSynthMode() — drives the subtractive/ring-mod/FM dispatch
 	LFOConfig lfo2Config; ///< Sound::lfoConfig[LFO2_ID]

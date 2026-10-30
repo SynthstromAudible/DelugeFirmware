@@ -111,8 +111,17 @@ bool SamplePlaybackAdapter::zoneChanged(VoiceSamplePlaybackGuide* guide, Sample*
 	return voiceSample_->sampleZoneChanged(guide, sample, reversed, markerType, loopingType, priorityRating);
 }
 
-int32_t SamplePlaybackAdapter::getPlayByteLowLevel(Sample* sample, VoiceSamplePlaybackGuide* guide) {
-	return voiceSample_->getPlayByteLowLevel(sample, guide);
+int32_t SamplePlaybackAdapter::bytes_left_to_end() const {
+	auto* sample = static_cast<Sample*>(guide_->audioFileHolder->audioFile);
+	const int32_t play_byte = voiceSample_->getPlayByteLowLevel(sample, guide_);
+	// The end may be behind the play position (reversed), so the distance is taken unsigned and turned by the direction
+	return static_cast<int32_t>(static_cast<uint32_t>(guide_->endPlaybackAtByte) - static_cast<uint32_t>(play_byte))
+	       * guide_->playDirection;
+}
+
+int32_t SamplePlaybackAdapter::bytes_per_frame() const {
+	const auto* sample = static_cast<const Sample*>(guide_->audioFileHolder->audioFile);
+	return sample->byteDepth * sample->numChannels;
 }
 
 // --- deluge::synth::SamplePlaybackPort -----------------------------------------------------------------------

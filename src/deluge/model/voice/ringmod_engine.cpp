@@ -21,10 +21,8 @@
 #include "model/voice/source_component_render.h" // voice::makeBlockControls
 #include "model/voice/voice.h"                   // Voice (member access — pre-roll + per-source state)
 #include "model/voice/voice_unison_part_source.h"
-#include "modulation/params/param.h"         // LOCAL_OSC_A_PITCH_ADJUST / LOCAL_OSC_A_PHASE_WIDTH
-#include "processing/render_scratch.h"       // render::osc_sync_scratch
-#include "storage/audio/audio_file_holder.h" // AudioFileHolder::audioFile (the wavetable lookup)
-#include "storage/wave_table/wave_table.h"   // WaveTable::view() (band-data view for the wavetable source)
+#include "modulation/params/param.h"   // LOCAL_OSC_A_PITCH_ADJUST / LOCAL_OSC_A_PHASE_WIDTH
+#include "processing/render_scratch.h" // render::osc_sync_scratch
 #include "util/fixedpoint.h"
 
 using namespace deluge;
@@ -34,7 +32,7 @@ namespace params = deluge::modulation::params;
 void RingModEngine::render(Voice& voice, int32_t* oscBuffer, int32_t numSamples, bool doOscSync, uint32_t* oscSyncPos,
                            int32_t overallPitchAdjust, const int32_t* sourceWaveIndexIncrements, bool stereoUnison,
                            int32_t filterGain, bool& didStereoTempBuffer, int32_t* scratch0, int32_t* scratch1,
-                           const VoiceConfig& cfg) {
+                           const VoiceConfig& cfg, const deluge::synth::VoiceBlock& block) {
 
 	if (stereoUnison) {
 		// oscBuffer is always a stereo temp buffer
@@ -86,16 +84,11 @@ void RingModEngine::render(Voice& voice, int32_t* oscBuffer, int32_t numSamples,
 
 			OscType oscType = cfg.oscType[s];
 
-			// Non-wavetable sources have no audioFileHolder; only OscType::WAVETABLE reads the table.
-			WaveTable* waveTable = (oscType == OscType::WAVETABLE)
-			                           ? static_cast<WaveTable*>(voice.guides[s].audioFileHolder->audioFile)
-			                           : nullptr;
-
 			ringModSources[s] = RingModEngine::Source{
 			    .part = &voice.unisonParts[u].sources[s],
 			    .phaseIncrement = phaseIncrements[s],
 			    .pulseWidth = pulseWidth,
-			    .waveTable = waveTable,
+			    .waveTable = block.wave_tables[s],
 			    .waveIndexLast = static_cast<int32_t>(voice.sourceWaveIndexesLastTime[s]),
 			    .waveIndexIncrement = sourceWaveIndexIncrements[s],
 			    .oscType = oscType,
@@ -103,13 +96,14 @@ void RingModEngine::render(Voice& voice, int32_t* oscBuffer, int32_t numSamples,
 			};
 		}
 
-		renderUnisonPart(ringModSources[0], ringModSources[1], doOscSync, oscSyncPos[u], cfg.hasFilters, filterGain,
-		                 unisonAmplitudeL, unisonAmplitudeR, stereoUnison, oscBuffer, numSamples, scratch0, scratch1);
+		renderUnisonPart(ringModSources[0], ringModSources[1], doOscSync, oscSyncPos[u], cfg.hasFilters,
+		                 cfg.cpu_direness, filterGain, unisonAmplitudeL, unisonAmplitudeR, stereoUnison, oscBuffer,
+		                 numSamples, scratch0, scratch1);
 	}
 }
 
 void RingModEngine::renderUnisonPart(const Source& src0, const Source& src1, bool doOscSync, uint32_t oscSyncPos,
-                                     bool hasFilters, int32_t filterGain, int32_t unisonAmplitudeL,
+                                     bool hasFilters, int32_t cpuDireness, int32_t filterGain, int32_t unisonAmplitudeL,
                                      int32_t unisonAmplitudeR, bool stereoUnison, int32_t* oscBuffer,
                                      int32_t numSamples, int32_t* scratch0, int32_t* scratch1) {
 
@@ -132,7 +126,7 @@ void RingModEngine::renderUnisonPart(const Source& src0, const Source& src1, boo
 		// amplitude 0. The hard-sync master is source 0 (phase oscSyncPos, increment src0.phaseIncrement).
 		const synth::BlockControls controls =
 		    voice::makeBlockControls(0, 0, source.pulseWidth, /*applyAmplitude=*/false, doingOscSyncThisOscillator,
-		                             oscSyncPos, src0.phaseIncrement, source.retriggerPhase);
+		                             oscSyncPos, src0.phaseIncrement, source.retriggerPhase, cpuDireness);
 		const dsp::fixed::Buffer out{scratch[s], static_cast<size_t>(numSamples)};
 		const dsp::fixed::Buffer syncScratch = render::osc_sync_scratch().first(static_cast<size_t>(numSamples));
 		if (source.part->vaSource.has_value()) {
@@ -143,7 +137,7 @@ void RingModEngine::renderUnisonPart(const Source& src0, const Source& src1, boo
 			                                        source.waveIndexIncrement, out, syncScratch);
 		}
 		else {
-			source.part->wavetableSource->renderInto(controls, source.waveTable->view(), source.waveIndexLast,
+			source.part->wavetableSource->renderInto(controls, source.waveTable, source.waveIndexLast,
 			                                         source.waveIndexIncrement, source.phaseIncrement, out,
 			                                         syncScratch);
 		}

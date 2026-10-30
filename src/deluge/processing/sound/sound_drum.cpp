@@ -51,7 +51,7 @@ void SoundDrum::resetTimeEnteredState() {
 	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
 	// the sound drum might have multiple voices sounding, but only one will be sustaining and switched to hold
 	for (const ActiveVoice& voice : this->voices()) {
-		voice->resetEnvelope0TimeEntered();
+		voice->resetEnvelope0TimeEntered(deluge::synth::VoiceClock{AudioEngine::nextVoiceState});
 	}
 }
 

@@ -21,6 +21,7 @@
 #include "deluge-project/param_automation.h"
 #include "dsp-next/fixed/vca/pan.h"
 #include "effects/codec.h"
+#include "effects/filter_slots.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/sound_editor.h"
@@ -49,6 +50,7 @@
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
 #include "model/sample/sample.h"
+#include "model/sample/sample_holder_for_voice.h"
 #include "model/sample/sample_low_level_reader.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -71,6 +73,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
+#include "storage/wave_table/wave_table.h"
 #include "synth/modulation/envelope.h"
 #include "synth/modulation/patcher.h"
 #include "util/exceptions.h"
@@ -988,7 +991,8 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 				                                  && sources[s].oscType != OscType::SAMPLE;
 			                           })
 			    || (voice->envelopes[0].stage() != Envelope::Stage::FAST_RELEASE
-			        && !voice->doFastRelease(SOFT_CULL_INCREMENT));
+			        && !voice->doFastRelease(SOFT_CULL_INCREMENT,
+			                                 deluge::synth::VoiceClock{AudioEngine::nextVoiceState}));
 
 			if (needs_unassign) {
 				if (voiceToReuse != nullptr) {
@@ -1947,13 +1951,22 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			sourceEverActives[s] = modelStackWithSoundFlags->checkSourceEverActive(s);
 			sourceActiveCurrentlys[s] = isSourceActiveCurrently(s, paramManager);
 		}
+		std::array<bool, kNumEnvelopes> envelopeHasSustain;
+		for (int32_t e = 0; e < kNumEnvelopes; e++) {
+			envelopeHasSustain[e] = envelopeHasSustainCurrently(e, paramManager);
+		}
 		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
 		const uint8_t* bendRangesSrc = expressionParams ? expressionParams->bendRanges : FlashStorage::defaultBendRange;
 		const VoiceConfig voiceConfig{
-		    .lpfMode = modControllableSnapshot_.effects.filter.lpf_mode,
-		    .hpfMode = modControllableSnapshot_.effects.filter.hpf_mode,
-		    .filterRoute = modControllableSnapshot_.effects.filter.route,
+		    .low_pass = doLPF ? deluge::effects::low_pass_slot(modControllableSnapshot_.effects.filter.lpf_mode)
+		                      : deluge::dsp::fixed::LowPassSlot{},
+		    .high_pass = doHPF ? deluge::effects::high_pass_slot(modControllableSnapshot_.effects.filter.hpf_mode)
+		                       : deluge::dsp::fixed::HighPassSlot{},
+		    .filter_route = deluge::effects::filter_route(modControllableSnapshot_.effects.filter.route),
 		    .volumeNeutralValueForUnison = volumeNeutralValueForUnison,
+		    .cpu_direness = AudioEngine::cpuDireness,
+		    .voice_priority = snapshot_.voicePriority,
+		    .envelope_has_sustain = envelopeHasSustain,
 		    .synthMode = getSynthMode(),
 		    .lfo2Config = snapshot_.lfoConfig[LFO2_ID],
 		    .lfo4Config = snapshot_.lfoConfig[LFO4_ID],
@@ -1991,6 +2004,26 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .sourceActiveCurrently = sourceActiveCurrentlys,
 		};
 
+		// What differs between this sound's voices, read off each voice's playback guides as it renders.
+		auto voiceBlockFor = [&](const Voice& voice) {
+			deluge::synth::VoiceBlock block{.num_active_voices = numActiveVoices(),
+			                                .clock = {AudioEngine::nextVoiceState}};
+			for (int32_t s = 0; s < kNumSources; s++) {
+				AudioFileHolder* holder = voice.guides[s].audioFileHolder;
+				const OscType oscType = sources[s].oscType;
+				if (oscType == OscType::WAVETABLE && holder != nullptr) {
+					block.wave_tables[s] = static_cast<WaveTable*>(holder->audioFile)->view();
+				}
+				// A sample with a loop end obeys it until the note-off, so it cannot run out before then
+				block.sample_can_auto_release[s] =
+				    oscType == OscType::SAMPLE && holder != nullptr
+				    && !(static_cast<SampleHolderForVoice*>(holder)->loopEndPos && !voice.guides[s].noteOffReceived);
+				block.source_in_stereo[s] = Source::renderInStereo(
+				    oscType, snapshot_.unisonStereoSpread, snapshot_.numUnison, static_cast<SampleHolder*>(holder));
+			}
+			return block;
+		};
+
 		// The patcher's per-block input. Sound-level + stable across the voice loop (the param sets are fixed and
 		// paramLPF is only mutated after the loop), so build it once here rather than per voice.
 		const ControlBlock controlBlock = patchControlBlock(*paramManager, PresetGather::ROUTED);
@@ -2002,8 +2035,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			const uint32_t t0 = deluge::bench::render_profile::cycles();
 #endif
 			bool stillGoing = voice->render(
-			    paramManager, controlBlock, sound_mono.data(), sound_mono.size(), voice_rendered_in_stereo,
-			    applyingPanAtVoiceLevel, sourcesChanged, doLPF, doHPF, pitchAdjust, voiceConfig,
+			    controlBlock, sound_mono.data(), sound_mono.size(), voice_rendered_in_stereo, applyingPanAtVoiceLevel,
+			    sourcesChanged, pitchAdjust, voiceConfig, voiceBlockFor(*voice),
 			    {spareRenderingBuffer[0], spareRenderingBuffer[1], spareRenderingBuffer[2], spareRenderingBuffer[3]});
 #if defined(DELUGE_STREAM_BENCH)
 			deluge::bench::render_profile::g_totals.voice_render += deluge::bench::render_profile::cycles() - t0;
@@ -3676,7 +3709,8 @@ void Sound::fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack) {
 	AudioExcludedSection section; // the render walks and edits this Sound's voices
 	for (auto it = voices_.begin(); it != voices_.end();) {
 		const ActiveVoice& voice = *it;
-		bool stillGoing = voice->doFastRelease(SOFT_CULL_INCREMENT);
+		bool stillGoing =
+		    voice->doFastRelease(SOFT_CULL_INCREMENT, deluge::synth::VoiceClock{AudioEngine::nextVoiceState});
 
 		if (!stillGoing) {
 			this->checkVoiceExists(voice, "E212");
@@ -3935,7 +3969,8 @@ void Sound::terminateOneActiveVoice() {
 	// SOFT_CULL_INCREMENT = a 128-sample (~2.9 ms) fade, matching release 1.2's voice-limit steal. Faster rates
 	// (the 4x, 32-sample sub-millisecond one) read as a pop on sustained material when a low maxVoices makes every
 	// note-on steal (issue #4721).
-	bool still_rendering = voice->doFastRelease(SOFT_CULL_INCREMENT);
+	bool still_rendering =
+	    voice->doFastRelease(SOFT_CULL_INCREMENT, deluge::synth::VoiceClock{AudioEngine::nextVoiceState});
 
 	if (!still_rendering) {
 		this->freeActiveVoice(voice);
@@ -3969,7 +4004,7 @@ void Sound::forceReleaseOneActiveVoice() {
 
 	const ActiveVoice& voice = *best;
 
-	bool still_rendering = voice->speedUpRelease();
+	bool still_rendering = voice->speedUpRelease(deluge::synth::VoiceClock{AudioEngine::nextVoiceState});
 
 	if (!still_rendering) {
 		this->freeActiveVoice(voice);
