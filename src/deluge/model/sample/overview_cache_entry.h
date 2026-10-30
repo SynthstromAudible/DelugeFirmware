@@ -19,20 +19,21 @@
 
 #include <cstdint>
 
-/// @brief One entry in the per-cluster-index waveform overview cache (issue #4460): the coarse min/max
-///        peak found while scanning a cluster's whole length, plus whether that scan has completed.
+/// @brief One entry in the per-cluster-index waveform overview cache (issue #4460): the min/max peak
+///        found while scanning a cluster's whole length, in the top 16 bits of a sample (see
+///        toCachedPeak()), plus whether that scan has completed.
 ///
 /// `Sample`-owned (in `Sample::overviewCache_`, model/sample/sample.h), one entry per cluster.
 /// Deliberately its own header (rather than a nested `Sample` type): it has no dependency beyond
 /// `<cstdint>`, so it stays includable from lightweight contexts (e.g. host unit tests) that can't
 /// pull in `sample.h`'s full transitive closure.
 struct OverviewCacheEntry {
-	/// Running minimum peak found so far; starts at the maximum representable int8_t so any real
+	/// Running minimum peak found so far; starts at the maximum representable int16_t so any real
 	/// sample immediately lowers it.
-	int8_t min = 127;
-	/// Running maximum peak found so far; starts at the minimum representable int8_t so any real
+	int16_t min = INT16_MAX;
+	/// Running maximum peak found so far; starts at the minimum representable int16_t so any real
 	/// sample immediately raises it.
-	int8_t max = -128;
+	int16_t max = INT16_MIN;
 	/// Whether the whole-cluster scan for min/max has completed.
 	bool investigated = false;
 };

@@ -145,6 +145,9 @@ bool LoadSongUI::opened() {
 
 	favouritesManager.setCategory("SONG");
 	favouritesChanged();
+	// The folder's arrival hides the keyboard; the listing that does it here starts on a later pass, and a favourites
+	// bank landing before it would draw its row over the scroll-out and take over the scroll's timer.
+	qwertyVisible = false;
 	outputTypeToLoad = OutputType::NONE;
 	currentDir = currentSong->project.metadata.dir_path;
 
@@ -209,9 +212,8 @@ void LoadSongUI::onBrowserOpened() {
 
 void LoadSongUI::folderContentsReady(int32_t entryDirection) {
 
-	// Return deliberately ignored: nothing here scrolls out of imageStore, so a preview that has not
-	// landed yet is harmless -- finishPreviewRender()'s renderingNeededRegardlessOfUI() repaints once
-	// it does.
+	// Return deliberately ignored: the opening scroll-in holds until the preview lands (timerCallback()), and outside
+	// a scroll finishPreviewRender() shows it once it does.
 	(void)drawSongPreview(currentUIMode == UI_MODE_VERTICAL_SCROLL);
 
 	PadLEDs::sendOutMainPadColours();
@@ -419,6 +421,12 @@ void LoadSongUI::endLoad(SongLoadOutcome outcome) {
 	stagingPath_.clear();
 	stagingPrevious_ = nullptr;
 	stagingWait_.reset();
+
+	// beginLoad() raised the loading animation. While it runs, the display timer animates it instead of
+	// timing out popups, so a failure's error popup would stay up for good.
+	if (outcome == SongLoadOutcome::NotLoaded) {
+		display->removeWorkingAnimation();
+	}
 
 	// Cleared before the call so a completion that starts another load doesn't inherit this one's.
 	void (*onComplete)(SongLoadOutcome) = loadOnComplete_;
@@ -764,7 +772,6 @@ fail:
 			}
 		}
 
-		display->removeWorkingAnimation();
 		currentUIMode = UI_MODE_NONE;
 		endLoad(SongLoadOutcome::NotLoaded);
 		return;
@@ -999,6 +1006,14 @@ void LoadSongUI::tickFinish() {
 ActionResult LoadSongUI::timerCallback() {
 	// Progress vertical scrolling
 	if (currentUIMode == UI_MODE_VERTICAL_SCROLL) {
+		// The scroll-in that opens the browser brings imageStore in a row per step, and the preview that fills it is
+		// read asynchronously, after the listing has started the scroll. Until it lands, hold: a row taken now would be
+		// shown blank for good, since nothing redraws a row the scroll has passed.
+		if (scrollingIntoSlot && PadLEDs::vertical::scrollDirection > 0 && !PadLEDs::vertical::scrollingToNothing
+		    && previewLoad_.pending()) {
+			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, UI_MS_PER_REFRESH_SCROLLING * 4);
+			return ActionResult::DEALT_WITH;
+		}
 		PadLEDs::vertical::renderScroll();
 
 		// If we've finished scrolling...
@@ -1192,7 +1207,6 @@ deluge::gui::CancelResult LoadSongUI::cancelLoad() {
 	case LoadPhase::STAGE:
 		// The staged bytes are all the load holds, and the deserializer is not pointed at them until the phase
 		// ends, so endLoad()'s release is the whole of the undo.
-		display->removeWorkingAnimation();
 		endLoad(SongLoadOutcome::NotLoaded);
 		return CancelResult::Cancelled;
 	default:
@@ -1315,7 +1329,7 @@ bool LoadSongUI::collectPreview(const deluge::storage::DeferredLoad<PreviewTarge
 		if (imageStore != nullptr) {
 			reportPreviewOutcome(deluge::storage::SongPreviewOutcome::Error, Error::SD_CARD);
 		}
-		finishPreviewRender();
+		finishPreviewRender(attempt.target.toStore);
 		return false;
 	}
 
@@ -1335,7 +1349,7 @@ bool LoadSongUI::collectPreview(const deluge::storage::DeferredLoad<PreviewTarge
 		if (imageStore != nullptr) {
 			reportPreviewOutcome(deluge::storage::SongPreviewOutcome::Error, Error::FILE_NOT_FOUND);
 		}
-		finishPreviewRender();
+		finishPreviewRender(attempt.target.toStore);
 		return false;
 	}
 
@@ -1351,7 +1365,7 @@ bool LoadSongUI::collectPreview(const deluge::storage::DeferredLoad<PreviewTarge
 		                                       isJsonSongPath(attempt.target.path), imageStore, &error);
 		reportPreviewOutcome(outcome, error);
 	}
-	finishPreviewRender();
+	finishPreviewRender(attempt.target.toStore);
 	return false;
 }
 
@@ -1364,7 +1378,7 @@ void LoadSongUI::renderPreviewFromFile(const PreviewTarget& target) {
 		const auto outcome = deluge::storage::decodeSongPreviewFromFile(target.path.c_str(), imageStore, &error);
 		reportPreviewOutcome(outcome, error);
 	}
-	finishPreviewRender();
+	finishPreviewRender(target.toStore);
 }
 
 void LoadSongUI::reportPreviewOutcome(deluge::storage::SongPreviewOutcome outcome, Error error) {
@@ -1385,17 +1399,28 @@ LoadSongUI::PreviewImage LoadSongUI::beginPreviewRender(bool toStore) {
 	return imageStore;
 }
 
-void LoadSongUI::finishPreviewRender() {
+void LoadSongUI::finishPreviewRender(bool toStore) {
 	// imageStore is filled now, so a scroll-in owed by currentFileChanged can finally start. Consume the
 	// direction before starting, so a scroll begun here cannot be started twice if the render re-runs.
 	if (pendingScrollDirection_ != 0) {
 		const int32_t direction = pendingScrollDirection_;
 		pendingScrollDirection_ = 0;
 		beginPreviewScrollIn(direction);
+		return; // the scroll brings the preview in
 	}
-	// We rendered outside the normal UI render pass, so ask for a repaint - otherwise the pads keep
-	// whatever was on them until something else happens to trigger one.
-	renderingNeededRegardlessOfUI();
+	if (qwertyAlwaysVisible) {
+		return; // the keyboard owns the pads, and nothing was drawn
+	}
+	if (toStore) {
+		if (currentUIMode == UI_MODE_VERTICAL_SCROLL || currentUIMode == UI_MODE_HORIZONTAL_SCROLL) {
+			return; // the scroll in progress brings the preview in
+		}
+		// The preview landed after the scroll had taken its rows: show it as the scroll would have.
+		memcpy(PadLEDs::image, PadLEDs::imageStore, sizeof(PadLEDs::image));
+	}
+	// Only this UI's own pads: a whole-UI repaint would draw the view underneath's sidebar over the browser.
+	PadLEDs::sendOutMainPadColours();
+	PadLEDs::sendOutSidebarColours();
 }
 
 void LoadSongUI::browserGraphicsRoutine() {
