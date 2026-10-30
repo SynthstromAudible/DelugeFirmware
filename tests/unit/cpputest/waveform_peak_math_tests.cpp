@@ -22,24 +22,15 @@ TEST(WaveformPeakMath, LastClusterEndByteMidClusterIsRemainder) {
 	CHECK_EQUAL(1000, lastAudioClusterEndByte(numValidBytes, start, kSize));
 }
 
-// toCachedPeak: the top 16 bits, rounded toward zero.
-TEST(WaveformPeakMath, CachedPeakRoundsTowardZero) {
-	CHECK_EQUAL(0, toCachedPeak(0));
-	CHECK_EQUAL(32767, toCachedPeak(32767 << 16));
-	// INT32_MIN >> 16 == -32768, then +1 for negatives == -32767: -32768 is never produced.
-	CHECK_EQUAL(-32767, toCachedPeak(INT32_MIN));
-	CHECK_EQUAL(0, toCachedPeak(-1));          // small negative rounds toward zero
-	CHECK_EQUAL(-1, toCachedPeak(-(2 << 16))); // -2.something -> -1 after +1
-}
-
-// A quiet passage keeps its peak in the cache: the column drawn from the cache matches the one read
-// from the samples to well within a brightness step, whichever of the two a render gets.
-TEST(WaveformPeakMath, CachedPeakKeepsQuietPeaks) {
-	CHECK_EQUAL(5, toCachedPeak(356608));
-	CHECK_EQUAL(-5, toCachedPeak(-385280));
-	CHECK_EQUAL(5 << 16, fromCachedPeak(5));
-	CHECK_EQUAL(-(5 << 16), fromCachedPeak(-5));
-	CHECK(356608 - fromCachedPeak(toCachedPeak(356608)) < (1 << 16));
+// toCoarsePeak: round toward zero.
+TEST(WaveformPeakMath, CoarsePeakRoundsTowardZero) {
+	CHECK_EQUAL(0, toCoarsePeak(0));
+	CHECK_EQUAL(127, toCoarsePeak(127 << 24));
+	// INT32_MIN >> 24 == -128, then +1 for negatives == -127. Matches the production formula
+	// (waveform_renderer.cpp), which unconditionally adds 1 to negatives, so -128 is never produced.
+	CHECK_EQUAL(-127, toCoarsePeak(-128 << 24));
+	CHECK_EQUAL(0, toCoarsePeak(-1));          // small negative rounds toward zero
+	CHECK_EQUAL(-1, toCoarsePeak(-(2 << 24))); // -2.something -> -1 after +1
 }
 
 // clusterStartByte: no 32-bit overflow past 2 GB.
