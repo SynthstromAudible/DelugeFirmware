@@ -26,6 +26,11 @@ DxPatch::DxPatch() {
 	setEngineMode(0);
 }
 
+void DxPatch::refreshVoiceParams() {
+	voiceParams = params;
+	deluge::dsp::fixed::dx7::sanitise(voiceParams);
+}
+
 void DxPatch::updateEngineMode() {
 	using deluge::dsp::fixed::dx7::Engine;
 	engine = Engine::MODERN;

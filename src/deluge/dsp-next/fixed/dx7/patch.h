@@ -34,7 +34,7 @@ using PatchBytes = std::array<uint8_t, 156>;
 /// algorithm (134) to 31, the feedback (135) to 7 and the LFO delay (138) to 99. Any other byte, in range or not, has
 /// defined arithmetic in the engine.
 /// @details A patch can arrive with any byte value: a cartridge unpack, a single-voice sysex file or a song's hex.
-/// The voice's owner applies this to the snapshot it takes per block.
+/// The voice's owner applies this to the copy of the bytes its voices read, each time the patch changes.
 [[gnu::always_inline]] constexpr void sanitise(PatchBytes& patch) {
 	constexpr std::size_t kPitchEnv = 126;
 	constexpr std::size_t kAlgorithm = 134;

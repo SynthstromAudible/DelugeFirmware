@@ -53,10 +53,11 @@ Run run_voice(const dw::Workload& w) {
 	uint8_t mode = w.engine;
 	dx7::Engine engine = engine_of(mode, patch);
 	deluge::dsp::Control<dx7::Lfo> lfo;
+	dx7::PatchBytes snapshot{};
 	const auto settings = [&] {
-		dx7::PatchBytes snapshot = patch;
+		snapshot = patch;
 		dx7::sanitise(snapshot);
-		return Voice::Settings{.patch = snapshot,
+		return Voice::Settings{.patch = &snapshot,
 		                       .midinote = w.midinote,
 		                       .velocity = w.velocity,
 		                       .random_detune = w.random_detune,

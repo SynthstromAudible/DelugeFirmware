@@ -29,6 +29,13 @@ public:
 
 	/// The patch's bytes: six ops of 21 (op 6 first), the globals, then one op-switch bit per op in byte 155.
 	deluge::dsp::fixed::dx7::PatchBytes params{};
+	/// The bytes as the voices read them: params, clamped to the engine's ranges (dx7::sanitise). The voices read
+	/// this copy every block instead of each taking its own; refreshVoiceParams() renews it at each note-on and in
+	/// the block the model changes the patch (Source::dxPatchChanged, which every write through
+	/// bridge::applyDxPatch raises).
+	deluge::dsp::fixed::dx7::PatchBytes voiceParams{};
+	/// Renews voiceParams from params.
+	void refreshVoiceParams();
 	/// The engine the voices render in, chosen by setEngineMode.
 	deluge::dsp::fixed::dx7::Engine engine = deluge::dsp::fixed::dx7::Engine::MODERN;
 	/// Whether op @p op is switched on (bit @p op of byte 155).

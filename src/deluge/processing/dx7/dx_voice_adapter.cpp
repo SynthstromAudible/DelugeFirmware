@@ -30,17 +30,15 @@ namespace {
 
 using PoolVoice = fixed::dx7::Voice<fixed::CongNoise>;
 
-/// @brief The voice's settings: a snapshot of @p patch, its bytes clamped to the engine's ranges, the note and the
-/// engine's tables.
+/// @brief The voice's settings: @p patch's bytes as its voices read them (DxPatch::voiceParams, clamped to the engine's
+/// ranges), the note and the engine's tables.
 PoolVoice::Settings settings_of(const DxPatch& patch, int midinote, int velocity) {
-	PoolVoice::Settings s{.patch = patch.params,
-	                      .midinote = midinote,
-	                      .velocity = velocity,
-	                      .random_detune = patch.random_detune,
-	                      .engine = patch.engine,
-	                      .tables = &getDxEngine()->tables};
-	fixed::dx7::sanitise(s.patch);
-	return s;
+	return PoolVoice::Settings{.patch = &patch.voiceParams,
+	                           .midinote = midinote,
+	                           .velocity = velocity,
+	                           .random_detune = patch.random_detune,
+	                           .engine = patch.engine,
+	                           .tables = &getDxEngine()->tables};
 }
 
 } // namespace
@@ -55,6 +53,7 @@ bool DxVoiceAdapter::noteOn(void* patch, int midinote, int velocity) {
 	patch_ = static_cast<DxPatch*>(patch);
 	midinote_ = midinote;
 	velocity_ = velocity;
+	patch_->refreshVoiceParams();
 	const PoolVoice::Settings s = settings_of(*patch_, midinote_, velocity_);
 	voice_->start(s);
 	if (PoolVoice::key_sync_lfo(s)) {
@@ -91,6 +90,9 @@ std::span<const int32_t> DxVoiceAdapter::render(int32_t numSamples, uint32_t pha
 	int adjpitch = logpitch - 278023814;
 
 	midinote_ = midinote;
+	if (patchChanged) {
+		patch_->refreshVoiceParams();
+	}
 	const PoolVoice::Settings s = settings_of(*patch_, midinote_, velocity_);
 	const PoolVoice::BlockInputs in{
 	    .base_pitch = adjpitch, .lfo_value = patch_->lfo_value, .eg_mod = patch_->eg_mod, .amp_mod = ampModParam >> 13};
