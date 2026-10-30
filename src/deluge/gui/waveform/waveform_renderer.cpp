@@ -446,8 +446,8 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 		// If we're wanting to investigate the whole length of one Cluster, and that's already actually been done
 		// previously, we can just reuse those findings!
 		if (investigatingAWholeCluster && sampleCluster->investigated) {
-			data->minPerCol[col] = (int32_t)sampleCluster->min << 24;
-			data->maxPerCol[col] = (int32_t)sampleCluster->max << 24;
+			data->minPerCol[col] = fromCachedPeak(sampleCluster->min);
+			data->maxPerCol[col] = fromCachedPeak(sampleCluster->max);
 		}
 
 		// Otherwise, do our normal investigation
@@ -502,8 +502,8 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 
 				// See if we want to include any previously captured maximums and minimums, which might have looked at
 				// slightly different values
-				int32_t prevMin = (int32_t)sampleCluster->min << 24;
-				int32_t prevMax = (int32_t)sampleCluster->max << 24;
+				int32_t prevMin = fromCachedPeak(sampleCluster->min);
+				int32_t prevMax = fromCachedPeak(sampleCluster->max);
 
 				if (prevMin < minThisCol) {
 					minThisCol = prevMin;
@@ -513,8 +513,8 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 				}
 
 				// And mark the overview cache entry as fully investigated (rounding toward 0)
-				sampleCluster->min = toCoarsePeak(minThisCol);
-				sampleCluster->max = toCoarsePeak(maxThisCol);
+				sampleCluster->min = toCachedPeak(minThisCol);
+				sampleCluster->max = toCachedPeak(maxThisCol);
 				sampleCluster->investigated = true;
 			}
 
@@ -522,8 +522,8 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 			else {
 
 				// Then just contribute to the running record of max and min found
-				int8_t smallMin = toCoarsePeak(minThisCol);
-				int8_t smallMax = toCoarsePeak(maxThisCol);
+				int16_t smallMin = toCachedPeak(minThisCol);
+				int16_t smallMax = toCachedPeak(maxThisCol);
 
 				if (smallMin < sampleCluster->min) {
 					sampleCluster->min = smallMin;
@@ -564,7 +564,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 
 // Background "waveform overview" pre-scan (issue #4460). Investigates one whole cluster the same way
 // findPeaksPerCol's whole-cluster branch does, but self-contained so it can run off the render path.
-// Caches the result in the Sample's overview cache entry (int8 min/max + investigated) so later zoomed-out
+// Caches the result in the Sample's overview cache entry (int16 min/max + investigated) so later zoomed-out
 // renders get a cache hit and never load this cluster synchronously while the user is scrolling.
 bool WaveformRenderer::investigateWholeCluster(Sample* sample, int32_t clusterIndex) {
 
@@ -643,12 +643,12 @@ bool WaveformRenderer::investigateWholeCluster(Sample* sample, int32_t clusterIn
 	                                    static_cast<int32_t>(numBytesToRead), sample->byteDepth, sample->numChannels);
 
 	// Fold in anything previously captured for this cluster (same as findPeaksPerCol's whole-cluster path).
-	peak.min = std::min(peak.min, static_cast<int32_t>(sampleCluster->min) << 24);
-	peak.max = std::max(peak.max, static_cast<int32_t>(sampleCluster->max) << 24);
+	peak.min = std::min(peak.min, fromCachedPeak(sampleCluster->min));
+	peak.max = std::max(peak.max, fromCachedPeak(sampleCluster->max));
 
-	// Store the coarse (int8) overview, rounding towards 0.
-	sampleCluster->min = toCoarsePeak(peak.min);
-	sampleCluster->max = toCoarsePeak(peak.max);
+	// Store the cached (int16) overview, rounding towards 0.
+	sampleCluster->min = toCachedPeak(peak.min);
+	sampleCluster->max = toCachedPeak(peak.max);
 	sampleCluster->investigated = true;
 
 	// Keep the sample's running peak up to date too, so brightness normalisation is pre-warmed.
