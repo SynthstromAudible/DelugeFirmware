@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/short_label.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -82,7 +83,10 @@ public:
 		return soundEditor.editingKitRow();
 	}
 
-	void getColumnLabel(etl::istring& label) override { label.append(deluge::l10n::getView(this->name).data()); }
+	void getColumnLabel(etl::istring& label) override {
+		const std::string_view text = shortLabel(this->name);
+		label.append(text.data(), text.size());
+	}
 
 	// flag this selection menu as a toggle menu so we can use a checkbox to toggle value
 	bool isToggle() override { return true; }

@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "gui/menu_item/short_label.h"
 #include "gui/menu_item/unpatched_param.h"
 #include "gui/ui/sound_editor.h"
 
@@ -30,7 +31,10 @@ public:
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow();
 	}
 
-	void getColumnLabel(etl::istring& label) override { label.append(deluge::l10n::get(this->name)); }
+	void getColumnLabel(etl::istring& label) override {
+		const std::string_view text = shortLabel(this->name);
+		label.append(text.data(), text.size());
+	}
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return style_; }
 
