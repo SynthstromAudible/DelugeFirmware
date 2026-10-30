@@ -32,8 +32,8 @@ namespace deluge::synth {
 /// voice-sample, so every method here is a **primitive** query or op — no app types cross the seam. A host/test
 /// could supply a fake.
 ///
-/// The note lifecycle (solicit/setup/note-off/zone/clone/cursor read-out) is the adapter's own app-typed API,
-/// called directly by the App; it is intentionally NOT on this port (the library shell never drives it).
+/// The note's start, its loop-end note-off and its release are on the port; the rest of the lifecycle (zone change,
+/// unison clone, the GUI's play-cursor read-out) is the adapter's own app-typed API, called directly by the App.
 class SamplePlaybackPort {
 public:
 	virtual ~SamplePlaybackPort() = default;
@@ -102,6 +102,8 @@ public:
 	virtual bool note_on(uint32_t samples_late, int32_t priority_rating) = 0;
 	/// The note-off for a sample with a loop end: playback goes on past it. @return false ⇒ unassign this source.
 	virtual bool note_off_at_loop_end(int32_t priority_rating) = 0;
+	/// Releases the reader the note holds, if any (on @p deleting_song, without touching what the song frees).
+	virtual void unassign(bool deleting_song) = 0;
 	/// Attempt to begin playback @p rawSamplesLate samples into the sample (a mid-note unmute / late start).
 	virtual LateStartOutcome attemptLateStart(int64_t rawSamplesLate, int32_t numSamples) = 0;
 	/// Set up the resampling cache for this note if the conditions allow. @return false ⇒ unassign this source.

@@ -50,11 +50,23 @@ using namespace deluge;
 class Voice final {
 public:
 	Voice(Sound& sound);
+	Voice(const Voice&) = delete;
+	Voice& operator=(const Voice&) = delete;
+	Voice(Voice&&) = delete;
+	Voice& operator=(Voice&&) = delete;
 	~Voice() { setAsUnassigned(nullptr); }
 	Patcher patcher;
 
+private:
+	// Declared before unisonParts, whose sources point into it, so it outlives them.
+	std::array<std::array<UnisonPartPorts, kNumSources>, kMaxNumVoicesUnison> ports_;
+
+public:
 	// Stores all oscillator positions and stuff, for each Source within each Unison too
 	std::array<VoiceUnisonPart, kMaxNumVoicesUnison> unisonParts{};
+
+	/// The ports unison part @p u's source @p s plays through.
+	[[nodiscard]] UnisonPartPorts& ports(int32_t u, int32_t s) { return ports_[u][s]; }
 
 	// Stores overall info on each Source (basically just sample memory bounds), for the play-through associated with
 	// this Voice right now.

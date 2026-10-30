@@ -36,6 +36,13 @@ class VoiceSamplePlaybackGuide;
 class Source;
 class Voice;
 
+/// @brief The firmware side of one unison part's source: the ports its sources play through.
+struct UnisonPartPorts {
+	SamplePlaybackAdapter sample;   ///< the VoiceSample pool and reader behind synth::SamplePlaybackPort
+	deluge::dsp::DxVoiceAdapter dx; ///< the pooled dx7::Voice behind synth::DxVoicePort
+	AudioInputAdapter input;        ///< the AudioEngine-backed live input behind synth::AudioInputPort
+};
+
 class VoiceUnisonPartSource {
 public:
 	VoiceUnisonPartSource() = default;
@@ -45,6 +52,8 @@ public:
 	bool noteOn(const deluge::synth::SourceSetup& source, uint32_t samplesLate, uint32_t oscPhase, bool resetEverything,
 	            SynthMode synthMode, int32_t noteCode, uint8_t velocity, int32_t priorityRating);
 	void unassign(bool deletingSong);
+	/// Plays this part's sources through @p ports, which must outlive it.
+	void bind(UnisonPartPorts& ports);
 
 	// FKA phase. No longer used for Sample playback / rate conversion position. Only waves, including wavetable.
 	// Retired for virtual-analog waves — their phase now lives in vaSource (below).
@@ -92,13 +101,7 @@ public:
 	uint32_t phaseIncrementStoredValue{};
 	int32_t carrierFeedback{};
 	bool active{};
-	SamplePlaybackAdapter
-	    sampleVoiceAdapter; // the firmware's VoiceSample pool + reader behind synth::SamplePlaybackPort
-	deluge::synth::SampleSource sampleSource{
-	    &sampleVoiceAdapter};                   // the SAMPLE source (drives the reader through the port).
-	deluge::dsp::DxVoiceAdapter dxVoiceAdapter; // the firmware's pooled dx7::Voice adapter behind synth::DxVoicePort
-	deluge::synth::DX7Source dx7Source{&dxVoiceAdapter}; // the DX7 source (forwards FM to the adapter port).
-	AudioInputAdapter audioInputAdapter; // the firmware's AudioEngine-backed live-input port (ring/clock/pool).
-	deluge::synth::InputSource inputSource{
-	    &audioInputAdapter}; // the INPUT_L/R/STEREO source (reads input through the port).
+	deluge::synth::SampleSource sampleSource{nullptr}; ///< the SAMPLE source (drives the reader through its port)
+	deluge::synth::DX7Source dx7Source{nullptr};       ///< the DX7 source (forwards FM to its port)
+	deluge::synth::InputSource inputSource{nullptr};   ///< the INPUT_L/R/STEREO source (reads input through its port)
 };

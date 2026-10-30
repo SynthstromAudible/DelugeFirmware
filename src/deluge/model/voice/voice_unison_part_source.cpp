@@ -35,6 +35,12 @@ VoiceUnisonPartSource::~VoiceUnisonPartSource() {
 	unassign(false);
 }
 
+void VoiceUnisonPartSource::bind(UnisonPartPorts& ports) {
+	sampleSource.bind_port(&ports.sample);
+	dx7Source.bind_port(&ports.dx);
+	inputSource.bind_port(&ports.input);
+}
+
 bool VoiceUnisonPartSource::noteOn(const deluge::synth::SourceSetup& source, uint32_t samplesLate,
                                    uint32_t oscRetriggerPhase, bool resetEverything, SynthMode synthMode,
                                    int32_t noteCode, uint8_t velocity, int32_t priorityRating) {
@@ -123,7 +129,7 @@ bool VoiceUnisonPartSource::noteOn(const deluge::synth::SourceSetup& source, uin
 
 void VoiceUnisonPartSource::unassign(bool deletingSong) {
 	active = false;
-	sampleVoiceAdapter.unassign(deletingSong);
+	sampleSource.unassign(deletingSong);
 	dx7Source.unassign();
 	inputSource.unassign();
 }

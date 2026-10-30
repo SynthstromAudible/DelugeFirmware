@@ -168,7 +168,7 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 		if (sound.getSynthMode() != SynthMode::FM && sound.sources[s].oscType == OscType::SAMPLE
 		    && guides[s].audioFileHolder) {
 			for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
-				unisonParts[u].sources[s].sampleVoiceAdapter.bind(&sound.sources[s], &guides[s]);
+				ports(u, s).sample.bind(&sound.sources[s], &guides[s]);
 			}
 		}
 	}
@@ -258,9 +258,9 @@ bool Voice::sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, M
 		VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 
 		if (voiceUnisonPartSource->active) {
-			bool stillActive = voiceUnisonPartSource->sampleVoiceAdapter.zoneChanged(
-			    &guides[s], sample, source.sampleControls.isCurrentlyReversed(), markerType, loopingType,
-			    getPriorityRating());
+			bool stillActive =
+			    ports(u, s).sample.zoneChanged(&guides[s], sample, source.sampleControls.isCurrentlyReversed(),
+			                                   markerType, loopingType, getPriorityRating());
 			if (!stillActive) {
 				D_PRINTLN("returned false ---------");
 				voiceUnisonPartSource->unassign(false);

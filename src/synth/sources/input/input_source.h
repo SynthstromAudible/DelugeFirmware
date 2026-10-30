@@ -42,6 +42,8 @@ class InputSource : public Source {
 
 public:
 	explicit InputSource(AudioInputPort* in) : in_(in) {}
+	/// Reads through @p in, which must outlive this source.
+	void bind_port(AudioInputPort* in) { in_ = in; }
 
 	/// Latch the configured input channel for the note about to start (from the source's `OscType`).
 	void prepareForNoteOn(OscType inputType);

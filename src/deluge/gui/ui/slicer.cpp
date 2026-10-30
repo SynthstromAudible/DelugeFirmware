@@ -193,9 +193,10 @@ void Slicer::graphicsRoutine() {
 		if (!valid_voices_view.empty()) {
 			const Sound::ActiveVoice& voice = *std::ranges::max_element(valid_voices_view, {}, &Voice::orderSounded);
 
-			VoiceUnisonPartSource* part = &voice->unisonParts[drum->snapshot().numUnison >> 1].sources[0];
+			const int32_t u = drum->snapshot().numUnison >> 1;
+			VoiceUnisonPartSource* part = &voice->unisonParts[u].sources[0];
 			if (part != nullptr && part->active) {
-				voiceSample = part->sampleVoiceAdapter.voiceSample();
+				voiceSample = voice->ports(u, 0).sample.voiceSample();
 				guide = &voice->guides[soundEditor.currentSourceIndex];
 			}
 		}
@@ -586,10 +587,10 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 					const Sound::ActiveVoice& assigned_voice =
 					    *std::ranges::max_element(valid_voices_view, {}, &Voice::orderSounded);
 
-					VoiceUnisonPartSource* part =
-					    &assigned_voice->unisonParts[drum->snapshot().numUnison >> 1].sources[0];
+					const int32_t u = drum->snapshot().numUnison >> 1;
+					VoiceUnisonPartSource* part = &assigned_voice->unisonParts[u].sources[0];
 					if (part != nullptr && part->active) {
-						voiceSample = part->sampleVoiceAdapter.voiceSample();
+						voiceSample = assigned_voice->ports(u, 0).sample.voiceSample();
 						guide = &assigned_voice->guides[soundEditor.currentSourceIndex];
 					}
 				}

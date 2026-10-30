@@ -34,6 +34,8 @@ class DX7Source : public Source {
 
 public:
 	explicit DX7Source(DxVoicePort* dx) : dx_{dx} {}
+	/// Plays through @p dx, which must outlive this source.
+	void bind_port(DxVoicePort* dx) { dx_ = dx; }
 
 	/// Solicit + init the FM voice for this note, caching @p patch (opaque preset handle). @return false if the
 	/// pool is empty.

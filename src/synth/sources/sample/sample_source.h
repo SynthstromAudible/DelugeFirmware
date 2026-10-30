@@ -40,6 +40,10 @@ public:
 
 	/// The port this source plays through.
 	[[nodiscard]] SamplePlaybackPort* port() const { return port_; }
+	/// Plays through @p port, which must outlive this source.
+	void bind_port(SamplePlaybackPort* port) { port_ = port; }
+	/// Releases the port's reader, if it holds one.
+	void unassign(bool deleting_song) { port_->unassign(deleting_song); }
 
 	/// Render one block of sample playback into @c ctx.oscBuffer (the @ref deluge::synth::Source seam). Reads the
 	/// per-block voice values in @p ctx (porta, priority, pre-modulation phaseIncrementStoredValue, the hoisted

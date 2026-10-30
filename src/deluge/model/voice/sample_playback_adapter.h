@@ -47,7 +47,7 @@ public:
 	}
 
 	/// Free the pooled VoiceSample back to AudioEngine (no-op if none held); clear the cached source/guide.
-	void unassign(bool deletingSong);
+	void unassign(bool deletingSong) override;
 
 	/// React to a sample zone/marker change. Returns false if this source is now out of bounds and should be
 	/// unassigned.

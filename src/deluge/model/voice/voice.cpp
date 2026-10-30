@@ -70,6 +70,11 @@ int32_t Voice::combineExpressionValues(int32_t synthLevelValue, int32_t expressi
 
 Voice::Voice(Sound& sound)
     : patcher(kPatcherConfigForVoice, params.sourceValues, params.paramFinalValues), sound{sound} {
+	for (int32_t u = 0; u < kMaxNumVoicesUnison; u++) {
+		for (int32_t s = 0; s < kNumSources; s++) {
+			unisonParts[u].sources[s].bind(ports_[u][s]);
+		}
+	}
 }
 
 // Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
@@ -695,7 +700,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(const LFOConfig& config, deluge::modul
 						continue;
 					}
 
-					const deluge::synth::SamplePlaybackPort& port = voiceUnisonPartSource->sampleVoiceAdapter;
+					const deluge::synth::SamplePlaybackPort& port = *voiceUnisonPartSource->sampleSource.port();
 					int32_t bytesLeft = port.bytes_left_to_end();
 					int32_t bytesPerSample = port.bytes_per_frame();
 
