@@ -558,6 +558,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL, "Show Battery Level"},
         {STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS, "Rounded Corners"},
         {STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY, "Shortcut Overlay"},
+        {STRING_FOR_COMMUNITY_FEATURE_TRACK_EDIT, "Track Edit"},
         {STRING_FOR_SHORTCUT_OVERLAY_MENU_ONLY, "On - Menu only"},
         {STRING_FOR_SHORTCUT_OVERLAY_MENU_AND_CLIP, "On - Menu + Clip"},
         {STRING_FOR_TRACK_STILL_HAS_CLIPS_IN_SESSION, "Track still has clips in session"},
