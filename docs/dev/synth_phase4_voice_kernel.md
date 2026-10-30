@@ -1,8 +1,10 @@
 # Phase 4 — the L2 voice kernel
 
-> Status: **in progress — 20 bit-exact slices landed** (see Progress). `Voice::render`'s *signature* is now free of
-> `Sound&` and `ModelStackWithSoundFlags*`; the remaining work is decoupling the render *body/helpers* and the lift
-> itself. Expands Phase 4 of `synth_untangling_plan.md`; builds on `synth_l1_engine_architecture.md` (the
+> Status: **in progress — sub-slices (a), (b), (d), (e) done, (c) partial, (f) the lift not started.**
+> `Voice::render`'s signature and body are free of `Sound&` and `ModelStackWithSoundFlags*`, and `Voice` has no
+> `friend`s; slices 25–28 and the source ports are tracked in `synth_voice_lift.md` and `synth_source_ports.md`.
+> The remaining work is the lift itself. Expands Phase 4 of `synth_untangling_plan.md`; builds on
+> `synth_l1_engine_architecture.md` (the
 > engines/components the kernel composes) and the Phase-2 data plane (`ControlBlock`, `VoiceParams`). Each slice
 > lands as its own bit-exact, golden-gated commit (x86 byte-identical + targeted ARM/qemu).
 
@@ -22,8 +24,9 @@ two-implementation window. (This mirrors the relocate-in-place discipline of eve
 ## Progress (slices 1–20, all bit-exact / golden-gated)
 
 The strangler-fig is well advanced. `Voice::render` now takes
-`render(ParamManagerForTimeline* paramManager, int32_t* soundBuffer, …flags…, int32_t externalPitchAdjust, const
-VoiceConfig& cfg)` — **no `Sound&`, no `ModelStackWithSoundFlags*`**. A new app-side `VoiceConfig`
+`render(ParamManagerForTimeline* paramManager, const ControlBlock& controlBlock, int32_t* soundBuffer, …flags…,
+int32_t externalPitchAdjust, const VoiceConfig& cfg, std::array<int32_t*, 4> spareBuffers)` — **no `Sound&`, no
+`ModelStackWithSoundFlags*`**. A new app-side `VoiceConfig`
 (`model/voice/voice_config.h`), built once at the adapter edge (`Sound::render`), carries the snapshotted config.
 
 - **Config-snapshot arc — DONE** (slices 1–13): filter set, synthMode + LFO config, `hasFilters`, MPE expression
@@ -33,8 +36,8 @@ VoiceConfig& cfg)` — **no `Sound&`, no `ModelStackWithSoundFlags*`**. A new ap
 - **Source-component port arc — DONE (mechanically)** (slices 14–15): `renderSourceComponent` is **fully
   `Sound&`-free** (all five source branches decoupled). DX7 patch is injected at note-on (`DX7Engine` caches it,
   render takes no `DxPatch&`); the sample engine reads `voice.sound` internally and `Voice::renderSourceComponent`
-  dropped its `Sound&` param. *The abstract `SampleSource`/`SourceComponent` interface (sub-slice e) is deferred to
-  the lift* — see below.
+  dropped its `Sound&` param. The abstract interface followed later: all five sources now render through
+  `synth::Source` on ports (sub-slice e, below).
 - **modelStack-drop arc — DONE** (slices 16–19): `sound` deref → `this->sound`; source-active flags, the
   noise-source predicate, and `numUnison` snapshotted so `areAllUnisonPartsInactive` + `SubtractiveEngine::render`
   are `modelStack`-free; `paramManager` passed explicitly; `Voice::noteOff` reworked to take
@@ -42,14 +45,14 @@ VoiceConfig& cfg)` — **no `Sound&`, no `ModelStackWithSoundFlags*`**. A new ap
   `Voice::render`.
 - **Shrink-`paramManager` arc — easy-snapshot phase DONE** (slices 20–21): the local patched-sources bitmask, the
   auto-release noise read (reuses the snapshot), MPE bend ranges, and portamento are all snapshotted. The render
-  body's only remaining `paramManager` reads are the two data-plane ones — the patcher `ControlBlock` (@830) and
-  the `paramManager` passed to the engines (@1193) — which resolve at the lift.
+  body's remaining `paramManager` reads were the two data-plane ones. The patcher `ControlBlock` now comes in as
+  a parameter (slice 25); the `paramManager` passed to `noteOff` and the engines resolves at the lift.
 - **Engine-weaning arc — DONE** (slices 22–24): the render helpers/engines no longer reach `Sound&`. FM
   `modulator1ToModulator0` + subtractive `isSourceActiveCurrently` snapshotted into `VoiceConfig`;
   `Source::renderInStereo` became a static `Source`/`Sound`-free predicate; then the now-dead `Sound&` params were
   dropped from `renderBasicSource` / `SubtractiveEngine::render` / `FMEngine::render`. **No render helper/engine
-  carries or reads `Sound&`.** The render path's only `this->sound` contact is the patcher `ControlBlock`
-  (`sound.patchControlBlock(*paramManager)` @830).
+  carries or reads `Sound&`.** The last render-body `sound` contact, the patcher `ControlBlock`, moved to the
+  adapter in slice 25.
 
 ## The L2 boundary
 
@@ -62,12 +65,13 @@ envelopes, `lfo2`/`lfo4`, `filterSet`, oscillator phase/feedback, and the `Voice
 (`ParamManager`), scheduling/voice-pool policy, transport, and storage (sample/wavetable/live-input).
 
 **Already done (Phase 2 + slices 1–20):** the patcher runs off a `ControlBlock` (`synth/control_block.h`) produced
-by `Sound::patchControlBlock(paramManager)` (`processing/sound/sound.h:272`); `Voice::render` still invokes it
-inline (`patcher.performPatching(sourcesChanged, sound.patchControlBlock(*paramManager))`). The render was
+by `Sound::patchControlBlock(paramManager)`, built once in `Sound::render` and passed to `Voice::render` as a
+`const ControlBlock&`. The render was
 **largely data-plane-driven already** (it reads `params.paramFinalValues`); the ~40 `sound.*` config reads + the
 `modelStack` hooks listed below have now been **routed through `VoiceConfig` / explicit params** (slices 1–20), so
-`Voice::render`'s signature no longer carries `Sound&` or `modelStack`. What's left is the render *body/helpers*
-still reaching `this->sound` + a few live `paramManager` reads, and the relocation.
+`Voice::render`'s signature no longer carries `Sound&` or `modelStack`. What's left is the methods the render
+calls that still reach `this->sound` (`noteOff`, `getPriorityRating`), the `paramManager` passed on to `noteOff`
+and the engines, and the relocation.
 
 ## Coupling inventory (the work)
 
@@ -75,7 +79,7 @@ still reaching `this->sound` + a few live `paramManager` reads, and the relocati
 > and most rows are now resolved (see the per-row disposition + the Progress section). Kept as the categorisation
 > of the coupling.
 
-`Voice::render` was `voice.cpp:717` (now `729`); it pulled `paramManager` + `sound` off `modelStack`. The upward
+`Voice::render` was `voice.cpp:717` (now `723`); it pulled `paramManager` + `sound` off `modelStack`. The upward
 references, categorised:
 
 | Category | Examples (current) | Phase-4 disposition |
@@ -110,26 +114,28 @@ c. ◐ **PARTIAL — Note-tail / scheduling hooks.** `allowNoteTails` is snapsho
    deferred note-off no longer needs `modelStack`. `voiceUnassigned`/priority/culling/`getPriorityRating` **stay
    app-side** (the adapter) by design. `Voice::noteOff` still reaches `this->sound` internally — revisited at the
    lift.
-d. ☐ **TODO — Pass transport-synced LFO increments in** — sever `getSyncedLFOPhaseIncrement` (still reached via
-   `getLocalLFOPhaseIncrement` → `sound.getSyncedLFOPhaseIncrement`).
-e. ◐ **RESCOPED — source dispatch decoupled mechanically (slices 14–15); abstract interface deferred to (f).**
-   `renderSourceComponent` is fully `Sound&`-free and returns `deluge::voice::SourceRenderResult`, but it is not
-   yet a real injected `SourceComponent` interface — the sample/input/DX7 engines still reach `voice.sound` /
-   storage in place. Kate's call (slice 15): do the mechanical `Sound&`-drop now, build the abstract `SampleSource`
-   / `SourceComponent` interface **at the lift**, where the engines also shed `Voice&` — avoids premature
-   abstraction. **This is where the Subtractive/FM `friend`-couplings dissolve.** Largest, deepest slice (storage
-   boundary).
-f. ☐ **TODO — Lift to `synth::Voice`** (the endgame). Prerequisites remaining first: finish the
-   **shrink-`paramManager` arc** (the render body's live reads — patcher `ControlBlock` @830, `getExpressionParamSet`
-   @847, `getUnpatchedParamSet` porta @872, the engine pass @1193 — plus `AudioEngine::renderInStereo` @1185 and
-   `cpuDireness`), and wean `renderBasicSource` + the engines off `this->sound`. Then move the render path into a
+d. ✅ **DONE — Pass transport-synced LFO increments in.** `Sound::render` snapshots them into
+   `cfg.lfo2SyncedPhaseIncrement`/`cfg.lfo4SyncedPhaseIncrement` (`sound.cpp` ~1923–1928);
+   `getLocalLFOPhaseIncrement` takes the increment and no longer reaches `sound`.
+e. ✅ **DONE — source dispatch and ports.** `renderSourceComponent` is `Sound&`-free and dispatches through the
+   polymorphic `synth::Source`. All five sources live in `synth/source/` on ports (`synth_source_ports.md`); only
+   the adapters (`SamplePlaybackAdapter`, `AudioInputAdapter`, `DxVoiceAdapter`) stay App-side. The
+   Subtractive/FM `friend`-couplings are dissolved: **`Voice` has no `friend`s.** The engines still take `Voice&`.
+f. ☐ **TODO — Lift to `synth::Voice`** (the endgame). The render body's `ControlBlock`, expression, porta and
+   `renderInStereo` reads are done. Prerequisites remaining first (detail in `synth_voice_lift.md`): drop the last
+   `paramManager` uses (`noteOff`, and the engine pass into `renderSourceComponent`'s cable scan); split the
+   methods that still reach `Sound` (`noteOff`, `getPriorityRating`, `noteOn`, `calculatePhaseIncrements`, …) into
+   kernel and adapter halves; drop the `Sample*`/`WaveTable*` casts; inject `cpuDireness` and `nextVoiceState`;
+   hold ports instead of adapters in `voice_unison_part_source.h`; move `voice_config.h` off `model/`'s
+   `filter_config.h`; and take `PatchedParamSet*`/`PatchCableSet*` out of `ControlBlock`. Then move the render
+   path into a
    portable `synth::Voice` (+ a host unit test with zero `Song`/`ModelStack`/`AudioEngine`); old `Voice`/
    `Sound::render` become the adapter. DX7-as-engine + the engine **registry** can land here.
 
 ## What stays app-side (out of the kernel)
 
 The ParamManager→`ControlBlock`/`VoiceConfig` adapter; scheduling / culling / the `justCreated` render-spread
-(`voice.cpp:722`); transport; preset serialization; the `ModControllableAudio` FX chain; the arpeggiator.
+(`voice.cpp:731`); transport; preset serialization; the `ModControllableAudio` FX chain; the arpeggiator.
 
 ## Numerics & cross-cutting rules
 

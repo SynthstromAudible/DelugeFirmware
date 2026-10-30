@@ -13,10 +13,10 @@
 
 | Tier | Target home | Reality today | Verdict |
 |---|---|---|---|
-| **L0 primitives** | `dsp-next/` | osc / wavetable / interpolation / sync / vca / timestretch kernels / filters migrated; `core/fixed/float` split real. **`dsp/timestretch/time_stretcher`, `dsp/util`, `dsp/oscillators/oscillator` not yet migrated.** | Clean; three subsystems outstanding |
+| **L0 primitives** | `dsp-next/` | osc / wavetable / interpolation / sync / vca / timestretch kernels / filters migrated; `core/fixed/float` split real. **`dsp/util` (the fold) and `dsp/oscillators/oscillator` (a scratch array + `OscType` mapper) not yet migrated.** `dsp/timestretch/time_stretcher` stays App-side behind the sample-playback port. | Clean; two small leftovers |
 | **L1 Source** | `synth/source/` | **Done.** Five sources are polymorphic `synth::Source` (VA, wavetable, sample, input, DX7); ports exist (`sample_playback_port.h`, `audio_input_port.h`, `dx_voice_port.h`). | The strong part of the tree |
 | **L1 Engine** | `synth/` | Subtractive/RingMod/FM exist as objects but live in `model/voice/`, **own behaviour but no state**, and reach state through `Voice&` / per-block args. Cross-source orchestration (RINGMOD/FM per-unison loop) is still in `voice.cpp:1199–1282`. DX7 still a Source, not an Engine. No registry; dispatch is `SynthMode`+`OscType` switches. | **Stateless coordinators** |
-| **L2 Voice** | `synth/` | Decoupled where it counts (no `Sound&` in render sig/body, no `friend`s, scratch injected) but still holds `Sound& sound`, lives in `model/voice/`. Lift (L-viii) **paused** until `dsp/timestretch/time_stretcher`, `dsp/util` and `dsp/oscillators/oscillator` reach dsp-next. | Logically separable, physically stuck |
+| **L2 Voice** | `synth/` | Decoupled where it counts (no `Sound&` in render sig/body, no `friend`s, scratch injected) but still holds `Sound& sound`, lives in `model/voice/`. Lift (L-viii) not started: blocked on the voice's remaining App reaches (methods reaching `Sound`/`paramManager`, `Sample*`/`WaveTable*` casts, `AudioEngine` globals, port adapters held by value, `ControlBlock`'s param-set pointers — see `synth_voice_lift.md`), not on legacy `dsp/`. | Logically separable, physically stuck |
 | **L3 Instrument** | `synth/` (CLAP-shaped) | **Does not exist.** `Sound` (~5,000 LOC) is `ModControllableAudio` + `Voiced` at once: preset, DSP processor, UI controller, file format, voice pool, arp, FX. | God-object intact |
 
 The bottom two layers are genuinely good; the Engine tier is a façade; the Instrument tier is unstarted.
@@ -136,12 +136,13 @@ deluge::synth::
    it; nothing below is.
 3. **Typed source-owned params** (`synth_source_ownership.md` Stage A bridge). Required for a *real* foreign L1 engine
    API (foreign code can't see `LOCAL_*`). Naturally co-lands with engines owning their Sources (step 1).
-4. **Voice lift (L-viii)** — mechanical, once `dsp/timestretch/time_stretcher`, `dsp/util` and `dsp/oscillators/oscillator` reach dsp-next.
+4. **Voice lift (L-viii)** — mechanical, once the voice's remaining App reaches are cut (listed in `synth_voice_lift.md`).
 5. **VoicePool + L3 `process()`** — voice allocation moves inside the Instrument; app keeps culling *policy* via
    hooks; CLAP C-ABI lands; Deluge-synth-as-plugin proves it.
 
-Non-obvious takeaway: **steps 1 and 2 are higher-leverage than continuing the voice lift.** The lift is paused on a
-DSP-migration chore; the Engine-tier fill and the `Patch` extraction are what actually stand between us and a
+Non-obvious takeaway: **steps 1 and 2 are higher-leverage than continuing the voice lift.** The lift's remaining
+blockers are App reaches in `Voice`'s own methods; the Engine-tier fill and the `Patch` extraction are what
+actually stand between us and a
 CLAP-shaped L3, and `Patch` is the keystone (all three CLAP channels pivot on it; `VoiceConfig`'s existence proves it
 is missing).
 

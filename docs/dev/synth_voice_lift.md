@@ -1,20 +1,20 @@
 # Phase 4 — the `synth::Voice` lift
 
-> **Update (2026-06-19) — the in-place decoupling is essentially DONE; the physical relocation (L-viii) is PAUSED.**
+> **Status — the in-place decoupling is essentially DONE; the physical relocation (L-viii) is not started.**
 > `Voice::render` is now upward-reference-free in the ways that matter: its signature carries no `Sound&` /
-> `ModelStackWithSoundFlags*`; its body reaches no `Sound`; the render helpers/engines hold no `Sound&`; the
+> `ModelStackWithSoundFlags*`; its body reads no `Sound` (though it calls `noteOff` and, via
+> `renderSourceComponent`, `getPriorityRating`, which both do); the render helpers/engines hold no `Sound&`; the
 > scratch is injected (L-v); and **`Voice` has no `friend`s** (the Subtractive/FM couplings are dissolved). That
 > decoupling **was the value** of the lift — the voice kernel is now logically separable and render-driven by
 > `VoiceConfig` + `ControlBlock`/`ParamPlane` + injected scratch.
 >
 > The remaining step — physically `git mv`-ing `Voice` into `synth/` (L-viii) so `check_synth_boundary` enforces
-> the boundary — is **deliberately deferred**, because it is gated not on any voice coupling but on the **legacy
-> `dsp/` DSP subsystems the voice uses** (`dsp/timestretch`, `dsp/util`, `dsp/oscillators`)
-> migrating to `dsp-next`. Those are clean DSP; their relocation is the **dsp-next migration track**, separate from
-> and independent of the voice decoupling. Forcing the move now would mean either a large DSP rewrite or
-> parking legacy-`dsp/` deps inside the "clean" library (defeating the lint). **Decision (Kate, 2026-06-19): stop
-> the lift here.** Resume the physical relocation once the voice's DSP deps are dsp-next-resident; track those on
-> the dsp-next migration, not as voice-lift slices. See "Why the lift is paused" below.
+> the boundary — is **not started**. The legacy `dsp/` includes are not what blocks it: `dsp/timestretch` is an
+> unused include, `dsp/util` supplies one fold function, and `dsp/oscillators` is a scratch array plus an
+> `OscType`→VA-shape mapper. The real blockers are the voice's remaining App reaches outside the render body —
+> `Sound`/`paramManager`/the cable set in several methods, `Sample*`/`WaveTable*` casts, the `AudioEngine`
+> globals, the port adapters held by value, `voice_config.h`'s `model/` include and `ControlBlock`'s param-set
+> pointers. See "What blocks L-viii" below.
 >
 > ---
 > Earlier status (still accurate for the decoupling history): L-vi is done — all five sources are polymorphic
@@ -36,10 +36,11 @@ No two-implementation window. Golden-gated throughout.
 
 ## Where we are
 
-`Voice::render`'s signature is `render(ParamManagerForTimeline* paramManager, int32_t* soundBuffer, …flags…,
-int32_t externalPitchAdjust, const VoiceConfig& cfg)`. In its **body**, `sound` survives in only two spots
-(`combineExpressionValues` + the patcher input); the rest of the residual coupling is a handful of other reaches
-across the render path. The data-plane vehicles already exist (Phase 2): `ControlBlock` (`synth/control_block.h`,
+`Voice::render`'s signature is `render(ParamManagerForTimeline* paramManager, const ControlBlock& controlBlock,
+int32_t* soundBuffer, …flags…, int32_t externalPitchAdjust, const VoiceConfig& cfg, std::array<int32_t*, 4>
+spareBuffers)`. Its **body** names no `sound`. `paramManager` survives only to feed `noteOff` and the per-source
+render (`subtractiveEngine.render` → `renderBasicSource` → `renderSourceComponent`'s cable scan). The data-plane
+vehicles already exist (Phase 2): `ControlBlock` (`synth/control_block.h`,
 the patcher input) and `ParamPlane`/`VoiceParams` (`synth/param_plane.h`, the per-voice param data).
 
 ## The lift surface (remaining render-path coupling)
@@ -49,31 +50,45 @@ the patcher input) and `ParamPlane`/`VoiceParams` (`synth/param_plane.h`, the pe
 | ~~L-i~~ ✅ | patcher input `sound.patchControlBlock(*paramManager)` (`voice.cpp:826`) | **DONE (slice 25)** — `ControlBlock` built at the adapter, passed into `Voice::render` as a `const ControlBlock&` param |
 | ~~L-ii~~ ✅ | `combineExpressionValues(sound, i)` (~`voice.cpp:802`, MPE bend/expression smoothing) | **DONE (slice 26)** — takes the `synthLevelValue` (= `cfg.monophonicExpressionValues[i]`) instead of `Sound&`; the dead `Sound&` render-body local removed → **`Voice::render`'s body is `sound`-free** |
 | ~~L-iii~~ ✅ | `getLocalLFOPhaseIncrement` (`voice.cpp:718`) → `sound.lfoConfig[id]` + `sound.getSyncedLFOPhaseIncrement(config)` | **DONE (slice 27)** — synced increments snapshotted into `cfg`; the helper takes `(LFOConfig, param, syncedIncrement)`, no `sound` reach |
-| ◐ L-iv | `AudioEngine::renderInStereo` (`voice.cpp:1173`), `AudioEngine::cpuDireness` (sample interpolation), `AudioEngine::nextVoiceState` (envelope-stage stamp) | **render-body `renderInStereo` DONE (slice 28)** → `cfg.engineRenderingInStereo`. Remaining: `nextVoiceState` (scheduling — stays app-side) + `cpuDireness`/mic/lineIn (engine-internal → L-vi) |
+| ◐ L-iv | `AudioEngine::renderInStereo`, `AudioEngine::cpuDireness` (sample interpolation), `AudioEngine::nextVoiceState` (envelope-stage stamp) | **render-body `renderInStereo` DONE (slice 28)** → `cfg.engineRenderingInStereo`. Remaining: `nextVoiceState` (`stampEnvelope0StageEntry`; scheduling — stays app-side), `cpuDireness` (`voice.cpp:992`, `source_component_render.cpp:38`), and `Source::renderInStereo`'s `renderInStereo`/mic/lineIn reads (`processing/source.cpp:193-205`) |
 | ~~L-v~~ ✅ | file-scope `spareRenderingBuffer[0/2/3]` | **DONE (`853414f8`)** — `Sound::render` passes the buffers in as `std::array<int32_t*,4>`; held in a transient `spareBuffers_` member (no engine threading). Global stays App-side for its 6 other users |
 | ~~friend-couplings~~ ✅ | `SubtractiveEngine`/`FMEngine` were `friend`s of `Voice` | **DONE (`c8c9f35f`, `6ca138d9`)** — FMEngine owns its operator renders (`renderSineWaveWithFeedback`/etc., moved from Voice); `adjustPitch` → public static; Subtractive's `renderBasicSource`/`areAllUnisonPartsInactive` made public. **`Voice` has no `friend`s.** (The per-source loop relocating *into* the engine layer is later.) |
 | ~~VoiceConfig enum dep~~ ✅ | `VoiceConfig` stores `FilterMode`/`FilterRoute` from `gui/l10n`-laden `filter_config.h` | **DONE (`a506e060`)** — `filter_config.h` made gui-free (forward-declared `l10n::String`, `getMorphName` body → `.cpp`). VoiceConfig's enum dependency is synth-clean |
-| #54 priority/scheduling | `getPriorityRating` (`sound.voicePriority`/`numActiveVoices`) + `nextVoiceState` stamp in render (`voice.cpp:768/977`) | **Resolve at L-viii, not in place.** `numActiveVoices()` mutates mid-loop (`freeActiveVoice` per-voice in `Sound::render`), so it can't be a loop-stable `VoiceConfig` snapshot; `nextVoiceState` is a global counter. Scheduling stays App-side; the adapter supplies the cull context at relocation |
-| **L-viii (PAUSED)** | relocate `Voice` → `synth::Voice` under `synth/` (behind `check_synth_boundary.py`) + a host unit test + the L-vii noteOff hook | **Deferred — gated on the voice's legacy-`dsp/` deps migrating to `dsp-next`** (`dsp/timestretch`, `dsp/util`, `dsp/oscillators`). Not a voice-coupling problem; see below |
+| #54 priority/scheduling | `getPriorityRating` (`sound.snapshot().voicePriority`/`numActiveVoices`) + `nextVoiceState` stamp in render (`stampEnvelope0StageEntry`) | **Resolve at L-viii, not in place.** `numActiveVoices()` mutates mid-loop (`freeActiveVoice` per-voice in `Sound::render`), so it can't be a loop-stable `VoiceConfig` snapshot; `nextVoiceState` is a global counter. Scheduling stays App-side; the adapter supplies the cull context at relocation |
+| **L-viii (not started)** | relocate `Voice` → `synth::Voice` under `synth/` (behind `check_synth_boundary.py`) + a host unit test + the L-vii noteOff hook | **Blocked on the voice's remaining App reaches** (see below), not on legacy `dsp/` |
 
-### Why the lift is paused here (2026-06-19)
+### What blocks L-viii
 
-The decoupling slices above delivered the lift's actual value — `Voice::render` is render-input-driven and holds
-no upward control coupling. The only thing standing between that and a literal `synth::Voice` is the
-`check_synth_boundary` lint, which forbids the **`dsp/`** prefix. The voice's filters are dsp-next-resident
-(`dsp-next/fixed/filter/`, mapped from the effects' mode and route words in `engines/effects/filter_slots.h`), so
-`voice.{h,cpp}` now reach legacy `dsp/` only through `dsp/timestretch/time_stretcher.h`, `dsp/util.hpp` and
-`dsp/oscillators/oscillator.h`; the DX7 engine they reach is app code (`processing/dx7/dx_engine.h`) over
-`dsp-next/fixed/dx7`. None of these is a coupling to *sever* — they are clean DSP the
-voice legitimately uses. They stay under `dsp/` until each is rewritten into `dsp-next`. So forcing the relocation
-now would mean either a **large idiomatic rewrite of those DSP subsystems into `dsp-next`** (the right long-term
-move, but a big separate effort) or **allowlisting legacy `dsp/` inside the library** (which defeats the boundary's
-purpose).
+The decoupling slices above made `Voice::render`'s body input-driven. A literal `synth::Voice` still needs the
+rest of `Voice` to stop naming App types. `check_synth_boundary` forbids the `dsp/` prefix, but the voice's legacy
+`dsp/` includes are small:
 
-**Decision: stop the lift here.** Treat the dx/timestretch/util/oscillators → `dsp-next` migration as its own track (where
-the oscillators, interpolator, wavetable, and timestretch-crossfade helpers already went). When the voice's DSP
-deps are `dsp-next`-resident, L-viii (+ the L-vii noteOff hook + the #54 priority/scheduling re-home) becomes the
-near-mechanical move it was always meant to be. Tracked as a dsp-next-migration concern, not a voice-lift slice.
+- `dsp/timestretch/time_stretcher.h` is included by `voice.cpp` and not used.
+- `dsp/util.hpp` supplies `foldBufferPolyApproximation` only. It belongs in a dsp-next shaping component.
+- `dsp/oscillators/oscillator.h` is `oscSyncRenderingBuffer` (a scratch array) plus `isVirtualAnalog`/`vaWaveFor`
+  (an `OscType` mapper). Neither is DSP; both move out with the scratch and VA shapes.
+
+The real blockers:
+
+- **Methods that still reach `Sound`, `paramManager` or the cable set.** `Voice` holds `Sound& sound`. `noteOff`
+  reads `sound.envelopeHasSustainCurrently`; `getPriorityRating` reads `sound.snapshot().voicePriority` and
+  `sound.numActiveVoices()`; `noteOn`, `unassignStuff`, `expressionEventImmediate`, `changeNoteCode`,
+  `setupPorta`, `randomizeOscPhases` and `calculatePhaseIncrements` read `Sound`/`Source` state. The render body
+  calls `noteOff` (`voice.cpp:742`), and `renderSourceComponent` calls `getPriorityRating` (`:1514`) and walks
+  `paramManager->getPatchCableSet()` (`:1451`). These split into a kernel half and an adapter half.
+- **Sample and wavetable casts.** `render`'s auto-release reads `SampleHolderForVoice*`/`Sample*` (`:886`,
+  `:915`); `renderSourceComponent` casts to `WaveTable*` (`:1483`) and calls `SampleControls`.
+- **`AudioEngine` globals.** `cpuDireness` (`voice.cpp:992`, `source_component_render.cpp:38`) and
+  `nextVoiceState` (`stampEnvelope0StageEntry`, `resetEnvelope0TimeEntered`).
+- **Port adapters held by value.** `voice_unison_part_source.h` holds `SamplePlaybackAdapter`,
+  `DxVoiceAdapter` and `AudioInputAdapter` as members. The kernel should hold the ports, injected.
+- **`voice_config.h` includes `model/mod_controllable/filters/filter_config.h`** for `FilterMode`/`FilterRoute`.
+  The dsp-next filter enums replace it.
+- **`ControlBlock` carries `PatchedParamSet*` and `PatchCableSet*`** (`synth/control_block.h`), so `synth/`
+  includes `modulation/params/param_set.h`. The patcher walks `PatchCableSet` directly.
+
+When these are gone, L-viii (+ the L-vii noteOff hook + the #54 priority/scheduling re-home) is the
+near-mechanical move it was always meant to be.
 
 ## Strategy / sequencing
 
