@@ -17,41 +17,33 @@
 
 #pragma once
 
+#include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo_sample.h"
+#include "dsp-next/fixed/filter/shelf_pair.h"
 
-#include <cstdint>
 #include <span>
 
 namespace deluge::effects {
 
 /// @brief One block's EQ settings: the four params' Q31 values (a band at 0 is flat).
-struct EqualizerParams {
-	int32_t bass{0};
-	int32_t treble{0};
-	int32_t bass_frequency{0};
-	int32_t treble_frequency{0};
-};
+using EqualizerParams = dsp::fixed::ShelfPair::Settings;
 
-/// @brief Two shelving bands, each a one-pole split of the signal; a flat band neither processes nor moves its memory.
+/// @brief The EQ: bass and treble shelves; does nothing while both bands are flat.
 class Equalizer {
 public:
 	/// @brief Applies the bass and treble shelves to @p block in place; does nothing while both bands are flat.
 	/// @param block The stereo block to process.
 	/// @param params The block's EQ settings.
-	void process(std::span<dsp::StereoSample> block, const EqualizerParams& params);
-
-	/// @brief Takes @p other's band coefficients, as a clone of its owner does; the filter memory starts afresh.
-	/// @param other The equalizer to copy the coefficients from.
-	void copy_coefficients_from(const Equalizer& other) {
-		bass_coefficient_ = other.bass_coefficient_;
-		treble_coefficient_ = other.treble_coefficient_;
+	void process(std::span<dsp::StereoSample> block, const EqualizerParams& params) {
+		if (dsp::fixed::ShelfPair::flat(params)) {
+			return;
+		}
+		shelves_.configure(params);
+		shelves_.renderBlock(block, block);
 	}
 
 private:
-	int32_t bass_coefficient_{0};   ///< Q31, from exp_curve(120000000, …), recomputed while the bass band is on
-	int32_t treble_coefficient_{0}; ///< Q31, from exp_curve(700000000, …), recomputed while the treble band is on
-	dsp::StereoSample without_treble_{};
-	dsp::StereoSample bass_only_{};
+	dsp::Mono<dsp::fixed::ShelfPair> shelves_; ///< The two splits' memories.
 };
 
 } // namespace deluge::effects

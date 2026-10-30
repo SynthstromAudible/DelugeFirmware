@@ -113,7 +113,6 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	next.delay = from.delay;
 	next.stutter = from.stutter;
 	setEffects(next);
-	core().equalizer().copy_coefficients_from(other->core().equalizer());
 	midi_knobs = other->midi_knobs; // Could fail if no RAM... not too big a concern
 }
 

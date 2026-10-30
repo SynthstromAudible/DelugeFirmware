@@ -230,11 +230,13 @@ set(duck_gain_spec_DEPS)
 # The send-and-volume kernel is header-only.
 set(send_and_volume_kernel_spec_DEPS)
 
+# The EQ's shelf pair is header-only.
+set(shelf_pair_spec_DEPS)
+
 # The frozen effects reference against the live effects it was copied from. Both are the legacy arithmetic, whose
 # plain signed sums overflow at full scale as the target's add wraps, so UBSan's checks are off for this spec alone.
 set(reference_effects_spec_DEPS
   ${_repo_root}/src/engines/effects/bitcrush.cpp
-  ${_repo_root}/src/engines/effects/equalizer.cpp
   ${_repo_root}/src/engines/effects/send_and_volume.cpp)
 set(reference_effects_spec_OPTIONS -fno-sanitize=signed-integer-overflow,shift)
 
