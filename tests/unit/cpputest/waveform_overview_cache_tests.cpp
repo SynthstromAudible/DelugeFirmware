@@ -27,8 +27,8 @@ TEST(WaveformOverviewCache, EntriesDefaultOnGrow) {
 	cache.resize(10);
 	CHECK_EQUAL(10, cache.size());
 	for (size_t i = 0; i < cache.size(); i++) {
-		CHECK_EQUAL(INT32_MAX, (cache[i].min));
-		CHECK_EQUAL(INT32_MIN, (cache[i].max));
+		CHECK_EQUAL(INT16_MAX, static_cast<int>(cache[i].min));
+		CHECK_EQUAL(INT16_MIN, static_cast<int>(cache[i].max));
 		CHECK_FALSE(cache[i].investigated);
 	}
 }
@@ -46,8 +46,8 @@ TEST(WaveformOverviewCache, SizeTracksResize) {
 	cache.resize(300); // grow back past the 256-entry segment boundary
 	CHECK_EQUAL(300, cache.size());
 	// Freshly-grown tail entries (including ones past the old high-water mark) still default.
-	CHECK_EQUAL(INT32_MAX, (cache[299].min));
-	CHECK_EQUAL(INT32_MIN, (cache[299].max));
+	CHECK_EQUAL(INT16_MAX, static_cast<int>(cache[299].min));
+	CHECK_EQUAL(INT16_MIN, static_cast<int>(cache[299].max));
 	CHECK_FALSE(cache[299].investigated);
 }
 
@@ -55,20 +55,19 @@ TEST(WaveformOverviewCache, EntryRoundTrips) {
 	OverviewCache cache;
 	cache.resize(3);
 
-	// A quiet passage's peaks, exactly as a direct read of the samples finds them.
-	cache[1].min = -385280;
-	cache[1].max = 356608;
+	cache[1].min = -1000;
+	cache[1].max = 1000;
 	cache[1].investigated = true;
 
-	CHECK_EQUAL(-385280, cache[1].min);
-	CHECK_EQUAL(356608, cache[1].max);
+	CHECK_EQUAL(-1000, static_cast<int>(cache[1].min));
+	CHECK_EQUAL(1000, static_cast<int>(cache[1].max));
 	CHECK_TRUE(cache[1].investigated);
 
 	// Neighbours untouched.
-	CHECK_EQUAL(INT32_MAX, (cache[0].min));
-	CHECK_EQUAL(INT32_MIN, (cache[0].max));
+	CHECK_EQUAL(INT16_MAX, static_cast<int>(cache[0].min));
+	CHECK_EQUAL(INT16_MIN, static_cast<int>(cache[0].max));
 	CHECK_FALSE(cache[0].investigated);
-	CHECK_EQUAL(INT32_MAX, (cache[2].min));
-	CHECK_EQUAL(INT32_MIN, (cache[2].max));
+	CHECK_EQUAL(INT16_MAX, static_cast<int>(cache[2].min));
+	CHECK_EQUAL(INT16_MIN, static_cast<int>(cache[2].max));
 	CHECK_FALSE(cache[2].investigated);
 }

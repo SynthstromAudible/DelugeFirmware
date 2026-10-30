@@ -60,7 +60,7 @@ public:
 
 	/// @brief Background "waveform overview" pre-scan: investigate one whole cluster's min/max.
 	///
-	/// Caches the result in the Sample's overview cache entry (min/max + investigated), so the zoomed-out
+	/// Caches the result in the Sample's overview cache entry (int16 + investigated), so the zoomed-out
 	/// single-row render path finds it already done and never has to load clusters synchronously while
 	/// scrolling.
 	/// @param sample       The sample whose cluster to investigate.

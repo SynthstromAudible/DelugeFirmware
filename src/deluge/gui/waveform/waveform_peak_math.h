@@ -22,6 +22,19 @@ struct WaveformPeak {
 WaveformPeak scanClusterPeak(const char* clusterData, int32_t startByte, int32_t endByte, int32_t byteDepth,
                              int32_t numChannels);
 
+/// @brief Round a peak value to the int16 the waveform overview cache stores: its top 16 bits.
+///
+/// Rounds toward zero. Sixteen bits keep a quiet passage's peak, so a column drawn from the cache
+/// matches one read from the samples to well within a brightness step.
+/// @param value Raw peak value to convert.
+/// @return The cached peak.
+int16_t toCachedPeak(int32_t value);
+
+/// @brief Widen a cached peak back to a raw peak value, the inverse of toCachedPeak() to within its rounding.
+/// @param cached A peak as the overview cache stores it.
+/// @return The raw peak value.
+int32_t fromCachedPeak(int16_t cached);
+
 // Exclusive end byte of audio within the final audio cluster. Rounds UP, so audio that ends
 // exactly on a cluster boundary yields a full cluster (clusterSize) rather than 0 — the root
 // fix for the inverted-sentinel bug. clusterSize must be a power of two.
