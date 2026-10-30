@@ -1312,6 +1312,22 @@ int32_t* getInputReadPos(AudioInputChannel channel) {
 	                                           : codecPos;
 }
 
+namespace {
+
+/// The song's post-FX volume as the metronome takes it: the song volume param's final value, halved; ONE_Q31 with no
+/// song.
+int32_t metronomeVolumePostFx() {
+	if (currentSong == nullptr) {
+		return ONE_Q31;
+	}
+	return getFinalParameterValueVolume(
+	           134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
+	                          deluge::modulation::params::UNPATCHED_VOLUME)))
+	       >> 1;
+}
+
+} // namespace
+
 void renderAudio(size_t numSamples) {
 	std::span renderingBuffer{renderingMemory.data(), numSamples};
 	std::span reverbBuffer{reverbMemory.data(), numSamples};
@@ -1344,7 +1360,9 @@ void renderAudio(size_t numSamples) {
 		masterVolumeAdjustmentR = kMasterVolumeWithoutSong;
 	}
 
-	metronome.render(renderingBuffer);
+	if (metronome.sounding()) {
+		metronome.render(renderingBuffer, metronomeVolumePostFx());
+	}
 
 	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer);
 
