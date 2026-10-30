@@ -30,8 +30,9 @@
 ///    volume, and the class keeps only the fields the render reads;
 ///  - the output stage's fold adds into two ints where the app adds into its loop's locals, and leaves the ring advance
 ///    to the caller;
-///  - the track loop takes its ring end and length as arguments where the app reads the engine's buffers, and its
-///    input channel enum is declared here;
+///  - the track loop takes its ring end and length as arguments where the app reads the engine's buffers, its input
+///    channel enum is declared here, and its `output_sample += …` are written per channel, the same sums, so they fall
+///    inside the function's own body where UBSan's overflow check is off (StereoSample's operator+= is checked);
 ///  - every function holding a plain signed sum or shift that can overflow at full scale is marked
 ///    @ref DELUGE_REFERENCE_EFFECTS_LEGACY_ARITHMETIC.
 
@@ -405,24 +406,34 @@ track_monitor(AudioInputChannel input_channel, std::span<StereoSample> output, c
 		};
 
 		switch (input_channel) {
-		case AudioInputChannel::LEFT:
-			output_sample += StereoSample::fromMono(input.l);
-			break;
+		case AudioInputChannel::LEFT: {
+			const q31_t mono = input.l;
+			output_sample.l += mono;
+			output_sample.r += mono;
+		} break;
 
-		case AudioInputChannel::RIGHT:
-			output_sample += StereoSample::fromMono(input.r);
-			break;
+		case AudioInputChannel::RIGHT: {
+			const q31_t mono = input.r;
+			output_sample.l += mono;
+			output_sample.r += mono;
+		} break;
 
-		case AudioInputChannel::BALANCED:
-			output_sample += StereoSample::fromMono((input.l / 2) - (input.r / 2));
-			break;
+		case AudioInputChannel::BALANCED: {
+			const q31_t mono = (input.l / 2) - (input.r / 2);
+			output_sample.l += mono;
+			output_sample.r += mono;
+		} break;
 
 		case AudioInputChannel::NONE: // Means combine channels
-			output_sample += StereoSample::fromMono((input.l / 2) + (input.r / 2));
-			break;
+		{
+			const q31_t mono = (input.l / 2) + (input.r / 2);
+			output_sample.l += mono;
+			output_sample.r += mono;
+		} break;
 
 		default: // STEREO
-			output_sample += input;
+			output_sample.l += input.l;
+			output_sample.r += input.r;
 			break;
 		}
 

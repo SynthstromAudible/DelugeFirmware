@@ -21,8 +21,10 @@
 #include "chrono"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
-#include "deluge_resource.h"                      // deluge_resource_stats (loader instrumentation)
+#include "deluge_resource.h" // deluge_resource_stats (loader instrumentation)
+#include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/dynamics/hit_strength.h" // combine_hit_strengths
+#include "dsp-next/fixed/mix/output_fold.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "engines/effects/reverb.h"
 #include "engines/effects/sidechain.h"
@@ -468,12 +470,8 @@ static void advanceInputRingPos(size_t numSamples) {
 	}
 }
 
-bool inputMonitoringWarmedUp = false;
+deluge::audio::InputMonitor inputMonitor{};
 bool usbInputMonitoredByTrack = false;
-// ~500ms after power-on for the codec ADC to settle before we start monitoring its input (see inputMonitoringWarmedUp),
-// then ~50ms to fade it in so monitoring doesn't switch on with a click.
-constexpr uint32_t kInputMonitoringWarmupSamples = kSampleRate / 2;
-constexpr uint32_t kInputMonitoringFadeInSamples = kSampleRate / 20;
 volatile int voices_started_this_render = 0;
 bool headphonesPluggedIn;
 bool micPluggedIn;
@@ -495,9 +493,6 @@ StereoSample* renderingBufferOutputEnd = renderingMemory.begin();
 
 int32_t masterVolumeAdjustmentL;
 int32_t masterVolumeAdjustmentR;
-
-bool doMonitoring;
-MonitoringAction monitoringAction;
 
 deluge::AudioOwnedList<Sound, deluge::fast_vector<Sound*>> sounds;
 std::atomic<bool> renderDrivenByTier{false};
@@ -1201,10 +1196,7 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 
 		// Once the codec has had time to settle after power-on and monitoring has faded in, allow full input
 		// monitoring. Latches true and stays true, so audioSampleTimer wrapping around can't mute monitoring again.
-		if (!inputMonitoringWarmedUp
-		    && audioSampleTimer >= kInputMonitoringWarmupSamples + kInputMonitoringFadeInSamples) {
-			inputMonitoringWarmedUp = true;
-		}
+		inputMonitor.advance_time(audioSampleTimer);
 	}
 
 #if DO_AUDIO_LOG
@@ -1280,22 +1272,6 @@ extern "C" bool deluge_app_audio_tick() noexcept {
 		AudioEngine::audioRoutineLocked = false;
 		return false;
 	}
-}
-
-q31_t getInputMonitoringGain(uint32_t offset) {
-	if (inputMonitoringWarmedUp) {
-		return std::numeric_limits<q31_t>::max();
-	}
-	uint32_t time = audioSampleTimer + offset;
-	if (time <= kInputMonitoringWarmupSamples) {
-		return 0;
-	}
-	uint32_t elapsed = time - kInputMonitoringWarmupSamples;
-	if (elapsed >= kInputMonitoringFadeInSamples) {
-		return std::numeric_limits<q31_t>::max();
-	}
-	return static_cast<q31_t>((static_cast<uint64_t>(elapsed) * std::numeric_limits<q31_t>::max())
-	                          / kInputMonitoringFadeInSamples);
 }
 
 int32_t* getInputBufferStart(AudioInputChannel channel) {
@@ -1423,8 +1399,7 @@ void renderAudioForStemExport(size_t numSamples) {
 
 	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer);
 
-	doMonitoring = false;
-	monitoringAction = MonitoringAction::NONE;
+	inputMonitor.decide({});
 
 	renderingBufferOutputPos = renderingMemory.begin();
 	renderingBufferOutputEnd = renderingMemory.begin() + numSamples;
@@ -1585,46 +1560,19 @@ void renderSamplePreview(size_t numSamples) { // Previewing sample
 		sampleForPreview->render(modelStack, renderingBuffer, reverbBuffer.data(), sideChainHitPending);
 	}
 }
-void setMonitoringMode() { // Monitoring setup
-	doMonitoring = false;
-	if (audioRecorder.recordingSource == AudioInputChannel::USB) {
-		// No risk of feedback from the internal mic here, so "conditional" means on. Unless it's already being sent
-		// straight to the outputs - then we'd hear it twice
-		doMonitoring = (inputMonitoringMode != InputMonitoringMode::OFF && !usb_audio::directMonitoring);
-		monitoringAction = MonitoringAction::NONE;
-		return;
-	}
-	if (audioRecorder.recordingSource == AudioInputChannel::STEREO
-	    || audioRecorder.recordingSource == AudioInputChannel::LEFT) {
-		if (inputMonitoringMode == InputMonitoringMode::SMART) {
-			doMonitoring = (lineInPluggedIn || headphonesPluggedIn);
-		}
-		else {
-			doMonitoring = (inputMonitoringMode == InputMonitoringMode::ON);
-		}
-	}
-
-	monitoringAction = MonitoringAction::NONE;
-	if (doMonitoring && audioRecorder.recorder) { // Double-check
-		if (lineInPluggedIn) {                    // Line input
-			if (audioRecorder.recorder->inputLooksDifferential()) {
-				monitoringAction = MonitoringAction::SUBTRACT_RIGHT_CHANNEL;
-			}
-			else if (audioRecorder.recorder->inputHasNoRightChannel()) {
-				monitoringAction = MonitoringAction::REMOVE_RIGHT_CHANNEL;
-			}
-		}
-
-		else if (micPluggedIn) { // External mic
-			if (audioRecorder.recorder->inputHasNoRightChannel()) {
-				monitoringAction = MonitoringAction::REMOVE_RIGHT_CHANNEL;
-			}
-		}
-
-		else { // Internal mic
-			monitoringAction = MonitoringAction::REMOVE_RIGHT_CHANNEL;
-		}
-	}
+void setMonitoringMode() {
+	SampleRecorder* const recorder = audioRecorder.recorder;
+	inputMonitor.decide({
+	    .source = audioRecorder.recordingSource,
+	    .mode = inputMonitoringMode,
+	    .usb_direct_monitoring = usb_audio::directMonitoring,
+	    .line_in = lineInPluggedIn,
+	    .headphones = headphonesPluggedIn,
+	    .mic = micPluggedIn,
+	    .recorder = recorder != nullptr,
+	    .looks_differential = recorder != nullptr && recorder->inputLooksDifferential(),
+	    .no_right_channel = recorder != nullptr && recorder->inputHasNoRightChannel(),
+	});
 }
 void scheduleMidiGateOutISR(size_t numSamples) {
 	CriticalSectionGuard guard;
@@ -1826,6 +1774,8 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 	int32_t const* const lineInEnd = inputRingEnd();
 
 	bool outputRealAudio = (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline));
+	bool const monitorInput = inputMonitor.on();
+	deluge::dsp::fixed::OutputFold const monitorFold = inputMonitor.fold();
 
 	while (renderingBufferOutputPosNow != renderingBufferOutputEnd && numSamplesOutputted < maxSamples) {
 
@@ -1844,25 +1794,11 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 		int32_t lAdjusted = lAdjustedBig >> 32;
 		int32_t rAdjusted = rAdjustedBig >> 32;
 
-		if (doMonitoring) {
-
-			if (monitoringAction == MonitoringAction::SUBTRACT_RIGHT_CHANNEL) {
-				int32_t value = (inputReadPos[0] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS + 1))
-				                - (inputReadPos[1] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
-				lAdjusted += value;
-				rAdjusted += value;
-			}
-
-			else {
-				lAdjusted += inputReadPos[0] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS);
-
-				if (monitoringAction == MonitoringAction::NONE) {
-					rAdjusted += inputReadPos[1] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS);
-				}
-				else { // Remove right channel
-					rAdjusted += inputReadPos[0] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS);
-				}
-			}
+		if (monitorInput) {
+			const StereoSample monitored = deluge::dsp::fixed::output_monitor_fold(
+			    monitorFold, {.l = inputReadPos[0], .r = inputReadPos[1]}, AUDIO_OUTPUT_GAIN_DOUBLINGS);
+			lAdjusted = deluge::dsp::wrapping_add(lAdjusted, monitored.l);
+			rAdjusted = deluge::dsp::wrapping_add(rAdjusted, monitored.r);
 
 			inputReadPos += NUM_MONO_INPUT_CHANNELS;
 			if (inputReadPos >= inputBufferEnd) {

@@ -23,6 +23,7 @@
 #include "memory/fast_allocator.h"
 #include "memory/object_pool.h"
 #include "model/output.h"
+#include "processing/engines/input_monitor.h"
 #include "runtime/app_loop.h"
 #include "util/audio_owned_list.h"
 #include "util/containers.h"
@@ -251,10 +252,9 @@ extern bool micPluggedIn;
 extern bool lineInPluggedIn;
 extern bool renderInStereo;
 extern uint32_t audioSampleTimer;
-// Latches true once enough samples have elapsed since power-on for the codec ADC to settle and input monitoring to
-// fade in. Until then, input monitoring (Looper/Sampler) is suppressed and then faded in, so the codec's power-on
-// transient isn't passed through to the output. See getInputMonitoringGain().
-extern bool inputMonitoringWarmedUp;
+/// The output stage's monitoring decision, and the warm-up that keeps the codec's power-on transient out of an audio
+/// track's monitoring (Looper/Sampler) until it has settled and faded in.
+extern deluge::audio::InputMonitor inputMonitor;
 // Set during a render if any audio track is monitoring the USB input. USB direct monitoring stands aside for that
 // window, or the host's audio would be heard twice. Cleared at the start of each render
 extern bool usbInputMonitoredByTrack;
@@ -308,9 +308,6 @@ void cancelScheduledGates(uint8_t gateMask, const CriticalSectionGuard&);
 /// Called from the MIDI/gate output timer's interrupt. Sends any MIDI/gate output which is due and arms the timer for
 /// the rest
 void midiGateOutputTimerFired();
-/// Gain to apply to monitored codec input, `offset` samples into the buffer currently being rendered. 0 until the
-/// codec has settled after power-on, then ramps up to full scale.
-q31_t getInputMonitoringGain(uint32_t offset);
 
 /// Each live input source has a ring buffer laid out like the input ring - same length, same stereo interleaving -
 /// and kept in step with it, so the same offset into any of them is the same moment. These find the one for a source:

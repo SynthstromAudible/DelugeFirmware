@@ -239,6 +239,9 @@ set(bitcrush_kernels_spec_DEPS)
 # The click is header-only; the spec computes the menu volume as the metronome does.
 set(click_spec_DEPS ${_repo_root}/src/deluge/processing/metronome/metronome.cpp)
 
+# The input folds are header-only.
+set(input_monitor_spec_DEPS)
+
 # The frozen effects reference against the live effects it was copied from. Both are the legacy arithmetic, whose
 # plain signed sums overflow at full scale as the target's add wraps, so UBSan's checks are off for this spec alone.
 set(reference_effects_spec_DEPS
