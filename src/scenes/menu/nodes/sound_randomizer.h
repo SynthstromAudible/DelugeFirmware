@@ -76,21 +76,21 @@ namespace deluge::scenes::menu::nodes {
 /// @brief One MIDI/CV randomizer column: the arp's host row at @p path, which a MIDI or CV arp holds as a setting and
 ///        legacy's items write on the selected arp alone (`randomizer/midi_cv/randomizer_integer.h:22-32`).
 #define DELUGE_RANDOMIZER_MIDI(node_name, name_id, title_id, path, hint)                                               \
-	inline constexpr Node node_name =                                                                                  \
+	inline constexpr Node node_name = with_short_column_label(                                                         \
 	    with_title(setting_item(sid(deluge::l10n::String::name_id), Kind::Int, arp_row(path, false), hint),            \
-	               sid(deluge::l10n::String::title_id))
+	               sid(deluge::l10n::String::title_id)))
 
 /// @brief One sound-side randomizer column: an unpatched `ParamRef`.
 #define DELUGE_RANDOMIZER_PARAM(node_name, name_id, title_id, param_id, rel, hint)                                     \
-	inline constexpr Node node_name =                                                                                  \
+	inline constexpr Node node_name = with_short_column_label(                                                         \
 	    param(sid(deluge::l10n::String::name_id),                                                                      \
 	          {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::param_id}, hint, rel,    \
-	          sid(deluge::l10n::String::title_id))
+	          sid(deluge::l10n::String::title_id)))
 
-inline constexpr Node randomizer_lock =
+inline constexpr Node randomizer_lock = with_short_column_label(
     with_selection_is_toggle(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RANDOMIZER_LOCK), Kind::Enum,
                                                      arp_row("arpeggiator/randomizerLock")),
-                                        sid(deluge::l10n::String::STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE)));
+                                        sid(deluge::l10n::String::STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE))));
 
 // `RandomizerUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h:31-42`) -- the non-global
 // ids need the arpeggiator on, the three global ones do not.

@@ -760,6 +760,12 @@ struct Node {
 	/// == Kind::Toggle` rather than replacing it -- a `Kind::Toggle` node does not also set this.
 	bool selection_is_toggle = false;
 
+	/// @brief The column label is the short form of the name (`gui/l10n/short_label.h`): legacy's `getColumnLabel`
+	///        overrides on the arpeggiator, randomizer and modulator items.
+	bool short_column_label = false;
+	/// @brief A column shows each option's short form: legacy's `getOptions(OptType::SHORT)` overrides.
+	bool short_options = false;
+
 	/// @brief The number that fills the `*` placeholder in this node's name and title: legacy's
 	///        `FormattedTitle` argument (`gui/menu_item/formatted_title.h`).
 	///
@@ -805,6 +811,18 @@ constexpr Node with_allow_session_from_horizontal(Node n) {
 ///        in the whole tree set it.
 constexpr Node with_selection_is_toggle(Node n) {
 	n.selection_is_toggle = true;
+	return n;
+}
+
+/// @brief `n` with `short_column_label` set.
+constexpr Node with_short_column_label(Node n) {
+	n.short_column_label = true;
+	return n;
+}
+
+/// @brief `n` with `short_options` set.
+constexpr Node with_short_options(Node n) {
+	n.short_options = true;
 	return n;
 }
 

@@ -117,8 +117,14 @@ IntRange range(const Node& node, const MenuContext& ctx);
 ///                frame for at least as long as @p out is read. Must be the same length as @p out;
 ///                the shorter of the two bounds the result if they differ.
 /// @return How many names were written.
+/// @brief Which spelling of an option `names` writes.
+enum class NameForm : uint8_t {
+	Full,  ///< the option's name: a list row, a notification
+	Short, ///< a horizontal column's: the short form where the node takes one (`Node::short_options`)
+};
+
 size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_view> out,
-             std::span<deluge::ui::shell::TextScratch> scratch);
+             std::span<deluge::ui::shell::TextScratch> scratch, NameForm form = NameForm::Full);
 
 /// @brief What a MIDI knob learned on @p node turns: the param, on the controls of the owner @p ctx edits --
 ///        `PatchedParam`/`UnpatchedParam::getLearningThing` (`gui/menu_item/patched_param.cpp:51-55`,

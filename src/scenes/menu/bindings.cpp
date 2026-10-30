@@ -54,6 +54,7 @@
 /// **`currentSong` references in this file: 0** (a ratchet holds it there).
 
 #include "scenes/menu/bindings.h"
+#include "gui/l10n/short_label.h"
 
 #include "scenes/bind/param_display.h"
 
@@ -311,7 +312,7 @@ IntRange range(const Node& node, const MenuContext& ctx) {
 }
 
 size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_view> out,
-             std::span<deluge::ui::shell::TextScratch> scratch) {
+             std::span<deluge::ui::shell::TextScratch> scratch, NameForm form) {
 	// The two spans are documented as the same length; the shorter one wins if a caller gets it
 	// wrong, so a mismatch truncates rather than writing past either end.
 	const size_t limit = std::min({out.size(), scratch.size(), kMaxDynamicNames});
@@ -320,6 +321,16 @@ size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_vie
 	}
 
 	const deluge::ui::shell::BoardProfile& text = scenes::deluge_profile();
+	const bool short_form = form == NameForm::Short && node.short_options;
+	// An id's text in the form asked for: the short table's entry where the node shortens and there is one.
+	const auto name_of = [&](uint16_t id, deluge::ui::shell::TextScratch& slot) {
+		if (short_form) {
+			if (const auto shortened = deluge::l10n::shortForm(static_cast<deluge::l10n::String>(id))) {
+				return *shortened;
+			}
+		}
+		return text.text_or_digits(id, slot);
+	};
 	if (node.bind.target.valid()) {
 		if (ctx.model == nullptr || ctx.facts == nullptr) {
 			return 0;
@@ -328,7 +339,7 @@ size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_vie
 		const size_t count = std::min(
 		    deluge::scenes::bind::choice_names(node.bind.target, *ctx.model, ctx.addresses, *ctx.facts, listed), limit);
 		for (size_t i = 0; i < count; ++i) {
-			const std::string_view name = text.text_or_digits(static_cast<uint16_t>(listed[i].name), scratch[i]);
+			const std::string_view name = name_of(static_cast<uint16_t>(listed[i].name), scratch[i]);
 			if (!listed[i].unavailable) {
 				out[i] = name;
 				continue;
@@ -355,7 +366,7 @@ size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_vie
 	// `shell/profile.h:147` already implements the digits fallback for an id with no entry.
 	const size_t count = std::min(node.bind.names.size(), limit);
 	for (size_t i = 0; i < count; ++i) {
-		out[i] = text.text_or_digits(node.bind.names[i], scratch[i]);
+		out[i] = name_of(node.bind.names[i], scratch[i]);
 	}
 	return count;
 }

@@ -104,6 +104,7 @@ constexpr uint16_t sid(String s) {
 //                                                     button-focus/already-focused-press pair
 
 int32_t g_enum_col = 0;
+constexpr uint16_t kShortEnumNames[] = {sid(String::STRING_FOR_UP), sid(String::STRING_FOR_RANDOM)};
 constexpr uint16_t kEnumColNames[] = {sid(String::STRING_FOR_DISABLED), sid(String::STRING_FOR_ENABLED),
                                       sid(String::STRING_FOR_OFF)};
 int32_t get_enum_col(const MenuContext&) {
@@ -371,6 +372,42 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 			r.shell.tick(t);
 		}
 		expect(g_chain_col).to_equal(8);
+	});
+
+	it("an enum column's notification names the option, as Selection::getNotificationValue does", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(horiz_page);
+		r.shell.tick(0);
+		g_enum_col = 0;
+		(void)raised_notices();
+		r.turn(1, 10);
+		r.shell.tick(20);
+		const deluge::notify::Notice n = expect_one_notification(self, raised_notices());
+		expect(std::string(n.notification_value())).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_ENABLED)));
+	});
+
+	it("a column whose legacy item shortens draws main's short label and short option", _ {
+		// `arpeggiator::NoteMode` overrides `getColumnLabel` and `getOptions(SHORT)` with the short table.
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		constexpr Node shortened = menu::with_short_options(menu::with_short_column_label(
+		    menu::enumeration(sid(String::STRING_FOR_NOTE_MODE), kShortEnumNames, get_enum_col, set_enum_col)));
+		constexpr Node plain =
+		    menu::enumeration(sid(String::STRING_FOR_NOTE_MODE), kShortEnumNames, get_enum_col, set_enum_col);
+		menu::NodeText label_scratch;
+		expect(std::string(menu::column_label(shortened, ctx, label_scratch))).to_equal(std::string("NMOD"));
+		expect(std::string(menu::column_label(plain, ctx, label_scratch)))
+		    .to_equal(std::string(deluge::l10n::get(String::STRING_FOR_NOTE_MODE)));
+
+		std::array<std::string_view, 2> names{};
+		std::array<deluge::ui::shell::TextScratch, 2> scratch{};
+		expect(menu::bindings::names(shortened, ctx, names, scratch, menu::bindings::NameForm::Short)).to_equal(size_t{2});
+		expect(std::string(names[1])).to_equal(std::string("RAND"));
+		expect(menu::bindings::names(plain, ctx, names, scratch, menu::bindings::NameForm::Short)).to_equal(size_t{2});
+		expect(std::string(names[1])).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_RANDOM)));
 	});
 
 	it("a select turn on a focused submenu column does nothing", _ {

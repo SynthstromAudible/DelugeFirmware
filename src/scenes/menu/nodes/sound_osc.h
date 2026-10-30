@@ -281,11 +281,11 @@ DELUGE_OSC_MODULATOR(1, "modulator2");
 #undef DELUGE_OSC_MODULATOR
 
 inline constexpr Node modulator_dest =
-    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_DESTINATION), Kind::Enum,
-                            {.kind = deluge::scenes::bind::Target::Kind::SOUND,
-                             .path = "modulator2/toModulator1",
-                             .fan_out_when = fan_out::kFm}),
-               sid(deluge::l10n::String::STRING_FOR_FM_MOD2_DEST_MENU_TITLE));
+    with_short_options(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_DESTINATION), Kind::Enum,
+                                               {.kind = deluge::scenes::bind::Target::Kind::SOUND,
+                                                .path = "modulator2/toModulator1",
+                                                .fan_out_when = fan_out::kFm}),
+                                  sid(deluge::l10n::String::STRING_FOR_FM_MOD2_DEST_MENU_TITLE)));
 
 inline constexpr const Node* kModulator0Children[] = {&modulator0_transpose, &modulator0_feedback,
                                                       &modulator0_phase_node};

@@ -40,6 +40,7 @@
 #include "scenes/profile.h"
 
 #include "gfx/oled/icons.h"
+#include "gui/l10n/short_label.h"
 #include "gui/l10n/strings.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h" // Song::getInputTickMagnitude() -- Kind::SyncLevel's value text
@@ -281,6 +282,15 @@ const Node* horizontal_page_listing(const Node& node, const Node& item) {
 }
 
 } // namespace
+
+std::string_view column_label(const Node& node, const MenuContext& ctx, NodeText& scratch) {
+	if (node.short_column_label) {
+		if (const auto shortened = deluge::l10n::shortForm(static_cast<deluge::l10n::String>(node.name))) {
+			return *shortened;
+		}
+	}
+	return node_text(node.name, node, ctx, scratch);
+}
 
 std::string_view node_text(uint16_t string_id, const Node& node, const MenuContext& ctx, NodeText& scratch) {
 	const std::string_view text = text_of(string_id, scratch.digits);
@@ -731,7 +741,7 @@ size_t MenuScene::build_column_list(const Node& node, std::span<const Node*> kid
 	for (size_t i = 0; i < n; i++) {
 		const Node& kid = *kids[i];
 		cols[i] = deluge::ui::oled::Column{};
-		cols[i].label = node_text(kid.name, kid, ctx_, label_scratch[i]);
+		cols[i].label = column_label(kid, ctx_, label_scratch[i]);
 		cols[i].slots = kid.slots;
 		cols[i].show_label = true;
 		cols[i].relevant = bindings::relevant(kid, ctx_);
@@ -777,6 +787,19 @@ void MenuScene::notify_column(const Node& column) {
 	}
 	else if (column.kind == Kind::Decimal) {
 		value = format_decimal(bindings::read(column, ctx_), column.bind.decimal_places, value_buf, sizeof(value_buf));
+	}
+	else if (column.kind == Kind::Enum) {
+		// `Selection::getNotificationValue` (`selection.cpp:77-79`): the option's full name.
+		std::array<std::string_view, kMaxDynamicNames> names{};
+		std::array<deluge::ui::shell::TextScratch, kMaxDynamicNames> scratch{};
+		const size_t count = bindings::names(column, ctx_, names, scratch);
+		if (count != 0) {
+			const std::string_view name =
+			    names[static_cast<size_t>(clamp_to(bindings::read(column, ctx_), 0, static_cast<int32_t>(count) - 1))];
+			const size_t copied = std::min(name.size(), sizeof(value_buf));
+			std::memcpy(value_buf, name.data(), copied);
+			value = std::string_view{value_buf, copied};
+		}
 	}
 	else {
 		value = format_int(bindings::read(column, ctx_), value_buf, sizeof(value_buf));
@@ -1028,7 +1051,7 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 			cols[i].ctx = &toggles[i];
 			break;
 		case Kind::Enum: {
-			const size_t count = bindings::names(kid, ctx_, names_buf, names_scratch);
+			const size_t count = bindings::names(kid, ctx_, names_buf, names_scratch, bindings::NameForm::Short);
 			const std::string_view name =
 			    count == 0 ? std::string_view{} : names_buf[static_cast<size_t>(clamp_to(value, 0, count - 1))];
 			const size_t copied = std::min(name.size(), sizeof(value_buf[i]));

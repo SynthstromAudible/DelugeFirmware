@@ -1038,4 +1038,12 @@ std::optional<deluge::project::ParamAddress> automation_address(const Node& item
 /// @return The text, unchanged when @p node has no argument or the text no `*`.
 std::string_view node_text(uint16_t string_id, const Node& node, const MenuContext& ctx, NodeText& scratch);
 
+/// @brief The label a horizontal column draws for @p node: legacy's `getColumnLabel`, the name or, on a node that
+///        shortens it, the short form (`Node::short_column_label`).
+/// @param node    The column's node.
+/// @param ctx     The menu context.
+/// @param scratch Storage the returned view may point into.
+/// @return The label text.
+std::string_view column_label(const Node& node, const MenuContext& ctx, NodeText& scratch);
+
 } // namespace deluge::scenes::menu
