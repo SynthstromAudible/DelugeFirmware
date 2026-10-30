@@ -152,11 +152,12 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 	if (doOscSync) [[unlikely]] {
 doOscSyncSetup:
 
-		resetterDivideByPhaseIncrement = // You should >> 47 if multiplying by this.
-		    (uint32_t)2147483648u
-		    / (uint16_t)((resetterPhaseIncrement + 65535)
-		                 >> 16); // Round resetterPhaseIncrement up first, so resetterDivideByPhaseIncrement gets a tiny
-		                         // bit smaller, so things multiplied by it don't get a bit too big and overflow.
+		// Round resetterPhaseIncrement up first, so resetterDivideByPhaseIncrement gets a tiny bit smaller, so things
+		// multiplied by it don't get a bit too big and overflow.
+		uint16_t divisor = (resetterPhaseIncrement + 65535) >> 16;
+		// You should >> 47 if multiplying by this. 2^31 / divisor in double is exact (when it isn't a whole number it's
+		// at least 2^-16 from one, way more than the rounding), and much quicker than the library's integer divide
+		resetterDivideByPhaseIncrement = static_cast<uint32_t>(2147483648.0 / divisor);
 	}
 
 skipPastOscSyncStuff:
