@@ -20,7 +20,7 @@
 #include "libdeluge/file_stream.h"
 
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
+#include "dsp-next/core/stereo_sample.h"
 #include "io/file.hpp"
 #include "io/stream.hpp"
 #include "libdeluge/sample_source.h" // DELUGE_REGION_LOADING
@@ -30,6 +30,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h"
 #include "storage/cluster/cluster.h"
+#include "util/functions.h"
 
 #include <memory>
 

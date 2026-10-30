@@ -17,7 +17,8 @@
 
 #pragma once
 
-#include "dsp/stereo_sample.h"
+#include "dsp-next/core/stereo_sample.h"
+#include "util/functions.h"
 #include <cmath>
 #include <span>
 

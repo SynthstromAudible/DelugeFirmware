@@ -18,13 +18,14 @@
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
+#include "dsp-next/core/stereo_sample.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/view.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/edits/change_effect.h"
 #include "processing/engines/audio_engine.h"
+#include "util/functions.h"
 #include <limits>
 #include <string.h>
 // #include <algorithm>

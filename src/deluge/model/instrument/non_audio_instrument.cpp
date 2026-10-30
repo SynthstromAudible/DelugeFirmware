@@ -18,7 +18,7 @@
 #include "model/instrument/non_audio_instrument.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
-#include "dsp/stereo_sample.h"
+#include "dsp-next/core/stereo_sample.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "modulation/arpeggiator.h"

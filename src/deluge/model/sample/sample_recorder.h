@@ -22,10 +22,11 @@
 #include "model/sample/recorder_write_policy.h"
 
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/stereo_sample.h"
 #include "dsp/envelope_follower/absolute_value.h"
-#include "dsp/stereo_sample.h"
 #include "io/stream.hpp"
 #include "memory/fast_allocator.h"
+#include "util/functions.h"
 #include "util/segmented_vector.h"
 #include <array>
 #include <atomic>

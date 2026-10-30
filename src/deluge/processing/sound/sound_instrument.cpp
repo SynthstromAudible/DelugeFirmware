@@ -17,7 +17,7 @@
 
 #include "processing/sound/sound_instrument.h"
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
+#include "dsp-next/core/stereo_sample.h"
 #include "gui/views/view.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
@@ -32,6 +32,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
+#include "util/functions.h"
 #include "util/misc.h"
 
 namespace params = deluge::modulation::params;

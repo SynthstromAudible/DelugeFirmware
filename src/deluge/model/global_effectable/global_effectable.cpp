@@ -18,7 +18,7 @@
 #include "model/global_effectable/global_effectable.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
-#include "dsp/stereo_sample.h"
+#include "dsp-next/core/stereo_sample.h"
 #include "engines/effects/codec.h"
 #include "engines/effects/words.h"
 #include "gui/l10n/l10n.h"
@@ -44,6 +44,7 @@
 #include "storage/storage_manager.h"
 #include "util/etl_string.h"
 #include "util/firmware_version.h"
+#include "util/functions.h"
 
 using namespace deluge;
 namespace params = deluge::modulation::params;

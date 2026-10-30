@@ -17,8 +17,8 @@
 
 #include "model/sample/sample_low_level_reader.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/interpolation/interpolator.h"
-#include "dsp/stereo_sample.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "harness/streaming_underrun.h"
 #include "hid/display/display.h"
@@ -28,6 +28,7 @@
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "storage/cluster/cluster.h"
+#include "util/functions.h"
 
 SampleLowLevelReader::~SampleLowLevelReader() {
 	unassignAllReasons(false);

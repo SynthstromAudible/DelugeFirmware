@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
+#include "dsp-next/core/stereo_sample.h"
 #include "engines/effects/delay.h"
 #include "hid/button.h"
 #include "model/mod_controllable/filters/filter_config.h"
@@ -28,6 +28,7 @@
 #include "modulation/params/param_descriptor.h"
 #include "modulation/params/param_set.h"
 #include "synth/lfo.h"
+#include "util/functions.h"
 
 #include "engine-api/engine.h"
 #include "engines/effects/chain_core.h"

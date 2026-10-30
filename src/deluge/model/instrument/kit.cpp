@@ -17,7 +17,7 @@
 
 #include "model/instrument/kit.h"
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
+#include "dsp-next/core/stereo_sample.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"

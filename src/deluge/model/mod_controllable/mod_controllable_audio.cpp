@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
 #include "deluge/model/settings/runtime_feature_settings.h"
-#include "dsp/stereo_sample.h"
+#include "dsp-next/core/stereo_sample.h"
 #include "engines/deluge/sound_state.h"
 #include "engines/effects/codec.h"
 #include "gui/l10n/l10n.h"
@@ -57,6 +57,7 @@
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
 #include "util/etl_string.h"
+#include "util/functions.h"
 #include "util/structural_edit_probe.h"
 #include <algorithm>
 

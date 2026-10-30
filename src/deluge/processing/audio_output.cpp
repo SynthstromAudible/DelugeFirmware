@@ -20,8 +20,8 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/doc_output.h" // complete DocOutput type for the identity record
 #include "dsp-next/core/mono.h"
+#include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/mix/track_monitor.h"
-#include "dsp/stereo_sample.h"
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
@@ -35,6 +35,7 @@
 #include "storage/audio/audio_file.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
+#include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 #include <algorithm>
 #include <array>

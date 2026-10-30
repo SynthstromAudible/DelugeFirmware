@@ -18,12 +18,13 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
+#include "dsp-next/core/stereo_sample.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/rendering_drums.h"
 #include "modulation/arpeggiator.h"
 #include "util/containers.h"
+#include "util/functions.h"
 class InstrumentClip;
 class Drum;
 class Sound;
