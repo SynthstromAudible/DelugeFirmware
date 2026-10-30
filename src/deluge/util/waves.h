@@ -5,7 +5,7 @@
 
 #define CONG (jcong = deluge::dsp::fixed::CongruentialStep::next(jcong))
 
-extern uint32_t z, w, jcong;
+extern uint32_t jcong;
 
 /* Basic waveform generation functions.
  *

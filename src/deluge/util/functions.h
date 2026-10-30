@@ -144,7 +144,6 @@ char const* getFileNameFromEndOfPath(char const* filePathChars);
 
 int32_t getParamFromUserValue(uint8_t p, int8_t userValue);
 int32_t getLookupIndexFromValue(int32_t value, const int32_t* table, int32_t maxIndex);
-int32_t instantTan(int32_t input);
 
 int32_t cableToLinearParamShortcut(int32_t sourceValue);
 int32_t cableToExpParamShortcut(int32_t sourceValue);
@@ -168,14 +167,6 @@ template <unsigned saturationAmount>
 	return deluge::dsp::fixed::tanh<saturationAmount>(input);
 }
 
-[[gnu::always_inline]] inline int32_t getTanHUnknown(int32_t input, uint32_t saturationAmount) {
-	return deluge::dsp::fixed::tanh(input, saturationAmount);
-}
-
-#define znew (z = 36969 * (z & 65535) + (z >> 16))
-#define wnew (w = 18000 * (w & 65535) + (w >> 16))
-#define MWC (int32_t)((znew << 16) + wnew)
-
 [[gnu::always_inline]] inline uint8_t getRandom255() {
 	return CONG >> 24;
 }
@@ -198,8 +189,6 @@ int32_t random(int32_t upperLimit);
 bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR);
 
 uint32_t getOscInitialPhaseForZero(OscType waveType);
-int32_t doLanczos(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t memoryNumElements);
-int32_t doLanczosCircular(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t memoryNumElements);
 
 [[gnu::always_inline]] inline int32_t increaseMagnitude(int32_t number, int32_t magnitude) {
 	if (magnitude >= 0) {

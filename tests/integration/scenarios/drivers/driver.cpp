@@ -41,10 +41,8 @@ namespace {
 
 bool g_done = false;
 
-// The random streams' static initial values (util/waves.cpp, util/functions.cpp).
+// The random stream's static initial value (util/waves.cpp).
 constexpr uint32_t kJcongSeed = 380116160;
-constexpr uint32_t kZSeed = 362436069;
-constexpr uint32_t kWSeed = 521288629;
 
 /// The arguments DRV_ARGS names, after argv[0].
 std::vector<std::string> arguments() {
@@ -138,7 +136,7 @@ void dispatch(Main main) {
 	{
 		// What a driver's own process started from, which its baselines were recorded against: no current or
 		// preloaded song until it sets one (a load converts some values relative to the current song's when there is
-		// one), the random streams at their static seeds (a load fills in what a file leaves out, an arpeggiator's
+		// one), the random stream at its static seed (a load fills in what a file leaves out, an arpeggiator's
 		// note pattern say, from them), and the settings it never read at zero (a default a file leaves out comes
 		// from them: an arpeggiator's sync level from the default magnitude, say).
 		Pinned current(currentSong, static_cast<Song*>(nullptr));
@@ -147,8 +145,6 @@ void dispatch(Main main) {
 		Pinned fileReader(activeDeserializer, activeDeserializer);
 		Pinned sampleTimer(AudioEngine::audioSampleTimer, AudioEngine::audioSampleTimer);
 		Pinned randomJ(jcong, kJcongSeed);
-		Pinned randomZ(z, kZSeed);
-		Pinned randomW(w, kWSeed);
 		Pinned scale(FlashStorage::defaultScale, uint8_t{0});
 		Pinned margins(FlashStorage::audioClipRecordMargins, false);
 		Pinned velocity(FlashStorage::defaultVelocity, uint8_t{0});
