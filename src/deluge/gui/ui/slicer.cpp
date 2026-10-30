@@ -52,7 +52,7 @@
 
 using namespace deluge::gui;
 
-Slicer slicer{};
+PLACE_SDRAM_BSS Slicer slicer{};
 
 namespace params = deluge::modulation::params;
 

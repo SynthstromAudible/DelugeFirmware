@@ -26,7 +26,7 @@
 #include "util/functions.h"
 
 namespace deluge::gui::context_menu::sample_browser {
-Kit kit{};
+PLACE_SDRAM_BSS Kit kit{};
 
 namespace {
 /// Closes just the ContextMenu when the folder import it asked for fails. An import that succeeds closes everything,

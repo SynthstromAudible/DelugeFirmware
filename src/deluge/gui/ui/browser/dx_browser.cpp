@@ -249,4 +249,4 @@ int32_t DxSyxBrowser::cartridgeGiveUps() {
 	return g_cartridgeGiveUps;
 }
 
-DxSyxBrowser dxBrowser{};
+PLACE_SDRAM_BSS DxSyxBrowser dxBrowser{};

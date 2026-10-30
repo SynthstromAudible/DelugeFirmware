@@ -29,7 +29,7 @@
 #include <cstdint>
 
 namespace deluge::gui::context_menu::sample_browser {
-Synth synth{};
+PLACE_SDRAM_BSS Synth synth{};
 
 namespace {
 

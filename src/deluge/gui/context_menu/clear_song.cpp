@@ -32,7 +32,7 @@
 extern void setUIForLoadedSong(Song* song);
 extern void deleteOldSongBeforeLoadingNew();
 namespace deluge::gui::context_menu {
-ClearSong clearSong{};
+PLACE_SDRAM_BSS ClearSong clearSong{};
 
 namespace {
 /// "Create New Song": ends playback, tears down the old song, builds a blank one and puts the UI back on it.

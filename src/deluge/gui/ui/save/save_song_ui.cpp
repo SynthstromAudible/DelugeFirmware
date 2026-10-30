@@ -50,7 +50,7 @@
 using namespace deluge;
 using namespace gui;
 
-SaveSongUI saveSongUI{};
+PLACE_SDRAM_BSS SaveSongUI saveSongUI{};
 
 SaveSongUI::SaveSongUI() {
 	filePrefix = "SONG";
