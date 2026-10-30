@@ -108,16 +108,17 @@ std::size_t build_destinations(PatcherRig& r, bool global, std::span<Destination
 
 void build(PatcherRig& r) {
 	for (const mm::WorkloadCable& w : mm::kCables) {
-		PatchCable* cable = r.cables.addCable();
-		cable->from = static_cast<PatchSource>(w.source);
-		cable->polarity = w.unipolar ? Polarity::UNIPOLAR : Polarity::BIPOLAR;
+		ParamDescriptor target;
 		if (w.range_of >= 0) {
-			cable->destinationParamDescriptor.setToHaveParamAndSource(
-			    w.param, static_cast<PatchSource>(mm::kCables[w.range_of].source));
+			target.setToHaveParamAndSource(w.param, static_cast<PatchSource>(mm::kCables[w.range_of].source));
 		}
 		else {
-			cable->destinationParamDescriptor.setToHaveParamOnly(w.param);
+			target.setToHaveParamOnly(w.param);
 		}
+		PatchCable* cable = r.cables.appendCable(
+		    {static_cast<PatchSource>(w.source),
+		     {target.data},
+		     w.unipolar ? deluge::synth::CablePolarity::UNIPOLAR : deluge::synth::CablePolarity::BIPOLAR});
 		cable->param.setCurrentValueBasicForSetup(w.amount);
 		cable->rangeAdjustmentPointer = &kNeutralRange;
 	}

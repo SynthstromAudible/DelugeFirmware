@@ -239,7 +239,8 @@ void SoundInstrument::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 
 	PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
-	patchCableSet->setupPatching(modelStackWithParamCollection);
+	patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+	                             *modelStackWithParamCollection->paramManager);
 }
 
 bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {

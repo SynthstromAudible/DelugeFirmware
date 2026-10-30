@@ -75,13 +75,6 @@ void PatchCable::setDefaultPolarity() {
 	polarity = getDefaultPolarity(from);
 }
 
-void PatchCable::setup(PatchSource newFrom, uint8_t newTo, int32_t newAmount) {
-	from = newFrom;
-	destinationParamDescriptor.setToHaveParamOnly(newTo);
-	initAmount(newAmount);
-	setDefaultPolarity();
-}
-
 void PatchCable::initAmount(int32_t value) {
 	// The cable's automation lives in its own inline store (amount_); the RT cursor is param.currentValue.
 	// Write the persisted scalar into the store too (the cable is unbound at creation, so amount_ IS the
@@ -89,8 +82,4 @@ void PatchCable::initAmount(int32_t value) {
 	amount_.nodes.clear();
 	amount_.current_value = value;
 	param.currentValue = value;
-}
-
-void PatchCable::makeUnusable() {
-	destinationParamDescriptor.setToNull();
 }

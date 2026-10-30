@@ -172,11 +172,7 @@ void route(PatchCableSet& set, ParamCollectionSummary& summary, const Topology& 
 	std::bitset<kMaxNumPatchCables> usable;
 	for (const TopologyCable& c : t.cables) {
 		usable[set.numPatchCables] = usableIn(t, c.from, c.target);
-		PatchCable* cable = set.addCable();
-		cable->from = c.from;
-		cable->destinationParamDescriptor = c.target;
-		cable->polarity = c.polarity;
-		cable->initAmount(0);
+		set.appendCable({c.from, {c.target.data}, static_cast<deluge::synth::CablePolarity>(c.polarity)});
 	}
 	set.setupPatching(summary, usable);
 }
@@ -206,6 +202,14 @@ bool agrees(const Topology& t, const PatchCableSet& set, int32_t seed) {
 	};
 	if (b.num_usable != set.numUsablePatchCables) {
 		return fail("usable count");
+	}
+	if (set.records().size() != set.numPatchCables) {
+		return fail("records count");
+	}
+	for (int32_t c = 0; c < set.numPatchCables; c++) {
+		if (set.records()[c] != recordOf(set.patchCables[c])) {
+			return fail("records");
+		}
 	}
 	for (int32_t c = 0; c < set.numPatchCables; c++) {
 		const PatchCable& cable = set.patchCables[c];

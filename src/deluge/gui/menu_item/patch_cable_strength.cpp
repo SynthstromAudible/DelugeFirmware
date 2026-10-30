@@ -382,7 +382,7 @@ void PatchCableStrength::setPatchCablePolarity(Polarity newPolarity) {
 	auto* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
 	if (const int32_t index = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
 	    index != kNoSelection) {
-		patchCableSet->patchCables[index].polarity = newPolarity;
+		patchCableSet->setPolarity(index, newPolarity);
 	}
 }
 

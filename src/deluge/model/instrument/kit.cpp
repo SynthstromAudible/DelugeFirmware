@@ -1077,7 +1077,8 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 				    modelStackWithThreeMainThings->addParamCollectionSummary(
 				        thisNoteRow->paramManager.getPatchCableSetSummary());
 				((PatchCableSet*)modelStackWithParamCollection->paramCollection)
-				    ->setupPatching(modelStackWithParamCollection);
+				    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+				                    *modelStackWithParamCollection->paramManager);
 			}
 		}
 	}
@@ -1108,7 +1109,8 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 				    modelStackWithThreeMainThings->addParamCollectionSummary(paramManager->getPatchCableSetSummary());
 
 				((PatchCableSet*)modelStackWithParamCollection->paramCollection)
-				    ->setupPatching(modelStackWithParamCollection);
+				    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+				                    *modelStackWithParamCollection->paramManager);
 			}
 		}
 	}

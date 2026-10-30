@@ -849,13 +849,14 @@ void editLeg() {
 		const uint8_t before = cables->numPatchCables;
 		ParamDescriptor destination;
 		destination.setToHaveParamOnly(deluge::modulation::params::LOCAL_PITCH_ADJUST);
-		const uint8_t c = cables->getPatchCableIndex(PatchSource::ENVELOPE_1, destination, ms, true);
+		auto& sound = *static_cast<Sound*>(ms->modControllable);
+		const uint8_t c = cables->findOrCreateCable(sound, *ms->paramManager, PatchSource::ENVELOPE_1, destination);
 		if (c == 255 || cables->numPatchCables != before + 1) {
 			fail("the patch cable was not added");
 			break;
 		}
 		g_step = "deletePatchCable";
-		cables->deletePatchCable(ms, c);
+		cables->deletePatchCable(sound, *ms->paramManager, c);
 		if (cables->numPatchCables != before) {
 			fail("the patch cable was not deleted");
 		}

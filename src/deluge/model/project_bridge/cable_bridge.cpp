@@ -49,15 +49,14 @@ void loadCables(PatchCableSet& set, const deluge::serialization::Value& patchCab
 	    });
 	set.truncateCables(0);
 	for (const deluge::instrument::CableState& state : cables) {
-		PatchCable* added = set.addCable();
+		const ParamDescriptor target =
+		    ParamDescriptor(static_cast<int32_t>(cableWordOf(state.depth()))).getDestination();
+		PatchCable* added =
+		    set.appendCable({state.source, {target.data}, static_cast<deluge::synth::CablePolarity>(state.polarity)});
 		if (added == nullptr) {
 			break; // out of memory, or at kMaxNumPatchCables: keep the cables read so far
 		}
 		PatchCable& cable = *added;
-		cable.from = static_cast<PatchSource>(state.source);
-		cable.destinationParamDescriptor =
-		    ParamDescriptor(static_cast<int32_t>(cableWordOf(state.depth()))).getDestination();
-		cable.polarity = static_cast<Polarity>(state.polarity);
 		deluge::project::DocAutoParam amount = amountOf(*state.amount, readAutomationUpToPos);
 		cable.param = AutoParam();
 		cable.param.currentValue = amount.current_value;

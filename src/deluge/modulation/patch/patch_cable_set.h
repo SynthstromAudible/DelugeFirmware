@@ -18,10 +18,13 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "instruments/deluge/cable_records.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/patch/patch_cable.h"
+#include "synth/modulation/patch_routing.h"
 #include <bitset>
 #include <memory>
+#include <span>
 #include <vector>
 
 namespace deluge::project {
@@ -33,6 +36,8 @@ struct DocAutoParam;
 class Song;
 class ModelStackWithParamCollection;
 class ModelStackWithThreeMainThings;
+class Sound;
+class ParamManager;
 class LearnedMIDI;
 class MIDICable;
 
@@ -80,17 +85,37 @@ public:
 	deluge::project::DocAutoParam* docForParam(int32_t i);
 	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override;
 
-	void setupPatching(ModelStackWithParamCollection const* modelStack);
-	/// @brief Reorder the cables and rebuild the Destinations as the render needs them.
+	/// @brief Compile the records into the routing the render walks, reordering the records (and the cables'
+	/// automation cursors) into the compiled order.
+	/// @param sound        The sound whose sources and params decide which cables may be patched.
+	/// @param paramManager The sound's params, which that decision reads.
+	void setupPatching(Sound& sound, ParamManager& paramManager);
+	/// @brief The compile with each cable's usability given.
 	/// @param summary The set's summary, whose automation and interpolation records are refreshed.
 	/// @param usable  Bit c: whether cable c (in the current order) may be patched.
 	void setupPatching(ParamCollectionSummary& summary, std::bitset<kMaxNumPatchCables> usable);
+	/// @brief The clip's cables: its patching's topology, in the order setupPatching() leaves them.
+	[[nodiscard]] const deluge::instrument::CableRecords& records() const { return records_; }
+	/// @brief Append a cable from @p record, its depth 0. It joins the unusable end of the list, where the render
+	/// doesn't reach it, until setupPatching() places it.
+	/// @return The new cable; nullptr at kMaxNumPatchCables cables, or if out of memory.
+	PatchCable* appendCable(const deluge::synth::CableRecord& record);
+	/// @brief Append a cable from @p from to param @p to with the source's default polarity and depth @p amount.
+	/// @param amount The cable's depth, Q1.30.
+	/// @return The new cable; nullptr at kMaxNumPatchCables cables, or if out of memory.
+	PatchCable* appendDefaultCable(PatchSource from, uint8_t to, int32_t amount);
+	/// @brief Set cable @p c's polarity.
+	void setPolarity(uint8_t c, Polarity polarity);
+	/// @brief The index of the cable from @p from to @p destination, or of a new one appended and placed by
+	/// setupPatching().
+	/// @return The cable's index; 255 at kMaxNumPatchCables cables, or if out of memory.
+	uint8_t findOrCreateCable(Sound& sound, ParamManager& paramManager, PatchSource from, ParamDescriptor destination);
 	bool doesDestinationDescriptorHaveAnyCables(ParamDescriptor destinationParamDescriptor);
-	uint8_t getPatchCableIndex(PatchSource from, ParamDescriptor destinationParamDescriptor,
-	                           ModelStackWithParamCollection const* modelStack = nullptr,
-	                           bool createIfNotFound = false);
-	void deletePatchCable(ModelStackWithParamCollection const* modelStack, uint8_t c);
-	bool patchCableIsUsable(uint8_t c, ModelStackWithThreeMainThings const* modelStack);
+	/// @brief The index of the cable from @p from to @p destinationParamDescriptor, usable or not.
+	/// @return The index, or 255 when there is none.
+	uint8_t getPatchCableIndex(PatchSource from, ParamDescriptor destinationParamDescriptor);
+	/// @brief Delete cable @p c and its automation, then re-place the rest.
+	void deletePatchCable(Sound& sound, ParamManager& paramManager, uint8_t c);
 	int32_t getModifiedPatchCableAmount(int32_t c, int32_t p);
 	void removeAllPatchingToParam(ModelStackWithParamCollection* modelStack, uint8_t p);
 	bool isSourcePatchedToSomething(PatchSource s);
@@ -123,8 +148,6 @@ public:
 	                                     ModelStackWithParamCollection* modelStack) override;
 
 	void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) override;
-	AutoParam* getParam(ModelStackWithParamCollection const* modelStack, PatchSource s,
-	                    ParamDescriptor destinationParamDescriptor, bool allowCreation = false);
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = false) override;
 	static int32_t getParamId(ParamDescriptor destinationParamDescriptor, PatchSource s);
 
@@ -152,11 +175,11 @@ public:
 	/// @brief The cables, numPatchCables of them, in storage sized to fit; null when there are none.
 	///
 	/// In the order setupPatching() leaves them: the usable ones first, and each Destination's cables the run
-	/// [firstCable, endCable). The render walks and ticks them, so the storage changes only in addCable() and
+	/// [firstCable, endCable). The render walks and ticks them, so the storage changes only in appendCable() and
 	/// truncateCables(), which publish with the render excluded.
 	PatchCable* patchCables{};
 	uint8_t numUsablePatchCables{};
-	/// How many cables there are. Changed only through addCable() and truncateCables().
+	/// How many cables there are. Changed only through appendCable() and truncateCables().
 	uint8_t numPatchCables{};
 
 	/// DOM-owned node store the cable amount-AutoParams borrow (nullptr = unbound). RAII-freed with this
@@ -169,12 +192,6 @@ public:
 	std::vector<deluge::project::DocCable>* domCablesRef_ = nullptr;
 
 	Destination* destinations[2]{};
-
-	/// @brief Append a cable, growing the storage to fit it.
-	///
-	/// It joins the unusable end of the list, where the render doesn't reach it, until setupPatching() places it.
-	/// @return The new cable, default-initialised; nullptr at kMaxNumPatchCables cables, or if out of memory.
-	PatchCable* addCable();
 
 	/// @brief Drop every cable from index @p count on, shrinking the storage to fit the rest.
 	///
@@ -189,6 +206,14 @@ public:
 	static void dissectParamId(uint32_t paramId, ParamDescriptor* destinationParamDescriptor, PatchSource* s);
 
 private:
+	/// @brief Append a cable, growing the storage to fit it.
+	/// @return The new cable, default-initialised; nullptr at kMaxNumPatchCables cables, or if out of memory.
+	PatchCable* addCable();
+	/// @brief Reorder the records and the cables together: position c takes the one previously at @p order[c].
+	void permuteCables(std::span<const uint8_t> order);
+
+	deluge::instrument::CableRecords records_;
+
 	/// @brief The tree entry for the cable (from, dest) in the bound external store, creating one if this is a
 	///        runtime-added cable not yet mirrored.
 	///
@@ -218,3 +243,11 @@ private:
 	/// @note Throws deluge::exception::BAD_ALLOC on OOM.
 	static Destination* cloneDestinations(Destination const* src);
 };
+
+/// @brief The record of a runtime cable's topology.
+[[nodiscard]] inline deluge::synth::CableRecord recordOf(const PatchCable& cable) {
+	return {
+	    cable.from, {cable.destinationParamDescriptor.data}, static_cast<deluge::synth::CablePolarity>(cable.polarity)};
+}
+static_assert(std::to_underlying(Polarity::UNIPOLAR) == std::to_underlying(deluge::synth::CablePolarity::UNIPOLAR));
+static_assert(std::to_underlying(Polarity::BIPOLAR) == std::to_underlying(deluge::synth::CablePolarity::BIPOLAR));

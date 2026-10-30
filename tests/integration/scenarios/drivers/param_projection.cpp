@@ -827,10 +827,8 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 
 		// A patch cable: source -> destination param, with an automatable amount.
 		PatchCableSet* pcs = pm.getPatchCableSet();
-		pcs->addCable();
-		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
-		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
-		pcs->patchCables[0].polarity = Polarity::BIPOLAR;
+		pcs->appendCable(
+		    {PatchSource::ENVELOPE_0, deluge::synth::CableTarget::param(7), deluge::synth::CablePolarity::BIPOLAR});
 		pcs->patchCables[0].param.currentValue = 536870912;   // amount, patch-cable range (engine cursor)
 		pcs->docForParam(0)->current_value = 536870912;       // store holds the persisted scalar
 		setNodeIn(*pcs->docForParam(0), 0, -536870912, true); // cable nodes live in the cable's own store
@@ -906,26 +904,21 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "pc-ser setup");
 		PatchCableSet* pcs = pm.getPatchCableSet();
-		for (int32_t i = 0; i < 3; i++) {
-			pcs->addCable();
-		}
 		// flat cable 0: ENVELOPE_0 -> param 7
-		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
-		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
-		pcs->patchCables[0].polarity = Polarity::BIPOLAR;
+		pcs->appendCable(
+		    {PatchSource::ENVELOPE_0, deluge::synth::CableTarget::param(7), deluge::synth::CablePolarity::BIPOLAR});
+		// flat cable 1: LFO_LOCAL_1 -> param 3
+		pcs->appendCable(
+		    {PatchSource::LFO_LOCAL_1, deluge::synth::CableTarget::param(3), deluge::synth::CablePolarity::UNIPOLAR});
+		// range cable 2: LFO_LOCAL_2 controls the depth of cable 0 (param 7 + source ENVELOPE_0); a range cable has
+		// its own polarity, not the outer cable's
+		pcs->appendCable({PatchSource::LFO_LOCAL_2, deluge::synth::CableTarget::depth_of(7, PatchSource::ENVELOPE_0),
+		                  deluge::synth::CablePolarity::UNIPOLAR});
 		pcs->patchCables[0].param.currentValue = 536870912;
 		pcs->docForParam(0)->current_value = 536870912;       // store holds the persisted scalar
 		setNodeIn(*pcs->docForParam(0), 0, -536870912, true); // cable nodes live in the cable's own store
-		// flat cable 1: LFO_LOCAL_1 -> param 3
-		pcs->patchCables[1].from = PatchSource::LFO_LOCAL_1;
-		pcs->patchCables[1].destinationParamDescriptor.setToHaveParamOnly(3);
-		pcs->patchCables[1].polarity = Polarity::UNIPOLAR;
 		pcs->patchCables[1].param.currentValue = -100000;
 		pcs->docForParam(1)->current_value = -100000;
-		// range cable 2: LFO_LOCAL_2 controls the depth of cable 0 (param 7 + source ENVELOPE_0)
-		pcs->patchCables[2].from = PatchSource::LFO_LOCAL_2;
-		pcs->patchCables[2].destinationParamDescriptor.setToHaveParamAndSource(7, PatchSource::ENVELOPE_0);
-		pcs->patchCables[2].polarity = Polarity::UNIPOLAR; // not the outer cable's: a range cable has its own
 		pcs->patchCables[2].param.currentValue = 12345;
 		pcs->docForParam(2)->current_value = 12345;
 
@@ -1351,10 +1344,8 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 
 		// A patch cable so the <patchCables> block is exercised within the Sound layout.
 		PatchCableSet* pcs = pm.getPatchCableSet();
-		pcs->addCable();
-		pcs->patchCables[0].from = PatchSource::LFO_GLOBAL_1;
-		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(params::LOCAL_LPF_FREQ);
-		pcs->patchCables[0].polarity = Polarity::BIPOLAR;
+		pcs->appendCable({PatchSource::LFO_GLOBAL_1, deluge::synth::CableTarget::param(params::LOCAL_LPF_FREQ),
+		                  deluge::synth::CablePolarity::BIPOLAR});
 		pcs->patchCables[0].param.currentValue = 268435456;
 		// The Sound::writeParamsToFile reads the store for params AND the cable amount.
 		authorStoreFromEngine(pm);
@@ -1639,9 +1630,8 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(expr != nullptr, "helper: expression set created");
 		// A patch cable so the cable path is exercised.
 		PatchCableSet* pcs = pm.getPatchCableSet();
-		pcs->addCable();
-		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
-		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
+		pcs->appendCable(
+		    {PatchSource::ENVELOPE_0, deluge::synth::CableTarget::param(7), deluge::synth::CablePolarity::BIPOLAR});
 		setNodeIn(*pcs->docForParam(0), 0, 424242, true);
 
 		pm.bindMainParamSetDomStores();

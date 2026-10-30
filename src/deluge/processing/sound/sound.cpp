@@ -309,10 +309,8 @@ void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 
 	PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
 	patchCableSet->truncateCables(0);
-	if (PatchCable* cable = patchCableSet->addCable()) {
-		cable->setup(PatchSource::VELOCITY, params::LOCAL_VOLUME,
-		             getParamFromUserValue(params::PATCH_CABLE, kSampleDrumVelocityCableUserValue));
-	}
+	patchCableSet->appendDefaultCable(PatchSource::VELOCITY, params::LOCAL_VOLUME,
+	                                  getParamFromUserValue(params::PATCH_CABLE, kSampleDrumVelocityCableUserValue));
 
 	setupDefaultExpressionPatching(paramManager);
 
@@ -358,9 +356,7 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 	                              DefaultCable{PatchSource::ENVELOPE_1, params::LOCAL_LPF_FREQ, 0x1C28F5B8},
 	                              DefaultCable{PatchSource::VELOCITY, params::LOCAL_LPF_FREQ, 0x0F5C28F0},
 	                              DefaultCable{PatchSource::VELOCITY, params::LOCAL_VOLUME, 0x3FFFFFE8}}) {
-		if (PatchCable* cable = patchCableSet->addCable()) {
-			cable->setup(d.from, d.to, d.amount);
-		}
+		patchCableSet->appendDefaultCable(d.from, d.to, d.amount);
 	}
 
 	setupDefaultExpressionPatching(paramManager);
@@ -381,21 +377,18 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 void Sound::setupDefaultExpressionPatching(ParamManager* paramManager) {
 	PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
 
-	PatchCable* cable = patchCableSet->addCable();
-	if (cable == nullptr) {
-		return;
-	}
-	cable->setup(PatchSource::AFTERTOUCH, params::LOCAL_VOLUME, getParamFromUserValue(params::PATCH_CABLE, 33));
-
-	cable = patchCableSet->addCable();
-	if (cable == nullptr) {
+	if (patchCableSet->appendDefaultCable(PatchSource::AFTERTOUCH, params::LOCAL_VOLUME,
+	                                      getParamFromUserValue(params::PATCH_CABLE, 33))
+	    == nullptr) {
 		return;
 	}
 	if (getSynthMode() == SynthMode::FM) {
-		cable->setup(PatchSource::Y, params::LOCAL_MODULATOR_0_VOLUME, getParamFromUserValue(params::PATCH_CABLE, 15));
+		patchCableSet->appendDefaultCable(PatchSource::Y, params::LOCAL_MODULATOR_0_VOLUME,
+		                                  getParamFromUserValue(params::PATCH_CABLE, 15));
 	}
 	else {
-		cable->setup(PatchSource::Y, params::LOCAL_LPF_FREQ, getParamFromUserValue(params::PATCH_CABLE, 20));
+		patchCableSet->appendDefaultCable(PatchSource::Y, params::LOCAL_LPF_FREQ,
+		                                  getParamFromUserValue(params::PATCH_CABLE, 20));
 	}
 }
 
@@ -428,9 +421,8 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 
 		PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
 		patchCableSet->truncateCables(0);
-		if (PatchCable* cable = patchCableSet->addCable()) {
-			cable->setup(PatchSource::VELOCITY, params::LOCAL_VOLUME, getParamFromUserValue(params::PATCH_CABLE, 50));
-		}
+		patchCableSet->appendDefaultCable(PatchSource::VELOCITY, params::LOCAL_VOLUME,
+		                                  getParamFromUserValue(params::PATCH_CABLE, 50));
 	}
 
 	setupDefaultExpressionPatching(paramManager);

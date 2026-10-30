@@ -513,7 +513,9 @@ void init() {
 	        ->addOtherTwoThingsButNoNoteRow(sampleForPreview, paramManagerForSamplePreview)
 	        ->addParamCollectionSummary(paramManagerForSamplePreview->getPatchCableSetSummary());
 
-	((PatchCableSet*)modelStackWithParamCollection->paramCollection)->setupPatching(modelStackWithParamCollection);
+	((PatchCableSet*)modelStackWithParamCollection->paramCollection)
+	    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+	                    *modelStackWithParamCollection->paramManager);
 	sampleForPreview->patcher.performInitialPatching(
 	    sampleForPreview->patchControlBlock(*paramManagerForSamplePreview));
 
@@ -2039,9 +2041,8 @@ void soundPreview(PreviewVolume const& volume) {
 	// setupAsSample() gives the preview drum one patch cable, VELOCITY -> LOCAL_VOLUME, unless it ran out of memory.
 	PatchCableSet* previewCables = paramManagerForSamplePreview->getPatchCableSet();
 	if (previewCables->numPatchCables != 0) {
-		PatchCable& velocityCable = previewCables->patchCables[0];
-		velocityCable.param.setCurrentValueBasicForSetup(volume.velocityCableDepth);
-		velocityCable.polarity = volume.velocityCablePolarity;
+		previewCables->patchCables[0].param.setCurrentValueBasicForSetup(volume.velocityCableDepth);
+		previewCables->setPolarity(0, volume.velocityCablePolarity);
 	}
 
 	// GLOBAL_VOLUME_POST_FX is a Sound-level param with no patch cables on the preview drum, so its final value

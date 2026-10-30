@@ -215,15 +215,16 @@ void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager)
 	    c != nullptr && c->getParamKind() == Kind::PATCH_CABLE) {
 		PatchCableSet* pcs = static_cast<PatchCableSet*>(c);
 		int32_t count = std::min(static_cast<int32_t>(doc.cables.size()), int32_t{kMaxNumPatchCables});
-		pcs->truncateCables(count);
-		while (pcs->numPatchCables < count && pcs->addCable() != nullptr) {}
-		for (int32_t i = 0; i < pcs->numPatchCables; i++) {
+		pcs->truncateCables(0);
+		for (int32_t i = 0; i < count; i++) {
 			const DocCable& dc = doc.cables[i];
-			pcs->patchCables[i].from = source_of(dc);
-			pcs->patchCables[i].destinationParamDescriptor = destination_of(dc);
-			pcs->patchCables[i].polarity = polarity_of(dc);
+			PatchCable* cable = pcs->appendCable(
+			    {source_of(dc), {destination_of(dc).data}, static_cast<deluge::synth::CablePolarity>(polarity_of(dc))});
+			if (cable == nullptr) {
+				break;
+			}
 			// Project the value into the RT cursor and the nodes into the cable's own store.
-			fromDocAutoParam(dc.amount, pcs->patchCables[i].param.currentValue, pcs->patchCables[i].amount_.nodes);
+			fromDocAutoParam(dc.amount, cable->param.currentValue, cable->amount_.nodes);
 		}
 	}
 }
