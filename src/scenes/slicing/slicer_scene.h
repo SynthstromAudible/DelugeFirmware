@@ -47,11 +47,6 @@
 ///     one consumer is `Shell::tick_stack` (`shell/shell.cpp:594-608`), which stops advancing clocks
 ///     beneath a scene that claims it; claiming it here would stop the clock of the scene that owns
 ///     the sidebar.
-///   * **`dims_grid() -> false`** -- the fifth, and the one that is easy to miss, because its
-///     default is `is_grid_overlay()` and that is true here. Legacy never halves what is beneath the
-///     slicer: `Slicer` has no `getGreyoutColsAndRows` either, so `getUIGreyoutColsAndRows`
-///     (`gui/ui/ui.cpp:73-83`) walks past it to the browser below. Taking the default would halve a
-///     sidebar legacy never greys.
 ///
 /// @par The one legacy predicate that points the other way, and why it does not change the answer
 ///
@@ -410,9 +405,6 @@ public:
 	///        underneath still needs to paint (and, through `Shell::tick_stack`, still needs its
 	///        clock advanced).
 	bool occludes_grid() const override { return false; }
-	/// @brief False: legacy never halves the layer beneath for the slicer -- it has no
-	///        `getGreyoutColsAndRows` of its own either. Same split `MarkerScene` makes.
-	bool dims_grid() const override { return false; }
 	/// @brief True: `Slicer()` sets `oledShowsUIUnderneath = true` (`gui/ui/slicer.h:35`), so
 	///        `doAnyPendingOLEDRendering` (`gui/ui/ui.cpp:351-371`) walks past it to the UI below
 	///        and this page composites over what that drew.

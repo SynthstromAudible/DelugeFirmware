@@ -230,9 +230,6 @@ public:
 	bool is_grid_overlay() const override { return true; }
 	/// @brief False: `ContextMenu` paints no pads at all, so the view underneath is what shows.
 	bool occludes_grid() const override { return false; }
-	/// @brief False: legacy greys through `getGreyoutColsAndRows` (`greyout_mask()` below), it
-	///        never halves every pad. Same split `MenuScene` and `RenameScene` make.
-	bool dims_grid() const override { return false; }
 	/// @brief True: `ContextMenu`'s constructor sets `oledShowsUIUnderneath = true`
 	///        (`context_menu.h:27`), and `renderOLED` then clears only its own window.
 	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return true; }

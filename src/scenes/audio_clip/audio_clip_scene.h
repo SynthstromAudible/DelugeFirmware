@@ -436,10 +436,6 @@ public:
 	///       answer rather than from that observation, because the observation is about the stack
 	///       and the predicate is about the scene.
 	bool occludes_grid() const override { return true; }
-	/// @brief False (the default made explicit): `is_grid_overlay()` is false, so there is nothing
-	///        beneath to dim, and legacy has no `getGreyoutColsAndRows` on this class either --
-	///        `getUIGreyoutColsAndRows` (`gui/ui/ui.cpp:73-83`) finds none anywhere on the chain.
-	bool dims_grid() const override { return false; }
 	/// @brief False: `AudioClipView` never sets `oledShowsUIUnderneath` (it is `UI`'s default,
 	///        `gui/ui/ui.h`), so `doAnyPendingOLEDRendering` (`gui/ui/ui.cpp:351-370`) starts its
 	///        walk at this view and nothing below it draws.

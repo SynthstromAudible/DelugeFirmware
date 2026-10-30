@@ -228,7 +228,7 @@ private:
 	ModIndicatorInfo indicator_info(int32_t which_encoder) const;
 	/// @brief Declare both knob indicator columns -- `View::setKnobIndicatorLevels`.
 	void declare_indicators(deluge::ui::LedFrame& frame);
-	/// @brief Is knob @p which_encoder inside its blink's flash? Each knob keeps its own phase.
+	/// @brief Is knob @p which_encoder inside its blink's flash? At most one knob blinks at a time.
 	bool indicator_blinking(int32_t which_encoder) const;
 	/// @brief `View::sendMidiFollowFeedback`.
 	void send_midi_follow_feedback(deluge::modulation::params::Kind kind, int32_t param_id, int32_t knob_pos,

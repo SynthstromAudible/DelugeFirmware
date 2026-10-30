@@ -412,11 +412,10 @@ describe cm_composition("scenes::context_menu::ContextMenuScene composition", $ 
 		expect(s.oled_transparent(SurfaceRole::Main)).to_be_true();
 		expect(s.is_grid_overlay()).to_be_true();
 		expect(s.occludes_grid()).to_be_false();
-		// `dims_grid()` is FALSE and `greyout_mask()` is where the greyout lives: legacy's
+		// `greyout_mask()` is where the greyout lives: legacy's
 		// `getGreyoutColsAndRows` sets `*cols = 0xFFFFFFFF` and leaves `*rows` at the caller's zero
 		// (`gui/ui/ui.cpp:74-83`), which is a mask, not the shell's halve-everything dim. Same
 		// split `MenuScene` and `RenameScene` make.
-		expect(s.dims_grid()).to_be_false();
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0xFFFFFFFFu});
 		expect(static_cast<uint64_t>(s.greyout_mask().rows)).to_equal(uint64_t{0});
 		expect(s.input_transparent()).to_be_false();

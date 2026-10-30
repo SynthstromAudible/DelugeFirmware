@@ -137,9 +137,6 @@ public:
 	deluge::ui::shell::PadRegions pad_regions() const override { return deluge::ui::shell::PadRegions::Main; }
 	/// @brief False: the base view still paints, and the sidebar it paints is what shows through.
 	bool occludes_grid() const override { return false; }
-	/// @brief False: legacy greys through `getGreyoutColsAndRows` (`greyout_mask()` below), it
-	///        never halves every pad.
-	bool dims_grid() const override { return false; }
 	/// @brief True: `RenameUI`'s constructor sets `oledShowsUIUnderneath = true`
 	///        (`rename_ui.cpp:26`), and `renderOLED` then clears only its own window.
 	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return true; }

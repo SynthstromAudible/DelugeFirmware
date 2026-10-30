@@ -127,11 +127,10 @@
 /// which E3 task 5 recorded here as a bounded, accepted stall.
 ///
 /// E3 task 10's step-8b fold ended it, and did so through the *grid* rather than the panel.
-/// `PopupScene` is a grid overlay that composites nothing (`is_grid_overlay()` true, `dims_grid()`
-/// false), so this scene remains the grid **base** underneath it; `Shell::render_grid` draws and
-/// `append_rendered`s the base on every tick the grid gate fires. Step 8b arms each surface this
-/// scene claims and is not covered on -- the grid, here, and (since the final review's A2) *not*
-/// the OLED panels the opaque popup covers -- so the grid gate fires at `kRecorderPollMs`, this
+/// `PopupScene` is a grid overlay that composites nothing (`is_grid_overlay()` true), so this scene remains the grid
+/// **base** underneath it; `Shell::render_grid` draws and `append_rendered`s the base on every tick the grid gate
+/// fires. Step 8b arms each surface this scene claims and is not covered on -- the grid, here, and (since the final
+/// review's A2) *not* the OLED panels the opaque popup covers -- so the grid gate fires at `kRecorderPollMs`, this
 /// scene enters `rendered_this_tick_`, and `after_render()` runs on schedule with the popup still
 /// up. The OLED half of that arm was pure cost: `flush` blits an OLED surface unconditionally once
 /// rendered, so it was a 100 Hz two-panel blit of a frame this scene was not even in. Nothing about the OLED walk had

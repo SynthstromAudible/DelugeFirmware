@@ -769,7 +769,6 @@ describe browser_composition("scenes::browser::BrowserScene composition", $ {
 		expect(s.oled_transparent(SurfaceRole::Main)).to_be_false();
 		expect(s.is_grid_overlay()).to_be_true();
 		expect(s.occludes_grid()).to_be_false();
-		expect(s.dims_grid()).to_be_false();
 		expect(s.input_transparent()).to_be_false();
 	});
 
@@ -1408,7 +1407,7 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		expect(instrument->deviceDefinitionFileName).to_equal(std::string{});
 	});
 
-	it("reopens on the file it remembers", _ {
+	it("searches for the remembered file with .XML appended again, as legacy does", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_midi_song();
@@ -1421,7 +1420,10 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		std::string name;
 		browser::descriptor(BrowserId::MidiDeviceDefinition).start_at(context_of(f), dir, name);
 		expect(dir).to_equal(std::string{"MIDI_DEVICES/DEFINITION"});
-		expect(name).to_equal(std::string{"DEVICE1.XML"});
+		// Legacy appends ".XML" to a name that already carries it (`load_midi_device_definition_ui.cpp:122-124`),
+		// so the search never matches and the browser opens on the folder's first entry (Kate, 2026-10-25: match
+		// main). This folder holds one file, so that entry is the same one.
+		expect(name).to_equal(std::string{"DEVICE1.XML.XML"});
 
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::MidiDeviceDefinition);

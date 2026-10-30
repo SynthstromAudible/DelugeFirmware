@@ -140,7 +140,6 @@ public:
 	bool is_grid_overlay() const override { return overlay; }
 	PadRegions pad_regions() const override { return regions; }
 	bool occludes_grid() const override { return occludes; }
-	bool dims_grid() const override { return false; }
 	bool input_transparent() const override { return passive; }
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return greyout; }
 	GridPadClaim grid_pad_claim() const override { return claim; }

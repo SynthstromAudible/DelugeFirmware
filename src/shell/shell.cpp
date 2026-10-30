@@ -709,40 +709,6 @@ bool Shell::render_oled(OledSurface& s) {
 	return true;
 }
 
-void Shell::dim_grid(gfx::grid::PadGrid& grid) {
-	// Dim what is underneath by one bit per channel, so the overlay reads as the live layer.
-	//
-	// **Spec design, not a port.** Legacy has no such dim: the only thing it does to the layer
-	// under an overlay is the greyout, applied in the *send* path by `prepareColour`
-	// (`hid/led/pad_leds.cpp:283-298`), and its overlays (the sidebar menus, the context menus)
-	// simply overwrite the pads they cover. `RGB::dim(1)` is `channel >> 1` per channel
-	// (`gfx/grid/rgb.h`), which is what spec D §7 asks for in so many words.
-	//
-	// @warning **That sentence is an OPEN FLAG, not a settled design note**, and reading it as
-	//          settled is the mistake this paragraph exists to prevent. The UI-stack port's
-	//          standing constraint is that everything be a port of something legacy already does;
-	//          this is one of the inventions Kate has deferred rather than decided. **It is not
-	//          "one of four", which this line said until F3 task 5 counted them.** The
-	//          2026-09-06 audit's four were `dim_grid`, `GestureEvent::Hold`, the widened
-	//          `SecondPad` and `BootScene`; `BootScene` was removed the same day, and F3 task 5's
-	//          sweep both retired `Hold` and `SecondPad` (`ui/grid/effects.h` -- `gesture()` has
-	//          no caller outside specs, so they ship no UX) and found four more that do. **The
-	//          live tally is `src/scenes/README.md`'s sweep row**, and it is five sites: this one
-	//          plus those four. Do not re-derive a number here. It is argued
-	//          at `src/shell/README.md`'s composition section, and `src/scenes/README.md`'s carry
-	//          table ties it to the sidebar divergence the F1 level-3 A/B found empirically --
-	//          which is plausibly the same question, since both are about what the grid under an
-	//          open menu should look like. Since F1 this function runs inside the shipping
-	//          firmware (`ShellHostUI`'s guest), so it is live code rather than a design note.
-	//          Do not remove the flag, and do not treat it as decided, without settling both.
-	const gfx::grid::GridDimensions d = grid.dims();
-	for (uint8_t y = 0; y < d.rows; y++) {
-		for (uint8_t x = 0; x < d.cols(); x++) {
-			grid.set(x, y, grid.at(x, y).dim(1));
-		}
-	}
-}
-
 void Shell::render_grid(uint32_t now_ms) {
 	GridSurface& g = surfaces_.grid();
 	if (!g.grid_storage.has_value()) {
@@ -758,12 +724,6 @@ void Shell::render_grid(uint32_t now_ms) {
 	// is one copy of it (`Shell::grid_base`).
 	const size_t base = grid_base();
 	const bool has_overlay = scenes.size() > base + 1;
-	// Spec D §7 dims "if any overlay is above", but an overlay that composites nothing may opt out
-	// (`Scene::dims_grid`) -- a popup must not halve the brightness of a grid it never touches.
-	bool dim = false;
-	for (size_t k = base + 1; k < scenes.size(); k++) {
-		dim = dim || scenes[k]->dims_grid();
-	}
 
 	// Same focus rule as `render_oled`: the input-frontmost scene, not simply the topmost one.
 	Scene* const focus = &stack_.input_top();
@@ -775,9 +735,6 @@ void Shell::render_grid(uint32_t now_ms) {
 	}
 
 	if (has_overlay) {
-		if (dim) {
-			dim_grid(grid);
-		}
 		for (size_t k = base + 1; k < scenes.size(); k++) {
 			const InputMask mask = scenes[k] == focus ? InputMask::all() : InputMask::none();
 			ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), mask, &g.flashes, &g.gate);
@@ -806,7 +763,7 @@ void Shell::render_grid(uint32_t now_ms) {
 		ui::grid::greyout(frame, greyout_, kGreyoutAmountFull);
 	}
 
-	// A grid tween blends the whole composed frame above -- scenes, overlay dim and greyout alike
+	// A grid tween blends the whole composed frame above -- scenes and greyout alike
 	// -- so it runs last, from the snapshot `start_tween` took of the grid at the moment it was
 	// called toward *this* tick's freshly composed grid (which plays "to").
 	if (g.tween.has_value() && tween_from_.has_value()) {

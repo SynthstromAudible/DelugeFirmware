@@ -331,7 +331,6 @@ describe rename_composition("scenes::rename::RenameScene composition", $ {
 		expect(s.oled_transparent(SurfaceRole::Main)).to_be_true();
 		expect(s.is_grid_overlay()).to_be_true();
 		expect(s.occludes_grid()).to_be_false();
-		expect(s.dims_grid()).to_be_false();
 		expect(s.input_transparent()).to_be_false();
 		// `RenameUI::getGreyoutColsAndRows` (`rename_ui.cpp:58-61`): `*cols = 0b11`.
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0b11});

@@ -377,19 +377,13 @@ describe listing("the async listing seam", $ {
 		expect(catalogue_order()).to_equal(std::string("FAVOURITES,MIDIFollow.XML"));
 	});
 
-	it("falls back to the default directory when the requested one does not exist", _ {
+	it("does not fall back to the default directory when the requested one is missing, as legacy does", _ {
 		CleanListing clean;
 		SdRoot root(kFixtureCard);
 		Listing listing(&Deferred::dispatch);
 
-		// Legacy's `defaultDirToAlsoTry` retry (`browser.cpp:293-300`), once. The third arm --
-		// mkdir the default directory -- is deliberately not ported (see listing.h), so a default
-		// directory that does not exist either simply fails.
-		//
-		// This example is the one that caught legacy's condition being dead: written against
-		// legacy's `error == FOLDER_DOESNT_EXIST` gate it failed with error 18
-		// (`FILE_NOT_FOUND`), which is what a missing directory actually returns today. See the
-		// divergence note in `Listing::list_current_dir`.
+		// Legacy's `defaultDirToAlsoTry` retry (`browser.cpp:293-300`) is gated on FOLDER_DOESNT_EXIST, and a
+		// missing directory returns FILE_NOT_FOUND today, so legacy never takes it (Kate, 2026-10-25: match main).
 		ListingRequest req = open_request("NO_SUCH_FOLDER");
 		req.default_dir = "SETTINGS";
 		expect(outcome_of(listing.request(req))).to_equal(kAccepted);
@@ -397,9 +391,7 @@ describe listing("the async listing seam", $ {
 
 		auto result = listing.take_result();
 		expect(result.has_value()).to_be_true();
-		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::NONE));
-		expect(result->dir).to_equal(std::string("SETTINGS"));
-		expect(catalogue_order()).to_equal(std::string("FAVOURITES,MIDIFollow.XML"));
+		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::FILE_NOT_FOUND));
 	});
 
 	// ---- the harness's own limit, pinned rather than described --------------------------------

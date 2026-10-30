@@ -151,9 +151,6 @@ public:
 	///        topmost *non-overlay* scene as the grid base, so a popup declaring itself not-an-
 	///        overlay becomes eligible to be the base and renders the grid blank.
 	bool is_grid_overlay() const override { return true; }
-	/// @brief False: this popup composites nothing on the grid, so it must not halve the
-	///        brightness of a grid it never touches (`shell/scene.h`'s `dims_grid` note).
-	bool dims_grid() const override { return false; }
 	/// @brief False: never takes input, so the scene beneath keeps its own input focus.
 	bool input_transparent() const override { return true; }
 

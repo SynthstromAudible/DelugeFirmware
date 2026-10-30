@@ -169,7 +169,7 @@ public:
 };
 
 /// @brief The scene stacked on top: a grid overlay by default, with every composition hook
-///        settable so one class covers dim, greyout, occlusion and OLED transparency.
+///        settable so one class covers greyout, occlusion and OLED transparency.
 class OverlayScene final : public Scene {
 public:
 	explicit OverlayScene(SceneKind k = kOverlay) : kind_(k) {}
@@ -196,7 +196,6 @@ public:
 
 	bool is_grid_overlay() const override { return overlay; }
 	bool occludes_grid() const override { return occludes; }
-	bool dims_grid() const override { return overlay && dims; }
 	bool oled_transparent(SurfaceRole) const override { return transparent; }
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return mask; }
 
@@ -204,8 +203,8 @@ public:
 	static constexpr int32_t kBoxX = 60, kBoxY = 20;
 
 	bool overlay = true, occludes = false, transparent = false;
-	/// Whether `render_grid` paints its one pad, and whether it dims what is beneath.
-	bool paints = true, dims = true;
+	/// Whether `render_grid` paints its one pad.
+	bool paints = true;
 	deluge::ui::grid::GreyoutMask mask{};
 	int oled_renders = 0, grid_renders = 0, events = 0, ticks = 0;
 
@@ -346,7 +345,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(r.base.oled_renders).to_equal(4);
 	});
 
-	it("overlay dims the base by right-shift and composites over it", _ {
+	it("an overlay composites over the base and leaves the rest as the base painted it", _ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
@@ -355,8 +354,8 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.shell.tick(0);
 		const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
 		expect(g.at(0, 0) == kOverlayColour).to_be_true();
-		expect(g.at(1, 0) == RGB{50, 40, 30}).to_be_true();
-		expect(g.at(17, 7) == RGB{50, 40, 30}).to_be_true();
+		expect(g.at(1, 0) == kBaseColour).to_be_true();
+		expect(g.at(17, 7) == kBaseColour).to_be_true();
 	});
 
 	it("greyout mask from the stack is applied", _ {
@@ -371,11 +370,11 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.shell.tick(0);
 
 		expect(r.shell.greyout().cols).to_equal(uint32_t(1u << 17));
-		RGB dimmed{50, 40, 30};
-		const RGB greyed = dimmed.greyOut(kGreyoutAmountFull);
+		RGB base = kBaseColour;
+		const RGB greyed = base.greyOut(kGreyoutAmountFull);
 		const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
 		expect(g.at(0, 1) == greyed).to_be_true();
-		expect(g.at(1, 1) == RGB{50, 40, 30}).to_be_true();
+		expect(g.at(1, 1) == kBaseColour).to_be_true();
 		// Greyout runs last, so even the overlay's own pad is tinted.
 		RGB overlay_colour = kOverlayColour;
 		expect(g.at(0, 0) == overlay_colour.greyOut(kGreyoutAmountFull)).to_be_true();
@@ -385,14 +384,12 @@ describe shell_tick("shell::Shell::tick", $ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		r.base.colour = RGB{100, 100, 100};
-		// Two overlays that paint and dim nothing, so the greyout is the only thing on the grid:
+		// Two overlays that paint nothing, so the greyout is the only thing on the grid:
 		// a menu's mask under a keyboard's, which legacy's top-down `getUIGreyoutColsAndRows`
 		// (`gui/ui/ui.cpp:73-83`) resolves to the keyboard's alone.
 		r.overlay.paints = false;
-		r.overlay.dims = false;
 		r.overlay.mask = deluge::ui::grid::GreyoutMask{0xFFFFFFFEu, 0};
 		r.upper.paints = false;
-		r.upper.dims = false;
 		r.upper.mask = deluge::ui::grid::GreyoutMask{0b10u, 0};
 		r.shell.init({kBase, 0});
 		expect(r.shell.stack().push({kOverlay, 0})).to_be_true();
@@ -414,10 +411,8 @@ describe shell_tick("shell::Shell::tick", $ {
 		Rig r{ShellConfig{.greys_in_send_path = true}};
 		r.base.colour = RGB{100, 100, 100};
 		r.overlay.paints = false;
-		r.overlay.dims = false;
 		r.overlay.mask = deluge::ui::grid::GreyoutMask{0xFFFFFFFEu, 0};
 		r.upper.paints = false;
-		r.upper.dims = false;
 		r.upper.mask = deluge::ui::grid::GreyoutMask{0b10u, 0};
 		r.shell.init({kBase, 0});
 		expect(r.shell.stack().push({kOverlay, 0})).to_be_true();
@@ -715,28 +710,10 @@ describe shell_tick("shell::Shell::tick", $ {
 
 		// The base still painted: a notice is a grid overlay that paints nothing, not the base.
 		expect(r.base.grid_renders).to_equal(1);
-		// And it is left exactly as the base painted it: a notice composites nothing on the grid,
-		// so it opts out of the overlay dim (`Scene::dims_grid`). Legacy's popups have no grid
-		// effect at all, and halving every pad to announce a message would be a regression.
+		// And it is left exactly as the base painted it: legacy's popups have no grid effect at all.
 		const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
 		expect(g.at(3, 3) == kBaseColour).to_be_true();
 		expect(g.at(17, 7) == kBaseColour).to_be_true();
-	});
-
-	it("an overlay that composites pads still dims the base beneath it", _ {
-		deluge::notify::dirty().drain();
-		Rig r;
-		r.shell.init({kBase, 0});
-		// A real grid overlay -- one that paints -- takes the default `dims_grid()`.
-		expect(r.overlay.dims_grid()).to_be_true();
-		expect(r.shell.stack().push({kOverlay, 0})).to_be_true();
-		// ...and a notice above it does not undo that: the dim asks "does *any* overlay dim".
-		expect(r.shell.stack().push({SceneKind::Popup, 0})).to_be_true();
-		r.shell.tick(0);
-
-		const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
-		expect(g.at(3, 3) == RGB{50, 40, 30}).to_be_true();
-		expect(g.at(0, 0) == kOverlayColour).to_be_true();
 	});
 
 	it("a passive overlay leaves the scene beneath focused and routed", _ {

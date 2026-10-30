@@ -93,16 +93,8 @@ public:
 	/// without this a pushed notice would become the base, and (having no `render_grid` of its
 	/// own) would leave the pads black.
 	///
-	/// @note Being an overlay is *only* the "I am not the base" half. Spec D §7 goes on to dim what
-	///       is beneath an overlay, which a notice must not do -- see `dims_grid()` immediately
-	///       below, which is the half this scene opts out of.
 	/// @return Always true.
 	bool is_grid_overlay() const override { return true; }
-	/// @brief Composites nothing, so dims nothing: legacy's popups, console lines and working
-	///        animation leave the pads exactly as the view beneath painted them
-	///        (`Scene::dims_grid`).
-	/// @return Always false.
-	bool dims_grid() const override { return false; }
 	/// @brief Never takes the input of the scene it is drawn over.
 	///
 	/// Legacy routes nothing to a popup, a console line or the working animation: they are images,
@@ -197,16 +189,8 @@ public:
 	/// without this a pushed notice would become the base, and (having no `render_grid` of its
 	/// own) would leave the pads black.
 	///
-	/// @note Being an overlay is *only* the "I am not the base" half. Spec D §7 goes on to dim what
-	///       is beneath an overlay, which a notice must not do -- see `dims_grid()` immediately
-	///       below, which is the half this scene opts out of.
 	/// @return Always true.
 	bool is_grid_overlay() const override { return true; }
-	/// @brief Composites nothing, so dims nothing: legacy's popups, console lines and working
-	///        animation leave the pads exactly as the view beneath painted them
-	///        (`Scene::dims_grid`).
-	/// @return Always false.
-	bool dims_grid() const override { return false; }
 	/// @brief Never takes the input of the scene it is drawn over.
 	///
 	/// Legacy routes nothing to a popup, a console line or the working animation: they are images,
@@ -258,16 +242,8 @@ public:
 	/// without this a pushed notice would become the base, and (having no `render_grid` of its
 	/// own) would leave the pads black.
 	///
-	/// @note Being an overlay is *only* the "I am not the base" half. Spec D §7 goes on to dim what
-	///       is beneath an overlay, which a notice must not do -- see `dims_grid()` immediately
-	///       below, which is the half this scene opts out of.
 	/// @return Always true.
 	bool is_grid_overlay() const override { return true; }
-	/// @brief Composites nothing, so dims nothing: legacy's popups, console lines and working
-	///        animation leave the pads exactly as the view beneath painted them
-	///        (`Scene::dims_grid`).
-	/// @return Always false.
-	bool dims_grid() const override { return false; }
 	/// @brief Never takes the input of the scene it is drawn over.
 	///
 	/// Legacy routes nothing to a popup, a console line or the working animation: they are images,
@@ -364,9 +340,6 @@ public:
 	/// @brief A grid overlay that paints nothing -- see `PopupScene::is_grid_overlay`.
 	/// @return Always true.
 	bool is_grid_overlay() const override { return true; }
-	/// @brief Composites nothing, so dims nothing -- see `PopupScene::dims_grid`.
-	/// @return Always false.
-	bool dims_grid() const override { return false; }
 	/// @brief Never takes input: legacy routes nothing to a popup image -- see
 	///        `PopupScene::input_transparent`.
 	/// @return Always true.

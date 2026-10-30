@@ -450,7 +450,6 @@ describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 		const deluge::ui::shell::Scene& s = menu_scene();
 		expect(s.is_grid_overlay()).to_be_true();
 		expect(s.occludes_grid()).to_be_false();
-		expect(s.dims_grid()).to_be_false();
 		expect(s.oled_transparent(SurfaceRole::Main)).to_be_false();
 		expect(s.input_transparent()).to_be_false();
 		expect(static_cast<int>(s.kind())).to_equal(static_cast<int>(SceneKind::FirstApp));

@@ -502,9 +502,6 @@ public:
 	bool is_grid_overlay() const override { return true; }
 	/// @brief False: the base view keeps painting under the menu.
 	bool occludes_grid() const override { return false; }
-	/// @brief False: legacy greys through `getGreyoutColsAndRows` (`greyout_mask()`), it does not
-	///        halve every pad.
-	bool dims_grid() const override { return false; }
 	/// @brief `SoundEditor::padAction`'s gate at `gui/ui/sound_editor.cpp:1467`, as a declaration.
 	///
 	/// Three predicates there, `!inSettingsMenu() && !inNoteEditor() && !inNoteRowEditor()`, decide

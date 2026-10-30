@@ -185,10 +185,6 @@ public:
 	}
 	/// @brief True: must not be mistaken for the grid base, even though it paints no grid pixels.
 	bool is_grid_overlay() const override { return true; }
-	/// @brief False: this popup is OLED-only, exactly as the shell-owned `PopupScene`/`ConsoleScene`
-	///        are (`shell/scene.h`'s `dims_grid` note) -- it must not halve the brightness of a grid
-	///        it never touches.
-	bool dims_grid() const override { return false; }
 	/// @brief True: this popup never takes input, so the scene beneath keeps its own input focus.
 	bool input_transparent() const override { return true; }
 

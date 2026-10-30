@@ -512,7 +512,6 @@ describe screensaver_scene_spec_body("scenes::overlay::ScreensaverScene", $ {
 		expect(scene.oled_transparent(deluge::ui::shell::SurfaceRole::Aux)).to_be_true();
 		// Legacy never touches `PadLEDs` while showing, so neither dim nor base.
 		expect(scene.is_grid_overlay()).to_be_true();
-		expect(scene.dims_grid()).to_be_false();
 		// And it is not a `UI`: the press that wakes it is never swallowed by waking it.
 		expect(scene.input_transparent()).to_be_true();
 	});

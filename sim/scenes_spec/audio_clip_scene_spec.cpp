@@ -1001,7 +1001,6 @@ describe audio_clip_scene_spec_body(
 		        AudioClipScene& s = audio_clip_scene();
 		        expect(s.is_grid_overlay()).to_be_false();
 		        expect(s.occludes_grid()).to_be_true();
-		        expect(s.dims_grid()).to_be_false();
 		        expect(s.oled_transparent(deluge::ui::shell::SurfaceRole::Main)).to_be_false();
 		        expect(s.input_transparent()).to_be_false();
 		        // `greyout_mask()` is left at the base's all-zero: `getUIGreyoutColsAndRows`

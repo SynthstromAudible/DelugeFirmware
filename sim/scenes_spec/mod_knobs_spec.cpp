@@ -651,6 +651,64 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(r.handled).to_be_true();
 	});
 
+	it("blinks one indicator at a time: centring the other knob re-levels the first, as legacy does", _ {
+		StubDisplay stub;
+		display = &stub;
+		AudioEngine::audioSampleTimer = 0;
+
+		spec::SongFixture f = spec::make_synth_song();
+		InstrumentClip* legacy_clip = f.clip;
+		InstrumentClip* port_clip = add_synth_clip(f.song, "1");
+		// Delay feedback and delay rate, the delay mode's two knobs, both indicate their middle
+		// (`PatchedParamSet::shouldParamIndicateMiddleValue`), so a turn that lands on the centre blinks.
+		seed_params(legacy_clip->paramManager, 0);
+		seed_params(port_clip->paramManager, 0);
+		constexpr int32_t kDelayMode = 3;
+
+		// Legacy: centre the lower knob, then the upper one. `indicator_leds` blinks one indicator at a time.
+		currentSong = f.song;
+		view.setActiveModControllableTimelineCounter(legacy_clip, false);
+		view.setModRegion();
+		view.modButtonAction(kDelayMode, true);
+		view.modButtonAction(kDelayMode, false);
+		view.modEncoderAction(0, 1);
+		view.modEncoderAction(0, -1);
+		view.modEncoderAction(1, 1);
+		view.modEncoderAction(1, -1);
+		poke_legacy_indicator(0);
+		view.setKnobIndicatorLevel(0);
+		const uint8_t* legacy = legacy_indicator(0);
+		expect(legacy != nullptr).to_be_true();
+
+		// The port, the same four turns a few milliseconds apart: well inside one blink.
+		KnobRig rig;
+		rig.set_song(f.song);
+		rig.set_target_with_timeline(port_clip, false);
+		rig.knobs.set_mod_region();
+		rig.knobs.mod_button_action(kDelayMode, true);
+		rig.knobs.mod_button_action(kDelayMode, false);
+		uint32_t now = 1000;
+		for (const auto& [role, delta] : {std::pair{EncoderRole::GoldLower, int8_t{1}},
+		                                  std::pair{EncoderRole::GoldLower, int8_t{-1}},
+		                                  std::pair{EncoderRole::GoldUpper, int8_t{1}},
+		                                  std::pair{EncoderRole::GoldUpper, int8_t{-1}}}) {
+			rig.knobs.tick(now, 5);
+			DirectCtx c{now};
+			(void)rig.knobs.handle(gold_turn(role, delta), c.ctx);
+			now += 5;
+		}
+		rig.knobs.tick(now, 5);
+		deluge::ui::LedFrame frame;
+		rig.knobs.leds(frame);
+		const deluge::ui::KnobIndicator* port = frame.indicator_or_null(deluge::ui::IndicatorId::Lower);
+		expect(port != nullptr).to_be_true();
+		for (int32_t seg = 0; seg < 4; seg++) {
+			expect(static_cast<int>(port->levels[seg])).to_equal(static_cast<int>(legacy[seg]));
+		}
+		// Legacy's blink is global state: stop it so the examples after this one start level.
+		indicator_leds::stopBlinkingKnobIndicator(1);
+	});
+
 	it("writes a kit row's knob as legacy does, each side on its own row", _ {
 		StubDisplay stub;
 		display = &stub;

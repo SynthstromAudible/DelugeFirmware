@@ -444,6 +444,12 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 	}
 
 	if (knob_pos == 0 && turn.should_indicate_middle_value) { // `:1071`
+		// One indicator blinks at a time (`indicator_leds.cpp:39`, `whichLevelIndicatorBlinking`): starting
+		// this knob's blink ends the other's, which then shows its level again.
+		for (int32_t k = 0; k < kKnobCount; k++) {
+			blink_indicator_[k] = false;
+			blink_indicator_start_ms_[k] = 0;
+		}
 		blink_indicator_[which_encoder] = true;
 		blink_indicator_bipolar_[which_encoder] =
 		    deluge::modulation::params::isParamBipolar(turn.kind, turn.param_id); // `:1072`

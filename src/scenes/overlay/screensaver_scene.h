@@ -169,10 +169,6 @@ public:
 	/// @brief True: this scene composites nothing on the grid, so the scene beneath must stay the
 	///        grid base rather than being displaced by a layer that would render it blank.
 	bool is_grid_overlay() const override { return true; }
-	/// @brief False: legacy dims no pad while the screensaver shows -- it never touches `PadLEDs`
-	///        at all -- so a grid this scene does not draw must not be halved
-	///        (`shell/scene.h`'s `dims_grid` note).
-	bool dims_grid() const override { return false; }
 	/// @brief True: legacy's screensaver is a canvas override, not a `UI`. Input reaches it only
 	///        through `shell::Screensaver::note_activity`, which pops this scene *before* the event
 	///        is lowered (`shell/shell.cpp:271-274`), exactly as legacy's `dispatchInputEvent`

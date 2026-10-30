@@ -297,19 +297,10 @@ Error Listing::list_current_dir(char const* filename_to_start_at) {
 	                                                    filename_to_start_at, request_.max_num_file_items, direction,
 	                                                    request_.interpret_note_names);
 
-	// The default-directory retry (`browser.cpp:293-300`), once. Legacy's third arm -- `mkdir` the
-	// default directory and try a third time (`:289`) -- is deliberately not ported: see listing.h.
-	//
-	// **One deliberate divergence.** Legacy gates this on `error == Error::FOLDER_DOESNT_EXIST`
-	// alone (`browser.cpp:293`), and that condition is dead: since the FatFS-to-`deluge::io`
-	// refactor, a missing directory comes back from `Directory::open` as `DELUGE_ERR_NOT_FOUND`,
-	// which `delugeStatusToError` maps to `Error::FILE_NOT_FOUND` (`util/functions.cpp:1879-1880`).
-	// `Error::FOLDER_DOESNT_EXIST` is produced in exactly one place in the tree
-	// (`storage/storage_manager.cpp:116`), which no listing reaches. So legacy's fallback -- and the
-	// mkdir arm behind it -- can no longer fire at all. Porting the condition verbatim would have
-	// shipped a fallback that is green in review and dead in the field; this accepts both codes, and
-	// `listing_spec.cpp` exercises it.
-	if ((error == Error::FOLDER_DOESNT_EXIST || error == Error::FILE_NOT_FOUND) && !request_.default_dir.empty()
+	// The default-directory retry (`browser.cpp:293-300`), once, on legacy's condition. A missing directory comes back
+	// as FILE_NOT_FOUND, not FOLDER_DOESNT_EXIST, so like legacy's this retry does not fire for it. Legacy's third
+	// arm -- `mkdir` the default directory and try a third time (`:289`) -- is not ported: see listing.h.
+	if (error == Error::FOLDER_DOESNT_EXIST && !request_.default_dir.empty()
 	    && !caseless_equals(FileCatalogue::currentDir, request_.default_dir)) {
 		FileCatalogue::currentDir = request_.default_dir;
 		error = FileCatalogue::readFileItemsForFolder(nullptr, request_.allow_folders, request_.allowed_extensions,

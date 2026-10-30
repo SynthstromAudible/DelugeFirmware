@@ -25,7 +25,7 @@ public:
 
 	/// @brief This *is* the root while loading (`Shell::song_loading` resets the whole stack to
 	///        just this scene), so there is nothing beneath it to be "an overlay" over --
-	///        `is_grid_overlay()`'s default (false) is correct and `dims_grid()` is moot.
+	///        `is_grid_overlay()`'s default (false) is correct.
 	/// @brief Never transparent to input: input is locked at the `InputLowering` level for the
 	///        whole time this scene is up, so nothing would ever reach it either way, but the flag
 	///        itself says "this scene is a real (if temporary) root", not a passive overlay like

@@ -275,17 +275,10 @@ void midi_device_start_at(const menu::MenuContext& ctx, std::string& dir, std::s
 	}
 	dir = path.substr(0, slash);
 	name = path.substr(slash + 1);
-	// **A behaviour change, not a port.** Legacy appends ".XML" unconditionally
-	// (`load_midi_device_definition_ui.cpp:122-124`) to a name it split out of a path that already
-	// carries the extension, so it searches for "DEVICE1.XML.XML" and never finds the file --
-	// `searchFileItems` compares against `FileItem::displayName()`, which is the filename WITH its
-	// extension. The effect on the device is that reopening the browser on a remembered definition
-	// lands on the first entry in the folder rather than on the remembered one. Fixed here rather
-	// than reproduced, because reproducing it would mean shipping a search key that is known never
-	// to match; the append is kept for a remembered name that somehow lacks the extension.
-	if (name.size() < 4 || !case_prefix_equal(name.substr(name.size() - 4), ".XML", 4)) {
-		name += ".XML";
-	}
+	// Legacy appends ".XML" unconditionally (`load_midi_device_definition_ui.cpp:122-124`) to a name that already
+	// carries it, so the search never matches and the browser opens on the folder's first entry. Kept as legacy has
+	// it.
+	name += ".XML";
 }
 
 AcceptOutcome midi_device_accept(const menu::MenuContext& ctx, std::string_view path, Error& error) {
