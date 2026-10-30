@@ -603,7 +603,7 @@ otherOption:
 
 currentClipSwitchedOver:
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	Error error = action->revert(time, modelStack);

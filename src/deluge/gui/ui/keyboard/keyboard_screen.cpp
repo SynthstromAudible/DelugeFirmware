@@ -199,7 +199,7 @@ void KeyboardScreen::evaluateActiveNotes() {
 
 void KeyboardScreen::updateActiveNotes() {
 	Instrument* activeInstrument = getCurrentInstrument();
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 	bool clipIsActiveOnInstrument = makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
 
@@ -559,7 +559,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on) {
 				if (kit->selectedDrum) {
 					exitAuditionMode();
 
-					char modelStackMemory[MODEL_STACK_MAX_SIZE];
+					alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
 					ModelStackWithTimelineCounter* modelStack =
 					    currentSong->setupModelStackWithCurrentClip(modelStackMemory);

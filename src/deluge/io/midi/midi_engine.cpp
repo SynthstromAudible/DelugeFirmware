@@ -732,7 +732,7 @@ void MidiEngine::midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8
 						break;
 
 					case 6: { // (RPN) data entry MSB
-						char modelStackMemory[MODEL_STACK_MAX_SIZE];
+						alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 						ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 						cable.dataEntryMessageReceived(modelStack, channel, data2);
 						break;

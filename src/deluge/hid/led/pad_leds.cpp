@@ -1102,7 +1102,7 @@ void renderAudioClipExpandOrCollapse() {
 	else {
 		// If collapse finished, switch to session view and do fade-in
 		if (progress >= 65536) {
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 			memset(imageStore, 0, sizeof(imageStore));

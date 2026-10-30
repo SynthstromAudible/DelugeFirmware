@@ -671,7 +671,7 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 
 			ParamManager* paramManager = modelStack->paramManager;
 
-			char localModelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char localModelStackMemory[MODEL_STACK_MAX_SIZE];
 			copyModelStack(localModelStackMemory, modelStack, sizeof(ModelStackWithThreeMainThings));
 
 			ModelStackWithParamCollection* modelStackWithParamCollection =

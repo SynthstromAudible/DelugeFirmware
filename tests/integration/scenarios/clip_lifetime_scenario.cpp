@@ -319,7 +319,7 @@ void selectClip(Clip* clip) {
 /// Hold a note on @p clip's synth, the audition path's shape: no note row. Voices are reported, not required.
 void holdNote(InstrumentClip* clip) {
 	auto* synth = static_cast<SoundInstrument*>(clip->output);
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* ms =
 	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, clip, &clip->paramManager);
 	synth->Sound::noteOn(ms, &synth->arpeggiator, kNote, zeroMPEValues);
@@ -382,7 +382,7 @@ bool soundDrum(SoundDrum* drum, InstrumentClip* clip, ParamManager* paramManager
 	if (paramManager == nullptr) {
 		return fail("the drum has no ParamManager");
 	}
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* ms =
 	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, drum, clip, paramManager);
 	drum->Sound::noteOn(ms, &drum->arpeggiator, kNote, zeroMPEValues);
@@ -438,7 +438,7 @@ int32_t serializeSong() {
 /// A copy of @p source appended to the session, on the same output: the clip-copy gesture's clone
 /// (SessionView::gridCloneClip()), placed after every other session clip.
 Clip* cloneIntoSession(Clip* source) {
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* ms = setupModelStackWithSong(memory, currentSong)->addTimelineCounter(source);
 	if (source->clone(ms, false) != Error::NONE) {
 		fail("a clip could not be cloned");

@@ -886,7 +886,7 @@ bool FolderImport::finishKit() {
 	Kit* kit = getCurrentKit();
 	SoundDrum* firstDrum = (SoundDrum*)soundEditor.currentSound;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	{
 		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 

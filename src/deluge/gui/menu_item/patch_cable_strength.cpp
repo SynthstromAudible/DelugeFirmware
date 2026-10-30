@@ -232,7 +232,7 @@ ModelStackWithAutoParam* PatchCableStrength::getModelStack(void* memory, bool al
 }
 
 void PatchCableStrength::writeCurrentValue() {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStackWithParam = getModelStack(modelStackMemory, true);
 	if (!modelStackWithParam->autoParam) {
 		return;

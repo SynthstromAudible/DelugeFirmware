@@ -40,7 +40,7 @@ namespace deluge::gui::menu_item {
 MenuItem* Automation::selectButtonPress() {
 	// If shift held down, delete automation
 	if (Buttons::isShiftButtonPressed()) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithAutoParam* modelStack = getModelStackWithParam(modelStackMemory);
 		if (modelStack && modelStack->autoParam) {
 			deluge::edits::Context editCtx{*currentSong, currentSong->project};
@@ -139,7 +139,7 @@ ActionResult Automation::buttonAction(deluge::hid::Button b, bool on) {
 }
 
 void Automation::selectAutomationViewParameter(bool clipMinder) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStack = getModelStackWithParam(modelStackMemory);
 	if (modelStack) {
 		int32_t knobPos = automationView.getAutomationParameterKnobPos(modelStack, view.modPos) + kKnobPosOffset;

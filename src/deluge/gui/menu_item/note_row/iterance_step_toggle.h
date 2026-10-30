@@ -52,7 +52,7 @@ public:
 	void updateDisplay() { renderUIsForOled(); }
 
 	void readCurrentValue() override {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 
@@ -70,7 +70,7 @@ public:
 	}
 	void writeCurrentValue() override {
 		bool value = this->getValue();
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 
@@ -96,7 +96,7 @@ public:
 	uint8_t index;
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 

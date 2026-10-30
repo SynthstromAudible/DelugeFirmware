@@ -81,7 +81,7 @@ void checkGestures(GlobalEffectable& owner, ParamManagerForTimeline& paramManage
 			failures++;
 		}
 	};
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* stack =
 	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, &owner, nullptr, &paramManager);
 

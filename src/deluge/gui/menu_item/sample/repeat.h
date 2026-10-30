@@ -121,7 +121,7 @@ private:
 	static void sendNoteOffForKitArpeggiator(Kit* kit) {
 		int32_t noteRowIndex;
 		NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowForDrum(kit->selectedDrum, &noteRowIndex);
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = (ModelStack*)modelStackMemory;
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    modelStack->addTimelineCounter(getCurrentClip())

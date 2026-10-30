@@ -598,7 +598,7 @@ doActualSimpleChange:
 
 						switch (currentSong->persistentView.sessionLayout) {
 						case SessionLayoutType::SessionLayoutTypeRows: {
-							char modelStackMemory[MODEL_STACK_MAX_SIZE];
+							alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 							ModelStackWithTimelineCounter* modelStack =
 							    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClip);
 
@@ -1295,7 +1295,7 @@ void SessionView::commandChangeClipPreset(int8_t offset) {
 	}
 
 	if (clip->type == ClipType::INSTRUMENT) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
@@ -1597,7 +1597,7 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 
 		if (outputType == OutputType::KIT) {
 
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack =
 			    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clip);
 
@@ -1605,7 +1605,7 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 		}
 	}
 	else {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clip);
 		Error error = clip->changeInstrument(modelStack, newInstrument, nullptr, InstrumentRemoval::NONE);
@@ -1820,7 +1820,7 @@ bool SessionView::insertAndResyncNewClip(Clip* newClip, int32_t yDisplay) {
 	}
 
 	// resync new clip play pos
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(newClip);
 
@@ -2114,7 +2114,7 @@ ramError:
 		return;
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clipToClone);
 
@@ -2498,7 +2498,7 @@ bool SessionView::setupScroll(uint32_t oldScroll) {
 
 	bool anyMoved = false;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
@@ -2631,7 +2631,7 @@ bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 	uint32_t whichRowsCouldntBeRendered = 0;
 	uint32_t whichRowsNeedRefinement = 0;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	PadLEDs::renderingLock = true;
@@ -3449,7 +3449,7 @@ RGB SessionView::gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool rend
 }
 
 Clip* SessionView::gridCloneClip(Clip* sourceClip) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(sourceClip);
 
@@ -3483,7 +3483,7 @@ Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 	// New method is cloning full clip and emptying it
 	Clip* newClip = gridCloneClip(sourceClip);
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newClip);
 	Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR);
@@ -3506,7 +3506,7 @@ bool SessionView::createNewTrackForAudioClip(AudioClip* newClip) {
 		return false;
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 	newClip->setOutput(modelStack->addTimelineCounter(newClip), newOutput);
 
@@ -3552,7 +3552,7 @@ bool SessionView::createNewTrackForInstrumentClip(OutputType type, InstrumentCli
 	}
 
 	if (!clip->output->getActiveClip()) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
@@ -3736,7 +3736,7 @@ Clip* SessionView::gridPlaceNewClip(Clip* newClip, uint32_t targetSection, Outpu
 	}
 
 	// Set new clip section and add it to the list
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(newClip);
 

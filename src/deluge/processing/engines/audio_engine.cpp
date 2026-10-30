@@ -514,7 +514,7 @@ void init() {
 	sampleForPreview = new ((void*)sampleForPreviewMemory) SoundDrum();
 	sampleForPreview->setupAsSample(paramManagerForSamplePreview);
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 	ModelStackWithParamCollection* modelStackWithParamCollection =
 	    modelStack->addTimelineCounter(nullptr)
@@ -1574,7 +1574,7 @@ void renderSamplePreview(size_t numSamples) { // Previewing sample
 	if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &gui::context_menu::sample_browser::kit
 	    || getCurrentUI() == &gui::context_menu::sample_browser::synth || getCurrentUI() == &slicer) {
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
 		    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);
 
@@ -2103,7 +2103,7 @@ void soundPreview(PreviewVolume const& volume) {
 	// the new voice is patched during noteOn().
 	sampleForPreview->recalculatePatchingToParam(params::GLOBAL_VOLUME_POST_FX, paramManagerForSamplePreview);
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
 	    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);
 	// Set BEFORE the note-on, not after. Needed - Dec 2021 - because SampleBrowser::selectEncoderAction()

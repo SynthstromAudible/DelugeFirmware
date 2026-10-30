@@ -210,7 +210,7 @@ ModControllableAudio* stutterOwner(const std::string& name, ParamManagerForTimel
 /// @brief Sets @p owner's stutter-rate param to @p value as the gold knob does, by its SetParamValue Edit.
 void turnStutterRate(ModControllableAudio& owner, TimelineCounter* clip, ParamManagerForTimeline& params,
                      int32_t value) {
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* ms =
 	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, &owner, clip, &params);
 	ParamCollectionSummary* summary = params.getUnpatchedParamSetSummary();

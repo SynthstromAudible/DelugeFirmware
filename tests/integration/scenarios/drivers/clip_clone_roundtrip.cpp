@@ -98,7 +98,7 @@ static int32_t sweepDoc(Song* song) {
 			if (mc == nullptr) {
 				continue;
 			}
-			char buf[MODEL_STACK_MAX_SIZE]{};
+			alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 			ModelStackWithThreeMainThings* m3 =
 			    setupModelStackWithThreeMainThingsButNoNoteRow(buf, song, mc, clip, &clip->paramManager);
 			touch(m3->getUnpatchedAutoParamFromId(0));
@@ -113,7 +113,7 @@ static int32_t sweepDoc(Song* song) {
 					    || !nr.paramManager.containsAnyMainParamCollections()) {
 						continue;
 					}
-					char dbuf[MODEL_STACK_MAX_SIZE]{};
+					alignas(ModelStackWithAutoParam) char dbuf[MODEL_STACK_MAX_SIZE]{};
 					ModelStackWithThreeMainThings* dm3 = setupModelStackWithThreeMainThingsIncludingNoteRow(
 					    dbuf, song, clip, n, &nr, static_cast<SoundDrum*>(nr.drum)->toModControllable(),
 					    &nr.paramManager);
@@ -306,7 +306,7 @@ int clip_clone_roundtrip_main(int argc, char** argv, Io driverIo) {
 						kClone->output->setId(0x5EED0001);
 					}
 					ParamSet* fx = kClone->paramManager.getUnpatchedParamSet();
-					char sbuf[MODEL_STACK_MAX_SIZE]{};
+					alignas(ModelStackWithAutoParam) char sbuf[MODEL_STACK_MAX_SIZE]{};
 					ModelStackWithThreeMainThings* sm3 = setupModelStackWithThreeMainThingsButNoNoteRow(
 					    sbuf, song, static_cast<Kit*>(kClone->output)->toModControllable(), kClone,
 					    &kClone->paramManager);

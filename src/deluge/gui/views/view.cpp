@@ -741,7 +741,7 @@ void View::clearMelodicInstrumentMonoExpressionIfPossible() {
 		ExpressionParamSet* expressionParams = (ExpressionParamSet*)expressionParamsSummary->paramCollection;
 		if (expressionParams) {
 
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithParamCollection* modelStack =
 			    setupModelStackWithSong(modelStackMemory, currentSong)
 			        ->addTimelineCounter(instrumentPressedForMIDILearn->getActiveClip()) // Could be NULL
@@ -841,7 +841,7 @@ void View::modEncoderAction_nonExistentParam(int32_t whichModEncoder, int32_t of
 
 void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offset,
                                           ModelStackWithAutoParam* modelStackWithParam, bool noteTailsAllowedBefore) {
-	char modelStackTempMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackTempMemory[MODEL_STACK_MAX_SIZE];
 	copyModelStack(modelStackTempMemory, modelStackWithParam, sizeof(ModelStackWithThreeMainThings));
 	ModelStackWithThreeMainThings* tempModelStack = (ModelStackWithThreeMainThings*)modelStackTempMemory;
 
@@ -896,7 +896,7 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 	// re-send midi cc because learned parameter value has changed
 	sendMidiFollowFeedback(modelStackWithParam, newKnobPos);
 
-	char newModelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char newModelStackMemory[MODEL_STACK_MAX_SIZE];
 
 	// Hack to make it so stutter can't be automated
 	if (modelStackWithParam->timelineCounterIsSet()
@@ -967,14 +967,14 @@ ModelStackWithAutoParam* View::getModelStackWithParam(int32_t whichModEncoder, b
 	if (activeModControllableModelStack.modControllable) {
 
 		/*
-		char newModelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char newModelStackMemory[MODEL_STACK_MAX_SIZE];
 		copyModelStack(newModelStackMemory, &activeModControllableModelStack, sizeof(ModelStackWithThreeMainThings));
 		ModelStackWithThreeMainThings* localModelStack = (ModelStackWithThreeMainThings*)newModelStackMemory;
 		*/
 
 		if (activeModControllableModelStack.timelineCounterIsSet()) {
 
-			char modelStackTempMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackTempMemory[MODEL_STACK_MAX_SIZE];
 			copyModelStack(modelStackTempMemory, &activeModControllableModelStack,
 			               sizeof(ModelStackWithThreeMainThings));
 			ModelStackWithThreeMainThings* tempModelStack = (ModelStackWithThreeMainThings*)modelStackTempMemory;
@@ -1357,7 +1357,7 @@ void View::modEncoderButtonAction_deleteAutomation(uint8_t whichModEncoder) {
 }
 
 void View::modEncoderButtonAction_changeModControllable(uint8_t whichModEncoder, bool on) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	copyModelStack(modelStackMemory, &activeModControllableModelStack, sizeof(ModelStackWithThreeMainThings));
 	ModelStackWithThreeMainThings* modelStack = (ModelStackWithThreeMainThings*)modelStackMemory;
 
@@ -2222,7 +2222,7 @@ void View::navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* cl
 
 		Output* oldOutput = clip->output;
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 		clip->changeOutput(modelStack->addTimelineCounter(clip), newOutput);
@@ -2277,7 +2277,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 // MIDI/CV are called inline with it null.
 void View::completeNavigateThroughPresetsForInstrumentClip(int32_t offset, InstrumentClip* clip, bool doBlink,
                                                            const deluge::storage::AcquireResult* acquired) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
 	OutputType outputType = clip->output->type;
@@ -2430,7 +2430,7 @@ void View::completeNavigateThroughPresetsForInstrumentClip(int32_t offset, Instr
 				clip->output->getActiveClip()->expectNoFurtherTicks(modelStack->song);
 			}
 
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			memcpy(modelStackMemory, modelStack, sizeof(ModelStack));
 
 			clip->output->stopAnyAuditioning((ModelStack*)modelStackMemory);
@@ -2658,7 +2658,7 @@ bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCoun
 // only -- no caller-specific tail; see completeChangeOutputTypeFor() for those.
 bool View::completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink,
                                     const deluge::storage::AcquireResult* acquired) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
 	Instrument* newInstrument = (acquired != nullptr)
@@ -3100,6 +3100,6 @@ Clip* View::findNextClipForOutput(Output* output) {
 }
 
 /*
-char modelStackMemory[MODEL_STACK_MAX_SIZE];
+alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 ModelStackWithThreeMainThings* modelStack = setupModelStack(modelStackMemory);
 */

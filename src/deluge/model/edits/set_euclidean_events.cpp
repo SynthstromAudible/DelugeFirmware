@@ -26,7 +26,7 @@ Error SetEuclideanEvents::apply(Context& /*ctx*/) {
 	if (lastAction != nullptr && lastAction->type == ActionType::EUCLIDEAN_NUM_EVENTS_EDIT
 	    && lastAction->openForAdditions && lastAction->offset == -offset_) {
 
-		char modelStackMemory2[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory2[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStackWithJustSong = setupModelStackWithSong(modelStackMemory2, engineStack_->song);
 
 		bool revertedWholeAction = actionLogger.undoJustOneConsequencePerNoteRow(modelStackWithJustSong);

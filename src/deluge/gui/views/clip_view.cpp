@@ -124,7 +124,7 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 	// Otherwise, do the resync that we missed out on doing
 	else {
 		if (undoing && playbackHandler.isEitherClockActive()) {
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 			currentPlaybackMode->reSyncClip(modelStack);
@@ -203,7 +203,7 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 		int32_t shiftAmount = offset * squareSize;
 		Clip* clip = getCurrentClip();
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 		UI* currentUI = getCurrentUI();

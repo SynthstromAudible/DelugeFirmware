@@ -39,7 +39,7 @@ void Integer::readCurrentValue() {
 }
 
 void Integer::writeCurrentValue() {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory);
 	int32_t value = getFinalValue();
 	deluge::edits::Context editCtx{*currentSong, currentSong->project};
@@ -55,7 +55,7 @@ void Integer::writeCurrentValue() {
 			if (thisDrum->type == DrumType::SOUND) {
 				auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 
-				char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
 				ModelStackWithAutoParam* modelStackForSoundDrum =
 				    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)
 				        ->getPatchedAutoParamFromId(getP());

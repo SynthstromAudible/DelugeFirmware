@@ -206,7 +206,7 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
 	// Must do this before calling opportunityToBeginLinearLoopRecording(), which may clone a new Output
 	bool currentClipHasSameOutput = (getCurrentClip() && getCurrentOutput() == clip->output);
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
 	bool newOutputCreated;
@@ -296,7 +296,7 @@ void Session::doLaunch(bool isFillLaunch) {
 	bool anySoloingAfter = false;
 	bool anyClipsStillActiveAfter = false;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	deluge::fast_set<Output*> outputsLaunchedFor;
@@ -851,7 +851,7 @@ void Session::reSyncClipToSongTicks(Clip* clip) {
 		modifiedStartPos += clip->loopLength(); // Fairly unlikely I think
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
 	clip->setPos(modelStack, modifiedStartPos);
@@ -1064,7 +1064,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 			if (!playbackHandler.isEitherClockActive()) {
 				clip->activeIfNoSolo = true;
 
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 				ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
@@ -1198,7 +1198,7 @@ void Session::soloClipAction(Clip* clip, bool doInstant, int32_t buttonPressLate
 		// If either playback is off or there's tempoless recording...
 		if (!playbackHandler.isEitherClockActive()) {
 
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
@@ -1261,7 +1261,7 @@ yupThatsFine:
 	// If Deluge not playing
 	if (!playbackHandler.isEitherClockActive()) {
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 		armSectionWhenNeitherClockActive(modelStack, section, stopAllOtherClips);
@@ -1397,7 +1397,7 @@ void Session::armClipsAlongWithExistingLaunching(ArmState armState, uint8_t sect
 
 void Session::armClipsWithNothingToSyncTo(uint8_t section, Clip* clip) {
 	playbackHandler.endPlayback();
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 	// Restart playback.
 	// If just one Clip...
@@ -1838,7 +1838,7 @@ weWantThisClipInactive:
 void Session::armClipToStartOrSoloUsingQuantization(Clip* thisClip, bool doLateStart, uint32_t pos, ArmState armState,
                                                     bool mustUnarmOtherClipsWithSameOutput) {
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, thisClip);
 
@@ -1940,7 +1940,7 @@ void Session::scheduleFillClip(Clip* clip) {
 					}
 				}
 
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithTimelineCounter* modelStack =
 				    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 				uint32_t pos;
@@ -2122,7 +2122,7 @@ void Session::reversionDone() {
 	}
 	for (Clip* clip : AllClips::everywhere(currentSong)) {
 		if (currentSong->isClipActive(clip)) {
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
@@ -2237,7 +2237,7 @@ void Session::resetPlayPos(int32_t newPos, bool doingComplete, int32_t buttonPre
 	// this function will be called on playback begin, song swap, and more
 	currentSong->deactivateAnyArrangementOnlyClips();
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
@@ -2316,7 +2316,7 @@ bool Session::considerLaunchEvent(int32_t numTicksBeingIncremented) {
 	bool swappedSong = false;
 	Clip* nextClipWithFillEvent = nullptr;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	// We now increment the currentPos of all Clips before doing any launch event - so that any new Clips which get
@@ -2452,7 +2452,7 @@ void Session::doTickForward(int32_t posIncrement) {
 		playbackHandler.swungTicksTilNextEvent = std::min(ticksTilLaunchEvent, playbackHandler.swungTicksTilNextEvent);
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
@@ -2591,7 +2591,7 @@ void Session::unsoloClip(Clip* clip) {
 			modifiedStartPos += clip->loopLength();
 		}
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 		for (int32_t c = 0; c < std::ssize(currentSong->live.clips.session_clips); c++) {

@@ -42,7 +42,7 @@ Error NudgeNote::apply(Context& /*ctx*/) {
 	// ModelStack, which would invalidate the caller's ModelStackWithNoteRow; the caller's stacks survive apply()
 	// unchanged.
 	{
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, engineStack_->song, clip);
 		int32_t lengthBeforeLoop = clip->getLoopLength();
