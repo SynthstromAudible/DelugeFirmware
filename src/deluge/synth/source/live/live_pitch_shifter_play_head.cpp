@@ -16,10 +16,10 @@
  */
 
 #include "synth/source/live/live_pitch_shifter_play_head.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/fixed/interpolation/interpolator.h"
 #include "synth/source/live/live_input_buffer.h"
 #include "synth/source/live/live_pitch_shifter.h"
-#include "util/fixedpoint.h"
 #include <argon.hpp>
 
 #pragma GCC push_options

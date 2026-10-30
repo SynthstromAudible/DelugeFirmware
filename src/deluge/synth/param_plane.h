@@ -19,9 +19,9 @@
 
 #include "definitions_cxx.hpp"       // kNumPatchSources, kFirstLocalSource
 #include "modulation/params/param.h" // params::LOCAL_LAST, kNumParams, FIRST_GLOBAL
-#include "util/misc.h"               // util::to_underlying
 #include <array>
 #include <cstdint>
+#include <utility>
 
 /// The per-scope modulation data plane: the patch source values fed into the Patcher, and the param final
 /// values it writes out. Grouped into one POD so the synth core can own a single unit (the Phase-4 Voice
@@ -37,5 +37,5 @@ struct ParamPlane {
 using VoiceParams = ParamPlane<kNumPatchSources, deluge::modulation::params::LOCAL_LAST>;
 
 /// The per-sound (global) plane: the global patch sources, the global param range.
-using GlobalParams = ParamPlane<util::to_underlying(kFirstLocalSource),
+using GlobalParams = ParamPlane<std::to_underlying(kFirstLocalSource),
                                 deluge::modulation::params::kNumParams - deluge::modulation::params::FIRST_GLOBAL>;

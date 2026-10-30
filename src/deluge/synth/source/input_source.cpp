@@ -15,12 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "synth/source/input_source.h"
-#include "board_config.h"                      // NUM_MONO_INPUT_CHANNELS, SSI_RX_BUFFER_NUM_SAMPLES
+#include "board_config.h" // NUM_MONO_INPUT_CHANNELS, SSI_RX_BUFFER_NUM_SAMPLES
+#include "dsp-next/core/q31_ops.h"
 #include "memory/memory_allocator_interface.h" // allocMaxSpeed / delugeDealloc (the thin allocator seam)
 #include "synth/source/audio_input_port.h"
 #include "synth/source/live/live_input_buffer.h"
 #include "synth/source/live/live_pitch_shifter.h"
-#include "util/fixedpoint.h"
 #include <cstring>
 #include <new>
 

@@ -16,9 +16,9 @@
  */
 
 #include "dsp-next/fixed/fft/real_dft.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/tables/sine_small.h"
-#include "util/fixedpoint.h"
 
 #include <cassert>
 

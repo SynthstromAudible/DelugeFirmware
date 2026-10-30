@@ -18,11 +18,11 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/fixed/bandlimited/waves.h" // square, triangle
 #include "dsp-next/fixed/noise/cong.h"        // the noise stream the random waves draw from
 #include "dsp-next/fixed/osc/sine_table.h"    // sine_table
-#include "modulation/sync.h"
-#include "util/fixedpoint.h"
+#include "plugin-api/types/sync.h"            // SyncType, SyncLevel
 #include <cstdint>
 #include <variant>
 
@@ -31,11 +31,14 @@
 /// configuration-free.
 class LFOConfig {
 public:
-	LFOConfig() : waveType(LFOType::TRIANGLE), syncType(SYNC_TYPE_EVEN), syncLevel(SYNC_LEVEL_NONE) {}
-	LFOConfig(LFOType type) : waveType(type), syncType(SYNC_TYPE_EVEN), syncLevel(SYNC_LEVEL_NONE) {}
+	LFOConfig()
+	    : waveType(LFOType::TRIANGLE), syncType(deluge::plugin::SyncType::EVEN),
+	      syncLevel(deluge::plugin::SyncLevel::NONE) {}
+	LFOConfig(LFOType type)
+	    : waveType(type), syncType(deluge::plugin::SyncType::EVEN), syncLevel(deluge::plugin::SyncLevel::NONE) {}
 	LFOType waveType;
-	SyncType syncType;
-	SyncLevel syncLevel;
+	deluge::plugin::SyncType syncType;
+	deluge::plugin::SyncLevel syncLevel;
 
 	bool operator==(const LFOConfig&) const = default;
 };

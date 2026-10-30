@@ -16,10 +16,10 @@
  */
 
 #include "synth/envelope.h"
+#include "dsp-next/core/q31_ops.h"                            // multiply_32x32_rshift32, add_saturate
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // getDecay4/8, linear_table_interpolator
 #include "dsp-next/fixed/osc/sine_table.h"                    // sine_table (sine-shaped fast-release)
 #include "dsp-next/fixed/tables/decay_small.h"
-#include "util/fixedpoint.h" // multiply_32x32_rshift32, add_saturate
 #include <algorithm>
 #include <limits>
 

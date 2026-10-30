@@ -182,7 +182,6 @@ LIBRARIES: dict[str, Library] = {
             "serialization/",
             "foundation/panic.h",
             "dsp-next/",
-            "util/fixedpoint.h",
         ),
     ),
     "instrument": Library(

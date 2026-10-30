@@ -103,7 +103,7 @@ describe lfo_spec("LFO", ${
 		LFOConfig conf(LFOType::SAMPLE_AND_HOLD);
 		lfo.setLocalInitialPhase(conf);
 		uint32_t local_phase = lfo.phase();
-		conf.syncLevel = SYNC_LEVEL_8TH;
+		conf.syncLevel = deluge::plugin::SyncLevel::EIGHTH;
 		lfo.setGlobalInitialPhase(conf);
 		expect(lfo.phase()).to_equal(local_phase);
 		expect(lfo.phase()).to_equal(0u);
@@ -132,7 +132,7 @@ describe lfo_spec("LFO", ${
 		LFO lfo;
 		LFOConfig conf(LFOType::RANDOM_WALK);
 		lfo.setLocalInitialPhase(conf);
-		conf.syncLevel = SYNC_LEVEL_8TH;
+		conf.syncLevel = deluge::plugin::SyncLevel::EIGHTH;
 		lfo.setGlobalInitialPhase(conf);
 		expect(lfo.phase()).to_equal(0u);
 

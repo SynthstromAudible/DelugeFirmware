@@ -195,8 +195,8 @@ fn link_closure(build_dir: &Path, archive: &Path) {
         ("serialization", "libdeluge_serialization.a"),
         ("music-theory", "libdeluge_music_theory.a"),
         ("deluge-project", "libdeluge_project.a"),
-        ("engines-deluge", "libdeluge_instrument.a"),
-        ("engines-effects", "libdeluge_effects.a"),
+        ("instruments-deluge", "libdeluge_instrument.a"),
+        ("effects", "libdeluge_effects.a"),
         ("midi", "libdeluge_midi.a"),
     ];
     println!("cargo:rustc-link-arg=-Wl,--start-group");

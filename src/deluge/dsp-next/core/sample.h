@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "util/fixedpoint.h" // q31_t, ONE_Q31, ONE_Q31f (standard-headers-only, L0-clean)
+#include "dsp-next/core/q31_ops.h" // q31_t, ONE_Q31, ONE_Q31f (standard-headers-only, L0-clean)
 #include <concepts>
 
 // Numeric vocabulary for dsp-next. The library is numeric-agnostic at the

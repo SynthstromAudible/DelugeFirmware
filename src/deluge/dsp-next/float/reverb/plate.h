@@ -23,11 +23,11 @@
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/float/reverb/plate_lfo.h"
-#include "util/fixedpoint.h"
 #include "util/misc.h"
 
 #include <algorithm>

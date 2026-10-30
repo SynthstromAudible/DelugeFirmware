@@ -19,11 +19,11 @@
 
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
-#include "util/fixedpoint.h"
 
 #include <cmath>
 #include <cstddef>

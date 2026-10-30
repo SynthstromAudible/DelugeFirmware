@@ -75,12 +75,13 @@ class LibraryBoundaryTest(unittest.TestCase):
                     1,
                 )
 
-    def test_the_effects_library_may_use_the_l0_dsp_library_and_fixed_point(self):
+    def test_the_effects_library_may_use_the_l0_dsp_library(self):
         effects = LIBRARIES["effects"]
-        accepted = (
-            '#include "dsp-next/core/stereo_sample.h"\n#include "util/fixedpoint.h"\n'
-        )
+        accepted = '#include "dsp-next/core/stereo_sample.h"\n#include "dsp-next/core/q31_ops.h"\n'
         self.assertEqual(self.check(accepted, library=effects), [])
+        self.assertEqual(
+            len(self.check('#include "util/fixedpoint.h"\n', library=effects)), 1
+        )
         self.assertEqual(
             len(self.check('#include "util/functions.h"\n', library=effects)), 1
         )

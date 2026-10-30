@@ -17,7 +17,7 @@
 
 #include "effects/chain_core.h"
 
-#include "util/fixedpoint.h"
+#include "dsp-next/core/q31_ops.h"
 
 namespace deluge::effects {
 

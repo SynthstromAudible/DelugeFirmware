@@ -17,10 +17,10 @@
 
 #pragma once
 
+#include "dsp-next/core/q31_ops.h" // lshiftAndSaturate, lshiftAndSaturateUnknown
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
 #include "dsp-next/fixed/shaping/tanh_small_table.h"
-#include "util/param_functions.h" // lshiftAndSaturate, lshiftAndSaturateUnknown
 
 #include <cstdint>
 

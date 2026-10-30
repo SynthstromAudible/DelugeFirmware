@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "synth/source/va_shapes.h"
+#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32_rounded
 #include "dsp-next/core/ramp.h"
 #include "dsp-next/fixed/bandlimited/analog_saw.h"
 #include "dsp-next/fixed/bandlimited/analog_square.h"
@@ -31,10 +32,9 @@
 #include "dsp-next/fixed/tables/sine_small.h"
 #include "dsp-next/fixed/vca/amplitude.h"
 #include "dsp-next/fixed/vca/crude_amplitude.h"
-#include "util/fixedpoint.h" // multiply_32x32_rshift32_rounded
-#include "util/misc.h"       // util::to_underlying
 #include <cstdint>
 #include <optional>
+#include <utility>
 
 namespace deluge::synth::va_shape {
 namespace {
@@ -349,7 +349,7 @@ void AnalogSquare::renderBlock(const BlockControls& controls, fixed::Buffer outp
 
 bool is_virtual_analog(OscType type) {
 	// The six VA waves are the first OscType entries, up to ANALOG_SAW_2; WAVETABLE and above are not.
-	return util::to_underlying(type) <= util::to_underlying(OscType::ANALOG_SAW_2);
+	return std::to_underlying(type) <= std::to_underlying(OscType::ANALOG_SAW_2);
 }
 
 Wave wave_for(OscType type) {

@@ -17,10 +17,9 @@
 #pragma once
 
 #include "dsp-next/core/processor.h"
+#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32, add_saturate, ONE_Q31
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
-#include "util/fixedpoint.h"      // multiply_32x32_rshift32, add_saturate, ONE_Q31
-#include "util/param_functions.h" // lshiftAndSaturateUnknown
 
 #include <type_traits>
 

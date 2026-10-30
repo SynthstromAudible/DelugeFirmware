@@ -2,7 +2,7 @@
 # entries, and the host chains' effect components. Built on the plugin API and the L0 DSP library (dsp-next); serves the
 # Deluge instrument's per-sound effects and the host chains.
 add_library(deluge_effects STATIC chain.cpp chain_core.cpp clip_chain.cpp master_chain.cpp sound_chain.cpp codec.cpp bitcrush.cpp compressor.cpp delay.cpp delay_arena.cpp filter.cpp granular.cpp mod_fx.cpp reverb.cpp saturation.cpp stutter.cpp send_and_volume.cpp settings.cpp sidechain.cpp)
-# src/deluge for the L0 DSP library (dsp-next/) and util/fixedpoint.h; the library boundary check limits which.
+# src/deluge for the L0 DSP library (dsp-next/); the library boundary check limits which.
 target_include_directories(deluge_effects PUBLIC ${CMAKE_CURRENT_LIST_DIR}/.. ${CMAKE_CURRENT_LIST_DIR}/../deluge)
 target_compile_features(deluge_effects PUBLIC cxx_std_23)
 if(DEFINED DELUGE_CXX_STANDARD)

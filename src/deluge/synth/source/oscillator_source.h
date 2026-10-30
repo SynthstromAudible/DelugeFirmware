@@ -16,9 +16,9 @@
  */
 #pragma once
 
-#include "dsp-next/core/types.h" // deluge::dsp::fixed::Buffer
-#include "synth/source/source.h" // Source, SourceRenderContext, BlockControls
-#include "util/fixedpoint.h"     // multiply_32x32_rshift32
+#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32
+#include "dsp-next/core/types.h"   // deluge::dsp::fixed::Buffer
+#include "synth/source/source.h"   // Source, SourceRenderContext, BlockControls
 #include <cstdint>
 #include <cstring>
 

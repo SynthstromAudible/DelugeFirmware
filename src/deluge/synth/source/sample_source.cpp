@@ -17,8 +17,8 @@
 
 #include "synth/source/sample_source.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/q31_ops.h"
 #include "synth/source/time_stretch_adjust.h"
-#include "util/fixedpoint.h"
 #include <cstdint>
 #include <cstdlib> // std::abs
 #include <cstring> // memset

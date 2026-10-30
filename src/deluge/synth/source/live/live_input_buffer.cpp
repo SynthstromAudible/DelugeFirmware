@@ -18,9 +18,9 @@
 #include "synth/source/live/live_input_buffer.h"
 #include "board_config.h" // NUM_MONO_INPUT_CHANNELS, SSI_RX_BUFFER_NUM_SAMPLES
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32_rounded
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "synth/source/audio_input_port.h"
-#include "util/fixedpoint.h" // multiply_32x32_rshift32_rounded
 #include <string.h>
 
 namespace deluge::synth {

@@ -18,7 +18,7 @@
 #include "dsp-next/fixed/filter/filter_set.h"
 #include "dsp-next/core/wrapping.h"
 
-#include "util/fixedpoint.h"
+#include "dsp-next/core/q31_ops.h"
 
 #include <algorithm>
 #include <cstdint>

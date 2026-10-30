@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "synth/source/wavetable_source.h"
+#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32_rounded
 #include "dsp-next/fixed/vca/amplitude.h"
-#include "util/fixedpoint.h" // multiply_32x32_rshift32_rounded
 
 namespace deluge::synth {
 

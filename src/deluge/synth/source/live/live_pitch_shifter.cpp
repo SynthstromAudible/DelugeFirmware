@@ -16,7 +16,8 @@
  */
 
 #include "synth/source/live/live_pitch_shifter.h"
-#include "definitions_cxx.hpp" // TimeStretch::Crossfade constants
+#include "definitions_cxx.hpp"     // TimeStretch::Crossfade constants
+#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32
 #include "dsp-next/fixed/curves/quick_log.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
 #include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h"
@@ -24,9 +25,7 @@
 #include "foundation/panic.h"                     // FREEZE_WITH_ERROR
 #include "synth/source/audio_input_port.h"
 #include "synth/source/live/live_input_buffer.h"
-#include "util/fixedpoint.h"      // multiply_32x32_rshift32
-#include "util/param_functions.h" // lshiftAndSaturate
-#include <algorithm>              // std::min / std::max / std::clamp
+#include <algorithm> // std::min / std::max / std::clamp
 #include <cstdlib>
 
 // #define MEASURE_HOP_END_PERFORMANCE 1
