@@ -353,7 +353,7 @@ dependencies = [
 [[package]]
 name = "deluge-bsp"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0#fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=2a0733cf9c01182408ce4826d2fb08168d5c2243#2a0733cf9c01182408ce4826d2fb08168d5c2243"
 dependencies = [
  "cortex-ar",
  "critical-section",
@@ -931,7 +931,7 @@ dependencies = [
 [[package]]
 name = "max5136"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0#fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=2a0733cf9c01182408ce4826d2fb08168d5c2243#2a0733cf9c01182408ce4826d2fb08168d5c2243"
 dependencies = [
  "embedded-hal 1.0.0",
 ]
@@ -1129,7 +1129,7 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 [[package]]
 name = "rza1-alloc"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0#fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=2a0733cf9c01182408ce4826d2fb08168d5c2243#2a0733cf9c01182408ce4826d2fb08168d5c2243"
 dependencies = [
  "critical-section",
  "rlsf",
@@ -1138,7 +1138,7 @@ dependencies = [
 [[package]]
 name = "rza1-hal"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0#fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=2a0733cf9c01182408ce4826d2fb08168d5c2243#2a0733cf9c01182408ce4826d2fb08168d5c2243"
 dependencies = [
  "cortex-ar",
  "critical-section",
@@ -1161,12 +1161,12 @@ dependencies = [
 [[package]]
 name = "rza1-pac"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0#fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=2a0733cf9c01182408ce4826d2fb08168d5c2243#2a0733cf9c01182408ce4826d2fb08168d5c2243"
 
 [[package]]
 name = "rza1-rt"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0#fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=2a0733cf9c01182408ce4826d2fb08168d5c2243#2a0733cf9c01182408ce4826d2fb08168d5c2243"
 dependencies = [
  "rza1-rt-macros",
 ]
@@ -1174,7 +1174,7 @@ dependencies = [
 [[package]]
 name = "rza1-rt-macros"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0#fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=2a0733cf9c01182408ce4826d2fb08168d5c2243#2a0733cf9c01182408ce4826d2fb08168d5c2243"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1386,7 +1386,7 @@ checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
 [[package]]
 name = "usb-classes"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0#fb063ce413af3c9ad4aee52f5c2e4eb169cae9b0"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=2a0733cf9c01182408ce4826d2fb08168d5c2243#2a0733cf9c01182408ce4826d2fb08168d5c2243"
 dependencies = [
  "critical-section",
  "embassy-futures",

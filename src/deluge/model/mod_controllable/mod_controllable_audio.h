@@ -141,7 +141,7 @@ public:
 	void setStutterReversed(bool value);
 	void setStutterPingPong(bool value);
 	void setUseSongStutter(bool value);
-	// The reverb's sidechain (AudioEngine::reverbSidechain) is the engine's own, not an owner's.
+	// The reverb's sidechain (AudioEngine::reverb.sidechain()) is the engine's own, not an owner's.
 	void setSidechainAttack(int32_t value);
 	void setSidechainRelease(int32_t value);
 	void setSidechainSyncType(SyncType value);

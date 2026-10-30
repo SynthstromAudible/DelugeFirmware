@@ -17,8 +17,6 @@
 
 #include "engines/effects/clip_chain.h"
 
-#include "util/fixedpoint.h"
-
 #include <array>
 
 namespace deluge::effects {
@@ -41,14 +39,14 @@ ClipBlock ClipChain::begin_block(const ClipChainInputs& in, std::size_t frames) 
 	};
 
 	if (in.sidechain_on) {
-		Sidechain& sidechain = core_.sidechain();
-		if (in.sidechain_hit != 0) {
-			sidechain.registerHit(in.sidechain_hit);
-		}
-		const int32_t duck = sidechain.render(frames, in.sidechain_shape, settings.sidechain, in.tick_inverse);
-		const int32_t positive = multiply_32x32_rshift32(duck, in.sidechain_depth) + 536870912;
-		// The square of the ducked level, scaled to the neutral post-reverb volume (134217728) at no duck.
-		levels.post_reverb_volume = (positive >> 15) * (positive >> 16);
+		levels.post_reverb_volume = core_.sidechain().level<dsp::fixed::DuckScale::CLIP>({
+		    .frames = static_cast<uint32_t>(frames),
+		    .hit = in.sidechain_hit,
+		    .shape = in.sidechain_shape,
+		    .depth = in.sidechain_depth,
+		    .state = settings.sidechain,
+		    .tick_inverse = in.tick_inverse,
+		});
 	}
 
 	core_.compressor().configure(settings.compressor);

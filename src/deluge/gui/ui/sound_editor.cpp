@@ -1,6 +1,7 @@
 
 #include "gui/ui/sound_editor.h"
 #include "definitions_cxx.hpp"
+#include "engines/effects/reverb.h"
 #include "extern.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/dx/param.h"
@@ -1265,7 +1266,7 @@ void SoundEditor::blinkShortcut() {
 }
 
 bool SoundEditor::editingReverbSidechain() {
-	return (getCurrentUI() == &soundEditor && currentSidechain == &AudioEngine::reverbSidechain);
+	return (getCurrentUI() == &soundEditor && currentSidechain == &AudioEngine::reverb.sidechain());
 }
 
 ActionResult SoundEditor::horizontalEncoderAction(int32_t offset) {

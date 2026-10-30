@@ -2,6 +2,7 @@
 
 #include "dsp-next/core/control.h"
 #include "dsp-next/fixed/dynamics/duck_envelope.h"
+#include "dsp-next/fixed/dynamics/duck_gain.h"
 #include "util/lookuptables/lookuptables.h"
 
 #include <cppspec.hpp>
@@ -213,6 +214,36 @@ describe sidechain("an owner's sidechain on the dsp-next duck envelope", ${
 			out.push_back(sidechain.render(128, 0, state(SyncLevel::EIGHTH), kFastInverse));
 		}
 		expect(out).to_equal(kSyncedLate);
+	});
+
+	it("gives the duck as a level: the block's pending hit, the envelope's advance and the gain", _ {
+		using deluge::dsp::fixed::DuckScale;
+		using deluge::dsp::fixed::duck_gain;
+		for (const SyncLevel level : {SyncLevel::NONE, SyncLevel::EIGHTH}) {
+			const SidechainState s = state(level);
+			Sidechain by_level;
+			Sidechain by_hand;
+			for (uint32_t block = 0; block < 50; block++) {
+				const int32_t hit = block == 3 || block == 20 ? kHit : 0;
+				if (hit != 0) {
+					by_hand.registerHit(hit);
+				}
+				const int32_t duck = by_hand.render(128, kStraightShape, s, kFastInverse);
+				const DuckBlock b{.frames = 128,
+				                  .hit = hit,
+				                  .shape = kStraightShape,
+				                  .depth = 0x20000000,
+				                  .state = s,
+				                  .tick_inverse = kFastInverse};
+				if (block % 2 == 0) {
+					expect(by_level.level<DuckScale::CLIP>(b)).to_equal(duck_gain<DuckScale::CLIP>(duck, 0x20000000));
+				}
+				else {
+					expect(by_level.level<DuckScale::REVERB_RETURN>(b))
+					    .to_equal(duck_gain<DuckScale::REVERB_RETURN>(duck, 0x20000000));
+				}
+			}
+		}
 	});
 });
 // clang-format on

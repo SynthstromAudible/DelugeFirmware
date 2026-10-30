@@ -396,14 +396,10 @@ constexpr int32_t direnessThreshold = numSamplesLimit - 30;
 constexpr int MIN_VOICES = 7;
 
 deluge::effects::Reverb reverb{};
-PLACE_INTERNAL_FRUNK deluge::effects::Sidechain reverbSidechain{};
 deluge::effects::SidechainState reverbSidechainSettings = deluge::modulation::default_sidechain_state();
 int32_t reverbSidechainVolume;
 int32_t reverbSidechainShape;
 int32_t reverbPan = 0;
-
-int32_t reverbSidechainVolumeInEffect; // Active right now - possibly overridden by the sound with the most reverb
-int32_t reverbSidechainShapeInEffect;
 
 bool mustUpdateReverbParamsBeforeNextRender = false;
 
@@ -1526,16 +1522,11 @@ void renderReverb(size_t numSamples) {
 		mustUpdateReverbParamsBeforeNextRender = false;
 	}
 
-	// Render the reverb sidechain
-	int32_t sidechainOutput = 0;
-	if (reverbSidechainVolumeInEffect != 0) {
-		if (sideChainHitPending != 0) {
-			reverbSidechain.registerHit(sideChainHitPending);
-		}
-
-		sidechainOutput = reverbSidechain.render(numSamples, reverbSidechainShapeInEffect, reverbSidechainSettings,
-		                                         playbackHandler.getTimePerInternalTickInverse());
-	}
+	// The return's duck advances whether or not the reverb renders this block. The tick inverse is read only while it
+	// ducks: between songs there is no tempo to read.
+	const uint32_t tickInverse = reverb.return_ducks() ? playbackHandler.getTimePerInternalTickInverse() : 0;
+	const int32_t reverbOutputVolume =
+	    reverb.return_level(numSamples, sideChainHitPending, reverbSidechainSettings, tickInverse);
 
 	int32_t reverbAmplitudeL;
 	int32_t reverbAmplitudeR;
@@ -1546,11 +1537,6 @@ void renderReverb(size_t numSamples) {
 	reverbOn |= (std::max(approxRMSLevel.l, approxRMSLevel.r) > 9);
 
 	if (reverbOn) {
-		// Patch that to reverb volume
-		int32_t positivePatchedValue =
-		    multiply_32x32_rshift32(sidechainOutput, reverbSidechainVolumeInEffect) + 0x20000000;
-		int32_t reverbOutputVolume = (positivePatchedValue >> 15) * (positivePatchedValue >> 14);
-
 		// Reverb panning
 		bool thisDoPanning = (renderInStereo && shouldDoPanning(reverbPan, &reverbAmplitudeL, &reverbAmplitudeR));
 
@@ -1998,6 +1984,7 @@ void dumpAudioLog() {
 }
 
 void updateReverbParams() {
+	deluge::effects::ReturnDuck duck{};
 
 	// If reverb sidechain on "auto" settings...
 	if (reverbSidechainVolume < 0) {
@@ -2033,41 +2020,41 @@ void updateReverbParams() {
 
 			int32_t whichCable = patchCableSet->getPatchCableIndex(PatchSource::SIDECHAIN, paramDescriptor);
 			if (whichCable != 255) {
-				reverbSidechainVolumeInEffect =
+				duck.depth =
 				    patchCableSet->getModifiedPatchCableAmount(whichCable, params::GLOBAL_VOLUME_POST_REVERB_SEND);
 			}
 			else {
-				reverbSidechainVolumeInEffect = 0;
+				duck.depth = 0;
 			}
 			goto sidechainFound;
 		}
 		else if (globalEffectableWithMostReverb) {
 			modControllable = globalEffectableWithMostReverb;
 
-			reverbSidechainVolumeInEffect =
+			duck.depth =
 			    globalEffectableWithMostReverb->getSidechainVolumeAmountAsPatchCableDepth(paramManagerWithMostReverb);
 
 sidechainFound:
-			reverbSidechainShapeInEffect =
+			duck.shape =
 			    paramManagerWithMostReverb->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE);
 			const deluge::effects::SidechainState& from =
 			    modControllable->modControllableSnapshot().effects.sidechain; // the render's copy
 			reverbSidechainSettings.attack = from.attack;
 			reverbSidechainSettings.release = from.release;
 			reverbSidechainSettings.sync_level = from.sync_level;
+			reverb.set_return_duck(duck);
 			return;
 		}
 
 		// Or if no thing has more reverb than the Song itself...
 		else {
-			reverbSidechainVolumeInEffect = 0;
+			reverb.set_return_duck(duck);
 			return;
 		}
 	}
 
 	// Otherwise, use manually set params for reverb sidechain
-	reverbSidechainVolumeInEffect = reverbSidechainVolume;
-	reverbSidechainShapeInEffect = reverbSidechainShape;
+	reverb.set_return_duck({.depth = reverbSidechainVolume, .shape = reverbSidechainShape});
 }
 
 void registerSideChainHit(int32_t strength) {

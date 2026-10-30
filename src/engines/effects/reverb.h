@@ -20,6 +20,8 @@
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/reverb/freeverb.h"
 #include "dsp-next/float/reverb/plate.h"
+#include "engines/effects/sidechain.h"
+#include "engines/effects/state.h"
 #include "engines/effects/words.h"
 #include <cstddef>
 #include <cstdint>
@@ -29,6 +31,13 @@
 #include <utility>
 
 namespace deluge::effects {
+
+/// @brief The duck the reverb's return takes: the depth and shape in effect, the song's own or those of the owner with
+/// the most reverb, as the engine chooses them.
+struct ReturnDuck {
+	int32_t depth{0}; ///< The sidechain volume as a patch cable's depth, Q29; 0 leaves the envelope still.
+	int32_t shape{0}; ///< The shape param, Q31.
+};
 
 /// @brief The song's reverb: Freeverb or the plate (Mutable or Digital) over one buffer of the larger's size, the model
 /// chosen per block.
@@ -89,6 +98,28 @@ public:
 	/// @param pan_r The right return level, Q31.
 	void render(std::span<dsp::StereoSample> block, std::span<const int32_t> send, int32_t pan_l, int32_t pan_r);
 
+	/// @brief Sets the duck the return takes from the next block.
+	/// @param duck The depth and shape in effect.
+	void set_return_duck(const ReturnDuck& duck) { return_duck_ = duck; }
+
+	/// @brief Whether the return's duck is in effect (a non-zero depth): only then does @ref return_level read its
+	/// rates and tick inverse.
+	[[nodiscard]] bool return_ducks() const { return return_duck_.depth != 0; }
+
+	/// @brief The return's level for a block of @p frames: while the depth is non-zero the duck takes @p hit and
+	/// advances, whether or not the reverb then renders; at depth 0 it holds still and the level is 2^29.
+	/// @param frames The block's length.
+	/// @param hit The hit pending for this block, Q31; 0 for none.
+	/// @param state The attack, release and sync in effect, read at every block so a menu's edit takes effect at the
+	/// next.
+	/// @param tick_inverse The playback handler's getTimePerInternalTickInverse(); read only while @ref return_ducks.
+	/// @return The return's level, 2^29 unducked.
+	[[nodiscard]] int32_t return_level(uint32_t frames, int32_t hit, const SidechainState& state,
+	                                   uint32_t tick_inverse);
+
+	/// @brief The return's sidechain.
+	[[nodiscard]] Sidechain& sidechain() { return return_sidechain_; }
+
 	/// @brief The models' states and memories, for specs: only the held model's memory may be read.
 	[[nodiscard]] const dsp::fixed::Freeverb::State& freeverb_state() const { return freeverb_.state(); }
 	[[nodiscard]] const dsp::fp::Plate::State& plate_state() const { return plate_.state(); }
@@ -126,6 +157,8 @@ private:
 	/// The render's model request during an interaction-tier change: written by the render, read and cleared by the
 	/// changing tier inside an excluded section.
 	std::optional<ReverbModel> requested_{};
+	Sidechain return_sidechain_{}; ///< The return's duck envelope.
+	ReturnDuck return_duck_{};     ///< The depth and shape the return's duck takes.
 };
 
 static_assert(!std::is_polymorphic_v<Reverb>);

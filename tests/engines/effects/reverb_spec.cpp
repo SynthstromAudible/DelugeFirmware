@@ -291,6 +291,36 @@ describe reverb("the reverb component", ${
 			expect(reverb->model() == m).to_be_true();
 		}
 	});
+
+	it("ducks its return only at a non-zero depth, as a sidechain of the same rates does", _ {
+		using deluge::dsp::fixed::DuckScale;
+		using deluge::dsp::fixed::duck_gain;
+		using deluge::effects::ReturnDuck;
+		using deluge::effects::Sidechain;
+		using deluge::effects::SidechainState;
+		const SidechainState rates{.attack = 37640, .release = 3680};
+		constexpr uint32_t kInverse = 6492772;
+		constexpr int32_t kHit = 0x60000000;
+		constexpr int32_t kShape = -601295438;
+		auto reverb = std::make_unique<Reverb>();
+		Sidechain alongside;
+
+		// At depth 0 the return is unducked, and a hit neither registers nor advances the envelope.
+		expect(reverb->return_ducks()).to_be_false();
+		expect(reverb->return_level(128, kHit, rates, kInverse)).to_equal(1 << 29);
+
+		reverb->set_return_duck(ReturnDuck{.depth = 0x20000000, .shape = kShape});
+		expect(reverb->return_ducks()).to_be_true();
+		for (int block = 0; block < 40; block++) {
+			const int32_t hit = block == 2 || block == 25 ? kHit : 0;
+			if (hit != 0) {
+				alongside.registerHit(hit);
+			}
+			const int32_t duck = alongside.render(128, kShape, rates, kInverse);
+			expect(reverb->return_level(128, hit, rates, kInverse))
+			    .to_equal(duck_gain<DuckScale::REVERB_RETURN>(duck, 0x20000000));
+		}
+	});
 });
 // clang-format on
 
