@@ -60,13 +60,8 @@ the patcher input) and `ParamPlane`/`VoiceParams` (`synth/param_plane.h`, the pe
 ### What blocks L-viii
 
 The decoupling slices above made `Voice::render`'s body input-driven. A literal `synth::Voice` still needs the
-rest of `Voice` to stop naming App types. `check_synth_boundary` forbids the `dsp/` prefix, but the voice's legacy
-`dsp/` includes are small:
-
-- `dsp/timestretch/time_stretcher.h` is included by `voice.cpp` and not used.
-- `dsp/util.hpp` supplies `foldBufferPolyApproximation` only. It belongs in a dsp-next shaping component.
-- `dsp/oscillators/oscillator.h` is `oscSyncRenderingBuffer` (a scratch array) plus `isVirtualAnalog`/`vaWaveFor`
-  (an `OscType` mapper). Neither is DSP; both move out with the scratch and VA shapes.
+rest of `Voice` to stop naming App types. The voice includes nothing from legacy `dsp/`: its wavefolder is dsp-next's
+`Wavefolder`, its sync scratch is `render::osc_sync_scratch()`, and its wave mappers are in `synth/source/va_shapes`.
 
 The real blockers:
 

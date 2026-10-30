@@ -230,6 +230,20 @@ accepted, and a `prepare` taking any other type is rejected, never converted. `n
 The wrapper runs `prepare` on the wrapper's own state, before it takes the
 local copies the loop runs on, so the loop's state stays in registers.
 
+### The kernel's Context
+
+A kernel may declare `Context`, a plain value its owner passes to each block
+(`has_context<K>`; the synth's noise stream is the one use). Its step form then
+takes the context last: `step(c, b, s, Context&)`, `step(c, b, s, x, Context&)`
+or `step(c, b, s, a, b2, Context&)`, the counted partial step taking it after the
+`ActiveLanes` tag. `Mono` and `Lanes` give such a kernel only context-taking
+`render`/`renderBlock`/`renderLane` overloads, so an owner cannot forget it: the
+wrapper copies the owner's context into a local before the block, hands that
+local to every step of every lane in order (lane 0 then lane 1 within each
+frame), and writes it back once after the block. `prepare` never sees it; a
+staged or control kernel may not declare one; `lane_packable` and `chainable`
+exclude it.
+
 ### The five forms
 
 A kernel takes exactly one form; a class providing two satisfies none.
@@ -361,7 +375,7 @@ fused frame kernel of stereo frames, rendered in place as
 
 `ModFx` (`fixed/mod_fx/mod_fx_kernel.h`) is the reference for a moded kernel
 whose memory belongs to an engine component. It is the mod FX as one processor
-kernel of stereo frames, rendered in place as `Mono<ModFx<CongNoise>>::renderBlock(block, block)`
+kernel of stereo frames, rendered in place as `Mono<ModFx<>>::renderBlock(block, block, noise)`
 by `effects::ModFx` (`engines/effects/mod_fx.{h,cpp}`). The kernel knows modes,
 rates and a ring it is pointed at; the component knows `ModFXType`, the params,
 the allocator and the soft off.
@@ -399,9 +413,9 @@ the allocator and the soft off.
   and in mono it only draws its random targets, which keeps the noise sequence
   the same in both. The right tap's LFO is chosen per mode at compile time: its
   own, the second warbler, or the left's negated.
-- **The noise is a policy.** The warblers' random targets come from
-  `Noise::render()`, the app's `CongNoise` global, so the kernel's specs run
-  `CongNoise` with its generator state reset to the boot seed.
+- **The noise is the block's Context.** The warblers' random targets are drawn
+  from the stream the owner passes (`FxInputs::noise`), so the kernel's specs
+  pass the synth's stream reseeded to the boot seed.
 - **The State is copied whole.** It declares neither `kStateInPlace` nor
   `kLoopState`: it is 100 bytes (the ring pointer, write index, two phases, two
   warblers, the wave, the phaser's memory and six allpass stages), copied in and
@@ -428,7 +442,7 @@ levels, its events and its `finish_level` call), and belongs beside
 
 `Granular` (`fixed/granular/granular_kernel.h`) is the granular effect as one
 processor kernel of stereo frames, rendered in place as
-`Mono<Granular<CongNoise>>::renderBlock(block, block)` by `effects::Granular`
+`Mono<Granular<>>::renderBlock(block, block, noise)` by `effects::Granular`
 (`engines/effects/granular.{h,cpp}`). The kernel knows a ring it is pointed at,
 eight grains and four knobs; the component knows `ModFXType`, the allocator and
 what entering GRAIN does for each kind of owner.
@@ -485,9 +499,10 @@ what entering GRAIN does for each kind of owner.
 - **The State is stepped in place.** The kernel declares `kStateInPlace`: the
   copied form is 1% to 7% slower in every case, 530 to 690 cycles per block
   (two copies of 330 bytes through `__aeabi_memcpy4`).
-- **The noise is a policy.** The spray, direction, pitch class, first-pass start
-  and pan of each grain come from `Noise::render()`, drawn in that order, so the
-  kernel's specs run `CongNoise` with its generator reset to the boot seed.
+- **The noise is the block's Context.** The spray, direction, pitch class,
+  first-pass start and pan of each grain are drawn from the stream the owner
+  passes, in that order, so the kernel's specs pass the synth's stream reseeded
+  to the boot seed.
 
 ### Memory the render allocates from, lent by the interaction tier: the delay's arena
 
@@ -738,7 +753,7 @@ the codec and the UI.
   (the app's `DxPatch` keeps one clamped copy, renewed at note-on and when the patch changes), the note and the
   velocity, so the voice keeps only what the note carries. `Noise::render()` gives one draw: a note-on draws six
   detunes in op order, then six phases unless the oscillators are key-synced; a block draws none. The app's voices are
-  `Voice<CongNoise>`, on the synth's shared stream.
+  `Voice<>`, drawing from the synth's stream at note-on.
 - **Named quirks.** A new patch's LFO phase and a new voice's feedback history start at `State{}` (0); the feedback
   history carries across a retrigger; a voice lives while an op's gain is at or above the modern engine's threshold,
   which a silent MkI op's attenuation (near `kEnvMax`) passes, so a released MkI voice never ends; an envelope's retune
@@ -1274,35 +1289,36 @@ overloads it on non-const `Coefficients`.
 ## Noise (`fixed/noise/`)
 
 - **`CongruentialStep`** is the single definition of the synth's noise step,
-  `x' = 69069·x + 1234567` (uint32, wrapping). The app's `CONG` macro
-  (`util/waves.h`) delegates to it, so the app and L0 cannot diverge.
-- **`SharedNoise`** is a stateless `sample_generator<q31>`. Its `render()`
-  advances the synth's one shared stream (the app's `jcong`, through `CONG`) and
-  returns the new state as q31. **It and `CongNoise` (below) are the only
-  places L0 touches shared state**: every consumer, app and component alike,
-  must draw from the one stream in call order for the output to stay
-  bit-exact.
-- **`SeededNoise`** runs the same step on its own `uint32_t`. Specs use it, as
-  does anything that wants a private stream.
-- **Noise is a template parameter.** A component that draws noise takes it as a
-  template parameter, so the draw inlines to the same code as a `CONG` site
-  and the component carries no pointer. The app spells the instantiation out
-  once.
-- **A kernel's noise is a policy type.** A kernel cannot hold a generator
-  instance (its `State` is a plain value struct), so it takes a type with
-  `static q31 render()`, each call the next draw. **`CongNoise`**
-  (`cong_noise.h`) is the app's: it draws from the synth's one stream through
-  `CONG`, as `SharedNoise` does. Specs inject a static wrapper over a
-  `SeededNoise`. `LowPassLadder<Noise>` is the user: the app runs
-  `LowPassLadder<CongNoise>`.
+  `x' = 69069·x + 1234567` (uint32, wrapping).
+- **`Cong`** (`cong.h`) is the generator: a plain value holding the state, whose
+  `next()` steps it and returns the draw. It satisfies **`noise_stream`**, the
+  concept a kernel's noise must meet (default-constructible, trivially copyable,
+  `next()` returning `uint32_t`), so a wrapper can copy it into a local for a
+  block and write it back.
+- **The app owns the one stream.** `deluge::synth_noise` (`util/synth_noise.h`)
+  is the synth's only stream; dsp-next and the synth library hold no global.
+  The app passes it at every call site that draws: the voice's filter set and
+  sources, the LFOs, the effect chains (through `FxInputs::noise` and
+  `MasterPostInputs::noise`), DX7's note-on and the live pitch shift (through
+  `SourceRenderContext::noise`). The host harness reseeds it through
+  `deluge_seed_noise`.
+- **A kernel's noise is its Context.** The low-pass ladder, mod FX and the grain
+  declare `using Context = Noise;` (a `noise_stream`, `Cong` by default) and
+  draw from the context their step is handed; see
+  [the kernel's Context](#the-kernels-context). Components that draw a handful
+  of values per call (the LFO's random waves, DX7's note-on) take a `Cong&`
+  directly.
+- **`SeededNoise`** wraps a `Cong` as a `sample_generator<q31>`, for specs and
+  anything that wants a private stream.
 - **The draw order is part of the output.** Every voice draws from the one
   stream, so one draw more or less, or two draws swapped, shifts everything
   drawn after it, across voices. A kernel draws a fixed number of times per
   step in every mode (the ladder once, twice when it oversamples), and under
   `Stereo` the left channel steps first in every frame, so the draws go left
-  then right, the order the pinned output was drawn in. A mono block run through
-  `renderLane<0>(…)` draws once per sample, for that lane only. An op-major
-  step must not draw (see [`Lanes`](#lanesk-n-corelanesh)).
+  then right. A mono block run through `renderLane<0>(…)` draws once per
+  sample, for that lane only. Per-voice and per-effect streams, which would
+  remove the cross-voice dependence, change the output and belong to the
+  audible re-baseline.
 
 ## Slotting-ready rules
 
@@ -1350,7 +1366,7 @@ How lanes behave:
 - A `Lanes` instance serves one mode. The voice engine groups voices by mode,
   and each lane has its own settings.
 - A noiseless stereo voice takes two lanes, one per channel.
-- A kernel whose noise policy is `SharedNoise` cannot satisfy `lane_kernel`.
+- A kernel with a noise Context cannot satisfy `lane_kernel`.
   Drawing for four voices at once would reorder the shared stream. Per-voice
   noise is a deliberate, ear-checked, re-baselined step, and it belongs to the
   lane arc.
@@ -1508,6 +1524,19 @@ These are the reference blocks that later rewrites compose rather than re-derive
   `FULL_WET` returns the wet sample unchanged, because the blend at `ONE_Q31` is not an identity.
 - **`wrapping_add` / `wrapping_sub`** (`wrapping.h`): q31 add and subtract with two's-complement wrap, defined for every
   input.
+- **The tables** (`tables/`): `sine_small` (one turn of sine, Q15, 257 entries with the wrap) and `decay_small_4` /
+  `decay_small_8` (the decay curves, UQ16), `constexpr` arrays dsp-next owns. The control-rate sine, the real DFT, the
+  sine band and the decay lookups read them.
+- **`fft::magnitude`** (`fft/magnitude.h`): an FFT bin's magnitude within about 0.15%, from a table of √(1 + q²) at the
+  rounded ratio of the smaller part to the larger, formed in 32 bits. The wavetable band builder and pitch detection use
+  it.
+- **`Wavefolder`** (`shaping/wavefolder.h`): the voice's pre-filter fold as a scalar `Processor`: the input scaled by the
+  fold amount (floored at 0.1) through 4(¾x − x³) twice, shifted down 7. Its doublings and ×8 wrap, as the target's
+  shifts do.
+- **`fp::LevelDetector`** (`float/dynamics/level_detector.h`): a block-rate level per channel, the block's mean
+  absolute sample smoothed by a one-pole (1 ms attack, 10 ms release) and reported as its natural log. The reverb's
+  gate and the recorder's threshold read it. Its int32 sum of a block's absolute samples wraps above a mean of 2^24,
+  about twice the level the render buffer clips at.
 
 ### The filters (`fixed/filter/`)
 
@@ -1552,7 +1581,7 @@ memory.
   - **Who uses which.** `FadeInMono` is the one the filter set runs. `FadeIn` is the frame-buffer form, for an owner
     whose blocks are frames.
 - **`FilterSet`** (`filter_set.h`): a low-pass and a high-pass slot, in series either way or in parallel.
-  - **The slots.** Each is a union of the `Stereo` wrappers its families need: `Stereo<LowPassLadder<CongNoise>>` or
+  - **The slots.** Each is a union of the `Stereo` wrappers its families need: `Stereo<LowPassLadder<>>` or
     `Stereo<Svf>`, and `Stereo<HighPassLadder>` or `Stereo<Svf>`. A change of family rebuilds the member with a
     zero State.
   - **Blocks.** A stereo block runs the wrapper over its frames. A mono block runs lane 0 alone through `renderLane`
@@ -1771,7 +1800,7 @@ it drops some:
   pass's cost). Each
   block is `FilterSet::configure` then `renderMono` or `renderStereo`, in place,
   through the set's public API alone, so the cases time whatever filters the set
-  holds. Each setup seeds the synth-wide noise (`jcong`) the low-pass ladder
+  holds. Each setup seeds the synth's noise stream (`deluge::synth_noise`) the low-pass ladder
   draws from, so every run times the same stream, and the host check counts its
   draws. These cases build with the library's flags
   (`src/deluge/bench/filter_cases.cpp`), and the list ends with the same two
@@ -1933,8 +1962,8 @@ gates:
 - Can a q31 add or subtract leave range? It goes through `wrapping_add` / `wrapping_sub` (`core/wrapping.h`), because
   signed overflow is undefined behaviour once a step is inlined. A left shift of a q31 (a doubling back from Q30, a
   feedback scale) is a plain signed `<<`, with no cast through `uint32_t`: C++20 defines it as modular.
-- Are there callback sinks, raw-pointer heads, out-parameters, or globals other
-  than the shared noise stream (`SharedNoise`, `CongNoise`)?
+- Are there callback sinks, raw-pointer heads, out-parameters, or globals? (Noise
+  comes in as the block's Context or a `Cong&`, never from a global.)
 - Is a block-rate signal a control kernel, and are its events functions on its
   State?
 - Is there a hand-written `renderBlock` (or a new mixin `render`) where a kernel
