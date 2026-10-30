@@ -461,6 +461,15 @@ case(
     params={"lfo1Rate": "0x30000000"},
     cables=BASE_CABLES + [("lfo1", "pitch", "0x08000000")],
 )
+# The LFO's random waves: each draws from the synth's shared noise stream.
+for wave in ("sah", "rwalk", "warbler"):
+    case(
+        f"lfo_{wave}",
+        lfo1={"type": wave},
+        params={"lfo1Rate": "0x30000000"},
+        cables=BASE_CABLES
+        + [("lfo1", "pitch", "0x10000000"), ("lfo1", "lpfFrequency", "0x20000000")],
+    )
 case("velocity_dynamics", cables=[("velocity", "volume", "0x50000000")])
 
 # --- filter modes, routes and transitions (JSON, as the firmware saves) -------
@@ -586,6 +595,8 @@ stereo_case(
 # shift starts, still 0) and above (shifted back up by the amount less 2).
 for amount in (1, 2, 5):
     stereo_case(f"clipping_{amount}", sound={"clippingAmount": str(amount)})
+# The wavefolder on a stereo voice: the fold runs on the interleaved stereo buffer.
+stereo_case("wavefold", osc1={"type": "sine"}, params={"waveFold": "0x40000000"})
 
 # --- dynamics and delay (JSON, as the firmware saves) ---------------------------
 # Each sidechain case sends hits of its own (sideChainSend) and ducks itself through the sidechain → post-reverb volume

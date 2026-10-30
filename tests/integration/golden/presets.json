@@ -1973,11 +1973,29 @@
   "rms_db": -24.41,
   "sha256": "12a82f6816e89fe064ecf1e498d5212bb323c3589fb83e6527fd869863e16089"
  },
+ "lfo_rwalk": {
+  "frames": 88200,
+  "peak": 345681920,
+  "rms_db": -23.35,
+  "sha256": "864d3809ab6379e38051d5581f476f792aa44083d84baca046b9d7e865944f71"
+ },
+ "lfo_sah": {
+  "frames": 88200,
+  "peak": 346244352,
+  "rms_db": -23.38,
+  "sha256": "663ea6c83779a3b8ee6dc7d636bb9ee10443de1dd5abb0ab8ce60cf83dc49629"
+ },
  "lfo_vibrato": {
   "frames": 88200,
   "peak": 173388032,
   "rms_db": -26.78,
   "sha256": "0240c103a910f6cabb746665abff0fa13d07dc38cc55be907e38f0f0874b7bcc"
+ },
+ "lfo_warbler": {
+  "frames": 88200,
+  "peak": 345676032,
+  "rms_db": -23.34,
+  "sha256": "64bee8f9f942743d98c66e9380b32ab590e04196fc8633f0b85de7fc0b7093e3"
  },
  "lpf_24db_env2": {
   "frames": 88200,
@@ -2200,6 +2218,12 @@
   "peak": 336116992,
   "rms_db": -23.19,
   "sha256": "0a4605edc948f1814cc40275961c00fa0ce68d50fffe31ba96d5ff9e24e0f045"
+ },
+ "stereo/wavefold": {
+  "frames": 88200,
+  "peak": 173314304,
+  "rms_db": -27.83,
+  "sha256": "6375f5aa1e5382c6ccdd916470e1926c5999b6e2a7f12c9212315555be5e9b33"
  },
  "svf_band": {
   "frames": 88200,
