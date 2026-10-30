@@ -152,7 +152,9 @@ PatchCable* PatchCableSet::appendCable(const deluge::synth::CableRecord& record)
 	cable->from = record.source;
 	cable->destinationParamDescriptor = ParamDescriptor(static_cast<int32_t>(record.target.word));
 	cable->polarity = static_cast<Polarity>(record.polarity);
-	cable->initAmount(0);
+	cable->param.currentValue = 0;
+	// Every cable has its lane from the start, so a lookup never grows the table under a lane already handed out.
+	laneFor(record.source, cable->destinationParamDescriptor) = {};
 	return cable;
 }
 
@@ -160,7 +162,8 @@ PatchCable* PatchCableSet::appendDefaultCable(PatchSource from, uint8_t to, int3
 	PatchCable* cable = appendCable({from, deluge::synth::CableTarget::param(to),
 	                                 static_cast<deluge::synth::CablePolarity>(PatchCable::getDefaultPolarity(from))});
 	if (cable != nullptr) {
-		cable->initAmount(amount);
+		cable->param.currentValue = amount;
+		docForParam(numPatchCables - 1)->current_value = amount;
 	}
 	return cable;
 }
@@ -192,52 +195,35 @@ void PatchCableSet::permuteCables(std::span<const uint8_t> order) {
 	}
 }
 
-// Cables are reordered by index at runtime: setupPatching() memcpy-swaps them into usable/unusable
-// order and removal memcpy-moves the last cable over a deleted one. An owner store resolved by INDEX cannot stay
-// in sync with those shifts, so each cable's nodes live inline in its amount_, which the byte-copy
-// carries with the cable. Binding to a shared positional store is a no-op; owner-resolution returns the inline store.
-void PatchCableSet::bindDomStore() {
+deluge::project::DocAutoParam& PatchCableSet::laneFor(PatchSource from, ParamDescriptor target) {
+	const deluge::plugin::ParamId id = deluge::bridge::cable_depth(from, target);
+	std::vector<deluge::project::DocCableDepth>& table = depths();
+	for (deluge::project::DocCableDepth& lane : table) {
+		if (lane.depth == id) {
+			return lane.amount;
+		}
+	}
+	table.push_back({.depth = id, .amount = {}});
+	return table.back().amount;
 }
 
-deluge::project::DocParamSet* PatchCableSet::domStore() {
-	return nullptr; // never bound to a shared store (see bindDomStore)
+void PatchCableSet::eraseLane(PatchSource from, ParamDescriptor target) {
+	const deluge::plugin::ParamId id = deluge::bridge::cable_depth(from, target);
+	std::erase_if(depths(), [&](const deluge::project::DocCableDepth& lane) { return lane.depth == id; });
 }
 
 deluge::project::DocAutoParam* PatchCableSet::docForParam(int32_t c) {
-	// When bound to the owner's project-tree cable store, resolve this cable's amount-nodes from the tree
-	// entry with its depth id (derived from its source and destination), so save + runtime edits share the
-	// persistent store (the inline `amount_` is then unused). Unbound: the cable owns its store inline and rides
-	// with it through the reorder/removal memcpy.
-	if (domCablesRef_ != nullptr) {
-		PatchCable& cable = patchCables[c];
-		return &findOrCreateDomCable(cable.from, cable.destinationParamDescriptor, cable.polarity).amount;
-	}
-	return &patchCables[c].amount_;
+	return &laneFor(patchCables[c].from, patchCables[c].destinationParamDescriptor);
 }
 
-deluge::project::DocCable& PatchCableSet::findOrCreateDomCable(PatchSource from, ParamDescriptor dest,
-                                                               Polarity polarity) {
-	const deluge::plugin::ParamId depth = deluge::bridge::cable_depth(from, dest);
-	for (deluge::project::DocCable& entry : *domCablesRef_) {
-		if (entry.depth == depth) {
-			return entry;
-		}
+void PatchCableSet::relocateDepthsInto(std::vector<deluge::project::DocCableDepth>& slot) {
+	std::vector<deluge::project::DocCableDepth>& current = depths();
+	if (&current == &slot) {
+		return;
 	}
-	domCablesRef_->push_back(deluge::bridge::doc_cable(from, dest, polarity, {}));
-	return domCablesRef_->back();
-}
-
-deluge::project::DocAutoParam* PatchCableSet::findDomCableAmount(PatchSource from, ParamDescriptor dest) const {
-	if (domCablesRef_ == nullptr) {
-		return nullptr;
-	}
-	const deluge::plugin::ParamId depth = deluge::bridge::cable_depth(from, dest);
-	for (deluge::project::DocCable& entry : *domCablesRef_) {
-		if (entry.depth == depth) {
-			return &entry.amount;
-		}
-	}
-	return nullptr;
+	slot = std::move(current);
+	current.clear();
+	externalDepths_ = &slot;
 }
 
 deluge::project::DocAutoParam* PatchCableSet::docParamForId(int32_t paramId) {
@@ -463,7 +449,7 @@ void PatchCableSet::deletePatchCable(Sound& sound, ParamManager& paramManager, u
 		return;
 	}
 	// Its automation goes with it, and there is nothing to record: the cable is gone.
-	patchCables[c].param.deleteAutomationBasicForSetup(*docForParam(c));
+	eraseLane(patchCables[c].from, patchCables[c].destinationParamDescriptor);
 	records_.set_target(c, {});
 	patchCables[c].destinationParamDescriptor.setToNull();
 	setupPatching(sound, paramManager);
@@ -474,8 +460,6 @@ void PatchCableSet::deletePatchCable(Sound& sound, ParamManager& paramManager, u
 		if (patchCables[i].destinationParamDescriptor.isNull()) {
 			patchCables[i].~PatchCable();
 			memcpy(static_cast<void*>(&patchCables[i]), &patchCables[numPatchCables - 1], sizeof(PatchCable));
-			// The moved cable's automation now belongs to slot i: the old slot must not free it too.
-			patchCables[numPatchCables - 1].amount_.nodes.init();
 			records_.erase_by_moving_last(i);
 			break;
 		}
@@ -725,15 +709,10 @@ PatchCableSet::PatchCableSet(PatchCableSet const& other)
 	int32_t built = 0;
 	try {
 		for (; built < numUsablePatchCables; built++) {
-			PatchCable* cable = new (&patchCables[built]) PatchCable(other.patchCables[built]);
-			// If `other` reads its live nodes from an external tree store, its inline amount_ is stale (edits
-			// went to the tree). Copy the current tree nodes so this clone starts self-owned (domCablesRef_ stays
-			// null) with correct automation — mirroring ParamSet's copy-ctor deep-copying its bound store.
-			if (deluge::project::DocAutoParam* live =
-			        other.findDomCableAmount(cable->from, cable->destinationParamDescriptor)) {
-				cable->amount_ = *live;
-			}
+			new (&patchCables[built]) PatchCable(other.patchCables[built]);
 		}
+		// The clone owns a copy of the lanes, whichever table `other` reads them from.
+		ownDepths_ = other.depthStore();
 		for (; built < numPatchCables; built++) {
 			new (&patchCables[built]) PatchCable();
 			patchCables[built].param.init(*docForParam(built));
@@ -1036,8 +1015,8 @@ void PatchCableSet::grabVelocityToLevelFromMIDICable(MIDICable& cable) {
 		return;
 	}
 
-	// Write the cable's inline store (amount_, the persisted source when unbound) too, not just the cursor.
-	patchCable->param.setCurrentValueBasicForSetup(patchCable->amount_, cable.defaultVelocityToLevel);
+	const uint8_t c = static_cast<uint8_t>(patchCable - patchCables);
+	patchCable->param.setCurrentValueBasicForSetup(*docForParam(c), cable.defaultVelocityToLevel);
 }
 
 PatchCable* PatchCableSet::getPatchCableFromVelocityToLevel() {

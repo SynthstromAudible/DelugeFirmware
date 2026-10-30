@@ -126,8 +126,8 @@ void setNodeIn(deluge::project::DocAutoParam& doc, int32_t pos, int32_t value, b
 	}
 }
 
-bool cableMatches(const deluge::project::DocCable& a, const deluge::project::DocCable& b) {
-	return a.depth == b.depth && a.polarity == b.polarity && a.amount.current_value == b.amount.current_value
+bool laneMatches(const deluge::project::DocCableDepth& a, const deluge::project::DocCableDepth& b) {
+	return a.depth == b.depth && a.amount.current_value == b.amount.current_value
 	       && a.amount.nodes.size() == b.amount.nodes.size();
 }
 
@@ -836,10 +836,12 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		deluge::project::DocParamManager doc = deluge::bridge::toDocParamManager(pm);
 		check(patchedStore(doc).has_value(), "pm patched present");
 		check(unpatchedStore(doc).has_value(), "pm unpatched present");
-		check(doc.cables.size() == 1, "pm patch cable present");
+		check(doc.cable_depths.size() == 1, "pm patch cable depth present");
 
 		ParamManagerForTimeline pm2;
 		check(pm2.setupWithPatching() == Error::NONE, "pm2 setupWithPatching");
+		// The topology is the instrument's records; the projection carries the depths into the cables it has.
+		pm2.getPatchCableSet()->appendCable(pcs->records()[0]);
 		deluge::bridge::fromDocParamManager(doc, pm2);
 		check(pm2.getPatchedParamSet()->params[5].currentValue == 12345, "pm patched currentValue");
 		expectSameParamInSet(pm2.getPatchedParamSet(), pm.getPatchedParamSet(), 5, "pm patched nodes");
@@ -933,7 +935,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		deluge::project::DocParamManager docpm = deluge::bridge::toDocParamManager(pm);
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
-		deluge::bridge::serializePatchCables(docpm.cables, smSerializer, true);
+		deluge::bridge::serializePatchCables(pcs->records().records(), docpm.cable_depths, smSerializer, true);
 		int32_t domLen = smSerializer.bytesWritten();
 
 		check(engineLen == domLen, "patch-cable serialize length matches engine");
@@ -947,13 +949,13 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 
 		// And the DOM serialize -> deserialize round-trip recovers the same cables (as a set; the
 		// engine/DOM read orders range cables before the cable they control).
-		const std::vector<deluge::project::DocCable>& original = docpm.cables;
+		const std::vector<deluge::project::DocCableDepth>& original = docpm.cable_depths;
 		static char rtBuf[16384];
 		smSerializer.setMemoryBuffer(rtBuf, sizeof(rtBuf));
 		smSerializer.reset();
 		smSerializer.writeOpeningTagBeginning("song");
 		smSerializer.writeOpeningTagEnd();
-		deluge::bridge::serializePatchCables(original, smSerializer, true);
+		deluge::bridge::serializePatchCables(pcs->records().records(), original, smSerializer, true);
 		smSerializer.writeClosingTag("song");
 		int32_t rtLen = smSerializer.bytesWritten();
 		rtBuf[rtLen] = '\0';
@@ -967,18 +969,22 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 			deluge::bridge::loadCables(*readBack.getPatchCableSet(), *tree->find("song")->find("patchCables"),
 			                           2147483647);
 		}
-		std::vector<deluge::project::DocCable> recovered = deluge::bridge::toDocCables(*readBack.getPatchCableSet());
-
-		check(recovered.size() == original.size(), "patch-cable round-trip count");
+		PatchCableSet& back = *readBack.getPatchCableSet();
+		check(back.records().size() == pcs->records().size(), "patch-cable round-trip count");
+		for (const deluge::synth::CableRecord& cable : pcs->records().records()) {
+			check(back.records().find(cable.source, cable.target).has_value()
+			          && back.records()[*back.records().find(cable.source, cable.target)] == cable,
+			      "patch-cable round-trip recovers cable");
+		}
 		for (const auto& oc : original) {
 			bool found = false;
-			for (const auto& rc : recovered) {
-				if (cableMatches(oc, rc)) {
+			for (const auto& rc : back.depthStore()) {
+				if (laneMatches(oc, rc)) {
 					found = true;
 					break;
 				}
 			}
-			check(found, "patch-cable round-trip recovers cable");
+			check(found, "patch-cable round-trip recovers depth");
 		}
 	}
 
@@ -1365,7 +1371,8 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		int32_t engLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
-		deluge::bridge::serializeSoundParams(*patchedStore(doc), *unpatchedStore(doc), doc.cables, smSerializer, true);
+		deluge::bridge::serializeSoundParams(*patchedStore(doc), *unpatchedStore(doc), pcs->records().records(),
+		                                     doc.cable_depths, smSerializer, true);
 		int32_t domLen = smSerializer.bytesWritten();
 		check(engLen == domLen && std::memcmp(engBuf, domBuf, engLen) == 0, "Sound params byte-identical");
 	}
@@ -1392,7 +1399,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		smSerializer.setMemoryBuffer(rtBuf, sizeof(rtBuf));
 		smSerializer.reset();
 		smSerializer.writeOpeningTagBeginning("soundParams");
-		deluge::bridge::serializeSoundParams(*patchedStore(doc), *unpatchedStore(doc), {}, smSerializer, true);
+		deluge::bridge::serializeSoundParams(*patchedStore(doc), *unpatchedStore(doc), {}, {}, smSerializer, true);
 		smSerializer.writeClosingTag("soundParams", true);
 		int32_t rtLen = smSerializer.bytesWritten();
 		rtBuf[rtLen] = '\0';
@@ -1638,10 +1645,9 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(liveBound(pm.getUnpatchedParamSet()), "helper: unpatched bound");
 		check(liveBound(pm.getPatchedParamSet()), "helper: patched bound");
 		check(liveBound(pm.getExpressionParamSet()), "helper: expression bound");
-		// Patch cables are reordered by index at runtime, so they are NOT bound to a positional store —
-		// the cable owns its node store inline (amount_) and owner-resolution returns it (with the authored node).
-		check(pcs->domStore() == nullptr, "helper: patch cable set is not bound to a shared store");
-		check(pcs->docForParam(0) == &pcs->patchCables[0].amount_, "helper: patch cable resolves to its inline store");
+		// A cable's depth resolves by its depth id to the set's own lane until the owner relocates the lanes.
+		check(!pcs->depthsRelocated(), "helper: patch cable lanes are the set's own");
+		check(pcs->docForParam(0) == &pcs->depthStore()[0].amount, "helper: patch cable resolves to its lane");
 		check(pcs->docForParam(0)->nodes.size() == 1 && pcs->docForParam(0)->nodes[0].value == 424242,
 		      "helper: patch cable automation intact");
 	}

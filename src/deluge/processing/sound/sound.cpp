@@ -2768,7 +2768,8 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	// <patchCables> block and the shared tags.
 	deluge::project::DocParamManager doc = deluge::bridge::toDocParamManagerFromStore(*paramManager);
 	deluge::bridge::serializeSoundParams(**deluge::bridge::storeFor(doc, params::Kind::PATCHED),
-	                                     **deluge::bridge::storeFor(doc, params::Kind::UNPATCHED_SOUND), doc.cables,
+	                                     **deluge::bridge::storeFor(doc, params::Kind::UNPATCHED_SOUND),
+	                                     paramManager->getPatchCableSet()->records().records(), doc.cable_depths,
 	                                     writer, writeAutomation);
 }
 

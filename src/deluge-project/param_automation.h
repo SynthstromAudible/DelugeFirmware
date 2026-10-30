@@ -109,12 +109,10 @@ struct DocParamSet {
 	}
 };
 
-/// @brief Value-typed document form of one patch cable: the engine's routing, named by the id of the cable's depth (the
-/// engine derives it from the cable's source and destination), with its polarity (the engine's word, stored raw) and
-/// the depth's value and automation. Depths are stored in the patch-cable range [-2^30, 2^30).
-struct DocCable {
+/// @brief One cable depth's lane, named by the depth's id (the instrument derives it from the cable's source and
+/// target). Depths are stored in [-2^30, 2^30).
+struct DocCableDepth {
 	deluge::plugin::ParamId depth{};
-	uint8_t polarity{};
 	DocAutoParam amount;
 };
 
@@ -130,12 +128,12 @@ struct DocMidiParam {
 inline constexpr std::size_t kEngineParamBlocks = 2;
 
 /// @brief Value-typed document form of a `ParamManager`'s collections. An engine's params are held in the runs of ids
-/// its table declares, each present only when the live owner holds it, and the engine's cables, each with its depth;
+/// its table declares, each present only when the live owner holds it, and the lanes of its cables' depths;
 /// `expression` (MPE) and `midi_params` (a MIDI_OUT clip's CC automation) are the host's own spaces.
 struct DocParamManager {
 	std::array<std::optional<DocParamSet>, kEngineParamBlocks> engine_params;
 	std::optional<DocParamSet> expression;
-	std::vector<DocCable> cables;
+	std::vector<DocCableDepth> cable_depths;
 	std::vector<DocMidiParam> midi_params;
 
 	/// @brief The lane of the engine param @p id (a param in a block, or a cable's depth), or nullptr when none holds
@@ -150,9 +148,9 @@ struct DocParamManager {
 				}
 			}
 		}
-		for (DocCable& cable : cables) {
-			if (cable.depth == id) {
-				return &cable.amount;
+		for (DocCableDepth& lane : cable_depths) {
+			if (lane.depth == id) {
+				return &lane.amount;
 			}
 		}
 		return nullptr;

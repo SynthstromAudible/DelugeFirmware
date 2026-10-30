@@ -119,15 +119,15 @@ DocParamManager toDocParamManager(ParamManager& paramManager) {
 	// Slot [2]: patch cables.
 	if (ParamCollection* c = paramManager.summaries[2].paramCollection;
 	    c != nullptr && c->getParamKind() == Kind::PATCH_CABLE) {
-		doc.cables = toDocCables(*static_cast<PatchCableSet*>(c));
+		doc.cable_depths = static_cast<PatchCableSet*>(c)->depthStore();
 	}
 	return doc;
 }
 
 DocParamManager toDocParamManagerFromStore(ParamManager& paramManager) {
-	// Patched/unpatched/expression scalars from the DOM store (toDocParamSetFromStore); patch cables source their
-	// scalar and nodes from the store either way (toDocCables via docForParam). Used by the Sound save path so the
-	// persisted values come from the authoritative store, never the engine cursor.
+	// Patched/unpatched/expression scalars from the DOM store (toDocParamSetFromStore); the cable depths are the
+	// set's lanes either way. Used by the Sound save path so the persisted values come from the authoritative store,
+	// never the engine cursor.
 	DocParamManager doc;
 	if (ParamCollection* c = paramManager.summaries[0].paramCollection; isUnpatchedSetSlot(c)) {
 		*storeFor(doc, c->getParamKind()) = toDocParamSetFromStore(*static_cast<ParamSet*>(c));
@@ -143,7 +143,7 @@ DocParamManager toDocParamManagerFromStore(ParamManager& paramManager) {
 	}
 	if (ParamCollection* c = paramManager.summaries[2].paramCollection;
 	    c != nullptr && c->getParamKind() == Kind::PATCH_CABLE) {
-		doc.cables = toDocCables(*static_cast<PatchCableSet*>(c));
+		doc.cable_depths = static_cast<PatchCableSet*>(c)->depthStore();
 	}
 	return doc;
 }
@@ -163,24 +163,6 @@ std::vector<DocMidiParam> toDocMidiParams(MIDIParamCollection& midi) {
 		    .cc = midi.params[i].cc,
 		    .param = toDocAutoParam(d->current_value, d->nodes),
 		});
-	}
-	return out;
-}
-
-std::vector<DocCable> toDocCables(PatchCableSet& pcs) {
-	// Copy each cable's saved fields (the ParamDescriptor encodes the destination + any range-cable
-	// nesting); rangeAdjustmentPointer is runtime and rebuilt on projection. Nodes come from the cable's current
-	// store — its inline amount_ pre-bind (seed time), which is exactly what the persistent store should hold.
-	std::vector<DocCable> out;
-	out.reserve(pcs.numPatchCables);
-	for (int32_t i = 0; i < pcs.numPatchCables; i++) {
-		PatchCable& cable = pcs.patchCables[i];
-		// Value and nodes both come from the cable's current store via docForParam (the bound tree entry when
-		// bound, where the read seeds current_value and runtime edits land, else the inline amount_). Reading
-		// cable.param.currentValue (the engine cursor) would make the engine the scalar's source.
-		deluge::project::DocAutoParam* d = pcs.docForParam(i);
-		out.push_back(doc_cable(cable.from, cable.destinationParamDescriptor, cable.polarity,
-		                        toDocAutoParam(d->current_value, d->nodes)));
 	}
 	return out;
 }
@@ -209,22 +191,18 @@ void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager)
 			}
 		}
 	}
-	// Patch cables: refill the cable set faithfully (count + each saved field). setupPatching (the
-	// engine's post-load step) rebuilds the runtime rangeAdjustmentPointers.
+	// Cable depths: the topology is the instrument's records; the projection carries the depth lanes.
 	if (ParamCollection* c = paramManager.summaries[2].paramCollection;
 	    c != nullptr && c->getParamKind() == Kind::PATCH_CABLE) {
 		PatchCableSet* pcs = static_cast<PatchCableSet*>(c);
-		int32_t count = std::min(static_cast<int32_t>(doc.cables.size()), int32_t{kMaxNumPatchCables});
-		pcs->truncateCables(0);
-		for (int32_t i = 0; i < count; i++) {
-			const DocCable& dc = doc.cables[i];
-			PatchCable* cable = pcs->appendCable(
-			    {source_of(dc), {destination_of(dc).data}, static_cast<deluge::synth::CablePolarity>(polarity_of(dc))});
-			if (cable == nullptr) {
-				break;
+		for (int32_t i = 0; i < pcs->numPatchCables; i++) {
+			const deluge::plugin::ParamId id =
+			    cable_depth(pcs->patchCables[i].from, pcs->patchCables[i].destinationParamDescriptor);
+			for (const DocCableDepth& lane : doc.cable_depths) {
+				if (lane.depth == id) {
+					fromDocAutoParam(lane.amount, pcs->patchCables[i].param.currentValue, pcs->docForParam(i)->nodes);
+				}
 			}
-			// Project the value into the RT cursor and the nodes into the cable's own store.
-			fromDocAutoParam(dc.amount, cable->param.currentValue, cable->amount_.nodes);
 		}
 	}
 }

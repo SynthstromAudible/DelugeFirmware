@@ -168,9 +168,8 @@ deluge::project::DocAutoParam* relocateAndResolve(const ModelStackWithAutoParam&
 	ParamCollection* pc = modelStack.paramCollection;
 	if (modelStack.kind == deluge::modulation::params::Kind::PATCH_CABLE) {
 		auto* pcs = static_cast<PatchCableSet*>(pc);
-		if (pcs->domCables() == nullptr) {
-			mgr->cables = deluge::bridge::toDocCables(*pcs);
-			pcs->bindDomCablesExternal(&mgr->cables);
+		if (!pcs->depthsRelocated()) {
+			pcs->relocateDepthsInto(mgr->cable_depths);
 		}
 	}
 	else if (address->space == deluge::project::ParamSpace::MIDI_CC) {
