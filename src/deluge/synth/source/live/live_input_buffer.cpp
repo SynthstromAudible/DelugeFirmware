@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "synth/source/audio_input_port.h"
-#include "util/functions.h"
+#include "util/fixedpoint.h" // multiply_32x32_rshift32_rounded
 #include <string.h>
 
 namespace deluge::synth {

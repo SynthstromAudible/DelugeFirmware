@@ -24,8 +24,9 @@
 #include "foundation/panic.h"                     // FREEZE_WITH_ERROR
 #include "synth/source/audio_input_port.h"
 #include "synth/source/live/live_input_buffer.h"
-#include "util/functions.h"
-#include <algorithm> // std::min / std::max / std::clamp
+#include "util/fixedpoint.h"      // multiply_32x32_rshift32
+#include "util/param_functions.h" // lshiftAndSaturate
+#include <algorithm>              // std::min / std::max / std::clamp
 #include <cstdlib>
 
 // #define MEASURE_HOP_END_PERFORMANCE 1
