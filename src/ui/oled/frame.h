@@ -300,4 +300,12 @@ struct OledFrame : FrameInput {
 OledFrame root_frame(gfx::oled::Canvas& canvas, const Style& style, FrameContext& ctx,
                      InputMask mask = InputMask::all());
 
+/// @brief @p f's panel as a frame, the rows above `Geometry::visible_top` included: for a port of a legacy routine
+///        that draws there, as `RenameUI::renderOLED`'s window does from row 4 of the 48-row panel.
+/// @note Origin `(0, 0)` and the whole canvas as the clip. Draw through it only; read input from @p f, so the claims
+///       stay on one frame.
+/// @param f The frame whose canvas, context and style to use.
+/// @return The panel frame.
+OledFrame panel_frame(const OledFrame& f);
+
 } // namespace deluge::ui::oled

@@ -262,7 +262,6 @@ void RenameScene::on_exit() {
 
 void RenameScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 	(void)role;
-	const Rect panel = panel_of(f);
 	const uint32_t now = f.now_ms();
 	last_render_ms_ = now;
 
@@ -284,34 +283,39 @@ void RenameScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 		f.gate().request_repaint_after(blink_next_flip_in(cursor_blink_, now), now);
 	}
 
+	// Drawn on the whole panel: legacy's window starts at row 4 of the 48-row panel, above the root frame's
+	// `visible_top`.
+	deluge::ui::oled::OledFrame pf = deluge::ui::oled::panel_frame(f);
+	const Rect panel = panel_of(pf);
+
 	// The window: 120x40, centred on the panel. `popup_frame` is `clearAreaExact` + `drawRectangle`
 	// in one call, and `PopupStyle::Permanent` is its square-cornered arm -- legacy draws a square
 	// rectangle here, not a rounded one (`popup.h`).
 	const int32_t win_x = panel.x + ((panel.w - kWindowW) >> 1);
 	const int32_t win_y = panel.y + ((panel.h - kWindowH) >> 1);
-	deluge::ui::oled::popup_frame(f, Rect{win_x, win_y, kWindowW, kWindowH}, deluge::ui::oled::PopupStyle::Permanent);
+	deluge::ui::oled::popup_frame(pf, Rect{win_x, win_y, kWindowW, kWindowH}, deluge::ui::oled::PopupStyle::Permanent);
 
 	// `drawStringCentred(title, windowMinY + 6, kTextSpacingX, kTextSpacingY)` -- centred on the
 	// *panel*, in the ordinary row font, NOT `drawScreenTitle`: there is no title rule here and the
 	// text sits inside the box rather than across the top of the screen.
 	deluge::ui::shell::TextScratch scratch;
-	deluge::ui::oled::text(f, Rect{panel.x, win_y + kTitleDy, panel.w, kTextSpacingY},
+	deluge::ui::oled::text(pf, Rect{panel.x, win_y + kTitleDy, panel.w, kTextSpacingY},
 	                       deluge_profile().text_or_digits(target(target_).title, scratch),
-	                       {.font = f.style.row_font, .align = deluge::ui::oled::Align::Centre});
+	                       {.font = pf.style.row_font, .align = deluge::ui::oled::Align::Centre});
 
 	// The name box and the text inside it. `charsStartPixel = (width - 17 * kTextSpacingX) >> 1`,
 	// `boxStartPixel = charsStartPixel - 3`, and the box's right edge mirrors its left.
 	const int32_t chars_off = (panel.w - kMaxNumChars * kTextSpacingX) >> 1;
 	const int32_t chars_x = panel.x + chars_off;
 	const int32_t box_off = chars_off - 3;
-	deluge::ui::oled::popup_frame(f, Rect{panel.x + box_off, win_y + kBoxDy, panel.w - 2 * box_off, kBoxH},
+	deluge::ui::oled::popup_frame(pf, Rect{panel.x + box_off, win_y + kBoxDy, panel.w - 2 * box_off, kBoxH},
 	                              deluge::ui::oled::PopupStyle::Permanent);
 
 	// `drawTextForOLEDEditing(charsStartPixel, WIDTH - charsStartPixel + 1, 27, 17, canvas)`: the
 	// rect's right edge is legacy's `xPixelMax`, and its width in whole characters is legacy's
 	// `maxNumChars`.
 	const int32_t chars_w = panel.w - 2 * chars_off + 1;
-	deluge::ui::oled::text_edit(f, Rect{chars_x, win_y + kTextDy, chars_w, kTextSpacingY}, entered_text(), edit_);
+	deluge::ui::oled::text_edit(pf, Rect{chars_x, win_y + kTextDy, chars_w, kTextSpacingY}, entered_text(), edit_);
 }
 
 void RenameScene::render_grid(deluge::ui::grid::GridFrame& f) {

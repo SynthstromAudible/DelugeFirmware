@@ -19,6 +19,13 @@ OledFrame root_frame(gfx::oled::Canvas& canvas, const Style& style, FrameContext
 	                 style};
 }
 
+OledFrame panel_frame(const OledFrame& f) {
+	const gfx::oled::Geometry g = f.canvas.geometry();
+	return OledFrame{
+	    {f.ctx, f.mask}, f.canvas, Rect{0, 0, g.width, g.height}, Point{0, 0}, gfx::oled::Size{g.width, g.height},
+	    f.style};
+}
+
 namespace {
 /// A frame whose clip collapsed to nothing draws nothing at all -- worth one early check
 /// rather than relying on every span/rect computation below to come out empty.

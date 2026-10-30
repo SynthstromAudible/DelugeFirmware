@@ -21,6 +21,7 @@
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 #include "scenes/rename/rename_scene.h"
+#include "spec/ui/support/frames.h"
 
 #include "notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
@@ -382,6 +383,24 @@ describe rename_open("scenes::rename::RenameScene opening", $ {
 		// target's `can` rejects that, and `on_enter` refuses. Fails closed.
 		expect(rename_scene().on_enter(SceneId{rename::kRenameSceneKind,
 		                                       static_cast<uint16_t>(TargetId::Drum)})).to_be_false();
+	});
+
+	it("the window's frame covers main's rows, its top edge included", _ {
+		// `RenameUI::renderOLED` draws `drawRectangle(4, 4, 124, 44)` on the 48-row panel: inclusive corners,
+		// 121 x 41 pixels (`rename_ui.cpp:65-74`).
+		select_language();
+		spec::SongFixture f = spec::make_synth_song();
+		rename_scene().open(context_of(f));
+		expect(rename_scene().on_enter(SceneId{rename::kRenameSceneKind, static_cast<uint16_t>(TargetId::Clip)}))
+		    .to_be_true();
+		deluge::ui::test::Rig48 rig;
+		rename_scene().render_oled(SurfaceRole::Main, rig.frame);
+		expect(rig.lit(60, 4)).to_be_true();
+		expect(rig.lit(60, 3)).to_be_false();
+		expect(rig.lit(4, 4)).to_be_true();
+		expect(rig.lit(124, 44)).to_be_true();
+		expect(rig.lit(60, 45)).to_be_false();
+		rename_scene().on_exit();
 	});
 
 	it("refuses to open when the target cannot resolve its model", _ {
