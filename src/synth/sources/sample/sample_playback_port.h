@@ -97,6 +97,11 @@ public:
 	[[nodiscard]] virtual int32_t bytes_per_frame() const = 0;
 
 	// --- Voice-sample ops ------------------------------------------------------------------------------------
+	/// Starts this note's playback, @p samples_late into it. @p priority_rating is the voice's in the cull order.
+	/// @return false if the voice cannot sound at all; a sample that cannot play is not a failure.
+	virtual bool note_on(uint32_t samples_late, int32_t priority_rating) = 0;
+	/// The note-off for a sample with a loop end: playback goes on past it. @return false ⇒ unassign this source.
+	virtual bool note_off_at_loop_end(int32_t priority_rating) = 0;
 	/// Attempt to begin playback @p rawSamplesLate samples into the sample (a mid-note unmute / late start).
 	virtual LateStartOutcome attemptLateStart(int64_t rawSamplesLate, int32_t numSamples) = 0;
 	/// Set up the resampling cache for this note if the conditions allow. @return false ⇒ unassign this source.

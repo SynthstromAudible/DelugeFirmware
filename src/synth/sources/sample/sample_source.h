@@ -38,6 +38,9 @@ class SampleSource : public Source {
 public:
 	explicit SampleSource(SamplePlaybackPort* port) : port_(port) {}
 
+	/// The port this source plays through.
+	[[nodiscard]] SamplePlaybackPort* port() const { return port_; }
+
 	/// Render one block of sample playback into @c ctx.oscBuffer (the @ref deluge::synth::Source seam). Reads the
 	/// per-block voice values in @p ctx (porta, priority, pre-modulation phaseIncrementStoredValue, the hoisted
 	/// caching pitch-mod flag); the resampling/time-stretch/cache machinery + the per-note source/guide live behind

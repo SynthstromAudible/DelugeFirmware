@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/sample/sample.h"
 #include "model/voice/sample_playback_adapter.h"
+#include "model/voice/voice_inputs.h"
 #include "processing/dx7/dx_voice_adapter.h"
 #include "processing/live/audio_input_adapter.h"
 #include "synth/sources/dx7/dx7_source.h"
@@ -39,8 +40,10 @@ class VoiceUnisonPartSource {
 public:
 	VoiceUnisonPartSource() = default;
 	~VoiceUnisonPartSource();
-	bool noteOn(Voice* voice, Source* source, VoiceSamplePlaybackGuide* voiceSource, uint32_t samplesLate,
-	            uint32_t oscPhase, bool resetEverything, SynthMode synthMode, uint8_t velocity);
+	/// Starts this part of the source for a note. @p priorityRating is the voice's in the cull order (a sample's
+	/// cluster loads are ranked by it). @return false if the note cannot play.
+	bool noteOn(const deluge::synth::SourceSetup& source, uint32_t samplesLate, uint32_t oscPhase, bool resetEverything,
+	            SynthMode synthMode, int32_t noteCode, uint8_t velocity, int32_t priorityRating);
 	void unassign(bool deletingSong);
 
 	// FKA phase. No longer used for Sample playback / rate conversion position. Only waves, including wavetable.

@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/filter/filter_set.h"
 #include "effects/saturation.h"
+#include "model/snapshot/sound_snapshot.h"
 #include "model/voice/fm_engine.h"
 #include "model/voice/ringmod_engine.h"
 #include "model/voice/source_component_render.h" // deluge::synth::SourceRenderResult
@@ -36,11 +37,13 @@
 #include <bitset>
 #include <compare>
 #include <memory>
+#include <span>
 
 namespace deluge::dsp {
 struct StereoSample;
 } // namespace deluge::dsp
 using StereoSample = deluge::dsp::StereoSample;
+using SoundSnapshot = deluge::snapshot::SoundSnapshot;
 class ModelStackWithSoundFlags;
 class ParamManagerForTimeline;
 using namespace deluge;
@@ -127,20 +130,37 @@ public:
 	            bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, int32_t externalPitchAdjust,
 	            const VoiceConfig& cfg, const deluge::synth::VoiceBlock& block, std::array<int32_t*, 4> spareBuffers);
 
+	// --- The voice's lifecycle as its sound drives it (voice_setup.cpp): each builds what the kernel lifecycle below
+	// reads from the sound, then runs it.
 	void calculatePhaseIncrements(ModelStackWithSoundFlags* modelStack);
 	bool sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, MarkerType markerType);
 	bool noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
 	            int32_t newNoteCodeAfterArpeggiation, uint8_t velocity, uint32_t newSampleSyncLength, int32_t ticksLate,
 	            uint32_t samplesLate, bool resetEnvelopes, int32_t fromMIDIChannel, const int16_t* mpeValues);
 	void noteOff(ParamManagerForTimeline* paramManager, bool noteTailsAllowed, bool allowReleaseStage = true);
-	/// Releases the note: each envelope from its sustain where @p envelope_has_sustain says it has one, or at once when
-	/// there is no release stage. With note tails not allowed, the note-off is only remembered.
-	void note_off(const std::array<bool, kNumEnvelopes>& envelope_has_sustain, bool noteTailsAllowed,
-	              bool allowReleaseStage, deluge::synth::VoiceClock clock);
-
 	void randomizeOscPhases(const Sound& sound);
 	void changeNoteCode(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
 	                    int32_t newNoteCodeAfterArpeggiation, int32_t newInputMIDIChannel, const int16_t* newMPEValues);
+	void expressionEventImmediate(const Sound& sound, int32_t voiceLevelValue, int32_t s);
+
+	// --- The kernel lifecycle, from what it is handed.
+
+	/// Starts @p event's note. @p num_active_voices is the sound's voice count, which the cull order ranks by.
+	/// @return false if the note cannot play and the voice must be unassigned again.
+	bool note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& snapshot,
+	             const deluge::synth::NoteOnEvent& event, deluge::synth::VoiceClock clock, size_t num_active_voices);
+	/// Moves the playing note to another, gliding when @p setup says to.
+	void change_note(const deluge::synth::NoteSetup& setup, const SoundSnapshot& snapshot,
+	                 int32_t noteBeforeArpeggiation, int32_t noteAfterArpeggiation, int32_t midiChannel,
+	                 std::span<const int16_t, kNumExpressionDimensions> mpe);
+	/// Each source's phase increment for the playing note, in each unison part; a source too high to render is made
+	/// inactive.
+	void calculate_phase_increments(const deluge::synth::NoteSetup& setup, const SoundSnapshot& snapshot);
+	/// Releases the note: each envelope from its sustain where it has one, or at once when there is no release stage.
+	/// With note tails not allowed, the note-off is only remembered.
+	void note_off(const deluge::synth::ReleaseInfo& release, bool allowReleaseStage, deluge::synth::VoiceClock clock);
+	void randomize_osc_phases(const SoundSnapshot& snapshot);
+	void expressionEventImmediate(int32_t monophonicValue, int32_t voiceLevelValue, int32_t s);
 	bool hasReleaseStage();
 	void unassignStuff(bool deletingSong);
 	/// The cull order's rating: higher is culled sooner. Ranks by @p voice_priority, then by @p num_active_voices (the
@@ -155,7 +175,6 @@ public:
 	/// Re-stamp while in sustain, to lower a drone note's cull likelihood.
 	void resetEnvelope0TimeEntered(deluge::synth::VoiceClock clock);
 
-	void expressionEventImmediate(const Sound& sound, int32_t voiceLevelValue, int32_t s);
 	void expressionEventSmooth(int32_t newValue, int32_t s);
 
 	/// Release immediately with provided release rate
@@ -211,6 +230,6 @@ private:
 	    bool stereoBuffer, int32_t sourceAmplitude, int32_t amplitudeIncrement, uint32_t phaseIncrement, bool doOscSync,
 	    uint32_t* oscSyncPos, uint32_t* oscSyncPhaseIncrements, int32_t waveIndexIncrement, bool stereoUnison,
 	    int32_t amplitudeL, int32_t amplitudeR, const VoiceConfig& cfg, const deluge::synth::VoiceBlock& block);
-	void setupPorta(const Sound& sound);
+	void setupPorta(int32_t lastNoteCode);
 	int32_t combineExpressionValues(int32_t synthLevelValue, int32_t expressionDimension) const;
 };

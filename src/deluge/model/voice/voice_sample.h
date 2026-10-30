@@ -50,7 +50,7 @@ public:
 	VoiceSample& operator=(VoiceSample&& other) = delete;
 
 	void noteOn(SamplePlaybackGuide* guide, uint32_t samplesLate, int32_t priorityRating);
-	bool noteOffWhenLoopEndPointExists(Voice* voice, VoiceSamplePlaybackGuide* voiceSource);
+	bool noteOffWhenLoopEndPointExists(VoiceSamplePlaybackGuide* voiceSource, int32_t priorityRating);
 
 	void setupCacheLoopPoints(SamplePlaybackGuide* voiceSource, Sample* sample, LoopType loopingType);
 	LateStartAttemptStatus attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sample* sample,

@@ -35,30 +35,26 @@ VoiceUnisonPartSource::~VoiceUnisonPartSource() {
 	unassign(false);
 }
 
-bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlaybackGuide* guide, uint32_t samplesLate,
+bool VoiceUnisonPartSource::noteOn(const deluge::synth::SourceSetup& source, uint32_t samplesLate,
                                    uint32_t oscRetriggerPhase, bool resetEverything, SynthMode synthMode,
-                                   uint8_t velocity) {
+                                   int32_t noteCode, uint8_t velocity, int32_t priorityRating) {
 
-	if (synthMode != SynthMode::FM && source->oscType == OscType::SAMPLE) {
-		return sampleVoiceAdapter.noteOn(source, guide, samplesLate, voice->getPriorityRating());
+	if (synthMode != SynthMode::FM && source.osc_type == OscType::SAMPLE) {
+		return sampleSource.port()->note_on(samplesLate, priorityRating);
 	}
 
 	if (synthMode != SynthMode::FM
-	    && (source->oscType == OscType::SAMPLE || source->oscType == OscType::INPUT_L
-	        || source->oscType == OscType::INPUT_R || source->oscType == OscType::INPUT_STEREO)) {
-		// oscPos = 0;
-		if (source->oscType != OscType::SAMPLE) { // (SAMPLE already returned above) — latch the live-input channel
-			inputSource.prepareForNoteOn(source->oscType);
-		}
+	    && (source.osc_type == OscType::INPUT_L || source.osc_type == OscType::INPUT_R
+	        || source.osc_type == OscType::INPUT_STEREO)) {
+		inputSource.prepareForNoteOn(source.osc_type); // latch the live-input channel
 	}
-	else if (synthMode != SynthMode::FM && source->oscType == OscType::DX7) [[unlikely]] {
-		DxPatch* patch = source->ensureDxPatch();
-		if (!dx7Source.noteOn(patch, voice->noteCodeAfterArpeggiation, velocity)) { // opaque patch handle → the port
+	else if (synthMode != SynthMode::FM && source.osc_type == OscType::DX7) [[unlikely]] {
+		if (!dx7Source.noteOn(source.dx_patch, noteCode, velocity)) { // opaque patch handle → the port
 			return false;
 		}
 	}
 	else {
-		const OscType oscType = source->oscType;
+		const OscType oscType = source.osc_type;
 		// Virtual-analog + wavetable waves (subtractive + ring-mod) hold their phase in a persistent engine rather
 		// than oscPos. Build/reseed it following the legacy oscPos rule: a retrigger seeds init+retrigger; a
 		// free-run oscillator on a new voice takes the random phase randomizeOscPhases left in oscPos; a free-run

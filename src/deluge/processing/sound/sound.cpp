@@ -1951,10 +1951,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			sourceEverActives[s] = modelStackWithSoundFlags->checkSourceEverActive(s);
 			sourceActiveCurrentlys[s] = isSourceActiveCurrently(s, paramManager);
 		}
-		std::array<bool, kNumEnvelopes> envelopeHasSustain;
-		for (int32_t e = 0; e < kNumEnvelopes; e++) {
-			envelopeHasSustain[e] = envelopeHasSustainCurrently(e, paramManager);
-		}
 		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
 		const uint8_t* bendRangesSrc = expressionParams ? expressionParams->bendRanges : FlashStorage::defaultBendRange;
 		const VoiceConfig voiceConfig{
@@ -1966,7 +1962,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .volumeNeutralValueForUnison = volumeNeutralValueForUnison,
 		    .cpu_direness = AudioEngine::cpuDireness,
 		    .voice_priority = snapshot_.voicePriority,
-		    .envelope_has_sustain = envelopeHasSustain,
 		    .synthMode = getSynthMode(),
 		    .lfo2Config = snapshot_.lfoConfig[LFO2_ID],
 		    .lfo4Config = snapshot_.lfoConfig[LFO4_ID],
@@ -2031,6 +2026,11 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			ActiveVoice& voice = *it;
 
+			// A note-off the voice ignored is taken now if the sound has since come to allow note tails. A voice's
+			// first render call only marks it created, so it is not taken then.
+			if (voice->justCreated && voice->previouslyIgnoredNoteOff && voiceConfig.noteTailsAllowed) {
+				voice->noteOff(paramManager, voiceConfig.noteTailsAllowed);
+			}
 #if defined(DELUGE_STREAM_BENCH)
 			const uint32_t t0 = deluge::bench::render_profile::cycles();
 #endif

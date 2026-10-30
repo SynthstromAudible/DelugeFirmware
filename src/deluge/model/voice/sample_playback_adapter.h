@@ -40,17 +40,14 @@ class SamplePlaybackAdapter final : public deluge::synth::SamplePlaybackPort {
 public:
 	// --- App-side note lifecycle (called directly by the App, not via the port) ------------------------------
 
-	/// Note-on for the SAMPLE source: cache the per-note @p source + @p guide (stable for the note), then solicit
-	/// (or restart in place) the pooled VoiceSample and set up its clusters for initial play. Returns false only on
-	/// a hard failure that should silence the whole Voice; true otherwise (incl. the unplayable / samples-late
-	/// early-outs). Mirrors the legacy SampleSource::noteOn exactly.
-	bool noteOn(::Source* source, VoiceSamplePlaybackGuide* guide, uint32_t samplesLate, int32_t priorityRating);
+	/// The note's source and playback guide, which the port's note-on and render read: set before each note-on.
+	void bind(::Source* source, VoiceSamplePlaybackGuide* guide) {
+		source_ = source;
+		guide_ = guide;
+	}
 
 	/// Free the pooled VoiceSample back to AudioEngine (no-op if none held); clear the cached source/guide.
 	void unassign(bool deletingSong);
-
-	/// Note-off when the sample has a loop-end point. Returns false if the source should be unassigned now.
-	bool noteOffAtLoopEnd(Voice* voice, VoiceSamplePlaybackGuide* guide);
 
 	/// React to a sample zone/marker change. Returns false if this source is now out of bounds and should be
 	/// unassigned.
@@ -82,6 +79,11 @@ public:
 	[[nodiscard]] int32_t interpolationBufferSize(uint32_t phaseIncrement) const override;
 	[[nodiscard]] uint32_t pendingSamplesLate() const override;
 	[[nodiscard]] bool doneFirstRenderYet() const override;
+	/// Solicits (or restarts in place) the pooled VoiceSample and sets up its clusters for initial play. Returns false
+	/// only on a hard failure that should silence the whole Voice; true otherwise (including an unplayable sample and
+	/// a late start).
+	bool note_on(uint32_t samples_late, int32_t priority_rating) override;
+	bool note_off_at_loop_end(int32_t priority_rating) override;
 	[[nodiscard]] int32_t bytes_left_to_end() const override;
 	[[nodiscard]] int32_t bytes_per_frame() const override;
 	LateStartOutcome attemptLateStart(int64_t rawSamplesLate, int32_t numSamples) override;

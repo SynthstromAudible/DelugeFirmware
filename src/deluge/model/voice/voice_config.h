@@ -40,8 +40,6 @@ struct VoiceConfig {
 	/// How far behind the engine's render is running, 0 when on time: the render takes cheaper paths as it grows.
 	int32_t cpu_direness;
 	VoicePriority voice_priority; ///< The sound's voice priority, which the cull order ranks by first
-	/// Per envelope: whether it has a sustain at the sound's current params, so a note-off releases it from sustain.
-	std::array<bool, kNumEnvelopes> envelope_has_sustain;
 
 	SynthMode synthMode;  ///< Sound::getSynthMode() — drives the subtractive/ring-mod/FM dispatch
 	LFOConfig lfo2Config; ///< Sound::lfoConfig[LFO2_ID]

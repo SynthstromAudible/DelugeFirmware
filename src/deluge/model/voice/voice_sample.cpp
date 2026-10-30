@@ -59,7 +59,7 @@ void VoiceSample::noteOn(SamplePlaybackGuide* guide, uint32_t samplesLate, int32
 }
 
 // Returns false if error
-bool VoiceSample::noteOffWhenLoopEndPointExists(Voice* voice, VoiceSamplePlaybackGuide* guide) {
+bool VoiceSample::noteOffWhenLoopEndPointExists(VoiceSamplePlaybackGuide* guide, int32_t priorityRating) {
 
 	if (cache) {
 		cacheLoopEndPointBytes = 2147483647;
@@ -70,8 +70,7 @@ bool VoiceSample::noteOffWhenLoopEndPointExists(Voice* voice, VoiceSamplePlaybac
 			return true;
 		}
 		else {
-			return reassessReassessmentLocation(guide, (Sample*)guide->audioFileHolder->audioFile,
-			                                    voice->getPriorityRating());
+			return reassessReassessmentLocation(guide, (Sample*)guide->audioFileHolder->audioFile, priorityRating);
 			// That's only going to make reassessmentLocation later, so no need to check we haven't shot past it I
 			// think...
 		}

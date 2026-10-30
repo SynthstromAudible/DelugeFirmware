@@ -26,13 +26,8 @@
 
 // --- App-side note lifecycle --------------------------------------------------------------------------------
 
-bool SamplePlaybackAdapter::noteOn(::Source* source, VoiceSamplePlaybackGuide* guide, uint32_t samplesLate,
-                                   int32_t priorityRating) {
-
-	// Cache the per-note source config + guide (stable for the note); the render queries read these.
-	source_ = source;
-	guide_ = guide;
-
+bool SamplePlaybackAdapter::note_on(uint32_t samplesLate, int32_t priorityRating) {
+	VoiceSamplePlaybackGuide* guide = guide_;
 	if ((guide->audioFileHolder == nullptr) || (guide->audioFileHolder->audioFile == nullptr)
 	    || ((Sample*)guide->audioFileHolder->audioFile)->unplayable) {
 		return true; // We didn't succeed, but don't want to stop the whole Voice from sounding necessarily
@@ -102,8 +97,11 @@ bool SamplePlaybackAdapter::cloneVoiceSampleFrom(const SamplePlaybackAdapter& fr
 	return true;
 }
 
-bool SamplePlaybackAdapter::noteOffAtLoopEnd(Voice* voice, VoiceSamplePlaybackGuide* guide) {
-	return voiceSample_->noteOffWhenLoopEndPointExists(voice, guide);
+bool SamplePlaybackAdapter::note_off_at_loop_end(int32_t priorityRating) {
+	if (guide_->loopEndPlaybackAtByte == 0) {
+		return true; // no loop end: playback ends where it would have anyway
+	}
+	return voiceSample_->noteOffWhenLoopEndPointExists(guide_, priorityRating);
 }
 
 bool SamplePlaybackAdapter::zoneChanged(VoiceSamplePlaybackGuide* guide, Sample* sample, bool reversed,
