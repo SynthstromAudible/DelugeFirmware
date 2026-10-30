@@ -94,6 +94,9 @@ bool SamplePlaybackAdapter::cloneVoiceSampleFrom(const SamplePlaybackAdapter& fr
 	static_cast<SampleLowLevelReader&>(newVoiceSample) = SampleLowLevelReader(oldVoiceSample);
 	newVoiceSample.pendingSamplesLate = oldVoiceSample.pendingSamplesLate;
 	newVoiceSample.doneFirstRenderYet = true;
+	// The new part plays the same note: the render queries read its source and guide
+	source_ = from.source_;
+	guide_ = from.guide_;
 	return true;
 }
 

@@ -57,8 +57,8 @@ public:
 	/// The wrapped low-level reader, or nullptr if none is held (GUI play-cursor read-out + the clone below).
 	[[nodiscard]] VoiceSample* voiceSample() const { return voiceSample_; }
 
-	/// Unison-count increase: solicit a fresh VoiceSample for this (new) part and clone @p from's low-level reader
-	/// state into it. Returns false if none could be solicited.
+	/// Unison-count increase: solicit a fresh VoiceSample for this (new) part, clone @p from's low-level reader state
+	/// into it, and play @p from's source through its guide. Returns false if none could be solicited.
 	bool cloneVoiceSampleFrom(const SamplePlaybackAdapter& from);
 
 	// --- deluge::synth::SamplePlaybackPort (primitive queries/ops the library SampleSource drives) ------------
