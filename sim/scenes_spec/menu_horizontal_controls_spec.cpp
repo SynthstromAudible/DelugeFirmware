@@ -29,11 +29,14 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
+#include "definitions_cxx.hpp"
+#include "gfx/oled/icons.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "model/edits/setting_edit.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
+#include "modulation/sync.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 
@@ -408,6 +411,76 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(std::string(names[1])).to_equal(std::string("RAND"));
 		expect(menu::bindings::names(plain, ctx, names, scratch, menu::bindings::NameForm::Short)).to_equal(size_t{2});
 		expect(std::string(names[1])).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_RANDOM)));
+	});
+
+	it("the arp preset column draws no label: a big OFF, else the preset's icon", _ {
+		// `arpeggiator::PresetMode::showColumnLabel()` is false and its `renderInHorizontalMenu` draws OFF in the
+		// title face, else an icon (`preset_mode.h:81-116`).
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		menu::ColumnSlot slot;
+		deluge::ui::oled::Column col;
+		menu::present_column(menu::nodes::arp_preset, ctx, static_cast<int32_t>(ArpPreset::OFF), slot, col);
+		expect(col.show_label).to_equal(false);
+		expect(col.render == deluge::ui::oled::art_column).to_equal(true);
+		expect(std::string(slot.art.text)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_OFF)));
+		expect(slot.art.title_face).to_equal(true);
+
+		menu::present_column(menu::nodes::arp_preset, ctx, static_cast<int32_t>(ArpPreset::RANDOM), slot, col);
+		expect(slot.art.icon == &deluge::gfx::oled::icons::dice).to_equal(true);
+		menu::present_column(menu::nodes::arp_preset, ctx, static_cast<int32_t>(ArpPreset::DOWN), slot, col);
+		expect(slot.art.icon == &deluge::gfx::oled::icons::arpModeUp).to_equal(true);
+		expect(slot.art.reversed).to_equal(true);
+	});
+
+	it("master's transpose column reads TRANSPOSE and a whole number below -9.99", _ {
+		// `MasterTranspose::getColumnLabel` (`master_transpose.h:74`); `Decimal::renderInHorizontalMenu` keeps three
+		// characters of a value at or below -10.00 (`decimal.cpp:181-186`).
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		menu::ColumnSlot slot;
+		deluge::ui::oled::Column col;
+		menu::present_column(menu::nodes::master_transpose, ctx, -1200, slot, col);
+		expect(std::string(col.label)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_TRANSPOSE)));
+		expect(std::string(slot.text.value)).to_equal(std::string("-12"));
+		menu::present_column(menu::nodes::master_transpose, ctx, -950, slot, col);
+		expect(std::string(slot.text.value)).to_equal(std::string("-9.50"));
+	});
+
+	it("a sync column is labelled with its note length and draws the sync type's icon", _ {
+		// `SyncLevel::getColumnLabel` / `renderInHorizontalMenu` (`sync_level.cpp:40-77`).
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		menu::ColumnSlot slot;
+		deluge::ui::oled::Column col;
+		menu::present_column(menu::nodes::arp_sync, ctx, 0, slot, col);
+		expect(std::string(col.label)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_SYNC)));
+		expect(std::string(slot.art.text)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_OFF)));
+		expect(slot.art.title_face).to_equal(false);
+
+		const int32_t sixteenth = static_cast<int32_t>(SYNC_LEVEL_16TH); // an even sync's option is its level
+		menu::present_column(menu::nodes::arp_sync, ctx, sixteenth, slot, col);
+		etl::string<30> expected;
+		syncValueToStringForHorzMenuLabel(SYNC_TYPE_EVEN, SYNC_LEVEL_16TH, expected, menu::input_tick_magnitude(ctx));
+		expect(std::string(col.label)).to_equal(std::string(expected.c_str()));
+		expect(slot.art.icon == &deluge::gfx::oled::icons::syncTypeEven).to_equal(true);
+	});
+
+	it("the voice count column draws infinity at zero", _ {
+		// `voice::VoiceCount::renderInHorizontalMenu` (`polyphony.h:98-104`).
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		menu::ColumnSlot slot;
+		deluge::ui::oled::Column col;
+		menu::present_column(menu::nodes::voice_count, ctx, 0, slot, col);
+		expect(col.render == deluge::ui::oled::art_column).to_equal(true);
+		expect(slot.art.icon == &deluge::gfx::oled::icons::infinity).to_equal(true);
+		menu::present_column(menu::nodes::voice_count, ctx, 8, slot, col);
+		expect(col.render == deluge::ui::oled::meter_column).to_equal(true);
 	});
 
 	it("a select turn on a focused submenu column does nothing", _ {

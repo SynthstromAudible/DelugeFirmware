@@ -67,7 +67,10 @@
 #include "scenes/menu/relevance.h"
 
 #include "definitions_cxx.hpp" // ArpPreset -- `arp_preset_chain`'s CUSTOM test
+#include "gfx/oled/icons.h"
+#include "gui/l10n/l10n.h"
 
+#include <optional>
 #include <span>
 
 namespace deluge::scenes::menu {
@@ -177,11 +180,36 @@ inline const Node* arp_preset_chain(const MenuContext& ctx, const MenuState&) {
 	return relevance::is_kit_row(ctx) ? &arp_octave_mode_to_note_mode_drums : &arp_octave_mode_to_note_mode;
 }
 
-inline constexpr Node arp_preset =
-    with_select_chain(with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_PRESET), kArpPresetNames,
-                                             get_arp_preset, set_arp_preset),
-                                 sid(deluge::l10n::String::STRING_FOR_ARP_PRESET_MENU_TITLE)),
-                      arp_preset_chain, kArpPresetChain);
+/// @brief `PresetMode::renderInHorizontalMenu` (`preset_mode.h:85-116`): OFF in the title face, else the preset's
+///        icon, DOWN being UP's mirrored.
+inline std::optional<deluge::ui::oled::ArtColumn> arp_preset_art(const MenuContext&, int32_t value) {
+	namespace icons = deluge::gfx::oled::icons;
+	switch (static_cast<ArpPreset>(value)) {
+	case ArpPreset::OFF:
+		return deluge::ui::oled::ArtColumn{
+		    .text = deluge::l10n::getView(deluge::l10n::String::STRING_FOR_OFF), .title_face = true, .dy = 5};
+	case ArpPreset::DOWN:
+		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeUp, .reversed = true, .dy = 1};
+	case ArpPreset::BOTH:
+		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeUpDown, .dy = 1};
+	case ArpPreset::RANDOM:
+		return deluge::ui::oled::ArtColumn{.icon = &icons::dice, .dy = 1};
+	case ArpPreset::WALK:
+		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeWalk, .dy = 1};
+	case ArpPreset::CUSTOM:
+		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeCustom, .dy = 1};
+	default:
+		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeUp, .dy = 1};
+	}
+}
+
+/// `PresetMode::showColumnLabel()` is false (`preset_mode.h:81`).
+inline constexpr Node arp_preset = with_column_art(
+    without_column_label(with_select_chain(with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_PRESET),
+                                                                  kArpPresetNames, get_arp_preset, set_arp_preset),
+                                                      sid(deluge::l10n::String::STRING_FOR_ARP_PRESET_MENU_TITLE)),
+                                           arp_preset_chain, kArpPresetChain)),
+    arp_preset_art);
 inline constexpr Node arp_gate =
     param(sid(deluge::l10n::String::STRING_FOR_GATE),
           {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_ARP_GATE},

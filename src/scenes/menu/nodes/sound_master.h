@@ -73,13 +73,16 @@ inline constexpr Node master_pan =
 
 // `Transpose::getMinValue`/`getMaxValue`/`getNumDecimalPlaces` (`transpose.h`): semitones as a
 // two-place decimal in cents.
-inline constexpr Node master_transpose = with_patch_chain(with_learn_param(
-    with_title(
-        with_decimal_places(setting_item(sid(deluge::l10n::String::STRING_FOR_MASTER_TRANSPOSE), Kind::Decimal,
-                                         {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "transpose"}),
-                            2),
-        sid(deluge::l10n::String::STRING_FOR_MASTER_TRAN_MENU_TITLE)),
-    {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_PITCH_ADJUST}));
+/// `MasterTranspose::getColumnLabel` is TRANSPOSE (`master_transpose.h:74`).
+inline constexpr Node master_transpose = with_column_name(
+    with_patch_chain(with_learn_param(
+        with_title(
+            with_decimal_places(setting_item(sid(deluge::l10n::String::STRING_FOR_MASTER_TRANSPOSE), Kind::Decimal,
+                                             {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "transpose"}),
+                                2),
+            sid(deluge::l10n::String::STRING_FOR_MASTER_TRAN_MENU_TITLE)),
+        {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_PITCH_ADJUST})),
+    sid(deluge::l10n::String::STRING_FOR_TRANSPOSE));
 
 // `vibratoMenu` (`gui/ui/menus.cpp:1727-1728`): a `patch_cable_strength::Fixed` on
 // LOCAL_PITCH_ADJUST from LFO_GLOBAL_1, i.e. the depth of the one cable that makes an LFO wobble the

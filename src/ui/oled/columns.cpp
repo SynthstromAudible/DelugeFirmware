@@ -501,6 +501,22 @@ void text_column(OledFrame& slot_frame, bool /*focused*/, void* ctx) {
 	}
 }
 
+void art_column(OledFrame& slot_frame, bool /*focused*/, void* ctx) {
+	const auto* data = static_cast<const ArtColumn*>(ctx);
+	if (data == nullptr) {
+		return;
+	}
+	const Rect b = slot_frame.bounds();
+	const int32_t y = b.y + kHorizontalSlotYOffset + data->dy;
+	if (data->icon != nullptr) {
+		slot_frame.icon_centered(*data->icon, b.x, b.w, y, data->reversed);
+		return;
+	}
+	const gfx::oled::FontId font = data->title_face ? slot_frame.style.title_font : slot_frame.style.row_font;
+	text(slot_frame, Rect{b.x, y, b.w, data->title_face ? text_height_for(font) : kTextSpacingY}, data->text,
+	     TextStyle{.font = font, .truncate = true});
+}
+
 void submenu_column(OledFrame& slot_frame, bool /*focused*/, void* /*ctx*/) {
 	// The bold arrow, centred with legacy's own off-by-one nudge left.
 	const Rect b = slot_frame.bounds();

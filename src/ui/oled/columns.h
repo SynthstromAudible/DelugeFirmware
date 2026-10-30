@@ -256,6 +256,30 @@ struct TextColumn {
 /// @param ctx        Must point at a `TextColumn`.
 void text_column(OledFrame& slot_frame, bool focused, void* ctx);
 
+/// @brief `ctx` type for `art_column`: one legacy `renderInHorizontalMenu` override's drawing -- an icon, or else a
+///        word.
+///
+/// @note Ports the overrides that draw neither a number nor an option name: `arpeggiator::PresetMode`'s big OFF and
+///       mode icons, `SyncLevel`'s sync-type icon and `voice::VoiceCount`'s infinity.
+struct ArtColumn {
+	/// Drawn centred when set; `text` is drawn otherwise.
+	const gfx::oled::Icon* icon = nullptr;
+	/// Draw `icon` mirrored.
+	bool reversed = false;
+	std::string_view text;
+	/// `text` in the title face; the row face otherwise.
+	bool title_face = false;
+	/// Rows below `kHorizontalSlotYOffset` the icon or text starts at (negative is above).
+	int8_t dy = 0;
+};
+
+/// @brief `Column::render` that draws `ctx` (an `ArtColumn`) centred across the region.
+///
+/// @param slot_frame Value-region frame to draw into.
+/// @param focused    Whether this column currently has focus.
+/// @param ctx        Must point at an `ArtColumn`.
+void art_column(OledFrame& slot_frame, bool focused, void* ctx);
+
 /// @brief `Column::render` that draws the bold submenu arrow, centred. Takes no `ctx`.
 ///
 /// @note Ports legacy `Submenu::renderInHorizontalMenu`.

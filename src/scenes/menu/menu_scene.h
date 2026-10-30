@@ -1038,12 +1038,40 @@ std::optional<deluge::project::ParamAddress> automation_address(const Node& item
 /// @return The text, unchanged when @p node has no argument or the text no `*`.
 std::string_view node_text(uint16_t string_id, const Node& node, const MenuContext& ctx, NodeText& scratch);
 
-/// @brief The label a horizontal column draws for @p node: legacy's `getColumnLabel`, the name or, on a node that
-///        shortens it, the short form (`Node::short_column_label`).
+/// @brief The label a horizontal column draws for @p node: legacy's `getColumnLabel` -- its own string
+///        (`Node::column_name`), the short form of the name on a node that shortens it (`Node::short_column_label`),
+///        or the name.
 /// @param node    The column's node.
 /// @param ctx     The menu context.
 /// @param scratch Storage the returned view may point into.
 /// @return The label text.
 std::string_view column_label(const Node& node, const MenuContext& ctx, NodeText& scratch);
+
+/// @brief The song's input tick magnitude, which legacy's sync-level text is spelled against
+///        (`Song::getInputTickMagnitude`); 0 with no model.
+/// @param ctx The menu context.
+/// @return The magnitude.
+int32_t input_tick_magnitude(const MenuContext& ctx);
+
+/// @brief The storage one horizontal column's drawing points into; it outlives the `columns` call that draws it.
+struct ColumnSlot {
+	deluge::ui::oled::MeterColumn meter;
+	deluge::ui::oled::TextColumn text;
+	deluge::ui::oled::ToggleColumn toggle;
+	deluge::ui::oled::ArtColumn art;
+	char value[16]{};
+	char label[16]{};
+	NodeText label_scratch;
+};
+
+/// @brief Fill @p col's label and value drawing for @p node showing @p value: legacy's `getColumnLabel`,
+///        `showColumnLabel` and `renderInHorizontalMenu` for that item.
+/// @param node  The column's node.
+/// @param ctx   The menu context.
+/// @param value The value to show, in the node's own units (a toggle's is 0 or 1).
+/// @param slot  Storage @p col's label and `ctx` point into.
+/// @param col   The column; its label, `show_label`, `render` and `ctx` are written.
+void present_column(const Node& node, const MenuContext& ctx, int32_t value, ColumnSlot& slot,
+                    deluge::ui::oled::Column& col);
 
 } // namespace deluge::scenes::menu

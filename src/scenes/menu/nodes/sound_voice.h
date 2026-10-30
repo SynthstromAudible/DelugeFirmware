@@ -41,7 +41,9 @@
 #include "scenes/menu/relevance.h"
 
 #include "definitions_cxx.hpp" // PolyphonyMode -- `polyphony_chain`'s POLY test
+#include "gfx/oled/icons.h"
 
+#include <optional>
 #include <span>
 
 namespace deluge::scenes::menu {
@@ -64,11 +66,21 @@ inline constexpr Node voice_priority = setting_item(
 // `assign_node_ids` numbers a chain target while visiting the node that chains to it, so
 // `voice_count` is numbered right after `polyphony` either way, because it is already `polyphony`'s
 // next sibling. `sound_unison.h`'s equivalent pair is not so lucky and says so.
-inline constexpr Node voice_count = with_value_style(
-    setting_item(
-        sid(deluge::l10n::String::STRING_FOR_MAX_VOICES), Kind::Int,
-        {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "maxVoices", .fan_out_when = fan_out::kPolyphonic}),
-    deluge::ui::oled::ValueStyle{.off_at_zero = true});
+/// @brief `VoiceCount::renderInHorizontalMenu` (`voice/polyphony.h:98-104`): infinity at 0, else the number.
+inline std::optional<deluge::ui::oled::ArtColumn> voice_count_art(const MenuContext&, int32_t value) {
+	if (value != 0) {
+		return std::nullopt;
+	}
+	return deluge::ui::oled::ArtColumn{.icon = &deluge::gfx::oled::icons::infinity, .dy = 1};
+}
+
+inline constexpr Node voice_count =
+    with_column_art(with_value_style(setting_item(sid(deluge::l10n::String::STRING_FOR_MAX_VOICES), Kind::Int,
+                                                  {.kind = deluge::scenes::bind::Target::Kind::SOUND,
+                                                   .path = "maxVoices",
+                                                   .fan_out_when = fan_out::kPolyphonic}),
+                                     deluge::ui::oled::ValueStyle{.off_at_zero = true}),
+                    voice_count_art);
 
 /// @brief `PolyphonyType::selectButtonPress()` (`voice/polyphony.h:139-143`): a select press opens
 ///        the voice count when the mode is POLY, and otherwise falls through to

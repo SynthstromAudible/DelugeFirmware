@@ -40,6 +40,7 @@
 #include "scenes/profile.h"
 
 #include "gfx/oled/icons.h"
+#include "gui/l10n/l10n.h"
 #include "gui/l10n/short_label.h"
 #include "gui/l10n/strings.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -55,6 +56,7 @@
 #include "ui/oled/values.h"
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <span>
 #include <utility>
@@ -284,6 +286,9 @@ const Node* horizontal_page_listing(const Node& node, const Node& item) {
 } // namespace
 
 std::string_view column_label(const Node& node, const MenuContext& ctx, NodeText& scratch) {
+	if (node.column_name != 0) {
+		return node_text(node.column_name, node, ctx, scratch);
+	}
 	if (node.short_column_label) {
 		if (const auto shortened = deluge::l10n::shortForm(static_cast<deluge::l10n::String>(node.name))) {
 			return *shortened;
@@ -743,11 +748,122 @@ size_t MenuScene::build_column_list(const Node& node, std::span<const Node*> kid
 		cols[i] = deluge::ui::oled::Column{};
 		cols[i].label = column_label(kid, ctx_, label_scratch[i]);
 		cols[i].slots = kid.slots;
-		cols[i].show_label = true;
+		cols[i].show_label = kid.show_column_label;
 		cols[i].relevant = bindings::relevant(kid, ctx_);
 		cols[i].is_submenu = kid.kind == Kind::Submenu;
 	}
 	return n;
+}
+
+int32_t input_tick_magnitude(const MenuContext& ctx) {
+	return ctx.model != nullptr ? ctx.model->transport.inside_world_tick_magnitude
+	                                  + ctx.model->transport.inside_world_tick_magnitude_offset_from_bpm
+	                            : 0;
+}
+
+void present_column(const Node& node, const MenuContext& ctx, int32_t value, ColumnSlot& slot,
+                    deluge::ui::oled::Column& col) {
+	col.label = column_label(node, ctx, slot.label_scratch);
+	col.show_label = node.show_column_label;
+
+	const auto draw_art = [&](const deluge::ui::oled::ArtColumn& art) {
+		slot.art = art;
+		col.render = deluge::ui::oled::art_column;
+		col.ctx = &slot.art;
+	};
+	const auto draw_text = [&](std::string_view text) {
+		const size_t copied = std::min(text.size(), sizeof(slot.value));
+		std::memcpy(slot.value, text.data(), copied);
+		slot.text = deluge::ui::oled::TextColumn{.value = std::string_view{slot.value, copied}};
+		col.render = deluge::ui::oled::text_column;
+		col.ctx = &slot.text;
+	};
+
+	if (node.bind.column_art != nullptr) {
+		if (const auto art = node.bind.column_art(ctx, value)) {
+			draw_art(*art);
+			return;
+		}
+	}
+
+	if (node.bind.value_text != nullptr) {
+		// `Binding::value_text` (spec E-note-family §5.3): legacy's bespoke column text --
+		// `35%`/`35L`, `3:4`, `FILL` struck through for `NOT_FILL` -- replaces whatever the
+		// node's own `Kind` would otherwise have drawn, exactly as legacy's own
+		// `renderInHorizontalMenu` override does for these items.
+		const ValueText vt =
+		    node.bind.value_text(ctx, value, ValueTextUse::Column, std::span<char>{slot.value, sizeof(slot.value)});
+		slot.text =
+		    deluge::ui::oled::TextColumn{.value = std::string_view{slot.value, std::min(vt.length, sizeof(slot.value))},
+		                                 .strikethrough = vt.strikethrough};
+		col.render = deluge::ui::oled::text_column;
+		col.ctx = &slot.text;
+		return;
+	}
+
+	switch (node.kind) {
+	case Kind::Submenu:
+		col.render = deluge::ui::oled::submenu_column;
+		break;
+	case Kind::Toggle:
+		slot.toggle.on = value != 0;
+		col.render = deluge::ui::oled::toggle_column;
+		col.ctx = &slot.toggle;
+		break;
+	case Kind::Enum: {
+		std::array<std::string_view, kMaxDynamicNames> names{};
+		std::array<TextScratch, kMaxDynamicNames> scratch{};
+		const size_t count = bindings::names(node, ctx, names, scratch, bindings::NameForm::Short);
+		draw_text(count == 0 ? std::string_view{} : names[static_cast<size_t>(clamp_to(value, 0, count - 1))]);
+		break;
+	}
+	case Kind::SyncLevel: {
+		// `SyncLevel::getColumnLabel` and `renderInHorizontalMenu` (`gui/menu_item/sync_level.cpp:40-77`): OFF in
+		// the row face under the name, else the note length as the label over the sync type's icon.
+		if (syncValueToSyncLevel(value) == SYNC_LEVEL_NONE) {
+			draw_art({.text = deluge::l10n::getView(deluge::l10n::String::STRING_FOR_OFF)});
+			break;
+		}
+		etl::string<30> label;
+		syncValueToStringForHorzMenuLabel(syncValueToSyncType(value), syncValueToSyncLevel(value), label,
+		                                  input_tick_magnitude(ctx));
+		const size_t copied = std::min(label.size(), sizeof(slot.label));
+		std::memcpy(slot.label, label.data(), copied);
+		col.label = std::string_view{slot.label, copied};
+		const deluge::gfx::oled::Icon* icon = &deluge::gfx::oled::icons::syncTypeEven;
+		if (syncValueToSyncType(value) == SYNC_TYPE_DOTTED) {
+			icon = &deluge::gfx::oled::icons::syncTypeDotted;
+		}
+		else if (syncValueToSyncType(value) == SYNC_TYPE_TRIPLET) {
+			icon = &deluge::gfx::oled::icons::syncTypeTriplets;
+		}
+		draw_art({.icon = icon, .dy = -3});
+		break;
+	}
+	case Kind::Decimal: {
+		// `Decimal::renderInHorizontalMenu` (`gui/menu_item/decimal.cpp:176-191`) keeps three characters of a value
+		// at or below -10.00, which would not fit the column.
+		char buf[16];
+		std::string_view text = format_decimal(value, node.bind.decimal_places, buf, sizeof(buf));
+		if (value <= -1000) {
+			text = text.substr(0, 3);
+		}
+		draw_text(text);
+		break;
+	}
+	default: {
+		// A plain number is a `meter_column` with `Hint::None`, not a `text_column`
+		// (`ui/oled/columns.h`'s note on the missing fifth arm).
+		const IntRange range = bindings::range(node, ctx);
+		slot.meter.hint = node.hint;
+		slot.meter.norm = normalised(value, range);
+		slot.meter.raw = value;
+		slot.meter.raw_max = range.max; // `Hint::Ducking` is the one hint that reads this
+		col.render = deluge::ui::oled::meter_column;
+		col.ctx = &slot.meter;
+		break;
+	}
+	}
 }
 
 void MenuScene::notify_column(const Node& column) {
@@ -1007,15 +1123,8 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 		}
 	}
 
-	// Per-column presentation. Everything a `Column` points at has to outlive the `columns` call,
-	// so it all lives in this frame.
-	deluge::ui::oled::MeterColumn meters[kMaxMenuColumns]{};
-	deluge::ui::oled::TextColumn texts[kMaxMenuColumns]{};
-	deluge::ui::oled::ToggleColumn toggles[kMaxMenuColumns]{};
-	char value_buf[kMaxMenuColumns][16]{};
-	std::string_view names_buf[kMaxDynamicNames];
-	TextScratch names_scratch[kMaxDynamicNames];
-
+	// Everything a `Column` points at has to outlive the `columns` call, so it all lives in this frame.
+	ColumnSlot slots[kMaxMenuColumns];
 	for (size_t i = 0; i < n; i++) {
 		const Node& kid = *kids[i];
 		// A `Binding::adjust` node stages no absolute value (see the edit block above) -- only
@@ -1024,61 +1133,13 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 		// write is visible here, because renders never write the model; `node.h`'s `AdjustFn` doc
 		// names this rather than working around it.
 		const bool has_staged_edit = kid.bind.adjust == nullptr && st_.value_node == &kid;
-		const int32_t value =
-		    has_staged_edit ? (kid.kind == Kind::Enum ? st_.enum_index : st_.edit_int) : bindings::read(kid, ctx_);
-
-		if (kid.bind.value_text != nullptr) {
-			// `Binding::value_text` (spec E-note-family §5.3): legacy's bespoke column text --
-			// `35%`/`35L`, `3:4`, `FILL` struck through for `NOT_FILL` -- replaces whatever the
-			// node's own `Kind` would otherwise have drawn, exactly as legacy's own
-			// `renderInHorizontalMenu` override does for these items.
-			const ValueText vt = kid.bind.value_text(ctx_, value, ValueTextUse::Column,
-			                                         std::span<char>{value_buf[i], sizeof(value_buf[i])});
-			texts[i].value = std::string_view{value_buf[i], std::min(vt.length, sizeof(value_buf[i]))};
-			texts[i].strikethrough = vt.strikethrough;
-			cols[i].render = deluge::ui::oled::text_column;
-			cols[i].ctx = &texts[i];
-			continue;
+		int32_t value = bindings::read(kid, ctx_);
+		if (has_staged_edit) {
+			value = kid.kind == Kind::Enum     ? st_.enum_index
+			        : kid.kind == Kind::Toggle ? int32_t{st_.edit_bool}
+			                                   : st_.edit_int;
 		}
-
-		switch (kid.kind) {
-		case Kind::Submenu:
-			cols[i].render = deluge::ui::oled::submenu_column;
-			break;
-		case Kind::Toggle:
-			toggles[i].on = has_staged_edit ? st_.edit_bool : value != 0;
-			cols[i].render = deluge::ui::oled::toggle_column;
-			cols[i].ctx = &toggles[i];
-			break;
-		case Kind::Enum: {
-			const size_t count = bindings::names(kid, ctx_, names_buf, names_scratch, bindings::NameForm::Short);
-			const std::string_view name =
-			    count == 0 ? std::string_view{} : names_buf[static_cast<size_t>(clamp_to(value, 0, count - 1))];
-			const size_t copied = std::min(name.size(), sizeof(value_buf[i]));
-			std::memcpy(value_buf[i], name.data(), copied);
-			texts[i].value = std::string_view{value_buf[i], copied};
-			cols[i].render = deluge::ui::oled::text_column;
-			cols[i].ctx = &texts[i];
-			break;
-		}
-		case Kind::Decimal:
-			texts[i].value = format_decimal(value, kid.bind.decimal_places, value_buf[i], sizeof(value_buf[i]));
-			cols[i].render = deluge::ui::oled::text_column;
-			cols[i].ctx = &texts[i];
-			break;
-		default: {
-			// A plain number is a `meter_column` with `Hint::None`, not a `text_column`
-			// (`ui/oled/columns.h`'s note on the missing fifth arm).
-			const IntRange range = bindings::range(kid, ctx_);
-			meters[i].hint = kid.hint;
-			meters[i].norm = normalised(value, range);
-			meters[i].raw = value;
-			meters[i].raw_max = range.max; // `Hint::Ducking` is the one hint that reads this
-			cols[i].render = deluge::ui::oled::meter_column;
-			cols[i].ctx = &meters[i];
-			break;
-		}
-		}
+		present_column(kid, ctx_, value, slots[i], cols[i]);
 	}
 
 	NodeText title_scratch;
@@ -1273,11 +1334,7 @@ void MenuScene::render_leaf_sync_level(deluge::ui::oled::OledFrame& f, const Nod
 	etl::string<30> buffer;
 	std::string_view text_val;
 	if (st_.edit_int != 0) {
-		syncValueToString(static_cast<uint32_t>(st_.edit_int), buffer,
-		                  ctx_.model != nullptr
-		                      ? ctx_.model->transport.inside_world_tick_magnitude
-		                            + ctx_.model->transport.inside_world_tick_magnitude_offset_from_bpm
-		                      : 0);
+		syncValueToString(static_cast<uint32_t>(st_.edit_int), buffer, input_tick_magnitude(ctx_));
 		text_val = std::string_view{buffer.data(), buffer.size()};
 	}
 	else {

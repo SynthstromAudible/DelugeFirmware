@@ -23,6 +23,7 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_descriptor.h" // CustomItem::learn_descriptor -- returned by value
 #include "scenes/bind/target.h"
+#include "ui/oled/columns.h" // ArtColumn
 #include "ui/oled/meters.h"
 #include "ui/oled/values.h"
 
@@ -192,6 +193,13 @@ struct ValueText {
 /// @return The text's length and (for `ValueTextUse::Column`) whether it draws struck through.
 using ValueTextFn = ValueText (*)(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 
+/// @brief Legacy's `renderInHorizontalMenu` override for one value -- `Binding::column_art`.
+///
+/// @param ctx   What is being edited.
+/// @param value The value to draw, in the node's own units.
+/// @return The icon or word to draw in place of the node's ordinary column, or nothing to draw that column.
+using ColumnArtFn = std::optional<deluge::ui::oled::ArtColumn> (*)(const MenuContext& ctx, int32_t value);
+
 /// @brief Refuse an edit with legacy's own popup -- `Binding::permitted` (spec §5.3).
 ///
 /// The port of `note::SelectedNote::shouldEnterSubmenu()`/`selectEncoderActionIsPermitted()`
@@ -332,6 +340,9 @@ struct Binding {
 	///        `ValueTextFn`'s own doc). Null for every ordinary node, which keeps
 	///        `format_int`/`format_decimal`.
 	ValueTextFn value_text = nullptr;
+
+	/// @brief Legacy's icon or word for this node's column (`ColumnArtFn`'s own doc). Null for every ordinary node.
+	ColumnArtFn column_art = nullptr;
 
 	/// @brief Refuse an edit with legacy's own popup (spec §5.3, `PermittedFn`'s own doc). Null for
 	///        every ordinary node, which is always permitted.
@@ -765,6 +776,11 @@ struct Node {
 	bool short_column_label = false;
 	/// @brief A column shows each option's short form: legacy's `getOptions(OptType::SHORT)` overrides.
 	bool short_options = false;
+	/// @brief The column label's string, when legacy's `getColumnLabel` names one other than the node's name; 0 for
+	///        the name.
+	uint16_t column_name = 0;
+	/// @brief The column draws its label: false where legacy's `showColumnLabel()` is.
+	bool show_column_label = true;
 
 	/// @brief The number that fills the `*` placeholder in this node's name and title: legacy's
 	///        `FormattedTitle` argument (`gui/menu_item/formatted_title.h`).
@@ -823,6 +839,24 @@ constexpr Node with_short_column_label(Node n) {
 /// @brief `n` with `short_options` set.
 constexpr Node with_short_options(Node n) {
 	n.short_options = true;
+	return n;
+}
+
+/// @brief `n` with its column labelled @p name (`Node::column_name`).
+constexpr Node with_column_name(Node n, uint16_t name) {
+	n.column_name = name;
+	return n;
+}
+
+/// @brief `n` with its column drawn without a label (`Node::show_column_label`).
+constexpr Node without_column_label(Node n) {
+	n.show_column_label = false;
+	return n;
+}
+
+/// @brief `n` with its column drawn by @p art (`Binding::column_art`).
+constexpr Node with_column_art(Node n, ColumnArtFn art) {
+	n.bind.column_art = art;
 	return n;
 }
 
