@@ -26,8 +26,7 @@
 
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
-using deluge::synth::InputChannel;
-
+namespace deluge::synth {
 namespace {
 /// The input channel a live-input `OscType` names: the note-on boundary is the only place the synth reads it.
 InputChannel channelFromOscType(OscType inputType) {
@@ -41,8 +40,6 @@ InputChannel channelFromOscType(OscType inputType) {
 	}
 }
 } // namespace
-
-namespace deluge::synth {
 
 void InputSource::prepareForNoteOn(OscType inputType) {
 	channel_ = channelFromOscType(inputType);

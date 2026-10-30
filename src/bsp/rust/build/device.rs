@@ -127,7 +127,7 @@ fn archive_app_objects(
         panic!(
             "C++ app objects not found at {}. Build them first:\n  \
              cmake --build {} --target deluge_app eyalroz_printf \
-             deluge_dsp deluge_dsp_fixed deluge_dsp_float deluge_foundation deluge_serialization deluge_music_theory deluge_project deluge_instrument deluge_effects deluge_midi",
+             deluge_dsp deluge_dsp_fixed deluge_dsp_float deluge_synth deluge_foundation deluge_serialization deluge_music_theory deluge_project deluge_instrument deluge_effects deluge_midi",
             app_objs_dir.display(),
             build_dir.display()
         );

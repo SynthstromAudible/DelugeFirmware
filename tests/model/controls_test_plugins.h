@@ -1,9 +1,9 @@
 #pragma once
 
-// The engines the model's tests decode and encode with: the Deluge instrument and the provisional global-effectable
+// The plugins the model's tests decode and encode with: the Deluge instrument and the provisional global-effectable
 // table, with how each names its params.
 
-#include "chain_test_engines.h"
+#include "chain_test_plugins.h"
 #include "deluge-project/controller_mapping.h"
 #include "effects/global_effectable/naming.h"
 #include "instruments/deluge/naming.h"
@@ -19,9 +19,9 @@ inline const std::array<deluge::plugin::ParamNaming, 2>& test_namings() {
 	return namings;
 }
 
-/// @brief The engines the tests' codecs use.
-inline CodecEngines test_engines() {
-	return CodecEngines{.namings = test_namings(), .chains = test_chain_codec()};
+/// @brief The plugins the tests' codecs use.
+inline CodecPlugins test_plugins() {
+	return CodecPlugins{.namings = test_namings(), .chains = test_chain_codec()};
 }
 
 } // namespace deluge::project::test

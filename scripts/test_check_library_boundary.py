@@ -141,7 +141,7 @@ class LibraryBoundaryTest(unittest.TestCase):
             1,
         )
 
-    def test_the_global_effectable_table_may_use_only_the_engine_types(self):
+    def test_the_global_effectable_table_may_use_only_the_plugin_types(self):
         table = LIBRARIES["global-effectable"]
         self.assertEqual(
             self.check('#include "plugin-api/types/param.h"\n', library=table), []

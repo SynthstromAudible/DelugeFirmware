@@ -91,7 +91,7 @@ repos:
         pass_filenames: false
         files: ^(src/(plugin-api|instruments|effects|serialization|music-theory|deluge-project)/|scripts/(check|test_check)_library_boundary\.py)
       - id: model-words
-        name: the model names no engine's state
+        name: the model names no plugin's state
         description: no file of the model may name a sound record or one of the Deluge instrument's words
         entry: python3 scripts/check_model_words.py
         language: system

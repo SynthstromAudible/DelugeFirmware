@@ -281,7 +281,7 @@ void recordOutputControls(::Output& output, ::Song& song) {
 	*record = isSound ? controlsOf(static_cast<::Sound&>(*own)) : learnedControlsOf(*own);
 }
 
-deluge::project::CodecEngines codecEngines() {
+deluge::project::CodecPlugins codecPlugins() {
 	static const std::array<deluge::plugin::ParamNaming, 2> namings{deluge::instrument::kNaming,
 	                                                                deluge::global_effectable::kNaming};
 	return {.namings = namings, .chains = chainCodec()};

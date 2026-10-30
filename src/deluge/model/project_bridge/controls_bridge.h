@@ -104,6 +104,6 @@ void recordOutputControls(::Output& output, ::Song& song);
 
 /// @brief The engines the app's model codecs name params through.
 /// @return The engines.
-[[nodiscard]] deluge::project::CodecEngines codecEngines();
+[[nodiscard]] deluge::project::CodecPlugins codecPlugins();
 
 } // namespace deluge::bridge

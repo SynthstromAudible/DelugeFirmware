@@ -1,8 +1,8 @@
 ---
 # Stricter clang-tidy for the Deluge instrument library (deluge::instrument).
 #
-# This is greenfield, idiomatic-C++23 code (an engine library, on the
-# engine API only), so it holds itself to a higher bar than the legacy
+# This is greenfield, idiomatic-C++23 code (a plugin library, on the
+# plugin API only), so it holds itself to a higher bar than the legacy
 # tree. It inherits the repo-root .clang-tidy (naming conventions — lower_case
 # variables/members, kCamelCase constants — and the bulk of the checks) and adds
 # the checks the root leaves off for the legacy code but which new code here can

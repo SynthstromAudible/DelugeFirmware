@@ -8,6 +8,7 @@
 
 namespace deluge::bench::render_profile {
 
+/// Cycle sums for one phase. `voice_patch` is measured inside `Voice::render`, so it is part of `voice_render`.
 struct Totals {
 	uint64_t voice_render;
 	uint64_t voice_patch;

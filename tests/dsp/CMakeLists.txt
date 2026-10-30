@@ -20,7 +20,7 @@ set(component_framework_spec_DEPS)
 # The mode-dispatch spec needs no sources: ModeList and with_mode are header-only.
 set(mode_spec_DEPS)
 # The kernel-concept spec needs no sources: the concepts are header-only, and its reference kernels use only
-# util/fixedpoint.h's inline arithmetic.
+# dsp-next/core/q31_ops.h's inline arithmetic.
 set(kernel_spec_DEPS)
 # The frame and lane-pack specs need no sources: Frame and LanePack are header-only, and the kernels the lane-pack spec
 # writes generically are header-only too.

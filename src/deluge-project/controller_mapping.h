@@ -43,7 +43,7 @@ struct MidiInputControl {
 	[[nodiscard]] bool operator==(const MidiInputControl&) const = default;
 };
 
-/// @brief A control and the param of its owner's engine it moves.
+/// @brief A control and the param of its owner's plugin it moves.
 struct ControllerMapping {
 	std::variant<ModKnobControl, MidiInputControl> control;
 	deluge::plugin::ParamId target{};
@@ -59,8 +59,8 @@ struct ControlsAddress {
 	bool operator==(const ControlsAddress&) const = default;
 };
 
-/// @brief The engines whose params the codecs may meet, with how each names them.
-struct CodecEngines {
+/// @brief The plugins whose params the codecs may meet, with how each names them.
+struct CodecPlugins {
 	std::span<const deluge::plugin::ParamNaming> namings;
 	/// How a host owner's effects are read and written; unset, the model keeps no chains.
 	ChainCodec chains;

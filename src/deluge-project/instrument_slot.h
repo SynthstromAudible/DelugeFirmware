@@ -24,7 +24,7 @@
 
 namespace deluge::project {
 
-/// @brief The instrument a synth track or a sound kit row plays: which engine, and its element's entries the model does
+/// @brief The instrument a synth track or a sound kit row plays: which plugin, and its element's entries the model does
 /// not own, kept as read and written back as they are. The model never interprets `state`.
 struct InstrumentSlot {
 	std::string plugin;                                           ///< the plugin's id, e.g. "deluge.instrument"

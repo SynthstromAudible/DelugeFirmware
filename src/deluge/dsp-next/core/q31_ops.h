@@ -173,10 +173,8 @@ static inline q31_t q31tRescale(q31_t a, uint32_t proportion) {
 }
 
 // Multiplies A and B, adds to sum, and returns output.
-// NB: keep the 64-bit product term separate and add `sum` last. The old form shifted sum<<32 first
-// (~2^63) then added a*b (~2^62), overflowing int64 (UB) for Q31-scale operands — it diverged from the
-// ARM smmla (which wraps in 32-bit) and, at -O2, the UB corrupted neighbouring code. Mathematically the
-// non-overflowing forms below are identical to the originals: floor((sum<<32 ± a*b)/2^32) = sum ± (a*b>>32).
+// The 64-bit product stays separate and `sum` is added last, wrapping in 32 bits as the ARM smmla does:
+// floor((sum<<32 ± a*b)/2^32) = sum ± (a*b>>32), with no int64 overflow for Q31-scale operands.
 static inline q31_t multiply_accumulate_32x32_rshift32(q31_t sum, q31_t a, q31_t b) {
 	return (q31_t)(sum + (((int64_t)a * b) >> 32));
 }
@@ -197,8 +195,7 @@ static inline q31_t multiply_subtract_32x32_rshift32_rounded(q31_t sum, q31_t a,
 }
 
 // Matches ARM `ssat %0, %1, #bits`: clamp to the signed range representable in `bits` bits,
-// i.e. [-2^(bits-1), 2^(bits-1)-1]. (The old host stub `std::min(val, 1<<bits)` clamped only the
-// upper bound, to the wrong value, with no lower bound — silently wrong saturation in the DSP.)
+// i.e. [-2^(bits-1), 2^(bits-1)-1].
 template <uint8_t bits>
 static inline int32_t signed_saturate(int32_t val) {
 	constexpr int32_t hi = static_cast<int32_t>((static_cast<uint32_t>(1) << (bits - 1)) - 1);
@@ -206,8 +203,7 @@ static inline int32_t signed_saturate(int32_t val) {
 	return val > hi ? hi : (val < lo ? lo : val);
 }
 
-// Matches ARM `qadd`: saturating add, clamped to the signed 32-bit range (the old host stub
-// `a + b` wrapped on overflow — a ramp past INT32_MAX flipped to negative instead of pinning).
+// Matches ARM `qadd`: saturating add, clamped to the signed 32-bit range.
 static inline int32_t add_saturate(int32_t a, int32_t b) __attribute__((always_inline, unused));
 static inline int32_t add_saturate(int32_t a, int32_t b) {
 	int64_t r = static_cast<int64_t>(a) + b;
@@ -243,8 +239,7 @@ inline int32_t clz(uint32_t input) {
 		return negative ? std::numeric_limits<q31_t>::min() : std::numeric_limits<q31_t>::max();
 	}
 
-	// |value| < 2^-31 truncates to 0. (Was `mantissa >> -exponent` — for these tiny values -exponent
-	// is >= 32, i.e. a shift >= the operand width, which is UB and at -O2 corrupted neighbouring code.)
+	// |value| < 2^-31 truncates to 0; the shift would be >= the operand width.
 	int32_t shift = -exponent;
 	if (shift >= 32) {
 		return 0;
@@ -321,8 +316,7 @@ template <uint8_t lshift>
 	return signed_saturate_operand_unknown(val, 32 - lshift) << lshift;
 }
 
-// Scale `number` by 2^magnitude (negative magnitude = right-shift), saturating on positive magnitude. Lives
-// here (rather than functions.h) because getExp() in param_functions.cpp needs it gui-free.
+// Scale `number` by 2^magnitude (negative magnitude = right-shift), saturating on positive magnitude.
 [[gnu::always_inline]] inline int32_t increaseMagnitudeAndSaturate(int32_t number, int32_t magnitude) {
 	if (magnitude > 0) {
 		return lshiftAndSaturateUnknown(number, magnitude);

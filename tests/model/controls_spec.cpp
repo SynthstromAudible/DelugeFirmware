@@ -1,4 +1,4 @@
-#include "controls_test_engines.h"
+#include "controls_test_plugins.h"
 #include "deluge-project/controls_codec.h"
 #include "effects/global_effectable/params.h"
 #include "instruments/deluge/cables.h"

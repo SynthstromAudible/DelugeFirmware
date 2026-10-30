@@ -269,7 +269,7 @@ int model_decode_diff_main(int argc, char** argv, Io driverIo) {
 	    parseDocument(std::string_view(orig, static_cast<size_t>(fileLen)), deluge::storage::formatOfPath(argv[1]));
 	std::optional<SongDocument> original;
 	if (originalTree) {
-		if (auto decodedOriginal = deluge::project::decode_song(*originalTree, deluge::bridge::codecEngines())) {
+		if (auto decodedOriginal = deluge::project::decode_song(*originalTree, deluge::bridge::codecPlugins())) {
 			original = std::move(*decodedOriginal);
 		}
 	}
@@ -295,7 +295,7 @@ int model_decode_diff_main(int argc, char** argv, Io driverIo) {
 		std::fprintf(io.err, "LOADFAIL gen1 -> Error %d\n", static_cast<int>(e));
 		return 3;
 	}
-	auto decoded = deluge::project::decode_song(*tree, deluge::bridge::codecEngines());
+	auto decoded = deluge::project::decode_song(*tree, deluge::bridge::codecPlugins());
 	if (!decoded) {
 		return differs("the saved song does not decode");
 	}

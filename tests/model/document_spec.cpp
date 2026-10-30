@@ -1,4 +1,4 @@
-#include "controls_test_engines.h"
+#include "controls_test_plugins.h"
 #include "deluge-project/document.h"
 #include "serialization/parse_json.h"
 #include "serialization/parse_xml.h"
@@ -35,12 +35,12 @@ constexpr const char* kSong =
 
 SongDocument decoded(const char* xml) {
 	auto root = parseXml(xml);
-	return *decode_song(*root, deluge::project::test::test_engines());
+	return *decode_song(*root, deluge::project::test::test_plugins());
 }
 
 SongDocument through_json(const SongDocument& document) {
-	auto root = parseJson(write_json(encode_song(document, "c1.0.0", deluge::project::test::test_engines())));
-	return *decode_song(*root, deluge::project::test::test_engines());
+	auto root = parseJson(write_json(encode_song(document, "c1.0.0", deluge::project::test::test_plugins())));
+	return *decode_song(*root, deluge::project::test::test_plugins());
 }
 
 } // namespace
@@ -51,7 +51,7 @@ describe document("the model's parts of a whole song", ${
 		SongDocument a = decoded(kSong);
 		SongDocument b = through_json(a);
 		expect(b).to_equal(a);
-		expect(write_json(encode_song(b, "c1.0.0", deluge::project::test::test_engines()))).to_equal(write_json(encode_song(a, "c1.0.0", deluge::project::test::test_engines())));
+		expect(write_json(encode_song(b, "c1.0.0", deluge::project::test::test_plugins()))).to_equal(write_json(encode_song(a, "c1.0.0", deluge::project::test::test_plugins())));
 	});
 
 	it("reads every record of the song", _ {

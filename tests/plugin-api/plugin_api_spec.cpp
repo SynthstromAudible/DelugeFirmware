@@ -6,7 +6,7 @@ namespace {
 struct TestState {
 	int32_t value{0};
 };
-struct TestEngine {
+struct TestPlugin {
 	using State = TestState;
 	static constexpr deluge::plugin::PluginDescriptor descriptor() {
 		return {.id = deluge::plugin::PluginId{"test.plugin"},
@@ -32,14 +32,14 @@ struct TestEngine {
 // clang-format off
 describe plugin_api("a plugin's state shape", ${
 	it("is satisfied by a plugin with a descriptor and a state codec", _ {
-		expect(deluge::plugin::InstrumentPlugin<TestEngine>).to_be_true();
+		expect(deluge::plugin::InstrumentPlugin<TestPlugin>).to_be_true();
 	});
 
 	it("round-trips its state through a Value", _ {
 		TestState in{.value = 7};
 		TestState out{};
-		auto v = TestEngine::encode(in, {});
-		expect(TestEngine::decode(v, out, {})).to_have_value();
+		auto v = TestPlugin::encode(in, {});
+		expect(TestPlugin::decode(v, out, {})).to_have_value();
 		expect(out.value).to_equal(7);
 	});
 });
