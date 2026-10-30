@@ -30,6 +30,6 @@ void Metronome::render(std::span<deluge::dsp::StereoSample> buffer, int32_t volu
 }
 
 void Metronome::setVolume(int32_t linear_param) {
-	// Unqualified, as the menu's volume has always been computed: the overload <cmath> leaves in scope.
+	// Unqualified: the overload <cmath> leaves in scope, whose rounding the menu's volumes are recorded at.
 	volume_ = (exp(float(linear_param) / 200.0f) - 1.0) * float(1 << 27);
 }

@@ -640,6 +640,46 @@ The song reverb is two processor kernels of stereo frames, `fixed::Freeverb` (`f
   from its defaults and switch models and knobs mid-song as the menus do, recorded on the old code. The `reverb` bench
   list times each model as the engine renders it.
 
+### The chains' small stages, the duck and the engine's own: bitcrush, EQ, send and volume, metronome, monitoring
+
+Each is a kernel run through `Mono<K>` by the `engines/effects` class (or engine class) that held its arithmetic, now
+an adapter over it. All are bit-exact to the code they replace; `tests/dsp/reference_effects.h` keeps that code line
+for line. The specs drive the adapters themselves (`effects::Bitcrush`, `Equalizer`, `SendAndVolume`, `Metronome`)
+against it over every block size, on x86 and qemu-ARM; the monitoring kernels are held to it directly, and the
+engine's monitoring decision to a copy of the function it replaced.
+
+- **`duck_gain<DuckScale>` (`fixed/dynamics/duck_gain.h`).** A sidechain's duck as a squared level, once per block,
+  so a function rather than a kernel form. One law at two output scales, both named: `CLIP` (2^27 unducked, a clip
+  chain's post-reverb volume) and `REVERB_RETURN` (2^29 unducked, the reverb's return). `effects::Sidechain::level`
+  is the one place a duck becomes a level; `ClipChain` and `effects::Reverb` (which owns its return's `Sidechain`
+  and a `ReturnDuck`, the depth and shape `AudioEngine::updateReverbParams` chooses) both call it.
+- **`SendAndVolume` (`fixed/vca/send_and_volume.h`).** A stereo processor with a `prepare` (the gains at this block's
+  volumes, the ramp's step from the last block's post-reverb volume, pan folded in) and the two running gains as its
+  `kLoopState`, with the reverb send's cursor, which the SEND modes advance per frame as `Granular`'s does (`set_send`
+  points it at the block's reverb input). Named quirk: the ramp starts at this block's gain and steps before the first
+  frame, ending one block's change past its target. `prime` and `forget` are events.
+- **`ShelfPair` (`fixed/filter/shelf_pair.h`).** The EQ's two shelves. Not `OnePole`: the steps truncate, and the
+  treble's is doubled while the bass's is not. Modes `BOTH`, `BASS`, `TREBLE` step only the bands that are on, so a
+  flat band's memory holds; the adapter skips the kernel with both flat. The band coefficients are computed every
+  block, so nothing is held between blocks and a clone copies nothing.
+- **`BitDepth` and `SampleRateReducer` (`fixed/shaping/`).** The mask (stateless) and the 22-bit down/up
+  interpolator (its `start` event zeroes the last input, the grab and the low position each time the effect switches
+  on). `effects::Bitcrush` composes them and returns `BitcrushBlock{volume_shift}`, which the chain applies to its own
+  post-FX volume.
+- **`Click` (`fixed/osc/click.h`).** The metronome's square, its aliasing named, gated between blocks after 1000
+  frames (`prepare` closes the gate; `trigger` and `sounding` are events). `Metronome` takes the song's post-FX
+  volume from the engine, which reads it only while the click sounds.
+- **Monitoring (`fixed/mix/output_fold.h`, `fixed/mix/track_monitor.h`).** `output_monitor_fold` is the output
+  stage's per-sample fold by a shift (`STEREO`, `LEFT_ONLY`, `DIFFERENTIAL`), a function in a header free of the
+  kernel framework. `TrackMonitor` is an audio track's mixer kernel: the input at an amplitude ramped across the
+  block, folded (`STEREO`, `LEFT`, `RIGHT`, `BALANCED`, `COMBINE`, the halves by division) and added; its State is
+  reset by each block's `prepare`, so the track runs a local `Mono` over the block's input copied out of the ring.
+  `audio::InputMonitor` (`processing/engines/input_monitor.h`) decides the output stage's fold and owns the warm-up.
+- **Evidence.** Render gates recorded on the old code before any move: `render-bitcrush`, `render-eq-bands`,
+  `render-metronome`, `render-reverb-duck-override` and `-track` (the override from the owner with the most reverb,
+  one song per branch), each red under a neutering of the path it covers. Monitoring has no render gate (the
+  scenario plays no input); `input_monitor_spec` and the exhaustive `input_monitor_decision_spec` cover it.
+
 ### A family of its own: the DX7 (`fixed/dx7/`)
 
 The DX7 engine (the Dexed port: the modern engine and the MkI engine) is its own family, kept apart from the legacy FM

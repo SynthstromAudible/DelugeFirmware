@@ -15,15 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The EQ's shelves: Mono<ShelfPair>, skipped while both bands are flat as the adapter skips it, against the frozen EQ
+// The EQ's shelves: effects::Equalizer, the adapter the chains run over the ShelfPair kernel, against the frozen EQ
 // over seeded full-scale frames cut into blocks of every size, across the bands' and frequencies' range with each band
-// switched flat and back mid-run; then a flat band's memory holding still, and the held coefficients a clone used to
-// copy shown to be dead.
+// switched flat and back mid-run; then a flat band's memory holding still, and the frozen EQ's held coefficients shown
+// to be dead (a clone given them renders as a fresh one), which is why the kernel holds none.
 
 #include "dsp-next/fixed/filter/shelf_pair.h"
 
-#include "dsp-next/core/mono.h"
 #include "effects_workloads.h"
+#include "engines/effects/equalizer.h"
 #include "reference_effects.h"
 
 #include <array>
@@ -51,15 +51,6 @@ static_assert(!ShelfPair::flat({.treble = -1}));
 
 constexpr std::size_t kFrames = 2048;
 
-/// The adapter's block: nothing while both bands are flat.
-void kernel_block(Mono<ShelfPair>& shelves, std::span<StereoSample> block, const ShelfPair::Settings& s) {
-	if (ShelfPair::flat(s)) {
-		return;
-	}
-	shelves.configure(s);
-	shelves.renderBlock(block, block);
-}
-
 reference::EqualizerParams as_reference(const ShelfPair::Settings& s) {
 	return {
 	    .bass = s.bass, .treble = s.treble, .bass_frequency = s.bass_frequency, .treble_frequency = s.treble_frequency};
@@ -76,7 +67,7 @@ describe shelf_pair_spec("the EQ's bass and treble shelves as a kernel", ${
 			for (const int32_t bass : kSweep) {
 				for (const int32_t treble : kSweep) {
 					reference::Equalizer ref;
-					Mono<ShelfPair> k;
+					deluge::effects::Equalizer k;
 					std::vector<StereoSample> a = frames(kFrames, 0xE0E00001);
 					std::vector<StereoSample> b = a;
 					std::size_t at = 0;
@@ -88,7 +79,7 @@ describe shelf_pair_spec("the EQ's bass and treble shelves as a kernel", ${
 						                            .bass_frequency = bass_frequency,
 						                            .treble_frequency = treble_frequency};
 						ref.process(std::span{a}.subspan(at, n), as_reference(s));
-						kernel_block(k, std::span{b}.subspan(at, n), s);
+						k.process(std::span{b}.subspan(at, n), s);
 						at += n;
 					}
 					expect(same(a, b)).to_be_true();
@@ -104,12 +95,12 @@ describe shelf_pair_spec("the EQ's bass and treble shelves as a kernel", ${
 		    {.bass = 0, .treble = 0x30000000, .bass_frequency = 0x10000000, .treble_frequency = -0x10000000},
 		}};
 		reference::Equalizer ref;
-		Mono<ShelfPair> k;
+		deluge::effects::Equalizer k;
 		std::vector<StereoSample> a = frames(192, 0xE0E00002);
 		std::vector<StereoSample> b = a;
 		for (std::size_t i = 0; i < phases.size(); ++i) {
 			ref.process(std::span{a}.subspan(i * 64, 64), as_reference(phases[i]));
-			kernel_block(k, std::span{b}.subspan(i * 64, 64), phases[i]);
+			k.process(std::span{b}.subspan(i * 64, 64), phases[i]);
 		}
 		expect(same(a, b)).to_be_true();
 	});

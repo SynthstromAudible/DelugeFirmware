@@ -37,7 +37,7 @@ public:
 	/// @brief Whether the next render adds a click.
 	[[nodiscard]] bool sounding() { return click_.on<&deluge::dsp::fixed::Click::sounding>(); }
 
-	/// @brief Adds the click to @p buffer while it sounds.
+	/// @brief Adds the click to @p buffer while it sounds; does nothing otherwise.
 	/// @param buffer The render, added to in place.
 	/// @param volume_post_fx The song's post-FX volume, Q31 (ONE_Q31 without a song).
 	void render(std::span<deluge::dsp::StereoSample> buffer, int32_t volume_post_fx);

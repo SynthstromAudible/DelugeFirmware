@@ -20,8 +20,8 @@
 // frozen track loop, its input copied out of the ring in the two segments a wrap leaves, as the track copies it, over
 // blocks of every size read from near the ring's end so they wrap.
 
-#include "dsp-next/fixed/mix/input_monitor.h"
 #include "dsp-next/fixed/mix/output_fold.h"
+#include "dsp-next/fixed/mix/track_monitor.h"
 
 #include "dsp-next/core/mono.h"
 #include "effects_workloads.h"
@@ -87,7 +87,7 @@ describe input_monitor_spec("the input folds monitoring adds to the output", ${
 	it("folds as the output stage did, at each fold and shift", _ {
 		const std::vector<StereoSample> ring = frames(kRingFrames, 0x1A9E0001);
 		for (const auto [fold, action] : kOutputFolds) {
-			for (const int shift : {0, 1}) {
+			for (const int shift : {0, 1, 2, 3, 8}) {
 				const std::vector<StereoSample> out = frames(kRingFrames, 0x1A9E0002);
 				for (std::size_t i = 0; i < ring.size(); ++i) {
 					int32_t l = out[i].l;

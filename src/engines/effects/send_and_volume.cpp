@@ -17,33 +17,21 @@
 
 #include "engines/effects/send_and_volume.h"
 
-#include "dsp-next/core/wrapping.h"
-#include "util/fixedpoint.h"
-
-#include <cstddef>
-
 namespace deluge::effects {
 
 bool SendAndVolume::process(std::span<dsp::StereoSample> block, std::span<int32_t> reverb,
                             const SendAndVolumeParams& params) {
-	const bool sent = params.reverb_send != 0;
-	if (sent) {
-		// The send reads each frame before its volume, so it runs first, as its own pass.
-		const int32_t send_gain = multiply_32x32_rshift32(params.post_fx_volume, params.reverb_send)
-		                          << dsp::fixed::kVolumeShift;
-		for (std::size_t i = 0; i < block.size(); ++i) {
-			reverb[i] = dsp::wrapping_add(reverb[i], dsp::fixed::reverb_send(block[i], send_gain));
-		}
-	}
+	gains_.on<&dsp::fixed::SendAndVolume::set_send>(reverb.data());
 	gains_.configure({
 	    .post_fx_volume = params.post_fx_volume,
 	    .post_reverb_volume = params.post_reverb_volume,
+	    .reverb_send = params.reverb_send,
 	    .pan = params.pan,
 	    .ramp = params.ramp,
 	    .stereo = params.stereo,
 	});
 	gains_.renderBlock(block, block);
-	return sent;
+	return params.reverb_send != 0;
 }
 
 } // namespace deluge::effects

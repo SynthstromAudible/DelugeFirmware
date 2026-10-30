@@ -227,27 +227,20 @@ set(band_builder_spec_INCLUDES ${_repo_root}/include)
 # duck_gain is header-only.
 set(duck_gain_spec_DEPS)
 
-# The send-and-volume kernel is header-only.
-set(send_and_volume_kernel_spec_DEPS)
+# The send-and-volume kernel through the chains' adapter.
+set(send_and_volume_kernel_spec_DEPS ${_repo_root}/src/engines/effects/send_and_volume.cpp)
 
 # The EQ's shelf pair is header-only.
 set(shelf_pair_spec_DEPS)
 
-# The bitcrush's kernels are header-only.
-set(bitcrush_kernels_spec_DEPS)
+# The bitcrush's kernels through the chains' adapter.
+set(bitcrush_kernels_spec_DEPS ${_repo_root}/src/engines/effects/bitcrush.cpp)
 
 # The click is header-only; the spec computes the menu volume as the metronome does.
 set(click_spec_DEPS ${_repo_root}/src/deluge/processing/metronome/metronome.cpp)
 
 # The input folds are header-only.
 set(input_monitor_spec_DEPS)
-
-# The frozen effects reference against the live effects it was copied from. Both are the legacy arithmetic, whose
-# plain signed sums overflow at full scale as the target's add wraps, so UBSan's checks are off for this spec alone.
-set(reference_effects_spec_DEPS
-  ${_repo_root}/src/engines/effects/bitcrush.cpp
-  ${_repo_root}/src/engines/effects/send_and_volume.cpp)
-set(reference_effects_spec_OPTIONS -fno-sanitize=signed-integer-overflow,shift)
 
 # CONFIGURE_DEPENDS: a spec file added to an already-configured tree is built (and run) on the next build.
 file(GLOB _specs CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)

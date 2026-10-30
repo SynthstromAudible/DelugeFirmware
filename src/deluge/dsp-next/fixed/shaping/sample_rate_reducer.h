@@ -47,21 +47,29 @@ struct SampleRateReducer {
 	using value_type = StereoSample; ///< A frame, Q31 per channel.
 	using step_type = StereoSample;  ///< One frame per step.
 
-	static constexpr uint32_t kOne = 4194304;       ///< One frame in 22-bit fixed point.
-	static constexpr uint32_t kBelowOne = kOne - 1; ///< The largest position below one frame.
-	static constexpr int kPositionToQ31Shift = 9;   ///< A 22-bit fraction ≪ this is Q31.
-	static constexpr int kOutputShift = 2;          ///< The up-conversion's output shift.
+	static constexpr uint32_t kOne = 4194304;             ///< One frame in 22-bit fixed point.
+	static constexpr uint32_t kBelowOne = kOne - 1;       ///< The largest position below one frame.
+	static constexpr int kPositionToQ31Shift = 9;         ///< A 22-bit fraction ≪ this is Q31.
+	static constexpr int kOutputShift = 2;                ///< The up-conversion's output shift.
+	static constexpr uint32_t kParamOffset = 2147483648u; ///< 2^31: lifts the param to [0, 2^32) for its preset.
+	static constexpr int kPresetToAdjustShift = 3;        ///< The preset's shift into exp_curve's adjustment.
+	static constexpr int kReciprocalShift =
+	    6; ///< The low increment's shift before its reciprocal, and the result's after.
+	static constexpr int kHighToResyncShift = 8; ///< The high increment's shift as the re-sync's multiplier.
+	static constexpr int kResyncShift = 2;       ///< The re-synced up position's shift back to 22-bit.
+	static constexpr uint32_t kAllBits =
+	    0xFFFFFFFFu; ///< The mask that keeps every bit, and 2^32 − 1 for the reciprocal.
 
 	/// @brief The param, and the mask the bit depth puts on each grab.
 	struct Settings {
 		q31 sample_rate_reduction = std::numeric_limits<q31>::min(); ///< The param, Q31; on above its minimum.
-		uint32_t grab_mask = 0xFFFFFFFFu;                            ///< BitDepth::mask at BitDepth::kGrabMaskBase.
+		uint32_t grab_mask = kAllBits;                               ///< BitDepth::mask at BitDepth::kGrabMaskBase.
 	};
 	/// @brief The two rates and the grab mask.
 	struct Coefficients {
-		q31 low_increment = 0;            ///< Per frame, 22-bit.
-		q31 high_increment = 0;           ///< Per frame: the low increment's reciprocal ≪ 6.
-		uint32_t grab_mask = 0xFFFFFFFFu; ///< The bits a grab keeps.
+		q31 low_increment = 0;         ///< Per frame, 22-bit.
+		q31 high_increment = 0;        ///< Per frame: the low increment's reciprocal ≪ 6.
+		uint32_t grab_mask = kAllBits; ///< The bits a grab keeps.
 	};
 	/// @brief The positions and the frames the interpolations read.
 	struct State {
@@ -79,9 +87,10 @@ struct SampleRateReducer {
 
 	/// @brief The rates for @p s; the param must be on.
 	[[nodiscard]] static Coefficients coefficients(const Settings& s) {
-		const uint32_t preset = static_cast<uint32_t>(s.sample_rate_reduction) + 2147483648u;
-		const q31 low = exp_curve(static_cast<q31>(kOne), static_cast<q31>(preset >> 3));
-		const auto high = static_cast<q31>((0xFFFFFFFFu / static_cast<uint32_t>(low >> 6)) << 6);
+		const uint32_t preset = static_cast<uint32_t>(s.sample_rate_reduction) + kParamOffset;
+		const q31 low = exp_curve(static_cast<q31>(kOne), static_cast<q31>(preset >> kPresetToAdjustShift));
+		const auto high =
+		    static_cast<q31>((kAllBits / static_cast<uint32_t>(low >> kReciprocalShift)) << kReciprocalShift);
 		return {.low_increment = low, .high_increment = high, .grab_mask = s.grab_mask};
 	}
 
@@ -104,8 +113,9 @@ struct SampleRateReducer {
 			    .r = grab(s.last_sample.r, x.r, toward_last, toward_this, c.grab_mask),
 			};
 			s.low_pos += static_cast<uint32_t>(c.low_increment);
-			s.high_pos = static_cast<uint32_t>(
-			    multiply_32x32_rshift32_rounded(static_cast<q31>(s.low_pos & kBelowOne), c.high_increment << 8) << 2);
+			s.high_pos = static_cast<uint32_t>(multiply_32x32_rshift32_rounded(static_cast<q31>(s.low_pos & kBelowOne),
+			                                                                   c.high_increment << kHighToResyncShift)
+			                                   << kResyncShift);
 		}
 		s.low_pos -= kOne;
 		s.last_sample = x;

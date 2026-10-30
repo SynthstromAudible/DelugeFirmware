@@ -32,9 +32,10 @@ namespace deluge::dsp::fixed {
 
 /// @brief A square wave at a pitch set by each trigger, added to both channels, sounding for whole blocks until 1000
 /// frames have passed since the trigger.
-/// @details High (+level) while the phase is at or below 2^31 − 1, low (−level) above; the sums wrap as the target's
-/// `add` does. **Aliasing.** The square is not band-limited: the click has always been this edge. **The gate.** It is
-/// checked between blocks, so a click lasts to the end of the block in which it passes 1000 frames.
+/// @details High (+level) while the phase is at or below 2^31 − 1, low (−level) above; the negation and the sums wrap
+/// as the target's `neg` and `add` do. **Aliasing.** The square is not band-limited: an edge, unfiltered, is the
+/// click's sound. **The gate.** It is checked between blocks, so a click lasts to the end of the block in which it
+/// passes 1000 frames; only a trigger opens it.
 ///
 /// **Events.** @ref trigger starts a click, restarting one under way; @ref sounding says whether the next block
 /// renders, and the owner skips the kernel when it does not.
@@ -80,14 +81,14 @@ struct Click {
 	/// @details The loop never reads the gate, so closing it before the loop is the same as after.
 	[[nodiscard]] [[gnu::always_inline]] static EmptyBlock prepare(const Coefficients& /*c*/, State& s, std::size_t n) {
 		s.since_trigger += static_cast<uint32_t>(n);
-		s.sounding = s.since_trigger <= kGateFrames;
+		s.sounding = s.sounding && s.since_trigger <= kGateFrames;
 		return {};
 	}
 
 	/// @brief One frame with the square added.
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& c, const EmptyBlock& /*b*/,
 	                                                              State& s, StereoSample x) {
-		const q31 value = s.phase <= kHighUntil ? c.level : -c.level;
+		const q31 value = s.phase <= kHighUntil ? c.level : wrapping_sub(0, c.level);
 		s.phase += s.increment;
 		return {.l = wrapping_add(x.l, value), .r = wrapping_add(x.r, value)};
 	}

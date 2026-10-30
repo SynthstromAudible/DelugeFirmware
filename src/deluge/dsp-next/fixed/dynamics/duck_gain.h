@@ -39,7 +39,7 @@ inline constexpr int kDuckGainFirstShift = 15;
 
 /// @brief The duck scaled by its depth and offset to the neutral level, then squared at @p S's scale.
 /// @details p = (duck × depth) ≫ 32 + 2^29; CLIP gives (p ≫ 15)(p ≫ 16), REVERB_RETURN (p ≫ 15)(p ≫ 14). Each factor
-/// is truncated before the multiply, as both owners have always squared it.
+/// is truncated before the multiply: the owners' levels, and so their records, are squared that way.
 ///
 /// **Wrapping.** The square is taken in unsigned arithmetic and reinterpreted, as the target's `mul` gives it: a duck
 /// above zero or a negative depth lifts p toward 2^30, where REVERB_RETURN's square reaches 2^31 and wraps.

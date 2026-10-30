@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/doc_output.h" // complete DocOutput type for the identity record
 #include "dsp-next/core/mono.h"
-#include "dsp-next/fixed/mix/input_monitor.h"
+#include "dsp-next/fixed/mix/track_monitor.h"
 #include "dsp/stereo_sample.h"
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
@@ -39,6 +39,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstring>
 #include <new>
 #include <ranges>
 #include <span>
@@ -261,14 +262,13 @@ renderEnvelope:
 		// The block's input frames, copied out of the ring in the two segments a wrap leaves. A render is at most
 		// SSI_TX_BUFFER_NUM_SAMPLES frames, and the ring far longer, so it wraps at most once.
 		static_assert(NUM_MONO_INPUT_CHANNELS == 2, "the input ring holds stereo frames");
-		const auto* const ring_pos = reinterpret_cast<const StereoSample*>(input_ptr);
-		const auto* const ring_end = reinterpret_cast<const StereoSample*>(input_end);
-		const StereoSample* const ring_start = ring_end - SSI_RX_BUFFER_NUM_SAMPLES;
+		const int32_t* const ring_start = input_end - (SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS);
 		std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> input_frames;
 		const std::span<StereoSample> input = std::span{input_frames}.first(output.size());
-		const std::size_t before_wrap = std::min<std::size_t>(input.size(), ring_end - ring_pos);
-		std::copy_n(ring_pos, before_wrap, input.begin());
-		std::copy_n(ring_start, input.size() - before_wrap, input.begin() + before_wrap);
+		const std::size_t before_wrap =
+		    std::min<std::size_t>(input.size(), (input_end - input_ptr) / NUM_MONO_INPUT_CHANNELS);
+		std::memcpy(input.data(), input_ptr, before_wrap * sizeof(StereoSample));
+		std::memcpy(input.data() + before_wrap, ring_start, (input.size() - before_wrap) * sizeof(StereoSample));
 
 		deluge::dsp::Mono<TrackMonitor> monitor{{
 		    .amplitude_start = amplitude_start,

@@ -106,6 +106,21 @@ describe click_spec("the metronome's click as a kernel", ${
 			expect(metronome.sounding()).to_be_false();
 		}
 	});
+
+	it("never opens its gate by rendering, before a trigger or after the gate closes: only a trigger opens it", _ {
+		Mono<Click> k;
+		k.configure({.level = 1 << 28});
+		std::vector<StereoSample> silent(128, StereoSample{});
+		k.renderBlock(silent, silent);
+		expect(k.on<&Click::sounding>()).to_be_false();
+		k.on<&Click::trigger>(kIncrements[0]);
+		for (int i = 0; i < 8; ++i) {
+			k.renderBlock(silent, silent);
+		}
+		expect(k.on<&Click::sounding>()).to_be_false();
+		k.renderBlock(silent, silent);
+		expect(k.on<&Click::sounding>()).to_be_false();
+	});
 });
 // clang-format on
 

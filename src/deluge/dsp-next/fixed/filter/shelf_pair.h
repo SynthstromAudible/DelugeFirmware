@@ -66,13 +66,20 @@ struct ShelfPair {
 	static constexpr q31 kKnobOffset = 1073741824;
 	/// @brief Taken from the bass's squared knob, so the knob at 0 is flat and at its minimum removes the bass.
 	static constexpr q31 kBassGainOffset = 536870912;
+	/// @brief The halving that takes a knob into [-1/2, 1/2) before kKnobOffset lifts it into [0, 1).
+	static constexpr int kKnobHalve = 1;
+	/// @brief The doubling of a squared knob's rounded high word back to Q31.
+	static constexpr int kSquareToQ31Shift = 1;
+	/// @brief A frequency knob's shift and scale into exp_curve's adjustment.
+	static constexpr int kFrequencyShift = 5;
+	static constexpr int32_t kFrequencyScale = 6;
 
 	/// @brief The four params, Q31; a band at 0 is flat.
 	struct Settings {
-		int32_t bass{0};             ///< The bass knob.
-		int32_t treble{0};           ///< The treble knob.
-		int32_t bass_frequency{0};   ///< The bass split's frequency knob.
-		int32_t treble_frequency{0}; ///< The treble split's frequency knob.
+		q31 bass{0};             ///< The bass knob.
+		q31 treble{0};           ///< The treble knob.
+		q31 bass_frequency{0};   ///< The bass split's frequency knob.
+		q31 treble_frequency{0}; ///< The treble split's frequency knob.
 	};
 
 	/// @brief The bands' moveabilities and gains, and which step.
@@ -97,13 +104,14 @@ struct ShelfPair {
 	[[nodiscard]] static Coefficients coefficients(const Settings& s) {
 		const bool bass = s.bass != 0;
 		const bool treble = s.treble != 0;
-		const q31 bass_knob = (s.bass >> 1) + kKnobOffset;
-		const q31 treble_knob = (s.treble >> 1) + kKnobOffset;
+		const q31 bass_knob = (s.bass >> kKnobHalve) + kKnobOffset;
+		const q31 treble_knob = (s.treble >> kKnobHalve) + kKnobOffset;
 		return {
-		    .bass_m = bass ? exp_curve(kBassPreset, (s.bass_frequency >> 5) * 6) : 0,
-		    .treble_m = treble ? exp_curve(kTreblePreset, (s.treble_frequency >> 5) * 6) : 0,
-		    .bass_gain = (multiply_32x32_rshift32_rounded(bass_knob, bass_knob) << 1) - kBassGainOffset,
-		    .treble_gain = multiply_32x32_rshift32_rounded(treble_knob, treble_knob) << 1,
+		    .bass_m = bass ? exp_curve(kBassPreset, (s.bass_frequency >> kFrequencyShift) * kFrequencyScale) : 0,
+		    .treble_m =
+		        treble ? exp_curve(kTreblePreset, (s.treble_frequency >> kFrequencyShift) * kFrequencyScale) : 0,
+		    .bass_gain = (multiply_32x32_rshift32_rounded(bass_knob, bass_knob) << kSquareToQ31Shift) - kBassGainOffset,
+		    .treble_gain = multiply_32x32_rshift32_rounded(treble_knob, treble_knob) << kSquareToQ31Shift,
 		    .mode = bass && treble ? Mode::BOTH : (bass ? Mode::BASS : Mode::TREBLE),
 		};
 	}

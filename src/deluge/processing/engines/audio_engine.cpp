@@ -1336,9 +1336,7 @@ void renderAudio(size_t numSamples) {
 		masterVolumeAdjustmentR = kMasterVolumeWithoutSong;
 	}
 
-	if (metronome.sounding()) {
-		metronome.render(renderingBuffer, metronomeVolumePostFx());
-	}
+	metronome.render(renderingBuffer, metronomeVolumePostFx());
 
 	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer);
 

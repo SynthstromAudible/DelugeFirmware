@@ -37,11 +37,13 @@ struct BitDepth {
 	using value_type = StereoSample; ///< A frame, Q31 per channel.
 	using step_type = StereoSample;  ///< One frame per step.
 
-	static constexpr q31 kOnFrom = -2113929216;   ///< The param's lowest value that crushes.
-	static constexpr int kPresetShift = 29;       ///< (param + 2^31) ≫ this is the preset.
-	static constexpr int kMaskBase = 19;          ///< Low bits cleared at preset 0, alone.
-	static constexpr int kGrabMaskBase = 18;      ///< Low bits cleared at preset 0 on the reducer's grabs.
-	static constexpr uint32_t kLoudestPreset = 4; ///< The highest preset that leaves the volume alone.
+	static constexpr q31 kOnFrom = -2113929216;           ///< The param's lowest value that crushes.
+	static constexpr int kPresetShift = 29;               ///< (param + 2^31) ≫ this is the preset.
+	static constexpr int kMaskBase = 19;                  ///< Low bits cleared at preset 0, alone.
+	static constexpr int kGrabMaskBase = 18;              ///< Low bits cleared at preset 0 on the reducer's grabs.
+	static constexpr uint32_t kLoudestPreset = 4;         ///< The highest preset that leaves the volume alone.
+	static constexpr int64_t kParamOffset = 2147483648LL; ///< 2^31: lifts the param to [0, 2^32) for its preset.
+	static constexpr uint32_t kAllBits = 0xFFFFFFFFu;     ///< The mask that keeps every bit.
 
 	/// @brief The param.
 	struct Settings {
@@ -49,7 +51,7 @@ struct BitDepth {
 	};
 	/// @brief The mask.
 	struct Coefficients {
-		uint32_t mask = 0xFFFFFFFFu; ///< The bits kept.
+		uint32_t mask = kAllBits; ///< The bits kept.
 	};
 	/// @brief No state: each frame's mask is its own.
 	struct State {};
@@ -59,12 +61,12 @@ struct BitDepth {
 
 	/// @brief The preset of @p bitcrush, 0 to 7.
 	[[nodiscard]] static constexpr uint32_t preset(q31 bitcrush) {
-		return static_cast<uint32_t>((static_cast<int64_t>(bitcrush) + 2147483648LL) >> kPresetShift);
+		return static_cast<uint32_t>((static_cast<int64_t>(bitcrush) + kParamOffset) >> kPresetShift);
 	}
 
 	/// @brief The mask for @p bitcrush at @p base low bits cleared at preset 0; every bit while off.
 	[[nodiscard]] static constexpr uint32_t mask(q31 bitcrush, int base) {
-		return on(bitcrush) ? 0xFFFFFFFFu << (base + static_cast<int>(preset(bitcrush))) : 0xFFFFFFFFu;
+		return on(bitcrush) ? kAllBits << (base + static_cast<int>(preset(bitcrush))) : kAllBits;
 	}
 
 	/// @brief How far the owner's post-FX volume is shifted down: preset − 4 above preset 4, else 0.
