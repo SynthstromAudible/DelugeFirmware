@@ -1,0 +1,19 @@
+# The legacy sample browser from oscillator 1's BROWSE shortcut: open it, step to the next file, then type on the
+# pad keyboard: the first press shows the keyboard and types.
+100   snapshot boot
+300   button Shift down
+400   pad 0 5 down
+440   pad 0 5 up
+500   button Shift up
+2500  snapshot browser
+3000  encoder Select +1
+4500  snapshot browser-next
+5000  pad 3 3 down
+5040  pad 3 3 up
+6000  snapshot browser-keyboard
+6500  pad 3 3 down
+6540  pad 3 3 up
+7500  snapshot browser-typed
+8000  button Back down
+8020  button Back up
+9500  snapshot closed
