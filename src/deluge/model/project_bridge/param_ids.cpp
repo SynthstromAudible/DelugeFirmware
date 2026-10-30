@@ -51,21 +51,6 @@ static_assert(instrument::kParamBlocks.size() <= deluge::project::kEngineParamBl
 // An unpatched set not yet named (kind NONE) is numbered and stored the same whichever kind it becomes.
 static_assert(instrument::kUnpatchedFirstId == global_effectable::kFirstId);
 
-// The instrument numbers its cable sources as the runtime does.
-static_assert(static_cast<int>(instrument::PatchSource::LFO_GLOBAL_1) == static_cast<int>(::PatchSource::LFO_GLOBAL_1));
-static_assert(static_cast<int>(instrument::PatchSource::LFO_GLOBAL_2) == static_cast<int>(::PatchSource::LFO_GLOBAL_2));
-static_assert(static_cast<int>(instrument::PatchSource::SIDECHAIN) == static_cast<int>(::PatchSource::SIDECHAIN));
-static_assert(static_cast<int>(instrument::PatchSource::ENVELOPE_0) == static_cast<int>(::PatchSource::ENVELOPE_0));
-static_assert(static_cast<int>(instrument::PatchSource::ENVELOPE_3) == static_cast<int>(::PatchSource::ENVELOPE_3));
-static_assert(static_cast<int>(instrument::PatchSource::LFO_LOCAL_1) == static_cast<int>(::PatchSource::LFO_LOCAL_1));
-static_assert(static_cast<int>(instrument::PatchSource::LFO_LOCAL_2) == static_cast<int>(::PatchSource::LFO_LOCAL_2));
-static_assert(static_cast<int>(instrument::PatchSource::X) == static_cast<int>(::PatchSource::X));
-static_assert(static_cast<int>(instrument::PatchSource::Y) == static_cast<int>(::PatchSource::Y));
-static_assert(static_cast<int>(instrument::PatchSource::AFTERTOUCH) == static_cast<int>(::PatchSource::AFTERTOUCH));
-static_assert(static_cast<int>(instrument::PatchSource::VELOCITY) == static_cast<int>(::PatchSource::VELOCITY));
-static_assert(static_cast<int>(instrument::PatchSource::NOTE) == static_cast<int>(::PatchSource::NOTE));
-static_assert(static_cast<int>(instrument::PatchSource::RANDOM) == static_cast<int>(::PatchSource::RANDOM));
-static_assert(static_cast<int>(instrument::PatchSource::NONE) == static_cast<int>(::PatchSource::NONE));
 static_assert(static_cast<int>(instrument::Polarity::UNIPOLAR) == static_cast<int>(::Polarity::UNIPOLAR));
 static_assert(static_cast<int>(instrument::Polarity::BIPOLAR) == static_cast<int>(::Polarity::BIPOLAR));
 

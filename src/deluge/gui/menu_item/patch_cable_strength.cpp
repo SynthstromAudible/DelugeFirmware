@@ -28,6 +28,7 @@
 #include "hid/led/indicator_leds.h"
 #include "horizontal_menu.h"
 #include "model/edits/edit.h"
+#include "model/edits/edit_cable.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
 #include "model/model_stack.h"
@@ -35,6 +36,7 @@
 #include "modulation/params/param_descriptor.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/mod_matrix_host.h"
 #include "processing/sound/sound.h"
 #include "source_selection.h"
 #include "source_selection/range.h"
@@ -209,7 +211,7 @@ void PatchCableStrength::readCurrentValue() {
 }
 
 ModelStackWithAutoParam* PatchCableStrength::getModelStackWithParam(void* memory) {
-	return getModelStack(memory);
+	return getModelStack(memory, false);
 }
 
 // Might return a ModelStack with NULL autoParam - check for that!
@@ -379,10 +381,17 @@ void PatchCableStrength::setPatchCablePolarity(Polarity newPolarity) {
 		return;
 	}
 
-	auto* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
+	// The polarity change is a mod matrix edit, recorded so it undoes.
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+	auto* patchCableSet = modelStack->paramManager->getPatchCableSet();
 	if (const int32_t index = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
 	    index != kNoSelection) {
-		patchCableSet->patchCables[index].polarity = newPolarity;
+		ModMatrixHost matrix{*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager};
+		if (std::optional<CableEdit> edit =
+		        matrix.setPolarity(index, static_cast<deluge::synth::CablePolarity>(newPolarity))) {
+			deluge::edits::recordCableEdit(modelStack, std::move(*edit));
+		}
 	}
 }
 

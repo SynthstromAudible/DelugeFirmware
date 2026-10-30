@@ -252,9 +252,11 @@ public:
 	void endArrangementPlayback(Song* song, int32_t actualEndPos, uint32_t timeRemainder);
 	bool recordingInArrangement;
 
+	/// @brief The param @p paramID of kind @p paramKind on @p clip. @p forEdit states that the caller writes it: a
+	/// cable depth's missing cable is then created through the mod matrix; a read gets a null autoParam for it instead.
 	virtual ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                        int32_t paramID, deluge::modulation::params::Kind paramKind,
-	                                                        bool affectEntire, bool useMenuStack) = 0;
+	                                                        bool affectEntire, bool useMenuStack, bool forEdit) = 0;
 	virtual bool needsEarlyPlayback() const { return false; }
 	bool hasRecorder() { return recorder; }
 	bool shouldRenderInSong() { return !(recorderIsEchoing); }

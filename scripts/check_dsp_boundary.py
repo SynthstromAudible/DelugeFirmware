@@ -18,8 +18,8 @@ src/deluge/dsp/ until Phase 3; they do not come here.)
 Forbidden: the application layers (storage/, model/, processing/, gui/,
 playback/, modulation/, hid/, io/), the legacy dsp/ library, and the HAL/BSP
 (RZA1/, bsp/, drivers/). memory/ is allowed only via the thin
-memory_allocator_interface.h seam. util/, definitions*, argon, std, and
-dsp-next's own headers are fine.
+memory_allocator_interface.h seam; util/ only via misc.h (constexpr_for, map). definitions*,
+argon, std, and dsp-next's own headers are fine.
 
 Usage:
     scripts/check_dsp_boundary.py            # check, exit 1 on violation
@@ -63,9 +63,16 @@ SOURCE_SUFFIXES = {".c", ".cpp", ".cc", ".h", ".hpp", ".hh", ".s", ".S"}
 _INCLUDE_RE = re.compile(r'^\s*#\s*include\s*[<"]([^">]+)[>"]')
 
 
+# The util/ header dsp-next may include: header-only, for constexpr_for and map. Everything else under util/ is the
+# app's.
+UTIL_ALLOWED = {"util/misc.h"}
+
+
 def _is_forbidden(inc: str) -> bool:
     if inc.startswith(MEMORY_PREFIX):
         return inc not in MEMORY_ALLOWED
+    if inc.startswith("util/"):
+        return inc not in UTIL_ALLOWED
     return any(inc.startswith(p) for p in FORBIDDEN_INCLUDE_PREFIXES)
 
 

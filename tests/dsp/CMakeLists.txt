@@ -69,6 +69,8 @@ set(envelope_spec_DEPS
   ${_repo_root}/src/synth/modulation/envelope.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+# The routing spec compiles the library's cable routing.
+set(patch_routing_spec_DEPS ${_repo_root}/src/synth/modulation/patch_routing.cpp)
 # The shared windowed-sinc kernel table + its select()/variant() variant picks.
 set(windowed_sinc_kernel_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp)
 # The chunker caches each chunk's sinc kernel via windowed_sinc_kernel.select().
@@ -280,7 +282,7 @@ endforeach()
 # undefined symbols, no gui/model/processing/storage objects) proves libdeluge-synth is self-contained. This
 # is the link-time companion to scripts/check_synth_boundary.py's transitive include check. The dep set is the
 # `nm -u` closure of the synth objects: param-math (param_functions), the numeric LUTs, interpolation, the
-# noise stream (synth_noise), and the one PatchCableSet runtime method (patch_cable_set_amount).
+# noise stream (synth_noise), and the routing compile (patch_routing). The Patcher has no PatchCableSet dependency.
 if(NOT DSP_SPEC_ARM)
   add_executable(synth_link_test
     ${CMAKE_CURRENT_LIST_DIR}/synth_link_main.cpp
@@ -291,7 +293,7 @@ if(NOT DSP_SPEC_ARM)
     ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
     ${_repo_root}/src/deluge/util/synth_noise.cpp
     ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp
-    ${_repo_root}/src/deluge/modulation/patch/patch_cable_set_amount.cpp
+    ${_repo_root}/src/synth/modulation/patch_routing.cpp
   )
   target_link_libraries(synth_link_test PRIVATE etl::etl)
   deluge_test_neon(synth_link_test)

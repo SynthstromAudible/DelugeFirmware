@@ -41,6 +41,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/edits/change_effect.h"
 #include "model/edits/edit.h"
+#include "model/edits/edit_cable.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
 #include "model/fx/chain_inputs.h"
@@ -836,26 +837,31 @@ void editLeg() {
 		break;
 	}
 	case Leg::PatchCable: {
-		// A cable added and removed again through the set's own entry points, the sound editor's and a knob's: each
-		// grows or shrinks the cable storage and re-runs setupPatching(), which reorders the cables the render walks.
+		// A cable added and removed again through the mod matrix's edits, as the sound editor and a knob make them:
+		// each grows or shrinks the cable storage and re-runs setupPatching(), which reorders the cables the render
+		// walks.
 		g_step = "addPatchCable";
 		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
 		char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* three =
 		    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, g_clip, &g_clip->paramManager);
-		ModelStackWithParamCollection* ms =
-		    three->addParamCollectionSummary(g_clip->paramManager.getPatchCableSetSummary());
-		auto* cables = static_cast<PatchCableSet*>(ms->paramCollection);
+		PatchCableSet* cables = g_clip->paramManager.getPatchCableSet();
 		const uint8_t before = cables->numPatchCables;
-		ParamDescriptor destination;
-		destination.setToHaveParamOnly(deluge::modulation::params::LOCAL_PITCH_ADJUST);
-		const uint8_t c = cables->getPatchCableIndex(PatchSource::ENVELOPE_1, destination, ms, true);
-		if (c == 255 || cables->numPatchCables != before + 1) {
+		const deluge::synth::CableTarget pitch =
+		    deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_PITCH_ADJUST);
+		deluge::edits::Context ctx{*currentSong, currentSong->project};
+		deluge::edits::EditCable add = deluge::edits::EditCable::add(
+		    three, {PatchSource::ENVELOPE_1, pitch, deluge::synth::CablePolarity::BIPOLAR});
+		const std::optional<size_t> c = deluge::edits::apply(ctx, add) == Error::NONE
+		                                    ? cables->records().find(PatchSource::ENVELOPE_1, pitch)
+		                                    : std::nullopt;
+		if (!c.has_value() || cables->numPatchCables != before + 1) {
 			fail("the patch cable was not added");
 			break;
 		}
 		g_step = "deletePatchCable";
-		cables->deletePatchCable(ms, c);
+		deluge::edits::EditCable remove = deluge::edits::EditCable::remove(three, *c);
+		deluge::edits::apply(ctx, remove);
 		if (cables->numPatchCables != before) {
 			fail("the patch cable was not deleted");
 		}

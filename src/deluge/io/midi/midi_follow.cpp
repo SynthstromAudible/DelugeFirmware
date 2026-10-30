@@ -559,6 +559,7 @@ MidiFollow::getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelSt
 	return modelStackWithParam;
 }
 
+// MIDI follow's params are a sound's or a kit's own, never a cable's depth, so its lookups never create a cable.
 ModelStackWithAutoParam*
 MidiFollow::getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
                                                int32_t soundParamId, int32_t globalParamId) {
@@ -576,8 +577,8 @@ MidiFollow::getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* mo
 	}
 	if ((paramKind != params::Kind::NONE) && (paramID != PARAM_ID_NONE)) {
 		// Note: useMenuContext parameter will always be false for MidiFollow
-		modelStackWithParam =
-		    clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID, paramKind, true, false);
+		modelStackWithParam = clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID,
+		                                                           paramKind, true, false, false);
 	}
 
 	return modelStackWithParam;
@@ -613,8 +614,8 @@ MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* mode
 
 	if ((paramKind != params::Kind::NONE) && (paramID != PARAM_ID_NONE)) {
 		// Note: useMenuContext parameter will always be false for MidiFollow
-		modelStackWithParam = clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID,
-		                                                           paramKind, instrumentClip->affectEntire, false);
+		modelStackWithParam = clip->output->getModelStackWithParam(
+		    modelStackWithTimelineCounter, clip, paramID, paramKind, instrumentClip->affectEntire, false, false);
 	}
 
 	return modelStackWithParam;
@@ -629,8 +630,8 @@ MidiFollow::getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* mo
 
 	if (paramID != PARAM_ID_NONE) {
 		// Note: useMenuContext parameter will always be false for MidiFollow
-		modelStackWithParam =
-		    clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID, paramKind, true, false);
+		modelStackWithParam = clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID,
+		                                                           paramKind, true, false, false);
 	}
 
 	return modelStackWithParam;

@@ -2196,6 +2196,23 @@ group = "model"
 runtime = "~1s"
 
 [[harness]]
+name = "patch-routing"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a patch-cable set's routing and save order must not change: 20,000 seeded random topologies (cables to params and to other cables' depths, orphaned depth cables, unknown-placeholder and empty targets) under seeded random usability tables are routed and folded into one pinned digest of the cable order a save walks, the usable count, each usable cable's range link, both globalities' destinations and sourcesPatchedToAnything; from the library's compile_routing on, every case is also compiled by it and must agree field by field (patch_routing.cpp, self-checking)"
+scenario = "patch_routing"
+markers = ["DRV-EXIT"]
+result = "DRV-EXIT code=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+group = "model"
+runtime = "~2s"
+
+[[harness]]
 name = "document-version"
 path = "."
 level = "integration"

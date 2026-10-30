@@ -77,10 +77,9 @@ int param_clone_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		setNodeIn(*pm.getPatchedParamSet()->docForParam(5), 0, 100, true);
 
 		PatchCableSet* pcs = pm.getPatchCableSet();
-		pcs->addCable();
+		pcs->appendCable(
+		    {PatchSource::ENVELOPE_0, deluge::synth::CableTarget::param(7), deluge::synth::CablePolarity::BIPOLAR});
 		pcs->numUsablePatchCables = 1; // beenCloned() only fixes up cables < numUsablePatchCables; the rest it init()s
-		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
-		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
 		pcs->patchCables[0].param.currentValue = 536870912;
 		setNodeIn(*pcs->docForParam(0), 0, -536870912, true);
 
@@ -169,18 +168,18 @@ int param_clone_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "pcs clone: pm setup");
 		PatchCableSet* pcs = pm.getPatchCableSet();
-		pcs->addCable();
+		pcs->appendCable(
+		    {PatchSource::ENVELOPE_0, deluge::synth::CableTarget::param(7), deluge::synth::CablePolarity::BIPOLAR});
 		pcs->numUsablePatchCables = 1;
-		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
-		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
 
 		// Build a sentinel-terminated (sources==0) Destination array on the allocator so the dtor can free it.
-		auto* dests = static_cast<Destination*>(deluge::memory::alloc_fast(sizeof(Destination) * 2));
+		auto* dests = static_cast<deluge::synth::RoutedDestination*>(
+		    deluge::memory::alloc_fast(sizeof(deluge::synth::RoutedDestination) * 2));
 		check(dests != nullptr, "pcs clone: dests alloc");
 		if (dests != nullptr) {
 			dests[0].sources = 0b101;
-			dests[0].firstCable = 0;
-			dests[0].endCable = 1;
+			dests[0].first_cable = 0;
+			dests[0].end_cable = 1;
 			dests[1].sources = 0; // terminator
 			pcs->destinations[0 /*GLOBALITY_LOCAL*/] = dests;
 

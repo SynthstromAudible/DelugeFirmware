@@ -72,11 +72,11 @@ describe param_store("the model's param stores, addressed by id", ${
 		// velocity (12) -> volume (2): the instrument's depth id 0x4000'0d02
 		constexpr ParamId depth{0x4000'0d02u};
 		DocParamManager& shared = song.backed_params.getOrCreate(OwnerId::instrument(9), std::nullopt);
-		shared.cables.push_back(DocCable{.depth = depth, .polarity = 1});
+		shared.cable_depths.push_back(DocCableDepth{.depth = depth});
 		DocParamManager& clip = song.backed_params.getOrCreate(OwnerId::instrument(9), 3);
-		clip.cables.push_back(DocCable{.depth = depth});
-		expect(song.resolveParam({OwnerId::instrument(9), ParamSpace::ENGINE, depth})).to_equal(&shared.cables[0].amount);
-		expect(song.resolveParam({OwnerId::instrument(9), ParamSpace::ENGINE, depth, 3})).to_equal(&clip.cables[0].amount);
+		clip.cable_depths.push_back(DocCableDepth{.depth = depth});
+		expect(song.resolveParam({OwnerId::instrument(9), ParamSpace::ENGINE, depth})).to_equal(&shared.cable_depths[0].amount);
+		expect(song.resolveParam({OwnerId::instrument(9), ParamSpace::ENGINE, depth, 3})).to_equal(&clip.cable_depths[0].amount);
 		expect(song.resolveParam({OwnerId::instrument(9), ParamSpace::ENGINE, ParamId{0x4000'0e02u}})).to_be_null();
 	});
 });

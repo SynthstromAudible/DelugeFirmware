@@ -28,6 +28,33 @@ uint32_t depth(PatchSource source, ParamId destination) {
 
 // clang-format off
 describe cable_codec("the Deluge instrument's cable decoder", ${
+	it("encodes each cable to a param with the cables controlling its depth beneath it, in order", _ {
+		const ParamId cutoff = param::kLpfFrequency;
+		const ParamId depth = *cable_depth_id(PatchSource::ENVELOPE_0, cutoff);
+		const std::vector<CableState> records{
+		    {PatchSource::X, depth, Polarity::BIPOLAR, nullptr},
+		    {PatchSource::ENVELOPE_0, cutoff, Polarity::BIPOLAR, nullptr},
+		    {PatchSource::VELOCITY, param::kVolume, Polarity::UNIPOLAR, nullptr},
+		    {PatchSource::Y, depth, Polarity::UNIPOLAR, nullptr},
+		};
+		const std::vector<EncodedCable> encoded = encode_cables(records);
+		expect(encoded.size()).to_equal(size_t{2});
+		expect(encoded[0].route).to_equal(CableRoute{PatchSource::ENVELOPE_0, cutoff});
+		expect(encoded[0].record).to_equal(size_t{1});
+		expect(encoded[0].depth_controllers.size()).to_equal(size_t{2});
+		expect(encoded[0].depth_controllers[0].record).to_equal(size_t{0});
+		expect(encoded[0].depth_controllers[1].source).to_equal(PatchSource::Y);
+		expect(encoded[0].depth_controllers[1].polarity).to_equal(Polarity::UNIPOLAR);
+		expect(encoded[1].polarity).to_equal(Polarity::UNIPOLAR);
+		expect(encoded[1].depth_controllers.empty()).to_equal(true);
+	});
+
+	it("writes no depth cable whose cable is absent", _ {
+		const ParamId depth = *cable_depth_id(PatchSource::ENVELOPE_0, param::kLpfFrequency);
+		const std::vector<CableState> records{{PatchSource::X, depth, Polarity::BIPOLAR, nullptr}};
+		expect(encode_cables(records).empty()).to_equal(true);
+	});
+
 	it("reads cables and the cables controlling their depth, each with its own polarity", _ {
 		Value doc = Value::makeMap();
 		auto cables = decodeFixture("cables_current.XML", doc);

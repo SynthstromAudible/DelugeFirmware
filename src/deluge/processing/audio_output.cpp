@@ -470,7 +470,7 @@ void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManag
 
 ModelStackWithAutoParam* AudioOutput::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
                                                              int32_t paramID, params::Kind paramKind, bool affectEntire,
-                                                             bool useMenuStack) {
+                                                             bool useMenuStack, bool forEdit) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =

@@ -50,6 +50,7 @@
 
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_projection.h"
+#include "model/project_bridge/patch_cable_words.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/param_stores.h"
 #include "scenarios/drivers/tree_load.h"
@@ -510,13 +511,22 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		auto bothBound = [&](ParamManagerForTimeline& pm) {
 			return isLiveBound(pm.getUnpatchedParamSet()) && isLiveBound(pm.getPatchedParamSet());
 		};
-		// Patch cables are NOT bound to a shared positional store (they reorder by index at runtime); the
-		// cable owns its node store inline (amount_) and owner-resolution returns it.
+		// Each cable's depth resolves to its lane, keyed by depth id, in the set's current table (the owner's once
+		// relocated, else the set's own).
 		auto cablesBound = [](ParamManagerForTimeline& pm) {
 			PatchCableSet* pcs = pm.getPatchCableSet();
-			// A cable's node store is DOM-resident either INLINE (unbound: docForParam == amount_) or bound to
-			// the identity-keyed tree store (domCables() != nullptr). Both OK.
-			return pcs->domCables() != nullptr || pcs->docForParam(0) == &pcs->patchCables[0].amount_;
+			for (int32_t c = 0; c < pcs->numPatchCables; c++) {
+				const deluge::plugin::ParamId id = deluge::bridge::cable_depth(
+				    pcs->patchCables[c].from, pcs->patchCables[c].destinationParamDescriptor);
+				bool found = false;
+				for (const deluge::project::DocCableDepth& lane : pcs->depthStore()) {
+					found = found || (lane.depth == id && &lane.amount == pcs->docForParam(c));
+				}
+				if (!found) {
+					return false;
+				}
+			}
+			return true;
 		};
 		// Each cable's store current_value must equal the engine cursor — the
 		// read sources the persisted scalar from the store (docForParam), not the engine.
@@ -1189,7 +1199,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 			}
 			cableSets++;
 			deluge::project::DocParamManager* mgr = reloaded->project.backed_params.find(owner, clipId);
-			if (mgr != nullptr && pcs->domCables() == &mgr->cables) {
+			if (mgr != nullptr && &pcs->depthStore() == &mgr->cable_depths) {
 				treeResident++;
 			}
 			for (int32_t c = 0; c < pcs->numPatchCables; c++) {
@@ -1291,7 +1301,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	}
 
 	// Data-loss regression guard: a runtime automation edit routes through doc() -> the TREE store,
-	// leaving the engine's inline patch-cable `amount_` / MIDI `nodes_` STALE. The SAVE projection must read the
+	// leaving the patch-cable set's own lanes / the MIDI inline `nodes_` STALE. The SAVE projection must read the
 	// tree (docForParam), not the inline store, or the edit is silently lost. Corpus files carry no ids on
 	// first load (nothing is bound then), so the bound tree exists only on the RELOADED song — plant a distinctive
 	// node in a bound patch cable's and a bound MIDI CC's tree store here (via docForParam, exactly where doc()
@@ -1337,7 +1347,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 				}
 				if (!plantedCable && clip->output->type == OutputType::SYNTH) {
 					PatchCableSet* pcs = clip->paramManager.getPatchCableSet();
-					if (pcs != nullptr && pcs->numPatchCables > 0 && pcs->domCables() != nullptr) {
+					if (pcs != nullptr && pcs->numPatchCables > 0 && pcs->depthsRelocated()) {
 						deluge::project::setNodeAtPos(*pcs->docForParam(0), kMarkPos, kMarkVal, false);
 						cableClipId = clip->id();
 						plantedCable = true;
@@ -1382,8 +1392,8 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 			if (plantedCable) {
 				Clip* rc = findClip(cableClipId);
 				if (rc == nullptr || !scanCableForMark(rc)) {
-					std::fprintf(io.err, "S6-fix FAIL: patch-cable automation edit LOST on save (read stale inline "
-					                     "amount_, not the tree)\n");
+					std::fprintf(io.err, "S6-fix FAIL: patch-cable automation edit LOST on save (read the set's own "
+					                     "lanes, not the tree)\n");
 					return 3;
 				}
 			}

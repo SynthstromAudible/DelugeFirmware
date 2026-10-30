@@ -276,7 +276,9 @@ private:
 	                                       ModelStackWithAutoParam* modelStackWithParam);
 	void modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offset,
 	                                    ModelStackWithAutoParam* modelStackWithParam, bool noteTailsAllowedBefore);
-	ModelStackWithAutoParam* getModelStackWithParam(int32_t whichModEncoder, bool& noteTailsAllowedBefore);
+	/// @param forEdit Whether the caller turns the knob (and so may need its cable created) or only reads it.
+	ModelStackWithAutoParam* getModelStackWithParam(int32_t whichModEncoder, bool& noteTailsAllowedBefore,
+	                                                bool forEdit);
 
 	// mod encoder button action
 	void modEncoderButtonAction_deleteAutomation(uint8_t whichModEncoder);

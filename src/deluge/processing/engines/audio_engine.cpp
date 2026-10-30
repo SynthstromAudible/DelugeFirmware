@@ -80,6 +80,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "sync/sd_access.h"
+#include "synth/modulation/cable_depth.h"
 #include "synth/modulation/envelope.h"
 #include "synth/sources/input/live/live_input_buffer.h"
 #include "util/boot.h"
@@ -513,9 +514,11 @@ void init() {
 	        ->addOtherTwoThingsButNoNoteRow(sampleForPreview, paramManagerForSamplePreview)
 	        ->addParamCollectionSummary(paramManagerForSamplePreview->getPatchCableSetSummary());
 
-	((PatchCableSet*)modelStackWithParamCollection->paramCollection)->setupPatching(modelStackWithParamCollection);
+	((PatchCableSet*)modelStackWithParamCollection->paramCollection)
+	    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+	                    *modelStackWithParamCollection->paramManager);
 	sampleForPreview->patcher.performInitialPatching(
-	    sampleForPreview->patchControlBlock(*paramManagerForSamplePreview));
+	    sampleForPreview->patchControlBlock(*paramManagerForSamplePreview, Sound::PresetGather::ALL));
 
 	sampleForPreview->setSideChainSendLevel(2147483647); // DOM-owned (an unbound preview sets the cache only)
 
@@ -1980,7 +1983,8 @@ void updateReverbParams() {
 			int32_t whichCable = patchCableSet->getPatchCableIndex(PatchSource::SIDECHAIN, paramDescriptor);
 			if (whichCable != 255) {
 				duck.depth =
-				    patchCableSet->getModifiedPatchCableAmount(whichCable, params::GLOBAL_VOLUME_POST_REVERB_SEND);
+				    deluge::synth::modified_depth(patchCableSet->patchCables[whichCable].param.getCurrentValue(),
+				                                  PatchSource::SIDECHAIN, params::GLOBAL_VOLUME_POST_REVERB_SEND);
 			}
 			else {
 				duck.depth = 0;
@@ -2039,9 +2043,8 @@ void soundPreview(PreviewVolume const& volume) {
 	// setupAsSample() gives the preview drum one patch cable, VELOCITY -> LOCAL_VOLUME, unless it ran out of memory.
 	PatchCableSet* previewCables = paramManagerForSamplePreview->getPatchCableSet();
 	if (previewCables->numPatchCables != 0) {
-		PatchCable& velocityCable = previewCables->patchCables[0];
-		velocityCable.param.setCurrentValueBasicForSetup(volume.velocityCableDepth);
-		velocityCable.polarity = volume.velocityCablePolarity;
+		previewCables->patchCables[0].param.setCurrentValueBasicForSetup(volume.velocityCableDepth);
+		previewCables->setPolarity(0, volume.velocityCablePolarity);
 	}
 
 	// GLOBAL_VOLUME_POST_FX is a Sound-level param with no patch cables on the preview drum, so its final value

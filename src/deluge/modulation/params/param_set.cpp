@@ -679,8 +679,10 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 
 			((PatchCableSet*)modelStackWithParamCollection->paramCollection)
 			    ->setupPatching(
-			        modelStackWithParamCollection); // Only need to setupPatching on this one ParamManager because this
-			                                        // is the only one for which the param preset value has just changed
+			        *static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+			        *modelStackWithParamCollection
+			             ->paramManager); // Only need to setupPatching on this one ParamManager because this
+			                              // is the only one for which the param preset value has just changed
 		}
 	}
 }

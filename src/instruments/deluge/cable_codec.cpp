@@ -137,4 +137,23 @@ std::vector<CableState> decode_cables(const Value& patchCables, const AmountTest
 	return cables;
 }
 
+std::vector<EncodedCable> encode_cables(std::span<const CableState> records) {
+	std::vector<EncodedCable> out;
+	for (size_t r = 0; r < records.size(); ++r) {
+		const CableState& cable = records[r];
+		if (is_cable_depth(cable.destination)) {
+			continue; // written beneath the cable whose depth it controls
+		}
+		EncodedCable encoded{.route = {cable.source, cable.destination}, .polarity = cable.polarity, .record = r};
+		const std::optional<plugin::ParamId> depth = cable_depth_id(cable.source, cable.destination);
+		for (size_t d = 0; depth && d < records.size(); ++d) {
+			if (records[d].destination == *depth) {
+				encoded.depth_controllers.push_back({records[d].source, records[d].polarity, d});
+			}
+		}
+		out.push_back(std::move(encoded));
+	}
+	return out;
+}
+
 } // namespace deluge::instrument

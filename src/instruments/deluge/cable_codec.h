@@ -23,6 +23,7 @@
 
 #include <cstddef>
 #include <functional>
+#include <span>
 #include <vector>
 
 namespace deluge::instrument {
@@ -59,5 +60,25 @@ using AmountTest = std::function<bool(const serialization::Value& amount)>;
 /// @return The kept cables, depth controllers before the cable they control.
 [[nodiscard]] std::vector<CableState> decode_cables(const serialization::Value& patchCables,
                                                     const AmountTest& contains_something);
+
+/// @brief One cable as a file writes it: a cable to a param, and the cables controlling its depth, each with the index
+/// of its record, whose depth lane the host renders as the cable's `amount`.
+struct EncodedCable {
+	CableRoute route;
+	Polarity polarity{Polarity::BIPOLAR};
+	size_t record{};
+	struct Controller {
+		PatchSource source{PatchSource::NONE};
+		Polarity polarity{Polarity::BIPOLAR};
+		size_t record{};
+	};
+	std::vector<Controller> depth_controllers;
+};
+
+/// @brief The cables a `patchCables` node holds, in the records' order: each cable to a param, followed by the cables
+/// whose destination is its depth, in the records' order. A depth cable is written only beneath the cable it controls,
+/// so one whose cable is absent is not written.
+/// @param records The clip's cables in the order the save walks them (their `amount` is not read).
+[[nodiscard]] std::vector<EncodedCable> encode_cables(std::span<const CableState> records);
 
 } // namespace deluge::instrument

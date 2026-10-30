@@ -3793,7 +3793,8 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 		{
 			ModelStackWithParamCollection* modelStackWithParamCollection =
 			    modelStackWithThreeMainThings->addParamCollection(patchCableSet, patchCablesSummary);
-			patchCableSet->setupPatching(modelStackWithParamCollection);
+			patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+			                             *modelStackWithParamCollection->paramManager);
 		}
 
 		// The SoundDrum's param manager is fully sourced here (steal / clone / restore / fresh): borrow-point its
@@ -3810,7 +3811,8 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 		}
 
 		if (clip->isActiveOnOutput()) {
-			soundDrum->patcher.performInitialPatching(soundDrum->patchControlBlock(paramManager));
+			soundDrum->patcher.performInitialPatching(
+			    soundDrum->patchControlBlock(paramManager, Sound::PresetGather::ALL));
 		}
 	}
 

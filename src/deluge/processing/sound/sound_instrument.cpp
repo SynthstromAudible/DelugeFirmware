@@ -239,7 +239,8 @@ void SoundInstrument::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 
 	PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
-	patchCableSet->setupPatching(modelStackWithParamCollection);
+	patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+	                             *modelStackWithParamCollection->paramManager);
 }
 
 bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
@@ -251,7 +252,7 @@ bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, P
 
 		if (modelStack) {
 			ParamManager* paramManager = &modelStack->getTimelineCounter()->paramManager;
-			patcher.performInitialPatching(patchControlBlock(*paramManager));
+			patcher.performInitialPatching(patchControlBlock(*paramManager, PresetGather::ALL));
 
 			// Grab mono expression params
 			ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
@@ -282,7 +283,7 @@ void SoundInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 	if (!paramManager) {
 		FREEZE_WITH_ERROR("E173");
 	}
-	patcher.performInitialPatching(patchControlBlock(*paramManager));
+	patcher.performInitialPatching(patchControlBlock(*paramManager, PresetGather::ALL));
 
 	// Clear mono expression params
 	for (int32_t i = 0; i < kNumExpressionDimensions; i++) {

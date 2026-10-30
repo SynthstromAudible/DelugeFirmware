@@ -37,6 +37,7 @@
 /// | json_roundtrip       | XML -> JSON -> JSON fixed point                                            |
 /// | model_decode_diff    | the model's decode of a saved song against the records the engine leaves   |
 /// | param_clone          | ParamCollection clone deep independence, self-checking                     |
+/// | patch_routing        | the cables' routing and save order over random topologies, pinned digest  |
 /// | param_projection     | DocAutoParam <-> AutoParam projection, self-checking                       |
 /// | param_record_diff    | live automation recording, printed for a baseline diff                     |
 /// | param_snapshot_bench | ParamSnapshot::applyPatch against a full rebuild, timed                    |
@@ -75,6 +76,7 @@ DELUGE_DRIVER_SCENARIO_DECLARE(param_projection)
 DELUGE_DRIVER_SCENARIO_DECLARE(param_record_diff)
 DELUGE_DRIVER_SCENARIO_DECLARE(param_snapshot_bench)
 DELUGE_DRIVER_SCENARIO_DECLARE(param_table_check)
+DELUGE_DRIVER_SCENARIO_DECLARE(patch_routing)
 DELUGE_DRIVER_SCENARIO_DECLARE(preset_roundtrip)
 DELUGE_DRIVER_SCENARIO_DECLARE(serializer_check)
 DELUGE_DRIVER_SCENARIO_DECLARE(song_edit_roundtrip)

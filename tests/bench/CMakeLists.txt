@@ -15,6 +15,7 @@ deluge_specs_driver(bench_specs NEON
     ${CMAKE_CURRENT_LIST_DIR}/stutter_cases_host.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reverb_cases_host.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dx7_cases_host.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/mod_matrix_cases_host.cpp
     ${CMAKE_CURRENT_LIST_DIR}/fft_cases_host.cpp
     ${CMAKE_CURRENT_LIST_DIR}/chain_cases_host.cpp
     ${_src}/dsp-next/fixed/delay/delay_processor.cpp

@@ -23,18 +23,20 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/edit_cable.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/patch_cable_words.h"
 #include "modulation/patch/patch_cable.h"
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/mod_matrix_host.h"
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
-#include "util/algorithm/quick_sorter.h"
 #include "util/exceptions.h"
 #include "util/misc.h"
 #include "util/structural_edit_probe.h"
 #include <algorithm>
+#include <bitset>
 #include <libdeluge/system.h>
 #include <new>
 #include <string.h>
@@ -72,6 +74,12 @@ inline void PatchCableSet::freeDestinationMemory(bool destructing) {
 			}
 		}
 	}
+	if (routedCables_ != nullptr) {
+		delugeDealloc(routedCables_);
+		if (!destructing) {
+			routedCables_ = nullptr;
+		}
+	}
 }
 
 PatchCableSet::PatchCableSet(ParamCollectionSummary* summary) : ParamCollection(sizeof(PatchCableSet), summary) {
@@ -93,9 +101,27 @@ bool PatchCableSet::resizeCables(uint8_t count) {
 	PatchCable* storage = nullptr;
 	if (count != 0) {
 		storage = static_cast<PatchCable*>(deluge::memory::alloc_fast(sizeof(PatchCable) * count, alignof(PatchCable)));
-		if (storage == nullptr) {
+		if (storage == nullptr && count > oldCount) {
 			return false;
 		}
+	}
+	if (storage == nullptr && count != 0) {
+		// A shrink with no memory for the smaller storage drops the cables where they are: it never fails.
+		{
+			AudioExcludedSection section;
+			deluge::noteStructuralEdit(deluge::StructuralContainer::PATCH_CABLES);
+			if (count < numUsablePatchCables) {
+				freeDestinationMemory(false);
+				sourcesPatchedToAnything[GLOBALITY_LOCAL] = 0;
+				sourcesPatchedToAnything[GLOBALITY_GLOBAL] = 0;
+				numUsablePatchCables = count;
+			}
+			numPatchCables = count;
+		}
+		for (int32_t c = count; c < oldCount; c++) {
+			patchCables[c].~PatchCable();
+		}
+		return true;
 	}
 	PatchCable* old = patchCables;
 	const uint8_t kept = std::min(count, oldCount);
@@ -136,63 +162,158 @@ PatchCable* PatchCableSet::addCable() {
 }
 
 void PatchCableSet::truncateCables(uint8_t count) {
-	// Shrinking only frees memory, so it can't fail for want of it: keep the cables where they are if it does.
-	(void)resizeCables(std::min(count, numPatchCables));
+	count = std::min(count, numPatchCables);
+	// A dropped cable's lane goes with it, unless a kept cable has the same identity (a removal moves the last cable
+	// over the removed one, so for a moment both slots hold it).
+	for (int32_t c = count; c < numPatchCables; c++) {
+		const auto same = [&](const PatchCable& kept) {
+			return kept.from == patchCables[c].from
+			       && kept.destinationParamDescriptor == patchCables[c].destinationParamDescriptor;
+		};
+		if (std::none_of(patchCables, patchCables + count, same)) {
+			eraseLane(patchCables[c].from, patchCables[c].destinationParamDescriptor);
+		}
+	}
+	(void)resizeCables(count); // a shrink never fails
+	records_.truncate(count);
 }
 
-// Cables are reordered by index at runtime: setupPatching() memcpy-swaps them into usable/unusable
-// order and removal memcpy-moves the last cable over a deleted one. An owner store resolved by INDEX cannot stay
-// in sync with those shifts, so each cable's nodes live inline in its amount_, which the byte-copy
-// carries with the cable. Binding to a shared positional store is a no-op; owner-resolution returns the inline store.
-void PatchCableSet::bindDomStore() {
+PatchCable* PatchCableSet::appendCable(const deluge::synth::CableRecord& record) {
+	PatchCable* cable = addCable();
+	if (cable == nullptr) {
+		return nullptr;
+	}
+	records_.append(record);
+	cable->from = record.source;
+	cable->destinationParamDescriptor = ParamDescriptor(static_cast<int32_t>(record.target.word));
+	cable->polarity = static_cast<Polarity>(record.polarity);
+	cable->param.currentValue = 0;
+	// Every cable has its lane from the start, so a lookup never grows the table under a lane already handed out.
+	laneFor(record.source, cable->destinationParamDescriptor) = {};
+	return cable;
 }
 
-deluge::project::DocParamSet* PatchCableSet::domStore() {
-	return nullptr; // never bound to a shared store (see bindDomStore)
+PatchCable* PatchCableSet::appendDefaultCable(PatchSource from, uint8_t to, int32_t amount) {
+	PatchCable* cable = appendCable({from, deluge::synth::CableTarget::param(to),
+	                                 static_cast<deluge::synth::CablePolarity>(PatchCable::getDefaultPolarity(from))});
+	if (cable != nullptr) {
+		cable->param.currentValue = amount;
+		docForParam(numPatchCables - 1)->current_value = amount;
+	}
+	return cable;
+}
+
+bool PatchCableSet::replaceRecords(Sound& sound, ParamManager& paramManager,
+                                   const deluge::instrument::CableRecords& records, const CableDepth* restore) {
+	struct Kept {
+		deluge::synth::CableRecord record;
+		int32_t value;
+		deluge::project::DocAutoParam lane;
+	};
+	std::vector<Kept> kept;
+	kept.reserve(numPatchCables + 1);
+	for (int32_t c = 0; c < numPatchCables; c++) {
+		kept.push_back({records_[c], patchCables[c].param.currentValue, *docForParam(c)});
+	}
+	if (restore != nullptr) {
+		kept.push_back({restore->cable, restore->lane.current_value, restore->lane});
+	}
+	bool complete = true;
+	{
+		// The cables are rebuilt and placed in one step: the render never sees the set half-built.
+		AudioExcludedSection section;
+		truncateCables(0);
+		for (const deluge::synth::CableRecord& record : records.records()) {
+			PatchCable* cable = appendCable(record);
+			if (cable == nullptr) {
+				complete = false;
+				break;
+			}
+			const auto same = [&](const Kept& k) {
+				return k.record.source == record.source && k.record.target == record.target;
+			};
+			// The last match wins, so a lane being restored replaces the one the cable had.
+			if (const auto it = std::ranges::find_last_if(kept, same).begin(); it != kept.end()) {
+				cable->param.currentValue = it->value;
+				*docForParam(numPatchCables - 1) = it->lane;
+			}
+		}
+		setupPatching(sound, paramManager);
+	}
+	return complete;
+}
+
+void PatchCableSet::retarget(uint8_t c, deluge::synth::CableTarget target) {
+	const deluge::project::DocAutoParam lane = *docForParam(c);
+	eraseLane(patchCables[c].from, patchCables[c].destinationParamDescriptor);
+	records_.set_target(c, target);
+	patchCables[c].destinationParamDescriptor = ParamDescriptor(static_cast<int32_t>(target.word));
+	laneFor(patchCables[c].from, patchCables[c].destinationParamDescriptor) = lane;
+}
+
+void PatchCableSet::setPolarity(uint8_t c, Polarity polarity) {
+	records_.set_polarity(c, static_cast<deluge::synth::CablePolarity>(polarity));
+	patchCables[c].polarity = polarity;
+}
+
+void PatchCableSet::permuteCables(std::span<const uint8_t> order) {
+	records_.permute(order);
+	// cur[c]: the original index of the cable now at c; where[o]: where original cable o now is.
+	std::array<uint8_t, kMaxNumPatchCables> cur{};
+	std::array<uint8_t, kMaxNumPatchCables> where{};
+	for (size_t c = 0; c < order.size(); c++) {
+		cur[c] = where[c] = static_cast<uint8_t>(c);
+	}
+	for (size_t c = 0; c < order.size(); c++) {
+		const uint8_t p = where[order[c]];
+		if (p == c) {
+			continue;
+		}
+		swapCables(static_cast<int32_t>(c), p);
+		const uint8_t displaced = cur[c];
+		cur[p] = displaced;
+		where[displaced] = p;
+		cur[c] = order[c];
+		where[order[c]] = static_cast<uint8_t>(c);
+	}
+}
+
+deluge::project::DocAutoParam& PatchCableSet::laneFor(PatchSource from, ParamDescriptor target) {
+	const deluge::plugin::ParamId id = deluge::bridge::cable_depth(from, target);
+	std::vector<deluge::project::DocCableDepth>& table = depths();
+	for (deluge::project::DocCableDepth& lane : table) {
+		if (lane.depth == id) {
+			return lane.amount;
+		}
+	}
+	table.push_back({.depth = id, .amount = {}});
+	return table.back().amount;
+}
+
+void PatchCableSet::eraseLane(PatchSource from, ParamDescriptor target) {
+	const deluge::plugin::ParamId id = deluge::bridge::cable_depth(from, target);
+	std::erase_if(depths(), [&](const deluge::project::DocCableDepth& lane) { return lane.depth == id; });
 }
 
 deluge::project::DocAutoParam* PatchCableSet::docForParam(int32_t c) {
-	// When bound to the owner's project-tree cable store, resolve this cable's amount-nodes from the tree
-	// entry with its depth id (derived from its source and destination), so save + runtime edits share the
-	// persistent store (the inline `amount_` is then unused). Unbound: the cable owns its store inline and rides
-	// with it through the reorder/removal memcpy.
-	if (domCablesRef_ != nullptr) {
-		PatchCable& cable = patchCables[c];
-		return &findOrCreateDomCable(cable.from, cable.destinationParamDescriptor, cable.polarity).amount;
-	}
-	return &patchCables[c].amount_;
+	return &laneFor(patchCables[c].from, patchCables[c].destinationParamDescriptor);
 }
 
-deluge::project::DocCable& PatchCableSet::findOrCreateDomCable(PatchSource from, ParamDescriptor dest,
-                                                               Polarity polarity) {
-	const deluge::plugin::ParamId depth = deluge::bridge::cable_depth(from, dest);
-	for (deluge::project::DocCable& entry : *domCablesRef_) {
-		if (entry.depth == depth) {
-			return entry;
-		}
+void PatchCableSet::relocateDepthsInto(std::vector<deluge::project::DocCableDepth>& slot) {
+	std::vector<deluge::project::DocCableDepth>& current = depths();
+	if (&current == &slot) {
+		return;
 	}
-	domCablesRef_->push_back(deluge::bridge::doc_cable(from, dest, polarity, {}));
-	return domCablesRef_->back();
-}
-
-deluge::project::DocAutoParam* PatchCableSet::findDomCableAmount(PatchSource from, ParamDescriptor dest) const {
-	if (domCablesRef_ == nullptr) {
-		return nullptr;
-	}
-	const deluge::plugin::ParamId depth = deluge::bridge::cable_depth(from, dest);
-	for (deluge::project::DocCable& entry : *domCablesRef_) {
-		if (entry.depth == depth) {
-			return &entry.amount;
-		}
-	}
-	return nullptr;
+	slot = std::move(current);
+	current.clear();
+	externalDepths_ = &slot;
 }
 
 deluge::project::DocAutoParam* PatchCableSet::docParamForId(int32_t paramId) {
 	PatchSource s;
 	ParamDescriptor desc;
 	dissectParamId(paramId, &desc, &s);
-	uint8_t c = getPatchCableIndex(s, desc, nullptr, false);
+	uint8_t c = getPatchCableIndex(s, desc);
 	return (c == 255) ? nullptr : docForParam(c);
 }
 
@@ -225,7 +346,7 @@ void PatchCableSet::swapCables(int32_t c1, int32_t c2) {
 	memcpy(&patchCables[c2], &temp, sizeof(PatchCable));
 }
 
-Destination* PatchCableSet::getDestinationForParam(int32_t p) {
+deluge::synth::RoutedDestination* PatchCableSet::getDestinationForParam(int32_t p) {
 	int32_t globality = (p < params::FIRST_GLOBAL) ? GLOBALITY_LOCAL : GLOBALITY_GLOBAL;
 
 	// Special case - no Destinations at all
@@ -233,234 +354,93 @@ Destination* PatchCableSet::getDestinationForParam(int32_t p) {
 		return nullptr;
 	}
 
-	ParamDescriptor destinationParamDescriptor;
-	destinationParamDescriptor.setToHaveParamOnly(p);
+	const deluge::synth::CableTarget target = deluge::synth::CableTarget::param(static_cast<uint8_t>(p));
 
 	// TODO: don't just linear search. But then, there won't be more than like 4 Destinations usually....
-	for (Destination* destination = &destinations[globality][0]; destination->sources; destination++) {
-		if (destination->destinationParamDescriptor == destinationParamDescriptor) {
+	for (deluge::synth::RoutedDestination* destination = &destinations[globality][0]; destination->sources;
+	     destination++) {
+		if (destination->target == target) {
 			return destination;
 		}
 	}
 	return nullptr;
 }
 
-const int32_t neutralRangeAdjustmentValue = 536870912;
 extern int32_t rangeFinalValues[];
 
-void PatchCableSet::setupPatching(ModelStackWithParamCollection const* modelStack) {
-	// The render walks the cables by the Destinations' index runs: reordering the one and rebuilding the other must not
+void PatchCableSet::setupPatching(Sound& sound, ParamManager& paramManager) {
+	const auto usable =
+	    deluge::synth::usability_of(records_.records(), [&](PatchSource s, deluge::synth::CableTarget target) {
+		    // A leftover range placeholder classifies as a global param, past the end of the global params.
+		    if (target == deluge::synth::CableTarget::param(params::PLACEHOLDER_RANGE)) {
+			    return false;
+		    }
+		    return sound.maySourcePatchToParam(s, target.param_index(), &paramManager) == PatchCableAcceptance::ALLOWED;
+	    });
+	setupPatching(*paramManager.getPatchCableSetSummary(), usable);
+}
+
+void PatchCableSet::setupPatching(ParamCollectionSummary& summary, std::bitset<kMaxNumPatchCables> usable) {
+	// The render walks the cables by the Destinations' runs: reordering the one and rebuilding the other must not
 	// interleave with it.
 	AudioExcludedSection section;
 	deluge::noteStructuralEdit(deluge::StructuralContainer::PATCH_CABLES);
 
-	// Deallocate any old memory
 	freeDestinationMemory(false);
-
-	// Allocate new memory - max size we might need
 	for (int32_t g = 0; g < 2; g++) {
-		destinations[g] = (Destination*)deluge::memory::alloc_fast(sizeof(Destination) * (kMaxNumPatchCables + 1));
-
-		// If couldn't...
+		destinations[g] = static_cast<deluge::synth::RoutedDestination*>(
+		    deluge::memory::alloc_fast(sizeof(deluge::synth::RoutedDestination) * (kMaxNumPatchCables + 1)));
 		if (!destinations[g]) {
-
-			// If we'd got the first one successfully, deallocate it again
 			if (g == 1) {
 				delugeDealloc(destinations[0]);
 				destinations[0] = nullptr;
 			}
-
-			// And get out
+			return;
+		}
+	}
+	if (numPatchCables != 0) {
+		routedCables_ = static_cast<deluge::synth::RoutedCable*>(
+		    deluge::memory::alloc_fast(sizeof(deluge::synth::RoutedCable) * numPatchCables));
+		if (routedCables_ == nullptr) {
+			freeDestinationMemory(false);
 			return;
 		}
 	}
 
-	int32_t numPotentiallyUsablePatchCables = numPatchCables;
-
-	// Reorder patch cables so the usable ones are first. Look at each one in turn...
-	for (numUsablePatchCables = 0; numUsablePatchCables < numPotentiallyUsablePatchCables; numUsablePatchCables++) {
-
-		// If not usable, try and find one at the end to swap with
-		if (!patchCableIsUsable(numUsablePatchCables, modelStack)) {
-			while (true) {
-				numPotentiallyUsablePatchCables--;
-				if (numPotentiallyUsablePatchCables == numUsablePatchCables) {
-					goto numUsablePatchCablesWorkedOut;
-				}
-
-				if (patchCableIsUsable(numPotentiallyUsablePatchCables, modelStack)) {
-					swapCables(numPotentiallyUsablePatchCables, numUsablePatchCables);
-					break;
-				}
-			}
+	// The compile is the main thread's alone, and never nests.
+	static deluge::synth::RoutingBuild build;
+	deluge::synth::compile_routing(records_.records(), usable, build);
+	if constexpr (ALPHA_OR_BETA_VERSION) {
+		if (build.missing_range_link) {
+			FREEZE_WITH_ERROR("E434");
 		}
 	}
+	permuteCables(std::span{build.order}.first(build.num_cables));
+	numUsablePatchCables = build.num_usable;
 
-numUsablePatchCablesWorkedOut:
+	std::copy_n(build.cables.begin(), numPatchCables, routedCables_);
+	for (int32_t g = 0; g < 2; g++) {
+		sourcesPatchedToAnything[g] = build.sources_patched[g];
+		const int32_t count = build.num_destinations[g];
+		if (count == 0) {
+			delugeDealloc(destinations[g]);
+			destinations[g] = nullptr;
+			continue;
+		}
+		if (count < kMaxNumPatchCables) {
+			deluge::memory::shrink(destinations[g], sizeof(deluge::synth::RoutedDestination) * (count + 1));
+		}
+		std::copy_n(build.destinations[g].begin(), count + 1, destinations[g]);
+	}
 
-	// Do another pass, ensuring that for every range-adjust*ing* cable, its destination range-adjust*ed* cable actually
-	// exists.
+	// The cables have moved, so which are automated or interpolating is found again.
+	summary.resetAutomationRecord(kNumUnsignedIntegersToRepPatchCables - 1);
+	summary.resetInterpolationRecord(kNumUnsignedIntegersToRepPatchCables - 1);
 	for (int32_t c = 0; c < numUsablePatchCables; c++) {
-goAgainWithoutIncrement:
-		ParamDescriptor* ourDescriptor = &patchCables[c].destinationParamDescriptor;
-
-		// Initialize this other stuff at the same time:
-		patchCables[c].rangeAdjustmentPointer = &neutralRangeAdjustmentValue;
-
-		// If range-adjust*ing*...
-		if (!ourDescriptor->isJustAParam()) {
-
-			// Find the range-adjust*ed* cable, whose range/depth we're adjusting.
-			int32_t destinationCableIndex = getPatchCableIndex(ourDescriptor->getBottomLevelSource(),
-			                                                   ourDescriptor->getDestination(), nullptr, false);
-
-			// If doesn't exist, make this range-adjust*ing* cable "unusable".
-			if (destinationCableIndex == 255) {
-				numUsablePatchCables--;
-				if (numUsablePatchCables == c) {
-					break;
-				}
-				swapCables(c, numUsablePatchCables);
-				goto goAgainWithoutIncrement;
-			}
-		}
-	}
-
-	int32_t numDestinations[2];
-	numDestinations[GLOBALITY_LOCAL] = 0;
-	numDestinations[GLOBALITY_GLOBAL] = 0;
-	sourcesPatchedToAnything[GLOBALITY_LOCAL] = 0;
-	sourcesPatchedToAnything[GLOBALITY_GLOBAL] = 0;
-
-	// Group cables by destination and create Destination objects
-	for (int32_t c = 0; c < numUsablePatchCables;) {
-
-		ParamDescriptor destinationParamDescriptor = patchCables[c].destinationParamDescriptor;
-		int32_t p = destinationParamDescriptor.getJustTheParam();
-		int32_t globality = (p < params::FIRST_GLOBAL) ? GLOBALITY_LOCAL : GLOBALITY_GLOBAL;
-
-		// Remember that this is the first cable for the param
-		destinations[globality][numDestinations[globality]].destinationParamDescriptor = destinationParamDescriptor;
-		destinations[globality][numDestinations[globality]].firstCable = c;
-		uint32_t sources = 1 << util::to_underlying(patchCables[c].from);
-
-		// Go through the rest of the cables and see which ones want grouping with this one (due to same destination
-		// descriptor).
-		for (int32_t c2 = c + 1; c2 < numUsablePatchCables; c2++) {
-
-			// If same destination descriptor...
-			if (patchCables[c2].destinationParamDescriptor == destinationParamDescriptor) {
-
-				sources |= (1 << util::to_underlying(patchCables[c2].from));
-
-				c++; // Always keep c pointing to the first one we haven't investigated yet
-
-				if (c2 != c) {
-					swapCables(c2, c); // If this wasn't the "first next" cable, do a swap
-				}
-			}
-		}
-
-		// Move on, and store that this was the end of this grouping
-		c++;
-		destinations[globality][numDestinations[globality]].endCable = c;
-		destinations[globality][numDestinations[globality]].sources = sources;
-		sourcesPatchedToAnything[globality] |= sources; // Collect this info
-		numDestinations[globality]++;
-	}
-
-	// Finish stuff up, for each globality
-	for (int32_t globality = 0; globality < 2; globality++) {
-
-		// If no Destinations here at all, free memory
-		if (!numDestinations[globality]) {
-			delugeDealloc(destinations[globality]);
-			destinations[globality] = nullptr;
-		}
-
-		// Otherwise...
-		else {
-
-			// Probably shorten memory, from max size which we allocated
-			if (numDestinations[globality] < kMaxNumPatchCables) {
-				deluge::memory::shrink(destinations[globality], sizeof(Destination) * (numDestinations[globality] + 1));
-			}
-
-			// Write the "end of list" marker
-			destinations[globality][numDestinations[globality]].sources = 0;
-			destinations[globality][numDestinations[globality]].destinationParamDescriptor.setToNull();
-
-			// Sort the Destinations by their DestinationDescriptor. That's just the Destinations that we're sorting -
-			// not the actual cables, which are just grouped by param but we don't care about their order otherwise.
-			if (numDestinations[globality] >= 2) {
-				QuickSorter quickSorter(sizeof(Destination), 32,
-				                        destinations[globality]); // Pretty sure 32 is right? Was previously 16, which I
-				                                                  // guess worked because we
-				// currently only have "destinations" containing up to one source and one param
-				// (i.e. the destination is another cable, whose range/depth we're controlling).
-				quickSorter.sort(numDestinations[globality]);
-			}
-
-			// For each range-adjusting Destination...
-			Destination* destination = destinations[globality];
-			int32_t i = 0;
-			for (; destination->destinationParamDescriptor.data < (uint32_t)0xFFFFFF00; destination++) {
-
-				ParamDescriptor cableDestination = destination->destinationParamDescriptor.getDestination();
-
-				// Get the cable whose range we're adjusting to store a reference back to the one adjusting its range
-				int32_t c = getPatchCableIndex(destination->destinationParamDescriptor.getBottomLevelSource(),
-				                               cableDestination);
-				if (c != 255) {
-					patchCables[c].rangeAdjustmentPointer = &rangeFinalValues[i];
-				}
-
-				// Ensure that any changes to the range/depth (because of sources patched to the range/depth, i.e. the
-				// cable we're looking at right now) also cause the cable whose range/depth we're adjusting (and so also
-				// the param that that goes to) to recompute.
-				Destination* thatDestination = destination + 1;
-				Destination* const destinationsEnd = &destinations[globality][numDestinations[globality]];
-				while (thatDestination < destinationsEnd
-				       && thatDestination->destinationParamDescriptor != cableDestination) {
-					thatDestination++;
-				}
-
-				// If getting here, well I previously fixed a bug where sometimes the range-adjust*ed* cable was not
-				// "allowed", so was not present here, but the adjust*ing* cable still was here, which this code can't
-				// handle. Don't write past the end of the array - just skip linking it.
-				if (thatDestination >= destinationsEnd) {
-					if constexpr (ALPHA_OR_BETA_VERSION) {
-						FREEZE_WITH_ERROR("E434");
-					}
-				}
-				else {
-					thatDestination->sources |= destination->sources;
-				}
-
-				// And, any time the cable whose range we're adjusting recomputes, we need to also recompute its range
-				// so that that value is handy.
-				// TODO: if we ever wanted to allow another level of range-adjustment, this would probably need
-				// expanding.
-				destination->sources |=
-				    1 << util::to_underlying(destination->destinationParamDescriptor.getBottomLevelSource());
-
-				i++;
-			}
-		}
-	}
-
-	// Also, as we've just re-arranged patched cables, we need to check again whether any have interpolation active, or
-	// are even automated.
-	modelStack->summary->resetAutomationRecord(kNumUnsignedIntegersToRepPatchCables - 1);
-	modelStack->summary->resetInterpolationRecord(kNumUnsignedIntegersToRepPatchCables - 1);
-
-	for (int32_t c = 0; c < numUsablePatchCables; c++) {
-
 		if (patchCables[c].param.isAutomated(*docForParam(c))) {
-			flagCable(modelStack->summary->whichParamsAreAutomated, c);
-
+			flagCable(summary.whichParamsAreAutomated, c);
 			if (patchCables[c].param.hasInterpolationIncrement()) {
-				flagCable(modelStack->summary->whichParamsAreInterpolating, c);
+				flagCable(summary.whichParamsAreInterpolating, c);
 			}
 		}
 	}
@@ -522,131 +502,43 @@ bool PatchCableSet::isAnySourcePatchedToParamVolumeInspecific(ParamDescriptor de
 	}
 }
 
-// Returns the index of the cable going from this source to this param, if one exists - even if it's not usable.
-// If one doesn't exist, it creates one, and this may involve overwriting an unusable one
-// Only need to supply a ModelStack if createIfNotFound == true AND you want to allow setupPatching to be called (which
-// you should, unless you're going to do it yourself).
-uint8_t PatchCableSet::getPatchCableIndex(PatchSource from, ParamDescriptor destinationParamDescriptor,
-                                          ModelStackWithParamCollection const* modelStack, bool createIfNotFound) {
-	int32_t c;
-	for (c = 0; c < numPatchCables; c++) {
+uint8_t PatchCableSet::getPatchCableIndex(PatchSource from, ParamDescriptor destinationParamDescriptor) {
+	for (int32_t c = 0; c < numPatchCables; c++) {
 		if (patchCables[c].from == from && patchCables[c].destinationParamDescriptor == destinationParamDescriptor) {
 			return c;
 		}
 	}
-
-	// If no patch cable exists for this combination yet, try to create one - if we're allowed
-	if (!createIfNotFound) {
-		return 255;
-	}
-
-	// If all patch cables are full up, see if we can overwrite an "unusable" one
-	if (numPatchCables >= kMaxNumPatchCables) {
-		/* Deactivated - what if we overwrote one currently being edited in the SoundEditor? Just fail for now
-		 *
-		if (numUsablePatchCables < maxNumPatchCables) {
-		    c = numUsablePatchCables;
-		    goto claimPatchCable;
-		}
-		 */
-
-		// Or if there was no space even there, fail.
-		return 255;
-	}
-
-	// Or, if there's room for another, add it
-	else {
-		PatchCable* cable = addCable();
-		if (cable == nullptr) {
-			return 255;
-		}
-		cable->initAmount(0);
-		cable->from = from;
-		cable->destinationParamDescriptor = destinationParamDescriptor;
-		cable->setDefaultPolarity();
-		// Re-setup the patching, to place this cable where it needs to be
-		if (modelStack) {
-			setupPatching(modelStack);
-		}
-
-		// And since that will have shuffled the cables around, we need to get our one's index again
-		for (c = 0; c < numPatchCables; c++) {
-			if (patchCables[c].from == from
-			    && patchCables[c].destinationParamDescriptor == destinationParamDescriptor) {
-				return c;
-			}
-		}
-	}
-
-	// Shouldn't ever get here, but just in case...
 	return 255;
 }
 
-void PatchCableSet::deletePatchCable(ModelStackWithParamCollection const* modelStack, uint8_t c) {
+void PatchCableSet::deletePatchCable(Sound& sound, ParamManager& paramManager, uint8_t c) {
 	if (c >= numPatchCables) {
-		return; // Could probably happen. (Still?)
+		return;
 	}
-	patchCables[c].param.deleteAutomationBasicForSetup(
-	    *docForParam(c)); // No need to record what's happening - we kind of know that
-	                      // there's no automation left anyway...
-	patchCables[c].makeUnusable();
-	setupPatching(modelStack);
+	// Its automation goes with it, and there is nothing to record: the cable is gone.
+	eraseLane(patchCables[c].from, patchCables[c].destinationParamDescriptor);
+	records_.set_target(c, {});
+	patchCables[c].destinationParamDescriptor.setToNull();
+	setupPatching(sound, paramManager);
 
-	// The to-be-deleted cable now exists in the "unusable" section of the list of cables, where the render doesn't
-	// reach. Find it, and move the last cable into its place.
-	for (int32_t c = numUsablePatchCables; c < numPatchCables - 1; c++) {
-		if (patchCables[c].destinationParamDescriptor.isNull()) {
-			patchCables[c].~PatchCable();
-			memcpy(static_cast<void*>(&patchCables[c]), &patchCables[numPatchCables - 1], sizeof(PatchCable));
-			// The moved cable's automation now belongs to slot c - don't let the old slot free it too
-			patchCables[numPatchCables - 1].amount_.nodes.init();
+	// The cable with no target is now in the unusable end of the list, where the render doesn't reach: move the last
+	// cable into its place.
+	for (int32_t i = numUsablePatchCables; i < numPatchCables - 1; i++) {
+		if (patchCables[i].destinationParamDescriptor.isNull()) {
+			patchCables[i].~PatchCable();
+			memcpy(static_cast<void*>(&patchCables[i]), &patchCables[numPatchCables - 1], sizeof(PatchCable));
+			records_.erase_by_moving_last(i);
 			break;
 		}
 	}
 	truncateCables(numPatchCables - 1);
 }
 
-bool PatchCableSet::patchCableIsUsable(uint8_t c, ModelStackWithThreeMainThings const* modelStack) {
-	ParamDescriptor* ourDescriptor = &patchCables[c].destinationParamDescriptor;
-
-	if (ourDescriptor->isNull()) {
-		return false; // When would this ever be the case?
-	}
-
-	// An unresolved range placeholder: loading rewrites these into
-	// (param, source) form when it can identify the range-adjusted cable; a leftover
-	// bare PLACEHOLDER_RANGE (e.g. from old-firmware files whose "range" cables can't
-	// be resolved) must never reach the patcher — PLACEHOLDER_RANGE (89) classifies as
-	// a "global param" and the patcher would index paramFinalValues[89 - FIRST_GLOBAL],
-	// 34 entries out of bounds (a silent memory-corrupting write on hardware).
-	if (ourDescriptor->isSetToParamWithNoSource(params::PLACEHOLDER_RANGE)) {
-		return false;
-	}
-
-	int32_t p = ourDescriptor->getJustTheParam();
-
-	// If a range-adjusting cable, we'll go by whether the cable that it adjusts is allowed. This is nearly perfect and
-	// will eliminate some stuff now. And our caller will do a further pass to check that the corresponding
-	// range-adjust*ed* cable actually exists.
-	PatchSource s = ourDescriptor->getTopLevelSource();
-
-	// Or, if not a range-adjusting cable, do the normal thing.
-	if (s == PatchSource::NOT_AVAILABLE) {
-		s = patchCables[c].from;
-	}
-	return (((Sound*)modelStack->modControllable)->maySourcePatchToParam(s, p, modelStack->paramManager)
-	        == PatchCableAcceptance::ALLOWED);
-}
-
-// PatchCableSet::getModifiedPatchCableAmount is defined in patch_cable_set_amount.cpp (a gui-free TU, so the
-// standalone synth core can link it).
-
-// No need to supply Sound if you don't need setupPatching() to be called now (cos you're gonna call it later)
 void PatchCableSet::removeAllPatchingToParam(ModelStackWithParamCollection* modelStack, uint8_t p) {
 	for (int32_t c = 0; c < numPatchCables; c++) {
-		if (patchCables[c].destinationParamDescriptor.getJustTheParam()
-		    == p) { // May as well remove any range-adjusting cables too
-			deletePatchCable(modelStack, c);
+		// The cables to the depths of p's cables go too.
+		if (patchCables[c].destinationParamDescriptor.getJustTheParam() == p) {
+			deletePatchCable(*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager, c);
 		}
 	}
 }
@@ -781,9 +673,8 @@ void PatchCableSet::trimToLength(uint32_t newLength, ModelStackWithParamCollecti
 	FOR_EACH_PARAM_END
 
 	if (maySetupPatching && anyStoppedBeingAutomated) {
-		// In case the absence of automation here, presumably in conjunction with a value of 0, means this Cable is now
-		// inconsequential and can be deleted.
-		setupPatching(modelStack);
+		// Some cables stopped being automated: refresh which are.
+		setupPatching(*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager);
 	}
 
 	ticksTilNextEvent = 0;
@@ -796,22 +687,22 @@ void PatchCableSet::shiftHorizontally(ModelStackWithParamCollection* modelStack,
 	FOR_EACH_PARAM_END
 }
 
-AutoParam* PatchCableSet::getParam(ModelStackWithParamCollection const* modelStack, PatchSource s,
-                                   ParamDescriptor destinationParamDescriptor, bool allowCreation) {
-	int32_t index = getPatchCableIndex(s, destinationParamDescriptor, modelStack, allowCreation);
-	if (index == 255) {
-		return nullptr;
-	}
-	return &patchCables[index].param;
-}
-
 // Might return a ModelStack with NULL autoParam - check for that!
 ModelStackWithAutoParam* PatchCableSet::getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation) {
 	PatchSource s;
 	ParamDescriptor paramDescriptor;
 	dissectParamId(modelStack->paramId, &paramDescriptor, &s);
-	AutoParam* autoParam = getParam(modelStack, s, paramDescriptor, allowCreation);
-	return modelStack->addAutoParam(autoParam);
+	uint8_t index = getPatchCableIndex(s, paramDescriptor);
+	if (index == 255 && allowCreation) {
+		// A write to a missing cable's depth adds the cable first, through the mod matrix, recorded in the open Action
+		// so one undo takes back the write and the cable together.
+		ModMatrixHost matrix{*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager};
+		if (std::optional<CableEdit> added = matrix.ensureCable(s, deluge::synth::CableTarget{paramDescriptor.data})) {
+			deluge::edits::recordCableEdit(modelStack, std::move(*added));
+			index = getPatchCableIndex(s, paramDescriptor);
+		}
+	}
+	return modelStack->addAutoParam(index == 255 ? nullptr : &patchCables[index].param);
 }
 
 void PatchCableSet::processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
@@ -841,7 +732,7 @@ void PatchCableSet::processCurrentPos(ModelStackWithParamCollection* modelStack,
 	}
 }
 
-Destination* PatchCableSet::cloneDestinations(Destination const* src) {
+deluge::synth::RoutedDestination* PatchCableSet::cloneDestinations(deluge::synth::RoutedDestination const* src) {
 	if (src == nullptr) {
 		return nullptr;
 	}
@@ -850,14 +741,15 @@ Destination* PatchCableSet::cloneDestinations(Destination const* src) {
 	while (src[numEntries - 1].sources) {
 		numEntries++;
 	}
-	auto* dst = static_cast<Destination*>(deluge::memory::alloc_fast(sizeof(Destination) * numEntries));
+	auto* dst = static_cast<deluge::synth::RoutedDestination*>(
+	    deluge::memory::alloc_fast(sizeof(deluge::synth::RoutedDestination) * numEntries));
 	if (dst == nullptr) {
 		throw deluge::exception::BAD_ALLOC;
 	}
-	Destination* to = dst;
-	Destination const* from = src;
+	deluge::synth::RoutedDestination* to = dst;
+	deluge::synth::RoutedDestination const* from = src;
 	while (true) {
-		*to = *from; // Destination is trivially copyable.
+		*to = *from; // trivially copyable
 		if (!from->sources) {
 			break; // copied the terminating "0" entry
 		}
@@ -886,27 +778,48 @@ PatchCableSet::PatchCableSet(PatchCableSet const& other)
 	int32_t built = 0;
 	try {
 		for (; built < numUsablePatchCables; built++) {
-			PatchCable* cable = new (&patchCables[built]) PatchCable(other.patchCables[built]);
-			// If `other` reads its live nodes from an external tree store, its inline amount_ is stale (edits
-			// went to the tree). Copy the current tree nodes so this clone starts self-owned (domCablesRef_ stays
-			// null) with correct automation — mirroring ParamSet's copy-ctor deep-copying its bound store.
-			if (deluge::project::DocAutoParam* live =
-			        other.findDomCableAmount(cable->from, cable->destinationParamDescriptor)) {
-				cable->amount_ = *live;
+			new (&patchCables[built]) PatchCable(other.patchCables[built]);
+		}
+		// The clone owns a copy of its live cables' lanes, whichever table `other` reads them from; the rest of its
+		// cables start empty, with no lane.
+		for (int32_t c = 0; c < numUsablePatchCables; c++) {
+			const deluge::plugin::ParamId id =
+			    deluge::bridge::cable_depth(patchCables[c].from, patchCables[c].destinationParamDescriptor);
+			for (const deluge::project::DocCableDepth& lane : other.depthStore()) {
+				if (lane.depth == id) {
+					ownDepths_.push_back(lane);
+				}
 			}
 		}
+		deluge::project::DocAutoParam empty{};
 		for (; built < numPatchCables; built++) {
 			new (&patchCables[built]) PatchCable();
-			patchCables[built].param.init(*docForParam(built));
+			patchCables[built].param.init(empty);
+		}
+
+		// The records are the cables as built: the usable ones copied, the rest empty.
+		for (int32_t c = 0; c < numPatchCables; c++) {
+			records_.append(recordOf(patchCables[c]));
 		}
 
 		// Deep-copy the destination arrays last, so a throw leaves only the cables to clean up.
 		destinations[GLOBALITY_LOCAL] = cloneDestinations(other.destinations[GLOBALITY_LOCAL]);
 		try {
 			destinations[GLOBALITY_GLOBAL] = cloneDestinations(other.destinations[GLOBALITY_GLOBAL]);
+			if (other.routedCables_ != nullptr && numPatchCables != 0) {
+				routedCables_ = static_cast<deluge::synth::RoutedCable*>(
+				    deluge::memory::alloc_fast(sizeof(deluge::synth::RoutedCable) * numPatchCables));
+				if (routedCables_ == nullptr) {
+					throw deluge::exception::BAD_ALLOC;
+				}
+				std::copy_n(other.routedCables_, numPatchCables, routedCables_);
+			}
 		} catch (deluge::exception&) {
 			if (destinations[GLOBALITY_LOCAL]) {
 				delugeDealloc(destinations[GLOBALITY_LOCAL]);
+			}
+			if (destinations[GLOBALITY_GLOBAL]) {
+				delugeDealloc(destinations[GLOBALITY_GLOBAL]);
 			}
 			throw;
 		}
@@ -1044,8 +957,6 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 	ParamCollection::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                              automatedNow);
 
-	bool haveRedoneSetup = false;
-
 	if (!modelStack->timelineCounterIsSet() || ((Clip*)modelStack->getTimelineCounter())->isActiveOnOutput()) {
 		int32_t currentValue = modelStack->autoParam->getCurrentValue();
 		bool currentValueChanged = (oldValue != currentValue);
@@ -1053,23 +964,6 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 		PatchSource s;
 		ParamDescriptor destinationParamDescriptor;
 		dissectParamId(modelStack->paramId, &destinationParamDescriptor, &s);
-
-		// Delete the patch cable if its value is now 0 and no automation. This is a bit "dangerous" - it will probably
-		// delete the AutoParam that called us!
-		if (!modelStack->autoParam->containsSomething(*modelStack->doc(), 0)) {
-			int32_t c = getPatchCableIndex(s, destinationParamDescriptor);
-			if (c != 255) {
-
-				// Clone the ModelStack, since we only need the smaller amount of data that makes up a
-				// ModelStackWithParamCollection, and our call we make below could overwrite further-down fields of the
-				// ModelStack. Although I think in this case it actually doesn't - but best to be safe.
-				char localModelStackMemory[MODEL_STACK_MAX_SIZE];
-				copyModelStack(localModelStackMemory, modelStack, sizeof(ModelStackWithParamCollection));
-
-				deletePatchCable((ModelStackWithParamCollection*)localModelStackMemory, c);
-				haveRedoneSetup = true;
-			}
-		}
 
 		if (currentValueChanged) {
 			int32_t p =
@@ -1081,7 +975,7 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 		}
 	}
 
-	if (!haveRedoneSetup && automatedBefore != automatedNow) {
+	if (automatedBefore != automatedNow) {
 		PatchSource s;
 		ParamDescriptor destinationParamDescriptor;
 		dissectParamId(modelStack->paramId, &destinationParamDescriptor, &s);
@@ -1155,9 +1049,8 @@ void PatchCableSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset,
 	FOR_EACH_PARAM_END
 
 	if (anyStoppedBeingAutomated) {
-		// In case the absence of automation here, presumably in conjunction with a value of 0, means this Cable is now
-		// inconsequential and can be deleted.
-		setupPatching(modelStack);
+		// Some cables stopped being automated: refresh which are.
+		setupPatching(*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager);
 	}
 }
 
@@ -1199,17 +1092,19 @@ void PatchCableSet::grabVelocityToLevelFromMIDICable(MIDICable& cable) {
 		return;
 	}
 
-	// Write the cable's inline store (amount_, the persisted source when unbound) too, not just the cursor.
-	patchCable->param.setCurrentValueBasicForSetup(patchCable->amount_, cable.defaultVelocityToLevel);
+	const uint8_t c = static_cast<uint8_t>(patchCable - patchCables);
+	patchCable->param.setCurrentValueBasicForSetup(*docForParam(c), cable.defaultVelocityToLevel);
 }
 
 PatchCable* PatchCableSet::getPatchCableFromVelocityToLevel() {
 	ParamDescriptor paramDescriptor;
 	paramDescriptor.setToHaveParamOnly(params::LOCAL_VOLUME);
 
-	int32_t i = getPatchCableIndex(
-	    PatchSource::VELOCITY, paramDescriptor, nullptr,
-	    true); // Uh... ok this could create a cable but won't setupPatching() for it... was that intentional?
+	// A new cable is placed by the setupPatching() the MIDI learn's callers run after it.
+	int32_t i = getPatchCableIndex(PatchSource::VELOCITY, paramDescriptor);
+	if (i == 255 && appendDefaultCable(PatchSource::VELOCITY, params::LOCAL_VOLUME, 0) != nullptr) {
+		i = numPatchCables - 1;
+	}
 	if (i == 255) {
 		return nullptr;
 	}

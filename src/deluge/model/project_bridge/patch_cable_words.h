@@ -47,42 +47,4 @@ namespace deluge::bridge {
 	return cableDepthIdOf(cable_word(from, destination));
 }
 
-/// @brief The runtime source of a model patch cable.
-///
-/// @param cable The model cable.
-/// @return The cable's bottom-level source.
-[[nodiscard]] inline PatchSource source_of(const deluge::project::DocCable& cable) {
-	return ParamDescriptor(static_cast<int32_t>(cableWordOf(cable.depth))).getBottomLevelSource();
-}
-
-/// @brief The runtime destination descriptor of a model patch cable.
-///
-/// @param cable The model cable.
-/// @return The cable's destination.
-[[nodiscard]] inline ParamDescriptor destination_of(const deluge::project::DocCable& cable) {
-	return ParamDescriptor(static_cast<int32_t>(cableWordOf(cable.depth))).getDestination();
-}
-
-/// @brief The runtime polarity of a model patch cable.
-///
-/// @param cable The model cable.
-/// @return The cable's polarity.
-[[nodiscard]] constexpr Polarity polarity_of(const deluge::project::DocCable& cable) noexcept {
-	return static_cast<Polarity>(cable.polarity);
-}
-
-/// @brief A model patch cable from the runtime's words and its amount.
-///
-/// @param from        The cable's source.
-/// @param destination The cable's destination descriptor.
-/// @param polarity    The cable's polarity.
-/// @param amount      The cable's amount param.
-/// @return The model cable.
-[[nodiscard]] inline deluge::project::DocCable doc_cable(PatchSource from, ParamDescriptor destination,
-                                                         Polarity polarity, deluge::project::DocAutoParam amount) {
-	return {.depth = cable_depth(from, destination),
-	        .polarity = util::to_underlying(polarity),
-	        .amount = std::move(amount)};
-}
-
 } // namespace deluge::bridge

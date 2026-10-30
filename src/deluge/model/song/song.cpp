@@ -1983,12 +1983,10 @@ loadOutput:
 						if (PatchedParamSet* patched = thisClip->paramManager.getPatchedParamSet()) {
 							relocateParamStoreToTree(patched, mgr);
 						}
-						// Relocate the synth's patch-cable amount-automation into the tree's identity-keyed cable
-						// store (keyed (from, dest), not index: cables reorder at runtime). Seed from the loaded
-						// inline stores, then bind so save and edits share the persistent store.
+						// Relocate the synth's cable depth lanes into the tree's table, keyed by depth id, so save and
+						// edits share it.
 						if (PatchCableSet* pcs = thisClip->paramManager.getPatchCableSet()) {
-							mgr.cables = deluge::bridge::toDocCables(*pcs);
-							pcs->bindDomCablesExternal(&mgr.cables);
+							pcs->relocateDepthsInto(mgr.cable_depths);
 						}
 					}
 					// Relocate this manager's expression (MPE) automation into the tree at the same (instrument, clip)
@@ -2024,10 +2022,9 @@ loadOutput:
 							if (ExpressionParamSet* de = nr.paramManager.getExpressionParamSet()) {
 								relocateParamStoreToTree(de, dmgr);
 							}
-							// Per-drum patch-cable amount-automation: same (drum, clip) key, identity-keyed.
+							// Per-drum cable depth lanes: the same (drum, clip) key.
 							if (PatchCableSet* dpcs = nr.paramManager.getPatchCableSet()) {
-								dmgr.cables = deluge::bridge::toDocCables(*dpcs);
-								dpcs->bindDomCablesExternal(&dmgr.cables);
+								dpcs->relocateDepthsInto(dmgr.cable_depths);
 							}
 						}
 					}
@@ -2759,7 +2756,8 @@ traverseClips:
 				    modelStackWithNoteRow->addOtherTwoThings(drum, &noteRow->paramManager));
 
 				((PatchCableSet*)modelStackWithParamCollection->paramCollection)
-				    ->setupPatching(modelStackWithParamCollection);
+				    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+				                    *modelStackWithParamCollection->paramManager);
 			}
 		}
 	}
@@ -2822,7 +2820,9 @@ traverseClips:
 		ModelStackWithParamCollection* modelStackWithParamCollection =
 		    clip->paramManager.getPatchCableSet(modelStackWithThreeMainThings);
 
-		((PatchCableSet*)modelStackWithParamCollection->paramCollection)->setupPatching(modelStackWithParamCollection);
+		((PatchCableSet*)modelStackWithParamCollection->paramCollection)
+		    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+		                    *modelStackWithParamCollection->paramManager);
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
@@ -2880,7 +2880,8 @@ traverseClips:
 		PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
 		patchCableSet->grabVelocityToLevelFromMIDICable(cable);
-		patchCableSet->setupPatching(modelStackWithParamCollection);
+		patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+		                             *modelStackWithParamCollection->paramManager);
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
@@ -2947,7 +2948,8 @@ traverseClips:
 		PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
 		patchCableSet->grabVelocityToLevelFromMIDICable(cable);
-		patchCableSet->setupPatching(modelStackWithParamCollection);
+		patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+		                             *modelStackWithParamCollection->paramManager);
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
@@ -2986,7 +2988,8 @@ void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything(MIDICab
 				PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 				patchCableSet->grabVelocityToLevelFromMIDICable(cable);
 
-				patchCableSet->setupPatching(modelStackWithParamCollection);
+				patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+				                             *modelStackWithParamCollection->paramManager);
 			}
 		}
 
@@ -3014,7 +3017,8 @@ void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything(MIDICab
 					PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
 					patchCableSet->grabVelocityToLevelFromMIDICable(cable);
-					patchCableSet->setupPatching(modelStackWithParamCollection);
+					patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+					                             *modelStackWithParamCollection->paramManager);
 				}
 			}
 		}

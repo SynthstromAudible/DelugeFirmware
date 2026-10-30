@@ -284,7 +284,7 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay(
 	}
 	else {
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
+		modelStackWithParam = getModelStackWithParamForClip(modelStack, clip, false);
 	}
 
 	char const* isAutomated = l10n::get(l10n::String::STRING_FOR_AUTOMATION_OFF);

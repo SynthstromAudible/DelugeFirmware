@@ -127,7 +127,7 @@ f. ☐ **TODO — Lift to `synth::Voice`** (the endgame). The render body's `Con
    methods that still reach `Sound` (`noteOff`, `getPriorityRating`, `noteOn`, `calculatePhaseIncrements`, …) into
    kernel and adapter halves; drop the `Sample*`/`WaveTable*` casts; inject `cpuDireness` and `nextVoiceState`;
    hold ports instead of adapters in `voice_unison_part_source.h`; move `voice_config.h` off `model/`'s
-   `filter_config.h`; and take `PatchedParamSet*`/`PatchCableSet*` out of `ControlBlock`. Then move the render
+   `filter_config.h` (`ControlBlock` already carries no `PatchedParamSet*`/`PatchCableSet*`). Then move the render
    path into a
    portable `synth::Voice` (+ a host unit test with zero `Song`/`ModelStack`/`AudioEngine`); old `Voice`/
    `Sound::render` become the adapter. DX7-as-engine + the engine **registry** can land here.

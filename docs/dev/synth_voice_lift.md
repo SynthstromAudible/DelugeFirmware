@@ -79,8 +79,9 @@ The real blockers:
   `DxVoiceAdapter` and `AudioInputAdapter` as members. The kernel should hold the ports, injected.
 - **`voice_config.h` includes `model/mod_controllable/filters/filter_config.h`** for `FilterMode`/`FilterRoute`.
   The dsp-next filter enums replace it.
-- **`ControlBlock` carries `PatchedParamSet*` and `PatchCableSet*`** (`synth/modulation/control_block.h`), so `synth/`
-  includes `modulation/params/param_set.h`. The patcher walks `PatchCableSet` directly.
+- ~~`ControlBlock` carries `PatchedParamSet*` and `PatchCableSet*`~~ — resolved by mod-matrix M1: the block is copies
+  (the clip's `synth::PatchRouting`, gathered preset values and cable depths), and the Patcher includes no
+  `modulation/patch/` header.
 
 When these are gone, L-viii (+ the L-vii noteOff hook + the #54 priority/scheduling re-home) is the
 near-mechanical move it was always meant to be.

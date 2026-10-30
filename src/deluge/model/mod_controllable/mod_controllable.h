@@ -47,7 +47,8 @@ public:
 	virtual void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {};
 	virtual ModelStackWithAutoParam*
 	getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
-	                       bool allowCreation = true); // Check that autoParam isn't NULL, after calling this.
+	                       bool allowCreation); // Check that autoParam isn't NULL, after calling this. allowCreation:
+	                                            // the caller writes it.
 
 	/// Check that autoParam isn't NULL, after calling this
 	virtual ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack);

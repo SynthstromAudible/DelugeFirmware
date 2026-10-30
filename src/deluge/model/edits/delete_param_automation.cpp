@@ -1,6 +1,7 @@
 #include "model/edits/delete_param_automation.h"
 
 #include "model/action/action_logger.h"
+#include "model/edits/edit_cable.h"
 #include "model/model_stack.h"
 #include "modulation/automation/auto_param.h"
 
@@ -11,6 +12,7 @@ Error DeleteParamAutomation::apply(Context& /*ctx*/) {
 	// (recordParamChangeIfNotAlreadySnapshotted, stealData=true).
 	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, addition_);
 	engineStack_->autoParam->deleteAutomation(action, engineStack_);
+	settleCableDepth(engineStack_);
 	return Error::NONE;
 }
 

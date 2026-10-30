@@ -136,9 +136,10 @@ public:
 	bool interpolationBefore;
 	bool interpolationAfter;
 
-	// public to midi follow and editor layouts can access it
+	// public to midi follow and editor layouts can access it. @p forEdit states that the caller writes the param: a
+	// cable depth's missing cable is then created; a read gets a null autoParam instead.
 	ModelStackWithAutoParam*
-	getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+	getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStack, Clip* clip, bool forEdit,
 	                              int32_t paramID = deluge::modulation::params::kNoParamID,
 	                              deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE);
 

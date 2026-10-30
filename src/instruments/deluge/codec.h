@@ -73,7 +73,7 @@ struct SoundPieces {
 /// entry takes the encoding's value at its old position, one the encoding no longer writes is dropped, and one the
 /// encoding writes that the element lacked is appended in the encoding's order. An older file's instrument entries
 /// (oscillatorA, ringMod, a top-level fileName…) are dropped: the encoding holds what they said. Every other entry
-/// (params, effects, cables…) is kept, in order.
+/// (params, effects, cables…) is kept, in order; the cables are the cable codec's (cable_codec.h).
 /// @param element The sound's slot.
 /// @param state   The state whose encoding replaces the instrument's entries.
 /// @param context The file context.
@@ -83,8 +83,8 @@ struct SoundPieces {
 
 /// @brief Read a whole sound element into @p state, which holds the state of the sound being read into (a new sound's,
 /// for a file). Each entry is applied in the element's order, older
-/// formats included; anything the element lacks keeps its value. Params, patch cables, mod knobs and the effects are
-/// not the instrument's to read here.
+/// formats included; anything the element lacks keeps its value. Params, mod knobs and the effects are not the
+/// instrument's to read here, and its cables are read and written by the cable codec (decode_cables, encode_cables).
 /// @param element The sound element.
 /// @param state   The state read into; entries the element lacks keep their value.
 /// @param context The file context.

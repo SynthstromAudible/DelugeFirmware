@@ -813,7 +813,8 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	if (activeModControllableModelStack.modControllable) {
 
 		bool noteTailsAllowedBefore;
-		ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(whichModEncoder, noteTailsAllowedBefore);
+		ModelStackWithAutoParam* modelStackWithParam =
+		    getModelStackWithParam(whichModEncoder, noteTailsAllowedBefore, true);
 
 		// If non-existent param, still let the ModControllable know
 		if (!modelStackWithParam || !modelStackWithParam->autoParam) {
@@ -961,7 +962,8 @@ int32_t View::calculateKnobPosForModEncoderTurn(params::Kind kind, int32_t knobP
 
 // get's modelStackWithParam for use with Gold Knobs and ModEncoderAction above
 // also used with ModButtonAction to display name's of parameters assigned to gold knobs
-ModelStackWithAutoParam* View::getModelStackWithParam(int32_t whichModEncoder, bool& noteTailsAllowedBefore) {
+ModelStackWithAutoParam* View::getModelStackWithParam(int32_t whichModEncoder, bool& noteTailsAllowedBefore,
+                                                      bool forEdit) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	if (activeModControllableModelStack.modControllable) {
@@ -995,7 +997,7 @@ ModelStackWithAutoParam* View::getModelStackWithParam(int32_t whichModEncoder, b
 		}
 
 		modelStackWithParam = activeModControllableModelStack.modControllable->getParamFromModEncoder(
-		    whichModEncoder, &activeModControllableModelStack);
+		    whichModEncoder, &activeModControllableModelStack, forEdit);
 	}
 
 	return modelStackWithParam;
@@ -1004,8 +1006,10 @@ ModelStackWithAutoParam* View::getModelStackWithParam(int32_t whichModEncoder, b
 // used to get name of parameter assigned to mod encoder
 void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* parameterName) {
 	bool noteTailsAllowedBefore;
-	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(whichModEncoder, noteTailsAllowedBefore);
-	if (modelStackWithParam && modelStackWithParam->autoParam) {
+	ModelStackWithAutoParam* modelStackWithParam =
+	    getModelStackWithParam(whichModEncoder, noteTailsAllowedBefore, false);
+	// The name needs only the param's collection and id, which a missing cable's stack still carries.
+	if (modelStackWithParam && modelStackWithParam->paramCollection) {
 		params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
 		if (kind == params::Kind::PATCH_CABLE) {
@@ -1345,8 +1349,8 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 void View::modEncoderButtonAction_deleteAutomation(uint8_t whichModEncoder) {
 	ModelStackWithAutoParam* modelStackWithParam =
-	    activeModControllableModelStack.modControllable->getParamFromModEncoder(whichModEncoder,
-	                                                                            &activeModControllableModelStack);
+	    activeModControllableModelStack.modControllable->getParamFromModEncoder(
+	        whichModEncoder, &activeModControllableModelStack, false);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		deluge::edits::Context editCtx{*currentSong, currentSong->project};

@@ -17,8 +17,7 @@
 
 #include "synth/modulation/patcher.h"
 #include "definitions_cxx.hpp"
-#include "modulation/patch/patch_cable.h"
-#include "modulation/patch/patch_cable_set.h"
+#include "synth/modulation/cable_depth.h"
 #include "synth/modulation/control_block.h"
 #include "util/param_functions.h" // paramNeutralValues, paramRanges, getFinalParameterValue*, lshiftAndSaturate
 #include <algorithm>              // std::ranges::sort
@@ -29,7 +28,7 @@
 namespace params = deluge::modulation::params;
 
 // If NULL Destination, that means no cables - just the preset value
-void Patcher::recalculateFinalValueForParamWithNoCables(int32_t p, ControlBlock control_block) {
+void Patcher::recalculateFinalValueForParamWithNoCables(int32_t p, const ControlBlock& control_block) {
 
 	int32_t cable_combination = (p < config.firstHybridParam) ? combineCablesLinear(nullptr, p, control_block)
 	                                                          : combineCablesExp(nullptr, p, control_block);
@@ -60,23 +59,29 @@ void Patcher::recalculateFinalValueForParamWithNoCables(int32_t p, ControlBlock 
 int32_t rangeFinalValues[kMaxNumPatchCables]; // TODO: storing these in permanent memory per voice could save a tiny bit
                                               // of time... actually so minor though, maybe not worth it.
 
-// You may as well check sourcesChanged before calling this.
-void Patcher::performPatching(uint32_t sourcesChanged, ControlBlock control_block) {
+namespace {
+/// The range value that scales @p cable's depth: its depth cables' result, or 536870912 (1) when none controls it.
+[[gnu::always_inline]] inline int32_t rangeOf(const deluge::synth::RoutedCable& cable) {
+	return cable.range_index < 0 ? 536870912 : rangeFinalValues[cable.range_index];
+}
+} // namespace
 
-	PatchCableSet& patch_cable_set = *control_block.patch_cable_set;
+// You may as well check sourcesChanged before calling this.
+void Patcher::performPatching(uint32_t sourcesChanged, const ControlBlock& control_block) {
+
 	int32_t globality = config.globality;
-	Destination* destination = patch_cable_set.destinations[globality];
+	const deluge::synth::RoutedDestination* destination = control_block.routing.destinations[globality];
 	if (destination == nullptr) {
 		return;
 	}
 
-	sourcesChanged &= patch_cable_set.sourcesPatchedToAnything[globality];
+	sourcesChanged &= control_block.routing.sources_patched[globality];
 	if (sourcesChanged == 0u) {
 		return;
 	}
 
 	// First, "range" Destinations
-	for (int32_t i = 0; destination->destinationParamDescriptor.data < (uint32_t)0xFFFFFF00; destination++, i++) {
+	for (int32_t i = 0; destination->target.word < (uint32_t)0xFFFFFF00; destination++, i++) {
 		if (!(destination->sources & sourcesChanged)) {
 			continue; // And don't increment i.
 		}
@@ -89,12 +94,12 @@ void Patcher::performPatching(uint32_t sourcesChanged, ControlBlock control_bloc
 	etl::vector<std::pair<int32_t, int32_t>, params::kNumParams> cable_combos;
 
 	// Now normal, actual params/destinations
-	for (; destination->destinationParamDescriptor.data < (config.firstHybridParam | 0xFFFFFF00); destination++) {
+	for (; destination->target.word < (config.firstHybridParam | 0xFFFFFF00); destination++) {
 		if ((destination->sources & sourcesChanged) == 0u) {
 			continue;
 		}
 
-		int32_t param = destination->destinationParamDescriptor.getJustTheParam();
+		int32_t param = destination->target.param_index();
 		cable_combos.push_back({param, combineCablesLinear(destination, param, control_block)});
 	}
 
@@ -103,7 +108,7 @@ void Patcher::performPatching(uint32_t sourcesChanged, ControlBlock control_bloc
 			continue;
 		}
 
-		int32_t param = destination->destinationParamDescriptor.getJustTheParam();
+		int32_t param = destination->target.param_index();
 		cable_combos.push_back({param, combineCablesExp(destination, param, control_block)});
 	}
 
@@ -151,10 +156,10 @@ int32_t Patcher::cableToLinearParamWithoutRangeAdjustment(int32_t running_total,
 	return lshiftAndSaturate<3>(pre_limits);
 }
 
-int32_t Patcher::cableToLinearParam(int32_t running_total, const PatchCable& patch_cable, int32_t source_value,
-                                    int32_t cable_strength) {
+int32_t Patcher::cableToLinearParam(int32_t running_total, const deluge::synth::RoutedCable& patch_cable,
+                                    int32_t source_value, int32_t cable_strength) {
 	int32_t scaled_source = multiply_32x32_rshift32(source_value, cable_strength);
-	scaled_source = patch_cable.applyRangeAdjustment(scaled_source);
+	scaled_source = deluge::synth::apply_range(scaled_source, rangeOf(patch_cable));
 
 	// 0 to 1073741824; 536870912 counts as "1" for next multiplication
 	int32_t made_positive = (scaled_source + 536870912);
@@ -169,23 +174,22 @@ int32_t Patcher::cableToExpParamWithoutRangeAdjustment(int32_t running_total, in
 	return add_saturate(running_total, multiply_32x32_rshift32(source_value, cable_strength));
 }
 
-int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_cable, int32_t source_value,
-                                 int32_t cable_strength) {
+int32_t Patcher::cableToExpParam(int32_t running_total, const deluge::synth::RoutedCable& patch_cable,
+                                 int32_t source_value, int32_t cable_strength) {
 	int32_t scaled_source = multiply_32x32_rshift32(source_value, cable_strength);
-	return add_saturate(running_total, patch_cable.applyRangeAdjustment(scaled_source));
+	return add_saturate(running_total, deluge::synth::apply_range(scaled_source, rangeOf(patch_cable)));
 }
 
-[[gnu::always_inline]] inline int32_t Patcher::combineCablesLinearForRangeParam(const Destination* destination,
-                                                                                ControlBlock control_block) {
+[[gnu::always_inline]] inline int32_t
+Patcher::combineCablesLinearForRangeParam(const deluge::synth::RoutedDestination* destination,
+                                          const ControlBlock& control_block) {
 	int32_t running_total = 536870912; // 536870912 means "1". runningTotalCombination will not be allowed
 	                                   // to get bigger than 2147483647, which means "4".
 
-	PatchCableSet& patch_cable_set = *control_block.patch_cable_set;
-
 	// For each patch cable affecting the range of this cable (got that?)
-	for (int32_t cable = destination->firstCable; cable < destination->endCable; cable++) {
-		PatchCable& patch_cable = patch_cable_set.patchCables[cable];
-		PatchSource source = patch_cable.from;
+	for (int32_t cable = destination->first_cable; cable < destination->end_cable; cable++) {
+		const deluge::synth::RoutedCable& patch_cable = control_block.routing.cables[cable];
+		PatchSource source = patch_cable.source;
 		int32_t source_value = source_values_[std::to_underlying(source)];
 
 		// Special exception: If we're patching aftertouch to range. Normally, unlike other sources, aftertouch goes
@@ -195,10 +199,10 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 			source_value = (source_value - 1073741824) << 1;
 		}
 		else {
-			source_value = patch_cable.toPolarity(source_value);
+			source_value = deluge::synth::to_polarity(source, patch_cable.polarity, source_value);
 		}
 
-		int32_t cable_strength = patch_cable.param.getCurrentValue();
+		int32_t cable_strength = control_block.depths[cable];
 		running_total = cableToLinearParamWithoutRangeAdjustment(running_total, source_value, cable_strength);
 	}
 
@@ -210,12 +214,10 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 // Linear param - combine all cables by multiplying their values (values centred around 1). Inputs effectively range
 // from "0" to "2". Output (product) clips off at "4". Call this if (p < getFirstHybridParam()) - "Pan" sits at the end
 // of the linear params and is the exception to the rule - it doesn't want this multiplying treatment
-[[gnu::always_inline]] inline int32_t Patcher::combineCablesLinear(const Destination* destination, uint32_t p,
-                                                                   ControlBlock control_block) {
+[[gnu::always_inline]] inline int32_t Patcher::combineCablesLinear(const deluge::synth::RoutedDestination* destination,
+                                                                   uint32_t p, const ControlBlock& control_block) {
 	int32_t running_total = 536870912; // 536870912 means "1". runningTotalCombination will not be allowed
 	                                   // to get bigger than 2147483647, which means "4".
-
-	PatchCableSet& patch_cable_set = *control_block.patch_cable_set;
 
 	// Do the "preset value" (which we treat like a "cable" here)
 	running_total =
@@ -223,12 +225,12 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 
 	if (destination != nullptr) {
 		// For each patch cable affecting this parameter
-		for (int32_t cable = destination->firstCable; cable < destination->endCable; cable++) {
-			PatchCable& patch_cable = patch_cable_set.patchCables[cable];
-			PatchSource source = patch_cable.from;
+		for (int32_t cable = destination->first_cable; cable < destination->end_cable; cable++) {
+			const deluge::synth::RoutedCable& patch_cable = control_block.routing.cables[cable];
+			PatchSource source = patch_cable.source;
 			int32_t source_value = source_values_[std::to_underlying(source)];
-			source_value = patch_cable.toPolarity(source_value);
-			int32_t cable_strength = patch_cable.param.getCurrentValue();
+			source_value = deluge::synth::to_polarity(source, patch_cable.polarity, source_value);
+			int32_t cable_strength = control_block.depths[cable];
 			running_total = cableToLinearParam(running_total, patch_cable, source_value, cable_strength);
 		}
 	}
@@ -240,20 +242,19 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 
 // Exp param - combine all cables by adding their values (centred around 0)
 // Call this if (p >= getFirstHybridParam())
-[[gnu::always_inline]] inline int32_t Patcher::combineCablesExp(const Destination* destination, uint32_t param,
-                                                                ControlBlock control_block) {
+[[gnu::always_inline]] inline int32_t Patcher::combineCablesExp(const deluge::synth::RoutedDestination* destination,
+                                                                uint32_t param, const ControlBlock& control_block) {
 
 	int32_t running_total = 0;
 
-	PatchCableSet& patch_cable_set = *control_block.patch_cable_set;
-
 	if (destination != nullptr) {
 		// For each patch cable affecting this parameter
-		for (int32_t c = destination->firstCable; c < destination->endCable; c++) {
-			PatchCable& patch_cable = patch_cable_set.patchCables[c];
-			int32_t source_value = source_values_[std::to_underlying(patch_cable.from)];
-			source_value = patch_cable.toPolarity(source_value);
-			int32_t cable_strength = patch_cable_set.getModifiedPatchCableAmount(c, param);
+		for (int32_t c = destination->first_cable; c < destination->end_cable; c++) {
+			const deluge::synth::RoutedCable& patch_cable = control_block.routing.cables[c];
+			int32_t source_value = source_values_[std::to_underlying(patch_cable.source)];
+			source_value = deluge::synth::to_polarity(patch_cable.source, patch_cable.polarity, source_value);
+			int32_t cable_strength =
+			    deluge::synth::modified_depth(control_block.depths[c], patch_cable.source, static_cast<int32_t>(param));
 			running_total = cableToExpParam(running_total, patch_cable, source_value, cable_strength);
 		}
 
@@ -275,7 +276,7 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 
 // NOTE: parameter preset values can't be bigger than 536870912, otherwise overflowing will occur
 
-void Patcher::performInitialPatching(ControlBlock control_block) {
+void Patcher::performInitialPatching(const ControlBlock& control_block) {
 	// In this function, we are sneaky and write the "cable combination" working value in to paramFinalValues, before
 	// going back over that array with the final step. This saves memory. Didn't seem to have a real effect on speed.
 
@@ -294,23 +295,23 @@ void Patcher::performInitialPatching(ControlBlock control_block) {
 		param_final_values_[p - config.firstParam] = combineCablesExp(nullptr, p, control_block);
 	}
 
-	Destination* destination = control_block.patch_cable_set->destinations[config.globality];
+	const deluge::synth::RoutedDestination* destination = control_block.routing.destinations[config.globality];
 	if (destination != nullptr) {
 
 		// First, "range" Destinations
-		for (int32_t i = 0; destination->destinationParamDescriptor.data < (uint32_t)0xFFFFFF00; destination++, i++) {
+		for (int32_t i = 0; destination->target.word < (uint32_t)0xFFFFFF00; destination++, i++) {
 			int32_t cables_combination = combineCablesLinearForRangeParam(destination, control_block);
 
 			rangeFinalValues[i] = getFinalParameterValueLinear(536870912, cables_combination);
 		}
 
 		// Now, regular Destinations going directly to a param
-		for (; destination->destinationParamDescriptor.data < (config.firstHybridParam | 0xFFFFFF00); destination++) {
-			int32_t p = destination->destinationParamDescriptor.getJustTheParam();
+		for (; destination->target.word < (config.firstHybridParam | 0xFFFFFF00); destination++) {
+			int32_t p = destination->target.param_index();
 			param_final_values_[p - config.firstParam] = combineCablesLinear(destination, p, control_block);
 		}
 		for (; destination->sources; destination++) {
-			int32_t p = destination->destinationParamDescriptor.getJustTheParam();
+			int32_t p = destination->target.param_index();
 			param_final_values_[p - config.firstParam] = combineCablesExp(destination, p, control_block);
 		}
 	}

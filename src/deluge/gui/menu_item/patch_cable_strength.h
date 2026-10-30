@@ -67,7 +67,8 @@ public:
 	uint32_t delayHorizontalScrollUntil = 0;
 
 protected:
-	ModelStackWithAutoParam* getModelStack(void* memory, bool allowCreation = false);
+	/// @param allowCreation Whether the caller writes the depth, and so may need the cable added.
+	ModelStackWithAutoParam* getModelStack(void* memory, bool allowCreation);
 	void getNotificationValue(etl::istring& valueBuf) override {
 		return deluge::string::appendFloat(valueBuf, getValue() / 100.0f, 2, 2);
 	}
