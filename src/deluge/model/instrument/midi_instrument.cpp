@@ -1306,7 +1306,7 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t expressionDimensi
 ModelStackWithAutoParam* MIDIInstrument::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
                                                                 int32_t paramID,
                                                                 deluge::modulation::params::Kind paramKind,
-                                                                bool affectEntire, bool useMenuStack) {
+                                                                bool affectEntire, bool useMenuStack, bool forEdit) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =

@@ -114,7 +114,7 @@ public:
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) override;
 	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) override;
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
-	                                                bool allowCreation = true) override;
+	                                                bool allowCreation) override;
 	uint8_t* getModKnobMode() override { return &modKnobMode; }
 
 	int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) override;
@@ -159,7 +159,7 @@ public:
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
-	                                                bool affectEntire, bool useMenuStack) override;
+	                                                bool affectEntire, bool useMenuStack, bool forEdit) override;
 
 	bool valueChangedEnoughToMatter(int32_t old_value, int32_t new_value, deluge::modulation::params::Kind kind,
 	                                uint32_t paramID) override {

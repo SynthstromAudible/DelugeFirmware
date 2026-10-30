@@ -1,4 +1,5 @@
 #include "model/edits/set_param_value.h"
+#include "model/edits/edit_cable.h"
 
 #include "deluge-project/param_automation.h" // DocAutoParam::nodes
 #include "deluge-project/song.h"             // Song::resolveParam
@@ -90,6 +91,7 @@ Error SetParamValue::apply(Context& ctx) {
 		const int32_t oldValue = engineStack_->autoParam->getCurrentValue();
 		deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, *address_, newValue_, 0, 0, std::nullopt);
 		engineStack_->autoParam->projectScalarFromStore(engineStack_, oldValue, isPlaying);
+		settleCableDepth(engineStack_);
 		return Error::NONE;
 	}
 
@@ -116,12 +118,14 @@ Error SetParamValue::apply(Context& ctx) {
 		if (result.has_value()) {
 			engineStack_->autoParam->projectRegionFromStore(engineStack_, oldValue, automatedBefore, *result);
 		}
+		settleCableDepth(engineStack_);
 		return Error::NONE;
 	}
 
 	// Unaddressable / unresolvable lanes: delegate to the engine's own setter.
 	engineStack_->autoParam->setValuePossiblyForRegion(newValue_, engineStack_, pos_, length_,
 	                                                   mayDeleteNodesInLinearRun_);
+	settleCableDepth(engineStack_);
 	return Error::NONE;
 }
 

@@ -23,11 +23,13 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/edit_cable.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/patch_cable_words.h"
 #include "modulation/patch/patch_cable.h"
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/mod_matrix_host.h"
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
 #include "util/exceptions.h"
@@ -471,21 +473,6 @@ uint8_t PatchCableSet::getPatchCableIndex(PatchSource from, ParamDescriptor dest
 	return 255;
 }
 
-uint8_t PatchCableSet::findOrCreateCable(Sound& sound, ParamManager& paramManager, PatchSource from,
-                                         ParamDescriptor destination) {
-	if (const uint8_t c = getPatchCableIndex(from, destination); c != 255) {
-		return c;
-	}
-	if (appendCable(
-	        {from, {destination.data}, static_cast<deluge::synth::CablePolarity>(PatchCable::getDefaultPolarity(from))})
-	    == nullptr) {
-		return 255;
-	}
-	// The compile places the new cable, moving others, so it is found again.
-	setupPatching(sound, paramManager);
-	return getPatchCableIndex(from, destination);
-}
-
 void PatchCableSet::deletePatchCable(Sound& sound, ParamManager& paramManager, uint8_t c) {
 	if (c >= numPatchCables) {
 		return;
@@ -673,8 +660,13 @@ ModelStackWithAutoParam* PatchCableSet::getAutoParamFromId(ModelStackWithParamId
 	dissectParamId(modelStack->paramId, &paramDescriptor, &s);
 	uint8_t index = getPatchCableIndex(s, paramDescriptor);
 	if (index == 255 && allowCreation) {
-		index = findOrCreateCable(*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager, s,
-		                          paramDescriptor);
+		// A write to a missing cable's depth adds the cable first, through the mod matrix, recorded in the open Action
+		// so one undo takes back the write and the cable together.
+		ModMatrixHost matrix{*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager};
+		if (std::optional<CableEdit> added = matrix.ensureCable(s, deluge::synth::CableTarget{paramDescriptor.data})) {
+			deluge::edits::recordCableEdit(modelStack, std::move(*added));
+			index = getPatchCableIndex(s, paramDescriptor);
+		}
 	}
 	return modelStack->addAutoParam(index == 255 ? nullptr : &patchCables[index].param);
 }
@@ -909,8 +901,6 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 	ParamCollection::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                              automatedNow);
 
-	bool haveRedoneSetup = false;
-
 	if (!modelStack->timelineCounterIsSet() || ((Clip*)modelStack->getTimelineCounter())->isActiveOnOutput()) {
 		int32_t currentValue = modelStack->autoParam->getCurrentValue();
 		bool currentValueChanged = (oldValue != currentValue);
@@ -918,16 +908,6 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 		PatchSource s;
 		ParamDescriptor destinationParamDescriptor;
 		dissectParamId(modelStack->paramId, &destinationParamDescriptor, &s);
-
-		// Delete the patch cable if its value is now 0 and no automation. This is a bit "dangerous" - it will probably
-		// delete the AutoParam that called us!
-		if (!modelStack->autoParam->containsSomething(*modelStack->doc(), 0)) {
-			int32_t c = getPatchCableIndex(s, destinationParamDescriptor);
-			if (c != 255) {
-				deletePatchCable(*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager, c);
-				haveRedoneSetup = true;
-			}
-		}
 
 		if (currentValueChanged) {
 			int32_t p =
@@ -939,7 +919,7 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 		}
 	}
 
-	if (!haveRedoneSetup && automatedBefore != automatedNow) {
+	if (automatedBefore != automatedNow) {
 		PatchSource s;
 		ParamDescriptor destinationParamDescriptor;
 		dissectParamId(modelStack->paramId, &destinationParamDescriptor, &s);

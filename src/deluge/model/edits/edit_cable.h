@@ -36,6 +36,10 @@ void recordCableEdit(ModelStackWithThreeMainThings const* modelStack, CableEdit 
 ModelStackWithAutoParam* cableDepthForEdit(ModelStackWithThreeMainThings* modelStack, PatchSource source,
                                            deluge::synth::CableTarget target);
 
+/// @brief Delete-at-zero, after a write to a cable's depth: the cable goes, recorded into the open Action, when its
+/// depth is 0 with no automation and the clip is its output's active one. Does nothing for any other param.
+void settleCableDepth(ModelStackWithAutoParam const* modelStack);
+
 /// @brief One cable topology op on one clip, as an Edit.
 class EditCable final : public Edit {
 public:

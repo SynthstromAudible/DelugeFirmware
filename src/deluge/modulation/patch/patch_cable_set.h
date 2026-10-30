@@ -97,10 +97,6 @@ public:
 	void retarget(uint8_t c, deluge::synth::CableTarget target);
 	/// @brief Set cable @p c's polarity.
 	void setPolarity(uint8_t c, Polarity polarity);
-	/// @brief The index of the cable from @p from to @p destination, or of a new one appended and placed by
-	/// setupPatching().
-	/// @return The cable's index; 255 at kMaxNumPatchCables cables, or if out of memory.
-	uint8_t findOrCreateCable(Sound& sound, ParamManager& paramManager, PatchSource from, ParamDescriptor destination);
 	bool doesDestinationDescriptorHaveAnyCables(ParamDescriptor destinationParamDescriptor);
 	/// @brief The index of the cable from @p from to @p destinationParamDescriptor, usable or not.
 	/// @return The index, or 255 when there is none.
@@ -139,6 +135,8 @@ public:
 	                                     ModelStackWithParamCollection* modelStack) override;
 
 	void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) override;
+	/// @brief The depth of the cable @p modelStack names. With @p allowCreation (the caller writes it) a missing cable
+	/// is added through the mod matrix and recorded; otherwise a missing cable gives a null autoParam.
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = false) override;
 	static int32_t getParamId(ParamDescriptor destinationParamDescriptor, PatchSource s);
 

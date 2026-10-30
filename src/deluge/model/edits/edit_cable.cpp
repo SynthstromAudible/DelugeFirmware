@@ -19,6 +19,7 @@
 #include "memory/heaps.h" // alloc_sdram
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
+#include "model/clip/clip.h"
 #include "model/consequence/consequence_instrument_delta.h"
 #include "model/model_stack.h"
 #include "modulation/params/param_manager.h"
@@ -32,7 +33,11 @@
 namespace deluge::edits {
 
 void recordCableEdit(ModelStackWithThreeMainThings const* modelStack, CableEdit edit) {
-	Action* action = actionLogger.getNewAction(actionLogger.getParameterChangeActionType(), ActionAddition::ALLOWED);
+	// The edit that caused it is the open Action, whatever its type; with none open, a parameter change's.
+	Action* action = actionLogger.firstAction[BEFORE];
+	if (action == nullptr || !action->openForAdditions) {
+		action = actionLogger.getNewAction(actionLogger.getParameterChangeActionType(), ActionAddition::ALLOWED);
+	}
 	if (action == nullptr) {
 		return;
 	}
@@ -43,13 +48,30 @@ void recordCableEdit(ModelStackWithThreeMainThings const* modelStack, CableEdit 
 
 ModelStackWithAutoParam* cableDepthForEdit(ModelStackWithThreeMainThings* modelStack, PatchSource source,
                                            deluge::synth::CableTarget target) {
-	ModMatrixHost matrix{*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager};
-	if (std::optional<CableEdit> added = matrix.ensureCable(source, target)) {
-		recordCableEdit(modelStack, std::move(*added));
-	}
 	const int32_t paramId = PatchCableSet::getParamId(ParamDescriptor(static_cast<int32_t>(target.word)), source);
-	ModelStackWithAutoParam* depth = modelStack->getPatchCableAutoParamFromId(paramId);
-	return depth->autoParam != nullptr ? depth : nullptr;
+	ModelStackWithAutoParam* depth = modelStack->getPatchCableAutoParamFromId(paramId, true);
+	return depth != nullptr && depth->autoParam != nullptr ? depth : nullptr;
+}
+
+void settleCableDepth(ModelStackWithAutoParam const* modelStack) {
+	if (modelStack == nullptr || modelStack->autoParam == nullptr || modelStack->paramCollection == nullptr
+	    || modelStack->paramCollection->getParamKind() != deluge::modulation::params::Kind::PATCH_CABLE) {
+		return;
+	}
+	PatchSource source;
+	ParamDescriptor target;
+	PatchCableSet::dissectParamId(modelStack->paramId, &target, &source);
+	const auto& cables = *static_cast<PatchCableSet*>(modelStack->paramCollection);
+	const std::optional<size_t> index = cables.records().find(source, deluge::synth::CableTarget{target.data});
+	if (!index) {
+		return;
+	}
+	const bool clipActive =
+	    !modelStack->timelineCounterIsSet() || static_cast<Clip*>(modelStack->getTimelineCounter())->isActiveOnOutput();
+	ModMatrixHost matrix{*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager};
+	if (std::optional<CableEdit> removed = matrix.settleDepth(*index, clipActive)) {
+		recordCableEdit(modelStack, std::move(*removed));
+	}
 }
 
 EditCable EditCable::add(ModelStackWithThreeMainThings* modelStack, deluge::synth::CableRecord cable) {

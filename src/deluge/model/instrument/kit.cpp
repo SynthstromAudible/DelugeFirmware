@@ -2064,19 +2064,20 @@ gotParamManager:
 /// for a kit we have two types of automation: with Affect Entire and without Affect Entire
 ModelStackWithAutoParam* Kit::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
                                                      int32_t paramID, params::Kind paramKind, bool affectEntire,
-                                                     bool useMenuStack) {
+                                                     bool useMenuStack, bool forEdit) {
 	if (affectEntire) {
-		return getModelStackWithParamForKit(modelStack, clip, paramID, paramKind, useMenuStack);
+		return getModelStackWithParamForKit(modelStack, clip, paramID, paramKind, useMenuStack, forEdit);
 	}
 	else {
-		return getModelStackWithParamForKitRow(modelStack, clip, paramID, paramKind, useMenuStack);
+		return getModelStackWithParamForKitRow(modelStack, clip, paramID, paramKind, useMenuStack, forEdit);
 	}
 }
 
 /// for a kit we have two types of automation: with Affect Entire and without Affect Entire
 /// for a kit with affect entire on, we are automating information at the kit level
 ModelStackWithAutoParam* Kit::getModelStackWithParamForKit(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-                                                           int32_t paramID, params::Kind paramKind, bool useMenuStack) {
+                                                           int32_t paramID, params::Kind paramKind, bool useMenuStack,
+                                                           bool forEdit) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
@@ -2101,7 +2102,7 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKit(ModelStackWithTimelin
 /// for a kit with affect entire off, we are automating information at the noterow level
 ModelStackWithAutoParam* Kit::getModelStackWithParamForKitRow(ModelStackWithTimelineCounter* modelStack, Clip* clip,
                                                               int32_t paramID, params::Kind paramKind,
-                                                              bool useMenuStack) {
+                                                              bool useMenuStack, bool forEdit) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	if (selectedDrum && selectedDrum->type == DrumType::SOUND) { // no automation for MIDI or CV kit drum types
@@ -2129,7 +2130,7 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKitRow(ModelStackWithTime
 				}
 
 				else if (paramKind == deluge::modulation::params::Kind::PATCH_CABLE) {
-					modelStackWithParam = modelStackWithThreeMainThings->getPatchCableAutoParamFromId(paramID);
+					modelStackWithParam = modelStackWithThreeMainThings->getPatchCableAutoParamFromId(paramID, forEdit);
 				}
 				else if (paramKind == params::Kind::EXPRESSION) {
 					modelStackWithParam = modelStackWithThreeMainThings->getExpressionAutoParamFromID(paramID);

@@ -362,7 +362,7 @@ public:
 	virtual void setupPatchingForAllParamManagers(Song* song) {}
 	// void channelAftertouchReceivedFromInputMIDIChannel(int32_t newValue);
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
-	                                                bool allowCreation = true) final;
+	                                                bool allowCreation) final;
 	void reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, bool shouldJustCutModFX = false);
 	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
 	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
@@ -457,7 +457,7 @@ private:
 	void pushSwitchActionOnEncoderForParam(int32_t p, bool on, ModelStackWithThreeMainThings* modelStack);
 	ModelStackWithAutoParam* getParamFromModEncoderDeeper(int32_t whichModEncoder,
 	                                                      ModelStackWithThreeMainThings* modelStack,
-	                                                      bool allowCreation = true);
+	                                                      bool allowCreation);
 
 	/// @brief The sound's effects after its voices; outlives voices_, whose teardown reads its delay.
 	deluge::effects::SoundChain chain_;

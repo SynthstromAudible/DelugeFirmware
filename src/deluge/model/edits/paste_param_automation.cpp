@@ -2,6 +2,7 @@
 
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
+#include "model/edits/edit_cable.h"
 #include "model/model_stack.h"
 #include "modulation/automation/auto_param.h"
 
@@ -14,6 +15,7 @@ Error PasteParamAutomation::apply(Context& /*ctx*/) {
 		action->recordParamChangeIfNotAlreadySnapshotted(engineStack_, /*stealData=*/false);
 	}
 	engineStack_->autoParam->paste(startPos_, endPos_, scaleFactor_, engineStack_, copied_, isPatchCable_);
+	settleCableDepth(engineStack_);
 	return Error::NONE;
 }
 

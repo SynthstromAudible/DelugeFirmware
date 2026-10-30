@@ -154,14 +154,14 @@ public:
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
-	                                                bool affectEntire, bool useMenuStack) override;
+	                                                bool affectEntire, bool useMenuStack, bool forEdit) override;
 	ModelStackWithAutoParam* getModelStackWithParamForKit(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                      int32_t paramID, deluge::modulation::params::Kind paramKind,
-	                                                      bool useMenuStack);
+	                                                      bool useMenuStack, bool forEdit);
 	ModelStackWithAutoParam* getModelStackWithParamForKitRow(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                         int32_t paramID,
 	                                                         deluge::modulation::params::Kind paramKind,
-	                                                         bool useMenuStack);
+	                                                         bool useMenuStack, bool forEdit);
 
 	Drum* getDrumFromNoteCode(InstrumentClip* clip, int32_t noteCode);
 

@@ -241,7 +241,9 @@ public:
 	                                  int32_t newParamId, AutoParam* newAutoParam) const;
 	ModelStackWithAutoParam* getUnpatchedAutoParamFromId(int32_t newParamId);
 	ModelStackWithAutoParam* getPatchedAutoParamFromId(int32_t newParamId);
-	ModelStackWithAutoParam* getPatchCableAutoParamFromId(int32_t newParamId);
+	/// @brief The depth of the cable whose param id is @p newParamId. With @p forEdit, a missing cable is added through
+	/// the mod matrix (create-on-edit, recorded in the open Action); otherwise a missing cable gives a null autoParam.
+	ModelStackWithAutoParam* getPatchCableAutoParamFromId(int32_t newParamId, bool forEdit);
 
 	inline ModelStackWithSoundFlags* addSoundFlags() const;
 	ModelStackWithAutoParam* getExpressionAutoParamFromID(int32_t newParamId);

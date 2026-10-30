@@ -355,6 +355,28 @@ void cableTarget(Song* song) {
 	const std::optional<size_t> created = cables.records().find(PatchSource::RANDOM, cutoff);
 	check(created.has_value() && cables.patchCables[*created].param.getCurrentValue() == (1 << 28),
 	      "create-on-edit: redo restores the depth");
+
+	// Delete-at-zero: depth 0, no automation, active clip; one undo restores the cable and its depth.
+	freshAction();
+	const deluge::instrument::CableRecords live = cables.records();
+	ModelStackWithAutoParam* zero = deluge::edits::cableDepthForEdit(ms, PatchSource::RANDOM, cutoff);
+	if (zero == nullptr || zero->autoParam->isAutomated(*zero->doc())) {
+		return;
+	}
+	deluge::edits::SetParamValue clear{deluge::edits::addressFor(*zero), 0, 0, 0, zero};
+	deluge::edits::apply(ctx, clear);
+	if (clip->isActiveOnOutput()) {
+		check(!cables.records().find(PatchSource::RANDOM, cutoff).has_value(), "delete-at-zero: removes the cable");
+		actionLogger.revert(BEFORE, false, false);
+		check(cables.records() == live, "delete-at-zero: one undo restores the cable in order");
+		const std::optional<size_t> back = cables.records().find(PatchSource::RANDOM, cutoff);
+		check(back.has_value() && cables.patchCables[*back].param.getCurrentValue() == (1 << 28),
+		      "delete-at-zero: undo restores the depth");
+	}
+	else {
+		check(cables.records().find(PatchSource::RANDOM, cutoff).has_value(),
+		      "delete-at-zero: keeps it on an inactive clip");
+	}
 }
 
 // True if this clip is note-addressable (has a durable clip id).
