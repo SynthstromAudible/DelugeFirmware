@@ -75,12 +75,12 @@ struct OrderCheck {
 
 /// Runs @p workload on the staged reference with every tape access logged, and checks, per block and per tape, that
 /// each sample a frame writes is neither cleared nor read by a later frame of the block: it lies behind the read head
-/// once that frame's read is done, or was cleared in an earlier block. Clears are the read head's clearAndMoveOn, one
-/// per step (several per frame at a high rate); reads are the sample under the head and, resampling, the next; writes
-/// are a native write's sample or every sample a resampled write's triangle touches (four from two past the write head
-/// slowed down, up to sixteen past it and twice the spin behind it sped up). Separately, it flags each write to a
-/// sample no clear has reached since its tape was made: clear() zeroes a fresh tape's first kWriteLag + 2 samples, and
-/// a primary the workload starts from holds a lap it has played, so counts as cleared throughout.
+/// once that frame's read is done, or was cleared in an earlier block. Clears are the read head's clear_and_move_on,
+/// one per step (several per frame at a high rate); reads are the sample under the head and, resampling, the next;
+/// writes are a native write's sample or every sample a resampled write's triangle touches (four from two past the
+/// write head slowed down, up to sixteen past it and twice the spin behind it sped up). Separately, it flags each write
+/// to a sample no clear has reached since its tape was made: clear() zeroes a fresh tape's first kWriteLag + 2 samples,
+/// and a primary the workload starts from holds a lap it has played, so counts as cleared throughout.
 OrderCheck checkFrameOrder(const delay_workloads::Workload& workload) {
 	using delay_reference::TapeAccess;
 	using delay_reference::TapeAccessKind;
@@ -103,30 +103,30 @@ OrderCheck checkFrameOrder(const delay_workloads::Workload& workload) {
 	// Per tape storage: whether a clear (or the workload's starting lap) has reached each sample.
 	std::map<const StereoSample*, std::vector<bool>> cleared;
 	auto clearedOf = [&](const DelayTape& tape) -> std::vector<bool>& {
-		auto [entry, made] = cleared.try_emplace(tape.begin(), tape.sizeIncludingExtra(), false);
+		auto [entry, made] = cleared.try_emplace(tape.begin(), tape.size_including_extra(), false);
 		if (made) {
 			std::fill_n(entry->second.begin(), DelayTape::kWriteLag + 2, true);
 		}
 		return entry->second;
 	};
-	if (run.primary().isActive()) {
-		cleared.emplace(run.primary().begin(), std::vector<bool>(run.primary().sizeIncludingExtra(), true));
+	if (run.primary().is_active()) {
+		cleared.emplace(run.primary().begin(), std::vector<bool>(run.primary().size_including_extra(), true));
 	}
 
 	OrderCheck out;
 	std::array<StereoSample, delay_workloads::kMaxFrames> block{};
 	for (size_t b = 0; b < workload.blocks; ++b) {
 		accesses.clear();
-		const DelayTape* before = run.primary().isActive() ? &run.primary() : nullptr;
+		const DelayTape* before = run.primary().is_active() ? &run.primary() : nullptr;
 		const StereoSample* replaced = before != nullptr ? before->begin() : nullptr;
 		std::ignore = run.block(b, block);
 
 		for (const TapeRole role : {TapeRole::PRIMARY, TapeRole::SECONDARY}) {
 			const DelayTape& tape = role == TapeRole::PRIMARY ? run.processor().primary : run.processor().secondary;
-			if (!tape.isActive()) {
+			if (!tape.is_active()) {
 				continue;
 			}
-			const size_t ring = tape.sizeIncludingExtra();
+			const size_t ring = tape.size_including_extra();
 			std::vector<int32_t> last_clear(ring, -1);
 			std::vector<int32_t> last_read(ring, -1);
 			std::vector<int32_t> first_clear(ring, std::numeric_limits<int32_t>::max());

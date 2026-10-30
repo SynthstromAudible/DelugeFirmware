@@ -332,17 +332,17 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		int32_t position = speedLog - (800 << 20);
 
 		minBeamWidth =
-		    deluge::dsp::fixed::linear_table_interpolator.interpolateSigned(position, 26, minHopSizeFine, 4) >> 16;
+		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, minHopSizeFine, 4) >> 16;
 		maxBeamWidth =
-		    deluge::dsp::fixed::linear_table_interpolator.interpolateSigned(position, 26, maxHopSizeFine, 4) >> 16;
+		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, maxHopSizeFine, 4) >> 16;
 		crossfadeProportional =
-		    deluge::dsp::fixed::linear_table_interpolator.interpolateSigned(position, 26, crossfadeProportionalFine, 4)
+		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, crossfadeProportionalFine, 4)
 		    << 8;
 		crossfadeAbsolute =
-		    deluge::dsp::fixed::linear_table_interpolator.interpolateSigned(position, 26, crossfadeAbsoluteFine, 4)
+		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, crossfadeAbsoluteFine, 4)
 		    >> 16;
-		randomElement = deluge::dsp::fixed::linear_table_interpolator.interpolateSigned(position, 26, randomFine, 4);
-		// lookahead = deluge::dsp::fixed::linear_table_interpolator.interpolateSigned(position, 26, lookaheadFine, 4)
+		randomElement = deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, randomFine, 4);
+		// lookahead = deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, lookaheadFine, 4)
 		// >> 16;
 	}
 
@@ -357,7 +357,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 
 		int32_t position = speedLog - (768 << 20);
 
-		// interpolateSigned reads table[whichValue] AND table[whichValue + 1], with whichValue = position >> 25.
+		// interpolate_signed reads table[whichValue] AND table[whichValue + 1], with whichValue = position >> 25.
 		// The coarse tables have 5 entries (indices 0..4), so position must stay strictly below 2^27 or whichValue
 		// reaches 4 and the +1 read runs one past the end. The speedLog clamp above is inclusive (speedLog == 896<<20
 		// gives position == 2^27), so pin position to the top of the valid 27-bit range - the interpolation there still
@@ -367,17 +367,17 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		}
 
 		minBeamWidth =
-		    deluge::dsp::fixed::linear_table_interpolator.interpolateSigned(position, 27, minHopSizeCoarse, 2) >> 16;
+		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, minHopSizeCoarse, 2) >> 16;
 		maxBeamWidth =
-		    deluge::dsp::fixed::linear_table_interpolator.interpolateSigned(position, 27, maxHopSizeCoarse, 2) >> 16;
-		crossfadeProportional = deluge::dsp::fixed::linear_table_interpolator.interpolateSigned(
+		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, maxHopSizeCoarse, 2) >> 16;
+		crossfadeProportional = deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(
 		                            position, 27, crossfadeProportionalCoarse, 2)
 		                        << 8;
 		crossfadeAbsolute =
-		    deluge::dsp::fixed::linear_table_interpolator.interpolateSigned(position, 27, crossfadeAbsoluteCoarse, 2)
+		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, crossfadeAbsoluteCoarse, 2)
 		    >> 16;
-		randomElement = deluge::dsp::fixed::linear_table_interpolator.interpolateSigned(position, 27, randomCoarse, 2);
-		// lookahead = deluge::dsp::fixed::linear_table_interpolator.interpolateSigned(position, 27, lookaheadCoarse, 2)
+		randomElement = deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, randomCoarse, 2);
+		// lookahead = deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, lookaheadCoarse, 2)
 		// >> 16;
 	}
 

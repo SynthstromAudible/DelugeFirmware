@@ -36,7 +36,7 @@ public:
 		if (value >= kMaxKnobPos) {
 			value = kMaxKnobPos - 1;
 		}
-		q31_t knobPos = lshiftAndSaturate<24>(value);
+		q31_t knobPos = lshift_and_saturate<24>(value);
 
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
@@ -122,10 +122,10 @@ public:
 
 		q31_t knobPos;
 		if (value < kMaxKnobPos) {
-			knobPos = lshiftAndSaturate<24>(value);
+			knobPos = lshift_and_saturate<24>(value);
 		}
 		else {
-			knobPos = ONE_Q31;
+			knobPos = kOneQ31;
 		}
 		effectSettingFor(owner, "audioCompressor/compBlend", deluge::serialization::Value::makeNumber(knobPos));
 	}

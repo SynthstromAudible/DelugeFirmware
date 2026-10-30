@@ -157,7 +157,7 @@ bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* m
 
 renderEnvelope:
 			int32_t amplitudeLocal = (envelope.render(render.size(), attack, 8388608, 2147483647, 0,
-			                                          deluge::dsp::fixed::tables::decay_small_4.data())
+			                                          deluge::dsp::fixed::tables::kDecaySmall4.data())
 			                          >> 1)
 			                         + 1073741824;
 
@@ -199,13 +199,13 @@ renderEnvelope:
 					// If can write directly into Song buffer...
 					if (bufferToTransferTo != nullptr) {
 						std::ranges::transform(render_mono, reinterpret_cast<StereoSample*>(bufferToTransferTo),
-						                       StereoSample::fromMono);
+						                       StereoSample::from_mono);
 					}
 
 					// Or, if duplicating within same rendering buffer (cos there's FX to be applied)
 					else {
 						std::ranges::transform(render_mono.rbegin(), render_mono.rend(), render.rbegin(),
-						                       StereoSample::fromMono);
+						                       StereoSample::from_mono);
 					}
 				}
 			}
@@ -279,7 +279,7 @@ renderEnvelope:
 		    .amplitude_end = amplitude_end,
 		    .mode = mode,
 		}};
-		monitor.renderBlock(output, input, output);
+		monitor.render_block(output, input, output);
 	}
 	// Only render the record-source if it has an active clip: Output::renderOutput is documented to be called only
 	// when there's an activeClip, but this branch bypasses the inValidState guard in Song::renderAudio.

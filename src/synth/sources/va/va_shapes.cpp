@@ -135,7 +135,7 @@ Resolved resolveMultiply(Phasor original, const BlockControls& controls, uint32_
 /// arms render the wave into `scratch`, then mix it into `output`'s prior contents (the normal voice path).
 void mixThroughVca(Ramp amplitude, fixed::Buffer output, fixed::Buffer scratch) {
 	fixed::Amplitude vca{amplitude};
-	vca.renderBlock(fixed::Signal{scratch}, fixed::Signal{output}, output);
+	vca.render_block(fixed::Signal{scratch}, fixed::Signal{output}, output);
 }
 
 /// Render `osc`'s raw wave, then either scale-and-mix it through its VCA (when amplitude applies) or write the
@@ -144,12 +144,12 @@ template <typename Osc, typename MakeVca>
 void renderThroughVca(Osc& osc, MakeVca make_vca, Standalone scale, bool apply_amplitude, fixed::Buffer output,
                       fixed::Buffer scratch) {
 	if (apply_amplitude) {
-		osc.renderBlock(scratch);
+		osc.render_block(scratch);
 		auto vca = make_vca();
-		vca.renderBlock(fixed::Signal{scratch}, fixed::Signal{output}, output);
+		vca.render_block(fixed::Signal{scratch}, fixed::Signal{output}, output);
 	}
 	else {
-		osc.renderBlock(output);
+		osc.render_block(output);
 		if (scale == Standalone::kHalve) {
 			for (auto& sample : output) {
 				sample >>= 1;
@@ -174,7 +174,7 @@ void renderBandLimited(const fixed::BandlimitedTable& bands, uint32_t selection_
 		fixed::SyncedOscillator osc{
 		    fixed::BandLimitedTableOscillator{bands, phasor.phase(), phasor.increment(), selection_increment},
 		    phasor.phase(), phasor.increment(), fixed::Resetter{sync->phase(), sync->increment()}, retrigger};
-		osc.renderBlock(dst);
+		osc.render_block(dst);
 		phasor.seek(osc.phase());
 		mixThroughVca(amplitude, output, scratch);
 	}
@@ -199,30 +199,30 @@ void renderPerfectPulse(Ramp amplitude, uint32_t pulse_width, uint32_t band_sele
 		fixed::Buffer dst = apply_amplitude ? scratch : output;
 		fixed::SyncedOscillator osc{pulse, phase, increment, fixed::Resetter{sync->phase(), sync->increment()},
 		                            retrigger};
-		osc.renderBlock(dst);
+		osc.render_block(dst);
 		phasor.seek(osc.phase() << 1);
 		mixThroughVca(amplitude, output, scratch);
 	}
 	else if (apply_amplitude) {
-		pulse.renderBlock(scratch);
+		pulse.render_block(scratch);
 		mixThroughVca(amplitude, output, scratch);
 	}
 	else {
-		pulse.renderBlock(output);
+		pulse.render_block(output);
 	}
 }
 
 /// The crude↔band-limited gate for saw/square: drop to the cheap aliasing render once the band index for
 /// @p selection_increment is within @ref kQualityMargin of the dire-CPU threshold.
 [[nodiscard]] bool useCrude(uint32_t selection_increment, int32_t cpu_direness) {
-	return fixed::getTableNumber(selection_increment).first < cpu_direness + kQualityMargin;
+	return fixed::get_table_number(selection_increment).first < cpu_direness + kQualityMargin;
 }
 
 } // namespace
 
-void Sine::renderBlock(const BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch) {
+void Sine::render_block(const BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch) {
 	// Sine has no aliasing — a single band (the small sine table) covers every pitch.
-	static const fixed::Band kSineBand[] = {{deluge::dsp::fixed::tables::sine_small.data(), 8, 0xFFFFFFFFu}};
+	static const fixed::Band kSineBand[] = {{deluge::dsp::fixed::tables::kSineSmall.data(), 8, 0xFFFFFFFFu}};
 	static const fixed::BandlimitedTable kSineTable{kSineBand};
 	// Retrigger shifts a quarter-cycle past half (3/4 cycle); its pulse-as-sync self-sync master shifts back 3/4.
 	const uint32_t retrigger = controls.retrigger_phase + kThreeQuarterCycle;
@@ -232,7 +232,7 @@ void Sine::renderBlock(const BlockControls& controls, fixed::Buffer output, fixe
 	phasor_.seek(r.render.phase());
 }
 
-void Triangle::renderBlock(const BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch) {
+void Triangle::render_block(const BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch) {
 	// Triangle takes no retrigger or self-sync resetter tweak.
 	Resolved r = resolveMultiply(phasor_, controls, controls.retrigger_phase, 0u);
 	if (r.render.increment() < kTriangleCrudeIncrement || controls.cpu_direness >= 7) {
@@ -254,7 +254,7 @@ void Triangle::renderBlock(const BlockControls& controls, fixed::Buffer output, 
 	phasor_.seek(r.render.phase());
 }
 
-void Saw::renderBlock(const BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch) {
+void Saw::render_block(const BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch) {
 	// Retrigger shifts half a cycle; its pulse-as-sync self-sync master shifts the same.
 	const uint32_t retrigger = controls.retrigger_phase + kHalfCycle;
 	Resolved r = resolveMultiply(phasor_, controls, retrigger, kHalfCycle);
@@ -278,7 +278,7 @@ void Saw::renderBlock(const BlockControls& controls, fixed::Buffer output, fixed
 	phasor_.seek(r.render.phase());
 }
 
-void Square::renderBlock(const BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch) {
+void Square::render_block(const BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch) {
 	// The square's pulse is the *perfect* pulse (not pulse-as-sync), so its render phase is never rewritten — only
 	// a real sync resets it. The width is offset half a cycle, and the band is mildly limited (×0.6) when pulsing.
 	const bool pulse_wave = (controls.pulse_width != 0);
@@ -309,11 +309,11 @@ void Square::renderBlock(const BlockControls& controls, fixed::Buffer output, fi
 	                  controls.retrigger_phase, controls.apply_amplitude, output, scratch, phasor_);
 }
 
-void AnalogSaw::renderBlock(const BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch) {
+void AnalogSaw::render_block(const BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch) {
 	// At a high band number on a dire CPU, downgrade to the crude digital saw. The downgrade keeps the digital
 	// saw's self-sync resetter tweak (+half cycle) but — matching the legacy — *not* its retrigger tweak (the
 	// analog saw never gets that). The decision is on the original pitch.
-	const int32_t table_number = fixed::getTableNumber(phasor_.increment()).first;
+	const int32_t table_number = fixed::get_table_number(phasor_.increment()).first;
 	const bool downgrade =
 	    (table_number >= kAnalogSawDowngradeBand && table_number < controls.cpu_direness + kQualityMargin);
 	if (downgrade) {
@@ -337,7 +337,7 @@ void AnalogSaw::renderBlock(const BlockControls& controls, fixed::Buffer output,
 	phasor_.seek(r.render.phase());
 }
 
-void AnalogSquare::renderBlock(const BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch) {
+void AnalogSquare::render_block(const BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch) {
 	// Analog square's pulse-as-sync uses the "divide" rewrite; no retrigger or resetter tweak.
 	Resolved r = (controls.sync || controls.pulse_width == 0)
 	                 ? Resolved{phasor_, controls.sync, controls.retrigger_phase}

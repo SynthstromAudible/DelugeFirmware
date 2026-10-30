@@ -60,7 +60,7 @@ describe click_spec("the metronome's click as a kernel", ${
 		for (const uint32_t increment : kIncrements) {
 			for (const int32_t menu : {0, 25, 50}) {
 				const uint32_t volume = reference::Click::volume(menu);
-				for (const int32_t post_fx : {ONE_Q31, 1 << 30, 0}) {
+				for (const int32_t post_fx : {kOneQ31, 1 << 30, 0}) {
 					reference::Click ref;
 					Mono<Click> k;
 					std::vector<StereoSample> a = frames(kFrames, 0xC11C0001);
@@ -77,7 +77,7 @@ describe click_spec("the metronome's click as a kernel", ${
 						ref.render(std::span{a}.subspan(at, n), volume, post_fx);
 						if (k.on<&Click::sounding>()) {
 							k.configure({.level = multiply_32x32_rshift32(static_cast<int32_t>(volume), post_fx)});
-							k.renderBlock(std::span{b}.subspan(at, n), std::span{b}.subspan(at, n));
+							k.render_block(std::span{b}.subspan(at, n), std::span{b}.subspan(at, n));
 						}
 						expect(k.on<&Click::sounding>()).to_equal(ref.sounding);
 						at += n;
@@ -111,14 +111,14 @@ describe click_spec("the metronome's click as a kernel", ${
 		Mono<Click> k;
 		k.configure({.level = 1 << 28});
 		std::vector<StereoSample> silent(128, StereoSample{});
-		k.renderBlock(silent, silent);
+		k.render_block(silent, silent);
 		expect(k.on<&Click::sounding>()).to_be_false();
 		k.on<&Click::trigger>(kIncrements[0]);
 		for (int i = 0; i < 8; ++i) {
-			k.renderBlock(silent, silent);
+			k.render_block(silent, silent);
 		}
 		expect(k.on<&Click::sounding>()).to_be_false();
-		k.renderBlock(silent, silent);
+		k.render_block(silent, silent);
 		expect(k.on<&Click::sounding>()).to_be_false();
 	});
 });

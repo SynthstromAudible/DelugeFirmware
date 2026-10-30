@@ -69,7 +69,7 @@ EchoTrain echoes(size_t size, uint32_t native, uint32_t rate, int32_t frame, siz
 	const double delay = rate == native ? static_cast<double>(size) - 1 : static_cast<double>(size) / spin;
 
 	Processor processor;
-	processor.resetHighPass();
+	processor.reset_high_pass();
 	const DelayBlock settings{.rate = static_cast<int32_t>(rate),
 	                          .feedback = delay_workloads::kFeedback099,
 	                          .analog = false,

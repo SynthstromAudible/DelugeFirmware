@@ -37,7 +37,7 @@ struct Band {
 /// Each wave kernel (saw, square, triangle, analog saw/square) owns its LUTs and exposes only
 /// its BandlimitedTable. @ref select walks the bands and returns the first whose
 /// `max_phase_increment` covers @p phase_increment — the exact `if (inc <= X)` ladder the legacy
-/// `getTableNumber` / triangle-ladder used, so substituting it is bit-exact. Pair it with a
+/// `get_table_number` / triangle-ladder used, so substituting it is bit-exact. Pair it with a
 /// @ref BandLimitedTableOscillator, which picks the band for the current pitch and renders it.
 class BandlimitedTable {
 	std::span<const Band> bands_;
@@ -62,7 +62,7 @@ public:
 /// used by the saw/square/analog band sets. Still used app-side for the crude/quality gate
 /// (`tableNumber < cpuDireness + 6`) and the analog→saw downgrade; the band *tables* now select
 /// themselves via @ref BandlimitedTable, but the band *index* is the quality measure.
-[[nodiscard]] inline std::pair<int32_t, int32_t> getTableNumber(uint32_t phaseIncrement) {
+[[nodiscard]] inline std::pair<int32_t, int32_t> get_table_number(uint32_t phaseIncrement) {
 	if (phaseIncrement <= 1247086) {
 		return {0, 13};
 	}

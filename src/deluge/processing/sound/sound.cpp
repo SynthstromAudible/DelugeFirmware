@@ -1584,7 +1584,7 @@ doCutModFXTail:
 						waitSamplesModfx = (90 * 441);
 					}
 					int32_t waitSamples =
-					    std::max(waitSamplesModfx, static_cast<int32_t>(core().compressor().dsp().releaseMs() * 44));
+					    std::max(waitSamplesModfx, static_cast<int32_t>(core().compressor().dsp().release_ms() * 44));
 					startSkippingRenderingAtTime = AudioEngine::audioSampleTimer + waitSamples;
 				}
 
@@ -1761,7 +1761,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
                    int32_t pitchAdjust, SampleRecorder* recorder) {
 
 	if (skippingRendering) {
-		core().compressor().dsp().clearGainReduction();
+		core().compressor().dsp().clear_gain_reduction();
 		return;
 	}
 
@@ -2035,7 +2035,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			}
 			else {
 				// right to left because of in-place mono to stereo expansion
-				std::transform(sound_mono.rbegin(), sound_mono.rend(), sound_stereo.rbegin(), StereoSample::fromMono);
+				std::transform(sound_mono.rbegin(), sound_mono.rend(), sound_stereo.rbegin(), StereoSample::from_mono);
 			}
 		}
 
@@ -2912,7 +2912,7 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 	}
 	effects.mod_fx.type = this->effects().mod_fx.type;
 	setEffects(effects);
-	core().compressor().dsp().setThreshold(effects.compressor.threshold); // what a save before any render writes back
+	core().compressor().dsp().set_threshold(effects.compressor.threshold); // what a save before any render writes back
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		const deluge::instrument::SourceState& from = state.sources[s];

@@ -52,7 +52,7 @@ struct FilterScratch {
 ///
 /// **Components.** Each slot's filter is a kernel in its `Stereo` wrapper (@ref LowPassLadder over the synth's noise
 /// stream, @ref HighPassLadder, @ref Svf). A stereo block runs the wrapper over its frames; a mono block runs its left
-/// channel alone (`renderLane<0>(…)`), so a voice that moves between mono and stereo blocks keeps one state per
+/// channel alone (`render_lane<0>(…)`), so a voice that moves between mono and stereo blocks keeps one state per
 /// channel, the left carried across, as a filter holding both channels does.
 ///
 /// **The fades.** Each slot's fade is a @ref FadeInMono component the set holds beside the slot's union, not inside
@@ -82,12 +82,12 @@ public:
 
 	/// @brief Filters a mono @p block in place.
 	/// @param noise The noise stream the low-pass ladder draws from, written back after the block.
-	void renderMono(std::span<q31> block, FilterScratch scratch, Cong& noise);
+	void render_mono(std::span<q31> block, FilterScratch scratch, Cong& noise);
 
 	/// @brief Filters an interleaved L/R block in place.
 	/// @param noise The noise stream the low-pass ladder draws from, left then right in every frame, written back
 	/// after the block.
-	void renderStereo(std::span<q31> interleaved, FilterScratch scratch, Cong& noise);
+	void render_stereo(std::span<q31> interleaved, FilterScratch scratch, Cong& noise);
 
 	/// @brief Back to a new set's state: both filters off and every filter's state zero, the fades included (so the
 	/// next configure fades nothing in). Both slots read as holding a ladder, so neither the low-pass ladder nor the
@@ -96,11 +96,11 @@ public:
 	void reset();
 
 	/// @brief Whether either filter is on.
-	[[nodiscard]] bool isOn() const { return isLowPassOn() || isHighPassOn(); }
+	[[nodiscard]] bool is_on() const { return is_low_pass_on() || is_high_pass_on(); }
 	/// @brief Whether the low-pass is on.
-	[[nodiscard]] bool isLowPassOn() const { return low_slot_.kind != LowPassSlot::Kind::OFF; }
+	[[nodiscard]] bool is_low_pass_on() const { return low_slot_.kind != LowPassSlot::Kind::OFF; }
 	/// @brief Whether the high-pass is on.
-	[[nodiscard]] bool isHighPassOn() const { return high_slot_.kind != HighPassSlot::Kind::OFF; }
+	[[nodiscard]] bool is_high_pass_on() const { return high_slot_.kind != HighPassSlot::Kind::OFF; }
 
 	using LowPassLadderFilter = Stereo<LowPassLadder<>>; ///< The low-pass ladder, both channels.
 	using HighPassLadderFilter = Stereo<HighPassLadder>; ///< The high-pass ladder, both channels.
@@ -146,19 +146,19 @@ private:
 
 	/// @brief Makes the low-pass slot hold @p kind's filter (LADDER or SVF): a new one, its state zero. The slot's
 	/// fade carries on.
-	void holdLowPass(LowPassSlot::Kind kind);
+	void hold_low_pass(LowPassSlot::Kind kind);
 	/// @brief Makes the high-pass slot hold @p kind's filter (LADDER or SVF): a new one, its state zero. The slot's
 	/// fade carries on.
-	void holdHighPass(HighPassSlot::Kind kind);
+	void hold_high_pass(HighPassSlot::Kind kind);
 
 	/// @brief The low-pass over a mono block, if on.
-	void renderLowPassMono(std::span<q31> block, FadeScratch scratch, Cong& noise);
+	void render_low_pass_mono(std::span<q31> block, FadeScratch scratch, Cong& noise);
 	/// @brief The high-pass over a mono block, if on.
-	void renderHighPassMono(std::span<q31> block, FadeScratch scratch);
+	void render_high_pass_mono(std::span<q31> block, FadeScratch scratch);
 	/// @brief The low-pass over an interleaved block, if on.
-	void renderLowPassStereo(std::span<q31> interleaved, FadeScratch scratch, Cong& noise);
+	void render_low_pass_stereo(std::span<q31> interleaved, FadeScratch scratch, Cong& noise);
 	/// @brief The high-pass over an interleaved block, if on.
-	void renderHighPassStereo(std::span<q31> interleaved, FadeScratch scratch);
+	void render_high_pass_stereo(std::span<q31> interleaved, FadeScratch scratch);
 
 	LowPass low_pass_;
 	HighPass high_pass_;

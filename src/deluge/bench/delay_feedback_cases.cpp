@@ -38,8 +38,8 @@ void DelayFeedbackPassesCase<Analog>::setup(std::size_t n) {
 
 template <bool Analog>
 void DelayFeedbackPassesCase<Analog>::block(std::size_t /*n*/) {
-	shaper_.renderBlock(work_, work_);
-	high_pass_.renderBlock(work_, work_);
+	shaper_.render_block(work_, work_);
+	high_pass_.render_block(work_, work_);
 }
 
 template class DelayFeedbackPassesCase<true>;
@@ -61,10 +61,10 @@ void DelayFeedbackChainCase<Analog, P>::setup(std::size_t n) {
 template <bool Analog, Placement P>
 void DelayFeedbackChainCase<Analog, P>::block(std::size_t /*n*/) {
 	if constexpr (P == Placement::IN_PLACE) {
-		chain_.renderBlock(work_, work_);
+		chain_.render_block(work_, work_);
 	}
 	else {
-		chain_.renderBlock(spans_.in, spans_.out);
+		chain_.render_block(spans_.in, spans_.out);
 	}
 }
 

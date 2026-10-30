@@ -54,7 +54,7 @@ public:
 	explicit CrudeAmplitude(Ramp ramp) : CrudeAmplitude(ramp.value(), ramp.increment()) {}
 
 	/// out = raw * amplitude + mix (raw == @p input_a, mix == @p input_b), scalar rounded MAC.
-	void renderBlock(Signal input_a, Signal input_b, Buffer output) {
+	void render_block(Signal input_a, Signal input_b, Buffer output) {
 		for (std::size_t i = 0; i < output.size(); ++i) {
 			amplitude_ += increment_;
 			output[i] = multiply_accumulate_32x32_rshift32_rounded(input_b[i], input_a[i], amplitude_);

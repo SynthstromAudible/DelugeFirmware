@@ -89,7 +89,7 @@ describe dx7_mki_feedback_stack_spec("dx7::MkIFeedbackStack", ${
 
 					for (const uint16_t n : dx7_workloads::block_lengths_1_to_132()) {
 						reference_block<N>(reference_tables, reference_out, n, params.data(), fb, shift);
-						stack.renderBlock({out, n});
+						stack.render_block({out, n});
 						expect(std::ranges::equal(std::span{out, n}, std::span{reference_out, n})).to_be_true();
 						for (std::size_t k = 0; k < N; ++k) {
 							expect(stack.state().op[k].phase).to_equal(params[k].phase);

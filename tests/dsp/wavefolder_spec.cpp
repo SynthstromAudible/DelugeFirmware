@@ -33,7 +33,7 @@ describe wavefolder("the wavefolder", ${
 			auto expected = noise_block(9 + static_cast<uint32_t>(amount), 257);
 			auto actual = expected;
 			reference_wavefold::foldBufferPolyApproximation(expected.data(), expected.data() + expected.size(), amount);
-			Wavefolder{amount}.renderBlock(actual, actual);
+			Wavefolder{amount}.render_block(actual, actual);
 			mismatches += expected != actual ? 1 : 0;
 		}
 		expect(mismatches).to_equal(0);
@@ -43,7 +43,7 @@ describe wavefolder("the wavefolder", ${
 		const auto in = noise_block(3, 64);
 		std::vector<q31> block(64);
 		Wavefolder folder{0x30000000};
-		folder.renderBlock(in, block);
+		folder.render_block(in, block);
 		int32_t mismatches = 0;
 		for (std::size_t i = 0; i < in.size(); i++) {
 			mismatches += block[i] != folder.render(in[i]) ? 1 : 0;

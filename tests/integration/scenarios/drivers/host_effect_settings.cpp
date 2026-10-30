@@ -255,7 +255,7 @@ int roundTripLeg(Song& song, const std::vector<HostOwner>& owners) {
 		GlobalEffectable* runtime = deluge::bridge::chainOwnerAt(owner.address, song);
 		if (owner.address.kind == ChainAddress::Kind::OUTPUT && runtime != nullptr) {
 			const int32_t setting = runtime->effects().compressor.threshold;
-			runtime->core().compressor().dsp().setThreshold(setting == 0x40000000 ? 0x20000000 : 0x40000000);
+			runtime->core().compressor().dsp().set_threshold(setting == 0x40000000 ? 0x20000000 : 0x40000000);
 			thresholds.emplace_back(owner, setting);
 		}
 	}

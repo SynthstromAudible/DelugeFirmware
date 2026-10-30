@@ -88,7 +88,7 @@ int32_t LivePitchShifter::render(int32_t* __restrict__ outputBuffer, int32_t num
 
 	liveInputBuffer->giveInput(numSamplesThisFunctionCall, port, channel);
 
-	int32_t whichKernel = dsp::fixed::WindowedSincKernel::variantFor(phaseIncrement);
+	int32_t whichKernel = dsp::fixed::WindowedSincKernel::variant_for(phaseIncrement);
 
 	uint64_t numRawSamplesProcessedAtStart = liveInputBuffer->numRawSamplesProcessed - numSamplesThisFunctionCall;
 
@@ -258,7 +258,7 @@ startRenderAgain:
 
 		crossfadeProgress += crossfadeIncrement * numSamplesThisTimestretchedRead;
 
-		int32_t newerHopAmplitudeAfter = lshiftAndSaturate<7>(crossfadeProgress);
+		int32_t newerHopAmplitudeAfter = lshift_and_saturate<7>(crossfadeProgress);
 
 		int32_t newerHopAmplitudeIncrement =
 		    (int32_t)(newerHopAmplitudeAfter - newerHopAmplitudeNow) / (int32_t)numSamplesThisTimestretchedRead;
@@ -403,15 +403,15 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 	if (pitchLog >= (800 << 20) && pitchLog < (864 << 20)) {
 		int32_t position = pitchLog - (800 << 20);
 
-		minSearch = dsp::fixed::linear_table_interpolator.interpolateSigned(position, 26, minSearchFine, 4) >> 9;
-		maxSearch = dsp::fixed::linear_table_interpolator.interpolateSigned(position, 26, maxSearchFine, 4) >> 9;
+		minSearch = dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, minSearchFine, 4) >> 9;
+		maxSearch = dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, maxSearchFine, 4) >> 9;
 		percThresholdForCut =
-		    dsp::fixed::linear_table_interpolator.interpolateSigned(position, 26, percThresholdFine, 4) >> 16;
+		    dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, percThresholdFine, 4) >> 16;
 		nextCrossfadeLength =
-		    dsp::fixed::linear_table_interpolator.interpolateSigned(position, 26, crossfadeFine, 4) >> 12;
+		    dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, crossfadeFine, 4) >> 12;
 		maxHopLength =
-		    (dsp::fixed::linear_table_interpolator.interpolateSigned(position, 26, maxHopLengthFine, 4) >> 16) * 100;
-		randomElement = dsp::fixed::linear_table_interpolator.interpolateSigned(position, 26, randomFine, 4);
+		    (dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, maxHopLengthFine, 4) >> 16) * 100;
+		randomElement = dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, randomFine, 4);
 	}
 
 	// Or if outside of that...
@@ -425,15 +425,15 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 
 		int32_t position = pitchLog - (768 << 20);
 
-		minSearch = dsp::fixed::linear_table_interpolator.interpolateSigned(position, 27, minSearchCoarse, 2) >> 9;
-		maxSearch = dsp::fixed::linear_table_interpolator.interpolateSigned(position, 27, maxSearchCoarse, 2) >> 9;
+		minSearch = dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, minSearchCoarse, 2) >> 9;
+		maxSearch = dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, maxSearchCoarse, 2) >> 9;
 		percThresholdForCut =
-		    dsp::fixed::linear_table_interpolator.interpolateSigned(position, 27, percThresholdCoarse, 2) >> 16;
+		    dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, percThresholdCoarse, 2) >> 16;
 		nextCrossfadeLength =
-		    dsp::fixed::linear_table_interpolator.interpolateSigned(position, 27, crossfadeCoarse, 2) >> 12;
+		    dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, crossfadeCoarse, 2) >> 12;
 		maxHopLength =
-		    (dsp::fixed::linear_table_interpolator.interpolateSigned(position, 27, maxHopLengthCoarse, 2) >> 16) * 100;
-		randomElement = dsp::fixed::linear_table_interpolator.interpolateSigned(position, 27, randomCoarse, 2);
+		    (dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, maxHopLengthCoarse, 2) >> 16) * 100;
+		randomElement = dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, randomCoarse, 2);
 	}
 
 	/*

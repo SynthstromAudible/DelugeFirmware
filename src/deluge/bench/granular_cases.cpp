@@ -24,7 +24,7 @@ namespace {
 /// after another, so they share it; each case's setup makes the component anew.
 struct GranularRig {
 	std::optional<effects::Granular> granular; ///< The component, as a Sound's.
-	int32_t volume{ONE_Q31 >> 1};              ///< The post-effect volume the component scales (Q31).
+	int32_t volume{kOneQ31 >> 1};              ///< The post-effect volume the component scales (Q31).
 	dsp::Buffer<StereoSample> work{};          ///< The lanes output's first n frames, processed in place.
 	std::span<const StereoSample> input{};     ///< The lanes input's first n frames, the sounding block.
 	std::array<q31, kMaxBlock> send{};         ///< The reverb send the component adds its feed into, Q31.
@@ -38,7 +38,7 @@ constexpr uint32_t kNoiseSeed = 380116160;
 /// @brief One call as the owner makes it: a fresh post-effect volume and the reverb amount derived from it.
 /// @param config The case's knobs.
 void render_block(const GranularConfig& config) {
-	rig.volume = ONE_Q31 >> 1;
+	rig.volume = kOneQ31 >> 1;
 	const effects::GranularInputs in{
 	    .rate = kGranularRate,
 	    .mix = kGranularMix,

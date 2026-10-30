@@ -79,14 +79,16 @@ CheckOptions:
   - { key: readability-identifier-naming.VariableCase,        value: lower_case }
   # Constants are kCamelCase (kMaxNumSections) at every scope: namespace, class and function-local constexpr alike.
   # Metaprogramming follows the standard library instead: trait structs and concepts are snake_case, and a
-  # constexpr variable template ends in _v (is_same_v) — the one spelling of a constexpr that skips the k.
+  # constexpr variable template ends in _v (is_same_v) and a trait's result is `value` — the spellings of a
+  # constexpr that skip the k.
   - { key: readability-identifier-naming.GlobalConstantCase,    value: CamelCase }
   - { key: readability-identifier-naming.GlobalConstantPrefix,  value: k         }
   - { key: readability-identifier-naming.ClassConstantCase,     value: CamelCase }
   - { key: readability-identifier-naming.ClassConstantPrefix,   value: k         }
   - { key: readability-identifier-naming.ConstexprVariableCase,    value: CamelCase  }
   - { key: readability-identifier-naming.ConstexprVariablePrefix,  value: k          }
-  - { key: readability-identifier-naming.ConstexprVariableIgnoredRegexp, value: '^[a-z][a-z0-9_]*_v$' }
+  - { key: readability-identifier-naming.ConstexprVariableIgnoredRegexp, value: '^([a-z][a-z0-9_]*_v|value)$' }
+  - { key: readability-identifier-naming.ClassConstantIgnoredRegexp,     value: '^value$' }
   - { key: readability-identifier-naming.StructIgnoredRegexp,      value: '^[a-z][a-z0-9_]*$' }
   - { key: readability-identifier-naming.ConceptCase,              value: lower_case }
   - { key: readability-identifier-naming.MacroDefinitionCase, value: UPPER_CASE }

@@ -98,7 +98,7 @@ void ModFx::render(std::span<dsp::StereoSample> block, const ModFxInputs& in, in
 	if (ring_type && !holdsRing()) {
 		return;
 	}
-	mono_.renderBlock(block, block, noise);
+	mono_.render_block(block, block, noise);
 }
 
 void ModFx::tick(int32_t frames, int32_t rate) {

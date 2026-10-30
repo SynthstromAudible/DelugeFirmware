@@ -60,7 +60,7 @@ public:
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 
 	/// Change the per-sample phase step for the next block (pitch change), keeping the accumulated phase.
-	void setIncrement(uint32_t increment) { phasor_.setIncrement(increment); }
+	void set_increment(uint32_t increment) { phasor_.set_increment(increment); }
 
 	[[gnu::always_inline]] Argon<q31> render() {
 		const uint32_t phase = phasor_.phase();

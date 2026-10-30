@@ -61,7 +61,7 @@ namespace detail {
 /// are calls under `-fno-inline-functions`, and this runs once per step.
 /// @param channels The left and right vectors, in that order.
 /// @return The same two vectors as a StereoVector.
-[[nodiscard, gnu::always_inline]] inline StereoVector toStereo(const std::array<Argon<q31>, 2>& channels) {
+[[nodiscard, gnu::always_inline]] inline StereoVector to_stereo(const std::array<Argon<q31>, 2>& channels) {
 	static_assert(sizeof(StereoVector) == sizeof(channels));
 	return __builtin_bit_cast(StereoVector, channels);
 }

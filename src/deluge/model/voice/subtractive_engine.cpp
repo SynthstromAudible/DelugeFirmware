@@ -114,7 +114,7 @@ void SubtractiveEngine::render(Voice& voice, ParamManagerForTimeline* paramManag
 	if (unisonPartBecameInactive && voice.areAllUnisonPartsInactive(cfg)) {
 
 		// If no filters, we can just unassign
-		if (!voice.filterSet.isOn()) {
+		if (!voice.filterSet.is_on()) {
 			unassignVoiceAfter = true;
 		}
 

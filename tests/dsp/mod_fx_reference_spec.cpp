@@ -59,7 +59,7 @@ constexpr std::size_t kMaxDraws = 1 << 16;
 /// @return How many times the two warblers of @p workload cross their period boundaries: one draw for each, counted
 /// from the phases alone. The first LFO runs at the rate; the second at 0.97 of it.
 [[nodiscard]] std::size_t expected_warble_draws(const mw::ModFxWorkload& workload) {
-	constexpr q31_t width = 0.97 * ONE_Q31;
+	constexpr q31_t width = 0.97 * kOneQ31;
 	std::size_t frames = 0;
 	for (const mw::ModFxBlock& block : workload.blocks) {
 		frames += block.n;

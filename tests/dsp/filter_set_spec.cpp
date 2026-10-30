@@ -81,12 +81,12 @@ struct Rig {
 	}
 	std::vector<int32_t> mono(const std::vector<int32_t>& in) {
 		std::vector<int32_t> block = in;
-		set.renderMono(block, {.fade = fade, .parallel = parallel}, deluge::synth_noise);
+		set.render_mono(block, {.fade = fade, .parallel = parallel}, deluge::synth_noise);
 		return block;
 	}
 	std::vector<int32_t> stereo(const std::vector<int32_t>& in) {
 		std::vector<int32_t> block = in;
-		set.renderStereo(block, {.fade = fade, .parallel = parallel}, deluge::synth_noise);
+		set.render_stereo(block, {.fade = fade, .parallel = parallel}, deluge::synth_noise);
 		return block;
 	}
 };
@@ -488,16 +488,16 @@ describe filter_set("FilterSet", ${
 	});
 	it("reports which filters are on", _ {
 		Rig rig;
-		expect(rig.set.isOn()).to_be_false();
+		expect(rig.set.is_on()).to_be_false();
 		std::ignore = rig.configure(kLow24, kHighOff);
-		expect(rig.set.isOn()).to_be_true();
-		expect(rig.set.isLowPassOn()).to_be_true();
-		expect(rig.set.isHighPassOn()).to_be_false();
+		expect(rig.set.is_on()).to_be_true();
+		expect(rig.set.is_low_pass_on()).to_be_true();
+		expect(rig.set.is_high_pass_on()).to_be_false();
 		std::ignore = rig.configure(kLowOff, kHighBand);
-		expect(rig.set.isLowPassOn()).to_be_false();
-		expect(rig.set.isHighPassOn()).to_be_true();
+		expect(rig.set.is_low_pass_on()).to_be_false();
+		expect(rig.set.is_high_pass_on()).to_be_true();
 		rig.set.reset();
-		expect(rig.set.isOn()).to_be_false();
+		expect(rig.set.is_on()).to_be_false();
 	});
 });
 // clang-format on

@@ -95,7 +95,7 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 			using deluge::dsp::fixed::Supersaw;
 			if (oscRetriggerPhase != 0xFFFFFFFF) {
 				// The side saws start at fixed offsets from the centre one, so every note starts the same way
-				supersawSource.emplace(seedPhase, Supersaw::sidePhasesFrom(seedPhase));
+				supersawSource.emplace(seedPhase, Supersaw::side_phases_from(seedPhase));
 			}
 			else if (resetEverything || !supersawSource.has_value()) {
 				// Free-running on a new voice: random side saws like the centre one, otherwise every note's side saws

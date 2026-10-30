@@ -30,7 +30,7 @@ bool SendAndVolume::process(std::span<dsp::StereoSample> block, std::span<int32_
 	    .ramp = params.ramp,
 	    .stereo = params.stereo,
 	});
-	gains_.renderBlock(block, block);
+	gains_.render_block(block, block);
 	return params.reverb_send != 0;
 }
 

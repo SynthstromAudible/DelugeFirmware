@@ -39,10 +39,10 @@ alignas(16) inline constexpr std::array<float, 8> kDetuneOffsets = {
 inline constexpr float kMaxSpread = 0.6f;
 
 // As spread goes up the centre saw fades down and the side saws come up (Szabo's mix curves), before normalising
-constexpr float centreMix(float spread) {
+constexpr float centre_mix(float spread) {
 	return 0.99785f - 0.55366f * spread;
 }
-constexpr float sideMix(float spread) {
+constexpr float side_mix(float spread) {
 	return (1.2841f - 0.73764f * spread) * spread + 0.044372f;
 }
 
@@ -59,7 +59,7 @@ public:
 
 	/// Side phases spread around the centre phase, so a retriggered supersaw always starts the same way and the saws
 	/// don't start out in phase with each other. Each is another golden ratio of a cycle on from the last.
-	static constexpr SidePhases sidePhasesFrom(uint32_t centrePhase) {
+	static constexpr SidePhases side_phases_from(uint32_t centrePhase) {
 		SidePhases phases{};
 		for (size_t i = 0; i < phases.size(); i++) {
 			phases[i] = centrePhase + static_cast<uint32_t>(i + 1) * 0x9E3779B9u;
@@ -69,18 +69,18 @@ public:
 
 	/// Pulse width takes saws away: all of them at zero, down to just the centre saw at full. Negative values (from
 	/// patching) count the same as positive, as they do for the other oscillators' pulse width.
-	static constexpr int32_t numSawsFromPulseWidth(uint32_t pulseWidth) {
-		uint32_t pulseWidthAbsolute = (static_cast<int32_t>(pulseWidth) >= 0) ? pulseWidth : -pulseWidth;
-		auto removed = static_cast<int32_t>((static_cast<uint64_t>(pulseWidthAbsolute) * kNumSaws) >> 31);
+	static constexpr int32_t num_saws_from_pulse_width(uint32_t pulseWidth) {
+		uint32_t pulse_width_absolute = (static_cast<int32_t>(pulseWidth) >= 0) ? pulseWidth : -pulseWidth;
+		auto removed = static_cast<int32_t>((static_cast<uint64_t>(pulse_width_absolute) * kNumSaws) >> 31);
 		return kNumSaws - std::min<int32_t>(removed, kNumSaws - 1);
 	}
 
 	/// Render, overwriting @p out, at the same RMS level as a single saw with a peak of 2^29. Writes in blocks of 4, so
 	/// the memory behind @p out must have room for its size rounded up to a multiple of 4.
 	/// @param spread Bipolar, +-2^30, as the wave index param
-	/// @param numSaws 1 to kNumSaws. Saws are added as the centre, then pairs from the outside in
+	/// @param num_saws 1 to kNumSaws. Saws are added as the centre, then pairs from the outside in
 	/// @param bandLimit Whether to apply the polyBLEP. Without it the saws alias, but it saves CPU when that's dire
-	static void render(Buffer out, uint32_t phaseIncrement, int32_t spread, int32_t numSaws, uint32_t& centrePhase,
+	static void render(Buffer out, uint32_t phaseIncrement, int32_t spread, int32_t num_saws, uint32_t& centrePhase,
 	                   SidePhases& sidePhases, bool bandLimit);
 };
 

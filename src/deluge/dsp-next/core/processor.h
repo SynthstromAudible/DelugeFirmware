@@ -34,7 +34,7 @@ struct BlockProcessor {
 	using value_type = T; ///< The sample type of the blocks.
 	virtual ~BlockProcessor() = default;
 	/// @brief Process `output.size()` samples of @p input into @p output, which may be the same buffer.
-	virtual void renderBlock(Signal<T> input, Buffer<T> output) = 0;
+	virtual void render_block(Signal<T> input, Buffer<T> output) = 0;
 };
 
 namespace detail {
@@ -59,7 +59,7 @@ concept scalar_processor_render = requires(D d, T s) {
 
 } // namespace detail
 
-/// @brief CRTP mixin: builds a processor's `renderBlock` from its `render(...)`.
+/// @brief CRTP mixin: builds a processor's `render_block` from its `render(...)`.
 /// @tparam Derived the component, which defines `render(...)`.
 /// @tparam T the sample type of the blocks (`q31`, `f32` or @ref StereoSample).
 /// @details Non-virtual: the mixin adds no vptr and no state. The path is chosen from the signature of
@@ -84,7 +84,7 @@ struct Processor {
 
 	/// @brief Process `output.size()` samples of @p input into @p output, every one of them.
 	/// @param input at least `output.size()` samples; may be the same buffer as @p output.
-	void renderBlock(Signal<T> input, Buffer<T> output) {
+	void render_block(Signal<T> input, Buffer<T> output) {
 		auto& self = static_cast<Derived&>(*this);
 		const std::size_t n = output.size();
 		if constexpr (detail::simd_processor_render<Derived, T>) {
@@ -99,7 +99,7 @@ struct Processor {
 			const q31* in = detail::interleaved(input);
 			q31* out = detail::interleaved(output);
 			argon::vectorize::for_each_interleaved<q31, 2>(size, [&] [[gnu::always_inline]] (auto step) {
-				const StereoVector frames = self.render(detail::toStereo(step.Load(in)));
+				const StereoVector frames = self.render(detail::to_stereo(step.Load(in)));
 				step.Store(out, {frames.l, frames.r});
 			});
 		}

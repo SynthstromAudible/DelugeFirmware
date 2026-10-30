@@ -58,7 +58,7 @@ uint32_t delay_off_silenced_blocks() {
 }
 
 TapeShape tape_shape(uint32_t rate, bool include_extra_space) {
-	const auto [size, clamped] = DelayTape::idealSizeForRate(rate);
+	const auto [size, clamped] = DelayTape::ideal_size_for_rate(rate);
 	const auto played = static_cast<std::size_t>(size);
 	return {.size = played,
 	        .frames = played + (include_extra_space ? static_cast<std::size_t>(DelayTape::kWriteLag) : 0),
@@ -68,7 +68,7 @@ TapeShape tape_shape(uint32_t rate, bool include_extra_space) {
 DelayTape make_tape(std::span<dsp::StereoSample> storage, TapeShape shape, uint32_t rate) {
 	DelayTape tape{storage.first(shape.frames), shape.size, rate};
 	if (shape.clamped) {
-		tape.makeNativeRatePrecise();
+		tape.make_native_rate_precise();
 	}
 	return tape;
 }
@@ -96,8 +96,8 @@ bool Delay::takeTape(DelayTape& tape, uint32_t rate, uint32_t failIfThisSize) {
 }
 
 void Delay::giveBack(DelayTape& tape) {
-	if (tape.isActive()) {
-		arena_->give_back(tape.begin(), tape.sizeIncludingExtra());
+	if (tape.is_active()) {
+		arena_->give_back(tape.begin(), tape.size_including_extra());
 		tape = {};
 	}
 }
@@ -114,22 +114,22 @@ void Delay::informWhetherActive(bool newActive, int32_t userDelayRate) {
 			return;
 		}
 		prepareToBeginWriting();
-		processor_.resetHighPass();
+		processor_.reset_high_pass();
 		return;
 	}
 
 	// Already active, with nothing written yet: a secondary sized for a rate that has since changed is replaced
 	// before writing starts.
-	if (previouslyActive && !primary_.isActive() && secondary_.isActive()
+	if (previouslyActive && !primary_.is_active() && secondary_.is_active()
 	    && sizeLeftUntilBufferSwap_ == getAmountToWriteBeforeReadingBegins()) {
-		const auto [idealBufferSize, clamped] = DelayTape::idealSizeForRate(userDelayRate);
+		const auto [idealBufferSize, clamped] = DelayTape::ideal_size_for_rate(userDelayRate);
 		if (static_cast<std::size_t>(idealBufferSize) != secondary_.size()) {
 			giveBack(secondary_);
 			if (!takeTape(secondary_, userDelayRate, 0)) {
 				return;
 			}
 			prepareToBeginWriting();
-			processor_.resetHighPass();
+			processor_.reset_high_pass();
 		}
 	}
 }
@@ -245,11 +245,11 @@ void Delay::initializeSecondaryBuffer(int32_t newNativeRate, bool makeNativeRate
 		return;
 	}
 	if (makeNativeRatePreciseRelativeToOtherBuffer) {
-		primary_.makeNativeRatePreciseRelativeTo(secondary_);
+		primary_.make_native_rate_precise_relative_to(secondary_);
 	}
 	else {
-		primary_.makeNativeRatePrecise();
-		secondary_.makeNativeRatePrecise();
+		primary_.make_native_rate_precise();
+		secondary_.make_native_rate_precise();
 	}
 	sizeLeftUntilBufferSwap_ = static_cast<int32_t>(secondary_.size()) + 5;
 }
@@ -268,25 +268,25 @@ void Delay::process(std::span<dsp::StereoSample> buffer, const State& delayWorki
 	}
 
 	// With one tape reading and writing, a second may be started at a new size.
-	if (!secondary_.isActive()) {
+	if (!secondary_.is_active()) {
 		const auto rate = static_cast<uint32_t>(delayWorkingState.userDelayRate);
-		if (primary_.resampling() || rate != primary_.nativeRate()) {
+		if (primary_.resampling() || rate != primary_.native_rate()) {
 			// The rate has settled for a split second: a tape native to it.
 			if (countCyclesWithoutChange_ >= kSettleFrames) {
 				initializeSecondaryBuffer(delayWorkingState.userDelayRate, true);
 			}
 			// At double the native rate or more the tape is needlessly large: a smaller one at the new rate.
-			else if (rate >= (primary_.nativeRate() << 1)) {
+			else if (rate >= (primary_.native_rate() << 1)) {
 				initializeSecondaryBuffer(delayWorkingState.userDelayRate, false);
 			}
 			// Below half the native rate the quality suffers: a tape whose native rate is half the new rate.
-			else if (rate < primary_.nativeRate() >> 1) {
+			else if (rate < primary_.native_rate() >> 1) {
 				initializeSecondaryBuffer(delayWorkingState.userDelayRate >> 1, false);
 			}
 		}
 	}
 
-	DelayTape* const growing = secondary_.isActive() ? &secondary_ : nullptr;
+	DelayTape* const growing = secondary_.is_active() ? &secondary_ : nullptr;
 	const dsp::fixed::DelayBlockResult result =
 	    processor_.process(buffer, &primary_, growing,
 	                       {.rate = delayWorkingState.userDelayRate,

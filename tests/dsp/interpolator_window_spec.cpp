@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Pins the Interpolator's tap-window feed (pushL / pushR / jumpForward, the NEON `vext` shift) against the
+// Pins the Interpolator's tap-window feed (pushL / pushR / jump_forward, the NEON `vext` shift) against the
 // element-by-element loop it replaces, for every shift distance and over long random feeds the way the sample
 // reader and live pitch shifter drive it (shift, then refill the vacated head slots).
 
@@ -29,7 +29,7 @@ namespace {
 using deluge::dsp::fixed::Interpolator;
 using Window = Interpolator::Window;
 
-// The loop Interpolator::shiftWindow used before the NEON shift
+// The loop Interpolator::shift_window used before the NEON shift
 void reference_shift(Window& window, int32_t n) {
 	for (int32_t i = kInterpolationMaxNumSamples - 1; i >= n; i--) {
 		window[i] = window[i - n];
@@ -56,7 +56,7 @@ bool retained_taps_match(const Window& actual, const Window& expected, int32_t n
 
 // clang-format off
 describe interpolator_window("deluge::dsp::fixed Interpolator tap-window shift", ${
-	it("keeps every retained tap for each jumpForward distance 0 ... 17", _ {
+	it("keeps every retained tap for each jump_forward distance 0 ... 17", _ {
 		for (int32_t n = 0; n <= kInterpolationMaxNumSamples + 1; n++) {
 			Interpolator interpolator;
 			interpolator.buffer_l = distinct_window(100);
@@ -66,7 +66,7 @@ describe interpolator_window("deluge::dsp::fixed Interpolator tap-window shift",
 			reference_shift(expected_l, n);
 			reference_shift(expected_r, n);
 
-			interpolator.jumpForward(n);
+			interpolator.jump_forward(n);
 
 			expect(retained_taps_match(interpolator.buffer_l, expected_l, n)).to_be_true();
 			expect(retained_taps_match(interpolator.buffer_r, expected_r, n)).to_be_true();
@@ -80,13 +80,13 @@ describe interpolator_window("deluge::dsp::fixed Interpolator tap-window shift",
 		Window expected_l = interpolator.buffer_l;
 		Window expected_r = interpolator.buffer_r;
 
-		interpolator.pushL(7);
+		interpolator.push_l(7);
 		reference_shift(expected_l, 1);
 		expected_l[0] = 7;
 		expect(interpolator.buffer_l == expected_l).to_be_true();
 		expect(interpolator.buffer_r == expected_r).to_be_true(); // untouched
 
-		interpolator.pushR(-7);
+		interpolator.push_r(-7);
 		reference_shift(expected_r, 1);
 		expected_r[0] = -7;
 		expect(interpolator.buffer_r == expected_r).to_be_true();
@@ -102,7 +102,7 @@ describe interpolator_window("deluge::dsp::fixed Interpolator tap-window shift",
 		Window expected_r{};
 		for (int32_t step = 0; step < 20000; step++) {
 			int32_t n = distance(rng);
-			interpolator.jumpForward(n);
+			interpolator.jump_forward(n);
 			reference_shift(expected_l, n);
 			reference_shift(expected_r, n);
 			for (int32_t i = n - 1; i >= 0; i--) {

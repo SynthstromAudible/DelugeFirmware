@@ -87,11 +87,11 @@ struct kernel_block<K> {
 
 /// @brief Whether @p T is a ModeList.
 template <typename T>
-inline constexpr bool is_mode_list = false;
+inline constexpr bool is_mode_list_v = false;
 
 /// @brief Whether @p T is a ModeList.
 template <auto... Ms>
-inline constexpr bool is_mode_list<ModeList<Ms...>> = true;
+inline constexpr bool is_mode_list_v<ModeList<Ms...>> = true;
 
 /// @brief The first mode of a ModeList: the one the kernel concepts check `step` at.
 template <typename List>
@@ -114,7 +114,7 @@ template <typename K>
 concept has_modes = requires {
 	typename K::Modes;
 	typename K::Coefficients;
-} && is_mode_list<typename K::Modes> && requires {
+} && is_mode_list_v<typename K::Modes> && requires {
 	requires std::same_as<std::remove_cv_t<decltype(K::Coefficients::mode)>,
 	                      std::remove_cv_t<decltype(first_mode_v<typename K::Modes>)>>;
 };
@@ -336,16 +336,16 @@ concept advances_exactly_at = requires { static_cast<advance_fn<K>*>(&K::templat
 
 /// @brief Whether moded K's `advance<M>` has the exact signature at every mode of the ModeList @p List.
 template <typename K, typename List>
-inline constexpr bool advances_at_every_mode = false;
+inline constexpr bool advances_at_every_mode_v = false;
 
 /// @brief Whether moded K's `advance<M>` has the exact signature at every mode of the ModeList @p List.
 template <typename K, auto... Ms>
-inline constexpr bool advances_at_every_mode<K, ModeList<Ms...>> = (advances_exactly_at<K, Ms> && ...);
+inline constexpr bool advances_at_every_mode_v<K, ModeList<Ms...>> = (advances_exactly_at<K, Ms> && ...);
 
 /// @brief Whether moded K's `advance<M>` is exactly `static value_type advance(const Coefficients&, State&,
 /// std::size_t)` at every listed mode.
 template <typename K>
-concept moded_advances_blocks = has_modes<K> && advances_at_every_mode<K, typename K::Modes>;
+concept moded_advances_blocks = has_modes<K> && advances_at_every_mode_v<K, typename K::Modes>;
 
 /// @brief Whether K, which has no modes, has exactly `static value_type advance(const Coefficients&, State&,
 /// std::size_t)`.
@@ -362,9 +362,10 @@ concept advances_blocks = moded_advances_blocks<K> || unmoded_advances_blocks<K>
 
 /// @brief How many of the five forms K provides; a kernel provides exactly one.
 template <typename K>
-inline constexpr int kernel_form_count = static_cast<int>(steps_as_generator<K>)
-                                         + static_cast<int>(steps_as_processor<K>) + static_cast<int>(steps_as_mixer<K>)
-                                         + static_cast<int>(processes_blocks<K>) + static_cast<int>(advances_blocks<K>);
+inline constexpr int kernel_form_count_v =
+    static_cast<int>(steps_as_generator<K>) + static_cast<int>(steps_as_processor<K>)
+    + static_cast<int>(steps_as_mixer<K>) + static_cast<int>(processes_blocks<K>)
+    + static_cast<int>(advances_blocks<K>);
 
 /// @brief Whether K is a non-final class declaring the types every kernel has.
 template <typename K>
@@ -424,12 +425,12 @@ concept reset_well_formed = !declares_reset<K> || resets_exactly<K>;
 /// output buffer may alias the component, as with any member State, so the compiler cannot assume the buffer and the
 /// State are disjoint. A kernel declaring it is never @ref lane_packable.
 template <typename K>
-inline constexpr bool state_in_place = false;
+inline constexpr bool state_in_place_v = false;
 
 /// @brief Whether the wrappers step K's member loop state in place; K declares `kStateInPlace` as a `const bool`.
 template <typename K>
 requires std::same_as<std::remove_cv_t<decltype(K::kStateInPlace)>, bool>
-inline constexpr bool state_in_place<K> = K::kStateInPlace;
+inline constexpr bool state_in_place_v<K> = K::kStateInPlace;
 
 } // namespace detail
 
@@ -459,14 +460,14 @@ using loop_state_t = typename detail::loop_state_of<K>::type;
 /// The generator and processor concepts require that overload when this is true, and reject the declaration on a
 /// scalar step; the mixer and staged concepts reject it, having no partial step.
 template <typename K>
-inline constexpr bool partial_step_advances_by_count = false;
+inline constexpr bool partial_step_advances_by_count_v = false;
 
 /// @brief Whether K's partial last vector advances its state by the active lane count (true) or a whole vector.
 template <typename K>
 requires std::same_as<std::remove_cv_t<decltype(K::kPartialStepAdvancesByCount)>, bool>
-inline constexpr bool partial_step_advances_by_count<K> = K::kPartialStepAdvancesByCount;
+inline constexpr bool partial_step_advances_by_count_v<K> = K::kPartialStepAdvancesByCount;
 
-/// @brief N consecutive vectors, one per chain of a chained step (see @ref chains_of): a built-in array, so reading
+/// @brief N consecutive vectors, one per chain of a chained step (see @ref chains_of_v): a built-in array, so reading
 /// one is an index, not a call, at any inlining flags.
 template <typename T, std::size_t N>
 struct ChainVectors {
@@ -483,12 +484,12 @@ struct ChainVectors {
 /// `Mono` runs every whole group of N vectors through it, then the rest of the block, the partial vector included,
 /// through `step`. Only `Mono`'s q31 vector loop runs chains: a scalar or stereo kernel declaring kChains is rejected.
 template <typename K>
-inline constexpr std::size_t chains_of = 1;
+inline constexpr std::size_t chains_of_v = 1;
 
 /// @brief K's chain count, when it declares one: a `std::size_t`, or the build fails here rather than ignoring it.
 template <typename K>
 requires requires { K::kChains; }
-inline constexpr std::size_t chains_of<K> = [] {
+inline constexpr std::size_t chains_of_v<K> = [] {
 	static_assert(std::same_as<std::remove_cv_t<decltype(K::kChains)>, std::size_t>, "kChains must be a std::size_t");
 	static_assert(K::kChains > 1, "kChains must be more than one chain");
 	return K::kChains;
@@ -526,8 +527,8 @@ concept kernel_base =
 /// `step(c, b, s, ActiveLanes) -> step_type`.
 /// @details Checked at K's first mode, or at the non-template step when K has no modes.
 template <typename K>
-concept generator_kernel = kernel_base<K> && detail::kernel_form_count<K> == 1 && detail::steps_as_generator<K>
-                           && (!partial_step_advances_by_count<K>
+concept generator_kernel = kernel_base<K> && detail::kernel_form_count_v<K> == 1 && detail::steps_as_generator<K>
+                           && (!partial_step_advances_by_count_v<K>
                                || (!detail::scalar_step_kernel<K> && detail::steps_with_context<K, ActiveLanes>));
 
 /// @brief A kernel transforming its input: `step(c, b, s, x) -> step_type`, and no other form. When K declares
@@ -536,16 +537,16 @@ concept generator_kernel = kernel_base<K> && detail::kernel_form_count<K> == 1 &
 /// @details Checked at K's first mode, or at the non-template step when K has no modes.
 template <typename K>
 concept processor_kernel =
-    kernel_base<K> && detail::kernel_form_count<K> == 1 && detail::steps_as_processor<K>
-    && (!partial_step_advances_by_count<K>
+    kernel_base<K> && detail::kernel_form_count_v<K> == 1 && detail::steps_as_processor<K>
+    && (!partial_step_advances_by_count_v<K>
         || (!detail::scalar_step_kernel<K> && detail::steps_with_context<K, typename K::step_type, ActiveLanes>));
 
 /// @brief A kernel combining two inputs: `step(c, b, s, a, b2) -> step_type`, and no other form.
 /// @details Checked at K's first mode, or at the non-template step when K has no modes. A mixer has no counted
 /// partial step, so it must not declare kPartialStepAdvancesByCount.
 template <typename K>
-concept mixer_kernel = kernel_base<K> && detail::kernel_form_count<K> == 1
-                       && detail::steps_as_mixer<K> && !partial_step_advances_by_count<K>;
+concept mixer_kernel = kernel_base<K> && detail::kernel_form_count_v<K> == 1
+                       && detail::steps_as_mixer<K> && !partial_step_advances_by_count_v<K>;
 
 /// @brief A block-staged kernel: process(c, s, Signal<value_type>, Buffer<value_type>) instead of step.
 /// @details For arithmetic that reads a whole block, shapes it, then writes the whole block (the delay's tape I/O);
@@ -561,8 +562,8 @@ concept mixer_kernel = kernel_base<K> && detail::kernel_form_count<K> == 1
 ///
 /// It has no step, so it declares no `kLoopState`.
 template <typename K>
-concept staged_kernel = kernel_base<K> && detail::kernel_form_count<K> == 1 && detail::processes_blocks<K>
-                        && !partial_step_advances_by_count<K> && !detail::declares_prepare<K>
+concept staged_kernel = kernel_base<K> && detail::kernel_form_count_v<K> == 1 && detail::processes_blocks<K>
+                        && !partial_step_advances_by_count_v<K> && !detail::declares_prepare<K>
                         && !detail::declares_loop_state<K> && !detail::declares_context<K>;
 
 /// @brief A block-rate kernel: `advance(c, s, n) -> value_type` moves a control signal on by a whole block of @c n
@@ -583,9 +584,9 @@ concept staged_kernel = kernel_base<K> && detail::kernel_form_count<K> == 1 && d
 /// - declares no `kLoopState`: it has no step.
 template <typename K>
 concept control_kernel =
-    kernel_base<K> && detail::kernel_form_count<K> == 1
+    kernel_base<K> && detail::kernel_form_count_v<K> == 1
     && detail::advances_blocks<K> && detail::scalar_step_kernel<K> && !detail::declares_prepare<K>
-    && !partial_step_advances_by_count<K> && !detail::declares_loop_state<K> && !detail::declares_context<K>;
+    && !partial_step_advances_by_count_v<K> && !detail::declares_loop_state<K> && !detail::declares_context<K>;
 
 /// @brief A kernel of any form; a class satisfies at most one of the five form concepts.
 template <typename K>
@@ -663,7 +664,7 @@ concept lane_packable =
     (generator_kernel<K> || processor_kernel<K> || mixer_kernel<K>)
     && std::same_as<typename K::value_type, q31> && std::same_as<typename K::step_type, q31>
     && detail::declares_lane_packable<K> && !detail::declares_prepare<K> && !detail::declares_reset<K>
-    && !detail::declares_loop_state<K> && !detail::state_in_place<K> && !detail::declares_context<K>
+    && !detail::declares_loop_state<K> && !detail::state_in_place_v<K> && !detail::declares_context<K>
     && detail::state_written_over_value<K, detail::ProbePack> && detail::steps_packed<K, detail::ProbePack>;
 
 namespace detail {
@@ -674,7 +675,7 @@ namespace detail {
 /// over its value type. `Lanes` rejects such a kernel rather than step it lane by lane unannounced.
 template <typename K>
 concept lane_pack_opt_in_met = !declares_lane_packable<K> || declares_prepare<K> || declares_reset<K>
-                               || declares_loop_state<K> || state_in_place<K> || lane_packable<K>;
+                               || declares_loop_state<K> || state_in_place_v<K> || lane_packable<K>;
 
 } // namespace detail
 
@@ -699,7 +700,7 @@ concept event_takes_state = std::is_invocable_v<decltype(Event), typename K::Sta
 
 /// @brief False for every @p Event, so that a `static_assert` on it fails only when instantiated.
 template <auto Event>
-inline constexpr bool unsupported_event = false;
+inline constexpr bool unsupported_event_v = false;
 
 /// @brief Run the event @p Event on @p state: with @p coefficients when it takes them, else without.
 /// @tparam K The kernel whose State the event changes.
@@ -717,7 +718,7 @@ template <typename K, auto Event, typename... A>
 		return Event(state, std::forward<A>(args)...);
 	}
 	else {
-		static_assert(unsupported_event<Event>,
+		static_assert(unsupported_event_v<Event>,
 		              "an event is event(const Coefficients&, State&, args...) or event(State&, args...)");
 	}
 }

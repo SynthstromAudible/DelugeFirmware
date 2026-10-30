@@ -66,10 +66,10 @@ constexpr int kNumEdges = static_cast<int>(sizeof(kEdges) / sizeof(kEdges[0]));
 
 void emitPair(int32_t a, int32_t b) {
 	// Q31 multiplies / accumulates (the smmul/smmla family).
-	printf("%d %d %d %d %d %d %d %d ", q31_mult(a, b), q31tRescale(a, static_cast<uint32_t>(b)),
+	printf("%d %d %d %d %d %d %d %d ", q31_mult(a, b), q31t_rescale(a, static_cast<uint32_t>(b)),
 	       multiply_32x32_rshift32(a, b), multiply_32x32_rshift32_rounded(a, b),
 	       multiply_accumulate_32x32_rshift32(a, a, b), multiply_accumulate_32x32_rshift32_rounded(a, a, b),
-	       multiply_subtract_32x32_rshift32_rounded(a, a, b), toPositive(a));
+	       multiply_subtract_32x32_rshift32_rounded(a, a, b), to_positive(a));
 
 	// Saturating ops (qadd/qsub/ssat) — where the host stubs were wrong.
 	printf("%d %d ", add_saturate(a, b), subtract_saturate(a, b));

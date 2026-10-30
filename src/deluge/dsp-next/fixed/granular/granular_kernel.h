@@ -139,12 +139,12 @@ struct Granular {
 
 	/// @return The knobs, the randomness made positive.
 	[[nodiscard]] static Coefficients coefficients(const Settings& s) {
-		return {.rate = s.rate, .mix = s.mix, .density = s.density, .randomness = toPositive(s.randomness)};
+		return {.rate = s.rate, .mix = s.mix, .density = s.density, .randomness = to_positive(s.randomness)};
 	}
 
 	/// @return @p volume (Q31) divided by √2: the owner's post-FX volume while the effect renders.
 	[[nodiscard]] [[gnu::always_inline]] static int32_t post_fx_volume(int32_t volume) {
-		return multiply_32x32_rshift32(volume, ONE_OVER_SQRT2_Q31) << 1;
+		return multiply_32x32_rshift32(volume, kOneOverSqrt2Q31) << 1;
 	}
 
 	/// @brief Frees the grains of the first pass when the block starts at the ring's end, updates the derived values of

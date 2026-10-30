@@ -82,7 +82,7 @@ void RingModEngine::render(Voice& voice, int32_t* oscBuffer, int32_t numSamples,
 			// Work out pulse width, from parameter. This has no effect if we're not actually using square
 			// waves, but just do it anyway, it's a simple calculation
 			int32_t pulseWidth =
-			    (uint32_t)lshiftAndSaturate<1>(voice.params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s]);
+			    (uint32_t)lshift_and_saturate<1>(voice.params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s]);
 
 			OscType oscType = cfg.oscType[s];
 

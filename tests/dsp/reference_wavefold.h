@@ -32,15 +32,15 @@ inline q31_t wrap_mul(int32_t n, q31_t x) {
 	return static_cast<q31_t>(static_cast<uint32_t>(x) * static_cast<uint32_t>(n));
 }
 
-constexpr q31_t FOLD_MIN = 0.1 * ONE_Q31;
-constexpr q31_t THREE_FOURTHS = 0.75 * ONE_Q31;
+constexpr q31_t FOLD_MIN = 0.1 * kOneQ31;
+constexpr q31_t THREE_FOURTHS = 0.75 * kOneQ31;
 
 /**
  * This approximates wavefolding by taking an input between -1 and 1
  * and producing output that flips around zero several times
  */
 inline q31_t polynomialOscillatorApproximation(q31_t x) {
-	// requires 1 to be ONE_Q31
+	// requires 1 to be kOneQ31
 
 	q31_t x2 = wrap_mul(2, multiply_32x32_rshift32(x, x));
 	q31_t x3 = wrap_mul(2, multiply_32x32_rshift32(x2, x));
@@ -64,7 +64,7 @@ inline void foldBufferPolyApproximation(q31_t* startSample, q31_t* endSample, q3
 	do {
 		q31_t c = *currentSample;
 
-		q31_t x = lshiftAndSaturateUnknown(multiply_32x32_rshift32(fold_level, c), 8);
+		q31_t x = lshift_and_saturate_unknown(multiply_32x32_rshift32(fold_level, c), 8);
 
 		// volume compensation
 		*currentSample = polynomialOscillatorApproximation(x) >> 7;

@@ -34,15 +34,15 @@ namespace detail {
 
 /// @brief Whether the Argon loop step @p S is the partial last step of its block. Full steps are a distinct type.
 template <typename S>
-inline constexpr bool is_partial_step = false;
+inline constexpr bool is_partial_step_v = false;
 
 /// @brief A partial step of `argon::vectorize::for_each`.
 template <typename T>
-inline constexpr bool is_partial_step<argon::vectorize::Step<T, false>> = true;
+inline constexpr bool is_partial_step_v<argon::vectorize::Step<T, false>> = true;
 
 /// @brief A partial step of `argon::vectorize::for_each_interleaved`.
 template <typename T, std::size_t Stride>
-inline constexpr bool is_partial_step<argon::vectorize::InterleavedStep<T, Stride, false>> = true;
+inline constexpr bool is_partial_step_v<argon::vectorize::InterleavedStep<T, Stride, false>> = true;
 
 } // namespace detail
 
@@ -51,7 +51,7 @@ inline constexpr bool is_partial_step<argon::vectorize::InterleavedStep<T, Strid
 /// kernel makes a @ref block_processor only. A control kernel is rejected at the class: it has no per-sample loop,
 /// and `Control` wraps it.
 /// @details
-/// **Per block.** `renderBlock` calls K's `prepare(coefficients, state, n)` once, when K declares one (otherwise the
+/// **Per block.** `render_block` calls K's `prepare(coefficients, state, n)` once, when K declares one (otherwise the
 /// block is an EmptyBlock), then, for a moded kernel, dispatches once on `coefficients().mode` through with_mode.
 /// Inside that one dispatch a single loop runs every sample in the block's mode, so a mode change set by
 /// `configure` takes effect at the next block, and State carries across it untouched. The loop steps the kernel's loop
@@ -72,7 +72,7 @@ inline constexpr bool is_partial_step<argon::vectorize::InterleavedStep<T, Strid
 /// by type holds on NEON (and SIMDe); on Helium (MVE) every step is predicated, so whole steps would also arrive
 /// counted, with `n` equal to the lane count.
 ///
-/// **Staged kernels** have no loop here: `renderBlock` calls `process(coefficients, state, in, out)` once, or
+/// **Staged kernels** have no loop here: `render_block` calls `process(coefficients, state, in, out)` once, or
 /// `process<M>` through with_mode when the kernel is moded, through @ref kernel_ops::process_at. A staged kernel does
 /// its per-block work in `process`, so one that declares `prepare` is rejected. `process` keeps the in-place promise
 /// itself: @ref staged_kernel requires it to give the same result when `in` and `out` are the same buffer.
@@ -84,7 +84,7 @@ inline constexpr bool is_partial_step<argon::vectorize::InterleavedStep<T, Strid
 /// it through @ref kernel_ops.
 ///
 /// **Inlining.** The app builds with `-fno-inline-functions`, which marks every definition noinline unless it says
-/// otherwise, so `render`, `renderBlock`, the loop and every lambda handed to Argon are `[[gnu::always_inline]]`:
+/// otherwise, so `render`, `render_block`, the loop and every lambda handed to Argon are `[[gnu::always_inline]]`:
 /// nothing sits between the block loop and the kernel's own always-inline `step`.
 template <kernel K>
 requires(!control_kernel<K>)
@@ -142,27 +142,27 @@ public:
 	requires generator_kernel<K> && (!has_context<K>)
 	{
 		value_type out{};
-		renderBlock(Buffer<value_type>{&out, 1});
+		render_block(Buffer<value_type>{&out, 1});
 		return out;
 	}
 
 	/// @brief Fill @p out with the next `out.size()` samples.
 	/// @param out The block to fill, every sample of it.
-	[[gnu::always_inline]] void renderBlock(Buffer<value_type> out)
+	[[gnu::always_inline]] void render_block(Buffer<value_type> out)
 	requires generator_kernel<K> && (!has_context<K>)
 	{
 		detail::NoContext none;
-		runBlock(none, out);
+		run_block(none, out);
 	}
 
 	/// @brief Fill @p out from a generator kernel with a Context, drawing on @p context through a block-local copy.
 	/// @param out The block to fill.
 	/// @param context The owner's context: copied in before the block and written back once after it.
-	[[gnu::always_inline]] void renderBlock(Buffer<value_type> out, Context& context)
+	[[gnu::always_inline]] void render_block(Buffer<value_type> out, Context& context)
 	requires generator_kernel<K> && has_context<K>
 	{
 		Context local = context;
-		runBlock(local, out);
+		run_block(local, out);
 		context = local;
 	}
 
@@ -177,14 +177,14 @@ public:
 	requires processor_kernel<K> && (!has_context<K>)
 	{
 		value_type out{};
-		renderBlock(Signal<value_type>{&x, 1}, Buffer<value_type>{&out, 1});
+		render_block(Signal<value_type>{&x, 1}, Buffer<value_type>{&out, 1});
 		return out;
 	}
 
 	/// @brief Process `out.size()` samples of @p in into @p out.
 	/// @param in At least `out.size()` samples; may be the same buffer as @p out.
 	/// @param out The block to fill, every sample of it.
-	[[gnu::always_inline]] void renderBlock(Signal<value_type> in, Buffer<value_type> out)
+	[[gnu::always_inline]] void render_block(Signal<value_type> in, Buffer<value_type> out)
 	requires(processor_kernel<K> && !has_context<K>) || staged_kernel<K>
 	{
 		if constexpr (staged_kernel<K>) {
@@ -194,7 +194,7 @@ public:
 		}
 		else {
 			detail::NoContext none;
-			runBlock(none, out, in);
+			run_block(none, out, in);
 		}
 	}
 
@@ -206,7 +206,7 @@ public:
 	requires processor_kernel<K> && has_context<K>
 	{
 		value_type out{};
-		renderBlock(Signal<value_type>{&x, 1}, Buffer<value_type>{&out, 1}, context);
+		render_block(Signal<value_type>{&x, 1}, Buffer<value_type>{&out, 1}, context);
 		return out;
 	}
 
@@ -215,11 +215,11 @@ public:
 	/// @param in At least `out.size()` samples; may be the same buffer as @p out.
 	/// @param out The block to fill.
 	/// @param context The owner's context: copied in before the block and written back once after it.
-	[[gnu::always_inline]] void renderBlock(Signal<value_type> in, Buffer<value_type> out, Context& context)
+	[[gnu::always_inline]] void render_block(Signal<value_type> in, Buffer<value_type> out, Context& context)
 	requires processor_kernel<K> && has_context<K>
 	{
 		Context local = context;
-		runBlock(local, out, in);
+		run_block(local, out, in);
 		context = local;
 	}
 
@@ -234,18 +234,18 @@ public:
 	requires mixer_kernel<K> && (!has_context<K>)
 	{
 		value_type out{};
-		renderBlock(Signal<value_type>{&a, 1}, Signal<value_type>{&b, 1}, Buffer<value_type>{&out, 1});
+		render_block(Signal<value_type>{&a, 1}, Signal<value_type>{&b, 1}, Buffer<value_type>{&out, 1});
 		return out;
 	}
 
 	/// @brief Mix `out.size()` samples of @p a and @p b into @p out.
 	/// @param a,b At least `out.size()` samples each; either may be the same buffer as @p out.
 	/// @param out The block to fill, every sample of it.
-	[[gnu::always_inline]] void renderBlock(Signal<value_type> a, Signal<value_type> b, Buffer<value_type> out)
+	[[gnu::always_inline]] void render_block(Signal<value_type> a, Signal<value_type> b, Buffer<value_type> out)
 	requires mixer_kernel<K> && (!has_context<K>)
 	{
 		detail::NoContext none;
-		runBlock(none, out, a, b);
+		run_block(none, out, a, b);
 	}
 
 	/// @brief Mix @p a and @p b into @p out through a mixer kernel with a Context, drawing on @p context through a
@@ -254,12 +254,12 @@ public:
 	/// @param b At least `out.size()` samples.
 	/// @param out The block to fill.
 	/// @param context The owner's context: copied in before the block and written back once after it.
-	[[gnu::always_inline]] void renderBlock(Signal<value_type> a, Signal<value_type> b, Buffer<value_type> out,
-	                                        Context& context)
+	[[gnu::always_inline]] void render_block(Signal<value_type> a, Signal<value_type> b, Buffer<value_type> out,
+	                                         Context& context)
 	requires mixer_kernel<K> && has_context<K>
 	{
 		Context local = context;
-		runBlock(local, out, a, b);
+		run_block(local, out, a, b);
 		context = local;
 	}
 
@@ -272,14 +272,14 @@ private:
 	/// local copies of the coefficients and of the loop state (@ref loop_state_t: the whole State unless K declares
 	/// `kLoopState`), written back after the block, so they stay in registers: the output buffer may alias the
 	/// component, which would otherwise force a reload and a store of the state on every step. The rest of the State
-	/// is neither copied nor written. A kernel declaring `kStateInPlace` (see @ref detail::state_in_place) steps its
+	/// is neither copied nor written. A kernel declaring `kStateInPlace` (see @ref detail::state_in_place_v) steps its
 	/// member loop state directly instead: it is too large for registers, so the copy would only add a load and a
 	/// store of all of it per block.
 	template <typename Ctx, typename... In>
-	[[gnu::always_inline]] void runBlock(Ctx& context, Buffer<value_type> out, In... in) {
+	[[gnu::always_inline]] void run_block(Ctx& context, Buffer<value_type> out, In... in) {
 		const Block block = kernel_ops::prepare_block<K>(coefficients_, state_, out.size());
 		const Coefficients c = coefficients_;
-		if constexpr (detail::state_in_place<K>) {
+		if constexpr (detail::state_in_place_v<K>) {
 			LoopState& s = kernel_ops::loop_state<K>(state_);
 			kernel_ops::dispatch_mode<K>(
 			    c, [&]<auto M> [[gnu::always_inline]] () { loop<M>(c, block, s, context, out, in...); });
@@ -297,9 +297,9 @@ private:
 	/// @param step The Argon loop step, full or partial.
 	/// @param x The step's loaded inputs.
 	template <auto M, typename Ctx, typename Step, typename... X>
-	[[gnu::always_inline]] static step_type vectorStepAt(const Coefficients& c, const Block& block, LoopState& s,
-	                                                     Ctx& context, const Step& step, X... x) {
-		if constexpr (partial_step_advances_by_count<K> && detail::is_partial_step<Step>) {
+	[[gnu::always_inline]] static step_type vector_step_at(const Coefficients& c, const Block& block, LoopState& s,
+	                                                       Ctx& context, const Step& step, X... x) {
+		if constexpr (partial_step_advances_by_count_v<K> && detail::is_partial_step_v<Step>) {
 			return kernel_ops::step_with<K, M>(c, block, s, context, x...,
 			                                   ActiveLanes{.n = static_cast<std::size_t>(step.count())});
 		}
@@ -315,66 +315,66 @@ private:
 	template <auto M, typename Ctx, typename... In>
 	[[gnu::always_inline]] static void loop(const Coefficients& c, const Block& block, LoopState& s, Ctx& context,
 	                                        Buffer<value_type> out, In... in) {
-		static_assert(chains_of<K> == 1 || detail::vector_step_kernel<K>,
+		static_assert(chains_of_v<K> == 1 || detail::vector_step_kernel<K>,
 		              "kChains is for q31 vector kernels: Mono runs chains only in its q31 vector loop");
-		static_assert(chains_of<K> == 1 || !has_context<K>,
+		static_assert(chains_of_v<K> == 1 || !has_context<K>,
 		              "a chained step takes no context: step_chains would have to draw on it in chain order");
 		const auto n = static_cast<std::ptrdiff_t>(out.size());
 		if constexpr (detail::scalar_step_kernel<K>) {
-			scalarLoop<M>(c, block, s, context, out.data(), n, in.data()...);
+			scalar_loop<M>(c, block, s, context, out.data(), n, in.data()...);
 		}
 		else if constexpr (detail::vector_step_kernel<K>) {
-			vectorLoop<M>(c, block, s, context, out.data(), n, in.data()...);
+			vector_loop<M>(c, block, s, context, out.data(), n, in.data()...);
 		}
 		else {
-			interleavedLoop<M>(c, block, s, context, detail::interleaved(out), n, detail::interleaved(in)...);
+			interleaved_loop<M>(c, block, s, context, detail::interleaved(out), n, detail::interleaved(in)...);
 		}
 	}
 
 	/// @brief One `step` per sample: @p n samples of @p src into @p dst.
 	template <auto M, typename Ctx, typename... Src>
-	[[gnu::always_inline]] static void scalarLoop(const Coefficients& c, const Block& block, LoopState& s, Ctx& context,
-	                                              value_type* dst, std::ptrdiff_t n, const Src*... src) {
+	[[gnu::always_inline]] static void scalar_loop(const Coefficients& c, const Block& block, LoopState& s,
+	                                               Ctx& context, value_type* dst, std::ptrdiff_t n, const Src*... src) {
 		for (std::ptrdiff_t i = 0; i < n; ++i) {
 			dst[i] = kernel_ops::step_with<K, M>(c, block, s, context, src[i]...);
 		}
 	}
 
 	/// @brief One `step` per vector of q31 samples: @p n samples of @p src into @p dst, the partial last vector
-	/// included. A kernel declaring chains (@ref chains_of) steps every whole group of that many vectors through its
+	/// included. A kernel declaring chains (@ref chains_of_v) steps every whole group of that many vectors through its
 	/// `step_chains` first.
 	template <auto M, typename Ctx, typename... Src>
-	[[gnu::always_inline]] static void vectorLoop(const Coefficients& c, const Block& block, LoopState& s, Ctx& context,
-	                                              q31* dst, std::ptrdiff_t n, const Src*... src) {
+	[[gnu::always_inline]] static void vector_loop(const Coefficients& c, const Block& block, LoopState& s,
+	                                               Ctx& context, q31* dst, std::ptrdiff_t n, const Src*... src) {
 		std::ptrdiff_t done = 0;
-		if constexpr (chains_of<K> > 1) {
-			constexpr std::ptrdiff_t kGroup = static_cast<std::ptrdiff_t>(chains_of<K>) * Argon<q31>::lanes;
-			constexpr auto kChainIndex = std::make_index_sequence<chains_of<K>>{};
-			using Group = ChainVectors<step_type, chains_of<K>>;
-			static_assert(stepsChains<M, PerInput<Src, Group>...>,
+		if constexpr (chains_of_v<K> > 1) {
+			constexpr std::ptrdiff_t kGroup = static_cast<std::ptrdiff_t>(chains_of_v<K>) * Argon<q31>::lanes;
+			constexpr auto kChainIndex = std::make_index_sequence<chains_of_v<K>>{};
+			using Group = ChainVectors<step_type, chains_of_v<K>>;
+			static_assert(steps_chains_v<M, PerInput<Src, Group>...>,
 			              "a kernel declaring kChains provides step_chains(c, block, loop state, one ChainVectors per "
 			              "input) returning ChainVectors<step_type, kChains>");
 			for (; done + kGroup <= n; done += kGroup) {
-				storeChains(kChainIndex, dst + done,
-				            chainStepAt<M>(c, block, s, loadChains(kChainIndex, src + done)...));
+				store_chains(kChainIndex, dst + done,
+				             chain_step_at<M>(c, block, s, load_chains(kChainIndex, src + done)...));
 			}
 		}
 		argon::vectorize::for_each<q31>(n - done, [&] [[gnu::always_inline]] (auto step) {
-			step.Store(dst + done, vectorStepAt<M>(c, block, s, context, step, step.Load(src + done)...));
+			step.Store(dst + done, vector_step_at<M>(c, block, s, context, step, step.Load(src + done)...));
 		});
 	}
 
-	/// @brief The chains_of<K> consecutive vectors at @p base.
+	/// @brief The chains_of_v<K> consecutive vectors at @p base.
 	template <std::size_t... V>
-	[[gnu::always_inline]] static ChainVectors<step_type, sizeof...(V)> loadChains(std::index_sequence<V...> /*chains*/,
-	                                                                               const q31* base) {
+	[[gnu::always_inline]] static ChainVectors<step_type, sizeof...(V)>
+	load_chains(std::index_sequence<V...> /*chains*/, const q31* base) {
 		return {{step_type::Load(base + (static_cast<std::ptrdiff_t>(V) * Argon<q31>::lanes))...}};
 	}
 
 	/// @brief Stores @p out's vectors at @p base, one after another.
 	template <std::size_t... V>
-	[[gnu::always_inline]] static void storeChains(std::index_sequence<V...> /*chains*/, q31* base,
-	                                               const ChainVectors<step_type, sizeof...(V)>& out) {
+	[[gnu::always_inline]] static void store_chains(std::index_sequence<V...> /*chains*/, q31* base,
+	                                                const ChainVectors<step_type, sizeof...(V)>& out) {
 		(out.v[V].StoreTo(base + (static_cast<std::ptrdiff_t>(V) * Argon<q31>::lanes)), ...);
 	}
 
@@ -384,8 +384,8 @@ private:
 
 	/// @brief Whether K's step_chains at mode @p M takes one group per input and returns a group.
 	template <auto M, typename... G>
-	static constexpr bool stepsChains = [] {
-		using Group = ChainVectors<step_type, chains_of<K>>;
+	static constexpr bool steps_chains_v = [] {
+		using Group = ChainVectors<step_type, chains_of_v<K>>;
 		if constexpr (detail::has_modes<K>) {
 			return requires(const Coefficients& c, const Block& b, LoopState& s, const G&... g) {
 				{ K::template step_chains<M>(c, b, s, g...) } -> std::same_as<Group>;
@@ -400,8 +400,8 @@ private:
 
 	/// @brief One chained step at mode @p M over one group of vectors per input.
 	template <auto M, typename... G>
-	[[gnu::always_inline]] static ChainVectors<step_type, chains_of<K>>
-	chainStepAt(const Coefficients& c, const Block& block, LoopState& s, const G&... group) {
+	[[gnu::always_inline]] static ChainVectors<step_type, chains_of_v<K>>
+	chain_step_at(const Coefficients& c, const Block& block, LoopState& s, const G&... group) {
 		if constexpr (detail::has_modes<K>) {
 			return K::template step_chains<M>(c, block, s, group...);
 		}
@@ -413,11 +413,11 @@ private:
 	/// @brief One `step` per vector of stereo frames: @p n frames of the interleaved @p src into the interleaved
 	/// @p dst, the partial last vector included.
 	template <auto M, typename Ctx, typename... Src>
-	[[gnu::always_inline]] static void interleavedLoop(const Coefficients& c, const Block& block, LoopState& s,
-	                                                   Ctx& context, q31* dst, std::ptrdiff_t n, const Src*... src) {
+	[[gnu::always_inline]] static void interleaved_loop(const Coefficients& c, const Block& block, LoopState& s,
+	                                                    Ctx& context, q31* dst, std::ptrdiff_t n, const Src*... src) {
 		argon::vectorize::for_each_interleaved<q31, 2>(n, [&] [[gnu::always_inline]] (auto step) {
 			const StereoVector frames =
-			    vectorStepAt<M>(c, block, s, context, step, detail::toStereo(step.Load(src))...);
+			    vector_step_at<M>(c, block, s, context, step, detail::to_stereo(step.Load(src))...);
 			step.Store(dst, {frames.l, frames.r});
 		});
 	}

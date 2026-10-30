@@ -16,7 +16,7 @@
  */
 
 // Behavioural spec for deluge::dsp::fixed::BandlimitedTable::select — the self-selecting band
-// pick that replaced the legacy getTableNumber-indexed lookup. Run on x86 (SIMDe) and ARM/QEMU
+// pick that replaced the legacy get_table_number-indexed lookup. Run on x86 (SIMDe) and ARM/QEMU
 // via CTest. Pure index logic (no SIMD), but kept dual-arch for parity with the other specs.
 
 #include "dsp-next/fixed/bandlimited/band_limited_table.h"

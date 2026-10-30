@@ -1947,7 +1947,7 @@ doFinishCapturing:
 			else {
 				for (auto [rxL, rxR] : input.first(numSamplesThisCycle)) {
 					if (applyGain) {
-						rxL = lshiftAndSaturateUnknown(rxL, gainToApply);
+						rxL = lshift_and_saturate_unknown(rxL, gainToApply);
 					}
 
 					// Copy the last 24 bits (lower 3 bytes) to writePosNow
@@ -1972,7 +1972,7 @@ doFinishCapturing:
 					// recording stereo
 					if (recordingNumChannels == 2) {
 						if (applyGain) {
-							rxR = lshiftAndSaturateUnknown(rxR, gainToApply);
+							rxR = lshift_and_saturate_unknown(rxR, gainToApply);
 						}
 
 						// Copy the last 24 bits (lower 3 bytes) to writePosNow

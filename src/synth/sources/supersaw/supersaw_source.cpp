@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "synth/sources/supersaw/supersaw_source.h"
-#include "dsp-next/fixed/bandlimited/band_limited_table.h" // getTableNumber
+#include "dsp-next/fixed/bandlimited/band_limited_table.h" // get_table_number
 #include "dsp-next/fixed/vca/amplitude.h"
 
 namespace deluge::synth {
@@ -27,18 +27,18 @@ void SupersawSource::renderInto(const BlockControls& controls, uint32_t phaseInc
 	const size_t numSamples = output.size();
 
 	// The plain saw's dire-CPU fallback: skip the band limiting for lower notes
-	const bool bandLimit = deluge::dsp::fixed::getTableNumber(phaseIncrement).first >= controls.cpu_direness + 6;
+	const bool bandLimit = deluge::dsp::fixed::get_table_number(phaseIncrement).first >= controls.cpu_direness + 6;
 	const int32_t spread = waveIndexLast + waveIndexIncrement * static_cast<int32_t>(numSamples);
 
 	int32_t* dst = controls.apply_amplitude ? scratch.data() : output.data();
 	Supersaw::render(deluge::dsp::fixed::Buffer{dst, numSamples}, phaseIncrement, spread,
-	                 Supersaw::numSawsFromPulseWidth(controls.pulse_width), centre_phase_, side_phases_, bandLimit);
+	                 Supersaw::num_saws_from_pulse_width(controls.pulse_width), centre_phase_, side_phases_, bandLimit);
 
 	if (controls.apply_amplitude) {
 		// The supersaw comes out at a quarter of a saw's level; out = scratch*amp + out.
 		deluge::dsp::fixed::Amplitude vca{controls.amplitude << 2};
-		vca.renderBlock(deluge::dsp::fixed::Signal{scratch.data(), numSamples}, deluge::dsp::fixed::Signal{output},
-		                output);
+		vca.render_block(deluge::dsp::fixed::Signal{scratch.data(), numSamples}, deluge::dsp::fixed::Signal{output},
+		                 output);
 	}
 }
 

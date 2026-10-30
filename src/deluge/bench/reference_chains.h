@@ -129,9 +129,9 @@ inline bool sound(fx::ChainCore& c, const fx::SoundChainInputs& in, std::span<St
 
 	q31_t compThreshold = in.compressor_threshold;
 	c.compressor().configure(settings.compressor);
-	c.compressor().dsp().setThreshold(compThreshold);
+	c.compressor().dsp().set_threshold(compThreshold);
 	if (compThreshold > 0) {
-		c.compressor().dsp().renderVolumeNeutral(sound_stereo, postFXVolume);
+		c.compressor().dsp().render_volume_neutral(sound_stereo, postFXVolume);
 	}
 	else {
 		c.compressor().dsp().reset();
@@ -179,7 +179,7 @@ bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, co
 
 	c.compressor().configure(settings.compressor);
 	const q31_t compThreshold = in.compressor_threshold;
-	c.compressor().dsp().setThreshold(compThreshold);
+	c.compressor().dsp().set_threshold(compThreshold);
 
 	saturation_.process(global_effectable_audio, {.clipping_amount = settings.saturation.clipping_amount,
 	                                              .variant = fx::SaturationVariant::CHAIN});
@@ -204,7 +204,7 @@ bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, co
 	                                                 postReverbVolume, reverbSendAmount, pan, true, in.fx.stereo);
 
 	if (compThreshold > 0) {
-		c.compressor().dsp().renderVolumeNeutral(global_effectable_audio, volumePostFX);
+		c.compressor().dsp().render_volume_neutral(global_effectable_audio, volumePostFX);
 	}
 	else {
 		c.compressor().dsp().reset();

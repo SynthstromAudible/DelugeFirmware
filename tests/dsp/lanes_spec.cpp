@@ -302,11 +302,11 @@ Mismatches lanes_against_monos(const typename K::Settings& first, const typename
 			}
 			const std::vector<Frame<q31, N>> in = noise_frames<N>(n, (static_cast<uint32_t>(n) * 977u) + block);
 			std::vector<Frame<q31, N>> out(n);
-			lanes.renderBlock(in, out);
+			lanes.render_block(in, out);
 			for (std::size_t lane = 0; lane < N; ++lane) {
 				const std::vector<q31> mono_in = lane_of(in, lane);
 				std::vector<q31> mono_out(n);
-				monos[lane].renderBlock(mono_in, mono_out);
+				monos[lane].render_block(mono_in, mono_out);
 				for (std::size_t i = 0; i < n; ++i) {
 					++m.compared;
 					if (out[i][lane] != mono_out[i]) {
@@ -347,7 +347,7 @@ Mismatches at_every_width(const typename K::Settings& first, const typename K::S
 }
 
 /// Lanes<K, N> against N Monos over four blocks of every length 1 to 9: the first and last whole frames, the middle two
-/// lane @p Lane alone (`renderLane`), out of place and then in place, which only that lane's Mono renders. Counts the
+/// lane @p Lane alone (`render_lane`), out of place and then in place, which only that lane's Mono renders. Counts the
 /// differences, the states included.
 template <typename K, std::size_t N, std::size_t Lane>
 Mismatches lane_alone_against_monos(const typename K::Settings& settings) {
@@ -367,10 +367,10 @@ Mismatches lane_alone_against_monos(const typename K::Settings& settings) {
 		const auto whole = [&](uint32_t seed) {
 			const std::vector<Frame<q31, N>> in = noise_frames<N>(n, seed);
 			std::vector<Frame<q31, N>> out(n);
-			lanes.renderBlock(in, out);
+			lanes.render_block(in, out);
 			for (std::size_t l = 0; l < N; ++l) {
 				std::vector<q31> mono_out(n);
-				monos[l].renderBlock(lane_of(in, l), mono_out);
+				monos[l].render_block(lane_of(in, l), mono_out);
 				compare(lane_of(out, l), mono_out);
 			}
 		};
@@ -379,13 +379,13 @@ Mismatches lane_alone_against_monos(const typename K::Settings& settings) {
 		const std::vector<q31> in = lane_of(noise_frames<N>(n, seed + 1), Lane);
 		std::vector<q31> out(n);
 		std::vector<q31> mono_out(n);
-		lanes.template renderLane<Lane>(in, out);
-		monos[Lane].renderBlock(in, mono_out);
+		lanes.template render_lane<Lane>(in, out);
+		monos[Lane].render_block(in, mono_out);
 		compare(out, mono_out);
 		const std::vector<q31> in_place_in = lane_of(noise_frames<N>(n, seed + 3), Lane);
 		std::vector<q31> in_place = in_place_in;
-		lanes.template renderLane<Lane>(in_place, in_place);
-		monos[Lane].renderBlock(in_place_in, mono_out);
+		lanes.template render_lane<Lane>(in_place, in_place);
+		monos[Lane].render_block(in_place_in, mono_out);
 		compare(in_place, mono_out);
 		whole(seed + 2);
 		for (std::size_t l = 0; l < N; ++l) {
@@ -432,8 +432,8 @@ std::size_t in_place_mismatches(const typename K::Settings& settings) {
 			const std::vector<Frame<q31, N>> in = noise_frames<N>(n, 0x1234u + block);
 			std::vector<Frame<q31, N>> out(n);
 			std::vector<Frame<q31, N>> buffer = in;
-			out_of_place.renderBlock(in, out);
-			in_place.renderBlock(buffer, buffer);
+			out_of_place.render_block(in, out);
+			in_place.render_block(buffer, buffer);
 			for (std::size_t i = 0; i < n; ++i) {
 				for (std::size_t lane = 0; lane < N; ++lane) {
 					mismatched += (buffer[i][lane] != out[i][lane]) ? 1 : 0;
@@ -509,11 +509,11 @@ SplitLanesRun run_split_lanes(std::size_t n, bool in_place) {
 			buf[i].lane[1] = r[i];
 		}
 		if (in_place) {
-			lanes.renderBlock(buf, buf);
+			lanes.render_block(buf, buf);
 		}
 		else {
 			std::vector<Frame<q31, 2>> dst(n);
-			lanes.renderBlock(buf, dst);
+			lanes.render_block(buf, dst);
 			buf = dst;
 		}
 		for (const Frame<q31, 2>& f : buf) {
@@ -538,11 +538,11 @@ SplitLanesRun run_split_lane1(std::size_t n, bool in_place) {
 		}
 		std::vector<q31> buf = loop_state_test::input(n, block);
 		if (in_place) {
-			lanes.template renderLane<1>(buf, buf);
+			lanes.template render_lane<1>(buf, buf);
 		}
 		else {
 			std::vector<q31> dst(n);
-			lanes.template renderLane<1>(buf, dst);
+			lanes.template render_lane<1>(buf, dst);
 			buf = dst;
 		}
 		run.out.insert(run.out.end(), buf.begin(), buf.end());
@@ -695,8 +695,8 @@ Mismatches op_major_against_lane_by_lane(const typename K::Settings& first, cons
 			const std::vector<Frame<q31, N>> in = extreme_frames<N>(n, (static_cast<uint32_t>(n) * 131u) + block);
 			std::vector<Frame<q31, N>> packed_out(n);
 			std::vector<Frame<q31, N>> lane_out(n);
-			op_major.renderBlock(in, packed_out);
-			lane_by_lane.renderBlock(in, lane_out);
+			op_major.render_block(in, packed_out);
+			lane_by_lane.render_block(in, lane_out);
 			for (std::size_t i = 0; i < n; ++i) {
 				for (std::size_t lane = 0; lane < N; ++lane) {
 					++m.compared;
@@ -923,7 +923,7 @@ describe lanes_spec("Lanes<K, N>", ${
 			for (int block = 1; block <= 3; ++block) {
 				const int before = prepare_sequence;
 				std::vector<Frame<q31, N>> frames(static_cast<std::size_t>(block) * 4);
-				lanes.renderBlock(frames, frames);
+				lanes.render_block(frames, frames);
 				expect(prepare_sequence - before).to_equal(static_cast<int>(N));
 				for (std::size_t lane = 0; lane < N; ++lane) {
 					expect(lanes.state(lane).prepares).to_equal(block);
@@ -958,7 +958,7 @@ describe lanes_spec("Lanes<K, N>", ${
 				Lanes<NoisyAdd, N> lanes;
 				for (std::size_t n = 1; n <= kMaxLength; ++n) {
 					std::vector<q31> block(n);
-					lanes.template renderLane<Lane>(block, block);
+					lanes.template render_lane<Lane>(block, block);
 					for (const q31 sample : block) {
 						expect(sample).to_equal(expected.render());
 					}
@@ -974,7 +974,7 @@ describe lanes_spec("Lanes<K, N>", ${
 			Lanes<NoisyAdd, N> lanes;
 			for (std::size_t n = 1; n <= kMaxLength; ++n) {
 				std::vector<Frame<q31, N>> frames(n);
-				lanes.renderBlock(frames, frames);
+				lanes.render_block(frames, frames);
 				for (const Frame<q31, N>& frame : frames) {
 					for (std::size_t lane = 0; lane < N; ++lane) {
 						expect(frame[lane]).to_equal(expected.render());
@@ -1008,7 +1008,7 @@ describe lanes_spec("Lanes<K, N>", ${
 				}
 				std::vector<Frame<q31, N>> out(n + 1, sentinel);
 				Lanes<Gain, N> lanes{{.gain = 0x30000000}};
-				lanes.renderBlock(std::span{in}.first(n), std::span{out}.first(n));
+				lanes.render_block(std::span{in}.first(n), std::span{out}.first(n));
 				const Gain::Coefficients c = Gain::coefficients({.gain = 0x30000000});
 				Gain::State s{};
 				for (std::size_t i = 0; i < n; ++i) {
@@ -1029,9 +1029,9 @@ describe lanes_spec("Lanes<K, N>", ${
 			Mono<Counter> mono{{.by = 0x01010101}};
 			for (std::size_t n = 1; n <= kMaxLength; ++n) {
 				std::vector<Frame<q31, N>> out(n);
-				lanes.renderBlock(out);
+				lanes.render_block(out);
 				std::vector<q31> expected(n);
-				mono.renderBlock(expected);
+				mono.render_block(expected);
 				for (std::size_t i = 0; i < n; ++i) {
 					for (std::size_t lane = 0; lane < N; ++lane) {
 						expect(out[i][lane]).to_equal(expected[i]);
@@ -1063,14 +1063,14 @@ describe lanes_spec("Lanes<K, N>", ${
 				std::vector<Frame<q31, N>> out(n);
 				std::vector<Frame<q31, N>> in_a = a;
 				std::vector<Frame<q31, N>> in_b = b;
-				lanes.renderBlock(a, b, out);
-				over_a.renderBlock(in_a, b, in_a);
-				over_b.renderBlock(a, in_b, in_b);
+				lanes.render_block(a, b, out);
+				over_a.render_block(in_a, b, in_a);
+				over_b.render_block(a, in_b, in_b);
 				for (std::size_t lane = 0; lane < N; ++lane) {
 					const std::vector<q31> mono_a = lane_of(a, lane);
 					const std::vector<q31> mono_b = lane_of(b, lane);
 					std::vector<q31> mono_out(n);
-					monos[lane].renderBlock(mono_a, mono_b, mono_out);
+					monos[lane].render_block(mono_a, mono_b, mono_out);
 					for (std::size_t i = 0; i < n; ++i) {
 						expect(out[i][lane]).to_equal(mono_out[i]);
 						expect(in_a[i][lane]).to_equal(mono_out[i]);
@@ -1089,7 +1089,7 @@ describe lanes_spec("Lanes<K, N>", ${
 	it("resets every lane", _ {
 		Lanes<OnePole, 3> lanes{{.moveability = 0x40000000, .mode = OnePole::Mode::LOW_PASS}};
 		std::vector<Frame<q31, 3>> frames = noise_frames<3>(5, 0x42u);
-		lanes.renderBlock(frames, frames);
+		lanes.render_block(frames, frames);
 		for (std::size_t lane = 0; lane < 3; ++lane) {
 			expect(lanes.state(lane).z).not_().to_equal(q31{0});
 		}
@@ -1101,7 +1101,7 @@ describe lanes_spec("Lanes<K, N>", ${
 	it("resets every lane through K's reset quirk when K declares one", _ {
 		Lanes<QuirkResetPole, 3> lanes{{.moveability = 0x40000000, .mode = OnePole::Mode::LOW_PASS}};
 		std::vector<Frame<q31, 3>> frames = noise_frames<3>(5, 0x43u);
-		lanes.renderBlock(frames, frames);
+		lanes.render_block(frames, frames);
 		for (std::size_t lane = 0; lane < 3; ++lane) {
 			expect(lanes.state(lane).z).not_().to_equal(q31{1});
 		}
@@ -1174,14 +1174,14 @@ describe lanes_spec("Lanes<K, N>", ${
 				for (uint32_t block = 0; block < 2; ++block) {
 					std::vector<Frame<q31, N>> generated(n);
 					std::vector<Frame<q31, N>> generated_by_lane(n);
-					counter.renderBlock(generated);
-					counter_by_lane.renderBlock(generated_by_lane);
+					counter.render_block(generated);
+					counter_by_lane.render_block(generated_by_lane);
 					const std::vector<Frame<q31, N>> a = extreme_frames<N>(n, 0xa0u + block);
 					const std::vector<Frame<q31, N>> b = noise_frames<N>(n, 0xb0u + block);
 					std::vector<Frame<q31, N>> mixed(n);
 					std::vector<Frame<q31, N>> mixed_by_lane(n);
-					difference.renderBlock(a, b, mixed);
-					difference_by_lane.renderBlock(a, b, mixed_by_lane);
+					difference.render_block(a, b, mixed);
+					difference_by_lane.render_block(a, b, mixed_by_lane);
 					for (std::size_t i = 0; i < n; ++i) {
 						for (std::size_t lane = 0; lane < N; ++lane) {
 							expect(generated[i][lane]).to_equal(generated_by_lane[i][lane]);
@@ -1213,12 +1213,12 @@ describe lanes_spec("Lanes<K, N>", ${
 		const std::vector<Frame<q31, 8>> in8 = noise_frames<8>(7, 0x52u);
 		std::vector<Frame<q31, 4>> out4(7);
 		std::vector<Frame<q31, 8>> out8(7);
-		lanes.renderBlock(in4, out4);
-		trackers.renderBlock(in8, out8);
+		lanes.render_block(in4, out4);
+		trackers.render_block(in8, out8);
 		for (std::size_t lane = 0; lane < 4; ++lane) {
 			const std::vector<q31> mono_in = lane_of(in4, lane);
 			std::vector<q31> mono_out(7);
-			poles[lane].renderBlock(mono_in, mono_out);
+			poles[lane].render_block(mono_in, mono_out);
 			expect(lanes.state(lane).z).to_equal(poles[lane].state().z);
 			for (std::size_t other = 0; other < lane; ++other) {
 				expect(lanes.state(lane).z).not_().to_equal(lanes.state(other).z);
@@ -1227,7 +1227,7 @@ describe lanes_spec("Lanes<K, N>", ${
 		for (std::size_t lane = 0; lane < 8; ++lane) {
 			const std::vector<q31> mono_in = lane_of(in8, lane);
 			std::vector<q31> mono_out(7);
-			monos[lane].renderBlock(mono_in, mono_out);
+			monos[lane].render_block(mono_in, mono_out);
 			expect(trackers.state(lane).y).to_equal(monos[lane].state().y);
 			for (std::size_t other = 0; other < lane; ++other) {
 				expect(trackers.state(lane).y).not_().to_equal(trackers.state(other).y);
@@ -1245,8 +1245,8 @@ describe lanes_spec("Lanes<K, N>", ${
 			frame.r = noise.render();
 		}
 		std::vector<StereoSample> packed = frames;
-		op_major.renderBlock(packed, packed);
-		lane_by_lane.renderBlock(frames, frames);
+		op_major.render_block(packed, packed);
+		lane_by_lane.render_block(frames, frames);
 		for (std::size_t i = 0; i < frames.size(); ++i) {
 			expect(packed[i].l).to_equal(frames[i].l);
 			expect(packed[i].r).to_equal(frames[i].r);
@@ -1296,8 +1296,8 @@ describe lanes_spec("Lanes<K, N>", ${
 			for (int block = 0; block < 3; ++block) {
 				std::vector<Frame<q31, 2>> want(n);
 				std::vector<Frame<q31, 2>> got(n);
-				packed.renderBlock(want);
-				in_place.renderBlock(got);
+				packed.render_block(want);
+				in_place.render_block(got);
 				for (std::size_t i = 0; i < n; ++i) {
 					expect(got[i].lane[0]).to_equal(want[i].lane[0]);
 					expect(got[i].lane[1]).to_equal(want[i].lane[1]);

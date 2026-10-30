@@ -24,35 +24,35 @@
 // hardware does this in one NEON op per vector).
 namespace deluge::dsp {
 
-// q31 (ONE_Q31 == +1.0) -> f32 in [-1, 1].
-[[nodiscard]] constexpr f32 toF32(q31 x) noexcept {
-	return static_cast<f32>(x) * (1.0f / ONE_Q31f);
+// q31 (kOneQ31 == +1.0) -> f32 in [-1, 1].
+[[nodiscard]] constexpr f32 to_f32(q31 x) noexcept {
+	return static_cast<f32>(x) * (1.0f / kOneQ31f);
 }
 
 // f32 -> q31, saturating to [-1, 1] and rounding to nearest.
 //
 // Saturation is handled by explicit branches rather than scale-then-clamp: note
-// that ONE_Q31f (2^31 - 1) rounds *up* to 2^31 as a float, so x * ONE_Q31f at
+// that kOneQ31f (2^31 - 1) rounds *up* to 2^31 as a float, so x * kOneQ31f at
 // |x| == 1 would land on 2^31 and overflow the int32 cast (UB). The early
 // returns keep the cast argument strictly inside the int32 range.
-[[nodiscard]] constexpr q31 toQ31(f32 x) noexcept {
+[[nodiscard]] constexpr q31 to_q31(f32 x) noexcept {
 	if (x >= 1.0f) {
-		return ONE_Q31;
+		return kOneQ31;
 	}
 	if (x <= -1.0f) {
-		return -ONE_Q31;
+		return -kOneQ31;
 	}
-	return static_cast<q31>((x * ONE_Q31f) + (x >= 0.0f ? 0.5f : -0.5f));
+	return static_cast<q31>((x * kOneQ31f) + (x >= 0.0f ? 0.5f : -0.5f));
 }
 
 // Compile-time self-tests for the edges that matter (saturation + zero).
-static_assert(toQ31(1.0f) == ONE_Q31);
-static_assert(toQ31(-1.0f) == -ONE_Q31);
-static_assert(toQ31(2.0f) == ONE_Q31);   // saturates
-static_assert(toQ31(-2.0f) == -ONE_Q31); // saturates
-static_assert(toQ31(0.0f) == 0);
-static_assert(toF32(0) == 0.0f);
-static_assert(toF32(ONE_Q31) > 0.999f && toF32(ONE_Q31) <= 1.0f);
-static_assert(toF32(-ONE_Q31) < -0.999f && toF32(-ONE_Q31) >= -1.0f);
+static_assert(to_q31(1.0f) == kOneQ31);
+static_assert(to_q31(-1.0f) == -kOneQ31);
+static_assert(to_q31(2.0f) == kOneQ31);   // saturates
+static_assert(to_q31(-2.0f) == -kOneQ31); // saturates
+static_assert(to_q31(0.0f) == 0);
+static_assert(to_f32(0) == 0.0f);
+static_assert(to_f32(kOneQ31) > 0.999f && to_f32(kOneQ31) <= 1.0f);
+static_assert(to_f32(-kOneQ31) < -0.999f && to_f32(-kOneQ31) >= -1.0f);
 
 } // namespace deluge::dsp

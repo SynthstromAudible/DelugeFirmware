@@ -57,16 +57,16 @@ constexpr uint32_t kDecayToQ15Shift = 16;
 
 /// @return The decay table's remaining value at @p pos into a stage: about 0 at the start, full scale at the end.
 [[gnu::always_inline]] inline q31 remaining_decay4(uint32_t pos) {
-	return getDecay4(DuckEnvelope::kStageLength - pos, kDecayTableInputBits);
+	return get_decay4(DuckEnvelope::kStageLength - pos, kDecayTableInputBits);
 }
 
 /// @return As @ref remaining_decay4, on the 8-curve table.
 [[gnu::always_inline]] inline q31 remaining_decay8(uint32_t pos) {
-	return getDecay8(DuckEnvelope::kStageLength - pos, kDecayTableInputBits);
+	return get_decay8(DuckEnvelope::kStageLength - pos, kDecayTableInputBits);
 }
 
 /// @brief Enters @p next at its start: the attack falls from the level held to the floor, the release rises from the
-/// floor to ONE_Q31, and off holds nothing.
+/// floor to kOneQ31, and off holds nothing.
 void enter(State& s, Stage next) {
 	s.stage = next;
 	switch (next) {
@@ -76,7 +76,7 @@ void enter(State& s, Stage next) {
 		break;
 	case Stage::RELEASE:
 		s.pos = 0;
-		s.depth = ONE_Q31 - s.floor;
+		s.depth = kOneQ31 - s.floor;
 		break;
 	case Stage::OFF:
 		break;
@@ -100,7 +100,7 @@ void enter(State& s, Stage next) {
 } // namespace
 
 q31 attack_level(q31 depth, q31 floor, uint32_t pos) {
-	const q31 travelled = ONE_Q31 - duck::remaining_decay4(pos);
+	const q31 travelled = kOneQ31 - duck::remaining_decay4(pos);
 	return duck::multiply_q31(depth, travelled) + floor;
 }
 
@@ -118,12 +118,12 @@ q31 release_level(q31 depth, uint32_t pos, int32_t curve_extent16) {
 		            + ((duck::remaining_decay8(pos) >> duck::kDecayToQ15Shift) * curved);
 	}
 
-	return ONE_Q31 - depth + duck::multiply_q31(travelled, depth);
+	return kOneQ31 - depth + duck::multiply_q31(travelled, depth);
 }
 
 q31 DuckEnvelope::advance(const Coefficients& c, State& s, std::size_t n) {
 	if (!s.pending.empty()) {
-		const q31 floor = ONE_Q31 - s.pending.strength;
+		const q31 floor = kOneQ31 - s.pending.strength;
 		s.pending = {};
 		if (floor < s.level) {
 			s.floor = floor;
@@ -134,7 +134,7 @@ q31 DuckEnvelope::advance(const Coefficients& c, State& s, std::size_t n) {
 	if (s.stage == Stage::ATTACK) {
 		if (duck::step_stage(s, c.attack_step, n)) {
 			s.level = attack_level(s.depth, s.floor, s.pos);
-			return s.level - ONE_Q31;
+			return s.level - kOneQ31;
 		}
 		duck::enter(s, Stage::RELEASE);
 	}
@@ -142,12 +142,12 @@ q31 DuckEnvelope::advance(const Coefficients& c, State& s, std::size_t n) {
 	if (s.stage == Stage::RELEASE) {
 		if (duck::step_stage(s, c.release_step, n)) {
 			s.level = release_level(s.depth, s.pos, c.curve_extent16);
-			return s.level - ONE_Q31;
+			return s.level - kOneQ31;
 		}
 		duck::enter(s, Stage::OFF);
 	}
 
-	s.level = ONE_Q31;
+	s.level = kOneQ31;
 	return 0;
 }
 
@@ -157,7 +157,7 @@ void DuckEnvelope::hit(State& s, q31 strength) {
 
 void DuckEnvelope::hit_at(const Coefficients& c, State& s, q31 strength, uint32_t samples_ago) {
 	s.pending = {};
-	s.floor = ONE_Q31 - strength;
+	s.floor = kOneQ31 - strength;
 	s.depth = strength;
 
 	if (duck::lasts_past(c.attack_step, samples_ago)) {

@@ -75,11 +75,11 @@ public:
 		return out;
 	}
 
-	void renderMono(std::span<q31> block, fixed::FilterScratch scratch) {
-		set_.renderMono(block, scratch, deluge::synth_noise);
+	void render_mono(std::span<q31> block, fixed::FilterScratch scratch) {
+		set_.render_mono(block, scratch, deluge::synth_noise);
 	}
-	void renderStereo(std::span<q31> interleaved, fixed::FilterScratch scratch) {
-		set_.renderStereo(interleaved, scratch, deluge::synth_noise);
+	void render_stereo(std::span<q31> interleaved, fixed::FilterScratch scratch) {
+		set_.render_stereo(interleaved, scratch, deluge::synth_noise);
 	}
 
 	void reset() {
@@ -190,10 +190,10 @@ q31 play_block(Set& set, uint32_t& cong, const filter_workloads::FilterStep& s, 
 	const q31 gain = set.configure(s.gain, s.low, s.low_slot, s.high, s.high_slot, s.route);
 	const Scratch scratch{.fade = fade.first(block.size()), .parallel = parallel};
 	if (mono) {
-		set.renderMono(block, scratch);
+		set.render_mono(block, scratch);
 	}
 	else {
-		set.renderStereo(block, scratch);
+		set.render_stereo(block, scratch);
 	}
 	cong = deluge::synth_noise.state();
 	deluge::synth_noise.seed(outer);

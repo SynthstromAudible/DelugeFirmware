@@ -136,7 +136,7 @@ std::vector<q31> mode_changes() {
 /// off, low and high.
 std::vector<FilterConfig> sweep_configs() {
 	std::vector<FilterConfig> configs;
-	for (const q31 frequency : {q31{1 << 20}, q31{1 << 22}, q31{1 << 23}, q31{1 << 24}, q31{1 << 26}, q31{ONE_Q31}}) {
+	for (const q31 frequency : {q31{1 << 20}, q31{1 << 22}, q31{1 << 23}, q31{1 << 24}, q31{1 << 26}, q31{kOneQ31}}) {
 		for (const q31 resonance : {q31{0}, filter_workloads::detail::kHpBypass, filter_workloads::detail::kHpTanh,
 		                            filter_workloads::detail::kHpSaturated, q31{536870911}, q31{1 << 30}}) {
 			for (const q31 morph : {q31{0}, q31{1 << 26}, q31{536870911}}) {
@@ -228,18 +228,18 @@ describe high_pass_ladder("HighPassLadder", ${
 						const q31 gain = reference.configure(kGain, config);
 						std::vector<q31> out = kInput;
 						if (stereo) {
-							reference.renderStereo(expected, scratch);
+							reference.render_stereo(expected, scratch);
 							Stereo<Ladder> ladder{Ladder::Settings{.gain = kGain, .config = config}};
 							const auto frames = deluge::dsp::as_frames(out);
-							ladder.renderBlock(frames, frames);
+							ladder.render_block(frames, frames);
 							expect(words(ladder.left())).to_equal(words(reference.left()));
 							expect(words(ladder.right())).to_equal(words(reference.right()));
 							expect(Ladder::gain(ladder.coefficients())).to_equal(gain);
 						}
 						else {
-							reference.renderMono(expected, scratch);
+							reference.render_mono(expected, scratch);
 							Mono<Ladder> ladder{Ladder::Settings{.gain = kGain, .config = config}};
-							ladder.renderBlock(out, out);
+							ladder.render_block(out, out);
 							expect(words(ladder.state())).to_equal(words(reference.left()));
 							expect(Ladder::gain(ladder.coefficients())).to_equal(gain);
 						}
@@ -261,7 +261,7 @@ describe high_pass_ladder("HighPassLadder", ${
 				for (const q31 resonance : {from, to, from}) {
 					std::vector<q31> expected = kInput;
 					std::ignore = reference.configure(kGain, config_at(resonance));
-					reference.renderStereo(expected, scratch);
+					reference.render_stereo(expected, scratch);
 
 					const Ladder::State left = ladder.left();
 					const Ladder::State right = ladder.right();
@@ -271,7 +271,7 @@ describe high_pass_ladder("HighPassLadder", ${
 
 					std::vector<q31> out = kInput;
 					const auto frames = deluge::dsp::as_frames(out);
-					ladder.renderBlock(frames, frames);
+					ladder.render_block(frames, frames);
 
 					expect(out).to_equal(expected);
 					expect(words(ladder.left())).to_equal(words(reference.left()));
@@ -292,11 +292,11 @@ describe high_pass_ladder("HighPassLadder", ${
 
 		std::ignore = reference.configure(kGain, config_at(filter_workloads::detail::kHpSaturated));
 		std::vector<q31> expected = kInput;
-		reference.renderMono(expected, scratch);
+		reference.render_mono(expected, scratch);
 		reference.reset(false);
 
 		std::vector<q31> out = kInput;
-		ladder.renderBlock(out, out);
+		ladder.render_block(out, out);
 		ladder.reset();
 
 		expect(ladder.state().saturator.position).not_().to_equal(0u);
@@ -316,12 +316,12 @@ describe high_pass_ladder("HighPassLadder", ${
 
 		std::ignore = reference.configure(kGain, config_at(filter_workloads::detail::kHpSaturated));
 		std::vector<q31> expected = kInput;
-		reference.renderStereo(expected, scratch);
+		reference.render_stereo(expected, scratch);
 		reference.reset(false);
 
 		std::vector<q31> out = kInput;
 		const auto frames = deluge::dsp::as_frames(out);
-		ladder.renderBlock(frames, frames);
+		ladder.render_block(frames, frames);
 		ladder.reset();
 
 		expect(ladder.left().saturator.position).not_().to_equal(ladder.right().saturator.position);

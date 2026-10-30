@@ -23,7 +23,7 @@ namespace {
 /// so they share it; each case's setup makes the component anew.
 struct ModFxRig {
 	std::optional<effects::ModFx> mod_fx; ///< The component, as a Sound's.
-	int32_t volume{ONE_Q31 >> 1};         ///< The post-effect volume the component scales in place (Q31).
+	int32_t volume{kOneQ31 >> 1};         ///< The post-effect volume the component scales in place (Q31).
 	dsp::Buffer<StereoSample> work{};     ///< The lanes output's first n frames, processed in place.
 };
 
@@ -59,7 +59,7 @@ void ModFxCase::setup(std::size_t n) {
 	effects::RingChange ring = rig.mod_fx->prepare(type);
 	rig.mod_fx->commit(type, ring);
 	rig.mod_fx->finish(ring);
-	rig.volume = ONE_Q31 >> 1;
+	rig.volume = kOneQ31 >> 1;
 	fill_compressor_input();
 	const FrameSpans<StereoSample> spans = stereo_frame_spans(n);
 	rig.work = spans.out;

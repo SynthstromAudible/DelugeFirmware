@@ -362,7 +362,7 @@ bool changesBlock(ModControllableAudio& owner, ParamManager& params, ModFXType t
 	    .sound = true,
 	};
 	bool changed = false;
-	int32_t volume = ONE_Q31 >> 1;
+	int32_t volume = kOneQ31 >> 1;
 	for (int32_t b = 0; b < kModFxBlocks; b++) {
 		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
 			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
@@ -407,7 +407,7 @@ MasterFxRender renderMasterFx(GlobalEffectable& master, ParamManager& params) {
 			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
 			block[i] = {v, -v};
 		}
-		int32_t volume = ONE_Q31 >> 1;
+		int32_t volume = kOneQ31 >> 1;
 		master.core().soft_off_grain(fx);
 		master.core().render_fx(block, fx, volume, true, send);
 		made.frames.insert(made.frames.end(), std::begin(block), std::end(block));

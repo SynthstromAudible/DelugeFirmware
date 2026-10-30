@@ -691,7 +691,7 @@ timeStretchingConsidered:
 		amplitude <<= 1;
 		amplitudeIncrement <<= 1;
 
-		whichKernel = deluge::dsp::fixed::WindowedSincKernel::variantFor(phaseIncrement);
+		whichKernel = deluge::dsp::fixed::WindowedSincKernel::variant_for(phaseIncrement);
 	}
 
 	// If time-stretching or reading a time-stretched cache
@@ -1386,7 +1386,7 @@ readTimestretched:
 
 				timeStretcher->crossfadeProgress += timeStretcher->crossfadeIncrement * numSamplesThisTimestretchedRead;
 
-				int32_t newerHopAmplitudeAfter = lshiftAndSaturate<7>(timeStretcher->crossfadeProgress);
+				int32_t newerHopAmplitudeAfter = lshift_and_saturate<7>(timeStretcher->crossfadeProgress);
 
 				int32_t newerHopAmplitudeIncrement =
 				    (int32_t)(newerHopAmplitudeAfter - newerHopAmplitudeNow) / (int32_t)numSamplesThisTimestretchedRead;

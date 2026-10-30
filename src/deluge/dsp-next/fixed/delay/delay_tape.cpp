@@ -37,7 +37,7 @@ DelayTape::DelayTape(std::span<StereoSample> storage, size_t size, uint32_t nati
 	clear();
 }
 
-std::pair<int32_t, bool> DelayTape::idealSizeForRate(uint32_t rate) {
+std::pair<int32_t, bool> DelayTape::ideal_size_for_rate(uint32_t rate) {
 	if (rate == 0) {
 		return {static_cast<int32_t>(kMaxSize), true};
 	}
@@ -46,11 +46,11 @@ std::pair<int32_t, bool> DelayTape::idealSizeForRate(uint32_t rate) {
 	return {static_cast<int32_t>(size), size != ideal};
 }
 
-void DelayTape::makeNativeRatePrecise() {
+void DelayTape::make_native_rate_precise() {
 	native_rate_ = static_cast<uint32_t>(std::round(kNeutralSpan / static_cast<double>(size_)));
 }
 
-void DelayTape::makeNativeRatePreciseRelativeTo(const DelayTape& other) {
+void DelayTape::make_native_rate_precise_relative_to(const DelayTape& other) {
 	const double other_amount_too_fast =
 	    static_cast<double>(other.native_rate_) * static_cast<double>(other.size_) / kNeutralSpan;
 	native_rate_ = static_cast<uint32_t>(std::round(kNeutralSpan * other_amount_too_fast / static_cast<double>(size_)));
@@ -62,25 +62,25 @@ void DelayTape::clear() {
 	resample_ = std::nullopt;
 }
 
-void DelayTape::setupResample() {
+void DelayTape::setup_resample() {
 	long_pos_ = 0;
 	last_short_pos_ = 0;
 
 	// The triangles are four samples wide, two either side of the write head: a quarter of the sample last written
 	// belongs one sample on.
-	StereoSample* written = writePosition(0);
-	StereoSample* next = writePosition(1);
+	StereoSample* written = write_position(0);
+	StereoSample* next = write_position(1);
 	*next = {.l = written->l >> 2, .r = written->r >> 2};
 	written->l -= next->l;
 	written->r -= next->r;
 }
 
-void DelayTape::setupForRender(int32_t rate) {
-	if (!resamplesAt(static_cast<uint32_t>(rate))) {
+void DelayTape::setup_for_render(int32_t rate) {
+	if (!resamples_at(static_cast<uint32_t>(rate))) {
 		return;
 	}
 	if (!resampling()) {
-		setupResample();
+		setup_resample();
 	}
 
 	const auto actual_spin_rate =

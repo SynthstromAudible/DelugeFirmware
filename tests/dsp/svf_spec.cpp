@@ -101,7 +101,7 @@ describe svf("Svf", ${
 	it("passes the gain through as its compensation, as the reference's configure returns it", _ {
 		for (const FilterConfig& config : kConfigs) {
 			for (const SvfMode mode : {SvfMode::BAND, SvfMode::NOTCH}) {
-				for (const q31 gain : {q31{0}, q31{1 << 29}, q31{ONE_Q31}}) {
+				for (const q31 gain : {q31{0}, q31{1 << 29}, q31{kOneQ31}}) {
 					filters_reference::ReferenceStateVariableFilter reference;
 					const Svf::Coefficients c = Svf::coefficients({.gain = gain, .config = config, .mode = mode});
 					expect(Svf::gain(c)).to_equal(reference.configure(gain, config, mode));

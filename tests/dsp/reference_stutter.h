@@ -20,7 +20,7 @@
 /// setup and processStutter, verbatim but for these edits:
 ///   - the tape's storage is an owned vector, filled with a known sample (zero unless a spec asks otherwise) where
 ///     the app's comes uninitialised from the allocator;
-///   - a native tape's write is writeNative, which DelayTape::write calls for a native tape (the app passes it
+///   - a native tape's write is write_native, which DelayTape::write calls for a native tape (the app passes it
 ///     strengths it never set, which a native write never reads);
 ///   - the resampled play's two-tap sum is wrapping_add, shifted through uint32_t;
 ///   - the rate comes in per block, where the app computes it from the stutter-rate param and the tempo.
@@ -64,12 +64,12 @@ public:
 	void begin(uint32_t rate, const effects::StutterState& settings, StereoSample fill = {.l = 0, .r = 0}) {
 		playing_settings_ = settings;
 		current_reverse_ = playing_settings_.reversed;
-		const auto [size, clamped] = DelayTape::idealSizeForRate(rate);
+		const auto [size, clamped] = DelayTape::ideal_size_for_rate(rate);
 		const std::size_t frames = static_cast<std::size_t>(size) + static_cast<std::size_t>(DelayTape::kWriteLag);
 		storage_.assign(frames, fill);
 		tape_ = DelayTape{std::span<StereoSample>{storage_}, static_cast<std::size_t>(size), rate};
 		if (clamped) {
-			tape_.makeNativeRatePrecise();
+			tape_.make_native_rate_precise();
 		}
 		recording_ = true;
 		size_left_until_record_finished_ = static_cast<int32_t>(tape_.size());
@@ -79,7 +79,7 @@ public:
 	void process(std::span<StereoSample> audio, uint32_t rate) {
 		DelayTape& tape = tape_;
 
-		tape.setupForRender(static_cast<int32_t>(rate));
+		tape.setup_for_render(static_cast<int32_t>(rate));
 
 		if (recording_) {
 			counts.record_blocks += 1;
@@ -87,29 +87,29 @@ public:
 				int32_t strength1 = 0;
 				int32_t strength2 = 0;
 
-				if (tape.isNative()) {
+				if (tape.is_native()) {
 					counts.native_frames += 1;
-					tape.clearAndMoveOn();
+					tape.clear_and_move_on();
 					size_left_until_record_finished_--;
-					tape.writeNative(sample);
+					tape.write_native(sample);
 				}
 				else {
 					counts.resampled_frames += 1;
 					strength2 = tape.advance([&] {
-						tape.clearAndMoveOn();
+						tape.clear_and_move_on();
 						size_left_until_record_finished_--;
 					});
 					strength1 = 65536 - strength2;
-					tape.writeResampled(sample, strength1, strength2);
+					tape.write_resampled(sample, strength1, strength2);
 				}
 			}
 
 			if (size_left_until_record_finished_ < 0) {
 				if (current_reverse_) {
-					tape.setCurrent(tape.end() - 1);
+					tape.set_current(tape.end() - 1);
 				}
 				else {
-					tape.setCurrent(tape.begin());
+					tape.set_current(tape.begin());
 				}
 				recording_ = false;
 			}
@@ -121,13 +121,13 @@ public:
 				int32_t strength2 = 0;
 				counts.reverse_frames += current_reverse_ ? 1 : 0;
 
-				if (tape.isNative()) {
+				if (tape.is_native()) {
 					counts.native_frames += 1;
 					if (current_reverse_) {
-						tape.moveBack();
+						tape.move_back();
 					}
 					else {
-						tape.moveOn();
+						tape.move_on();
 					}
 					sample.l = tape.current().l;
 					sample.r = tape.current().r;
@@ -135,10 +135,10 @@ public:
 				else {
 					counts.resampled_frames += 1;
 					if (current_reverse_) {
-						strength2 = tape.retreat([&] { tape.moveBack(); });
+						strength2 = tape.retreat([&] { tape.move_back(); });
 					}
 					else {
-						strength2 = tape.advance([&] { tape.moveOn(); });
+						strength2 = tape.advance([&] { tape.move_on(); });
 					}
 
 					strength1 = 65536 - strength2;
@@ -165,7 +165,7 @@ public:
 	}
 
 	/// @return Whether the tape has been recorded and is playing back.
-	[[nodiscard]] bool playing() const { return tape_.isActive() && !recording_; }
+	[[nodiscard]] bool playing() const { return tape_.is_active() && !recording_; }
 	/// @return Whether playback runs backwards.
 	[[nodiscard]] bool reversed() const { return current_reverse_; }
 	/// @return The frames the read head has left to pass while recording (below zero once recorded).

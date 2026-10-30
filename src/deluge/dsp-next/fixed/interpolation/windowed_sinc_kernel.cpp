@@ -31,7 +31,7 @@ inline constexpr int32_t kSincKernelAlignment = 32;
 // playback). Values verbatim from the original.
 // clang-format off
 alignas(kSincKernelAlignment) constexpr int16_t
-    kWindowedSincKernel[kSincKernelVariants][kSincKernelPhaseSteps][kSincKernelTaps] = {
+    kWindowedSincTaps[kSincKernelVariants][kSincKernelPhaseSteps][kSincKernelTaps] = {
 	{
 		{0, 0, 0, 0, 0, 0, 0, -1, 32767, -1, 0, 0, 0, 0, 0, 0, },
 		{-2, 7, -28, 80, -188, 400, -831, 2056, 32548, -1784, 754, -363, 168, -70, 24, -6, },
@@ -191,7 +191,7 @@ const int16_t* WindowedSincKernel::select(uint32_t phase_increment, uint32_t ban
 }
 
 const int16_t* WindowedSincKernel::variant(int32_t which) const {
-	return &kWindowedSincKernel[which][0][0];
+	return &kWindowedSincTaps[which][0][0];
 }
 
 } // namespace deluge::dsp::fixed

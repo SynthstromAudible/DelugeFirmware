@@ -63,10 +63,10 @@ void blend(FadeWrapper<kStereo>& fade, std::span<q31> block, std::span<q31> scra
 	const std::span<q31> dry = scratch.first(block.size());
 	if constexpr (kStereo) {
 		const auto frames = deluge::dsp::as_frames(block);
-		fade.renderBlock(deluge::dsp::as_frames(dry), frames, frames);
+		fade.render_block(deluge::dsp::as_frames(dry), frames, frames);
 	}
 	else {
-		fade.renderBlock(dry, block, block);
+		fade.render_block(dry, block, block);
 	}
 }
 
@@ -198,14 +198,14 @@ public:
 		return Svf::gain(filter_.coefficients());
 	}
 
-	void renderMono(std::span<q31> block, std::span<q31> scratch) {
+	void render_mono(std::span<q31> block, std::span<q31> scratch) {
 		if constexpr (kStereo) {
 			std::abort();
 		}
 		render(block, scratch);
 	}
 
-	void renderStereo(std::span<q31> interleaved, std::span<q31> scratch) {
+	void render_stereo(std::span<q31> interleaved, std::span<q31> scratch) {
 		if constexpr (!kStereo) {
 			std::abort();
 		}
@@ -249,10 +249,10 @@ private:
 		}
 		if constexpr (kStereo) {
 			const auto frames = deluge::dsp::as_frames(block);
-			filter_.renderBlock(frames, frames);
+			filter_.render_block(frames, frames);
 		}
 		else {
-			filter_.renderBlock(block, block);
+			filter_.render_block(block, block);
 		}
 		if (fading) {
 			blend<kStereo>(fade_, block, scratch);
@@ -284,14 +284,14 @@ public:
 		return Ladder::gain(c);
 	}
 
-	void renderMono(std::span<q31> block, std::span<q31> scratch) {
+	void render_mono(std::span<q31> block, std::span<q31> scratch) {
 		if constexpr (kStereo) {
 			std::abort();
 		}
 		render(block, scratch);
 	}
 
-	void renderStereo(std::span<q31> interleaved, std::span<q31> scratch) {
+	void render_stereo(std::span<q31> interleaved, std::span<q31> scratch) {
 		if constexpr (!kStereo) {
 			std::abort();
 		}
@@ -336,10 +336,10 @@ private:
 		}
 		if constexpr (kStereo) {
 			const auto frames = deluge::dsp::as_frames(block);
-			filter_.renderBlock(frames, frames, deluge::synth_noise);
+			filter_.render_block(frames, frames, deluge::synth_noise);
 		}
 		else {
-			filter_.renderBlock(block, block, deluge::synth_noise);
+			filter_.render_block(block, block, deluge::synth_noise);
 		}
 		if (fading) {
 			blend<kStereo>(fade_, block, scratch);
@@ -365,14 +365,14 @@ public:
 		return Ladder::gain(filter_.coefficients());
 	}
 
-	void renderMono(std::span<q31> block, std::span<q31> scratch) {
+	void render_mono(std::span<q31> block, std::span<q31> scratch) {
 		if constexpr (kStereo) {
 			std::abort();
 		}
 		render(block, scratch);
 	}
 
-	void renderStereo(std::span<q31> interleaved, std::span<q31> scratch) {
+	void render_stereo(std::span<q31> interleaved, std::span<q31> scratch) {
 		if constexpr (!kStereo) {
 			std::abort();
 		}
@@ -417,10 +417,10 @@ private:
 		}
 		if constexpr (kStereo) {
 			const auto frames = deluge::dsp::as_frames(block);
-			filter_.renderBlock(frames, frames);
+			filter_.render_block(frames, frames);
 		}
 		else {
-			filter_.renderBlock(block, block);
+			filter_.render_block(block, block);
 		}
 		if (fading) {
 			blend<kStereo>(fade_, block, scratch);

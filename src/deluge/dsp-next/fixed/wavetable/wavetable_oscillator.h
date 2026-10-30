@@ -45,7 +45,7 @@ public:
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 
 	/// @brief Fill @p output with the next `output.size()` samples, chunk by cycle chunk.
-	void renderBlock(Buffer output) {
+	void render_block(Buffer output) {
 		uint32_t phase = phasor_.phase();
 		uint32_t phase_increment = phasor_.increment();
 

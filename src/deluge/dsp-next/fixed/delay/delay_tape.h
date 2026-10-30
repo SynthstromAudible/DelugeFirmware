@@ -32,7 +32,7 @@ namespace deluge::dsp::fixed {
 /// @brief A delay's tape over storage it does not own: the read and write heads, native or resampling (16.16
 /// strengths between neighbouring samples), and the wraps the heads report. The delay and the stutterer both drive it.
 ///
-/// The storage is a ring of sizeIncludingExtra() samples. The read head walks it one sample per step; the write head
+/// The storage is a ring of size_including_extra() samples. The read head walks it one sample per step; the write head
 /// trails kWriteLag samples behind the read head. Played at its native rate the tape steps once per output sample.
 /// At any other rate it resamples: a long position (8.24, 1 is one step) advances by the rate relative to the native
 /// one, the read head steps whenever the long position's whole part changes, and the 16-bit fraction between the
@@ -76,26 +76,26 @@ public:
 	/// kMaxSize.
 	/// @param rate The delay's rate (16777216 is neutral).
 	/// @return The size in samples, and whether it was clamped to [kMinSize, kMaxSize].
-	[[nodiscard]] static std::pair<int32_t, bool> idealSizeForRate(uint32_t rate);
+	[[nodiscard]] static std::pair<int32_t, bool> ideal_size_for_rate(uint32_t rate);
 
 	/// @brief Whether the tape has storage.
 	/// @return True when it has storage.
-	[[nodiscard]] constexpr bool isActive() const { return start_ != nullptr; }
+	[[nodiscard]] constexpr bool is_active() const { return start_ != nullptr; }
 	/// @brief Whether the tape plays at its native rate: one step per sample.
 	/// @return True when it plays natively.
-	[[nodiscard]] constexpr bool isNative() const { return !resample_.has_value(); }
+	[[nodiscard]] constexpr bool is_native() const { return !resample_.has_value(); }
 	/// @brief Whether the tape resamples.
 	/// @return True when it resamples.
 	[[nodiscard]] constexpr bool resampling() const { return resample_.has_value(); }
 	/// @brief The rate at which the tape plays natively (1 is 16777216).
 	/// @return The native rate.
-	[[nodiscard]] constexpr uint32_t nativeRate() const { return native_rate_; }
+	[[nodiscard]] constexpr uint32_t native_rate() const { return native_rate_; }
 	/// @brief The played size, in samples.
 	/// @return The played size.
 	[[nodiscard]] constexpr size_t size() const { return size_; }
 	/// @brief The storage's size, in samples: the played size plus kWriteLag.
 	/// @return The storage size.
-	[[nodiscard]] constexpr size_t sizeIncludingExtra() const { return size_including_extra_; }
+	[[nodiscard]] constexpr size_t size_including_extra() const { return size_including_extra_; }
 	/// @brief The storage's first sample.
 	/// @return The first sample.
 	[[nodiscard]] constexpr StereoSample* begin() const { return start_; }
@@ -107,12 +107,12 @@ public:
 	[[nodiscard]] constexpr StereoSample& current() const { return *current_; }
 	/// @brief Puts the read head on @p sample, which must lie in the storage.
 	/// @param sample The sample to put the head on.
-	constexpr void setCurrent(StereoSample* sample) { current_ = sample; }
+	constexpr void set_current(StereoSample* sample) { current_ = sample; }
 
-	/// @brief Whether the tape resamples after setupForRender(@p rate).
-	/// @param rate The block's rate (8.24 on the delay's rate scale, as setupForRender takes it).
+	/// @brief Whether the tape resamples after setup_for_render(@p rate).
+	/// @param rate The block's rate (8.24 on the delay's rate scale, as setup_for_render takes it).
 	/// @return true if the tape already resamples, or has storage and @p rate is not its native rate.
-	[[nodiscard]] constexpr bool resamplesAt(uint32_t rate) const {
+	[[nodiscard]] constexpr bool resamples_at(uint32_t rate) const {
 		return resampling() || (start_ != nullptr && rate != native_rate_);
 	}
 
@@ -123,15 +123,15 @@ public:
 	/// resampling, a tape stays resampling (at the native rate too) until clear(). A tape resamples at no less than
 	/// 2^-15 of its native rate, the slowest its writes can widen to; a rate of 0 crawls at that.
 	/// @param rate The block's rate (8.24 on the delay's rate scale).
-	void setupForRender(int32_t rate);
+	void setup_for_render(int32_t rate);
 
 	/// @brief Sets the native rate to the one whose ideal size is exactly this tape's size.
-	void makeNativeRatePrecise();
+	void make_native_rate_precise();
 
 	/// @brief Sets the native rate to the one that plays this tape in the same time as @p other at @p other's
 	/// native rate.
 	/// @param other The tape to match the playing time of.
-	void makeNativeRatePreciseRelativeTo(const DelayTape& other);
+	void make_native_rate_precise_relative_to(const DelayTape& other);
 
 	/// @brief Puts the read head kWriteLag samples in and zeroes the storage up to two samples past it; ends any
 	/// resampling. The rest of the storage is left: the read head clears it on its first pass.
@@ -139,14 +139,14 @@ public:
 
 	/// @brief Clears the sample under the read head, then steps the head on.
 	/// @return Whether the read head wrapped.
-	bool clearAndMoveOn() {
+	bool clear_and_move_on() {
 		*current_ = {.l = 0, .r = 0};
-		return moveOn();
+		return move_on();
 	}
 
 	/// @brief Steps the read head on one sample, wrapping at the storage's end.
 	/// @return Whether the read head wrapped.
-	bool moveOn() {
+	bool move_on() {
 		++current_;
 		const bool wrapped = current_ == end_;
 		if (wrapped) {
@@ -157,7 +157,7 @@ public:
 
 	/// @brief Steps the read head back one sample, wrapping at the storage's start.
 	/// @return Whether the read head wrapped backwards.
-	bool moveBack() {
+	bool move_back() {
 		if (current_ == start_) {
 			current_ = end_ - 1;
 			return true;
@@ -198,12 +198,12 @@ public:
 
 	/// @brief Writes @p sample (Q31) kWriteLag samples behind the read head.
 	/// @param sample The frame to write, Q31 per channel.
-	void writeNative(StereoSample sample) { *writePosition(0) = sample; }
+	void write_native(StereoSample sample) { *write_position(0) = sample; }
 
 	/// @brief Writes @p sample (Q31) at @p write_pos, then moves @p write_pos on, wrapping at the storage's end.
 	/// @param sample The frame to write, Q31 per channel.
 	/// @param write_pos The write position, advanced.
-	void writeNativeAndMoveOn(StereoSample sample, StereoSample*& write_pos) {
+	void write_native_and_move_on(StereoSample sample, StereoSample*& write_pos) {
 		*write_pos = sample;
 		++write_pos;
 		if (write_pos == end_) {
@@ -215,11 +215,11 @@ public:
 	/// @param sample The frame to write, Q31 per channel.
 	/// @param strength1,strength2 The 16.16 strengths either side of the write head's long position.
 	[[gnu::always_inline]] void write(StereoSample sample, int32_t strength1, int32_t strength2) {
-		if (isNative()) {
-			writeNative(sample);
+		if (is_native()) {
+			write_native(sample);
 			return;
 		}
-		writeResampled(sample, strength1, strength2);
+		write_resampled(sample, strength1, strength2);
 	}
 
 	/// @brief Adds @p sample (Q31) into the storage around the write head, spread as a triangle so a resampled tape
@@ -227,15 +227,15 @@ public:
 	/// either side of the write head's long position. Nothing is written by a native tape.
 	/// @param sample The frame to write, Q31 per channel.
 	/// @param strength1,strength2 The 16.16 strengths either side of the write head's long position.
-	[[gnu::always_inline]] void writeResampled(StereoSample sample, int32_t strength1, int32_t strength2) {
+	[[gnu::always_inline]] void write_resampled(StereoSample sample, int32_t strength1, int32_t strength2) {
 		if (!resample_) {
 			return;
 		}
 		if (resample_->actual_spin_rate >= static_cast<uint32_t>(kMaxSampleValue)) {
-			writeSpedUp(sample, strength2);
+			write_sped_up(sample, strength2);
 		}
 		else {
-			writeSlowedDown(sample, strength1, strength2);
+			write_slowed_down(sample, strength1, strength2);
 		}
 	}
 
@@ -247,7 +247,7 @@ public:
 
 	/// @brief Puts the read head back where @p head says.
 	/// @param head A position from head().
-	constexpr void setHead(Head head) {
+	constexpr void set_head(Head head) {
 		current_ = head.pos;
 		long_pos_ = head.long_pos;
 		last_short_pos_ = head.last_short_pos;
@@ -272,10 +272,10 @@ private:
 
 	/// @brief Starts resampling: the long position back to 0, and a quarter of the sample last written moved one
 	/// sample on, where the triangles' writes will meet it.
-	void setupResample();
+	void setup_resample();
 
 	/// @return The sample @p offset past the write head (kWriteLag behind the read head), wrapped into the storage.
-	[[nodiscard]] StereoSample* writePosition(std::ptrdiff_t offset) const {
+	[[nodiscard]] StereoSample* write_position(std::ptrdiff_t offset) const {
 		const auto ring = static_cast<std::ptrdiff_t>(size_including_extra_);
 		std::ptrdiff_t index = (current_ - start_) - kWriteLag + offset;
 		while (index < 0) {
@@ -293,14 +293,14 @@ private:
 	/// @brief A write at above the native rate: a triangle at least two steps either side of the long position,
 	/// from its far right to where its left side falls to nothing. Each write is the sample at the strength the
 	/// triangle has there (4.28), shifted back up by 3.
-	[[gnu::always_inline]] void writeSpedUp(StereoSample sample, int32_t strength2) {
+	[[gnu::always_inline]] void write_sped_up(StereoSample sample, int32_t strength2) {
 		const auto far_right = static_cast<int32_t>(
 		    (static_cast<uint32_t>(strength2) + (resample_->spin_rate_for_sped_up_writing >> 8)) >> 16);
 		// The distance from the write head, 16.16: one sample is 65536.
 		int32_t distance = far_right << 16;
-		StereoSample* pos = writePosition(far_right);
+		StereoSample* pos = write_position(far_right);
 
-		auto strengthAt = [&](int32_t from_long_pos) {
+		auto strength_at = [&](int32_t from_long_pos) {
 			return static_cast<int32_t>(0x0FFFFFFFu
 			                            - (static_cast<uint32_t>(from_long_pos >> 4) * resample_->divide_by_rate));
 		};
@@ -312,12 +312,12 @@ private:
 
 		// The right side, up to the write head.
 		while (distance != 0) {
-			add(strengthAt(distance - strength2));
+			add(strength_at(distance - strength2));
 			distance -= 65536;
 		}
 		// The left side, from the write head until the triangle reaches nothing.
 		while (true) {
-			const int32_t strength = strengthAt(distance + strength2);
+			const int32_t strength = strength_at(distance + strength2);
 			if (strength <= 0) {
 				break;
 			}
@@ -328,7 +328,7 @@ private:
 
 	/// @brief A write at below the native rate: four samples, from two right of the write head back to one left of
 	/// it, each at its side's strength (16.16) widened by the rate multiple and scaled by the write size adjustment.
-	[[gnu::always_inline]] void writeSlowedDown(StereoSample sample, int32_t strength1, int32_t strength2) {
+	[[gnu::always_inline]] void write_slowed_down(StereoSample sample, int32_t strength1, int32_t strength2) {
 		const auto widen = [&](int32_t strength) {
 			return static_cast<int32_t>(static_cast<uint32_t>(strength) + resample_->rate_multiple - 65536);
 		};
@@ -341,7 +341,7 @@ private:
 		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
 		const int32_t strengths[kStrengths]{next - 65536, next, main, main - 65536};
 
-		StereoSample* pos = writePosition(2);
+		StereoSample* pos = write_position(2);
 		for (size_t i = 0; i < kStrengths; ++i) {
 			const int32_t strength = strengths[i];
 			if (strength > 0) {

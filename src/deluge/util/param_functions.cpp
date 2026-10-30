@@ -28,7 +28,7 @@
 #include "util/lookuptables/lookuptables.h"
 #include <cstdint>
 
-using deluge::dsp::fixed::linear_table_interpolator;
+using deluge::dsp::fixed::kLinearTableInterpolator;
 
 namespace params = deluge::modulation::params;
 using namespace deluge;
@@ -207,7 +207,7 @@ int32_t getFinalParameterValueVolume(int32_t paramNeutralValue, int32_t patchedV
 	// return multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue) << 5;
 
 	// Must saturate, otherwise mod fx depth can easily overflow
-	return lshiftAndSaturate<5>(multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue));
+	return lshift_and_saturate<5>(multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue));
 }
 
 int32_t getFinalParameterValueLinear(int32_t paramNeutralValue, int32_t patchedValue) {
@@ -223,7 +223,7 @@ int32_t getFinalParameterValueLinear(int32_t paramNeutralValue, int32_t patchedV
 	// 536870912 represents "1".
 
 	// Must saturate, otherwise sustain level can easily overflow
-	return lshiftAndSaturate<3>(multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue));
+	return lshift_and_saturate<3>(multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue));
 }
 
 int32_t getFinalParameterValueExp(int32_t paramNeutralValue, int32_t patchedValue) {

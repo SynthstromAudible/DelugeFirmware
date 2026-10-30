@@ -52,10 +52,10 @@ static_assert(!has_context<Identity>);
 // context-taking render.
 template <typename M>
 concept renders_without_context =
-    requires(M m, std::span<const q31> in, std::span<q31> out) { m.renderBlock(in, out); };
+    requires(M m, std::span<const q31> in, std::span<q31> out) { m.render_block(in, out); };
 template <typename M>
 concept renders_with_context =
-    requires(M m, std::span<const q31> in, std::span<q31> out, Cong& c) { m.renderBlock(in, out, c); };
+    requires(M m, std::span<const q31> in, std::span<q31> out, Cong& c) { m.render_block(in, out, c); };
 static_assert(!renders_without_context<Mono<AddNoise>> && renders_with_context<Mono<AddNoise>>);
 static_assert(renders_without_context<Mono<Identity>> && !renders_with_context<Mono<Identity>>);
 } // namespace
@@ -67,7 +67,7 @@ describe kernel_context("a kernel's per-block context", ${
 		Cong noise{99};
 		Cong reference{99};
 		std::vector<q31> block(37, 0);
-		mono.renderBlock(block, block, noise);
+		mono.render_block(block, block, noise);
 		int32_t mismatches = 0;
 		for (q31 v : block) {
 			mismatches += v != static_cast<q31>(reference.next() >> 8);
@@ -81,7 +81,7 @@ describe kernel_context("a kernel's per-block context", ${
 		Cong noise{7};
 		Cong reference{7};
 		std::vector<q31> interleaved(2 * 19, 0);
-		stereo.renderBlock(as_frames(interleaved), as_frames(interleaved), noise);
+		stereo.render_block(as_frames(interleaved), as_frames(interleaved), noise);
 		int32_t mismatches = 0;
 		for (q31 v : interleaved) { // L0 R0 L1 R1 ...: the draws in order
 			mismatches += v != static_cast<q31>(reference.next() >> 8);
@@ -95,12 +95,12 @@ describe kernel_context("a kernel's per-block context", ${
 		Cong noise{3};
 		std::vector<q31> first(2 * 8, 0);
 		std::vector<q31> second(2 * 8, 0);
-		stereo.renderBlock(as_frames(first), as_frames(first), noise);
-		stereo.renderBlock(as_frames(second), as_frames(second), noise);
+		stereo.render_block(as_frames(first), as_frames(first), noise);
+		stereo.render_block(as_frames(second), as_frames(second), noise);
 		Stereo<AddNoise> whole;
 		Cong once{3};
 		std::vector<q31> both(2 * 16, 0);
-		whole.renderBlock(as_frames(both), as_frames(both), once);
+		whole.render_block(as_frames(both), as_frames(both), once);
 		first.insert(first.end(), second.begin(), second.end());
 		expect(first).to_equal(both);
 	});

@@ -234,7 +234,7 @@ describe stereo("stereo frames and Stereo<K>", ${
 		Stereo<NoisyAdd<SharedSeeded>> st;
 		for (const std::size_t n : {1u, 4u, 7u}) {
 			std::vector<StereoSample> frames(n);
-			st.renderBlock(frames, frames);
+			st.render_block(frames, frames);
 			for (const StereoSample& frame : frames) {
 				expect(frame.l).to_equal(expected.render());
 				expect(frame.r).to_equal(expected.render());
@@ -250,7 +250,7 @@ describe stereo("stereo frames and Stereo<K>", ${
 		Stereo<NoisyPrepare<SharedSeeded>> st;
 		for (const std::size_t n : {1u, 4u, 7u}) {
 			std::vector<StereoSample> frames(n);
-			st.renderBlock(frames, frames);
+			st.render_block(frames, frames);
 			const q31 left = expected.render();
 			const q31 right = expected.render();
 			for (const StereoSample& frame : frames) {
@@ -267,18 +267,18 @@ describe stereo("stereo frames and Stereo<K>", ${
 		st.configure({});
 		expect(coefficient_calls - before).to_equal(2);
 		std::vector<StereoSample> frames(5);
-		st.renderBlock(frames, frames);
+		st.render_block(frames, frames);
 		expect(coefficient_calls - before).to_equal(2);
 	});
 
 	it("runs prepare once per channel per block", _ {
 		std::vector<StereoSample> frames(13);
 		Stereo<CountingPrepare> st;
-		st.renderBlock(frames, frames);
+		st.render_block(frames, frames);
 		expect(st.left().prepares).to_equal(1);
 		expect(st.right().prepares).to_equal(1);
-		st.renderBlock(frames, frames);
-		st.renderBlock(frames, frames);
+		st.render_block(frames, frames);
+		st.render_block(frames, frames);
 		expect(st.left().prepares).to_equal(3);
 		expect(st.right().prepares).to_equal(3);
 		std::ignore = st.render({.l = 1, .r = 2});
@@ -290,7 +290,7 @@ describe stereo("stereo frames and Stereo<K>", ${
 		const std::vector<StereoSample> in = frames_of(9, 0x00031415);
 		std::vector<StereoSample> out(in.size());
 		Stereo<Accumulate> st;
-		st.renderBlock(in, out);
+		st.render_block(in, out);
 		q31 l = 0;
 		q31 r = 0;
 		for (std::size_t i = 0; i < in.size(); ++i) {
@@ -323,13 +323,13 @@ describe stereo("stereo frames and Stereo<K>", ${
 				}
 				const std::vector<StereoSample> in = frames_of(n, 0x00012345 * (block + 1));
 				std::vector<StereoSample> out(n);
-				st.renderBlock(in, out);
+				st.render_block(in, out);
 				const std::vector<q31> l_in = channel(in, false);
 				const std::vector<q31> r_in = channel(in, true);
 				std::vector<q31> l_out(n);
 				std::vector<q31> r_out(n);
-				left.renderBlock(l_in, l_out);
-				right.renderBlock(r_in, r_out);
+				left.render_block(l_in, l_out);
+				right.render_block(r_in, r_out);
 				const ModedBiased::Coefficients c{.mode = mode};
 				const ModedBiased::Block hand_bl = ModedBiased::prepare(c, hand_l, n);
 				const ModedBiased::Block hand_br = ModedBiased::prepare(c, hand_r, n);
@@ -354,8 +354,8 @@ describe stereo("stereo frames and Stereo<K>", ${
 			Stereo<ModedBiased> st_out{{.mode = ModedBiased::Mode::DOUBLE}};
 			Stereo<ModedBiased> st_in{{.mode = ModedBiased::Mode::DOUBLE}};
 			for (int block = 0; block < 2; ++block) {
-				st_out.renderBlock(in, out);
-				st_in.renderBlock(in_place, in_place);
+				st_out.render_block(in, out);
+				st_in.render_block(in_place, in_place);
 				for (std::size_t i = 0; i < n; ++i) {
 					expect(in_place[i].l).to_equal(out[i].l);
 					expect(in_place[i].r).to_equal(out[i].r);
@@ -372,7 +372,7 @@ describe stereo("stereo frames and Stereo<K>", ${
 			const std::vector<StereoSample> in = frames_of(n + 1, 0x00321fed);
 			std::vector<StereoSample> out(n + 1, StereoSample{.l = 77, .r = -77});
 			Stereo<Gain> st{settings};
-			st.renderBlock(std::span{in}.first(n), std::span{out}.first(n));
+			st.render_block(std::span{in}.first(n), std::span{out}.first(n));
 			Gain::State s{};
 			for (std::size_t i = 0; i < n; ++i) {
 				expect(out[i].l).to_equal(Gain::step(c, {}, s, in[i].l));
@@ -389,7 +389,7 @@ describe stereo("stereo frames and Stereo<K>", ${
 		expect(st.coefficients().gain).to_equal(0x40000000);
 		std::array<q31, 4> raw{2000, 4000, 6000, 8000};
 		auto frames = as_frames(raw);
-		st.renderBlock(frames, frames);
+		st.render_block(frames, frames);
 		expect(raw).to_equal(std::array<q31, 4>{1000, 2000, 3000, 4000});
 	});
 });

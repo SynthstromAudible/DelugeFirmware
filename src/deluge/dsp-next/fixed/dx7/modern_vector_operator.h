@@ -255,7 +255,7 @@ private:
 };
 
 static_assert(mixer_kernel<ModernVectorOperator>);
-static_assert(chains_of<ModernVectorOperator> == 3);
+static_assert(chains_of_v<ModernVectorOperator> == 3);
 static_assert(moded_kernel<ModernVectorOperator>);
 static_assert(!std::is_polymorphic_v<ModernVectorOperator>);
 

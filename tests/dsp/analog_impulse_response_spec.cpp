@@ -111,7 +111,7 @@ std::vector<q31> interleaved(const std::vector<StereoSample>& frames) {
 	return v;
 }
 
-/// An impulse of -1.0 on the left and +1.0 (ONE_Q31) on the right, then silence: 30 samples, interleaved L/R. Each
+/// An impulse of -1.0 on the left and +1.0 (kOneQ31) on the right, then silence: 30 samples, interleaved L/R. Each
 /// output is a tap times the impulse with the rounded high-word multiply, so the taps appear in order, halved.
 const std::vector<int32_t> kImpulse{
     1601958,    -1601958,  -4428924,  4428924,   -12406568, 12406568,  -20768904,  20768904,  -17608736,  17608736,
@@ -226,8 +226,8 @@ std::vector<q31> kernel_of(const std::vector<StereoSample>& in, std::size_t bloc
 	std::vector<StereoSample> out(in.size());
 	for (std::size_t start = 0; start < in.size(); start += block) {
 		const std::size_t n = std::min(block, in.size() - start);
-		kernel.renderBlock(std::span<const StereoSample>{in}.subspan(start, n),
-		                   std::span<StereoSample>{out}.subspan(start, n));
+		kernel.render_block(std::span<const StereoSample>{in}.subspan(start, n),
+		                    std::span<StereoSample>{out}.subspan(start, n));
 	}
 	return interleaved(out);
 }
@@ -249,8 +249,8 @@ Run run(const std::vector<StereoSample>& input, std::size_t block) {
 	std::vector<StereoSample> out(in.size());
 	for (std::size_t start = 0; start < in.size(); start += block) {
 		const std::size_t n = std::min(block, in.size() - start);
-		kernel.renderBlock(std::span<const StereoSample>{in}.subspan(start, n),
-		                   std::span<StereoSample>{out}.subspan(start, n));
+		kernel.render_block(std::span<const StereoSample>{in}.subspan(start, n),
+		                    std::span<StereoSample>{out}.subspan(start, n));
 	}
 
 	Reference reference;
@@ -270,7 +270,7 @@ Run run_recorded(auto&& input, int count) {
 	}
 	Stereo<AnalogImpulseResponse> kernel;
 	std::vector<StereoSample> out(in.size());
-	kernel.renderBlock(in, out);
+	kernel.render_block(in, out);
 	ReferenceImpulseResponse reference;
 	std::vector<StereoSample> want(in.size());
 	for (std::size_t i = 0; i < in.size(); ++i) {

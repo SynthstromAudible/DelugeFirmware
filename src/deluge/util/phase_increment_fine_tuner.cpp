@@ -19,14 +19,14 @@
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
 #include "util/functions.h"
 
-using deluge::dsp::fixed::linear_table_interpolator;
+using deluge::dsp::fixed::kLinearTableInterpolator;
 
 PhaseIncrementFineTuner::PhaseIncrementFineTuner() {
 	setNoDetune();
 }
 
 void PhaseIncrementFineTuner::setup(int32_t detuneScaled) {
-	multiplier = linear_table_interpolator.interpolate(2147483648u + detuneScaled, 32, centAdjustTableSmall);
+	multiplier = kLinearTableInterpolator.interpolate(2147483648u + detuneScaled, 32, centAdjustTableSmall);
 }
 
 void PhaseIncrementFineTuner::setNoDetune() {

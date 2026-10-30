@@ -121,7 +121,7 @@ public:
 			return;
 		}
 		modes_.insert(mode);
-		mono_.renderBlock(frames, frames, deluge::synth_noise);
+		mono_.render_block(frames, frames, deluge::synth_noise);
 	}
 
 	/// @return The ring's words.

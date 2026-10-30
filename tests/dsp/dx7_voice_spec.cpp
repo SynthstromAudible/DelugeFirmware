@@ -116,7 +116,7 @@ Run run_voice(const dw::Workload& w) {
 			voice->retune(settings());
 			patch_changed = false;
 		}
-		const bool live = voice->renderBlock(settings(), {buf.data(), n}, in, buses);
+		const bool live = voice->render_block(settings(), {buf.data(), n}, in, buses);
 		for (std::size_t i = 0; i < n; ++i) {
 			outputs.add(buf[i]);
 		}

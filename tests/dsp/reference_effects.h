@@ -338,7 +338,7 @@ public:
 		q31_t high = multiply_32x32_rshift32(metronomeVolume, volumePostFX);
 
 		for (StereoSample& sample : buffer) {
-			q31_t value = (phase <= ONE_Q31) ? high : -high;
+			q31_t value = (phase <= kOneQ31) ? high : -high;
 			phase += phaseIncrement;
 
 			sample.l += value;

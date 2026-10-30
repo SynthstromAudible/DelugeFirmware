@@ -172,7 +172,7 @@ void hitLate(Control<DuckEnvelope>& duck, uint32_t samples_ago) {
 /// Four blocks of 128 after a late hit @p samples_ago, a pending hit dropped by it; the stage from before the first.
 Rig late(uint32_t samples_ago) {
 	Rig rig;
-	rig.duck.on<&DuckEnvelope::hit>(ONE_Q31);
+	rig.duck.on<&DuckEnvelope::hit>(kOneQ31);
 	hitLate(rig.duck, samples_ago);
 	rig.stages.push_back(rig.duck.state().stage);
 	rig.blocks(4, 128);
@@ -212,8 +212,8 @@ describe duck_envelope("DuckEnvelope", ${
 		Rig rig;
 		rig.duck.on<&DuckEnvelope::hit>(kHit);
 		rig.blocks(3, 128);
-		const q31 held = rig.out.back() + ONE_Q31;
-		expect(ONE_Q31 - held).to_equal(kEqualStrength);
+		const q31 held = rig.out.back() + kOneQ31;
+		expect(kOneQ31 - held).to_equal(kEqualStrength);
 		expect(rig.duck.state().level).to_equal(held);
 		rig.duck.on<&DuckEnvelope::hit>(kEqualStrength);
 		rig.blocks(5, 128);
@@ -225,7 +225,7 @@ describe duck_envelope("DuckEnvelope", ${
 		Rig rig;
 		rig.duck.on<&DuckEnvelope::hit>(kHit);
 		rig.blocks(3, 128);
-		rig.duck.on<&DuckEnvelope::hit>(ONE_Q31);
+		rig.duck.on<&DuckEnvelope::hit>(kOneQ31);
 		rig.blocks(5, 128);
 		expect(rig.out).to_equal(kStronger);
 		expect(rig.stages).to_equal(kStrongerStages);
@@ -324,7 +324,7 @@ describe duck_envelope("DuckEnvelope", ${
 		const std::vector<q31> combined{
 		    combine_hit_strengths(0, 0x40000000),          combine_hit_strengths(0x40000000, 0),
 		    combine_hit_strengths(0x30000000, 0x30000000), combine_hit_strengths(0x70000000, 0x60000000),
-		    combine_hit_strengths(ONE_Q31, ONE_Q31),       combine_hit_strengths(0x3FFFFFFF, 0x40000001),
+		    combine_hit_strengths(kOneQ31, kOneQ31),       combine_hit_strengths(0x3FFFFFFF, 0x40000001),
 		};
 		expect(combined).to_equal(kCombined);
 		static_assert(combine_hit_strengths(0x70000000, 0x60000000) == 2013265919);
@@ -348,7 +348,7 @@ describe duck_envelope("DuckEnvelope", ${
 		expect(rig.duck.state().pos).to_equal(471040U);
 		const DuckEnvelope::State& state = rig.duck.state();
 		expect(rig.out.back())
-		    .to_equal(release_level(state.depth, state.pos, rig.duck.coefficients().curve_extent16) - ONE_Q31);
+		    .to_equal(release_level(state.depth, state.pos, rig.duck.coefficients().curve_extent16) - kOneQ31);
 	});
 
 	it("uses a new release rate from the next block, the release's position carried over", _ {
@@ -374,7 +374,7 @@ describe duck_envelope("DuckEnvelope", ${
 		Control<DuckEnvelope> duck;
 		expect(duck.advance(128)).to_equal(0);
 		expect(duck.state().stage).to_equal(S::OFF);
-		expect(duck.state().level).to_equal(ONE_Q31);
+		expect(duck.state().level).to_equal(kOneQ31);
 	});
 
 	it("places a late hit at a zero rate in that stage, at its start, as a stage that never ends", _ {

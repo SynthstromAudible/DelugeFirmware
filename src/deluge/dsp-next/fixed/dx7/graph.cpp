@@ -107,21 +107,21 @@ void Graph::render_op(const Operator::Settings& settings, [[maybe_unused]] const
 		                                   .freq = settings.freq,
 		                                   .tables = settings.tables}};
 		vector.on<&ModernVectorOperator::resume>(ops_[op]);
-		vector.renderBlock(modulation, target, target);
+		vector.render_block(modulation, target, target);
 		ops_[op] = vector.state().op;
 #endif
 		return;
 	}
 	Mono<Operator> unit{settings};
 	unit.on<&Operator::resume>(ops_[op], feedback_);
-	unit.renderBlock(modulation, target, target);
+	unit.render_block(modulation, target, target);
 	ops_[op] = unit.state().op;
 	if (settings.input == Input::FEEDBACK) {
 		feedback_ = unit.state().loop.feedback;
 	}
 }
 
-void Graph::renderBlock(const Settings& s, Buffer out, Buses& lent) {
+void Graph::render_block(const Settings& s, Buffer out, Buses& lent) {
 	const std::size_t n = out.size();
 	assert(n > 0 && n <= kMaxBlock);
 	const bool mki = s.engine == Engine::MKI;

@@ -55,7 +55,7 @@ struct Countdown {
 		q31 rate; ///< Fall per sample, Q1.31.
 	};
 	struct State {
-		q31 level = ONE_Q31; ///< Q1.31.
+		q31 level = kOneQ31; ///< Q1.31.
 		uint32_t calls;      ///< How many times `advance` has run.
 	};
 	static Coefficients coefficients(const Settings& s) { return {.rate = s.rate}; }
@@ -212,24 +212,24 @@ describe control("Control", ${
 	it("advances a block at a time, one kernel call per advance, an empty block included", _ {
 		Control<Countdown> countdown;
 		countdown.configure({.rate = kRate});
-		expect(countdown.advance(4)).to_equal(ONE_Q31 - (4 * kRate));
-		expect(countdown.advance(0)).to_equal(ONE_Q31 - (4 * kRate));
-		expect(countdown.advance(7)).to_equal(ONE_Q31 - (11 * kRate));
+		expect(countdown.advance(4)).to_equal(kOneQ31 - (4 * kRate));
+		expect(countdown.advance(0)).to_equal(kOneQ31 - (4 * kRate));
+		expect(countdown.advance(7)).to_equal(kOneQ31 - (11 * kRate));
 		expect(countdown.state().level).to_equal(2135949311);
 		expect(countdown.state().calls).to_equal(3U);
 	});
 
 	it("saturates as its kernel does", _ {
-		Control<Countdown> countdown{Countdown::Settings{.rate = ONE_Q31}};
+		Control<Countdown> countdown{Countdown::Settings{.rate = kOneQ31}};
 		expect(countdown.advance(2)).to_equal(0);
-		expect(countdown.coefficients().rate).to_equal(ONE_Q31);
+		expect(countdown.coefficients().rate).to_equal(kOneQ31);
 	});
 
 	it("uses a configure between blocks from the next block on, its state carried over", _ {
 		Control<Countdown> countdown{Countdown::Settings{.rate = kRate}};
 		std::ignore = countdown.advance(4);
 		countdown.configure({.rate = 3 * kRate});
-		expect(countdown.advance(4)).to_equal(ONE_Q31 - (4 * kRate) - (4 * 3 * kRate));
+		expect(countdown.advance(4)).to_equal(kOneQ31 - (4 * kRate) - (4 * 3 * kRate));
 		expect(countdown.state().level).to_equal(2130706431);
 		expect(countdown.state().calls).to_equal(2U);
 	});
@@ -268,7 +268,7 @@ describe control("Control", ${
 		Control<Countdown> countdown;
 		static_assert(std::same_as<decltype(countdown.on<&Countdown::swap_level>(q31{})), q31>);
 		static_assert(std::same_as<decltype(countdown.on<&Countdown::kick>(q31{})), void>);
-		expect(countdown.on<&Countdown::swap_level>(5)).to_equal(ONE_Q31);
+		expect(countdown.on<&Countdown::swap_level>(5)).to_equal(kOneQ31);
 		expect(countdown.on<&Countdown::swap_level>(9)).to_equal(5);
 		expect(countdown.state().level).to_equal(9);
 	});
@@ -293,10 +293,10 @@ describe control("Control", ${
 		Control<Countdown> countdown{Countdown::Settings{.rate = kRate}};
 		std::ignore = countdown.advance(4);
 		countdown.reset();
-		expect(countdown.state().level).to_equal(ONE_Q31);
+		expect(countdown.state().level).to_equal(kOneQ31);
 		expect(countdown.state().calls).to_equal(0U);
 		expect(countdown.coefficients().rate).to_equal(kRate);
-		expect(countdown.advance(1)).to_equal(ONE_Q31 - kRate);
+		expect(countdown.advance(1)).to_equal(kOneQ31 - kRate);
 	});
 
 	it("resets through the kernel's reset quirk when it declares one", _ {

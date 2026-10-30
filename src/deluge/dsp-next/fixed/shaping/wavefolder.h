@@ -17,7 +17,7 @@
 #pragma once
 
 #include "dsp-next/core/processor.h"
-#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32, add_saturate, ONE_Q31
+#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32, add_saturate, kOneQ31
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
 
@@ -35,7 +35,7 @@ namespace deluge::dsp::fixed {
 class Wavefolder : public Processor<Wavefolder, q31> {
 public:
 	/// @brief Sets the fold amount.
-	/// @param amount The fold amount, Q31: 0 folds least (a floor of 0.1 always applies), ONE_Q31 most. The voice
+	/// @param amount The fold amount, Q31: 0 folds least (a floor of 0.1 always applies), kOneQ31 most. The voice
 	/// passes LOCAL_FOLD's final value, and renders the folder only when that is above 0.
 	explicit Wavefolder(q31 amount) : drive_(add_saturate(amount, kMinimumDrive)) {}
 
@@ -43,11 +43,11 @@ public:
 	/// @param sample Q31.
 	/// @return The folded sample, Q31, 7 bits down.
 	[[nodiscard, gnu::always_inline]] q31 render(q31 sample) const {
-		const q31 driven = lshiftAndSaturateUnknown(multiply_32x32_rshift32(drive_, sample), 8);
+		const q31 driven = lshift_and_saturate_unknown(multiply_32x32_rshift32(drive_, sample), 8);
 		return fold(driven) >> 7;
 	}
 
-	/// @brief The fold curve: 4(¾x − x³) applied twice, x in Q31 with ONE_Q31 as 1.
+	/// @brief The fold curve: 4(¾x − x³) applied twice, x in Q31 with kOneQ31 as 1.
 	/// @details Each multiply is `multiply_32x32_rshift32` (a Q31 product halved), so each is doubled back. The
 	/// doublings and the ×8 wrap modulo 2^32 at full scale, as the target's shifts do.
 	[[nodiscard, gnu::always_inline]] static q31 fold(q31 x) { return cubic(cubic(x)); }
@@ -66,8 +66,8 @@ private:
 		return static_cast<q31>(static_cast<uint32_t>(x) * N);
 	}
 
-	static constexpr q31 kMinimumDrive = static_cast<q31>(0.1 * ONE_Q31);  ///< The drive floor, Q31 (0.1).
-	static constexpr q31 kThreeFourths = static_cast<q31>(0.75 * ONE_Q31); ///< ¾, Q31.
+	static constexpr q31 kMinimumDrive = static_cast<q31>(0.1 * kOneQ31);  ///< The drive floor, Q31 (0.1).
+	static constexpr q31 kThreeFourths = static_cast<q31>(0.75 * kOneQ31); ///< ¾, Q31.
 
 	q31 drive_; ///< The fold amount plus the floor, saturated, Q31.
 };

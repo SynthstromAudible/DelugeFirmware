@@ -68,8 +68,8 @@ struct GraphCore {
 	void render(const dx7_reference::Tables& /*t*/, int32_t* output, int n, dx7_reference::FmOpParams* params,
 	            int algorithm, int32_t* fb_buf, int32_t feedback_shift) {
 		G graph{view_of(params, fb_buf)};
-		graph.renderBlock(settings_of(E, algorithm, feedback_shift, params), {output, static_cast<std::size_t>(n)},
-		                  buses());
+		graph.render_block(settings_of(E, algorithm, feedback_shift, params), {output, static_cast<std::size_t>(n)},
+		                   buses());
 		const G::View v = graph.view();
 		for (std::size_t op = 0; op < 6; ++op) {
 			params[op].phase = v.ops[op].phase;
@@ -102,8 +102,8 @@ struct ComparingCore {
 		alignas(16) std::array<int32_t, dx7::kMaxBlock> graph_out{};
 		std::copy_n(output, dx7::kMaxBlock, graph_out.begin());
 		G graph{view_of(params, fb_buf)};
-		graph.renderBlock(settings_of(E, algorithm, feedback_shift, params),
-		                  {graph_out.data(), static_cast<std::size_t>(n)}, buses());
+		graph.render_block(settings_of(E, algorithm, feedback_shift, params),
+		                   {graph_out.data(), static_cast<std::size_t>(n)}, buses());
 
 		reference.render(t, output, n, params, algorithm, fb_buf, feedback_shift);
 

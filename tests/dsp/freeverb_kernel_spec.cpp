@@ -40,13 +40,13 @@ struct KernelRunner {
 	}
 	void render(std::span<int32_t> send, std::span<StereoSample> out, int32_t l, int32_t r) {
 		mono.on<&Freeverb::set_send>(send.data(), l, r);
-		mono.renderBlock(out, out);
+		mono.render_block(out, out);
 	}
 	/// @brief The same block rendered from @p in into a separate @p out.
 	void render_out_of_place(std::span<int32_t> send, std::span<const StereoSample> in, std::span<StereoSample> out,
 	                         int32_t l, int32_t r) {
 		mono.on<&Freeverb::set_send>(send.data(), l, r);
-		mono.renderBlock(in, out);
+		mono.render_block(in, out);
 	}
 	void digest_state(rw::Digest& d) const {
 		rw::digest_freeverb(d, deluge::dsp::test::freeverb_view(mono.state(), memory));

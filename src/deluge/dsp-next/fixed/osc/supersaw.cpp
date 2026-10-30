@@ -24,7 +24,7 @@ namespace deluge::dsp::fixed {
 // Named rather than anonymous: dsp-next is a unity build
 namespace supersaw_internal {
 
-constexpr double constexprSqrt(double v) {
+constexpr double constexpr_sqrt(double v) {
 	double r = std::max(v, 1.0);
 	for (int32_t i = 0; i < 32; i++) {
 		r = 0.5 * (r + v / r);
@@ -33,25 +33,25 @@ constexpr double constexprSqrt(double v) {
 }
 
 /// The side saws are summed shifted right by this, the least that can't overflow
-constexpr int32_t sideShift(size_t numSaws) {
-	return std::bit_width(numSaws - 2);
+constexpr int32_t side_shift(size_t num_saws) {
+	return std::bit_width(num_saws - 2);
 }
 
 /// Gains normalised so the summed (uncorrelated) saws have the RMS of a single saw, so spread and saw count change
 /// the sound without changing the level
-constexpr std::pair<double, double> normalisedGains(float spread, size_t numSaws) {
-	double centre = centreMix(spread);
-	double side = sideMix(spread);
-	double norm = 1.0 / constexprSqrt(centre * centre + (numSaws - 1) * side * side);
+constexpr std::pair<double, double> normalised_gains(float spread, size_t num_saws) {
+	double centre = centre_mix(spread);
+	double side = side_mix(spread);
+	double norm = 1.0 / constexpr_sqrt(centre * centre + (num_saws - 1) * side * side);
 	return {centre * norm, side * norm};
 }
 
 // The side gain goes to Q(29 + shift) and has to fit, and the worst case sum of all saws has to fit in an int32
 static_assert([] {
 	for (int32_t i = 0; i <= 1024; i++) {
-		for (size_t numSaws = 2; numSaws <= Supersaw::kNumSaws; numSaws++) {
-			auto [centre, side] = normalisedGains(kMaxSpread * i / 1024.f, numSaws);
-			if (side * (1u << sideShift(numSaws)) >= 4 || centre + (numSaws - 1) * side >= 4) {
+		for (size_t num_saws = 2; num_saws <= Supersaw::kNumSaws; num_saws++) {
+			auto [centre, side] = normalised_gains(kMaxSpread * i / 1024.f, num_saws);
+			if (side * (1u << side_shift(num_saws)) >= 4 || centre + (num_saws - 1) * side >= 4) {
 				return false;
 			}
 		}
@@ -62,36 +62,36 @@ static_assert([] {
 /// The naive (aliasing) saws, mixed, 4 samples per vector. Templated on the number of saws so each count gets its own
 /// fully unrolled loop with every phase in a register.
 template <size_t kSaws>
-[[gnu::hot]] void renderNaive(int32_t* __restrict__ buffer, int32_t numSamples, const uint32_t* phases,
-                              const uint32_t* increments, float centreGain, float sideGain) {
-	constexpr int32_t kShift = kSaws > 1 ? sideShift(kSaws) : 0;
+[[gnu::hot]] void render_naive(int32_t* __restrict__ buffer, int32_t numSamples, const uint32_t* phases,
+                               const uint32_t* increments, float centreGain, float sideGain) {
+	constexpr int32_t kShift = kSaws > 1 ? side_shift(kSaws) : 0;
 
 	// Both gains in one register, multiplied in by lane, otherwise GCC moves them over from core registers every loop.
 	// Centre saw is used at full scale, the side saws are summed at 1/2^kShift scale
 	Argon<int32_t> gains{static_cast<int32_t>(centreGain * 0x1p29f),
 	                     static_cast<int32_t>(sideGain * 0x1p29f * (1 << kShift)), 0, 0};
 
-	std::array<Argon<uint32_t>, kSaws> phaseVectors;
-	std::array<Argon<uint32_t>, kSaws> stepVectors;
+	std::array<Argon<uint32_t>, kSaws> phase_vectors;
+	std::array<Argon<uint32_t>, kSaws> step_vectors;
 #pragma GCC unroll 7
 	for (size_t i = 0; i < kSaws; i++) {
-		phaseVectors[i] = Argon<uint32_t>{phases[i]}.MultiplyAdd(uint32x4_t{1, 2, 3, 4}, increments[i]);
-		stepVectors[i] = Argon<uint32_t>{increments[i] * 4};
+		phase_vectors[i] = Argon<uint32_t>{phases[i]}.MultiplyAdd(uint32x4_t{1, 2, 3, 4}, increments[i]);
+		step_vectors[i] = Argon<uint32_t>{increments[i] * 4};
 	}
 
 	int32_t* __restrict__ out = buffer;
 	int32_t const* const end = buffer + numSamples;
 	do {
-		Argon<int32_t> mix = phaseVectors[0].template As<int32_t>().MultiplyFixedQMax(gains[0]);
+		Argon<int32_t> mix = phase_vectors[0].template As<int32_t>().MultiplyFixedQMax(gains[0]);
 		if constexpr (kSaws > 1) {
-			Argon<int32_t> sides = phaseVectors[1].template As<int32_t>();
+			Argon<int32_t> sides = phase_vectors[1].template As<int32_t>();
 			if constexpr (kShift > 0) {
 				sides = sides.ShiftRight<kShift>();
 			}
 			if constexpr (kSaws > 2) { // A shift of 0 isn't a valid vsra, even in a loop that never runs
 #pragma GCC unroll 7
 				for (size_t i = 2; i < kSaws; i++) {
-					sides = sides.ShiftRightAccumulate<kShift>(phaseVectors[i].template As<int32_t>());
+					sides = sides.ShiftRightAccumulate<kShift>(phase_vectors[i].template As<int32_t>());
 				}
 			}
 			mix = mix + sides.MultiplyFixedQMax(gains[1]);
@@ -100,7 +100,7 @@ template <size_t kSaws>
 
 #pragma GCC unroll 7
 		for (size_t i = 0; i < kSaws; i++) {
-			phaseVectors[i] = phaseVectors[i] + stepVectors[i];
+			phase_vectors[i] = phase_vectors[i] + step_vectors[i];
 		}
 		out += 4;
 	} while (out < end);
@@ -109,8 +109,8 @@ template <size_t kSaws>
 /// Add the polyBLEP residual around every falling edge of one saw. The saw is (int32_t)phase, which falls from max to
 /// min where phase crosses 2^31. Edges just past the end of the buffer still correct its last sample. That edge comes
 /// round again at the start of the next buffer, which then does the sample after it.
-[[gnu::always_inline]] inline void addBlepResiduals(int32_t* __restrict__ buffer, int32_t numSamples, uint32_t phase,
-                                                    uint32_t increment, float reciprocal, float scale) {
+[[gnu::always_inline]] inline void add_blep_residuals(int32_t* __restrict__ buffer, int32_t numSamples, uint32_t phase,
+                                                      uint32_t increment, float reciprocal, float scale) {
 	// Phase measured from the falling edge
 	uint32_t x = phase ^ 0x80000000u;
 	int32_t sample = -1;
@@ -180,31 +180,31 @@ template <size_t kSaws>
 //  - One loop for all saw counts with a runtime count. Unused saws would still cost their ops, or the loop would
 //    need a branch per saw.
 //  - Per-saw gains. Szabo's model has one side gain, so the side saws share an accumulator and a multiply.
-void Supersaw::render(Buffer out, uint32_t phaseIncrement, int32_t spread, int32_t numSaws, uint32_t& centrePhase,
+void Supersaw::render(Buffer out, uint32_t phaseIncrement, int32_t spread, int32_t num_saws, uint32_t& centrePhase,
                       SidePhases& sidePhases, bool bandLimit) {
 	using namespace supersaw_internal;
 	int32_t* __restrict__ buffer = out.data();
-	const auto numSamples = static_cast<int32_t>(out.size());
-	numSaws = std::clamp<int32_t>(numSaws, 1, kNumSaws);
+	const auto num_samples = static_cast<int32_t>(out.size());
+	num_saws = std::clamp<int32_t>(num_saws, 1, kNumSaws);
 
 	// Spread runs from 0 to kMaxSpread over the whole of the bipolar param range. Detune goes up with its square, so
 	// there's finer control over the small detunes
 	float x = static_cast<float>(std::clamp<int32_t>(spread, -(1 << 30), (1 << 30) - 1) + (1 << 30))
 	          * (kMaxSpread * 0x1p-31f);
 	float detune = x * x;
-	float centreGain = centreMix(x);
-	float sideGain = sideMix(x);
-	float norm = 1.f / std::sqrt(centreGain * centreGain + static_cast<float>(numSaws - 1) * sideGain * sideGain);
-	centreGain *= norm;
-	sideGain *= norm;
+	float centre_gain = centre_mix(x);
+	float side_gain = side_mix(x);
+	float norm = 1.f / std::sqrt(centre_gain * centre_gain + static_cast<float>(num_saws - 1) * side_gain * side_gain);
+	centre_gain *= norm;
+	side_gain *= norm;
 
 	alignas(16) std::array<uint32_t, 8> increments;
 	alignas(16) std::array<float, 8> reciprocals;
 	for (size_t v = 0; v < increments.size(); v += 4) {
 		Argon<float> ratio = Argon<float>{1.f}.MultiplyAdd(Argon<float>::Load(&kDetuneOffsets[v]), detune);
-		Argon<float> sawIncrements = ratio * static_cast<float>(phaseIncrement);
-		sawIncrements.ConvertTo<uint32_t>().StoreTo(&increments[v]);
-		sawIncrements.ReciprocalEstimateRefine(2).StoreTo(&reciprocals[v]);
+		Argon<float> saw_increments = ratio * static_cast<float>(phaseIncrement);
+		saw_increments.ConvertTo<uint32_t>().StoreTo(&increments[v]);
+		saw_increments.ReciprocalEstimateRefine(2).StoreTo(&reciprocals[v]);
 	}
 	// Float only has 24 bits, keep the centre saw exactly in tune with the rest of the synth
 	increments[0] = phaseIncrement;
@@ -213,46 +213,46 @@ void Supersaw::render(Buffer out, uint32_t phaseIncrement, int32_t spread, int32
 	phases[0] = centrePhase;
 	std::ranges::copy(sidePhases, phases.begin() + 1);
 
-	switch (numSaws) {
+	switch (num_saws) {
 	case 1:
-		renderNaive<1>(buffer, numSamples, phases.data(), increments.data(), centreGain, sideGain);
+		render_naive<1>(buffer, num_samples, phases.data(), increments.data(), centre_gain, side_gain);
 		break;
 	case 2:
-		renderNaive<2>(buffer, numSamples, phases.data(), increments.data(), centreGain, sideGain);
+		render_naive<2>(buffer, num_samples, phases.data(), increments.data(), centre_gain, side_gain);
 		break;
 	case 3:
-		renderNaive<3>(buffer, numSamples, phases.data(), increments.data(), centreGain, sideGain);
+		render_naive<3>(buffer, num_samples, phases.data(), increments.data(), centre_gain, side_gain);
 		break;
 	case 4:
-		renderNaive<4>(buffer, numSamples, phases.data(), increments.data(), centreGain, sideGain);
+		render_naive<4>(buffer, num_samples, phases.data(), increments.data(), centre_gain, side_gain);
 		break;
 	case 5:
-		renderNaive<5>(buffer, numSamples, phases.data(), increments.data(), centreGain, sideGain);
+		render_naive<5>(buffer, num_samples, phases.data(), increments.data(), centre_gain, side_gain);
 		break;
 	case 6:
-		renderNaive<6>(buffer, numSamples, phases.data(), increments.data(), centreGain, sideGain);
+		render_naive<6>(buffer, num_samples, phases.data(), increments.data(), centre_gain, side_gain);
 		break;
 	default:
-		renderNaive<7>(buffer, numSamples, phases.data(), increments.data(), centreGain, sideGain);
+		render_naive<7>(buffer, num_samples, phases.data(), increments.data(), centre_gain, side_gain);
 		break;
 	}
 
 	if (bandLimit) {
 		// A residual of 1 is half the jump of one saw, in the same units as the naive pass's output. Not unrolled,
 		// one copy of the edge loop is plenty and keeps it in cache
-		const float centreScale = centreGain * 0x1p29f;
-		const float sideScale = sideGain * 0x1p29f;
+		const float centre_scale = centre_gain * 0x1p29f;
+		const float side_scale = side_gain * 0x1p29f;
 #pragma GCC unroll 1
-		for (int32_t i = 0; i < numSaws; i++) {
-			addBlepResiduals(buffer, numSamples, phases[i], increments[i], reciprocals[i],
-			                 i == 0 ? centreScale : sideScale);
+		for (int32_t i = 0; i < num_saws; i++) {
+			add_blep_residuals(buffer, num_samples, phases[i], increments[i], reciprocals[i],
+			                   i == 0 ? centre_scale : side_scale);
 		}
 	}
 
 	// Saws that aren't playing hold their phase
-	centrePhase = phases[0] + increments[0] * numSamples;
-	for (int32_t i = 1; i < numSaws; i++) {
-		sidePhases[i - 1] = phases[i] + increments[i] * numSamples;
+	centrePhase = phases[0] + increments[0] * num_samples;
+	for (int32_t i = 1; i < num_saws; i++) {
+		sidePhases[i - 1] = phases[i] + increments[i] * num_samples;
 	}
 }
 

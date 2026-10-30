@@ -259,7 +259,7 @@ each tier is built from the one below and is independently testable:
 |---|---|---|---|
 | **Phasor** | phase accumulation (UQ0.32) | L0 | `deluge::dsp::Phasor` |
 | **Osc** | one waveform = phasor + shape; pure DSP, owns phase | L0 | the `va_shapes` variant *inside* `VirtualAnalogEngine` |
-| **Source** | one voice source (osc / wavetable / sample / live-input / FM-op) + its per-source amplitude · sync-as-phase · pulse-width; reports a lifecycle outcome (`ACTIVE`/`UNASSIGN`/`SKIP`) | L1 | `synth::SourceEngine::renderBlock` **+** the `SourceRenderResult` dispatch (`renderSourceComponent`) — **to be folded into one `synth::Source`** |
+| **Source** | one voice source (osc / wavetable / sample / live-input / FM-op) + its per-source amplitude · sync-as-phase · pulse-width; reports a lifecycle outcome (`ACTIVE`/`UNASSIGN`/`SKIP`) | L1 | `synth::SourceEngine::render_block` **+** the `SourceRenderResult` dispatch (`renderSourceComponent`) — **to be folded into one `synth::Source`** |
 | **Engine** | *coordinates* multiple Sources: hard-sync master/slave, ring-mod pairing, the 4-op FM matrix | L1 | the cross-source orchestration still inside `Voice::render` + `RingModEngine` (no first-class engine objects yet) |
 | **Voice** | the per-voice chain *wrapping* one Engine: VCA + filter + envelopes + LFOs + unison + MPE smoothing | L2 | the rest of `Voice::render` → the `synth::Voice` lift |
 | **Instrument** | the whole synth: + mod-FX chain, arpeggiator, preset/serialization (the Vital/Serum/Massive/Pigments altitude) | L3 | `Sound` + `ModControllableAudio` |

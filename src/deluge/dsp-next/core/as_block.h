@@ -50,8 +50,8 @@ public:
 	/// @brief The wrapped component.
 	[[nodiscard]] const C& component() const { return component_; }
 
-	/// @brief The component's renderBlock.
-	void renderBlock(Buffer<value_type> output) override { component_.renderBlock(output); }
+	/// @brief The component's render_block.
+	void render_block(Buffer<value_type> output) override { component_.render_block(output); }
 
 private:
 	C component_;
@@ -71,9 +71,9 @@ public:
 	/// @brief The wrapped component.
 	[[nodiscard]] const C& component() const { return component_; }
 
-	/// @brief The component's renderBlock.
-	void renderBlock(Signal<value_type> input, Buffer<value_type> output) override {
-		component_.renderBlock(input, output);
+	/// @brief The component's render_block.
+	void render_block(Signal<value_type> input, Buffer<value_type> output) override {
+		component_.render_block(input, output);
 	}
 
 private:
@@ -94,9 +94,9 @@ public:
 	/// @brief The wrapped component.
 	[[nodiscard]] const C& component() const { return component_; }
 
-	/// @brief The component's renderBlock.
-	void renderBlock(Signal<value_type> input_a, Signal<value_type> input_b, Buffer<value_type> output) override {
-		component_.renderBlock(input_a, input_b, output);
+	/// @brief The component's render_block.
+	void render_block(Signal<value_type> input_a, Signal<value_type> input_b, Buffer<value_type> output) override {
+		component_.render_block(input_a, input_b, output);
 	}
 
 private:

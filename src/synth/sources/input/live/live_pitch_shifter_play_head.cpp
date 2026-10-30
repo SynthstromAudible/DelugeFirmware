@@ -78,7 +78,7 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_
 					numSamplesToJumpForward = kInterpolationMaxNumSamples;
 				}
 
-				interpolator_.jumpForward(numSamplesToJumpForward);
+				interpolator_.jump_forward(numSamplesToJumpForward);
 
 				while (numSamplesToJumpForward--) {
 					interpolator_.buffer_l[numSamplesToJumpForward] = rawBuffer[rawBufferReadPos * numChannels] >> 16;
@@ -94,7 +94,7 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_
 
 			deluge::dsp::StereoSample sampleRead = (interpolationBufferSize > 2)
 			                                           ? interpolator_.interpolate(numChannels, whichKernel, oscPos)
-			                                           : interpolator_.interpolateLinear(numChannels, oscPos);
+			                                           : interpolator_.interpolate_linear(numChannels, oscPos);
 
 			*outputBuffer += multiply_32x32_rshift32_rounded(sampleRead.l, amplitude) << 5;
 			outputBuffer++;

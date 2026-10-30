@@ -60,7 +60,7 @@ static_assert(deluge::dsp::detail::plain_value<Delay::Settings>);
 static_assert(deluge::dsp::detail::plain_value<Delay::Coefficients>);
 static_assert(deluge::dsp::detail::plain_value<Delay::State>);
 static_assert(deluge::dsp::detail::plain_value<Delay::Block>);
-static_assert(deluge::dsp::detail::state_in_place<Delay>);
+static_assert(deluge::dsp::detail::state_in_place_v<Delay>);
 static_assert(deluge::dsp::processor_kernel<Delay>);
 static_assert(deluge::dsp::moded_kernel<Delay>);
 
@@ -112,7 +112,7 @@ public:
 		return processor_.process(block, primary, secondary, settings);
 	}
 
-	void resetHighPass() { processor_.resetHighPass(); }
+	void reset_high_pass() { processor_.reset_high_pass(); }
 
 	/// @return The mode each block rendered at, in order.
 	[[nodiscard]] const std::vector<Delay::Mode>& modes() const { return modes_; }
@@ -303,8 +303,8 @@ describe delay_kernel("Delay kernel", ${
 				    return;
 			    }
 			    const std::vector<int64_t> before = words(kernel);
-			    kernel.resetHighPass();
-			    reference.resetHighPass();
+			    kernel.reset_high_pass();
+			    reference.reset_high_pass();
 			    const std::vector<int64_t> after = words(kernel);
 			    // Each channel: 50 history words, the oldest index, then the high-pass memory.
 			    constexpr std::ptrdiff_t kChannel = 52;
@@ -359,7 +359,7 @@ describe delay_kernel("Delay kernel", ${
 				sample = delay_workloads::input(k++);
 			}
 			const std::array<StereoSample, delay_workloads::kMaxFrames> dry = block;
-			delay.renderBlock(block, block);
+			delay.render_block(block, block);
 			expect(frameWords(block)).to_equal(frameWords(dry));
 			// The block's results accumulate in the State until the owner takes them.
 			expect(delay.state().secondary_written).to_equal(static_cast<int32_t>((b + 1) * delay_workloads::kMaxFrames));

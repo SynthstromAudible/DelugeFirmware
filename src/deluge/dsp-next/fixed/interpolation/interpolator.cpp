@@ -17,7 +17,7 @@
 #include "dsp-next/fixed/interpolation/interpolator.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/interpolation/sinc_interpolation.h"   // SincWindow, blend_sinc_kernel, windowed_sinc_dot
-#include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h" // windowed_sinc_kernel
+#include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h" // kWindowedSincKernel
 #include <argon.hpp>
 #include <cstdint>
 #include <limits>
@@ -26,7 +26,7 @@ namespace deluge::dsp::fixed {
 
 namespace {
 /// Load one tap window (a @ref Interpolator channel buffer) into the int16 argon vectors @ref windowed_sinc_dot wants.
-[[gnu::always_inline]] inline SincWindow loadWindow(const int16_t* buffer) {
+[[gnu::always_inline]] inline SincWindow load_window(const int16_t* buffer) {
 	SincWindow window;
 	for (size_t i = 0; i < kSincWindowVectors; ++i) {
 		window[i] = Argon<int16_t>::Load(&buffer[i * Argon<int16_t>::lanes]);
@@ -36,33 +36,33 @@ namespace {
 } // namespace
 
 StereoSample Interpolator::interpolate(std::size_t channels, int32_t whichKernel, uint32_t oscPos) {
-	constexpr size_t numBitsInTableSize = 8;
-	constexpr size_t rshiftAmount = ((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInTableSize + 1);
+	constexpr size_t kNumBitsInTableSize = 8;
+	constexpr size_t kRshiftAmount = ((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - kNumBitsInTableSize + 1);
 
 	uint32_t rshifted;
-	if constexpr (rshiftAmount >= 0) {
-		rshifted = oscPos >> rshiftAmount;
+	if constexpr (kRshiftAmount >= 0) {
+		rshifted = oscPos >> kRshiftAmount;
 	}
 	else {
-		rshifted = oscPos << (-rshiftAmount);
+		rshifted = oscPos << (-kRshiftAmount);
 	}
 
 	int16_t strength2 = rshifted & std::numeric_limits<int16_t>::max();
-	int32_t progressSmall = oscPos >> (24 + kInterpolationMaxNumSamplesMagnitude - numBitsInTableSize);
+	int32_t progress_small = oscPos >> (24 + kInterpolationMaxNumSamplesMagnitude - kNumBitsInTableSize);
 
 	// Position the (shared) kernel to sub-sample accuracy once, then weight each channel's window with it.
-	const int16_t* kernelRow = windowed_sinc_kernel.variant(whichKernel) + progressSmall * kSincKernelTaps;
-	SincWindow kernel = blend_sinc_kernel(kernelRow, strength2);
+	const int16_t* kernel_row = kWindowedSincKernel.variant(whichKernel) + progress_small * kSincKernelTaps;
+	SincWindow kernel = blend_sinc_kernel(kernel_row, strength2);
 
 	StereoSample output;
-	output.l = windowed_sinc_dot(kernel, loadWindow(buffer_l.data()));
+	output.l = windowed_sinc_dot(kernel, load_window(buffer_l.data()));
 	if (channels == 2) {
-		output.r = windowed_sinc_dot(kernel, loadWindow(buffer_r.data()));
+		output.r = windowed_sinc_dot(kernel, load_window(buffer_r.data()));
 	}
 	return output;
 }
 
-StereoSample Interpolator::interpolateLinear(std::size_t channels, uint32_t phase) {
+StereoSample Interpolator::interpolate_linear(std::size_t channels, uint32_t phase) {
 	StereoSample output;
 	int16_t strength2 = phase >> 9;
 	int16_t strength1 = std::numeric_limits<int16_t>::max() - strength2; // inverse

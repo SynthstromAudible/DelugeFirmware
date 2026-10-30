@@ -46,7 +46,7 @@
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "dsp-next/fixed/shaping/tanh_table.h"
 #include "util/fixedpoint.h"
-#include "util/param_functions.h" // lshiftAndSaturate, lshiftAndSaturateUnknown
+#include "util/param_functions.h" // lshift_and_saturate, lshift_and_saturate_unknown
 #include "util/synth_noise.h"
 
 #include <algorithm>
@@ -69,12 +69,12 @@ namespace filters_reference {
 
 using deluge::dsp::q31;
 using deluge::dsp::StereoSample;
-using deluge::dsp::fixed::bilinear_table_interpolator;
 using deluge::dsp::fixed::CurvedFrequency;
 using deluge::dsp::fixed::FilterConfig;
 using deluge::dsp::fixed::FilterRoute;
 using deluge::dsp::fixed::HighPassSlot;
-using deluge::dsp::fixed::linear_table_interpolator;
+using deluge::dsp::fixed::kBilinearTableInterpolator;
+using deluge::dsp::fixed::kLinearTableInterpolator;
 using deluge::dsp::fixed::LowPassLadderMode;
 using deluge::dsp::fixed::LowPassSlot;
 using deluge::dsp::fixed::SvfMode;
@@ -120,7 +120,7 @@ struct Digest {
 	constexpr int32_t kOneQ27 = 134217728;
 	/// One at Q58: divided by a Q27 value, it gives the reciprocal at Q31.
 	constexpr double kOneQ58 = 288230376151711744.0;
-	const q31 tanned = deluge::dsp::fixed::instant_tan(lshiftAndSaturate<5>(frequency));
+	const q31 tanned = deluge::dsp::fixed::instant_tan(lshift_and_saturate<5>(frequency));
 	const auto divide_by_one_plus_tanned = static_cast<q31>(kOneQ58 / static_cast<double>(kOneQ27 + (tanned >> 1)));
 	return {
 	    .tanned = tanned,
@@ -189,9 +189,9 @@ public:
 	/// @brief One sample (Q31) through the curve, shifted down by drive + 1.
 	[[nodiscard, gnu::always_inline]] q31 render(q31 sample) {
 		const uint32_t position =
-		    static_cast<uint32_t>(lshiftAndSaturateUnknown(sample, static_cast<uint8_t>(drive_))) + kSilent;
+		    static_cast<uint32_t>(lshift_and_saturate_unknown(sample, static_cast<uint8_t>(drive_))) + kSilent;
 		const int32_t out =
-		    bilinear_table_interpolator.interpolateSigned<deluge::dsp::fixed::kTanhTable>(position, previous_, 32, 32)
+		    kBilinearTableInterpolator.interpolate_signed<deluge::dsp::fixed::kTanhTable>(position, previous_, 32, 32)
 		    >> (drive_ + 1);
 		previous_ = position;
 		return out;
@@ -254,14 +254,14 @@ public:
 	}
 
 private:
-	/// @brief One sample's step: dry × 0.99 (in double, stored as float), wet = ONE_Q31 × (1 - dry) in float.
+	/// @brief One sample's step: dry × 0.99 (in double, stored as float), wet = kOneQ31 × (1 - dry) in float.
 	void step() {
 		dry_ = static_cast<float>(dry_ * 0.99);
-		wet_ = static_cast<q31>(static_cast<float>(ONE_Q31) * (1.0F - dry_));
+		wet_ = static_cast<q31>(static_cast<float>(kOneQ31) * (1.0F - dry_));
 	}
 
 	float dry_{1.0F};
-	q31 wet_{ONE_Q31};
+	q31 wet_{kOneQ31};
 };
 
 namespace detail {
@@ -312,19 +312,19 @@ public:
 	/// @return @p gain (Q31) compensated for this filter's resonance and mode.
 	[[nodiscard]] q31 configure(q31 gain, const FilterConfig& config, LowPassLadderMode mode) {
 		mode_ = mode;
-		morph_ = lshiftAndSaturate<2>(config.morph);
+		morph_ = lshift_and_saturate<2>(config.morph);
 		q31 frequency = config.frequency;
 
 		if (mode_ == LowPassLadderMode::TRANSISTOR_24DB_DRIVE) {
-			const int32_t resonance = ONE_Q31 - (config.resonance << 2);
-			processed_resonance_ = ONE_Q31 - resonance;
+			const int32_t resonance = kOneQ31 - (config.resonance << 2);
+			processed_resonance_ = kOneQ31 - resonance;
 
 			int32_t log_frequency = deluge::dsp::fixed::quick_log(static_cast<uint32_t>(frequency));
 			oversample_ = false;
 			log_frequency = std::min(log_frequency, int32_t{63} << 24);
 
 			if (config.allow_oversampling && (log_frequency >> 24) > 51) {
-				const int32_t threshold = linear_table_interpolator.interpolateSigned(
+				const int32_t threshold = kLinearTableInterpolator.interpolate_signed(
 				    static_cast<uint32_t>(log_frequency), 30, detail::kResonanceThresholdsForOversampling.data(), 6);
 				oversample_ = (processed_resonance_ > threshold);
 			}
@@ -336,18 +336,18 @@ public:
 				frequency -= (multiply_32x32_rshift32_rounded(log_frequency, frequency) >> 8) * 34;
 				// A cutoff near the top would make content the crude downsampling can't take.
 				frequency = std::min(int32_t{39056384}, frequency);
-				const int32_t limit = linear_table_interpolator.interpolateSigned(
+				const int32_t limit = kLinearTableInterpolator.interpolate_signed(
 				    static_cast<uint32_t>(log_frequency), 30, detail::kResonanceLimits.data(), 6);
 				processed_resonance_ = std::min(processed_resonance_, limit);
 			}
 		}
 		else {
 			// The resonance falls away as the cutoff goes very low.
-			constexpr int32_t kHowMuchToKeep = ONE_Q31 - 33;
+			constexpr int32_t kHowMuchToKeep = kOneQ31 - 33;
 			constexpr int32_t kResonanceUpperLimit = 510000000; // above this it feeds back lots
-			int32_t resonance = ONE_Q31 - (std::min(config.resonance, kResonanceUpperLimit) << 2);
+			int32_t resonance = kOneQ31 - (std::min(config.resonance, kResonanceUpperLimit) << 2);
 			resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
-			processed_resonance_ = ONE_Q31 - resonance;
+			processed_resonance_ = kOneQ31 - resonance;
 			processed_resonance_ = multiply_32x32_rshift32_rounded(processed_resonance_, kHowMuchToKeep) << 1;
 		}
 
@@ -410,7 +410,7 @@ public:
 	}
 
 	/// @brief Filters a mono @p block in place.
-	void renderMono(std::span<q31> block, FadeScratch scratch) {
+	void render_mono(std::span<q31> block, FadeScratch scratch) {
 		const bool fading = fade_.active();
 		if (fading) {
 			fade_.keepDry(block, scratch);
@@ -422,7 +422,7 @@ public:
 	}
 
 	/// @brief Filters an interleaved L/R block in place.
-	void renderStereo(std::span<q31> interleaved, FadeScratch scratch) {
+	void render_stereo(std::span<q31> interleaved, FadeScratch scratch) {
 		const bool fading = fade_.active();
 		if (fading) {
 			fade_.keepDry(interleaved, scratch);
@@ -654,14 +654,14 @@ public:
 	/// @return @p gain (Q31) cut as the resonance rises.
 	[[nodiscard]] q31 configure(q31 gain, const FilterConfig& config) {
 		constexpr int32_t kExtraFeedback = 1200000000;
-		morph_ = lshiftAndSaturate<2>(config.morph);
+		morph_ = lshift_and_saturate<2>(config.morph);
 		const CurvedFrequency curved = curve_frequency(config.frequency);
 		fc_ = curved.fc;
 
 		constexpr int32_t kResonanceUpperLimit = 536870911;
-		int32_t resonance = ONE_Q31 - (std::min(config.resonance, kResonanceUpperLimit) << 2);
+		int32_t resonance = kOneQ31 - (std::min(config.resonance, kResonanceUpperLimit) << 2);
 		resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
-		processed_resonance_ = ONE_Q31 - resonance;
+		processed_resonance_ = kOneQ31 - resonance;
 		processed_resonance_ = std::max(processed_resonance_, int32_t{134217728}); // the least resonance
 		const int32_t processed_resonance_unaltered = processed_resonance_;
 
@@ -683,14 +683,14 @@ public:
 		                                                    / static_cast<double>(to_divide_by));
 
 		// The volume falls as the resonance rises.
-		const q31 raw_resonance = std::min(config.resonance, q31{ONE_Q31 >> 2}) << 2;
+		const q31 raw_resonance = std::min(config.resonance, q31{kOneQ31 >> 2}) << 2;
 		q31 squared = multiply_32x32_rshift32(raw_resonance, raw_resonance) << 1;
 		squared = (multiply_32x32_rshift32(squared, squared) >> 4) * 19;
-		return multiply_32x32_rshift32(gain, ONE_Q31 - squared) << 1;
+		return multiply_32x32_rshift32(gain, kOneQ31 - squared) << 1;
 	}
 
 	/// @brief Filters a mono @p block in place.
-	void renderMono(std::span<q31> block, FadeScratch scratch) {
+	void render_mono(std::span<q31> block, FadeScratch scratch) {
 		const bool fading = fade_.active();
 		if (fading) {
 			fade_.keepDry(block, scratch);
@@ -704,7 +704,7 @@ public:
 	}
 
 	/// @brief Filters an interleaved L/R block in place.
-	void renderStereo(std::span<q31> interleaved, FadeScratch scratch) {
+	void render_stereo(std::span<q31> interleaved, FadeScratch scratch) {
 		const bool fading = fade_.active();
 		if (fading) {
 			fade_.keepDry(interleaved, scratch);
@@ -766,7 +766,7 @@ private:
 	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31 render(q31 input, Channel& channel) const {
 		// The inputs are small (about 16 bits), so this nudge is too; the floor is about as low as the cutoff goes
 		// without sounding broken.
-		constexpr q31 kLowerLimit = -(ONE_Q31 >> 8);
+		constexpr q31 kLowerLimit = -(kOneQ31 >> 8);
 		const q31 temp_fc = std::max(multiply_accumulate_32x32_rshift32_rounded(fc_, input << 4, morph_), kLowerLimit);
 
 		const q31 first_output = input - channel.high_pass_1.lowPass(input, temp_fc);
@@ -784,7 +784,7 @@ private:
 			// The saturator's position for this sample, kept so that switching it in interpolates from here: placed
 			// at shift 2 although the saturator drives at shift 1.
 			channel.last_working_value =
-			    static_cast<uint32_t>(lshiftAndSaturate<2>(a)) + deluge::dsp::fixed::kTanhCentre;
+			    static_cast<uint32_t>(lshift_and_saturate<2>(a)) + deluge::dsp::fixed::kTanhCentre;
 			if (processed_resonance_ > 750000000) {
 				a = deluge::dsp::fixed::tanh<2>(a);
 			}
@@ -829,37 +829,37 @@ public:
 	/// @brief Takes one block's settings.
 	/// @return @p gain, unchanged.
 	[[nodiscard]] q31 configure(q31 gain, const FilterConfig& config, SvfMode mode) {
-		q31 morph = lshiftAndSaturate<2>(config.morph);
+		q31 morph = lshift_and_saturate<2>(config.morph);
 		fc_ = curve_frequency(config.frequency).fc;
 		// The filter's true cutoff is the arcsine of this rate; × 1.25 brings it loosely in line with the ladders'.
-		constexpr auto kQuarter = static_cast<q31>(ONE_Q31 * 0.25);
+		constexpr auto kQuarter = static_cast<q31>(kOneQ31 * 0.25);
 		fc_ = fc_ + multiply_32x32_rshift32(fc_, kQuarter);
 
 		band_mode_ = (mode == SvfMode::BAND);
 		// The resonance (Q29 at most) times 4 spans Q31.
-		q_ = (ONE_Q31 - 4 * config.resonance);
-		in_ = (q_ >> 1) + (ONE_Q31 >> 1);
+		q_ = (kOneQ31 - 4 * config.resonance);
+		in_ = (q_ >> 1) + (kOneQ31 >> 1);
 		// The damping squared matches the ladders better, and makes the input scale its square root.
 		q_ = multiply_32x32_rshift32_rounded(q_, q_) << 1;
 
 		// Each branch keeps the weights from overflowing.
-		constexpr q31 kOneHalf = ONE_Q31 >> 1;
+		constexpr q31 kOneHalf = kOneQ31 >> 1;
 		if (band_mode_) {
 			if (morph > kOneHalf) {
 				morph = 2 * (morph - kOneHalf);
 				c_low_ = 0;
-				c_band_ = ONE_Q31 - morph;
+				c_band_ = kOneQ31 - morph;
 				c_high_ = morph;
 			}
 			else {
 				morph = 2 * morph;
-				c_low_ = ONE_Q31 - morph;
+				c_low_ = kOneQ31 - morph;
 				c_band_ = morph;
 				c_high_ = 0;
 			}
 		}
 		else {
-			c_low_ = ONE_Q31 - morph;
+			c_low_ = kOneQ31 - morph;
 			c_high_ = morph;
 			c_band_ = 0;
 		}
@@ -867,7 +867,7 @@ public:
 	}
 
 	/// @brief Filters a mono @p block in place.
-	void renderMono(std::span<q31> block, FadeScratch scratch) {
+	void render_mono(std::span<q31> block, FadeScratch scratch) {
 		const bool fading = fade_.active();
 		if (fading) {
 			fade_.keepDry(block, scratch);
@@ -881,7 +881,7 @@ public:
 	}
 
 	/// @brief Filters an interleaved L/R block in place.
-	void renderStereo(std::span<q31> interleaved, FadeScratch scratch) {
+	void render_stereo(std::span<q31> interleaved, FadeScratch scratch) {
 		const bool fading = fade_.active();
 		if (fading) {
 			fade_.keepDry(interleaved, scratch);
@@ -1022,7 +1022,7 @@ public:
 		route_ = route;
 
 		if (low_slot.kind != LowPassSlot::Kind::OFF) {
-			holdLowPass(low_slot.kind);
+			hold_low_pass(low_slot.kind);
 			const bool family_changed = low_last_ != low_slot.kind;
 			const bool from_off = low_last_ == LowPassSlot::Kind::OFF;
 			if (low_slot.kind == LowPassSlot::Kind::SVF) {
@@ -1044,7 +1044,7 @@ public:
 		gain = multiply_32x32_rshift32(gain, 1720000000) << 1;
 
 		if (high_slot.kind != HighPassSlot::Kind::OFF) {
-			holdHighPass(high_slot.kind);
+			hold_high_pass(high_slot.kind);
 			FilterConfig config = high;
 			// Changes in the resonance's low bits, made too often, rustle.
 			config.resonance = (high.resonance >> 21) << 21;
@@ -1071,21 +1071,21 @@ public:
 	}
 
 	/// @brief Filters a mono @p block in place.
-	void renderMono(std::span<q31> block, FilterScratch scratch) {
+	void render_mono(std::span<q31> block, FilterScratch scratch) {
 		switch (route_) {
 		case FilterRoute::HIGH_TO_LOW:
-			renderHighPassMono(block, scratch.fade);
-			renderLowPassMono(block, scratch.fade);
+			render_high_pass_mono(block, scratch.fade);
+			render_low_pass_mono(block, scratch.fade);
 			break;
 		case FilterRoute::LOW_TO_HIGH:
-			renderLowPassMono(block, scratch.fade);
-			renderHighPassMono(block, scratch.fade);
+			render_low_pass_mono(block, scratch.fade);
+			render_high_pass_mono(block, scratch.fade);
 			break;
 		case FilterRoute::PARALLEL: {
 			const std::span<q31> copy = scratch.parallel.first(block.size());
 			std::ranges::copy(block, copy.begin());
-			renderHighPassMono(copy, scratch.fade);
-			renderLowPassMono(block, scratch.fade);
+			render_high_pass_mono(copy, scratch.fade);
+			render_low_pass_mono(block, scratch.fade);
 			add_wrapping(block, copy);
 			break;
 		}
@@ -1093,21 +1093,21 @@ public:
 	}
 
 	/// @brief Filters an interleaved L/R block in place.
-	void renderStereo(std::span<q31> interleaved, FilterScratch scratch) {
+	void render_stereo(std::span<q31> interleaved, FilterScratch scratch) {
 		switch (route_) {
 		case FilterRoute::HIGH_TO_LOW:
-			renderHighPassStereo(interleaved, scratch.fade);
-			renderLowPassStereo(interleaved, scratch.fade);
+			render_high_pass_stereo(interleaved, scratch.fade);
+			render_low_pass_stereo(interleaved, scratch.fade);
 			break;
 		case FilterRoute::LOW_TO_HIGH:
-			renderLowPassStereo(interleaved, scratch.fade);
-			renderHighPassStereo(interleaved, scratch.fade);
+			render_low_pass_stereo(interleaved, scratch.fade);
+			render_high_pass_stereo(interleaved, scratch.fade);
 			break;
 		case FilterRoute::PARALLEL: {
 			const std::span<q31> copy = scratch.parallel.first(interleaved.size());
 			std::ranges::copy(interleaved, copy.begin());
-			renderHighPassStereo(copy, scratch.fade);
-			renderLowPassStereo(interleaved, scratch.fade);
+			render_high_pass_stereo(copy, scratch.fade);
+			render_low_pass_stereo(interleaved, scratch.fade);
 			add_wrapping(interleaved, copy);
 			break;
 		}
@@ -1129,11 +1129,11 @@ public:
 	}
 
 	/// @brief Whether either filter is on.
-	[[nodiscard]] bool isOn() const { return isLowPassOn() || isHighPassOn(); }
+	[[nodiscard]] bool isOn() const { return is_low_pass_on() || is_high_pass_on(); }
 	/// @brief Whether the low-pass is on.
-	[[nodiscard]] bool isLowPassOn() const { return low_slot_.kind != LowPassSlot::Kind::OFF; }
+	[[nodiscard]] bool is_low_pass_on() const { return low_slot_.kind != LowPassSlot::Kind::OFF; }
 	/// @brief Whether the high-pass is on.
-	[[nodiscard]] bool isHighPassOn() const { return high_slot_.kind != HighPassSlot::Kind::OFF; }
+	[[nodiscard]] bool is_high_pass_on() const { return high_slot_.kind != HighPassSlot::Kind::OFF; }
 
 	/// @brief The low-pass slot's fade: that of the filter the slot holds.
 	[[nodiscard]] const ReferenceDryWetFade& lowFade() const {
@@ -1201,7 +1201,7 @@ private:
 		}
 	}
 
-	void holdLowPass(LowPassSlot::Kind kind) {
+	void hold_low_pass(LowPassSlot::Kind kind) {
 		if (kind == low_held_) {
 			return;
 		}
@@ -1214,7 +1214,7 @@ private:
 		low_held_ = kind;
 	}
 
-	void holdHighPass(HighPassSlot::Kind kind) {
+	void hold_high_pass(HighPassSlot::Kind kind) {
 		if (kind == high_held_) {
 			return;
 		}
@@ -1227,52 +1227,52 @@ private:
 		high_held_ = kind;
 	}
 
-	void renderLowPassMono(std::span<q31> block, FadeScratch scratch) {
+	void render_low_pass_mono(std::span<q31> block, FadeScratch scratch) {
 		switch (low_slot_.kind) {
 		case LowPassSlot::Kind::LADDER:
-			low_pass_.ladder.renderMono(block, scratch);
+			low_pass_.ladder.render_mono(block, scratch);
 			break;
 		case LowPassSlot::Kind::SVF:
-			low_pass_.svf.renderMono(block, scratch);
+			low_pass_.svf.render_mono(block, scratch);
 			break;
 		case LowPassSlot::Kind::OFF:
 			break;
 		}
 	}
 
-	void renderHighPassMono(std::span<q31> block, FadeScratch scratch) {
+	void render_high_pass_mono(std::span<q31> block, FadeScratch scratch) {
 		switch (high_slot_.kind) {
 		case HighPassSlot::Kind::LADDER:
-			high_pass_.ladder.renderMono(block, scratch);
+			high_pass_.ladder.render_mono(block, scratch);
 			break;
 		case HighPassSlot::Kind::SVF:
-			high_pass_.svf.renderMono(block, scratch);
+			high_pass_.svf.render_mono(block, scratch);
 			break;
 		case HighPassSlot::Kind::OFF:
 			break;
 		}
 	}
 
-	void renderLowPassStereo(std::span<q31> interleaved, FadeScratch scratch) {
+	void render_low_pass_stereo(std::span<q31> interleaved, FadeScratch scratch) {
 		switch (low_slot_.kind) {
 		case LowPassSlot::Kind::LADDER:
-			low_pass_.ladder.renderStereo(interleaved, scratch);
+			low_pass_.ladder.render_stereo(interleaved, scratch);
 			break;
 		case LowPassSlot::Kind::SVF:
-			low_pass_.svf.renderStereo(interleaved, scratch);
+			low_pass_.svf.render_stereo(interleaved, scratch);
 			break;
 		case LowPassSlot::Kind::OFF:
 			break;
 		}
 	}
 
-	void renderHighPassStereo(std::span<q31> interleaved, FadeScratch scratch) {
+	void render_high_pass_stereo(std::span<q31> interleaved, FadeScratch scratch) {
 		switch (high_slot_.kind) {
 		case HighPassSlot::Kind::LADDER:
-			high_pass_.ladder.renderStereo(interleaved, scratch);
+			high_pass_.ladder.render_stereo(interleaved, scratch);
 			break;
 		case HighPassSlot::Kind::SVF:
-			high_pass_.svf.renderStereo(interleaved, scratch);
+			high_pass_.svf.render_stereo(interleaved, scratch);
 			break;
 		case HighPassSlot::Kind::OFF:
 			break;

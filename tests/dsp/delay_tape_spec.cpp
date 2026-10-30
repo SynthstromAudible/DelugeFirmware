@@ -88,24 +88,24 @@ inline void push(Run& run, StereoSample s) {
 /// The delay's secondary tape for one block: the read head clears as it goes, the input written behind it.
 template <typename T>
 void secondaryBlock(T& tape, int32_t rate, int32_t n, Run& run) {
-	tape.setupForRender(rate);
-	if (tape.isNative()) {
+	tape.setup_for_render(rate);
+	if (tape.is_native()) {
 		for (int32_t i = 0; i < n; ++i, ++run.k) {
-			if (tape.clearAndMoveOn()) {
+			if (tape.clear_and_move_on()) {
 				run.wraps.push_back(run.k);
 			}
-			tape.writeNative(input(run.k));
+			tape.write_native(input(run.k));
 		}
 		return;
 	}
 	for (int32_t i = 0; i < n; ++i, ++run.k) {
 		const int32_t strength2 = tape.advance([&] {
-			if (tape.clearAndMoveOn()) {
+			if (tape.clear_and_move_on()) {
 				run.wraps.push_back(run.k);
 			}
 		});
 		run.strengths.push_back(strength2);
-		tape.writeResampled(input(run.k), 65536 - strength2, strength2);
+		tape.write_resampled(input(run.k), 65536 - strength2, strength2);
 	}
 }
 
@@ -113,19 +113,19 @@ void secondaryBlock(T& tape, int32_t rate, int32_t n, Run& run) {
 /// written back from that head.
 template <typename T>
 void primaryBlock(T& tape, int32_t rate, int32_t n, Run& run) {
-	tape.setupForRender(rate);
+	tape.setup_for_render(rate);
 	const auto head = tape.head();
 	std::vector<StereoSample> work(n);
 	bool wrapped = false;
-	if (tape.isNative()) {
+	if (tape.is_native()) {
 		for (StereoSample& sample : work) {
-			wrapped = tape.clearAndMoveOn() || wrapped;
+			wrapped = tape.clear_and_move_on() || wrapped;
 			sample = tape.current();
 		}
 	}
 	else {
 		for (StereoSample& sample : work) {
-			const int32_t strength2 = tape.advance([&] { wrapped = tape.clearAndMoveOn() || wrapped; });
+			const int32_t strength2 = tape.advance([&] { wrapped = tape.clear_and_move_on() || wrapped; });
 			run.strengths.push_back(strength2);
 			const int32_t strength1 = 65536 - strength2;
 			StereoSample* next = &tape.current() + 1;
@@ -148,20 +148,20 @@ void primaryBlock(T& tape, int32_t rate, int32_t n, Run& run) {
 	if (wrapped) {
 		run.wraps.push_back(run.k);
 	}
-	if (tape.isNative()) {
+	if (tape.is_native()) {
 		StereoSample* write_pos = head.pos - T::kWriteLag;
 		if (write_pos < tape.begin()) {
-			write_pos += tape.sizeIncludingExtra();
+			write_pos += tape.size_including_extra();
 		}
 		for (StereoSample sample : work) {
-			tape.writeNativeAndMoveOn(sample, write_pos);
+			tape.write_native_and_move_on(sample, write_pos);
 		}
 	}
 	else {
-		tape.setHead(head);
+		tape.set_head(head);
 		for (StereoSample sample : work) {
-			const int32_t strength2 = tape.advance([&] { tape.moveOn(); });
-			tape.writeResampled(sample, 65536 - strength2, strength2);
+			const int32_t strength2 = tape.advance([&] { tape.move_on(); });
+			tape.write_resampled(sample, 65536 - strength2, strength2);
 		}
 	}
 }
@@ -178,18 +178,18 @@ struct Stutter {
 	std::vector<int32_t> turns{}; ///< the played samples after which the direction turned
 
 	void block(int32_t rate, int32_t n) {
-		tape.setupForRender(rate);
+		tape.setup_for_render(rate);
 		if (recording) {
 			for (int32_t i = 0; i < n; ++i) {
 				int32_t strength1 = 0;
 				int32_t strength2 = 0;
-				if (tape.isNative()) {
-					tape.clearAndMoveOn();
+				if (tape.is_native()) {
+					tape.clear_and_move_on();
 					size_left--;
 				}
 				else {
 					strength2 = tape.advance([&] {
-						tape.clearAndMoveOn();
+						tape.clear_and_move_on();
 						size_left--;
 					});
 					strength1 = 65536 - strength2;
@@ -198,25 +198,25 @@ struct Stutter {
 				tape.write(input(run.k++), strength1, strength2);
 			}
 			if (size_left < 0) {
-				tape.setCurrent(reverse ? tape.end() - 1 : tape.begin());
+				tape.set_current(reverse ? tape.end() - 1 : tape.begin());
 				recording = false;
 			}
 			return;
 		}
 		for (int32_t i = 0; i < n; ++i) {
 			StereoSample sample{};
-			if (tape.isNative()) {
+			if (tape.is_native()) {
 				if (reverse) {
-					tape.moveBack();
+					tape.move_back();
 				}
 				else {
-					tape.moveOn();
+					tape.move_on();
 				}
 				sample = tape.current();
 			}
 			else {
 				const int32_t strength2 =
-				    reverse ? tape.retreat([&] { tape.moveBack(); }) : tape.advance([&] { tape.moveOn(); });
+				    reverse ? tape.retreat([&] { tape.move_back(); }) : tape.advance([&] { tape.move_on(); });
 				run.strengths.push_back(strength2);
 				const int32_t strength1 = 65536 - strength2;
 				StereoSample* other = nullptr;
@@ -256,14 +256,14 @@ struct Stutter {
 class Rig {
 public:
 	explicit Rig(uint32_t rate) {
-		const auto [size, clamped] = DelayTape::idealSizeForRate(rate);
+		const auto [size, clamped] = DelayTape::ideal_size_for_rate(rate);
 		storage_.resize(static_cast<size_t>(size) + DelayTape::kWriteLag);
 		for (size_t i = 0; i < storage_.size(); ++i) {
 			storage_[i] = {.l = pattern(2 * i), .r = pattern((2 * i) + 1)};
 		}
 		tape = DelayTape{storage_, static_cast<size_t>(size), rate};
 		if (clamped) {
-			tape.makeNativeRatePrecise();
+			tape.make_native_rate_precise();
 		}
 	}
 	Rig(const Rig&) = delete;
@@ -536,23 +536,23 @@ std::vector<int32_t> first(const std::vector<int32_t>& v, size_t n) {
 describe delay_tape("DelayTape", ${
 	it("sizes the tape for a rate, clamping at both ends", _ {
 		using Size = std::pair<int32_t, bool>;
-		expect(DelayTape::idealSizeForRate(16777216)).to_equal(Size{16384, false});
-		expect(DelayTape::idealSizeForRate(kNative)).to_equal(Size{256, false});
-		expect(DelayTape::idealSizeForRate(4294967295U)).to_equal(Size{64, false});
-		expect(DelayTape::idealSizeForRate(3200000)).to_equal(Size{85899, false});
-		expect(DelayTape::idealSizeForRate(1000000)).to_equal(Size{88200, true});
-		expect(DelayTape::idealSizeForRate(100)).to_equal(Size{88200, true});
+		expect(DelayTape::ideal_size_for_rate(16777216)).to_equal(Size{16384, false});
+		expect(DelayTape::ideal_size_for_rate(kNative)).to_equal(Size{256, false});
+		expect(DelayTape::ideal_size_for_rate(4294967295U)).to_equal(Size{64, false});
+		expect(DelayTape::ideal_size_for_rate(3200000)).to_equal(Size{85899, false});
+		expect(DelayTape::ideal_size_for_rate(1000000)).to_equal(Size{88200, true});
+		expect(DelayTape::ideal_size_for_rate(100)).to_equal(Size{88200, true});
 	});
 
 	it("sizes a rate of 64 or below at the largest size, never a tape shorter than its clear", _ {
 		using Size = std::pair<int32_t, bool>;
-		expect(DelayTape::idealSizeForRate(64)).to_equal(Size{88200, true});
-		expect(DelayTape::idealSizeForRate(32)).to_equal(Size{88200, true});
-		expect(DelayTape::idealSizeForRate(1)).to_equal(Size{88200, true});
+		expect(DelayTape::ideal_size_for_rate(64)).to_equal(Size{88200, true});
+		expect(DelayTape::ideal_size_for_rate(32)).to_equal(Size{88200, true});
+		expect(DelayTape::ideal_size_for_rate(1)).to_equal(Size{88200, true});
 	});
 
 	it("clears a tape at the size a rate of 64 gets without writing past its storage", _ {
-		const size_t size = static_cast<size_t>(DelayTape::idealSizeForRate(64).first);
+		const size_t size = static_cast<size_t>(DelayTape::ideal_size_for_rate(64).first);
 		const size_t used = size + DelayTape::kWriteLag;
 		constexpr StereoSample kSentinel{.l = 0x13579BDF, .r = 0x2468ACE0};
 		std::vector<StereoSample> backing(used + 4, kSentinel);
@@ -577,48 +577,48 @@ describe delay_tape("DelayTape", ${
 		// Native at its native rate stays native; native at any other rate starts resampling; resampling stays so, at
 		// its native rate too; an inactive tape never resamples.
 		Rig rig{kNative};
-		expect(rig.tape.resamplesAt(kNative)).to_be_false();
-		rig.tape.setupForRender(static_cast<int32_t>(kNative));
+		expect(rig.tape.resamples_at(kNative)).to_be_false();
+		rig.tape.setup_for_render(static_cast<int32_t>(kNative));
 		expect(rig.tape.resampling()).to_be_false();
-		expect(rig.tape.resamplesAt(static_cast<uint32_t>(kFast))).to_be_true();
-		rig.tape.setupForRender(kFast);
+		expect(rig.tape.resamples_at(static_cast<uint32_t>(kFast))).to_be_true();
+		rig.tape.setup_for_render(kFast);
 		expect(rig.tape.resampling()).to_be_true();
-		expect(rig.tape.resamplesAt(kNative)).to_be_true();
-		rig.tape.setupForRender(static_cast<int32_t>(kNative));
+		expect(rig.tape.resamples_at(kNative)).to_be_true();
+		rig.tape.setup_for_render(static_cast<int32_t>(kNative));
 		expect(rig.tape.resampling()).to_be_true();
 		DelayTape inactive;
-		expect(inactive.resamplesAt(static_cast<uint32_t>(kFast))).to_be_false();
-		inactive.setupForRender(kFast);
+		expect(inactive.resamples_at(static_cast<uint32_t>(kFast))).to_be_false();
+		inactive.setup_for_render(kFast);
 		expect(inactive.resampling()).to_be_false();
 	});
 
 	it("sizes a rate of 0 at the largest size", _ {
 		using Size = std::pair<int32_t, bool>;
-		expect(DelayTape::idealSizeForRate(0)).to_equal(Size{88200, true});
+		expect(DelayTape::ideal_size_for_rate(0)).to_equal(Size{88200, true});
 	});
 
 	it("makes its native rate precise for its size, alone or relative to another tape", _ {
 		Rig clamped{1000000};
-		expect(clamped.tape.nativeRate()).to_equal(3116530U);
+		expect(clamped.tape.native_rate()).to_equal(3116530U);
 		Rig unclamped{3200000};
-		expect(unclamped.tape.nativeRate()).to_equal(3200000U);
-		unclamped.tape.makeNativeRatePrecise();
-		expect(unclamped.tape.nativeRate()).to_equal(3200013U);
+		expect(unclamped.tape.native_rate()).to_equal(3200000U);
+		unclamped.tape.make_native_rate_precise();
+		expect(unclamped.tape.native_rate()).to_equal(3200013U);
 		Rig other{5000000};
-		other.tape.makeNativeRatePreciseRelativeTo(clamped.tape);
+		other.tape.make_native_rate_precise_relative_to(clamped.tape);
 		expect(other.tape.size()).to_equal(size_t{54975});
-		expect(other.tape.nativeRate()).to_equal(5000054U);
+		expect(other.tape.native_rate()).to_equal(5000054U);
 	});
 
 	it("starts native with its read head kWriteLag in, the samples up to two past it cleared", _ {
-		expect(DelayTape{}.isActive()).to_be_false();
+		expect(DelayTape{}.is_active()).to_be_false();
 		Rig rig{kNative};
-		expect(rig.tape.isActive()).to_be_true();
-		expect(rig.tape.isNative()).to_be_true();
+		expect(rig.tape.is_active()).to_be_true();
+		expect(rig.tape.is_native()).to_be_true();
 		expect(rig.tape.resampling()).to_be_false();
-		expect(rig.tape.nativeRate()).to_equal(kNative);
+		expect(rig.tape.native_rate()).to_equal(kNative);
 		expect(rig.tape.size()).to_equal(size_t{256});
-		expect(rig.tape.sizeIncludingExtra()).to_equal(size_t{276});
+		expect(rig.tape.size_including_extra()).to_equal(size_t{276});
 		expect(rig.tape.end() - rig.tape.begin()).to_equal(std::ptrdiff_t{276});
 		expect(&rig.tape.current() - rig.tape.begin()).to_equal(DelayTape::kWriteLag);
 		expect(first(storage(rig.tape), 52)).to_equal(kFreshHead);
@@ -627,16 +627,16 @@ describe delay_tape("DelayTape", ${
 
 	it("moves the read head on and back, reporting each wrap", _ {
 		Rig rig{kNative};
-		rig.tape.setCurrent(rig.tape.end() - 2);
-		expect(rig.tape.moveOn()).to_be_false();
-		expect(rig.tape.moveOn()).to_be_true();
+		rig.tape.set_current(rig.tape.end() - 2);
+		expect(rig.tape.move_on()).to_be_false();
+		expect(rig.tape.move_on()).to_be_true();
 		expect(&rig.tape.current() - rig.tape.begin()).to_equal(std::ptrdiff_t{0});
-		expect(rig.tape.moveBack()).to_be_true();
+		expect(rig.tape.move_back()).to_be_true();
 		expect(&rig.tape.current() - rig.tape.begin()).to_equal(std::ptrdiff_t{275});
-		expect(rig.tape.moveBack()).to_be_false();
+		expect(rig.tape.move_back()).to_be_false();
 		expect(&rig.tape.current() - rig.tape.begin()).to_equal(std::ptrdiff_t{274});
 		rig.tape.current() = {.l = 5, .r = 6};
-		expect(rig.tape.clearAndMoveOn()).to_be_false();
+		expect(rig.tape.clear_and_move_on()).to_be_false();
 		expect(rig.tape.end()[-2].l).to_equal(0);
 		expect(rig.tape.end()[-2].r).to_equal(0);
 	});
@@ -713,9 +713,9 @@ describe delay_tape("DelayTape", ${
 
 	it("returns to a saved head: pointer, long position and last short position", _ {
 		Rig rig{kNative};
-		rig.tape.setupForRender(kFast);
+		rig.tape.setup_for_render(kFast);
 		for (int i = 0; i < 10; ++i) {
-			std::ignore = rig.tape.advance([&] { rig.tape.moveOn(); });
+			std::ignore = rig.tape.advance([&] { rig.tape.move_on(); });
 		}
 		const DelayTape::Head saved = rig.tape.head();
 		expect(saved.pos - rig.tape.begin()).to_equal(std::ptrdiff_t{35});
@@ -724,13 +724,13 @@ describe delay_tape("DelayTape", ${
 		auto twenty = [&] {
 			std::vector<int32_t> strengths;
 			for (int i = 0; i < 20; ++i) {
-				strengths.push_back(rig.tape.advance([&] { rig.tape.moveOn(); }));
+				strengths.push_back(rig.tape.advance([&] { rig.tape.move_on(); }));
 			}
 			return strengths;
 		};
 		expect(twenty()).to_equal(kHeadStrengths);
 		expect(&rig.tape.current() - rig.tape.begin()).to_equal(std::ptrdiff_t{65});
-		rig.tape.setHead(saved);
+		rig.tape.set_head(saved);
 		expect(rig.tape.head().pos - rig.tape.begin()).to_equal(std::ptrdiff_t{35});
 		expect(rig.tape.head().long_pos).to_equal(saved.long_pos);
 		expect(rig.tape.head().last_short_pos).to_equal(saved.last_short_pos);

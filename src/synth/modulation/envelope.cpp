@@ -17,16 +17,16 @@
 
 #include "synth/modulation/envelope.h"
 #include "dsp-next/core/q31_ops.h"                            // multiply_32x32_rshift32, add_saturate
-#include "dsp-next/fixed/interpolation/table_interpolation.h" // getDecay4/8, linear_table_interpolator
-#include "dsp-next/fixed/osc/sine_table.h"                    // sine_table (sine-shaped fast-release)
+#include "dsp-next/fixed/interpolation/table_interpolation.h" // get_decay4/8, kLinearTableInterpolator
+#include "dsp-next/fixed/osc/sine_table.h"                    // kSineTable (sine-shaped fast-release)
 #include "dsp-next/fixed/tables/decay_small.h"
 #include <algorithm>
 #include <limits>
 
-using deluge::dsp::fixed::getDecay4;
-using deluge::dsp::fixed::getDecay8;
-using deluge::dsp::fixed::linear_table_interpolator;
-using deluge::dsp::fixed::sine_table;
+using deluge::dsp::fixed::get_decay4;
+using deluge::dsp::fixed::get_decay8;
+using deluge::dsp::fixed::kLinearTableInterpolator;
+using deluge::dsp::fixed::kSineTable;
 
 namespace {
 constexpr uint32_t kStageEnd = 1u << 23;   ///< A stage completes once its position accumulator reaches this.
@@ -85,7 +85,7 @@ Envelope::StepOutcome Envelope::stepAttack(uint32_t attack_rate, uint32_t num_sa
 		setState(Stage::DECAY);
 		return StepOutcome::ADVANCE; // Run decay this same block.
 	}
-	current_level_ = kFullScale - getDecay4(stage_position_, 23); // Makes a curved attack.
+	current_level_ = kFullScale - get_decay4(stage_position_, 23); // Makes a curved attack.
 	current_level_ = std::max(current_level_, (int32_t)1);
 	return StepOutcome::EMIT_LEVEL;
 }
@@ -98,8 +98,8 @@ Envelope::StepOutcome Envelope::stepDecay(uint32_t decay_rate, uint32_t sustain_
 	// too involved for now, and this is close enough since we'd usually need to smooth it anyway.
 	smoothed_sustain_ =
 	    add_saturate(smoothed_sustain_, num_samples * (((int32_t)sustain_level - smoothed_sustain_) >> 9));
-	current_level_ =
-	    smoothed_sustain_ + multiply_32x32_rshift32(getDecay8(stage_position_, 23), kFullScale - smoothed_sustain_) * 2;
+	current_level_ = smoothed_sustain_
+	                 + multiply_32x32_rshift32(get_decay8(stage_position_, 23), kFullScale - smoothed_sustain_) * 2;
 
 	stage_position_ += decay_rate * num_samples;
 
@@ -131,7 +131,7 @@ Envelope::StepOutcome Envelope::stepRelease(uint32_t release_rate, uint32_t num_
 		current_level_ = 0;
 		return StepOutcome::EMIT_OFF;
 	}
-	current_level_ = multiply_32x32_rshift32(linear_table_interpolator.interpolate(stage_position_, 23, release_table),
+	current_level_ = multiply_32x32_rshift32(kLinearTableInterpolator.interpolate(stage_position_, 23, release_table),
 	                                         level_at_stage_entry_)
 	                 << 1;
 	return StepOutcome::EMIT_LEVEL;
@@ -150,7 +150,7 @@ Envelope::StepOutcome Envelope::stepFastRelease(uint32_t release_rate, uint32_t 
 	// A sine-shaped release: less high-frequency content than a linear ramp, and sounds a touch better
 	// on deep bass samples.
 	current_level_ =
-	    multiply_32x32_rshift32((sine_table.value(stage_position_ + (kStageEnd >> 1), 24) >> 1) + kHalfScale,
+	    multiply_32x32_rshift32((kSineTable.value(stage_position_ + (kStageEnd >> 1), 24) >> 1) + kHalfScale,
 	                            level_at_stage_entry_)
 	    << 1;
 	return StepOutcome::EMIT_LEVEL;
@@ -207,7 +207,7 @@ void Envelope::unconditionalRelease(Stage release_stage, uint32_t fast_release_r
 
 void Envelope::resumeAttack(int32_t resume_level) {
 	if (stage_ == Stage::ATTACK) {
-		stage_position_ = linear_table_interpolator.inverse(kFullScale - resume_level, 23,
-		                                                    deluge::dsp::fixed::tables::decay_small_4.data());
+		stage_position_ = kLinearTableInterpolator.inverse(kFullScale - resume_level, 23,
+		                                                   deluge::dsp::fixed::tables::kDecaySmall4.data());
 	}
 }

@@ -26,7 +26,7 @@ namespace deluge::dsp::fixed::tables {
 
 /// @brief One turn of sine in 256 steps, plus the wrap entry so an interpolating read at step 255 has its neighbour.
 /// @details Q15: 32767 is +1.0. Entry i is sin(2πi/256). 16-byte aligned for NEON lane loads.
-alignas(16) inline constexpr std::array<int16_t, 257> sine_small{
+alignas(16) inline constexpr std::array<int16_t, 257> kSineSmall{
     0,      804,    1608,   2410,   3212,   4011,   4808,   5602,   6393,   7179,   7962,   8739,   9512,   10278,
     11039,  11793,  12539,  13279,  14010,  14732,  15446,  16151,  16846,  17530,  18204,  18868,  19519,  20159,
     20787,  21403,  22005,  22594,  23170,  23731,  24279,  24811,  25329,  25832,  26319,  26790,  27245,  27683,

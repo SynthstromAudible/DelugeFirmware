@@ -55,7 +55,7 @@ public:
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 
 	/// Change the per-sample phase step for the next block (pitch change), keeping the accumulated phase.
-	void setIncrement(uint32_t increment) { phasor_.setIncrement(increment); }
+	void set_increment(uint32_t increment) { phasor_.set_increment(increment); }
 
 	/// Swap the band/table this reads, keeping the accumulated phase — the band-limited oscillator uses this to
 	/// re-select its band when the pitch changes between blocks.

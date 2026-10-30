@@ -152,9 +152,9 @@ change.
   (`tests/dsp/`, dual-arch CppSpec via CTest) lands with S2.
 - **S1 — `core/` vocabulary. ✅ done (2026-06-13).** Lean header-only
   foundation: `core/sample.h` (`q31`/`f32` aliases reusing the firmware-wide
-  `q31_t`, + the `SampleType` concept) and `core/convert.h` (`toF32`/`toQ31`
+  `q31_t`, + the `SampleType` concept) and `core/convert.h` (`to_f32`/`to_q31`
   edge conversion, with compile-time saturation self-tests — caught and avoided
-  the `ONE_Q31f`→2^31 float-rounding overflow at |x|==1). No caller switch, so
+  the `kOneQ31f`→2^31 float-rounding overflow at |x|==1). No caller switch, so
   goldens are untouched; firmware text unchanged. LUTs, block helpers, and
   primitive concepts deliberately deferred (see migration item 1).
 - **S2 — sine kernel. ✅ done (2026-06-13).** Migrated the sine table evaluator

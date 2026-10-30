@@ -100,12 +100,12 @@ void Reverb::render(std::span<dsp::StereoSample> block, std::span<const int32_t>
 	switch (model_) {
 	case ReverbModel::FREEVERB:
 		freeverb_.on<&Freeverb::set_send>(send.data(), pan_l, pan_r);
-		freeverb_.renderBlock(block, block);
+		freeverb_.render_block(block, block);
 		break;
 	case ReverbModel::MUTABLE:
 	case ReverbModel::DIGITAL:
 		plate_.on<&Plate::set_send>(send.data(), pan_l, pan_r);
-		plate_.renderBlock(block, block);
+		plate_.render_block(block, block);
 		break;
 	}
 }

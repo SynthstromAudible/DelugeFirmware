@@ -27,7 +27,7 @@ BitcrushBlock Bitcrush::process(std::span<dsp::StereoSample> block, const Bitcru
 		reducing_ = false;
 		if (BitDepth::on(params.bitcrush)) {
 			depth_.configure({.bitcrush = params.bitcrush});
-			depth_.renderBlock(block, block);
+			depth_.render_block(block, block);
 		}
 		return out;
 	}
@@ -39,7 +39,7 @@ BitcrushBlock Bitcrush::process(std::span<dsp::StereoSample> block, const Bitcru
 	    .sample_rate_reduction = params.sample_rate_reduction,
 	    .grab_mask = BitDepth::mask(params.bitcrush, BitDepth::kGrabMaskBase),
 	});
-	reducer_.renderBlock(block, block);
+	reducer_.render_block(block, block);
 	return out;
 }
 

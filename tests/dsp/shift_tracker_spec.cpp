@@ -183,7 +183,7 @@ describe shift_tracker_spec("ShiftTracker", ${
 			for (const std::size_t n : kLengths) {
 				const std::vector<q31> in = half_scale_noise(n, seed++);
 				std::vector<q31> got(n);
-				mono.renderBlock(in, got);
+				mono.render_block(in, got);
 				for (std::size_t i = 0; i < n; ++i) {
 					const q31 want = mode == Blocker::Mode::TRACK
 					                     ? Blocker::step<Blocker::Mode::TRACK>(c, {}, s, in[i])

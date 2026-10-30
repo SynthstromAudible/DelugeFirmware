@@ -131,10 +131,10 @@ std::vector<std::string> partings() {
 
 // clang-format off
 describe fade_in("FadeIn", ${
-	it("starts where the legacy fade does: dry 1 and wet ONE_Q31", _ {
+	it("starts where the legacy fade does: dry 1 and wet kOneQ31", _ {
 		const FadeIn::State s{};
 		expect(s.dry).to_equal(1.0F);
-		expect(s.wet).to_equal(ONE_Q31);
+		expect(s.wet).to_equal(kOneQ31);
 	});
 
 	it("begins at dry 1 and wet 0, and zeroes to dry 0 and wet 0, which ends the fade", _ {

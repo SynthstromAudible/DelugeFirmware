@@ -403,10 +403,10 @@ struct Sequential {
 
 	explicit Sequential(const Three::Settings& s) : add{get<0>(s)}, scale{get<1>(s)}, remove{get<2>(s)} {}
 
-	void renderBlock(const std::vector<q31>& in, std::vector<q31>& out) {
-		add.renderBlock(in, out);
-		scale.renderBlock(out, out);
-		remove.renderBlock(out, out);
+	void render_block(const std::vector<q31>& in, std::vector<q31>& out) {
+		add.render_block(in, out);
+		scale.render_block(out, out);
+		remove.render_block(out, out);
 	}
 };
 
@@ -479,11 +479,11 @@ LanesRun run_lanes_and_monos() {
 				}
 				monos[lane].configure(settings);
 				want[lane].resize(n);
-				monos[lane].renderBlock(in, want[lane]);
+				monos[lane].render_block(in, want[lane]);
 			}
 			std::vector<Frame<q31, N>> got(n);
-			out_of_place.renderBlock(frames, got);
-			in_place.renderBlock(frames, frames);
+			out_of_place.render_block(frames, got);
+			in_place.render_block(frames, frames);
 			for (const std::vector<Frame<q31, N>>* result : {&got, &frames}) {
 				for (std::size_t lane = 0; lane < N; ++lane) {
 					std::vector<q31> samples;
@@ -514,7 +514,7 @@ using PinnedSplit = Pinned<loop_state_test::SplitLoop, loop_state_test::Mode::XO
 static_assert(processor_kernel<SplitPair> && !detail::declares_loop_state<SplitPair>);
 static_assert(processor_kernel<PinnedSplit> && std::same_as<loop_state_t<PinnedSplit>, loop_state_test::Loop>);
 using PinnedSplitInPlace = Pinned<loop_state_test::SplitLoopInPlace, loop_state_test::Mode::XOR>;
-static_assert(detail::state_in_place<PinnedSplitInPlace> && !detail::state_in_place<PinnedSplit>);
+static_assert(detail::state_in_place_v<PinnedSplitInPlace> && !detail::state_in_place_v<PinnedSplit>);
 
 /// Three @p n-sample blocks through Mono<K>, configured with @p first then, from the third block, @p third. Returns
 /// the outputs, with the final State's bytes appended as words.
@@ -527,7 +527,7 @@ std::vector<q31> run_split_chain(std::size_t n, const typename K::Settings& firs
 			mono.configure(third);
 		}
 		std::vector<q31> buf = loop_state_test::input(n, block);
-		mono.renderBlock(buf, buf);
+		mono.render_block(buf, buf);
 		out.insert(out.end(), buf.begin(), buf.end());
 	}
 	const auto& s = mono.state();
@@ -548,8 +548,8 @@ describe chain("Chain", ${
 				const std::vector<q31> in = noise(n, 0x5eed + (block * 31) + static_cast<uint32_t>(n));
 				std::vector<q31> got(n);
 				std::vector<q31> want(n);
-				fused.renderBlock(in, got);
-				parts.renderBlock(in, want);
+				fused.render_block(in, got);
+				parts.render_block(in, want);
 				expect(got).to_equal(want);
 			}
 			expect(part_states(fused)).to_equal(part_states(parts));
@@ -569,8 +569,8 @@ describe chain("Chain", ${
 			                             in.begin() + static_cast<std::ptrdiff_t>(at + n));
 			std::vector<q31> got(n);
 			std::vector<q31> want(n);
-			fused.renderBlock(slice, got);
-			parts.renderBlock(slice, want);
+			fused.render_block(slice, got);
+			parts.render_block(slice, want);
 			if (got != want && first_got.empty()) {
 				first_got = got;
 				first_want = want;
@@ -591,9 +591,9 @@ describe chain("Chain", ${
 			for (int block = 0; block < 2; ++block) {
 				std::vector<q31> got(n);
 				std::vector<q31> want(n);
-				fused.renderBlock(got);
-				gen.renderBlock(want);
-				shape.renderBlock(want, want);
+				fused.render_block(got);
+				gen.render_block(want);
+				shape.render_block(want, want);
 				expect(got).to_equal(want);
 			}
 			expect(get<0>(fused.state()).v).to_equal(gen.state().v);
@@ -611,9 +611,9 @@ describe chain("Chain", ${
 				const std::vector<q31> b = noise(n, 23 + block);
 				std::vector<q31> got(n);
 				std::vector<q31> want(n);
-				fused.renderBlock(a, b, got);
-				mix.renderBlock(a, b, want);
-				add.renderBlock(want, want);
+				fused.render_block(a, b, got);
+				mix.render_block(a, b, want);
+				add.render_block(want, want);
 				expect(got).to_equal(want);
 			}
 			expect(get<0>(fused.state()).acc).to_equal(mix.state().acc);
@@ -625,9 +625,9 @@ describe chain("Chain", ${
 		Mono<Chain<PrepLog<1>, AddK, PrepLog<3>, ScaleK>> chain;
 		prepare_log.clear();
 		std::vector<q31> buffer = noise(5, 99);
-		chain.renderBlock(buffer, buffer);
+		chain.render_block(buffer, buffer);
 		expect(prepare_log).to_equal(std::vector<int>{1, 3, ScaleK::kLogId});
-		chain.renderBlock(buffer, buffer);
+		chain.render_block(buffer, buffer);
 		expect(prepare_log).to_equal(std::vector<int>{1, 3, ScaleK::kLogId, 1, 3, ScaleK::kLogId});
 		expect(get<3>(chain.state()).prepares).to_equal(2);
 		expect(get<1>(chain.state()).steps).to_equal(10);
@@ -637,7 +637,7 @@ describe chain("Chain", ${
 		Mono<Quirky> chain{Quirky::Settings{AddK::Settings{.offset = 3}, QuirkK::Settings{},
 		                                     ScaleK::Settings{.base = 0x40000000}}};
 		std::vector<q31> buffer = noise(6, 7);
-		chain.renderBlock(buffer, buffer);
+		chain.render_block(buffer, buffer);
 		expect(get<0>(chain.state()).steps).to_equal(6);
 		expect(get<2>(chain.state()).prepares).to_equal(1);
 
@@ -651,8 +651,8 @@ describe chain("Chain", ${
 	it("resets one part through Mono::on, every other part bit for bit untouched", _ {
 		Mono<Three> chain{three_settings()};
 		std::vector<q31> buffer = noise(9, 41);
-		chain.renderBlock(buffer, buffer);
-		chain.renderBlock(buffer, buffer);
+		chain.render_block(buffer, buffer);
+		chain.render_block(buffer, buffer);
 		const Three::State before = chain.state();
 		expect(get<1>(before).prepares).to_equal(2);
 
@@ -665,7 +665,7 @@ describe chain("Chain", ${
 	it("resets one part through its reset quirk, through Mono::on", _ {
 		Mono<Quirky> chain;
 		std::vector<q31> buffer = noise(4, 5);
-		chain.renderBlock(buffer, buffer);
+		chain.render_block(buffer, buffer);
 		const Quirky::State before = chain.state();
 
 		chain.on<&Quirky::reset_part<1>>();
@@ -682,7 +682,7 @@ describe chain("Chain", ${
 		for (std::size_t i = 0; i < frames.size(); ++i) {
 			frames[i] = {.l = l[i], .r = r[i]};
 		}
-		chain.renderBlock(frames, frames);
+		chain.render_block(frames, frames);
 		const Three::State left = chain.left();
 		const Three::State right = chain.right();
 
@@ -706,9 +706,9 @@ describe chain("Chain", ${
 				std::vector<q31> got(n);
 				std::vector<q31> removed(n);
 				std::vector<q31> tracked(n);
-				pinned.renderBlock(in, got);
-				removing.renderBlock(in, removed);
-				tracking.renderBlock(in, tracked);
+				pinned.render_block(in, got);
+				removing.render_block(in, removed);
+				tracking.render_block(in, tracked);
 				expect(got).to_equal(removed);
 				expect(got).not_().to_equal(tracked);
 			}
@@ -724,8 +724,8 @@ describe chain("Chain", ${
 				const std::vector<q31> in = noise(n, 0x1234 + block);
 				std::vector<q31> got(n);
 				std::vector<q31> want(n);
-				nested.renderBlock(in, got);
-				flat.renderBlock(in, want);
+				nested.render_block(in, got);
+				flat.render_block(in, want);
 				expect(got).to_equal(want);
 			}
 			expect(bytes_of(get<1>(get<0>(nested.state())))).to_equal(bytes_of(get<1>(flat.state())));
@@ -741,9 +741,9 @@ describe chain("Chain", ${
 			for (uint32_t block = 0; block < 2; ++block) {
 				const std::vector<q31> in = noise(n, 0x777 + block);
 				std::vector<q31> got(n);
-				out_of_place.renderBlock(in, got);
+				out_of_place.render_block(in, got);
 				std::vector<q31> buffer = in;
-				in_place.renderBlock(buffer, buffer);
+				in_place.render_block(buffer, buffer);
 				expect(buffer).to_equal(got);
 
 				const std::vector<q31> r = noise(n, 0x999 + block);
@@ -752,8 +752,8 @@ describe chain("Chain", ${
 					frames[i] = {.l = in[i], .r = r[i]};
 				}
 				std::vector<StereoSample> stereo_got(n);
-				stereo_out_of_place.renderBlock(frames, stereo_got);
-				stereo_in_place.renderBlock(frames, frames);
+				stereo_out_of_place.render_block(frames, stereo_got);
+				stereo_in_place.render_block(frames, frames);
 				expect(interleaved(frames)).to_equal(interleaved(stereo_got));
 			}
 		}
@@ -776,9 +776,9 @@ describe chain("Chain", ${
 			want_modes.emplace_back(std::to_underlying(a), std::to_underlying(b));
 			const std::vector<q31> silence(kPickLength);
 			std::vector<q31> out(kPickLength);
-			picked.renderBlock(silence, out);
+			picked.render_block(silence, out);
 			got.push_back(out);
-			around.renderBlock(silence, out);
+			around.render_block(silence, out);
 			got_around.push_back(out);
 			const q31 added = (a == Pick::FIRST ? 1 : 2) + (b == Pick::FIRST ? 10 : 20);
 			want.emplace_back(kPickLength, added);
@@ -800,7 +800,7 @@ describe chain("Chain", ${
 
 		Mono<Picked> picked;
 		std::vector<q31> out(kPickLength);
-		picked.renderBlock(std::vector<q31>(kPickLength), out);
+		picked.render_block(std::vector<q31>(kPickLength), out);
 		expect(out).to_equal(std::vector<q31>(kPickLength, 21));
 
 		const FilteredBoth::Coefficients both{};
@@ -856,9 +856,9 @@ describe chain("Chain", ${
 				const std::vector<q31> in = noise(n, 0xf11 + static_cast<uint32_t>((block * 13) + n));
 				std::vector<q31> fused_out(n);
 				std::vector<q31> parts_out(n);
-				fused.renderBlock(in, fused_out);
-				filter.renderBlock(in, parts_out);
-				remove.renderBlock(parts_out, parts_out);
+				fused.render_block(in, fused_out);
+				filter.render_block(in, parts_out);
+				remove.render_block(parts_out, parts_out);
 				got.push_back(fused_out);
 				want.push_back(parts_out);
 			}
@@ -883,9 +883,9 @@ describe chain("Chain", ${
 				const std::vector<q31> in = noise(n, 0xb0b + static_cast<uint32_t>((block * 3) + n));
 				std::vector<q31> nested_out(n);
 				std::vector<q31> parts_out(n);
-				nested.renderBlock(in, nested_out);
-				filtered.renderBlock(in, parts_out);
-				shape.renderBlock(parts_out, parts_out);
+				nested.render_block(in, nested_out);
+				filtered.render_block(in, parts_out);
+				shape.render_block(parts_out, parts_out);
 				got.push_back(nested_out);
 				want.push_back(parts_out);
 			}
@@ -913,8 +913,8 @@ describe chain("Chain", ${
 				const std::vector<q31> in = noise(n, 0x5e7 + static_cast<uint32_t>((block * 11) + n));
 				std::vector<q31> nested_out(n);
 				std::vector<q31> flat_out(n);
-				nested.renderBlock(in, nested_out);
-				flat.renderBlock(in, flat_out);
+				nested.render_block(in, nested_out);
+				flat.render_block(in, flat_out);
 				got.push_back(nested_out);
 				want.push_back(flat_out);
 			}
@@ -944,15 +944,15 @@ describe chain("Chain", ${
 				}
 				std::vector<q31> want_l(n);
 				std::vector<q31> want_r(n);
-				left.renderBlock(l, want_l);
-				right.renderBlock(r, want_r);
+				left.render_block(l, want_l);
+				right.render_block(r, want_r);
 				std::vector<StereoSample> want(n);
 				for (std::size_t i = 0; i < n; ++i) {
 					want[i] = {.l = want_l[i], .r = want_r[i]};
 				}
 				std::vector<StereoSample> got(n);
-				out_of_place.renderBlock(frames, got);
-				in_place.renderBlock(frames, frames);
+				out_of_place.render_block(frames, got);
+				in_place.render_block(frames, frames);
 				expect(interleaved(got)).to_equal(interleaved(want));
 				expect(interleaved(frames)).to_equal(interleaved(want));
 			}
@@ -980,7 +980,7 @@ describe chain("Chain", ${
 		for (std::size_t i = 0; i < frames.size(); ++i) {
 			frames[i] = {.l = l[i], .r = r[i]};
 		}
-		chain.renderBlock(frames, frames);
+		chain.render_block(frames, frames);
 		const Filtered::State left = chain.left();
 		const Filtered::State right = chain.right();
 		expect(get<1>(left).y).not_().to_equal(0);

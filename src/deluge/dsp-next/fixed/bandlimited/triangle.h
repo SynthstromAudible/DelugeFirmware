@@ -21,7 +21,7 @@
 namespace deluge::dsp::fixed {
 
 /// @brief The band-limited triangle wave kernel: its six anti-aliasing bands (its own pitch
-/// ladder, distinct from the standard getTableNumber ladder), owning their LUTs.
+/// ladder, distinct from the standard get_table_number ladder), owning their LUTs.
 [[nodiscard]] const BandlimitedTable& triangle_bandlimited_table();
 
 } // namespace deluge::dsp::fixed

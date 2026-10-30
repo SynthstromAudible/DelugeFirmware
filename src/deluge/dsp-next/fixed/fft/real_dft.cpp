@@ -27,7 +27,7 @@ namespace deluge::dsp::fixed::fft {
 namespace {
 
 constexpr int32_t kAngleBits = 16;    // a whole turn is 2^16
-constexpr int32_t kTableSizeBits = 8; // tables::sine_small's 256 steps per turn
+constexpr int32_t kTableSizeBits = 8; // tables::kSineSmall's 256 steps per turn
 constexpr int32_t kQuarterTurn = 1 << (kTableSizeBits - 2);
 constexpr int32_t kFractionShift = 16 + kTableSizeBits - kAngleBits; // brings the angle's sub-step bits to the top 16
 
@@ -46,13 +46,13 @@ void real_dft(std::span<const int32_t> in, std::span<Complex> out) {
 		for (const int32_t sample : in) {
 			int32_t sine_index = static_cast<int32_t>(angle >> (kAngleBits - kTableSizeBits));
 			sine_index &= (1 << kTableSizeBits) - 1;
-			const int32_t sine1 = deluge::dsp::fixed::tables::sine_small[sine_index];
-			const int32_t sine2 = deluge::dsp::fixed::tables::sine_small[sine_index + 1];
+			const int32_t sine1 = deluge::dsp::fixed::tables::kSineSmall[sine_index];
+			const int32_t sine2 = deluge::dsp::fixed::tables::kSineSmall[sine_index + 1];
 
 			int32_t cosine_index = sine_index + kQuarterTurn;
 			cosine_index &= (1 << kTableSizeBits) - 1;
-			const int32_t cosine1 = deluge::dsp::fixed::tables::sine_small[cosine_index];
-			const int32_t cosine2 = deluge::dsp::fixed::tables::sine_small[cosine_index + 1];
+			const int32_t cosine1 = deluge::dsp::fixed::tables::kSineSmall[cosine_index];
+			const int32_t cosine2 = deluge::dsp::fixed::tables::kSineSmall[cosine_index + 1];
 
 			const uint32_t shifted = angle << kFractionShift;
 			const int32_t fraction = static_cast<int32_t>(shifted & 65535);

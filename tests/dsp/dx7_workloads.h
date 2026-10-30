@@ -541,7 +541,7 @@ struct VectorCore {
 		                                                 .tables = &vector_tables()}};
 		op.on<&dx7::ModernVectorOperator::resume>(dx7::OperatorState{.phase = param.phase, .gain_out = gain1});
 		const auto len = static_cast<std::size_t>(n);
-		op.renderBlock({modulation, len}, {out, len}, {out, len});
+		op.render_block({modulation, len}, {out, len}, {out, len});
 	}
 };
 

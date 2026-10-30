@@ -658,7 +658,7 @@ constexpr CompressorKnobs kSecondKnobs{.attack = 1 << 30,
                                        .threshold = 1 << 30,
                                        .ratio = 1 << 30,
                                        .sidechain_hpf = 1 << 30,
-                                       .blend = ONE_Q31};
+                                       .blend = kOneQ31};
 
 /// Interleaved L/R values as frames.
 std::vector<StereoSample> frames(std::span<const int32_t> interleaved) {
@@ -759,10 +759,10 @@ describe rms_feedback_compressor("RmsFeedbackCompressor", ${
 		                                                          &kDefaultBlock3};
 		for (std::size_t i = 0; i < expected.size(); i++) {
 			expect(rig.render(i)).to_equal(*expected[i]);
-			expect(rig.compressor.gainReduction()).to_equal(kDefaultGainReduction[i]);
+			expect(rig.compressor.gain_reduction()).to_equal(kDefaultGainReduction[i]);
 		}
-		expect(rig.compressor.attackMs()).to_equal(kDefaultAttackMs);
-		expect(rig.compressor.releaseMs()).to_equal(kDefaultReleaseMs);
+		expect(rig.compressor.attack_ms()).to_equal(kDefaultAttackMs);
+		expect(rig.compressor.release_ms()).to_equal(kDefaultReleaseMs);
 	});
 
 	it("renders four blocks at a second knob set and uneven channel gains exactly", _ {
@@ -771,18 +771,18 @@ describe rms_feedback_compressor("RmsFeedbackCompressor", ${
 		                                                          &kSecondBlock3};
 		for (std::size_t i = 0; i < expected.size(); i++) {
 			expect(rig.render(signalBlock(i), kUnity, 3 << 25, kFinalSecond)).to_equal(*expected[i]);
-			expect(rig.compressor.gainReduction()).to_equal(kSecondGainReduction[i]);
+			expect(rig.compressor.gain_reduction()).to_equal(kSecondGainReduction[i]);
 		}
-		expect(rig.compressor.attackMs()).to_equal(kSecondAttackMs);
-		expect(rig.compressor.releaseMs()).to_equal(kSecondReleaseMs);
+		expect(rig.compressor.attack_ms()).to_equal(kSecondAttackMs);
+		expect(rig.compressor.release_ms()).to_equal(kSecondReleaseMs);
 		expect(rig.compressor.threshold()).to_equal(kSecondThreshold);
 	});
 
 	it("takes a threshold set after the knobs", _ {
 		Rig rig;
-		rig.compressor.setThreshold(1 << 30);
+		rig.compressor.set_threshold(1 << 30);
 		expect(rig.compressor.threshold()).to_equal(q31{1 << 30});
-		rig.compressor.configure(CompressorKnobs{.blend = ONE_Q31 - 1});
+		rig.compressor.configure(CompressorKnobs{.blend = kOneQ31 - 1});
 		expect(rig.compressor.threshold()).to_equal(q31{1 << 30});
 	});
 
@@ -790,7 +790,7 @@ describe rms_feedback_compressor("RmsFeedbackCompressor", ${
 		Rig rig{CompressorKnobs{.blend = 1 << 30}};
 		expect(rig.render(0)).to_equal(kBlendBlock0);
 		expect(rig.render(1)).to_equal(kBlendBlock1);
-		expect(rig.compressor.gainReduction()).to_equal(kBlendGainReduction[1]);
+		expect(rig.compressor.gain_reduction()).to_equal(kBlendGainReduction[1]);
 	});
 
 	it("renders at neutral volume as at unity channel gain with an eighth of the final volume", _ {
@@ -798,9 +798,9 @@ describe rms_feedback_compressor("RmsFeedbackCompressor", ${
 		Rig unity{kSecondKnobs};
 		for (std::size_t i = 0; i < 4; i++) {
 			std::vector<StereoSample> block = signalBlock(i);
-			neutral.compressor.renderVolumeNeutral(block, kFinalSecond);
+			neutral.compressor.render_volume_neutral(block, kFinalSecond);
 			expect(interleave(block)).to_equal(unity.render(signalBlock(i), kUnity, kUnity, kFinalSecond >> 3));
-			expect(neutral.compressor.gainReduction()).to_equal(unity.compressor.gainReduction());
+			expect(neutral.compressor.gain_reduction()).to_equal(unity.compressor.gain_reduction());
 		}
 	});
 
@@ -811,7 +811,7 @@ describe rms_feedback_compressor("RmsFeedbackCompressor", ${
 		rig.compressor.reset();
 		const std::vector<int32_t> after = rig.render(2);
 		expect(after).to_equal(kAfterReset);
-		expect(rig.compressor.gainReduction()).to_equal(uint8_t{kAfterResetGainReduction});
+		expect(rig.compressor.gain_reduction()).to_equal(uint8_t{kAfterResetGainReduction});
 
 		Rig fresh;
 		const std::vector<int32_t> first = fresh.render(2);
@@ -821,15 +821,15 @@ describe rms_feedback_compressor("RmsFeedbackCompressor", ${
 
 	it("renders with the song master's makeup gain exactly", _ {
 		Rig rig;
-		rig.compressor.setBaseGain(0.85f);
+		rig.compressor.set_base_gain(0.85f);
 		expect(rig.render(0)).to_equal(kMasterBlock0);
 		expect(rig.render(1)).to_equal(kMasterBlock1);
-		expect(rig.compressor.gainReduction()).to_equal(kMasterGainReduction[1]);
+		expect(rig.compressor.gain_reduction()).to_equal(kMasterGainReduction[1]);
 	});
 
 	it("seeds the first block's saturation from its first frame", _ {
 		std::vector<StereoSample> full = signalBlock(0);
-		full[0] = {.l = ONE_Q31, .r = ONE_Q31};
+		full[0] = {.l = kOneQ31, .r = kOneQ31};
 		std::vector<StereoSample> zero = signalBlock(0);
 		zero[0] = {.l = 0, .r = 0};
 		expect(Rig{}.render(full, kUnity, kUnity, kFinalDefault)).to_equal(kStartFull);
@@ -862,7 +862,7 @@ describe rms_feedback_compressor("RmsFeedbackCompressor", ${
 		expect(knobs.wet).to_equal(q31{1 << 30});
 		expect(digest(with_coefficients_of(knobs, before))).to_equal(digest(before));
 
-		rig.compressor.setBaseGain(0.85F);
+		rig.compressor.set_base_gain(0.85F);
 		const RmsFeedbackCompressor::View gain = rig.compressor.view();
 		expect(gain.base_gain).to_equal(0.85F);
 		expect(digest(with_coefficients_of(gain, knobs))).to_equal(digest(knobs));
@@ -871,8 +871,8 @@ describe rms_feedback_compressor("RmsFeedbackCompressor", ${
 	it("reads the threshold back before any render, as the fixed reference does", _ {
 		RmsFeedbackCompressor set;
 		FixedReferenceRmsFeedbackCompressor set_reference;
-		set.setThreshold(1 << 30);
-		set_reference.setThreshold(1 << 30);
+		set.set_threshold(1 << 30);
+		set_reference.set_threshold(1 << 30);
 		expect(set.threshold()).to_equal(q31{1 << 30});
 		expect(set.view().threshold_knob).to_equal(q31{1 << 30});
 		expect(digest(set.view())).to_equal(digest(set_reference.view()));
@@ -889,7 +889,7 @@ describe rms_feedback_compressor("RmsFeedbackCompressor", ${
 		Rig fresh;
 		const uint64_t unseeded = digest(fresh.compressor.view());
 		fresh.compressor.render(std::span<StereoSample>{}, kUnity, kUnity, kFinalDefault);
-		fresh.compressor.renderVolumeNeutral(std::span<StereoSample>{}, kFinalDefault);
+		fresh.compressor.render_volume_neutral(std::span<StereoSample>{}, kFinalDefault);
 		expect(digest(fresh.compressor.view())).to_equal(unseeded);
 
 		Rig rig;
@@ -897,12 +897,12 @@ describe rms_feedback_compressor("RmsFeedbackCompressor", ${
 		std::ignore = rig.render(1);
 		const uint64_t seeded = digest(rig.compressor.view());
 		rig.compressor.render(std::span<StereoSample>{}, kUnity, kUnity, kFinalDefault);
-		rig.compressor.renderVolumeNeutral(std::span<StereoSample>{}, kFinalDefault);
+		rig.compressor.render_volume_neutral(std::span<StereoSample>{}, kFinalDefault);
 		expect(digest(rig.compressor.view())).to_equal(seeded);
 	});
 
 	it("maps the knobs to times, ratio, cutoff and blend exactly", _ {
-		constexpr std::array<q31, 5> kKnobs{0, 1 << 20, 6 << 24, 1 << 30, ONE_Q31};
+		constexpr std::array<q31, 5> kKnobs{0, 1 << 20, 6 << 24, 1 << 30, kOneQ31};
 		const std::array<float, 5> attack{kAttackMsZero, kAttackMsLow, kAttackMsMenu, kAttackMsHalf, kAttackMsMax};
 		const std::array<float, 5> release{kReleaseMsZero, kReleaseMsLow, kReleaseMsMenu, kReleaseMsHalf, kReleaseMsMax};
 		const std::array<float, 5> ratio{kRatioZero, kRatioLow, kRatioMenu, kRatioHalf, kRatioMax};

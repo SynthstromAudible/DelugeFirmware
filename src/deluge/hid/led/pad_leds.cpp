@@ -46,8 +46,8 @@
 #include <cstring>
 #include <limits>
 
-using deluge::dsp::fixed::linear_table_interpolator;
-using deluge::dsp::fixed::sine_table;
+using deluge::dsp::fixed::kLinearTableInterpolator;
+using deluge::dsp::fixed::kSineTable;
 
 #include "libdeluge/control_surface.h"
 
@@ -1207,7 +1207,7 @@ void renderZoom() {
 		transitionProgress = 65536 - transitionProgress;
 	}
 
-	uint32_t sineValue = (sine_table.value((transitionProgress + 98304) & 131071, 17) >> 16) + 32768;
+	uint32_t sineValue = (kSineTable.value((transitionProgress + 98304) & 131071, 17) >> 16) + 32768;
 
 	// The commented line is equivalent to the other lines just below
 	// int32_t negativeFactorProgress = pow(zoomFactor, transitionProgress - 1) * 134217728; // Sorry, the purpose of
@@ -1222,7 +1222,7 @@ void renderZoom() {
 	// images are to appear. E.g. when fully zoomed out, the out-image would be "1" (65536), and the in-image would be
 	// "0.5" (32768). And so on.
 
-	uint32_t inImageTimesBiggerThanNormal = linear_table_interpolator.interpolate(
+	uint32_t inImageTimesBiggerThanNormal = kLinearTableInterpolator.interpolate(
 	    fine, 10, deluge::dsp::fixed::kExpTable.data()); // could run on more input bits
 	inImageTimesBiggerThanNormal = increaseMagnitude(inImageTimesBiggerThanNormal, coarse - 14);
 

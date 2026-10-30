@@ -33,7 +33,7 @@ namespace deluge::dsp::fixed {
 ///
 /// This is the single source of the table for **both** the wavetable renderer (which picks the
 /// variant from a band's oversampling ratio via @ref select) and sample playback / live pitch-shift
-/// (which pick it from the absolute phase increment via @ref WindowedSincKernel::variantFor and
+/// (which pick it from the absolute phase increment via @ref WindowedSincKernel::variant_for and
 /// @ref variant). The table values are pinned end-to-end by the wavetable/ and sample/ golden
 /// fixtures; @c windowed_sinc_kernel_spec pins the two variant picks.
 inline constexpr int32_t kSincKernelVariants = 7;    ///< Oversampling-ratio sharpness variants.
@@ -74,7 +74,7 @@ public:
 	/// variants, the second past 5.5 semitones within the octave, up to the sharpest (@ref kSincKernelVariants − 1).
 	/// @param phase_increment The play rate, UQ8.24: 2^24 is the sample's own rate. Non-negative.
 	/// @return The variant index, for @ref variant.
-	[[nodiscard]] static constexpr int32_t variantFor(int32_t phase_increment) {
+	[[nodiscard]] static constexpr int32_t variant_for(int32_t phase_increment) {
 		constexpr int32_t kHalfSemitoneUp = 17268826;
 		constexpr int32_t kElevenAndAHalfSemitonesUp = 32599202;
 		constexpr int32_t kFiveAndAHalfSemitonesUp = 23051117;
@@ -89,16 +89,16 @@ public:
 		return (phase_increment >= kFiveAndAHalfSemitonesUp) ? which + 1 : which;
 	}
 
-	/// @brief The base of a variant by index (sample playback's @ref variantFor pick).
+	/// @brief The base of a variant by index (sample playback's @ref variant_for pick).
 	///
 	/// @param which the variant index in `[0, kSincKernelVariants)` — sample playback derives it
-	/// directly from the absolute phase increment (@ref variantFor) rather than a band ratio.
+	/// directly from the absolute phase increment (@ref variant_for) rather than a band ratio.
 	/// @returns the base of that variant's `[kSincKernelPhaseSteps][kSincKernelTaps]` block; the
 	/// consumer offsets in by `phaseStep * kSincKernelTaps` to reach the row.
 	[[nodiscard]] const int16_t* variant(int32_t which) const;
 };
 
 /// The single shared windowed-sinc kernel table (stateless; both DSP consumers use this instance).
-inline constexpr WindowedSincKernel windowed_sinc_kernel{};
+inline constexpr WindowedSincKernel kWindowedSincKernel{};
 
 } // namespace deluge::dsp::fixed

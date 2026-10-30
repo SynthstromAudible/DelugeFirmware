@@ -251,7 +251,7 @@ struct CustomVerbs {
 	using value_type = q31;
 	q31 gain = 0;
 	void configure(q31 g) { gain = g; }
-	void renderMono(Buffer<q31> out) {
+	void render_mono(Buffer<q31> out) {
 		for (q31& v : out) {
 			v = gain;
 		}
@@ -624,7 +624,7 @@ struct Fall {
 		q31 rate; ///< Fall per sample, Q1.31.
 	};
 	struct State {
-		q31 level = ONE_Q31; ///< Q1.31.
+		q31 level = kOneQ31; ///< Q1.31.
 	};
 	static Coefficients coefficients(const Settings& s) { return {.rate = s.rate}; }
 	static q31 advance(const Coefficients& c, State& s, std::size_t n) {
@@ -817,8 +817,8 @@ static_assert(!kernel<CustomVerbs>);
 static_assert(!moded_kernel<Gain>);
 static_assert(std::same_as<kernel_block_t<Gain>, EmptyBlock>);
 static_assert(std::same_as<kernel_block_t<Prepared>, Prepared::Block>);
-static_assert(partial_step_advances_by_count<Ramp>);
-static_assert(!partial_step_advances_by_count<Gain>);
+static_assert(partial_step_advances_by_count_v<Ramp>);
+static_assert(!partial_step_advances_by_count_v<Gain>);
 
 // One arity per kernel: each reference kernel satisfies exactly one of the four.
 static_assert(!generator_kernel<Gain> && !mixer_kernel<Gain> && !staged_kernel<Gain>);
@@ -836,7 +836,7 @@ static_assert(!kernel<OverloadedPrepareNoBlock>);
 static_assert(detail::declares_prepare<TemplatePrepare> && detail::declares_prepare<OverloadedPrepare>
               && detail::declares_prepare<MemberPrepare> && detail::declares_prepare<OverloadedPrepareNoBlock>);
 static_assert(detail::declares_prepare<Prepared> && !detail::declares_prepare<Gain>);
-static_assert(generator_kernel<VecPhase> && partial_step_advances_by_count<VecPhase>);
+static_assert(generator_kernel<VecPhase> && partial_step_advances_by_count_v<VecPhase>);
 static_assert(!kernel<ScalarCount> && detail::steps_as_processor<ScalarCount> && !detail::steps_as_mixer<ScalarCount>);
 static_assert(!kernel<StagedPrepare> && detail::processes_blocks<StagedPrepare>);
 static_assert(!kernel<StereoVectorOverQ31> && detail::steps_as_processor<StereoVectorOverQ31>);
@@ -991,8 +991,8 @@ describe kernel_concepts("kernel concepts", ${
 		expect(lanes[0]).to_equal(6);
 
 		Fall::State fall_state{};
-		expect(Fall::advance({.rate = 10}, fall_state, 3)).to_equal(ONE_Q31 - 30);
-		expect(Fall::advance({.rate = ONE_Q31}, fall_state, 2)).to_equal(0);
+		expect(Fall::advance({.rate = 10}, fall_state, 3)).to_equal(kOneQ31 - 30);
+		expect(Fall::advance({.rate = kOneQ31}, fall_state, 2)).to_equal(0);
 
 		ModedFall::State moded_fall_state{.level = 5};
 		expect(ModedFall::advance<ModedFall::Mode::HOLD>({}, moded_fall_state, 4)).to_equal(5);
@@ -1017,7 +1017,7 @@ describe kernel_concepts("kernel concepts", ${
 	it("advances a control kernel and processes a staged kernel through kernel_ops at a mode", _ {
 		Fall::State fall_state{};
 		expect(kernel_ops::advance_at<Fall, kernel_ops::NoMode::NONE>({.rate = 10}, fall_state, 3))
-		    .to_equal(ONE_Q31 - 30);
+		    .to_equal(kOneQ31 - 30);
 
 		ModedFall::State moded_fall_state{.level = 5};
 		expect(kernel_ops::advance_at<ModedFall, ModedFall::Mode::HOLD>({}, moded_fall_state, 4)).to_equal(5);

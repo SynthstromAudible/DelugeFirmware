@@ -33,7 +33,7 @@
 namespace deluge::dsp::fixed {
 
 /// @brief The stutter over a tape it is handed, as a processor kernel of stereo frames, rendered in place as
-/// `Mono<Stutter>::renderBlock(block, block)`. Both channels share one tape head.
+/// `Mono<Stutter>::render_block(block, block)`. Both channels share one tape head.
 /// @details
 /// **Record.** Each frame the read head clears the sample under it and moves on, counting down the frames left (a
 /// resampled tape advances by the spin, clearing and counting each sample it passes), and the frame is written
@@ -111,18 +111,18 @@ struct Stutter {
 	static constexpr bool kStateInPlace = true;
 
 	/// @brief The coefficients for @p s. The tape form is the tape's after this block's setup, by the rule the setup
-	/// itself takes (DelayTape::resamplesAt).
+	/// itself takes (DelayTape::resamples_at).
 	[[nodiscard]] [[gnu::always_inline]] static Coefficients coefficients(const Settings& s) {
 		return {.tape = s.tape,
 		        .rate = s.rate,
 		        .mode = {.phase = s.playing ? Phase::PLAY : Phase::RECORD,
-		                 .tape = s.tape->resamplesAt(s.rate) ? Tape::RESAMPLED : Tape::NATIVE}};
+		                 .tape = s.tape->resamples_at(s.rate) ? Tape::RESAMPLED : Tape::NATIVE}};
 	}
 
 	/// @brief Sets the tape up for the block's rate.
 	[[nodiscard]] [[gnu::always_inline]] static Block prepare(const Coefficients& c, State& /*s*/, std::size_t /*n*/) {
 		// The tape takes the rate's int32_t image.
-		c.tape->setupForRender(static_cast<int32_t>(c.rate));
+		c.tape->setup_for_render(static_cast<int32_t>(c.rate));
 		return {};
 	}
 
@@ -135,16 +135,16 @@ struct Stutter {
 		DelayTape& tape = *c.tape;
 		if constexpr (M.phase == Phase::RECORD) {
 			if constexpr (M.tape == Tape::NATIVE) {
-				tape.clearAndMoveOn();
+				tape.clear_and_move_on();
 				s.frames_left--;
-				tape.writeNative(in);
+				tape.write_native(in);
 			}
 			else {
 				const int32_t strength2 = tape.advance([&] [[gnu::always_inline]] {
-					tape.clearAndMoveOn();
+					tape.clear_and_move_on();
 					s.frames_left--;
 				});
-				tape.writeResampled(in, 65536 - strength2, strength2);
+				tape.write_resampled(in, 65536 - strength2, strength2);
 			}
 			return in;
 		}
@@ -152,18 +152,18 @@ struct Stutter {
 			StereoSample out;
 			if constexpr (M.tape == Tape::NATIVE) {
 				if (s.reverse) {
-					tape.moveBack();
+					tape.move_back();
 				}
 				else {
-					tape.moveOn();
+					tape.move_on();
 				}
 				out = tape.current();
 			}
 			else {
 				// Both directions give the strength toward the next sample, so the head interpolates the same positions
 				// either way.
-				const int32_t strength2 = s.reverse ? tape.retreat([&] [[gnu::always_inline]] { tape.moveBack(); })
-				                                    : tape.advance([&] [[gnu::always_inline]] { tape.moveOn(); });
+				const int32_t strength2 = s.reverse ? tape.retreat([&] [[gnu::always_inline]] { tape.move_back(); })
+				                                    : tape.advance([&] [[gnu::always_inline]] { tape.move_on(); });
 				StereoSample* other = &tape.current() + 1;
 				if (other == tape.end()) {
 					other = tape.begin();
@@ -190,7 +190,7 @@ struct Stutter {
 	/// @brief Event, after a recording block whose frames ran out: the head to @p tape's start (its end when
 	/// reversed), then play.
 	static void finish_block(State& s, DelayTape& tape) {
-		tape.setCurrent(s.reverse ? tape.end() - 1 : tape.begin());
+		tape.set_current(s.reverse ? tape.end() - 1 : tape.begin());
 		s.playing = true;
 	}
 

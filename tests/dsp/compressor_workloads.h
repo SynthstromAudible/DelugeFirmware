@@ -222,7 +222,7 @@ inline constexpr q31 kPartialWet = 1288490188;
 	             .blocks = kBlocks,
 	             .step = [](size_t b) {
 		             CompressorStep s = owner_step(Owner::SOUND, b);
-		             s.knobs.blend = (b / 3) % 2 == 0 ? ONE_Q31 : kPartialWet;
+		             s.knobs.blend = (b / 3) % 2 == 0 ? kOneQ31 : kPartialWet;
 		             s.signal = b < 2 ? Signal::SILENCE : Signal::VOICE;
 		             return s;
 	             }});
@@ -304,7 +304,7 @@ class CompressorRun {
 public:
 	explicit CompressorRun(const CompressorWorkload& workload) : workload_{workload} {
 		if (workload_.owner == Owner::MASTER) {
-			compressor_.setBaseGain(0.85F);
+			compressor_.set_base_gain(0.85F);
 		}
 	}
 
@@ -316,11 +316,11 @@ public:
 		out = compressor_input(workload_, b);
 		compressor_.configure(s.knobs);
 		if (workload_.owner != Owner::MASTER) {
-			compressor_.setThreshold(s.threshold);
+			compressor_.set_threshold(s.threshold);
 		}
 		if (!s.render) {
 			compressor_.reset();
-			return compressor_.gainReduction();
+			return compressor_.gain_reduction();
 		}
 		const std::span<StereoSample> block{out};
 		if constexpr (kTakesScratch) {
@@ -329,7 +329,7 @@ public:
 				compressor_.render(block, s.volume_l, s.volume_r, s.final_volume, scratch);
 			}
 			else {
-				compressor_.renderVolumeNeutral(block, s.final_volume, scratch);
+				compressor_.render_volume_neutral(block, s.final_volume, scratch);
 			}
 		}
 		else {
@@ -337,10 +337,10 @@ public:
 				compressor_.render(block, s.volume_l, s.volume_r, s.final_volume);
 			}
 			else {
-				compressor_.renderVolumeNeutral(block, s.final_volume);
+				compressor_.render_volume_neutral(block, s.final_volume);
 			}
 		}
-		return compressor_.gainReduction();
+		return compressor_.gain_reduction();
 	}
 
 	/// @return The compressor, between blocks.
