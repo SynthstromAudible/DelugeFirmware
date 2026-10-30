@@ -204,6 +204,10 @@ Thumb and `-fno-inline-functions`.
 | Effects, for the instrument's sound chain and the host's chains | `src/effects/` | `deluge_effects` |
 | The host↔plugin contract (CLAP-shaped; see TODO.md's CLAP alignment arc) | `src/plugin-api/` | `deluge_plugin_api` |
 
+The end state puts every library directly under `src/`, the app among them: `src/dsp/` (today `src/deluge/dsp-next/`,
+once the legacy `src/deluge/dsp/` is retired), `src/app/` (today `src/deluge/`) and `src/foundation/` for the leaf
+utilities the libraries share. No library has the app on its include path. The steps are in TODO.md (layout arc 2).
+
 ### Layer contracts
 
 **L0 — DSP primitives.** Pure functions and POD-state value types:
