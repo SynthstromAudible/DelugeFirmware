@@ -95,7 +95,7 @@ void col_bar_positions(int32_t xDisplay, const WaveformRenderData* data, int32_t
 /// @brief Background "waveform overview" pre-scan: investigate one whole cluster's min/max.
 ///
 /// `WaveformRenderer::investigateWholeCluster` (`waveform_renderer.cpp:569` before the move).
-/// Caches the result in the Sample's overview cache entry (int8 + investigated), so the zoomed-out
+/// Caches the result in the Sample's overview cache entry (int16 + investigated), so the zoomed-out
 /// single-row render path finds it already done and never has to load clusters synchronously while
 /// scrolling.
 /// @param sample       The sample whose cluster to investigate.

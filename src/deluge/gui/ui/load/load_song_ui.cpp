@@ -422,6 +422,12 @@ void LoadSongUI::endLoad(SongLoadOutcome outcome) {
 	stagingPrevious_ = nullptr;
 	stagingWait_.reset();
 
+	// beginLoad() raised the loading animation. While it runs, the display timer animates it instead of
+	// timing out popups, so a failure's error popup would stay up for good.
+	if (outcome == SongLoadOutcome::NotLoaded) {
+		display->removeWorkingAnimation();
+	}
+
 	// Cleared before the call so a completion that starts another load doesn't inherit this one's.
 	void (*onComplete)(SongLoadOutcome) = loadOnComplete_;
 	loadOnComplete_ = nullptr;
@@ -766,7 +772,6 @@ fail:
 			}
 		}
 
-		display->removeWorkingAnimation();
 		currentUIMode = UI_MODE_NONE;
 		endLoad(SongLoadOutcome::NotLoaded);
 		return;
@@ -1202,7 +1207,6 @@ deluge::gui::CancelResult LoadSongUI::cancelLoad() {
 	case LoadPhase::STAGE:
 		// The staged bytes are all the load holds, and the deserializer is not pointed at them until the phase
 		// ends, so endLoad()'s release is the whole of the undo.
-		display->removeWorkingAnimation();
 		endLoad(SongLoadOutcome::NotLoaded);
 		return CancelResult::Cancelled;
 	default:
