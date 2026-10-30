@@ -16,6 +16,7 @@
  */
 
 #include "processing/sound/sound.h"
+#include "bench/render_profile.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
 #include "dsp-next/fixed/vca/pan.h"
@@ -1799,7 +1800,14 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 	// Perform the actual patching
 	if (sourcesChanged) {
+#if defined(DELUGE_STREAM_BENCH)
+		const uint32_t t0 = deluge::bench::render_profile::cycles();
+#endif
 		patcher.performPatching(sourcesChanged, patchControlBlock(*paramManager));
+#if defined(DELUGE_STREAM_BENCH)
+		deluge::bench::render_profile::g_totals.sound_patch += deluge::bench::render_profile::cycles() - t0;
+		++deluge::bench::render_profile::g_totals.sound_blocks;
+#endif
 	}
 
 	// Setup some reverb-related stuff
@@ -1963,10 +1971,17 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			ActiveVoice& voice = *it;
 
+#if defined(DELUGE_STREAM_BENCH)
+			const uint32_t t0 = deluge::bench::render_profile::cycles();
+#endif
 			bool stillGoing = voice->render(
 			    paramManager, controlBlock, sound_mono.data(), sound_mono.size(), voice_rendered_in_stereo,
 			    applyingPanAtVoiceLevel, sourcesChanged, doLPF, doHPF, pitchAdjust, voiceConfig,
 			    {spareRenderingBuffer[0], spareRenderingBuffer[1], spareRenderingBuffer[2], spareRenderingBuffer[3]});
+#if defined(DELUGE_STREAM_BENCH)
+			deluge::bench::render_profile::g_totals.voice_render += deluge::bench::render_profile::cycles() - t0;
+			++deluge::bench::render_profile::g_totals.voice_blocks;
+#endif
 			if (!stillGoing) {
 				this->checkVoiceExists(voice, "E201");
 				this->freeActiveVoice(voice, modelStackWithSoundFlags, false);
