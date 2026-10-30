@@ -47,7 +47,7 @@ void render_block(const GranularConfig& config) {
 	    .send_amount = multiply_32x32_rshift32(rig.volume, kGranularVerbAmount) << 5,
 	    .sound = true,
 	};
-	rig.granular->render(rig.work, in, rig.volume, std::span{rig.send}.first(rig.work.size()));
+	rig.granular->render(rig.work, in, rig.volume, std::span{rig.send}.first(rig.work.size()), deluge::synth_noise);
 }
 
 } // namespace

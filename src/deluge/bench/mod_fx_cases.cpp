@@ -9,6 +9,7 @@
 #include "definitions_cxx.hpp"
 #include "engines/effects/mod_fx.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
+#include "util/synth_noise.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -75,7 +76,7 @@ void ModFxCase::block(std::size_t /*n*/) {
 	    .stereo = config_.stereo,
 	    .sound = true,
 	};
-	rig.mod_fx->render(rig.work, in, rig.volume);
+	rig.mod_fx->render(rig.work, in, rig.volume, deluge::synth_noise);
 }
 
 } // namespace deluge::bench
