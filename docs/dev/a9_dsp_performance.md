@@ -623,6 +623,32 @@ the minimum of four runs; the last column is the spread (max - min), runtime / r
 - **The sound chain is +0.7% at n=32** (about 115 cycles a block), beyond its spread: it copies its 100-byte
   `FxInputs` each block to put the setting's mod FX type in. At n=128 it is level.
 
+## Effects components
+
+The chains with the bitcrush, EQ and send-and-volume as dsp-next kernels (`BitDepth` and `SampleRateReducer`,
+`ShelfPair`, `SendAndVolume` with the reverb send in its loop) and the reverb return's duck in `effects::Reverb`
+(after, image 2f5780ba0) against the chains before them (before, image f6815eac9), on 2026-10-29: `fx_chains` at the
+settings above, and `reverb` (after image 53b55f477; the reverb path is the same in both). Cycles per channel-sample,
+the minimum of the runs of each image (five before and three after for `fx_chains`, three and two for `reverb`), run
+interleaved; the last column is the after spread (max - min), worst size.
+
+| case | n=32 before → after (delta) | n=64 before → after (delta) | n=128 before → after (delta) | after spread |
+|---|---:|---:|---:|---:|
+| `control calibration_loop` | 32.10 → 32.07 (-0.1%) | 32.03 → 32.03 (+0.0%) | 32.02 → 32.01 (-0.0%) | 0.04 |
+| `control delay_feedback_chain_digital` | 19.95 → 19.92 (-0.2%) | 14.21 → 14.21 (+0.0%) | 11.35 → 11.35 (+0.0%) | 0.02 |
+| `fx_chain_sound` | 239.35 → 237.67 (-0.7%) | 214.16 → 208.44 (-2.7%) | 201.32 → 193.81 (-3.7%) | 0.80 |
+| `fx_chain_clip` | 434.20 → 435.90 (+0.4%) | 395.61 → 391.41 (-1.1%) | 376.07 → 369.32 (-1.8%) | 3.04 |
+| `fx_chain_master` | 388.96 → 387.42 (-0.4%) | 353.82 → 348.99 (-1.4%) | 335.75 → 328.56 (-2.1%) | 1.82 |
+| `reverb_freeverb` | 253.59 → 253.50 (-0.0%) | 250.76 → 250.60 (-0.1%) | 249.83 → 249.61 (-0.1%) | 0.18 |
+| `reverb_mutable` | 176.12 → 176.07 (-0.0%) | 175.03 → 174.99 (-0.0%) | 174.51 → 174.49 (-0.0%) | 0.07 |
+| `reverb_digital` | 214.69 → 214.68 (-0.0%) | 213.87 → 213.80 (-0.0%) | 213.73 → 213.59 (-0.1%) | 0.28 |
+
+- **The send belongs in the gains' loop.** With the reverb send as its own pass ahead of the gains (a loop over the
+  block, then `Mono<SendAndVolume>`), the chains ran 2.4-5.6% slower than before: every frame was read twice. With
+  the send in the kernel's loop, as a cursor its SEND modes advance (`Granular`'s shape), the chains are level at
+  n=32 (the clip chain's +0.4% is inside its spread) and 1-4% faster from n=64.
+- **The reverb return is level.** The duck's move into `effects::Reverb` changes nothing the reverb renders per frame.
+
 ## Reverb
 
 `effects::Reverb` (`Mono<Freeverb>` and `Mono<Plate>` over one buffer, the model chosen per block) as the app renders it
