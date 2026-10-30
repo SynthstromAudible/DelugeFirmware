@@ -53,8 +53,8 @@ class ModelStackWithThreeMainThings;
 class ModelStackWithSoundFlags;
 class ModelStackWithModControllable;
 
-#include "engines/deluge/sound_state.h"
-#include "engines/effects/sound_chain.h"
+#include "effects/sound_chain.h"
+#include "instruments/deluge/sound_state.h"
 #include <optional>
 #include <utility>
 

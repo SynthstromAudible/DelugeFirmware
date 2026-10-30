@@ -19,8 +19,8 @@
 /// @brief Test-local reference for the effects the bitcrush, EQ, send-and-volume, duck, click and monitoring kernels
 /// replace, copied line for line. The kernels are held bit-exact to it.
 ///
-/// The copies are, in order: `effects::Bitcrush` (`engines/effects/bitcrush.{h,cpp}`), `effects::Equalizer`
-/// (`engines/effects/equalizer.{h,cpp}`), `effects::SendAndVolume` (`engines/effects/send_and_volume.{h,cpp}`), the
+/// The copies are, in order: `effects::Bitcrush` (`effects/bitcrush.{h,cpp}`), `effects::Equalizer`
+/// (`effects/equalizer.{h,cpp}`), `effects::SendAndVolume` (`effects/send_and_volume.{h,cpp}`), the
 /// clip chain's duck level (`ClipChain::begin_block`), the reverb return's duck level (`AudioEngine::renderReverb`),
 /// the metronome's render (`processing/metronome/metronome.cpp`), the output stage's monitoring fold (the output loop
 /// in `AudioEngine`) and an audio track's monitoring loop (`AudioOutput::render`).

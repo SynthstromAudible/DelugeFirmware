@@ -24,9 +24,9 @@
 // file does not load; 2 usage/IO; 3 a check fails (printed).
 
 #include "deluge-project/instrument_slot.h"
-#include "engines/deluge/codec.h"
-#include "engines/deluge/settings.h"
 #include "extern.h"
+#include "instruments/deluge/codec.h"
+#include "instruments/deluge/settings.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"

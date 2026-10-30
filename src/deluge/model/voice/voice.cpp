@@ -21,7 +21,7 @@
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // getDecay4
 #include "dsp-next/fixed/shaping/wavefolder.h"
 #include "dsp-next/fixed/vca/pan.h"
-#include "engines/effects/filter_slots.h"
+#include "effects/filter_slots.h"
 #include "io/debug/log.h"
 #include "memory/stack_guard.h"
 #include "model/model_stack.h"

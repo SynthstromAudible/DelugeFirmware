@@ -17,9 +17,9 @@
 
 #include "model/project_bridge/controls_bridge.h"
 
-#include "engines/deluge/cables.h"
-#include "engines/deluge/naming.h"
-#include "engines/global_effectable/naming.h"
+#include "effects/global_effectable/naming.h"
+#include "instruments/deluge/cables.h"
+#include "instruments/deluge/naming.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"

@@ -28,7 +28,7 @@
 //
 // Exit: 0 agree; 1 load failure; 2 usage/IO; 3 a sound differs (its name and the first differing path are printed).
 
-#include "engines/deluge/codec.h"
+#include "instruments/deluge/codec.h"
 #include "memory/general_memory_allocator.h"
 #include "model/drum/drum.h"
 #include "model/global_effectable/global_effectable.h"

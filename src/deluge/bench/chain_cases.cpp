@@ -9,9 +9,9 @@
 
 #include "bench/reference_chains.h"
 #include "definitions_cxx.hpp"
-#include "engines/effects/clip_chain.h"
-#include "engines/effects/master_chain.h"
-#include "engines/effects/sound_chain.h"
+#include "effects/clip_chain.h"
+#include "effects/master_chain.h"
+#include "effects/sound_chain.h"
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
 #include "processing/render_scratch.h"

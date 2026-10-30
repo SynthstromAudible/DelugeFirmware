@@ -154,7 +154,7 @@ target_include_directories(UnitTests PRIVATE
 )
 
 # argon's NEON backend: slicer_preview_tests.cpp drives the REAL gui/ui/slicer.cpp rather than a restatement of it,
-# and that file reaches <argon.hpp> transitively (model/song/song.h -> engines/effects/master_chain.h).
+# and that file reaches <argon.hpp> transitively (model/song/song.h -> effects/master_chain.h).
 deluge_test_neon(UnitTests)
 
 # libstdc++'s parallel STL backend is oneTBB, whose headers pull in the full <immintrin.h> and

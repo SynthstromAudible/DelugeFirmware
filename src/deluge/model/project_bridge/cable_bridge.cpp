@@ -17,7 +17,7 @@
 
 #include "model/project_bridge/cable_bridge.h"
 
-#include "engines/deluge/cable_codec.h"
+#include "instruments/deluge/cable_codec.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_serialization.h"
 #include "modulation/automation/auto_param.h"

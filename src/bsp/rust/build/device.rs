@@ -171,8 +171,8 @@ fn link_app_closure(build_dir: &Path, cfg: &str, app_objs_archive: &Path) {
         ("src/serialization", "libdeluge_serialization.a"),
         ("src/music-theory", "libdeluge_music_theory.a"),
         ("src/deluge-project", "libdeluge_project.a"),
-        ("src/engines/deluge", "libdeluge_instrument.a"),
-        ("src/engines/effects", "libdeluge_effects.a"),
+        ("src/instruments/deluge", "libdeluge_instrument.a"),
+        ("src/effects", "libdeluge_effects.a"),
         ("src/midi", "libdeluge_midi.a"),
     ];
 

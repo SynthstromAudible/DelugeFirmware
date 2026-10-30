@@ -21,8 +21,8 @@
 #include "model/project_bridge/source_bridge.h"
 
 #include "deluge-project/structure_codec.h"
-#include "engines/deluge/codec.h"
-#include "engines/deluge/settings.h"
+#include "instruments/deluge/codec.h"
+#include "instruments/deluge/settings.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"

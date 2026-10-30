@@ -17,7 +17,7 @@
 
 /// @file
 /// @brief The delay's recorded workloads: deterministic runs of blocks over real tapes, driven by a line-for-line
-/// mirror of the lifecycle `Delay::process` keeps around its processor (src/engines/effects/delay.cpp), and what the
+/// mirror of the lifecycle `Delay::process` keeps around its processor (src/effects/delay.cpp), and what the
 /// delay's two orders render from each: the staged order and the frame order `DelayProcessor` renders.
 ///
 /// A workload gives, per block, the frame count, the rate (as a uint32_t, the way the tape takes it) and the block's

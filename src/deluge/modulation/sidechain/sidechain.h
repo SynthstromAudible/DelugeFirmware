@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "engines/effects/state.h"
+#include "effects/state.h"
 
 namespace deluge::modulation {
 

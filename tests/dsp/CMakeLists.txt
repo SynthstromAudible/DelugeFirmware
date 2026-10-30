@@ -161,7 +161,7 @@ set(reference_stutter_spec_DEPS ${delay_processor_spec_DEPS})
 # The Stutter kernel against the reference over the same workloads: the same sources, the kernel being header-only.
 set(stutter_kernel_spec_DEPS ${reference_stutter_spec_DEPS})
 # The DX7 reference (reference_dx7.h, dx7_workloads.h, dx7_workload_records.h, header-only) draws its noise from
-# SeededNoise and takes the init voice from engines/deluge.
+# SeededNoise and takes the init voice from instruments/deluge.
 set(dx7_reference_spec_DEPS)
 # The DX7 components: the tables' generator, the envelope's advance and the graph are out of line; the rest is in
 # headers.
@@ -231,13 +231,13 @@ set(band_builder_spec_INCLUDES ${_repo_root}/include)
 set(duck_gain_spec_DEPS)
 
 # The send-and-volume kernel through the chains' adapter.
-set(send_and_volume_kernel_spec_DEPS ${_repo_root}/src/engines/effects/send_and_volume.cpp)
+set(send_and_volume_kernel_spec_DEPS ${_repo_root}/src/effects/send_and_volume.cpp)
 
 # The EQ's shelf pair is header-only.
 set(shelf_pair_spec_DEPS)
 
 # The bitcrush's kernels through the chains' adapter.
-set(bitcrush_kernels_spec_DEPS ${_repo_root}/src/engines/effects/bitcrush.cpp)
+set(bitcrush_kernels_spec_DEPS ${_repo_root}/src/effects/bitcrush.cpp)
 
 # The click is header-only; the spec computes the menu volume as the metronome does.
 set(click_spec_DEPS ${_repo_root}/src/deluge/processing/metronome/metronome.cpp)

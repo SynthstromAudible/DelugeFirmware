@@ -5,8 +5,8 @@
 
 #include "chain_test_engines.h"
 #include "deluge-project/controller_mapping.h"
-#include "engines/deluge/naming.h"
-#include "engines/global_effectable/naming.h"
+#include "effects/global_effectable/naming.h"
+#include "instruments/deluge/naming.h"
 
 #include <array>
 

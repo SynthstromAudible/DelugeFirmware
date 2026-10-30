@@ -19,8 +19,8 @@
 
 #include "model/mod_controllable/delay_type.h"
 
-#include "engines/effects/chain.h"
-#include "engines/effects/codec.h"
+#include "effects/chain.h"
+#include "effects/codec.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"

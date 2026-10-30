@@ -21,8 +21,8 @@
 #include "model/song/song.h"
 
 #include "deluge-project/instrument_slot.h"
-#include "engines/deluge/codec.h"
-#include "engines/effects/codec.h"
+#include "effects/codec.h"
+#include "instruments/deluge/codec.h"
 #include "model/drum/drum.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"

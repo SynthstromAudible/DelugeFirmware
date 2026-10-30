@@ -17,10 +17,10 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "engines/deluge/words.h"
 #include "gui/menu_item/selection.h"
 #include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
+#include "instruments/deluge/words.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"

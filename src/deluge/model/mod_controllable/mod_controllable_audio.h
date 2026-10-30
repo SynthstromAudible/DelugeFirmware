@@ -19,7 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/stereo_sample.h"
-#include "engines/effects/delay.h"
+#include "effects/delay.h"
 #include "hid/button.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable.h"
@@ -30,8 +30,8 @@
 #include "synth/lfo.h"
 #include "util/functions.h"
 
-#include "engines/effects/chain_core.h"
-#include "engines/effects/state.h"
+#include "effects/chain_core.h"
+#include "effects/state.h"
 #include "plugin-api/plugin.h"
 
 class Clip;

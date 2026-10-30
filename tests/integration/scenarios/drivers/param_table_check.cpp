@@ -20,11 +20,11 @@
 // runtime's (a default is what the engine's own init gives a fresh instance).
 // Exit: 0 agree; 3 a row disagrees (each printed).
 
-#include "engines/deluge/cables.h"
-#include "engines/deluge/naming.h"
-#include "engines/deluge/params.h"
-#include "engines/global_effectable/naming.h"
-#include "engines/global_effectable/params.h"
+#include "effects/global_effectable/naming.h"
+#include "effects/global_effectable/params.h"
+#include "instruments/deluge/cables.h"
+#include "instruments/deluge/naming.h"
+#include "instruments/deluge/params.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/project_bridge/param_ids.h"
 #include "modulation/params/param.h"

@@ -18,8 +18,8 @@
 #include "scenarios/render_song_scenario.h"
 
 #include "definitions_cxx.hpp"
-#include "engines/effects/reverb.h"
-#include "engines/effects/words.h"
+#include "effects/reverb.h"
+#include "effects/words.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"

@@ -1,8 +1,8 @@
 #include "controls_test_engines.h"
 #include "deluge-project/controls_codec.h"
-#include "engines/deluge/cables.h"
-#include "engines/deluge/params.h"
-#include "engines/global_effectable/params.h"
+#include "effects/global_effectable/params.h"
+#include "instruments/deluge/cables.h"
+#include "instruments/deluge/params.h"
 #include "serialization/parse_xml.h"
 
 #include <cppspec.hpp>

@@ -19,7 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/stereo_sample.h"
-#include "engines/effects/clip_chain.h"
+#include "effects/clip_chain.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/sample/sample_recorder.h"
 #include "util/functions.h"

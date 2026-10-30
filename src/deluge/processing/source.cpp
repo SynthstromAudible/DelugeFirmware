@@ -17,9 +17,9 @@
 
 #include "processing/source.h"
 #include "definitions_cxx.hpp"
-#include "engines/deluge/sound_state.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
+#include "instruments/deluge/sound_state.h"
 #include "memory/memory_allocator_interface.h"
 #include "model/sample/sample.h"
 #include "processing/dx7/dx_engine.h"

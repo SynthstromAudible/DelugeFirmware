@@ -18,7 +18,7 @@
 
 #include <cstdint>
 
-#include "engines/deluge/words.h"
+#include "instruments/deluge/words.h"
 using deluge::instrument::OscType; // only INPUT_L/INPUT_R/INPUT_STEREO reach the port
 
 namespace deluge::synth {

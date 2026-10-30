@@ -25,8 +25,8 @@
 #include "dsp-next/fixed/shaping/bit_depth.h"
 #include "dsp-next/fixed/shaping/sample_rate_reducer.h"
 
+#include "effects/bitcrush.h"
 #include "effects_workloads.h"
-#include "engines/effects/bitcrush.h"
 #include "reference_effects.h"
 
 #include <array>

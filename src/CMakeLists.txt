@@ -4,9 +4,9 @@ add_subdirectory(plugin-api/types) # deluge_plugin_types: the host–plugin cont
 add_subdirectory(foundation) # bottom of the stack; the layers below link it
 add_subdirectory(serialization) # deluge_serialization: the document tree and its XML and JSON parsers
 add_subdirectory(plugin-api) # deluge_plugin_api: the host–plugin contract's interface
-add_subdirectory(engines/effects) # deluge_effects: the effects' words, state and codec
-add_subdirectory(engines/deluge) # deluge_instrument: the Deluge instrument's state, words and codec
-add_subdirectory(engines/global_effectable) # deluge_global_effectable: the provisional shared-effect param table
+add_subdirectory(effects) # deluge_effects: the effects' words, state and codec
+add_subdirectory(instruments/deluge) # deluge_instrument: the Deluge instrument's state, words and codec
+add_subdirectory(effects/global_effectable) # deluge_global_effectable: the provisional shared-effect param table
 add_subdirectory(music-theory) # deluge_music_theory: note sets, scales, keys and scale mapping
 add_subdirectory(midi)       # deluge_midi: pure MIDI protocol library (app + tests)
 add_subdirectory(deluge-project) # deluge_project: the project model (deluge::project::Song)

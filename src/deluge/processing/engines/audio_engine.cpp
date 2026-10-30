@@ -27,8 +27,8 @@
 #include "dsp-next/fixed/dynamics/hit_strength.h" // combine_hit_strengths
 #include "dsp-next/fixed/mix/output_fold.h"
 #include "dsp/timestretch/time_stretcher.h"
-#include "engines/effects/reverb.h"
-#include "engines/effects/sidechain.h"
+#include "effects/reverb.h"
+#include "effects/sidechain.h"
 #include "extern.h"
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"

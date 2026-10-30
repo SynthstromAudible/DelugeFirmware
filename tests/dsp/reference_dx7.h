@@ -185,7 +185,7 @@
 
 #pragma once
 
-#include "engines/deluge/dx7_init_voice.h"
+#include "instruments/deluge/dx7_init_voice.h"
 
 #include <algorithm>
 #include <array>

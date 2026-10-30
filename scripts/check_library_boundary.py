@@ -175,8 +175,8 @@ LIBRARIES: dict[str, Library] = {
         ("serialization/", "foundation/panic.h"),
     ),
     "effects": Library(
-        REPO / "src" / "engines" / "effects",
-        "engines/effects/",
+        REPO / "src" / "effects",
+        "effects/",
         (
             "plugin-api/",
             "serialization/",
@@ -186,13 +186,13 @@ LIBRARIES: dict[str, Library] = {
         ),
     ),
     "instrument": Library(
-        REPO / "src" / "engines" / "deluge",
-        "engines/deluge/",
-        ("plugin-api/", "engines/effects/", "serialization/", "foundation/panic.h"),
+        REPO / "src" / "instruments" / "deluge",
+        "instruments/deluge/",
+        ("plugin-api/", "effects/", "serialization/", "foundation/panic.h"),
     ),
     "global-effectable": Library(
-        REPO / "src" / "engines" / "global_effectable",
-        "engines/global_effectable/",
+        REPO / "src" / "effects" / "global_effectable",
+        "effects/global_effectable/",
         ("plugin-api/types/",),
     ),
     "serialization": Library(

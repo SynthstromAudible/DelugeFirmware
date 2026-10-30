@@ -1,7 +1,7 @@
 #include "model/edits/set_effect_setting.h"
 
-#include "engines/effects/chain.h"
-#include "engines/effects/settings.h"
+#include "effects/chain.h"
+#include "effects/settings.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/slot_bridge.h"

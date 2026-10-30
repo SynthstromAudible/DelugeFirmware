@@ -1,8 +1,8 @@
 #include "model/edits/set_engine_setting.h"
 
-#include "engines/deluge/codec.h"
-#include "engines/deluge/settings.h"
-#include "engines/deluge/words.h"
+#include "instruments/deluge/codec.h"
+#include "instruments/deluge/settings.h"
+#include "instruments/deluge/words.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"

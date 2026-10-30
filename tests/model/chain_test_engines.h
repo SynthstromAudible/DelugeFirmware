@@ -3,8 +3,8 @@
 // The chain codec the model tests give the model: the effects library's, as the app's is.
 
 #include "deluge-project/fx_chain.h"
-#include "engines/effects/chain.h"
-#include "engines/effects/codec.h"
+#include "effects/chain.h"
+#include "effects/codec.h"
 
 namespace deluge::project::test {
 

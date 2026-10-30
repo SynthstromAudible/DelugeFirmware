@@ -1,6 +1,6 @@
 #include "model/edits/set_dx_patch.h"
 
-#include "engines/deluge/codec.h"
+#include "instruments/deluge/codec.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"

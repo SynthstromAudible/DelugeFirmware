@@ -24,8 +24,8 @@
 #include "dsp-next/fixed/vca/send_and_volume.h"
 
 #include "dsp-next/core/mono.h"
+#include "effects/send_and_volume.h"
 #include "effects_workloads.h"
-#include "engines/effects/send_and_volume.h"
 #include "reference_effects.h"
 
 #include <array>

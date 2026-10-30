@@ -1,6 +1,6 @@
 #include "controls_test_engines.h"
-#include "engines/deluge/params.h"
 #include "equality/equality.h"
+#include "instruments/deluge/params.h"
 #include "serialization/parse_xml.h"
 #include "serialization/write_json.h"
 

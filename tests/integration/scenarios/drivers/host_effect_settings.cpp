@@ -8,7 +8,7 @@
 // Exit: 0 every check holds; 1 the file does not load; 2 usage/IO; 3 a check fails.
 
 #include "deluge-project/fx_chain.h"
-#include "engines/effects/settings.h"
+#include "effects/settings.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
 #include "model/edits/edit.h"

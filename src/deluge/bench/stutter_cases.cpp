@@ -7,7 +7,7 @@
 #include "bench/cases.h"
 
 #include "definitions_cxx.hpp"
-#include "engines/effects/stutter.h"
+#include "effects/stutter.h"
 #include "model/fx/song_stutter.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
 #include "modulation/params/param.h"

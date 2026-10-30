@@ -149,7 +149,8 @@ class LibraryBoundaryTest(unittest.TestCase):
             len(self.check('#include "plugin-api/plugin.h"\n', library=table)), 1
         )
         self.assertEqual(
-            len(self.check('#include "engines/deluge/params.h"\n', library=table)), 1
+            len(self.check('#include "instruments/deluge/params.h"\n', library=table)),
+            1,
         )
 
 

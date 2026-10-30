@@ -376,7 +376,7 @@ fused frame kernel of stereo frames, rendered in place as
 `ModFx` (`fixed/mod_fx/mod_fx_kernel.h`) is the reference for a moded kernel
 whose memory belongs to an engine component. It is the mod FX as one processor
 kernel of stereo frames, rendered in place as `Mono<ModFx<>>::renderBlock(block, block, noise)`
-by `effects::ModFx` (`engines/effects/mod_fx.{h,cpp}`). The kernel knows modes,
+by `effects::ModFx` (`effects/mod_fx.{h,cpp}`). The kernel knows modes,
 rates and a ring it is pointed at; the component knows `ModFXType`, the params,
 the allocator and the soft off.
 
@@ -436,14 +436,14 @@ the allocator and the soft off.
 
 `RmsFeedbackCompressor` is engine glue as well (the owner of `Compressor`'s
 levels, its events and its `finish_level` call), and belongs beside
-`effects::Compressor` in `engines/effects/`; it moves there later.
+`effects::Compressor` in `effects/`; it moves there later.
 
 ### Derived knob state and a send cursor: `Granular`
 
 `Granular` (`fixed/granular/granular_kernel.h`) is the granular effect as one
 processor kernel of stereo frames, rendered in place as
 `Mono<Granular<>>::renderBlock(block, block, noise)` by `effects::Granular`
-(`engines/effects/granular.{h,cpp}`). The kernel knows a ring it is pointed at,
+(`effects/granular.{h,cpp}`). The kernel knows a ring it is pointed at,
 eight grains and four knobs; the component knows `ModFXType`, the allocator and
 what entering GRAIN does for each kind of owner.
 
@@ -512,8 +512,8 @@ frames), which the render computes from params, cables and automation, and a
 rate that moves far enough grows a second tape that is swapped in once
 written. So the render takes and gives back its own tapes, from memory the
 interaction tier lends it: `effects::DelayArena`
-(`engines/effects/delay_arena.{h,cpp}`), driven by `effects::Delay`
-(`engines/effects/delay.{h,cpp}`, the engine glue around the kernel's
+(`effects/delay_arena.{h,cpp}`), driven by `effects::Delay`
+(`effects/delay.{h,cpp}`, the engine glue around the kernel's
 `DelayProcessor`).
 
 - **Regions, each its own heap.** The arena holds up to 32 regions of 1.5 MB of
@@ -559,7 +559,7 @@ interaction tier lends it: `effects::DelayArena`
 
 `Stutter` (`fixed/stutter/stutter_kernel.h`) is the stutter as one processor
 kernel of stereo frames, rendered in place as `Mono<Stutter>::renderBlock(block, block)`
-by `effects::Stutter` (`engines/effects/stutter.{h,cpp}`). The kernel knows
+by `effects::Stutter` (`effects/stutter.{h,cpp}`). The kernel knows
 the tape it is pointed at, the rate and whether it records or plays; the
 component knows the allocator; the song's stutter (`deluge::model::SongStutter`,
 `model/fx/song_stutter.{h,cpp}`, in `Song::live`) knows which owner is
@@ -597,7 +597,7 @@ the owner's chain the stutter and its rate each block (see "Effect chains").
   `processStutter` verbatim but for owned storage and the wrapping sum; it equals
   the old app code over every workload of `stutter_workloads.h`
   (`kRecordedReference`), and the kernel (`stutter_kernel_spec`) and the
-  component (`engines/effects/stutter_spec`) equal it. The render gates
+  component (`effects/stutter_spec`) equal it. The render gates
   `render-stutter-*` stutter an audio track, a kit (quantized and reversed), the
   master (ping-pong), a turned rate and a hand-over, recorded on the old code;
   `CG-STUTTERHANDOFF`, `CG-STUTTEROOM` and `CG-STUTTERSWAP` hold the
@@ -607,7 +607,7 @@ the owner's chain the stutter and its rate each block (see "Effect chains").
 
 The song reverb is two processor kernels of stereo frames, `fixed::Freeverb` (`fixed/reverb/freeverb.h`, q31) and
 `fp::Plate` (`float/reverb/plate.h`, float, modes MUTABLE and DIGITAL), each rendered in place over the master block as
-`Mono<K>::renderBlock(block, block)` by one component, `effects::Reverb` (`engines/effects/reverb.{h,cpp}`).
+`Mono<K>::renderBlock(block, block)` by one component, `effects::Reverb` (`effects/reverb.{h,cpp}`).
 
 - **Two kernels, one interface.** Both take a q31 send by cursor (`set_send`, with the two return levels: a cursor as
   `Granular`'s is, here a mono send read and mixed into stereo frames) and q31 frames in and out. The plate's loop is
@@ -650,14 +650,14 @@ The song reverb is two processor kernels of stereo frames, `fixed::Freeverb` (`f
   into the two return levels.
 - **Evidence.** `tests/dsp/reference_reverb.h` is the three old models verbatim, pinned over every workload of
   `reverb_workloads.h` (`kRecordedReference`: output, whole state and send), host and ARM alike; the kernels
-  (`freeverb_kernel_spec`, `plate_lfo_spec`, `plate_kernel_spec`) and the component (`engines/effects/reverb_spec`)
+  (`freeverb_kernel_spec`, `plate_lfo_spec`, `plate_kernel_spec`) and the component (`effects/reverb_spec`)
   equal it. The render gates `render-reverb-freeverb`, `-mutable`, `-digital` and `-switch` render each model away
   from its defaults and switch models and knobs mid-song as the menus do, recorded on the old code. The `reverb` bench
   list times each model as the engine renders it.
 
 ### The chains' small stages, the duck and the engine's own: bitcrush, EQ, send and volume, metronome, monitoring
 
-Each is a kernel run through `Mono<K>` by the `engines/effects` class (or engine class) that held its arithmetic, now
+Each is a kernel run through `Mono<K>` by the `effects` class (or engine class) that held its arithmetic, now
 an adapter over it. All are bit-exact to the code they replace; `tests/dsp/reference_effects.h` keeps that code line
 for line. The specs drive the adapters themselves (`effects::Bitcrush`, `Equalizer`, `SendAndVolume`, `Metronome`)
 against it over every block size, on x86 and qemu-ARM; the monitoring kernels are held to it directly, and the
@@ -1430,7 +1430,7 @@ state fully into the engine is later work.
   `Stereo` or `Control`, under the settings convention and the slotting-ready
   rules; the DX7's `Graph` and `Voice` are components over them.
 
-## Effect chains (`engines/effects/`)
+## Effect chains (`effects/`)
 
 Each home's effects run, in that home's fixed order, in a typed runtime in
 `deluge_effects`. The runtime owns the components; the app works out the

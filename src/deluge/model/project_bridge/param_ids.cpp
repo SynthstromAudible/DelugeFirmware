@@ -20,9 +20,9 @@
 #include "definitions_cxx.hpp"
 #include "modulation/patch/patch_cable.h"
 
-#include "engines/deluge/cables.h"
-#include "engines/deluge/params.h"
-#include "engines/global_effectable/params.h"
+#include "effects/global_effectable/params.h"
+#include "instruments/deluge/cables.h"
+#include "instruments/deluge/params.h"
 
 #include <algorithm>
 #include <array>
