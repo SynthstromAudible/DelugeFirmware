@@ -655,25 +655,40 @@ image d068b23c3. Cycles per channel-sample, the minimum of four runs of each ima
 ## DX7
 
 The `dx7` list (`DELUGE_DSP_BENCH_CASES=dx7`) times one voice's block through the voice adapter, as a sound renders it:
-the patch's LFO, then pitch, control and the six operators. Before: the engine at 63a6eefda. After: a2e44c774, where
+the patch's LFO, then pitch, control and the six operators. Before: the engine at a44d9e98f. After: f3e819d1f, where
 every operator is a dsp-next kernel walked by `dx7::Graph`, and the device renders the modern ops with no input or a
 bus input through the same NEON kernel as before (`fixed/dx7/neon_fm_kernel.s`), every other build through the Argon
 step bit-exact with it (`dx7::ModernVectorOperator`). Cycles per sample, one run of each image.
 
 | case | n=32 before → after (delta) | n=64 before → after (delta) | n=128 before → after (delta) |
 |---|---:|---:|---:|
-| `control calibration_loop` | 32.11 → 32.12 (+0.0%) | 32.04 → 32.04 (+0.0%) | 32.02 → 32.02 (+0.0%) |
-| `control delay_feedback_chain_analog` | 171.46 → 171.73 (+0.2%) | 165.71 → 165.87 (+0.1%) | 162.86 → 162.94 (+0.0%) |
-| `control delay_feedback_chain_digital` | 19.87 → 20.15 (+1.4%) | 14.17 → 14.31 (+1.0%) | 11.34 → 11.39 (+0.4%) |
-| `dx7_modern_alg1` | 153.38 → 168.34 (+9.8%) | 113.71 → 118.89 (+4.6%) | 95.74 → 97.42 (+1.8%) |
-| `dx7_modern_alg32` | 162.33 → 178.80 (+10.1%) | 109.70 → 117.28 (+6.9%) | 85.61 → 89.13 (+4.1%) |
-| `dx7_mki_alg1_fb` | 244.18 → 263.24 (+7.8%) | 208.41 → 216.43 (+3.8%) | 189.44 → 191.73 (+1.2%) |
-| `dx7_mki_alg4_fb3` | 235.89 → 261.12 (+10.7%) | 204.96 → 218.77 (+6.7%) | 186.61 → 195.11 (+4.6%) |
+| `control calibration_loop` | 32.11 → 32.08 (-0.1%) | 32.04 → 32.02 (-0.1%) | 32.02 → 32.02 (+0.0%) |
+| `control delay_feedback_chain_analog` | 171.46 → 171.72 (+0.1%) | 165.71 → 165.77 (+0.0%) | 162.86 → 162.93 (+0.0%) |
+| `control delay_feedback_chain_digital` | 19.87 → 20.06 (+1.0%) | 14.17 → 14.27 (+0.7%) | 11.34 → 11.39 (+0.4%) |
+| `dx7_modern_alg1` | 153.38 → 152.13 (-0.8%) | 113.71 → 112.30 (-1.2%) | 95.74 → 94.93 (-0.8%) |
+| `dx7_modern_alg32` | 162.33 → 161.63 (-0.4%) | 109.70 → 108.97 (-0.7%) | 85.61 → 84.96 (-0.8%) |
+| `dx7_mki_alg1_fb` | 244.18 → 244.64 (+0.2%) | 208.41 → 205.42 (-1.4%) | 189.44 → 185.11 (-2.3%) |
+| `dx7_mki_alg4_fb3` | 235.89 → 242.20 (+2.7%) | 204.96 → 209.27 (+2.1%) | 186.61 → 190.22 (+1.9%) |
 
-- **What remains is per block.** Every case, modern and MkI, pays about 15 cycles per sample at n=32 and 2-5 at
-  n=128: roughly 500 cycles per voice-block, from the structure around the operators (the patch's 156-byte snapshot,
-  each op's gate and ramp computed through its kernel, the six envelope advances out of line). Replacing the gain
-  ramp's 2^30 / n with a table read moved nothing: the A9's software divide is not where it goes.
+- **Per block and per sample, measured apart.** A line fitted through each case's cycles and retired instructions at
+  n = 32, 64 and 128 splits its cost into a per-block intercept and a per-sample slope; instructions are counted, so
+  they do not move with placement. Before the fixes below, every case's slope matched or beat the old engine's and its
+  intercept was 835-1003 instructions (720-1010 cycles) higher. Now the modern cases' intercepts match the old
+  engine's (+10 and +35 instructions, -33 and -5 cycles) with slopes 0.6-0.7 cycles per sample lower. MkI pays 108-196
+  cycles more per block (its ops go through `Mono<Operator>`, which takes each op's gains again in `prepare`) and
+  algorithm 1 gets it back per sample (-5.9 cycles); algorithm 4's 2% is its fused stack's per-sample cost (+2.7
+  cycles per sample), not the block's.
+- **Where the block's cost was.** PTM traces of the per-block functions (`tools/deluge_trace`, algorithm 32 alone so
+  every op renders in the kernel and nothing overflows the trace port) placed it, old engine against new:
+  - each op's gain ramp (an exp2 lookup and a divide) was taken three times per block, for the gate, for the kernel
+    call and to move the op's held state on; `Graph` now takes it once (`hold_op`);
+  - each op's envelope settings were rebuilt from the patch's bytes every block, eight unaligned bytes assembled with
+    shifts among spills; a block now keeps the configured settings and sets only the extra rate, since the rest
+    changes only at note-on, release and retune (which a patch change calls);
+  - each block copied the patch's 156 bytes and clamped them through `dx7::sanitise`, which the app's
+    `-fno-inline-functions` left as calls to `std::min` and `std::array::operator[]` (196 instructions for 17
+    clamps); the voices now read one clamped copy on `DxPatch`, renewed at note-on and when the patch changes, and
+    the clamp is inline over the raw bytes.
 - **The Argon step against the hand kernel.** Stepped one four-lane chain at a time, the Argon step ran 28-37% slower
   than the kernel at n=128: issue-empty cycles rose from 34 to 57 per sample at the same NEON count, each step waiting
   on the last's float latency. Three chains interleaved instruction by instruction (`kChains = 3`,
@@ -703,5 +718,6 @@ step bit-exact with it (`dx7::ModernVectorOperator`). Cycles per sample, one run
   with the first NEON kernel of that weight.
 - The `wavetable` bench case costs about 336 cycles per sample. Look at it when the oscillators move to the kernel form.
 - `Mono::renderBlock` calls `std::span::size()` and `data()` per block, and both are out of line at the shipping flags.
-- The DX7 voice's per-block cost (about 500 cycles per block over the old engine): trace one block to place it. The
-  six operators are also walked one `Mono` at a time per block; fusing them into one step is a further bench question.
+- The DX7 MkI ops take their gains twice per block, in the gate and in `Mono<Operator>`'s `prepare` (108-196 cycles
+  per block over the old engine), and the six operators are walked one `Mono` at a time; fusing them into one step is
+  a further bench question.
