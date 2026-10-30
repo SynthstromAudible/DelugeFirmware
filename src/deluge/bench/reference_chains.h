@@ -185,7 +185,7 @@ bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, co
 	                                              .variant = fx::SaturationVariant::CHAIN});
 
 	if (renderedLastTime) {
-		filter_.process(global_effectable_audio, in.filter_scratch);
+		filter_.process(global_effectable_audio, in.filter_scratch, *in.fx.noise);
 		volumePostFX >>= c.bitcrush().process(global_effectable_audio, in.bitcrush).volume_shift;
 	}
 
@@ -246,7 +246,7 @@ bool master(fx::ChainCore& c, fx::Filter& filter_, const fx::MasterChainInputs& 
 	int32_t masterVolumeAdjustmentL = post->master_volume;
 	int32_t masterVolumeAdjustmentR = post->master_volume;
 	masterVolumeAdjustmentL = filter_.configure(settings.filter, post->filter, masterVolumeAdjustmentL);
-	filter_.process(renderingBuffer, post->filter_scratch);
+	filter_.process(renderingBuffer, post->filter_scratch, *post->noise);
 	masterVolumeAdjustmentL >>= c.bitcrush().process(renderingBuffer, post->bitcrush).volume_shift;
 
 	masterVolumeAdjustmentR = masterVolumeAdjustmentL;

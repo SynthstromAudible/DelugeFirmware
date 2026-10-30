@@ -355,28 +355,54 @@ public:
 	[[gnu::always_inline]] void renderLane(Signal<typename K::value_type> in, Buffer<typename K::value_type> out)
 	requires processor_kernel<K> && (!has_context<K>)
 	{
+		detail::NoContext none;
+		runLane<Lane>(none, in, out);
+	}
+
+	/// @brief @ref renderLane for a kernel with a Context: lane @p Lane alone draws on @p context, once per sample,
+	/// through a block-local copy written back after the block.
+	/// @tparam Lane The lane, less than N.
+	/// @param in At least `out.size()` samples; may be the same buffer as @p out.
+	/// @param out The block to fill, every sample of it.
+	/// @param context The owner's context: copied in before the block and written back once after it.
+	template <std::size_t Lane>
+	[[gnu::always_inline]] void renderLane(Signal<typename K::value_type> in, Buffer<typename K::value_type> out,
+	                                       Context& context)
+	requires processor_kernel<K> && has_context<K>
+	{
+		Context local = context;
+		runLane<Lane>(local, in, out);
+		context = local;
+	}
+
+private:
+	/// @brief The lane loop @ref renderLane runs: prepare, one mode dispatch, one loop over the lane's samples.
+	template <std::size_t Lane, typename Ctx>
+	[[gnu::always_inline]] void runLane(Ctx& context, Signal<typename K::value_type> in,
+	                                    Buffer<typename K::value_type> out) {
 		static_assert(Lane < N, "renderLane: no such lane");
 		const auto n = static_cast<std::ptrdiff_t>(out.size());
 		if constexpr (kOpMajor) {
 			State s = unpackLane(Lane);
 			const Coefficients c = coefficients_;
-			laneLoop(c, kernel_ops::prepare_block<K>(c, s, out.size()), s, in.data(), out.data(), n);
+			laneLoop(c, kernel_ops::prepare_block<K>(c, s, out.size()), s, context, in.data(), out.data(), n);
 			packLane(Lane, s);
 		}
 		else {
 			const Block block = kernel_ops::prepare_block<K>(coefficients_, states_.lane[Lane], out.size());
 			const Coefficients c = coefficients_;
 			if constexpr (kInPlace) {
-				laneLoop(c, block, kernel_ops::loop_state<K>(states_.lane[Lane]), in.data(), out.data(), n);
+				laneLoop(c, block, kernel_ops::loop_state<K>(states_.lane[Lane]), context, in.data(), out.data(), n);
 			}
 			else {
 				LoopState s = kernel_ops::loop_state<K>(states_.lane[Lane]);
-				laneLoop(c, block, s, in.data(), out.data(), n);
+				laneLoop(c, block, s, context, in.data(), out.data(), n);
 				kernel_ops::loop_state<K>(states_.lane[Lane]) = s;
 			}
 		}
 	}
 
+public:
 	/// @brief Mix one pair of frames: a one-frame block, so one `prepare(…, 1)` per lane and one mode dispatch per
 	/// call.
 	/// @details A convenience for tests and control rate, not for per-frame use in shipping code (see **Single
@@ -556,12 +582,13 @@ private:
 
 	/// @brief @p n samples of one lane, @p src into @p dst, one `step` per sample at the block's mode, on that lane's
 	/// State @p s and Block @p block.
-	[[gnu::always_inline]] static void laneLoop(const Coefficients& c, const Block& block, LoopState& s,
+	template <typename Ctx>
+	[[gnu::always_inline]] static void laneLoop(const Coefficients& c, const Block& block, LoopState& s, Ctx& context,
 	                                            const typename K::value_type* src, typename K::value_type* dst,
 	                                            std::ptrdiff_t n) {
 		kernel_ops::dispatch_mode<K>(c, [&]<auto M> [[gnu::always_inline]] () {
 			for (std::ptrdiff_t i = 0; i < n; ++i) {
-				dst[i] = kernel_ops::step_at<K, M>(c, block, s, src[i]);
+				dst[i] = kernel_ops::step_with<K, M>(c, block, s, context, src[i]);
 			}
 		});
 	}

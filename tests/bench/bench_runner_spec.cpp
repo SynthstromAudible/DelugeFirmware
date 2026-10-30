@@ -630,10 +630,10 @@ FilterReference filter_reference(const FilterCaseConfig& config, std::size_t n, 
 		out.gain =
 		    set.configure(kFilterGain, config.low_config, config.low, config.high_config, config.high, config.route);
 		if (stereo) {
-			set.renderStereo(out.last_block, {.fade = fade, .parallel = parallel});
+			set.renderStereo(out.last_block, {.fade = fade, .parallel = parallel}, deluge::synth_noise);
 		}
 		else {
-			set.renderMono(out.last_block, {.fade = fade, .parallel = parallel});
+			set.renderMono(out.last_block, {.fade = fade, .parallel = parallel}, deluge::synth_noise);
 		}
 	}
 	out.noise = deluge::synth_noise.state();

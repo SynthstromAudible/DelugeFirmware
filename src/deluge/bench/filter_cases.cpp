@@ -50,10 +50,10 @@ void FilterCase<Stereo>::block(std::size_t /*n*/) {
 	                             config_.route);
 	const dsp::fixed::FilterScratch scratch{.fade = fade_scratch, .parallel = parallel_scratch};
 	if constexpr (Stereo) {
-		rig.set.renderStereo(rig.work, scratch);
+		rig.set.renderStereo(rig.work, scratch, deluge::synth_noise);
 	}
 	else {
-		rig.set.renderMono(rig.work, scratch);
+		rig.set.renderMono(rig.work, scratch, deluge::synth_noise);
 	}
 }
 

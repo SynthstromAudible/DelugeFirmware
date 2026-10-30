@@ -18,6 +18,7 @@
 #pragma once
 
 #include "dsp-next/core/stereo_sample.h"
+#include "dsp-next/fixed/noise/cong.h"
 #include "engines/effects/bitcrush.h"
 #include "engines/effects/compressor.h"
 #include "engines/effects/delay.h"
@@ -51,6 +52,8 @@ struct FxInputs {
 	Delay::State delay; ///< The block's working state, which the owner set up on the chain's delay.
 	bool stereo;        ///< Whether the engine renders in stereo.
 	int32_t grain_send; ///< The granular's reverb send before the post-FX volume scales it, Q31.
+	/// The synth's noise stream: the filters draw from it, written back after each block. Never null once built.
+	dsp::fixed::Cong* noise = nullptr;
 };
 
 /// @brief The effect components every home has, and the mod FX, EQ and delay stage they share.

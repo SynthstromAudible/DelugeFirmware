@@ -48,13 +48,13 @@ int32_t Filter::configure(const FilterState& state, const FilterParams& params, 
 	                      filter_route(state.route));
 }
 
-void Filter::process(std::span<dsp::StereoSample> block, dsp::fixed::FilterScratch scratch) {
+void Filter::process(std::span<dsp::StereoSample> block, dsp::fixed::FilterScratch scratch, dsp::fixed::Cong& noise) {
 	// The set reads the frames as one interleaved run of samples, left then right.
 	static_assert(std::is_standard_layout_v<dsp::StereoSample>);
 	static_assert(offsetof(dsp::StereoSample, l) == 0);
 	static_assert(offsetof(dsp::StereoSample, r) == sizeof(dsp::q31));
 	static_assert(sizeof(dsp::StereoSample) == 2 * sizeof(dsp::q31));
-	set_.renderStereo({&block.data()->l, block.size() * 2}, scratch);
+	set_.renderStereo({&block.data()->l, block.size() * 2}, scratch, noise);
 }
 
 } // namespace deluge::effects

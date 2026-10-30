@@ -277,6 +277,7 @@ std::string master_difference() {
 					const MasterPostInputs post{
 					    .filter = cw::kFilter,
 					    .filter_scratch = scratch->view(),
+					    .noise = &deluge::synth_noise,
 					    .bitcrush = cw::kBitcrush,
 					    .master_volume = 167763968,
 					    .do_pan = w.stereo,

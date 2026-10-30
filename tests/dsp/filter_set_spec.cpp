@@ -81,12 +81,12 @@ struct Rig {
 	}
 	std::vector<int32_t> mono(const std::vector<int32_t>& in) {
 		std::vector<int32_t> block = in;
-		set.renderMono(block, {.fade = fade, .parallel = parallel});
+		set.renderMono(block, {.fade = fade, .parallel = parallel}, deluge::synth_noise);
 		return block;
 	}
 	std::vector<int32_t> stereo(const std::vector<int32_t>& in) {
 		std::vector<int32_t> block = in;
-		set.renderStereo(block, {.fade = fade, .parallel = parallel});
+		set.renderStereo(block, {.fade = fade, .parallel = parallel}, deluge::synth_noise);
 		return block;
 	}
 };

@@ -205,7 +205,7 @@ struct Rig {
 	std::vector<int32_t> run(const FilterState& state, const FilterParams& params) {
 		volume = filter.configure(state, params, kVolume);
 		std::vector<StereoSample> block = frames(kInput);
-		filter.process(block, {.fade = fade, .parallel = parallel});
+		filter.process(block, {.fade = fade, .parallel = parallel}, deluge::synth_noise);
 		return samples(block);
 	}
 };

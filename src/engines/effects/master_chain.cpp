@@ -48,7 +48,7 @@ bool MasterChain::pre_reverb(std::span<dsp::StereoSample> block, const MasterCha
 void MasterChain::post_reverb(std::span<dsp::StereoSample> block, const EffectStates& settings,
                               const MasterPostInputs& post) {
 	int32_t volume_l = filter_.configure(settings.filter, post.filter, post.master_volume);
-	filter_.process(block, post.filter_scratch);
+	filter_.process(block, post.filter_scratch, *post.noise);
 	volume_l >>= core_.bitcrush().process(block, post.bitcrush).volume_shift;
 	int32_t volume_r = volume_l;
 

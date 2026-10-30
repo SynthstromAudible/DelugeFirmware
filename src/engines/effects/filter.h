@@ -75,7 +75,8 @@ public:
 
 	/// @brief Filters a stereo @p block in place, as last configured.
 	/// @param scratch The audio tier's filter scratch, each span at least two samples per frame of @p block.
-	void process(std::span<dsp::StereoSample> block, dsp::fixed::FilterScratch scratch);
+	/// @param noise The synth's noise stream, which the low-pass ladder draws from.
+	void process(std::span<dsp::StereoSample> block, dsp::fixed::FilterScratch scratch, dsp::fixed::Cong& noise);
 
 	/// @brief Both filters off and their state zero (see dsp::fixed::FilterSet::reset).
 	void reset() { set_.reset(); }

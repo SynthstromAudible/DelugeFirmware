@@ -36,6 +36,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/wave_table/wave_table.h"
+#include "util/synth_noise.h"
 
 #include "dsp/oscillators/oscillator.h"
 #include "util/misc.h"
@@ -1204,7 +1205,7 @@ skipAutoRelease: {}
 			dsp::foldBufferPolyApproximation(oscBuffer, oscBufferEnd, params.paramFinalValues[params::LOCAL_FOLD]);
 		}
 		// Filters
-		filterSet.renderStereo({oscBuffer, oscBufferEnd}, deluge::render::filter_scratch());
+		filterSet.renderStereo({oscBuffer, oscBufferEnd}, deluge::render::filter_scratch(), deluge::synth_noise);
 
 		// No clipping
 		if (!cfg.clippingAmount) {
@@ -1289,7 +1290,7 @@ skipAutoRelease: {}
 			dsp::foldBufferPolyApproximation(oscBuffer, oscBufferEnd, foldAmount);
 		}
 
-		filterSet.renderMono({oscBuffer, oscBufferEnd}, deluge::render::filter_scratch());
+		filterSet.renderMono({oscBuffer, oscBufferEnd}, deluge::render::filter_scratch(), deluge::synth_noise);
 
 		// No clipping
 		if (!cfg.clippingAmount) {

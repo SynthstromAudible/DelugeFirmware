@@ -15,6 +15,7 @@
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
 #include "processing/render_scratch.h"
+#include "util/synth_noise.h"
 
 #include <algorithm>
 #include <array>
@@ -103,6 +104,7 @@ effects::FxInputs fx_inputs(effects::ChainCore& core, int32_t grain_send) {
 	    .delay = delay,
 	    .stereo = true,
 	    .grain_send = grain_send,
+	    .noise = &deluge::synth_noise,
 	};
 }
 
@@ -206,6 +208,7 @@ void master_block(bool reference) {
 	const effects::MasterPostInputs post{
 	    .filter = filter_params(),
 	    .filter_scratch = render::filter_scratch(),
+	    .noise = &deluge::synth_noise,
 	    .bitcrush = kBitcrush,
 	    .master_volume = 167763968,
 	    .do_pan = false,

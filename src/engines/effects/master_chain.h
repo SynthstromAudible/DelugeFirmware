@@ -43,6 +43,7 @@ struct MasterChainInputs {
 struct MasterPostInputs {
 	FilterParams filter;
 	dsp::fixed::FilterScratch filter_scratch; ///< The audio tier's filter scratch.
+	dsp::fixed::Cong* noise = nullptr; ///< The synth's noise stream the filter draws from. Never null once built.
 	BitcrushParams bitcrush;
 	int32_t master_volume; ///< The volume before the filter's compensation, Q31.
 	bool do_pan;           ///< Whether the pan applies: off the centre, in stereo, and not a no-op.

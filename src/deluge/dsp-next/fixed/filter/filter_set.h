@@ -25,7 +25,7 @@
 #include "dsp-next/fixed/filter/high_pass_ladder.h"
 #include "dsp-next/fixed/filter/low_pass_ladder.h"
 #include "dsp-next/fixed/filter/svf.h"
-#include "dsp-next/fixed/noise/cong_noise.h"
+#include "dsp-next/fixed/noise/cong.h"
 
 #include <span>
 
@@ -50,10 +50,10 @@ struct FilterScratch {
 /// fades in from dry when switched on from off. A fade under way carries on across a change of family. Each slot holds
 /// one filter at a time, the one its family needs.
 ///
-/// **Components.** Each slot's filter is a kernel in its `Stereo` wrapper (@ref LowPassLadder over @ref CongNoise,
-/// @ref HighPassLadder, @ref Svf). A stereo block runs the wrapper over its frames; a mono block runs its left channel
-/// alone (`renderLane<0>(…)`), so a voice that moves between mono and stereo blocks keeps one state per channel, the
-/// left carried across, as a filter holding both channels does.
+/// **Components.** Each slot's filter is a kernel in its `Stereo` wrapper (@ref LowPassLadder over the synth's noise
+/// stream, @ref HighPassLadder, @ref Svf). A stereo block runs the wrapper over its frames; a mono block runs its left
+/// channel alone (`renderLane<0>(…)`), so a voice that moves between mono and stereo blocks keeps one state per
+/// channel, the left carried across, as a filter holding both channels does.
 ///
 /// **The fades.** Each slot's fade is a @ref FadeInMono component the set holds beside the slot's union, not inside
 /// it: a family change rebuilds the union member and leaves the fade where it is, so a fade under way carries on
@@ -81,10 +81,13 @@ public:
 	                            HighPassSlot high_slot, FilterRoute route);
 
 	/// @brief Filters a mono @p block in place.
-	void renderMono(std::span<q31> block, FilterScratch scratch);
+	/// @param noise The noise stream the low-pass ladder draws from, written back after the block.
+	void renderMono(std::span<q31> block, FilterScratch scratch, Cong& noise);
 
 	/// @brief Filters an interleaved L/R block in place.
-	void renderStereo(std::span<q31> interleaved, FilterScratch scratch);
+	/// @param noise The noise stream the low-pass ladder draws from, left then right in every frame, written back
+	/// after the block.
+	void renderStereo(std::span<q31> interleaved, FilterScratch scratch, Cong& noise);
 
 	/// @brief Back to a new set's state: both filters off and every filter's state zero, the fades included (so the
 	/// next configure fades nothing in). Both slots read as holding a ladder, so neither the low-pass ladder nor the
@@ -99,9 +102,9 @@ public:
 	/// @brief Whether the high-pass is on.
 	[[nodiscard]] bool isHighPassOn() const { return high_slot_.kind != HighPassSlot::Kind::OFF; }
 
-	using LowPassLadderFilter = Stereo<LowPassLadder<CongNoise>>; ///< The low-pass ladder, both channels.
-	using HighPassLadderFilter = Stereo<HighPassLadder>;          ///< The high-pass ladder, both channels.
-	using SvfFilter = Stereo<Svf>;                                ///< The SVF, both channels, in either slot.
+	using LowPassLadderFilter = Stereo<LowPassLadder<>>; ///< The low-pass ladder, both channels.
+	using HighPassLadderFilter = Stereo<HighPassLadder>; ///< The high-pass ladder, both channels.
+	using SvfFilter = Stereo<Svf>;                       ///< The SVF, both channels, in either slot.
 
 	/// @brief The set between blocks, read-only: what each slot holds, how it was last configured, and its fade.
 	/// @details Exactly one of each slot's two filter pointers is set, the one its held kind names; the other is
@@ -149,11 +152,11 @@ private:
 	void holdHighPass(HighPassSlot::Kind kind);
 
 	/// @brief The low-pass over a mono block, if on.
-	void renderLowPassMono(std::span<q31> block, FadeScratch scratch);
+	void renderLowPassMono(std::span<q31> block, FadeScratch scratch, Cong& noise);
 	/// @brief The high-pass over a mono block, if on.
 	void renderHighPassMono(std::span<q31> block, FadeScratch scratch);
 	/// @brief The low-pass over an interleaved block, if on.
-	void renderLowPassStereo(std::span<q31> interleaved, FadeScratch scratch);
+	void renderLowPassStereo(std::span<q31> interleaved, FadeScratch scratch, Cong& noise);
 	/// @brief The high-pass over an interleaved block, if on.
 	void renderHighPassStereo(std::span<q31> interleaved, FadeScratch scratch);
 

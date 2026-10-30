@@ -60,7 +60,7 @@ void ClipChain::pre_tap(std::span<dsp::StereoSample> block, const ClipChainInput
 	saturation_.process(block,
 	                    {.clipping_amount = settings.saturation.clipping_amount, .variant = SaturationVariant::CHAIN});
 	if (rendered) {
-		filter_.process(block, in.filter_scratch);
+		filter_.process(block, in.filter_scratch, *in.fx.noise);
 		levels.volume_post_fx >>= core_.bitcrush().process(block, in.bitcrush).volume_shift;
 	}
 	core_.soft_off_grain(in.fx);

@@ -75,9 +75,11 @@ public:
 		return out;
 	}
 
-	void renderMono(std::span<q31> block, fixed::FilterScratch scratch) { set_.renderMono(block, scratch); }
+	void renderMono(std::span<q31> block, fixed::FilterScratch scratch) {
+		set_.renderMono(block, scratch, deluge::synth_noise);
+	}
 	void renderStereo(std::span<q31> interleaved, fixed::FilterScratch scratch) {
-		set_.renderStereo(interleaved, scratch);
+		set_.renderStereo(interleaved, scratch, deluge::synth_noise);
 	}
 
 	void reset() {

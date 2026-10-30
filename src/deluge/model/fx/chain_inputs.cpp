@@ -17,6 +17,7 @@
 
 #include "model/fx/chain_inputs.h"
 #include "dsp-next/fixed/vca/pan.h"
+#include "util/synth_noise.h"
 
 #include "model/fx/song_stutter.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
@@ -86,6 +87,7 @@ effects::FxInputs hostFxInputs(GlobalEffectable& owner, ParamManager& paramManag
 	    .delay = delay,
 	    .stereo = AudioEngine::renderInStereo,
 	    .grain_send = grainSend,
+	    .noise = &synth_noise,
 	};
 }
 
@@ -161,6 +163,7 @@ effects::MasterPostInputs masterPostInputs(Song& song) {
 	return {
 	    .filter = chainFilterParams(*unpatched),
 	    .filter_scratch = render::filter_scratch(),
+	    .noise = &synth_noise,
 	    .bitcrush = {.bitcrush = unpatched->getValue(params::UNPATCHED_BITCRUSHING),
 	                 .sample_rate_reduction = unpatched->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION)},
 	    // 134217728 made a bit bigger, so the filters' default resonance doesn't reduce the volume overall.

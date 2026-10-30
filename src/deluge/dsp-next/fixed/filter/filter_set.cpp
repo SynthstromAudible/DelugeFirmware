@@ -42,15 +42,16 @@ void fade_in_if(Fade& fade, bool from_off) {
 }
 
 /// @brief @p filter over a mono @p block, its left channel alone; @p fade blended in over it while active.
-template <typename Filter, typename Fade>
-void render_mono(Filter& filter, Fade& fade, std::span<q31> block, FadeScratch scratch) {
+/// @param context The filter's per-block context when it takes one (the low-pass ladder's noise), else none.
+template <typename Filter, typename Fade, typename... Context>
+void render_mono(Filter& filter, Fade& fade, std::span<q31> block, FadeScratch scratch, Context&... context) {
 	const bool fading = FadeIn::active(fade.state());
 	std::span<q31> dry;
 	if (fading) {
 		dry = scratch.first(block.size());
 		std::ranges::copy(block, dry.begin());
 	}
-	filter.template renderLane<0>(block, block);
+	filter.template renderLane<0>(block, block, context...);
 	if (fading) {
 		fade.renderBlock(dry, block, block);
 	}
@@ -58,8 +59,9 @@ void render_mono(Filter& filter, Fade& fade, std::span<q31> block, FadeScratch s
 
 /// @brief @p filter over an interleaved L/R block; @p fade blended in over its samples, left then right, while
 /// active.
-template <typename Filter, typename Fade>
-void render_stereo(Filter& filter, Fade& fade, std::span<q31> interleaved, FadeScratch scratch) {
+/// @param context The filter's per-block context when it takes one (the low-pass ladder's noise), else none.
+template <typename Filter, typename Fade, typename... Context>
+void render_stereo(Filter& filter, Fade& fade, std::span<q31> interleaved, FadeScratch scratch, Context&... context) {
 	const bool fading = FadeIn::active(fade.state());
 	std::span<q31> dry;
 	if (fading) {
@@ -67,7 +69,7 @@ void render_stereo(Filter& filter, Fade& fade, std::span<q31> interleaved, FadeS
 		std::ranges::copy(interleaved, dry.begin());
 	}
 	const auto frames = as_frames(interleaved);
-	filter.renderBlock(frames, frames);
+	filter.renderBlock(frames, frames, context...);
 	if (fading) {
 		fade.renderBlock(dry, interleaved, interleaved);
 	}
@@ -160,7 +162,7 @@ q31 FilterSet::configure(q31 gain, const FilterConfig& low, LowPassSlot low_slot
 		}
 		else {
 			low_pass_.ladder.configure({.gain = gain, .config = low, .mode = low_slot.ladder});
-			gain = LowPassLadder<CongNoise>::gain(low_pass_.ladder.coefficients());
+			gain = LowPassLadder<>::gain(low_pass_.ladder.coefficients());
 		}
 	}
 	low_last_ = low_slot.kind;
@@ -200,10 +202,10 @@ q31 FilterSet::configure(q31 gain, const FilterConfig& low, LowPassSlot low_slot
 	return gain;
 }
 
-void FilterSet::renderLowPassMono(std::span<q31> block, FadeScratch scratch) {
+void FilterSet::renderLowPassMono(std::span<q31> block, FadeScratch scratch, Cong& noise) {
 	switch (low_slot_.kind) {
 	case LowPassSlot::Kind::LADDER:
-		render_mono(low_pass_.ladder, low_fade_, block, scratch);
+		render_mono(low_pass_.ladder, low_fade_, block, scratch, noise);
 		break;
 	case LowPassSlot::Kind::SVF:
 		render_mono(low_pass_.svf, low_fade_, block, scratch);
@@ -226,10 +228,10 @@ void FilterSet::renderHighPassMono(std::span<q31> block, FadeScratch scratch) {
 	}
 }
 
-void FilterSet::renderLowPassStereo(std::span<q31> interleaved, FadeScratch scratch) {
+void FilterSet::renderLowPassStereo(std::span<q31> interleaved, FadeScratch scratch, Cong& noise) {
 	switch (low_slot_.kind) {
 	case LowPassSlot::Kind::LADDER:
-		render_stereo(low_pass_.ladder, low_fade_, interleaved, scratch);
+		render_stereo(low_pass_.ladder, low_fade_, interleaved, scratch, noise);
 		break;
 	case LowPassSlot::Kind::SVF:
 		render_stereo(low_pass_.svf, low_fade_, interleaved, scratch);
@@ -263,42 +265,42 @@ void add_wrapping(std::span<q31> block, std::span<const q31> other) {
 
 } // namespace
 
-[[gnu::hot]] void FilterSet::renderMono(std::span<q31> block, FilterScratch scratch) {
+[[gnu::hot]] void FilterSet::renderMono(std::span<q31> block, FilterScratch scratch, Cong& noise) {
 	switch (route_) {
 	case FilterRoute::HIGH_TO_LOW:
 		renderHighPassMono(block, scratch.fade);
-		renderLowPassMono(block, scratch.fade);
+		renderLowPassMono(block, scratch.fade, noise);
 		break;
 	case FilterRoute::LOW_TO_HIGH:
-		renderLowPassMono(block, scratch.fade);
+		renderLowPassMono(block, scratch.fade, noise);
 		renderHighPassMono(block, scratch.fade);
 		break;
 	case FilterRoute::PARALLEL: {
 		const std::span<q31> copy = scratch.parallel.first(block.size());
 		std::ranges::copy(block, copy.begin());
 		renderHighPassMono(copy, scratch.fade);
-		renderLowPassMono(block, scratch.fade);
+		renderLowPassMono(block, scratch.fade, noise);
 		add_wrapping(block, copy);
 		break;
 	}
 	}
 }
 
-[[gnu::hot]] void FilterSet::renderStereo(std::span<q31> interleaved, FilterScratch scratch) {
+[[gnu::hot]] void FilterSet::renderStereo(std::span<q31> interleaved, FilterScratch scratch, Cong& noise) {
 	switch (route_) {
 	case FilterRoute::HIGH_TO_LOW:
 		renderHighPassStereo(interleaved, scratch.fade);
-		renderLowPassStereo(interleaved, scratch.fade);
+		renderLowPassStereo(interleaved, scratch.fade, noise);
 		break;
 	case FilterRoute::LOW_TO_HIGH:
-		renderLowPassStereo(interleaved, scratch.fade);
+		renderLowPassStereo(interleaved, scratch.fade, noise);
 		renderHighPassStereo(interleaved, scratch.fade);
 		break;
 	case FilterRoute::PARALLEL: {
 		const std::span<q31> copy = scratch.parallel.first(interleaved.size());
 		std::ranges::copy(interleaved, copy.begin());
 		renderHighPassStereo(copy, scratch.fade);
-		renderLowPassStereo(interleaved, scratch.fade);
+		renderLowPassStereo(interleaved, scratch.fade, noise);
 		add_wrapping(interleaved, copy);
 		break;
 	}

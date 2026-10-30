@@ -27,6 +27,7 @@
 #include "engines/effects/delay_arena.h"
 #include "engines/effects/state.h"
 #include "engines/effects/stutter.h"
+#include "util/synth_noise.h"
 
 #include <array>
 #include <cstddef>
@@ -237,6 +238,7 @@ inline fx::FxInputs fx_inputs(const Workload& w, const fx::EffectStates& s) {
 	    .delay = {},
 	    .stereo = w.stereo,
 	    .grain_send = 0x08000000,
+	    .noise = &deluge::synth_noise,
 	};
 }
 
