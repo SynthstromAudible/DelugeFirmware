@@ -59,8 +59,10 @@ public:
 
 	Action* firstAction[2]{};
 
-private:
+	/// @brief The Action type a parameter change records into: the recording's while one runs, so live edits join it.
 	ActionType getParameterChangeActionType() const;
+
+private:
 	void revertAction(Action* action, bool updateVisually, bool doNavigation, TimeType time);
 	void deleteLastActionIfEmpty();
 	void deleteLastAction();

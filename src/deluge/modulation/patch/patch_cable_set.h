@@ -89,6 +89,12 @@ public:
 	/// @param amount The cable's depth, Q1.30.
 	/// @return The new cable; nullptr at kMaxNumPatchCables cables, or if out of memory.
 	PatchCable* appendDefaultCable(PatchSource from, uint8_t to, int32_t amount);
+	/// @brief Take @p records as the clip's cables, as an undo or redo of a topology edit puts them: each cable keeps
+	/// its depth (its lane and its cursor's value) by its source and target, a cable new to the set starts at depth 0,
+	/// and a cable no longer present loses its lane. Recompiles.
+	void replaceRecords(Sound& sound, ParamManager& paramManager, const deluge::instrument::CableRecords& records);
+	/// @brief Move cable @p c to @p target, its depth with it. The caller recompiles.
+	void retarget(uint8_t c, deluge::synth::CableTarget target);
 	/// @brief Set cable @p c's polarity.
 	void setPolarity(uint8_t c, Polarity polarity);
 	/// @brief The index of the cable from @p from to @p destination, or of a new one appended and placed by

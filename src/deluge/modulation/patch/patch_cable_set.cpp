@@ -168,6 +168,48 @@ PatchCable* PatchCableSet::appendDefaultCable(PatchSource from, uint8_t to, int3
 	return cable;
 }
 
+void PatchCableSet::replaceRecords(Sound& sound, ParamManager& paramManager,
+                                   const deluge::instrument::CableRecords& records) {
+	// The cables are rebuilt and placed in one step: the render never sees the set half-built.
+	AudioExcludedSection section;
+	struct Kept {
+		deluge::synth::CableRecord record;
+		int32_t value;
+		deluge::project::DocAutoParam lane;
+	};
+	std::vector<Kept> kept;
+	kept.reserve(numPatchCables);
+	for (int32_t c = 0; c < numPatchCables; c++) {
+		kept.push_back({records_[c], patchCables[c].param.currentValue, *docForParam(c)});
+	}
+	for (const Kept& k : kept) {
+		eraseLane(k.record.source, ParamDescriptor(static_cast<int32_t>(k.record.target.word)));
+	}
+	truncateCables(0);
+	for (const deluge::synth::CableRecord& record : records.records()) {
+		PatchCable* cable = appendCable(record);
+		if (cable == nullptr) {
+			break;
+		}
+		const auto same = [&](const Kept& k) {
+			return k.record.source == record.source && k.record.target == record.target;
+		};
+		if (const auto it = std::ranges::find_if(kept, same); it != kept.end()) {
+			cable->param.currentValue = it->value;
+			*docForParam(numPatchCables - 1) = it->lane;
+		}
+	}
+	setupPatching(sound, paramManager);
+}
+
+void PatchCableSet::retarget(uint8_t c, deluge::synth::CableTarget target) {
+	const deluge::project::DocAutoParam lane = *docForParam(c);
+	eraseLane(patchCables[c].from, patchCables[c].destinationParamDescriptor);
+	records_.set_target(c, target);
+	patchCables[c].destinationParamDescriptor = ParamDescriptor(static_cast<int32_t>(target.word));
+	laneFor(patchCables[c].from, patchCables[c].destinationParamDescriptor) = lane;
+}
+
 void PatchCableSet::setPolarity(uint8_t c, Polarity polarity) {
 	records_.set_polarity(c, static_cast<deluge::synth::CablePolarity>(polarity));
 	patchCables[c].polarity = polarity;
