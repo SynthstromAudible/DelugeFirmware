@@ -21,7 +21,7 @@
 #include "hid/display/display.h"
 
 namespace deluge::gui::context_menu {
-OverwriteFile overwriteFile{};
+PLACE_SDRAM_BSS OverwriteFile overwriteFile{};
 
 char const* OverwriteFile::getTitle() {
 	using enum l10n::String;

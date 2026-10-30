@@ -25,6 +25,7 @@
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_set.h"
+#include "modulation/params/tick_interpolation.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
 #include <new>
@@ -397,9 +398,10 @@ void ParamManagerForTimeline::processCurrentPos(ModelStackWithThreeMainThings* m
 		summary->paramCollection->processCurrentPos(modelStackWithParamCollection, ticksSkipped, reversed, didPingpong,
 		                                            true);
 		// Re-check after processCurrentPos(): if a node has just started some interpolation, we need to come back every
-		// tick to advance it.
+		// tick (or every few at very fast tempos) to advance it. The min below still brings us back for the next node.
 		if (!mayInterpolate && (summary->whichParamsAreInterpolating[0] != 0u)) {
-			ticksTilNextEvent = 0;
+			ticksTilNextEvent =
+			    std::min(ticksTilNextEvent, ticksTilNextTickInterpolation(playbackHandler.getTimePerInternalTick()));
 		}
 		ticksTilNextEvent = std::min(ticksTilNextEvent, summary->paramCollection->ticksTilNextEvent);
 

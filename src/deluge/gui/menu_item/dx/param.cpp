@@ -16,6 +16,7 @@
  */
 
 #include "param.h"
+#include "algorithm_bitmaps.h"
 #include "dsp/dx/dx7note.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
@@ -63,6 +64,29 @@ void DxParam::setValue(int val) {
 	soundEditor.currentSound->sources[0].dxPatchChanged = true;
 }
 
+// inclusive limits, per operator
+static int upper_limit_op_param[21] = {
+    99, 99, 99, 99, 99, 99, 99, 99, // 0-7: envelope
+    99, 99, 99, 3,  3,              // 8 - 12: curve
+    7,  3,  7,                      // 13-15: scaling and sensivitity
+    99,                             // 16: level
+    1,                              // 17: mode: ratio/fixed
+    31, 99, 14                      // 18-20: tuning
+};
+
+static const int kNumGlobalParams = 18;
+static int upper_limit_global_param[kNumGlobalParams] = {
+    // starts at 6*21 = 126
+    99, 99, 99, 99, 99, 99, 99, 99, // 126-133: pitch envelope
+    31,                             // 134: algorithm
+    7,                              // 135: feedback
+    1,                              // 136: sync
+    99, 99, 99, 99,                 // 137-140: LFO speed, delay, pmd, amd
+    1,                              // 141: lfo sync,
+    4,                              // 142: lfo waveform,
+    7,                              // lfo mod sense pitch
+};
+
 void DxParam::readValueAgain() {
 	patch = soundEditor.currentSound->sources[0].ensureDxPatch();
 	displayValue = getValue();
@@ -71,55 +95,46 @@ void DxParam::readValueAgain() {
 	int x = -1, y = -1;
 
 	upper_limit = 99;
+	// Six operators, each with 21 parameters; global parameters follow at index 126.
 	int op = param / 21;
 	int idx = param % 21;
 	if (0 <= param && param < 6 * 21) {
-		if (idx == 11 || idx == 12) {
-			upper_limit = 3;
-		}
-		else if (idx == 13 || idx == 15) {
-			upper_limit = 7;
-		}
-		else if (idx == 14) {
-			upper_limit = 3;
-		}
-		else if (idx == 20) {
-			upper_limit = 14;
-		}
+		upper_limit = upper_limit_op_param[idx];
 
 		y = 7 - op;
 		if (idx < 8) {
+			// Operator envelope rates 1–4 (0–3) and levels 1–4 (4–7).
 			x = idx;
 		}
 		else if (idx >= 16) {
+			// Output level (16), mode (17), coarse (18), fine (19), and detune (20).
 			x = (idx - 16) + 8;
 		}
-		else if (idx == 16) {
-			x = 13;
+		else if (idx >= 13) {
+			// Velocity, amp mod, and rate scale occupy the last three columns.
+			x = 28 - idx;
 		}
 		flash_row = 7 - op;
 	}
-	else if (param == 6 * 21 + 8) {
-		upper_limit = 31;
-	}
-	else if (param == 6 * 21 + 9) {
-		upper_limit = 7;
-	}
-	else if (param == 6 * 21 + 10) {
-		upper_limit = 1;
+	else if (param >= 6 * 21 && idx < kNumGlobalParams) {
+		// global param
+		upper_limit = upper_limit_global_param[idx];
 	}
 
 	blink_next = false;
 
 	if (param >= 6 * 21 && param < 6 * 21 + 11) {
+		// Pitch envelope rates/levels (0–7), algorithm (8), feedback (9), and oscillator sync (10).
 		y = 1;
 		x = param - 6 * 21;
 	}
 	else if (param >= 6 * 21 + 11 && param < 6 * 21 + 11 + 7) {
+		// LFO rate, delay, pitch depth, amp depth, sync, waveform (11–16), and pitch sensitivity (17).
 		y = 0;
 		x = param - 6 * 21 - 11;
 	}
 	else if (param == -1) {
+		// Random detune, stored separately from the DX7 parameter array.
 		y = 0;
 		x = 7;
 	}
@@ -197,7 +212,7 @@ void DxParam::horizontalEncoderAction(int32_t offset) {
 		if (param < -1) {
 			param = 143;
 		}
-		else if (param >= 143) {
+		else if (param > 143) {
 			param = -1;
 		}
 	}
@@ -211,7 +226,7 @@ void DxParam::horizontalEncoderAction(int32_t offset) {
 
 bool DxParam::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 	int found_param = -2;
-	if (y > 1 && x <= 13) {
+	if (y > 1 && x < kDisplayWidth) {
 		int op = 8 - y - 1; // op 0-5
 		int idx;
 		if (x < 8) {
@@ -220,8 +235,9 @@ bool DxParam::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 		else if (x < 13) {
 			idx = (x - 8) + 16;
 		}
-		else if (x == 13) {
-			idx = 15;
+		else {
+			// Columns 14–16: velocity sensitivity, amp mod sensitivity, rate scaling.
+			idx = 28 - x;
 		}
 		found_param = 21 * op + idx;
 	}
@@ -261,7 +277,7 @@ const char* desc_op_short[] = {"rat1",   "rat2",      "rat3",     "rat4",     "l
                                "ampmod", "velo sens", "levl",     "mode",     "coar",     "fine",     "detune"};
 
 const char* desc_global_long[]{"DX7 pitch R1", "DX7 pitch R2",     "DX7 pitch R3",  "DX7 pitch R4",  "DX7 pitch l1",
-                               "DX7 pitch l2", "DX7 pitch l3",     "DX7 pitch l4",  "DX7 algorithm", "DX7 feedback",
+                               "DX7 pitch l2", "DX7 pitch l3",     "DX7 pitch l4",  "algorithm",     "DX7 feedback",
                                "DX7 osc Sync", "DX7 LFO rate",     "DX7 LFO delay", "DX7 LFO pitch", "DX7 LFO amp",
                                "DX7 LFO sync", "DX7 LFO waveform", "DX7 pitch sens"};
 
@@ -307,9 +323,6 @@ const char* shapes_short[]{"tri", "sawd", "sawu", "sqre", "sin", "shld"};
 	}
 	else if (param < 6 * 21 + 8) {
 		return "dx7 pitch env";
-	}
-	else if (param >= 137 && param < 144) {
-		return "dx7 LFO";
 	}
 	else if (param < 6 * 21 + 18) {
 		return desc_global_long[param - 6 * 21];
@@ -486,31 +499,21 @@ static void renderLFO(uint8_t* params, int param) {
 }
 
 static void renderAlgorithm(uint8_t* params) {
+	int algorithm = std::min<int>(params[134], dx::kNumAlgorithms - 1);
 
-	char buffer[12];
-	intToString(params[134] + 1, buffer, 2);
-	OLED::main.drawString(buffer, 116, 7, kTextSpacingX, kTextSizeYUpdated);
+	// Inverted "#NN" badge at the right of the title bar
+	char buffer[12] = "#";
+	intToString(algorithm + 1, buffer + 1, 2);
+	constexpr int32_t kBadgePadding = 2;
+	int32_t textWidth = OLED::main.getStringWidthInPixels(buffer, kTextTitleSizeY);
+	int32_t badgeX = OLED_MAIN_WIDTH_PIXELS - textWidth - 2 * kBadgePadding;
+	OLED::main.drawString(buffer, badgeX + kBadgePadding, OLED_MAIN_TOPMOST_PIXEL + 1, kTextTitleSpacingX,
+	                      kTextTitleSizeY);
+	OLED::main.invertArea(badgeX, OLED_MAIN_WIDTH_PIXELS - badgeX, OLED_MAIN_TOPMOST_PIXEL, kScreenTitleSeparatorY - 2);
 
-	FmAlgorithm a = FmCore::algorithms[params[134]];
-	for (int i = 0; i < 6; i++) {
-		int f = a.ops[5 - i]; // compensate for inverted op order
-		char buffer[12];
-		int inbus = (f >> 4) & 3;
-		int outbus = f & 3;
-		const char ib[] = {'.', 'x', 'y', 'z'};
-		const char ob[] = {'c', 'x', 'y', 'q'};
-		buffer[0] = '1' + i;
-		buffer[1] = ':';
-		buffer[2] = ib[inbus];
-		buffer[3] = (f & OUT_BUS_ADD) ? '+' : '>';
-		buffer[4] = ob[outbus];
-		buffer[5] = (f & (FB_IN | FB_OUT)) ? 'f' : ' ';
-		buffer[6] = ' ';
-		buffer[7] = 0;
-
-		int r = i / 3, c = i % 3;
-		show(buffer, r, c * 7);
-	}
+	const dx::AlgorithmBitmap& bitmap = dx::kAlgorithmBitmaps[algorithm];
+	OLED::main.drawGraphicMultiLine(&dx::kAlgorithmBitmapData[bitmap.offset], bitmap.x, bitmap.y, bitmap.width,
+	                                bitmap.height, bitmap.numBytesTall);
 }
 
 void DxParam::drawPixelsForOled() {

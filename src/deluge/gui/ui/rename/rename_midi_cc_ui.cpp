@@ -27,7 +27,7 @@
 #include "model/song/song.h"
 #include <string_view>
 
-RenameMidiCCUI renameMidiCCUI{"CC Name"};
+PLACE_SDRAM_BSS RenameMidiCCUI renameMidiCCUI{"CC Name"};
 
 bool RenameMidiCCUI::canRename() const {
 	Clip* clip = getCurrentClip();

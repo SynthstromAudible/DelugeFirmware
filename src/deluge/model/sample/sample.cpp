@@ -30,6 +30,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <new>
 
 extern "C" {
@@ -275,14 +276,20 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 #endif
 
 	auto reversed = static_cast<int32_t>(playDirection != 1);
+
+	// Tells the caller there's nothing more to fill in this direction, so it needn't call again unless it jumps back
+	int32_t const filledToEndOfWaveform = playDirection * (std::numeric_limits<int32_t>::max() / 2);
+
 	// If the start pos is already beyond the waveform, we can get out right now!
 	if (!reversed) {
 		if (startPosSamples >= lengthInSamples) {
+			timeStretcher->percCacheFillEndPos = filledToEndOfWaveform;
 			return Error::NONE;
 		}
 	}
 	else {
 		if (startPosSamples < 0) {
+			timeStretcher->percCacheFillEndPos = filledToEndOfWaveform;
 			return Error::NONE;
 		}
 	}
@@ -290,6 +297,8 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 	LOCK_ENTRY
 
 	AudioEngine::logAction("fillPercCache");
+
+	timeStretcher->percCacheFillEndPos = startPosSamples; // Until we find a zone
 
 	// int32_t lengthInSamplesAfterReduction = ((lengthInSamples + (kPercBufferReductionSize >> 1)) >>
 	// PERC_BUFFER_REDUCTION_MAGNITUDE);
@@ -364,17 +373,11 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 
 			// If the (potentially made-later) start pos is already beyond the waveform, get out (otherwise we'd be
 			// prone to an error getting the perc Cluster below. Fixed Aug 2021
-			if (!reversed) {
-				if (startPosSamples >= lengthInSamples) {
+			if (reversed ? (startPosSamples < 0) : (startPosSamples >= lengthInSamples)) {
+				timeStretcher->percCacheFillEndPos = filledToEndOfWaveform;
 doReturnNoError:
-					LOCK_EXIT
-					return Error::NONE;
-				}
-			}
-			else {
-				if (startPosSamples < 0) {
-					goto doReturnNoError;
-				}
+				LOCK_EXIT
+				return Error::NONE;
 			}
 
 			// First, update our "current pos for perc cache filling and reading" sorta thing so
@@ -439,6 +442,7 @@ doReturnNoError:
 				// We're now guaranteed to have a bunch of perc cache secured in RAM, un-stealable. So we can take a
 				// breather and know we won't need access to the source Clusters for it anytime very soon
 				timeStretcher->unassignAllReasonsForPercLookahead();
+				timeStretcher->percCacheFillEndPos = percCacheZone->endPos;
 
 				goto doReturnNoError;
 			}
@@ -709,6 +713,8 @@ doLoading:
 #endif
 
 getOut:
+	timeStretcher->percCacheFillEndPos = percCacheZone->endPos;
+
 	// If we failed to do the loading we wanted to, e.g. because of insufficient RAM, we need to make sure we didn't
 	// leave a 0-length zone, cos that's invalid.
 	if (percCacheZone->endPos == percCacheZone->startPos) {
@@ -1156,6 +1162,10 @@ int32_t Sample::investigateFundamentalPitch(int32_t fundamentalIndexProvided, in
 				break;
 			}
 			int32_t searchMin = searchCentre - uncertaintyMarginHere;
+			// A bogus estimate can put the window off the bottom of the table - stop rather than read before it
+			if (searchMin < 0) {
+				break;
+			}
 
 			int32_t highestFoundHere = 0;
 
@@ -1178,13 +1188,15 @@ examineHarmonic:
 		float newEstimatedFundamentalIndex = floatIndexTable[currentIndex >> 1] / h;
 
 		int32_t nextMidIndex = currentIndex + ((fundamentalIndexProvided + 1) >> 1); // Round up
+		// The running sum only covers the height table, so harmonics near the top can't look past its end
+		nextMidIndex = std::min(nextMidIndex, tableSize - 1);
 		uint64_t nextSumTableValue = sumTable[nextMidIndex];
 		uint64_t surroundingSum = nextSumTableValue - lastSumTableValue;
 
 		lastSumTableValue = nextSumTableValue;
 
 		int32_t heightRightHere = heightTable[currentIndex];
-		int32_t heightRelativeToSurroundings = ((uint64_t)heightRightHere << 18) / surroundingSum;
+		int32_t heightRelativeToSurroundings = surroundingSum ? ((uint64_t)heightRightHere << 18) / surroundingSum : 0;
 
 		int32_t strengthThisHarmonic = ((uint64_t)heightRelativeToSurroundings * (uint64_t)heightRightHere) >> 20;
 		total += strengthThisHarmonic;
@@ -1319,6 +1331,8 @@ float Sample::determinePitch(bool doingSingleCycle, float minFreqHz, float maxFr
 	int32_t* fftHeights = fftInput; // We'll overwrite the original input with this data
 
 	float* floatIndexTable = (float*)((uint32_t)fftInput + fftInputSize + fftOutputSize);
+	// Only written at peaks, so clear out whatever the allocator left here
+	memset(floatIndexTable, 0, floatIndexTableSize);
 
 	int32_t defaultLengthDoublings = 0;
 
@@ -1591,6 +1605,10 @@ doneReading:
 		lastValue2 = lastValue1;
 		lastValue1 = thisValue;
 	}
+
+	// The loop above only ever zeroes the previous bin, so the last one keeps its raw height. It can't be a peak, and
+	// would otherwise be picked up as one with no floatIndexTable entry behind it
+	fftHeights[(kPitchDetectWindowSize >> 1) - 1] = 0;
 
 #if PITCH_DETECT_DEBUG_LEVEL
 	D_PRINTLN("");

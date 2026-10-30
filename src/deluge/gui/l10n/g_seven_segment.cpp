@@ -157,6 +157,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_UPPER_ZONE, "UPPE"},
         {STRING_FOR_ANALOG_SQUARE, "ASQUARE"},
         {STRING_FOR_ANALOG_SAW, "ASAW"},
+        {STRING_FOR_SUPERSAW, "SSAW"},
         {STRING_FOR_SAMPLE, "SAMP"},
         {STRING_FOR_DX7, "DX7"},
         {STRING_FOR_INPUT, "IN"},

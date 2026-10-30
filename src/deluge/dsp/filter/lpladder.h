@@ -49,28 +49,66 @@ private:
 			lpfLPF4.reset();
 		}
 	};
-	[[gnu::always_inline]] inline q31_t scaleInput(q31_t input, q31_t feedbacksSum) {
+	// Per-render copy of the configuration. doFilter() works on local copies of the coefficients, the filter state and
+	// the noise seed, so the compiler can keep them in registers: stores to the sample buffer (q31_t*) may otherwise
+	// alias the q31_t members and the global noise seed, forcing reloads and stores of all of them every sample.
+	struct Coeffs {
+		q31_t moveability;
+		q31_t processedResonance;
+		q31_t divideByTotalMoveabilityAndProcessedResonance;
+		q31_t morph;
+		q31_t lpf1Feedback;
+		q31_t lpf2Feedback;
+		q31_t lpf3Feedback;
+		q31_t lpf4Feedback; // divideBy1PlusTannedFrequency
+	};
+	[[gnu::always_inline]] Coeffs getCoeffs() const {
+		return Coeffs{moveability,
+		              processedResonance,
+		              divideByTotalMoveabilityAndProcessedResonance,
+		              morph,
+		              lpf1Feedback,
+		              lpf2Feedback,
+		              lpf3Feedback,
+		              divideBy1PlusTannedFrequency};
+	}
+
+	// kSaturate: morph > 0 || processedResonance > 510000000 (loop invariant, so decided once per buffer)
+	// kFeedback: false only if processedResonance == 0 and divideByTotalMoveabilityAndProcessedResonance == 1 << 30.
+	// multiply_32x32_rshift32_rounded(feedbacksSum, 0) is exactly 0 for any feedbacksSum, so skipping the feedback
+	// path is bit-exact.
+	template <bool kSaturate, bool kFeedback>
+	[[gnu::always_inline]] static inline q31_t scaleInput(q31_t input, q31_t feedbacksSum, const Coeffs& c) {
 		q31_t temp;
-		if (morph > 0 || processedResonance > 510000000) {
-			temp = multiply_32x32_rshift32_rounded(
-			           (input - (multiply_32x32_rshift32_rounded(feedbacksSum, processedResonance) << 3)),
-			           divideByTotalMoveabilityAndProcessedResonance)
-			       << 2;
-			q31_t extra = 2 * multiply_32x32_rshift32(input, morph);
-			temp = getTanHUnknown(temp + extra, 2);
+		if constexpr (kFeedback) {
+			q31_t in = input - (multiply_32x32_rshift32_rounded(feedbacksSum, c.processedResonance) << 3);
+			temp = multiply_32x32_rshift32_rounded(in, c.divideByTotalMoveabilityAndProcessedResonance) << 2;
 		}
 		else {
-			temp = multiply_32x32_rshift32_rounded(
-			           (input - (multiply_32x32_rshift32_rounded(feedbacksSum, processedResonance) << 3)),
-			           divideByTotalMoveabilityAndProcessedResonance)
-			       << 2;
+			// Only used when divideByTotalMoveabilityAndProcessedResonance == 1 << 30, which is what setConfig()
+			// produces whenever processedResonance ends up 0. multiply_32x32_rshift32_rounded(input, 1 << 30) << 2
+			// is floor((input + 2) / 4) * 4, i.e. input rounded to a multiple of 4.
+			temp = (q31_t)(((uint32_t)input + 2u) & ~3u);
 		}
-
+		if constexpr (kSaturate) {
+			q31_t extra = 2 * multiply_32x32_rshift32(input, c.morph);
+			temp = getTanHUnknown(temp + extra, 2);
+		}
 		return temp;
 	}
-	[[gnu::always_inline]] inline q31_t do24dBLPFOnSample(q31_t input, LpLadderState& state);
-	[[gnu::always_inline]] inline q31_t do12dBLPFOnSample(q31_t input, LpLadderState& state);
-	[[gnu::always_inline]] inline q31_t doDriveLPFOnSample(q31_t input, LpLadderState& state);
+	template <bool kSaturate, bool kFeedback>
+	[[gnu::always_inline]] static inline q31_t do24dBLPFOnSample(q31_t input, LpLadderState& state, const Coeffs& c,
+	                                                             uint32_t& seed);
+	template <bool kSaturate, bool kFeedback>
+	[[gnu::always_inline]] static inline q31_t do12dBLPFOnSample(q31_t input, LpLadderState& state, const Coeffs& c,
+	                                                             uint32_t& seed);
+	template <bool kSaturate, bool kFeedback>
+	[[gnu::always_inline]] static inline q31_t doDriveLPFOnSample(q31_t input, LpLadderState& state, const Coeffs& c,
+	                                                              uint32_t& seed);
+	template <bool kSaturate, bool kFeedback>
+	void doFilterT(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement);
+	template <bool kSaturate, bool kFeedback>
+	void doFilterStereoT(q31_t* startSample, q31_t* endSample);
 	// all ladders are in this class to share the basic components
 	// this differentiates between them
 	FilterMode lpfMode;

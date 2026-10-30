@@ -439,6 +439,12 @@ static void usb_hmidi_enumeration_sequence(usb_utr_t* mess)
             desc_len = ((uint16_t)*(p_desc + 3)) << 8;
             desc_len += (uint16_t)*(p_desc + 2);
 
+            // Descriptors longer than the buffer were truncated when fetched, so don't parse past it
+            if (desc_len > USB_CONFIGSIZE)
+            {
+                desc_len = USB_CONFIGSIZE;
+            }
+
             /* Searching InterfaceDescriptor */
             p_iftable = g_p_usb_hmidi_interface_table[mess->ip];
 
@@ -530,8 +536,8 @@ uint16_t usb_hmidi_pipe_info(usb_utr_t* ptr, uint8_t* table, uint16_t speed, uin
     /* Descriptor Address set */
     ofdsc = table[0];
 
-    /* Loop for Endpoint Descriptor search */
-    while (ofdsc < length)
+    /* Loop for Endpoint Descriptor search. Stop at a descriptor which doesn't fit within length */
+    while (ofdsc < length && ofdsc + table[ofdsc] <= length)
     {
         /* Branch descriptor type */
         switch (table[ofdsc + 1])

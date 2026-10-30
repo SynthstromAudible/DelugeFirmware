@@ -46,12 +46,14 @@ void usb_cstd_usb_task();
 #include "RZA1/system/iodefine.h"
 #include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
+#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
 #include "drivers/usb/userdef/r_usb_pmidi_config.h"
 
 #include "RZA1/usb/r_usb_hmidi/src/inc/r_usb_hmidi.h"
 #include "RZA1/usb/userdef/r_usb_hmidi_config.h"
 
 extern uint16_t g_usb_peri_connected;
+extern uint16_t g_usb_cstd_suspend_mode;
 
 uint8_t stopSendingAfterDeviceNum[USB_NUM_USBIP];
 uint8_t usbDeviceNumBeingSentToNow[USB_NUM_USBIP];
@@ -145,6 +147,14 @@ void usbSendCompletePeripheralOrA1(usb_utr_t* p_mess, uint16_t data1, uint16_t d
 	usbSendCompleteAsHost(ip);
 }
 
+// As a peripheral, whether a send can be started. While the bus is suspended - which is also what happens first when
+// the cable's pulled, before the detach gets processed - usb_pstd_stop_clock() has stopped the controller's clock, so
+// it ignores the FIFO select that a send starts with, and usb_cstd_chg_curpipe_rohan_fast() spins forever waiting for
+// it. Anything left unsent stays in the buffer for once the host's back.
+static bool peripheralCanSend() {
+	return g_usb_peri_connected && g_usb_cstd_suspend_mode == USB_NORMAL_MODE;
+}
+
 void usbSendCompleteAsPeripheral(int32_t ip) {
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][0];
 	connectedDevice->numBytesSendingNow = 0; // Even easier!
@@ -155,7 +165,7 @@ void usbSendCompleteAsPeripheral(int32_t ip) {
 		return;
 	}
 
-	bool has_more = connectedDevice->consumeSendData();
+	bool has_more = peripheralCanSend() && connectedDevice->consumeSendData();
 	if (has_more) {
 		// this is already the case:
 		// anyUSBSendingStillHappening[ip] = 1;
@@ -326,7 +336,7 @@ void MidiEngine::flushUSBMIDIOutput() {
 		if (aPeripheral) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][0];
 
-			if (!connectedDevice->consumeSendData()) {
+			if (!peripheralCanSend() || !connectedDevice->consumeSendData()) {
 				continue;
 			}
 
@@ -621,6 +631,14 @@ void MidiEngine::sendSerialMidi(MIDIMessage message) {
 
 	uint8_t statusByte = message.channel | (message.statusType << 4);
 	int32_t messageLength = bytesPerStatusMessage(statusByte);
+
+	// The buffer doesn't check for overflow, so drop the whole message if it won't fit - otherwise it'd overwrite bytes
+	// still waiting to go out, leaving receivers parsing half-messages (#5107). Leave a byte free so a full buffer
+	// doesn't look empty
+	if (uartGetTxBufferSpace(UART_ITEM_MIDI) <= messageLength) {
+		return;
+	}
+
 	bufferMIDIUart(statusByte);
 
 	if (messageLength >= 2) {
