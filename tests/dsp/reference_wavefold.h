@@ -1,5 +1,5 @@
 /*
- * Copyright © 2015-2023 Synthstrom Audible Limited
+ * Copyright © 2026 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,36 +14,27 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
 #pragma once
-#include "deluge/util/fixedpoint.h"
-#include "deluge/util/functions.h"
-#include <algorithm>
-#include <cmath>
 
-namespace deluge::dsp {
-/**
- * Fold reduces the input by the amount it's over the level
- */
+// The app's wavefolder before dsp-next owned it, kept as the oracle the Wavefolder spec checks against. It is verbatim
+// but for its doublings and ×8, written as the wrapping operations the target computes, so the spec's signed-overflow
+// sanitizer sees the same two's-complement result.
+
+#include "util/fixedpoint.h"
+#include "util/param_functions.h"
+
+#include <cstdint>
+
+namespace reference_wavefold {
+
+/// x times n, wrapping modulo 2^32.
+inline q31_t wrap_mul(int32_t n, q31_t x) {
+	return static_cast<q31_t>(static_cast<uint32_t>(x) * static_cast<uint32_t>(n));
+}
+
 constexpr q31_t FOLD_MIN = 0.1 * ONE_Q31;
 constexpr q31_t THREE_FOURTHS = 0.75 * ONE_Q31;
-inline q31_t fold(q31_t input, q31_t level) {
-	// no folding occurs if max is 0 or if max is greater than input
-	// to keep the knob range consistent fold starts from 0 and
-	// increases, decreasing would lead to a large deadspace until
-	// suddenly clipping occured
-	// note 9db loss
-	q31_t extra = 0;
-	q31_t max = level >> 8;
-	if (input > max) {
-		extra = input - max;
-	}
-	else if (input < -max) {
-		extra = input + max;
-	}
-	// this avoids inverting the wave
-	return 2 * extra - input;
-}
+
 /**
  * This approximates wavefolding by taking an input between -1 and 1
  * and producing output that flips around zero several times
@@ -51,15 +42,17 @@ inline q31_t fold(q31_t input, q31_t level) {
 inline q31_t polynomialOscillatorApproximation(q31_t x) {
 	// requires 1 to be ONE_Q31
 
-	q31_t x2 = 2 * multiply_32x32_rshift32(x, x);
-	q31_t x3 = 2 * multiply_32x32_rshift32(x2, x);
+	q31_t x2 = wrap_mul(2, multiply_32x32_rshift32(x, x));
+	q31_t x3 = wrap_mul(2, multiply_32x32_rshift32(x2, x));
 	// this is 4(3*x/4 - x^3) which is a nice shape
-	q31_t r1 = 8 * (multiply_32x32_rshift32(THREE_FOURTHS, x) - x3);
+	q31_t r1 = wrap_mul(8, static_cast<q31_t>(static_cast<uint32_t>(multiply_32x32_rshift32(THREE_FOURTHS, x))
+	                                          - static_cast<uint32_t>(x3)));
 
-	q31_t r2 = 2 * multiply_32x32_rshift32(r1, r1);
-	q31_t r3 = 2 * multiply_32x32_rshift32(r2, r1);
+	q31_t r2 = wrap_mul(2, multiply_32x32_rshift32(r1, r1));
+	q31_t r3 = wrap_mul(2, multiply_32x32_rshift32(r2, r1));
 	// at this point we've applied the polynomial twice
-	q31_t out = 8 * (multiply_32x32_rshift32(THREE_FOURTHS, r1) - r3);
+	q31_t out = wrap_mul(8, static_cast<q31_t>(static_cast<uint32_t>(multiply_32x32_rshift32(THREE_FOURTHS, r1))
+	                                           - static_cast<uint32_t>(r3)));
 
 	return out;
 }
@@ -79,17 +72,5 @@ inline void foldBufferPolyApproximation(q31_t* startSample, q31_t* endSample, q3
 		currentSample += 1;
 	} while (currentSample < endSample);
 }
-/**
- * foldBuffer folds a whole buffer. Works for stereo too
- */
-inline void foldBuffer(q31_t* startSample, q31_t* endSample, q31_t foldLevel) {
-	q31_t* currentSample = startSample;
-	do {
-		q31_t outs = fold(*currentSample, foldLevel);
-		// volume compensation
-		*currentSample = outs + 4 * multiply_32x32_rshift32(outs, foldLevel);
 
-		currentSample += 1;
-	} while (currentSample < endSample);
-}
-} // namespace deluge::dsp
+} // namespace reference_wavefold

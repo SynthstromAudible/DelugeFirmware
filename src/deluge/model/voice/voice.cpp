@@ -18,8 +18,8 @@
 #include "model/voice/voice.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // getDecay4
+#include "dsp-next/fixed/shaping/wavefolder.h"
 #include "dsp-next/fixed/vca/pan.h"
-#include "dsp/util.hpp"
 #include "engines/effects/filter_slots.h"
 #include "io/debug/log.h"
 #include "memory/stack_guard.h"
@@ -1206,7 +1206,8 @@ skipAutoRelease: {}
 		int32_t* const oscBufferEnd = oscBuffer + (numSamples << 1);
 		// fold
 		if (params.paramFinalValues[params::LOCAL_FOLD] > 0) {
-			dsp::foldBufferPolyApproximation(oscBuffer, oscBufferEnd, params.paramFinalValues[params::LOCAL_FOLD]);
+			const std::span<dsp::q31> stereo{oscBuffer, oscBufferEnd};
+			dsp::fixed::Wavefolder{params.paramFinalValues[params::LOCAL_FOLD]}.renderBlock(stereo, stereo);
 		}
 		// Filters
 		filterSet.renderStereo({oscBuffer, oscBufferEnd}, deluge::render::filter_scratch(), deluge::synth_noise);
@@ -1289,9 +1290,8 @@ skipAutoRelease: {}
 		int32_t* const oscBufferEnd = oscBuffer + numSamples;
 		// wavefolding pre filter
 		if (params.paramFinalValues[params::LOCAL_FOLD] > 0) {
-			q31_t foldAmount = params.paramFinalValues[params::LOCAL_FOLD];
-
-			dsp::foldBufferPolyApproximation(oscBuffer, oscBufferEnd, foldAmount);
+			const std::span<dsp::q31> mono{oscBuffer, oscBufferEnd};
+			dsp::fixed::Wavefolder{params.paramFinalValues[params::LOCAL_FOLD]}.renderBlock(mono, mono);
 		}
 
 		filterSet.renderMono({oscBuffer, oscBufferEnd}, deluge::render::filter_scratch(), deluge::synth_noise);
