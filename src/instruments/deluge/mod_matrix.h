@@ -55,7 +55,7 @@ struct CableDelta {
 [[nodiscard]] std::optional<CableDelta> begin_add(const CableRecords& cables, CableRecord cable);
 /// @brief A removal of cable @p index; refused when there is no such cable.
 [[nodiscard]] std::optional<CableDelta> begin_remove(const CableRecords& cables, size_t index);
-/// @brief A polarity change of cable @p index; refused when there is no such cable.
+/// @brief A polarity change of cable @p index; refused when there is no such cable or it already has @p polarity.
 [[nodiscard]] std::optional<CableDelta> begin_set_polarity(const CableRecords& cables, size_t index,
                                                            CablePolarity polarity);
 /// @brief A move of cable @p index to @p target; refused when there is no such cable, the target is none, or the

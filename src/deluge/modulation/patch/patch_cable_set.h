@@ -41,6 +41,12 @@ struct CableGroup {
 	uint8_t end;
 };
 
+/// @brief A cable and its depth's lane, as an undo or redo puts it back.
+struct CableDepth {
+	deluge::synth::CableRecord cable;
+	deluge::project::DocAutoParam lane;
+};
+
 class PatchCableSet final : public ParamCollection {
 public:
 	PatchCableSet(ParamCollectionSummary* summary);
@@ -85,7 +91,10 @@ public:
 	/// @brief Take @p records as the clip's cables, as an undo or redo of a topology edit puts them: each cable keeps
 	/// its depth (its lane and its cursor's value) by its source and target, a cable new to the set starts at depth 0,
 	/// and a cable no longer present loses its lane. Recompiles.
-	void replaceRecords(Sound& sound, ParamManager& paramManager, const deluge::instrument::CableRecords& records);
+	/// @param restore A cable's depth to put back with it (an undo or redo bringing a cable back), or null.
+	/// @return False when a cable could not be added for want of memory: the set holds the cables before it.
+	bool replaceRecords(Sound& sound, ParamManager& paramManager, const deluge::instrument::CableRecords& records,
+	                    const CableDepth* restore = nullptr);
 	/// @brief Move cable @p c to @p target, its depth with it. The caller recompiles.
 	void retarget(uint8_t c, deluge::synth::CableTarget target);
 	/// @brief Set cable @p c's polarity.

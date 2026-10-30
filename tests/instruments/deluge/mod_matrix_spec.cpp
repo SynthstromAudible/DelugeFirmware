@@ -45,6 +45,8 @@ describe mod_matrix("the Deluge instrument's cable-editing extension", ${
 		expect(reroute->after.target).to_equal(kPitch);
 		expect(reroute->after.source).to_equal(PatchSource::ENVELOPE_0);
 		expect(begin_reroute(r, 1, kPitch).has_value()).to_equal(false);
+		expect(begin_set_polarity(r, 1, CablePolarity::UNIPOLAR).has_value()).to_equal(false);
+		expect(begin_reroute(r, 0, kCutoff).has_value()).to_equal(false);
 		expect(begin_remove(r, 2).has_value()).to_equal(false);
 		expect(begin_remove(r, 1)->cable().source).to_equal(PatchSource::VELOCITY);
 	});

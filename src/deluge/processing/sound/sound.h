@@ -351,7 +351,7 @@ public:
 	bool hasCutModeSamples(ParamManagerForTimeline* paramManager);
 	bool allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimeline* paramManager);
 	void fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack);
-	void recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* paramManager);
+	void recalculatePatchingToParam(uint8_t p, ParamManager* paramManager);
 	void doneReadingFromFile();
 	/// @brief Re-read the record from the runtime, every field a bound sound's record holds, as binding seeds it; then
 	/// reproject the snapshot. Does nothing when unbound.

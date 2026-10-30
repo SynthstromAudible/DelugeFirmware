@@ -483,7 +483,7 @@ ControlBlock Sound::patchControlBlock(ParamManager& paramManager, PresetGather g
 	return block;
 }
 
-void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* paramManager) {
+void Sound::recalculatePatchingToParam(uint8_t p, ParamManager* paramManager) {
 
 	const deluge::synth::RoutedDestination* destination = paramManager->getPatchCableSet()->getDestinationForParam(p);
 	if (destination != nullptr) {
@@ -502,10 +502,10 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 	}
 
 	// Or local (do to each voice)...
+	const ControlBlock block = patchControlBlock(*paramManager, PresetGather::ALL);
 	AudioExcludedSection section; // the render walks and edits this Sound's voices
 	for (ActiveVoice& voice : voices_) {
-		voice->patcher.recalculateFinalValueForParamWithNoCables(p,
-		                                                         patchControlBlock(*paramManager, PresetGather::ALL));
+		voice->patcher.recalculateFinalValueForParamWithNoCables(p, block);
 	}
 }
 

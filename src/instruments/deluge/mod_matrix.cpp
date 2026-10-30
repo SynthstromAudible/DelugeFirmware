@@ -37,7 +37,7 @@ std::optional<CableDelta> begin_remove(const CableRecords& cables, size_t index)
 }
 
 std::optional<CableDelta> begin_set_polarity(const CableRecords& cables, size_t index, CablePolarity polarity) {
-	if (index >= cables.size()) {
+	if (index >= cables.size() || cables[index].polarity == polarity) {
 		return std::nullopt;
 	}
 	return CableDelta{.op = CableDelta::Op::SET_POLARITY,

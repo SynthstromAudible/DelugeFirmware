@@ -101,9 +101,27 @@ bool PatchCableSet::resizeCables(uint8_t count) {
 	PatchCable* storage = nullptr;
 	if (count != 0) {
 		storage = static_cast<PatchCable*>(deluge::memory::alloc_fast(sizeof(PatchCable) * count, alignof(PatchCable)));
-		if (storage == nullptr) {
+		if (storage == nullptr && count > oldCount) {
 			return false;
 		}
+	}
+	if (storage == nullptr && count != 0) {
+		// A shrink with no memory for the smaller storage drops the cables where they are: it never fails.
+		{
+			AudioExcludedSection section;
+			deluge::noteStructuralEdit(deluge::StructuralContainer::PATCH_CABLES);
+			if (count < numUsablePatchCables) {
+				freeDestinationMemory(false);
+				sourcesPatchedToAnything[GLOBALITY_LOCAL] = 0;
+				sourcesPatchedToAnything[GLOBALITY_GLOBAL] = 0;
+				numUsablePatchCables = count;
+			}
+			numPatchCables = count;
+		}
+		for (int32_t c = count; c < oldCount; c++) {
+			patchCables[c].~PatchCable();
+		}
+		return true;
 	}
 	PatchCable* old = patchCables;
 	const uint8_t kept = std::min(count, oldCount);
@@ -144,11 +162,20 @@ PatchCable* PatchCableSet::addCable() {
 }
 
 void PatchCableSet::truncateCables(uint8_t count) {
-	// Shrinking only frees memory, so it can't fail for want of it: keep the cables where they are if it does.
-	(void)resizeCables(std::min(count, numPatchCables));
-	if (count < records_.size()) {
-		records_.truncate(count);
+	count = std::min(count, numPatchCables);
+	// A dropped cable's lane goes with it, unless a kept cable has the same identity (a removal moves the last cable
+	// over the removed one, so for a moment both slots hold it).
+	for (int32_t c = count; c < numPatchCables; c++) {
+		const auto same = [&](const PatchCable& kept) {
+			return kept.from == patchCables[c].from
+			       && kept.destinationParamDescriptor == patchCables[c].destinationParamDescriptor;
+		};
+		if (std::none_of(patchCables, patchCables + count, same)) {
+			eraseLane(patchCables[c].from, patchCables[c].destinationParamDescriptor);
+		}
 	}
+	(void)resizeCables(count); // a shrink never fails
+	records_.truncate(count);
 }
 
 PatchCable* PatchCableSet::appendCable(const deluge::synth::CableRecord& record) {
@@ -176,38 +203,44 @@ PatchCable* PatchCableSet::appendDefaultCable(PatchSource from, uint8_t to, int3
 	return cable;
 }
 
-void PatchCableSet::replaceRecords(Sound& sound, ParamManager& paramManager,
-                                   const deluge::instrument::CableRecords& records) {
-	// The cables are rebuilt and placed in one step: the render never sees the set half-built.
-	AudioExcludedSection section;
+bool PatchCableSet::replaceRecords(Sound& sound, ParamManager& paramManager,
+                                   const deluge::instrument::CableRecords& records, const CableDepth* restore) {
 	struct Kept {
 		deluge::synth::CableRecord record;
 		int32_t value;
 		deluge::project::DocAutoParam lane;
 	};
 	std::vector<Kept> kept;
-	kept.reserve(numPatchCables);
+	kept.reserve(numPatchCables + 1);
 	for (int32_t c = 0; c < numPatchCables; c++) {
 		kept.push_back({records_[c], patchCables[c].param.currentValue, *docForParam(c)});
 	}
-	for (const Kept& k : kept) {
-		eraseLane(k.record.source, ParamDescriptor(static_cast<int32_t>(k.record.target.word)));
+	if (restore != nullptr) {
+		kept.push_back({restore->cable, restore->lane.current_value, restore->lane});
 	}
-	truncateCables(0);
-	for (const deluge::synth::CableRecord& record : records.records()) {
-		PatchCable* cable = appendCable(record);
-		if (cable == nullptr) {
-			break;
+	bool complete = true;
+	{
+		// The cables are rebuilt and placed in one step: the render never sees the set half-built.
+		AudioExcludedSection section;
+		truncateCables(0);
+		for (const deluge::synth::CableRecord& record : records.records()) {
+			PatchCable* cable = appendCable(record);
+			if (cable == nullptr) {
+				complete = false;
+				break;
+			}
+			const auto same = [&](const Kept& k) {
+				return k.record.source == record.source && k.record.target == record.target;
+			};
+			// The last match wins, so a lane being restored replaces the one the cable had.
+			if (const auto it = std::ranges::find_last_if(kept, same).begin(); it != kept.end()) {
+				cable->param.currentValue = it->value;
+				*docForParam(numPatchCables - 1) = it->lane;
+			}
 		}
-		const auto same = [&](const Kept& k) {
-			return k.record.source == record.source && k.record.target == record.target;
-		};
-		if (const auto it = std::ranges::find_if(kept, same); it != kept.end()) {
-			cable->param.currentValue = it->value;
-			*docForParam(numPatchCables - 1) = it->lane;
-		}
+		setupPatching(sound, paramManager);
 	}
-	setupPatching(sound, paramManager);
+	return complete;
 }
 
 void PatchCableSet::retarget(uint8_t c, deluge::synth::CableTarget target) {
@@ -640,8 +673,7 @@ void PatchCableSet::trimToLength(uint32_t newLength, ModelStackWithParamCollecti
 	FOR_EACH_PARAM_END
 
 	if (maySetupPatching && anyStoppedBeingAutomated) {
-		// In case the absence of automation here, presumably in conjunction with a value of 0, means this Cable is now
-		// inconsequential and can be deleted.
+		// Some cables stopped being automated: refresh which are.
 		setupPatching(*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager);
 	}
 
@@ -748,11 +780,21 @@ PatchCableSet::PatchCableSet(PatchCableSet const& other)
 		for (; built < numUsablePatchCables; built++) {
 			new (&patchCables[built]) PatchCable(other.patchCables[built]);
 		}
-		// The clone owns a copy of the lanes, whichever table `other` reads them from.
-		ownDepths_ = other.depthStore();
+		// The clone owns a copy of its live cables' lanes, whichever table `other` reads them from; the rest of its
+		// cables start empty, with no lane.
+		for (int32_t c = 0; c < numUsablePatchCables; c++) {
+			const deluge::plugin::ParamId id =
+			    deluge::bridge::cable_depth(patchCables[c].from, patchCables[c].destinationParamDescriptor);
+			for (const deluge::project::DocCableDepth& lane : other.depthStore()) {
+				if (lane.depth == id) {
+					ownDepths_.push_back(lane);
+				}
+			}
+		}
+		deluge::project::DocAutoParam empty{};
 		for (; built < numPatchCables; built++) {
 			new (&patchCables[built]) PatchCable();
-			patchCables[built].param.init(*docForParam(built));
+			patchCables[built].param.init(empty);
 		}
 
 		// The records are the cables as built: the usable ones copied, the rest empty.
@@ -1007,8 +1049,7 @@ void PatchCableSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset,
 	FOR_EACH_PARAM_END
 
 	if (anyStoppedBeingAutomated) {
-		// In case the absence of automation here, presumably in conjunction with a value of 0, means this Cable is now
-		// inconsequential and can be deleted.
+		// Some cables stopped being automated: refresh which are.
 		setupPatching(*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager);
 	}
 }

@@ -167,7 +167,9 @@ phase boundaries.
    or `model/` types (verified: includes are `modulation/` + `util/functions.h` only).
    ~12 call sites build the block (the proto-adapter), e.g.
    `patcher.performPatching(sourcesChanged, sound.patchControlBlock(*paramManager))`.
-   `getSmoothedPatchedParamValue` stays (it has non-patcher callers). Lazy
+   `getSmoothedPatchedParamValue` stays (it has non-patcher callers). (Current form, since mod-matrix M1: the block
+   holds copies — the clip's `synth::PatchRouting`, the preset values a `PresetGather` asks for and each routed cable's
+   depth — and the Patcher's per-cable arithmetic is `synth/modulation/cable_depth.h`.) Lazy
    `presetValue` keeps the per-voice hot path identical (the eager preset-value span is
    deferred to step 5). Bit-exact: x86 golden 333/333, ARM oracle 10/10 patching-stress
    cases. A `patcher_spec` is deferred — `PatchedParamSet`/`PatchCableSet` are still
@@ -267,7 +269,8 @@ into gui-free TUs (all bit-exact, x86 golden 333/333 + ARM oracle):
 - the 3 l10n/iterance preset-table defs → new `util/lookuptables/preset_tables.cpp` (numeric `lookuptables.cpp`
   is now gui-free).
 - `PatchCableSet::getModifiedPatchCableAmount` (the patcher's one PatchCableSet runtime dep — self-contained:
-  cable value/source + math) → new `modulation/patch/patch_cable_set_amount.cpp`.
+  cable value/source + math) → new `modulation/patch/patch_cable_set_amount.cpp`; since mod-matrix M1 it is
+  `synth::modified_depth` (`synth/modulation/cable_depth.h`) and the TU is gone.
 
 Proven + guarded by **`synth_link_test`** (a CTest target): it links `synth/*.cpp` + ONLY those gui-free dep
 TUs + a stub main, with nothing from the app — a successful link (no undefined symbols, no

@@ -81,28 +81,26 @@ std::optional<CableEdit> ModMatrixHost::reroute(size_t index, deluge::synth::Cab
 
 void ModMatrixHost::apply(CableEdit& edit, TimeType time) {
 	using Op = deluge::instrument::CableDelta::Op;
+	using deluge::instrument::CableSide;
 	const deluge::instrument::CableDelta& delta = edit.delta;
-	const deluge::instrument::CableSide side =
-	    time == AFTER ? deluge::instrument::CableSide::AFTER : deluge::instrument::CableSide::BEFORE;
-	// A rerouted cable changes identity across the edit, so its depth is carried from one identity to the other.
-	const deluge::synth::CableRecord& leaving =
-	    side == deluge::instrument::CableSide::AFTER ? delta.before : delta.after;
-	const deluge::synth::CableRecord& arriving =
-	    side == deluge::instrument::CableSide::AFTER ? delta.after : delta.before;
-	const bool carried = delta.op == Op::REROUTE || !delta.present_at(side);
-	if (carried) {
+	const CableSide side = time == AFTER ? CableSide::AFTER : CableSide::BEFORE;
+	// A rerouted cable changes identity across the edit, so its depth is carried from one identity to the other; an
+	// added or removed one takes its depth with it while it is out of the clip.
+	const deluge::synth::CableRecord& leaving = side == CableSide::AFTER ? delta.before : delta.after;
+	const deluge::synth::CableRecord& arriving = side == CableSide::AFTER ? delta.after : delta.before;
+	if (delta.op == Op::REROUTE || !delta.present_at(side)) {
 		if (const std::optional<size_t> i = find(delta.op == Op::REROUTE ? leaving : delta.cable())) {
 			edit.lane = *cables_.docForParam(static_cast<int32_t>(*i));
 		}
 	}
-	cables_.replaceRecords(sound_, paramManager_,
-	                       side == deluge::instrument::CableSide::AFTER ? delta.records_after : delta.records_before);
-	const bool restored = delta.op == Op::REROUTE || (delta.present_at(side) && delta.op != Op::SET_POLARITY);
-	if (restored) {
-		if (const std::optional<size_t> i = find(delta.op == Op::REROUTE ? arriving : delta.cable())) {
-			*cables_.docForParam(static_cast<int32_t>(*i)) = edit.lane;
-			cables_.patchCables[*i].param.currentValue = edit.lane.current_value;
-		}
+	const bool restores = delta.op == Op::REROUTE || (delta.present_at(side) && delta.op != Op::SET_POLARITY);
+	const CableDepth restored{delta.op == Op::REROUTE ? arriving : delta.cable(), edit.lane};
+	cables_.replaceRecords(sound_, paramManager_, side == CableSide::AFTER ? delta.records_after : delta.records_before,
+	                       restores ? &restored : nullptr);
+	// The param the cable goes to recomputes with its depth back (or gone).
+	sound_.recalculatePatchingToParam(delta.cable().target.param_index(), &paramManager_);
+	if (delta.op == Op::REROUTE) {
+		sound_.recalculatePatchingToParam(delta.after.target.param_index(), &paramManager_);
 	}
 }
 
