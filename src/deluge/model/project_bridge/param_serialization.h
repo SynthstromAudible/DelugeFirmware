@@ -65,7 +65,7 @@ void writeDocAutoParam(const DocAutoParam& doc, Serializer& out, bool writeAutom
 /// @param onlyIfContainsSomething Skip the attribute unless the param is automated or non-neutral.
 /// @param valuesForOverride      When non-null, indexed by the param's position in @p doc: that entry is the override
 ///                               value (see writeDocAutoParam).
-void writeDocParamAsAttribute(const DocParamSet& doc, char const* name, deluge::engine::ParamId id, Serializer& out,
+void writeDocParamAsAttribute(const DocParamSet& doc, char const* name, deluge::plugin::ParamId id, Serializer& out,
                               bool writeAutomation, bool onlyIfContainsSomething = false,
                               const int32_t* valuesForOverride = nullptr);
 
@@ -75,7 +75,7 @@ void writeDocParamAsAttribute(const DocParamSet& doc, char const* name, deluge::
 /// Owner blocks are expressed as compact arrays of these driving the generic helpers.
 struct DocParamAttr {
 	const char* name;
-	deluge::engine::ParamId id;
+	deluge::plugin::ParamId id;
 };
 
 /// @brief Write a nested group of params (e.g. `<equalizer>` / `<lpf>`) from a collection: the group's opening tag,

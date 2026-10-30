@@ -7,8 +7,8 @@
 #include <string_view>
 
 using namespace deluge::global_effectable;
-using deluge::engine::ParamId;
-using deluge::engine::ParamScope;
+using deluge::plugin::ParamId;
+using deluge::plugin::ParamScope;
 
 namespace {
 struct Pinned {
@@ -84,8 +84,8 @@ describe params("the provisional global-effectable param table", ${
 
 	it("shares the instrument's ids for the params both have", _ {
 		for (uint32_t id = 90; id <= 115; ++id) {
-			expect(deluge::engine::find_param(kParams, ParamId{id})->file_name)
-			    .to_equal(deluge::engine::find_param(deluge::instrument::kParams, ParamId{id})->file_name);
+			expect(deluge::plugin::find_param(kParams, ParamId{id})->file_name)
+			    .to_equal(deluge::plugin::find_param(deluge::instrument::kParams, ParamId{id})->file_name);
 		}
 	});
 
@@ -97,15 +97,15 @@ describe params("the provisional global-effectable param table", ${
 	});
 
 	it("starts a new instance with its params' defaults", _ {
-		expect(deluge::engine::find_param(kParams, param::kModFXRate)->default_value).to_equal(-536870912);
-		expect(deluge::engine::find_param(kParams, param::kArpGate)->default_value)
+		expect(deluge::plugin::find_param(kParams, param::kModFXRate)->default_value).to_equal(-536870912);
+		expect(deluge::plugin::find_param(kParams, param::kArpGate)->default_value)
 		    .to_equal(std::numeric_limits<int32_t>::max());
-		expect(deluge::engine::find_param(kParams, param::kPan)->default_value).to_equal(0);
+		expect(deluge::plugin::find_param(kParams, param::kPan)->default_value).to_equal(0);
 	});
 
 	it("has one row per name", _ {
 		for (const auto& row : kParams) {
-			expect(deluge::engine::find_param(kParams, row.file_name)).to_equal(&row);
+			expect(deluge::plugin::find_param(kParams, row.file_name)).to_equal(&row);
 		}
 	});
 });

@@ -17,7 +17,7 @@
 
 #pragma once
 
-namespace deluge::engine {
+namespace deluge::plugin {
 
 /// @brief How sample playback interpolates between stored frames when pitch-shifting. Part of the audio-clip
 /// descriptor the host hands the clip player, and of the Sample engine's settings.
@@ -26,4 +26,4 @@ enum class InterpolationMode {
 	SMOOTH, ///< windowed sinc; the default
 };
 
-} // namespace deluge::engine
+} // namespace deluge::plugin

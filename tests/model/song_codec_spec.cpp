@@ -39,7 +39,7 @@ describe song_codec("the song-level records", ${
 	});
 
 	it("round-trips the groove at any tick magnitude", _ {
-		Groove g{.swing_amount = -20, .swing_interval = deluge::engine::sync_level_from_index(6)};
+		Groove g{.swing_amount = -20, .swing_interval = deluge::plugin::sync_level_from_index(6)};
 		Groove back;
 		DecodeContext relative{.input_tick_magnitude = 3};
 		expect(decode(as_song(encode(g, 3)), back, relative)).to_have_value();
@@ -51,15 +51,15 @@ describe song_codec("the song-level records", ${
 		            R"({"song": {"swingAmount": 10, "swingInterval": 5}})", [&](const Value& song) {
 			Groove relative;
 			(void)decode(song, relative, {.input_tick_magnitude = 3});
-			expect(deluge::engine::index_of(relative.swing_interval)).to_equal(3);
+			expect(deluge::plugin::index_of(relative.swing_interval)).to_equal(3);
 		});
 	});
 
 	it("keeps the swing interval it holds when a file gives none", _ {
 		both_shapes(R"(<song/>)", R"({"song": {}})", [&](const Value& song) {
-			Groove g{.swing_amount = 0, .swing_interval = deluge::engine::sync_level_from_index(6)};
+			Groove g{.swing_amount = 0, .swing_interval = deluge::plugin::sync_level_from_index(6)};
 			(void)decode(song, g, {.input_tick_magnitude = 3});
-			expect(deluge::engine::index_of(g.swing_interval)).to_equal(6);
+			expect(deluge::plugin::index_of(g.swing_interval)).to_equal(6);
 		});
 	});
 
@@ -78,7 +78,7 @@ describe song_codec("the song-level records", ${
 
 	it("keeps a value the file lacks", _ {
 		both_shapes(R"(<song/>)", R"({"song": {}})", [&](const Value& song) {
-			Groove g{.swing_amount = 7, .swing_interval = deluge::engine::sync_level_from_index(4)};
+			Groove g{.swing_amount = 7, .swing_interval = deluge::plugin::sync_level_from_index(4)};
 			Groove before = g;
 			(void)decode(song, g, {});
 			expect(g).to_equal(before);
@@ -111,14 +111,14 @@ describe song_codec("the song-level records", ${
 	it("round-trips the reverb through one rounding, fixing the old width", _ {
 		ReverbSettings r{.room_size = 0.3f, .hpf = 0.1f, .lpf = 0.9f, .damping = 0.5f, .width = 1.0f, .pan = -12,
 		                 .sidechain_volume = 5, .sidechain_shape = 6, .sidechain_attack = 7, .sidechain_release = 8,
-		                 .sidechain_sync = deluge::engine::sync_level_from_index(7)};
+		                 .sidechain_sync = deluge::plugin::sync_level_from_index(7)};
 		DecodeContext at2{.input_tick_magnitude = 2};
 		ReverbSettings once;
 		(void)decode(as_song(encode(r, 2)), once, at2);
 		ReverbSettings twice;
 		(void)decode(as_song(encode(once, 2)), twice, at2);
 		expect(twice).to_equal(once);
-		expect(deluge::engine::index_of(once.sidechain_sync)).to_equal(7);
+		expect(deluge::plugin::index_of(once.sidechain_sync)).to_equal(7);
 		both_shapes(R"(<song width="-2147483648"/>)", R"({"song": {"width": -2147483648}})", [&](const Value& reverb) {
 			ReverbSettings read;
 			(void)decode(reverb, read, {});

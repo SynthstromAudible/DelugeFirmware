@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "engine-api/types/param.h"
+#include "plugin-api/types/param.h"
 
 #include <array>
 #include <cstdint>
@@ -30,7 +30,7 @@ namespace deluge::global_effectable {
 
 /// @brief The ids, pinned forever by tests/engines/global_effectable/params_spec.cpp.
 namespace param {
-using engine::ParamId;
+using plugin::ParamId;
 inline constexpr ParamId kStutterRate{90};
 inline constexpr ParamId kBass{91};
 inline constexpr ParamId kTreble{92};
@@ -80,7 +80,7 @@ inline constexpr ParamId kTempo{132};
 inline constexpr uint32_t kFirstId = 90;
 
 /// @brief Every param, in id order.
-inline constexpr std::array<engine::ParamInfo, 43> kParams{{
+inline constexpr std::array<plugin::ParamInfo, 43> kParams{{
     {.id = param::kStutterRate, .file_name = "stutterRate"},
     {.id = param::kBass, .file_name = "bass"},
     {.id = param::kTreble, .file_name = "treble"},
@@ -145,10 +145,10 @@ inline constexpr std::array<engine::ParamInfo, 43> kParams{{
 }};
 
 /// @brief The one run of ids the params are stored in.
-inline constexpr engine::ParamBlock kParamBlock{engine::ParamId{kFirstId}, 43};
+inline constexpr plugin::ParamBlock kParamBlock{plugin::ParamId{kFirstId}, 43};
 
 /// @brief The runtime's index of the param @p id, or nullopt when there is no such param.
-[[nodiscard]] constexpr std::optional<uint8_t> runtime_index(engine::ParamId id) {
+[[nodiscard]] constexpr std::optional<uint8_t> runtime_index(plugin::ParamId id) {
 	if (!kParamBlock.contains(id)) {
 		return std::nullopt;
 	}
@@ -156,8 +156,8 @@ inline constexpr engine::ParamBlock kParamBlock{engine::ParamId{kFirstId}, 43};
 }
 
 /// @brief The id of the param the runtime keeps at @p index.
-[[nodiscard]] constexpr engine::ParamId param_id(uint8_t index) {
-	return engine::ParamId{kFirstId + index};
+[[nodiscard]] constexpr plugin::ParamId param_id(uint8_t index) {
+	return plugin::ParamId{kFirstId + index};
 }
 
 static_assert(kParams.size() == kParamBlock.count);

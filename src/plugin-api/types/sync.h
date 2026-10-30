@@ -21,7 +21,7 @@
 #include <cstdint>
 #include <utility>
 
-namespace deluge::engine {
+namespace deluge::plugin {
 
 /// @brief The rhythmic flavour of a synced rate. Each value is the index of that flavour's first option in the sync
 /// menus, which list nine levels per flavour.
@@ -88,4 +88,4 @@ inline constexpr int32_t kMaxSyncLevel = std::to_underlying(SyncLevel::TWO_HUNDR
 	return internal < 1 ? 1 : (internal > 9 ? 9 : internal);
 }
 
-} // namespace deluge::engine
+} // namespace deluge::plugin

@@ -17,7 +17,7 @@
 
 #include "engines/effects/sidechain.h"
 
-#include "engine-api/types/sync.h"
+#include "plugin-api/types/sync.h"
 #include "util/fixedpoint.h"
 
 namespace deluge::effects {
@@ -30,13 +30,13 @@ dsp::fixed::DuckEnvelope::Settings Sidechain::settings(const SidechainState& sta
 	    .shape = shape,
 	    .instant_attack = state.attack == kInstantAttack,
 	};
-	if (state.sync_level == engine::SyncLevel::NONE) {
+	if (state.sync_level == plugin::SyncLevel::NONE) {
 		return out;
 	}
 
 	// The tick inverse is taken as the multiply's signed Q31 operand.
 	const auto inverse = static_cast<int32_t>(time_per_tick_inverse);
-	const int32_t level = engine::index_of(state.sync_level);
+	const int32_t level = plugin::index_of(state.sync_level);
 
 	const int32_t attack_shift = (9 - level) - 2;
 	out.attack = multiply_32x32_rshift32(state.attack << 11, inverse);

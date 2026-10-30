@@ -27,12 +27,12 @@ namespace deluge::instrument {
 
 namespace {
 
-std::optional<engine::ParamId> id_of(const engine::ParamRef& ref) {
-	const engine::ParamInfo* row = engine::find_param(kParams, ref.param);
+std::optional<plugin::ParamId> id_of(const plugin::ParamRef& ref) {
+	const plugin::ParamInfo* row = plugin::find_param(kParams, ref.param);
 	if (row == nullptr) {
 		return std::nullopt;
 	}
-	std::optional<engine::ParamId> id = row->id;
+	std::optional<plugin::ParamId> id = row->id;
 	if (!ref.source.empty()) {
 		id = cable_depth_id(parse_patch_source(ref.source), *id);
 	}
@@ -42,15 +42,15 @@ std::optional<engine::ParamId> id_of(const engine::ParamRef& ref) {
 	return id;
 }
 
-engine::ParamRef ref_of(engine::ParamId id) {
+plugin::ParamRef ref_of(plugin::ParamId id) {
 	std::array<PatchSource, 3> sources{};
 	size_t n = 0;
-	engine::ParamId at = id;
+	plugin::ParamId at = id;
 	while (std::optional<CableRoute> route = cable_route(at)) {
 		sources[n++] = route->source;
 		at = route->destination;
 	}
-	const engine::ParamInfo* row = engine::find_param(kParams, at);
+	const plugin::ParamInfo* row = plugin::find_param(kParams, at);
 	if (row == nullptr || n > 2) {
 		return {};
 	}
@@ -60,7 +60,7 @@ engine::ParamRef ref_of(engine::ParamId id) {
 	        n > 1 ? to_string(sources[1]) : std::string_view{}};
 }
 
-engine::ParamId mod_knob_target(engine::ParamId id) {
+plugin::ParamId mod_knob_target(plugin::ParamId id) {
 	const bool depth = is_cable_depth(id);
 	const uint32_t p = depth ? (id.value & 0xFFu) : id.value;
 	if (p != param::kVolumePostReverbSend.value && p != param::kVolumePostFX.value && p != param::kVolume.value) {
@@ -73,11 +73,11 @@ engine::ParamId mod_knob_target(engine::ParamId id) {
 	const auto nearest = static_cast<PatchSource>(((id.value >> 8) & 0x3Fu) - 1);
 	const uint32_t volume =
 	    nearest == PatchSource::SIDECHAIN ? param::kVolumePostReverbSend.value : param::kVolume.value;
-	return engine::ParamId{(id.value & ~0xFFu) | volume};
+	return plugin::ParamId{(id.value & ~0xFFu) | volume};
 }
 
 } // namespace
 
-const engine::ParamNaming kNaming{engine::kDelugeInstrument, &id_of, &ref_of, &mod_knob_target};
+const plugin::ParamNaming kNaming{plugin::kDelugeInstrument, &id_of, &ref_of, &mod_knob_target};
 
 } // namespace deluge::instrument

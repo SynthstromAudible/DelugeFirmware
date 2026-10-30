@@ -114,8 +114,8 @@ Error setEffect(Song& song, const HostOwner& owner, std::string_view path, const
 
 /// The legal values of @p row worth setting, given the owner's @p current value: an integer row's ends and the current
 /// value, a choice row's every name, a bool's both.
-std::vector<Value> legalValues(const deluge::engine::SettingInfo& row, const std::optional<Value>& current) {
-	using Kind = deluge::engine::SettingKind;
+std::vector<Value> legalValues(const deluge::plugin::SettingInfo& row, const std::optional<Value>& current) {
+	using Kind = deluge::plugin::SettingKind;
 	std::vector<Value> values;
 	switch (row.kind) {
 	case Kind::INTEGER:
@@ -147,7 +147,7 @@ void settingLegs(Song& song, const HostOwner& owner) {
 		fail(owner, "-", Value::makeScalar("-"), "no owner at its address");
 		return;
 	}
-	for (const deluge::engine::SettingInfo& row : deluge::effects::kEffectSettings) {
+	for (const deluge::plugin::SettingInfo& row : deluge::effects::kEffectSettings) {
 		const std::optional<Value> original = deluge::effects::effect_setting_value(runtime->effects(), row.path);
 		for (const Value& value : legalValues(row, original)) {
 			if (const Error error = setEffect(song, owner, row.path, value); error != Error::NONE) {

@@ -84,7 +84,7 @@ std::optional<std::string_view> effect_of_setting(std::string_view path) {
 	return effect_of_key(path.substr(0, path.find('/')));
 }
 
-std::vector<SlotEntries> encode_chain(const EffectStates& states, Home home, const engine::CodecContext& context,
+std::vector<SlotEntries> encode_chain(const EffectStates& states, Home home, const plugin::CodecContext& context,
                                       std::optional<int32_t> compressor_threshold) {
 	const EffectPieces pieces = encode_pieces(states, context, compressor_threshold);
 	std::vector<SlotEntries> slots;
@@ -103,7 +103,7 @@ std::vector<SlotEntries> encode_chain(const EffectStates& states, Home home, con
 }
 
 void decode_slot(std::string_view effect, const serialization::Value& entries, EffectStates& states,
-                 const engine::CodecContext& context) {
+                 const plugin::CodecContext& context) {
 	const EffectKeys* owned = keys_of(effect);
 	if (owned == nullptr) {
 		return;

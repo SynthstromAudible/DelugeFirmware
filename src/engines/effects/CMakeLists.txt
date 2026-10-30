@@ -9,7 +9,7 @@ if(DEFINED DELUGE_CXX_STANDARD)
   set_target_properties(deluge_effects PROPERTIES CXX_STANDARD ${DELUGE_CXX_STANDARD} CXX_STANDARD_REQUIRED ON
                                                   CXX_EXTENSIONS ON)
 endif()
-target_link_libraries(deluge_effects PUBLIC deluge_engine_api)
+target_link_libraries(deluge_effects PUBLIC deluge_plugin_api)
 # argon, header-only, as dsp-next links it: the sidechain's public header holds a Control of the duck envelope, and the
 # kernel core it reaches includes the NEON vector wrappers. A tree without real NEON gets SIMDe through each consumer:
 # tests/support/cmake/specs.cmake's deluge_test_neon() adds it PRIVATE to the target it is called on, so this library

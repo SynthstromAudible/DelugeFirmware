@@ -1,9 +1,9 @@
 cmake_path(SET SHARED_INCLUDE ${CMAKE_CURRENT_LIST_DIR})
 
-add_subdirectory(engine-api/types) # deluge_engine_types: the host–engine contract's data-only types
+add_subdirectory(plugin-api/types) # deluge_plugin_types: the host–plugin contract's data-only types
 add_subdirectory(foundation) # bottom of the stack; the layers below link it
 add_subdirectory(serialization) # deluge_serialization: the document tree and its XML and JSON parsers
-add_subdirectory(engine-api) # deluge_engine_api: the host–engine contract's interface
+add_subdirectory(plugin-api) # deluge_plugin_api: the host–plugin contract's interface
 add_subdirectory(engines/effects) # deluge_effects: the effects' words, state and codec
 add_subdirectory(engines/deluge) # deluge_instrument: the Deluge instrument's state, words and codec
 add_subdirectory(engines/global_effectable) # deluge_global_effectable: the provisional shared-effect param table

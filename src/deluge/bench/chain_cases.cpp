@@ -55,8 +55,8 @@ effects::EffectStates chain_settings() {
 	s.mod_fx.type = ModFXType::CHORUS;
 	s.delay = {.ping_pong = true,
 	           .type = effects::DelayType::DIGITAL,
-	           .sync_type = engine::SyncType::EVEN,
-	           .sync_level = engine::SyncLevel::NONE};
+	           .sync_type = plugin::SyncType::EVEN,
+	           .sync_level = plugin::SyncLevel::NONE};
 	s.compressor = {.attack = 10 << 24,
 	                .release = 20 << 24,
 	                .threshold = 0x30000000,

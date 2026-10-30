@@ -1,12 +1,12 @@
 #pragma once
 
-#include "engine-api/types/interpolation_mode.h"
+#include "plugin-api/types/interpolation_mode.h"
 
 #include <cstdint>
 
 class SampleControls;
 class ModControllableAudio;
-using deluge::engine::InterpolationMode;
+using deluge::plugin::InterpolationMode;
 
 bool isSampleModeSample(ModControllableAudio* modControllable, int32_t whichThing);
 SampleControls& getCurrentSampleControls(int32_t whichThing);

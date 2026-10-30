@@ -21,13 +21,13 @@
 #include <span>
 #include <string_view>
 
-namespace deluge::engine {
+namespace deluge::plugin {
 
 /// @brief What a setting holds: one of an enum's names, an integer in a range, a bool, or a structured value only its
 /// own Edit changes.
 enum class SettingKind : uint8_t { CHOICE, INTEGER, BOOL, STRUCTURED };
 
-/// @brief One non-param setting of an engine, named by its slash path in the engine's state element.
+/// @brief One non-param setting of a plugin, named by its slash path in the plugin's state element.
 struct SettingInfo {
 	std::string_view path;
 	SettingKind kind{SettingKind::INTEGER};
@@ -49,4 +49,4 @@ struct SettingInfo {
 	return nullptr;
 }
 
-} // namespace deluge::engine
+} // namespace deluge::plugin

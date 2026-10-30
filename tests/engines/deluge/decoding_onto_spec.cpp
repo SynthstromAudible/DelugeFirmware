@@ -24,7 +24,7 @@ std::ostream& operator<<(std::ostream& out, const RangeState& range) {
 
 namespace {
 
-constexpr deluge::engine::CodecContext kContext{.input_tick_magnitude = 1};
+constexpr deluge::plugin::CodecContext kContext{.input_tick_magnitude = 1};
 
 /// A subtractive sound whose first source plays two sample ranges and whose second is a saw with a stale range.
 SoundState sampled() {
@@ -86,9 +86,9 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 	it("takes every value the element holds", _ {
 		SoundState state = sampled();
 		SoundState written = state;
-		written.voice_priority = deluge::engine::VoicePriority::HIGH;
+		written.voice_priority = deluge::plugin::VoicePriority::HIGH;
 		const auto decoded = decode_onto(encode(written, kContext), state, kContext);
-		expect(decoded->voice_priority).to_equal(deluge::engine::VoicePriority::HIGH);
+		expect(decoded->voice_priority).to_equal(deluge::plugin::VoicePriority::HIGH);
 	});
 
 	it("keeps a sample source's own transpose and cents, which a file holds only as its ranges'", _ {
@@ -101,8 +101,8 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 
 	it("keeps what an unchanged entry says, even where the file could not say it (a sync level)", _ {
 		SoundState state = sampled();
-		state.lfo_sync_level[0] = static_cast<deluge::engine::SyncLevel>(1);
-		constexpr deluge::engine::CodecContext kSlow{.input_tick_magnitude = 0};
+		state.lfo_sync_level[0] = static_cast<deluge::plugin::SyncLevel>(1);
+		constexpr deluge::plugin::CodecContext kSlow{.input_tick_magnitude = 0};
 		const auto decoded = decode_onto(encode(state, kSlow), state, kSlow);
 		expect(*decoded).to_equal(state);
 	});
@@ -110,8 +110,8 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 	it("reads a changed entry as a file holds it", _ {
 		SoundState state = sampled();
 		SoundState written = state;
-		written.lfo_sync_level[0] = static_cast<deluge::engine::SyncLevel>(1);
-		constexpr deluge::engine::CodecContext kSlow{.input_tick_magnitude = 0};
+		written.lfo_sync_level[0] = static_cast<deluge::plugin::SyncLevel>(1);
+		constexpr deluge::plugin::CodecContext kSlow{.input_tick_magnitude = 0};
 		const auto decoded = decode_onto(encode(written, kSlow), state, kSlow);
 		expect(static_cast<int32_t>(decoded->lfo_sync_level[0])).to_equal(2); // where magnitude 0's file keeps WHOLE
 	});
@@ -146,10 +146,10 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 
 	it("keeps an LFO's sync level the file could not say when only its other settings change", _ {
 		SoundState state = sampled();
-		state.lfo_sync_level[0] = static_cast<deluge::engine::SyncLevel>(1);
+		state.lfo_sync_level[0] = static_cast<deluge::plugin::SyncLevel>(1);
 		SoundState written = state;
 		written.lfo_wave_type[0] = LFOType::SAW;
-		constexpr deluge::engine::CodecContext kSlow{.input_tick_magnitude = 0};
+		constexpr deluge::plugin::CodecContext kSlow{.input_tick_magnitude = 0};
 		const auto decoded = decode_onto(encode(written, kSlow), state, kSlow);
 		expect(decoded->lfo_wave_type[0]).to_equal(LFOType::SAW);
 		expect(static_cast<int32_t>(decoded->lfo_sync_level[0])).to_equal(1);
@@ -189,7 +189,7 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 		SoundState state = sampled();
 		SoundState written = state;
 		written.lfo_wave_type[1] = LFOType::SAW;
-		written.voice_priority = deluge::engine::VoicePriority::HIGH;
+		written.voice_priority = deluge::plugin::VoicePriority::HIGH;
 		const Value element = encode(written, kContext);
 		const auto change = decode_change(element, encode(state, kContext), state, kContext);
 		expect(change->changed).to_equal(std::vector<std::string_view>{"voicePriority", "lfo2"});

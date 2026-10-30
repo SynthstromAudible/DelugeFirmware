@@ -20,7 +20,7 @@ std::string read(const std::string& name) {
 
 /// The fixtures' expected states were recorded from the app's reader reading each fixture as a preset into a new song,
 /// whose input tick magnitude is 0.
-constexpr deluge::engine::CodecContext kNewSong{.input_tick_magnitude = 0};
+constexpr deluge::plugin::CodecContext kNewSong{.input_tick_magnitude = 0};
 
 /// Decode the fixture's sound into the state a new synth starts with (as recorded beside the fixture), and give the
 /// first path where it differs from the state the app's reader produced from the same file.
@@ -104,7 +104,7 @@ describe codec_decode("the Deluge instrument reads every format a sound was save
 		SoundState state = new_synth_state();
 		auto decoded = decode(*doc->find("sound"), state, kNewSong);
 		expect(decoded).to_have_error();
-		expect(decoded.error_or(deluge::engine::StateError::NOT_A_MAP)).to_equal(deluge::engine::StateError::DUPLICATE_RANGE);
+		expect(decoded.error_or(deluge::plugin::StateError::NOT_A_MAP)).to_equal(deluge::plugin::StateError::DUPLICATE_RANGE);
 	});
 });
 

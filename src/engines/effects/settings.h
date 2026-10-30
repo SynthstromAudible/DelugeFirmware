@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "engine-api/types/setting.h"
-#include "engine-api/types/sync.h"
 #include "engines/effects/state.h"
+#include "plugin-api/types/setting.h"
+#include "plugin-api/types/sync.h"
 #include "serialization/value.h"
 
 #include <array>
@@ -31,8 +31,8 @@
 namespace deluge::effects {
 
 namespace detail {
-using engine::SettingInfo;
-using enum engine::SettingKind;
+using plugin::SettingInfo;
+using enum plugin::SettingKind;
 
 /// A delay's types, as a file names them.
 inline constexpr std::array<std::string_view, 3> kDelayTypeNames{"off", "digital", "analog"};
@@ -52,7 +52,7 @@ inline constexpr int32_t kQ31Max = std::numeric_limits<int32_t>::max();
 
 /// @brief The effects' non-param settings, by their path in an owner's element. A sync level is the level itself
 /// (0–9, 0 = off); a file writes it relative to the song's tick magnitude.
-inline constexpr std::array<engine::SettingInfo, 23> kEffectSettings{{
+inline constexpr std::array<plugin::SettingInfo, 23> kEffectSettings{{
     {.path = "modFXType", .kind = detail::CHOICE, .choices = detail::kModFxTypeNames},
     {.path = "lpfMode", .kind = detail::CHOICE, .choices = detail::kLpfModeNames},
     {.path = "hpfMode", .kind = detail::CHOICE, .choices = detail::kHpfModeNames},
@@ -60,11 +60,11 @@ inline constexpr std::array<engine::SettingInfo, 23> kEffectSettings{{
     {.path = "clippingAmount", .min = 0, .max = 15},
     {.path = "delay/pingPong", .kind = detail::BOOL},
     {.path = "delay/type", .kind = detail::CHOICE, .choices = detail::kDelayTypeNames},
-    {.path = "delay/syncLevel", .min = 0, .max = engine::kMaxSyncLevel},
+    {.path = "delay/syncLevel", .min = 0, .max = plugin::kMaxSyncLevel},
     {.path = "delay/syncType", .kind = detail::CHOICE, .choices = detail::kSyncTypeNames},
     {.path = "sidechain/attack", .min = 0, .max = detail::kQ31Max},
     {.path = "sidechain/release", .min = 0, .max = detail::kQ31Max},
-    {.path = "sidechain/syncLevel", .min = 0, .max = engine::kMaxSyncLevel},
+    {.path = "sidechain/syncLevel", .min = 0, .max = plugin::kMaxSyncLevel},
     {.path = "sidechain/syncType", .kind = detail::CHOICE, .choices = detail::kSyncTypeNames},
     {.path = "audioCompressor/attack", .min = 0, .max = detail::kQ31Max},
     {.path = "audioCompressor/release", .min = 0, .max = detail::kQ31Max},

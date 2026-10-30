@@ -60,7 +60,7 @@ describe codec_encode("the Deluge instrument writes its state", ${
 	it("writes one sample range on the source itself, with its zone", _ {
 		SoundState s;
 		s.sources[0].osc_type = OscType::SAMPLE;
-		s.sources[0].interpolation_mode = deluge::engine::InterpolationMode::SMOOTH;
+		s.sources[0].interpolation_mode = deluge::plugin::InterpolationMode::SMOOTH;
 		s.sources[0].ranges.push_back({.file_path = "SAMPLES/A.WAV", .start_pos = 0, .end_pos = 1000});
 		const SoundPieces osc1Pieces = encode_pieces(s, {});
 		const Value& osc1 = *osc1Pieces.body.find("osc1");
@@ -123,7 +123,7 @@ describe codec_encode("the Deluge instrument writes its state", ${
 	it("writes a free-running phase as -1 and sync levels relative to the tick magnitude", _ {
 		SoundState s;
 		s.osc_retrigger_phase[0] = 0xFFFFFFFF;
-		s.lfo_sync_level[1] = deluge::engine::SyncLevel::QUARTER;
+		s.lfo_sync_level[1] = deluge::plugin::SyncLevel::QUARTER;
 		SoundPieces p = encode_pieces(s, {.input_tick_magnitude = 3});
 		expect(text(*p.body.find("osc1"), "retrigPhase")).to_equal(std::string("-1"));
 		expect(text(*p.body.find("lfo2"), "syncLevel")).to_equal(std::string("5"));

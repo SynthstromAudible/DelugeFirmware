@@ -208,10 +208,10 @@ endif()
 # The portable libraries (each subdir is platform-agnostic). Out-of-tree, so give
 # each an explicit binary dir.
 add_subdirectory(${REPO_ROOT}/lib            ${CMAKE_BINARY_DIR}/_lib)        # argon, etl
-add_subdirectory(${REPO_ROOT}/src/engine-api/types ${CMAKE_BINARY_DIR}/engine-types) # deluge_engine_types
+add_subdirectory(${REPO_ROOT}/src/plugin-api/types ${CMAKE_BINARY_DIR}/plugin-types) # deluge_plugin_types
 add_subdirectory(${REPO_ROOT}/src/foundation ${CMAKE_BINARY_DIR}/foundation) # deluge_foundation
 add_subdirectory(${REPO_ROOT}/src/serialization ${CMAKE_BINARY_DIR}/serialization) # deluge_serialization
-add_subdirectory(${REPO_ROOT}/src/engine-api ${CMAKE_BINARY_DIR}/engine-api) # deluge_engine_api
+add_subdirectory(${REPO_ROOT}/src/plugin-api ${CMAKE_BINARY_DIR}/plugin-api) # deluge_plugin_api
 add_subdirectory(${REPO_ROOT}/src/engines/effects ${CMAKE_BINARY_DIR}/engines-effects) # deluge_effects
 add_subdirectory(${REPO_ROOT}/src/engines/deluge ${CMAKE_BINARY_DIR}/engines-deluge) # deluge_instrument
 add_subdirectory(${REPO_ROOT}/src/music-theory ${CMAKE_BINARY_DIR}/music-theory) # deluge_music_theory

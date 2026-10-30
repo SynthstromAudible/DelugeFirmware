@@ -3,7 +3,7 @@
 #include <cppspec.hpp>
 
 using namespace deluge::instrument;
-using deluge::engine::ParamId;
+using deluge::plugin::ParamId;
 
 // clang-format off
 describe cables("the Deluge instrument's patch-cable words and depth ids", ${

@@ -17,14 +17,14 @@
 
 #pragma once
 
-#include "engine-api/types/engine_id.h"
-#include "engine-api/types/param.h"
+#include "plugin-api/types/param.h"
+#include "plugin-api/types/plugin_id.h"
 
 #include <optional>
 #include <span>
 #include <string_view>
 
-namespace deluge::engine {
+namespace deluge::plugin {
 
 /// @brief A param as a file names it where it points at one (a knob's target): the param's file name and, for a
 /// cable's depth, the source of the cable nearest the param and the source of the cable controlling that depth.
@@ -36,26 +36,26 @@ struct ParamRef {
 	[[nodiscard]] constexpr bool operator==(const ParamRef&) const = default;
 };
 
-/// @brief How an engine names its params in files: its id, a file name → id map, the inverse, and the rule a mod
-/// knob's target follows (nullptr: none). The views a ref holds point into the engine's static names.
+/// @brief How a plugin names its params in files: its id, a file name → id map, the inverse, and the rule a mod
+/// knob's target follows (nullptr: none). The views a ref holds point into the plugin's static names.
 struct ParamNaming {
-	EngineId engine;
+	PluginId plugin;
 	std::optional<ParamId> (*id_of)(const ParamRef& ref);
 	ParamRef (*ref_of)(ParamId id);
 	ParamId (*mod_knob_target)(ParamId id);
 };
 
-/// @brief The naming of @p engine in @p namings, or nullptr.
+/// @brief The naming of @p plugin in @p namings, or nullptr.
 /// @param namings The available namings.
-/// @param engine The engine to look up.
+/// @param plugin The plugin to look up.
 /// @return The matching naming, or nullptr.
-[[nodiscard]] constexpr const ParamNaming* naming_for(std::span<const ParamNaming> namings, EngineId engine) {
+[[nodiscard]] constexpr const ParamNaming* naming_for(std::span<const ParamNaming> namings, PluginId plugin) {
 	for (const ParamNaming& naming : namings) {
-		if (naming.engine == engine) {
+		if (naming.plugin == plugin) {
 			return &naming;
 		}
 	}
 	return nullptr;
 }
 
-} // namespace deluge::engine
+} // namespace deluge::plugin

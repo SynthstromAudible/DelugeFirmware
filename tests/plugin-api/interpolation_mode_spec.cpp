@@ -1,10 +1,10 @@
-#include "engine-api/types/interpolation_mode.h"
+#include "plugin-api/types/interpolation_mode.h"
 
 #include "cppspec.hpp"
 
 #include <utility>
 
-using deluge::engine::InterpolationMode;
+using deluge::plugin::InterpolationMode;
 
 // clang-format off
 describe interpolation_mode("InterpolationMode", $ {

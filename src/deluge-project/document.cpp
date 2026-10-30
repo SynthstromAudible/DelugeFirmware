@@ -42,12 +42,12 @@ bool has_chain(std::string_view element) {
 
 /// The naming of the engine whose params the controls of a @p element (`sound`, `kit`, `audioTrack`, `song`) point
 /// at, or nullptr when that element has no controls or @p engines has no naming for its engine.
-const deluge::engine::ParamNaming* naming_of(std::string_view element, const CodecEngines& engines) {
+const deluge::plugin::ParamNaming* naming_of(std::string_view element, const CodecEngines& engines) {
 	if (element == "sound") {
-		return deluge::engine::naming_for(engines.namings, deluge::engine::kDelugeInstrument);
+		return deluge::plugin::naming_for(engines.namings, deluge::plugin::kDelugeInstrument);
 	}
 	if (element == "kit" || element == "audioTrack" || element == "song") {
-		return deluge::engine::naming_for(engines.namings, deluge::engine::kGlobalEffectable);
+		return deluge::plugin::naming_for(engines.namings, deluge::plugin::kGlobalEffectable);
 	}
 	return nullptr;
 }
@@ -137,7 +137,7 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 	}
 	LegacyMacroTargets legacy;
 	(void)decode(*song, document.arrangement, &legacy);
-	if (const deluge::engine::ParamNaming* naming = naming_of("song", engines)) {
+	if (const deluge::plugin::ParamNaming* naming = naming_of("song", engines)) {
 		document.controls = decode_controls(*song, *naming);
 	}
 	const int32_t magnitude =
@@ -185,7 +185,7 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 		if (output.name == "sound") {
 			record.instrument = slot_of_output(*output.node, magnitude);
 		}
-		if (const deluge::engine::ParamNaming* naming = naming_of(output.name, engines)) {
+		if (const deluge::plugin::ParamNaming* naming = naming_of(output.name, engines)) {
 			record.controls = decode_controls(*output.node, *naming);
 		}
 		if (has_chain(output.name) && engines.chains.decode != nullptr) {
@@ -201,7 +201,7 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 				(void)decode_identity(*drum.node, drum.name, drumRecord);
 				if (drumRecord.drum_type == DrumType::SOUND) {
 					drumRecord.instrument = slot_of_drum(*drum.node, magnitude);
-					if (const deluge::engine::ParamNaming* naming = naming_of("sound", engines)) {
+					if (const deluge::plugin::ParamNaming* naming = naming_of("sound", engines)) {
 						drumRecord.controls = decode_controls(*drum.node, *naming);
 					}
 				}
@@ -281,7 +281,7 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 	append_entries(map, encode(song.scale));
 	map.set("reverb", encode(song.reverb, magnitude));
 	map.set("sections", encode_sections(song.arrangement));
-	if (const deluge::engine::ParamNaming* naming = naming_of("song", engines)) {
+	if (const deluge::plugin::ParamNaming* naming = naming_of("song", engines)) {
 		encode_controls(song.controls, *naming, map);
 	}
 	if (engines.chains.encode != nullptr) {
@@ -297,7 +297,7 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 		element.set("id", Value::makeNumber(entry.id));
 		const DocOutput& output = song.outputs.at(entry.id);
 		append_entries(element, encode_identity(output, entry.element));
-		if (const deluge::engine::ParamNaming* naming = naming_of(entry.element, engines)) {
+		if (const deluge::plugin::ParamNaming* naming = naming_of(entry.element, engines)) {
 			encode_controls(output.controls, *naming, element);
 		}
 		if (output.effects && engines.chains.encode != nullptr) {
@@ -314,7 +314,7 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 				const DocDrum& drumRecord = song.drums.at(drum.id);
 				append_entries(drumElement, encode_identity(drumRecord));
 				if (drumRecord.drum_type == DrumType::SOUND) {
-					if (const deluge::engine::ParamNaming* naming = naming_of("sound", engines)) {
+					if (const deluge::plugin::ParamNaming* naming = naming_of("sound", engines)) {
 						encode_controls(drumRecord.controls, *naming, drumElement);
 					}
 				}

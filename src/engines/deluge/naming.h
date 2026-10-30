@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "engine-api/types/param_naming.h"
+#include "plugin-api/types/param_naming.h"
 
 namespace deluge::instrument {
 
@@ -25,6 +25,6 @@ namespace deluge::instrument {
 /// its sources (nearest the param first). A mod knob pointed at a volume points at the one the runtime uses: a plain
 /// volume knob at `volumePostFX`, a knob on a sidechain cable's depth at `volumePostReverbSend`, a knob on another
 /// cable's depth at `volume`.
-extern const engine::ParamNaming kNaming;
+extern const plugin::ParamNaming kNaming;
 
 } // namespace deluge::instrument

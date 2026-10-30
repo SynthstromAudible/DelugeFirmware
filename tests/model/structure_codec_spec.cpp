@@ -46,9 +46,9 @@ describe structure_codec("the structure records", ${
 
 	it("round-trips an audio clip, its sample positions as the int32 the file holds", _ {
 		DocAudioClip a{.file_path = "SAMPLES/A \"b\".WAV", .start_pos = 10, .end_pos = 0x90000000u, .transpose = -3,
-		               .cents = 7, .interpolation_mode = deluge::engine::InterpolationMode::LINEAR,
+		               .cents = 7, .interpolation_mode = deluge::plugin::InterpolationMode::LINEAR,
 		               .pitch_and_speed_independent = false, .reversed = true, .attack = 5,
-		               .voice_priority = deluge::engine::VoicePriority::HIGH, .overdubs_should_clone = false};
+		               .voice_priority = deluge::plugin::VoicePriority::HIGH, .overdubs_should_clone = false};
 		DocAudioClip back;
 		(void)decode(encode(a), back);
 		expect(back.end_pos).to_equal(uint64_t{0xFFFFFFFF90000000}); // sign-extended, as the reader does
@@ -118,7 +118,7 @@ describe structure_codec("the structure records", ${
 		auto doc = deluge::serialization::parseXml(R"(<sound id="3" presetName="Bass" colour="5" polyphonic="poly")"
 		                                           R"( mode="fm"><osc1 type="sine"/><unison num="1"/></sound>)");
 		InstrumentSlot slot = slot_of_output(*doc->find("sound"), 2);
-		expect(slot.engine).to_equal(std::string("deluge.instrument"));
+		expect(slot.plugin).to_equal(std::string("deluge.instrument"));
 		expect(slot.tick_magnitude).to_equal(2);
 		std::vector<std::string> keys;
 		for (const auto& [key, value] : slot.state.entries()) {

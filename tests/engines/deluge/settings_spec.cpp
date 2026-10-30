@@ -7,12 +7,12 @@
 #include <vector>
 
 using namespace deluge::instrument;
-using deluge::engine::SettingKind;
+using deluge::plugin::SettingKind;
 using deluge::serialization::Value;
 
 namespace {
 // A new song's input tick magnitude, at which a file's sync levels 0–9 are the internal ones.
-constexpr deluge::engine::CodecContext kContext{.input_tick_magnitude = 1};
+constexpr deluge::plugin::CodecContext kContext{.input_tick_magnitude = 1};
 
 SoundState fmState() {
 	SoundState state = new_synth_state();
@@ -43,7 +43,7 @@ void leafPaths(const Value& node, const std::string& prefix, std::vector<std::st
 
 /// Whether @p path is a row of the schema or lies under a STRUCTURED row.
 bool covered(const std::string& path) {
-	for (const deluge::engine::SettingInfo& row : kSettings) {
+	for (const deluge::plugin::SettingInfo& row : kSettings) {
 		if (row.path == path) {
 			return true;
 		}
@@ -102,7 +102,7 @@ SoundState baseFor(std::string_view path) {
 }
 
 /// The values a row allows at its edges: every choice, or the range's ends, or both bools.
-std::vector<std::string> edges(const deluge::engine::SettingInfo& row) {
+std::vector<std::string> edges(const deluge::plugin::SettingInfo& row) {
 	switch (row.kind) {
 	case SettingKind::CHOICE:
 		return {row.choices.begin(), row.choices.end()};
@@ -130,7 +130,7 @@ describe settings("the Deluge instrument's settings schema", ${
 	});
 
 	it("keeps every value a row allows through decode and encode", _ {
-		for (const deluge::engine::SettingInfo& row : kSettings) {
+		for (const deluge::plugin::SettingInfo& row : kSettings) {
 			for (const std::string& value : edges(row)) {
 				const SoundState base = baseFor(row.path);
 				SoundState read = new_synth_state();

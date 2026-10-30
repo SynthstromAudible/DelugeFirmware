@@ -7,5 +7,5 @@ if(DEFINED DELUGE_CXX_STANDARD)
   set_target_properties(deluge_instrument PROPERTIES CXX_STANDARD ${DELUGE_CXX_STANDARD} CXX_STANDARD_REQUIRED ON
                                                      CXX_EXTENSIONS ON)
 endif()
-target_link_libraries(deluge_instrument PUBLIC deluge_engine_api deluge_effects)
+target_link_libraries(deluge_instrument PUBLIC deluge_plugin_api deluge_effects)
 target_compile_options(deluge_instrument PUBLIC ${DELUGE_COMMON_COMPILE_OPTIONS})

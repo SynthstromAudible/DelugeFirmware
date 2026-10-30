@@ -5,7 +5,7 @@
 #include <cppspec.hpp>
 
 using namespace deluge::project;
-using deluge::engine::ParamId;
+using deluge::plugin::ParamId;
 
 namespace {
 DocParamSet block(uint32_t first, size_t count) {

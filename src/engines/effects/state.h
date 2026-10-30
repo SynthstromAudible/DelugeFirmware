@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "engine-api/types/sync.h"
 #include "engines/effects/words.h"
+#include "plugin-api/types/sync.h"
 
 #include <cstdint>
 #include <limits>
@@ -49,9 +49,9 @@ struct ModFxState {
 struct DelayState {
 	bool ping_pong{true};
 	DelayType type{DelayType::OFF};
-	engine::SyncType sync_type{engine::SyncType::EVEN};
+	plugin::SyncType sync_type{plugin::SyncType::EVEN};
 	/// The level itself (NONE = not synced); a file stores it relative to the song's input tick magnitude.
-	engine::SyncLevel sync_level{engine::SyncLevel::SIXTEENTH};
+	plugin::SyncLevel sync_level{plugin::SyncLevel::SIXTEENTH};
 	bool operator==(const DelayState&) const = default;
 };
 
@@ -84,10 +84,10 @@ struct SidechainState {
 	int32_t attack{0};
 	/// The envelope's release rate, likewise; set by the owner at construction.
 	int32_t release{0};
-	engine::SyncType sync_type{engine::SyncType::EVEN};
+	plugin::SyncType sync_type{plugin::SyncType::EVEN};
 	/// The level itself (NONE = not synced); a file stores it relative to the song's input tick magnitude. Its
 	/// default depends on the song and is set by the owner at construction.
-	engine::SyncLevel sync_level{engine::SyncLevel::NONE};
+	plugin::SyncLevel sync_level{plugin::SyncLevel::NONE};
 	bool operator==(const SidechainState&) const = default;
 };
 

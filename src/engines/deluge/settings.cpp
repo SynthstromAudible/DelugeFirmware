@@ -17,12 +17,12 @@
 
 #include "engines/deluge/settings.h"
 
-#include "engine-api/settings.h"
+#include "plugin-api/settings.h"
 
-#include "engine-api/types/sync.h"
 #include "engines/deluge/codec.h"
 #include "engines/deluge/words.h"
 #include "engines/effects/settings.h"
+#include "plugin-api/types/sync.h"
 #include "serialization/tree.h"
 
 #include <algorithm>
@@ -36,8 +36,8 @@ namespace deluge::instrument {
 
 namespace {
 
-using engine::SettingInfo;
-using enum engine::SettingKind;
+using plugin::SettingInfo;
+using enum plugin::SettingKind;
 
 /// The names a file writes for each value of @p Enum, from its first to @p last.
 template <class Enum, size_t N>
@@ -94,7 +94,7 @@ constexpr int32_t kMaxVoicesOff = 127;
 // writes it relative to that magnitude.
 #define LFO_ROWS(n)                                                                                                    \
 	SettingInfo{.path = "lfo" #n "/type", .kind = CHOICE, .choices = kLfoTypes},                                       \
-	    SettingInfo{.path = "lfo" #n "/syncLevel", .min = 0, .max = engine::kMaxSyncLevel}, SettingInfo {              \
+	    SettingInfo{.path = "lfo" #n "/syncLevel", .min = 0, .max = plugin::kMaxSyncLevel}, SettingInfo {              \
 		.path = "lfo" #n "/syncType", .kind = CHOICE, .choices = kSyncTypes                                            \
 	}
 
@@ -197,7 +197,7 @@ Answer oscillatorValue(const SoundState& state, std::string_view path) {
 	const bool input =
 	    src.osc_type == OscType::INPUT_L || src.osc_type == OscType::INPUT_R || src.osc_type == OscType::INPUT_STEREO;
 	if (rest == "linearInterpolation") {
-		return !fm && (sample || input) ? flag(src.interpolation_mode == engine::InterpolationMode::LINEAR)
+		return !fm && (sample || input) ? flag(src.interpolation_mode == plugin::InterpolationMode::LINEAR)
 		                                : std::nullopt;
 	}
 	if (rest == "loopMode" || rest == "reversed" || rest == "timeStretchEnable" || rest == "timeStretchAmount") {
@@ -237,7 +237,7 @@ Answer lfoValue(const SoundState& state, std::string_view path) {
 		return word(to_string(state.lfo_wave_type[*l]));
 	}
 	if (rest == "syncLevel") {
-		return number(engine::index_of(state.lfo_sync_level[*l]));
+		return number(plugin::index_of(state.lfo_sync_level[*l]));
 	}
 	if (rest == "syncType") {
 		return number(std::to_underlying(state.lfo_sync_type[*l]));
@@ -304,7 +304,7 @@ constexpr std::array kFamilies{
 
 /// The instrument's rows, then its effects'.
 constexpr auto kAllRows = [] {
-	std::array<engine::SettingInfo, kRows.size() + effects::kEffectSettings.size()> all{};
+	std::array<plugin::SettingInfo, kRows.size() + effects::kEffectSettings.size()> all{};
 	std::ranges::copy(kRows, all.begin());
 	std::ranges::copy(effects::kEffectSettings, all.begin() + kRows.size());
 	return all;
@@ -312,17 +312,17 @@ constexpr auto kAllRows = [] {
 
 } // namespace
 
-const std::span<const engine::SettingInfo> kSettings{kAllRows};
+const std::span<const plugin::SettingInfo> kSettings{kAllRows};
 
 namespace {
 
 /// @p path's value in @p state, an unset one included, or nothing where the path does not apply.
 Answer anyValue(const SoundState& state, std::string_view path) {
-	const SettingInfo* row = engine::find_setting(kSettings, path);
+	const SettingInfo* row = plugin::find_setting(kSettings, path);
 	if (row == nullptr || row->kind == STRUCTURED) {
 		return std::nullopt;
 	}
-	if (engine::find_setting(effects::kEffectSettings, path) != nullptr) {
+	if (plugin::find_setting(effects::kEffectSettings, path) != nullptr) {
 		return effects::effect_setting_value(state.effects, path);
 	}
 	for (const Family& family : kFamilies) {
@@ -339,8 +339,8 @@ std::optional<serialization::Value> canonical_setting(std::string_view path, con
 	if (!check_setting(path, value)) {
 		return std::nullopt;
 	}
-	if (engine::find_setting(kSettings, path)->kind == INTEGER) {
-		return serialization::Value::makeNumber(*engine::whole_number(*serialization::text_of(&value)));
+	if (plugin::find_setting(kSettings, path)->kind == INTEGER) {
+		return serialization::Value::makeNumber(*plugin::whole_number(*serialization::text_of(&value)));
 	}
 	return value;
 }
@@ -369,7 +369,7 @@ bool takes_setting(const SoundState& state, std::string_view path) {
 }
 
 bool check_setting(std::string_view path, const serialization::Value& value) {
-	return engine::check_setting(kSettings, path, value);
+	return plugin::check_setting(kSettings, path, value);
 }
 
 } // namespace deluge::instrument

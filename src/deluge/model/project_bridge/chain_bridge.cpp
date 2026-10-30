@@ -53,7 +53,7 @@ FxChain chainFrom(std::vector<deluge::effects::SlotEntries> slots, ChainHome hom
 }
 
 FxChain decodeChain(const deluge::serialization::Value& element, ChainHome home, int32_t tick_magnitude) {
-	const deluge::engine::CodecContext context{.input_tick_magnitude = tick_magnitude};
+	const deluge::plugin::CodecContext context{.input_tick_magnitude = tick_magnitude};
 	deluge::effects::EffectStates states;
 	deluge::effects::decode(element, states, context);
 	return chainFrom(deluge::effects::encode_chain(states, homeOf(home), context), home, tick_magnitude,

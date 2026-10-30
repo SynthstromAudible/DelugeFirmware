@@ -18,7 +18,7 @@
 #pragma once
 
 #include "deluge-project/controller_mapping.h"
-#include "engine-api/types/param_naming.h"
+#include "plugin-api/types/param_naming.h"
 #include "serialization/value.h"
 
 #include <vector>
@@ -30,11 +30,11 @@ namespace deluge::project {
 /// @p naming gives its target. A knob whose target the naming cannot name is left out (a mod knob still takes its
 /// place); a mod knob's target follows the naming's mod-knob rule.
 [[nodiscard]] std::vector<ControllerMapping> decode_controls(const serialization::Value& element,
-                                                             const deluge::engine::ParamNaming& naming);
+                                                             const deluge::plugin::ParamNaming& naming);
 
 /// @brief Write @p controls into @p element as decode_controls reads them: `modKnobs` when there is a mod knob, then
 /// `midiKnobs` when there is a learned knob.
-void encode_controls(const std::vector<ControllerMapping>& controls, const deluge::engine::ParamNaming& naming,
+void encode_controls(const std::vector<ControllerMapping>& controls, const deluge::plugin::ParamNaming& naming,
                      serialization::Value& element);
 
 } // namespace deluge::project

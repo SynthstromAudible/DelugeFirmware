@@ -5653,7 +5653,7 @@ void Song::changeSwingInterval(int32_t newValue) {
 
 	if (playbackHandler.isInternalClockActive()) {
 
-		int32_t leftShift = 10 - deluge::engine::index_of(project.groove.swing_interval);
+		int32_t leftShift = 10 - deluge::plugin::index_of(project.groove.swing_interval);
 		leftShift = std::max(leftShift, 0_i32);
 		uint32_t doubleSwingInterval = 3 << (leftShift);
 

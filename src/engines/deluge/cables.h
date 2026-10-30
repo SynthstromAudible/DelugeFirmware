@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "engine-api/types/param.h"
+#include "plugin-api/types/param.h"
 
 #include <array>
 #include <cstdint>
@@ -99,12 +99,12 @@ inline constexpr uint32_t kCableDepthFlag = 0x4000'0000;
 
 /// @brief The destination of a cable whose destination name the instrument does not know. The runtime keeps such a
 /// cable and leaves it out of patching.
-inline constexpr engine::ParamId kUnknownDestination{55};
+inline constexpr plugin::ParamId kUnknownDestination{55};
 
 /// @brief A cable's ends: its source and its destination (a param, or another cable's depth).
 struct CableRoute {
 	PatchSource source{PatchSource::NONE};
-	engine::ParamId destination{};
+	plugin::ParamId destination{};
 	[[nodiscard]] constexpr bool operator==(const CableRoute&) const = default;
 };
 
@@ -125,7 +125,7 @@ inline constexpr uint32_t kSourceShift[3] = {8, 14, 20};
 /// @brief Whether @p id is a cable's depth.
 /// @param id A param id.
 /// @return True when the id carries kCableDepthFlag.
-[[nodiscard]] constexpr bool is_cable_depth(engine::ParamId id) {
+[[nodiscard]] constexpr bool is_cable_depth(plugin::ParamId id) {
 	return (id.value & kCableDepthFlag) != 0;
 }
 
@@ -134,25 +134,25 @@ inline constexpr uint32_t kSourceShift[3] = {8, 14, 20};
 /// @param source      The cable's source.
 /// @param destination The param, or the depth of the cable this one controls.
 /// @return The depth id, or nullopt.
-[[nodiscard]] constexpr std::optional<engine::ParamId> cable_depth_id(PatchSource source, engine::ParamId destination) {
+[[nodiscard]] constexpr std::optional<plugin::ParamId> cable_depth_id(PatchSource source, plugin::ParamId destination) {
 	const uint32_t field = static_cast<uint32_t>(source) + 1;
 	if (!is_cable_depth(destination)) {
 		if (destination.value > 0xFFu) {
 			return std::nullopt;
 		}
-		return engine::ParamId{kCableDepthFlag | destination.value | field << detail::kSourceShift[0]};
+		return plugin::ParamId{kCableDepthFlag | destination.value | field << detail::kSourceShift[0]};
 	}
 	const int level = detail::depth_level(destination.value);
 	if (level == 3) {
 		return std::nullopt;
 	}
-	return engine::ParamId{destination.value | field << detail::kSourceShift[level]};
+	return plugin::ParamId{destination.value | field << detail::kSourceShift[level]};
 }
 
 /// @brief The source and destination of the cable whose depth is @p depth; nullopt when @p depth is not a cable's.
 /// @param depth A cable depth id.
 /// @return The cable's route, or nullopt.
-[[nodiscard]] constexpr std::optional<CableRoute> cable_route(engine::ParamId depth) {
+[[nodiscard]] constexpr std::optional<CableRoute> cable_route(plugin::ParamId depth) {
 	if (!is_cable_depth(depth)) {
 		return std::nullopt;
 	}
@@ -162,7 +162,7 @@ inline constexpr uint32_t kSourceShift[3] = {8, 14, 20};
 	}
 	const uint32_t field = detail::source_field(depth.value, level - 1);
 	const uint32_t without = depth.value & ~(0x3Fu << detail::kSourceShift[level - 1]);
-	const engine::ParamId destination{level == 1 ? without & 0xFFu : without};
+	const plugin::ParamId destination{level == 1 ? without & 0xFFu : without};
 	return CableRoute{static_cast<PatchSource>(field - 1), destination};
 }
 

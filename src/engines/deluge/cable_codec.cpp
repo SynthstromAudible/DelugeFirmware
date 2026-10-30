@@ -28,15 +28,15 @@ namespace deluge::instrument {
 
 using serialization::Value;
 
-engine::ParamId CableState::depth() const {
-	return cable_depth_id(source, destination).value_or(engine::ParamId{});
+plugin::ParamId CableState::depth() const {
+	return cable_depth_id(source, destination).value_or(plugin::ParamId{});
 }
 
 namespace {
 
 /// The destination a cable's `destination` names: a param, or unknown.
-engine::ParamId destination_of(std::string_view name) {
-	if (const engine::ParamInfo* row = engine::find_param(kParams, name)) {
+plugin::ParamId destination_of(std::string_view name) {
+	if (const plugin::ParamInfo* row = plugin::find_param(kParams, name)) {
 		return row->id;
 	}
 	return kUnknownDestination;
@@ -77,7 +77,7 @@ void decode_depth_controllers(const Value& depthControlledBy, size_t first, std:
 		const bool repeated = std::any_of(cables.begin() + static_cast<std::ptrdiff_t>(first), cables.end(),
 		                                  [&](const CableState& kept) { return kept.source == source; });
 		if (!repeated) {
-			cables.push_back({source, engine::ParamId{}, polarity, amount});
+			cables.push_back({source, plugin::ParamId{}, polarity, amount});
 		}
 	}
 }
@@ -95,7 +95,7 @@ std::vector<CableState> decode_cables(const Value& patchCables, const AmountTest
 		}
 		const size_t first = cables.size();
 		PatchSource source = PatchSource::NONE;
-		std::optional<engine::ParamId> destination;
+		std::optional<plugin::ParamId> destination;
 		const Value* amount = nullptr;
 		Polarity polarity = Polarity::BIPOLAR;
 		for (const auto& [key, value] : entry.node->entries()) {
@@ -128,7 +128,7 @@ std::vector<CableState> decode_cables(const Value& patchCables, const AmountTest
 			cables.resize(first);
 			continue;
 		}
-		const engine::ParamId cableDepth = cable_depth_id(source, *destination).value_or(engine::ParamId{});
+		const plugin::ParamId cableDepth = cable_depth_id(source, *destination).value_or(plugin::ParamId{});
 		for (auto it = earlier; it != cables.end(); ++it) {
 			it->destination = cableDepth;
 		}

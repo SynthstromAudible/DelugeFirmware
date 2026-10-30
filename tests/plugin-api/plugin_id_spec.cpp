@@ -1,15 +1,15 @@
-#include "engine-api/types/engine_id.h"
-#include "engine-api/types/sync.h"
+#include "plugin-api/types/plugin_id.h"
+#include "plugin-api/types/sync.h"
 
 #include <cppspec.hpp>
 
-using namespace deluge::engine;
+using namespace deluge::plugin;
 
 // clang-format off
-describe engine_id("an engine's id and the sync values its state stores", ${
+describe plugin_id("a plugin's id and the sync values its state stores", ${
 	it("names the Deluge instrument", _ {
-		expect(kDelugeInstrument).to_equal(EngineId{"deluge.instrument"});
-		expect(kDelugeInstrument).not_().to_equal(EngineId{"deluge.clip-player"});
+		expect(kDelugeInstrument).to_equal(PluginId{"deluge.instrument"});
+		expect(kDelugeInstrument).not_().to_equal(PluginId{"deluge.clip-player"});
 	});
 
 	it("stores sync levels relative to the tick magnitude, and reads them back", _ {
@@ -21,4 +21,4 @@ describe engine_id("an engine's id and the sync values its state stores", ${
 	});
 });
 
-CPPSPEC_SPEC(engine_id)
+CPPSPEC_SPEC(plugin_id)

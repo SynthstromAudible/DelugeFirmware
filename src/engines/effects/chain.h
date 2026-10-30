@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "engine-api/engine.h"
 #include "engines/effects/state.h"
+#include "plugin-api/plugin.h"
 #include "serialization/value.h"
 
 #include <cstdint>
@@ -60,7 +60,7 @@ struct SlotEntries {
 /// @param compressor_threshold As for encode_pieces; a host chain's record and file hold the state's.
 /// @return One SlotEntries per slot, in processing order.
 [[nodiscard]] std::vector<SlotEntries> encode_chain(const EffectStates& states, Home home,
-                                                    const engine::CodecContext& context,
+                                                    const plugin::CodecContext& context,
                                                     std::optional<int32_t> compressor_threshold = std::nullopt);
 
 /// @brief Reads one slot's entries onto @p states (the effect's part only).
@@ -69,7 +69,7 @@ struct SlotEntries {
 /// @param states  The settings read onto.
 /// @param context The file context.
 void decode_slot(std::string_view effect, const serialization::Value& entries, EffectStates& states,
-                 const engine::CodecContext& context);
+                 const plugin::CodecContext& context);
 
 /// @brief The view entries a host owner's element holds (modFXCurrentParam, currentFilterType), as a map.
 /// @param element The owner element.

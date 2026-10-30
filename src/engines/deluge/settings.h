@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "engine-api/types/setting.h"
 #include "engines/deluge/sound_state.h"
+#include "plugin-api/types/setting.h"
 #include "serialization/value.h"
 
 #include <optional>
@@ -29,7 +29,7 @@ namespace deluge::instrument {
 
 /// @brief The Deluge instrument's non-param settings, by their path in a sound's element: the scalars a setting Edit
 /// changes, and the structured ones (sample and wavetable ranges, the DX7 patch) only their own Edits change.
-extern const std::span<const engine::SettingInfo> kSettings;
+extern const std::span<const plugin::SettingInfo> kSettings;
 
 /// @brief Whether @p value is one @p path's row allows: a non-structured row's choice, an integer in its range, or 0
 /// or 1 for a bool. False for a structured row or a path the schema does not hold.

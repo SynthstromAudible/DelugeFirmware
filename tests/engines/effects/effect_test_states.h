@@ -11,7 +11,7 @@
 namespace deluge::effects::testing {
 
 /// The context of a song at input tick magnitude 1.
-inline constexpr engine::CodecContext kAtOne{.input_tick_magnitude = 1};
+inline constexpr plugin::CodecContext kAtOne{.input_tick_magnitude = 1};
 
 /// Every effect setting away from its default.
 inline EffectStates busy() {
@@ -21,8 +21,8 @@ inline EffectStates busy() {
 	s.mod_fx.type = ModFXType::GRAIN;
 	s.delay = {.ping_pong = false,
 	           .type = DelayType::ANALOG,
-	           .sync_type = engine::SyncType::TRIPLET,
-	           .sync_level = engine::SyncLevel::EIGHTH};
+	           .sync_type = plugin::SyncType::TRIPLET,
+	           .sync_level = plugin::SyncLevel::EIGHTH};
 	s.stutter = {.use_song_stutter = true, .quantized = false, .reversed = true, .ping_pong = true};
 	s.compressor = {.attack = 1 << 24,
 	                .release = 2 << 24,
@@ -31,7 +31,7 @@ inline EffectStates busy() {
 	                .sidechain_hpf = 5 << 24,
 	                .blend = 6 << 24};
 	s.sidechain = {
-	    .attack = 123, .release = 456, .sync_type = engine::SyncType::DOTTED, .sync_level = engine::SyncLevel::QUARTER};
+	    .attack = 123, .release = 456, .sync_type = plugin::SyncType::DOTTED, .sync_level = plugin::SyncLevel::QUARTER};
 	return s;
 }
 

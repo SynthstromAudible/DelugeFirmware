@@ -106,8 +106,8 @@ target_link_libraries(deluge_app PUBLIC
     deluge_foundation
     deluge_midi
     deluge_project   # the project model (deluge::project::Song)
-    deluge_engine_types # the host–engine contract's data-only types
-    deluge_engine_api # the host–engine contract's interface
+    deluge_plugin_types # the host–engine contract's data-only types
+    deluge_plugin_api # the host–engine contract's interface
     deluge_instrument # the Deluge instrument's state, words and codec
     deluge_effects # the effects' words, state and codec
     deluge_global_effectable # the provisional shared-effect param table

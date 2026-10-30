@@ -13,7 +13,7 @@
 using namespace deluge::effects;
 using deluge::dsp::Control;
 using deluge::dsp::fixed::DuckEnvelope;
-using deluge::engine::SyncLevel;
+using deluge::plugin::SyncLevel;
 
 namespace {
 

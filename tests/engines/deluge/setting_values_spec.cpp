@@ -7,7 +7,7 @@
 #include <vector>
 
 using namespace deluge::instrument;
-using deluge::engine::SettingKind;
+using deluge::plugin::SettingKind;
 using deluge::serialization::Value;
 
 namespace {
@@ -34,7 +34,7 @@ SoundState wavetableState() {
 
 /// The first non-structured row whose answer for @p state is one check_setting refuses, or empty.
 std::string firstUncheckedAnswer(const SoundState& state) {
-	for (const deluge::engine::SettingInfo& row : kSettings) {
+	for (const deluge::plugin::SettingInfo& row : kSettings) {
 		if (row.kind == SettingKind::STRUCTURED) {
 			continue;
 		}
@@ -90,7 +90,7 @@ describe setting_values("a sound's settings in an Edit's form", ${
 
 	it("gives an LFO's sync level as the level itself", _ {
 		SoundState state = new_synth_state();
-		state.lfo_sync_level[0] = static_cast<deluge::engine::SyncLevel>(3);
+		state.lfo_sync_level[0] = static_cast<deluge::plugin::SyncLevel>(3);
 		expect(answer(state, "lfo1/syncLevel")).to_equal(std::string("3"));
 	});
 });

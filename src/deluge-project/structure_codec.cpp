@@ -20,7 +20,7 @@
 #include "deluge-project/arrangement.h"
 #include "deluge-project/launch_style.h"
 #include "deluge-project/sequence_direction.h"
-#include "engine-api/types/engine_id.h"
+#include "plugin-api/types/plugin_id.h"
 #include "serialization/tree.h"
 
 #include <algorithm>
@@ -131,7 +131,7 @@ Value encode(const DocAudioClip& clip) {
 	map.set("startSamplePos", Value::makeNumber(static_cast<int32_t>(clip.start_pos)));
 	map.set("endSamplePos", Value::makeNumber(static_cast<int32_t>(clip.end_pos)));
 	map.set("pitchSpeedIndependent", Value::makeNumber(clip.pitch_and_speed_independent ? 1 : 0));
-	if (clip.interpolation_mode == engine::InterpolationMode::LINEAR) {
+	if (clip.interpolation_mode == plugin::InterpolationMode::LINEAR) {
 		map.set("linearInterpolation", Value::makeNumber(1));
 	}
 	if (clip.reversed) {
@@ -169,13 +169,13 @@ std::expected<void, LoadError> decode(const Value& clipElement, DocAudioClip& cl
 		clip.pitch_and_speed_independent = *v != 0;
 	}
 	if (auto v = int_of(clipElement.find("linearInterpolation")); v && *v != 0) {
-		clip.interpolation_mode = engine::InterpolationMode::LINEAR;
+		clip.interpolation_mode = plugin::InterpolationMode::LINEAR;
 	}
 	if (auto v = int_of(clipElement.find("attack"))) {
 		clip.attack = *v;
 	}
 	if (auto v = int_of(clipElement.find("priority"))) {
-		clip.voice_priority = static_cast<engine::VoicePriority>(*v);
+		clip.voice_priority = static_cast<plugin::VoicePriority>(*v);
 	}
 	if (auto v = int_of(clipElement.find("reversed"))) {
 		clip.reversed = *v != 0;
@@ -352,7 +352,7 @@ constexpr std::array<std::string_view, 4> kSoundDrumKeys{"id", "name", "modKnobs
 
 template <size_t N>
 InstrumentSlot slot_without(const Value& element, const std::array<std::string_view, N>& ownKeys) {
-	InstrumentSlot slot{.engine = std::string(deluge::engine::kDelugeInstrument.name)};
+	InstrumentSlot slot{.plugin = std::string(deluge::plugin::kDelugeInstrument.name)};
 	if (!element.isMap()) {
 		return slot;
 	}

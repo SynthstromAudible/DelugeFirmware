@@ -19,14 +19,26 @@
 
 #include <cstdint>
 
-namespace deluge::engine {
+namespace deluge::plugin {
 
-/// @brief How readily an engine's voices are stolen when the host's voice budget runs out; higher keeps them longer.
-/// Saved as the integer `priority` attribute.
-enum class VoicePriority : uint8_t {
-	LOW,
-	MEDIUM,
-	HIGH,
+/// @brief Which of an instrument's parameter collections a parameter id belongs to; with the id, it is how the host
+/// and a plugin name one parameter.
+enum class ParamKind : int32_t {
+	NONE,
+	/// Voice-local parameters which can be modulated via the mod matrix
+	PATCHED,
+	/// Parameters which apply to the internal sound engine specifically
+	UNPATCHED_SOUND,
+	/// Parameters which can not be modulated and apply to the whole Output
+	UNPATCHED_GLOBAL,
+	/// Unused
+	STATIC,
+	/// Internal representation for MIDI CCs
+	MIDI,
+	/// Modulates the strength of the modulation between a mod source and another param
+	PATCH_CABLE,
+	/// Parameter connected to an MPE expression axis
+	EXPRESSION,
 };
 
-} // namespace deluge::engine
+} // namespace deluge::plugin

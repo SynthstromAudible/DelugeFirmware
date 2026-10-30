@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "engine-api/types/sync.h"
+#include "plugin-api/types/sync.h"
 #include "serialization/firmware_version.h"
 #include "serialization/tree.h"
 #include "serialization/value.h"
@@ -38,8 +38,8 @@ struct DecodeContext {
 	int32_t input_tick_magnitude{1};
 };
 
-using deluge::engine::sync_level_from_file;
-using deluge::engine::sync_level_to_file;
+using deluge::plugin::sync_level_from_file;
+using deluge::plugin::sync_level_to_file;
 
 /// @brief The context for decoding @p song: its input tick magnitude.
 /// @param song The song map.

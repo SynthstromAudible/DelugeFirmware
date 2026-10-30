@@ -14,15 +14,15 @@ EffectStates busy() {
 	s.mod_fx.type = ModFXType::GRAIN;
 	s.delay = {.ping_pong = false,
 	           .type = DelayType::ANALOG,
-	           .sync_type = deluge::engine::SyncType::TRIPLET,
-	           .sync_level = deluge::engine::SyncLevel::EIGHTH};
+	           .sync_type = deluge::plugin::SyncType::TRIPLET,
+	           .sync_level = deluge::plugin::SyncLevel::EIGHTH};
 	s.compressor.threshold = 3 << 24;
 	return s;
 }
 
 /// The first row whose answer for @p states is one the schema refuses, or empty.
 std::string firstUncheckedAnswer(const EffectStates& states) {
-	for (const deluge::engine::SettingInfo& row : kEffectSettings) {
+	for (const deluge::plugin::SettingInfo& row : kEffectSettings) {
 		const std::optional<Value> value = effect_setting_value(states, row.path);
 		if (!value || !check_effect_setting(row.path, *value)) {
 			return std::string(row.path);

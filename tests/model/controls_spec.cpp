@@ -8,7 +8,7 @@
 #include <cppspec.hpp>
 
 using namespace deluge::project;
-using deluge::engine::ParamId;
+using deluge::plugin::ParamId;
 using deluge::serialization::Value;
 namespace ip = deluge::instrument::param;
 

@@ -17,28 +17,21 @@
 
 #pragma once
 
-#include <cstdint>
+#include <string_view>
 
-namespace deluge::engine {
+namespace deluge::plugin {
 
-/// @brief Which of an instrument's parameter collections a parameter id belongs to; with the id, it is how the host
-/// and an engine name one parameter.
-enum class ParamKind : int32_t {
-	NONE,
-	/// Voice-local parameters which can be modulated via the mod matrix
-	PATCHED,
-	/// Parameters which apply to the internal sound engine specifically
-	UNPATCHED_SOUND,
-	/// Parameters which can not be modulated and apply to the whole Output
-	UNPATCHED_GLOBAL,
-	/// Unused
-	STATIC,
-	/// Internal representation for MIDI CCs
-	MIDI,
-	/// Modulates the strength of the modulation between a mod source and another param
-	PATCH_CABLE,
-	/// Parameter connected to an MPE expression axis
-	EXPRESSION,
+/// @brief A plugin's stable name, as a song stores it: a reverse-domain-style string that never changes once used.
+struct PluginId {
+	std::string_view name;
+	[[nodiscard]] constexpr bool operator==(const PluginId&) const = default;
 };
 
-} // namespace deluge::engine
+/// @brief The Deluge instrument plugin.
+inline constexpr PluginId kDelugeInstrument{"deluge.instrument"};
+
+/// @brief The params the song master, a kit's affect-entire and an audio track share, until each effect declares
+/// its own.
+inline constexpr PluginId kGlobalEffectable{"deluge.global-effectable"};
+
+} // namespace deluge::plugin

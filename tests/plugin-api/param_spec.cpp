@@ -1,11 +1,11 @@
-#include "engine-api/types/engine_id.h"
-#include "engine-api/types/param.h"
+#include "plugin-api/types/param.h"
+#include "plugin-api/types/plugin_id.h"
 
 #include <array>
 #include <cppspec.hpp>
 #include <limits>
 
-using namespace deluge::engine;
+using namespace deluge::plugin;
 
 namespace {
 constexpr std::array<ParamInfo, 3> kTable{{
@@ -16,7 +16,7 @@ constexpr std::array<ParamInfo, 3> kTable{{
 } // namespace
 
 // clang-format off
-describe param("an engine's param words", ${
+describe param("a plugin's param words", ${
 	it("orders and compares ids by number", _ {
 		expect(ParamId{3}.value).to_equal(ParamId{3}.value);
 		expect(ParamId{3} < ParamId{90}).to_be_true();

@@ -40,7 +40,7 @@ describe effect_codec("an owner element's effect entries", ${
 		expect(pieces.tags.find("audioCompressor")->find("thresh")->str()).to_equal(std::string("77"));
 	});
 	it("writes sync levels relative to the song's tick magnitude", _ {
-		constexpr deluge::engine::CodecContext kAtThree{.input_tick_magnitude = 3};
+		constexpr deluge::plugin::CodecContext kAtThree{.input_tick_magnitude = 3};
 		EffectStates read;
 		decode(encode(busy(), kAtThree), read, kAtThree);
 		expect(read.delay.sync_level).to_equal(busy().delay.sync_level);
@@ -74,8 +74,8 @@ describe effect_codec("an owner element's effect entries", ${
 		auto doc = deluge::serialization::parseXml(R"(<sound><delay pingPong="0" feedback="5"/></sound>)");
 		EffectStates read = busy();
 		decode(*doc->find("sound"), read, kAtOne);
-		expect(read.delay.sync_level).to_equal(deluge::engine::SyncLevel::NONE);
-		expect(read.delay.sync_type).to_equal(deluge::engine::SyncType::EVEN);
+		expect(read.delay.sync_level).to_equal(deluge::plugin::SyncLevel::NONE);
+		expect(read.delay.sync_type).to_equal(deluge::plugin::SyncType::EVEN);
 		expect(read.delay.ping_pong).to_be_false();
 	});
 	it("reads a delay's type from a file that saves only whether it is analog", _ {

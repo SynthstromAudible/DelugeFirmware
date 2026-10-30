@@ -27,7 +27,7 @@ namespace deluge::project {
 /// @brief The instrument a synth track or a sound kit row plays: which engine, and its element's entries the model does
 /// not own, kept as read and written back as they are. The model never interprets `state`.
 struct InstrumentSlot {
-	std::string engine;                                           ///< the engine's id, e.g. "deluge.instrument"
+	std::string plugin;                                           ///< the plugin's id, e.g. "deluge.instrument"
 	serialization::Value state = serialization::Value::makeMap(); ///< the element's other entries, in order
 	/// The song's input tick magnitude when `state` was written whole: all its sync levels are relative to it, the
 	/// entries re-encoded since included.

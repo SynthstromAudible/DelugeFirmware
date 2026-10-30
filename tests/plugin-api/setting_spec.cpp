@@ -1,9 +1,9 @@
-#include "engine-api/types/setting.h"
+#include "plugin-api/types/setting.h"
 
 #include <array>
 #include <cppspec.hpp>
 
-using namespace deluge::engine;
+using namespace deluge::plugin;
 
 namespace {
 constexpr std::array<std::string_view, 2> kModes{"poly", "mono"};
@@ -14,7 +14,7 @@ constexpr std::array<SettingInfo, 2> kTable{{
 } // namespace
 
 // clang-format off
-describe setting("an engine's settings schema", ${
+describe setting("a plugin's settings schema", ${
 	it("finds a row by its path", _ {
 		expect(find_setting(kTable, "unison/num")).to_equal(&kTable[1]);
 		expect(find_setting(kTable, "polyphonic")->choices.size()).to_equal(size_t{2});

@@ -17,7 +17,7 @@
 
 #include "engines/effects/settings.h"
 
-#include "engine-api/settings.h"
+#include "plugin-api/settings.h"
 
 #include <string>
 #include <utility>
@@ -40,9 +40,9 @@ Answer word(std::string_view text) {
 	return serialization::Value::makeScalar(std::string(text));
 }
 
-Answer sync_answer(std::string_view rest, engine::SyncType type, engine::SyncLevel level) {
+Answer sync_answer(std::string_view rest, plugin::SyncType type, plugin::SyncLevel level) {
 	if (rest == "syncLevel") {
-		return number(engine::index_of(level));
+		return number(plugin::index_of(level));
 	}
 	if (rest == "syncType") {
 		return number(std::to_underlying(type));
@@ -53,11 +53,11 @@ Answer sync_answer(std::string_view rest, engine::SyncType type, engine::SyncLev
 } // namespace
 
 bool check_effect_setting(std::string_view path, const serialization::Value& value) {
-	return engine::check_setting(kEffectSettings, path, value);
+	return plugin::check_setting(kEffectSettings, path, value);
 }
 
 std::optional<serialization::Value> effect_setting_value(const EffectStates& states, std::string_view path) {
-	if (engine::find_setting(kEffectSettings, path) == nullptr) {
+	if (plugin::find_setting(kEffectSettings, path) == nullptr) {
 		return std::nullopt;
 	}
 	const size_t slash = path.find('/');

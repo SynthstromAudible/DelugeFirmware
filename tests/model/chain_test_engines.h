@@ -15,7 +15,7 @@ inline effects::Home home_of(ChainHome home) {
 }
 
 inline FxChain decode_chain(const serialization::Value& element, ChainHome home, int32_t tick_magnitude) {
-	const engine::CodecContext context{.input_tick_magnitude = tick_magnitude};
+	const plugin::CodecContext context{.input_tick_magnitude = tick_magnitude};
 	effects::EffectStates states;
 	effects::decode(element, states, context);
 	FxChain chain{.reverb_return = effects::reverb_return(home_of(home)), .view = effects::view_entries(element)};

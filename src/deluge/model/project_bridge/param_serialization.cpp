@@ -33,7 +33,7 @@
 
 namespace deluge::bridge {
 
-using deluge::engine::ParamId;
+using deluge::plugin::ParamId;
 namespace ip = deluge::instrument::param;
 namespace gp = deluge::global_effectable::param;
 

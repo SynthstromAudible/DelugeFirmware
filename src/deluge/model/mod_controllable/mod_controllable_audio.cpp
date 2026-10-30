@@ -332,7 +332,7 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer, const deluge::eff
 	writer.writeValue(pieces.tags);
 }
 
-deluge::engine::CodecContext ModControllableAudio::effectsCodecContext() {
+deluge::plugin::CodecContext ModControllableAudio::effectsCodecContext() {
 	return {.input_tick_magnitude = currentSong->getInputTickMagnitude()};
 }
 
@@ -958,8 +958,8 @@ void ModControllableAudio::switchDelaySyncLevel() {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
 	deluge::edits::changeEffect(
 	    *this, "delay/syncLevel",
-	    deluge::serialization::Value::makeNumber(deluge::engine::index_of(effects().delay.sync_level)
-	                                                 % deluge::engine::index_of(SYNC_LEVEL_256TH)
+	    deluge::serialization::Value::makeNumber(deluge::plugin::index_of(effects().delay.sync_level)
+	                                                 % deluge::plugin::index_of(SYNC_LEVEL_256TH)
 	                                             + 1)); // cycle from 1 to 9 (omit 0)
 }
 
@@ -967,11 +967,11 @@ void ModControllableAudio::getDelaySyncLevelDisplayName(char* displayName) {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
 	deluge::edits::changeEffect(*this, "delay/syncLevel",
 	                            deluge::serialization::Value::makeNumber(
-	                                deluge::engine::index_of(effects().delay.sync_level)
-	                                % deluge::engine::index_of(SYNC_LEVEL_256TH))); // cycle from 1 to 9 (omit 0)
+	                                deluge::plugin::index_of(effects().delay.sync_level)
+	                                % deluge::plugin::index_of(SYNC_LEVEL_256TH))); // cycle from 1 to 9 (omit 0)
 	etl::string<kShortStringBufferSize> buffer;
-	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (deluge::engine::index_of(SYNC_LEVEL_256TH)
-	                                                       - deluge::engine::index_of(effects().delay.sync_level)));
+	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (deluge::plugin::index_of(SYNC_LEVEL_256TH)
+	                                                       - deluge::plugin::index_of(effects().delay.sync_level)));
 	strncpy(displayName, buffer.data(), 29);
 }
 

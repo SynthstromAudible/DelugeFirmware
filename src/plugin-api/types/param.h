@@ -23,9 +23,9 @@
 #include <span>
 #include <string_view>
 
-namespace deluge::engine {
+namespace deluge::plugin {
 
-/// @brief A param's stable number in its engine's table. An engine never reuses an id; a new param takes a new one.
+/// @brief A param's stable number in its plugin's table. A plugin never reuses an id; a new param takes a new one.
 struct ParamId {
 	uint32_t value{0};
 	[[nodiscard]] constexpr auto operator<=>(const ParamId&) const = default;
@@ -42,7 +42,7 @@ struct ParamRange {
 	[[nodiscard]] constexpr bool operator==(const ParamRange&) const = default;
 };
 
-/// @brief One row of an engine's param table.
+/// @brief One row of a plugin's param table.
 struct ParamInfo {
 	ParamId id;
 	/// The name files give the param where they name it (a cable's destination, a knob's target).
@@ -55,7 +55,7 @@ struct ParamInfo {
 	ParamRange range{};
 };
 
-/// @brief A dense run of ids an engine stores together: @c count ids from @c first.
+/// @brief A dense run of ids a plugin stores together: @c count ids from @c first.
 struct ParamBlock {
 	ParamId first;
 	uint32_t count{0};
@@ -69,7 +69,7 @@ struct ParamBlock {
 };
 
 /// @brief The row of @p table with id @p id, or nullptr.
-/// @param table The engine's param table.
+/// @param table The plugin's param table.
 /// @param id The param id to find.
 /// @return The matching row, or nullptr.
 [[nodiscard]] constexpr const ParamInfo* find_param(std::span<const ParamInfo> table, ParamId id) {
@@ -82,7 +82,7 @@ struct ParamBlock {
 }
 
 /// @brief The row of @p table named @p file_name, or nullptr. An empty name matches no row.
-/// @param table The engine's param table.
+/// @param table The plugin's param table.
 /// @param file_name The name files give the param.
 /// @return The matching row, or nullptr.
 [[nodiscard]] constexpr const ParamInfo* find_param(std::span<const ParamInfo> table, std::string_view file_name) {
@@ -97,4 +97,4 @@ struct ParamBlock {
 	return nullptr;
 }
 
-} // namespace deluge::engine
+} // namespace deluge::plugin

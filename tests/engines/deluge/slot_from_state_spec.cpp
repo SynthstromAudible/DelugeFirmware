@@ -8,7 +8,7 @@ using namespace deluge::instrument;
 using deluge::serialization::Value;
 
 namespace {
-constexpr deluge::engine::CodecContext kContext{.input_tick_magnitude = 0};
+constexpr deluge::plugin::CodecContext kContext{.input_tick_magnitude = 0};
 std::vector<std::string> keys(const Value& map) {
 	std::vector<std::string> out;
 	for (const auto& [key, value] : map.entries()) {

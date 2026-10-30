@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "engine-api/types/interpolation_mode.h"
-#include "engine-api/types/voice_priority.h"
+#include "plugin-api/types/interpolation_mode.h"
+#include "plugin-api/types/voice_priority.h"
 
 #include <cstdint>
 #include <string>
@@ -41,11 +41,11 @@ struct DocAudioClip {
 	uint64_t end_pos{0};
 	int16_t transpose{0};
 	int8_t cents{0};
-	engine::InterpolationMode interpolation_mode{engine::InterpolationMode::SMOOTH};
+	plugin::InterpolationMode interpolation_mode{plugin::InterpolationMode::SMOOTH};
 	bool pitch_and_speed_independent{true};
 	bool reversed{false};
 	int32_t attack{-2147483648};
-	engine::VoicePriority voice_priority{engine::VoicePriority::MEDIUM};
+	plugin::VoicePriority voice_priority{plugin::VoicePriority::MEDIUM};
 	bool overdubs_should_clone{true};
 
 	bool operator==(const DocAudioClip&) const = default;

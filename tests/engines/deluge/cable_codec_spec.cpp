@@ -9,7 +9,7 @@
 #include <string>
 
 using namespace deluge::instrument;
-using deluge::engine::ParamId;
+using deluge::plugin::ParamId;
 using deluge::serialization::Value;
 
 namespace {

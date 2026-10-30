@@ -1,4 +1,4 @@
-#include "engine-api/types/sync.h"
+#include "plugin-api/types/sync.h"
 
 #include "cppspec.hpp"
 
@@ -6,7 +6,7 @@
 #include <type_traits>
 #include <utility>
 
-using namespace deluge::engine;
+using namespace deluge::plugin;
 
 // clang-format off
 describe sync_level("SyncLevel and SyncType", $ {

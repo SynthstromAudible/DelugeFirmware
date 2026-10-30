@@ -7,8 +7,8 @@
 #include <string_view>
 
 using namespace deluge::instrument;
-using deluge::engine::ParamId;
-using deluge::engine::ParamScope;
+using deluge::plugin::ParamId;
+using deluge::plugin::ParamScope;
 
 namespace {
 struct Pinned {
@@ -167,16 +167,16 @@ describe params("the Deluge instrument's param table", ${
 	});
 
 	it("starts a new instance with its params' defaults", _ {
-		expect(deluge::engine::find_param(kParams, param::kOscAVolume)->default_value)
+		expect(deluge::plugin::find_param(kParams, param::kOscAVolume)->default_value)
 		    .to_equal(std::numeric_limits<int32_t>::max());
-		expect(deluge::engine::find_param(kParams, param::kPortamento)->default_value)
+		expect(deluge::plugin::find_param(kParams, param::kPortamento)->default_value)
 		    .to_equal(std::numeric_limits<int32_t>::min());
-		expect(deluge::engine::find_param(kParams, param::kPan)->default_value).to_equal(0);
+		expect(deluge::plugin::find_param(kParams, param::kPan)->default_value).to_equal(0);
 	});
 
 	it("has one row per name", _ {
 		for (const auto& row : kParams) {
-			expect(deluge::engine::find_param(kParams, row.file_name)).to_equal(&row);
+			expect(deluge::plugin::find_param(kParams, row.file_name)).to_equal(&row);
 		}
 	});
 });

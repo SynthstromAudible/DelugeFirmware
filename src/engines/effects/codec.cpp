@@ -57,18 +57,18 @@ bool flag_of(const Value& value) {
 	return std::clamp(int_or_zero(value), 0, 1) != 0;
 }
 
-int32_t sync_level_in_file(engine::SyncLevel level, const engine::CodecContext& context) {
-	return engine::sync_level_to_file(engine::index_of(level), context.input_tick_magnitude);
+int32_t sync_level_in_file(plugin::SyncLevel level, const plugin::CodecContext& context) {
+	return plugin::sync_level_to_file(plugin::index_of(level), context.input_tick_magnitude);
 }
 
-engine::SyncLevel sync_level_read(const Value& value, const engine::CodecContext& context) {
-	return engine::sync_level_from_index(
-	    engine::sync_level_from_file(int_or_zero(value), context.input_tick_magnitude));
+plugin::SyncLevel sync_level_read(const Value& value, const plugin::CodecContext& context) {
+	return plugin::sync_level_from_index(
+	    plugin::sync_level_from_file(int_or_zero(value), context.input_tick_magnitude));
 }
 
-void read_delay(const Value& delay, DelayState& state, const engine::CodecContext& context) {
-	state.sync_type = engine::SyncType::EVEN;
-	state.sync_level = engine::SyncLevel::NONE;
+void read_delay(const Value& delay, DelayState& state, const plugin::CodecContext& context) {
+	state.sync_type = plugin::SyncType::EVEN;
+	state.sync_level = plugin::SyncLevel::NONE;
 	state.type = DelayType::DIGITAL;
 	if (!delay.isMap()) {
 		return;
@@ -88,7 +88,7 @@ void read_delay(const Value& delay, DelayState& state, const engine::CodecContex
 			type = parse_delay_type(text_or_empty(value));
 		}
 		else if (key == "syncType") {
-			state.sync_type = static_cast<engine::SyncType>(int_or_zero(value));
+			state.sync_type = static_cast<plugin::SyncType>(int_or_zero(value));
 		}
 		else if (key == "syncLevel") {
 			state.sync_level = sync_level_read(value, context);
@@ -97,9 +97,9 @@ void read_delay(const Value& delay, DelayState& state, const engine::CodecContex
 	state.type = type.value_or(analog ? DelayType::ANALOG : DelayType::DIGITAL);
 }
 
-void read_sidechain(const Value& sidechain, SidechainState& state, const engine::CodecContext& context) {
-	state.sync_type = engine::SyncType::EVEN;
-	state.sync_level = engine::SyncLevel::NONE;
+void read_sidechain(const Value& sidechain, SidechainState& state, const plugin::CodecContext& context) {
+	state.sync_type = plugin::SyncType::EVEN;
+	state.sync_level = plugin::SyncLevel::NONE;
 	if (!sidechain.isMap()) {
 		return;
 	}
@@ -111,7 +111,7 @@ void read_sidechain(const Value& sidechain, SidechainState& state, const engine:
 			state.release = int_or_zero(value);
 		}
 		else if (key == "syncType") {
-			state.sync_type = static_cast<engine::SyncType>(int_or_zero(value));
+			state.sync_type = static_cast<plugin::SyncType>(int_or_zero(value));
 		}
 		else if (key == "syncLevel") {
 			state.sync_level = sync_level_read(value, context);
@@ -168,7 +168,7 @@ void read_stutter(const Value& stutter, StutterState& state) {
 
 } // namespace
 
-EffectPieces encode_pieces(const EffectStates& states, const engine::CodecContext& context,
+EffectPieces encode_pieces(const EffectStates& states, const plugin::CodecContext& context,
                            std::optional<int32_t> compressor_threshold) {
 	EffectPieces pieces{.attributes = Value::makeMap(), .delay = Value::makeMap(), .tags = Value::makeMap()};
 	pieces.attributes.set("modFXType", text(to_string(states.mod_fx.type)));
@@ -213,7 +213,7 @@ EffectPieces encode_pieces(const EffectStates& states, const engine::CodecContex
 	return pieces;
 }
 
-Value encode(const EffectStates& states, const engine::CodecContext& context) {
+Value encode(const EffectStates& states, const plugin::CodecContext& context) {
 	EffectPieces pieces = encode_pieces(states, context);
 	Value out = Value::makeMap();
 	for (const Value* piece : {&pieces.attributes, &pieces.delay, &pieces.tags}) {
@@ -229,7 +229,7 @@ bool saves_delay_type(const Value& element) {
 	return delay != nullptr && delay->isMap() && delay->find("type") != nullptr;
 }
 
-void decode(const Value& element, EffectStates& states, const engine::CodecContext& context) {
+void decode(const Value& element, EffectStates& states, const plugin::CodecContext& context) {
 	if (!element.isMap()) {
 		return;
 	}

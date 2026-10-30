@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "engine-api/engine.h"
 #include "engines/deluge/sound_state.h"
+#include "plugin-api/plugin.h"
 #include "serialization/value.h"
 
 #include <expected>
@@ -55,14 +55,14 @@ struct SoundPieces {
 /// @param compressor_threshold The compressor threshold to write in place of the state's: a sound's is its param, as
 /// the render last applied it.
 /// @return The pieces, in file order.
-[[nodiscard]] SoundPieces encode_pieces(const SoundState& state, const engine::CodecContext& context,
+[[nodiscard]] SoundPieces encode_pieces(const SoundState& state, const plugin::CodecContext& context,
                                         std::optional<int32_t> compressor_threshold = std::nullopt);
 
 /// @brief The pieces of encode_pieces as one Map, in file order: what the instrument owns of a sound element.
 /// @param state   The sound's settings.
 /// @param context The file context.
 /// @return The Map of the instrument's entries.
-[[nodiscard]] serialization::Value encode(const SoundState& state, const engine::CodecContext& context);
+[[nodiscard]] serialization::Value encode(const SoundState& state, const plugin::CodecContext& context);
 
 /// @brief Whether @p key, at the top of a sound element, is one the instrument writes.
 /// @param key An entry name.
@@ -79,7 +79,7 @@ struct SoundPieces {
 /// @param context The file context.
 /// @return The updated element.
 [[nodiscard]] serialization::Value with_state(const serialization::Value& element, const SoundState& state,
-                                              const engine::CodecContext& context);
+                                              const plugin::CodecContext& context);
 
 /// @brief Read a whole sound element into @p state, which holds the state of the sound being read into (a new sound's,
 /// for a file). Each entry is applied in the element's order, older
@@ -89,8 +89,8 @@ struct SoundPieces {
 /// @param state   The state read into; entries the element lacks keep their value.
 /// @param context The file context.
 /// @return Nothing, or why the element cannot be read (two ranges of a source with the same top note).
-[[nodiscard]] std::expected<void, engine::StateError> decode(const serialization::Value& element, SoundState& state,
-                                                             const engine::CodecContext& context);
+[[nodiscard]] std::expected<void, plugin::StateError> decode(const serialization::Value& element, SoundState& state,
+                                                             const plugin::CodecContext& context);
 
 /// @brief The fields of @p from that @p state's encoding does not write, copied into @p state: an FM sound's sources'
 /// types, sample playback, ranges and DX patches; a non-FM sound's modulators; a sample source's own transpose and
@@ -116,18 +116,18 @@ struct SlotChange {
 /// @param current  The state the slot decoded to before the change.
 /// @param context  The file context.
 /// @return The new state and the instrument entries the change touched, or why the element cannot be read.
-[[nodiscard]] std::expected<SlotChange, engine::StateError> decode_change(const serialization::Value& element,
+[[nodiscard]] std::expected<SlotChange, plugin::StateError> decode_change(const serialization::Value& element,
                                                                           const serialization::Value& previous,
                                                                           const SoundState& current,
-                                                                          const engine::CodecContext& context);
+                                                                          const plugin::CodecContext& context);
 
 /// @brief decode_change of @p element onto @p current, whose slot is taken to be what @p current encodes to.
 /// @param element The sound's changed slot.
 /// @param current The state to decode onto.
 /// @param context The file context.
 /// @return The new state, or why the element cannot be read.
-[[nodiscard]] std::expected<SoundState, engine::StateError>
-decode_onto(const serialization::Value& element, const SoundState& current, const engine::CodecContext& context);
+[[nodiscard]] std::expected<SoundState, plugin::StateError>
+decode_onto(const serialization::Value& element, const SoundState& current, const plugin::CodecContext& context);
 
 /// @brief The state a new synth starts with, before anything is read into it: what a file's reading starts from.
 /// @return The default state of a new synth.

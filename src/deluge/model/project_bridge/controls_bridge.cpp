@@ -41,7 +41,7 @@ using deluge::project::ControllerMapping;
 using deluge::project::MidiInputControl;
 using deluge::project::ModKnobControl;
 
-deluge::engine::ParamId knobTargetOf(ParamDescriptor descriptor, params::Kind unpatchedKind) {
+deluge::plugin::ParamId knobTargetOf(ParamDescriptor descriptor, params::Kind unpatchedKind) {
 	if (!descriptor.isJustAParam()) {
 		return cableDepthIdOf(descriptor.data);
 	}
@@ -113,7 +113,7 @@ void refreshControls(::Song& song) {
 	song.project.controls = learnedControlsOf(song.live.global_effectable);
 }
 
-ParamDescriptor descriptorOf(deluge::engine::ParamId target, params::Kind unpatchedKind) {
+ParamDescriptor descriptorOf(deluge::plugin::ParamId target, params::Kind unpatchedKind) {
 	ParamDescriptor descriptor;
 	if ((target.value & deluge::instrument::kCableDepthFlag) != 0) { // a cable's depth
 		descriptor.data = cableWordOf(target);
@@ -282,7 +282,7 @@ void recordOutputControls(::Output& output, ::Song& song) {
 }
 
 deluge::project::CodecEngines codecEngines() {
-	static const std::array<deluge::engine::ParamNaming, 2> namings{deluge::instrument::kNaming,
+	static const std::array<deluge::plugin::ParamNaming, 2> namings{deluge::instrument::kNaming,
 	                                                                deluge::global_effectable::kNaming};
 	return {.namings = namings, .chains = chainCodec()};
 }

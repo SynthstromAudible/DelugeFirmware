@@ -13,8 +13,8 @@
 namespace deluge::project::test {
 
 /// @brief The namings the tests' codecs use.
-inline const std::array<deluge::engine::ParamNaming, 2>& test_namings() {
-	static const std::array<deluge::engine::ParamNaming, 2> namings{deluge::instrument::kNaming,
+inline const std::array<deluge::plugin::ParamNaming, 2>& test_namings() {
+	static const std::array<deluge::plugin::ParamNaming, 2> namings{deluge::instrument::kNaming,
 	                                                                deluge::global_effectable::kNaming};
 	return namings;
 }

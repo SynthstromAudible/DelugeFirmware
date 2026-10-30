@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "engine-api/engine.h"
 #include "engines/effects/state.h"
+#include "plugin-api/plugin.h"
 #include "serialization/value.h"
 
 #include <array>
@@ -43,21 +43,21 @@ struct EffectPieces {
 /// @param compressor_threshold The threshold to write in place of the state's: a sound's file holds its param's, as
 /// the render last applied it. A host chain's file holds the state's.
 /// @return The entries, as pieces in file order.
-[[nodiscard]] EffectPieces encode_pieces(const EffectStates& states, const engine::CodecContext& context,
+[[nodiscard]] EffectPieces encode_pieces(const EffectStates& states, const plugin::CodecContext& context,
                                          std::optional<int32_t> compressor_threshold = std::nullopt);
 
 /// @brief The pieces of encode_pieces as one Map, in file order.
 /// @param states The effect states to encode.
 /// @param context The codec context; sync levels are written relative to its tick magnitude.
 /// @return The Map of effect entries.
-[[nodiscard]] serialization::Value encode(const EffectStates& states, const engine::CodecContext& context);
+[[nodiscard]] serialization::Value encode(const EffectStates& states, const plugin::CodecContext& context);
 
 /// @brief Read every effect entry @p element (an owner's element, a Map) holds into @p states, as the runtime's
 /// reader does; what the element does not name keeps its value. A delay's feedback and rate are params, not read here.
 /// @param element An owner's element (a Map).
 /// @param states The effect states to fill in.
 /// @param context The codec context; sync levels are read relative to its tick magnitude.
-void decode(const serialization::Value& element, EffectStates& states, const engine::CodecContext& context);
+void decode(const serialization::Value& element, EffectStates& states, const plugin::CodecContext& context);
 
 /// @brief Whether @p element saves its delay's type: a `type` entry in its `delay` map.
 ///

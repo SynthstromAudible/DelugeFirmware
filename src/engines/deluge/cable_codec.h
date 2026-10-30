@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "engine-api/types/param.h"
 #include "engines/deluge/cables.h"
+#include "plugin-api/types/param.h"
 #include "serialization/value.h"
 
 #include <cstddef>
@@ -34,7 +34,7 @@ inline constexpr size_t kMaxCables = 32;
 struct CableState {
 	PatchSource source{PatchSource::NONE};
 	/// A param, another cable's depth, or kUnknownDestination.
-	engine::ParamId destination{};
+	plugin::ParamId destination{};
 	Polarity polarity{Polarity::BIPOLAR};
 	/// The cable's `amount`: the host's automation leaf, pointing into the decoded tree.
 	const serialization::Value* amount{nullptr};
@@ -42,7 +42,7 @@ struct CableState {
 	/// @brief The id of this cable's depth.
 	/// @return The depth id, or a default-constructed id when the destination already carries three sources or is
 	///         not a valid destination (neither a cable depth nor a param id below 256).
-	[[nodiscard]] engine::ParamId depth() const;
+	[[nodiscard]] plugin::ParamId depth() const;
 };
 
 /// @brief Whether an automation leaf holds something (a non-zero value, or automation): the host's reading of it.

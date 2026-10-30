@@ -114,7 +114,7 @@ Value source(const SoundState& state, size_t s) {
 		map.set("reversed", number(src.reversed ? 1 : 0));
 		map.set("timeStretchEnable", number(src.pitch_and_speed_independent ? 1 : 0));
 		map.set("timeStretchAmount", number(src.time_stretch_amount));
-		if (src.interpolation_mode == engine::InterpolationMode::LINEAR) {
+		if (src.interpolation_mode == plugin::InterpolationMode::LINEAR) {
 			map.set("linearInterpolation", number(1));
 		}
 		if (numRanges == 1) {
@@ -169,10 +169,10 @@ Value source(const SoundState& state, size_t s) {
 	return map;
 }
 
-Value lfo(const SoundState& state, size_t l, const engine::CodecContext& context) {
+Value lfo(const SoundState& state, size_t l, const plugin::CodecContext& context) {
 	auto map = Value::makeMap();
 	map.set("type", text(to_string(state.lfo_wave_type[l])));
-	map.set("syncLevel", number(engine::sync_level_to_file(engine::index_of(state.lfo_sync_level[l]),
+	map.set("syncLevel", number(plugin::sync_level_to_file(plugin::index_of(state.lfo_sync_level[l]),
 	                                                       context.input_tick_magnitude)));
 	map.set("syncType", number(std::to_underlying(state.lfo_sync_type[l])));
 	return map;
@@ -197,7 +197,7 @@ void append(Value& to, const Value& from) {
 
 } // namespace
 
-SoundPieces encode_pieces(const SoundState& state, const engine::CodecContext& context,
+SoundPieces encode_pieces(const SoundState& state, const plugin::CodecContext& context,
                           std::optional<int32_t> compressor_threshold) {
 	SoundPieces pieces{.head = Value::makeMap(),
 	                   .effect_attributes = Value::makeMap(),
@@ -248,7 +248,7 @@ SoundPieces encode_pieces(const SoundState& state, const engine::CodecContext& c
 	return pieces;
 }
 
-Value encode(const SoundState& state, const engine::CodecContext& context) {
+Value encode(const SoundState& state, const plugin::CodecContext& context) {
 	SoundPieces pieces = encode_pieces(state, context);
 	auto map = Value::makeMap();
 	append(map, pieces.head);
@@ -266,7 +266,7 @@ bool is_state_key(std::string_view key) {
 }
 
 serialization::Value with_state(const serialization::Value& element, const SoundState& state,
-                                const engine::CodecContext& context) {
+                                const plugin::CodecContext& context) {
 	const serialization::Value encoded = encode(state, context);
 	serialization::Value out = serialization::Value::makeMap();
 	std::vector<std::string_view> placed;
@@ -383,7 +383,7 @@ void readZone(const Value& zone, RangeState& range, bool resetPositions) {
 	}
 }
 
-std::expected<void, engine::StateError> readRanges(const Value& list, SourceState& src, bool refuseDuplicates) {
+std::expected<void, plugin::StateError> readRanges(const Value& list, SourceState& src, bool refuseDuplicates) {
 	const bool wavetable = src.osc_type == OscType::WAVETABLE;
 	for (const serialization::NamedChild& child : serialization::children(list)) {
 		if ((child.name != "sampleRange" && child.name != "wavetableRange") || !child.node->isMap()) {
@@ -409,14 +409,14 @@ std::expected<void, engine::StateError> readRanges(const Value& list, SourceStat
 		}
 		auto at = std::ranges::upper_bound(src.ranges, range.top_note, {}, &RangeState::top_note);
 		if (refuseDuplicates && at != src.ranges.begin() && std::prev(at)->top_note == range.top_note) {
-			return std::unexpected(engine::StateError::DUPLICATE_RANGE);
+			return std::unexpected(plugin::StateError::DUPLICATE_RANGE);
 		}
 		src.ranges.insert(at, std::move(range));
 	}
 	return {};
 }
 
-std::expected<void, engine::StateError> readSource(const Value& osc, SoundState& state, size_t s,
+std::expected<void, plugin::StateError> readSource(const Value& osc, SoundState& state, size_t s,
                                                    SourceReading& reading) {
 	SourceState& src = state.sources[s];
 	if (!osc.isMap()) {
@@ -465,7 +465,7 @@ std::expected<void, engine::StateError> readSource(const Value& osc, SoundState&
 		}
 		else if (key == "linearInterpolation") {
 			if (intOf(value) != 0) {
-				src.interpolation_mode = engine::InterpolationMode::LINEAR;
+				src.interpolation_mode = plugin::InterpolationMode::LINEAR;
 			}
 		}
 		else if (key == "retrigPhase") {
@@ -507,9 +507,9 @@ void readModulator(const Value& modulator, SoundState& state, size_t m) {
 	}
 }
 
-void readLfo(const Value& lfo, SoundState& state, size_t l, const engine::CodecContext& context) {
-	state.lfo_sync_type[l] = engine::SyncType::EVEN;
-	state.lfo_sync_level[l] = engine::SyncLevel::NONE;
+void readLfo(const Value& lfo, SoundState& state, size_t l, const plugin::CodecContext& context) {
+	state.lfo_sync_type[l] = plugin::SyncType::EVEN;
+	state.lfo_sync_level[l] = plugin::SyncLevel::NONE;
 	if (!lfo.isMap()) {
 		return;
 	}
@@ -518,11 +518,11 @@ void readLfo(const Value& lfo, SoundState& state, size_t l, const engine::CodecC
 			state.lfo_wave_type[l] = parse_lfo_type(textOf(value));
 		}
 		else if (key == "syncType") {
-			state.lfo_sync_type[l] = static_cast<engine::SyncType>(intOf(value));
+			state.lfo_sync_type[l] = static_cast<plugin::SyncType>(intOf(value));
 		}
 		else if (key == "syncLevel") {
-			state.lfo_sync_level[l] = static_cast<engine::SyncLevel>(
-			    engine::sync_level_from_file(intOf(value), context.input_tick_magnitude));
+			state.lfo_sync_level[l] = static_cast<plugin::SyncLevel>(
+			    plugin::sync_level_from_file(intOf(value), context.input_tick_magnitude));
 		}
 	}
 }
@@ -545,10 +545,10 @@ Value dumpRange(const RangeState& range) {
 namespace {
 
 /// Read @p element into @p state; @p fileRead says it is a file's read, whose own normalisations it applies.
-std::expected<void, engine::StateError> decodeImpl(const Value& element, SoundState& state,
-                                                   const engine::CodecContext& context, bool fileRead) {
+std::expected<void, plugin::StateError> decodeImpl(const Value& element, SoundState& state,
+                                                   const plugin::CodecContext& context, bool fileRead) {
 	if (!element.isMap()) {
-		return std::unexpected(engine::StateError::NOT_A_MAP);
+		return std::unexpected(plugin::StateError::NOT_A_MAP);
 	}
 	// What reading a sound always starts with, whatever the file holds.
 	state.modulator_transpose[1] = 0;
@@ -604,7 +604,7 @@ std::expected<void, engine::StateError> decodeImpl(const Value& element, SoundSt
 			state.max_voice_count = static_cast<uint8_t>(intOf(value));
 		}
 		else if (key == "voicePriority") {
-			state.voice_priority = static_cast<engine::VoicePriority>(intOf(value));
+			state.voice_priority = static_cast<plugin::VoicePriority>(intOf(value));
 		}
 		else if (key == "midiOutput") {
 			if (value.isMap()) {
@@ -727,8 +727,8 @@ void keepEntry(std::string_view key, SoundState& state, const SoundState& from) 
 
 } // namespace
 
-std::expected<void, engine::StateError> decode(const Value& element, SoundState& state,
-                                               const engine::CodecContext& context) {
+std::expected<void, plugin::StateError> decode(const Value& element, SoundState& state,
+                                               const plugin::CodecContext& context) {
 	return decodeImpl(element, state, context, /*fileRead=*/true);
 }
 
@@ -778,9 +778,9 @@ void keep_unwritten(SoundState& state, const SoundState& from) {
 	}
 }
 
-std::expected<SlotChange, engine::StateError> decode_change(const Value& element, const Value& previous,
+std::expected<SlotChange, plugin::StateError> decode_change(const Value& element, const Value& previous,
                                                             const SoundState& current,
-                                                            const engine::CodecContext& context) {
+                                                            const plugin::CodecContext& context) {
 	SlotChange change{.state = new_synth_state()};
 	SoundState& decoded = change.state;
 	if (auto read = decodeImpl(element, decoded, context, /*fileRead=*/false); !read) {
@@ -846,8 +846,8 @@ std::expected<SlotChange, engine::StateError> decode_change(const Value& element
 	return change;
 }
 
-std::expected<SoundState, engine::StateError> decode_onto(const Value& element, const SoundState& current,
-                                                          const engine::CodecContext& context) {
+std::expected<SoundState, plugin::StateError> decode_onto(const Value& element, const SoundState& current,
+                                                          const plugin::CodecContext& context) {
 	return decode_change(element, encode(current, context), current, context).transform([](SlotChange&& change) {
 		return std::move(change.state);
 	});
@@ -867,7 +867,7 @@ SoundState new_synth_state() {
 	};
 	for (SourceState& src : state.sources) {
 		src.osc_type = OscType::SQUARE;
-		src.interpolation_mode = engine::InterpolationMode::SMOOTH;
+		src.interpolation_mode = plugin::InterpolationMode::SMOOTH;
 	}
 	return state;
 }

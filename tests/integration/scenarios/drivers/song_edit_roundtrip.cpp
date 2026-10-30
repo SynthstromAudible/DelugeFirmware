@@ -892,10 +892,10 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		}
 		const int32_t magnitude = song2->getInputTickMagnitude();
 		const int32_t expected = std::min(deluge::project::sync_level_from_file(7, magnitude), int32_t{9});
-		if (deluge::engine::index_of(song2->project.groove.swing_interval) != expected) {
+		if (deluge::plugin::index_of(song2->project.groove.swing_interval) != expected) {
 			std::fprintf(io.err,
 			             "GROOVE FAIL: without inputTickMagnitude, swingInterval 7 read as %d, not %d (magnitude %d)\n",
-			             deluge::engine::index_of(song2->project.groove.swing_interval), expected, magnitude);
+			             deluge::plugin::index_of(song2->project.groove.swing_interval), expected, magnitude);
 			return 3;
 		}
 		currentSong = reloaded;

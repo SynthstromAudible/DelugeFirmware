@@ -155,8 +155,8 @@ inline fx::EffectStates settings(const Workload& w) {
 	s.mod_fx.type = w.mod_fx;
 	s.delay = {.ping_pong = true,
 	           .type = w.delay ? fx::DelayType::DIGITAL : fx::DelayType::OFF,
-	           .sync_type = deluge::engine::SyncType::EVEN,
-	           .sync_level = deluge::engine::SyncLevel::NONE};
+	           .sync_type = deluge::plugin::SyncType::EVEN,
+	           .sync_level = deluge::plugin::SyncLevel::NONE};
 	s.stutter = {.use_song_stutter = false, .quantized = false, .reversed = false, .ping_pong = false};
 	s.compressor = {.attack = 10 << 24,
 	                .release = 20 << 24,
@@ -166,8 +166,8 @@ inline fx::EffectStates settings(const Workload& w) {
 	                .blend = 0x7FFFFFFF};
 	s.sidechain = {.attack = 327244,
 	               .release = 992,
-	               .sync_type = deluge::engine::SyncType::EVEN,
-	               .sync_level = deluge::engine::SyncLevel::NONE};
+	               .sync_type = deluge::plugin::SyncType::EVEN,
+	               .sync_level = deluge::plugin::SyncLevel::NONE};
 	return s;
 }
 

@@ -1,4 +1,4 @@
-#include "engine-api/types/voice_priority.h"
+#include "plugin-api/types/voice_priority.h"
 
 #include "cppspec.hpp"
 
@@ -6,7 +6,7 @@
 #include <type_traits>
 #include <utility>
 
-using deluge::engine::VoicePriority;
+using deluge::plugin::VoicePriority;
 
 // clang-format off
 describe voice_priority("VoicePriority", $ {

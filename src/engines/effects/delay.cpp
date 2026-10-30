@@ -37,20 +37,20 @@ std::atomic<uint32_t> g_offSilencedBlocks{0};
 } // namespace
 
 int32_t synced_delay_rate(int32_t userDelayRate, const DelayState& settings, uint32_t timePerInternalTickInverse) {
-	const engine::SyncLevel syncLevel = settings.sync_level;
-	if (syncLevel == engine::SyncLevel::NONE) {
+	const plugin::SyncLevel syncLevel = settings.sync_level;
+	if (syncLevel == plugin::SyncLevel::NONE) {
 		return userDelayRate;
 	}
 	int64_t rate = multiply_32x32_rshift32_rounded(userDelayRate, static_cast<int32_t>(timePerInternalTickInverse));
-	if (settings.sync_type == engine::SyncType::TRIPLET) {
+	if (settings.sync_type == plugin::SyncType::TRIPLET) {
 		rate = rate * 3 / 2;
 	}
-	else if (settings.sync_type == engine::SyncType::DOTTED) {
+	else if (settings.sync_type == plugin::SyncType::DOTTED) {
 		rate = rate * 2 / 3;
 	}
 	// Limit to the biggest number we can store, after the sync type's scaling, so the shift below can't overflow.
-	const int32_t limit = 2147483647 >> (engine::index_of(syncLevel) + 5);
-	return static_cast<int32_t>(std::min<int64_t>(rate, limit)) << (engine::index_of(syncLevel) + 5);
+	const int32_t limit = 2147483647 >> (plugin::index_of(syncLevel) + 5);
+	return static_cast<int32_t>(std::min<int64_t>(rate, limit)) << (plugin::index_of(syncLevel) + 5);
 }
 
 uint32_t delay_off_silenced_blocks() {

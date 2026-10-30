@@ -17,11 +17,11 @@
 
 #pragma once
 
-#include "engine-api/types/interpolation_mode.h"
-#include "engine-api/types/sync.h"
-#include "engine-api/types/voice_priority.h"
 #include "engines/deluge/words.h"
 #include "engines/effects/state.h"
+#include "plugin-api/types/interpolation_mode.h"
+#include "plugin-api/types/sync.h"
+#include "plugin-api/types/voice_priority.h"
 
 #include <array>
 #include <cstdint>
@@ -64,7 +64,7 @@ struct SourceState {
 	int8_t cents{0};      ///< non-sample types only
 	SampleRepeatMode repeat_mode{SampleRepeatMode::CUT};
 	int8_t time_stretch_amount{0};
-	engine::InterpolationMode interpolation_mode{engine::InterpolationMode::LINEAR};
+	plugin::InterpolationMode interpolation_mode{plugin::InterpolationMode::LINEAR};
 	bool pitch_and_speed_independent{false};
 	bool reversed{false};
 	std::optional<DxPatchState> dx_patch; ///< present iff the source has a DX7 patch
@@ -74,7 +74,7 @@ struct SourceState {
 
 /// @brief The Deluge instrument's settings for one sound: everything about it that is not a param.
 struct SoundState {
-	engine::VoicePriority voice_priority{engine::VoicePriority::MEDIUM};
+	plugin::VoicePriority voice_priority{plugin::VoicePriority::MEDIUM};
 	uint8_t max_voice_count{0};
 	int32_t side_chain_send_level{0};
 	uint8_t output_midi_channel{0};
@@ -93,8 +93,8 @@ struct SoundState {
 	std::array<uint32_t, 2> osc_retrigger_phase{};       ///< 0xFFFFFFFF = free-running
 	std::array<uint32_t, 2> modulator_retrigger_phase{}; ///< 0xFFFFFFFF = free-running
 	std::array<LFOType, 4> lfo_wave_type{};
-	std::array<engine::SyncType, 4> lfo_sync_type{};
-	std::array<engine::SyncLevel, 4> lfo_sync_level{};
+	std::array<plugin::SyncType, 4> lfo_sync_type{};
+	std::array<plugin::SyncLevel, 4> lfo_sync_level{};
 	deluge::effects::EffectStates effects; ///< the sound's own effects' settings
 	std::array<SourceState, 2> sources;
 	bool operator==(const SoundState&) const = default;

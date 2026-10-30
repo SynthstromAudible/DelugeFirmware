@@ -17,21 +17,16 @@
 
 #pragma once
 
-#include <string_view>
+#include <cstdint>
 
-namespace deluge::engine {
+namespace deluge::plugin {
 
-/// @brief An engine's stable name, as a song stores it: a reverse-domain-style string that never changes once used.
-struct EngineId {
-	std::string_view name;
-	[[nodiscard]] constexpr bool operator==(const EngineId&) const = default;
+/// @brief How readily a plugin's voices are stolen when the host's voice budget runs out; higher keeps them longer.
+/// Saved as the integer `priority` attribute.
+enum class VoicePriority : uint8_t {
+	LOW,
+	MEDIUM,
+	HIGH,
 };
 
-/// @brief The Deluge instrument: today's whole sound pipeline as one engine.
-inline constexpr EngineId kDelugeInstrument{"deluge.instrument"};
-
-/// @brief The params the song master, a kit's affect-entire and an audio track share, until each effect declares
-/// its own.
-inline constexpr EngineId kGlobalEffectable{"deluge.global-effectable"};
-
-} // namespace deluge::engine
+} // namespace deluge::plugin

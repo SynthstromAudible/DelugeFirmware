@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "engine-api/types/param.h"
+#include "plugin-api/types/param.h"
 
 #include <array>
 #include <cstdint>
@@ -29,7 +29,7 @@ namespace deluge::instrument {
 /// @brief The ids of the Deluge instrument's params. Pinned forever by tests/engines/deluge/params_spec.cpp: an id
 /// never changes, is never reused, and a new param appends.
 namespace param {
-using engine::ParamId;
+using plugin::ParamId;
 inline constexpr ParamId kOscAVolume{0};
 inline constexpr ParamId kOscBVolume{1};
 inline constexpr ParamId kVolume{2};
@@ -119,112 +119,112 @@ inline constexpr ParamId kPortamento{116};
 inline constexpr uint32_t kUnpatchedFirstId = 90;
 
 /// @brief Every param the Deluge instrument has, in id order.
-inline constexpr std::array<engine::ParamInfo, 82> kParams{{
+inline constexpr std::array<plugin::ParamInfo, 82> kParams{{
     {.id = param::kOscAVolume,
      .file_name = "oscAVolume",
-     .scope = engine::ParamScope::PER_VOICE,
+     .scope = plugin::ParamScope::PER_VOICE,
      .default_value = std::numeric_limits<int32_t>::max()},
     {.id = param::kOscBVolume,
      .file_name = "oscBVolume",
-     .scope = engine::ParamScope::PER_VOICE,
+     .scope = plugin::ParamScope::PER_VOICE,
      .default_value = std::numeric_limits<int32_t>::max()},
-    {.id = param::kVolume, .file_name = "volume", .scope = engine::ParamScope::PER_VOICE},
+    {.id = param::kVolume, .file_name = "volume", .scope = plugin::ParamScope::PER_VOICE},
     {.id = param::kNoiseVolume,
      .file_name = "noiseVolume",
-     .scope = engine::ParamScope::PER_VOICE,
+     .scope = plugin::ParamScope::PER_VOICE,
      .default_value = std::numeric_limits<int32_t>::min()},
     {.id = param::kModulator1Volume,
      .file_name = "modulator1Volume",
-     .scope = engine::ParamScope::PER_VOICE,
+     .scope = plugin::ParamScope::PER_VOICE,
      .default_value = std::numeric_limits<int32_t>::min()},
     {.id = param::kModulator2Volume,
      .file_name = "modulator2Volume",
-     .scope = engine::ParamScope::PER_VOICE,
+     .scope = plugin::ParamScope::PER_VOICE,
      .default_value = std::numeric_limits<int32_t>::min()},
     {.id = param::kWaveFold,
      .file_name = "waveFold",
-     .scope = engine::ParamScope::PER_VOICE,
+     .scope = plugin::ParamScope::PER_VOICE,
      .default_value = std::numeric_limits<int32_t>::min()},
     {.id = param::kModulator1Feedback,
      .file_name = "modulator1Feedback",
-     .scope = engine::ParamScope::PER_VOICE,
+     .scope = plugin::ParamScope::PER_VOICE,
      .default_value = std::numeric_limits<int32_t>::min()},
     {.id = param::kModulator2Feedback,
      .file_name = "modulator2Feedback",
-     .scope = engine::ParamScope::PER_VOICE,
+     .scope = plugin::ParamScope::PER_VOICE,
      .default_value = std::numeric_limits<int32_t>::min()},
     {.id = param::kCarrier1Feedback,
      .file_name = "carrier1Feedback",
-     .scope = engine::ParamScope::PER_VOICE,
+     .scope = plugin::ParamScope::PER_VOICE,
      .default_value = std::numeric_limits<int32_t>::min()},
     {.id = param::kCarrier2Feedback,
      .file_name = "carrier2Feedback",
-     .scope = engine::ParamScope::PER_VOICE,
+     .scope = plugin::ParamScope::PER_VOICE,
      .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kLpfResonance, .file_name = "lpfResonance", .scope = engine::ParamScope::PER_VOICE},
+    {.id = param::kLpfResonance, .file_name = "lpfResonance", .scope = plugin::ParamScope::PER_VOICE},
     {.id = param::kHpfResonance,
      .file_name = "hpfResonance",
-     .scope = engine::ParamScope::PER_VOICE,
+     .scope = plugin::ParamScope::PER_VOICE,
      .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kEnv1Sustain, .file_name = "env1Sustain", .scope = engine::ParamScope::PER_VOICE},
+    {.id = param::kEnv1Sustain, .file_name = "env1Sustain", .scope = plugin::ParamScope::PER_VOICE},
     {.id = param::kEnv2Sustain,
      .file_name = "env2Sustain",
-     .scope = engine::ParamScope::PER_VOICE,
+     .scope = plugin::ParamScope::PER_VOICE,
      .default_value = -23},
-    {.id = param::kEnv3Sustain, .file_name = "env3Sustain", .scope = engine::ParamScope::PER_VOICE},
-    {.id = param::kEnv4Sustain, .file_name = "env4Sustain", .scope = engine::ParamScope::PER_VOICE},
+    {.id = param::kEnv3Sustain, .file_name = "env3Sustain", .scope = plugin::ParamScope::PER_VOICE},
+    {.id = param::kEnv4Sustain, .file_name = "env4Sustain", .scope = plugin::ParamScope::PER_VOICE},
     {.id = param::kLpfMorph,
      .file_name = "lpfMorph",
-     .scope = engine::ParamScope::PER_VOICE,
+     .scope = plugin::ParamScope::PER_VOICE,
      .default_value = std::numeric_limits<int32_t>::min()},
     {.id = param::kHpfMorph,
      .file_name = "hpfMorph",
-     .scope = engine::ParamScope::PER_VOICE,
+     .scope = plugin::ParamScope::PER_VOICE,
      .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kOscAPhaseWidth, .file_name = "oscAPhaseWidth", .scope = engine::ParamScope::PER_VOICE},
-    {.id = param::kOscBPhaseWidth, .file_name = "oscBPhaseWidth", .scope = engine::ParamScope::PER_VOICE},
-    {.id = param::kOscAWavetablePosition, .file_name = "oscAWavetablePosition", .scope = engine::ParamScope::PER_VOICE},
-    {.id = param::kOscBWavetablePosition, .file_name = "oscBWavetablePosition", .scope = engine::ParamScope::PER_VOICE},
-    {.id = param::kPan, .file_name = "pan", .scope = engine::ParamScope::PER_VOICE, .bipolar = true},
-    {.id = param::kLpfFrequency, .file_name = "lpfFrequency", .scope = engine::ParamScope::PER_VOICE},
-    {.id = param::kPitch, .file_name = "pitch", .scope = engine::ParamScope::PER_VOICE, .bipolar = true},
-    {.id = param::kOscAPitch, .file_name = "oscAPitch", .scope = engine::ParamScope::PER_VOICE, .bipolar = true},
-    {.id = param::kOscBPitch, .file_name = "oscBPitch", .scope = engine::ParamScope::PER_VOICE, .bipolar = true},
+    {.id = param::kOscAPhaseWidth, .file_name = "oscAPhaseWidth", .scope = plugin::ParamScope::PER_VOICE},
+    {.id = param::kOscBPhaseWidth, .file_name = "oscBPhaseWidth", .scope = plugin::ParamScope::PER_VOICE},
+    {.id = param::kOscAWavetablePosition, .file_name = "oscAWavetablePosition", .scope = plugin::ParamScope::PER_VOICE},
+    {.id = param::kOscBWavetablePosition, .file_name = "oscBWavetablePosition", .scope = plugin::ParamScope::PER_VOICE},
+    {.id = param::kPan, .file_name = "pan", .scope = plugin::ParamScope::PER_VOICE, .bipolar = true},
+    {.id = param::kLpfFrequency, .file_name = "lpfFrequency", .scope = plugin::ParamScope::PER_VOICE},
+    {.id = param::kPitch, .file_name = "pitch", .scope = plugin::ParamScope::PER_VOICE, .bipolar = true},
+    {.id = param::kOscAPitch, .file_name = "oscAPitch", .scope = plugin::ParamScope::PER_VOICE, .bipolar = true},
+    {.id = param::kOscBPitch, .file_name = "oscBPitch", .scope = plugin::ParamScope::PER_VOICE, .bipolar = true},
     {.id = param::kModulator1Pitch,
      .file_name = "modulator1Pitch",
-     .scope = engine::ParamScope::PER_VOICE,
+     .scope = plugin::ParamScope::PER_VOICE,
      .bipolar = true},
     {.id = param::kModulator2Pitch,
      .file_name = "modulator2Pitch",
-     .scope = engine::ParamScope::PER_VOICE,
+     .scope = plugin::ParamScope::PER_VOICE,
      .bipolar = true},
     {.id = param::kHpfFrequency,
      .file_name = "hpfFrequency",
-     .scope = engine::ParamScope::PER_VOICE,
+     .scope = plugin::ParamScope::PER_VOICE,
      .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kLfo2Rate, .file_name = "lfo2Rate", .scope = engine::ParamScope::PER_VOICE},
-    {.id = param::kLfo4Rate, .file_name = "lfo4Rate", .scope = engine::ParamScope::PER_VOICE},
-    {.id = param::kEnv1Attack, .file_name = "env1Attack", .scope = engine::ParamScope::PER_VOICE},
+    {.id = param::kLfo2Rate, .file_name = "lfo2Rate", .scope = plugin::ParamScope::PER_VOICE},
+    {.id = param::kLfo4Rate, .file_name = "lfo4Rate", .scope = plugin::ParamScope::PER_VOICE},
+    {.id = param::kEnv1Attack, .file_name = "env1Attack", .scope = plugin::ParamScope::PER_VOICE},
     {.id = param::kEnv2Attack,
      .file_name = "env2Attack",
-     .scope = engine::ParamScope::PER_VOICE,
+     .scope = plugin::ParamScope::PER_VOICE,
      .default_value = -429496748},
-    {.id = param::kEnv3Attack, .file_name = "env3Attack", .scope = engine::ParamScope::PER_VOICE},
-    {.id = param::kEnv4Attack, .file_name = "env4Attack", .scope = engine::ParamScope::PER_VOICE},
-    {.id = param::kEnv1Decay, .file_name = "env1Decay", .scope = engine::ParamScope::PER_VOICE},
+    {.id = param::kEnv3Attack, .file_name = "env3Attack", .scope = plugin::ParamScope::PER_VOICE},
+    {.id = param::kEnv4Attack, .file_name = "env4Attack", .scope = plugin::ParamScope::PER_VOICE},
+    {.id = param::kEnv1Decay, .file_name = "env1Decay", .scope = plugin::ParamScope::PER_VOICE},
     {.id = param::kEnv2Decay,
      .file_name = "env2Decay",
-     .scope = engine::ParamScope::PER_VOICE,
+     .scope = plugin::ParamScope::PER_VOICE,
      .default_value = -429496748},
-    {.id = param::kEnv3Decay, .file_name = "env3Decay", .scope = engine::ParamScope::PER_VOICE},
-    {.id = param::kEnv4Decay, .file_name = "env4Decay", .scope = engine::ParamScope::PER_VOICE},
-    {.id = param::kEnv1Release, .file_name = "env1Release", .scope = engine::ParamScope::PER_VOICE},
+    {.id = param::kEnv3Decay, .file_name = "env3Decay", .scope = plugin::ParamScope::PER_VOICE},
+    {.id = param::kEnv4Decay, .file_name = "env4Decay", .scope = plugin::ParamScope::PER_VOICE},
+    {.id = param::kEnv1Release, .file_name = "env1Release", .scope = plugin::ParamScope::PER_VOICE},
     {.id = param::kEnv2Release,
      .file_name = "env2Release",
-     .scope = engine::ParamScope::PER_VOICE,
+     .scope = plugin::ParamScope::PER_VOICE,
      .default_value = -429496748},
-    {.id = param::kEnv3Release, .file_name = "env3Release", .scope = engine::ParamScope::PER_VOICE},
-    {.id = param::kEnv4Release, .file_name = "env4Release", .scope = engine::ParamScope::PER_VOICE},
+    {.id = param::kEnv3Release, .file_name = "env3Release", .scope = plugin::ParamScope::PER_VOICE},
+    {.id = param::kEnv4Release, .file_name = "env4Release", .scope = plugin::ParamScope::PER_VOICE},
     {.id = param::kVolumePostFX, .file_name = "volumePostFX", .default_value = 1288490152},
     {.id = param::kVolumePostReverbSend, .file_name = "volumePostReverbSend"},
     {.id = param::kReverbAmount, .file_name = "reverbAmount", .default_value = std::numeric_limits<int32_t>::min()},
@@ -281,9 +281,9 @@ inline constexpr std::array<engine::ParamInfo, 82> kParams{{
 }};
 
 /// @brief The two runs of ids the instrument's params are stored in: its patched params, then its unpatched ones.
-inline constexpr std::array<engine::ParamBlock, 2> kParamBlocks{{
-    {engine::ParamId{0}, 55},
-    {engine::ParamId{kUnpatchedFirstId}, 27},
+inline constexpr std::array<plugin::ParamBlock, 2> kParamBlocks{{
+    {plugin::ParamId{0}, 55},
+    {plugin::ParamId{kUnpatchedFirstId}, 27},
 }};
 
 /// @brief Which of the runtime's two param sets holds a param.
@@ -300,7 +300,7 @@ struct RuntimeSlot {
 /// the only way the runtime's numbering may change.
 /// @param id A param id.
 /// @return The runtime slot, or nullopt.
-[[nodiscard]] constexpr std::optional<RuntimeSlot> runtime_slot(engine::ParamId id) {
+[[nodiscard]] constexpr std::optional<RuntimeSlot> runtime_slot(plugin::ParamId id) {
 	if (kParamBlocks[0].contains(id)) {
 		return RuntimeSlot{RuntimeSet::PATCHED, static_cast<uint8_t>(id.value)};
 	}
@@ -313,8 +313,8 @@ struct RuntimeSlot {
 /// @brief The id of the param the runtime keeps at @p slot.
 /// @param slot A runtime slot.
 /// @return The param's id.
-[[nodiscard]] constexpr engine::ParamId param_id(RuntimeSlot slot) {
-	return engine::ParamId{slot.set == RuntimeSet::PATCHED ? slot.index : kUnpatchedFirstId + slot.index};
+[[nodiscard]] constexpr plugin::ParamId param_id(RuntimeSlot slot) {
+	return plugin::ParamId{slot.set == RuntimeSet::PATCHED ? slot.index : kUnpatchedFirstId + slot.index};
 }
 
 static_assert(kParams.size() == kParamBlocks[0].count + kParamBlocks[1].count);

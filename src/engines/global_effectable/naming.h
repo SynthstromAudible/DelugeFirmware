@@ -17,28 +17,28 @@
 
 #pragma once
 
-#include "engine-api/types/param_naming.h"
 #include "engines/global_effectable/params.h"
+#include "plugin-api/types/param_naming.h"
 
 namespace deluge::global_effectable {
 
 namespace detail {
-inline std::optional<engine::ParamId> id_of(const engine::ParamRef& ref) {
+inline std::optional<plugin::ParamId> id_of(const plugin::ParamRef& ref) {
 	if (!ref.source.empty() || !ref.second_source.empty()) {
 		return std::nullopt;
 	}
-	const engine::ParamInfo* row = engine::find_param(kParams, ref.param);
-	return row != nullptr ? std::optional<engine::ParamId>{row->id} : std::nullopt;
+	const plugin::ParamInfo* row = plugin::find_param(kParams, ref.param);
+	return row != nullptr ? std::optional<plugin::ParamId>{row->id} : std::nullopt;
 }
 
-inline engine::ParamRef ref_of(engine::ParamId id) {
-	const engine::ParamInfo* row = engine::find_param(kParams, id);
-	return row != nullptr ? engine::ParamRef{row->file_name} : engine::ParamRef{};
+inline plugin::ParamRef ref_of(plugin::ParamId id) {
+	const plugin::ParamInfo* row = plugin::find_param(kParams, id);
+	return row != nullptr ? plugin::ParamRef{row->file_name} : plugin::ParamRef{};
 }
 } // namespace detail
 
 /// @brief How files name the provisional global-effectable params: by file name only (they have no cables) and
 /// with no mod-knob rule.
-inline constexpr engine::ParamNaming kNaming{engine::kGlobalEffectable, &detail::id_of, &detail::ref_of, nullptr};
+inline constexpr plugin::ParamNaming kNaming{plugin::kGlobalEffectable, &detail::id_of, &detail::ref_of, nullptr};
 
 } // namespace deluge::global_effectable

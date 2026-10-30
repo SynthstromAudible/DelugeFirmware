@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "engine-api/types/setting.h"
+#include "plugin-api/types/setting.h"
 #include "serialization/tree.h"
 #include "serialization/value.h"
 
@@ -30,7 +30,7 @@
 #include <string_view>
 #include <system_error>
 
-namespace deluge::engine {
+namespace deluge::plugin {
 
 /// @brief @p text as a whole decimal integer, or nothing.
 /// @param text The text to parse; it must be entirely a decimal integer.
@@ -46,7 +46,7 @@ namespace deluge::engine {
 
 /// @brief Whether @p value is one @p table's row for @p path allows: a choice's name, an integer in the row's range, or
 /// 0 or 1 for a bool. False for a structured row or a path the table does not hold.
-/// @param table The engine's setting table.
+/// @param table The plugin's setting table.
 /// @param path The setting's slash path.
 /// @param value The candidate value; only a text value can match.
 /// @return Whether @p value is allowed.
@@ -72,4 +72,4 @@ namespace deluge::engine {
 	return false;
 }
 
-} // namespace deluge::engine
+} // namespace deluge::plugin

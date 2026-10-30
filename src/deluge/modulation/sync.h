@@ -5,10 +5,10 @@
 
 #include "util/c_string.h"
 
-#include "engine-api/types/sync.h"
+#include "plugin-api/types/sync.h"
 
-using deluge::engine::SyncLevel;
-using deluge::engine::SyncType;
+using deluge::plugin::SyncLevel;
+using deluge::plugin::SyncType;
 
 inline constexpr SyncType SYNC_TYPE_EVEN = SyncType::EVEN;
 inline constexpr SyncType SYNC_TYPE_TRIPLET = SyncType::TRIPLET;

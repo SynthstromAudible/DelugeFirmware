@@ -5,8 +5,8 @@
 #include <cppspec.hpp>
 
 using namespace deluge::instrument;
-using deluge::engine::ParamId;
-using deluge::engine::ParamRef;
+using deluge::plugin::ParamId;
+using deluge::plugin::ParamRef;
 
 namespace {
 uint32_t depth(PatchSource source, ParamId destination) {
