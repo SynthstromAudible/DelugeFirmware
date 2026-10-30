@@ -69,6 +69,8 @@ set(envelope_spec_DEPS
   ${_repo_root}/src/synth/modulation/envelope.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+# The routing spec compiles the library's cable routing.
+set(patch_routing_spec_DEPS ${_repo_root}/src/synth/modulation/patch_routing.cpp)
 # The shared windowed-sinc kernel table + its select()/variant() variant picks.
 set(windowed_sinc_kernel_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp)
 # The chunker caches each chunk's sinc kernel via windowed_sinc_kernel.select().

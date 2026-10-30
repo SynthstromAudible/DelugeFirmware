@@ -193,6 +193,7 @@ LIBRARIES: dict[str, Library] = {
             "serialization/",
             "foundation/panic.h",
             "synth/modulation/patch_source.h",
+            "synth/modulation/cable.h",
         ),
     ),
     "global-effectable": Library(

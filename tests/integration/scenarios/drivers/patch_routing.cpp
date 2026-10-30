@@ -6,9 +6,14 @@
 // order (the order a save walks), the usable count, each usable cable's range link, the Destinations of both
 // globalities and sourcesPatchedToAnything. The digest is pinned: any change to the routing or the save order fails.
 //
-// Exit: 0 = the digest matches, 1 = a mismatch.
+// Every case is also compiled by the synth library's compile_routing, which must agree with the runtime field by
+// field.
+//
+// Exit: 0 = the digest matches and every case agrees, 1 = a mismatch.
 
+#include "synth/modulation/patch_routing.h"
 #include "definitions_cxx.hpp"
+#include "instruments/deluge/cable_records.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection_summary.h"
 #include "modulation/patch/patch_cable.h"
@@ -176,18 +181,80 @@ void route(PatchCableSet& set, ParamCollectionSummary& summary, const Topology& 
 	set.setupPatching(summary, usable);
 }
 
+deluge::instrument::CableRecords recordsOf(const Topology& t) {
+	deluge::instrument::CableRecords r;
+	for (const TopologyCable& c : t.cables) {
+		r.append({c.from, {c.target.data}, static_cast<deluge::synth::CablePolarity>(c.polarity)});
+	}
+	return r;
+}
+
+/// Whether the library's compile of @p t gives the runtime's routing of it, @p set.
+bool agrees(const Topology& t, const PatchCableSet& set, int32_t seed) {
+	deluge::instrument::CableRecords records = recordsOf(t);
+	const auto usable =
+	    deluge::synth::usability_of(records.records(), [&](PatchSource s, deluge::synth::CableTarget target) {
+		    return target != deluge::synth::CableTarget::param(params::PLACEHOLDER_RANGE)
+		           && t.usable[std::to_underlying(s)][target.param_index()];
+	    });
+	static deluge::synth::RoutingBuild b;
+	deluge::synth::compile_routing(records.records(), usable, b);
+	records.permute(std::span{b.order}.first(b.num_cables));
+	auto fail = [&](const char* what) {
+		std::fprintf(io.err, "FAIL seed=%d: %s\n", seed, what);
+		return false;
+	};
+	if (b.num_usable != set.numUsablePatchCables) {
+		return fail("usable count");
+	}
+	for (int32_t c = 0; c < set.numPatchCables; c++) {
+		const PatchCable& cable = set.patchCables[c];
+		if (records[c].source != cable.from || records[c].target.word != cable.destinationParamDescriptor.data
+		    || std::to_underlying(records[c].polarity) != std::to_underlying(cable.polarity)) {
+			return fail("order");
+		}
+	}
+	for (int32_t c = 0; c < set.numUsablePatchCables; c++) {
+		if (b.cables[c].range_index != rangeLink(set.patchCables[c])) {
+			return fail("range link");
+		}
+	}
+	for (int32_t g = 0; g < 2; g++) {
+		if (b.sources_patched[g] != set.sourcesPatchedToAnything[g]) {
+			return fail("sources patched");
+		}
+		const Destination* d = set.destinations[g];
+		for (int32_t k = 0; k < b.num_destinations[g]; k++, d++) {
+			const deluge::synth::RoutedDestination& r = b.destinations[g][k];
+			if (d == nullptr || r.target.word != d->destinationParamDescriptor.data || r.sources != d->sources
+			    || r.first_cable != d->firstCable || r.end_cable != d->endCable) {
+				return fail("destination");
+			}
+		}
+		if (d != nullptr && d->sources != 0) {
+			return fail("destination count");
+		}
+	}
+	return true;
+}
+
 int patch_routing_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	io = driverIo;
 	ParamCollectionSummary summary{};
 	PatchCableSet set{&summary};
 	uint32_t digest = 2166136261u;
+	int32_t mismatches = 0;
 	for (int32_t seed = 0; seed < kCases; seed++) {
 		const Topology t = randomTopology(static_cast<uint32_t>(seed));
 		route(set, summary, t);
 		digest = foldSet(digest, set);
+		if (!agrees(t, set, seed) && ++mismatches > 5) {
+			break;
+		}
 	}
 	std::fprintf(io.out, "ROUTING-DIGEST cases=%d digest=0x%08x pinned=0x%08x\n", kCases, digest, kPinnedDigest);
-	return digest == kPinnedDigest ? 0 : 1;
+	std::fprintf(io.out, "ROUTING-DIFF mismatches=%d\n", mismatches);
+	return digest == kPinnedDigest && mismatches == 0 ? 0 : 1;
 }
 
 } // namespace
