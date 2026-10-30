@@ -41,13 +41,6 @@ struct CableGroup {
 	uint8_t end;
 };
 
-struct Destination {
-	ParamDescriptor destinationParamDescriptor;
-	uint32_t sources;
-	uint8_t firstCable;
-	uint8_t endCable;
-};
-
 class PatchCableSet final : public ParamCollection {
 public:
 	PatchCableSet(ParamCollectionSummary* summary);
@@ -103,7 +96,6 @@ public:
 	uint8_t getPatchCableIndex(PatchSource from, ParamDescriptor destinationParamDescriptor);
 	/// @brief Delete cable @p c and its automation, then re-place the rest.
 	void deletePatchCable(Sound& sound, ParamManager& paramManager, uint8_t c);
-	int32_t getModifiedPatchCableAmount(int32_t c, int32_t p);
 	void removeAllPatchingToParam(ModelStackWithParamCollection* modelStack, uint8_t p);
 	bool isSourcePatchedToSomething(PatchSource s);
 	bool isSourcePatchedToSomethingManuallyCheckCables(PatchSource s);
@@ -155,7 +147,13 @@ public:
 	void grabVelocityToLevelFromMIDICable(MIDICable& cable);
 	PatchCable* getPatchCableFromVelocityToLevel();
 
-	Destination* getDestinationForParam(int32_t p);
+	deluge::synth::RoutedDestination* getDestinationForParam(int32_t p);
+	/// @brief The compiled routing, as the Patcher reads it.
+	[[nodiscard]] deluge::synth::PatchRouting routing() const {
+		return {{destinations[0], destinations[1]},
+		        {sourcesPatchedToAnything[0], sourcesPatchedToAnything[1]},
+		        routedCables_};
+	}
 
 	deluge::modulation::params::Kind getParamKind() override { return deluge::modulation::params::Kind::PATCH_CABLE; }
 
@@ -171,7 +169,10 @@ public:
 	/// How many cables there are. Changed only through appendCable() and truncateCables().
 	uint8_t numPatchCables{};
 
-	Destination* destinations[2]{};
+	deluge::synth::RoutedDestination* destinations[2]{};
+	/// One per cable, as the compile routed it: its source, polarity and range link. Fitted to the cables, freed with
+	/// the Destinations.
+	deluge::synth::RoutedCable* routedCables_{};
 
 	/// @brief Drop every cable from index @p count on, shrinking the storage to fit the rest.
 	///
@@ -212,7 +213,7 @@ private:
 	/// @param src The array to copy; may be nullptr.
 	/// @return The copy, or nullptr if @p src is nullptr.
 	/// @note Throws deluge::exception::BAD_ALLOC on OOM.
-	static Destination* cloneDestinations(Destination const* src);
+	static deluge::synth::RoutedDestination* cloneDestinations(deluge::synth::RoutedDestination const* src);
 };
 
 /// @brief The record of a runtime cable's topology.

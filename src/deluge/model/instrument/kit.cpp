@@ -1042,7 +1042,7 @@ void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
 			}
 
 			soundDrum->patcher.performInitialPatching(
-			    soundDrum->patchControlBlock(*(ParamManagerForTimeline*)paramManager));
+			    soundDrum->patchControlBlock(*(ParamManagerForTimeline*)paramManager, Sound::PresetGather::ALL));
 		}
 	}
 
@@ -1145,7 +1145,7 @@ bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend
 						SoundDrum* soundDrum = (SoundDrum*)thisNoteRow->drum;
 
 						soundDrum->patcher.performInitialPatching(
-						    soundDrum->patchControlBlock(thisNoteRow->paramManager));
+						    soundDrum->patchControlBlock(thisNoteRow->paramManager, Sound::PresetGather::ALL));
 					}
 				}
 			}

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2026 Synthstrom Audible Limited
+ * Copyright © 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,30 +14,27 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
 #pragma once
 
-#include "modulation/params/param_set.h" // PatchedParamSet (for the inlined getValue in presetValue)
+#include "modulation/params/param.h" // params::kNumParams
+#include "synth/modulation/cable.h"
+#include "synth/modulation/patch_routing.h"
+
+#include <array>
 #include <cstdint>
 
-class PatchCableSet;
-
-/// The per-block inputs the Patcher reads from ParamManager-world, snapshotted into a small value so the
-/// Patcher needs no `Sound&` / `ParamManager&` and references only `modulation/` types.
+/// @brief The per-block inputs the Patcher reads, gathered by Sound::patchControlBlock once per patching call as
+/// copies, never as a view into the live stores: the clip's routing, each routed cable's depth, and preset values.
 ///
-/// It carries the two things the patcher actually consumes: each patched param's current preset value
-/// (already automation/MPE/expression-folded by the time patching runs) plus a one-param value de-zipper
-/// override, and the patch-cable set (destinations, cables, strengths). Built once per patching call by
-/// `Sound::patchControlBlock` and passed by value.
+/// The per-block patching reads the presets of the routed destinations only, so its block gathers those; the initial
+/// patching and the recalculation of a param with no cables read any param's, so theirs gathers every param.
 struct ControlBlock {
-	PatchedParamSet* patched_params; ///< getValue(p) — the current (already-folded) preset value of param p.
-	PatchCableSet* patch_cable_set;  ///< destinations / patchCables / strengths / sourcesPatchedToAnything.
+	deluge::synth::PatchRouting routing;
+	/// Each param's current preset value, already folded with automation and expression, the smoothed one for the
+	/// param being smoothed (Q31 as stored). Only the entries the gather was asked for are filled.
+	std::array<int32_t, deluge::modulation::params::kNumParams> preset_values;
+	/// Each routed cable's current depth, in routing order: [-2^30, 2^30].
+	std::array<int32_t, deluge::synth::kMaxCables> depths;
 
-	int32_t smoothing_param; ///< Sound::paramLPF.p (PARAM_LPF_OFF == -1 means nothing is being smoothed).
-	int32_t smoothing_value; ///< Sound::paramLPF.currentValue (the smoothed value for smoothing_param).
-
-	/// The patched param's smoothed preset value — bit-identical to `Sound::getSmoothedPatchedParamValue`.
-	int32_t presetValue(int32_t p) const {
-		return (p == smoothing_param) ? smoothing_value : patched_params->getValue(p);
-	}
+	[[nodiscard]] int32_t presetValue(int32_t p) const { return preset_values[p]; }
 };

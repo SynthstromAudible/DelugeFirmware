@@ -80,6 +80,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "sync/sd_access.h"
+#include "synth/modulation/cable_depth.h"
 #include "synth/modulation/envelope.h"
 #include "synth/sources/input/live/live_input_buffer.h"
 #include "util/boot.h"
@@ -517,7 +518,7 @@ void init() {
 	    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
 	                    *modelStackWithParamCollection->paramManager);
 	sampleForPreview->patcher.performInitialPatching(
-	    sampleForPreview->patchControlBlock(*paramManagerForSamplePreview));
+	    sampleForPreview->patchControlBlock(*paramManagerForSamplePreview, Sound::PresetGather::ALL));
 
 	sampleForPreview->setSideChainSendLevel(2147483647); // DOM-owned (an unbound preview sets the cache only)
 
@@ -1982,7 +1983,8 @@ void updateReverbParams() {
 			int32_t whichCable = patchCableSet->getPatchCableIndex(PatchSource::SIDECHAIN, paramDescriptor);
 			if (whichCable != 255) {
 				duck.depth =
-				    patchCableSet->getModifiedPatchCableAmount(whichCable, params::GLOBAL_VOLUME_POST_REVERB_SEND);
+				    deluge::synth::modified_depth(patchCableSet->patchCables[whichCable].param.getCurrentValue(),
+				                                  PatchSource::SIDECHAIN, params::GLOBAL_VOLUME_POST_REVERB_SEND);
 			}
 			else {
 				duck.depth = 0;

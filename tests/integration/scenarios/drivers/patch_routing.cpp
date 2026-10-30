@@ -29,8 +29,6 @@
 
 #include "scenarios/drivers/driver.h"
 
-extern int32_t rangeFinalValues[];
-
 namespace {
 
 using deluge::scenarios::driver::Io;
@@ -136,11 +134,9 @@ uint32_t fold(uint32_t h, uint32_t v) {
 	return h;
 }
 
-int32_t rangeLink(const PatchCable& cable) {
-	const int32_t* p = cable.rangeAdjustmentPointer;
-	return (p >= rangeFinalValues && p < rangeFinalValues + kMaxNumPatchCables)
-	           ? static_cast<int32_t>(p - rangeFinalValues)
-	           : -1;
+/// The range value that scales cable @p c's depth, or -1 for none.
+int32_t rangeLink(const PatchCableSet& set, int32_t c) {
+	return set.routing().cables[c].range_index;
 }
 
 uint32_t foldSet(uint32_t h, const PatchCableSet& set) {
@@ -152,15 +148,15 @@ uint32_t foldSet(uint32_t h, const PatchCableSet& set) {
 		h = fold(h, std::to_underlying(set.patchCables[c].polarity));
 	}
 	for (int32_t c = 0; c < set.numUsablePatchCables; c++) {
-		h = fold(h, static_cast<uint32_t>(rangeLink(set.patchCables[c])));
+		h = fold(h, static_cast<uint32_t>(rangeLink(set, c)));
 	}
 	for (int32_t g = 0; g < 2; g++) {
 		h = fold(h, set.sourcesPatchedToAnything[g]);
-		for (const Destination* d = set.destinations[g]; d != nullptr && d->sources != 0; d++) {
-			h = fold(h, d->destinationParamDescriptor.data);
+		for (const deluge::synth::RoutedDestination* d = set.destinations[g]; d != nullptr && d->sources != 0; d++) {
+			h = fold(h, d->target.word);
 			h = fold(h, d->sources);
-			h = fold(h, d->firstCable);
-			h = fold(h, d->endCable);
+			h = fold(h, d->first_cable);
+			h = fold(h, d->end_cable);
 		}
 	}
 	return h;
@@ -219,7 +215,7 @@ bool agrees(const Topology& t, const PatchCableSet& set, int32_t seed) {
 		}
 	}
 	for (int32_t c = 0; c < set.numUsablePatchCables; c++) {
-		if (b.cables[c].range_index != rangeLink(set.patchCables[c])) {
+		if (b.cables[c].range_index != rangeLink(set, c)) {
 			return fail("range link");
 		}
 	}
@@ -227,11 +223,11 @@ bool agrees(const Topology& t, const PatchCableSet& set, int32_t seed) {
 		if (b.sources_patched[g] != set.sourcesPatchedToAnything[g]) {
 			return fail("sources patched");
 		}
-		const Destination* d = set.destinations[g];
+		const deluge::synth::RoutedDestination* d = set.destinations[g];
 		for (int32_t k = 0; k < b.num_destinations[g]; k++, d++) {
 			const deluge::synth::RoutedDestination& r = b.destinations[g][k];
-			if (d == nullptr || r.target.word != d->destinationParamDescriptor.data || r.sources != d->sources
-			    || r.first_cable != d->firstCable || r.end_cable != d->endCable) {
+			if (d == nullptr || r.target.word != d->target.word || r.sources != d->sources
+			    || r.first_cable != d->first_cable || r.end_cable != d->end_cable) {
 				return fail("destination");
 			}
 		}

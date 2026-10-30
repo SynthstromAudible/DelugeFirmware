@@ -62,6 +62,15 @@ struct RoutingBuild {
 	bool missing_range_link{};
 };
 
+/// @brief One clip's compiled routing as the Patcher reads it: storage the instrument fits and keeps, viewed.
+struct PatchRouting {
+	/// Per globality, sorted by target word and ended by a destination with no sources; null when there are none.
+	std::array<const RoutedDestination*, 2> destinations{};
+	std::array<uint32_t, 2> sources_patched{};
+	/// One per routed cable, in the routing's order.
+	const RoutedCable* cables{};
+};
+
 /// @brief Compile @p cables as the runtime routes them: usable cables first (each unusable one swapped with the last
 /// usable one after it), depth cables whose modulated cable is missing made unusable, each destination's cables grouped
 /// in a run, the destinations of each globality sorted by their target word, and each depth destination linked to the

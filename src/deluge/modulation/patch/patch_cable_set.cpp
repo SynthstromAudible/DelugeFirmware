@@ -74,6 +74,12 @@ inline void PatchCableSet::freeDestinationMemory(bool destructing) {
 			}
 		}
 	}
+	if (routedCables_ != nullptr) {
+		delugeDealloc(routedCables_);
+		if (!destructing) {
+			routedCables_ = nullptr;
+		}
+	}
 }
 
 PatchCableSet::PatchCableSet(ParamCollectionSummary* summary) : ParamCollection(sizeof(PatchCableSet), summary) {
@@ -307,7 +313,7 @@ void PatchCableSet::swapCables(int32_t c1, int32_t c2) {
 	memcpy(&patchCables[c2], &temp, sizeof(PatchCable));
 }
 
-Destination* PatchCableSet::getDestinationForParam(int32_t p) {
+deluge::synth::RoutedDestination* PatchCableSet::getDestinationForParam(int32_t p) {
 	int32_t globality = (p < params::FIRST_GLOBAL) ? GLOBALITY_LOCAL : GLOBALITY_GLOBAL;
 
 	// Special case - no Destinations at all
@@ -315,19 +321,18 @@ Destination* PatchCableSet::getDestinationForParam(int32_t p) {
 		return nullptr;
 	}
 
-	ParamDescriptor destinationParamDescriptor;
-	destinationParamDescriptor.setToHaveParamOnly(p);
+	const deluge::synth::CableTarget target = deluge::synth::CableTarget::param(static_cast<uint8_t>(p));
 
 	// TODO: don't just linear search. But then, there won't be more than like 4 Destinations usually....
-	for (Destination* destination = &destinations[globality][0]; destination->sources; destination++) {
-		if (destination->destinationParamDescriptor == destinationParamDescriptor) {
+	for (deluge::synth::RoutedDestination* destination = &destinations[globality][0]; destination->sources;
+	     destination++) {
+		if (destination->target == target) {
 			return destination;
 		}
 	}
 	return nullptr;
 }
 
-const int32_t neutralRangeAdjustmentValue = 536870912;
 extern int32_t rangeFinalValues[];
 
 void PatchCableSet::setupPatching(Sound& sound, ParamManager& paramManager) {
@@ -350,12 +355,21 @@ void PatchCableSet::setupPatching(ParamCollectionSummary& summary, std::bitset<k
 
 	freeDestinationMemory(false);
 	for (int32_t g = 0; g < 2; g++) {
-		destinations[g] = (Destination*)deluge::memory::alloc_fast(sizeof(Destination) * (kMaxNumPatchCables + 1));
+		destinations[g] = static_cast<deluge::synth::RoutedDestination*>(
+		    deluge::memory::alloc_fast(sizeof(deluge::synth::RoutedDestination) * (kMaxNumPatchCables + 1)));
 		if (!destinations[g]) {
 			if (g == 1) {
 				delugeDealloc(destinations[0]);
 				destinations[0] = nullptr;
 			}
+			return;
+		}
+	}
+	if (numPatchCables != 0) {
+		routedCables_ = static_cast<deluge::synth::RoutedCable*>(
+		    deluge::memory::alloc_fast(sizeof(deluge::synth::RoutedCable) * numPatchCables));
+		if (routedCables_ == nullptr) {
+			freeDestinationMemory(false);
 			return;
 		}
 	}
@@ -371,10 +385,7 @@ void PatchCableSet::setupPatching(ParamCollectionSummary& summary, std::bitset<k
 	permuteCables(std::span{build.order}.first(build.num_cables));
 	numUsablePatchCables = build.num_usable;
 
-	for (int32_t c = 0; c < numPatchCables; c++) {
-		const int8_t r = build.cables[c].range_index;
-		patchCables[c].rangeAdjustmentPointer = r < 0 ? &neutralRangeAdjustmentValue : &rangeFinalValues[r];
-	}
+	std::copy_n(build.cables.begin(), numPatchCables, routedCables_);
 	for (int32_t g = 0; g < 2; g++) {
 		sourcesPatchedToAnything[g] = build.sources_patched[g];
 		const int32_t count = build.num_destinations[g];
@@ -384,15 +395,9 @@ void PatchCableSet::setupPatching(ParamCollectionSummary& summary, std::bitset<k
 			continue;
 		}
 		if (count < kMaxNumPatchCables) {
-			deluge::memory::shrink(destinations[g], sizeof(Destination) * (count + 1));
+			deluge::memory::shrink(destinations[g], sizeof(deluge::synth::RoutedDestination) * (count + 1));
 		}
-		for (int32_t k = 0; k <= count; k++) {
-			const deluge::synth::RoutedDestination& r = build.destinations[g][k];
-			destinations[g][k].destinationParamDescriptor = ParamDescriptor(static_cast<int32_t>(r.target.word));
-			destinations[g][k].sources = r.sources;
-			destinations[g][k].firstCable = r.first_cable;
-			destinations[g][k].endCable = r.end_cable;
-		}
+		std::copy_n(build.destinations[g].begin(), count + 1, destinations[g]);
 	}
 
 	// The cables have moved, so which are automated or interpolating is found again.
@@ -495,9 +500,6 @@ void PatchCableSet::deletePatchCable(Sound& sound, ParamManager& paramManager, u
 	}
 	truncateCables(numPatchCables - 1);
 }
-
-// PatchCableSet::getModifiedPatchCableAmount is defined in patch_cable_set_amount.cpp (a gui-free TU, so the
-// standalone synth core can link it).
 
 void PatchCableSet::removeAllPatchingToParam(ModelStackWithParamCollection* modelStack, uint8_t p) {
 	for (int32_t c = 0; c < numPatchCables; c++) {
@@ -698,7 +700,7 @@ void PatchCableSet::processCurrentPos(ModelStackWithParamCollection* modelStack,
 	}
 }
 
-Destination* PatchCableSet::cloneDestinations(Destination const* src) {
+deluge::synth::RoutedDestination* PatchCableSet::cloneDestinations(deluge::synth::RoutedDestination const* src) {
 	if (src == nullptr) {
 		return nullptr;
 	}
@@ -707,14 +709,15 @@ Destination* PatchCableSet::cloneDestinations(Destination const* src) {
 	while (src[numEntries - 1].sources) {
 		numEntries++;
 	}
-	auto* dst = static_cast<Destination*>(deluge::memory::alloc_fast(sizeof(Destination) * numEntries));
+	auto* dst = static_cast<deluge::synth::RoutedDestination*>(
+	    deluge::memory::alloc_fast(sizeof(deluge::synth::RoutedDestination) * numEntries));
 	if (dst == nullptr) {
 		throw deluge::exception::BAD_ALLOC;
 	}
-	Destination* to = dst;
-	Destination const* from = src;
+	deluge::synth::RoutedDestination* to = dst;
+	deluge::synth::RoutedDestination const* from = src;
 	while (true) {
-		*to = *from; // Destination is trivially copyable.
+		*to = *from; // trivially copyable
 		if (!from->sources) {
 			break; // copied the terminating "0" entry
 		}
@@ -761,9 +764,20 @@ PatchCableSet::PatchCableSet(PatchCableSet const& other)
 		destinations[GLOBALITY_LOCAL] = cloneDestinations(other.destinations[GLOBALITY_LOCAL]);
 		try {
 			destinations[GLOBALITY_GLOBAL] = cloneDestinations(other.destinations[GLOBALITY_GLOBAL]);
+			if (other.routedCables_ != nullptr && numPatchCables != 0) {
+				routedCables_ = static_cast<deluge::synth::RoutedCable*>(
+				    deluge::memory::alloc_fast(sizeof(deluge::synth::RoutedCable) * numPatchCables));
+				if (routedCables_ == nullptr) {
+					throw deluge::exception::BAD_ALLOC;
+				}
+				std::copy_n(other.routedCables_, numPatchCables, routedCables_);
+			}
 		} catch (deluge::exception&) {
 			if (destinations[GLOBALITY_LOCAL]) {
 				delugeDealloc(destinations[GLOBALITY_LOCAL]);
+			}
+			if (destinations[GLOBALITY_GLOBAL]) {
+				delugeDealloc(destinations[GLOBALITY_GLOBAL]);
 			}
 			throw;
 		}

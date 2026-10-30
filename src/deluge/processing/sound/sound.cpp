@@ -455,9 +455,37 @@ void Sound::patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* 
 	}
 }
 
+ControlBlock Sound::patchControlBlock(ParamManager& paramManager, PresetGather gather) const {
+	ControlBlock block; // only what the gather fills is read
+	PatchCableSet& cables = *paramManager.getPatchCableSet();
+	block.routing = cables.routing();
+	PatchedParamSet& patched = *paramManager.getPatchedParamSet();
+	if (gather == PresetGather::ALL) {
+		for (int32_t p = 0; p < deluge::modulation::params::kNumParams; p++) {
+			block.preset_values[p] = patched.getValue(p);
+		}
+	}
+	else {
+		for (const deluge::synth::RoutedDestination* list : block.routing.destinations) {
+			for (const deluge::synth::RoutedDestination* d = list; d != nullptr && d->sources != 0; d++) {
+				if (d->target.is_param()) {
+					block.preset_values[d->target.param_index()] = patched.getValue(d->target.param_index());
+				}
+			}
+		}
+	}
+	if (paramLPF.p != PARAM_LPF_OFF) {
+		block.preset_values[paramLPF.p] = paramLPF.currentValue;
+	}
+	for (int32_t c = 0; c < cables.numUsablePatchCables; c++) {
+		block.depths[c] = cables.patchCables[c].param.getCurrentValue();
+	}
+	return block;
+}
+
 void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* paramManager) {
 
-	Destination* destination = paramManager->getPatchCableSet()->getDestinationForParam(p);
+	const deluge::synth::RoutedDestination* destination = paramManager->getPatchCableSet()->getDestinationForParam(p);
 	if (destination != nullptr) {
 		// Pretend those sources have changed, and the param will update - for
 		// each Voice too if local.
@@ -469,14 +497,15 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 
 	// Whether global...
 	if (p >= params::FIRST_GLOBAL) {
-		patcher.recalculateFinalValueForParamWithNoCables(p, patchControlBlock(*paramManager));
+		patcher.recalculateFinalValueForParamWithNoCables(p, patchControlBlock(*paramManager, PresetGather::ALL));
 		return;
 	}
 
 	// Or local (do to each voice)...
 	AudioExcludedSection section; // the render walks and edits this Sound's voices
 	for (ActiveVoice& voice : voices_) {
-		voice->patcher.recalculateFinalValueForParamWithNoCables(p, patchControlBlock(*paramManager));
+		voice->patcher.recalculateFinalValueForParamWithNoCables(p,
+		                                                         patchControlBlock(*paramManager, PresetGather::ALL));
 	}
 }
 
@@ -1795,7 +1824,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 #if defined(DELUGE_STREAM_BENCH)
 		const uint32_t t0 = deluge::bench::render_profile::cycles();
 #endif
-		patcher.performPatching(sourcesChanged, patchControlBlock(*paramManager));
+		patcher.performPatching(sourcesChanged, patchControlBlock(*paramManager, PresetGather::ROUTED));
 #if defined(DELUGE_STREAM_BENCH)
 		deluge::bench::render_profile::g_totals.sound_patch += deluge::bench::render_profile::cycles() - t0;
 		++deluge::bench::render_profile::g_totals.sound_blocks;
@@ -1958,7 +1987,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 		// The patcher's per-block input. Sound-level + stable across the voice loop (the param sets are fixed and
 		// paramLPF is only mutated after the loop), so build it once here rather than per voice.
-		const ControlBlock controlBlock = patchControlBlock(*paramManager);
+		const ControlBlock controlBlock = patchControlBlock(*paramManager, PresetGather::ROUTED);
 
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			ActiveVoice& voice = *it;

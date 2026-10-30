@@ -378,11 +378,14 @@ public:
 		return paramManager.getPatchedParamSet()->getValue(p);
 	}
 
-	// Snapshot the per-block inputs the Patcher reads from ParamManager-world into a ControlBlock, so the
-	// patcher needs no Sound&/ParamManager&. presetValue() on the result mirrors getSmoothedPatchedParamValue.
-	ControlBlock patchControlBlock(ParamManager& paramManager) const {
-		return {paramManager.getPatchedParamSet(), paramManager.getPatchCableSet(), paramLPF.p, paramLPF.currentValue};
-	}
+	/// @brief Which preset values a ControlBlock gathers: the routed destinations' (the per-block patching reads only
+	/// those) or every param's (the initial patching and a recalculation of a param with no cables).
+	enum class PresetGather : uint8_t { ROUTED, ALL };
+
+	/// @brief Gather the inputs the Patcher reads into a ControlBlock, as copies: the clip's routing, the preset values
+	/// @p gather asks for (the smoothed one for the param being smoothed, as getSmoothedPatchedParamValue gives) and
+	/// each routed cable's depth.
+	ControlBlock patchControlBlock(ParamManager& paramManager, PresetGather gather) const;
 
 	void notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, ModelStackWithThreeMainThings const* modelStack,
 	                             int32_t oldValue, int32_t newValue, bool fromAutomation);

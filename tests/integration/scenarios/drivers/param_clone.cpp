@@ -173,12 +173,13 @@ int param_clone_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		pcs->numUsablePatchCables = 1;
 
 		// Build a sentinel-terminated (sources==0) Destination array on the allocator so the dtor can free it.
-		auto* dests = static_cast<Destination*>(deluge::memory::alloc_fast(sizeof(Destination) * 2));
+		auto* dests = static_cast<deluge::synth::RoutedDestination*>(
+		    deluge::memory::alloc_fast(sizeof(deluge::synth::RoutedDestination) * 2));
 		check(dests != nullptr, "pcs clone: dests alloc");
 		if (dests != nullptr) {
 			dests[0].sources = 0b101;
-			dests[0].firstCable = 0;
-			dests[0].endCable = 1;
+			dests[0].first_cable = 0;
+			dests[0].end_cable = 1;
 			dests[1].sources = 0; // terminator
 			pcs->destinations[0 /*GLOBALITY_LOCAL*/] = dests;
 

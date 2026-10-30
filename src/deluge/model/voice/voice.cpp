@@ -190,7 +190,7 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 	for (int32_t s = 0; s < util::to_underlying(kFirstLocalSource); s++) {
 		params.sourceValues[s] = sound.params.sourceValues[s];
 	}
-	patcher.performInitialPatching(sound.patchControlBlock(*paramManager));
+	patcher.performInitialPatching(sound.patchControlBlock(*paramManager, Sound::PresetGather::ALL));
 
 	// Setup and render envelopes - again. Because they're local params (since mid-late 2017), we really need to render
 	// them *after* initial patching is performed.

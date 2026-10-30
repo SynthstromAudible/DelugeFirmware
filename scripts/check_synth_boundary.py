@@ -6,11 +6,13 @@
 """Boundary guardrail for the deluge synth core (synth untangling, Phase 2).
 
 src/synth/ is the synth library: the per-voice sources and the modulation core (Envelope,
-LFO, Patcher, ControlBlock, ParamPlane). It is a step below the application: it may use
-util/, dsp-next/, sequence/, definitions*, and its sibling modulation/ headers,
-but it must not reach up into the app layers — storage/, model/, processing/,
-gui/, playback/, hid/, io/, the legacy dsp/ library, or the HAL/BSP (RZA1/, bsp/,
-drivers/). memory/ is allowed only via the thin memory_allocator_interface.h seam.
+LFO, Patcher, ControlBlock, ParamPlane, the routing compile). It is a step below the application:
+it may use dsp-next/, sequence/ and definitions*, of util/ only the stateless fixedpoint.h,
+misc.h and param_functions.h, of modulation/ only the param and sync vocabulary (params/param.h,
+params/param_descriptor.h, sync.h), and of deluge-project/ only the enums definitions_cxx.hpp
+brings (never named by a synth file itself). It must not reach the app layers — storage/,
+model/, processing/, gui/, playback/, hid/, io/, the legacy dsp/ library, or the HAL/BSP
+(RZA1/, bsp/, drivers/). memory/ is allowed only via the thin memory_allocator_interface.h seam.
 
 This is a TRANSITIVE check: it follows the `#include "..."` graph from every
 synth/ file (resolving against the same roots the build uses — src/deluge and
@@ -66,9 +68,33 @@ SOURCE_SUFFIXES = {".c", ".cpp", ".cc", ".h", ".hpp", ".hh", ".s", ".S"}
 _INCLUDE_RE = re.compile(r'^\s*#\s*include\s*"([^"]+)"')
 
 
+# util/ and modulation/ headers the synth may reach: header-only and stateless (util/), and the param and sync
+# vocabulary (modulation/). Everything else under them is the app's.
+UTIL_ALLOWED = {"util/fixedpoint.h", "util/misc.h", "util/param_functions.h"}
+MODULATION_ALLOWED = {
+    "modulation/params/param.h",
+    "modulation/params/param_descriptor.h",
+    "modulation/sync.h",
+}
+# definitions_cxx.hpp brings these as vocabulary; a synth file must not include deluge-project/ itself.
+DEFINITIONS_VOCABULARY = {
+    "deluge-project/arrangement.h",
+    "deluge-project/drum_type.h",
+    "deluge-project/launch_style.h",
+    "deluge-project/midi_command.h",
+    "deluge-project/sequence_direction.h",
+}
+
+
 def _is_forbidden(logical: str) -> bool:
     if logical.startswith(MEMORY_PREFIX):
         return logical not in MEMORY_ALLOWED
+    if logical.startswith("util/"):
+        return logical not in UTIL_ALLOWED
+    if logical.startswith("modulation/"):
+        return logical not in MODULATION_ALLOWED
+    if logical.startswith("deluge-project/"):
+        return logical not in DEFINITIONS_VOCABULARY
     return any(logical.startswith(p) for p in FORBIDDEN_INCLUDE_PREFIXES)
 
 
@@ -134,6 +160,10 @@ def current_offenders() -> dict[str, dict[str, list[str]]]:
         if path.suffix not in SOURCE_SUFFIXES or not path.is_file():
             continue
         reaches = _reaches(path)
+        # The vocabulary definitions_cxx.hpp brings is allowed only through it: a synth file names none itself.
+        for inc in _quoted_includes(path):
+            if inc.startswith("deluge-project/"):
+                reaches.setdefault(inc, [inc])
         if reaches:
             offenders[str(path.relative_to(REPO_ROOT))] = reaches
     return offenders

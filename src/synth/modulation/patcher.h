@@ -22,11 +22,6 @@
 #include <cstdint>
 #include <span>
 
-struct CableGroup;
-
-struct Destination;
-class PatchCable;
-
 enum Globality {
 	GLOBALITY_LOCAL = 0,
 	GLOBALITY_GLOBAL = 1,
@@ -45,21 +40,24 @@ public:
 
 	Patcher(const Config& config, std::span<int32_t> source_values, std::span<int32_t> param_final_values)
 	    : config(config), source_values_(source_values), param_final_values_(param_final_values) {};
-	void performInitialPatching(ControlBlock control_block);
-	void performPatching(uint32_t sources_changed, ControlBlock control_block);
-	void recalculateFinalValueForParamWithNoCables(int32_t param, ControlBlock control_block);
+	void performInitialPatching(const ControlBlock& control_block);
+	void performPatching(uint32_t sources_changed, const ControlBlock& control_block);
+	void recalculateFinalValueForParamWithNoCables(int32_t param, const ControlBlock& control_block);
 
 private:
-	int32_t combineCablesLinearForRangeParam(Destination const* destination, ControlBlock control_block);
-	int32_t combineCablesLinear(Destination const* destination, uint32_t param, ControlBlock control_block);
-	int32_t combineCablesExp(Destination const* destination, uint32_t param, ControlBlock control_block);
+	int32_t combineCablesLinearForRangeParam(const deluge::synth::RoutedDestination* destination,
+	                                         const ControlBlock& control_block);
+	int32_t combineCablesLinear(const deluge::synth::RoutedDestination* destination, uint32_t param,
+	                            const ControlBlock& control_block);
+	int32_t combineCablesExp(const deluge::synth::RoutedDestination* destination, uint32_t param,
+	                         const ControlBlock& control_block);
 	static int32_t cableToLinearParamWithoutRangeAdjustment(int32_t running_total, int32_t source_value,
 	                                                        int32_t cable_strength);
-	static int32_t cableToLinearParam(int32_t running_total, const PatchCable& cable, int32_t source_value,
-	                                  int32_t cable_strength);
+	static int32_t cableToLinearParam(int32_t running_total, const deluge::synth::RoutedCable& cable,
+	                                  int32_t source_value, int32_t cable_strength);
 	static int32_t cableToExpParamWithoutRangeAdjustment(int32_t running_total, int32_t source_value,
 	                                                     int32_t cable_strength);
-	static int32_t cableToExpParam(int32_t running_total, const PatchCable& cable, int32_t source_value,
+	static int32_t cableToExpParam(int32_t running_total, const deluge::synth::RoutedCable& cable, int32_t source_value,
 	                               int32_t cable_strength);
 
 	const Config& config;
