@@ -938,8 +938,10 @@ void Sound::retriggerVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* m
 	if (sideChainSendLevel != 0) [[unlikely]] {
 		AudioEngine::registerSideChainHit(sideChainSendLevel);
 	}
-	if (voice->noteOn(modelStack, noteCodePreArp, noteCodePostArp, velocity, sampleSyncLength, ticksLate, samplesLate,
-	                  false, fromMIDIChannel, mpeValues)) {
+	if (deluge::bench::render_profile::timed_note_on([&] {
+		    return voice->noteOn(modelStack, noteCodePreArp, noteCodePostArp, velocity, sampleSyncLength, ticksLate,
+		                         samplesLate, false, fromMIDIChannel, mpeValues);
+	    })) {
 		for (int32_t e = 0; e < kNumEnvelopes; e++) {
 			voice->envelopes[e].resumeAttack(envelopePositions[e]);
 		}
@@ -1030,8 +1032,10 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 			if (sideChainSendLevel != 0) [[unlikely]] {
 				AudioEngine::registerSideChainHit(sideChainSendLevel);
 			}
-			if (!voice->noteOn(modelStack, noteCodePreArp, noteCodePostArp, velocity, sampleSyncLength, ticksLate,
-			                   samplesLate, true, fromMIDIChannel, mpeValues)) {
+			if (!deluge::bench::render_profile::timed_note_on([&] {
+				    return voice->noteOn(modelStack, noteCodePreArp, noteCodePostArp, velocity, sampleSyncLength,
+				                         ticksLate, samplesLate, true, fromMIDIChannel, mpeValues);
+			    })) {
 				this->freeActiveVoice(voice, modelStack);
 			}
 		}
@@ -1041,8 +1045,10 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 			if (sideChainSendLevel != 0) [[unlikely]] {
 				AudioEngine::registerSideChainHit(sideChainSendLevel);
 			}
-			if (voice->noteOn(modelStack, noteCodePreArp, noteCodePostArp, velocity, sampleSyncLength, ticksLate,
-			                  samplesLate, true, fromMIDIChannel, mpeValues)) {
+			if (deluge::bench::render_profile::timed_note_on([&] {
+				    return voice->noteOn(modelStack, noteCodePreArp, noteCodePostArp, velocity, sampleSyncLength,
+				                         ticksLate, samplesLate, true, fromMIDIChannel, mpeValues);
+			    })) {
 				// Publish: the voice limit, the push and the skipping status in one step the render cannot split.
 				AudioExcludedSection section;
 				auto countsTowardLimit = [](const ActiveVoice& v) { return !v->isCullFading(); };

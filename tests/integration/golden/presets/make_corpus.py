@@ -103,6 +103,7 @@ def case(
     modulators=None,  # (mod1_attrs, mod2_attrs) — FM-mode cases only
     delay=None,
     extra=(),  # further child elements of <sound>, each a line of XML
+    osc1_zone=None,  # a sample oscillator's <zone> attributes
     json=False,  # write the case as the firmware's JSON, through the upgrader
 ):
     def merged(base, over):
@@ -113,7 +114,12 @@ def case(
 
     lines = ['<?xml version="1.0" encoding="UTF-8"?>']
     lines.append(f"<sound {attrs(merged(BASE_SOUND_ATTRS, sound))}>")
-    lines.append(f"\t<osc1 {attrs(merged(BASE_OSC1, osc1))} />")
+    if osc1_zone is None:
+        lines.append(f"\t<osc1 {attrs(merged(BASE_OSC1, osc1))} />")
+    else:
+        lines.append(f"\t<osc1 {attrs(merged(BASE_OSC1, osc1))}>")
+        lines.append(f"\t\t<zone {attrs(osc1_zone)} />")
+        lines.append("\t</osc1>")
     lines.append(f"\t<osc2 {attrs(merged(BASE_OSC2, osc2))} />")
     lines.append(f"\t<lfo1 {attrs(merged(BASE_LFO1, lfo1))} />")
     lines.append('\t<lfo2 type="triangle" />')
@@ -144,6 +150,7 @@ def case(
     lines.append("</sound>")
     text = "\n".join(lines) + "\n"
     if not json:
+        (CORPUS / name).parent.mkdir(exist_ok=True)
         (CORPUS / f"{name}.xml").write_text(text)
         return
     # The firmware saves presets as JSON. The upgrader (tools/deluge-upgrade) writes a document exactly as the firmware
@@ -322,7 +329,11 @@ GLOBAL_FIELDS = {
 def dx7_header_init_voice():
     """The 156 bytes of kDx7InitVoice, parsed from its header so DX7_INIT cannot drift from it."""
     header = (
-        CORPUS.resolve().parents[3] / "src" / "engines" / "deluge" / "dx7_init_voice.h"
+        CORPUS.resolve().parents[3]
+        / "src"
+        / "instruments"
+        / "deluge"
+        / "dx7_init_voice.h"
     ).read_text()
     body = re.search(r"kDx7InitVoice\{([^}]*)\}", header).group(1)
     return [int(b) for b in re.findall(r"\d+", body)]
@@ -663,5 +674,93 @@ case("poly_chord")
 case("pitch_bend")
 case("mono_legato", sound={"polyphonic": "legato"})
 case("porta", params={"portamento": "0x30000000"})
+
+# --- the voice's own paths (voice/, paired with .notes scripts) ----------------
+# Each reaches a branch of the voice's note-on, note change, note-off or render that no other case does. The sample
+# cases play sample/_tone.wav (4,096 frames, root C4) and the wavetable one wavetable/static.wav, through symlinks.
+SAMPLE_OSC = {
+    "type": "sample",
+    "reversed": "0",
+    "timeStretchEnable": "0",
+    "timeStretchAmount": "0",
+    "fileName": "SAMPLES/WT.WAV",
+}
+WHOLE_TONE = {"startSamplePos": "0", "endSamplePos": "4096"}
+
+# Portamento on a legato sound: the second, overlapping note changes the held voice's note and glides to it.
+case(
+    "voice/porta_legato",
+    sound={"polyphonic": "legato"},
+    params={"portamento": "0x30000000"},
+)
+# A source transposed so far up that a second note would sound above the Nyquist limit: that note's source is made
+# inactive while the first note sounds.
+case("voice/high_note_inactive", osc1={"transpose": "48"})
+# A mono sound's second note re-triggers its one voice without resetting it: a free-running oscillator keeps its phase.
+case(
+    "voice/freerun_mono_wavetable",
+    sound={"polyphonic": "mono"},
+    osc1={"type": "wavetable", "fileName": "SAMPLES/WT.WAV"},
+)
+case(
+    "voice/freerun_mono_supersaw",
+    sound={"polyphonic": "mono"},
+    osc1={"type": "supersaw"},
+)
+# A play-once sample shorter than the held note, with a release longer than the sample: the voice releases itself on
+# its first render.
+case(
+    "voice/once_auto_release",
+    osc1={**SAMPLE_OSC, "loopMode": "1"},
+    osc1_zone=WHOLE_TONE,
+    env1={"release": "0xE0000000"},
+)
+# The same played a fifth up on two unison voices, with a release short enough to start partway through the sample:
+# the release's length is scaled by the read rate of the higher unison voice.
+case(
+    "voice/once_auto_release_pitched",
+    osc1={**SAMPLE_OSC, "loopMode": "1"},
+    osc1_zone=WHOLE_TONE,
+    unison={"num": "2", "detune": "8"},
+    env1={"release": "0x84000000"},
+)
+# A play-once sample with loop points: it loops until the note-off, then plays on past the loop end.
+case(
+    "voice/loop_points_release",
+    osc1={**SAMPLE_OSC, "loopMode": "1"},
+    osc1_zone={**WHOLE_TONE, "startLoopPos": "1024", "endLoopPos": "3072"},
+    env1={"release": "0xC0000000"},
+)
+# A looping sample played a fifth up, which is cached on its first render unless a source that can change during the
+# note is patched to its pitch. Aftertouch held from before the note, and a slow square LFO, each hold the pitch steady
+# for blocks on end, where a cached render would differ. Velocity cannot change during a note, so that sample is
+# cached.
+LOOPING_SAMPLE = {"osc1": {**SAMPLE_OSC, "loopMode": "2"}, "osc1_zone": WHOLE_TONE}
+case(
+    "voice/cache_lfo_pitch",
+    **LOOPING_SAMPLE,
+    lfo1={"type": "square"},
+    params={"lfo1Rate": "0xC0000000"},
+    cables=BASE_CABLES + [("lfo1", "pitch", "0x08000000")],
+)
+case(
+    "voice/cache_aftertouch_pitch",
+    **LOOPING_SAMPLE,
+    cables=BASE_CABLES + [("aftertouch", "pitch", "0x08000000")],
+)
+# A sample's zone end moved mid-note (RENDER_ZONE_END, in render_preset.py): a looping sample loops at the new end; a
+# play-once sample already past it stops, while osc 2 keeps the voice sounding.
+case("voice/zone_end_loop", **LOOPING_SAMPLE)
+case(
+    "voice/zone_end_once",
+    osc1={**SAMPLE_OSC, "loopMode": "1"},
+    osc1_zone=WHOLE_TONE,
+    params={"oscBVolume": "0x40000000"},
+)
+case(
+    "voice/cache_velocity_pitch",
+    **LOOPING_SAMPLE,
+    cables=BASE_CABLES + [("velocity", "pitch", "0x08000000")],
+)
 
 print(f"wrote {len(list(CORPUS.glob('*.xml')))} presets to {CORPUS}")

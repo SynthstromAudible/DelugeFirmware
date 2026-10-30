@@ -17,12 +17,16 @@
 
 #include "scenarios/render_preset_scenario.h"
 
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/load/instrument_load.h"
 #include "libdeluge/tier.h"
 #include "model/clip/clip.h"
+#include "model/model_stack.h"
 #include "model/output.h"
+#include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/sound_instrument.h"
 
 #include <algorithm>
 #include <cmath>
@@ -78,6 +82,10 @@ int32_t g_voicesMax = 0;
 /// Captured ticks whose output was not in the channel count the case asked for.
 int32_t g_wrongWidthTicks = 0;
 uint64_t g_captured = 0;
+/// The captured block at which osc 1's first zone takes a new end, as the sample marker editor sets it; 0 for none.
+uint64_t g_zoneMoveBlock = 0;
+uint32_t g_zoneMoveEnd = 0;
+bool g_zoneMoved = false;
 
 void fail(const char* marker, const char* what) {
 	printf("%s FAIL %s\n", marker, what);
@@ -130,6 +138,24 @@ void stepStart() {
 	g_stage = Stage::Capturing;
 }
 
+/// Moves osc 1's first zone's end mid-note, as the sample marker editor does: the new ranges as one edit, then the
+/// sound's voices told which marker moved.
+void moveZoneEnd() {
+	Clip* clip = currentSong->live.clips.session_clips[0];
+	auto& sound = *static_cast<SoundInstrument*>(clip->output);
+	std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(sound.sources[0]);
+	ranges[0].end_pos = g_zoneMoveEnd;
+	deluge::gui::menu_item::rangesFor(sound, 0, std::move(ranges));
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithSoundFlags* modelStack = setupModelStackWithSong(modelStackMemory, currentSong)
+	                                           ->addTimelineCounter(clip)
+	                                           ->addModControllableButNoNoteRow(&sound)
+	                                           ->addParamManager(&clip->paramManager)
+	                                           ->addSoundFlags();
+	sound.sampleZoneChanged(MarkerType::END, 0, modelStack);
+	printf("RP-ZONE block=%llu end=%u\n", static_cast<unsigned long long>(g_blocksRendered), g_zoneMoveEnd);
+}
+
 void stepCapturing() {
 	g_direnessMax = std::max(g_direnessMax, static_cast<int32_t>(AudioEngine::cpuDireness));
 	g_voicesMax = std::max(g_voicesMax, static_cast<int32_t>(AudioEngine::getNumVoices()));
@@ -137,6 +163,10 @@ void stepCapturing() {
 		g_wrongWidthTicks++;
 	}
 	g_blocksRendered = deluge_host_render_count() - g_renderBase;
+	if (g_zoneMoveBlock != 0 && !g_zoneMoved && g_blocksRendered >= g_zoneMoveBlock) {
+		g_zoneMoved = true;
+		moveZoneEnd();
+	}
 	if (g_blocksRendered >= g_blocksWanted) {
 		g_captured = deluge_host_capture_stop();
 		deluge_host_test_input(false);
@@ -201,6 +231,14 @@ void deluge_scenario_render_preset_begin(void) {
 	g_testInput = input != nullptr && std::strcmp(input, "1") == 0;
 	const char* midi = std::getenv("RENDER_MIDI");
 	g_midiPath = midi != nullptr ? midi : "";
+	g_zoneMoved = false;
+	const char* zone = std::getenv("RENDER_ZONE_END");
+	g_zoneMoveBlock = 0;
+	if (zone != nullptr) {
+		char* rest = nullptr;
+		g_zoneMoveBlock = std::strtoull(zone, &rest, 10);
+		g_zoneMoveEnd = static_cast<uint32_t>(std::strtoul(rest, nullptr, 10));
+	}
 	const char* seconds = std::getenv("RENDER_SECONDS");
 	const double wanted = std::ceil((seconds != nullptr ? std::strtod(seconds, nullptr) : 2.0) * kFramesPerSecond);
 	g_blocksWanted = (static_cast<uint64_t>(wanted) + kBlockFrames - 1) / kBlockFrames;

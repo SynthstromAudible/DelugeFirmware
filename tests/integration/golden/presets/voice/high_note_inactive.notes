@@ -1,0 +1,5 @@
+# C4 held; a second note whose transposed pitch is above the Nyquist limit starts and ends inside it.
+4608 90 3C 64
+20000 90 5A 64
+40000 80 5A 40
+52000 80 3C 40

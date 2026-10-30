@@ -48,6 +48,8 @@ INPUT = {"input_mono", "input_stereo", "input_pitchshift"}
 # Cases under this directory render with headphones plugged in, so the app renders in stereo; every other case renders
 # in mono, as through the device's speaker.
 STEREO_DIR = "stereo/"
+# Cases whose osc 1 zone end moves mid-note, as the sample marker editor moves it: "<captured block> <new end frame>".
+ZONE_END = {"voice/zone_end_loop": "60 2048", "voice/zone_end_once": "50 1024"}
 # The loudest sample of silence: 16 in 16-bit terms, the C-host harness's threshold. The render's dither floor sits
 # far below it.
 SILENCE_PEAK = 16 << 16
@@ -134,6 +136,8 @@ def _stage(corpus: Path, name: str, where: Path) -> dict[str, str]:
         env["RENDER_INPUT"] = "1"
     if name.startswith(STEREO_DIR):
         env["RENDER_STEREO"] = "1"
+    if name in ZONE_END:
+        env["RENDER_ZONE_END"] = ZONE_END[name]
     return env
 
 
@@ -216,6 +220,10 @@ def run(gate):
             gate.fail(
                 f"RP-CAPTURE {name}: captured {frames} frames, fewer than {wanted}"
             )
+            failed += 1
+            continue
+        if name in ZONE_END and result.last("RP-ZONE ") is None:
+            gate.fail(f"RP-ZONE {name}: the zone end never moved")
             failed += 1
             continue
         # Whole blocks are captured; the record covers exactly the case's length.
