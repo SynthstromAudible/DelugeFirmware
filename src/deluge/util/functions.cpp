@@ -794,16 +794,6 @@ int32_t random(int32_t upperLimit) {
 	return (uint16_t)(deluge::synth_noise.next() >> 16) % (upperLimit + 1);
 }
 
-uint32_t getOscInitialPhaseForZero(OscType waveType) {
-	switch (waveType) {
-	case OscType::TRIANGLE:
-		return 1073741824;
-
-	default:
-		return 0;
-	}
-}
-
 void replace_char(char* out_str, const char* in_str, char find, char replace) {
 	strcpy(out_str, in_str);
 	auto* current_pos = strchr(out_str, find);

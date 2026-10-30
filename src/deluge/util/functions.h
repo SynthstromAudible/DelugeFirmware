@@ -178,8 +178,6 @@ void seedRandom();
 
 int32_t random(int32_t upperLimit);
 
-uint32_t getOscInitialPhaseForZero(OscType waveType);
-
 [[gnu::always_inline]] inline int32_t increaseMagnitude(int32_t number, int32_t magnitude) {
 	if (magnitude >= 0) {
 		return number << magnitude;

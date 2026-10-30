@@ -30,7 +30,7 @@ namespace deluge::synth {
 /// @brief The L1 **Source** contract (the per-source render tier of Phasor → Osc → Source → Engine → Voice →
 /// Instrument): one @ref Source renders one voice's worth of a single sound source (an oscillator, the wavetable,
 /// FM, a sample, …) into a block, given the already-modulated control values for that block. This is the seam that
-/// replaces the legacy `OscType` megaswitch (`dsp/oscillators/oscillator.cpp`) with composable, host-constructible
+/// renders every `OscType` through composable, host-constructible
 /// objects — the Plaits "engine" idea at the right altitude ("Engine" itself is reserved for the *coordinator*
 /// tier above). Per-source state (phase, feedback, sample position) lives *in the concrete source* (e.g. a
 /// @ref deluge::dsp::Phasor member); the app hands down only the modulated numbers, never references upward.

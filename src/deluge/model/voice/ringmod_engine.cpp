@@ -18,11 +18,11 @@
 #include "model/voice/ringmod_engine.h"
 #include "dsp-next/core/types.h" // deluge::dsp::fixed::Buffer
 #include "dsp-next/fixed/vca/pan.h"
-#include "dsp/oscillators/oscillator.h"          // deluge::dsp::oscSyncRenderingBuffer
 #include "model/voice/source_component_render.h" // voice::makeBlockControls
 #include "model/voice/voice.h"                   // Voice (member access — pre-roll + per-source state)
 #include "model/voice/voice_unison_part_source.h"
 #include "modulation/params/param.h"         // LOCAL_OSC_A_PITCH_ADJUST / LOCAL_OSC_A_PHASE_WIDTH
+#include "processing/render_scratch.h"       // render::osc_sync_scratch
 #include "storage/audio/audio_file_holder.h" // AudioFileHolder::audioFile (the wavetable lookup)
 #include "storage/wave_table/wave_table.h"   // WaveTable::view() (band-data view for the wavetable source)
 #include "util/fixedpoint.h"
@@ -134,7 +134,7 @@ void RingModEngine::renderUnisonPart(const Source& src0, const Source& src1, boo
 		    voice::makeBlockControls(0, 0, source.pulseWidth, /*applyAmplitude=*/false, doingOscSyncThisOscillator,
 		                             oscSyncPos, src0.phaseIncrement, source.retriggerPhase);
 		const dsp::fixed::Buffer out{scratch[s], static_cast<size_t>(numSamples)};
-		const dsp::fixed::Buffer syncScratch{dsp::oscSyncRenderingBuffer, static_cast<size_t>(numSamples)};
+		const dsp::fixed::Buffer syncScratch = render::osc_sync_scratch().first(static_cast<size_t>(numSamples));
 		if (source.part->vaSource.has_value()) {
 			source.part->vaSource->renderInto(controls, source.phaseIncrement, out, syncScratch);
 		}

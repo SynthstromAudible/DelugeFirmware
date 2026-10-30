@@ -32,6 +32,7 @@
 #include "dsp-next/fixed/vca/amplitude.h"
 #include "dsp-next/fixed/vca/crude_amplitude.h"
 #include "util/fixedpoint.h" // multiply_32x32_rshift32_rounded
+#include "util/misc.h"       // util::to_underlying
 #include <cstdint>
 #include <optional>
 
@@ -66,7 +67,7 @@ enum class Standalone { kDirect, kHalve, kDouble };
 
 /// @brief The per-block resolution of pulse-width + hard-sync into the values the render path actually consumes.
 ///
-/// Mirrors the legacy preamble (`dsp/oscillators/oscillator.cpp`): under pulse-width modulation the saw/sine/
+/// Under pulse-width modulation the saw/sine/
 /// triangle/analog-square rewrite their render phase to a higher rate and hard-sync to their own untouched-rate
 /// phase, so a "pulse" is two ramps stitched at the width. @ref render is the (possibly rewritten) phasor the
 /// oscillator advances; @ref sync is the effective sync master (the real one, or the pulse-induced self-sync);
@@ -344,6 +345,32 @@ void AnalogSquare::renderBlock(const BlockControls& controls, fixed::Buffer outp
 	renderBandLimited(fixed::analog_square_bandlimited_table(), phasor_.increment(), controls.amplitude << 1, r.sync,
 	                  r.retrigger, controls.apply_amplitude, output, scratch, r.render);
 	phasor_.seek(r.render.phase());
+}
+
+bool is_virtual_analog(OscType type) {
+	// The six VA waves are the first OscType entries, up to ANALOG_SAW_2; WAVETABLE and above are not.
+	return util::to_underlying(type) <= util::to_underlying(OscType::ANALOG_SAW_2);
+}
+
+Wave wave_for(OscType type) {
+	switch (type) {
+	case OscType::TRIANGLE:
+		return Wave::Triangle;
+	case OscType::SQUARE:
+		return Wave::Square;
+	case OscType::SAW:
+		return Wave::Saw;
+	case OscType::ANALOG_SAW_2:
+		return Wave::AnalogSaw;
+	case OscType::ANALOG_SQUARE:
+		return Wave::AnalogSquare;
+	default: // SINE
+		return Wave::Sine;
+	}
+}
+
+uint32_t initial_phase_for_zero(OscType type) {
+	return type == OscType::TRIANGLE ? 1073741824u : 0u;
 }
 
 } // namespace deluge::synth::va_shape

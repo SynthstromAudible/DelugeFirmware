@@ -17,7 +17,6 @@
 
 #include "model/voice/voice_unison_part_source.h"
 #include "dsp-next/core/phasor.h"
-#include "dsp/oscillators/oscillator.h" // isVirtualAnalog / vaWaveFor
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample_cache.h"
 #include "model/song/song.h"
@@ -29,7 +28,8 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/source.h"
 #include "storage/multi_range/multisample_range.h"
-#include "util/functions.h" // getNoise
+#include "synth/source/va_shapes.h" // va_shape::is_virtual_analog / wave_for / initial_phase_for_zero
+#include "util/functions.h"         // getNoise
 
 VoiceUnisonPartSource::~VoiceUnisonPartSource() {
 	unassign(false);
@@ -65,11 +65,11 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 		// oscillator on a reused voice (same Sound ⇒ same wave) keeps the engine's continuing phase. The two
 		// engines are mutually exclusive — reset the other (a pooled voice slot may carry one from a prior sound).
 		const bool engineMode = (synthMode == SynthMode::SUBTRACTIVE || synthMode == SynthMode::RINGMOD);
-		const uint32_t seedPhase = getOscInitialPhaseForZero(oscType) + oscRetriggerPhase;
-		if (engineMode && deluge::dsp::isVirtualAnalog(oscType)) {
+		const uint32_t seedPhase = deluge::synth::va_shape::initial_phase_for_zero(oscType) + oscRetriggerPhase;
+		if (engineMode && deluge::synth::va_shape::is_virtual_analog(oscType)) {
 			wavetableSource.reset();
 			supersawSource.reset();
-			const deluge::synth::va_shape::Wave wave = deluge::dsp::vaWaveFor(oscType);
+			const deluge::synth::va_shape::Wave wave = deluge::synth::va_shape::wave_for(oscType);
 			if (oscRetriggerPhase != 0xFFFFFFFF) {
 				vaSource.emplace(wave, deluge::dsp::Phasor{seedPhase, 0});
 			}

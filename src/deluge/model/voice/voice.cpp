@@ -39,7 +39,6 @@
 #include "util/synth_noise.h"
 
 #include "dsp-next/fixed/tables/decay_small.h"
-#include "dsp/oscillators/oscillator.h"
 #include "util/misc.h"
 #include <cstring>
 #include <new>
@@ -314,7 +313,7 @@ activenessDetermined:
 	}
 
 	if (sound.getSynthMode() == SynthMode::FM) {
-		uint32_t initialPhase = getOscInitialPhaseForZero(OscType::SINE);
+		uint32_t initialPhase = deluge::synth::va_shape::initial_phase_for_zero(OscType::SINE);
 		for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
 			for (int32_t m = 0; m < kNumModulators; m++) {
 				if (sound.snapshot().modulatorRetriggerPhase[m] != 0xFFFFFFFF) {
@@ -1502,7 +1501,7 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	    .waveIndexIncrement = waveIndexIncrement,
 	    .stereoScratch = spareBuffers_[2],
 	    .stereoScratchClearSamples = SSI_TX_BUFFER_NUM_SAMPLES,
-	    .syncScratch = deluge::dsp::oscSyncRenderingBuffer,
+	    .syncScratch = deluge::render::osc_sync_scratch().data(),
 	    .ampModParam = params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s], // DX7 amplitude-mod control
 	    .patchChanged = cfg.dxPatchChanged[s],                                       // DX7
 	    .midinote = noteCodeAfterArpeggiation,                                       // DX7

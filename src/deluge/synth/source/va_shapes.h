@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include "definitions_cxx.hpp"    // OscType
 #include "dsp-next/core/phasor.h" // deluge::dsp::Phasor
 #include "dsp-next/core/types.h"  // deluge::dsp::fixed::Buffer
 #include "synth/source/source.h"  // BlockControls
@@ -125,5 +126,15 @@ public:
 	void renderBlock(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
 	                 deluge::dsp::fixed::Buffer scratch);
 };
+
+/// @brief Whether @p type is one of the six virtual-analog waves (the first OscType entries, up to ANALOG_SAW_2);
+/// WAVETABLE, SAMPLE, DX7 and the inputs are not. Decides whether a source's phase lives in the VA engine.
+[[nodiscard]] bool is_virtual_analog(OscType type);
+
+/// @brief The VA wave for @p type. Only meaningful when @ref is_virtual_analog; anything else maps to Sine.
+[[nodiscard]] Wave wave_for(OscType type);
+
+/// @brief The phase at which @p type's wave crosses zero rising, UQ0.32: a quarter turn for the triangle, 0 otherwise.
+[[nodiscard]] uint32_t initial_phase_for_zero(OscType type);
 
 } // namespace deluge::synth::va_shape
