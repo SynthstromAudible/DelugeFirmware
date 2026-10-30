@@ -16,8 +16,8 @@
  */
 
 // Pins the *stateful* contract the dsp-next oscillators gained: phase persists across blocks, and per-block
-// param updates (setIncrement / setTable) are bit-identical to constructing a fresh oscillator. This is the
-// foundation the persistent voice model relies on; the band-reselect-on-setIncrement case is the key hazard.
+// param updates (set_increment / setTable) are bit-identical to constructing a fresh oscillator. This is the
+// foundation the persistent voice model relies on; the band-reselect-on-set_increment case is the key hazard.
 // Run on x86 (SIMDe) + ARM/QEMU via CTest.
 
 #include "dsp-next/fixed/bandlimited/saw.h"
@@ -46,7 +46,7 @@ constexpr std::size_t kN = 16; // a render block
 template <typename Osc>
 std::array<int32_t, kN> block(Osc& osc) {
 	std::array<int32_t, kN> out{};
-	osc.renderBlock(Buffer{out});
+	osc.render_block(Buffer{out});
 	return out;
 }
 } // namespace
@@ -70,11 +70,11 @@ describe stateful_oscillator("dsp-next stateful oscillators", ${
 			expect(cont).to_equal(block(reseeded));
 		});
 
-		it("setIncrement then render equals constructing fresh at the new increment + phase", _ {
+		it("set_increment then render equals constructing fresh at the new increment + phase", _ {
 			std::array<int16_t, 8> table{0, 1000, 2000, 3000, 4000, 5000, 6000, 7000};
 			TableOscillator a{Table{table, kMag}, 0u, kInc};
 			block(a);
-			a.setIncrement(kInc2);
+			a.set_increment(kInc2);
 			auto got = block(a);
 
 			TableOscillator b{Table{table, kMag}, 0u, kInc};
@@ -101,12 +101,12 @@ describe stateful_oscillator("dsp-next stateful oscillators", ${
 	// The primary hazard: a band-limited oscillator must re-select its band when the pitch changes, and that must
 	// be bit-identical to constructing fresh at the new pitch. Two widely different increments pick different bands.
 	context("BandLimitedTableOscillator", _ {
-		it("setIncrement re-selects the band, equalling a fresh oscillator at the new pitch", _ {
+		it("set_increment re-selects the band, equalling a fresh oscillator at the new pitch", _ {
 			constexpr uint32_t kLow = 0x00200000u;
 			constexpr uint32_t kHigh = 0x30000000u;
 			BandLimitedTableOscillator a{saw_bandlimited_table(), 0u, kLow};
 			block(a);
-			a.setIncrement(kHigh);
+			a.set_increment(kHigh);
 			auto got = block(a);
 
 			BandLimitedTableOscillator b{saw_bandlimited_table(), 0u, kLow};
@@ -132,10 +132,10 @@ describe stateful_oscillator("dsp-next stateful oscillators", ${
 	});
 
 	context("CrudeSaw", _ {
-		it("setIncrement then render equals a fresh oscillator at the new increment + phase", _ {
+		it("set_increment then render equals a fresh oscillator at the new increment + phase", _ {
 			CrudeSaw a{Phasor{0u, kInc}};
 			block(a);
-			a.setIncrement(kInc2);
+			a.set_increment(kInc2);
 			auto got = block(a);
 
 			CrudeSaw b{Phasor{0u, kInc}};

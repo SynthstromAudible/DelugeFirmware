@@ -57,9 +57,9 @@ public:
 		return std::visit([](const auto& shape) { return shape.increment(); }, shape_);
 	}
 
-	/// Set the per-block pitch (UQ0.32). Voice calls this each block before @ref renderBlock (pitch modulation).
-	void setIncrement(uint32_t increment) {
-		std::visit([&](auto& shape) { shape.setIncrement(increment); }, shape_);
+	/// Set the per-block pitch (UQ0.32). Voice calls this each block before @ref render_block (pitch modulation).
+	void set_increment(uint32_t increment) {
+		std::visit([&](auto& shape) { shape.set_increment(increment); }, shape_);
 	}
 
 	/// Jump the phase (e.g. a skipped source still advances, or an external reseed). Leaves the increment.
@@ -67,14 +67,14 @@ public:
 		std::visit([&](auto& shape) { shape.seek(phase); }, shape_);
 	}
 
-	void renderBlock(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-	                 deluge::dsp::fixed::Buffer scratch) {
+	void render_block(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
+	                  deluge::dsp::fixed::Buffer scratch) {
 		// The engine owns its phase across blocks. The shape advances/seeks its phasor only meaningfully on a real
 		// hard-sync block (where it lands on the synced phase); otherwise we advance the original-domain phase by
 		// the block length here — exactly the legacy "phase += increment * numSamples, real-sync overrides" rule.
 		const uint32_t start = phase();
 		const uint32_t inc = increment();
-		std::visit([&](auto& shape) { shape.renderBlock(controls, output, scratch); }, shape_);
+		std::visit([&](auto& shape) { shape.render_block(controls, output, scratch); }, shape_);
 		if (!controls.sync) {
 			seek(start + inc * static_cast<uint32_t>(output.size()));
 		}
@@ -85,8 +85,8 @@ public:
 	/// phase across blocks.
 	void renderInto(const BlockControls& controls, uint32_t phaseIncrement, deluge::dsp::fixed::Buffer output,
 	                deluge::dsp::fixed::Buffer scratch) {
-		setIncrement(phaseIncrement);
-		renderBlock(controls, output, scratch);
+		set_increment(phaseIncrement);
+		render_block(controls, output, scratch);
 	}
 
 protected:

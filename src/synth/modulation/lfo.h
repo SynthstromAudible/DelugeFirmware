@@ -21,7 +21,7 @@
 #include "dsp-next/core/q31_ops.h"
 #include "dsp-next/fixed/bandlimited/waves.h" // square, triangle
 #include "dsp-next/fixed/noise/cong.h"        // the noise stream the random waves draw from
-#include "dsp-next/fixed/osc/sine_table.h"    // sine_table
+#include "dsp-next/fixed/osc/sine_table.h"    // kSineTable
 #include "plugin-api/types/sync.h"            // SyncType, SyncLevel
 #include <cstdint>
 #include <variant>
@@ -83,7 +83,7 @@ struct Square {
 struct Sine {
 	[[gnu::always_inline]] int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples,
 	                                      [[maybe_unused]] deluge::dsp::fixed::Cong& noise) {
-		int32_t value = deluge::dsp::fixed::sine_table.value(phase);
+		int32_t value = deluge::dsp::fixed::kSineTable.value(phase);
 		advance(phase, phase_increment, num_samples);
 		return value;
 	}

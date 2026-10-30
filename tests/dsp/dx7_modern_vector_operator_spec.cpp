@@ -55,7 +55,7 @@ describe dx7_modern_vector_operator_spec("dx7::ModernVectorOperator", ${
 			                                                .tables = &tables}};
 			op.on<&dx7::ModernVectorOperator::resume>(dx7::OperatorState{.phase = pin.phase0, .gain_out = pin.gain_out});
 			const auto n = static_cast<std::size_t>(pin.n);
-			op.renderBlock({inputs.modulation, n}, {out.data(), n}, {out.data(), n});
+			op.render_block({inputs.modulation, n}, {out.data(), n}, {out.data(), n});
 			bool untouched = true; // writes only n
 			for (std::size_t k = n; k < out.size(); ++k) {
 				untouched = untouched && out[k] == inputs.accumulator[k];
@@ -86,8 +86,8 @@ describe dx7_modern_vector_operator_spec("dx7::ModernVectorOperator", ${
 			deluge::dsp::Mono<dx7::ModernVectorOperator> b{{.level_in = pin.level_in, .freq = pin.freq, .tables = &tables}};
 			b.on<&dx7::ModernVectorOperator::resume>(dx7::OperatorState{.phase = pin.phase0, .gain_out = pin.gain_out});
 			alignas(16) std::array<int32_t, 144> scratch{};
-			a.renderBlock({scratch.data(), n}, {scratch.data(), n}, {scratch.data(), n});
-			b.renderBlock({scratch.data(), n}, {scratch.data(), n}, {scratch.data(), n});
+			a.render_block({scratch.data(), n}, {scratch.data(), n}, {scratch.data(), n});
+			b.render_block({scratch.data(), n}, {scratch.data(), n}, {scratch.data(), n});
 			expect(b.state().op.phase).to_equal(a.state().op.phase);
 			expect(b.state().op.gain_out).to_equal(a.state().op.gain_out);
 		}

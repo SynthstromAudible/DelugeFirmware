@@ -155,7 +155,7 @@ describe send_and_volume_kernel_spec("the send and the post-FX and post-reverb v
 		k.on<&Kernel::start_from>(q31{0});
 		k.configure({.post_fx_volume = 1 << 27, .post_reverb_volume = 1 << 27, .pan = 0, .ramp = true, .stereo = true});
 		std::vector<StereoSample> ones(4, StereoSample{.l = 1 << 30, .r = 1 << 30});
-		k.renderBlock(ones, ones);
+		k.render_block(ones, ones);
 		// The gain at this block's volume, held: what a ramp ending on its target would give at its last frame.
 		const q31 held_gain = multiply_32x32_rshift32(1 << 27, 1 << 27) << Kernel::kVolumeShift;
 		const q31 at_target = multiply_32x32_rshift32(1 << 30, held_gain) << Kernel::kVolumeShift;

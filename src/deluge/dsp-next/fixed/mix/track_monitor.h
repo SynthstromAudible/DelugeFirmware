@@ -103,16 +103,16 @@ struct TrackMonitor {
 		                      .r = multiply_32x32_rshift32(input.r, s.amplitude) << kAmplitudeShift};
 		StereoSample add = in;
 		if constexpr (M == Mode::LEFT) {
-			add = StereoSample::fromMono(in.l);
+			add = StereoSample::from_mono(in.l);
 		}
 		else if constexpr (M == Mode::RIGHT) {
-			add = StereoSample::fromMono(in.r);
+			add = StereoSample::from_mono(in.r);
 		}
 		else if constexpr (M == Mode::BALANCED) {
-			add = StereoSample::fromMono(wrapping_sub(in.l / 2, in.r / 2));
+			add = StereoSample::from_mono(wrapping_sub(in.l / 2, in.r / 2));
 		}
 		else if constexpr (M == Mode::COMBINE) {
-			add = StereoSample::fromMono(wrapping_add(in.l / 2, in.r / 2));
+			add = StereoSample::from_mono(wrapping_add(in.l / 2, in.r / 2));
 		}
 		return {.l = wrapping_add(output.l, add.l), .r = wrapping_add(output.r, add.r)};
 	}

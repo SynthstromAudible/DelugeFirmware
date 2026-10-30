@@ -1,4 +1,10 @@
 ---
+# The checks below are enabled by family, so the set grows with each clang-tidy release. The version is pinned
+# (23.1.4: the pre-commit hook's wheel and CI's install); bumping it means reviewing the checks it newly enables.
+#
+# Off because fixed-point DSP relies on what they forbid: signed shifts are q31 arithmetic (defined since C++20),
+# std::array indexing sits in per-sample loops, NEON and sample buffers are reinterpreted and read through unions,
+# and the parentheses check flags every mixed shift/multiply. Trailing commas are layout, which clang-format owns.
 Checks: >
   -*,
   readability-braces-around-statements,
@@ -34,9 +40,14 @@ Checks: >
   -cppcoreguidelines-pro-type-static-cast-downcast,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -bugprone-easily-swappable-parameters,
-  -cppcoreguidelines-avoid-magic-numbers,  
   -readability-identifier-length,
   -readability-magic-numbers,
+  -bugprone-signed-bitwise,
+  -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-pro-type-union-access,
+  -readability-math-missing-parentheses,
+  -readability-trailing-comma,
 WarningsAsErrors: false # should be true once we get there
 HeaderFileExtensions: ["h", "hh", "hpp", "hxx"]
 ImplementationFileExtensions: ["c", "cc", "cpp", "cxx"]
@@ -66,11 +77,19 @@ CheckOptions:
   - { key: readability-identifier-naming.StructCase,          value: CamelCase  }
   - { key: readability-identifier-naming.FunctionCase,        value: lower_case }
   - { key: readability-identifier-naming.VariableCase,        value: lower_case }
-  # Constants use the kCamelCase convention (e.g. kMaxNumSections), so encode the `k` prefix
-  # rather than flagging every one. Scoped to namespace- and class-scope constants only —
-  # NOT ConstexprVariable, which would also (wrongly) demand `k` on function-local constexpr.
+  - { key: readability-identifier-naming.ParameterCase,       value: lower_case }
+  # Constants are kCamelCase (kMaxNumSections) at every scope: namespace, class and function-local constexpr alike.
+  # Metaprogramming follows the standard library instead: trait structs and concepts are snake_case, and a
+  # constexpr variable template ends in _v (is_same_v) and a trait's result is `value` — the spellings of a
+  # constexpr that skip the k.
   - { key: readability-identifier-naming.GlobalConstantCase,    value: CamelCase }
   - { key: readability-identifier-naming.GlobalConstantPrefix,  value: k         }
   - { key: readability-identifier-naming.ClassConstantCase,     value: CamelCase }
   - { key: readability-identifier-naming.ClassConstantPrefix,   value: k         }
+  - { key: readability-identifier-naming.ConstexprVariableCase,    value: CamelCase  }
+  - { key: readability-identifier-naming.ConstexprVariablePrefix,  value: k          }
+  - { key: readability-identifier-naming.ConstexprVariableIgnoredRegexp, value: '^([a-z][a-z0-9_]*_v|value)$' }
+  - { key: readability-identifier-naming.ClassConstantIgnoredRegexp,     value: '^value$' }
+  - { key: readability-identifier-naming.StructIgnoredRegexp,      value: '^[a-z][a-z0-9_]*$' }
+  - { key: readability-identifier-naming.ConceptCase,              value: lower_case }
   - { key: readability-identifier-naming.MacroDefinitionCase, value: UPPER_CASE }

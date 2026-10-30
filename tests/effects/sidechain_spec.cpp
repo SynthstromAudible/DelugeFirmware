@@ -53,7 +53,7 @@ const std::vector<int32_t> kSyncedLate{-735523898, -1453628270, -1609082976, -16
 constexpr uint32_t kZeroRateInverse = (uint32_t{1} << 19) - 1;
 /// The first block of 128 after a hit at kAttack and kRelease, unsynced.
 constexpr int32_t kUnsyncedFirstBlock = -420429314;
-/// The attack's level at its start, less ONE_Q31, Q31: two LSBs under no duck, from the curve's rounding.
+/// The attack's level at its start, less kOneQ31, Q31: two LSBs under no duck, from the curve's rounding.
 constexpr int32_t kAttackStart = -2;
 
 SidechainState state(SyncLevel level, int32_t attack = kAttack) {

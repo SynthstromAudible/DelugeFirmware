@@ -21,7 +21,7 @@
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/core/q31_ops.h"                             // multiply_32x32_rshift32(_accumulate)_rounded
 #include "dsp-next/fixed/interpolation/sinc_interpolation.h"   // windowed_sinc_apply, SincWindow
-#include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h" // windowed_sinc_kernel
+#include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h" // kWindowedSincKernel
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
 #include <argon.hpp>
 #include <cstddef>
@@ -35,7 +35,7 @@ namespace wavetable_detail {
 // row to read (@ref sinc_kernel_row) and the Q15 blend toward the next row (@ref sinc_row_blend).
 constexpr int32_t kSincKernelRowBits = 8; // legacy numBitsInWindowedSyncTableSize
 constexpr int32_t kSincRowBlendShift =
-    (32 + kInterpolationMaxNumSamplesMagnitude) - 16 - kSincKernelRowBits + 1; // legacy rshiftAmount
+    (32 + kInterpolationMaxNumSamplesMagnitude) - 16 - kSincKernelRowBits + 1; // legacy kRshiftAmount
 
 /// The @ref kInterpolationMaxNumSamples sample window centred on @p phase within a cycle of
 /// 2^magnitude samples, wrapping at the cycle edge.
@@ -215,7 +215,7 @@ private:
 	}
 
 	const int16_t* kernel_for(const WaveTableBand* band) const {
-		return (band != nullptr) ? windowed_sinc_kernel.select(phase_increment_, band->maxPhaseIncrement) : nullptr;
+		return (band != nullptr) ? kWindowedSincKernel.select(phase_increment_, band->maxPhaseIncrement) : nullptr;
 	}
 
 	const WaveTableData* table_;

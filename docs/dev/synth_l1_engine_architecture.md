@@ -84,7 +84,7 @@ public:
 
 - `RenderResult` unifies today's divergent signals: VA/wavetable never die (`void`), DX7 returns `active`,
   Sample returns `{ACTIVE, UNASSIGN, SKIP}` (`model/voice/sample_engine.h`). One status type covers all.
-- **No** `phase()` / `setIncrement()` / `sync` here — those leak oscillator structure. (osc-sync master/slave
+- **No** `phase()` / `set_increment()` / `sync` here — those leak oscillator structure. (osc-sync master/slave
   is internal to Subtractive/RingMod, between *their* components.)
 - The `RenderBlock` carries the already-modulated per-block numbers (the spirit of today's
   `synth::BlockControls`) plus output/scratch buffers — but trimmed of the oscillator-only fields
@@ -95,7 +95,7 @@ public:
 This is where the real difficulty is, because it must cover **heterogeneous** components uniformly:
 
 - VA oscillators and the wavetable osc are clean L0/dsp-next citizens (own a `Phasor`, no upward refs) — they
-  keep `phase()` / `setIncrement()` / `seek()` and the pulse/sync machinery (that's legitimate at this layer).
+  keep `phase()` / `set_increment()` / `seek()` and the pulse/sync machinery (that's legitimate at this layer).
 - The **sample reader** and **live-input tap** are app-coupled (reach `AudioEngine`, storage, the allocator,
   `ParamManager`). To stay buildable/testable with zero firmware, they sit behind **ports** —
   `SampleSource` (wrapping the existing `voice_sample` path) and a live-input port — injected into the

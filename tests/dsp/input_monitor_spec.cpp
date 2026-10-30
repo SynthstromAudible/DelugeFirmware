@@ -117,7 +117,7 @@ describe input_monitor_spec("the input folds monitoring adds to the output", ${
 					                         static_cast<int32_t>(kRingFrames), from, to);
 					const std::vector<StereoSample> input = ring_read(ring, read, n);
 					k.configure({.amplitude_start = from, .amplitude_end = to, .mode = mode});
-					k.renderBlock(std::span{b}.subspan(at, n), input, std::span{b}.subspan(at, n));
+					k.render_block(std::span{b}.subspan(at, n), input, std::span{b}.subspan(at, n));
 					read = (read + n) % kRingFrames;
 					at += n;
 				}

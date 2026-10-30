@@ -129,7 +129,7 @@ void editor() {
 void walker() {
 	uint64_t walks = 0;
 	while (!g_done.load(std::memory_order_acquire)) {
-		AudioExcludedSection renderBlock;
+		AudioExcludedSection render_block;
 		for (const Node& node : g_nodes) {
 			if (node.magic != kMagic) {
 				std::fprintf(stderr, "walk saw a node mid-edit\n");

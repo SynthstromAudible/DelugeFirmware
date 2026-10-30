@@ -30,18 +30,18 @@
 namespace deluge::dsp::fixed {
 
 /// @brief Two hit strengths (Q31) arriving before one block, combined: the stronger half plus half the clamped sum.
-/// @details Two equal hits of x combine to one and a half x. The sum is clamped at full scale (ONE_Q31) before it is
+/// @details Two equal hits of x combine to one and a half x. The sum is clamped at full scale (kOneQ31) before it is
 /// halved, so the result never exceeds full scale.
 [[nodiscard]] [[gnu::always_inline]] constexpr q31 combine_hit_strengths(q31 a, q31 b) {
-	// Full scale, ONE_Q31, unsigned: the sum is clamped to it.
-	constexpr uint32_t kFullScale{ONE_Q31};
+	// Full scale, kOneQ31, unsigned: the sum is clamped to it.
+	constexpr uint32_t kFullScale{kOneQ31};
 	const uint32_t sum = std::min(static_cast<uint32_t>(a) + static_cast<uint32_t>(b), kFullScale);
 	return (std::max(a, b) >> 1) + static_cast<q31>(sum >> 1);
 }
 
 /// @brief A hit waiting for the next block. Strength Q31, 0 when none.
 struct PendingHit {
-	q31 strength{0}; ///< The hit's strength, Q31: how far below ONE_Q31 it ducks. 0 is no hit.
+	q31 strength{0}; ///< The hit's strength, Q31: how far below kOneQ31 it ducks. 0 is no hit.
 
 	/// @return This hit combined with another of strength @p more (Q31), by @ref combine_hit_strengths.
 	[[nodiscard]] [[gnu::always_inline]] constexpr PendingHit with(q31 more) const {

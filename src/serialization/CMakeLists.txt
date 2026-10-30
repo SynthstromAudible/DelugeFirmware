@@ -8,3 +8,5 @@ deluge_optimise_target_for_size(deluge_serialization)
 # Headers are included as "serialization/..."; the include root is src/ (this directory's parent).
 target_include_directories(deluge_serialization PUBLIC ${CMAKE_CURRENT_LIST_DIR}/..)
 target_compile_features(deluge_serialization PUBLIC cxx_std_23)
+include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/library_warnings.cmake)
+deluge_library_warnings(deluge_serialization)

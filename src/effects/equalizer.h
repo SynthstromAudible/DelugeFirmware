@@ -39,7 +39,7 @@ public:
 			return;
 		}
 		shelves_.configure(params);
-		shelves_.renderBlock(block, block);
+		shelves_.render_block(block, block);
 	}
 
 private:

@@ -34,7 +34,7 @@ struct StereoSample {
 	q31_t r;
 
 	/// A frame with both channels set to @p mono.
-	[[nodiscard]] static constexpr StereoSample fromMono(q31_t mono) { return {.l = mono, .r = mono}; }
+	[[nodiscard]] static constexpr StereoSample from_mono(q31_t mono) { return {.l = mono, .r = mono}; }
 
 	[[nodiscard]] friend constexpr StereoSample operator+(StereoSample a, StereoSample b) {
 		return {.l = a.l + b.l, .r = a.r + b.r};
@@ -52,15 +52,15 @@ static_assert(std::is_standard_layout_v<StereoSample> && sizeof(StereoSample) ==
 
 /// @brief A mono sample panned to a stereo frame: each channel is @p mono scaled by its amplitude.
 /// @param ampL,ampR per-channel amplitudes (~Q2.29 — the `<< 2` restores unity headroom). Accumulate with `+=`.
-[[nodiscard, gnu::always_inline]] inline StereoSample pannedMono(q31_t mono, int32_t ampL, int32_t ampR) {
-	return {.l = multiply_32x32_rshift32(mono, ampL) << 2, .r = multiply_32x32_rshift32(mono, ampR) << 2};
+[[nodiscard, gnu::always_inline]] inline StereoSample panned_mono(q31_t mono, int32_t amp_l, int32_t amp_r) {
+	return {.l = multiply_32x32_rshift32(mono, amp_l) << 2, .r = multiply_32x32_rshift32(mono, amp_r) << 2};
 }
 
-/// @brief A stereo sample with each channel scaled by its amplitude (~Q2.29, see @ref pannedMono). Accumulate with
+/// @brief A stereo sample with each channel scaled by its amplitude (~Q2.29, see @ref panned_mono). Accumulate with
 /// `+=`.
-[[nodiscard, gnu::always_inline]] inline StereoSample pannedStereo(q31_t left, q31_t right, int32_t ampL,
-                                                                   int32_t ampR) {
-	return {.l = multiply_32x32_rshift32(left, ampL) << 2, .r = multiply_32x32_rshift32(right, ampR) << 2};
+[[nodiscard, gnu::always_inline]] inline StereoSample panned_stereo(q31_t left, q31_t right, int32_t amp_l,
+                                                                    int32_t amp_r) {
+	return {.l = multiply_32x32_rshift32(left, amp_l) << 2, .r = multiply_32x32_rshift32(right, amp_r) << 2};
 }
 
 } // namespace deluge::dsp

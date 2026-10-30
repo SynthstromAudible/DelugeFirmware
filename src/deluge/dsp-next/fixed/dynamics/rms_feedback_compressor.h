@@ -30,7 +30,7 @@
 
 namespace deluge::dsp::fixed {
 
-/// @return The wet level @p blend (Q31, ONE_Q31 fully wet) gives, as a whole percentage.
+/// @return The wet level @p blend (Q31, kOneQ31 fully wet) gives, as a whole percentage.
 [[nodiscard]] constexpr int32_t compressor_blend_percent(q31 blend) {
 	return blend > (127 << 24) ? 100 : 100 * (blend >> 24) >> 7;
 }
@@ -52,12 +52,12 @@ public:
 
 	/// @brief Takes @p knobs, reconfiguring only when they changed: the time constants, ratio, detector filter and
 	/// blend apply from the next block, and the envelopes, gains, saturation, detector and level carry on.
-	/// The threshold too, when it changed; an owner whose threshold is a param overrides it with setThreshold every
+	/// The threshold too, when it changed; an owner whose threshold is a param overrides it with set_threshold every
 	/// block.
 	void configure(const CompressorKnobs& knobs);
 
 	/// @brief The threshold the next block renders with, from a knob position (Q31 of the knob's travel).
-	void setThreshold(q31 threshold) { threshold_knob_ = threshold; }
+	void set_threshold(q31 threshold) { threshold_knob_ = threshold; }
 
 	/// @return The threshold the next block renders with, as a knob position (Q31 of the knob's travel).
 	[[nodiscard]] q31 threshold() const { return threshold_knob_; }
@@ -67,7 +67,7 @@ public:
 	///
 	/// The reduction is never positive and the makeup envelope never exceeds 2.08, so 1.35 is the most that keeps the
 	/// gain under 31.
-	void setBaseGain(float base_gain);
+	void set_base_gain(float base_gain);
 
 	/// @brief No gain reduction at the start of the next block. The channel gains, the detector's filters and its
 	/// last level carry on.
@@ -80,21 +80,21 @@ public:
 
 	/// @brief render at neutral channel gain, with @p final_volume (3.29) scaled so threshold zero leaves the level
 	/// unchanged: for an owner whose volume is applied elsewhere.
-	void renderVolumeNeutral(std::span<StereoSample> block, q31 final_volume) {
+	void render_volume_neutral(std::span<StereoSample> block, q31 final_volume) {
 		render(block, 1 << 27, 1 << 27, final_volume >> 3);
 	}
 
 	/// @return The last block's gain reduction for the LEDs, 0 to 127 (6.2 fixed-point dB, quadrupled).
-	[[nodiscard]] uint8_t gainReduction() const { return dsp_.state().gain_reduction; }
+	[[nodiscard]] uint8_t gain_reduction() const { return dsp_.state().gain_reduction; }
 
 	/// @brief The LEDs show no gain reduction until the next block: for an owner that skips rendering.
-	void clearGainReduction() { dsp_.on<&clear_gain_reduction>(); }
+	void clear_gain_reduction() { dsp_.on<&zero_gain_reduction>(); }
 
 	/// @return The attack time in ms for a 3 dB change.
-	[[nodiscard]] float attackMs() const { return dsp_.coefficients().attack_ms; }
+	[[nodiscard]] float attack_ms() const { return dsp_.coefficients().attack_ms; }
 
 	/// @return The release time in ms for a 3 dB change.
-	[[nodiscard]] float releaseMs() const { return dsp_.coefficients().release_ms; }
+	[[nodiscard]] float release_ms() const { return dsp_.coefficients().release_ms; }
 
 	/// @brief The compressor between blocks, read-only: every value that carries from one block to the next.
 	struct View {
@@ -134,7 +134,7 @@ private:
 	[[nodiscard]] Compressor::Settings settings() const { return {.knobs = configured_, .base_gain = base_gain_}; }
 
 	/// @brief Event: no gain reduction for the LEDs until the next block.
-	static void clear_gain_reduction(Compressor::State& s) { s.gain_reduction = 0; }
+	static void zero_gain_reduction(Compressor::State& s) { s.gain_reduction = 0; }
 
 	/// The knob positions last taken: when to reconfigure.
 	CompressorKnobs configured_{};

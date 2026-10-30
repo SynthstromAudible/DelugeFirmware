@@ -93,10 +93,10 @@ public:
 	}
 
 	/// @brief The threshold the next block renders with, Q31 of the knob's travel.
-	void setThreshold(q31 threshold) { threshold_knob_ = threshold; }
+	void set_threshold(q31 threshold) { threshold_knob_ = threshold; }
 
 	/// @brief Makeup gain in nepers at no reduction.
-	void setBaseGain(float base_gain) {
+	void set_base_gain(float base_gain) {
 		base_gain_ = base_gain;
 		mono_.configure(settings());
 	}
@@ -115,22 +115,22 @@ public:
 			mono_.template on<&Compressor::seed>(block[0]);
 		}
 		if constexpr (kInPlace) {
-			mono_.renderBlock(block, block);
+			mono_.render_block(block, block);
 		}
 		else {
 			const std::vector<StereoSample> in{block.begin(), block.end()};
-			mono_.renderBlock(in, block);
+			mono_.render_block(in, block);
 		}
 		mono_.template on<&Compressor::finish_level>();
 	}
 
 	/// @brief render at neutral channel gain, with @p final_volume (3.29) scaled.
-	void renderVolumeNeutral(std::span<StereoSample> block, q31 final_volume) {
+	void render_volume_neutral(std::span<StereoSample> block, q31 final_volume) {
 		render(block, 1 << 27, 1 << 27, final_volume >> 3);
 	}
 
 	/// @return The last block's gain reduction for the LEDs.
-	[[nodiscard]] uint8_t gainReduction() const { return mono_.state().gain_reduction; }
+	[[nodiscard]] uint8_t gain_reduction() const { return mono_.state().gain_reduction; }
 
 	/// @return The kernel's coefficients.
 	[[nodiscard]] const Compressor::Coefficients& coefficients() const { return mono_.coefficients(); }
@@ -283,7 +283,7 @@ describe compressor_kernel("the Compressor kernel", ${
 		for (size_t b = 0; b < workload.blocks; ++b) {
 			std::ignore = run.block(b, block);
 			const Compressor::Mode mode = run.compressor().coefficients().mode;
-			expect(mode).to_equal(workload.step(b).knobs.blend == ONE_Q31 ? Compressor::Mode::WET
+			expect(mode).to_equal(workload.step(b).knobs.blend == kOneQ31 ? Compressor::Mode::WET
 			                                                               : Compressor::Mode::BLEND);
 			wet += static_cast<size_t>(mode == Compressor::Mode::WET);
 			blended += static_cast<size_t>(mode == Compressor::Mode::BLEND);
@@ -317,7 +317,7 @@ describe compressor_kernel("the Compressor kernel", ${
 			if (!mono.state().seeded) {
 				mono.on<&Compressor::seed>(block[0]);
 			}
-			mono.renderBlock(block, block);
+			mono.render_block(block, block);
 			largest = std::max<int64_t>(largest, mono.state().loop.sum);
 			mono.on<&Compressor::finish_level>();
 			expect(mono.state().mean).not_().to_be_less_than(0.0F);
@@ -356,7 +356,7 @@ describe compressor_kernel("the Compressor kernel", ${
 		expect(s.levels.volume_r).to_equal(2);
 		expect(s.levels.final_volume).to_equal(3);
 		expect(s.levels.threshold).to_equal(1 << 30);
-		expect(s.threshold).to_equal(1 - 0.8f * (static_cast<float>(1 << 30) / ONE_Q31f));
+		expect(s.threshold).to_equal(1 - 0.8f * (static_cast<float>(1 << 30) / kOneQ31f));
 	});
 });
 // clang-format on

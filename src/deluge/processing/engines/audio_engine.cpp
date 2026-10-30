@@ -1051,8 +1051,8 @@ void renderMaster(std::span<StereoSample> renderingBuffer, const deluge::effects
 	currentSong->live.global_effectable.chain().render(renderingBuffer, master,
 	                                                   {reverbMemory.data(), renderingBuffer.size()}, tracked);
 	if (post) {
-		masterVolumeAdjustmentL = ONE_Q31;
-		masterVolumeAdjustmentR = ONE_Q31;
+		masterVolumeAdjustmentL = kOneQ31;
+		masterVolumeAdjustmentR = kOneQ31;
 	}
 }
 void renderSamplePreview(size_t numSamples);
@@ -1076,7 +1076,7 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 extern "C" void deluge_app_render_skipped(void) noexcept {
 	try {
 		// The render's own work, excluded like a rendered block (see deluge_app_render()).
-		AudioExcludedSection renderBlock;
+		AudioExcludedSection render_block;
 #if defined(DELUGE_HOST)
 		View::RenderBlockStackWatch stackWatch;
 		deluge::playback::RenderBlockInteractionWatch interactionWatch;
@@ -1093,7 +1093,7 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 	// nothing preempts, so it never masks. On host the render is a thread like any other, and this is what gives it
 	// the device's guarantee: an interaction-tier structural edit to a container the render walks (each runs in its
 	// own section) and a render block never overlap.
-	AudioExcludedSection renderBlock;
+	AudioExcludedSection render_block;
 #if defined(DELUGE_HOST)
 	// For the harness: whether this block changed the view's active model stack, or other state only the interaction
 	// tier may write.
@@ -1294,11 +1294,11 @@ int32_t* getInputReadPos(AudioInputChannel channel) {
 
 namespace {
 
-/// The song's post-FX volume as the metronome takes it: the song volume param's final value, halved; ONE_Q31 with no
+/// The song's post-FX volume as the metronome takes it: the song volume param's final value, halved; kOneQ31 with no
 /// song.
 int32_t metronomeVolumePostFx() {
 	if (currentSong == nullptr) {
-		return ONE_Q31;
+		return kOneQ31;
 	}
 	return getFinalParameterValueVolume(
 	           134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
@@ -1824,8 +1824,8 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 				}
 			}
 			else {
-				toUSB[numSamplesOutputted].l = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);
-				toUSB[numSamplesOutputted].r = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(rAdjusted);
+				toUSB[numSamplesOutputted].l = lshift_and_saturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);
+				toUSB[numSamplesOutputted].r = lshift_and_saturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(rAdjusted);
 			}
 		}
 
@@ -1838,8 +1838,8 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 			}
 		}
 
-		outputBufferForResampling[numSamplesOutputted].l = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);
-		outputBufferForResampling[numSamplesOutputted].r = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(rAdjusted);
+		outputBufferForResampling[numSamplesOutputted].l = lshift_and_saturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);
+		outputBufferForResampling[numSamplesOutputted].r = lshift_and_saturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(rAdjusted);
 		if (outputRealAudio) {
 			out[produced + numSamplesOutputted].l = outputBufferForResampling[numSamplesOutputted].l;
 			out[produced + numSamplesOutputted].r = outputBufferForResampling[numSamplesOutputted].r;

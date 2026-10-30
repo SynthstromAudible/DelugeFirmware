@@ -18,7 +18,7 @@
 // The delay's feedback shaper. Stereo<FeedbackShaper> is pinned, sample by sample, against the delay's two shaping
 // loops copied verbatim (ReferenceShaper below, over the stereo reference response in
 // bench/reference_impulse_response.h): at both drives (8, a sound's, and 5, a host chain's), in both modes, at feedback
-// 0, ONE_Q31, a mid value and a negative one, over 4096 seeded stereo samples at a quarter of full scale in blocks of
+// 0, kOneQ31, a mid value and a negative one, over 4096 seeded stereo samples at a quarter of full scale in blocks of
 // every length 1 to 9. At full scale (INT32_MIN held, INT32_MAX held, the two alternating, the taps' signs reversed in
 // time, and full-scale noise) the response's sums can leave q31, and the reference's response wraps its adds as the
 // hardware's do. Across blocks switching analog, digital and back, the response's State is bit for bit untouched by a
@@ -81,7 +81,7 @@ constexpr std::size_t kMaxLength = 9;
 /// The drives: a sound's and a host chain's.
 constexpr std::array<int32_t, 2> kDrives{8, 5};
 /// The feedback amounts: none, full, a mid value, and a negative one.
-constexpr std::array<q31, 4> kFeedbacks{0, ONE_Q31, 0x5a3c1e0f, -0x2b7d9f13};
+constexpr std::array<q31, 4> kFeedbacks{0, kOneQ31, 0x5a3c1e0f, -0x2b7d9f13};
 
 /// The delay's per-block settings the shaping loops read, named as the delay names them.
 struct ReferenceBlock {
@@ -174,7 +174,7 @@ struct Pair {
 	void block(std::span<const StereoSample> in, const ReferenceBlock& block) {
 		kernel.configure(settings_of(block));
 		std::vector<StereoSample> out(in.size());
-		kernel.renderBlock(in, out);
+		kernel.render_block(in, out);
 		std::vector<StereoSample> work(in.begin(), in.end());
 		reference.shapeFeedback(work, block);
 		const std::vector<q31> k = interleaved(out);
@@ -271,15 +271,15 @@ describe feedback_shaper("FeedbackShaper", ${
 		Stereo<FeedbackShaper> resumed;
 		std::vector<StereoSample> out(8);
 		resumed.configure(settings_of(analog));
-		resumed.renderBlock(first, out);
+		resumed.render_block(first, out);
 		resumed.configure(settings_of(clipped));
-		resumed.renderBlock(digital, out);
+		resumed.render_block(digital, out);
 		resumed.configure(settings_of(analog));
-		resumed.renderBlock(last, out);
+		resumed.render_block(last, out);
 
 		Stereo<FeedbackShaper> fresh{settings_of(analog)};
 		std::vector<StereoSample> fresh_out(8);
-		fresh.renderBlock(last, fresh_out);
+		fresh.render_block(last, fresh_out);
 		expect(interleaved(out)).not_().to_equal(interleaved(fresh_out));
 	});
 });

@@ -93,7 +93,7 @@ void GlobalEffectable::initParams(ParamManager* paramManager) {
 	unpatchedParams->params[params::UNPATCHED_MOD_FX_RATE].setCurrentValueBasicForSetup(
 	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_RATE), -536870912);
 	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_FEEDBACK), NEGATIVE_ONE_Q31);
+	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_FEEDBACK), kNegativeOneQ31);
 	unpatchedParams->params[params::UNPATCHED_MOD_FX_DEPTH].setCurrentValueBasicForSetup(
 	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_DEPTH), 0);
 	unpatchedParams->params[params::UNPATCHED_DELAY_RATE].setCurrentValueBasicForSetup(
@@ -102,31 +102,31 @@ void GlobalEffectable::initParams(ParamManager* paramManager) {
 	    *unpatchedParams->docForParam(params::UNPATCHED_PAN), 0);
 
 	unpatchedParams->params[params::UNPATCHED_DELAY_AMOUNT].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_DELAY_AMOUNT), NEGATIVE_ONE_Q31);
+	    *unpatchedParams->docForParam(params::UNPATCHED_DELAY_AMOUNT), kNegativeOneQ31);
 	unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_REVERB_SEND_AMOUNT), NEGATIVE_ONE_Q31);
+	    *unpatchedParams->docForParam(params::UNPATCHED_REVERB_SEND_AMOUNT), kNegativeOneQ31);
 
 	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(
 	    *unpatchedParams->docForParam(params::UNPATCHED_VOLUME), 0); // half of the way up
 	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_VOLUME].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_SIDECHAIN_VOLUME), NEGATIVE_ONE_Q31);
+	    *unpatchedParams->docForParam(params::UNPATCHED_SIDECHAIN_VOLUME), kNegativeOneQ31);
 	unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].setCurrentValueBasicForSetup(
 	    *unpatchedParams->docForParam(params::UNPATCHED_PITCH_ADJUST), 0);
 
 	unpatchedParams->params[params::UNPATCHED_LPF_RES].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_LPF_RES), NEGATIVE_ONE_Q31);
+	    *unpatchedParams->docForParam(params::UNPATCHED_LPF_RES), kNegativeOneQ31);
 	unpatchedParams->params[params::UNPATCHED_LPF_FREQ].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_LPF_FREQ), ONE_Q31);
+	    *unpatchedParams->docForParam(params::UNPATCHED_LPF_FREQ), kOneQ31);
 
 	unpatchedParams->params[params::UNPATCHED_HPF_RES].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_HPF_RES), NEGATIVE_ONE_Q31);
+	    *unpatchedParams->docForParam(params::UNPATCHED_HPF_RES), kNegativeOneQ31);
 	unpatchedParams->params[params::UNPATCHED_HPF_FREQ].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_HPF_FREQ), NEGATIVE_ONE_Q31);
+	    *unpatchedParams->docForParam(params::UNPATCHED_HPF_FREQ), kNegativeOneQ31);
 
 	unpatchedParams->params[params::UNPATCHED_LPF_MORPH].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_LPF_MORPH), NEGATIVE_ONE_Q31);
+	    *unpatchedParams->docForParam(params::UNPATCHED_LPF_MORPH), kNegativeOneQ31);
 	unpatchedParams->params[params::UNPATCHED_HPF_MORPH].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_HPF_MORPH), NEGATIVE_ONE_Q31);
+	    *unpatchedParams->docForParam(params::UNPATCHED_HPF_MORPH), kNegativeOneQ31);
 }
 
 void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramManager) {
@@ -540,8 +540,9 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 			current = std::clamp(current, -64, 64);
 			ledLevel = (64 + current);
 			displayLevel = ((ledLevel)*kMaxMenuValue) / 128;
-			deluge::edits::changeEffect(*this, "audioCompressor/thresh",
-			                            deluge::serialization::Value::makeNumber(lshiftAndSaturate<24>(current + 64)));
+			deluge::edits::changeEffect(
+			    *this, "audioCompressor/thresh",
+			    deluge::serialization::Value::makeNumber(lshift_and_saturate<24>(current + 64)));
 			indicator_leds::setKnobIndicatorLevel(1, ledLevel);
 			unit = "";
 		}
@@ -557,7 +558,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				ledLevel = (64 + current);
 				deluge::edits::changeEffect(
 				    *this, "audioCompressor/ratio",
-				    deluge::serialization::Value::makeNumber(lshiftAndSaturate<24>(current + 64)));
+				    deluge::serialization::Value::makeNumber(lshift_and_saturate<24>(current + 64)));
 				displayLevel = static_cast<int32_t>(deluge::dsp::fixed::compressor_ratio(effects().compressor.ratio));
 				unit = " : 1";
 				break;
@@ -571,7 +572,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 
 				deluge::edits::changeEffect(
 				    *this, "audioCompressor/attack",
-				    deluge::serialization::Value::makeNumber(lshiftAndSaturate<24>(current + 64)));
+				    deluge::serialization::Value::makeNumber(lshift_and_saturate<24>(current + 64)));
 				displayLevel =
 				    static_cast<int32_t>(deluge::dsp::fixed::compressor_attack_ms(effects().compressor.attack));
 				unit = " MS";
@@ -586,7 +587,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 
 				deluge::edits::changeEffect(
 				    *this, "audioCompressor/release",
-				    deluge::serialization::Value::makeNumber(lshiftAndSaturate<24>(current + 64)));
+				    deluge::serialization::Value::makeNumber(lshift_and_saturate<24>(current + 64)));
 				displayLevel =
 				    static_cast<int32_t>(deluge::dsp::fixed::compressor_release_ms(effects().compressor.release));
 				unit = " MS";
@@ -601,7 +602,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 
 				deluge::edits::changeEffect(
 				    *this, "audioCompressor/compHPF",
-				    deluge::serialization::Value::makeNumber(lshiftAndSaturate<24>(current + 64)));
+				    deluge::serialization::Value::makeNumber(lshift_and_saturate<24>(current + 64)));
 				displayLevel = static_cast<int32_t>(
 				    deluge::dsp::fixed::compressor_sidechain_hz(effects().compressor.sidechain_hpf));
 				unit = " HZ";
@@ -613,7 +614,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				current += offset;
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
-				q31_t level = current == 64 ? ONE_Q31 : lshiftAndSaturate<24>(current + 64);
+				q31_t level = current == 64 ? kOneQ31 : lshift_and_saturate<24>(current + 64);
 				deluge::edits::changeEffect(*this, "audioCompressor/compBlend",
 				                            deluge::serialization::Value::makeNumber(level));
 				displayLevel = deluge::dsp::fixed::compressor_blend_percent(level);

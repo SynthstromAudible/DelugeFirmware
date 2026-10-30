@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "synth/modulation/cable_depth.h"
 #include "synth/modulation/control_block.h"
-#include "util/param_functions.h" // paramNeutralValues, paramRanges, getFinalParameterValue*, lshiftAndSaturate
+#include "util/param_functions.h" // paramNeutralValues, paramRanges, getFinalParameterValue*, lshift_and_saturate
 #include <algorithm>              // std::ranges::sort
 #include <etl/vector.h>
 #include <functional> // std::less
@@ -153,7 +153,7 @@ int32_t Patcher::cableToLinearParamWithoutRangeAdjustment(int32_t running_total,
 	// 0 to 1073741824; 536870912 counts as "1" for next multiplication
 	int32_t made_positive = (scaled_source + 536870912);
 	int32_t pre_limits = multiply_32x32_rshift32(running_total, made_positive);
-	return lshiftAndSaturate<3>(pre_limits);
+	return lshift_and_saturate<3>(pre_limits);
 }
 
 int32_t Patcher::cableToLinearParam(int32_t running_total, const deluge::synth::RoutedCable& patch_cable,
@@ -164,7 +164,7 @@ int32_t Patcher::cableToLinearParam(int32_t running_total, const deluge::synth::
 	// 0 to 1073741824; 536870912 counts as "1" for next multiplication
 	int32_t made_positive = (scaled_source + 536870912);
 	int32_t pre_limits = multiply_32x32_rshift32(running_total, made_positive);
-	return lshiftAndSaturate<3>(pre_limits);
+	return lshift_and_saturate<3>(pre_limits);
 }
 
 // Exp param cable combinations saturate rather than wrap: wrapping would flip a param at one extreme of its range
@@ -263,7 +263,7 @@ Patcher::combineCablesLinearForRangeParam(const deluge::synth::RoutedDestination
 		// "hybrid" ones, and probably in a perfect world I would have made the other ones behave the same way. But I
 		// can't break users' songs.
 		if (param == params::LOCAL_OSC_A_WAVE_INDEX || param == params::LOCAL_OSC_B_WAVE_INDEX) {
-			running_total = lshiftAndSaturate<1>(running_total);
+			running_total = lshift_and_saturate<1>(running_total);
 		}
 	}
 

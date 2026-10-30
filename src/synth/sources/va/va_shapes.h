@@ -48,10 +48,10 @@ public:
 	explicit Sine(deluge::dsp::Phasor seed) : phasor_{seed} {}
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 	[[nodiscard]] uint32_t increment() const { return phasor_.increment(); }
-	void setIncrement(uint32_t increment) { phasor_.setIncrement(increment); }
+	void set_increment(uint32_t increment) { phasor_.set_increment(increment); }
 	void seek(uint32_t phase) { phasor_.seek(phase); }
-	void renderBlock(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-	                 deluge::dsp::fixed::Buffer scratch);
+	void render_block(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
+	                  deluge::dsp::fixed::Buffer scratch);
 };
 
 /// @brief Triangle: crude (half-scale, doubled VCA) at low pitch / dire CPU, else band-limited.
@@ -62,10 +62,10 @@ public:
 	explicit Triangle(deluge::dsp::Phasor seed) : phasor_{seed} {}
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 	[[nodiscard]] uint32_t increment() const { return phasor_.increment(); }
-	void setIncrement(uint32_t increment) { phasor_.setIncrement(increment); }
+	void set_increment(uint32_t increment) { phasor_.set_increment(increment); }
 	void seek(uint32_t phase) { phasor_.seek(phase); }
-	void renderBlock(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-	                 deluge::dsp::fixed::Buffer scratch);
+	void render_block(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
+	                  deluge::dsp::fixed::Buffer scratch);
 };
 
 /// @brief Sawtooth: crude (phase ramp) at low table number / dire CPU, else band-limited.
@@ -76,10 +76,10 @@ public:
 	explicit Saw(deluge::dsp::Phasor seed) : phasor_{seed} {}
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 	[[nodiscard]] uint32_t increment() const { return phasor_.increment(); }
-	void setIncrement(uint32_t increment) { phasor_.setIncrement(increment); }
+	void set_increment(uint32_t increment) { phasor_.set_increment(increment); }
 	void seek(uint32_t phase) { phasor_.seek(phase); }
-	void renderBlock(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-	                 deluge::dsp::fixed::Buffer scratch);
+	void render_block(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
+	                  deluge::dsp::fixed::Buffer scratch);
 };
 
 /// @brief Square / pulse: crude switch at low table number / dire CPU; the perfect band-limited pulse (two
@@ -91,10 +91,10 @@ public:
 	explicit Square(deluge::dsp::Phasor seed) : phasor_{seed} {}
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 	[[nodiscard]] uint32_t increment() const { return phasor_.increment(); }
-	void setIncrement(uint32_t increment) { phasor_.setIncrement(increment); }
+	void set_increment(uint32_t increment) { phasor_.set_increment(increment); }
 	void seek(uint32_t phase) { phasor_.seek(phase); }
-	void renderBlock(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-	                 deluge::dsp::fixed::Buffer scratch);
+	void render_block(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
+	                  deluge::dsp::fixed::Buffer scratch);
 };
 
 /// @brief Analog sawtooth — band-limited, but downgrades internally to the crude digital saw at a high band
@@ -107,10 +107,10 @@ public:
 	explicit AnalogSaw(deluge::dsp::Phasor seed) : phasor_{seed} {}
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 	[[nodiscard]] uint32_t increment() const { return phasor_.increment(); }
-	void setIncrement(uint32_t increment) { phasor_.setIncrement(increment); }
+	void set_increment(uint32_t increment) { phasor_.set_increment(increment); }
 	void seek(uint32_t phase) { phasor_.seek(phase); }
-	void renderBlock(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-	                 deluge::dsp::fixed::Buffer scratch);
+	void render_block(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
+	                  deluge::dsp::fixed::Buffer scratch);
 };
 
 /// @brief Analog square — always band-limited.
@@ -121,10 +121,10 @@ public:
 	explicit AnalogSquare(deluge::dsp::Phasor seed) : phasor_{seed} {}
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 	[[nodiscard]] uint32_t increment() const { return phasor_.increment(); }
-	void setIncrement(uint32_t increment) { phasor_.setIncrement(increment); }
+	void set_increment(uint32_t increment) { phasor_.set_increment(increment); }
 	void seek(uint32_t phase) { phasor_.seek(phase); }
-	void renderBlock(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-	                 deluge::dsp::fixed::Buffer scratch);
+	void render_block(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
+	                  deluge::dsp::fixed::Buffer scratch);
 };
 
 /// @brief Whether @p type is one of the six virtual-analog waves (the first OscType entries, up to ANALOG_SAW_2);

@@ -26,7 +26,7 @@ namespace deluge::dsp::fixed::tables {
 
 /// @brief The steeper decay curve (8): entry i is the level after i/256 of the decay, UQ16 (65535 is 1.0), 257 entries
 /// with the endpoint. 16-byte aligned.
-alignas(16) inline constexpr std::array<uint16_t, 257> decay_small_8{
+alignas(16) inline constexpr std::array<uint16_t, 257> kDecaySmall8{
     65535, 64125, 62746, 61396, 60075, 58782, 57517, 56279, 55067, 53882, 52722, 51586, 50476, 49388, 48325, 47284,
     46265, 45268, 44293, 43338, 42404, 41490, 40595, 39720, 38863, 38025, 37205, 36402, 35616, 34848, 34095, 33359,
     32639, 31934, 31244, 30569, 29909, 29262, 28630, 28011, 27405, 26812, 26232, 25665, 25109, 24566, 24034, 23513,
@@ -46,8 +46,8 @@ alignas(16) inline constexpr std::array<uint16_t, 257> decay_small_8{
     0,
 };
 
-/// @brief The gentler decay curve (4), as @ref decay_small_8.
-alignas(16) inline constexpr std::array<uint16_t, 257> decay_small_4{
+/// @brief The gentler decay curve (4), as @ref kDecaySmall8.
+alignas(16) inline constexpr std::array<uint16_t, 257> kDecaySmall4{
     65535, 64782, 64037, 63300, 62571, 61850, 61137, 60431, 59733, 59043, 58360, 57684, 57016, 56354, 55700, 55053,
     54413, 53780, 53153, 52534, 51921, 51314, 50715, 50121, 49534, 48954, 48379, 47811, 47249, 46693, 46143, 45599,
     45061, 44528, 44001, 43480, 42965, 42455, 41951, 41452, 40958, 40470, 39987, 39509, 39036, 38569, 38106, 37649,

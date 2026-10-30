@@ -79,7 +79,7 @@ void DxVoiceAdapter::keyup() {
 
 std::span<const int32_t> DxVoiceAdapter::render(int32_t numSamples, uint32_t phaseIncrement, int32_t ampModParam,
                                                 bool patchChanged, int midinote) {
-	// kMaxBlock samples, 16-byte aligned at least: the device's NEON kernel writes past the block (Graph::renderBlock)
+	// kMaxBlock samples, 16-byte aligned at least: the device's NEON kernel writes past the block (Graph::render_block)
 	static int32_t uniBuf[fixed::dx7::kMaxBlock] __attribute__((aligned(CACHE_LINE_SIZE)));
 	static_assert(CACHE_LINE_SIZE % 16 == 0);
 	memset(uniBuf, 0, sizeof uniBuf);
@@ -101,7 +101,7 @@ std::span<const int32_t> DxVoiceAdapter::render(int32_t numSamples, uint32_t pha
 		voice_->retune(s);
 	}
 	const auto n = static_cast<std::size_t>(numSamples);
-	if (!voice_->renderBlock(s, {uniBuf, n}, in, getDxEngine()->buses())) {
+	if (!voice_->render_block(s, {uniBuf, n}, in, getDxEngine()->buses())) {
 		return {}; // voice has ended
 	}
 	return std::span<const int32_t>{uniBuf, n};

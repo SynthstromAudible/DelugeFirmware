@@ -327,16 +327,16 @@ DELUGE_REFERENCE_DX7_LEGACY_ARITHMETIC inline int32_t sin_lookup(const Tables& t
 
 /// @brief EngineMkI's constructor's table loops.
 inline void init_mki_tables(Tables& t) {
-	float bitReso = SINLOG_TABLESIZE;
+	float bit_reso = SINLOG_TABLESIZE;
 
 	for (int i = 0; i < SINLOG_TABLESIZE; i++) {
-		float x1 = sin(((0.5 + i) / bitReso) * M_PI / 2.0);
+		float x1 = sin(((0.5 + i) / bit_reso) * M_PI / 2.0);
 		t.sinLogTable[i] = round(-1024 * log2(x1));
 	}
 
-	bitReso = SINEXP_TABLESIZE;
+	bit_reso = SINEXP_TABLESIZE;
 	for (int i = 0; i < SINEXP_TABLESIZE; i++) {
-		float x1 = (pow(2, float(i) / bitReso) - 1) * 4096;
+		float x1 = (pow(2, float(i) / bit_reso) - 1) * 4096;
 		t.sinExpTable[i] = round(x1);
 	}
 }

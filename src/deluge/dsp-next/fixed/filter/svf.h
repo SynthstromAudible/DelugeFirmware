@@ -90,42 +90,42 @@ struct Svf {
 	};
 
 	/// @brief Half of the morph's Q31 range, where the BAND blend's two halves meet.
-	static constexpr q31 kHalf = ONE_Q31 >> 1;
+	static constexpr q31 kHalf = kOneQ31 >> 1;
 
 	/// @brief The coefficients for @p s.
 	/// @details The cutoff is warped by @ref curve_frequency and raised by a quarter (the filter's true cutoff is the
 	/// arcsine of its rate, so × 1.25 brings it loosely in line with the ladders'). The resonance (Q29 at most) times 4
-	/// spans Q31: q = ONE_Q31 − 4r, in = q/2 + 1/2, then q is squared, which matches the ladders better and makes `in`
+	/// spans Q31: q = kOneQ31 − 4r, in = q/2 + 1/2, then q is squared, which matches the ladders better and makes `in`
 	/// its square root. The morph is lifted to Q31 (saturating); in BAND its lower half moves low → band and its upper
 	/// half band → high, each at twice the rate, so no weight overflows.
 	[[nodiscard]] [[gnu::always_inline]] static Coefficients coefficients(const Settings& s) {
 		Coefficients c{};
-		q31 morph = lshiftAndSaturate<2>(s.config.morph);
+		q31 morph = lshift_and_saturate<2>(s.config.morph);
 		c.fc = curve_frequency(s.config.frequency).fc;
-		constexpr auto kQuarter = static_cast<q31>(ONE_Q31 * 0.25);
+		constexpr auto kQuarter = static_cast<q31>(kOneQ31 * 0.25);
 		c.fc = wrapping_add(c.fc, multiply_32x32_rshift32(c.fc, kQuarter));
 
 		c.mode = s.mode == SvfMode::BAND ? Mode::BAND : Mode::NOTCH;
-		c.q = ONE_Q31 - (4 * s.config.resonance);
-		c.in = (c.q >> 1) + (ONE_Q31 >> 1);
+		c.q = kOneQ31 - (4 * s.config.resonance);
+		c.in = (c.q >> 1) + (kOneQ31 >> 1);
 		c.q = multiply_32x32_rshift32_rounded(c.q, c.q) << 1;
 
 		if (c.mode == Mode::BAND) {
 			if (morph > kHalf) {
 				morph = 2 * (morph - kHalf);
 				c.c_low = 0;
-				c.c_band = ONE_Q31 - morph;
+				c.c_band = kOneQ31 - morph;
 				c.c_high = morph;
 			}
 			else {
 				morph = 2 * morph;
-				c.c_low = ONE_Q31 - morph;
+				c.c_low = kOneQ31 - morph;
 				c.c_band = morph;
 				c.c_high = 0;
 			}
 		}
 		else {
-			c.c_low = ONE_Q31 - morph;
+			c.c_low = kOneQ31 - morph;
 			c.c_high = morph;
 			c.c_band = 0;
 		}

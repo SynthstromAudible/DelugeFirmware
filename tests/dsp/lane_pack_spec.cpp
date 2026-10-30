@@ -412,7 +412,7 @@ describe lane_pack_spec("LanePack", ${
 	it("runs OnePole's step written once over V, for q31 and per lane of the pack, alike", _ {
 		const Tally t = over_widths([]<std::size_t N>() {
 			Tally s;
-			for (const q31 m : {q31{0}, q31{1} << 24, ONE_Q31 / 3, kMax}) {
+			for (const q31 m : {q31{0}, q31{1} << 24, kOneQ31 / 3, kMax}) {
 				std::array<q31, N> z{};
 				LanePack<q31, N> zp{};
 				for (const Trial<N>& x : trials<N>()) {

@@ -149,7 +149,8 @@ Run run_legacy(LegacyTanh& curve, const std::vector<q31>& input) {
 
 /// The compressor's seed: the position its first pre-gain sample takes at @p drive.
 uint32_t compressor_seed(q31 sample, uint32_t drive) {
-	return static_cast<uint32_t>(lshiftAndSaturateUnknown(sample, static_cast<uint8_t>(drive))) + LegacyTanh::kSilent;
+	return static_cast<uint32_t>(lshift_and_saturate_unknown(sample, static_cast<uint8_t>(drive)))
+	       + LegacyTanh::kSilent;
 }
 
 /// @p input through Tanh<Drive>, and through tanh<Drive>, appended to @p kernel and @p plain.
@@ -405,9 +406,9 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 		const std::size_t half = input.size() / 2;
 		Mono<AntialiasedTanh> mono{{.drive = kFrom}};
 		std::vector<q31> out(input.size());
-		mono.renderBlock(std::span<const q31>{input.data(), half}, std::span<q31>{out.data(), half});
+		mono.render_block(std::span<const q31>{input.data(), half}, std::span<q31>{out.data(), half});
 		mono.configure({.drive = kTo});
-		mono.renderBlock(std::span<const q31>{input.data() + half, input.size() - half},
+		mono.render_block(std::span<const q31>{input.data() + half, input.size() - half},
 		                 std::span<q31>{out.data() + half, input.size() - half});
 		LegacyTanh curve{kFrom};
 		for (std::size_t i = 0; i < input.size(); ++i) {
@@ -458,7 +459,7 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 		const std::vector<q31> input = test_input(kLongRun / 10, kSeed + 4);
 		std::vector<uint32_t> positions(kPlacePositions.begin(), kPlacePositions.end());
 		for (const q31 a : kEventSamples) {
-			positions.push_back(static_cast<uint32_t>(lshiftAndSaturate<2>(a)) + kTanhCentre);
+			positions.push_back(static_cast<uint32_t>(lshift_and_saturate<2>(a)) + kTanhCentre);
 		}
 		for (const uint32_t drive : kEventDrives) {
 			for (const uint32_t position : positions) {
@@ -527,7 +528,7 @@ describe tanh_kernel("Tanh<Drive>", ${
 		const std::vector<q31> input = test_input(kLongRun / 10, kSeed + 6);
 		Mono<Tanh<3>> mono{};
 		std::vector<q31> out(input.size());
-		mono.renderBlock(std::span<const q31>{input.data(), input.size()}, std::span<q31>{out.data(), out.size()});
+		mono.render_block(std::span<const q31>{input.data(), input.size()}, std::span<q31>{out.data(), out.size()});
 		for (std::size_t i = 0; i < input.size(); ++i) {
 			expect(out[i]).to_equal(tanh<3>(input[i]));
 		}

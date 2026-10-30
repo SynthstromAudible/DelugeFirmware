@@ -100,7 +100,7 @@ public:
 
 	/// @brief Whether either tape is sounding.
 	/// @return True if either tape is sounding.
-	[[nodiscard]] constexpr bool isActive() const { return primary_.isActive() || secondary_.isActive(); }
+	[[nodiscard]] constexpr bool isActive() const { return primary_.is_active() || secondary_.is_active(); }
 	/// @brief The wraps left before the tapes are given back.
 	/// @return The count; 0 when the delay is not sounding, 255 never.
 	[[nodiscard]] constexpr uint8_t repeatsUntilAbandon() const { return repeatsUntilAbandon_; }

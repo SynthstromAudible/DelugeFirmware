@@ -86,17 +86,13 @@
 #define MAX_NUM_USB_MIDI_DEVICES 6
 
 // --- Clock ------------------------------------------------------------------
-#if DELUGE_MODEL >= DELUGE_MODEL_144_G
-#define XTAL_SPEED_MHZ 13007402 // 1.65% lower, for SSCG
-#else
-#define XTAL_SPEED_MHZ 13225625
-#endif
+#define XTAL_SPEED_MHZ 13007402 // 1.65% lower than the crystal's 13225625, for SSCG
 
 // --- Memory placement -------------------------------------------------------
 // The platform/linker provides these sections; a host build defines them as no-ops.
 // Paul: It seems this area is not executable, could not find a reason in the datasheet,
 // marked NOLOAD now
-#if defined(__APPLE__) || IN_UNIT_TESTS
+#if defined(__APPLE__) || (defined(IN_UNIT_TESTS) && IN_UNIT_TESTS)
 // Mach-O rejects ELF-style ".name" section specifiers (it wants "__SEG,__sect", <=16 chars), and a
 // macOS build is always the host — which has no real SDRAM — so these placements are no-ops there.
 // Unit tests are likewise a host build with no SDRAM, and no linker script providing the sections.

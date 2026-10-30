@@ -35,7 +35,7 @@
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/bandlimited/waves.h" // triangle
-#include "dsp-next/fixed/osc/sine_table.h"    // sine_table
+#include "dsp-next/fixed/osc/sine_table.h"    // kSineTable
 #include "util/fixedpoint.h"
 #include "util/synth_noise.h"
 
@@ -54,7 +54,7 @@ namespace ref_lfo_wave {
 
 struct Sine {
 	int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples) {
-		int32_t value = deluge::dsp::fixed::sine_table.value(phase);
+		int32_t value = deluge::dsp::fixed::kSineTable.value(phase);
 		phase += phase_increment * num_samples;
 		return value;
 	}
@@ -334,7 +334,7 @@ private:
 		int32_t lfo1 = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
 		int32_t lfo2 = 0;
 		// anymore and they get audibly out of sync, this just sounds wobblier
-		constexpr q31_t width = 0.97 * ONE_Q31;
+		constexpr q31_t width = 0.97 * kOneQ31;
 		if constexpr (modFXType == ModFXType::WARBLE) {
 			// this needs a second lfo because it's a random process - we can't flip it to make a second sample but
 			// these will always be different anyway

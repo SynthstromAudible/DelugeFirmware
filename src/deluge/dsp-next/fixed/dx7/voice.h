@@ -68,7 +68,7 @@ namespace deluge::dsp::fixed::dx7 {
 /// @brief One note of a DX7 patch.
 /// @details A component, not a kernel; its members are defined below the class, not in it, so that the one explicit
 /// instantiation in voice.cpp is the copy every caller of `Voice<>` runs. Its verbs are @ref start, @ref
-/// release, @ref retune and @ref renderBlock, each given the patch as it stands (@ref Settings: the patch's bytes,
+/// release, @ref retune and @ref render_block, each given the patch as it stands (@ref Settings: the patch's bytes,
 /// which the owner lends, the note and the engine); the voice keeps only what the note carries between blocks: the
 /// graph's operators, the envelopes, the base pitches, the random detunes, the output levels and rate scalings, and the
 /// note-on velocity. The patch's own LFO is the owner's: it keys it at note-on when
@@ -114,11 +114,11 @@ public:
 	/// @brief One block into @p out, using @p buses (lent by the owner, shared by every voice) for the graph's two
 	/// intermediate buses. Carriers add into @p out, so the caller zeroes it first. @p out is 1 to kMaxBlock samples;
 	/// in a build given the device's NEON kernel, kMaxBlock samples must be writable from its start, 16-byte aligned
-	/// (see Graph::renderBlock).
+	/// (see Graph::render_block).
 	/// @return Whether the voice sounds on: the key is down, or an op's gain is at or above kGainLevelThresh. That
 	/// threshold is the modern engine's. A MkI op's gain is an attenuation, so a silent MkI op (attenuation near
 	/// kEnvMax) passes it, and a released MkI voice never ends: a known quirk the recorded references pin.
-	[[nodiscard]] bool renderBlock(const Settings& s, Buffer out, const BlockInputs& in, Buses& buses);
+	[[nodiscard]] bool render_block(const Settings& s, Buffer out, const BlockInputs& in, Buses& buses);
 
 	/// @brief Whether the patch keys its LFO at note-on (byte 141).
 	[[nodiscard]] static bool key_sync_lfo(const Settings& s) { return (*s.patch)[kLfoSync] != 0; }
@@ -228,7 +228,7 @@ void Voice<Noise>::retune(const Settings& s) {
 }
 
 template <noise_stream Noise>
-bool Voice<Noise>::renderBlock(const Settings& s, Buffer out, const BlockInputs& in, Buses& buses) {
+bool Voice<Noise>::render_block(const Settings& s, Buffer out, const BlockInputs& in, Buses& buses) {
 	const PatchBytes& p = *s.patch;
 	const std::size_t n = out.size();
 	const int32_t lfo_delay = lfo_delay_.advance(n);
@@ -267,7 +267,8 @@ bool Voice<Noise>::renderBlock(const Settings& s, Buffer out, const BlockInputs&
 		const auto ams = static_cast<int32_t>(kAmpModSens[p[off + 14] & 3]);
 		if (ams != 0) {
 			const auto sensamp = static_cast<uint32_t>((static_cast<uint64_t>(amd_mod) * ams) >> 24);
-			const auto pt = static_cast<uint32_t>(exp((static_cast<float>(sensamp) / 262144) * 0.07 + 12.2));
+			const auto pt =
+			    static_cast<uint32_t>(exp(static_cast<double>(static_cast<float>(sensamp) / 262144) * 0.07 + 12.2));
 			const auto ldiff =
 			    static_cast<uint32_t>((static_cast<uint64_t>(level) * (static_cast<uint64_t>(pt) << 4)) >> 28);
 			level = wrapping_sub(level, static_cast<int32_t>(ldiff));
@@ -275,7 +276,7 @@ bool Voice<Noise>::renderBlock(const Settings& s, Buffer out, const BlockInputs&
 		}
 		graph.level_in[op] = wrapping_add(level, p[off + 15] * in.vel_mod);
 	}
-	graph_.renderBlock(graph, out, buses);
+	graph_.render_block(graph, out, buses);
 
 	bool any_active_op = false;
 	for (std::size_t op = 0; op < 6; ++op) {

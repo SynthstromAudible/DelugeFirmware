@@ -1,8 +1,8 @@
 #include "rgb.h"
-#include "dsp-next/fixed/osc/sine_table.h" // sine_table (hue easing)
+#include "dsp-next/fixed/osc/sine_table.h" // kSineTable (hue easing)
 #include "util/functions.h"
 
-using deluge::dsp::fixed::sine_table;
+using deluge::dsp::fixed::kSineTable;
 
 RGB RGB::fromHue(int32_t hue) {
 	RGB rgb{};
@@ -23,7 +23,7 @@ RGB RGB::fromHue(int32_t hue) {
 		}
 
 		if (channelDarkness < 64) {
-			rgb[c] = ((uint32_t)sine_table.value(((channelDarkness << 3) + util::bit_value<9>)&util::bitmask<10>, 10)
+			rgb[c] = ((uint32_t)kSineTable.value(((channelDarkness << 3) + util::bit_value<9>)&util::bitmask<10>, 10)
 			          + util::median_value<uint32_t>)
 			         >> 24;
 		}
@@ -56,7 +56,7 @@ RGB RGB::fromHuePastel(int32_t hue) {
 
 		if (channelDarkness < 64) {
 			uint32_t basicValue =
-			    (uint32_t)sine_table.value(((channelDarkness << 3) + util::bit_value<9>)&util::bitmask<10>, 10)
+			    (uint32_t)kSineTable.value(((channelDarkness << 3) + util::bit_value<9>)&util::bitmask<10>, 10)
 			    + util::median_value<uint32_t>; // Goes all the way up to max uint32_t
 			uint32_t flipped = std::numeric_limits<uint32_t>::max() - basicValue;
 			uint32_t flippedScaled = (flipped >> 8) * kMaxPastel;

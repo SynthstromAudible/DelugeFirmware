@@ -18,7 +18,7 @@
 #include "model/voice/voice.h"
 #include "bench/render_profile.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/fixed/interpolation/table_interpolation.h" // getDecay4
+#include "dsp-next/fixed/interpolation/table_interpolation.h" // get_decay4
 #include "dsp-next/fixed/shaping/wavefolder.h"
 #include "dsp-next/fixed/vca/pan.h"
 #include "effects/filter_slots.h"
@@ -46,7 +46,7 @@
 #include <optional>
 
 using namespace deluge;
-using deluge::dsp::fixed::getDecay4;
+using deluge::dsp::fixed::get_decay4;
 namespace params = deluge::modulation::params;
 
 PLACE_INTERNAL_FRUNK int32_t spareRenderingBuffer[deluge::render::kSpareRenderingRows][SSI_TX_BUFFER_NUM_SAMPLES]
@@ -68,7 +68,7 @@ const Patcher::Config kPatcherConfigForVoice = {
 int32_t Voice::combineExpressionValues(int32_t synthLevelValue, int32_t expressionDimension) const {
 	int32_t voiceLevelValue = this->localExpressionSourceValuesBeforeSmoothing[expressionDimension];
 	int32_t combinedValue = (synthLevelValue >> 1) + (voiceLevelValue >> 1);
-	return lshiftAndSaturate<1>(combinedValue);
+	return lshift_and_saturate<1>(combinedValue);
 }
 
 Voice::Voice(Sound& sound)
@@ -743,7 +743,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(const LFOConfig& config, deluge::modul
 			    envelopes[e].render(numSamples, params.paramFinalValues[params::LOCAL_ENV_0_ATTACK + e],
 			                        params.paramFinalValues[params::LOCAL_ENV_0_DECAY + e],
 			                        params.paramFinalValues[params::LOCAL_ENV_0_SUSTAIN + e], release,
-			                        deluge::dsp::fixed::tables::decay_small_8.data());
+			                        deluge::dsp::fixed::tables::kDecaySmall8.data());
 			uint32_t anyChange = (old != params.sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e]);
 			sourcesChanged |= anyChange << (util::to_underlying(PatchSource::ENVELOPE_0) + e);
 		}
@@ -842,7 +842,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(const LFOConfig& config, deluge::modul
 
 	// Porta
 	if (portaEnvelopePos < 8388608) {
-		int32_t envValue = getDecay4(portaEnvelopePos, 23);
+		int32_t envValue = get_decay4(portaEnvelopePos, 23);
 		int32_t pitchAdjustmentHere =
 		    kMaxSampleValue + (multiply_32x32_rshift32_rounded(envValue, portaEnvelopeMaxAmplitude) << 1);
 
@@ -977,9 +977,9 @@ skipAutoRelease: {}
 	}
 
 	// Apply envelope 0 to volume. This takes effect as a cut only; when the envelope is at max height, volume is
-	// unaffected. Important that we use lshiftAndSaturate here - otherwise, number can overflow if combining high
+	// unaffected. Important that we use lshift_and_saturate here - otherwise, number can overflow if combining high
 	// velocity patching with big LFO
-	int32_t overallOscAmplitude = lshiftAndSaturate<2>(
+	int32_t overallOscAmplitude = lshift_and_saturate<2>(
 	    multiply_32x32_rshift32(params.paramFinalValues[params::LOCAL_VOLUME],
 	                            (params.sourceValues[util::to_underlying(PatchSource::ENVELOPE_0)] >> 1) + 1073741824));
 
@@ -1213,10 +1213,10 @@ skipAutoRelease: {}
 		// fold
 		if (params.paramFinalValues[params::LOCAL_FOLD] > 0) {
 			const std::span<dsp::q31> stereo{oscBuffer, oscBufferEnd};
-			dsp::fixed::Wavefolder{params.paramFinalValues[params::LOCAL_FOLD]}.renderBlock(stereo, stereo);
+			dsp::fixed::Wavefolder{params.paramFinalValues[params::LOCAL_FOLD]}.render_block(stereo, stereo);
 		}
 		// Filters
-		filterSet.renderStereo({oscBuffer, oscBufferEnd}, deluge::render::filter_scratch(), deluge::synth_noise);
+		filterSet.render_stereo({oscBuffer, oscBufferEnd}, deluge::render::filter_scratch(), deluge::synth_noise);
 
 		// No clipping
 		if (!cfg.clippingAmount) {
@@ -1237,7 +1237,7 @@ skipAutoRelease: {}
 
 				// Write to the output buffer, panning or not
 				if (doPanning) {
-					*outputSample += deluge::dsp::pannedStereo(outputSampleL, outputSampleR, amplitudeL, amplitudeR);
+					*outputSample += deluge::dsp::panned_stereo(outputSampleL, outputSampleR, amplitudeL, amplitudeR);
 				}
 				else {
 					*outputSample += StereoSample{.l = outputSampleL, .r = outputSampleR};
@@ -1271,7 +1271,7 @@ skipAutoRelease: {}
 
 				// Write to the output buffer, panning or not
 				if (doPanning) {
-					*outputSample += deluge::dsp::pannedStereo(outputSampleL, outputSampleR, amplitudeL, amplitudeR);
+					*outputSample += deluge::dsp::panned_stereo(outputSampleL, outputSampleR, amplitudeL, amplitudeR);
 				}
 				else {
 					*outputSample += StereoSample{.l = outputSampleL, .r = outputSampleR};
@@ -1297,10 +1297,10 @@ skipAutoRelease: {}
 		// wavefolding pre filter
 		if (params.paramFinalValues[params::LOCAL_FOLD] > 0) {
 			const std::span<dsp::q31> mono{oscBuffer, oscBufferEnd};
-			dsp::fixed::Wavefolder{params.paramFinalValues[params::LOCAL_FOLD]}.renderBlock(mono, mono);
+			dsp::fixed::Wavefolder{params.paramFinalValues[params::LOCAL_FOLD]}.render_block(mono, mono);
 		}
 
-		filterSet.renderMono({oscBuffer, oscBufferEnd}, deluge::render::filter_scratch(), deluge::synth_noise);
+		filterSet.render_mono({oscBuffer, oscBufferEnd}, deluge::render::filter_scratch(), deluge::synth_noise);
 
 		// No clipping
 		if (!cfg.clippingAmount) {
@@ -1318,10 +1318,10 @@ skipAutoRelease: {}
 
 				if (soundRenderingInStereo) {
 					if (doPanning) {
-						*((StereoSample*)outputSample) += deluge::dsp::pannedMono(output, amplitudeL, amplitudeR);
+						*((StereoSample*)outputSample) += deluge::dsp::panned_mono(output, amplitudeL, amplitudeR);
 					}
 					else {
-						*((StereoSample*)outputSample) += StereoSample::fromMono(output);
+						*((StereoSample*)outputSample) += StereoSample::from_mono(output);
 					}
 					outputSample += 2;
 				}
@@ -1352,10 +1352,10 @@ skipAutoRelease: {}
 
 				if (soundRenderingInStereo) {
 					if (doPanning) {
-						*((StereoSample*)outputSample) += deluge::dsp::pannedMono(output, amplitudeL, amplitudeR);
+						*((StereoSample*)outputSample) += deluge::dsp::panned_mono(output, amplitudeL, amplitudeR);
 					}
 					else {
-						*((StereoSample*)outputSample) += StereoSample::fromMono(output);
+						*((StereoSample*)outputSample) += StereoSample::from_mono(output);
 					}
 					outputSample += 2;
 				}
@@ -1480,7 +1480,8 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	uint32_t oscSyncPhaseIncrementsThisUnison = doOscSync ? oscSyncPhaseIncrements[u] : 0;
 
 	// Work out pulse width
-	uint32_t pulseWidth = (uint32_t)lshiftAndSaturate<1>(params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s]);
+	uint32_t pulseWidth =
+	    (uint32_t)lshift_and_saturate<1>(params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s]);
 
 	// The wave table is only consumed when oscType == WAVETABLE. Basic oscillators (SAW/SQUARE/SINE/...) have no
 	// audio file, so audioFileHolder is null — don't dereference it.

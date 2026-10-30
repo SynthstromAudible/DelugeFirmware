@@ -30,7 +30,7 @@ struct ParamNode {
 	///
 	/// For patch cables, this is stored in the range [-2^30, 2^30-1] while for all other parameter types the full range
 	/// is used (even for unipolar parameters!). This means when converting automation from patch cables to non-patch
-	/// cables, lshiftAndSaturate<1>() must be used while conversion in the opposite direction (non-patch-cable to
+	/// cables, lshift_and_saturate<1>() must be used while conversion in the opposite direction (non-patch-cable to
 	/// patch-cable) a right shift by 1 is required.
 	int32_t value{0};
 	/// Whether the value should be interpolated from the previous node to this one.

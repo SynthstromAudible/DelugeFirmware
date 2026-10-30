@@ -19,7 +19,7 @@
 #include "dsp-next/core/generator.h" // Buffer, q31
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/core/q31_ops.h"         // multiply_32x32_rshift32
-#include "dsp-next/fixed/osc/sine_table.h" // sine_table
+#include "dsp-next/fixed/osc/sine_table.h" // kSineTable
 #include "dsp-next/fixed/sync/resetter.h"  // resetter_reciprocal
 #include <cstddef>
 #include <cstdint>
@@ -88,7 +88,7 @@ public:
 			if (crossed_over_) {
 				int32_t average = (*window_ >> 1) + (pre_crossover_sample_ >> 1);
 				int32_t half_difference = (*window_ >> 1) - (pre_crossover_sample_ >> 1);
-				int32_t sine = sine_table.value(seam_fade_ >> 1);
+				int32_t sine = kSineTable.value(seam_fade_ >> 1);
 				*window_ = average + (multiply_32x32_rshift32(half_difference, sine) << 1);
 			}
 

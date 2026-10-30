@@ -92,7 +92,7 @@ public:
 			mono_.configure({.rate = rate, .mix = mix, .density = density, .randomness = randomness});
 			*volume = Granular::post_fx_volume(*volume);
 			mono_.on<&Granular::set_send>(send.data(), reverb_amount);
-			mono_.renderBlock(frames, frames, deluge::synth_noise);
+			mono_.render_block(frames, frames, deluge::synth_noise);
 			if (mono_.state().wraps_to_shutdown < 0) {
 				mono_.on<&Granular::restart>();
 			}

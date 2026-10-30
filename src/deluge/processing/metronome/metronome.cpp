@@ -26,7 +26,7 @@ void Metronome::render(std::span<deluge::dsp::StereoSample> buffer, int32_t volu
 		return;
 	}
 	click_.configure({.level = multiply_32x32_rshift32(static_cast<int32_t>(volume_), volume_post_fx)});
-	click_.renderBlock(buffer, buffer);
+	click_.render_block(buffer, buffer);
 }
 
 void Metronome::setVolume(int32_t linear_param) {

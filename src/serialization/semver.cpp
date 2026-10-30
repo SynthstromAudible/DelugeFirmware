@@ -57,27 +57,27 @@ std::expected<SemVer, SemVer::Parser::Error> SemVer::Parser::parse() {
 // Version Core
 std::expected<SemVer, SemVer::Parser::Error> SemVer::Parser::parseVersionCore() {
 	SemVer semver{};
-	auto major = parseNumericIdentifier();
-	if (!major) {
-		return std::unexpected(major.error());
+	auto parsed_major = parseNumericIdentifier();
+	if (!parsed_major) {
+		return std::unexpected(parsed_major.error());
 	}
-	semver.major = *major;
+	semver.major = *parsed_major;
 	if (auto dot = expect('.'); !dot) {
 		return std::unexpected(dot.error());
 	}
-	auto minor = parseNumericIdentifier();
-	if (!minor) {
-		return std::unexpected(minor.error());
+	auto parsed_minor = parseNumericIdentifier();
+	if (!parsed_minor) {
+		return std::unexpected(parsed_minor.error());
 	}
-	semver.minor = *minor;
+	semver.minor = *parsed_minor;
 	if (auto dot = expect('.'); !dot) {
 		return std::unexpected(dot.error());
 	}
-	auto patch = parseNumericIdentifier();
-	if (!patch) {
-		return std::unexpected(patch.error());
+	auto parsed_patch = parseNumericIdentifier();
+	if (!parsed_patch) {
+		return std::unexpected(parsed_patch.error());
 	}
-	semver.patch = *patch;
+	semver.patch = *parsed_patch;
 	return semver;
 }
 

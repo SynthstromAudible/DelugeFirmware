@@ -77,18 +77,18 @@ int32_t sample(const uint16_t* table, uint32_t input, uint8_t input_fractional_b
 	if (input == (uint32_t{1} << input_fractional_bits)) {
 		return table[kLastEntry] * LinearTableInterpolator::kFullWeight;
 	}
-	return linear_table_interpolator.interpolate(input, input_fractional_bits, table, kTableSizeLog2);
+	return kLinearTableInterpolator.interpolate(input, input_fractional_bits, table, kTableSizeLog2);
 }
 
 } // namespace decay
 } // namespace
 
-int32_t getDecay8(uint32_t input, uint8_t input_fractional_bits) {
-	return decay::sample(deluge::dsp::fixed::tables::decay_small_8.data(), input, input_fractional_bits);
+int32_t get_decay8(uint32_t input, uint8_t input_fractional_bits) {
+	return decay::sample(deluge::dsp::fixed::tables::kDecaySmall8.data(), input, input_fractional_bits);
 }
 
-int32_t getDecay4(uint32_t input, uint8_t input_fractional_bits) {
-	return decay::sample(deluge::dsp::fixed::tables::decay_small_4.data(), input, input_fractional_bits);
+int32_t get_decay4(uint32_t input, uint8_t input_fractional_bits) {
+	return decay::sample(deluge::dsp::fixed::tables::kDecaySmall4.data(), input, input_fractional_bits);
 }
 
 } // namespace deluge::dsp::fixed

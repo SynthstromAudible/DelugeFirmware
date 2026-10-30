@@ -34,8 +34,6 @@
 namespace {
 using deluge::dsp::fixed::Amplitude;
 
-constexpr int32_t kOneQ31 = 0x7FFFFFFF;
-
 // Apply a fresh VCA to one broadcast 4-lane vector: out = (raw * amp) + mix.
 int32x4_t applyOnce(int32_t amplitude, int32_t increment, int32_t raw, int32_t mix) {
 	Amplitude vca{amplitude, increment};
@@ -51,7 +49,7 @@ constexpr std::array<int32_t, 7> kMix{0x01000000,  -0x02000000, 0x00ABCDEF, 0x10
 std::vector<int32_t> mixBlock(int32_t amplitude, int32_t increment, std::size_t n) {
 	std::vector<int32_t> out(kMix.begin(), kMix.begin() + static_cast<std::ptrdiff_t>(n));
 	Amplitude vca{amplitude, increment};
-	vca.renderBlock(std::span{kRaw}.first(n), out, out);
+	vca.render_block(std::span{kRaw}.first(n), out, out);
 	return out;
 }
 } // namespace

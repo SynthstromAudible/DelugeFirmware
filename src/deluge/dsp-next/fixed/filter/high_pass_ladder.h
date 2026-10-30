@@ -151,13 +151,13 @@ struct HighPassLadder {
 		constexpr int32_t kLeastResonance = 134217728;
 
 		Coefficients c{};
-		c.morph = lshiftAndSaturate<2>(s.config.morph);
+		c.morph = lshift_and_saturate<2>(s.config.morph);
 		const CurvedFrequency curved = curve_frequency(s.config.frequency);
 		c.moveability = curved.fc;
 
-		int32_t resonance = ONE_Q31 - (std::min(s.config.resonance, kResonanceUpperLimit) << 2);
+		int32_t resonance = kOneQ31 - (std::min(s.config.resonance, kResonanceUpperLimit) << 2);
 		resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
-		const int32_t processed_resonance_unaltered = std::max(ONE_Q31 - resonance, kLeastResonance);
+		const int32_t processed_resonance_unaltered = std::max(kOneQ31 - resonance, kLeastResonance);
 
 		c.processed_resonance = multiply_32x32_rshift32(processed_resonance_unaltered, kExtraFeedback) << 1;
 		c.divide_by_processed_resonance =
@@ -188,10 +188,10 @@ struct HighPassLadder {
 		c.mode = mode_of(saturation, c.morph == 0 ? Cutoff::FIXED : Cutoff::MORPHING);
 
 		// The volume falls as the resonance rises.
-		const q31 raw_resonance = std::min(s.config.resonance, q31{ONE_Q31 >> 2}) << 2;
+		const q31 raw_resonance = std::min(s.config.resonance, q31{kOneQ31 >> 2}) << 2;
 		q31 squared = multiply_32x32_rshift32(raw_resonance, raw_resonance) << 1;
 		squared = (multiply_32x32_rshift32(squared, squared) >> 4) * 19;
-		c.gain_compensation = multiply_32x32_rshift32(s.gain, ONE_Q31 - squared) << 1;
+		c.gain_compensation = multiply_32x32_rshift32(s.gain, kOneQ31 - squared) << 1;
 		return c;
 	}
 
@@ -231,7 +231,8 @@ struct HighPassLadder {
 			// The saturator is placed at shift 2 although it saturates at drive 1 (shift 1): this placement is
 			// part of the output contract, so switching ANTIALIASED in interpolates its first sample from a position
 			// twice as far from the centre (short of saturation).
-			AntialiasedTanh::place(s.saturator, static_cast<uint32_t>(lshiftAndSaturate<kPlaceShift>(a)) + kTanhCentre);
+			AntialiasedTanh::place(s.saturator,
+			                       static_cast<uint32_t>(lshift_and_saturate<kPlaceShift>(a)) + kTanhCentre);
 			if constexpr (kSaturation == Saturation::TANH) {
 				a = tanh<kTanhDrive>(a);
 			}
@@ -250,7 +251,7 @@ private:
 	/// @brief The processed resonance (Q30) above which the loop saturates through the tanh.
 	static constexpr q31 kTanhAbove = 750000000;
 	/// @brief The lowest per-sample moveability, Q31: −2^23.
-	static constexpr q31 kLowerLimit = -(ONE_Q31 >> 8);
+	static constexpr q31 kLowerLimit = -(kOneQ31 >> 8);
 	/// @brief The shift from the loop's Q28 reciprocal product back to Q31, doubled.
 	static constexpr int kLoopShift = 4 + 1;
 	/// @brief The shift from the output normalisation's product back to Q31, halved.

@@ -40,7 +40,7 @@
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
 #include "reference_filters.h"
 #include "util/fixedpoint.h"
-#include "util/param_functions.h" // lshiftAndSaturateUnknown
+#include "util/param_functions.h" // lshift_and_saturate_unknown
 
 #include <algorithm>
 #include <array>
@@ -70,19 +70,19 @@ namespace detail {
 
 /// 1 - 1/ratio at knob @p ratio: 0.5 to 1.
 [[nodiscard]] inline float ratio_fraction(q31 ratio) {
-	return 0.5f + (static_cast<float>(ratio) / ONE_Q31f) / 2;
+	return 0.5f + (static_cast<float>(ratio) / kOneQ31f) / 2;
 }
 
 [[nodiscard]] inline float compressor_attack_ms(q31 attack) {
-	return 0.5 + (std::exp(2 * static_cast<float>(attack) / ONE_Q31f) - 1) * 10;
+	return 0.5 + (std::exp(2 * static_cast<float>(attack) / kOneQ31f) - 1) * 10;
 }
 
 [[nodiscard]] inline float compressor_release_ms(q31 release) {
-	return 50 + (std::exp(2 * static_cast<float>(release) / ONE_Q31f) - 1) * 50;
+	return 50 + (std::exp(2 * static_cast<float>(release) / kOneQ31f) - 1) * 50;
 }
 
 [[nodiscard]] inline float compressor_sidechain_hz(q31 sidechain_hpf) {
-	return (std::exp(1.5 * static_cast<float>(sidechain_hpf) / ONE_Q31f) - 1) * 30;
+	return (std::exp(1.5 * static_cast<float>(sidechain_hpf) / kOneQ31f) - 1) * 30;
 }
 
 } // namespace detail
@@ -95,7 +95,7 @@ public:
 	ReferenceRmsFeedbackCompressor() {
 		setAttack(configured_.attack);
 		setRelease(configured_.release);
-		setThreshold(configured_.threshold);
+		set_threshold(configured_.threshold);
 		setRatio(configured_.ratio);
 		setSidechain(configured_.sidechain_hpf);
 		setBlend(configured_.blend);
@@ -109,7 +109,7 @@ public:
 		setAttack(knobs.attack);
 		setRelease(knobs.release);
 		if (knobs.threshold != configured_.threshold) {
-			setThreshold(knobs.threshold);
+			set_threshold(knobs.threshold);
 		}
 		setRatio(knobs.ratio);
 		setSidechain(knobs.sidechain_hpf);
@@ -118,13 +118,13 @@ public:
 	}
 
 	/// @brief The threshold this block renders with, from a knob position (Q31 of the knob's travel).
-	void setThreshold(q31 threshold) {
+	void set_threshold(q31 threshold) {
 		threshold_knob_ = threshold;
-		threshold_ = 1 - 0.8f * (static_cast<float>(threshold_knob_) / ONE_Q31f);
+		threshold_ = 1 - 0.8f * (static_cast<float>(threshold_knob_) / kOneQ31f);
 	}
 
 	/// @brief Makeup gain in nepers at no reduction.
-	void setBaseGain(float base_gain) { base_gain_ = base_gain; }
+	void set_base_gain(float base_gain) { base_gain_ = base_gain; }
 
 	/// @brief No gain reduction at the start of the next block, and the saturation seeded again.
 	void reset() {
@@ -140,16 +140,16 @@ public:
 	/// @param scratch Holds the block as it came in, for the blend; read only when the blend is below fully wet.
 	void render(std::span<StereoSample> block, q31 volume_l, q31 volume_r, q31 final_volume,
 	            CompressorScratch scratch) {
-		if (wet_ != ONE_Q31) {
+		if (wet_ != kOneQ31) {
 			std::ranges::copy(block, scratch.begin());
 		}
 
 		if (!seeded_) {
 			// The first sample interpolates against the block's own start rather than against silence.
-			saturation_[0] = ReferenceAntialiasedTanh{kSaturation, static_cast<uint32_t>(lshiftAndSaturateUnknown(
+			saturation_[0] = ReferenceAntialiasedTanh{kSaturation, static_cast<uint32_t>(lshift_and_saturate_unknown(
 			                                                           block[0].l, static_cast<uint8_t>(kSaturation)))
 			                                                           + ReferenceAntialiasedTanh::kSilent};
-			saturation_[1] = ReferenceAntialiasedTanh{kSaturation, static_cast<uint32_t>(lshiftAndSaturateUnknown(
+			saturation_[1] = ReferenceAntialiasedTanh{kSaturation, static_cast<uint32_t>(lshift_and_saturate_unknown(
 			                                                           block[0].r, static_cast<uint8_t>(kSaturation)))
 			                                                           + ReferenceAntialiasedTanh::kSilent};
 			seeded_ = true;
@@ -187,7 +187,7 @@ public:
 			sample.r = multiply_32x32_rshift32(sample.r, current_volume_r_) << 4;
 			sample.r = saturation_[1].render(sample.r);
 
-			if (wet_ != ONE_Q31) {
+			if (wet_ != kOneQ31) {
 				sample.l = multiply_32x32_rshift32(sample.l, wet_);
 				sample.l = multiply_accumulate_32x32_rshift32_rounded(sample.l, scratch[i].l, dry_);
 				sample.l <<= 1;
@@ -202,12 +202,12 @@ public:
 	}
 
 	/// @brief render at neutral channel gain, with @p final_volume (3.29) scaled.
-	void renderVolumeNeutral(std::span<StereoSample> block, q31 final_volume, CompressorScratch scratch) {
+	void render_volume_neutral(std::span<StereoSample> block, q31 final_volume, CompressorScratch scratch) {
 		render(block, 1 << 27, 1 << 27, final_volume >> 3, scratch);
 	}
 
 	/// @return The last block's gain reduction for the LEDs.
-	[[nodiscard]] uint8_t gainReduction() const { return gain_reduction_; }
+	[[nodiscard]] uint8_t gain_reduction() const { return gain_reduction_; }
 
 	/// @return Whether the saturation has been seeded since the last reset.
 	[[nodiscard]] bool seeded() const { return seeded_; }
@@ -265,11 +265,11 @@ private:
 	void setSidechain(q31 sidechain_hpf) {
 		const float fc = detail::compressor_sidechain_hz(sidechain_hpf) / static_cast<float>(kSampleRate);
 		const float wc = fc / (1 + fc);
-		detector_moveability_ = static_cast<q31>(wc * static_cast<float>(ONE_Q31));
+		detector_moveability_ = static_cast<q31>(wc * static_cast<float>(kOneQ31));
 	}
 
 	void setBlend(q31 blend) {
-		dry_ = ONE_Q31 - blend;
+		dry_ = kOneQ31 - blend;
 		wet_ = blend;
 	}
 
@@ -302,9 +302,9 @@ private:
 		}
 
 		const auto ns = static_cast<float>(block.size() * 2);
-		mean_ = (static_cast<float>(sum) / ONE_Q31f) / ns;
+		mean_ = (static_cast<float>(sum) / kOneQ31f) / ns;
 		mean_ = (mean_ * ns + last_mean) / (1 + ns);
-		const float rms = static_cast<float>(ONE_Q31) * std::sqrt(mean_);
+		const float rms = static_cast<float>(kOneQ31) * std::sqrt(mean_);
 
 		return std::log(std::max(rms, 1.0f));
 	}
@@ -316,7 +316,7 @@ private:
 	float fraction_ = 0.5;
 	float makeup_ = 0;
 	float threshold_ = 1;
-	q31 detector_moveability_ = ONE_Q15;
+	q31 detector_moveability_ = kOneQ15;
 
 	float reduction_envelope_ = 0;
 	q31 current_volume_l_ = 0;
@@ -336,7 +336,7 @@ private:
 
 	q31 threshold_knob_ = 0;
 	q31 dry_ = 0;
-	q31 wet_ = ONE_Q31;
+	q31 wet_ = kOneQ31;
 	uint8_t gain_reduction_ = 0;
 };
 
@@ -353,7 +353,7 @@ public:
 	FixedReferenceRmsFeedbackCompressor() {
 		setAttack(configured_.attack);
 		setRelease(configured_.release);
-		setThreshold(configured_.threshold);
+		set_threshold(configured_.threshold);
 		setRatio(configured_.ratio);
 		setSidechain(configured_.sidechain_hpf);
 		setBlend(configured_.blend);
@@ -367,7 +367,7 @@ public:
 		setAttack(knobs.attack);
 		setRelease(knobs.release);
 		if (knobs.threshold != configured_.threshold) {
-			setThreshold(knobs.threshold);
+			set_threshold(knobs.threshold);
 		}
 		setRatio(knobs.ratio);
 		setSidechain(knobs.sidechain_hpf);
@@ -376,16 +376,16 @@ public:
 	}
 
 	/// @brief The threshold this block renders with, from a knob position (Q31 of the knob's travel).
-	void setThreshold(q31 threshold) {
+	void set_threshold(q31 threshold) {
 		threshold_knob_ = threshold;
-		threshold_ = 1 - 0.8f * (static_cast<float>(threshold_knob_) / ONE_Q31f);
+		threshold_ = 1 - 0.8f * (static_cast<float>(threshold_knob_) / kOneQ31f);
 	}
 
 	/// @return The threshold this block renders with, as a knob position (Q31 of the knob's travel).
 	[[nodiscard]] q31 threshold() const { return threshold_knob_; }
 
 	/// @brief Makeup gain in nepers at no reduction.
-	void setBaseGain(float base_gain) { base_gain_ = base_gain; }
+	void set_base_gain(float base_gain) { base_gain_ = base_gain; }
 
 	/// @brief No gain reduction at the start of the next block, and the saturation seeded again.
 	void reset() {
@@ -401,7 +401,7 @@ public:
 	/// @param scratch Holds the block as it came in, for the blend; read only when the blend is below fully wet.
 	void render(std::span<StereoSample> block, q31 volume_l, q31 volume_r, q31 final_volume,
 	            CompressorScratch scratch) {
-		if (wet_ != ONE_Q31) {
+		if (wet_ != kOneQ31) {
 			std::ranges::copy(block, scratch.begin());
 		}
 
@@ -442,7 +442,7 @@ public:
 			sample.r = multiply_32x32_rshift32(sample.r, current_volume_r_) << 4;
 			sample.r = AntialiasedTanh::step(kSaturator, EmptyBlock{}, saturation_r_, sample.r);
 
-			if (wet_ != ONE_Q31) {
+			if (wet_ != kOneQ31) {
 				sample.l = multiply_32x32_rshift32(sample.l, wet_);
 				sample.l = multiply_accumulate_32x32_rshift32_rounded(sample.l, scratch[i].l, dry_);
 				sample.l <<= 1;
@@ -457,12 +457,12 @@ public:
 	}
 
 	/// @brief render at neutral channel gain, with @p final_volume (3.29) scaled.
-	void renderVolumeNeutral(std::span<StereoSample> block, q31 final_volume, CompressorScratch scratch) {
+	void render_volume_neutral(std::span<StereoSample> block, q31 final_volume, CompressorScratch scratch) {
 		render(block, 1 << 27, 1 << 27, final_volume >> 3, scratch);
 	}
 
 	/// @return The last block's gain reduction for the LEDs, 0 to 127.
-	[[nodiscard]] uint8_t gainReduction() const { return gain_reduction_; }
+	[[nodiscard]] uint8_t gain_reduction() const { return gain_reduction_; }
 
 	/// @brief The compressor between blocks, read-only.
 	[[nodiscard]] View view() const {
@@ -523,11 +523,11 @@ private:
 	void setSidechain(q31 sidechain_hpf) {
 		const float fc = detail::compressor_sidechain_hz(sidechain_hpf) / static_cast<float>(kSampleRate);
 		const float wc = fc / (1 + fc);
-		detector_moveability_ = static_cast<q31>(wc * static_cast<float>(ONE_Q31));
+		detector_moveability_ = static_cast<q31>(wc * static_cast<float>(kOneQ31));
 	}
 
 	void setBlend(q31 blend) {
-		dry_ = ONE_Q31 - blend;
+		dry_ = kOneQ31 - blend;
 		wet_ = blend;
 	}
 
@@ -563,9 +563,9 @@ private:
 		}
 
 		const auto ns = static_cast<float>(block.size() * 2);
-		mean_ = (static_cast<float>(sum) / ONE_Q31f) / ns;
+		mean_ = (static_cast<float>(sum) / kOneQ31f) / ns;
 		mean_ = (mean_ * ns + last_mean) / (1 + ns);
-		const float rms = static_cast<float>(ONE_Q31) * std::sqrt(mean_);
+		const float rms = static_cast<float>(kOneQ31) * std::sqrt(mean_);
 
 		return std::log(std::max(rms, 1.0f));
 	}
@@ -577,7 +577,7 @@ private:
 	float fraction_ = 0.5;
 	float makeup_ = 0;
 	float threshold_ = 1;
-	q31 detector_moveability_ = ONE_Q15;
+	q31 detector_moveability_ = kOneQ15;
 
 	float reduction_envelope_ = 0;
 	q31 current_volume_l_ = 0;
@@ -598,7 +598,7 @@ private:
 
 	q31 threshold_knob_ = 0;
 	q31 dry_ = 0;
-	q31 wet_ = ONE_Q31;
+	q31 wet_ = kOneQ31;
 	uint8_t gain_reduction_ = 0;
 };
 

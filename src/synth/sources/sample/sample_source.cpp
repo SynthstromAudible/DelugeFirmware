@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <cstdlib> // std::abs
 #include <cstring> // memset
+#include <utility> // std::cmp_not_equal
 
 namespace deluge::synth {
 
@@ -95,13 +96,14 @@ SourceRenderResult SampleSource::renderSource(const SourceRenderContext& ctx) {
 
 	LoopType loopingType = port_->loopingType();
 
-	int32_t interpolationBufferSize;
+	// Read by the reader only when the pitch changes; without a pitch change no interpolation runs.
+	int32_t interpolation_buffer_size = kInterpolationMaxNumSamples;
 
 	// If pitch adjustment...
 	if (phaseIncrement != kMaxSampleValue) {
 
 		// Work out what quality we're going to do that at
-		interpolationBufferSize = port_->interpolationBufferSize(phaseIncrement);
+		interpolation_buffer_size = port_->interpolationBufferSize(phaseIncrement);
 
 		// And if first render, and other conditions met, see if we can use cache.
 		// It may seem like it'd be a good idea to try and set this up on note-on, rather than here in the
@@ -166,8 +168,9 @@ dontUseCache: {}
 	// increments for the hop crossfades with the overall voice ones, and having multiple crossfading hops write
 	// directly to the osc buffer).
 
-	bool stillActive = port_->render(renderBuffer, numSamples, loopingType, phaseIncrement, timeStretchRatio,
-	                                 sourceAmplitude, amplitudeIncrement, interpolationBufferSize, ctx.priorityRating);
+	bool still_active = port_->render(renderBuffer, numSamples, loopingType, static_cast<int32_t>(phaseIncrement),
+	                                  static_cast<int32_t>(timeStretchRatio), sourceAmplitude, amplitudeIncrement,
+	                                  interpolation_buffer_size, ctx.priorityRating);
 
 	if (stereoUnison) {
 		if (numChannels == 2) {
@@ -186,7 +189,7 @@ dontUseCache: {}
 		}
 	}
 
-	if (!stillActive) {
+	if (!still_active) {
 		return SourceRenderResult::UNASSIGN;
 	}
 	return SourceRenderResult::ACTIVE;
@@ -218,7 +221,7 @@ bool SampleSource::getPitchAndSpeedParams(uint32_t* phaseIncrement, uint32_t* ti
 
 			// And if pitch was manually adjusted too, that's fine - counteract that by adjusting the time-stretch
 			// amount more
-			if (*phaseIncrement != pitchAdjustNeutralValue) {
+			if (std::cmp_not_equal(*phaseIncrement, pitchAdjustNeutralValue)) {
 				*timeStretchRatio = ((uint64_t)*timeStretchRatio * pitchAdjustNeutralValue) / (uint32_t)*phaseIncrement;
 			}
 
@@ -246,14 +249,14 @@ bool SampleSource::getPitchAndSpeedParams(uint32_t* phaseIncrement, uint32_t* ti
 
 			// But first, if pitch was manually adjusted as well, counteract that by adjusting the time-stretch amount
 			// more
-			bool furtherPitchShifting = (*phaseIncrement != pitchAdjustNeutralValue);
-			if (furtherPitchShifting) {
+			bool further_pitch_shifting = std::cmp_not_equal(*phaseIncrement, pitchAdjustNeutralValue);
+			if (further_pitch_shifting) {
 				*timeStretchRatio = ((uint64_t)pitchAdjustNeutralValue << 24) / (uint32_t)*phaseIncrement;
 			}
 			*phaseIncrement = (uint64_t)*phaseIncrement * (uint64_t)sampleLengthInSamples / *noteLengthInSamples;
 
 			// If we're not time stretching / pitch shifting
-			if (!furtherPitchShifting) {
+			if (!further_pitch_shifting) {
 				*phaseIncrement = port_->adjustPitchToCorrectDriftFromSync(*phaseIncrement);
 			}
 		}

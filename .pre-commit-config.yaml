@@ -90,6 +90,15 @@ repos:
         language: system
         pass_filenames: false
         files: ^(src/(plugin-api|instruments|effects|serialization|music-theory|deluge-project)/|scripts/(check|test_check)_library_boundary\.py)
+      - id: clang-tidy
+        name: clang-tidy on the changed lines of the libraries
+        description: dsp-next, synth, effects, the instrument, plugin-api and serialization meet .clang-tidy on every line a commit changes
+        entry: python3 scripts/check_tidy.py
+        language: python
+        additional_dependencies: ["clang-tidy==23.1.4"]
+        types_or: [c, c++]
+        files: ^src/(deluge/dsp-next|synth|effects|instruments|plugin-api|serialization)/
+        require_serial: true
       - id: model-words
         name: the model names no plugin's state
         description: no file of the model may name a sound record or one of the Deluge instrument's words

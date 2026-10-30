@@ -70,7 +70,7 @@ struct DelayBlockResult {
 /// **Cost.** Per channel-sample on the device at 128-frame blocks: about 32 cycles native digital, 67 to 114 resampled
 /// digital, 189 native analog, where the response's two tap loops dominate (docs/dev/a9_dsp_performance.md, Delay).
 ///
-/// **Reactivation.** @ref resetHighPass resets the high-pass's memories only. The impulse response's history carries
+/// **Reactivation.** @ref reset_high_pass resets the high-pass's memories only. The impulse response's history carries
 /// over, so a delay switched off and on again starts with up to 25 samples of the old response's tail. The render gate
 /// `render-audio-track-delay-toggle` pins it.
 ///
@@ -96,7 +96,7 @@ public:
 
 	/// @brief The high-pass's memories to 0 in both channels, as a new delay's are. The impulse response's history
 	/// is kept.
-	void resetHighPass();
+	void reset_high_pass();
 
 	/// @brief The kernel's State between blocks.
 	/// @return Each channel's impulse response history and high-pass memory. Its block results are cleared after every

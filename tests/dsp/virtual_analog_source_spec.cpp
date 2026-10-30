@@ -59,7 +59,7 @@ BlockControls standalone(int32_t cpu_direness, uint32_t pulse_width = 0, std::op
 template <typename Osc>
 std::array<int32_t, kN> renderKernel(Osc osc) {
 	std::array<int32_t, kN> out{};
-	osc.renderBlock(Buffer{out});
+	osc.render_block(Buffer{out});
 	return out;
 }
 
@@ -67,7 +67,7 @@ std::array<int32_t, kN> renderEngine(Wave wave, uint32_t phase, uint32_t increme
 	VirtualAnalogSource engine{wave, Phasor{phase, increment}};
 	std::array<int32_t, kN> out{};
 	std::array<int32_t, kN> scratch{};
-	engine.renderBlock(controls, Buffer{out}, Buffer{scratch});
+	engine.render_block(controls, Buffer{out}, Buffer{scratch});
 	return out;
 }
 } // namespace
@@ -102,7 +102,7 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 	});
 
 	it("SINE reads the sine band directly (no scale)", _ {
-		static const deluge::dsp::fixed::Band kSineBand[] = {{deluge::dsp::fixed::tables::sine_small.data(), 8, 0xFFFFFFFFu}};
+		static const deluge::dsp::fixed::Band kSineBand[] = {{deluge::dsp::fixed::tables::kSineSmall.data(), 8, 0xFFFFFFFFu}};
 		static const deluge::dsp::fixed::BandlimitedTable kSineTable{kSineBand};
 		auto got = renderEngine(Wave::Sine, kPhase, kInc, standalone(7));
 		auto raw = renderKernel(deluge::dsp::fixed::BandLimitedTableOscillator{kSineTable, kPhase, kInc, kInc});
@@ -138,12 +138,12 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 		VirtualAnalogSource persistent{Wave::Saw, Phasor{kPhase, kInc}};
 		std::array<int32_t, kN> out1{};
 		std::array<int32_t, kN> scratch1{};
-		persistent.renderBlock(standalone(7), Buffer{out1}, Buffer{scratch1});
+		persistent.render_block(standalone(7), Buffer{out1}, Buffer{scratch1});
 		expect(persistent.phase()).to_equal(kPhase + kInc * kN); // original-domain self-advance
 
 		std::array<int32_t, kN> out2{};
 		std::array<int32_t, kN> scratch2{};
-		persistent.renderBlock(standalone(7), Buffer{out2}, Buffer{scratch2});
+		persistent.render_block(standalone(7), Buffer{out2}, Buffer{scratch2});
 
 		auto fresh = renderEngine(Wave::Saw, kPhase + kInc * kN, kInc, standalone(7));
 		for (std::size_t i = 0; i < kN; ++i) {
@@ -151,13 +151,13 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 		}
 	});
 
-	it("setIncrement sets the per-block pitch (and the self-advance follows it)", _ {
+	it("set_increment sets the per-block pitch (and the self-advance follows it)", _ {
 		VirtualAnalogSource engine{Wave::Saw, Phasor{kPhase, 0}};
-		engine.setIncrement(kInc);
+		engine.set_increment(kInc);
 		expect(engine.increment()).to_equal(kInc);
 		std::array<int32_t, kN> out{};
 		std::array<int32_t, kN> scratch{};
-		engine.renderBlock(standalone(7), Buffer{out}, Buffer{scratch});
+		engine.render_block(standalone(7), Buffer{out}, Buffer{scratch});
 		expect(engine.phase()).to_equal(kPhase + kInc * kN);
 	});
 
@@ -169,13 +169,13 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 		VirtualAnalogSource engine{Wave::Saw, Phasor{kPhase, kInc}};
 		std::array<int32_t, kN> out{};
 		std::array<int32_t, kN> scratch{};
-		engine.renderBlock(controls, Buffer{out}, Buffer{scratch});
+		engine.render_block(controls, Buffer{out}, Buffer{scratch});
 
 		// The Saw shape applies the +2^31 retrigger tweak internally, so the synced kernel must use it too.
 		deluge::dsp::fixed::CrudeSaw ref{deluge::dsp::fixed::SyncedPhasor{
 		    Phasor{kPhase, kInc}, Phasor{kResetPhase, kResetInc}, 2147483648u}};
 		std::array<int32_t, kN> raw{};
-		ref.renderBlock(Buffer{raw}); // render in place so ref.phase() reflects the advanced phase
+		ref.render_block(Buffer{raw}); // render in place so ref.phase() reflects the advanced phase
 		for (std::size_t i = 0; i < kN; ++i) {
 			expect(out[i]).to_equal(raw[i] >> 1);
 		}

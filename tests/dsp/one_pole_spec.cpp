@@ -371,7 +371,7 @@ describe one_pole_spec("OnePole", ${
 				for (const std::size_t n : kLengths) {
 					const std::vector<q31> in = quiet_noise(n, seed++);
 					std::vector<q31> got(n);
-					mono.renderBlock(in, got);
+					mono.render_block(in, got);
 					for (std::size_t i = 0; i < n; ++i) {
 						expect(got[i]).to_equal(step_in(mode, c, s, in[i]));
 					}
@@ -391,7 +391,7 @@ describe one_pole_spec("OnePole", ${
 				const OnePole::Coefficients c = OnePole::coefficients({.moveability = 1 << 30, .mode = mode});
 				const std::vector<q31> in = quiet_noise(64, seed++);
 				std::vector<q31> got(64);
-				mono.renderBlock(in, got);
+				mono.render_block(in, got);
 				for (std::size_t i = 0; i < 64; ++i) {
 					expect(got[i]).to_equal(step_in(mode, c, s, in[i]));
 				}

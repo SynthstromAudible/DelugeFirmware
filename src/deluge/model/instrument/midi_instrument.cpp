@@ -1265,7 +1265,7 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t expressionDimensi
 	if (settings == nullptr || settings->mode == ArpMode::OFF) { // Only if not arpeggiating...
 		int32_t numNotesFound = 0;
 		int32_t mpeValuesSum = 0; // We'll be summing 16-bit values into this 32-bit container, so no overflowing
-		int32_t mpeValuesMax = -ONE_Q31;
+		int32_t mpeValuesMax = -kOneQ31;
 		// This traversal will include the original note, which will get counted up too
 		for (int32_t n = 0; n < static_cast<int32_t>(arpeggiator.notes.size()); n++) {
 			ArpNote* lookingAtArpNote = &arpeggiator.notes[n];

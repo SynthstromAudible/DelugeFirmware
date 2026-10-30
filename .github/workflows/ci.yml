@@ -170,35 +170,15 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Remove preinstalled clang-tidy
-        run: sudo apt-get remove -y ^clang-tidy
+      # The compile database names clang 23 (the device build's compiler, with the arm-none-eabi sysroot), and
+      # clang-tidy is pinned to the version .clang-tidy and the pre-commit hook name.
+      - uses: ./.github/actions/clang
 
       - name: Install clang-tidy
-        uses: ./.github/actions/apt-install
-        with:
-          cache-name: clang-tidy
-          packages: clang-19 clang-tidy-19
-
-      - name: Select clang-tidy 19
-        run: |
-          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-19 100
-          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 100
-          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 100
+        run: pipx install clang-tidy==23.1.4
 
       - name: Generate compilation database
         run: ./dbt configure
-
-      - name: Extract system includes from GCC
-        id: extract_system_includes
-        run: |
-          "$GITHUB_WORKSPACE"/toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-g++ -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -E -x c++ - -v < /dev/null 2>&1 \
-            | sed -n '/^#include <...> search starts here:$/,/^End of search list.$/p' \
-            | tail -n +2 \
-            | head -n -1 \
-            | sed 's/^\s*//g' \
-            | sed 's/^\(.*\)$/--extra-arg-before=-isystem\1/g' \
-            | tr '\n' ' ' > system_includes.txt
-          echo "system_includes=$(cat system_includes.txt)" >> "$GITHUB_OUTPUT"
 
       - uses: ZehMatt/clang-tidy-annotations@v1.1.2
         with:
@@ -207,7 +187,6 @@ jobs:
           source_dir: ${{ github.workspace }}
           only_affected_lines: true
           fail_on_problems: false
-          clang_tidy_args: ${{ steps.extract_system_includes.outputs.system_includes }} --extra-arg-before=--no-standard-includes
           clang_tidy_file: ${{ github.workspace }}/.clang-tidy
 
   firmware:

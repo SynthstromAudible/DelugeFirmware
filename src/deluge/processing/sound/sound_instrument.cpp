@@ -104,7 +104,7 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSampl
 
 	if (skippingRendering) {
 		core().compressor().dsp().reset();
-		core().compressor().dsp().clearGainReduction();
+		core().compressor().dsp().clear_gain_reduction();
 	}
 	else {
 		Sound::render(modelStackWithThreeMainThings, output, reverbBuffer, sideChainHitPending, reverbAmountAdjust,

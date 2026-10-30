@@ -50,7 +50,7 @@ ClipBlock ClipChain::begin_block(const ClipChainInputs& in, std::size_t frames) 
 	}
 
 	core_.compressor().configure(settings.compressor);
-	core_.compressor().dsp().setThreshold(in.compressor_threshold); // a clip chain's threshold is its param
+	core_.compressor().dsp().set_threshold(in.compressor_threshold); // a clip chain's threshold is its param
 	return levels;
 }
 
@@ -80,7 +80,7 @@ bool ClipChain::post_tap(std::span<dsp::StereoSample> block, const ClipChainInpu
 	                                                   .ramp = true,
 	                                                   .stereo = in.fx.stereo});
 	if (in.compressor_threshold > 0) {
-		core_.compressor().dsp().renderVolumeNeutral(block, levels.volume_post_fx);
+		core_.compressor().dsp().render_volume_neutral(block, levels.volume_post_fx);
 	}
 	else {
 		core_.compressor().dsp().reset();

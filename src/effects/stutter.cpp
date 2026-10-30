@@ -70,7 +70,7 @@ void Stutter::render(std::span<dsp::StereoSample> block, uint32_t rate) {
 		return;
 	}
 	mono_.configure({.rate = rate, .tape = &tape_, .playing = mono_.state().playing});
-	mono_.renderBlock(block, block);
+	mono_.render_block(block, block);
 	if (!mono_.state().playing && mono_.state().frames_left < 0) {
 		mono_.on<&Kernel::finish_block>(tape_);
 	}

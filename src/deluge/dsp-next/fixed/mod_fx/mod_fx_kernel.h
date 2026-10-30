@@ -72,7 +72,7 @@ struct ModFx {
 	static constexpr int32_t kFlangerAmplitude = kMaxDelay - kFlangerMinTime;     ///< 16.16 frames.
 	static constexpr int32_t kFlangerOffset = (kMaxDelay + kFlangerMinTime) >> 1; ///< 16.16 frames.
 	static constexpr std::size_t kAllpassStages = 6;                              ///< The phaser's stages.
-	static constexpr q31 kWarbleWidth = 0.97 * ONE_Q31;                           ///< The second warbler's rate.
+	static constexpr q31 kWarbleWidth = 0.97 * kOneQ31;                           ///< The second warbler's rate.
 
 	/// @brief The LFO's wave in each mode.
 	enum class Wave : uint8_t { SINE, TRIANGLE, WARBLER };
@@ -247,7 +247,7 @@ private:
 	[[nodiscard]] [[gnu::always_inline]] static int32_t lfo(uint32_t& phase, Warbler& w, uint32_t inc,
 	                                                        [[maybe_unused]] Noise& noise) {
 		if constexpr (W == Wave::SINE) {
-			const int32_t v = sine_table.value(phase);
+			const int32_t v = kSineTable.value(phase);
 			phase += inc;
 			return v;
 		}

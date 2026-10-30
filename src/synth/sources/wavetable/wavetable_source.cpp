@@ -20,8 +20,8 @@
 
 namespace deluge::synth {
 
-void WavetableSource::renderBlock(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-                                  deluge::dsp::fixed::Buffer scratch) {
+void WavetableSource::render_block(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
+                                   deluge::dsp::fixed::Buffer scratch) {
 	const uint32_t origPhase = phasor_.phase();
 	const uint32_t origInc = phasor_.increment();
 
@@ -38,7 +38,7 @@ void WavetableSource::renderBlock(const BlockControls& controls, deluge::dsp::fi
 
 	if (doPulseWave) {
 		doOscSync = true;
-		const uint32_t pulseWidthAbsolute =
+		const uint32_t pulse_width_absolute =
 		    ((int32_t)controls.pulse_width >= 0) ? controls.pulse_width : -controls.pulse_width;
 		resetterPhase = origPhase;
 		resetterInc = origInc;
@@ -49,11 +49,11 @@ void WavetableSource::renderBlock(const BlockControls& controls, deluge::dsp::fi
 			                                                // negative-number bit of the next one.
 		}
 
-		renderPhase =
-		    ((uint32_t)multiply_32x32_rshift32_rounded((pulseWidthAbsolute >> 1) + 1073741824, resetterPhaseToMultiply)
-		     << 3)
-		    + controls.retrigger_phase;
-		renderInc = (uint32_t)multiply_32x32_rshift32_rounded((pulseWidthAbsolute >> 1) + 1073741824, origInc >> 1)
+		renderPhase = ((uint32_t)multiply_32x32_rshift32_rounded((pulse_width_absolute >> 1) + 1073741824,
+		                                                         resetterPhaseToMultiply)
+		               << 3)
+		              + controls.retrigger_phase;
+		renderInc = (uint32_t)multiply_32x32_rshift32_rounded((pulse_width_absolute >> 1) + 1073741824, origInc >> 1)
 		            << 3;
 	}
 
@@ -65,7 +65,7 @@ void WavetableSource::renderBlock(const BlockControls& controls, deluge::dsp::fi
 	uint32_t renderedPhase;
 	if (!doOscSync) {
 		deluge::dsp::fixed::WavetableOscillator osc{table_, renderPhase, renderInc, waveIndex, wave_index_increment_};
-		osc.renderBlock(deluge::dsp::fixed::Buffer{dst, output.size()});
+		osc.render_block(deluge::dsp::fixed::Buffer{dst, output.size()});
 		renderedPhase = osc.phase();
 	}
 	else {
@@ -76,14 +76,14 @@ void WavetableSource::renderBlock(const BlockControls& controls, deluge::dsp::fi
 		                                                controls.retrigger_phase,
 		                                                waveIndex,
 		                                                wave_index_increment_};
-		osc.renderBlock(deluge::dsp::fixed::Buffer{dst, output.size()});
+		osc.render_block(deluge::dsp::fixed::Buffer{dst, output.size()});
 		renderedPhase = osc.phase();
 	}
 
 	if (controls.apply_amplitude) {
 		// The wavetable's amplitude is pre-shifted <<3 (as the legacy renderOsc did); out = scratch*amp + out.
 		deluge::dsp::fixed::Amplitude vca{controls.amplitude << 3};
-		vca.renderBlock(deluge::dsp::fixed::Signal{scratch}, deluge::dsp::fixed::Signal{output}, output);
+		vca.render_block(deluge::dsp::fixed::Signal{scratch}, deluge::dsp::fixed::Signal{output}, output);
 	}
 
 	// Phase persistence — the legacy maybeStorePhase rule, now internal: a pulse keeps the original-domain advance

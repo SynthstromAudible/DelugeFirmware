@@ -28,7 +28,7 @@ namespace deluge::dsp::fixed {
 /// @file
 /// @brief Linear interpolation into a 1-D fixed-point lookup table — the generic, low-level cousin of the
 /// band-limited @ref WindowedSincKernel. Stateless: the caller owns the table; this just samples it at a
-/// fractional index. Mirrors the @ref windowed_sinc_kernel idiom — a class with methods and one shared
+/// fractional index. Mirrors the @ref kWindowedSincKernel idiom — a class with methods and one shared
 /// `inline constexpr` instance — rather than loose free functions.
 
 /// @brief A 1-D fixed-point LUT sampled with linear interpolation between adjacent entries.
@@ -85,9 +85,9 @@ public:
 	/// @param table The signed lookup table; needs `2^table_size_log2 + 1` entries.
 	/// @param table_size_log2 log2 of the table's entry count.
 	/// @return The interpolated value at Q16 of the table's units (`table_value * 2^16`).
-	[[nodiscard, gnu::always_inline]] int32_t interpolateSigned(uint32_t input, int32_t input_fractional_bits,
-	                                                            const int16_t* table,
-	                                                            int32_t table_size_log2 = 8) const {
+	[[nodiscard, gnu::always_inline]] int32_t interpolate_signed(uint32_t input, int32_t input_fractional_bits,
+	                                                             const int16_t* table,
+	                                                             int32_t table_size_log2 = 8) const {
 		int32_t index = input >> (input_fractional_bits - table_size_log2);
 
 		// The signed blend uses a full 16-bit weight (vs interpolate()'s 15-bit), so line up `input`'s
@@ -101,8 +101,8 @@ public:
 	}
 };
 
-/// The shared stateless instance (matches @ref windowed_sinc_kernel).
-inline constexpr LinearTableInterpolator linear_table_interpolator{};
+/// The shared stateless instance (matches @ref kWindowedSincKernel).
+inline constexpr LinearTableInterpolator kLinearTableInterpolator{};
 
 /// @brief A 2-D signed fixed-point LUT, sampled with linear interpolation along each row and then between the two
 /// rows the second index falls between.
@@ -110,7 +110,7 @@ inline constexpr LinearTableInterpolator linear_table_interpolator{};
 /// The table is a built-in `int16_t[R][W]` array known at compile time: `R = 2^m + 1` rows, each `W = 2^n + 1`
 /// entries wide (the `+1`s are the upper neighbours). Its type gives both log2 sizes and the row stride as constants,
 /// so the per-sample path is subscripts and arithmetic with no calls. Each row is sampled as
-/// @ref LinearTableInterpolator::interpolateSigned does, through a pointer to that row, so every read stays inside one
+/// @ref LinearTableInterpolator::interpolate_signed does, through a pointer to that row, so every read stays inside one
 /// row; the two row values are then blended by the second index's sub-row fraction at Q31, so the result is the
 /// table's units scaled by `2^16` (at most ±2^30 for a table of ±2^14 entries).
 class BilinearTableInterpolator {
@@ -123,8 +123,8 @@ public:
 	/// @param y_bits The width of @p input_y: log2(R − 1) index bits above the fraction.
 	/// @return The blend, at Q16 of the table's units.
 	template <const auto& Table>
-	[[nodiscard, gnu::always_inline]] int32_t interpolateSigned(uint32_t input_x, uint32_t input_y, int32_t x_bits,
-	                                                            int32_t y_bits) const {
+	[[nodiscard, gnu::always_inline]] int32_t interpolate_signed(uint32_t input_x, uint32_t input_y, int32_t x_bits,
+	                                                             int32_t y_bits) const {
 		using TableType = std::remove_cvref_t<decltype(Table)>;
 		static_assert(std::rank_v<TableType> == 2, "the table is a built-in two-dimensional array");
 		static_assert(std::is_same_v<std::remove_all_extents_t<TableType>, int16_t>, "the table holds int16_t");
@@ -132,16 +132,16 @@ public:
 		constexpr std::size_t kWidth = std::extent_v<TableType, 1>;
 		static_assert(std::has_single_bit(kRows - 1) && std::has_single_bit(kWidth - 1),
 		              "each axis is a power of two plus its upper neighbour");
-		constexpr auto row_size_log2 = static_cast<int32_t>(std::bit_width(kWidth - 1) - 1);
-		constexpr auto rows_log2 = static_cast<int32_t>(std::bit_width(kRows - 1) - 1);
+		constexpr auto kRowSizeLog2 = static_cast<int32_t>(std::bit_width(kWidth - 1) - 1);
+		constexpr auto kRowsLog2 = static_cast<int32_t>(std::bit_width(kRows - 1) - 1);
 
-		const uint32_t row = input_y >> (y_bits - rows_log2);
-		const int32_t lower = linear_table_interpolator.interpolateSigned(input_x, x_bits, Table[row], row_size_log2);
+		const uint32_t row = input_y >> (y_bits - kRowsLog2);
+		const int32_t lower = kLinearTableInterpolator.interpolate_signed(input_x, x_bits, Table[row], kRowSizeLog2);
 		const int32_t upper =
-		    linear_table_interpolator.interpolateSigned(input_x, x_bits, Table[row + 1], row_size_log2);
+		    kLinearTableInterpolator.interpolate_signed(input_x, x_bits, Table[row + 1], kRowSizeLog2);
 
 		// The sub-row fraction at Q31: the bits of `input_y` below the row index.
-		const int32_t shift = 31 + rows_log2 - y_bits;
+		const int32_t shift = 31 + kRowsLog2 - y_bits;
 		const uint32_t toward_upper = (shift >= 0 ? (input_y << shift) : (input_y >> -shift)) & 2147483647u;
 		const uint32_t toward_lower = 2147483647u - toward_upper;
 		return multiply_32x32_rshift32(lower, static_cast<int32_t>(toward_lower))
@@ -150,18 +150,18 @@ public:
 };
 
 /// The shared stateless instance.
-inline constexpr BilinearTableInterpolator bilinear_table_interpolator{};
+inline constexpr BilinearTableInterpolator kBilinearTableInterpolator{};
 
-/// @brief Curve lookup into the `tables::decay_small_8` decay curve.
+/// @brief Curve lookup into the `tables::kDecaySmall8` decay curve.
 /// @param input Fixed-point position with @p input_fractional_bits fractional bits, from 0 up to and including
 ///        2^input_fractional_bits, which reads the table's last entry.
 /// @return The interpolated decay value at Q15 (see @ref LinearTableInterpolator::interpolate).
-int32_t getDecay8(uint32_t input, uint8_t input_fractional_bits);
+int32_t get_decay8(uint32_t input, uint8_t input_fractional_bits);
 
-/// @brief Curve lookup into the `tables::decay_small_4` decay curve (a different curvature to @ref getDecay8).
+/// @brief Curve lookup into the `tables::kDecaySmall4` decay curve (a different curvature to @ref get_decay8).
 /// @param input Fixed-point position with @p input_fractional_bits fractional bits, from 0 up to and including
 ///        2^input_fractional_bits, which reads the table's last entry.
 /// @return The interpolated decay value at Q15 (see @ref LinearTableInterpolator::interpolate).
-int32_t getDecay4(uint32_t input, uint8_t input_fractional_bits);
+int32_t get_decay4(uint32_t input, uint8_t input_fractional_bits);
 
 } // namespace deluge::dsp::fixed

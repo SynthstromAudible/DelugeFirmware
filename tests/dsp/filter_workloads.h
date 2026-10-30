@@ -776,10 +776,10 @@ public:
 			}
 			result.gain = set_.configure(s.gain, s.low, s.low_slot, s.high, s.high_slot, s.route);
 			if (workload_.stereo) {
-				set_.renderStereo(out, Family::filter_scratch(fade, parallel));
+				set_.render_stereo(out, Family::filter_scratch(fade, parallel));
 			}
 			else {
-				set_.renderMono(out, Family::filter_scratch(fade, parallel));
+				set_.render_mono(out, Family::filter_scratch(fade, parallel));
 			}
 			break;
 		}
@@ -838,10 +838,10 @@ private:
 	template <typename Filter>
 	void render(Filter& filter, std::span<q31> block, std::span<q31> fade) {
 		if (workload_.stereo) {
-			filter.renderStereo(block, fade);
+			filter.render_stereo(block, fade);
 		}
 		else {
-			filter.renderMono(block, fade);
+			filter.render_mono(block, fade);
 		}
 	}
 

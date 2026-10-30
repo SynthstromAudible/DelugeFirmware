@@ -63,7 +63,7 @@ void RmsFeedbackCompressor::configure(const CompressorKnobs& knobs) {
 	dsp_.configure(settings());
 }
 
-void RmsFeedbackCompressor::setBaseGain(float base_gain) {
+void RmsFeedbackCompressor::set_base_gain(float base_gain) {
 	base_gain_ = base_gain;
 	dsp_.configure(settings());
 }
@@ -79,7 +79,7 @@ void RmsFeedbackCompressor::render(std::span<StereoSample> block, q31 volume_l, 
 		// The first frame interpolates against the block's own start rather than against silence.
 		dsp_.on<&Compressor::seed>(block.front());
 	}
-	dsp_.renderBlock(block, block);
+	dsp_.render_block(block, block);
 	// The level the next block's gain follows.
 	dsp_.on<&Compressor::finish_level>();
 }

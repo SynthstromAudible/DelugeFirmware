@@ -40,17 +40,17 @@ describe compressor("an owner's compressor on the dsp-next compressor", ${
 	it("takes the state's time constants and threshold", _ {
 		Compressor c;
 		c.configure(kState);
-		expect(c.dsp().attackMs()).to_equal(compressor_attack_ms(1 << 30));
-		expect(c.dsp().releaseMs()).to_equal(compressor_release_ms(3 << 28));
+		expect(c.dsp().attack_ms()).to_equal(compressor_attack_ms(1 << 30));
+		expect(c.dsp().release_ms()).to_equal(compressor_release_ms(3 << 28));
 		expect(c.dsp().threshold()).to_equal(5 << 26);
 	});
 	it("leaves a configured compressor unchanged on an equal state", _ {
 		Compressor c;
 		c.configure(kState);
-		c.dsp().setThreshold(1 << 29); // an owner's threshold param, set after configure
+		c.dsp().set_threshold(1 << 29); // an owner's threshold param, set after configure
 		c.configure(kState);
-		expect(c.dsp().attackMs()).to_equal(compressor_attack_ms(1 << 30));
-		expect(c.dsp().releaseMs()).to_equal(compressor_release_ms(3 << 28));
+		expect(c.dsp().attack_ms()).to_equal(compressor_attack_ms(1 << 30));
+		expect(c.dsp().release_ms()).to_equal(compressor_release_ms(3 << 28));
 		expect(c.dsp().threshold()).to_equal(1 << 29);
 	});
 	it("follows a changed attack", _ {
@@ -59,9 +59,9 @@ describe compressor("an owner's compressor on the dsp-next compressor", ${
 		CompressorState faster = kState;
 		faster.attack = 1 << 26;
 		c.configure(faster);
-		expect(c.dsp().attackMs()).to_equal(compressor_attack_ms(1 << 26));
-		expect(c.dsp().attackMs()).not_().to_equal(compressor_attack_ms(1 << 30));
-		expect(c.dsp().releaseMs()).to_equal(compressor_release_ms(3 << 28));
+		expect(c.dsp().attack_ms()).to_equal(compressor_attack_ms(1 << 26));
+		expect(c.dsp().attack_ms()).not_().to_equal(compressor_attack_ms(1 << 30));
+		expect(c.dsp().release_ms()).to_equal(compressor_release_ms(3 << 28));
 	});
 });
 

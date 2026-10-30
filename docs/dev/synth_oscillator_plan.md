@@ -13,7 +13,7 @@ breaking the rendering out of the `OscType` megaswitch and **separating the VCA
 
 `Oscillator::renderOsc` (`dsp/oscillators/oscillator.cpp`, ~480 lines) is one
 function switching on `OscType`, interleaving five concerns in nested branches:
-1. **band-limit table selection** (`getTableNumber` → `sawTables[n]` etc.),
+1. **band-limit table selection** (`get_table_number` → `sawTables[n]` etc.),
 2. **crude-vs-antialiased** choice, gated on `AudioEngine::cpuDireness`,
 3. **osc sync** (`renderOscSync` crossover), 4. **pulse width**, and
 5. **amplitude (VCA)**.
@@ -94,7 +94,7 @@ sine owns `sineWaveDiff`):
 
 | Kernel | LUT(s) | crude path |
 |---|---|---|
-| `saw` | `sawTables[]` (`sawWave215…1`) | phase ramp (`phase >> 1`) |
+| `saw` | `sawTables[]` (`kSawWave215…1`) | phase ramp (`phase >> 1`) |
 | `square` | `squareTables[]` | `getSquare`/`getSquareSmall`, + pulse-width variant |
 | `triangle` | `triangleWaveAntiAliasing*` | `getTriangleSmall` |
 | `analog_saw` | `analogSawTables[]` (mystery-synth A/B) | falls back to `saw` |
@@ -105,7 +105,7 @@ Shared machinery, factored **out** of the megaswitch into reusable pieces (not
 per-type branches):
 - the vector wave-render core (`waveRenderingFunctionGeneral`/`Pulse`, the
   `renderOscSync` crossover) relocated from `processing/` into `dsp-next`;
-- `bandLimit` — `getTableNumber` + table pick + the crude/antialiased decision,
+- `bandLimit` — `get_table_number` + table pick + the crude/antialiased decision,
   taking an **injected quality** input (today `AudioEngine::cpuDireness`);
 - `pulseWidth` setup; the osc-sync wrapper;
 - the **VCA+mix stage** (the one amplitude application).
@@ -124,7 +124,7 @@ them into composable, mostly-pure stages over `std::span` blocks:
 | Concern | Today (tangled) | Clean component (stateless L0) |
 |---|---|---|
 | wave generation | per-`OscType` arms + `waveRenderingFunction*` + `basic_waves` | one **kernel per wave**, each owning its LUT(s): `phase → sample(s)` |
-| band-limiting / quality | `getTableNumber` + scattered `cpuDireness` checks | `bandLimit(pitch, quality) → band`, pure, quality injected |
+| band-limiting / quality | `get_table_number` + scattered `cpuDireness` checks | `bandLimit(pitch, quality) → band`, pure, quality injected |
 | hard sync | `renderOscSync` + the `storageFunction` overshoot loop | a generic **sync combinator** over a block-fill (below) |
 | pulse width | `doPulseWave`/`doOscSync=true`/dual-square inline | a PW transform (largely *reuses* sync) |
 | amplitude / VCA | fused `vqdmulhq`/MAC in every loop | the separate **VCA+mix stage** |

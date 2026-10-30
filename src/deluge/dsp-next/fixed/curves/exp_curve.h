@@ -52,8 +52,8 @@ alignas(16) inline constexpr std::array<uint16_t, 257> kExpTable = {
 [[nodiscard]] inline int32_t exp_curve(int32_t preset, int32_t adjustment) {
 	const int32_t octaves = (adjustment >> 26) + 2;
 	const int32_t within_octave = multiply_32x32_rshift32(
-	    preset, linear_table_interpolator.interpolate(adjustment & 67108863, 26, kExpTable.data()));
-	return increaseMagnitudeAndSaturate(within_octave, octaves);
+	    preset, kLinearTableInterpolator.interpolate(adjustment & 67108863, 26, kExpTable.data()));
+	return increase_magnitude_and_saturate(within_octave, octaves);
 }
 
 } // namespace deluge::dsp::fixed

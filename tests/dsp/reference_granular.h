@@ -267,8 +267,8 @@ private:
 		if (!grainInitialized && bufferWriteIndex >= 65536) {
 			grainInitialized = true;
 		}
-		*postFXVolume = multiply_32x32_rshift32(*postFXVolume, ONE_OVER_SQRT2_Q31) << 1; // Divide by sqrt(2)
-		                                                                                 // Shift
+		*postFXVolume = multiply_32x32_rshift32(*postFXVolume, kOneOverSqrt2Q31) << 1; // Divide by sqrt(2)
+		                                                                               // Shift
 		_grainShift = 44 * 300; // this is where we should tempo sync ( it's kSampleRate / 1000 * 300 for a 300ms base
 		                        // delay amount);
 		// grain size depends on both density and rate, check if either has changed
@@ -292,7 +292,7 @@ private:
 			_grainSize = 1760 + q31_mult(_grainRate << 3, density);
 		}
 		// this is only 2 cycles so there's no point in checking
-		_pitchRandomness = toPositive(pitchRandomness);
+		_pitchRandomness = to_positive(pitchRandomness);
 		// Volume
 		if (_mixKnobPos != grainMix) {
 			_mixKnobPos = grainMix;

@@ -33,12 +33,12 @@ namespace deluge::dsp::fixed {
 /// @brief Tanh saturation, anti-aliased: each output is read from @ref kTanhTable between this sample's position on
 /// the curve and the previous sample's, so a jump between samples is smoothed rather than aliased.
 /// @details A sample x (Q31) at drive d sits at the position p = sat(x · 2^d) + @ref kTanhCentre, unsigned across the
-/// table's 32 bits, where sat saturates to q31 (`lshiftAndSaturateUnknown`). A step reads the table at (p, p_prev),
+/// table's 32 bits, where sat saturates to q31 (`lshift_and_saturate_unknown`). A step reads the table at (p, p_prev),
 /// sets p_prev ← p, and shifts the result down by d + 1 (@ref kLevelShift): the output's level falls as the drive
 /// rises, and callers scale it back as their home needs.
 ///
 /// **The drive's saturation.** sat saturates x to 32 − d bits before the shift for drives 1 to 20, and to 12 bits for
-/// drive 0 and for drives past 20 (`lshiftAndSaturateUnknown`'s narrowest width, which a zero shift also takes). So
+/// drive 0 and for drives past 20 (`lshift_and_saturate_unknown`'s narrowest width, which a zero shift also takes). So
 /// at drive 0 every position lies within 2^11 of the centre and the curve barely moves; past 20 the shift wraps. The
 /// callers' drives are 1 (the high-pass ladder), 3 (the compressor), and 3 to 20 (the saturation effect).
 ///
@@ -62,9 +62,9 @@ struct AntialiasedTanh {
 	};
 
 	/// @brief What a step reads: the drive, and the bounds its saturation clamps the input to before the shift.
-	/// @details The bounds are those of `lshiftAndSaturateUnknown`'s width, so a step clamps with two compares rather
-	/// than dispatching on the width per sample. The defaults are drive 0's: 12 bits. Build them with coefficients(),
-	/// which derives the bounds from the drive: setting the drive alone leaves drive 0's bounds.
+	/// @details The bounds are those of `lshift_and_saturate_unknown`'s width, so a step clamps with two compares
+	/// rather than dispatching on the width per sample. The defaults are drive 0's: 12 bits. Build them with
+	/// coefficients(), which derives the bounds from the drive: setting the drive alone leaves drive 0's bounds.
 	struct Coefficients {
 		uint32_t drive = 0;     ///< The drive as a power of two. 0 to 30.
 		int32_t floor = -2048;  ///< The lowest input kept before the shift, Q31: −2^(width − 1).
@@ -92,7 +92,7 @@ struct AntialiasedTanh {
 	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& /*b*/, State& s,
 	                                                     q31 x) {
 		const uint32_t position = position_of(c, x);
-		const q31 out = bilinear_table_interpolator.interpolateSigned<kTanhTable>(position, s.position, kPositionBits,
+		const q31 out = kBilinearTableInterpolator.interpolate_signed<kTanhTable>(position, s.position, kPositionBits,
 		                                                                          kPositionBits)
 		                >> (c.drive + kLevelShift);
 		s.position = position;

@@ -36,7 +36,7 @@ struct BlockMixer {
 	virtual ~BlockMixer() = default;
 	/// @brief Combine `output.size()` samples of @p input_a and @p input_b into @p output, which may be the same
 	/// buffer as either input.
-	virtual void renderBlock(Signal<T> input_a, Signal<T> input_b, Buffer<T> output) = 0;
+	virtual void render_block(Signal<T> input_a, Signal<T> input_b, Buffer<T> output) = 0;
 };
 
 namespace detail {
@@ -61,7 +61,7 @@ concept scalar_mixer_render = requires(D d, T a, T b) {
 
 } // namespace detail
 
-/// @brief CRTP mixin: builds a mixer's `renderBlock` from its `render(a, b)`.
+/// @brief CRTP mixin: builds a mixer's `render_block` from its `render(a, b)`.
 /// @tparam Derived the component, which defines `render(a, b)`.
 /// @tparam T the sample type of the blocks (`q31`, `f32` or @ref StereoSample).
 /// @details Non-virtual: the mixin adds no vptr and no state. The path is chosen from the signature of
@@ -86,7 +86,7 @@ struct Mixer {
 
 	/// @brief Combine `output.size()` samples of @p input_a and @p input_b into @p output, every one of them.
 	/// @param input_a,input_b at least `output.size()` samples each; either may be the same buffer as @p output.
-	void renderBlock(Signal<T> input_a, Signal<T> input_b, Buffer<T> output) {
+	void render_block(Signal<T> input_a, Signal<T> input_b, Buffer<T> output) {
 		auto& self = static_cast<Derived&>(*this);
 		const std::size_t n = output.size();
 		if constexpr (detail::simd_mixer_render<Derived, T>) {
@@ -104,7 +104,8 @@ struct Mixer {
 			const q31* b = detail::interleaved(input_b);
 			q31* out = detail::interleaved(output);
 			argon::vectorize::for_each_interleaved<q31, 2>(size, [&] [[gnu::always_inline]] (auto step) {
-				const StereoVector frames = self.render(detail::toStereo(step.Load(a)), detail::toStereo(step.Load(b)));
+				const StereoVector frames =
+				    self.render(detail::to_stereo(step.Load(a)), detail::to_stereo(step.Load(b)));
 				step.Store(out, {frames.l, frames.r});
 			});
 		}

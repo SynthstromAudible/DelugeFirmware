@@ -1634,7 +1634,7 @@ int32_t Sample::getMaxPeakFromZero() {
 	int32_t halfValue = std::abs(getFoundValueCentrePoint() >> 1) + (maxValueFound >> 2) - (minValueFound >> 2);
 
 	// Does the <<1 and saturates it - this was necessary, it was overflowing sometimes - I think when the audio clipped
-	return lshiftAndSaturate<1>(halfValue);
+	return lshift_and_saturate<1>(halfValue);
 }
 
 int32_t Sample::getFoundValueCentrePoint() {

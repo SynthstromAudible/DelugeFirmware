@@ -192,14 +192,14 @@ struct LowPassLadder {
 	/// held below 39056384, and its resonance is limited. Its gain is 0.8 of the gain going in.
 	[[nodiscard]] [[gnu::always_inline]] static Coefficients coefficients(const Settings& s) {
 		Coefficients c{};
-		c.morph = lshiftAndSaturate<2>(s.config.morph);
+		c.morph = lshift_and_saturate<2>(s.config.morph);
 		q31 frequency = s.config.frequency;
 		bool oversample = false;
 		Ladder ladder = Ladder::T12;
 
 		if (s.mode == LowPassLadderMode::TRANSISTOR_24DB_DRIVE) {
-			const int32_t resonance = ONE_Q31 - (s.config.resonance << 2);
-			c.processed_resonance = ONE_Q31 - resonance;
+			const int32_t resonance = kOneQ31 - (s.config.resonance << 2);
+			c.processed_resonance = kOneQ31 - resonance;
 
 			int32_t log_frequency = quick_log(static_cast<uint32_t>(frequency));
 			log_frequency = std::min(log_frequency, int32_t{63} << 24);
@@ -207,7 +207,7 @@ struct LowPassLadder {
 			if (s.config.allow_oversampling && (log_frequency >> 24) > 51) {
 				constexpr const int16_t* kThresholds =
 				    low_pass_ladder_detail::kResonanceThresholdsForOversampling.data();
-				const int32_t threshold = linear_table_interpolator.interpolateSigned(
+				const int32_t threshold = kLinearTableInterpolator.interpolate_signed(
 				    static_cast<uint32_t>(log_frequency), 30, kThresholds, 6);
 				oversample = c.processed_resonance > threshold;
 			}
@@ -219,17 +219,17 @@ struct LowPassLadder {
 				frequency = std::min(int32_t{39056384}, frequency);
 				constexpr const int16_t* kLimits = low_pass_ladder_detail::kResonanceLimits.data();
 				const int32_t limit =
-				    linear_table_interpolator.interpolateSigned(static_cast<uint32_t>(log_frequency), 30, kLimits, 6);
+				    kLinearTableInterpolator.interpolate_signed(static_cast<uint32_t>(log_frequency), 30, kLimits, 6);
 				c.processed_resonance = std::min(c.processed_resonance, limit);
 			}
 			ladder = oversample ? Ladder::DRIVE_OVERSAMPLED : Ladder::DRIVE;
 		}
 		else {
-			constexpr int32_t kHowMuchToKeep = ONE_Q31 - 33;
+			constexpr int32_t kHowMuchToKeep = kOneQ31 - 33;
 			constexpr int32_t kResonanceUpperLimit = 510000000; // above this it feeds back lots
-			int32_t resonance = ONE_Q31 - (std::min(s.config.resonance, kResonanceUpperLimit) << 2);
+			int32_t resonance = kOneQ31 - (std::min(s.config.resonance, kResonanceUpperLimit) << 2);
 			resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
-			c.processed_resonance = ONE_Q31 - resonance;
+			c.processed_resonance = kOneQ31 - resonance;
 			c.processed_resonance = multiply_32x32_rshift32_rounded(c.processed_resonance, kHowMuchToKeep) << 1;
 			ladder = s.mode == LowPassLadderMode::TRANSISTOR_12DB ? Ladder::T12 : Ladder::T24;
 		}

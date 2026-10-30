@@ -31,15 +31,15 @@
 // signed 31 fractional bits (e.g. one would be 1<<31 but can't be represented)
 using q31_t = int32_t;
 
-constexpr q31_t ONE_Q31{2147483647};
-constexpr float ONE_Q31f{2147483647.0f};
-constexpr q31_t ONE_Q15{65536};
-constexpr q31_t NEGATIVE_ONE_Q31{-2147483648};
-constexpr q31_t ONE_OVER_SQRT2_Q31{1518500250};
+constexpr q31_t kOneQ31{2147483647};
+constexpr float kOneQ31f{2147483647.0f};
+constexpr q31_t kOneQ15{65536};
+constexpr q31_t kNegativeOneQ31{-2147483648};
+constexpr q31_t kOneOverSqrt2Q31{1518500250};
 
 // This converts the range -2^31 to 2^31 to the range 0-2^31
-static inline q31_t toPositive(q31_t a) __attribute__((always_inline, unused));
-static inline q31_t toPositive(q31_t a) {
+static inline q31_t to_positive(q31_t a) __attribute__((always_inline, unused));
+static inline q31_t to_positive(q31_t a) {
 	return ((a / 2) + (1073741824));
 }
 
@@ -72,8 +72,8 @@ static inline q31_t q31_mult(q31_t a, q31_t b) {
 }
 
 // This multiplies a number in q31 by a number in q32 (e.g. unsigned, 2^32 representing one), returning a scaled value a
-static inline q31_t q31tRescale(q31_t a, uint32_t proportion) __attribute__((always_inline, unused));
-static inline q31_t q31tRescale(q31_t a, uint32_t proportion) {
+static inline q31_t q31t_rescale(q31_t a, uint32_t proportion) __attribute__((always_inline, unused));
+static inline q31_t q31t_rescale(q31_t a, uint32_t proportion) {
 	q31_t out;
 	asm("smmul %0, %1, %2" : "=r"(out) : "r"(a), "r"(proportion));
 	return out;
@@ -168,7 +168,7 @@ static inline q31_t q31_mult(q31_t a, q31_t b) {
 
 // This multiplies a number in q31 by a number in q32, returning a scaled value. The ARM path is `smmul`
 // (a signed multiply) even though proportion is unsigned, so match that by treating proportion as signed.
-static inline q31_t q31tRescale(q31_t a, uint32_t proportion) {
+static inline q31_t q31t_rescale(q31_t a, uint32_t proportion) {
 	return multiply_32x32_rshift32(a, (q31_t)proportion);
 }
 
@@ -307,19 +307,19 @@ static inline float q31_to_float(q31_t value) {
 }
 
 template <uint8_t lshift>
-[[gnu::always_inline]] inline int32_t lshiftAndSaturate(int32_t val) {
+[[gnu::always_inline]] inline int32_t lshift_and_saturate(int32_t val) {
 	return signed_saturate<32 - lshift>(val) << lshift;
 }
 
 // lshift must be greater than 0! Not 0
-[[gnu::always_inline]] inline int32_t lshiftAndSaturateUnknown(int32_t val, uint8_t lshift) {
+[[gnu::always_inline]] inline int32_t lshift_and_saturate_unknown(int32_t val, uint8_t lshift) {
 	return signed_saturate_operand_unknown(val, 32 - lshift) << lshift;
 }
 
 // Scale `number` by 2^magnitude (negative magnitude = right-shift), saturating on positive magnitude.
-[[gnu::always_inline]] inline int32_t increaseMagnitudeAndSaturate(int32_t number, int32_t magnitude) {
+[[gnu::always_inline]] inline int32_t increase_magnitude_and_saturate(int32_t number, int32_t magnitude) {
 	if (magnitude > 0) {
-		return lshiftAndSaturateUnknown(number, magnitude);
+		return lshift_and_saturate_unknown(number, magnitude);
 	}
 	return number >> (-magnitude);
 }

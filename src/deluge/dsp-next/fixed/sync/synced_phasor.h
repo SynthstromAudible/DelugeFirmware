@@ -67,9 +67,9 @@ public:
 	/// Set the per-block pitch: the audible increment and the master (resetter) increment, recomputing the
 	/// resetter reciprocal. Keeps both accumulated phases. (Two increments because a hard-synced oscillator has
 	/// two pitches — its own and the master's.)
-	void setIncrement(uint32_t phasor_increment, uint32_t resetter_increment) {
-		phasor_.setIncrement(phasor_increment);
-		resetter_.setIncrement(resetter_increment);
+	void set_increment(uint32_t phasor_increment, uint32_t resetter_increment) {
+		phasor_.set_increment(phasor_increment);
+		resetter_.set_increment(resetter_increment);
 		resetter_divide_ = resetter_reciprocal(resetter_increment);
 	}
 };

@@ -20,7 +20,7 @@
 #include "model/sample/sample.h"
 #include "util/lookuptables/lookuptables.h"
 
-using deluge::dsp::fixed::linear_table_interpolator;
+using deluge::dsp::fixed::kLinearTableInterpolator;
 
 SampleHolderForClip::SampleHolderForClip() {
 	transpose = 0;
@@ -52,8 +52,8 @@ void SampleHolderForClip::recalculateNeutralPhaseIncrement() {
 		}
 
 		if (cents) {
-			int32_t multiplier = linear_table_interpolator.interpolate(2147483648u + (int32_t)cents * 42949672, 32,
-			                                                           centAdjustTableSmall);
+			int32_t multiplier =
+			    kLinearTableInterpolator.interpolate(2147483648u + (int32_t)cents * 42949672, 32, centAdjustTableSmall);
 			neutralPhaseIncrement = multiply_32x32_rshift32(neutralPhaseIncrement, multiplier) << 2;
 		}
 	}

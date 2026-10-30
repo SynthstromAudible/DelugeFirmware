@@ -50,7 +50,7 @@ uint32_t incrementFor(double hz) {
 
 /// Render @p total samples in blocks cycling through @p blocks, from the same starting phases each time
 std::vector<int32_t> render(uint32_t inc, int32_t spread, int32_t saws, int32_t total, std::vector<int32_t> blocks,
-                            Supersaw::SidePhases sides = Supersaw::sidePhasesFrom(kStartPhase),
+                            Supersaw::SidePhases sides = Supersaw::side_phases_from(kStartPhase),
                             uint32_t centre = kStartPhase) {
 	std::vector<int32_t> out(total);
 	std::vector<int32_t> block(256 + 4);
@@ -66,13 +66,13 @@ std::vector<int32_t> render(uint32_t inc, int32_t spread, int32_t saws, int32_t 
 /// The same supersaw as a straightforward per-sample polyBLEP in double precision, with the kernel's increments and
 /// gains
 std::vector<double> reference(uint32_t inc, int32_t spread, int32_t saws, int32_t total,
-                              Supersaw::SidePhases sides = Supersaw::sidePhasesFrom(kStartPhase),
+                              Supersaw::SidePhases sides = Supersaw::side_phases_from(kStartPhase),
                               uint32_t centre = kStartPhase) {
 	float x =
 	    static_cast<float>(std::clamp(spread, kSpreadMin, kSpreadMax) + (1 << 30)) * (internal::kMaxSpread * 0x1p-31f);
 	float detune = x * x;
-	double gc = internal::centreMix(x);
-	double gs = internal::sideMix(x);
+	double gc = internal::centre_mix(x);
+	double gs = internal::side_mix(x);
 	double norm = 1 / std::sqrt(gc * gc + (saws - 1) * gs * gs);
 	gc *= norm;
 	gs *= norm;
@@ -185,7 +185,7 @@ describe supersaw("the dsp-next supersaw", ${
 			const uint32_t inc = incrementFor(1760);
 			std::vector<int32_t> naive(2048);
 			uint32_t centre = kStartPhase;
-			auto sides = Supersaw::sidePhasesFrom(kStartPhase);
+			auto sides = Supersaw::side_phases_from(kStartPhase);
 			for (int32_t pos = 0; pos < 2048; pos += 128) {
 				Supersaw::render(Buffer{naive.data() + pos, 128}, inc, kSpreadMin, 7, centre, sides, false);
 			}
@@ -194,19 +194,19 @@ describe supersaw("the dsp-next supersaw", ${
 		});
 
 		it("takes saws away as pulse width goes up, either way round", _ {
-			expect(Supersaw::numSawsFromPulseWidth(0)).to_equal(7);
-			expect(Supersaw::numSawsFromPulseWidth(1u << 29)).to_equal(6);
-			expect(Supersaw::numSawsFromPulseWidth(1u << 30)).to_equal(4);
-			expect(Supersaw::numSawsFromPulseWidth(0x7FFFFFFFu)).to_equal(1);
-			expect(Supersaw::numSawsFromPulseWidth(0x80000000u)).to_equal(1);
-			expect(Supersaw::numSawsFromPulseWidth(static_cast<uint32_t>(-(1 << 30)))).to_equal(4);
+			expect(Supersaw::num_saws_from_pulse_width(0)).to_equal(7);
+			expect(Supersaw::num_saws_from_pulse_width(1u << 29)).to_equal(6);
+			expect(Supersaw::num_saws_from_pulse_width(1u << 30)).to_equal(4);
+			expect(Supersaw::num_saws_from_pulse_width(0x7FFFFFFFu)).to_equal(1);
+			expect(Supersaw::num_saws_from_pulse_width(0x80000000u)).to_equal(1);
+			expect(Supersaw::num_saws_from_pulse_width(static_cast<uint32_t>(-(1 << 30)))).to_equal(4);
 		});
 	});
 
 	context("SupersawSource", _ {
 		it("renders the raw kernel standalone, keeping its phases across blocks", _ {
 			const uint32_t inc = incrementFor(440);
-			SupersawSource source{kStartPhase, Supersaw::sidePhasesFrom(kStartPhase)};
+			SupersawSource source{kStartPhase, Supersaw::side_phases_from(kStartPhase)};
 			std::vector<int32_t> got(1024);
 			std::vector<int32_t> scratch(128);
 			for (int32_t pos = 0; pos < 1024; pos += 128) {
@@ -219,8 +219,8 @@ describe supersaw("the dsp-next supersaw", ${
 		it("mixes in through the VCA at four times the amplitude, as a quarter-level wave", _ {
 			const uint32_t inc = incrementFor(440);
 			const Ramp amplitude{1 << 26, 0};
-			SupersawSource raw{kStartPhase, Supersaw::sidePhasesFrom(kStartPhase)};
-			SupersawSource mixed{kStartPhase, Supersaw::sidePhasesFrom(kStartPhase)};
+			SupersawSource raw{kStartPhase, Supersaw::side_phases_from(kStartPhase)};
+			SupersawSource mixed{kStartPhase, Supersaw::side_phases_from(kStartPhase)};
 			std::vector<int32_t> wave(128);
 			std::vector<int32_t> out(128, 1000);
 			std::vector<int32_t> scratch(128);
@@ -238,8 +238,8 @@ describe supersaw("the dsp-next supersaw", ${
 			std::vector<int32_t> first(128);
 			std::vector<int32_t> second(128);
 			std::vector<int32_t> scratch(128);
-			SupersawSource a{0, Supersaw::sidePhasesFrom(0)};
-			SupersawSource b{0, Supersaw::sidePhasesFrom(0)};
+			SupersawSource a{0, Supersaw::side_phases_from(0)};
+			SupersawSource b{0, Supersaw::side_phases_from(0)};
 			a.renderInto(controls(false), inc, 0, 0, Buffer{first}, Buffer{scratch});
 			b.renderInto(controls(false), inc, 0, 0, Buffer{second}, Buffer{scratch});
 			expect(first == second).to_be_true();

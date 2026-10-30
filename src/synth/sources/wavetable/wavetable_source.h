@@ -43,15 +43,15 @@ class WavetableSource : public OscillatorSource {
 	int32_t wave_index_increment_ = 0;
 
 public:
-	/// @param seed the engine's phase state (increment set per block via @ref setIncrement).
+	/// @param seed the engine's phase state (increment set per block via @ref set_increment).
 	explicit WavetableSource(deluge::dsp::Phasor seed) : phasor_{seed} {}
 
 	/// The current render phase (UQ0.32). Persists across blocks — Voice reads it for osc-sync / skip.
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 	/// Jump the phase (a skipped source still advances, or an external reseed). Leaves the increment.
 	void seek(uint32_t phase) { phasor_.seek(phase); }
-	/// Set the per-block pitch (UQ0.32). Voice calls this each block before @ref renderBlock.
-	void setIncrement(uint32_t increment) { phasor_.setIncrement(increment); }
+	/// Set the per-block pitch (UQ0.32). Voice calls this each block before @ref render_block.
+	void set_increment(uint32_t increment) { phasor_.set_increment(increment); }
 
 	/// The wavetable band-data **view** to render (built app-side from the source's loaded `WaveTable`) — set per
 	/// block by Voice. The storage seam is now this view, not a `WaveTable` pointer, so the source is App-free.
@@ -63,8 +63,8 @@ public:
 		wave_index_increment_ = increment;
 	}
 
-	void renderBlock(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-	                 deluge::dsp::fixed::Buffer scratch);
+	void render_block(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
+	                  deluge::dsp::fixed::Buffer scratch);
 
 	/// Render one block into @p output (sets the wavetable + per-block pitch + wave-index/morph inputs first), VCA
 	/// per @p controls. The public block-render API used by @ref RingModEngine (raw render) and by
@@ -73,9 +73,9 @@ public:
 	                int32_t lastWaveIndex, int32_t waveIndexIncrement, uint32_t phaseIncrement,
 	                deluge::dsp::fixed::Buffer output, deluge::dsp::fixed::Buffer scratch) {
 		setWaveData(table);
-		setIncrement(phaseIncrement);
+		set_increment(phaseIncrement);
 		setWaveIndex(lastWaveIndex, waveIndexIncrement);
-		renderBlock(controls, output, scratch);
+		render_block(controls, output, scratch);
 	}
 
 protected:

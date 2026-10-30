@@ -169,7 +169,7 @@ PitchScan::ReadOutcome PitchScan::stepRead() {
 		}
 
 		// Do hanning window
-		const int32_t hanningValue = deluge::dsp::fixed::linear_table_interpolator.interpolateSigned(
+		const int32_t hanningValue = deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(
 		    writeIndex_, kPitchDetectWindowSizeMagnitude, hanningWindow, 8);
 		buffer_[writeIndex_] = multiply_32x32_rshift32_rounded(thisValue_, hanningValue) >> 12;
 		writeIndex_++;

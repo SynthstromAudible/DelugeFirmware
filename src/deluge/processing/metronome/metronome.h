@@ -39,7 +39,7 @@ public:
 
 	/// @brief Adds the click to @p buffer while it sounds; does nothing otherwise.
 	/// @param buffer The render, added to in place.
-	/// @param volume_post_fx The song's post-FX volume, Q31 (ONE_Q31 without a song).
+	/// @param volume_post_fx The song's post-FX volume, Q31 (kOneQ31 without a song).
 	void render(std::span<deluge::dsp::StereoSample> buffer, int32_t volume_post_fx);
 
 	/// @brief Sets the volume from the defaults menu's value: (e^(v/200) − 1) × 2^27.

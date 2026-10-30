@@ -272,7 +272,7 @@ struct Buffer {
 
 	/// @return Whether a buffer was made: not when the ideal size is @p fail_if_this_size.
 	bool init(uint32_t rate, uint32_t fail_if_this_size = 0) {
-		const auto [size, clamped] = DelayTape::idealSizeForRate(rate);
+		const auto [size, clamped] = DelayTape::ideal_size_for_rate(rate);
 		if (static_cast<uint32_t>(size) == fail_if_this_size) {
 			return false;
 		}
@@ -283,7 +283,7 @@ struct Buffer {
 		}
 		tape = DelayTape{std::span{storage}, static_cast<size_t>(size), rate};
 		if (clamped) {
-			tape.makeNativeRatePrecise();
+			tape.make_native_rate_precise();
 		}
 		return true;
 	}
@@ -296,7 +296,7 @@ public:
 	explicit Owner(int32_t rate) {
 		std::ignore = secondary_.init(rate);
 		size_left_ = static_cast<int32_t>(secondary_.tape.size());
-		processor_.resetHighPass();
+		processor_.reset_high_pass();
 	}
 
 	DelayBlockResult block(std::span<StereoSample> buffer, const Settings& s) {
@@ -310,21 +310,21 @@ public:
 		else {
 			count_ += buffer.size();
 		}
-		if (!secondary.isActive()) {
-			if (primary.resampling() || s.rate != static_cast<int32_t>(primary.nativeRate())) {
+		if (!secondary.is_active()) {
+			if (primary.resampling() || s.rate != static_cast<int32_t>(primary.native_rate())) {
 				if (count_ >= (44100 >> 3)) {
 					initializeSecondary(s.rate, true);
 				}
-				else if (static_cast<uint32_t>(s.rate) >= (primary.nativeRate() << 1)) {
+				else if (static_cast<uint32_t>(s.rate) >= (primary.native_rate() << 1)) {
 					initializeSecondary(s.rate, false);
 				}
-				else if (static_cast<uint32_t>(s.rate) < primary.nativeRate() >> 1) {
+				else if (static_cast<uint32_t>(s.rate) < primary.native_rate() >> 1) {
 					initializeSecondary(s.rate >> 1, false);
 				}
 			}
 		}
 
-		DelayTape* const growing = secondary.isActive() ? &secondary : nullptr;
+		DelayTape* const growing = secondary.is_active() ? &secondary : nullptr;
 		const DelayBlockResult result = processor_.process(buffer, &primary, growing,
 		                                                   {.rate = s.rate,
 		                                                    .feedback = s.feedback,
@@ -347,18 +347,18 @@ public:
 	[[nodiscard]] int32_t sizeLeft() const { return size_left_; }
 
 private:
-	static int32_t size(const DelayTape& tape) { return tape.isActive() ? static_cast<int32_t>(tape.size()) : 0; }
+	static int32_t size(const DelayTape& tape) { return tape.is_active() ? static_cast<int32_t>(tape.size()) : 0; }
 
 	void initializeSecondary(int32_t rate, bool relative) {
 		if (!secondary_.init(rate, primary_.tape.size())) {
 			return;
 		}
 		if (relative) {
-			primary_.tape.makeNativeRatePreciseRelativeTo(secondary_.tape);
+			primary_.tape.make_native_rate_precise_relative_to(secondary_.tape);
 		}
 		else {
-			primary_.tape.makeNativeRatePrecise();
-			secondary_.tape.makeNativeRatePrecise();
+			primary_.tape.make_native_rate_precise();
+			secondary_.tape.make_native_rate_precise();
 		}
 		size_left_ = static_cast<int32_t>(secondary_.tape.size()) + 5;
 	}
@@ -411,17 +411,17 @@ struct Step {
 };
 
 /// Each block's output digest over @p steps, played by one processor on a native-rate primary tape: a reactivation
-/// calls resetHighPass and plays on a new tape, as the owner does when a delay starts again.
+/// calls reset_high_pass and plays on a new tape, as the owner does when a delay starts again.
 std::vector<uint64_t> runSteps(const std::vector<Step>& steps) {
 	DelayProcessor processor;
-	processor.resetHighPass();
+	processor.reset_high_pass();
 	Buffer primary;
 	std::ignore = primary.init(kNativeRate);
 	std::vector<uint64_t> digests;
 	int32_t k = 0;
 	for (const Step& step : steps) {
 		if (step.reactivate) {
-			processor.resetHighPass();
+			processor.reset_high_pass();
 			primary = {};
 			std::ignore = primary.init(kNativeRate);
 		}

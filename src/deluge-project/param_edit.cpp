@@ -174,7 +174,7 @@ namespace {
 int32_t rshiftRoundSigned(int32_t value, uint32_t rshift) {
 	return (value + (1 << (rshift - 1))) >> rshift; // (Rohan) I never was quite 100% sure of this...
 }
-// Same as the engine's lshiftAndSaturate<1>: clamp to the signed 31-bit range, then <<1 (a saturating doubling). Used
+// Same as the engine's lshift_and_saturate<1>: clamp to the signed 31-bit range, then <<1 (a saturating doubling). Used
 // by copyRegion/pasteRegion for the patch-cable node-range <-> parameter-range conversion.
 int32_t lshiftAndSaturateBy1(int32_t val) {
 	if (val > 1073741823) { // 2^30 - 1

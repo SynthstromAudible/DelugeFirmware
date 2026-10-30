@@ -53,9 +53,9 @@ bool SoundChain::process(std::span<dsp::StereoSample> block, const SoundChainInp
 
 	Compressor& compressor = core_.compressor();
 	compressor.configure(settings.compressor);
-	compressor.dsp().setThreshold(in.compressor_threshold); // a sound's threshold is its param
+	compressor.dsp().set_threshold(in.compressor_threshold); // a sound's threshold is its param
 	if (in.compressor_threshold > 0) {
-		compressor.dsp().renderVolumeNeutral(block, post_fx_volume);
+		compressor.dsp().render_volume_neutral(block, post_fx_volume);
 	}
 	else {
 		compressor.dsp().reset();

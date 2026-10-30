@@ -9,6 +9,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/deps.cmake)
 set(DELUGE_REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/../../..)
 
 FetchContent_MakeAvailable(CppSpec argon)
+deluge_argon_headers_are_system()
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)$")
   set(DELUGE_TEST_NEON_NATIVE ON)
