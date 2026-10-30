@@ -4,7 +4,8 @@
 5020  button Clip up
 6000  button Kit down
 6020  button Kit up
-9000  snapshot kit
+# Starts 2.95 s after the press: the 3 s interpolation-shortcut blink it starts lands within a few ms of 3 s on both firmwares, so the window opens just before it.
+8950  snapshot kit
 9500  pad 17 0 down
 9550  pad 17 0 up
 10500 snapshot drum-selected

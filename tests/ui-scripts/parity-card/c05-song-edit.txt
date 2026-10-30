@@ -9,7 +9,8 @@
 16500 snapshot clip
 17000 pad 3 3 down
 17050 pad 3 3 up
-18000 snapshot note-placed
+# Starts 2.95 s after the press: the 3 s interpolation-shortcut blink it starts lands within a few ms of 3 s on both firmwares, so the window opens just before it.
+17950 snapshot note-placed
 18500 button Back down
 18520 button Back up
 19500 snapshot undone

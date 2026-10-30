@@ -5,7 +5,8 @@
 6000  snapshot clip
 6500  button Load down
 6520  button Load up
-8000  snapshot preset-browser
+# Starts 2.95 s after the press: the 3 s interpolation-shortcut blink it starts lands within a few ms of 3 s on both firmwares, so the window opens just before it.
+7950  snapshot preset-browser
 8500  encoder Select +1
 9500  snapshot preset-next
 10000 encoder Select +2
