@@ -84,51 +84,31 @@ std::string_view text_of(uint16_t string_id, TextScratch& scratch) {
 	return scenes::deluge_profile().text_or_digits(string_id, scratch);
 }
 
-/// @brief The row icon legacy's `renderSubmenuItemTypeForOled` draws for @p node
-///        (`gui/menu_item/menu_item.cpp:69` for the submenu arrow; `Toggle`'s override for the
-///        checkbox).
-///
-/// @par What the `default` arm still owes, measured rather than assumed
-///
-/// **`Kind::Enum`, `Kind::Int`, `Kind::Decimal` and the rest still answer `nullptr`, and legacy
-/// draws the arrow on all of them.** `Submenu::drawSubmenuItemsForOled` calls
-/// `renderSubmenuItemTypeForOled` on *every* visible row (`gui/menu_item/submenu.cpp:117`) and the
-/// base implementation blits `submenuArrowIcon` (`gui/menu_item/menu_item.cpp:69-75`); the only
-/// overrides are `Toggle`'s checkbox (`toggle.cpp:50-57`), `Selection`'s checkbox-if-`isToggle()`
-/// and otherwise-arrow (`selection.cpp:38-56`), and the two `midi/device_definition` items. So a
-/// legacy `Integer`/`Decimal`/`Value` row, and a `Selection` row that is not a toggle, both carry
-/// the arrow and reserve its 14px (`submenu.cpp:109`).
-///
-/// Closing that arm is **not** a one-line change to this `default`, which is why F2 task 8 did not
-/// make it: six `Selection`s override `isToggle()` to true (`arpeggiator/mode.h:100`,
-/// `arpeggiator/include_in_kit_arp.h:88`, `delay/ping_pong.h:30`, `randomizer/randomizer_lock.h:62`,
-/// `runtime_feature/setting.h:45`, `sample/pitch_speed.h:80`) and draw a **checkbox**, so an
-/// unconditional arrow here would trade one divergence for another on whichever of those six is not
-/// a `Kind::Toggle` in the port. It needs that six-item audit first.
-///
-/// Cost of the unconditional version, for whoever picks it up: **about 30 golden panels move --
-/// the author's estimate, not a reproducible measurement.** It was obtained by applying the change,
-/// re-recording under `GFX_GOLDEN_UPDATE=1` and counting the modified files; F2 task 8's reviewer
-/// could not reproduce the number by re-running the suites, because the specs abort at the first
-/// mismatching panel and several have no regeneration mode, so a plain run reports 4 red suites and
-/// 11 failing examples rather than a panel count. The direction is certain; treat the magnitude as
-/// an order of magnitude.
+} // namespace
+
+// `Submenu::drawSubmenuItemsForOled` blits `renderSubmenuItemTypeForOled` on every row
+// (`gui/menu_item/submenu.cpp:117`): the base arrow (`menu_item.cpp:69-75`), `Toggle`'s checkbox (`toggle.cpp:50-57`),
+// `Selection`'s checkbox when `isToggle()` (`selection.cpp:38-56`), and the MIDI device-definition items' own (a
+// `Kind::Custom` here).
 const deluge::gfx::oled::Icon* row_icon(const Node& node, const MenuContext& ctx) {
-	switch (node.kind) {
-	case Kind::Submenu:
-		return &deluge::gfx::oled::icons::submenuArrow;
-	case Kind::Toggle:
+	const auto checkbox = [&] {
 		return bindings::read(node, ctx) != 0 ? &deluge::gfx::oled::icons::checkedBox
 		                                      : &deluge::gfx::oled::icons::uncheckedBox;
+	};
+	switch (node.kind) {
+	case Kind::Toggle:
+		return checkbox();
+	case Kind::Enum:
+		return node.selection_is_toggle ? checkbox() : &deluge::gfx::oled::icons::submenuArrow;
 	case Kind::Custom:
-		// The item decides, exactly as legacy's virtual does; its default is the same arrow the
-		// base `MenuItem` blits. `node.custom` is never null for a `Kind::Custom` node --
-		// `validate.h`'s `NullCustom` rule is what says so.
+		// `node.custom` is never null for a `Kind::Custom` node -- `validate.h`'s `NullCustom` rule.
 		return node.custom->row_icon(ctx);
 	default:
-		return nullptr;
+		return &deluge::gfx::oled::icons::submenuArrow;
 	}
 }
+
+namespace {
 
 /// @brief Render @p value into @p buf as decimal digits.
 /// @return A view over @p buf; never longer than @p n.

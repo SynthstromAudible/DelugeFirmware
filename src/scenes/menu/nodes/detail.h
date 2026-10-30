@@ -71,24 +71,10 @@ constexpr Node with_range(Node n, IntRange r) {
 /// The port of legacy's presentation *subclasses* of `Integer`: `IntegerWithOff` draws 0 as "OFF"
 /// (`gui/menu_item/integer.cpp:41-50`), which is `off_at_zero`.
 ///
-/// @note **Three shipped nodes still owe this, and they are a family sweep rather than a one-liner**
-///       (E3 task 8 review, Important 2). Legacy has five `IntegerWithOff` subclasses; E3 task 8
-///       ports two of them *with* `off_at_zero` (`nodes::device_default_velocity_to_level` from
-///       `midi/default_velocity_to_level.h:24`, and `MpeZoneChannelsItem`, which draws its own).
-///       The other three were declared before this modifier existed and draw "0" where legacy draws
-///       "OFF":
-///
-///         * `nodes::record_count_in` -- `record::CountIn` (`gui/menu_item/record/countin.h:22`).
-///         * `nodes::saturation` -- `fx::Clipping` (`gui/menu_item/fx/clipping.h:29`).
-///         * `nodes::voice_count` -- `voice::VoiceCount` (`gui/menu_item/voice/polyphony.h:31`), and
-///           this one is **not** just `off_at_zero`: it also overrides `getValueString` to spell OFF
-///           in the horizontal menu (`:79-86`) and `renderInHorizontalMenu` to draw
-///           `OLED::infinityIcon` instead of a number at 0 (`:88-94`). `ValueStyle` has no icon
-///           field, so that half needs the toolkit, not this modifier.
-///
-///       Adding the flag moves a golden for each, so it is one deliberate sweep with its own
-///       re-record, not three incidental edits. Recorded on the E3 carry list
-///       (`src/scenes/README.md`).
+/// @note Legacy's five `IntegerWithOff` subclasses all carry it: `nodes::device_default_velocity_to_level`,
+///       `MpeZoneChannelsItem` (which draws its own), `nodes::record_count_in`, `nodes::saturation` and
+///       `nodes::voice_count`. `voice::VoiceCount` also draws `OLED::infinityIcon` at 0 in the horizontal menu
+///       (`gui/menu_item/voice/polyphony.h:88-94`), which `ValueStyle` cannot express: that half is a column draw.
 constexpr Node with_value_style(Node n, deluge::ui::oled::ValueStyle style) {
 	n.bind.style = style;
 	return n;

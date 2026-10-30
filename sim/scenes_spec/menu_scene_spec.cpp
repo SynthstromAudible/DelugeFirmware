@@ -440,6 +440,44 @@ struct DirectCtx {
 } // namespace
 
 // clang-format off
+describe menu_scene_row_icons("scenes::menu::row_icon", $ {
+	// `Submenu::drawSubmenuItemsForOled` blits `renderSubmenuItemTypeForOled` on every row
+	// (`submenu.cpp:117`): the base arrow (`menu_item.cpp:69-75`), `Toggle`'s checkbox, and
+	// `Selection`'s checkbox-if-`isToggle()` (`selection.cpp:38-56`).
+	it("draws legacy's arrow on every row that is not a toggle", _ {
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(settings_root);
+		for (const Node* n : {&int_leaf, &decimal_leaf, &enum_leaf, &sync_leaf, &lpf_page}) {
+			expect(menu::row_icon(*n, ctx) == &deluge::gfx::oled::icons::submenuArrow).to_be_true();
+		}
+	});
+
+	it("draws a checkbox that follows the value on a toggle-style enum, as Selection::isToggle does", _ {
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(settings_root);
+		constexpr Node toggle_enum = menu::with_selection_is_toggle(enum_leaf);
+		g_enum = 0;
+		expect(menu::row_icon(toggle_enum, ctx) == &deluge::gfx::oled::icons::uncheckedBox).to_be_true();
+		g_enum = 1;
+		expect(menu::row_icon(toggle_enum, ctx) == &deluge::gfx::oled::icons::checkedBox).to_be_true();
+	});
+
+	it("marks the arpeggiator's mode and kit-arp rows toggle-style, as their isToggle() does", _ {
+		// `arpeggiator/mode.h:100`, `arpeggiator/include_in_kit_arp.h:88`.
+		expect(nodes::arp_mode.selection_is_toggle).to_be_true();
+		expect(nodes::arp_include_in_kit_arp.selection_is_toggle).to_be_true();
+	});
+
+	it("shows OFF at zero on legacy's three IntegerWithOff rows", _ {
+		// `IntegerWithOff` (`integer.cpp:41-50`): voice count, saturation and record count-in.
+		expect(nodes::voice_count.bind.style.off_at_zero).to_be_true();
+		expect(nodes::saturation.bind.style.off_at_zero).to_be_true();
+		expect(nodes::record_count_in.bind.style.off_at_zero).to_be_true();
+	});
+});
+
 describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 	it("is a grid overlay that neither occludes, dims nor lets the OLED through", _ {
 		select_language();
@@ -2282,5 +2320,5 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(menu_scene_spec, menu_scene_composition, menu_scene_navigation, menu_scene_editing, menu_scene_claims,
-            menu_scene_grid, menu_scene_columns, menu_scene_goldens, menu_scene_info_and_custom)
+DELUGE_SPEC(menu_scene_spec, menu_scene_row_icons, menu_scene_composition, menu_scene_navigation, menu_scene_editing,
+            menu_scene_claims, menu_scene_grid, menu_scene_columns, menu_scene_goldens, menu_scene_info_and_custom)

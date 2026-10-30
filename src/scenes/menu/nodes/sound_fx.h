@@ -294,9 +294,10 @@ inline constexpr Node mod_fx =
 
 // --- Distortion --------------------------------------------------------------------------------
 
-inline constexpr Node saturation =
+inline constexpr Node saturation = with_value_style(
     setting_item(sid(deluge::l10n::String::STRING_FOR_SATURATION), Kind::Int,
-                 {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "clippingAmount"}, Hint::Bar);
+                 {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "clippingAmount"}, Hint::Bar),
+    deluge::ui::oled::ValueStyle{.off_at_zero = true});
 inline constexpr Node bitcrush = param(
     sid(deluge::l10n::String::STRING_FOR_BITCRUSH),
     {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_BITCRUSHING}, Hint::Bar);

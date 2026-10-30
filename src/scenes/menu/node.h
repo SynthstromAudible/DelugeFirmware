@@ -801,7 +801,7 @@ constexpr Node with_allow_session_from_horizontal(Node n) {
 }
 
 /// @brief `n` with `selection_is_toggle` set -- the port of `Selection::isToggle() { return true;
-///        }`, a post-hoc modifier for the same reason `with_range_dependent` is one: three nodes
+///        }`, a post-hoc modifier for the same reason `with_range_dependent` is one: five nodes
 ///        in the whole tree set it.
 constexpr Node with_selection_is_toggle(Node n) {
 	n.selection_is_toggle = true;

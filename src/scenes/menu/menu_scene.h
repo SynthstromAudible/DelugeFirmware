@@ -30,6 +30,7 @@
 /// `handle()` are the two places a write may happen.
 
 #include "deluge-project/mapping_table.h"
+#include "gfx/oled/icon.h"
 #include "notify/dirty_set.h"
 #include "scenes/menu/action.h"
 #include "scenes/menu/context.h"
@@ -459,6 +460,13 @@ struct MenuSavedState {
 };
 static_assert(sizeof(MenuSavedState) <= 32);
 static_assert(sizeof(MenuSavedState) <= deluge::ui::shell::kSceneStateBytes); // shell/scene.h:61 -- 256
+
+/// @brief The icon legacy's `renderSubmenuItemTypeForOled` draws at the right of @p node's row: the arrow, or a
+///        checkbox for a toggle.
+/// @param node The row's node.
+/// @param ctx  The context its value is read in.
+/// @return The icon, or null for none.
+const deluge::gfx::oled::Icon* row_icon(const Node& node, const MenuContext& ctx);
 
 /// @brief The menu interpreter. One instance for the whole application (`registry.h`'s
 ///        `menu_scene()`).

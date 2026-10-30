@@ -1071,9 +1071,10 @@ inline constexpr Node flash_status =
 // 10. Recording
 
 /// `record::CountIn` is an `IntegerWithOff` capped at 4 (`record/countin.h:24`).
-inline constexpr Node record_count_in =
+inline constexpr Node record_count_in = with_value_style(
     with_title(int_item(sid(String::STRING_FOR_COUNT_IN), get_record_count_in, set_record_count_in, IntRange{0, 4, 1}),
-               sid(String::STRING_FOR_REC_COUNT_IN));
+               sid(String::STRING_FOR_REC_COUNT_IN)),
+    deluge::ui::oled::ValueStyle{.off_at_zero = true});
 /// `record::Quantize::size()` is `SYNC_TYPE_TRIPLET` -- "can't do triplets/dots for quantize"
 /// (`record/quantize.h:23`).
 inline constexpr Node record_quantize =
