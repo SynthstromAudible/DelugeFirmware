@@ -20,7 +20,7 @@
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/mod_fx/mod_fx_kernel.h"
-#include "dsp-next/fixed/noise/cong_noise.h"
+#include "dsp-next/fixed/noise/cong.h"
 #include "engines/effects/words.h"
 
 #include <cstddef>
@@ -73,8 +73,8 @@ struct ModFxInputs {
 /// @param type The mod FX type.
 /// @param stereo Whether the render is in stereo.
 /// @return The kernel mode.
-[[nodiscard]] constexpr dsp::fixed::ModFx<dsp::fixed::CongNoise>::Mode mod_fx_mode(ModFXType type, bool stereo) {
-	using Mode = dsp::fixed::ModFx<dsp::fixed::CongNoise>::Mode;
+[[nodiscard]] constexpr dsp::fixed::ModFx<>::Mode mod_fx_mode(ModFXType type, bool stereo) {
+	using Mode = dsp::fixed::ModFx<>::Mode;
 	switch (type) {
 	case ModFXType::DIMENSION:
 		return Mode::DIMENSION;
@@ -97,7 +97,7 @@ struct ModFxInputs {
 /// is held changes nothing.
 class ModFx {
 public:
-	using Kernel = dsp::fixed::ModFx<dsp::fixed::CongNoise>;
+	using Kernel = dsp::fixed::ModFx<>;
 
 	/// @brief Takes the allocator the ring comes from and goes back to.
 	/// @param allocator The allocator for the ring.
@@ -126,7 +126,9 @@ public:
 	/// @param block The stereo block, processed in place.
 	/// @param in The type and knobs for this block.
 	/// @param post_fx_volume The owner's post-FX volume (Q31); scaled in place.
-	void render(std::span<dsp::StereoSample> block, const ModFxInputs& in, int32_t& post_fx_volume);
+	/// @param noise The synth's noise stream, which the warblers draw their targets from.
+	void render(std::span<dsp::StereoSample> block, const ModFxInputs& in, int32_t& post_fx_volume,
+	            dsp::fixed::Cong& noise);
 	/// @brief Advances the LFO by @p frames at @p rate (UQ0.32 per frame) while the owner skips rendering.
 	/// @param frames How many frames to advance.
 	/// @param rate The LFO rate, UQ0.32 per frame.

@@ -69,6 +69,7 @@
 #include "storage/preset_acquisition.h"
 #include "storage/storage_manager.h"
 #include "util/structural_edit_probe.h"
+#include "util/synth_noise.h"
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -366,7 +367,7 @@ bool changesBlock(ModControllableAudio& owner, ParamManager& params, ModFXType t
 			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
 			block[i] = {v, -v};
 		}
-		owner.core().mod_fx().render(block, in, volume);
+		owner.core().mod_fx().render(block, in, volume, deluge::synth_noise);
 		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
 			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
 			changed = changed || block[i].l != v || block[i].r != -v;

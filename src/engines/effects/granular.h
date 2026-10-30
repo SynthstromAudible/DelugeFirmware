@@ -20,7 +20,7 @@
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/granular/granular_kernel.h"
-#include "dsp-next/fixed/noise/cong_noise.h"
+#include "dsp-next/fixed/noise/cong.h"
 #include "engines/effects/mod_fx.h" // RingAllocator
 #include "engines/effects/words.h"
 
@@ -69,7 +69,7 @@ struct GranularInputs {
 /// chain's soft off, which leaves the type unchanged, calls @ref startSkippingRendering and keeps the ring.
 class Granular {
 public:
-	using Kernel = dsp::fixed::Granular<dsp::fixed::CongNoise>;
+	using Kernel = dsp::fixed::Granular<>;
 
 	/// @brief Builds an effect holding nothing yet.
 	/// @param allocator The allocator the State and ring come from and go back to.
@@ -105,9 +105,10 @@ public:
 	/// @param in The knobs and sound flag for this block.
 	/// @param post_fx_volume The owner's post-FX volume (Q31); scaled in place.
 	/// @param reverb_send The reverb feed, one value per frame; the effect adds into it.
+	/// @param noise The synth's noise stream, which a starting grain draws from.
 	/// @pre @p reverb_send holds at least one value per frame of @p block.
 	void render(std::span<dsp::StereoSample> block, const GranularInputs& in, int32_t& post_fx_volume,
-	            std::span<dsp::q31> reverb_send);
+	            std::span<dsp::q31> reverb_send, dsp::fixed::Cong& noise);
 	/// @brief Stops the grains and begins the first pass again; no effect without a State.
 	void clear();
 	/// @brief The owner has gone idle or soft off: the ring is taken up afresh and grains wait until it is half full

@@ -25,6 +25,7 @@
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/curves/quick_log.h"
 #include "dsp-next/fixed/filter/one_pole.h"
+#include "dsp-next/fixed/noise/cong.h"
 #include "dsp-next/fixed/vca/pan.h"
 #include "util/fixedpoint.h"
 
@@ -36,7 +37,7 @@
 /// @brief Granular: the granular effect as one processor kernel of stereo frames.
 namespace deluge::dsp::fixed {
 
-/// @brief The granular effect as one processor kernel of stereo frames, rendered in place as `Mono<Granular<Noise>>`.
+/// @brief The granular effect as one processor kernel of stereo frames, rendered in place as `Mono<Granular<>>`.
 /// @details Every frame is written, with the grains' feedback, into an external ring of @ref kRingFrames frames that
 /// the owner hands over with @ref set_ring and keeps across restarts. Up to @ref kGrains grains read the ring back,
 /// each under a triangle window at its own pitch and pan; a grain starts every `period` frames once the ring is
@@ -50,12 +51,13 @@ namespace deluge::dsp::fixed {
 /// The knobs act as they always have: each derived value is recomputed only when its own knob moves, and the grain
 /// size from the period before the rate's own update, so the derived values live in the State (@ref State::levels)
 /// and @ref prepare updates them once per block.
-/// @tparam Noise A policy with `static q31 render()`: the grains' spray, direction, pitch class, first-pass start and
-/// pan, drawn in that order as each grain starts.
-template <class Noise>
+/// @tparam Noise The noise stream the block draws from (a @ref noise_stream): the grains' spray, direction, pitch
+/// class, first-pass start and pan, drawn in that order as each grain starts.
+template <noise_stream Noise = Cong>
 struct Granular {
 	using value_type = StereoSample; ///< A frame, Q31 per channel.
 	using step_type = StereoSample;  ///< One frame per step.
+	using Context = Noise;           ///< The noise stream a starting grain draws from.
 
 	static constexpr int32_t kRingFrames = 65536;         ///< The ring's length, frames.
 	static constexpr int32_t kRingMask = kRingFrames - 1; ///< Wraps a ring index.
@@ -189,7 +191,7 @@ struct Granular {
 	/// @param x The frame coming in, Q31.
 	/// @return The dry frame plus the low-passed wet sum, saturating, Q31.
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& /*c*/, const Block& b, State& s,
-	                                                              StereoSample x) {
+	                                                              StereoSample x, Noise& noise) {
 		if (s.write >= static_cast<uint32_t>(kRingFrames)) {
 			s.write = 0;
 			s.wraps_to_shutdown -= 1;
@@ -198,7 +200,7 @@ struct Granular {
 		const auto write_index = static_cast<int32_t>(s.write);
 		if (s.until_start == 0) {
 			if (s.full) [[unlikely]] {
-				start_grain(b, s, write_index);
+				start_grain(b, s, write_index, noise);
 			}
 			s.until_start = b.period;
 		}
@@ -305,37 +307,37 @@ struct Granular {
 
 private:
 	/// @return The top 8 bits of a draw.
-	[[nodiscard]] [[gnu::always_inline]] static uint8_t random255() {
-		return static_cast<uint8_t>(static_cast<uint32_t>(Noise::render()) >> 24);
+	[[nodiscard]] [[gnu::always_inline]] static uint8_t random255(Noise& noise) {
+		return static_cast<uint8_t>(noise.next() >> 24);
 	}
 	/// @return A draw from 0 to @p upper, from its top 16 bits.
-	[[nodiscard]] [[gnu::always_inline]] static int32_t random(int32_t upper) {
-		return static_cast<uint16_t>(static_cast<uint32_t>(Noise::render()) >> 16) % (upper + 1);
+	[[nodiscard]] [[gnu::always_inline]] static int32_t random(Noise& noise, int32_t upper) {
+		return static_cast<uint16_t>(noise.next() >> 16) % (upper + 1);
 	}
 	/// @return A triangle distribution from -1 to 1, Q31 (Irwin–Hall of two draws).
-	[[nodiscard]] [[gnu::always_inline]] static q31 triangle() {
-		const q31 u1 = Noise::render();
-		const q31 u2 = Noise::render();
+	[[nodiscard]] [[gnu::always_inline]] static q31 triangle(Noise& noise) {
+		const auto u1 = static_cast<q31>(noise.next());
+		const auto u2 = static_cast<q31>(noise.next());
 		return add_saturate(u1, u2);
 	}
 
 	/// @brief Starts the first silent grain, if any, at @p write_index: its spray, direction, pitch, length, window and
 	/// pan.
-	[[gnu::noinline]] static void start_grain(const Block& b, State& s, int32_t write_index) {
+	[[gnu::noinline]] static void start_grain(const Block& b, State& s, int32_t write_index, Noise& noise) {
 		const uint32_t write = s.write;
 		for (Grain& g : s.grains) {
 			if (g.length > 0) {
 				continue;
 			}
 			g.length = b.size;
-			const int32_t spray = random(kRingFrames >> 1) - (kRingFrames >> 2);
+			const int32_t spray = random(noise, kRingFrames >> 1) - (kRingFrames >> 2);
 			g.start = static_cast<int32_t>((write + kRingFrames - kShift + spray) & kRingMask);
 			g.counter = 0;
-			g.reverse = random255() < 76;
+			g.reverse = random255(noise) < 76;
 
 			// The pitch class: more randomness reaches further from unison.
 			const auto pitch_class =
-			    static_cast<int8_t>(multiply_32x32_rshift32(q31_mult(triangle(), b.randomness), 7));
+			    static_cast<int8_t>(multiply_32x32_rshift32(q31_mult(triangle(noise), b.randomness), 7));
 			switch (pitch_class) {
 			case -3:
 				g.pitch = 512; // octave down
@@ -389,7 +391,7 @@ private:
 				if (!g.reverse) {
 					g.pitch = 1024;
 					if (write > 13231) {
-						const int32_t back = std::max<int32_t>(440, random(static_cast<int32_t>(write - 2)));
+						const int32_t back = std::max<int32_t>(440, random(noise, static_cast<int32_t>(write - 2)));
 						g.start = (write_index - back + kRingFrames) & kRingMask;
 					}
 					else {
@@ -410,7 +412,7 @@ private:
 			if (g.length > 0) {
 				g.vol_scale = 2147483647 / (g.length >> 1);
 				g.vol_scale_max = g.vol_scale * (g.length >> 1);
-				const PanAmplitudes pan = pan_amplitudes((random255() - 128) << 23);
+				const PanAmplitudes pan = pan_amplitudes((random255(noise) - 128) << 23);
 				g.pan_l = pan.left;
 				g.pan_r = pan.right;
 			}

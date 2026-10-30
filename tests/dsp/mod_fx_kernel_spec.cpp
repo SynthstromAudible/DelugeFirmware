@@ -28,6 +28,7 @@
 #include "dsp-next/fixed/noise/cong_noise.h"
 #include "mod_fx_workloads.h"
 #include "reference_mod_fx.h"
+#include "util/synth_noise.h"
 
 #include <array>
 #include <climits>
@@ -43,8 +44,7 @@
 
 using deluge::dsp::Mono;
 using deluge::dsp::StereoSample;
-using deluge::dsp::fixed::CongNoise;
-using ModFx = deluge::dsp::fixed::ModFx<CongNoise>;
+using ModFx = deluge::dsp::fixed::ModFx<>;
 
 static_assert(deluge::dsp::processor_kernel<ModFx> && deluge::dsp::moded_kernel<ModFx>);
 
@@ -77,7 +77,8 @@ using deluge::dsp::test::ReferenceModFx;
 	}
 }
 
-/// @brief `Mono<ModFx<CongNoise>>` as its owner drives it, holding the ring it hands the kernel.
+/// @brief `Mono<ModFx<>>` as its owner drives it, drawing on the synth's noise stream, holding the ring it hands the
+/// kernel.
 class TestModFx {
 public:
 	/// @brief Applies the owner's lifecycle @p event; @p rate is the block's LFO rate, UQ0.32.
@@ -120,7 +121,7 @@ public:
 			return;
 		}
 		modes_.insert(mode);
-		mono_.renderBlock(frames, frames);
+		mono_.renderBlock(frames, frames, deluge::synth_noise);
 	}
 
 	/// @return The ring's words.

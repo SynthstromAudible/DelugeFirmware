@@ -62,7 +62,7 @@ inline void process_fx(fx::ChainCore& c, std::span<StereoSample> buffer, fx::Mod
 		    .send_amount = multiply_32x32_rshift32(*postFXVolume, verbAmount) << 5,
 		    .sound = anySoundComingIn,
 		};
-		c.granular().render(buffer, grain, *postFXVolume, {reverbBuffer.data(), buffer.size()});
+		c.granular().render(buffer, grain, *postFXVolume, {reverbBuffer.data(), buffer.size()}, *in.noise);
 	}
 	else {
 		const fx::ModFxInputs mod{
@@ -74,7 +74,7 @@ inline void process_fx(fx::ChainCore& c, std::span<StereoSample> buffer, fx::Mod
 		    .stereo = in.stereo,
 		    .sound = anySoundComingIn,
 		};
-		c.mod_fx().render(buffer, mod, *postFXVolume);
+		c.mod_fx().render(buffer, mod, *postFXVolume, *in.noise);
 	}
 	c.equalizer().process(buffer, in.eq);
 	c.delay().process(buffer, in.delay, in.stereo);

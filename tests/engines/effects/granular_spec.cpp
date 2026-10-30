@@ -129,7 +129,7 @@ public:
 		            .randomness = randomness,
 		            .send_amount = reverb_amount,
 		            .sound = sound},
-		           *volume, send);
+		           *volume, send, deluge::synth_noise);
 	}
 
 	void change(ModFXType type) {
@@ -594,7 +594,7 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 				           .randomness = gw::kRandomnessMid,
 				           .send_amount = gw::kSendAmount,
 				           .sound = true},
-				          volume, send);
+				          volume, send, deluge::synth_noise);
 				for (std::size_t i = 0; i < frames.size(); ++i) {
 					expect(frames[i].l).to_equal(input[i].l);
 					expect(frames[i].r).to_equal(input[i].r);

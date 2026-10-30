@@ -119,7 +119,7 @@ public:
 		            .feedback = feedback,
 		            .stereo = stereo,
 		            .sound = sound},
-		           *volume);
+		           *volume, deluge::synth_noise);
 	}
 
 	void change(ModFXType type) {
@@ -179,7 +179,7 @@ private:
 	                   .feedback = mw::kFeedback,
 	                   .stereo = true,
 	                   .sound = true},
-	                  got_volume);
+	                  got_volume, deluge::synth_noise);
 	return words_of(want) == words_of(got) && want_volume == got_volume;
 }
 
@@ -216,7 +216,7 @@ describe mod_fx("an owner's mod FX on the dsp-next kernel", ${
 		std::vector<StereoSample> frames = frames_of(128, 3);
 		const std::vector<StereoSample> input = frames;
 		int32_t volume = mw::kStartVolume;
-		owner.fx().render(frames, flanger_inputs(), volume);
+		owner.fx().render(frames, flanger_inputs(), volume, deluge::synth_noise);
 		expect(words_of(frames)).to_equal(words_of(input));
 
 		ReferenceModFx reference;
@@ -306,7 +306,7 @@ describe mod_fx("an owner's mod FX on the dsp-next kernel", ${
 		reference.disableBuffer();
 		std::vector<StereoSample> idle = frames_of(16, 0);
 		int32_t volume = mw::kStartVolume;
-		owner.fx().render(idle, {.active = ModFXType::NONE, .sound = false}, volume);
+		owner.fx().render(idle, {.active = ModFXType::NONE, .sound = false}, volume, deluge::synth_noise);
 		reference.resetMemory();
 		owner.resetMemory();
 		expect(same_block(reference, owner, ModFXType::PHASER, 3)).to_equal(true);
@@ -327,7 +327,7 @@ describe mod_fx("an owner's mod FX on the dsp-next kernel", ${
 		reference.disableBuffer();
 		std::vector<StereoSample> idle = frames_of(16, 0);
 		int32_t volume = mw::kStartVolume;
-		owner.fx().render(idle, {.active = ModFXType::NONE, .sound = false}, volume);
+		owner.fx().render(idle, {.active = ModFXType::NONE, .sound = false}, volume, deluge::synth_noise);
 		owner.change(ModFXType::FLANGER);
 		reference.resetMemory();
 		owner.resetMemory();
@@ -342,14 +342,14 @@ describe mod_fx("an owner's mod FX on the dsp-next kernel", ${
 		int32_t volume = mw::kStartVolume;
 		ModFxInputs phaser = flanger_inputs();
 		phaser.active = ModFXType::PHASER;
-		owner.fx().render(frames, phaser, volume);
+		owner.fx().render(frames, phaser, volume, deluge::synth_noise);
 		owner.change(ModFXType::CHORUS);
 		std::byte* ring = heap.in_use[0] ? heap.blocks[0].data() : heap.blocks[1].data();
 		std::memset(ring, 0x5A, 16); // a marker where a second zeroing would erase it
 		ModFxInputs chorus = flanger_inputs();
 		chorus.active = ModFXType::CHORUS;
 		chorus.sound = false;
-		owner.fx().render(frames, chorus, volume);
+		owner.fx().render(frames, chorus, volume, deluge::synth_noise);
 		expect(static_cast<int>(ring[0])).to_equal(0x5A);
 	});
 

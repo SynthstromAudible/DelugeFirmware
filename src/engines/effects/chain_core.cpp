@@ -39,7 +39,7 @@ void ChainCore::render_fx(std::span<dsp::StereoSample> block, const FxInputs& in
 		                     .send_amount = multiply_32x32_rshift32(post_fx_volume, in.grain_send) << 5,
 		                     .sound = sound,
 		                 },
-		                 post_fx_volume, send.first(block.size()));
+		                 post_fx_volume, send.first(block.size()), *in.noise);
 	}
 	else {
 		mod_fx_.render(block,
@@ -52,7 +52,7 @@ void ChainCore::render_fx(std::span<dsp::StereoSample> block, const FxInputs& in
 		                   .stereo = in.stereo,
 		                   .sound = sound,
 		               },
-		               post_fx_volume);
+		               post_fx_volume, *in.noise);
 	}
 	equalizer_.process(block, in.eq);
 	delay_.process(block, in.delay, in.stereo);

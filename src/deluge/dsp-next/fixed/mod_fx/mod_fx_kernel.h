@@ -23,6 +23,7 @@
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/bandlimited/waves.h"
+#include "dsp-next/fixed/noise/cong.h"
 #include "dsp-next/fixed/osc/sine_table.h"
 #include "util/fixedpoint.h"
 
@@ -35,17 +36,19 @@
 /// @brief ModFx: chorus, dimension, flanger, warble and the phaser as one moded kernel of stereo frames.
 namespace deluge::dsp::fixed {
 
-/// @brief The mod FX as one processor kernel of stereo frames, rendered in place as `Mono<ModFx<Noise>>`.
+/// @brief The mod FX as one processor kernel of stereo frames, rendered in place as `Mono<ModFx<>>`.
 /// @details The ring modes read an interpolated tap that an LFO moves through an external ring of @ref kRingFrames
 /// frames, which the owner hands over with @ref set_ring and takes back with @ref clear_ring; the phaser runs six
 /// stereo allpass stages. Every mode steps one LFO state, so its phase carries across a mode change; a change of the
 /// LFO's wave zeroes the main warbler (@ref prepare). Warble steps a second warbler at 0.97 of the rate, every frame,
 /// in stereo and in mono alike.
-/// @tparam Noise A policy with `static q31 render()`: the warblers' random targets, main then second in each frame.
-template <class Noise>
+/// @tparam Noise The noise stream the block draws from (a @ref noise_stream): the warblers' random targets, main then
+/// second in each frame.
+template <noise_stream Noise = Cong>
 struct ModFx {
 	using value_type = StereoSample; ///< A frame, Q31 per channel.
 	using step_type = StereoSample;  ///< One frame per step.
+	using Context = Noise;           ///< The noise stream the warblers draw their targets from.
 
 	/// @brief The arithmetic each loop runs: the type, and whether the right tap has its own position.
 	enum class Mode : uint8_t {
@@ -180,12 +183,12 @@ struct ModFx {
 	/// @brief One frame at mode @p M.
 	template <Mode M>
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& c, const EmptyBlock& /*b*/,
-	                                                              State& s, StereoSample x) {
+	                                                              State& s, StereoSample x, Noise& noise) {
 		if constexpr (M == Mode::PHASER) {
-			return phaser_step(c, s, x);
+			return phaser_step(c, s, x, noise);
 		}
 		else {
-			return ring_step<M>(c, s, x);
+			return ring_step<M>(c, s, x, noise);
 		}
 	}
 
@@ -241,7 +244,8 @@ private:
 
 	/// @return The LFO's value at @p phase, then advances it one frame at @p inc.
 	template <Wave W>
-	[[nodiscard]] [[gnu::always_inline]] static int32_t lfo(uint32_t& phase, Warbler& w, uint32_t inc) {
+	[[nodiscard]] [[gnu::always_inline]] static int32_t lfo(uint32_t& phase, Warbler& w, uint32_t inc,
+	                                                        [[maybe_unused]] Noise& noise) {
 		if constexpr (W == Wave::SINE) {
 			const int32_t v = sine_table.value(phase);
 			phase += inc;
@@ -255,7 +259,7 @@ private:
 		else {
 			inc *= 2; // the warbler sweeps at twice the rate
 			if (phase + inc < phase) {
-				w.target = Noise::render();
+				w.target = static_cast<q31>(noise.next());
 				w.speed = 0;
 			}
 			const int32_t distance = wrapping_sub(w.target, w.held);
@@ -279,19 +283,20 @@ private:
 
 	/// @brief One ring-mode frame: LFOs, taps, the ring write, the mix.
 	template <Mode M>
-	[[nodiscard]] [[gnu::always_inline]] static StereoSample ring_step(const Coefficients& c, State& s,
-	                                                                   StereoSample x) {
+	[[nodiscard]] [[gnu::always_inline]] static StereoSample ring_step(const Coefficients& c, State& s, StereoSample x,
+	                                                                   Noise& noise) {
 		constexpr bool kWarble = M == Mode::WARBLE || M == Mode::WARBLE_MONO;
 		constexpr bool kOwnRightTap = M == Mode::CHORUS || M == Mode::FLANGER || M == Mode::DIMENSION || kWarble;
-		const int32_t lfo1 = lfo<wave_of(M)>(s.phase, s.warbler, c.rate);
+		const int32_t lfo1 = lfo<wave_of(M)>(s.phase, s.warbler, c.rate, noise);
 		const int32_t lfo2 = [&] [[gnu::always_inline]] () {
 			if constexpr (M == Mode::WARBLE) {
-				return lfo<Wave::WARBLER>(s.phase2, s.warbler2, c.rate2);
+				return lfo<Wave::WARBLER>(s.phase2, s.warbler2, c.rate2, noise);
 			}
 			else {
 				if constexpr (M == Mode::WARBLE_MONO) {
 					// The second warbler steps in mono too, so the noise draws match stereo's.
-					[[maybe_unused]] const int32_t second_warbler = lfo<Wave::WARBLER>(s.phase2, s.warbler2, c.rate2);
+					[[maybe_unused]] const int32_t second_warbler =
+					    lfo<Wave::WARBLER>(s.phase2, s.warbler2, c.rate2, noise);
 				}
 				return wrapping_sub(0, lfo1);
 			}
@@ -336,8 +341,8 @@ private:
 
 	/// @brief One phaser frame.
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample phaser_step(const Coefficients& c, State& s,
-	                                                                     StereoSample x) {
-		const int32_t lfo1 = lfo<Wave::SINE>(s.phase, s.warbler, c.rate);
+	                                                                     StereoSample x, Noise& noise) {
+		const int32_t lfo1 = lfo<Wave::SINE>(s.phase, s.warbler, c.rate, noise);
 		// "1" is about 2^30 here.
 		const int32_t a1 = wrapping_sub(
 		    1073741824, multiply_32x32_rshift32_rounded(

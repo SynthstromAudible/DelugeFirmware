@@ -70,7 +70,8 @@ void ModFx::finish(RingChange& change) {
 	}
 }
 
-void ModFx::render(std::span<dsp::StereoSample> block, const ModFxInputs& in, int32_t& post_fx_volume) {
+void ModFx::render(std::span<dsp::StereoSample> block, const ModFxInputs& in, int32_t& post_fx_volume,
+                   dsp::fixed::Cong& noise) {
 	const bool ring_type = is_ring_type(in.active);
 	if (!ring_type) {
 		soft_off_ = true;
@@ -97,7 +98,7 @@ void ModFx::render(std::span<dsp::StereoSample> block, const ModFxInputs& in, in
 	if (ring_type && !holdsRing()) {
 		return;
 	}
-	mono_.renderBlock(block, block);
+	mono_.renderBlock(block, block, noise);
 }
 
 void ModFx::tick(int32_t frames, int32_t rate) {

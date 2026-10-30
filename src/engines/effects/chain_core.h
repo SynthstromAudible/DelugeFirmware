@@ -52,7 +52,8 @@ struct FxInputs {
 	Delay::State delay; ///< The block's working state, which the owner set up on the chain's delay.
 	bool stereo;        ///< Whether the engine renders in stereo.
 	int32_t grain_send; ///< The granular's reverb send before the post-FX volume scales it, Q31.
-	/// The synth's noise stream: the filters draw from it, written back after each block. Never null once built.
+	/// The synth's noise stream: the filters, mod FX and grain draw from it, written back after each block. Never null
+	/// once built.
 	dsp::fixed::Cong* noise = nullptr;
 };
 
