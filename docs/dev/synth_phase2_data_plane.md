@@ -186,10 +186,10 @@ phase boundaries.
    out of the POD. Pure structural move, bit-exact: x86 golden 333/333, ARM oracle
    10/10 broad spread; both host-sims build clean. (The eager preset-value span stays
    deferred — the lazy `ControlBlock::presetValue` is unchanged.)
-6. **Relocate to `src/deluge/synth/` + boundary lint — DONE (relocation + lint;
+6. **Relocate to `src/synth/` + boundary lint — DONE (relocation + lint;
    namespace deferred).** `git mv`'d the five components — `envelope.{h,cpp}`,
    `lfo.{h,cpp}`, `param_plane.h`, `patcher.{h,cpp}`, `control_block.h` — out of
-   `modulation/` into a new `src/deluge/synth/` (flat). Added
+   `modulation/` into a new `src/synth/` (flat). Added
    `scripts/check_synth_boundary.py` (mirrors `check_dsp_boundary.py` but ALLOWS
    `modulation/` + `util/` + `dsp-next/`; forbids the app layers model/processing/
    storage/gui/playback/hid/io, the legacy dsp/, and the HAL/BSP) + a shrink-only
@@ -233,7 +233,7 @@ reach ZERO `gui/`/`model/`/`processing/`/`storage/` headers.**
 
 - **gui/colour — CUT (`0c5b26bc`).** Extracted `util/param_functions.h` (the param-math
   cluster) out of the grab-bag `util/functions.h` (which pulls `gui/colour` for one
-  inline); `synth/patcher.cpp` includes the lean header.
+  inline); `synth/modulation/patcher.cpp` includes the lean header.
 - **storage — CUT (`ec536716`).** `auto_param.h` + `param_set.h` carried
   `storage/storage_manager.h` only for `Serializer`/`Deserializer` param types →
   forward-declared + moved the include to their `.cpp`s.

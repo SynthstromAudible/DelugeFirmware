@@ -18,7 +18,7 @@
 
 #include "definitions_cxx.hpp"                            // SynthMode, kNumExpressionDimensions, kFirstLocalSource
 #include "model/mod_controllable/filters/filter_config.h" // FilterMode, FilterRoute
-#include "synth/lfo.h"                                    // LFOConfig
+#include "synth/modulation/lfo.h"                         // LFOConfig
 #include "util/misc.h"                                    // util::to_underlying
 #include <array>
 #include <bitset>

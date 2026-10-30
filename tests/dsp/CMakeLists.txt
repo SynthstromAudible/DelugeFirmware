@@ -49,10 +49,10 @@ set(crude_oscillators_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/looku
 # The L1 VirtualAnalogSource composes every band-limited wave table + the sine band (sineWaveSmall).
 set(supersaw_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/osc/supersaw.cpp
-  ${_repo_root}/src/deluge/synth/source/supersaw_source.cpp)
+  ${_repo_root}/src/synth/sources/supersaw/supersaw_source.cpp)
 set(virtual_analog_source_spec_DEPS
-  ${_repo_root}/src/deluge/synth/source/virtual_analog_source.cpp
-  ${_repo_root}/src/deluge/synth/source/va_shapes.cpp
+  ${_repo_root}/src/synth/sources/va/virtual_analog_source.cpp
+  ${_repo_root}/src/synth/sources/va/va_shapes.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/bandlimited/saw.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/bandlimited/square.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/bandlimited/triangle.cpp
@@ -61,12 +61,12 @@ set(virtual_analog_source_spec_DEPS
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # The LFO (a leaf component now): the synth's noise stream (synth_noise.cpp) + the sine/triangle LUTs.
 set(lfo_spec_DEPS
-  ${_repo_root}/src/deluge/synth/lfo.cpp
+  ${_repo_root}/src/synth/modulation/lfo.cpp
   ${_repo_root}/src/deluge/util/synth_noise.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # The Envelope (a leaf component now): its curve helpers (dsp-next table_interpolation) + the decay/release tables.
 set(envelope_spec_DEPS
-  ${_repo_root}/src/deluge/synth/envelope.cpp
+  ${_repo_root}/src/synth/modulation/envelope.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # The shared windowed-sinc kernel table + its select()/variant() variant picks.
@@ -284,9 +284,9 @@ endforeach()
 if(NOT DSP_SPEC_ARM)
   add_executable(synth_link_test
     ${CMAKE_CURRENT_LIST_DIR}/synth_link_main.cpp
-    ${_repo_root}/src/deluge/synth/patcher.cpp
-    ${_repo_root}/src/deluge/synth/envelope.cpp
-    ${_repo_root}/src/deluge/synth/lfo.cpp
+    ${_repo_root}/src/synth/modulation/patcher.cpp
+    ${_repo_root}/src/synth/modulation/envelope.cpp
+    ${_repo_root}/src/synth/modulation/lfo.cpp
     ${_repo_root}/src/deluge/util/param_functions.cpp
     ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
     ${_repo_root}/src/deluge/util/synth_noise.cpp

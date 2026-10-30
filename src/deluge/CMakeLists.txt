@@ -100,14 +100,15 @@ target_link_libraries(deluge_app PUBLIC
     eyalroz_printf
     deluge_dsp
     deluge_dsp_next # the clean L0 library primitives migrate into (synth untangling Phase 1)
+    deluge_synth # the synth library: sources and the modulation core
     deluge_scheduler # task_scheduler/clock_type.h on its path
     argon
     etl::etl
     deluge_foundation
     deluge_midi
     deluge_project   # the project model (deluge::project::Song)
-    deluge_plugin_types # the host–engine contract's data-only types
-    deluge_plugin_api # the host–engine contract's interface
+    deluge_plugin_types # the host–plugin contract's data-only types
+    deluge_plugin_api # the host–plugin contract's interface
     deluge_instrument # the Deluge instrument's state, words and codec
     deluge_effects # the effects' words, state and codec
     deluge_global_effectable # the provisional shared-effect param table

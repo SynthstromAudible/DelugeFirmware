@@ -7,9 +7,10 @@
 
 add_subdirectory(core)
 
-# Configure one numeric backend (fixed/ or float/) as a static library mirroring
-# the legacy deluge_dsp target (unity build, no LTO so we can inline, ARM mode on
-# hardware). `output` becomes lib<output>.a.
+include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/deluge_library.cmake)
+
+# Configure one numeric backend (fixed/ or float/) as a static library built with the library flags (unity build, no
+# LTO so we can inline, ARM mode on hardware). `output` becomes lib<output>.a.
 function(deluge_add_dsp_backend target dir output)
     file(GLOB_RECURSE _srcs CONFIGURE_DEPENDS
         ${CMAKE_CURRENT_LIST_DIR}/${dir}/*.c
@@ -17,33 +18,10 @@ function(deluge_add_dsp_backend target dir output)
         ${CMAKE_CURRENT_LIST_DIR}/${dir}/*.s
     )
     add_library(${target} STATIC ${_srcs})
-
-    set_target_properties(${target} PROPERTIES
-        OUTPUT_NAME ${output}
-        C_STANDARD ${DELUGE_C_STANDARD}
-        C_STANDARD_REQUIRED ON
-        CXX_STANDARD ${DELUGE_CXX_STANDARD}
-        CXX_STANDARD_REQUIRED ON
-        CXX_EXTENSIONS ON
-        UNITY_BUILD true
-    )
-
+    set_target_properties(${target} PROPERTIES OUTPUT_NAME ${output})
+    deluge_library_target(${target})
     target_link_libraries(${target} PUBLIC deluge_dsp_core)
     target_link_libraries(${target} PRIVATE argon)
-
-    target_compile_definitions(${target} PUBLIC
-        $<$<CONFIG:DEBUG,RELWITHDEBINFO>:IN_HARDWARE_DEBUG=1>
-        $<$<CONFIG:DEBUG,RELWITHDEBINFO>:ENABLE_TEXT_OUTPUT=1>
-    )
-
-    target_compile_options(${target} PRIVATE
-        ${DELUGE_COMMON_COMPILE_OPTIONS}
-        # Match deluge_dsp: no LTO (so -finline-functions can do the inlining) and
-        # ARM (not Thumb) mode on hardware; -marm is meaningless/omitted off-target.
-        "-fno-lto"
-        "-finline-functions"
-        "$<$<NOT:$<BOOL:${DELUGE_HOST}>>:-marm>"
-    )
 endfunction()
 
 deluge_add_dsp_backend(deluge_dsp_fixed fixed deluge-dsp-fixed)

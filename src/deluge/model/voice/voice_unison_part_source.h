@@ -22,12 +22,12 @@
 #include "model/voice/sample_playback_adapter.h"
 #include "processing/dx7/dx_voice_adapter.h"
 #include "processing/live/audio_input_adapter.h"
-#include "synth/source/dx7_source.h"
-#include "synth/source/input_source.h"
-#include "synth/source/sample_source.h"
-#include "synth/source/supersaw_source.h"
-#include "synth/source/virtual_analog_source.h"
-#include "synth/source/wavetable_source.h"
+#include "synth/sources/dx7/dx7_source.h"
+#include "synth/sources/input/input_source.h"
+#include "synth/sources/sample/sample_source.h"
+#include "synth/sources/supersaw/supersaw_source.h"
+#include "synth/sources/va/virtual_analog_source.h"
+#include "synth/sources/wavetable/wavetable_source.h"
 #include <optional>
 
 class TimeStretcher;

@@ -17,7 +17,7 @@
 #pragma once
 
 #include "dsp-next/fixed/noise/cong.h"
-#include "synth/source/dx_voice_port.h" // synth::DxVoicePort
+#include "synth/sources/dx7/dx_voice_port.h" // synth::DxVoicePort
 #include <cstdint>
 #include <gsl/gsl>
 #include <span>

@@ -160,7 +160,7 @@ inside it stays inlined, so the virtual cost is paid once per block (32 to 128
 samples), never per sample.
 
 No component inherits a virtual interface. The synth's oscillator shapes
-(`src/deluge/synth/source/va_shapes.cpp`) instantiate components statically;
+(`src/synth/sources/va/va_shapes.cpp`) instantiate components statically;
 the oscillator registry is the first user of `AsBlock`.
 
 ## Kernels (`core/kernel.h`, `core/mode.h`)

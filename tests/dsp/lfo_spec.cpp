@@ -22,7 +22,7 @@
 
 #include "dsp-next/fixed/bandlimited/waves.h" // triangle (the LFO's triangle shape)
 #include "dsp-next/fixed/osc/sine_table.h"    // sine_table (the LFO's sine shape)
-#include "synth/lfo.h"
+#include "synth/modulation/lfo.h"
 #include "util/synth_noise.h" // the noise stream the S&H, random-walk and warbler draw from
 #include <cppspec.hpp>
 #include <cstdint>

@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp" // SynthMode, VoicePriority, kNumSources, kNumModulators, LFO_COUNT
-#include "synth/lfo.h"         // LFOConfig
+#include "definitions_cxx.hpp"    // SynthMode, VoicePriority, kNumSources, kNumModulators, LFO_COUNT
+#include "synth/modulation/lfo.h" // LFOConfig
 #include "util/phase_increment_fine_tuner.h"
 
 #include <array>

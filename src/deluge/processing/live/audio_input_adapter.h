@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "synth/source/audio_input_port.h" // synth::AudioInputPort
+#include "synth/sources/input/audio_input_port.h" // synth::AudioInputPort
 
 /// @brief The firmware adapter behind @ref deluge::synth::AudioInputPort: exposes AudioEngine's live-input ring,
 /// frame clock, plug-state, and the shared per-channel @ref LiveInputBuffer pool to the (library) live-input DSP.

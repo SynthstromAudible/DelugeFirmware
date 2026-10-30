@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "synth/source/source.h" // deluge::synth::BlockControls
+#include "synth/sources/source.h" // deluge::synth::BlockControls
 #include <cstdint>
 
 /// @file The app-side adapter that bundles a source's already-modulated per-block values into a synth-safe

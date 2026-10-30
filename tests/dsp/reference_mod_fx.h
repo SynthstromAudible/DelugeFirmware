@@ -24,7 +24,8 @@
 ///  - the two unpatched param reads (offset, feedback) are arguments, and `AudioEngine::renderInStereo` is the
 ///    `stereo` argument;
 ///  - the ring is an owned array with a `held` flag, where the firmware holds a heap pointer;
-///  - the LFO is a copy of the sine, triangle and warbler waves of `synth/lfo.h` with the variant's re-seat rule;
+///  - the LFO is a copy of the sine, triangle and warbler waves of `synth/modulation/lfo.h` with the variant's re-seat
+///  rule;
 ///  - every add or subtract that can wrap is a wrapping one, so the spec's signed-overflow sanitizer sees the same
 ///    two's-complement result the target computes.
 
@@ -47,7 +48,8 @@
 
 namespace deluge::dsp::test {
 
-/// @brief The LFO waves mod FX uses, copied from `lfo_wave` (synth/lfo.h) with its phase and block conventions.
+/// @brief The LFO waves mod FX uses, copied from `lfo_wave` (synth/modulation/lfo.h) with its phase and block
+/// conventions.
 namespace ref_lfo_wave {
 
 struct Sine {
@@ -87,7 +89,7 @@ struct Warbler {
 
 } // namespace ref_lfo_wave
 
-/// @brief `LFO` (synth/lfo.h) reduced to the waves mod FX renders.
+/// @brief `LFO` (synth/modulation/lfo.h) reduced to the waves mod FX renders.
 class ReferenceLfo {
 public:
 	/// @return The variant index of @p type: the same order as `LFO`'s, restricted to the waves mod FX uses.

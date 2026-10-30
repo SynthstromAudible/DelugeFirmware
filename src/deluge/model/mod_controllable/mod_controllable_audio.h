@@ -27,7 +27,7 @@
 #include "modulation/knob.h"
 #include "modulation/params/param_descriptor.h"
 #include "modulation/params/param_set.h"
-#include "synth/lfo.h"
+#include "synth/modulation/lfo.h"
 #include "util/functions.h"
 
 #include "effects/chain_core.h"

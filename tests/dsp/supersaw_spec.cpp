@@ -21,7 +21,7 @@
 
 #include "dsp-next/core/ramp.h"
 #include "dsp-next/fixed/osc/supersaw.h"
-#include "synth/source/supersaw_source.h"
+#include "synth/sources/supersaw/supersaw_source.h"
 #include <algorithm>
 #include <array>
 #include <cmath>

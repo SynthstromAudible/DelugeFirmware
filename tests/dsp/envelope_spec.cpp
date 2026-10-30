@@ -21,7 +21,7 @@
 // by the golden masters). Runs on x86 (SIMDe) and ARM/QEMU via CTest.
 
 #include "dsp-next/fixed/tables/decay_small.h"
-#include "synth/envelope.h"
+#include "synth/modulation/envelope.h"
 #include "util/lookuptables/lookuptables.h" // decayTableSmall8 (the release curve the voice passes)
 #include <cppspec.hpp>
 #include <cstdint>

@@ -8,7 +8,7 @@
 ## Why this boundary exists
 
 Phase 3 *extracted* every `OscType` render body into a `*Engine` object, but it drew the boundary at the
-**single-oscillator** level: `synth::SourceEngine` (`src/deluge/synth/source/source_engine.h`) is
+**single-oscillator** level: `synth::SourceEngine` (`src/synth/source/source_engine.h`) is
 oscillator-shaped — it exposes `phase()`, takes a `BlockControls::sync` (an `optional<Phasor>` master), and a
 `pulse_width`. The consequence is that **`voice.cpp` is still the real engine**: it conducts every cross-source
 relationship.

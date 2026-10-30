@@ -21,7 +21,7 @@
 // with apply_amplitude=false (the raw "standalone" wave) and cross-check against the dsp-next kernel built
 // directly. cpu_direness is set high to force the crude (non-band-limited) arms for deterministic comparison.
 
-#include "synth/source/virtual_analog_source.h"
+#include "synth/sources/va/virtual_analog_source.h"
 
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/bandlimited/analog_saw.h"

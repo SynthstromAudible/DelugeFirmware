@@ -162,11 +162,12 @@ fn archive_app_objects(
 /// Emits the app archive and its static libraries as one `--start-group`, because the references
 /// are mutual: the C++ app calls the `deluge_*` services, and this crate calls `deluge_app_init`.
 fn link_app_closure(build_dir: &Path, cfg: &str, app_objs_archive: &Path) {
-    let deps: [(&str, &str); 11] = [
+    let deps: [(&str, &str); 12] = [
         ("src/lib", "libeyalroz_printf.a"),
         ("src/deluge/dsp", "libdeluge_dsp.a"),
         ("src/deluge/dsp-next", "libdeluge-dsp-fixed.a"),
         ("src/deluge/dsp-next", "libdeluge-dsp-float.a"),
+        ("src/synth", "libdeluge_synth.a"),
         ("src/foundation", "libdeluge_foundation.a"),
         ("src/serialization", "libdeluge_serialization.a"),
         ("src/music-theory", "libdeluge_music_theory.a"),

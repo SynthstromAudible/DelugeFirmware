@@ -31,9 +31,9 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/source.h"
 #include "serialization/value.h"
-#include "synth/lfo.h"
-#include "synth/param_plane.h"
-#include "synth/patcher.h"
+#include "synth/modulation/lfo.h"
+#include "synth/modulation/param_plane.h"
+#include "synth/modulation/patcher.h"
 #include "util/misc.h"
 #include <bitset>
 #include <memory>
