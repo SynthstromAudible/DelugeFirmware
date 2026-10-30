@@ -38,6 +38,7 @@
 #include "storage/wave_table/wave_table.h"
 #include "util/synth_noise.h"
 
+#include "dsp-next/fixed/tables/decay_small.h"
 #include "dsp/oscillators/oscillator.h"
 #include "util/misc.h"
 #include <cstring>
@@ -738,10 +739,11 @@ uint32_t Voice::getLocalLFOPhaseIncrement(const LFOConfig& config, deluge::modul
 			if (e == 0 && overrideAmplitudeEnvelopeReleaseRate) {
 				release = overrideAmplitudeEnvelopeReleaseRate;
 			}
-			params.sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e] = envelopes[e].render(
-			    numSamples, params.paramFinalValues[params::LOCAL_ENV_0_ATTACK + e],
-			    params.paramFinalValues[params::LOCAL_ENV_0_DECAY + e],
-			    params.paramFinalValues[params::LOCAL_ENV_0_SUSTAIN + e], release, decayTableSmall8);
+			params.sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e] =
+			    envelopes[e].render(numSamples, params.paramFinalValues[params::LOCAL_ENV_0_ATTACK + e],
+			                        params.paramFinalValues[params::LOCAL_ENV_0_DECAY + e],
+			                        params.paramFinalValues[params::LOCAL_ENV_0_SUSTAIN + e], release,
+			                        deluge::dsp::fixed::tables::decay_small_8.data());
 			uint32_t anyChange = (old != params.sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e]);
 			sourcesChanged |= anyChange << (util::to_underlying(PatchSource::ENVELOPE_0) + e);
 		}

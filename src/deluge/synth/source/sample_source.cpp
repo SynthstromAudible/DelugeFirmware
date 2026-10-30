@@ -17,8 +17,8 @@
 
 #include "synth/source/sample_source.h"
 #include "definitions_cxx.hpp"
+#include "synth/source/time_stretch_adjust.h"
 #include "util/fixedpoint.h"
-#include "util/lookuptables/lookuptables.h" // timeStretchAdjustTable
 #include <cstdint>
 #include <cstdlib> // std::abs
 #include <cstring> // memset
@@ -284,7 +284,8 @@ uint32_t SampleSource::getSpeedParamForNoSyncing(int32_t phaseIncrement, int32_t
 
 	// And whether or not that was the case, if there's a manual adjustment to time-stretch, apply that now
 	if (port_->timeStretchAmount() != 0) {
-		timeStretchRatio = ((uint64_t)timeStretchRatio * timeStretchAdjustTable[port_->timeStretchAmount() + 48]) >> 24;
+		timeStretchRatio =
+		    ((uint64_t)timeStretchRatio * deluge::synth::time_stretch_adjust[port_->timeStretchAmount() + 48]) >> 24;
 	}
 
 	return timeStretchRatio;

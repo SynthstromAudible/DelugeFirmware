@@ -29,6 +29,7 @@
 #include "dsp-next/fixed/osc/band_limited_table_oscillator.h"
 #include "dsp-next/fixed/osc/crude_oscillators.h"
 #include "dsp-next/fixed/sync/synced_phasor.h"
+#include "dsp-next/fixed/tables/sine_small.h"
 #include "util/lookuptables/lookuptables.h" // sineWaveSmall
 #include <array>
 #include <cppspec.hpp>
@@ -101,7 +102,7 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 	});
 
 	it("SINE reads the sine band directly (no scale)", _ {
-		static const deluge::dsp::fixed::Band kSineBand[] = {{sineWaveSmall, 8, 0xFFFFFFFFu}};
+		static const deluge::dsp::fixed::Band kSineBand[] = {{deluge::dsp::fixed::tables::sine_small.data(), 8, 0xFFFFFFFFu}};
 		static const deluge::dsp::fixed::BandlimitedTable kSineTable{kSineBand};
 		auto got = renderEngine(Wave::Sine, kPhase, kInc, standalone(7));
 		auto raw = renderKernel(deluge::dsp::fixed::BandLimitedTableOscillator{kSineTable, kPhase, kInc, kInc});

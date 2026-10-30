@@ -152,13 +152,13 @@ public:
 /// The shared stateless instance.
 inline constexpr BilinearTableInterpolator bilinear_table_interpolator{};
 
-/// @brief Curve lookup into the `decayTableSmall8` decay curve.
+/// @brief Curve lookup into the `tables::decay_small_8` decay curve.
 /// @param input Fixed-point position with @p input_fractional_bits fractional bits, from 0 up to and including
 ///        2^input_fractional_bits, which reads the table's last entry.
 /// @return The interpolated decay value at Q15 (see @ref LinearTableInterpolator::interpolate).
 int32_t getDecay8(uint32_t input, uint8_t input_fractional_bits);
 
-/// @brief Curve lookup into the `decayTableSmall4` decay curve (a different curvature to @ref getDecay8).
+/// @brief Curve lookup into the `tables::decay_small_4` decay curve (a different curvature to @ref getDecay8).
 /// @param input Fixed-point position with @p input_fractional_bits fractional bits, from 0 up to and including
 ///        2^input_fractional_bits, which reads the table's last entry.
 /// @return The interpolated decay value at Q15 (see @ref LinearTableInterpolator::interpolate).

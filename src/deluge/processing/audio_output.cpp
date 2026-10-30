@@ -22,6 +22,7 @@
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/mix/track_monitor.h"
+#include "dsp-next/fixed/tables/decay_small.h"
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
@@ -155,8 +156,10 @@ bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* m
 			int32_t attack = getExp(attackNeutralValue, -(activeAudioClip.attack() / 4));
 
 renderEnvelope:
-			int32_t amplitudeLocal =
-			    (envelope.render(render.size(), attack, 8388608, 2147483647, 0, decayTableSmall4) >> 1) + 1073741824;
+			int32_t amplitudeLocal = (envelope.render(render.size(), attack, 8388608, 2147483647, 0,
+			                                          deluge::dsp::fixed::tables::decay_small_4.data())
+			                          >> 1)
+			                         + 1073741824;
 
 			if (envelope.stage() >= Envelope::Stage::OFF) {
 				if (activeAudioClip.doingLateStart) {

@@ -20,6 +20,7 @@
 // refactor. Asserts the stage-machine contract (the audio bit-exactness itself is pinned end-to-end
 // by the golden masters). Runs on x86 (SIMDe) and ARM/QEMU via CTest.
 
+#include "dsp-next/fixed/tables/decay_small.h"
 #include "synth/envelope.h"
 #include "util/lookuptables/lookuptables.h" // decayTableSmall8 (the release curve the voice passes)
 #include <cppspec.hpp>
@@ -33,9 +34,9 @@ constexpr int32_t kOff = -2147483648; // the centred output of a silent envelope
 constexpr uint32_t kBlock = 16;       // samples per render block.
 constexpr uint32_t kRate = 65536;     // a moderate per-sample rate (a stage spans ~8 blocks at this).
 
-// Render one block; the release curve is decayTableSmall8, exactly as the voice supplies.
+// Render one block; the release curve is tables::decay_small_8, exactly as the voice supplies.
 int32_t render(Envelope& env, uint32_t attack, uint32_t decay, uint32_t sustain, uint32_t release) {
-	return env.render(kBlock, attack, decay, sustain, release, decayTableSmall8);
+	return env.render(kBlock, attack, decay, sustain, release, deluge::dsp::fixed::tables::decay_small_8.data());
 }
 
 // Drive the envelope until it reaches @p target (or give up), returning the blocks taken.

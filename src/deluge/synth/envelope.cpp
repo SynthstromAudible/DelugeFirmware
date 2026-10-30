@@ -18,8 +18,8 @@
 #include "synth/envelope.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // getDecay4/8, linear_table_interpolator
 #include "dsp-next/fixed/osc/sine_table.h"                    // sine_table (sine-shaped fast-release)
-#include "util/fixedpoint.h"                                  // multiply_32x32_rshift32, add_saturate
-#include "util/lookuptables/lookuptables.h"                   // decayTableSmall4
+#include "dsp-next/fixed/tables/decay_small.h"
+#include "util/fixedpoint.h" // multiply_32x32_rshift32, add_saturate
 #include <algorithm>
 #include <limits>
 
@@ -207,6 +207,7 @@ void Envelope::unconditionalRelease(Stage release_stage, uint32_t fast_release_r
 
 void Envelope::resumeAttack(int32_t resume_level) {
 	if (stage_ == Stage::ATTACK) {
-		stage_position_ = linear_table_interpolator.inverse(kFullScale - resume_level, 23, decayTableSmall4);
+		stage_position_ = linear_table_interpolator.inverse(kFullScale - resume_level, 23,
+		                                                    deluge::dsp::fixed::tables::decay_small_4.data());
 	}
 }

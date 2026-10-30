@@ -16,7 +16,7 @@
  */
 
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
-#include "util/lookuptables/lookuptables.h" // decayTableSmall4 / decayTableSmall8 (stay app-side; dsp-next may read util/)
+#include "dsp-next/fixed/tables/decay_small.h"
 #include <cstdint>
 
 namespace deluge::dsp::fixed {
@@ -84,11 +84,11 @@ int32_t sample(const uint16_t* table, uint32_t input, uint8_t input_fractional_b
 } // namespace
 
 int32_t getDecay8(uint32_t input, uint8_t input_fractional_bits) {
-	return decay::sample(decayTableSmall8, input, input_fractional_bits);
+	return decay::sample(deluge::dsp::fixed::tables::decay_small_8.data(), input, input_fractional_bits);
 }
 
 int32_t getDecay4(uint32_t input, uint8_t input_fractional_bits) {
-	return decay::sample(decayTableSmall4, input, input_fractional_bits);
+	return decay::sample(deluge::dsp::fixed::tables::decay_small_4.data(), input, input_fractional_bits);
 }
 
 } // namespace deluge::dsp::fixed

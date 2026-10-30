@@ -28,10 +28,10 @@
 #include "dsp-next/fixed/sync/resetter.h"
 #include "dsp-next/fixed/sync/synced_oscillator.h"
 #include "dsp-next/fixed/sync/synced_phasor.h"
+#include "dsp-next/fixed/tables/sine_small.h"
 #include "dsp-next/fixed/vca/amplitude.h"
 #include "dsp-next/fixed/vca/crude_amplitude.h"
-#include "util/fixedpoint.h"                // multiply_32x32_rshift32_rounded
-#include "util/lookuptables/lookuptables.h" // sineWaveSmall
+#include "util/fixedpoint.h" // multiply_32x32_rshift32_rounded
 #include <cstdint>
 #include <optional>
 
@@ -221,7 +221,7 @@ void renderPerfectPulse(Ramp amplitude, uint32_t pulse_width, uint32_t band_sele
 
 void Sine::renderBlock(const BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch) {
 	// Sine has no aliasing — a single band (the small sine table) covers every pitch.
-	static const fixed::Band kSineBand[] = {{sineWaveSmall, 8, 0xFFFFFFFFu}};
+	static const fixed::Band kSineBand[] = {{deluge::dsp::fixed::tables::sine_small.data(), 8, 0xFFFFFFFFu}};
 	static const fixed::BandlimitedTable kSineTable{kSineBand};
 	// Retrigger shifts a quarter-cycle past half (3/4 cycle); its pulse-as-sync self-sync master shifts back 3/4.
 	const uint32_t retrigger = controls.retrigger_phase + kThreeQuarterCycle;

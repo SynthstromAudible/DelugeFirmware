@@ -20,7 +20,6 @@
 #include "synth/source/live/live_input_buffer.h"
 #include "synth/source/live/live_pitch_shifter.h"
 #include "util/fixedpoint.h"
-#include "util/lookuptables/lookuptables.h"
 #include <argon.hpp>
 
 #pragma GCC push_options

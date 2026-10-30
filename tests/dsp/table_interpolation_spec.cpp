@@ -76,7 +76,7 @@ describe decay_lookup("the decay-curve lookups", ${
 	});
 
 	it("blend the last two entries inside the last interval", _ {
-		// decayTableSmall4 ends 48, 0 and decayTableSmall8 ends 6, 0: half of each at Q15.
+		// tables::decay_small_4 ends 48, 0 and tables::decay_small_8 ends 6, 0: half of each at Q15.
 		expect(getDecay4(kLastIntervalMiddle, kStageBits)).to_equal(48 * 16384);
 		expect(getDecay8(kLastIntervalMiddle, kStageBits)).to_equal(6 * 16384);
 	});
