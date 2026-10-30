@@ -18,6 +18,7 @@
 #pragma once
 
 #include "plugin-api/types/param.h"
+#include "synth/modulation/patch_source.h"
 
 #include <array>
 #include <cstdint>
@@ -26,26 +27,8 @@
 
 namespace deluge::instrument {
 
-/// @brief What a patch cable carries: the modulation sources of the Deluge instrument, numbered as the runtime numbers
-/// them. NONE also stands for a source a file names that the instrument does not know.
-enum class PatchSource : uint8_t {
-	LFO_GLOBAL_1,
-	LFO_GLOBAL_2,
-	SIDECHAIN,
-	ENVELOPE_0,
-	ENVELOPE_1,
-	ENVELOPE_2,
-	ENVELOPE_3,
-	LFO_LOCAL_1,
-	LFO_LOCAL_2,
-	X,
-	Y,
-	AFTERTOUCH,
-	VELOCITY,
-	NOTE,
-	RANDOM,
-	NONE,
-};
+/// @brief What a patch cable carries: the synth's modulation sources.
+using PatchSource = synth::PatchSource;
 
 namespace detail {
 inline constexpr std::array<std::string_view, 16> kSourceNames{

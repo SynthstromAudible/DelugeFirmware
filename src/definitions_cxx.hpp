@@ -27,6 +27,7 @@
 #include "plugin-api/types/interpolation_mode.h"
 #include "plugin-api/types/voice_priority.h"
 #include "sequence/iterance.h"
+#include "synth/modulation/patch_source.h"
 #include "util/misc.h"
 
 #include <cstddef>
@@ -287,28 +288,7 @@ using deluge::plugin::VoicePriority;
 
 constexpr size_t kNumVoicePriorities = util::to_underlying(VoicePriority::HIGH) + 1;
 
-enum class PatchSource : uint8_t {
-	LFO_GLOBAL_1,
-	LFO_GLOBAL_2,
-	SIDECHAIN,
-	ENVELOPE_0,
-	ENVELOPE_1,
-	ENVELOPE_2,
-	ENVELOPE_3,
-	LFO_LOCAL_1,
-	LFO_LOCAL_2,
-	X,
-	Y,
-	AFTERTOUCH,
-	VELOCITY,
-	NOTE,
-	RANDOM,
-	NONE,
-
-	// Used for shortcuts
-	SOON = 254,
-	NOT_AVAILABLE = 255,
-};
+using deluge::synth::PatchSource;
 constexpr PatchSource kLastPatchSource = PatchSource::NONE;
 constexpr int32_t kNumPatchSources = static_cast<int32_t>(kLastPatchSource);
 

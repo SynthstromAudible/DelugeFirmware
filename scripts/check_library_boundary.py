@@ -187,7 +187,13 @@ LIBRARIES: dict[str, Library] = {
     "instrument": Library(
         REPO / "src" / "instruments" / "deluge",
         "instruments/deluge/",
-        ("plugin-api/", "effects/", "serialization/", "foundation/panic.h"),
+        (
+            "plugin-api/",
+            "effects/",
+            "serialization/",
+            "foundation/panic.h",
+            "synth/modulation/patch_source.h",
+        ),
     ),
     "global-effectable": Library(
         REPO / "src" / "effects" / "global_effectable",
