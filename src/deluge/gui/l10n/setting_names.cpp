@@ -293,13 +293,13 @@ constexpr SettingNames kArpeggiatorKitArpNames{
 constexpr SettingNames kArpeggiatorMpeVelocityNames{
     STRING_FOR_VELOCITY, STRING_FOR_VELOCITY, kArpeggiatorMpeVelocityChoices, {}};
 constexpr SettingNames kArpeggiatorNoteModeNames{
-    STRING_FOR_ARP_NOTE_MODE_MENU_TITLE, STRING_FOR_NOTE_MODE, kArpeggiatorNoteModeChoices, {}};
+    STRING_FOR_ARP_NOTE_MODE_MENU_TITLE, STRING_FOR_NOTE_MODE, kArpeggiatorNoteModeChoices, {}, true};
 constexpr SettingNames kArpeggiatorNoteProbabilityNames{
     STRING_FOR_NOTE_PROBABILITY_MENU_TITLE, STRING_FOR_NOTE_PROBABILITY, {}, {}};
 constexpr SettingNames kArpeggiatorNumOctavesNames{
     STRING_FOR_ARP_OCTAVES_MENU_TITLE, STRING_FOR_NUMBER_OF_OCTAVES, {}, {}};
 constexpr SettingNames kArpeggiatorOctaveModeNames{
-    STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE, STRING_FOR_OCTAVE_MODE, kArpeggiatorOctaveModeChoices, {}};
+    STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE, STRING_FOR_OCTAVE_MODE, kArpeggiatorOctaveModeChoices, {}, true};
 constexpr SettingNames kArpeggiatorPresetNames{
     STRING_FOR_ARP_PRESET_MENU_TITLE, STRING_FOR_PRESET, kArpeggiatorPresetChoices, {}};
 constexpr SettingNames kArpeggiatorRandomizerLockNames{
@@ -366,7 +366,7 @@ constexpr SettingNames kModulator1RetrigPhaseNames{
     STRING_FOR_FM_MOD_RETRIG_MENU_TITLE, STRING_FOR_RETRIGGER_PHASE, {}, {}};
 constexpr SettingNames kModulator1TransposeNames{STRING_FOR_FM_MOD_TRAN_MENU_TITLE, STRING_FOR_TRANSPOSE, {}, {}};
 constexpr SettingNames kModulator2ToModulator1Names{
-    STRING_FOR_FM_MOD2_DEST_MENU_TITLE, STRING_FOR_DESTINATION, kModulator2ToModulator1Choices, {}};
+    STRING_FOR_FM_MOD2_DEST_MENU_TITLE, STRING_FOR_DESTINATION, kModulator2ToModulator1Choices, {}, true};
 constexpr SettingNames kOsc1LinearInterpolationNames{
     STRING_FOR_SAMP_INTERP_MENU_TITLE, STRING_FOR_INTERPOLATION, kLinearInterpolationChoices, {}};
 constexpr SettingNames kOsc1LoopModeNames{

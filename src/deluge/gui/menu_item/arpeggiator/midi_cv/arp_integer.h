@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "gui/l10n/short_label.h"
 #include "gui/menu_item/integer.h"
-#include "gui/menu_item/short_label.h"
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {

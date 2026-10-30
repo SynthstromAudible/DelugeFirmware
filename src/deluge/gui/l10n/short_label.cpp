@@ -15,14 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/menu_item/short_label.h"
+#include "gui/l10n/short_label.h"
 
 #include "gui/l10n/l10n.h"
 
-namespace deluge::gui::menu_item {
+namespace deluge::l10n {
 
-std::string_view shortLabel(l10n::String id) {
-	return shortForm(id).value_or(l10n::getView(id));
+std::string_view shortLabel(String id) {
+	return shortForm(id).value_or(getView(id));
 }
 
-} // namespace deluge::gui::menu_item
+} // namespace deluge::l10n

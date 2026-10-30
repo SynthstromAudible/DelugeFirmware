@@ -24,15 +24,15 @@
 #include <string_view>
 #include <utility>
 
-namespace deluge::gui::menu_item {
+namespace deluge::l10n {
 
 /// @brief The horizontal menus' short labels: a column label or short option that is not simply its string.
 ///
-/// These are display abbreviations for a narrow column, not a language: a string without an entry is shown as
-/// itself.
+/// Display abbreviations for a narrow column, kept beside the setting names rather than in a language: the l10n
+/// languages are for translations. A string without an entry is shown as itself.
 inline constexpr auto kShortLabels = [] {
-	using enum l10n::String;
-	return std::to_array<std::pair<l10n::String, std::string_view>>({
+	using enum String;
+	return std::to_array<std::pair<String, std::string_view>>({
 	    {STRING_FOR_ALTERNATE, "ALT"},
 	    {STRING_FOR_AS_PLAYED, "PLAY"},
 	    {STRING_FOR_BASS_PROBABILITY, "BASS"},
@@ -68,7 +68,7 @@ inline constexpr auto kShortLabels = [] {
 /// @brief The short form of `id` for a horizontal menu column, if it has one.
 /// @param id The label's string.
 /// @return Its short form, or nothing when the string itself is the label.
-constexpr std::optional<std::string_view> shortForm(l10n::String id) {
+constexpr std::optional<std::string_view> shortForm(String id) {
 	for (const auto& [key, label] : kShortLabels) {
 		if (key == id) {
 			return label;
@@ -80,6 +80,6 @@ constexpr std::optional<std::string_view> shortForm(l10n::String id) {
 /// @brief The label to show for `id` in a horizontal menu column: its short form, or the string itself.
 /// @param id The label's string.
 /// @return The text to draw.
-std::string_view shortLabel(l10n::String id);
+std::string_view shortLabel(String id);
 
-} // namespace deluge::gui::menu_item
+} // namespace deluge::l10n

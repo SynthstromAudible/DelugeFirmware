@@ -1,10 +1,10 @@
 #include "CppUTest/TestHarness.h"
 
-#include "gui/menu_item/short_label.h"
+#include "gui/l10n/short_label.h"
 
 #include <string_view>
 
-using deluge::gui::menu_item::shortForm;
+using deluge::l10n::shortForm;
 using enum deluge::l10n::String;
 
 TEST_GROUP(ShortLabel){};

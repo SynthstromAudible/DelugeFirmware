@@ -46,6 +46,9 @@ struct SettingNames {
 	std::span<const String> choices;       ///< one per choice of a CHOICE row, in the row's choice order; one per menu
 	                                       ///< value of a numeric or bool row a menu lists; empty for any other row
 	std::span<const String> short_choices; ///< the short spellings of @c choices; empty = the same as @c choices
+	/// the short spellings are @c shortLabel of each choice (`short_label.h`), except on a kit lane, where legacy's
+	/// drum arpeggiator items keep the full names
+	bool short_from_labels = false;
 };
 
 /// @brief Whose table a setting row is in: an engine's, or one of the model's setting groups. Two owners can have a

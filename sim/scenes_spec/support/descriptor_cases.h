@@ -41,6 +41,7 @@ namespace deluge::gui::menu_item {
 using deluge::hid::display::OLED;
 } // namespace deluge::gui::menu_item
 #include "gui/l10n/setting_names.h"
+#include "gui/l10n/short_label.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/active_scales.h"
 #include "gui/menu_item/arpeggiator/arp_unpatched_param.h"
@@ -1332,7 +1333,13 @@ inline std::string title_of(const SettingNames& names, std::string_view path) {
 }
 
 /// @brief The names table's text for choice @p index, full or short (short falls back to full where there are none).
-inline std::string choice_text(const SettingNames& names, size_t index, bool short_form) {
+/// @param on_kit_lane A kit lane's arpeggiator: legacy's drum items there (`NoteModeForDrums`) keep their options' full
+///                    names in a column, so a row that shortens through `shortLabel` elsewhere does not here.
+inline std::string choice_text(const SettingNames& names, size_t index, bool short_form, bool on_kit_lane = false) {
+	if (short_form && names.short_from_labels && !on_kit_lane) {
+		return index < names.choices.size() ? std::string{deluge::l10n::shortLabel(names.choices[index])}
+		                                    : std::string{"<no choice>"};
+	}
 	const auto list = short_form && !names.short_choices.empty() ? names.short_choices : names.choices;
 	return index < list.size() ? text(list[index]) : std::string{"<no choice>"};
 }

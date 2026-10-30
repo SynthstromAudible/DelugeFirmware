@@ -173,7 +173,7 @@ void check_names(auto& self, const Case& c) {
 			const std::string at = std::string{c.path} + " choice " + std::to_string(choice);
 			expect(at + " " + choice_text(*names, static_cast<size_t>(choice), false))
 			    .to_equal(at + " " + full[position]);
-			expect(at + " short " + choice_text(*names, static_cast<size_t>(choice), true))
+			expect(at + " short " + choice_text(*names, static_cast<size_t>(choice), true, c.where == Where::KIT_LANE))
 			    .to_equal(at + " short " + shortened[position]);
 		}
 	}
