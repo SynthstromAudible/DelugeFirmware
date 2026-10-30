@@ -16,6 +16,7 @@
  */
 
 #include "model/project_bridge/param_serialization.h"
+#include "instruments/deluge/cable_codec.h"
 
 #include "effects/global_effectable/params.h"
 #include "instruments/deluge/params.h"
@@ -357,43 +358,40 @@ const DocAutoParam& laneOf(const std::vector<DocCableDepth>& lanes, const deluge
 
 void serializePatchCables(std::span<const deluge::synth::CableRecord> cables,
                           const std::vector<DocCableDepth>& cableDepths, Serializer& out, bool writeAutomation) {
-	// Byte-for-byte reproduction of PatchCableSet::writePatchCablesToFile. The early-out matches the
-	// engine's `if (!numPatchCables) return;`.
+	// The instrument decides which cables the file holds and how they nest (encode_cables); this renders its encoding,
+	// byte-for-byte as PatchCableSet::writePatchCablesToFile does. The early-out matches the engine's
+	// `if (!numPatchCables) return;`.
 	if (cables.empty()) {
 		return;
 	}
-	out.writeArrayStart("patchCables");
+	std::vector<deluge::instrument::CableState> states;
+	states.reserve(cables.size());
 	for (const deluge::synth::CableRecord& cable : cables) {
-		// Depth-controlling (range) cables aren't written at top level; they're nested below the cable
-		// whose depth they control.
-		if (!destinationOf(cable).isJustAParam()) {
-			continue;
-		}
+		states.push_back({.source = cable.source,
+		                  .destination = cableDepthIdOf(cable.target.word),
+		                  .polarity = static_cast<deluge::instrument::Polarity>(cable.polarity)});
+	}
+	out.writeArrayStart("patchCables");
+	for (const deluge::instrument::EncodedCable& cable : deluge::instrument::encode_cables(states)) {
 		out.writeOpeningTagBeginning("patchCable", true);
-		out.writeAttribute("source", sourceToString(cable.source));
-		out.writeAttribute("destination", params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
-		                                                           destinationOf(cable).getJustTheParam()));
+		out.writeAttribute("source", sourceToString(cable.route.source));
+		out.writeAttribute("destination",
+		                   params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
+		                                            static_cast<int32_t>(cable.route.destination.value)));
 		out.writeAttribute("polarity", polarityToString(static_cast<Polarity>(cable.polarity)).data());
 		out.insertCommaIfNeeded();
 		out.write("\n");
 		out.printIndents();
 		out.writeTagNameAndSeperator("amount");
 		out.write("\"");
-		writeDocAutoParam(laneOf(cableDepths, cable), out, writeAutomation);
+		writeDocAutoParam(laneOf(cableDepths, cables[cable.record]), out, writeAutomation);
 		out.write("\"");
 
-		// Find the cable(s) whose destination is this cable's param-with-this-source — they control its
-		// depth. Each writes its own polarity.
-		ParamDescriptor controllerDescriptor = destinationOf(cable);
-		controllerDescriptor.addSource(cable.source);
-		bool anyDepthControllingCablesFound = false;
-		for (const deluge::synth::CableRecord& d : cables) {
-			if (destinationOf(d) == controllerDescriptor) {
-				if (!anyDepthControllingCablesFound) {
-					anyDepthControllingCablesFound = true;
-					out.writeOpeningTagEnd();
-					out.writeArrayStart("depthControlledBy");
-				}
+		// The cables controlling this one's depth, each with its own polarity.
+		if (!cable.depth_controllers.empty()) {
+			out.writeOpeningTagEnd();
+			out.writeArrayStart("depthControlledBy");
+			for (const deluge::instrument::EncodedCable::Controller& d : cable.depth_controllers) {
 				out.writeOpeningTagBeginning("patchCable", true);
 				out.writeAttribute("source", sourceToString(d.source));
 				out.writeAttribute("polarity", polarityToString(static_cast<Polarity>(d.polarity)).data());
@@ -402,12 +400,10 @@ void serializePatchCables(std::span<const deluge::synth::CableRecord> cables,
 				out.printIndents();
 				out.writeTagNameAndSeperator("amount");
 				out.write("\"");
-				writeDocAutoParam(laneOf(cableDepths, d), out, writeAutomation);
+				writeDocAutoParam(laneOf(cableDepths, cables[d.record]), out, writeAutomation);
 				out.write("\"");
 				out.closeTag(true);
 			}
-		}
-		if (anyDepthControllingCablesFound) {
 			out.writeArrayEnding("depthControlledBy");
 			out.writeClosingTag("patchCable", true, true);
 		}
