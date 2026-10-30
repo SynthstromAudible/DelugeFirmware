@@ -84,11 +84,11 @@ public:
 	RingModEngine ringModEngine;
 
 	// The subtractive synth engine: owns the per-source render loop + osc-sync + stereo dance. Transitional —
-	// it delegates the per-source render back to renderBasicSource (hence the friend declaration below).
+	// it delegates the per-source render back to the public renderBasicSource.
 	SubtractiveEngine subtractiveEngine;
 
 	// The FM synth engine: owns one unison part's FM topology (modulators + carriers + feedback). Transitional —
-	// it delegates the sine/FM-with-feedback renders + adjustPitch back to Voice (hence the friend below).
+	// it reads the voice's params and unison parts through Voice& and calls the static Voice::adjustPitch.
 	FMEngine fmEngine;
 
 	// Contains what used to be called noteCodeBeforeArpeggiation, and fromMIDIChannel
