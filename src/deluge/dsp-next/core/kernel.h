@@ -46,6 +46,13 @@
 /// ActiveLanes tag rather than an integer, so a counted processor step `step(c, b, s, x, ActiveLanes)` never reads as a
 /// mixer step, whatever the step type converts to.
 ///
+/// **Context.** A kernel may declare `Context`, a plain value its owner passes to each block (the synth's noise stream,
+/// say). Its step form then takes the context last: `step(c, b, s, Context&)`, `step(c, b, s, x, Context&)` or
+/// `step(c, b, s, a, b2, Context&)`, the counted partial step taking it after the ActiveLanes tag. The wrapper copies
+/// the owner's context into a local before the block, hands that local to every step of every lane in order (lane 0
+/// then lane 1 within each frame), and writes it back once after the block, so it can stay in registers. `prepare`
+/// never sees it, and a staged or control kernel may not declare one.
+///
 /// **Checked at one mode.** A moded kernel's `step` (or `process`) is checked at the first mode of its `Modes` only.
 /// A step that is ill-formed at another mode is reported where the wrapper instantiates it, when `Mono` or `Lanes`
 /// (`Stereo` among them) is built for the kernel. A control kernel's `advance` is checked at every listed mode: its
@@ -131,6 +138,26 @@ concept default_mode_listed = requires {
 /// as bytes.
 template <typename T>
 concept plain_value = std::default_initializable<T> && std::is_trivially_copyable_v<T>;
+
+/// @brief Whether K declares a per-block `Context` that is a plain value.
+template <typename K>
+concept declares_context = requires { typename K::Context; } && plain_value<typename K::Context>;
+
+/// @brief What a wrapper passes its loops for a kernel that declares no Context: never handed to the kernel.
+struct NoContext {};
+
+/// @brief K's Context when it declares one, else @ref NoContext: the type a wrapper's context-taking members name.
+template <typename K>
+struct context_of {
+	using type = NoContext; ///< No context.
+};
+
+/// @brief K's Context when it declares one, else @ref NoContext: the type a wrapper's context-taking members name.
+template <typename K>
+requires declares_context<K>
+struct context_of<K> {
+	using type = typename K::Context; ///< K's Context.
+};
 
 /// @brief A `prepare` every probe has, so that naming `prepare` in a class derived from both it and a kernel is
 /// ambiguous exactly when the kernel declares one.
@@ -257,17 +284,23 @@ concept unmoded_steps_with = !has_modes<K>
 template <typename K, typename... X>
 concept steps_with = moded_steps_with<K, X...> || unmoded_steps_with<K, X...>;
 
-/// @brief Whether K provides the generator step: step(c, b, s).
-template <typename K>
-concept steps_as_generator = steps_with<K>;
+/// @brief Whether K's `step` takes @p X, then its Context when K declares one: what @ref steps_with checks for every
+/// step form, so that a kernel with a Context provides each form with the context appended.
+template <typename K, typename... X>
+concept steps_with_context =
+    (!declares_context<K> && steps_with<K, X...>) || (declares_context<K> && steps_with<K, X..., typename K::Context&>);
 
-/// @brief Whether K provides the processor step: step(c, b, s, x).
+/// @brief Whether K provides the generator step: step(c, b, s), with K's Context appended when it declares one.
 template <typename K>
-concept steps_as_processor = steps_with<K, typename K::step_type>;
+concept steps_as_generator = steps_with_context<K>;
 
-/// @brief Whether K provides the mixer step: step(c, b, s, a, b2).
+/// @brief Whether K provides the processor step: step(c, b, s, x), with K's Context appended when it declares one.
 template <typename K>
-concept steps_as_mixer = steps_with<K, typename K::step_type, typename K::step_type>;
+concept steps_as_processor = steps_with_context<K, typename K::step_type>;
+
+/// @brief Whether K provides the mixer step: step(c, b, s, a, b2), with K's Context appended when it declares one.
+template <typename K>
+concept steps_as_mixer = steps_with_context<K, typename K::step_type, typename K::step_type>;
 
 /// @brief Whether moded K's `process<first mode>(c, s, Signal<value_type>, Buffer<value_type>)` is callable.
 template <typename K>
@@ -404,6 +437,15 @@ inline constexpr bool state_in_place<K> = K::kStateInPlace;
 template <typename K>
 using kernel_block_t = typename detail::kernel_block<K>::type;
 
+/// @brief K declares a per-block context: a plain value its owner passes to each block, which every step of every
+/// lane draws on in turn (see the **Context** paragraph above).
+template <typename K>
+concept has_context = detail::declares_context<K>;
+
+/// @brief K's Context (only for a K that @ref has_context).
+template <has_context K>
+using kernel_context_t = typename K::Context;
+
 /// @brief The part of K's State its step takes: the member K's `kLoopState` names, else the whole State.
 /// @details A kernel declares `static constexpr auto kLoopState = &State::member;` when much of its State is touched
 /// only once per block (by `prepare` and the events): the wrappers then copy only that member around the loop, and
@@ -484,9 +526,9 @@ concept kernel_base =
 /// `step(c, b, s, ActiveLanes) -> step_type`.
 /// @details Checked at K's first mode, or at the non-template step when K has no modes.
 template <typename K>
-concept generator_kernel =
-    kernel_base<K> && detail::kernel_form_count<K> == 1 && detail::steps_as_generator<K>
-    && (!partial_step_advances_by_count<K> || (!detail::scalar_step_kernel<K> && detail::steps_with<K, ActiveLanes>));
+concept generator_kernel = kernel_base<K> && detail::kernel_form_count<K> == 1 && detail::steps_as_generator<K>
+                           && (!partial_step_advances_by_count<K>
+                               || (!detail::scalar_step_kernel<K> && detail::steps_with_context<K, ActiveLanes>));
 
 /// @brief A kernel transforming its input: `step(c, b, s, x) -> step_type`, and no other form. When K declares
 /// kPartialStepAdvancesByCount, which only a vector step may (a scalar loop has no partial step), also the counted
@@ -496,7 +538,7 @@ template <typename K>
 concept processor_kernel =
     kernel_base<K> && detail::kernel_form_count<K> == 1 && detail::steps_as_processor<K>
     && (!partial_step_advances_by_count<K>
-        || (!detail::scalar_step_kernel<K> && detail::steps_with<K, typename K::step_type, ActiveLanes>));
+        || (!detail::scalar_step_kernel<K> && detail::steps_with_context<K, typename K::step_type, ActiveLanes>));
 
 /// @brief A kernel combining two inputs: `step(c, b, s, a, b2) -> step_type`, and no other form.
 /// @details Checked at K's first mode, or at the non-template step when K has no modes. A mixer has no counted
@@ -519,9 +561,9 @@ concept mixer_kernel = kernel_base<K> && detail::kernel_form_count<K> == 1
 ///
 /// It has no step, so it declares no `kLoopState`.
 template <typename K>
-concept staged_kernel =
-    kernel_base<K> && detail::kernel_form_count<K> == 1 && detail::processes_blocks<K>
-    && !partial_step_advances_by_count<K> && !detail::declares_prepare<K> && !detail::declares_loop_state<K>;
+concept staged_kernel = kernel_base<K> && detail::kernel_form_count<K> == 1 && detail::processes_blocks<K>
+                        && !partial_step_advances_by_count<K> && !detail::declares_prepare<K>
+                        && !detail::declares_loop_state<K> && !detail::declares_context<K>;
 
 /// @brief A block-rate kernel: `advance(c, s, n) -> value_type` moves a control signal on by a whole block of @c n
 /// samples, and no other form.
@@ -541,8 +583,9 @@ concept staged_kernel =
 /// - declares no `kLoopState`: it has no step.
 template <typename K>
 concept control_kernel =
-    kernel_base<K> && detail::kernel_form_count<K> == 1 && detail::advances_blocks<K> && detail::scalar_step_kernel<K>
-    && !detail::declares_prepare<K> && !partial_step_advances_by_count<K> && !detail::declares_loop_state<K>;
+    kernel_base<K> && detail::kernel_form_count<K> == 1
+    && detail::advances_blocks<K> && detail::scalar_step_kernel<K> && !detail::declares_prepare<K>
+    && !partial_step_advances_by_count<K> && !detail::declares_loop_state<K> && !detail::declares_context<K>;
 
 /// @brief A kernel of any form; a class satisfies at most one of the five form concepts.
 template <typename K>
@@ -613,12 +656,14 @@ concept steps_packed =
 /// generator, processor or mixer kernel stepping q31. The op-major step is not offered to a kernel that declares a
 /// `prepare`, whose Block may depend on each lane's State, nor to one with a `reset` quirk, which acts on one State,
 /// nor to one declaring `kLoopState` or `kStateInPlace`, whose State is not one set of registers: `Lanes` steps those
-/// lane by lane.
+/// lane by lane. Nor to one with a Context, whose lanes draw on it in turn: a packed step would draw for every lane at
+/// once.
 template <typename K>
 concept lane_packable =
-    (generator_kernel<K> || processor_kernel<K> || mixer_kernel<K>) && std::same_as<typename K::value_type, q31>
-    && std::same_as<typename K::step_type, q31> && detail::declares_lane_packable<K> && !detail::declares_prepare<K>
-    && !detail::declares_reset<K> && !detail::declares_loop_state<K> && !detail::state_in_place<K>
+    (generator_kernel<K> || processor_kernel<K> || mixer_kernel<K>)
+    && std::same_as<typename K::value_type, q31> && std::same_as<typename K::step_type, q31>
+    && detail::declares_lane_packable<K> && !detail::declares_prepare<K> && !detail::declares_reset<K>
+    && !detail::declares_loop_state<K> && !detail::state_in_place<K> && !detail::declares_context<K>
     && detail::state_written_over_value<K, detail::ProbePack> && detail::steps_packed<K, detail::ProbePack>;
 
 namespace detail {
@@ -759,12 +804,32 @@ template <kernel K>
 /// @return The step's output: one `K::step_type`.
 template <kernel K, auto M, typename... X>
 [[gnu::always_inline]] inline typename K::step_type
-step_at(const typename K::Coefficients& c, const kernel_block_t<K>& block, loop_state_t<K>& s, X... x) {
+step_at(const typename K::Coefficients& c, const kernel_block_t<K>& block, loop_state_t<K>& s, X&&... x) {
 	if constexpr (moded_kernel<K>) {
-		return K::template step<M>(c, block, s, x...);
+		return K::template step<M>(c, block, s, std::forward<X>(x)...);
 	}
 	else {
-		return K::step(c, block, s, x...);
+		return K::step(c, block, s, std::forward<X>(x)...);
+	}
+}
+
+/// @brief One `step` of K at mode @p M as a wrapper's loop calls it: @ref step_at with K's context appended after the
+/// inputs when K @ref has_context, and @p context ignored otherwise.
+/// @param c K's coefficients.
+/// @param block K's per-block values, from @ref prepare_block.
+/// @param s K's loop state (@ref loop_state).
+/// @param context The block-local context (a detail::NoContext for a kernel without one).
+/// @param x The step's inputs, then an ActiveLanes for the counted partial step.
+/// @return The step's output: one `K::step_type`.
+template <kernel K, auto M, typename Context, typename... X>
+[[gnu::always_inline]] inline typename K::step_type step_with(const typename K::Coefficients& c,
+                                                              const kernel_block_t<K>& block, loop_state_t<K>& s,
+                                                              [[maybe_unused]] Context& context, X&&... x) {
+	if constexpr (has_context<K>) {
+		return step_at<K, M>(c, block, s, std::forward<X>(x)..., context);
+	}
+	else {
+		return step_at<K, M>(c, block, s, std::forward<X>(x)...);
 	}
 }
 

@@ -148,6 +148,7 @@ class Lanes {
 	static constexpr bool kInPlace = detail::state_in_place<K>;         ///< Whether the loop steps the members.
 	static constexpr bool kSplitsLoop = detail::declares_loop_state<K>; ///< Whether the loop state is a member.
 	using Block = kernel_block_t<K>;                        ///< K's per-block values, one per lane, or EmptyBlock.
+	using Context = typename detail::context_of<K>::type;   ///< K's per-block context, shared by the lanes.
 	using Access = detail::frame_lanes<F>;                  ///< How F holds its lanes.
 	using LaneFrame = Frame<typename Access::lane_type, N>; ///< The lanes the loop steps.
 	static constexpr bool kOpMajor = lane_packable<K>;      ///< Whether each frame is one step over a LanePack.
@@ -263,7 +264,7 @@ public:
 	/// samples** in the class documentation).
 	/// @return The next frame.
 	[[nodiscard]] [[gnu::always_inline]] value_type render()
-	requires generator_kernel<K>
+	requires generator_kernel<K> && (!has_context<K>)
 	{
 		value_type out{};
 		renderBlock(Buffer<value_type>{&out, 1});
@@ -273,9 +274,22 @@ public:
 	/// @brief Fill @p out with the next `out.size()` frames, lane 0 first in every frame.
 	/// @param out The block to fill, every frame of it.
 	[[gnu::always_inline]] void renderBlock(Buffer<value_type> out)
-	requires generator_kernel<K>
+	requires generator_kernel<K> && (!has_context<K>)
 	{
-		runBlock(out);
+		detail::NoContext none;
+		runBlock(none, out);
+	}
+
+	/// @brief Fill @p out from a generator kernel with a Context, every lane drawing on @p context in lane order
+	/// through a block-local copy.
+	/// @param out The block of frames to fill.
+	/// @param context The owner's context: copied in before the block and written back once after it.
+	[[gnu::always_inline]] void renderBlock(Buffer<value_type> out, Context& context)
+	requires generator_kernel<K> && has_context<K>
+	{
+		Context local = context;
+		runBlock(local, out);
+		context = local;
 	}
 
 	/// @brief Process one frame: a one-frame block, so one `prepare(…, 1)` per lane and one mode dispatch per call.
@@ -284,7 +298,7 @@ public:
 	/// @param x The input frame.
 	/// @return The output frame.
 	[[nodiscard]] [[gnu::always_inline]] value_type render(value_type x)
-	requires processor_kernel<K>
+	requires processor_kernel<K> && (!has_context<K>)
 	{
 		value_type out{};
 		renderBlock(Signal<value_type>{&x, 1}, Buffer<value_type>{&out, 1});
@@ -295,9 +309,35 @@ public:
 	/// @param in At least `out.size()` frames; may be the same buffer as @p out.
 	/// @param out The block to fill, every frame of it.
 	[[gnu::always_inline]] void renderBlock(Signal<value_type> in, Buffer<value_type> out)
-	requires processor_kernel<K>
+	requires processor_kernel<K> && (!has_context<K>)
 	{
-		runBlock(out, in);
+		detail::NoContext none;
+		runBlock(none, out, in);
+	}
+
+	/// @brief Process one frame through a processor kernel with a Context, lane 0 drawing first.
+	/// @param x The input frame.
+	/// @param context The owner's context, drawn on and written back.
+	/// @return The output frame.
+	[[nodiscard]] [[gnu::always_inline]] value_type render(value_type x, Context& context)
+	requires processor_kernel<K> && has_context<K>
+	{
+		value_type out{};
+		renderBlock(Signal<value_type>{&x, 1}, Buffer<value_type>{&out, 1}, context);
+		return out;
+	}
+
+	/// @brief Process @p in into @p out through a processor kernel with a Context, every lane drawing on @p context in
+	/// lane order (lane 0 then lane 1 within each frame) through a block-local copy.
+	/// @param in At least `out.size()` frames; may be the same buffer as @p out.
+	/// @param out The block of frames to fill.
+	/// @param context The owner's context: copied in before the block and written back once after it.
+	[[gnu::always_inline]] void renderBlock(Signal<value_type> in, Buffer<value_type> out, Context& context)
+	requires processor_kernel<K> && has_context<K>
+	{
+		Context local = context;
+		runBlock(local, out, in);
+		context = local;
 	}
 
 	/// @brief Process `out.size()` samples of lane @p Lane alone, @p in into @p out: that lane's State steps exactly
@@ -313,7 +353,7 @@ public:
 	/// @param out The block to fill, every sample of it.
 	template <std::size_t Lane>
 	[[gnu::always_inline]] void renderLane(Signal<typename K::value_type> in, Buffer<typename K::value_type> out)
-	requires processor_kernel<K>
+	requires processor_kernel<K> && (!has_context<K>)
 	{
 		static_assert(Lane < N, "renderLane: no such lane");
 		const auto n = static_cast<std::ptrdiff_t>(out.size());
@@ -344,7 +384,7 @@ public:
 	/// @param a,b The pair of input frames.
 	/// @return The mixed frame.
 	[[nodiscard]] [[gnu::always_inline]] value_type render(value_type a, value_type b)
-	requires mixer_kernel<K>
+	requires mixer_kernel<K> && (!has_context<K>)
 	{
 		value_type out{};
 		renderBlock(Signal<value_type>{&a, 1}, Signal<value_type>{&b, 1}, Buffer<value_type>{&out, 1});
@@ -355,9 +395,25 @@ public:
 	/// @param a,b At least `out.size()` frames each; either may be the same buffer as @p out.
 	/// @param out The block to fill, every frame of it.
 	[[gnu::always_inline]] void renderBlock(Signal<value_type> a, Signal<value_type> b, Buffer<value_type> out)
-	requires mixer_kernel<K>
+	requires mixer_kernel<K> && (!has_context<K>)
 	{
-		runBlock(out, a, b);
+		detail::NoContext none;
+		runBlock(none, out, a, b);
+	}
+
+	/// @brief Mix @p a and @p b into @p out through a mixer kernel with a Context, every lane drawing on @p context in
+	/// lane order through a block-local copy.
+	/// @param a At least `out.size()` frames.
+	/// @param b At least `out.size()` frames.
+	/// @param out The block of frames to fill.
+	/// @param context The owner's context: copied in before the block and written back once after it.
+	[[gnu::always_inline]] void renderBlock(Signal<value_type> a, Signal<value_type> b, Buffer<value_type> out,
+	                                        Context& context)
+	requires mixer_kernel<K> && has_context<K>
+	{
+		Context local = context;
+		runBlock(local, out, a, b);
+		context = local;
 	}
 
 private:
@@ -403,8 +459,8 @@ private:
 	/// loop starts and a local's address never escapes to a `prepare` that is not inlined. The loop then steps every
 	/// lane's loop state: a local copy written back after the block, or, when K declares `kStateInPlace`, the members
 	/// themselves.
-	template <typename... In>
-	[[gnu::always_inline]] void runBlock(Buffer<value_type> out, In... in) {
+	template <typename Ctx, typename... In>
+	[[gnu::always_inline]] void runBlock([[maybe_unused]] Ctx& context, Buffer<value_type> out, In... in) {
 		if constexpr (kOpMajor) {
 			runPackedBlock(out, in...);
 		}
@@ -415,20 +471,20 @@ private:
 			value_type* const dst = out.data();
 			if constexpr (kInPlace) {
 				kernel_ops::dispatch_mode<K>(c, [&]<auto M> [[gnu::always_inline]] () {
-					loop<M>(c, blocks, states_, dst, static_cast<std::ptrdiff_t>(n), in.data()...);
+					loop<M>(c, blocks, states_, context, dst, static_cast<std::ptrdiff_t>(n), in.data()...);
 				});
 			}
 			else if constexpr (kSplitsLoop) {
 				LoopStates s = loopStates(std::make_index_sequence<N>{});
 				kernel_ops::dispatch_mode<K>(c, [&]<auto M> [[gnu::always_inline]] () {
-					loop<M>(c, blocks, s, dst, static_cast<std::ptrdiff_t>(n), in.data()...);
+					loop<M>(c, blocks, s, context, dst, static_cast<std::ptrdiff_t>(n), in.data()...);
 				});
 				storeLoopStates(s, std::make_index_sequence<N>{});
 			}
 			else {
 				States s = states_;
 				kernel_ops::dispatch_mode<K>(c, [&]<auto M> [[gnu::always_inline]] () {
-					loop<M>(c, blocks, s, dst, static_cast<std::ptrdiff_t>(n), in.data()...);
+					loop<M>(c, blocks, s, context, dst, static_cast<std::ptrdiff_t>(n), in.data()...);
 				});
 				states_ = s;
 			}
@@ -469,11 +525,12 @@ private:
 	/// @param x The frame's inputs, already loaded whole: none, one or two lane frames.
 	/// @return The frame's output lanes.
 	/// @tparam S The lanes' States (@ref States, the members or a copy) or their loop states (@ref LoopStates).
-	template <auto M, typename S, typename... X>
+	template <auto M, typename S, typename Ctx, typename... X>
 	[[nodiscard]] [[gnu::always_inline]] static LaneFrame stepFrame(const Coefficients& c, const Blocks& blocks, S& s,
-	                                                                const X&... x) {
+	                                                                Ctx& context, const X&... x) {
 		const auto step_lane = [&]<std::size_t Lane> [[gnu::always_inline]] () {
-			return kernel_ops::step_at<K, M>(c, blocks.lane[Lane], loopStateOf(s.lane[Lane]), x.lane[Lane]...);
+			return kernel_ops::step_with<K, M>(c, blocks.lane[Lane], loopStateOf(s.lane[Lane]), context,
+			                                   x.lane[Lane]...);
 		};
 		LaneFrame y;
 		// A comma fold runs its operands left to right: lane 0 first.
@@ -487,12 +544,12 @@ private:
 	/// @details Each frame's inputs are loaded whole before the frame is stepped, and the frame is stored after, so an
 	/// input may be the output. In place the pointers merge and step after the store (the class's **The loop**).
 	/// @tparam S The lanes' States (@ref States, the members or a copy) or their loop states (@ref LoopStates).
-	template <auto M, typename S, typename... Src>
-	[[gnu::always_inline]] static void loop(const Coefficients& c, const Blocks& blocks, S& s, value_type* dst,
-	                                        std::ptrdiff_t n, const Src*... src) {
+	template <auto M, typename S, typename Ctx, typename... Src>
+	[[gnu::always_inline]] static void loop(const Coefficients& c, const Blocks& blocks, S& s, Ctx& context,
+	                                        value_type* dst, std::ptrdiff_t n, const Src*... src) {
 		value_type* const end = dst + n;
 		while (dst != end) {
-			const LaneFrame y = stepFrame<M>(c, blocks, s, Access::to_lanes(*src++)...);
+			const LaneFrame y = stepFrame<M>(c, blocks, s, context, Access::to_lanes(*src++)...);
 			*dst++ = Access::from_lanes(y);
 		}
 	}

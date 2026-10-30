@@ -333,11 +333,13 @@ template <std::size_t I, typename Mode, typename... Ts>
 ///   returns;
 /// - parts whose value or step types differ, so a chain never converts between domains;
 /// - a part declaring kPartialStepAdvancesByCount: a chain steps whole vectors, so such a part's partial last vector
-///   would advance by a whole vector in a chain but by the active lanes when run alone.
+///   would advance by a whole vector in a chain but by the active lanes when run alone;
+/// - a part with a Context: the chain would have to pass one on to it, and no chained kernel needs one.
 template <typename... Ks>
-concept chainable = sizeof...(Ks) >= 2 && (kernel<Ks> && ...) && (!control_kernel<Ks> && ...)
-                    && (!staged_kernel<Ks> && ...) && detail::chain_later_parts_process<Ks...>
-                    && detail::chain_shares_types<Ks...> && (!partial_step_advances_by_count<Ks> && ...);
+concept chainable =
+    sizeof...(Ks) >= 2 && (kernel<Ks> && ...) && (!control_kernel<Ks> && ...) && (!staged_kernel<Ks> && ...)
+    && detail::chain_later_parts_process<Ks...> && detail::chain_shares_types<Ks...>
+    && (!partial_step_advances_by_count<Ks> && ...) && (!has_context<Ks> && ...);
 
 namespace detail {
 
