@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/integer.h"
+#include "gui/menu_item/short_label.h"
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
@@ -27,6 +28,9 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return soundEditor.editingCVOrMIDIClip() || soundEditor.editingNonAudioDrumRow();
 	}
-	void getColumnLabel(etl::istring& label) override { label.append(deluge::l10n::get(this->name)); }
+	void getColumnLabel(etl::istring& label) override {
+		const std::string_view text = shortLabel(this->name);
+		label.append(text.data(), text.size());
+	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv

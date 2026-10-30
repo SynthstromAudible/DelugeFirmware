@@ -18,6 +18,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/short_label.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -59,7 +60,10 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return soundEditor.editingKitRow() && !soundEditor.editingGateDrumRow();
 	}
-	void getColumnLabel(etl::istring& label) override { label.append(deluge::l10n::get(this->name)); }
+	void getColumnLabel(etl::istring& label) override {
+		const std::string_view text = shortLabel(this->name);
+		label.append(text.data(), text.size());
+	}
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;

@@ -18,6 +18,7 @@
 #include "gui/menu_item/unpatched_param.h"
 #include "gui/ui/sound_editor.h"
 
+#include "gui/menu_item/short_label.h"
 #include <util/comparison.h>
 
 namespace deluge::gui::menu_item::randomizer {
@@ -41,7 +42,10 @@ public:
 		return isGlobal || soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}
 
-	void getColumnLabel(etl::istring& label) override { label.append(deluge::l10n::get(this->name)); }
+	void getColumnLabel(etl::istring& label) override {
+		const std::string_view text = shortLabel(this->name);
+		label.append(text.data(), text.size());
+	}
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return style_; }
 
@@ -56,7 +60,10 @@ public:
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingKitAffectEntire()
 		       && !soundEditor.editingNonAudioDrumRow() && soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}
-	void getColumnLabel(etl::istring& label) override { label.append(deluge::l10n::getView(this->name).data()); }
+	void getColumnLabel(etl::istring& label) override {
+		const std::string_view text = shortLabel(this->name);
+		label.append(text.data(), text.size());
+	}
 };
 
 class RandomizerNonKitSoundUnpatchedParam final : public UnpatchedParam {
@@ -70,7 +77,10 @@ public:
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingKit()
 		       && soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}
-	void getColumnLabel(etl::istring& label) override { label.append(deluge::l10n::get(this->name)); }
+	void getColumnLabel(etl::istring& label) override {
+		const std::string_view text = shortLabel(this->name);
+		label.append(text.data(), text.size());
+	}
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return style_; }
 
 private:

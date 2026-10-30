@@ -18,6 +18,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/short_label.h"
 #include "gui/ui/sound_editor.h"
 #include "model/song/song.h"
 
@@ -37,21 +38,24 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return !soundEditor.editingKitRow();
 	}
-	void getColumnLabel(etl::istring& label) override { label.append(deluge::l10n::get(this->name)); }
+	void getColumnLabel(etl::istring& label) override {
+		const std::string_view text = shortLabel(this->name);
+		label.append(text.data(), text.size());
+	}
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		using enum l10n::String;
 		if (optType == OptType::SHORT) {
 			return {
-			    l10n::getView(STRING_FOR_UP),        //<
-			    l10n::getView(STRING_FOR_DOWN),      //<
-			    l10n::getView(STRING_FOR_UP_DOWN),   //<
-			    l10n::getView(STRING_FOR_RANDOM),    //<
-			    l10n::getView(STRING_FOR_WALK1),     //<
-			    l10n::getView(STRING_FOR_WALK2),     //<
-			    l10n::getView(STRING_FOR_WALK3),     //<
-			    l10n::getView(STRING_FOR_AS_PLAYED), //<
-			    l10n::getView(STRING_FOR_PATTERN),   //<
+			    shortLabel(STRING_FOR_UP),        //<
+			    shortLabel(STRING_FOR_DOWN),      //<
+			    shortLabel(STRING_FOR_UP_DOWN),   //<
+			    shortLabel(STRING_FOR_RANDOM),    //<
+			    shortLabel(STRING_FOR_WALK1),     //<
+			    shortLabel(STRING_FOR_WALK2),     //<
+			    shortLabel(STRING_FOR_WALK3),     //<
+			    shortLabel(STRING_FOR_AS_PLAYED), //<
+			    shortLabel(STRING_FOR_PATTERN),   //<
 			};
 		}
 		return {

@@ -126,6 +126,7 @@ add_executable(UnitTests
         notes_state_tests.cpp
         waveform_peak_math_tests.cpp
         waveform_overview_cache_tests.cpp
+        short_label_tests.cpp
         song_preview_window_tests.cpp
         song_preview_decode_tests.cpp
         song_preview_deferral_tests.cpp
