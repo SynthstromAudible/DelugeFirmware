@@ -142,10 +142,10 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 	// Setup and render local LFO
 	lfo2.setLocalInitialPhase(sound.snapshot().lfoConfig[LFO2_ID]);
 	params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] =
-	    lfo2.render(0, sound.snapshot().lfoConfig[LFO2_ID], 0);
+	    lfo2.render(0, sound.snapshot().lfoConfig[LFO2_ID], 0, deluge::synth_noise);
 	lfo4.setLocalInitialPhase(sound.snapshot().lfoConfig[LFO4_ID]);
 	params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)] =
-	    lfo4.render(0, sound.snapshot().lfoConfig[LFO4_ID], 0);
+	    lfo4.render(0, sound.snapshot().lfoConfig[LFO4_ID], 0, deluge::synth_noise);
 
 	// Setup some sources which won't change for the duration of this note
 	params.sourceValues[util::to_underlying(PatchSource::VELOCITY)] =
@@ -759,7 +759,8 @@ uint32_t Voice::getLocalLFOPhaseIncrement(const LFOConfig& config, deluge::modul
 		// for every sample.
 		params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] = lfo2.render(
 		    numSamples, cfg.lfo2Config,
-		    getLocalLFOPhaseIncrement(cfg.lfo2Config, params::LOCAL_LFO_LOCAL_FREQ_1, cfg.lfo2SyncedPhaseIncrement));
+		    getLocalLFOPhaseIncrement(cfg.lfo2Config, params::LOCAL_LFO_LOCAL_FREQ_1, cfg.lfo2SyncedPhaseIncrement),
+		    deluge::synth_noise);
 		uint32_t anyChange = (old != params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)]);
 		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL_1);
 	}
@@ -769,7 +770,8 @@ uint32_t Voice::getLocalLFOPhaseIncrement(const LFOConfig& config, deluge::modul
 		// for every sample.
 		params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)] = lfo4.render(
 		    numSamples, cfg.lfo4Config,
-		    getLocalLFOPhaseIncrement(cfg.lfo4Config, params::LOCAL_LFO_LOCAL_FREQ_2, cfg.lfo4SyncedPhaseIncrement));
+		    getLocalLFOPhaseIncrement(cfg.lfo4Config, params::LOCAL_LFO_LOCAL_FREQ_2, cfg.lfo4SyncedPhaseIncrement),
+		    deluge::synth_noise);
 		uint32_t anyChange = (old != params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)]);
 		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL_2);
 	}

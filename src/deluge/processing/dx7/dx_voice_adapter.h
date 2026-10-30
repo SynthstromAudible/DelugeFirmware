@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include "dsp-next/fixed/noise/cong.h"
 #include "synth/source/dx_voice_port.h" // synth::DxVoicePort
 #include <cstdint>
 #include <gsl/gsl>
@@ -23,13 +24,10 @@
 
 class DxPatch;
 
-namespace deluge::dsp::fixed {
-struct CongNoise;
-namespace dx7 {
-template <class Noise>
+namespace deluge::dsp::fixed::dx7 {
+template <noise_stream Noise>
 class Voice;
-} // namespace dx7
-} // namespace deluge::dsp::fixed
+} // namespace deluge::dsp::fixed::dx7
 
 namespace deluge::dsp {
 
@@ -42,7 +40,7 @@ namespace deluge::dsp {
 /// **explicit** (freed only in @ref unassign, never in a destructor) — the per-source objects are pooled and
 /// reused in place, so an owning dtor would risk a double-free.
 class DxVoiceAdapter final : public synth::DxVoicePort {
-	gsl::owner<fixed::dx7::Voice<fixed::CongNoise>*> voice_ = nullptr;
+	gsl::owner<fixed::dx7::Voice<fixed::Cong>*> voice_ = nullptr;
 	DxPatch* patch_ = nullptr;
 	int midinote_ = 60;  ///< The note, for a key-up between blocks.
 	int velocity_ = 100; ///< The note-on velocity.

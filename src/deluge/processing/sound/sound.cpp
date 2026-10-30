@@ -77,6 +77,7 @@
 #include "util/functions.h"
 #include "util/misc.h"
 #include "util/structural_edit_probe.h"
+#include "util/synth_noise.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -1755,7 +1756,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
 		params.sourceValues[patchSourceLFOGlobalUnderlying] =
 		    globalLFO1.render(output.size(), snapshot_.lfoConfig[LFO1_ID],
-		                      getGlobalLFOPhaseIncrement(LFO1_ID, params::GLOBAL_LFO_FREQ_1));
+		                      getGlobalLFOPhaseIncrement(LFO1_ID, params::GLOBAL_LFO_FREQ_1), deluge::synth_noise);
 		uint32_t anyChange = (old != params.sourceValues[patchSourceLFOGlobalUnderlying]);
 		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
 	}
@@ -1769,7 +1770,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
 		params.sourceValues[patchSourceLFOGlobalUnderlying] =
 		    globalLFO3.render(output.size(), snapshot_.lfoConfig[LFO3_ID],
-		                      getGlobalLFOPhaseIncrement(LFO3_ID, params::GLOBAL_LFO_FREQ_2));
+		                      getGlobalLFOPhaseIncrement(LFO3_ID, params::GLOBAL_LFO_FREQ_2), deluge::synth_noise);
 		uint32_t anyChange = (old != params.sourceValues[patchSourceLFOGlobalUnderlying]);
 		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
 	}

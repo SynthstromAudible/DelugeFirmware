@@ -19,6 +19,7 @@
 #include "dsp-next/fixed/dx7/algorithms.h"
 #include "processing/dx7/dx_engine.h"
 #include "processing/dx7/dx_patch.h"
+#include "util/synth_noise.h"
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -28,7 +29,7 @@ namespace deluge::dsp {
 
 namespace {
 
-using PoolVoice = fixed::dx7::Voice<fixed::CongNoise>;
+using PoolVoice = fixed::dx7::Voice<fixed::Cong>;
 
 /// @brief The voice's settings: @p patch's bytes as its voices read them (DxPatch::voiceParams, clamped to the engine's
 /// ranges), the note and the engine's tables.
@@ -55,7 +56,7 @@ bool DxVoiceAdapter::noteOn(void* patch, int midinote, int velocity) {
 	velocity_ = velocity;
 	patch_->refreshVoiceParams();
 	const PoolVoice::Settings s = settings_of(*patch_, midinote_, velocity_);
-	voice_->start(s);
+	voice_->start(s, deluge::synth_noise);
 	if (PoolVoice::key_sync_lfo(s)) {
 		patch_->lfo.on<&fixed::dx7::Lfo::key_sync>();
 	}

@@ -26,7 +26,7 @@
 #include <gsl/gsl>
 
 /// @brief The voice the pool holds: a DX7 voice drawing from the synth's shared noise stream.
-using DxPoolVoice = deluge::dsp::fixed::dx7::Voice<deluge::dsp::fixed::CongNoise>;
+using DxPoolVoice = deluge::dsp::fixed::dx7::Voice<>;
 
 class DxEngine {
 public:

@@ -19,7 +19,7 @@
 
 namespace dx7 = deluge::dsp::fixed::dx7;
 namespace dw = dx7_workloads;
-using Voice = dx7::Voice<dw::SeededStatic>;
+using Voice = dx7::Voice<dw::SeededStream>;
 
 namespace {
 
@@ -65,7 +65,8 @@ Run run_voice(const dw::Workload& w) {
 		                       .tables = &tables()};
 	};
 	const auto note_on = [&](Voice& v) {
-		v.start(settings());
+		dw::SeededStream stream;
+		v.start(settings(), stream);
 		if (Voice::key_sync_lfo(settings())) {
 			lfo.on<&dx7::Lfo::key_sync>();
 		}
