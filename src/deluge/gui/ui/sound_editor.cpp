@@ -373,7 +373,7 @@ void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 	}
 }
 
-SoundEditor soundEditor{};
+PLACE_SDRAM_BSS SoundEditor soundEditor{};
 
 namespace {
 /// True when the menu is editing a clip rather than the song: in a clip view, or in Track Edit's menu, which is opened

@@ -28,7 +28,7 @@ extern "C" {
 
 namespace deluge::gui::context_menu {
 
-DeleteFile deleteFile{};
+PLACE_SDRAM_BSS DeleteFile deleteFile{};
 
 char const* DeleteFile::getTitle() {
 	using enum l10n::String;
