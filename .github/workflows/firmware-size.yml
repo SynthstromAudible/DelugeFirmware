@@ -1,5 +1,8 @@
 name: Firmware Size
 
+# workflow_run runs from the default branch's copy of this file, so this serves main; next's ci.yml does this
+# itself.
+
 # Compares the PR's Release build against the latest successful Release build
 # on the target branch with `dbt elfsize` and posts the result on the PR.
 # Runs from workflow_run so it can comment on PRs from forks. Can also be run

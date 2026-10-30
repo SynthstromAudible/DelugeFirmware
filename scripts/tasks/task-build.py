@@ -93,6 +93,11 @@ def argparser() -> argparse.ArgumentParser:
             "DELUGE_DEBUG_OPT_LEVEL in the root CMakeLists)."
         ),
     )
+    parser.add_argument(
+        "--clippy",
+        help="Lint the Rust BSP for the device (cargo clippy -D warnings) instead of linking the firmware",
+        action="store_true",
+    )
     # Anything unrecognised is forwarded to `cargo build` (e.g. --features).
     return parser
 
@@ -347,7 +352,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     # spec exists to match clang's target features (see armv7a-deluge-eabihf.json).
     cargo_args = [
         "cargo",
-        "build",
+        "clippy" if args.clippy else "build",
         "--target",
         RUST_TARGET,
         "-Zbuild-std=core,alloc",
@@ -360,12 +365,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     cargo_args += device_feature_args(cargo_extra)
     cargo_args += cargo_extra
     cargo_args += sdk_config_args(root)
+    if args.clippy:
+        cargo_args += ["--", "-D", "warnings"]
 
     env = {**os.environ, **device_cxx_env(root, config)}
     result = subprocess.run(
         cargo_args, cwd=RUST_BSP_DIR, env=env, check=False
     ).returncode
-    if result != 0:
+    if result != 0 or args.clippy:
         return result
 
     return stage_artifacts(root, config)

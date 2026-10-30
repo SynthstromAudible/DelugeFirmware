@@ -8,3 +8,4 @@ pub(crate) mod device;
 pub mod host;
 pub mod pacing;
 pub mod render;
+pub(crate) mod ring;

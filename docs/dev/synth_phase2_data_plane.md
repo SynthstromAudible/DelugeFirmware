@@ -194,7 +194,7 @@ phase boundaries.
    `modulation/` + `util/` + `dsp-next/`; forbids the app layers model/processing/
    storage/gui/playback/hid/io, the legacy dsp/, and the HAL/BSP) + a shrink-only
    `synth_boundary_allowlist.txt` (seeded **EMPTY**), a `synth-boundary` pre-commit
-   hook, and `.github/workflows/synth-boundary.yml`. The one direct violation —
+   hook, and a step of `.github/workflows/ci.yml`'s lint job. The one direct violation —
    `lfo.h → model/sync.h` — was cleared by relocating the small sync-enum leaf
    `model/sync.{h,cpp}` → `modulation/sync.{h,cpp}` (10 includer edits), so the lint
    is clean with an empty allowlist. The app `GLOB_RECURSE` picked the moved sources

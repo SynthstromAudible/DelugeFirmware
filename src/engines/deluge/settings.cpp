@@ -51,7 +51,8 @@ constexpr std::array<std::string_view, N> names_of() {
 
 constexpr auto kPolyphony = names_of<PolyphonyMode, 5>();
 constexpr auto kSynthModes = names_of<SynthMode, 3>();
-constexpr auto kOscTypes = names_of<OscType, 12>();
+// INPUT_STEREO is the last type, so the list grows with the enum.
+constexpr auto kOscTypes = names_of<OscType, static_cast<size_t>(OscType::INPUT_STEREO) + 1>();
 constexpr auto kLfoTypes = names_of<LFOType, 7>();
 /// A synced rate's type, as its stored number (even, triplet, dotted).
 constexpr std::array<std::string_view, 3> kSyncTypes{"0", "10", "19"};

@@ -14,7 +14,9 @@ runs:
         packages: >-
           gcc-14 g++-14 gcc-14-multilib g++-14-multilib
           gcc-14-arm-linux-gnueabihf g++-14-arm-linux-gnueabihf qemu-user
-          ninja-build mtools clang jq
+          ninja-build mtools jq
+
+    - uses: ./.github/actions/clang
 
     - name: Install CMake
       uses: lukka/get-cmake@latest
@@ -27,15 +29,15 @@ runs:
       id: sdk
       shell: bash
       run: |
-        rev=$(sed -n 's|^source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=\([0-9a-f]*\)#.*|\1|p' \
+        rev=$(sed -n 's|^source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=\([0-9a-f]*\)#.*|\1|p' \
           src/bsp/rust/Cargo.lock | head -1)
-        [ -n "$rev" ] || { echo "src/bsp/rust/Cargo.lock pins no deluge-embassy revision"; exit 1; }
+        [ -n "$rev" ] || { echo "src/bsp/rust/Cargo.lock pins no deluge-sdk revision"; exit 1; }
         echo "rev=$rev" >> "$GITHUB_OUTPUT"
 
     - name: Check out deluge-sdk
       uses: actions/checkout@v7
       with:
-        repository: FirestormAudio/deluge-embassy
+        repository: FirestormAudio/deluge-sdk
         ref: ${{ steps.sdk.outputs.rev }}
         path: deluge-sdk-checkout
 

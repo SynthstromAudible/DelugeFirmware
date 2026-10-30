@@ -1516,8 +1516,9 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	    .pitchModDisallowsCache = pitchModDisallowsCache,                              // sample caching policy
 	};
 
-	// sample → sampleSource, DX7 → dx7Source, INPUT_* → inputSource, wavetable → wavetableSource, else virtual-analog
-	// → vaSource — every source is now a persistent synth::Source; the legacy oscType megaswitch is gone.
+	// sample → sampleSource, DX7 → dx7Source, INPUT_* → inputSource, wavetable → wavetableSource, supersaw →
+	// supersawSource, else virtual-analog → vaSource — every source is now a persistent synth::Source; the legacy
+	// oscType megaswitch is gone.
 	synth::Source* component;
 	if (cfg.oscType[s] == OscType::SAMPLE) {
 		component = &unisonParts[u].sources[s].sampleSource;
@@ -1531,6 +1532,9 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	}
 	else if (unisonParts[u].sources[s].vaSource.has_value()) {
 		component = &*unisonParts[u].sources[s].vaSource;
+	}
+	else if (unisonParts[u].sources[s].supersawSource.has_value()) {
+		component = &*unisonParts[u].sources[s].supersawSource;
 	}
 	else {
 		component = &*unisonParts[u].sources[s].wavetableSource;

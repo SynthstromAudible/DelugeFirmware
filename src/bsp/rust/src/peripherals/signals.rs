@@ -1,15 +1,22 @@
 //! `libdeluge/signals.h` — board GPIO signals, battery sense, and the MIDI/gate timer.
 //!
-//! [`deluge_signal_write`] and [`deluge_signal_read`] map `DelugeSignal` to the GPIO pins board
-//! init configured. `SPEAKER_ENABLE` and `CODEC_ENABLE` gate the audio output path: rendered audio
-//! is inaudible until the app turns them on.
+//! [`deluge_signal_write`] and [`deluge_signal_read`] map `DelugeSignal` to the board's pins: the
+//! LEDs this module owns ([`leds_init`]) and `deluge_bsp::jacks`' detects and speaker enable.
+//! `SPEAKER_ENABLE` gates the audio output path: rendered audio is inaudible until the app turns it
+//! on. `CODEC_ENABLE` is a no-op: `deluge_bsp::audio::init` powers the codec itself.
 #![allow(non_upper_case_globals)]
 
+use core::cell::RefCell;
+
+use critical_section::Mutex;
 use deluge_bsp::board::GateTimer;
+use deluge_bsp::jacks::{self, Jack};
 use embassy_sync::once_lock::OnceLock;
-use rza1l_hal::interrupt::{Handler, typelevel};
-use rza1l_hal::mtu2::OneShot;
-use rza1l_hal::{Peri, gpio};
+use rza1_hal::Peri;
+use rza1_hal::gpio::{Level, Output};
+use rza1_hal::interrupt::{Handler, typelevel};
+use rza1_hal::mtu2::OneShot;
+use rza1_hal::peripherals::{P1_1, P6_7};
 
 use crate::sys::{
     DelugeSignal, DelugeSignal_DELUGE_SIGNAL_BATTERY_LED as BATTERY_LED,
@@ -23,33 +30,66 @@ use crate::sys::{
     DelugeSignal_DELUGE_SIGNAL_SYNC_LED as SYNC_LED,
 };
 
+/// The SYNC LED (P6_7) and the battery LED (P1_1, open-drain: low lights it).
+struct Leds {
+    sync: Output<'static>,
+    battery: Output<'static>,
+}
+
+static LEDS: Mutex<RefCell<Option<Leds>>> = Mutex::new(RefCell::new(None));
+
+/// Take the two LEDs, both off. Once, at startup.
+pub(crate) fn leds_init(sync: Peri<'static, P6_7>, battery: Peri<'static, P1_1>) {
+    let leds = Leds {
+        sync: Output::new(sync, Level::Low),
+        battery: Output::new(battery, Level::High),
+    };
+    critical_section::with(|cs| LEDS.borrow_ref_mut(cs).replace(leds));
+}
+
+/// Light or clear the SYNC LED. Does nothing before [`leds_init`].
+pub(crate) fn set_sync_led(on: bool) {
+    critical_section::with(|cs| {
+        if let Some(l) = LEDS.borrow_ref_mut(cs).as_mut() {
+            l.sync.set_level(on.into());
+        }
+    });
+}
+
+/// Light or clear the battery LED (open-drain, so on drives the pin low). Does nothing before
+/// [`leds_init`].
+fn set_battery_led(on: bool) {
+    critical_section::with(|cs| {
+        if let Some(l) = LEDS.borrow_ref_mut(cs).as_mut() {
+            l.battery.set_level((!on).into());
+        }
+    });
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_signal_write(signal: DelugeSignal, on: bool) {
-    // SAFETY: GPIO writes to board-owned output pins (configured in board init).
-    unsafe {
-        match signal {
-            SYNC_LED => gpio::write(6, 7, on),
-            BATTERY_LED => gpio::write(1, 1, !on), // open-drain: 0 = LED on
-            SPEAKER_ENABLE => gpio::write(4, 1, on),
-            CODEC_ENABLE => gpio::write(6, 12, on),
-            _ => {}
-        }
+    match signal {
+        SYNC_LED => set_sync_led(on),
+        BATTERY_LED => set_battery_led(on),
+        SPEAKER_ENABLE => jacks::set_speaker_enable(on),
+        // `deluge_bsp::audio::init` powers the codec (P6_12) when the app brings audio up, and the
+        // app only ever asks for it on.
+        CODEC_ENABLE => {}
+        _ => {}
     }
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_signal_read(signal: DelugeSignal) -> bool {
-    // SAFETY: GPIO reads of board-owned input pins (configured in board init).
-    unsafe {
-        match signal {
-            HEADPHONE_DETECT => gpio::read_pin(6, 5),
-            LINE_IN_DETECT => gpio::read_pin(6, 6),
-            MIC_DETECT => gpio::read_pin(7, 9),
-            LINE_OUT_DETECT_L => gpio::read_pin(6, 3),
-            LINE_OUT_DETECT_R => gpio::read_pin(6, 4),
-            _ => false,
-        }
-    }
+    let jack = match signal {
+        HEADPHONE_DETECT => Jack::Headphone,
+        LINE_IN_DETECT => Jack::LineIn,
+        MIC_DETECT => Jack::Mic,
+        LINE_OUT_DETECT_L => Jack::LineOutL,
+        LINE_OUT_DETECT_R => Jack::LineOutR,
+        _ => return false,
+    };
+    jacks::is_inserted(jack)
 }
 
 // Battery sense (ADC channel 5, via `deluge_bsp::battery`)
@@ -83,8 +123,6 @@ pub extern "C" fn deluge_battery_start_conversion() {
 const GATE_TIMER_PRESCALER: u16 = 64;
 /// Timer ticks per second at [`GATE_TIMER_PRESCALER`]: P0 (33 MHz) / 64.
 const GATE_TIMER_TICKS_PER_SEC: u64 = 515_616;
-/// GIC priority, above USB so gate timing is not delayed behind USB servicing.
-const GATE_TIMER_PRIORITY: u8 = 5;
 
 /// The MIDI/gate one-shot (MTU2 channel 2, the C firmware's `TIMER_MIDI_GATE_OUTPUT`), once
 /// [`gate_timer_setup`] has run.
@@ -107,18 +145,15 @@ impl Handler<typelevel::TGI2A> for GateTimerHandler {
     }
 }
 
-rza1l_hal::bind_interrupts!(struct GateTimerIrqs {
+rza1_hal::bind_interrupts!(struct GateTimerIrqs {
     TGI2A => GateTimerHandler;
 });
 
 /// One-time setup of the gate timer on the board's MTU2 channel 2, stopped until armed.
 pub(crate) fn gate_timer_setup(timer: Peri<'static, GateTimer>) {
-    let timer = OneShot::new(
-        timer,
-        GATE_TIMER_PRESCALER,
-        GATE_TIMER_PRIORITY,
-        GateTimerIrqs,
-    );
+    // Its GIC priority, P5 (above USB, so gate timing is not delayed behind USB servicing), is
+    // the board's: `deluge_bsp::Board::new` sets it.
+    let timer = OneShot::new(timer, GATE_TIMER_PRESCALER, GateTimerIrqs);
     if GATE_TIMER.init(timer).is_err() {
         unreachable!("MTU2 channel 2 is owned once");
     }

@@ -14,7 +14,7 @@ use core::sync::atomic::{AtomicU8, Ordering};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::signal::Signal;
 use embassy_usb::{Builder, Config};
-use rza1l_hal::usb::{Rusb1Driver, init_device_mode};
+use rza1_hal::usb::{Rusb1Driver, init_device_mode};
 use usb_classes::midi::{self, MidiClassHandler};
 
 use super::usb_audio::{self, AudioHandler};
@@ -34,8 +34,8 @@ static mut AUDIO_HANDLER: MaybeUninit<AudioHandler> = MaybeUninit::uninit();
 const USB_VID: u16 = 0x16D0;
 const USB_PID: u16 = 0x0EDA;
 
-rza1l_hal::bind_interrupts!(struct UsbIrqs {
-    USB0 => rza1l_hal::usb::DeviceInterruptHandler<rza1l_hal::peripherals::USB0>;
+rza1_hal::bind_interrupts!(struct UsbIrqs {
+    USB0 => rza1_hal::usb::DeviceInterruptHandler<rza1_hal::peripherals::USB0>;
 });
 
 /// [`STARTED`]'s states: not started, started with USB-MIDI only, started with audio as well.
@@ -58,7 +58,7 @@ static START: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 /// Touches USB and GIC registers: call exactly once, during single-threaded startup, before
 /// interrupts are unmasked.
 pub unsafe fn init(
-    usb0: rza1l_hal::Peri<'static, rza1l_hal::peripherals::USB0>,
+    usb0: rza1_hal::Peri<'static, rza1_hal::peripherals::USB0>,
 ) -> Rusb1Driver<'static> {
     // init_device_mode binds the device-mode handler (host mode is not implemented), ungates the
     // USB module clock and yields the driver.

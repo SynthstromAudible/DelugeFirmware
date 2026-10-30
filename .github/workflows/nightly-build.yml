@@ -53,7 +53,7 @@ jobs:
       branch: "next"
 
   # Everything in tests/registry.toml up to the nightly tier, against next. Cumulative, so the pr tier runs here
-  # too: next also takes local merges that no pull request's tests.yml run ever saw.
+  # too: next also takes local merges that no pull request's CI run ever saw.
   test-nightly-matrix:
     name: test matrix (nightly)
     runs-on: ubuntu-latest

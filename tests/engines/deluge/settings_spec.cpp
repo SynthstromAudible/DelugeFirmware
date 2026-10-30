@@ -158,6 +158,14 @@ describe settings("the Deluge instrument's settings schema", ${
 		expect(check_setting("unison/num", Value::makeScalar("three"))).to_be_false();
 	});
 
+	it("offers every oscillator type as an oscillator's type", _ {
+		for (auto t = 0; t <= static_cast<int>(OscType::INPUT_STEREO); ++t) {
+			const std::string name(to_string(static_cast<OscType>(t)));
+			const bool taken = check_setting("osc1/type", Value::makeScalar(name));
+			expect(name + (taken ? " taken" : " refused")).to_equal(name + " taken");
+		}
+	});
+
 	it("writes an integer the way a file does, however it was given", _ {
 		expect(canonical_setting("voicePriority", Value::makeScalar("02"))->str()).to_equal(std::string("2"));
 		expect(canonical_setting("polyphonic", Value::makeScalar("mono"))->str()).to_equal(std::string("mono"));

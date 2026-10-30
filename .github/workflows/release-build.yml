@@ -63,8 +63,6 @@ jobs:
   build:
     needs: prepare
     uses: ./.github/workflows/build.yml
-    permissions:
-      contents: write # build.yml declares write, so the caller must allow it
     with:
       firmware-retention-days: 90
       build-type: "Release"

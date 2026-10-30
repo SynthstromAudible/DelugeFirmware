@@ -12,7 +12,7 @@ The same `*_spec.cpp` files are built by both projects (this directory's
 `CMakeLists.txt` is `add_subdirectory`'d from each), so every assertion doubles
 as an x86-vs-NEON cross-check of the vectorised kernel — the guarantee the
 golden harness gives end-to-end, but fast and at the unit level. CI runs both in
-`.github/workflows/tests.yml`.
+the `tests / unit` job of `.github/workflows/ci.yml`.
 
 This is the per-primitive safety net for the synth untangling
 ([../../docs/dev/synth_phase1_l0_plan.md](../../docs/dev/synth_phase1_l0_plan.md)):

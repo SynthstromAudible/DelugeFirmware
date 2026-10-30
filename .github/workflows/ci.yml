@@ -1,0 +1,515 @@
+name: CI
+
+# Every check a change to next must pass, as a few jobs named by area. Branch protection requires only `ci-ok`.
+# A fault shared by everything (the environment, the host build) fails the one job that sets it up, and the jobs
+# that need it are skipped rather than failing on the same error. Each test's own result is in the Test Results
+# check.
+
+on:
+  push:
+    # Pushes test next itself, warm the caches PRs into next can see, and are the firmware size baseline.
+    branches:
+      - "next"
+  pull_request:
+    branches:
+      - "next"
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changes:
+    uses: ./.github/workflows/changes.yml
+    permissions:
+      pull-requests: read
+
+  lint-cpp:
+    name: lint (C++, Python, boundaries)
+    needs: changes
+    if: needs.changes.outputs.firmware == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: clang-format (src)
+        uses: d-griet/clang-format-lint-action@99a106be2f3f1a92d9783ea7c744fde62d8ce1fa
+        with:
+          source: "./src"
+          extensions: "c,cpp,h,hpp"
+          clangFormatVersion: 19
+
+      - name: ruff format
+        uses: astral-sh/ruff-action@v3
+        with:
+          version: "0.16.0"
+          args: "format --check"
+          src: "./scripts/ ./contrib ./tests ./src"
+
+      - name: ruff check
+        uses: astral-sh/ruff-action@v3
+        with:
+          version: "0.16.0"
+          src: "./scripts/ ./contrib ./tests ./src"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Every libdeluge declaration is defined, pinned, tagged and DELUGE_NOEXCEPT
+        run: python3 scripts/check_abi_surface.py --check --pins --tags --dead --noexcept
+
+      - name: The application does not bypass the libdeluge boundary
+        run: python3 scripts/check_platform_boundary.py
+
+      - name: dsp-next stays within the L0 boundary
+        run: python3 scripts/check_dsp_boundary.py
+
+      - name: The synth core stays within its boundary
+        run: python3 scripts/check_synth_boundary.py
+
+      - name: Each library includes only what it declares
+        run: |
+          python3 scripts/check_library_boundary.py
+          (cd scripts && python3 -m unittest test_check_library_boundary)
+
+      - name: The model names no engine's state
+        run: python3 scripts/check_model_words.py
+
+  lint-rust:
+    name: lint (Rust)
+    needs: changes
+    if: needs.changes.outputs.firmware == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      # The crates' build scripts compile C++26.
+      - uses: ./.github/actions/clang
+
+      # Toolchains (nightly + components) are pinned by each rust-toolchain.toml; rustup installs them on first use.
+      - run: rustup component add rustfmt clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            crates
+            src/bsp/rust
+            tests/component/differential/fs_differential
+            tests/component/differential/region_fill_differential
+            tests/component/differential/region_read_differential
+            tests/component/differential/region_source_differential
+
+      # deluge_sample_convert is outside the crates/ workspace, so each step names it too.
+      - name: rustfmt
+        run: |
+          cargo fmt --manifest-path crates/Cargo.toml --all --check
+          cargo fmt --manifest-path src/bsp/rust/Cargo.toml --check
+          cargo fmt --manifest-path crates/deluge_sample_convert/Cargo.toml --check
+          for m in tests/component/differential/*/Cargo.toml src/bsp/rust/harness/*/Cargo.toml; do
+            cargo fmt --manifest-path "$m" --check
+          done
+
+      # Host target only: the BSP's device lint runs with the device build (build.yml), which has its C++ tree.
+      - name: clippy
+        run: |
+          cargo clippy --manifest-path crates/Cargo.toml --all-targets -- -D warnings
+          cargo clippy --manifest-path crates/deluge_sample_convert/Cargo.toml --all-targets -- -D warnings
+          for m in tests/component/differential/*/Cargo.toml; do
+            echo "== $m"
+            cargo clippy --manifest-path "$m" --all-targets -- -D warnings
+          done
+
+      # Private items too: most of this code is crate-internal, and its links break as easily. golden_vt_render and
+      # the BSP's `host_app` build need the CMake host tree, so they are checked locally
+      # (docs/dev/rust_documentation.md).
+      - name: rustdoc
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+        run: |
+          for m in crates/Cargo.toml crates/deluge_sample_convert/Cargo.toml src/bsp/rust/Cargo.toml \
+                   tests/component/differential/*/Cargo.toml; do
+            echo "== $m"
+            cargo doc --manifest-path "$m" --workspace --no-deps --document-private-items
+          done
+
+      - name: The test registry's table is current
+        run: |
+          DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test --list --markdown > "$RUNNER_TEMP/table.md"
+          sed -n '/BEGIN GENERATED TABLE/,/END GENERATED TABLE/p' tests/README.md \
+            | sed '1d;$d' > "$RUNNER_TEMP/committed.md"
+          diff -u "$RUNNER_TEMP/committed.md" "$RUNNER_TEMP/table.md" || {
+            echo "::error::tests/README.md's table is stale -- regenerate it (see the README)."
+            exit 1
+          }
+
+  # Advisory: annotations on the changed lines, never a failure. Not part of ci-ok.
+  clang-tidy:
+    name: clang-tidy (advisory)
+    needs: changes
+    # Its annotations need a token a fork PR does not get.
+    if: >-
+      github.event_name == 'pull_request' && needs.changes.outputs.firmware == 'true' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Remove preinstalled clang-tidy
+        run: sudo apt-get remove -y ^clang-tidy
+
+      - name: Install clang-tidy
+        uses: ./.github/actions/apt-install
+        with:
+          cache-name: clang-tidy
+          packages: clang-19 clang-tidy-19
+
+      - name: Select clang-tidy 19
+        run: |
+          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-19 100
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 100
+
+      - name: Generate compilation database
+        run: ./dbt configure
+
+      - name: Extract system includes from GCC
+        id: extract_system_includes
+        run: |
+          "$GITHUB_WORKSPACE"/toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-g++ -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -E -x c++ - -v < /dev/null 2>&1 \
+            | sed -n '/^#include <...> search starts here:$/,/^End of search list.$/p' \
+            | tail -n +2 \
+            | head -n -1 \
+            | sed 's/^\s*//g' \
+            | sed 's/^\(.*\)$/--extra-arg-before=-isystem\1/g' \
+            | tr '\n' ' ' > system_includes.txt
+          echo "system_includes=$(cat system_includes.txt)" >> "$GITHUB_OUTPUT"
+
+      - uses: ZehMatt/clang-tidy-annotations@v1.1.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          build_dir: ${{ github.workspace }}/build
+          source_dir: ${{ github.workspace }}
+          only_affected_lines: true
+          fail_on_problems: false
+          clang_tidy_args: ${{ steps.extract_system_includes.outputs.system_includes }} --extra-arg-before=--no-standard-includes
+          clang_tidy_file: ${{ github.workspace }}/.clang-tidy
+
+  firmware:
+    name: firmware
+    needs: changes
+    uses: ./.github/workflows/build.yml
+    with:
+      skip: ${{ needs.changes.outputs.firmware != 'true' }}
+      build-type: "Release"
+      # Push builds are the size report's baseline, so they are kept longer.
+      firmware-retention-days: ${{ github.event_name == 'push' && 30 || 5 }}
+      bsp-clippy: true
+
+  # golden_vt_render, built once: the render, app and model groups run it without building (--prebuilt).
+  host-build:
+    name: host build
+    needs: changes
+    if: needs.changes.outputs.firmware == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/test-prerequisites
+
+      # Each product is built once however many tests name it; the prebuilt groups name only golden-vt-render.
+      - name: Build the prebuilt groups' products
+        run: |
+          read -ra tests <<< "$(DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test --ci-matrix --tier pr \
+            | jq -r '[.include[] | select(.prebuilt != "") | .tests] | join(" ")')"
+          DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test -n --strict "${tests[@]}"
+
+      # A tarball keeps the executable bit, which an artifact upload drops.
+      - name: Pack the prebuilt groups' products
+        run: |
+          DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test --list-outputs > "$RUNNER_TEMP/outputs.txt"
+          tar -czf host-build.tar.gz -T "$RUNNER_TEMP/outputs.txt"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: host-build
+          path: host-build.tar.gz
+          if-no-files-found: error
+          retention-days: 3
+
+  matrix:
+    name: test matrix
+    needs: changes
+    if: needs.changes.outputs.firmware == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      include: ${{ steps.emit.outputs.include }}
+    steps:
+      - uses: actions/checkout@v7
+      # A registry error, or a selection with nothing in it, fails here rather than in every job after.
+      - id: emit
+        run: |
+          matrix=$(DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test --ci-matrix --tier pr)
+          include=$(jq -ce '.include | select(length > 0)' <<< "$matrix")
+          echo "include=$include" >> "$GITHUB_OUTPUT"
+
+  tests:
+    name: tests / ${{ matrix.group }}
+    needs: [matrix, host-build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.matrix.outputs.include) }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/test-prerequisites
+
+      - name: Fetch the host build
+        if: matrix.prebuilt != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: host-build
+
+      - name: Unpack the host build
+        if: matrix.prebuilt != ''
+        run: tar -xzf host-build.tar.gz
+
+      # --strict: a test skipped for a missing prerequisite fails the job, so a gap in the prerequisites action
+      # shows up here rather than as a quiet green.
+      - name: Run ${{ matrix.group }}
+        env:
+          TESTS: ${{ matrix.tests }}
+          PREBUILT: ${{ matrix.prebuilt != '' && '--prebuilt' || '' }}
+        run: |
+          read -ra tests <<< "$TESTS"
+          DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test $PREBUILT --strict --junit build/results -j "$(nproc)" "${tests[@]}"
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: Test Results ${{ matrix.group }}
+          path: build/results/*.xml
+          if-no-files-found: ignore
+
+  website:
+    name: website
+    needs: changes
+    if: needs.changes.outputs.website == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # The site deploys to the root of this domain; the check builds it the same way.
+    env:
+      SITE_URL: https://delugecommunity.com
+      SITE_BASE_PATH: ""
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Recent-change generation scans main history and inspects each commit's changed paths, so a shallow
+          # checkout is insufficient.
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.24.0
+          run_install: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: website/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Rebuild Sharp native module
+        run: pnpm rebuild sharp
+
+      # Playwright renders the mermaid diagrams at build time (rehype-mermaid).
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium chromium-headless-shell
+
+      - name: Configure Chromium sandbox for PDF generation
+        run: bash ./scripts/setup-pdf-sandbox.sh
+
+      - name: Run website checks
+        run: pnpm run check
+
+      - name: Build website
+        run: pnpm run build
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Generate and check PDF
+        timeout-minutes: 10
+        run: pnpm run generate:pdf
+
+      - name: Upload PDF
+        uses: actions/upload-artifact@v7
+        with:
+          name: documentation-pdf
+          path: website/dist/downloads/delugecommunity.com.pdf
+          if-no-files-found: error
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: website-artifact
+          path: website/dist
+
+  # The one required check. A job skipped because its half of the tree is untouched passes; one that failed, or
+  # was cancelled, or was skipped because a job it needs failed, does not.
+  ci-ok:
+    name: ci-ok
+    if: always()
+    needs: [changes, lint-cpp, lint-rust, firmware, host-build, matrix, tests, website]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every needed job passed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+          FIRMWARE: ${{ needs.changes.outputs.firmware }}
+        run: |
+          jq -r 'to_entries[] | "\(.key) \(.value.result)"' <<< "$NEEDS"
+          if jq -e 'any(.[]; .result == "failure" or .result == "cancelled")' <<< "$NEEDS" >/dev/null; then
+            echo "::error::a CI job failed or was cancelled"
+            exit 1
+          fi
+          # tests is skipped both when the PR is website-only and when host-build or matrix failed (caught above);
+          # a firmware change whose tests never ran is not a pass.
+          if [ "$FIRMWARE" = true ] && [ "$(jq -r '.tests.result' <<< "$NEEDS")" != success ]; then
+            echo "::error::the tests did not run"
+            exit 1
+          fi
+
+  # Reporting only, so neither is part of ci-ok; on a fork PR, whose token is read-only, each still writes its job
+  # summary.
+  test-results:
+    name: Test Results
+    needs: tests
+    if: always() && needs.tests.result != 'skipped'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: Test Results *
+          path: artifacts
+
+      - name: Publish Test Results
+        if: hashFiles('artifacts/**/*.xml') != ''
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          check_name: Test Results
+          files: "artifacts/**/*.xml"
+          job_summary: true
+
+  # The PR's Release image against the newest push build of its base branch that the branch still contains.
+  firmware-size:
+    name: firmware size
+    needs: [changes, firmware]
+    if: github.event_name == 'pull_request' && needs.changes.outputs.firmware == 'true'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ARTIFACT: dev_Release_build_bundle
+      BASE_REF: ${{ github.event.pull_request.base.ref }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: dev_Release_build_bundle
+          path: new
+
+      - name: Download baseline build
+        id: baseline
+        run: |
+          # Any completed push run whose firmware job uploaded the image, whatever its tests did.
+          candidates=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch "$BASE_REF" --event push \
+              --status completed --limit 20 --json databaseId,headSha --jq '.[] | "\(.databaseId) \(.headSha)"')
+          while read -r run_id sha; do
+            [ -n "$run_id" ] || continue
+            status=$(gh api "repos/$GITHUB_REPOSITORY/compare/$sha...$BASE_REF" --jq .status) || continue
+            [[ "$status" == identical || "$status" == ahead ]] || continue
+            gh run download "$run_id" --repo "$GITHUB_REPOSITORY" -n "$ARTIFACT" -D baseline || continue
+            echo "Using baseline from run $run_id at $sha"
+            { echo "found=true"; echo "sha=$sha"; } >> "$GITHUB_OUTPUT"
+            exit 0
+          done <<< "$candidates"
+          echo "No Release build of $BASE_REF to compare with" >> "$GITHUB_STEP_SUMMARY"
+          echo "found=false" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the dbt toolchain
+        if: steps.baseline.outputs.found == 'true'
+        uses: actions/cache@v6
+        with:
+          path: toolchain
+          key: dbt-toolchain-${{ runner.os }}-${{ hashFiles('toolchain/REQUIRED_VERSION', 'src/bsp/rust/rust-toolchain.toml') }}
+
+      - name: Compare sizes
+        if: steps.baseline.outputs.found == 'true'
+        env:
+          DBT_NO_PYTHON_UPGRADE: "1"
+        run: |
+          set -o pipefail
+          ./dbt elfsize --baseline baseline/deluge.elf new/deluge.elf | tee elfsize.txt
+
+      - name: Write report
+        if: steps.baseline.outputs.found == 'true'
+        env:
+          BASE_SHA: ${{ steps.baseline.outputs.sha }}
+        run: |
+          {
+            echo "## Firmware size"
+            echo
+            echo "PR #$PR_NUMBER at ${HEAD_SHA:0:7} compared with \`$BASE_REF\` at ${BASE_SHA:0:7}."
+            echo
+            echo '```'
+            cat elfsize.txt
+            echo '```'
+          } > report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      # A fork PR's token cannot comment; the job summary has the report.
+      - name: Comment on PR
+        if: >-
+          steps.baseline.outputs.found == 'true' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          header: firmware-size
+          number: ${{ github.event.pull_request.number }}
+          path: report.md

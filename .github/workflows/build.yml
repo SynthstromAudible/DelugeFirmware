@@ -19,6 +19,10 @@ on:
         # Skips the job instead of not calling it, so the required check still passes
         default: false
         type: boolean
+      bsp-clippy:
+        # Also lint the Rust BSP for the device. Advisory: a finding is reported, not failed on.
+        default: false
+        type: boolean
   workflow_dispatch:
     inputs:
       firmware-retention-days:
@@ -33,7 +37,7 @@ on:
         options:
         - Debug
         - Release
-        - Relwithdebinfo
+        - RelWithDebInfo
       build-tag:
         type: choice
         description: Tag for firmware version
@@ -45,19 +49,14 @@ on:
         - release
 
 permissions:
-  contents: write #required to update release tags
+  contents: read
 
 jobs:
   build:
     name: Build
-    # DISABLED: the device firmware is now built by `dbt build`, which needs
-    # host clang, a Rust nightly with rust-src, the armv7a-deluge-eabihf JSON
-    # target, and a resolvable deluge-sdk — none of which the dbt-toolchain
-    # container provides, and there's no legacy build target left to fall
-    # back to. Re-enable once the container and this workflow support a
-    # reproducible `dbt build` in CI.
-    if: false
+    if: ${{ !inputs.skip }}
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout branch
         if: inputs.branch != null
@@ -71,24 +70,29 @@ jobs:
         env:
           buildtype: ${{ inputs.build-type }}
         run: node .github/scripts/validate_build_string.js
-      - name: Fetch container image
-        run: |
-          docker pull "ghcr.io/synthstromaudible/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION)"
+
+      - uses: ./.github/actions/clang
+
+      # dbt downloads the pinned toolchain (arm-none-eabi-gcc's newlib sysroot, cmake, python, rustup) on first run.
+      - name: Cache the dbt toolchain
+        uses: actions/cache@v6
+        with:
+          path: toolchain
+          key: dbt-toolchain-${{ runner.os }}-${{ hashFiles('toolchain/REQUIRED_VERSION', 'src/bsp/rust/rust-toolchain.toml') }}
+
       - name: Run build
         env:
-          BUILD_TAG: ${{ inputs.build-tag }}
           BUILD_TYPE: ${{ inputs.build-type }}
-        run: |
-          docker run --rm \
-            --user="$(id --user):$(id --group)" \
-            -e DBT_NO_PYTHON_UPGRADE=1 \
-            -v "$(pwd)":/src \
-            "ghcr.io/synthstromaudible/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION)" \
-            build \
-            --verbose \
-            --tag-metadata \
-            --type "$BUILD_TAG" \
-            "$BUILD_TYPE"
+          DBT_NO_PYTHON_UPGRADE: "1"
+        run: ./dbt build --verbose "$BUILD_TYPE"
+
+      - name: Lint the Rust BSP for the device
+        if: inputs.bsp-clippy
+        continue-on-error: true
+        env:
+          BUILD_TYPE: ${{ inputs.build-type }}
+          DBT_NO_PYTHON_UPGRADE: "1"
+        run: ./dbt build --clippy "$BUILD_TYPE"
 
       - name: Genfile check
         run: |
@@ -101,4 +105,3 @@ jobs:
           path: build/${{ inputs.build-type }}/*
           if-no-files-found: error
           retention-days: ${{ inputs.firmware-retention-days }}
-

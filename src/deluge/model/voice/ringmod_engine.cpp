@@ -136,6 +136,10 @@ void RingModEngine::renderUnisonPart(const Source& src0, const Source& src1, boo
 		if (source.part->vaSource.has_value()) {
 			source.part->vaSource->renderInto(controls, source.phaseIncrement, out, syncScratch);
 		}
+		else if (source.part->supersawSource.has_value()) {
+			source.part->supersawSource->renderInto(controls, source.phaseIncrement, source.waveIndexLast,
+			                                        source.waveIndexIncrement, out, syncScratch);
+		}
 		else {
 			source.part->wavetableSource->renderInto(controls, source.waveTable->view(), source.waveIndexLast,
 			                                         source.waveIndexIncrement, source.phaseIncrement, out,
@@ -147,7 +151,7 @@ void RingModEngine::renderUnisonPart(const Source& src0, const Source& src1, boo
 		if (source.oscType == OscType::SAW || source.oscType == OscType::ANALOG_SAW_2) {
 			amplitudeForRingMod <<= 1;
 		}
-		else if (source.oscType == OscType::WAVETABLE) {
+		else if (source.oscType == OscType::WAVETABLE || source.oscType == OscType::SUPERSAW) {
 			amplitudeForRingMod <<= 2;
 		}
 	}

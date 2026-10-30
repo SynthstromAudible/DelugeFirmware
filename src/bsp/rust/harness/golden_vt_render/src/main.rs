@@ -1323,8 +1323,8 @@ fn pender(_context: *mut ()) {
 }
 
 fn main() {
-    // A `--release` build compiles every `log::*!` call away (`deluge-bsp`/`rza1l-hal` enable
-    // `log`'s `release_max_level_off`); use a debug build for log output.
+    // A `--release` build compiles `log::debug!`/`trace!` away (deluge-sdk's `log` enables
+    // `release_max_level_info`); use a debug build for those.
     env_logger::init();
     log::info!("golden_vt_render: Embassy-host-BSP golden renderer (boot + mount rung)");
 

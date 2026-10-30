@@ -110,9 +110,7 @@ def main() -> int:
         return 0
 
     if offenders:
-        print(
-            "ERROR: dsp-next files reach outside the L0 boundary:", file=sys.stderr
-        )
+        print("ERROR: dsp-next files reach outside the L0 boundary:", file=sys.stderr)
         for p in sorted(offenders):
             print(f"  {p}  ->  {', '.join(offenders[p])}", file=sys.stderr)
         print(

@@ -37,6 +37,7 @@ enum class OscType : uint8_t {
 	ANALOG_SQUARE,
 	SAW,
 	ANALOG_SAW_2,
+	SUPERSAW,
 	WAVETABLE,
 	SAMPLE,
 	DX7,
@@ -112,6 +113,8 @@ enum class SampleRepeatMode {
 		return "saw";
 	case OscType::ANALOG_SAW_2:
 		return "analogSaw";
+	case OscType::SUPERSAW:
+		return "supersaw";
 	case OscType::ANALOG_SQUARE:
 		return "analogSquare";
 	case OscType::SINE:
@@ -138,9 +141,9 @@ enum class SampleRepeatMode {
 /// @param text An oscillator type name from a file.
 /// @return The named type.
 [[nodiscard]] constexpr OscType parse_osc_type(std::string_view text) noexcept {
-	for (OscType t :
-	     {OscType::SQUARE, OscType::ANALOG_SQUARE, OscType::ANALOG_SAW_2, OscType::SAW, OscType::SINE, OscType::SAMPLE,
-	      OscType::WAVETABLE, OscType::INPUT_L, OscType::INPUT_R, OscType::INPUT_STEREO, OscType::DX7}) {
+	for (OscType t : {OscType::SQUARE, OscType::ANALOG_SQUARE, OscType::ANALOG_SAW_2, OscType::SAW, OscType::SUPERSAW,
+	                  OscType::SINE, OscType::SAMPLE, OscType::WAVETABLE, OscType::INPUT_L, OscType::INPUT_R,
+	                  OscType::INPUT_STEREO, OscType::DX7}) {
 		if (text == to_string(t)) {
 			return t;
 		}
