@@ -320,13 +320,14 @@ option(DELUGE_DSP_BENCH "Run the DSP benchmarks at boot (device builds)" OFF)
 # "granular" (the granular kernel with sparse and dense grains, with and without pitch randomness),
 # "stutter" (the stutter recording and playing over a native and a resampled tape), "reverb" (each reverb model as the
 # engine renders it), "dx7" (a DX7 voice's block in each engine, through the voice adapter), "fx_chains" (each home's effect
-# chain runtime beside the same sequence written out over its components), or "fft_forward" and "fft_inverse" (the int32
-# real FFT at every size the firmware transforms).
+# chain runtime beside the same sequence written out over its components), "fft_forward" and "fft_inverse" (the int32
+# real FFT at every size the firmware transforms), or "mod_matrix" (today's q31 Patcher on the mod-matrix
+# workload).
 # The device prints about 70 lines over RTT before it drops some, so the cases come in lists that fit.
 set(DELUGE_DSP_BENCH_CASES "kernels" CACHE STRING
-    "The DSP bench's case list: kernels, lanes, chain, delay, filters, compressor, mod_fx, granular, stutter, reverb, dx7, fx_chains, fft_forward or fft_inverse")
+    "The DSP bench's case list: kernels, lanes, chain, delay, filters, compressor, mod_fx, granular, stutter, reverb, dx7, fx_chains, fft_forward, fft_inverse or mod_matrix")
 set_property(CACHE DELUGE_DSP_BENCH_CASES PROPERTY STRINGS kernels lanes chain delay filters compressor mod_fx granular stutter
-                                                           reverb dx7 fx_chains fft_forward fft_inverse)
+                                                           reverb dx7 fx_chains fft_forward fft_inverse mod_matrix)
 
 # The streaming benchmark (src/deluge/bench/stream_bench.h). Off by default; enable with -DDELUGE_STREAM_BENCH=ON. A device
 # image built with it loads the first song after boot, plays it, loads the second while playing, and prints where each

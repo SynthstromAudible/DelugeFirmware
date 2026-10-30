@@ -794,10 +794,26 @@ std::span<const Case> fft_inverse_list(CaseSet& s) {
 	return fft_inverse;
 }
 
+/// @brief The mod-matrix list.
+std::span<const Case> mod_matrix_list(CaseSet& s) {
+	static const std::array mod_matrix{
+	    make_case("calibration_loop", s.calibration_loop),
+	    make_case("patcher_q31_typical", s.patcher_q31_typical),
+	    make_case("patcher_q31_all", s.patcher_q31_all),
+	    make_case("patcher_q31_initial", s.patcher_q31_initial),
+	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
+	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),
+	};
+	return mod_matrix;
+}
+
 /// @brief The cases of @p L.
 template <CaseList L>
 std::span<const Case> list_cases(CaseSet& s) {
-	if constexpr (L == CaseList::FFT_FORWARD) {
+	if constexpr (L == CaseList::MOD_MATRIX) {
+		return mod_matrix_list(s);
+	}
+	else if constexpr (L == CaseList::FFT_FORWARD) {
 		return fft_forward_list(s);
 	}
 	else if constexpr (L == CaseList::FFT_INVERSE) {
@@ -875,6 +891,8 @@ std::span<const Case> cases(CaseList list) {
 		return list_cases<CaseList::FX_CHAINS>(s);
 	case CaseList::FFT_FORWARD:
 		return list_cases<CaseList::FFT_FORWARD>(s);
+	case CaseList::MOD_MATRIX:
+		return list_cases<CaseList::MOD_MATRIX>(s);
 	case CaseList::FFT_INVERSE:
 		return list_cases<CaseList::FFT_INVERSE>(s);
 	case CaseList::KERNELS:

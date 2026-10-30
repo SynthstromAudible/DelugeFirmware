@@ -16,9 +16,11 @@
  */
 
 #pragma once
+
 #include "definitions_cxx.hpp"
 #include "modulation/params/param_collection.h"
 #include "modulation/patch/patch_cable.h"
+#include <bitset>
 #include <memory>
 #include <vector>
 
@@ -79,6 +81,10 @@ public:
 	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override;
 
 	void setupPatching(ModelStackWithParamCollection const* modelStack);
+	/// @brief Reorder the cables and rebuild the Destinations as the render needs them.
+	/// @param summary The set's summary, whose automation and interpolation records are refreshed.
+	/// @param usable  Bit c: whether cable c (in the current order) may be patched.
+	void setupPatching(ParamCollectionSummary& summary, std::bitset<kMaxNumPatchCables> usable);
 	bool doesDestinationDescriptorHaveAnyCables(ParamDescriptor destinationParamDescriptor);
 	uint8_t getPatchCableIndex(PatchSource from, ParamDescriptor destinationParamDescriptor,
 	                           ModelStackWithParamCollection const* modelStack = nullptr,

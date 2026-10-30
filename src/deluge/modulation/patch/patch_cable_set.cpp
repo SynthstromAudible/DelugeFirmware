@@ -35,6 +35,7 @@
 #include "util/misc.h"
 #include "util/structural_edit_probe.h"
 #include <algorithm>
+#include <bitset>
 #include <libdeluge/system.h>
 #include <new>
 #include <string.h>
@@ -249,6 +250,14 @@ const int32_t neutralRangeAdjustmentValue = 536870912;
 extern int32_t rangeFinalValues[];
 
 void PatchCableSet::setupPatching(ModelStackWithParamCollection const* modelStack) {
+	std::bitset<kMaxNumPatchCables> usable;
+	for (int32_t c = 0; c < numPatchCables; c++) {
+		usable[c] = patchCableIsUsable(c, modelStack);
+	}
+	setupPatching(*modelStack->summary, usable);
+}
+
+void PatchCableSet::setupPatching(ParamCollectionSummary& summary, std::bitset<kMaxNumPatchCables> usable) {
 	// The render walks the cables by the Destinations' index runs: reordering the one and rebuilding the other must not
 	// interleave with it.
 	AudioExcludedSection section;
@@ -281,15 +290,18 @@ void PatchCableSet::setupPatching(ModelStackWithParamCollection const* modelStac
 	for (numUsablePatchCables = 0; numUsablePatchCables < numPotentiallyUsablePatchCables; numUsablePatchCables++) {
 
 		// If not usable, try and find one at the end to swap with
-		if (!patchCableIsUsable(numUsablePatchCables, modelStack)) {
+		if (!usable[numUsablePatchCables]) {
 			while (true) {
 				numPotentiallyUsablePatchCables--;
 				if (numPotentiallyUsablePatchCables == numUsablePatchCables) {
 					goto numUsablePatchCablesWorkedOut;
 				}
 
-				if (patchCableIsUsable(numPotentiallyUsablePatchCables, modelStack)) {
+				if (usable[numPotentiallyUsablePatchCables]) {
 					swapCables(numPotentiallyUsablePatchCables, numUsablePatchCables);
+					const bool bit = usable[numPotentiallyUsablePatchCables];
+					usable[numPotentiallyUsablePatchCables] = usable[numUsablePatchCables];
+					usable[numUsablePatchCables] = bit;
 					break;
 				}
 			}
@@ -451,16 +463,16 @@ goAgainWithoutIncrement:
 
 	// Also, as we've just re-arranged patched cables, we need to check again whether any have interpolation active, or
 	// are even automated.
-	modelStack->summary->resetAutomationRecord(kNumUnsignedIntegersToRepPatchCables - 1);
-	modelStack->summary->resetInterpolationRecord(kNumUnsignedIntegersToRepPatchCables - 1);
+	summary.resetAutomationRecord(kNumUnsignedIntegersToRepPatchCables - 1);
+	summary.resetInterpolationRecord(kNumUnsignedIntegersToRepPatchCables - 1);
 
 	for (int32_t c = 0; c < numUsablePatchCables; c++) {
 
 		if (patchCables[c].param.isAutomated(*docForParam(c))) {
-			flagCable(modelStack->summary->whichParamsAreAutomated, c);
+			flagCable(summary.whichParamsAreAutomated, c);
 
 			if (patchCables[c].param.hasInterpolationIncrement()) {
-				flagCable(modelStack->summary->whichParamsAreInterpolating, c);
+				flagCable(summary.whichParamsAreInterpolating, c);
 			}
 		}
 	}
