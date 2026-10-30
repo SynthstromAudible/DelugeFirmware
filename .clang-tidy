@@ -77,6 +77,7 @@ CheckOptions:
   - { key: readability-identifier-naming.StructCase,          value: CamelCase  }
   - { key: readability-identifier-naming.FunctionCase,        value: lower_case }
   - { key: readability-identifier-naming.VariableCase,        value: lower_case }
+  - { key: readability-identifier-naming.ParameterCase,       value: lower_case }
   # Constants are kCamelCase (kMaxNumSections) at every scope: namespace, class and function-local constexpr alike.
   # Metaprogramming follows the standard library instead: trait structs and concepts are snake_case, and a
   # constexpr variable template ends in _v (is_same_v) and a trait's result is `value` — the spellings of a
