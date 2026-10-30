@@ -23,7 +23,7 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
-#include "model/voice/voice.h"
+#include "model/voice/voice_slot.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -330,12 +330,12 @@ void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue,
 	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
 	int32_t s = expressionDimension + util::to_underlying(PatchSource::X);
 	for (const auto& voice : this->voices()) {
-		if (voice->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
+		if (voice->kernel.inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
 			if (expressionValueChangesMustBeDoneSmoothly) {
-				voice->expressionEventSmooth(newValue, s);
+				voice->kernel.expressionEventSmooth(newValue, s);
 			}
 			else {
-				voice->expressionEventImmediate(*this, newValue, s);
+				voice->expression_event_immediate(newValue, s);
 			}
 		}
 	}
@@ -483,10 +483,11 @@ bool SoundInstrument::noteIsOn(int32_t noteCode, bool resetTimeEntered) {
 	}
 
 	for (const auto& voice : this->voices()) {
-		if ((voice->noteCodeAfterArpeggiation == noteCode)
-		    && voice->envelopes[0].stage() < Envelope::Stage::RELEASE) { // Ignore releasing notes. Is this right?
+		if ((voice->kernel.noteCodeAfterArpeggiation == noteCode)
+		    && voice->kernel.envelopes[0].stage()
+		           < Envelope::Stage::RELEASE) { // Ignore releasing notes. Is this right?
 			if (resetTimeEntered) {
-				voice->resetEnvelope0TimeEntered(deluge::synth::VoiceClock{AudioEngine::nextVoiceState});
+				voice->kernel.resetEnvelope0TimeEntered(deluge::synth::VoiceClock{AudioEngine::nextVoiceState});
 			}
 			return true;
 		}

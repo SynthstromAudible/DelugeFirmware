@@ -21,7 +21,7 @@
 class ModelStackWithSoundFlags;
 class ParamManagerForTimeline;
 class Sound;
-class Voice;
+class VoiceSlot;
 
 /// @file What the voice kernel's lifecycle reads from a Sound, built where the Sound is: a note-on's or note change's
 /// NoteSetup and a note-off's ReleaseInfo.
@@ -30,7 +30,7 @@ class Voice;
 /// @details A note-on (@p forNoteChange false) first finds each SAMPLE or WAVETABLE source's range for the note and
 /// takes its file into the voice's playback guide, with a time-stretched sample's sync and a sample's playback bounds.
 /// A note change keeps the files the note started with.
-deluge::synth::NoteSetup note_setup_for(Voice& voice, Sound& sound, ParamManagerForTimeline* paramManager,
+deluge::synth::NoteSetup note_setup_for(VoiceSlot& voice, Sound& sound, ParamManagerForTimeline* paramManager,
                                         ModelStackWithSoundFlags& flags, int32_t noteAfterArpeggiation,
                                         uint32_t sampleSyncLength, int32_t ticksLate, bool forNoteChange);
 

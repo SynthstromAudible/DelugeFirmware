@@ -28,7 +28,6 @@ enum class LateStartAttemptStatus {
 class TimeStretcher;
 class SampleCache;
 class Sample;
-class Voice;
 class VoiceSamplePlaybackGuide;
 class Source;
 class SampleControls;

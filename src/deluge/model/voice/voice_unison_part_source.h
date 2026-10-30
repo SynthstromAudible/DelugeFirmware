@@ -34,7 +34,6 @@
 class TimeStretcher;
 class VoiceSamplePlaybackGuide;
 class Source;
-class Voice;
 
 /// @brief The firmware side of one unison part's source: the ports its sources play through.
 struct UnisonPartPorts {

@@ -53,6 +53,18 @@ struct VoiceBlock {
 	VoiceClock clock;
 };
 
+/// @brief One voice render's buffer and the sound-level scalars that go with it.
+struct VoiceRenderArgs {
+	int32_t* buffer{};      ///< The sound's buffer, which the voice adds into (stereo pairs when @ref sound_in_stereo)
+	int32_t num_samples{};  ///< Frames to render
+	bool sound_in_stereo{}; ///< The sound renders its voices in stereo
+	bool pan_at_voice_level{};  ///< Each voice pans itself (pan is patched), rather than the sound panning the sum
+	uint32_t sources_changed{}; ///< Bit per patch source whose value changed since the last block
+	int32_t pitch_adjust{};     ///< The sound's pitch adjust, 2^24 for none
+	/// Shared scratch, each SSI_TX_BUFFER_NUM_SAMPLES wide: the render's stereo, ring-mod and osc-sync work buffers.
+	std::array<int32_t*, 4> spare_buffers{};
+};
+
 /// A NoteSetup's @ref NoteSetup::last_note_code when the sound has played no note yet.
 inline constexpr int32_t kNoLastNote = std::numeric_limits<int32_t>::min();
 

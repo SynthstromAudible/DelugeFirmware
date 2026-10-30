@@ -27,6 +27,7 @@
 #include <cstring>
 
 using namespace deluge;
+using deluge::synth::Voice;
 namespace params = deluge::modulation::params;
 
 void FMEngine::render(Voice& voice, int32_t numSamples, int32_t overallPitchAdjust, bool stereoUnison,

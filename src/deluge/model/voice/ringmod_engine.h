@@ -20,7 +20,10 @@
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
 #include <cstdint>
 
+namespace deluge::synth {
 class Voice;
+} // namespace deluge::synth
+
 class VoiceUnisonPartSource;
 struct VoiceConfig;
 namespace deluge::synth {
@@ -58,9 +61,9 @@ public:
 	/// (@p filterGain, @p oscSyncPos, @p sourceWaveIndexIncrements, @p stereoUnison, @p overallPitchAdjust) is
 	/// computed by Voice and passed in; @p didStereoTempBuffer is set true when @p stereoUnison. @p scratch0 /
 	/// @p scratch1 are the caller's two spare buffers (≥ @p numSamples).
-	void render(Voice& voice, int32_t* oscBuffer, int32_t numSamples, bool doOscSync, uint32_t* oscSyncPos,
-	            int32_t overallPitchAdjust, const int32_t* sourceWaveIndexIncrements, bool stereoUnison,
-	            int32_t filterGain, bool& didStereoTempBuffer, int32_t* scratch0, int32_t* scratch1,
+	void render(deluge::synth::Voice& voice, int32_t* oscBuffer, int32_t numSamples, bool doOscSync,
+	            uint32_t* oscSyncPos, int32_t overallPitchAdjust, const int32_t* sourceWaveIndexIncrements,
+	            bool stereoUnison, int32_t filterGain, bool& didStereoTempBuffer, int32_t* scratch0, int32_t* scratch1,
 	            const VoiceConfig& cfg, const deluge::synth::VoiceBlock& block);
 
 private:

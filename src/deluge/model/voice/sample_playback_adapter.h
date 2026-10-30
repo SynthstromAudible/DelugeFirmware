@@ -22,7 +22,6 @@
 
 class Sample;
 class Source;
-class Voice;
 class VoiceSample;
 class VoiceSamplePlaybackGuide;
 

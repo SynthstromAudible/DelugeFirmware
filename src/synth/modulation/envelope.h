@@ -34,7 +34,7 @@ constexpr uint32_t SOFT_CULL_INCREMENT = 65536;
 /// is a target level the envelope smooths toward.
 class Envelope {
 public:
-	/// The ADSR stage. Values are deliberate and ordered: @ref Voice::getPriorityRating packs the
+	/// The ADSR stage. Values are deliberate and ordered: @ref deluge::synth::Voice::priority_rating packs the
 	/// stage into 3 bits (later stages = lower voice priority), so the numbering must not change.
 	enum class Stage : uint8_t {
 		ATTACK,

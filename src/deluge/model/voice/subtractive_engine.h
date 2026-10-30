@@ -18,7 +18,10 @@
 
 #include <cstdint>
 
+namespace deluge::synth {
 class Voice;
+} // namespace deluge::synth
+
 class Sound;
 struct ControlBlock;
 namespace deluge::synth {
@@ -41,7 +44,7 @@ public:
 	/// in place). The per-source amplitude/wave-index arrays and the osc-sync master phases are computed by Voice
 	/// and passed in; @p anythingInOscBuffer / @p didStereoTempBuffer / @p unassignVoiceAfter are updated exactly
 	/// as the inline driver did.
-	void render(Voice& voice, const ControlBlock& controlBlock, const deluge::synth::VoiceBlock& block,
+	void render(deluge::synth::Voice& voice, const ControlBlock& controlBlock, const deluge::synth::VoiceBlock& block,
 	            int32_t* oscBuffer, int32_t numSamples, bool doingOscSync, uint32_t* oscSyncPos,
 	            int32_t overallPitchAdjust, const int32_t* sourceAmplitudesNow,
 	            const int32_t* sourceAmplitudeIncrements, const int32_t* sourceWaveIndexIncrements,

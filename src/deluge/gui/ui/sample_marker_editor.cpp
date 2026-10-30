@@ -39,8 +39,8 @@
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
-#include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
+#include "model/voice/voice_slot.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -1007,10 +1007,11 @@ void SampleMarkerEditor::graphicsRoutine() {
 			    });
 
 			if (!valid_voices_view.empty()) {
-				auto& assigned_voice = *std::ranges::max_element(valid_voices_view, {}, &Voice::orderSounded);
+				auto& assigned_voice = *std::ranges::max_element(valid_voices_view, {}, &VoiceSlot::order_sounded);
 
 				const int32_t u = soundEditor.currentSound->snapshot().numUnison >> 1;
-				VoiceUnisonPartSource* part = &assigned_voice->unisonParts[u].sources[soundEditor.currentSourceIndex];
+				VoiceUnisonPartSource* part =
+				    &assigned_voice->kernel.unisonParts[u].sources[soundEditor.currentSourceIndex];
 				if (part != nullptr && part->active) {
 					voiceSample = assigned_voice->ports(u, soundEditor.currentSourceIndex).sample.voiceSample();
 					guide = &assigned_voice->guides[soundEditor.currentSourceIndex];

@@ -1141,7 +1141,7 @@ VoicePriority AudioClip::voicePriority() const {
 	}
 	return docAudioClip_->voice_priority;
 }
-// Voice::getPriorityRating() puts the VoicePriority in the top two bits, with at least one active Voice counted below
+// Voice::priority_rating() puts the VoicePriority in the top two bits, with at least one active Voice counted below
 // them, so leaving the rest zero loads our Clusters ahead of every Voice of the same VoicePriority, but behind Voices
 // of a higher one.
 int32_t AudioClip::getClusterPriority() const {

@@ -26,7 +26,7 @@
 #include "memory/stack_guard.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
-#include "model/voice/voice.h"
+#include "model/voice/voice_sample_playback_guide.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/source.h"

@@ -43,7 +43,7 @@ namespace deluge::dsp {
 struct StereoSample;
 } // namespace deluge::dsp
 using StereoSample = deluge::dsp::StereoSample;
-class Voice;
+class VoiceSlot;
 class Kit;
 class ParamManagerForTimeline;
 class TimelineCounter;
@@ -105,7 +105,7 @@ public:
 
 	/// @brief How many Sounds have been destroyed while they still had live voices, since boot.
 	/// @note A destruction that finds live voices does not survive itself: once this body returns, the voices_
-	///       member's destructor recycles each voice, and ~Voice unassigns it back into this Sound, whose
+	///       member's destructor recycles each voice, and ~VoiceSlot unassigns it back into this Sound, whose
 	///       reassessRenderSkippingStatus() then calls the pure virtual getArpSettings(). The count is taken first.
 	/// @return The running count of such destructions since boot.
 	static int32_t soundsDestroyedWithLiveVoices();
@@ -201,7 +201,7 @@ public:
 	/// @brief Set the voice priority.
 	///
 	/// Voice priority is owned by the record (`state_->voice_priority`; seeded at bind, written here, read at save). It
-	/// is read per render block in Voice::getPriorityRating(), so render reads a hot derived cache instead.
+	/// is read per render block in the voices' priority ratings, so render reads a hot derived cache instead.
 	/// @param value New priority.
 	void setVoicePriority(VoicePriority value);
 

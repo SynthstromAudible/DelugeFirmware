@@ -22,7 +22,6 @@
 
 class Source;
 class Sample;
-class Voice;
 class SampleCache;
 
 class VoiceSamplePlaybackGuide final : public SamplePlaybackGuide {

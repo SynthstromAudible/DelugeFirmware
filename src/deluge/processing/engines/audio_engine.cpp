@@ -63,8 +63,8 @@
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
-#include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
+#include "model/voice/voice_slot.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "modulation/sidechain/sidechain.h"
 #include "playback/render_requests.h"
@@ -584,7 +584,7 @@ void killOneVoice(size_t num_samples) {
 		                              | std::views::filter(&Sound::hasActiveVoices)
 		                              | std::views::transform(&Sound::getLowestPriorityVoice);
 		auto it = std::ranges::max_element(lowest_priority_voices, [](const auto& a, const auto& b) {
-			return a->getPriorityRating() < b->getPriorityRating();
+			return a->priority_rating() < b->priority_rating();
 		});
 		// are there any active voices to kill?
 		if (it == lowest_priority_voices.end()) {
@@ -598,7 +598,7 @@ void killOneVoice(size_t num_samples) {
 
 		const Sound::ActiveVoice& voice = *it;
 
-		bool still_rendering = voice->doImmediateRelease(deluge::synth::VoiceClock{AudioEngine::nextVoiceState});
+		bool still_rendering = voice->do_immediate_release();
 		if (!still_rendering) {
 			voice->sound.freeActiveVoice(voice);
 		}
@@ -622,10 +622,10 @@ void terminateOneVoice(size_t numSamples) {
 		// seeding `best` unfiltered let an already-fast-releasing front voice absorb every cull in the window.
 		const Sound::ActiveVoice* best = nullptr;
 		for (const auto& voice : all_voices) {
-			if (voice->isCullFading()) {
+			if (voice->kernel.isCullFading()) {
 				continue;
 			}
-			if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
+			if (best == nullptr || (*best)->priority_rating() < voice->priority_rating()) {
 				best = &voice;
 			}
 		}
@@ -635,8 +635,7 @@ void terminateOneVoice(size_t numSamples) {
 		}
 
 		const Sound::ActiveVoice& voice = *best;
-		bool still_rendering =
-		    voice->doFastRelease(2 * SOFT_CULL_INCREMENT, deluge::synth::VoiceClock{AudioEngine::nextVoiceState});
+		bool still_rendering = voice->do_fast_release(2 * SOFT_CULL_INCREMENT);
 		if (!still_rendering) {
 			voice->sound.freeActiveVoice(voice);
 		}
@@ -660,10 +659,10 @@ void forceReleaseOneVoice(size_t num_samples) {
 		// musical-release tails keep stacking up.
 		const Sound::ActiveVoice* best = nullptr;
 		for (const auto& voice : all_voices) {
-			if (voice->isCullFading()) {
+			if (voice->kernel.isCullFading()) {
 				continue;
 			}
-			if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
+			if (best == nullptr || (*best)->priority_rating() < voice->priority_rating()) {
 				best = &voice;
 			}
 		}
@@ -674,7 +673,7 @@ void forceReleaseOneVoice(size_t num_samples) {
 
 		const Sound::ActiveVoice& voice = *best;
 
-		auto stage = voice->envelopes[0].stage();
+		auto stage = voice->kernel.envelopes[0].stage();
 		if (stage < Envelope::Stage::FAST_RELEASE) {
 			D_PRINTLN("force released 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
 			          getNumVoices(), getNumAudio());
@@ -684,7 +683,7 @@ void forceReleaseOneVoice(size_t num_samples) {
 			          num_samples, getNumVoices(), getNumAudio());
 		}
 
-		bool still_rendering = voice->speedUpRelease(deluge::synth::VoiceClock{AudioEngine::nextVoiceState});
+		bool still_rendering = voice->speed_up_release();
 		if (!still_rendering) {
 			voice->sound.freeActiveVoice(voice);
 		}

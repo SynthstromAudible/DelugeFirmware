@@ -16,11 +16,9 @@
  */
 
 #include "model/voice/voice_setup.h"
-#include "io/debug/log.h"
-#include "memory/stack_guard.h"
 #include "model/model_stack.h"
 #include "model/sample/sample_holder_for_voice.h"
-#include "model/voice/voice.h"
+#include "model/voice/voice_slot.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
@@ -33,9 +31,7 @@ using deluge::synth::NoteSetup;
 using deluge::synth::ReleaseInfo;
 using deluge::synth::SourceSetup;
 
-uint32_t lastSoundOrder = 0;
-
-NoteSetup note_setup_for(Voice& voice, Sound& sound, ParamManagerForTimeline* paramManager,
+NoteSetup note_setup_for(VoiceSlot& voice, Sound& sound, ParamManagerForTimeline* paramManager,
                          ModelStackWithSoundFlags& flags, int32_t noteAfterArpeggiation, uint32_t sampleSyncLength,
                          int32_t ticksLate, bool forNoteChange) {
 	NoteSetup setup;
@@ -147,142 +143,4 @@ ReleaseInfo release_info_for(Sound& sound, ParamManagerForTimeline* paramManager
 		release.osc_types[s] = sound.sources[s].oscType;
 	}
 	return release;
-}
-
-// Returns false if fail and we need to unassign again
-bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
-                   int32_t newNoteCodeAfterArpeggiation, uint8_t velocity, uint32_t newSampleSyncLength,
-                   int32_t ticksLate, uint32_t samplesLate, bool resetEnvelopes, int32_t newFromMIDIChannel,
-                   const int16_t* mpeValues) {
-	checkStack("Voice::noteOn");
-	orderSounded = lastSoundOrder++;
-
-	auto* paramManager = static_cast<ParamManagerForTimeline*>(modelStack->paramManager);
-	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
-
-	const NoteSetup setup = note_setup_for(*this, sound, paramManager, *modelStack, newNoteCodeAfterArpeggiation,
-	                                       newSampleSyncLength, ticksLate, false);
-
-	// The samples' ports play this note's source through this voice's guides
-	for (int32_t s = 0; s < kNumSources; s++) {
-		if (sound.getSynthMode() != SynthMode::FM && sound.sources[s].oscType == OscType::SAMPLE
-		    && guides[s].audioFileHolder) {
-			for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
-				ports(u, s).sample.bind(&sound.sources[s], &guides[s]);
-			}
-		}
-	}
-
-	return note_on(setup, sound.snapshot(),
-	               {
-	                   .note_before_arp = newNoteCodeBeforeArpeggiation,
-	                   .note_after_arp = newNoteCodeAfterArpeggiation,
-	                   .velocity = velocity,
-	                   .samples_late = samplesLate,
-	                   .reset_envelopes = resetEnvelopes,
-	                   .midi_channel = newFromMIDIChannel,
-	                   .mpe = std::span<const int16_t, kNumExpressionDimensions>{mpeValues, kNumExpressionDimensions},
-	               },
-	               deluge::synth::VoiceClock{AudioEngine::nextVoiceState}, sound.numActiveVoices());
-}
-
-void Voice::changeNoteCode(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
-                           int32_t newNoteCodeAfterArpeggiation, int32_t newInputMIDIChannel,
-                           const int16_t* newMPEValues) {
-	auto* paramManager = static_cast<ParamManagerForTimeline*>(modelStack->paramManager);
-	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
-	change_note(note_setup_for(*this, sound, paramManager, *modelStack, newNoteCodeAfterArpeggiation, 0, 0, true),
-	            sound.snapshot(), newNoteCodeBeforeArpeggiation, newNoteCodeAfterArpeggiation, newInputMIDIChannel,
-	            std::span<const int16_t, kNumExpressionDimensions>{newMPEValues, kNumExpressionDimensions});
-}
-
-void Voice::calculatePhaseIncrements(ModelStackWithSoundFlags* modelStack) {
-	auto* paramManager = static_cast<ParamManagerForTimeline*>(modelStack->paramManager);
-	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
-	calculate_phase_increments(
-	    note_setup_for(*this, sound, paramManager, *modelStack, noteCodeAfterArpeggiation, 0, 0, true),
-	    sound.snapshot());
-}
-
-void Voice::noteOff(ParamManagerForTimeline* paramManager, bool noteTailsAllowed, bool allowReleaseStage) {
-	for (int32_t s = 0; s < kNumSources; s++) {
-		guides[s].noteOffReceived = true;
-	}
-
-	note_off(release_info_for(sound, paramManager, noteTailsAllowed), allowReleaseStage,
-	         deluge::synth::VoiceClock{AudioEngine::nextVoiceState});
-
-	for (int32_t s = 0; s < kNumSources; s++) {
-		Source* source = &sound.sources[s];
-		if (source->oscType == OscType::SAMPLE) {
-			source->sampleControls.invertReversed = false; // Reset temporary flag back to normal
-		}
-	}
-}
-
-void Voice::randomizeOscPhases(const Sound& sound) {
-	randomize_osc_phases(sound.snapshot());
-}
-
-void Voice::expressionEventImmediate(const Sound& sound, int32_t voiceLevelValue, int32_t s) {
-	expressionEventImmediate(sound.monophonicExpressionValues[s - util::to_underlying(PatchSource::X)], voiceLevelValue,
-	                         s);
-}
-
-// Returns false if voice needs unassigning now
-bool Voice::sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, MarkerType markerType) {
-
-	AudioFileHolder* holder = guides[s].audioFileHolder;
-	if (!holder) {
-		return true; // If no holder, that means this Source/Sample is not currently playing, e.g. because its volume
-		             // was set to 0.
-	}
-
-	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
-	const Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
-
-	const Source& source = sound.sources[s];
-	Sample* sample = (Sample*)holder->audioFile;
-
-	guides[s].setupPlaybackBounds(source.sampleControls.isCurrentlyReversed());
-
-	LoopType loopingType = guides[s].getLoopingType(sound.sources[s]);
-
-	// Check we're still within bounds - for each unison part.
-	// Well, that is, make sure we're not past the new end. Being before the start is ok, because we'll come back into
-	// the still-remaining part soon enough.
-
-	bool anyStillActive = false;
-
-	for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
-		VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
-
-		if (voiceUnisonPartSource->active) {
-			bool stillActive =
-			    ports(u, s).sample.zoneChanged(&guides[s], sample, source.sampleControls.isCurrentlyReversed(),
-			                                   markerType, loopingType, getPriorityRating());
-			if (!stillActive) {
-				D_PRINTLN("returned false ---------");
-				voiceUnisonPartSource->unassign(false);
-			}
-			else {
-				anyStillActive = true;
-			}
-		}
-	}
-
-	// If none of this source still active, and no noise, see if the other source still has any...
-	if (!anyStillActive
-	    && !paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
-	        *paramManager->getPatchedParamSet()->docForParam(params::LOCAL_NOISE_VOLUME), -2147483648)) {
-
-		s = 1 - s;
-
-		// The voice stays only if the other source can sound
-		if (!modelStack->checkSourceEverActive(s)) {
-			return false;
-		}
-	}
-
-	return true;
 }

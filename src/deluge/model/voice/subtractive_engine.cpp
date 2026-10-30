@@ -20,6 +20,8 @@
 #include "model/voice/voice.h"
 #include <cstring>
 
+using deluge::synth::Voice;
+
 void SubtractiveEngine::render(Voice& voice, const ControlBlock& controlBlock, const deluge::synth::VoiceBlock& block,
                                int32_t* oscBuffer, int32_t numSamples, bool doingOscSync, uint32_t* oscSyncPos,
                                int32_t overallPitchAdjust, const int32_t* sourceAmplitudesNow,

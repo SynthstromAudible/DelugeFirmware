@@ -26,6 +26,7 @@
 #include "util/fixedpoint.h"
 
 using namespace deluge;
+using deluge::synth::Voice;
 
 namespace params = deluge::modulation::params;
 

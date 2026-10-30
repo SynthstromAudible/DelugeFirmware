@@ -62,38 +62,15 @@ const Patcher::Config kPatcherConfigForVoice = {
     .globality = GLOBALITY_LOCAL,
 };
 
+namespace deluge::synth {
+
 int32_t Voice::combineExpressionValues(int32_t synthLevelValue, int32_t expressionDimension) const {
 	int32_t voiceLevelValue = this->localExpressionSourceValuesBeforeSmoothing[expressionDimension];
 	int32_t combinedValue = (synthLevelValue >> 1) + (voiceLevelValue >> 1);
 	return lshift_and_saturate<1>(combinedValue);
 }
 
-Voice::Voice(Sound& sound)
-    : patcher(kPatcherConfigForVoice, params.sourceValues, params.paramFinalValues), sound{sound} {
-	for (int32_t u = 0; u < kMaxNumVoicesUnison; u++) {
-		for (int32_t s = 0; s < kNumSources; s++) {
-			unisonParts[u].sources[s].bind(ports_[u][s]);
-		}
-	}
-}
-
-// Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
-// it. You'll normally want to call audioDriver.voiceUnassigned() after this.
-void Voice::setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingSong) {
-
-	unassignStuff(deletingSong);
-	delete_this_voice_ = true;
-	if (!deletingSong) {
-		this->sound.voiceUnassigned(modelStack);
-	}
-}
-
-void Voice::unassignStuff(bool deletingSong) {
-	for (int32_t s = 0; s < kNumSources; s++) {
-		for (int32_t u = 0; u < this->sound.snapshot().numUnison; u++) {
-			unisonParts[u].sources[s].unassign(deletingSong);
-		}
-	}
+Voice::Voice() : patcher(kPatcherConfigForVoice, params.sourceValues, params.paramFinalValues) {
 }
 
 // Returns false if the note cannot play and the voice must be unassigned again
@@ -507,18 +484,15 @@ uint32_t Voice::getLocalLFOPhaseIncrement(const LFOConfig& config, deluge::modul
 }
 
 // Returns false if became inactive and needs unassigning
-[[gnu::hot]] bool Voice::render(const ControlBlock& controlBlock, int32_t* soundBuffer, int32_t numSamples,
-                                bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged,
-                                int32_t externalPitchAdjust, const VoiceConfig& cfg,
-                                const deluge::synth::VoiceBlock& block, std::array<int32_t*, 4> spareBuffers) {
-	spareBuffers_ = spareBuffers; // the render helpers read these instead of the file-scope spareRenderingBuffer
-	// we spread out over a render cycle - allocating and starting the voice takes more time than rendering it so this
-	// avoids the cpu spike at note on
-	if (justCreated == false) {
-		justCreated = true;
-		return true;
-	}
-	checkStack("Voice::render");
+[[gnu::hot]] bool Voice::render(const ControlBlock& controlBlock, const VoiceConfig& cfg, const VoiceBlock& block,
+                                const VoiceRenderArgs& args) {
+	spareBuffers_ = args.spare_buffers; // the render helpers read these
+	int32_t* soundBuffer = args.buffer;
+	const int32_t numSamples = args.num_samples;
+	const bool soundRenderingInStereo = args.sound_in_stereo;
+	const bool applyingPanAtVoiceLevel = args.pan_at_voice_level;
+	uint32_t sourcesChanged = args.sources_changed;
+	const int32_t externalPitchAdjust = args.pitch_adjust;
 
 	bool didStereoTempBuffer = false;
 
@@ -1340,8 +1314,6 @@ void Voice::renderBasicSource(const ControlBlock& controlBlock, const deluge::sy
                               uint32_t* __restrict__ getPhaseIncrements, bool getOutAfterPhaseIncrements,
                               int32_t waveIndexIncrement, const VoiceConfig& cfg) {
 
-	checkStack("Voice::renderBasicSource");
-
 	// For each unison part
 	for (int32_t u = 0; u < cfg.numUnison; u++) {
 
@@ -1486,10 +1458,6 @@ uint32_t Voice::priority_rating(VoicePriority voice_priority, size_t num_active_
 	    + ((uint32_t)(-envelope0TimeEntered) & (0xFFFFFFFF >> 8));
 }
 
-uint32_t Voice::getPriorityRating() const {
-	return priority_rating(sound.snapshot().voicePriority, sound.numActiveVoices());
-}
-
 void Voice::stampEnvelope0StageEntry(deluge::synth::VoiceClock clock) {
 	if (envelopes[0].takeStageChanged()) {
 		envelope0TimeEntered = clock.tick();
@@ -1501,3 +1469,5 @@ void Voice::resetEnvelope0TimeEntered(deluge::synth::VoiceClock clock) {
 		envelope0TimeEntered = clock.tick();
 	}
 }
+
+} // namespace deluge::synth

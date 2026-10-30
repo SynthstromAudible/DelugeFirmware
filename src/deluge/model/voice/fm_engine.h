@@ -20,7 +20,10 @@
 #include <array>
 #include <cstdint>
 
+namespace deluge::synth {
 class Voice;
+} // namespace deluge::synth
+
 class Sound;
 struct VoiceConfig;
 
@@ -56,7 +59,7 @@ public:
 	/// knocked to 0/false on pitch-too-high, persisting across parts). @p didStereoTempBuffer is set when
 	/// @p stereoUnison. @p modulatorScratch / @p carrierScratch are the caller's spare buffers
 	/// (spareRenderingBuffer[2]/[3]).
-	void render(Voice& voice, int32_t numSamples, int32_t overallPitchAdjust, bool stereoUnison,
+	void render(deluge::synth::Voice& voice, int32_t numSamples, int32_t overallPitchAdjust, bool stereoUnison,
 	            int32_t* sourceAmplitudes, const int32_t* sourceAmplitudesNow, const int32_t* sourceAmplitudeIncrements,
 	            bool* modulatorsActive, const int32_t* modulatorAmplitudeIncrements, int32_t* oscBuffer,
 	            int32_t* modulatorScratch, int32_t* carrierScratch, bool& didStereoTempBuffer, const VoiceConfig& cfg);
@@ -66,12 +69,12 @@ private:
 	/// per-unison amplitudes are computed by @ref render and passed in. @p modulatorsActive is **mutable** — entries
 	/// are knocked to false on pitch-too-high and (faithful to the inline code) that persists across unison
 	/// parts. @p modulatorScratch / @p carrierScratch are the caller's spare buffers (spareRenderingBuffer[2]/[3]).
-	void renderUnisonPart(Voice& voice, int32_t u, int32_t numSamples, int32_t overallPitchAdjust, bool stereoUnison,
-	                      int32_t unisonAmplitudeL, int32_t unisonAmplitudeR, const uint32_t* phaseIncrements,
-	                      const int32_t* sourceAmplitudes, const int32_t* sourceAmplitudesNow,
-	                      const int32_t* sourceAmplitudeIncrements, bool* modulatorsActive,
-	                      const int32_t* modulatorAmplitudeIncrements, int32_t* oscBuffer, int32_t* modulatorScratch,
-	                      int32_t* carrierScratch, const VoiceConfig& cfg);
+	void renderUnisonPart(deluge::synth::Voice& voice, int32_t u, int32_t numSamples, int32_t overallPitchAdjust,
+	                      bool stereoUnison, int32_t unisonAmplitudeL, int32_t unisonAmplitudeR,
+	                      const uint32_t* phaseIncrements, const int32_t* sourceAmplitudes,
+	                      const int32_t* sourceAmplitudesNow, const int32_t* sourceAmplitudeIncrements,
+	                      bool* modulatorsActive, const int32_t* modulatorAmplitudeIncrements, int32_t* oscBuffer,
+	                      int32_t* modulatorScratch, int32_t* carrierScratch, const VoiceConfig& cfg);
 
 	// The FM operator renders (pure DSP over the passed buffers/phases). Moved here from Voice — they read no
 	// Voice state, so the engine no longer needs to be a friend of Voice.
