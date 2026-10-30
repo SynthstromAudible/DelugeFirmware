@@ -694,8 +694,9 @@ the codec and the UI.
   graph spec on ARM builds the graph with the kernel, and holds it to the same references as the Argon build.
 - **The voice, a component; noise a policy.** `Voice<Noise>` (`voice.h`, its note-on scaling in `voice_scaling.h`)
   runs the envelopes, base pitches, LFO delay and graph for one note. Its verbs (`start`, `release`, `retune`,
-  `renderBlock`) each take the patch as it stands: a snapshot of its bytes, the note and the velocity, taken by the
-  owner per block, so the voice keeps only what the note carries. `Noise::render()` gives one draw: a note-on draws six
+  `renderBlock`) each take the patch as it stands: its bytes, clamped to the engine's ranges and lent by the owner
+  (the app's `DxPatch` keeps one clamped copy, renewed at note-on and when the patch changes), the note and the
+  velocity, so the voice keeps only what the note carries. `Noise::render()` gives one draw: a note-on draws six
   detunes in op order, then six phases unless the oscillators are key-synced; a block draws none. The app's voices are
   `Voice<CongNoise>`, on the synth's shared stream.
 - **Named quirks.** A new patch's LFO phase and a new voice's feedback history start at `State{}` (0); the feedback

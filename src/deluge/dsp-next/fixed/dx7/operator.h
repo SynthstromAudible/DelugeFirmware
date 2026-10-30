@@ -255,7 +255,11 @@ struct Operator {
 	/// attenuation within kMkILevelThresh at either end.
 	[[nodiscard]] [[gnu::always_inline]] static bool audible(const Coefficients& c, const OperatorState& op,
 	                                                         std::size_t n) {
-		const Gains g = gains(c, op, n);
+		return audible(c, gains(c, op, n));
+	}
+
+	/// @brief As audible() above, for a block whose gains @p g the owner has already taken.
+	[[nodiscard]] [[gnu::always_inline]] static bool audible(const Coefficients& c, const Gains& g) {
 		return engine_of(c.mode) == Engine::MODERN ? (g.gain1 >= kGainLevelThresh || g.gain2 >= kGainLevelThresh)
 		                                           : (g.gain1 <= kMkILevelThresh || g.gain2 <= kMkILevelThresh);
 	}

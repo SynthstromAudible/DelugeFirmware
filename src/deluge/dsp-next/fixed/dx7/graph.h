@@ -89,11 +89,11 @@ struct Buses {
 
 /// @brief A DX7 voice's six operators, walked through its algorithm once per block.
 /// @details A component, not a kernel: it holds the six operators' states and the voice's feedback history, and runs
-/// each operator through its kernel per block. Its verbs are @ref renderBlock, @ref restart, @ref view, @ref resume and
+/// each operator through its kernel per block. Its verbs are @ref renderBlock, @ref restart, @ref view and
 /// @ref gain_out. It keeps no settings between blocks: each block's levels and pitches arrive with the block, so a
 /// voice holds only its six phases and gains and the history. @ref view is read-only inspection, as `FilterSet`'s is;
-/// @ref resume is its counterpart, for an owner that holds the operators' state elsewhere (the reference specs drive
-/// the graph from the verbatim engine's state through the two).
+/// a graph can also start from a held View, the state another owner kept (the reference specs start each block's graph
+/// from the verbatim engine's state and read it back through @ref view).
 ///
 /// **The DX7 engine's rules**, each applied where @ref renderBlock walks the ops:
 /// - *The gate.* An operator inaudible at both ends of the block (@ref Operator::audible) is skipped: its phase and
@@ -126,6 +126,11 @@ public:
 		FeedbackHistory feedback{};         ///< The feedback history.
 	};
 
+	/// @brief A graph with every op at phase 0 and gain 0, and no feedback history.
+	Graph() = default;
+	/// @brief A graph that starts from @p state: each op's phase and gain, and the feedback history.
+	explicit Graph(const View& state) : ops_{state.ops}, feedback_{state.feedback} {}
+
 	/// @brief Renders one block over the six operators.
 	/// @param settings This block's routing, levels and pitches.
 	/// @param out The block, 1 to kMaxBlock samples. In a build given the device's NEON kernel, kMaxBlock samples must
@@ -144,30 +149,24 @@ public:
 	/// @brief The six ops' states and the feedback history.
 	[[nodiscard]] View view() const { return {.ops = ops_, .feedback = feedback_}; }
 
-	/// @brief Loads the six ops' states and the feedback history: view()'s counterpart.
-	void resume(const View& view) {
-		ops_ = view.ops;
-		feedback_ = view.feedback;
-	}
-
 	/// @brief Op @p op's gain at the end of the last block.
 	[[nodiscard]] int32_t gain_out(std::size_t op) const { return ops_[op].gain_out; }
 
 private:
-	/// @brief Op @p op's skipped block: its phase and gain move on as its kernel's skip moves them.
-	[[gnu::always_inline]] void skip_op(const Operator::Settings& settings, std::size_t op, std::size_t n) {
-		Mono<Operator> held{settings};
-		held.on<&Operator::resume>(ops_[op], feedback_);
-		held.on<&Operator::skip>(n);
-		ops_[op] = held.state().op;
+	/// @brief Op @p op's held state after a block it did not step itself (gated, or rendered by the device's kernel):
+	/// its phase moves on by the block and its gain to the block's end, as Operator::skip moves them.
+	/// @param gains The block's gains, taken once for the gate.
+	[[gnu::always_inline]] void hold_op(std::size_t op, const Gains& gains, int32_t freq, std::size_t n) {
+		ops_[op] = {.phase = Operator::advance_phase(ops_[op].phase, freq, n), .gain_out = gains.gain2};
 	}
 
 	/// @brief Op @p op's block into @p target: a modern op without feedback through the vector operator (or, in a
 	/// build given the device's NEON kernel, through it), any other through the scalar operator. With no input
-	/// @p modulation is not read; with SET, neither is @p target's content. Defined in graph.cpp, the one place the
-	/// kernel's build switch is read, and inlined into renderBlock there, where each call's routing is known.
-	[[gnu::always_inline]] inline void render_op(const Operator::Settings& settings, std::size_t op, Signal modulation,
-	                                             Buffer target);
+	/// @p modulation is not read; with SET, neither is @p target's content. @p gains are the block's, taken for the
+	/// gate; the kernel ramps by them. Defined in graph.cpp, the one place the kernel's build switch is read, and
+	/// inlined into renderBlock there, where each call's routing is known.
+	[[gnu::always_inline]] inline void render_op(const Operator::Settings& settings, const Gains& gains, std::size_t op,
+	                                             Signal modulation, Buffer target);
 
 	/// @brief MkI's fused stack of @p N ops from op @p op into @p target.
 	template <std::size_t N>

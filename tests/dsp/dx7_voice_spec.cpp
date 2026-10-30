@@ -53,10 +53,11 @@ Run run_voice(const dw::Workload& w) {
 	uint8_t mode = w.engine;
 	dx7::Engine engine = engine_of(mode, patch);
 	deluge::dsp::Control<dx7::Lfo> lfo;
+	dx7::PatchBytes snapshot{};
 	const auto settings = [&] {
-		dx7::PatchBytes snapshot = patch;
+		snapshot = patch;
 		dx7::sanitise(snapshot);
-		return Voice::Settings{.patch = snapshot,
+		return Voice::Settings{.patch = &snapshot,
 		                       .midinote = w.midinote,
 		                       .velocity = w.velocity,
 		                       .random_detune = w.random_detune,
@@ -179,6 +180,39 @@ describe dx7_voice_spec("dx7::Voice", ${
 		const Run b = run_voice(limits);
 		expect(a.outputs).to_equal(b.outputs);
 		expect(a.alive).to_equal(b.alive);
+	});
+
+	it("takes a mid-note edit of every envelope's and the pitch envelope's rates and levels as the reference does", _ {
+		std::size_t edited = 0;
+		for (dw::Workload w : dw::all_workloads()) {
+			if (w.id != dw::WorkloadId::PATCH_EDIT_MID_NOTE) {
+				continue;
+			}
+			for (dw::Event& e : w.events) {
+				if (e.kind != dw::Event::PATCH_EDIT) {
+					continue;
+				}
+				for (std::size_t op = 0; op < 6; ++op) {
+					for (std::size_t i = 0; i < 4; ++i) {
+						e.patch[(op * 21) + i] = static_cast<uint8_t>(20 + (op * 9) + (i * 7));     // rates
+						e.patch[(op * 21) + 4 + i] = static_cast<uint8_t>(99 - (op * 5) - (i * 11)); // levels
+					}
+				}
+				for (std::size_t i = 0; i < 8; ++i) {
+					e.patch[126 + i] = static_cast<uint8_t>(30 + (i * 9)); // the pitch envelope's rates and levels
+				}
+				e.block = 1; // during the attack, so the stages entered after it read the edit
+				++edited;
+			}
+			// and a release, which reads them again
+			w.events.push_back({.block = 60, .kind = dw::Event::KEYUP, .engine = 0, .patch = {}});
+			const Run run = run_voice(w);
+			dw::SeededStatic::reseed(w.seed);
+			const dw::WorkloadRecord expected = dw::run<dw::VectorCores>(w).record;
+			expect(run.outputs).to_equal(expected.outputs);
+			expect(run.alive).to_equal(expected.alive);
+		}
+		expect(edited).to_equal(std::size_t{1});
 	});
 
 	it("adds the amplitude-modulation parameter as the reference does, at every sensitivity", _ {

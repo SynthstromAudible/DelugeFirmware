@@ -56,6 +56,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <math.h> // NOLINT(*-deprecated-headers): the unqualified exp is libm's double overload, which the records pin
 #include <tuple>
 #include <type_traits>
@@ -67,10 +68,10 @@ namespace deluge::dsp::fixed::dx7 {
 /// @brief One note of a DX7 patch.
 /// @details A component, not a kernel; its members are defined below the class, not in it, so that the one explicit
 /// instantiation in voice.cpp is the copy every caller of `Voice<CongNoise>` runs. Its verbs are @ref start, @ref
-/// release, @ref retune and @ref renderBlock, each given the patch as it stands (@ref Settings, a snapshot the owner
-/// takes per block); the voice keeps only what the note carries between blocks: the graph's operators, the envelopes,
-/// the base pitches, the random detunes, the output levels and rate scalings, and the note-on velocity. The patch's own
-/// LFO is the owner's: it keys it at note-on when
+/// release, @ref retune and @ref renderBlock, each given the patch as it stands (@ref Settings: the patch's bytes,
+/// which the owner lends, the note and the engine); the voice keeps only what the note carries between blocks: the
+/// graph's operators, the envelopes, the base pitches, the random detunes, the output levels and rate scalings, and the
+/// note-on velocity. The patch's own LFO is the owner's: it keys it at note-on when
 /// @ref key_sync_lfo says so, and passes its value in each block.
 /// @tparam Noise The noise policy: `Noise::render()` gives one draw. A note-on draws six detunes (op order), then
 /// six phases unless the oscillators are key-synced; a block draws nothing.
@@ -79,12 +80,12 @@ class Voice {
 public:
 	/// @brief The patch and the note, as they stand when the owner calls.
 	struct Settings {
-		PatchBytes patch{};             ///< A snapshot of the patch's bytes, within sanitise's ranges.
-		int32_t midinote = 60;          ///< The note.
-		int32_t velocity = 100;         ///< The note-on velocity, 0 to 127.
-		int32_t random_detune = 0;      ///< The patch's random-detune amount: scales each op's noise draw (>> 17).
-		Engine engine = Engine::MODERN; ///< The engine the patch renders in.
-		const Tables* tables = nullptr; ///< The engine's tables.
+		const PatchBytes* patch = nullptr; ///< The patch's bytes, within sanitise's ranges, lent for the call.
+		int32_t midinote = 60;             ///< The note.
+		int32_t velocity = 100;            ///< The note-on velocity, 0 to 127.
+		int32_t random_detune = 0;         ///< The patch's random-detune amount: scales each op's noise draw (>> 17).
+		Engine engine = Engine::MODERN;    ///< The engine the patch renders in.
+		const Tables* tables = nullptr;    ///< The engine's tables.
 	};
 
 	/// @brief What a block takes from outside the patch.
@@ -119,7 +120,7 @@ public:
 	[[nodiscard]] bool renderBlock(const Settings& s, Buffer out, const BlockInputs& in, Buses& buses);
 
 	/// @brief Whether the patch keys its LFO at note-on (byte 141).
-	[[nodiscard]] static bool key_sync_lfo(const Settings& s) { return s.patch[kLfoSync] != 0; }
+	[[nodiscard]] static bool key_sync_lfo(const Settings& s) { return (*s.patch)[kLfoSync] != 0; }
 
 private:
 	static constexpr std::size_t kOpBytes = 21;              ///< Each op's bytes.
@@ -140,6 +141,23 @@ private:
 	/// @brief Op @p op's envelope settings: its patch bytes, its output level and rate scaling, and @p extra_rate.
 	[[nodiscard]] Envelope::Settings env_settings(const Settings& s, std::size_t op, int32_t extra_rate) const;
 
+	/// @brief Configures op @p op's envelope for a block entering its stages at @p extra_rate. The rest of its settings
+	/// change only with the patch or the note, and start, release and retune configure them, so the block reuses them
+	/// rather than rebuilding them from the patch's bytes.
+	void with_extra_rate(std::size_t op, int32_t extra_rate) {
+		Envelope::Settings settings = env_[op].coefficients();
+		settings.extra_rate = extra_rate;
+		env_[op].configure(settings);
+	}
+
+	/// @brief The eight envelope bytes at @p offset (four rates, then four levels), copied as they lie: EnvelopeParams
+	/// has the patch's layout.
+	[[nodiscard]] static EnvelopeParams params_at(const PatchBytes& patch, std::size_t offset) {
+		EnvelopeParams params;
+		std::memcpy(&params, &patch[offset], sizeof params);
+		return params;
+	}
+
 	/// @brief The pitch envelope's bytes.
 	[[nodiscard]] static EnvelopeParams pitch_params(const Settings& s);
 
@@ -156,7 +174,7 @@ private:
 
 template <class Noise>
 void Voice<Noise>::start(const Settings& s) {
-	const PatchBytes& p = s.patch;
+	const PatchBytes& p = *s.patch;
 	velocity_ = static_cast<uint8_t>(s.velocity);
 	const int32_t log_freq = note_to_log_freq(s.midinote);
 	for (std::size_t op = 0; op < 6; ++op) {
@@ -195,7 +213,7 @@ void Voice<Noise>::release(const Settings& s) {
 
 template <class Noise>
 void Voice<Noise>::retune(const Settings& s) {
-	const PatchBytes& p = s.patch;
+	const PatchBytes& p = *s.patch;
 	const int32_t log_freq = note_to_log_freq(s.midinote);
 	for (std::size_t op = 0; op < 6; ++op) {
 		const std::size_t off = op * kOpBytes;
@@ -205,11 +223,12 @@ void Voice<Noise>::retune(const Settings& s) {
 		env_[op].configure(env_settings(s, op, 0));
 		env_[op].template on<&Envelope::retune>();
 	}
+	pitch_env_.configure({pitch_params(s)});
 }
 
 template <class Noise>
 bool Voice<Noise>::renderBlock(const Settings& s, Buffer out, const BlockInputs& in, Buses& buses) {
-	const PatchBytes& p = s.patch;
+	const PatchBytes& p = *s.patch;
 	const std::size_t n = out.size();
 	const int32_t lfo_delay = lfo_delay_.advance(n);
 	int32_t lfo_val = in.lfo_value;
@@ -221,7 +240,6 @@ bool Voice<Noise>::renderBlock(const Settings& s, Buffer out, const BlockInputs&
 	const int32_t senslfo = pitch_sens * (lfo_val - (1 << 23));
 	// |pmd · senslfo| < 2^32 · 2^31, so the shifted product is under 2^24 and abs never meets INT32_MIN
 	const int32_t pmod = std::abs(static_cast<int32_t>((static_cast<int64_t>(pmd) * senslfo) >> 39));
-	pitch_env_.configure({pitch_params(s)});
 	int32_t pitch_mod = pitch_env_.advance(n) + (pmod * (senslfo < 0 ? -1 : 1));
 	pitch_mod += in.base_pitch;
 
@@ -238,12 +256,12 @@ bool Voice<Noise>::renderBlock(const Settings& s, Buffer out, const BlockInputs&
 		const std::size_t off = op * kOpBytes;
 		if (((p[kOpSwitch] >> op) & 1) == 0) {
 			// a switched-off op's envelope still runs
-			env_[op].configure(env_settings(s, op, 0));
+			with_extra_rate(op, 0);
 			std::ignore = env_[op].advance(n);
 			continue;
 		}
 		graph.freq[op] = freq_lookup(*s.tables, p[off + 17] != 0 ? base_pitch_[op] : base_pitch_[op] + pitch_mod);
-		env_[op].configure(env_settings(s, op, in.rate_mod));
+		with_extra_rate(op, in.rate_mod);
 		int32_t level = env_[op].advance(n);
 		const auto ams = static_cast<int32_t>(kAmpModSens[p[off + 14] & 3]);
 		if (ams != 0) {
@@ -267,7 +285,7 @@ bool Voice<Noise>::renderBlock(const Settings& s, Buffer out, const BlockInputs&
 
 template <class Noise>
 void Voice<Noise>::scale_op(const Settings& s, std::size_t op, int32_t velocity) {
-	const PatchBytes& p = s.patch;
+	const PatchBytes& p = *s.patch;
 	const std::size_t off = op * kOpBytes;
 	int32_t level = Envelope::scale_output_level(p[off + 16]);
 	level += scale_level(s.midinote, p[off + 8], p[off + 9], p[off + 10], p[off + 11], p[off + 12]);
@@ -279,8 +297,7 @@ void Voice<Noise>::scale_op(const Settings& s, std::size_t op, int32_t velocity)
 
 template <class Noise>
 Envelope::Settings Voice<Noise>::env_settings(const Settings& s, std::size_t op, int32_t extra_rate) const {
-	const uint8_t* e = &s.patch[op * kOpBytes];
-	return {.params = {{e[0], e[1], e[2], e[3]}, {e[4], e[5], e[6], e[7]}},
+	return {.params = params_at(*s.patch, op * kOpBytes),
 	        .output_level = output_level_[op],
 	        .rate_scaling = rate_scaling_[op],
 	        .extra_rate = extra_rate};
@@ -288,8 +305,7 @@ Envelope::Settings Voice<Noise>::env_settings(const Settings& s, std::size_t op,
 
 template <class Noise>
 EnvelopeParams Voice<Noise>::pitch_params(const Settings& s) {
-	const uint8_t* e = &s.patch[kPitchEnv];
-	return {{e[0], e[1], e[2], e[3]}, {e[4], e[5], e[6], e[7]}};
+	return params_at(*s.patch, kPitchEnv);
 }
 
 /// The app's voice, on the synth's shared noise stream, is instantiated once, in voice.cpp: there it builds with the
