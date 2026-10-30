@@ -17,6 +17,8 @@
 
 #include "synth/source/live/live_pitch_shifter.h"
 #include "definitions_cxx.hpp" // TimeStretch::Crossfade constants
+#include "dsp-next/fixed/curves/quick_log.h"
+#include "dsp-next/fixed/interpolation/table_interpolation.h"
 #include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h"
 #include "dsp-next/fixed/timestretch/crossfade.h" // totalDifferenceAbs / totalChange
 #include "foundation/panic.h"                     // FREEZE_WITH_ERROR
@@ -386,7 +388,7 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 	playHeads[PLAY_HEAD_OLDER] = playHeads[PLAY_HEAD_NEWER];
 	uint32_t thisCrossfadeLength = nextCrossfadeLength;
 
-	int32_t pitchLog = quickLog(phaseIncrement);
+	int32_t pitchLog = dsp::fixed::quick_log(phaseIncrement);
 
 	int32_t minSearch;
 	int32_t maxSearch;
@@ -399,12 +401,15 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 	if (pitchLog >= (800 << 20) && pitchLog < (864 << 20)) {
 		int32_t position = pitchLog - (800 << 20);
 
-		minSearch = interpolateTableSigned(position, 26, minSearchFine, 4) >> 9;
-		maxSearch = interpolateTableSigned(position, 26, maxSearchFine, 4) >> 9;
-		percThresholdForCut = interpolateTableSigned(position, 26, percThresholdFine, 4) >> 16;
-		nextCrossfadeLength = interpolateTableSigned(position, 26, crossfadeFine, 4) >> 12;
-		maxHopLength = (interpolateTableSigned(position, 26, maxHopLengthFine, 4) >> 16) * 100;
-		randomElement = interpolateTableSigned(position, 26, randomFine, 4);
+		minSearch = dsp::fixed::linear_table_interpolator.interpolateSigned(position, 26, minSearchFine, 4) >> 9;
+		maxSearch = dsp::fixed::linear_table_interpolator.interpolateSigned(position, 26, maxSearchFine, 4) >> 9;
+		percThresholdForCut =
+		    dsp::fixed::linear_table_interpolator.interpolateSigned(position, 26, percThresholdFine, 4) >> 16;
+		nextCrossfadeLength =
+		    dsp::fixed::linear_table_interpolator.interpolateSigned(position, 26, crossfadeFine, 4) >> 12;
+		maxHopLength =
+		    (dsp::fixed::linear_table_interpolator.interpolateSigned(position, 26, maxHopLengthFine, 4) >> 16) * 100;
+		randomElement = dsp::fixed::linear_table_interpolator.interpolateSigned(position, 26, randomFine, 4);
 	}
 
 	// Or if outside of that...
@@ -418,12 +423,15 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 
 		int32_t position = pitchLog - (768 << 20);
 
-		minSearch = interpolateTableSigned(position, 27, minSearchCoarse, 2) >> 9;
-		maxSearch = interpolateTableSigned(position, 27, maxSearchCoarse, 2) >> 9;
-		percThresholdForCut = interpolateTableSigned(position, 27, percThresholdCoarse, 2) >> 16;
-		nextCrossfadeLength = interpolateTableSigned(position, 27, crossfadeCoarse, 2) >> 12;
-		maxHopLength = (interpolateTableSigned(position, 27, maxHopLengthCoarse, 2) >> 16) * 100;
-		randomElement = interpolateTableSigned(position, 27, randomCoarse, 2);
+		minSearch = dsp::fixed::linear_table_interpolator.interpolateSigned(position, 27, minSearchCoarse, 2) >> 9;
+		maxSearch = dsp::fixed::linear_table_interpolator.interpolateSigned(position, 27, maxSearchCoarse, 2) >> 9;
+		percThresholdForCut =
+		    dsp::fixed::linear_table_interpolator.interpolateSigned(position, 27, percThresholdCoarse, 2) >> 16;
+		nextCrossfadeLength =
+		    dsp::fixed::linear_table_interpolator.interpolateSigned(position, 27, crossfadeCoarse, 2) >> 12;
+		maxHopLength =
+		    (dsp::fixed::linear_table_interpolator.interpolateSigned(position, 27, maxHopLengthCoarse, 2) >> 16) * 100;
+		randomElement = dsp::fixed::linear_table_interpolator.interpolateSigned(position, 27, randomCoarse, 2);
 	}
 
 	/*

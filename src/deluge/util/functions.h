@@ -19,7 +19,6 @@
 
 #include "const_functions.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/fixed/shaping/tanh.h"
 #include "libdeluge/file_io.h"
 #include "util/audio_format_helpers.h" // byte/format helpers (charsToIntegerConstant, swapEndianness*, …) re-exported
 #include "util/c_string.h"
@@ -159,13 +158,6 @@ char const* getSourceDisplayName(PatchSource s);
 char const* sourceToString(PatchSource source);
 PatchSource stringToSource(char const* string);
 char const* sourceToStringShort(PatchSource source);
-
-int32_t quickLog(uint32_t input);
-
-template <unsigned saturationAmount>
-[[gnu::always_inline]] inline int32_t getTanH(int32_t input) {
-	return deluge::dsp::fixed::tanh<saturationAmount>(input);
-}
 
 [[gnu::always_inline]] inline uint8_t getRandom255() {
 	return CONG >> 24;

@@ -18,6 +18,7 @@
 #include "synth/source/live/live_input_buffer.h"
 #include "board_config.h" // NUM_MONO_INPUT_CHANNELS, SSI_RX_BUFFER_NUM_SAMPLES
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/shaping/tanh.h"
 #include "synth/source/audio_input_port.h"
 #include "util/functions.h"
 #include <string.h>
@@ -94,7 +95,7 @@ void LiveInputBuffer::giveInput(int32_t numSamples, AudioInputPort& port, OscTyp
 			// guard against dividing by 0
 			int32_t percussiveness = angle ? (((uint64_t)difference * 262144 / angle) >> 1) : 0;
 
-			percussiveness = getTanH<23>(percussiveness);
+			percussiveness = dsp::fixed::tanh<23>(percussiveness);
 
 			percBuffer[(numRawSamplesProcessed >> kPercBufferReductionMagnitude) & (kInputPercBufferSize - 1)] =
 			    percussiveness;

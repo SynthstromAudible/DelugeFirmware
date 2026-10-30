@@ -18,6 +18,7 @@
 #include "model/sample/sample.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/fft/real_fft.h"
+#include "dsp-next/fixed/shaping/tanh.h"
 #include "dsp/fft/fft_config_manager.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "io/debug/log.h"
@@ -774,7 +775,7 @@ doLoading:
 				// renderer) traps with SIGFPE instead, so guard explicitly to keep host/hardware parity.
 				int32_t percussiveness = (angle != 0) ? (((uint64_t)difference * 262144 / angle) >> 1) : 0;
 
-				percussiveness = getTanH<23>(percussiveness);
+				percussiveness = deluge::dsp::fixed::tanh<23>(percussiveness);
 
 				percCacheNow[startPosSamples >> kPercBufferReductionMagnitude] = percussiveness;
 			}

@@ -18,7 +18,6 @@
 #include "util/functions.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/curves/instant_tan.h"
-#include "dsp-next/fixed/curves/quick_log.h"
 #include "dsp-next/fixed/vca/pan.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
@@ -230,10 +229,6 @@ char const* sourceToStringShort(PatchSource source) {
 }
 
 // getExp moved to util/param_functions.cpp.
-
-int32_t quickLog(uint32_t input) {
-	return deluge::dsp::fixed::quick_log(input);
-}
 
 bool memIsNumericChars(char const* mem, int32_t size) {
 	for (int32_t i = 0; i < size; i++) {
