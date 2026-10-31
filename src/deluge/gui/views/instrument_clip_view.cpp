@@ -6626,6 +6626,16 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 		}
 	}
 
+	// insertStolenNodes() copies the nodes, so the stolen arrays are ours to free - including for any note that
+	// couldn't be placed
+	for (NoteToMove& ntm : notesToMove) {
+		for (StolenParamNodes& stolen : ntm.stolenMPE) {
+			if (stolen.num) {
+				delugeDealloc(stolen.nodes);
+			}
+		}
+	}
+
 	recalculateColours();
 	uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0xFFFFFFFF);
 }
