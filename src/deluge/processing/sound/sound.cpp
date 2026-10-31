@@ -66,6 +66,7 @@
 #include "processing/dx7/dx_engine.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/render_scratch.h"
+#include "processing/sound/param_dump.h"
 #include "processing/sound/sound_chain_inputs.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
@@ -504,6 +505,7 @@ deluge::synth::matrix::MatrixBlock Sound::matrixBlock(ParamManager& paramManager
 
 void Sound::performInitialPatching(const deluge::synth::matrix::MatrixBlock& block) {
 	deluge::synth::matrix::Evaluator<deluge::synth::matrix::MatrixFixed>::run_initial(matrixPass(), block);
+	deluge::param_dump::plane(GLOBALITY_GLOBAL, this, nullptr, params.param_final_values);
 }
 
 void Sound::recalculatePatchingToParam(uint8_t p, ParamManager* paramManager) {
@@ -1865,6 +1867,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 #endif
 		deluge::synth::matrix::Evaluator<deluge::synth::matrix::MatrixFixed>::run(
 		    matrixPass(), matrixBlock(*paramManager, PresetGather::ROUTED), soundSourcesChanged);
+		deluge::param_dump::plane(GLOBALITY_GLOBAL, this, nullptr, params.param_final_values);
 #if defined(DELUGE_STREAM_BENCH)
 		deluge::bench::render_profile::g_totals.sound_patch += deluge::bench::render_profile::cycles() - t0;
 		++deluge::bench::render_profile::g_totals.sound_blocks;

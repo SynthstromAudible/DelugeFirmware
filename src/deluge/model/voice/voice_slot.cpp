@@ -24,6 +24,7 @@
 #include "model/voice/voice_setup.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/param_dump.h"
 #include "processing/sound/sound.h"
 #include "storage/wave_table/wave_table.h"
 #include "util/synth_noise.h"
@@ -77,7 +78,11 @@ bool VoiceSlot::note_on(ModelStackWithSoundFlags& flags, const NoteOnEvent& even
 		}
 	}
 
-	return kernel.note_on(setup, sound.snapshot(), event, engineClock(), sound.numActiveVoices(), deluge::synth_noise);
+	const bool started =
+	    kernel.note_on(setup, sound.snapshot(), event, engineClock(), sound.numActiveVoices(), deluge::synth_noise);
+	deluge::param_dump::note_on(&sound, this);
+	deluge::param_dump::plane(GLOBALITY_LOCAL, &sound, this, kernel.param_final_values());
+	return started;
 }
 
 void VoiceSlot::change_note(ModelStackWithSoundFlags& flags, int32_t note_before_arp, int32_t note_after_arp,
@@ -124,7 +129,34 @@ bool VoiceSlot::render(const deluge::synth::matrix::MatrixBlock& control_block, 
 		return true;
 	}
 	checkStack("VoiceSlot::render");
-	return kernel.render(control_block, cfg, block(), args);
+	const bool keep = kernel.render(control_block, cfg, block(), args);
+	deluge::param_dump::plane(GLOBALITY_LOCAL, &sound, this, kernel.param_final_values());
+	dump_sources(control_block, cfg);
+	return keep;
+}
+
+void VoiceSlot::dump_sources(const deluge::synth::matrix::MatrixBlock& control_block,
+                             const deluge::synth::VoiceConfig& cfg) const {
+#if defined(DELUGE_PARAM_DUMP)
+	std::array<deluge::param_dump::SourceState, kMaxNumVoicesUnison * kNumSources> states{};
+	size_t n = 0;
+	for (int32_t u = 0; u < sound.snapshot().num_unison; u++) {
+		for (int32_t s = 0; s < kNumSources; s++) {
+			const auto& slot = kernel.unison_parts[u].slots[s];
+			states[n++] = {
+			    .part = static_cast<uint8_t>(u),
+			    .source = static_cast<uint8_t>(s),
+			    .active = slot.active,
+			    .cache = cfg.osc_type[s] == OscType::SAMPLE && kernel.pitch_mod_disallows_cache(control_block, cfg, s),
+			    .phase_increment = slot.phase_increment_stored_value,
+			};
+		}
+	}
+	deluge::param_dump::voice_sources(&sound, this, std::span{states}.first(n));
+#else
+	(void)control_block;
+	(void)cfg;
+#endif
 }
 
 deluge::synth::VoiceBlock VoiceSlot::block() const {

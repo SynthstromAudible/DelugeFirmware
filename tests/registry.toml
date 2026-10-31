@@ -1949,6 +1949,22 @@ group = "render"
 runtime = "~20s"
 
 [[harness]]
+name = "param-dump"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "regression"
+status = "gate"
+gates = "the audible window's parameter dump: a render dumped through RENDER_PARAM_DUMP is byte-identical to a plain one (PD-SAME), the dump reads back (PD-PARSE), and it holds the sound's pass and each note's voice passes and source states (PD-PASSES) in time order (PD-ORDER)"
+scenario = "render_preset"
+check = "tests/integration/checks/param_dump.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+group = "render"
+runtime = "~5s"
+
+[[harness]]
 name = "golden-synth-arm"
 path = "."
 level = "integration"

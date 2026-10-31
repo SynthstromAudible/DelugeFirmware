@@ -26,6 +26,8 @@ RENDER_PRESET_CORPUS=<dir> renders the cases of another copy of the corpus (e.g.
 records.
 RENDER_PRESET_KEEP=<dir> keeps each case's output there, as `<case>.pcm` (interleaved little-endian i32, the case's
 length exactly), for tests/integration/golden/compare_renders.py.
+RENDER_PARAM_DUMP_DIR=<dir> dumps each case's matrix passes and voice sources there, as `<case>.params`
+(src/deluge/processing/sound/param_dump.h; read by tools/audible_window/dump.py).
 RENDER_RANDOM_SEED seeds the synth's random stream at each case's first note instead of its boot seed, to measure how
 much a case depends on its random draws (audio/host.rs).
 RENDER_PRESET_UPDATE=1 records the cases run instead of comparing them; a changed hash is a finding to explain in the
@@ -140,6 +142,10 @@ def _stage(corpus: Path, name: str, where: Path) -> dict[str, str]:
         "RENDER_SECONDS": str(SECONDS.get(name, DEFAULT_SECONDS)),
         "RENDER_PCM_OUT": str(where / "out.pcm"),
     }
+    if dump_dir := os.environ.get("RENDER_PARAM_DUMP_DIR"):
+        dump = Path(dump_dir) / f"{name}.params"
+        dump.parent.mkdir(parents=True, exist_ok=True)
+        env["RENDER_PARAM_DUMP"] = str(dump)
     if name in INPUT:
         env["RENDER_INPUT"] = "1"
     if name.startswith(STEREO_DIR):
