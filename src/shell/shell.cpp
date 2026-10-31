@@ -241,6 +241,13 @@ void Shell::boot() {
 	lowering_.widgets_gate().request_repaint();
 }
 
+void Shell::set_highlighting(ui::Highlighting h) {
+	surfaces_.set_highlighting(h);
+	for (OledSurface& s : surfaces_.oled()) {
+		s.gate.request_repaint();
+	}
+}
+
 void Shell::song_loading(bool loading) {
 	if (loading) {
 		stack_.reset();

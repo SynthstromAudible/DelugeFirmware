@@ -29,6 +29,7 @@
 #include "gui/ui/reversion.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/save/save_song_ui.h"
+#include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -674,9 +675,9 @@ static void deluge_boot(const DelugeBoard* board) {
 
 	// ---- Boot wiring for the ported UI (`src/scenes/registry.h`'s boot-wiring note) -------------
 	//
-	// Three settings the ported tree and the guest's `Shell` cannot read for themselves, and none of
-	// them is a call here: a boot call covers boot and goes stale the moment the user changes the
-	// setting, so each one belongs beside legacy's own writer instead.
+	// Settings the ported tree and the guest's `Shell` cannot read for themselves. Each is pushed beside legacy's own
+	// writer, since a boot call alone goes stale the moment the user changes the setting; where the writer is the flash
+	// read itself, the push is also below.
 	//
 	//   * **The screensaver timeout** is pushed from `Screensaver::settingsChanged()`
 	//     (`hid/display/screensaver.cpp`), where all its writers funnel, including the call below.
@@ -684,6 +685,8 @@ static void deluge_boot(const DelugeBoard* board) {
 	//     `SoundEditor::setShortcutsVersion`, the sole writer of `shortcutsVersion`, which every
 	//     change path goes through: boot, the legacy settings item, and both factory-reset menus via
 	//     `FlashStorage::resetSettings`.
+	//   * **The menu highlighting** (flash byte 175) is pushed by `gui::ui::pushShellHighlighting`, from the
+	//     settings item, a factory reset, the ported menu's `MenuAction::HighlightingChanged` and the call below.
 	//   * **The play-cursor flash** (flash byte 36, `AudioClipScene::set_flash_cursor`) is unwired in
 	//     either direction: `FlashStorage::readSettings` writes `PadLEDs::flashCursor` directly and
 	//     the scene keeps its own copy defaulting to the factory value, so a user who turns the
@@ -715,6 +718,9 @@ static void deluge_boot(const DelugeBoard* board) {
 	// The UI is up: start the idle countdown. This also supplies the ported screensaver service's
 	// timeout for the first time (see `settingsChanged` itself).
 	deluge::hid::display::Screensaver::settingsChanged();
+
+	// The guest's panels take the card's menu highlighting; its writers push it again on every change.
+	deluge::gui::ui::pushShellHighlighting();
 
 	D_PRINTLN("going into main loop");
 	deluge_board_unlock_data_cache();

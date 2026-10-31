@@ -27,20 +27,29 @@
 #include "gui/ui/root_ui.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/sound_editor.h" // soundEditor.setShortcutsVersion -- the SetShortcutsVersion arm
-#include "gui/ui/ui.h"           // openUI, getRootUI
+#include "gui/ui/ui.h"
+#include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
+#include "hid/buttons.h" // openUI, getRootUI
+#include "hid/display/display.h"
+#include "hid/display/oled_canvas/canvas.h"
 #include "hid/display/screensaver.h" // Screensaver::settingsChanged -- the ScreensaverSettingsChanged arm
+#include "hid/led/pad_leds.h"
+#include "io/midi/midi_device_manager.h"
+#include "io/midi/midi_follow.h"
 #include "model/model_stack.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h" // getCurrentOutputType
 #include "processing/stem_export/stem_export.h"
 #include "scenes/menu/action.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
 #include "shell/scene.h" // SceneKind
+#include "storage/flash_storage.h"
 
 #include <optional>
 
@@ -437,7 +446,59 @@ void dispatchShellActions() {
 		// gated.
 		deluge::hid::display::Screensaver::settingsChanged();
 		break;
+
+	case MenuAction::PadBrightnessChanged:
+		// `PadBrightness::writeCurrentValue`'s second statement (`defaults/pad_brightness.h:35`).
+		PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
+		break;
+
+	case MenuAction::HighlightingChanged:
+		pushShellHighlighting();
+		break;
+
+	case MenuAction::ShiftStickyOff:
+		// `ShiftIsSticky::writeCurrentValue`'s off arm (`runtime_feature/shift_is_sticky.cpp:22-24`).
+		Buttons::clearShiftSticky();
+		break;
+
+	case MenuAction::FlashStatusLeftSlow:
+		// `flash::Status::writeCurrentValue`'s first statement (`flash/status.h:28-30`).
+		PadLEDs::clearTickSquares();
+		break;
+
+	case MenuAction::PadColoursChanged:
+		// `Colour::writeCurrentValue`'s second statement (`colour.h:46`).
+		renderingNeededRegardlessOfUI();
+		break;
 	}
+}
+
+void saveSettingsBeforeClose() {
+	// `inSettingsMenu()` is the navigation record's root; the ported menu's is its context's, which outlives the stack
+	// on both close paths (`exitNoteModeBeforeClose`'s note).
+	if (deluge::scenes::menu_scene().menu_context().root != deluge::scenes::menu::MenuContext::Root::Settings) {
+		return;
+	}
+	uiTimerManager.unsetTimer(TimerName::BACK_MENU_EXIT);
+	display->displayLoadingAnimationText("Saving settings");
+	FlashStorage::writeSettings();
+	MIDIDeviceManager::writeDevicesToFile();
+	runtimeFeatureSettings.writeSettingsToFile();
+	midiFollow.writeDefaultsToFile();
+	display->removeWorkingAnimation();
+}
+
+void pushShellHighlighting() {
+	const MenuHighlighting stored = FlashStorage::accessibilityMenuHighlighting;
+	deluge::hid::display::oled_canvas::Canvas::menuHighlightingInverts = stored != MenuHighlighting::NO_INVERSION;
+	deluge::ui::Highlighting h = deluge::ui::Highlighting::PartialInversion;
+	if (stored == MenuHighlighting::FULL_INVERSION) {
+		h = deluge::ui::Highlighting::FullInversion;
+	}
+	else if (stored == MenuHighlighting::NO_INVERSION) {
+		h = deluge::ui::Highlighting::NoInversion;
+	}
+	shellHostUI.shell().set_highlighting(h);
 }
 
 } // namespace deluge::gui::ui

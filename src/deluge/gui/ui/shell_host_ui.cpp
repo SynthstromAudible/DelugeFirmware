@@ -1115,6 +1115,8 @@ void ShellHostUI::closeGuest() {
 	// `exitCompletely` asks nothing between its note arms and its `close()`, and `closeUI` searches the
 	// hierarchy for this guest rather than assuming it is on top (`gui/ui/ui.cpp:183-192`).
 	exitNoteModeBeforeClose();
+	// And its settings arm, which comes first there (`gui/ui/sound_editor.cpp:952-962`); the two roots never meet.
+	saveSettingsBeforeClose();
 
 	// The knob popup still showing goes to legacy's display, then the stack empties so the next open starts clean.
 	if (closeHook_ != nullptr) {

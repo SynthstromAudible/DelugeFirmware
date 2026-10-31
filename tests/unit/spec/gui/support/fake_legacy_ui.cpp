@@ -48,6 +48,8 @@ NoteVerticalCall last_note_vertical{};
 std::optional<ActionResult> note_vertical_answer{};
 int note_mode_exits = 0;
 bool note_exit_saw_close = false;
+int settings_saves = 0;
+bool settings_save_saw_close = false;
 bool note_exit_saw_knob_clear = false;
 std::vector<TimerArm> timer_arms;
 std::vector<TimerName> timer_unsets;
@@ -103,6 +105,8 @@ void reset() {
 	note_vertical_answer = std::nullopt;
 	note_mode_exits = 0;
 	note_exit_saw_close = false;
+	settings_saves = 0;
+	settings_save_saw_close = false;
 	note_exit_saw_knob_clear = false;
 	timer_arms.clear();
 	timer_unsets.clear();
@@ -425,6 +429,11 @@ void exitNoteModeBeforeClose() {
 	// the call below the indicator clear.
 	fakelegacyui::note_exit_saw_close = !fakelegacyui::closed.empty();
 	fakelegacyui::note_exit_saw_knob_clear = fakelegacyui::knob_indicator_clears > 0;
+}
+
+void saveSettingsBeforeClose() {
+	fakelegacyui::settings_saves++;
+	fakelegacyui::settings_save_saw_close = !fakelegacyui::closed.empty();
 }
 } // namespace deluge::gui::ui
 

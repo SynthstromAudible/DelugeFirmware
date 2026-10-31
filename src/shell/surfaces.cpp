@@ -20,7 +20,11 @@ void SurfaceSet::build(const DelugeBoard& board, const BoardProfile& profile) {
 		surface.role = i < profile.oled_role_by_index.size() ? profile.oled_role_by_index[i] : SurfaceRole::None;
 		surface.index = i;
 		surface.blit_pending = false;
-		surface.style = i < profile.style_by_index.size() ? profile.style_by_index[i] : nullptr;
+		surface.style = nullptr;
+		if (i < profile.style_by_index.size() && profile.style_by_index[i] != nullptr) {
+			styles_[i] = *profile.style_by_index[i];
+			surface.style = &styles_[i];
+		}
 	}
 
 	// pad_grid_width is main columns only; the sidebar is a profile fact (see build()'s note).

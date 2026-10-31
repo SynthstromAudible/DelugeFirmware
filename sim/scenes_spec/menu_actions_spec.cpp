@@ -83,6 +83,7 @@
 #include "hid/buttons.h" // commandToggleShift / clearShiftSticky, for the shift+KEYBOARD gestures
 #include "hid/display/display.h"
 #include "hid/display/screensaver.h" // the legacy screensaver, half of what the seventh verb moves
+#include "hid/led/pad_leds.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -92,6 +93,8 @@
 #include "processing/stem_export/stem_export.h"
 #include "storage/flash_storage.h" // holdTime, the other half of that arm's gate
 
+#include "support/global_guest_menu.h"
+#include "support/host_flash.h"
 #include "support/song_fixture.h"
 
 #include "spec/shell/support/fake_surfaces.h"
@@ -2863,8 +2866,73 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 	});
 });
 
+describe menu_action_settings("settings writes that legacy applies at once", $ {
+	// `PadBrightness`, `ShiftIsSticky`, `flash::Status`, `Colour` and the highlighting item each do one thing besides
+	// storing (`defaults/pad_brightness.h:32-36`, `runtime_feature/shift_is_sticky.cpp:22-24`, `flash/status.h:27-31`,
+	// `colour.h:44-47`; highlighting is read live by every renderer, `horizontal_menu.cpp:268`). Each is `hid/` or the
+	// guest's shell, so the setter files it for `dispatchShellActions`.
+	it("each setter files its action, and only on legacy's own condition", _ {
+		const menu::MenuContext ctx{};
+		const auto filed = [] {
+			const MenuAction a = scene().state().pending_action.action;
+			scene().request_action(MenuActionRequest{});
+			return a;
+		};
+		scene().request_action(MenuActionRequest{});
+		nodes::set_default_pad_brightness(ctx, 100);
+		expect(filed() == MenuAction::PadBrightnessChanged).to_be_true();
+		nodes::set_default_menu_highlighting(ctx, static_cast<int32_t>(MenuHighlighting::FULL_INVERSION));
+		expect(filed() == MenuAction::HighlightingChanged).to_be_true();
+		nodes::set_shift_is_sticky(ctx, 0);
+		expect(filed() == MenuAction::ShiftStickyOff).to_be_true();
+		nodes::set_shift_is_sticky(ctx, 1);
+		expect(filed() == MenuAction::ShiftStickyOff).to_be_false();
+		PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
+		nodes::set_flash_status(ctx, FLASH_CURSOR_FAST);
+		expect(filed() == MenuAction::FlashStatusLeftSlow).to_be_true();
+		nodes::set_flash_status(ctx, FLASH_CURSOR_OFF);
+		expect(filed() == MenuAction::FlashStatusLeftSlow).to_be_false();
+		nodes::pad_colour_set(0, 3);
+		expect(filed() == MenuAction::PadColoursChanged).to_be_true();
+	});
+
+	it("closing the guest on the settings menu saves the settings, as SoundEditor::exitCompletely does", _ {
+		// `SoundEditor::exitCompletely`'s settings arm (`gui/ui/sound_editor.cpp:940-950`): `FlashStorage::writeSettings`
+		// and the three settings files, on leaving the settings menu and only then.
+		deluge::scenes::spec::ErasedFlash flash;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		const MenuHighlighting was = FlashStorage::accessibilityMenuHighlighting;
+		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
+
+		expect(deluge::scenes::spec::open_menu_on_global_guest_at(fx, menu::MenuContext::Root::Song)).to_be_true();
+		FlashStorage::accessibilityMenuHighlighting = MenuHighlighting::NO_INVERSION;
+		deluge::gui::ui::saveSettingsBeforeClose();
+		FlashStorage::accessibilityMenuHighlighting = MenuHighlighting::FULL_INVERSION;
+		FlashStorage::readSettings(); // erased flash: the defaults, not what was set
+		expect(FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION).to_be_false();
+
+		deluge::scenes::spec::GlobalGuestGuard::empty_guest_stack();
+		expect(deluge::scenes::spec::open_menu_on_global_guest_at(fx, menu::MenuContext::Root::Settings)).to_be_true();
+		FlashStorage::accessibilityMenuHighlighting = MenuHighlighting::NO_INVERSION;
+		deluge::gui::ui::saveSettingsBeforeClose();
+		FlashStorage::accessibilityMenuHighlighting = MenuHighlighting::FULL_INVERSION;
+		FlashStorage::readSettings();
+		expect(FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION).to_be_true();
+		FlashStorage::accessibilityMenuHighlighting = was;
+	});
+
+	it("pushing the card's highlighting restyles the guest's panels", _ {
+		const MenuHighlighting was = FlashStorage::accessibilityMenuHighlighting;
+		FlashStorage::accessibilityMenuHighlighting = MenuHighlighting::NO_INVERSION;
+		deluge::gui::ui::pushShellHighlighting();
+		expect(shellHostUI.shell().surfaces().oled()[0].style->highlighting == deluge::ui::Highlighting::NoInversion)
+		    .to_be_true();
+		FlashStorage::accessibilityMenuHighlighting = was;
+		deluge::gui::ui::pushShellHighlighting();
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(menu_actions_spec, menu_action_seam, menu_action_items, menu_action_perform, menu_action_dispatch,
-            menu_action_shortcuts_version, menu_action_screensaver, menu_action_open_perform, menu_action_stem_export,
-            menu_action_three_verbs, menu_action_perform_mirror)
+DELUGE_SPEC(menu_actions_spec, menu_action_settings, menu_action_seam, menu_action_items, menu_action_perform,
+            menu_action_dispatch, menu_action_shortcuts_version, menu_action_screensaver, menu_action_open_perform,
+            menu_action_stem_export, menu_action_three_verbs, menu_action_perform_mirror)

@@ -78,6 +78,11 @@ namespace PadLEDs {
 extern uint8_t flashCursor;
 } // namespace PadLEDs
 
+namespace {
+/// `FLASH_CURSOR_SLOW` (`hid/led/pad_leds.h:27`), named here for the same reason.
+constexpr uint8_t kFlashCursorSlow = 2;
+} // namespace
+
 // The three note-name tables `format_range_key` reads. `util/lookuptables/lookuptables.h` is outside
 // this layer's include allowance (`scripts/check_layer_rules.py`'s `scenes-includes-outside`), so
 // they are declared here at the global scope where they are defined
@@ -294,8 +299,9 @@ int32_t get_default_menu_highlighting(const MenuContext&) {
 	return static_cast<int32_t>(FlashStorage::accessibilityMenuHighlighting); // `accessibility_menu_highlighting.h:11`
 }
 void set_default_menu_highlighting(const MenuContext&, int32_t value) {
-	// `:12-16`. The `Canvas::menuHighlightingInverts` poke is `hid/` -- see `settings.h`'s note.
+	// `:12-16`; the canvas flag and the guest's panels follow through `MenuAction::HighlightingChanged`.
 	FlashStorage::accessibilityMenuHighlighting = static_cast<MenuHighlighting>(value);
+	menu_scene().request_action(MenuActionRequest{.action = MenuAction::HighlightingChanged});
 }
 
 int32_t get_default_session_layout(const MenuContext&) {
@@ -532,8 +538,9 @@ int32_t get_default_pad_brightness(const MenuContext&) {
 	return FlashStorage::defaultPadBrightness << 2; // `defaults/pad_brightness.h:24`, `to_ui`
 }
 void set_default_pad_brightness(const MenuContext&, int32_t value) {
-	// `:25-29`. The `PadLEDs::setBrightnessLevel` apply is `hid/` -- see `settings.h`'s note.
+	// `:32-36`; the `PadLEDs::setBrightnessLevel` apply is `MenuAction::PadBrightnessChanged`.
 	FlashStorage::defaultPadBrightness = static_cast<uint8_t>(value >> 2);
+	menu_scene().request_action(MenuActionRequest{.action = MenuAction::PadBrightnessChanged});
 }
 
 int32_t get_default_slice_mode(const MenuContext&) {
@@ -689,12 +696,14 @@ void runtime_feature_set(int32_t type, int32_t value) {
 }
 
 void set_shift_is_sticky(const MenuContext&, int32_t value) {
-	// `ShiftIsSticky::writeCurrentValue` (`runtime_feature/shift_is_sticky.cpp:20-33`), minus its
-	// `Buttons::clearShiftSticky()` arm (`hid/`; see `settings.h`'s note). The LightShiftLed poke is
-	// model state and is transcribed.
+	// `ShiftIsSticky::writeCurrentValue` (`runtime_feature/shift_is_sticky.cpp:20-33`); its
+	// `Buttons::clearShiftSticky()` is `MenuAction::ShiftStickyOff`.
 	runtime_feature_set(RuntimeFeatureSettingType::ShiftIsSticky, value);
 	if (value != 0) {
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::LightShiftLed, RuntimeFeatureStateToggle::On);
+	}
+	else {
+		menu_scene().request_action(MenuActionRequest{.action = MenuAction::ShiftStickyOff});
 	}
 }
 
@@ -764,8 +773,11 @@ int32_t get_flash_status(const MenuContext&) {
 	return PadLEDs::flashCursor; // `flash/status.h:26`
 }
 void set_flash_status(const MenuContext&, int32_t value) {
-	// `flash::Status::writeCurrentValue` (`flash/status.h:27-32`), minus the
-	// `PadLEDs::clearTickSquares()` arm -- see `settings.h`.
+	// `flash::Status::writeCurrentValue` (`flash/status.h:27-32`): leaving the slow flash clears its tick squares
+	// (`MenuAction::FlashStatusLeftSlow`), judged on the value being replaced.
+	if (PadLEDs::flashCursor == kFlashCursorSlow) {
+		menu_scene().request_action(MenuActionRequest{.action = MenuAction::FlashStatusLeftSlow});
+	}
 	PadLEDs::flashCursor = static_cast<uint8_t>(value);
 }
 
@@ -831,8 +843,10 @@ int32_t pad_colour_get(int32_t slot) {
 	return FlashStorage::padColours[slot]; // `menu_item::Colour::readCurrentValue`, `colour.h:43`
 }
 void pad_colour_set(int32_t slot, int32_t value) {
-	// `Colour::writeCurrentValue` (`colour.h:44-47`), minus its `renderingNeededRegardlessOfUI()`.
+	// `Colour::writeCurrentValue` (`colour.h:44-47`); its `renderingNeededRegardlessOfUI()` is
+	// `MenuAction::PadColoursChanged`.
 	FlashStorage::padColours[slot] = static_cast<uint8_t>(value);
+	menu_scene().request_action(MenuActionRequest{.action = MenuAction::PadColoursChanged});
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -152,6 +152,15 @@ void dispatchShellActions();
 /// `namespace {}` serves only the first caller; this declaration is what the second one needs.
 void closePortedMenu();
 
+/// @brief `SoundEditor::exitCompletely`'s settings arm (`gui/ui/sound_editor.cpp:940-950`): when the ported menu's root
+///        is the settings menu, save the settings, the MIDI devices, the community features and the MIDI-follow
+///        defaults, behind main's "Saving settings" animation. The guest's close path calls it.
+void saveSettingsBeforeClose();
+
+/// @brief Restyle the guest's panels from `FlashStorage::accessibilityMenuHighlighting`, which legacy's renderers read
+///        live (`horizontal_menu.cpp:268`): at boot once the settings are read, and after every write of it.
+void pushShellHighlighting();
+
 /// @brief Which stem export legacy's `Start::selectButtonPress` would start from whatever root UI is
 ///        open right now, or `std::nullopt` for the roots it leaves alone.
 ///

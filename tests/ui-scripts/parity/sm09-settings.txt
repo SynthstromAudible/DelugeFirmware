@@ -1,0 +1,65 @@
+# Settings writes that take effect at once. From the song view, SHIFT + SELECT opens the settings menu: DEFAULTS >
+# UI > ACCESSIBILITY > menu highlighting, turned to full inversion, then BACK through the lists the new highlighting
+# draws; then DEFAULTS > pad brightness turned up (the PIC's dimmer interval); then out, to the clip view, and SHIFT +
+# the LPF frequency shortcut for a horizontal page under the new highlighting.
+100   snapshot boot
+300   button Session down
+320   button Session up
+1000  snapshot song
+1300  button Shift down
+1400  button SelectEnc down
+1420  button SelectEnc up
+1500  button Shift up
+2200  snapshot settings
+2500  encoder Select +6
+3200  snapshot defaults-row
+3500  button SelectEnc down
+3520  button SelectEnc up
+4200  snapshot defaults
+4500  button SelectEnc down
+4520  button SelectEnc up
+5200  snapshot ui
+5500  button SelectEnc down
+5520  button SelectEnc up
+6200  snapshot accessibility
+6500  encoder Select +1
+7200  snapshot highlighting-row
+7500  button SelectEnc down
+7520  button SelectEnc up
+8200  snapshot highlighting
+8500  encoder Select -1
+9200  snapshot highlighting-full
+9500  button Back down
+9520  button Back up
+10200 snapshot accessibility-full
+10500 button Back down
+10520 button Back up
+11200 snapshot ui-full
+11500 button Back down
+11520 button Back up
+12200 snapshot defaults-full
+12500 encoder Select +13
+13200 snapshot pad-brightness-row
+13500 button SelectEnc down
+13520 button SelectEnc up
+14200 snapshot pad-brightness
+14500 encoder Select +3
+15200 snapshot pad-brightness-up
+15500 button Back down
+15520 button Back up
+15800 button Back down
+15820 button Back up
+16100 button Back down
+16120 button Back up
+16800 snapshot closed
+17100 button Clip down
+17120 button Clip up
+17800 snapshot clip
+18100 button Shift down
+18200 pad 8 7 down
+18240 pad 8 7 up
+18300 button Shift up
+19000 snapshot lpf-full
+19300 button Synth down
+19320 button Synth up
+20000 snapshot lpf-full-mode

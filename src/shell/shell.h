@@ -237,6 +237,11 @@ public:
 		screensaver_.set_idle_ms(idle_ms);
 	}
 
+	/// @brief Restyle the menus' highlighting on every surface and repaint them: the host calls it at boot from the
+	///        card's setting and whenever the setting changes.
+	/// @param h The highlighting the card stores.
+	void set_highlighting(ui::Highlighting h);
+
 	/// @brief The shell's half of the song-load protocol (spec D §9): what the firmware calls from
 	///        the load path (spec F wires it) to bracket a song read.
 	///

@@ -247,6 +247,11 @@ extern std::optional<ActionResult> note_vertical_answer;
 
 /// How many times `exitNoteModeBeforeClose()` was called.
 extern int note_mode_exits;
+/// How many times `saveSettingsBeforeClose()` was called.
+extern int settings_saves;
+/// Whether `closeUI` had already run when `saveSettingsBeforeClose()` was called. Must be false: legacy saves before
+/// `exitCompletely`'s `close()` (`gui/ui/sound_editor.cpp:952-962`).
+extern bool settings_save_saw_close;
 /// Whether `closeUI` had already run when `exitNoteModeBeforeClose()` was called. Must be false:
 /// legacy's note arms run before `exitCompletely`'s `close()` (`gui/ui/sound_editor.cpp:749-761`).
 extern bool note_exit_saw_close;

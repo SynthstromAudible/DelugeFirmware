@@ -18,6 +18,7 @@
 #include "gui/context_menu/reset_settings.h"
 #include "deluge.h"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/shell_action_dispatch.h"
 #include "hid/display/display.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
@@ -44,6 +45,8 @@ bool ResetSettings::acceptCurrentOption() {
 	switch (action_) {
 	case ResetSettingsAction::Flash:
 		FlashStorage::factoryReset();
+		// The guest's panels keep their own copy of the highlighting the reset just changed.
+		deluge::gui::ui::pushShellHighlighting();
 		break;
 	case ResetSettingsAction::CommunityFeatures:
 		runtimeFeatureSettings.factoryReset();

@@ -194,6 +194,25 @@ enum class MenuAction : uint8_t {
 	/// a `shell::Screensaver` service (`shell/shell.h:223-229`). Nothing on that path touches
 	/// `MenuState`, so the round trip is hook -> request -> notify, and it stops.
 	ScreensaverSettingsChanged,
+
+	/// @name Settings writes legacy applies at once, each `hid/` or the guest's shell
+	/// The setters in `nodes/settings.cpp` store the value and file these; no payload, as each arm re-reads what the
+	/// setter stored.
+	/// @{
+	/// `PadBrightness::writeCurrentValue`'s `PadLEDs::setBrightnessLevel` (`defaults/pad_brightness.h:32-36`).
+	PadBrightnessChanged,
+	/// The accessibility highlighting item: legacy's renderers read `FlashStorage::accessibilityMenuHighlighting` live
+	/// (`horizontal_menu.cpp:268`), so the guest's panels are restyled (`pushShellHighlighting`).
+	HighlightingChanged,
+	/// `ShiftIsSticky::writeCurrentValue`'s `Buttons::clearShiftSticky()` when it turns off
+	/// (`runtime_feature/shift_is_sticky.cpp:22-24`).
+	ShiftStickyOff,
+	/// `flash::Status::writeCurrentValue`'s `PadLEDs::clearTickSquares()` when the old value was the slow flash
+	/// (`flash/status.h:27-31`).
+	FlashStatusLeftSlow,
+	/// `Colour::writeCurrentValue`'s `renderingNeededRegardlessOfUI()` (`colour.h:44-47`).
+	PadColoursChanged,
+	/// @}
 };
 
 /// @brief One request: which action, and the one payload word `OpenPerformanceView` and

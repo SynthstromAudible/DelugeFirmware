@@ -200,6 +200,20 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		expect(r.shell.next_wake().has_value()).to_be_false();
 	});
 
+	it("set_highlighting restyles the surfaces and repaints them on the next tick", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init(SceneId{kRoot, 0});
+		r.shell.tick(0);
+		const size_t blits = r.fake.blits.size();
+		r.shell.tick(10);
+		expect(r.fake.blits.size()).to_equal(blits); // nothing changed, nothing sent
+		r.shell.set_highlighting(deluge::ui::Highlighting::NoInversion);
+		expect(r.fake.oled()[0].style->highlighting == deluge::ui::Highlighting::NoInversion).to_be_true();
+		r.shell.tick(20);
+		expect(r.fake.blits.size() > blits).to_be_true();
+	});
+
 	it("set_screensaver_idle_ms is the port of settingsChanged: it arms, re-arms and switches off", _ {
 		deluge::notify::dirty().drain();
 		// **The state an application actually starts in**, and the reason this setter exists: a host

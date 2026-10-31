@@ -21,8 +21,17 @@ describe shell_surfaces("shell::SurfaceSet", $ {
 	});
 	it("copies a style in for every surface", _ {
 		uitest::FakeSurfaceSet s(uitest::kBoard2, uitest::test_profile_two_oleds());
-		expect(s.oled()[0].style == &deluge::ui::kDelugeStyle48).to_be_true();
-		expect(s.oled()[1].style == &deluge::ui::kDelugeStyle64).to_be_true();
+		expect(s.oled()[0].style->menu_rows).to_equal(deluge::ui::kDelugeStyle48.menu_rows);
+		expect(s.oled()[1].style->menu_rows).to_equal(deluge::ui::kDelugeStyle64.menu_rows);
+		expect(s.oled()[0].style != &deluge::ui::kDelugeStyle48).to_be_true(); // a copy, which the shell may restyle
+	});
+	it("set_highlighting restyles every surface's copy, not the profile's", _ {
+		// `FlashStorage::accessibilityMenuHighlighting`, which legacy's renderers read live (`horizontal_menu.cpp:268`).
+		uitest::FakeSurfaceSet s(uitest::kBoard2, uitest::test_profile_two_oleds());
+		s.set_highlighting(deluge::ui::Highlighting::FullInversion);
+		expect(s.oled()[0].style->highlighting == deluge::ui::Highlighting::FullInversion).to_be_true();
+		expect(s.oled()[1].style->highlighting == deluge::ui::Highlighting::FullInversion).to_be_true();
+		expect(deluge::ui::kDelugeStyle48.highlighting == deluge::ui::Highlighting::PartialInversion).to_be_true();
 	});
 	it("falls back to display_width/height when the board lists no panels", _ {
 		DelugeBoard b = uitest::kBoard2;

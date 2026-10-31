@@ -89,33 +89,11 @@
 ///       third chain, `midi_devices` -> the per-device page, was owed until **E3 task 8** and is
 ///       declared just below; the page itself is `nodes/midi_device.h`.)
 ///
-/// @note **Three write side effects stay behind, and are gaps, not omissions.**
-///       `defaults::PadBrightness::writeCurrentValue` also calls `PadLEDs::setBrightnessLevel`
-///       (`defaults/pad_brightness.h:26`), the accessibility highlighting item also pokes
-///       `Canvas::menuHighlightingInverts` (`accessibility_menu_highlighting.h:14-15`) -- the
-///       toolkit's own counterpart is `Style::highlighting` (`ui/core/style.h`), a `constexpr`
-///       profile value (`shell/profiles/deluge.cpp:96`), so writing this item does not move it
-///       either -- and `ShiftIsSticky` also calls `Buttons::clearShiftSticky()`
-///       (`runtime_feature/shift_is_sticky.cpp:26`). All three are `hid/`. The `FlashStorage` /
-///       `runtimeFeatureSettings` half of each write IS transcribed, so the setting persists; only
-///       the immediate apply is missing, and it belongs to whoever owns those globals once E2 has
-///       moved them.
-///
-///       **A fourth of exactly this kind is now PAID, and it is the template for the rest.**
-///       `ScreensaverModeMenu`/`ScreensaverTimeout` also call
-///       `hid::display::Screensaver::settingsChanged()` (`defaults/screensaver.h:40`, `:62`). F2
-///       task 7 closed that one, not by reaching `hid/` from here -- which stays forbidden -- but by
-///       filing `menu::MenuAction::ScreensaverSettingsChanged` (`scenes/menu/action.h`) for
-///       `gui::ui::dispatchShellActions` to perform. The three above could be closed the same way;
-///       the reason they have not been is that nobody has needed them, not that the route is
-///       missing. (This paragraph counted **four** before that, against a heading that said three:
-///       the miscount was there since the note was written and is corrected by the fix.)
-///
-///       **Task 11 adds two of exactly the same kind**, and for the same reason:
-///       `flash::Status::writeCurrentValue` also calls `PadLEDs::clearTickSquares()` when the old
-///       value was `FLASH_CURSOR_SLOW` (`flash/status.h:28-30`), and `Colour::writeCurrentValue`
-///       also calls `renderingNeededRegardlessOfUI()` (`colour.h:46`). Both are the immediate
-///       repaint, not the setting; the byte each one stores is written identically.
+/// @note **What a write does besides storing, legacy's `hid/` calls, is filed as a `MenuAction`** for
+///       `gui::ui::dispatchShellActions` to perform: the screensaver's `settingsChanged()`
+///       (`ScreensaverSettingsChanged`), pad brightness (`PadBrightnessChanged`), the menu highlighting
+///       (`HighlightingChanged`), sticky shift turning off (`ShiftStickyOff`), leaving the slow cursor flash
+///       (`FlashStatusLeftSlow`) and a pad colour (`PadColoursChanged`). The value itself is stored by the setter.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/context_menu_items.h" // the five kReset*Item instances

@@ -2230,6 +2230,13 @@ Result MenuScene::after_render() {
 		case MenuAction::OpenPerformanceView:
 		case MenuAction::SetShortcutsVersion:
 		case MenuAction::ScreensaverSettingsChanged:
+		// The settings writes below are the screensaver's shape: filed by a `Binding::set` hook on every detent of an
+		// item legacy enters.
+		case MenuAction::PadBrightnessChanged:
+		case MenuAction::HighlightingChanged:
+		case MenuAction::ShiftStickyOff:
+		case MenuAction::FlashStatusLeftSlow:
+		case MenuAction::PadColoursChanged:
 		case MenuAction::None:
 			break;
 		}

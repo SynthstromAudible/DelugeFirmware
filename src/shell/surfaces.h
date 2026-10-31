@@ -59,8 +59,8 @@ struct OledSurface {
 	SurfaceRole role = SurfaceRole::None;
 	uint8_t index = 0;
 	bool blit_pending = false;
-	/// The board profile's style for this surface, copied in at build time so a render pass never
-	/// re-indexes the profile.
+	/// The surface's copy of the board profile's style (`SurfaceSet`'s own), made at build time so a render pass never
+	/// re-indexes the profile and `set_highlighting` can restyle it.
 	/// @warning The shell requires a style for every surface it renders. This is null for a
 	///          surface past the end of `BoardProfile::style_by_index`; such a surface must not be
 	///          rendered, and a board profile that leaves one null is a profile bug.
@@ -161,6 +161,8 @@ public:
 	/// @brief The board's OLED surfaces, in libdeluge display-index order.
 	/// @return A view over the built surfaces (empty on a board with no OLED).
 	std::span<OledSurface> oled() { return {oled_, oled_count_}; }
+	/// @brief `oled()`, read-only.
+	std::span<const OledSurface> oled() const { return {oled_, oled_count_}; }
 	/// @brief The surface a board profile assigned to \p r.
 	/// @param r Role to look up. `SurfaceRole::None` means "no surface" and never matches, even
 	///          though unassigned surfaces carry it.
@@ -168,6 +170,14 @@ public:
 	OledSurface* oled(SurfaceRole r);
 	/// @brief The pad grid surface.
 	GridSurface& grid() { return grid_; }
+	/// @brief Restyle every surface's menu highlighting: legacy's renderers read
+	///        `FlashStorage::accessibilityMenuHighlighting` live (`horizontal_menu.cpp:268`).
+	/// @param h The highlighting the card stores.
+	void set_highlighting(Highlighting h) {
+		for (uint8_t i = 0; i < oled_count_; i++) {
+			styles_[i].highlighting = h;
+		}
+	}
 	/// @brief The LED/indicator surface.
 	LedSurface& leds() { return leds_; }
 
@@ -249,6 +259,8 @@ protected:
 	void build(const DelugeBoard& board, const BoardProfile& profile);
 
 	uint8_t storage_[kMaxOled][kOledStorageBytes]{};
+	/// Each surface's style, copied from the board profile so the shell can restyle it (`set_highlighting`).
+	Style styles_[kMaxOled]{};
 	OledSurface oled_[kMaxOled];
 	uint8_t oled_count_ = 0;
 	GridSurface grid_;
