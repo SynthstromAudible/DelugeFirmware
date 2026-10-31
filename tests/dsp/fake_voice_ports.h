@@ -26,9 +26,6 @@ public:
 	FakeSamplePort() = default;
 	explicit FakeSamplePort(int32_t frames) : frames_{frames} {}
 
-	/// Frames played, Q8.24 (2^24 per frame).
-	[[nodiscard]] int64_t position() const { return position_; }
-
 	[[nodiscard]] int32_t num_channels() const override { return 1; }
 	[[nodiscard]] int32_t sample_rate() const override { return 44100; }
 	[[nodiscard]] int32_t neutral_phase_increment() const override { return kMaxSampleValue; }

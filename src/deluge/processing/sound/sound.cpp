@@ -96,8 +96,7 @@ using deluge::synth::VoiceUnisonPartSource;
 
 namespace params = deluge::modulation::params;
 
-// Defined in voice.cpp; the per-render scratch shared engine-wide. Injected into Voice::render (the kernel no
-// longer reaches it as a global).
+// Defined in processing/render_scratch.cpp: the render scratch shared engine-wide, handed to each voice's render.
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
 constexpr Patcher::Config kPatcherConfigForSound = {
@@ -1968,8 +1967,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    thisHasFilters
 		    && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_HPF_FREQ)
 		        || (hpfFreq != std::numeric_limits<q31_t>::min()) || (hpfMorph > std::numeric_limits<q31_t>::min()));
-		// Snapshot the per-sound render config the voice kernel consumes (Phase 4 — the adapter edge that
-		// feeds Voice::render its Sound config instead of it reaching back into `sound`).
+		// The sound's render config for this block, the same for each of its voices.
 		std::array<OscType, kNumSources> oscTypes;
 		std::array<SampleRepeatMode, kNumSources> repeatModes;
 		std::array<InterpolationMode, kNumSources> interpolationModes;
@@ -2059,6 +2057,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			                                                      spareRenderingBuffer[2], spareRenderingBuffer[3]},
 			                                    .filter_scratch = deluge::render::filter_scratch(),
 			                                    .sync_scratch = deluge::render::osc_sync_scratch(),
+			                                    .noise = &deluge::synth_noise,
 			                                });
 #if defined(DELUGE_STREAM_BENCH)
 			deluge::bench::render_profile::g_totals.voice_render += deluge::bench::render_profile::cycles() - t0;
@@ -3913,8 +3912,8 @@ void Sound::freeActiveVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* 
 	// through the algorithm and the remaining comparisons run against a moved-from value.
 	//
 	// `ActiveVoice` is a `unique_ptr`, so "overwritten" means MOVED: that path can recycle a
-	// `Voice` twice or drop one, which corrupts the ObjectPool free-list and, through it, the heap
-	// that `GeneralMemoryAllocator::checkEverythingOk` walks. Comparing against a plain `Voice*`
+	// `VoiceSlot` twice or drop one, which corrupts the ObjectPool free-list and, through it, the heap
+	// that `GeneralMemoryAllocator::checkEverythingOk` walks. Comparing against a plain `VoiceSlot*`
 	// copied out first removes the aliasing entirely, so the predicate is stable no matter how
 	// `remove` rearranges the container.
 	//
@@ -3940,8 +3939,8 @@ void Sound::killAllVoices() {
 }
 
 const Sound::ActiveVoice& Sound::getLowestPriorityVoice() const {
-	// Compare by Voice priority (VoiceSlot::operator<=> on priority_rating()), NOT by the unique_ptr's
-	// pointer value. `voices_` holds ActiveVoice == std::unique_ptr<Voice>, whose default ordering is by
+	// Compare by voice priority (VoiceSlot::operator<=> on priority_rating()), NOT by the unique_ptr's
+	// pointer value. `voices_` holds ActiveVoice == std::unique_ptr<VoiceSlot>, whose default ordering is by
 	// address — so a bare max_element(voices_) selects the highest-addressed voice, which is both
 	// semantically wrong (culls an arbitrary voice, not the lowest-priority one) and heap-layout-dependent
 	// (it made the offline golden render depend on allocation addresses — see docs/dev/overread_hunt.md).

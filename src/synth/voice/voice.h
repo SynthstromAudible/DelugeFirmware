@@ -61,7 +61,7 @@ public:
 	std::array<VoiceUnisonPart, kMaxNumVoicesUnison> unison_parts{};
 
 	// The per-voice modulation data plane: the *local* param final values (specific to this Voice) plus the patch
-	// source values. At the start of sourceValues are local copies of the "global" sources — cheaper to copy them
+	// source values. At the start of source_values are local copies of the "global" sources — cheaper to copy them
 	// here than to make the Patcher pick and choose where to look.
 	VoiceParams params;
 
@@ -72,7 +72,7 @@ public:
 	std::array<Envelope, kNumEnvelopes> envelopes{};
 
 	// Voice-cull timestamp for the amplitude envelope (envelopes[0]): the voice clock's tick when it entered its
-	// stage. A voice-scheduling concern, not envelope DSP — the Envelope reports stage changes (takeStageChanged())
+	// stage. A voice-scheduling concern, not envelope DSP — the Envelope reports stage changes (take_stage_changed())
 	// and the Voice stamps them. Read by priority_rating().
 	uint32_t envelope0_time_entered{};
 	LFO lfo2;
@@ -80,31 +80,27 @@ public:
 
 	dsp::fixed::FilterSet filter_set;
 
-	// The ring-mod synth engine: owns the cross-source ring-mod relationship (renders both sources + combines).
-	// Stateless for now — the VA/wavetable components stay owned per-source on the VoiceUnisonParts.
+	// The ring-mod synth engine: owns the cross-source ring-mod relationship (renders both sources + combines). It
+	// holds no state: the VA and wavetable components are owned per source on the unison parts.
 	RingModEngine ring_mod_engine;
 
-	// The subtractive synth engine: owns the per-source render loop + osc-sync + stereo dance. Transitional —
-	// it delegates the per-source render back to the public renderBasicSource.
+	// The subtractive synth engine: owns the per-source render loop, osc sync and the mono-to-stereo dance; each
+	// source's render it hands back to render_basic_source.
 	SubtractiveEngine subtractive_engine;
 
-	// The FM synth engine: owns one unison part's FM topology (modulators + carriers + feedback). Transitional —
-	// it reads the voice's params and unison parts through Voice& and calls the static Voice::adjustPitch.
+	// The FM synth engine: owns one unison part's FM topology (modulators, carriers, feedback); it reads the voice's
+	// params and unison parts through the Voice& it is handed, and calls adjust_pitch.
 	FMEngine fm_engine;
 
-	// Contains what used to be called noteCodeBeforeArpeggiation, and fromMIDIChannel
+	// The note before the arpeggiator and the MIDI channel it came on, indexed by MIDICharacteristic
 	std::array<int32_t, 2> input_characteristics{};
 	int32_t note_code_after_arpeggiation{};
 
 	uint32_t porta_envelope_pos{};
 	int32_t porta_envelope_max_amplitude{};
 
-	/// The output stage's saturation; its memory starts at 0 and is set silent when the envelopes reset.
-	deluge::effects::Saturation saturation_{0u};
-
 	int32_t overall_osc_amplitude_last_time{};
 	std::array<int32_t, kNumSources> source_amplitudes_last_time{};
-	// modulatorAmplitudeLastTime moved to FMEngine (FM-exclusive de-zipper state) — see model/voice/fm_engine.h.
 	std::array<uint32_t, kNumSources> source_wave_indexes_last_time{};
 
 	int32_t filter_gain_last_time{};
@@ -115,13 +111,10 @@ public:
 
 	uint32_t get_local_lfo_phase_increment(const LFOConfig& config, deluge::modulation::params::Local param,
 	                                       uint32_t synced_phase_increment);
-	/// Scale @p phaseIncrement by @p adjustment (a pitch-adjust patch value); @return false if it overflows (the
+	/// Scale @p phase_increment by @p adjustment (a pitch-adjust patch value); @return false if it overflows (the
 	/// note frequency is too high and the source/modulator should be dropped). Pure — used by Voice's per-source
 	/// pitch math and by FMEngine for its modulators.
 	static bool adjust_pitch(uint32_t& phase_increment, int32_t adjustment);
-	/// Draws its random phases and values from @p noise, the synth's one noise stream, which must outlive it.
-	void bind_noise(dsp::fixed::Cong& noise) { noise_ = &noise; }
-
 	/// Renders one block, adding into @p args.buffer. @return false once the voice has ended and must be unassigned.
 	bool render(const ControlBlock& control_block, const VoiceConfig& cfg, const VoiceBlock& block,
 	            const VoiceRenderArgs& args);
@@ -129,7 +122,7 @@ public:
 	/// Starts @p event's note. @p num_active_voices is the sound's voice count, which the cull order ranks by.
 	/// @return false if the note cannot play and the voice must be unassigned again.
 	bool note_on(const NoteSetup& setup, const SoundSnapshot& snapshot, const NoteOnEvent& event, VoiceClock clock,
-	             size_t num_active_voices);
+	             size_t num_active_voices, dsp::fixed::Cong& noise);
 	/// Moves the playing note to another, gliding when @p setup says to.
 	void change_note(const NoteSetup& setup, const SoundSnapshot& snapshot, int32_t note_before_arpeggiation,
 	                 int32_t note_after_arpeggiation, int32_t midi_channel,
@@ -140,15 +133,15 @@ public:
 	/// Releases the note: each envelope from its sustain where it has one, or at once when there is no release stage.
 	/// With note tails not allowed, the note-off is only remembered.
 	void note_off(const ReleaseInfo& release, bool allow_release_stage, VoiceClock clock);
-	void randomize_osc_phases(const SoundSnapshot& snapshot);
+	void randomize_osc_phases(const SoundSnapshot& snapshot, dsp::fixed::Cong& noise);
 	void expression_event_immediate(int32_t monophonic_value, int32_t voice_level_value, int32_t s);
 	bool has_release_stage();
 	/// The cull order's rating: higher is culled sooner. Ranks by @p voice_priority, then by @p num_active_voices (the
 	/// sound's voice count), then by the amplitude envelope's stage, then by when it entered it.
 	[[nodiscard]] uint32_t priority_rating(VoicePriority voice_priority, size_t num_active_voices) const;
 
-	/// Stamp @ref envelope0TimeEntered from @p clock if the amplitude envelope (envelopes[0]) has just changed stage —
-	/// call after any operation that may transition it.
+	/// Stamp @ref envelope0_time_entered from @p clock if the amplitude envelope (envelopes[0]) has just changed stage
+	/// — call after any operation that may transition it.
 	void stamp_envelope0_stage_entry(VoiceClock clock);
 	/// Re-stamp while in sustain, to lower a drone note's cull likelihood.
 	void reset_envelope0_time_entered(VoiceClock clock);
@@ -172,9 +165,7 @@ public:
 
 	bool speed_up_release(VoiceClock clock, uint32_t min_fast_release_increment = kSoftCullIncrement);
 
-	// The per-source render driver + the unison-inactive predicate. Public (not private) so SubtractiveEngine can
-	// drive them without being a friend of Voice. Transitional — the per-source loop relocates into the engine
-	// layer at the synth::Voice lift; renderSourceComponent (the dispatch it calls) stays private.
+	// The per-source render driver and the unison-inactive predicate, public for SubtractiveEngine to drive.
 	/// Renders source @p s in each unison part. @p phase_increments_out, unless empty, takes each part's increment (0
 	/// when too high to render) for the parts osc sync follows. @return whether a unison part became inactive (its
 	/// sample ended), which the caller collects across sources.
@@ -188,21 +179,22 @@ public:
 	[[nodiscard]] bool are_all_unison_parts_inactive(const VoiceConfig& cfg) const;
 
 private:
-	// inline int32_t doFM(uint32_t *carrierPhase, uint32_t* lastShiftedPhase, uint32_t carrierPhaseIncrement, uint32_t
-	// phaseShift);
-	// The shared per-render scratch buffers, injected by the adapter (Sound::render passes the file-scope
-	// spareRenderingBuffer). Set at the top of render(); the render helpers read it instead of reaching the global,
-	// so the kernel names no engine-wide global. Each entry is SSI_TX_BUFFER_NUM_SAMPLES wide.
+	/// The output stage's saturation; its memory starts at 0 and is set silent when the envelopes reset.
+	deluge::effects::Saturation output_saturation_{0u};
+
+	// The shared render scratch the render arguments carry, set at the top of render() for the render helpers. Each
+	// entry is SSI_TX_BUFFER_NUM_SAMPLES wide.
 	std::array<int32_t*, 4> spare_buffers_{};
 	std::span<int32_t> sync_scratch_{}; ///< Set with the spare buffers at the top of render()
+	/// The noise stream of the call in progress (render, note-on, phase randomizing), set at its top: the synth's one
+	/// stream, which each call is handed.
 	dsp::fixed::Cong* noise_{};
 
 	[[nodiscard]] int32_t next_noise() { return static_cast<int32_t>(noise_->next()); }
 
-	// Render one unison part of one source, dispatching by oscType to the per-source component (sample / input /
-	// dx7 / virtual-analog / wavetable) and folding their outcomes into one uniform result. The single dispatch
-	// seam a SourceComponent interface + the engine registry will build on. Called from renderBasicSource's
-	// per-unison loop after the shared pitch/pan/sync setup.
+	// Render one unison part of one source, dispatching by its type to the per-source component (sample, input, DX7,
+	// virtual-analog, wavetable or supersaw) and folding their outcomes into one result. Called from
+	// render_basic_source's per-unison loop after the shared pitch, pan and sync setup.
 	deluge::synth::SourceRenderResult render_source_component(
 	    int32_t u, int32_t s, const ControlBlock& control_block, int32_t* osc_buffer, int32_t num_samples,
 	    bool stereo_buffer, int32_t source_amplitude, int32_t amplitude_increment, uint32_t phase_increment,

@@ -19,7 +19,7 @@
 #include "dsp-next/core/types.h" // deluge::dsp::fixed::Buffer
 #include "dsp-next/fixed/vca/pan.h"
 #include "modulation/params/param.h"             // LOCAL_OSC_A_PITCH_ADJUST / LOCAL_OSC_A_PHASE_WIDTH
-#include "synth/voice/source_component_render.h" // voice::makeBlockControls
+#include "synth/voice/source_component_render.h" // make_block_controls
 #include "synth/voice/unison_part_source.h"
 #include "synth/voice/voice.h" // Voice (member access — pre-roll + per-source state)
 #include "util/fixedpoint.h"
@@ -38,7 +38,7 @@ void RingModEngine::render(Voice& voice, int32_t* osc_buffer, int32_t num_sample
                            const deluge::synth::VoiceBlock& block) {
 
 	if (stereo_unison) {
-		// oscBuffer is always a stereo temp buffer
+		// osc_buffer is always a stereo temp buffer
 		did_stereo_temp_buffer = true;
 	}
 
@@ -76,7 +76,7 @@ void RingModEngine::render(Voice& voice, int32_t* osc_buffer, int32_t num_sample
 			}
 		}
 
-		// Build the per-source render context; renderUnisonPart owns the cross-source ring-mod relationship
+		// Build the per-source render context; render_unison_part owns the cross-source ring-mod relationship
 		// (render both sources raw with source 0 the hard-sync master, then multiply + pan).
 		RingModEngine::Source ring_mod_sources[kNumSources];
 		for (int32_t s = 0; s < kNumSources; s++) {

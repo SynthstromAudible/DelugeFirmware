@@ -36,7 +36,7 @@ void FMEngine::render(Voice& voice, int32_t num_samples, int32_t overall_pitch_a
                       int32_t* carrier_scratch, bool& did_stereo_temp_buffer, const VoiceConfig& cfg) {
 
 	if (stereo_unison) {
-		// oscBuffer is always a stereo temp buffer
+		// osc_buffer is always a stereo temp buffer
 		did_stereo_temp_buffer = true;
 	}
 
@@ -48,7 +48,7 @@ void FMEngine::render(Voice& voice, int32_t num_samples, int32_t overall_pitch_a
 		int32_t unison_amplitude_l = unison_pan_amplitudes.left;
 		int32_t unison_amplitude_r = unison_pan_amplitudes.right;
 
-		// Work out the phase increments of the two sources. If these are too high, sourceAmplitudes[s] is set to 0.
+		// Work out the phase increments of the two sources. If these are too high, source_amplitudes[s] is set to 0.
 		// Yes this will affect all unison parts, which seems like it's not what we want, but since we're traversing
 		// the unison parts in ascending frequency, it's fine!
 

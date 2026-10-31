@@ -76,9 +76,9 @@ A case may carry, beside its preset:
   `#` comments, and frames counted from the start of capture in nondecreasing order.
 - `<case>.wav`, `<case>.2.wav`: staged as `SAMPLES/WT.WAV` and `SAMPLES/WT2.WAV`, the paths its preset names.
 
-Captures are 2 s long. The exceptions, the cases fed the harness's test input signal and the cases whose zone moves
-mid-note are listed at the top of the check module.
+Captures are 2 s long. The exceptions and the cases fed the harness's test input signal are listed at the top of the
+check module, as are the cases whose sample zone moves mid-note.
 
-Not yet covered: DX7 cartridges, sidechain from audio, a time-stretched sample started late by the sequencer, a ring-mod
-note refused for an empty source (it renders silence), and the mod FX, delay and reverb, which the corpus presets leave
-neutral for a future FX-chain corpus.
+Not yet covered: DX7 cartridges, sidechain from audio, a time-stretched sample started late by the sequencer, and the
+mod FX, delay and reverb, which the corpus presets leave neutral for a future FX-chain corpus. A ring-mod note refused for
+an empty source renders silence, so `tests/dsp/synth_voice_spec.cpp` covers it instead.

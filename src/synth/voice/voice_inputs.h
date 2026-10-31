@@ -18,6 +18,7 @@
 
 #include "definitions_cxx.hpp" // kNumSources, OscType, kNumExpressionDimensions, kFirstLocalSource
 #include "dsp-next/fixed/filter/filter_set.h"
+#include "dsp-next/fixed/noise/cong.h"
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
 #include "synth/modulation/control_block.h"
 #include "util/misc.h" // util::to_underlying
@@ -66,6 +67,7 @@ struct VoiceRenderArgs {
 	std::array<int32_t*, 4> spare_buffers{};
 	dsp::fixed::FilterScratch filter_scratch{}; ///< The filters' fade and parallel-route buffers
 	std::span<int32_t> sync_scratch{};          ///< A synced oscillator's work buffer, a block and four samples long
+	dsp::fixed::Cong* noise{};                  ///< The synth's one noise stream
 };
 
 /// A NoteSetup's @ref NoteSetup::last_note_code when the sound has played no note yet.

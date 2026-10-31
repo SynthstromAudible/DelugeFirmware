@@ -1,17 +1,16 @@
 #pragma once
 
 /// @file
-/// @brief The stream bench's render splits: PMU cycles in each Voice::render, in its patching, in each Sound's patching
-/// and in each voice note-on, summed per stream-bench phase. Compiled to nothing outside a device stream-bench image.
+/// @brief The stream bench's render splits: PMU cycles in each voice render, in each Sound's patching and in each voice
+/// note-on, summed per stream-bench phase. Compiled to nothing outside a device stream-bench image.
 
 #include <cstdint>
 
 namespace deluge::bench::render_profile {
 
-/// Cycle sums for one phase. `voice_patch` is measured inside `Voice::render`, so it is part of `voice_render`.
+/// Cycle sums for one phase.
 struct Totals {
 	uint64_t voice_render;
-	uint64_t voice_patch;
 	uint64_t sound_patch;
 	uint64_t voice_note_on;
 	uint32_t voice_blocks;

@@ -16,7 +16,6 @@
  */
 
 #include "synth/voice/voice.h"
-#include "bench/render_profile.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // get_decay4
 #include "dsp-next/fixed/shaping/wavefolder.h"
@@ -36,8 +35,6 @@
 using namespace deluge;
 using deluge::dsp::fixed::get_decay4;
 namespace params = deluge::modulation::params;
-
-// Hopefully I could make this use the spareRenderingBuffer instead...
 
 const Patcher::Config kPatcherConfigForVoice = {
     .first_param = 0,
@@ -108,8 +105,9 @@ Voice::Voice() : patcher(kPatcherConfigForVoice, params.source_values, params.pa
 
 // Returns false if the note cannot play and the voice must be unassigned again
 bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& snapshot,
-                    const deluge::synth::NoteOnEvent& event, deluge::synth::VoiceClock clock,
-                    size_t num_active_voices) {
+                    const deluge::synth::NoteOnEvent& event, deluge::synth::VoiceClock clock, size_t num_active_voices,
+                    dsp::fixed::Cong& noise) {
+	noise_ = &noise;
 	input_characteristics[util::to_underlying(MIDICharacteristic::NOTE)] = event.note_before_arp;
 	input_characteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = event.midi_channel;
 	note_code_after_arpeggiation = event.note_after_arp;
@@ -160,7 +158,7 @@ bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& 
 		done_first_render = false;
 		filter_set.reset();
 
-		saturation_.reset();
+		output_saturation_.reset();
 	}
 
 	if (setup.porta) [[unlikely]] {
@@ -310,7 +308,8 @@ void Voice::setup_porta(int32_t last_note_code) {
 	porta_envelope_max_amplitude = phase_increment - kMaxSampleValue;
 }
 
-void Voice::randomize_osc_phases(const SoundSnapshot& snapshot) {
+void Voice::randomize_osc_phases(const SoundSnapshot& snapshot, dsp::fixed::Cong& noise) {
+	noise_ = &noise;
 	for (int32_t u = 0; u < snapshot.num_unison; u++) {
 		for (int32_t s = 0; s < kNumSources; s++) {
 			unison_parts[u].sources[s].osc_pos = next_noise();
@@ -423,10 +422,8 @@ void Voice::note_off(const deluge::synth::ReleaseInfo& release, bool allow_relea
 		else {
 			envelopes[0].note_off(release.envelope_has_sustain[0]);
 
-			// Only start releasing envelope 2 if release wasn't at max value. LOCAL_ENV_1_RELEASE is a
-			// *local* param, so read the voice's own params.paramFinalValues (sized LOCAL_LAST) — not
-			// sound.paramFinalValues, which holds *global* params only (indexing it here was an
-			// out-of-bounds read of adjacent Sound memory; the hardened host build's bounds check caught it).
+			// Only start releasing envelope 2 if its release isn't at the maximum. LOCAL_ENV_1_RELEASE is a local
+			// param, so it is read from the voice's own final values.
 			if (params.param_final_values[params::LOCAL_ENV_1_RELEASE] >= 9) {
 				envelopes[1].note_off(release.envelope_has_sustain[1]);
 			}
@@ -471,6 +468,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
                                 const VoiceRenderArgs& args) {
 	spare_buffers_ = args.spare_buffers; // the render helpers read these
 	sync_scratch_ = args.sync_scratch;
+	noise_ = args.noise;
 	int32_t* sound_buffer = args.buffer;
 	const int32_t num_samples = args.num_samples;
 	const bool sound_rendering_in_stereo = args.sound_in_stereo;
@@ -569,13 +567,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 		for (int32_t s = 0; s < util::to_underlying(kFirstLocalSource); s++) {
 			params.source_values[s] = cfg.global_source_values[s];
 		}
-#if defined(DELUGE_STREAM_BENCH)
-		const uint32_t t0 = deluge::bench::render_profile::cycles();
-#endif
 		patcher.perform_patching(sources_changed, control_block);
-#if defined(DELUGE_STREAM_BENCH)
-		deluge::bench::render_profile::g_totals.voice_patch += deluge::bench::render_profile::cycles() - t0;
-#endif
 	}
 
 	// Sort out pitch
@@ -762,7 +754,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 	bool doing_osc_sync = cfg.doing_osc_sync;
 
 	// Oscillator sync: capture the master (source 0) phase at block start — from whichever persistent engine owns
-	// it (virtual-analog / wavetable), else oscPos.
+	// it (virtual-analog, wavetable or supersaw), else osc_pos.
 	if (doing_osc_sync) {
 		for (int32_t u = 0; u < cfg.num_unison; u++) {
 			osc_sync_pos[u] = unison_parts[u].sources[0].current_osc_phase();
@@ -834,9 +826,8 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 		}
 	}
 
-	// Normal mode: subtractive / samples. The engine owns the per-source render loop + osc-sync + the stereo
-	// buffer dance + the unison-inactive→unassign decision (it delegates each source's render back to
-	// renderBasicSource for now).
+	// Normal mode: subtractive / samples. The engine owns the per-source render loop, osc sync, the stereo buffer dance
+	// and the unison-inactive unassign decision; each source's render it hands back to render_basic_source.
 	if (synth_mode == SynthMode::SUBTRACTIVE) {
 		subtractive_engine.render(*this, control_block, block, osc_buffer, num_samples, doing_osc_sync, osc_sync_pos,
 		                          overall_pitch_adjust, source_amplitudes_now, source_amplitude_increments,
@@ -920,8 +911,8 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 					output_sample_r = multiply_32x32_rshift32_rounded(output_sample_r, overall_osc_amplitude_now) << 1;
 				}
 
-				output_sample_l = saturation_.saturate(output_sample_l, 0, saturation);
-				output_sample_r = saturation_.saturate(output_sample_r, 1, saturation);
+				output_sample_l = output_saturation_.saturate(output_sample_l, 0, saturation);
+				output_sample_r = output_saturation_.saturate(output_sample_r, 1, saturation);
 
 				// Write to the output buffer, panning or not
 				if (do_panning) {
@@ -937,17 +928,6 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 		}
 	}
 	else {
-		/*
-		do {
-		    int32_t distanceToGoL = *oscBufferPos - hpfMem;
-		    hpfMem += distanceToGoL >> 11;
-		    *oscBufferPos -= hpfMem;
-
-		} while (++oscBufferPos != oscBufferEnd);
-
-		oscBufferPos = oscBuffer;
-		*/
-
 		int32_t* const osc_buffer_end = osc_buffer + num_samples;
 		// wavefolding pre filter
 		if (params.param_final_values[params::LOCAL_FOLD] > 0) {
@@ -1004,7 +984,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 					output = multiply_32x32_rshift32_rounded(output, overall_osc_amplitude_now) << 1;
 				}
 
-				output = saturation_.saturate(output, 0, saturation);
+				output = output_saturation_.saturate(output, 0, saturation);
 
 				if (sound_rendering_in_stereo) {
 					if (do_panning) {
@@ -1123,7 +1103,9 @@ void Voice::auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block,
 	}
 
 	// Every source that needed attention says now: release the amplitude envelope
-	override_amplitude_envelope_release_rate = 8388608 / highest_num_samples_left;
+	// No source with samples left (each was skipped, or has under a frame left) leaves the release rate alone, as the
+	// device's integer division by zero gives 0
+	override_amplitude_envelope_release_rate = highest_num_samples_left != 0 ? 8388608 / highest_num_samples_left : 0;
 	if (envelopes[0].is_at_attack_start()) {
 		envelopes[0].set_output_level(kQ31Max);
 	}
@@ -1183,10 +1165,6 @@ bool Voice::adjust_pitch(uint32_t& phase_increment, int32_t adjustment) {
 // require an additional copying(summing) step, 		and we might as well just apply amplitude while that's
 // happening, which is exactly how it is currently.
 
-// Render one unison part of one source, dispatching by oscType to the per-source component and folding the
-// per-engine outcomes into one uniform SourceRenderResult. The single uniform dispatch seam a SourceComponent
-// interface + the engine registry will build on. (Still a Voice method using public state — this is the seam,
-// not yet the de-coupling.)
 deluge::synth::SourceRenderResult
 Voice::render_source_component(int32_t u, int32_t s, const ControlBlock& control_block, int32_t* osc_buffer,
                                int32_t num_samples, bool stereo_buffer, int32_t source_amplitude,
@@ -1274,9 +1252,8 @@ Voice::render_source_component(int32_t u, int32_t s, const ControlBlock& control
 	    .noise = noise_,                                                                        // live-input hop search
 	};
 
-	// sample → sampleSource, DX7 → dx7Source, INPUT_* → inputSource, wavetable → wavetableSource, supersaw →
-	// supersawSource, else virtual-analog → vaSource — every source is now a persistent synth::Source; the legacy
-	// oscType megaswitch is gone.
+	// sample → sample_source, DX7 → dx7_source, INPUT_* → input_source, else the persistent oscillator engine the
+	// note built: va_source, supersaw_source or wavetable_source.
 	synth::Source* component = nullptr;
 	if (cfg.osc_type[s] == OscType::SAMPLE) {
 		component = &unison_parts[u].sources[s].sample_source;

@@ -27,37 +27,31 @@ struct VoiceConfig;
 
 /// @brief The FM synth engine: the cross-source driver for `SynthMode::FM` (per the L1 reframe,
 /// `docs/dev/synth_l1_engine_architecture.md`). It owns one unison part's FM topology — modulator pitch
-/// derivation, the modulators (with the `modulator1ToModulator0` routing and the carriers-only fallback when no
+/// derivation, the modulators (with the `modulator1_to_modulator0` routing and the carriers-only fallback when no
 /// modulators are active), the carriers (FM'd by the modulators, with feedback), and the stereo-unison fold.
 ///
-/// The engine owns the full per-voice FM render — the unison loop, the per-source carrier pitch math, and (per
-/// unison part) the modulator/carrier topology — plus the per-operator sine/FM-with-feedback renders (the FM DSP —
-/// `renderSineWaveWithFeedback` / `renderFMWithFeedback` / `renderFMWithFeedbackAdd`, below); the shared pitch
-/// helper `Voice::adjustPitch` is a public static it calls. The **first stateful engine**: it now owns the
-/// FM-exclusive per-voice state (the modulator grid + amplitude smoothing, below) — written only under FM mode and
-/// read only here. The carriers still render over the *shared* per-source `oscPos`/`carrierFeedback` on the
-/// VoiceUnisonPartSources (Source-tier state used by all modes), reached via the passed-in `Voice&` (public members
-/// only — no `friend`), mirroring @ref SubtractiveEngine / @ref RingModEngine.
+/// The engine owns the full per-voice FM render — the unison loop, the per-source carrier pitch math, the
+/// modulator/carrier topology of each unison part and the per-operator renders — and the state only FM uses: the
+/// modulator grid and its amplitude smoothing. The carriers render over each unison part source's `osc_pos` and
+/// `carrier_feedback`, which every mode shares, reached through the `Voice&` it is handed.
 class FMEngine {
 public:
-	// The FM-exclusive per-voice state, relocated here from VoiceUnisonPart / Voice (only FM touches it; mode never
-	// changes on a live voice — setSynthMode kills voices first). Indexed [unison part][modulator]. The setup that
-	// writes these (note-on phase seed + per-unison pitch derivation) still lives in Voice for now — it relocates
-	// into the engine at the kernel lift — so these stay public, as the VoiceUnisonPart fields were.
-	std::array<std::array<uint32_t, kNumModulators>, kMaxNumVoicesUnison> modulator_phase;
+	// The state only FM uses (a live voice's mode never changes: changing a sound's mode ends its voices), indexed
+	// [unison part][modulator]. Public: the voice's note-on seeds the phases and its phase-increment step sets the
+	// increments.
+	std::array<std::array<uint32_t, kNumModulators>, kMaxNumVoicesUnison> modulator_phase{};
 	/// A modulator's phase increment when it is too high to render, and is not rendered.
 	static constexpr uint32_t kInactive = 0xFFFFFFFF;
-	std::array<std::array<uint32_t, kNumModulators>, kMaxNumVoicesUnison> modulator_phase_increment; // or kInactive
-	std::array<std::array<int32_t, kNumModulators>, kMaxNumVoicesUnison> modulator_feedback;
-	std::array<int32_t, kNumModulators> modulator_amplitude_last_time; // the modulator-volume de-zipper (voice-level)
+	std::array<std::array<uint32_t, kNumModulators>, kMaxNumVoicesUnison> modulator_phase_increment{}; // or kInactive
+	std::array<std::array<int32_t, kNumModulators>, kMaxNumVoicesUnison> modulator_feedback{};
+	std::array<int32_t, kNumModulators> modulator_amplitude_last_time{}; // the modulator-volume de-zipper
 
-	/// Render all of @p voice's FM unison parts, accumulating into @p oscBuffer. Owns the unison loop (ascending
-	/// frequency) + the per-source carrier pitch adjust (a too-high carrier zeroes that source's amplitude, which —
-	/// faithful to the inline code — persists across unison parts). The pre-roll source/modulator amplitude arrays
-	/// are computed by Voice and passed in; @p sourceAmplitudes and @p modulatorsActive are **mutable** (entries
-	/// knocked to 0/false on pitch-too-high, persisting across parts). @p didStereoTempBuffer is set when
-	/// @p stereoUnison. @p modulatorScratch / @p carrierScratch are the caller's spare buffers
-	/// (spareRenderingBuffer[2]/[3]).
+	/// Render all of @p voice's FM unison parts, accumulating into @p osc_buffer. Owns the unison loop (ascending
+	/// frequency) and the per-source carrier pitch adjust: a too-high carrier zeroes that source's amplitude, which
+	/// persists across unison parts. The source and modulator amplitude arrays are the voice's; @p source_amplitudes
+	/// and @p modulators_active are knocked to 0/false on a too-high pitch, persisting across parts.
+	/// @p did_stereo_temp_buffer is set when @p stereo_unison. @p modulator_scratch and @p carrier_scratch are the
+	/// voice's spare buffers.
 	void render(deluge::synth::Voice& voice, int32_t num_samples, int32_t overall_pitch_adjust, bool stereo_unison,
 	            int32_t* source_amplitudes, const int32_t* source_amplitudes_now,
 	            const int32_t* source_amplitude_increments, bool* modulators_active,
@@ -65,10 +59,10 @@ public:
 	            int32_t* carrier_scratch, bool& did_stereo_temp_buffer, const VoiceConfig& cfg);
 
 private:
-	/// Render one unison part of FM, accumulating into @p oscBuffer. The per-source/per-modulator arrays +
-	/// per-unison amplitudes are computed by @ref render and passed in. @p modulatorsActive is **mutable** — entries
-	/// are knocked to false on pitch-too-high and (faithful to the inline code) that persists across unison
-	/// parts. @p modulatorScratch / @p carrierScratch are the caller's spare buffers (spareRenderingBuffer[2]/[3]).
+	/// Render one unison part of FM, accumulating into @p osc_buffer. The per-source and per-modulator arrays and the
+	/// per-unison amplitudes come from @ref render. @p modulators_active entries are knocked to false on a too-high
+	/// pitch, which persists across unison parts. @p modulator_scratch and @p carrier_scratch are the voice's spare
+	/// buffers.
 	void render_unison_part(deluge::synth::Voice& voice, int32_t u, int32_t num_samples, int32_t overall_pitch_adjust,
 	                        bool stereo_unison, int32_t unison_amplitude_l, int32_t unison_amplitude_r,
 	                        const uint32_t* phase_increments, const int32_t* source_amplitudes,
@@ -76,8 +70,7 @@ private:
 	                        bool* modulators_active, const int32_t* modulator_amplitude_increments, int32_t* osc_buffer,
 	                        int32_t* modulator_scratch, int32_t* carrier_scratch, const VoiceConfig& cfg);
 
-	// The FM operator renders (pure DSP over the passed buffers/phases). Moved here from Voice — they read no
-	// Voice state, so the engine no longer needs to be a friend of Voice.
+	// The FM operator renders: pure DSP over the buffers and phases they are handed.
 	static void render_sine_wave_with_feedback(int32_t* buffer_start, int32_t num_samples, uint32_t* phase,
 	                                           int32_t amplitude, uint32_t phase_increment, int32_t feedback_amount,
 	                                           int32_t* last_feedback_value, bool add, int32_t amplitude_increment);

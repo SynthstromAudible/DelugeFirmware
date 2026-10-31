@@ -28,8 +28,8 @@ class VoiceSamplePlaybackGuide;
 /// @brief The firmware adapter behind @ref deluge::synth::SamplePlaybackPort: one pooled @ref VoiceSample reader
 /// for one voice-source. Holds the source's `VoiceSample` + the per-note `::Source`/guide cached at note-on,
 /// soliciting/releasing from the `AudioEngine` voice-sample pool and answering the library `SampleSource`'s render
-/// queries/ops from that state. This is the app-coupled half the library-resident `SampleSource` no longer
-/// carries (storage, the SD cluster cache, time-stretch, the pool, `playbackHandler` all stay here).
+/// queries/ops from that state: the app-coupled half of sample playback (storage, the SD cluster cache,
+/// time-stretch, the pool, `playbackHandler`), behind the library `SampleSource`.
 ///
 /// It also owns the note **lifecycle** (solicit/release, note-off-at-loop-end, zone change, the GUI play-cursor
 /// read-out, the unison-count-change clone) — app-typed methods called directly by the App, deliberately off the

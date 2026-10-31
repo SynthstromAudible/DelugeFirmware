@@ -41,10 +41,10 @@ struct SoundSnapshot {
 	uint8_t num_unison{1};              ///< SoundState::num_unison
 	int8_t unison_detune{8};            ///< SoundState::unison_detune, cents across the spread
 	uint8_t unison_stereo_spread{0};    ///< SoundState::unison_stereo_spread
-	/// Derived from numUnison and unisonDetune: each unison part's detune. Written only when numUnison != 1; the
-	/// render reads parts below numUnison.
+	/// Derived from num_unison and unison_detune: each unison part's detune. Written only when num_unison != 1; the
+	/// render reads parts below num_unison.
 	std::array<PhaseIncrementFineTuner, kMaxNumVoicesUnison> unison_detuners{};
-	/// Derived from numUnison and unisonStereoSpread: each unison part's pan offset, under the same rule.
+	/// Derived from num_unison and unison_stereo_spread: each unison part's pan offset, under the same rule.
 	std::array<int32_t, kMaxNumVoicesUnison> unison_pan{};
 	SynthMode synth_mode{
 	    SynthMode::SUBTRACTIVE}; ///< SoundState::synth_mode; selects the subtractive/ring-mod/FM render
@@ -53,11 +53,11 @@ struct SoundSnapshot {
 	bool modulator1_to_modulator0{false};                ///< SoundState::modulator1_to_modulator0 (FM routing)
 	std::array<int16_t, kNumModulators> modulator_transpose{0, -12}; ///< SoundState::modulator_transpose, semitones
 	std::array<int8_t, kNumModulators> modulator_cents{};            ///< SoundState::modulator_cents
-	/// derived from modulatorCents: each FM modulator's fine detune
+	/// derived from modulator_cents: each FM modulator's fine detune
 	std::array<PhaseIncrementFineTuner, kNumModulators> modulator_transposers{};
 	/// SoundState::osc_retrigger_phase; a phase as a fraction of 2^32, 0xFFFFFFFF = free-running (no retrigger)
 	std::array<uint32_t, kNumSources> osc_retrigger_phase{0xFFFFFFFF, 0xFFFFFFFF};
-	/// SoundState::modulator_retrigger_phase; same encoding as oscRetriggerPhase
+	/// SoundState::modulator_retrigger_phase; same encoding as osc_retrigger_phase
 	std::array<uint32_t, kNumModulators> modulator_retrigger_phase{};
 	/// SoundState::lfo_wave_type / lfo_sync_type / lfo_sync_level per LFO. The LFO phase state stays on the engine.
 	std::array<LFOConfig, LFO_COUNT> lfo_config{};

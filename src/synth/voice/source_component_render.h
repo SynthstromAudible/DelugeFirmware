@@ -19,15 +19,12 @@
 #include "synth/sources/source.h" // deluge::synth::BlockControls
 #include <cstdint>
 
-/// @file The adapter that bundles a source's already-modulated per-block values into a synth-safe
-/// @ref deluge::synth::BlockControls. Used by `Voice::renderSourceComponent` (to fill a @ref
-/// deluge::synth::SourceRenderContext) and by
-/// @ref RingModEngine. (The per-source render itself now lives on the engines as `synth::Source::renderSource` /
-/// the engines' `renderInto`.)
+/// @file Bundles a source's already-modulated per-block values into a @ref deluge::synth::BlockControls, for the
+/// voice's per-source render (in a @ref deluge::synth::SourceRenderContext) and for @ref RingModEngine.
 namespace deluge::synth {
 
-/// Build the already-modulated per-block controls a source component renders from (the raw values renderOsc's VA
-/// branch used to build; the component derives pulse/sync/retrigger/band/scale internally).
+/// Build the already-modulated per-block controls a source component renders from; the component derives its pulse,
+/// sync, retrigger, band and scale from them.
 synth::BlockControls make_block_controls(int32_t amplitude, int32_t amplitude_increment, uint32_t pulse_width,
                                          bool apply_amplitude, bool do_osc_sync, uint32_t resetter_phase,
                                          uint32_t resetter_phase_increment, uint32_t retrigger_phase,

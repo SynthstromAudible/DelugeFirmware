@@ -32,74 +32,64 @@ struct VoiceConfig {
 	deluge::dsp::fixed::LowPassSlot low_pass;   ///< What the low-pass slot runs: OFF when the sound needs no low-pass
 	deluge::dsp::fixed::HighPassSlot high_pass; ///< What the high-pass slot runs: OFF when the sound needs no high-pass
 	deluge::dsp::fixed::FilterRoute filter_route; ///< How the two filters join
-	int32_t volume_neutral_value_for_unison;      ///< Sound::volumeNeutralValueForUnison
+	/// The level going into the filters, so the unison parts' sum stays at one voice's: 2^27 / √(unison count)
+	int32_t volume_neutral_value_for_unison;
 	/// How far behind the engine's render is running, 0 when on time: the render takes cheaper paths as it grows.
 	int32_t cpu_direness;
 	VoicePriority voice_priority; ///< The sound's voice priority, which the cull order ranks by first
 
-	SynthMode synth_mode;  ///< Sound::getSynthMode() — drives the subtractive/ring-mod/FM dispatch
-	LFOConfig lfo2_config; ///< Sound::lfoConfig[LFO2_ID]
-	LFOConfig lfo4_config; ///< Sound::lfoConfig[LFO4_ID]
-	/// Sound::getSyncedLFOPhaseIncrement(lfoConfig[LFO2_ID/LFO4_ID]) — transport-synced increment, valid only when
-	/// the LFO's syncLevel != NONE (0 otherwise, unused). Sound/transport-level, identical for all voices.
+	SynthMode synth_mode;  ///< Which engine renders: subtractive, ring-mod or FM
+	LFOConfig lfo2_config; ///< The first local LFO's wave and sync
+	LFOConfig lfo4_config; ///< The second local LFO's wave and sync
+	/// Each local LFO's phase increment when synced to the transport (0, unused, when it runs free).
 	uint32_t lfo2_synced_phase_increment;
 	uint32_t lfo4_synced_phase_increment;
 
-	bool has_filters; ///< Sound::hasFilters()
+	bool has_filters; ///< The sound's filters can run at all
 
-	std::bitset<kNumExpressionDimensions> expression_sources_changed_at_synth_level; ///< Sound:: (same name)
-	std::array<int32_t, kNumExpressionDimensions> monophonic_expression_values;      ///< Sound:: (same name)
+	/// The MPE dimensions whose sound-level value changed this block
+	std::bitset<kNumExpressionDimensions> expression_sources_changed_at_synth_level;
+	std::array<int32_t, kNumExpressionDimensions> monophonic_expression_values; ///< The sound's own MPE values
 
-	uint8_t clipping_amount; ///< Sound::clippingAmount — gates + drives the output-stage saturation
+	uint8_t clipping_amount; ///< The output stage's saturation amount, 0 for none
 
-	bool doing_osc_sync; ///< Sound::renderingOscillatorSyncCurrently(paramManager) (sound-level, same for all voices)
-	bool
-	    engine_rendering_in_stereo; ///< AudioEngine::renderInStereo (the engine-wide stereo-render flag; gates panning)
+	bool doing_osc_sync;             ///< Source 1 is hard-synced to source 0
+	bool engine_rendering_in_stereo; ///< The engine renders in stereo (headphones), so voices may pan
 
-	uint8_t num_unison;                                  ///< Sound::numUnison
-	uint8_t unison_stereo_spread;                        ///< Sound::unisonStereoSpread
-	std::array<int32_t, kMaxNumVoicesUnison> unison_pan; ///< Sound::unisonPan (copied)
+	uint8_t num_unison;                                  ///< Unison parts per voice
+	uint8_t unison_stereo_spread;                        ///< How far the unison parts spread across the field
+	std::array<int32_t, kMaxNumVoicesUnison> unison_pan; ///< Each unison part's pan
 
-	std::array<uint32_t, kNumSources> osc_retrigger_phase; ///< Sound::oscRetriggerPhase (4294967295 == off)
+	std::array<uint32_t, kNumSources> osc_retrigger_phase; ///< Each source's retrigger phase, or kNoRetrigger
 
-	std::array<OscType, kNumSources> osc_type; ///< Sound::sources[s].oscType — drives the per-source render dispatch
-	std::array<SampleRepeatMode, kNumSources> repeat_mode; ///< Sound::sources[s].repeatMode (play-once auto-release)
-	std::array<InterpolationMode, kNumSources>
-	    interpolation_mode;                         ///< Sound::sources[s].sampleControls.interpolationMode
-	std::array<bool, kNumSources> dx_patch_changed; ///< Sound::sources[s].dxPatchChanged (DX7 patch re-derive signal)
+	std::array<OscType, kNumSources> osc_type;                     ///< Each source's type as set
+	std::array<SampleRepeatMode, kNumSources> repeat_mode;         ///< Each sample source's repeat mode
+	std::array<InterpolationMode, kNumSources> interpolation_mode; ///< Each sample or input source's interpolation
+	std::array<bool, kNumSources> dx_patch_changed; ///< A DX7 source's patch changed since the last block
 
-	/// Sound::params.sourceValues — the *global* (non-local) patch-source values, copied into the voice's local
-	/// data plane before per-block patching. Settled before the voice loop (sound-level patching precedes it),
-	/// so a once-per-block snapshot is bit-exact.
+	/// The sound's global patch-source values, copied into the voice's own before its patching. The sound's patching
+	/// runs first, so they are settled for the block.
 	std::array<int32_t, util::to_underlying(kFirstLocalSource)> global_source_values;
 
-	/// Sound::allowNoteTails(modelStack, /*disregardSampleLoop=*/true) — the note-tail re-check for a voice that
-	/// previously ignored a note-off (e.g. preset changed mid-note). Sound/clip-level, identical for all voices.
+	/// Note-offs release the voice. When false a note-off is only remembered, and taken once this is true again.
 	bool note_tails_allowed;
 
-	/// ModelStackWithSoundFlags::checkSourceEverActive(s) — the per-source "ever active" soundFlags. Sound/
-	/// paramManager-derived, computed once on the shared per-render modelStack, so identical for all voices.
+	/// Each source can sound at all at the sound's settings.
 	std::array<bool, kNumSources> source_ever_active;
 
-	/// paramManager->getPatchedParamSet()->params[LOCAL_NOISE_VOLUME].containsSomething(INT32_MIN) — whether a
-	/// noise source is in play. The predicate areAllUnisonPartsInactive gates on (sound-level, loop-stable).
+	/// The noise source can sound, which keeps a voice whose oscillators have all ended alive.
 	bool noise_volume_contains_something;
 
-	/// paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL] — bitmask of which local patch
-	/// sources are wired (the local envelope/LFO render gates on it). Set by setupPatching, loop-stable.
+	/// Bit per local patch source that is patched to anything: the local envelopes and LFOs render only then.
 	uint32_t local_sources_patched_to_anything;
 
-	/// The resolved MPE bend ranges ([BEND_RANGE_MAIN], [BEND_RANGE_FINGER_LEVEL]) — the sound's
-	/// ExpressionParamSet::bendRanges, or FlashStorage::defaultBendRange when there's no expression set.
+	/// The MPE bend ranges, in semitones: the main one, then the per-finger one.
 	std::array<uint8_t, 2> bend_ranges;
-	/// paramManager->getUnpatchedParamSet()->getValue(UNPATCHED_PORTAMENTO) — raw porta param (the
-	/// cableToExpParamShortcut/lookupReleaseRate transform stays in the render).
+	/// The portamento param as set (the render turns it into a glide rate).
 	int32_t portamento;
 
-	/// Sound::modulator1ToModulator0 — FM modulator-routing flag (whether mod1 modulates mod0).
-	bool modulator1_to_modulator0;
-	/// Sound::isSourceActiveCurrently(s, paramManager) per source — sound-level (paramManager + source config),
-	/// loop-stable; the subtractive engine's per-source render gate.
+	bool modulator1_to_modulator0; ///< FM: modulator 1 modulates modulator 0 rather than the carriers
+	/// Each source sounds at the sound's current levels: the subtractive engine renders only those.
 	std::array<bool, kNumSources> source_active_currently;
 };
 

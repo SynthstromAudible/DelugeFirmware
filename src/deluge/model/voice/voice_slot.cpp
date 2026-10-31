@@ -45,7 +45,6 @@ VoiceClock engineClock() {
 } // namespace
 
 VoiceSlot::VoiceSlot(Sound& sound) : sound{sound} {
-	kernel.bind_noise(deluge::synth_noise);
 	for (int32_t u = 0; u < kMaxNumVoicesUnison; u++) {
 		for (int32_t s = 0; s < kNumSources; s++) {
 			kernel.unison_parts[u].sources[s].bind(&ports_[u][s].sample, &ports_[u][s].dx, &ports_[u][s].input);
@@ -60,7 +59,7 @@ uint32_t VoiceSlot::priority_rating() const {
 // Returns false if fail and we need to unassign again
 bool VoiceSlot::note_on(ModelStackWithSoundFlags& flags, const NoteOnEvent& event, uint32_t sample_sync_length,
                         int32_t ticks_late) {
-	checkStack("Voice::noteOn");
+	checkStack("VoiceSlot::note_on");
 	order_sounded = lastSoundOrder++;
 
 	auto* paramManager = static_cast<ParamManagerForTimeline*>(flags.paramManager);
@@ -77,7 +76,7 @@ bool VoiceSlot::note_on(ModelStackWithSoundFlags& flags, const NoteOnEvent& even
 		}
 	}
 
-	return kernel.note_on(setup, sound.snapshot(), event, engineClock(), sound.numActiveVoices());
+	return kernel.note_on(setup, sound.snapshot(), event, engineClock(), sound.numActiveVoices(), deluge::synth_noise);
 }
 
 void VoiceSlot::change_note(ModelStackWithSoundFlags& flags, int32_t note_before_arp, int32_t note_after_arp,
@@ -110,7 +109,7 @@ void VoiceSlot::note_off(ParamManagerForTimeline* paramManager, bool note_tails_
 }
 
 void VoiceSlot::randomize_osc_phases() {
-	kernel.randomize_osc_phases(sound.snapshot());
+	kernel.randomize_osc_phases(sound.snapshot(), deluge::synth_noise);
 }
 
 void VoiceSlot::expression_event_immediate(int32_t voice_level_value, int32_t s) {
@@ -124,7 +123,7 @@ bool VoiceSlot::render(const ControlBlock& control_block, const VoiceConfig& cfg
 		just_created = true;
 		return true;
 	}
-	checkStack("Voice::render");
+	checkStack("VoiceSlot::render");
 	return kernel.render(control_block, cfg, block(), args);
 }
 
@@ -188,7 +187,6 @@ bool VoiceSlot::sample_zone_changed(ModelStackWithSoundFlags& flags, int32_t s, 
 	}
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
-	const Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
 
 	const Source& source = sound.sources[s];
 	Sample* sample = (Sample*)holder->audioFile;

@@ -53,11 +53,11 @@ bool VoiceUnisonPartSource::note_on(const deluge::synth::SourceSetup& source, ui
 	}
 	else {
 		const OscType osc_type = source.osc_type;
-		// Virtual-analog + wavetable waves (subtractive + ring-mod) hold their phase in a persistent engine rather
-		// than oscPos. Build/reseed it following the legacy oscPos rule: a retrigger seeds init+retrigger; a
-		// free-run oscillator on a new voice takes the random phase randomizeOscPhases left in oscPos; a free-run
-		// oscillator on a reused voice (same Sound ⇒ same wave) keeps the engine's continuing phase. The two
-		// engines are mutually exclusive — reset the other (a pooled voice slot may carry one from a prior sound).
+		// Virtual-analog, wavetable and supersaw waves (subtractive and ring-mod) hold their phase in a persistent
+		// engine rather than osc_pos. A retrigger seeds it at the wave's zero crossing plus the retrigger phase; a
+		// free-running oscillator on a new voice takes the random phase randomize_osc_phases left in osc_pos; a
+		// free-running oscillator on a re-triggered voice keeps the engine's continuing phase. The engines are
+		// mutually exclusive, so the others are reset: the sound's type may have changed since the voice's last note.
 		const bool engine_mode = (synth_mode == SynthMode::SUBTRACTIVE || synth_mode == SynthMode::RINGMOD);
 		const uint32_t seed_phase = deluge::synth::va_shape::initial_phase_for_zero(osc_type) + osc_retrigger_phase;
 		if (engine_mode && deluge::synth::va_shape::is_virtual_analog(osc_type)) {
@@ -70,7 +70,7 @@ bool VoiceUnisonPartSource::note_on(const deluge::synth::SourceSetup& source, ui
 			else if (reset_everything || !va_source.has_value()) {
 				va_source.emplace(wave, deluge::dsp::Phasor{osc_pos, 0});
 			}
-			// else (free-run, reused voice): keep vaSource's phase.
+			// else (free-running, re-triggered voice): keep va_source's phase.
 		}
 		else if (engine_mode && osc_type == OscType::WAVETABLE) {
 			va_source.reset();
@@ -81,7 +81,7 @@ bool VoiceUnisonPartSource::note_on(const deluge::synth::SourceSetup& source, ui
 			else if (reset_everything || !wavetable_source.has_value()) {
 				wavetable_source.emplace(deluge::dsp::Phasor{osc_pos, 0});
 			}
-			// else (free-run, reused voice): keep wavetableSource's phase.
+			// else (free-running, re-triggered voice): keep wavetable_source's phase.
 		}
 		else if (engine_mode && osc_type == OscType::SUPERSAW) {
 			va_source.reset();
@@ -100,10 +100,10 @@ bool VoiceUnisonPartSource::note_on(const deluge::synth::SourceSetup& source, ui
 				}
 				supersaw_source.emplace(osc_pos, side_phases);
 			}
-			// else (free-run, reused voice): keep supersawSource's phases.
+			// else (free-running, re-triggered voice): keep supersaw_source's phases.
 		}
 		else {
-			va_source.reset(); // non-engine (noise/FM/…) keeps oscPos; drop any engine left from a prior note.
+			va_source.reset(); // no engine (noise, FM, …) keeps osc_pos; drop any engine left from a prior note.
 			wavetable_source.reset();
 			supersaw_source.reset();
 			if (osc_retrigger_phase != deluge::synth::kNoRetrigger) {

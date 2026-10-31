@@ -11,7 +11,7 @@ it may use dsp-next/, sequence/ and definitions*, of util/ only the stateless fi
 misc.h, param_functions.h, phase_increment_fine_tuner.h and the lookup tables, of modulation/ only the param and sync vocabulary (params/param.h,
 params/param_descriptor.h, sync.h), and of deluge-project/ only the enums definitions_cxx.hpp
 brings (never named by a synth file itself). It must not reach the app layers — storage/,
-model/, processing/, gui/, playback/, hid/, io/, the legacy dsp/ library, or the HAL/BSP
+model/, processing/, gui/, playback/, hid/, io/, bench/, the legacy dsp/ library, or the HAL/BSP
 (RZA1/, bsp/, drivers/). memory/ is allowed only via the thin memory_allocator_interface.h seam.
 
 This is a TRANSITIVE check: it follows the `#include "..."` graph from every
@@ -53,6 +53,7 @@ FORBIDDEN_INCLUDE_PREFIXES = (
     "hid/",
     "io/",
     "dsp/",  # the legacy DSP library
+    "bench/",  # the app's benchmarks
     "RZA1/",
     "bsp/",
     "drivers/",

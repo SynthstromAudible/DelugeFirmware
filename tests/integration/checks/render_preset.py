@@ -9,6 +9,8 @@ captured from the audio tier. This module stages each case, runs them in paralle
                 record a hash like any other (a preset that failed to load is the scenario's RP-LOADED failure);
     RP-PCM      the output against its record in tests/integration/golden/presets.json: sha256, frames, peak and
                 RMS level, the record render-song keeps.
+    RP-ZONE     a case in ZONE_END moved its sample zone's end mid-note (RENDER_ZONE_END, as the sample marker editor
+                moves it).
 And once per run:
     RP-LEARN    a preset's own MIDI learn reaches it: the blank boot song must keep the input a preset was saved with
                 when it replaces its default synth. It is the one path the corpus cases do not play through.

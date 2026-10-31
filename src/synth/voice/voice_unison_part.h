@@ -22,8 +22,7 @@
 
 namespace deluge::synth {
 
-// A pure (mode-agnostic) per-unison source container. The FM modulator grid that used to live here moved to
-// FMEngine (the first stateful engine) — it was FM-exclusive state; see model/voice/fm_engine.h.
+// One unison part's sources, the same in every synth mode: FM's per-part modulator state lives in FMEngine.
 struct VoiceUnisonPart {
 	VoiceUnisonPartSource sources[kNumSources];
 };

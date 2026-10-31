@@ -55,8 +55,8 @@ bool SamplePlaybackAdapter::note_on(uint32_t samplesLate, int32_t priorityRating
 		return true;
 	case RegionOutcome::Loading:
 		// The chunk is reserved and its fill is in flight; it is not loaded YET. Admit the voice and let the
-		// late-start machinery start it as soon as the data lands: a non-zero pendingSamplesLate makes voice.cpp's
-		// tryToStartMidNote fire on the next render, which calls attemptLateSampleStart -> SUCCESS starts the note,
+		// late-start machinery start it as soon as the data lands: a non-zero pendingSamplesLate makes SampleSource's
+		// late start fire on the next render, which calls attempt_late_start -> SUCCESS starts the note,
 		// WAIT retries, FAILURE unassigns. 1 sample is inaudible, and each WAIT advances the position in real time,
 		// so the note sounds from where it would have been.
 		//

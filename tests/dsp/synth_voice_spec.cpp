@@ -14,6 +14,7 @@
 #include "dsp-next/fixed/noise/cong.h"
 #include "modulation/params/param.h"
 
+#include <algorithm>
 #include <array>
 #include <cppspec.hpp>
 #include <cstdint>
@@ -61,7 +62,6 @@ struct Rig {
 
 	Rig() {
 		functionsInit(); // the param scaling tables the patcher reads
-		voice.bind_noise(noise);
 		for (int32_t u = 0; u < kMaxNumVoicesUnison; u++) {
 			for (int32_t s = 0; s < kNumSources; s++) {
 				voice.unison_parts[u].sources[s].bind(&samples[u][s], &dx, &input);
@@ -161,6 +161,7 @@ bool render_block(Rig& rig, const NoteSetup& setup, const VoiceConfig& cfg, int6
 	        .spare_buffers = {rig.spare[0].data(), rig.spare[1].data(), rig.spare[2].data(), rig.spare[3].data()},
 	        .filter_scratch = {.fade = rig.fade, .parallel = rig.parallel},
 	        .sync_scratch = rig.sync,
+	        .noise = &rig.noise,
 	    });
 	if (peak != nullptr) {
 		*peak = 0;
@@ -187,7 +188,7 @@ describe synth_voice_spec("synth::Voice", ${
 		auto rig = std::make_unique<Rig>();
 		const NoteSetup setup = note_setup(OscType::SAW);
 		const VoiceConfig cfg = config(SynthMode::SUBTRACTIVE, OscType::SAW);
-		expect(rig->voice.note_on(setup, snapshot(SynthMode::SUBTRACTIVE), note(60), rig->clock(), 1)).to_be_true();
+		expect(rig->voice.note_on(setup, snapshot(SynthMode::SUBTRACTIVE), note(60), rig->clock(), 1, rig->noise)).to_be_true();
 		int64_t peak = 0;
 		for (int32_t i = 0; i < 4; i++) {
 			render_block(*rig, setup, cfg, &peak);
@@ -201,7 +202,7 @@ describe synth_voice_spec("synth::Voice", ${
 		auto rig = std::make_unique<Rig>();
 		const NoteSetup setup = note_setup(OscType::SINE);
 		const VoiceConfig cfg = config(SynthMode::FM, OscType::SINE);
-		expect(rig->voice.note_on(setup, snapshot(SynthMode::FM), note(60), rig->clock(), 1)).to_be_true();
+		expect(rig->voice.note_on(setup, snapshot(SynthMode::FM), note(60), rig->clock(), 1, rig->noise)).to_be_true();
 		int64_t peak = 0;
 		for (int32_t i = 0; i < 4; i++) {
 			render_block(*rig, setup, cfg, &peak);
@@ -214,7 +215,7 @@ describe synth_voice_spec("synth::Voice", ${
 		rig->samples[0][0] = FakeSamplePort{4000};
 		const NoteSetup setup = note_setup(OscType::SAMPLE);
 		const VoiceConfig cfg = config(SynthMode::SUBTRACTIVE, OscType::SAMPLE);
-		expect(rig->voice.note_on(setup, snapshot(SynthMode::SUBTRACTIVE), note(60), rig->clock(), 1)).to_be_true();
+		expect(rig->voice.note_on(setup, snapshot(SynthMode::SUBTRACTIVE), note(60), rig->clock(), 1, rig->noise)).to_be_true();
 		int64_t peak = 0;
 		int64_t loudest = 0;
 		bool released_before_end = false;
@@ -236,7 +237,7 @@ describe synth_voice_spec("synth::Voice", ${
 		rig->samples[0][0] = FakeSamplePort{4000};
 		const NoteSetup setup = note_setup(OscType::SAMPLE);
 		const VoiceConfig cfg = config(SynthMode::SUBTRACTIVE, OscType::SAMPLE);
-		expect(rig->voice.note_on(setup, snapshot(SynthMode::SUBTRACTIVE), note(60), rig->clock(), 1)).to_be_true();
+		expect(rig->voice.note_on(setup, snapshot(SynthMode::SUBTRACTIVE), note(60), rig->clock(), 1, rig->noise)).to_be_true();
 		for (int32_t i = 0; i < 20; i++) {
 			render_block(*rig, setup, cfg, nullptr, false);
 		}
@@ -247,7 +248,7 @@ describe synth_voice_spec("synth::Voice", ${
 		auto rig = std::make_unique<Rig>();
 		const NoteSetup setup = note_setup(OscType::SAW);
 		const VoiceConfig cfg = config(SynthMode::SUBTRACTIVE, OscType::SAW);
-		expect(rig->voice.note_on(setup, snapshot(SynthMode::SUBTRACTIVE), note(60), rig->clock(), 1)).to_be_true();
+		expect(rig->voice.note_on(setup, snapshot(SynthMode::SUBTRACTIVE), note(60), rig->clock(), 1, rig->noise)).to_be_true();
 		render_block(*rig, setup, cfg);
 		render_block(*rig, setup, cfg);
 		expect(rig->voice.do_fast_release(kSoftCullIncrement, rig->clock())).to_be_true();
@@ -258,13 +259,13 @@ describe synth_voice_spec("synth::Voice", ${
 		auto rig = std::make_unique<Rig>();
 		NoteSetup setup = note_setup(OscType::SAW);
 		setup.sources[1] = {.osc_type = OscType::WAVETABLE, .ever_active = true, .playable = false};
-		expect(rig->voice.note_on(setup, snapshot(SynthMode::RINGMOD), note(60), rig->clock(), 1)).to_be_false();
+		expect(rig->voice.note_on(setup, snapshot(SynthMode::RINGMOD), note(60), rig->clock(), 1, rig->noise)).to_be_false();
 	});
 
 	it("ranks a voice of a sound with more voices sooner in the cull order", _{
 		auto rig = std::make_unique<Rig>();
 		const NoteSetup setup = note_setup(OscType::SAW);
-		expect(rig->voice.note_on(setup, snapshot(SynthMode::SUBTRACTIVE), note(60), rig->clock(), 1)).to_be_true();
+		expect(rig->voice.note_on(setup, snapshot(SynthMode::SUBTRACTIVE), note(60), rig->clock(), 1, rig->noise)).to_be_true();
 		expect(rig->voice.priority_rating(VoicePriority::MEDIUM, 3))
 		    .to_be_greater_than(rig->voice.priority_rating(VoicePriority::MEDIUM, 1));
 		expect(rig->voice.priority_rating(VoicePriority::LOW, 1))
