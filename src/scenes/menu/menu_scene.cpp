@@ -917,6 +917,16 @@ void present_column(const Node& node, const MenuContext& ctx, int32_t value, Col
 		col.ctx = &slot.text;
 	};
 
+	if (node.bind.column_draw != nullptr) {
+		if (const auto drawing = node.bind.column_draw(ctx, value)) {
+			slot.draw = *drawing;
+			col.render = deluge::ui::oled::draw_column;
+			col.ctx = &slot.draw;
+			col.span_next = drawing->span_next;
+			return;
+		}
+	}
+
 	if (node.bind.column_art != nullptr) {
 		if (const auto art = node.bind.column_art(ctx, value)) {
 			draw_art(*art);
@@ -1244,10 +1254,13 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 		// nothing and raises no notification here -- the hook raises its own popup, exactly as
 		// legacy's side effect does.
 		if (target.bind.permitted == nullptr || target.bind.permitted(ctx_)) {
-			const auto detents = static_cast<int32_t>(
+			auto detents = static_cast<int32_t>(
 			    turned
 			    * horizontal_acceleration_.advance(turned, static_cast<double>(f.now_ms()) / 1000.0,
 			                                       deluge::ui::kHorizontalMenuAcceleration));
+			if (target.bind.reverse_in_horizontal != nullptr && target.bind.reverse_in_horizontal(ctx_)) {
+				detents = -detents;
+			}
 			if (target.bind.adjust != nullptr) {
 				// `Binding::adjust` (spec §5.2): accumulate the turn's detents rather than
 				// computing `moved` -- an offset write (`instrumentClipView.adjustVelocity` and
@@ -2346,6 +2359,11 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 		// refuse the id and roll the move back -- so the jump is simply not offered.
 		const uint16_t id = target != nullptr ? arm_shortcut_landing(*target) : 0;
 		if (id != 0) {
+			// `setup()` -> `beginScreen` -> `endScreen` ends the page being left (`sound_editor.cpp:977-982`), and
+			// `HorizontalMenu::endSession` cancels its notification (`horizontal_menu.cpp:576-591`).
+			if (on_horizontal_page()) {
+				deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
+			}
 			// `Replace`, not an in-place re-target: `SceneId::arg` is how the shell spells which
 			// node is open (`Shell::state_lines()` -> `app16/<id>`), and a path the scene moved
 			// behind the stack's back would make that line lie. `on_enter` does the re-target on
@@ -2623,12 +2641,13 @@ bool page_lists(const Node& page, const Node& column) {
 	if (page.kind != Kind::Submenu) {
 		return false;
 	}
-	if (std::ranges::contains(page.children, &column)) {
-		return true;
+	// A group lists what its member pages list, not the member pages (`HorizontalMenuGroup::hasItem`,
+	// `horizontal_menu_group.cpp:209-211`).
+	if (page.is_group) {
+		return std::ranges::any_of(page.children,
+		                           [&](const Node* m) { return m != nullptr && page_lists(*m, column); });
 	}
-	// A group lists what its member pages list (`HorizontalMenuGroup::hasItem`, `horizontal_menu_group.cpp:209-211`).
-	return page.is_group
-	       && std::ranges::any_of(page.children, [&](const Node* m) { return m != nullptr && page_lists(*m, column); });
+	return std::ranges::contains(page.children, &column);
 }
 
 const Node* shortcut_landing_page(MenuContext::Root root, const Node& target) {

@@ -1075,7 +1075,8 @@ bool is_automation_item(const Node& item);
 /// @return The page, or `nullptr`.
 const Node* shortcut_landing_page(MenuContext::Root root, const Node& target);
 
-/// @brief Does @p page list @p column among its children -- a group (`Node::is_group`) through any member page?
+/// @brief Does @p page list @p column among its children -- a group (`Node::is_group`) through its member pages'
+///        children, never the member pages themselves?
 /// @param page   A submenu.
 /// @param column The child to look for.
 /// @return Whether it is listed, relevant or not.
@@ -1129,6 +1130,7 @@ struct ColumnSlot {
 	deluge::ui::oled::TextColumn text;
 	deluge::ui::oled::ToggleColumn toggle;
 	deluge::ui::oled::ArtColumn art;
+	deluge::ui::oled::DrawColumn draw;
 	char value[16]{};
 	char label[16]{};
 	NodeText label_scratch;

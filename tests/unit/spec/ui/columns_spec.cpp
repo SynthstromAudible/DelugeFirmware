@@ -559,6 +559,32 @@ describe columns_w("ui::oled::columns", $ {
 		expect(column_under_button(span, 3, 1)).to_equal(3);
 	});
 
+	it("a span_next column draws one render across its slots and skips the covered columns", _ {
+		// `horizontal_menu.cpp:231-245`: a container renders across its items, unlabelled.
+		struct Seen {
+			int32_t width = -1;
+			int calls = 0;
+		};
+		static Seen seen_first;
+		static Seen seen_covered;
+		seen_first = {};
+		seen_covered = {};
+		std::array<Column, 3> cols{};
+		cols[0].label = "FREQ";
+		cols[0].span_next = 1;
+		cols[0].render = [](OledFrame& f, bool, void*) {
+			seen_first.width = f.bounds().w;
+			seen_first.calls++;
+		};
+		cols[1].render = [](OledFrame&, bool, void*) { seen_covered.calls++; };
+		uitest::Rig48 r;
+		ColumnsState state{};
+		columns(r.frame, r.frame.bounds(), state, std::span<const Column>{cols.data(), cols.size()});
+		expect(seen_first.calls).to_equal(1);
+		expect(seen_first.width).to_equal(64);
+		expect(seen_covered.calls).to_equal(0);
+	});
+
 	it("pages six columns and shows the legacy page counters", _ {
 		std::vector<legacy::Item> six = four_columns();
 		six.push_back(legacy::Item{.label = "DRIVE", .kind = legacy::Item::BAR, .norm = 0.75f});

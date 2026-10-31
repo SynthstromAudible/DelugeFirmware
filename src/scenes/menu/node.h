@@ -23,7 +23,8 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_descriptor.h" // CustomItem::learn_descriptor -- returned by value
 #include "scenes/bind/target.h"
-#include "ui/oled/columns.h" // ArtColumn
+#include "ui/oled/column_drawings.h" // DrawColumn
+#include "ui/oled/columns.h"         // ArtColumn
 #include "ui/oled/meters.h"
 #include "ui/oled/values.h"
 
@@ -209,6 +210,16 @@ using ValueTextFn = ValueText (*)(const MenuContext& ctx, int32_t value, ValueTe
 /// @return The icon or word to draw in place of the node's ordinary column, or nothing to draw that column.
 using ColumnArtFn = std::optional<deluge::ui::oled::ArtColumn> (*)(const MenuContext& ctx, int32_t value);
 
+/// @brief Legacy's drawing for one value that is neither a meter, a word nor an icon -- `Binding::column_draw`.
+/// @param ctx   What is being edited.
+/// @param value The value to draw, in the node's own units.
+/// @return The drawing, or nothing to draw the node's ordinary column.
+using ColumnDrawFn = std::optional<deluge::ui::oled::DrawColumn> (*)(const MenuContext& ctx, int32_t value);
+
+/// @brief Whether a select turn on this node's horizontal column moves the value the other way -- legacy's
+///        `selectEncoderAction` overrides that negate the offset on a horizontal page.
+using ReverseFn = bool (*)(const MenuContext& ctx);
+
 /// @brief Refuse an edit with legacy's own popup -- `Binding::permitted` (spec §5.3).
 ///
 /// The port of `note::SelectedNote::shouldEnterSubmenu()`/`selectEncoderActionIsPermitted()`
@@ -352,6 +363,12 @@ struct Binding {
 
 	/// @brief Legacy's icon or word for this node's column (`ColumnArtFn`'s own doc). Null for every ordinary node.
 	ColumnArtFn column_art = nullptr;
+
+	/// @brief Legacy's drawing for this node's column (`ColumnDrawFn`'s own doc). Null for every ordinary node.
+	ColumnDrawFn column_draw = nullptr;
+
+	/// @brief A select turn on this node's horizontal column is reversed when this answers true. Null: never.
+	ReverseFn reverse_in_horizontal = nullptr;
 
 	/// @brief Refuse an edit with legacy's own popup (spec §5.3, `PermittedFn`'s own doc). Null for
 	///        every ordinary node, which is always permitted.
@@ -896,6 +913,18 @@ constexpr Node without_notification(Node n) {
 /// @brief `n` with `allows_learn_mode` set.
 constexpr Node with_learn_mode(Node n) {
 	n.allows_learn_mode = true;
+	return n;
+}
+
+/// @brief `n` with its column drawn by @p draw (`Binding::column_draw`).
+constexpr Node with_column_draw(Node n, ColumnDrawFn draw) {
+	n.bind.column_draw = draw;
+	return n;
+}
+
+/// @brief `n` with its horizontal select turn reversed when @p reverse answers true (`Binding::reverse_in_horizontal`).
+constexpr Node with_reverse_in_horizontal(Node n, ReverseFn reverse) {
+	n.bind.reverse_in_horizontal = reverse;
 	return n;
 }
 

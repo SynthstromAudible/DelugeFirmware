@@ -81,4 +81,24 @@ ValueText mod_fx_feedback_text(const MenuContext& ctx, int32_t value, ValueTextU
 ValueText mod_fx_offset_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// @}
 
+/// @name The filter pages (`gui/menu_item/filter/`)
+/// @{
+/// `filter::FilterContainer` (`filter/filter_container.h:35-146`): the frequency column draws the response across
+/// itself and the resonance column.
+std::optional<ui::oled::DrawColumn> lpf_graph_draw(const MenuContext& ctx, int32_t value);
+std::optional<ui::oled::DrawColumn> hpf_graph_draw(const MenuContext& ctx, int32_t value);
+std::optional<ui::oled::DrawColumn> global_lpf_graph_draw(const MenuContext& ctx, int32_t value);
+std::optional<ui::oled::DrawColumn> global_hpf_graph_draw(const MenuContext& ctx, int32_t value);
+/// `filter::FilterParam::getColumnLabel` (`filter/param.h:47-49`): the morph's short name for the filter's family --
+/// DRIVE (LP ladder), FM (HP ladder), MORPH (SVF).
+ValueText lpf_morph_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+ValueText hpf_morph_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `filter::FilterParam::renderInHorizontalMenu` (`filter/param.h:51-63`): a slider on a morphable (SVF) filter, HPF
+/// drawn as `50 - value`; the ordinary bar otherwise.
+std::optional<ui::oled::DrawColumn> lpf_morph_draw(const MenuContext& ctx, int32_t value);
+std::optional<ui::oled::DrawColumn> hpf_morph_draw(const MenuContext& ctx, int32_t value);
+/// `filter::FilterParam::selectEncoderAction` (`filter/param.h:65-73`): HPF SVF morph turns the other way on a page.
+bool hpf_morph_reversed(const MenuContext& ctx);
+/// @}
+
 } // namespace deluge::scenes::menu::nodes

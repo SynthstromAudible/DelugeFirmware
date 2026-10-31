@@ -25,6 +25,7 @@ add_library(deluge_ui_oled STATIC
   oled/text_edit.cpp
   oled/values.cpp
   oled/meters.cpp
+  oled/column_drawings.cpp
   oled/columns.cpp
   oled/popup.cpp
   oled/misc.cpp

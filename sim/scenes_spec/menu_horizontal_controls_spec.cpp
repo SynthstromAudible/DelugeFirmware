@@ -741,6 +741,62 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(menu_scene().focused() == &session_plain_col).to_be_true();
 	});
 
+	it("a group lists its members' columns, not the member pages themselves", _ {
+		// `HorizontalMenuGroup::hasItem` asks each member menu's items (`horizontal_menu_group.cpp:209-211`): entering
+		// ARPEGGIATOR > BASIC from the vertical list opens the BASIC page alone, not the arpeggiator group.
+		expect(menu::page_lists(menu::nodes::arp_group, menu::nodes::arp_gate)).to_be_true();
+		expect(menu::page_lists(menu::nodes::arp_group, menu::nodes::arp_basic)).to_be_false();
+		expect(menu::page_lists(menu::nodes::arp_basic, menu::nodes::arp_gate)).to_be_true();
+	});
+
+	it("the LPF frequency column draws main's filter graph across FREQ and RESO", _ {
+		// `filter::FilterContainer` (`filter/filter_container.h:28-146`), registered over {freq, res}.
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		menu::ColumnSlot slot;
+		deluge::ui::oled::Column col;
+		menu::present_column(menu::nodes::lpf_freq, ctx, 25, slot, col);
+		expect(col.render == deluge::ui::oled::draw_column).to_be_true();
+		expect(slot.draw.shape == deluge::ui::oled::DrawColumn::Shape::FilterGraph).to_be_true();
+		expect(static_cast<int>(col.span_next)).to_equal(1);
+		expect(slot.draw.filter.freq_raw).to_equal(25);
+		expect(slot.draw.filter.hpf).to_be_false();
+	});
+
+	it("the LPF morph column reads DRIVE on a ladder, MORPH and a slider on an SVF", _ {
+		// `filter::FilterParam` (`filter/param.h:40-63`) through `SpecificFilter::getMorphName`.
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		menu::ColumnSlot slot;
+		deluge::ui::oled::Column col;
+		menu::bindings::write(menu::nodes::lpf_mode, ctx, 1); // 24 dB ladder
+		menu::present_column(menu::nodes::lpf_morph, ctx, 20, slot, col);
+		expect(std::string(col.label)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_DRIVE)));
+		expect(col.render == deluge::ui::oled::meter_column).to_be_true();
+		menu::bindings::write(menu::nodes::lpf_mode, ctx, 3); // SVF band
+		menu::present_column(menu::nodes::lpf_morph, ctx, 20, slot, col);
+		expect(std::string(col.label)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_MORPH_SHORT)));
+		expect(col.render == deluge::ui::oled::draw_column).to_be_true();
+		expect(slot.draw.shape == deluge::ui::oled::DrawColumn::Shape::Slider).to_be_true();
+		expect(slot.draw.norm).to_equal(20.f / 50.f);
+	});
+
+	it("HPF SVF morph draws 50 - v and turns the other way on its page", _ {
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		menu::ColumnSlot slot;
+		deluge::ui::oled::Column col;
+		menu::bindings::write(menu::nodes::hpf_mode, ctx, 0); // SVF band
+		menu::present_column(menu::nodes::hpf_morph, ctx, 10, slot, col);
+		expect(slot.draw.norm).to_equal(40.f / 50.f);
+		expect(menu::nodes::hpf_morph.bind.reverse_in_horizontal(ctx)).to_be_true();
+		menu::bindings::write(menu::nodes::hpf_mode, ctx, 2); // HP ladder
+		expect(menu::nodes::hpf_morph.bind.reverse_in_horizontal(ctx)).to_be_false();
+	});
+
 	it("a FIXED page keeps an irrelevant column in place, drawn as a dash", _ {
 		// `HorizontalMenu::Layout::FIXED` keeps irrelevant items (`horizontal_menu.cpp:494`, `:253-257`); DYNAMIC drops them.
 		select_language();

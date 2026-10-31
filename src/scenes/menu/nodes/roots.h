@@ -178,26 +178,34 @@ inline constexpr Node kit_clip_master =
 // (`filter/param.h:87-89`) -- the same predicate the patched filter params use.
 
 inline constexpr Node global_lpf_freq =
-    param(sid(String::STRING_FOR_FREQUENCY), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_LPF_FREQ}, Hint::Bar,
-          param_shows::kHasLpf, sid(String::STRING_FOR_LPF_FREQUENCY));
+    with_column_draw(param(sid(String::STRING_FOR_FREQUENCY), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_LPF_FREQ},
+                           Hint::Bar, param_shows::kHasLpf, sid(String::STRING_FOR_LPF_FREQUENCY)),
+                     global_lpf_graph_draw);
 inline constexpr Node global_lpf_res =
     param(sid(String::STRING_FOR_RESONANCE), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_LPF_RES}, Hint::Bar,
           param_shows::kHasLpf, sid(String::STRING_FOR_LPF_RESONANCE));
-inline constexpr Node global_lpf_morph =
-    param(sid(String::STRING_FOR_MORPH), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_LPF_MORPH}, Hint::Bar,
-          param_shows::kHasLpf, sid(String::STRING_FOR_LPF_MORPH));
+inline constexpr Node global_lpf_morph = with_value_text(
+    with_column_draw(param(sid(String::STRING_FOR_MORPH), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_LPF_MORPH},
+                           Hint::Bar, param_shows::kHasLpf, sid(String::STRING_FOR_LPF_MORPH)),
+                     lpf_morph_draw),
+    lpf_morph_text);
 inline constexpr const Node* kGlobalLpfChildren[] = {&lpf_mode, &global_lpf_freq, &global_lpf_res, &global_lpf_morph};
 inline constexpr Node global_lpf = submenu(sid(String::STRING_FOR_LPF), kGlobalLpfChildren, Layout::Horizontal);
 
 inline constexpr Node global_hpf_freq =
-    param(sid(String::STRING_FOR_FREQUENCY), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_HPF_FREQ}, Hint::Bar,
-          param_shows::kHasHpf, sid(String::STRING_FOR_HPF_FREQUENCY));
+    with_column_draw(param(sid(String::STRING_FOR_FREQUENCY), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_HPF_FREQ},
+                           Hint::Bar, param_shows::kHasHpf, sid(String::STRING_FOR_HPF_FREQUENCY)),
+                     global_hpf_graph_draw);
 inline constexpr Node global_hpf_res =
     param(sid(String::STRING_FOR_RESONANCE), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_HPF_RES}, Hint::Bar,
           param_shows::kHasHpf, sid(String::STRING_FOR_HPF_RESONANCE));
-inline constexpr Node global_hpf_morph =
-    param(sid(String::STRING_FOR_MORPH), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_HPF_MORPH}, Hint::Bar,
-          param_shows::kHasHpf, sid(String::STRING_FOR_HPF_MORPH));
+inline constexpr Node global_hpf_morph = with_reverse_in_horizontal(
+    with_value_text(
+        with_column_draw(param(sid(String::STRING_FOR_MORPH), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_HPF_MORPH},
+                               Hint::Bar, param_shows::kHasHpf, sid(String::STRING_FOR_HPF_MORPH)),
+                         hpf_morph_draw),
+        hpf_morph_text),
+    hpf_morph_reversed);
 inline constexpr const Node* kGlobalHpfChildren[] = {&hpf_mode, &global_hpf_freq, &global_hpf_res, &global_hpf_morph};
 inline constexpr Node global_hpf = submenu(sid(String::STRING_FOR_HPF), kGlobalHpfChildren, Layout::Horizontal);
 

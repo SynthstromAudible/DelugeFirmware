@@ -45,6 +45,10 @@ struct Column {
 	bool is_submenu = false;
 	/// Start a new page at this column (not at index 0): a menu group's member boundary.
 	bool page_break = false;
+	/// The following columns this column's `render` also draws across, unlabelled and unhighlighted -- legacy's
+	/// `HorizontalMenuContainer` (`horizontal_menu.cpp:231-245`). 0 for an ordinary column; the covered columns'
+	/// own `render` is not called.
+	uint8_t span_next = 0;
 	void (*render)(OledFrame& slot_frame, bool focused, void* ctx) = nullptr;
 	void* ctx = nullptr;
 };

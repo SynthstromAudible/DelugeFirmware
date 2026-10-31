@@ -274,6 +274,19 @@ void render_page(OledFrame& f, Rect rect, std::span<const Column> cols, const Pa
 		const int32_t label_y = base_y + kHorizontalBoxHeight - kLabelHeight;
 		int32_t content_height = kHorizontalBoxHeight;
 
+		if (col.span_next > 0 && col.relevant) {
+			// A container (`horizontal_menu.cpp:231-245`): its render over its columns' combined width, at the full box
+			// height, with no label and no highlight for any of them.
+			const int32_t covered = std::min<int32_t>(col.span_next, w.last - 1 - i);
+			if (col.render != nullptr) {
+				render_slot(f, Rect{current_x, base_y, box_width * (covered + 1), kHorizontalBoxHeight}, col,
+				            is_selected);
+			}
+			current_x += box_width * (covered + 1);
+			i += covered;
+			continue;
+		}
+
 		if (col.show_label) {
 			column_label(f, col, label_y, current_x, box_width, is_selected);
 			content_height -= kLabelHeight;

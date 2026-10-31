@@ -1150,9 +1150,9 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 		// Shift held, then the pad: `handle()` answers with a Replace naming the node to open, the
 		// router applies it, and `on_enter` re-targets on the way back in -- so `SceneId::arg`, and
-		// therefore `state_lines()`, stay truthful about which node is open. That node is the LPF
-		// page, focused on the frequency column: `SoundEditor::setup(clip, item, …)` opens a named
-		// item on the horizontal page that lists it (`maybeGetParentMenu`, `parent->focusChild`).
+		// therefore `state_lines()`, stay truthful about which node is open. That node is the filters
+		// group, focused on the frequency column: `SoundEditor::setup(clip, item, …)` opens a named
+		// item on the chained page that lists it (`maybeGetParentMenu`, `parent->focusChild`).
 		r.button(kShiftX, kShiftY, true, 10);
 		r.pad(kLpfFreqX, kLpfFreqY, 64, 20);
 		r.shell.tick(30);
@@ -1170,6 +1170,27 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.pad(kHpfFreqX, kHpfFreqY, 64, 50);
 		r.shell.tick(60);
 		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+	});
+
+	it("a shortcut jump off a horizontal page cancels its notification", _ {
+		// `SoundEditor::setup` -> `beginScreen` -> `endScreen` runs the old item's `HorizontalMenu::endSession`, which
+		// cancels a notification popup (`horizontal_menu.cpp:576-591`).
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(nodes::filters_group);
+		r.shell.tick(0);
+		deluge::notify::Notice discard;
+		while (deluge::notify::notices().pop(discard)) {}
+		r.button(kShiftX, kShiftY, true, 10);
+		r.pad(kLpfFreqX, kLpfFreqY, 64, 20);
+		r.shell.tick(30); // handles the pad; the notice it raises is read before the next tick drains it
+		bool cancelled = false;
+		for (deluge::notify::Notice n; deluge::notify::notices().pop(n);) {
+			cancelled = cancelled || n.kind == deluge::notify::Notice::Kind::CancelNotification;
+		}
+		expect(cancelled).to_be_true();
+		r.button(kShiftX, kShiftY, false, 40);
 	});
 
 	it("takes the second shortcut layer only on a second press of the focused item's own pad", _ {

@@ -31,6 +31,7 @@
 #include "gfx/oled/icons.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
+#include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_fx_names.h"
 #include "processing/engines/audio_engine.h" // lineInPluggedIn: an input oscillator's icon
 
@@ -334,6 +335,81 @@ ValueText mod_fx_feedback_text(const MenuContext& ctx, int32_t, ValueTextUse use
 
 ValueText mod_fx_offset_text(const MenuContext& ctx, int32_t, ValueTextUse use, std::span<char> out) {
 	return mod_fx_knob_text(ctx, ModFXParam::OFFSET, use, out);
+}
+
+namespace {
+
+/// @brief The family of the LPF or HPF whose mode @p mode_node reads (`FilterInfo::getMode`, `filter/info.h:45-62`).
+model::filter::FilterFamily filter_family(const MenuContext& ctx, bool hpf) {
+	const int32_t index = bindings::read(hpf ? hpf_mode : lpf_mode, ctx);
+	FilterMode mode = FilterMode::OFF;
+	if (hpf) {
+		mode = static_cast<FilterMode>(index + kFirstHPFMode);
+	}
+	else if (index < kNumLPFModes) {
+		mode = static_cast<FilterMode>(index);
+	}
+	return model::filter::SpecificFilter(mode).getFamily();
+}
+
+std::optional<ui::oled::DrawColumn> graph(const MenuContext& ctx, int32_t freq, const Node& reso, const Node& morph,
+                                          bool hpf) {
+	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::FilterGraph,
+	                            .filter = {.freq_raw = freq,
+	                                       .reso_raw = bindings::read(reso, ctx),
+	                                       .morph_raw = bindings::read(morph, ctx),
+	                                       .morphable = filter_family(ctx, hpf) == model::filter::FilterFamily::SVF,
+	                                       .hpf = hpf},
+	                            .span_next = 1};
+}
+
+ValueText morph_text(const MenuContext& ctx, ValueTextUse use, std::span<char> out, bool hpf) {
+	if (use != ValueTextUse::Label) {
+		return kValueTextFallback;
+	}
+	FilterMode mode = FilterMode::OFF;
+	const int32_t index = bindings::read(hpf ? hpf_mode : lpf_mode, ctx);
+	mode = hpf ? static_cast<FilterMode>(index + kFirstHPFMode)
+	           : (index < kNumLPFModes ? static_cast<FilterMode>(index) : FilterMode::OFF);
+	return put_string(model::filter::SpecificFilter(mode).getMorphName(true), out);
+}
+
+std::optional<ui::oled::DrawColumn> morph_draw(const MenuContext& ctx, int32_t value, bool hpf) {
+	if (filter_family(ctx, hpf) != model::filter::FilterFamily::SVF) {
+		return std::nullopt;
+	}
+	const int32_t shown = hpf ? 50 - value : value;
+	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::Slider, .norm = static_cast<float>(shown) / 50.f};
+}
+
+} // namespace
+
+std::optional<ui::oled::DrawColumn> lpf_graph_draw(const MenuContext& ctx, int32_t value) {
+	return graph(ctx, value, lpf_res, lpf_morph, false);
+}
+std::optional<ui::oled::DrawColumn> hpf_graph_draw(const MenuContext& ctx, int32_t value) {
+	return graph(ctx, value, hpf_res, hpf_morph, true);
+}
+std::optional<ui::oled::DrawColumn> global_lpf_graph_draw(const MenuContext& ctx, int32_t value) {
+	return graph(ctx, value, global_lpf_res, global_lpf_morph, false);
+}
+std::optional<ui::oled::DrawColumn> global_hpf_graph_draw(const MenuContext& ctx, int32_t value) {
+	return graph(ctx, value, global_hpf_res, global_hpf_morph, true);
+}
+ValueText lpf_morph_text(const MenuContext& ctx, int32_t, ValueTextUse use, std::span<char> out) {
+	return morph_text(ctx, use, out, false);
+}
+ValueText hpf_morph_text(const MenuContext& ctx, int32_t, ValueTextUse use, std::span<char> out) {
+	return morph_text(ctx, use, out, true);
+}
+std::optional<ui::oled::DrawColumn> lpf_morph_draw(const MenuContext& ctx, int32_t value) {
+	return morph_draw(ctx, value, false);
+}
+std::optional<ui::oled::DrawColumn> hpf_morph_draw(const MenuContext& ctx, int32_t value) {
+	return morph_draw(ctx, value, true);
+}
+bool hpf_morph_reversed(const MenuContext& ctx) {
+	return filter_family(ctx, true) == model::filter::FilterFamily::SVF;
 }
 
 } // namespace deluge::scenes::menu::nodes
