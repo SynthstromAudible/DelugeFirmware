@@ -23,44 +23,24 @@
 /// `Screensaver::render` reads it again at `:235` (the switch that draws). Nothing here snapshots
 /// it at `on_enter`, because legacy does not: a mode edit while the screensaver is showing is
 /// legacy's `settingsChanged()` path (ported by F1 task 8 as `shell::Screensaver::set_idle_ms`, and
-/// see the gaps below for what of it reaches this scene), and outside that path the remaining
+/// see the policy list below), and outside that path the remaining
 /// behaviour is whatever the live read produces -- which is what legacy would do too.
 ///
-/// @par The four legacy behaviours that have no port here, and why
-///
-/// Each is policy, and policy is `shell::Screensaver`'s half; none is dropped silently.
+/// @par The legacy policy this scene leaves to `shell::Screensaver`
 ///
 ///   * **`settingsChanged()`** (`screensaver.cpp:200-241`): wake, then re-arm or cancel for the new
-///     settings. **Ported by F1 task 8** -- not here, where it never belonged, but as
-///     `shell::Screensaver::set_idle_ms` (`shell/screensaver.h`), which is that reconfiguration, and
-///     `Shell::set_screensaver_idle_ms`, which is how an application reaches it. Legacy's own
-///     callers are `deluge_boot` and the two settings items
-///     (`gui/menu_item/defaults/screensaver.h`), and they all funnel through `settingsChanged()`,
-///     so the port is pushed from there. The *ported* menu's two setters
-///     (`menu/nodes/settings.cpp`) write the same globals and still cannot call `hid/`; they were
-///     the residue until **F2 task 7**, which routes them through
-///     `menu::MenuAction::ScreensaverSettingsChanged` and the dispatcher. See
-///     `scenes/registry.h`'s boot-wiring record.
-///   * **The inhibitors** (`screensaver.cpp:141-157`): a permanent popup, the working animation or
-///     a running stem export wakes the screensaver and re-arms, re-checked every tick. The port's
-///     popup/working scenes are the shell's own (`Notices`, `shell/shell.h:133-137`) and stack
-///     *above* whatever is showing, so the question "is one present" is the shell's to ask, not
-///     this scene's. This is the reason `kInhibitRecheckMS`'s 1000 ms re-arm has no port either --
-///     it exists only to run that check (`screensaver.cpp:52-55`'s own note says so), so a blank
-///     screensaver here reports no timer at all rather than waking the shell every second to do
-///     nothing. Recorded as a gap; a `shell::Screensaver` that learns about the notices would
-///     restore it.
+///     settings -- `shell::Screensaver::set_idle_ms`, reached through `Shell::set_screensaver_idle_ms`
+///     from the boot wiring and `menu::MenuAction::ScreensaverSettingsChanged` (`scenes/registry.h`'s
+///     boot-wiring record).
+///   * **The inhibitors** (`screensaver.cpp:141-157`): the working animation, a permanent-looking popup
+///     or a running stem export takes the screensaver down and re-arms the full timeout. The working
+///     animation is the shell's own scene; the other two are the host's fact
+///     (`Shell::set_screensaver_inhibit`). The 1000 ms re-check that runs them while the screensaver
+///     shows is the service's `next_timer`, so this scene's own timer is only the animation's.
 ///
-///     **That re-arm costs one more thing than the inhibitor check**, and it is the only place the
-///     port's observable timing differs from legacy's: legacy's 1000 ms tick also re-reads the mode
-///     (`:140` and `:162`), so a `BLANK` -> `STARSCAPE`/`DELUGE` change made while the screensaver
-///     is showing starts animating within a second, where this scene -- reporting no timer -- stays
-///     blank for ever. It is unreachable in practice rather than merely unlikely: the only way to
-///     change the setting is a menu (legacy's, `gui/menu_item/defaults/screensaver.h:34-41`, or the
-///     ported `screensaver_mode` item, `scenes/menu/nodes/settings.h:944-945`), reaching either
-///     needs physical input, and input runs `shell::Screensaver::note_activity` first, which pops
-///     this scene (`shell/screensaver.cpp:9-17`) -- so the mode cannot change while it is up. The
-///     next push re-reads the mode and scatters the right field.
+///     A `BLANK` -> `STARSCAPE`/`DELUGE` change cannot happen while this scene is up: changing the
+///     setting needs physical input, and input runs `shell::Screensaver::note_activity` first, which
+///     pops this scene. The next push re-reads the mode and scatters the right field.
 ///   * **`ScreensaverMode::OFF`** (`screensaver.cpp:94-96,104-106,235-238`): the port of "off" is
 ///     `shell::Screensaver`'s `idle_ms == 0` (that service's own class note), decided by whatever
 ///     wires the shell up. If this scene is nonetheless pushed with the mode at `OFF` it draws
@@ -146,8 +126,7 @@ public:
 	                                 const deluge::ui::shell::UiContext& ctx) override;
 
 	/// @return The milliseconds left until the next animation frame, or `std::nullopt` for a mode
-	///         that has no frames (`BLANK`, `OFF`) -- see the class doc on why legacy's 1000 ms
-	///         blank re-check has no port.
+	///         that has no frames (`BLANK`, `OFF`); the inhibitor re-check is `shell::Screensaver`'s.
 	std::optional<uint32_t> next_timer() const override;
 
 	/// @return `{oled=true, grid=false}` -- the screensaver never touches the pads (legacy writes

@@ -157,24 +157,6 @@ void drain_notifications() {
 		case Notice::Kind::CancelPopup:
 			display->cancelPopup();
 			break;
-		case Notice::Kind::CancelConsole:
-			// (Its one raiser, `MenuScene`'s horizontal-page cancel, is `CancelNotification` since
-			// note-family Task 8b, below; this arm is kept unchanged.)
-			//
-			// Legacy's own `HorizontalMenu::displayNotification` shows through
-			// `OLED::displayNotification`, which sets the *same* `oledPopupWidth`/`popupType`
-			// slot a framed popup does (`PopupType::NOTIFICATION`) -- so the ShellMenu-off leg's
-			// cancel is the identical `display->cancelPopup()` call `Notice::Kind::CancelPopup`
-			// above already makes; the port's two are only split because `ConsoleScene` and
-			// `PopupScene` are separate scenes. Guarded exactly as legacy's own two call sites are
-			// (`HorizontalMenu::endSession`/`switchVisiblePage`, `horizontal_menu.cpp:587-589`,
-			// `:363-365`: `if (display->hasPopupOfType(PopupType::NOTIFICATION)) { cancelPopup(); }`)
-			// -- this arm is dead while `MenuScene` runs the toggle-on leg, but the port of the
-			// check belongs here rather than assumed away.
-			if (display->hasPopupOfType(PopupType::NOTIFICATION)) {
-				display->cancelPopup();
-			}
-			break;
 		case Notice::Kind::Notification:
 			showNoticeNotification(n.notification_title(), n.notification_value());
 			break;

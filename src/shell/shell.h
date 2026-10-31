@@ -237,6 +237,17 @@ public:
 		screensaver_.set_idle_ms(idle_ms);
 	}
 
+	/// @brief Register a physical control the host handled itself -- a pad, button or encoder it forwarded to legacy
+	///        instead of feeding: legacy's `Screensaver::noteActivity()` (`hid/display/screensaver.cpp:85-99`).
+	/// @param now_ms The wall clock the input arrived at.
+	void note_activity(uint32_t now_ms) { screensaver_.note_activity(now_ms); }
+
+	/// @brief Set the host's screensaver inhibitors: stem export running, or a permanent-looking popup up
+	///        (`Screensaver::tick`'s `isPermanentPopupPresent() || stemExport.processStarted`,
+	///        `hid/display/screensaver.cpp:113`). The working animation is the shell's own and needs no fact.
+	/// @param inhibit Whether either holds now.
+	void set_screensaver_inhibit(bool inhibit) { screensaver_.set_inhibit(inhibit); }
+
 	/// @brief Restyle the menus' highlighting on every surface and repaint them: the host calls it at boot from the
 	///        card's setting and whenever the setting changes.
 	/// @param h The highlighting the card stores.

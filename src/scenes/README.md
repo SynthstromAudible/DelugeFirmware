@@ -852,11 +852,12 @@ policy half (idle deadline, wake on input) shipped earlier as `shell::Screensave
   (`sim/scenes_spec/support/oracle_rainfall.{h,cpp}`, `oracle_starfield.{h,cpp}`), plus a pixel-for-
   pixel comparison of the assembled scene against the real legacy `Screensaver`'s own canvas.
 
-Four legacy behaviours have no port and are recorded as gaps at the scene's own doc, all four being
-policy rather than drawing: `settingsChanged()`, the permanent-popup / working-animation /
-stem-export inhibitors (and with them the 1000 ms blank re-check that exists only to run them),
-`ScreensaverMode::OFF` (ported as the service's `idle_ms == 0`), and the `consumeFrameDirty` blit
-protocol (whose port is the shell's `RepaintGate`).
+The policy half is `shell::Screensaver`'s, and the scene's own doc lists it: `settingsChanged()`
+(`set_idle_ms`), the working-animation / permanent-popup / stem-export inhibitors with their 1000 ms
+re-check while showing (the last two arrive as the host's `Shell::set_screensaver_inhibit` fact before
+every tick), and `ScreensaverMode::OFF` (`idle_ms == 0`). Input the host forwards to legacy rather than
+feeding the shell -- grid pads, note-mode buttons and encoders -- wakes it through `Shell::note_activity`.
+The `consumeFrameDirty` blit protocol is the shell's `RepaintGate`.
 
 ## The shared timeline state (`timeline/timeline.h`, E4 task 8)
 
@@ -1482,7 +1483,6 @@ in, kept because it names the legacy routines each item has to be checked agains
 | **`PopupScene` is removed on schedule while a working animation runs.** Legacy holds every popup until the animation ends (`hid/display/oled.cpp:929-937`); `Notices::tick` gates only the notification banner on it (`shell/notices.cpp:467`) and removes an expired `PopupScene` regardless (`:449-451`). | this row | the same `!working_.armed()` gate on the popup's expiry |
 | **`led Scale on` on the ported leg only, and `led Back` differing by step.** In the note-editor A/B, `tests/golden/ui/app/menu_shell/` has `led Scale on` at `note-editor-open`, `-kit`, `-probability`, `-gold` and `note-row-editor-open`, where `menu/` has none; both legs have it once closed. `led Back on` is ported-only at `note-editor-open` and `-gold` and legacy-only at `-probability`, plausibly blink phase. **Probable mechanism for SCALE, untraced (reasoned from source):** the send-on-change record of the LED row above (`src/shell/leds.cpp:75-80`) -- an earlier guest session sends SCALE Off and records it, legacy then turns SCALE on behind that record, and the note editor's declared Off matches the record and goes unsent. LEDs are outside the A/B's comparison. | this row | a trace of both legs' SCALE and BACK writes |
 | **`openShellMenu` clears a kit's `affectEntire` before its fallible `openUI`.** The clear (`src/deluge/gui/ui/shell_menu_entry.cpp:184-195`) runs before `return openUI(&shellHostUI)` (`:208`), so a refused `openUI` leaves `affectEntire` cleared while the gate returns false. Legacy clears after a successful `setup()` and then ignores `openUI(&soundEditor)`'s result and returns true (`gui/views/instrument_clip_view.cpp:3607-3619`). Note-family task 6's ordering. | this row | the clear after a successful `openUI`, or a ruling that a refused open is unreachable here |
-| **`Notice::Kind::CancelConsole` has no raiser, and scripts cannot name the three newest kinds.** Note-family task 8b moved its one raiser to `Kind::CancelNotification`; the kind and its arms stay (`src/notify/notice_queue.h:20`, `gui/ui/notify_drain.cpp:160`, `shell/notices.cpp:88-89`, `:342`), so `ConsoleScene::cancel`'s `popup_type` scoping is now untested. `tests/spec/shell/support/script_runner.h`'s `notice_kind_by_name` stops at `CancelPopup` (`tests/spec/shell/support/script_runner.h:295`), so a script cannot name `CancelConsole`, `Notification` or `CancelNotification`. Recorded rather than changed: removing the kind is a code change in three consumers and renumbers the two kinds appended after it (`src/notify/notice_queue.h:24`, `src/notify/notice_queue.h:28`). | this row | delete the kind and its arms, or give it a raiser; extend the loop to the last kind |
 | **The note leaves dereference the bridge unguarded.** `nodes/note.cpp`'s `get`, `adjust`, `permitted` and `value_text` bodies call `note_bridge()->` with no null test (`scenes/menu/nodes/note.cpp:67`, `:70`, `:82`, `:171`, `:179`, `:229`, `:256-338`), while `relevant` and `select_chain` are null-safe (`:149-151`, `:100-102`) because whole-tree validation reaches them with no bridge (`:144-148`). Safe in the application, where `wireShellNoteBridge()` installs the bridge at boot; a harness that opens a note root without installing a bridge crashes on the first read. Recorded, not changed. | this row; `scenes/menu/nodes/note.cpp:144-148` | the same null test on every hook, or a validator assertion that a note root is opened only with a bridge |
 
 Beyond the menu tree, the remainder of spec E §2's scene inventory is `SessionScene`,

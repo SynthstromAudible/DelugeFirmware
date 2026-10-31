@@ -77,6 +77,16 @@ public:
 	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
 };
 
+/// @brief The kind of a second neutral application scene, for a base beneath the overlays.
+constexpr SceneKind kBaseKind = static_cast<SceneKind>(static_cast<uint8_t>(SceneKind::FirstApp) + 1);
+
+/// @brief A second neutral stand-in, which no notice raises or removes.
+class BaseScene final : public Scene {
+public:
+	SceneKind kind() const override { return kBaseKind; }
+	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
+};
+
 /// @brief A registry, stack, the three overlay scenes, a neutral stand-in scene and a `Notices`
 ///        wired over them -- the `Shell`-less assembly the brief asks for. A real
 ///        `notify::NoticeQueue`, constructed directly rather than via the process-global
@@ -88,6 +98,7 @@ struct Rig {
 	WorkingScene working;
 	NotificationScene notification;
 	OtherScene other;
+	BaseScene base;
 	/// Indices 1=Popup, 2=Console, 3=Working (Null is 0, unused) and `FirstApp` for the stand-in.
 	/// Full length rather than "just the slots used": `FirstApp` is 16, and a shorter array made
 	/// the stand-in's registration an out-of-bounds write the moment it moved off `Boot`.
@@ -106,6 +117,7 @@ struct Rig {
 		table[static_cast<size_t>(SceneKind::Working)] = &working;
 		table[static_cast<size_t>(SceneKind::Notification)] = &notification;
 		table[static_cast<size_t>(SceneKind::FirstApp)] = &other;
+		table[static_cast<size_t>(kBaseKind)] = &base;
 		reg.by_kind = std::span<Scene* const>{table};
 	}
 
@@ -337,10 +349,8 @@ describe shell_notices("shell::Notices", $ {
 		// one -- that scene must survive the popup's own expiry, and whatever was below the popup
 		// (its own base) must survive untouched too.
 		Rig r;
-		(void)r.queue.push(make_notice(Notice::Kind::Working, "Loading"));
-		r.notices.drain(r.queue, 0);
+		expect(r.stack.push(SceneId{kBaseKind})).to_be_true();
 		expect(r.stack.depth()).to_equal(size_t(1));
-		expect(r.stack.top().kind() == SceneKind::Working).to_be_true();
 
 		(void)r.queue.push(make_notice(Notice::Kind::Text, "SAVED"));
 		r.notices.drain(r.queue, 0);
@@ -357,7 +367,7 @@ describe shell_notices("shell::Notices", $ {
 		r.notices.tick(r.notices.timeout_for(1) + 1, 0);
 		expect(r.stack.depth()).to_equal(size_t(2));                          // only the popup is gone
 		expect(r.stack.top().kind() == SceneKind::FirstApp).to_be_true();         // the app scene is still on top
-		expect(r.stack.id_at(0) == SceneId{SceneKind::Working}).to_be_true(); // and the base survived
+		expect(r.stack.id_at(0) == SceneId{kBaseKind}).to_be_true();           // and the base survived
 	});
 
 	it("a second Text notice while a scene sits above the live popup updates it in place", _ {
@@ -541,6 +551,24 @@ describe shell_notices("shell::Notices", $ {
 		r.notices.tick(NotificationScene::kNotificationMs + 600, 0);
 		expect(r.working.armed()).to_be_false();
 		expect(stacked(r, SceneKind::Notification)).to_be_false();
+	});
+
+	it("a popup raised while the working animation runs outlives its timeout until the animation ends", _ {
+		// `OLED::timerRoutine` (`oled.cpp:929-937`): while a working animation runs, the `DISPLAY` timer animates
+		// instead of calling `removePopup()`.
+		Rig r;
+		(void)r.queue.push(make_notice(Notice::Kind::Working, "Loading"));
+		(void)r.queue.push(make_notice(Notice::Kind::Text, "SAVED"));
+		r.notices.drain(r.queue, 0);
+		expect(r.working.armed()).to_be_true();
+
+		r.notices.tick(r.notices.timeout_for(1) + 500, 0);
+		expect(stacked(r, SceneKind::Popup)).to_be_true(); // held past its timeout
+
+		(void)r.queue.push(make_notice(Notice::Kind::ClearWorking));
+		r.notices.drain(r.queue, r.notices.timeout_for(1) + 600);
+		r.notices.tick(r.notices.timeout_for(1) + 600, 0);
+		expect(stacked(r, SceneKind::Popup)).to_be_false();
 	});
 
 	it("a second Notification replaces the banner and restarts its 2000 ms", _ {

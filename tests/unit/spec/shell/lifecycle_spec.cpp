@@ -1,3 +1,4 @@
+#include "notify/notice_queue.h"
 #include "shell/shell.h"
 #include "support/fake_surfaces.h"
 
@@ -107,6 +108,22 @@ struct Rig {
 	Rig& operator=(const Rig&) = delete;
 };
 
+/// @brief Whether a scene of @p kind is anywhere on @p r's stack.
+bool stacked(Rig& r, SceneKind kind) {
+	for (const Scene* scene : r.shell.stack().scenes()) {
+		if (scene->kind() == kind) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/// @brief Empty the global notice queue, so an earlier example's notices cannot reach this one's shell.
+void drain_global_notices() {
+	deluge::notify::Notice n;
+	while (deluge::notify::notices().pop(n)) {}
+}
+
 /// A fixed `root_for_song` the song-swap specs share: always the application's one root scene,
 /// carrying `arg` as the "which song" marker so a test can tell a fresh `on_enter` apart from the
 /// one `Shell::init` did at start of day.
@@ -169,6 +186,101 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		r2.shell.tick(1000);
 		expect(r2.shell.stack().top().kind() == SceneKind::Screensaver).to_be_true();
 		expect(r2.screensaver.last_arg).to_equal(r.screensaver.last_arg);
+	});
+
+	it("the idle deadline arriving while the working animation runs pushes no screensaver", _ {
+		// `Screensaver::tick` (`hid/display/screensaver.cpp:113-120`): the working animation inhibits it, and each
+		// inhibited check re-arms the full timeout from then.
+		deluge::notify::dirty().drain();
+		drain_global_notices();
+		Rig r{ShellConfig{.screensaver_idle_ms = 1000, .seed = 7}};
+		r.shell.init(SceneId{kRoot, 0});
+		r.shell.tick(0);
+		deluge::notify::notice_text("Loading", deluge::notify::Notice::Kind::Working);
+		r.shell.tick(10);
+		expect(stacked(r, SceneKind::Working)).to_be_true();
+
+		r.shell.tick(1000);
+		r.shell.tick(1500);
+		expect(stacked(r, SceneKind::Screensaver)).to_be_false();
+
+		deluge::notify::notice_kind(deluge::notify::Notice::Kind::ClearWorking);
+		r.shell.tick(1600);
+		r.shell.tick(1700);
+		expect(stacked(r, SceneKind::Working)).to_be_false();
+		expect(stacked(r, SceneKind::Screensaver)).to_be_false(); // re-armed at the last inhibited check
+		r.shell.tick(2600);
+		expect(stacked(r, SceneKind::Screensaver)).to_be_true();
+	});
+
+	it("the working animation starting while the screensaver shows takes the screensaver down", _ {
+		deluge::notify::dirty().drain();
+		drain_global_notices();
+		Rig r{ShellConfig{.screensaver_idle_ms = 1000, .seed = 7}};
+		r.shell.init(SceneId{kRoot, 0});
+		r.shell.tick(0);
+		r.shell.tick(1000);
+		expect(stacked(r, SceneKind::Screensaver)).to_be_true();
+		// While showing, the service re-checks its inhibitors (`kInhibitRecheckMS`, `screensaver.cpp:183-184`).
+		expect(r.shell.next_wake().has_value()).to_be_true();
+
+		deluge::notify::notice_text("Loading", deluge::notify::Notice::Kind::Working);
+		r.shell.tick(1010);
+		r.shell.tick(1020);
+		expect(stacked(r, SceneKind::Working)).to_be_true();
+		expect(stacked(r, SceneKind::Screensaver)).to_be_false();
+		deluge::notify::notice_kind(deluge::notify::Notice::Kind::ClearWorking);
+		r.shell.tick(1030);
+	});
+
+	it("the host's inhibit fact (stem export, a permanent-looking popup) holds the screensaver off", _ {
+		deluge::notify::dirty().drain();
+		drain_global_notices();
+		Rig r{ShellConfig{.screensaver_idle_ms = 1000, .seed = 7}};
+		r.shell.init(SceneId{kRoot, 0});
+		r.shell.tick(0);
+		r.shell.set_screensaver_inhibit(true);
+		r.shell.tick(1000);
+		r.shell.tick(1900);
+		expect(stacked(r, SceneKind::Screensaver)).to_be_false();
+		r.shell.set_screensaver_inhibit(false);
+		r.shell.tick(2000);
+		expect(stacked(r, SceneKind::Screensaver)).to_be_false();
+		r.shell.tick(2900);
+		expect(stacked(r, SceneKind::Screensaver)).to_be_true();
+	});
+
+	it("a timed popup does not inhibit the screensaver", _ {
+		// Legacy's inhibitors are the permanent-looking popup class, the working animation and stem export only
+		// (`screensaver.cpp:106-113`): an ordinary popup is covered.
+		deluge::notify::dirty().drain();
+		drain_global_notices();
+		Rig r{ShellConfig{.screensaver_idle_ms = 1000, .seed = 7}};
+		r.shell.init(SceneId{kRoot, 0});
+		r.shell.tick(0);
+		deluge::notify::notice_text("HELLO");
+		r.shell.tick(500);
+		expect(stacked(r, SceneKind::Popup)).to_be_true();
+		r.shell.tick(1000);
+		expect(stacked(r, SceneKind::Screensaver)).to_be_true();
+	});
+
+	it("activity the host handles itself (a forwarded pad) wakes the screensaver and re-arms it", _ {
+		deluge::notify::dirty().drain();
+		drain_global_notices();
+		Rig r{ShellConfig{.screensaver_idle_ms = 1000, .seed = 7}};
+		r.shell.init(SceneId{kRoot, 0});
+		r.shell.tick(0);
+		r.shell.tick(800);
+		r.shell.note_activity(900); // re-arms: no screensaver at 1000
+		r.shell.tick(1000);
+		expect(stacked(r, SceneKind::Screensaver)).to_be_false();
+		r.shell.tick(1900);
+		expect(stacked(r, SceneKind::Screensaver)).to_be_true();
+		r.shell.note_activity(1950);
+		r.shell.tick(1960);
+		expect(stacked(r, SceneKind::Screensaver)).to_be_false();
+		expect(r.root.events).to_equal(0); // the host's own input never reaches the shell's scenes
 	});
 
 	it("an unregistered screensaver kind latches the service off instead of retrying every tick", _ {

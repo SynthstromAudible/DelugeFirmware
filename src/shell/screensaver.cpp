@@ -37,9 +37,32 @@ void Screensaver::set_idle_ms(uint32_t idle_ms) {
 	armed_ = true;
 }
 
+bool Screensaver::inhibited() const {
+	if (host_inhibit_) {
+		return true;
+	}
+	for (const Scene* scene : stack_.scenes()) {
+		if (scene->kind() == SceneKind::Working) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void Screensaver::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 	now_ms_ = now_ms;
 	if (idle_ms_ == 0) {
+		return;
+	}
+	if (inhibited()) {
+		// `screensaver.cpp:113-120`: give the screen back, and count the full timeout again from this check. `remove`,
+		// not `pop`: the working animation is usually stacked above the screensaver and must stay.
+		if (active_) {
+			stack_.remove(SceneKind::Screensaver);
+			active_ = false;
+		}
+		deadline_ms_ = now_ms + idle_ms_;
+		armed_ = true;
 		return;
 	}
 	if (!armed_) {
@@ -72,7 +95,13 @@ void Screensaver::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 }
 
 std::optional<uint32_t> Screensaver::next_timer() const {
-	if (idle_ms_ == 0 || active_ || refused_ || !armed_) {
+	if (idle_ms_ == 0 || refused_) {
+		return std::nullopt;
+	}
+	if (active_) {
+		return kInhibitRecheckMs;
+	}
+	if (!armed_) {
 		return std::nullopt;
 	}
 	// Difference form again, for the same wrap reason as `tick` above: an absolute

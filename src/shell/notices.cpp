@@ -85,8 +85,6 @@ const char* notice_kind_name(notify::Notice::Kind k) {
 		return "ClearWorking";
 	case notify::Notice::Kind::CancelPopup:
 		return "CancelPopup";
-	case notify::Notice::Kind::CancelConsole:
-		return "CancelConsole";
 	case notify::Notice::Kind::Notification:
 		return "Notification";
 	case notify::Notice::Kind::CancelNotification:
@@ -134,14 +132,6 @@ void ConsoleScene::append(std::string_view line, uint32_t now_ms, uint8_t popup_
 	l.expire_ms = now_ms + kConsoleLineMs;
 	l.active = true;
 	l.popup_type = popup_type;
-}
-
-void ConsoleScene::cancel(uint8_t popup_type) {
-	for (Line& line : lines_) {
-		if (line.popup_type == popup_type) {
-			line.active = false;
-		}
-	}
 }
 
 bool ConsoleScene::any_active(uint32_t now_ms) const {
@@ -339,22 +329,6 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			// slot whatever its type (`oled.cpp:253-258`) -- so it takes the banner down too.
 			stack_.remove(SceneKind::Notification);
 			break;
-		case notify::Notice::Kind::CancelConsole:
-			// (Its one raiser, `MenuScene`'s horizontal-page cancel, is `CancelNotification` since
-			// note-family Task 8b; this arm is kept unchanged.)
-			//
-			// Scoped to this notice's own `popup_type` -- fix round 2's correction, see
-			// `ConsoleScene::cancel`'s own doc for why a console-wide `CancelPopup` was wrong.
-			// `cancel()` first, so a scene pushed above a still-live console (again legitimately,
-			// `Console` is `input_transparent()` too) does not see a cancelled line reappear if
-			// something re-pushes `SceneKind::Console` before this tick's own removal -- and the
-			// removal itself is now conditional: an unrelated line of a different `popup_type` may
-			// still be active, and the scene must stay up for it.
-			console_.cancel(n.popup_type);
-			if (!console_.any_active(now_ms)) {
-				stack_.remove(SceneKind::Console);
-			}
-			break;
 		case notify::Notice::Kind::Notification: {
 			// Legacy's `display->displayNotification(title, value)` (`horizontal_menu.cpp:342`). With a
 			// sink installed this *is* that call, in legacy's own popup slot -- the same call legacy's
@@ -446,7 +420,9 @@ void Notices::tick(uint32_t now_ms, uint32_t dt_ms) {
 	// None of the three is guarded on the scene being stacked at all -- `SceneStack::remove` for a
 	// kind that is not there touches nothing and does not flag the stack as changed either, so
 	// calling it on every tick costs one downward scan.
-	if (popup_.expired(now_ms)) {
+	// `OLED::timerRoutine` (`oled.cpp:929-937`): while the working animation runs, the popup's timer animates it
+	// instead of removing the popup.
+	if (!working_.armed() && popup_.expired(now_ms)) {
 		stack_.remove(SceneKind::Popup);
 	}
 	if (!working_.armed()) {

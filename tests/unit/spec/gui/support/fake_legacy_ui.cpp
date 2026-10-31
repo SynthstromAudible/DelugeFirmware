@@ -431,6 +431,10 @@ void exitNoteModeBeforeClose() {
 	fakelegacyui::note_exit_saw_knob_clear = fakelegacyui::knob_indicator_clears > 0;
 }
 
+bool legacyInhibitsScreensaver() {
+	return false;
+}
+
 void saveSettingsBeforeClose() {
 	fakelegacyui::settings_saves++;
 	fakelegacyui::settings_save_saw_close = !fakelegacyui::closed.empty();

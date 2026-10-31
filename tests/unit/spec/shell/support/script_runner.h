@@ -293,7 +293,7 @@ inline std::optional<deluge::notify::Dirty> dirty_by_name(std::string_view name)
 /// @return The kind, or `std::nullopt` when no kind is named that.
 inline std::optional<deluge::notify::Notice::Kind> notice_kind_by_name(std::string_view name) {
 	using Kind = deluge::notify::Notice::Kind;
-	for (uint8_t i = 0; i <= static_cast<uint8_t>(Kind::CancelPopup); i++) {
+	for (uint8_t i = 0; i <= static_cast<uint8_t>(Kind::CancelNotification); i++) {
 		if (name == deluge::ui::shell::notice_kind_name(static_cast<Kind>(i))) {
 			return static_cast<Kind>(i);
 		}

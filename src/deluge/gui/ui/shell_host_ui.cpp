@@ -25,6 +25,7 @@
 #include "gui/ui_timer_manager.h"
 #include "hid/button.h"
 #include "hid/buttons.h"
+#include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "libdeluge/scheduler.h" // getSystemTime()
@@ -475,6 +476,9 @@ bool ShellHostUI::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + 
 ActionResult ShellHostUI::timerCallback() {
 	const uint32_t now = nowMs();
 
+	// The screensaver's legacy-side inhibitors (`hid/display/screensaver.cpp:151`); the working animation is the
+	// shell's own scene.
+	shell_.set_screensaver_inhibit(legacyInhibitsScreensaver());
 	shell_.tick(now);
 
 	// **The action drain, and both halves of where it sits are load-bearing.**
@@ -801,6 +805,7 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 			// unaffected by the guard -- the guest is current after the menu leaves its stack -- and the
 			// arm is *required* there: the tick is what notices nothing stacked takes input and closes
 			// the guest (`timerCallback`).
+			shell_.note_activity(nowMs()); // `deluge.cpp:241`: every pad is activity, forwarded or not
 			(void)forwardGridPad(x, y, velocity);
 			if (getCurrentUI() == this) {
 				armTickSoon();
@@ -846,6 +851,7 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 	// `TimerName::UI_SPECIFIC` is delivered to whoever is current (`gui/ui_timer_manager.cpp:143`). The
 	// arm itself is still wanted while the guest is current, for the gold-knob arm's reason above.
 	if (const std::optional<ActionResult> result = forwardNoteButton(b, on)) {
+		shell_.note_activity(nowMs()); // `deluge.cpp:255`
 		if (getCurrentUI() == this) {
 			armTickSoon();
 		}
@@ -928,6 +934,7 @@ ActionResult ShellHostUI::horizontalEncoderAction(int32_t offset) {
 	// Note-family Task 7: `SoundEditor::horizontalEncoderAction`'s note arms, which come before
 	// anything else it does. The forwarded handler's own result is returned.
 	if (const std::optional<ActionResult> result = forwardNoteHorizontalEncoder(offset)) {
+		shell_.note_activity(nowMs()); // `hid/encoder_input.cpp:208`
 		if (getCurrentUI() == this) {
 			armTickSoon();
 		}
@@ -943,6 +950,7 @@ ActionResult ShellHostUI::verticalEncoderAction(int32_t offset) {
 	// Note-family Task 7: `SoundEditor::verticalEncoderAction`'s note arms. The same shape as
 	// `horizontalEncoderAction`'s.
 	if (const std::optional<ActionResult> result = forwardNoteVerticalEncoder(offset)) {
+		shell_.note_activity(nowMs()); // `hid/encoder_input.cpp:208`
 		if (getCurrentUI() == this) {
 			armTickSoon();
 		}

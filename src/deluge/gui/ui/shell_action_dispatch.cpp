@@ -36,6 +36,7 @@
 #include "gui/views/session_view.h"
 #include "hid/buttons.h" // openUI, getRootUI
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/display/oled_canvas/canvas.h"
 #include "hid/display/screensaver.h" // Screensaver::settingsChanged -- the ScreensaverSettingsChanged arm
 #include "hid/led/pad_leds.h"
@@ -471,6 +472,10 @@ void dispatchShellActions() {
 		renderingNeededRegardlessOfUI();
 		break;
 	}
+}
+
+bool legacyInhibitsScreensaver() {
+	return deluge::hid::display::OLED::isPermanentPopupPresent() || stemExport.processStarted;
 }
 
 void saveSettingsBeforeClose() {

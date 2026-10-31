@@ -17,7 +17,6 @@ struct Notice {
 		Working,
 		ClearWorking,
 		CancelPopup,
-		CancelConsole,
 		/// Legacy's `display->displayNotification(title, value)` (`hid/display/oled.cpp:744`): the
 		/// one-line top banner typed `PopupType::NOTIFICATION`. `text` holds the title, then a NUL,
 		/// then the value -- see `value_at`, `notice_notification` and the two accessors below.
@@ -100,7 +99,7 @@ NoticeQueue& notices();
 void notice_text(std::string_view short_text, Notice::Kind k = Notice::Kind::Text, uint8_t popup_type = 0);
 void notice_string(uint16_t string_id, Notice::Kind k = Notice::Kind::Text, uint8_t popup_type = 0);
 void notice_error_code(int16_t code);
-void notice_kind(Notice::Kind k, uint8_t popup_type = 0); // Working/ClearWorking/CancelPopup/CancelConsole/
+void notice_kind(Notice::Kind k, uint8_t popup_type = 0); // Working/ClearWorking/CancelPopup/
                                                           // CancelNotification
 
 /// @brief Raise a `Notice::Kind::Notification`: legacy's `display->displayNotification(title, value)`

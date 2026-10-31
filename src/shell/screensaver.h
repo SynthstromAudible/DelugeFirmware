@@ -88,16 +88,25 @@ public:
 	///                `ScreensaverMode::OFF`.
 	void set_idle_ms(uint32_t idle_ms);
 
+	/// @brief Set the host's inhibitors -- stem export, a permanent-looking popup (`Shell::set_screensaver_inhibit`).
+	/// @param inhibit Whether either holds now.
+	void set_inhibit(bool inhibit) { host_inhibit_ = inhibit; }
+
 	/// @brief The idle period in force; 0 while the service is disabled.
 	uint32_t idle_ms() const { return idle_ms_; }
 
-	/// @brief Push the screensaver once idle and not already showing.
+	/// @brief Push the screensaver once idle and not already showing; while inhibited, take it down and re-arm the
+	///        full timeout from now (`Screensaver::tick`, `hid/display/screensaver.cpp:113-120`).
+	///
+	/// Inhibited by the working animation on the stack or the host's fact (`set_inhibit`). A timed or persistent
+	/// popup does not inhibit, as in legacy: a stuck one would otherwise disable burn-in protection for good.
 	/// @param now_ms The tick's wall clock.
 	/// @param dt_ms  Unused: idle time is measured against an absolute deadline recorded by
 	///               `note_activity()`/the first `tick()`, not accumulated from `dt_ms`.
 	void tick(uint32_t now_ms, uint32_t dt_ms) override;
 
-	/// @brief When the idle deadline (or nothing, while active or disabled) falls.
+	/// @brief When the idle deadline falls; while showing, the next inhibitor re-check (`kInhibitRecheckMs`); nothing
+	///        while disabled.
 	std::optional<uint32_t> next_timer() const override;
 
 	/// @brief Is the screensaver scene currently pushed?
@@ -110,7 +119,14 @@ public:
 	///         silence.
 	uint32_t push_refused() const { return push_refused_; }
 
+	/// @brief How often a showing screensaver re-checks its inhibitors -- legacy's `kInhibitRecheckMS`
+	///        (`hid/display/screensaver.cpp:183-184`). The scene animates on its own timer.
+	static constexpr uint32_t kInhibitRecheckMs = 1000;
+
 private:
+	/// @brief The working animation is stacked, or the host's fact holds.
+	bool inhibited() const;
+
 	SceneStack& stack_;
 	uint32_t idle_ms_;
 	uint32_t seed_;
@@ -123,6 +139,7 @@ private:
 	/// `note_activity()` call, or whenever `idle_ms_` is 0.
 	bool armed_ = false;
 	bool active_ = false;
+	bool host_inhibit_ = false;
 	/// Latched by the first refused push; never cleared. See the class note.
 	bool refused_ = false;
 	uint32_t push_refused_ = 0;
