@@ -40,6 +40,7 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_clip_existence.h"
+#include "model/global_effectable/output_stage_gain.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -2489,7 +2490,7 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 	    getFinalParameterValueVolume(
 	        134217728,
 	        cableToLinearParamShortcut(paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME)))
-	    >> 1;
+	    >> kSongVolumeAdjustmentShift;
 
 	// A "post-FX volume" calculation also happens in audioDriver.render(), which is a bit more relevant really
 	// because that's where filters are happening
