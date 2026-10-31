@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_2_8_1 from "../../../../assets/guidebook/figs/02-basic-operation__08-clip-view-parameter-affect-group-changes--1.svg?raw"
@@ -55,6 +56,8 @@ In clip view some quick access sound / synth parameters are immediately availabl
 | B7 Lower       | Custom 1                                                                           | Configurable. Typical synth presets set to portamento and pitch for sample based sounds                                                                                                                                                                   |
 | B8 Upper       | Custom 2                                                                           | Configurable. Typical kit presets set to decimation When Osc1 is set as a wavetable synth, Custom 2 is set to control the wave position                                                                                                                   |
 | B8 Lower       | Custom 3                                                                           | Configurable. Typical kit presets set to bitcrush When Osc1 is set as a wavetable synth, Custom 3 is LFO2 modulation depth of wave position. When Osc2 is set as a wavetable synth, Custom 3 is set to control the wave position.                         |
+
+<StepFocus />
 
 ### Adjusting a parameter in the affect group
 

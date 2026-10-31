@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_12_13_1 from "../../../../assets/guidebook/figs/12-midi__13-setting-up-midi-mpe--1.svg?raw"
@@ -22,6 +23,8 @@ import fig_fig_12_13_1 from "../../../../assets/guidebook/figs/12-midi__13-setti
 <div data-pagefind-filter="source:guidebook" hidden />
 
 The MPE MIDI devices can be connected to Deluge with the USB or MIDI DIN connections for inputs or outputs. Any MPE MIDI Controller would need to be ‘learnt’ by Deluge. Some MPE devices send MCM messages to ensure configuration is aligned between the controller and destination. This can be set manually also in Deluge.
+
+<StepFocus />
 
 ### Manual set up of an external MPE MIDI controller
 

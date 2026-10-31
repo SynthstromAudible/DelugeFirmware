@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 
 <div data-pagefind-filter="source:guidebook" hidden />
@@ -47,6 +48,8 @@ System Settings (Continued)
 | RECORDING                                                                                                            | QUANTIZATION LOOP MARGINS                                                                                              | Sets the level at which recorded notes are quantized. OFF (192nd notes). Sets a fade margin to avoid clicks at the loop point in an audio clip. Feature is set ON or OFF. Sampling options: ON / OFF/ CONDITIONAL : |
 | FIRMWARE VERSION                                                                                                     | SAMPLING MONITORING Indicates only the current firmware version of Deluge.                                             | monitor on = headphones in + mic recording. monitoring always on = line in.                                                                                                                                         |
 | Note: Only the swing setting is saved with a song. Other parameters are not saved with song and are system specific. |                                                                                                                        |                                                                                                                                                                                                                     |
+
+<StepFocus />
 
 ### Changing a system parameter setting
 

@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 
 <div data-pagefind-filter="source:guidebook" hidden />
@@ -25,6 +26,8 @@ This is useful in a couple of scenarios:
 
     - Perhaps the user isn't concerned with the labelling of time divisions (8th-notes, 16th-notes, etc.) and nonetheless wants to sync the Deluge as a follower without worrying about whether their song will play at the intended tempo rather than twice / half as fast.
     - Some loop pedals (although not common) have the ability to act as a syncing leader by outputting a MIDI beat clock whose exact tempo is determined on the fly according to the length of the loop that the user creates. The user may wish, for example, to record a guitar loop with their loop pedal (with no kind of metronome or anything determining the tempo in advance), and then have the Deluge play a drum beat along to it, perfectly in sync. With a compatible loop pedal, this works. However, the loop pedal would not necessarily know the difference, say, between a loop that the user intended to be at 160bpm, and one intended to be at 80bpm (160 being double 80), and may pick the wrong option. The Deluge, knowing what tempo to approximately expect, can automatically correct the incoming MIDI beat clock if it is around double or half the tempo expected, making it a certainty that the Deluge will begin playback at somewhere near the expected tempo.
+
+<StepFocus />
 
 ### Setting tempo magnitude matching
 

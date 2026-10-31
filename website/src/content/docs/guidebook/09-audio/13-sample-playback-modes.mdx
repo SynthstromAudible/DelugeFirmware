@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 
 <div data-pagefind-filter="source:guidebook" hidden />
@@ -27,6 +28,8 @@ Playback of audio can be reversed and also played back in several in several mod
     - STRETCH. The sample is time-stretched to the length of the note. Good for samples that contain pre-made beats.
 
 Some .wav and .aiff files contain tags specifying sample loop points. The Deluge will read these if they are present. See waveform view for more info.
+
+<StepFocus />
 
 ### Reversing playback
 

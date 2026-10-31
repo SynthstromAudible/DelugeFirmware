@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_3_9_1 from "../../../../assets/guidebook/figs/03-sequencing__09-clip-length-position--1.svg?raw"
@@ -23,6 +24,8 @@ import fig_fig_3_9_2 from "../../../../assets/guidebook/figs/03-sequencing__09-c
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Default clip length is 1 bar. This however can be changed which will extend the sequence beyond the grid in focus. This can be navigated using the scroll and zoom features. Automatic extending of clips will take place if recorded to a blank clip (no notes or sounds).
+
+<StepFocus />
 
 ### Adjusting clip length
 

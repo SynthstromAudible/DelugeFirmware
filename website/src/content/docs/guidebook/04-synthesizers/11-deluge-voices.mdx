@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_4_11_1 from "../../../../assets/guidebook/figs/04-synthesizers__11-deluge-voices--1.svg?raw"
@@ -22,6 +23,8 @@ import fig_fig_4_11_1 from "../../../../assets/guidebook/figs/04-synthesizers__1
 <div data-pagefind-filter="source:guidebook" hidden />
 
 A voice can be explained as a single signal path used by synthesizers, and is closely related to a synth’s polyphony. Generally speaking the number of notes played simultaneously would count for the number of voices - although modes such as arpeggiation override how voices are assigned, and unison will sound multiple voices per note. Deluge’s maximum voice count relies on the CPU loading and processing power available, but around 64 is the limit for most basic synth sounds.
+
+<StepFocus />
 
 ### Setting the synth polyphony
 

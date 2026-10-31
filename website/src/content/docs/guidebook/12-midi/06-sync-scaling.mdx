@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_12_6_1 from "../../../../assets/guidebook/figs/12-midi__06-sync-scaling--1.svg?raw"
@@ -27,6 +28,8 @@ There are a couple of applications for this:
 
     - The user may wish to create polyrhythms by e.g. having an external device (the syncing leader) playing a sequence in 4:4 timing, while the Deluge (the follower) squeezes 7 notes into a bar instead of 8.
     - Some loop pedals may act as a syncing leader. However, they are likely to assume that any loop created (e.g. with a guitar) is in 4:4 timing. If the user had in fact played a guitar loop in 7:8 timing, the loop pedal would still be outputting a 4:4 MIDI beat clock - dividing the entire loop into, say, fours rather than sevens. The solution is to tell the Deluge to scale the incoming 4:4 MIDI beat clock into a 7:8 one, so that a 7:8 sequence created on the Deluge would play perfectly synced to the 7:8 guitar loop, despite the incorrect 4:4 MIDI beat clock passing between the two devices. Sync-scaling is tied to the length of one clip in a song, and tells the Deluge that that clip’s length should be squeezed into 1 bar of incoming MIDI beat clock (or 2 bars, or 4 or 8 bars, depending on how long the clip is; the Deluge will use whatever magnitude of sync-scaling causes the smallest change in tempo). Even while the Deluge is playing synced as a follower, sync-scaling may be switched on or off, and the sync-scaling clip may have its length changed. Despite any such changes, the Deluge will keep the sync-scaling clip playing in time to the syncing leader. It will also attempt to keep all other clips in time; this works best if the other clips are of the same time signature as the sync-scaling clip (that is, their lengths are the same, or half our double, or 4 times shorter or longer, etc.)
+
+<StepFocus />
 
 ### Using sync scaling
 

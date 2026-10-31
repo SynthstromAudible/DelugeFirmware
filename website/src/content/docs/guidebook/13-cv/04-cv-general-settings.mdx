@@ -15,11 +15,14 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 The CV and gate outputs and trigger input set up is accessible in the general settings menu. When Deluge is a syncing leader and sending a trigger clock signal to other devices, the gate output 4 can be set to output a trigger clock signal, and / or gate 3 can be set to output a “run” signal (goes high while playback is occurring; low otherwise).
+
+<StepFocus />
 
 ### Accessing general CV settings
 

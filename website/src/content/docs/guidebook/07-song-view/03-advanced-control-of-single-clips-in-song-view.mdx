@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_7_3_1 from "../../../../assets/guidebook/figs/07-song-view__03-advanced-control-of-single-clips-in-song-view--1.svg?raw"
@@ -47,6 +48,8 @@ RED FLASHING Clip is ‘armed’ ready to play in time: when playing.
 Display shows countdown of loops to complete when a clip row is ‘armed’ and launching or stopping clips, default is 1. To increase the loops to play prior to launch / stop, :key[Turn Select] to change the loop countdown. Press :key[Select] to cancel loop countdown.
 
 Press :key[Shift + Launch Pad] to immediately play the clip row in song view.
+
+<StepFocus />
 
 ### Immediately launching / stopping a clip in song view
 

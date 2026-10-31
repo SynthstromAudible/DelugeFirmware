@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 
 <div data-pagefind-filter="source:guidebook" hidden />
@@ -38,6 +39,8 @@ AMOUNT: 0-50.
 Reduces the bit-depth of the audio, introducing sharp corners to the waveform. High frequency content is introduced, and most quiet sounds will become louder. Bitcrush is available at sound, kit and song level. The only bitcrush parameter available for adjustment is the amount parameter.
 
 AMOUNT: 0-50.
+
+<StepFocus />
 
 ### Setting sound level distortion effect amount
 

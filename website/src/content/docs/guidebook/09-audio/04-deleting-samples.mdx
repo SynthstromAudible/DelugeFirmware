@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 
 <div data-pagefind-filter="source:guidebook" hidden />
@@ -22,6 +23,8 @@ import { Steps } from "@astrojs/starlight/components"
 While in the file browser, you can hold shift and press the save button to delete the selected sample - it'll prompt you first.
 
 Remember, this deletes the sample even if it’s used in songs, and the Deluge will not notify you whether it is or not being used, so be careful.
+
+<StepFocus />
 
 ### Deleting a sample
 

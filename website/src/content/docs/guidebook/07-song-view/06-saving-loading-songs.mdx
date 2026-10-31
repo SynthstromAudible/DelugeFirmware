@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_7_6_1 from "../../../../assets/guidebook/figs/07-song-view__06-saving-loading-songs--1.svg?raw"
@@ -22,6 +23,8 @@ import fig_fig_7_6_1 from "../../../../assets/guidebook/figs/07-song-view__06-sa
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Songs can be saved and loaded to/from the inserted SD card. Songs can be number 000-999 or named using the alphanumeric grid keyboard. Variations of each saved slot also has sub slots, for example if 000 is used, 000 2 etc will be incrementally offered.
+
+<StepFocus />
 
 ### Saving a numbered song
 

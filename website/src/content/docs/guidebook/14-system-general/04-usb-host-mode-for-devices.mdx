@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 
 <div data-pagefind-filter="source:guidebook" hidden />
@@ -30,6 +31,8 @@ Deluge will display ‘USB HUB ATTACHED’ when a connected hub device is detect
 If your device doesn’t work and you get no error message, it may be a power issue - see above.
 
 MIDI USB devices are supported for MIDI input and output.
+
+<StepFocus />
 
 ### Deluge as USB host with a USB device
 
