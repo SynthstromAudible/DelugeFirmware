@@ -1303,8 +1303,25 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 				const IntRange range = bindings::range(target, ctx_);
 				// The toolkit's own guard: a zero `step` would give a dead select knob
 				// (`ui/oled/values.cpp:38-40`'s `coarse_step`).
-				const int32_t step = range.step != 0 ? range.step : 1;
-				const int32_t moved = clamp_to(bindings::read(target, ctx_) + detents * step, range.min, range.max);
+				int32_t step = range.step != 0 ? range.step : 1;
+				// `getNumberEditSize` on a horizontal page (`decimal.cpp:49-54`): a Decimal moves 1.00 a detent, 0.01
+				// with SELECT or SHIFT held; a node's own `HorizontalStep` overrides either.
+				const HorizontalStep& hs = target.bind.horizontal_step;
+				if (target.kind == Kind::Decimal || hs.coarse != 0) {
+					const int32_t coarse = hs.coarse != 0 ? hs.coarse : (target.kind == Kind::Decimal ? 100 : step);
+					const int32_t fine = hs.fine != 0 ? hs.fine : 1;
+					step = (f.select_held() || f.shift()) ? fine : coarse;
+				}
+				int32_t current = bindings::read(target, ctx_);
+				if (hs.restart_from_negative && detents > 0 && current < 0) {
+					current = -step;
+				}
+				int32_t moved = current + detents * step;
+				if (target.bind.wrap_in_horizontal && range.max >= range.min) {
+					const int32_t span = range.max - range.min + 1;
+					moved = range.min + (((moved - range.min) % span) + span) % span;
+				}
+				moved = clamp_to(moved, range.min, range.max);
 				// Set on every permitted turn, clamp or not: legacy calls `child->selectEncoderAction(...)`
 				// and `displayNotification(child)` unconditionally once it has decided the turn is permitted
 				// (`selectEncoderActionIsPermitted()`, `:321`) -- it never re-reads the value first to

@@ -228,6 +228,16 @@ using ColumnDrawFn = std::optional<deluge::ui::oled::DrawColumn> (*)(const MenuC
 ///        `selectEncoderAction` overrides that negate the offset on a horizontal page.
 using ReverseFn = bool (*)(const MenuContext& ctx);
 
+/// @brief A horizontal column's select-turn step -- legacy's `getNumberEditSize` overrides on a horizontal page.
+struct HorizontalStep {
+	/// The step a detent moves; 0 for the kind's own (a `Kind::Decimal`'s is 100, `Decimal::getNumberEditSize`).
+	int16_t coarse = 0;
+	/// The step with SELECT or SHIFT held; 0 for the kind's own (1).
+	int16_t fine = 0;
+	/// A turn up from below zero starts at the step's own negative first (`RetriggerPhase::selectEncoderAction`).
+	bool restart_from_negative = false;
+};
+
 /// @brief Refuse an edit with legacy's own popup -- `Binding::permitted` (spec §5.3).
 ///
 /// The port of `note::SelectedNote::shouldEnterSubmenu()`/`selectEncoderActionIsPermitted()`
@@ -381,6 +391,13 @@ struct Binding {
 
 	/// @brief A select turn on this node's horizontal column is reversed when this answers true. Null: never.
 	ReverseFn reverse_in_horizontal = nullptr;
+
+	/// @brief The select-turn step on a horizontal page (`HorizontalStep`'s own doc).
+	HorizontalStep horizontal_step{};
+
+	/// @brief A select turn on this node's horizontal column wraps past the ends instead of stopping
+	///        (`MenuItem::wrapAround` answering true on a horizontal page).
+	bool wrap_in_horizontal = false;
 
 	/// @brief Refuse an edit with legacy's own popup (spec §5.3, `PermittedFn`'s own doc). Null for
 	///        every ordinary node, which is always permitted.
@@ -953,6 +970,23 @@ constexpr Node with_name_text(Node n, ValueTextFn fn) {
 /// @brief `n` with its column drawn by @p draw (`Binding::column_draw`).
 constexpr Node with_column_draw(Node n, ColumnDrawFn draw) {
 	n.bind.column_draw = draw;
+	return n;
+}
+
+/// @brief A `ReverseFn` answering true: the turn is always reversed on a horizontal page.
+inline bool reverse_always(const MenuContext&) {
+	return true;
+}
+
+/// @brief `n` with its horizontal select step @p step (`Binding::horizontal_step`).
+constexpr Node with_horizontal_step(Node n, HorizontalStep step) {
+	n.bind.horizontal_step = step;
+	return n;
+}
+
+/// @brief `n` wrapping past its ends on a horizontal page (`Binding::wrap_in_horizontal`).
+constexpr Node with_wrap_in_horizontal(Node n) {
+	n.bind.wrap_in_horizontal = true;
 	return n;
 }
 

@@ -742,6 +742,53 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(menu_scene().focused() == &session_plain_col).to_be_true();
 	});
 
+	it("a select detent on a horizontal Decimal column moves 1.00, and 0.01 with Shift held", _ {
+		// `Decimal::getNumberEditSize` on a horizontal page (`decimal.cpp:49-54`): MASTER's transpose, a semitone a
+		// detent, a cent with SELECT or SHIFT held.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open_real(menu::nodes::sound_master);
+		r.shell.tick(0);
+		r.press(kCvX, kCvY, 300); // TRAN, column 3
+		r.shell.tick(400);
+		const int32_t before = menu::bindings::read(menu::nodes::master_transpose, ctx);
+		r.turn(1, 1000);
+		r.shell.tick(1010);
+		r.shell.tick(1020);
+		expect(menu::bindings::read(menu::nodes::master_transpose, ctx)).to_equal(before + 100);
+		r.button(kShiftX, kShiftY, true, 3000);
+		r.turn(1, 3100);
+		r.shell.tick(3110);
+		r.shell.tick(3120);
+		r.button(kShiftX, kShiftY, false, 3200);
+		expect(menu::bindings::read(menu::nodes::master_transpose, ctx)).to_equal(before + 101);
+	});
+
+	it("retrigger phase steps 0.10 and 0.01 and restarts from OFF; the compressor steps 1", _ {
+		// `osc::RetriggerPhase` (`osc/retrigger_phase.h:91-104`); `DecimalWithoutScrolling::selectEncoderAction`
+		// (`decimal.cpp:193`) has no edit size.
+		expect(static_cast<int>(menu::nodes::osc0_phase.bind.horizontal_step.coarse)).to_equal(10);
+		expect(static_cast<int>(menu::nodes::osc0_phase.bind.horizontal_step.fine)).to_equal(1);
+		expect(menu::nodes::osc0_phase.bind.horizontal_step.restart_from_negative).to_be_true();
+		expect(static_cast<int>(menu::nodes::comp_ratio.bind.horizontal_step.coarse)).to_equal(1);
+	});
+
+	it("the sample and audio-clip reverse turn the other way on a page; the oscillator type wraps", _ {
+		// `sample::Reverse`/`audio_clip::Reverse::selectEncoderAction` (`sample/reverse.h:81-86`,
+		// `audio_clip/reverse.h:84`); `osc::Type::wrapAround` (`osc/type.h:158-160`).
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		expect(menu::nodes::sample0_reverse.bind.reverse_in_horizontal != nullptr
+		       && menu::nodes::sample0_reverse.bind.reverse_in_horizontal(ctx))
+		    .to_be_true();
+		expect(menu::nodes::audio_clip_reverse.bind.reverse_in_horizontal != nullptr
+		       && menu::nodes::audio_clip_reverse.bind.reverse_in_horizontal(ctx))
+		    .to_be_true();
+		expect(menu::nodes::osc0_type.bind.wrap_in_horizontal).to_be_true();
+	});
+
 	it("the EQ page orders its columns as main's EqMenu does", _ {
 		// `EqMenu::ensureCorrectItemsOrderAndGetValues` (`eq/eq_menu.h:120-160`): bass, bass frequency, treble frequency,
 		// treble -- the order of the graph's four handles left to right.

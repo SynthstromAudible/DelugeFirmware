@@ -50,38 +50,45 @@ inline constexpr Node comp_threshold = param(
     Hint::Bar, nullptr, sid(deluge::l10n::String::STRING_FOR_COMP_THRESHOLD_MENU_TITLE), Scaling::HalfPrecision);
 // The decimal-place counts are `compressor_values.h:52`, `:78` and `:127`; the hints are
 // `getRenderingStyle()` at `:54`, `:65`, `:79` and `:106`.
-inline constexpr Node comp_ratio =
+inline constexpr Node comp_ratio = with_horizontal_step(
     with_hint(with_decimal_places(
                   setting_item(sid(deluge::l10n::String::STRING_FOR_RATIO), Kind::Decimal,
                                {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "audioCompressor/ratio"}),
                   2),
-              Hint::Knob);
-inline constexpr Node comp_blend =
+              Hint::Knob),
+    HorizontalStep{.coarse = 1, .fine = 1});
+inline constexpr Node comp_blend = with_horizontal_step(
     with_hint(with_decimal_places(setting_item(sid(deluge::l10n::String::STRING_FOR_BLEND), Kind::Decimal,
                                                {.kind = deluge::scenes::bind::Target::Kind::EFFECT,
                                                 .path = "audioCompressor/compBlend"}),
                                   0),
-              Hint::Knob);
-inline constexpr Node comp_attack = with_column_name(
-    with_hint(with_decimal_places(
-                  setting_item(sid(deluge::l10n::String::STRING_FOR_ATTACK), Kind::Decimal,
-                               {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "audioCompressor/attack"}),
-                  2),
-              Hint::Attack),
-    sid(deluge::l10n::String::STRING_FOR_ATTACK_SHORT));
-inline constexpr Node comp_release = with_column_name(
-    with_hint(with_decimal_places(
-                  setting_item(sid(deluge::l10n::String::STRING_FOR_RELEASE), Kind::Decimal,
-                               {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "audioCompressor/release"}),
-                  1),
-              Hint::Release),
-    sid(deluge::l10n::String::STRING_FOR_RELEASE_SHORT));
-inline constexpr Node comp_hpf =
+              Hint::Knob),
+    HorizontalStep{.coarse = 1, .fine = 1});
+inline constexpr Node comp_attack = with_horizontal_step(
+    with_column_name(
+        with_hint(with_decimal_places(setting_item(sid(deluge::l10n::String::STRING_FOR_ATTACK), Kind::Decimal,
+                                                   {.kind = deluge::scenes::bind::Target::Kind::EFFECT,
+                                                    .path = "audioCompressor/attack"}),
+                                      2),
+                  Hint::Attack),
+        sid(deluge::l10n::String::STRING_FOR_ATTACK_SHORT)),
+    HorizontalStep{.coarse = 1, .fine = 1});
+inline constexpr Node comp_release = with_horizontal_step(
+    with_column_name(
+        with_hint(with_decimal_places(setting_item(sid(deluge::l10n::String::STRING_FOR_RELEASE), Kind::Decimal,
+                                                   {.kind = deluge::scenes::bind::Target::Kind::EFFECT,
+                                                    .path = "audioCompressor/release"}),
+                                      1),
+                  Hint::Release),
+        sid(deluge::l10n::String::STRING_FOR_RELEASE_SHORT)),
+    HorizontalStep{.coarse = 1, .fine = 1});
+inline constexpr Node comp_hpf = with_horizontal_step(
     with_hint(with_decimal_places(
                   setting_item(sid(deluge::l10n::String::STRING_FOR_HPF), Kind::Decimal,
                                {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "audioCompressor/compHPF"}),
                   2),
-              Hint::Hpf);
+              Hint::Hpf),
+    HorizontalStep{.coarse = 1, .fine = 1});
 
 inline constexpr const Node* kCompChildren[] = {&comp_threshold, &comp_ratio,   &comp_blend,
                                                 &comp_attack,    &comp_release, &comp_hpf};

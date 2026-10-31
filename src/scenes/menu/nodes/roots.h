@@ -452,15 +452,16 @@ inline constexpr Node audio_clip_transpose =
                                          2),
                      {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_PITCH_ADJUST});
 /// The grid draws the clip's waveform, which a reverse turns round.
-inline constexpr Node audio_clip_reverse = with_column_name(
-    with_value_text(
-        with_column_art(with_grid_repaint(setting_item(sid(String::STRING_FOR_REVERSE), Kind::Toggle,
-                                                       {.kind = deluge::scenes::bind::Target::Kind::MODEL,
-                                                        .path = "reversed",
-                                                        .group = deluge::project::SettingGroupId::AUDIO_CLIP})),
-                        direction_art),
-        on_off_text),
-    sid(String::STRING_FOR_PLAY));
+inline constexpr Node audio_clip_reverse = with_reverse_in_horizontal(
+    with_column_name(with_value_text(with_column_art(with_grid_repaint(setting_item(
+                                                         sid(String::STRING_FOR_REVERSE), Kind::Toggle,
+                                                         {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                          .path = "reversed",
+                                                          .group = deluge::project::SettingGroupId::AUDIO_CLIP})),
+                                                     direction_art),
+                                     on_off_text),
+                     sid(String::STRING_FOR_PLAY)),
+    reverse_always);
 
 inline constexpr Node audio_clip_interpolation =
     with_title(setting_item(sid(String::STRING_FOR_INTERPOLATION), Kind::Enum,

@@ -1,6 +1,7 @@
 # ShellMenu: the pages drawn whole. SHIFT + the LPF frequency shortcut, then SHIFT + SCALE twice back along the sound
 # chain to the envelope group (ENV1 1/4); CROSS_SCREEN to ENV2 and an edit; then SHIFT + CROSS_SCREEN forward to EQ and
-# an edit there. Run on the ShellMenu card.
+# an edit there; SHIFT + SCALE back along the chain to MASTER, and a select detent on TRAN (a semitone; a cent with
+# SHIFT held). Run on the ShellMenu card.
 100   snapshot boot
 300   button Shift down
 400   pad 8 7 down
@@ -45,4 +46,43 @@
 11200 snapshot eq-treble-freq
 11500 encoder Select -4
 12200 snapshot eq-edited
-12500 quit
+12500  button Shift down
+12600  button Scale down
+12620  button Scale up
+12700  button Shift up
+13400  snapshot back-filters
+13700  button Shift down
+13800  button Scale down
+13820  button Scale up
+13900  button Shift up
+14600  snapshot back-lfo
+14900  button Shift down
+15000  button Scale down
+15020  button Scale up
+15100  button Shift up
+15800  snapshot back-env
+16100  button Shift down
+16200  button Scale down
+16220  button Scale up
+16300  button Shift up
+17000  snapshot back-voice
+17300  button Shift down
+17400  button Scale down
+17420  button Scale up
+17500  button Shift up
+18200  snapshot back-source
+18500  button Shift down
+18600  button Scale down
+18620  button Scale up
+18700  button Shift up
+19400  snapshot back-master
+19700  button Cv down
+19720  button Cv up
+20400  snapshot master-tran
+20700  encoder Select +1
+21400  snapshot master-tran-semitone
+21700  button Shift down
+21800  encoder Select +1
+21900  button Shift up
+22600  snapshot master-tran-cent
+22900  quit

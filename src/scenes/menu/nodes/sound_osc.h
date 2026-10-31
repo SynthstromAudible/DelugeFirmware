@@ -160,7 +160,7 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 #define DELUGE_OSC_SOURCE(i, name_id, osc_path)                                                                        \
 	int32_t get_source##i##_transpose(const MenuContext& ctx);                                                         \
 	void set_source##i##_transpose(const MenuContext& ctx, int32_t v);                                                 \
-	inline constexpr Node osc##i##_type =                                                                              \
+	inline constexpr Node osc##i##_type = with_wrap_in_horizontal(                                                     \
 	    with_column_art(without_column_label(with_title_arg(                                                           \
 	                        with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_TYPE), Kind::Enum,            \
 	                                                {.kind = deluge::scenes::bind::Target::Kind::SOUND,                \
@@ -168,7 +168,7 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 	                                                 .whole_kit = false}),                                             \
 	                                   sid(deluge::l10n::String::STRING_FOR_OSC_TYPE_MENU_TITLE)),                     \
 	                        (i) + 1)),                                                                                 \
-	                    osc##i##_type_art);                                                                            \
+	                    osc##i##_type_art));                                                                           \
 	inline constexpr Node file##i##_selector = with_allow_session_from_horizontal(with_range_dependent(custom(         \
 	    sid(deluge::l10n::String::STRING_FOR_FILE_BROWSER), &kFile##i##Selector, relevance::osc##i##_file_selector))); \
 	inline constexpr Node source##i##_transpose = with_title_arg(                                                      \
@@ -200,29 +200,35 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 	                           Hint::Bar, param_shows::kOscCarrierFeedback[i],                                         \
 	                           sid(deluge::l10n::String::STRING_FOR_CARRIER_FEED_MENU_TITLE))),                        \
 	    (i) + 1);                                                                                                      \
-	inline constexpr Node osc##i##_phase = with_column_name(                                                           \
-	    with_value_text(                                                                                               \
-	        with_title_arg(with_hint(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RETRIGGER_PHASE),    \
-	                                                         Kind::Decimal,                                            \
-	                                                         {.kind = deluge::scenes::bind::Target::Kind::SOUND,       \
-	                                                          .path = osc_path "/retrigPhase",                         \
-	                                                          .whole_kit = false}),                                    \
-	                                            sid(deluge::l10n::String::STRING_FOR_OSC_R_PHASE_MENU_TITLE)),         \
-	                                 Hint::Slider),                                                                    \
-	                       (i) + 1),                                                                                   \
-	        retrigger_phase_text),                                                                                     \
-	    sid(deluge::l10n::String::STRING_FOR_RETRIGGER_PHASE_SHORT));                                                  \
-	inline constexpr Node sample##i##_reverse = with_column_name(                                                      \
-	    with_value_text(                                                                                               \
-	        with_column_art(                                                                                           \
-	            with_title_arg(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_REVERSE), Kind::Toggle,    \
-	                                                   {.kind = deluge::scenes::bind::Target::Kind::SOUND,             \
-	                                                    .path = osc_path "/reversed"}),                                \
-	                                      sid(deluge::l10n::String::STRING_FOR_SAMP_REVERSE_MENU_TITLE)),              \
-	                           (i) + 1),                                                                               \
-	            direction_art),                                                                                        \
-	        on_off_text),                                                                                              \
-	    sid(deluge::l10n::String::STRING_FOR_PLAY));                                                                   \
+	inline constexpr Node osc##i##_phase = with_horizontal_step(                                                       \
+	    with_column_name(                                                                                              \
+	        with_value_text(                                                                                           \
+	            with_title_arg(                                                                                        \
+	                with_hint(                                                                                         \
+	                    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RETRIGGER_PHASE), Kind::Decimal,  \
+	                                            {.kind = deluge::scenes::bind::Target::Kind::SOUND,                    \
+	                                             .path = osc_path "/retrigPhase",                                      \
+	                                             .whole_kit = false}),                                                 \
+	                               sid(deluge::l10n::String::STRING_FOR_OSC_R_PHASE_MENU_TITLE)),                      \
+	                    Hint::Slider),                                                                                 \
+	                (i) + 1),                                                                                          \
+	            retrigger_phase_text),                                                                                 \
+	        sid(deluge::l10n::String::STRING_FOR_RETRIGGER_PHASE_SHORT)),                                              \
+	    HorizontalStep{.coarse = 10, .fine = 1, .restart_from_negative = true});                                       \
+	inline constexpr Node sample##i##_reverse = with_reverse_in_horizontal(                                            \
+	    with_column_name(                                                                                              \
+	        with_value_text(                                                                                           \
+	            with_column_art(                                                                                       \
+	                with_title_arg(                                                                                    \
+	                    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_REVERSE), Kind::Toggle,           \
+	                                            {.kind = deluge::scenes::bind::Target::Kind::SOUND,                    \
+	                                             .path = osc_path "/reversed"}),                                       \
+	                               sid(deluge::l10n::String::STRING_FOR_SAMP_REVERSE_MENU_TITLE)),                     \
+	                    (i) + 1),                                                                                      \
+	                direction_art),                                                                                    \
+	            on_off_text),                                                                                          \
+	        sid(deluge::l10n::String::STRING_FOR_PLAY)),                                                               \
+	    reverse_always);                                                                                               \
 	inline constexpr Node sample##i##_repeat = with_value_text(                                                        \
 	    with_column_art(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_REPEAT_MODE), Kind::Enum,         \
 	                                            {.kind = deluge::scenes::bind::Target::Kind::SOUND,                    \
