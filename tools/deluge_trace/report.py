@@ -223,7 +223,9 @@ def loop_iterations(dec: Decoded, lo: int, hi: int) -> dict[int, list[int]]:
     return dict(result)
 
 
-def calls(dec: Decoded, lo: int, hi: int) -> list[dict[str, int]]:
+def calls(
+    dec: Decoded, lo: int, hi: int, functions: list[tuple[str, int, int]] | None = None
+) -> list[dict]:
     """Cycles per complete call of the function [@p lo, @p hi), with what it calls when that is traced
     too.
 
@@ -233,6 +235,7 @@ def calls(dec: Decoded, lo: int, hi: int) -> list[dict[str, int]]:
     between them (calls into untraced code, exceptions), from the TraceOn elements; `calls_out` counts
     those gaps. A call the trace lost data in (a None, or trace resuming for any reason but the filter,
     such as an overflow) or missing a cycle count is dropped, as is one the capture cuts short.
+    `by_function` splits `own` among @p functions (name, lo, hi), by where each range starts.
     """
     out: list[dict[str, int]] = []
     current: dict[str, int] | None = None
@@ -248,15 +251,25 @@ def calls(dec: Decoded, lo: int, hi: int) -> list[dict[str, int]]:
                     current["calls_out"] += 1
         else:
             if item.start == lo:
-                current = {"own": 0, "outside": 0, "calls_out": 0}
+                current = {
+                    "own": 0,
+                    "outside": 0,
+                    "calls_out": 0,
+                    "by_function": Counter(),
+                }
             if current is None:
                 continue
             if item.cycles is None:
                 current = None
                 continue
             current["own"] += item.cycles
+            for name, f_lo, f_hi in functions or []:
+                if f_lo <= item.start < f_hi:
+                    current["by_function"][name] += item.cycles
+                    break
             if item.returns and lo <= item.last < hi:
                 current["total"] = current["own"] + current["outside"]
+                current["by_function"] = dict(current["by_function"])
                 out.append(current)
                 current = None
     return out
@@ -288,6 +301,21 @@ def calls_section(name: str, result: list[dict[str, int]]) -> str:
             f"{total['p50']} | {total['p90']} |"
         )
     out.append("")
+    names = sorted({n for c in result for n in c["by_function"]})
+    if result and names:
+        out += [
+            "Mean cycles per call in each traced function, and outside them:",
+            "",
+            "| where | mean cycles per call |",
+            "| --- | ---: |",
+        ]
+        for n in names:
+            mean = statistics.fmean(c["by_function"].get(n, 0) for c in result)
+            out.append(f"| {n} | {mean:.1f} |")
+        out.append(
+            f"| (outside) | {statistics.fmean(c['outside'] for c in result):.1f} |"
+        )
+        out.append("")
     return "\n".join(out)
 
 
@@ -432,6 +460,11 @@ def main(argv: list[str] | None = None) -> int:
     doc = [f"# PTM trace report: {capture.name}", ""]
     data = []
     call_rows: list[dict[str, int]] = []
+    traced = []
+    for lo_text, hi_text in meta["ranges"]:
+        lo, hi = int(lo_text, 16), int(hi_text, 16)
+        sym = symbols.at(syms, lo)
+        traced.append((sym.name if sym else f"0x{lo:08X}", lo, hi))
     for lo_text, hi_text in meta["ranges"]:
         lo, hi = int(lo_text, 16), int(hi_text, 16)
         sym = symbols.at(syms, lo)
@@ -441,7 +474,7 @@ def main(argv: list[str] | None = None) -> int:
         doc.append(render(name, lo, hi, result, dec))
         if not data:
             # The first traced function is the root: its calls include the other traced functions
-            call_rows = calls(dec, lo, hi)
+            call_rows = calls(dec, lo, hi, traced)
             doc.append(calls_section(name, call_rows))
         data.append({"name": name, "start": lo, "end": hi, **result})
     text = "\n".join(doc)

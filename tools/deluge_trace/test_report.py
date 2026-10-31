@@ -164,8 +164,21 @@ class Calls(unittest.TestCase):
             + _trace_on("begin or filter", 100)  # the caller, between calls
         )
         self.assertEqual(
-            self.calls(text), [{"own": 7, "outside": 50, "calls_out": 1, "total": 57}]
+            self.calls(text),
+            [{"own": 7, "outside": 50, "calls_out": 1, "total": 57, "by_function": {}}],
         )
+
+    def test_a_call_splits_its_own_cycles_among_the_traced_functions(self):
+        text = (
+            _range(self.LO, 0x1008, 3)
+            + _range(
+                0x2000, 0x2008, 9, ret=True
+            )  # a traced callee's ranges, then its return
+            + _range(0x1008, 0x1010, 4, ret=True)
+        )
+        functions = [("root", self.LO, self.HI), ("callee", 0x2000, 0x2100)]
+        (call,) = report.calls(report.parse_decode(text), self.LO, self.HI, functions)
+        self.assertEqual(call["by_function"], {"root": 7, "callee": 9})
 
     def test_a_call_that_lost_trace_is_dropped(self):
         text = (
@@ -176,7 +189,8 @@ class Calls(unittest.TestCase):
             + _range(0x1008, 0x1010, 5, ret=True)
         )
         self.assertEqual(
-            self.calls(text), [{"own": 7, "outside": 0, "calls_out": 0, "total": 7}]
+            self.calls(text),
+            [{"own": 7, "outside": 0, "calls_out": 0, "total": 7, "by_function": {}}],
         )
 
     def test_traced_code_reached_after_the_return_is_not_the_calls(self):
