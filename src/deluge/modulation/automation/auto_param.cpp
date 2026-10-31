@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/views/automation_view.h"
+#include "gui/views/session/track_link.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -31,7 +32,6 @@
 #include "model/model_stack.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "model/song/track_link.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_node.h"
@@ -304,7 +304,7 @@ getOut:
 	                                                          automatedNow);
 
 	// Song view's track edit mode: write the same value to the same parameter in the track's other clips.
-	deluge::model::track_link::propagate(value, modelStack, shouldLogAction, mayDeleteNodesInLinearRun, doMPEMode);
+	deluge::gui::track_link::propagate(value, modelStack, shouldLogAction, mayDeleteNodesInLinearRun, doMPEMode);
 }
 
 bool AutoParam::deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,

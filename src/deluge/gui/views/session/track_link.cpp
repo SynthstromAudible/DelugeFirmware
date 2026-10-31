@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "model/song/track_link.h"
+#include "gui/views/session/track_link.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
@@ -42,7 +42,7 @@
 
 namespace params = deluge::modulation::params;
 
-namespace deluge::model::track_link {
+namespace deluge::gui::track_link {
 
 namespace {
 
@@ -463,4 +463,4 @@ void propagate(int32_t value, ModelStackWithAutoParam const* source, bool should
 	}
 }
 
-} // namespace deluge::model::track_link
+} // namespace deluge::gui::track_link
