@@ -944,6 +944,72 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(acted(r)).to_be_false();
 	});
 
+	it("LEARN on an item that refuses learn raises main's CANT_LEARN popup", _ {
+		// `SoundEditor::buttonAction`'s LEARN arm (`sound_editor.cpp:718-723`).
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(int_leaf);
+		r.shell.tick(0);
+		r.button(kLearnX, kLearnY, true, 10);
+		r.shell.tick(20);
+		r.shell.tick(30);
+		expect(std::string(r.shell.notices().last_popup_text()))
+		    .to_equal(std::string(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_LEARN)));
+	});
+
+	it("Shift+LEARN unlearns the focused param's knob, with main's UNLEARNED popup", _ {
+		// `:724-726` -> `MenuItemWithCCLearning::unlearnAction` (`menu_item_with_cc_learning.cpp:25-41`).
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open(nodes::lpf_freq);
+		r.shell.tick(0);
+		const std::optional<deluge::project::ParamTarget> target = menu_scene().learn_target();
+		expect(target.has_value()).to_be_true();
+		if (!target) {
+			return;
+		}
+		expect(ctx.sink->learn(*target, deluge::project::MidiCommand{.channel_or_zone = 18, .note_or_cc = 20},
+		                       std::nullopt))
+		    .to_be_true();
+		expect(ctx.model->mappings.find(*target) != nullptr).to_be_true();
+		r.button(kShiftX, kShiftY, true, 100);
+		r.button(kLearnX, kLearnY, true, 110);
+		r.shell.tick(120);
+		r.shell.tick(130);
+		expect(ctx.model->mappings.find(*target) == nullptr).to_be_true();
+		expect(std::string(r.shell.notices().last_popup_text()))
+		    .to_equal(std::string(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNLEARNED)));
+	});
+
+	it("while learning, LEARN fast-blinks at main's 60 ms", _ {
+		// `blinkLed(IndicatorLED::LEARN, 255, 1)` (`sound_editor.cpp:729`), `kFastFlashTime`; the release puts back
+		// the item's own blink or nothing (`:736-741`).
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(nodes::lpf_freq);
+		r.shell.tick(0);
+		const auto learn_led = [] {
+			deluge::ui::LedFrame f;
+			menu_scene().leds(f);
+			for (const auto& [id, state] : f.entries()) {
+				if (id == static_cast<deluge::ui::LedId>(ButtonId::Learn)) {
+					return state;
+				}
+			}
+			return deluge::ui::LedState{deluge::ui::LedState::Kind::Off, 0, 0};
+		};
+		r.button(kLearnX, kLearnY, true, 10);
+		r.shell.tick(15);
+		expect(learn_led().kind == deluge::ui::LedState::Kind::Blink).to_be_true();
+		expect(static_cast<int>(learn_led().period_ms)).to_equal(60);
+		r.button(kLearnX, kLearnY, false, 20);
+		r.shell.tick(25);
+		expect(static_cast<int>(learn_led().period_ms) == 60).to_be_false();
+	});
+
 	it("LEARN enters no learn mode with Shift held, a pad held, or on an item that refuses learn", _ {
 		// `:719-735`: learn mode needs `!currentUIMode` (a held pad is auditioning or notes-pressed), Shift up (Shift
 		// makes it the unlearn) and `allowsLearnMode()`. In each case Select's release acts: at depth 0 on a leaf it
@@ -990,7 +1056,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 30);
 			r.shell.tick(40);
 			r.shell.tick(50);
-			expect(r.shell.stack().depth()).to_equal(size_t(0));
+			// The menu has gone; the CANT_LEARN popup the press raised may still be up.
+			expect(r.shell.stack().remove(SceneKind::FirstApp)).to_be_false();
 		}
 	});
 

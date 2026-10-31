@@ -787,6 +787,13 @@ void MenuScene::unlearn() {
 	if (const CustomItem* item = focused_custom(); item != nullptr) {
 		item->unlearn();
 	}
+	// `MenuItemWithCCLearning::unlearnAction` (`menu_item_with_cc_learning.cpp:25-41`): a param's learned knob goes,
+	// with a popup when there was one.
+	const std::optional<deluge::project::ParamTarget> target = learn_target();
+	if (target && ctx_.model != nullptr && ctx_.sink != nullptr && ctx_.model->mappings.find(*target) != nullptr
+	    && ctx_.sink->learn(*target, std::nullopt, std::nullopt)) {
+		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNLEARNED));
+	}
 }
 
 bool MenuScene::wants_learn_blink() const {
@@ -1813,8 +1820,17 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 	// every tick rather than only on a change, because that is what an `LedFrame` is -- the full
 	// state of the LEDs this scene owns, redeclared each time. The period is `kFlashTime`, the same
 	// one `blinkLed`'s default `blinkingType` runs at, hence the shared constant with BACK.
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Learn),
-	            wants_learn_blink() ? deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kBackBlinkMs, 0} : kOff);
+	// While learning, `blinkLed(LEARN, 255, 1)`'s fast blink (`sound_editor.cpp:729`, `kFastFlashTime`).
+	constexpr uint16_t kLearningBlinkMs = 60;
+	if (learn_mode_) {
+		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Learn),
+		            deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kLearningBlinkMs, 0});
+	}
+	else {
+		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Learn),
+		            wants_learn_blink() ? deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kBackBlinkMs, 0}
+		                                : kOff);
+	}
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -2370,12 +2386,24 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	ctx_.affect_entire_held = ctx.held.has(ButtonId::AffectEntire);
 	ctx_.addresses.affect_entire = bindings::writes_whole_kit(ctx_);
 
-	// `SoundEditor::buttonAction`'s LEARN arm (`sound_editor.cpp:716-745`): learn mode starts on a press with no UI
-	// mode on (a held pad is legacy's auditioning or notes-pressed mode, a kit-wide AFFECT ENTIRE hold its own) and
-	// Shift up, on an item that allows learn, and ends on the release. Observed only: the event goes on as before.
+	// `SoundEditor::buttonAction`'s LEARN arm (`sound_editor.cpp:718-745`): a press with no UI mode on (a held pad is
+	// legacy's auditioning or notes-pressed mode, a kit-wide AFFECT ENTIRE hold its own) refuses an item that does not
+	// allow learn with a popup, unlearns with Shift held, else starts learn mode; the release ends it. Observed only:
+	// the event goes on as before.
 	if (event.kind == UiEvent::Kind::Button && event.button == ButtonId::Learn) {
 		const bool pad_held = std::ranges::any_of(ctx.held_pads.cols, [](uint32_t col) { return col != 0; });
-		learn_mode_ = event.on && !ctx.shift && !pad_held && !ctx_.addresses.affect_entire && allows_learn_mode();
+		learn_mode_ = false;
+		if (event.on && !pad_held && !ctx_.addresses.affect_entire) {
+			if (!allows_learn_mode()) {
+				deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_CANT_LEARN));
+			}
+			else if (ctx.shift) {
+				unlearn();
+			}
+			else {
+				learn_mode_ = true;
+			}
+		}
 	}
 
 	// A custom item owns its input while it is focused: it sees every event first and, if it
