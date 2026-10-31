@@ -40,14 +40,17 @@ function draw(svg: SVGSVGElement): Stop {
   return () => anims.forEach((a) => a.cancel())
 }
 
-// The Deluge playhead: one column of white pads moving left to right. The cells
+// The Deluge playhead: one column of white pads moving left to right, passing
+// behind the sequenced (coloured) pads without covering them. The cells
 // (every pad position, added at build time) are numbered per grid, so all grids
 // in a figure light column N together.
 function playhead(svg: SVGSVGElement, done: () => void): Stop {
   const columns = new Map<number, Element[]>()
   for (const cell of svg.querySelectorAll(".gb-cell")) {
     const col = Number(cell.getAttribute("data-col"))
-    columns.set(col, [...(columns.get(col) ?? []), cell])
+    // Every column is a step; only its empty pads light (notes keep their colour).
+    const lit = cell.hasAttribute("data-note") ? [] : [cell]
+    columns.set(col, [...(columns.get(col) ?? []), ...lit])
   }
   const order = [...columns.keys()].sort((a, b) => a - b)
   let i = 0

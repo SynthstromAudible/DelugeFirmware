@@ -127,6 +127,18 @@ const checks = {
       1000,
     )
     check("playhead: pads light up on 3.8", lightsUp)
+    let notesCovered = 0
+    for (let t = 0; t < 10; t++) {
+      notesCovered += await page
+        .locator(`${sel("fig-3.8-1")} .gb-cell-on[data-note]`)
+        .count()
+      await page.waitForTimeout(60)
+    }
+    check(
+      "playhead: sequenced pads never covered",
+      notesCovered === 0,
+      `${notesCovered}`,
+    )
     const done = await waitFor(() => replay.isVisible(), 5000)
     const left = await page.locator(`${sel("fig-3.8-1")} .gb-cell-on`).count()
     check(
