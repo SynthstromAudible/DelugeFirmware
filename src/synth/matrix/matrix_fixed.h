@@ -22,6 +22,7 @@
 #include "synth/modulation/cable_depth.h" // apply_range
 #include "util/param_functions.h"         // paramRanges, getFinalParameterValue*
 
+#include <argon.hpp>
 #include <cstdint>
 #include <limits>
 
@@ -30,6 +31,9 @@ namespace deluge::synth::matrix {
 /// @brief The matrix's q31 numeric core: today's patching arithmetic, operation for operation. Each function is the
 /// scalar reference the vector forms are proven against.
 struct MatrixFixed {
+	/// Four q31 lanes.
+	using Lanes = Argon<int32_t>;
+
 	/// "1" in the chains' Q29 and the depth results' scale.
 	static constexpr int32_t kOne = 536870912;
 
@@ -114,6 +118,43 @@ struct MatrixFixed {
 			return getFinalParameterValueExpWithDumbEnvelopeHack(neutral, combination, p);
 		}
 		return combination;
+	}
+
+	// The four-lane forms, each equal lane for lane to the scalar functions above.
+
+	/// smmul (multiply_32x32_rshift32) for @p a never INT32_MIN: the doubling high multiply, then an arithmetic shift
+	/// right by 1. NEON saturates only INT32_MIN times INT32_MIN; SIMDe's portable form, which the host and spec
+	/// builds run, saturates whenever @p a is INT32_MIN.
+	[[gnu::always_inline]] static Lanes smmul_by_doubling(Lanes a, Lanes b) {
+		return a.MultiplyFixedQMax(b).ShiftRight<1>();
+	}
+
+	/// signed_saturate<bits>, then a shift left by @p n.
+	template <int bits, int n>
+	[[gnu::always_inline]] static Lanes saturate_shift(Lanes v) {
+		return v.Max(Lanes{-(int32_t{1} << (bits - 1))}).Min(Lanes{(int32_t{1} << (bits - 1)) - 1}).ShiftLeft<n>();
+	}
+
+	/// Four params' preset terms, from their presets and their (positive) param ranges.
+	[[gnu::always_inline]] static Lanes preset_terms(Lanes preset, Lanes range) {
+		return smmul_by_doubling(range, preset);
+	}
+
+	/// An uncabled multiply-chain param's combination, multiply_step(kOne, term) - kOne: the chain's Q29 step drops
+	/// the term's low three bits and cannot saturate, as the term lies in [-2^30, 2^30]. An add chain's is the term.
+	[[gnu::always_inline]] static Lanes uncabled_multiply(Lanes term) { return term & Lanes{~int32_t{7}}; }
+
+	/// The volume, linear and hybrid curves; the neutral values are positive.
+	[[gnu::always_inline]] static Lanes curve_volume(Lanes neutral, Lanes combination) {
+		const Lanes positive = combination + Lanes{kOne};
+		const Lanes squared = positive.ShiftRight<16>() * positive.ShiftRight<15>();
+		return saturate_shift<27, 5>(smmul_by_doubling(neutral, squared));
+	}
+	[[gnu::always_inline]] static Lanes curve_linear(Lanes neutral, Lanes combination) {
+		return saturate_shift<29, 3>(smmul_by_doubling(neutral, combination + Lanes{kOne}));
+	}
+	[[gnu::always_inline]] static Lanes curve_hybrid(Lanes neutral, Lanes combination) {
+		return saturate_shift<29, 2>(neutral.ShiftRight<2>() + combination.ShiftRight<1>());
 	}
 };
 

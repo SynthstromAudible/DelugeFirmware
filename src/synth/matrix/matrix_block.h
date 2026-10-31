@@ -32,8 +32,12 @@ struct MatrixBlock {
 	const MatrixProgram* program{}; ///< the instrument's compiled cables; null when it has none
 	/// Each param's preset, folded with automation and expression (the smoothed one for a param being smoothed), Q31 as
 	/// stored. Only the gathered entries are filled: the routed destinations' for a block, every param's otherwise.
-	std::array<int32_t, modulation::params::kNumParams> preset_values{};
-	std::array<int32_t, kMaxCables> depths{}; ///< each routed cable's depth, in routing order: [-2^30, 2^30]
+	/// Left uninitialised, as the depths are: a gather runs twice a block, and the patching reads back only what it
+	/// filled.
+	// NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
+	std::array<int32_t, modulation::params::kNumParams> preset_values;
+	// NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
+	std::array<int32_t, kMaxCables> depths; ///< each routed cable's depth, in routing order: [-2^30, 2^30]
 
 	[[nodiscard]] int32_t preset_value(int32_t p) const { return preset_values[p]; }
 };

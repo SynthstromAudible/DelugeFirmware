@@ -27,11 +27,6 @@ namespace deluge::synth::matrix {
 
 namespace {
 
-/// The cable tables' length: a whole number of four-lane groups.
-[[nodiscard]] constexpr std::size_t lanes(std::size_t n) {
-	return (n + 3) & ~std::size_t{3};
-}
-
 [[nodiscard]] constexpr std::size_t align_up(std::size_t n, std::size_t alignment) {
 	return (n + alignment - 1) & ~(alignment - 1);
 }
@@ -47,7 +42,7 @@ namespace {
 [[nodiscard]] std::size_t scope_size(std::size_t num_destinations, std::size_t num_cables) {
 	return align_up(num_destinations * sizeof(Destination), alignof(Destination)) // destinations
 	       + (2 * num_cables)                                                     // slots (at most one per cable)
-	       + (4 * lanes(num_cables));                                             // the four cable tables
+	       + (4 * num_cables);                                                    // the four cable tables
 }
 
 /// Hands out consecutive pieces of the program's block.
@@ -104,15 +99,11 @@ void compile_scope(const RoutingBuild& routing, int32_t g, Carver& carve, ScopeV
 	auto* slot_source = carve.take<uint8_t>(num_cables);
 	auto* slot_conversion = carve.take<Conversion>(num_cables);
 	const CableTables tables{
-	    .slot = carve.take<uint8_t>(lanes(num_cables)),
-	    .depth = carve.take<uint8_t>(lanes(num_cables)),
-	    .range = carve.take<uint8_t>(lanes(num_cables)),
-	    .mode = carve.take<DepthMode>(lanes(num_cables)),
+	    .slot = carve.take<uint8_t>(num_cables),
+	    .depth = carve.take<uint8_t>(num_cables),
+	    .range = carve.take<uint8_t>(num_cables),
+	    .mode = carve.take<DepthMode>(num_cables),
 	};
-	uint8_t* cable_slot = tables.slot;
-	uint8_t* cable_depth = tables.depth;
-	uint8_t* cable_range = tables.range;
-	DepthMode* cable_mode = tables.mode;
 
 	out.first_param = g == 0 ? 0 : static_cast<uint8_t>(params::FIRST_GLOBAL);
 	out.end_param = static_cast<uint8_t>(g == 0 ? int32_t{params::FIRST_GLOBAL} : int32_t{params::kNumParams});
@@ -150,20 +141,12 @@ void compile_scope(const RoutingBuild& routing, int32_t g, Carver& carve, ScopeV
 		}
 		cable = compile_cables(routing, routed, dest, depth, param, cable, tables, slot_for);
 	}
-	// The padding lanes read real entries and are never reduced
-	for (std::size_t c = cable; c < lanes(num_cables); ++c) {
-		cable_slot[c] = 0;
-		cable_depth[c] = 0;
-		cable_range[c] = kNoRange;
-		cable_mode[c] = DepthMode::PLAIN;
-	}
-
 	out.slot_source = slot_source;
 	out.slot_conversion = slot_conversion;
-	out.cable_slot = cable_slot;
-	out.cable_depth = cable_depth;
-	out.cable_range = cable_range;
-	out.cable_mode = cable_mode;
+	out.cable_slot = tables.slot;
+	out.cable_depth = tables.depth;
+	out.cable_range = tables.range;
+	out.cable_mode = tables.mode;
 	out.destinations = destinations;
 	out.num_slots = num_slots;
 	out.num_cables = cable;

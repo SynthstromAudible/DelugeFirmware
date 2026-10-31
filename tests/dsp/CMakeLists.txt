@@ -90,6 +90,8 @@ set(patcher_spec_DEPS ${synth_voice_spec_DEPS} ${CMAKE_CURRENT_LIST_DIR}/referen
 set(matrix_compiler_spec_DEPS ${synth_voice_spec_DEPS} ${CMAKE_CURRENT_LIST_DIR}/reference_patcher.cpp)
 # The matrix evaluator against the frozen reference patcher, on random cases.
 set(matrix_evaluator_spec_DEPS ${synth_voice_spec_DEPS} ${CMAKE_CURRENT_LIST_DIR}/reference_patcher.cpp)
+# The core's four-lane forms against its scalar functions: the param tables, as the voice spec has them.
+set(matrix_exactness_spec_DEPS ${synth_voice_spec_DEPS})
 # The engines played on the host, through the voice and on their own: the same closure as the voice spec.
 set(synth_engine_spec_DEPS ${synth_voice_spec_DEPS})
 # The shared windowed-sinc kernel table + its select()/variant() variant picks.

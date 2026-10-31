@@ -54,7 +54,7 @@ struct ScopeView {
 	const DepthMode* cable_mode{};       ///< per cable: its depth's shape
 	const Destination* destinations{};   ///< depth destinations first, in routing order; then param destinations
 	uint8_t num_slots{};
-	uint8_t num_cables{}; ///< the cable tables hold this rounded up to 4; the extra entries are neutral
+	uint8_t num_cables{};
 	uint8_t num_depth_destinations{};
 	uint8_t num_destinations{};
 	uint32_t sources_patched{}; ///< the sources any of its cables read
