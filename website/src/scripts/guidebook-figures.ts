@@ -40,41 +40,28 @@ function draw(svg: SVGSVGElement): Stop {
   return () => anims.forEach((a) => a.cancel())
 }
 
-function playhead(
-  svg: SVGSVGElement,
-  art: HTMLElement,
-  done: () => void,
-): Stop {
+// The Deluge playhead: one column of white pads moving left to right. The cells
+// (every pad position, added at build time) are numbered per grid, so all grids
+// in a figure light column N together.
+function playhead(svg: SVGSVGElement, done: () => void): Stop {
   const columns = new Map<number, Element[]>()
-  for (const pad of svg.querySelectorAll("[data-pad]")) {
-    const col = Number((pad.getAttribute("data-pad") ?? "").split(",")[0])
-    columns.set(col, [...(columns.get(col) ?? []), pad])
+  for (const cell of svg.querySelectorAll(".gb-cell")) {
+    const col = Number(cell.getAttribute("data-col"))
+    columns.set(col, [...(columns.get(col) ?? []), cell])
   }
   const order = [...columns.keys()].sort((a, b) => a - b)
-  const line = document.createElement("div")
-  line.className = "gb-playhead"
-  art.append(line)
   let i = 0
   let lit: Element[] = []
   let timer = 0
   const stop = () => {
     window.clearInterval(timer)
-    lit.forEach((p) => p.classList.remove("gb-pad-on"))
-    line.remove()
+    lit.forEach((c) => c.classList.remove("gb-cell-on"))
   }
   const tick = () => {
-    lit.forEach((p) => p.classList.remove("gb-pad-on"))
+    lit.forEach((c) => c.classList.remove("gb-cell-on"))
     if (i === order.length) return (stop(), done())
     lit = columns.get(order[i++]) ?? []
-    lit.forEach((p) => p.classList.add("gb-pad-on"))
-    const box = art.getBoundingClientRect()
-    const r = lit.map((p) => p.getBoundingClientRect())
-    const y0 = Math.min(...r.map((b) => b.top))
-    const y1 = Math.max(...r.map((b) => b.bottom))
-    const x =
-      (Math.min(...r.map((b) => b.left)) + Math.max(...r.map((b) => b.right))) /
-      2
-    line.style.cssText = `left:${x - box.left}px;top:${y0 - box.top - 4}px;height:${y1 - y0 + 8}px`
+    lit.forEach((c) => c.classList.add("gb-cell-on"))
   }
   timer = window.setInterval(tick, COLUMN)
   tick()
@@ -90,7 +77,7 @@ function setup(fig: HTMLElement) {
   const finished = () => (replay.hidden = false)
   const play = () => {
     stop?.()
-    if (fig.dataset.animate === "playhead") stop = playhead(svg, art, finished)
+    if (fig.dataset.animate === "playhead") stop = playhead(svg, finished)
     else {
       stop = draw(svg)
       setTimeout(finished, TOTAL)

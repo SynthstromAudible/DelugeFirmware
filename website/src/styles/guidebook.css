@@ -67,22 +67,19 @@
   position: relative;
 }
 
-.gb-pad-on {
-  filter: brightness(1.4) drop-shadow(0 0 3px var(--gb-accent));
+/* Playhead: the current column of pads lit white, as on the Deluge. On the
+   light theme white pads need a dark edge and halo to read against the paper. */
+.gb-cell-on {
+  fill: #fff;
+  stroke: var(--gb-muted);
+  stroke-width: 0.6;
+  filter: drop-shadow(0 0 2px rgb(255 255 255 / 0.9));
 }
 
-.gb-playhead {
-  position: absolute;
-  width: 2px;
-  margin-left: -1px;
-  background: var(--gb-accent);
-  box-shadow: 0 0 4px var(--gb-accent);
-  border-radius: 1px;
-  pointer-events: none;
-  transition:
-    left 120ms linear,
-    top 120ms linear,
-    height 120ms linear;
+:root[data-theme="light"] .gb-cell-on {
+  stroke: #222;
+  stroke-width: 1;
+  filter: drop-shadow(0 0 2.5px rgb(0 0 0 / 0.55));
 }
 
 .gb-replay {

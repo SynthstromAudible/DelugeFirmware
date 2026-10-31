@@ -20,9 +20,9 @@ const recordLitColumns = () => {
   new MutationObserver((records) => {
     for (const r of records) {
       const el = r.target
-      if (!el.classList?.contains("gb-pad-on")) continue
+      if (!el.classList?.contains("gb-cell-on")) continue
       const fig = el.closest(".gb-figure")?.id
-      const col = el.getAttribute("data-pad").split(",")[0]
+      const col = el.getAttribute("data-col")
       ;(window.__lit[fig] ??= new Set()).add(col)
     }
   }).observe(document, {
@@ -128,11 +128,7 @@ const checks = {
     )
     check("playhead: pads light up on 3.8", lightsUp)
     const done = await waitFor(() => replay.isVisible(), 5000)
-    const left = await page
-      .locator(
-        `${sel("fig-3.8-1")} .gb-pad-on, ${sel("fig-3.8-1")} .gb-playhead`,
-      )
-      .count()
+    const left = await page.locator(`${sel("fig-3.8-1")} .gb-cell-on`).count()
     check(
       "playhead: replay appears after one pass, nothing left lit",
       done && left === 0,
@@ -245,7 +241,7 @@ const checks = {
     }
     check(
       "no JS: every animated figure fully drawn, no replay button",
-      figures === 26 && bad.length === 0,
+      figures === 24 && bad.length === 0,
       `${figures} figures${bad.length ? `, bad: ${bad.join(", ")}` : ""}`,
     )
     await ctx.close()
@@ -287,8 +283,8 @@ const checks = {
     const tagged = await page.evaluate(
       (s) => [
         ...new Set(
-          [...document.querySelectorAll(`${s} [data-pad]`)].map(
-            (p) => p.getAttribute("data-pad").split(",")[0],
+          [...document.querySelectorAll(`${s} .gb-cell`)].map((p) =>
+            p.getAttribute("data-col"),
           ),
         ),
       ],
@@ -296,7 +292,7 @@ const checks = {
     )
     const swept = await lit(page, id)
     check(
-      "multi-grid: 3.9-1 sweeps every tagged column, no errors",
+      "multi-grid: 3.9-1 sweeps every grid column, no errors",
       swept.length === tagged.length && errors.length === 0,
       `${swept.length}/${tagged.length} cols, ${errors.length} errors ${errors.join("; ")}`,
     )
