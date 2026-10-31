@@ -34,11 +34,19 @@ std::optional<deluge::ui::oled::ArtColumn> keyboard_art(const MenuContext& ctx, 
 std::optional<deluge::ui::oled::ArtColumn> direction_art(const MenuContext& ctx, int32_t value);
 /// `lfo::Type::renderInHorizontalMenu` (`lfo/type.h:77-101`): the shape's icon.
 std::optional<deluge::ui::oled::ArtColumn> lfo_type_art(const MenuContext& ctx, int32_t value);
-/// `osc::Type::renderInHorizontalMenu` (`osc/type.h:112-149`) for source 1 and 2: the shape's icon, or DX7's name.
+/// `osc::Type::renderInHorizontalMenu` (`osc/type.h:112-155`) for source 1 and 2: the shape's icon with the analog
+/// or supersaw letter, or DX7's name.
 std::optional<deluge::ui::oled::ArtColumn> osc0_type_art(const MenuContext& ctx, int32_t value);
 std::optional<deluge::ui::oled::ArtColumn> osc1_type_art(const MenuContext& ctx, int32_t value);
 /// `sample::Repeat::renderInHorizontalMenu` (`sample/repeat.h:96-112`): the mode's icon, from the region's left.
 std::optional<deluge::ui::oled::ArtColumn> repeat_art(const MenuContext& ctx, int32_t value);
+/// `sequence::Direction::renderInHorizontalMenu` (`sequence/direction.h:123-141`): the arrow, mirrored for reverse, a
+/// mirrored pair for ping-pong; obey-parent is the option's text.
+std::optional<deluge::ui::oled::ArtColumn> sequence_direction_art(const MenuContext& ctx, int32_t value);
+/// `arpeggiator::Rhythm` and `midi_cv::Rhythm::renderInHorizontalMenu` (`arpeggiator/rhythm.h:42-62`,
+/// `midi_cv/rhythm.h:48-66`): the pattern spaced out, '0' as X, or the name of pattern 0.
+std::optional<deluge::ui::oled::ArtColumn> arp_rhythm_art(const MenuContext& ctx, int32_t value);
+std::optional<deluge::ui::oled::ArtColumn> arp_rhythm_midi_art(const MenuContext& ctx, int32_t value);
 /// `unison::Count::renderInHorizontalMenu` (`unison/count.h:62-67`): the count in the "Big" face.
 std::optional<deluge::ui::oled::ArtColumn> unison_count_art(const MenuContext& ctx, int32_t value);
 /// `midi::Preset::renderInHorizontalMenu` (`midi/preset.h:62-79`): NONE at 128, else the number.

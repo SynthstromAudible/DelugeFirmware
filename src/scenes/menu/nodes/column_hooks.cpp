@@ -33,6 +33,7 @@
 #include "gui/l10n/strings.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_fx_names.h"
+#include "modulation/arpeggiator_rhythms.h"
 #include "processing/engines/audio_engine.h" // lineInPluggedIn: an input oscillator's icon
 
 #include <algorithm>
@@ -115,7 +116,28 @@ std::optional<ArtColumn> osc_type_art(const Node& node, const MenuContext& ctx, 
 	default:
 		break;
 	}
-	return ArtColumn{.icon = icon, .dy = 2};
+	// The analog and supersaw shapes carry a letter in the region's corner (`osc/type.h:150-155`).
+	char badge = 0;
+	if (type == OscType::ANALOG_SQUARE || type == OscType::ANALOG_SAW_2) {
+		badge = 'A';
+	}
+	else if (type == OscType::SUPERSAW) {
+		badge = 'S';
+	}
+	return ArtColumn{.icon = icon, .dy = 2, .badge = badge};
+}
+
+/// `arpeggiator::Rhythm::renderInHorizontalMenu` and its MIDI/CV twin's (`arpeggiator/rhythm.h:42-62`,
+/// `midi_cv/rhythm.h:48-66`), whose centring differs by @p nudge.
+std::optional<ArtColumn> rhythm_art(int32_t value, int8_t nudge) {
+	if (value < 0 || static_cast<size_t>(value) >= arpRhythmPatternNames.size()) {
+		return std::nullopt;
+	}
+	const std::string_view pattern{arpRhythmPatternNames[value]};
+	if (value == 0) {
+		return ArtColumn{.text = pattern};
+	}
+	return ArtColumn{.text = pattern, .dx = nudge, .char_gap = 2, .zero_as_x = true};
 }
 
 /// Is the song's reverb one of the two plate models, whose room size and width legacy names TIME and DIFFUSION?
@@ -192,6 +214,27 @@ std::optional<ArtColumn> osc0_type_art(const MenuContext& ctx, int32_t value) {
 
 std::optional<ArtColumn> osc1_type_art(const MenuContext& ctx, int32_t value) {
 	return osc_type_art(osc1_type, ctx, value);
+}
+
+std::optional<ArtColumn> sequence_direction_art(const MenuContext&, int32_t value) {
+	switch (value) {
+	case 0: // forward
+		return ArtColumn{.icon = &icons::direction};
+	case 1: // reverse
+		return ArtColumn{.icon = &icons::direction, .reversed = true};
+	case 2: // ping-pong
+		return ArtColumn{.icon = &icons::direction, .twin_dx = 2};
+	default: // obey parent: `Selection`'s own text
+		return std::nullopt;
+	}
+}
+
+std::optional<ArtColumn> arp_rhythm_art(const MenuContext&, int32_t value) {
+	return rhythm_art(value, 2);
+}
+
+std::optional<ArtColumn> arp_rhythm_midi_art(const MenuContext&, int32_t value) {
+	return rhythm_art(value, 1);
 }
 
 std::optional<ArtColumn> repeat_art(const MenuContext&, int32_t value) {

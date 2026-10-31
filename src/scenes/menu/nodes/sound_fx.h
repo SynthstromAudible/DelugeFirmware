@@ -104,8 +104,17 @@ int32_t get_stutter_direction(const MenuContext& ctx);
 void set_stutter_direction(const MenuContext& ctx, int32_t value);
 int32_t get_stutter_quantize(const MenuContext& ctx);
 void set_stutter_quantize(const MenuContext& ctx, int32_t value);
-/// `stutter::Rate::drawPixelsForOled` (`stutter/rate.cpp:43-50`): quantized, its option label, with no value bar.
-bool stutter_rate_continuous(const MenuContext& ctx);
+/// `stutter::Rate::isStutterQuantized` (`stutter/rate.cpp:70-76`).
+bool stutter_rate_quantized(const MenuContext& ctx);
+/// `stutter::Rate`'s quantized label (`stutter/rate.cpp:43-68`): its column, banner and full-screen value.
+ValueText stutter_rate_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `stutter::Rate::selectEncoderAction` (`stutter/rate.cpp:28-41`): quantized, the next option value along.
+std::optional<int32_t> stutter_rate_turn(const MenuContext& ctx, int32_t value, int32_t offset);
+/// `stutter::Direction::renderInHorizontalMenu` (`stutter/direction.h:133-156`): "song", or the arrow with ping-pong
+/// dots.
+std::optional<deluge::ui::oled::ArtColumn> stutter_direction_art(const MenuContext& ctx, int32_t value);
+/// `stutter::Direction::getNotificationValue` (`stutter/direction.h:129-132`): the short option.
+ValueText stutter_direction_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 
 /// @}
 
@@ -274,14 +283,19 @@ inline constexpr Node reverb =
 
 // --- Stutter -----------------------------------------------------------------------------------
 
-inline constexpr Node stutter_rate = with_continuous_leaf(
-    param(sid(deluge::l10n::String::STRING_FOR_RATE),
-          {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_STUTTER_RATE},
-          Hint::Knob, nullptr, sid(deluge::l10n::String::STRING_FOR_STUTTER_RATE)),
-    stutter_rate_continuous);
-inline constexpr Node stutter_direction =
-    dynamic_enumeration(sid(deluge::l10n::String::STRING_FOR_DIRECTION), stutter_direction_names, get_stutter_direction,
-                        set_stutter_direction);
+inline constexpr Node stutter_rate = with_turn(
+    with_leaf_text(with_value_text(param(sid(deluge::l10n::String::STRING_FOR_RATE),
+                                         {deluge::modulation::params::Kind::UNPATCHED_SOUND,
+                                          deluge::modulation::params::UNPATCHED_STUTTER_RATE},
+                                         Hint::Knob, nullptr, sid(deluge::l10n::String::STRING_FOR_STUTTER_RATE)),
+                                   stutter_rate_text),
+                   stutter_rate_text),
+    stutter_rate_turn);
+inline constexpr Node stutter_direction = with_value_text(
+    with_column_art(dynamic_enumeration(sid(deluge::l10n::String::STRING_FOR_DIRECTION), stutter_direction_names,
+                                        get_stutter_direction, set_stutter_direction),
+                    stutter_direction_art),
+    stutter_direction_text);
 inline constexpr Node stutter_quantize =
     toggle_item(sid(deluge::l10n::String::STRING_FOR_QUANTIZE), get_stutter_quantize, set_stutter_quantize,
                 relevance::stutter_quantize_allowed);

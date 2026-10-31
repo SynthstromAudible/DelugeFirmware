@@ -1330,6 +1330,8 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 					step = (f.select_held() || f.shift()) ? fine : coarse;
 				}
 				int32_t current = bindings::read(target, ctx_);
+				const std::optional<int32_t> turned_to =
+				    target.bind.turn != nullptr ? target.bind.turn(ctx_, current, detents) : std::nullopt;
 				if (hs.restart_from_negative && detents > 0 && current < 0) {
 					current = -step;
 				}
@@ -1338,7 +1340,7 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 					const int32_t span = range.max - range.min + 1;
 					moved = range.min + (((moved - range.min) % span) + span) % span;
 				}
-				moved = clamp_to(moved, range.min, range.max);
+				moved = clamp_to(turned_to.value_or(moved), range.min, range.max);
 				// Set on every permitted turn, clamp or not: legacy calls `child->selectEncoderAction(...)`
 				// and `displayNotification(child)` unconditionally once it has decided the turn is permitted
 				// (`selectEncoderActionIsPermitted()`, `:321`) -- it never re-reads the value first to
@@ -1442,8 +1444,26 @@ void MenuScene::render_leaf_int(deluge::ui::oled::OledFrame& f, const Node& node
 	// A param is legacy's `IntegerContinuous` (`patched_param::Integer`, `UnpatchedParam`): the digits over a value
 	// bar.
 	deluge::ui::oled::ValueStyle style = node.bind.style;
-	style.continuous =
-	    node.bind.param.valid() && (node.bind.continuous_leaf == nullptr || node.bind.continuous_leaf(ctx_));
+	style.continuous = node.bind.param.valid();
+	struct LabelCall {
+		const Node* node;
+		const MenuContext* ctx;
+	};
+	const LabelCall call{&node, &ctx_};
+	style.hook_ctx = &call;
+	if (node.bind.turn != nullptr) {
+		style.turn = [](int32_t value, int32_t offset, const void* c) -> std::optional<int32_t> {
+			const auto& lc = *static_cast<const LabelCall*>(c);
+			return lc.node->bind.turn(*lc.ctx, value, offset);
+		};
+	}
+	if (node.bind.leaf_text != nullptr) {
+		style.label = [](int32_t value, const void* c, std::span<char> out) -> std::string_view {
+			const auto& lc = *static_cast<const LabelCall*>(c);
+			const ValueText vt = lc.node->bind.leaf_text(*lc.ctx, value, ValueTextUse::Column, out);
+			return vt.fallback ? std::string_view{} : std::string_view{out.data(), std::min(vt.length, out.size())};
+		};
+	}
 	const deluge::ui::Response r =
 	    deluge::ui::oled::int_value(f, f.bounds(), st_.edit_int, bindings::range(node, ctx_), style, /*focused=*/true);
 	st_.render_resp = r;

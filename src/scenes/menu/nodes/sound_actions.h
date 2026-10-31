@@ -49,6 +49,7 @@
 ///       (`sound_editor.cpp:1732-1739`); the latch is the UI state above.
 
 #include "scenes/menu/node.h"
+#include "scenes/menu/nodes/column_hooks.h"
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/edit_name.h" // kEditOutputName, kEditClipName
 #include "scenes/menu/nodes/sound_osc.h" // sample0_recorder, sample1_recorder
@@ -79,8 +80,9 @@ inline constexpr const Node* kActionsChildren[] = {&edit_name, &sample0_recorder
 inline constexpr Node sound_actions = submenu(sid(deluge::l10n::String::STRING_FOR_ACTIONS), kActionsChildren);
 
 inline constexpr Node sequence_direction =
-    dynamic_enumeration(sid(deluge::l10n::String::STRING_FOR_PLAY_DIRECTION), sequence_direction_names,
-                        get_sequence_direction, set_sequence_direction);
+    with_column_art(dynamic_enumeration(sid(deluge::l10n::String::STRING_FOR_PLAY_DIRECTION), sequence_direction_names,
+                                        get_sequence_direction, set_sequence_direction),
+                    sequence_direction_art);
 
 // `OutputMidiChannel::getMinValue`/`getMaxValue` (`midi/sound/channel.h:34`) and
 // `OutputMidiNoteForDrum`'s (`note_for_drum.h:29-30`). Both render a plain number

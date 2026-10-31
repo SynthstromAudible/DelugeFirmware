@@ -1,0 +1,99 @@
+# ShellMenu: the drawn columns. SHIFT + the LPF frequency shortcut, then SHIFT + CROSS_SCREEN along the sound chain
+# to STUTTER: its rate, and its direction through every value; on to ARP and its pattern pages, the rhythm turned
+# off zero; then SHIFT + SCALE back to the oscillators and OSC1's type through several shapes. Navigation presses
+# are 200 ms apart, past the 140 ms debounce. Run on the ShellMenu card.
+100   snapshot boot
+300   button Shift down
+400   pad 8 7 down
+440   pad 8 7 up
+500   button Shift up
+1200  snapshot lpf
+1500  button Shift down
+1600  button CrossScreen down
+1620  button CrossScreen up
+1800  button CrossScreen down
+1820  button CrossScreen up
+2000  button CrossScreen down
+2020  button CrossScreen up
+2200  button CrossScreen down
+2220  button CrossScreen up
+2400  button CrossScreen down
+2420  button CrossScreen up
+2600  button CrossScreen down
+2620  button CrossScreen up
+2800  button CrossScreen down
+2820  button CrossScreen up
+3000  button CrossScreen down
+3020  button CrossScreen up
+3200  button Shift up
+3900  snapshot stutter
+4200  encoder Select +2
+4900  snapshot stutter-rate
+5200  button Kit down
+5220  button Kit up
+5900  snapshot stutter-direction
+6200  encoder Select +1
+6900  snapshot stutter-direction-1
+7200  encoder Select +1
+7900  snapshot stutter-direction-2
+8200  encoder Select +1
+8900  snapshot stutter-direction-3
+9200  encoder Select +1
+9900  snapshot stutter-direction-4
+10200 button Shift down
+10300 button CrossScreen down
+10320 button CrossScreen up
+10500 button Shift up
+11200 snapshot arp
+11500 button CrossScreen down
+11520 button CrossScreen up
+12200 snapshot arp-pattern
+12500 button CrossScreen down
+12520 button CrossScreen up
+13200 snapshot arp-pattern-2
+13500 button Midi down
+13520 button Midi up
+14200 snapshot arp-rhythm
+14500 encoder Select +5
+15200 snapshot arp-rhythm-5
+15500 button Shift down
+15600 button Scale down
+15620 button Scale up
+15800 button Scale down
+15820 button Scale up
+16000 button Scale down
+16020 button Scale up
+16200 button Scale down
+16220 button Scale up
+16400 button Scale down
+16420 button Scale up
+16600 button Scale down
+16620 button Scale up
+16800 button Scale down
+16820 button Scale up
+17000 button Scale down
+17020 button Scale up
+17200 button Scale down
+17220 button Scale up
+17400 button Scale down
+17420 button Scale up
+17600 button Scale down
+17620 button Scale up
+17800 button Scale down
+17820 button Scale up
+18000 button Scale down
+18020 button Scale up
+18200 button Shift up
+18900 snapshot source
+19200 encoder Select +1
+19900 snapshot osc-type-1
+20200 encoder Select +1
+20900 snapshot osc-type-2
+21200 encoder Select +1
+21900 snapshot osc-type-3
+22200 encoder Select +1
+22900 snapshot osc-type-4
+23200 encoder Select +1
+23900 snapshot osc-type-5
+24200 encoder Select +1
+24900 snapshot osc-type-6

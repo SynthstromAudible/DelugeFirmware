@@ -37,6 +37,7 @@
 #include "model/mod_controllable/mod_fx_names.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "modulation/arpeggiator_rhythms.h"
 #include "modulation/params/param.h"
 #include "modulation/sync.h"
 #include "processing/sound/sound_instrument.h"
@@ -484,6 +485,164 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(slot.art.reversed).to_equal(true);
 	});
 
+	it("an analog or supersaw oscillator's type column carries main's A or S badge", _ {
+		// `osc::Type::renderInHorizontalMenu` (`osc/type.h:150-155`).
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		menu::ColumnSlot slot;
+		deluge::ui::oled::Column col;
+		std::string badges;
+		for (int32_t v = 0; v < 16; v++) {
+			slot = {};
+			menu::present_column(menu::nodes::osc0_type, ctx, v, slot, col);
+			if (slot.art.badge != 0) {
+				badges += slot.art.badge;
+			}
+		}
+		expect(badges.find('A') != std::string::npos).to_be_true();
+		expect(badges.find('S') != std::string::npos).to_be_true();
+		menu::present_column(menu::nodes::osc0_type, ctx, 0, slot, col); // sine
+		expect(static_cast<int>(slot.art.badge)).to_equal(0);
+	});
+
+	it("the stutter direction column draws main's song text, arrow and ping-pong dots", _ {
+		// `stutter::Direction::renderInHorizontalMenu` (`stutter/direction.h:133-156`), use-song offered on a sound.
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		menu::ColumnSlot slot;
+		deluge::ui::oled::Column col;
+		menu::present_column(menu::nodes::stutter_direction, ctx, 0, slot, col);
+		expect(std::string(slot.art.text)).to_equal(std::string("song"));
+		expect(slot.art.icon == nullptr).to_be_true();
+		menu::present_column(menu::nodes::stutter_direction, ctx, 2, slot, col); // reversed
+		expect(slot.art.icon == &deluge::gfx::oled::icons::direction).to_be_true();
+		expect(slot.art.reversed).to_be_true();
+		expect(slot.art.dots).to_be_false();
+		menu::present_column(menu::nodes::stutter_direction, ctx, 3, slot, col); // forward ping-pong
+		expect(slot.art.reversed).to_be_false();
+		expect(slot.art.dots).to_be_true();
+		menu::present_column(menu::nodes::stutter_direction, ctx, 4, slot, col); // reversed ping-pong
+		expect(slot.art.reversed).to_be_true();
+		expect(slot.art.dots).to_be_true();
+	});
+
+	it("the play direction column draws main's arrow, mirrored pair and obey-parent text", _ {
+		// `sequence::Direction::renderInHorizontalMenu` (`sequence/direction.h:123-141`).
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		menu::ColumnSlot slot;
+		deluge::ui::oled::Column col;
+		menu::present_column(menu::nodes::sequence_direction, ctx, 1, slot, col); // reverse
+		expect(col.render == deluge::ui::oled::art_column).to_be_true();
+		expect(slot.art.icon == &deluge::gfx::oled::icons::direction).to_be_true();
+		expect(slot.art.reversed).to_be_true();
+		menu::present_column(menu::nodes::sequence_direction, ctx, 2, slot, col); // ping-pong
+		expect(static_cast<int>(slot.art.twin_dx)).to_equal(2);
+		slot = {};
+		menu::present_column(menu::nodes::sequence_direction, ctx, 3, slot, col); // obey parent: the option text
+		expect(col.render == deluge::ui::oled::art_column).to_be_false();
+	});
+
+	it("the rhythm columns space main's pattern, zero as X, the MIDI/CV one a pixel left", _ {
+		// `arpeggiator::Rhythm` and `midi_cv::Rhythm::renderInHorizontalMenu` (`arpeggiator/rhythm.h:42-62`,
+		// `midi_cv/rhythm.h:48-66`): value 0 is the pattern's name, centred.
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		menu::ColumnSlot slot;
+		deluge::ui::oled::Column col;
+		menu::present_column(menu::nodes::arp_rhythm, ctx, 5, slot, col);
+		expect(col.render == deluge::ui::oled::art_column).to_be_true();
+		expect(std::string(slot.art.text)).to_equal(std::string(arpRhythmPatternNames[5]));
+		expect(static_cast<int>(slot.art.char_gap)).to_equal(2);
+		expect(slot.art.zero_as_x).to_be_true();
+		expect(static_cast<int>(slot.art.dx)).to_equal(2);
+		// Neither overrides `getColumnLabel` (the MIDI/CV one's base spells the full name, `arp_integer.h:30`): the two
+		// slots carry the whole name.
+		const std::string rhythm = deluge::l10n::get(String::STRING_FOR_RHYTHM);
+		expect(std::string(col.label)).to_equal(rhythm);
+		menu::present_column(menu::nodes::arp_rhythm_midi, ctx, 5, slot, col);
+		expect(static_cast<int>(slot.art.dx)).to_equal(1);
+		expect(std::string(col.label)).to_equal(rhythm);
+		menu::present_column(menu::nodes::arp_rhythm, ctx, 0, slot, col);
+		expect(std::string(slot.art.text)).to_equal(std::string(arpRhythmPatternNames[0]));
+		expect(static_cast<int>(slot.art.char_gap)).to_equal(0);
+	});
+
+	it("a quantized stutter rate's column and banner read its option label", _ {
+		// `stutter::Rate::renderInHorizontalMenu` and `getNotificationValue` (`stutter/rate.cpp:53-68`): the label of
+		// the option value nearest, 4ths 8ths 16ths 32nds 64ths at 0 12 25 37 50.
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		char buf[32];
+		menu::ColumnSlot slot;
+		deluge::ui::oled::Column col;
+		menu::nodes::set_stutter_direction(ctx, 1); // the sound's own stutter
+		menu::nodes::set_stutter_quantize(ctx, 1);
+		r.shell.tick(0);
+		menu::present_column(menu::nodes::stutter_rate, ctx, 26, slot, col);
+		expect(std::string(slot.text.value)).to_equal(std::string("16ths"));
+		// 31 is as near 25 as 37: the first option holds, as `getClosestQuantizedOptionIndex`'s strict `<` does.
+		expect(std::string(menu::column_notification(menu::nodes::stutter_rate, ctx, 31, std::span<char>{buf, sizeof(buf)})))
+		    .to_equal(std::string("16ths"));
+		expect(std::string(menu::column_notification(menu::nodes::stutter_rate, ctx, 34, std::span<char>{buf, sizeof(buf)})))
+		    .to_equal(std::string("32nds"));
+		menu::nodes::set_stutter_quantize(ctx, 0);
+		r.shell.tick(10);
+		expect(std::string(menu::column_notification(menu::nodes::stutter_rate, ctx, 31, std::span<char>{buf, sizeof(buf)})))
+		    .to_equal(std::string("31"));
+	});
+
+	it("a quantized stutter rate turns along its five option values, on its page and full-screen", _ {
+		// `stutter::Rate::selectEncoderAction` (`stutter/rate.cpp:28-41`): the nearest option's index moves by the offset,
+		// clamped, and the value becomes that option's 0 12 25 37 50.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		MenuContext ctx = r.open_real(menu::nodes::stutter);
+		menu::nodes::set_stutter_direction(ctx, 1); // the sound's own stutter
+		menu::nodes::set_stutter_quantize(ctx, 1);
+		menu::bindings::write(menu::nodes::stutter_rate, ctx, 25);
+		menu_scene().open(menu::nodes::stutter, ctx);
+		r.shell.tick(0);
+		expect(menu_scene().focused_value() == &menu::nodes::stutter_rate).to_be_true();
+		r.turn(1, 300);
+		r.shell.tick(310);
+		r.shell.tick(400);
+		expect(menu::bindings::read(menu::nodes::stutter_rate, ctx)).to_equal(37);
+		r.turn(5, 1000);
+		r.shell.tick(1010);
+		r.shell.tick(1100);
+		expect(menu::bindings::read(menu::nodes::stutter_rate, ctx)).to_equal(50);
+
+		ctx.horizontal_menus = false;
+		menu_scene().open(menu::nodes::stutter, ctx);
+		r.shell.tick(2000);
+		r.enter(2300);
+		r.shell.tick(2310);
+		expect(menu_scene().focused() == &menu::nodes::stutter_rate).to_be_true();
+		r.turn(-1, 2600);
+		r.shell.tick(2610);
+		r.shell.tick(2700);
+		expect(menu::bindings::read(menu::nodes::stutter_rate, ctx)).to_equal(37);
+	});
+
+	it("the stutter direction banner is main's short option", _ {
+		// `stutter::Direction::getNotificationValue` (`stutter/direction.h:129-132`).
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		char buf[32];
+		expect(std::string(menu::column_notification(menu::nodes::stutter_direction, ctx, 0, std::span<char>{buf, sizeof(buf)})))
+		    .to_equal(std::string(deluge::l10n::get(String::STRING_FOR_USE_SONG_SHORT)));
+		expect(std::string(menu::column_notification(menu::nodes::stutter_direction, ctx, 3, std::span<char>{buf, sizeof(buf)})))
+		    .to_equal(std::string(deluge::l10n::get(String::STRING_FOR_FORWARD_PING_PONG)));
+	});
+
 	it("master's transpose column reads TRANSPOSE and a whole number below -9.99", _ {
 		// `MasterTranspose::getColumnLabel` (`master_transpose.h:74`); `Decimal::renderInHorizontalMenu` keeps three
 		// characters of a value at or below -10.00 (`decimal.cpp:181-186`).
@@ -903,6 +1062,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 			Rig r;
 			MenuContext ctx = r.open_real(menu::nodes::stutter);
 			ctx.horizontal_menus = false;
+			// The sound's own stutter, not the song's (`stutter::Rate::isStutterQuantized`, `stutter/rate.cpp:70-76`).
+			menu::nodes::set_stutter_direction(ctx, 1);
 			menu::nodes::set_stutter_quantize(ctx, quantized ? 1 : 0);
 			menu_scene().open(menu::nodes::stutter, ctx);
 			r.shell.tick(0);
@@ -913,6 +1074,32 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 			rig48.begin_tick(400);
 			menu_scene().render_oled(uitest::SurfaceRole::Main, rig48.frame);
 			expect(rig48.lit(12, 38)).to_equal(!quantized);
+			if (quantized) {
+				// `drawStringCentred(label, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX, kTextHugeSizeY)`, the label of
+				// the nearest of 0 12 25 37 50.
+				const int32_t v = menu::bindings::read(menu::nodes::stutter_rate, ctx);
+				constexpr std::array<int32_t, 5> kValues{0, 12, 25, 37, 50};
+				constexpr std::array<const char*, 5> kLabels{"4ths", "8ths", "16ths", "32nds", "64ths"};
+				size_t nearest = 0;
+				for (size_t i = 1; i < kValues.size(); i++) {
+					if (std::abs(v - kValues[i]) < std::abs(v - kValues[nearest])) {
+						nearest = i;
+					}
+				}
+				deluge::ui::test::Rig48 label;
+				label.reference.draw_string_centred(kLabels[nearest], 18 + 5, 18, 20);
+				std::string got;
+				std::string want;
+				for (int32_t y = 23; y <= 42; y++) {
+					for (int32_t x = 0; x < 128; x++) {
+						got += rig48.lit(x, y) ? '#' : '.';
+						want += label.reference_lit(x, y) ? '#' : '.';
+					}
+					got += '\n';
+					want += '\n';
+				}
+				expect(got).to_equal(want);
+			}
 		}
 	});
 

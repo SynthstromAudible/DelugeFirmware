@@ -5,6 +5,7 @@
 #include "ui/core/style.h"
 #include "ui/oled/frame.h"
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string_view>
 
@@ -31,6 +32,14 @@ struct ValueStyle {
 	/// `kContinuousValueY64` on a 64-row panel), with `Number::drawHorizontalBar(35, 10)`'s value bar inverted over
 	/// them.
 	bool continuous = false;
+	/// An item whose `drawPixelsForOled` names its value: given the value after this tick's edit, the text drawn in the
+	/// huge face in place of the digits, with no bar; empty for the digits.
+	std::string_view (*label)(int32_t value, const void* hook_ctx, std::span<char> out) = nullptr;
+	/// An item whose `selectEncoderAction` moves the value its own way: the value a turn of `offset` detents makes from
+	/// `value` (clamped to the range after), or `nullopt` for the step.
+	std::optional<int32_t> (*turn)(int32_t value, int32_t offset, const void* hook_ctx) = nullptr;
+	/// Passed to `label` and `turn`.
+	const void* hook_ctx = nullptr;
 };
 
 /// @brief The largest window `enum_value` materialises on the stack.

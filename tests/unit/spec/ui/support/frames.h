@@ -88,6 +88,10 @@ struct OledRig {
 	/// @param y Canvas-space row.
 	/// @return true if the pixel is set.
 	bool lit(int x, int y) const { return (canvas.bytes()[(y >> 3) * G.width + x] & (1u << (y & 7))) != 0; }
+	/// @brief `lit`, on `reference`.
+	bool reference_lit(int x, int y) const {
+		return (reference.bytes()[(y >> 3) * G.width + x] & (1u << (y & 7))) != 0;
+	}
 
 	/// A second, identically sized canvas for drawing the legacy routine's output into, so a
 	/// port can be compared against its original rather than against its own last run.

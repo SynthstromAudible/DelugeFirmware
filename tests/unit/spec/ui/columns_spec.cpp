@@ -958,6 +958,57 @@ describe columns_w("ui::oled::columns", $ {
 		expect(static_cast<int32_t>(paging_of(p.span(), 99).focused_on_page)).to_equal(1);
 	});
 
+	// The four `ArtColumn` extras, each against legacy's own canvas calls with the slot at the root frame: `start_x` 0,
+	// width 128 and `start_y` 5 (`Rig48`'s `visible_top`), so `kHorizontalMenuSlotYOffset` puts the drawing at row 7.
+	it("draws ArtColumn::badge as osc::Type's analog letter in its cleared box", _ {
+		// `osc::Type::renderInHorizontalMenu` (`osc/type.h:150-155`): at `(start_x + 4, OLED_MAIN_HEIGHT_PIXELS -
+		// kTextSpacingY - 8)`, the box one pixel wider than the letter cleared first.
+		uitest::Rig48 r;
+		ArtColumn data{.icon = &deluge::gfx::oled::icons::saw, .dy = 2, .badge = 'A'};
+		art_column(r.frame, false, &data);
+		r.reference.draw_icon_centered(deluge::gfx::oled::icons::saw, 0, 128, 5 + 2 + 2);
+		r.reference.clear_area_exact(4 - 1, 31 - 1, 4 + 6 + 1, 31 + 9 + 1);
+		r.reference.draw_char('A', 4, 31, 6, 9);
+		expect(r.pbm()).to_equal(r.reference_pbm());
+	});
+
+	it("draws ArtColumn::dots as stutter::Direction's ping-pong marks", _ {
+		// `stutter::Direction::renderInHorizontalMenu` (`stutter/direction.h:142-156`): a pixel at the centre column, on
+		// the icon's first row and seven below.
+		uitest::Rig48 r;
+		ArtColumn data{.icon = &deluge::gfx::oled::icons::direction, .reversed = true, .dots = true};
+		art_column(r.frame, false, &data);
+		r.reference.draw_icon_centered(deluge::gfx::oled::icons::direction, 0, 128, 5 + 2, true);
+		r.reference.draw_pixel(64, 5 + 2);
+		r.reference.draw_pixel(64, 5 + 2 + 7);
+		expect(r.pbm()).to_equal(r.reference_pbm());
+	});
+
+	it("draws ArtColumn::twin_dx as sequence::Direction's ping-pong pair", _ {
+		// `sequence::Direction::renderInHorizontalMenu` (`sequence/direction.h:132-135`): the icon at `start_x + 2`, and
+		// again mirrored at `start_x - 2`.
+		uitest::Rig48 r;
+		ArtColumn data{.icon = &deluge::gfx::oled::icons::direction, .twin_dx = 2};
+		art_column(r.frame, false, &data);
+		r.reference.draw_icon_centered(deluge::gfx::oled::icons::direction, 2, 128, 5 + 2);
+		r.reference.draw_icon_centered(deluge::gfx::oled::icons::direction, -2, 128, 5 + 2, true);
+		expect(r.pbm()).to_equal(r.reference_pbm());
+	});
+
+	it("draws ArtColumn::char_gap as arpeggiator::Rhythm's spaced pattern, a zero as X", _ {
+		// `arpeggiator::Rhythm::renderInHorizontalMenu` (`arpeggiator/rhythm.h:42-62`): each character `kTextSpacingX +
+		// 2` apart from `start_x + (width - n * (kTextSpacingX + 2)) / 2 + 2`, '0' drawn as 'X'.
+		uitest::Rig48 r;
+		ArtColumn data{.text = "0-00", .dx = 2, .char_gap = 2, .zero_as_x = true};
+		art_column(r.frame, false, &data);
+		int32_t x = (128 - 4 * (6 + 2)) / 2 + 2;
+		for (const char c : std::string_view{"0-00"}) {
+			r.reference.draw_char(c == '0' ? 'X' : c, x, 5 + 2, 6, 9);
+			x += 6 + 2;
+		}
+		expect(r.pbm()).to_equal(r.reference_pbm());
+	});
+
 	it("draws TextColumn::strikethrough as note::Fill's NOT_FILL line", _ {
 		// `note::Fill::renderInHorizontalMenu`'s `NOT_FILL` arm (`gui/menu_item/note/fill.h:70-79`):
 		// `center_y = slot.start_y + kHorizontalMenuSlotYOffset + 4`, a line from

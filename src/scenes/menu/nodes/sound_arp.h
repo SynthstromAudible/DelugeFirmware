@@ -257,17 +257,20 @@ inline constexpr Node arp_chord_simulator = with_short_column_label(with_title(
 // (`midi_cv/rhythm.h:70`); the range is `{0, kMaxPresetArpRhythm}` (`rhythm.h:70`), and
 // `kMaxPresetArpRhythm == kMaxMenuValue` (`modulation/arpeggiator_rhythms.h:28`), which is the
 // param default -- so no `with_range` is needed on either.
-inline constexpr Node arp_rhythm = with_short_column_label(with_slots(
-    param(sid(deluge::l10n::String::STRING_FOR_RHYTHM),
-          {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_ARP_RHYTHM},
-          Hint::None, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_RHYTHM_MENU_TITLE)),
-    2));
+inline constexpr Node arp_rhythm = with_column_art(
+    with_slots(
+        param(sid(deluge::l10n::String::STRING_FOR_RHYTHM),
+              {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_ARP_RHYTHM},
+              Hint::None, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_RHYTHM_MENU_TITLE)),
+        2),
+    arp_rhythm_art);
 /// A MIDI or CV arp's host values are settings, which legacy's items write on the selected arp alone.
 inline constexpr Node arp_rhythm_midi =
-    with_short_column_label(with_slots(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RHYTHM), Kind::Int,
-                                                               arp_row("arpeggiator/rhythm", false)),
-                                                  sid(deluge::l10n::String::STRING_FOR_ARP_RHYTHM_MENU_TITLE)),
-                                       2));
+    with_column_art(with_slots(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RHYTHM), Kind::Int,
+                                                       arp_row("arpeggiator/rhythm", false)),
+                                          sid(deluge::l10n::String::STRING_FOR_ARP_RHYTHM_MENU_TITLE)),
+                               2),
+                    arp_rhythm_midi_art);
 inline constexpr Node arp_sequence_length = with_value_text(
     with_short_column_label(param(
         sid(deluge::l10n::String::STRING_FOR_SEQUENCE_LENGTH),

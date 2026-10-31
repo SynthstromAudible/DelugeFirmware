@@ -35,6 +35,7 @@
 #include "engines/deluge/sound_state.h"
 #include "engines/effects/state.h"
 #include "engines/effects/words.h"
+#include "gfx/oled/icons.h"
 #include "model/song/song.h"
 #include "modulation/sync.h"
 #include "processing/engines/audio_engine.h"
@@ -43,6 +44,7 @@
 #include "scenes/menu/nodes/sound_sidechain.h"
 #include "serialization/value.h"
 
+#include <array>
 #include <cmath>
 #include <string>
 
@@ -198,8 +200,87 @@ void set_stutter_direction(const MenuContext& ctx, int32_t value) {
 	}
 }
 
-bool stutter_rate_continuous(const MenuContext& ctx) {
-	return get_stutter_quantize(ctx) == 0;
+bool stutter_rate_quantized(const MenuContext& ctx) {
+	// `stutter::Rate::isStutterQuantized` (`stutter/rate.cpp:70-76`): the song's setting when the sound uses the song's
+	// stutter.
+	const std::optional<deluge::effects::StutterState> sc = stutter_of(ctx);
+	if (!sc) {
+		return false;
+	}
+	if (sc->use_song_stutter && ctx.facts != nullptr) {
+		const deluge::effects::EffectStates* song =
+		    ctx.facts->chain_effects(deluge::project::ChainAddress{.kind = deluge::project::ChainAddress::Kind::SONG});
+		return song != nullptr && song->stutter.quantized;
+	}
+	return sc->quantized;
+}
+
+namespace {
+
+/// `stutter::Rate::optionValues` (`stutter/rate.cpp:26`).
+constexpr std::array<int32_t, 5> kRateValues{0, 12, 25, 37, 50};
+
+/// `stutter::Rate::getClosestQuantizedOptionIndex` (`stutter/rate.cpp:84-95`): the first of equally near options.
+size_t nearest_rate_option(int32_t value) {
+	size_t nearest = 0;
+	for (size_t i = 1; i < kRateValues.size(); i++) {
+		if (std::abs(value - kRateValues[i]) < std::abs(value - kRateValues[nearest])) {
+			nearest = i;
+		}
+	}
+	return nearest;
+}
+
+ValueText put_view(std::string_view text, std::span<char> out) {
+	const size_t n = std::min(text.size(), out.size());
+	std::copy_n(text.data(), n, out.data());
+	return ValueText{.length = n};
+}
+
+} // namespace
+
+ValueText stutter_rate_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out) {
+	// `stutter::Rate::renderInHorizontalMenu`, `getNotificationValue` and `drawPixelsForOled`
+	// (`stutter/rate.cpp:43-68`): quantized, the label of the nearest option value.
+	if ((use != ValueTextUse::Column && use != ValueTextUse::Notification) || !stutter_rate_quantized(ctx)) {
+		return kValueTextFallback;
+	}
+	static constexpr std::array<std::string_view, kRateValues.size()> kLabels{"4ths", "8ths", "16ths", "32nds",
+	                                                                          "64ths"};
+	return put_view(kLabels[nearest_rate_option(value)], out);
+}
+
+std::optional<int32_t> stutter_rate_turn(const MenuContext& ctx, int32_t value, int32_t offset) {
+	// `stutter::Rate::selectEncoderAction` (`stutter/rate.cpp:28-41`).
+	if (!stutter_rate_quantized(ctx)) {
+		return std::nullopt;
+	}
+	const auto idx = static_cast<int32_t>(nearest_rate_option(value));
+	return kRateValues[std::clamp<int32_t>(idx + offset, 0, static_cast<int32_t>(kRateValues.size()) - 1)];
+}
+
+std::optional<deluge::ui::oled::ArtColumn> stutter_direction_art(const MenuContext& ctx, int32_t value) {
+	// `stutter::Direction::renderInHorizontalMenu` (`stutter/direction.h:133-156`) over its shifted `getValue()`.
+	const int32_t v = value + (show_use_song(ctx) ? 0 : 1);
+	if (v == kUseSong) {
+		return deluge::ui::oled::ArtColumn{.text = "song"};
+	}
+	return deluge::ui::oled::ArtColumn{.icon = &deluge::gfx::oled::icons::direction,
+	                                   .reversed = v == kReversed || v == kReversedPingPong,
+	                                   .dots = v == kForwardPingPong || v == kReversedPingPong};
+}
+
+ValueText stutter_direction_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out) {
+	// `stutter::Direction::getNotificationValue` (`stutter/direction.h:129-132`): the SHORT option at the list index.
+	if (use != ValueTextUse::Notification) {
+		return kValueTextFallback;
+	}
+	if (show_use_song(ctx) && value == 0) {
+		return put_view(deluge::scenes::text_lookup(sid(String::STRING_FOR_USE_SONG_SHORT)), out);
+	}
+	std::string_view names[5];
+	const size_t n = stutter_direction_names(ctx, names);
+	return value >= 0 && static_cast<size_t>(value) < n ? put_view(names[value], out) : kValueTextFallback;
 }
 
 int32_t get_stutter_quantize(const MenuContext& ctx) {

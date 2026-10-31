@@ -536,11 +536,40 @@ void art_column(OledFrame& slot_frame, bool /*focused*/, void* ctx) {
 	const int32_t x = b.x + data->dx;
 	const int32_t y = b.y + kHorizontalSlotYOffset + data->dy;
 	if (data->icon != nullptr) {
-		if (data->centred) {
+		if (data->twin_dx != 0) {
+			slot_frame.icon_centered(*data->icon, x + data->twin_dx, b.w, y);
+			slot_frame.icon_centered(*data->icon, x - data->twin_dx, b.w, y, true);
+		}
+		else if (data->centred) {
 			slot_frame.icon_centered(*data->icon, x, b.w, y, data->reversed);
 		}
 		else {
 			slot_frame.icon(*data->icon, x, y, data->reversed);
+		}
+		if (data->dots) {
+			slot_frame.pixel(b.x + b.w / 2, y);
+			slot_frame.pixel(b.x + b.w / 2, y + 7);
+		}
+		if (data->badge != 0) {
+			// A canvas row counted from the panel's bottom, as legacy's `OLED_MAIN_HEIGHT_PIXELS - kTextSpacingY - 8`.
+			const int32_t badge_x = b.x + 4;
+			const int32_t badge_y = slot_frame.canvas.geometry().height - kTextSpacingY - 8 - slot_frame.origin.y;
+			slot_frame.clear(Rect{badge_x - 1, badge_y - 1, kTextSpacingX + 3, kTextSpacingY + 3});
+			const char letter[] = {data->badge};
+			text(slot_frame, Rect{badge_x, badge_y, kTextSpacingX, kTextSpacingY}, std::string_view{letter, 1},
+			     TextStyle{.font = slot_frame.style.row_font, .align = Align::Left});
+		}
+		return;
+	}
+	if (data->char_gap != 0) {
+		const auto n = static_cast<int32_t>(data->text.size());
+		const int32_t step = kTextSpacingX + data->char_gap;
+		int32_t cx = b.x + (b.w - n * step) / 2 + data->dx;
+		for (const char c : data->text) {
+			const char glyph[] = {data->zero_as_x && c == '0' ? 'X' : c};
+			text(slot_frame, Rect{cx, y, kTextSpacingX, kTextSpacingY}, std::string_view{glyph, 1},
+			     TextStyle{.font = slot_frame.style.row_font, .align = Align::Left});
+			cx += step;
 		}
 		return;
 	}

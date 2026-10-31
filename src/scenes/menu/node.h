@@ -228,9 +228,8 @@ using ColumnDrawFn = std::optional<deluge::ui::oled::DrawColumn> (*)(const MenuC
 ///        `selectEncoderAction` overrides that negate the offset on a horizontal page.
 using ReverseFn = bool (*)(const MenuContext& ctx);
 
-/// @brief Whether a param's full-screen value is `IntegerContinuous::drawPixelsForOled`'s, the digits over a value
-///        bar -- false where legacy's `drawPixelsForOled` override draws something else.
-using ContinuousLeafFn = bool (*)(const MenuContext& ctx);
+/// @brief `Binding::turn`'s hook: the value a turn of @p offset detents makes from @p value, or `nullopt`.
+using TurnFn = std::optional<int32_t> (*)(const MenuContext& ctx, int32_t value, int32_t offset);
 
 /// @brief A horizontal column's select-turn step -- legacy's `getNumberEditSize` overrides on a horizontal page.
 struct HorizontalStep {
@@ -396,8 +395,15 @@ struct Binding {
 	/// @brief A select turn on this node's horizontal column is reversed when this answers true. Null: never.
 	ReverseFn reverse_in_horizontal = nullptr;
 
-	/// @brief A param's full-screen value is the continuous screen while this answers true. Null: always.
-	ContinuousLeafFn continuous_leaf = nullptr;
+	/// @brief Legacy's `selectEncoderAction` override that moves the value its own way: the value a turn of `offset`
+	///        detents makes from `value`, on a page and full-screen alike, or `nullopt` for the kind's own step.
+	///        Null for every ordinary node.
+	TurnFn turn = nullptr;
+
+	/// @brief Legacy's `drawPixelsForOled` override that names an `Int` value: while this answers
+	///        (`ValueTextUse::Column`), the full-screen value is that text in the huge face, with no value bar.
+	///        Null for every ordinary node.
+	ValueTextFn leaf_text = nullptr;
 
 	/// @brief The select-turn step on a horizontal page (`HorizontalStep`'s own doc).
 	HorizontalStep horizontal_step{};
@@ -1003,10 +1009,15 @@ constexpr Node with_reverse_in_horizontal(Node n, ReverseFn reverse) {
 	return n;
 }
 
-/// @brief `n` drawing its full-screen value as the continuous screen only while @p continuous answers true
-///        (`Binding::continuous_leaf`).
-constexpr Node with_continuous_leaf(Node n, ContinuousLeafFn continuous) {
-	n.bind.continuous_leaf = continuous;
+/// @brief `n` turning its value with @p turn while it answers (`Binding::turn`).
+constexpr Node with_turn(Node n, TurnFn turn) {
+	n.bind.turn = turn;
+	return n;
+}
+
+/// @brief `n` naming its full-screen value with @p text while it answers (`Binding::leaf_text`).
+constexpr Node with_leaf_text(Node n, ValueTextFn text) {
+	n.bind.leaf_text = text;
 	return n;
 }
 

@@ -296,6 +296,19 @@ struct ArtColumn {
 	int8_t dx = 0;
 	/// Rows below `kHorizontalSlotYOffset` the icon or text starts at (negative is above).
 	int8_t dy = 0;
+	/// Drawn when set: `osc::Type`'s analog letter (`osc/type.h:150-155`), in the row face at the slot's left plus 4
+	/// and canvas row `height - kTextSpacingY - 8`, its box cleared first.
+	char badge = 0;
+	/// `stutter::Direction`'s ping-pong marks (`stutter/direction.h:150-154`): a pixel at the region's centre column,
+	/// on the icon's first row and seven below.
+	bool dots = false;
+	/// When set, `icon` is drawn twice, `twin_dx` right and mirrored `twin_dx` left (`sequence/direction.h:132-135`).
+	int8_t twin_dx = 0;
+	/// When set, `text` is drawn a character at a time, `kTextSpacingX + char_gap` apart and centred, `dx` added
+	/// (`arpeggiator/rhythm.h:52-61`).
+	uint8_t char_gap = 0;
+	/// With `char_gap`: '0' is drawn as 'X', the rhythm's beat mark.
+	bool zero_as_x = false;
 };
 
 /// @brief `Column::render` that draws `ctx` (an `ArtColumn`) centred across the region.

@@ -112,7 +112,10 @@ Response int_value(OledFrame& f, Rect rect, int32_t& value, Range range, ValueSt
 		f.claim_turn();
 		const int64_t delta = select_delta(f) * coarse_step(range);
 		if (delta != 0) {
-			const int32_t next = add_clamped(value, delta, range);
+			const std::optional<int32_t> turned =
+			    style.turn != nullptr ? style.turn(value, static_cast<int32_t>(select_delta(f)), style.hook_ctx)
+			                          : std::nullopt;
+			const int32_t next = turned ? std::clamp(*turned, range.min, range.max) : add_clamped(value, delta, range);
 			if (next != value) {
 				value = next;
 				resp.changed = true;
@@ -137,6 +140,15 @@ Response int_value(OledFrame& f, Rect rect, int32_t& value, Range range, ValueSt
 	if (style.continuous) {
 		OledFrame panel = panel_frame(f);
 		panel.clear(Rect{0, kBarTop, panel.canvas.geometry().width, kBarHeight + 1});
+	}
+	std::array<char, 24> label_buf{};
+	if (const std::string_view label =
+	        style.label != nullptr ? style.label(value, style.hook_ctx, label_buf) : std::string_view{};
+	    !label.empty()) {
+		const Rect huge{rect.x, rect.y + kValueY, rect.w, text_height_for(f.style.value_font)};
+		f.clear(huge);
+		text(f, huge, label, TextStyle{.font = f.style.value_font, .align = Align::Centre});
+		return resp;
 	}
 
 	if (style.off_at_zero && value == 0) {
