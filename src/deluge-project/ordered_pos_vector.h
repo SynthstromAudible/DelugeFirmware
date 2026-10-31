@@ -106,21 +106,7 @@ public:
 	/// @return Success, or AllocError::OUT_OF_MEMORY (the vector is then unchanged).
 	std::expected<void, AllocError> insertAt(int32_t i, int32_t numToInsert = 1) {
 		EditGuard guard;
-		try {
-			if constexpr (std::is_copy_constructible_v<T>) {
-				elements_.insert(elements_.begin() + i, numToInsert, T{});
-			}
-			else {
-				// Move-only T: reserve up front (the only step that can throw), then emplace one by one
-				elements_.reserve(elements_.size() + numToInsert);
-				for (int32_t n = 0; n < numToInsert; n++) {
-					elements_.emplace(elements_.begin() + i);
-				}
-			}
-		} catch (...) {
-			return std::unexpected(AllocError::OUT_OF_MEMORY);
-		}
-		return {};
+		return insertElements(i, numToInsert);
 	}
 
 	/// @brief Raw resize; the caller maintains the sort invariant, as with insertAt.
@@ -131,13 +117,16 @@ public:
 	}
 
 	/// @brief Inserts a default-constructed element with the given key at its sorted position.
+	///
+	/// The key is written inside the same section as the insert, so the render never sees the new element unplaced.
 	/// @param key            The key of the new element.
 	/// @param isDefinitelyLast True if @p key is known to sort after every existing element (skips the search).
 	/// @return The new element's index, or AllocError::OUT_OF_MEMORY.
 	std::expected<int32_t, AllocError> insertSorted(int32_t key, bool isDefinitelyLast = false) {
 		static_assert(keyIsWritable, "insertSorted writes the key; needs a data-member key, not a getter");
+		EditGuard guard;
 		int32_t i = isDefinitelyLast ? static_cast<int32_t>(elements_.size()) : firstAtOrAfter(key);
-		auto inserted = insertAt(i);
+		auto inserted = insertElements(i, 1);
 		if (!inserted) {
 			return std::unexpected(inserted.error());
 		}
@@ -376,6 +365,26 @@ public:
 
 protected:
 	model_vector<T> elements_{};
+
+private:
+	/// @brief insertAt's body; the caller holds the section.
+	std::expected<void, AllocError> insertElements(int32_t i, int32_t numToInsert) {
+		try {
+			if constexpr (std::is_copy_constructible_v<T>) {
+				elements_.insert(elements_.begin() + i, numToInsert, T{});
+			}
+			else {
+				// Move-only T: reserve up front (the only step that can throw), then emplace one by one
+				elements_.reserve(elements_.size() + numToInsert);
+				for (int32_t n = 0; n < numToInsert; n++) {
+					elements_.emplace(elements_.begin() + i);
+				}
+			}
+		} catch (...) {
+			return std::unexpected(AllocError::OUT_OF_MEMORY);
+		}
+		return {};
+	}
 };
 
 } // namespace deluge::project

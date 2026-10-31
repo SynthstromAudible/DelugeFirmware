@@ -68,7 +68,7 @@ struct BackedParams {
 		if (auto it = by_owner.find(key); it != by_owner.end()) {
 			return it->second;
 		}
-		noteModelEdit(ModelEdit::PARAM_STORE);
+		EditGuard guard{ModelEdit::PARAM_STORE};
 		return by_owner[key];
 	}
 
@@ -76,22 +76,24 @@ struct BackedParams {
 	/// @param owner The owning instrument or drum.
 	/// @param clipSerial The clip's id, or nullopt for the owner's shared default.
 	void remove(const OwnerId& owner, std::optional<uint32_t> clipSerial) {
-		noteModelEdit(ModelEdit::PARAM_STORE);
-		by_owner.erase(BackedParamKey{owner, clipSerial});
+		decltype(by_owner)::node_type dropped; // its lanes are freed after the section
+		EditGuard guard{ModelEdit::PARAM_STORE};
+		dropped = by_owner.extract(BackedParamKey{owner, clipSerial});
 	}
 
 	/// @brief Drop every store for @p owner (all clip overrides).
 	///
-	/// Entries for one owner are contiguous in the ordered map (BackedParamKey compares owner before clip_id), so
-	/// this is a single range-erase. Called on instrument/drum death to keep the tree a faithful mirror of live
-	/// owners.
+	/// Entries for one owner are contiguous in the ordered map (BackedParamKey compares owner before clip_id). Called
+	/// on instrument/drum death to keep the tree a faithful mirror of live owners. The entries are unlinked inside the
+	/// section and their lanes freed after it.
 	/// @pre The owner's engine ParamManagers are gone, so nothing is still bound to these stores.
 	/// @param owner The owning instrument or drum.
 	void removeOwner(const OwnerId& owner) {
-		noteModelEdit(ModelEdit::PARAM_STORE);
+		model_map<BackedParamKey, DocParamManager> dropped;
+		EditGuard guard{ModelEdit::PARAM_STORE};
 		auto it = by_owner.lower_bound(BackedParamKey{owner, std::nullopt});
 		while (it != by_owner.end() && it->first.owner == owner) {
-			it = by_owner.erase(it);
+			dropped.insert(by_owner.extract(it++));
 		}
 	}
 };

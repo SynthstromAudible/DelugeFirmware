@@ -139,7 +139,10 @@ deluge::project::DocAutoParam* relocateAndResolve(const ModelStackWithAutoParam&
 	deluge::project::Song& proj = modelStack.song->project;
 	Clip* clip = static_cast<Clip*>(tc);
 	NoteRow* noteRow = modelStack.getNoteRowAllowNull();
-	deluge::project::noteModelEdit(deluge::project::ModelEdit::PARAM_STORE);
+	// The render resolves through the ids, the store maps and the engine set's binding this changes: one section
+	// spans them all, so it sees the owner wholly before or wholly after the move. The render itself never relocates
+	// (ModelStackWithAutoParam::doc()).
+	deluge::project::EditGuard guard{deluge::project::ModelEdit::PARAM_STORE};
 
 	// Ensure the owner chain this param belongs to has a durable id, minting one for a runtime owner never
 	// saved/loaded (clips always have one from construction). After this, addressFor can build a total ParamAddress.

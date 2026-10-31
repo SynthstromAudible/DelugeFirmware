@@ -95,7 +95,8 @@ deluge::project::DocMidiParam& MIDIParamCollection::findOrCreateDomMidi(uint8_t 
 			return entry;
 		}
 	}
-	noteModelEdit(ModelEdit::PARAM_STORE);
+	// The render scans these lanes to resolve a CC: a growth may move them.
+	EditGuard guard{ModelEdit::PARAM_STORE};
 	domMidiRef_->push_back(deluge::project::DocMidiParam{cc, {}});
 	return domMidiRef_->back();
 }
@@ -118,6 +119,14 @@ deluge::project::DocAutoParam* MIDIParamCollection::docParamForId(int32_t paramI
 		return docForParam(i);
 	}
 	return nullptr;
+}
+
+deluge::project::DocAutoParam* MIDIParamCollection::findDocParamForId(int32_t paramId) {
+	int32_t i = params.firstAtOrAfter(paramId);
+	if (i >= std::ssize(params) || params[i].cc != paramId) {
+		return nullptr;
+	}
+	return (domMidiRef_ != nullptr) ? findDomMidiNodes(params[i].cc) : &params[i].nodes_;
 }
 
 void MIDIParamCollection::deleteAllParams(Action* action, bool deleteStorageToo) {

@@ -296,14 +296,15 @@ deluge::project::DocAutoParam& PatchCableSet::laneFor(PatchSource from, ParamDes
 			return lane.amount;
 		}
 	}
-	noteModelEdit(ModelEdit::PARAM_STORE);
+	// The render scans these lanes to resolve a cable's depth: a growth may move them.
+	EditGuard guard{ModelEdit::PARAM_STORE};
 	table.push_back({.depth = id, .amount = {}});
 	return table.back().amount;
 }
 
 void PatchCableSet::eraseLane(PatchSource from, ParamDescriptor target) {
 	const deluge::plugin::ParamId id = deluge::bridge::cable_depth(from, target);
-	noteModelEdit(ModelEdit::PARAM_STORE);
+	EditGuard guard{ModelEdit::PARAM_STORE};
 	std::erase_if(depths(), [&](const deluge::project::DocCableDepth& lane) { return lane.depth == id; });
 }
 
@@ -316,7 +317,7 @@ void PatchCableSet::relocateDepthsInto(std::vector<deluge::project::DocCableDept
 	if (&current == &slot) {
 		return;
 	}
-	noteModelEdit(ModelEdit::PARAM_STORE);
+	EditGuard guard{ModelEdit::PARAM_STORE};
 	slot = std::move(current);
 	current.clear();
 	externalDepths_ = &slot;
@@ -328,6 +329,22 @@ deluge::project::DocAutoParam* PatchCableSet::docParamForId(int32_t paramId) {
 	dissectParamId(paramId, &desc, &s);
 	uint8_t c = getPatchCableIndex(s, desc);
 	return (c == 255) ? nullptr : docForParam(c);
+}
+
+deluge::project::DocAutoParam* PatchCableSet::findDocParamForId(int32_t paramId) {
+	PatchSource s;
+	ParamDescriptor desc;
+	dissectParamId(paramId, &desc, &s);
+	if (getPatchCableIndex(s, desc) == 255) {
+		return nullptr;
+	}
+	const deluge::plugin::ParamId id = deluge::bridge::cable_depth(s, desc);
+	for (deluge::project::DocCableDepth& lane : depths()) {
+		if (lane.depth == id) {
+			return &lane.amount;
+		}
+	}
+	return nullptr;
 }
 
 bool PatchCableSet::isSourcePatchedToSomething(PatchSource s) {

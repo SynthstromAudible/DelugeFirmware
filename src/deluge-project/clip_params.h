@@ -49,15 +49,16 @@ struct ClipParams {
 		if (auto it = by_id.find(id); it != by_id.end()) {
 			return it->second;
 		}
-		noteModelEdit(ModelEdit::PARAM_STORE);
+		EditGuard guard{ModelEdit::PARAM_STORE};
 		return by_id[id];
 	}
 
 	/// @brief Drop the clip's store (on clip destruction).
 	/// @param id The clip's stable `Clip::id`.
 	void remove(uint32_t id) {
-		noteModelEdit(ModelEdit::PARAM_STORE);
-		by_id.erase(id);
+		decltype(by_id)::node_type dropped; // its lanes are freed after the section
+		EditGuard guard{ModelEdit::PARAM_STORE};
+		dropped = by_id.extract(id);
 	}
 };
 

@@ -26,7 +26,9 @@
 #include "hid/display/display.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
+#include "libdeluge/system.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/heaps.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
@@ -116,6 +118,18 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 		if (deluge::project::DocAutoParam* resolved = song->project.resolveParam(*address)) {
 			return resolved;
 		}
+	}
+	// The render only resolves: relocation inserts into the store maps and moves a store the interaction tier may be
+	// reading, and only the interaction tier edits those (each edit in a section, so a find here never sees one half
+	// made). An owner not yet in the tree still holds its nodes in its own collection, which the render reads where
+	// they are; the next interaction-tier touch relocates them. A lane nothing holds yet reads as unautomated.
+	if (deluge::memory::onRenderTier()) {
+		if (deluge::project::DocAutoParam* own = paramCollection->findDocParamForId(paramId)) {
+			return own;
+		}
+		static deluge::project::DocAutoParam unheld;
+		unheld.current_value = 0;
+		return &unheld;
 	}
 	// The owner isn't tree-resident yet: a runtime-created instrument/drum made after load, with no id yet. Mint
 	// durable ids and relocate its store into the project tree so it id-resolves like a saved owner. After this, every
@@ -259,91 +273,100 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 
 			bool reversed = modelStack->isCurrentlyPlayingReversed();
 
-			// Since May 2020, we don't interpolate the start of the region if there was not another node just before
-			// it. Perhaps in a perfect world, we'd also consider how different the new value is from the old value, and
-			// maybe even insert a note to interpolate from.
-			bool shouldInterpolateRegionStart = false;
+			// From the first index read to the latch, one section: the render reads and, latched, writes these nodes,
+			// and the indexes below are only good while it cannot run.
+			{
+				AudioExcludedSection section;
 
-			if (!reversed && std::ssize(nodesRef)) { // Yeah turns out we just don't need the result from this if we're
-				// reversed. RIP the work I put into making this code reverse-compatible.
-				// The old GREATER_OR_EQUAL/LESS comparison arg was literally an offset added to the lower bound
-				int32_t prevNodeI = nodesRef.firstAtOrAfter(livePos + (int32_t)reversed) - (reversed ? 0 : 1);
-				if (prevNodeI >= 0 && prevNodeI < std::ssize(nodesRef)) { // If there was a Node before livePos...
+				// Since May 2020, we don't interpolate the start of the region if there was not another node just
+				// before it. Perhaps in a perfect world, we'd also consider how different the new value is from the old
+				// value, and maybe even insert a note to interpolate from.
+				bool shouldInterpolateRegionStart = false;
+
+				if (!reversed
+				    && std::ssize(nodesRef)) { // Yeah turns out we just don't need the result from this if we're
+					// reversed. RIP the work I put into making this code reverse-compatible.
+					// The old GREATER_OR_EQUAL/LESS comparison arg was literally an offset added to the lower bound
+					int32_t prevNodeI = nodesRef.firstAtOrAfter(livePos + (int32_t)reversed) - (reversed ? 0 : 1);
+					if (prevNodeI >= 0 && prevNodeI < std::ssize(nodesRef)) { // If there was a Node before livePos...
 investigatePrevNode:
-					ParamNode* prevNode = (ParamNode*)&nodesRef[prevNodeI];
-					int32_t ticksAgo = livePos - prevNode->pos;
-					if (reversed) {
-						ticksAgo = -ticksAgo;
+						ParamNode* prevNode = (ParamNode*)&nodesRef[prevNodeI];
+						int32_t ticksAgo = livePos - prevNode->pos;
+						if (reversed) {
+							ticksAgo = -ticksAgo;
+						}
+						if (ticksAgo <= 0) {
+							ticksAgo += effectiveLength;
+						}
+						shouldInterpolateRegionStart = (ticksAgo * timePerInternalTick < TIME_TO_INTERPOLATE_WITHIN);
 					}
-					if (ticksAgo <= 0) {
-						ticksAgo += effectiveLength;
+					else { // Or if there was no Node before livePos...
+
+						int32_t timeSinceLoopPoint = livePos;
+						if (reversed) {
+							timeSinceLoopPoint = effectiveLength - timeSinceLoopPoint;
+						}
+
+						// If livePos was close enough to 0 that we need to look at wrapped Nodes back around on the
+						// right...
+						if (timeSinceLoopPoint * timePerInternalTick < TIME_TO_INTERPOLATE_WITHIN) {
+							prevNodeI = reversed ? 0 : (std::ssize(nodesRef) - 1);
+							goto investigatePrevNode;
+						}
 					}
-					shouldInterpolateRegionStart = (ticksAgo * timePerInternalTick < TIME_TO_INTERPOLATE_WITHIN);
 				}
-				else { // Or if there was no Node before livePos...
 
-					int32_t timeSinceLoopPoint = livePos;
-					if (reversed) {
-						timeSinceLoopPoint = effectiveLength - timeSinceLoopPoint;
-					}
-
-					// If livePos was close enough to 0 that we need to look at wrapped Nodes back around on the
-					// right...
-					if (timeSinceLoopPoint * timePerInternalTick < TIME_TO_INTERPOLATE_WITHIN) {
-						prevNodeI = reversed ? 0 : (std::ssize(nodesRef) - 1);
-						goto investigatePrevNode;
-					}
+				// Forward the recording node write to the recordLiveValue DOM kernel, which captures exactly this
+				// branch's node mutation (setNodeAtPos for the MPE / zero-clear shortcut, else homogenizeRegion plus
+				// the reversed further-right-node fixup, then current_value=value). interpolateLeft is the engine's
+				// already-decided `reversed || shouldInterpolateRegionStart`. recordingLinearly is only consulted deep
+				// in homogenizeRegion's forward-wrap branch (Clip-recording context), so guard the Clip cast against a
+				// Song timeline (as AutoParam::homogenizeRegion does).
+				bool shouldInterpolateLeft = reversed || shouldInterpolateRegionStart;
+				bool recordingLinearly = false;
+				if (TimelineCounter* tc = modelStack->getTimelineCounterAllowNull();
+				    tc && tc != static_cast<TimelineCounter*>(modelStack->song)) {
+					recordingLinearly = static_cast<Clip*>(tc)->getCurrentlyRecordingLinearly();
 				}
-			}
-
-			// Forward the recording node write to the recordLiveValue DOM kernel, which captures exactly this
-			// branch's node mutation (setNodeAtPos for the MPE / zero-clear shortcut, else homogenizeRegion plus the
-			// reversed further-right-node fixup, then current_value=value). interpolateLeft is the engine's
-			// already-decided `reversed || shouldInterpolateRegionStart`. recordingLinearly is only consulted deep
-			// in homogenizeRegion's forward-wrap branch (Clip-recording context), so guard the Clip cast against a
-			// Song timeline (as AutoParam::homogenizeRegion does).
-			bool shouldInterpolateLeft = reversed || shouldInterpolateRegionStart;
-			bool recordingLinearly = false;
-			if (TimelineCounter* tc = modelStack->getTimelineCounterAllowNull();
-			    tc && tc != static_cast<TimelineCounter*>(modelStack->song)) {
-				recordingLinearly = static_cast<Clip*>(tc)->getCurrentlyRecordingLinearly();
-			}
-			if (!doMPEMode && ticksToClear != 0) {
-				freezeOnRejectedRegion(*modelStack->doc(), livePos, ticksToClear, reversed, posAtWhichPlaybackWillCut);
-			}
-			int32_t leftI = deluge::project::recordLiveValue(*modelStack->doc(), livePos, value, ticksToClear,
-			                                                 doMPEMode, shouldInterpolateLeft, effectiveLength,
-			                                                 reversed, recordingLinearly, posAtWhichPlaybackWillCut);
-			if (leftI == -1) {
-				goto getOut;
-			}
-
-			// Now that we've definitely left any previous nodes alone, see if they form a linear run and we can delete
-			// some of them? We'll just not bother with this if reversed, for now... or ever...
-			if (mayDeleteNodesInLinearRun && !reversed
-			    && modelStack->paramCollection->mayParamInterpolate(modelStack->paramId) && std::ssize(nodesRef) >= 3) {
-				bool backtrackingCouldLoopBackToEnd =
-				    modelStack->getTimelineCounter()
-				        ->backtrackingCouldLoopBackToEnd(); // Wait, I can no longer see why this matters...
-				int32_t prevI = leftI - 1;
-				if (prevI == -1) {
-					if (!backtrackingCouldLoopBackToEnd) {
-						goto skipThat;
-					}
-					prevI = std::ssize(nodesRef) - 1;
+				if (!doMPEMode && ticksToClear != 0) {
+					freezeOnRejectedRegion(*modelStack->doc(), livePos, ticksToClear, reversed,
+					                       posAtWhichPlaybackWillCut);
 				}
-				deleteRedundantNodeInLinearRun(*modelStack->doc(), prevI, effectiveLength,
-				                               backtrackingCouldLoopBackToEnd);
+				int32_t leftI = deluge::project::recordLiveValue(
+				    *modelStack->doc(), livePos, value, ticksToClear, doMPEMode, shouldInterpolateLeft, effectiveLength,
+				    reversed, recordingLinearly, posAtWhichPlaybackWillCut);
+				if (leftI == -1) {
+					goto getOut;
+				}
+
+				// Now that we've definitely left any previous nodes alone, see if they form a linear run and we can
+				// delete some of them? We'll just not bother with this if reversed, for now... or ever...
+				if (mayDeleteNodesInLinearRun && !reversed
+				    && modelStack->paramCollection->mayParamInterpolate(modelStack->paramId)
+				    && std::ssize(nodesRef) >= 3) {
+					bool backtrackingCouldLoopBackToEnd =
+					    modelStack->getTimelineCounter()
+					        ->backtrackingCouldLoopBackToEnd(); // Wait, I can no longer see why this matters...
+					int32_t prevI = leftI - 1;
+					if (prevI == -1) {
+						if (!backtrackingCouldLoopBackToEnd) {
+							goto skipThat;
+						}
+						prevI = std::ssize(nodesRef) - 1;
+					}
+					deleteRedundantNodeInLinearRun(*modelStack->doc(), prevI, effectiveLength,
+					                               backtrackingCouldLoopBackToEnd);
 
 skipThat: {}
-			}
+				}
 
 #if ENABLE_SEQUENTIALITY_TESTS
-			nodesRef.testSequentiality("ffff");
+				nodesRef.testSequentiality("ffff");
 #endif
 
-			if (!doMPEMode) {
-				renewedOverridingAtTime = 1; // Latch - until we come to the next node
+				if (!doMPEMode) {
+					renewedOverridingAtTime = 1; // Latch - until we come to the next node
+				}
 			}
 			automationChanged = true;
 
@@ -1221,32 +1244,41 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 		// when this feature is enabled, interpolation is enforced on manual automation editing in the automation
 		// instrument clip view
 
-		if (getRootUI() == &automationView) {
-			firstI = homogenizeRegion(modelStack, pos, length, value, automationView.interpolationBefore,
-			                          automationView.interpolationAfter, effectiveLength, false);
-		}
-		else {
-			firstI = homogenizeRegion(modelStack, pos, length, value, false, false, effectiveLength, false);
-		}
+		const bool clockActive = playbackHandler.isEitherClockActive();
+		bool inRegionNow = false;
+		{
+			// The region's first index is compared with the playhead's below: one section, so a render-side record
+			// write cannot move the nodes between them.
+			AudioExcludedSection section;
+			if (getRootUI() == &automationView) {
+				firstI = homogenizeRegion(modelStack, pos, length, value, automationView.interpolationBefore,
+				                          automationView.interpolationAfter, effectiveLength, false);
+			}
+			else {
+				firstI = homogenizeRegion(modelStack, pos, length, value, false, false, effectiveLength, false);
+			}
 
-		if (firstI == -1) {
-			return;
+			if (firstI == -1) {
+				return;
+			}
+
+			if (clockActive) {
+				// If we're in the region right now...
+				mostRecentI =
+				    nodesRef.firstAtOrAfter(modelStack->getLivePos() + !modelStack->isCurrentlyPlayingReversed()) - 1;
+				if (mostRecentI == -1) {
+					mostRecentI = std::ssize(nodesRef) - 1;
+				}
+				inRegionNow = mostRecentI == firstI;
+			}
 		}
 
 		automationChanged = true;
 
-		if (!playbackHandler.isEitherClockActive()) {
-			goto yesChangeCurrentValue;
-		}
-
-		// If we're in the region right now...
-		mostRecentI = nodesRef.firstAtOrAfter(modelStack->getLivePos() + !modelStack->isCurrentlyPlayingReversed()) - 1;
-		if (mostRecentI == -1) {
-			mostRecentI = std::ssize(nodesRef) - 1;
-		}
-		if (mostRecentI == firstI) {
-			resetInterpolationIncrement();
-yesChangeCurrentValue:
+		if (!clockActive || inRegionNow) {
+			if (clockActive) {
+				resetInterpolationIncrement();
+			}
 			currentValue = value;
 			modelStack->doc()->current_value = value; // value authority: sync the owner's DOM store scalar
 		}

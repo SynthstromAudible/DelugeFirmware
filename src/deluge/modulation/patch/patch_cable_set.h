@@ -69,6 +69,8 @@ public:
 		return externalDepths_ != nullptr ? *externalDepths_ : ownDepths_;
 	}
 	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override;
+	/// @copydoc ParamCollection::findDocParamForId
+	deluge::project::DocAutoParam* findDocParamForId(int32_t paramId) override;
 
 	/// @brief Compile the records into the routing the render walks, reordering the records (and the cables'
 	/// automation cursors) into the compiled order.

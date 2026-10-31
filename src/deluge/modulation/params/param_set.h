@@ -99,6 +99,8 @@ public:
 	/// @return The param's DOM store slot (never null; the store is created on first use).
 	deluge::project::DocAutoParam* docForParam(int32_t p);
 	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override { return docForParam(paramId); }
+	/// @copydoc ParamCollection::findDocParamForId
+	deluge::project::DocAutoParam* findDocParamForId(int32_t paramId) override;
 	[[nodiscard]] bool domStoreIsExternal() const override { return domStore_ == nullptr && domStoreRef_ != nullptr; }
 
 	inline int32_t getValue(int32_t p) { return params[p].getCurrentValue(); }

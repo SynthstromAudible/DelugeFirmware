@@ -30,41 +30,53 @@ DocAutoParam lane() {
 	return p;
 }
 
-/// Every node-editing kernel in param_edit.h, each run on a fresh lane.
-std::vector<std::pair<std::string, std::function<void(DocAutoParam&)>>> kernels() {
+/// Every node-editing kernel in param_edit.h, each run on a fresh lane, with a second lane to copy from.
+std::vector<std::pair<std::string, std::function<void(DocAutoParam&, const DocAutoParam&)>>> kernels() {
 	return {
-	    {"setNodeAtPos", [](DocAutoParam& p) { (void)setNodeAtPos(p, 30, 5, true); }},
-	    {"insertTime", [](DocAutoParam& p) { insertTime(p, 30, 12); }},
-	    {"shiftHorizontally", [](DocAutoParam& p) { shiftHorizontally(p, 10, kLoop); }},
-	    {"shiftValues", [](DocAutoParam& p) { shiftValues(p, 99); }},
-	    {"generateRepeats", [](DocAutoParam& p) { generateRepeats(p, kLoop, kLoop * 2, false); }},
+	    {"setNodeAtPos", [](DocAutoParam& p, const DocAutoParam& /*from*/) { (void)setNodeAtPos(p, 30, 5, true); }},
+	    {"insertTime", [](DocAutoParam& p, const DocAutoParam& /*from*/) { insertTime(p, 30, 12); }},
+	    {"shiftHorizontally", [](DocAutoParam& p, const DocAutoParam& /*from*/) { shiftHorizontally(p, 10, kLoop); }},
+	    {"shiftValues", [](DocAutoParam& p, const DocAutoParam& /*from*/) { shiftValues(p, 99); }},
+	    {"generateRepeats",
+	     [](DocAutoParam& p, const DocAutoParam& /*from*/) { generateRepeats(p, kLoop, kLoop * 2, false); }},
 	    {"homogenizeRegion",
-	     [](DocAutoParam& p) { (void)homogenizeRegion(p, 20, 30, 5, false, false, kLoop, false, false); }},
-	    {"deleteTime", [](DocAutoParam& p) { deleteTime(p, 20, 30, kLoop); }},
-	    {"moveRegionHorizontally", [](DocAutoParam& p) { moveRegionHorizontally(p, 20, 10, 3, kLoop); }},
-	    {"deleteNodesWithinRegion", [](DocAutoParam& p) { deleteNodesWithinRegion(p, 20, 30, kLoop); }},
-	    {"transposeCCValuesToChannelPressure", [](DocAutoParam& p) { transposeCCValuesToChannelPressure(p); }},
-	    {"flattenReverse", [](DocAutoParam& p) { flattenReverse(p, kLoop); }},
-	    {"trimToLength", [](DocAutoParam& p) { trimToLength(p, 50, kLoop); }},
-	    {"appendParam", [](DocAutoParam& p) { appendParam(p, lane(), kLoop, 0, false); }},
-	    {"nudgeNonInterpolatingNodesAtPos", [](DocAutoParam& p) { nudgeNonInterpolatingNodesAtPos(p, 72, 2, kLoop); }},
+	     [](DocAutoParam& p, const DocAutoParam& /*from*/) {
+		     (void)homogenizeRegion(p, 20, 30, 5, false, false, kLoop, false, false);
+	     }},
+	    {"deleteTime", [](DocAutoParam& p, const DocAutoParam& /*from*/) { deleteTime(p, 20, 30, kLoop); }},
+	    {"moveRegionHorizontally",
+	     [](DocAutoParam& p, const DocAutoParam& /*from*/) { moveRegionHorizontally(p, 20, 10, 3, kLoop); }},
+	    {"deleteNodesWithinRegion",
+	     [](DocAutoParam& p, const DocAutoParam& /*from*/) { deleteNodesWithinRegion(p, 20, 30, kLoop); }},
+	    {"transposeCCValuesToChannelPressure",
+	     [](DocAutoParam& p, const DocAutoParam& /*from*/) { transposeCCValuesToChannelPressure(p); }},
+	    {"flattenReverse", [](DocAutoParam& p, const DocAutoParam& /*from*/) { flattenReverse(p, kLoop); }},
+	    {"trimToLength", [](DocAutoParam& p, const DocAutoParam& /*from*/) { trimToLength(p, 50, kLoop); }},
+	    {"appendParam", [](DocAutoParam& p, const DocAutoParam& source) { appendParam(p, source, kLoop, 0, false); }},
+	    {"nudgeNonInterpolatingNodesAtPos",
+	     [](DocAutoParam& p, const DocAutoParam& /*from*/) { nudgeNonInterpolatingNodesAtPos(p, 72, 2, kLoop); }},
 	    {"setValueForRegion",
-	     [](DocAutoParam& p) { (void)setValueForRegion(p, 20, 30, 5, kLoop, false, false, false, true, 10, false); }},
+	     [](DocAutoParam& p, const DocAutoParam& /*from*/) {
+		     (void)setValueForRegion(p, 20, 30, 5, kLoop, false, false, false, true, 10, false);
+	     }},
 	    {"pasteRegion",
-	     [](DocAutoParam& p) {
+	     [](DocAutoParam& p, const DocAutoParam& source) {
 		     CopiedAutomation copied;
-		     copyRegion(lane(), 0, 48, kLoop, false, copied);
+		     copyRegion(source, 0, 48, kLoop, false, copied);
 		     pasteRegion(p, 48, 96, 1.0f, kLoop, false, copied);
 	     }},
-	    {"stealNodes", [](DocAutoParam& p) { stealNodes(p, 20, 30, kLoop); }},
+	    {"stealNodes", [](DocAutoParam& p, const DocAutoParam& /*from*/) { stealNodes(p, 20, 30, kLoop); }},
 	    {"insertStolenNodes",
-	     [](DocAutoParam& p) {
+	     [](DocAutoParam& p, const DocAutoParam& /*from*/) {
 		     StolenNodes stolen{ParamNode{.pos = 5, .value = 3, .interpolated = false}};
 		     insertStolenNodes(p, 20, 30, kLoop, stolen);
 	     }},
-	    {"makeInterpolationGoodAgain", [](DocAutoParam& p) { (void)makeInterpolationGoodAgain(p, kLoop, 4); }},
+	    {"makeInterpolationGoodAgain",
+	     [](DocAutoParam& p, const DocAutoParam& /*from*/) { (void)makeInterpolationGoodAgain(p, kLoop, 4); }},
 	    {"recordLiveValue",
-	     [](DocAutoParam& p) { (void)recordLiveValue(p, 30, 5, 6, false, true, kLoop, false, false); }},
+	     [](DocAutoParam& p, const DocAutoParam& /*from*/) {
+		     (void)recordLiveValue(p, 30, 5, 6, false, true, kLoop, false, false);
+	     }},
 	};
 }
 } // namespace
@@ -74,8 +86,9 @@ describe param_edit_section("the automation edit kernels, against the render", $
 	it("runs each kernel inside one guard, so every node op it makes is inside a compound edit", _ {
 		for (auto& [name, kernel] : kernels()) {
 			DocAutoParam p = lane();
+			const DocAutoParam source = lane();
 			test::counts = {};
-			kernel(p);
+			kernel(p, source);
 			expect(test::counts.kernels).to_be_greater_than(0, name + " made no compound edit");
 			expect(test::counts.lone_node_edits).to_equal(0, name + " made a node op outside its compound edit");
 			expect(test::counts.unguarded_edits).to_equal(0, name);
