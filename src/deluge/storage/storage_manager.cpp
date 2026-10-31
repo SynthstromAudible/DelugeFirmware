@@ -570,27 +570,24 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 
 	Error error = openInstrumentFile(outputType, filePointer);
 	if (error != Error::NONE) {
-		return error;
+		goto deleteDrumAndGetOut;
 	}
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 
 	error = newDrum->readFromFile(smDeserializer, song, clip, 0);
 
-	bool fileSuccess = activeDeserializer->closeWriter() == FR_OK;
-
 	// If that somehow didn't work...
-	if (error != Error::NONE || !fileSuccess) {
-
-		void* toDealloc = static_cast<void*>(newDrum);
+	if (activeDeserializer->closeWriter() != FR_OK && error == Error::NONE) {
+		error = Error::SD_CARD;
+	}
+	if (error != Error::NONE) {
+		// readFromFile() may already have backed up a ParamManager keyed by this drum
+		song->deleteBackedUpParamManagersForModControllable(newDrum);
+deleteDrumAndGetOut:
 		newDrum->~SoundDrum();
-		GeneralMemoryAllocator::get().dealloc(toDealloc);
+		delugeDealloc(newDrum);
 		return error;
-
-		if (!fileSuccess) {
-			error = Error::SD_CARD;
-			return error;
-		}
 	}
 	// The caller owns whatever drum this replaces - it may still be referenced by NoteRows in several Clips, so it's up
 	// to the caller to move those over before deleting it
