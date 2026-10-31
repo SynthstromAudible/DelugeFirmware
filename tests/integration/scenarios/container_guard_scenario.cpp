@@ -54,7 +54,7 @@
 #include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/song/song.h"
-#include "model/voice/voice.h"
+#include "model/voice/voice_slot.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -715,7 +715,7 @@ bool setupLeg() {
 		return true;
 	case Leg::VoiceFail: {
 		// Ring-mod with a sample source that has no sample: Sound::noteOn lets a ring-mod note through, and the voice's
-		// own note-on fails on the inactive source (Voice::noteOn returns false only in ring-mod).
+		// own note-on fails on the inactive source (the voice's note-on returns false only in ring-mod).
 		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
 		synth->setSynthMode(SynthMode::RINGMOD, currentSong);
 		synth->sources[0].setOscType(OscType::SAMPLE);

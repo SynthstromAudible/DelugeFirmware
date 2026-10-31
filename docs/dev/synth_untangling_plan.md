@@ -37,7 +37,7 @@ smeared across three god files:
 | Component | Location | LOC | Responsibilities (all of them, simultaneously) |
 |---|---|---|---|
 | `Sound` | `processing/sound/sound.cpp` | ~5,000 | Preset state, XML serialization, UI mod-button/knob handling, arpeggiator hooks, global LFOs, voice lifecycle, FX chain, render orchestration |
-| `Voice` | `model/voice/voice.cpp` | ~2,500 | Envelopes, local LFOs, MPE expression smoothing, patcher invocation, porta/pitch math, per-voice filters, unison, source dispatch, FM feedback paths, sample auto-release |
+| `Voice` | `synth/voice/voice.cpp` | ~2,500 | Envelopes, local LFOs, MPE expression smoothing, patcher invocation, porta/pitch math, per-voice filters, unison, source dispatch, FM feedback paths, sample auto-release |
 | `VoiceSample` + unison parts | `model/voice/` | ~2,100 | Sample streaming, time-stretch, cluster/cache interaction, interpolation |
 
 `Sound` inherits from `ModControllableAudio` *and* `Voiced`. It is
@@ -411,7 +411,7 @@ Define `SourceEngine` (init-with-allocator / render-block). Re-home the
 `SampleSource` port wrapping the existing `voice_sample` path in place.
 
 *Status:* the **extraction** is done — every `OscType` render body now lives in
-an engine (VA, wavetable, DX7, input, sample), and `renderBasicSource` is pure
+an engine (VA, wavetable, DX7, input, sample), and `render_basic_source` is pure
 dispatch. The remaining **unification** — a uniform engine interface across the
 foreign engines, `SAMPLE`/`INPUT_*` leaving the enum, and the registry
 replacing the `switch` — is the substrate for the **Engine API (L1)** plug-in

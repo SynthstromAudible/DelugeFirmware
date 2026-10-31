@@ -27,7 +27,7 @@ namespace deluge::synth::va_shape {
 /// @brief The virtual-analog engine's wave set — closed over exactly the shapes below (unlike the app's open
 /// `OscType`, which also has SAMPLE/DX7/INPUT/WAVETABLE that never reach this engine). The adapter maps the
 /// post-downgrade `OscType` to one of these; the engine's factory switch is then exhaustive (`-Wswitch`).
-enum class Wave : uint8_t { Sine, Triangle, Square, Saw, AnalogSaw, AnalogSquare };
+enum class Wave : uint8_t { SINE, TRIANGLE, SQUARE, SAW, ANALOG_SAW, ANALOG_SQUARE };
 
 /// @file
 /// @brief The virtual-analog engine's shape vocabulary: one encapsulated stateful oscillator per wave. Each owns

@@ -27,7 +27,7 @@ namespace deluge::synth {
 /// @brief The factor a manual time-stretch amount scales the time-stretch ratio by, indexed by the amount + 48.
 /// @details UQ8.24: 2^24 is 1.0 (unchanged), the ratio being multiplied by the entry and shifted down 24. The 97
 /// entries cover amounts -48 to +48; the rest of the 193 are zero, as they always were. 16-byte aligned.
-alignas(16) inline constexpr std::array<int32_t, 193> time_stretch_adjust{
+alignas(16) inline constexpr std::array<int32_t, 193> kTimeStretchAdjust{
     1048576,   1110928,   1176987,   1246974,   1321123,   1399681,   1482910,   1571089,   1664511,   1763488,
     1868350,   1979448,   2097152,   2221855,   2353974,   2493948,   2642246,   2799362,   2965821,   3142178,
     3329021,   3526975,   3736700,   3958896,   4194304,   4443710,   4707947,   4987896,   5284492,   5598724,

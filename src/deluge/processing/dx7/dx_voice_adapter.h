@@ -46,7 +46,7 @@ class DxVoiceAdapter final : public synth::DxVoicePort {
 	int velocity_ = 100; ///< The note-on velocity.
 
 public:
-	bool noteOn(void* patch, int midinote, int velocity) override;
+	bool note_on(void* patch, int midinote, int velocity) override;
 	void keyup() override;
 	void unassign() override;
 	std::span<const int32_t> render(int32_t numSamples, uint32_t phaseIncrement, int32_t ampModParam, bool patchChanged,

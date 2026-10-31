@@ -9,6 +9,8 @@ captured from the audio tier. This module stages each case, runs them in paralle
                 record a hash like any other (a preset that failed to load is the scenario's RP-LOADED failure);
     RP-PCM      the output against its record in tests/integration/golden/presets.json: sha256, frames, peak and
                 RMS level, the record render-song keeps.
+    RP-ZONE     a case in ZONE_END moved its sample zone's end mid-note (RENDER_ZONE_END, as the sample marker editor
+                moves it).
 And once per run:
     RP-LEARN    a preset's own MIDI learn reaches it: the blank boot song must keep the input a preset was saved with
                 when it replaces its default synth. It is the one path the corpus cases do not play through.
@@ -48,6 +50,8 @@ INPUT = {"input_mono", "input_stereo", "input_pitchshift"}
 # Cases under this directory render with headphones plugged in, so the app renders in stereo; every other case renders
 # in mono, as through the device's speaker.
 STEREO_DIR = "stereo/"
+# Cases whose osc 1 zone end moves mid-note, as the sample marker editor moves it: "<captured block> <new end frame>".
+ZONE_END = {"voice/zone_end_loop": "60 2048", "voice/zone_end_once": "50 1024"}
 # The loudest sample of silence: 16 in 16-bit terms, the C-host harness's threshold. The render's dither floor sits
 # far below it.
 SILENCE_PEAK = 16 << 16
@@ -134,6 +138,8 @@ def _stage(corpus: Path, name: str, where: Path) -> dict[str, str]:
         env["RENDER_INPUT"] = "1"
     if name.startswith(STEREO_DIR):
         env["RENDER_STEREO"] = "1"
+    if name in ZONE_END:
+        env["RENDER_ZONE_END"] = ZONE_END[name]
     return env
 
 
@@ -216,6 +222,10 @@ def run(gate):
             gate.fail(
                 f"RP-CAPTURE {name}: captured {frames} frames, fewer than {wanted}"
             )
+            failed += 1
+            continue
+        if name in ZONE_END and result.last("RP-ZONE ") is None:
+            gate.fail(f"RP-ZONE {name}: the zone end never moved")
             failed += 1
             continue
         # Whole blocks are captured; the record covers exactly the case's length.

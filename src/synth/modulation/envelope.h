@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include <cstdint>
 
-constexpr uint32_t SOFT_CULL_INCREMENT = 65536;
+constexpr uint32_t kSoftCullIncrement = 65536;
 
 /// @brief A self-contained ADSR envelope generator: its output is driven purely by sample
 /// progression.
@@ -34,7 +34,7 @@ constexpr uint32_t SOFT_CULL_INCREMENT = 65536;
 /// is a target level the envelope smooths toward.
 class Envelope {
 public:
-	/// The ADSR stage. Values are deliberate and ordered: @ref Voice::getPriorityRating packs the
+	/// The ADSR stage. Values are deliberate and ordered: @ref deluge::synth::Voice::priority_rating packs the
 	/// stage into 3 bits (later stages = lower voice priority), so the numbering must not change.
 	enum class Stage : uint8_t {
 		ATTACK,
@@ -57,36 +57,36 @@ public:
 	               uint32_t release_rate, const uint16_t* release_table);
 
 	/// Start a note. @p directly_to_decay skips the attack stage (for very fast attacks).
-	int32_t noteOn(bool directly_to_decay);
+	int32_t note_on(bool directly_to_decay);
 	/// Start a note, seeding the sustain tracker with @p initial_sustain (the patched sustain level
 	/// at note-on, so the first decay/sustain block doesn't smooth up from a stale value).
-	int32_t noteOn(bool directly_to_decay, int32_t initial_sustain);
+	int32_t note_on(bool directly_to_decay, int32_t initial_sustain);
 
 	/// Release the note. @p has_sustain is the caller's decision (e.g. the patched sustain is
 	/// audible): if false the note-off is ignored (held until the sustain stage resolves it);
 	/// otherwise the envelope enters its release stage.
-	void noteOff(bool has_sustain);
+	void note_off(bool has_sustain);
 
-	void unconditionalRelease(Stage release_stage = Stage::RELEASE, uint32_t fast_release_rate = SOFT_CULL_INCREMENT);
-	void unconditionalOff();
+	void unconditional_release(Stage release_stage = Stage::RELEASE, uint32_t fast_release_rate = kSoftCullIncrement);
+	void unconditional_off();
 	/// Re-enter the attack stage at the position matching @p resume_level (legato/voice-reuse, so the
 	/// attack resumes from the level the previous note left off at rather than clicking to 0).
-	void resumeAttack(int32_t resume_level);
+	void resume_attack(int32_t resume_level);
 
 	// --- queries (the owner reads these for note/voice decisions; the envelope owns the data) ---
 
 	/// The current ADSR stage.
 	[[nodiscard]] Stage stage() const { return stage_; }
 	/// The current (uncentred, 0..2^31-1) envelope value — e.g. captured for @ref resumeAttack.
-	[[nodiscard]] int32_t outputLevel() const { return current_level_; }
+	[[nodiscard]] int32_t output_level() const { return current_level_; }
 	/// The fast-release per-sample increment (the voice-cull paths compare against it).
-	[[nodiscard]] uint32_t fastReleaseRate() const { return fast_release_rate_; }
+	[[nodiscard]] uint32_t fast_release_rate() const { return fast_release_rate_; }
 	/// True if the note has just started its attack and not yet advanced.
-	[[nodiscard]] bool isAtAttackStart() const { return stage_ == Stage::ATTACK && stage_position_ == 0; }
+	[[nodiscard]] bool is_at_attack_start() const { return stage_ == Stage::ATTACK && stage_position_ == 0; }
 
 	/// True once per stage change: the envelope reports transitions so the owner can keep its own
 	/// voice-cull timestamp without the envelope reaching for any engine global. Returns and clears.
-	bool takeStageChanged() {
+	bool take_stage_changed() {
 		bool changed = stage_changed_;
 		stage_changed_ = false;
 		return changed;
@@ -96,10 +96,10 @@ public:
 	/// a value before the envelope's own params have been patched (the voice's pre-patch ordering),
 	/// and snaps it to full when releasing a not-yet-started attack. This bypasses the stage machine
 	/// and exists only until the ControlBlock work (Phase 2 step 4) removes the ordering dependency.
-	void setOutputLevel(int32_t level) { current_level_ = level; }
+	void set_output_level(int32_t level) { current_level_ = level; }
 
 private:
-	void setState(Stage new_stage);
+	void set_state(Stage new_stage);
 
 	/// What a per-stage step wants the render loop to do with its result.
 	enum class StepOutcome {
@@ -110,11 +110,11 @@ private:
 	// Each step advances the shared state for one block of its stage and returns how to finish the
 	// block. Split out of one big switch so each stage's (idiosyncratic) curve math is named and
 	// isolated; the values/arithmetic are unchanged.
-	StepOutcome stepAttack(uint32_t attack_rate, uint32_t num_samples);
-	StepOutcome stepDecay(uint32_t decay_rate, uint32_t sustain_level, uint32_t num_samples);
-	StepOutcome stepSustain(uint32_t sustain_level, uint32_t num_samples);
-	StepOutcome stepRelease(uint32_t release_rate, uint32_t num_samples, const uint16_t* release_table);
-	StepOutcome stepFastRelease(uint32_t release_rate, uint32_t num_samples);
+	StepOutcome step_attack(uint32_t attack_rate, uint32_t num_samples);
+	StepOutcome step_decay(uint32_t decay_rate, uint32_t sustain_level, uint32_t num_samples);
+	StepOutcome step_sustain(uint32_t sustain_level, uint32_t num_samples);
+	StepOutcome step_release(uint32_t release_rate, uint32_t num_samples, const uint16_t* release_table);
+	StepOutcome step_fast_release(uint32_t release_rate, uint32_t num_samples);
 
 	uint32_t stage_position_;          ///< Phase within the current stage; the stage ends when it reaches 2^23.
 	Stage stage_;                      ///< The current ADSR stage.

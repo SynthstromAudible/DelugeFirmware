@@ -18,9 +18,12 @@
 
 #include <cstdint>
 
+struct ControlBlock;
+
+namespace deluge::synth {
+
 class Voice;
-class Sound;
-class ParamManagerForTimeline;
+struct VoiceBlock;
 struct VoiceConfig;
 
 /// @brief The subtractive synth engine: the cross-source *driver* for `SynthMode::SUBTRACTIVE` (per the L1
@@ -28,18 +31,20 @@ struct VoiceConfig;
 /// orchestration (source 0 master → source 1 slave), the mono→stereo buffer dance, and the
 /// unison-inactive→unassign decision for one voice.
 ///
-/// **Transitional shape (slice 1):** the per-source render itself still lives in `Voice::renderBasicSource`
-/// (which dispatches the 5 source-component types) — the engine **delegates** to it via the passed-in `Voice&`,
-/// so the engine is a `friend` of Voice. Per-source dispatch unification + moving component ownership into the
-/// engine are later slices; for now the engine holds no state of its own.
+/// Each source's render is the voice's `render_basic_source`, which the engine calls through the `Voice&` it is
+/// handed; the engine holds no state of its own.
 class SubtractiveEngine {
 public:
-	/// Render all subtractive sources for one voice, accumulating into @p oscBuffer (the per-source renders add
-	/// in place). The per-source amplitude/wave-index arrays and the osc-sync master phases are computed by Voice
-	/// and passed in; @p anythingInOscBuffer / @p didStereoTempBuffer / @p unassignVoiceAfter are updated exactly
-	/// as the inline driver did.
-	void render(Voice& voice, ParamManagerForTimeline* paramManager, int32_t* oscBuffer, int32_t numSamples,
-	            bool doingOscSync, uint32_t* oscSyncPos, int32_t overallPitchAdjust, const int32_t* sourceAmplitudesNow,
-	            const int32_t* sourceAmplitudeIncrements, const int32_t* sourceWaveIndexIncrements,
-	            bool& anythingInOscBuffer, bool& didStereoTempBuffer, bool& unassignVoiceAfter, const VoiceConfig& cfg);
+	/// Render all subtractive sources for one voice, accumulating into @p osc_buffer (the per-source renders add in
+	/// place). The per-source amplitude and wave-index arrays and the osc-sync master phases are the voice's. Sets
+	/// @p anything_in_osc_buffer when a mono source rendered, @p did_stereo_temp_buffer when a source rendered in
+	/// stereo, and @p unassign_voice_after when every unison part's sources ended.
+	void render(deluge::synth::Voice& voice, const ControlBlock& control_block, const deluge::synth::VoiceBlock& block,
+	            int32_t* osc_buffer, int32_t num_samples, bool doing_osc_sync, uint32_t* osc_sync_pos,
+	            int32_t overall_pitch_adjust, const int32_t* source_amplitudes_now,
+	            const int32_t* source_amplitude_increments, const int32_t* source_wave_index_increments,
+	            bool& anything_in_osc_buffer, bool& did_stereo_temp_buffer, bool& unassign_voice_after,
+	            const VoiceConfig& cfg);
 };
+
+} // namespace deluge::synth

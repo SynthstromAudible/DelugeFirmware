@@ -38,7 +38,7 @@ describe dsp_tables("dsp-next's lookup tables", ${
 		expect(fingerprint(tables::kSineSmall)).to_equal(kSineSmallFingerprint);
 		expect(fingerprint(tables::kDecaySmall4)).to_equal(kDecaySmall4Fingerprint);
 		expect(fingerprint(tables::kDecaySmall8)).to_equal(kDecaySmall8Fingerprint);
-		expect(fingerprint(deluge::synth::time_stretch_adjust)).to_equal(kTimeStretchAdjustFingerprint);
+		expect(fingerprint(deluge::synth::kTimeStretchAdjust)).to_equal(kTimeStretchAdjustFingerprint);
 	});
 });
 // clang-format on

@@ -36,8 +36,8 @@
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
-#include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
+#include "model/voice/voice_slot.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
@@ -191,11 +191,13 @@ void Slicer::graphicsRoutine() {
 		                         });
 
 		if (!valid_voices_view.empty()) {
-			const Sound::ActiveVoice& voice = *std::ranges::max_element(valid_voices_view, {}, &Voice::orderSounded);
+			const Sound::ActiveVoice& voice =
+			    *std::ranges::max_element(valid_voices_view, {}, &VoiceSlot::order_sounded);
 
-			VoiceUnisonPartSource* part = &voice->unisonParts[drum->snapshot().numUnison >> 1].sources[0];
+			const int32_t u = drum->snapshot().num_unison >> 1;
+			deluge::synth::VoiceUnisonPartSource* part = &voice->kernel.unison_parts[u].sources[0];
 			if (part != nullptr && part->active) {
-				voiceSample = part->sampleVoiceAdapter.voiceSample();
+				voiceSample = voice->ports(u, 0).sample.voiceSample();
 				guide = &voice->guides[soundEditor.currentSourceIndex];
 			}
 		}
@@ -584,12 +586,12 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 
 				if (!valid_voices_view.empty()) {
 					const Sound::ActiveVoice& assigned_voice =
-					    *std::ranges::max_element(valid_voices_view, {}, &Voice::orderSounded);
+					    *std::ranges::max_element(valid_voices_view, {}, &VoiceSlot::order_sounded);
 
-					VoiceUnisonPartSource* part =
-					    &assigned_voice->unisonParts[drum->snapshot().numUnison >> 1].sources[0];
+					const int32_t u = drum->snapshot().num_unison >> 1;
+					deluge::synth::VoiceUnisonPartSource* part = &assigned_voice->kernel.unison_parts[u].sources[0];
 					if (part != nullptr && part->active) {
-						voiceSample = part->sampleVoiceAdapter.voiceSample();
+						voiceSample = assigned_voice->ports(u, 0).sample.voiceSample();
 						guide = &assigned_voice->guides[soundEditor.currentSourceIndex];
 					}
 				}

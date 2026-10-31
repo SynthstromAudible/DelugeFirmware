@@ -28,7 +28,7 @@ namespace deluge::gui::menu_item::unison {
 class StereoSpread final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->snapshot().unisonStereoSpread); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->snapshot().unison_stereo_spread); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t current_value = this->getValue();

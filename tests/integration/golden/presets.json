@@ -2285,6 +2285,78 @@
   "rms_db": -24.62,
   "sha256": "cae420cc1b3954fda13ae83af35e87d1cd214db993fcd78555dd56a35fbe46be"
  },
+ "voice/cache_aftertouch_pitch": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -25.07,
+  "sha256": "ef48560f09d3f4c0a472e5d1f6df09a851fdae741d2ac75459fd276057cabb6a"
+ },
+ "voice/cache_lfo_pitch": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -25.05,
+  "sha256": "575d69f5dd168b2b0c671cb02c370020c46060387fd88da7ad50cde2f8922ef6"
+ },
+ "voice/cache_velocity_pitch": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -25.08,
+  "sha256": "94b9b58a5806e4e20322db064d552733e415138ffd0499b3ef7d141874b35ade"
+ },
+ "voice/freerun_mono_supersaw": {
+  "frames": 88200,
+  "peak": 173380864,
+  "rms_db": -27.08,
+  "sha256": "a01670ffe1463d9b98fac33d32817cfdc0f8fbbc1fc42fa3fd1eeb930f9ff221"
+ },
+ "voice/freerun_mono_wavetable": {
+  "frames": 88200,
+  "peak": 173354752,
+  "rms_db": -26.61,
+  "sha256": "6fa424078fb3f9b2a3fcfb9053d26cd8b3f4ed46137d3bcbc62f8cfb8a144d15"
+ },
+ "voice/high_note_inactive": {
+  "frames": 88200,
+  "peak": 171719424,
+  "rms_db": -27.69,
+  "sha256": "92cea622eedd3188b0bda3981e9a0f4625224fa9156b17d15c449765c2b1f709"
+ },
+ "voice/loop_points_release": {
+  "frames": 88200,
+  "peak": 245151488,
+  "rms_db": -27.45,
+  "sha256": "1e740f6992a1c4d39bf57977a659a0b59fa8816ac34bbc9b857fa7f34983fff0"
+ },
+ "voice/once_auto_release": {
+  "frames": 88200,
+  "peak": 232155136,
+  "rms_db": -43.39,
+  "sha256": "d3ef12e224827323652e9b2516512abbb6df2f9e5ab228896312bf2a2d77f380"
+ },
+ "voice/once_auto_release_pitched": {
+  "frames": 88200,
+  "peak": 245151488,
+  "rms_db": -40.12,
+  "sha256": "1b386b5d195d7b222933469879b7c323fdde98447518117816c5c60666cc3a52"
+ },
+ "voice/porta_legato": {
+  "frames": 88200,
+  "peak": 173388032,
+  "rms_db": -26.11,
+  "sha256": "3a981db7468d3146b90ad1d218769cbb9c75f239b6d46c122dd654c963173e64"
+ },
+ "voice/zone_end_loop": {
+  "frames": 88200,
+  "peak": 245151488,
+  "rms_db": -25.06,
+  "sha256": "e64c129653a35fa7745e0506f3a6cfc0699c051583daa6a9e0910d029448a96a"
+ },
+ "voice/zone_end_once": {
+  "frames": 88200,
+  "peak": 245151488,
+  "rms_db": -24.91,
+  "sha256": "03cc0cc14742c0b155c739870d23af267ed9e26f255d02d5f7502cbf46dc4a12"
+ },
  "wavefold_sine": {
   "frames": 88200,
   "peak": 172996352,

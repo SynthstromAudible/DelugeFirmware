@@ -21,6 +21,7 @@
 #include "synth/modulation/control_block.h"
 #include "util/param_functions.h" // paramNeutralValues, paramRanges, getFinalParameterValue*, lshift_and_saturate
 #include <algorithm>              // std::ranges::sort
+#include <array>
 #include <etl/vector.h>
 #include <functional> // std::less
 #include <utility>    // std::pair, std::to_underlying
@@ -28,16 +29,16 @@
 namespace params = deluge::modulation::params;
 
 // If NULL Destination, that means no cables - just the preset value
-void Patcher::recalculateFinalValueForParamWithNoCables(int32_t p, const ControlBlock& control_block) {
+void Patcher::recalculate_final_value_for_param_with_no_cables(int32_t p, const ControlBlock& control_block) {
 
-	int32_t cable_combination = (p < config.firstHybridParam) ? combineCablesLinear(nullptr, p, control_block)
-	                                                          : combineCablesExp(nullptr, p, control_block);
+	int32_t cable_combination = (p < config_.first_hybrid_param) ? combine_cables_linear(nullptr, p, control_block)
+	                                                             : combine_cables_exp(nullptr, p, control_block);
 
 	int32_t final_value = 0;
 	int32_t param_neutral_value = paramNeutralValues[p];
 
-	if (p < config.firstHybridParam) {
-		if (p < config.firstNonVolumeParam) {
+	if (p < config_.first_hybrid_param) {
+		if (p < config_.first_non_volume_param) {
 			final_value = getFinalParameterValueVolume(param_neutral_value, cable_combination);
 		}
 		else {
@@ -45,7 +46,7 @@ void Patcher::recalculateFinalValueForParamWithNoCables(int32_t p, const Control
 		}
 	}
 	else {
-		if (p < config.firstExpParam) {
+		if (p < config_.first_exp_param) {
 			final_value = getFinalParameterValueHybrid(param_neutral_value, cable_combination); // Hybrid - add
 		}
 		else {
@@ -53,63 +54,64 @@ void Patcher::recalculateFinalValueForParamWithNoCables(int32_t p, const Control
 		}
 	}
 
-	param_final_values_[p - config.firstParam] = final_value;
+	param_final_values_[p - config_.first_param] = final_value;
 }
 
-int32_t rangeFinalValues[kMaxNumPatchCables]; // TODO: storing these in permanent memory per voice could save a tiny bit
-                                              // of time... actually so minor though, maybe not worth it.
-
 namespace {
+/// Each depth destination's result, for the patching call in progress: one patcher runs at a time, on the audio tier.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+std::array<int32_t, kMaxNumPatchCables> range_final_values{};
+
 /// The range value that scales @p cable's depth: its depth cables' result, or 536870912 (1) when none controls it.
-[[gnu::always_inline]] inline int32_t rangeOf(const deluge::synth::RoutedCable& cable) {
-	return cable.range_index < 0 ? 536870912 : rangeFinalValues[cable.range_index];
+[[gnu::always_inline]] inline int32_t range_of(const deluge::synth::RoutedCable& cable) {
+	return cable.range_index < 0 ? 536870912 : range_final_values[cable.range_index];
 }
 } // namespace
 
 // You may as well check sourcesChanged before calling this.
-void Patcher::performPatching(uint32_t sourcesChanged, const ControlBlock& control_block) {
+void Patcher::perform_patching(uint32_t sources_changed, const ControlBlock& control_block) {
 
-	int32_t globality = config.globality;
+	int32_t globality = config_.globality;
 	const deluge::synth::RoutedDestination* destination = control_block.routing.destinations[globality];
 	if (destination == nullptr) {
 		return;
 	}
 
-	sourcesChanged &= control_block.routing.sources_patched[globality];
-	if (sourcesChanged == 0u) {
+	sources_changed &= control_block.routing.sources_patched[globality];
+	if (sources_changed == 0u) {
 		return;
 	}
 
 	// First, "range" Destinations
-	for (int32_t i = 0; destination->target.word < (uint32_t)0xFFFFFF00; destination++, i++) {
-		if (!(destination->sources & sourcesChanged)) {
+	for (int32_t i = 0; destination->target.word < static_cast<uint32_t>(0xFFFFFF00); destination++, i++) {
+		if ((destination->sources & sources_changed) == 0u) {
 			continue; // And don't increment i.
 		}
 
-		int32_t cables_combination = combineCablesLinearForRangeParam(destination, control_block);
-		rangeFinalValues[i] = getFinalParameterValueLinear(536870912, cables_combination);
+		int32_t cables_combination = combine_cables_linear_for_range_param(destination, control_block);
+		range_final_values[i] = getFinalParameterValueLinear(536870912, cables_combination);
 	}
 
 	// param_id, cable_combo
 	etl::vector<std::pair<int32_t, int32_t>, params::kNumParams> cable_combos;
 
 	// Now normal, actual params/destinations
-	for (; destination->target.word < (config.firstHybridParam | 0xFFFFFF00); destination++) {
-		if ((destination->sources & sourcesChanged) == 0u) {
+	for (; destination->target.word < (config_.first_hybrid_param | 0xFFFFFF00); destination++) {
+		if ((destination->sources & sources_changed) == 0u) {
 			continue;
 		}
 
 		int32_t param = destination->target.param_index();
-		cable_combos.push_back({param, combineCablesLinear(destination, param, control_block)});
+		cable_combos.push_back({param, combine_cables_linear(destination, param, control_block)});
 	}
 
 	for (; destination->sources != 0u; destination++) {
-		if ((destination->sources & sourcesChanged) == 0u) {
+		if ((destination->sources & sources_changed) == 0u) {
 			continue;
 		}
 
 		int32_t param = destination->target.param_index();
-		cable_combos.push_back({param, combineCablesExp(destination, param, control_block)});
+		cable_combos.push_back({param, combine_cables_exp(destination, param, control_block)});
 	}
 
 	// sort by param_id
@@ -119,35 +121,36 @@ void Patcher::performPatching(uint32_t sourcesChanged, const ControlBlock& contr
 
 	// Now, turn those cableCombinations into paramFinalValues.
 	// Volume params
-	for (; iterator < cable_combos.end() && iterator->first < config.firstNonVolumeParam; iterator++) {
+	for (; iterator < cable_combos.end() && iterator->first < config_.first_non_volume_param; iterator++) {
 		auto [param, combo] = *iterator;
-		param_final_values_[param - config.firstParam] = getFinalParameterValueVolume(paramNeutralValues[param], combo);
+		param_final_values_[param - config_.first_param] =
+		    getFinalParameterValueVolume(paramNeutralValues[param], combo);
 	}
 
 	// Linear params
-	for (; iterator < cable_combos.end() && iterator->first < config.firstHybridParam; iterator++) {
+	for (; iterator < cable_combos.end() && iterator->first < config_.first_hybrid_param; iterator++) {
 		auto [param, cable_combo] = *iterator;
-		param_final_values_[param - config.firstParam] =
+		param_final_values_[param - config_.first_param] =
 		    getFinalParameterValueLinear(paramNeutralValues[param], cable_combo);
 	}
 
 	// Hybrid params
-	for (; iterator < cable_combos.end() && iterator->first < config.firstExpParam; iterator++) {
+	for (; iterator < cable_combos.end() && iterator->first < config_.first_exp_param; iterator++) {
 		auto [param, cable_combo] = *iterator;
-		param_final_values_[param - config.firstParam] =
+		param_final_values_[param - config_.first_param] =
 		    getFinalParameterValueHybrid(paramNeutralValues[param], cable_combo);
 	}
 
 	// Exp params
-	for (; iterator < cable_combos.end() && iterator->first < config.endParams; iterator++) {
+	for (; iterator < cable_combos.end() && iterator->first < config_.end_params; iterator++) {
 		auto [param, cable_combo] = *iterator;
-		param_final_values_[param - config.firstParam] =
+		param_final_values_[param - config_.first_param] =
 		    getFinalParameterValueExpWithDumbEnvelopeHack(paramNeutralValues[param], cable_combo, param);
 	}
 }
 
-int32_t Patcher::cableToLinearParamWithoutRangeAdjustment(int32_t running_total, int32_t source_value,
-                                                          int32_t cable_strength) {
+int32_t Patcher::cable_to_linear_param_without_range_adjustment(int32_t running_total, int32_t source_value,
+                                                                int32_t cable_strength) {
 	int32_t scaled_source = multiply_32x32_rshift32(source_value, cable_strength);
 
 	// 0 to 1073741824; 536870912 counts as "1" for next multiplication
@@ -156,10 +159,10 @@ int32_t Patcher::cableToLinearParamWithoutRangeAdjustment(int32_t running_total,
 	return lshift_and_saturate<3>(pre_limits);
 }
 
-int32_t Patcher::cableToLinearParam(int32_t running_total, const deluge::synth::RoutedCable& patch_cable,
-                                    int32_t source_value, int32_t cable_strength) {
+int32_t Patcher::cable_to_linear_param(int32_t running_total, const deluge::synth::RoutedCable& patch_cable,
+                                       int32_t source_value, int32_t cable_strength) {
 	int32_t scaled_source = multiply_32x32_rshift32(source_value, cable_strength);
-	scaled_source = deluge::synth::apply_range(scaled_source, rangeOf(patch_cable));
+	scaled_source = deluge::synth::apply_range(scaled_source, range_of(patch_cable));
 
 	// 0 to 1073741824; 536870912 counts as "1" for next multiplication
 	int32_t made_positive = (scaled_source + 536870912);
@@ -169,20 +172,20 @@ int32_t Patcher::cableToLinearParam(int32_t running_total, const deluge::synth::
 
 // Exp param cable combinations saturate rather than wrap: wrapping would flip a param at one extreme of its range
 // straight to the other (e.g. cutoff fully closed to fully open) mid-note.
-int32_t Patcher::cableToExpParamWithoutRangeAdjustment(int32_t running_total, int32_t source_value,
-                                                       int32_t cable_strength) {
+int32_t Patcher::cable_to_exp_param_without_range_adjustment(int32_t running_total, int32_t source_value,
+                                                             int32_t cable_strength) {
 	return add_saturate(running_total, multiply_32x32_rshift32(source_value, cable_strength));
 }
 
-int32_t Patcher::cableToExpParam(int32_t running_total, const deluge::synth::RoutedCable& patch_cable,
-                                 int32_t source_value, int32_t cable_strength) {
+int32_t Patcher::cable_to_exp_param(int32_t running_total, const deluge::synth::RoutedCable& patch_cable,
+                                    int32_t source_value, int32_t cable_strength) {
 	int32_t scaled_source = multiply_32x32_rshift32(source_value, cable_strength);
-	return add_saturate(running_total, deluge::synth::apply_range(scaled_source, rangeOf(patch_cable)));
+	return add_saturate(running_total, deluge::synth::apply_range(scaled_source, range_of(patch_cable)));
 }
 
 [[gnu::always_inline]] inline int32_t
-Patcher::combineCablesLinearForRangeParam(const deluge::synth::RoutedDestination* destination,
-                                          const ControlBlock& control_block) {
+Patcher::combine_cables_linear_for_range_param(const deluge::synth::RoutedDestination* destination,
+                                               const ControlBlock& control_block) {
 	int32_t running_total = 536870912; // 536870912 means "1". runningTotalCombination will not be allowed
 	                                   // to get bigger than 2147483647, which means "4".
 
@@ -203,7 +206,7 @@ Patcher::combineCablesLinearForRangeParam(const deluge::synth::RoutedDestination
 		}
 
 		int32_t cable_strength = control_block.depths[cable];
-		running_total = cableToLinearParamWithoutRangeAdjustment(running_total, source_value, cable_strength);
+		running_total = cable_to_linear_param_without_range_adjustment(running_total, source_value, cable_strength);
 	}
 
 	return running_total - 536870912;
@@ -214,14 +217,15 @@ Patcher::combineCablesLinearForRangeParam(const deluge::synth::RoutedDestination
 // Linear param - combine all cables by multiplying their values (values centred around 1). Inputs effectively range
 // from "0" to "2". Output (product) clips off at "4". Call this if (p < getFirstHybridParam()) - "Pan" sits at the end
 // of the linear params and is the exception to the rule - it doesn't want this multiplying treatment
-[[gnu::always_inline]] inline int32_t Patcher::combineCablesLinear(const deluge::synth::RoutedDestination* destination,
-                                                                   uint32_t p, const ControlBlock& control_block) {
+[[gnu::always_inline]] inline int32_t
+Patcher::combine_cables_linear(const deluge::synth::RoutedDestination* destination, int32_t p,
+                               const ControlBlock& control_block) {
 	int32_t running_total = 536870912; // 536870912 means "1". runningTotalCombination will not be allowed
 	                                   // to get bigger than 2147483647, which means "4".
 
 	// Do the "preset value" (which we treat like a "cable" here)
 	running_total =
-	    cableToLinearParamWithoutRangeAdjustment(running_total, control_block.presetValue(p), paramRanges[p]);
+	    cable_to_linear_param_without_range_adjustment(running_total, control_block.preset_value(p), paramRanges[p]);
 
 	if (destination != nullptr) {
 		// For each patch cable affecting this parameter
@@ -231,7 +235,7 @@ Patcher::combineCablesLinearForRangeParam(const deluge::synth::RoutedDestination
 			int32_t source_value = source_values_[std::to_underlying(source)];
 			source_value = deluge::synth::to_polarity(source, patch_cable.polarity, source_value);
 			int32_t cable_strength = control_block.depths[cable];
-			running_total = cableToLinearParam(running_total, patch_cable, source_value, cable_strength);
+			running_total = cable_to_linear_param(running_total, patch_cable, source_value, cable_strength);
 		}
 	}
 
@@ -242,8 +246,8 @@ Patcher::combineCablesLinearForRangeParam(const deluge::synth::RoutedDestination
 
 // Exp param - combine all cables by adding their values (centred around 0)
 // Call this if (p >= getFirstHybridParam())
-[[gnu::always_inline]] inline int32_t Patcher::combineCablesExp(const deluge::synth::RoutedDestination* destination,
-                                                                uint32_t param, const ControlBlock& control_block) {
+[[gnu::always_inline]] inline int32_t Patcher::combine_cables_exp(const deluge::synth::RoutedDestination* destination,
+                                                                  int32_t param, const ControlBlock& control_block) {
 
 	int32_t running_total = 0;
 
@@ -253,9 +257,8 @@ Patcher::combineCablesLinearForRangeParam(const deluge::synth::RoutedDestination
 			const deluge::synth::RoutedCable& patch_cable = control_block.routing.cables[c];
 			int32_t source_value = source_values_[std::to_underlying(patch_cable.source)];
 			source_value = deluge::synth::to_polarity(patch_cable.source, patch_cable.polarity, source_value);
-			int32_t cable_strength =
-			    deluge::synth::modified_depth(control_block.depths[c], patch_cable.source, static_cast<int32_t>(param));
-			running_total = cableToExpParam(running_total, patch_cable, source_value, cable_strength);
+			int32_t cable_strength = deluge::synth::modified_depth(control_block.depths[c], patch_cable.source, param);
+			running_total = cable_to_exp_param(running_total, patch_cable, source_value, cable_strength);
 		}
 
 		// Hack for wave index params - make the patching (but not the preset value) stretch twice as far, to allow the
@@ -268,15 +271,15 @@ Patcher::combineCablesLinearForRangeParam(const deluge::synth::RoutedDestination
 	}
 
 	// Do the "preset value" (which we treat like a "cable" here)
-	running_total =
-	    cableToExpParamWithoutRangeAdjustment(running_total, control_block.presetValue(param), paramRanges[param]);
+	running_total = cable_to_exp_param_without_range_adjustment(running_total, control_block.preset_value(param),
+	                                                            paramRanges[param]);
 
 	return running_total;
 }
 
 // NOTE: parameter preset values can't be bigger than 536870912, otherwise overflowing will occur
 
-void Patcher::performInitialPatching(const ControlBlock& control_block) {
+void Patcher::perform_initial_patching(const ControlBlock& control_block) {
 	// In this function, we are sneaky and write the "cable combination" working value in to paramFinalValues, before
 	// going back over that array with the final step. This saves memory. Didn't seem to have a real effect on speed.
 
@@ -286,58 +289,58 @@ void Patcher::performInitialPatching(const ControlBlock& control_block) {
 
 	// First for the params whose cables get multiplied, we go do them all as if they have no patching, and then for
 	// the few which do, we overwrite those values
-	for (int32_t p = config.firstParam; p < config.firstHybridParam; p++) {
-		param_final_values_[p - config.firstParam] = combineCablesLinear(nullptr, p, control_block);
+	for (int32_t p = config_.first_param; p < config_.first_hybrid_param; p++) {
+		param_final_values_[p - config_.first_param] = combine_cables_linear(nullptr, p, control_block);
 	}
 
 	// And now we do the same for params whose cables get added
-	for (int32_t p = config.firstHybridParam; p < config.endParams; p++) {
-		param_final_values_[p - config.firstParam] = combineCablesExp(nullptr, p, control_block);
+	for (int32_t p = config_.first_hybrid_param; p < config_.end_params; p++) {
+		param_final_values_[p - config_.first_param] = combine_cables_exp(nullptr, p, control_block);
 	}
 
-	const deluge::synth::RoutedDestination* destination = control_block.routing.destinations[config.globality];
+	const deluge::synth::RoutedDestination* destination = control_block.routing.destinations[config_.globality];
 	if (destination != nullptr) {
 
 		// First, "range" Destinations
-		for (int32_t i = 0; destination->target.word < (uint32_t)0xFFFFFF00; destination++, i++) {
-			int32_t cables_combination = combineCablesLinearForRangeParam(destination, control_block);
+		for (int32_t i = 0; destination->target.word < static_cast<uint32_t>(0xFFFFFF00); destination++, i++) {
+			int32_t cables_combination = combine_cables_linear_for_range_param(destination, control_block);
 
-			rangeFinalValues[i] = getFinalParameterValueLinear(536870912, cables_combination);
+			range_final_values[i] = getFinalParameterValueLinear(536870912, cables_combination);
 		}
 
 		// Now, regular Destinations going directly to a param
-		for (; destination->target.word < (config.firstHybridParam | 0xFFFFFF00); destination++) {
+		for (; destination->target.word < (config_.first_hybrid_param | 0xFFFFFF00); destination++) {
 			int32_t p = destination->target.param_index();
-			param_final_values_[p - config.firstParam] = combineCablesLinear(destination, p, control_block);
+			param_final_values_[p - config_.first_param] = combine_cables_linear(destination, p, control_block);
 		}
-		for (; destination->sources; destination++) {
+		for (; destination->sources != 0u; destination++) {
 			int32_t p = destination->target.param_index();
-			param_final_values_[p - config.firstParam] = combineCablesExp(destination, p, control_block);
+			param_final_values_[p - config_.first_param] = combine_cables_exp(destination, p, control_block);
 		}
 	}
 
 	// And now convert those "cable combinations" into "final values".
 	// Volume params
-	for (int32_t param = config.firstParam; param < config.firstNonVolumeParam; param++) {
-		param_final_values_[param - config.firstParam] =
-		    getFinalParameterValueVolume(paramNeutralValues[param], param_final_values_[param - config.firstParam]);
+	for (int32_t param = config_.first_param; param < config_.first_non_volume_param; param++) {
+		param_final_values_[param - config_.first_param] =
+		    getFinalParameterValueVolume(paramNeutralValues[param], param_final_values_[param - config_.first_param]);
 	}
 
 	// Linear params
-	for (int32_t param = config.firstNonVolumeParam; param < config.firstHybridParam; param++) {
-		param_final_values_[param - config.firstParam] =
-		    getFinalParameterValueLinear(paramNeutralValues[param], param_final_values_[param - config.firstParam]);
+	for (int32_t param = config_.first_non_volume_param; param < config_.first_hybrid_param; param++) {
+		param_final_values_[param - config_.first_param] =
+		    getFinalParameterValueLinear(paramNeutralValues[param], param_final_values_[param - config_.first_param]);
 	}
 
 	// Hybrid params
-	for (int32_t param = config.firstHybridParam; param < config.firstExpParam; param++) {
-		param_final_values_[param - config.firstParam] =
-		    getFinalParameterValueHybrid(paramNeutralValues[param], param_final_values_[param - config.firstParam]);
+	for (int32_t param = config_.first_hybrid_param; param < config_.first_exp_param; param++) {
+		param_final_values_[param - config_.first_param] =
+		    getFinalParameterValueHybrid(paramNeutralValues[param], param_final_values_[param - config_.first_param]);
 	}
 
 	// Exp params
-	for (int32_t param = config.firstExpParam; param < config.endParams; param++) {
-		param_final_values_[param - config.firstParam] = getFinalParameterValueExpWithDumbEnvelopeHack(
-		    paramNeutralValues[param], param_final_values_[param - config.firstParam], param);
+	for (int32_t param = config_.first_exp_param; param < config_.end_params; param++) {
+		param_final_values_[param - config_.first_param] = getFinalParameterValueExpWithDumbEnvelopeHack(
+		    paramNeutralValues[param], param_final_values_[param - config_.first_param], param);
 	}
 }

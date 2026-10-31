@@ -31,7 +31,7 @@ InputEngine                               inputEngine;  // app-coupled: AudioEng
 ```
 
 `renderSourceComponent` already returns the uniform `SourceRenderResult {ACTIVE, UNASSIGN, SKIP}`
-(`model/voice/source_component_render.h`). **Boundary-blocking reaches** = SampleEngine + InputEngine (and the
+(`synth/voice/source_component_render.h`). **Boundary-blocking reaches** = SampleEngine + InputEngine (and the
 `Source::renderInStereo` `AudioEngine` globals + `getPriorityRating`→`sound`). **DX7 + VA + wavetable are already
 L0** (dsp) — they need no port, only to adopt the base interface.
 

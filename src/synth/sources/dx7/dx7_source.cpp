@@ -20,28 +20,28 @@
 
 namespace deluge::synth {
 
-SourceRenderResult DX7Source::renderSource(const SourceRenderContext& ctx) {
+SourceRenderResult DX7Source::render_source(const SourceRenderContext& ctx) {
 	// The port renders the FM block (a pooled dx7::Voice + log-pitch/control derivation); the bespoke per-unison
 	// amplitude+sum below is Voice's buffer layout. An empty span means the voice has ended.
 	std::span<const int32_t> fm =
-	    dx_->render(ctx.numSamples, ctx.phaseIncrement, ctx.ampModParam, ctx.patchChanged, ctx.midinote);
+	    dx_->render(ctx.num_samples, ctx.phase_increment, ctx.amp_mod_param, ctx.patch_changed, ctx.midinote);
 	if (fm.empty()) {
 		return SourceRenderResult::UNASSIGN;
 	}
 
-	int32_t sourceAmplitudeNow = ctx.sourceAmplitude;
-	if (ctx.stereoUnison) {
-		for (int i = 0; i < ctx.numSamples; i++) {
-			sourceAmplitudeNow += ctx.amplitudeIncrement;
-			int amplified = multiply_32x32_rshift32(fm[i], sourceAmplitudeNow) << 6;
-			ctx.oscBuffer[(i << 1)] += multiply_32x32_rshift32(amplified, ctx.amplitudeL) << 2;
-			ctx.oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(amplified, ctx.amplitudeR) << 2;
+	int32_t source_amplitude_now = ctx.source_amplitude;
+	if (ctx.stereo_unison) {
+		for (int i = 0; i < ctx.num_samples; i++) {
+			source_amplitude_now += ctx.amplitude_increment;
+			int amplified = multiply_32x32_rshift32(fm[i], source_amplitude_now) << 6;
+			ctx.osc_buffer[(i << 1)] += multiply_32x32_rshift32(amplified, ctx.amplitude_l) << 2;
+			ctx.osc_buffer[(i << 1) + 1] += multiply_32x32_rshift32(amplified, ctx.amplitude_r) << 2;
 		}
 	}
 	else {
-		for (int i = 0; i < ctx.numSamples; i++) {
-			sourceAmplitudeNow += ctx.amplitudeIncrement;
-			ctx.oscBuffer[i] += multiply_32x32_rshift32(fm[i], sourceAmplitudeNow) << 6;
+		for (int i = 0; i < ctx.num_samples; i++) {
+			source_amplitude_now += ctx.amplitude_increment;
+			ctx.osc_buffer[i] += multiply_32x32_rshift32(fm[i], source_amplitude_now) << 6;
 		}
 	}
 	return SourceRenderResult::ACTIVE;

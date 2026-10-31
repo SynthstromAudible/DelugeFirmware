@@ -20,24 +20,25 @@
 
 namespace deluge::synth {
 
-void SupersawSource::renderInto(const BlockControls& controls, uint32_t phaseIncrement, int32_t waveIndexLast,
-                                int32_t waveIndexIncrement, deluge::dsp::fixed::Buffer output,
-                                deluge::dsp::fixed::Buffer scratch) {
+void SupersawSource::render_into(const BlockControls& controls, uint32_t phase_increment, int32_t wave_index_last,
+                                 int32_t wave_index_increment, deluge::dsp::fixed::Buffer output,
+                                 deluge::dsp::fixed::Buffer scratch) {
 	using deluge::dsp::fixed::Supersaw;
-	const size_t numSamples = output.size();
+	const size_t num_samples = output.size();
 
 	// The plain saw's dire-CPU fallback: skip the band limiting for lower notes
-	const bool bandLimit = deluge::dsp::fixed::get_table_number(phaseIncrement).first >= controls.cpu_direness + 6;
-	const int32_t spread = waveIndexLast + waveIndexIncrement * static_cast<int32_t>(numSamples);
+	const bool band_limit = deluge::dsp::fixed::get_table_number(phase_increment).first >= controls.cpu_direness + 6;
+	const int32_t spread = wave_index_last + wave_index_increment * static_cast<int32_t>(num_samples);
 
 	int32_t* dst = controls.apply_amplitude ? scratch.data() : output.data();
-	Supersaw::render(deluge::dsp::fixed::Buffer{dst, numSamples}, phaseIncrement, spread,
-	                 Supersaw::num_saws_from_pulse_width(controls.pulse_width), centre_phase_, side_phases_, bandLimit);
+	Supersaw::render(deluge::dsp::fixed::Buffer{dst, num_samples}, phase_increment, spread,
+	                 Supersaw::num_saws_from_pulse_width(controls.pulse_width), centre_phase_, side_phases_,
+	                 band_limit);
 
 	if (controls.apply_amplitude) {
 		// The supersaw comes out at a quarter of a saw's level; out = scratch*amp + out.
 		deluge::dsp::fixed::Amplitude vca{controls.amplitude << 2};
-		vca.render_block(deluge::dsp::fixed::Signal{scratch.data(), numSamples}, deluge::dsp::fixed::Signal{output},
+		vca.render_block(deluge::dsp::fixed::Signal{scratch.data(), num_samples}, deluge::dsp::fixed::Signal{output},
 		                 output);
 	}
 }

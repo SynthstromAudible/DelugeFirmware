@@ -35,6 +35,11 @@ namespace deluge::synth {
 /// tier above). Per-source state (phase, feedback, sample position) lives *in the concrete source* (e.g. a
 /// @ref deluge::dsp::Phasor member); the app hands down only the modulated numbers, never references upward.
 
+/// An oscillator's retrigger phase when it runs free: its phase carries on from note to note.
+inline constexpr uint32_t kNoRetrigger = 0xFFFFFFFF;
+/// A voice's portamento position when it is not gliding.
+inline constexpr uint32_t kNoPorta = 0xFFFFFFFF;
+
 /// @brief The already-modulated per-block control values handed to a @ref Source.
 ///
 /// Plain values only — no engine state, and nothing reaching into model/processing/storage (so an engine can
@@ -74,35 +79,35 @@ enum class SourceRenderResult { ACTIVE, UNASSIGN, SKIP };
 /// @ref BlockControls::cpu_direness is baked in there so the AudioEngine global never enters synth/. Each concrete
 /// source reads only the subset it needs; unused fields are harmless.
 struct SourceRenderContext {
-	int32_t* oscBuffer;      ///< destination; the source folds/sums its contribution into this (interleaved if stereo)
-	int32_t numSamples;      ///< samples to render this block
-	bool stereoBuffer;       ///< @c oscBuffer is interleaved stereo → render mono into scratch then pan-fold
-	bool stereoUnison;       ///< this unison part is panned (drives the per-engine stereo sum)
-	int32_t amplitudeL;      ///< unison pan-fold left gain (q31)
-	int32_t amplitudeR;      ///< unison pan-fold right gain (q31)
-	int32_t sourceAmplitude; ///< per-block start VCA amplitude (DX7's bespoke sum; oscillators get it via @c controls)
-	int32_t amplitudeIncrement;     ///< per-sample VCA increment
-	uint32_t phaseIncrement;        ///< per-block pitch (UQ0.32)
-	bool doOscSync;                 ///< hard-sync this block to source 0 (oscillators only)
-	uint32_t oscSyncPos;            ///< the master's phase for this unison part (when @c doOscSync)
-	uint32_t oscSyncPhaseIncrement; ///< the master's increment for this unison part; 0 ⇒ freq too high ⇒ SKIP
-	BlockControls controls;         ///< the already-built oscillator controls (amplitude/pulse/sync/cpu_direness)
+	int32_t* osc_buffer;      ///< destination; the source folds/sums its contribution into this (interleaved if stereo)
+	int32_t num_samples;      ///< samples to render this block
+	bool stereo_buffer;       ///< @c oscBuffer is interleaved stereo → render mono into scratch then pan-fold
+	bool stereo_unison;       ///< this unison part is panned (drives the per-engine stereo sum)
+	int32_t amplitude_l;      ///< unison pan-fold left gain (q31)
+	int32_t amplitude_r;      ///< unison pan-fold right gain (q31)
+	int32_t source_amplitude; ///< per-block start VCA amplitude (DX7's bespoke sum; oscillators get it via @c controls)
+	int32_t amplitude_increment;       ///< per-sample VCA increment
+	uint32_t phase_increment;          ///< per-block pitch (UQ0.32)
+	bool do_osc_sync;                  ///< hard-sync this block to source 0 (oscillators only)
+	uint32_t osc_sync_pos;             ///< the master's phase for this unison part (when @c doOscSync)
+	uint32_t osc_sync_phase_increment; ///< the master's increment for this unison part; 0 ⇒ freq too high ⇒ SKIP
+	BlockControls controls;            ///< the already-built oscillator controls (amplitude/pulse/sync/cpu_direness)
 	deluge::dsp::fixed::WaveTableData
-	    waveTableData;                  ///< wavetable source only (storage-independent band view; null else)
-	int32_t waveIndexLast;              ///< wavetable morph: previous block's index
-	int32_t waveIndexIncrement;         ///< wavetable morph: per-sample slope
-	int32_t* stereoScratch;             ///< mono work buffer used when @c stereoBuffer (= the voice's spare buffer)
-	int32_t stereoScratchClearSamples;  ///< how many samples of @c stereoScratch to zero before rendering into it
-	int32_t* syncScratch;               ///< the oscillator hard-sync work buffer (passed in; synth/ can't reach dsp/)
-	int32_t ampModParam;                ///< DX7 amplitude-mod control (raw param value)
-	bool patchChanged;                  ///< DX7: re-derive the patch state this block
-	int32_t midinote;                   ///< DX7: the (post-arp) note code
-	int32_t interpolationBufferSize;    ///< live-input only: precomputed interp size for the pitch-shift arm
-	uint32_t portaEnvelopePos;          ///< sample only: voice porta position (0xFFFFFFFF ⇒ no porta ⇒ caching ok)
-	int32_t priorityRating;             ///< sample only: voice-cull priority (caching + the VoiceSample render)
-	uint32_t phaseIncrementStoredValue; ///< sample only: pre-modulation phase increment (the late-start maths)
-	bool pitchModDisallowsCache;        ///< sample only: a changeable patch source modulates pitch ⇒ skip caching
-	deluge::dsp::fixed::Cong* noise;    ///< live-input only: the noise stream the pitch shift's hop search draws from
+	    wave_table_data;                  ///< wavetable source only (storage-independent band view; null else)
+	int32_t wave_index_last;              ///< wavetable morph: previous block's index
+	int32_t wave_index_increment;         ///< wavetable morph: per-sample slope
+	int32_t* stereo_scratch;              ///< mono work buffer used when @c stereoBuffer (= the voice's spare buffer)
+	int32_t stereo_scratch_clear_samples; ///< how many samples of @c stereoScratch to zero before rendering into it
+	int32_t* sync_scratch;                ///< the oscillator hard-sync work buffer (passed in; synth/ can't reach dsp/)
+	int32_t amp_mod_param;                ///< DX7 amplitude-mod control (raw param value)
+	bool patch_changed;                   ///< DX7: re-derive the patch state this block
+	int32_t midinote;                     ///< DX7: the (post-arp) note code
+	int32_t interpolation_buffer_size;    ///< live-input only: precomputed interp size for the pitch-shift arm
+	uint32_t porta_envelope_pos;          ///< sample only: voice porta position (kNoPorta ⇒ no porta ⇒ caching ok)
+	int32_t priority_rating;              ///< sample only: voice-cull priority (caching + the VoiceSample render)
+	uint32_t phase_increment_stored_value; ///< sample only: pre-modulation phase increment (the late-start maths)
+	bool pitch_mod_disallows_cache;        ///< sample only: a changeable patch source modulates pitch ⇒ skip caching
+	deluge::dsp::fixed::Cong* noise; ///< live-input only: the noise stream the pitch shift's hop search draws from
 };
 
 /// @brief The L1 **Source** contract: render one unison part of one source's full contribution for this block,
@@ -115,7 +120,7 @@ public:
 	virtual ~Source() = default;
 
 	/// Render this source's contribution for @p ctx into @c ctx.oscBuffer; @return the per-source outcome.
-	virtual SourceRenderResult renderSource(const SourceRenderContext& ctx) = 0;
+	virtual SourceRenderResult render_source(const SourceRenderContext& ctx) = 0;
 };
 
 } // namespace deluge::synth

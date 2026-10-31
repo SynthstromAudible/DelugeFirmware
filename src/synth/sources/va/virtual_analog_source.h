@@ -31,7 +31,7 @@ namespace deluge::synth {
 /// crude↔band-limited choice, pulse-width-as-sync, the retrigger/analog-saw-downgrade tweaks, hard sync, scale
 /// and VCA all live inside each shape — the engine owns its full per-block render derivation.
 ///
-/// The app-side adapter (`model/voice/voice_unison_part_source.cpp`) hands the engine the *original* (unrewritten)
+/// The app-side adapter (`synth/voice/unison_part_source.cpp`) hands the engine the *original* (unrewritten)
 /// phase + increment and the *raw* @ref BlockControls, and reads @ref phase() back only to persist a real hard-sync's
 /// advanced phase. (The engine is currently rebuilt per block by that adapter; making it persistent in Voice is
 /// the following stage.)
@@ -83,17 +83,17 @@ public:
 	/// Render one block into @p output (sets the per-block pitch first), VCA per @p controls. The public
 	/// block-render API used by @ref RingModEngine (raw render) and by @ref renderOscBlock. The engine owns its
 	/// phase across blocks.
-	void renderInto(const BlockControls& controls, uint32_t phaseIncrement, deluge::dsp::fixed::Buffer output,
-	                deluge::dsp::fixed::Buffer scratch) {
-		set_increment(phaseIncrement);
+	void render_into(const BlockControls& controls, uint32_t phase_increment, deluge::dsp::fixed::Buffer output,
+	                 deluge::dsp::fixed::Buffer scratch) {
+		set_increment(phase_increment);
 		render_block(controls, output, scratch);
 	}
 
 protected:
-	void renderOscBlock(const BlockControls& controls, const SourceRenderContext& ctx,
-	                    deluge::dsp::fixed::Buffer out) override {
-		renderInto(controls, ctx.phaseIncrement, out,
-		           deluge::dsp::fixed::Buffer{ctx.syncScratch, static_cast<size_t>(ctx.numSamples)});
+	void render_osc_block(const BlockControls& controls, const SourceRenderContext& ctx,
+	                      deluge::dsp::fixed::Buffer out) override {
+		render_into(controls, ctx.phase_increment, out,
+		            deluge::dsp::fixed::Buffer{ctx.sync_scratch, static_cast<size_t>(ctx.num_samples)});
 	}
 
 private:
@@ -101,7 +101,7 @@ private:
 	                           va_shape::AnalogSquare>;
 
 	/// Build the variant alternative for @p wave (the one note-on dispatch; replaces the per-block megaswitch).
-	static Shape makeShape(va_shape::Wave wave, deluge::dsp::Phasor seed);
+	static Shape make_shape(va_shape::Wave wave, deluge::dsp::Phasor seed);
 
 	Shape shape_;
 };

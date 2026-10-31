@@ -38,19 +38,27 @@ class SampleSource : public Source {
 public:
 	explicit SampleSource(SamplePlaybackPort* port) : port_(port) {}
 
+	/// The port this source plays through.
+	[[nodiscard]] SamplePlaybackPort* port() const { return port_; }
+	/// Plays through @p port, which must outlive this source.
+	void bind_port(SamplePlaybackPort* port) { port_ = port; }
+	/// Releases the port's reader, if it holds one.
+	void unassign(bool deleting_song) { port_->unassign(deleting_song); }
+
 	/// Render one block of sample playback into @c ctx.oscBuffer (the @ref deluge::synth::Source seam). Reads the
 	/// per-block voice values in @p ctx (porta, priority, pre-modulation phaseIncrementStoredValue, the hoisted
 	/// caching pitch-mod flag); the resampling/time-stretch/cache machinery + the per-note source/guide live behind
 	/// the port. No @c Voice& reach.
-	SourceRenderResult renderSource(const SourceRenderContext& ctx) override;
+	SourceRenderResult render_source(const SourceRenderContext& ctx) override;
 
 private:
 	/// Derive this block's pitch (@p phaseIncrement, mutated in place) + @p timeStretchRatio (+ @p noteLengthInSamples
 	/// when syncing) from the port. @return false ⇒ unassign (sync would exceed the 32× speed limit).
-	bool getPitchAndSpeedParams(uint32_t* phaseIncrement, uint32_t* timeStretchRatio, uint32_t* noteLengthInSamples);
+	bool get_pitch_and_speed_params(uint32_t* phase_increment, uint32_t* time_stretch_ratio,
+	                                uint32_t* note_length_in_samples);
 	/// The non-syncing time-stretch ratio: counteract pitch when pitch/speed are independent, then apply the manual
 	/// time-stretch amount. Also used for the late-start position (with the non-modulated phaseIncrement).
-	uint32_t getSpeedParamForNoSyncing(int32_t phaseIncrement, int32_t pitchAdjustNeutralValue);
+	uint32_t get_speed_param_for_no_syncing(int32_t phase_increment, int32_t pitch_adjust_neutral_value);
 
 	SamplePlaybackPort* port_;
 };

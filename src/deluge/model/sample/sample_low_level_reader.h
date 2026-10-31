@@ -28,7 +28,6 @@
 #define REASSESSMENT_ACTION_NEXT_CLUSTER 1
 
 class VoiceSamplePlaybackGuide;
-class Voice;
 class Sample;
 struct DelugeSampleSource; // per-reader residency cursor over the region port (libdeluge/sample_source.h)
 class TimeStretcher;

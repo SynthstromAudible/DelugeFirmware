@@ -25,7 +25,6 @@
 #include "io/debug/log.h"
 #include "libdeluge/sample_source.h"
 #include "model/sample/sample.h"
-#include "model/voice/voice.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "storage/cluster/cluster.h"
 #include "util/functions.h"
@@ -470,10 +469,10 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 		// sustained-streaming underrun path, complementing `VoiceSample::stopReadingFromCache`'s
 		// sibling site (which only fires for repitch-cache playback): most voices never use that
 		// cache, so without this site the harness's counters stayed at zero even under genuinely
-		// SD-latency-starved sustained streaming. The caller (`VoiceSample::render` ->
-		// `Voice::render`) treats this `false` return as an instant voice unassign (`goto
-		// instantUnassign`), the same severity as the cache-stop site, just reached from the far
-		// more common code path. Fires on the port's NotReady.
+		// SD-latency-starved sustained streaming. The caller (`VoiceSample::render` -> the voice's
+		// render) treats this `false` return as unassigning that unison part at once, the same
+		// severity as the cache-stop site, just reached from the far more common code path. Fires on the port's
+		// NotReady.
 		deluge::harness::noteUnderrunUnassign();
 #endif
 		return false;

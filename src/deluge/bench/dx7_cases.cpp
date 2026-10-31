@@ -80,7 +80,7 @@ void Dx7Case::setup(std::size_t /*n*/) {
 	}
 	build_patch(config_, *rig.patch);
 	rig.adapter.unassign();
-	rig.adapter.noteOn(rig.patch, kNote, kVelocity);
+	rig.adapter.note_on(rig.patch, kNote, kVelocity);
 }
 
 void Dx7Case::block(std::size_t n) {

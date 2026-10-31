@@ -1,0 +1,21 @@
+---
+# Stricter clang-tidy for the synth library (deluge::synth): the voice kernel, its sources and its modulation.
+#
+# The library holds itself to the same bar as dsp-next and the instrument. It inherits the repo-root .clang-tidy
+# (naming conventions — lower_case functions, variables and members, kCamelCase constants — and the bulk of the
+# checks) and adds the checks the root leaves off for the legacy code:
+#
+#   * modernize-avoid-c-arrays            — prefer std::array/std::span (the
+#       cppcoreguidelines twin is already on repo-wide; this is the modernize one).
+#   * cppcoreguidelines-special-member-functions — rule of 0/5 for the value types.
+#   * cppcoreguidelines-avoid-non-const-global-variables — no mutable globals in
+#       the library.
+#
+# and holds data members to lower_case too (with the root's `_` suffix on private ones).
+InheritParentConfig: true
+Checks: >
+  modernize-avoid-c-arrays,
+  cppcoreguidelines-special-member-functions,
+  cppcoreguidelines-avoid-non-const-global-variables,
+CheckOptions:
+  - { key: readability-identifier-naming.MemberCase, value: lower_case }

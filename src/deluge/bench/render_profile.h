@@ -1,20 +1,21 @@
 #pragma once
 
 /// @file
-/// @brief The stream bench's render splits: PMU cycles in each Voice::render, in its patching, and in each
-/// Sound's patching, summed per stream-bench phase. Compiled to nothing outside a device stream-bench image.
+/// @brief The stream bench's render splits: PMU cycles in each voice render, in each Sound's patching and in each voice
+/// note-on, summed per stream-bench phase. Compiled to nothing outside a device stream-bench image.
 
 #include <cstdint>
 
 namespace deluge::bench::render_profile {
 
-/// Cycle sums for one phase. `voice_patch` is measured inside `Voice::render`, so it is part of `voice_render`.
+/// Cycle sums for one phase.
 struct Totals {
 	uint64_t voice_render;
-	uint64_t voice_patch;
 	uint64_t sound_patch;
+	uint64_t voice_note_on;
 	uint32_t voice_blocks;
 	uint32_t sound_blocks;
+	uint32_t note_ons;
 };
 
 extern Totals g_totals;
@@ -40,5 +41,19 @@ inline void enable() {
 inline void enable() {
 }
 #endif
+
+/// @brief Calls @p note_on, a voice note-on returning whether it started, and adds its cycles to the note-on split.
+template <typename NoteOn>
+[[nodiscard]] inline bool timed_note_on(NoteOn&& note_on) {
+#if defined(DELUGE_STREAM_BENCH)
+	const uint32_t t0 = cycles();
+	const bool started = note_on();
+	g_totals.voice_note_on += cycles() - t0;
+	++g_totals.note_ons;
+	return started;
+#else
+	return note_on();
+#endif
+}
 
 } // namespace deluge::bench::render_profile

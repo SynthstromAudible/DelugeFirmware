@@ -35,21 +35,23 @@ class LivePitchShifter;
 /// **explicit** (freed in @ref unassign, never in a destructor) — the per-source objects are pooled and reused.
 class InputSource : public Source {
 	AudioInputPort* in_;
-	LivePitchShifter* livePitchShifter_ = nullptr;
+	LivePitchShifter* live_pitch_shifter_ = nullptr;
 	/// Which input channel this source plays — latched once at note-on (see @ref prepareForNoteOn), so the per-block
 	/// render context need not carry it.
 	InputChannel channel_ = InputChannel::LEFT;
 
 public:
 	explicit InputSource(AudioInputPort* in) : in_(in) {}
+	/// Reads through @p in, which must outlive this source.
+	void bind_port(AudioInputPort* in) { in_ = in; }
 
 	/// Latch the configured input channel for the note about to start (from the source's `OscType`).
-	void prepareForNoteOn(OscType inputType);
+	void prepare_for_note_on(OscType input_type);
 
 	/// Render this live-input source's contribution into @c ctx.oscBuffer (always ACTIVE — live input never
 	/// self-unassigns). The @ref deluge::synth::Source seam; the channel-routing/pitch-shift render is the private
 	/// @ref render below.
-	SourceRenderResult renderSource(const SourceRenderContext& ctx) override;
+	SourceRenderResult render_source(const SourceRenderContext& ctx) override;
 
 	/// Free the pooled pitch-shifter (no-op if none held).
 	void unassign();
@@ -60,9 +62,9 @@ private:
 	/// the pitch-shifter. @p interpolationBufferSize is precomputed by Voice (only used on the pitch-shift arm).
 	/// When @p stereoUnison is set, oscBuffer is an interleaved stereo buffer and this unison part's mono input
 	/// is panned across it with @p amplitudeL / @p amplitudeR (the stereo-unison-spread fix).
-	void render(int32_t* oscBuffer, int32_t numSamples, uint32_t phaseIncrement, int32_t sourceAmplitude,
-	            int32_t amplitudeIncrement, bool stereoBuffer, bool stereoUnison, int32_t amplitudeL,
-	            int32_t amplitudeR, int32_t interpolationBufferSize, dsp::fixed::Cong& noise);
+	void render(int32_t* osc_buffer, int32_t num_samples, uint32_t phase_increment, int32_t source_amplitude,
+	            int32_t amplitude_increment, bool stereo_buffer, bool stereo_unison, int32_t amplitude_l,
+	            int32_t amplitude_r, int32_t interpolation_buffer_size, dsp::fixed::Cong& noise, int32_t* mono_scratch);
 };
 
 } // namespace deluge::synth

@@ -71,6 +71,19 @@ set(envelope_spec_DEPS
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # The routing spec compiles the library's cable routing.
 set(patch_routing_spec_DEPS ${_repo_root}/src/synth/modulation/patch_routing.cpp)
+# synth::Voice played on the host: the synth library's sources, the dsp-next they render with, and the param math,
+# lookup tables and noise stream it reads. Nothing of the app.
+file(GLOB_RECURSE _synth_srcs CONFIGURE_DEPENDS ${_repo_root}/src/synth/*.cpp)
+file(GLOB_RECURSE _dsp_fixed_srcs CONFIGURE_DEPENDS ${_repo_root}/src/deluge/dsp-next/fixed/*.cpp)
+set(synth_voice_spec_DEPS
+  ${_synth_srcs}
+  ${_dsp_fixed_srcs}
+  ${_repo_root}/src/deluge/util/param_functions.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp
+  ${_repo_root}/src/deluge/util/synth_noise.cpp
+  ${_repo_root}/src/deluge/util/phase_increment_fine_tuner.cpp
+  ${_repo_root}/src/effects/saturation.cpp
+  ${_repo_root}/tests/support/mocks/mock_panic.cpp)
 # The shared windowed-sinc kernel table + its select()/variant() variant picks.
 set(windowed_sinc_kernel_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp)
 # The chunker caches each chunk's sinc kernel via windowed_sinc_kernel.select().

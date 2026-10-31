@@ -53,10 +53,6 @@ int32_t cableToLinearParamShortcut(int32_t sourceValue) {
 	return sourceValue >> 2;
 }
 
-int32_t cableToExpParamShortcut(int32_t sourceValue) {
-	return sourceValue >> 2;
-}
-
 char const* sourceToString(PatchSource source) {
 	switch (source) {
 	case PatchSource::LFO_GLOBAL_1:

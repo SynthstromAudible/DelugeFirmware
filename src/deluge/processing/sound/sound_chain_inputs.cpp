@@ -30,7 +30,7 @@ namespace params = deluge::modulation::params;
 deluge::effects::SoundChainInputs soundChainInputs(Sound& sound, ParamManager& paramManager,
                                                    const deluge::effects::Delay::State& delay, bool anyVoices,
                                                    int32_t reverbSendAmount) {
-	const auto& finals = sound.params.paramFinalValues;
+	const auto& finals = sound.params.param_final_values;
 	UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();
 	const deluge::model::StutterInput stutter = deluge::model::stutterInput(sound, &paramManager);
 	return {

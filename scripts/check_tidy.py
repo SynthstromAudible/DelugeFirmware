@@ -90,23 +90,37 @@ def flags_for(database: list[dict], library: str) -> tuple[str, list[str]]:
     return entry["directory"], kept
 
 
+_STAGED: dict[str, list[list[int]]] | None = None
+
+
 def staged_lines(path: str) -> list[list[int]]:
-    """The staged hunks' added and changed line ranges of @p path, as [first, last] pairs."""
-    diff = subprocess.run(
-        ["git", "diff", "--cached", "--unified=0", "--no-color", "--", path],
-        cwd=REPO,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
-    ranges = []
-    for line in diff.splitlines():
-        match = HUNK.match(line)
-        if match:
-            first, count = int(match.group(1)), int(match.group(2) or "1")
-            if count:
-                ranges.append([first, first + count - 1])
-    return ranges
+    """The staged hunks' added and changed line ranges of @p path, as [first, last] pairs.
+
+    The diff follows renames, so a moved file's unchanged lines are not counted as changed.
+    """
+    global _STAGED
+    if _STAGED is None:
+        diff = subprocess.run(
+            ["git", "diff", "--cached", "-M", "--unified=0", "--no-color"],
+            cwd=REPO,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        _STAGED = {}
+        current = None
+        for line in diff.splitlines():
+            if line.startswith("+++ "):
+                current = line[6:] if line.startswith("+++ b/") else None
+                if current is not None:
+                    _STAGED.setdefault(current, [])
+                continue
+            match = HUNK.match(line)
+            if match and current is not None:
+                first, count = int(match.group(1)), int(match.group(2) or "1")
+                if count:
+                    _STAGED[current].append([first, first + count - 1])
+    return _STAGED.get(path, [])
 
 
 def check(

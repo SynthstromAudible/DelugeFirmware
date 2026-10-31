@@ -21,7 +21,6 @@
 #include "libdeluge/system.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
-#include "model/snapshot/sound_snapshot.h"
 #include "model/voiced.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/knob.h"
@@ -34,6 +33,7 @@
 #include "synth/modulation/lfo.h"
 #include "synth/modulation/param_plane.h"
 #include "synth/modulation/patcher.h"
+#include "synth/voice/sound_snapshot.h"
 #include "util/misc.h"
 #include <bitset>
 #include <memory>
@@ -43,7 +43,7 @@ namespace deluge::dsp {
 struct StereoSample;
 } // namespace deluge::dsp
 using StereoSample = deluge::dsp::StereoSample;
-class Voice;
+class VoiceSlot;
 class Kit;
 class ParamManagerForTimeline;
 class TimelineCounter;
@@ -105,7 +105,7 @@ public:
 
 	/// @brief How many Sounds have been destroyed while they still had live voices, since boot.
 	/// @note A destruction that finds live voices does not survive itself: once this body returns, the voices_
-	///       member's destructor recycles each voice, and ~Voice unassigns it back into this Sound, whose
+	///       member's destructor recycles each voice, and ~VoiceSlot unassigns it back into this Sound, whose
 	///       reassessRenderSkippingStatus() then calls the pure virtual getArpSettings(). The count is taken first.
 	/// @return The running count of such destructions since boot.
 	static int32_t soundsDestroyedWithLiveVoices();
@@ -151,12 +151,12 @@ public:
 	/// at bind / doneReadingFromFile / after edits; the render reads it (getTranspose() etc.).
 	///
 	/// Always present: unbound sounds (no state_) write it directly, so the render never needs a null fallback.
-	deluge::snapshot::SoundSnapshot snapshot_{};
+	deluge::synth::SoundSnapshot snapshot_{};
 	/// @brief Re-derive snapshot_ from state_ (no-op when unbound).
 	void projectSnapshot();
 	/// @brief The derived read-view of the hot render fields.
 	/// @return The snapshot.
-	[[nodiscard]] const deluge::snapshot::SoundSnapshot& snapshot() const { return snapshot_; }
+	[[nodiscard]] const deluge::synth::SoundSnapshot& snapshot() const { return snapshot_; }
 
 	Patcher patcher;
 
@@ -201,7 +201,7 @@ public:
 	/// @brief Set the voice priority.
 	///
 	/// Voice priority is owned by the record (`state_->voice_priority`; seeded at bind, written here, read at save). It
-	/// is read per render block in Voice::getPriorityRating(), so render reads a hot derived cache instead.
+	/// is read per render block in the voices' priority ratings, so render reads a hot derived cache instead.
 	/// @param value New priority.
 	void setVoicePriority(VoicePriority value);
 
@@ -316,7 +316,7 @@ public:
 	int16_t getMaxOscTranspose(InstrumentClip* clip);
 	int16_t getMinOscTranspose();
 	void setSynthMode(SynthMode value, Song* song);
-	[[nodiscard]] SynthMode getSynthMode() const { return snapshot_.synthMode; }
+	[[nodiscard]] SynthMode getSynthMode() const { return snapshot_.synth_mode; }
 	// Store the synth mode (bound: record, then reproject; unbound: the snapshot) without setSynthMode()'s gesture side
 	// effects (voice kill, mod-knob and filter swaps) — for the load path.
 	void assignSynthMode(SynthMode value);

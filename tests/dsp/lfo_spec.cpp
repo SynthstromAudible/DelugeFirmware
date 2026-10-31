@@ -41,7 +41,7 @@ describe lfo_spec("LFO", ${
 	it("renders a global triangle from zero", _ {
 		LFO lfo;
 		LFOConfig conf(LFOType::TRIANGLE);
-		lfo.setGlobalInitialPhase(conf);
+		lfo.set_global_initial_phase(conf);
 		expect(lfo.render(10, conf, 100, deluge::synth_noise)).to_equal(0);
 		expect(lfo.render(0, conf, 0, deluge::synth_noise)).to_equal(10 * 100 * 2); // slope of 2 per phase step
 	});
@@ -49,7 +49,7 @@ describe lfo_spec("LFO", ${
 	it("renders a local triangle from the negative extreme", _ {
 		LFO lfo;
 		LFOConfig conf(LFOType::TRIANGLE);
-		lfo.setLocalInitialPhase(conf);
+		lfo.set_local_initial_phase(conf);
 		expect(lfo.render(10, conf, 100, deluge::synth_noise)).to_equal(INT32_MIN);
 		expect(lfo.render(0, conf, 0, deluge::synth_noise)).to_equal(INT32_MIN + 2000);
 	});
@@ -57,9 +57,9 @@ describe lfo_spec("LFO", ${
 	it("renders a global sine from zero", _ {
 		LFO lfo;
 		LFOConfig conf(LFOType::SINE);
-		lfo.setGlobalInitialPhase(conf);
+		lfo.set_global_initial_phase(conf);
 		expect((int32_t)lfo.phase()).to_equal(0); // sin(0) == 0
-		lfo.setPhase(1024);
+		lfo.set_phase(1024);
 		// (2^31)*sin(2*pi*1024/(2^32)) == 3216.99
 		expect(lfo.render(0, conf, 0, deluge::synth_noise)).to_equal(3216);
 	});
@@ -67,7 +67,7 @@ describe lfo_spec("LFO", ${
 	it("renders a local sine from the negative extreme", _ {
 		LFO lfo;
 		LFOConfig conf(LFOType::SINE);
-		lfo.setLocalInitialPhase(conf);
+		lfo.set_local_initial_phase(conf);
 		expect(lfo.phase()).to_equal(3221225472u);
 		expect(lfo.render(10, conf, 100, deluge::synth_noise)).to_equal(-2147418112);
 		expect(lfo.render(0, conf, 0, deluge::synth_noise)).to_equal(-2147418082);
@@ -76,9 +76,9 @@ describe lfo_spec("LFO", ${
 	it("renders a saw with the same initial phase for local and global", _ {
 		LFO lfo;
 		LFOConfig conf(LFOType::SAW);
-		lfo.setLocalInitialPhase(conf);
+		lfo.set_local_initial_phase(conf);
 		uint32_t local_phase = lfo.phase();
-		lfo.setGlobalInitialPhase(conf);
+		lfo.set_global_initial_phase(conf);
 		expect(lfo.phase()).to_equal(local_phase);
 		expect(lfo.render(10, conf, 100, deluge::synth_noise)).to_equal(INT32_MIN);
 		expect(lfo.render(0, conf, 0, deluge::synth_noise)).to_equal(INT32_MIN + 1000);
@@ -87,12 +87,12 @@ describe lfo_spec("LFO", ${
 	it("renders a square and crosses its phase-width threshold", _ {
 		LFO lfo;
 		LFOConfig conf(LFOType::SQUARE);
-		lfo.setLocalInitialPhase(conf);
+		lfo.set_local_initial_phase(conf);
 		uint32_t local_phase = lfo.phase();
-		lfo.setGlobalInitialPhase(conf);
+		lfo.set_global_initial_phase(conf);
 		expect(lfo.phase()).to_equal(local_phase);
 		expect(lfo.render(0, conf, 0, deluge::synth_noise)).to_equal(INT32_MAX); // historically the positive extreme
-		lfo.setPhase(0x80000001);                           // force over the phase width
+		lfo.set_phase(0x80000001);                           // force over the phase width
 		expect(lfo.render(0, conf, 0, deluge::synth_noise)).to_equal(INT32_MIN);
 	});
 
@@ -101,10 +101,10 @@ describe lfo_spec("LFO", ${
 		seedRng();
 		LFO lfo;
 		LFOConfig conf(LFOType::SAMPLE_AND_HOLD);
-		lfo.setLocalInitialPhase(conf);
+		lfo.set_local_initial_phase(conf);
 		uint32_t local_phase = lfo.phase();
-		conf.syncLevel = deluge::plugin::SyncLevel::EIGHTH;
-		lfo.setGlobalInitialPhase(conf);
+		conf.sync_level = deluge::plugin::SyncLevel::EIGHTH;
+		lfo.set_global_initial_phase(conf);
 		expect(lfo.phase()).to_equal(local_phase);
 		expect(lfo.phase()).to_equal(0u);
 
@@ -116,12 +116,12 @@ describe lfo_spec("LFO", ${
 		expect(value).to_equal(-1392915738);
 		expect(lfo.phase()).to_equal(200u);
 
-		lfo.setPhase(0); // force a new period
+		lfo.set_phase(0); // force a new period
 		value = lfo.render(10, conf, 10, deluge::synth_noise);
 		expect(value).to_equal(-28442955);
 		expect(lfo.phase()).to_equal(100u);
 
-		lfo.setPhase(UINT32_MAX); // next advance overflows -> new period
+		lfo.set_phase(UINT32_MAX); // next advance overflows -> new period
 		value = lfo.render(10, conf, 10, deluge::synth_noise);
 		expect(value).to_equal(-1725170056);
 		expect(lfo.phase()).to_equal(99u);
@@ -131,9 +131,9 @@ describe lfo_spec("LFO", ${
 		seedRng();
 		LFO lfo;
 		LFOConfig conf(LFOType::RANDOM_WALK);
-		lfo.setLocalInitialPhase(conf);
-		conf.syncLevel = deluge::plugin::SyncLevel::EIGHTH;
-		lfo.setGlobalInitialPhase(conf);
+		lfo.set_local_initial_phase(conf);
+		conf.sync_level = deluge::plugin::SyncLevel::EIGHTH;
+		lfo.set_global_initial_phase(conf);
 		expect(lfo.phase()).to_equal(0u);
 
 		int32_t value = lfo.render(10, conf, 10, deluge::synth_noise);
@@ -143,11 +143,11 @@ describe lfo_spec("LFO", ${
 		value = lfo.render(10, conf, 10, deluge::synth_noise); // held
 		expect(value).to_equal(-2948644);
 
-		lfo.setPhase(0); // force a new period
+		lfo.set_phase(0); // force a new period
 		value = lfo.render(10, conf, 10, deluge::synth_noise);
 		expect(value).to_equal(-78931243);
 
-		lfo.setPhase(UINT32_MAX); // overflow -> new period
+		lfo.set_phase(UINT32_MAX); // overflow -> new period
 		value = lfo.render(10, conf, 10, deluge::synth_noise);
 		expect(value).to_equal(-174189095);
 		expect(lfo.phase()).to_equal(99u);
@@ -158,19 +158,19 @@ describe lfo_spec("LFO", ${
 		seedRng();
 		LFO lfo;
 		LFOConfig conf(LFOType::SAMPLE_AND_HOLD);
-		lfo.setGlobalInitialPhase(conf);
+		lfo.set_global_initial_phase(conf);
 		const int32_t held = lfo.render(1, conf, 100, deluge::synth_noise);
 		expect(held).not_().to_equal(0);
 
 		// Sound::resyncGlobalLFOs() resets the initial phase and then adds the current clock offset.
 		// Model successive re-syncs within one period.
 		for (uint32_t offset = 0x20000000; offset < 0xE0000000; offset += 0x20000000) {
-			lfo.setGlobalInitialPhase(conf);
-			lfo.advancePhase(offset);
+			lfo.set_global_initial_phase(conf);
+			lfo.advance_phase(offset);
 			expect(lfo.render(1, conf, 100, deluge::synth_noise)).to_equal(held);
 		}
 
-		lfo.setPhase(UINT32_MAX);
+		lfo.set_phase(UINT32_MAX);
 		const int32_t next = lfo.render(1, conf, 100, deluge::synth_noise);
 		expect(next).not_().to_equal(held);
 		expect(lfo.render(1, conf, 100, deluge::synth_noise)).to_equal(next);
@@ -181,23 +181,23 @@ describe lfo_spec("LFO", ${
 			seedRng();
 			LFO lfo;
 			LFOConfig conf(type);
-			lfo.setLocalInitialPhase(conf);
+			lfo.set_local_initial_phase(conf);
 			lfo.render(1, conf, 0x10000000, deluge::synth_noise);
-			lfo.setPhase(0x40000000);
+			lfo.set_phase(0x40000000);
 			const int32_t before = LFO(lfo).render(1, conf, 1, deluge::synth_noise);
 
 			LFO resynced = lfo;
-			resynced.setGlobalInitialPhase(conf);
-			resynced.setPhase(0x40000000);
+			resynced.set_global_initial_phase(conf);
+			resynced.set_phase(0x40000000);
 			expect(resynced.render(1, conf, 1, deluge::synth_noise)).to_equal(before);
 
 			// Per-voice note-on still starts with fresh waveform state.
 			LFO fresh;
-			fresh.setLocalInitialPhase(conf);
-			fresh.setPhase(0x40000000);
+			fresh.set_local_initial_phase(conf);
+			fresh.set_phase(0x40000000);
 			LFO noted = lfo;
-			noted.setLocalInitialPhase(conf);
-			noted.setPhase(0x40000000);
+			noted.set_local_initial_phase(conf);
+			noted.set_phase(0x40000000);
 			expect(noted.render(1, conf, 1, deluge::synth_noise)).to_equal(fresh.render(1, conf, 1, deluge::synth_noise));
 		}
 	});
@@ -207,15 +207,15 @@ describe lfo_spec("LFO", ${
 			seedRng();
 			LFO lfo;
 			LFOConfig conf(type);
-			lfo.setGlobalInitialPhase(conf, true);
+			lfo.set_global_initial_phase(conf, true);
 			lfo.render(1, conf, 0x10000000, deluge::synth_noise);
 
-			lfo.setGlobalInitialPhase(conf, true);
+			lfo.set_global_initial_phase(conf, true);
 			LFO fresh;
-			fresh.setGlobalInitialPhase(conf, true);
+			fresh.set_global_initial_phase(conf, true);
 			expect(lfo.phase()).to_equal(fresh.phase());
-			lfo.setPhase(0x40000000);
-			fresh.setPhase(0x40000000);
+			lfo.set_phase(0x40000000);
+			fresh.set_phase(0x40000000);
 			expect(lfo.render(1, conf, 1, deluge::synth_noise)).to_equal(fresh.render(1, conf, 1, deluge::synth_noise));
 		}
 	});
@@ -225,11 +225,11 @@ describe lfo_spec("LFO", ${
 		LFO lfo;
 		LFOConfig conf(LFOType::SAMPLE_AND_HOLD);
 		for (int restart = 0; restart < 2; ++restart) {
-			lfo.setGlobalInitialPhase(conf, true);
+			lfo.set_global_initial_phase(conf, true);
 			const int32_t held = lfo.render(1, conf, 100, deluge::synth_noise);
 			expect(held).not_().to_equal(0);
-			lfo.setGlobalInitialPhase(conf);
-			lfo.advancePhase(0x20000000);
+			lfo.set_global_initial_phase(conf);
+			lfo.advance_phase(0x20000000);
 			expect(lfo.render(1, conf, 100, deluge::synth_noise)).to_equal(held);
 		}
 	});
@@ -238,7 +238,7 @@ describe lfo_spec("LFO", ${
 		seedRng();
 		LFO lfo;
 		LFOConfig conf(LFOType::WARBLER);
-		lfo.setLocalInitialPhase(conf);
+		lfo.set_local_initial_phase(conf);
 		expect(lfo.phase()).to_equal(0u);
 		lfo.render(10, conf, 100, deluge::synth_noise);
 		// The warbler advances phase at 2x the supplied increment (100 * 10 * 2).

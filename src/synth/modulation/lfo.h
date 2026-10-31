@@ -32,13 +32,13 @@
 class LFOConfig {
 public:
 	LFOConfig()
-	    : waveType(LFOType::TRIANGLE), syncType(deluge::plugin::SyncType::EVEN),
-	      syncLevel(deluge::plugin::SyncLevel::NONE) {}
+	    : wave_type(LFOType::TRIANGLE), sync_type(deluge::plugin::SyncType::EVEN),
+	      sync_level(deluge::plugin::SyncLevel::NONE) {}
 	LFOConfig(LFOType type)
-	    : waveType(type), syncType(deluge::plugin::SyncType::EVEN), syncLevel(deluge::plugin::SyncLevel::NONE) {}
-	LFOType waveType;
-	deluge::plugin::SyncType syncType;
-	deluge::plugin::SyncLevel syncLevel;
+	    : wave_type(type), sync_type(deluge::plugin::SyncType::EVEN), sync_level(deluge::plugin::SyncLevel::NONE) {}
+	LFOType wave_type;
+	deluge::plugin::SyncType sync_type;
+	deluge::plugin::SyncLevel sync_level;
 
 	bool operator==(const LFOConfig&) const = default;
 };
@@ -171,15 +171,15 @@ public:
 
 	/// Re-seat the waveform and set the phase for a fresh note (local LFOs always start at the negative
 	/// extreme), resetting the waveform's accumulators.
-	void setLocalInitialPhase(const LFOConfig& config);
+	void set_local_initial_phase(const LFOConfig& config);
 	/// Set the phase for a transport re-sync (global LFOs). The waveform's accumulators are kept, so a
 	/// sample-and-hold keeps holding across re-syncs, unless @p reset_state (playback start / song swap).
-	void setGlobalInitialPhase(const LFOConfig& config, bool reset_state = false);
+	void set_global_initial_phase(const LFOConfig& config, bool reset_state = false);
 
 	/// Render one block of @p config's wave (see the LFOType overload).
 	[[gnu::always_inline]] int32_t render(int32_t num_samples, const LFOConfig& config, uint32_t phase_increment,
 	                                      deluge::dsp::fixed::Cong& noise) {
-		return render(num_samples, config.waveType, phase_increment, noise);
+		return render(num_samples, config.wave_type, phase_increment, noise);
 	}
 
 	/// Render one block, returning the LFO's q31 value for it.
@@ -188,7 +188,7 @@ public:
 	/// @param noise The noise stream the random waves (sample-and-hold, random walk, warbler) draw from.
 	[[gnu::always_inline]] int32_t render(int32_t num_samples, LFOType wave_type, uint32_t phase_increment,
 	                                      deluge::dsp::fixed::Cong& noise) {
-		selectWave(wave_type);
+		select_wave(wave_type);
 		return std::visit([&](auto& wave) { return wave.render(phase_, phase_increment, num_samples, noise); }, wave_);
 	}
 
@@ -200,18 +200,18 @@ public:
 	}
 
 	uint32_t phase() const { return phase_; }
-	void setPhase(uint32_t phase) { phase_ = phase; }
+	void set_phase(uint32_t phase) { phase_ = phase; }
 	/// Nudge the phase forward (e.g. to align a synced global LFO to the transport position).
-	void advancePhase(uint32_t delta) { phase_ += delta; }
+	void advance_phase(uint32_t delta) { phase_ += delta; }
 
 private:
 	// Force a fresh waveform of `type`, resetting its accumulators (note-on / re-sync).
-	void emplaceWave(LFOType type);
+	void emplace_wave(LFOType type);
 	// Reseat the waveform only on an actual type change, so SAMPLE_AND_HOLD / RANDOM_WALK / WARBLER state
 	// persists across same-type render blocks.
-	void selectWave(LFOType type) {
+	void select_wave(LFOType type) {
 		if (wave_.index() != static_cast<std::size_t>(type)) {
-			emplaceWave(type);
+			emplace_wave(type);
 		}
 	}
 

@@ -17,7 +17,8 @@
 
 #include "util/phase_increment_fine_tuner.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
-#include "util/functions.h"
+#include "util/fixedpoint.h"
+#include "util/lookuptables/lookuptables.h"
 
 using deluge::dsp::fixed::kLinearTableInterpolator;
 

@@ -210,7 +210,7 @@ describe supersaw("the dsp-next supersaw", ${
 			std::vector<int32_t> got(1024);
 			std::vector<int32_t> scratch(128);
 			for (int32_t pos = 0; pos < 1024; pos += 128) {
-				source.renderInto(controls(false), inc, 0, 0, Buffer{got.data() + pos, 128}, Buffer{scratch});
+				source.render_into(controls(false), inc, 0, 0, Buffer{got.data() + pos, 128}, Buffer{scratch});
 			}
 			expect(got == render(inc, 0, 7, 1024, {128})).to_be_true();
 			expect(source.phase()).to_equal(kStartPhase + inc * 1024);
@@ -224,8 +224,8 @@ describe supersaw("the dsp-next supersaw", ${
 			std::vector<int32_t> wave(128);
 			std::vector<int32_t> out(128, 1000);
 			std::vector<int32_t> scratch(128);
-			raw.renderInto(controls(false), inc, 0, 0, Buffer{wave}, Buffer{scratch});
-			mixed.renderInto(controls(true, amplitude), inc, 0, 0, Buffer{out}, Buffer{scratch});
+			raw.render_into(controls(false), inc, 0, 0, Buffer{wave}, Buffer{scratch});
+			mixed.render_into(controls(true, amplitude), inc, 0, 0, Buffer{out}, Buffer{scratch});
 			for (size_t i = 0; i < out.size(); i++) {
 				// vqdmulh by the halved, quadrupled amplitude, plus what was already in the buffer
 				auto want = static_cast<int32_t>((static_cast<int64_t>(wave[i]) * ((amplitude.value() << 2) >> 1)) >> 31) + 1000;
@@ -240,8 +240,8 @@ describe supersaw("the dsp-next supersaw", ${
 			std::vector<int32_t> scratch(128);
 			SupersawSource a{0, Supersaw::side_phases_from(0)};
 			SupersawSource b{0, Supersaw::side_phases_from(0)};
-			a.renderInto(controls(false), inc, 0, 0, Buffer{first}, Buffer{scratch});
-			b.renderInto(controls(false), inc, 0, 0, Buffer{second}, Buffer{scratch});
+			a.render_into(controls(false), inc, 0, 0, Buffer{first}, Buffer{scratch});
+			b.render_into(controls(false), inc, 0, 0, Buffer{second}, Buffer{scratch});
 			expect(first == second).to_be_true();
 		});
 	});

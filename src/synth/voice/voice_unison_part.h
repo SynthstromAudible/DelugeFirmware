@@ -18,10 +18,13 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "model/voice/voice_unison_part_source.h"
+#include "synth/voice/unison_part_source.h"
 
-// A pure (mode-agnostic) per-unison source container. The FM modulator grid that used to live here moved to
-// FMEngine (the first stateful engine) — it was FM-exclusive state; see model/voice/fm_engine.h.
+namespace deluge::synth {
+
+// One unison part's sources, the same in every synth mode: FM's per-part modulator state lives in FMEngine.
 struct VoiceUnisonPart {
 	VoiceUnisonPartSource sources[kNumSources];
 };
+
+} // namespace deluge::synth

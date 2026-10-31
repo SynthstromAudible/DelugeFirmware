@@ -29,8 +29,8 @@
 /// is agnostic to the sizes; only the construction site points its spans at a plane.
 template <std::size_t NumSources, std::size_t NumParams>
 struct ParamPlane {
-	std::array<int32_t, NumSources> sourceValues{};    ///< current patch-source values (LFO / env / velocity / …)
-	std::array<int32_t, NumParams> paramFinalValues{}; ///< Patcher output, indexed by (param - config.firstParam)
+	std::array<int32_t, NumSources> source_values{};     ///< current patch-source values (LFO / env / velocity / …)
+	std::array<int32_t, NumParams> param_final_values{}; ///< Patcher output, indexed by (param - config.firstParam)
 };
 
 /// The per-voice plane: all the patch sources, the local param range.

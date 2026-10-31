@@ -38,26 +38,26 @@ public:
 	virtual ~AudioInputPort() = default;
 
 	/// The monotonic audio frame clock (`AudioEngine::audioSampleTimer`) — the ingest idempotency/staleness key.
-	[[nodiscard]] virtual uint32_t sampleTime() const = 0;
+	[[nodiscard]] virtual uint32_t sample_time() const = 0;
 
 	/// Is a stereo external input live? (`micPluggedIn || lineInPluggedIn`) — drives the STEREO→L fallback and the
 	/// `INPUT_R` channel offset, re-read per block so mid-note plug/unplug behaves as before.
-	[[nodiscard]] virtual bool stereoInputAvailable() const = 0;
+	[[nodiscard]] virtual bool stereo_input_available() const = 0;
 
 	/// The live-input ring read cursor: the first of the current block's interleaved-stereo frames. Step by
 	/// `NUM_MONO_INPUT_CHANNELS` and wrap at @ref ringEnd (the host owns the ring + its fill/advance).
-	[[nodiscard]] virtual const int32_t* ringReadPos() const = 0;
+	[[nodiscard]] virtual const int32_t* ring_read_pos() const = 0;
 	/// One past the last sample of the input ring (the wrap bound for @ref ringReadPos).
-	[[nodiscard]] virtual const int32_t* ringEnd() const = 0;
+	[[nodiscard]] virtual const int32_t* ring_end() const = 0;
 
 	/// The shared, per-channel ingest+analysis buffer for @p channel (host-pooled across voices, GC'd by
 	/// staleness). @return the borrowed buffer, or nullptr if unavailable and @p mayCreate is false / the pool is
 	/// empty.
-	[[nodiscard]] virtual LiveInputBuffer* bufferForChannel(InputChannel channel, bool mayCreate) = 0;
+	[[nodiscard]] virtual LiveInputBuffer* buffer_for_channel(InputChannel channel, bool may_create) = 0;
 
 	/// Report the time-stretch hops the pitch-shifter performed this block, for the host's per-routine CPU-load
 	/// accounting (the pitch-shifter itself stays free of that global; see LivePitchShifter::render's return value).
-	virtual void reportHops(int32_t hopsEnded) = 0;
+	virtual void report_hops(int32_t hops_ended) = 0;
 };
 
 } // namespace deluge::synth

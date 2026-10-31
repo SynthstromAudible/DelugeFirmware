@@ -49,7 +49,7 @@ public:
 	}
 
 	void readCurrentValue() override {
-		this->setValue(soundEditor.currentSound->snapshot().lfoConfig[lfoId_].waveType);
+		this->setValue(soundEditor.currentSound->snapshot().lfo_config[lfoId_].wave_type);
 	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
@@ -78,7 +78,7 @@ public:
 		oled_canvas::Canvas& image = OLED::main;
 
 		const Icon& icon = [&] {
-			switch (soundEditor.currentSound->snapshot().lfoConfig[lfoId_].waveType) {
+			switch (soundEditor.currentSound->snapshot().lfo_config[lfoId_].wave_type) {
 			case LFOType::SINE:
 				return OLED::sineIcon;
 			case LFOType::TRIANGLE:

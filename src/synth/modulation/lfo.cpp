@@ -1,6 +1,6 @@
 #include "synth/modulation/lfo.h"
 
-uint32_t getLFOInitialPhaseForNegativeExtreme(LFOType wave_type) {
+uint32_t get_lfo_initial_phase_for_negative_extreme(LFOType wave_type) {
 	switch (wave_type) {
 	case LFOType::SAW:
 		return 2147483648u;
@@ -15,7 +15,7 @@ uint32_t getLFOInitialPhaseForNegativeExtreme(LFOType wave_type) {
 	}
 }
 
-uint32_t getLFOInitialPhaseForZero(LFOType wave_type) {
+uint32_t get_lfo_initial_phase_for_zero(LFOType wave_type) {
 	switch (wave_type) {
 	case LFOType::TRIANGLE:
 		return 1073741824;
@@ -25,7 +25,7 @@ uint32_t getLFOInitialPhaseForZero(LFOType wave_type) {
 	}
 }
 
-void LFO::emplaceWave(LFOType type) {
+void LFO::emplace_wave(LFOType type) {
 	// Force a fresh wave of the requested type — its accumulators (hold/target/speed) start zeroed.
 	// Order mirrors the LFOType enum so wave_.index() == static_cast<size_t>(type).
 	switch (type) {
@@ -56,24 +56,24 @@ void LFO::emplaceWave(LFOType type) {
 // LFO2 always starts from the negative extreme (it triggers per note-on), but LFO1
 // has historically waveform-specific behaviour when synced.
 
-void LFO::setLocalInitialPhase(const LFOConfig& config) {
-	emplaceWave(config.waveType); // fresh wave → accumulators zeroed (matches a per-note-on reset)
-	phase_ = getLFOInitialPhaseForNegativeExtreme(config.waveType);
+void LFO::set_local_initial_phase(const LFOConfig& config) {
+	emplace_wave(config.wave_type); // fresh wave → accumulators zeroed (matches a per-note-on reset)
+	phase_ = get_lfo_initial_phase_for_negative_extreme(config.wave_type);
 }
 
-void LFO::setGlobalInitialPhase(const LFOConfig& config, bool reset_state) {
+void LFO::set_global_initial_phase(const LFOConfig& config, bool reset_state) {
 	// Clock re-syncs call this repeatedly during playback, so they only realign the phase: the random waveforms
 	// keep their held value and filter state. Playback start resets that state too.
 	if (reset_state) {
-		emplaceWave(config.waveType);
+		emplace_wave(config.wave_type);
 	}
 	else {
-		selectWave(config.waveType);
+		select_wave(config.wave_type);
 	}
-	if (config.waveType == LFOType::SINE || config.waveType == LFOType::TRIANGLE) {
-		phase_ = getLFOInitialPhaseForZero(config.waveType);
+	if (config.wave_type == LFOType::SINE || config.wave_type == LFOType::TRIANGLE) {
+		phase_ = get_lfo_initial_phase_for_zero(config.wave_type);
 	}
 	else {
-		phase_ = getLFOInitialPhaseForNegativeExtreme(config.waveType);
+		phase_ = get_lfo_initial_phase_for_negative_extreme(config.wave_type);
 	}
 }
