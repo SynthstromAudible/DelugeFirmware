@@ -49,6 +49,9 @@ public:
 	                           ModelStackWithParamCollection const* modelStack = nullptr,
 	                           bool createIfNotFound = false);
 	void deletePatchCable(ModelStackWithParamCollection const* modelStack, uint8_t c);
+	// Delete the cable at modelStack's param if it has no depth and no automation left. Returns whether it did; if so,
+	// the AutoParam in modelStack no longer exists.
+	bool deleteCableIfUnused(ModelStackWithAutoParam const* modelStack);
 	bool patchCableIsUsable(uint8_t c, ModelStackWithThreeMainThings const* modelStack);
 	int32_t getModifiedPatchCableAmount(int32_t c, int32_t p);
 	void removeAllPatchingToParam(ModelStackWithParamCollection* modelStack, uint8_t p);
@@ -104,6 +107,7 @@ public:
 	Destination* getDestinationForParam(int32_t p);
 
 	deluge::modulation::params::Kind getParamKind() override { return deluge::modulation::params::Kind::PATCH_CABLE; }
+	bool supportsLinking() const override { return true; }
 
 	uint32_t sourcesPatchedToAnything[2]; // Only valid after setupPatching()
 
