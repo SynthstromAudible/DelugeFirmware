@@ -102,14 +102,12 @@
 ///
 /// ## The walk
 ///
-/// One JSON array, one entry per `nodes::kAllRoots` root (11: the ten `MenuContext::Root`
-/// enumerators' own roots, in enumerator order, plus `root_cv` -- the MIDI/CV root's CV-titled
-/// twin, `nodes/roots.h`'s note), each walked over its own static `Node::children` **and**
-/// `Node::chain_targets` -- the same two edge kinds `node_id.h`'s `assign_node_ids` walks over the
-/// same root list, so every `"id"` printed here is one that call actually assigned. Sharing is
-/// preserved, not deduplicated: a node reachable from more than one parent (e.g. `song_master`
-/// under both the song and audio-clip roots, or `randomizer` under several) appears once per
-/// parent, each occurrence carrying the same `"id"`.
+/// One JSON array, one entry per `nodes::kAllRoots` root that is not a menu group (`Node::is_group`: the chains'
+/// paging composites, whose items the other roots already list), each walked over its own static `Node::children`
+/// **and** `Node::chain_targets` -- the same two edge kinds `node_id.h`'s `assign_node_ids` walks over the same root
+/// list, so every `"id"` printed here is one that call actually assigned. Sharing is preserved, not deduplicated: a
+/// node reachable from more than one parent (e.g. `song_master` under both the song and audio-clip roots, or
+/// `randomizer` under several) appears once per parent, each occurrence carrying the same `"id"`.
 ///
 /// ## Determinism
 ///
@@ -457,7 +455,8 @@ bool deluge::scenes::menu::dump_menu_tree(std::string& out) {
 	out += "[\n";
 	bool first = true;
 	for (const menu::Node* root : nodes::kAllRoots) {
-		if (root == nullptr) {
+		// A group pages its member pages as one; no menu lists it, and its items are already under the roots above.
+		if (root == nullptr || root->is_group) {
 			continue;
 		}
 		if (!first) {

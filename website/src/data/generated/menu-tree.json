@@ -973,20 +973,20 @@
               },
               {
                 "id": 90,
-                "name": "Treble",
-                "title": "Treble",
-                "type": "basic"
-              },
-              {
-                "id": 91,
                 "name": "Bass Frequency",
                 "title": "Bass Frequency",
                 "type": "basic"
               },
               {
-                "id": 92,
+                "id": 91,
                 "name": "Treble Frequency",
                 "title": "Treble Frequency",
+                "type": "basic"
+              },
+              {
+                "id": 92,
+                "name": "Treble",
+                "title": "Treble",
                 "type": "basic"
               }
             ],
@@ -4821,20 +4821,20 @@
               },
               {
                 "id": 90,
-                "name": "Treble",
-                "title": "Treble",
-                "type": "basic"
-              },
-              {
-                "id": 91,
                 "name": "Bass Frequency",
                 "title": "Bass Frequency",
                 "type": "basic"
               },
               {
-                "id": 92,
+                "id": 91,
                 "name": "Treble Frequency",
                 "title": "Treble Frequency",
+                "type": "basic"
+              },
+              {
+                "id": 92,
+                "name": "Treble",
+                "title": "Treble",
                 "type": "basic"
               }
             ],
@@ -9084,20 +9084,20 @@
               },
               {
                 "id": 90,
-                "name": "Treble",
-                "title": "Treble",
-                "type": "basic"
-              },
-              {
-                "id": 91,
                 "name": "Bass Frequency",
                 "title": "Bass Frequency",
                 "type": "basic"
               },
               {
-                "id": 92,
+                "id": 91,
                 "name": "Treble Frequency",
                 "title": "Treble Frequency",
+                "type": "basic"
+              },
+              {
+                "id": 92,
+                "name": "Treble",
+                "title": "Treble",
                 "type": "basic"
               }
             ],
@@ -9541,20 +9541,20 @@
               },
               {
                 "id": 90,
-                "name": "Treble",
-                "title": "Treble",
-                "type": "basic"
-              },
-              {
-                "id": 91,
                 "name": "Bass Frequency",
                 "title": "Bass Frequency",
                 "type": "basic"
               },
               {
-                "id": 92,
+                "id": 91,
                 "name": "Treble Frequency",
                 "title": "Treble Frequency",
+                "type": "basic"
+              },
+              {
+                "id": 92,
+                "name": "Treble",
+                "title": "Treble",
                 "type": "basic"
               }
             ],
@@ -9905,20 +9905,20 @@
               },
               {
                 "id": 90,
-                "name": "Treble",
-                "title": "Treble",
-                "type": "basic"
-              },
-              {
-                "id": 91,
                 "name": "Bass Frequency",
                 "title": "Bass Frequency",
                 "type": "basic"
               },
               {
-                "id": 92,
+                "id": 91,
                 "name": "Treble Frequency",
                 "title": "Treble Frequency",
+                "type": "basic"
+              },
+              {
+                "id": 92,
+                "name": "Treble",
+                "title": "Treble",
                 "type": "basic"
               }
             ],
@@ -10792,20 +10792,20 @@
               },
               {
                 "id": 90,
-                "name": "Treble",
-                "title": "Treble",
-                "type": "basic"
-              },
-              {
-                "id": 91,
                 "name": "Bass Frequency",
                 "title": "Bass Frequency",
                 "type": "basic"
               },
               {
-                "id": 92,
+                "id": 91,
                 "name": "Treble Frequency",
                 "title": "Treble Frequency",
+                "type": "basic"
+              },
+              {
+                "id": 92,
+                "name": "Treble",
+                "title": "Treble",
                 "type": "basic"
               }
             ],
