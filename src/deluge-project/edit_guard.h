@@ -36,10 +36,12 @@ namespace deluge::project {
 
 /// @brief What a structural edit was made to, for the host's probe.
 enum class ModelEdit : uint8_t {
-	NODES,       ///< one op on an OrderedPosVector (notes, note rows, automation nodes, clip instances)
-	PARAM_STORE, ///< a store the render resolves lanes through: the clip and backed-param maps, a manager's lanes
-	NODE_KERNEL, ///< a compound automation-node edit (a param_edit.h kernel): its node ops and the index arithmetic
-	             ///< between them
+	NODES,          ///< one op on an OrderedPosVector (notes, note rows, automation nodes, clip instances)
+	PARAM_STORE,    ///< a store the render resolves lanes through: the clip and backed-param maps, a manager's lanes
+	NODE_KERNEL,    ///< a compound automation-node edit (a param_edit.h kernel): its node ops and the index arithmetic
+	                ///< between them
+	NODES_AT_INDEX, ///< an insert or erase at an index on an automation node vector: the index was worked out before
+	                ///< the op, so the op belongs inside a compound edit (NODE_KERNEL) that spans both
 };
 
 /// @brief Brackets one structural edit (insert, erase, reorder, reallocate, hand-over) of a model container the

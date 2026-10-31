@@ -56,6 +56,16 @@ uint32_t notedStructuralEdits(StructuralContainer kind);
 /// @return The number of noteStructuralEdit() calls for @p kind made on the render tier.
 uint32_t renderStructuralEdits(StructuralContainer kind);
 
+/// @brief [task] [audio] Record an insert or erase at an index on an automation node vector (its ORDERED_POS_VECTOR
+/// edit is reported by the vector's own guard). Counts it if the interaction tier made it outside a compound edit:
+/// the index was worked out before the op, so only a section around both keeps it good.
+void noteIndexedNodeEdit();
+
+/// @brief [task] Inserts and erases at an index on automation node vectors the interaction tier made outside a
+/// compound edit, since boot.
+/// @return The count.
+uint32_t loneIndexedNodeEdits();
+
 /// @brief [task] Structural edits of every kind made while the render could preempt them, since boot.
 /// @return The unguarded-edit count across every container kind.
 uint32_t unguardedStructuralEditsTotal();

@@ -51,6 +51,10 @@ template <typename T, auto keyMember = &T::pos>
 requires std::is_member_pointer_v<decltype(keyMember)>
 class OrderedPosVector {
 	static constexpr bool keyIsWritable = std::is_member_object_pointer_v<decltype(keyMember)>;
+	/// What an insert or erase at a caller's index reports: an element type that sets kIndexedEditsAreCompound (the
+	/// automation node) has its index ops checked for an enclosing compound edit.
+	static constexpr ModelEdit kAtIndex =
+	    requires { T::kIndexedEditsAreCompound; } ? ModelEdit::NODES_AT_INDEX : ModelEdit::NODES;
 
 public:
 	OrderedPosVector() = default;
@@ -105,7 +109,7 @@ public:
 	/// @param numToInsert Number of elements to insert.
 	/// @return Success, or AllocError::OUT_OF_MEMORY (the vector is then unchanged).
 	std::expected<void, AllocError> insertAt(int32_t i, int32_t numToInsert = 1) {
-		EditGuard guard;
+		EditGuard guard{kAtIndex};
 		return insertElements(i, numToInsert);
 	}
 
@@ -192,11 +196,11 @@ public:
 	/// @param last  One past the last element to erase.
 	/// @return The iterator following the removed range, as std containers do.
 	iterator erase(iterator first, iterator last) {
-		EditGuard guard;
+		EditGuard guard{kAtIndex};
 		return elements_.erase(first, last);
 	}
 	iterator erase(iterator at) {
-		EditGuard guard;
+		EditGuard guard{kAtIndex};
 		return elements_.erase(at);
 	}
 
@@ -227,7 +231,7 @@ public:
 	/// @param iFrom Current index.
 	/// @param iTo   Destination index.
 	void repositionElement(int32_t iFrom, int32_t iTo) {
-		EditGuard guard;
+		EditGuard guard{kAtIndex};
 		if (iFrom < iTo) {
 			std::rotate(elements_.begin() + iFrom, elements_.begin() + iFrom + 1, elements_.begin() + iTo + 1);
 		}

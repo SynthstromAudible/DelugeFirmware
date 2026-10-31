@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
+#include "deluge-project/param_edit.h"
 #include "effects/delay.h"
 #include "effects/granular.h"
 #include "effects/mod_fx.h"
@@ -57,7 +58,9 @@
 #include "model/song/song.h"
 #include "model/voice/voice_slot.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_manager.h"
+#include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
@@ -159,6 +162,9 @@ enum class Leg : uint8_t {
 	CcLearn,
 	CableAdd,
 	DrumDel,
+	Paste,
+	Trim,
+	Steal,
 	Heap,
 	Slab,
 	ModFxOom,
@@ -197,6 +203,7 @@ SoundDrum* g_drum = nullptr;
 const char* g_step = nullptr;
 uint32_t g_before[static_cast<size_t>(StructuralContainer::COUNT_)]{};
 uint32_t g_totalBefore = 0;
+uint32_t g_loneBefore = 0;
 
 const char* legName(Leg leg) {
 	switch (leg) {
@@ -262,6 +269,12 @@ const char* legName(Leg leg) {
 		return "CABLEADD";
 	case Leg::DrumDel:
 		return "DRUMDEL";
+	case Leg::Paste:
+		return "PASTE";
+	case Leg::Trim:
+		return "TRIM";
+	case Leg::Steal:
+		return "STEAL";
 	case Leg::Heap:
 		return "HEAP";
 	case Leg::Slab:
@@ -632,6 +645,31 @@ NoteRow* rowFor(int32_t note, int32_t* index) {
 	return row->getNoteRowAllowNull();
 }
 
+/// @return g_clip's synth's volume, as the engine's automation edits take it, built in @p memory.
+ModelStackWithAutoParam* volumeParam(char* memory) {
+	auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+	ParamCollectionSummary* summary = g_clip->paramManager.getPatchedParamSetSummary();
+	ModelStackWithThreeMainThings* three =
+	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, g_clip, &g_clip->paramManager);
+	ModelStackWithParamId* withId =
+	    three->addParamCollectionAndId(summary->paramCollection, summary, deluge::modulation::params::LOCAL_VOLUME);
+	return withId->paramCollection->getAutoParamFromId(withId, false);
+}
+
+/// @brief Puts four nodes in g_clip's synth's volume automation, at an eighth, three, five and seven eighths of the
+/// loop, none at 0.
+void automateVolume() {
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* volume = volumeParam(memory);
+	const int32_t loop = g_clip->loopLength();
+	deluge::project::DocAutoParam* doc = volume->doc();
+	for (int32_t eighth = 1; eighth < 8; eighth += 2) {
+		(void)deluge::project::setNodeAtPos(*doc, loop * eighth / 8, (eighth - 4) << 27, eighth == 3);
+	}
+	volume->paramCollection->notifyParamModifiedInSomeWay(volume, volume->autoParam->getCurrentValue(), true, false,
+	                                                      true);
+}
+
 /// @return How many automation stores the song's backed params hold for @p owner.
 int32_t backedStoresOf(const deluge::project::OwnerId& owner) {
 	return static_cast<int32_t>(std::ranges::count_if(currentSong->project.backed_params.by_owner,
@@ -787,6 +825,11 @@ bool setupLeg() {
 		auditionSynth(kRowNote);
 		return true;
 	}
+	case Leg::Paste:
+	case Leg::Trim:
+	case Leg::Steal:
+		automateVolume();
+		return true;
 	case Leg::CcLearn: {
 		// The clip becomes a MIDI clip, whose CC automation is its own store in the song's clip params.
 		char memory[MODEL_STACK_MAX_SIZE];
@@ -955,15 +998,20 @@ void editLeg() {
 		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
 		playbackHandler.recording = RecordingMode::NORMAL;
 		g_clip->armedForRecording = true;
+		const uint32_t renderKernelsBefore = deluge::renderStructuralEdits(StructuralContainer::NODE_KERNEL);
 		for (int32_t turn = 0; turn < 6; turn++) {
 			turnParam(*synth, g_clip, g_clip->paramManager, deluge::modulation::params::LOCAL_VOLUME,
 			          (turn % 2 == 0) ? 0x30000000 : -0x30000000);
 			renderBlocks(kBlocksBefore);
 		}
+		// Long enough for the render, latched, to reach the node the last turn placed past its cleared span.
+		renderBlocks(kMaxBlocksBefore);
 		playbackHandler.recording = RecordingMode::OFF;
 		auto* params = static_cast<ParamSet*>(g_clip->paramManager.getPatchedParamSetSummary()->paramCollection);
-		printf("CG-RECORDKNOB recorded=%d\n",
-		       params->docForParam(deluge::modulation::params::LOCAL_VOLUME)->nodes.empty() ? 0 : 1);
+		printf("CG-RECORDKNOB recorded=%d renderKernels=%u\n",
+		       params->docForParam(deluge::modulation::params::LOCAL_VOLUME)->nodes.empty() ? 0 : 1,
+		       static_cast<unsigned>(deluge::renderStructuralEdits(StructuralContainer::NODE_KERNEL)
+		                             - renderKernelsBefore));
 		fflush(stdout);
 		break;
 	}
@@ -1060,6 +1108,48 @@ void editLeg() {
 		deluge::edits::apply(ctx, remove);
 		printf("CG-CABLEADD resident=%d\n", resident ? 1 : 0);
 		fflush(stdout);
+		break;
+	}
+	case Leg::Paste: {
+		// The automation editor's paste: a two-node copy pasted over the second quarter of the loop, clearing the
+		// nodes there and placing a node either side so the automation around it is kept.
+		g_step = "paste";
+		const int32_t loop = g_clip->loopLength();
+		std::array<ParamNode, 2> nodes{ParamNode{.pos = 0, .value = 0x30000000, .interpolated = false},
+		                               ParamNode{.pos = loop / 8, .value = -0x30000000, .interpolated = true}};
+		CopiedParamAutomation copied;
+		copied.width = loop / 4;
+		copied.nodes = nodes.data();
+		copied.numNodes = static_cast<int32_t>(nodes.size());
+		ModelStackWithAutoParam* volume = volumeParam(memory);
+		volume->autoParam->paste(loop / 4, loop / 2, 1.0f, volume, &copied, false);
+		copied.nodes = nullptr; // not the copy's to free
+		copied.numNodes = 0;
+		break;
+	}
+	case Leg::Trim: {
+		// A clip shortened to half its loop: the nodes past it go, and a node at 0 keeps the value there.
+		g_step = "trimToLength";
+		ModelStackWithAutoParam* volume = volumeParam(memory);
+		volume->autoParam->trimToLength(g_clip->loopLength() / 2, nullptr, volume);
+		break;
+	}
+	case Leg::Steal: {
+		// A note's automation moved with it, as a note drag does: the nodes under the first quarter stolen, then put
+		// back over the second.
+		g_step = "stealNodes";
+		const int32_t loop = g_clip->loopLength();
+		ModelStackWithAutoParam* volume = volumeParam(memory);
+		StolenParamNodes stolen{.num = 0, .nodes = nullptr};
+		volume->autoParam->stealNodes(volume, 0, loop / 4, loop, nullptr, &stolen);
+		g_step = "insertStolenNodes";
+		volume->autoParam->insertStolenNodes(volume, loop / 4, loop / 4, loop, nullptr, &stolen);
+		if (stolen.nodes != nullptr) {
+			deluge::memory::dealloc(stolen.nodes);
+		}
+		if (stolen.num == 0) {
+			fail("no nodes were stolen");
+		}
 		break;
 	}
 	case Leg::DrumDel: {
@@ -1826,6 +1916,7 @@ void runTick() {
 	}
 	case Stage::Edit: {
 		g_totalBefore = deluge::unguardedStructuralEditsTotal();
+		g_loneBefore = deluge::loneIndexedNodeEdits();
 		for (size_t k = 0; k < static_cast<size_t>(StructuralContainer::COUNT_); k++) {
 			g_before[k] = deluge::unguardedStructuralEdits(static_cast<StructuralContainer>(k));
 		}
@@ -1851,6 +1942,9 @@ void runTick() {
 		std::signal(SIGABRT, SIG_DFL);
 		std::signal(SIGSEGV, SIG_DFL);
 		printLine(false);
+		printf("CG-NODES leg=%s lone=%u\n", legName(g_leg),
+		       static_cast<unsigned>(deluge::loneIndexedNodeEdits() - g_loneBefore));
+		fflush(stdout);
 		g_stage = Stage::After;
 		break;
 	}

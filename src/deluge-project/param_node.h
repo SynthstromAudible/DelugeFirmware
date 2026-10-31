@@ -39,6 +39,10 @@ struct ParamNode {
 	bool interpolated{false};
 
 	bool operator==(const ParamNode&) const = default;
+
+	/// The render reads and, recording, writes node vectors: an insert or erase at an index worked out beforehand
+	/// belongs inside a compound edit (ModelEdit::NODES_AT_INDEX, checked by the host's probe).
+	static constexpr bool kIndexedEditsAreCompound = true;
 };
 
 /// @brief A parameter's automation: its points in ascending position.

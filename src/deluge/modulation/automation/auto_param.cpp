@@ -1417,6 +1417,8 @@ void AutoParam::trimToLength(uint32_t newLength, Action* action, ModelStackWithA
 		}
 	}
 
+	deluge::noteStructuralEdit(deluge::StructuralContainer::NODE_KERNEL);
+
 	// To ensure that the effective value at pos 0 remains the same even after earlier nodes deleted, we might need to
 	// add a new, non-interpolating node there.
 	bool needNewNodeAt0 = nodesRef.tryGet(0)->pos; // Deactivated for now, but I'm going to enable in the ModelStacks
@@ -1707,6 +1709,7 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 		}
 		return;
 	}
+	deluge::noteStructuralEdit(deluge::StructuralContainer::NODE_KERNEL);
 
 	// Save the current value at the start and end of the region w'ere pasting in to, before we start messing with it.
 	int32_t startValue = getValueAtPos(startPos, modelStack);
@@ -1957,6 +1960,7 @@ void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t po
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 
+	deluge::noteStructuralEdit(deluge::StructuralContainer::NODE_KERNEL);
 	int32_t stopAt = pos + regionLength;
 	int32_t durationAfterWrap = (stopAt - loopLength);
 
@@ -2041,6 +2045,7 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 		action->recordParamChangeIfNotAlreadySnapshotted(modelStack);
 	}
 
+	deluge::noteStructuralEdit(deluge::StructuralContainer::NODE_KERNEL);
 	// First, clear the area
 	stealNodes(modelStack, pos, regionLength, loopLength, action);
 

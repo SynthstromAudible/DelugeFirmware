@@ -60,6 +60,9 @@ extern "C" void deluge_model_note_structural_edit(uint8_t kind) noexcept {
 	case ModelEdit::NODE_KERNEL:
 		deluge::noteStructuralEdit(deluge::StructuralContainer::NODE_KERNEL);
 		return;
+	case ModelEdit::NODES_AT_INDEX:
+		deluge::noteIndexedNodeEdit();
+		break;
 	case ModelEdit::NODES:
 		break;
 	}

@@ -13,6 +13,7 @@ namespace {
 std::array<std::atomic<uint32_t>, static_cast<size_t>(StructuralContainer::COUNT_)> unguarded_{};
 std::array<std::atomic<uint32_t>, static_cast<size_t>(StructuralContainer::COUNT_)> noted_{};
 std::array<std::atomic<uint32_t>, static_cast<size_t>(StructuralContainer::COUNT_)> render_{};
+std::atomic<uint32_t> loneIndexed_{0};
 } // namespace
 
 void noteStructuralEdit([[maybe_unused]] StructuralContainer kind) {
@@ -25,6 +26,19 @@ void noteStructuralEdit([[maybe_unused]] StructuralContainer kind) {
 		unguarded_[static_cast<size_t>(kind)].fetch_add(1, std::memory_order_relaxed);
 	}
 #endif
+}
+
+void noteIndexedNodeEdit() {
+#if ALPHA_OR_BETA_VERSION
+	// Called from inside the op's own guard, which is one level of the depth; a compound edit around it is a second.
+	if (!deluge::memory::onRenderTier() && deluge_audio_excluded_depth() < 2) {
+		loneIndexed_.fetch_add(1, std::memory_order_relaxed);
+	}
+#endif
+}
+
+uint32_t loneIndexedNodeEdits() {
+	return loneIndexed_.load(std::memory_order_relaxed);
 }
 
 uint32_t unguardedStructuralEdits(StructuralContainer kind) {
