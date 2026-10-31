@@ -23,9 +23,9 @@
 
 namespace deluge::synth {
 
-EngineRenderResult SubtractiveEngine::render(const DualSourceBlock& block) {
+EngineRenderResult SubtractiveEngine::render(const EngineBlock& block) {
 	const VoiceConfig& cfg = *block.cfg;
-	const DualSourceControls& c = block.controls;
+	const DualSourceControls& c = block.dual;
 	const int32_t num_samples = block.num_samples;
 	int32_t* const osc_buffer = block.osc_buffer;
 
@@ -88,9 +88,9 @@ EngineRenderResult SubtractiveEngine::render(const DualSourceBlock& block) {
 	return result;
 }
 
-SubtractiveEngine::Pass SubtractiveEngine::begin(const DualSourceBlock& block,
+SubtractiveEngine::Pass SubtractiveEngine::begin(const EngineBlock& block,
                                                  const std::array<int32_t, kNumSources>& source_amplitudes) {
-	const DualSourceControls& c = block.controls;
+	const DualSourceControls& c = block.dual;
 	SourceLevels& levels = *block.levels;
 
 	// A new filter gain, or a slow attack on the first block, jumps to the new levels rather than ramping to them
@@ -113,7 +113,7 @@ SubtractiveEngine::Pass SubtractiveEngine::begin(const DualSourceBlock& block,
 	return pass;
 }
 
-bool SubtractiveEngine::render_one(const DualSourceBlock& block, Pass& pass, int32_t s, bool stereo) {
+bool SubtractiveEngine::render_one(const EngineBlock& block, Pass& pass, int32_t s, bool stereo) {
 	const bool doing_osc_sync = block.cfg->doing_osc_sync;
 	std::span<uint32_t> master_increments;
 	if (s == 0 && doing_osc_sync) {

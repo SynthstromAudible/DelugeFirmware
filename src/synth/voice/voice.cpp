@@ -55,43 +55,6 @@ constexpr int32_t kQ31Min = std::numeric_limits<int32_t>::min();
 /// The bits of a priority rating that rank voices in one envelope stage by when they entered it.
 constexpr uint32_t kTimeEnteredMask = 0x00FFFFFF;
 
-/// @brief A source's phase increment for @p transposed_note_code, before its cents and unison detune.
-/// @return None when the note is too high to render (above 22.05 kHz).
-std::optional<uint32_t> base_phase_increment(const SourceSetup& source, SynthMode synth_mode,
-                                             int32_t transposed_note_code) {
-	// A sample or live input plays at its own rate: its neutral increment is the root note's
-	if (synth_mode != SynthMode::FM
-	    && (source.osc_type == OscType::SAMPLE || source.osc_type == OscType::INPUT_L
-	        || source.osc_type == OscType::INPUT_R || source.osc_type == OscType::INPUT_STEREO)) {
-		int32_t note_within_octave = static_cast<uint16_t>(transposed_note_code + 240) % 12;
-		int32_t octave = static_cast<uint16_t>(transposed_note_code + 120) / 12;
-
-		uint32_t phase_increment =
-		    multiply_32x32_rshift32(noteIntervalTable[note_within_octave], source.neutral_phase_increment);
-
-		int32_t shift_right_amount = 13 - octave;
-		if (shift_right_amount >= 0) {
-			return phase_increment >> shift_right_amount;
-		}
-
-		int32_t shift_left_amount = 0 - shift_right_amount;
-		// Too high a semitone below the limit, because osc cents and unison could push it up a semitone
-		if (phase_increment >= (2026954652 >> shift_left_amount)) {
-			return std::nullopt;
-		}
-		return phase_increment << shift_left_amount;
-	}
-
-	// A wave oscillator
-	int32_t note_within_octave = static_cast<uint16_t>(transposed_note_code + 240 - 4) % 12;
-	int32_t octave = (transposed_note_code + 120 - 4) / 12;
-
-	int32_t shift_right_amount = 20 - octave;
-	if (shift_right_amount >= 0) {
-		return noteFrequencyTable[note_within_octave] >> shift_right_amount;
-	}
-	return std::nullopt;
-}
 } // namespace
 
 int32_t Voice::combine_expression_values(int32_t synth_level_value, int32_t expression_dimension) const {
@@ -153,7 +116,7 @@ bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& 
 
 	if (event.reset_envelopes) {
 		source_levels_.amplitudes_last_time.fill(0);
-		fm_engine.reset_levels();
+		engines_.fm().reset_levels();
 		overall_osc_amplitude_last_time = 0;
 		done_first_render = false;
 		filter_set.reset();
@@ -193,46 +156,20 @@ bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& 
 		}
 	}
 
-	// Each source is active in every unison part if it can sound. In ring-mod, a source that cannot play fails the
-	// note.
-	for (int32_t s = 0; s < kNumSources; s++) {
-		bool source_ever_active = setup.sources[s].ever_active;
-		if (!source_ever_active || !setup.sources[s].playable) {
-			if (snapshot.synth_mode == SynthMode::RINGMOD) {
-				return false;
-			}
-			source_ever_active = false;
-		}
-		for (int32_t u = 0; u < snapshot.num_unison; u++) {
-			unison_parts[u].slots[s].active = source_ever_active;
-		}
-	}
-
-	calculate_phase_increments(setup, snapshot);
-
-	const auto rating = static_cast<int32_t>(priority_rating(snapshot.voice_priority, num_active_voices));
-	for (int32_t s = 0; s < kNumSources; s++) {
-		if (!setup.sources[s].ever_active) [[unlikely]] {
-			continue;
-		}
-
-		for (int32_t u = 0; u < snapshot.num_unison; u++) {
-
-			// Check that we already marked this unison-part-source as active. Among other things, this ensures that if
-			// the osc is set to SAMPLE, there actually is a sample loaded.
-			if (unison_parts[u].slots[s].active) {
-				bool success = unison_parts[u].slots[s].note_on(
-				    setup.sources[s], event.samples_late, snapshot.osc_retrigger_phase[s], event.reset_envelopes,
-				    snapshot.synth_mode, note_code_after_arpeggiation, event.velocity, rating, *noise_);
-				if (!success) [[unlikely]] {
-					return false; // This shouldn't really ever happen I don't think really...
-				}
-			}
-		}
-	}
-
-	if (snapshot.synth_mode == SynthMode::FM) {
-		fm_engine.note_on(snapshot.num_unison, snapshot.modulator_retrigger_phase, event.reset_envelopes);
+	// The engine marks each source active where it can sound, works out the phase increments and starts the sources
+	const EngineNote note{
+	    .parts = unison_parts,
+	    .setup = &setup,
+	    .snapshot = &snapshot,
+	    .note_code = note_code_after_arpeggiation,
+	    .velocity = event.velocity,
+	    .samples_late = event.samples_late,
+	    .priority_rating = static_cast<int32_t>(priority_rating(snapshot.voice_priority, num_active_voices)),
+	    .reset = event.reset_envelopes,
+	    .noise = noise_,
+	};
+	if (!engines_.for_mode(snapshot.synth_mode).note_on(note)) {
+		return false;
 	}
 
 	previously_ignored_note_off = false;
@@ -305,53 +242,18 @@ void Voice::randomize_osc_phases(const SoundSnapshot& snapshot, dsp::fixed::Cong
 			unison_parts[u].slots[s].osc_pos = next_noise();
 			// TODO: we should do sample play pos, too
 		}
-		if (snapshot.synth_mode == SynthMode::FM) {
-			fm_engine.randomize_part(u, *noise_);
-		}
+		engines_.for_mode(snapshot.synth_mode).randomize_part(u, *noise_);
 	}
 }
 
 void Voice::calculate_phase_increments(const deluge::synth::NoteSetup& setup, const SoundSnapshot& snapshot) {
-
-	int32_t note_code_with_master_transpose = note_code_after_arpeggiation + snapshot.transpose;
-
-	for (int32_t s = 0; s < kNumSources; s++) {
-		const deluge::synth::SourceSetup& source = setup.sources[s];
-
-		const std::optional<uint32_t> base =
-		    source.ever_active
-		        ? base_phase_increment(source, snapshot.synth_mode, note_code_with_master_transpose + source.transpose)
-		        : std::nullopt;
-		if (!base.has_value()) { // Not sounding, or too high to render (above 22.05 kHz)
-			for (int32_t u = 0; u < snapshot.num_unison; u++) {
-				unison_parts[u].slots[s].active = false;
-			}
-			continue;
-		}
-
-		uint32_t phase_increment = *base;
-
-		// Cents
-		phase_increment = source.fine_tuner.detune(phase_increment);
-		phase_increment = snapshot.fine_tuner.detune(phase_increment); // master transpose
-
-		// If only one unison
-		if (snapshot.num_unison == 1) {
-			unison_parts[0].slots[s].phase_increment_stored_value = phase_increment;
-		}
-
-		// Or if multiple unison
-		else {
-			for (int32_t u = 0; u < snapshot.num_unison; u++) {
-				unison_parts[u].slots[s].phase_increment_stored_value =
-				    snapshot.unison_detuners[u].detune(phase_increment);
-			}
-		}
-	}
-
-	if (snapshot.synth_mode == SynthMode::FM) {
-		fm_engine.calculate_phase_increments(snapshot, note_code_with_master_transpose, setup.modulator_audible);
-	}
+	engines_.for_mode(snapshot.synth_mode)
+	    .calculate_phase_increments({
+	        .parts = unison_parts,
+	        .setup = &setup,
+	        .snapshot = &snapshot,
+	        .note_code = note_code_after_arpeggiation,
+	    });
 }
 
 void Voice::note_off(const deluge::synth::ReleaseInfo& release, bool allow_release_stage,
@@ -382,24 +284,10 @@ void Voice::note_off(const deluge::synth::ReleaseInfo& release, bool allow_relea
 		previously_ignored_note_off = true;
 	}
 
-	if (release.synth_mode != SynthMode::FM) {
-		const auto rating = static_cast<int32_t>(priority_rating(release.voice_priority, release.num_active_voices));
-		for (int32_t s = 0; s < kNumSources; s++) {
-			if (release.osc_types[s] == OscType::SAMPLE) {
-				for (int32_t u = 0; u < release.num_unison; u++) {
-					if (unison_parts[u].slots[s].active
-					    && !unison_parts[u].slots[s].sample().release({.priority_rating = rating})) {
-						unison_parts[u].slots[s].unassign(false);
-					}
-				}
-			}
-			else if (release.osc_types[s] == OscType::DX7) {
-				for (int u = 0; u < release.num_unison; u++) {
-					unison_parts[u].slots[s].dx7().release({});
-				}
-			}
-		}
-	}
+	// The parts' sources' releases: a sample's loop end, a DX7's key-up (none in FM)
+	engines_.for_mode(release.synth_mode)
+	    .release(unison_parts, release,
+	             static_cast<int32_t>(priority_rating(release.voice_priority, release.num_active_voices)));
 }
 
 uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::modulation::params::Local param,
@@ -558,7 +446,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 	auto_release_if_due(cfg, block, overall_pitch_adjust);
 
 	if (!done_first_render && params.param_final_values[params::LOCAL_ENV_0_ATTACK] > 245632) {
-		fm_engine.set_levels(modulator_volumes());
+		engines_.fm().set_levels(modulator_volumes());
 	}
 
 	// Apply envelope 0 to volume. This takes effect as a cut only; when the envelope is at max height, volume is
@@ -635,81 +523,37 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 		}
 	}
 
+	EngineBlock engine_block{
+	    .osc_buffer = osc_buffer,
+	    .num_samples = num_samples,
+	    .parts = unison_parts,
+	    .levels = &source_levels_,
+	    .cfg = &cfg,
+	    .voice_block = &block,
+	    .spare_buffers = spare_buffers_,
+	    .sync_scratch = sync_scratch_,
+	    .noise = noise_,
+	    .dual = {},
+	    .fm = {},
+	};
 	if (synth_mode == SynthMode::FM) {
-		FmControls controls{
-		    .overall_osc_amplitude = overall_osc_amplitude,
-		    .env0_attack = params.param_final_values[params::LOCAL_ENV_0_ATTACK],
-		    .filter_gain = filter_gain,
-		    .overall_pitch_adjust = overall_pitch_adjust,
-		    .first_render = first_render,
-		    .stereo_unison = stereo_unison,
-		};
-		for (int32_t s = 0; s < kNumSources; s++) {
-			controls.carrier_volume[s] = params.param_final_values[params::LOCAL_OSC_A_VOLUME + s];
-			controls.carrier_pitch_adjust[s] = params.param_final_values[params::LOCAL_OSC_A_PITCH_ADJUST + s];
-			controls.carrier_feedback[s] = params.param_final_values[params::LOCAL_CARRIER_0_FEEDBACK + s];
-			controls.wave_index[s] = params.param_final_values[params::LOCAL_OSC_A_WAVE_INDEX + s];
-		}
-		for (int32_t m = 0; m < kNumModulators; m++) {
-			controls.modulator_volume[m] = params.param_final_values[params::LOCAL_MODULATOR_0_VOLUME + m];
-			controls.modulator_pitch_adjust[m] = params.param_final_values[params::LOCAL_MODULATOR_0_PITCH_ADJUST + m];
-			controls.modulator_feedback[m] = params.param_final_values[params::LOCAL_MODULATOR_0_FEEDBACK + m];
-		}
-		const EngineRenderResult result = fm_engine.render({
-		    .osc_buffer = osc_buffer,
-		    .num_samples = num_samples,
-		    .parts = unison_parts,
-		    .levels = &source_levels_,
-		    .cfg = &cfg,
-		    .spare_buffers = spare_buffers_,
-		    .controls = controls,
-		});
-		did_stereo_temp_buffer = result.did_stereo_buffer;
+		engine_block.fm =
+		    fm_controls(overall_osc_amplitude, filter_gain, overall_pitch_adjust, first_render, stereo_unison);
 	}
 	else {
-		DualSourceControls controls{
-		    .noise_volume = params.param_final_values[params::LOCAL_NOISE_VOLUME],
-		    .env0_attack = params.param_final_values[params::LOCAL_ENV_0_ATTACK],
-		    .filter_gain = filter_gain,
-		    .overall_pitch_adjust = overall_pitch_adjust,
-		    .porta_envelope_pos = porta_envelope_pos,
-		    .priority_rating = static_cast<int32_t>(priority_rating(cfg.voice_priority, block.num_active_voices)),
-		    .note_code = note_code_after_arpeggiation,
-		    .first_render = first_render,
-		    .stereo_unison = stereo_unison,
-		};
-		for (int32_t s = 0; s < kNumSources; s++) {
-			controls.volume[s] = params.param_final_values[params::LOCAL_OSC_A_VOLUME + s];
-			controls.pitch_adjust[s] = params.param_final_values[params::LOCAL_OSC_A_PITCH_ADJUST + s];
-			controls.phase_width[s] = params.param_final_values[params::LOCAL_OSC_A_PHASE_WIDTH + s];
-			controls.wave_index[s] = params.param_final_values[params::LOCAL_OSC_A_WAVE_INDEX + s];
-			controls.pitch_mod_disallows_cache[s] =
-			    cfg.osc_type[s] == OscType::SAMPLE && pitch_mod_disallows_cache(control_block, cfg, s);
-		}
-		const DualSourceBlock dual_block{
-		    .osc_buffer = osc_buffer,
-		    .num_samples = num_samples,
-		    .parts = unison_parts,
-		    .levels = &source_levels_,
-		    .cfg = &cfg,
-		    .voice_block = &block,
-		    .spare_buffers = spare_buffers_,
-		    .sync_scratch = sync_scratch_,
-		    .noise = noise_,
-		    .controls = controls,
-		};
-		const EngineRenderResult result = synth_mode == SynthMode::RINGMOD ? RingModEngine::render(dual_block)
-		                                                                   : SubtractiveEngine::render(dual_block);
-		did_stereo_temp_buffer = result.did_stereo_buffer;
+		engine_block.dual = dual_source_controls(control_block, cfg, block, filter_gain, overall_pitch_adjust,
+		                                         first_render, stereo_unison);
+	}
+	const EngineRenderResult result = engines_.for_mode(synth_mode).render(engine_block);
+	did_stereo_temp_buffer = result.did_stereo_buffer;
 
-		// Every unison part's sources ended: unassign, or fast-release first to avoid a click with filters on
-		if (result.all_parts_ended) {
-			if (!filter_set.is_on()) {
-				unassign_voice_after = true;
-			}
-			else if (envelopes[0].stage() < Envelope::Stage::FAST_RELEASE) {
-				envelopes[0].unconditional_release(Envelope::Stage::FAST_RELEASE);
-			}
+	// Every unison part's sources ended: unassign, or fast-release first to avoid a click with filters on
+	if (result.all_parts_ended) {
+		if (!filter_set.is_on()) {
+			unassign_voice_after = true;
+		}
+		else if (envelopes[0].stage() < Envelope::Stage::FAST_RELEASE) {
+			envelopes[0].unconditional_release(Envelope::Stage::FAST_RELEASE);
 		}
 	}
 
@@ -865,7 +709,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 		}
 	}
 
-	fm_engine.set_levels(modulator_volumes());
+	engines_.fm().set_levels(modulator_volumes());
 	overall_osc_amplitude_last_time = overall_osc_amplitude;
 
 	return !unassign_voice_after;
@@ -966,6 +810,56 @@ void Voice::auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block,
 	}
 	envelopes[0].unconditional_release();
 	stamp_envelope0_stage_entry(block.clock);
+}
+
+DualSourceControls Voice::dual_source_controls(const ControlBlock& control_block, const VoiceConfig& cfg,
+                                               const VoiceBlock& block, int32_t filter_gain,
+                                               int32_t overall_pitch_adjust, bool first_render,
+                                               bool stereo_unison) const {
+	DualSourceControls controls{
+	    .noise_volume = params.param_final_values[params::LOCAL_NOISE_VOLUME],
+	    .env0_attack = params.param_final_values[params::LOCAL_ENV_0_ATTACK],
+	    .filter_gain = filter_gain,
+	    .overall_pitch_adjust = overall_pitch_adjust,
+	    .porta_envelope_pos = porta_envelope_pos,
+	    .priority_rating = static_cast<int32_t>(priority_rating(cfg.voice_priority, block.num_active_voices)),
+	    .note_code = note_code_after_arpeggiation,
+	    .first_render = first_render,
+	    .stereo_unison = stereo_unison,
+	};
+	for (int32_t s = 0; s < kNumSources; s++) {
+		controls.volume[s] = params.param_final_values[params::LOCAL_OSC_A_VOLUME + s];
+		controls.pitch_adjust[s] = params.param_final_values[params::LOCAL_OSC_A_PITCH_ADJUST + s];
+		controls.phase_width[s] = params.param_final_values[params::LOCAL_OSC_A_PHASE_WIDTH + s];
+		controls.wave_index[s] = params.param_final_values[params::LOCAL_OSC_A_WAVE_INDEX + s];
+		controls.pitch_mod_disallows_cache[s] =
+		    cfg.osc_type[s] == OscType::SAMPLE && pitch_mod_disallows_cache(control_block, cfg, s);
+	}
+	return controls;
+}
+
+FmControls Voice::fm_controls(int32_t overall_osc_amplitude, int32_t filter_gain, int32_t overall_pitch_adjust,
+                              bool first_render, bool stereo_unison) const {
+	FmControls controls{
+	    .overall_osc_amplitude = overall_osc_amplitude,
+	    .env0_attack = params.param_final_values[params::LOCAL_ENV_0_ATTACK],
+	    .filter_gain = filter_gain,
+	    .overall_pitch_adjust = overall_pitch_adjust,
+	    .first_render = first_render,
+	    .stereo_unison = stereo_unison,
+	};
+	for (int32_t s = 0; s < kNumSources; s++) {
+		controls.carrier_volume[s] = params.param_final_values[params::LOCAL_OSC_A_VOLUME + s];
+		controls.carrier_pitch_adjust[s] = params.param_final_values[params::LOCAL_OSC_A_PITCH_ADJUST + s];
+		controls.carrier_feedback[s] = params.param_final_values[params::LOCAL_CARRIER_0_FEEDBACK + s];
+		controls.wave_index[s] = params.param_final_values[params::LOCAL_OSC_A_WAVE_INDEX + s];
+	}
+	for (int32_t m = 0; m < kNumModulators; m++) {
+		controls.modulator_volume[m] = params.param_final_values[params::LOCAL_MODULATOR_0_VOLUME + m];
+		controls.modulator_pitch_adjust[m] = params.param_final_values[params::LOCAL_MODULATOR_0_PITCH_ADJUST + m];
+		controls.modulator_feedback[m] = params.param_final_values[params::LOCAL_MODULATOR_0_FEEDBACK + m];
+	}
+	return controls;
 }
 
 bool Voice::pitch_mod_disallows_cache(const ControlBlock& control_block, const VoiceConfig& cfg, int32_t s) const {

@@ -21,10 +21,8 @@
 #include "dsp-next/fixed/filter/filter_set.h"
 #include "effects/saturation.h"
 #include "modulation/params/param.h"
-#include "synth/engines/fm_engine.h"
-#include "synth/engines/ring_mod_engine.h"
+#include "synth/engines/engine_set.h"
 #include "synth/engines/source_levels.h"
-#include "synth/engines/subtractive_engine.h"
 #include "synth/modulation/envelope.h"
 #include "synth/modulation/lfo.h"
 #include "synth/modulation/param_plane.h"
@@ -81,9 +79,6 @@ public:
 	LFO lfo4;
 
 	dsp::fixed::FilterSet filter_set;
-
-	// The FM engine: holds its modulators across blocks, and across notes and mode changes, as the voice's.
-	FMEngine fm_engine;
 
 	// The note before the arpeggiator and the MIDI channel it came on, indexed by MIDICharacteristic
 	std::array<int32_t, 2> input_characteristics{};
@@ -152,6 +147,8 @@ public:
 	bool speed_up_release(VoiceClock clock, uint32_t min_fast_release_increment = kSoftCullIncrement);
 
 private:
+	/// One of each engine; the sound's synth mode picks the one that plays.
+	EngineSet engines_;
 	SourceLevels source_levels_; ///< The source levels' de-zipper, which FM and the dual-source engines share
 	/// The output stage's saturation; its memory starts at 0 and is set silent when the envelopes reset.
 	deluge::effects::Saturation output_saturation_{0u};
@@ -166,6 +163,14 @@ private:
 
 	[[nodiscard]] int32_t next_noise() { return static_cast<int32_t>(noise_->next()); }
 
+	/// The controls a dual-source engine renders this block from, derived from the voice's params.
+	[[nodiscard]] DualSourceControls dual_source_controls(const ControlBlock& control_block, const VoiceConfig& cfg,
+	                                                      const VoiceBlock& block, int32_t filter_gain,
+	                                                      int32_t overall_pitch_adjust, bool first_render,
+	                                                      bool stereo_unison) const;
+	/// The controls FM renders this block from, derived from the voice's params.
+	[[nodiscard]] FmControls fm_controls(int32_t overall_osc_amplitude, int32_t filter_gain,
+	                                     int32_t overall_pitch_adjust, bool first_render, bool stereo_unison) const;
 	/// Each FM modulator's volume param this block.
 	[[nodiscard]] std::array<int32_t, kNumModulators> modulator_volumes() const {
 		return {params.param_final_values[deluge::modulation::params::LOCAL_MODULATOR_0_VOLUME],

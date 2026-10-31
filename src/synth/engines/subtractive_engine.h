@@ -28,7 +28,7 @@ namespace deluge::synth {
 class SubtractiveEngine : public DualSourceEngine {
 public:
 	/// Renders @p block's sources and noise, adding into its buffer, and stores the levels the next block starts from.
-	static EngineRenderResult render(const DualSourceBlock& block);
+	EngineRenderResult render(const EngineBlock& block) override;
 
 private:
 	/// What each source's render in this block shares.
@@ -44,10 +44,10 @@ private:
 
 	/// The block's levels (held, or ramping from the last block's), wavetable slopes and osc-sync master phases, from
 	/// this block's @p source_amplitudes.
-	static Pass begin(const DualSourceBlock& block, const std::array<int32_t, kNumSources>& source_amplitudes);
+	static Pass begin(const EngineBlock& block, const std::array<int32_t, kNumSources>& source_amplitudes);
 	/// Renders source @p s into the mono (or, with @p stereo, the stereo) buffer: source 0 takes the osc-sync master's
 	/// increments even when silent, and source 1 syncs to them. @return whether a unison part became inactive.
-	static bool render_one(const DualSourceBlock& block, Pass& pass, int32_t s, bool stereo);
+	static bool render_one(const EngineBlock& block, Pass& pass, int32_t s, bool stereo);
 };
 
 } // namespace deluge::synth

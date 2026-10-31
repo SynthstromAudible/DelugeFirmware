@@ -30,9 +30,17 @@ using namespace deluge;
 
 namespace deluge::synth {
 
-EngineRenderResult RingModEngine::render(const DualSourceBlock& block) {
+bool RingModEngine::note_on(const EngineNote& note) {
+	if (!mark_active(note, /*refuse_silent=*/true)) {
+		return false;
+	}
+	calculate_phase_increments(note);
+	return start_sources(note);
+}
+
+EngineRenderResult RingModEngine::render(const EngineBlock& block) {
 	const VoiceConfig& cfg = *block.cfg;
-	const DualSourceControls& c = block.controls;
+	const DualSourceControls& c = block.dual;
 	const bool stereo_unison = c.stereo_unison;
 
 	const std::array<int32_t, kNumSources> wave_index_increments = DualSourceEngine::wave_index_increments(block);
@@ -50,11 +58,10 @@ EngineRenderResult RingModEngine::render(const DualSourceBlock& block) {
 	return EngineRenderResult{.did_stereo_buffer = stereo_unison};
 }
 
-void RingModEngine::render_parts(const DualSourceBlock& block,
-                                 const std::array<uint32_t, kMaxNumVoicesUnison>& sync_pos,
+void RingModEngine::render_parts(const EngineBlock& block, const std::array<uint32_t, kMaxNumVoicesUnison>& sync_pos,
                                  const std::array<int32_t, kNumSources>& wave_index_increments) {
 	const VoiceConfig& cfg = *block.cfg;
-	const DualSourceControls& c = block.controls;
+	const DualSourceControls& c = block.dual;
 	const bool stereo_unison = c.stereo_unison;
 
 	for (int32_t u = 0; std::cmp_less(u, cfg.num_unison); u++) {

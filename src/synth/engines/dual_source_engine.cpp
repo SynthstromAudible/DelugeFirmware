@@ -29,9 +29,9 @@
 
 namespace deluge::synth {
 
-bool DualSourceEngine::render_noise(const DualSourceBlock& block, int32_t channels) {
+bool DualSourceEngine::render_noise(const EngineBlock& block, int32_t channels) {
 	int32_t* const osc_buffer = block.osc_buffer;
-	const DualSourceControls& c = block.controls;
+	const DualSourceControls& c = block.dual;
 	// Rendered once for every unison part rather than for each: more unison parts turn the oscillators down
 	if (c.noise_volume != 0) [[unlikely]] {
 		// >>1 rather than >>2: noise was too loud with a filter on in V2.0.x, and is kept as loud since
@@ -55,7 +55,7 @@ bool DualSourceEngine::render_noise(const DualSourceBlock& block, int32_t channe
 	return false;
 }
 
-std::array<uint32_t, kMaxNumVoicesUnison> DualSourceEngine::capture_sync(const DualSourceBlock& block) {
+std::array<uint32_t, kMaxNumVoicesUnison> DualSourceEngine::capture_sync(const EngineBlock& block) {
 	std::array<uint32_t, kMaxNumVoicesUnison> phases{};
 	for (int32_t u = 0; std::cmp_less(u, block.cfg->num_unison); u++) {
 		phases[u] = block.parts[u].slots[0].current_osc_phase();
@@ -63,25 +63,43 @@ std::array<uint32_t, kMaxNumVoicesUnison> DualSourceEngine::capture_sync(const D
 	return phases;
 }
 
-std::array<int32_t, kNumSources> DualSourceEngine::wave_index_increments(const DualSourceBlock& block) {
+std::array<int32_t, kNumSources> DualSourceEngine::wave_index_increments(const EngineBlock& block) {
 	std::array<int32_t, kNumSources> increments{};
 	for (int32_t s = 0; s < kNumSources; s++) {
-		increments[s] = static_cast<int32_t>(block.controls.wave_index[s] - block.levels->wave_indexes_last_time[s])
+		increments[s] = static_cast<int32_t>(block.dual.wave_index[s] - block.levels->wave_indexes_last_time[s])
 		                / block.num_samples;
 	}
 	return increments;
 }
 
-void DualSourceEngine::store_levels(const DualSourceBlock& block, const std::array<int32_t, kNumSources>* amplitudes) {
+void DualSourceEngine::store_levels(const EngineBlock& block, const std::array<int32_t, kNumSources>* amplitudes) {
 	for (int32_t s = 0; s < kNumSources; s++) {
 		if (amplitudes != nullptr) {
 			block.levels->amplitudes_last_time[s] = (*amplitudes)[s];
 		}
-		block.levels->wave_indexes_last_time[s] = block.controls.wave_index[s];
+		block.levels->wave_indexes_last_time[s] = block.dual.wave_index[s];
 	}
 }
 
-bool DualSourceEngine::all_parts_inactive(const DualSourceBlock& block) {
+void DualSourceEngine::release(std::span<UnisonPart> parts, const ReleaseInfo& info, int32_t priority_rating) {
+	for (int32_t s = 0; s < kNumSources; s++) {
+		if (info.osc_types[s] == OscType::SAMPLE) {
+			for (int32_t u = 0; std::cmp_less(u, info.num_unison); u++) {
+				SourceSlot& slot = parts[u].slots[s];
+				if (slot.active && !slot.sample().release({.priority_rating = priority_rating})) {
+					slot.unassign(false);
+				}
+			}
+		}
+		else if (info.osc_types[s] == OscType::DX7) {
+			for (int32_t u = 0; std::cmp_less(u, info.num_unison); u++) {
+				parts[u].slots[s].dx7().release({});
+			}
+		}
+	}
+}
+
+bool DualSourceEngine::all_parts_inactive(const EngineBlock& block) {
 	const VoiceConfig& cfg = *block.cfg;
 	if (cfg.noise_volume_contains_something) {
 		return false; // noise keeps the voice sounding
@@ -103,11 +121,10 @@ bool DualSourceEngine::all_parts_inactive(const DualSourceBlock& block) {
 // straight onto the voice's buffer, which is cleared once. Applying the amplitude to the parts' sum would need a
 // buffer per source to clear, sum into and copy out of, and an osc-synced wave already applies its amplitude only as
 // it adds onto the buffer, once its render has finished rewriting its own.
-bool DualSourceEngine::render_source(const DualSourceBlock& block, int32_t s, bool stereo_buffer,
-                                     int32_t source_amplitude, int32_t amplitude_increment, bool do_osc_sync,
-                                     const uint32_t* sync_pos, const uint32_t* sync_increments,
-                                     std::span<uint32_t> increments_out, bool advance_only,
-                                     int32_t wave_index_increment) {
+bool DualSourceEngine::render_source(const EngineBlock& block, int32_t s, bool stereo_buffer, int32_t source_amplitude,
+                                     int32_t amplitude_increment, bool do_osc_sync, const uint32_t* sync_pos,
+                                     const uint32_t* sync_increments, std::span<uint32_t> increments_out,
+                                     bool advance_only, int32_t wave_index_increment) {
 	const VoiceConfig& cfg = *block.cfg;
 	bool unison_part_became_inactive = false;
 
@@ -121,8 +138,8 @@ bool DualSourceEngine::render_source(const DualSourceBlock& block, int32_t s, bo
 
 		// The overall pitch adjust, then this source's
 		uint32_t phase_increment = slot.phase_increment_stored_value;
-		if (!adjust_pitch(phase_increment, block.controls.overall_pitch_adjust)
-		    || !adjust_pitch(phase_increment, block.controls.pitch_adjust[s])) {
+		if (!adjust_pitch(phase_increment, block.dual.overall_pitch_adjust)
+		    || !adjust_pitch(phase_increment, block.dual.pitch_adjust[s])) {
 			// Too high to render
 			if (!increments_out.empty()) {
 				increments_out[u] = 0;
@@ -156,13 +173,13 @@ bool DualSourceEngine::render_source(const DualSourceBlock& block, int32_t s, bo
 	return unison_part_became_inactive;
 }
 
-SourceRenderResult DualSourceEngine::render_part(const DualSourceBlock& block, int32_t u, int32_t s, bool stereo_buffer,
+SourceRenderResult DualSourceEngine::render_part(const EngineBlock& block, int32_t u, int32_t s, bool stereo_buffer,
                                                  int32_t source_amplitude, int32_t amplitude_increment,
                                                  uint32_t phase_increment, bool do_osc_sync, const uint32_t* sync_pos,
                                                  const uint32_t* sync_increments, int32_t wave_index_increment,
                                                  bool stereo_unison, int32_t amplitude_l, int32_t amplitude_r) {
 	const VoiceConfig& cfg = *block.cfg;
-	const DualSourceControls& c = block.controls;
+	const DualSourceControls& c = block.dual;
 	SourceSlot& slot = block.parts[u].slots[s];
 
 	const uint32_t osc_retrigger_phase = cfg.osc_retrigger_phase[s]; // needed even without osc sync

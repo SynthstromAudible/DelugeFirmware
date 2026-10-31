@@ -33,7 +33,13 @@ using namespace deluge;
 
 namespace deluge::synth {
 
-void FMEngine::note_on(int32_t num_unison, std::span<const uint32_t, kNumModulators> retrigger_phase, bool reset) {
+bool FMEngine::note_on(const EngineNote& note) {
+	if (!Engine::note_on(note)) {
+		return false;
+	}
+	const int32_t num_unison = note.snapshot->num_unison;
+	const std::array<uint32_t, kNumModulators>& retrigger_phase = note.snapshot->modulator_retrigger_phase;
+	const bool reset = note.reset;
 	const uint32_t initial_phase = va_shape::initial_phase_for_zero(OscType::SINE);
 	for (int32_t u = 0; u < num_unison; u++) {
 		for (int32_t m = 0; m < kNumModulators; m++) {
@@ -45,6 +51,7 @@ void FMEngine::note_on(int32_t num_unison, std::span<const uint32_t, kNumModulat
 			}
 		}
 	}
+	return true;
 }
 
 void FMEngine::randomize_part(int32_t u, dsp::fixed::Cong& noise) {
@@ -53,8 +60,12 @@ void FMEngine::randomize_part(int32_t u, dsp::fixed::Cong& noise) {
 	}
 }
 
-void FMEngine::calculate_phase_increments(const SoundSnapshot& snapshot, int32_t note_code_with_master_transpose,
-                                          std::span<const bool, kNumModulators> modulator_audible) {
+void FMEngine::calculate_phase_increments(const EngineNote& note) {
+	Engine::calculate_phase_increments(note);
+
+	const SoundSnapshot& snapshot = *note.snapshot;
+	const int32_t note_code_with_master_transpose = note.note_code + snapshot.transpose;
+	const std::array<bool, kNumModulators>& modulator_audible = note.setup->modulator_audible;
 	for (int32_t m = 0; m < kNumModulators; m++) {
 		if (!modulator_audible[m]) {
 			continue;
@@ -93,9 +104,9 @@ void FMEngine::set_levels(std::span<const int32_t, kNumModulators> modulator_vol
 	std::ranges::copy(modulator_volume, modulator_amplitude_last_time_.begin());
 }
 
-EngineRenderResult FMEngine::render(const FmBlock& block) {
+EngineRenderResult FMEngine::render(const EngineBlock& block) {
 	const VoiceConfig& cfg = *block.cfg;
-	const FmControls& c = block.controls;
+	const FmControls& c = block.fm;
 	const bool stereo_unison = c.stereo_unison;
 
 	// FM renders no noise
@@ -119,8 +130,8 @@ EngineRenderResult FMEngine::render(const FmBlock& block) {
 	return EngineRenderResult{.did_stereo_buffer = stereo_unison};
 }
 
-FMEngine::Pass FMEngine::begin(const FmBlock& block) const {
-	const FmControls& c = block.controls;
+FMEngine::Pass FMEngine::begin(const EngineBlock& block) const {
+	const FmControls& c = block.fm;
 	SourceLevels& levels = *block.levels;
 	const int32_t num_samples = block.num_samples;
 	Pass pass;
@@ -156,8 +167,8 @@ FMEngine::Pass FMEngine::begin(const FmBlock& block) const {
 	return pass;
 }
 
-std::array<uint32_t, kNumSources> FMEngine::carrier_increments(const FmBlock& block, int32_t u, Pass& pass) {
-	const FmControls& c = block.controls;
+std::array<uint32_t, kNumSources> FMEngine::carrier_increments(const EngineBlock& block, int32_t u, Pass& pass) {
+	const FmControls& c = block.fm;
 	std::array<uint32_t, kNumSources> phase_increments{};
 	for (int32_t s = 0; s < kNumSources; s++) {
 		phase_increments[s] = block.parts[u].slots[s].phase_increment_stored_value;
@@ -175,8 +186,9 @@ std::array<uint32_t, kNumSources> FMEngine::carrier_increments(const FmBlock& bl
 	return phase_increments;
 }
 
-std::array<uint32_t, kNumModulators> FMEngine::modulator_increments(const FmBlock& block, int32_t u, Pass& pass) const {
-	const FmControls& c = block.controls;
+std::array<uint32_t, kNumModulators> FMEngine::modulator_increments(const EngineBlock& block, int32_t u,
+                                                                    Pass& pass) const {
+	const FmControls& c = block.fm;
 	std::array<uint32_t, kNumModulators> increments{};
 	for (int32_t m = 0; m < kNumModulators; m++) {
 		increments[m] = modulator_phase_increment_[u][m];
@@ -199,10 +211,10 @@ std::array<uint32_t, kNumModulators> FMEngine::modulator_increments(const FmBloc
 	return increments;
 }
 
-bool FMEngine::render_modulators(const FmBlock& block, int32_t u, std::span<const uint32_t, kNumModulators> increments,
-                                 const Pass& pass) {
+bool FMEngine::render_modulators(const EngineBlock& block, int32_t u,
+                                 std::span<const uint32_t, kNumModulators> increments, const Pass& pass) {
 	const VoiceConfig& cfg = *block.cfg;
-	const FmControls& c = block.controls;
+	const FmControls& c = block.fm;
 	const int32_t num_samples = block.num_samples;
 	int32_t* const modulator_scratch = block.spare_buffers[2];
 	const std::array<bool, kNumModulators>& active = pass.modulators_active;
@@ -236,9 +248,9 @@ bool FMEngine::render_modulators(const FmBlock& block, int32_t u, std::span<cons
 	return false;
 }
 
-void FMEngine::render_unison_part(const FmBlock& block, int32_t u,
+void FMEngine::render_unison_part(const EngineBlock& block, int32_t u,
                                   std::span<const uint32_t, kNumSources> phase_increments, Pass& pass) {
-	const FmControls& c = block.controls;
+	const FmControls& c = block.fm;
 	const int32_t num_samples = block.num_samples;
 	int32_t* const osc_buffer = block.osc_buffer;
 

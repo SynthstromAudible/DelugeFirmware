@@ -44,11 +44,13 @@ public:
 
 	/// Renders @p block's ring-mod and noise, adding into its buffer, and stores the wavetable indexes the next block
 	/// starts from. The unison parts render in ascending frequency, so one too high to render ends the rest.
-	static EngineRenderResult render(const DualSourceBlock& block);
+	/// Starts the note; a source that cannot sound fails it, as ring-mod needs both.
+	bool note_on(const EngineNote& note) override;
+	EngineRenderResult render(const EngineBlock& block) override;
 
 private:
 	/// Renders each unison part; stops at the first too high to render.
-	static void render_parts(const DualSourceBlock& block, const std::array<uint32_t, kMaxNumVoicesUnison>& sync_pos,
+	static void render_parts(const EngineBlock& block, const std::array<uint32_t, kMaxNumVoicesUnison>& sync_pos,
 	                         const std::array<int32_t, kNumSources>& wave_index_increments);
 	/// Render one unison part of the ring-mod, *adding* into @p osc_buffer. Source 0 is the hard-sync master (its
 	/// phase @p osc_sync_pos, its increment @p src0's); sync is applied to source 1 only when @p do_osc_sync.
