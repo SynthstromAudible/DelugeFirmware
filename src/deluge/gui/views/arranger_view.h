@@ -39,6 +39,7 @@ public:
 	ArrangerView();
 	bool opened() override;
 	void focusRegained() override;
+	bool isTrackPadHeld(Output const* output) const;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	ActionResult handleEditPadAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult handleStatusPadAction(int32_t y, int32_t velocity, UI* ui);
@@ -134,6 +135,7 @@ private:
 	void auditionPadAction(bool on, int32_t y, UI* ui);
 	void beginAudition(Output* output);
 	void endAudition(Output* output, bool evenIfPlaying = false);
+
 	ModelStackWithNoteRow* getNoteRowForAudition(ModelStack* modelStack, Kit* kit);
 	Drum* getDrumForAudition(Kit* kit);
 	void drawAuditionSquare(int32_t yDisplay, RGB thisImage[]);

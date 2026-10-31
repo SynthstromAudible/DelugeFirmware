@@ -105,6 +105,7 @@ public:
 	// when linking was applicable, so callers can update UI feedback separately.
 	static Output* propagateParameterEdit(ModelStackWithAutoParam const& source,
 	                                      deluge::model::ParameterEdit const& edit);
+	void transferTrackStateTo(Output& replacement);
 	bool mutedInArrangementModeBeforeStemExport; // Used by stem export to restore previous state
 	bool exportStem;                             // Used by stem export to flag if this output should be exported
 	bool soloingInArrangementMode;

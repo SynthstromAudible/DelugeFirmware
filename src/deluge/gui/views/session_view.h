@@ -125,9 +125,14 @@ public:
 
 	// Members for grid layout
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
-	ActionResult trackLinkPadAction(int32_t x, int32_t y, int32_t on);
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
+	void gridPulseSelectedClip();
+	bool gridUpdateTrackPadGesture();
+
+	// Track editing hooks used by selection state, pulse rendering, and view changes.
+	bool gridTrackRowEnabled() const;
+	void gridEndTrackSelection();
 
 	// ui
 	UIType getUIType() override { return UIType::SESSION; }
@@ -158,9 +163,6 @@ public:
 
 	// convert instrument clip to audio clip
 	void replaceInstrumentClipWithAudioClip(Clip* clip);
-
-	// pulse selected clip in grid view
-	void gridPulseSelectedClip();
 
 private:
 	int32_t lastLaunchCountdown = 0;
@@ -208,6 +210,17 @@ private:
 	bool viewingRecordArmingActive = false;
 	// Members for grid layout
 private:
+	// Track row gestures and rendering are internal to Session grid view.
+	ActionResult gridTrackPadAction(int32_t x, int32_t on);
+	void gridEndTrackPadGesture();
+	bool gridIsTrackPadHeld(Output const* output) const;
+	void gridRenderTrackRow(RGB* image, uint8_t* occupancy);
+	int32_t sessionClipRows() const;
+	int32_t sessionClipRowOffset() const { return gridTrackRowEnabled() ? 1 : 0; }
+
+	int32_t gridHeldTrackPad = -1;
+	bool gridTrackClipsPulsing = false;
+
 	bool gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	void gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + kSideBarWidth],

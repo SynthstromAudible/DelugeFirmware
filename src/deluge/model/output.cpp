@@ -628,6 +628,11 @@ for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
     ClipInstance* thisInstance = clipInstances.getElement(i);
 */
 
+void Output::transferTrackStateTo(Output& replacement) {
+	replacement.trackEditActive = trackEditActive;
+	trackEditActive = false;
+}
+
 bool Output::trackEditsAreLinked() const {
 	return trackEditActive && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEdit);
 }

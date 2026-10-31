@@ -205,7 +205,6 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::RoundedCorners], STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS,
 	                  "roundedCorners", RuntimeFeatureStateToggle::On);
 
-	// Track Edit (Shift + Affect-entire in song view)
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::TrackEdit], STRING_FOR_COMMUNITY_FEATURE_TRACK_EDIT,
 	                  "trackEdit", RuntimeFeatureStateToggle::Off);
 

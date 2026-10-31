@@ -3528,6 +3528,7 @@ traverseClips:
 	oldOutput->colour = 0;
 
 	newOutput->mutedInArrangementMode = oldOutput->mutedInArrangementMode;
+	oldOutput->transferTrackStateTo(*newOutput);
 	oldOutput->mutedInArrangementMode = false;
 
 	newOutput->soloingInArrangementMode = oldOutput->soloingInArrangementMode;
@@ -5282,6 +5283,7 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 	oldOutput->colour = 0;
 
 	newOutput->mutedInArrangementMode = oldOutput->mutedInArrangementMode;
+	oldOutput->transferTrackStateTo(*newOutput);
 	oldOutput->mutedInArrangementMode = false;
 
 	newOutput->soloingInArrangementMode = oldOutput->soloingInArrangementMode;
