@@ -84,6 +84,8 @@ public:
 	virtual int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack);
 	virtual void notifyPingpongOccurred(ModelStackWithParamCollection* modelStack);
 	virtual deluge::modulation::params::Kind getParamKind() = 0;
+	/// Whether this collection's parameter IDs support linking edits across clips.
+	virtual bool supportsLinking() const = 0;
 
 	const int32_t objectSize;
 	int32_t ticksTilNextEvent;
