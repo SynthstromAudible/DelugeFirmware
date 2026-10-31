@@ -2022,7 +2022,9 @@ loadOutput:
 						if (error != Error::NONE) {
 							goto gotError;
 						}
-						((Instrument*)newOutput)->mightExistOnCard = true;
+						if (newOutput->type != OutputType::AUDIO) {
+							static_cast<Instrument*>(newOutput)->mightExistOnCard = true;
+						}
 						*lastPointer = newOutput;
 						lastPointer = &newOutput->next;
 						reader.match('}');
