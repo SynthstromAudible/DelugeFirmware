@@ -5706,10 +5706,14 @@ doDisplayError:
 
 	setSelectedDrum(newDrum); // Does this really need to render?
 
-	// Can't fail because we just set the selected Drum
-	// TODO: what if fail because no RAM
-	bool success = soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0);
+	// This operation targets the new drum, even if a previous grid-pad action left
+	// the editor configured for kit-global FX while Affect Entire was enabled.
+	soundEditor.setupKitGlobalFXMenu = false;
+	if (!soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)) {
+		return;
+	}
 
+	bool success;
 	if (doRecording) {
 		success = openUI(&audioRecorder);
 		if (success) {
