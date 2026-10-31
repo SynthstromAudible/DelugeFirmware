@@ -1,129 +1,60 @@
-# Phase 4 — the `synth::Voice` lift
+# The voice kernel: `synth::Voice`
 
-> **Status — the in-place decoupling is essentially DONE; the physical relocation (L-viii) is not started.**
-> `Voice::render` is now upward-reference-free in the ways that matter: its signature carries no `Sound&` /
-> `ModelStackWithSoundFlags*`; its body reads no `Sound` (though it calls `noteOff` and, via
-> `renderSourceComponent`, `getPriorityRating`, which both do); the render helpers/engines hold no `Sound&`; the
-> scratch is injected (L-v); and **`Voice` has no `friend`s** (the Subtractive/FM couplings are dissolved). That
-> decoupling **was the value** of the lift — the voice kernel is now logically separable and render-driven by
-> `VoiceConfig` + `ControlBlock`/`ParamPlane` + injected scratch.
->
-> The remaining step — physically `git mv`-ing `Voice` into `synth/` (L-viii) so `check_synth_boundary` enforces
-> the boundary — is **not started**. The legacy `dsp/` includes are not what blocks it: `dsp/timestretch` is an
-> unused include, `dsp/util` supplies one fold function, and `dsp/oscillators` is a scratch array plus an
-> `OscType`→VA-shape mapper. The real blockers are the voice's remaining App reaches outside the render body —
-> `Sound`/`paramManager`/the cable set in several methods, `Sample*`/`WaveTable*` casts, the `AudioEngine`
-> globals, the port adapters held by value, `voice_config.h`'s `model/` include and `ControlBlock`'s param-set
-> pointers. See "What blocks L-viii" below.
->
-> ---
-> Earlier status (still accurate for the decoupling history): L-vi is done — all five sources are polymorphic
-> `synth::Source`s (the dispatch seam); the source **ports** (`synth_source_ports.md`) made them library-resident.
-> Slices 1–28 made `Voice::render`'s signature `Sound&`/`ModelStack`-free and removed every `Sound&` read from the
-> render helpers/engines. Each step landed bit-exact (x86 byte-identical + targeted ARM/qemu).
+`deluge::synth::Voice` (`src/synth/voice/voice.h`) plays one voice of a synth sound — its sources in each unison
+part, its envelopes, local LFOs, modulation, filters and output stage — from what it is handed. It names nothing of
+the app: it lives in the synth library, builds with the library's flags and warnings, and `check_synth_boundary.py`
+holds it to the library's boundary. A host spec plays it with nothing of the app linked.
 
-## Goal
+The app holds each voice as a `VoiceSlot` (`src/deluge/model/voice/voice_slot.h`): one kernel, the firmware ports its
+sources play through, the playback guides of the files its note plays, and the `Sound` it belongs to. The slot builds
+what the kernel reads from the sound and hands it over.
 
-A `synth::Voice` under `synth/` that renders one voice from per-block inputs (`VoiceConfig` + the Phase-2 data
-plane `ControlBlock`/`ParamPlane` + injected scratch/globals) with **no upward references** — no `Sound&`,
-`ModelStackWithSoundFlags`, `ParamManager`, `AudioEngine`, or file-scope globals reached from the render path —
-and unit-testable on host with zero `Song`/`ModelStack`/`AudioEngine` scaffolding. Old `Voice`/`Sound::render`
-become the adapter that builds those inputs from ParamManager-world.
+## What the kernel is handed
 
-**Approach (decided): in-place decouple, lift last.** Continue the proven cadence — one bit-exact slice per
-residual reach — until the render path is upward-ref-free, then the relocation to `synth/` is near-mechanical.
-No two-implementation window. Golden-gated throughout.
-
-## Where we are
-
-`Voice::render`'s signature is `render(ParamManagerForTimeline* paramManager, const ControlBlock& controlBlock,
-int32_t* soundBuffer, …flags…, int32_t externalPitchAdjust, const VoiceConfig& cfg, std::array<int32_t*, 4>
-spareBuffers)`. Its **body** names no `sound`. `paramManager` survives only to feed `noteOff` and the per-source
-render (`subtractiveEngine.render` → `renderBasicSource` → `renderSourceComponent`'s cable scan). The data-plane
-vehicles already exist (Phase 2): `ControlBlock` (`synth/modulation/control_block.h`,
-the patcher input) and `ParamPlane`/`VoiceParams` (`synth/modulation/param_plane.h`, the per-voice param data).
-
-## The lift surface (remaining render-path coupling)
-
-| # | Reach (current) | Disposition |
+| When | Input | Built by |
 |---|---|---|
-| ~~L-i~~ ✅ | patcher input `sound.patchControlBlock(*paramManager)` (`voice.cpp:826`) | **DONE (slice 25)** — `ControlBlock` built at the adapter, passed into `Voice::render` as a `const ControlBlock&` param |
-| ~~L-ii~~ ✅ | `combineExpressionValues(sound, i)` (~`voice.cpp:802`, MPE bend/expression smoothing) | **DONE (slice 26)** — takes the `synthLevelValue` (= `cfg.monophonicExpressionValues[i]`) instead of `Sound&`; the dead `Sound&` render-body local removed → **`Voice::render`'s body is `sound`-free** |
-| ~~L-iii~~ ✅ | `getLocalLFOPhaseIncrement` (`voice.cpp:718`) → `sound.lfoConfig[id]` + `sound.getSyncedLFOPhaseIncrement(config)` | **DONE (slice 27)** — synced increments snapshotted into `cfg`; the helper takes `(LFOConfig, param, syncedIncrement)`, no `sound` reach |
-| ◐ L-iv | `AudioEngine::renderInStereo`, `AudioEngine::cpuDireness` (sample interpolation), `AudioEngine::nextVoiceState` (envelope-stage stamp) | **render-body `renderInStereo` DONE (slice 28)** → `cfg.engineRenderingInStereo`. Remaining: `nextVoiceState` (`stampEnvelope0StageEntry`; scheduling — stays app-side), `cpuDireness` (`voice.cpp:992`, `source_component_render.cpp:38`), and `Source::renderInStereo`'s `renderInStereo`/mic/lineIn reads (`processing/source.cpp:193-205`) |
-| ~~L-v~~ ✅ | file-scope `spareRenderingBuffer[0/2/3]` | **DONE (`853414f8`)** — `Sound::render` passes the buffers in as `std::array<int32_t*,4>`; held in a transient `spareBuffers_` member (no engine threading). Global stays App-side for its 6 other users |
-| ~~friend-couplings~~ ✅ | `SubtractiveEngine`/`FMEngine` were `friend`s of `Voice` | **DONE (`c8c9f35f`, `6ca138d9`)** — FMEngine owns its operator renders (`renderSineWaveWithFeedback`/etc., moved from Voice); `adjustPitch` → public static; Subtractive's `renderBasicSource`/`areAllUnisonPartsInactive` made public. **`Voice` has no `friend`s.** (The per-source loop relocating *into* the engine layer is later.) |
-| ~~VoiceConfig enum dep~~ ✅ | `VoiceConfig` stores `FilterMode`/`FilterRoute` from `gui/l10n`-laden `filter_config.h` | **DONE (`a506e060`)** — `filter_config.h` made gui-free (forward-declared `l10n::String`, `getMorphName` body → `.cpp`). VoiceConfig's enum dependency is synth-clean |
-| #54 priority/scheduling | `getPriorityRating` (`sound.snapshot().voicePriority`/`numActiveVoices`) + `nextVoiceState` stamp in render (`stampEnvelope0StageEntry`) | **Resolve at L-viii, not in place.** `numActiveVoices()` mutates mid-loop (`freeActiveVoice` per-voice in `Sound::render`), so it can't be a loop-stable `VoiceConfig` snapshot; `nextVoiceState` is a global counter. Scheduling stays App-side; the adapter supplies the cull context at relocation |
-| **L-viii (not started)** | relocate `Voice` → `synth::Voice` under `synth/` (behind `check_synth_boundary.py`) + a host unit test + the L-vii noteOff hook | **Blocked on the voice's remaining App reaches** (see below), not on legacy `dsp/` |
+| Each block, per sound | `VoiceConfig` (`voice_config.h`): synth mode, filter slots and route, unison layout, each source's type, the LFO configs, CPU direness, voice priority, portamento, … | `Sound::render`, once for all its voices |
+| Each block, per sound | `ControlBlock` (`synth/modulation/control_block.h`): the compiled routing, preset values and cable depths the patcher reads | `Sound::patchControlBlock` |
+| Each block, per voice | `VoiceBlock` (`voice_inputs.h`): each wavetable source's band data, whether a play-once sample may auto-release, which sources render in stereo, the sound's voice count, the voice clock | `VoiceSlot::render` |
+| Each block, per voice | `VoiceRenderArgs`: the sound's buffer and sample count, stereo and panning flags, the changed sources, the pitch adjust, and the shared scratch (spare buffers, filter scratch, osc-sync scratch) | `Sound::render` |
+| Note-on and note change | `NoteSetup`: each source's type, file pitch and DX7 patch; portamento and the previous note; the sound's MPE and global source values; which attacks are instant; which FM modulators sound; the initial-patching block. `NoteOnEvent`: the note, velocity, lateness, MPE | `note_setup_for` (`src/deluge/model/voice/voice_setup.h`) |
+| Note-off | `ReleaseInfo`: which envelopes sustain, whether note tails are allowed, the sources' types, the voice count and priority | `release_info_for` |
+| Always | `SoundSnapshot` (`sound_snapshot.h`): the sound's hot render fields — transpose, unison, synth mode, retrigger phases, LFO configs | the `Sound`, projected from its record |
+| Bound once | The ports behind each unison part's sample, DX7 and input sources | `VoiceSlot`'s constructor |
+| Each call | The synth's one noise stream: note-on, phase randomizing and each render (`VoiceRenderArgs::noise`) | `VoiceSlot`, `Sound::render` |
 
-### What blocks L-viii
+The voice clock (`VoiceClock`, the engine's `nextVoiceState`) stamps the amplitude envelope's stage changes, which
+the cull order ranks by. The kernel keeps the stamp and computes its rating, `priority_rating(priority, voice count)`,
+itself: the sample reader reads the rating partway through a note-on and a render.
 
-The decoupling slices above made `Voice::render`'s body input-driven. A literal `synth::Voice` still needs the
-rest of `Voice` to stop naming App types. The voice includes nothing from legacy `dsp/`: its wavefolder is dsp-next's
-`Wavefolder`, its sync scratch is `render::osc_sync_scratch()`, and its wave mappers are in `synth/sources/va/va_shapes`.
+## What stays in the app
 
-The real blockers:
+- **`VoiceSlot`**: the ports (`UnisonPartPorts`: the `VoiceSample` reader and pool behind `SamplePlaybackPort`, the
+  pooled DX7 voice, the live input), the playback guides, the note's order, the first-render spread (`just_created`),
+  unassigning, and the releases stamped by the engine clock.
+- **`voice_setup.cpp`**: resolving each note's sample and wavetable range into the guides (with a time-stretched
+  sample's sync and a sample's bounds), FM's modulator levels, porta, the initial-patching block and the note-off's
+  sustain test.
+- **`Sound`**: building the config and render arguments, taking a note-off the voice ignored once note tails are
+  allowed again, culling and stealing voices, and the zone change the sample marker editor makes
+  (`VoiceSlot::sample_zone_changed`).
 
-- **Methods that still reach `Sound`, `paramManager` or the cable set.** `Voice` holds `Sound& sound`. `noteOff`
-  reads `sound.envelopeHasSustainCurrently`; `getPriorityRating` reads `sound.snapshot().voicePriority` and
-  `sound.numActiveVoices()`; `noteOn`, `unassignStuff`, `expressionEventImmediate`, `changeNoteCode`,
-  `setupPorta`, `randomizeOscPhases` and `calculatePhaseIncrements` read `Sound`/`Source` state. The render body
-  calls `noteOff` (`voice.cpp:742`), and `renderSourceComponent` calls `getPriorityRating` (`:1514`) and walks
-  `paramManager->getPatchCableSet()` (`:1451`). These split into a kernel half and an adapter half.
-- **Sample and wavetable casts.** `render`'s auto-release reads `SampleHolderForVoice*`/`Sample*` (`:886`,
-  `:915`); `renderSourceComponent` casts to `WaveTable*` (`:1483`) and calls `SampleControls`.
-- **`AudioEngine` globals.** `cpuDireness` (`voice.cpp:992`, `source_component_render.cpp:38`) and
-  `nextVoiceState` (`stampEnvelope0StageEntry`, `resetEnvelope0TimeEntered`).
-- **Port adapters held by value.** `voice_unison_part_source.h` holds `SamplePlaybackAdapter`,
-  `DxVoiceAdapter` and `AudioInputAdapter` as members. The kernel should hold the ports, injected.
-- **`voice_config.h` includes `model/mod_controllable/filters/filter_config.h`** for `FilterMode`/`FilterRoute`.
-  The dsp-next filter enums replace it.
-- ~~`ControlBlock` carries `PatchedParamSet*` and `PatchCableSet*`~~ — resolved by mod-matrix M1: the block is copies
-  (the clip's `synth::PatchRouting`, gathered preset values and cable depths), and the Patcher includes no
-  `modulation/patch/` header.
+## Tests
 
-When these are gone, L-viii (+ the L-vii noteOff hook + the #54 priority/scheduling re-home) is the
-near-mechanical move it was always meant to be.
+- **The golden masters** (`golden-synth`, `golden-synth-arm`): bit-exact through the lift. `voice/` cases pin the
+  voice's own paths — portamento on a note change, the Nyquist cutoff, free-running phases kept on a re-trigger, a
+  play-once sample's auto-release and its read-rate scaling, loop points released at the note-off, the sample cache's
+  pitch-modulation test, and a sample zone moved mid-note.
+- **`tests/dsp/synth_voice_spec.cpp`** plays VA, FM and sample notes through fake ports
+  (`tests/dsp/fake_voice_ports.h`): a release to silence, a play-once sample releasing before its end, a fast release,
+  a ring-mod note refused for an empty source, and the cull order by voice count. It links only the synth library,
+  dsp-next, the param tables and the noise stream.
 
-## Strategy / sequencing
+The cull order's voice-count term reorders voices only across sounds, which no host gate culls; the spec pins it on
+the kernel.
 
-Keep the in-place cadence: **L-i → L-ii → L-iii → L-iv → L-v** as individual bit-exact slices (each routes one
-reach onto an existing data-plane input or an injected value), **then L-vi** (the port arc, its own plan + the
-decision above), **then L-viii** (the mechanical relocation + host test). `paramManager` is dropped once its last
-consumer (the patcher input + `noteOff` + `renderBasicSource`/engines) is rerouted; the kernel's inputs converge on
-`VoiceConfig` + `ControlBlock`/`ParamPlane` + injected globals/scratch.
+## What is next
 
-Prime directive throughout: **bit-exact** (full x86 golden byte-identical + targeted ARM/qemu per slice).
-
-## L-i (DONE, slice 25) — pass the patcher `ControlBlock` in
-
-`patcher.performPatching(sourcesChanged, sound.patchControlBlock(*paramManager))` (`voice.cpp:826`) is the only
-per-voice patcher-input build. `ControlBlock` is a tiny POD — `{patched_params, patch_cable_set, paramLPF.p,
-paramLPF.currentValue}` — all **sound-level and stable across the voice loop** (the param sets are fixed pointers;
-`paramLPF` is only mutated *after* the loop, `sound.cpp:~2648`). So building it once at the adapter edge and
-passing it to every voice is identical to the per-voice rebuild (and a small perf win).
-
-- **`Voice::render`**: add a `const ControlBlock& controlBlock` parameter (next to `paramManager`).
-- **Migrate** `voice.cpp:826` → `patcher.performPatching(sourcesChanged, controlBlock)`.
-- **Adapter** (`Sound::render`): build `const ControlBlock controlBlock = patchControlBlock(*paramManager);` before
-  the voice loop; pass it at the `voice->render(…)` call (`sound.cpp:2561`).
-- Pass it as a **separate param**, not in `VoiceConfig` — it holds *live pointers* (the patcher's data plane), not
-  a config snapshot; it travels with the data-plane inputs at the relocation.
-
-**Verification:** x86 `tests/golden/run.py --jobs 16` → 336/336 byte-identical; targeted ARM/qemu on a
-heavily-patched spread (e.g. `two_osc_detune,velocity_dynamics,sample/mono,community/Warm DX7 Pad,community/Ringmod
-Arp`); both host-sim builds + the 3 boundary lints green.
-
-## What stays app-side (the adapter — out of the kernel)
-
-The ParamManager→`ControlBlock`/`VoiceConfig` adapter; voice scheduling / culling / `getPriorityRating` /
-`justCreated` render-spread; transport; preset serialization; the `ModControllableAudio` FX chain; the arpeggiator.
-Numerics stay q31 (the boundary types stay numeric-agnostic so the float migration is contained later). Port /
-virtual dispatch at block granularity only (Cortex-A9 headroom; the golden masters double as perf canaries).
-
-## Pointers
-
-- Phase-4 roadmap: `docs/dev/synth_phase4_voice_kernel.md` (slices 1–24 + the arc ledger).
-- L1 engine/component architecture (the L-vi target): `docs/dev/synth_l1_engine_architecture.md`.
-- Overall plan + the two extensibility boundaries: `docs/dev/synth_untangling_plan.md`.
+The L1 engine arc (`synth_l1_engine_architecture.md`): the per-source loop, osc sync and the FM path move out of the
+kernel's render into engine objects. `render_basic_source`, the engines' calls back into the voice and the FM render
+keep their legacy bodies until then.

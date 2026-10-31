@@ -8,6 +8,10 @@
 > Where it lands: the engine API and the built-in engines live in the synth library at `src/synth/engines/`
 > (`engine.h` for the contract), beside `src/synth/sources/`. Engines are loaded by the Deluge instrument, never by the
 > host: what the host loads is a plugin (`src/plugin-api/`).
+>
+> Next: this is the arc after the voice kernel's lift (`synth_voice_lift.md`). Today's engines —
+> `SubtractiveEngine`, `RingModEngine`, `FMEngine` — sit beside the kernel in `src/synth/voice/` and still take the
+> `synth::Voice&` they drive; the per-source loop and osc sync are still the kernel's `render_basic_source`.
 
 ## Why this boundary exists
 
@@ -83,7 +87,7 @@ public:
 ```
 
 - `RenderResult` unifies today's divergent signals: VA/wavetable never die (`void`), DX7 returns `active`,
-  Sample returns `{ACTIVE, UNASSIGN, SKIP}` (`model/voice/sample_engine.h`). One status type covers all.
+  Sample returns `{ACTIVE, UNASSIGN, SKIP}` (`synth/sources/source.h`). One status type covers all.
 - **No** `phase()` / `set_increment()` / `sync` here — those leak oscillator structure. (osc-sync master/slave
   is internal to Subtractive/RingMod, between *their* components.)
 - The `RenderBlock` carries the already-modulated per-block numbers (the spirit of today's
@@ -124,7 +128,7 @@ nothing about promoting the synth modes to engines removes the per-source choice
 **Resolved (2026-06-19): DX7 is a composable Source, not a (replacement) Engine.** Verified against `voice.cpp`:
 `oscType`/`dxPatch` are **per-source** (`processing/source.h:38,47`) and DX7 dispatches per-source
 (`voice.cpp:1523` → `unisonParts[u].sources[s].dx7Source`), so a preset can run **osc A = DX7, osc B = saw, mixed**
-(non-FM modes only — `voice_unison_part_source.cpp:49`). Promoting DX7 *from* a source *to* an engine would break
+(non-FM modes only — `VoiceUnisonPartSource::note_on`, `synth/voice/unison_part_source.cpp`). Promoting DX7 *from* a source *to* an engine would break
 that — so **DX7 stays a `DX7Source`.** Its 6-op FM graph is *private composition* of the Source, exactly as a
 wavetable source privately owns a phasor + table. This generalizes: a self-contained foreign generator (a Plaits
 macro-oscillator) is also **Source-shaped** in the Deluge's two-source mixer — "complete timbre generator" ≠

@@ -87,7 +87,7 @@ this design as follows — and the headline is: **Engines need no ports of their
 - **The nesting:** `Instrument (L3) → owns Voices (L2) → own Engines → own Sources → depend on Ports ◀ firmware
   adapters`. The port adapters are injected from the firmware **down through** Voice→Engine→Source.
 - **Ownership of the sources migrates Voice → Engine.** Today the Voice owns the sources and plays the
-  coordinator through `Voice&` (`SubtractiveEngine` drives the public `renderBasicSource` for the unison loop + A→B
+  coordinator through `Voice&` (`SubtractiveEngine` drives the public `render_basic_source` for the unison loop + A→B
   sync; `FMEngine` calls back into `Voice` for `adjustPitch`). `Voice` has no `friend`s.
   The end state (per `synth_l1_engine_architecture.md`) is that **each Engine owns its sources as private
   composition** (Subtractive its 2 slots, RingMod its pair, FM its carriers/modulators). So "the kernel owns the
@@ -96,7 +96,7 @@ this design as follows — and the headline is: **Engines need no ports of their
 - **The source seams here *are* the Engine↔Source seams.** The `hasOscPhase`/`oscPhase`/`seekOscPhase` facet is
   exactly what a `SubtractiveEngine`/`RingModEngine` uses for its *internal* A→B sync; and `SourceRenderContext` is
   the Engine↔Source contract — extracting an Engine means lifting the ctx-building + sync coordination (today smeared
-  in `renderBasicSource`) *into* the Engine object. So this work is forward-compatible with the engine extraction.
+  in `render_basic_source`) *into* the Engine object. So this work is forward-compatible with the engine extraction.
 - **Ordering is flexible** (`synth::Source` decouples them): an Engine can be extracted to coordinate
   `synth::Source*` whether or not the concrete impls are ported, and a source can be ported under either owner.
   Natural order: **source ports first** (the genuinely hard IO separation), then the **engine extraction** (pure
@@ -123,10 +123,8 @@ this design as follows — and the headline is: **Engines need no ports of their
 4. **Sample-playback port — ✅ DONE (commits `637c1d121`/`e948fe3c5`; namespace move `e3548ddc6`).**
    `SampleSource` depends on `synth::SamplePlaybackPort` and lives in `synth/sources/`. `SamplePlaybackAdapter` (`model/voice/`) wraps
    `VoiceSample`. **5 of 5 sources now library-resident.**
-5. **Kernel relocation** (`Voice` → `synth::Voice`) — not started. The sources no longer block it; the remaining
-   blockers are the voice's own App reaches, listed in `synth_voice_lift.md`. One of them is here: the voice's
-   unison-part source (`voice_unison_part_source.h`) still holds the three port adapters by value, so the kernel
-   still names App types. The fix is to inject the ports.
+5. **Kernel relocation** (`Voice` → `synth::Voice`) — done (`synth_voice_lift.md`). The adapters live in the app's
+   `VoiceSlot` (`UnisonPartPorts`); each unison part's sources hold the ports they are bound to.
 
 Per port: interface in `synth/` → source depends on it (bit-exact, impl unchanged behind the adapter) → relocate
 the App-free source into `synth/` (each step golden-bit-exact + `check_synth_boundary`-gated).
