@@ -627,3 +627,16 @@ void ParamManagerForTimeline::expectNoFurtherTicks(ModelStackWithThreeMainThings
             paramCollection++;
         } while (*paramCollection);
  */
+
+ModelStackWithAutoParam* ParamManager::getMainAutoParamFromId(ModelStackWithThreeMainThings* modelStack,
+                                                              deluge::modulation::params::Kind kind, int32_t id,
+                                                              bool allowCreation) {
+	for (int i = 0; i < getExpressionParamSetOffset(); ++i) {
+		auto& summary = summaries[i];
+		if ((summary.paramCollection != nullptr) && summary.paramCollection->getParamKind() == kind) {
+			return summary.paramCollection->getAutoParamFromId(
+			    modelStack->addParamCollectionAndId(summary.paramCollection, &summary, id), allowCreation);
+		}
+	}
+	return nullptr;
+}

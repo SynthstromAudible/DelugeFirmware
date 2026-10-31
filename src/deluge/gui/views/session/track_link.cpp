@@ -35,6 +35,7 @@
 #include "model/output.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "model/track_parameter_edit.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
@@ -50,7 +51,6 @@ namespace {
 bool sModeOn = false;
 Output* sOutput = nullptr;
 bool sDrumRow = false;
-bool sPropagating = false;
 bool sSavedAffectEntire = false;
 // The clip the gold knobs were last aimed at, so the menu opens on the same one. Only ever compared against clips
 // found on the track, never dereferenced on its own, because it may have been deleted since.
@@ -154,51 +154,6 @@ void restoreAfterMenu() {
 	sMenuSavedCurrentClip = nullptr;
 }
 
-/// Writes `value` into the same parameter of `clip`, if that clip has it.
-bool writeToClip(Clip* clip, Drum* drum, params::Kind kind, ModelStackWithAutoParam const* source, int32_t value,
-                 bool shouldLogAction, bool mayDeleteNodesInLinearRun, bool doMPEMode) {
-	NoteRow* noteRow = nullptr;
-	int32_t noteRowId = 0;
-	ParamManagerForTimeline* paramManager;
-
-	if (drum) {
-		// Kit row: the same drum's row in the other clip holds the parameters.
-		if (clip->type != ClipType::INSTRUMENT) {
-			return false;
-		}
-		noteRow = static_cast<InstrumentClip*>(clip)->getNoteRowForDrum(drum, &noteRowId);
-		if (!noteRow) {
-			return false;
-		}
-		paramManager = &noteRow->paramManager;
-	}
-	else {
-		paramManager = &clip->paramManager;
-	}
-
-	if (!paramManager->containsAnyMainParamCollections()) {
-		return false;
-	}
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsIncludingNoteRow(
-	    modelStackMemory, currentSong, clip, noteRowId, noteRow, source->modControllable, paramManager);
-
-	ModelStackWithAutoParam* target = (kind == params::Kind::PATCHED)
-	                                      ? modelStack->getPatchedAutoParamFromId(source->paramId)
-	                                      : modelStack->getUnpatchedAutoParamFromId(source->paramId);
-	if (!target || !target->autoParam) {
-		return false;
-	}
-	if (!target->autoParam->isAutomated() && target->autoParam->getCurrentValue() == value) {
-		return true;
-	}
-
-	target->autoParam->setCurrentValueInResponseToUserInput(value, target, shouldLogAction, -1,
-	                                                        mayDeleteNodesInLinearRun, doMPEMode);
-	return true;
-}
-
 } // namespace
 
 bool modeIsOn() {
@@ -264,11 +219,13 @@ void exitMode() {
 		return;
 	}
 	restoreAfterMenu();
+	if (outputStillExists(sOutput)) {
+		sOutput->setTrackEditActive(false);
+	}
 	sModeOn = false;
 	sOutput = nullptr;
 	sKnobClip = nullptr;
 	sDrumRow = false;
-	sPropagating = false;
 	view.blinkOn = false;
 
 	currentSong->affectEntire = sSavedAffectEntire;
@@ -287,7 +244,11 @@ void selectOutput(Output* output, Clip* preferred) {
 	if (!sModeOn || !output) {
 		return;
 	}
+	if (outputStillExists(sOutput)) {
+		sOutput->setTrackEditActive(false);
+	}
 	sOutput = output;
+	sOutput->setTrackEditActive(true);
 
 	// A kit starts out on its selected drum row if it has one, otherwise on the whole kit.
 	sDrumRow = false;
@@ -404,7 +365,7 @@ void toggleKitTarget() {
 
 void propagate(int32_t value, ModelStackWithAutoParam const* source, bool shouldLogAction,
                bool mayDeleteNodesInLinearRun, bool doMPEMode) {
-	if (!sModeOn || sPropagating || !sOutput) {
+	if (!sModeOn || !sOutput) {
 		return;
 	}
 	if (getRootUI() != &sessionView) {
@@ -426,32 +387,12 @@ void propagate(int32_t value, ModelStackWithAutoParam const* source, bool should
 		return;
 	}
 
-	NoteRow* sourceRow = source->getNoteRowAllowNull();
-	Drum* drum = sourceRow ? sourceRow->drum : nullptr;
-	if (sourceRow && !drum) {
+	if (!Output::propagateParameterEdit(*source, {.value = value,
+	                                              .shouldLogAction = shouldLogAction,
+	                                              .mayDeleteNodesInLinearRun = mayDeleteNodesInLinearRun,
+	                                              .isMPE = doMPEMode})) {
 		return;
 	}
-
-	// The edit must have been made on one of the picked track's clips.
-	TimelineCounter* origin = source->getTimelineCounter();
-	bool originIsOnTrack = false;
-	forEachClipOnOutput(sOutput, [&](Clip* clip) {
-		if (static_cast<TimelineCounter*>(clip) == origin) {
-			originIsOnTrack = true;
-		}
-	});
-	if (!originIsOnTrack) {
-		return;
-	}
-
-	sPropagating = true;
-	forEachClipOnOutput(sOutput, [&](Clip* clip) {
-		if (static_cast<TimelineCounter*>(clip) == origin) {
-			return;
-		}
-		writeToClip(clip, drum, kind, source, value, shouldLogAction, mayDeleteNodesInLinearRun, doMPEMode);
-	});
-	sPropagating = false;
 
 	// On a kit the knobs act on either the whole kit or one drum row, and it is easy to lose track of which. Say so
 	// at the start of every knob gesture (not on every click, which would hide the value readout).
