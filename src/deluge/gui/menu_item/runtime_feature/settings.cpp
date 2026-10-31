@@ -18,6 +18,7 @@
 #include "settings.h"
 #include "devSysexSetting.h"
 #include "emulated_display.h"
+#include "gui/views/track_edit_pulse.h"
 #include "hid/display/display.h"
 #include "hid/display/oled_canvas/canvas.h"
 #include "setting.h"
@@ -48,6 +49,16 @@ public:
 	}
 };
 
+// Turning Track Edit off must redraw the pads underneath, or a locked track's pad keeps its last pulse colour.
+class TrackEditSettingToggle final : public SettingToggle {
+public:
+	using SettingToggle::SettingToggle;
+	void writeCurrentValue() override {
+		SettingToggle::writeCurrentValue();
+		deluge::gui::track_edit_pulse::settingsChanged();
+	}
+};
+
 // Generic menu item instances
 SettingToggle menuDrumRandomizer(RuntimeFeatureSettingType::DrumRandomizer);
 SettingToggle menuFineTempo(RuntimeFeatureSettingType::FineTempoKnob);
@@ -73,7 +84,7 @@ OledOnlySettingToggle menuHorizontalMenus(RuntimeFeatureSettingType::HorizontalM
 SettingToggle menuTrimFromStartOfAudioClip(RuntimeFeatureSettingType::TrimFromStartOfAudioClip);
 SettingToggle menuShowBatteryLevel(RuntimeFeatureSettingType::ShowBatteryLevel);
 RoundedCornersSettingToggle menuRoundedCorners(RuntimeFeatureSettingType::RoundedCorners);
-SettingToggle menu_track_edit(RuntimeFeatureSettingType::TrackEdit);
+TrackEditSettingToggle menu_track_edit(RuntimeFeatureSettingType::TrackEdit);
 Setting menuShortcutOverlay(RuntimeFeatureSettingType::ShortcutOverlay);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{

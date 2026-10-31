@@ -271,6 +271,9 @@ void Output::writeToFile(Clip* clipForSavingOutputOnly, Song* song) {
 bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {
 
 	if (!clipForSavingOutputOnly) {
+		if (trackLocked) {
+			writer.writeAttribute("trackLocked", 1);
+		}
 		if (mutedInArrangementMode) {
 			writer.writeAttribute("isMutedInArrangement", 1);
 		}
@@ -341,6 +344,10 @@ bool Output::readTagFromFile(Deserializer& reader, char const* tagName) {
 
 	if (!strcmp(tagName, "isMutedInArrangement")) {
 		mutedInArrangementMode = reader.readTagOrAttributeValueInt();
+	}
+
+	else if (strcmp(tagName, "trackLocked") == 0) {
+		trackLocked = reader.readTagOrAttributeValueInt() != 0;
 	}
 
 	else if (!strcmp(tagName, "isSoloingInArrangement")) {
@@ -629,12 +636,18 @@ for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
 */
 
 void Output::transferTrackStateTo(Output& replacement) {
+	replacement.trackLocked = trackLocked;
 	replacement.trackEditActive = trackEditActive;
+	trackLocked = false;
 	trackEditActive = false;
 }
 
+bool Output::isTrackLocked() const {
+	return trackLocked && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEdit);
+}
+
 bool Output::trackEditsAreLinked() const {
-	return trackEditActive && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEdit);
+	return (trackLocked || trackEditActive) && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEdit);
 }
 
 namespace {
