@@ -15,7 +15,9 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_5_3_1 from "../../../../assets/guidebook/figs/05-kits__03-kit-presets-samples--1.svg?raw"
+import fig_fig_5_3_2 from "../../../../assets/guidebook/figs/05-kits__03-kit-presets-samples--2.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -57,14 +59,14 @@ A synth, MIDI or CV row can be added in the kit view by pressing :key[Audition P
 9. Repeat steps 3-8 above for adding additional samples.
 10. Press :key[Audition Pad] of each pad to view sample name in the display and play out the sound. Press :key[Shift + Audition Pad] to select silently.
 
-<FigurePending id="fig-5.3-1" page={113}>
-  To open the file browser for the specifically selected row via the audition
-  pad. LOAD option brings parameters back to defaults when replacing an existing
-  row sound. · [KIT] or [LOAD] · [AUDITION] + · The pad shortcut for the file
-  browser [SHIFT] + [BROWSE] can also be used to replace a sample when the row
-  is selected by its [AUDITION] Pad. When [BROWSE] option is used to replace an
-  existing sound its parameters will be retained.
-</FigurePending>
+<Figure
+  id="fig-5.3-1"
+  src={fig_fig_5_3_1}
+  alt={
+    "Diagram: To open the file browser for [KIT] the specifically selected row via the audition pad. [AUDITION] + or LOAD option brings parameters back…"
+  }
+  page={113}
+/>
 
 ### Creating a new kit clip + multiple (folder) samples
 
@@ -80,9 +82,7 @@ etc
 
 Sample 6
 
-<FigurePending id="fig-5.3-2" page={114}>
-  Folder · Sample 4
-</FigurePending>
+<Figure id="fig-5.3-2" src={fig_fig_5_3_2} alt={"Diagram: Folder"} page={114} />
 
 Sample 5
 
@@ -113,4 +113,9 @@ It is recommended to organise your samples in a folder that can be recognised in
 5. The alphanumeric keyboard appears and RENAME ITEM shows in the display. This enables typing in of a new name.
 6. Press RETURN ‘delay amount’ :key[Pad] when typing of a new name is complete.
 
-<FigurePending id="fig-5.3-3" page={115}></FigurePending>
+<Figure
+  id="fig-5.3-3"
+  img="/guidebook/img/05-kits__03-kit-presets-samples--3.webp"
+  alt={"Photo: figure from guidebook page 115"}
+  page={115}
+/>

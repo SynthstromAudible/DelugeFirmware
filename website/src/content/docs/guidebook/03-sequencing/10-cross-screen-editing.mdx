@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_3_10_1 from "../../../../assets/guidebook/figs/03-sequencing__10-cross-screen-editing--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -36,12 +37,11 @@ Clips individually remember whether, and at what zoom level, they have cross-scr
 
 #### Cross-Screen edit mode
 
-<FigurePending id="fig-3.10-1" page={63}>
-  In cross-screen edit mode, changes within the current screen that is in focus
-  i.e. 16th notes / 1 bar, will be reflected across the other equivalent screens
-  that are not in-focus. · 16x8 grid in-focus, multiply to double the length
-  twice · Double · 16th resolution 1 bar · 1 bar · 1 bar · 1 bar · 8th
-  Resolution · Double · In cross-screen edit mode, changes within the current
-  screen that is in-focus i.e. 8th notes, 2 bars will be reflected across the
-  other equivalent screens that are not in-focus.
-</FigurePending>
+<Figure
+  id="fig-3.10-1"
+  src={fig_fig_3_10_1}
+  alt={
+    "Diagram: In cross-screen edit mode, changes within the current screen that is in focus i.e. 16th notes / 1 bar, will be reflected across the other…"
+  }
+  page={63}
+/>

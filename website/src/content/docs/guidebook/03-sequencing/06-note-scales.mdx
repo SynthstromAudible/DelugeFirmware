@@ -15,7 +15,9 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_3_6_1 from "../../../../assets/guidebook/figs/03-sequencing__06-note-scales--1.svg?raw"
+import fig_fig_3_6_2 from "../../../../assets/guidebook/figs/03-sequencing__06-note-scales--2.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -23,42 +25,25 @@ Scale mode is automatically set when new synth, MIDI and CV clips are created. S
 
 #### Example: Start-Up in Major Scale, C Root Note
 
-<FigurePending id="fig-3.6-1" page={50}>
-  C# D# C D E F G A B · F# G# A# · C3 · C4 · [SCALE] ON Scale is locked to a
-  major scale. After adding notes when selecting scale mode, a guess of the
-  scale and root note / key is made by Deluge. · C4 C3 A3 G3 F3 E3 D3 C3 · Scale
-  - 7 Notes Selected / Chosen · OCTAVE · [SHIFT] + [SCALE] Switches the scale
-  through seven western music scales of Major, Minor, Dorian, Phrygian, Lydian,
-  Mixolydian and Locrian. ‘CUSTOM SCALE WITH MORE THAN 7 NOTES IN USE’ may be
-  displayed if there are more than seven notes programmed into the sequence. ·
-  AUDITION / SECTION · MAJOR SCALE (Default) · Sharps shown with a period . ·
-  [SCALE] OFF Chromatic scale with notes and rows being one semitone apart.
-  Scale is displayed. · B3 A#3 A3 G#3 G3 F#3 F3 E3 D#3 D3 C#3 C3 · Chromatic
-  Scale - 12 Notes - Rows in Semitones · OCTAVE · [SCROLL▼▲] Navigate the rows
-  using up / down scroll. Grid is 8 pad rows high and the full range is out of
-  view. · AUDITION / SECTION
-</FigurePending>
+<Figure
+  id="fig-3.6-1"
+  src={fig_fig_3_6_1}
+  alt={
+    "Diagram: C# D# F# G# A# C D E F G A B C3 C4 [SCALE] ON C4 when selecting scale mode, a guess of the scale Scale - 7 Notes and root note / key is…"
+  }
+  page={50}
+/>
 
 #### Available Scales in Scale Mode
 
-<FigurePending id="fig-3.6-2" page={51}>
-  MAJOR · MINOR MINOR (Aeolian) C4 A.3 G.3 G3 F3 d.3 d3 C3 · DORIAN · PHRYGIAN ·
-  LYDIAN · MIXOLYDIAN LOCRIAN · MAJOR (Ionian) C4 b3 A3 G3 F3 E3 d3 C3 ·
-  MIXOLYDIAN C4 A.3 A3 G3 F3 E3 d3 C3 · PHRYGIAN C4 A.3 G.3 G3 F3 d.3 C.3 C3
-  Western 7 Note Scales. Example - C Scale. Sharp notes · LOCRIAN C4 A.3 G.3 F.3
-  F3 d.3 C.3 C3 · DORIAN C4 A.3 A3 G3 F3 d.3 d3 C3 · LYDIAN C4 b3 A3 G3 F.3 E3
-  d3 C3 · OCTAVE · indicated with a period (.) · OTHER · User defined custom
-  scales can be created by selecting the notes and entering [SCALE] mode and
-  Deluge will define a custom scale shown as OTHER. · ▌ SELECTING SCALE MODE 1.
-  Press [SCALE] to switch scale mode ON. Button lit blue. 2. Press [SCALE] a
-  second time to switch it OFF. Button unlit. · ▌ DELUGE ANALYSIS AND SELECTION
-  OF NOTE SCALE 1. With notes programmed into the sequence grid. 2. Press
-  [SCALE] to switch it ON. Button illuminates blue. Cycle it off and on if
-  already selected to ON. 3. Deluge will evaluate the notes and establish a
-  ‘best fit’ scale for the selected notes as well as the scale root note. 4. The
-  selected scale will be displayed flashing for a few seconds when selecting
-  [SCALE].
-</FigurePending>
+<Figure
+  id="fig-3.6-2"
+  src={fig_fig_3_6_2}
+  alt={
+    "Diagram: MAJOR MINOR DORIAN PHRYGIAN LYDIAN MIXOLYDIAN LOCRIAN MINOR (Aeolian) MAJOR (Ionian) MIXOLYDIAN PHRYGIAN LOCRIAN DORIAN LYDIAN C4 C4 C4 C4…"
+  }
+  page={51}
+/>
 
 ### Manually setting a root note
 

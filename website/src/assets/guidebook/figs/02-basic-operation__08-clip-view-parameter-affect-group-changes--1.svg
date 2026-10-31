@@ -1,0 +1,89 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 486.9 475.6"><defs><path id="02-basic-operation__08-clip-view-parameter-affect-group-changes--1-s1" d="M0 0H8.4V8.4H0Z" fill="#f57e32" fill-rule="evenodd"/></defs>
+<defs>
+<clipPath id="02-basic-operation__08-clip-view-parameter-affect-group-changes--1-clip_1">
+<path transform="matrix(1,0,0,-1,-60.3,568.4)" d="M60.3 92.7H547.2V568.4H60.3Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="02-basic-operation__08-clip-view-parameter-affect-group-changes--1-clip_2">
+<path transform="matrix(1,0,0,-1,-60.3,568.4)" d="M177.7 333.5H478.2V506.5H177.7Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="02-basic-operation__08-clip-view-parameter-affect-group-changes--1-mask_3">
+<g transform="matrix(.126398,0,0,.12639798,129.9,61.8)">
+<image id="02-basic-operation__08-clip-view-parameter-affect-group-changes--1-image_4" width="2180" height="1370" xlink:href="/guidebook/img/02-basic-operation__08-clip-view-parameter-affect-group-changes--1-1.webp"/>
+</g>
+</mask>
+<clipPath id="02-basic-operation__08-clip-view-parameter-affect-group-changes--1-clip_6">
+<path transform="matrix(1,0,0,-1,-60.3,568.4)" d="M96.3 188.7H160.7V218.9H96.3Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="02-basic-operation__08-clip-view-parameter-affect-group-changes--1-mask_7">
+<g transform="matrix(.096,0,0,.096,36.3,349.4)">
+<image id="02-basic-operation__08-clip-view-parameter-affect-group-changes--1-image_8" width="669" height="316" xlink:href="/guidebook/img/02-basic-operation__08-clip-view-parameter-affect-group-changes--1-2.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#02-basic-operation__08-clip-view-parameter-affect-group-changes--1-clip_1)">
+<text fill="currentColor" xml:space="preserve" transform="translate(199.5 312.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">(LOWER) Control</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(173.8 322.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Affects the selected parameter</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(177.0 332.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">labelled below the parameter</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(199.7 342.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">selection buttons.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(161.7 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Secondary parameters are accessed</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(174.7 389.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">by pressing the lower or upper</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(167.6 399.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">control. The options are shown on</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.7 409.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">the screen when pressed.</tspan></text>
+<path transform="matrix(1,0,0,-1,-60.3,568.4)" stroke-width=".65" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M74.6 93.5H540.4V133.1H74.6Z"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(31.4 448.0)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Custom 1, 2, and 3 a remapped based on the preset chosen. These custom controls can mapped to other settings. Labels</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(28.3 458.0)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">therefore on the control buttons are defaults only. Parameters can be remapped to the 8 controls, mapped for external MIDI</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(142.2 468.0)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">control or existing settings edited by using the sound editor.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(365.7 312.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[AFFECT ENTIRE]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(339.1 322.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Affects ALL sounds when a kit is</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(341.3 332.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">selected irrespective of the row</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(325.8 342.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">selected by the audition / section pads.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(347.1 352.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">This is always on for synths.</tspan></text>
+<path transform="matrix(1,0,0,-1,-60.3,568.4)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M346.2 369.6V292.2H463.0V268.3"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(13.5 79.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Multi-option buttons select the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(8.7 89.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">parameter set to be in focus and</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(15.2 99.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">which can be adjusted by the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(23.0 109.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">associated rotary control.</tspan></text>
+<path transform="matrix(1,0,0,-1,-60.3,568.4)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M209.4 421.7H131.1V455.8"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(285.3 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">(UPPER) Control</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(228.3 22.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Affects the selected parameter labelled above</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(237.5 32.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">the parameter selection buttons. Press to</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(227.2 42.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">change button primary to secondary functions.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.9 14.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LED meters indicates the levels</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(12.9 24.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">associated with the selected in</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(26.9 34.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">focus sound parameter.</tspan></text>
+<path transform="matrix(1,0,0,-1,-60.3,568.4)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M329.8 474.0H258.4V544.1H202.8"/>
+<path transform="matrix(1,0,0,-1,-60.3,568.4)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M468.6 435.3H502.9V515.0H379.2"/>
+<path transform="matrix(1,0,0,-1,-60.3,568.4)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M201.1 407.2H176.5V291.0H295.6"/>
+<path transform="matrix(1,0,0,-1,-60.3,568.4)" d="M414.2 361.1C419.2 361.1 423.3 357.1 423.3 352.0 423.3 347.0 419.2 343.0 414.2 343.0 409.2 343.0 405.2 347.0 405.2 352.0 405.2 357.1 409.2 361.1 414.2 361.1Z" fill="#5c96cf" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-60.3,568.4)" d="M346.1 378.6C351.1 378.6 355.2 374.6 355.2 369.6 355.2 364.6 351.1 360.5 346.1 360.5 341.1 360.5 337.0 364.6 337.0 369.6 337.0 374.6 341.1 378.6 346.1 378.6Z" fill="#f57e32" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-60.3,568.4)" d="M243.6 429.8C248.6 429.8 252.6 425.7 252.6 420.7 252.6 415.7 248.6 411.6 243.6 411.6 238.6 411.6 234.5 415.7 234.5 420.7 234.5 425.7 238.6 429.8 243.6 429.8Z" fill="#f57e32" fill-rule="evenodd"/>
+<g clip-path="url(#02-basic-operation__08-clip-view-parameter-affect-group-changes--1-clip_2)">
+<g mask="url(#02-basic-operation__08-clip-view-parameter-affect-group-changes--1-mask_3)">
+<g transform="matrix(.126398,0,0,.12639798,129.9,61.8)">
+<image class="gb-ink" id="02-basic-operation__08-clip-view-parameter-affect-group-changes--1-image_5" width="2180" height="1370" xlink:href="/guidebook/img/02-basic-operation__08-clip-view-parameter-affect-group-changes--1-3.webp"/>
+</g>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-60.3,568.4)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M295.1 223.0V198.2"/>
+<path transform="matrix(1,0,0,-1,-60.3,568.4)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M295.6 290.5V265.7"/>
+<path transform="matrix(1,0,0,-1,-60.3,568.4)" stroke-width=".7" stroke-linecap="butt" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M379.9 524.6V473.0"/>
+<use href="#02-basic-operation__08-clip-view-parameter-affect-group-changes--1-s1" transform="matrix(1 0 0 -1 276.8 121.7)"/>
+<use href="#02-basic-operation__08-clip-view-parameter-affect-group-changes--1-s1" transform="matrix(1 0 0 -1 191.4 223.9)"/>
+<path transform="matrix(1,0,0,-1,-60.3,568.4)" d="M251.6 358.4H260.1V366.8H251.6Z" fill="#f57e32" fill-rule="evenodd"/>
+<use href="#02-basic-operation__08-clip-view-parameter-affect-group-changes--1-s1" transform="matrix(1 0 0 -1 276.8 107.8)"/>
+<use href="#02-basic-operation__08-clip-view-parameter-affect-group-changes--1-s1" transform="matrix(1 0 0 -1 276.8 93.9)"/>
+<g clip-path="url(#02-basic-operation__08-clip-view-parameter-affect-group-changes--1-clip_6)">
+<g mask="url(#02-basic-operation__08-clip-view-parameter-affect-group-changes--1-mask_7)">
+<g transform="matrix(.096,0,0,.096,36.3,349.4)">
+<image class="gb-ink" id="02-basic-operation__08-clip-view-parameter-affect-group-changes--1-image_9" width="669" height="316" xlink:href="/guidebook/img/02-basic-operation__08-clip-view-parameter-affect-group-changes--1-4.webp"/>
+</g>
+</g>
+</g>
+<text fill="currentColor" xml:space="preserve" transform="translate(16.7 312.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[BACK / UNDO] &amp; [REDO]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 322.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The undo / redo commands can</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(14.7 332.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">be used when editing affect</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(32.7 342.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">group parameters.</tspan></text>
+</g>
+</g>
+</svg>

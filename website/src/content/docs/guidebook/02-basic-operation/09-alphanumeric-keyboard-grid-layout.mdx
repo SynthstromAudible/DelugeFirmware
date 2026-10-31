@@ -15,21 +15,21 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_2_9_1 from "../../../../assets/guidebook/figs/02-basic-operation__09-alphanumeric-keyboard-grid-layout--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Deluge has an alphanumeric keyboard function within the 16x8 pad grid. This enables text entry for naming of songs, clips, etc. The default setting is QWERTY mode (can be changed in settings) and the keyboard is highlighted on the grid and available automatically when text entry options are available such as when saving, file browser, etc. Tapping a pad when loading or saving will bring the keyboard into view and automatic predictive text entry is provided based on Deluge analysing existing file names.
 
-<FigurePending id="fig-2.9-1" page={30}>
-  LOAD SONG SONG3 · (SCROLL◄►) Navigate left & right to move cursor across the
-  display position. · The shift, enter, backspace buttons are coloured and
-  double up on pads for the function. Spacebar is the bottom row of 6 pads. Once
-  the name has been typed in it is confirmed / saved by pressing ‘RETURN’ i.e.
-  ‘amount’ or ‘note’ pads lit green. · [SHIFT] or [AUDITION] + [NAME] to rename
-  a sound selected within a kit. · [AUDITION] + [NAME] to rename a track in
-  arranger view.
-</FigurePending>
+<Figure
+  id="fig-2.9-1"
+  src={fig_fig_2_9_1}
+  alt={
+    "Pad grid: LOAD SONG SONG3 (SCROLL◄►) Navigate left & right to move cursor across the display position. The shift, enter, backspace buttons are…"
+  }
+  page={30}
+/>
 
 ### Setting the alphanumeric keypad style
 

@@ -1,0 +1,51 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 350.0 198.6">
+<defs>
+<clipPath id="05-kits__03-kit-presets-samples--1-clip_1">
+<path transform="matrix(1,0,0,-1,-189,365.9)" d="M189 167.3H539.1V365.9H189Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="05-kits__03-kit-presets-samples--1-clip_2">
+<path transform="matrix(1,0,0,-1,-189,365.9)" d="M214.7 246.3H274.2V359.7H214.7Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="05-kits__03-kit-presets-samples--1-mask_3">
+<g transform="matrix(.091498,0,0,.091498,25.6,6.0)">
+<image id="05-kits__03-kit-presets-samples--1-image_4" width="653" height="1243" xlink:href="/guidebook/img/05-kits__03-kit-presets-samples--1-1.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#05-kits__03-kit-presets-samples--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-189,365.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<g clip-path="url(#05-kits__03-kit-presets-samples--1-clip_2)">
+<g mask="url(#05-kits__03-kit-presets-samples--1-mask_3)">
+<g transform="matrix(.091498,0,0,.091498,25.6,6.0)">
+<image class="gb-ink" id="05-kits__03-kit-presets-samples--1-image_5" width="653" height="1243" xlink:href="/guidebook/img/05-kits__03-kit-presets-samples--1-2.webp"/>
+</g>
+</g>
+</g>
+<text fill="currentColor" xml:space="preserve" transform="translate(18.3 170.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The pad shortcut for the file browser [SHIFT] + [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(208.6 170.7)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">BROWSE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(248.6 170.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] can also be used to</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 180.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">replace a sample when the row is selected by its [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(204.0 180.7)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">AUDITION</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(247.0 180.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] Pad. When [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(301.5 180.7)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">BROWSE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(341.5 180.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(27.6 190.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">option is used to replace an existing sound its parameters will be retained.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(101.6 59.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(104.1 59.2)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">AUDITION</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(147.1 59.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] +</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(173.7 38.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[KIT]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(168.5 79.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[LOAD]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(219.9 28.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">To open the file browser for</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(226.9 38.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">the specifically selected</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(225.4 48.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">row via the audition pad.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(234.9 58.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LOAD option brings</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(235.6 68.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">parameters back to</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(220.6 78.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">defaults when replacing an</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(235.6 88.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">existing row sound.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(180.5 59.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">or</tspan></text>
+<path transform="matrix(1,0,0,-1,-189,365.9)" d="M271.9 318.5C271.9 320.0 270.7 321.2 269.2 321.2H252.3C250.8 321.2 249.6 320.0 249.6 318.5V301.7C249.6 300.2 250.8 299.0 252.3 299.0H269.2C270.7 299.0 271.9 300.2 271.9 301.7Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-189,365.9)" d="M271.9 318.5C271.9 320.0 270.7 321.2 269.2 321.2H252.3C250.8 321.2 249.6 320.0 249.6 318.5V301.7C249.6 300.2 250.8 299.0 252.3 299.0H269.2C270.7 299.0 271.9 300.2 271.9 301.7ZM271.3 318.5V301.7C271.3 300.5 270.4 299.6 269.2 299.6H252.3C251.2 299.6 250.2 300.5 250.2 301.7V318.5C250.2 319.7 251.2 320.6 252.3 320.6H269.2C270.4 320.6 271.3 319.7 271.3 318.5Z" fill-rule="evenodd"/>
+</g>
+</g>
+</svg>

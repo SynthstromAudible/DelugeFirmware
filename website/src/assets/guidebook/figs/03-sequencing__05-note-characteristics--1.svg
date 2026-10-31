@@ -1,0 +1,34 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 350.1 175.6">
+<defs>
+<clipPath id="03-sequencing__05-note-characteristics--1-clip_1">
+<path transform="matrix(1,0,0,-1,-180.6,449.2)" d="M180.6 273.6H530.8V449.2H180.6Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#03-sequencing__05-note-characteristics--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-180.6,449.2)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<path transform="matrix(1,0,0,-1,-180.6,449.2)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M349.7 389.0H312.9"/>
+<path transform="matrix(1,0,0,-1,-180.6,449.2)" d="M304.3 389.0 312.9 393.3V384.8ZM305.9 389.0 312.2 392.2C312.2 392.2 312.2 385.9 312.2 385.9Z" fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-180.6,449.2)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M357.0 440.1V328.1"/>
+<path transform="matrix(1,0,0,-1,-180.6,449.2)" d="M357.0 381.4 363.4 394.2H350.6Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-180.6,449.2)" d="M357.0 381.4 363.4 394.2H350.6ZM357.0 383.0 351.7 393.5H362.2Z" fill="currentColor" fill-rule="evenodd"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(193.2 50.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Velocity</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(193.2 60.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Relates to how hard a key is pressed</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(193.2 70.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">and how this reflects the volume of the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(193.2 80.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">note. This captures organic and human</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(193.2 90.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">like recordings.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(34.7 157.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Deluge pads are not velocity sensitive. The default velocity is 64 but this</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(24.9 167.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">default level can be changed in the settings options under the defaults menu.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 50.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Velocity is also a</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 60.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">modulation source to apply</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 70.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">to other parameters as well</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 80.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">as volume parameter.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(154.0 12.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">1</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(145.5 27.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Lighter</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(147.8 35.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">touch</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(143.6 97.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Heavier</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(147.4 105.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">touch</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(149.0 125.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">127</tspan></text>
+<path transform="matrix(1,0,0,-1,-180.6,449.2)" d="M357.0 328.1C358.5 328.1 359.8 326.8 359.8 325.3 359.8 323.7 358.5 322.4 357.0 322.4 355.4 322.4 354.1 323.7 354.1 325.3 354.1 326.8 355.4 328.1 357.0 328.1Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-180.6,449.2)" d="M357.0 443.3C358.5 443.3 359.8 442.0 359.8 440.5 359.8 438.9 358.5 437.6 357.0 437.6 355.4 437.6 354.1 438.9 354.1 440.5 354.1 442.0 355.4 443.3 357.0 443.3Z" fill="currentColor" fill-rule="evenodd"/>
+</g>
+</svg>

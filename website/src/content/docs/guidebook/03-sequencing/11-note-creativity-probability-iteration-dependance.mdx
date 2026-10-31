@@ -15,7 +15,9 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_3_11_1 from "../../../../assets/guidebook/figs/03-sequencing__11-note-creativity-probability-iteration-dependance--1.svg?raw"
+import fig_fig_3_11_2 from "../../../../assets/guidebook/figs/03-sequencing__11-note-creativity-probability-iteration-dependance--2.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -29,15 +31,14 @@ Deluge has a number of features that bring even more creativity to sequencing. N
 2. Adjust the :key[Select] percentage between 5-100% where the % is the ‘chance’ of the note being played.
 3. To reset to default set the % to 100% where the note will be played each iteration.
 
-<FigurePending id="fig-3.11-1" page={64}>
-  + · SELECT · Notes set below 100% will play randomly based on the probability
-  %. · Notes set to 100% will play each iteration. · If multiple notes are set
-  at the same %, example 65%, Deluge offers an additional option indicated by
-  LATCHING, 65 & 65. The LATCHING option means the note will only trigger if the
-  previous equivalent note triggers. · If multiple notes on the same step /
-  column position total 100%, Deluge will play only one of the notes with a
-  probability % on that column.
-</FigurePending>
+<Figure
+  id="fig-3.11-1"
+  src={fig_fig_3_11_1}
+  alt={
+    "Pad grid: + SELECT Notes set below 100% Notes set to 100% will will play randomly based play each iteration. on the probability %. If multiple notes…"
+  }
+  page={64}
+/>
 
 #### Iteration Dependance
 
@@ -47,8 +48,11 @@ Deluge has a number of features that bring even more creativity to sequencing. N
 2. Adjust the :key[Select] setting to one of the settings between ‘1 of 2’ up to ‘8 of 8’.
 3. The ratio represents when the note plays for every iteration (bar) that the sequencer plays. So ‘1 of 2’ plays the note on the 1st of every 2 bars, ‘3 of 4’ plays on the 3rd of each 4 rotations. 1 of 2 - Play on 1st of 2 bar cycles
 
-<FigurePending id="fig-3.11-2" page={65}>
-  + · SELECT · Notes set to the iteration ratio. · s · \* · s · 2 of 2 would
-  only play on 2nd cycle. \* · s · s · 2 of 3 - Play on 2nd of 3 bar cycles. · s
-  · s · 2 of 4 - Play on 2nd of 4 bar cycles.
-</FigurePending>
+<Figure
+  id="fig-3.11-2"
+  src={fig_fig_3_11_2}
+  alt={
+    "Pad grid: + SELECT Notes set to the iteration ratio. s * s 1 of 2 - Play on 1st of 2 bar cycles 2 of 2 would only play on 2nd cycle. * s s 2 of 3 -…"
+  }
+  page={65}
+/>

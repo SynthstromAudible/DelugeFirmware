@@ -15,35 +15,28 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_3_7_1 from "../../../../assets/guidebook/figs/03-sequencing__07-keyboard-view-chords--1.svg?raw"
+import fig_fig_3_7_2 from "../../../../assets/guidebook/figs/03-sequencing__07-keyboard-view-chords--2.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Deluge has a keyboard view which is reflective of the scale and is mapped to the 16 x 8 pad grid. This means that the grid has defined note and chord placements rather than traditional piano style sequencing layout. The Deluge column steps are one semitone and the rows five semitones (a perfect fourth) apart. In layout terms Deluge is therefore more akin to a bass guitar fretboard than it is to a piano keyboard. From a grid playability perspective this makes perfect sense. Pressing a note on the grid will also highlight the equivalent notes, up and down an octave, on the grid.
 
-<FigurePending id="fig-3.7-1" page={54}>
-  [KEYBOARD] The keyboard view shows the grid laid out based on the scale and
-  root note. · 16 x 8 Grid In Focus · C.5 · C6 · C5 · G.4 · 5 Semitone (Perfect
-  Fourth) Intervals · d.4 · C5 · A.3 · C4 · C5 · F3 · C4 · C3 · C4 · G2 · C3 ·
-  d2 · d.2 Semitone Intervals : Chromatic 12 Note Octave · E2 · F2 · F.2 · G2 ·
-  G.2 · A2 · A.2 · b2 · C3 · C.3 · d3 · d.3 · E.3 · F3 · Steps up the rows in
-  five semitone (perfect fourth) intervals and the columns steps in one semitone
-  steps.
-</FigurePending>
+<Figure
+  id="fig-3.7-1"
+  src={fig_fig_3_7_1}
+  alt={
+    "Pad grid: [KEYBOARD] The keyboard view shows the grid laid out based on the scale and root note. 16 x 8 Grid In Focus C.5 C6 G.4 C5 5 Semitone…"
+  }
+  page={54}
+/>
 
-<FigurePending id="fig-3.7-2" page={55}>
-  These octaves will follow a consistent pattern shape of the notes between the
-  octaves. Chords played on a piano are shaped uniquely across the scale (for
-  example 12 chord shapes in a minor chord for each root note). With Deluge,
-  chords follow a consistent shape. This is known as an isomorphic layout where
-  each chord always follows the same shape. Example of Isomorphic Chord Shapes ·
-  Minor & Major Chords Examples show minor and major chords and how the shape
-  can be replicated across the grid for these chords and associated note
-  structures. · A Minor A-C-E · C.5 · A5 · C6 · G.4 · E5 · D Major D-F#-A · d.4
-  · F.4 · A4 · A.3 · d4 · E Minor E-B-G · F3 · E4 · G4 · C Major C-E-G · C3 · E3
-  · G3 · b3 · G2 · C3 · d2 · d.2 · E2 · F2 · F.2 · G2 · G.2 · A2 · A.2 · b2 · C3
-  · C.3 · d3 · d.3 · E.3 · F3 · Chord Shapes Examples show minor and major chord
-  shapes and how they are replicated across the grid for the respective chords.
-  · More isomorphic chord examples are shown in the community quick reference
-  guide in section 15 of this manual. .
-</FigurePending>
+<Figure
+  id="fig-3.7-2"
+  src={fig_fig_3_7_2}
+  alt={
+    "Pad grid: the octaves. Chords played on a piano are shaped uniquely across the scale (for example 12 chord shapes in a minor chord for each root…"
+  }
+  page={55}
+/>

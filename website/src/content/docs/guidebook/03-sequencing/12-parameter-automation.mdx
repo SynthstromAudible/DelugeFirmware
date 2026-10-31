@@ -15,7 +15,9 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_3_12_1 from "../../../../assets/guidebook/figs/03-sequencing__12-parameter-automation--1.svg?raw"
+import fig_fig_3_12_2 from "../../../../assets/guidebook/figs/03-sequencing__12-parameter-automation--2.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -41,29 +43,25 @@ Parameter automation is the creation and playback of automated changes to sound 
 
 #### Example: Automating Pan with Controls
 
-<FigurePending id="fig-3.12-1" page={67}>
-  Automation is recorded into the sequencer and can be played back. Adjusting
-  the (LOWER) - for pan, control with the target - level / pan, parameter
-  selected. · 32R · 0 · PAN · 32L · COPY · Off 49 · PASTE · LPF CUTOFF · 0 ·
-  [LEARN / INPUT] + [PARAMETER CONTROL] to copy the automation of one parameter.
-  · [SHIFT] + [LEARN / INPUT] + [PARAMETER CONTROL] to paste the copied
-  parameter automation. · Automation copy / paste operates across the time
-  region length of the ‘view’. Automation can be copied to / from different
-  parameters, different clips and song files. Zoom levels can be adjusted prior
-  to copying and automation will be adjusted to meet the new zoom setting.
-</FigurePending>
+<Figure
+  id="fig-3.12-1"
+  src={fig_fig_3_12_1}
+  alt={
+    "Pad grid: Automation is recorded into the sequencer and can be played back. Adjusting the (LOWER) - for pan, control with the target - level / pan,…"
+  }
+  page={67}
+/>
 
 #### Example: Automating Pan with Note Steps
 
-<FigurePending id="fig-3.12-2" page={68}>
-  Automation is recorded into the sequencer by holding a [PAD] and adjusting the
-  (LOWER) - For pan, control with the target - level / pan, parameter selected.
-  A parameter change is set for the specific [PAD] step and is held until the
-  next note to ensure transitions account for note release. Copy / paste
-  considers the entire region automation, not just the single step. · 32L · 0 ·
-  PAN · 32R · (SCROLL◄►) + [BACK / UNDO] to clear all notes and automation. ·
-  32L · 0 · 32R · PAN
-</FigurePending>
+<Figure
+  id="fig-3.12-2"
+  src={fig_fig_3_12_2}
+  alt={
+    "Pad grid: Automation is recorded into the sequencer by holding a [PAD] and adjusting the (LOWER) - For pan, control with the target - level / pan,…"
+  }
+  page={68}
+/>
 
 ### Deleting recorded automation for a specific parameter
 

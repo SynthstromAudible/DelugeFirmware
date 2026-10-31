@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_2_8_1 from "../../../../assets/guidebook/figs/02-basic-operation__08-clip-view-parameter-affect-group-changes--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -23,24 +24,14 @@ In clip view some quick access sound / synth parameters are immediately availabl
 
 #### Parameter Affect Group : Clip View
 
-<FigurePending id="fig-2.8-1" page={27}>
-  LED meters indicates the levels associated with the selected in focus sound
-  parameter. · (UPPER) Control Affects the selected parameter labelled above the
-  parameter selection buttons. Press to change button primary to secondary
-  functions. · Multi-option buttons select the parameter set to be in focus and
-  which can be adjusted by the associated rotary control. · [BACK / UNDO] &
-  [REDO] The undo / redo commands can be used when editing affect group
-  parameters. · (LOWER) Control Affects the selected parameter labelled below
-  the parameter selection buttons. · [AFFECT ENTIRE] Affects ALL sounds when a
-  kit is selected irrespective of the row selected by the audition / section
-  pads. This is always on for synths. · Secondary parameters are accessed by
-  pressing the lower or upper control. The options are shown on the screen when
-  pressed. · Custom 1, 2, and 3 are mapped based on the preset chosen. These
-  custom controls can mapped to other settings. Labels therefore on the control
-  buttons are defaults only. Parameters can be remapped to the 8 controls,
-  mapped for external MIDI control or existing settings edited by using the
-  sound editor.
-</FigurePending>
+<Figure
+  id="fig-2.8-1"
+  src={fig_fig_2_8_1}
+  alt={
+    "Diagram: LED meters indicates the levels (UPPER) Control associated with the selected in Affects the selected parameter labelled above focus sound…"
+  }
+  page={27}
+/>
 
 #### Parameter Affect Group Reference : Clip View
 

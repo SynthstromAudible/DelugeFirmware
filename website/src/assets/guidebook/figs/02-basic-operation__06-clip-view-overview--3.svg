@@ -1,0 +1,97 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 366.1 520.1">
+<defs>
+<clipPath id="02-basic-operation__06-clip-view-overview--3-clip_1">
+<path transform="matrix(1,0,0,-1,-183.6,636.7)" d="M183.6 116.6H549.7V636.7H183.6Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="02-basic-operation__06-clip-view-overview--3-mask_2">
+<g transform="matrix(.12,0,0,.11999999,124.3,81.4)">
+<image id="02-basic-operation__06-clip-view-overview--3-image_3" width="726" height="3008" xlink:href="/guidebook/img/02-basic-operation__06-clip-view-overview--3-1.webp"/>
+</g>
+</mask>
+<clipPath id="02-basic-operation__06-clip-view-overview--3-clip_5">
+<path transform="matrix(1,0,0,-1,-183.6,636.7)" d="M200.9 126.8H265.4V157.0H200.9Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="02-basic-operation__06-clip-view-overview--3-mask_6">
+<g transform="matrix(.096,0,0,.096,17.7,479.6)">
+<image id="02-basic-operation__06-clip-view-overview--3-image_7" width="669" height="316" xlink:href="/guidebook/img/02-basic-operation__06-clip-view-overview--3-2.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#02-basic-operation__06-clip-view-overview--3-clip_1)">
+<path transform="matrix(1,0,0,-1,-183.6,636.7)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<g mask="url(#02-basic-operation__06-clip-view-overview--3-mask_2)">
+<g transform="matrix(.12,0,0,.11999999,124.3,81.4)">
+<image class="gb-ink" id="02-basic-operation__06-clip-view-overview--3-image_4" width="726" height="3008" xlink:href="/guidebook/img/02-basic-operation__06-clip-view-overview--3-3.webp"/>
+</g>
+</g>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Mute [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(31.0 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">MUTE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(56.5 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] status is shown</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 22.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">on the mute / launch pads</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 32.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">located at the right of the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 42.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Deluge interface.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(227.3 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The pads in the audition / section</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(227.3 22.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">column are located far right of</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(227.3 32.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">the Deluge interface and provide</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(227.3 42.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">manual play out of sounds.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(227.3 52.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Press [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(255.3 52.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">AUDITION</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(298.3 52.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] to trigger a</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(227.3 62.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">sound.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(227.3 72.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[SHIFT] + [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(271.0 72.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">AUDITION</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(314.0 72.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] to select a</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(227.3 82.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">kit sound silently.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(8.4 98.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Unmuted rows / sounds</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(8.4 108.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">can be heard and are</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(8.4 118.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">indicated by a green</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(8.4 128.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">illuminated pad button.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(227.3 130.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Synth root note may show</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(227.3 140.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">two lit pad buttons if the full</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(227.3 150.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">octave is in focus on the grid.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(8.4 300.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Muted rows / sounds are</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(8.4 310.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">silent and are indicated</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(8.4 320.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">by a yellow illuminated</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(8.4 330.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">pad button.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(227.3 358.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Synths indicate the root note</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(227.3 368.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">by the illuminated pad button.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(8.4 396.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Pressing the mute pads</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(8.4 406.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">toggle mute status on and</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(8.4 416.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">off in clip view.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(227.3 259.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Kit sounds are selected by the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(227.3 269.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">row and hence only this row /</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(227.3 279.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">sound is affected by parameter</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(227.3 289.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">changes unless [AFFECT</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(227.3 299.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">ENTIRE] is selected.</tspan></text>
+<path transform="matrix(1,0,0,-1,-183.6,636.7)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M297.3 607.7H332.4V553.5"/>
+<path transform="matrix(1,0,0,-1,-183.6,636.7)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M405.5 607.7H375.3V553.5"/>
+<g clip-path="url(#02-basic-operation__06-clip-view-overview--3-clip_5)">
+<g mask="url(#02-basic-operation__06-clip-view-overview--3-mask_6)">
+<g transform="matrix(.096,0,0,.096,17.7,479.6)">
+<image class="gb-ink" id="02-basic-operation__06-clip-view-overview--3-image_8" width="669" height="316" xlink:href="/guidebook/img/02-basic-operation__06-clip-view-overview--3-4.webp"/>
+</g>
+</g>
+</g>
+<text fill="currentColor" xml:space="preserve" transform="translate(83.9 492.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The undo / redo commands can be used when muting /</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(83.9 502.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">unmuting. For example: press [BACK / UNDO] to undo the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(83.9 512.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">last mute command and [SHIFT]+[REDO] to restore it back</tspan></text>
+<path transform="matrix(1,0,0,-1,-183.6,636.7)" d="M346.6 542.7C346.6 544.0 345.5 545.1 344.2 545.1H321.2C319.9 545.1 318.9 544.0 318.9 542.7V519.7C318.9 518.4 319.9 517.3 321.2 517.3H344.2C345.5 517.3 346.6 518.4 346.6 519.7Z" fill="#6fbe44" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-183.6,636.7)" d="M389.0 542.7C389.0 544.0 388.0 545.1 386.7 545.1H363.7C362.4 545.1 361.3 544.0 361.3 542.7V519.7C361.3 518.4 362.4 517.3 363.7 517.3H386.7C388.0 517.3 389.0 518.4 389.0 519.7Z" fill="#df66a6" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-183.6,636.7)" d="M389.0 415.0C389.0 416.3 388.0 417.4 386.7 417.4H363.7C362.4 417.4 361.3 416.3 361.3 415.0V392.0C361.3 390.7 362.4 389.6 363.7 389.6H386.7C388.0 389.6 389.0 390.7 389.0 392.0Z" fill="#5c96cf" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-183.6,636.7)" d="M346.6 500.2C346.6 501.5 345.5 502.6 344.2 502.6H321.2C319.9 502.6 318.9 501.5 318.9 500.2V477.2C318.9 475.8 319.9 474.8 321.2 474.8H344.2C345.5 474.8 346.6 475.8 346.6 477.2Z" fill="#6fbe44" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-183.6,636.7)" d="M346.6 457.7C346.6 459.0 345.5 460.0 344.2 460.0H321.2C319.9 460.0 318.9 459.0 318.9 457.7V434.6C318.9 433.3 319.9 432.3 321.2 432.3H344.2C345.5 432.3 346.6 433.3 346.6 434.6Z" fill="#6fbe44" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-183.6,636.7)" d="M346.6 415.1C346.6 416.5 345.5 417.5 344.2 417.5H321.2C319.9 417.5 318.9 416.5 318.9 415.1V392.1C318.9 390.8 319.9 389.7 321.2 389.7H344.2C345.5 389.7 346.6 390.8 346.6 392.1Z" fill="#6fbe44" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-183.6,636.7)" d="M346.6 372.6C346.6 373.9 345.5 375.0 344.2 375.0H321.2C319.9 375.0 318.9 373.9 318.9 372.6V349.6C318.9 348.3 319.9 347.2 321.2 347.2H344.2C345.5 347.2 346.6 348.3 346.6 349.6Z" fill="#faee13" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-183.6,636.7)" d="M346.6 330.1C346.6 331.4 345.5 332.5 344.2 332.5H321.2C319.9 332.5 318.9 331.4 318.9 330.1V307.1C318.9 305.8 319.9 304.7 321.2 304.7H344.2C345.5 304.7 346.6 305.8 346.6 307.1Z" fill="#6fbe44" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-183.6,636.7)" d="M346.6 287.6C346.6 288.9 345.5 290.0 344.2 290.0H321.2C319.9 290.0 318.9 288.9 318.9 287.6V264.6C318.9 263.2 319.9 262.2 321.2 262.2H344.2C345.5 262.2 346.6 263.2 346.6 264.6Z" fill="#6fbe44" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-183.6,636.7)" d="M346.6 245.1C346.6 246.4 345.5 247.4 344.2 247.4H321.2C319.9 247.4 318.9 246.4 318.9 245.1V222.0C318.9 220.7 319.9 219.7 321.2 219.7H344.2C345.5 219.7 346.6 220.7 346.6 222.0Z" fill="#6fbe44" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-183.6,636.7)" d="M389.0 245.1C389.0 246.4 388.0 247.4 386.7 247.4H363.7C362.4 247.4 361.3 246.4 361.3 245.1V222.0C361.3 220.7 362.4 219.7 363.7 219.7H386.7C388.0 219.7 389.0 220.7 389.0 222.0Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-183.6,636.7)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M313.9 490.1H237.5V502.9"/>
+<path transform="matrix(1,0,0,-1,-183.6,636.7)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M395.3 531.7H471.7V518.9"/>
+<path transform="matrix(1,0,0,-1,-183.6,636.7)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M395.3 404.0H471.7V391.2"/>
+<path transform="matrix(1,0,0,-1,-183.6,636.7)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M313.9 361.3H237.5V348.5"/>
+<path transform="matrix(1,0,0,-1,-183.6,636.7)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M395.1 234.1H471.4V246.9"/>
+</g>
+</g>
+</svg>

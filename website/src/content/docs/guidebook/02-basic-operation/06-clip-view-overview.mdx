@@ -15,7 +15,11 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_2_6_1 from "../../../../assets/guidebook/figs/02-basic-operation__06-clip-view-overview--1.svg?raw"
+import fig_fig_2_6_2 from "../../../../assets/guidebook/figs/02-basic-operation__06-clip-view-overview--2.svg?raw"
+import fig_fig_2_6_3 from "../../../../assets/guidebook/figs/02-basic-operation__06-clip-view-overview--3.svg?raw"
+import fig_fig_2_6_4 from "../../../../assets/guidebook/figs/02-basic-operation__06-clip-view-overview--4.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -23,49 +27,38 @@ In clip view the pad grid is laid out with 16 x 8 physical pads which represents
 
 #### Grid Basics : Clip View
 
-<FigurePending id="fig-2.6-1" page={20}>
-  Notes or kit sounds can be programmed in the sequencer at the desired column
-  step for its time position and row for synth pitch or kit sound by pressing a
-  pad to toggle it on (lit) / off (unlit). · In play mode, pressing pads will
-  silently select the step. When not in play mode pads will trigger the sound
-  when selected. · Sequence plays left to right First steps · Time · Synth:
-  pitch is represented by the rows of the grid. Lower rows are the lower notes
-  and increases in pitch as the rows increase. Kit: each row represents an
-  individual sound, for example a drum / percussion sound such as a kick on the
-  bottom row, snare second bottom row, etc... · Audition pads enable the synth
-  notes or kit samples to be played manually allowing the sound to be checked
-  prior to programming it in a sequence.
-</FigurePending>
+<Figure
+  id="fig-2.6-1"
+  src={fig_fig_2_6_1}
+  alt={
+    "Pad grid: Notes or kit sounds can be programmed in the sequencer at the desired column step for its time position and row for synth pitch or kit…"
+  }
+  page={20}
+/>
 
 Higher notes
 
 Lower notes
 
-<FigurePending id="fig-2.6-2" page={20}>
-  Navigate the grid using the up / down (SCROLL▼▲) and left / right (SCROLL◄►)
-  scrolling and zooming rotaries. · The undo / redo commands can be used when
-  editing notes. For example: press [BACK / UNDO] to undo the last note
-  placement and [SHIFT]+[REDO] to restore it.
-</FigurePending>
+<Figure
+  id="fig-2.6-2"
+  src={fig_fig_2_6_2}
+  alt={
+    "Diagram: Navigate the grid using the up / The undo / redo commands can be down (SCROLL▼▲) and left / used when editing notes. right (SCROLL◄►)…"
+  }
+  page={20}
+/>
 
 #### Audition & Mute Pads : Clip View
 
-<FigurePending id="fig-2.6-3" page={21}>
-  Mute [MUTE] status is shown on the mute / launch pads located at the right of
-  the Deluge interface. · The pads in the audition / section column are located
-  far right of the Deluge interface and provide manual play out of sounds. Press
-  [AUDITION] to trigger a sound. [SHIFT] + [AUDITION] to select a kit sound
-  silently. · Unmuted rows / sounds can be heard and are indicated by a green
-  illuminated pad button. · Synth root note may show two lit pad buttons if the
-  full octave is in focus on the grid. · Kit sounds are selected by the row and
-  hence only this row / sound is affected by parameter changes unless [AFFECT
-  ENTIRE] is selected. · Muted rows / sounds are silent and are indicated by a
-  yellow illuminated pad button. · Synths indicate the root note by the
-  illuminated pad button. · Pressing the mute pads toggle mute status on and off
-  in clip view. · The undo / redo commands can be used when muting / unmuting.
-  For example: press [BACK / UNDO] to undo the last mute command and
-  [SHIFT]+[REDO] to restore it back
-</FigurePending>
+<Figure
+  id="fig-2.6-3"
+  src={fig_fig_2_6_3}
+  alt={
+    "Diagram: Mute [MUTE] status is shown The pads in the audition / section on the mute / launch pads column are located far right of located at the…"
+  }
+  page={21}
+/>
 
 ### Selecting a synth preset
 
@@ -75,11 +68,14 @@ Lower notes
 4. Press an :key[Audition Pad] to listen to the sound and the note played. This enables auditioning of the sounds for selection.
 5. Once selected, the sound displayed will be ready for use on the current clip. Synth presets are only the instrument - not a pattern.
 
-<FigurePending id="fig-2.6-4" page={22}>
-  (SELECT) Control selects the respective synth or kit preset when in clip view.
-  · Preset type. · SYNTH 000 RICH SAW B · Preset selected. · [SYNTH] or [KIT]
-  selection buttons
-</FigurePending>
+<Figure
+  id="fig-2.6-4"
+  src={fig_fig_2_6_4}
+  alt={
+    "Diagram: (SELECT) Control selects the respective synth or kit preset when in clip view. SYNTH 000 RICH SAW B [SYNTH] or [KIT] selection buttons"
+  }
+  page={22}
+/>
 
 Tag indicates a saved preset.
 

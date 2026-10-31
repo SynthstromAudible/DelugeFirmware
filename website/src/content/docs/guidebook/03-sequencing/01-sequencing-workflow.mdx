@@ -15,20 +15,18 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_3_1_1 from "../../../../assets/guidebook/figs/03-sequencing__01-sequencing-workflow--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 An example of high level workflow on setting up a sequence.
 
-<FigurePending id="fig-3.1-1" page={34}>
-  Additional features · S · Sequence · Choose type of clip [SYNTH], [KIT],
-  [MIDI], [CV] or audio · 1 · Set tempo Can be adjusted later · 2 · Step
-  sequence or record a live clip Clip view for instruments · 3 · Adjust swing &
-  velocity per note Could be different per instrument clip · 4 · Adjust note
-  settings Length, probability, automation etc · 5 · Add modulation & effects
-  Clip or kit Level · 6 · Repeat cycle for other clips Example, bass, lead,
-  MIDI, drums · 7 · 8 · Build structure of song in song view Build structure and
-  assemble clips · 9 · Flesh out arrangement in arrangement view Build linear
-  structure · 10 · Save song · 11 · Play · E
-</FigurePending>
+<Figure
+  id="fig-3.1-1"
+  src={fig_fig_3_1_1}
+  alt={
+    "Diagram: Additional features S Sequence Choose type of clip 1 [SYNTH], [KIT], [MIDI], [CV] or audio Set tempo 2 Can be adjusted later Step sequence…"
+  }
+  page={34}
+/>

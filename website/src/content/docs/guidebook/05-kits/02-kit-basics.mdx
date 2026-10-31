@@ -15,24 +15,21 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_5_2_1 from "../../../../assets/guidebook/figs/05-kits__02-kit-basics--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 If synth clips mainly support melodic elements with the ability for sample use, kits would more often be used with samples as the primary elements. Kits are used to form step patterns across the grid columns. These sounds can be samples, a synth, audio or even MIDI and CV. Unlike a synth which provides a sequenced melody, kits are used to typically generate a rhythm, maybe for drums or percussion or any other sequenced element.
 
-<FigurePending id="fig-5.2-1" page={109}>
-  Notes to trigger the kit’s sounds are recorded or programmed into the step
-  sequencer. Programming is done by pressing a pad to toggle it on (lit) / off
-  (unlit). · In play mode, pressing pads will silently enter the step; when not
-  in play mode, pads will additionally audition the sound when selected. · Time
-  · Sound · Sound · Sound · Sound · Sound · Sound · Sound · Sound · Individual
-  sounds per row. Typically samples but also synth-based sounds, or MIDI / CV
-  outputs. · Beats and loops as opposed to single ‘hits’ can also be used. Any
-  loops in the factory kit is set to time stretch to the current Deluge tempo.
-  These samples will extend beyond a single pad to match its length. Clips may
-  extended to match longer loops. · Audition pad to play the sounds.
-</FigurePending>
+<Figure
+  id="fig-5.2-1"
+  src={fig_fig_5_2_1}
+  alt={
+    "Pad grid: Notes to trigger the kit’s sounds are recorded or programmed into the step sequencer. Programming is done by pressing a pad to toggle it on…"
+  }
+  page={109}
+/>
 
 ### Selecting kit view
 

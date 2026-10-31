@@ -15,7 +15,10 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_3_5_1 from "../../../../assets/guidebook/figs/03-sequencing__05-note-characteristics--1.svg?raw"
+import fig_fig_3_5_2 from "../../../../assets/guidebook/figs/03-sequencing__05-note-characteristics--2.svg?raw"
+import fig_fig_3_5_3 from "../../../../assets/guidebook/figs/03-sequencing__05-note-characteristics--3.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -28,14 +31,14 @@ Several basic characteristics of notes can be changed in settings. These include
 3. The system default velocity is 64, however the velocity used on the last note entry / edited will be applied to the next note entered.
 4. Velocity will be displayed and its value.
 
-<FigurePending id="fig-3.5-1" page={45}>
-  1 Lighter touch · Velocity is also a modulation source to apply to other
-  parameters as well as volume parameter. · Velocity Relates to how hard a key
-  is pressed and how this reflects the volume of the note. This captures organic
-  and human like recordings. · Heavier touch 127 · Deluge pads are not velocity
-  sensitive. The default velocity is 64 but this default level can be changed in
-  the settings options under the defaults menu.
-</FigurePending>
+<Figure
+  id="fig-3.5-1"
+  src={fig_fig_3_5_1}
+  alt={
+    "Diagram: 1 Lighter touch Velocity is also a Velocity modulation source to apply to other parameters as well as volume parameter. like recordings.…"
+  }
+  page={45}
+/>
 
 ### Setting a note to repeat
 
@@ -72,20 +75,27 @@ Quantization sets the accuracy and resolution of how close to the grid intervals
 3. Program note sequence as desired.
 4. Press :key[TripletsView] to exit. Button is unlit and the grid view changes back to normal.
 
-<FigurePending id="fig-3.5-2" page={47}>
-  [TRIPLETS VIEW] Switches the grid to triplets view, laying out the grid with 3
-  of 4 columns in the time division. The three notes have the same time period
-  as the original 4.
-</FigurePending>
+<Figure
+  id="fig-3.5-2"
+  src={fig_fig_3_5_2}
+  alt={
+    "Diagram: [TRIPLETS VIEW] Switches the grid to triplets view, laying out the grid with 3 of 4 columns in the time division. The three notes have the…"
+  }
+  page={47}
+/>
 
 ### Editing notes’ length
 
 1. Note lengths can be set when entering clip notes by pressing the note START :key[Pad] + END :key[Pad] on the same row. For kits, samples will automatically map across the pads matching the sample length.
 
-<FigurePending id="fig-3.5-3" page={48}>
-  Note Brightly lit showing start of note · Note Extension Dimly lit showing
-  length of note · Grid edge
-</FigurePending>
+<Figure
+  id="fig-3.5-3"
+  src={fig_fig_3_5_3}
+  alt={
+    "Pad grid: Note Note Extension Dimly lit showing length of note Grid edge"
+  }
+  page={48}
+/>
 
 2. Reduce the note length by pressing one of the extension :key[Pad]’s to shorten it.
 3. To extend a note across grid views:-

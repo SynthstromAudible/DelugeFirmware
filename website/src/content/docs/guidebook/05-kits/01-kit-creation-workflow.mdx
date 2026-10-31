@@ -15,24 +15,18 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_5_1_1 from "../../../../assets/guidebook/figs/05-kits__01-kit-creation-workflow--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 An example high level workflow on setting up the Deluge kit gives a starting point for kit-based sound design.
 
-<FigurePending id="fig-5.1-1" page={108}>
-  Kits & Presets · S · Kit set-up from scratch · Load a kit preset Turn (SELECT)
-  or [LOAD] + [KIT] to open preset browser and search with keyboard · Create a
-  new blank kit preset [SHIFT] + [KIT] · 1 · Sound browser opens First sound
-  option for the kit, defaults to previously loaded / recorded sample · 2 ·
-  Select sample for the kit’s first sound Search / navigate within browser -
-  press (SELECT) · 3 · Load samples for other kit rows [AUDITION] + [KIT] for
-  the row and navigate browser · 4 · Build further kit sounds Continue until
-  complete · 5 · Edit preset Create a new version · 6 · Add a synth row
-  [AUDITION] + [SYNTH] for the row · 7 · 8 · Add MIDI or CV row External
-  controls can be triggered from a kit row. [AUDITION] + [MIDI] or [CV] for the
-  row · Record audio Record audio directly to a kit sound. [AUDITION] + [RECORD]
-  for the row · 9 · 10 · Add effects Volume level and pan · Save [SAVE / DELETE]
-  + [KIT] · Save [SAVE / DELETE] + [KIT] · 11 · E
-</FigurePending>
+<Figure
+  id="fig-5.1-1"
+  src={fig_fig_5_1_1}
+  alt={
+    "Diagram: Kits & Presets S Kit set-up from scratch Load a kit preset Create a new blank kit preset 1 Turn (SELECT) or [LOAD] + [KIT] to open [SHIFT]…"
+  }
+  page={108}
+/>

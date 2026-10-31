@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_2_2_1 from "../../../../assets/guidebook/figs/02-basic-operation__02-power-up--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -23,12 +24,14 @@ import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 1. Connect the USB cable to Deluge and ensure it is connected to a powered USB device or the 9-12V (centre negative) external supply is connected. The power / USB led will illuminate to indicate power status.
 
-<FigurePending id="fig-2.2-1" page={16}>
-  Red: battery is low, when operating on battery, and requires charging Yellow:
-  unit is being charged and PSU / powered USB is connected Green: unit is fully
-  charged. Battery lasts approx 6 hours from a full charge Off: when Deluge is
-  switched on and is charged and operating from the internal battery source.
-</FigurePending>
+<Figure
+  id="fig-2.2-1"
+  src={fig_fig_2_2_1}
+  alt={
+    "Diagram: Red: battery is low, when operating on battery, and requires charging Yellow: unit is being charged and PSU / powered USB is connected…"
+  }
+  page={16}
+/>
 
 ### Powering up deluge
 

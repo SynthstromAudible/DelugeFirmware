@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_3_13_1 from "../../../../assets/guidebook/figs/03-sequencing__13-euclidean-sequencing--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -36,17 +37,11 @@ Euclidean sequencing is based on greek mathematical principles and specifically 
 
 #### Example: Euclidean Patterns
 
-<FigurePending id="fig-3.13-1" page={71}>
-  Applying euclidean patterns is performed row by row and is an iterative
-  process for each row in a pattern where a euclidean generates pattern is
-  required. The creativity in euclidean sequencing comes from the layering of
-  rows with different lengths and a variety of events to build complex patterns
-  and melodies. · Hold [AUDITION] or for silent row selection, [SHIFT] +
-  [AUDITION] + the respective scroll control to set euclidean patterns to the
-  selected row. · Hold [AUDITION] + Turn (SCROLL◄►) to adjust the sequence
-  length. · Hold [AUDITION] + Press & turn (SCROLL◄►) to shift / rotate event
-  notes. · Hold [AUDITION] + Press & turn (SCROLL▼▲) to set number of events and
-  assign step positions. · Multiple euclidean sequenced rows with varying
-  lengths adds interest and the perception of generative patterns. Try with kit
-  rows to build interesting percussive beats.
-</FigurePending>
+<Figure
+  id="fig-3.13-1"
+  src={fig_fig_3_13_1}
+  alt={
+    "Pad grid: Applying euclidean patterns is performed row by row and is an iterative process for each row in a pattern where a euclidean generates…"
+  }
+  page={71}
+/>

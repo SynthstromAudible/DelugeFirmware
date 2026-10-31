@@ -33,3 +33,9 @@
   font-size: var(--sl-text-sm);
   color: var(--sl-color-gray-3);
 }
+
+/* Greyscale line-art rasters (class added at build time) read dark-on-light;
+   invert them on the dark theme so they stay visible. */
+:root[data-theme="dark"] .gb-figure-art image.gb-ink {
+  filter: invert(1) hue-rotate(180deg);
+}

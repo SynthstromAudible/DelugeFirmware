@@ -15,7 +15,9 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_3_9_1 from "../../../../assets/guidebook/figs/03-sequencing__09-clip-length-position--1.svg?raw"
+import fig_fig_3_9_2 from "../../../../assets/guidebook/figs/03-sequencing__09-clip-length-position--2.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -28,12 +30,14 @@ Default clip length is 1 bar. This however can be changed which will extend the 
    - The column pads on the grid will also indicate the clip length by illuminating dim grey for columns outside of the length. The grid columns within the length will be unlit / off.
    - Automatic scrolling will take place if the length is extended further beyond the right side columns. Automatic zooming will take place when clip length is reduced less than half of the grid. 16th note examples:
 
-<FigurePending id="fig-3.9-1" page={60}>
-  0:2:0 · 16th grid reduced to half the length. · 0:3 0 · 16th grid reduced to
-  12 steps, 3/4 length. · 0:2:2 · 16th grid at 10 steps, bar 1, beats 2 (Qtr
-  Notes), 2 x 16th notes. · 1:1:0 · 16th grid extended to 20 steps, 1+1/4
-  length. Scroll across bars. · Bar Beat · Bar Beat · Beat · Beat · Beat
-</FigurePending>
+<Figure
+  id="fig-3.9-1"
+  src={fig_fig_3_9_1}
+  alt={
+    "Pad grid: 0:2:0 16th grid reduced to half the length. 0:3 0 16th grid reduced to 12 steps, 3/4 length. 0:2:2 16th grid at 10 steps, bar 1, beats 2…"
+  }
+  page={60}
+/>
 
 ### Duplicating pattern contents - multiply clip length
 
@@ -43,9 +47,11 @@ Default clip length is 1 bar. This however can be changed which will extend the 
    - Zoom can be restored and scrolling to view across the entire grid if required.
    - Any iteration dependance settings may be automatically changed when duplicating / multiplying in order to retain the same sounds as the original clip.
 
-<FigurePending id="fig-3.9-2" page={61}>
-  [SHIFT] + press (SCROLL◄►) Grid sequence pattern is duplicated to extend the
-  entire sequence length. · Press (SCROLL▼▲) + turn (SCROLL◄►) Note events can
-  be moved left and right on the grid. Any note events which scroll off the grid
-  will wrap to the opposite side.
-</FigurePending>
+<Figure
+  id="fig-3.9-2"
+  src={fig_fig_3_9_2}
+  alt={
+    "Diagram: [SHIFT] + press (SCROLL◄►) Grid sequence pattern is duplicated to extend the entire sequence length. Press (SCROLL▼▲) + turn (SCROLL◄►)…"
+  }
+  page={61}
+/>
